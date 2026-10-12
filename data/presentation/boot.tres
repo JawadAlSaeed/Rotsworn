@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="BootData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/boot_data.gd" id="1_boot"]
+
+[resource]
+script = ExtResource("1_boot")
+intro_video_path = "res://assets/video/dragonrot_intro.ogv"
+skip_guard_ms = 300
+intro_volume_db = 0.0

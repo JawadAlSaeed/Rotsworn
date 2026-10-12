@@ -8,6 +8,8 @@ const DATA_DIR := "res://data"
 const ASSETS_DIR := "res://assets"
 const SPRITES_DIR := "res://assets/sprites"
 const SFX_DIR := "res://assets/audio"
+## Songs may be compressed (QOA): only effects must start instantly.
+const MUSIC_DIR := "res://assets/audio/music"
 const NO_ASSETS := "res://assets does not exist yet (run tools/gen_placeholders.gd); asset checks skipped"
 
 
@@ -73,7 +75,7 @@ func test_data_paths_are_plain_res_paths_under_assets() -> void:
 	assert_gt(paths.size(), 10, "found the asset paths in the data")
 	for path: String in paths:
 		assert_true(path.begins_with(ASSETS_DIR + "/"), "%s: %s is a res://assets/... path" % [paths[path], path])
-		assert_true(path.get_extension() in ["png", "wav", "ogg", "mp3"], "%s: %s has an asset extension" % [paths[path], path])
+		assert_true(path.get_extension() in ["png", "wav", "ogg", "mp3", "ogv"], "%s: %s has an asset extension" % [paths[path], path])
 
 
 func test_every_data_path_exists() -> void:
@@ -110,6 +112,8 @@ func test_sound_imports_keep_pcm() -> void:
 	var imports := _files(SFX_DIR, ".wav.import")
 	assert_gt(imports.size(), 0, "found imported sounds under %s" % SFX_DIR)
 	for path: String in imports:
+		if path.begins_with(MUSIC_DIR):
+			continue
 		var cfg := ConfigFile.new()
 		assert_eq(cfg.load(path), OK, "%s parses" % path)
 		assert_eq(int(cfg.get_value("params", "compress/mode", -1)), 0, "%s: compress/mode must be 0 (PCM)" % path)

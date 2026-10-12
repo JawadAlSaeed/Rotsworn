@@ -26,6 +26,8 @@ const TUNING_PATH := "res://data/tuning/tuning.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
 const EXPLORE_VISUALS_PATH := "res://data/presentation/explore_visuals.tres"
 const RUN_PATH := "res://data/runs/rotten_road.tres"
+const MUSIC_PATH := "res://data/audio/music.tres"
+const BOOT_PATH := "res://data/presentation/boot.tres"
 const COMBAT_SCENE := preload("res://scenes/combat.tscn")
 ## Autoplay: wait this long on an end screen or a run screen before going on (seconds).
 const AUTOPLAY_RETURN_S: float = 1.0
@@ -45,6 +47,7 @@ var _tuning: Tuning
 var _visuals: CombatVisuals
 var _explore: ExploreVisuals
 var _run_data: RunData
+var _music: MusicSet
 var _options: CombatOptions
 var _combat: CombatController
 var _select_index: int = 0
@@ -93,6 +96,10 @@ func _ready() -> void:
 	_visuals = load(VISUALS_PATH) as CombatVisuals
 	_explore = load(EXPLORE_VISUALS_PATH) as ExploreVisuals
 	_run_data = load(RUN_PATH) as RunData
+	_music = load(MUSIC_PATH) as MusicSet
+	if _music == null:
+		push_warning("Main: could not load %s, no music" % MUSIC_PATH)
+		_music = MusicSet.new()
 	_encounters = FightSelect.load_encounters()
 	_zones = FightSelect.load_zones()
 	if _encounters.is_empty() or _tuning == null:
@@ -148,7 +155,7 @@ func _ready() -> void:
 	if wanted.is_empty() and _options.is_autoplay():
 		wanted = DEFAULT_ENCOUNTER_ID
 	if wanted.is_empty():
-		_show_main_menu()
+		_show_intro()
 		return
 	for i: int in _encounters.size():
 		if _encounters[i].id == wanted:
@@ -159,6 +166,22 @@ func _ready() -> void:
 		_autoplay_fail("unknown encounter %s" % wanted)
 		return
 	_start_combat()
+
+
+## The studio intro when the game starts, then the main menu (no music until then).
+func _show_intro() -> void:
+	var boot := load(BOOT_PATH) as BootData
+	if boot == null:
+		push_warning("Main: could not load %s, no intro" % BOOT_PATH)
+		_show_main_menu()
+		return
+	var intro := IntroScreen.new()
+	intro.name = "Intro"
+	intro.setup(boot)
+	intro.done.connect(func() -> void:
+		intro.queue_free()
+		_show_main_menu())
+	add_child(intro)
 
 
 ## A zone parked outside the tree during a fight is not freed with the tree: free it here.
@@ -191,6 +214,7 @@ func _show_screen(screen: Node) -> void:
 	if screen != null:
 		_screen = screen
 		add_child(screen)
+		Sfx.play_music(_music.menu_path, _music.volume_db)
 	_watch_layer.visible = Net.is_client() and _is_run_screen(screen)
 
 
@@ -348,6 +372,7 @@ func _start_combat() -> void:
 	_combat.restart_requested.connect(_on_restart_requested)
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
+	Sfx.play_music(_music.fight_path, _music.volume_db)
 	if Net.is_client():
 		_combat_accepts = true
 		var waiting := _combat_inbox.duplicate()
@@ -383,6 +408,7 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone.encounter_started.connect(_on_encounter_started)
 	_zone.cleared.connect(_on_zone_cleared)
 	add_child(_zone)
+	Sfx.play_music(_music.zone_path, _music.volume_db)
 	if _run != null:
 		var layer := CanvasLayer.new()
 		layer.name = "RunBar"
@@ -453,6 +479,7 @@ func _on_zone_return_requested(result: String) -> void:
 	_free_combat()
 	_zone_fight = {}
 	add_child(_zone)
+	Sfx.play_music(_music.zone_path, _music.volume_db)
 	_zone.resume(result)
 	if _run_bar != null:
 		_run_bar.refresh(_run)

@@ -2,6 +2,8 @@ extends Node
 ## Global sound player (autoload "Audio"). Plays named cues from data/audio/sfx_library.tres.
 ## A missing or broken file prints one warning and stays silent; it never crashes the game.
 ## Usage: Audio.play("parry")
+## Music: play_music(path) loops one song on its own player; asking for the song already playing
+## lets it go on (no restart). Paths come from data/audio/music.tres (MusicSet).
 
 const LIBRARY_PATH := "res://data/audio/sfx_library.tres"
 const POOL_SIZE := 24
@@ -12,6 +14,8 @@ var _streams: Dictionary = {}
 var _pool: Array[AudioStreamPlayer] = []
 var _next_player := 0
 var _warned: Dictionary = {}
+var _music: AudioStreamPlayer
+var _music_path: String = ""
 
 
 func _ready() -> void:
@@ -22,6 +26,39 @@ func _ready() -> void:
 		player.name = "Sfx%d" % i
 		add_child(player)
 		_pool.append(player)
+	_music = AudioStreamPlayer.new()
+	_music.name = "Music"
+	add_child(_music)
+	# Loops any format the same way: when the song ends, it starts again.
+	_music.finished.connect(_music.play)
+
+
+## Loops the song at `path` (empty: silence). The song already playing goes on untouched.
+func play_music(path: String, volume_db: float = 0.0) -> void:
+	_music.volume_db = volume_db
+	if path == _music_path and _music.playing:
+		return
+	_music_path = path
+	_music.stop()
+	_music.stream = null
+	if path.is_empty():
+		return
+	var stream: AudioStream = null
+	if ResourceLoader.exists(path):
+		stream = load(path) as AudioStream
+	elif path.ends_with(".wav") and FileAccess.file_exists(path):
+		stream = AudioStreamWAV.load_from_file(path)
+	if stream == null:
+		_warn_once(path, "Audio: no playable song at '%s'" % path)
+		return
+	_music.stream = stream
+	_music.play()
+
+
+func stop_music() -> void:
+	_music_path = ""
+	_music.stop()
+	_music.stream = null
 
 
 ## Plays a cue. `volume_offset_db` is added to the cue's own volume.
@@ -96,6 +133,8 @@ func stop_all() -> void:
 		player.stop()
 		player.stream = null
 	_streams.clear()
+	if _music != null:
+		stop_music()
 
 
 func _exit_tree() -> void:

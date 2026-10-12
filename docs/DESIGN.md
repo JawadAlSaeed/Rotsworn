@@ -663,6 +663,11 @@ clamped by tuning's calibration bounds.
 - `AssetLoader.texture(path)` returns a visible checkerboard if a file is missing; `Audio.play()`
   stays silent with one warning.
 
+Music (2026-10-12): `data/audio/music.tres` (`MusicSet`) names the song for menus and run screens,
+zones and fights; the `Audio` autoload loops it on its own player, and a place that names the song
+already playing lets it go on. Songs live in `assets/audio/music/` and may be compressed (QOA);
+sound effects stay PCM. For now one placeholder song ("tiebreaker") plays everywhere.
+
 ---
 
 ## 6. Input
@@ -812,6 +817,12 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
 - Esc / B in the zone goes back to the practice list (in a run: asks "Quit this run?").
 
 ### 7.5 Phase 4: main menu and settings (card #46)
+
+Studio intro (2026-10-12): when the game starts it plays the "Developed by DragonRot" video
+(`assets/video/dragonrot_intro.ogv`, 4 s, path in `data/presentation/boot.tres`, `BootData`) on
+black, then the main menu. Any key, button or click skips it (after `skip_guard_ms`). A missing
+video goes straight to the menu. Autoplay never shows it. Godot plays Ogg Theora only: the MP4 was
+converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`).
 
 - **Main menu** (first screen, `MainMenu`): New Run, Practice (the fight and zone list, full HP,
   nothing carries over), Settings, Quit. The cursor comes back on the last item picked.
