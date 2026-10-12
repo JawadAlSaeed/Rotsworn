@@ -7,6 +7,7 @@ extends Node
 ## when the party comes back. Walking is presentation, not combat: real time, floats, no engine.
 ## In a run (DESIGN.md 8) the zone is cleared by beating its guard at the exit; the other roaming
 ## enemies are optional. Outside a run (practice) every enemy must be beaten.
+## In co-op only player 1 walks and strikes (DESIGN.md 9.1); the others watch.
 
 ## A fight is starting: roaming enemy `index` (its encounter), with this opening.
 signal encounter_started(index: int, opening: CombatSetup.Opening)
@@ -55,6 +56,7 @@ var _fights: int = 0
 var _first_strikes: int = 0
 var _run_mode: bool = false
 var _cleared: bool = false
+var _players: PlayerRoster = PlayerRoster.solo(3)
 
 
 func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: ExploreVisuals,
@@ -64,6 +66,11 @@ func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: 
 	_visuals = visuals
 	_explore = explore
 	_run_mode = run_mode
+
+
+## The players (default: solo). In co-op only player 1's device walks and strikes.
+func configure_players(players: PlayerRoster) -> void:
+	_players = players
 
 
 func _ready() -> void:
@@ -258,7 +265,7 @@ func _process(delta: float) -> void:
 		return
 	var dt_ms := delta * 1000.0
 	_time_ms += dt_ms
-	var move := bot_move if use_bot else Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	var move := bot_move if use_bot else _leader_input()
 	var striking := _time_ms < _strike_until_ms
 	var walking := not striking and move.length() > MOVE_DEADZONE
 	if walking:
@@ -310,7 +317,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Pause (Esc / Menu) is Main's: it stops this node and opens the pause menu.
 	if event.is_action_pressed(&"field_strike", false, true):
 		get_viewport().set_input_as_handled()
-		strike()
+		if _players.player_of_device(PlayerRoster.device_of(event)) == 0:
+			strike()
+
+
+## The walk input: any device in solo, only player 1's in co-op.
+func _leader_input() -> Vector2:
+	if not _players.is_coop():
+		return Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	return DeviceInput.vector(&"move_left", &"move_right", &"move_up", &"move_down", _players.device_of_player(0))
 
 
 ## The leader's field strike: a slash in front; a roaming enemy inside it starts a FIRST STRIKE.

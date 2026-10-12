@@ -1,7 +1,8 @@
 extends Node
 ## Entry point (run/main_scene). Shows the main menu (DESIGN.md 7.5): a new run (DESIGN.md 8),
-## practice (the zone and fight list), settings, quit. In a run the map screen leads to the stops:
-## zones, rests, shops and the final fight; RunState carries HP and gold from stop to stop.
+## practice (the zone and fight list), settings, quit. New Run and Practice open the players screen
+## first (co-op, DESIGN.md 9.1); its roster goes to every fight and zone. In a run the map screen
+## leads to the stops: zones, rests, shops and the final fight; RunState carries HP and gold from stop to stop.
 ## A zone (DESIGN.md 7.4) hands a fight over with encounter_started: the screen swirls into the
 ## fight, the zone waits outside the tree, and after the fight the screen fades back to the zone.
 ## R / "fight again" frees a practice fight and starts the same one again; Cancel on a practice
@@ -11,7 +12,8 @@ extends Node
 ## User arguments (after "--"): --autoplay[=perfect|miss|mash], --quit-on-end, --seed=N,
 ## --encounter=ID (start that fight directly; autoplay without it, --zone or --run starts
 ## DEFAULT_ENCOUNTER_ID), --zone=ID (start in that zone), --first-strike (with --encounter),
-## --run (start a new run at once; the seed also picks the map).
+## --run (start a new run at once; the seed also picks the map), --players=N (co-op with N pretend
+## pads, for the bot).
 
 const DEFAULT_ENCOUNTER_ID := "husk_fight"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
@@ -51,6 +53,10 @@ var _run: RunState
 var _zone_fight: Dictionary = {}
 var _busy: bool = false
 var _zone_idle_s: float = 0.0
+## Who plays and which heroes each player has (DESIGN.md 9.1).
+var _players: PlayerRoster
+## The device of the last button press (it becomes P1 on the players screen).
+var _last_device: int = PlayerRoster.KEYBOARD
 
 
 func _ready() -> void:
@@ -76,8 +82,13 @@ func _ready() -> void:
 	add_child(_transition)
 	_transition.setup(_explore)
 	_options = CombatOptions.from_args(OS.get_cmdline_user_args(), _tuning)
+	# --players=N: pretend pads 0 to N-1 (only the bot presses them).
+	_players = PlayerRoster.solo(_hero_names().size(), 0 if _options.players > 1 else PlayerRoster.KEYBOARD)
+	for pad: int in range(1, _options.players):
+		_players.join(pad)
 	if _options.is_autoplay():
-		print("Autoplay: %s%s" % [_options.autoplay_mode, " (quit on end)" if _options.quit_on_end else ""])
+		print("Autoplay: %s%s players: %d" % [_options.autoplay_mode, " (quit on end)" if _options.quit_on_end else "",
+				_players.player_count()])
 	if _options.run:
 		_new_run()
 		return
@@ -168,13 +179,41 @@ func _on_menu_chosen(item: StringName) -> void:
 	_menu_item = item
 	match item:
 		MainMenu.NEW_RUN:
-			_fade_to(_new_run)
+			_show_lobby.call_deferred(_fade_to.bind(_new_run))
 		MainMenu.PRACTICE:
-			_show_select.call_deferred()
+			_show_lobby.call_deferred(_show_select.call_deferred)
 		MainMenu.SETTINGS:
 			_show_settings.call_deferred()
 		MainMenu.QUIT:
 			_quit_game()
+
+
+## The players screen; Start keeps its roster and calls `next`.
+func _show_lobby(next: Callable) -> void:
+	var lobby := LobbyScreen.new()
+	lobby.name = "Lobby"
+	lobby.setup(_hero_names(), _players, _last_device)
+	lobby.started.connect(_on_lobby_started.bind(next))
+	lobby.back.connect(_show_main_menu.call_deferred)
+	_show_screen(lobby)
+
+
+func _on_lobby_started(players: PlayerRoster, next: Callable) -> void:
+	_players = players
+	var names := PackedStringArray()
+	for device: int in _players.devices:
+		names.append(PlayerRoster.device_name(device))
+	print("Players: %d (%s)" % [_players.player_count(), ", ".join(names)])
+	next.call()
+
+
+## The run's heroes in slot order (a roster covers these slots).
+func _hero_names() -> Array[String]:
+	var names: Array[String] = []
+	if _run_data != null:
+		for data: CharacterData in _run_data.party:
+			names.append(data.display_name)
+	return names
 
 
 func _show_settings() -> void:
@@ -229,6 +268,7 @@ func _start_combat() -> void:
 		_combat.configure(_encounter, _tuning, _visuals, _options, null, opening)
 	if _run != null:
 		_combat.configure_run(_run)
+	_combat.configure_players(_players)
 	if continue_to.is_valid():
 		_combat.continue_requested.connect(continue_to)
 		if _options.is_autoplay():
@@ -259,6 +299,7 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone = ZoneController.new()
 	_zone.name = "Zone"
 	_zone.configure(zone, _tuning, _visuals, _explore, _run != null)
+	_zone.configure_players(_players)
 	_zone.encounter_started.connect(_on_encounter_started)
 	_zone.cleared.connect(_on_zone_cleared)
 	add_child(_zone)
@@ -476,6 +517,8 @@ func _show_run_end() -> void:
 ## Pause (Esc / Menu, DESIGN.md 7.5) over a fight, a zone or the run map. Main reads it before the
 ## fight's own input, so Esc never reaches the action menu as "back".
 func _input(event: InputEvent) -> void:
+	if (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed():
+		_last_device = PlayerRoster.device_of(event)
 	if _pause != null or _prompt != null or _busy or not event.is_action_pressed(&"pause", false, true):
 		return
 	if _combat != null and _combat.is_inside_tree():

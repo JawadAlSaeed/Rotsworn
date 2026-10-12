@@ -51,6 +51,10 @@ var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 var _from_zone: bool = false
 ## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
 var _run: RunState
+## Who plays (DESIGN.md 9.1): in co-op a device drives only its own heroes' menus and presses.
+var _players: PlayerRoster = PlayerRoster.solo(3)
+## Party member id -> co-op player.
+var _owners: Dictionary = {}
 var _setup: CombatSetup
 var _result: String = ""
 var _queue: Array[Dictionary] = []
@@ -92,6 +96,11 @@ func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals,
 ## screen, and no "fight again". Call after configure(), before adding the node to the tree.
 func configure_run(run: RunState) -> void:
 	_run = run
+
+
+## The players and their heroes. Call before adding the node to the tree (default: solo).
+func configure_players(players: PlayerRoster) -> void:
+	_players = players
 
 
 ## Each party member's HP right now, by slot (the run carries it to the next fight).
@@ -203,6 +212,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _tuning.practice_tools_enabled and _handle_practice(event, key):
 		get_viewport().set_input_as_handled()
+		return
+	# In co-op only the acting hero's player drives the menu.
+	if not _players.may_control(PlayerRoster.device_of(event), _owner_slot(mirror.active_actor)):
 		return
 	if hud.action_menu.handle_input(event):
 		get_viewport().set_input_as_handled()
@@ -408,7 +420,8 @@ func _maybe_open_menu() -> void:
 	var entries: Array[Dictionary] = []
 	for ability: AbilityData in abilities:
 		entries.append(_menu_entry(actor, ability))
-	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, entries, names)
+	var player := _players.owner_of(_owner_slot(actor)) if _players.is_coop() else -1
+	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, entries, names, player)
 	view.camera.shot_turn(view.home_of(actor))
 	_set_active_pose(actor)
 	menu_opened.emit(actor)
@@ -547,6 +560,15 @@ func _build_fighters() -> void:
 		_data_by_id[id] = data
 		view.add_fighter(id, is_party, int(f.slot), data)
 	hud.build_fighters(mirror, _data_by_id)
+	_owners.clear()
+	for id: int in mirror.party_ids:
+		_owners[id] = _players.owner_of(_owner_slot(id))
+	runner.set_players(_players, _owners)
+	skill_runner.set_players(_players, _owners)
+	if autoplay != null:
+		autoplay.set_players(_players, _owners)
+	if _players.is_coop():
+		hud.set_player_tags(_owners)
 	view.sync_alive(mirror)
 	_refresh()
 	# Warm-up: draw every effect once so the first parry has no shader-compile hitch.
@@ -556,6 +578,13 @@ func _build_fighters() -> void:
 	await get_tree().process_frame
 	view.finish_warm_up()
 	hud.finish_warm_up()
+
+
+## The party slot of a fighter (-1 for an enemy or nobody).
+func _owner_slot(id: int) -> int:
+	if not mirror.party_ids.has(id):
+		return -1
+	return int(mirror.fighter(id).slot)
 
 
 ## Dash, strike, damage, hold, return (DESIGN.md 2.2, about 0.55 s).

@@ -71,7 +71,8 @@ whenever a decision is made or changed.
   or `--zone=rotten_hollow` to have the bot walk the zone and fight every roaming enemy (ends with
   `AUTOPLAY_RESULT zone_clear` or `zone_defeat`), or `--run` to have the bot play a whole run
   (map, zones to the guard, shops, rests, final fight; ends with `AUTOPLAY_RESULT run_victory` or
-  `run_defeat`, about 10 to 20 minutes, so use `timeout 1500`). Works with `--headless`. A good run prints
+  `run_defeat`, about 10 to 20 minutes, so use `timeout 1500`). Add `--players=2` or
+  `--players=3` to any of these for co-op (pretend pads; each bot player presses for their own heroes). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
 - Always run headless Godot commands with a timeout (`timeout 120 ...`): a script error in a
   `-s` script leaves Godot running forever.
@@ -142,7 +143,10 @@ whenever a decision is made or changed.
 - `scripts/explore/` zones: walking, roaming enemies, zone HUD, zone bot
 - `scripts/run/` the run: `RunMap` and `RunState` (pure, tested), map, shop, rest, loot, party
   and run-end screens, the gold and HP strip
-- `scripts/menu/` main menu, settings, pause menu, yes/no prompt, the shared `ListMenu`
+- `scripts/menu/` main menu, players screen (co-op lobby), settings, pause menu, yes/no prompt,
+  the shared `ListMenu`
+- `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested) and `DeviceInput`
+  (reading one device)
 - `scripts/autoload/` global singletons (`Audio`, `UserSettings` = `PlayerSettings`, saved per
   machine in `user://settings.cfg`)
 - `scenes/` scenes

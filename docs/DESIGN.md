@@ -667,9 +667,10 @@ clamped by tuning's calibration bounds.
 
 ## 6. Input
 
-Defined in `project.godot` (Project > Project Settings > Input Map in the editor). Phase 1: every
-device controls the single player. Keyboard events use device id 16 in Godot 4.7, pads 0 and up,
-which phase 5 uses to assign devices to players.
+Defined in `project.godot` (Project > Project Settings > Input Map in the editor). Solo: every
+device controls the single player. Co-op (9.1): each player has one device (the keyboard counts as
+one device, `PlayerRoster.KEYBOARD`; pads by their Godot device id) and it controls only that
+player's heroes.
 
 | Action | Keyboard | Xbox pad |
 |---|---|---|
@@ -929,6 +930,33 @@ counters for longer and mixed strings (2.5, card #52).
 
 ## 9. Multiplayer (phase 5)
 
+### 9.1 Local co-op (phase 5 Part A, built)
+
+- **Players screen** (`LobbyScreen`, approved 2026-10-12): New Run and Practice open it first. The
+  device that opened it is P1. Another pad (or the keyboard) presses Confirm to join (up to 3
+  players) and Back to leave. Heroes are dealt out in turn (P1 gets the extra one: with 2 players
+  P1 has Alder and Cass, P2 has Brin); left/right on a hero hands it to another player, as long as
+  every player keeps one. Start (selected first) plays; P1's Back returns to the main menu. The
+  roster is kept for the session (same P1 = same split next time).
+- `PlayerRoster` (pure, `scripts/coop/`): players and their devices, hero slot -> player. A hero is
+  a party slot, so the roster fits every fight. One player = solo: every device controls
+  everything, exactly as before.
+- **Fights**: the action menu answers only the acting hero's player (title shows "(P2)"); party
+  panels show P1/P2/P3 tags in player colours. The engine is unchanged (ownership is presentation).
+- **Defence and skill presses**: `JudgeSet` (pure, `scripts/combat/timing/`) holds one
+  `DefenseJudge` per player with only that player's heroes' prompts. A press counts only for the
+  heroes of the player whose device made it: each player defends their own heroes on a party-wide
+  attack, presses their own skills, their own heroes' follow-ups, and their own part of the team
+  ultimate. Whiff lockout, EARLY/LATE popups and the lock icon are per player; a player whose
+  heroes are not targeted is ignored (no lockout). One shared `AttackClock`, one lag compensation
+  (one machine). Results are released per player in prompt order (a hero's prompts stay in hit
+  order, which is all the engine needs).
+- **Zones**: only P1 walks and strikes (approved 2026-10-12); `DeviceInput` reads one device
+  through the Input Map. Run screens (map, shop, rest, party, loot), pause and end screens: anyone.
+- Bot: `--players=N` plays co-op with N pretend pads; each player presses for their own heroes.
+
+### 9.2 Online co-op (phase 5 Part B, planned)
+
 - Host-authoritative. Godot high-level multiplayer over ENet. Join by IP or room code.
 - The host runs the only `CombatEngine`. Clients have no engine: they apply broadcast events to
   their own `CombatMirror` and play them. Clients send commands for their own characters; the
@@ -942,8 +970,6 @@ counters for longer and mixed strings (2.5, card #52).
   does not own and for stale sequences, and dedupes by (seq, prompt).
 - Combat RPCs are `@rpc("any_peer", "call_remote", "reliable")` on a dedicated channel.
 - The handshake compares a hash of data files and tuning; mismatched clients are refused.
-- Local co-op: several input devices on one machine, each assigned to a player; one shared
-  `AttackClock`.
 
 ---
 
@@ -996,6 +1022,13 @@ counters for longer and mixed strings (2.5, card #52).
   victory pays XP; loot and shop gear are seeded and never offer owned gear; equip, swap, take
   off (no free heal, HP clamped); gear reaches the fight setup and the gold bonus; the shipped gear
   and boss are complete. The event-fields test also covers `enemy_phase`.
+- Phase 5 Part A (`test_coop.gd`): solo controls everything from any device; join, leave, the
+  even split, handing heroes over (never leaving a player without one), device codes of events,
+  the shipped party fits three players; per player judging (a press answers only its player's
+  heroes, lockout per player, a player with no prompt is ignored, solo equals one judge, the engine
+  accepts the per-player results in release order, voids reach every judge); the players screen
+  (join, hand over, leave, start, back, keeps the last split for the same P1). Co-op smoke test:
+  add `--players=2` or `--players=3` to any autoplay command.
 - Run smoke test: `--autoplay --run --quit-on-end` (add `--seed=N` for a fixed map). The bot
   picks a shop when it has gold, a rest when someone is at or under 60% HP, else a zone; in zones
   it walks to the guard; in shops it buys what it can for whoever is lowest; it takes the first
@@ -1023,7 +1056,8 @@ counters for longer and mixed strings (2.5, card #52).
 4. **Run structure** (built, waiting for playtest): Part A (main menu and settings, map,
    zone/rest/shop stops, HP carry-over, gold) and Part B (levels, gear, loot, boss, pause menu,
    stronger counters); 8, 7.5, 2.5.
-5. Co-op: local multi-device first, then online.
+5. **Co-op**: Part A local multi-device (built, waiting for playtest; 9.1), then Part B online
+   (9.2).
 6. Polish: UI, feedback effects, audio pass, balance.
 
 ### 11.1 To-do (from playtests)
@@ -1058,6 +1092,9 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-06 | Global numbers in `tuning.tres`; per-move shapes as percentages in move data | one place to rebalance, content stays data-driven |
 | 2026-10-06 | Integer percentages, integer damage maths | identical results everywhere, order-independent |
 | 2026-10-06 | Commands/events are plain Dictionaries | trivially serialisable for networking |
+| 2026-10-12 | Co-op heroes picked on a players screen, dealt out evenly by default | user choice |
+| 2026-10-12 | In co-op zones only P1 walks and strikes | no tug-of-war on one screen; user choice |
+| 2026-10-12 | Co-op ownership lives in presentation (`PlayerRoster`, `JudgeSet`), not the engine | engine stays the same for solo, local and online |
 | 2026-10-06 | Timed sequences of per-character prompts; partial `resolve_prompts` | covers phase 2 skills/follow-ups and phase 5 per-client reporting without redesign |
 | 2026-10-06 | Engine computes windows and pre-rolls damage in the declared event | client judge and host rules cannot drift; RNG order independent of network |
 | 2026-10-06 | Presentation reads `CombatMirror`, not the engine | bars sync with animation; same code on network clients |

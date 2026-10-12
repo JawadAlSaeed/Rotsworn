@@ -74,6 +74,8 @@ var _popup_layer: Control
 var _ring_layer: RingLayer
 var _marker_layer: HitMarkerLayer
 var _lock_icon: TextureRect
+## More lock icons when several co-op players are locked out at once.
+var _extra_locks: Array[TextureRect] = []
 var _target_marker: Label
 ## One arrow per targeted character while an attack winds up.
 var _target_arrows: Array[Label] = []
@@ -449,11 +451,25 @@ func set_rings(rings: Array[Dictionary]) -> void:
 	_ring_layer.set_rings(rings, _visuals.ring_width_px)
 
 
-## Shows or hides the lock icon, placed lock_icon_offset_px from a world position on screen.
-func set_lock(shown: bool, world_pos: Vector3 = Vector3.ZERO) -> void:
-	_lock_icon.visible = shown
-	if shown:
-		_lock_icon.position = _view.screen_position(world_pos) + _visuals.lock_icon_offset_px - _lock_icon.size * 0.5
+## Shows a lock icon at each of these world positions (one per locked-out player; empty hides),
+## placed lock_icon_offset_px from it on screen.
+func set_locks(spots: Array[Vector3]) -> void:
+	while 1 + _extra_locks.size() < spots.size():
+		var icon := _lock_icon.duplicate() as TextureRect
+		_lock_icon.add_sibling(icon)
+		_extra_locks.append(icon)
+	var icons: Array[TextureRect] = [_lock_icon]
+	icons.append_array(_extra_locks)
+	for i: int in icons.size():
+		icons[i].visible = i < spots.size()
+		if icons[i].visible:
+			icons[i].position = _view.screen_position(spots[i]) + _visuals.lock_icon_offset_px - icons[i].size * 0.5
+
+
+## Tags each party panel with its co-op player (`owners`: party member id -> player; empty hides).
+func set_player_tags(owners: Dictionary) -> void:
+	for id: int in _party_panels:
+		(_party_panels[id] as PartyPanel).set_player(int(owners.get(id, -1)))
 
 
 ## Highlights the party panels of the characters an enemy attack targets (empty clears).

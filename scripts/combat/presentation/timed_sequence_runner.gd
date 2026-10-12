@@ -4,9 +4,11 @@ extends Node
 ##
 ## On timed_sequence_declared the controller calls start(). After attack_lead_in_ms (banner up)
 ## the AttackClock starts. Presses arrive from DefenseInput and are judged at once by this
-## machine's DefenseJudge (phase 1: the one local player answers every prompt), converted to
+## machine's judges (JudgeSet), converted to
 ## attack time. Every frame, after input: scheduled contact effects fire, judge.advance() expires
-## missed prompts (the hit lands), and released results go to the engine as resolve_prompts. The
+## missed prompts (the hit lands), and released results go to the engine as resolve_prompts. In
+## co-op each player has their own judge for their own heroes (JudgeSet, DESIGN.md 9.1): a press
+## counts only for the heroes of the player whose device made it. The
 ## prompt events that come back are applied to the mirror at once; everything from
 ## sequence_resolved on is handed back (finished) only when the local animation is over.
 ##
@@ -58,7 +60,10 @@ var _hits: Array = []
 var _prompts: Array = []
 var _targets: Array[int] = []
 var _clock := AttackClock.new()
-var _judge: DefenseJudge
+var _judges: JudgeSet
+var _roster: PlayerRoster = PlayerRoster.solo(0)
+## Party member id -> player index (empty: everyone is player 0).
+var _owners: Dictionary = {}
 var _latency_ms: int = 0
 var _lead_in_end_us: int = 0
 var _cues: Array[Dictionary] = []
@@ -67,9 +72,10 @@ var _next_cue: int = 0
 var _scheduled: Array[Dictionary] = []
 ## Party member id -> {kind: Anim, frame, from_us, until_us, apex_us, land_us} (attack time).
 var _anims: Dictionary = {}
-## Attack times of every press (any result), for the MISS label.
-var _press_times: Array[int] = []
-## Hits a whiff was judged against (they never show MISS: the player did press).
+## Every press (any result) as {t, player} (attack time), for the MISS label.
+var _press_times: Array[Dictionary] = []
+## "hit:player" keys of the hits a player whiffed against (never MISS for that player: they did
+## press).
 var _whiffed_hits: Dictionary = {}
 ## Real time span of the hurt freeze on the last hit; presses inside it are still judged.
 var _hurt_pause_from_us: int = -1
@@ -108,6 +114,12 @@ func setup(submit: Callable, apply_now: Callable, mirror: CombatMirror, view: Co
 	_input.pressed.connect(_on_pressed)
 
 
+## Who plays which hero (co-op). `owners` maps a party member id to its player.
+func set_players(roster: PlayerRoster, owners: Dictionary) -> void:
+	_roster = roster
+	_owners = owners
+
+
 ## Starts playing a timed_sequence_declared event (already applied to the mirror). `attack` is the
 ## attack's data (for its training ring speed; null = the tuning default).
 func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
@@ -119,9 +131,9 @@ func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_latency_ms = PlayerSettings.latency_compensation_ms(_tuning)
 	# Each hit carries its close time on this machine, so the enemy holds contact until then.
 	_hits = EnemyChoreography.with_close_times(event.hits, _prompts, _latency_ms)
-	_judge = DefenseJudge.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
+	_judges = JudgeSet.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
 			_tuning.late_press_report_ms)
-	_judge.set_prompts(_prompts)
+	_judges.set_prompts(_prompts, _owners)
 	_clock = AttackClock.new()
 	_started_us = Time.get_ticks_usec()
 	_lead_in_end_us = _started_us + _tuning.attack_lead_in_ms * 1000
@@ -239,8 +251,12 @@ func _process(_delta: float) -> void:
 
 # --- presses ----------------------------------------------------------------------------------
 
-func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int) -> void:
+func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int) -> void:
 	if not _active or not _clock.is_started():
+		return
+	# Only players whose heroes this attack targets defend (another player's press does nothing).
+	var player := _roster.player_of_device(device)
+	if not _judges.players().has(player):
 		return
 	# Every target went down: what is left of the attack is only animation.
 	if _tail_received and _end_reason != "completed":
@@ -258,10 +274,10 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int
 		var e := _clock.attack_time_us(previous_pump_us)
 		if e >= 0:
 			earliest = e
-	var report := _judge.press(action, t, earliest)
+	var report := _judges.press(player, action, t, earliest)
 	if int(report.result) == DefenseJudge.Result.SUCCESS and not _any_pending(report.prompts):
 		report.result = DefenseJudge.Result.DONE
-	_press_times.append(t)
+	_press_times.append({"t": t, "player": player})
 	# Hits this press expired (after a long frame) land now, while still pending, so they get
 	# their hit feedback before the results go to the engine.
 	_expire(t)
@@ -271,7 +287,7 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int
 		DefenseJudge.Result.SUCCESS:
 			_on_success(action, report, t)
 		DefenseJudge.Result.WHIFF:
-			_on_whiff(action, report, t)
+			_on_whiff(action, report, t, player)
 		DefenseJudge.Result.LOCKED:
 			Sfx.play("locked", _visuals.locked_click_volume_db)
 	_release(t)
@@ -296,7 +312,7 @@ func _on_success(action: int, report: Dictionary, t: int) -> void:
 	_schedule(contact_us, _on_contact.bind(action, hit_index, characters, int(report.offset_us)))
 
 
-func _on_whiff(action: int, report: Dictionary, t: int) -> void:
+func _on_whiff(action: int, report: Dictionary, t: int, player: int) -> void:
 	Sfx.play("whiff")
 	var reason := int(report.reason)
 	var offset_ms := roundi(float(report.offset_us) / 1000.0)
@@ -315,8 +331,8 @@ func _on_whiff(action: int, report: Dictionary, t: int) -> void:
 	if reason != DefenseJudge.Reason.WRONG_ACTION and _options.timing_readout and int(report.hit) >= 0:
 		text += " " + HudStyle.signed_ms(offset_ms)
 	if int(report.hit) >= 0:
-		_whiffed_hits[int(report.hit)] = true
-	var defenders := _living_targets()
+		_whiffed_hits["%d:%d" % [int(report.hit), player]] = true
+	var defenders := _living_targets_of(player)
 	for id: int in defenders:
 		var current: Dictionary = _anims.get(id, {})
 		# Keep a flinch (the hit is what happened) and a successful defence still playing (a
@@ -395,7 +411,7 @@ func _fire_scheduled(t: int) -> void:
 
 ## Prompts whose windows all closed: the hit lands now (damage, flinch, sound, hit-stop).
 func _expire(t: int) -> void:
-	var expired := _judge.advance(t)
+	var expired := _judges.advance(t)
 	if expired.is_empty():
 		return
 	var now := Time.get_ticks_usec()
@@ -423,7 +439,8 @@ func _expire(t: int) -> void:
 				"until_us": t + _visuals.hurt_pose_ms * 1000}
 		# MISS first: popups in a column stack oldest on top, so the damage number (newest) stays
 		# at the head and MISS sits just above it.
-		if not _whiffed_hits.has(hit_index) and not _pressed_near(prompt):
+		var player := _judges.player_of_prompt(idx)
+		if not _whiffed_hits.has("%d:%d" % [hit_index, player]) and not _pressed_near(prompt, player):
 			var rise := view.visible_height() * _visuals.miss_label_rise_factor
 			_hud.popup("MISS", view.head_position() + Vector3(0.0, rise, 0.0), HudStyle.MISS)
 		_hud.damage_number(int(prompt.damage), view.head_position(), HudStyle.DAMAGE_TAKEN)
@@ -431,9 +448,9 @@ func _expire(t: int) -> void:
 
 ## Sends the judge's released results to the engine and applies what comes back.
 func _release(t: int) -> void:
-	if _judge == null:
+	if _judges == null:
 		return
-	var ready := _judge.pop_ready()
+	var ready := _judges.pop_ready()
 	if ready.is_empty():
 		return
 	var results: Array[Dictionary] = []
@@ -454,7 +471,7 @@ func _release(t: int) -> void:
 			_tail_t_us = t
 			_end_reason = String(ev.get("reason", ""))
 		if type == "prompts_voided":
-			_judge.void_prompts(ev.get("prompts", []) as Array)
+			_judges.void_prompts(ev.get("prompts", []) as Array)
 		# Practice toggles are not part of any animation: apply them at once even in the tail,
 		# so a newer toggle can never be overwritten by this older snapshot later.
 		if in_tail and type != "practice_changed":
@@ -692,12 +709,14 @@ func _update_reading(t: int) -> void:
 			view.set_floor_warning(shown, _visuals.ground_hit_color)
 
 
+## A lock icon at the feet of each locked-out player's heroes.
 func _update_lock(t: int) -> void:
-	if _judge.is_locked_out(t):
-		var defenders := _living_targets()
-		_hud.set_lock(true, _focus_feet(defenders))
-	else:
-		_hud.set_lock(false)
+	var spots: Array[Vector3] = []
+	for player: int in _judges.players():
+		var defenders := _living_targets_of(player)
+		if _judges.is_locked_out(player, t) and not defenders.is_empty():
+			spots.append(_focus_feet(defenders))
+	_hud.set_locks(spots)
 
 
 ## Hands the tail back once the local animation is over (DESIGN.md 4.5).
@@ -726,7 +745,7 @@ func _hand_back() -> void:
 	_hud.hide_banner()
 	_hud.set_rings([])
 	_hud.set_hit_markers([])
-	_hud.set_lock(false)
+	_hud.set_locks([])
 	_hud.set_targeted([])
 	_hud.set_target_arrows([])
 	_view.hide_wave()
@@ -797,15 +816,15 @@ func _pose_for_action(action: int) -> int:
 	return FighterView.CharPose.READY
 
 
-## True if any press happened between the earliest window edge of this prompt and now (press
-## times compensated the way the judge compensates them).
-func _pressed_near(prompt: Dictionary) -> bool:
+## True if `player` pressed between the earliest window edge of this prompt and now (press times
+## compensated the way the judge compensates them).
+func _pressed_near(prompt: Dictionary, player: int) -> bool:
 	var earliest := 0
 	for action: int in (prompt.windows as Dictionary):
 		earliest = mini(earliest, int((prompt.windows[action] as Array)[0]))
 	var from := int(prompt.at_ms) * 1000 + earliest
-	for pressed_at: int in _press_times:
-		if pressed_at - latency_us() >= from:
+	for press: Dictionary in _press_times:
+		if int(press.player) == player and int(press.t) - latency_us() >= from:
 			return true
 	return false
 
@@ -822,6 +841,15 @@ func _is_pending(idx: int) -> bool:
 		return false
 	var states: Array = _mirror.sequence.states
 	return idx >= 0 and idx < states.size() and int(states[idx]) == CombatEngine.PromptState.PENDING
+
+
+## The living targets player `player` defends.
+func _living_targets_of(player: int) -> Array[int]:
+	var list: Array[int] = []
+	for id: int in _living_targets():
+		if int(_owners.get(id, 0)) == player:
+			list.append(id)
+	return list
 
 
 func _living_targets() -> Array[int]:

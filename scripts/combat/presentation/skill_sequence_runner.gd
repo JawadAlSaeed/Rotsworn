@@ -10,7 +10,9 @@ extends Node
 ## once (the press times in the data leave room for the ring). A ring closes on the presser at each
 ## prompt's moment; presses of the skill button are judged at once by a DefenseJudge (the same
 ## pure judge as defence, with PRESS windows), and released results go to the engine as
-## resolve_prompts. Feedback comes from the judge at press time; the engine's events for a result
+## resolve_prompts. In co-op each player presses for their own heroes (JudgeSet, DESIGN.md 9.1):
+## the skill user's owner for the skill, each ally's owner for its follow-up, everyone for the team
+## ultimate. Feedback comes from the judge at press time; the engine's events for a result
 ## (damage, statuses, healing...) are applied at that prompt's contact moment, so numbers appear
 ## with the strike. Everything from sequence_resolved on is handed back (finished) when the local
 ## animation is over.
@@ -47,7 +49,10 @@ var _targets: Array[int] = []
 var _hits_enemies: bool = false
 var _ability: AbilityData
 var _clock := AttackClock.new()
-var _judge: DefenseJudge
+var _judges: JudgeSet
+var _roster: PlayerRoster = PlayerRoster.solo(0)
+## Party member id -> player index (empty: everyone is player 0).
+var _owners: Dictionary = {}
 var _latency_ms: int = 0
 ## Prompts sent to the engine, and prompts the engine voided (known before the mirror is).
 var _sent: Dictionary = {}
@@ -80,6 +85,12 @@ func setup(submit: Callable, apply_now: Callable, mirror: CombatMirror, view: Co
 	_input.pressed.connect(_on_pressed)
 
 
+## Who plays which hero (co-op). `owners` maps a party member id to its player.
+func set_players(roster: PlayerRoster, owners: Dictionary) -> void:
+	_roster = roster
+	_owners = owners
+
+
 ## Starts playing a skill timed_sequence_declared event (already applied to the mirror).
 ## `ability` is the skill's data (for its sound and target kind).
 func start(event: Dictionary, ability: AbilityData) -> void:
@@ -92,9 +103,9 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_targets.assign(event.targets)
 	_hits_enemies = ability != null and ability.targets_enemies()
 	_latency_ms = PlayerSettings.latency_compensation_ms(_tuning)
-	_judge = DefenseJudge.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
+	_judges = JudgeSet.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
 			_tuning.late_press_report_ms)
-	_judge.set_prompts(_prompts)
+	_judges.set_prompts(_prompts, _owners)
 	_clock = AttackClock.new()
 	_clock.start(Time.get_ticks_usec())
 	_sent.clear()
@@ -177,8 +188,11 @@ func _process(_delta: float) -> void:
 
 # --- presses ----------------------------------------------------------------------------------
 
-func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int) -> void:
+func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int) -> void:
 	if not _active or action != Defense.Outcome.PRESS:
+		return
+	var player := _roster.player_of_device(device)
+	if not _judges.players().has(player):
 		return
 	if _clock.is_paused(stamp_us):
 		return
@@ -188,7 +202,7 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int
 		var e := _clock.attack_time_us(previous_pump_us)
 		if e >= 0:
 			earliest = e
-	var report := _judge.press(action, t, earliest)
+	var report := _judges.press(player, action, t, earliest)
 	var answered: Array[int] = []
 	for idx: int in report.prompts:
 		if is_prompt_open(idx):
@@ -204,7 +218,7 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int
 			var perfect := int(report.outcome) == Defense.Outcome.PRESS_PERFECT
 			_schedule(maxi(t, impact_us), _on_good_press.bind(answered, int(report.offset_us), perfect))
 		DefenseJudge.Result.WHIFF:
-			_on_whiff(report)
+			_on_whiff(report, player)
 		DefenseJudge.Result.LOCKED:
 			Sfx.play("locked", _visuals.locked_click_volume_db)
 	_release(t)
@@ -225,7 +239,7 @@ func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool) -> void:
 	_strike(idxs, true)
 
 
-func _on_whiff(report: Dictionary) -> void:
+func _on_whiff(report: Dictionary, player: int) -> void:
 	Sfx.play("whiff")
 	var text := "EARLY" if int(report.reason) == DefenseJudge.Reason.EARLY else "LATE"
 	var color := HudStyle.EARLY if text == "EARLY" else HudStyle.LATE
@@ -234,15 +248,17 @@ func _on_whiff(report: Dictionary) -> void:
 	var who: Array[int] = []
 	var hit := int(report.hit)
 	for p: Dictionary in _prompts:
-		if int(p.hit) == hit:
+		if int(p.hit) == hit and _judges.player_of_prompt(int(p.idx)) == player:
 			who.append(int(p.character))
+	if who.is_empty():
+		who = _heroes_of(player)
 	_hud.popup(text, _focus_head(who if not who.is_empty() else [_actor]), color)
 
 
 ## Prompts whose window closed unanswered: the hit lands without the bonus (a follow-up does
 ## nothing).
 func _expire(t: int) -> void:
-	var expired := _judge.advance(t)
+	var expired := _judges.advance(t)
 	var strikes: Array[int] = []
 	for idx: int in expired:
 		if not is_prompt_open(idx):
@@ -260,9 +276,9 @@ func _expire(t: int) -> void:
 ## Sends the judge's released results to the engine. Its events are applied at the contact
 ## moment of the last prompt in the batch (now for misses, at impact for early presses).
 func _release(t: int) -> void:
-	if _judge == null:
+	if _judges == null:
 		return
-	var ready := _judge.pop_ready()
+	var ready := _judges.pop_ready()
 	if ready.is_empty():
 		return
 	var results: Array[Dictionary] = []
@@ -281,7 +297,7 @@ func _release(t: int) -> void:
 		if String(ev.get("type", "")) == "prompts_voided":
 			for idx: int in ev.get("prompts", []):
 				_voided[int(idx)] = true
-			_judge.void_prompts(ev.get("prompts", []) as Array)
+			_judges.void_prompts(ev.get("prompts", []) as Array)
 	_schedule(show_at, _apply_batch.bind(events))
 
 
@@ -484,11 +500,24 @@ func _first_open(idxs: Array) -> int:
 	return -1
 
 
+## A lock icon at the first pressing hero of each locked-out player.
 func _update_lock(t: int) -> void:
-	if _judge.is_locked_out(t):
-		_hud.set_lock(true, _view.home_of(_actor))
-	else:
-		_hud.set_lock(false)
+	var spots: Array[Vector3] = []
+	for player: int in _judges.players():
+		var heroes := _heroes_of(player)
+		if _judges.is_locked_out(player, t) and not heroes.is_empty():
+			spots.append(_view.home_of(heroes[0]))
+	_hud.set_locks(spots)
+
+
+## The heroes of `player` with a prompt in this skill, in prompt order.
+func _heroes_of(player: int) -> Array[int]:
+	var list: Array[int] = []
+	for p: Dictionary in _prompts:
+		var id := int(p.character)
+		if _judges.player_of_prompt(int(p.idx)) == player and not list.has(id):
+			list.append(id)
+	return list
 
 
 ## Hands the tail back once every prompt is done and the last strike has played out.
@@ -509,7 +538,7 @@ func _hand_back() -> void:
 	_input.disarm()
 	_hud.hide_banner()
 	_hud.set_rings([])
-	_hud.set_lock(false)
+	_hud.set_locks([])
 	var return_s := float(_tuning.action_return_ms) / 1000.0
 	for id: int in _mirror.party_ids:
 		var v := _view.fighter(id)

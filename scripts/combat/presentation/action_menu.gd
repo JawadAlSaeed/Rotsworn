@@ -57,8 +57,11 @@ func _ready() -> void:
 
 ## Opens the menu for one actor. `entries` as described on _entries; `names` maps fighter id ->
 ## display name (for the target step).
-func open(actor_name: String, accent: Color, entries: Array[Dictionary], names: Dictionary) -> void:
+## `player` is the co-op player whose turn it is (-1 in solo: no tag).
+func open(actor_name: String, accent: Color, entries: Array[Dictionary], names: Dictionary, player: int = -1) -> void:
 	_title.text = "%s's turn" % actor_name
+	if player >= 0:
+		_title.text += "  (%s)" % HudStyle.player_tag(player)
 	_title.label_settings.font_color = accent.lightened(0.25)
 	_entries = entries
 	_names = names

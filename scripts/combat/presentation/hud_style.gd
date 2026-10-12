@@ -28,6 +28,8 @@ const RING_NORMAL := Color(0.9, 0.95, 1.0)
 const HEAL := Color(0.45, 1.0, 0.5)
 const GAUGE_FILL := Color(0.95, 0.62, 0.2)
 const AP_TEXT := Color(0.55, 0.88, 1.0)
+## Co-op player tags P1, P2, P3 (DESIGN.md 9.1).
+const PLAYER_COLORS: Array[Color] = [Color(0.4, 0.75, 1.0), Color(1.0, 0.5, 0.45), Color(0.55, 0.95, 0.5)]
 
 ## Status badges (DESIGN.md 2.10): short name and colour per Status id.
 const STATUS_NAMES := {
@@ -49,6 +51,15 @@ const PAD_BUTTON_NAMES := {
 	JOY_BUTTON_DPAD_UP: "D-pad up", JOY_BUTTON_DPAD_DOWN: "D-pad down",
 	JOY_BUTTON_DPAD_LEFT: "D-pad left", JOY_BUTTON_DPAD_RIGHT: "D-pad right",
 }
+
+
+## "P1", "P2", ... for co-op tags.
+static func player_tag(player: int) -> String:
+	return "P%d" % (player + 1)
+
+
+static func player_color(player: int) -> Color:
+	return PLAYER_COLORS[clampi(player, 0, PLAYER_COLORS.size() - 1)]
 
 
 static func label_settings(size: int, color: Color = TEXT) -> LabelSettings:
