@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_n8pi5"]
+
+[resource]
+script = ExtResource("1_n8pi5")
+id = "hamstring"
+display_name = "Hamstring"
+description = "100% hit. The enemy is slower for 2 of its turns. Perfect press: 3 turns."
+ap_cost = 2
+press_times_ms = Array[int]([800])
+follow_ups = true
+status = "slowed"
+status_turns = 2
+press_status_turns = 1

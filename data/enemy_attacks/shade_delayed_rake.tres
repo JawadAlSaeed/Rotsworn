@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_cfi1h"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_squyn"]
+
+[sub_resource type="Resource" id="Resource_o8ih1"]
+script = ExtResource("1_cfi1h")
+impact_ms = 1700
+damage_percent = 120
+feint = true
+
+[resource]
+script = ExtResource("2_squyn")
+id = "shade_delayed_rake"
+display_name = "Delayed Rake"
+weight = 3
+allow_timing_ring = false
+hits = Array[ExtResource("1_cfi1h")]([SubResource("Resource_o8ih1")])

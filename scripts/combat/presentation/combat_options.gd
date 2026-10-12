@@ -7,6 +7,7 @@ extends RefCounted
 ##   --autoplay[=perfect|miss|mash]  bot plays the fight (perfect is the default)
 ##   --quit-on-end                   quit one second after the fight ends
 ##   --seed=N                        fixed fight seed (else tuning fixed_seed, else random)
+##   --encounter=ID                  start this encounter (data/encounters) instead of the list
 
 const AUTOPLAY_PERFECT := "perfect"
 const AUTOPLAY_MISS := "miss"
@@ -17,6 +18,8 @@ var autoplay_mode: String = ""
 var quit_on_end: bool = false
 ## -1 when no --seed was given.
 var seed_override: int = -1
+## "" when no --encounter was given.
+var encounter_id: String = ""
 ## Session toggles (F1 overlay; not saved): telegraph flash (F), timing readout (T) and the
 ## enemy's motion sounds (L: lunge whoosh and slam).
 var telegraph_flash: bool = true
@@ -44,6 +47,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 				options.autoplay_mode = AUTOPLAY_PERFECT
 		elif arg == "--quit-on-end":
 			options.quit_on_end = true
+		elif arg.begins_with("--encounter="):
+			options.encounter_id = arg.substr("--encounter=".length())
 		elif arg.begins_with("--seed="):
 			var text := arg.substr("--seed=".length())
 			if text.is_valid_int():

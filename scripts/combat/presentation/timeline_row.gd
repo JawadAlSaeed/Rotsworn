@@ -1,7 +1,8 @@
 class_name TimelineRow
 extends HBoxContainer
 ## The turn order row (top left): the current actor first and highlighted, then the next turns
-## from mirror.turn_order. Portraits and names come from the fighters' data.
+## from mirror.turn_order. Portraits and names come from the fighters' data. Under each enemy's
+## next turn, one icon per hit of its intended attack (DESIGN.md 2.8).
 
 const CURRENT_BORDER_PX: int = 4
 const OTHER_BORDER_PX: int = 2
@@ -12,10 +13,16 @@ const NAME_WIDTH_FACTOR: float = 2.0
 
 var _entries: Array[Dictionary] = []
 var _portrait_px: float = 56.0
+## AttackHitData.Kind -> Texture2D.
+var _hit_icons: Dictionary = {}
+var _icon_px: float = 20.0
 
 
-func setup(count: int, portrait_px: float) -> void:
+## `hit_icons` maps AttackHitData.Kind to its icon texture.
+func setup(count: int, portrait_px: float, hit_icons: Dictionary, icon_px: float) -> void:
 	_portrait_px = portrait_px
+	_hit_icons = hit_icons
+	_icon_px = icon_px
 	add_theme_constant_override("separation", 10)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for i: int in count:
@@ -38,10 +45,16 @@ func setup(count: int, portrait_px: float) -> void:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.custom_minimum_size = Vector2(_portrait_px * NAME_WIDTH_FACTOR, 0.0)
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		var icons := HBoxContainer.new()
+		icons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icons.alignment = BoxContainer.ALIGNMENT_CENTER
+		icons.add_theme_constant_override("separation", 1)
+		icons.custom_minimum_size = Vector2(0.0, _icon_px)
 		box.add_child(frame)
 		box.add_child(label)
+		box.add_child(icons)
 		add_child(box)
-		_entries.append({"box": box, "frame": frame, "style": style, "portrait": portrait, "label": label})
+		_entries.append({"box": box, "frame": frame, "style": style, "portrait": portrait, "label": label, "icons": icons})
 
 
 ## Shows `order` (combatant ids, current actor first). `portraits` and `colors` map id -> value.
@@ -65,3 +78,23 @@ func show_order(order: Array[int], mirror: CombatMirror, portraits: Dictionary, 
 		var label: Label = e.label
 		label.text = String(mirror.fighter(id).get("display_name", "?"))
 		label.label_settings.font_color = HudStyle.GOLD if current else HudStyle.TEXT
+		var kinds: Array = []
+		if mirror.intents.has(id) and order.find(id) == i:
+			kinds = (mirror.intents[id] as Dictionary).get("kinds", [])
+		_show_icons(e.icons as HBoxContainer, kinds)
+
+
+func _show_icons(box: HBoxContainer, kinds: Array) -> void:
+	while box.get_child_count() < kinds.size():
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(_icon_px, _icon_px)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(icon)
+	for j: int in box.get_child_count():
+		var icon := box.get_child(j) as TextureRect
+		icon.visible = j < kinds.size()
+		if icon.visible:
+			icon.texture = _hit_icons.get(int(kinds[j])) as Texture2D

@@ -6,5 +6,8 @@
 script = ExtResource("1_krtt8")
 id = "basic_attack"
 display_name = "Attack"
-description = "A quick strike. Gains 1 AP."
+description = "A quick strike. Gains 1 AP. Perfect press: +25%."
+press_times_ms = Array[int]([750])
+press_damage_percent = 25
+consumes_exposed = false
 ap_gain = 1

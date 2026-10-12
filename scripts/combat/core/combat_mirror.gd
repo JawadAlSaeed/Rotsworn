@@ -6,7 +6,8 @@ extends RefCounted
 ## - network clients (phase 5), which have no engine, use exactly the same code.
 ## Pure: no nodes, no time.
 
-## id -> {id, team, slot, data_id, display_name, max_hp, hp, ap, power, speed, alive}
+## id -> {id, team, slot, data_id, display_name, max_hp, hp, ap, power, speed, alive,
+## statuses: {status id: {turns, source}}}
 var fighters: Dictionary = {}
 var party_ids: Array[int] = []
 var enemy_ids: Array[int] = []
@@ -16,6 +17,11 @@ var turn_order: Array[int] = []
 ## The last declared timed sequence, with "states" and "outcomes" kept up to date.
 var sequence: Dictionary = {}
 var result: String = ""
+## Shared team gauge (its size is tuning team_gauge_max).
+var team_gauge: int = 0
+## Enemy id -> its last intent event (what it does next). Removed when the attack starts or the
+## enemy goes down.
+var intents: Dictionary = {}
 var practice: Dictionary = {"invulnerable_party": false, "immortal_enemies": false, "force_attack": ""}
 var practice_allowed: bool = false
 var seed_value: int = 0
@@ -42,6 +48,7 @@ func apply(event: Dictionary) -> void:
 					"power": int(d.power),
 					"speed": int(d.speed),
 					"alive": int(d.hp) > 0,
+					"statuses": (d.get("statuses", {}) as Dictionary).duplicate(true),
 				}
 				fighters[f.id] = f
 				if f.team == Combatant.Team.PARTY:
@@ -57,10 +64,25 @@ func apply(event: Dictionary) -> void:
 			_set_hp(int(event.target), int(event.hp))
 		"downed":
 			_set_hp(int(event.target), 0)
+			intents.erase(int(event.target))
+		"healed", "revived":
+			_set_hp(int(event.target), int(event.hp))
+		"status_changed":
+			var statuses: Dictionary = fighter(int(event.target)).get("statuses", {})
+			if bool(event.active):
+				statuses[String(event.status)] = {"turns": int(event.turns), "source": int(event.source)}
+			else:
+				statuses.erase(String(event.status))
+		"team_gauge":
+			team_gauge = int(event.value)
+		"intent":
+			intents[int(event.enemy)] = event.duplicate(true)
 		"ap_changed":
 			fighter(int(event.character)).ap = int(event.ap)
 		"timed_sequence_declared":
 			sequence = event.duplicate(true)
+			if String(event.kind) == CombatEngine.SEQUENCE_ENEMY_ATTACK:
+				intents.erase(int(event.source))
 			var states: Array[int] = []
 			var outcomes: Array[int] = []
 			for i: int in (event.prompts as Array).size():
@@ -102,6 +124,18 @@ func is_alive(id: int) -> bool:
 	return bool(fighter(id).get("alive", false))
 
 
+func has_status(id: int, status: String) -> bool:
+	return (fighter(id).get("statuses", {}) as Dictionary).has(status)
+
+
+func downed_party_ids() -> Array[int]:
+	var list: Array[int] = []
+	for id: int in party_ids:
+		if not is_alive(id):
+			list.append(id)
+	return list
+
+
 func living_party_ids() -> Array[int]:
 	return _living(party_ids)
 
@@ -122,20 +156,26 @@ func _living(ids: Array[int]) -> Array[int]:
 func projection() -> Dictionary:
 	var hp: Dictionary = {}
 	var ap: Dictionary = {}
+	var statuses: Dictionary = {}
 	for id: int in fighters:
 		hp[id] = int(fighters[id].hp)
 		ap[id] = int(fighters[id].ap)
-	return {"hp": hp, "ap": ap, "result": result, "practice": practice.duplicate()}
+		statuses[id] = (fighters[id].statuses as Dictionary).duplicate(true)
+	return {"hp": hp, "ap": ap, "statuses": statuses, "team_gauge": team_gauge, "result": result,
+			"practice": practice.duplicate()}
 
 
 ## The same projection taken from CombatEngine.snapshot(), for tests.
 static func project_snapshot(snap: Dictionary) -> Dictionary:
 	var hp: Dictionary = {}
 	var ap: Dictionary = {}
+	var statuses: Dictionary = {}
 	for d: Dictionary in snap.combatants:
 		hp[int(d.id)] = int(d.hp)
 		ap[int(d.id)] = int(d.ap)
-	return {"hp": hp, "ap": ap, "result": String(snap.result), "practice": (snap.practice as Dictionary).duplicate()}
+		statuses[int(d.id)] = (d.statuses as Dictionary).duplicate(true)
+	return {"hp": hp, "ap": ap, "statuses": statuses, "team_gauge": int(snap.team_gauge),
+			"result": String(snap.result), "practice": (snap.practice as Dictionary).duplicate()}
 
 
 func _set_hp(id: int, hp: int) -> void:

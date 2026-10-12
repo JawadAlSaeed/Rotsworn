@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_57i8h"]
+
+[resource]
+script = ExtResource("1_57i8h")
+id = "feint_step"
+display_name = "Feint Step"
+description = "80% hit. +1 AP. Perfect press: +2 AP instead."
+press_times_ms = Array[int]([800])
+damage_percent = 80
+consumes_exposed = false
+ap_gain = 1
+press_ap_gain = 1

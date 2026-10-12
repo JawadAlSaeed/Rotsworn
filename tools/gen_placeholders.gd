@@ -314,6 +314,10 @@ func _make_ui() -> void:
 		_save_png(_ap_pip(true), v.ap_pip_path)
 	if _wants(v.ap_pip_empty_path):
 		_save_png(_ap_pip(false), v.ap_pip_empty_path)
+	if _wants(v.hit_icon_normal_path):
+		_save_png(_hit_icon_normal(), v.hit_icon_normal_path)
+	if _wants(v.hit_icon_ground_path):
+		_save_png(_hit_icon_ground(), v.hit_icon_ground_path)
 
 
 func _make_sounds() -> void:
@@ -1432,6 +1436,30 @@ func _ap_pip(filled: bool) -> Image:
 	return _canvas
 
 
+## 12x12 sword pointing up-right: a normal hit (parry or dodge).
+func _hit_icon_normal() -> Image:
+	_begin_canvas(Vector2i(12, 12))
+	_capsule(Vector2(3.0, 9.0), Vector2(10.0, 2.0), 0.9, Color("e8edf2"))
+	_capsule(Vector2(1.5, 7.5), Vector2(4.5, 10.5), 0.8, Color("d9a93f"))
+	_capsule(Vector2(1.5, 10.5), Vector2(2.5, 9.5), 0.8, Color("7a5a2a"))
+	_finish_layer()
+	return _canvas
+
+
+## 12x12 orange wave along the floor: a ground hit (jump).
+func _hit_icon_ground() -> Image:
+	_begin_canvas(Vector2i(12, 12))
+	var col := Color("ff9a26")
+	for x: int in 12:
+		# Two crests rolling to the right, over a floor line.
+		var crest := 6.0 - 2.5 * maxf(0.0, sin(float(x) / 11.0 * TAU * 1.0 - 0.6))
+		for y: int in range(roundi(crest), roundi(crest) + 2):
+			_plot(x, y, col)
+		_plot(x, 10, col.darkened(0.3))
+	_finish_layer()
+	return _canvas
+
+
 # =============================================================================================
 # Sounds
 # =============================================================================================
@@ -1484,6 +1512,22 @@ func _synth(cue: String) -> PackedFloat32Array:
 			return _sfx_defeat()
 		"metronome":
 			return _sfx_metronome()
+		"skill_press":
+			return _sfx_skill_press()
+		"follow_up":
+			return _sfx_follow_up()
+		"heal":
+			return _sfx_rising([784.0, 988.0, 1175.0, 1568.0], 0.07, 0.5)
+		"buff":
+			return _sfx_rising([659.0, 988.0], 0.08, 0.6)
+		"debuff":
+			return _sfx_debuff()
+		"revive":
+			return _sfx_rising([523.0, 659.0, 784.0, 1047.0, 1319.0], 0.08, 0.55)
+		"gauge_full":
+			return _sfx_gauge_full()
+		"ultimate":
+			return _sfx_ultimate()
 	return _sfx_menu_blip([1000.0, 1000.0])
 
 
@@ -1898,3 +1942,69 @@ func _sfx_metronome() -> PackedFloat32Array:
 	_tone(b, 0.0, 2800.0, 2800.0, 0.0, 0.7, 0.0, 0.004, HARD)
 	_tone(b, 0.0, 1400.0, 1400.0, 0.0, 0.4, 0.0, 0.007, HARD)
 	return _master(b, 0.008)
+
+
+# --- Phase 2 cues ------------------------------------------------------------------------------
+
+## A good skill press: a bright tick on top of a short bell, so it reads apart from a parry.
+func _sfx_skill_press() -> PackedFloat32Array:
+	var b := _buffer(0.22)
+	_noise(b, 0.0, 0.006, 0.6, 0.0, 0.002, NoiseFilter.HIGH, 3500.0, 3500.0)
+	_partials(b, 0.0, 1568.0, [1.0, 2.0, 2.76, 3.5], [1.0, 0.45, 0.3, 0.2], [0.12, 0.08, 0.05, 0.04], 0.5, 2.0)
+	_tone(b, 0.0, 330.0, 220.0, 0.03, 0.35, 0.0, 0.03, HARD)
+	return _master(b, 0.03)
+
+
+## A follow-up strike: lighter and higher than the main strike.
+func _sfx_follow_up() -> PackedFloat32Array:
+	var b := _buffer(0.12)
+	_noise(b, 0.0, 0.015, 0.7, 0.0, 0.005, NoiseFilter.HIGH, 3500.0, 3500.0)
+	_tone(b, 0.0, 420.0, 200.0, 0.03, 0.6, 0.0, 0.025, HARD)
+	_noise(b, 0.0, 0.09, 0.3, 0.0, 0.03, NoiseFilter.BAND, 6500.0, 4500.0, 2.0)
+	_saturate(b, 1.3)
+	return _master(b, 0.025)
+
+
+## Soft notes going up, one after another (heal, buff, revive).
+func _sfx_rising(notes: Array, step: float, amp: float) -> PackedFloat32Array:
+	var b := _buffer(step * float(notes.size()) + 0.35)
+	for i: int in notes.size():
+		var f: float = notes[i]
+		_tone(b, step * i, f, f, 0.0, amp, 0.01, 0.12)
+		_tone(b, step * i, f * 2.0, f * 2.0, 0.0, amp * 0.2, 0.01, 0.07)
+	_noise(b, 0.0, step * float(notes.size()), 0.06, 0.02, 0.1, NoiseFilter.BAND, 7000.0, 9000.0, 2.0)
+	return _master(b, 0.08)
+
+
+## Two low notes going down with a dull thud (taunt, reveal).
+func _sfx_debuff() -> PackedFloat32Array:
+	var b := _buffer(0.4)
+	_tone(b, 0.0, 330.0, 300.0, 0.1, 0.6, 0.005, 0.1)
+	_tone(b, 0.09, 247.0, 196.0, 0.15, 0.6, 0.005, 0.14)
+	_noise(b, 0.0, 0.08, 0.35, 0.0, 0.03, NoiseFilter.LOW, 600.0, 250.0)
+	_saturate(b, 1.4)
+	return _master(b, 0.06)
+
+
+## The team gauge is full: a shimmering chord.
+func _sfx_gauge_full() -> PackedFloat32Array:
+	var b := _buffer(0.8)
+	for f: float in [523.0, 659.0, 784.0, 1047.0]:
+		_tone(b, 0.0, f, f, 0.0, 0.3, 0.03, 0.35)
+		_tone(b, 0.0, f + 2.5, f + 2.5, 0.0, 0.18, 0.03, 0.4)
+	for s: int in 12:
+		var t := _rng.randf_range(0.0, 0.5)
+		var f := _rng.randf_range(3000.0, 7000.0)
+		_tone(b, t, f, f, 0.0, 0.07, 0.003, 0.08)
+	return _master(b, 0.1)
+
+
+## The team ultimate's hits: a big low impact with a metallic ring.
+func _sfx_ultimate() -> PackedFloat32Array:
+	var b := _buffer(0.6)
+	_noise(b, 0.0, 0.03, 0.9, 0.0, 0.01, NoiseFilter.HIGH, 1600.0, 1600.0)
+	_tone(b, 0.0, 130.0, 36.0, 0.15, 1.0, 0.0, 0.16, HARD)
+	_noise(b, 0.0, 0.3, 0.7, 0.0, 0.1, NoiseFilter.LOW, 500.0, 150.0)
+	_partials(b, 0.0, 880.0, [1.0, 1.5, 2.25, 3.0], [0.8, 0.6, 0.45, 0.3], [0.3, 0.22, 0.16, 0.1], 0.35, 2.0)
+	_saturate(b, 1.6)
+	return _master(b, 0.07)

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_xlmdh"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_delayed_rake.tres" id="2_eqh5t"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_cross_step.tres" id="3_i2yil"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_stutter.tres" id="4_48bed"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_nightfall.tres" id="5_idxi1"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="6_727rv"]
+
+[resource]
+script = ExtResource("6_727rv")
+id = "shade"
+display_name = "Shade"
+color = Color(0.29411766, 0.30980393, 0.47843137, 1)
+sprite_path = "res://assets/sprites/enemies/shade.png"
+portrait_path = "res://assets/sprites/portraits/shade.png"
+hp_percent = 90
+speed = 130
+attacks = Array[ExtResource("1_xlmdh")]([ExtResource("2_eqh5t"), ExtResource("3_i2yil"), ExtResource("4_48bed"), ExtResource("5_idxi1")])

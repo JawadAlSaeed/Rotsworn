@@ -26,6 +26,18 @@ const DAMAGE_TAKEN := Color(1.0, 0.32, 0.27)
 const DAMAGE_DEALT := Color(1.0, 1.0, 1.0)
 const RING_NORMAL := Color(0.9, 0.95, 1.0)
 const RING_GROUND := Color(1.0, 0.6, 0.15)
+const HEAL := Color(0.45, 1.0, 0.5)
+const GAUGE_FILL := Color(0.95, 0.62, 0.2)
+const AP_TEXT := Color(0.55, 0.88, 1.0)
+
+## Status badges (DESIGN.md 2.10): short name and colour per Status id.
+const STATUS_NAMES := {
+	"exposed": "EXPOSED", "guarded": "GUARD", "taunted": "TAUNTED", "slowed": "SLOWED", "riposte": "RIPOSTE",
+}
+const STATUS_COLORS := {
+	"exposed": Color(1.0, 0.55, 0.3), "guarded": Color(0.55, 0.8, 1.0), "taunted": Color(1.0, 0.4, 0.4),
+	"slowed": Color(0.7, 0.6, 1.0), "riposte": Color(1.0, 0.85, 0.35),
+}
 
 const OUTLINE_RATIO: float = 0.2
 
@@ -113,3 +125,17 @@ static func binding_text(action: StringName) -> String:
 ## "+12" / "-8" for a millisecond offset.
 static func signed_ms(ms: int) -> String:
 	return ("+%d" % ms) if ms >= 0 else str(ms)
+
+
+## "GUARD  SLOWED 2" from a fighter's statuses (mirror format), in Status.ALL order.
+static func status_text(statuses: Dictionary) -> String:
+	var parts := PackedStringArray()
+	for id: String in Status.ALL:
+		if not statuses.has(id):
+			continue
+		var text := String(STATUS_NAMES.get(id, id.to_upper()))
+		var turns := int((statuses[id] as Dictionary).get("turns", 0))
+		if Status.counts_turns(id) and turns > 0:
+			text += " %d" % turns
+		parts.append(text)
+	return "  ".join(parts)

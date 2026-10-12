@@ -50,13 +50,13 @@ Charge-time system, shown on screen as a row of upcoming turns.
 
 The acting character picks an action:
 
-- **Attack** (basic): single target, `ability.damage_percent` of the character's power. Grants AP
-  (`ability.ap_gain`, +1). Phase 2 adds a timed press.
-- **Skill**: costs AP. Phase 1 has one placeholder skill per character ("Heavy Strike", 2 AP,
-  220%). Phase 2 replaces these with real class kits.
+- **Attack** (basic): single target, 100% of the character's power, one timed press (+25% on a
+  good press). Grants AP (`ability.ap_gain`, +1). Does not consume Exposed.
+- **Skill**: costs AP; the class kits are in 2.10. Every skill has timed presses.
+- **Team Ultimate**: offered to everyone; needs a full team gauge (2.10).
 
-Then the target (left/right or up/down to cycle). **When only one target is valid the target
-step is skipped.** The menu shows each ability's AP cost or gain and the selected ability's
+Then the target: an enemy, an ally or a downed ally depending on the skill (left/right or
+up/down to cycle). **When only one target is valid the target step is skipped.** The menu shows each ability's AP cost or gain and the selected ability's
 description (plus "Needs N AP" when it cannot be afforded). A party action animation (dash,
 strike, return) takes about 0.55 s.
 
@@ -119,8 +119,10 @@ strike, return) takes about 0.55 s.
 ### 2.6 AP (action points)
 
 - Start each fight with `start_ap` (1). Cap `max_ap` (9).
-- Gain: basic attack (+1), parry (+1 each), jump (tuning, default 0). Phase 2: some skills.
-- Spend: skills.
+- Gain: basic attack (+1), parry (+1 each), jump (tuning, default 0), Feint Step (+1, +2 on a
+  good press), good presses on Taunt, Riposte Stance and Reveal (+1), Pass the Torch (gives 2, or
+  3, to an ally).
+- Spend: skills. The team ultimate costs no AP; it empties the team gauge.
 
 ### 2.7 HP and damage
 
@@ -151,8 +153,21 @@ a timed prompt; success adds a small hit and fills a shared **team gauge**; full
 distinct patterns. These all reuse the timed-sequence machinery (4.3): a skill is a sequence with
 a press prompt for the actor and follow-up prompts for allies, declared up front with a
 `requires` link to the skill-landing prompt, so no network round trip is needed mid-sequence.
-Class kits (tank/counter, damage, support; 4 to 6 skills each) will be proposed to the user before
-being implemented.
+Class kits approved by the user on 2026-10-12 (section 2.10).
+
+**Enemy intent (user feedback after phase 1, approved 2026-10-12):** the player must be told what
+the enemy is about to do with enough time to read it (the phase 1 banner appeared only
+`attack_lead_in_ms`, 700 ms, before the attack).
+
+- Each enemy picks its next attack and target(s) when its turn ends (and at fight start), with
+  the seeded RNG. The pick is part of engine state and is announced in an `intent` event.
+- A sign under the enemy shows it all the time: attack name, target ("WHOLE PARTY" for party-wide)
+  and one icon per hit (sword = normal: parry or dodge; wave = ground: jump). The same icon sits
+  on the enemy's turn in the timeline row.
+- **Always honest:** every enemy shows the full truth (user pick). Difficulty comes from how an
+  attack moves (feints, delays, rhythm), never from hidden information.
+- If a living target goes down, or Taunt redirects a single-target attack, the target is
+  re-picked and a new `intent` event is sent. The attack itself never changes.
 
 ### 2.9 Phase 1 enemy: Rotten Husk
 
@@ -170,6 +185,97 @@ Times are ms after the attack starts, at tempo 100%.
 Data rules (checked by a test): impact times increase; normal hits at least 250 ms apart; at
 least 450 ms between a ground hit and its neighbours; mid-string parry hit-stop at least 30 ms
 under the parry window's early part.
+
+### 2.10 Phase 2 class kits (approved 2026-10-12)
+
+All names and numbers are placeholders stored in ability data. Percentages are of the user's
+power unless stated. AP is per character.
+
+**Shared rules**
+
+- **Timed press (three results, user feedback 2026-10-12):** every skill has one or more press
+  prompts for its user (`skill_press` button). Each press is:
+  - **PERFECT** (inside `skill_perfect_window_ms`, 70 ms): extra damage (`press_damage_percent`)
+    and, if every press of the skill was perfect, the skill's other bonus ("Perfect press: ...");
+  - **GOOD** (inside `skill_press_window_ms`, 200 ms, around the perfect window): normal damage;
+  - **MISS** (pressed too early or too late, or not at all): the hit still lands for
+    `skill_miss_damage_percent` (50%) of normal damage. A press before the good window shows EARLY
+    and starts the whiff lockout, so mashing never pays.
+  Multi-hit skills have one press per hit, and each press only affects its own hit. Non-damage
+  effects (heal, AP, statuses...) always apply at their base value; only all-perfect adds the
+  bonus.
+- **Follow-up Strike:** when a skill lands with at least one good or perfect press, each other
+  living ally gets one press prompt (declared up front with a `requires` link to the landing
+  prompt). A good press adds a small hit (`follow_up_percent`, 30%), a perfect one a bigger hit
+  (`follow_up_perfect_percent`, 45%); both fill the shared **team gauge**
+  (`team_gauge_per_follow_up`; gauge size `team_gauge_max`). A missed follow-up does nothing.
+- **Team Ultimate:** when the gauge is full, any character can use it on their turn (empties the
+  gauge). All three living characters strike together for big damage, and every downed ally is
+  revived at `team_ultimate_revive_percent` (25) of max HP.
+- **Exposed** (enemy mark, does not stack): the next damaging skill used on that enemy removes it
+  for +50% damage (Rend: +150% instead).
+- **Revive:** Cass's Revive skill and the Team Ultimate. Revive timing follows 2.1.
+
+**Alder: Warden (tank / counter).** Slow, tough, punishes the enemy for attacking.
+
+| Skill | AP | Effect | Good press |
+|---|---|---|---|
+| Taunt | 1 | the enemy's next single-target attack must target Alder | +1 AP |
+| Guard | 1 | one ally takes 50% damage until their next turn | Alder is guarded too |
+| Shield Bash | 2 | 140% hit, enemy's next turn is pushed later | pushed further |
+| Riposte Stance | 2 | until Alder's next turn, his counters deal x2 | +1 AP |
+| Payback | 3 | 100% hit, +50% per perfect defence Alder made since his last turn | +50% |
+
+**Brin: Reaver (damage).** Fast and strong; consumes Exposed.
+
+| Skill | AP | Effect | Good press |
+|---|---|---|---|
+| Feint Step | 0 | 80% hit, +1 AP | +2 AP instead |
+| Quick Cuts | 1 | 3 hits of 50% | +25% on that hit |
+| Hamstring | 2 | 100% hit, enemy speed down for 2 of its turns | lasts 3 turns |
+| Rend | 3 | 220% hit; consumes Exposed for +150% | +30% |
+| All In | 5 | 5 hits of 70% | +30% on that hit |
+
+**Cass: Mender (support).** Heals, applies Exposed, feeds AP.
+
+| Skill | AP | Effect | Good press |
+|---|---|---|---|
+| Mend | 1 | heal one ally 30% of their max HP | 45% |
+| Reveal | 1 | 60% hit, enemy becomes Exposed | +1 AP |
+| Pass the Torch | 2 | give one ally 2 AP | 3 AP |
+| Hasten | 2 | one ally's next turn comes sooner | sooner still |
+| Revive | 3 | revive a downed ally at 25% HP | 50% HP |
+
+Intended combo: Cass Reveals, Brin Rends; Alder Taunts, parries, then cashes in with Payback.
+
+### 2.11 Phase 2 enemies (approved 2026-10-12)
+
+Each enemy tests one defence skill. Starting numbers; tune in data. Times in ms at tempo 100%.
+All attacks follow the data rules in 2.9.
+
+| Enemy | Speed | HP | Power | Tests |
+|---|---|---|---|---|
+| Rotten Husk (2.9) | 200 | 100% | 100% | a bit of everything |
+| Bloat | 80 | 180% | 140% | patience (long wind-ups) and jumping |
+| Gnat Swarm | 160 | 50% | 50% | rhythm: long strings of light hits |
+| Shade | 130 | 90% | 100% | reading: feints, delays, mixed ground and normal |
+
+| Enemy | Attack | Targets | Weight | Hits |
+|---|---|---|---|---|
+| Bloat | Belly Slam | one | 3 | normal 1600 (130%), slow 400 ms lunge |
+| Bloat | Rot Wave | party | 2 | ground 1200 (80%) |
+| Bloat | Double Wave | party | 2 | ground 1100, ground 1800 (55% each) |
+| Bloat | Crush | one | 1 | normal 1400, ground 2000 (70% each) |
+| Gnat Swarm | Sting String | one | 3 | normal 800 to 1920 every 280 (5 x 30%) |
+| Gnat Swarm | Buzz | one | 2 | normal 800 to 2050 every 250 (6 x 25%) |
+| Gnat Swarm | Swarm Sweep | party | 1 | normal 900, 1200, 1500 (40% each) |
+| Shade | Delayed Rake | one | 3 | normal 1700 (120%), feint |
+| Shade | Cross Step | one | 2 | normal 900, ground 1450, normal 2000 (45% each) |
+| Shade | Stutter | one | 2 | normal 800, 1600 (feint), 1900 (40% each) |
+| Shade | Nightfall | party | 1 | ground 1000, normal 1600 feint (60% each) |
+
+Some encounters have two enemies (for example two Gnat Swarms), so targeting, Exposed and
+Hamstring matter. Phase 2 test build: a fight-select screen lists the test encounters.
 
 ---
 
@@ -318,8 +424,9 @@ One judge per local player, holding the prompts of the characters that player an
                                                     v
  HUD menus ──> CombatController ──commands──> CombatEngine (pure, deterministic)
                  │   ^                               │
-                 │   └──── TimedSequenceRunner ◄─────┘ events
-                 │          (AttackClock + one DefenseJudge per local player; phase 1: one)
+                 │   ├──── TimedSequenceRunner ◄─────┤ events (enemy attacks)
+                 │   └──── SkillSequenceRunner ◄─────┘ events (skills, follow-ups)
+                 │          (AttackClock + one DefenseJudge per local player; phase 2: one)
                  └──events──> CombatMirror ──> CombatView / HUD / Audio (presentation)
 ```
 
@@ -338,7 +445,8 @@ One judge per local player, holding the prompts of the characters that player an
 
 ### 4.2 Engine API (`CombatEngine`)
 
-- `CombatEngine.new(setup: CombatSetup)`: party data, enemy data, tuning, seed, `allow_practice`.
+- `CombatEngine.new(setup: CombatSetup)`: party data, enemy data, team ultimate, tuning, seed,
+  `allow_practice`.
 - `start() -> Array[Dictionary]`: events for fight start and the first turn (or one
   `command_rejected` with `already_started` / `invalid_setup`).
 - `submit(command) -> Array[Dictionary]`: the only way to change state. A command is fully
@@ -346,8 +454,10 @@ One judge per local player, holding the prompts of the characters that player an
   which is private to the sender (never broadcast or replayed).
 - Queries (controller and tests only): `phase`, `active_actor`, `turn_number`, `sequence`,
   `pending_prompts()`, `get_combatant(id)`, `preview_turn_order(n)`, `snapshot()`, `party_ids()`,
-  `enemy_ids()`, `living_party_ids()`, `living_enemy_ids()`, `get_ability(id)`, `get_attack(id)`,
-  `can_afford(actor_id, ability_id)`. Presentation never reads them for display (rule 7).
+  `enemy_ids()`, `living_party_ids()`, `living_enemy_ids()`, `downed_party_ids()`,
+  `get_ability(id)`, `get_attack(id)`, `can_afford(actor_id, ability_id)`, `can_use(...)`,
+  `valid_targets(actor_id, ability_id)`, `team_gauge`, `intents`. Presentation never reads them
+  for display (rule 7); the action menu works out the same rules from the mirror.
 - `CombatEngine.restore(setup, snapshot)` rebuilds an engine (reconnects, desync debugging).
 
 Phases: `AWAITING_ACTION` (a party member must act), `AWAITING_TIMING` (a timed sequence has
@@ -356,10 +466,20 @@ pending prompts), `ENDED`.
 ### 4.3 Timed sequences, commands and events
 
 Anything resolved in real time is a **timed sequence** of **prompts**. A prompt is one
-(moment, character) pair: `{idx, hit, character, at_ms, kind, windows, perfect, damage}`. Phase 1
-has one kind, `enemy_attack` (one prompt per hit per target). Prompts name characters, never
-players; which player answers which prompt is decided by the controller (and in phase 5 by a host
-`DefenseArbiter`). In single-player one press answers all of that player's simultaneous prompts.
+(moment, character) pair: `{idx, hit, character, at_ms, kind, windows, perfect, damage,
+press_damage, role, requires}`. Kinds:
+
+- `enemy_attack`: one `defend` prompt per hit per target (windows for dodge/parry or jump).
+- `skill`: one `press` prompt per hit per striker (the user; every standing party member for the
+  team ultimate), then one `follow_up` prompt per other standing ally (damaging enemy skills with
+  `follow_ups`). A follow-up `requires` the press prompts: the engine voids it
+  (`no_good_press`) once they are all in and none was good. Damage for a miss (`damage`) and a
+  good press (`press_damage`) is pre-rolled in the prompt. The skill's other effects apply when its
+  last press is in ("the skill lands").
+
+Prompts name characters, never players; which player answers which prompt is decided by the
+controller (and in phase 5 by a host `DefenseArbiter`). In single-player one press answers all of
+that player's simultaneous prompts (the team ultimate: one press per hit for all three).
 
 Commands (Dictionary, `type` key; build with `CombatCommands`):
 
@@ -369,11 +489,12 @@ Commands (Dictionary, `type` key; build with `CombatCommands`):
 | `resolve_prompts` | `seq`, `results: [{prompt, outcome, offset_us}]` | AWAITING_TIMING; partial OK; per character in order |
 | `practice` | `invulnerable_party?`, `immortal_enemies?`, `force_attack?` | only if the setup allows practice |
 
-Events: `combat_started`, `turn_started`, `turn_order`, `ability_used`, `damage`, `downed`,
-`ap_changed`, `timed_sequence_declared`, `prompt_resolved`, `prompts_voided`,
-`sequence_resolved` (boundary: all prompts done, counters follow), `counter`, `turn_ended`,
-`practice_changed`, `combat_ended`, `command_rejected`. Every event that changes HP or AP carries
-the value after the change. Full field lists are at the top of `combat_engine.gd`.
+Events: `combat_started`, `intent`, `turn_started`, `turn_order`, `ability_used`, `damage`,
+`healed`, `revived`, `downed`, `ap_changed`, `status_changed`, `turn_shifted`, `team_gauge`,
+`timed_sequence_declared`, `prompt_resolved`, `prompts_voided`, `sequence_resolved` (boundary:
+all prompts done, counters follow), `counter`, `turn_ended`, `practice_changed`, `combat_ended`,
+`command_rejected`. Every event that changes HP, AP or the gauge carries the value after the
+change. Full field lists are at the top of `combat_engine.gd`.
 
 Payload rules: only ints, bools, Strings and arrays/dictionaries of those (never Resources);
 built fresh, never sharing containers with engine state. Persist logs with `var_to_bytes` /
@@ -393,12 +514,22 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 
 - The controller keeps an event queue and plays events one by one through the view; each
   applies to `CombatMirror` when it is played, so bars change with the animation.
-- `timed_sequence_declared` starts the `TimedSequenceRunner`, which runs the attack locally on
-  the `AttackClock`, judges presses, plays local feedback, and submits `resolve_prompts`. The
-  engine events that come back for prompts (`prompt_resolved`, `prompts_voided`, `downed`) are
-  applied to the mirror at once (their effects were already shown locally). Everything from
-  `sequence_resolved` on (counters, next turn, victory) waits until the local attack animation
-  ends.
+- `timed_sequence_declared` starts the `TimedSequenceRunner` (enemy attacks) or the
+  `SkillSequenceRunner` (skills). Each runs the sequence locally on its `AttackClock`, judges
+  presses, plays local feedback, and submits `resolve_prompts`. Enemy attacks: the engine events
+  that come back for prompts (`prompt_resolved`, `prompts_voided`, `downed`) are applied to the
+  mirror at once (their effects were already shown locally). Skills: the events that come back for
+  a press (damage, statuses, healing, AP, gauge) are applied at that press's contact moment, so
+  the numbers appear with the strike. Everything from `sequence_resolved` on (counters, next turn,
+  victory) waits until the local animation ends.
+- Skill press rings are osu-style ("PRESS" on the user, "FOLLOW-UP" in blue on an ally): a faint
+  target circle on the presser, a grey GOOD band and a gold PERFECT band around it, and a ring
+  that shrinks from `press_ring_start_radius_px` and reaches the target circle at the perfect
+  moment, `ring_lead_ms` after it appears. The bands are the press windows drawn at the ring's
+  shrink speed, so pressing while the ring is inside a band gives that result; the ring turns gold
+  inside the PERFECT band. Perfect: full sound, short hit-stop (`hitstop_press_ms`), gold "PERFECT"
+  readout. Good: quieter sound, white "GOOD". No good press when the window passes: "MISS" and a
+  weaker strike. Early/late presses show EARLY/LATE and start the same whiff lockout as defence.
 - Test: after every fight, the mirror's projection equals the engine snapshot's projection. The
   autoplay bot checks the same on the real playback path at the end of every fight and prints
   `AUTOPLAY_ERROR mirror_mismatch` if they differ.
@@ -414,11 +545,11 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | `Tuning` | `data/tuning/tuning.tres` | every global rules and judging number (windows, lockout, lag compensation and its bounds, damage, HP, AP, hit-stop, cue toggles, pacing) |
 | `CombatVisuals` | `data/presentation/combat_visuals.tres` | presentation only: FX/stage/UI art paths, stage layout, camera, enemy choreography feel (feint lead, contact hold, recoil), pose lengths, jump shape, flash/shake strengths, popup and banner feel, calibration procedure |
 | `CharacterData` | `data/characters/` | id, name, colour, sprite paths, hp/power %, speed, abilities |
-| `AbilityData` | `data/abilities/` | id, name, AP cost, AP gain, damage %, targeting, sound |
+| `AbilityData` | `data/abilities/` | id, name, targeting, AP cost, press times, follow-ups, damage % and press bonus, Payback and Exposed bonuses, landing effects (AP gain/give, heal, revive, turn delay/hasten, status) each with a press bonus, team ultimate flag, sound |
 | `EnemyData` | `data/enemies/` | id, name, sprite paths, hp/power %, speed, attacks |
 | `EnemyAttackData` | `data/enemy_attacks/` | id, name, target mode, weight, alert cue, ring allowed, hits |
 | `AttackHitData` | inside attacks | impact ms, kind (normal/ground), damage %, approach ms, feint |
-| `EncounterData` | `data/encounters/` | enemy list, party list (phase 1) |
+| `EncounterData` | `data/encounters/` | enemy list, party list and team ultimate (until phase 4) |
 | `SfxLibrary` / `SfxCue` | `data/audio/sfx_library.tres` | sound cue name -> file path, volume, pitch jitter |
 
 ### 5.2 Tuning file
@@ -469,6 +600,7 @@ which phase 5 uses to assign devices to players.
 | `defend_parry` | Space | RB |
 | `defend_dodge` | Left Shift | B |
 | `defend_jump` | W | A |
+| `skill_press` | Space, E | A, RB |
 | `menu_up/down/left/right` | Arrow keys, WASD | D-pad, left stick |
 | `menu_confirm` | Enter, E | A |
 | `menu_cancel` | Escape, Q, Backspace | B |
@@ -485,7 +617,9 @@ On the victory/defeat screen F1 opens the stats, and Confirm or R fights again o
 On-screen control hints are built from the Input Map (`HudStyle.binding_text`), so remaps made in
 Project Settings > Input Map show up in the hints.
 
-Menus and defence never run at the same time, so shared buttons do not clash. Godot's built-in
+Menus, defence and skill presses never run at the same time, so shared buttons do not clash
+(`DefenseInput` arms only the defence actions during an enemy attack and only `skill_press`
+during a skill). Godot's built-in
 `ui_accept` no longer includes Space (so a parry can never click a menu button) and gains pad A;
 `ui_cancel` gains pad B. `DefenseInput` marks the presses it consumes as handled, and menus are
 driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engine.time_scale`
@@ -510,7 +644,27 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
   and of all timed presses, current compensation, fps, vsync, audio latency, longest frame, toggles.
 - Feedback: hit-stop and white flash on parry, sparks, sounds per action, screen shake on hits.
 
-### 7.2 Phase 3 (HD-2D)
+### 7.2 Phase 2 additions
+
+- Fight-select screen at start (every file in `data/encounters/`); Cancel on the end screen goes
+  back to it. `--encounter=ID` starts one fight directly (autoplay defaults to `husk_fight`).
+- Team gauge at the bottom right, beside the party panels ("TEAM GAUGE 40%"; gold "TEAM
+  ULTIMATE READY" when full).
+- Enemy intent: a sign just under each enemy's feet ("Flurry -> BRIN" plus one icon per hit:
+  sword = parry or dodge, wave = jump; under the feet so it never covers HP bars or popups) and
+  the same icons under its next turn on the timeline.
+- Status badges on party panels and under enemy HP (EXPOSED, GUARD, TAUNTED, SLOWED 2, RIPOSTE),
+  with a popup when one is applied.
+- Action menu: every skill with its AP cost, greyed with the reason when it cannot be used now
+  (not enough AP, gauge not full, nobody down); a target step for enemies, allies or downed allies
+  when there is a choice. The team ultimate is listed for everyone.
+- Skills: gold skill banner, the user steps toward the enemy and lunges on each hit; support
+  skills flash their target. Follow-up allies step forward when their ring appears. Popups for
+  healing (green numbers), AP given, REVIVED, DELAYED / HASTE.
+- End screen summary adds skill presses (perfect and good). Skill presses are not counted in the F1 defence
+  statistics (those are for defence timing).
+
+### 7.3 Phase 3 (HD-2D)
 
 Billboard sprites in lit 3D environments, full-resolution rendering, depth of field, bloom, fog,
 strong lighting, cinematic combat camera. Explorable zone with roaming enemies and fight
@@ -573,20 +727,44 @@ equipped by one character. No progression between runs in v1.
   (every lunge reaches contact exactly at impact, contact holds until the hit closes, cue times),
   defence statistics and the calibration clamp. Data validation tests check meaning (ids unique, times increasing, spacing rules,
   paths exist, weights > 0), not just loading.
+- Phase 2 (`test_skills.gd` and additions elsewhere): press prompts and press damage, follow-ups
+  (declared per ally, voided after missed presses, gauge), the team ultimate (gauge check, all
+  strike, revive), revive and heal and AP gifts, Exposed / Guard / Taunt / Slow / Riposte /
+  Payback, turn delay and hasten, intents (announced at start, the attack matches the intent,
+  re-targeting when a target falls), duplicate enemy names, the press rules for every shipped
+  ability, every encounter starts. Autoplay picks skills and allies' targets and presses skill
+  and follow-up prompts at window centre.
 
 ---
 
 ## 11. Phase plan
 
-1. **Setup + one fight** (current): 3 placeholder characters vs 1 enemy, timeline, basic attack,
+1. **Setup + one fight** (done): 3 placeholder characters vs 1 enemy, timeline, basic attack,
    dodge/parry/jump, counter, AP, win/lose. One player controls all three. Goal: parry feels good.
-2. Classes, skills with timed presses, Follow-up Strikes, team gauge, marks/combos,
-   downed/revive, several enemy types with distinct attack patterns.
+2. **Classes and co-op combat** (current): classes, skills with timed presses, Follow-up Strikes,
+   team gauge and ultimate, marks/combos, downed/revive, enemy intent, several enemy types with
+   distinct attack patterns, fight select.
 3. HD-2D look: one explorable zone, roaming enemies, fight transition, combat camera,
    post-processing.
 4. Run structure: node map, zones, rest/shop, loot, equipment, levels, boss.
 5. Co-op: local multi-device first, then online.
 6. Polish: UI, feedback effects, audio pass, balance.
+
+### 11.1 To-do (from playtests)
+
+Open items the user raised after playing; pick them up at the start of the next phase.
+
+1. **Press ring speed and style per move** (after phase 2, 2026-10-12). Each ability (and each
+   enemy attack's training ring) sets its own ring speed and look in its data file: the basic
+   attack at normal speed, skills at their own speed (for example faster for big skills).
+2. **Multi-press skills as separate rings** (after phase 2). Quick Cuts, All In and the team
+   ultimate now show overlapping rings on the same character. Show each press as its own ring,
+   entirely separate (one at a time, or at its own spot like osu notes), so a string of presses
+   reads clearly.
+3. **Make enemy attacks easier to see** (after phase 2). Defence is the star, so the player must
+   be able to read each hit as it comes: clearer wind-ups, a marker for each incoming hit and its
+   kind, and a way to see the rhythm of a string before and during it. To be proposed to the user
+   before building.
 
 ---
 
@@ -633,3 +811,21 @@ equipped by one character. No progression between runs in v1.
 | 2026-10-07 | Presses during the last hit's hurt freeze are judged (as LATE) | otherwise the most common late band (~+90..+140 ms) showed nothing |
 | 2026-10-07 | Popups stack per column with a ceiling under the banner | readouts must never overlap or hide under the banner |
 | 2026-10-07 | One movement tween per fighter (`FighterView.move_body`) | two tweens on one body made team counters snap back home |
+| 2026-10-12 | Class kits: Warden / Reaver / Mender, 5 skills each (2.10) | user approved; marks and AP links force co-op play |
+| 2026-10-12 | Missed skill press = weaker effect, never a failed skill | E33 style; a miss stings without wasting the turn |
+| 2026-10-12 | Revive: Cass skill + Team Ultimate revives all downed at 25% | user pick; losing Cass is not a dead end |
+| 2026-10-12 | Enemy intent always shown in full (name, target, every hit) | user pick; difficulty from motion, not hidden info |
+| 2026-10-12 | Phase 2 enemies: Bloat (jump), Gnat Swarm (rhythm), Shade (reading) | each tests one defence skill |
+| 2026-10-12 | Skill presses use a separate `skill_press` action (Space, E / pad A, RB) | menus, defence and skills never overlap, so shared buttons are safe; one "action" button feel |
+| 2026-10-12 | Every ability has at least one timed press; first press at least `ring_lead_ms` in | the press ring must be readable from its first frame |
+| 2026-10-12 | Follow-ups need at least one good press; non-damage press bonuses need every press good | follow-ups reward landing the skill; bonuses reward clean execution |
+| 2026-10-12 | Exposed is a multiplier (x1.5, Rend x2.5) applied after the move percent | DESIGN 2.7 order: statuses come after move percent |
+| 2026-10-12 | Payback counts perfect defences since the user's last turn ended | counting from the turn start would always reset it to 0 before use |
+| 2026-10-12 | Taunt lasts until the enemy's next single-target attack (party-wide attacks keep it) | matches the approved text "next attack on one character" |
+| 2026-10-12 | Guard is baked into the prompt damage when the attack is declared | the runner shows pre-rolled numbers at contact; Guard cannot change mid-attack |
+| 2026-10-12 | Skill events are applied at the press's contact moment, not when the engine answers | numbers appear with the strike, like defence feedback |
+| 2026-10-12 | Team ultimate lives on the encounter until phase 4 | content stays data; the run will own it later |
+| 2026-10-12 | Two enemies with the same name get letters (Gnat Swarm A / B) | targets and intent signs must be unambiguous |
+| 2026-10-12 | Shade Stutter feint moved to 1600 ms (last hit 1900) | a feint's false start must come after the previous hit's contact |
+| 2026-10-12 | Skill presses are left out of the F1 defence statistics | those numbers are for defence timing and calibration |
+| 2026-10-12 | Skill presses have three results: perfect (bonus), good (normal), miss (50%); osu-style ring with GOOD and PERFECT bands | user feedback: the ring had no visible spot to hit and no distinction between perfect and normal |

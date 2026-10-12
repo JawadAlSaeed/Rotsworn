@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_nqtip"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_gqkos"]
+
+[sub_resource type="Resource" id="Resource_qebrg"]
+script = ExtResource("1_nqtip")
+kind = 1
+damage_percent = 60
+approach_ms = 450
+
+[sub_resource type="Resource" id="Resource_gghee"]
+script = ExtResource("1_nqtip")
+impact_ms = 1600
+damage_percent = 60
+feint = true
+
+[resource]
+script = ExtResource("2_gqkos")
+id = "shade_nightfall"
+display_name = "Nightfall"
+target_mode = 1
+allow_timing_ring = false
+hits = Array[ExtResource("1_nqtip")]([SubResource("Resource_qebrg"), SubResource("Resource_gghee")])

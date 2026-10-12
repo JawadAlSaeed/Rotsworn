@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_8qfnp"]
+[ext_resource type="Resource" path="res://data/enemies/rotten_husk.tres" id="2_hk4q0"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_p6rxq"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="4_dwgom"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="5_jf44m"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="6_7kntt"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="7_w0t6v"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="8_1xowj"]
+
+[resource]
+script = ExtResource("7_w0t6v")
+id = "husk_fight"
+display_name = "Rotten Husk"
+party = Array[ExtResource("3_p6rxq")]([ExtResource("4_dwgom"), ExtResource("5_jf44m"), ExtResource("6_7kntt")])
+enemies = Array[ExtResource("1_8qfnp")]([ExtResource("2_hk4q0")])
+team_ultimate = ExtResource("8_1xowj")

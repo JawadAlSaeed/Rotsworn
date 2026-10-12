@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_uwuqr"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_stpu8"]
+
+[sub_resource type="Resource" id="Resource_gp5ap"]
+script = ExtResource("1_uwuqr")
+impact_ms = 900
+damage_percent = 40
+approach_ms = 180
+
+[sub_resource type="Resource" id="Resource_w5qm6"]
+script = ExtResource("1_uwuqr")
+impact_ms = 1200
+damage_percent = 40
+approach_ms = 180
+
+[sub_resource type="Resource" id="Resource_ybdqn"]
+script = ExtResource("1_uwuqr")
+impact_ms = 1500
+damage_percent = 40
+approach_ms = 180
+
+[resource]
+script = ExtResource("2_stpu8")
+id = "gnat_swarm_sweep"
+display_name = "Swarm Sweep"
+target_mode = 1
+hits = Array[ExtResource("1_uwuqr")]([SubResource("Resource_gp5ap"), SubResource("Resource_w5qm6"), SubResource("Resource_ybdqn")])

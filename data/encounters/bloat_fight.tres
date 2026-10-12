@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_mdvtj"]
+[ext_resource type="Resource" path="res://data/enemies/bloat.tres" id="2_momx1"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_tbxp6"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="4_y0ldj"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="5_k8ej8"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="6_htlc4"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="7_qv1e5"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="8_vkf2o"]
+
+[resource]
+script = ExtResource("7_qv1e5")
+id = "bloat_fight"
+display_name = "Bloat"
+party = Array[ExtResource("3_tbxp6")]([ExtResource("4_y0ldj"), ExtResource("5_k8ej8"), ExtResource("6_htlc4")])
+enemies = Array[ExtResource("1_mdvtj")]([ExtResource("2_momx1")])
+team_ultimate = ExtResource("8_vkf2o")

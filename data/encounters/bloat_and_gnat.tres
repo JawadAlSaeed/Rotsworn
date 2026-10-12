@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_hxisc"]
+[ext_resource type="Resource" path="res://data/enemies/bloat.tres" id="2_ssqnu"]
+[ext_resource type="Resource" path="res://data/enemies/gnat_swarm.tres" id="3_fucf2"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="4_rklsu"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="5_prxj6"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="6_e2d71"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="7_0ju17"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="8_s2tjk"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="9_4yuae"]
+
+[resource]
+script = ExtResource("8_s2tjk")
+id = "bloat_and_gnat"
+display_name = "Bloat and Gnat Swarm"
+party = Array[ExtResource("4_rklsu")]([ExtResource("5_prxj6"), ExtResource("6_e2d71"), ExtResource("7_0ju17")])
+enemies = Array[ExtResource("1_hxisc")]([ExtResource("2_ssqnu"), ExtResource("3_fucf2")])
+team_ultimate = ExtResource("9_4yuae")

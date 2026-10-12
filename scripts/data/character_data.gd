@@ -1,6 +1,6 @@
 class_name CharacterData
 extends Resource
-## A playable character (placeholder until classes arrive in phase 2).
+## A playable character and their class kit (DESIGN.md 2.10).
 
 ## Unique id used in commands and save data.
 @export var id: String = ""

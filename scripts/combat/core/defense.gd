@@ -3,7 +3,10 @@ extends RefCounted
 ## Defence outcomes and the one place that decides which defence works against which hit.
 ## The engine builds each prompt's windows here and validates results here, so what a client's
 ## judge accepts and what the host accepts can never drift apart.
-## The same enum is used for the three defence buttons (DODGE, PARRY, JUMP).
+## The same enum is used for the three defence buttons (DODGE, PARRY, JUMP) and the skill press
+## button (PRESS: skill and follow-up presses, DESIGN.md 2.10). A skill press has two nested
+## windows: PRESS (good: normal damage) and, inside it, PRESS_PERFECT (extra damage). The button
+## is always PRESS; the judge reports PRESS_PERFECT when the press is inside the perfect window.
 
 enum Outcome {
 	## No (successful) defence: the hit connects.
@@ -11,6 +14,10 @@ enum Outcome {
 	DODGE,
 	PARRY,
 	JUMP,
+	## A good skill or follow-up press.
+	PRESS,
+	## A perfect skill or follow-up press (inside the narrow perfect window).
+	PRESS_PERFECT,
 }
 
 
@@ -27,7 +34,24 @@ static func build_windows(kind: int, tuning: Tuning) -> Dictionary:
 	elif kind == AttackHitData.Kind.GROUND:
 		var jump: Vector2i = tuning.window_edges_us(tuning.jump_window_ms)
 		windows[Outcome.JUMP] = [jump.x, jump.y]
+	elif kind == AttackHitData.Kind.PRESS:
+		var press: Vector2i = tuning.window_edges_us(tuning.skill_press_window_ms)
+		var perfect: Vector2i = tuning.window_edges_us(tuning.skill_perfect_window_ms)
+		windows[Outcome.PRESS] = [press.x, press.y]
+		windows[Outcome.PRESS_PERFECT] = [perfect.x, perfect.y]
 	return windows
+
+
+## Windows of a follow-up press prompt.
+static func build_follow_up_windows(tuning: Tuning) -> Dictionary:
+	var edges: Vector2i = tuning.window_edges_us(tuning.follow_up_window_ms)
+	var perfect: Vector2i = tuning.window_edges_us(tuning.follow_up_perfect_window_ms)
+	return {Outcome.PRESS: [edges.x, edges.y], Outcome.PRESS_PERFECT: [perfect.x, perfect.y]}
+
+
+## True for a good or perfect skill press.
+static func is_press(outcome: int) -> bool:
+	return outcome == Outcome.PRESS or outcome == Outcome.PRESS_PERFECT
 
 
 ## Outcomes that count toward a counterattack for this hit kind.
@@ -37,6 +61,8 @@ static func perfect_outcomes(kind: int) -> Array[int]:
 		list.append(Outcome.PARRY)
 	elif kind == AttackHitData.Kind.GROUND:
 		list.append(Outcome.JUMP)
+	elif kind == AttackHitData.Kind.PRESS:
+		list.append(Outcome.PRESS_PERFECT)
 	return list
 
 
@@ -65,4 +91,8 @@ static func outcome_name(outcome: int) -> String:
 			return "parry"
 		Outcome.JUMP:
 			return "jump"
+		Outcome.PRESS:
+			return "press"
+		Outcome.PRESS_PERFECT:
+			return "perfect press"
 	return "none"

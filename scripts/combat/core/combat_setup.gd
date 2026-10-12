@@ -4,6 +4,8 @@ extends RefCounted
 
 var party: Array[CharacterData] = []
 var enemies: Array[EnemyData] = []
+## Offered to every party member when the team gauge is full (null = no team ultimate).
+var team_ultimate: AbilityData
 var tuning: Tuning
 var rng_seed: int = 1
 ## Accept practice commands (force an attack, invulnerability). Off for real runs.
@@ -14,6 +16,7 @@ static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: i
 	var setup := CombatSetup.new()
 	setup.party = encounter.party.duplicate()
 	setup.enemies = encounter.enemies.duplicate()
+	setup.team_ultimate = encounter.team_ultimate
 	setup.tuning = p_tuning
 	setup.rng_seed = p_seed
 	return setup
@@ -33,6 +36,13 @@ func validate() -> PackedStringArray:
 			problems.append("empty party slot")
 		elif c.basic_attack == null:
 			problems.append("character %s has no basic attack" % c.id)
+		else:
+			for ability: AbilityData in c.all_abilities():
+				problems.append_array(_ability_problems(ability))
+	if team_ultimate != null:
+		problems.append_array(_ability_problems(team_ultimate))
+		if not team_ultimate.team_ultimate:
+			problems.append("team ultimate %s is not marked team_ultimate" % team_ultimate.id)
 	for e: EnemyData in enemies:
 		if e == null:
 			problems.append("empty enemy slot")
@@ -47,8 +57,23 @@ func validate() -> PackedStringArray:
 			for h: AttackHitData in a.hits:
 				if h == null:
 					problems.append("attack %s has an empty hit slot" % a.id)
+				elif h.kind == AttackHitData.Kind.PRESS:
+					problems.append("attack %s: PRESS is for party skills only" % a.id)
 				elif h.impact_ms <= last:
 					problems.append("attack %s: hit times must increase" % a.id)
 				else:
 					last = h.impact_ms
+	return problems
+
+
+func _ability_problems(ability: AbilityData) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var last := -1
+	for at_ms: int in ability.press_times_ms:
+		if at_ms <= last:
+			problems.append("ability %s: press times must increase" % ability.id)
+			break
+		last = at_ms
+	if not ability.status.is_empty() and not Status.is_known(ability.status):
+		problems.append("ability %s: unknown status '%s'" % [ability.id, ability.status])
 	return problems

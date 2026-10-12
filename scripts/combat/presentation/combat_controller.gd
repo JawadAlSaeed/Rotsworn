@@ -3,12 +3,15 @@ extends Node
 ## Runs one fight (DESIGN.md 4). Owns the CombatEngine, keeps an event queue and plays the events
 ## one by one through the view and HUD, applying each to the CombatMirror at the moment it is
 ## played (so bars change with the animation). Enemy attacks are handed to the
-## TimedSequenceRunner. Everything shown is read from the mirror and static data, never from the
-## engine; the only way presentation changes the fight is submit() here.
+## TimedSequenceRunner, party skills to the SkillSequenceRunner. Everything shown is read from the
+## mirror and static data, never from the engine; the only way presentation changes the fight is
+## submit() here.
 ## No SceneTree.paused and no Engine.time_scale anywhere: waits use Timers, hit-stop is the
 ## AttackClock.
 
 signal restart_requested
+## Back to the fight list (end screen, Cancel).
+signal select_requested
 ## Every event as it is played (and the prompt events the runner applies at once).
 signal event_played(event: Dictionary)
 ## The action menu opened for this party member.
@@ -27,6 +30,7 @@ var engine: CombatEngine
 var view: CombatView
 var hud: CombatHud
 var runner: TimedSequenceRunner
+var skill_runner: SkillSequenceRunner
 var defense_input: DefenseInput
 var autoplay: Autoplay
 
@@ -84,22 +88,32 @@ func _ready() -> void:
 	runner.finished.connect(_on_runner_finished)
 	runner.press_judged.connect(_on_press_judged)
 
+	skill_runner = SkillSequenceRunner.new()
+	skill_runner.name = "SkillRunner"
+	add_child(skill_runner)
+	skill_runner.setup(_submit, _apply_now, mirror, view, hud, _tuning, _visuals, _options, defense_input)
+	skill_runner.finished.connect(_on_runner_finished)
+	skill_runner.press_judged.connect(_on_press_judged)
+
 	if _options.is_autoplay():
 		autoplay = Autoplay.new()
 		autoplay.name = "Autoplay"
-		autoplay.setup(_options.autoplay_mode, mirror, runner, defense_input, hud.action_menu, _tuning)
+		autoplay.setup(_options.autoplay_mode, mirror, runner, skill_runner, defense_input, hud.action_menu, _tuning)
 		add_child(autoplay)
 		runner.press_judged.connect(autoplay.on_press_judged)
+		skill_runner.press_judged.connect(autoplay.on_press_judged)
 		event_played.connect(autoplay.on_event)
 		menu_opened.connect(autoplay.on_menu_opened)
 		combat_finished.connect(autoplay.on_combat_finished)
 
 	var setup := CombatSetup.from_encounter(_encounter, _tuning, _pick_seed())
 	setup.allow_practice = _tuning.practice_tools_enabled or _options.is_autoplay()
-	print("Combat seed: %d" % setup.rng_seed)
+	print("Combat seed: %d  encounter: %s" % [setup.rng_seed, _encounter.id])
 	for data: CharacterData in setup.party:
 		for ability: AbilityData in data.all_abilities():
 			_abilities[ability.id] = ability
+	if setup.team_ultimate != null:
+		_abilities[setup.team_ultimate.id] = setup.team_ultimate
 	engine = CombatEngine.new(setup)
 	_warm_up_assets(setup)
 	_enqueue(_submit_start())
@@ -126,6 +140,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("menu_confirm", false, true) or key == KEY_R:
 			get_viewport().set_input_as_handled()
 			restart_requested.emit()
+		elif event.is_action_pressed("menu_cancel", false, true):
+			get_viewport().set_input_as_handled()
+			select_requested.emit()
 		return
 	if _tuning.practice_tools_enabled and _handle_practice(event, key):
 		get_viewport().set_input_as_handled()
@@ -189,14 +206,20 @@ func _pump() -> void:
 		_maybe_open_menu()
 
 
-## Applies an event to the mirror right now (runner prompt events, practice changes).
+## Applies an event to the mirror right now (runner prompt events, practice changes) with its
+## feedback (numbers, popups).
 func _apply_now(ev: Dictionary) -> void:
 	mirror.apply(ev)
 	match String(ev.get("type", "")):
 		"downed":
 			_show_downed(int(ev.target))
 		"prompt_resolved":
-			_enemy_hits["%d:%d" % [int(ev.seq), int(ev.hit)]] = true
+			if String(mirror.sequence.get("kind", "")) == CombatEngine.SEQUENCE_ENEMY_ATTACK:
+				_enemy_hits["%d:%d" % [int(ev.seq), int(ev.hit)]] = true
+		"damage":
+			_show_damage(ev)
+		_:
+			_show_feedback(ev)
 	_refresh()
 	event_played.emit(ev)
 
@@ -214,7 +237,10 @@ func _play(ev: Dictionary) -> void:
 		"ability_used":
 			mirror.apply(ev)
 			_refresh()
-			await _play_party_action(ev)
+			var used := _abilities.get(String(ev.ability)) as AbilityData
+			# Skills with presses are animated by the SkillSequenceRunner.
+			if used == null or used.press_times_ms.is_empty():
+				await _play_party_action(ev)
 		"counter":
 			mirror.apply(ev)
 			await _play_counter(ev)
@@ -224,10 +250,9 @@ func _play(ev: Dictionary) -> void:
 		"downed":
 			mirror.apply(ev)
 			_show_downed(int(ev.target))
-		"ap_changed":
+		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge":
 			mirror.apply(ev)
-			if int(ev.delta) > 0:
-				Sfx.play("ap_gain")
+			_show_feedback(ev)
 		"timed_sequence_declared":
 			mirror.apply(ev)
 			hud.action_menu.close()
@@ -235,7 +260,10 @@ func _play(ev: Dictionary) -> void:
 			_menu_turn = -1
 			_waiting_runner = true
 			_set_active_pose(-1)
-			runner.start(ev)
+			if String(ev.kind) == CombatEngine.SEQUENCE_SKILL:
+				skill_runner.start(ev, _abilities.get(String(ev.action)) as AbilityData)
+			else:
+				runner.start(ev)
 		"turn_ended":
 			mirror.apply(ev)
 			_refresh()
@@ -259,7 +287,7 @@ func _on_runner_finished(tail: Array[Dictionary]) -> void:
 
 
 func _maybe_open_menu() -> void:
-	if _ended or runner.is_active() or engine.phase != CombatEngine.Phase.AWAITING_ACTION:
+	if _ended or _runner_active() or engine.phase != CombatEngine.Phase.AWAITING_ACTION:
 		return
 	var actor := mirror.active_actor
 	if actor < 0 or not mirror.party_ids.has(actor):
@@ -272,12 +300,53 @@ func _maybe_open_menu() -> void:
 		push_error("CombatController: no character data for fighter %d" % actor)
 		return
 	var names: Dictionary = {}
-	for id: int in mirror.enemy_ids:
+	for id: int in mirror.fighters:
 		names[id] = String(mirror.fighter(id).display_name)
-	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, data.all_abilities(),
-			int(mirror.fighter(actor).ap), mirror.living_enemy_ids(), names)
+	var abilities := data.all_abilities()
+	if _encounter.team_ultimate != null:
+		abilities.append(_encounter.team_ultimate)
+	var entries: Array[Dictionary] = []
+	for ability: AbilityData in abilities:
+		entries.append(_menu_entry(actor, ability))
+	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, entries, names)
 	_set_active_pose(actor)
 	menu_opened.emit(actor)
+
+
+## One action menu line, worked out from the mirror (the same rules the engine checks).
+func _menu_entry(actor: int, ability: AbilityData) -> Dictionary:
+	var ap := int(mirror.fighter(actor).ap)
+	var targets: Array[int] = []
+	var pick := true
+	match ability.target:
+		AbilityData.Target.SINGLE_ENEMY:
+			targets = mirror.living_enemy_ids()
+		AbilityData.Target.ALL_ENEMIES:
+			targets = mirror.living_enemy_ids()
+			pick = false
+		AbilityData.Target.SELF:
+			targets.append(actor)
+			pick = false
+		AbilityData.Target.ALLY:
+			targets = mirror.living_party_ids()
+		AbilityData.Target.OTHER_ALLY:
+			for id: int in mirror.living_party_ids():
+				if id != actor:
+					targets.append(id)
+		AbilityData.Target.DOWNED_ALLY:
+			targets = mirror.downed_party_ids()
+	var reason := ""
+	if ability.team_ultimate and mirror.team_gauge < _tuning.team_gauge_max:
+		reason = "Needs a full team gauge. Good follow-up presses fill it."
+	elif ap < ability.ap_cost:
+		reason = "Needs %d AP (you have %d). Parry hits to gain AP." % [ability.ap_cost, ap]
+	elif targets.is_empty():
+		reason = "Nobody is down." if ability.target == AbilityData.Target.DOWNED_ALLY else "No target."
+	return {"ability": ability, "usable": reason.is_empty(), "reason": reason, "targets": targets, "pick_target": pick}
+
+
+func _runner_active() -> bool:
+	return runner.is_active() or skill_runner.is_active()
 
 
 func _on_ability_chosen(ability_id: String, target_id: int) -> void:
@@ -320,13 +389,16 @@ func _quit() -> void:
 
 func _on_press_judged(action: int, report: Dictionary) -> void:
 	if int(report.get("result", DefenseJudge.Result.DONE)) == DefenseJudge.Result.SUCCESS:
-		_defended[action] = int(_defended.get(action, 0)) + 1
+		# Skill presses count by result (good or perfect), defence presses by button.
+		var key := int(report.get("outcome", action)) if action == Defense.Outcome.PRESS else action
+		_defended[key] = int(_defended.get(key, 0)) + 1
 
 
 func _summary_text() -> String:
-	return "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d" % [_enemy_hits.size(),
-			int(_defended.get(Defense.Outcome.PARRY, 0)), int(_defended.get(Defense.Outcome.DODGE, 0)),
-			int(_defended.get(Defense.Outcome.JUMP, 0)), _counters]
+	return "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d\nskill presses: perfect %d, good %d" % [
+			_enemy_hits.size(), int(_defended.get(Defense.Outcome.PARRY, 0)),
+			int(_defended.get(Defense.Outcome.DODGE, 0)), int(_defended.get(Defense.Outcome.JUMP, 0)), _counters,
+			int(_defended.get(Defense.Outcome.PRESS_PERFECT, 0)), int(_defended.get(Defense.Outcome.PRESS, 0))]
 
 
 ## Autoplay guard: the mirror, built from events in playback order, must end equal to the engine.
@@ -470,6 +542,45 @@ func _show_damage(ev: Dictionary) -> void:
 		v.play_pose(EnemyChoreography.Pose.HURT if to_enemy else FighterView.CharPose.HURT, _visuals.hurt_pose_ms)
 
 
+## Popups and sounds for the phase 2 events (DESIGN.md 2.10): healing, revive, AP, statuses,
+## turn shifts, the team gauge filling up.
+func _show_feedback(ev: Dictionary) -> void:
+	var type := String(ev.get("type", ""))
+	var target := int(ev.get("target", ev.get("character", -1)))
+	var v := view.fighter(target)
+	var head := v.head_position() if v != null else Vector3.ZERO
+	match type:
+		"ap_changed":
+			if int(ev.delta) > 0:
+				Sfx.play("ap_gain")
+				if String(ev.reason) == "given" and v != null:
+					hud.popup("+%d AP" % int(ev.delta), head, HudStyle.AP_TEXT)
+		"healed":
+			if v != null:
+				hud.damage_number(int(ev.amount), head, HudStyle.HEAL)
+				v.flash(_visuals.flash_ms * 2, HudStyle.HEAL, 0.7)
+		"revived":
+			if v != null:
+				Sfx.play("revive")
+				v.set_grey(0.0)
+				v.clear_timed_pose()
+				v.set_pose(FighterView.CharPose.IDLE)
+				v.flash(_visuals.flash_ms * 3, HudStyle.GOLD, 0.9)
+				hud.popup("REVIVED", head, HudStyle.HEAL)
+		"status_changed":
+			if bool(ev.active) and v != null and mirror.is_alive(target):
+				var status := String(ev.status)
+				hud.popup(String(HudStyle.STATUS_NAMES.get(status, status.to_upper())), head,
+						HudStyle.STATUS_COLORS.get(status, HudStyle.TEXT) as Color)
+		"turn_shifted":
+			if v != null and int(ev.delta) != 0:
+				hud.popup("DELAYED" if int(ev.delta) > 0 else "HASTE", head, HudStyle.JUMP)
+		"team_gauge":
+			# The gauge label itself turns gold and says READY (the banner slot may hold a skill name).
+			if int(ev.delta) > 0 and int(ev.value) >= _tuning.team_gauge_max:
+				Sfx.play("gauge_full")
+
+
 func _show_downed(id: int) -> void:
 	var v := view.fighter(id)
 	if v == null:
@@ -521,8 +632,8 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 				return true
 	match key:
 		KEY_F2:
-			# Only while the game waits for a menu choice, never during an enemy attack.
-			if hud.action_menu.is_open() and not runner.is_active():
+			# Only while the game waits for a menu choice, never during an attack or a skill.
+			if hud.action_menu.is_open() and not _runner_active():
 				hud.calibration.open()
 			return true
 		KEY_I:
@@ -638,7 +749,8 @@ func _warm_up_assets(setup: CombatSetup) -> void:
 		AssetLoader.texture(e.portrait_path, Vector2i(24, 24))
 	for path: String in [_visuals.spark_path, _visuals.shockwave_path, _visuals.shadow_path,
 			_visuals.slash_path, _visuals.floor_tile_path, _visuals.backdrop_path,
-			_visuals.lock_icon_path, _visuals.ap_pip_path, _visuals.ap_pip_empty_path]:
+			_visuals.lock_icon_path, _visuals.ap_pip_path, _visuals.ap_pip_empty_path,
+			_visuals.hit_icon_normal_path, _visuals.hit_icon_ground_path]:
 		AssetLoader.texture(path)
 
 

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_qp8du"]
+
+[resource]
+script = ExtResource("1_qp8du")
+id = "revive"
+display_name = "Revive"
+description = "Brings a downed ally back at 25% HP. Perfect press: 50% HP."
+target = 5
+ap_cost = 3
+impact_sfx = "revive"
+press_times_ms = Array[int]([800])
+damage_percent = 0
+revive_percent = 25
+press_revive_percent = 25
