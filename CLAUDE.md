@@ -63,7 +63,10 @@ whenever a decision is made or changed.
   plain GUT skip files silently) and fails if any test file did not load or the log shows a
   script error. Run `--headless --path . --import` before any `-s` tool script too.
 - Tests must pass headless before you tell the user a phase is done.
-- `run_game.bat` runs the game, `open_editor.bat` opens the editor.
+- `run_game.bat` runs the game, `open_editor.bat` opens the editor, `build_game.bat` builds the
+  shareable Windows game (`build/RottenLands.zip`, preset in `export_presets.cfg`; needs the 4.7.2
+  export templates, installed). Online players must all run the same build (the content
+  fingerprint differs between a build and a run from the editor).
 - Smoke test the whole fight without a human: run the game with `-- --autoplay` (bot defends
   and presses perfectly), `-- --autoplay=miss` (never presses) or `-- --autoplay=mash` (mashes
   buttons). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
@@ -71,7 +74,11 @@ whenever a decision is made or changed.
   or `--zone=rotten_hollow` to have the bot walk the zone and fight every roaming enemy (ends with
   `AUTOPLAY_RESULT zone_clear` or `zone_defeat`), or `--run` to have the bot play a whole run
   (map, zones to the guard, shops, rests, final fight; ends with `AUTOPLAY_RESULT run_victory` or
-  `run_defeat`, about 10 to 20 minutes, so use `timeout 1500`). Works with `--headless`. A good run prints
+  `run_defeat`, about 10 to 20 minutes, so use `timeout 1500`). Add `--players=2` or
+  `--players=3` to any of these for co-op (pretend pads; each bot player presses for their own heroes).
+  Online: start `--autoplay --host=2 --seed=7 --quit-on-end` in the background, then
+  `--autoplay --join=127.0.0.1 --quit-on-end`; both must print the same `AUTOPLAY_RESULT` and
+  `AUTOPLAY_MIRROR` lines (use `timeout 1500`). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
 - Always run headless Godot commands with a timeout (`timeout 120 ...`): a script error in a
   `-s` script leaves Godot running forever.
@@ -142,9 +149,14 @@ whenever a decision is made or changed.
 - `scripts/explore/` zones: walking, roaming enemies, zone HUD, zone bot
 - `scripts/run/` the run: `RunMap` and `RunState` (pure, tested), map, shop, rest, loot, party
   and run-end screens, the gold and HP strip
-- `scripts/menu/` main menu, settings, pause menu, yes/no prompt, the shared `ListMenu`
+- `scripts/menu/` main menu, players screen (co-op lobby), settings, pause menu, yes/no prompt,
+  the shared `ListMenu`
+- `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested) and `DeviceInput`
+  (reading one device)
+- `scripts/net/` online: `DefenseArbiter` (host referee, pure, tested), `DataHash` (content
+  fingerprint for the handshake)
 - `scripts/autoload/` global singletons (`Audio`, `UserSettings` = `PlayerSettings`, saved per
-  machine in `user://settings.cfg`)
+  machine in `user://settings.cfg`, `Net` = `NetSession`, the online connection)
 - `scenes/` scenes
 - `tests/unit/` GUT tests
 - `tools/` headless helper scripts (placeholder generation, data bootstrap, `bootstrap_run.gd`

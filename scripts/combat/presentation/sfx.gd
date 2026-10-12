@@ -20,6 +20,13 @@ static func stop_all() -> void:
 		audio.call(&"stop_all")
 
 
+## Loops a song (see MusicSet); the song already playing goes on.
+static func play_music(path: String, volume_db: float = 0.0) -> void:
+	var audio := _audio()
+	if audio != null:
+		audio.call(&"play_music", path, volume_db)
+
+
 ## Loads every cue now so the first parry sound has no loading hitch.
 static func preload_all() -> void:
 	var audio := _audio()

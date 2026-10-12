@@ -11,7 +11,8 @@ extends Node
 
 ## A defence or skill press. `action` is a Defense.Outcome (DODGE, PARRY, JUMP or PRESS). `stamp_us` is when the
 ## press arrived and `previous_pump_us` the previous input pump (0 if unknown), both
-## Time.get_ticks_usec(). `device` is the Godot device id (-1 for injected presses).
+## Time.get_ticks_usec(). `device` is a PlayerRoster device code (a pad's id, KEYBOARD, or the
+## device an injected press names), so co-op can tell the players apart (DESIGN.md 9.1).
 signal pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 
 const ACTIONS: Dictionary = {
@@ -41,7 +42,7 @@ func _input(event: InputEvent) -> void:
 		if _armed.has(outcome) and event.is_action_pressed(action_name, false, false):
 			var stamp := Time.get_ticks_usec()
 			get_viewport().set_input_as_handled()
-			pressed.emit(outcome, stamp, _last_pump_us, event.device)
+			pressed.emit(outcome, stamp, _last_pump_us, PlayerRoster.device_of(event))
 			return
 
 
@@ -76,11 +77,12 @@ func previous_pump_us() -> int:
 	return _last_pump_us
 
 
-## A press from code (autoplay bot) through the same path as a real one, stamped now.
-func inject_press(action: int) -> void:
+## A press from code (autoplay bot) through the same path as a real one, stamped now. `device`
+## says which player pressed in co-op (PlayerRoster.ANY in solo).
+func inject_press(action: int, device: int = PlayerRoster.ANY) -> void:
 	if not _armed.has(action):
 		return
-	pressed.emit(action, Time.get_ticks_usec(), _last_pump_us, -1)
+	pressed.emit(action, Time.get_ticks_usec(), _last_pump_us, device)
 
 
 func _on_process_frame() -> void:

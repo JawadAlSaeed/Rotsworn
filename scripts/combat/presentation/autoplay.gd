@@ -7,6 +7,9 @@ extends Node
 ##   button for skill and follow-up presses) at window centre;
 ## - miss: never presses;
 ## - mash: random presses about every MASH_INTERVAL_MS.
+## In co-op (--players=N) each player presses for their own heroes with their own device, so the
+## per-player judging is played through too; mash presses as a random player. Online it presses
+## only for this machine's player.
 ## Menu choices: the team ultimate when ready, Revive when someone is down, otherwise the usable
 ## class skills in turn, otherwise the basic attack; ally skills go to the most hurt ally.
 ## At the end it prints exactly one "AUTOPLAY_RESULT victory|defeat" line and one
@@ -28,7 +31,11 @@ var _menu: ActionMenu
 var _tuning: Tuning
 var _rng := RandomNumberGenerator.new()
 var _seq: int = -1
+## "hit:player" keys already pressed (or with nothing to press) in this sequence.
 var _pressed: Dictionary = {}
+var _roster: PlayerRoster = PlayerRoster.solo(0)
+## Party member id -> player.
+var _owners: Dictionary = {}
 var _next_mash_us: int = 0
 var _last_frame_us: int = 0
 var _frame_us: int = 0
@@ -50,6 +57,12 @@ func setup(mode: String, mirror: CombatMirror, runner: TimedSequenceRunner, skil
 	_menu = menu
 	_tuning = tuning
 	_rng.randomize()
+
+
+## Who plays which hero (see CombatController).
+func set_players(roster: PlayerRoster, owners: Dictionary) -> void:
+	_roster = roster
+	_owners = owners
 
 
 func _process(_delta: float) -> void:
@@ -177,26 +190,29 @@ func _press_perfectly() -> void:
 		_pressed.clear()
 	var t := _skill_runner.attack_time_us() if skill else _runner.attack_time_us()
 	var latency := _skill_runner.latency_us() if skill else _runner.latency_us()
-	for hit: Dictionary in sequence.hits:
-		var hit_index := int(hit.index)
-		if _pressed.has(hit_index):
-			continue
-		var prompt := _open_prompt(sequence, hit_index, skill)
-		if prompt.is_empty():
-			_pressed[hit_index] = true
-			continue
-		var action := int((prompt.perfect as Array)[0])
-		var edges: Array = prompt.windows[action]
-		@warning_ignore("integer_division")
-		var centre := int(prompt.at_ms) * 1000 + (int(edges[0]) + int(edges[1])) / 2
-		# Half a frame early: the press lands on average at the centre even when frames are slow.
-		@warning_ignore("integer_division")
-		var lead_us := _frame_us / 2
-		if t + lead_us >= centre + latency:
-			_pressed[hit_index] = true
-			# A perfect skill press is still the skill button.
-			_input.inject_press(Defense.Outcome.PRESS if action == Defense.Outcome.PRESS_PERFECT else action)
-		return
+	for player: int in _roster.local_players():
+		for hit: Dictionary in sequence.hits:
+			var hit_index := int(hit.index)
+			var key := "%d:%d" % [hit_index, player]
+			if _pressed.has(key):
+				continue
+			var prompt := _open_prompt(sequence, hit_index, skill, player)
+			if prompt.is_empty():
+				_pressed[key] = true
+				continue
+			var action := int((prompt.perfect as Array)[0])
+			var edges: Array = prompt.windows[action]
+			@warning_ignore("integer_division")
+			var centre := int(prompt.at_ms) * 1000 + (int(edges[0]) + int(edges[1])) / 2
+			# Half a frame early: the press lands on average at the centre even when frames are slow.
+			@warning_ignore("integer_division")
+			var lead_us := _frame_us / 2
+			if t + lead_us >= centre + latency:
+				_pressed[key] = true
+				# A perfect skill press is still the skill button.
+				_input.inject_press(Defense.Outcome.PRESS if action == Defense.Outcome.PRESS_PERFECT else action,
+						_roster.device_of_player(player))
+			break
 
 
 func _mash() -> void:
@@ -204,16 +220,20 @@ func _mash() -> void:
 	if now < _next_mash_us:
 		return
 	_next_mash_us = now + (MASH_INTERVAL_MS + _rng.randi_range(-MASH_JITTER_MS, MASH_JITTER_MS)) * 1000
-	_input.inject_press(MASH_ACTIONS[_rng.randi_range(0, MASH_ACTIONS.size() - 1)])
+	var players := _roster.local_players()
+	if players.is_empty():
+		return
+	var player := players[_rng.randi_range(0, players.size() - 1)]
+	_input.inject_press(MASH_ACTIONS[_rng.randi_range(0, MASH_ACTIONS.size() - 1)], _roster.device_of_player(player))
 
 
-## The first prompt of a hit that can still be answered, or {}.
-func _open_prompt(sequence: Dictionary, hit_index: int, skill: bool) -> Dictionary:
+## The first prompt of a hit that player `player` can still answer, or {}.
+func _open_prompt(sequence: Dictionary, hit_index: int, skill: bool, player: int) -> Dictionary:
 	var prompts: Array = sequence.prompts
 	var states: Array = sequence.states
 	for i: int in prompts.size():
 		var prompt: Dictionary = prompts[i]
-		if int(prompt.hit) != hit_index:
+		if int(prompt.hit) != hit_index or int(_owners.get(int(prompt.character), 0)) != player:
 			continue
 		if skill:
 			if _skill_runner.is_prompt_open(i):

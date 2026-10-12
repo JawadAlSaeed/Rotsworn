@@ -55,6 +55,87 @@ static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int) -> RunState:
 	return run
 
 
+## Everything that changes during the run as plain data (gear by id), for online play: the host
+## sends it and the other machines show it (DESIGN.md 9.2). The map is rebuilt from the seed.
+func to_dict() -> Dictionary:
+	var worn: Array = []
+	for slots: Array in gear:
+		var ids: Array = []
+		for item: Variant in slots:
+			ids.append((item as GearData).id if item != null else "")
+		worn.append(ids)
+	var bag_ids: Array = []
+	for item: GearData in bag:
+		bag_ids.append(item.id)
+	return {
+		"seed": run_seed, "at": at, "path": Array(path), "gold": gold, "hp": Array(hp),
+		"max_hp_percent": Array(max_hp_percent), "level": level, "xp": xp, "gear": worn, "bag": bag_ids,
+		"fights_won": fights_won, "gold_earned": gold_earned, "result": result,
+	}
+
+
+## A run of `run_data` set to to_dict() data. Null if the data does not fit (malformed, or a
+## different run: unknown gear, wrong party size).
+static func from_dict(run_data: RunData, p_tuning: Tuning, d: Dictionary) -> RunState:
+	if typeof(d.get("seed")) != TYPE_INT:
+		return null
+	var run := RunState.begin(run_data, p_tuning, int(d.seed))
+	return run if run.apply_dict(d) else null
+
+
+## Sets this run (same seed) to to_dict() data. False (and nothing changed) if it does not fit.
+func apply_dict(d: Dictionary) -> bool:
+	for key: String in ["seed", "at", "gold", "level", "xp", "fights_won", "gold_earned"]:
+		if typeof(d.get(key)) != TYPE_INT:
+			return false
+	if int(d.seed) != run_seed or typeof(d.get("result")) != TYPE_STRING:
+		return false
+	for key: String in ["path", "hp", "max_hp_percent", "gear", "bag"]:
+		if not d.get(key) is Array:
+			return false
+	var size := party_size()
+	if (d.hp as Array).size() != size or (d.max_hp_percent as Array).size() != size or (d.gear as Array).size() != size:
+		return false
+	var by_id: Dictionary = {}
+	for item: GearData in data.gear:
+		if item != null:
+			by_id[item.id] = item
+	var new_gear: Array[Array] = []
+	for ids: Variant in d.gear:
+		if not ids is Array or (ids as Array).size() != tuning.run_gear_slots:
+			return false
+		var slots: Array = []
+		for id: Variant in ids:
+			if typeof(id) != TYPE_STRING or (String(id) != "" and not by_id.has(String(id))):
+				return false
+			slots.append(by_id[String(id)] if String(id) != "" else null)
+		new_gear.append(slots)
+	var new_bag: Array[GearData] = []
+	for id: Variant in d.bag:
+		if typeof(id) != TYPE_STRING or not by_id.has(String(id)):
+			return false
+		new_bag.append(by_id[String(id)])
+	for key: String in ["path", "hp", "max_hp_percent"]:
+		for v: Variant in d[key]:
+			if typeof(v) != TYPE_INT:
+				return false
+	if int(d.at) != -1 and map.stop(int(d.at)).is_empty():
+		return false
+	at = int(d.at)
+	path.assign(d.path)
+	gold = int(d.gold)
+	hp.assign(d.hp)
+	max_hp_percent.assign(d.max_hp_percent)
+	level = int(d.level)
+	xp = int(d.xp)
+	gear = new_gear
+	bag = new_bag
+	fights_won = int(d.fights_won)
+	gold_earned = int(d.gold_earned)
+	result = String(d.result)
+	return true
+
+
 func party_size() -> int:
 	return data.party.size()
 

@@ -8,6 +8,14 @@ extends Node
 ## submit() here.
 ## No SceneTree.paused and no Engine.time_scale anywhere: waits use Timers, hit-stop is the
 ## AttackClock.
+##
+## Online (DESIGN.md 9.2): the HOST runs the only engine. Every batch of events it makes is sent
+## to the clients ("flow" batches go to the event queue, "timing" batches to the runner playing
+## that sequence). A client's player commands (its heroes' menu choices, its prompt results) come
+## to the host, which checks them (only its own heroes; prompt results through the
+## DefenseArbiter) before submitting. A CLIENT has no engine: it plays the batches the host sends
+## and sends its commands to the host. A batch for a sequence this machine has not started yet
+## waits until it does.
 
 signal restart_requested
 ## Back to the fight list (end screen, Cancel).
@@ -24,12 +32,16 @@ signal combat_finished(result: String)
 ## node (process disabled) and shows the pause menu; resume_after_pause() goes on.
 signal pause_reached
 
+enum NetMode { LOCAL, HOST, CLIENT }
+
 const QUIT_DELAY_S: float = 1.0
 ## After stopping all sounds, quitting waits this long (real time) so the audio server lets go of
 ## the playbacks; two frames are not enough and Godot reports "resources still in use at exit".
 const QUIT_AUDIO_RELEASE_S: float = 0.3
 const PRACTICE_ATTACK_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5]
 const PRACTICE_KEYS_PER_LINE: int = 3
+## Autoplay: a fight where nothing was played for this long is stuck (its state is printed once).
+const AUTOPLAY_STUCK_MS: int = 60000
 
 var mirror := CombatMirror.new()
 var engine: CombatEngine
@@ -51,6 +63,24 @@ var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 var _from_zone: bool = false
 ## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
 var _run: RunState
+## Who plays (DESIGN.md 9.1): in co-op a device drives only its own heroes' menus and presses.
+var _players: PlayerRoster = PlayerRoster.solo(3)
+## Party member id -> co-op player.
+var _owners: Dictionary = {}
+var _net_mode: int = NetMode.LOCAL
+## Online: the fight seed the host picked (-1: pick one here).
+var _fight_seed: int = -1
+## Host: the referee for clients' prompts.
+var _arbiter: DefenseArbiter
+## Online: timing batches for a sequence this machine has not started yet: [{seq, events}].
+var _timing_inbox: Array[Dictionary] = []
+## Client: the turn a party member waits for a choice in (-1: none), and the turn a choice was
+## sent for (the menu stays shut until the host's answer arrives).
+var _awaiting_turn: int = -1
+var _sent_turn: int = -1
+## Autoplay: when an event was last played (stuck check).
+var _progress_ms: int = 0
+var _stuck_reported: bool = false
 var _setup: CombatSetup
 var _result: String = ""
 var _queue: Array[Dictionary] = []
@@ -94,6 +124,82 @@ func configure_run(run: RunState) -> void:
 	_run = run
 
 
+## The players and their heroes. Call before adding the node to the tree (default: solo).
+func configure_players(players: PlayerRoster) -> void:
+	_players = players
+
+
+## Online play (DESIGN.md 9.2): HOST runs the engine and talks to the clients, CLIENT plays what
+## the host sends. `fight_seed` is the host's seed (both sides build the same setup from it).
+func configure_online(mode: NetMode, fight_seed: int) -> void:
+	_net_mode = mode
+	_fight_seed = fight_seed
+
+
+## Online host: someone left or the roster changed mid-fight. Their heroes' menus and presses go
+## to the new owner from now on; their open prompts are resolved by the arbiter at once.
+func update_players(players: PlayerRoster, gone_peer: int = -1) -> void:
+	_players = players
+	_owners.clear()
+	for id: int in mirror.party_ids:
+		_owners[id] = _players.owner_of(_owner_slot(id))
+	runner.set_players(_players, _owners)
+	skill_runner.set_players(_players, _owners)
+	if autoplay != null:
+		autoplay.set_players(_players, _owners)
+	hud.set_player_tags(_owners if _players.is_coop() else {})
+	if _arbiter != null and gone_peer > 0:
+		_arbiter.drop_peer(gone_peer)
+	_menu_turn = -1
+	if not _playing and _queue.is_empty() and not _waiting_runner:
+		_maybe_open_menu()
+
+
+## Online: a batch of events from the host ({kind, seq, events}).
+func receive_batch(payload: Dictionary) -> void:
+	if _net_mode != NetMode.CLIENT or not payload.get("events") is Array:
+		return
+	var events: Array[Dictionary] = []
+	for ev: Variant in payload.events:
+		if ev is Dictionary:
+			events.append(ev as Dictionary)
+	if String(payload.get("kind", "")) == "timing":
+		_route_timing(int(payload.get("seq", -1)), events)
+	else:
+		_enqueue(events)
+
+
+## Online host: a command from client `peer`. Only its own heroes' choices and prompt results are
+## taken; anything else is dropped.
+func receive_command(peer: int, command: Dictionary) -> void:
+	if _net_mode != NetMode.HOST or engine == null or _ended:
+		return
+	var player := _players.player_of_peer(peer)
+	match String(command.get("type", "")):
+		CombatCommands.USE_ABILITY:
+			var actor := int(command.get("actor", -1))
+			if engine.phase != CombatEngine.Phase.AWAITING_ACTION or actor != engine.active_actor \
+					or player < 0 or _players.owner_of(_owner_slot(actor)) != player:
+				return
+			var targets: Array[int] = []
+			if command.get("targets") is Array:
+				for t: Variant in command.targets:
+					targets.append(int(t))
+			_enqueue(_submit(CombatCommands.use_ability(int(command.get("turn", -1)), actor,
+					String(command.get("ability", "")), targets)))
+		CombatCommands.RESOLVE_PROMPTS:
+			if engine.phase != CombatEngine.Phase.AWAITING_TIMING or not command.get("results") is Array:
+				return
+			var seq := int(command.get("seq", -1))
+			_submit_remote_results(seq, _arbiter.accept(peer, seq, command.results as Array))
+
+
+## Online host: a client started playing sequence `seq`.
+func receive_ack(peer: int, seq: int) -> void:
+	if _arbiter != null:
+		_arbiter.ack(peer, seq, Time.get_ticks_usec())
+
+
 ## Each party member's HP right now, by slot (the run carries it to the next fight).
 func party_hp() -> Array[int]:
 	var list: Array[int] = []
@@ -107,6 +213,7 @@ func party_hp() -> Array[int]:
 
 
 func _ready() -> void:
+	_progress_ms = Time.get_ticks_msec()
 	defense_input = DefenseInput.new()
 	defense_input.name = "DefenseInput"
 	add_child(defense_input)
@@ -131,6 +238,7 @@ func _ready() -> void:
 	runner.setup(_submit, _apply_now, mirror, view, hud, _tuning, _visuals, _options, defense_input)
 	runner.finished.connect(_on_runner_finished)
 	runner.press_judged.connect(_on_press_judged)
+	runner.sequence_started.connect(_on_sequence_started)
 
 	skill_runner = SkillSequenceRunner.new()
 	skill_runner.name = "SkillRunner"
@@ -138,6 +246,7 @@ func _ready() -> void:
 	skill_runner.setup(_submit, _apply_now, mirror, view, hud, _tuning, _visuals, _options, defense_input)
 	skill_runner.finished.connect(_on_runner_finished)
 	skill_runner.press_judged.connect(_on_press_judged)
+	skill_runner.sequence_started.connect(_on_sequence_started)
 
 	if _options.is_autoplay():
 		autoplay = Autoplay.new()
@@ -163,12 +272,29 @@ func _ready() -> void:
 	for enemy: EnemyData in setup.enemies:
 		for attack: EnemyAttackData in enemy.attacks:
 			_attacks[attack.id] = attack
-	engine = CombatEngine.new(setup)
 	_warm_up_assets(setup)
+	if _net_mode == NetMode.CLIENT:
+		# No engine here: the host's batches arrive through receive_batch().
+		return
+	engine = CombatEngine.new(setup)
+	if _net_mode == NetMode.HOST:
+		# A client's clock pauses for hit-stops and its lag compensation shifts its presses: both
+		# push its deadlines back.
+		var hitstop := maxi(maxi(_tuning.hitstop_parry_final_ms, _tuning.hitstop_hurt_ms),
+				maxi(_tuning.hitstop_jump_ms, _tuning.hitstop_press_ms))
+		_arbiter = DefenseArbiter.new(_tuning.net_ack_timeout_ms, _tuning.net_deadline_grace_ms,
+				hitstop + _tuning.calibration_max_ms)
 	_enqueue(_submit_start())
 
 
 func _process(_delta: float) -> void:
+	if _options.is_autoplay() and not _ended and not _paused and not _stuck_reported 			and _progress_ms > 0 and Time.get_ticks_msec() - _progress_ms > AUTOPLAY_STUCK_MS:
+		_stuck_reported = true
+		_report_stuck()
+	if _arbiter != null and not _ended:
+		var due := _arbiter.overdue(Time.get_ticks_usec())
+		if not due.is_empty():
+			_submit_remote_results(_arbiter.seq(), due)
 	hud.overlay.update_text(_options.stats, _tuning, _options, runner.longest_frame_ms(), _ended)
 
 
@@ -186,6 +312,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		# A defence press still in flight when the fight ends must not skip the end screen.
 		if Time.get_ticks_usec() - _ended_at_us < _visuals.end_input_guard_ms * 1000:
 			return
+		if _net_mode == NetMode.CLIENT:
+			# The host goes on for everyone.
+			return
 		if _from_zone or _run != null:
 			if key == KEY_R and _run == null:
 				get_viewport().set_input_as_handled()
@@ -201,8 +330,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			select_requested.emit()
 		return
-	if _tuning.practice_tools_enabled and _handle_practice(event, key):
+	if _tuning.practice_tools_enabled and _net_mode == NetMode.LOCAL and _handle_practice(event, key):
 		get_viewport().set_input_as_handled()
+		return
+	# In co-op only the acting hero's player drives the menu.
+	if not _players.may_control(PlayerRoster.device_of(event), _owner_slot(mirror.active_actor)):
 		return
 	if hud.action_menu.handle_input(event):
 		get_viewport().set_input_as_handled()
@@ -217,11 +349,104 @@ func submit(command: Dictionary) -> Array[Dictionary]:
 
 
 func _submit(command: Dictionary) -> Array[Dictionary]:
-	return _keep_valid(engine.submit(command))
+	if _net_mode == NetMode.CLIENT:
+		Net.send_to_host("cmd", {"command": command})
+		return []
+	var events := _keep_valid(engine.submit(command))
+	if _net_mode == NetMode.HOST:
+		var timing := String(command.get("type", "")) == CombatCommands.RESOLVE_PROMPTS
+		_host_sent(events, "timing" if timing else "flow", int(command.get("seq", -1)))
+	return events
 
 
 func _submit_start() -> Array[Dictionary]:
-	return _keep_valid(engine.start())
+	var events := _keep_valid(engine.start())
+	if _net_mode == NetMode.HOST:
+		_host_sent(events, "flow", -1)
+	return events
+
+
+## Host: sends a batch to the clients and keeps the arbiter up to date.
+func _host_sent(events: Array[Dictionary], kind: String, seq: int) -> void:
+	if events.is_empty():
+		return
+	Net.broadcast("combat", {"kind": kind, "seq": seq, "events": events})
+	for ev: Dictionary in events:
+		match String(ev.get("type", "")):
+			"combat_started":
+				# The first attack can come in this same batch, before the fighters are built.
+				for f: Dictionary in ev.fighters:
+					if int(f.team) == Combatant.Team.PARTY:
+						_owners[int(f.id)] = _players.owner_of(int(f.slot))
+			"timed_sequence_declared":
+				var owners: Dictionary = {}
+				for p: Dictionary in ev.prompts:
+					var player := int(_owners.get(int(p.character), 0))
+					if not _players.is_local(player) and player < _players.peers.size():
+						owners[int(p.idx)] = _players.peers[player]
+				var lead := _tuning.attack_lead_in_ms if String(ev.kind) == CombatEngine.SEQUENCE_ENEMY_ATTACK else 0
+				_arbiter.declare(int(ev.seq), ev.prompts as Array, owners, lead, Time.get_ticks_usec())
+			"prompt_resolved":
+				_arbiter.mark_resolved([int(ev.prompt)])
+			"prompts_voided":
+				_arbiter.mark_resolved(ev.prompts as Array)
+			"sequence_resolved":
+				_arbiter.clear()
+
+
+## Host: submits results that did not come from this machine's runner (a client's, or the
+## arbiter's NONE). Only prompts still pending are sent, and a character's earlier prompts that
+## are still open go as NONE with them (they are overdue), so the engine never refuses the batch.
+func _submit_remote_results(seq: int, results: Array[Dictionary]) -> void:
+	if engine == null or engine.sequence.is_empty() or int(engine.sequence.seq) != seq or results.is_empty():
+		return
+	var prompts: Array = engine.sequence.prompts
+	var states: Array = engine.sequence.states
+	var chosen: Dictionary = {}
+	for r: Dictionary in results:
+		var idx := int(r.get("prompt", -1))
+		if idx >= 0 and idx < states.size() and int(states[idx]) == CombatEngine.PromptState.PENDING:
+			chosen[idx] = CombatCommands.prompt_result(idx, int(r.get("outcome", Defense.Outcome.NONE)),
+					int(r.get("offset_us", 0)))
+	for idx: int in chosen.keys():
+		var character := int((prompts[idx] as Dictionary).character)
+		for j: int in idx:
+			if int((prompts[j] as Dictionary).character) == character \
+					and int(states[j]) == CombatEngine.PromptState.PENDING and not chosen.has(j):
+				chosen[j] = CombatCommands.prompt_result(j, Defense.Outcome.NONE, 0)
+	if chosen.is_empty():
+		return
+	var idxs: Array = chosen.keys()
+	idxs.sort()
+	var list: Array[Dictionary] = []
+	for idx: int in idxs:
+		list.append(chosen[idx])
+	_route_timing(seq, _submit(CombatCommands.resolve_prompts(seq, list)))
+
+
+## A timing batch goes to the runner playing its sequence, or waits until that sequence starts.
+func _route_timing(seq: int, events: Array[Dictionary]) -> void:
+	if events.is_empty():
+		return
+	if runner.is_active() and runner.current_seq() == seq:
+		runner.take_events(events)
+	elif skill_runner.is_active() and skill_runner.current_seq() == seq:
+		skill_runner.take_events(events)
+	else:
+		_timing_inbox.append({"seq": seq, "events": events})
+
+
+## A runner started sequence `seq`: hand it what already arrived; a client tells the host.
+func _on_sequence_started(seq: int) -> void:
+	if _net_mode == NetMode.CLIENT:
+		Net.send_to_host("ack", {"seq": seq})
+	var waiting := _timing_inbox.duplicate()
+	_timing_inbox.clear()
+	for batch: Dictionary in waiting:
+		if int(batch.seq) == seq:
+			_route_timing(seq, batch.events as Array[Dictionary])
+		elif int(batch.seq) > seq:
+			_timing_inbox.append(batch)
 
 
 func _keep_valid(events: Array[Dictionary]) -> Array[Dictionary]:
@@ -302,6 +527,7 @@ func _enter_pause() -> void:
 ## Applies an event to the mirror right now (runner prompt events, practice changes) with its
 ## feedback (numbers, popups).
 func _apply_now(ev: Dictionary) -> void:
+	_progress_ms = Time.get_ticks_msec()
 	mirror.apply(ev)
 	match String(ev.get("type", "")):
 		"downed":
@@ -318,6 +544,7 @@ func _apply_now(ev: Dictionary) -> void:
 
 
 func _play(ev: Dictionary) -> void:
+	_progress_ms = Time.get_ticks_msec()
 	var type := String(ev.get("type", ""))
 	match type:
 		"combat_started":
@@ -333,8 +560,10 @@ func _play(ev: Dictionary) -> void:
 			mirror.apply(ev)
 			if int(ev.team) == Combatant.Team.PARTY:
 				Sfx.play("turn_start")
+				_awaiting_turn = int(ev.turn)
 		"ability_used":
 			mirror.apply(ev)
+			_awaiting_turn = -1
 			_refresh()
 			var used := _abilities.get(String(ev.ability)) as AbilityData
 			# Skills with presses are animated by the SkillSequenceRunner.
@@ -382,17 +611,39 @@ func _play(ev: Dictionary) -> void:
 func _on_runner_finished(tail: Array[Dictionary]) -> void:
 	_waiting_runner = false
 	view.sync_alive(mirror)
-	_queue.append_array(tail)
+	# Online, later batches may already wait in the queue: the tail comes first (engine order).
+	var later := _queue.duplicate()
+	_queue = tail.duplicate()
+	_queue.append_array(later)
 	_pump()
 
 
+## True when the fight waits for a party member's choice (a client reads it from the events).
+func _awaiting_choice() -> bool:
+	if engine != null:
+		return engine.phase == CombatEngine.Phase.AWAITING_ACTION
+	return _awaiting_turn == mirror.turn and _sent_turn != mirror.turn
+
+
 func _maybe_open_menu() -> void:
-	if _ended or _runner_active() or engine.phase != CombatEngine.Phase.AWAITING_ACTION:
+	if _ended or _runner_active() or not _awaiting_choice():
 		return
 	var actor := mirror.active_actor
 	if actor < 0 or not mirror.party_ids.has(actor):
 		return
 	if hud.action_menu.is_open() and _menu_turn == mirror.turn:
+		return
+	var owner := _players.owner_of(_owner_slot(actor))
+	if not _players.is_local(owner):
+		# Another machine's hero: its player chooses there (say so once per turn).
+		if _menu_turn == mirror.turn:
+			return
+		_menu_turn = mirror.turn
+		hud.action_menu.close()
+		view.camera.shot_turn(view.home_of(actor))
+		_set_active_pose(actor)
+		hud.show_center_banner("%s is choosing" % HudStyle.player_tag(owner), HudStyle.player_color(owner),
+				_visuals.first_strike_banner_ms)
 		return
 	_menu_turn = mirror.turn
 	var data := _data_by_id.get(actor) as CharacterData
@@ -408,7 +659,8 @@ func _maybe_open_menu() -> void:
 	var entries: Array[Dictionary] = []
 	for ability: AbilityData in abilities:
 		entries.append(_menu_entry(actor, ability))
-	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, entries, names)
+	var player := _players.owner_of(_owner_slot(actor)) if _players.is_coop() else -1
+	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, entries, names, player)
 	view.camera.shot_turn(view.home_of(actor))
 	_set_active_pose(actor)
 	menu_opened.emit(actor)
@@ -451,12 +703,13 @@ func _runner_active() -> bool:
 
 
 func _on_ability_chosen(ability_id: String, target_id: int) -> void:
-	if _ended or engine.phase != CombatEngine.Phase.AWAITING_ACTION:
+	if _ended or not _awaiting_choice():
 		return
 	var targets: Array[int] = []
 	if target_id >= 0:
 		targets.append(target_id)
 	_menu_turn = -1
+	_sent_turn = mirror.turn
 	_enqueue(_submit(CombatCommands.use_ability(mirror.turn, mirror.active_actor, ability_id, targets)))
 
 
@@ -479,6 +732,8 @@ func _on_combat_ended(result: String) -> void:
 	hud.show_end(result, _summary_text(), _end_hint())
 	if _options.is_autoplay():
 		_check_mirror()
+		if _net_mode != NetMode.LOCAL:
+			print("AUTOPLAY_MIRROR %s %d" % [result, var_to_str(mirror.projection()).hash()])
 	combat_finished.emit(result)
 	# A zone fight hands the end back to the zone (Main); the zone decides when the run is over.
 	if _options.quit_on_end and not _from_zone and _run == null:
@@ -501,6 +756,8 @@ func _on_press_judged(action: int, report: Dictionary) -> void:
 ## What the end screen's buttons do.
 func _end_hint() -> String:
 	var confirm := HudStyle.binding_text(&"menu_confirm")
+	if _net_mode == NetMode.CLIENT:
+		return "The host goes on for everyone.      F1: stats"
 	if _run != null:
 		if _result != "victory":
 			return "%s:  see how the run went      F1: stats" % confirm
@@ -525,8 +782,24 @@ func _summary_text() -> String:
 	return text
 
 
+## Autoplay: what the fight waits for, when nothing has happened for a long time.
+func _report_stuck() -> void:
+	var states: Array = mirror.sequence.get("states", [])
+	var info := "mode=%d phase=%s actor=%s turn=%d mirror_actor=%d awaiting=%d sent=%d menu_turn=%d menu_open=%s" % [
+			_net_mode, str(engine.phase) if engine != null else "-", str(engine.active_actor) if engine != null else "-",
+			mirror.turn, mirror.active_actor, _awaiting_turn, _sent_turn, _menu_turn, hud.action_menu.is_open()]
+	info += " queue=%d playing=%s waiting_runner=%s runner=%s/%d skill=%s/%d inbox=%d seq=%s states=%s owners=%s" % [
+			_queue.size(), _playing, _waiting_runner, runner.is_active(), runner.current_seq(), skill_runner.is_active(),
+			skill_runner.current_seq(), _timing_inbox.size(), str(mirror.sequence.get("seq", -1)), str(states), str(_owners)]
+	if _arbiter != null:
+		info += " arbiter_seq=%d arbiter_open=%s" % [_arbiter.seq(), _arbiter.has_open()]
+	print("AUTOPLAY_ERROR combat_stuck " + info)
+
+
 ## Autoplay guard: the mirror, built from events in playback order, must end equal to the engine.
 func _check_mirror() -> void:
+	if engine == null:
+		return
 	var shown := mirror.projection()
 	var truth := CombatMirror.project_snapshot(engine.snapshot())
 	if shown != truth:
@@ -547,6 +820,15 @@ func _build_fighters() -> void:
 		_data_by_id[id] = data
 		view.add_fighter(id, is_party, int(f.slot), data)
 	hud.build_fighters(mirror, _data_by_id)
+	_owners.clear()
+	for id: int in mirror.party_ids:
+		_owners[id] = _players.owner_of(_owner_slot(id))
+	runner.set_players(_players, _owners)
+	skill_runner.set_players(_players, _owners)
+	if autoplay != null:
+		autoplay.set_players(_players, _owners)
+	if _players.is_coop():
+		hud.set_player_tags(_owners)
 	view.sync_alive(mirror)
 	_refresh()
 	# Warm-up: draw every effect once so the first parry has no shader-compile hitch.
@@ -556,6 +838,13 @@ func _build_fighters() -> void:
 	await get_tree().process_frame
 	view.finish_warm_up()
 	hud.finish_warm_up()
+
+
+## The party slot of a fighter (-1 for an enemy or nobody).
+func _owner_slot(id: int) -> int:
+	if not mirror.party_ids.has(id):
+		return -1
+	return int(mirror.fighter(id).slot)
 
 
 ## Dash, strike, damage, hold, return (DESIGN.md 2.2, about 0.55 s).
@@ -828,7 +1117,8 @@ func _practice_attacks() -> Array[EnemyAttackData]:
 
 
 func _practice_text() -> String:
-	if not _tuning.practice_tools_enabled:
+	# Online the practice keys are off (they would change everyone's fight).
+	if not _tuning.practice_tools_enabled or _net_mode != NetMode.LOCAL:
 		return ""
 	var forced := String(mirror.practice.get("force_attack", ""))
 	var attacks := _practice_attacks()
@@ -876,6 +1166,8 @@ func _wait_ms(ms: int) -> void:
 
 
 func _pick_seed() -> int:
+	if _fight_seed >= 0:
+		return _fight_seed
 	if _options.seed_override >= 0:
 		return _options.seed_override
 	if _tuning.fixed_seed != 0:

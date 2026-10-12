@@ -19,6 +19,7 @@ var fighter_id: int = -1
 var _style: StyleBoxFlat
 var _accent: Color = Color.WHITE
 var _name_label: Label
+var _player_label: Label
 var _state_label: Label
 var _hp_bar: ProgressBar
 var _hp_label: Label
@@ -52,6 +53,9 @@ func setup(id: int, display_name: String, accent: Color, max_ap: int, visuals: C
 	_name_label = HudStyle.make_label(display_name, NAME_SIZE, accent.lightened(0.25))
 	_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(_name_label)
+	_player_label = HudStyle.make_label("", STATE_SIZE)
+	_player_label.visible = false
+	top.add_child(_player_label)
 	_state_label = HudStyle.make_label("", STATE_SIZE, HudStyle.LATE)
 	top.add_child(_state_label)
 
@@ -106,6 +110,14 @@ func refresh(f: Dictionary, active: bool) -> void:
 	modulate = Color.WHITE if alive else Color(0.6, 0.6, 0.65)
 	_active = active
 	_apply_border()
+
+
+## Shows which co-op player controls this character (player < 0 hides the tag).
+func set_player(player: int) -> void:
+	_player_label.visible = player >= 0
+	if player >= 0:
+		_player_label.text = HudStyle.player_tag(player) + " "
+		_player_label.label_settings.font_color = HudStyle.player_color(player)
 
 
 ## Red border while an enemy attack targets this character.

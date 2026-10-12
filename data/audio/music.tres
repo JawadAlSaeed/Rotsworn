@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MusicSet" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/music_set.gd" id="1_music"]
+
+[resource]
+script = ExtResource("1_music")
+menu_path = ""
+zone_path = ""
+fight_path = ""
+volume_db = -8.0

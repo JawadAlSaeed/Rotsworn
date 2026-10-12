@@ -663,13 +663,20 @@ clamped by tuning's calibration bounds.
 - `AssetLoader.texture(path)` returns a visible checkerboard if a file is missing; `Audio.play()`
   stays silent with one warning.
 
+Music (2026-10-12): `data/audio/music.tres` (`MusicSet`) names the song for menus and run screens,
+zones and fights; the `Audio` autoload loops it on its own player, and a place that names the song
+already playing lets it go on. Songs live in `assets/audio/music/` and may be compressed (QOA);
+sound effects stay PCM. No song is set yet (the placeholder "tiebreaker" was only for the online
+test build and is removed): every place is silent until the soundtrack arrives.
+
 ---
 
 ## 6. Input
 
-Defined in `project.godot` (Project > Project Settings > Input Map in the editor). Phase 1: every
-device controls the single player. Keyboard events use device id 16 in Godot 4.7, pads 0 and up,
-which phase 5 uses to assign devices to players.
+Defined in `project.godot` (Project > Project Settings > Input Map in the editor). Solo: every
+device controls the single player. Co-op (9.1): each player has one device (the keyboard counts as
+one device, `PlayerRoster.KEYBOARD`; pads by their Godot device id) and it controls only that
+player's heroes.
 
 | Action | Keyboard | Xbox pad |
 |---|---|---|
@@ -812,6 +819,12 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
 
 ### 7.5 Phase 4: main menu and settings (card #46)
 
+Studio intro (2026-10-12): when the game starts it plays the "Developed by DragonRot" video
+(`assets/video/dragonrot_intro.ogv`, 4 s, path in `data/presentation/boot.tres`, `BootData`) on
+black, then the main menu. Any key, button or click skips it (after `skip_guard_ms`). A missing
+video goes straight to the menu. Autoplay never shows it. Godot plays Ogg Theora only: the MP4 was
+converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`).
+
 - **Main menu** (first screen, `MainMenu`): New Run, Practice (the fight and zone list, full HP,
   nothing carries over), Settings, Quit. The cursor comes back on the last item picked.
 - **Settings** (`SettingsScreen`): volume (left/right, 10% steps), fullscreen on/off, training
@@ -929,21 +942,96 @@ counters for longer and mixed strings (2.5, card #52).
 
 ## 9. Multiplayer (phase 5)
 
-- Host-authoritative. Godot high-level multiplayer over ENet. Join by IP or room code.
-- The host runs the only `CombatEngine`. Clients have no engine: they apply broadcast events to
-  their own `CombatMirror` and play them. Clients send commands for their own characters; the
-  host validates and applies them.
-- Defence: each client plays the attack locally from `timed_sequence_declared` and judges its own
-  player's prompts with its own `DefenseJudge` on its own clock (network lag never shifts
-  windows). It sends partial `resolve_prompts` for its characters. A host-only `DefenseArbiter`
-  tracks each client's playback start (`defense_started{seq}` ack), sets per-prompt deadlines
-  (ack time + impact + late edge + hit-stops + grace), resolves missed prompts as NONE (or AI)
-  with an explicit command so the replay log has it, drops results for characters the sender
-  does not own and for stale sequences, and dedupes by (seq, prompt).
-- Combat RPCs are `@rpc("any_peer", "call_remote", "reliable")` on a dedicated channel.
-- The handshake compares a hash of data files and tuning; mismatched clients are refused.
-- Local co-op: several input devices on one machine, each assigned to a player; one shared
-  `AttackClock`.
+### 9.1 Local co-op (phase 5 Part A, done)
+
+- **Players screen** (`LobbyScreen`, approved 2026-10-12): New Run and Practice open it first. The
+  device that opened it is P1. Another pad (or the keyboard) presses Confirm to join (up to 3
+  players) and Back to leave. Heroes are dealt out in turn (P1 gets the extra one: with 2 players
+  P1 has Alder and Cass, P2 has Brin); left/right on a hero hands it to another player, as long as
+  every player keeps one. Start (selected first) plays; P1's Back returns to the main menu. The
+  roster is kept for the session (same P1 = same split next time).
+- `PlayerRoster` (pure, `scripts/coop/`): players and their devices, hero slot -> player. A hero is
+  a party slot, so the roster fits every fight. One player = solo: every device controls
+  everything, exactly as before.
+- **Fights**: the action menu answers only the acting hero's player (title shows "(P2)"); party
+  panels show P1/P2/P3 tags in player colours. The engine is unchanged (ownership is presentation).
+- **Defence and skill presses**: `JudgeSet` (pure, `scripts/combat/timing/`) holds one
+  `DefenseJudge` per player with only that player's heroes' prompts. A press counts only for the
+  heroes of the player whose device made it: each player defends their own heroes on a party-wide
+  attack, presses their own skills, their own heroes' follow-ups, and their own part of the team
+  ultimate. Whiff lockout, EARLY/LATE popups and the lock icon are per player; a player whose
+  heroes are not targeted is ignored (no lockout). One shared `AttackClock`, one lag compensation
+  (one machine). Results are released per player in prompt order (a hero's prompts stay in hit
+  order, which is all the engine needs).
+- **Zones**: only P1 walks and strikes (approved 2026-10-12); `DeviceInput` reads one device
+  through the Input Map. Run screens (map, shop, rest, party, loot), pause and end screens: anyone.
+- Bot: `--players=N` plays co-op with N pretend pads; each player presses for their own heroes.
+
+### 9.2 Online co-op (phase 5 Part B, done)
+
+- **Host-authoritative, the host is the server.** Main menu: **Host Online** listens (port
+  `net_port`, 7777) and shows the PC's addresses to share; **Join Online** takes an address
+  (remembered per machine). One player per machine (P1 = host). Same Wi-Fi works as is; over the
+  internet both use Tailscale (or the host forwards the port). Approved 2026-10-12: IP first.
+- `Net` autoload (`NetSession`, `scripts/autoload/net.gd`) wraps Godot's high-level multiplayer.
+  The transport is a `MultiplayerPeer` (ENet today); everything above it only uses the
+  high-level API, so Steam's peer (GodotSteam: friend invites, NAT punch-through and relays) can
+  replace ENet later without touching the game.
+- **Handshake**: a client first sends its content fingerprint (`DataHash`: SHA-256 of every file
+  under `data/`, line endings ignored, plus the project version). A mismatch, a full game (3
+  players) or a started run is refused with a reason shown on the Join screen. Until welcomed, a
+  client's messages are ignored. A client that never says hello is dropped after
+  `net_connect_timeout_ms`.
+- **Messages** are (kind, Dictionary of plain data). Reliable ones share one ordered channel (game
+  flow and combat must never overtake each other; this replaces the "dedicated combat channel"
+  idea); zone positions go unreliable on channel 1. Only the host may send to clients
+  (`@rpc("authority")`); clients' messages to the host are checked against the sender's peer id.
+- **Players screen online**: the host's lobby lists who joined, hands heroes out (left/right) and
+  starts; clients watch it. Starting closes the game to new joiners.
+- **Run flow**: the host's machine runs the run exactly as offline. Each screen it shows is sent
+  as a "screen" message with the whole `RunState.to_dict()` (gear by id; the map comes from the
+  seed); any later change of the run (a purchase, gear, a level) is sent as "run". Clients only
+  show: their map, shop, rest, loot, party and end screens are the same screens fed with the
+  host's state, input off, with "The host is choosing (P1)" on top. Messages that arrive during a
+  client's transition wait for it. Approved 2026-10-12: P1 (the host) makes the run choices.
+- **Zones**: the host's zone is real and sends `net_snapshot()` (leader, facing, walking, strike
+  count, every roaming enemy's spot, state and defeat) `net_zone_send_hz` times a second; a
+  client's zone is `remote`: walkers glide there (`net_follow_ms` in `explore_visuals.tres`). A
+  fight starts when the host says (`zone_fight` with the index, the opening and the fight's
+  seed), with the same opening flash on every machine.
+- **Fights**: `CombatController` runs in HOST mode (the only `CombatEngine`) or CLIENT mode (no
+  engine). Both build the same `CombatSetup` from the host's seed (for the data). Every batch of
+  events the host's engine returns is sent: "flow" batches go to the event queue, "timing"
+  batches (answers to `resolve_prompts`) to the runner playing that sequence, or wait until that
+  sequence starts there. The runners apply batches strictly in arrival order (an inbox), so the
+  mirror always follows engine order. When a runner finishes, its tail goes in front of anything
+  that arrived later. Autoplay prints `AUTOPLAY_MIRROR <result> <hash>` on every machine: equal
+  hashes = every machine ended the fight in the same state.
+- **Menus online**: a hero's turn menu opens only on its player's machine; the others see
+  "P2 is choosing". A client's choice goes to the host, which takes it only if that client owns
+  the acting hero and it is that hero's turn.
+- **Defence and skill presses online**: each machine plays the attack itself (from
+  `timed_sequence_declared`) and judges only its own player's prompts (`JudgeSet` with
+  `only_players`), on its own clock with its own lag compensation: network lag never shifts a
+  window. It sends its results to the host and tells the host when it started the sequence
+  (ack). Another player's result is shown when it arrives (a defence pose at once, a hit only
+  when that prompt would have closed, so HP never drops before the swing lands).
+- **DefenseArbiter** (host only, pure, `scripts/net/`): deadlines per remote prompt = start (the
+  ack, or declare + `net_ack_timeout_ms` if none) + lead-in + close time + one hit-stop allowance
+  per hit so far (largest hit-stop + `calibration_max_ms`) + `net_deadline_grace_ms`. Overdue
+  prompts are resolved as NONE by an explicit command (so a replay has it). It accepts a client's
+  results only for its own heroes, the current sequence, and once per prompt. The host also sends
+  a character's earlier still-open prompts as NONE with a later one, so the engine never refuses a
+  batch.
+- **Someone leaves**: a client that leaves mid-run hands its heroes to the host (P3 becomes P2);
+  its open prompts are resolved at once and the others are told. If the host leaves (or ends the
+  game from the pause menu), everyone goes back to the main menu with a note. Online, the pause
+  menu opens over a game that goes on (it offers Leave / End the game).
+- **Sharing the game**: `build_game.bat` exports `build/RottenLands.zip` (one exe). Everyone online
+  plays that same build: a run from the editor has a different content fingerprint (the export
+  stores resources differently) and is refused.
+- Bot: `--host=N` hosts and starts a run once N players are in; `--join=ADDRESS` joins. Both play
+  with `--autoplay`; each presses only for its own player.
 
 ---
 
@@ -996,6 +1084,23 @@ counters for longer and mixed strings (2.5, card #52).
   victory pays XP; loot and shop gear are seeded and never offer owned gear; equip, swap, take
   off (no free heal, HP clamped); gear reaches the fight setup and the gold bonus; the shipped gear
   and boss are complete. The event-fields test also covers `enemy_phase`.
+- Phase 5 Part A (`test_coop.gd`): solo controls everything from any device; join, leave, the
+  even split, handing heroes over (never leaving a player without one), device codes of events,
+  the shipped party fits three players; per player judging (a press answers only its player's
+  heroes, lockout per player, a player with no prompt is ignored, solo equals one judge, the engine
+  accepts the per-player results in release order, voids reach every judge); the players screen
+  (join, hand over, leave, start, back, keeps the last split for the same P1). Co-op smoke test:
+  add `--players=2` or `--players=3` to any autoplay command.
+- Phase 5 Part B (`test_online.gd`): the online roster (one player per machine, any device on it
+  plays its player, sent as data and refused when malformed, a player dropping out hands heroes
+  to the host), the arbiter (deadline from declare + timeout, then from the ack; later hits get
+  more; overdue prompts once as NONE and the engine accepts them; only own open prompts of the
+  current sequence, once; a leaving client resolved at once; engine-resolved prompts left alone),
+  the fingerprint (stable, version, line endings, changed numbers, import files ignored) and the
+  run state round trip (and refusals that change nothing).
+- Online smoke test: start `--autoplay --host=2 --seed=N --quit-on-end` and then
+  `--autoplay --join=127.0.0.1 --quit-on-end` (both headless, about 15 minutes). Both print the
+  same `AUTOPLAY_RESULT run_...` line and the same `AUTOPLAY_MIRROR` hashes, and no ERROR lines.
 - Run smoke test: `--autoplay --run --quit-on-end` (add `--seed=N` for a fixed map). The bot
   picks a shop when it has gold, a rest when someone is at or under 60% HP, else a zone; in zones
   it walks to the guard; in shops it buys what it can for whoever is lowest; it takes the first
@@ -1023,7 +1128,9 @@ counters for longer and mixed strings (2.5, card #52).
 4. **Run structure** (built, waiting for playtest): Part A (main menu and settings, map,
    zone/rest/shop stops, HP carry-over, gold) and Part B (levels, gear, loot, boss, pause menu,
    stronger counters); 8, 7.5, 2.5.
-5. Co-op: local multi-device first, then online.
+5. **Co-op** (done, approved 2026-10-12 after an online test with a friend): Part A local
+   multi-device (9.1), Part B online by IP (9.2), the studio intro (7.5). Steam invites later
+   (swap the transport).
 6. Polish: UI, feedback effects, audio pass, balance.
 
 ### 11.1 To-do (from playtests)
@@ -1058,6 +1165,13 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-06 | Global numbers in `tuning.tres`; per-move shapes as percentages in move data | one place to rebalance, content stays data-driven |
 | 2026-10-06 | Integer percentages, integer damage maths | identical results everywhere, order-independent |
 | 2026-10-06 | Commands/events are plain Dictionaries | trivially serialisable for networking |
+| 2026-10-12 | Co-op heroes picked on a players screen, dealt out evenly by default | user choice |
+| 2026-10-12 | In co-op zones only P1 walks and strikes | no tug-of-war on one screen; user choice |
+| 2026-10-12 | Co-op ownership lives in presentation (`PlayerRoster`, `JudgeSet`), not the engine | engine stays the same for solo, local and online |
+| 2026-10-12 | Online: join by IP first, host is the server; transport swappable for Steam later | free, works now; Steam invites need a store page |
+| 2026-10-12 | Online run screens: the host chooses, the others watch the same screen | one source of truth for the run, no desync |
+| 2026-10-12 | Online run state replicated as a whole (`RunState.to_dict`), not as actions | clients never run run logic, cannot drift |
+| 2026-10-12 | One reliable channel for flow and combat messages | order between them matters more than separation |
 | 2026-10-06 | Timed sequences of per-character prompts; partial `resolve_prompts` | covers phase 2 skills/follow-ups and phase 5 per-client reporting without redesign |
 | 2026-10-06 | Engine computes windows and pre-rolls damage in the declared event | client judge and host rules cannot drift; RNG order independent of network |
 | 2026-10-06 | Presentation reads `CombatMirror`, not the engine | bars sync with animation; same code on network clients |

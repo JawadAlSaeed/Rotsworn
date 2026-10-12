@@ -7,6 +7,11 @@ extends Node
 ## when the party comes back. Walking is presentation, not combat: real time, floats, no engine.
 ## In a run (DESIGN.md 8) the zone is cleared by beating its guard at the exit; the other roaming
 ## enemies are optional. Outside a run (practice) every enemy must be beaten.
+## In co-op only player 1 walks and strikes (DESIGN.md 9.1); the others watch.
+## Online (DESIGN.md 9.2) the host's zone is the real one: it sends net_snapshot() several times a
+## second. On the other machines the zone is `remote`: nothing moves by itself and no fight starts
+## here; the walkers glide to the host's positions (apply_snapshot) and a fight starts when the
+## host says so (begin_remote).
 
 ## A fight is starting: roaming enemy `index` (its encounter), with this opening.
 signal encounter_started(index: int, opening: CombatSetup.Opening)
@@ -26,6 +31,8 @@ const TOUCH_PAUSE_S: float = 0.15
 ## Name tags show over roaming enemies this many notice radii away or closer.
 const TAG_RANGE_SHARE: float = 1.6
 
+## Online, the pause menu opens over a zone that goes on: the leader stands still meanwhile.
+var input_held: bool = false
 ## Autoplay (ZoneAutoplay) drives these instead of the input when `use_bot` is set.
 var use_bot: bool = false
 var bot_move: Vector2 = Vector2.ZERO
@@ -55,6 +62,12 @@ var _fights: int = 0
 var _first_strikes: int = 0
 var _run_mode: bool = false
 var _cleared: bool = false
+var _players: PlayerRoster = PlayerRoster.solo(3)
+## Online, not the host: positions come from the host.
+var _remote: bool = false
+## Remote: the host's latest positions; the strike counter tells a new strike from an old one.
+var _net: Dictionary = {}
+var _strikes: int = 0
 
 
 func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: ExploreVisuals,
@@ -64,6 +77,41 @@ func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: 
 	_visuals = visuals
 	_explore = explore
 	_run_mode = run_mode
+
+
+## The players (default: solo). In co-op only player 1's device walks and strikes.
+func configure_players(players: PlayerRoster) -> void:
+	_players = players
+
+
+## Online, not the host: this zone only shows what the host's zone sends.
+func configure_remote() -> void:
+	_remote = true
+
+
+## Host: where everything is now, to send to the other machines.
+func net_snapshot() -> Dictionary:
+	var roamers: Array = []
+	for r: Dictionary in _roamers:
+		var pos: Vector2 = r.pos
+		roamers.append([pos.x, pos.y, int((r.brain as RoamerBrain).state), bool(r.defeated)])
+	return {"l": [_leader_pos.x, _leader_pos.y], "f": [_facing.x, _facing.y],
+			"w": _walk_phase > 0.0, "s": _strikes, "r": roamers}
+
+
+## Remote: the host's latest positions (see net_snapshot()). Malformed data is ignored.
+func apply_snapshot(d: Dictionary) -> void:
+	if not d.get("l") is Array or not d.get("f") is Array or not d.get("r") is Array:
+		return
+	if (d.l as Array).size() != 2 or (d.f as Array).size() != 2 or (d.r as Array).size() != _roamers.size():
+		return
+	_net = d
+
+
+## Remote: the host's leader touched or struck roaming enemy `index`: the same start as there.
+func begin_remote(index: int, opening: CombatSetup.Opening) -> void:
+	if index >= 0 and index < _roamers.size() and not _frozen:
+		_begin(index, opening)
 
 
 func _ready() -> void:
@@ -258,7 +306,13 @@ func _process(delta: float) -> void:
 		return
 	var dt_ms := delta * 1000.0
 	_time_ms += dt_ms
-	var move := bot_move if use_bot else Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	if _remote:
+		_follow_host(delta)
+		_place_walkers(delta)
+		_follow_camera(delta)
+		_update_marks()
+		return
+	var move := bot_move if use_bot else _leader_input()
 	var striking := _time_ms < _strike_until_ms
 	var walking := not striking and move.length() > MOVE_DEADZONE
 	if walking:
@@ -305,23 +359,32 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _frozen or not is_inside_tree():
+	if _frozen or _remote or input_held or not is_inside_tree():
 		return
 	# Pause (Esc / Menu) is Main's: it stops this node and opens the pause menu.
 	if event.is_action_pressed(&"field_strike", false, true):
 		get_viewport().set_input_as_handled()
-		strike()
+		if _players.player_of_device(PlayerRoster.device_of(event)) == 0:
+			strike()
+
+
+## The walk input: any device in solo and online (the host is player 1), only player 1's device in
+## local co-op.
+func _leader_input() -> Vector2:
+	if input_held:
+		return Vector2.ZERO
+	if not _players.is_coop() or _players.is_online():
+		return Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	return DeviceInput.vector(&"move_left", &"move_right", &"move_up", &"move_down", _players.device_of_player(0))
 
 
 ## The leader's field strike: a slash in front; a roaming enemy inside it starts a FIRST STRIKE.
 func strike() -> void:
-	if _frozen or _time_ms < _strike_until_ms:
+	if _frozen or _remote or _time_ms < _strike_until_ms:
 		return
 	_strike_until_ms = _time_ms + float(_tuning.explore_strike_ms)
-	_leader.play_pose(FighterView.CharPose.STRIKE, _tuning.explore_strike_ms)
-	Sfx.play("strike")
-	var front := _leader_pos + _facing * _explore.strike_slash_distance
-	_spawn_slash(Vector3(front.x, SLASH_HEIGHT, front.y))
+	_strikes += 1
+	_show_strike()
 	var best := -1
 	var best_dist := INF
 	for i: int in _roamers.size():
@@ -336,6 +399,69 @@ func strike() -> void:
 				best_dist = d
 	if best >= 0:
 		_begin(best, CombatSetup.Opening.FIRST_STRIKE)
+
+
+## The strike's pose, sound and slash (also on the other machines online).
+func _show_strike() -> void:
+	_leader.play_pose(FighterView.CharPose.STRIKE, _tuning.explore_strike_ms)
+	Sfx.play("strike")
+	var front := _leader_pos + _facing * _explore.strike_slash_distance
+	_spawn_slash(Vector3(front.x, SLASH_HEIGHT, front.y))
+
+
+## Remote: glide toward the host's positions, copy its facing, walking, strikes and enemy states.
+func _follow_host(delta: float) -> void:
+	if _net.is_empty():
+		return
+	var k := 1.0 - exp(-delta * 1000.0 / float(maxi(1, _explore.net_follow_ms)))
+	_leader_pos = _leader_pos.lerp(Vector2(float(_net.l[0]), float(_net.l[1])), k)
+	var facing := Vector2(float(_net.f[0]), float(_net.f[1]))
+	if facing.length() > 0.0001:
+		_facing = facing.normalized()
+		_update_flip()
+	var striking := _time_ms < _strike_until_ms
+	if int(_net.get("s", 0)) != _strikes:
+		_strikes = int(_net.get("s", 0))
+		_strike_until_ms = _time_ms + float(_tuning.explore_strike_ms)
+		_show_strike()
+		striking = true
+	if bool(_net.get("w", false)) and not striking:
+		_walk_phase += delta * _explore.walk_bob_hz
+		_leader.set_pose(FighterView.CharPose.READY if fposmod(_walk_phase, 1.0) < 0.5 else FighterView.CharPose.IDLE)
+	elif not striking:
+		_walk_phase = 0.0
+		_leader.set_pose(FighterView.CharPose.IDLE)
+	for i: int in _roamers.size():
+		var r: Dictionary = _roamers[i]
+		var entry: Variant = (_net.r as Array)[i]
+		if not entry is Array or (entry as Array).size() != 4:
+			continue
+		var gone := bool(entry[3])
+		if gone and not bool(r.defeated):
+			r.defeated = true
+			(r.view as FighterView).visible = false
+			_hud.set_notice(i, false)
+			_hud.set_tag(i, "", false)
+			_update_goal()
+		if gone:
+			continue
+		var target := Vector2(float(entry[0]), float(entry[1]))
+		var old: Vector2 = r.pos
+		r.pos = old.lerp(target, k)
+		var brain := r.brain as RoamerBrain
+		brain.state = clampi(int(entry[2]), 0, RoamerBrain.State.size() - 1) as RoamerBrain.State
+		if absf(target.x - old.x) > 0.001:
+			(r.view as FighterView).set_flip((target.x > old.x) == _visuals.enemy_art_faces_left)
+		var moving := brain.state in [RoamerBrain.State.WANDER, RoamerBrain.State.CHASE, RoamerBrain.State.RETURN]
+		if moving:
+			r.phase = float(r.phase) + delta * _explore.roam_bob_hz
+		var pose := EnemyChoreography.Pose.IDLE
+		match brain.state:
+			RoamerBrain.State.NOTICE:
+				pose = EnemyChoreography.Pose.WINDUP
+			RoamerBrain.State.CHASE:
+				pose = EnemyChoreography.Pose.LUNGE
+		(r.view as FighterView).set_pose(pose)
 
 
 func _begin(index: int, opening: CombatSetup.Opening) -> void:

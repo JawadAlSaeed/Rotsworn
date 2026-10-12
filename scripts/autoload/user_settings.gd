@@ -6,8 +6,8 @@ extends Node
 ## and they also work when no autoload exists (unit tests). UserSettings.x() works too.
 ## Holds what belongs to this machine and player rather than to the game's balance: the measured
 ## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
-## the volume and fullscreen (settings screen). Anything not saved here falls back to the value in
-## data/tuning/tuning.tres (or, for volume and fullscreen, the defaults below).
+## the volume and fullscreen (settings screen), the last host address joined online. Anything not
+## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
 const SECTION_TIMING := "timing"
@@ -18,6 +18,9 @@ const SECTION_AUDIO := "audio"
 const KEY_VOLUME := "volume_percent"
 const SECTION_DISPLAY := "display"
 const KEY_FULLSCREEN := "fullscreen"
+const SECTION_ONLINE := "online"
+const KEY_JOIN_ADDRESS := "join_address"
+const DEFAULT_JOIN_ADDRESS := "127.0.0.1"
 const DEFAULT_VOLUME_PERCENT: int = 100
 const VOLUME_STEP_PERCENT: int = 10
 
@@ -112,6 +115,16 @@ static func apply_fullscreen() -> void:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	elif not fullscreen() and mode == DisplayServer.WINDOW_MODE_FULLSCREEN:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
+
+
+## The host address typed last on the Join Online screen.
+static func join_address() -> String:
+	return String(_settings().get_value(SECTION_ONLINE, KEY_JOIN_ADDRESS, DEFAULT_JOIN_ADDRESS))
+
+
+static func set_join_address(value: String) -> void:
+	_settings().set_value(SECTION_ONLINE, KEY_JOIN_ADDRESS, value.strip_edges())
+	_save()
 
 
 static func _settings() -> ConfigFile:

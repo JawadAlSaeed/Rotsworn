@@ -11,6 +11,11 @@ extends RefCounted
 ##   --zone=ID                       start in this zone (data/zones) instead of the list
 ##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
 ##   --run                           start a new run at once (DESIGN.md 8)
+##   --players=N                     co-op with N players (1 to 3), one pretend pad each, heroes
+##                                   split evenly (DESIGN.md 9.1; for the autoplay bot)
+##   --host=N                        host online; start a run once N players (2 or 3) are in
+##   --join=ADDRESS                  join the online game at ADDRESS (DESIGN.md 9.2)
+##   --leave-after=S                 (with --join) leave the game after S seconds and quit
 
 const AUTOPLAY_PERFECT := "perfect"
 const AUTOPLAY_MISS := "miss"
@@ -27,6 +32,13 @@ var encounter_id: String = ""
 var zone_id: String = ""
 var first_strike: bool = false
 var run: bool = false
+## Players from --players (1 = solo).
+var players: int = 1
+## --host=N (0: not hosting) and --join=ADDRESS ("" : not joining).
+var host_players: int = 0
+var join_address: String = ""
+## --leave-after=S (0: stay).
+var leave_after_s: int = 0
 ## Session toggles (F1 overlay; not saved): telegraph flash (F), timing readout (T), the
 ## enemy's motion sounds (L: lunge whoosh and slam), hit markers (H), the wind-up crouch (C) and
 ## the cinematic camera (V).
@@ -70,6 +82,19 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.first_strike = true
 		elif arg == "--run":
 			options.run = true
+		elif arg.begins_with("--host="):
+			var wanted := arg.substr("--host=".length())
+			options.host_players = clampi(wanted.to_int(), 1, PlayerRoster.MAX_PLAYERS) if wanted.is_valid_int() else 2
+		elif arg.begins_with("--leave-after="):
+			options.leave_after_s = maxi(0, arg.substr("--leave-after=".length()).to_int())
+		elif arg.begins_with("--join="):
+			options.join_address = arg.substr("--join=".length())
+		elif arg.begins_with("--players="):
+			var count := arg.substr("--players=".length())
+			if count.is_valid_int() and count.to_int() >= 1 and count.to_int() <= PlayerRoster.MAX_PLAYERS:
+				options.players = count.to_int()
+			else:
+				push_warning("CombatOptions: --players needs 1 to %d, got '%s'" % [PlayerRoster.MAX_PLAYERS, count])
 		elif arg.begins_with("--seed="):
 			var text := arg.substr("--seed=".length())
 			if text.is_valid_int():

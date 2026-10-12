@@ -32,6 +32,10 @@ extends Resource
 ## Roaming enemies bob more slowly while they wander.
 @export_range(0.1, 10.0, 0.1) var roam_bob_hz: float = 1.6
 
+## Online, the other players see the walkers glide to the host's positions with this time
+## constant (smooths the position updates; DESIGN.md 9.2).
+@export_range(10, 1000, 1, "suffix:ms") var net_follow_ms: int = 90
+
 @export_group("Notice and strike")
 ## The "!" above a roaming enemy that has noticed the leader.
 @export_range(8, 200, 1) var notice_size: int = 52

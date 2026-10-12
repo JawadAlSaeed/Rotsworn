@@ -228,6 +228,20 @@ extends Resource
 ## Gear slots per character.
 @export_range(1, 6) var run_gear_slots: int = 3
 
+@export_group("Online")
+## The port a host listens on and a client connects to (DESIGN.md 9.2).
+@export_range(1024, 65535) var net_port: int = 7777
+## A client gives up connecting (and a joiner gives up waiting for the host's welcome) after this.
+@export_range(500, 60000, 1, "suffix:ms") var net_connect_timeout_ms: int = 6000
+## Defence arbiter (host): a client that has not said it started playing an attack within this
+## long after the attack was declared is treated as having started then.
+@export_range(0, 30000, 1, "suffix:ms") var net_ack_timeout_ms: int = 3000
+## Defence arbiter (host): a remote player's prompt is resolved as a hit (NONE) this long after it
+## should have closed on their machine (plus hit-stops) if no result arrived.
+@export_range(0, 30000, 1, "suffix:ms") var net_deadline_grace_ms: int = 1500
+## Zones: the host sends the leader and roaming enemy positions this many times a second.
+@export_range(1, 60) var net_zone_send_hz: int = 20
+
 @export_group("Practice and debug")
 ## Phase 1 practice keys: 1-5 force an enemy attack, I = party cannot die,
 ## O = enemy cannot die, R = restart, F1 = stats overlay, F2 = lag calibration.

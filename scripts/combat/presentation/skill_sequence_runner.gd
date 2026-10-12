@@ -10,15 +10,23 @@ extends Node
 ## once (the press times in the data leave room for the ring). A ring closes on the presser at each
 ## prompt's moment; presses of the skill button are judged at once by a DefenseJudge (the same
 ## pure judge as defence, with PRESS windows), and released results go to the engine as
-## resolve_prompts. Feedback comes from the judge at press time; the engine's events for a result
+## resolve_prompts. In co-op each player presses for their own heroes (JudgeSet, DESIGN.md 9.1):
+## the skill user's owner for the skill, each ally's owner for its follow-up, everyone for the team
+## ultimate. Feedback comes from the judge at press time; the engine's events for a result
 ## (damage, statuses, healing...) are applied at that prompt's contact moment, so numbers appear
 ## with the strike. Everything from sequence_resolved on is handed back (finished) when the local
 ## animation is over.
+##
+## Online (DESIGN.md 9.2) this machine judges only its own player's prompts; the engine's answers
+## to everyone's results arrive through take_events(), where other players' presses get their
+## feedback. Event batches are applied in arrival order (never out of engine order).
 
 ## Everything from sequence_resolved on, to be played by the controller.
 signal finished(tail: Array[Dictionary])
 ## Every judged press (a DefenseJudge.press() report), for statistics and the autoplay bot.
 signal press_judged(action: int, report: Dictionary)
+## start() ran for sequence `seq` (online: the client tells the host, DESIGN.md 9.2).
+signal sequence_started(seq: int)
 
 ## A good (not perfect) press sounds quieter than a perfect one.
 const GOOD_PRESS_VOLUME_DB: float = -6.0
@@ -47,7 +55,10 @@ var _targets: Array[int] = []
 var _hits_enemies: bool = false
 var _ability: AbilityData
 var _clock := AttackClock.new()
-var _judge: DefenseJudge
+var _judges: JudgeSet
+var _roster: PlayerRoster = PlayerRoster.solo(0)
+## Party member id -> player index (empty: everyone is player 0).
+var _owners: Dictionary = {}
 var _latency_ms: int = 0
 ## Prompts sent to the engine, and prompts the engine voided (known before the mirror is).
 var _sent: Dictionary = {}
@@ -56,6 +67,9 @@ var _voided: Dictionary = {}
 var _scheduled: Array[Dictionary] = []
 var _tail: Array[Dictionary] = []
 var _tail_received: bool = false
+## Event batches waiting to be applied, in engine order: [{at_us, events}] (at_us never decreases).
+var _inbox: Array[Dictionary] = []
+var _inbox_at_us: int = 0
 ## Follow-up allies who have stepped forward (id -> true).
 var _ready_allies: Dictionary = {}
 ## The skill's press moments (PressNotes.notes), the middle of their row (where the strikers
@@ -80,6 +94,12 @@ func setup(submit: Callable, apply_now: Callable, mirror: CombatMirror, view: Co
 	_input.pressed.connect(_on_pressed)
 
 
+## Who plays which hero (co-op). `owners` maps a party member id to its player.
+func set_players(roster: PlayerRoster, owners: Dictionary) -> void:
+	_roster = roster
+	_owners = owners
+
+
 ## Starts playing a skill timed_sequence_declared event (already applied to the mirror).
 ## `ability` is the skill's data (for its sound and target kind).
 func start(event: Dictionary, ability: AbilityData) -> void:
@@ -92,9 +112,15 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_targets.assign(event.targets)
 	_hits_enemies = ability != null and ability.targets_enemies()
 	_latency_ms = PlayerSettings.latency_compensation_ms(_tuning)
-	_judge = DefenseJudge.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
+	_judges = JudgeSet.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
 			_tuning.late_press_report_ms)
-	_judge.set_prompts(_prompts)
+	# Online, other machines judge their own players' prompts.
+	var only: Array[int] = []
+	if _roster.is_online():
+		only = _roster.local_players()
+	_judges.set_prompts(_prompts, _owners, only)
+	_inbox.clear()
+	_inbox_at_us = 0
 	_clock = AttackClock.new()
 	_clock.start(Time.get_ticks_usec())
 	_sent.clear()
@@ -128,6 +154,72 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 		v.set_pose(FighterView.CharPose.READY)
 		if _hits_enemies and not _targets.is_empty():
 			v.move_body(_approach_offset(id), float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
+	sequence_started.emit(_seq)
+
+
+## The sequence being played (-1 before the first).
+func current_seq() -> int:
+	return _seq
+
+
+## Events of this sequence that did not come back from this machine's own submit (see
+## TimedSequenceRunner.take_events). Another player's good press strikes at its moment, a missed
+## one shows MISS.
+func take_events(events: Array[Dictionary]) -> void:
+	if not _active:
+		return
+	var t := attack_time_us()
+	var show_at := t
+	for ev: Dictionary in events:
+		var type := String(ev.get("type", ""))
+		if type == "prompts_voided":
+			for idx: int in ev.get("prompts", []):
+				_voided[int(idx)] = true
+			_judges.void_prompts(ev.get("prompts", []) as Array)
+		if type != "prompt_resolved" or int(ev.get("seq", -1)) != _seq:
+			continue
+		var idx := int(ev.prompt)
+		var outcome := int(ev.outcome)
+		var at_us := int((_prompts[idx] as Dictionary).at_ms) * 1000
+		if _judges.player_of_prompt(idx) >= 0:
+			# This machine's own press: its feedback already played; numbers show at its moment.
+			if outcome != Defense.Outcome.NONE:
+				show_at = maxi(show_at, at_us)
+			continue
+		if not is_prompt_open(idx):
+			continue
+		_sent[idx] = true
+		var list: Array[int] = [idx]
+		if outcome == Defense.Outcome.NONE:
+			_schedule(t, _expire_remote.bind(idx))
+		else:
+			show_at = maxi(show_at, at_us)
+			_schedule(maxi(t, at_us), _on_good_press.bind(list, int(ev.get("offset_us", 0)), outcome == Defense.Outcome.PRESS_PERFECT))
+	_push_batch(events, show_at)
+
+
+func _push_batch(events: Array[Dictionary], at_us: int) -> void:
+	if events.is_empty():
+		return
+	_inbox_at_us = maxi(_inbox_at_us, at_us)
+	_inbox.append({"at_us": _inbox_at_us, "events": events})
+
+
+## Applies the queued batches that are due, oldest first.
+func _drain(t: int) -> void:
+	while not _inbox.is_empty() and int(_inbox[0].at_us) <= t:
+		_apply_batch((_inbox.pop_front() as Dictionary).events as Array[Dictionary])
+
+
+## Another player missed a press: MISS, and the strike without the bonus (not for a follow-up).
+func _expire_remote(idx: int) -> void:
+	var prompt: Dictionary = _prompts[idx]
+	var v := _view.fighter(int(prompt.character))
+	if v != null:
+		_hud.popup("MISS", v.head_position(), HudStyle.MISS)
+	if String(prompt.role) != CombatEngine.ROLE_FOLLOW_UP:
+		var list: Array[int] = [idx]
+		_strike(list, false)
 
 
 ## True between start() and the hand-back.
@@ -169,6 +261,7 @@ func _process(_delta: float) -> void:
 	_fire_scheduled(t)
 	_expire(t)
 	_release(t)
+	_drain(t)
 	_update_rings(t)
 	_update_allies(t)
 	_update_lock(t)
@@ -177,8 +270,11 @@ func _process(_delta: float) -> void:
 
 # --- presses ----------------------------------------------------------------------------------
 
-func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int) -> void:
+func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int) -> void:
 	if not _active or action != Defense.Outcome.PRESS:
+		return
+	var player := _roster.player_of_device(device)
+	if not _judges.players().has(player):
 		return
 	if _clock.is_paused(stamp_us):
 		return
@@ -188,7 +284,7 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int
 		var e := _clock.attack_time_us(previous_pump_us)
 		if e >= 0:
 			earliest = e
-	var report := _judge.press(action, t, earliest)
+	var report := _judges.press(player, action, t, earliest)
 	var answered: Array[int] = []
 	for idx: int in report.prompts:
 		if is_prompt_open(idx):
@@ -204,7 +300,7 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int
 			var perfect := int(report.outcome) == Defense.Outcome.PRESS_PERFECT
 			_schedule(maxi(t, impact_us), _on_good_press.bind(answered, int(report.offset_us), perfect))
 		DefenseJudge.Result.WHIFF:
-			_on_whiff(report)
+			_on_whiff(report, player)
 		DefenseJudge.Result.LOCKED:
 			Sfx.play("locked", _visuals.locked_click_volume_db)
 	_release(t)
@@ -225,7 +321,7 @@ func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool) -> void:
 	_strike(idxs, true)
 
 
-func _on_whiff(report: Dictionary) -> void:
+func _on_whiff(report: Dictionary, player: int) -> void:
 	Sfx.play("whiff")
 	var text := "EARLY" if int(report.reason) == DefenseJudge.Reason.EARLY else "LATE"
 	var color := HudStyle.EARLY if text == "EARLY" else HudStyle.LATE
@@ -234,15 +330,17 @@ func _on_whiff(report: Dictionary) -> void:
 	var who: Array[int] = []
 	var hit := int(report.hit)
 	for p: Dictionary in _prompts:
-		if int(p.hit) == hit:
+		if int(p.hit) == hit and _judges.player_of_prompt(int(p.idx)) == player:
 			who.append(int(p.character))
+	if who.is_empty():
+		who = _heroes_of(player)
 	_hud.popup(text, _focus_head(who if not who.is_empty() else [_actor]), color)
 
 
 ## Prompts whose window closed unanswered: the hit lands without the bonus (a follow-up does
 ## nothing).
 func _expire(t: int) -> void:
-	var expired := _judge.advance(t)
+	var expired := _judges.advance(t)
 	var strikes: Array[int] = []
 	for idx: int in expired:
 		if not is_prompt_open(idx):
@@ -260,9 +358,9 @@ func _expire(t: int) -> void:
 ## Sends the judge's released results to the engine. Its events are applied at the contact
 ## moment of the last prompt in the batch (now for misses, at impact for early presses).
 func _release(t: int) -> void:
-	if _judge == null:
+	if _judges == null:
 		return
-	var ready := _judge.pop_ready()
+	var ready := _judges.pop_ready()
 	if ready.is_empty():
 		return
 	var results: Array[Dictionary] = []
@@ -281,8 +379,8 @@ func _release(t: int) -> void:
 		if String(ev.get("type", "")) == "prompts_voided":
 			for idx: int in ev.get("prompts", []):
 				_voided[int(idx)] = true
-			_judge.void_prompts(ev.get("prompts", []) as Array)
-	_schedule(show_at, _apply_batch.bind(events))
+			_judges.void_prompts(ev.get("prompts", []) as Array)
+	_push_batch(events, show_at)
 
 
 func _apply_batch(events: Array[Dictionary]) -> void:
@@ -484,11 +582,24 @@ func _first_open(idxs: Array) -> int:
 	return -1
 
 
+## A lock icon at the first pressing hero of each locked-out player.
 func _update_lock(t: int) -> void:
-	if _judge.is_locked_out(t):
-		_hud.set_lock(true, _view.home_of(_actor))
-	else:
-		_hud.set_lock(false)
+	var spots: Array[Vector3] = []
+	for player: int in _judges.players():
+		var heroes := _heroes_of(player)
+		if _judges.is_locked_out(player, t) and not heroes.is_empty():
+			spots.append(_view.home_of(heroes[0]))
+	_hud.set_locks(spots)
+
+
+## The heroes of `player` with a prompt in this skill, in prompt order.
+func _heroes_of(player: int) -> Array[int]:
+	var list: Array[int] = []
+	for p: Dictionary in _prompts:
+		var id := int(p.character)
+		if _judges.player_of_prompt(int(p.idx)) == player and not list.has(id):
+			list.append(id)
+	return list
 
 
 ## Hands the tail back once every prompt is done and the last strike has played out.
@@ -509,7 +620,7 @@ func _hand_back() -> void:
 	_input.disarm()
 	_hud.hide_banner()
 	_hud.set_rings([])
-	_hud.set_lock(false)
+	_hud.set_locks([])
 	var return_s := float(_tuning.action_return_ms) / 1000.0
 	for id: int in _mirror.party_ids:
 		var v := _view.fighter(id)
