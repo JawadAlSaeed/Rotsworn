@@ -1,9 +1,10 @@
 class_name CombatHud
 extends CanvasLayer
-## The combat HUD on the 1920x1080 canvas (DESIGN.md 7.1): turn timeline (top left), attack
-## banner (top centre), enemy HP (top right), party panels (bottom), action menu, popups and
-## damage numbers, training rings, lock icon, controls hint, practice status, F1 overlay,
-## calibration and the end screen. It shows what the CombatMirror says; world positions are
+## The combat HUD on the 1920x1080 canvas (DESIGN.md 7.1): turn timeline with intent icons (top
+## left), attack or skill banner (top centre), enemy HP and statuses (top right), an intent sign
+## under each enemy, practice status (top right), party panels (bottom), team gauge (bottom right),
+## action menu, popups and damage numbers, training and press rings, lock icon, controls hint, F1
+## overlay, calibration and the end screen. It shows what the CombatMirror says; world positions are
 ## projected through the CombatView camera.
 
 const MARGIN: float = 24.0
@@ -33,6 +34,13 @@ const VICTORY_COLOR := Color(1.0, 0.85, 0.35)
 const DEFEAT_COLOR := Color(0.9, 0.3, 0.28)
 const TARGET_MARKER_SIZE: int = 48
 const END_SUMMARY_SIZE: int = 30
+const GAUGE_WIDTH: float = 330.0
+const GAUGE_HEIGHT: float = 18.0
+const GAUGE_LABEL_SIZE: int = 22
+const ENEMY_STATUS_SIZE: int = 20
+const INTENT_SIZE: int = 22
+## Timeline hit icons, as a share of the intent sign's icon size.
+const TIMELINE_ICON_SHARE: float = 0.6
 ## Gap kept between stacked popups (pixels).
 const POPUP_GAP_PX: float = 4.0
 ## Popups whose spots are closer than this share of POPUP_WIDTH horizontally share a column.
@@ -76,6 +84,12 @@ var _colors: Dictionary = {}
 var _popups: Array[Dictionary] = []
 var _center_tween: Tween
 var _targeted: Array[int] = []
+var _gauge_bar: ProgressBar
+var _gauge_label: Label
+## Enemy id -> {panel: PanelContainer, label: Label, icons: HBoxContainer}.
+var _intent_signs: Dictionary = {}
+## AttackHitData.Kind -> Texture2D.
+var _hit_icons: Dictionary = {}
 
 
 ## Builds the parts that do not depend on the fighters.
@@ -116,10 +130,14 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_target_marker.visible = false
 	_root.add_child(_target_marker)
 
+	_hit_icons = {
+		AttackHitData.Kind.NORMAL: AssetLoader.texture(visuals.hit_icon_normal_path, Vector2i(12, 12)),
+		AttackHitData.Kind.GROUND: AssetLoader.texture(visuals.hit_icon_ground_path, Vector2i(12, 12)),
+	}
 	_timeline = TimelineRow.new()
 	_timeline.name = "Timeline"
 	_timeline.position = Vector2(MARGIN, MARGIN)
-	_timeline.setup(tuning.turn_order_preview, visuals.portrait_px)
+	_timeline.setup(tuning.turn_order_preview, visuals.portrait_px, _hit_icons, visuals.intent_icon_px * TIMELINE_ICON_SHARE)
 	_root.add_child(_timeline)
 
 	_banner = PanelContainer.new()
@@ -143,7 +161,7 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_center_banner.visible = false
 	_root.add_child(_center_banner)
 
-	# Top right: enemy HP bars, then the practice status under them.
+	# Top right: enemy HP bars and statuses, then the practice status under them.
 	var right_column := VBoxContainer.new()
 	right_column.name = "RightColumn"
 	right_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -168,6 +186,24 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_practice_label.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_practice_label.visible = tuning.practice_tools_enabled
 	right_column.add_child(_practice_label)
+
+	# Bottom right, beside the party panels: the shared team gauge.
+	var corner := VBoxContainer.new()
+	corner.name = "BottomRight"
+	corner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	corner.add_theme_constant_override("separation", 8)
+	corner.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	corner.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	corner.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	corner.offset_right = -MARGIN
+	corner.offset_bottom = -MARGIN
+	_root.add_child(corner)
+	_gauge_label = HudStyle.make_label("", GAUGE_LABEL_SIZE, HudStyle.GAUGE_FILL)
+	_gauge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	corner.add_child(_gauge_label)
+	_gauge_bar = HudStyle.bar(HudStyle.GAUGE_FILL, GAUGE_HEIGHT)
+	_gauge_bar.custom_minimum_size.x = GAUGE_WIDTH
+	corner.add_child(_gauge_bar)
 
 	_party_box = HBoxContainer.new()
 	_party_box.name = "Party"
@@ -238,12 +274,16 @@ func build_fighters(mirror: CombatMirror, data_by_id: Dictionary) -> void:
 		bar.custom_minimum_size.x = ENEMY_BAR_WIDTH
 		var hp_label := HudStyle.make_label("", ENEMY_HP_SIZE)
 		hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		var status_label := HudStyle.make_label("", ENEMY_STATUS_SIZE, HudStyle.STATUS_COLORS["exposed"] as Color)
+		status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		row.size_flags_horizontal = Control.SIZE_SHRINK_END
 		row.add_child(name_label)
 		row.add_child(bar)
 		row.add_child(hp_label)
+		row.add_child(status_label)
 		_enemy_box.add_child(row)
-		_enemy_rows[id] = {"bar": bar, "hp": hp_label, "row": row}
+		_enemy_rows[id] = {"bar": bar, "hp": hp_label, "status": status_label, "row": row}
+		_intent_signs[id] = _make_intent_sign()
 
 
 ## Updates every bar, panel and the timeline from the mirror.
@@ -263,7 +303,17 @@ func refresh(mirror: CombatMirror, practice_text: String) -> void:
 		bar.max_value = maxi(1, int(f.max_hp))
 		bar.value = int(f.hp)
 		(row.hp as Label).text = "HP %d / %d" % [int(f.hp), int(f.max_hp)] if bool(f.alive) else "DEFEATED"
+		(row.status as Label).text = HudStyle.status_text(f.get("statuses", {}) as Dictionary) if bool(f.alive) else ""
+		_refresh_intent_sign(id, mirror)
 	_practice_label.text = practice_text
+	var gauge_max := maxi(1, _tuning.team_gauge_max)
+	var full := mirror.team_gauge >= gauge_max
+	_gauge_bar.max_value = gauge_max
+	_gauge_bar.value = mirror.team_gauge
+	@warning_ignore("integer_division")
+	var pct := mirror.team_gauge * 100 / gauge_max
+	_gauge_label.text = "TEAM ULTIMATE READY" if full else "TEAM GAUGE %d%%" % pct
+	_gauge_label.label_settings.font_color = HudStyle.GOLD if full else HudStyle.GAUGE_FILL
 
 
 func portrait(id: int) -> Texture2D:
@@ -274,11 +324,13 @@ func color_of(id: int) -> Color:
 	return _colors.get(id, Color.WHITE) as Color
 
 
-func show_banner(text: String) -> void:
+## The attack banner (red border), or a skill banner with another accent colour.
+func show_banner(text: String, accent: Color = HudStyle.LATE) -> void:
 	# A fading TEAM COUNTER banner from the previous turn never sits under a new attack banner.
 	if _center_tween != null and _center_tween.is_valid():
 		_center_tween.kill()
 	_center_banner.visible = false
+	(_banner.get_theme_stylebox("panel") as StyleBoxFlat).border_color = accent
 	_banner_label.text = text
 	_banner.visible = true
 	_banner.offset_left = 0.0
@@ -320,6 +372,7 @@ func popup_screen(text: String, screen_pos: Vector2, color: Color, font_size: in
 func _process(_delta: float) -> void:
 	if not _popups.is_empty():
 		_layout_popups()
+	_place_intent_signs()
 
 
 func _make_popup_label(text: String, color: Color, font_size: int) -> Label:
@@ -389,7 +442,8 @@ func show_end(result: String, summary: String) -> void:
 	_end_title.text = "VICTORY" if victory else "DEFEAT"
 	_end_title.label_settings.font_color = VICTORY_COLOR if victory else DEFEAT_COLOR
 	_end_summary.text = summary
-	_end_hint.text = "%s  or  R:  fight again      F1: stats" % HudStyle.binding_text(&"menu_confirm")
+	_end_hint.text = "%s  or  R:  fight again      %s:  choose a fight      F1: stats" % [
+			HudStyle.binding_text(&"menu_confirm"), HudStyle.binding_text(&"menu_cancel")]
 	_end_screen.visible = true
 	_end_screen.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	_end_screen.create_tween().tween_property(_end_screen, "modulate:a", 1.0, float(_visuals.end_fade_ms) / 1000.0)
@@ -412,6 +466,74 @@ func warm_up() -> void:
 func finish_warm_up() -> void:
 	_lock_icon.visible = false
 	_lock_icon.modulate = Color.WHITE
+
+
+func _make_intent_sign() -> Dictionary:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", HudStyle.panel(Color(0.08, 0.02, 0.02, 0.8), HudStyle.LATE, 2, 6))
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 6)
+	panel.add_child(row)
+	var label := HudStyle.make_label("", INTENT_SIZE)
+	row.add_child(label)
+	var icons := HBoxContainer.new()
+	icons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icons.add_theme_constant_override("separation", 2)
+	row.add_child(icons)
+	panel.visible = false
+	_root.add_child(panel)
+	# Below the popups, so damage numbers and readouts are never hidden by a sign.
+	_root.move_child(panel, _popup_layer.get_index())
+	return {"panel": panel, "label": label, "icons": icons}
+
+
+## "Flurry -> BRIN" (or "-> WHOLE PARTY") and one icon per hit, from the enemy's intent.
+func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
+	var entry: Dictionary = _intent_signs.get(id, {})
+	if entry.is_empty():
+		return
+	var intent: Dictionary = mirror.intents.get(id, {})
+	var panel := entry.panel as PanelContainer
+	if intent.is_empty() or not mirror.is_alive(id) or not mirror.result.is_empty():
+		panel.visible = false
+		return
+	var target_text := "WHOLE PARTY"
+	var targets: Array = intent.get("targets", [])
+	if int(intent.get("mode", 0)) != EnemyAttackData.TargetMode.PARTY and targets.size() == 1:
+		target_text = String(mirror.fighter(int(targets[0])).get("display_name", "?")).to_upper()
+	(entry.label as Label).text = "%s -> %s" % [String(intent.get("name", "?")), target_text]
+	var icons := entry.icons as HBoxContainer
+	var kinds: Array = intent.get("kinds", [])
+	while icons.get_child_count() < kinds.size():
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(_visuals.intent_icon_px, _visuals.intent_icon_px)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icons.add_child(icon)
+	for j: int in icons.get_child_count():
+		var icon := icons.get_child(j) as TextureRect
+		icon.visible = j < kinds.size()
+		if icon.visible:
+			icon.texture = _hit_icons.get(int(kinds[j])) as Texture2D
+	panel.visible = true
+	panel.reset_size()
+
+
+## Keeps each intent sign just under its enemy's feet (clear of the HP bars and the popups over
+## heads; enemies further back stand higher on screen, so two signs never stack).
+func _place_intent_signs() -> void:
+	for id: int in _intent_signs:
+		var panel := (_intent_signs[id] as Dictionary).panel as PanelContainer
+		var v := _view.fighter(id)
+		if not panel.visible or v == null:
+			continue
+		var feet := v.body_position()
+		feet.y = 0.0
+		panel.position = _view.screen_position(feet) + Vector2(-panel.size.x * 0.5, _visuals.intent_sign_gap_px)
 
 
 ## Places every live popup, newest first. Each rises popup_rise_px over its life from its spot
@@ -463,9 +585,9 @@ func _popup_ceiling() -> float:
 
 ## Control hints built from the Input Map, plus the two rules a new player needs first.
 static func _controls_text() -> String:
-	return "Parry   %s\nDodge   %s\nJump    %s\nGround wave: Jump only\nParry every hit: counterattack" % [
+	return "Parry   %s\nDodge   %s\nJump    %s\nSkill press   %s\nGround wave: Jump only\nParry every hit: counterattack" % [
 			HudStyle.binding_text(&"defend_parry"), HudStyle.binding_text(&"defend_dodge"),
-			HudStyle.binding_text(&"defend_jump")]
+			HudStyle.binding_text(&"defend_jump"), HudStyle.binding_text(&"skill_press")]
 
 
 func _build_end_screen() -> void:

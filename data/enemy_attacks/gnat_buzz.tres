@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_x4l54"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_hn8e7"]
+
+[sub_resource type="Resource" id="Resource_b5bis"]
+script = ExtResource("1_x4l54")
+impact_ms = 800
+damage_percent = 25
+approach_ms = 150
+
+[sub_resource type="Resource" id="Resource_s5ste"]
+script = ExtResource("1_x4l54")
+impact_ms = 1050
+damage_percent = 25
+approach_ms = 150
+
+[sub_resource type="Resource" id="Resource_n54fd"]
+script = ExtResource("1_x4l54")
+impact_ms = 1300
+damage_percent = 25
+approach_ms = 150
+
+[sub_resource type="Resource" id="Resource_pgq8h"]
+script = ExtResource("1_x4l54")
+impact_ms = 1550
+damage_percent = 25
+approach_ms = 150
+
+[sub_resource type="Resource" id="Resource_pw83o"]
+script = ExtResource("1_x4l54")
+impact_ms = 1800
+damage_percent = 25
+approach_ms = 150
+
+[sub_resource type="Resource" id="Resource_s4di6"]
+script = ExtResource("1_x4l54")
+impact_ms = 2050
+damage_percent = 25
+approach_ms = 150
+
+[resource]
+script = ExtResource("2_hn8e7")
+id = "gnat_buzz"
+display_name = "Buzz"
+weight = 2
+hits = Array[ExtResource("1_x4l54")]([SubResource("Resource_b5bis"), SubResource("Resource_s5ste"), SubResource("Resource_n54fd"), SubResource("Resource_pgq8h"), SubResource("Resource_pw83o"), SubResource("Resource_s4di6")])

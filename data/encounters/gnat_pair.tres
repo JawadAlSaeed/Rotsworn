@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_atkpw"]
+[ext_resource type="Resource" path="res://data/enemies/gnat_swarm.tres" id="2_ja7lh"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_78fvc"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="4_03kjo"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="5_ea1jx"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="6_034gt"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="7_56nsx"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="8_i1uvi"]
+
+[resource]
+script = ExtResource("7_56nsx")
+id = "gnat_pair"
+display_name = "Two Gnat Swarms"
+party = Array[ExtResource("3_78fvc")]([ExtResource("4_03kjo"), ExtResource("5_ea1jx"), ExtResource("6_034gt")])
+enemies = Array[ExtResource("1_atkpw")]([ExtResource("2_ja7lh"), ExtResource("2_ja7lh")])
+team_ultimate = ExtResource("8_i1uvi")

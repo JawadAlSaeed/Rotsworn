@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_3185s"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_belly_slam.tres" id="2_0j26f"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_rot_wave.tres" id="3_otoad"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_double_wave.tres" id="4_t3fou"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_crush.tres" id="5_vn1gu"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="6_odjum"]
+
+[resource]
+script = ExtResource("6_odjum")
+id = "bloat"
+display_name = "Bloat"
+color = Color(0.5411765, 0.43529412, 0.61960787, 1)
+sprite_path = "res://assets/sprites/enemies/bloat.png"
+portrait_path = "res://assets/sprites/portraits/bloat.png"
+sprite_pixel_size = 0.065
+hp_percent = 180
+power_percent = 140
+speed = 80
+attacks = Array[ExtResource("1_3185s")]([ExtResource("2_0j26f"), ExtResource("3_otoad"), ExtResource("4_t3fou"), ExtResource("5_vn1gu")])

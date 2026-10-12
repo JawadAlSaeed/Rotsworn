@@ -20,13 +20,19 @@ var hp: int = 1
 var ap: int = 0
 ## Base damage of this fighter's attacks before move multipliers.
 var power: int = 1
+## Current speed (a status may change it) and the speed from data.
 var speed: int = 100
+var base_speed: int = 100
 ## Timeline position of this fighter's next turn.
 var next_turn_at: int = 0
 ## Party only: abilities this fighter may use.
 var ability_ids: Array[String] = []
 ## Enemy only: attacks this fighter may use.
 var attack_ids: Array[String] = []
+## Status id -> {turns: int, source: int (combatant id)}. See Status.
+var statuses: Dictionary = {}
+## Party only: perfect defences (parry or jump) since this fighter's last turn ended.
+var perfect_defenses: int = 0
 
 
 func is_alive() -> bool:
@@ -35,6 +41,10 @@ func is_alive() -> bool:
 
 func is_party() -> bool:
 	return team == Team.PARTY
+
+
+func has_status(id: String) -> bool:
+	return statuses.has(id)
 
 
 static func from_dict(d: Dictionary) -> Combatant:
@@ -49,9 +59,12 @@ static func from_dict(d: Dictionary) -> Combatant:
 	c.ap = int(d.ap)
 	c.power = int(d.power)
 	c.speed = int(d.speed)
+	c.base_speed = int(d.base_speed)
 	c.next_turn_at = int(d.next_turn_at)
 	c.ability_ids.assign(d.ability_ids)
 	c.attack_ids.assign(d.attack_ids)
+	c.statuses = (d.statuses as Dictionary).duplicate(true)
+	c.perfect_defenses = int(d.perfect_defenses)
 	return c
 
 
@@ -67,7 +80,10 @@ func to_dict() -> Dictionary:
 		"ap": ap,
 		"power": power,
 		"speed": speed,
+		"base_speed": base_speed,
 		"next_turn_at": next_turn_at,
 		"ability_ids": ability_ids.duplicate(),
 		"attack_ids": attack_ids.duplicate(),
+		"statuses": statuses.duplicate(true),
+		"perfect_defenses": perfect_defenses,
 	}

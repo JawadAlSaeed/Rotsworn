@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_vsply"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_2i3li"]
+
+[sub_resource type="Resource" id="Resource_adgbf"]
+script = ExtResource("1_vsply")
+impact_ms = 900
+damage_percent = 45
+
+[sub_resource type="Resource" id="Resource_gwcug"]
+script = ExtResource("1_vsply")
+impact_ms = 1450
+kind = 1
+damage_percent = 45
+approach_ms = 400
+
+[sub_resource type="Resource" id="Resource_o3syo"]
+script = ExtResource("1_vsply")
+impact_ms = 2000
+damage_percent = 45
+
+[resource]
+script = ExtResource("2_2i3li")
+id = "shade_cross_step"
+display_name = "Cross Step"
+weight = 2
+hits = Array[ExtResource("1_vsply")]([SubResource("Resource_adgbf"), SubResource("Resource_gwcug"), SubResource("Resource_o3syo")])

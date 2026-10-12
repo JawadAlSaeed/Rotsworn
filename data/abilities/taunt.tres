@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_pfkuu"]
+
+[resource]
+script = ExtResource("1_pfkuu")
+id = "taunt"
+display_name = "Taunt"
+description = "The enemy's next attack on one character must hit Alder. Perfect press: +1 AP."
+ap_cost = 1
+impact_sfx = "debuff"
+press_times_ms = Array[int]([800])
+damage_percent = 0
+press_ap_gain = 1
+status = "taunted"

@@ -99,6 +99,41 @@ extends Resource
 ## AP gained for each successful jump over a ground attack.
 @export_range(0, 9) var ap_per_jump: int = 0
 
+@export_group("Skills and co-op")
+## Total time you have to land a good skill press (normal damage), in milliseconds (split like the
+## defence windows). Outside it the press is EARLY or LATE.
+@export_range(20, 800, 1, "suffix:ms") var skill_press_window_ms: int = 200
+## The perfect part in the middle of it (extra damage and the skill's bonus), in milliseconds.
+@export_range(10, 400, 1, "suffix:ms") var skill_perfect_window_ms: int = 70
+## A skill hit with no good press still lands, for this percent of its normal damage.
+@export_range(0, 100, 1, "suffix:%") var skill_miss_damage_percent: int = 50
+## Total time an ally has to land a good follow-up press, in milliseconds.
+@export_range(20, 800, 1, "suffix:ms") var follow_up_window_ms: int = 200
+## The perfect part of a follow-up window, in milliseconds.
+@export_range(10, 400, 1, "suffix:ms") var follow_up_perfect_window_ms: int = 70
+## The first follow-up press comes this long after the skill's last press.
+@export_range(100, 3000, 1, "suffix:ms") var follow_up_delay_ms: int = 700
+## Time between one ally's follow-up press and the next one's. Keep it above follow_up_window_ms
+## so one press can never answer two follow-ups.
+@export_range(100, 3000, 1, "suffix:ms") var follow_up_gap_ms: int = 450
+## Follow-up strike damage, in percent of the ally's power (good press, and perfect press).
+@export_range(0, 1000, 5, "suffix:%") var follow_up_percent: int = 30
+@export_range(0, 1000, 5, "suffix:%") var follow_up_perfect_percent: int = 45
+## Size of the shared team gauge. Full = the team ultimate can be used.
+@export_range(1, 1000) var team_gauge_max: int = 100
+## Team gauge gained for each good follow-up press.
+@export_range(0, 1000) var team_gauge_per_follow_up: int = 10
+## The team ultimate revives every downed ally with this percent of their max HP.
+@export_range(1, 100, 1, "suffix:%") var team_ultimate_revive_percent: int = 25
+## Extra damage of a skill that removes Exposed, in percent (a skill can set its own).
+@export_range(0, 1000, 5, "suffix:%") var exposed_bonus_percent: int = 50
+## Damage a Guarded character takes, in percent of the hit.
+@export_range(0, 100, 1, "suffix:%") var guard_damage_percent: int = 50
+## Speed of a Slowed fighter, in percent of its normal speed.
+@export_range(10, 100, 1, "suffix:%") var slow_speed_percent: int = 75
+## Counter damage while Riposte Stance is up, in percent of the normal counter (200 = x2).
+@export_range(100, 1000, 5, "suffix:%") var riposte_counter_percent: int = 200
+
 @export_group("Timeline")
 ## One turn costs timeline_base / speed. Only the ratio between speeds matters.
 @export_range(100, 1000000) var timeline_base: int = 10000
@@ -116,6 +151,10 @@ extends Resource
 @export_range(0, 2000, 1, "suffix:ms") var turn_gap_ms: int = 200
 ## How long damage numbers and result popups stay up.
 @export_range(100, 5000, 1, "suffix:ms") var popup_ms: int = 900
+## Freeze on a good skill or follow-up press.
+@export_range(0, 300, 1, "suffix:ms") var hitstop_press_ms: int = 60
+## Time after a skill's last press (or follow-up) before the turn moves on.
+@export_range(0, 3000, 1, "suffix:ms") var skill_recover_ms: int = 350
 
 @export_group("Practice and debug")
 ## Phase 1 practice keys: 1-5 force an enemy attack, I = party cannot die,

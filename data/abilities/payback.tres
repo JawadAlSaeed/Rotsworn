@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_gpj4e"]
+
+[resource]
+script = ExtResource("1_gpj4e")
+id = "payback"
+display_name = "Payback"
+description = "100% hit, +50% for each perfect parry or jump since Alder's last turn. Perfect press: +50%."
+ap_cost = 3
+impact_sfx = "heavy_strike"
+press_times_ms = Array[int]([800])
+follow_ups = true
+press_damage_percent = 50
+per_perfect_defense_percent = 50

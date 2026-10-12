@@ -7,6 +7,8 @@ enum Kind {
 	NORMAL,
 	## A shockwave along the floor. Only a jump avoids it.
 	GROUND,
+	## Party skill presses only (never used in enemy attack data).
+	PRESS,
 }
 
 ## When the hit lands, in milliseconds after the attack starts (scaled by tuning attack_tempo_percent).

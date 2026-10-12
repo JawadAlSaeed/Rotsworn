@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_gy2t7"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/gnat_sting_string.tres" id="2_pc4gs"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/gnat_buzz.tres" id="3_hpkyw"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/gnat_swarm_sweep.tres" id="4_dotlr"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="5_l0mvs"]
+
+[resource]
+script = ExtResource("5_l0mvs")
+id = "gnat_swarm"
+display_name = "Gnat Swarm"
+color = Color(0.7882353, 0.7058824, 0.34509805, 1)
+sprite_path = "res://assets/sprites/enemies/gnat_swarm.png"
+portrait_path = "res://assets/sprites/portraits/gnat_swarm.png"
+sprite_pixel_size = 0.04
+hp_percent = 50
+power_percent = 50
+speed = 160
+attacks = Array[ExtResource("1_gy2t7")]([ExtResource("2_pc4gs"), ExtResource("3_hpkyw"), ExtResource("4_dotlr")])

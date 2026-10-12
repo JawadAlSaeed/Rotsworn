@@ -30,6 +30,10 @@ extends Resource
 @export_file_path("*.png") var ap_pip_path: String = "res://assets/sprites/ui/ap_pip.png"
 ## Empty AP gem (10x10).
 @export_file_path("*.png") var ap_pip_empty_path: String = "res://assets/sprites/ui/ap_pip_empty.png"
+## Enemy intent icon for a normal hit: parry or dodge it (12x12).
+@export_file_path("*.png") var hit_icon_normal_path: String = "res://assets/sprites/ui/hit_normal.png"
+## Enemy intent icon for a ground hit: jump it (12x12).
+@export_file_path("*.png") var hit_icon_ground_path: String = "res://assets/sprites/ui/hit_ground.png"
 
 @export_group("Stage layout")
 ## Where each party slot stands (feet). Keep them on one straight line: ground waves travel with
@@ -216,6 +220,27 @@ extends Resource
 ## Presses are ignored on the victory or defeat screen for this long (so a late defence press
 ## does not skip it).
 @export_range(0, 5000, 1, "suffix:ms") var end_input_guard_ms: int = 800
+## Size of the hit icons on the enemy intent sign and the timeline (pixels at 1080p).
+@export_range(8.0, 96.0, 1.0) var intent_icon_px: float = 30.0
+## The intent sign sits this far below the enemy's feet on screen (pixels at 1080p).
+@export_range(0.0, 400.0, 1.0) var intent_sign_gap_px: float = 12.0
+
+@export_group("Skills")
+## A party member steps this far toward the enemy before a skill's first press (share of the way
+## to the strike point), then lunges in on each hit.
+@export_range(0.0, 1.0, 0.05) var skill_approach_share: float = 0.55
+## How long the lunge into a skill hit and the step back take.
+@export_range(10, 1000, 1, "suffix:ms") var skill_lunge_ms: int = 90
+## The skill press ring (osu-style): radius when it appears and when it reaches the target circle
+## (pixels at 1080p). It reaches the target circle at the perfect moment; the GOOD and PERFECT
+## bands around the target show the press windows at this scale, so a bigger shrink makes the
+## bands wider. Always shown for skill presses.
+@export_range(4.0, 800.0, 1.0) var press_ring_start_radius_px: float = 220.0
+@export_range(4.0, 400.0, 1.0) var press_ring_end_radius_px: float = 70.0
+## Colours of the GOOD band, the PERFECT band and the faint target circle.
+@export var press_good_band_color: Color = Color(1.0, 1.0, 1.0, 0.22)
+@export var press_perfect_band_color: Color = Color(1.0, 0.82, 0.3, 0.75)
+@export var press_target_color: Color = Color(1.0, 1.0, 1.0, 0.08)
 
 @export_group("Calibration")
 ## Time between calibration beats.

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_mr6hp"]
+
+[resource]
+script = ExtResource("1_mr6hp")
+id = "reveal"
+display_name = "Reveal"
+description = "60% hit. The enemy becomes Exposed (the next skill on it removes it for +50%). Perfect press: +1 AP."
+ap_cost = 1
+impact_sfx = "debuff"
+press_times_ms = Array[int]([800])
+follow_ups = true
+damage_percent = 60
+consumes_exposed = false
+press_ap_gain = 1
+status = "exposed"

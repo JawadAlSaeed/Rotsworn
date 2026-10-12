@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_yrfj8"]
+
+[resource]
+script = ExtResource("1_yrfj8")
+id = "rend"
+display_name = "Rend"
+description = "220% hit. Removes Exposed for +150%. Perfect press: +30%."
+ap_cost = 3
+impact_sfx = "heavy_strike"
+press_times_ms = Array[int]([800])
+follow_ups = true
+damage_percent = 220
+press_damage_percent = 30
+exposed_bonus_percent = 150

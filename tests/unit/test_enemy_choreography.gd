@@ -33,7 +33,12 @@ func _declared_attacks() -> Array[Dictionary]:
 
 
 func test_shipped_attacks_are_found() -> void:
-	assert_eq(_declared_attacks().size(), 5)
+	var files := 0
+	for file: String in DirAccess.get_files_at(ATTACK_DIR):
+		if file.ends_with(".tres"):
+			files += 1
+	assert_gt(files, 5, "phase 2 adds attacks to the husk's five")
+	assert_eq(_declared_attacks().size(), files)
 
 
 func test_close_times_are_late_edge_plus_latency() -> void:

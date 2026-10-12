@@ -1,8 +1,8 @@
 class_name PartyPanel
 extends PanelContainer
 ## One party member's panel at the bottom of the screen: name, HP bar and numbers, AP gems (up to
-## max_ap), DOWN state, the active-turn highlight (gold) and the "being attacked" highlight (red).
-## Values come from the mirror.
+## max_ap), status badges, DOWN state, the active-turn highlight (gold) and the "being attacked"
+## highlight (red). Values come from the mirror.
 
 const NAME_SIZE: int = 30
 const HP_TEXT_SIZE: int = 24
@@ -12,6 +12,7 @@ const LOW_HP_PERCENT: int = 30
 const ACTIVE_BORDER_PX: int = 4
 const IDLE_BORDER_PX: int = 2
 const PANEL_WIDTH: float = 372.0
+const STATUS_SIZE: int = 20
 
 var fighter_id: int = -1
 
@@ -22,6 +23,7 @@ var _state_label: Label
 var _hp_bar: ProgressBar
 var _hp_label: Label
 var _ap_label: Label
+var _status_label: Label
 var _pips: Array[TextureRect] = []
 var _pip_full: Texture2D
 var _pip_empty: Texture2D
@@ -69,6 +71,9 @@ func setup(id: int, display_name: String, accent: Color, max_ap: int, visuals: C
 	pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pips.add_theme_constant_override("separation", 4)
 	column.add_child(pips)
+	_status_label = HudStyle.make_label("", STATUS_SIZE, HudStyle.GOLD)
+	column.add_child(_status_label)
+
 	for i: int in max_ap:
 		var pip := TextureRect.new()
 		pip.custom_minimum_size = Vector2(visuals.ap_pip_px, visuals.ap_pip_px)
@@ -97,6 +102,7 @@ func refresh(f: Dictionary, active: bool) -> void:
 	for i: int in _pips.size():
 		_pips[i].texture = _pip_full if i < ap else _pip_empty
 	_state_label.text = "" if alive else "DOWN"
+	_status_label.text = HudStyle.status_text(f.get("statuses", {}) as Dictionary)
 	modulate = Color.WHITE if alive else Color(0.6, 0.6, 0.65)
 	_active = active
 	_apply_border()

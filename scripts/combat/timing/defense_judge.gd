@@ -122,7 +122,8 @@ func next_impact_us() -> int:
 ## if any part of [earliest_us, t_us] is inside a window. This removes the half-frame bias of
 ## once-per-frame input and turns a frame hitch into leniency instead of an unfair miss. The
 ## extension is capped at press_reach_back_max_ms. Pass -1 (default) to judge the single moment t_us.
-## Returns {result: Result, reason: Reason, prompts: Array[int] (idx resolved), outcome,
+## Returns {result: Result, reason: Reason, prompts: Array[int] (idx resolved), outcome (for a
+## skill press: PRESS or PRESS_PERFECT),
 ## offset_us (press midpoint minus impact of the matched or nearest prompt), hit (or -1)}.
 func press(action: int, t_us: int, earliest_us: int = -1) -> Dictionary:
 	var latest := _compensate(t_us)
@@ -146,6 +147,7 @@ func press(action: int, t_us: int, earliest_us: int = -1) -> Dictionary:
 	var claimed: Dictionary = {}
 	var offset := 0
 	var hit := -1
+	var outcome := action
 	for p: Dictionary in _prompts:
 		if p.resolved or claimed.has(p.character) or not (p.windows as Dictionary).has(action):
 			continue
@@ -154,7 +156,7 @@ func press(action: int, t_us: int, earliest_us: int = -1) -> Dictionary:
 		var off := t - at
 		if latest >= at + edges.x and earliest <= at + edges.y:
 			p.resolved = true
-			p.outcome = action
+			p.outcome = _tier(p, action, at, earliest, latest)
 			p.offset_us = off
 			p.pressed = true
 			claimed[p.character] = true
@@ -162,8 +164,9 @@ func press(action: int, t_us: int, earliest_us: int = -1) -> Dictionary:
 			if hit < 0:
 				hit = int(p.hit)
 				offset = off
+				outcome = int(p.outcome)
 	if not matched.is_empty():
-		return _report(Result.SUCCESS, Reason.NONE, matched, action, offset, hit)
+		return _report(Result.SUCCESS, Reason.NONE, matched, outcome, offset, hit)
 
 	_lockout_until = latest + _lockout_us
 	var nearest := _nearest_prompt(t)
@@ -240,6 +243,18 @@ static func close_time_us(prompt: Dictionary) -> int:
 			latest = edges.y
 			first = false
 	return int(prompt.at_us) + latest
+
+
+## A skill press inside the prompt's narrow perfect window counts as PRESS_PERFECT (same
+## interval rule as matching); any other match keeps the button's outcome.
+func _tier(p: Dictionary, action: int, at: int, earliest: int, latest: int) -> int:
+	var windows: Dictionary = p.windows
+	if action != Defense.Outcome.PRESS or not windows.has(Defense.Outcome.PRESS_PERFECT):
+		return action
+	var edges: Vector2i = windows[Defense.Outcome.PRESS_PERFECT]
+	if latest >= at + edges.x and earliest <= at + edges.y:
+		return Defense.Outcome.PRESS_PERFECT
+	return action
 
 
 func _compensate(t_us: int) -> int:

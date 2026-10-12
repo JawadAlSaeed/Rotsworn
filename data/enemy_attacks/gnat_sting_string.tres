@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_f2rdv"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_nw4jm"]
+
+[sub_resource type="Resource" id="Resource_0n23t"]
+script = ExtResource("1_f2rdv")
+impact_ms = 800
+damage_percent = 30
+approach_ms = 160
+
+[sub_resource type="Resource" id="Resource_cbltd"]
+script = ExtResource("1_f2rdv")
+impact_ms = 1080
+damage_percent = 30
+approach_ms = 160
+
+[sub_resource type="Resource" id="Resource_4u6ws"]
+script = ExtResource("1_f2rdv")
+impact_ms = 1360
+damage_percent = 30
+approach_ms = 160
+
+[sub_resource type="Resource" id="Resource_1u8ws"]
+script = ExtResource("1_f2rdv")
+impact_ms = 1640
+damage_percent = 30
+approach_ms = 160
+
+[sub_resource type="Resource" id="Resource_830ug"]
+script = ExtResource("1_f2rdv")
+impact_ms = 1920
+damage_percent = 30
+approach_ms = 160
+
+[resource]
+script = ExtResource("2_nw4jm")
+id = "gnat_sting_string"
+display_name = "Sting String"
+weight = 3
+hits = Array[ExtResource("1_f2rdv")]([SubResource("Resource_0n23t"), SubResource("Resource_cbltd"), SubResource("Resource_4u6ws"), SubResource("Resource_1u8ws"), SubResource("Resource_830ug")])

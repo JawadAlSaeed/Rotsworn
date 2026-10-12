@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_rx0u0"]
+
+[resource]
+script = ExtResource("1_rx0u0")
+id = "team_ultimate"
+display_name = "Team Ultimate"
+description = "Everyone strikes together twice (press on each ring). Revives every downed ally at 25% HP. Needs a full team gauge."
+impact_sfx = "ultimate"
+press_times_ms = Array[int]([900, 1400])
+damage_percent = 200
+press_damage_percent = 50
+team_ultimate = true

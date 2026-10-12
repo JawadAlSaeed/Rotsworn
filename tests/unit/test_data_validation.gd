@@ -1,7 +1,8 @@
 extends GutTest
-## Data files (DESIGN 2.9, 5, 10): everything under res://data loads, ids are unique per type,
-## the phase 1 encounter is a valid setup, attacks follow the timing rules and weights and damage
-## percents are positive. Asset paths and import settings are checked in test_asset_files.gd.
+## Data files (DESIGN 2.9 to 2.11, 5, 10): everything under res://data loads, ids are unique per
+## type, every encounter is a valid setup, attacks follow the timing rules, abilities follow the
+## press rules and weights and percents are positive. Asset paths and import settings are checked
+## in test_asset_files.gd.
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 
@@ -148,14 +149,81 @@ func test_sound_cues_used_by_the_data_exist() -> void:
 		assert_not_null(library.find(cue_name), "%s plays cue '%s', which sfx_library.tres defines" % [used[cue_name], cue_name])
 
 
-func test_phase1_encounter_is_a_valid_setup() -> void:
-	var encounter := (load(Fx.ENCOUNTER_PATH) as EncounterData).duplicate(true) as EncounterData
-	var setup := CombatSetup.from_encounter(encounter, Fx.shipped_tuning(), 1)
-	assert_eq(setup.validate(), PackedStringArray())
-	assert_eq(encounter.party.size(), 3, "phase 1 party is three characters")
-	var engine := CombatEngine.new(setup)
-	var events := engine.start()
-	assert_eq(Fx.of_type(events, "command_rejected").size(), 0, "the engine starts the shipped fight")
+func test_every_encounter_is_a_valid_setup() -> void:
+	var count := 0
+	for res: Resource in _load_all():
+		if not res is EncounterData:
+			continue
+		count += 1
+		var encounter := (res as EncounterData).duplicate(true) as EncounterData
+		var setup := CombatSetup.from_encounter(encounter, Fx.shipped_tuning(), 1)
+		assert_eq(setup.validate(), PackedStringArray(), encounter.id)
+		assert_eq(encounter.party.size(), 3, "%s: the party is three characters" % encounter.id)
+		assert_not_null(encounter.team_ultimate, "%s offers the team ultimate" % encounter.id)
+		var engine := CombatEngine.new(setup)
+		var events := engine.start()
+		assert_eq(Fx.of_type(events, "command_rejected").size(), 0, "the engine starts %s" % encounter.id)
+	assert_gte(count, 5, "the phase 2 test encounters")
+
+
+## Problems with one ability (DESIGN 2.10). Empty means it follows the rules.
+func _ability_problems(ability: AbilityData, tuning: Tuning) -> PackedStringArray:
+	var problems := PackedStringArray()
+	if ability.press_times_ms.is_empty():
+		problems.append("%s has no press" % ability.id)
+		return problems
+	if ability.press_times_ms[0] < tuning.ring_lead_ms:
+		problems.append("%s: first press at %d ms, before the %d ms press ring can be read" % [ability.id,
+				ability.press_times_ms[0], tuning.ring_lead_ms])
+	for i: int in range(1, ability.press_times_ms.size()):
+		if ability.press_times_ms[i] - ability.press_times_ms[i - 1] <= tuning.skill_press_window_ms:
+			problems.append("%s: presses %d and %d closer than the press window" % [ability.id, i - 1, i])
+	if not ability.status.is_empty() and not Status.is_known(ability.status):
+		problems.append("%s: unknown status '%s'" % [ability.id, ability.status])
+	var damaging := ability.damage_percent > 0 or ability.per_perfect_defense_percent > 0
+	if ability.follow_ups and not (damaging and ability.targets_enemies()):
+		problems.append("%s: follow-ups need a damaging skill aimed at enemies" % ability.id)
+	var effects := [ability.ap_gain, ability.give_ap, ability.heal_percent, ability.revive_percent,
+			ability.turn_delay_percent, ability.turn_hasten_percent]
+	var does_something := damaging or not ability.status.is_empty() or ability.team_ultimate
+	for value: int in effects:
+		does_something = does_something or value > 0
+	if not does_something:
+		problems.append("%s does nothing" % ability.id)
+	if ability.revive_percent > 0 and ability.target != AbilityData.Target.DOWNED_ALLY:
+		problems.append("%s revives but does not target a downed ally" % ability.id)
+	return problems
+
+
+func test_abilities_follow_the_press_rules() -> void:
+	var tuning := Fx.shipped_tuning()
+	var count := 0
+	for res: Resource in _load_all():
+		if res is AbilityData:
+			count += 1
+			assert_eq(_ability_problems(res as AbilityData, tuning), PackedStringArray(), (res as AbilityData).id)
+	assert_gte(count, 17, "basic attack, 15 class skills and the team ultimate")
+	assert_gt(tuning.follow_up_gap_ms, tuning.follow_up_window_ms, "one press never answers two follow-ups")
+
+
+func test_ability_rule_check_catches_bad_data() -> void:
+	var tuning := Tuning.new()
+	assert_eq(_ability_problems(Fx.skill("none", 0, 0, []), tuning).size(), 1, "no press")
+	assert_eq(_ability_problems(Fx.skill("early", 0, 0, [300]), tuning).size(), 1, "before the ring")
+	assert_eq(_ability_problems(Fx.skill("tight", 0, 0, [800, 950]), tuning).size(), 1, "presses too close")
+	assert_eq(_ability_problems(Fx.skill("idle", 0, 0, [800], {"damage_percent": 0}), tuning).size(), 1, "does nothing")
+	assert_eq(_ability_problems(Fx.skill("heal_fu", AbilityData.Target.ALLY, 0, [800],
+			{"damage_percent": 0, "heal_percent": 10, "follow_ups": true}), tuning).size(), 1, "follow-ups on a heal")
+	assert_eq(_ability_problems(Fx.skill("ok", 0, 0, [800, 1100]), tuning).size(), 0)
+
+
+func test_characters_have_a_full_class_kit() -> void:
+	for res: Resource in _load_all():
+		if res is CharacterData:
+			var c := res as CharacterData
+			assert_between(c.skills.size(), 4, 6, "%s has 4 to 6 skills (DESIGN 2.10)" % c.id)
+			for ability: AbilityData in c.all_abilities():
+				assert_false(ability.team_ultimate, "%s: the team ultimate comes from the encounter" % c.id)
 
 
 func test_attack_timing_rules() -> void:
@@ -193,9 +261,10 @@ func test_weights_and_percents_are_positive() -> void:
 			var hit: AttackHitData = attack.hits[i]
 			assert_gt(hit.damage_percent, 0, "%s hit %d damage percent" % [attack.id, i])
 			assert_gt(hit.approach_ms, 0, "%s hit %d approach" % [attack.id, i])
+			assert_ne(hit.kind, AttackHitData.Kind.PRESS, "%s hit %d: PRESS is for party skills" % [attack.id, i])
 	for res: Resource in _load_all():
 		if res is AbilityData:
-			assert_gt((res as AbilityData).damage_percent, 0, "%s damage percent" % (res as AbilityData).id)
+			assert_gte((res as AbilityData).damage_percent, 0, "%s damage percent" % (res as AbilityData).id)
 		elif res is CharacterData:
 			var c := res as CharacterData
 			assert_gt(c.hp_percent, 0, "%s hp percent" % c.id)

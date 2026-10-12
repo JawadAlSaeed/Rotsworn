@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_0qh6y"]
+
+[resource]
+script = ExtResource("1_0qh6y")
+id = "riposte_stance"
+display_name = "Riposte Stance"
+description = "Until Alder's next turn, his counters hit twice as hard. Perfect press: +1 AP."
+target = 2
+ap_cost = 2
+impact_sfx = "buff"
+press_times_ms = Array[int]([800])
+damage_percent = 0
+press_ap_gain = 1
+status = "riposte"

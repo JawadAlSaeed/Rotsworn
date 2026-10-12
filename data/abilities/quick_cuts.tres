@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_vws88"]
+
+[resource]
+script = ExtResource("1_vws88")
+id = "quick_cuts"
+display_name = "Quick Cuts"
+description = "3 hits of 50%, one press each. Each perfect press: +25% on that hit."
+ap_cost = 1
+press_times_ms = Array[int]([800, 1100, 1400])
+follow_ups = true
+damage_percent = 50
+press_damage_percent = 25

@@ -9,7 +9,7 @@ extends Node
 ## Only armed actions are stamped and consumed, so the shared buttons (W is also menu_up, pad A is
 ## also menu_confirm) still reach the menus whenever no attack or calibration is running.
 
-## A defence press. `action` is a Defense.Outcome (DODGE, PARRY or JUMP). `stamp_us` is when the
+## A defence or skill press. `action` is a Defense.Outcome (DODGE, PARRY, JUMP or PRESS). `stamp_us` is when the
 ## press arrived and `previous_pump_us` the previous input pump (0 if unknown), both
 ## Time.get_ticks_usec(). `device` is the Godot device id (-1 for injected presses).
 signal pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
@@ -18,6 +18,7 @@ const ACTIONS: Dictionary = {
 	&"defend_parry": Defense.Outcome.PARRY,
 	&"defend_dodge": Defense.Outcome.DODGE,
 	&"defend_jump": Defense.Outcome.JUMP,
+	&"skill_press": Defense.Outcome.PRESS,
 }
 
 var _armed: Dictionary = {}
@@ -49,6 +50,11 @@ func arm(actions: Array[int]) -> void:
 	_armed.clear()
 	for a: int in actions:
 		_armed[a] = true
+
+
+## Stamps and consumes the skill press button only (skill and follow-up presses).
+func arm_press() -> void:
+	arm([Defense.Outcome.PRESS])
 
 
 ## Stamps and consumes all three defence actions.

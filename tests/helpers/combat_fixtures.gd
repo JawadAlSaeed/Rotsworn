@@ -4,7 +4,7 @@ extends RefCounted
 ## Hand-made fights always use Tuning.new() unless a test passes its own tuning, so the user's
 ## edits to data/tuning/tuning.tres never change an exact-number test.
 
-const ENCOUNTER_PATH := "res://data/encounters/phase1_test.tres"
+const ENCOUNTER_PATH := "res://data/encounters/husk_fight.tres"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 
 const NORMAL: int = AttackHitData.Kind.NORMAL
@@ -61,6 +61,42 @@ static func character(id: String, hp_percent: int, power_percent: int, speed: in
 	c.basic_attack = ability("basic_attack", 0, 1, 100)
 	c.skills.append(ability("heavy_strike", 2, 0, 220))
 	return c
+
+
+## A timed-press ability (DESIGN 2.10). `fields` sets any other AbilityData property.
+static func skill(id: String, target: int, ap_cost: int, presses: Array, fields: Dictionary = {}) -> AbilityData:
+	var a := AbilityData.new()
+	a.id = id
+	a.display_name = id
+	a.target = target as AbilityData.Target
+	a.ap_cost = ap_cost
+	a.press_times_ms.assign(presses)
+	for key: String in fields:
+		a.set(key, fields[key])
+	return a
+
+
+## Hand-made fight where party member i has `kits[i]` (an Array of AbilityData) as skills, on top
+## of the basic attack (no heavy strike). Same options as setup(), plus team_ultimate
+## (AbilityData) and enemies (Array of EnemyData, replaces the single "foe").
+static func kit_setup(kits: Array, attacks: Array, options: Dictionary = {}) -> CombatSetup:
+	var s := setup(attacks, options)
+	for i: int in s.party.size():
+		s.party[i].skills.clear()
+		if i < kits.size():
+			for ability: AbilityData in kits[i]:
+				s.party[i].skills.append(ability)
+	if options.has("team_ultimate"):
+		s.team_ultimate = options.team_ultimate as AbilityData
+	if options.has("enemies"):
+		s.enemies.assign(options.enemies as Array)
+	return s
+
+
+static func kit_started(kits: Array, attacks: Array, options: Dictionary = {}) -> CombatEngine:
+	var engine := CombatEngine.new(kit_setup(kits, attacks, options))
+	engine.start()
+	return engine
 
 
 static func party(hp_percents: Array = [100, 100, 100]) -> Array[CharacterData]:

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_52dys"]
+
+[resource]
+script = ExtResource("1_52dys")
+id = "guard"
+display_name = "Guard"
+description = "One ally takes half damage until their next turn. Perfect press: Alder is guarded too."
+target = 4
+ap_cost = 1
+impact_sfx = "buff"
+press_times_ms = Array[int]([800])
+damage_percent = 0
+status = "guarded"
+press_status_on_self = true

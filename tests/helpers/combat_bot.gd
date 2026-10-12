@@ -1,11 +1,12 @@
 extends RefCounted
 ## Scripted player for tests. Every decision depends only on the engine's state and the settings
 ## below, so two bots on two engines with the same setup send identical commands.
-## Party turns: Heavy Strike when affordable, otherwise the basic attack, on the first living
-## enemy. Enemy attacks: the prompts of the next hit, answered according to `defence`.
+## Party turns: see _pick_ability and _pick_target. Timed sequences (enemy attacks and skill
+## presses alike): the prompts of the next hit, answered according to `defence` (a perfect answer
+## is a parry, a jump or a good press).
 
 enum Defence {
-	## Parry normal hits, jump ground hits.
+	## Parry normal hits, jump ground hits, every skill press good.
 	PERFECT,
 	## Never defend.
 	MISS,
@@ -70,13 +71,44 @@ func next_command(engine: CombatEngine) -> Dictionary:
 
 func _action_command(engine: CombatEngine) -> Dictionary:
 	var actor := engine.get_combatant(engine.active_actor)
-	var ability_id := "basic_attack"
-	if actor.ability_ids.has("heavy_strike") and engine.can_afford(actor.id, "heavy_strike"):
-		ability_id = "heavy_strike"
-	elif not actor.ability_ids.has(ability_id):
-		ability_id = actor.ability_ids[0]
-	var targets: Array[int] = [engine.living_enemy_ids()[0]]
+	var ability_id := _pick_ability(engine, actor)
+	var targets: Array[int] = [_pick_target(engine, actor, ability_id)]
 	return CombatCommands.use_ability(engine.turn_number, actor.id, ability_id, targets)
+
+
+## Team ultimate when ready, Revive when someone is down, else the class skills in turn (by
+## turn number) among the usable ones, else Heavy Strike, else the basic attack.
+func _pick_ability(engine: CombatEngine, actor: Combatant) -> String:
+	var usable: Array[String] = []
+	for id: String in actor.ability_ids:
+		var ability := engine.get_ability(id)
+		if ability.team_ultimate and engine.can_use(actor.id, id):
+			return id
+		if ability.revive_percent > 0 and engine.can_use(actor.id, id):
+			return id
+		if id != "basic_attack" and engine.can_use(actor.id, id):
+			usable.append(id)
+	if usable.has("heavy_strike"):
+		return "heavy_strike"
+	if not usable.is_empty():
+		return usable[engine.turn_number % usable.size()]
+	return "basic_attack" if actor.ability_ids.has("basic_attack") else actor.ability_ids[0]
+
+
+## First living enemy; the most hurt ally; the first downed ally.
+func _pick_target(engine: CombatEngine, actor: Combatant, ability_id: String) -> int:
+	var options := engine.valid_targets(actor.id, ability_id)
+	if options.is_empty():
+		return -1
+	if engine.get_combatant(options[0]).is_party() and engine.get_combatant(options[0]).is_alive():
+		var best := options[0]
+		for id: int in options:
+			var c := engine.get_combatant(id)
+			var b := engine.get_combatant(best)
+			if c.hp * b.max_hp < b.hp * c.max_hp:
+				best = id
+		return best
+	return options[0]
 
 
 ## Answers the pending prompts of the earliest unresolved hit (or the first `chunk` of them).

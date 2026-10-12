@@ -36,8 +36,9 @@ whenever a decision is made or changed.
 - Tests must pass headless before you tell the user a phase is done.
 - `run_game.bat` runs the game, `open_editor.bat` opens the editor.
 - Smoke test the whole fight without a human: run the game with `-- --autoplay` (bot defends
-  perfectly), `-- --autoplay=miss` (never defends) or `-- --autoplay=mash` (mashes buttons). Add
-  `--quit-on-end` to exit when the fight is over. Works with `--headless`. A good run prints
+  and presses perfectly), `-- --autoplay=miss` (never presses) or `-- --autoplay=mash` (mashes
+  buttons). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
+  from `data/encounters/` (default `husk_fight`). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
 - Always run headless Godot commands with a timeout (`timeout 120 ...`): a script error in a
   `-s` script leaves Godot running forever.

@@ -387,3 +387,31 @@ func test_a_very_late_press_does_not_lock_a_hit_whose_window_is_open() -> void:
 	var late := judge.press(PARRY, 1040000)
 	assert_eq([late.result, late.reason, late.hit, late.offset_us], [WHIFF, LATE, 0, 140000])
 	assert_eq(judge.press(PARRY, 1180000).result, SUCCESS)
+
+
+func test_skill_press_is_perfect_inside_the_narrow_window_and_good_around_it() -> void:
+	var press := Defense.Outcome.PRESS
+	var perfect := Defense.Outcome.PRESS_PERFECT
+	var good_edges := _edges(AttackHitData.Kind.PRESS, press)
+	var perfect_edges := _edges(AttackHitData.Kind.PRESS, perfect)
+	assert_eq(good_edges, [-130000, 70000], "200 ms good window, 35% after the moment")
+	assert_eq(perfect_edges, [-45500, 24500], "70 ms perfect window inside it")
+	var cases := [
+		[int(perfect_edges[0]), perfect, "perfect early edge"],
+		[0, perfect, "dead centre"],
+		[int(perfect_edges[1]), perfect, "perfect late edge"],
+		[int(perfect_edges[0]) - 1, press, "just before perfect: good"],
+		[int(perfect_edges[1]) + 1, press, "just after perfect: good"],
+		[int(good_edges[0]), press, "good early edge"],
+		[int(good_edges[1]), press, "good late edge"],
+	]
+	for case: Array in cases:
+		var r := _single(AttackHitData.Kind.PRESS).press(press, AT + int(case[0]))
+		assert_eq(r.result, SUCCESS, String(case[2]))
+		assert_eq(r.outcome, int(case[1]), String(case[2]))
+	var early := _single(AttackHitData.Kind.PRESS).press(press, AT + int(good_edges[0]) - 1)
+	assert_eq([early.result, early.reason], [WHIFF, EARLY], "before the good window: EARLY, and a lockout")
+	var judge := _single(AttackHitData.Kind.PRESS)
+	judge.press(press, AT + 10000)
+	assert_eq(judge.pop_ready(), [{"prompt": 0, "outcome": perfect, "offset_us": 10000, "pressed": true}],
+			"the released result says perfect")

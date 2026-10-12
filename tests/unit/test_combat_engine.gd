@@ -21,12 +21,18 @@ const SLOW_ENEMY: int = 10
 ## code rely on), plus the allowed values of the string enums.
 const EVENT_KEYS: Dictionary = {
 	"combat_started": ["seed", "fighters", "practice_allowed"],
+	"intent": ["enemy", "attack", "name", "mode", "targets", "kinds"],
 	"turn_started": ["turn", "actor", "team", "time"],
 	"turn_order": ["order"],
 	"ability_used": ["turn", "actor", "ability", "targets"],
 	"damage": ["source", "target", "amount", "hp", "max_hp", "cause"],
+	"healed": ["source", "target", "amount", "hp", "max_hp"],
+	"revived": ["source", "target", "hp", "max_hp"],
 	"downed": ["target"],
 	"ap_changed": ["character", "delta", "ap", "reason"],
+	"status_changed": ["target", "status", "active", "turns", "source"],
+	"turn_shifted": ["target", "delta"],
+	"team_gauge": ["value", "delta", "max"],
 	"timed_sequence_declared": ["seq", "kind", "source", "action", "name", "mode", "targets", "alert_cue",
 			"allow_timing_ring", "hits", "prompts"],
 	"prompt_resolved": ["seq", "prompt", "hit", "character", "outcome", "perfect", "offset_us", "damage", "hp",
@@ -40,11 +46,14 @@ const EVENT_KEYS: Dictionary = {
 	"command_rejected": ["reason", "command"],
 }
 const HIT_KEYS: Array[String] = ["index", "at_ms", "kind", "approach_ms", "feint", "damage_percent", "impact_sfx"]
-const PROMPT_KEYS: Array[String] = ["idx", "hit", "character", "at_ms", "kind", "windows", "perfect", "damage"]
+const PROMPT_KEYS: Array[String] = ["idx", "hit", "character", "at_ms", "kind", "windows", "perfect", "damage",
+		"press_damage", "perfect_damage", "role", "requires"]
 const STRING_VALUES: Dictionary = {
-	"damage.cause": ["ability", "counter", "team_counter"],
-	"ap_changed.reason": ["spend", "ability"],
-	"prompts_voided.reason": ["downed", "attacker_down"],
+	"timed_sequence_declared.kind": ["enemy_attack", "skill"],
+	"damage.cause": ["ability", "follow_up", "counter", "team_counter"],
+	"ap_changed.reason": ["spend", "ability", "given"],
+	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte"],
+	"prompts_voided.reason": ["downed", "attacker_down", "targets_down", "no_good_press"],
 	"sequence_resolved.reason": ["completed", "targets_down", "attacker_down"],
 	"combat_ended.result": ["victory", "defeat"],
 }
@@ -95,8 +104,8 @@ func _assert_rejected_atomically(engine: CombatEngine, command: Dictionary, reas
 func test_start_events_and_initial_stats() -> void:
 	var engine := CombatEngine.new(Fx.setup([_swipe()], {"seed": 5}))
 	var events := engine.start()
-	assert_eq(Fx.types(events), ["combat_started", "turn_started", "turn_order", "timed_sequence_declared"],
-			"the enemy is fastest, so start() runs straight into its attack")
+	assert_eq(Fx.types(events), ["combat_started", "intent", "turn_started", "turn_order", "timed_sequence_declared"],
+			"the enemy shows its intent, then (fastest) runs straight into that attack")
 	var started: Dictionary = events[0]
 	assert_eq(started.seed, 5)
 	assert_eq(started.practice_allowed, false)
@@ -316,7 +325,8 @@ func test_none_applies_prompt_damage() -> void:
 		"ap_delta": 0, "downed": false,
 	})
 	assert_eq(events[1], {"type": "sequence_resolved", "seq": 1, "reason": "completed"})
-	assert_eq(events[2], {"type": "turn_ended", "turn": 1, "actor": FOE})
+	assert_eq(events[2].type, "intent", "the enemy picks its next attack as its turn ends")
+	assert_eq(events[3], {"type": "turn_ended", "turn": 1, "actor": FOE})
 	assert_eq(Fx.of_type(events, "counter").size(), 0)
 	assert_eq(engine.get_combatant(t).hp, 72)
 
@@ -465,7 +475,8 @@ func test_single_target_all_parried_counter() -> void:
 	assert_eq(events[start + 1], {"type": "counter", "seq": 1, "actors": [t], "target": FOE, "team": false})
 	assert_eq(events[start + 2], {"type": "damage", "source": t, "target": FOE, "amount": amount,
 			"hp": 1500 - amount, "max_hp": 1500, "cause": "counter"})
-	assert_eq(events[start + 3].type, "turn_ended")
+	assert_eq(events[start + 3].type, "intent")
+	assert_eq(events[start + 4].type, "turn_ended")
 
 
 func test_counter_needs_every_hit_perfect() -> void:
@@ -736,7 +747,11 @@ func test_shipped_rot_combo_downs_the_party_on_the_third_attack() -> void:
 	assert_eq(only.size(), 1, "the shipped husk has a Rot Combo")
 	solo.attacks = only
 	var setup := CombatSetup.new()
-	setup.party = encounter.party.duplicate()
+	# Basic attacks only: heals and guards would change what this checks (raw combo damage).
+	for c: CharacterData in encounter.party:
+		var plain := c.duplicate() as CharacterData
+		plain.skills.clear()
+		setup.party.append(plain)
 	var foes: Array[EnemyData] = [solo]
 	setup.enemies = foes
 	setup.tuning = Tuning.new()
@@ -744,7 +759,11 @@ func test_shipped_rot_combo_downs_the_party_on_the_third_attack() -> void:
 	var run: Dictionary = Bot.new(Bot.Defence.MISS).play(engine)
 	var events: Array = run.events
 	assert_eq(engine.result, "defeat")
-	assert_eq(Fx.of_type(events, "timed_sequence_declared").size(), 3, "party-wide combos: alive after 2, down on the 3rd")
+	var combos := 0
+	for e: Dictionary in Fx.of_type(events, "timed_sequence_declared"):
+		if e.kind == "enemy_attack":
+			combos += 1
+	assert_eq(combos, 3, "party-wide combos: alive after 2, down on the 3rd")
 
 
 # --- practice ---------------------------------------------------------------------------------
@@ -868,8 +887,36 @@ func _expected_keys(list: Array, with_type: bool) -> Array:
 	return keys
 
 
+## A scripted fight that surely revives, heals and shifts a turn (the bots may not).
+func _support_events() -> Array[Dictionary]:
+	var revive := Fx.skill("revive", AbilityData.Target.DOWNED_ALLY, 0, [800], {"damage_percent": 0, "revive_percent": 25})
+	var hasten := Fx.skill("hasten", AbilityData.Target.OTHER_ALLY, 0, [800], {"damage_percent": 0, "turn_hasten_percent": 50})
+	var mend := Fx.skill("mend", AbilityData.Target.ALLY, 0, [800], {"damage_percent": 0, "heal_percent": 30})
+	var wide := Fx.attack("wide", [Fx.hit(900, Fx.NORMAL, 400)], Fx.PARTY)
+	var engine := CombatEngine.new(Fx.kit_setup([[], [revive, hasten], [mend]], [wide]))
+	var events: Array[Dictionary] = engine.start()
+	events.append_array(engine.submit(Fx.resolve_now(engine, [[0, NONE], [1, PARRY], [2, PARRY]])))
+	events.append_array(engine.submit(Fx.use(engine, "revive", 0)))
+	events.append_array(engine.submit(Fx.resolve_now(engine, [[0, Defense.Outcome.PRESS]])))
+	events.append_array(engine.submit(Fx.use(engine, "mend", 0)))
+	events.append_array(engine.submit(Fx.resolve_now(engine, [[0, Defense.Outcome.PRESS]])))
+	var bot := Bot.new(Bot.Defence.PERFECT)
+	for i: int in 50:
+		if engine.phase == CombatEngine.Phase.AWAITING_ACTION and engine.active_actor == 1:
+			break
+		if engine.phase == CombatEngine.Phase.AWAITING_ACTION:
+			events.append_array(engine.submit(Fx.use(engine, "basic_attack")))
+		else:
+			events.append_array(engine.submit(bot.next_command(engine)))
+	events.append_array(engine.submit(Fx.use(engine, "hasten", 2)))
+	events.append_array(engine.submit(Fx.resolve_now(engine, [[0, NONE]])))
+	for type: String in ["revived", "healed", "turn_shifted"]:
+		assert_eq(Fx.of_type(events, type).size(), 1, "the scripted fight has a %s event" % type)
+	return events
+
+
 func test_events_have_exactly_the_documented_fields() -> void:
-	var events: Array[Dictionary] = []
+	var events: Array[Dictionary] = _support_events()
 	for defence: int in [Bot.Defence.PERFECT, Bot.Defence.MISS, Bot.Defence.MIXED]:
 		for seed_value: int in [2, 13]:
 			var run: Dictionary = Bot.new(defence as Bot.Defence, 1, true).play(CombatEngine.new(Fx.shipped_setup(seed_value, null, true)))

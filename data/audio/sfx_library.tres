@@ -142,6 +142,47 @@ name = "metronome"
 path = "res://assets/audio/sfx/metronome.wav"
 volume_db = -2.0
 
+[sub_resource type="Resource" id="Resource_8i8ux"]
+script = ExtResource("1_8i8ux")
+name = "skill_press"
+path = "res://assets/audio/sfx/skill_press.wav"
+
+[sub_resource type="Resource" id="Resource_tmwgw"]
+script = ExtResource("1_8i8ux")
+name = "follow_up"
+path = "res://assets/audio/sfx/follow_up.wav"
+pitch_jitter = 0.04
+
+[sub_resource type="Resource" id="Resource_34wyi"]
+script = ExtResource("1_8i8ux")
+name = "heal"
+path = "res://assets/audio/sfx/heal.wav"
+
+[sub_resource type="Resource" id="Resource_r24wd"]
+script = ExtResource("1_8i8ux")
+name = "buff"
+path = "res://assets/audio/sfx/buff.wav"
+
+[sub_resource type="Resource" id="Resource_jetbr"]
+script = ExtResource("1_8i8ux")
+name = "debuff"
+path = "res://assets/audio/sfx/debuff.wav"
+
+[sub_resource type="Resource" id="Resource_vkr65"]
+script = ExtResource("1_8i8ux")
+name = "revive"
+path = "res://assets/audio/sfx/revive.wav"
+
+[sub_resource type="Resource" id="Resource_0uy7s"]
+script = ExtResource("1_8i8ux")
+name = "gauge_full"
+path = "res://assets/audio/sfx/gauge_full.wav"
+
+[sub_resource type="Resource" id="Resource_fisfa"]
+script = ExtResource("1_8i8ux")
+name = "ultimate"
+path = "res://assets/audio/sfx/ultimate.wav"
+
 [resource]
 script = ExtResource("2_tmwgw")
-cues = Array[ExtResource("1_8i8ux")]([SubResource("Resource_ne45t"), SubResource("Resource_lrnn1"), SubResource("Resource_fsrj5"), SubResource("Resource_oddbf"), SubResource("Resource_1xh2r"), SubResource("Resource_nyft8"), SubResource("Resource_t5kpp"), SubResource("Resource_a8kml"), SubResource("Resource_b27fb"), SubResource("Resource_8862e"), SubResource("Resource_vc4v8"), SubResource("Resource_2sva2"), SubResource("Resource_j7rql"), SubResource("Resource_pn3l1"), SubResource("Resource_wf26n"), SubResource("Resource_fub1v"), SubResource("Resource_2t21s"), SubResource("Resource_050hm"), SubResource("Resource_tfr7v"), SubResource("Resource_bgel4"), SubResource("Resource_pfo4v"), SubResource("Resource_eywhw"), SubResource("Resource_3is6k")])
+cues = Array[ExtResource("1_8i8ux")]([SubResource("Resource_ne45t"), SubResource("Resource_lrnn1"), SubResource("Resource_fsrj5"), SubResource("Resource_oddbf"), SubResource("Resource_1xh2r"), SubResource("Resource_nyft8"), SubResource("Resource_t5kpp"), SubResource("Resource_a8kml"), SubResource("Resource_b27fb"), SubResource("Resource_8862e"), SubResource("Resource_vc4v8"), SubResource("Resource_2sva2"), SubResource("Resource_j7rql"), SubResource("Resource_pn3l1"), SubResource("Resource_wf26n"), SubResource("Resource_fub1v"), SubResource("Resource_2t21s"), SubResource("Resource_050hm"), SubResource("Resource_tfr7v"), SubResource("Resource_bgel4"), SubResource("Resource_pfo4v"), SubResource("Resource_eywhw"), SubResource("Resource_3is6k"), SubResource("Resource_8i8ux"), SubResource("Resource_tmwgw"), SubResource("Resource_34wyi"), SubResource("Resource_r24wd"), SubResource("Resource_jetbr"), SubResource("Resource_vkr65"), SubResource("Resource_0uy7s"), SubResource("Resource_fisfa")])
