@@ -27,9 +27,11 @@ extends RefCounted
 ##
 ## Events (Dictionary with "type"):
 ##   combat_started          {seed, fighters:[Combatant.to_dict()], practice_allowed}
-##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind]}
+##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms]}
 ##                           what this enemy will do on its next turn (DESIGN.md 2.8). Sent at
 ##                           fight start, after its turn, and whenever its targets change.
+##                           times: each hit's impact, ms after the attack starts (with
+##                           attack_tempo_percent, like the declared hits' at_ms).
 ##   turn_started            {turn, actor, team, time}
 ##   turn_order              {order:[id]}      current actor first, then upcoming turns
 ##   ability_used            {turn, actor, ability, targets:[id]}
@@ -580,8 +582,10 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	var intent: Dictionary = intents[enemy_id]
 	var attack := get_attack(String(intent.attack))
 	var kinds: Array[int] = []
+	var times: Array[int] = []
 	for hit: AttackHitData in attack.hits:
 		kinds.append(hit.kind)
+		times.append(CombatMath.percent(hit.impact_ms, tuning.attack_tempo_percent))
 	var targets: Array[int] = []
 	targets.assign(intent.targets)
 	return {
@@ -592,6 +596,7 @@ func _intent_event(enemy_id: int) -> Dictionary:
 		"mode": attack.target_mode,
 		"targets": targets,
 		"kinds": kinds,
+		"times": times,
 	}
 
 

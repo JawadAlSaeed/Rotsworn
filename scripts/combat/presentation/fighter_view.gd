@@ -1,7 +1,7 @@
 class_name FighterView
 extends Node3D
-## One fighter on the stage: a billboard sprite whose frame is the pose, a shadow blob, and the
-## flash / glow / greyed-out looks. The node itself stays at the fighter's home spot;
+## One fighter on the stage: a billboard sprite whose frame is the pose, a shadow blob, a floor
+## warning (ground hits), and the flash / glow / crouch / greyed-out looks. The node itself stays at the fighter's home spot;
 ## `body_offset` moves the body (dashes, lunges, dodges, jumps) and the shadow follows on the floor.
 ## Poses are frame indices of the one-row sheet (DESIGN.md 5.3).
 
@@ -22,6 +22,12 @@ const SHADOW_HEIGHT := 0.02
 ## The shadow shrinks to this scale when the body is this high (world units) or higher.
 const SHADOW_MIN_SCALE := 0.55
 const SHADOW_FADE_HEIGHT := 1.6
+## The floor warning sits just above the shadow.
+const WARNING_HEIGHT := 0.03
+## Floor warning gradient: opacity at the centre, at WARNING_RIM_AT of the radius, and at the rim.
+const WARNING_CENTRE_ALPHA := 0.35
+const WARNING_RIM_AT := 0.75
+const WARNING_RIM_ALPHA := 1.0
 
 ## Combatant id this view shows.
 var fighter_id: int = -1
@@ -32,6 +38,8 @@ var body_offset: Vector3 = Vector3.ZERO:
 
 var _sprite: Sprite3D
 var _shadow: Sprite3D
+var _warning: MeshInstance3D
+var _warning_material: StandardMaterial3D
 var _material: ShaderMaterial
 var _hframes: int = 1
 var _frame_height_px: float = 48.0
@@ -92,6 +100,7 @@ func setup(id: int, party: bool, sheet_path: String, hframes: int, frame_size: V
 	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_shadow.position = Vector3(0.0, SHADOW_HEIGHT, 0.0)
 	add_child(_shadow)
+	_build_floor_warning(visuals.floor_warning_size)
 	set_pose(0)
 
 
@@ -149,6 +158,7 @@ func set_body_offset(value: Vector3) -> void:
 		return
 	_sprite.position = value
 	_shadow.position = Vector3(value.x, SHADOW_HEIGHT, value.z)
+	_warning.position = Vector3(value.x, WARNING_HEIGHT, value.z)
 	var lift := clampf(value.y / SHADOW_FADE_HEIGHT, 0.0, 1.0)
 	_shadow.scale = Vector3.ONE * lerpf(1.0, SHADOW_MIN_SCALE, lift)
 
@@ -165,6 +175,23 @@ func flash(ms: int, color: Color = Color.WHITE, strength: float = 1.0) -> void:
 ## Wind-up glow strength (0..1).
 func set_glow(amount: float) -> void:
 	_material.set_shader_parameter("glow_amount", clampf(amount, 0.0, 1.0))
+
+
+func set_glow_color(color: Color) -> void:
+	_material.set_shader_parameter("glow_color", color)
+
+
+## Wind-up crouch: the body gets `amount` (0..1) shorter and as much wider, around its feet.
+func set_squash(amount: float) -> void:
+	var a := clampf(amount, 0.0, 0.9)
+	_sprite.scale = Vector3(1.0 + a, 1.0 - a, 1.0)
+
+
+## A glowing disc on the floor under the body (a ground hit is coming): `strength` 0 hides it.
+func set_floor_warning(strength: float, color: Color) -> void:
+	_warning.visible = strength > 0.0
+	if _warning.visible:
+		_warning_material.albedo_color = Color(color.r, color.g, color.b, clampf(strength, 0.0, 1.0))
 
 
 ## Greyed-out look for a downed fighter (0..1).
@@ -199,6 +226,32 @@ func head_position() -> Vector3:
 ## Middle of the visible body, for sparks, slashes and rings.
 func centre_position() -> Vector3:
 	return body_position() + Vector3(0.0, (_visible_top_px + _visible_bottom_px) * 0.5 * _pixel_size, 0.0)
+
+
+func _build_floor_warning(diameter: float) -> void:
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, WARNING_RIM_AT, 1.0])
+	gradient.colors = PackedColorArray([Color(1, 1, 1, WARNING_CENTRE_ALPHA), Color(1, 1, 1, WARNING_RIM_ALPHA), Color(1, 1, 1, 0)])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.5, 0.5)
+	texture.fill_to = Vector2(1.0, 0.5)
+	_warning_material = StandardMaterial3D.new()
+	_warning_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_warning_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_warning_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_warning_material.albedo_texture = texture
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(diameter, diameter)
+	_warning = MeshInstance3D.new()
+	_warning.name = "FloorWarning"
+	_warning.mesh = plane
+	_warning.material_override = _warning_material
+	_warning.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_warning.position = Vector3(0.0, WARNING_HEIGHT, 0.0)
+	_warning.visible = false
+	add_child(_warning)
 
 
 ## Finds the opaque rows of frame 0, so popups sit on the art and not on empty frame space.

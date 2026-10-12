@@ -1,6 +1,6 @@
 // Fighter sprite: fixed-Y billboard, nearest filtering and alpha-cut discard (like a Sprite3D with
 // billboard FIXED_Y, texture_filter NEAREST and alpha_cut DISCARD), plus the white flash, wind-up
-// glow and greyed-out (downed) looks the combat presentation needs.
+// glow and greyed-out (downed) looks the combat presentation needs. The node's scale is kept.
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_opaque;
 
@@ -15,10 +15,12 @@ uniform float glow_strength : hint_range(0.0, 1.0) = 0.35;
 uniform float grey_amount : hint_range(0.0, 1.0) = 0.0;
 
 void vertex() {
+	// Keep the node's scale (the enemy's wind-up crouch squashes the body around its feet).
+	vec3 scale = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
 	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(
-			vec4(normalize(cross(vec3(0.0, 1.0, 0.0), INV_VIEW_MATRIX[2].xyz)), 0.0),
-			vec4(0.0, 1.0, 0.0, 0.0),
-			vec4(normalize(cross(INV_VIEW_MATRIX[0].xyz, vec3(0.0, 1.0, 0.0))), 0.0),
+			vec4(normalize(cross(vec3(0.0, 1.0, 0.0), INV_VIEW_MATRIX[2].xyz)) * scale.x, 0.0),
+			vec4(0.0, scale.y, 0.0, 0.0),
+			vec4(normalize(cross(INV_VIEW_MATRIX[0].xyz, vec3(0.0, 1.0, 0.0))) * scale.z, 0.0),
 			MODEL_MATRIX[3]);
 	MODELVIEW_NORMAL_MATRIX = mat3(MODELVIEW_MATRIX);
 }

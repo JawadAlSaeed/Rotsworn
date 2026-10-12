@@ -121,6 +121,45 @@ extends Resource
 @export var windup_glow_color: Color = Color(1.0, 0.45, 0.2)
 ## How strongly the wind-up glow is added on top of the sprite (0 to 1).
 @export_range(0.0, 1.0, 0.05) var windup_glow_strength: float = 0.35
+## While winding up, the enemy crouches: it gets this much shorter (and wider) at full glow, then
+## springs back as the lunge or slam starts. Toggle in a fight with F1 > C.
+@export_range(0, 50, 1, "suffix:%") var windup_squash_percent: int = 12
+
+@export_group("Reading attacks")
+## Colour of a ground hit (jump it) everywhere: wind-up glow and flash before a slam, the hit
+## marker, the floor warning and the training ring. Keep it apart from red-orange (normal hits,
+## the telegraph) and white (a parry).
+@export var ground_hit_color: Color = Color(0.78, 0.4, 1.0)
+## Border colour of a normal hit's marker (parry or dodge it).
+@export var normal_hit_color: Color = Color(1.0, 0.3, 0.2)
+## Rhythm rows (intent sign and attack banner): icon centres are this many pixels apart per
+## millisecond between impacts, so the beat and the pauses of a string show.
+@export_range(0.01, 2.0, 0.01) var rhythm_px_per_ms: float = 0.2
+## Icons in a rhythm row are never closer than their size plus this gap (pixels at 1080p).
+@export_range(0.0, 64.0, 1.0) var rhythm_min_gap_px: float = 4.0
+## A longer row is squeezed to this width (pixels at 1080p).
+@export_range(32.0, 1600.0, 1.0) var rhythm_max_width_px: float = 420.0
+## The hit whose motion is playing grows to this scale in the banner row; landed hits fade to
+## this opacity.
+@export_range(1.0, 3.0, 0.05) var rhythm_active_scale: float = 1.4
+@export_range(0.0, 1.0, 0.05) var rhythm_done_alpha: float = 0.3
+## Faint line joining the icons of a rhythm row.
+@export var rhythm_line_color: Color = Color(1.0, 1.0, 1.0, 0.3)
+## Size of the hit icons in the attack banner (pixels at 1080p).
+@export_range(8.0, 128.0, 1.0) var banner_icon_px: float = 40.0
+## Hit marker: when a hit's motion starts, its icon pops up beside each target, on the side the
+## hit comes from, until it lands. Toggle in a fight with F1 > H.
+@export_range(8.0, 200.0, 1.0) var hit_marker_px: float = 52.0
+## Marker position from the target's middle on screen (pixels at 1080p); x points toward the
+## attacking enemy.
+@export var hit_marker_offset_px: Vector2 = Vector2(95.0, -20.0)
+## The marker pops in from this scale over this long (attack time, so hit-stop freezes it).
+@export_range(1.0, 4.0, 0.05) var hit_marker_pop_scale: float = 1.6
+@export_range(0, 1000, 1, "suffix:ms") var hit_marker_pop_ms: int = 120
+## Floor warning under each target of a ground hit, from the slam until the wave arrives: its
+## diameter (world units) and its strength when the wave arrives (it starts fainter).
+@export_range(0.1, 6.0, 0.05) var floor_warning_size: float = 1.9
+@export_range(0.0, 1.0, 0.05) var floor_warning_strength: float = 0.85
 
 @export_group("Party defence poses")
 ## Parry stance lasts at least this long (and at least until the parry window closes).

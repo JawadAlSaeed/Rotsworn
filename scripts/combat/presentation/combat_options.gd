@@ -20,11 +20,13 @@ var quit_on_end: bool = false
 var seed_override: int = -1
 ## "" when no --encounter was given.
 var encounter_id: String = ""
-## Session toggles (F1 overlay; not saved): telegraph flash (F), timing readout (T) and the
-## enemy's motion sounds (L: lunge whoosh and slam).
+## Session toggles (F1 overlay; not saved): telegraph flash (F), timing readout (T), the
+## enemy's motion sounds (L: lunge whoosh and slam), hit markers (H) and the wind-up crouch (C).
 var telegraph_flash: bool = true
 var timing_readout: bool = true
 var motion_sounds: bool = true
+var hit_markers: bool = true
+var windup_crouch: bool = true
 ## Defence statistics for the F1 overlay, kept across restarts.
 var stats := DefenseStats.new()
 
@@ -35,6 +37,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 		options.telegraph_flash = tuning.show_telegraph_flash
 		options.timing_readout = tuning.show_timing_feedback
 		options.motion_sounds = tuning.play_motion_sounds
+		options.hit_markers = tuning.show_hit_markers
+		options.windup_crouch = tuning.show_windup_crouch
 	for arg: String in args:
 		if arg == "--autoplay":
 			options.autoplay_mode = AUTOPLAY_PERFECT

@@ -3,8 +3,8 @@ extends CanvasLayer
 ## The combat HUD on the 1920x1080 canvas (DESIGN.md 7.1): turn timeline with intent icons (top
 ## left), attack or skill banner (top centre), enemy HP and statuses (top right), an intent sign
 ## under each enemy, practice status (top right), party panels (bottom), team gauge (bottom right),
-## action menu, popups and damage numbers, training and press rings, lock icon, controls hint, F1
-## overlay, calibration and the end screen. It shows what the CombatMirror says; world positions are
+## action menu, popups and damage numbers, training and press rings, hit markers, lock icon,
+## controls hint, F1 overlay, calibration and the end screen. It shows what the CombatMirror says; world positions are
 ## projected through the CombatView camera.
 
 const MARGIN: float = 24.0
@@ -62,6 +62,8 @@ var _root: Control
 var _timeline: TimelineRow
 var _banner: PanelContainer
 var _banner_label: Label
+## The attack's hits under the banner text, spaced by time (hidden for skills).
+var _banner_row: HitRowView
 var _center_banner: Label
 var _enemy_box: VBoxContainer
 var _enemy_rows: Dictionary = {}
@@ -70,6 +72,7 @@ var _party_panels: Dictionary = {}
 var _practice_label: Label
 var _popup_layer: Control
 var _ring_layer: RingLayer
+var _marker_layer: HitMarkerLayer
 var _lock_icon: TextureRect
 var _target_marker: Label
 ## One arrow per targeted character while an attack winds up.
@@ -86,7 +89,8 @@ var _center_tween: Tween
 var _targeted: Array[int] = []
 var _gauge_bar: ProgressBar
 var _gauge_label: Label
-## Enemy id -> {panel: PanelContainer, label: Label, icons: HBoxContainer}.
+## Enemy id -> {panel: PanelContainer, label: Label, row: HitRowView, shown: Array (kinds and
+## times on the row)}.
 var _intent_signs: Dictionary = {}
 ## AttackHitData.Kind -> Texture2D.
 var _hit_icons: Dictionary = {}
@@ -108,6 +112,10 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_ring_layer = RingLayer.new()
 	_ring_layer.name = "Rings"
 	_root.add_child(_ring_layer)
+
+	_marker_layer = HitMarkerLayer.new()
+	_marker_layer.name = "HitMarkers"
+	_root.add_child(_marker_layer)
 
 	_popup_layer = Control.new()
 	_popup_layer.name = "Popups"
@@ -144,9 +152,19 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_banner.name = "Banner"
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner.add_theme_stylebox_override("panel", HudStyle.panel(Color(0.08, 0.02, 0.02, 0.85), HudStyle.LATE, 3, 14))
+	var banner_column := VBoxContainer.new()
+	banner_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	banner_column.add_theme_constant_override("separation", 6)
+	_banner.add_child(banner_column)
 	_banner_label = HudStyle.make_label("", BANNER_SIZE)
 	_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_banner.add_child(_banner_label)
+	banner_column.add_child(_banner_label)
+	_banner_row = HitRowView.new()
+	_banner_row.name = "HitRow"
+	_banner_row.setup(visuals.banner_icon_px, visuals, true)
+	_banner_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_banner_row.visible = false
+	banner_column.add_child(_banner_row)
 	_banner.visible = false
 	# Anchored at the top centre and growing both ways, so it stays centred for any text length.
 	_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -332,9 +350,40 @@ func show_banner(text: String, accent: Color = HudStyle.LATE) -> void:
 	_center_banner.visible = false
 	(_banner.get_theme_stylebox("panel") as StyleBoxFlat).border_color = accent
 	_banner_label.text = text
+	_banner_row.visible = false
+	_fit_banner()
+
+
+## Shows the attack's hits under the banner text, spaced by time (`kinds` AttackHitData.Kind,
+## `times` impacts in ms), all upcoming.
+func set_banner_hits(kinds: Array, times: Array) -> void:
+	_banner_row.set_hits(kinds, times, _hit_icons)
+	_banner_row.set_states([])
+	_banner_row.visible = not kinds.is_empty()
+	_fit_banner()
+
+
+## HitRhythm.State per hit of the banner row.
+func set_banner_hit_states(states: Array[int]) -> void:
+	_banner_row.set_states(states)
+
+
+## The intent icon texture of an AttackHitData.Kind.
+func hit_icon(kind: int) -> Texture2D:
+	return _hit_icons.get(kind) as Texture2D
+
+
+## Shows these hit markers (see HitMarkerLayer); empty hides them all.
+func set_hit_markers(markers: Array[Dictionary]) -> void:
+	_marker_layer.set_markers(markers)
+
+
+## Shows the banner and lets it take the size of its content again (centred).
+func _fit_banner() -> void:
 	_banner.visible = true
 	_banner.offset_left = 0.0
 	_banner.offset_right = 0.0
+	_banner.offset_bottom = BANNER_TOP
 
 
 func hide_banner() -> void:
@@ -478,18 +527,19 @@ func _make_intent_sign() -> Dictionary:
 	panel.add_child(row)
 	var label := HudStyle.make_label("", INTENT_SIZE)
 	row.add_child(label)
-	var icons := HBoxContainer.new()
-	icons.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icons.add_theme_constant_override("separation", 2)
-	row.add_child(icons)
+	var hits := HitRowView.new()
+	hits.setup(_visuals.intent_icon_px, _visuals)
+	hits.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(hits)
 	panel.visible = false
 	_root.add_child(panel)
 	# Below the popups, so damage numbers and readouts are never hidden by a sign.
 	_root.move_child(panel, _popup_layer.get_index())
-	return {"panel": panel, "label": label, "icons": icons}
+	return {"panel": panel, "label": label, "row": hits, "shown": []}
 
 
-## "Flurry -> BRIN" (or "-> WHOLE PARTY") and one icon per hit, from the enemy's intent.
+## "Flurry -> BRIN" (or "-> WHOLE PARTY") and one icon per hit spaced by time (the attack's
+## rhythm), from the enemy's intent.
 func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 	var entry: Dictionary = _intent_signs.get(id, {})
 	if entry.is_empty():
@@ -504,21 +554,12 @@ func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 	if int(intent.get("mode", 0)) != EnemyAttackData.TargetMode.PARTY and targets.size() == 1:
 		target_text = String(mirror.fighter(int(targets[0])).get("display_name", "?")).to_upper()
 	(entry.label as Label).text = "%s -> %s" % [String(intent.get("name", "?")), target_text]
-	var icons := entry.icons as HBoxContainer
 	var kinds: Array = intent.get("kinds", [])
-	while icons.get_child_count() < kinds.size():
-		var icon := TextureRect.new()
-		icon.custom_minimum_size = Vector2(_visuals.intent_icon_px, _visuals.intent_icon_px)
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icons.add_child(icon)
-	for j: int in icons.get_child_count():
-		var icon := icons.get_child(j) as TextureRect
-		icon.visible = j < kinds.size()
-		if icon.visible:
-			icon.texture = _hit_icons.get(int(kinds[j])) as Texture2D
+	var times: Array = intent.get("times", [])
+	var shown := [kinds, times]
+	if shown != entry.shown:
+		entry.shown = shown
+		(entry.row as HitRowView).set_hits(kinds, times, _hit_icons)
 	panel.visible = true
 	panel.reset_size()
 

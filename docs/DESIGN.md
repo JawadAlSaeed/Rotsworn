@@ -162,7 +162,9 @@ the enemy is about to do with enough time to read it (the phase 1 banner appeare
 - Each enemy picks its next attack and target(s) when its turn ends (and at fight start), with
   the seeded RNG. The pick is part of engine state and is announced in an `intent` event.
 - A sign under the enemy shows it all the time: attack name, target ("WHOLE PARTY" for party-wide)
-  and one icon per hit (sword = normal: parry or dodge; wave = ground: jump). The same icon sits
+  and one icon per hit (sword = normal: parry or dodge; wave = ground: jump), spaced by the hits'
+  timing so the attack's rhythm shows (3.8; the `intent` event carries each hit's `times`). The
+  same icon sits
   on the enemy's turn in the timeline row.
 - **Always honest:** every enemy shows the full truth (user pick). Difficulty comes from how an
   attack moves (feints, delays, rhythm), never from hidden information.
@@ -413,7 +415,39 @@ One judge per local player, holding the prompts of the characters that player an
   the target and closes at impact. Never shown on attacks with `allow_timing_ring = false`. The
   toggle is saved per machine in `user://settings.cfg` and overrides the tuning default.
 - Timing readout after each press (`show_timing_feedback`, F1 then T).
-- F and T and L are session toggles (not saved); the tuning values are their starting state.
+- Wind-up crouch (`show_windup_crouch`, F1 then C): the enemy crouches as its wind-up glow
+  builds (`windup_squash_percent` at full glow) and springs out of it as the lunge or slam starts.
+- Hit markers and the floor warning (`show_hit_markers`, F1 then H), see 3.8.
+- F, T, L, H and C are session toggles (not saved); the tuning values are their starting state.
+
+### 3.8 Reading attacks (approved 2026-10-12, card #44)
+
+Defence is the star, so every hit must be readable before and while it comes. Nothing here
+gives a beat to press on: the press is still timed from the enemy's motion (the user picked
+"icons only" over a rhythm-game strip with a moving line).
+
+- **One colour per defence:** red-orange (`telegraph_flash_color`, `normal_hit_color`) = a normal
+  hit, parry or dodge it; purple (`ground_hit_color`) = a ground hit, jump it; white = you parried.
+  The wind-up glow and the telegraph flash before a slam, the ground hit icon, its marker, the
+  floor warning and the training ring's ground colour are all purple.
+- **Rhythm rows:** the intent sign and the attack banner show one icon per hit, centres
+  `rhythm_px_per_ms` (0.2) apart per millisecond between impacts and never closer than the icon
+  plus `rhythm_min_gap_px`; a row wider than `rhythm_max_width_px` is squeezed evenly
+  (`HitRhythm.layout`, unit-tested). So Flurry reads as three even beats and Stutter as a long
+  pause, then two quick hits.
+- **During the attack** the banner row shows each hit's state (`HitRhythm.states`): upcoming as
+  is, active (bigger, `rhythm_active_scale`) from the moment its motion starts until impact, done
+  (faded, `rhythm_done_alpha`) after impact. A feint's hit is active from its false start, so the
+  marker never gives the feint away. At most one hit is active at a time.
+- **Hit marker:** while a hit is active, its icon on a dark disc with a border in its colour sits
+  beside each living target, on the side the enemy stands (`hit_marker_offset_px`), popping in
+  over `hit_marker_pop_ms`; ground hits add "JUMP" under it. It sits beside the body, not above
+  the head, so it never covers the defence readouts. It only says that a hit is coming and which
+  kind; the timing still comes from the motion.
+- **Floor warning:** during an active ground hit a purple disc glows on the floor under each
+  living target, from `WARNING_START_SHARE` (0.3) of `floor_warning_strength` at the slam to full
+  when the wave arrives.
+- Everything above is a pure function of attack time, so hit-stop freezes it with the enemy.
 
 ---
 
@@ -650,7 +684,8 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
   back to it. `--encounter=ID` starts one fight directly (autoplay defaults to `husk_fight`).
 - Team gauge at the bottom right, beside the party panels ("TEAM GAUGE 40%"; gold "TEAM
   ULTIMATE READY" when full).
-- Enemy intent: a sign just under each enemy's feet ("Flurry -> BRIN" plus one icon per hit:
+- Enemy intent: a sign just under each enemy's feet ("Flurry -> BRIN" plus one icon per hit,
+  spaced by timing (3.8):
   sword = parry or dodge, wave = jump; under the feet so it never covers HP bars or popups) and
   the same icons under its next turn on the timeline.
 - Status badges on party panels and under enemy HP (EXPOSED, GUARD, TAUNTED, SLOWED 2, RIPOSTE),
@@ -761,7 +796,7 @@ Open items the user raised after playing; pick them up at the start of the next 
    ultimate now show overlapping rings on the same character. Show each press as its own ring,
    entirely separate (one at a time, or at its own spot like osu notes), so a string of presses
    reads clearly.
-3. **Make enemy attacks easier to see** (after phase 2). Defence is the star, so the player must
+3. **Make enemy attacks easier to see** (after phase 2). **Built in phase 3 (3.8).** Defence is the star, so the player must
    be able to read each hit as it comes: clearer wind-ups, a marker for each incoming hit and its
    kind, and a way to see the rhythm of a string before and during it. To be proposed to the user
    before building.
@@ -828,4 +863,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | Two enemies with the same name get letters (Gnat Swarm A / B) | targets and intent signs must be unambiguous |
 | 2026-10-12 | Shade Stutter feint moved to 1600 ms (last hit 1900) | a feint's false start must come after the previous hit's contact |
 | 2026-10-12 | Skill presses are left out of the F1 defence statistics | those numbers are for defence timing and calibration |
+| 2026-10-12 | Reading attacks: rhythm rows, hit markers, floor warning, wind-up crouch (3.8) | user pick "icons only": the motion stays the thing you time, the HUD only says what is coming |
+| 2026-10-12 | Purple = ground hit (jump) everywhere; red-orange = normal hit | one colour must mean one thing; orange was close to the red-orange telegraph |
+| 2026-10-12 | Hit markers beside the target, on the enemy's side, not above the head | readouts stack above heads; a marker there would cover them in fast strings |
 | 2026-10-12 | Skill presses have three results: perfect (bonus), good (normal), miss (50%); osu-style ring with GOOD and PERFECT bands | user feedback: the ring had no visible spot to hit and no distinction between perfect and normal |

@@ -21,7 +21,7 @@ const SLOW_ENEMY: int = 10
 ## code rely on), plus the allowed values of the string enums.
 const EVENT_KEYS: Dictionary = {
 	"combat_started": ["seed", "fighters", "practice_allowed"],
-	"intent": ["enemy", "attack", "name", "mode", "targets", "kinds"],
+	"intent": ["enemy", "attack", "name", "mode", "targets", "kinds", "times"],
 	"turn_started": ["turn", "actor", "team", "time"],
 	"turn_order": ["order"],
 	"ability_used": ["turn", "actor", "ability", "targets"],
@@ -249,7 +249,11 @@ func test_declared_party_wide_sequence() -> void:
 	attack.alert_cue = false
 	attack.allow_timing_ring = false
 	var engine := CombatEngine.new(Fx.setup([attack], {"tuning": tuning}))
-	var declared := Fx.first_of(engine.start(), "timed_sequence_declared")
+	var start_events := engine.start()
+	var declared := Fx.first_of(start_events, "timed_sequence_declared")
+	var intent := Fx.first_of(start_events, "intent")
+	assert_eq(intent.kinds, [Fx.NORMAL, Fx.NORMAL, Fx.GROUND])
+	assert_eq(intent.times, [1350, 1800, 2550], "the intent's rhythm matches the declared impacts")
 	assert_eq(declared.seq, 1)
 	assert_eq(declared.kind, "enemy_attack")
 	assert_eq(declared.source, FOE)

@@ -1446,10 +1446,11 @@ func _hit_icon_normal() -> Image:
 	return _canvas
 
 
-## 12x12 orange wave along the floor: a ground hit (jump).
+## 12x12 purple wave along the floor: a ground hit (jump). Purple is the ground-hit colour
+## (combat_visuals ground_hit_color).
 func _hit_icon_ground() -> Image:
 	_begin_canvas(Vector2i(12, 12))
-	var col := Color("ff9a26")
+	var col := Color("c766ff")
 	for x: int in 12:
 		# Two crests rolling to the right, over a floor line.
 		var crest := 6.0 - 2.5 * maxf(0.0, sin(float(x) / 11.0 * TAU * 1.0 - 0.6))

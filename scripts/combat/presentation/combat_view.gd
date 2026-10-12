@@ -197,11 +197,14 @@ func warm_up() -> void:
 	set_wave(points, WARM_UP_ALPHA)
 	for id: int in _fighters:
 		fighter(id).flash(1, Color.WHITE, WARM_UP_ALPHA)
+		fighter(id).set_floor_warning(WARM_UP_ALPHA, Color.WHITE)
 
 
 ## Ends the warm-up started by warm_up().
 func finish_warm_up() -> void:
 	hide_wave()
+	for id: int in _fighters:
+		fighter(id).set_floor_warning(0.0, Color.WHITE)
 
 
 func _home_for(is_party: bool, slot: int) -> Vector3:

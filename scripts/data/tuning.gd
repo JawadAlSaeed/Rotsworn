@@ -70,6 +70,12 @@ extends Resource
 ## A whoosh when the enemy starts each lunge or slam (the sound of the motion). Toggle in a fight
 ## with F1 > L.
 @export var play_motion_sounds: bool = true
+## When a hit's motion starts, its icon pops up beside each target (and a floor warning glows
+## under them for a ground hit) until it lands. Toggle in a fight with F1 > H.
+@export var show_hit_markers: bool = true
+## The enemy crouches while it winds up and springs out of it as the lunge or slam starts.
+## Toggle in a fight with F1 > C.
+@export var show_windup_crouch: bool = true
 
 @export_group("HP and damage")
 ## HP of a character at 100% hp.

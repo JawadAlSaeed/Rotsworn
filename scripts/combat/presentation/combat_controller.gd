@@ -630,6 +630,12 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 			KEY_L:
 				_options.motion_sounds = not _options.motion_sounds
 				return true
+			KEY_H:
+				_options.hit_markers = not _options.hit_markers
+				return true
+			KEY_C:
+				_options.windup_crouch = not _options.windup_crouch
+				return true
 	match key:
 		KEY_F2:
 			# Only while the game waits for a menu choice, never during an attack or a skill.
