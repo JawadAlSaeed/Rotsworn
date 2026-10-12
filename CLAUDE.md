@@ -34,6 +34,10 @@ whenever a decision is made or changed.
   again. Pick the phase it belongs to (ask only if it is truly unclear), write a short plain title
   and a one or two line body, then reply with the issue link. The repo is public, so issues are
   public.
+- Before creating a card, list the board (open and closed) and check for one that already covers
+  it. If there is one, do not create a card: tell the user which card (title + link) instead.
+- "Idea" (or anything the user sounds unsure about) gets an extra `idea` label; "todo" is a
+  planned card without it. When unclear, treat it as an idea.
 - Keep the board true: move a card to In Progress when work on it starts, and to Done (and close
   the issue) when the user approves that work. Add a card for any new feature or bug the user
   agrees to.
