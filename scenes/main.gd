@@ -5,6 +5,11 @@ extends Node
 ## leads to the stops: zones, rests, shops and the final fight; RunState carries HP and gold from stop to stop.
 ## A zone (DESIGN.md 7.4) hands a fight over with encounter_started: the screen swirls into the
 ## fight, the zone waits outside the tree, and after the fight the screen fades back to the zone.
+## Online (DESIGN.md 9.2) the host's machine runs the run exactly as offline and tells the others
+## what to show: every screen ("screen" messages with the run's state), the zone positions, the
+## fights' event batches. The others (clients) only show what arrives, never decide anything about
+## the run: on run screens they watch while the host chooses. Their own heroes' fight choices and
+## presses go to the host. Messages a client gets while a transition plays wait for it to end.
 ## R / "fight again" frees a practice fight and starts the same one again; Cancel on a practice
 ## fight's end screen goes back to the practice list. The options (and the F1 statistics they
 ## hold) survive restarts.
@@ -13,7 +18,8 @@ extends Node
 ## --encounter=ID (start that fight directly; autoplay without it, --zone or --run starts
 ## DEFAULT_ENCOUNTER_ID), --zone=ID (start in that zone), --first-strike (with --encounter),
 ## --run (start a new run at once; the seed also picks the map), --players=N (co-op with N pretend
-## pads, for the bot).
+## pads, for the bot), --host=N (host online and start a run once N players are in), --join=ADDRESS
+## (join that host).
 
 const DEFAULT_ENCOUNTER_ID := "husk_fight"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
@@ -28,6 +34,9 @@ const AUTOPLAY_ZONE_STUCK_S: float = 60.0
 ## Autoplay on the map: a rest is picked when someone is at or under this percent of max HP.
 const AUTOPLAY_REST_BELOW_PERCENT: int = 60
 const QUIT_AUDIO_RELEASE_S: float = 0.3
+## Online client: the "host is choosing" line over watched run screens.
+const WATCH_TEXT_SIZE: int = 26
+const WATCH_MARGIN_PX: float = 24.0
 
 var _encounters: Array[EncounterData] = []
 var _zones: Array[ZoneData] = []
@@ -57,6 +66,26 @@ var _zone_idle_s: float = 0.0
 var _players: PlayerRoster
 ## The device of the last button press (it becomes P1 on the players screen).
 var _last_device: int = PlayerRoster.KEYBOARD
+## Online: the seed of the next fight (the host picks it), client messages waiting for the current
+## transition, combat batches that arrived before their fight was built, the last screen the host
+## sent (rebuilt when the run changes), and the run state the host sent last.
+var _net_seed: int = -1
+var _net_queue: Array[Dictionary] = []
+var _combat_inbox: Array[Dictionary] = []
+var _net_screen: Dictionary = {}
+var _sent_run: Dictionary = {}
+var _zone_send_s: float = 0.0
+## Online client: "the host is choosing" over the run screens.
+var _watch_layer: CanvasLayer
+## Shown on the main menu next time (why an online game ended).
+var _notice: String = ""
+## Bumped when an online game ends, so a transition that was under way stops after its fade.
+var _flow_gen: int = 0
+## Client: combat batches go straight to the fight (else they wait in _combat_inbox); the message
+## pump holds while a zone plays a fight's opening; the run's end arrived (the host may go now).
+var _combat_accepts: bool = false
+var _net_hold: bool = false
+var _client_done: bool = false
 
 
 func _ready() -> void:
@@ -81,6 +110,12 @@ func _ready() -> void:
 	_transition.name = "Transition"
 	add_child(_transition)
 	_transition.setup(_explore)
+	_build_watch_layer()
+	Net.message_received.connect(_on_net_message)
+	Net.peer_joined.connect(_on_net_peer_joined)
+	Net.peer_left.connect(_on_net_peer_left)
+	Net.host_lost.connect(_on_net_host_lost)
+	Net.refused.connect(_on_net_refused)
 	_options = CombatOptions.from_args(OS.get_cmdline_user_args(), _tuning)
 	# --players=N: pretend pads 0 to N-1 (only the bot presses them).
 	_players = PlayerRoster.solo(_hero_names().size(), 0 if _options.players > 1 else PlayerRoster.KEYBOARD)
@@ -89,6 +124,15 @@ func _ready() -> void:
 	if _options.is_autoplay():
 		print("Autoplay: %s%s players: %d" % [_options.autoplay_mode, " (quit on end)" if _options.quit_on_end else "",
 				_players.player_count()])
+	if _options.host_players > 0:
+		_host_online()
+		return
+	if not _options.join_address.is_empty():
+		_show_join()
+		_on_join_requested(_options.join_address)
+		if _options.leave_after_s > 0:
+			_autoplay_leave_later()
+		return
 	if _options.run:
 		_new_run()
 		return
@@ -125,6 +169,8 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	if Net.is_host():
+		_net_host_tick(delta)
 	# Autoplay guard: a zone that never reaches a fight is stuck.
 	if not _options.is_autoplay() or _zone == null or not _zone.is_inside_tree() or _zone.is_frozen():
 		_zone_idle_s = 0.0
@@ -145,6 +191,7 @@ func _show_screen(screen: Node) -> void:
 	if screen != null:
 		_screen = screen
 		add_child(screen)
+	_watch_layer.visible = Net.is_client() and _is_run_screen(screen)
 
 
 func _free_screen() -> void:
@@ -159,18 +206,32 @@ func _fade_to(build: Callable) -> void:
 	if _busy:
 		return
 	_busy = true
+	var gen := _flow_gen
 	await _transition.fade_out()
+	if gen != _flow_gen:
+		_transition.fade_in()
+		_end_busy()
+		return
 	build.call()
 	await get_tree().process_frame
 	await _transition.fade_in()
+	_end_busy()
+
+
+## A transition is over: messages that waited for it go on (online client).
+func _end_busy() -> void:
 	_busy = false
+	_pump_net.call_deferred()
 
 
 func _show_main_menu() -> void:
 	_run = null
+	if Net.is_online():
+		_leave_online()
 	var menu := MainMenu.new()
 	menu.name = "MainMenu"
-	menu.setup(_menu_item)
+	menu.setup(_menu_item, _notice)
+	_notice = ""
 	menu.chosen.connect(_on_menu_chosen)
 	_show_screen(menu)
 
@@ -180,6 +241,10 @@ func _on_menu_chosen(item: StringName) -> void:
 	match item:
 		MainMenu.NEW_RUN:
 			_show_lobby.call_deferred(_fade_to.bind(_new_run))
+		MainMenu.HOST_ONLINE:
+			_host_online.call_deferred()
+		MainMenu.JOIN_ONLINE:
+			_show_join.call_deferred()
 		MainMenu.PRACTICE:
 			_show_lobby.call_deferred(_show_select.call_deferred)
 		MainMenu.SETTINGS:
@@ -269,6 +334,12 @@ func _start_combat() -> void:
 	if _run != null:
 		_combat.configure_run(_run)
 	_combat.configure_players(_players)
+	if Net.is_host():
+		_combat.configure_online(CombatController.NetMode.HOST, _net_seed)
+	elif Net.is_client():
+		_combat.configure_online(CombatController.NetMode.CLIENT, _net_seed)
+		# Only the host goes on after a fight; the next screen comes from it.
+		continue_to = Callable()
 	if continue_to.is_valid():
 		_combat.continue_requested.connect(continue_to)
 		if _options.is_autoplay():
@@ -277,6 +348,12 @@ func _start_combat() -> void:
 	_combat.restart_requested.connect(_on_restart_requested)
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
+	if Net.is_client():
+		_combat_accepts = true
+		var waiting := _combat_inbox.duplicate()
+		_combat_inbox.clear()
+		for batch: Dictionary in waiting:
+			_combat.receive_batch(batch)
 
 
 func _on_restart_requested() -> void:
@@ -300,6 +377,9 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone.name = "Zone"
 	_zone.configure(zone, _tuning, _visuals, _explore, _run != null)
 	_zone.configure_players(_players)
+	if Net.is_client():
+		_zone.configure_remote()
+	_send_screen({"name": "zone", "zone": zone.id})
 	_zone.encounter_started.connect(_on_encounter_started)
 	_zone.cleared.connect(_on_zone_cleared)
 	add_child(_zone)
@@ -312,7 +392,7 @@ func _start_zone(zone: ZoneData) -> void:
 		_run_bar.position = Vector2(24.0, 24.0)
 		layer.add_child(_run_bar)
 		_run_bar.setup(_run)
-	if _options.is_autoplay():
+	if _options.is_autoplay() and not Net.is_client():
 		var bot := ZoneAutoplay.new()
 		bot.name = "ZoneAutoplay"
 		_zone.add_child(bot)
@@ -330,17 +410,26 @@ func _free_zone() -> void:
 
 ## The zone started a fight: swirl out, park the zone outside the tree, fade the fight in.
 func _on_encounter_started(index: int, opening: CombatSetup.Opening) -> void:
+	_net_hold = false
 	if _busy:
 		return
 	_busy = true
 	_zone_fight = {"index": index, "opening": opening}
 	_encounter = _zone.encounter_of(index)
+	if Net.is_host():
+		_net_seed = randi_range(1, 2147483646)
+		Net.broadcast("screen", {"name": "zone_fight", "index": index, "opening": int(opening), "seed": _net_seed})
+	var gen := _flow_gen
 	await _transition.swirl_out()
+	if gen != _flow_gen or _zone == null:
+		_transition.fade_in()
+		_end_busy()
+		return
 	remove_child(_zone)
 	_start_combat()
 	await get_tree().process_frame
 	await _transition.fade_in()
-	_busy = false
+	_end_busy()
 
 
 ## The zone fight's end screen was left: carry the run's HP and gold, then fade back to the zone
@@ -349,14 +438,16 @@ func _on_zone_return_requested(result: String) -> void:
 	if _busy or _zone == null:
 		return
 	_busy = true
-	if _run != null:
+	if _run != null and not Net.is_client():
 		_run.finish_fight(result, _combat.party_hp(), _encounter)
+		_send_screen({"name": "zone_back", "result": result})
 		if _run.is_over():
+			# The run's end screen follows (online, the host sends it).
 			await _transition.fade_out()
 			_show_run_end()
 			await get_tree().process_frame
 			await _transition.fade_in()
-			_busy = false
+			_end_busy()
 			return
 	await _transition.fade_out()
 	_free_combat()
@@ -367,12 +458,12 @@ func _on_zone_return_requested(result: String) -> void:
 		_run_bar.refresh(_run)
 	await get_tree().process_frame
 	await _transition.fade_in()
-	_busy = false
+	_end_busy()
 	if _run == null and result != "victory" and _options.is_autoplay():
 		print("AUTOPLAY_RESULT zone_defeat fights=%d first_strikes=%d" % [_zone.fights_started(), _zone.first_strikes()])
 		_autoplay_quit()
-	elif _run != null and _zone.is_cleared():
-		# Let ZONE CLEAR read, then the guard's loot.
+	elif _run != null and _zone.is_cleared() and not Net.is_client():
+		# Let ZONE CLEAR read, then the guard's loot (online, the host sends it).
 		await get_tree().create_timer(float(_explore.zone_title_ms) / 1000.0).timeout
 		_fade_to(_show_loot)
 
@@ -394,6 +485,8 @@ func _new_run() -> void:
 		return
 	var run_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
 	_run = RunState.begin(_run_data, _tuning, run_seed)
+	if Net.is_host():
+		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict()})
 	print("Run seed: %d  stops: %d" % [run_seed, _run.map.row_count()])
 	_show_map()
 
@@ -408,7 +501,8 @@ func _show_map() -> void:
 	map.quit_requested.connect(_open_pause)
 	map.party_requested.connect(_show_party.bind("", true))
 	_show_screen(map)
-	if _options.is_autoplay():
+	_send_screen({"name": "map"})
+	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_map.call_deferred(map)
 
 
@@ -432,11 +526,14 @@ func _start_final_fight() -> void:
 	_busy = true
 	_encounter = _run_data.final_encounter
 	_zone_fight = {}
+	if Net.is_host():
+		_net_seed = randi_range(1, 2147483646)
+		_send_screen({"name": "final_fight", "seed": _net_seed})
 	await _transition.swirl_out()
 	_start_combat()
 	await get_tree().process_frame
 	await _transition.fade_in()
-	_busy = false
+	_end_busy()
 
 
 ## The final fight's end screen was left: the run is over either way.
@@ -453,28 +550,35 @@ func _show_rest() -> void:
 	rest.setup(_run)
 	rest.done.connect(_fade_to.bind(_show_map))
 	_show_screen(rest)
-	if _options.is_autoplay():
+	_send_screen({"name": "rest"})
+	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_rest.call_deferred(rest)
 
 
-func _show_shop() -> void:
+func _show_shop(gear: Array[GearData] = []) -> void:
 	var shop := ShopScreen.new()
 	shop.name = "Shop"
-	shop.setup(_run, _run.shop_gear(_run.at))
+	if not Net.is_client():
+		gear = _run.shop_gear(_run.at)
+	shop.setup(_run, gear)
 	shop.done.connect(_fade_to.bind(_show_map))
 	_show_screen(shop)
-	if _options.is_autoplay():
+	_send_screen({"name": "shop", "gear": _gear_ids(gear)})
+	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_shop.call_deferred(shop)
 
 
 ## The guard's loot (DESIGN.md 8): pick one, then the party screen to put it on.
-func _show_loot() -> void:
+func _show_loot(gear: Array[GearData] = []) -> void:
 	var loot := LootScreen.new()
 	loot.name = "Loot"
-	loot.setup(_run.loot_choices(_run.at))
+	if not Net.is_client():
+		gear = _run.loot_choices(_run.at)
+	loot.setup(gear)
 	loot.chosen.connect(_on_loot_chosen)
 	_show_screen(loot)
-	if _options.is_autoplay():
+	_send_screen({"name": "loot", "gear": _gear_ids(gear)})
+	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_loot.call_deferred(loot)
 
 
@@ -496,7 +600,8 @@ func _show_party(note: String, from_map: bool) -> void:
 	else:
 		party.done.connect(_fade_to.bind(_show_map))
 	_show_screen(party)
-	if _options.is_autoplay():
+	_send_screen({"name": "party", "note": note})
+	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_party.call_deferred(party)
 
 
@@ -506,6 +611,8 @@ func _show_run_end() -> void:
 	end.setup(_run, _visuals.end_input_guard_ms)
 	end.done.connect(_fade_to.bind(_show_main_menu))
 	_show_screen(end)
+	_send_screen({"name": "run_end"})
+	_client_done = Net.is_client()
 	if _options.is_autoplay():
 		print("AUTOPLAY_RESULT run_%s stops=%d fights=%d level=%d gear=%d gold=%d seed=%d" % [_run.result, _run.path.size(),
 				_run.fights_won, _run.level, _run.bag.size() + _worn_count(), _run.gold_earned, _run.run_seed])
@@ -519,7 +626,18 @@ func _show_run_end() -> void:
 func _input(event: InputEvent) -> void:
 	if (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed():
 		_last_device = PlayerRoster.device_of(event)
-	if _pause != null or _prompt != null or _busy or not event.is_action_pressed(&"pause", false, true):
+	var pause := event.is_action_pressed(&"pause", false, true)
+	# Online client on a run screen: the host chooses; only pause (to leave) works here.
+	if Net.is_client() and _is_run_screen(_screen) and _pause == null and _prompt == null and not pause:
+		if not event is InputEventMouseMotion:
+			get_viewport().set_input_as_handled()
+		return
+	if _pause != null or _prompt != null or _busy or not pause:
+		return
+	if Net.is_online() and (_combat != null or _zone != null or _is_run_screen(_screen)):
+		# Online nothing stops for a pause menu: it opens over the game, which goes on.
+		get_viewport().set_input_as_handled()
+		_open_pause()
 		return
 	if _combat != null and _combat.is_inside_tree():
 		# A fight pauses between moves; it calls back with pause_reached.
@@ -536,10 +654,17 @@ func _input(event: InputEvent) -> void:
 func _open_pause() -> void:
 	if _pause != null:
 		return
-	_hold_behind_overlay(true)
+	if not Net.is_online():
+		_hold_behind_overlay(true)
+	elif _zone != null:
+		_zone.input_held = true
 	_pause = PauseMenu.new()
 	_pause.name = "Pause"
-	if _run != null:
+	if Net.is_host():
+		_pause.setup("End the game", "The run ends for everyone.")
+	elif Net.is_client():
+		_pause.setup("Leave the game", "You leave; the others play on.")
+	elif _run != null:
 		_pause.setup("Abandon run", "The run is lost. Back to the main menu.")
 	else:
 		_pause.setup("Leave", "Back to the practice list.")
@@ -551,6 +676,10 @@ func _open_pause() -> void:
 
 func _on_pause_resumed() -> void:
 	_free_pause()
+	if _zone != null:
+		_zone.input_held = false
+	if Net.is_online():
+		return
 	_hold_behind_overlay(false)
 	if _combat != null and _combat.is_paused():
 		_combat.resume_after_pause()
@@ -576,6 +705,19 @@ func _on_pause_settings_closed(settings: SettingsScreen) -> void:
 
 ## Abandon the run (asks first) or, in practice, leave for the practice list.
 func _on_pause_leave() -> void:
+	if Net.is_online():
+		_pause.process_mode = Node.PROCESS_MODE_DISABLED
+		_prompt = ConfirmPrompt.new()
+		_prompt.name = "LeavePrompt"
+		if Net.is_host():
+			_prompt.setup("End the game for everyone?", "The run is lost. Everyone goes back to the main menu.",
+					"End the game", "Keep playing")
+		else:
+			_prompt.setup("Leave the game?", "You go back to the main menu. Your heroes go to the host.",
+					"Leave", "Keep playing")
+		_prompt.answered.connect(_on_abandon_answered)
+		add_child(_prompt)
+		return
 	if _run == null:
 		_free_pause()
 		_show_select.call_deferred()
@@ -616,6 +758,336 @@ func _free_pause() -> void:
 	for child: Node in get_children():
 		if child is SettingsScreen and child != _screen:
 			child.queue_free()
+
+
+# --- online (DESIGN.md 9.2) -------------------------------------------------------------------
+
+## Host Online: listen, and show the players screen with the address friends type in.
+func _host_online() -> void:
+	var err := Net.host()
+	if err != OK:
+		_notice = "Could not host (error %d). Is another game already hosting on this PC?" % err
+		_autoplay_fail("host_failed")
+		_show_main_menu()
+		return
+	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, NetSession.HOST_PEER)
+	var lobby := LobbyScreen.new()
+	lobby.name = "Lobby"
+	lobby.setup_online(_hero_names(), _players, true, NetSession.local_addresses(), _tuning.net_port)
+	lobby.roster_changed.connect(_on_online_roster_changed)
+	lobby.started.connect(_on_online_started)
+	lobby.back.connect(_show_main_menu.call_deferred)
+	_show_screen(lobby)
+	print("Hosting on port %d: %s" % [_tuning.net_port, ", ".join(NetSession.local_addresses())])
+
+
+func _on_online_roster_changed(players: PlayerRoster) -> void:
+	_players = players
+	Net.broadcast("lobby", {"roster": players.to_dict()})
+	if _options.host_players > 0 and players.player_count() >= _options.host_players:
+		_autoplay_start_online()
+
+
+## The host pressed Start: nobody else can join now; the run begins (the clients follow).
+func _on_online_started(players: PlayerRoster) -> void:
+	if _busy or not _screen is LobbyScreen:
+		return
+	_players = players
+	Net.closed = true
+	print("Players: %d online" % players.player_count())
+	_fade_to(_new_run)
+
+
+func _show_join() -> void:
+	var join := JoinScreen.new()
+	join.name = "Join"
+	join.setup(PlayerSettings.join_address())
+	join.connect_requested.connect(_on_join_requested)
+	join.back.connect(_show_main_menu.call_deferred)
+	_show_screen(join)
+
+
+func _on_join_requested(address: String) -> void:
+	if not _options.is_autoplay():
+		PlayerSettings.set_join_address(address)
+	var err := Net.join(address)
+	if err != OK and _screen is JoinScreen:
+		(_screen as JoinScreen).show_problem("Could not start connecting (error %d)." % err)
+
+
+func _on_net_peer_joined(peer: int) -> void:
+	if Net.is_host():
+		if not _screen is LobbyScreen or not (_screen as LobbyScreen).add_peer(peer):
+			Net.kick(peer)
+		return
+	# Welcomed by the host: wait on the players screen for its roster and its Start.
+	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, peer)
+	var lobby := LobbyScreen.new()
+	lobby.name = "Lobby"
+	lobby.setup_online(_hero_names(), _players, false, [] as Array[String], _tuning.net_port)
+	lobby.back.connect(_show_main_menu.call_deferred)
+	_show_screen(lobby)
+
+
+## Host: a client left. Before the run it just leaves the list; during the run its heroes go to
+## the host (and the others are told).
+func _on_net_peer_left(peer: int) -> void:
+	if _run == null and _screen is LobbyScreen:
+		(_screen as LobbyScreen).remove_peer(peer)
+		return
+	if _players.drop_peer(peer):
+		print("Player left: peer %d" % peer)
+		Net.broadcast("roster", {"roster": _players.to_dict()})
+		if _combat != null:
+			_combat.update_players(_players, peer)
+		if _zone != null:
+			_zone.configure_players(_players)
+
+
+func _on_net_host_lost() -> void:
+	if not _client_done:
+		_autoplay_fail("host_lost")
+	_end_online("The run is over." if _client_done else "The host left the game.")
+
+
+func _on_net_refused(reason: String) -> void:
+	_autoplay_fail("refused " + reason)
+	if _screen is JoinScreen:
+		(_screen as JoinScreen).show_problem(reason)
+	else:
+		_end_online(reason)
+
+
+## This machine's online game is over: back to the main menu with a note.
+func _end_online(notice: String) -> void:
+	_leave_online()
+	_notice = notice
+	_free_pause()
+	_busy = false
+	_show_main_menu.call_deferred()
+
+
+## Closes the connection and forgets everything that was waiting.
+func _leave_online() -> void:
+	_flow_gen += 1
+	_net_queue.clear()
+	_combat_inbox.clear()
+	_combat_accepts = false
+	_net_hold = false
+	_net_screen = {}
+	_sent_run = {}
+	Net.leave()
+	_players = PlayerRoster.solo(_hero_names().size())
+
+
+func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
+	if Net.is_host():
+		match kind:
+			"cmd":
+				if _combat != null and _combat.is_inside_tree() and payload.get("command") is Dictionary:
+					_combat.receive_command(from_peer, payload.command as Dictionary)
+			"ack":
+				if _combat != null:
+					_combat.receive_ack(from_peer, int(payload.get("seq", -1)))
+		return
+	match kind:
+		"combat":
+			if _combat_accepts and _combat != null:
+				_combat.receive_batch(payload)
+			else:
+				_combat_inbox.append(payload)
+		"zone":
+			if _zone != null and _zone.is_inside_tree():
+				_zone.apply_snapshot(payload)
+		"lobby":
+			var roster := PlayerRoster.from_dict(payload.get("roster", {}) as Dictionary, Net.my_peer())
+			if roster != null and _screen is LobbyScreen:
+				_players = roster
+				(_screen as LobbyScreen).set_roster(roster)
+		_:
+			if kind == "screen" and String(payload.get("name", "")) in ["zone_fight", "final_fight"]:
+				# Batches from here on belong to the next fight.
+				_combat_accepts = false
+				_combat_inbox.clear()
+			_net_queue.append({"kind": kind, "payload": payload})
+			_pump_net()
+
+
+## Client: handles the host's messages in order, each after the transition the last one started.
+func _pump_net() -> void:
+	while not _busy and not _net_hold and not _net_queue.is_empty() and Net.is_client():
+		var m: Dictionary = _net_queue.pop_front()
+		_client_message(String(m.kind), m.payload as Dictionary)
+
+
+func _client_message(kind: String, p: Dictionary) -> void:
+	match kind:
+		"run_start":
+			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
+			if roster != null:
+				_players = roster
+			_run = RunState.begin(_run_data, _tuning, int(p.get("seed", 1)))
+		"roster":
+			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
+			if roster != null:
+				_players = roster
+				if _combat != null:
+					_combat.update_players(_players)
+		"run":
+			_apply_run(p)
+			_rebuild_watched_screen()
+		"menu":
+			_client_done = true
+			_end_online("The host ended the game.")
+		"screen":
+			_apply_run(p)
+			_client_screen(p)
+
+
+## Client: shows the screen the host is on.
+func _client_screen(p: Dictionary) -> void:
+	var name := String(p.get("name", ""))
+	if _run == null and name != "menu":
+		return
+	match name:
+		"map", "rest", "shop", "loot", "party", "run_end":
+			_net_screen = p
+			_fade_to(_watched_screen_builder(p))
+		"zone":
+			var zone := _zone_by_id(String(p.get("zone", "")))
+			if zone != null:
+				_fade_to(_start_zone.bind(zone))
+		"zone_fight":
+			_net_seed = int(p.get("seed", 1))
+			if _zone != null and _zone.is_inside_tree():
+				# The pump waits until the fight starts (the zone plays its short opening first).
+				_net_hold = true
+				_zone.begin_remote(int(p.get("index", -1)), int(p.get("opening", 0)) as CombatSetup.Opening)
+		"final_fight":
+			_net_seed = int(p.get("seed", 1))
+			_start_final_fight()
+		"zone_back":
+			# After a lost run the host sends the run's end next instead.
+			if not _run.is_over():
+				_on_zone_return_requested(String(p.get("result", "")))
+
+
+## Client: the function that builds a watched run screen from the host's message.
+func _watched_screen_builder(p: Dictionary) -> Callable:
+	match String(p.get("name", "")):
+		"rest":
+			return _show_rest
+		"shop":
+			return _show_shop.bind(_gear_from_ids(p.get("gear", []) as Array))
+		"loot":
+			return _show_loot.bind(_gear_from_ids(p.get("gear", []) as Array))
+		"party":
+			return _show_party.bind(String(p.get("note", "")), true)
+		"run_end":
+			return _show_run_end
+	return _show_map
+
+
+## Client: the run changed on the host (a purchase, gear): show the watched screen again.
+func _rebuild_watched_screen() -> void:
+	if _busy or _net_screen.is_empty() or not _is_run_screen(_screen) or _screen is RunEndScreen:
+		return
+	_watched_screen_builder(_net_screen).call()
+
+
+func _apply_run(p: Dictionary) -> void:
+	if _run == null or not p.get("run") is Dictionary:
+		return
+	if not _run.apply_dict(p.run as Dictionary):
+		push_error("Main: the host's run state does not fit this run")
+		_autoplay_fail("run_state_mismatch")
+
+
+## Host: tells the clients which screen to show now, with the run's state.
+func _send_screen(p: Dictionary) -> void:
+	if not Net.is_host():
+		return
+	var message := p.duplicate()
+	if _run != null:
+		_sent_run = _run.to_dict()
+		message["run"] = _sent_run
+	Net.broadcast("screen", message)
+
+
+## Host, every frame: run changes (purchases, gear, levels) and zone positions go out.
+func _net_host_tick(delta: float) -> void:
+	if _run != null and not _sent_run.is_empty():
+		var now := _run.to_dict()
+		if now != _sent_run:
+			_sent_run = now
+			Net.broadcast("run", {"run": now})
+	if _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
+		_zone_send_s += delta
+		if _zone_send_s * float(_tuning.net_zone_send_hz) >= 1.0:
+			_zone_send_s = 0.0
+			Net.broadcast_fast("zone", _zone.net_snapshot())
+
+
+func _is_run_screen(node: Node) -> bool:
+	return node is MapScreen or node is ShopScreen or node is RestScreen or node is LootScreen \
+			or node is PartyScreen or node is RunEndScreen
+
+
+func _gear_ids(gear: Array[GearData]) -> Array:
+	var ids: Array = []
+	for item: GearData in gear:
+		ids.append(item.id)
+	return ids
+
+
+func _gear_from_ids(ids: Array) -> Array[GearData]:
+	var list: Array[GearData] = []
+	if _run_data == null:
+		return list
+	for id: Variant in ids:
+		for item: GearData in _run_data.gear:
+			if item != null and item.id == str(id):
+				list.append(item)
+	return list
+
+
+func _zone_by_id(id: String) -> ZoneData:
+	if _run_data != null:
+		for zone: ZoneData in _run_data.zones:
+			if zone != null and zone.id == id:
+				return zone
+	return null
+
+
+## "The host is choosing" over the run screens a client watches.
+func _build_watch_layer() -> void:
+	_watch_layer = CanvasLayer.new()
+	_watch_layer.name = "Watching"
+	_watch_layer.layer = 12
+	_watch_layer.visible = false
+	add_child(_watch_layer)
+	# Top-left: the run screens keep their titles centred and their party bars in the middle.
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", HudStyle.panel())
+	box.position = Vector2(WATCH_MARGIN_PX, WATCH_MARGIN_PX)
+	_watch_layer.add_child(box)
+	box.add_child(HudStyle.make_label("The host is choosing (P1)", WATCH_TEXT_SIZE, HudStyle.player_color(0)))
+
+
+## Autoplay client (--leave-after=S): leaves the game mid-run, as a player quitting would.
+func _autoplay_leave_later() -> void:
+	await get_tree().create_timer(float(_options.leave_after_s)).timeout
+	print("AUTOPLAY_LEFT after %d s" % _options.leave_after_s)
+	_client_done = true
+	Net.leave()
+	_quit_game()
+
+
+## Autoplay host (--host=N): everyone is in, start.
+func _autoplay_start_online() -> void:
+	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+	if _screen is LobbyScreen:
+		_on_online_started((_screen as LobbyScreen).roster())
 
 
 # --- autoplay ---------------------------------------------------------------------------------

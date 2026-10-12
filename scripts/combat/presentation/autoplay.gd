@@ -8,7 +8,8 @@ extends Node
 ## - miss: never presses;
 ## - mash: random presses about every MASH_INTERVAL_MS.
 ## In co-op (--players=N) each player presses for their own heroes with their own device, so the
-## per-player judging is played through too; mash presses as a random player.
+## per-player judging is played through too; mash presses as a random player. Online it presses
+## only for this machine's player.
 ## Menu choices: the team ultimate when ready, Revive when someone is down, otherwise the usable
 ## class skills in turn, otherwise the basic attack; ally skills go to the most hurt ally.
 ## At the end it prints exactly one "AUTOPLAY_RESULT victory|defeat" line and one
@@ -189,7 +190,7 @@ func _press_perfectly() -> void:
 		_pressed.clear()
 	var t := _skill_runner.attack_time_us() if skill else _runner.attack_time_us()
 	var latency := _skill_runner.latency_us() if skill else _runner.latency_us()
-	for player: int in _roster.player_count():
+	for player: int in _roster.local_players():
 		for hit: Dictionary in sequence.hits:
 			var hit_index := int(hit.index)
 			var key := "%d:%d" % [hit_index, player]
@@ -219,7 +220,10 @@ func _mash() -> void:
 	if now < _next_mash_us:
 		return
 	_next_mash_us = now + (MASH_INTERVAL_MS + _rng.randi_range(-MASH_JITTER_MS, MASH_JITTER_MS)) * 1000
-	var player := _rng.randi_range(0, _roster.player_count() - 1)
+	var players := _roster.local_players()
+	if players.is_empty():
+		return
+	var player := players[_rng.randi_range(0, players.size() - 1)]
 	_input.inject_press(MASH_ACTIONS[_rng.randi_range(0, MASH_ACTIONS.size() - 1)], _roster.device_of_player(player))
 
 

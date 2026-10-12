@@ -9,6 +9,10 @@ extends RefCounted
 ##
 ## Device codes: a joypad's Godot device id (0 and up), KEYBOARD for any keyboard or mouse, ANY for
 ## presses made by code (the autoplay bot in solo).
+##
+## Online (DESIGN.md 9.2) every player is one machine (a network peer; the host is peer 1). Each
+## machine has its own copy of the roster with `local_peer` set to itself: any device on that
+## machine controls its own player, and only its own player.
 
 const KEYBOARD: int = -2
 const ANY: int = -1
@@ -18,6 +22,10 @@ const MAX_PLAYERS: int = 3
 var devices: Array[int] = []
 ## Hero slot -> player index.
 var owners: Array[int] = []
+## Online: player index -> network peer id (empty in a local game).
+var peers: Array[int] = []
+## Online: the peer id of this machine.
+var local_peer: int = 0
 
 
 ## One player owning every hero. `device` is the one that started it (any device still works).
@@ -29,12 +37,70 @@ static func solo(hero_count: int, device: int = KEYBOARD) -> PlayerRoster:
 	return roster
 
 
+## An online roster with the host (peer `host_peer`) alone. `local_peer` is this machine.
+static func online(hero_count: int, host_peer: int, p_local_peer: int) -> PlayerRoster:
+	var roster := PlayerRoster.solo(hero_count, ANY)
+	roster.peers = [host_peer]
+	roster.local_peer = p_local_peer
+	return roster
+
+
 ## A copy (the lobby edits a copy, so Back leaves the old one alone).
 func copy() -> PlayerRoster:
 	var roster := PlayerRoster.new()
 	roster.devices = devices.duplicate()
 	roster.owners = owners.duplicate()
+	roster.peers = peers.duplicate()
+	roster.local_peer = local_peer
 	return roster
+
+
+## The roster as plain data, to send over the network (local_peer is not sent: it is per machine).
+func to_dict() -> Dictionary:
+	return {"devices": Array(devices), "owners": Array(owners), "peers": Array(peers)}
+
+
+## A roster from to_dict() data, seen from machine `p_local_peer`. Null if the data is malformed.
+static func from_dict(d: Dictionary, p_local_peer: int) -> PlayerRoster:
+	var roster := PlayerRoster.new()
+	for key: String in ["devices", "owners", "peers"]:
+		if not d.get(key) is Array:
+			return null
+		for v: Variant in d[key]:
+			if typeof(v) != TYPE_INT:
+				return null
+	roster.devices.assign(d.devices)
+	roster.owners.assign(d.owners)
+	roster.peers.assign(d.peers)
+	roster.local_peer = p_local_peer
+	if not roster.validate().is_empty():
+		return null
+	return roster
+
+
+## True in an online game.
+func is_online() -> bool:
+	return not peers.is_empty()
+
+
+## The player of network peer `peer` (-1 if none).
+func player_of_peer(peer: int) -> int:
+	return peers.find(peer)
+
+
+## The players on this machine: all of them in a local game, this machine's one online.
+func local_players() -> Array[int]:
+	var list: Array[int] = []
+	if not is_online():
+		for i: int in devices.size():
+			list.append(i)
+	elif peers.has(local_peer):
+		list.append(peers.find(local_peer))
+	return list
+
+
+func is_local(player: int) -> bool:
+	return local_players().has(player)
 
 
 func player_count() -> int:
@@ -50,10 +116,13 @@ func is_coop() -> bool:
 	return devices.size() > 1
 
 
-## The player using this device: always 0 in solo; in co-op the player who joined with it, or -1.
+## The player using this device: always 0 in solo; in local co-op the player who joined with it,
+## or -1; online this machine's player, whatever the device.
 func player_of_device(device: int) -> int:
 	if not is_coop():
 		return 0
+	if is_online():
+		return peers.find(local_peer)
 	return devices.find(device)
 
 
@@ -91,12 +160,40 @@ func join(device: int) -> int:
 	return devices.size() - 1
 
 
+## Online: a new player for network peer `peer` (see join()).
+func join_peer(peer: int) -> int:
+	if peers.has(peer) or devices.size() >= MAX_PLAYERS:
+		return -1
+	devices.append(ANY)
+	peers.append(peer)
+	split_evenly()
+	return devices.size() - 1
+
+
 ## Removes player `player` (never the last one). Later players move up; the heroes are split again.
 func leave(player: int) -> bool:
 	if player < 0 or player >= devices.size() or devices.size() <= 1:
 		return false
 	devices.remove_at(player)
+	if player < peers.size():
+		peers.remove_at(player)
 	split_evenly()
+	return true
+
+
+## Online, mid-run: peer `peer` dropped out. Their heroes go to player 1 (the host) and later
+## players move up; the other heroes keep their players. False if the peer is not in the game.
+func drop_peer(peer: int) -> bool:
+	var player := peers.find(peer)
+	if player <= 0:
+		return false
+	devices.remove_at(player)
+	peers.remove_at(player)
+	for slot: int in owners.size():
+		if owners[slot] == player:
+			owners[slot] = 0
+		elif owners[slot] > player:
+			owners[slot] -= 1
 	return true
 
 
@@ -124,9 +221,16 @@ func validate() -> Array[String]:
 	var problems: Array[String] = []
 	if devices.is_empty() or devices.size() > MAX_PLAYERS:
 		problems.append("1 to %d players needed (has %d)" % [MAX_PLAYERS, devices.size()])
-	for i: int in devices.size():
-		if devices.find(devices[i]) != i:
-			problems.append("device %d is used by two players" % devices[i])
+	if is_online():
+		if peers.size() != devices.size():
+			problems.append("every online player needs a peer")
+		for i: int in peers.size():
+			if peers.find(peers[i]) != i:
+				problems.append("peer %d is two players" % peers[i])
+	else:
+		for i: int in devices.size():
+			if devices.find(devices[i]) != i:
+				problems.append("device %d is used by two players" % devices[i])
 	for slot: int in owners.size():
 		if owners[slot] < 0 or owners[slot] >= devices.size():
 			problems.append("hero %d has no player" % slot)

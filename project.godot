@@ -21,6 +21,7 @@ config/icon="res://icon.svg"
 
 Audio="*res://scripts/autoload/audio.gd"
 UserSettings="*res://scripts/autoload/user_settings.gd"
+Net="*res://scripts/autoload/net.gd"
 
 [display]
 

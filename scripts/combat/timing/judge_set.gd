@@ -27,13 +27,16 @@ func _init(whiff_lockout_ms: int, latency_compensation_ms: int, reach_back_max_m
 
 
 ## Loads a sequence's prompts. `owners` maps a character id to its player; characters not in it
-## belong to player 0 (solo passes {}).
-func set_prompts(prompts: Array, owners: Dictionary) -> void:
+## belong to player 0 (solo passes {}). Online, `only_players` lists this machine's players: the
+## other players' prompts are judged on their own machines and left out here (empty = all).
+func set_prompts(prompts: Array, owners: Dictionary, only_players: Array[int] = []) -> void:
 	_judges.clear()
 	_player_of_prompt.clear()
 	var by_player: Dictionary = {}
 	for p: Dictionary in prompts:
 		var player := int(owners.get(int(p.character), 0))
+		if not only_players.is_empty() and not only_players.has(player):
+			continue
 		_player_of_prompt[int(p.idx)] = player
 		if not by_player.has(player):
 			by_player[player] = []
@@ -52,7 +55,7 @@ func players() -> Array[int]:
 	return list
 
 
-## The player who answers prompt `idx` (-1 if unknown).
+## The player who answers prompt `idx` here (-1 if unknown, or judged on another machine).
 func player_of_prompt(idx: int) -> int:
 	return int(_player_of_prompt.get(idx, -1))
 

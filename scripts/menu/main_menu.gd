@@ -1,16 +1,18 @@
 class_name MainMenu
 extends CanvasLayer
-## The first screen (DESIGN.md 7.5): start a run, practice (the fight and zone list), settings,
-## quit. Up/down picks, confirm opens it.
+## The first screen (DESIGN.md 7.5): start a run, host or join an online run (DESIGN.md 9.2),
+## practice (the fight and zone list), settings, quit. Up/down picks, confirm opens it.
 
-## One of NEW_RUN, PRACTICE, SETTINGS, QUIT.
+## One of ITEMS.
 signal chosen(item: StringName)
 
 const NEW_RUN := &"new_run"
+const HOST_ONLINE := &"host_online"
+const JOIN_ONLINE := &"join_online"
 const PRACTICE := &"practice"
 const SETTINGS := &"settings"
 const QUIT := &"quit"
-const ITEMS: Array[StringName] = [NEW_RUN, PRACTICE, SETTINGS, QUIT]
+const ITEMS: Array[StringName] = [NEW_RUN, HOST_ONLINE, JOIN_ONLINE, PRACTICE, SETTINGS, QUIT]
 const TITLE_SIZE: int = 96
 const SUBTITLE_SIZE: int = 30
 const DETAIL_SIZE: int = 26
@@ -19,10 +21,13 @@ const HINT_SIZE: int = 24
 var _menu: ListMenu
 
 
-## `start_item` is selected first (the last thing picked when coming back).
-func setup(start_item: StringName = NEW_RUN) -> void:
+## `start_item` is selected first (the last thing picked when coming back). `notice` says why
+## the player is back here (an online game ended), if anything.
+func setup(start_item: StringName = NEW_RUN, notice: String = "") -> void:
 	var column := ListMenu.screen_column(self, "Rotten Lands", TITLE_SIZE)
 	column.add_child(ListMenu.centred_label("a short run through the rot", SUBTITLE_SIZE, HudStyle.TEXT_DIM))
+	if not notice.is_empty():
+		column.add_child(ListMenu.centred_label(notice, DETAIL_SIZE, HudStyle.LATE))
 	column.add_child(Control.new())
 	_menu = ListMenu.new()
 	column.add_child(_menu)
@@ -32,6 +37,8 @@ func setup(start_item: StringName = NEW_RUN) -> void:
 			HINT_SIZE, HudStyle.TEXT_DIM))
 	var items: Array[Dictionary] = [
 		{"text": "New Run", "detail": "About 8 stops: zones, shops and rests, then the final fight."},
+		{"text": "Host Online", "detail": "Start a run friends can join from their own PCs."},
+		{"text": "Join Online", "detail": "Join a friend's run: type the address their screen shows."},
 		{"text": "Practice", "detail": "Any fight or zone on its own, at full HP."},
 		{"text": "Settings", "detail": "Volume, fullscreen, training ring, lag calibration, controls."},
 		{"text": "Quit", "detail": ""},
