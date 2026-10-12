@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_q7n5k"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_7rdkj"]
+
+[sub_resource type="Resource" id="Resource_8bw04"]
+script = ExtResource("1_q7n5k")
+impact_ms = 900
+damage_percent = 40
+approach_ms = 180
+
+[sub_resource type="Resource" id="Resource_2s8jr"]
+script = ExtResource("1_q7n5k")
+impact_ms = 1200
+damage_percent = 40
+approach_ms = 180
+
+[sub_resource type="Resource" id="Resource_bqy3h"]
+script = ExtResource("1_q7n5k")
+impact_ms = 1500
+damage_percent = 40
+approach_ms = 180
+
+[resource]
+script = ExtResource("2_7rdkj")
+id = "king_crown_sweep"
+display_name = "Crown Sweep"
+target_mode = 1
+weight = 2
+hits = Array[ExtResource("1_q7n5k")]([SubResource("Resource_8bw04"), SubResource("Resource_2s8jr"), SubResource("Resource_bqy3h")])

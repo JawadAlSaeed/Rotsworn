@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_3hon0"]
+
+[resource]
+script = ExtResource("1_3hon0")
+id = "menders_charm"
+display_name = "Mender's Charm"
+description = "Heals you give are 30% stronger."
+price = 50
+effect = 11
+amount = 30

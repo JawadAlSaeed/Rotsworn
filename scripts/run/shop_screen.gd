@@ -1,7 +1,8 @@
 class_name ShopScreen
 extends CanvasLayer
-## A shop stop (DESIGN.md 8): every item in the run's shop list, each once per visit, paid with
-## gold. An item for one character asks who gets it. "Leave" goes back to the map.
+## A shop stop (DESIGN.md 8): every care item in the run's shop list, then a few pieces of gear
+## (picked for this stop, ones the party does not own), each once per visit, paid with gold. A
+## care item for one character asks who gets it; gear goes to the bag. "Leave" goes back to the map.
 
 signal done
 
@@ -11,6 +12,7 @@ const DETAIL_SIZE: int = 26
 const HINT_SIZE: int = 24
 
 var _run: RunState
+var _gear: Array[GearData] = []
 var _bar: RunPartyBar
 var _menu: ListMenu
 var _prompt: Label
@@ -19,8 +21,10 @@ var _picking: int = -1
 var _bought: Dictionary = {}
 
 
-func setup(run: RunState) -> void:
+## `gear`: the gear this shop sells (RunState.shop_gear for the stop).
+func setup(run: RunState, gear: Array[GearData]) -> void:
 	_run = run
+	_gear = gear
 	var column := ListMenu.screen_column(self, "Shop", TITLE_SIZE)
 	var centre := CenterContainer.new()
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -40,22 +44,49 @@ func setup(run: RunState) -> void:
 	_show_items()
 
 
+## Care items (healing, tonics), in the shop's list order.
 func items() -> Array[ShopItemData]:
 	return _run.data.shop_items
 
 
-## True if item `index` is still for sale and affordable.
+## How many things are for sale: care items, then gear.
+func count() -> int:
+	return items().size() + _gear.size()
+
+
+## The name, price and description of thing `index`.
+func _info(index: int) -> Array:
+	if index < items().size():
+		var item := items()[index]
+		return [item.display_name, item.price, item.description]
+	var gear := _gear[index - items().size()]
+	return ["%s (gear)" % gear.display_name, gear.price, gear.description]
+
+
+func _needs_target(index: int) -> bool:
+	return index < items().size() and items()[index].needs_target()
+
+
+## True if thing `index` is still for sale and affordable.
 func can_buy(index: int) -> bool:
-	return index >= 0 and index < items().size() and not _bought.has(index) and _run.gold >= items()[index].price
+	if index < 0 or index >= count() or _bought.has(index):
+		return false
+	if index < items().size():
+		return _run.gold >= items()[index].price
+	return _run.can_buy_gear(_gear[index - items().size()])
 
 
-## Buys item `index` for `slot` (the bot calls this; the player uses the menus).
+## Buys thing `index` (for character `slot` if it needs one). The bot calls this; the player
+## uses the menus.
 func buy(index: int, slot: int) -> bool:
-	if not can_buy(index) or not _run.buy(items()[index], slot):
+	var ok := can_buy(index)
+	if ok:
+		ok = _run.buy(items()[index], slot) if index < items().size() else _run.buy_gear(_gear[index - items().size()])
+	if not ok:
 		Sfx.play("locked")
 		return false
 	_bought[index] = true
-	Sfx.play("heal")
+	Sfx.play("heal" if index < items().size() else "buff")
 	_bar.refresh(_run)
 	_show_items()
 	return true
@@ -77,19 +108,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	if answer != &"confirm":
 		return
 	if _picking >= 0:
-		var index := _picking
-		buy(index, _menu.index)
+		buy(_picking, _menu.index)
 		_show_items()
 		return
-	if _menu.index >= items().size():
+	if _menu.index >= count():
 		Sfx.play("menu_confirm")
 		leave()
 		return
 	if not can_buy(_menu.index):
 		Sfx.play("locked")
 		return
-	var item := items()[_menu.index]
-	if item.needs_target():
+	if _needs_target(_menu.index):
 		Sfx.play("menu_confirm")
 		_show_targets(_menu.index)
 	else:
@@ -101,12 +130,12 @@ func _show_items() -> void:
 	_picking = -1
 	_prompt.text = "What do you need?"
 	var list: Array[Dictionary] = []
-	for i: int in items().size():
-		var item := items()[i]
-		var text := "%s   %d gold" % [item.display_name, item.price]
+	for i: int in count():
+		var info := _info(i)
+		var text := "%s   %d gold" % [info[0], info[1]]
 		if _bought.has(i):
-			text = "%s   SOLD" % item.display_name
-		list.append({"text": text, "enabled": can_buy(i), "detail": item.description})
+			text = "%s   SOLD" % info[0]
+		list.append({"text": text, "enabled": can_buy(i), "detail": info[2]})
 	list.append({"text": "Leave", "detail": "Back to the map."})
 	_menu.index = keep
 	_menu.set_items(list)
@@ -114,10 +143,11 @@ func _show_items() -> void:
 
 func _show_targets(index: int) -> void:
 	_picking = index
-	_prompt.text = "Who gets the %s?" % items()[index].display_name
+	var item := items()[index]
+	_prompt.text = "Who gets the %s?" % item.display_name
 	var list: Array[Dictionary] = []
 	for slot: int in _run.party_size():
 		list.append({"text": "%s   %d / %d HP" % [_run.data.party[slot].display_name, _run.hp[slot], _run.max_hp(slot)],
-				"detail": items()[index].description})
+				"detail": item.description})
 	_menu.index = 0
 	_menu.set_items(list)

@@ -24,6 +24,12 @@ var opening: Opening = Opening.NORMAL
 var party_max_hp_percent: Array[int] = []
 ## HP at the start of the fight (-1 or missing = full; kept within 1 .. max HP).
 var party_start_hp: Array[int] = []
+## Power in percent of the character's normal power (levels, gear; 100 = unchanged).
+var party_power_percent: Array[int] = []
+## Speed added to the character's own (gear).
+var party_speed_bonus: Array[int] = []
+## Gear passives per slot (Passive keys -> amount).
+var party_passives: Array[Dictionary] = []
 
 
 static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: int,
@@ -43,6 +49,20 @@ static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: i
 func party_max_hp(slot: int, data: CharacterData) -> int:
 	var pct := party_max_hp_percent[slot] if slot < party_max_hp_percent.size() else 100
 	return scaled_max_hp(tuning, data, pct)
+
+
+## Power of party member `slot` in this fight: the character's own power, scaled by the run.
+func party_power(slot: int, data: CharacterData) -> int:
+	var pct := party_power_percent[slot] if slot < party_power_percent.size() else 100
+	return CombatMath.percent_min1(CombatMath.percent_min1(tuning.base_party_damage, data.power_percent), pct)
+
+
+func party_speed(slot: int, data: CharacterData) -> int:
+	return maxi(1, data.speed + (party_speed_bonus[slot] if slot < party_speed_bonus.size() else 0))
+
+
+func party_passives_of(slot: int) -> Dictionary:
+	return party_passives[slot].duplicate() if slot < party_passives.size() else {}
 
 
 ## A character's max HP with its run percent applied (100 = the character's normal max HP).
@@ -65,9 +85,13 @@ func validate() -> PackedStringArray:
 		problems.append("party must have 1 to 3 characters (has %d)" % party.size())
 	if enemies.is_empty():
 		problems.append("no enemies")
-	for pct: int in party_max_hp_percent:
+	for pct: int in party_max_hp_percent + party_power_percent:
 		if pct < 1:
-			problems.append("party max HP percent must be at least 1 (is %d)" % pct)
+			problems.append("party max HP and power percents must be at least 1 (is %d)" % pct)
+	for passives: Dictionary in party_passives:
+		for key: Variant in passives:
+			if not Passive.ALL.has(String(key)):
+				problems.append("unknown passive '%s'" % String(key))
 	for c: CharacterData in party:
 		if c == null:
 			problems.append("empty party slot")

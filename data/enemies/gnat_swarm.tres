@@ -19,3 +19,4 @@ power_percent = 50
 speed = 160
 attacks = Array[ExtResource("1_gy2t7")]([ExtResource("2_pc4gs"), ExtResource("3_hpkyw"), ExtResource("4_dotlr")])
 gold = 8
+xp = 15

@@ -17,3 +17,5 @@ extends Resource
 @export var final_look: StageLook
 ## What every shop sells (each item once per visit).
 @export var shop_items: Array[ShopItemData] = []
+## Every piece of gear a run can find (as loot after a guard) or buy (in shops).
+@export var gear: Array[GearData] = []

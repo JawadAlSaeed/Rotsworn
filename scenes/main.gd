@@ -41,6 +41,7 @@ var _menu_item: StringName = MainMenu.NEW_RUN
 ## The menu-like screen shown now (main menu, settings, practice list, map, rest, shop, run end).
 var _screen: Node
 var _prompt: ConfirmPrompt
+var _pause: PauseMenu
 var _zone: ZoneController
 var _run_bar: RunPartyBar
 var _transition: ScreenTransition
@@ -136,7 +137,7 @@ func _show_screen(screen: Node) -> void:
 
 
 func _free_screen() -> void:
-	_free_prompt()
+	_free_pause()
 	if _screen != null:
 		_screen.queue_free()
 		_screen = null
@@ -232,6 +233,7 @@ func _start_combat() -> void:
 		_combat.continue_requested.connect(continue_to)
 		if _options.is_autoplay():
 			_combat.combat_finished.connect(_autoplay_continue.bind(continue_to))
+	_combat.pause_reached.connect(_open_pause)
 	_combat.restart_requested.connect(_on_restart_requested)
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
@@ -258,7 +260,6 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone.name = "Zone"
 	_zone.configure(zone, _tuning, _visuals, _explore, _run != null)
 	_zone.encounter_started.connect(_on_encounter_started)
-	_zone.leave_requested.connect(_on_zone_leave_requested)
 	_zone.cleared.connect(_on_zone_cleared)
 	add_child(_zone)
 	if _run != null:
@@ -284,13 +285,6 @@ func _free_zone() -> void:
 		_zone.queue_free()
 		_zone = null
 		_run_bar = null
-
-
-func _on_zone_leave_requested() -> void:
-	if _run != null:
-		_ask_quit_run()
-	else:
-		_show_select.call_deferred()
 
 
 ## The zone started a fight: swirl out, park the zone outside the tree, fade the fight in.
@@ -337,9 +331,9 @@ func _on_zone_return_requested(result: String) -> void:
 		print("AUTOPLAY_RESULT zone_defeat fights=%d first_strikes=%d" % [_zone.fights_started(), _zone.first_strikes()])
 		_autoplay_quit()
 	elif _run != null and _zone.is_cleared():
-		# Let ZONE CLEAR read, then back to the map.
+		# Let ZONE CLEAR read, then the guard's loot.
 		await get_tree().create_timer(float(_explore.zone_title_ms) / 1000.0).timeout
-		_fade_to(_show_map)
+		_fade_to(_show_loot)
 
 
 func _on_zone_cleared() -> void:
@@ -370,7 +364,8 @@ func _show_map() -> void:
 	map.name = "Map"
 	map.setup(_run)
 	map.stop_chosen.connect(_on_stop_chosen)
-	map.quit_requested.connect(_ask_quit_run)
+	map.quit_requested.connect(_open_pause)
+	map.party_requested.connect(_show_party.bind("", true))
 	_show_screen(map)
 	if _options.is_autoplay():
 		_autoplay_map.call_deferred(map)
@@ -424,11 +419,44 @@ func _show_rest() -> void:
 func _show_shop() -> void:
 	var shop := ShopScreen.new()
 	shop.name = "Shop"
-	shop.setup(_run)
+	shop.setup(_run, _run.shop_gear(_run.at))
 	shop.done.connect(_fade_to.bind(_show_map))
 	_show_screen(shop)
 	if _options.is_autoplay():
 		_autoplay_shop.call_deferred(shop)
+
+
+## The guard's loot (DESIGN.md 8): pick one, then the party screen to put it on.
+func _show_loot() -> void:
+	var loot := LootScreen.new()
+	loot.name = "Loot"
+	loot.setup(_run.loot_choices(_run.at))
+	loot.chosen.connect(_on_loot_chosen)
+	_show_screen(loot)
+	if _options.is_autoplay():
+		_autoplay_loot.call_deferred(loot)
+
+
+func _on_loot_chosen(item: GearData) -> void:
+	if item != null and _run.take(item):
+		_show_party.call_deferred("Found: %s. Put it on someone (or keep it in the bag)." % item.display_name, false)
+	else:
+		_fade_to(_show_map)
+
+
+## The party screen: gear and stats. From the map it closes back to the map at once; after loot
+## it fades on to the map.
+func _show_party(note: String, from_map: bool) -> void:
+	var party := PartyScreen.new()
+	party.name = "Party"
+	party.setup(_run, note)
+	if from_map:
+		party.done.connect(_show_map.call_deferred)
+	else:
+		party.done.connect(_fade_to.bind(_show_map))
+	_show_screen(party)
+	if _options.is_autoplay():
+		_autoplay_party.call_deferred(party)
 
 
 func _show_run_end() -> void:
@@ -438,42 +466,113 @@ func _show_run_end() -> void:
 	end.done.connect(_fade_to.bind(_show_main_menu))
 	_show_screen(end)
 	if _options.is_autoplay():
-		print("AUTOPLAY_RESULT run_%s stops=%d fights=%d gold=%d seed=%d" % [_run.result, _run.path.size(),
-				_run.fights_won, _run.gold_earned, _run.run_seed])
+		print("AUTOPLAY_RESULT run_%s stops=%d fights=%d level=%d gear=%d gold=%d seed=%d" % [_run.result, _run.path.size(),
+				_run.fights_won, _run.level, _run.bag.size() + _worn_count(), _run.gold_earned, _run.run_seed])
 		_autoplay_quit()
 
 
-func _ask_quit_run() -> void:
-	if _prompt != null or _busy:
+# --- pause ------------------------------------------------------------------------------------
+
+## Pause (Esc / Menu, DESIGN.md 7.5) over a fight, a zone or the run map. Main reads it before the
+## fight's own input, so Esc never reaches the action menu as "back".
+func _input(event: InputEvent) -> void:
+	if _pause != null or _prompt != null or _busy or not event.is_action_pressed(&"pause", false, true):
 		return
+	if _combat != null and _combat.is_inside_tree():
+		# A fight pauses between moves; it calls back with pause_reached.
+		if _combat.request_pause():
+			get_viewport().set_input_as_handled()
+	elif _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
+		get_viewport().set_input_as_handled()
+		_open_pause()
+	elif _screen is MapScreen:
+		get_viewport().set_input_as_handled()
+		_open_pause()
+
+
+func _open_pause() -> void:
+	if _pause != null:
+		return
+	_hold_behind_overlay(true)
+	_pause = PauseMenu.new()
+	_pause.name = "Pause"
+	if _run != null:
+		_pause.setup("Abandon run", "The run is lost. Back to the main menu.")
+	else:
+		_pause.setup("Leave", "Back to the practice list.")
+	_pause.resumed.connect(_on_pause_resumed)
+	_pause.settings_requested.connect(_on_pause_settings)
+	_pause.leave_requested.connect(_on_pause_leave)
+	add_child(_pause)
+
+
+func _on_pause_resumed() -> void:
+	_free_pause()
+	_hold_behind_overlay(false)
+	if _combat != null and _combat.is_paused():
+		_combat.resume_after_pause()
+
+
+func _on_pause_settings() -> void:
+	_pause.visible = false
+	_pause.process_mode = Node.PROCESS_MODE_DISABLED
+	var settings := SettingsScreen.new()
+	settings.name = "PauseSettings"
+	settings.layer = _pause.layer + 1
+	settings.setup(_tuning, _visuals)
+	settings.closed.connect(_on_pause_settings_closed.bind(settings))
+	add_child(settings)
+
+
+func _on_pause_settings_closed(settings: SettingsScreen) -> void:
+	settings.queue_free()
+	if _pause != null:
+		_pause.visible = true
+		_pause.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+## Abandon the run (asks first) or, in practice, leave for the practice list.
+func _on_pause_leave() -> void:
+	if _run == null:
+		_free_pause()
+		_show_select.call_deferred()
+		return
+	_pause.process_mode = Node.PROCESS_MODE_DISABLED
 	_prompt = ConfirmPrompt.new()
-	_prompt.name = "QuitPrompt"
-	_prompt.setup("Quit this run?", "The run is lost. You go back to the main menu.", "Quit the run", "Keep playing")
-	_prompt.answered.connect(_on_quit_answered)
-	_pause_behind_prompt(true)
+	_prompt.name = "AbandonPrompt"
+	_prompt.setup("Abandon this run?", "The run is lost. You go back to the main menu.", "Abandon run", "Keep playing")
+	_prompt.answered.connect(_on_abandon_answered)
 	add_child(_prompt)
 
 
-func _on_quit_answered(yes: bool) -> void:
-	_free_prompt()
+func _on_abandon_answered(yes: bool) -> void:
+	_prompt.queue_free()
+	_prompt = null
 	if yes:
+		_free_pause()
 		_fade_to(_show_main_menu)
+	elif _pause != null:
+		_pause.process_mode = Node.PROCESS_MODE_INHERIT
 
 
-## Stops the zone or screen under the quit question from moving or reading input.
-func _pause_behind_prompt(paused: bool) -> void:
-	var mode := Node.PROCESS_MODE_DISABLED if paused else Node.PROCESS_MODE_INHERIT
-	if _zone != null:
-		_zone.process_mode = mode
-	if _screen != null:
-		_screen.process_mode = mode
+## Stops (or restarts) the fight, zone or screen under an overlay: no movement, timers or input.
+func _hold_behind_overlay(held: bool) -> void:
+	var mode := Node.PROCESS_MODE_DISABLED if held else Node.PROCESS_MODE_INHERIT
+	for node: Node in [_combat, _zone, _screen]:
+		if node != null:
+			node.process_mode = mode
 
 
-func _free_prompt() -> void:
+func _free_pause() -> void:
 	if _prompt != null:
 		_prompt.queue_free()
 		_prompt = null
-		_pause_behind_prompt(false)
+	if _pause != null:
+		_pause.queue_free()
+		_pause = null
+	for child: Node in get_children():
+		if child is SettingsScreen and child != _screen:
+			child.queue_free()
 
 
 # --- autoplay ---------------------------------------------------------------------------------
@@ -525,17 +624,44 @@ func _autoplay_shop(shop: ShopScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(shop):
 		return
-	for i: int in shop.items().size():
+	for i: int in shop.count():
 		if shop.can_buy(i):
 			var slot := 0
 			for s: int in _run.party_size():
 				if _run.hp[s] * _run.max_hp(slot) < _run.hp[slot] * _run.max_hp(s):
 					slot = s
 			shop.buy(i, slot)
-	print("Run shop: gold left %d" % _run.gold)
+	print("Run shop: gold left %d, bag %d" % [_run.gold, _run.bag.size()])
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if is_instance_valid(shop):
 		shop.leave()
+
+
+## Autoplay after a guard: takes the first item.
+func _autoplay_loot(loot: LootScreen) -> void:
+	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+	if is_instance_valid(loot):
+		loot.take(0)
+
+
+## Autoplay on the party screen: puts every bag item on whoever has the most free slots.
+func _autoplay_party(party: PartyScreen) -> void:
+	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+	if not is_instance_valid(party) or _run == null:
+		return
+	for item: GearData in _run.bag.duplicate():
+		var best := -1
+		var free := 0
+		for slot: int in _run.party_size():
+			var empty := _run.gear[slot].count(null)
+			if empty > free:
+				best = slot
+				free = empty
+		if best >= 0:
+			_run.equip(best, _run.free_gear_slot(best), item)
+			print("Run gear: %s on %s" % [item.id, _run.data.party[best].id])
+	if is_instance_valid(party):
+		party.done.emit()
 
 
 func _autoplay_fail(reason: String) -> void:
@@ -556,3 +682,11 @@ func _quit_game() -> void:
 	Sfx.stop_all()
 	await get_tree().create_timer(QUIT_AUDIO_RELEASE_S, true, false, true).timeout
 	get_tree().quit(0)
+
+
+## Gear the party wears (autoplay result line).
+func _worn_count() -> int:
+	var worn := 0
+	for slots: Array in _run.gear:
+		worn += slots.size() - slots.count(null)
+	return worn

@@ -141,6 +141,11 @@ extends Resource
 @export_range(0, 100, 1, "suffix:%") var guard_damage_percent: int = 50
 ## Speed of a Slowed fighter, in percent of its normal speed.
 @export_range(10, 100, 1, "suffix:%") var slow_speed_percent: int = 75
+## A counter grows with the string it answers (card #52): this many points of counter percent
+## for each perfectly defended hit after the first, and this many more when the string mixed
+## parries and jumps. Team counters too.
+@export_range(0, 500, 5, "suffix:%") var counter_per_extra_hit_percent: int = 25
+@export_range(0, 500, 5, "suffix:%") var counter_mixed_bonus_percent: int = 50
 ## Counter damage while Riposte Stance is up, in percent of the normal counter (200 = x2).
 @export_range(100, 1000, 5, "suffix:%") var riposte_counter_percent: int = 200
 
@@ -210,6 +215,18 @@ extends Resource
 @export_range(0, 100, 1, "suffix:%") var run_rest_heal_percent: int = 50
 ## After a won fight, a downed character gets back up with this much HP.
 @export_range(1, 1000) var run_downed_revive_hp: int = 1
+## Levels: the first level up needs this much XP, each next one this much more. The whole party
+## levels together; each level adds these percents to max HP and power (DESIGN.md 8).
+@export_range(1, 100000) var run_xp_first_level: int = 60
+@export_range(0, 100000) var run_xp_level_step: int = 30
+@export_range(1, 99) var run_max_level: int = 10
+@export_range(0, 100, 1, "suffix:%") var run_level_hp_percent: int = 8
+@export_range(0, 100, 1, "suffix:%") var run_level_power_percent: int = 8
+## Gear: a guard's loot offers this many items to pick one from; a shop sells this many.
+@export_range(1, 6) var run_loot_choices: int = 3
+@export_range(0, 6) var run_shop_gear: int = 2
+## Gear slots per character.
+@export_range(1, 6) var run_gear_slots: int = 3
 
 @export_group("Practice and debug")
 ## Phase 1 practice keys: 1-5 force an enemy attack, I = party cannot die,

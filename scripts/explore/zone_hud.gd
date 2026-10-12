@@ -27,8 +27,7 @@ var _banner_tween: Tween
 var _marks: Dictionary = {}
 
 
-## `leave_text` names what Cancel does ("Fight list", "Quit the run").
-func setup(explore: ExploreVisuals, zone_name: String, leave_text: String) -> void:
+func setup(explore: ExploreVisuals, zone_name: String) -> void:
 	_explore = explore
 	layer = 10
 	_root = Control.new()
@@ -58,7 +57,7 @@ func setup(explore: ExploreVisuals, zone_name: String, leave_text: String) -> vo
 	_count.offset_top = MARGIN
 	_root.add_child(_count)
 
-	var hint := HudStyle.make_label(_controls_text(leave_text), HINT_SIZE, HudStyle.TEXT)
+	var hint := HudStyle.make_label(_controls_text(), HINT_SIZE, HudStyle.TEXT)
 	hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	hint.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	hint.offset_left = MARGIN
@@ -131,6 +130,6 @@ func _fade(label: Label, ms: int) -> Tween:
 	return tween
 
 
-static func _controls_text(leave_text: String) -> String:
-	return "Move   WASD / arrows / left stick\nStrike   %s\nHit an enemy before it touches you: FIRST STRIKE\n%s   %s" % [
-			HudStyle.binding_text(&"field_strike"), leave_text, HudStyle.binding_text(&"menu_cancel")]
+static func _controls_text() -> String:
+	return "Move   WASD / arrows / left stick\nStrike   %s\nHit an enemy before it touches you: FIRST STRIKE\nPause   %s" % [
+			HudStyle.binding_text(&"field_strike"), HudStyle.binding_text(&"pause")]

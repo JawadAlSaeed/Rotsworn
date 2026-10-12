@@ -129,7 +129,7 @@ whenever a decision is made or changed.
 
 - `data/` content resources (`.tres`), including `tuning/tuning.tres`,
   `presentation/combat_visuals.tres`, `presentation/explore_visuals.tres`, `looks/`, `zones/`,
-  `runs/` (the run) and `shop/` (shop items)
+  `runs/` (the run), `shop/` (shop items) and `gear/`
 - `assets/` sprites, audio (placeholders until real art arrives)
 - `scripts/data/` resource class scripts
 - `scripts/core/` shared helpers (asset loading)
@@ -140,13 +140,13 @@ whenever a decision is made or changed.
 - `scripts/stage/` building a place from data (environment, blocks, props, lights, vignette) and
   screen transitions
 - `scripts/explore/` zones: walking, roaming enemies, zone HUD, zone bot
-- `scripts/run/` the run: `RunMap` and `RunState` (pure, tested), map, shop, rest and run-end
-  screens, the gold and HP strip
-- `scripts/menu/` main menu, settings, yes/no prompt, the shared `ListMenu`
+- `scripts/run/` the run: `RunMap` and `RunState` (pure, tested), map, shop, rest, loot, party
+  and run-end screens, the gold and HP strip
+- `scripts/menu/` main menu, settings, pause menu, yes/no prompt, the shared `ListMenu`
 - `scripts/autoload/` global singletons (`Audio`, `UserSettings` = `PlayerSettings`, saved per
   machine in `user://settings.cfg`)
 - `scenes/` scenes
 - `tests/unit/` GUT tests
 - `tools/` headless helper scripts (placeholder generation, data bootstrap, `bootstrap_run.gd`
-  for the run, shop and phase 4 zones)
+  for the run, shop, gear, boss and phase 4 zones)
 - `docs/` design docs

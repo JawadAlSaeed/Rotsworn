@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_h7ntn"]
+
+[resource]
+script = ExtResource("1_h7ntn")
+id = "lucky_coin"
+display_name = "Lucky Coin"
+description = "The party earns 25% more gold from fights."
+price = 40
+effect = 12
+amount = 25

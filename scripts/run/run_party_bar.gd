@@ -1,7 +1,7 @@
 class_name RunPartyBar
 extends HBoxContainer
-## The run's status strip (DESIGN.md 8): gold, then every character's HP. Shown on the map, in
-## shops, at rests and in zones. refresh() after anything changes.
+## The run's status strip (DESIGN.md 8): gold and the party level, then every character's HP.
+## Shown on the map, in shops, at rests and in zones. refresh() after anything changes.
 
 const NAME_SIZE: int = 26
 const HP_SIZE: int = 22
@@ -10,7 +10,7 @@ const BAR_WIDTH: float = 200.0
 const BAR_HEIGHT: float = 14.0
 ## HP at or under this percent shows in the low colour.
 const LOW_HP_PERCENT: int = 30
-const GOLD_TEXT := "Gold  %d"
+const GOLD_TEXT := "Gold  %d    Lv %d"
 
 var _gold: Label
 ## Per slot: {hp: Label, bar: ProgressBar}.
@@ -48,7 +48,7 @@ func setup(run: RunState) -> void:
 
 
 func refresh(run: RunState) -> void:
-	_gold.text = GOLD_TEXT % run.gold
+	_gold.text = GOLD_TEXT % [run.gold, run.level]
 	for slot: int in mini(_slots.size(), run.party_size()):
 		var max_hp := run.max_hp(slot)
 		var bar := _slots[slot].bar as ProgressBar

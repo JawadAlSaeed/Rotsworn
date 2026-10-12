@@ -109,6 +109,12 @@ strike, return) takes about 0.55 s.
   1500 HP enemy; card #51 lowered it from 120% when party power went up). It has its own banner ("TEAM COUNTER!"), the attackers keep part of their formation at
   the strike point, and each lands its own slash. A solo counter shows "COUNTER!" over the enemy.
   Both freeze their slashes for the counter hit-stop.
+- **Longer and mixed strings hit harder** (card #52): the counter percent gains
+  `counter_per_extra_hit_percent` (25) for each perfectly defended hit after the first, and
+  `counter_mixed_bonus_percent` (50) when the string mixed parries and jumps. A solo counter
+  counts that character's own hits; a team counter counts the attack's hits. Gear (Riposte
+  Ring) adds its points next; Riposte Stance multiplies last. The text says why:
+  "COUNTER x5!", "TEAM COUNTER x4 MIXED!".
 - Phase 1 note: one player controls all three, so every perfect party-wide defence is a team
   counter. In phase 5, when several humans must sync, the team counter gets stronger again.
 - If only some targets of a party-wide attack were perfect, each of those counters on their own.
@@ -539,7 +545,8 @@ Commands (Dictionary, `type` key; build with `CombatCommands`):
 Events: `combat_started`, `intent`, `turn_started`, `turn_order`, `ability_used`, `damage`,
 `healed`, `revived`, `downed`, `ap_changed`, `status_changed`, `turn_shifted`, `team_gauge`,
 `timed_sequence_declared`, `prompt_resolved`, `prompts_voided`, `sequence_resolved` (boundary:
-all prompts done, counters follow), `counter`, `turn_ended`, `practice_changed`, `combat_ended`,
+all prompts done, counters follow), `counter`, `enemy_phase` (a boss's phase two), `turn_ended`,
+`practice_changed`, `combat_ended`,
 `command_rejected`. Every event that changes HP, AP or the gauge carries the value after the
 change. Full field lists are at the top of `combat_engine.gd`.
 
@@ -612,11 +619,12 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | `ZoneBlockData` / `ZonePropData` / `ZoneLightData` / `ZoneEnemyData` | inside zones and looks | a textured box; a lit sprite (solid radius, glow); a point light (flicker); a roaming enemy (encounter, spot, wander radius, guard flag) |
 | `CharacterData` | `data/characters/` | id, name, colour, sprite paths, hp/power %, speed, abilities |
 | `AbilityData` | `data/abilities/` | id, name, targeting, AP cost, press times, follow-ups, damage % and press bonus, Payback and Exposed bonuses, landing effects (AP gain/give, heal, revive, turn delay/hasten, status) each with a press bonus, team ultimate flag, sound |
-| `EnemyData` | `data/enemies/` | id, name, sprite paths, hp/power %, speed, attacks, gold (paid in a run) |
+| `EnemyData` | `data/enemies/` | id, name, sprite paths, hp/power %, speed, attacks, gold and xp (paid in a run), phase two (HP %, attacks, speed, banner text: bosses) |
+| `GearData` | `data/gear/` | id, name, description, shop price, one effect and its amount |
 | `EnemyAttackData` | `data/enemy_attacks/` | id, name, target mode, weight, alert cue, ring allowed, hits |
 | `AttackHitData` | inside attacks | impact ms, kind (normal/ground), damage %, approach ms, feint |
-| `EncounterData` | `data/encounters/` | enemy list, party list and team ultimate (practice fights; a run uses its own party and ultimate) |
-| `RunData` | `data/runs/` | a kind of run: party, team ultimate, the zones a zone stop picks from, the final fight and its look, the shop's items |
+| `EncounterData` | `data/encounters/` | enemy list, party list and team ultimate (practice fights; a run uses its own party and ultimate), boss flag |
+| `RunData` | `data/runs/` | a kind of run: party, team ultimate, the zones a zone stop picks from, the final fight and its look, the shop's items, the gear pool |
 | `ShopItemData` | `data/shop/` | id, name, description, price, effect (heal one, heal all, max HP up for one), amount in percent |
 | `SfxLibrary` / `SfxCue` | `data/audio/sfx_library.tres` | sound cue name -> file path, volume, pitch jitter |
 
@@ -671,14 +679,18 @@ which phase 5 uses to assign devices to players.
 | `skill_press` | Space, E | A, RB |
 | `menu_up/down/left/right` | Arrow keys, WASD | D-pad, left stick |
 | `menu_confirm` | Enter, E | A |
-| `menu_cancel` | Escape, Q, Backspace | B |
+| `menu_cancel` | Backspace, Q, Escape | B |
+| `pause` | Escape | Menu |
+| `party_menu` (run map) | Tab | Y |
 | `debug_overlay` | F1 | View |
 | `move_up/down/left/right` (zone) | WASD, arrow keys | D-pad, left stick |
 | `field_strike` (zone) | Space, J | X |
 
-Outside fights every screen (main menu, settings, practice list, map, shop, rest) uses the
-`menu_*` actions: up/down pick, left/right change a setting or pick on the map, Confirm selects,
-Cancel goes back (on the map and in a run's zone it asks "Quit this run?").
+Outside fights every screen (main menu, settings, practice list, map, shop, rest, party, loot)
+uses the `menu_*` actions: up/down pick, left/right change a setting or pick on the map, Confirm
+selects, Cancel goes back. **Pause** (Esc / Menu) works in fights, zones and on the run map
+(7.5); Main reads it before anything else, so in a fight Esc never acts as "back" in the action
+menu (Backspace, Q or B do). B no longer leaves a zone.
 
 Phase 1 practice keys (keyboard only, when `practice_tools_enabled`): 1 to 5 force the enemy's
 next attack, I toggles "party cannot die", O toggles "enemy cannot die", R restarts the fight,
@@ -807,6 +819,13 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
   plus a read-only list of the controls (changing keys comes later). Saved per machine at once
   (`PlayerSettings`, `user://settings.cfg`); volume and fullscreen are applied at start-up.
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions only.
+- **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
+  run map (B on the map too). Continue, Settings, and "Abandon run" (asks first, then the main
+  menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
+  under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
+  only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
+  presses) and cannot stop, so a pause asked for mid-move shows "PAUSING AFTER THIS MOVE" and
+  opens when it ends (`CombatController.request_pause`, `pause_reached`).
 
 ---
 
@@ -864,11 +883,47 @@ equipped by one character. No progression between runs in v1.
   Feast (40, heal all 30%), Tonic (45, one character +15% max HP for the run, the new HP filled).
   Items for one character ask who gets it. (No revive: nobody stays down between fights.)
 - **Run end:** RUN CLEARED or RUN OVER with stops reached, fights won and gold earned, then the
-  main menu. Esc on the map or in a zone asks "Quit this run?" (the run is lost).
+  main menu. The pause menu's "Abandon run" quits a run (it asks first; the run is lost).
 - **New zones** (`tools/bootstrap_run.gd` writes them, with their looks, the run, the shop and the
   new encounters, only if missing): Sunken Bog (green fog, muck tiles, glowing fungus; guard Rotten
   Husk and Gnat Swarm) and Ashen Ruins (cold moonlight, ash tiles, colonnades; guard Shade and Gnat
   Swarm). Rotten Hollow's guard is the Bloat and Gnat Swarm at its north end.
+
+**Part B picks (user, 2026-10-12):** loot is "pick 1 of 3 after each guard, shops sell 2 pieces";
+the boss is one big enemy with two phases. Also asked for: the pause menu (7.5) and stronger
+counters for longer and mixed strings (2.5, card #52).
+
+**Part B as built:**
+
+- **Levels** (#30): the whole party shares one level (`RunState.level`, `xp`). Each enemy has `xp`
+  (Husk 30, Bloat 40, Shade 40, Gnat Swarm 15, boss 0). Level 2 needs `run_xp_first_level` (60),
+  each next one `run_xp_level_step` (30) more, up to `run_max_level` (10). Each level adds
+  `run_level_hp_percent` (8) to max HP and `run_level_power_percent` (8) to power, and heals what
+  max HP grew. The fight's end screen shows "+N gold   +M XP   LEVEL UP!  Level L"; the status
+  strip shows "Lv L".
+- **Gear** (#29, `GearData`, `data/gear/`): one passive per item, `run_gear_slots` (3) per
+  character, one wearer per item, unworn gear in the shared bag. 13 items: Iron Charm (max HP
+  +20%), Whetstone (power +15%), Quick Boots (speed +15), War Drum (+1 AP at fight start),
+  Riposte Ring (counters +50%), Echo Charm (+1 AP after each counter), Leaping Heart (perfect jump
+  heals 5%), Second Wind (once per fight, downed during an enemy attack: back up when it ends with
+  30%), Keen Eye (perfect skill press +25%), Rot Hunter (Exposed +50%), Thick Hide (enemy hits
+  -15%), Mender's Charm (heals +30%), Lucky Coin (gold +25%). Stats (max HP, power, speed) are
+  folded into the fight setup by `RunState`; the rest are `Passive` keys the engine applies
+  (`CombatSetup.party_passives`, `Combatant.passives`). Putting gear on never heals (no free
+  heal by swapping); taking it off cuts HP to the lower max.
+- **Loot** (#28): after a zone's guard, ZONE CLEAR, then "Spoils": pick 1 of `run_loot_choices`
+  (3) items the party does not own (seeded per stop), then the party screen to put it on. Shops
+  also sell `run_shop_gear` (2) such items at their price, after the care items.
+- **Party screen** (`PartyScreen`, Tab / Y on the map, and after loot): the level and XP, each
+  character's HP, power, speed and 3 slots, the bag. Left/right character, up/down slot,
+  Confirm: put on / swap / take off.
+- **Boss** (#31): The Hollow King (`hollow_king`, encounter flagged `boss`, its own red look
+  "hollow_throne"), 350% HP, 120% power, speed 140. Phase one: Cleave, Crown Sweep, Grave Stomp,
+  Rot Cascade (5 hits, parries and jumps). At 50% HP (`EnemyData.phase_two_hp_percent`) it enters
+  phase two once: speed 175, attacks Cleave, Rot Cascade, Kingsfall (6 hits party-wide, mixed),
+  False Crown (with a feint) and Hollow Wave; the banner says "THE HOLLOW KING RAGES!" and it picks
+  a new intent at once. Its name is announced when the fight starts. It replaced "The Last Gate"
+  as the run's final fight.
 
 ---
 
@@ -933,10 +988,19 @@ equipped by one character. No progression between runs in v1.
   never above max; defeat and the final win end the run; rest and every shop item follow the
   rules; a fight starts with the run's HP and max HP (engine and run agree); the shipped run is
   complete (one guard per zone, a valid final fight) and every enemy pays gold.
+- Part B (`test_part_b.gd`): counters grow per extra hit and for mixed strings; every gear
+  passive in a fight (start AP, AP after a counter, heal on a perfect jump, tough, Second Wind once
+  after the attack, perfect press and Exposed in skill damage, stronger heals); run power, speed and
+  max HP reach the engine; unknown passives are refused; the boss enters phase two once (new
+  attacks, speed, intent); levels (thresholds, max level, stat growth, heal on level up); a
+  victory pays XP; loot and shop gear are seeded and never offer owned gear; equip, swap, take
+  off (no free heal, HP clamped); gear reaches the fight setup and the gold bonus; the shipped gear
+  and boss are complete. The event-fields test also covers `enemy_phase`.
 - Run smoke test: `--autoplay --run --quit-on-end` (add `--seed=N` for a fixed map). The bot
   picks a shop when it has gold, a rest when someone is at or under 60% HP, else a zone; in zones
-  it walks to the guard; in shops it buys what it can for whoever is lowest. Ends with
-  `AUTOPLAY_RESULT run_victory|run_defeat stops=N fights=N gold=N seed=N`.
+  it walks to the guard; in shops it buys what it can for whoever is lowest; it takes the first
+  loot and puts every bag item on whoever has the most free slots. Ends with
+  `AUTOPLAY_RESULT run_victory|run_defeat stops=N fights=N level=N gear=N gold=N seed=N`.
 - Phase 2 (`test_skills.gd` and additions elsewhere): press prompts and press damage, follow-ups
   (declared per ally, voided after missed presses, gauge), the team ultimate (gauge check, all
   strike, revive), revive and heal and AP gifts, Exposed / Guard / Taunt / Slow / Riposte /
@@ -956,8 +1020,9 @@ equipped by one character. No progression between runs in v1.
    distinct attack patterns, fight select.
 3. **HD-2D look** (done): one explorable zone, roaming enemies, fight transition, first
    strike, combat camera, post-processing (7.3, 7.4, 2.12).
-4. **Run structure** (in progress): Part A built (main menu and settings, map, zone/rest/shop
-   stops, HP carry-over, gold; 8, 7.5); Part B next: loot, equipment, levels, boss.
+4. **Run structure** (built, waiting for playtest): Part A (main menu and settings, map,
+   zone/rest/shop stops, HP carry-over, gold) and Part B (levels, gear, loot, boss, pause menu,
+   stronger counters); 8, 7.5, 2.5.
 5. Co-op: local multi-device first, then online.
 6. Polish: UI, feedback effects, audio pass, balance.
 
@@ -1047,6 +1112,10 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | Shop has no revive | a victory always gets the downed back up, so nobody is down between fights |
 | 2026-10-12 | Map: first row zones, rest row before the final fight, no shop/rest twice in a row | a run opens with exploring and lets the party heal before the end, like Slay the Spire |
 | 2026-10-12 | Run fights have no "fight again" (R) | HP and gold carry on; a retry would undo a loss |
+| 2026-10-12 | Part B: loot = pick 1 of 3 after each guard + 2 gear in shops; boss with two phases | user picks "A, A" |
+| 2026-10-12 | Pause on Esc / Menu (not B); a fight pauses only between events | user request; attacks and skills are timed on the real clock and cannot be frozen fairly |
+| 2026-10-12 | Counters +25% per extra perfect hit, +50% for a parry-and-jump string (card #52) | user request: reward long and mixed strings |
+| 2026-10-12 | Party shares one level; gear is one passive per item; equipping never heals | simple to read; swapping gear must not be a free heal |
 | 2026-10-12 | Card #51: party power 40 -> 75 (not lower enemy HP); team counter 120% -> 90%; Shield Bash 180, Hamstring 150, Payback 150, Rend 300, All In 5x120 | user pick: fights about half as long with bigger hits; costly skills now pay more per AP than Quick Cuts (1 AP 150%, 2 AP ~180%, 3 AP 300%, 5 AP 600%) |
 | 2026-10-12 | Phase 3 built all together (user request) | one zone, look, camera, roaming enemies and first strike in one pass |
 | 2026-10-12 | One `StageLook` per place, shared by the zone and its fights | a fight looks like the place it started in |

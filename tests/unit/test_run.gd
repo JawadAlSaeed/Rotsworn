@@ -136,7 +136,7 @@ func test_hp_carries_over_and_victory_pays_gold() -> void:
 	run.go(run.choices()[0])
 	var encounter := load("res://data/encounters/husk_fight.tres") as EncounterData
 	var after: Array[int] = [40, 0, run.max_hp(2) + 50]
-	var won := run.finish_fight(RunState.VICTORY, after, encounter)
+	var won := int(run.finish_fight(RunState.VICTORY, after, encounter).gold)
 	assert_eq(won, RunState.encounter_gold(encounter))
 	assert_gt(won, 0, "fights pay gold")
 	assert_eq(run.gold, _tuning.run_start_gold + won)
@@ -151,7 +151,7 @@ func test_a_defeat_ends_the_run() -> void:
 	var run := _run()
 	run.go(run.choices()[0])
 	var after: Array[int] = [0, 0, 0]
-	assert_eq(run.finish_fight(RunState.DEFEAT, after, _data.final_encounter), 0)
+	assert_eq(run.finish_fight(RunState.DEFEAT, after, _data.final_encounter), {"gold": 0, "xp": 0, "levels": 0})
 	assert_true(run.is_over())
 	assert_eq(run.result, RunState.DEFEAT)
 	assert_false(run.go(run.map.stop(run.at).next[0]), "nothing goes on after the end")
@@ -255,4 +255,6 @@ func test_every_enemy_pays_gold() -> void:
 	for file: String in DirAccess.get_files_at("res://data/enemies"):
 		if file.ends_with(".tres"):
 			var enemy := load("res://data/enemies".path_join(file)) as EnemyData
-			assert_gt(enemy.gold, 0, "%s pays gold" % enemy.id)
+			# The boss ends the run: its gold would never be spent.
+			if enemy.phase_two_hp_percent == 0:
+				assert_gt(enemy.gold, 0, "%s pays gold" % enemy.id)

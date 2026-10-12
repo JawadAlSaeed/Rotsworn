@@ -33,6 +33,11 @@ var attack_ids: Array[String] = []
 var statuses: Dictionary = {}
 ## Party only: perfect defences (parry or jump) since this fighter's last turn ended.
 var perfect_defenses: int = 0
+## Gear passives (Passive keys -> amount), party only.
+var passives: Dictionary = {}
+var second_wind_used: bool = false
+## Enemy phase: 1, or 2 once it has dropped under its phase two HP (bosses).
+var phase: int = 1
 
 
 func is_alive() -> bool:
@@ -65,6 +70,9 @@ static func from_dict(d: Dictionary) -> Combatant:
 	c.attack_ids.assign(d.attack_ids)
 	c.statuses = (d.statuses as Dictionary).duplicate(true)
 	c.perfect_defenses = int(d.perfect_defenses)
+	c.passives = (d.get("passives", {}) as Dictionary).duplicate()
+	c.second_wind_used = bool(d.get("second_wind_used", false))
+	c.phase = int(d.get("phase", 1))
 	return c
 
 
@@ -86,4 +94,7 @@ func to_dict() -> Dictionary:
 		"attack_ids": attack_ids.duplicate(),
 		"statuses": statuses.duplicate(true),
 		"perfect_defenses": perfect_defenses,
+		"passives": passives.duplicate(),
+		"second_wind_used": second_wind_used,
+		"phase": phase,
 	}

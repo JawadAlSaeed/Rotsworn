@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_xikur"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_x7rc2"]
+
+[sub_resource type="Resource" id="Resource_jbxjj"]
+script = ExtResource("1_xikur")
+impact_ms = 1200
+kind = 1
+damage_percent = 70
+approach_ms = 500
+
+[resource]
+script = ExtResource("2_x7rc2")
+id = "king_hollow_wave"
+display_name = "Hollow Wave"
+target_mode = 1
+hits = Array[ExtResource("1_xikur")]([SubResource("Resource_jbxjj")])

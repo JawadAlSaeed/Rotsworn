@@ -10,3 +10,5 @@ extends Resource
 ## The team ultimate offered to every party member when the team gauge is full. Phase 2 only:
 ## from phase 4 the run provides it.
 @export var team_ultimate: AbilityData
+## A boss fight: its name is announced when the fight starts.
+@export var boss: bool = false

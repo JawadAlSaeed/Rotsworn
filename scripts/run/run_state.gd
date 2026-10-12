@@ -1,11 +1,15 @@
 class_name RunState
 extends RefCounted
 ## One run in progress (DESIGN.md 8): the map, where the party is on it, the party's HP (carried
-## from fight to fight), max HP boosts and gold. The run's rules live here as plain integer maths
-## so they are unit-tested; screens only call these functions and show the result.
+## from fight to fight), max HP boosts, gold, the party level and XP, and the gear (worn and in the
+## bag). The run's rules live here as plain integer maths so they are unit-tested; screens only
+## call these functions and show the result.
 
 const VICTORY := "victory"
 const DEFEAT := "defeat"
+## Salts for the seeded picks of each stop (loot and shop gear differ at the same stop).
+const LOOT_SALT: int = 7919
+const SHOP_SALT: int = 104729
 
 var data: RunData
 var tuning: Tuning
@@ -16,16 +20,24 @@ var at: int = -1
 ## Stops visited, in order.
 var path: Array[int] = []
 var gold: int = 0
-## Per party slot: current HP, and max HP in percent of the character's normal max HP.
+## Per party slot: current HP, and max HP bought with tonics (percent of the character's normal
+## max HP; levels and gear add to it in total_max_hp_percent).
 var hp: Array[int] = []
 var max_hp_percent: Array[int] = []
+## The whole party shares one level; xp counts toward the next one.
+var level: int = 1
+var xp: int = 0
+## Per party slot, tuning.run_gear_slots entries: GearData or null.
+var gear: Array[Array] = []
+## Gear the party owns but nobody wears.
+var bag: Array[GearData] = []
 var fights_won: int = 0
 var gold_earned: int = 0
 ## "" while the run goes on, then VICTORY or DEFEAT.
 var result: String = ""
 
 
-## A new run of `run_data` with this seed: a fresh map, full HP, the starting gold.
+## A new run of `run_data` with this seed: a fresh map, full HP, the starting gold, level 1.
 static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int) -> RunState:
 	var run := RunState.new()
 	run.data = run_data
@@ -35,7 +47,11 @@ static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int) -> RunState:
 	run.gold = p_tuning.run_start_gold
 	for c: CharacterData in run_data.party:
 		run.max_hp_percent.append(100)
-		run.hp.append(CombatSetup.scaled_max_hp(p_tuning, c, 100))
+		var slots: Array = []
+		slots.resize(p_tuning.run_gear_slots)
+		run.gear.append(slots)
+	for slot: int in run_data.party.size():
+		run.hp.append(run.max_hp(slot))
 	return run
 
 
@@ -43,13 +59,57 @@ func party_size() -> int:
 	return data.party.size()
 
 
+# --- stats ------------------------------------------------------------------------------------
+
+## Max HP percent with tonics, levels and gear.
+func total_max_hp_percent(slot: int) -> int:
+	return max_hp_percent[slot] + (level - 1) * tuning.run_level_hp_percent + gear_amount(slot, GearData.Effect.MAX_HP)
+
+
 func max_hp(slot: int) -> int:
-	return CombatSetup.scaled_max_hp(tuning, data.party[slot], max_hp_percent[slot])
+	return CombatSetup.scaled_max_hp(tuning, data.party[slot], total_max_hp_percent(slot))
+
+
+## Power percent with levels and gear (100 = the character's normal power).
+func power_percent(slot: int) -> int:
+	return 100 + (level - 1) * tuning.run_level_power_percent + gear_amount(slot, GearData.Effect.POWER)
+
+
+func power(slot: int) -> int:
+	return CombatMath.percent_min1(CombatMath.percent_min1(tuning.base_party_damage, data.party[slot].power_percent),
+			power_percent(slot))
+
+
+func speed(slot: int) -> int:
+	return maxi(1, data.party[slot].speed + gear_amount(slot, GearData.Effect.SPEED))
+
+
+## What slot `slot`'s worn gear adds up to for one effect.
+func gear_amount(slot: int, effect: GearData.Effect) -> int:
+	var total := 0
+	for item: Variant in gear[slot]:
+		if item != null and (item as GearData).effect == effect:
+			total += (item as GearData).amount
+	return total
+
+
+## The passives slot `slot` brings into fights (Passive keys -> amount).
+func passives(slot: int) -> Dictionary:
+	var found := {}
+	for item: Variant in gear[slot]:
+		if item == null:
+			continue
+		var key := (item as GearData).passive_key()
+		if not key.is_empty():
+			found[key] = int(found.get(key, 0)) + (item as GearData).amount
+	return found
 
 
 func is_over() -> bool:
 	return not result.is_empty()
 
+
+# --- the map ----------------------------------------------------------------------------------
 
 ## The stop the party is at ({} before the first one).
 func current() -> Dictionary:
@@ -75,6 +135,8 @@ func zone_of(stop: Dictionary) -> ZoneData:
 	return data.zones[index] if index >= 0 and index < data.zones.size() else null
 
 
+# --- fights -----------------------------------------------------------------------------------
+
 ## Gold for beating an encounter: the sum of its enemies' gold.
 static func encounter_gold(encounter: EncounterData) -> int:
 	var total := 0
@@ -84,35 +146,99 @@ static func encounter_gold(encounter: EncounterData) -> int:
 	return total
 
 
-## The fight setup for an encounter in this run: the run's party, team ultimate, HP and max HP.
+static func encounter_xp(encounter: EncounterData) -> int:
+	var total := 0
+	for e: EnemyData in encounter.enemies:
+		if e != null:
+			total += e.xp
+	return total
+
+
+## Gold this run gets for an encounter, with the party's gold gear.
+func gold_for(encounter: EncounterData) -> int:
+	var bonus := 0
+	for slot: int in party_size():
+		bonus += gear_amount(slot, GearData.Effect.GOLD)
+	return CombatMath.percent(encounter_gold(encounter), 100 + bonus)
+
+
+## The fight setup for an encounter in this run: the run's party, team ultimate, HP, max HP,
+## power, speed and gear passives.
 func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Opening) -> CombatSetup:
 	var setup := CombatSetup.from_encounter(encounter, tuning, p_seed, opening)
 	setup.party = data.party.duplicate()
 	setup.team_ultimate = data.team_ultimate
-	setup.party_max_hp_percent = max_hp_percent.duplicate()
 	setup.party_start_hp = hp.duplicate()
+	for slot: int in party_size():
+		setup.party_max_hp_percent.append(total_max_hp_percent(slot))
+		setup.party_power_percent.append(power_percent(slot))
+		setup.party_speed_bonus.append(gear_amount(slot, GearData.Effect.SPEED))
+		setup.party_passives.append(passives(slot))
 	return setup
 
 
-## A fight ended with these party HPs (per slot). A victory pays the encounter's gold and gets
-## the downed back up at tuning.run_downed_revive_hp; a defeat ends the run. Returns the gold won.
-func finish_fight(fight_result: String, party_hp: Array[int], encounter: EncounterData) -> int:
+## A fight ended with these party HPs (per slot). A victory pays gold and XP and gets the downed
+## back up at tuning.run_downed_revive_hp; a defeat ends the run.
+## Returns {gold, xp, levels} (levels gained).
+func finish_fight(fight_result: String, party_hp: Array[int], encounter: EncounterData) -> Dictionary:
 	if fight_result != VICTORY:
 		for slot: int in hp.size():
 			hp[slot] = 0
 		result = DEFEAT
-		return 0
+		return {"gold": 0, "xp": 0, "levels": 0}
 	for slot: int in hp.size():
 		var after := party_hp[slot] if slot < party_hp.size() else hp[slot]
 		hp[slot] = clampi(maxi(after, tuning.run_downed_revive_hp), 1, max_hp(slot))
 	fights_won += 1
-	var won := encounter_gold(encounter)
+	var won := gold_for(encounter)
 	gold += won
 	gold_earned += won
+	var gained := encounter_xp(encounter)
+	var levels := add_xp(gained)
 	if int(current().get("type", -1)) == RunMap.StopType.FINAL:
 		result = VICTORY
-	return won
+	return {"gold": won, "xp": gained, "levels": levels}
 
+
+# --- levels -----------------------------------------------------------------------------------
+
+## XP needed from this level to the next.
+func xp_to_next() -> int:
+	return tuning.run_xp_first_level + (level - 1) * tuning.run_xp_level_step
+
+
+## Levels `amount` more XP would give from here (for the end screen, before it is added).
+func levels_from(amount: int) -> int:
+	var lv := level
+	var left := xp + amount
+	while lv < tuning.run_max_level:
+		var need := tuning.run_xp_first_level + (lv - 1) * tuning.run_xp_level_step
+		if left < need:
+			break
+		left -= need
+		lv += 1
+	return lv - level
+
+
+## Adds XP; each level up raises max HP and power and heals what max HP grew. Returns levels gained.
+func add_xp(amount: int) -> int:
+	var gained := 0
+	xp += maxi(0, amount)
+	while level < tuning.run_max_level and xp >= xp_to_next():
+		xp -= xp_to_next()
+		var before: Array[int] = []
+		for slot: int in party_size():
+			before.append(max_hp(slot))
+		level += 1
+		gained += 1
+		for slot: int in party_size():
+			hp[slot] = mini(max_hp(slot), hp[slot] + max_hp(slot) - before[slot])
+	if level >= tuning.run_max_level:
+		xp = 0
+	return gained
+
+
+# --- rest and care ----------------------------------------------------------------------------
 
 ## Rest: everyone heals tuning.run_rest_heal_percent of their max HP. Returns HP healed per slot.
 func rest() -> Array[int]:
@@ -152,3 +278,92 @@ func buy(item: ShopItemData, slot: int) -> bool:
 			max_hp_percent[slot] += item.amount_percent
 			heal(slot, max_hp(slot) - before)
 	return true
+
+
+# --- gear -------------------------------------------------------------------------------------
+
+## True if the party has this item (worn or in the bag).
+func owns(item: GearData) -> bool:
+	if bag.has(item):
+		return true
+	for slots: Array in gear:
+		if slots.has(item):
+			return true
+	return false
+
+
+## The loot a stop offers: up to tuning.run_loot_choices items the party does not own (seeded).
+func loot_choices(stop_id: int) -> Array[GearData]:
+	return _pick_gear(stop_id * LOOT_SALT, tuning.run_loot_choices)
+
+
+## The gear a shop stop sells: up to tuning.run_shop_gear items the party does not own (seeded).
+func shop_gear(stop_id: int) -> Array[GearData]:
+	return _pick_gear(stop_id * SHOP_SALT, tuning.run_shop_gear)
+
+
+func _pick_gear(salt: int, count: int) -> Array[GearData]:
+	var left: Array[GearData] = []
+	for item: GearData in data.gear:
+		if item != null and not owns(item):
+			left.append(item)
+	var rng := CombatRng.new(absi(run_seed * 31 + salt) % 2147483647 + 1)
+	var picked: Array[GearData] = []
+	while picked.size() < count and not left.is_empty():
+		picked.append(left.pop_at(rng.range_int(0, left.size() - 1)))
+	return picked
+
+
+## Takes loot into the bag. False if it is already owned.
+func take(item: GearData) -> bool:
+	if item == null or owns(item):
+		return false
+	bag.append(item)
+	return true
+
+
+func can_buy_gear(item: GearData) -> bool:
+	return item != null and not owns(item) and gold >= item.price
+
+
+func buy_gear(item: GearData) -> bool:
+	if not can_buy_gear(item):
+		return false
+	gold -= item.price
+	bag.append(item)
+	return true
+
+
+## Puts bag item `item` on character `slot` in gear slot `gear_slot`; what was there goes back
+## to the bag. HP never rises from putting gear on (no free heal), and is cut to a lower max.
+func equip(slot: int, gear_slot: int, item: GearData) -> bool:
+	if not bag.has(item) or gear_slot < 0 or gear_slot >= gear[slot].size():
+		return false
+	var old: Variant = gear[slot][gear_slot]
+	bag.erase(item)
+	if old != null:
+		bag.append(old as GearData)
+	gear[slot][gear_slot] = item
+	_clamp_hp()
+	return true
+
+
+## Takes off what character `slot` wears in `gear_slot` (back to the bag).
+func unequip(slot: int, gear_slot: int) -> bool:
+	var old: Variant = gear[slot][gear_slot]
+	if old == null:
+		return false
+	gear[slot][gear_slot] = null
+	bag.append(old as GearData)
+	_clamp_hp()
+	return true
+
+
+## The first empty gear slot of character `slot`, or -1.
+func free_gear_slot(slot: int) -> int:
+	return gear[slot].find(null)
+
+
+func _clamp_hp() -> void:
+	for slot: int in hp.size():
+		hp[slot] = clampi(hp[slot], 1, max_hp(slot))

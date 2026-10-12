@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_8x5qf"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/king_cleave.tres" id="2_bb311"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/king_crown_sweep.tres" id="3_i7sdn"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/king_grave_stomp.tres" id="4_yy5q6"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/king_rot_cascade.tres" id="5_nm3hv"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/king_kingsfall.tres" id="6_g3tki"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/king_false_crown.tres" id="7_5adux"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/king_hollow_wave.tres" id="8_nvtgn"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="9_porn1"]
+
+[resource]
+script = ExtResource("9_porn1")
+id = "hollow_king"
+display_name = "The Hollow King"
+color = Color(0.5568628, 0.18431373, 0.22745098, 1)
+sprite_path = "res://assets/sprites/enemies/hollow_king.png"
+portrait_path = "res://assets/sprites/portraits/hollow_king.png"
+sprite_pixel_size = 0.075
+hp_percent = 350
+power_percent = 120
+speed = 140
+attacks = Array[ExtResource("1_8x5qf")]([ExtResource("2_bb311"), ExtResource("3_i7sdn"), ExtResource("4_yy5q6"), ExtResource("5_nm3hv")])
+gold = 0
+xp = 0
+phase_two_hp_percent = 50
+phase_two_attacks = Array[ExtResource("1_8x5qf")]([ExtResource("2_bb311"), ExtResource("5_nm3hv"), ExtResource("6_g3tki"), ExtResource("7_5adux"), ExtResource("8_nvtgn")])
+phase_two_speed = 175
+phase_two_text = "THE HOLLOW KING RAGES!"

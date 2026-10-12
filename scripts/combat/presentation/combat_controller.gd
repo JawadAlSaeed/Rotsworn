@@ -20,6 +20,9 @@ signal event_played(event: Dictionary)
 ## The action menu opened for this party member.
 signal menu_opened(actor_id: int)
 signal combat_finished(result: String)
+## A pause asked for with request_pause() can start now: nothing is being timed. Main stops this
+## node (process disabled) and shows the pause menu; resume_after_pause() goes on.
+signal pause_reached
 
 const QUIT_DELAY_S: float = 1.0
 ## After stopping all sounds, quitting waits this long (real time) so the audio server lets go of
@@ -56,6 +59,9 @@ var _waiting_runner: bool = false
 var _ended: bool = false
 var _ended_at_us: int = 0
 var _menu_turn: int = -1
+## Pause (DESIGN.md 6): asked for, and reached (the event queue holds still).
+var _pause_pending: bool = false
+var _paused: bool = false
 ## This fight's numbers for the end screen: successful presses per Defense.Outcome (one press
 ## answering three characters counts once), enemy hits as distinct "seq:hit" keys, counters.
 var _defended: Dictionary = {}
@@ -244,17 +250,53 @@ func _enqueue(events: Array[Dictionary]) -> void:
 
 
 func _pump() -> void:
-	if _playing or _waiting_runner:
+	if _playing or _waiting_runner or _paused:
 		return
 	_playing = true
 	while not _queue.is_empty():
+		# A pause waits for a boundary between events, never inside an attack or a skill: their
+		# timing runs on the real clock and cannot stop.
+		if _pause_pending:
+			_enter_pause()
+			break
 		var ev: Dictionary = _queue.pop_front()
 		await _play(ev)
 		if _waiting_runner:
 			break
 	_playing = false
-	if _queue.is_empty() and not _waiting_runner:
+	if _queue.is_empty() and not _waiting_runner and not _paused:
 		_maybe_open_menu()
+		if _pause_pending:
+			_enter_pause()
+
+
+## Asks to pause. Returns false if this fight cannot pause now (over, or calibrating). During an
+## enemy attack or a skill the pause starts when it is done ("PAUSING AFTER THIS MOVE").
+func request_pause() -> bool:
+	if _ended or _paused or hud.calibration.is_running():
+		return false
+	_pause_pending = true
+	if not _playing and not _waiting_runner:
+		_enter_pause()
+	else:
+		hud.show_center_banner("PAUSING AFTER THIS MOVE", HudStyle.TEXT, _visuals.first_strike_banner_ms)
+	return true
+
+
+func is_paused() -> bool:
+	return _paused
+
+
+## Goes on after the pause menu closes (Main has re-enabled this node).
+func resume_after_pause() -> void:
+	_paused = false
+	_pump()
+
+
+func _enter_pause() -> void:
+	_pause_pending = false
+	_paused = true
+	pause_reached.emit()
 
 
 ## Applies an event to the mirror right now (runner prompt events, practice changes) with its
@@ -284,6 +326,9 @@ func _play(ev: Dictionary) -> void:
 			if String(ev.get("opening", "")) == "first_strike":
 				Sfx.play("gauge_full")
 				hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
+			elif _encounter.boss:
+				Sfx.play("alert")
+				hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
 		"turn_started":
 			mirror.apply(ev)
 			if int(ev.team) == Combatant.Team.PARTY:
@@ -304,7 +349,7 @@ func _play(ev: Dictionary) -> void:
 		"downed":
 			mirror.apply(ev)
 			_show_downed(int(ev.target))
-		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge":
+		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge", "enemy_phase":
 			mirror.apply(ev)
 			_show_feedback(ev)
 		"timed_sequence_declared":
@@ -467,14 +512,16 @@ func _end_hint() -> String:
 
 
 func _summary_text() -> String:
-	var text := "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d
-skill presses: perfect %d, good %d" % [
+	var text := "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d\nskill presses: perfect %d, good %d" % [
 			_enemy_hits.size(), int(_defended.get(Defense.Outcome.PARRY, 0)),
 			int(_defended.get(Defense.Outcome.DODGE, 0)), int(_defended.get(Defense.Outcome.JUMP, 0)), _counters,
 			int(_defended.get(Defense.Outcome.PRESS_PERFECT, 0)), int(_defended.get(Defense.Outcome.PRESS, 0))]
 	if _run != null and _result == "victory":
-		text += "
-+%d gold" % RunState.encounter_gold(_encounter)
+		var xp := RunState.encounter_xp(_encounter)
+		text += "\n+%d gold   +%d XP" % [_run.gold_for(_encounter), xp]
+		var levels := _run.levels_from(xp)
+		if levels > 0:
+			text += "   LEVEL UP!  Level %d" % (_run.level + levels)
 	return text
 
 
@@ -531,13 +578,25 @@ func _play_counter(ev: Dictionary) -> void:
 	var team := bool(ev.team)
 	_counters += 1
 	view.camera.shot_counter(view.home_of(int(ev.target)))
+	var label := counter_label(team, int(ev.get("hits", 1)), bool(ev.get("mixed", false)))
 	if team:
-		hud.show_center_banner("TEAM COUNTER!", HudStyle.GOLD, _visuals.team_banner_ms)
+		hud.show_center_banner(label, HudStyle.GOLD, _visuals.team_banner_ms)
 	else:
 		var enemy := view.fighter(int(ev.target))
 		if enemy != null:
-			hud.popup("COUNTER!", enemy.head_position(), HudStyle.GOLD)
+			hud.popup(label, enemy.head_position(), HudStyle.GOLD)
 	await _strike(actors, int(ev.target), "team_counter" if team else "counter", _take_following(), true)
+
+
+## "COUNTER!", "COUNTER x5!", "TEAM COUNTER x4 MIXED!": a longer or mixed string hits harder
+## (card #52), so the text says why.
+static func counter_label(team: bool, hits: int, mixed: bool) -> String:
+	var text := "TEAM COUNTER" if team else "COUNTER"
+	if hits > 1:
+		text += " x%d" % hits
+	if mixed:
+		text += " MIXED"
+	return text + "!"
 
 
 ## Pops the damage/downed events that belong to the strike now being played.
@@ -631,8 +690,16 @@ func _show_feedback(ev: Dictionary) -> void:
 		"ap_changed":
 			if int(ev.delta) > 0:
 				Sfx.play("ap_gain")
-				if String(ev.reason) == "given" and v != null:
+				if String(ev.reason) in ["given", "gear"] and v != null:
 					hud.popup("+%d AP" % int(ev.delta), head, HudStyle.AP_TEXT)
+		"enemy_phase":
+			var boss := view.fighter(int(ev.enemy))
+			Sfx.play("gauge_full")
+			if boss != null:
+				boss.flash(_visuals.flash_ms * 4, HudStyle.LATE, 0.9)
+			var text := String(ev.get("text", ""))
+			hud.show_center_banner(text if not text.is_empty() else "IT GROWS FURIOUS!", HudStyle.LATE,
+					_visuals.first_strike_banner_ms)
 		"healed":
 			if v != null:
 				hud.damage_number(int(ev.amount), head, HudStyle.HEAL)
@@ -777,7 +844,7 @@ func _practice_text() -> String:
 		lines.append("   ".join(keys))
 	lines.append("I party invulnerable: " + _on_off(bool(mirror.practice.get("invulnerable_party", false))))
 	lines.append("O enemy immortal: " + _on_off(bool(mirror.practice.get("immortal_enemies", false))))
-	lines.append("R restart   F1 stats   F2 calibrate")
+	lines.append("F1 stats   F2 calibrate" if _run != null else "R restart   F1 stats   F2 calibrate")
 	return "\n".join(lines)
 
 

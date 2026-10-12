@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_dnt6v"]
+
+[resource]
+script = ExtResource("1_dnt6v")
+id = "keen_eye"
+display_name = "Keen Eye"
+description = "Perfect skill presses deal +25%."
+effect = 8
+amount = 25

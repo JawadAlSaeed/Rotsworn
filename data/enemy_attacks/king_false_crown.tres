@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_dga3p"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_0lai6"]
+
+[sub_resource type="Resource" id="Resource_1su4q"]
+script = ExtResource("1_dga3p")
+impact_ms = 800
+damage_percent = 35
+approach_ms = 180
+
+[sub_resource type="Resource" id="Resource_thol8"]
+script = ExtResource("1_dga3p")
+impact_ms = 1700
+damage_percent = 40
+feint = true
+
+[sub_resource type="Resource" id="Resource_ckqie"]
+script = ExtResource("1_dga3p")
+impact_ms = 2000
+damage_percent = 35
+approach_ms = 180
+
+[sub_resource type="Resource" id="Resource_i5ai5"]
+script = ExtResource("1_dga3p")
+impact_ms = 2500
+kind = 1
+damage_percent = 40
+approach_ms = 400
+
+[resource]
+script = ExtResource("2_0lai6")
+id = "king_false_crown"
+display_name = "False Crown"
+weight = 2
+allow_timing_ring = false
+hits = Array[ExtResource("1_dga3p")]([SubResource("Resource_1su4q"), SubResource("Resource_thol8"), SubResource("Resource_ckqie"), SubResource("Resource_i5ai5")])

@@ -24,10 +24,10 @@ func setup(run: RunState, input_guard_ms: int) -> void:
 			HudStyle.TEXT_DIM))
 
 
-## "Stops 5 of 8   Fights won 6   Gold earned 140".
+## "Stops reached 5 of 8   Fights won 6   Level 3   Gold earned 140".
 static func summary(run: RunState) -> String:
-	return "Stops reached  %d of %d      Fights won  %d      Gold earned  %d" % [run.path.size(),
-			run.map.row_count(), run.fights_won, run.gold_earned]
+	return "Stops reached  %d of %d      Fights won  %d      Level  %d      Gold earned  %d" % [run.path.size(),
+			run.map.row_count(), run.fights_won, run.level, run.gold_earned]
 
 
 func _process(delta: float) -> void:

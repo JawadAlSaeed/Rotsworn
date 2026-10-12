@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_i4cny"]
+[ext_resource type="Resource" path="res://data/enemies/hollow_king.tres" id="2_f21fl"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_dj0p7"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="4_5vnag"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="5_0qg1t"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="6_lgbf2"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="7_4mcsu"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="8_c1fgy"]
+
+[resource]
+script = ExtResource("7_4mcsu")
+id = "hollow_king"
+display_name = "The Hollow King"
+party = Array[ExtResource("3_dj0p7")]([ExtResource("4_5vnag"), ExtResource("5_0qg1t"), ExtResource("6_lgbf2")])
+enemies = Array[ExtResource("1_i4cny")]([ExtResource("2_f21fl")])
+team_ultimate = ExtResource("8_c1fgy")
+boss = true

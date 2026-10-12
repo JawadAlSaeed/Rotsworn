@@ -2,10 +2,12 @@ class_name MapScreen
 extends CanvasLayer
 ## The run map (DESIGN.md 8): every stop from the bottom row to the final fight at the top, the
 ## paths between them, where the party has been and where it can go next. Left/right picks one of
-## the next stops, confirm goes there, cancel asks to quit the run.
+## the next stops, confirm goes there, cancel opens the pause menu, party_menu the party screen.
 
 signal stop_chosen(id: int)
+## Back (B): Main opens the pause menu (Esc / Menu reach Main directly).
 signal quit_requested
+signal party_requested
 
 const TITLE_SIZE: int = 48
 const DETAIL_SIZE: int = 28
@@ -73,8 +75,9 @@ func setup(run: RunState) -> void:
 	add_child(bottom)
 	_detail = ListMenu.centred_label("", DETAIL_SIZE)
 	bottom.add_child(_detail)
-	bottom.add_child(ListMenu.centred_label("Left/Right choose   %s go   %s quit the run" % [
-			HudStyle.binding_text(&"menu_confirm"), HudStyle.binding_text(&"menu_cancel")], HINT_SIZE, HudStyle.TEXT_DIM))
+	bottom.add_child(ListMenu.centred_label("Left/Right choose   %s go   %s party   %s pause" % [
+			HudStyle.binding_text(&"menu_confirm"), HudStyle.binding_text(&"party_menu"),
+			HudStyle.binding_text(&"pause")], HINT_SIZE, HudStyle.TEXT_DIM))
 
 	_choices = run.choices()
 	_choices.sort_custom(func(a: int, b: int) -> bool: return int(run.map.stop(a).col) < int(run.map.stop(b).col))
@@ -109,6 +112,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		if not _choices.is_empty():
 			choose(_choices[_sel])
+		return
+	elif _pressed(event, &"party_menu"):
+		get_viewport().set_input_as_handled()
+		Sfx.play("menu_confirm")
+		party_requested.emit()
 		return
 	elif _pressed(event, &"menu_cancel"):
 		get_viewport().set_input_as_handled()

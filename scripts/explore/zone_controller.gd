@@ -10,8 +10,6 @@ extends Node
 
 ## A fight is starting: roaming enemy `index` (its encounter), with this opening.
 signal encounter_started(index: int, opening: CombatSetup.Opening)
-## The player wants to leave (menu_cancel): the fight list, or in a run the quit question.
-signal leave_requested
 ## The zone is cleared: the guard is beaten (run), or every roaming enemy (practice).
 signal cleared
 
@@ -247,7 +245,7 @@ func _build() -> void:
 	_hud = ZoneHud.new()
 	_hud.name = "ZoneHud"
 	add_child(_hud)
-	_hud.setup(_explore, _zone.display_name, "Quit the run" if _run_mode else "Fight list")
+	_hud.setup(_explore, _zone.display_name)
 	_update_goal()
 	_place_walkers(0.0)
 	_snap_camera()
@@ -309,12 +307,10 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _frozen or not is_inside_tree():
 		return
+	# Pause (Esc / Menu) is Main's: it stops this node and opens the pause menu.
 	if event.is_action_pressed(&"field_strike", false, true):
 		get_viewport().set_input_as_handled()
 		strike()
-	elif event.is_action_pressed(&"menu_cancel", false, true):
-		get_viewport().set_input_as_handled()
-		leave_requested.emit()
 
 
 ## The leader's field strike: a slash in front; a roaming enemy inside it starts a FIRST STRIKE.
