@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_music")
-menu_path = "res://assets/audio/music/tiebreaker.wav"
-zone_path = "res://assets/audio/music/tiebreaker.wav"
-fight_path = "res://assets/audio/music/tiebreaker.wav"
+menu_path = ""
+zone_path = ""
+fight_path = ""
 volume_db = -8.0

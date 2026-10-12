@@ -666,7 +666,8 @@ clamped by tuning's calibration bounds.
 Music (2026-10-12): `data/audio/music.tres` (`MusicSet`) names the song for menus and run screens,
 zones and fights; the `Audio` autoload loops it on its own player, and a place that names the song
 already playing lets it go on. Songs live in `assets/audio/music/` and may be compressed (QOA);
-sound effects stay PCM. For now one placeholder song ("tiebreaker") plays everywhere.
+sound effects stay PCM. No song is set yet (the placeholder "tiebreaker" was only for the online
+test build and is removed): every place is silent until the soundtrack arrives.
 
 ---
 
@@ -966,7 +967,7 @@ counters for longer and mixed strings (2.5, card #52).
   through the Input Map. Run screens (map, shop, rest, party, loot), pause and end screens: anyone.
 - Bot: `--players=N` plays co-op with N pretend pads; each player presses for their own heroes.
 
-### 9.2 Online co-op (phase 5 Part B, built)
+### 9.2 Online co-op (phase 5 Part B, done)
 
 - **Host-authoritative, the host is the server.** Main menu: **Host Online** listens (port
   `net_port`, 7777) and shows the PC's addresses to share; **Join Online** takes an address
@@ -1127,8 +1128,9 @@ counters for longer and mixed strings (2.5, card #52).
 4. **Run structure** (built, waiting for playtest): Part A (main menu and settings, map,
    zone/rest/shop stops, HP carry-over, gold) and Part B (levels, gear, loot, boss, pause menu,
    stronger counters); 8, 7.5, 2.5.
-5. **Co-op**: Part A local multi-device (done, approved 2026-10-12; 9.1), Part B online by IP
-   (built, waiting for playtest; 9.2). Steam invites later (swap the transport).
+5. **Co-op** (done, approved 2026-10-12 after an online test with a friend): Part A local
+   multi-device (9.1), Part B online by IP (9.2), the studio intro (7.5). Steam invites later
+   (swap the transport).
 6. Polish: UI, feedback effects, audio pass, balance.
 
 ### 11.1 To-do (from playtests)
