@@ -24,6 +24,31 @@ whenever a decision is made or changed.
   (strips such lines). After a fresh clone run `git config core.hooksPath .githooks`.
 - Commit or push only when the user asks, or at the end of a phase they approved.
 
+## Task board (the user's "todo")
+
+- Board: https://github.com/users/JawadAlSaeed/projects/2 (GitHub Project "Rotten Lands", number 2,
+  owner `JawadAlSaeed`, linked to the repo). Columns are the `Status` field: Todo, In Progress, Done.
+  Each card is a repo issue with a `phase-N` label (1 to 6, see DESIGN.md section 11) plus
+  `enhancement` (or `bug` for bugs). Done cards are closed issues.
+- "Add X to the todo" / "put X on the board" means: create an issue on this board, no need to ask
+  again. Pick the phase it belongs to (ask only if it is truly unclear), write a short plain title
+  and a one or two line body, then reply with the issue link. The repo is public, so issues are
+  public.
+- Keep the board true: move a card to In Progress when work on it starts, and to Done (and close
+  the issue) when the user approves that work. Add a card for any new feature or bug the user
+  agrees to.
+- At the start of a session, if the user asks "what's next" or similar, read the board first.
+- IDs (stable): project `PVT_kwHOAl50qs4Bmqm-`, Status field `PVTSSF_lAHOAl50qs4Bmqm-zhlSrds`,
+  options Todo `f75ad846`, In Progress `47fc9ee4`, Done `98236657`. Recipe (bash):
+  ```
+  url=$(gh issue create -R JawadAlSaeed/Rotten-Lands -t "TITLE" -b "BODY" -l phase-N -l enhancement)
+  item=$(gh project item-add 2 --owner JawadAlSaeed --url "$url" --format json --jq .id)
+  gh project item-edit --id "$item" --project-id PVT_kwHOAl50qs4Bmqm- \
+    --field-id PVTSSF_lAHOAl50qs4Bmqm-zhlSrds --single-select-option-id f75ad846
+  ```
+  List cards: `gh project item-list 2 --owner JawadAlSaeed --limit 200 --format json`.
+  `gh` needs the `project` scope (already granted; if lost: `gh auth refresh -s project`).
+
 ## Tools
 
 - Godot 4.7.2 stable, GDScript only. Editor: `C:\Users\Drago\Godot\Godot_v4.7.2-stable_win64.exe`.
