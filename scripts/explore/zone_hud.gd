@@ -1,0 +1,127 @@
+class_name ZoneHud
+extends CanvasLayer
+## The zone's screen text (DESIGN.md 7.4): the zone's name when you arrive, the controls, how many
+## roaming enemies are left, a "!" over every enemy chasing you, the name of the fight over enemies
+## nearby, and big banners (FIRST STRIKE!, ZONE CLEAR).
+
+const MARGIN: float = 24.0
+const TITLE_SIZE: int = 72
+const HINT_SIZE: int = 24
+const COUNT_SIZE: int = 28
+const TAG_SIZE: int = 22
+const BANNER_SIZE: int = 88
+const TITLE_TOP: float = 120.0
+const BANNER_TOP: float = 300.0
+## Share of a banner's time it stays fully visible before fading.
+const HOLD_SHARE: float = 0.7
+## Name tags float this far above the "!" spot (pixels).
+const TAG_GAP: float = 6.0
+
+var _explore: ExploreVisuals
+var _root: Control
+var _title: Label
+var _count: Label
+var _banner: Label
+var _banner_tween: Tween
+## Roamer index -> {notice: Label, tag: Label}.
+var _marks: Dictionary = {}
+
+
+func setup(explore: ExploreVisuals, zone_name: String) -> void:
+	_explore = explore
+	layer = 10
+	_root = Control.new()
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_root)
+
+	_title = HudStyle.make_label(zone_name, TITLE_SIZE, HudStyle.GOLD)
+	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_title.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_title.offset_top = TITLE_TOP
+	_root.add_child(_title)
+	_fade(_title, explore.zone_title_ms)
+
+	_banner = HudStyle.make_label("", BANNER_SIZE, HudStyle.GOLD)
+	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_banner.offset_top = BANNER_TOP
+	_banner.visible = false
+	_root.add_child(_banner)
+
+	_count = HudStyle.make_label("", COUNT_SIZE, HudStyle.TEXT)
+	_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_count.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_count.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_count.offset_right = -MARGIN
+	_count.offset_top = MARGIN
+	_root.add_child(_count)
+
+	var hint := HudStyle.make_label(_controls_text(), HINT_SIZE, HudStyle.TEXT)
+	hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	hint.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	hint.offset_left = MARGIN
+	hint.offset_bottom = -MARGIN
+	_root.add_child(hint)
+
+
+func set_enemies_left(count: int) -> void:
+	_count.text = "Enemies left: %d" % count if count > 0 else "All enemies beaten"
+
+
+## The "!" over roamer `index` at a screen position (its head), or hidden.
+func set_notice(index: int, shown: bool, screen_pos: Vector2 = Vector2.ZERO) -> void:
+	var mark := _mark(index)
+	var notice := mark.notice as Label
+	notice.visible = shown
+	if shown:
+		notice.reset_size()
+		notice.position = screen_pos - Vector2(notice.size.x * 0.5, notice.size.y)
+
+
+## The fight's name over roamer `index`, or hidden.
+func set_tag(index: int, text: String, shown: bool, screen_pos: Vector2 = Vector2.ZERO) -> void:
+	var mark := _mark(index)
+	var tag := mark.tag as Label
+	tag.visible = shown
+	if shown:
+		tag.text = text
+		tag.reset_size()
+		var above := (mark.notice as Label).size.y if (mark.notice as Label).visible else 0.0
+		tag.position = screen_pos - Vector2(tag.size.x * 0.5, tag.size.y + above + TAG_GAP)
+
+
+## Big text in the middle (FIRST STRIKE!, ZONE CLEAR) for `ms` milliseconds.
+func banner(text: String, color: Color, ms: int) -> void:
+	_banner.text = text
+	_banner.label_settings.font_color = color
+	if _banner_tween != null and _banner_tween.is_valid():
+		_banner_tween.kill()
+	_banner_tween = _fade(_banner, ms)
+
+
+func _mark(index: int) -> Dictionary:
+	if not _marks.has(index):
+		var notice := HudStyle.make_label("!", _explore.notice_size, _explore.notice_color)
+		notice.visible = false
+		_root.add_child(notice)
+		var tag := HudStyle.make_label("", TAG_SIZE, HudStyle.TEXT)
+		tag.visible = false
+		_root.add_child(tag)
+		_marks[index] = {"notice": notice, "tag": tag}
+	return _marks[index]
+
+
+func _fade(label: Label, ms: int) -> Tween:
+	label.visible = true
+	label.modulate = Color.WHITE
+	var tween := label.create_tween()
+	tween.tween_interval(float(ms) / 1000.0 * HOLD_SHARE)
+	tween.tween_property(label, "modulate:a", 0.0, float(ms) / 1000.0 * (1.0 - HOLD_SHARE))
+	tween.tween_callback(label.hide)
+	return tween
+
+
+static func _controls_text() -> String:
+	return "Move   WASD / arrows / left stick\nStrike   %s\nHit an enemy before it touches you: FIRST STRIKE\nFight list   %s" % [
+			HudStyle.binding_text(&"field_strike"), HudStyle.binding_text(&"menu_cancel")]

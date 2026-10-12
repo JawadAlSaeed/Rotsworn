@@ -24,6 +24,8 @@ signal press_judged(action: int, report: Dictionary)
 const GOOD_PRESS_VOLUME_DB: float = -6.0
 ## The press ring keeps shrinking past the target after the perfect moment, down to this radius.
 const RING_MIN_RADIUS_PX: float = 4.0
+## Follow-up allies step this share of the way to their strike point when their ring appears.
+const FOLLOW_UP_STEP_SHARE: float = 0.5
 
 var _submit: Callable
 var _apply_now: Callable
@@ -105,6 +107,16 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_press_lead_us = maxi(1, (ability.ring_lead_ms(_tuning) if ability != null else _tuning.ring_lead_ms) * 1000)
 	_ring_color = ability.ring_color if ability != null else HudStyle.TEXT
 	_note_anchor = _strikers_stand_point()
+	var aim := _first_target()
+	if aim < 0 and not _targets.is_empty():
+		aim = _targets[0]
+	var stand := Vector3(_note_anchor.x, 0.0, _note_anchor.z)
+	# With follow-ups the whole sequence is framed at once (strikers, target, every ally who will
+	# press), so the camera never moves while a ring is up and nobody is off screen (card #49).
+	if not _follow_up_allies().is_empty():
+		_frame_skill()
+	else:
+		_view.camera.shot_strike(stand, _view.home_of(aim) if aim >= 0 else stand, ability != null and ability.team_ultimate)
 	_active = true
 	_input.arm_press()
 	var actor_name := String(_mirror.fighter(_actor).get("display_name", "?")).to_upper()
@@ -341,7 +353,40 @@ func _update_allies(t: int) -> void:
 		var v := _view.fighter(id)
 		if v != null and _mirror.is_alive(id):
 			v.set_pose(FighterView.CharPose.READY)
-			v.move_body(_approach_offset(id) * 0.5, float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
+			v.move_body(_approach_offset(id) * FOLLOW_UP_STEP_SHARE, float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
+
+
+## Every ally with a follow-up prompt (in prompt order).
+func _follow_up_allies() -> Array[int]:
+	var ids: Array[int] = []
+	for prompt: Dictionary in _prompts:
+		if String(prompt.role) == CombatEngine.ROLE_FOLLOW_UP and not ids.has(int(prompt.character)):
+			ids.append(int(prompt.character))
+	return ids
+
+
+## Frames the strikers where they wait, the target, and every follow-up ally where they will step
+## (feet and heads) inside the follow-up safe area.
+func _frame_skill() -> void:
+	var points: Array[Vector3] = []
+	var target := _first_target()
+	for id: int in _strikers():
+		_add_body_points(points, id, _approach_offset(id))
+	for id: int in _follow_up_allies():
+		_add_body_points(points, id, _approach_offset(id) * FOLLOW_UP_STEP_SHARE)
+	if target >= 0:
+		_add_body_points(points, target, Vector3.ZERO)
+	if not points.is_empty():
+		_view.camera.shot_frame(points)
+
+
+func _add_body_points(points: Array[Vector3], id: int, offset: Vector3) -> void:
+	var v := _view.fighter(id)
+	if v == null:
+		return
+	var feet := v.global_position + offset
+	points.append(feet)
+	points.append(feet + Vector3(0.0, v.head_position().y - v.body_position().y, 0.0))
 
 
 ## osu-style press rings: a faint target circle, the GOOD band and the gold PERFECT band (the

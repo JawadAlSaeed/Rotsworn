@@ -20,7 +20,7 @@ const SLOW_ENEMY: int = 10
 ## Field lists from the header of combat_engine.gd (the contract presentation and the network
 ## code rely on), plus the allowed values of the string enums.
 const EVENT_KEYS: Dictionary = {
-	"combat_started": ["seed", "fighters", "practice_allowed"],
+	"combat_started": ["seed", "fighters", "practice_allowed", "opening"],
 	"intent": ["enemy", "attack", "name", "mode", "targets", "kinds", "times"],
 	"turn_started": ["turn", "actor", "team", "time"],
 	"turn_order": ["order"],
@@ -56,6 +56,7 @@ const STRING_VALUES: Dictionary = {
 	"prompts_voided.reason": ["downed", "attacker_down", "targets_down", "no_good_press"],
 	"sequence_resolved.reason": ["completed", "targets_down", "attacker_down"],
 	"combat_ended.result": ["victory", "defeat"],
+	"combat_started.opening": ["normal", "first_strike"],
 }
 
 
@@ -237,6 +238,39 @@ func test_use_ability_rejected_while_awaiting_timing() -> void:
 	var engine := Fx.started([_swipe()])
 	var targets: Array[int] = [FOE]
 	_assert_rejected_atomically(engine, CombatCommands.use_ability(engine.turn_number, 0, "basic_attack", targets), "not_awaiting_action")
+
+
+# --- opening (DESIGN 2.12) --------------------------------------------------------------------
+
+func test_normal_opening_lets_the_fast_enemy_act_first() -> void:
+	var engine := CombatEngine.new(Fx.setup([_swipe()]))
+	var events := engine.start()
+	assert_eq(String(Fx.first_of(events, "combat_started").opening), "normal")
+	assert_eq(int(Fx.first_of(events, "turn_started").actor), FOE, "speed 200 beats the party")
+
+
+func test_first_strike_gives_the_whole_party_a_turn_before_any_enemy() -> void:
+	var setup := Fx.setup([_swipe()])
+	setup.opening = CombatSetup.Opening.FIRST_STRIKE
+	var engine := CombatEngine.new(setup)
+	var events := engine.start()
+	assert_eq(String(Fx.first_of(events, "combat_started").opening), "first_strike")
+	var order: Array = Fx.first_of(events, "turn_order").order
+	var first_three: Array = order.slice(0, 3)
+	first_three.sort()
+	assert_eq(first_three, [0, 1, 2], "every party member acts before the enemy")
+	assert_eq(int(order[3]), FOE)
+	assert_eq(engine.phase, CombatEngine.Phase.AWAITING_ACTION, "the fight opens on a party turn")
+
+
+func test_first_strike_holds_against_a_very_fast_enemy() -> void:
+	var setup := Fx.setup([_swipe()], {"enemy_speed": 900})
+	setup.opening = CombatSetup.Opening.FIRST_STRIKE
+	var engine := CombatEngine.new(setup)
+	var order: Array = Fx.first_of(engine.start(), "turn_order").order
+	var first_three: Array = order.slice(0, 3)
+	first_three.sort()
+	assert_eq(first_three, [0, 1, 2])
 
 
 # --- declared sequences -----------------------------------------------------------------------

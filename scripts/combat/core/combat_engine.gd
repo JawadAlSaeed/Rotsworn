@@ -26,7 +26,8 @@ extends RefCounted
 ##   practice         {invulnerable_party?, immortal_enemies?, force_attack?}  if setup allows
 ##
 ## Events (Dictionary with "type"):
-##   combat_started          {seed, fighters:[Combatant.to_dict()], practice_allowed}
+##   combat_started          {seed, fighters:[Combatant.to_dict()], practice_allowed, opening}
+##                           opening: "normal" | "first_strike" (DESIGN.md 2.12)
 ##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms]}
 ##                           what this enemy will do on its next turn (DESIGN.md 2.8). Sent at
 ##                           fight start, after its turn, and whenever its targets change.
@@ -71,6 +72,9 @@ extends RefCounted
 ##                           attack is used and force_attack clears
 ##   combat_ended            {result}        "victory" | "defeat"
 ##   command_rejected        {reason, command}   private to the sender; never broadcast/replayed
+
+## combat_started "opening" names, by CombatSetup.Opening.
+const OPENING_NAMES: Array[String] = ["normal", "first_strike"]
 
 enum Phase {
 	NOT_STARTED,
@@ -152,6 +156,7 @@ func start() -> Array[Dictionary]:
 		"seed": _setup.rng_seed,
 		"fighters": fighters,
 		"practice_allowed": _setup.allow_practice,
+		"opening": OPENING_NAMES[_setup.opening],
 	})
 	for enemy_id: int in enemy_ids():
 		_pick_intent(get_combatant(enemy_id), events)
@@ -383,6 +388,21 @@ func _build_combatants() -> void:
 		c.next_turn_at = Timeline.turn_cost(c.speed, tuning.timeline_base)
 		combatants.append(c)
 		slot += 1
+	if _setup.opening == CombatSetup.Opening.FIRST_STRIKE:
+		_apply_first_strike()
+
+
+## First strike (DESIGN.md 2.12): no enemy's first turn comes before the last party member's
+## first turn. On a tie the party member goes first (lower id), so the whole party acts before any
+## enemy; everyone keeps their speed from then on.
+func _apply_first_strike() -> void:
+	var last_party := 0
+	for c: Combatant in combatants:
+		if c.is_party():
+			last_party = maxi(last_party, c.next_turn_at)
+	for c: Combatant in combatants:
+		if not c.is_party():
+			c.next_turn_at = maxi(c.next_turn_at, last_party)
 
 
 # --- turn flow --------------------------------------------------------------------------------

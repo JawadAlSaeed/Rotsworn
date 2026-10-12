@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="ExploreVisuals" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/explore_visuals.gd" id="1_explore"]
+
+[resource]
+script = ExtResource("1_explore")
+camera_offset = Vector3(0, 7, 11)
+look_offset = Vector3(0, 1, -1)
+camera_fov = 30.0
+camera_follow_ms = 220
+dof_far_enabled = true
+dof_far_distance = 16.0
+dof_far_transition = 8.0
+dof_near_enabled = true
+dof_near_distance = 9.0
+dof_near_transition = 3.0
+dof_amount = 0.12
+walk_bob_height = 0.07
+walk_bob_hz = 3.4
+roam_bob_hz = 1.6
+notice_size = 52
+notice_color = Color(1, 0.3, 0.2, 1)
+strike_slash_distance = 0.9
+first_strike_size = 64
+transition_out_ms = 850
+transition_in_ms = 450
+swirl_turns = 7.0
+transition_flash = 0.6
+zone_title_ms = 2200

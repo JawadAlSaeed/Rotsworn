@@ -485,14 +485,17 @@ func set_target_marker(world_pos: Vector3, shown: bool) -> void:
 		_target_marker.position = _view.screen_position(world_pos) - Vector2(_target_marker.size.x * 0.5, _target_marker.size.y)
 
 
-## The victory or defeat screen, with a one-line summary of the fight's defence.
-func show_end(result: String, summary: String) -> void:
+## The victory or defeat screen, with a one-line summary of the fight's defence. A fight that
+## started in a zone offers going back to it instead of the fight list.
+func show_end(result: String, summary: String, from_zone: bool = false) -> void:
 	var victory := result == "victory"
 	_end_title.text = "VICTORY" if victory else "DEFEAT"
 	_end_title.label_settings.font_color = VICTORY_COLOR if victory else DEFEAT_COLOR
 	_end_summary.text = summary
 	_end_hint.text = "%s  or  R:  fight again      %s:  choose a fight      F1: stats" % [
 			HudStyle.binding_text(&"menu_confirm"), HudStyle.binding_text(&"menu_cancel")]
+	if from_zone:
+		_end_hint.text = "%s:  back to the zone      R:  fight again      F1: stats" % HudStyle.binding_text(&"menu_confirm")
 	_end_screen.visible = true
 	_end_screen.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	_end_screen.create_tween().tween_property(_end_screen, "modulate:a", 1.0, float(_visuals.end_fade_ms) / 1000.0)

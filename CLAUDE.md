@@ -67,7 +67,9 @@ whenever a decision is made or changed.
 - Smoke test the whole fight without a human: run the game with `-- --autoplay` (bot defends
   and presses perfectly), `-- --autoplay=miss` (never presses) or `-- --autoplay=mash` (mashes
   buttons). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
-  from `data/encounters/` (default `husk_fight`). Works with `--headless`. A good run prints
+  from `data/encounters/` (default `husk_fight`), `--first-strike` to start it with the advantage,
+  or `--zone=rotten_hollow` to have the bot walk the zone and fight every roaming enemy (ends with
+  `AUTOPLAY_RESULT zone_clear` or `zone_defeat`). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
 - Always run headless Godot commands with a timeout (`timeout 120 ...`): a script error in a
   `-s` script leaves Godot running forever.
@@ -98,7 +100,9 @@ whenever a decision is made or changed.
    cue on/off defaults, pacing. Presentation-only feel goes in
    `data/presentation/combat_visuals.tres` (script `scripts/data/combat_visuals.gd`): art paths,
    stage layout, camera, enemy choreography feel, pose lengths, flash/shake strengths, popup and
-   banner feel, the calibration procedure. Per-move shapes (hit count, hit timing, percentages)
+   banner feel, the calibration procedure. Zone presentation (follow camera, walking, transition)
+   goes in `data/presentation/explore_visuals.tres`; how a place looks (light, fog, bloom, ground,
+   arena decoration) in its `StageLook` in `data/looks/`. Per-move shapes (hit count, hit timing, percentages)
    live in that move's data file as integer percentages of the tuning values. Pure animation-curve
    shape constants (for example a share of a pose) may stay as named consts. Change values in the
    `.tres` files, never by editing the defaults in the scripts.
@@ -121,8 +125,8 @@ whenever a decision is made or changed.
 
 ## Folder map
 
-- `data/` content resources (`.tres`), including `tuning/tuning.tres` and
-  `presentation/combat_visuals.tres`
+- `data/` content resources (`.tres`), including `tuning/tuning.tres`,
+  `presentation/combat_visuals.tres`, `presentation/explore_visuals.tres`, `looks/` and `zones/`
 - `assets/` sprites, audio (placeholders until real art arrives)
 - `scripts/data/` resource class scripts
 - `scripts/core/` shared helpers (asset loading)
@@ -130,6 +134,9 @@ whenever a decision is made or changed.
 - `scripts/combat/timing/` defence timing judges
 - `scripts/combat/presentation/` combat scene, views, HUD, camera, feedback
 - `scripts/combat/input/` input stamping
+- `scripts/stage/` building a place from data (environment, blocks, props, lights, vignette) and
+  screen transitions
+- `scripts/explore/` zones: walking, roaming enemies, zone HUD, zone bot
 - `scripts/autoload/` global singletons (`Audio`, `UserSettings` = `PlayerSettings`, saved per
   machine in `user://settings.cfg`)
 - `scenes/` scenes

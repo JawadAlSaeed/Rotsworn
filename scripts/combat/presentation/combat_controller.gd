@@ -12,6 +12,8 @@ extends Node
 signal restart_requested
 ## Back to the fight list (end screen, Cancel).
 signal select_requested
+## A fight that started in a zone is over and the player wants to go back (DESIGN.md 7.4).
+signal zone_return_requested(result: String)
 ## Every event as it is played (and the prompt events the runner applies at once).
 signal event_played(event: Dictionary)
 ## The action menu opened for this party member.
@@ -38,6 +40,12 @@ var _encounter: EncounterData
 var _tuning: Tuning
 var _visuals: CombatVisuals
 var _options: CombatOptions
+## The place the fight happens in (null: the fight list's look), how it starts, and whether it
+## started in a zone (the end screen then goes back to the zone).
+var _look: StageLook
+var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
+var _from_zone: bool = false
+var _result: String = ""
 var _queue: Array[Dictionary] = []
 var _playing: bool = false
 var _waiting_runner: bool = false
@@ -57,12 +65,17 @@ var _abilities: Dictionary = {}
 var _attacks: Dictionary = {}
 
 
-## Call before adding the node to the tree.
-func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals, options: CombatOptions) -> void:
+## Call before adding the node to the tree. `look` null uses the fight list's look.
+func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals, options: CombatOptions,
+		look: StageLook = null, opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL,
+		from_zone: bool = false) -> void:
 	_encounter = encounter
 	_tuning = tuning
 	_visuals = visuals
 	_options = options
+	_look = look
+	_opening = opening
+	_from_zone = from_zone
 
 
 func _ready() -> void:
@@ -73,7 +86,8 @@ func _ready() -> void:
 	view = CombatView.new()
 	view.name = "View"
 	add_child(view)
-	view.build(_visuals)
+	view.build(_visuals, _look)
+	view.camera.cinematic = _options.cinematic_camera
 
 	hud = CombatHud.new()
 	hud.name = "Hud"
@@ -108,9 +122,10 @@ func _ready() -> void:
 		menu_opened.connect(autoplay.on_menu_opened)
 		combat_finished.connect(autoplay.on_combat_finished)
 
-	var setup := CombatSetup.from_encounter(_encounter, _tuning, _pick_seed())
+	var setup := CombatSetup.from_encounter(_encounter, _tuning, _pick_seed(), _opening)
 	setup.allow_practice = _tuning.practice_tools_enabled or _options.is_autoplay()
-	print("Combat seed: %d  encounter: %s" % [setup.rng_seed, _encounter.id])
+	print("Combat seed: %d  encounter: %s  opening: %s" % [setup.rng_seed, _encounter.id,
+			CombatEngine.OPENING_NAMES[setup.opening]])
 	for data: CharacterData in setup.party:
 		for ability: AbilityData in data.all_abilities():
 			_abilities[ability.id] = ability
@@ -141,6 +156,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		# A defence press still in flight when the fight ends must not skip the end screen.
 		if Time.get_ticks_usec() - _ended_at_us < _visuals.end_input_guard_ms * 1000:
+			return
+		if _from_zone:
+			if key == KEY_R:
+				get_viewport().set_input_as_handled()
+				restart_requested.emit()
+			elif event.is_action_pressed("menu_confirm", false, true) or event.is_action_pressed("menu_cancel", false, true):
+				get_viewport().set_input_as_handled()
+				zone_return_requested.emit(_result)
 			return
 		if event.is_action_pressed("menu_confirm", false, true) or key == KEY_R:
 			get_viewport().set_input_as_handled()
@@ -235,6 +258,9 @@ func _play(ev: Dictionary) -> void:
 		"combat_started":
 			mirror.apply(ev)
 			await _build_fighters()
+			if String(ev.get("opening", "")) == "first_strike":
+				Sfx.play("gauge_full")
+				hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
 		"turn_started":
 			mirror.apply(ev)
 			if int(ev.team) == Combatant.Team.PARTY:
@@ -271,6 +297,7 @@ func _play(ev: Dictionary) -> void:
 				runner.start(ev, _attacks.get(String(ev.action)) as EnemyAttackData)
 		"turn_ended":
 			mirror.apply(ev)
+			view.camera.reset_shot()
 			_refresh()
 			event_played.emit(ev)
 			await _wait_ms(_tuning.turn_gap_ms)
@@ -314,6 +341,7 @@ func _maybe_open_menu() -> void:
 	for ability: AbilityData in abilities:
 		entries.append(_menu_entry(actor, ability))
 	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, entries, names)
+	view.camera.shot_turn(view.home_of(actor))
 	_set_active_pose(actor)
 	menu_opened.emit(actor)
 
@@ -373,16 +401,19 @@ func _on_target_changed(target_id: int) -> void:
 
 
 func _on_combat_ended(result: String) -> void:
+	_result = result
 	_ended = true
 	_ended_at_us = Time.get_ticks_usec()
 	hud.action_menu.close()
 	_set_active_pose(-1)
 	Sfx.play("victory" if result == "victory" else "defeat")
-	hud.show_end(result, _summary_text())
+	view.camera.shot_end(view.arena_centre())
+	hud.show_end(result, _summary_text(), _from_zone)
 	if _options.is_autoplay():
 		_check_mirror()
 	combat_finished.emit(result)
-	if _options.quit_on_end:
+	# A zone fight hands the end back to the zone (Main); the zone decides when the run is over.
+	if _options.quit_on_end and not _from_zone:
 		get_tree().create_timer(QUIT_DELAY_S).timeout.connect(_quit)
 
 
@@ -458,6 +489,7 @@ func _play_counter(ev: Dictionary) -> void:
 	actors.assign(ev.actors)
 	var team := bool(ev.team)
 	_counters += 1
+	view.camera.shot_counter(view.home_of(int(ev.target)))
 	if team:
 		hud.show_center_banner("TEAM COUNTER!", HudStyle.GOLD, _visuals.team_banner_ms)
 	else:
@@ -641,6 +673,10 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 			KEY_C:
 				_options.windup_crouch = not _options.windup_crouch
 				return true
+			KEY_V:
+				_options.cinematic_camera = not _options.cinematic_camera
+				view.camera.cinematic = _options.cinematic_camera
+				return true
 	match key:
 		KEY_F2:
 			# Only while the game waits for a menu choice, never during an attack or a skill.
@@ -759,7 +795,7 @@ func _warm_up_assets(setup: CombatSetup) -> void:
 		AssetLoader.texture(e.sprite_path, Vector2i(384, 64))
 		AssetLoader.texture(e.portrait_path, Vector2i(24, 24))
 	for path: String in [_visuals.spark_path, _visuals.shockwave_path, _visuals.shadow_path,
-			_visuals.slash_path, _visuals.floor_tile_path, _visuals.backdrop_path,
+			_visuals.slash_path,
 			_visuals.lock_icon_path, _visuals.ap_pip_path, _visuals.ap_pip_empty_path,
 			_visuals.hit_icon_normal_path, _visuals.hit_icon_ground_path]:
 		AssetLoader.texture(path)

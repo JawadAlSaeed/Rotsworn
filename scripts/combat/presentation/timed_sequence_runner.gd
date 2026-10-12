@@ -145,6 +145,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_longest_frame_us = 0
 	_last_frame_us = Time.get_ticks_usec()
 	_contact = _view.contact_point(_targets)
+	_view.camera.shot_attack(_view.home_of(_source), _contact)
 	# The runner moves the party every frame from here on: stop any leftover tweened movement.
 	for id: int in _mirror.party_ids:
 		var view := _view.fighter(id)
@@ -212,6 +213,8 @@ func _process(_delta: float) -> void:
 			_update_target_arrows(0)
 			return
 		_clock.start(_lead_in_end_us)
+		# The camera glided to the attack shot during the lead-in: hold it still from here.
+		_view.camera.settle()
 		if bool(_event.get("alert_cue", false)):
 			Sfx.play("alert")
 	var t := _clock.attack_time_us(now)

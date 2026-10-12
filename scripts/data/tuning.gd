@@ -76,6 +76,10 @@ extends Resource
 ## The enemy crouches while it winds up and springs out of it as the lunge or slam starts.
 ## Toggle in a fight with F1 > C.
 @export var show_windup_crouch: bool = true
+## The combat camera moves for turns, skills, enemy attacks and the ultimate (DESIGN.md 7.3). It
+## settles before an enemy attack's first motion and holds still while you defend. Toggle in a
+## fight with F1 > V.
+@export var cinematic_camera: bool = true
 
 @export_group("HP and damage")
 ## HP of a character at 100% hp.
@@ -161,6 +165,31 @@ extends Resource
 @export_range(0, 300, 1, "suffix:ms") var hitstop_press_ms: int = 60
 ## Time after a skill's last press (or follow-up) before the turn moves on.
 @export_range(0, 3000, 1, "suffix:ms") var skill_recover_ms: int = 350
+
+@export_group("Exploration")
+## How fast the leader walks (world units per second).
+@export_range(0.5, 20.0, 0.1) var explore_walk_speed: float = 4.5
+## Roaming enemies wander this fast, and chase this fast (keep chasing below walking, so you can
+## get away or turn around and strike first).
+@export_range(0.1, 20.0, 0.1) var explore_wander_speed: float = 1.2
+@export_range(0.1, 20.0, 0.1) var explore_chase_speed: float = 3.6
+## A roaming enemy notices the leader within this distance, shows "!" for notice ms, then chases
+## until the leader is further than give-up distance from it.
+@export_range(0.5, 50.0, 0.1) var explore_notice_radius: float = 5.0
+@export_range(0, 3000, 1, "suffix:ms") var explore_notice_ms: int = 450
+@export_range(0.5, 80.0, 0.1) var explore_give_up_radius: float = 9.0
+## Between wander walks a roaming enemy stands still for a random time in this range.
+@export_range(0, 10000, 1, "suffix:ms") var explore_pause_min_ms: int = 800
+@export_range(0, 10000, 1, "suffix:ms") var explore_pause_max_ms: int = 2200
+## A roaming enemy closer than this to the leader touches them: the fight starts, no advantage.
+@export_range(0.1, 5.0, 0.05) var explore_touch_radius: float = 0.9
+## The field strike hits a roaming enemy within this reach and this arc in front of the leader:
+## the fight starts with a FIRST STRIKE (DESIGN.md 2.12). One strike lasts strike ms.
+@export_range(0.1, 10.0, 0.05) var explore_strike_reach: float = 1.8
+@export_range(10.0, 360.0, 1.0) var explore_strike_arc_degrees: float = 140.0
+@export_range(50, 2000, 1, "suffix:ms") var explore_strike_ms: int = 320
+## After coming back from a fight, no roaming enemy can start a fight for this long.
+@export_range(0, 10000, 1, "suffix:ms") var explore_return_grace_ms: int = 1500
 
 @export_group("Practice and debug")
 ## Phase 1 practice keys: 1-5 force an enemy attack, I = party cannot die,

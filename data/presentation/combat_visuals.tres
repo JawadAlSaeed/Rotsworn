@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="CombatVisuals" format=3]
 
 [ext_resource type="Script" path="res://scripts/data/combat_visuals.gd" id="1_visuals"]
+[ext_resource type="Resource" path="res://data/looks/rotten_hollow.tres" id="2_look"]
 
 [resource]
 script = ExtResource("1_visuals")
@@ -8,13 +9,12 @@ spark_path = "res://assets/sprites/fx/spark.png"
 shockwave_path = "res://assets/sprites/fx/shockwave.png"
 shadow_path = "res://assets/sprites/fx/shadow.png"
 slash_path = "res://assets/sprites/fx/slash.png"
-floor_tile_path = "res://assets/sprites/env/floor_tile.png"
-backdrop_path = "res://assets/sprites/env/backdrop.png"
 lock_icon_path = "res://assets/sprites/ui/lock.png"
 ap_pip_path = "res://assets/sprites/ui/ap_pip.png"
 ap_pip_empty_path = "res://assets/sprites/ui/ap_pip_empty.png"
 hit_icon_normal_path = "res://assets/sprites/ui/hit_normal.png"
 hit_icon_ground_path = "res://assets/sprites/ui/hit_ground.png"
+stage_look = ExtResource("2_look")
 party_positions = Array[Vector3]([Vector3(-2.1, 0, -1.5), Vector3(-2.9, 0, 0), Vector3(-3.7, 0, 1.5)])
 enemy_positions = Array[Vector3]([Vector3(2.6, 0, 0), Vector3(3.8, 0, 1.6), Vector3(3.8, 0, -1.6)])
 party_art_faces_right = true
@@ -22,23 +22,32 @@ enemy_art_faces_left = true
 camera_position = Vector3(0.8, 3.4, 10)
 camera_target = Vector3(0, 1, 0)
 camera_fov = 40.0
-floor_size = 48.0
-floor_tile_world_size = 1.6
-backdrop_position = Vector3(0, 0, -13)
-backdrop_pixel_size = 0.1
 fx_pixel_size = 0.045
 shadow_width_factor = 0.85
 contact_gap = 1.6
 strike_gap = 1.5
 head_height_factor = 1.05
-background_color = Color(0.05, 0.055, 0.075, 1)
-ambient_color = Color(0.32, 0.34, 0.42, 1)
-ambient_energy = 0.7
-fog_color = Color(0.16, 0.18, 0.24, 1)
-fog_density = 0.025
-light_color = Color(1, 0.92, 0.82, 1)
-light_energy = 1.1
-light_rotation_degrees = Vector3(-55, -30, 0)
+dof_far_enabled = true
+dof_far_distance = 14.0
+dof_far_transition = 6.0
+dof_near_enabled = true
+dof_near_distance = 4.0
+dof_near_transition = 2.0
+dof_amount = 0.1
+shot_glide_ms = 160
+turn_focus_share = 0.2
+turn_push = 0.8
+skill_shot_offset = Vector3(-1.4, 2, 6.6)
+skill_shot_fov = 36.0
+ultimate_shot_offset = Vector3(0.6, 0.9, 5.4)
+ultimate_shot_fov = 34.0
+ultimate_orbit_degrees_per_s = 9.0
+attack_focus_share = 0.35
+attack_push = 1.2
+follow_up_safe_area = Rect2(0.1, 0.24, 0.8, 0.5)
+counter_push = 2.0
+end_shot_offset = Vector3(0, 2.6, 8.5)
+end_orbit_degrees_per_s = 8.0
 feint_lead_ms = 350
 feint_portion_percent = 60
 contact_hold_ms = 90
@@ -121,6 +130,7 @@ lock_icon_px = 56.0
 lock_icon_offset_px = Vector2(0, 40)
 miss_label_rise_factor = 0.3
 popup_punch_scale = 1.25
+first_strike_banner_ms = 1300
 team_banner_ms = 1100
 end_fade_ms = 400
 end_input_guard_ms = 800

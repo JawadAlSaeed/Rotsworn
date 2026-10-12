@@ -199,6 +199,11 @@ func set_grey(amount: float) -> void:
 	_material.set_shader_parameter("grey_amount", clampf(amount, 0.0, 1.0))
 
 
+## Mirrors the art (a walker turning to face the other way).
+func set_flip(flip: bool) -> void:
+	_sprite.flip_h = flip
+
+
 func set_tint(color: Color) -> void:
 	_material.set_shader_parameter("tint", color)
 

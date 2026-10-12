@@ -4,7 +4,7 @@ extends PanelContainer
 ## successful timing offsets, rolling median of recent parries, lag compensation, fps, vsync mode,
 ## audio latency and the longest frame of the last enemy attack, plus the cue toggles
 ## (R training ring, saved; F telegraph flash, T timing readout, L motion sounds, H hit markers
-## and C wind-up crouch, this session only). It sits in the right column, under the practice status, clear of the fighters.
+## C wind-up crouch and V cinematic camera, this session only). It sits in the right column, under the practice status, clear of the fighters.
 
 const TEXT_SIZE: int = 16
 const TITLE_SIZE: int = 20
@@ -78,6 +78,7 @@ func update_text(stats: DefenseStats, tuning: Tuning, options: CombatOptions, lo
 	lines.append("[L] Enemy motion sounds: %s" % _on_off(options.motion_sounds))
 	lines.append("[H] Hit markers: %s" % _on_off(options.hit_markers))
 	lines.append("[C] Wind-up crouch: %s" % _on_off(options.windup_crouch))
+	lines.append("[V] Cinematic camera: %s" % _on_off(options.cinematic_camera))
 	_body.text = "\n".join(lines)
 
 

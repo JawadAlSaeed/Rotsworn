@@ -2,6 +2,14 @@ class_name CombatSetup
 extends RefCounted
 ## Everything CombatEngine needs to build a fight.
 
+## How the fight starts (DESIGN.md 2.12).
+enum Opening {
+	## Everyone's first turn comes from their speed.
+	NORMAL,
+	## The party struck a roaming enemy first: every party member acts before any enemy.
+	FIRST_STRIKE,
+}
+
 var party: Array[CharacterData] = []
 var enemies: Array[EnemyData] = []
 ## Offered to every party member when the team gauge is full (null = no team ultimate).
@@ -10,10 +18,13 @@ var tuning: Tuning
 var rng_seed: int = 1
 ## Accept practice commands (force an attack, invulnerability). Off for real runs.
 var allow_practice: bool = false
+var opening: Opening = Opening.NORMAL
 
 
-static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: int) -> CombatSetup:
+static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: int,
+		p_opening: Opening = Opening.NORMAL) -> CombatSetup:
 	var setup := CombatSetup.new()
+	setup.opening = p_opening
 	setup.party = encounter.party.duplicate()
 	setup.enemies = encounter.enemies.duplicate()
 	setup.team_ultimate = encounter.team_ultimate

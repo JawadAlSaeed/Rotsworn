@@ -19,6 +19,13 @@ func _init() -> void:
 		"menu_confirm": [_key(KEY_ENTER), _key(KEY_KP_ENTER), _key(KEY_E), _joy(JOY_BUTTON_A)],
 		"menu_cancel": [_key(KEY_ESCAPE), _key(KEY_Q), _key(KEY_BACKSPACE), _joy(JOY_BUTTON_B)],
 		"debug_overlay": [_key(KEY_F1), _joy(JOY_BUTTON_BACK)],
+		"skill_press": [_key(KEY_SPACE), _key(KEY_E), _joy(JOY_BUTTON_A), _joy(JOY_BUTTON_RIGHT_SHOULDER)],
+		# Exploration (DESIGN.md 7.4): walk with WASD, the arrows or the left stick.
+		"move_up": [_key(KEY_W), _key(KEY_UP), _joy(JOY_BUTTON_DPAD_UP), _axis(JOY_AXIS_LEFT_Y, -1.0)],
+		"move_down": [_key(KEY_S), _key(KEY_DOWN), _joy(JOY_BUTTON_DPAD_DOWN), _axis(JOY_AXIS_LEFT_Y, 1.0)],
+		"move_left": [_key(KEY_A), _key(KEY_LEFT), _joy(JOY_BUTTON_DPAD_LEFT), _axis(JOY_AXIS_LEFT_X, -1.0)],
+		"move_right": [_key(KEY_D), _key(KEY_RIGHT), _joy(JOY_BUTTON_DPAD_RIGHT), _axis(JOY_AXIS_LEFT_X, 1.0)],
+		"field_strike": [_key(KEY_SPACE), _key(KEY_J), _joy(JOY_BUTTON_X)],
 	}
 	var added := 0
 	for action: String in actions:
