@@ -1,8 +1,8 @@
 class_name ZoneHud
 extends CanvasLayer
 ## The zone's screen text (DESIGN.md 7.4): the zone's name when you arrive, the controls, how many
-## roaming enemies are left, a "!" over every enemy chasing you, the name of the fight over enemies
-## nearby, and big banners (FIRST STRIKE!, ZONE CLEAR).
+## roaming enemies are left (in a run: the guard to beat), a "!" over every enemy chasing you, the
+## name of the fight over enemies nearby, and big banners (FIRST STRIKE!, ZONE CLEAR).
 
 const MARGIN: float = 24.0
 const TITLE_SIZE: int = 72
@@ -69,6 +69,12 @@ func set_enemies_left(count: int) -> void:
 	_count.text = "Enemies left: %d" % count if count > 0 else "All enemies beaten"
 
 
+## A run zone's goal: the guard at the exit, and how many optional enemies are left.
+func set_guard_goal(guard_beaten: bool, others_left: int) -> void:
+	var goal := "The way out is open" if guard_beaten else "Beat the GUARD at the exit"
+	_count.text = "%s\nOptional enemies: %d" % [goal, others_left]
+
+
 ## The "!" over roamer `index` at a screen position (its head), or hidden.
 func set_notice(index: int, shown: bool, screen_pos: Vector2 = Vector2.ZERO) -> void:
 	var mark := _mark(index)
@@ -80,12 +86,14 @@ func set_notice(index: int, shown: bool, screen_pos: Vector2 = Vector2.ZERO) -> 
 
 
 ## The fight's name over roamer `index`, or hidden.
-func set_tag(index: int, text: String, shown: bool, screen_pos: Vector2 = Vector2.ZERO) -> void:
+func set_tag(index: int, text: String, shown: bool, screen_pos: Vector2 = Vector2.ZERO,
+		color: Color = HudStyle.TEXT) -> void:
 	var mark := _mark(index)
 	var tag := mark.tag as Label
 	tag.visible = shown
 	if shown:
 		tag.text = text
+		tag.label_settings.font_color = color
 		tag.reset_size()
 		var above := (mark.notice as Label).size.y if (mark.notice as Label).visible else 0.0
 		tag.position = screen_pos - Vector2(tag.size.x * 0.5, tag.size.y + above + TAG_GAP)
@@ -123,5 +131,5 @@ func _fade(label: Label, ms: int) -> Tween:
 
 
 static func _controls_text() -> String:
-	return "Move   WASD / arrows / left stick\nStrike   %s\nHit an enemy before it touches you: FIRST STRIKE\nFight list   %s" % [
-			HudStyle.binding_text(&"field_strike"), HudStyle.binding_text(&"menu_cancel")]
+	return "Move   WASD / arrows / left stick\nStrike   %s\nHit an enemy before it touches you: FIRST STRIKE\nPause   %s" % [
+			HudStyle.binding_text(&"field_strike"), HudStyle.binding_text(&"pause")]

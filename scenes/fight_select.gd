@@ -1,11 +1,12 @@
 class_name FightSelect
 extends CanvasLayer
-## Start menu: the zones to explore (data/zones, DESIGN.md 7.4) first, then every test fight in
-## data/encounters (DESIGN.md 2.11). Up/down picks, confirm starts it. Driven only by the menu_*
-## input actions, like the action menu.
+## Practice list (from the main menu): the zones to explore (data/zones, DESIGN.md 7.4) first,
+## then every test fight in data/encounters (DESIGN.md 2.11). Up/down picks, confirm starts it,
+## cancel goes back to the main menu. Driven only by the menu_* input actions, like the action menu.
 
 signal chosen(encounter: EncounterData)
 signal zone_chosen(zone: ZoneData)
+signal back
 
 const ENCOUNTER_DIR := "res://data/encounters"
 const ZONE_DIR := "res://data/zones"
@@ -71,7 +72,7 @@ func setup(zones: Array[ZoneData], encounters: Array[EncounterData], start_index
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override("separation", 14)
 	add_child(column)
-	var title := HudStyle.make_label("Rotten Lands", TITLE_SIZE, HudStyle.GOLD)
+	var title := HudStyle.make_label("Practice", TITLE_SIZE, HudStyle.GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
 	for i: int in _count():
@@ -82,7 +83,8 @@ func setup(zones: Array[ZoneData], encounters: Array[EncounterData], start_index
 	_detail = HudStyle.make_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_detail)
-	var hint := HudStyle.make_label("Up/Down choose   %s start" % HudStyle.binding_text(&"menu_confirm"), HINT_SIZE, HudStyle.TEXT_DIM)
+	var hint := HudStyle.make_label("Up/Down choose   %s start   %s main menu" % [HudStyle.binding_text(&"menu_confirm"),
+			HudStyle.binding_text(&"menu_cancel")], HINT_SIZE, HudStyle.TEXT_DIM)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
 	_redraw()
@@ -110,6 +112,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			zone_chosen.emit(_zones[_index])
 		else:
 			chosen.emit(_encounters[_index - _zones.size()])
+		return
+	elif _pressed(event, &"menu_cancel"):
+		Sfx.play("menu_cancel")
+		get_viewport().set_input_as_handled()
+		back.emit()
 		return
 	else:
 		return

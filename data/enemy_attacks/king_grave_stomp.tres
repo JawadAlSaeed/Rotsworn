@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_qmcc5"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_gxfqm"]
+
+[sub_resource type="Resource" id="Resource_tl2mb"]
+script = ExtResource("1_qmcc5")
+impact_ms = 1100
+kind = 1
+damage_percent = 50
+approach_ms = 450
+
+[sub_resource type="Resource" id="Resource_74xlj"]
+script = ExtResource("1_qmcc5")
+impact_ms = 1700
+kind = 1
+damage_percent = 50
+approach_ms = 450
+
+[resource]
+script = ExtResource("2_gxfqm")
+id = "king_grave_stomp"
+display_name = "Grave Stomp"
+target_mode = 1
+weight = 2
+hits = Array[ExtResource("1_qmcc5")]([SubResource("Resource_tl2mb"), SubResource("Resource_74xlj")])

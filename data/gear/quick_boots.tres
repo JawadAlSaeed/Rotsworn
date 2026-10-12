@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_lvgwg"]
+
+[resource]
+script = ExtResource("1_lvgwg")
+id = "quick_boots"
+display_name = "Quick Boots"
+description = "Speed +15: turns come sooner."
+effect = 2
+amount = 15

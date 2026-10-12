@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_273gq"]
+
+[resource]
+script = ExtResource("1_273gq")
+id = "echo_charm"
+display_name = "Echo Charm"
+description = "+1 AP after each counter."
+effect = 4
+amount = 1

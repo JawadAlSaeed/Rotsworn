@@ -5,14 +5,21 @@ extends Node
 ## PlayerSettings.x() without the autoload's global name (which `--check-only` does not know)
 ## and they also work when no autoload exists (unit tests). UserSettings.x() works too.
 ## Holds what belongs to this machine and player rather than to the game's balance: the measured
-## lag compensation (F2 calibration) and the training ring toggle (F1 then R). Anything not saved
-## here falls back to the value in data/tuning/tuning.tres.
+## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
+## the volume and fullscreen (settings screen). Anything not saved here falls back to the value in
+## data/tuning/tuning.tres (or, for volume and fullscreen, the defaults below).
 
 const PATH := "user://settings.cfg"
 const SECTION_TIMING := "timing"
 const SECTION_CUES := "cues"
 const KEY_LATENCY := "latency_compensation_ms"
 const KEY_RING := "show_timing_ring"
+const SECTION_AUDIO := "audio"
+const KEY_VOLUME := "volume_percent"
+const SECTION_DISPLAY := "display"
+const KEY_FULLSCREEN := "fullscreen"
+const DEFAULT_VOLUME_PERCENT: int = 100
+const VOLUME_STEP_PERCENT: int = 10
 
 static var _config: ConfigFile
 
@@ -20,6 +27,8 @@ static var _config: ConfigFile
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_settings()
+	apply_volume()
+	apply_fullscreen()
 
 
 ## Lag compensation in ms: the calibrated value if there is one (kept within tuning's
@@ -58,6 +67,51 @@ static func show_timing_ring(tuning: Tuning) -> bool:
 static func set_show_timing_ring(value: bool) -> void:
 	_settings().set_value(SECTION_CUES, KEY_RING, value)
 	_save()
+
+
+## Forgets the calibrated lag compensation: the tuning default is used again.
+static func reset_latency_compensation() -> void:
+	if is_calibrated():
+		_settings().erase_section_key(SECTION_TIMING, KEY_LATENCY)
+		_save()
+
+
+## Master volume in percent (0 = silent).
+static func volume_percent() -> int:
+	return clampi(int(_settings().get_value(SECTION_AUDIO, KEY_VOLUME, DEFAULT_VOLUME_PERCENT)), 0, 100)
+
+
+static func set_volume_percent(value: int) -> void:
+	_settings().set_value(SECTION_AUDIO, KEY_VOLUME, clampi(value, 0, 100))
+	_save()
+	apply_volume()
+
+
+static func apply_volume() -> void:
+	var pct := volume_percent()
+	AudioServer.set_bus_mute(0, pct == 0)
+	AudioServer.set_bus_volume_db(0, linear_to_db(float(maxi(pct, 1)) / 100.0))
+
+
+static func fullscreen() -> bool:
+	return bool(_settings().get_value(SECTION_DISPLAY, KEY_FULLSCREEN, false))
+
+
+static func set_fullscreen(value: bool) -> void:
+	_settings().set_value(SECTION_DISPLAY, KEY_FULLSCREEN, value)
+	_save()
+	apply_fullscreen()
+
+
+## Fullscreen, or the normal maximised window. Nothing to do without a window (headless).
+static func apply_fullscreen() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var mode := DisplayServer.window_get_mode()
+	if fullscreen() and mode != DisplayServer.WINDOW_MODE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	elif not fullscreen() and mode == DisplayServer.WINDOW_MODE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
 
 
 static func _settings() -> ConfigFile:

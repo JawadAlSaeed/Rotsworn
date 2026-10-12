@@ -5,12 +5,12 @@ extends Node
 ## and starts a fight when the leader strikes an enemy first (FIRST STRIKE) or an enemy touches
 ## the leader (normal start). Main takes it out of the tree during the fight and calls resume()
 ## when the party comes back. Walking is presentation, not combat: real time, floats, no engine.
+## In a run (DESIGN.md 8) the zone is cleared by beating its guard at the exit; the other roaming
+## enemies are optional. Outside a run (practice) every enemy must be beaten.
 
 ## A fight is starting: roaming enemy `index` (its encounter), with this opening.
 signal encounter_started(index: int, opening: CombatSetup.Opening)
-## The player wants the fight list (menu_cancel).
-signal leave_requested
-## Every roaming enemy has been beaten.
+## The zone is cleared: the guard is beaten (run), or every roaming enemy (practice).
 signal cleared
 
 ## Walker sizes on the ground (world units).
@@ -53,13 +53,17 @@ var _cam_pos: Vector3 = Vector3.ZERO
 var _slash_texture: Texture2D
 var _fights: int = 0
 var _first_strikes: int = 0
+var _run_mode: bool = false
+var _cleared: bool = false
 
 
-func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: ExploreVisuals) -> void:
+func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: ExploreVisuals,
+		run_mode: bool = false) -> void:
 	_zone = zone
 	_tuning = tuning
 	_visuals = visuals
 	_explore = explore
+	_run_mode = run_mode
 
 
 func _ready() -> void:
@@ -115,6 +119,18 @@ func roamer_spots() -> Dictionary:
 	return spots
 
 
+## The roaming enemy that guards the exit (-1 if the zone has none: then every enemy counts).
+func guard_index() -> int:
+	for i: int in _roamers.size():
+		if (_roamers[i].data as ZoneEnemyData).guard:
+			return i
+	return -1
+
+
+func is_cleared() -> bool:
+	return _cleared
+
+
 func is_frozen() -> bool:
 	return _frozen
 
@@ -145,12 +161,32 @@ func resume(result: String) -> void:
 	_fight_index = -1
 	_frozen = false
 	_grace_until_ms = _time_ms + float(_tuning.explore_return_grace_ms)
-	_hud.set_enemies_left(enemies_left())
+	_update_goal()
 	_place_walkers(0.0)
 	_snap_camera()
-	if enemies_left() == 0:
+	if not _cleared and _goal_met():
+		_cleared = true
+		# A run moves on to the map now: nothing may start another fight on the way out.
+		_frozen = _run_mode
 		_hud.banner("ZONE CLEAR", HudStyle.GOLD, _explore.zone_title_ms)
 		cleared.emit()
+
+
+## A run zone is done when its guard is beaten; otherwise when every enemy is.
+func _goal_met() -> bool:
+	var guard := guard_index()
+	if _run_mode and guard >= 0:
+		return bool(_roamers[guard].defeated)
+	return enemies_left() == 0
+
+
+func _update_goal() -> void:
+	var guard := guard_index()
+	if _run_mode and guard >= 0:
+		var others := enemies_left() - (0 if bool(_roamers[guard].defeated) else 1)
+		_hud.set_guard_goal(bool(_roamers[guard].defeated), others)
+	else:
+		_hud.set_enemies_left(enemies_left())
 
 
 # --- building ---------------------------------------------------------------------------------
@@ -210,7 +246,7 @@ func _build() -> void:
 	_hud.name = "ZoneHud"
 	add_child(_hud)
 	_hud.setup(_explore, _zone.display_name)
-	_hud.set_enemies_left(enemies_left())
+	_update_goal()
 	_place_walkers(0.0)
 	_snap_camera()
 
@@ -271,12 +307,10 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _frozen or not is_inside_tree():
 		return
+	# Pause (Esc / Menu) is Main's: it stops this node and opens the pause menu.
 	if event.is_action_pressed(&"field_strike", false, true):
 		get_viewport().set_input_as_handled()
 		strike()
-	elif event.is_action_pressed(&"menu_cancel", false, true):
-		get_viewport().set_input_as_handled()
-		leave_requested.emit()
 
 
 ## The leader's field strike: a slash in front; a roaming enemy inside it starts a FIRST STRIKE.
@@ -379,7 +413,11 @@ func _update_marks() -> void:
 		var alert := state == RoamerBrain.State.NOTICE or state == RoamerBrain.State.CHASE
 		_hud.set_notice(i, on_screen and alert, screen)
 		var near := (r.pos as Vector2).distance_to(_leader_pos) <= _tuning.explore_notice_radius * TAG_RANGE_SHARE
-		_hud.set_tag(i, encounter_of(i).display_name, on_screen and near, screen)
+		if _run_mode and (r.data as ZoneEnemyData).guard:
+			# The guard is the way out: always named, in gold.
+			_hud.set_tag(i, "GUARD: " + encounter_of(i).display_name, on_screen, screen, HudStyle.GOLD)
+		else:
+			_hud.set_tag(i, encounter_of(i).display_name, on_screen and near, screen)
 
 
 func _spawn_slash(at: Vector3) -> void:

@@ -42,6 +42,7 @@ extends RefCounted
 ##   revived                 {source, target, hp, max_hp}
 ##   downed                  {target}
 ##   ap_changed              {character, delta, ap, reason}  reason: "spend" | "ability" | "given"
+##                           | "gear"
 ##   status_changed          {target, status, active, turns, source}   see Status
 ##   turn_shifted            {target, delta}   a fighter's next turn moved (delta in timeline
 ##                           ticks: negative = sooner); a turn_order event follows
@@ -65,7 +66,10 @@ extends RefCounted
 ##                           reason: "downed" | "attacker_down" | "targets_down" | "no_good_press"
 ##   sequence_resolved       {seq, reason}   boundary: every prompt is done. Counters follow.
 ##                           reason: "completed" | "targets_down" | "attacker_down"
-##   counter                 {seq, actors:[id], target, team}  followed by a damage event
+##   counter                 {seq, actors:[id], target, team, hits, mixed}  followed by a damage
+##                           event. hits: perfectly defended hits it answers; mixed: parries and jumps
+##   enemy_phase             {enemy, phase, text}   a boss dropped under its phase two HP: new
+##                           attacks and speed (an intent and turn_order follow)
 ##   turn_ended              {turn, actor}
 ##   practice_changed        {invulnerable_party, immortal_enemies, force_attack}
 ##                           also emitted (before timed_sequence_declared) when a forced
@@ -334,7 +338,7 @@ func _build_lookups() -> void:
 	if _setup.team_ultimate != null:
 		_abilities[_setup.team_ultimate.id] = _setup.team_ultimate
 	for data: EnemyData in _setup.enemies:
-		for attack: EnemyAttackData in data.attacks:
+		for attack: EnemyAttackData in data.attacks + data.phase_two_attacks:
 			_attacks[attack.id] = attack
 
 
@@ -348,11 +352,12 @@ func _build_combatants() -> void:
 		c.slot = slot
 		c.data_id = data.id
 		c.display_name = data.display_name
-		c.max_hp = CombatMath.percent_min1(tuning.base_character_hp, data.hp_percent)
-		c.hp = c.max_hp
-		c.ap = clampi(tuning.start_ap, 0, tuning.max_ap)
-		c.power = CombatMath.percent_min1(tuning.base_party_damage, data.power_percent)
-		c.speed = maxi(1, data.speed)
+		c.max_hp = _setup.party_max_hp(slot, data)
+		c.hp = _setup.party_hp_at_start(slot, c.max_hp)
+		c.passives = _setup.party_passives_of(slot)
+		c.ap = clampi(tuning.start_ap + Passive.amount(c, Passive.START_AP), 0, tuning.max_ap)
+		c.power = _setup.party_power(slot, data)
+		c.speed = _setup.party_speed(slot, data)
 		c.base_speed = c.speed
 		for ability: AbilityData in data.all_abilities():
 			c.ability_ids.append(ability.id)
@@ -676,7 +681,7 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 			var target := get_combatant(target_id)
 			if target.is_alive():
 				var pct := _skill_percent(actor, ability, false)
-				_deal_damage(actor, target, _skill_damage(actor.power, pct, _exposed_bonus(ability, target_id == exposed)), "ability", events)
+				_deal_damage(actor, target, _skill_damage(actor.power, pct, _exposed_bonus(actor, ability, target_id == exposed)), "ability", events)
 	_apply_effects(actor, ability, targets, false, exposed, events)
 	_end_of_turn(actor, events)
 	events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
@@ -810,7 +815,7 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			var good := 0
 			var perfect := 0
 			if damaging:
-				var bonus := _exposed_bonus(ability, exposed >= 0)
+				var bonus := _exposed_bonus(striker, ability, exposed >= 0)
 				good = _skill_damage(striker.power, _skill_percent(striker, ability, false), bonus)
 				perfect = _skill_damage(striker.power, _skill_percent(striker, ability, true), bonus)
 				miss = CombatMath.percent(good, tuning.skill_miss_damage_percent)
@@ -934,17 +939,18 @@ func _exposed_target(ability: AbilityData, targets: Array[int]) -> int:
 	return targets[0]
 
 
-func _exposed_bonus(ability: AbilityData, exposed: bool) -> int:
+func _exposed_bonus(striker: Combatant, ability: AbilityData, exposed: bool) -> int:
 	if not exposed:
 		return 0
-	return ability.exposed_bonus_percent if ability.exposed_bonus_percent > 0 else tuning.exposed_bonus_percent
+	var bonus := ability.exposed_bonus_percent if ability.exposed_bonus_percent > 0 else tuning.exposed_bonus_percent
+	return bonus + Passive.amount(striker, Passive.EXPOSED)
 
 
 ## Move percent of one hit: base, plus Payback's per-defence bonus, plus the press bonus.
 func _skill_percent(striker: Combatant, ability: AbilityData, good: bool) -> int:
 	var pct := ability.damage_percent + ability.per_perfect_defense_percent * striker.perfect_defenses
 	if good:
-		pct += ability.press_damage_percent
+		pct += ability.press_damage_percent + Passive.amount(striker, Passive.PERFECT_PRESS)
 	return pct
 
 
@@ -1040,7 +1046,7 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		damage = int(prompt.damage)
 		_lose_hp(target, damage)
 	var downed := not target.is_alive()
-	events.append({
+	var resolved := {
 		"type": "prompt_resolved",
 		"seq": sequence.seq,
 		"prompt": idx,
@@ -1055,10 +1061,13 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		"ap": target.ap,
 		"ap_delta": ap_delta,
 		"downed": downed,
-	})
+	}
+	events.append(resolved)
 	if downed:
 		events.append({"type": "downed", "target": target.id})
 		_on_downed(target, events)
+	elif perfect and outcome == Defense.Outcome.JUMP and Passive.amount(target, Passive.HEAL_ON_JUMP) > 0:
+		_heal(target, target, CombatMath.percent_min1(target.max_hp, Passive.amount(target, Passive.HEAL_ON_JUMP)), events)
 
 
 ## A skill press or follow-up press: its hit lands on every standing target.
@@ -1196,6 +1205,7 @@ func _finish_sequence_if_done(events: Array[Dictionary]) -> void:
 		events.append({"type": "sequence_resolved", "seq": sequence.seq, "reason": reason})
 		if reason == "completed":
 			_resolve_counters(source, events)
+		_second_winds(events)
 	sequence = {}
 	_end_of_turn(source, events)
 	events.append({"type": "turn_ended", "turn": turn_number, "actor": source.id})
@@ -1220,26 +1230,72 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 		and counterers.size() == targets.size()
 	)
 	if team:
+		var string := _string_of(-1)
 		var total := 0
 		for actor_id: int in counterers:
 			var actor := get_combatant(actor_id)
-			total += CombatMath.percent(actor.power, _counter_percent(actor, tuning.team_counter_percent))
-		events.append({"type": "counter", "seq": sequence.seq, "actors": counterers.duplicate(), "target": attacker.id, "team": true})
+			total += CombatMath.percent(actor.power, _counter_percent(actor, tuning.team_counter_percent, string))
+		events.append({"type": "counter", "seq": sequence.seq, "actors": counterers.duplicate(), "target": attacker.id,
+				"team": true, "hits": string.x, "mixed": string.y == 1})
 		_deal_damage(get_combatant(counterers[0]), attacker, _apply_variance(maxi(1, total)), "team_counter", events)
+		for actor_id: int in counterers:
+			_gear_ap_on_counter(get_combatant(actor_id), events)
 		return
 	for actor_id: int in counterers:
 		if not attacker.is_alive():
 			break
 		var actor := get_combatant(actor_id)
-		events.append({"type": "counter", "seq": sequence.seq, "actors": [actor_id], "target": attacker.id, "team": false})
-		_deal_damage(actor, attacker, _roll_damage(actor.power, _counter_percent(actor, tuning.counter_percent)), "counter", events)
+		var string := _string_of(actor_id)
+		events.append({"type": "counter", "seq": sequence.seq, "actors": [actor_id], "target": attacker.id, "team": false,
+				"hits": string.x, "mixed": string.y == 1})
+		_deal_damage(actor, attacker, _roll_damage(actor.power, _counter_percent(actor, tuning.counter_percent, string)),
+				"counter", events)
+		_gear_ap_on_counter(actor, events)
 
 
-## Riposte Stance multiplies the counter percent.
-func _counter_percent(actor: Combatant, base_percent: int) -> int:
+## The counter percent (card #52): the base, plus counter_per_extra_hit_percent for each hit after
+## the first, plus counter_mixed_bonus_percent for a string of parries and jumps, plus gear; then
+## Riposte Stance multiplies it. string = Vector2i(hits, mixed 0/1) from _string_of.
+func _counter_percent(actor: Combatant, base_percent: int, string: Vector2i) -> int:
+	var pct := base_percent + tuning.counter_per_extra_hit_percent * maxi(0, string.x - 1)
+	if string.y == 1:
+		pct += tuning.counter_mixed_bonus_percent
+	pct += Passive.amount(actor, Passive.COUNTER)
 	if actor.has_status(Status.RIPOSTE):
-		return CombatMath.percent(base_percent, tuning.riposte_counter_percent)
-	return base_percent
+		return CombatMath.percent(pct, tuning.riposte_counter_percent)
+	return pct
+
+
+## The string a counter answers: Vector2i(hits, 1 if it had both normal and ground hits else 0).
+## For one character (character_id) its own prompts; -1 = the whole attack (team counter).
+func _string_of(character_id: int) -> Vector2i:
+	var hits := 0
+	var normal := false
+	var ground := false
+	for prompt: Dictionary in sequence.prompts:
+		if character_id >= 0 and int(prompt.character) != character_id:
+			continue
+		hits += 1
+		normal = normal or int(prompt.kind) == AttackHitData.Kind.NORMAL
+		ground = ground or int(prompt.kind) == AttackHitData.Kind.GROUND
+	if character_id < 0:
+		hits = (sequence.hits as Array).size()
+	return Vector2i(hits, 1 if normal and ground else 0)
+
+
+func _gear_ap_on_counter(actor: Combatant, events: Array[Dictionary]) -> void:
+	var gain := Passive.amount(actor, Passive.AP_ON_COUNTER)
+	if gain > 0 and actor.is_alive():
+		_change_ap(actor, gain, "gear", events)
+
+
+## Second Wind gear: once per fight, a character downed during this enemy attack gets back up.
+func _second_winds(events: Array[Dictionary]) -> void:
+	for c: Combatant in combatants:
+		var pct := Passive.amount(c, Passive.SECOND_WIND)
+		if c.is_party() and not c.is_alive() and pct > 0 and not c.second_wind_used:
+			c.second_wind_used = true
+			_revive(c, c, pct, events)
 
 
 func _all_perfect(character_id: int) -> bool:
@@ -1319,6 +1375,7 @@ func _shift_turn(c: Combatant, delta: int, events: Array[Dictionary]) -> void:
 
 
 func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary]) -> void:
+	amount = CombatMath.percent(amount, 100 + Passive.amount(source, Passive.HEAL))
 	var before := target.hp
 	target.hp = mini(target.max_hp, target.hp + amount)
 	events.append({"type": "healed", "source": source.id, "target": target.id, "amount": target.hp - before,
@@ -1369,6 +1426,9 @@ func _enemy_hit_damage(enemy: Combatant, target: Combatant, pct: int) -> int:
 	var amount := CombatMath.percent_min1(enemy.power, pct)
 	if target.has_status(Status.GUARDED):
 		amount = CombatMath.percent_min1(amount, tuning.guard_damage_percent)
+	var tough := Passive.amount(target, Passive.TOUGH)
+	if tough > 0:
+		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tough))
 	return _apply_variance(amount)
 
 
@@ -1405,6 +1465,29 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 	if not target.is_alive():
 		events.append({"type": "downed", "target": target.id})
 		_on_downed(target, events)
+	elif not target.is_party():
+		_maybe_enter_phase_two(target, events)
+
+
+## A boss under its phase two HP changes attacks and speed, and picks a new intent.
+func _maybe_enter_phase_two(enemy: Combatant, events: Array[Dictionary]) -> void:
+	if enemy.phase != 1 or enemy.slot >= _setup.enemies.size():
+		return
+	var data := _setup.enemies[enemy.slot]
+	if data.phase_two_hp_percent <= 0 or data.phase_two_attacks.is_empty():
+		return
+	if enemy.hp * 100 > enemy.max_hp * data.phase_two_hp_percent:
+		return
+	enemy.phase = 2
+	enemy.attack_ids.clear()
+	for attack: EnemyAttackData in data.phase_two_attacks:
+		enemy.attack_ids.append(attack.id)
+	if data.phase_two_speed > 0:
+		enemy.base_speed = data.phase_two_speed
+		_set_speed(enemy, data.phase_two_speed)
+	events.append({"type": "enemy_phase", "enemy": enemy.id, "phase": 2, "text": data.phase_two_text})
+	_pick_intent(enemy, events)
+	events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
 
 
 func _change_ap(target: Combatant, delta: int, reason: String, events: Array[Dictionary]) -> void:

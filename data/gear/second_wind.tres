@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_lrbr6"]
+
+[resource]
+script = ExtResource("1_lrbr6")
+id = "second_wind"
+display_name = "Second Wind"
+description = "Once per fight: fall during an enemy attack, get back up when it ends with 30% HP."
+price = 80
+effect = 7
+amount = 30

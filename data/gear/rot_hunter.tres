@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_s6m4i"]
+
+[resource]
+script = ExtResource("1_s6m4i")
+id = "rot_hunter"
+display_name = "Rot Hunter"
+description = "Hits on Exposed enemies deal +50% more."
+effect = 9
+amount = 50

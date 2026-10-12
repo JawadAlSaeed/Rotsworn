@@ -69,7 +69,9 @@ whenever a decision is made or changed.
   buttons). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
   from `data/encounters/` (default `husk_fight`), `--first-strike` to start it with the advantage,
   or `--zone=rotten_hollow` to have the bot walk the zone and fight every roaming enemy (ends with
-  `AUTOPLAY_RESULT zone_clear` or `zone_defeat`). Works with `--headless`. A good run prints
+  `AUTOPLAY_RESULT zone_clear` or `zone_defeat`), or `--run` to have the bot play a whole run
+  (map, zones to the guard, shops, rests, final fight; ends with `AUTOPLAY_RESULT run_victory` or
+  `run_defeat`, about 10 to 20 minutes, so use `timeout 1500`). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
 - Always run headless Godot commands with a timeout (`timeout 120 ...`): a script error in a
   `-s` script leaves Godot running forever.
@@ -126,7 +128,8 @@ whenever a decision is made or changed.
 ## Folder map
 
 - `data/` content resources (`.tres`), including `tuning/tuning.tres`,
-  `presentation/combat_visuals.tres`, `presentation/explore_visuals.tres`, `looks/` and `zones/`
+  `presentation/combat_visuals.tres`, `presentation/explore_visuals.tres`, `looks/`, `zones/`,
+  `runs/` (the run), `shop/` (shop items) and `gear/`
 - `assets/` sprites, audio (placeholders until real art arrives)
 - `scripts/data/` resource class scripts
 - `scripts/core/` shared helpers (asset loading)
@@ -137,9 +140,13 @@ whenever a decision is made or changed.
 - `scripts/stage/` building a place from data (environment, blocks, props, lights, vignette) and
   screen transitions
 - `scripts/explore/` zones: walking, roaming enemies, zone HUD, zone bot
+- `scripts/run/` the run: `RunMap` and `RunState` (pure, tested), map, shop, rest, loot, party
+  and run-end screens, the gold and HP strip
+- `scripts/menu/` main menu, settings, pause menu, yes/no prompt, the shared `ListMenu`
 - `scripts/autoload/` global singletons (`Audio`, `UserSettings` = `PlayerSettings`, saved per
   machine in `user://settings.cfg`)
 - `scenes/` scenes
 - `tests/unit/` GUT tests
-- `tools/` headless helper scripts (placeholder generation, data bootstrap)
+- `tools/` headless helper scripts (placeholder generation, data bootstrap, `bootstrap_run.gd`
+  for the run, shop, gear, boss and phase 4 zones)
 - `docs/` design docs

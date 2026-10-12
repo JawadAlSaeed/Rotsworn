@@ -12,13 +12,17 @@ extends Node
 signal restart_requested
 ## Back to the fight list (end screen, Cancel).
 signal select_requested
-## A fight that started in a zone is over and the player wants to go back (DESIGN.md 7.4).
-signal zone_return_requested(result: String)
+## A fight that started in a zone or a run is over and the player wants to go on (back to the
+## zone, or on with the run; DESIGN.md 7.4, 8).
+signal continue_requested(result: String)
 ## Every event as it is played (and the prompt events the runner applies at once).
 signal event_played(event: Dictionary)
 ## The action menu opened for this party member.
 signal menu_opened(actor_id: int)
 signal combat_finished(result: String)
+## A pause asked for with request_pause() can start now: nothing is being timed. Main stops this
+## node (process disabled) and shows the pause menu; resume_after_pause() goes on.
+signal pause_reached
 
 const QUIT_DELAY_S: float = 1.0
 ## After stopping all sounds, quitting waits this long (real time) so the audio server lets go of
@@ -45,6 +49,9 @@ var _options: CombatOptions
 var _look: StageLook
 var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 var _from_zone: bool = false
+## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
+var _run: RunState
+var _setup: CombatSetup
 var _result: String = ""
 var _queue: Array[Dictionary] = []
 var _playing: bool = false
@@ -52,6 +59,9 @@ var _waiting_runner: bool = false
 var _ended: bool = false
 var _ended_at_us: int = 0
 var _menu_turn: int = -1
+## Pause (DESIGN.md 6): asked for, and reached (the event queue holds still).
+var _pause_pending: bool = false
+var _paused: bool = false
 ## This fight's numbers for the end screen: successful presses per Defense.Outcome (one press
 ## answering three characters counts once), enemy hits as distinct "seq:hit" keys, counters.
 var _defended: Dictionary = {}
@@ -76,6 +86,24 @@ func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals,
 	_look = look
 	_opening = opening
 	_from_zone = from_zone
+
+
+## Makes this a run fight (DESIGN.md 8): the run's party with its carried-over HP, gold on the end
+## screen, and no "fight again". Call after configure(), before adding the node to the tree.
+func configure_run(run: RunState) -> void:
+	_run = run
+
+
+## Each party member's HP right now, by slot (the run carries it to the next fight).
+func party_hp() -> Array[int]:
+	var list: Array[int] = []
+	list.resize(mirror.party_ids.size())
+	for id: int in mirror.party_ids:
+		var f := mirror.fighter(id)
+		var slot := int(f.slot)
+		if slot >= 0 and slot < list.size():
+			list[slot] = int(f.hp)
+	return list
 
 
 func _ready() -> void:
@@ -122,7 +150,8 @@ func _ready() -> void:
 		menu_opened.connect(autoplay.on_menu_opened)
 		combat_finished.connect(autoplay.on_combat_finished)
 
-	var setup := CombatSetup.from_encounter(_encounter, _tuning, _pick_seed(), _opening)
+	var setup := _run.fight_setup(_encounter, _pick_seed(), _opening) if _run != null 			else CombatSetup.from_encounter(_encounter, _tuning, _pick_seed(), _opening)
+	_setup = setup
 	setup.allow_practice = _tuning.practice_tools_enabled or _options.is_autoplay()
 	print("Combat seed: %d  encounter: %s  opening: %s" % [setup.rng_seed, _encounter.id,
 			CombatEngine.OPENING_NAMES[setup.opening]])
@@ -157,13 +186,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		# A defence press still in flight when the fight ends must not skip the end screen.
 		if Time.get_ticks_usec() - _ended_at_us < _visuals.end_input_guard_ms * 1000:
 			return
-		if _from_zone:
-			if key == KEY_R:
+		if _from_zone or _run != null:
+			if key == KEY_R and _run == null:
 				get_viewport().set_input_as_handled()
 				restart_requested.emit()
 			elif event.is_action_pressed("menu_confirm", false, true) or event.is_action_pressed("menu_cancel", false, true):
 				get_viewport().set_input_as_handled()
-				zone_return_requested.emit(_result)
+				continue_requested.emit(_result)
 			return
 		if event.is_action_pressed("menu_confirm", false, true) or key == KEY_R:
 			get_viewport().set_input_as_handled()
@@ -221,17 +250,53 @@ func _enqueue(events: Array[Dictionary]) -> void:
 
 
 func _pump() -> void:
-	if _playing or _waiting_runner:
+	if _playing or _waiting_runner or _paused:
 		return
 	_playing = true
 	while not _queue.is_empty():
+		# A pause waits for a boundary between events, never inside an attack or a skill: their
+		# timing runs on the real clock and cannot stop.
+		if _pause_pending:
+			_enter_pause()
+			break
 		var ev: Dictionary = _queue.pop_front()
 		await _play(ev)
 		if _waiting_runner:
 			break
 	_playing = false
-	if _queue.is_empty() and not _waiting_runner:
+	if _queue.is_empty() and not _waiting_runner and not _paused:
 		_maybe_open_menu()
+		if _pause_pending:
+			_enter_pause()
+
+
+## Asks to pause. Returns false if this fight cannot pause now (over, or calibrating). During an
+## enemy attack or a skill the pause starts when it is done ("PAUSING AFTER THIS MOVE").
+func request_pause() -> bool:
+	if _ended or _paused or hud.calibration.is_running():
+		return false
+	_pause_pending = true
+	if not _playing and not _waiting_runner:
+		_enter_pause()
+	else:
+		hud.show_center_banner("PAUSING AFTER THIS MOVE", HudStyle.TEXT, _visuals.first_strike_banner_ms)
+	return true
+
+
+func is_paused() -> bool:
+	return _paused
+
+
+## Goes on after the pause menu closes (Main has re-enabled this node).
+func resume_after_pause() -> void:
+	_paused = false
+	_pump()
+
+
+func _enter_pause() -> void:
+	_pause_pending = false
+	_paused = true
+	pause_reached.emit()
 
 
 ## Applies an event to the mirror right now (runner prompt events, practice changes) with its
@@ -261,6 +326,9 @@ func _play(ev: Dictionary) -> void:
 			if String(ev.get("opening", "")) == "first_strike":
 				Sfx.play("gauge_full")
 				hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
+			elif _encounter.boss:
+				Sfx.play("alert")
+				hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
 		"turn_started":
 			mirror.apply(ev)
 			if int(ev.team) == Combatant.Team.PARTY:
@@ -281,7 +349,7 @@ func _play(ev: Dictionary) -> void:
 		"downed":
 			mirror.apply(ev)
 			_show_downed(int(ev.target))
-		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge":
+		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge", "enemy_phase":
 			mirror.apply(ev)
 			_show_feedback(ev)
 		"timed_sequence_declared":
@@ -335,8 +403,8 @@ func _maybe_open_menu() -> void:
 	for id: int in mirror.fighters:
 		names[id] = String(mirror.fighter(id).display_name)
 	var abilities := data.all_abilities()
-	if _encounter.team_ultimate != null:
-		abilities.append(_encounter.team_ultimate)
+	if _setup.team_ultimate != null:
+		abilities.append(_setup.team_ultimate)
 	var entries: Array[Dictionary] = []
 	for ability: AbilityData in abilities:
 		entries.append(_menu_entry(actor, ability))
@@ -408,12 +476,12 @@ func _on_combat_ended(result: String) -> void:
 	_set_active_pose(-1)
 	Sfx.play("victory" if result == "victory" else "defeat")
 	view.camera.shot_end(view.arena_centre())
-	hud.show_end(result, _summary_text(), _from_zone)
+	hud.show_end(result, _summary_text(), _end_hint())
 	if _options.is_autoplay():
 		_check_mirror()
 	combat_finished.emit(result)
 	# A zone fight hands the end back to the zone (Main); the zone decides when the run is over.
-	if _options.quit_on_end and not _from_zone:
+	if _options.quit_on_end and not _from_zone and _run == null:
 		get_tree().create_timer(QUIT_DELAY_S).timeout.connect(_quit)
 
 
@@ -430,11 +498,31 @@ func _on_press_judged(action: int, report: Dictionary) -> void:
 		_defended[key] = int(_defended.get(key, 0)) + 1
 
 
+## What the end screen's buttons do.
+func _end_hint() -> String:
+	var confirm := HudStyle.binding_text(&"menu_confirm")
+	if _run != null:
+		if _result != "victory":
+			return "%s:  see how the run went      F1: stats" % confirm
+		return "%s:  %s      F1: stats" % [confirm, "back to the zone" if _from_zone else "on with the run"]
+	if _from_zone:
+		return "%s:  back to the zone      R:  fight again      F1: stats" % confirm
+	return "%s  or  R:  fight again      %s:  choose a fight      F1: stats" % [confirm,
+			HudStyle.binding_text(&"menu_cancel")]
+
+
 func _summary_text() -> String:
-	return "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d\nskill presses: perfect %d, good %d" % [
+	var text := "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d\nskill presses: perfect %d, good %d" % [
 			_enemy_hits.size(), int(_defended.get(Defense.Outcome.PARRY, 0)),
 			int(_defended.get(Defense.Outcome.DODGE, 0)), int(_defended.get(Defense.Outcome.JUMP, 0)), _counters,
 			int(_defended.get(Defense.Outcome.PRESS_PERFECT, 0)), int(_defended.get(Defense.Outcome.PRESS, 0))]
+	if _run != null and _result == "victory":
+		var xp := RunState.encounter_xp(_encounter)
+		text += "\n+%d gold   +%d XP" % [_run.gold_for(_encounter), xp]
+		var levels := _run.levels_from(xp)
+		if levels > 0:
+			text += "   LEVEL UP!  Level %d" % (_run.level + levels)
+	return text
 
 
 ## Autoplay guard: the mirror, built from events in playback order, must end equal to the engine.
@@ -490,13 +578,25 @@ func _play_counter(ev: Dictionary) -> void:
 	var team := bool(ev.team)
 	_counters += 1
 	view.camera.shot_counter(view.home_of(int(ev.target)))
+	var label := counter_label(team, int(ev.get("hits", 1)), bool(ev.get("mixed", false)))
 	if team:
-		hud.show_center_banner("TEAM COUNTER!", HudStyle.GOLD, _visuals.team_banner_ms)
+		hud.show_center_banner(label, HudStyle.GOLD, _visuals.team_banner_ms)
 	else:
 		var enemy := view.fighter(int(ev.target))
 		if enemy != null:
-			hud.popup("COUNTER!", enemy.head_position(), HudStyle.GOLD)
+			hud.popup(label, enemy.head_position(), HudStyle.GOLD)
 	await _strike(actors, int(ev.target), "team_counter" if team else "counter", _take_following(), true)
+
+
+## "COUNTER!", "COUNTER x5!", "TEAM COUNTER x4 MIXED!": a longer or mixed string hits harder
+## (card #52), so the text says why.
+static func counter_label(team: bool, hits: int, mixed: bool) -> String:
+	var text := "TEAM COUNTER" if team else "COUNTER"
+	if hits > 1:
+		text += " x%d" % hits
+	if mixed:
+		text += " MIXED"
+	return text + "!"
 
 
 ## Pops the damage/downed events that belong to the strike now being played.
@@ -590,8 +690,16 @@ func _show_feedback(ev: Dictionary) -> void:
 		"ap_changed":
 			if int(ev.delta) > 0:
 				Sfx.play("ap_gain")
-				if String(ev.reason) == "given" and v != null:
+				if String(ev.reason) in ["given", "gear"] and v != null:
 					hud.popup("+%d AP" % int(ev.delta), head, HudStyle.AP_TEXT)
+		"enemy_phase":
+			var boss := view.fighter(int(ev.enemy))
+			Sfx.play("gauge_full")
+			if boss != null:
+				boss.flash(_visuals.flash_ms * 4, HudStyle.LATE, 0.9)
+			var text := String(ev.get("text", ""))
+			hud.show_center_banner(text if not text.is_empty() else "IT GROWS FURIOUS!", HudStyle.LATE,
+					_visuals.first_strike_banner_ms)
 		"healed":
 			if v != null:
 				hud.damage_number(int(ev.amount), head, HudStyle.HEAL)
@@ -692,7 +800,9 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 				_enqueue(_submit(CombatCommands.practice({"immortal_enemies": not bool(mirror.practice.immortal_enemies)})))
 			return true
 		KEY_R:
-			restart_requested.emit()
+			# A run fight cannot be started over: its HP and gold carry on.
+			if _run == null:
+				restart_requested.emit()
 			return true
 	var index := PRACTICE_ATTACK_KEYS.find(key)
 	if index >= 0:
@@ -734,7 +844,7 @@ func _practice_text() -> String:
 		lines.append("   ".join(keys))
 	lines.append("I party invulnerable: " + _on_off(bool(mirror.practice.get("invulnerable_party", false))))
 	lines.append("O enemy immortal: " + _on_off(bool(mirror.practice.get("immortal_enemies", false))))
-	lines.append("R restart   F1 stats   F2 calibrate")
+	lines.append("F1 stats   F2 calibrate" if _run != null else "R restart   F1 stats   F2 calibrate")
 	return "\n".join(lines)
 
 
@@ -775,11 +885,11 @@ func _pick_seed() -> int:
 
 func _find_data(data_id: String, is_party: bool) -> Resource:
 	if is_party:
-		for c: CharacterData in _encounter.party:
+		for c: CharacterData in _setup.party:
 			if c != null and c.id == data_id:
 				return c
 	else:
-		for e: EnemyData in _encounter.enemies:
+		for e: EnemyData in _setup.enemies:
 			if e != null and e.id == data_id:
 				return e
 	return null

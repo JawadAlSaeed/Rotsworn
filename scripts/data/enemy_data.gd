@@ -23,3 +23,16 @@ extends Resource
 ## Turn speed. 100 is average; 200 acts twice as often as 100.
 @export_range(1, 1000) var speed: int = 100
 @export var attacks: Array[EnemyAttackData] = []
+## Gold and XP the party gets for beating it in a run (DESIGN.md 8).
+@export_range(0, 10000) var gold: int = 10
+@export_range(0, 10000) var xp: int = 20
+
+@export_group("Phase two (bosses)")
+## When its HP drops to this percent of max HP or lower, it enters phase two: it attacks with
+## phase_two_attacks at phase_two_speed. 0 = no phase two.
+@export_range(0, 99, 1, "suffix:%") var phase_two_hp_percent: int = 0
+@export var phase_two_attacks: Array[EnemyAttackData] = []
+## Speed in phase two (0 = unchanged).
+@export_range(0, 1000) var phase_two_speed: int = 0
+## Shown as a banner when phase two starts.
+@export var phase_two_text: String = ""

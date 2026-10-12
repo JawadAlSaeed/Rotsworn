@@ -17,3 +17,5 @@ sprite_path = "res://assets/sprites/enemies/rotten_husk.png"
 portrait_path = "res://assets/sprites/portraits/rotten_husk.png"
 speed = 200
 attacks = Array[ExtResource("1_wmv88")]([ExtResource("2_cbueq"), ExtResource("3_baxc6"), ExtResource("4_vgvt7"), ExtResource("5_r0fm7"), ExtResource("6_gqtro")])
+gold = 15
+xp = 30

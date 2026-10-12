@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_m03sc"]
+
+[resource]
+script = ExtResource("1_m03sc")
+id = "war_drum"
+display_name = "War Drum"
+description = "Start every fight with +1 AP."
+price = 70
+effect = 3
+amount = 1

@@ -39,7 +39,8 @@ const EVENT_KEYS: Dictionary = {
 			"max_hp", "ap", "ap_delta", "downed"],
 	"prompts_voided": ["seq", "prompts", "reason"],
 	"sequence_resolved": ["seq", "reason"],
-	"counter": ["seq", "actors", "target", "team"],
+	"counter": ["seq", "actors", "target", "team", "hits", "mixed"],
+	"enemy_phase": ["enemy", "phase", "text"],
 	"turn_ended": ["turn", "actor"],
 	"practice_changed": ["invulnerable_party", "immortal_enemies", "force_attack"],
 	"combat_ended": ["result"],
@@ -51,7 +52,7 @@ const PROMPT_KEYS: Array[String] = ["idx", "hit", "character", "at_ms", "kind", 
 const STRING_VALUES: Dictionary = {
 	"timed_sequence_declared.kind": ["enemy_attack", "skill"],
 	"damage.cause": ["ability", "follow_up", "counter", "team_counter"],
-	"ap_changed.reason": ["spend", "ability", "given"],
+	"ap_changed.reason": ["spend", "ability", "given", "gear"],
 	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte"],
 	"prompts_voided.reason": ["downed", "attacker_down", "targets_down", "no_good_press"],
 	"sequence_resolved.reason": ["completed", "targets_down", "attacker_down"],
@@ -509,8 +510,10 @@ func test_single_target_all_parried_counter() -> void:
 	var start := Fx.index_of(events, "sequence_resolved")
 	assert_eq(events[start], {"type": "sequence_resolved", "seq": 1, "reason": "completed"})
 	assert_eq(Fx.of_type(events, "counter").size(), 1)
-	var amount := CombatMath.percent(POWERS[t], 150)
-	assert_eq(events[start + 1], {"type": "counter", "seq": 1, "actors": [t], "target": FOE, "team": false})
+	# Three parried hits: 150% + 2 x 25% for the hits after the first (card #52).
+	var amount := CombatMath.percent(POWERS[t], 200)
+	assert_eq(events[start + 1], {"type": "counter", "seq": 1, "actors": [t], "target": FOE, "team": false,
+			"hits": 3, "mixed": false})
 	assert_eq(events[start + 2], {"type": "damage", "source": t, "target": FOE, "amount": amount,
 			"hp": 1500 - amount, "max_hp": 1500, "cause": "counter"})
 	assert_eq(events[start + 3].type, "intent")
@@ -542,11 +545,13 @@ func test_party_wide_all_perfect_gives_one_team_counter() -> void:
 	var events := engine.submit(Fx.resolve_now(engine, [[0, PARRY], [1, PARRY], [2, PARRY], [3, JUMP], [4, JUMP], [5, JUMP]]))
 	var counters := Fx.of_type(events, "counter")
 	assert_eq(counters.size(), 1, "exactly one counter event")
-	assert_eq(counters[0], {"type": "counter", "seq": 1, "actors": [0, 1, 2], "target": FOE, "team": true})
+	assert_eq(counters[0], {"type": "counter", "seq": 1, "actors": [0, 1, 2], "target": FOE, "team": true,
+			"hits": 2, "mixed": true})
+	# Two hits, a parry and a jump: 120% + 25% (second hit) + 50% (mixed) = 195% each (card #52).
 	var expected := 0
 	for i: int in 3:
-		expected += CombatMath.percent(engine.get_combatant(i).power, Tuning.new().team_counter_percent)
-	assert_eq(expected, 149, "43 + 58 + 48 with the default 120%")
+		expected += CombatMath.percent(engine.get_combatant(i).power, 195)
+	assert_eq(expected, 242, "70 + 94 + 78 with the default 120% + 25% + 50%")
 	var damages := Fx.of_type(events, "damage")
 	assert_eq(damages.size(), 1, "one combined hit")
 	assert_eq(damages[0].amount, expected)
@@ -560,13 +565,16 @@ func test_party_wide_partially_perfect_gives_solo_counters() -> void:
 	var events := engine.submit(Fx.resolve_now(engine, [[0, PARRY], [1, DODGE], [2, PARRY], [3, JUMP], [4, JUMP], [5, JUMP]]))
 	var counters := Fx.of_type(events, "counter")
 	assert_eq(counters.size(), 2)
-	assert_eq(counters[0], {"type": "counter", "seq": 1, "actors": [0], "target": FOE, "team": false})
-	assert_eq(counters[1], {"type": "counter", "seq": 1, "actors": [2], "target": FOE, "team": false})
+	assert_eq(counters[0], {"type": "counter", "seq": 1, "actors": [0], "target": FOE, "team": false,
+			"hits": 2, "mixed": true})
+	assert_eq(counters[1], {"type": "counter", "seq": 1, "actors": [2], "target": FOE, "team": false,
+			"hits": 2, "mixed": true})
 	var damages := Fx.of_type(events, "damage")
 	assert_eq(damages.size(), 2)
-	assert_eq(damages[0].amount, CombatMath.percent(POWERS[0], 150))
+	# Each answered a parry and a jump: 150% + 25% + 50%.
+	assert_eq(damages[0].amount, CombatMath.percent(POWERS[0], 225))
 	assert_eq(damages[0].source, 0)
-	assert_eq(damages[1].amount, CombatMath.percent(POWERS[2], 150))
+	assert_eq(damages[1].amount, CombatMath.percent(POWERS[2], 225))
 	assert_eq(damages[1].source, 2)
 	assert_eq(damages[1].hp, 1500 - damages[0].amount - damages[1].amount)
 
@@ -953,6 +961,19 @@ func _support_events() -> Array[Dictionary]:
 	return events
 
 
+## A boss that enters phase two on the first counter (DESIGN 8, card #31).
+func _phase_two_events() -> Array[Dictionary]:
+	var setup := Fx.setup([_swipe()])
+	setup.enemies[0].phase_two_hp_percent = 99
+	setup.enemies[0].phase_two_attacks.assign([_flurry()])
+	setup.enemies[0].phase_two_text = "RAGE"
+	var engine := CombatEngine.new(setup)
+	var events: Array[Dictionary] = engine.start()
+	events.append_array(engine.submit(Fx.resolve_now(engine, [[0, PARRY]])))
+	assert_eq(Fx.of_type(events, "enemy_phase").size(), 1, "the counter pushed the boss into phase two")
+	return events
+
+
 func test_events_have_exactly_the_documented_fields() -> void:
 	var events: Array[Dictionary] = _support_events()
 	for defence: int in [Bot.Defence.PERFECT, Bot.Defence.MISS, Bot.Defence.MIXED]:
@@ -960,6 +981,7 @@ func test_events_have_exactly_the_documented_fields() -> void:
 			var run: Dictionary = Bot.new(defence as Bot.Defence, 1, true).play(CombatEngine.new(Fx.shipped_setup(seed_value, null, true)))
 			events.append_array(run.events)
 	events.append_array(Fx.started([_swipe()]).submit({"type": "dance"}))
+	events.append_array(_phase_two_events())
 	var seen := {}
 	for i: int in events.size():
 		var e: Dictionary = events[i]

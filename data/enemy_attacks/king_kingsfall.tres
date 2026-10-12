@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_8abch"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_by11g"]
+
+[sub_resource type="Resource" id="Resource_ouqgs"]
+script = ExtResource("1_8abch")
+impact_ms = 900
+damage_percent = 25
+approach_ms = 180
+
+[sub_resource type="Resource" id="Resource_ufmx0"]
+script = ExtResource("1_8abch")
+impact_ms = 1150
+damage_percent = 25
+approach_ms = 160
+
+[sub_resource type="Resource" id="Resource_diroy"]
+script = ExtResource("1_8abch")
+impact_ms = 1400
+damage_percent = 25
+approach_ms = 160
+
+[sub_resource type="Resource" id="Resource_c2lli"]
+script = ExtResource("1_8abch")
+impact_ms = 1900
+kind = 1
+damage_percent = 25
+approach_ms = 400
+
+[sub_resource type="Resource" id="Resource_nwubd"]
+script = ExtResource("1_8abch")
+impact_ms = 2400
+damage_percent = 25
+
+[sub_resource type="Resource" id="Resource_qlmjl"]
+script = ExtResource("1_8abch")
+impact_ms = 2900
+kind = 1
+damage_percent = 25
+approach_ms = 400
+
+[resource]
+script = ExtResource("2_by11g")
+id = "king_kingsfall"
+display_name = "Kingsfall"
+target_mode = 1
+weight = 2
+hits = Array[ExtResource("1_8abch")]([SubResource("Resource_ouqgs"), SubResource("Resource_ufmx0"), SubResource("Resource_diroy"), SubResource("Resource_c2lli"), SubResource("Resource_nwubd"), SubResource("Resource_qlmjl")])

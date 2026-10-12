@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_blq5u"]
+
+[resource]
+script = ExtResource("1_blq5u")
+id = "leaping_heart"
+display_name = "Leaping Heart"
+description = "Each perfect jump heals 5% of max HP."
+effect = 5
+amount = 5

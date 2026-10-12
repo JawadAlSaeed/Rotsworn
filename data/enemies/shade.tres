@@ -17,3 +17,5 @@ portrait_path = "res://assets/sprites/portraits/shade.png"
 hp_percent = 90
 speed = 130
 attacks = Array[ExtResource("1_xlmdh")]([ExtResource("2_eqh5t"), ExtResource("3_i2yil"), ExtResource("4_48bed"), ExtResource("5_idxi1")])
+gold = 20
+xp = 40

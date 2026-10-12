@@ -6,12 +6,12 @@
 script = ExtResource("1_00egm")
 id = "shield_bash"
 display_name = "Shield Bash"
-description = "140% hit. The enemy's next turn comes later. Perfect press: much later."
+description = "180% hit. The enemy's next turn comes later. Perfect press: much later."
 ap_cost = 2
 impact_sfx = "heavy_strike"
 press_times_ms = Array[int]([800])
 ring_lead_percent = 65
 follow_ups = true
-damage_percent = 140
+damage_percent = 180
 turn_delay_percent = 30
 press_turn_delay_percent = 30
