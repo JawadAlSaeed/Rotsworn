@@ -10,6 +10,7 @@ extends RefCounted
 ##   --encounter=ID                  start this encounter (data/encounters) instead of the list
 ##   --zone=ID                       start in this zone (data/zones) instead of the list
 ##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
+##   --run                           start a new run at once (DESIGN.md 8)
 
 const AUTOPLAY_PERFECT := "perfect"
 const AUTOPLAY_MISS := "miss"
@@ -25,6 +26,7 @@ var encounter_id: String = ""
 ## "" when no --zone was given.
 var zone_id: String = ""
 var first_strike: bool = false
+var run: bool = false
 ## Session toggles (F1 overlay; not saved): telegraph flash (F), timing readout (T), the
 ## enemy's motion sounds (L: lunge whoosh and slam), hit markers (H), the wind-up crouch (C) and
 ## the cinematic camera (V).
@@ -66,6 +68,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.zone_id = arg.substr("--zone=".length())
 		elif arg == "--first-strike":
 			options.first_strike = true
+		elif arg == "--run":
+			options.run = true
 		elif arg.begins_with("--seed="):
 			var text := arg.substr("--seed=".length())
 			if text.is_valid_int():

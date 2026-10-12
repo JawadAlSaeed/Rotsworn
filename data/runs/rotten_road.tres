@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="RunData" format=3]
+
+[ext_resource type="Resource" path="res://data/encounters/final_stand.tres" id="1_k6fpf"]
+[ext_resource type="Resource" path="res://data/looks/ashen_ruins.tres" id="2_c4edp"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_qgnwx"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="4_xh0st"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="5_5lhx2"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="6_biicf"]
+[ext_resource type="Script" path="res://scripts/data/run_data.gd" id="7_hnbrd"]
+[ext_resource type="Script" path="res://scripts/data/shop_item_data.gd" id="8_mcy6j"]
+[ext_resource type="Resource" path="res://data/shop/salve.tres" id="9_bckh5"]
+[ext_resource type="Resource" path="res://data/shop/feast.tres" id="10_h8op4"]
+[ext_resource type="Resource" path="res://data/shop/tonic.tres" id="11_pkbwu"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="12_dsxv5"]
+[ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="13_goumg"]
+[ext_resource type="Resource" path="res://data/zones/rotten_hollow.tres" id="14_cisu8"]
+[ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="15_pfciy"]
+[ext_resource type="Resource" path="res://data/zones/ashen_ruins.tres" id="16_4r4bl"]
+
+[resource]
+script = ExtResource("7_hnbrd")
+id = "rotten_road"
+display_name = "The Rotten Road"
+party = Array[ExtResource("3_qgnwx")]([ExtResource("4_xh0st"), ExtResource("5_5lhx2"), ExtResource("6_biicf")])
+team_ultimate = ExtResource("12_dsxv5")
+zones = Array[ExtResource("13_goumg")]([ExtResource("14_cisu8"), ExtResource("15_pfciy"), ExtResource("16_4r4bl")])
+final_encounter = ExtResource("1_k6fpf")
+final_look = ExtResource("2_c4edp")
+shop_items = Array[ExtResource("8_mcy6j")]([ExtResource("9_bckh5"), ExtResource("10_h8op4"), ExtResource("11_pkbwu")])

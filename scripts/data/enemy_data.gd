@@ -23,3 +23,5 @@ extends Resource
 ## Turn speed. 100 is average; 200 acts twice as often as 100.
 @export_range(1, 1000) var speed: int = 100
 @export var attacks: Array[EnemyAttackData] = []
+## Gold the party gets for beating it in a run (DESIGN.md 8).
+@export_range(0, 10000) var gold: int = 10

@@ -344,7 +344,8 @@ func _make_env() -> void:
 ## File name (without extension) -> the function that draws it.
 func _env_painters() -> Dictionary:
 	return {
-		"floor_tile": _floor_tile, "backdrop": _backdrop, "cliff": _cliff_texture,
+		"floor_tile": _floor_tile, "bog_tile": _bog_tile, "ash_tile": _ash_tile,
+		"backdrop": _backdrop, "cliff": _cliff_texture,
 		"ruin_wall": _ruin_wall_texture, "dead_tree": _dead_tree_prop, "rotten_tree": _rotten_tree_prop,
 		"rock": _rock_prop, "glow_shroom": _glow_shroom_prop, "lamp": _lamp_prop,
 		"pillar": _pillar_prop, "grass": _grass_prop,
@@ -1266,6 +1267,22 @@ func _slash() -> Image:
 ## 32x32 seamless dark stone slabs with mortar, cracks and moss.
 @warning_ignore("integer_division")
 func _floor_tile() -> Image:
+	return _paved_tile(Color("3a3e47"), Color("1c1d22"), Color("2f4526"), Color("4d6c33"), 0.6)
+
+
+## Sunken Bog: sunk, muddy flagstones mostly swallowed by green muck.
+func _bog_tile() -> Image:
+	return _paved_tile(Color("3b4038"), Color("1a2218"), Color("27402a"), Color("3f6236"), 0.48)
+
+
+## Ashen Ruins: pale, cold flagstones with grey ash in the cracks.
+func _ash_tile() -> Image:
+	return _paved_tile(Color("4a4c55"), Color("23242a"), Color("5a5a5e"), Color("6e6d70"), 0.62)
+
+
+## Seamless 32x32 flagstones: `stone` slabs, `mortar` joints, and moss (or muck, or ash) in two
+## shades creeping out of the joints; a lower `moss_level` means more of it.
+func _paved_tile(stone: Color, mortar: Color, moss_dark: Color, moss_light: Color, moss_level: float) -> Image:
 	var size := 32
 	var img := Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
 	var lattice := PackedFloat32Array()
@@ -1276,10 +1293,6 @@ func _floor_tile() -> Image:
 	tints.resize(8)
 	for i: int in 8:
 		tints[i] = _rng.randf_range(-0.05, 0.05)
-	var stone := Color("3a3e47")
-	var mortar := Color("1c1d22")
-	var moss_dark := Color("2f4526")
-	var moss_light := Color("4d6c33")
 	for y: int in size:
 		for x: int in size:
 			var row := y / 16
@@ -1302,8 +1315,8 @@ func _floor_tile() -> Image:
 			# Moss creeps out of the mortar in small patches so tiling does not repeat one blob.
 			var moss := (_tile_noise(lattice, x + 11, y + 5, 8) * 0.65
 					+ _tile_noise(lattice, x + 3, y + 21, 4) * 0.35 - float(edge) * 0.08)
-			if moss > 0.6:
-				col = moss_light if moss > 0.68 else moss_dark
+			if moss > moss_level:
+				col = moss_light if moss > moss_level + 0.08 else moss_dark
 			img.set_pixel(x, y, col)
 	# Two cracks, walked with wrap-around so the tile stays seamless.
 	for crack: int in 2:

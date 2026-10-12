@@ -778,7 +778,8 @@ wander_radius = 2
 script = ExtResource("5_zone_e")
 encounter = ExtResource("9_bloat_")
 position = Vector3(1.5, 0, -18.5)
-wander_radius = 2
+wander_radius = 1
+guard = true
 
 [resource]
 script = ExtResource("12_zone_d")

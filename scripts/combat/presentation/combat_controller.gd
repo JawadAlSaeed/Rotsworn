@@ -12,8 +12,9 @@ extends Node
 signal restart_requested
 ## Back to the fight list (end screen, Cancel).
 signal select_requested
-## A fight that started in a zone is over and the player wants to go back (DESIGN.md 7.4).
-signal zone_return_requested(result: String)
+## A fight that started in a zone or a run is over and the player wants to go on (back to the
+## zone, or on with the run; DESIGN.md 7.4, 8).
+signal continue_requested(result: String)
 ## Every event as it is played (and the prompt events the runner applies at once).
 signal event_played(event: Dictionary)
 ## The action menu opened for this party member.
@@ -45,6 +46,9 @@ var _options: CombatOptions
 var _look: StageLook
 var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 var _from_zone: bool = false
+## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
+var _run: RunState
+var _setup: CombatSetup
 var _result: String = ""
 var _queue: Array[Dictionary] = []
 var _playing: bool = false
@@ -76,6 +80,24 @@ func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals,
 	_look = look
 	_opening = opening
 	_from_zone = from_zone
+
+
+## Makes this a run fight (DESIGN.md 8): the run's party with its carried-over HP, gold on the end
+## screen, and no "fight again". Call after configure(), before adding the node to the tree.
+func configure_run(run: RunState) -> void:
+	_run = run
+
+
+## Each party member's HP right now, by slot (the run carries it to the next fight).
+func party_hp() -> Array[int]:
+	var list: Array[int] = []
+	list.resize(mirror.party_ids.size())
+	for id: int in mirror.party_ids:
+		var f := mirror.fighter(id)
+		var slot := int(f.slot)
+		if slot >= 0 and slot < list.size():
+			list[slot] = int(f.hp)
+	return list
 
 
 func _ready() -> void:
@@ -122,7 +144,8 @@ func _ready() -> void:
 		menu_opened.connect(autoplay.on_menu_opened)
 		combat_finished.connect(autoplay.on_combat_finished)
 
-	var setup := CombatSetup.from_encounter(_encounter, _tuning, _pick_seed(), _opening)
+	var setup := _run.fight_setup(_encounter, _pick_seed(), _opening) if _run != null 			else CombatSetup.from_encounter(_encounter, _tuning, _pick_seed(), _opening)
+	_setup = setup
 	setup.allow_practice = _tuning.practice_tools_enabled or _options.is_autoplay()
 	print("Combat seed: %d  encounter: %s  opening: %s" % [setup.rng_seed, _encounter.id,
 			CombatEngine.OPENING_NAMES[setup.opening]])
@@ -157,13 +180,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		# A defence press still in flight when the fight ends must not skip the end screen.
 		if Time.get_ticks_usec() - _ended_at_us < _visuals.end_input_guard_ms * 1000:
 			return
-		if _from_zone:
-			if key == KEY_R:
+		if _from_zone or _run != null:
+			if key == KEY_R and _run == null:
 				get_viewport().set_input_as_handled()
 				restart_requested.emit()
 			elif event.is_action_pressed("menu_confirm", false, true) or event.is_action_pressed("menu_cancel", false, true):
 				get_viewport().set_input_as_handled()
-				zone_return_requested.emit(_result)
+				continue_requested.emit(_result)
 			return
 		if event.is_action_pressed("menu_confirm", false, true) or key == KEY_R:
 			get_viewport().set_input_as_handled()
@@ -335,8 +358,8 @@ func _maybe_open_menu() -> void:
 	for id: int in mirror.fighters:
 		names[id] = String(mirror.fighter(id).display_name)
 	var abilities := data.all_abilities()
-	if _encounter.team_ultimate != null:
-		abilities.append(_encounter.team_ultimate)
+	if _setup.team_ultimate != null:
+		abilities.append(_setup.team_ultimate)
 	var entries: Array[Dictionary] = []
 	for ability: AbilityData in abilities:
 		entries.append(_menu_entry(actor, ability))
@@ -408,12 +431,12 @@ func _on_combat_ended(result: String) -> void:
 	_set_active_pose(-1)
 	Sfx.play("victory" if result == "victory" else "defeat")
 	view.camera.shot_end(view.arena_centre())
-	hud.show_end(result, _summary_text(), _from_zone)
+	hud.show_end(result, _summary_text(), _end_hint())
 	if _options.is_autoplay():
 		_check_mirror()
 	combat_finished.emit(result)
 	# A zone fight hands the end back to the zone (Main); the zone decides when the run is over.
-	if _options.quit_on_end and not _from_zone:
+	if _options.quit_on_end and not _from_zone and _run == null:
 		get_tree().create_timer(QUIT_DELAY_S).timeout.connect(_quit)
 
 
@@ -430,11 +453,29 @@ func _on_press_judged(action: int, report: Dictionary) -> void:
 		_defended[key] = int(_defended.get(key, 0)) + 1
 
 
+## What the end screen's buttons do.
+func _end_hint() -> String:
+	var confirm := HudStyle.binding_text(&"menu_confirm")
+	if _run != null:
+		if _result != "victory":
+			return "%s:  see how the run went      F1: stats" % confirm
+		return "%s:  %s      F1: stats" % [confirm, "back to the zone" if _from_zone else "on with the run"]
+	if _from_zone:
+		return "%s:  back to the zone      R:  fight again      F1: stats" % confirm
+	return "%s  or  R:  fight again      %s:  choose a fight      F1: stats" % [confirm,
+			HudStyle.binding_text(&"menu_cancel")]
+
+
 func _summary_text() -> String:
-	return "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d\nskill presses: perfect %d, good %d" % [
+	var text := "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d
+skill presses: perfect %d, good %d" % [
 			_enemy_hits.size(), int(_defended.get(Defense.Outcome.PARRY, 0)),
 			int(_defended.get(Defense.Outcome.DODGE, 0)), int(_defended.get(Defense.Outcome.JUMP, 0)), _counters,
 			int(_defended.get(Defense.Outcome.PRESS_PERFECT, 0)), int(_defended.get(Defense.Outcome.PRESS, 0))]
+	if _run != null and _result == "victory":
+		text += "
++%d gold" % RunState.encounter_gold(_encounter)
+	return text
 
 
 ## Autoplay guard: the mirror, built from events in playback order, must end equal to the engine.
@@ -692,7 +733,9 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 				_enqueue(_submit(CombatCommands.practice({"immortal_enemies": not bool(mirror.practice.immortal_enemies)})))
 			return true
 		KEY_R:
-			restart_requested.emit()
+			# A run fight cannot be started over: its HP and gold carry on.
+			if _run == null:
+				restart_requested.emit()
 			return true
 	var index := PRACTICE_ATTACK_KEYS.find(key)
 	if index >= 0:
@@ -775,11 +818,11 @@ func _pick_seed() -> int:
 
 func _find_data(data_id: String, is_party: bool) -> Resource:
 	if is_party:
-		for c: CharacterData in _encounter.party:
+		for c: CharacterData in _setup.party:
 			if c != null and c.id == data_id:
 				return c
 	else:
-		for e: EnemyData in _encounter.enemies:
+		for e: EnemyData in _setup.enemies:
 			if e != null and e.id == data_id:
 				return e
 	return null

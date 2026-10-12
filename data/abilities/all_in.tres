@@ -6,10 +6,10 @@
 script = ExtResource("1_wmrbb")
 id = "all_in"
 display_name = "All In"
-description = "5 hits of 70%, one press each. Each perfect press: +30% on that hit."
+description = "5 hits of 120%, one press each. Each perfect press: +30% on that hit."
 ap_cost = 5
 press_times_ms = Array[int]([800, 1050, 1300, 1550, 1800])
 ring_lead_percent = 65
 follow_ups = true
-damage_percent = 70
+damage_percent = 120
 press_damage_percent = 30

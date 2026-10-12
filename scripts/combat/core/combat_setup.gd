@@ -19,6 +19,11 @@ var rng_seed: int = 1
 ## Accept practice commands (force an attack, invulnerability). Off for real runs.
 var allow_practice: bool = false
 var opening: Opening = Opening.NORMAL
+## A run's carried-over state, per party slot (DESIGN.md 8). Empty = the defaults.
+## Max HP in percent of the character's normal max HP (100 = unchanged).
+var party_max_hp_percent: Array[int] = []
+## HP at the start of the fight (-1 or missing = full; kept within 1 .. max HP).
+var party_start_hp: Array[int] = []
 
 
 static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: int,
@@ -33,6 +38,24 @@ static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: i
 	return setup
 
 
+## Max HP of party member `slot` (`data`) in this fight: the character's own max HP, scaled by
+## the run's percent for that slot. RunState uses the same rule, so both always agree.
+func party_max_hp(slot: int, data: CharacterData) -> int:
+	var pct := party_max_hp_percent[slot] if slot < party_max_hp_percent.size() else 100
+	return scaled_max_hp(tuning, data, pct)
+
+
+## A character's max HP with its run percent applied (100 = the character's normal max HP).
+static func scaled_max_hp(p_tuning: Tuning, data: CharacterData, percent: int) -> int:
+	return CombatMath.percent_min1(CombatMath.percent_min1(p_tuning.base_character_hp, data.hp_percent), percent)
+
+
+## HP party member `slot` starts the fight with (`max_hp` = its max HP).
+func party_hp_at_start(slot: int, max_hp: int) -> int:
+	var start := party_start_hp[slot] if slot < party_start_hp.size() else -1
+	return max_hp if start < 0 else clampi(start, 1, max_hp)
+
+
 ## Human-readable problems. Empty means the setup is usable.
 func validate() -> PackedStringArray:
 	var problems := PackedStringArray()
@@ -42,6 +65,9 @@ func validate() -> PackedStringArray:
 		problems.append("party must have 1 to 3 characters (has %d)" % party.size())
 	if enemies.is_empty():
 		problems.append("no enemies")
+	for pct: int in party_max_hp_percent:
+		if pct < 1:
+			problems.append("party max HP percent must be at least 1 (is %d)" % pct)
 	for c: CharacterData in party:
 		if c == null:
 			problems.append("empty party slot")

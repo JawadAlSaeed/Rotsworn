@@ -3,7 +3,8 @@ extends Node
 ## Test bot for a zone (`-- --autoplay --zone=ID`, DESIGN.md 10): walks the leader to the nearest
 ## roaming enemy. In "perfect" mode it stops in reach, turns to it and strikes (FIRST STRIKE); in
 ## "miss" and "mash" modes it walks into it (a normal start). The fights themselves are played by
-## the combat Autoplay. Walls are handled by sliding sideways for a moment when stuck.
+## the combat Autoplay. Walls are handled by sliding sideways for a moment when stuck. In a run it
+## heads for the guard at the exit (DESIGN.md 8) and fights others only if they catch it.
 
 ## Strike when this share of the strike reach away or closer.
 const STRIKE_SHARE: float = 0.7
@@ -16,15 +17,17 @@ const SLIDE_S: float = 0.7
 var _zone: ZoneController
 var _tuning: Tuning
 var _strike_first: bool = true
+var _guard_only: bool = false
 var _check_t: float = 0.0
 var _check_pos: Vector2 = Vector2.ZERO
 var _slide_t: float = 0.0
 var _slide_sign: float = 1.0
 
 
-func setup(zone: ZoneController, tuning: Tuning, mode: String) -> void:
+func setup(zone: ZoneController, tuning: Tuning, mode: String, guard_only: bool = false) -> void:
 	_zone = zone
 	_tuning = tuning
+	_guard_only = guard_only
 	_strike_first = mode == CombatOptions.AUTOPLAY_PERFECT
 	zone.use_bot = true
 
@@ -34,6 +37,9 @@ func _process(delta: float) -> void:
 		return
 	var me := _zone.leader_ground()
 	var spots := _zone.roamer_spots()
+	var guard := _zone.guard_index()
+	if _guard_only and spots.has(guard):
+		spots = {guard: spots[guard]}
 	if spots.is_empty():
 		_zone.bot_move = Vector2.ZERO
 		return

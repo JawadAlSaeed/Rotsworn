@@ -191,6 +191,26 @@ extends Resource
 ## After coming back from a fight, no roaming enemy can start a fight for this long.
 @export_range(0, 10000, 1, "suffix:ms") var explore_return_grace_ms: int = 1500
 
+@export_group("Run")
+## Rows of stops on the run map before the final fight (the final fight is one more stop).
+@export_range(2, 30) var run_map_rows: int = 7
+## Each row has this many stops side by side, picked at random between the two numbers.
+@export_range(1, 6) var run_map_min_width: int = 2
+@export_range(1, 6) var run_map_max_width: int = 3
+## Chance, per stop, of an extra path to a neighbouring stop in the next row (more choices).
+@export_range(0, 100, 1, "suffix:%") var run_map_extra_path_percent: int = 40
+## How often a middle row's stop is a zone, a shop or a rest (weights, not percents). The first
+## row is always zones, the last row before the final fight always rests.
+@export_range(0, 1000) var run_weight_zone: int = 60
+@export_range(0, 1000) var run_weight_shop: int = 20
+@export_range(0, 1000) var run_weight_rest: int = 20
+## Gold the party starts a run with.
+@export_range(0, 10000) var run_start_gold: int = 0
+## A rest heals every character by this percent of their max HP.
+@export_range(0, 100, 1, "suffix:%") var run_rest_heal_percent: int = 50
+## After a won fight, a downed character gets back up with this much HP.
+@export_range(1, 1000) var run_downed_revive_hp: int = 1
+
 @export_group("Practice and debug")
 ## Phase 1 practice keys: 1-5 force an enemy attack, I = party cannot die,
 ## O = enemy cannot die, R = restart, F1 = stats overlay, F2 = lag calibration.

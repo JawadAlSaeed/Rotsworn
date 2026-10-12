@@ -348,8 +348,8 @@ func _build_combatants() -> void:
 		c.slot = slot
 		c.data_id = data.id
 		c.display_name = data.display_name
-		c.max_hp = CombatMath.percent_min1(tuning.base_character_hp, data.hp_percent)
-		c.hp = c.max_hp
+		c.max_hp = _setup.party_max_hp(slot, data)
+		c.hp = _setup.party_hp_at_start(slot, c.max_hp)
 		c.ap = clampi(tuning.start_ap, 0, tuning.max_ap)
 		c.power = CombatMath.percent_min1(tuning.base_party_damage, data.power_percent)
 		c.speed = maxi(1, data.speed)
