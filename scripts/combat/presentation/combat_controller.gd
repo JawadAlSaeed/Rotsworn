@@ -53,6 +53,8 @@ var _counters: int = 0
 var _data_by_id: Dictionary = {}
 ## Ability id -> AbilityData.
 var _abilities: Dictionary = {}
+## Enemy attack id -> EnemyAttackData (for its training ring speed).
+var _attacks: Dictionary = {}
 
 
 ## Call before adding the node to the tree.
@@ -114,6 +116,9 @@ func _ready() -> void:
 			_abilities[ability.id] = ability
 	if setup.team_ultimate != null:
 		_abilities[setup.team_ultimate.id] = setup.team_ultimate
+	for enemy: EnemyData in setup.enemies:
+		for attack: EnemyAttackData in enemy.attacks:
+			_attacks[attack.id] = attack
 	engine = CombatEngine.new(setup)
 	_warm_up_assets(setup)
 	_enqueue(_submit_start())
@@ -263,7 +268,7 @@ func _play(ev: Dictionary) -> void:
 			if String(ev.kind) == CombatEngine.SEQUENCE_SKILL:
 				skill_runner.start(ev, _abilities.get(String(ev.action)) as AbilityData)
 			else:
-				runner.start(ev)
+				runner.start(ev, _attacks.get(String(ev.action)) as EnemyAttackData)
 		"turn_ended":
 			mirror.apply(ev)
 			_refresh()

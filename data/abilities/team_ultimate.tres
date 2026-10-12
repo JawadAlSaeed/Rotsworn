@@ -9,6 +9,7 @@ display_name = "Team Ultimate"
 description = "Everyone strikes together twice (press on each ring). Revives every downed ally at 25% HP. Needs a full team gauge."
 impact_sfx = "ultimate"
 press_times_ms = Array[int]([900, 1400])
+ring_lead_percent = 65
 damage_percent = 200
 press_damage_percent = 50
 team_ultimate = true

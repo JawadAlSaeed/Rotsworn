@@ -19,5 +19,13 @@ enum TargetMode {
 @export var alert_cue: bool = true
 ## Allow the training ring on this attack (turn off for feints).
 @export var allow_timing_ring: bool = true
+## How long the training ring takes to close on this attack, in percent of tuning ring_lead_ms
+## (100 = normal speed, lower = faster).
+@export_range(20, 300, 1, "suffix:%") var ring_lead_percent: int = 100
 ## Hits in the order they land. Impact times must increase.
 @export var hits: Array[AttackHitData] = []
+
+
+## How long before each hit the training ring appears, in milliseconds.
+func ring_lead_ms(tuning: Tuning) -> int:
+	return CombatMath.percent(tuning.ring_lead_ms, ring_lead_percent)

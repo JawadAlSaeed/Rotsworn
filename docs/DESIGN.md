@@ -412,7 +412,7 @@ One judge per local player, holding the prompts of the characters that player an
   slam as a ground wave launches. They are the sound of the motion the player is reading, so they
   start with it (about 200 ms before impact), not on a beat.
 - **Training ring** (`show_timing_ring`, **off by default**, toggle with F1 then R): shrinks onto
-  the target and closes at impact. Never shown on attacks with `allow_timing_ring = false`. The
+  the target and closes at impact, at the attack's own speed (`ring_lead_percent`). Never shown on attacks with `allow_timing_ring = false`. The
   toggle is saved per machine in `user://settings.cfg` and overrides the tuning default.
 - Timing readout after each press (`show_timing_feedback`, F1 then T).
 - Wind-up crouch (`show_windup_crouch`, F1 then C): the enemy crouches as its wind-up glow
@@ -559,11 +559,26 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 - Skill press rings are osu-style ("PRESS" on the user, "FOLLOW-UP" in blue on an ally): a faint
   target circle on the presser, a grey GOOD band and a gold PERFECT band around it, and a ring
   that shrinks from `press_ring_start_radius_px` and reaches the target circle at the perfect
-  moment, `ring_lead_ms` after it appears. The bands are the press windows drawn at the ring's
+  moment, the skill's ring lead after it appears. The bands are the press windows drawn at the ring's
   shrink speed, so pressing while the ring is inside a band gives that result; the ring turns gold
   inside the PERFECT band. Perfect: full sound, short hit-stop (`hitstop_press_ms`), gold "PERFECT"
   readout. Good: quieter sound, white "GOOD". No good press when the window passes: "MISS" and a
   weaker strike. Early/late presses show EARLY/LATE and start the same whiff lockout as defence.
+- **Ring speed and look per move (card #43):** each ability sets `ring_lead_percent` (percent of
+  tuning `ring_lead_ms`, 700) and `ring_color`; each enemy attack sets `ring_lead_percent` for its
+  training ring. Starting values: basic attack 100% (700 ms), most skills 85% (595 ms), big hits
+  (Rend, Shield Bash, All In, Team Ultimate) 65% (455 ms, faster and harder). A faster ring has
+  wider-looking bands (same windows, faster shrink). Every ability's first press comes at least its
+  own ring lead after the start (data test). Colours all start white: gold stays "inside PERFECT".
+- **Separate rings for multi-press skills (card #43, user pick "osu notes"):** every press moment
+  is its own ring, a "note" (`PressNotes`). A skill with several presses lays them out in a row,
+  left to right in press order, numbered 1, 2, 3..., centred at chest height where the strikers
+  wait between hits (fixed for the whole skill, so lunges never move the rings). Note rings are
+  `press_note_scale` (0.65) of the single-press size, `press_note_spacing_px` (150) apart; the
+  next press is drawn on top and only it carries the "PRESS" label. With the shipped data the next
+  ring never covers the current target circle (unit test). One press answers every striker at that
+  moment, so the team ultimate shows one note per press moment in the middle of the party, not a
+  ring on each character. Follow-ups keep their own ring on their ally at the normal speed.
 - Test: after every fight, the mirror's projection equals the engine snapshot's projection. The
   autoplay bot checks the same on the real playback path at the end of every fight and prints
   `AUTOPLAY_ERROR mirror_mismatch` if they differ.
@@ -789,10 +804,10 @@ equipped by one character. No progression between runs in v1.
 
 Open items the user raised after playing; pick them up at the start of the next phase.
 
-1. **Press ring speed and style per move** (after phase 2, 2026-10-12). Each ability (and each
+1. **Press ring speed and style per move** (after phase 2, 2026-10-12). **Built in phase 3 (4.5).** Each ability (and each
    enemy attack's training ring) sets its own ring speed and look in its data file: the basic
    attack at normal speed, skills at their own speed (for example faster for big skills).
-2. **Multi-press skills as separate rings** (after phase 2). Quick Cuts, All In and the team
+2. **Multi-press skills as separate rings** (after phase 2). **Built in phase 3 (4.5): osu notes.** Quick Cuts, All In and the team
    ultimate now show overlapping rings on the same character. Show each press as its own ring,
    entirely separate (one at a time, or at its own spot like osu notes), so a string of presses
    reads clearly.
@@ -866,4 +881,6 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | Reading attacks: rhythm rows, hit markers, floor warning, wind-up crouch (3.8) | user pick "icons only": the motion stays the thing you time, the HUD only says what is coming |
 | 2026-10-12 | Purple = ground hit (jump) everywhere; red-orange = normal hit | one colour must mean one thing; orange was close to the red-orange telegraph |
 | 2026-10-12 | Hit markers beside the target, on the enemy's side, not above the head | readouts stack above heads; a marker there would cover them in fast strings |
+| 2026-10-12 | Ring speed per move as a percent of `ring_lead_ms` (basic 100, skills 85, big hits 65) | user request; per-move shapes are percentages of tuning values |
+| 2026-10-12 | Multi-press skills: numbered rings in a row (osu notes), one per press moment | user pick over "one at a time", which would have slowed fast skills down |
 | 2026-10-12 | Skill presses have three results: perfect (bonus), good (normal), miss (50%); osu-style ring with GOOD and PERFECT bands | user feedback: the ring had no visible spot to hit and no distinction between perfect and normal |

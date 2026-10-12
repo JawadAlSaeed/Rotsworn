@@ -11,6 +11,7 @@ target = 4
 ap_cost = 2
 impact_sfx = "buff"
 press_times_ms = Array[int]([800])
+ring_lead_percent = 85
 damage_percent = 0
 turn_hasten_percent = 50
 press_turn_hasten_percent = 25

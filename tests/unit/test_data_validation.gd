@@ -172,9 +172,9 @@ func _ability_problems(ability: AbilityData, tuning: Tuning) -> PackedStringArra
 	if ability.press_times_ms.is_empty():
 		problems.append("%s has no press" % ability.id)
 		return problems
-	if ability.press_times_ms[0] < tuning.ring_lead_ms:
-		problems.append("%s: first press at %d ms, before the %d ms press ring can be read" % [ability.id,
-				ability.press_times_ms[0], tuning.ring_lead_ms])
+	if ability.press_times_ms[0] < ability.ring_lead_ms(tuning):
+		problems.append("%s: first press at %d ms, before its %d ms press ring can be read" % [ability.id,
+				ability.press_times_ms[0], ability.ring_lead_ms(tuning)])
 	for i: int in range(1, ability.press_times_ms.size()):
 		if ability.press_times_ms[i] - ability.press_times_ms[i - 1] <= tuning.skill_press_window_ms:
 			problems.append("%s: presses %d and %d closer than the press window" % [ability.id, i - 1, i])

@@ -82,6 +82,8 @@ var _end_reason: String = ""
 var _has_counter: bool = false
 var _counter_ready_us: int = 0
 var _wave_hit: int = -1
+## How long before each hit the training ring appears (the attack's own ring speed).
+var _ring_lead_us: int = 1
 var _wave_dist: float = -1.0
 ## Real time start() ran (bystanders step aside from then).
 var _started_us: int = 0
@@ -106,8 +108,9 @@ func setup(submit: Callable, apply_now: Callable, mirror: CombatMirror, view: Co
 	_input.pressed.connect(_on_pressed)
 
 
-## Starts playing a timed_sequence_declared event (already applied to the mirror).
-func start(event: Dictionary) -> void:
+## Starts playing a timed_sequence_declared event (already applied to the mirror). `attack` is the
+## attack's data (for its training ring speed; null = the tuning default).
+func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_event = event
 	_seq = int(event.seq)
 	_source = int(event.source)
@@ -123,6 +126,7 @@ func start(event: Dictionary) -> void:
 	_started_us = Time.get_ticks_usec()
 	_lead_in_end_us = _started_us + _tuning.attack_lead_in_ms * 1000
 	_cues = EnemyChoreography.cues(_hits, _visuals)
+	_ring_lead_us = maxi(1, (attack.ring_lead_ms(_tuning) if attack != null else _tuning.ring_lead_ms) * 1000)
 	_first_motion_us = roundi(float(_cues[0].at_ms) * 1000.0) if not _cues.is_empty() else 0
 	_next_cue = 0
 	_scheduled.clear()
@@ -624,7 +628,7 @@ func _update_rings(t: int) -> void:
 		_hud.set_rings([])
 		return
 	var rings: Array[Dictionary] = []
-	var lead := _tuning.ring_lead_ms * 1000
+	var lead := _ring_lead_us
 	for prompt: Dictionary in _prompts:
 		var at := int(prompt.at_ms) * 1000
 		if t < at - lead or t > at:
@@ -632,7 +636,7 @@ func _update_rings(t: int) -> void:
 		var id := int(prompt.character)
 		if not _mirror.is_alive(id):
 			continue
-		var u := float(t - (at - lead)) / float(maxi(1, lead))
+		var u := float(t - (at - lead)) / float(lead)
 		var ground := int(prompt.kind) == AttackHitData.Kind.GROUND
 		rings.append({
 			"pos": _view.screen_position(_view.fighter(id).centre_position()),

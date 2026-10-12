@@ -280,6 +280,12 @@ extends Resource
 @export var press_good_band_color: Color = Color(1.0, 1.0, 1.0, 0.22)
 @export var press_perfect_band_color: Color = Color(1.0, 0.82, 0.3, 0.75)
 @export var press_target_color: Color = Color(1.0, 1.0, 1.0, 0.08)
+## A skill with several presses shows each press as its own numbered ring (a "note") at its own
+## spot, in a row from left to right in press order, centred where the striker stands (osu-style).
+## Note centres are this far apart (pixels at 1080p).
+@export_range(20.0, 600.0, 1.0) var press_note_spacing_px: float = 150.0
+## Note rings are this share of a single press ring's size, so a row stays compact.
+@export_range(0.2, 1.0, 0.05) var press_note_scale: float = 0.65
 
 @export_group("Calibration")
 ## Time between calibration beats.

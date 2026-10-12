@@ -10,6 +10,7 @@ description = "140% hit. The enemy's next turn comes later. Perfect press: much 
 ap_cost = 2
 impact_sfx = "heavy_strike"
 press_times_ms = Array[int]([800])
+ring_lead_percent = 65
 follow_ups = true
 damage_percent = 140
 turn_delay_percent = 30

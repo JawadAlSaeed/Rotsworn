@@ -34,8 +34,15 @@ enum Target {
 
 @export_group("Timed presses")
 ## When each press (and hit) lands, in milliseconds after the ability starts. Times must increase.
-## Leave a gap of at least ring_lead_ms before the first one so the press ring can be read.
+## Leave a gap of at least the ring's lead time (see ring_lead_percent) before the first one so
+## the press ring can be read.
 @export var press_times_ms: Array[int] = []
+## How long this skill's press rings take to close, in percent of tuning ring_lead_ms: 100 is the
+## normal speed, lower is a faster ring (harder), higher a slower one.
+@export_range(20, 300, 1, "suffix:%") var ring_lead_percent: int = 100
+## Colour of this skill's press rings. A ring always turns gold while it is inside the PERFECT
+## band, so avoid gold here.
+@export var ring_color: Color = Color(0.95, 0.94, 0.9)
 ## After a good or perfect press, the other standing party members each get a follow-up press (damaging
 ## abilities that target enemies only).
 @export var follow_ups: bool = false
@@ -85,6 +92,11 @@ enum Target {
 ## The team ultimate: needs a full team gauge and empties it, every standing party member strikes
 ## (one press each per hit), and every downed ally is revived (tuning team_ultimate_revive_percent).
 @export var team_ultimate: bool = false
+
+
+## How long before each press its ring appears, in milliseconds.
+func ring_lead_ms(tuning: Tuning) -> int:
+	return CombatMath.percent(tuning.ring_lead_ms, ring_lead_percent)
 
 
 ## True if the ability targets one or all enemies.
