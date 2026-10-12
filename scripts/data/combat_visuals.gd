@@ -1,7 +1,8 @@
 class_name CombatVisuals
 extends Resource
-## Presentation-only data for the combat scene: effect, stage and UI art paths, the stage layout,
-## animation and cue feel, and the lag calibration procedure. Rules, damage and the defence windows
+## Presentation-only data for the combat scene: effect and UI art paths, the stage layout and its
+## look (stage_look), the camera (depth of field, cinematic shots), animation and cue feel, and the
+## lag calibration procedure. Rules, damage and the defence windows
 ## live in tuning.tres. The one link to judging: the calibration's result is saved per machine
 ## (user://settings.cfg) and replaces tuning's input_latency_compensation_ms, within tuning's
 ## calibration_min_ms .. calibration_max_ms.
@@ -17,11 +18,10 @@ extends Resource
 ## White arc shown when a party member strikes (32x32).
 @export_file_path("*.png") var slash_path: String = "res://assets/sprites/fx/slash.png"
 
-@export_group("Stage art")
-## Seamlessly tileable floor (32x32).
-@export_file_path("*.png") var floor_tile_path: String = "res://assets/sprites/env/floor_tile.png"
-## Far background silhouettes (320x120, transparent background).
-@export_file_path("*.png") var backdrop_path: String = "res://assets/sprites/env/backdrop.png"
+@export_group("Stage")
+## How the fight list's fights look (ground, light, fog, bloom, arena decoration). A fight that
+## starts in a zone uses the zone's look instead.
+@export var stage_look: StageLook
 
 @export_group("UI art")
 ## Padlock shown over the party during a whiff lockout (12x12).
@@ -49,13 +49,6 @@ extends Resource
 @export var camera_target: Vector3 = Vector3(0.0, 1.0, 0.0)
 ## Vertical field of view in degrees.
 @export_range(10.0, 100.0, 0.5) var camera_fov: float = 40.0
-## Width and depth of the floor plane in world units.
-@export_range(4.0, 200.0, 0.5) var floor_size: float = 48.0
-## World size of one floor tile.
-@export_range(0.1, 10.0, 0.05) var floor_tile_world_size: float = 1.6
-@export var backdrop_position: Vector3 = Vector3(0.0, 0.0, -13.0)
-## World units per backdrop pixel.
-@export_range(0.001, 1.0, 0.001) var backdrop_pixel_size: float = 0.1
 ## World units per pixel for sparks, slashes and shockwaves.
 @export_range(0.001, 0.2, 0.001) var fx_pixel_size: float = 0.045
 ## Width of the shadow blob under each fighter, as a fraction of the sprite frame width.
@@ -68,16 +61,46 @@ extends Resource
 ## its art (the opaque pixels of the first frame, so empty space at the top of a frame is ignored).
 @export_range(0.0, 2.0, 0.05) var head_height_factor: float = 1.05
 
-@export_group("Environment")
-@export var background_color: Color = Color(0.05, 0.055, 0.075)
-@export var ambient_color: Color = Color(0.32, 0.34, 0.42)
-@export_range(0.0, 4.0, 0.05) var ambient_energy: float = 0.7
-@export var fog_color: Color = Color(0.16, 0.18, 0.24)
-@export_range(0.0, 0.3, 0.001) var fog_density: float = 0.025
-@export var light_color: Color = Color(1.0, 0.92, 0.82)
-@export_range(0.0, 8.0, 0.05) var light_energy: float = 1.1
-## Directional light rotation (pitch, yaw, roll) in degrees.
-@export var light_rotation_degrees: Vector3 = Vector3(-55.0, -30.0, 0.0)
+@export_group("Depth of field")
+## The combat camera blurs what is further than far distance (fading in over far transition) and
+## nearer than near distance: the HD-2D miniature look. World units from the camera.
+@export var dof_far_enabled: bool = true
+@export_range(0.1, 200.0, 0.1) var dof_far_distance: float = 14.0
+@export_range(0.0, 100.0, 0.1) var dof_far_transition: float = 6.0
+@export var dof_near_enabled: bool = true
+@export_range(0.0, 50.0, 0.1) var dof_near_distance: float = 4.0
+@export_range(0.0, 50.0, 0.1) var dof_near_transition: float = 2.0
+@export_range(0.0, 1.0, 0.01) var dof_amount: float = 0.1
+
+@export_group("Cinematic camera")
+## The camera glides to each new shot with this time constant (it arrives after about four of
+## them). Real time: a hit-stop does not freeze it. Toggle the moves in a fight with F1 > V.
+@export_range(10, 2000, 1, "suffix:ms") var shot_glide_ms: int = 160
+## Party turn: the view drifts this share of the way toward the party member whose turn it is and
+## moves this much closer (world units).
+@export_range(0.0, 1.0, 0.01) var turn_focus_share: float = 0.2
+@export_range(0.0, 10.0, 0.05) var turn_push: float = 0.8
+## Basic attacks and skills: the camera sits at this offset from the middle of the strikers and
+## their target, with this field of view.
+@export var skill_shot_offset: Vector3 = Vector3(-1.4, 2.0, 6.6)
+@export_range(10.0, 100.0, 0.5) var skill_shot_fov: float = 36.0
+## Team ultimate: a low shot that slowly circles the middle of the party and the target.
+@export var ultimate_shot_offset: Vector3 = Vector3(0.6, 0.9, 5.4)
+@export_range(10.0, 100.0, 0.5) var ultimate_shot_fov: float = 34.0
+@export_range(-90.0, 90.0, 0.5) var ultimate_orbit_degrees_per_s: float = 9.0
+## Enemy attack: the view's centre moves this share of the way to the middle of the attacker and
+## its targets, and the camera moves this much closer. It glides there during the banner lead-in
+## and then holds still while you defend.
+@export_range(0.0, 1.0, 0.01) var attack_focus_share: float = 0.35
+@export_range(0.0, 10.0, 0.05) var attack_push: float = 1.2
+## Follow-ups: the camera pulls back until every ally pressing and the enemy fit inside this part
+## of the screen (shares from the top left), clear of the banner and the party panels.
+@export var follow_up_safe_area: Rect2 = Rect2(0.1, 0.24, 0.8, 0.5)
+## Counter and team counter: a quick push toward the enemy (world units).
+@export_range(0.0, 10.0, 0.05) var counter_push: float = 2.0
+## Victory and defeat: the camera circles the arena at this offset from its middle.
+@export var end_shot_offset: Vector3 = Vector3(0.0, 2.6, 8.5)
+@export_range(-90.0, 90.0, 0.5) var end_orbit_degrees_per_s: float = 8.0
 
 @export_group("Enemy choreography")
 ## A feint starts its false lunge this long before the real lunge.
@@ -121,6 +144,45 @@ extends Resource
 @export var windup_glow_color: Color = Color(1.0, 0.45, 0.2)
 ## How strongly the wind-up glow is added on top of the sprite (0 to 1).
 @export_range(0.0, 1.0, 0.05) var windup_glow_strength: float = 0.35
+## While winding up, the enemy crouches: it gets this much shorter (and wider) at full glow, then
+## springs back as the lunge or slam starts. Toggle in a fight with F1 > C.
+@export_range(0, 50, 1, "suffix:%") var windup_squash_percent: int = 12
+
+@export_group("Reading attacks")
+## Colour of a ground hit (jump it) everywhere: wind-up glow and flash before a slam, the hit
+## marker, the floor warning and the training ring. Keep it apart from red-orange (normal hits,
+## the telegraph) and white (a parry).
+@export var ground_hit_color: Color = Color(0.78, 0.4, 1.0)
+## Border colour of a normal hit's marker (parry or dodge it).
+@export var normal_hit_color: Color = Color(1.0, 0.3, 0.2)
+## Rhythm rows (intent sign and attack banner): icon centres are this many pixels apart per
+## millisecond between impacts, so the beat and the pauses of a string show.
+@export_range(0.01, 2.0, 0.01) var rhythm_px_per_ms: float = 0.2
+## Icons in a rhythm row are never closer than their size plus this gap (pixels at 1080p).
+@export_range(0.0, 64.0, 1.0) var rhythm_min_gap_px: float = 4.0
+## A longer row is squeezed to this width (pixels at 1080p).
+@export_range(32.0, 1600.0, 1.0) var rhythm_max_width_px: float = 420.0
+## The hit whose motion is playing grows to this scale in the banner row; landed hits fade to
+## this opacity.
+@export_range(1.0, 3.0, 0.05) var rhythm_active_scale: float = 1.4
+@export_range(0.0, 1.0, 0.05) var rhythm_done_alpha: float = 0.3
+## Faint line joining the icons of a rhythm row.
+@export var rhythm_line_color: Color = Color(1.0, 1.0, 1.0, 0.3)
+## Size of the hit icons in the attack banner (pixels at 1080p).
+@export_range(8.0, 128.0, 1.0) var banner_icon_px: float = 40.0
+## Hit marker: when a hit's motion starts, its icon pops up beside each target, on the side the
+## hit comes from, until it lands. Toggle in a fight with F1 > H.
+@export_range(8.0, 200.0, 1.0) var hit_marker_px: float = 52.0
+## Marker position from the target's middle on screen (pixels at 1080p); x points toward the
+## attacking enemy.
+@export var hit_marker_offset_px: Vector2 = Vector2(95.0, -20.0)
+## The marker pops in from this scale over this long (attack time, so hit-stop freezes it).
+@export_range(1.0, 4.0, 0.05) var hit_marker_pop_scale: float = 1.6
+@export_range(0, 1000, 1, "suffix:ms") var hit_marker_pop_ms: int = 120
+## Floor warning under each target of a ground hit, from the slam until the wave arrives: its
+## diameter (world units) and its strength when the wave arrives (it starts fainter).
+@export_range(0.1, 6.0, 0.05) var floor_warning_size: float = 1.9
+@export_range(0.0, 1.0, 0.05) var floor_warning_strength: float = 0.85
 
 @export_group("Party defence poses")
 ## Parry stance lasts at least this long (and at least until the parry window closes).
@@ -213,6 +275,8 @@ extends Resource
 @export_range(0.0, 2.0, 0.05) var miss_label_rise_factor: float = 0.3
 ## Popups start at this scale and settle to 1 (the "punch").
 @export_range(1.0, 3.0, 0.05) var popup_punch_scale: float = 1.25
+## How long the FIRST STRIKE banner stays up at the start of a fight.
+@export_range(0, 5000, 1, "suffix:ms") var first_strike_banner_ms: int = 1300
 ## How long the TEAM COUNTER banner stays up.
 @export_range(0, 5000, 1, "suffix:ms") var team_banner_ms: int = 1100
 ## The victory or defeat screen fades in over this long.
@@ -241,6 +305,12 @@ extends Resource
 @export var press_good_band_color: Color = Color(1.0, 1.0, 1.0, 0.22)
 @export var press_perfect_band_color: Color = Color(1.0, 0.82, 0.3, 0.75)
 @export var press_target_color: Color = Color(1.0, 1.0, 1.0, 0.08)
+## A skill with several presses shows each press as its own numbered ring (a "note") at its own
+## spot, in a row from left to right in press order, centred where the striker stands (osu-style).
+## Note centres are this far apart (pixels at 1080p).
+@export_range(20.0, 600.0, 1.0) var press_note_spacing_px: float = 150.0
+## Note rings are this share of a single press ring's size, so a row stays compact.
+@export_range(0.2, 1.0, 0.05) var press_note_scale: float = 0.65
 
 @export_group("Calibration")
 ## Time between calibration beats.

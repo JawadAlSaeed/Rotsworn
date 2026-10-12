@@ -10,6 +10,7 @@ description = "220% hit. Removes Exposed for +150%. Perfect press: +30%."
 ap_cost = 3
 impact_sfx = "heavy_strike"
 press_times_ms = Array[int]([800])
+ring_lead_percent = 65
 follow_ups = true
 damage_percent = 220
 press_damage_percent = 30

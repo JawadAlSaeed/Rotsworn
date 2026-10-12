@@ -10,6 +10,7 @@ description = "100% hit, +50% for each perfect parry or jump since Alder's last 
 ap_cost = 3
 impact_sfx = "heavy_strike"
 press_times_ms = Array[int]([800])
+ring_lead_percent = 85
 follow_ups = true
 press_damage_percent = 50
 per_perfect_defense_percent = 50

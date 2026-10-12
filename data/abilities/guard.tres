@@ -11,6 +11,7 @@ target = 4
 ap_cost = 1
 impact_sfx = "buff"
 press_times_ms = Array[int]([800])
+ring_lead_percent = 85
 damage_percent = 0
 status = "guarded"
 press_status_on_self = true

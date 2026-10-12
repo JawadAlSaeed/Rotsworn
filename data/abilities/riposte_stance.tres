@@ -11,6 +11,7 @@ target = 2
 ap_cost = 2
 impact_sfx = "buff"
 press_times_ms = Array[int]([800])
+ring_lead_percent = 85
 damage_percent = 0
 press_ap_gain = 1
 status = "riposte"

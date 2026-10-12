@@ -162,7 +162,9 @@ the enemy is about to do with enough time to read it (the phase 1 banner appeare
 - Each enemy picks its next attack and target(s) when its turn ends (and at fight start), with
   the seeded RNG. The pick is part of engine state and is announced in an `intent` event.
 - A sign under the enemy shows it all the time: attack name, target ("WHOLE PARTY" for party-wide)
-  and one icon per hit (sword = normal: parry or dodge; wave = ground: jump). The same icon sits
+  and one icon per hit (sword = normal: parry or dodge; wave = ground: jump), spaced by the hits'
+  timing so the attack's rhythm shows (3.8; the `intent` event carries each hit's `times`). The
+  same icon sits
   on the enemy's turn in the timeline row.
 - **Always honest:** every enemy shows the full truth (user pick). Difficulty comes from how an
   attack moves (feints, delays, rhythm), never from hidden information.
@@ -276,6 +278,19 @@ All attacks follow the data rules in 2.9.
 
 Some encounters have two enemies (for example two Gnat Swarms), so targeting, Exposed and
 Hamstring matter. Phase 2 test build: a fight-select screen lists the test encounters.
+
+### 2.12 Opening advantage (phase 3, card #25)
+
+How a fight starts depends on how it began in the zone (7.4):
+
+- **First Strike:** the leader's field strike hit the roaming enemy (or it walked into a swing
+  still in progress). Every party member acts before any enemy: no enemy's first turn comes before
+  the last party member's first turn, and a tie goes to the party (lower ids). From then on
+  everyone keeps their speed. A gold "FIRST STRIKE!" banner opens the fight.
+- **Normal:** the roaming enemy touched the leader first. Turns come from speed as always.
+- The opening is part of `CombatSetup` (`CombatSetup.Opening`) and announced in `combat_started`
+  (`opening`: "normal" | "first_strike"), so it stays deterministic and network-safe. Test fights
+  start normal; `--first-strike` starts one with the advantage.
 
 ---
 
@@ -410,10 +425,42 @@ One judge per local player, holding the prompts of the characters that player an
   slam as a ground wave launches. They are the sound of the motion the player is reading, so they
   start with it (about 200 ms before impact), not on a beat.
 - **Training ring** (`show_timing_ring`, **off by default**, toggle with F1 then R): shrinks onto
-  the target and closes at impact. Never shown on attacks with `allow_timing_ring = false`. The
+  the target and closes at impact, at the attack's own speed (`ring_lead_percent`). Never shown on attacks with `allow_timing_ring = false`. The
   toggle is saved per machine in `user://settings.cfg` and overrides the tuning default.
 - Timing readout after each press (`show_timing_feedback`, F1 then T).
-- F and T and L are session toggles (not saved); the tuning values are their starting state.
+- Wind-up crouch (`show_windup_crouch`, F1 then C): the enemy crouches as its wind-up glow
+  builds (`windup_squash_percent` at full glow) and springs out of it as the lunge or slam starts.
+- Hit markers and the floor warning (`show_hit_markers`, F1 then H), see 3.8.
+- F, T, L, H and C are session toggles (not saved); the tuning values are their starting state.
+
+### 3.8 Reading attacks (approved 2026-10-12, card #44)
+
+Defence is the star, so every hit must be readable before and while it comes. Nothing here
+gives a beat to press on: the press is still timed from the enemy's motion (the user picked
+"icons only" over a rhythm-game strip with a moving line).
+
+- **One colour per defence:** red-orange (`telegraph_flash_color`, `normal_hit_color`) = a normal
+  hit, parry or dodge it; purple (`ground_hit_color`) = a ground hit, jump it; white = you parried.
+  The wind-up glow and the telegraph flash before a slam, the ground hit icon, its marker, the
+  floor warning and the training ring's ground colour are all purple.
+- **Rhythm rows:** the intent sign and the attack banner show one icon per hit, centres
+  `rhythm_px_per_ms` (0.2) apart per millisecond between impacts and never closer than the icon
+  plus `rhythm_min_gap_px`; a row wider than `rhythm_max_width_px` is squeezed evenly
+  (`HitRhythm.layout`, unit-tested). So Flurry reads as three even beats and Stutter as a long
+  pause, then two quick hits.
+- **During the attack** the banner row shows each hit's state (`HitRhythm.states`): upcoming as
+  is, active (bigger, `rhythm_active_scale`) from the moment its motion starts until impact, done
+  (faded, `rhythm_done_alpha`) after impact. A feint's hit is active from its false start, so the
+  marker never gives the feint away. At most one hit is active at a time.
+- **Hit marker:** while a hit is active, its icon on a dark disc with a border in its colour sits
+  beside each living target, on the side the enemy stands (`hit_marker_offset_px`), popping in
+  over `hit_marker_pop_ms`; ground hits add "JUMP" under it. It sits beside the body, not above
+  the head, so it never covers the defence readouts. It only says that a hit is coming and which
+  kind; the timing still comes from the motion.
+- **Floor warning:** during an active ground hit a purple disc glows on the floor under each
+  living target, from `WARNING_START_SHARE` (0.3) of `floor_warning_strength` at the slam to full
+  when the wave arrives.
+- Everything above is a pure function of attack time, so hit-stop freezes it with the enemy.
 
 ---
 
@@ -525,11 +572,26 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 - Skill press rings are osu-style ("PRESS" on the user, "FOLLOW-UP" in blue on an ally): a faint
   target circle on the presser, a grey GOOD band and a gold PERFECT band around it, and a ring
   that shrinks from `press_ring_start_radius_px` and reaches the target circle at the perfect
-  moment, `ring_lead_ms` after it appears. The bands are the press windows drawn at the ring's
+  moment, the skill's ring lead after it appears. The bands are the press windows drawn at the ring's
   shrink speed, so pressing while the ring is inside a band gives that result; the ring turns gold
   inside the PERFECT band. Perfect: full sound, short hit-stop (`hitstop_press_ms`), gold "PERFECT"
   readout. Good: quieter sound, white "GOOD". No good press when the window passes: "MISS" and a
   weaker strike. Early/late presses show EARLY/LATE and start the same whiff lockout as defence.
+- **Ring speed and look per move (card #43):** each ability sets `ring_lead_percent` (percent of
+  tuning `ring_lead_ms`, 700) and `ring_color`; each enemy attack sets `ring_lead_percent` for its
+  training ring. Starting values: basic attack 100% (700 ms), most skills 85% (595 ms), big hits
+  (Rend, Shield Bash, All In, Team Ultimate) 65% (455 ms, faster and harder). A faster ring has
+  wider-looking bands (same windows, faster shrink). Every ability's first press comes at least its
+  own ring lead after the start (data test). Colours all start white: gold stays "inside PERFECT".
+- **Separate rings for multi-press skills (card #43, user pick "osu notes"):** every press moment
+  is its own ring, a "note" (`PressNotes`). A skill with several presses lays them out in a row,
+  left to right in press order, numbered 1, 2, 3..., centred at chest height where the strikers
+  wait between hits (fixed for the whole skill, so lunges never move the rings). Note rings are
+  `press_note_scale` (0.65) of the single-press size, `press_note_spacing_px` (150) apart; the
+  next press is drawn on top and only it carries the "PRESS" label. With the shipped data the next
+  ring never covers the current target circle (unit test). One press answers every striker at that
+  moment, so the team ultimate shows one note per press moment in the middle of the party, not a
+  ring on each character. Follow-ups keep their own ring on their ally at the normal speed.
 - Test: after every fight, the mirror's projection equals the engine snapshot's projection. The
   autoplay bot checks the same on the real playback path at the end of every fight and prints
   `AUTOPLAY_ERROR mirror_mismatch` if they differ.
@@ -543,7 +605,11 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | Script | Folder | Holds |
 |---|---|---|
 | `Tuning` | `data/tuning/tuning.tres` | every global rules and judging number (windows, lockout, lag compensation and its bounds, damage, HP, AP, hit-stop, cue toggles, pacing) |
-| `CombatVisuals` | `data/presentation/combat_visuals.tres` | presentation only: FX/stage/UI art paths, stage layout, camera, enemy choreography feel (feint lead, contact hold, recoil), pose lengths, jump shape, flash/shake strengths, popup and banner feel, calibration procedure |
+| `CombatVisuals` | `data/presentation/combat_visuals.tres` | presentation only: FX/UI art paths, the fight list's stage look, stage layout, camera and depth of field, cinematic shots, enemy choreography feel (feint lead, contact hold, recoil), pose lengths, jump shape, flash/shake strengths, popup and banner feel, calibration procedure |
+| `ExploreVisuals` | `data/presentation/explore_visuals.tres` | presentation only for zones: follow camera, depth of field, walking bob, notice "!", strike slash, the fight transition |
+| `StageLook` | `data/looks/` | how a place looks: ground and backdrop art, sun, ambient, fog, bloom, colour grading, vignette, combat arena decoration |
+| `ZoneData` | `data/zones/` | id, name, look, leader, walkable bounds, start, blocks, props, lights, roaming enemies |
+| `ZoneBlockData` / `ZonePropData` / `ZoneLightData` / `ZoneEnemyData` | inside zones and looks | a textured box; a lit sprite (solid radius, glow); a point light (flicker); a roaming enemy (encounter, spot, wander radius) |
 | `CharacterData` | `data/characters/` | id, name, colour, sprite paths, hp/power %, speed, abilities |
 | `AbilityData` | `data/abilities/` | id, name, targeting, AP cost, press times, follow-ups, damage % and press bonus, Payback and Exposed bonuses, landing effects (AP gain/give, heal, revive, turn delay/hasten, status) each with a press bonus, team ultimate flag, sound |
 | `EnemyData` | `data/enemies/` | id, name, sprite paths, hp/power %, speed, attacks |
@@ -605,11 +671,13 @@ which phase 5 uses to assign devices to players.
 | `menu_confirm` | Enter, E | A |
 | `menu_cancel` | Escape, Q, Backspace | B |
 | `debug_overlay` | F1 | View |
+| `move_up/down/left/right` (zone) | WASD, arrow keys | D-pad, left stick |
+| `field_strike` (zone) | Space, J | X |
 
 Phase 1 practice keys (keyboard only, when `practice_tools_enabled`): 1 to 5 force the enemy's
 next attack, I toggles "party cannot die", O toggles "enemy cannot die", R restarts the fight,
 F1 opens the stats overlay (inside it: R training ring, F telegraph flash, T timing readout,
-L motion sounds), F2 starts lag calibration (only while the action menu is open, never during an
+L motion sounds, H hit markers, C wind-up crouch, V cinematic camera), F2 starts lag calibration (only while the action menu is open, never during an
 enemy attack). With `practice_tools_enabled` off, F1 and F2 are not available during a fight.
 On the victory/defeat screen F1 opens the stats, and Confirm or R fights again once
 `end_input_guard_ms` (800) has passed, so a late defence press never skips the screen.
@@ -650,7 +718,8 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
   back to it. `--encounter=ID` starts one fight directly (autoplay defaults to `husk_fight`).
 - Team gauge at the bottom right, beside the party panels ("TEAM GAUGE 40%"; gold "TEAM
   ULTIMATE READY" when full).
-- Enemy intent: a sign just under each enemy's feet ("Flurry -> BRIN" plus one icon per hit:
+- Enemy intent: a sign just under each enemy's feet ("Flurry -> BRIN" plus one icon per hit,
+  spaced by timing (3.8):
   sword = parry or dodge, wave = jump; under the feet so it never covers HP bars or popups) and
   the same icons under its next turn on the timeline.
 - Status badges on party panels and under enemy HP (EXPOSED, GUARD, TAUNTED, SLOWED 2, RIPOSTE),
@@ -664,11 +733,64 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
 - End screen summary adds skill presses (perfect and good). Skill presses are not counted in the F1 defence
   statistics (those are for defence timing).
 
-### 7.3 Phase 3 (HD-2D)
+### 7.3 Phase 3: HD-2D look and cinematic camera (cards #21, #22)
 
-Billboard sprites in lit 3D environments, full-resolution rendering, depth of field, bloom, fog,
-strong lighting, cinematic combat camera. Explorable zone with roaming enemies and fight
-transition.
+- **One look per place** (`StageLook`, `data/looks/`): sky colour, ambient light, a warm sun with
+  shadows (blocks cast them, sprites keep their soft blob), depth and height fog (optional
+  volumetric fog), bloom (glow above a brightness threshold), filmic tone mapping, contrast and
+  saturation, ambient occlusion, and a screen vignette; the ground tile and backdrop; and the
+  decoration around the combat arena (blocks, props, lamps). A zone and the fights that start in
+  it share its look; the fight list's fights use `combat_visuals.tres` `stage_look`.
+  `StageBuilder` builds it all for both.
+- **Lit sprites:** fighters and props are billboards lit by the sun, ambient light and lamps
+  (`fighter_sprite.gdshader`: the lighting normal leans up, `normal_up`, so a sprite is lit like the
+  ground it stands on). Flashes and glows are emission, so bloom catches them. Props can glow on
+  their own (`ZonePropData.glow`: fungus, lanterns). Point lights can flicker like flames.
+- **Places are data:** blocks (`ZoneBlockData`: textured boxes, cliffs and walls, world-space
+  tiling), props (`ZonePropData`: lit sprites, optional solid radius and glow) and lights
+  (`ZoneLightData`). Placeholder art for them is drawn by `tools/gen_placeholders.gd` by file name.
+- **Depth of field** per camera (blur far and near, the miniature look): combat in
+  `combat_visuals.tres`, zones in `explore_visuals.tres`.
+- **Cinematic combat camera** (`CombatCamera` with pure `CameraShots`, F1 then V toggles,
+  `cinematic_camera` in tuning): it glides (`shot_glide_ms`) to a shot for each moment: a party
+  turn drifts toward that character; a skill or basic attack without follow-ups frames the striker
+  and the target over the shoulder; a skill with follow-ups is framed from its start at the 3/4
+  angle, pulled back just enough that the strikers, the target and every ally who will press fit in
+  `follow_up_safe_area` (clear of the banner and the panels), so no follow-up is ever off screen and
+  the camera holds still while any ring is up (card #49, a test checks every slot with a real
+  camera); the team ultimate is a low shot that slowly circles; an enemy attack drifts
+  toward the attacker and its targets during the banner lead-in and is **settled the moment the
+  attack clock starts**, so the view holds still while you defend (defence is the star); a counter
+  pushes in; victory and defeat circle the arena. Shake and punch-in play on top. Real time.
+
+### 7.4 Phase 3: exploration (cards #23, #24)
+
+- **Start menu:** "Explore: Rotten Hollow" (every zone in `data/zones/`) first, then the test
+  fights. `--zone=ID` starts in a zone.
+- **The zone** (`ZoneData`, `ZoneController`): an HD-2D diorama seen from a high, narrow follow
+  camera with strong depth of field (`explore_visuals.tres`). The leader (`ZoneData.leader`, Brin)
+  walks with WASD / arrows / left stick (`move_*` actions), bobbing between the idle and ready
+  frames, turning to face the way they walk. Props with a solid radius and solid blocks block
+  walking, the bounds are invisible walls (`ZoneMotion`, pure and unit-tested). The zone's name
+  shows on arrival; the count of enemies left sits top right.
+- **Roaming enemies** (`ZoneEnemyData`: an encounter, a spot, a wander radius; drawn as the
+  encounter's first enemy): they pause and wander near home. When the leader comes within
+  `explore_notice_radius` an enemy stops and shows a red "!" for `explore_notice_ms` (fair
+  warning), then chases at `explore_chase_speed` (slower than walking, so you can get away or turn
+  and strike) until the leader is beyond `explore_give_up_radius`, then walks home
+  (`RoamerBrain`, pure and unit-tested). The fight's name shows over enemies nearby.
+- **Starting a fight:** the field strike (`field_strike`: Space or J, pad X) swings in front of
+  the leader; an enemy within `explore_strike_reach` and `explore_strike_arc_degrees` is struck:
+  FIRST STRIKE (2.12). An enemy that touches the leader (`explore_touch_radius`) starts a normal
+  fight. Either way the world freezes for a moment (the hit or the touch reads), then the screen
+  freezes and swirls into black (`ScreenTransition`, `swirl.gdshader`) and the fight fades in, in
+  the zone's look. The zone waits outside the scene tree during the fight.
+- **After the fight:** the end screen says "back to the zone" (Confirm), R fights again. After a
+  victory that enemy is gone; after a defeat the leader starts over at the zone's start and every
+  enemy goes home. Either way nothing can start a fight for `explore_return_grace_ms`. When every
+  enemy is beaten, "ZONE CLEAR". The party starts every fight at full HP and AP until phase 4's
+  run carries them over.
+- Esc / B in the zone goes back to the start menu.
 
 ---
 
@@ -727,6 +849,16 @@ equipped by one character. No progression between runs in v1.
   (every lunge reaches contact exactly at impact, contact holds until the hit closes, cue times),
   defence statistics and the calibration clamp. Data validation tests check meaning (ids unique, times increasing, spacing rules,
   paths exist, weights > 0), not just loading.
+- Phase 3 (`test_zone.gd`, `test_hit_rhythm.gd`, `test_press_notes.gd`, additions in
+  `test_combat_engine.gd`): walking blocked by props, (turned) blocks and bounds, long steps never
+  pass a thin wall, strike reach and arc, roaming enemies wander near home, warn before chasing,
+  stay calm after a fight, give up and go home, chasing is slower than walking, every shipped zone
+  is valid (start and enemy spots free, enemies not next to the start), camera shots frame their
+  subjects, the first strike opening (every party member before any enemy, even a very fast one).
+- Zone smoke test: `--autoplay --zone=rotten_hollow --quit-on-end`. The zone bot walks to the
+  nearest enemy; `=perfect` strikes first, `=miss` and `=mash` walk into it. Each fight prints its
+  usual lines; the run ends with `AUTOPLAY_RESULT zone_clear fights=N first_strikes=M` or
+  `AUTOPLAY_RESULT zone_defeat ...`; `AUTOPLAY_ERROR zone_stuck` if no fight starts for a minute.
 - Phase 2 (`test_skills.gd` and additions elsewhere): press prompts and press damage, follow-ups
   (declared per ally, voided after missed presses, gauge), the team ultimate (gauge check, all
   strike, revive), revive and heal and AP gifts, Exposed / Guard / Taunt / Slow / Riposte /
@@ -741,12 +873,12 @@ equipped by one character. No progression between runs in v1.
 
 1. **Setup + one fight** (done): 3 placeholder characters vs 1 enemy, timeline, basic attack,
    dodge/parry/jump, counter, AP, win/lose. One player controls all three. Goal: parry feels good.
-2. **Classes and co-op combat** (current): classes, skills with timed presses, Follow-up Strikes,
+2. **Classes and co-op combat** (done): classes, skills with timed presses, Follow-up Strikes,
    team gauge and ultimate, marks/combos, downed/revive, enemy intent, several enemy types with
    distinct attack patterns, fight select.
-3. HD-2D look: one explorable zone, roaming enemies, fight transition, combat camera,
-   post-processing.
-4. Run structure: node map, zones, rest/shop, loot, equipment, levels, boss.
+3. **HD-2D look** (done): one explorable zone, roaming enemies, fight transition, first
+   strike, combat camera, post-processing (7.3, 7.4, 2.12).
+4. **Run structure** (next): node map, zones, rest/shop, loot, equipment, levels, boss.
 5. Co-op: local multi-device first, then online.
 6. Polish: UI, feedback effects, audio pass, balance.
 
@@ -754,14 +886,14 @@ equipped by one character. No progression between runs in v1.
 
 Open items the user raised after playing; pick them up at the start of the next phase.
 
-1. **Press ring speed and style per move** (after phase 2, 2026-10-12). Each ability (and each
+1. **Press ring speed and style per move** (after phase 2, 2026-10-12). **Built in phase 3 (4.5).** Each ability (and each
    enemy attack's training ring) sets its own ring speed and look in its data file: the basic
    attack at normal speed, skills at their own speed (for example faster for big skills).
-2. **Multi-press skills as separate rings** (after phase 2). Quick Cuts, All In and the team
+2. **Multi-press skills as separate rings** (after phase 2). **Built in phase 3 (4.5): osu notes.** Quick Cuts, All In and the team
    ultimate now show overlapping rings on the same character. Show each press as its own ring,
    entirely separate (one at a time, or at its own spot like osu notes), so a string of presses
    reads clearly.
-3. **Make enemy attacks easier to see** (after phase 2). Defence is the star, so the player must
+3. **Make enemy attacks easier to see** (after phase 2). **Built in phase 3 (3.8).** Defence is the star, so the player must
    be able to read each hit as it comes: clearer wind-ups, a marker for each incoming hit and its
    kind, and a way to see the rhythm of a string before and during it. To be proposed to the user
    before building.
@@ -828,4 +960,17 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | Two enemies with the same name get letters (Gnat Swarm A / B) | targets and intent signs must be unambiguous |
 | 2026-10-12 | Shade Stutter feint moved to 1600 ms (last hit 1900) | a feint's false start must come after the previous hit's contact |
 | 2026-10-12 | Skill presses are left out of the F1 defence statistics | those numbers are for defence timing and calibration |
+| 2026-10-12 | Reading attacks: rhythm rows, hit markers, floor warning, wind-up crouch (3.8) | user pick "icons only": the motion stays the thing you time, the HUD only says what is coming |
+| 2026-10-12 | Purple = ground hit (jump) everywhere; red-orange = normal hit | one colour must mean one thing; orange was close to the red-orange telegraph |
+| 2026-10-12 | Hit markers beside the target, on the enemy's side, not above the head | readouts stack above heads; a marker there would cover them in fast strings |
+| 2026-10-12 | Phase 3 built all together (user request) | one zone, look, camera, roaming enemies and first strike in one pass |
+| 2026-10-12 | One `StageLook` per place, shared by the zone and its fights | a fight looks like the place it started in |
+| 2026-10-12 | Sprites lit by the scene, flashes and glows as emission | HD-2D: sprites belong to the lit diorama; bloom catches telegraphs and parries |
+| 2026-10-12 | Combat camera settles when the attack clock starts | moving the view while you defend would make reading the enemy harder |
+| 2026-10-12 | First strike = whole party acts before any enemy; touched = normal start (no ambush yet) | card #25; simple, clear reward |
+| 2026-10-12 | Roamers warn ("!") before chasing, chase slower than walking | getting touched should be your mistake, not a surprise |
+| 2026-10-12 | Zone movement is presentation (floats, real time), not the combat engine | co-op movement is a phase 5 card (#36) |
+| 2026-10-12 | Skills with follow-ups framed wide from their start (bug #49) | Cass's follow-up ended up off screen; moving the camera mid-sequence would also move the rings |
+| 2026-10-12 | Ring speed per move as a percent of `ring_lead_ms` (basic 100, skills 85, big hits 65) | user request; per-move shapes are percentages of tuning values |
+| 2026-10-12 | Multi-press skills: numbered rings in a row (osu notes), one per press moment | user pick over "one at a time", which would have slowed fast skills down |
 | 2026-10-12 | Skill presses have three results: perfect (bonus), good (normal), miss (50%); osu-style ring with GOOD and PERFECT bands | user feedback: the ring had no visible spot to hit and no distinction between perfect and normal |

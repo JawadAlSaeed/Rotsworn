@@ -14,6 +14,8 @@ const CHARACTER_DIR := "res://data/characters"
 const ENEMY_DIR := "res://data/enemies"
 const SFX_LIBRARY_PATH := "res://data/audio/sfx_library.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
+const LOOK_DIR := "res://data/looks"
+const ZONE_DIR := "res://data/zones"
 
 ## Base seed; each file mixes in a hash of its own path.
 const SEED := 20261006
@@ -298,12 +300,55 @@ func _make_fx() -> void:
 		_save_png(_slash(), v.slash_path)
 
 
+## Ground, backdrop, block textures and prop sprites named by every look and zone (DESIGN.md 7.3).
+## Each file is drawn by the painter for its file name (_env_painters); an unknown name gets a
+## plain stone placeholder.
 func _make_env() -> void:
+	var paths: Dictionary = {}
+	var looks: Array[StageLook] = []
 	var v := _visuals()
-	if _wants(v.floor_tile_path):
-		_save_png(_floor_tile(), v.floor_tile_path)
-	if _wants(v.backdrop_path):
-		_save_png(_backdrop(), v.backdrop_path)
+	if v.stage_look != null:
+		looks.append(v.stage_look)
+	for res: Resource in _load_folder(LOOK_DIR):
+		if res is StageLook:
+			looks.append(res as StageLook)
+	var blocks: Array[ZoneBlockData] = []
+	var props: Array[ZonePropData] = []
+	for res: Resource in _load_folder(ZONE_DIR):
+		var zone := res as ZoneData
+		if zone == null:
+			continue
+		if zone.look != null:
+			looks.append(zone.look)
+		blocks.append_array(zone.blocks)
+		props.append_array(zone.props)
+	for look: StageLook in looks:
+		paths[look.floor_tile_path] = true
+		paths[look.backdrop_path] = true
+		blocks.append_array(look.arena_blocks)
+		props.append_array(look.arena_props)
+	for block: ZoneBlockData in blocks:
+		if block != null:
+			paths[block.texture_path] = true
+	for prop: ZonePropData in props:
+		if prop != null:
+			paths[prop.sprite_path] = true
+	var painters := _env_painters()
+	for path: String in paths:
+		if not _wants(path):
+			continue
+		var painter: Callable = painters.get(path.get_file().get_basename(), _plain_stone)
+		_save_png(painter.call() as Image, path)
+
+
+## File name (without extension) -> the function that draws it.
+func _env_painters() -> Dictionary:
+	return {
+		"floor_tile": _floor_tile, "backdrop": _backdrop, "cliff": _cliff_texture,
+		"ruin_wall": _ruin_wall_texture, "dead_tree": _dead_tree_prop, "rotten_tree": _rotten_tree_prop,
+		"rock": _rock_prop, "glow_shroom": _glow_shroom_prop, "lamp": _lamp_prop,
+		"pillar": _pillar_prop, "grass": _grass_prop,
+	}
 
 
 func _make_ui() -> void:
@@ -1446,10 +1491,11 @@ func _hit_icon_normal() -> Image:
 	return _canvas
 
 
-## 12x12 orange wave along the floor: a ground hit (jump).
+## 12x12 purple wave along the floor: a ground hit (jump). Purple is the ground-hit colour
+## (combat_visuals ground_hit_color).
 func _hit_icon_ground() -> Image:
 	_begin_canvas(Vector2i(12, 12))
-	var col := Color("ff9a26")
+	var col := Color("c766ff")
 	for x: int in 12:
 		# Two crests rolling to the right, over a floor line.
 		var crest := 6.0 - 2.5 * maxf(0.0, sin(float(x) / 11.0 * TAU * 1.0 - 0.6))
@@ -1457,6 +1503,191 @@ func _hit_icon_ground() -> Image:
 			_plot(x, y, col)
 		_plot(x, 10, col.darkened(0.3))
 	_finish_layer()
+	return _canvas
+
+
+# =============================================================================================
+# Places (DESIGN.md 7.3): block textures (32x32, tileable) and prop sprites (feet on the bottom row)
+# =============================================================================================
+
+## 32x32 tileable rock face in horizontal strata (cliffs).
+func _cliff_texture() -> Image:
+	var size := 32
+	var img := Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
+	var lattice := PackedFloat32Array()
+	lattice.resize(64)
+	for i: int in 64:
+		lattice[i] = _rng.randf()
+	var base := Color("3b3640")
+	for y: int in size:
+		for x: int in size:
+			var band := sin((float(y) + _tile_noise(lattice, x, y, 4) * 6.0) / 32.0 * TAU * 3.0)
+			var n := _tile_noise(lattice, x * 2, y * 2, 8)
+			var col := base
+			if band > 0.55:
+				col = base.lightened(0.08)
+			elif band < -0.7:
+				col = base.darkened(0.25)
+			col = col.lightened((n - 0.5) * 0.15) if n >= 0.5 else col.darkened((0.5 - n) * 0.25)
+			if _tile_noise(lattice, x + 7, y + 13, 8) > 0.72:
+				col = Color("3f5530")
+			img.set_pixel(x, y, col)
+	return img
+
+
+## 32x32 tileable worn brick wall (ruins).
+@warning_ignore("integer_division")
+func _ruin_wall_texture() -> Image:
+	var size := 32
+	var img := Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
+	var lattice := PackedFloat32Array()
+	lattice.resize(64)
+	for i: int in 64:
+		lattice[i] = _rng.randf()
+	var brick := Color("51484a")
+	var mortar := Color("221d22")
+	for y: int in size:
+		for x: int in size:
+			var row := y / 8
+			var lx := posmod(x + (row % 2) * 8, 16)
+			var ly := y % 8
+			var n := _tile_noise(lattice, x * 2, y * 2, 8)
+			var col := brick
+			if lx == 0 or ly == 0:
+				col = mortar
+			else:
+				col = col.lightened((n - 0.5) * 0.2) if n >= 0.5 else col.darkened((0.5 - n) * 0.3)
+				if ly == 1:
+					col = col.lightened(0.08)
+				if _tile_noise(lattice, x + 3, y + 9, 4) > 0.7 and ly >= 5:
+					col = Color("3c4f2c")
+			img.set_pixel(x, y, col)
+	return img
+
+
+## 48x64 bare, twisted tree.
+func _dead_tree_prop() -> Image:
+	_begin_canvas(Vector2i(48, 64))
+	var bark := Color("4a3d38")
+	var foot := Vector2(24, 62)
+	_capsule(foot, foot + Vector2(1, -8), 4.0, bark)
+	_capsule(foot + Vector2(1, -8), foot + Vector2(-1, -34), 2.6, bark)
+	_capsule(foot + Vector2(-1, -30), foot + Vector2(-14, -42), 1.6, bark)
+	_capsule(foot + Vector2(-14, -42), foot + Vector2(-17, -54), 1.0, bark)
+	_capsule(foot + Vector2(0, -24), foot + Vector2(13, -38), 1.5, bark)
+	_capsule(foot + Vector2(13, -38), foot + Vector2(18, -50), 0.9, bark)
+	_capsule(foot + Vector2(-1, -34), foot + Vector2(3, -58), 1.2, bark)
+	_capsule(foot + Vector2(-6, -16), foot + Vector2(-11, -12), 0.8, bark)
+	_capsule(foot + Vector2(-2, 0), foot + Vector2(-9, 0), 1.0, bark)
+	_capsule(foot + Vector2(2, 0), foot + Vector2(10, -1), 1.0, bark)
+	_finish_layer(OUTLINE, true, true)
+	for k: int in 5:
+		_px(foot + Vector2(_rng.randf_range(-3, 3), -_rng.randf_range(4, 30)), Color("4e6b34"))
+	return _canvas
+
+
+## 64x80 rotting tree: a bent trunk under sickly canopy clumps.
+func _rotten_tree_prop() -> Image:
+	_begin_canvas(Vector2i(64, 80))
+	var bark := Color("3e3330")
+	var foot := Vector2(32, 78)
+	_capsule(foot, foot + Vector2(2, -10), 5.0, bark)
+	_capsule(foot + Vector2(2, -10), foot + Vector2(-2, -40), 3.4, bark)
+	_capsule(foot + Vector2(-1, -32), foot + Vector2(-12, -44), 2.0, bark)
+	_capsule(foot + Vector2(0, -36), foot + Vector2(11, -46), 2.0, bark)
+	_finish_layer(OUTLINE, true, true)
+	var leaf := Color("5b6a2e")
+	var clumps := [Vector2(-14, -50), Vector2(12, -52), Vector2(-2, -62), Vector2(-19, -40),
+			Vector2(18, -42), Vector2(4, -48)]
+	for c: Vector2 in clumps:
+		_disc(foot + c, _rng.randf_range(8.5, 11.0), leaf)
+	_finish_layer(OUTLINE, true, true)
+	for k: int in 14:
+		var at := foot + Vector2(_rng.randf_range(-24, 24), _rng.randf_range(-70, -38))
+		_disc(at, 1.2, Color("7a5a8c") if k % 3 == 0 else Color("7c8a3e"))
+	_finish_detail()
+	return _canvas
+
+
+## 32x24 mossy boulder.
+func _rock_prop() -> Image:
+	_begin_canvas(Vector2i(32, 24))
+	_oval(Vector2(16, 14), 13.0, 8.5, -6.0, Color("55525c"))
+	_oval(Vector2(10, 16), 7.0, 5.5, 0.0, Color("4c4954"))
+	_finish_layer(OUTLINE, true, true)
+	_oval(Vector2(15, 8), 7.0, 2.0, -6.0, Color("4f6b35"))
+	_finish_detail()
+	return _canvas
+
+
+## 24x24 cluster of glowing mushrooms (props give it emission so it blooms).
+func _glow_shroom_prop() -> Image:
+	_begin_canvas(Vector2i(24, 24))
+	var stem := Color("c9c3b0")
+	var cap := Color("4fd6c4")
+	var shrooms := [[Vector2(8, 22), 9.0, 4.5], [Vector2(15, 22), 13.0, 5.5], [Vector2(19, 22), 6.0, 3.0]]
+	for m: Array in shrooms:
+		var foot: Vector2 = m[0]
+		_capsule(foot, foot + Vector2(0, -float(m[1])), 1.0, stem)
+	_finish_layer(OUTLINE, true)
+	for m: Array in shrooms:
+		var foot: Vector2 = m[0]
+		_oval(foot + Vector2(0, -float(m[1])), float(m[2]), float(m[2]) * 0.55, 0.0, cap)
+	_finish_layer(OUTLINE, true)
+	for m: Array in shrooms:
+		var foot: Vector2 = m[0]
+		_glow(foot + Vector2(0, -float(m[1])), 1.0, float(m[2]) + 2.0, Color("9ffff0"), 0.5)
+	return _canvas
+
+
+## 16x48 lantern on a wooden post.
+func _lamp_prop() -> Image:
+	_begin_canvas(Vector2i(16, 48))
+	var wood := Color("5a4232")
+	_capsule(Vector2(8, 46), Vector2(8, 14), 1.4, wood)
+	_capsule(Vector2(8, 14), Vector2(12, 12), 0.8, wood)
+	_finish_layer(OUTLINE, true)
+	_poly(PackedVector2Array([Vector2(9, 14), Vector2(15, 14), Vector2(14, 22), Vector2(10, 22)]), Color("2c2a30"))
+	_finish_layer(OUTLINE, false)
+	_poly(PackedVector2Array([Vector2(10.5, 15.5), Vector2(13.5, 15.5), Vector2(13, 20.5), Vector2(11, 20.5)]), Color("ffd27a"))
+	_finish_detail()
+	_glow(Vector2(12, 18), 1.0, 5.0, Color("ffb347"), 0.55)
+	return _canvas
+
+
+## 24x56 broken stone column.
+func _pillar_prop() -> Image:
+	_begin_canvas(Vector2i(24, 56))
+	var stone := Color("6a6470")
+	_poly(PackedVector2Array([Vector2(3, 54), Vector2(21, 54), Vector2(21, 48), Vector2(3, 48)]), stone.darkened(0.1))
+	_poly(PackedVector2Array([Vector2(6, 48), Vector2(18, 48), Vector2(18, 14), Vector2(13, 9),
+			Vector2(10, 13), Vector2(6, 11)]), stone)
+	_finish_layer(OUTLINE, true, true)
+	for y: int in range(16, 46, 4):
+		_line(Vector2(9, y), Vector2(9, y + 2), stone.darkened(0.3))
+		_line(Vector2(14, y + 1), Vector2(14, y + 3), stone.darkened(0.3))
+	_oval(Vector2(12, 30), 4.0, 1.5, 0.0, Color("4f6b35"))
+	_finish_detail()
+	return _canvas
+
+
+## 24x12 tuft of rotten grass.
+func _grass_prop() -> Image:
+	_begin_canvas(Vector2i(24, 12))
+	for k: int in 9:
+		var x := 3.0 + k * 2.2 + _rng.randf_range(-0.6, 0.6)
+		var lean := _rng.randf_range(-3.0, 3.0)
+		var tall := _rng.randf_range(5.0, 9.0)
+		_line(Vector2(x, 10), Vector2(x + lean, 10 - tall), Color("6b7a38") if k % 2 == 0 else Color("566330"))
+	_finish_layer(OUTLINE, false)
+	return _canvas
+
+
+## Fallback for an unknown file name: a plain grey stone.
+func _plain_stone() -> Image:
+	_begin_canvas(Vector2i(32, 32))
+	_oval(Vector2(16, 20), 13.0, 11.0, 0.0, Color("5a5660"))
+	_finish_layer(OUTLINE, true, true)
 	return _canvas
 
 

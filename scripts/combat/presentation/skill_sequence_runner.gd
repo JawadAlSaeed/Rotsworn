@@ -2,7 +2,9 @@ class_name SkillSequenceRunner
 extends Node
 ## Plays one party skill on this machine (DESIGN.md 2.10 and 4.5): the user's press prompts, then
 ## the allies' follow-up prompts. Each press is PERFECT, GOOD, or a MISS when the window passes;
-## the ring shows the GOOD and PERFECT zones osu-style (RingLayer).
+## the ring shows the GOOD and PERFECT zones osu-style (RingLayer). Each press moment is its own
+## ring at its own spot (PressNotes): a skill with several presses shows a numbered row of rings,
+## closing left to right at the skill's own ring speed (ring_lead_percent).
 ##
 ## On a "skill" timed_sequence_declared the controller calls start(). The AttackClock starts at
 ## once (the press times in the data leave room for the ring). A ring closes on the presser at each
@@ -22,6 +24,8 @@ signal press_judged(action: int, report: Dictionary)
 const GOOD_PRESS_VOLUME_DB: float = -6.0
 ## The press ring keeps shrinking past the target after the perfect moment, down to this radius.
 const RING_MIN_RADIUS_PX: float = 4.0
+## Follow-up allies step this share of the way to their strike point when their ring appears.
+const FOLLOW_UP_STEP_SHARE: float = 0.5
 
 var _submit: Callable
 var _apply_now: Callable
@@ -54,6 +58,12 @@ var _tail: Array[Dictionary] = []
 var _tail_received: bool = false
 ## Follow-up allies who have stepped forward (id -> true).
 var _ready_allies: Dictionary = {}
+## The skill's press moments (PressNotes.notes), the middle of their row (where the strikers
+## stand, chest height), how long before each press its ring appears, and the ring colour.
+var _notes: Array[Dictionary] = []
+var _note_anchor: Vector3 = Vector3.ZERO
+var _press_lead_us: int = 1
+var _ring_color: Color = HudStyle.TEXT
 
 
 func setup(submit: Callable, apply_now: Callable, mirror: CombatMirror, view: CombatView, hud: CombatHud,
@@ -93,6 +103,20 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_tail.clear()
 	_tail_received = false
 	_ready_allies.clear()
+	_notes = PressNotes.notes(_prompts)
+	_press_lead_us = maxi(1, (ability.ring_lead_ms(_tuning) if ability != null else _tuning.ring_lead_ms) * 1000)
+	_ring_color = ability.ring_color if ability != null else HudStyle.TEXT
+	_note_anchor = _strikers_stand_point()
+	var aim := _first_target()
+	if aim < 0 and not _targets.is_empty():
+		aim = _targets[0]
+	var stand := Vector3(_note_anchor.x, 0.0, _note_anchor.z)
+	# With follow-ups the whole sequence is framed at once (strikers, target, every ally who will
+	# press), so the camera never moves while a ring is up and nobody is off screen (card #49).
+	if not _follow_up_allies().is_empty():
+		_frame_skill()
+	else:
+		_view.camera.shot_strike(stand, _view.home_of(aim) if aim >= 0 else stand, ability != null and ability.team_ultimate)
 	_active = true
 	_input.arm_press()
 	var actor_name := String(_mirror.fighter(_actor).get("display_name", "?")).to_upper()
@@ -329,56 +353,135 @@ func _update_allies(t: int) -> void:
 		var v := _view.fighter(id)
 		if v != null and _mirror.is_alive(id):
 			v.set_pose(FighterView.CharPose.READY)
-			v.move_body(_approach_offset(id) * 0.5, float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
+			v.move_body(_approach_offset(id) * FOLLOW_UP_STEP_SHARE, float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
+
+
+## Every ally with a follow-up prompt (in prompt order).
+func _follow_up_allies() -> Array[int]:
+	var ids: Array[int] = []
+	for prompt: Dictionary in _prompts:
+		if String(prompt.role) == CombatEngine.ROLE_FOLLOW_UP and not ids.has(int(prompt.character)):
+			ids.append(int(prompt.character))
+	return ids
+
+
+## Frames the strikers where they wait, the target, and every follow-up ally where they will step
+## (feet and heads) inside the follow-up safe area.
+func _frame_skill() -> void:
+	var points: Array[Vector3] = []
+	var target := _first_target()
+	for id: int in _strikers():
+		_add_body_points(points, id, _approach_offset(id))
+	for id: int in _follow_up_allies():
+		_add_body_points(points, id, _approach_offset(id) * FOLLOW_UP_STEP_SHARE)
+	if target >= 0:
+		_add_body_points(points, target, Vector3.ZERO)
+	if not points.is_empty():
+		_view.camera.shot_frame(points)
+
+
+func _add_body_points(points: Array[Vector3], id: int, offset: Vector3) -> void:
+	var v := _view.fighter(id)
+	if v == null:
+		return
+	var feet := v.global_position + offset
+	points.append(feet)
+	points.append(feet + Vector3(0.0, v.head_position().y - v.body_position().y, 0.0))
 
 
 ## osu-style press rings: a faint target circle, the GOOD band and the gold PERFECT band (the
 ## press windows drawn at the ring's shrink speed), and the ring itself, which reaches the target
-## circle at the perfect moment and turns gold while it is inside the PERFECT band.
+## circle at the perfect moment and turns gold while it is inside the PERFECT band. The skill's
+## presses are notes in a row where the strikers stand; follow-ups ring on their ally.
 func _update_rings(t: int) -> void:
 	var rings: Array[Dictionary] = []
+	_add_press_notes(rings, t)
+	_add_follow_up_rings(rings, t)
+	_hud.set_rings(rings)
+
+
+## One ring per press moment, numbered when there are several, the next press drawn on top.
+func _add_press_notes(rings: Array[Dictionary], t: int) -> void:
+	var count := _notes.size()
+	var size := PressNotes.scale(count, _visuals.press_note_scale)
+	var centre := _view.screen_position(_note_anchor)
+	var shown: Array[Dictionary] = []
+	for k: int in count:
+		var note: Dictionary = _notes[k]
+		var idx := _first_open(note.prompts as Array)
+		if idx < 0:
+			continue
+		var windows: Dictionary = (_prompts[idx] as Dictionary).windows
+		var rel := t - int(note.at_ms) * 1000
+		var good: Array = windows.get(Defense.Outcome.PRESS, [0, 0])
+		if rel < -_press_lead_us or rel > int(good[1]) + latency_us():
+			continue
+		var perfect: Array = windows.get(Defense.Outcome.PRESS_PERFECT, good)
+		var pos := centre + PressNotes.offset(k, count, _visuals.press_note_spacing_px)
+		var ring := _ring(pos, rel, _press_lead_us, size, good, perfect, _ring_color)
+		ring["label"] = "PRESS" if shown.is_empty() else ""
+		if count > 1:
+			ring["number"] = str(k + 1)
+		shown.append(ring)
+	shown.reverse()
+	rings.append_array(shown)
+
+
+## Each open follow-up prompt rings on its ally, at the normal ring speed.
+func _add_follow_up_rings(rings: Array[Dictionary], t: int) -> void:
 	var lead := maxi(1, _tuning.ring_lead_ms * 1000)
 	for idx: int in _prompts.size():
 		var prompt: Dictionary = _prompts[idx]
-		var at := int(prompt.at_ms) * 1000
+		if String(prompt.role) != CombatEngine.ROLE_FOLLOW_UP or not is_prompt_open(idx):
+			continue
 		var windows: Dictionary = prompt.windows
 		var good: Array = windows.get(Defense.Outcome.PRESS, [0, 0])
-		var perfect: Array = windows.get(Defense.Outcome.PRESS_PERFECT, good)
-		var rel := t - at
-		if rel < -lead or rel > int(good[1]) + latency_us() or not is_prompt_open(idx):
+		var rel := t - int(prompt.at_ms) * 1000
+		if rel < -lead or rel > int(good[1]) + latency_us():
 			continue
 		var v := _view.fighter(int(prompt.character))
 		if v == null:
 			continue
-		var follow_up := String(prompt.role) == CombatEngine.ROLE_FOLLOW_UP
-		var color := HudStyle.JUMP if follow_up else HudStyle.TEXT
-		if rel >= int(perfect[0]) and rel <= int(perfect[1]):
-			color = HudStyle.GOLD
-		rings.append({
-			"pos": _view.screen_position(v.centre_position()),
-			"radius": _ring_radius(rel, lead),
-			"color": color,
-			"label": "FOLLOW-UP" if follow_up else "PRESS",
-			"target_radius": _visuals.press_ring_end_radius_px,
-			"target_color": _visuals.press_target_color,
-			"bands": [_band(good, lead, _visuals.press_good_band_color),
-					_band(perfect, lead, _visuals.press_perfect_band_color)],
-		})
-	_hud.set_rings(rings)
+		var perfect: Array = windows.get(Defense.Outcome.PRESS_PERFECT, good)
+		var ring := _ring(_view.screen_position(v.centre_position()), rel, lead, 1.0, good, perfect, HudStyle.JUMP)
+		ring["label"] = "FOLLOW-UP"
+		rings.append(ring)
 
 
-## Ring radius `rel_us` from the perfect moment: start radius ring_lead_ms before, the target
-## circle at 0, still shrinking after.
-func _ring_radius(rel_us: int, lead_us: int) -> float:
-	var span := _visuals.press_ring_start_radius_px - _visuals.press_ring_end_radius_px
-	return maxf(RING_MIN_RADIUS_PX, _visuals.press_ring_end_radius_px - span * float(rel_us) / float(lead_us))
+## A press ring `rel_us` from its perfect moment, `size` times the press ring's size, gold while
+## inside the PERFECT window.
+func _ring(pos: Vector2, rel_us: int, lead_us: int, size: float, good: Array, perfect: Array, color: Color) -> Dictionary:
+	if rel_us >= int(perfect[0]) and rel_us <= int(perfect[1]):
+		color = HudStyle.GOLD
+	return {
+		"pos": pos,
+		"radius": _ring_radius(rel_us, lead_us, size),
+		"color": color,
+		"target_radius": _visuals.press_ring_end_radius_px * size,
+		"target_color": _visuals.press_target_color,
+		"bands": [_band(good, lead_us, size, _visuals.press_good_band_color),
+				_band(perfect, lead_us, size, _visuals.press_perfect_band_color)],
+	}
+
+
+func _ring_radius(rel_us: int, lead_us: int, size: float) -> float:
+	return PressNotes.radius(rel_us, lead_us, _visuals.press_ring_start_radius_px * size,
+			_visuals.press_ring_end_radius_px * size, RING_MIN_RADIUS_PX)
 
 
 ## The ring of radii the shrinking ring passes through during a window [early_us, late_us].
-func _band(edges: Array, lead_us: int, color: Color) -> Dictionary:
-	var outer := _ring_radius(int(edges[0]), lead_us)
-	var inner := _ring_radius(int(edges[1]), lead_us)
+func _band(edges: Array, lead_us: int, size: float, color: Color) -> Dictionary:
+	var outer := _ring_radius(int(edges[0]), lead_us, size)
+	var inner := _ring_radius(int(edges[1]), lead_us, size)
 	return {"radius": (outer + inner) * 0.5, "width": outer - inner, "color": color}
+
+
+## The first of these prompts that can still be answered, or -1.
+func _first_open(idxs: Array) -> int:
+	for idx: int in idxs:
+		if is_prompt_open(idx):
+			return idx
+	return -1
 
 
 func _update_lock(t: int) -> void:
@@ -449,6 +552,24 @@ func _first_target() -> int:
 		if _mirror.is_alive(id) and not _mirror.party_ids.has(id):
 			return id
 	return -1
+
+
+## Chest height of the spot the strikers wait at between hits (their middle for several): the
+## middle of the press note row. Fixed for the whole skill, so lunges never move the rings.
+func _strikers_stand_point() -> Vector3:
+	var sum := Vector3.ZERO
+	var count := 0
+	for id: int in _strikers():
+		var v := _view.fighter(id)
+		if v == null:
+			continue
+		var chest := v.centre_position() - v.body_position()
+		sum += v.global_position + _approach_offset(id) + chest
+		count += 1
+	if count == 0:
+		var actor := _view.fighter(_actor)
+		return actor.centre_position() if actor != null else Vector3.ZERO
+	return sum / float(count)
 
 
 ## Where a striker waits between hits: part of the way to the strike point.

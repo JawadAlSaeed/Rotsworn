@@ -1,9 +1,10 @@
 class_name CombatView
 extends Node3D
-## The 3D stage (phase 1: simple and readable; HD-2D comes in phase 3): tiled floor, far
-## backdrop, dark ambient light with light fog, one directional light, the fixed 3/4 camera, the
-## fighters (party on the left facing right, enemies on the right) and short-lived effects
-## (sparks, slashes, ground-wave crests). All art comes from data paths via AssetLoader.
+## The 3D stage, HD-2D (DESIGN.md 7.3): the place's look (StageLook: lit ground, backdrop, sun,
+## fog, bloom, colour grading, vignette) with its arena decoration, the combat camera with depth of
+## field and cinematic shots, the fighters (party on the left facing right, enemies on the right)
+## and short-lived effects (sparks, slashes, ground-wave crests). All art comes from data paths via
+## AssetLoader.
 
 ## Effect animation shape: a slash grows to this scale, a spark shrinks to this one.
 const SLASH_GROWTH: float = 1.3
@@ -22,44 +23,36 @@ var _wave_crests: Array[Sprite3D] = []
 var _rng := RandomNumberGenerator.new()
 
 
-## Builds the stage. Call once before adding fighters.
-func build(visuals: CombatVisuals) -> void:
+## Builds the stage in `look` (null: the fight list's look from the visuals). Call once before
+## adding fighters.
+func build(visuals: CombatVisuals, look: StageLook = null) -> void:
 	_visuals = visuals
+	if look == null:
+		look = visuals.stage_look
+	if look == null:
+		push_warning("CombatView: no stage look, using the StageLook defaults")
+		look = StageLook.new()
 	_rng.randomize()
 	_spark_texture = AssetLoader.texture(visuals.spark_path, Vector2i(16, 16))
 	_slash_texture = AssetLoader.texture(visuals.slash_path, Vector2i(32, 32))
 	_wave_texture = AssetLoader.texture(visuals.shockwave_path, Vector2i(64, 16))
 
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = visuals.background_color
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = visuals.ambient_color
-	env.ambient_light_energy = visuals.ambient_energy
-	env.fog_enabled = true
-	env.fog_light_color = visuals.fog_color
-	env.fog_density = visuals.fog_density
-	var world_env := WorldEnvironment.new()
-	world_env.name = "WorldEnvironment"
-	world_env.environment = env
-	add_child(world_env)
-
-	var light := DirectionalLight3D.new()
-	light.name = "Sun"
-	light.light_color = visuals.light_color
-	light.light_energy = visuals.light_energy
-	light.rotation_degrees = visuals.light_rotation_degrees
-	light.shadow_enabled = false
-	add_child(light)
+	add_child(StageBuilder.environment(look))
+	add_child(StageBuilder.sun(look))
+	add_child(StageBuilder.ground(look))
+	add_child(StageBuilder.backdrop(look))
+	StageBuilder.add_contents(self, look.arena_blocks, look.arena_props, look.arena_lights)
+	add_child(StageBuilder.vignette(look))
 
 	camera = CombatCamera.new()
 	camera.name = "Camera"
-	camera.setup(visuals.camera_position, visuals.camera_target, visuals.camera_fov)
+	camera.setup(visuals)
+	camera.attributes = StageBuilder.camera_attributes(visuals.dof_far_enabled, visuals.dof_far_distance,
+			visuals.dof_far_transition, visuals.dof_near_enabled, visuals.dof_near_distance,
+			visuals.dof_near_transition, visuals.dof_amount)
 	add_child(camera)
 	camera.current = true
 
-	_build_floor()
-	_build_backdrop()
 	for i: int in visuals.wave_crest_count:
 		var crest := _effect_sprite(_wave_texture, BaseMaterial3D.BILLBOARD_FIXED_Y)
 		crest.name = "WaveCrest%d" % i
@@ -105,6 +98,16 @@ func contact_point(target_ids: Array[int]) -> Vector3:
 	for id: int in target_ids:
 		sum += home_of(id)
 	return sum / float(target_ids.size()) + Vector3(_visuals.contact_gap, 0.0, 0.0)
+
+
+## The middle of every fighter's home spot (feet).
+func arena_centre() -> Vector3:
+	if _fighters.is_empty():
+		return Vector3.ZERO
+	var sum := Vector3.ZERO
+	for id: int in _fighters:
+		sum += home_of(id)
+	return sum / float(_fighters.size())
 
 
 ## Where a party member stands to strike this enemy.
@@ -197,11 +200,14 @@ func warm_up() -> void:
 	set_wave(points, WARM_UP_ALPHA)
 	for id: int in _fighters:
 		fighter(id).flash(1, Color.WHITE, WARM_UP_ALPHA)
+		fighter(id).set_floor_warning(WARM_UP_ALPHA, Color.WHITE)
 
 
 ## Ends the warm-up started by warm_up().
 func finish_warm_up() -> void:
 	hide_wave()
+	for id: int in _fighters:
+		fighter(id).set_floor_warning(0.0, Color.WHITE)
 
 
 func _home_for(is_party: bool, slot: int) -> Vector3:
@@ -214,39 +220,6 @@ func _home_for(is_party: bool, slot: int) -> Vector3:
 	var last := list[list.size() - 1]
 	var step := Vector3(0.0, 0.0, 1.3) if list.size() < 2 else last - list[list.size() - 2]
 	return last + step * float(slot - list.size() + 1)
-
-
-func _build_floor() -> void:
-	var mesh := PlaneMesh.new()
-	mesh.size = Vector2(_visuals.floor_size, _visuals.floor_size)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = AssetLoader.texture(_visuals.floor_tile_path, Vector2i(32, 32))
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mat.texture_repeat = true
-	var tiles := _visuals.floor_size / maxf(0.01, _visuals.floor_tile_world_size)
-	mat.uv1_scale = Vector3(tiles, tiles, 1.0)
-	mat.roughness = 1.0
-	var floor_mesh := MeshInstance3D.new()
-	floor_mesh.name = "Floor"
-	floor_mesh.mesh = mesh
-	floor_mesh.material_override = mat
-	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(floor_mesh)
-
-
-func _build_backdrop() -> void:
-	var tex := AssetLoader.texture(_visuals.backdrop_path, Vector2i(320, 120))
-	var backdrop := Sprite3D.new()
-	backdrop.name = "Backdrop"
-	backdrop.texture = tex
-	backdrop.pixel_size = _visuals.backdrop_pixel_size
-	backdrop.centered = true
-	backdrop.offset = Vector2(0.0, float(tex.get_height()) * 0.5)
-	backdrop.position = _visuals.backdrop_position
-	backdrop.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	backdrop.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	backdrop.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(backdrop)
 
 
 func _effect_sprite(texture: Texture2D, billboard: BaseMaterial3D.BillboardMode) -> Sprite3D:

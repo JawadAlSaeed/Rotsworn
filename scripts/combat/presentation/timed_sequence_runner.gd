@@ -11,8 +11,9 @@ extends Node
 ## sequence_resolved on is handed back (finished) only when the local animation is over.
 ##
 ## Feedback comes from the judge at press time, never from engine events: decide early, show at
-## contact (attack time max(press, impact)). Enemy motion, the ground wave and the training ring
-## are pure functions of attack time, so hit-stop (AttackClock.pause_for) freezes them exactly.
+## contact (attack time max(press, impact)). Enemy motion, the ground wave, the training ring and
+## the reading aids (banner hit row, hit markers, floor warning; DESIGN.md 3.8) are pure functions
+## of attack time, so hit-stop (AttackClock.pause_for) freezes them exactly.
 
 ## Everything from sequence_resolved on, to be played by the controller.
 signal finished(tail: Array[Dictionary])
@@ -35,6 +36,8 @@ const DODGE_BACK_SHARE: float = 0.3
 const JUMP_CLEAR_HEIGHT: float = 0.6
 ## A wave front reaching beyond the outer party slots needs at least two crests.
 const MIN_WAVE_CRESTS: int = 2
+## The floor warning starts at this share of its strength when the slam starts.
+const WARNING_START_SHARE: float = 0.3
 
 var _submit: Callable
 var _apply_now: Callable
@@ -79,6 +82,8 @@ var _end_reason: String = ""
 var _has_counter: bool = false
 var _counter_ready_us: int = 0
 var _wave_hit: int = -1
+## How long before each hit the training ring appears (the attack's own ring speed).
+var _ring_lead_us: int = 1
 var _wave_dist: float = -1.0
 ## Real time start() ran (bystanders step aside from then).
 var _started_us: int = 0
@@ -103,8 +108,9 @@ func setup(submit: Callable, apply_now: Callable, mirror: CombatMirror, view: Co
 	_input.pressed.connect(_on_pressed)
 
 
-## Starts playing a timed_sequence_declared event (already applied to the mirror).
-func start(event: Dictionary) -> void:
+## Starts playing a timed_sequence_declared event (already applied to the mirror). `attack` is the
+## attack's data (for its training ring speed; null = the tuning default).
+func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_event = event
 	_seq = int(event.seq)
 	_source = int(event.source)
@@ -120,6 +126,7 @@ func start(event: Dictionary) -> void:
 	_started_us = Time.get_ticks_usec()
 	_lead_in_end_us = _started_us + _tuning.attack_lead_in_ms * 1000
 	_cues = EnemyChoreography.cues(_hits, _visuals)
+	_ring_lead_us = maxi(1, (attack.ring_lead_ms(_tuning) if attack != null else _tuning.ring_lead_ms) * 1000)
 	_first_motion_us = roundi(float(_cues[0].at_ms) * 1000.0) if not _cues.is_empty() else 0
 	_next_cue = 0
 	_scheduled.clear()
@@ -138,6 +145,7 @@ func start(event: Dictionary) -> void:
 	_longest_frame_us = 0
 	_last_frame_us = Time.get_ticks_usec()
 	_contact = _view.contact_point(_targets)
+	_view.camera.shot_attack(_view.home_of(_source), _contact)
 	# The runner moves the party every frame from here on: stop any leftover tweened movement.
 	for id: int in _mirror.party_ids:
 		var view := _view.fighter(id)
@@ -147,11 +155,18 @@ func start(event: Dictionary) -> void:
 	_animating = true
 	_input.arm_all()
 	_hud.show_banner(_banner_text())
+	var kinds: Array = []
+	var times: Array = []
+	for hit: Dictionary in _hits:
+		kinds.append(int(hit.kind))
+		times.append(int(hit.at_ms))
+	_hud.set_banner_hits(kinds, times)
 	_hud.set_targeted(_targets)
 	var enemy := _view.fighter(_source)
 	if enemy != null:
 		enemy.body_offset = Vector3.ZERO
 		enemy.set_pose(EnemyChoreography.Pose.IDLE)
+		enemy.set_squash(0.0)
 
 
 ## True between start() and the hand-back.
@@ -198,6 +213,8 @@ func _process(_delta: float) -> void:
 			_update_target_arrows(0)
 			return
 		_clock.start(_lead_in_end_us)
+		# The camera glided to the attack shot during the lead-in: hold it still from here.
+		_view.camera.settle()
 		if bool(_event.get("alert_cue", false)):
 			Sfx.play("alert")
 	var t := _clock.attack_time_us(now)
@@ -211,6 +228,7 @@ func _process(_delta: float) -> void:
 		_update_party(t)
 		_update_wave(t)
 		_update_rings(t)
+		_update_reading(t)
 		_update_lock(t)
 		_update_target_arrows(t)
 		# Read the time again: a contact effect above may have just started a hit-stop.
@@ -454,7 +472,9 @@ func _fire_cues(t: int) -> void:
 		_next_cue += 1
 		var enemy := _view.fighter(_source)
 		if _options.telegraph_flash and enemy != null:
-			enemy.flash(_visuals.telegraph_flash_ms, _visuals.telegraph_flash_color, _visuals.telegraph_flash_strength)
+			# A slam flashes in the ground colour: the colour says which defence the hit needs.
+			var color := _visuals.ground_hit_color if String(cue.type) == EnemyChoreography.CUE_SLAM else _visuals.telegraph_flash_color
+			enemy.flash(_visuals.telegraph_flash_ms, color, _visuals.telegraph_flash_strength)
 		match String(cue.type):
 			EnemyChoreography.CUE_SLAM:
 				if _options.motion_sounds:
@@ -473,6 +493,14 @@ func _update_enemy(t: int) -> void:
 	var s := EnemyChoreography.sample(_hits, float(t) / 1000.0, _visuals)
 	enemy.set_pose(int(s.pose))
 	enemy.set_glow(float(s.glow))
+	# The wind-up before a slam glows in the ground colour, before a lunge in the wind-up colour.
+	var hit_index := int(s.hit)
+	var ground := hit_index >= 0 and int((_hits[hit_index] as Dictionary).kind) == AttackHitData.Kind.GROUND
+	enemy.set_glow_color(_visuals.ground_hit_color if ground else _visuals.windup_glow_color)
+	var crouch := 0.0
+	if _options.windup_crouch and int(s.pose) == EnemyChoreography.Pose.WINDUP:
+		crouch = float(s.glow) * float(_visuals.windup_squash_percent) / 100.0
+	enemy.set_squash(crouch)
 	var travel := _contact - enemy.position
 	travel.y = 0.0
 	enemy.body_offset = travel * float(s.approach)
@@ -488,6 +516,7 @@ func _enemy_settled(t: int) -> bool:
 	if enemy != null:
 		enemy.body_offset = Vector3.ZERO
 		enemy.set_glow(0.0)
+		enemy.set_squash(0.0)
 	return true
 
 
@@ -602,7 +631,7 @@ func _update_rings(t: int) -> void:
 		_hud.set_rings([])
 		return
 	var rings: Array[Dictionary] = []
-	var lead := _tuning.ring_lead_ms * 1000
+	var lead := _ring_lead_us
 	for prompt: Dictionary in _prompts:
 		var at := int(prompt.at_ms) * 1000
 		if t < at - lead or t > at:
@@ -610,15 +639,57 @@ func _update_rings(t: int) -> void:
 		var id := int(prompt.character)
 		if not _mirror.is_alive(id):
 			continue
-		var u := float(t - (at - lead)) / float(maxi(1, lead))
+		var u := float(t - (at - lead)) / float(lead)
 		var ground := int(prompt.kind) == AttackHitData.Kind.GROUND
 		rings.append({
 			"pos": _view.screen_position(_view.fighter(id).centre_position()),
 			"radius": lerpf(_visuals.ring_start_radius_px, _visuals.ring_end_radius_px, u),
-			"color": HudStyle.RING_GROUND if ground else HudStyle.RING_NORMAL,
+			"color": _visuals.ground_hit_color if ground else HudStyle.RING_NORMAL,
 			"label": "JUMP" if ground else "",
 		})
 	_hud.set_rings(rings)
+
+
+## The banner row's hit states, and while a hit's motion plays its marker beside each living
+## target (on the side the enemy stands) and, for a ground hit, the floor warning under them.
+func _update_reading(t: int) -> void:
+	var t_ms := float(t) / 1000.0
+	var states := HitRhythm.states(_hits, t_ms, _visuals)
+	_hud.set_banner_hit_states(states)
+	var markers: Array[Dictionary] = []
+	var warning := 0.0
+	var active := HitRhythm.active_hit(states)
+	if active >= 0 and _options.hit_markers:
+		var hit: Dictionary = _hits[active]
+		var kind := int(hit.kind)
+		var ground := kind == AttackHitData.Kind.GROUND
+		var start := EnemyChoreography.motion_start(_hits, active, _visuals)
+		var pop := clampf((t_ms - start) / maxf(1.0, float(_visuals.hit_marker_pop_ms)), 0.0, 1.0)
+		var px := _visuals.hit_marker_px * lerpf(_visuals.hit_marker_pop_scale, 1.0, 1.0 - (1.0 - pop) * (1.0 - pop))
+		if ground:
+			var progress := clampf((t_ms - start) / maxf(1.0, float(hit.at_ms) - start), 0.0, 1.0)
+			warning = _visuals.floor_warning_strength * lerpf(WARNING_START_SHARE, 1.0, progress)
+		var enemy := _view.fighter(_source)
+		for id: int in _living_targets():
+			var view := _view.fighter(id)
+			# The standing middle of the body: a jump does not carry the marker up.
+			var centre := _view.screen_position(view.centre_position() - Vector3(0.0, view.body_offset.y, 0.0))
+			var side := 1.0
+			if enemy != null and _view.screen_position(enemy.global_position).x < centre.x:
+				side = -1.0
+			markers.append({
+				"pos": centre + Vector2(_visuals.hit_marker_offset_px.x * side, _visuals.hit_marker_offset_px.y),
+				"size": px,
+				"texture": _hud.hit_icon(kind),
+				"color": _visuals.ground_hit_color if ground else _visuals.normal_hit_color,
+				"label": "JUMP" if ground else "",
+			})
+	_hud.set_hit_markers(markers)
+	for id: int in _mirror.party_ids:
+		var view := _view.fighter(id)
+		if view != null:
+			var shown := warning if _targets.has(id) and _mirror.is_alive(id) else 0.0
+			view.set_floor_warning(shown, _visuals.ground_hit_color)
 
 
 func _update_lock(t: int) -> void:
@@ -654,6 +725,7 @@ func _hand_back() -> void:
 	_input.disarm()
 	_hud.hide_banner()
 	_hud.set_rings([])
+	_hud.set_hit_markers([])
 	_hud.set_lock(false)
 	_hud.set_targeted([])
 	_hud.set_target_arrows([])
@@ -665,6 +737,7 @@ func _hand_back() -> void:
 		if view == null:
 			continue
 		view.set_tint(Color.WHITE)
+		view.set_floor_warning(0.0, _visuals.ground_hit_color)
 		if view.body_offset == Vector3.ZERO or not _mirror.is_alive(id):
 			view.move_body(Vector3.ZERO, 0.0)
 		else:

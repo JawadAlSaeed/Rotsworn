@@ -8,6 +8,7 @@ id = "feint_step"
 display_name = "Feint Step"
 description = "80% hit. +1 AP. Perfect press: +2 AP instead."
 press_times_ms = Array[int]([800])
+ring_lead_percent = 85
 damage_percent = 80
 consumes_exposed = false
 ap_gain = 1

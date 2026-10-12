@@ -1,11 +1,14 @@
 class_name FightSelect
 extends CanvasLayer
-## Phase 2 test menu: lists every encounter in data/encounters (DESIGN.md 2.11). Up/down picks,
-## confirm starts it. Driven only by the menu_* input actions, like the action menu.
+## Start menu: the zones to explore (data/zones, DESIGN.md 7.4) first, then every test fight in
+## data/encounters (DESIGN.md 2.11). Up/down picks, confirm starts it. Driven only by the menu_*
+## input actions, like the action menu.
 
 signal chosen(encounter: EncounterData)
+signal zone_chosen(zone: ZoneData)
 
 const ENCOUNTER_DIR := "res://data/encounters"
+const ZONE_DIR := "res://data/zones"
 const TITLE_SIZE: int = 64
 const ITEM_SIZE: int = 40
 const DETAIL_SIZE: int = 26
@@ -14,6 +17,7 @@ const CURSOR := "> "
 const BACKGROUND := Color(0.04, 0.04, 0.06)
 
 var _encounters: Array[EncounterData] = []
+var _zones: Array[ZoneData] = []
 var _labels: Array[Label] = []
 var _detail: Label
 var _index: int = 0
@@ -36,10 +40,26 @@ static func load_encounters() -> Array[EncounterData]:
 	return list
 
 
-## Builds the menu with `start_index` selected.
-func setup(encounters: Array[EncounterData], start_index: int) -> void:
+## Every zone in the data folder, sorted by file name.
+static func load_zones() -> Array[ZoneData]:
+	var list: Array[ZoneData] = []
+	var files := DirAccess.get_files_at(ZONE_DIR)
+	files.sort()
+	for file: String in files:
+		var file_name := file.trim_suffix(".remap")
+		if not file_name.ends_with(".tres"):
+			continue
+		var zone := load(ZONE_DIR.path_join(file_name)) as ZoneData
+		if zone != null:
+			list.append(zone)
+	return list
+
+
+## Builds the menu with `start_index` selected (zones come first, then encounters).
+func setup(zones: Array[ZoneData], encounters: Array[EncounterData], start_index: int) -> void:
+	_zones = zones
 	_encounters = encounters
-	_index = clampi(start_index, 0, maxi(0, encounters.size() - 1))
+	_index = clampi(start_index, 0, maxi(0, _count() - 1))
 	var bg := ColorRect.new()
 	bg.color = BACKGROUND
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -51,10 +71,10 @@ func setup(encounters: Array[EncounterData], start_index: int) -> void:
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override("separation", 14)
 	add_child(column)
-	var title := HudStyle.make_label("Choose a fight", TITLE_SIZE, HudStyle.GOLD)
+	var title := HudStyle.make_label("Rotten Lands", TITLE_SIZE, HudStyle.GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
-	for encounter: EncounterData in _encounters:
+	for i: int in _count():
 		var label := HudStyle.make_label("", ITEM_SIZE)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		column.add_child(label)
@@ -73,20 +93,23 @@ func selected_index() -> int:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _encounters.is_empty():
+	if _count() == 0:
 		return
 	if _pressed(event, &"menu_up"):
-		_index = wrapi(_index - 1, 0, _encounters.size())
+		_index = wrapi(_index - 1, 0, _count())
 		Sfx.play("menu_move")
 		_redraw()
 	elif _pressed(event, &"menu_down"):
-		_index = wrapi(_index + 1, 0, _encounters.size())
+		_index = wrapi(_index + 1, 0, _count())
 		Sfx.play("menu_move")
 		_redraw()
 	elif _pressed(event, &"menu_confirm"):
 		Sfx.play("menu_confirm")
 		get_viewport().set_input_as_handled()
-		chosen.emit(_encounters[_index])
+		if _index < _zones.size():
+			zone_chosen.emit(_zones[_index])
+		else:
+			chosen.emit(_encounters[_index - _zones.size()])
 		return
 	else:
 		return
@@ -104,13 +127,25 @@ func _pressed(event: InputEvent, action: StringName) -> bool:
 	return true
 
 
+func _count() -> int:
+	return _zones.size() + _encounters.size()
+
+
 func _redraw() -> void:
 	for i: int in _labels.size():
 		var selected := i == _index
-		_labels[i].text = (CURSOR if selected else "  ") + _encounters[i].display_name
+		var item_name := "Explore: " + _zones[i].display_name if i < _zones.size() else \
+				"Fight: " + _encounters[i - _zones.size()].display_name
+		_labels[i].text = (CURSOR if selected else "  ") + item_name
 		_labels[i].label_settings.font_color = HudStyle.GOLD if selected else HudStyle.TEXT
+	if _count() == 0:
+		return
+	if _index < _zones.size():
+		var zone := _zones[_index]
+		_detail.text = "Walk around, strike enemies first. %d enemies roam here." % zone.enemies.size()
+		return
 	var names := PackedStringArray()
-	for enemy: EnemyData in _encounters[_index].enemies:
+	for enemy: EnemyData in _encounters[_index - _zones.size()].enemies:
 		if enemy != null:
 			names.append(enemy.display_name)
 	_detail.text = "Enemies: " + ", ".join(names)

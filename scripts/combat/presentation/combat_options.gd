@@ -8,6 +8,8 @@ extends RefCounted
 ##   --quit-on-end                   quit one second after the fight ends
 ##   --seed=N                        fixed fight seed (else tuning fixed_seed, else random)
 ##   --encounter=ID                  start this encounter (data/encounters) instead of the list
+##   --zone=ID                       start in this zone (data/zones) instead of the list
+##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
 
 const AUTOPLAY_PERFECT := "perfect"
 const AUTOPLAY_MISS := "miss"
@@ -20,11 +22,19 @@ var quit_on_end: bool = false
 var seed_override: int = -1
 ## "" when no --encounter was given.
 var encounter_id: String = ""
-## Session toggles (F1 overlay; not saved): telegraph flash (F), timing readout (T) and the
-## enemy's motion sounds (L: lunge whoosh and slam).
+## "" when no --zone was given.
+var zone_id: String = ""
+var first_strike: bool = false
+## Session toggles (F1 overlay; not saved): telegraph flash (F), timing readout (T), the
+## enemy's motion sounds (L: lunge whoosh and slam), hit markers (H), the wind-up crouch (C) and
+## the cinematic camera (V).
 var telegraph_flash: bool = true
 var timing_readout: bool = true
 var motion_sounds: bool = true
+var hit_markers: bool = true
+var windup_crouch: bool = true
+## Cinematic combat camera (V).
+var cinematic_camera: bool = true
 ## Defence statistics for the F1 overlay, kept across restarts.
 var stats := DefenseStats.new()
 
@@ -35,6 +45,9 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 		options.telegraph_flash = tuning.show_telegraph_flash
 		options.timing_readout = tuning.show_timing_feedback
 		options.motion_sounds = tuning.play_motion_sounds
+		options.hit_markers = tuning.show_hit_markers
+		options.windup_crouch = tuning.show_windup_crouch
+		options.cinematic_camera = tuning.cinematic_camera
 	for arg: String in args:
 		if arg == "--autoplay":
 			options.autoplay_mode = AUTOPLAY_PERFECT
@@ -49,6 +62,10 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.quit_on_end = true
 		elif arg.begins_with("--encounter="):
 			options.encounter_id = arg.substr("--encounter=".length())
+		elif arg.begins_with("--zone="):
+			options.zone_id = arg.substr("--zone=".length())
+		elif arg == "--first-strike":
+			options.first_strike = true
 		elif arg.begins_with("--seed="):
 			var text := arg.substr("--seed=".length())
 			if text.is_valid_int():
