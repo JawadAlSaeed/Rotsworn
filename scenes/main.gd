@@ -245,7 +245,9 @@ func _show_screen(screen: Node) -> void:
 	if screen != null:
 		_screen = screen
 		add_child(screen)
-		Sfx.play_music(_music.menu_path, _music.volume_db)
+		Sfx.play_ambience("")
+		var song := _music.run_path if _is_run_screen(screen) and not _music.run_path.is_empty() else _music.menu_path
+		Sfx.play_music(song, _music.volume_db)
 	_watch_layer.visible = Net.is_client() and _is_run_screen(screen)
 
 
@@ -407,7 +409,12 @@ func _start_combat() -> void:
 	_combat.restart_requested.connect(_on_restart_requested)
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
-	Sfx.play_music(_music.fight_path, _music.volume_db)
+	Sfx.play_ambience("")
+	var boss := _encounter != null and _encounter.boss
+	Sfx.play_music(_music.boss_path if boss and not _music.boss_path.is_empty() else _music.fight_path, _music.volume_db)
+	if boss:
+		_combat.rage_music_path = _music.boss_rage_path
+		_combat.rage_music_volume_db = _music.volume_db
 	if Net.is_client():
 		_combat_accepts = true
 		var waiting := _combat_inbox.duplicate()
@@ -443,7 +450,8 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone.encounter_started.connect(_on_encounter_started)
 	_zone.cleared.connect(_on_zone_cleared)
 	add_child(_zone)
-	Sfx.play_music(_music.zone_path, _music.volume_db)
+	Sfx.play_music(_zone_song(), _music.volume_db)
+	_play_zone_ambience()
 	if _run != null:
 		var layer := CanvasLayer.new()
 		layer.name = "RunBar"
@@ -481,6 +489,7 @@ func _on_encounter_started(index: int, opening: CombatSetup.Opening) -> void:
 		_net_seed = randi_range(1, 2147483646)
 		Net.broadcast("screen", {"name": "zone_fight", "index": index, "opening": int(opening), "seed": _net_seed})
 	var gen := _flow_gen
+	Sfx.play("encounter_swirl")
 	await _transition.swirl_out()
 	if gen != _flow_gen or _zone == null:
 		_transition.fade_in()
@@ -514,7 +523,8 @@ func _on_zone_return_requested(result: String) -> void:
 	_free_combat()
 	_zone_fight = {}
 	add_child(_zone)
-	Sfx.play_music(_music.zone_path, _music.volume_db)
+	Sfx.play_music(_zone_song(), _music.volume_db)
+	_play_zone_ambience()
 	_zone.resume(result)
 	if _run_bar != null:
 		_run_bar.refresh(_run)
@@ -553,6 +563,7 @@ func _new_run() -> void:
 	if Net.is_host():
 		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict()})
 	print("Run seed: %d  stops: %d" % [run_seed, _run.map.row_count()])
+	Sfx.play("run_begin")
 	_show_map()
 
 
@@ -594,6 +605,7 @@ func _start_final_fight() -> void:
 	if Net.is_host():
 		_net_seed = randi_range(1, 2147483646)
 		_send_screen({"name": "final_fight", "seed": _net_seed})
+	Sfx.play("encounter_swirl")
 	await _transition.swirl_out()
 	_start_combat()
 	await get_tree().process_frame
@@ -642,6 +654,7 @@ func _show_loot(gear: Array[GearData] = []) -> void:
 	loot.setup(gear)
 	loot.chosen.connect(_on_loot_chosen)
 	_show_screen(loot)
+	Sfx.play("loot_reveal")
 	_send_screen({"name": "loot", "gear": _gear_ids(gear)})
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_loot.call_deferred(loot)
@@ -892,6 +905,7 @@ func _on_net_peer_joined(peer: int) -> void:
 			Net.kick(peer)
 		return
 	# Welcomed by the host: wait on the players screen for its roster and its Start.
+	Sfx.play("net_connected")
 	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, peer)
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
@@ -908,6 +922,7 @@ func _on_net_peer_left(peer: int) -> void:
 		return
 	if _players.drop_peer(peer):
 		print("Player left: peer %d" % peer)
+		Sfx.play("player_leave")
 		Net.broadcast("roster", {"roster": _players.to_dict()})
 		if _combat != null:
 			_combat.update_players(_players, peer)
@@ -918,11 +933,13 @@ func _on_net_peer_left(peer: int) -> void:
 func _on_net_host_lost() -> void:
 	if not _client_done:
 		_autoplay_fail("host_lost")
+		Sfx.play("net_error")
 	_end_online("The run is over." if _client_done else "The host left the game.")
 
 
 func _on_net_refused(reason: String) -> void:
 	_autoplay_fail("refused " + reason)
+	Sfx.play("net_error")
 	if _screen is JoinScreen:
 		(_screen as JoinScreen).show_problem(reason)
 	else:
@@ -998,6 +1015,7 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			if roster != null:
 				_players = roster
 			_run = RunState.begin(_run_data, _tuning, int(p.get("seed", 1)))
+			Sfx.play("run_begin")
 		"roster":
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
 			if roster != null:
@@ -1097,6 +1115,18 @@ func _net_host_tick(delta: float) -> void:
 		if _zone_send_s * float(_tuning.net_zone_send_hz) >= 1.0:
 			_zone_send_s = 0.0
 			Net.broadcast_fast("zone", _zone.net_snapshot())
+
+
+## The current zone's background loop; anything else (fights, screens) is silent underneath.
+func _play_zone_ambience() -> void:
+	var amb := _zone.ambience() if _zone != null else ["", 0.0]
+	Sfx.play_ambience(String(amb[0]), float(amb[1]))
+
+
+## The current zone's own song, else the shared zone song.
+func _zone_song() -> String:
+	var own := _zone.music_path() if _zone != null else ""
+	return own if not own.is_empty() else _music.zone_path
 
 
 func _is_run_screen(node: Node) -> bool:

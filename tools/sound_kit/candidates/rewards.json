@@ -1,0 +1,312 @@
+{
+ "gold_gain": {
+  "a": {
+   "name": "Coins in the hand",
+   "desc": "A small handful of coins clinking together in your palm.",
+   "note": "Kenney RPG handleCoins2: its loudest clink cluster (176 ms) first, its earlier cluster overlapped 40 ms later for a dense handful, then scattered clinks from handleCoins (0.42 s on) as the coins settle.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/handleCoins2.ogg",
+     "gain_db": 0,
+     "at_ms": 0,
+     "start_ms": 163,
+     "len_ms": 150,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/handleCoins2.ogg",
+     "gain_db": -4,
+     "at_ms": 40,
+     "start_ms": 45,
+     "len_ms": 100,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/handleCoins.ogg",
+     "gain_db": -17,
+     "at_ms": 125,
+     "start_ms": 420,
+     "len_ms": 340,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    }
+   ],
+   "len_ms": 560,
+   "fade_ms": 100
+  },
+  "b": {
+   "name": "Coins spill out",
+   "desc": "A shower of coins pours out and lands with one last bright clink.",
+   "note": "Freesound light coin shower: a dense spill burst (0.885 s) then a second, quieter double burst (6.64 s); one ringing coin drop from 'coin drop into coins' lands last.",
+   "layers": [
+    {
+     "sound": "audio/search/rewards/tap/src-310c0882.wav",
+     "gain_db": 0,
+     "at_ms": 0,
+     "start_ms": 885,
+     "len_ms": 200,
+     "credit": "\"Doudar41 light coin shower\" by Sadiquecat, CC0, https://freesound.org/people/Sadiquecat/sounds/728430"
+    },
+    {
+     "sound": "audio/search/rewards/tap/src-310c0882.wav",
+     "gain_db": -4,
+     "at_ms": 110,
+     "start_ms": 6645,
+     "len_ms": 360,
+     "credit": "\"Doudar41 light coin shower\" by Sadiquecat, CC0, https://freesound.org/people/Sadiquecat/sounds/728430"
+    },
+    {
+     "sound": "audio/search/rewards/tap/src-697f47d0.wav",
+     "gain_db": -7,
+     "at_ms": 330,
+     "start_ms": 3572,
+     "len_ms": 250,
+     "credit": "\"coin drop into coins\" by kinglseyzissou, CC0, https://freesound.org/people/kinglseyzissou/sounds/435780"
+    }
+   ],
+   "len_ms": 720,
+   "fade_ms": 120
+  },
+  "c": {
+   "name": "Heavy coin purse",
+   "desc": "A fat leather purse thumps down and the heavy coins inside clink.",
+   "note": "A coin drop from 'coin drop into coins' pitched 4 semitones down (heavy gold) leads so the start is clean and instant; Kenney dropLeather's thump lands 6 ms later under it, and a second low coin settles at 140 ms. Darker than A and B.",
+   "layers": [
+    {
+     "sound": "audio/search/rewards/tap/src-697f47d0.wav",
+     "gain_db": 0,
+     "at_ms": 0,
+     "start_ms": 160,
+     "len_ms": 230,
+     "pitch": -4,
+     "credit": "\"coin drop into coins\" by kinglseyzissou, CC0, https://freesound.org/people/kinglseyzissou/sounds/435780"
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/dropLeather.ogg",
+     "gain_db": -1,
+     "at_ms": 6,
+     "start_ms": 108,
+     "len_ms": 290,
+     "lowpass_hz": 6000,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "audio/search/rewards/tap/src-697f47d0.wav",
+     "gain_db": -8,
+     "at_ms": 140,
+     "start_ms": 2345,
+     "len_ms": 250,
+     "pitch": -5,
+     "credit": "\"coin drop into coins\" by kinglseyzissou, CC0, https://freesound.org/people/kinglseyzissou/sounds/435780"
+    }
+   ],
+   "len_ms": 520,
+   "fade_ms": 110
+  }
+ },
+ "level_up": {
+  "a": {
+   "name": "Harp rushing up",
+   "desc": "A quick harp sweep rising up, with a sprinkle of chimes on top.",
+   "note": "Freesound 'HARP GLISSANDO UP', the fast sweep at 21.3 s (peaks ~190 ms in), with its natural ring; the kit 'Chimes' shimmer enters at the top of the sweep, quieter.",
+   "layers": [
+    {
+     "sound": "audio/search/rewards/shimmer/src-98053e9a.wav",
+     "gain_db": 0,
+     "at_ms": 0,
+     "start_ms": 21270,
+     "len_ms": 1650,
+     "credit": "\"HARP GLISSANDO UP.wav\" by olver, CC0, https://freesound.org/people/olver/sounds/505063"
+    },
+    {
+     "sound": "shimmer/fs-389789-chimes-3",
+     "gain_db": -9,
+     "at_ms": 180,
+     "len_ms": 1300
+    }
+   ],
+   "len_ms": 1700,
+   "fade_ms": 450
+  },
+  "b": {
+   "name": "Celesta bell steps",
+   "desc": "Four little bell notes step upward and ring out like a music box.",
+   "note": "Freesound 'Celesta Chime': a four-note rising arpeggio (first 250 ms) and its long ring, raised 3 semitones to sit brighter; no extra layer so the steps stay clear.",
+   "layers": [
+    {
+     "sound": "audio/search/rewards/chime/src-fdbb60f5.wav",
+     "gain_db": 0,
+     "at_ms": 0,
+     "start_ms": 0,
+     "len_ms": 2050,
+     "credit": "\"Celesta Chime.wav\" by nicholasdaryl, CC0, https://freesound.org/people/nicholasdaryl/sounds/563355",
+     "pitch": 3
+    }
+   ],
+   "len_ms": 1700,
+   "fade_ms": 500
+  },
+  "c": {
+   "name": "Bell swell and toll",
+   "desc": "A ringing swell rushes in and lands on a clear, solemn bell.",
+   "note": "Last 355 ms of the reversed bell swells into a Kenney heavy bell an octave up (tolling, ~720 Hz) with a natural ding for the bright partials; loudest at the strike, ~355 ms.",
+   "layers": [
+    {
+     "sound": "reverse/fs-160734-bell-1-reverse-wav-1",
+     "gain_db": -2,
+     "at_ms": 0,
+     "start_ms": 2258,
+     "len_ms": 357
+    },
+    {
+     "sound": "hit/kenney-impact-impact-bell-heavy-001",
+     "gain_db": 0,
+     "at_ms": 352,
+     "pitch": 12
+    },
+    {
+     "sound": "chime/fs-127149-ding-wav-1",
+     "gain_db": -5,
+     "at_ms": 352
+    }
+   ],
+   "len_ms": 1400,
+   "fade_ms": 400
+  }
+ },
+ "loot_reveal": {
+  "a": {
+   "name": "Iron chest and glow",
+   "desc": "A heavy iron chest clanks open and a soft magic glow rings out.",
+   "note": "Freesound metal chest foley: two iron clanks and the ringing hinge (2.27-2.99 s, a quiet take, so +12 dB); the kit 'Glimmer' chime blooms behind it at 250 ms, well under the clank.",
+   "layers": [
+    {
+     "sound": "audio/search/rewards/thump/src-92d4c618.wav",
+     "gain_db": 12,
+     "at_ms": 0,
+     "start_ms": 2272,
+     "len_ms": 720,
+     "credit": "\"Foley_Object_Metal_Chest_Open&Close_Mono.wav\" by Nox_Sound, CC0, https://freesound.org/people/Nox_Sound/sounds/570484"
+    },
+    {
+     "sound": "shimmer/fs-521873-glimmer-wav-3",
+     "gain_db": -8,
+     "at_ms": 250,
+     "len_ms": 1300
+    }
+   ],
+   "len_ms": 1550,
+   "fade_ms": 450
+  },
+  "b": {
+   "name": "Creaking lid, sparkle",
+   "desc": "An old wooden lid creaks open and a bright sparkle rings out.",
+   "note": "Freesound 'chest openning crack': the ratcheting hinge creak from 200 ms (peak at ~314 ms into the cut), then the kit 'Sparkle' bell tone enters under its end.",
+   "layers": [
+    {
+     "sound": "audio/search/rewards/thump/src-d144c6d8.wav",
+     "gain_db": 0,
+     "at_ms": 0,
+     "start_ms": 200,
+     "len_ms": 650,
+     "credit": "\"chest openning crack\" by ssierra1202, CC0, https://freesound.org/people/ssierra1202/sounds/391947"
+    },
+    {
+     "sound": "shimmer/fs-697825-sparkle-3",
+     "gain_db": -6,
+     "at_ms": 300,
+     "len_ms": 1300
+    }
+   ],
+   "len_ms": 1550,
+   "fade_ms": 450
+  },
+  "c": {
+   "name": "Latches and a bell",
+   "desc": "Two brass latches snap open, then a small bell rings.",
+   "note": "Freesound antique trunk: two latch snaps 210 ms apart (3.43 s in the file), then the kit 'Small Bell' at 250 ms as the reward ring.",
+   "layers": [
+    {
+     "sound": "audio/search/rewards/thump/src-f997f8ac.wav",
+     "gain_db": 0,
+     "at_ms": 0,
+     "start_ms": 3432,
+     "len_ms": 400,
+     "credit": "\"Opening Antique Trunk - More Latches.wav\" by rodincoil, CC0, https://freesound.org/people/rodincoil/sounds/271377"
+    },
+    {
+     "sound": "shimmer/fs-452371-small-bell-2",
+     "gain_db": -4,
+     "at_ms": 250
+    }
+   ],
+   "len_ms": 1000,
+   "fade_ms": 300
+  }
+ },
+ "run_begin": {
+  "a": {
+   "name": "Heavy door opens",
+   "desc": "A great wooden door unbolts with a thud and groans slowly open.",
+   "note": "Freesound 'big wooden door': the heavy unlatch thud (2.25 s), then a low door groan from 'squeaky door' (3.15-4.6 s) pitched down for size, kept well under the thud.",
+   "layers": [
+    {
+     "sound": "audio/search/rewards/transition/src-03072bdf.wav",
+     "gain_db": 0,
+     "at_ms": 0,
+     "start_ms": 2232,
+     "len_ms": 450,
+     "credit": "\"big wooden door open close.wav\" by Denis Chapon, CC0, https://freesound.org/people/Denis%20Chapon/sounds/191814"
+    },
+    {
+     "sound": "audio/search/rewards/transition/src-25087b08.wav",
+     "gain_db": 21,
+     "at_ms": 120,
+     "start_ms": 3150,
+     "len_ms": 1450,
+     "pitch": -2,
+     "highpass_hz": 60,
+     "credit": "\"opening and closing of a squeaky door\" by launemax, CC0, https://freesound.org/people/launemax/sounds/250034"
+    }
+   ],
+   "len_ms": 1900,
+   "fade_ms": 250
+  },
+  "b": {
+   "name": "War horn call",
+   "desc": "A deep war horn sounds, with a drum beat under it.",
+   "note": "Kit war horn blast (peaks at its start, long call) cut to 1.9 s with a slow fade; a dark timpani hit under the onset for a determined first beat.",
+   "layers": [
+    {
+     "sound": "hit/fs-482686-war-horn-blast-3",
+     "gain_db": 0,
+     "at_ms": 0,
+     "len_ms": 1900
+    },
+    {
+     "sound": "hit/fs-573245-dark-timpani-1-wav-1",
+     "gain_db": -5,
+     "at_ms": 0
+    }
+   ],
+   "len_ms": 1900,
+   "fade_ms": 600
+  },
+  "c": {
+   "name": "Great gong bloom",
+   "desc": "A huge low gong is struck and swells around you.",
+   "note": "Freesound 32-inch Paiste gong: soft strike that blooms to its loudest ~320 ms in and holds; cut to 1.9 s with a long fade.",
+   "layers": [
+    {
+     "sound": "audio/search/rewards/hit/src-bd5e36e6.wav",
+     "gain_db": 0,
+     "at_ms": 0,
+     "start_ms": 150,
+     "len_ms": 1950,
+     "credit": "\"Gong Brilliant Paiste 32'\" by JensZygar, CC0, https://freesound.org/people/JensZygar/sounds/486629"
+    }
+   ],
+   "len_ms": 1950,
+   "fade_ms": 650
+  }
+ }
+}

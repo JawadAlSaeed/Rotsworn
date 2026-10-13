@@ -74,6 +74,7 @@ func set_roster(roster: PlayerRoster) -> void:
 func add_peer(peer: int) -> bool:
 	if _roster.join_peer(peer) < 0:
 		return false
+	Sfx.play("player_join")
 	_refresh()
 	roster_changed.emit(_roster.copy())
 	return true
@@ -83,6 +84,7 @@ func add_peer(peer: int) -> bool:
 func remove_peer(peer: int) -> void:
 	var player := _roster.player_of_peer(peer)
 	if player > 0 and _roster.leave(player):
+		Sfx.play("player_leave")
 		_refresh()
 		roster_changed.emit(_roster.copy())
 

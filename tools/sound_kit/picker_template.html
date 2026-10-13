@@ -1,0 +1,256 @@
+<title>Rotten Lands Sound Picks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a cue sheet. One row per game moment: what it is on the left, three takes (A B C) to audition on the right. */
+:root {
+  --bg: #e8ebe5;
+  --panel: #f6f7f3;
+  --ink: #1b201a;
+  --muted: #5d6658;
+  --line: #c9cfc3;
+  --accent: #3f6b10;
+  --accent-ink: #f6f7f3;
+  --chosen: #dfeccd;
+  --new: #9a3d12;
+  --display: "Anton", Impact, "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111410; --panel: #1a1e18; --ink: #e2e6dc; --muted: #9aa392; --line: #30372c;
+    --accent: #a3e635; --accent-ink: #111410; --chosen: #26341a; --new: #f0915b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111410; --panel: #1a1e18; --ink: #e2e6dc; --muted: #9aa392; --line: #30372c;
+  --accent: #a3e635; --accent-ink: #111410; --chosen: #26341a; --new: #f0915b; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); margin: 0; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; }
+header.top { display: grid; gap: 8px; }
+h1 { font: 400 clamp(34px, 6vw, 56px)/1 var(--display); letter-spacing: 0.01em; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 62ch; margin: 0; }
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-block: 12px; margin-top: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.count { font: 500 14px var(--mono); font-variant-numeric: tabular-nums; }
+.meter { flex: 1 1 160px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; min-width: 0; }
+.meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.25s; }
+.filters { display: flex; gap: 4px; flex-wrap: wrap; }
+.filters button, .tools button {
+  font: 500 13px var(--body); color: var(--ink); background: transparent; border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px 12px; cursor: pointer;
+}
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.save { font: 13px var(--mono); color: var(--muted); }
+section.group { margin-top: 32px; }
+section.group > h2 {
+  font: 400 26px/1.1 var(--display); letter-spacing: 0.02em; margin: 0 0 4px; text-transform: uppercase;
+}
+section.group > p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+.cue {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px;
+  padding-block: 16px; border-top: 1px solid var(--line);
+}
+.cue:first-of-type { border-top: 0; }
+.what { min-width: 0; display: grid; gap: 4px; align-content: start; }
+.what h3 { margin: 0; font: 600 17px/1.3 var(--body); display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.id { font: 12px var(--mono); color: var(--muted); }
+.plays { margin: 0; font-size: 14px; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font: 500 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid currentColor; border-radius: 3px; padding: 0 5px; }
+.tag.new { color: var(--new); }
+.tag.sharp { color: var(--muted); }
+.takes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+.take {
+  position: relative; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; text-align: left;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; min-width: 0;
+  color: var(--ink); font: inherit;
+}
+.take[data-chosen="true"] { background: var(--chosen); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.take .head { display: flex; align-items: center; gap: 8px; }
+.play {
+  width: 36px; height: 36px; flex: none; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--ink); color: var(--bg); display: grid; place-items: center;
+}
+.play svg { width: 14px; height: 14px; fill: currentColor; }
+.play[data-on="true"] { background: var(--accent); color: var(--accent-ink); }
+.letter { font: 400 22px/1 var(--display); }
+.ms { margin-left: auto; font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.take .name { font-weight: 600; font-size: 14px; }
+.take .desc { font-size: 13px; color: var(--muted); }
+.pick {
+  font: 600 13px var(--body); border: 1px solid var(--accent); color: var(--accent); background: transparent;
+  border-radius: 4px; padding: 5px 8px; cursor: pointer;
+}
+.take[data-chosen="true"] .pick { background: var(--accent); color: var(--accent-ink); }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; grid-column: 2; }
+.tools button[aria-pressed="true"] { border-color: var(--new); color: var(--new); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.copybox { margin-top: 40px; display: grid; gap: 8px; }
+.copybox textarea { width: 100%; min-height: 90px; font: 12px var(--mono); background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+@media (max-width: 760px) {
+  .cue { grid-template-columns: minmax(0, 1fr); }
+  .tools { grid-column: 1; }
+}
+@media (max-width: 520px) {
+  .takes { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .meter i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1 id="heading">Rotten Lands Sound Picks</h1>
+    <p class="lede" id="lede">Every moment in the game that makes a sound, with three real recordings for each. Press play, then pick the one that feels right. Sounds marked NEW are not in the game yet: pick one to add it, or choose "Skip this one".</p>
+  </header>
+  <div class="bar" role="toolbar" aria-label="Progress and filters">
+    <span class="count" id="count">0 / 0 picked</span>
+    <span class="meter" aria-hidden="true"><i id="meter"></i></span>
+    <span class="filters">
+      <button type="button" id="f-all" aria-pressed="true" data-filter="all">All</button>
+      <button type="button" id="f-open" aria-pressed="false" data-filter="open">Not picked yet</button>
+      <button type="button" id="f-new" aria-pressed="false" data-filter="new">New sounds</button>
+    </span>
+    <span class="save" id="save">Picks save as you go</span>
+  </div>
+  <main id="sheet"></main>
+  <div class="copybox">
+    <strong>Backup copy of your picks</strong>
+    <span class="lede">If saving does not work for you, copy this and paste it to Claude.</span>
+    <textarea id="dump" readonly aria-label="Your picks as text"></textarea>
+    <div><button type="button" class="pick" id="copy">Copy picks</button></div>
+  </div>
+</div>
+
+<script id="data" type="application/json">/*DATA*/</script>
+<script>
+(() => {
+  const DATA = JSON.parse(document.getElementById("data").textContent);
+  if (DATA.heading) { document.getElementById("heading").textContent = DATA.heading; document.title = DATA.heading; }
+  if (DATA.lede) document.getElementById("lede").textContent = DATA.lede;
+  const picks = {};            // cue -> "a" | "b" | "c" | "redo" | "skip"
+  let db = null, filter = "all", playing = null;
+  const PLAY = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z"/></svg>';
+  const STOP = '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2.5" y="2.5" width="9" height="9"/></svg>';
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  try { Object.assign(picks, JSON.parse(localStorage.getItem("rl-picks") || "{}")); } catch (e) {}
+
+  function stop() {
+    if (playing) { playing.audio.pause(); playing.btn.dataset.on = "false"; playing.btn.innerHTML = PLAY; playing = null; }
+  }
+  function play(src, btn) {
+    const same = playing && playing.btn === btn;
+    stop();
+    if (same) return;
+    const audio = new Audio(src);
+    playing = { audio, btn };
+    btn.dataset.on = "true"; btn.innerHTML = STOP;
+    audio.addEventListener("ended", () => { if (playing && playing.audio === audio) stop(); });
+    audio.play().catch(() => stop());
+  }
+
+  function render() {
+    const sheet = document.getElementById("sheet");
+    sheet.textContent = "";
+    for (const g of DATA.groups) {
+      const cues = g.cues.filter(c => filter === "all" || (filter === "open" && !picks[c.id]) || (filter === "new" && c.new));
+      if (!cues.length) continue;
+      const sec = el("section", "group");
+      sec.append(el("h2", null, g.title), el("p", null, g.about));
+      for (const c of cues) {
+        const row = el("div", "cue"); row.id = "cue-" + c.id;
+        const what = el("div", "what");
+        const h = el("h3", null, c.title); h.append(el("span", "id", c.id));
+        const tags = el("div", "tags");
+        if (c.new) tags.append(el("span", "tag new", "New"));
+        if (c.sharp) tags.append(el("span", "tag sharp", "Must start instantly"));
+        what.append(h, el("p", "plays", c.plays), tags);
+        const takes = el("div", "takes");
+        for (const o of c.options) {
+          const t = el("div", "take"); t.dataset.chosen = String(picks[c.id] === o.key);
+          const head = el("div", "head");
+          const b = el("button", "play"); b.type = "button"; b.innerHTML = PLAY; b.dataset.on = "false";
+          b.setAttribute("aria-label", "Play " + c.title + " option " + o.key.toUpperCase());
+          b.addEventListener("click", () => play(o.src, b));
+          head.append(b, el("span", "letter", o.key.toUpperCase()), el("span", "ms", o.ms >= 10000 ? Math.round(o.ms / 1000) + " s" : o.ms + " ms"));
+          const text = el("div"); text.append(el("div", "name", o.name), el("div", "desc", o.desc));
+          const p = el("button", "pick", picks[c.id] === o.key ? "Picked" : "Pick " + o.key.toUpperCase()); p.type = "button";
+          p.addEventListener("click", () => choose(c.id, o.key));
+          t.append(head, text, p);
+          takes.append(t);
+        }
+        const tools = el("div", "tools");
+        const redo = el("button", null, "None fit, make new ones"); redo.type = "button";
+        redo.setAttribute("aria-pressed", String(picks[c.id] === "redo"));
+        redo.addEventListener("click", () => choose(c.id, "redo"));
+        tools.append(redo);
+        if (c.new) {
+          const skip = el("button", null, "Skip this one"); skip.type = "button";
+          skip.setAttribute("aria-pressed", String(picks[c.id] === "skip"));
+          skip.addEventListener("click", () => choose(c.id, "skip"));
+          tools.append(skip);
+        }
+        row.append(what, takes, tools);
+        sec.append(row);
+      }
+      sheet.append(sec);
+    }
+    const total = DATA.groups.reduce((n, g) => n + g.cues.length, 0);
+    const done = DATA.groups.reduce((n, g) => n + g.cues.filter(c => picks[c.id]).length, 0);
+    document.getElementById("count").textContent = done + " / " + total + " picked";
+    document.getElementById("meter").style.width = (total ? 100 * done / total : 0) + "%";
+    document.getElementById("dump").value = JSON.stringify(picks);
+  }
+
+  async function choose(cue, key) {
+    stop();
+    picks[cue] = picks[cue] === key ? undefined : key;
+    if (!picks[cue]) delete picks[cue];
+    try { localStorage.setItem("rl-picks", JSON.stringify(picks)); } catch (e) {}
+    render();
+    if (!db) return;
+    const s = document.getElementById("save");
+    try {
+      if (picks[cue]) await db.collection("picks").doc(cue).set({ choice: picks[cue] });
+      else await db.collection("picks").doc(cue).delete();
+      s.textContent = "Saved";
+    } catch (e) {
+      s.textContent = "Could not save. Use the copy box at the bottom.";
+    }
+  }
+
+  for (const b of document.querySelectorAll(".filters button")) {
+    b.addEventListener("click", () => {
+      filter = b.dataset.filter;
+      for (const o of document.querySelectorAll(".filters button")) o.setAttribute("aria-pressed", String(o === b));
+      render();
+    });
+  }
+  document.getElementById("copy").addEventListener("click", () => {
+    const t = document.getElementById("dump");
+    navigator.clipboard.writeText(t.value).then(() => { document.getElementById("copy").textContent = "Copied"; })
+      .catch(() => { t.focus(); t.select(); });
+  });
+
+  render();
+  if (window.claude && window.claude.use) {
+    window.claude.use("db").then(d => {
+      if (!d) { document.getElementById("save").textContent = "Saving is off here: use the copy box at the bottom"; return; }
+      db = d;
+      db.collection("picks").onSnapshot(snap => {
+        for (const doc of snap.docs) { const v = doc.data(); if (v && v.choice) picks[doc.id] = v.choice; }
+        for (const ch of snap.docChanges()) if (ch.type === "removed") delete picks[ch.doc.id];
+        render();
+      }, () => { document.getElementById("save").textContent = "Saving stopped: use the copy box at the bottom"; });
+    });
+  }
+})();
+</script>

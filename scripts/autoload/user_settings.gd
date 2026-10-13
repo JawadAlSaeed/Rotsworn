@@ -6,7 +6,7 @@ extends Node
 ## and they also work when no autoload exists (unit tests). UserSettings.x() works too.
 ## Holds what belongs to this machine and player rather than to the game's balance: the measured
 ## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
-## the volume and fullscreen (settings screen), the last host address joined online. Anything not
+## the volumes (overall, music, effects, voices) and fullscreen (settings screen), the last host address joined online. Anything not
 ## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
@@ -16,6 +16,14 @@ const KEY_LATENCY := "latency_compensation_ms"
 const KEY_RING := "show_timing_ring"
 const SECTION_AUDIO := "audio"
 const KEY_VOLUME := "volume_percent"
+## Volume channels (card #104): settings key and audio bus. "master" is the overall volume; the
+## Audio autoload creates the other buses and plays songs, effects and voices on them.
+const CHANNELS := {
+	"master": {"key": KEY_VOLUME, "bus": "Master"},
+	"music": {"key": "music_percent", "bus": "Music"},
+	"effects": {"key": "effects_percent", "bus": "Effects"},
+	"voice": {"key": "voice_percent", "bus": "Voice"},
+}
 const SECTION_DISPLAY := "display"
 const KEY_FULLSCREEN := "fullscreen"
 const SECTION_ONLINE := "online"
@@ -79,21 +87,45 @@ static func reset_latency_compensation() -> void:
 		_save()
 
 
-## Master volume in percent (0 = silent).
+## Overall volume in percent (0 = silent).
 static func volume_percent() -> int:
-	return clampi(int(_settings().get_value(SECTION_AUDIO, KEY_VOLUME, DEFAULT_VOLUME_PERCENT)), 0, 100)
+	return channel_percent("master")
 
 
 static func set_volume_percent(value: int) -> void:
-	_settings().set_value(SECTION_AUDIO, KEY_VOLUME, clampi(value, 0, 100))
+	set_channel_percent("master", value)
+
+
+## One channel's volume in percent ("master", "music", "effects", "voice"; 0 = silent).
+static func channel_percent(channel: String) -> int:
+	if not CHANNELS.has(channel):
+		return DEFAULT_VOLUME_PERCENT
+	var key := String(CHANNELS[channel].key)
+	return clampi(int(_settings().get_value(SECTION_AUDIO, key, DEFAULT_VOLUME_PERCENT)), 0, 100)
+
+
+static func set_channel_percent(channel: String, value: int) -> void:
+	if not CHANNELS.has(channel):
+		return
+	_settings().set_value(SECTION_AUDIO, String(CHANNELS[channel].key), clampi(value, 0, 100))
 	_save()
 	apply_volume()
 
 
+## Volume in dB for a percent (linear loudness scale); 0 % is muted instead.
+static func percent_to_db(percent: int) -> float:
+	return linear_to_db(float(clampi(percent, 1, 100)) / 100.0)
+
+
+## Sets every channel's bus (a bus that does not exist yet is skipped; Audio applies again).
 static func apply_volume() -> void:
-	var pct := volume_percent()
-	AudioServer.set_bus_mute(0, pct == 0)
-	AudioServer.set_bus_volume_db(0, linear_to_db(float(maxi(pct, 1)) / 100.0))
+	for channel: String in CHANNELS:
+		var bus := AudioServer.get_bus_index(String(CHANNELS[channel].bus))
+		if bus < 0:
+			continue
+		var pct := channel_percent(channel)
+		AudioServer.set_bus_mute(bus, pct == 0)
+		AudioServer.set_bus_volume_db(bus, percent_to_db(pct))
 
 
 static func fullscreen() -> bool:

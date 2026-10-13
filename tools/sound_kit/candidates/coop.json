@@ -1,0 +1,278 @@
+{
+ "player_join": {
+  "a": {
+   "name": "Shop door bell",
+   "desc": "The little bell above a shop door jingles as someone steps in.",
+   "note": "Main: ryuuzan shop door bell (two strikes, 0 dB at 30 and 210 ms). Split into two layers so the second strike sits 4 dB lower and the loudest point stays at the start; the second layer starts on a zero crossing at 204.1 ms and is placed in its natural time (no click at the join). Pitched -2 st to warm it. A quiet wooden door latch (SpliceSound) underneath for the door.",
+   "layers": [
+    {
+     "sound": "chime/fs-192761-ryuuzan-shop-door-bell00-wav-1",
+     "start_ms": 0,
+     "len_ms": 206,
+     "pitch": -2
+    },
+    {
+     "sound": "chime/fs-192761-ryuuzan-shop-door-bell00-wav-1",
+     "start_ms": 204.104,
+     "at_ms": 225.7,
+     "pitch": -2,
+     "gain_db": -4
+    },
+    {
+     "sound": "audio/search/coop/click/ov-8ce12bc9.wav",
+     "gain_db": -10,
+     "lowpass_hz": 4000,
+     "credit": "\"Julian's Door - open and close with latch.wav\" by SpliceSound, CC0, https://freesound.org/people/SpliceSound/sounds/218323",
+     "len_ms": 150
+    }
+   ],
+   "len_ms": 650,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Door swings open",
+   "desc": "A wooden door latch clacks and the door swings open with a soft creak.",
+   "note": "Main: Kenney RPG doorOpen_1. Layer 1 is its first latch clack (137.7-192.1 ms); layer 2 is the rest (second clack and the creak) 7 dB lower, so the opening clack is the loudest point (rise was 66 ms with one layer). Both cuts are on quiet zero crossings.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/doorOpen_1.ogg",
+     "start_ms": 137.688,
+     "len_ms": 54.458,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/doorOpen_1.ogg",
+     "start_ms": 192.146,
+     "len_ms": 650,
+     "at_ms": 54.458,
+     "gain_db": -4,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    }
+   ],
+   "len_ms": 700,
+   "fade_ms": 200
+  },
+  "c": {
+   "name": "Quick friendly raps",
+   "desc": "Three quick, light knocks, like a friend at the door.",
+   "note": "Main: craigsmith 'R09-26-Various Knocks' (one knuckle knock with a short wooden resonance, crest 11.5 dB, so it reaches the loudness target; the drier wjtaylor knocks could not). Used twice 160 ms apart, pitched +2/+3 and high-passed at 250 Hz for a light, bright knock; the second is 2 dB lower so the first stays loudest.",
+   "layers": [
+    {
+     "sound": "audio/search/coop/thump/ov-dd7dbcbc.wav",
+     "pitch": 5,
+     "highpass_hz": 400,
+     "credit": "\"R09-26-Various Knocks.wav\" by craigsmith, CC0, https://freesound.org/people/craigsmith/sounds/483206",
+     "at_ms": 0
+    },
+    {
+     "sound": "audio/search/coop/thump/ov-dd7dbcbc.wav",
+     "pitch": 5,
+     "highpass_hz": 400,
+     "credit": "\"R09-26-Various Knocks.wav\" by craigsmith, CC0, https://freesound.org/people/craigsmith/sounds/483206",
+     "at_ms": 95,
+     "gain_db": -2
+    },
+    {
+     "sound": "audio/search/coop/thump/ov-dd7dbcbc.wav",
+     "pitch": 6,
+     "highpass_hz": 400,
+     "credit": "\"R09-26-Various Knocks.wav\" by craigsmith, CC0, https://freesound.org/people/craigsmith/sounds/483206",
+     "at_ms": 190,
+     "gain_db": -1
+    }
+   ],
+   "len_ms": 420,
+   "fade_ms": 120
+  }
+ },
+ "player_leave": {
+  "a": {
+   "name": "Low bell toll",
+   "desc": "One old bell rung low, slowly fading away.",
+   "note": "Main: lazymonk 'Door Bell old style' (struck mechanical bell, 2 ms rise, natural decay), pitched -5 st so it reads as the lower, sadder answer to the join bell. Cut at 750 ms with a long fade.",
+   "layers": [
+    {
+     "sound": "audio/search/coop/chime/ov-356c8011.wav",
+     "pitch": -5,
+     "lowpass_hz": 5000,
+     "credit": "\"Door Bell old style.wav\" by lazymonk, CC0, https://freesound.org/people/lazymonk/sounds/214306"
+    }
+   ],
+   "len_ms": 750,
+   "fade_ms": 350
+  },
+  "b": {
+   "name": "Door shuts",
+   "desc": "A wooden door swings shut and its latch clicks closed.",
+   "note": "Main: Kenney RPG doorClose_1 from 170 ms (the slam and latch, 0 dB at 190-260 ms). A low thud from NicholasJudy567 'Wooden Door Closes 2' under it for weight.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/doorClose_1.ogg",
+     "start_ms": 170,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "audio/search/coop/hit/ov-43035300.wav",
+     "gain_db": -6,
+     "at_ms": 15,
+     "credit": "\"Wooden Door Closes 2.wav\" by NicholasJudy567, CC0, https://freesound.org/people/NicholasJudy567/sounds/672503"
+    }
+   ],
+   "len_ms": 550,
+   "fade_ms": 150
+  },
+  "c": {
+   "name": "Soft gust away",
+   "desc": "A soft, low gust of air, like someone slipping out.",
+   "note": "short low whoosh pitched down",
+   "layers": [
+    {
+     "sound": "transition/fs-447494-a-wide-variety-of-wooshes-ma-2",
+     "pitch": -3,
+     "highpass_hz": 60
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 250
+  }
+ },
+ "net_connected": {
+  "a": {
+   "name": "Clear bell ring",
+   "desc": "A small brass bell struck once, clear and sure.",
+   "note": "Main: AlaskaRobotics service bell ring (2 ms rise, steady ring with gentle beating), pitched -3 st and low-passed so it sounds older and less like a hotel desk; cut at 800 ms with a long fade.",
+   "layers": [
+    {
+     "sound": "chime/fs-221515-service-bell-ring-1",
+     "pitch": -3,
+     "lowpass_hz": 7000
+    }
+   ],
+   "len_ms": 800,
+   "fade_ms": 400
+  },
+  "b": {
+   "name": "Heavy latch locks",
+   "desc": "A heavy gate latch drops shut with a solid wooden thunk.",
+   "note": "Main: mhtaylor67 'Gate Latch' (sharp, 11 ms peak). TylerAM 'Thump; close' and Kenney Impact wood heavy (pitched -2) under it for a solid wooden body.",
+   "layers": [
+    {
+     "sound": "audio/search/coop/click/ov-1fa10d62.wav",
+     "credit": "\"Gate Latch\" by mhtaylor67, CC0, https://freesound.org/people/mhtaylor67/sounds/126041"
+    },
+    {
+     "sound": "thump/fs-389665-thump-close-wav-2",
+     "gain_db": -11,
+     "at_ms": 3,
+     "len_ms": 300
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactWood_heavy_000.ogg",
+     "gain_db": -13,
+     "pitch": -2,
+     "at_ms": 5,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "highpass_hz": 250
+    }
+   ],
+   "len_ms": 400,
+   "fade_ms": 120
+  },
+  "c": {
+   "name": "Key turns, bell tings",
+   "desc": "A key clicks in an old lock, then a tiny bell rings.",
+   "note": "Main: Astounded 'Door_Lock_unlock' (two key clicks, 0 and 50 ms). A small bright bell ting (sqeeeek) follows at 110 ms, a little lower so the click stays the loudest point.",
+   "layers": [
+    {
+     "sound": "audio/search/coop/click/ov-e7f71fd8.wav",
+     "credit": "\"Door_Lock_unlock.wav\" by Astounded, CC0, https://freesound.org/people/Astounded/sounds/477787"
+    },
+    {
+     "sound": "chime/fs-237106-sqeeeek-bell-ting1-wav-1",
+     "at_ms": 110,
+     "gain_db": -4,
+     "pitch": -3
+    }
+   ],
+   "len_ms": 420,
+   "fade_ms": 150
+  }
+ },
+ "net_error": {
+  "a": {
+   "name": "Dull falling bell",
+   "desc": "Two muffled bell clunks, the second lower, like something going wrong.",
+   "note": "Main: Kenney Impact bell heavy 002, pitched -4 and low-passed to kill the ring; then bell heavy 003 at 170 ms, pitched -8 and 3 dB lower, so it falls. Dead and dull, not a buzzer.",
+   "layers": [
+    {
+     "sound": "hit/kenney-impact-impact-bell-heavy-003",
+     "pitch": -8,
+     "lowpass_hz": 1400,
+     "len_ms": 300
+    },
+    {
+     "sound": "hit/kenney-impact-impact-bell-heavy-002",
+     "pitch": -4,
+     "lowpass_hz": 1100,
+     "at_ms": 170,
+     "gain_db": -7,
+     "len_ms": 380
+    }
+   ],
+   "len_ms": 560,
+   "fade_ms": 180
+  },
+  "b": {
+   "name": "Stuck latch",
+   "desc": "A latch clicks, then a dull knock: the door will not open.",
+   "note": "metal latch then a dull wood knock",
+   "len_ms": 420,
+   "fade_ms": 150,
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/metalLatch.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 38
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactWood_medium_002.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "at_ms": 90,
+     "gain_db": -6,
+     "lowpass_hz": 2500
+    }
+   ]
+  },
+  "c": {
+   "name": "Dull double knock",
+   "desc": "Two slow, heavy, muffled knocks on a thick door.",
+   "note": "Main: kbnevel 'DoorKnock_heavy', first two knocks as separate layers (the second cut on a silent zero crossing at 222.6 ms, placed at its natural 244 ms, 4 dB lower so the first stays loudest), pitched -2. A low-passed heavy thud (thud2) under the first knock for a dead, heavy body (and to reach loudness).",
+   "layers": [
+    {
+     "sound": "audio/search/coop/hit/ov-5fcad99d.wav",
+     "start_ms": 0,
+     "len_ms": 222.6,
+     "pitch": -2,
+     "credit": "\"DoorKnock_heavy.aif\" by kbnevel, CC0, https://freesound.org/people/kbnevel/sounds/119833"
+    },
+    {
+     "sound": "audio/search/coop/hit/ov-5fcad99d.wav",
+     "start_ms": 222.604,
+     "len_ms": 210,
+     "pitch": -2,
+     "at_ms": 244,
+     "gain_db": -4,
+     "credit": "\"DoorKnock_heavy.aif\" by kbnevel, CC0, https://freesound.org/people/kbnevel/sounds/119833"
+    },
+    {
+     "sound": "hit/fs-443494-thud2-wav-1",
+     "gain_db": -4,
+     "lowpass_hz": 2000,
+     "len_ms": 250
+    }
+   ],
+   "len_ms": 500,
+   "fade_ms": 140
+  }
+ }
+}

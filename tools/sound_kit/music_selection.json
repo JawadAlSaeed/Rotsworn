@@ -1,0 +1,10 @@
+{
+ "title": "c",
+ "map": "c",
+ "zone_hollow": "a",
+ "zone_bog": "a",
+ "zone_ruins": "a",
+ "fight": "a",
+ "boss": "boss_rage/b",
+ "boss_rage": "boss/c"
+}

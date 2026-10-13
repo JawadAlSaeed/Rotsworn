@@ -1,0 +1,387 @@
+{
+ "ultimate": {
+  "a": {
+   "name": "Thunder cleave",
+   "desc": "A huge low crash with a rolling thunder tail, heavy and dark.",
+   "note": "kl-ex1dd heavy impact (body, peak in first 35 ms) + sword impact for a steel bite on the front + huge explosion thunder low-passed as the tail.",
+   "layers": [
+    {
+     "sound": "hit/fs-113749-kl-ex1dd-wav-3",
+     "gain_db": 0,
+     "len_ms": 1700
+    },
+    {
+     "sound": "hit/fs-547036-hit-impact-sword-2-1",
+     "gain_db": -3
+    },
+    {
+     "sound": "boom/fs-320782-huge-explosion-thunder-explo-3",
+     "gain_db": -8,
+     "len_ms": 1700,
+     "lowpass_hz": 3000
+    }
+   ],
+   "len_ms": 1700,
+   "fade_ms": 700
+  },
+  "b": {
+   "name": "Temple gong blast",
+   "desc": "A great old gong struck hard, ringing out with a faint magic shimmer.",
+   "note": "low gong bash (Freesound) as body + bright trailer clang for the strike + glimmer ring tail, quiet, for the mystical side.",
+   "layers": [
+    {
+     "sound": "audio/search/big/hit/ov-c8d52a28.wav",
+     "gain_db": 0,
+     "len_ms": 1800,
+     "credit": "\"low gong bash\" by hiddenpersuader, CC0, https://freesound.org/people/hiddenpersuader/sounds/155460"
+    },
+    {
+     "sound": "hit/fs-198113-clang-4-1",
+     "gain_db": -2
+    },
+    {
+     "sound": "shimmer/fs-521873-glimmer-wav-3",
+     "gain_db": -12,
+     "at_ms": 30,
+     "len_ms": 1700
+    }
+   ],
+   "len_ms": 1750,
+   "fade_ms": 800
+  },
+  "c": {
+   "name": "Steel strike blast",
+   "desc": "A giant blade strike that bursts into a wide explosion.",
+   "note": "metal hit 2 (dense steel strike, crest 6 dB, rise 15 ms) + deep boom high-passed for weight + Supernatural Explosion (Freesound) under it as the burst.",
+   "layers": [
+    {
+     "sound": "hit/fs-578789-metal-hit-2-1",
+     "gain_db": 0
+    },
+    {
+     "sound": "boom/fs-539968-deep-boom-3",
+     "gain_db": -6,
+     "len_ms": 1500,
+     "highpass_hz": 35
+    },
+    {
+     "sound": "audio/search/big/hit/ov-a46d595e.wav",
+     "gain_db": -10,
+     "len_ms": 1500,
+     "credit": "\"Supernatural Explosion\" by Quaker540, CC0, https://freesound.org/people/Quaker540/sounds/256960"
+    }
+   ],
+   "len_ms": 1500,
+   "fade_ms": 600
+  }
+ },
+ "ultimate_start": {
+  "a": {
+   "name": "War drum roll",
+   "desc": "A rolling war drum swells up and lands on a deep boom.",
+   "note": "timpani riser cut to its last crescendo (about 550 ms) + deep hit landing on its top; drum roll tail keeps going under.",
+   "layers": [
+    {
+     "sound": "riser/fs-322589-timpani-1",
+     "gain_db": 1,
+     "start_ms": 1520,
+     "len_ms": 1100
+    },
+    {
+     "sound": "boom/fs-636624-deep-hit-2",
+     "gain_db": 0,
+     "at_ms": 490,
+     "len_ms": 1000
+    }
+   ],
+   "len_ms": 1600,
+   "fade_ms": 500
+  },
+  "b": {
+   "name": "Glass bell swell",
+   "desc": "A glassy ringing swell rises and opens into soft old chimes.",
+   "note": "reversed champagne-flute ring (glassy, tonal) cut to its last ~560 ms + wind chimes on its peak, magic but old.",
+   "layers": [
+    {
+     "sound": "reverse/fs-198386-ani-champagne-flute-reversed-1",
+     "gain_db": 0,
+     "start_ms": 280
+    },
+    {
+     "sound": "shimmer/fs-389789-chimes-3",
+     "gain_db": -1,
+     "at_ms": 520
+    }
+   ],
+   "len_ms": 1700,
+   "fade_ms": 600
+  },
+  "c": {
+   "name": "Blades drawn",
+   "desc": "A rising metal ring that ends as swords slide out of their sheaths.",
+   "note": "reversed metal pole hit pitched down 3 (a rising steel ring) + sword unsheath (Freesound) on its peak + small metal hit ringing out after, like blades held high.",
+   "layers": [
+    {
+     "sound": "reverse/fs-710864-metal-pole-hit-reverse-3",
+     "gain_db": 5,
+     "pitch": -3
+    },
+    {
+     "sound": "audio/search/big/swish/ov-5932a217.wav",
+     "gain_db": 0,
+     "at_ms": 370,
+     "credit": "\"Sword Unsheath\" by lucabia, CC0, https://freesound.org/people/lucabia/sounds/276872"
+    },
+    {
+     "sound": "hit/fs-337854-small-metal-hit-01-wav-1",
+     "gain_db": -5,
+     "at_ms": 475
+    }
+   ],
+   "len_ms": 1100,
+   "fade_ms": 350
+  }
+ },
+ "alert": {
+  "a": {
+   "name": "Dark drum hit",
+   "desc": "One low, dark drum hit with an iron edge, short and ominous.",
+   "note": "dark orchestral timpani (rise 11 ms, low) + metal screen-door slam for an iron edge so it cuts through.",
+   "layers": [
+    {
+     "sound": "hit/fs-573244-dark-timpani-2-wav-1",
+     "gain_db": 0
+    },
+    {
+     "sound": "hit/fs-452593-door-metal-screen-door-in-tr-2",
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 550,
+   "fade_ms": 250
+  },
+  "b": {
+   "name": "Blade scrape",
+   "desc": "A sharp metal clang that grinds into a short iron scrape.",
+   "note": "long metal scrape (Freesound) from its clang at 250 ms + heavy metal thud on ground under it for weight.",
+   "layers": [
+    {
+     "sound": "audio/search/big/swish/ov-77a31d06.wav",
+     "gain_db": 0,
+     "start_ms": 228,
+     "len_ms": 470,
+     "credit": "\"long-metal-scrape-03.wav\" by newagesoup, CC0, https://freesound.org/people/newagesoup/sounds/337829",
+     "at_ms": 2
+    },
+    {
+     "sound": "hit/fs-640204-heavy-metal-thud-on-ground-1",
+     "gain_db": -6
+    }
+   ],
+   "len_ms": 480,
+   "fade_ms": 180
+  },
+  "c": {
+   "name": "Warning bell",
+   "desc": "A deep iron bell struck once, like an alarm in the dark.",
+   "note": "Kenney heavy bell pitched down 5 for a deep iron toll + close thump quiet for a dull front; cut to 560 ms with a 260 ms fade so it never drones.",
+   "layers": [
+    {
+     "sound": "hit/kenney-impact-impact-bell-heavy-001",
+     "gain_db": 0,
+     "pitch": -5
+    },
+    {
+     "sound": "thump/fs-389665-thump-close-wav-2",
+     "gain_db": -8
+    }
+   ],
+   "len_ms": 560,
+   "fade_ms": 260
+  }
+ },
+ "lunge": {
+  "a": {
+   "name": "Heavy air rush",
+   "desc": "A low, heavy whoosh of a big body rushing at you.",
+   "note": "short low whoosh pitched down 2, cut to start in its quiet lead-in so it swells to a peak near 125 ms.",
+   "layers": [
+    {
+     "sound": "whoosh/fs-449992-whoosh-short-low-wav-1",
+     "gain_db": 0,
+     "start_ms": 30,
+     "pitch": -2
+    }
+   ],
+   "len_ms": 360,
+   "fade_ms": 120
+  },
+  "b": {
+   "name": "Fast sharp swish",
+   "desc": "A quick, bright swish, like something thin and fast darting in.",
+   "note": "fast swish transition from its quiet start (peak near 120 ms) + Kenney cloth flap quiet for a body.",
+   "layers": [
+    {
+     "sound": "transition/fs-614151-swishes-13-fast-wav-1",
+     "gain_db": 0,
+     "start_ms": 60
+    },
+    {
+     "sound": "swish/kenney-rpg-cloth1",
+     "gain_db": -8,
+     "at_ms": 60
+    }
+   ],
+   "len_ms": 330,
+   "fade_ms": 120
+  },
+  "c": {
+   "name": "Rags and rush",
+   "desc": "Ragged cloth flaps as a body rushes forward, with a foot scuff.",
+   "note": "Kenney cloth flap (from 40 ms, the flap) + mid whoosh for the body rush peaking near 120 ms + quiet grass footstep as the push-off scuff.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/cloth4.ogg",
+     "gain_db": 0,
+     "start_ms": 40,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "whoosh/fs-449994-whoosh-med-mid-wav-1",
+     "gain_db": -3,
+     "start_ms": 100,
+     "len_ms": 300
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/footstep_grass_002.ogg",
+     "gain_db": -8,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    }
+   ],
+   "len_ms": 330,
+   "fade_ms": 120
+  }
+ },
+ "slam": {
+  "a": {
+   "name": "Stone crack quake",
+   "desc": "Rock smashes into stone ground and gravel scatters around.",
+   "note": "rock impact (Freesound) for the crack + heavy wheelbarrow dropped on concrete for a rattling stone body + gravel impacts low-passed as scattering debris.",
+   "layers": [
+    {
+     "sound": "audio/search/big/hit/ov-7c70f9c3.wav",
+     "gain_db": 0,
+     "credit": "\"S020_Rock_Impact_Mono.wav\" by Pól, CC0, https://freesound.org/people/P%C3%B3l/sounds/385938"
+    },
+    {
+     "sound": "hit/fs-452665-wheelbarrow-down-on-concrete-3",
+     "gain_db": -6
+    },
+    {
+     "sound": "audio/search/big/hit/ov-3bb6fd08.wav",
+     "gain_db": -4,
+     "lowpass_hz": 7000,
+     "credit": "\"Gravel Impacts and Falls.wav\" by lolamadeus, CC0, https://freesound.org/people/lolamadeus/sounds/179341"
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 400
+  },
+  "b": {
+   "name": "Timber crash",
+   "desc": "A huge wooden crash on the forest floor, hollow and booming.",
+   "note": "old heavy wooden door kicked (fast, dense wood hit) + tree trunk ground impact + body falls on wood for a hollow boom.",
+   "layers": [
+    {
+     "sound": "hit/fs-452610-door-wood-old-with-inlaid-gl-3",
+     "gain_db": 0
+    },
+    {
+     "sound": "hit/fs-550918-fxsa-sc-wood-tree-trunk-impa-2",
+     "gain_db": -2
+    },
+    {
+     "sound": "thump/fs-675927-s03-22-two-body-falls-on-woo-2",
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 800,
+   "fade_ms": 400
+  },
+  "c": {
+   "name": "Muddy thud",
+   "desc": "A heavy body thuds into wet mud, then a deep rumble rolls out.",
+   "note": "close thump + Kenney heavy punch for a meaty body + wet splat (Freesound) on top for the bog.",
+   "layers": [
+    {
+     "sound": "thump/fs-389665-thump-close-wav-2",
+     "gain_db": -2
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactPunch_heavy_001.ogg",
+     "gain_db": 0,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    },
+    {
+     "sound": "audio/search/big/thump/ov-b54c0375.wav",
+     "gain_db": 2,
+     "credit": "\"Wet Splat 1.mp3\" by nebulasnails, CC0, https://freesound.org/people/nebulasnails/sounds/495118"
+    }
+   ],
+   "len_ms": 700,
+   "fade_ms": 350
+  }
+ },
+ "windup": {
+  "a": {
+   "name": "Dark metal swell",
+   "desc": "A grim metallic hum that swells and snaps off at the hit.",
+   "note": "metallic horror riser from 520 ms (its last ~0.9 s), pitched down 2 for weight + backwards whoosh low layer peaking at the same end; loudest at 89% of the length.",
+   "layers": [
+    {
+     "sound": "riser/fs-545798-metallic-horror-riser-fx-wav-1",
+     "gain_db": 0,
+     "start_ms": 520,
+     "pitch": -2
+    },
+    {
+     "sound": "reverse/fs-446010-backwards-whoosh-1",
+     "gain_db": -4,
+     "at_ms": 470
+    }
+   ],
+   "fade_ms": 25
+  },
+  "b": {
+   "name": "Reverse cymbal",
+   "desc": "A cymbal crash played backwards, rising fast into the strike.",
+   "note": "reversed cymbal hits from 300 ms (quiet start), a clean classic swell whose loudest point is its very end (97%).",
+   "layers": [
+    {
+     "sound": "reverse/fs-148930-cymbal-hits-reversed-wav-1",
+     "gain_db": 0,
+     "start_ms": 300
+    }
+   ],
+   "fade_ms": 20
+  },
+  "c": {
+   "name": "Wet inhale",
+   "desc": "A wet, rotten slurp of breath sucked in before the hit.",
+   "note": "inhale with glass leads as a quiet breath swell, coffee slurp (reversed wet suck-in) joins at 150 ms; both peak near the end.",
+   "layers": [
+    {
+     "sound": "reverse/fs-568036-coffee-slurp-4-1",
+     "gain_db": 0,
+     "at_ms": 150,
+     "len_ms": 680
+    },
+    {
+     "sound": "riser/fs-608217-inhale-with-glass-wav-1",
+     "gain_db": -6
+    }
+   ],
+   "fade_ms": 40
+  }
+ }
+}

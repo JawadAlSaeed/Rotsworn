@@ -26,6 +26,8 @@ extends Resource
 ## Gold and XP the party gets for beating it in a run (DESIGN.md 8).
 @export_range(0, 10000) var gold: int = 10
 @export_range(0, 10000) var xp: int = 20
+## Sound cue for its voice (card #101): when it starts an attack, and quieter and higher when hit.
+@export var voice_sfx: String = ""
 
 @export_group("Phase two (bosses)")
 ## When its HP drops to this percent of max HP or lower, it enters phase two: it attacks with

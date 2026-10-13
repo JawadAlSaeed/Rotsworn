@@ -5,6 +5,8 @@ extends SceneTree
 ##   godot --headless --path . -s tools/bootstrap_data.gd
 ## Add "-- --force" after the script to overwrite everything (careful: loses edits).
 
+## Each enemy's voice cue (data/audio/sfx_library.tres).
+const VOICES := {"rotten_husk": "voice_husk", "bloat": "voice_bloat", "gnat_swarm": "voice_gnats", "shade": "voice_shade"}
 const NORMAL := AttackHitData.Kind.NORMAL
 const GROUND := AttackHitData.Kind.GROUND
 const SINGLE := EnemyAttackData.TargetMode.SINGLE
@@ -280,6 +282,7 @@ func _character(id: String, title: String, color: Color, hp_pct: int, power_pct:
 	c.speed = speed
 	c.basic_attack = basic
 	c.skills.assign(skills)
+	c.shout_sfx = "shout_" + id
 	return _save(c, "res://data/characters/%s.tres" % id) as CharacterData
 
 
@@ -296,6 +299,7 @@ func _enemy(id: String, title: String, color: Color, pixel_size: float, hp_pct: 
 	e.power_percent = power_pct
 	e.speed = speed
 	e.attacks.assign(attacks)
+	e.voice_sfx = VOICES.get(id, "")
 	return _save(e, "res://data/enemies/%s.tres" % id) as EnemyData
 
 

@@ -98,6 +98,8 @@ var _inbox: Array[Dictionary] = []
 var _inbox_at_us: int = 0
 var _end_reason: String = ""
 var _has_counter: bool = false
+## Parries in a row in this attack: the parry ring climbs with each one (card #93).
+var _parry_streak: int = 0
 var _counter_ready_us: int = 0
 var _wave_hit: int = -1
 ## How long before each hit the training ring appears (the attack's own ring speed).
@@ -160,6 +162,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_first_motion_us = roundi(float(_cues[0].at_ms) * 1000.0) if not _cues.is_empty() else 0
 	_next_cue = 0
 	_scheduled.clear()
+	_schedule_windups()
 	_anims.clear()
 	_press_times.clear()
 	_whiffed_hits.clear()
@@ -168,6 +171,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_tail.clear()
 	_tail_received = false
 	_has_counter = false
+	_parry_streak = 0
 	_counter_ready_us = 0
 	_end_reason = ""
 	_wave_hit = -1
@@ -390,8 +394,9 @@ func _on_success(action: int, report: Dictionary, t: int) -> void:
 
 
 func _on_whiff(action: int, report: Dictionary, t: int, player: int) -> void:
-	Sfx.play("whiff")
 	var reason := int(report.reason)
+	Sfx.play("wrong_button" if reason == DefenseJudge.Reason.WRONG_ACTION else "whiff")
+	_parry_streak = 0
 	var offset_ms := roundi(float(report.offset_us) / 1000.0)
 	var text := "LATE"
 	var color := HudStyle.LATE
@@ -433,6 +438,9 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 		Defense.Outcome.PARRY:
 			text = "PARRY"
 			Sfx.play("parry_final" if final else "parry")
+			var step := mini(_parry_streak, _visuals.parry_ring_max_steps)
+			Sfx.play("parry_ring", 0.0, pow(2.0, step * _visuals.parry_ring_step_semitones / 12.0))
+			_parry_streak += 1
 			_clock.pause_for(now, (_tuning.hitstop_parry_final_ms if final else _tuning.hitstop_parry_ms) * 1000)
 			_view.camera.shake(_visuals.shake_parry_final if final else _visuals.shake_parry, _visuals.shake_parry_ms)
 			_view.camera.punch(_visuals.punch_parry_final if final else _visuals.punch_parry, _visuals.punch_ms)
@@ -508,7 +516,10 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 	var hit_index := int(prompt.hit)
 	if not sounded.has(hit_index):
 		sounded[hit_index] = true
-		Sfx.play(String((_hits[hit_index] as Dictionary).get("impact_sfx", "hurt")))
+		_parry_streak = 0
+		# A Guarded hero takes less damage: a dull block instead of the full hit sound.
+		var guarded := _mirror.has_status(id, "guarded")
+		Sfx.play("guard_block" if guarded else String((_hits[hit_index] as Dictionary).get("impact_sfx", "hurt")))
 		# Only the last hit freezes: in a string the next lunge has often started by now.
 		if hit_index == _hits.size() - 1 and _tuning.hitstop_hurt_ms > 0:
 			_clock.pause_for(now, _tuning.hitstop_hurt_ms * 1000)
@@ -567,6 +578,22 @@ func _apply_batch(events: Array[Dictionary], t: int) -> void:
 				_has_counter = true
 		else:
 			_apply_now.call(ev)
+
+
+## The wind-up sound swells into each hit and peaks on it (card #94): it starts its own length
+## before the impact. Skipped when it would overlap the previous hit or start before the attack.
+func _schedule_windups() -> void:
+	if not _options.motion_sounds:
+		return
+	var length_us := Sfx.cue_length_ms("windup") * 1000
+	if length_us <= 0:
+		return
+	var free_from_us := 0
+	for hit: Dictionary in _hits:
+		var impact_us := int(hit.at_ms) * 1000
+		if impact_us - length_us >= free_from_us:
+			_schedule(impact_us - length_us, Sfx.play.bind("windup", 0.0, 1.0))
+		free_from_us = impact_us
 
 
 func _fire_cues(t: int) -> void:

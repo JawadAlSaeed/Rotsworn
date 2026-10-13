@@ -702,11 +702,59 @@ clamped by tuning's calibration bounds.
 - `AssetLoader.texture(path)` returns a visible checkerboard if a file is missing; `Audio.play()`
   stays silent with one warning.
 
-Music (2026-10-12): `data/audio/music.tres` (`MusicSet`) names the song for menus and run screens,
-zones and fights; the `Audio` autoload loops it on its own player, and a place that names the song
-already playing lets it go on. Songs live in `assets/audio/music/` and may be compressed (QOA);
-sound effects stay PCM. No song is set yet (the placeholder "tiebreaker" was only for the online
-test build and is removed): every place is silent until the soundtrack arrives.
+Music (2026-10-13, cards #84, #95, #97, #98): `data/audio/music.tres` (`MusicSet`) names the songs:
+`menu_path` (title theme and menus), `run_path` (map, shop, rest, loot, party, run end), `zone_path`
+(zones without their own song; each `ZoneData.music_path` names its own), `fight_path`, `boss_path`
+and `boss_rage_path` (the boss fight switches to it on the boss's phase change). The `Audio`
+autoload loops the song on its own player (OGG imports loop, `oggvorbisstr` default in
+project.godot); a place naming the song already playing lets it go on. A new song crossfades in: it fades in over `fade_in_ms` while the old one fades
+out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). While an enemy attack plays
+the music dips by `music_duck_db` over `music_duck_ms` (combat_visuals.tres) so defence sounds stand
+out. Songs are free OpenGameArt tracks picked by the user from three options per place
+(`tools/sound_kit/music_candidates.json`, `music_selection.json`, `music_kit.py final`), all levelled
+to -16 LUFS, credited in `assets/audio/music/CREDITS.md` (CC-BY tracks need that credit). The user
+may later replace them with music composed for the game.
+
+Zone ambience (2026-10-13, card #99): `ZoneData.ambience_path` / `ambience_volume_db` loop a quiet
+background (wind, frogs, creaking wood) on its own player while exploring; fights and screens stop
+it. Loops are CC0 Freesound recordings cut into seamless 60 s loops by
+`tools/sound_kit/ambience_kit.py` (the end crossfades into the start), levelled to -30 LUFS.
+
+Enemy voices (2026-10-13, card #101): `EnemyData.voice_sfx` names a voice cue (`SfxCue.voice`, Voice
+bus): it plays when the enemy starts an attack, and `voice_hurt_volume_db` quieter and
+`voice_hurt_pitch` higher when it is hit (combat_visuals.tres). CC0 Freesound recordings, three
+options each (`candidates/voices.json`), fetched with `tools/sound_kit/freesound_fetch.py`. The Gnat
+Swarm's fly buzz annoyed the user and became an insect chitter.
+
+Hero shouts (2026-10-13, card #102): `CharacterData.shout_sfx` (a voice cue) plays when that hero
+uses a skill (not the basic attack, not Run); on the Team Ultimate every standing hero shouts.
+CC0 Freesound recordings, three options each (`candidates/shouts.json`); Brin's and Cass's options
+mix voice types because their voices are not decided in the design yet.
+
+Volume channels (2026-10-13, card #104): Settings has Volume (overall, the Master bus), Music,
+Effects and Voices, saved per machine (`PlayerSettings.CHANNELS`). The `Audio` autoload creates the
+Music, Effects and Voice buses; songs play on Music, sound effects and ambience on Effects, cues
+with `SfxCue.voice` on Voice.
+
+Sound effects (2026-10-13, phase 7 card #39): every cue in `assets/audio/sfx/` is built from real
+CC0 recordings (Kenney packs and Freesound, via the opus-sound-layer library), never synthesized.
+`tools/sound_kit/` holds the pipeline (README there): `cue_rules.json` lists all 66 sound moments
+with their limits (length, how soon the sound must peak, loudness target), `candidates/` three
+options per moment, `selection.json` the user's pick, `build_sfx.py final` writes the WAVs and
+`assets/audio/sfx/CREDITS.md`, `check_sfx.py` measures them. The user picked by ear on a listening
+page. Loudness targets kept the old placeholders' balance; where a clicky recording cannot reach
+it, the file is quieter and its `volume_db` in the library higher by the same amount.
+New moments (35 proposed, 32 picked): parry streak ring (pitch climbs `parry_ring_step_semitones`
+per parry in a row, up to `parry_ring_max_steps`, card #93), wrong button, guarded hit, missed
+skill press, EXPOSED combo, ultimate start, follow-up ready, enemy wind-up (starts its own length
+before each hit so it peaks on the impact, skipped where it would overlap the previous hit; off
+with the motion sounds, card #94), enemy crumble, boss rage, status wears off, turn order shift,
+fight start (normal fights), fight transition swirl, run away fails, gold and level up after a run
+win (`reward_sound_delay_ms`, `level_up_sound_gap_ms`), footsteps per zone ground (`ZoneData.
+footstep_sfx`, one per bob step), enemy spots you and gives up, zone arrival and zone clear, run
+begins, loot reveal, run cleared and run over, player joins and leaves, connected, connection
+problem. Skipped by the user: low HP warning, pause opens, status sticks. Not made (need other recordings
+or features): voices, zone ambience loops, backpack sounds.
 
 ---
 
@@ -1251,6 +1299,9 @@ counters for longer and mixed strings (2.5, card #52).
 6. **Polish** (done, approved 2026-10-13): UI, feedback effects, controller button hints, fonts
    (7.6), Run (2.13), one press per ring, balance (shorter fights, same difficulty). Sound and
    music moved to phase 7; real art has its own phase.
+7. **Sound and music** (done, approved 2026-10-13): real recorded sound effects for 66 moments,
+   songs per place with crossfades, boss rage song, music dip, zone ambience, enemy voices, hero
+   shouts, volume sliders (5.3). Backpack sounds wait for the backpack (phase 11).
 
 ### 11.1 To-do (from playtests)
 
@@ -1371,3 +1422,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | Ring speed per move as a percent of `ring_lead_ms` (basic 100, skills 85, big hits 65) | user request; per-move shapes are percentages of tuning values |
 | 2026-10-12 | Multi-press skills: numbered rings in a row (osu notes), one per press moment | user pick over "one at a time", which would have slowed fast skills down |
 | 2026-10-12 | Skill presses have three results: perfect (bonus), good (normal), miss (50%); osu-style ring with GOOD and PERFECT bands | user feedback: the ring had no visible spot to hit and no distinction between perfect and normal |
+| 2026-10-13 | Sound effects from real CC0 recordings, three options per moment, user picks by ear | the user asked; synthesized placeholders sounded fake; Claude cannot hear, so checks measure and the user listens |

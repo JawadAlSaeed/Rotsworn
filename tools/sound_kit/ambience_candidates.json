@@ -1,0 +1,77 @@
+{
+ "ambience_hollow": {
+  "title": "Rotten Hollow ambience",
+  "plays": "always in the background while exploring Rotten Hollow (card #99)",
+  "a": {
+   "name": "Haunted forest wind",
+   "desc": "Wind in the trees, distant birds, eerie.",
+   "id": 617747,
+   "author": "szegvari",
+   "page": "https://freesound.org/people/szegvari/sounds/617747/"
+  },
+  "b": {
+   "name": "Creaky trees",
+   "desc": "Old trees creaking in the wind.",
+   "id": 527838,
+   "author": "jackmichaelking",
+   "page": "https://freesound.org/people/jackmichaelking/sounds/527838/"
+  },
+  "c": {
+   "name": "Flies and crows",
+   "desc": "Buzzing flies and crows: something rots nearby.",
+   "id": 494833,
+   "author": "crop_circles",
+   "page": "https://freesound.org/people/crop_circles/sounds/494833/"
+  }
+ },
+ "ambience_bog": {
+  "title": "Sunken Bog ambience",
+  "plays": "always in the background while exploring Sunken Bog (card #99)",
+  "a": {
+   "name": "Swamp",
+   "desc": "A wet, buzzing swamp.",
+   "id": 547690,
+   "author": "RyanKingArt",
+   "page": "https://freesound.org/people/RyanKingArt/sounds/547690/"
+  },
+  "b": {
+   "name": "Frogs in the marsh",
+   "desc": "Many frogs croaking at night.",
+   "id": 569543,
+   "author": "bmacphail",
+   "page": "https://freesound.org/people/bmacphail/sounds/569543/"
+  },
+  "c": {
+   "name": "Swamp at night",
+   "desc": "A quiet night swamp, insects and water.",
+   "id": 181364,
+   "author": "chris_dagorne",
+   "page": "https://freesound.org/people/chris_dagorne/sounds/181364/"
+  }
+ },
+ "ambience_ruins": {
+  "title": "Ashen Ruins ambience",
+  "plays": "always in the background while exploring Ashen Ruins (card #99)",
+  "a": {
+   "name": "Howling wind",
+   "desc": "Cold wind howling through broken walls.",
+   "id": 438861,
+   "author": "craigsmith",
+   "page": "https://freesound.org/people/craigsmith/sounds/438861/"
+  },
+  "b": {
+   "name": "Ruined house",
+   "desc": "An empty ruin, quiet air and small creaks.",
+   "id": 684153,
+   "author": "saha213131",
+   "page": "https://freesound.org/people/saha213131/sounds/684153/"
+  },
+  "c": {
+   "name": "Smouldering embers",
+   "desc": "Fire crackling softly: the ash is still warm.",
+   "id": 459391,
+   "author": "SamuelGremaud",
+   "page": "https://freesound.org/people/SamuelGremaud/sounds/459391/"
+  }
+ }
+}

@@ -1,0 +1,226 @@
+{
+ "title": {
+  "title": "Title theme",
+  "plays": "the title screen and main menu: the Rotsworn sound (card #84)",
+  "a": {
+   "name": "Foreboding Theme",
+   "desc": "Dark, heavy orchestral theme.",
+   "author": "Machine",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/foreboding-theme",
+   "file": "Darker_0.mp3"
+  },
+  "b": {
+   "name": "Heroic Minority",
+   "desc": "Heroic orchestra in a sad, minor key.",
+   "author": "Alexandr Zhelanov",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/heroic-minority",
+   "file": "Героическая минорная.mp3"
+  },
+  "c": {
+   "name": "Death Is Just Another Path",
+   "desc": "Slow, sad, epic fantasy orchestra, like a funeral march.",
+   "author": "Otto Halmén",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/death-is-just-another-path",
+   "file": "Death Is Just Another Path.ogg"
+  }
+ },
+ "map": {
+  "title": "Run map and stops",
+  "plays": "the run map, shops, rests, loot and party screens",
+  "a": {
+   "name": "Village Ruins",
+   "desc": "Quiet and sad, an empty, ruined place.",
+   "author": "isaiah658",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/village-ruins",
+   "file": "Village Ruins - isaiah658.ogg"
+  },
+  "b": {
+   "name": "The Pilgrimage",
+   "desc": "Calm and mysterious, a long journey.",
+   "author": "Viktor Kraus",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/the-pilgrimage-0",
+   "file": "Viktor Kraus - The Pilgrimage_1.wav"
+  },
+  "c": {
+   "name": "Mystical Theme",
+   "desc": "Mysterious, magical and slow.",
+   "author": "Alexandr Zhelanov",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/mystical-theme",
+   "file": "мистичная тема.mp3"
+  }
+ },
+ "zone_hollow": {
+  "title": "Rotten Hollow",
+  "plays": "exploring Rotten Hollow (rotting forest)",
+  "a": {
+   "name": "Dark Forest Theme",
+   "desc": "Spooky, brooding strings and guitar.",
+   "author": "cynicmusic",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/dark-forest-theme",
+   "file": "GameMusic_ForestTheme_24_0.mp3"
+  },
+  "b": {
+   "name": "Dark Forest",
+   "desc": "Dark orchestra among old trees.",
+   "author": "Alexandr Zhelanov",
+   "license": "CC-BY 4.0",
+   "page": "https://opengameart.org/content/dark-forest-1",
+   "file": "dark_forest.wav"
+  },
+  "c": {
+   "name": "The Graveyard",
+   "desc": "Mournful strings, violin and cello.",
+   "author": "Hitctrl",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/rpg-the-graveyard",
+   "file": "RPG_-_The_Graveyard.ogg"
+  }
+ },
+ "zone_bog": {
+  "title": "Sunken Bog",
+  "plays": "exploring Sunken Bog (mud and water)",
+  "a": {
+   "name": "The Swamps",
+   "desc": "Calm, damp swamp mood.",
+   "author": "fluffclipse",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/the-swamps",
+   "file": "the_swamps.wav"
+  },
+  "b": {
+   "name": "Forbidden Pathways",
+   "desc": "Creepy and tense, you should not be here.",
+   "author": "Tozan",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/besai-crystal-gardens-2-forbbiden-pathways-part-2-of-music",
+   "file": "Forbidden2_0.ogg"
+  },
+  "c": {
+   "name": "Mysterious Ambience",
+   "desc": "Dark, dripping mystery, like a cave.",
+   "author": "cynicmusic",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/mysterious-ambience-song21",
+   "file": "song21_0.mp3"
+  }
+ },
+ "zone_ruins": {
+  "title": "Ashen Ruins",
+  "plays": "exploring Ashen Ruins (stone and ash)",
+  "a": {
+   "name": "Town in Ruins",
+   "desc": "A dead town, empty and grey.",
+   "author": "HaelDB",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/town-in-ruins-loop",
+   "file": "n3535n5n335n35nj.ogg"
+  },
+  "b": {
+   "name": "Dungeon",
+   "desc": "Low cello and strings, cold stone halls.",
+   "author": "Hitctrl",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/rpg-ambience-dungeon",
+   "file": "rpg_ambience_-_dungeon.ogg"
+  },
+  "c": {
+   "name": "Dark Cavern",
+   "desc": "Deep, dark ambience, almost no melody.",
+   "author": "Paul Wortmann",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/dark-cavern-ambient",
+   "file": "dark_cavern_ambient_001.ogg"
+  }
+ },
+ "fight": {
+  "title": "Normal fight",
+  "plays": "every fight that is not the boss",
+  "a": {
+   "name": "Battle Theme A",
+   "desc": "Epic war music, driving and fast.",
+   "author": "cynicmusic",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/battle-theme-a",
+   "file": "battleThemeA.mp3"
+  },
+  "b": {
+   "name": "Heroic Demise",
+   "desc": "Heroic warrior battle, epic and sad at once.",
+   "author": "Matthew Pablo",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/heroic-demise-updated-version",
+   "file": "Heroic Demise (New)_0.mp3"
+  },
+  "c": {
+   "name": "Battle in the Winter",
+   "desc": "Upbeat symphonic battle, old strategy-game style.",
+   "author": "jobromedia",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/battle-in-the-winter",
+   "file": "Battle in the winter.mp3"
+  }
+ },
+ "boss": {
+  "title": "Boss fight",
+  "plays": "the Hollow King fight (card #97: the music changes when he rages)",
+  "a": {
+   "name": "Epic Boss Battle",
+   "desc": "Big orchestral boss music, loops without a seam.",
+   "author": "Juhani Junkala (SubspaceAudio)",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/boss-battle-music",
+   "file": "Juhani Junkala - Epic Boss Battle [Seamlessly Looping].wav"
+  },
+  "b": {
+   "name": "Wasteland Showdown",
+   "desc": "Dark, epic final-boss showdown.",
+   "author": "Matthew Pablo",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/wasteland-showdown-battle-music",
+   "file": "Wasteland Showdown_0.mp3"
+  },
+  "c": {
+   "name": "Drums in the Deepwood",
+   "desc": "Tribal war drums, a monster in the woods.",
+   "author": "Elyvilon",
+   "license": "CC-BY 4.0",
+   "page": "https://opengameart.org/content/dark-forest-tribal-troll-folk-shamanic-music-drums-in-the-deepwood",
+   "file": "elyvilon_-_drums_in_the_deepwood_-_09_drums_in_the_deepwood.mp3"
+  }
+ },
+ "boss_rage": {
+  "title": "Boss rages",
+  "plays": "the boss fight after the Hollow King RAGES (phase two): more intense",
+  "a": {
+   "name": "You Were My Brother",
+   "desc": "Intense, live orchestra, dramatic.",
+   "author": "Matthew Pablo",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/you-were-my-brother-live-orchestra",
+   "file": "Tropic Strike - 1M2 - _You Were My Brother__0.mp3"
+  },
+  "b": {
+   "name": "Tropic Strike",
+   "desc": "Fast, epic live orchestra action.",
+   "author": "Matthew Pablo",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/tropic-strike-live-orchestra",
+   "file": "Tropic Strike - 1M1 - _Tropic Strike_.mp3"
+  },
+  "c": {
+   "name": "Rise of Spirit",
+   "desc": "Huge trailer-style epic build.",
+   "author": "Alexandr Zhelanov",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/rise-of-spirit",
+   "file": "Rise of spirit.ogg"
+  }
+ }
+}

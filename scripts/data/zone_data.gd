@@ -19,3 +19,10 @@ extends Resource
 @export var props: Array[ZonePropData] = []
 @export var lights: Array[ZoneLightData] = []
 @export var enemies: Array[ZoneEnemyData] = []
+## Sound cue for each of the leader's steps (its ground: grass, mud, stone).
+@export var footstep_sfx: String = "footstep_grass"
+## This zone's song. Empty: MusicSet.zone_path.
+@export_file("*.wav", "*.ogg", "*.mp3") var music_path: String = ""
+## Background sound that loops while exploring here (wind, drips, flies; card #99). Empty: none.
+@export_file("*.wav", "*.ogg", "*.mp3") var ambience_path: String = ""
+@export_range(-40.0, 12.0, 0.5, "suffix:dB") var ambience_volume_db: float = 0.0

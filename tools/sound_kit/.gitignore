@@ -1,0 +1,5 @@
+# The sound-layer tool and its downloaded library stay local (rebuild: see README.md).
+sound-layer/
+audio/
+out_kit.log
+__pycache__/

@@ -52,6 +52,10 @@ var skill_runner: SkillSequenceRunner
 var defense_input: DefenseInput
 var autoplay: Autoplay
 
+## The song for the boss once it rages (set by Main from MusicSet; empty: no change).
+var rage_music_path: String = ""
+var rage_music_volume_db: float = 0.0
+
 var _encounter: EncounterData
 var _tuning: Tuning
 var _visuals: CombatVisuals
@@ -562,6 +566,8 @@ func _play(ev: Dictionary) -> void:
 			elif _encounter.boss:
 				Sfx.play("alert")
 				hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
+			else:
+				Sfx.play("fight_start")
 		"turn_started":
 			mirror.apply(ev)
 			if int(ev.team) == Combatant.Team.PARTY:
@@ -595,8 +601,13 @@ func _play(ev: Dictionary) -> void:
 			_waiting_runner = true
 			_set_active_pose(-1)
 			if String(ev.kind) == CombatEngine.SEQUENCE_SKILL:
+				_shout(int(ev.source), _abilities.get(String(ev.action)) as AbilityData)
 				skill_runner.start(ev, _abilities.get(String(ev.action)) as AbilityData)
 			else:
+				Sfx.duck_music(_visuals.music_duck_db, _visuals.music_duck_ms)
+				var voice := _voice_of(int(ev.source))
+				if not voice.is_empty():
+					Sfx.play(voice)
 				runner.start(ev, _attacks.get(String(ev.action)) as EnemyAttackData)
 		"turn_ended":
 			mirror.apply(ev)
@@ -616,6 +627,7 @@ func _play(ev: Dictionary) -> void:
 
 func _on_runner_finished(tail: Array[Dictionary]) -> void:
 	_waiting_runner = false
+	Sfx.duck_music(0.0, _visuals.music_duck_ms)
 	view.sync_alive(mirror)
 	# Online, later batches may already wait in the queue: the tail comes first (engine order).
 	var later := _queue.duplicate()
@@ -738,6 +750,8 @@ func _on_combat_ended(result: String) -> void:
 	match result:
 		"victory":
 			Sfx.play("victory")
+			if _run != null:
+				_play_reward_sounds()
 		"escaped":
 			Sfx.play("dodge")
 		_:
@@ -753,6 +767,16 @@ func _on_combat_ended(result: String) -> void:
 	# A zone fight hands the end back to the zone (Main); the zone decides when the run is over.
 	if _options.quit_on_end and not _from_zone and _run == null:
 		get_tree().create_timer(QUIT_DELAY_S).timeout.connect(_quit)
+
+
+## Gold, then level up when the party levels: after the victory sound, one at a time.
+func _play_reward_sounds() -> void:
+	var levels := _run.levels_from(RunState.encounter_xp(_encounter))
+	await _wait_ms(_visuals.reward_sound_delay_ms)
+	Sfx.play("gold_gain")
+	if levels > 0:
+		await _wait_ms(_visuals.level_up_sound_gap_ms)
+		Sfx.play("level_up")
 
 
 func _quit() -> void:
@@ -987,6 +1011,29 @@ func _show_damage(ev: Dictionary) -> void:
 	v.flash(_visuals.flash_ms)
 	if mirror.is_alive(int(ev.target)):
 		v.play_pose(EnemyChoreography.Pose.HURT if to_enemy else FighterView.CharPose.HURT, _visuals.hurt_pose_ms)
+		var voice := _voice_of(int(ev.target)) if to_enemy else ""
+		if not voice.is_empty():
+			Sfx.play(voice, _visuals.voice_hurt_volume_db, _visuals.voice_hurt_pitch)
+
+
+## Heroes shout when one uses a skill (not the basic attack or Run), and all together on the Team
+## Ultimate (card #102).
+func _shout(actor: int, ability: AbilityData) -> void:
+	if ability == null or ability.escape:
+		return
+	var shouters: Array[int] = [actor]
+	if ability.team_ultimate:
+		shouters.assign(mirror.party_ids.filter(func(id: int) -> bool: return mirror.is_alive(id)))
+	for id: int in shouters:
+		var data := _data_by_id.get(id) as CharacterData
+		if data != null and data.basic_attack != ability and not data.shout_sfx.is_empty():
+			Sfx.play(data.shout_sfx)
+
+
+## An enemy's voice cue (empty for heroes and silent enemies).
+func _voice_of(id: int) -> String:
+	var data := _data_by_id.get(id) as EnemyData
+	return data.voice_sfx if data != null else ""
 
 
 ## Popups and sounds for the phase 2 events (DESIGN.md 2.10): healing, revive, AP, statuses,
@@ -1014,7 +1061,9 @@ func _show_feedback(ev: Dictionary) -> void:
 					hud.popup("+%d AP" % int(ev.delta), head, HudStyle.AP_TEXT)
 		"enemy_phase":
 			var boss := view.fighter(int(ev.enemy))
-			Sfx.play("gauge_full")
+			Sfx.play("boss_rage")
+			if not rage_music_path.is_empty():
+				Sfx.play_music(rage_music_path, rage_music_volume_db)
 			if boss != null:
 				boss.flash(_visuals.flash_ms * 4, HudStyle.LATE, 0.9)
 			hud.screen_flash(HudStyle.LATE, _visuals.screen_flash_phase)
@@ -1038,8 +1087,12 @@ func _show_feedback(ev: Dictionary) -> void:
 				var status := String(ev.status)
 				hud.popup(String(HudStyle.STATUS_NAMES.get(status, status.to_upper())), head,
 						HudStyle.STATUS_COLORS.get(status, HudStyle.TEXT) as Color)
+			elif not bool(ev.active) and v != null and mirror.is_alive(target):
+				# A hit uses up EXPOSED for bonus damage (the combo payoff); other statuses just wear off.
+				Sfx.play("exposed_burst" if String(ev.status) == "exposed" else "status_expired")
 		"turn_shifted":
 			if v != null and int(ev.delta) != 0:
+				Sfx.play("timeline_shift")
 				hud.popup("DELAYED" if int(ev.delta) > 0 else "HASTE", head, HudStyle.JUMP)
 		"team_gauge":
 			# The gauge label itself turns gold and says READY (the banner slot may hold a skill name).
@@ -1051,7 +1104,7 @@ func _show_downed(id: int) -> void:
 	var v := view.fighter(id)
 	if v == null:
 		return
-	Sfx.play("downed")
+	Sfx.play("downed" if mirror.party_ids.has(id) else "enemy_crumble")
 	v.clear_timed_pose()
 	v.set_grey(1.0)
 	v.set_glow(0.0)

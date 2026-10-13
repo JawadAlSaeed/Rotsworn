@@ -279,6 +279,22 @@ extends Resource
 @export_range(0, 5000, 1, "suffix:ms") var first_strike_banner_ms: int = 1300
 ## How long the TEAM COUNTER banner stays up.
 @export_range(0, 5000, 1, "suffix:ms") var team_banner_ms: int = 1100
+## After the victory sound in a run, the gold sound waits this long so the two do not pile up.
+@export_range(0, 5000, 1, "suffix:ms") var reward_sound_delay_ms: int = 700
+## Then the level-up sound (when the party levels) waits this long after the gold sound.
+@export_range(0, 5000, 1, "suffix:ms") var level_up_sound_gap_ms: int = 600
+## Each parry in a row within one enemy attack rings this many semitones higher (card #93).
+@export_range(0.0, 12.0, 0.5) var parry_ring_step_semitones: float = 2.0
+## The ring stops climbing after this many steps.
+@export_range(0, 24, 1) var parry_ring_max_steps: int = 6
+## The music dips this much while an enemy attack plays, so the defence sounds stand out (card #98).
+@export_range(-40.0, 0.0, 0.5, "suffix:dB") var music_duck_db: float = -6.0
+## How long the music takes to dip and to come back.
+@export_range(0, 3000, 1, "suffix:ms") var music_duck_ms: int = 300
+## An enemy's voice when it is hit: this much quieter than its attack voice ...
+@export_range(-40.0, 0.0, 0.5, "suffix:dB") var voice_hurt_volume_db: float = -6.0
+## ... and this much higher (1.15 = 15% faster and higher).
+@export_range(0.5, 2.0, 0.01) var voice_hurt_pitch: float = 1.15
 ## The victory or defeat screen fades in over this long.
 @export_range(0, 5000, 1, "suffix:ms") var end_fade_ms: int = 400
 ## Presses are ignored on the victory or defeat screen for this long (so a late defence press

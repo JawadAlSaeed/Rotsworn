@@ -7,10 +7,16 @@ extends RefCounted
 const AUTOLOAD_PATH := ^"/root/Audio"
 
 
-static func play(cue: String, volume_offset_db: float = 0.0) -> void:
+static func play(cue: String, volume_offset_db: float = 0.0, pitch_scale: float = 1.0) -> void:
 	var audio := _audio()
 	if audio != null:
-		audio.call(&"play", cue, volume_offset_db)
+		audio.call(&"play", cue, volume_offset_db, pitch_scale)
+
+
+## How long a cue's sound lasts in ms (0 if it has none), to time a sound that must end on a beat.
+static func cue_length_ms(cue: String) -> int:
+	var audio := _audio()
+	return int(audio.call(&"cue_length_ms", cue)) if audio != null else 0
 
 
 ## Stops every sound (before quitting, so no playback is left running at exit).
@@ -25,6 +31,20 @@ static func play_music(path: String, volume_db: float = 0.0) -> void:
 	var audio := _audio()
 	if audio != null:
 		audio.call(&"play_music", path, volume_db)
+
+
+## Loops a place's background sound (empty path: silence).
+static func play_ambience(path: String, volume_db: float = 0.0) -> void:
+	var audio := _audio()
+	if audio != null:
+		audio.call(&"play_ambience", path, volume_db)
+
+
+## Dips the music by `db` (0: back to full) over `ms`.
+static func duck_music(db: float, ms: int) -> void:
+	var audio := _audio()
+	if audio != null:
+		audio.call(&"duck_music", db, ms)
 
 
 ## Loads every cue now so the first parry sound has no loading hitch.

@@ -1,0 +1,212 @@
+{
+ "voice_husk": {
+  "a": {
+   "name": "Short zombie groan",
+   "desc": "A short, hungry zombie groan.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-754438.mp3",
+     "credit": "\"Zombie Groan 0\" by OwNathan, CC0, https://freesound.org/people/OwNathan/sounds/754438/"
+    }
+   ],
+   "len_ms": 1000,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Zombie moan",
+   "desc": "A slow, sick moan.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-445995.mp3",
+     "credit": "\"Zombie moan 3\" by Breviceps, CC0, https://freesound.org/people/Breviceps/sounds/445995/"
+    }
+   ],
+   "len_ms": 1400,
+   "fade_ms": 300
+  },
+  "c": {
+   "name": "Deep monster groan",
+   "desc": "A deep, rough groan, like a big brute.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-594010.mp3",
+     "credit": "\"Frankenstein groan 01\" by TllDrkStrngr, CC0, https://freesound.org/people/TllDrkStrngr/sounds/594010/"
+    }
+   ],
+   "len_ms": 1800,
+   "fade_ms": 300
+  }
+ },
+ "voice_bloat": {
+  "a": {
+   "name": "Monster burp",
+   "desc": "A big, wet monster burp.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-142932.mp3",
+     "credit": "\"Burp_monster.wav\" by Framefive, CC0, https://freesound.org/people/Framefive/sounds/142932/",
+     "start_ms": 1100,
+     "fade_in_ms": 60
+    }
+   ],
+   "len_ms": 1300,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Slimy burp",
+   "desc": "A slimy, bubbling burp.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-672941.mp3",
+     "credit": "\"slimy burp\" by rubberduck9999, CC0, https://freesound.org/people/rubberduck9999/sounds/672941/"
+    }
+   ],
+   "len_ms": 2000,
+   "fade_ms": 300
+  },
+  "c": {
+   "name": "Roaring burp",
+   "desc": "A deep burp that turns into a roar.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-345731.mp3",
+     "credit": "\"Deep Roar Burp.wav\" by noahpardo, CC0, https://freesound.org/people/noahpardo/sounds/345731/"
+    }
+   ],
+   "len_ms": 1800,
+   "fade_ms": 300
+  }
+ },
+ "voice_gnats": {
+  "a": {
+   "name": "Insect chitter growl",
+   "desc": "A short, dry insect chitter with a little growl.",
+   "note": "replaces the fly buzzes (user: annoying)",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-800277.mp3",
+     "credit": "\"Insect Animal Growl Chitter\" by SecureSubset, CC0, https://freesound.org/people/SecureSubset/sounds/800277/"
+    }
+   ],
+   "len_ms": 1200,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Insect chittering",
+   "desc": "Many small insects clicking and chittering.",
+   "note": "",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-417299.mp3",
+     "credit": "\"Insect chittering.wav\" by guitar_paul1, CC0, https://freesound.org/people/guitar_paul1/sounds/417299/"
+    }
+   ],
+   "len_ms": 1200,
+   "fade_ms": 400
+  },
+  "c": {
+   "name": "Swarm hiss",
+   "desc": "A low, angry hiss.",
+   "note": "",
+   "len_ms": 1200,
+   "fade_ms": 400,
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-269111.mp3",
+     "credit": "\"Hissing\" by VisualPony, CC0, https://freesound.org/people/VisualPony/sounds/269111/",
+     "highpass_hz": 80
+    }
+   ]
+  }
+ },
+ "voice_shade": {
+  "a": {
+   "name": "Creepy whispering",
+   "desc": "Many voices whispering, too quiet to understand.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-234044.mp3",
+     "credit": "\"Creepy Whispering\" by RaspberryTickle, CC0, https://freesound.org/people/RaspberryTickle/sounds/234044/",
+     "start_ms": 2500
+    }
+   ],
+   "len_ms": 1500,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Spirit breath",
+   "desc": "A ghostly breath, like a sigh from nowhere.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-152721.mp3",
+     "credit": "\"Spirit-Breath1.aif\" by timgormly, CC0, https://freesound.org/people/timgormly/sounds/152721/",
+     "start_ms": 400
+    }
+   ],
+   "len_ms": 2000,
+   "fade_ms": 300
+  },
+  "c": {
+   "name": "Creepy whisper",
+   "desc": "A creepy voice whispering words you can almost hear.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-171102.mp3",
+     "credit": "\"Ascend With Us\" creepy whisper\" by BFMGames, CC0, https://freesound.org/people/BFMGames/sounds/171102/"
+    }
+   ],
+   "len_ms": 2000,
+   "fade_ms": 300
+  }
+ },
+ "voice_king": {
+  "a": {
+   "name": "Low monster roar",
+   "desc": "A huge, low roar.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-497056.mp3",
+     "credit": "\"Low Monster Roar\" by Robson220pl, CC0, https://freesound.org/people/Robson220pl/sounds/497056/"
+    }
+   ],
+   "len_ms": 2200,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Scary monster roar",
+   "desc": "A wild, frightening roar.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-489901.mp3",
+     "credit": "\"Scary Monster Roar #2\" by NicknameLarry, CC0, https://freesound.org/people/NicknameLarry/sounds/489901/"
+    }
+   ],
+   "len_ms": 2000,
+   "fade_ms": 300
+  },
+  "c": {
+   "name": "Short monster roar",
+   "desc": "A short, sharp roar.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-132874.mp3",
+     "credit": "\"Monster Short Roar.wav\" by ecfike, CC0, https://freesound.org/people/ecfike/sounds/132874/"
+    }
+   ],
+   "len_ms": 1300,
+   "fade_ms": 300
+  }
+ }
+}
