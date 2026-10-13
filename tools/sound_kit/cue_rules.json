@@ -667,5 +667,93 @@
   "target_lu": -15.0,
   "new": true,
   "volume_offset_db": 2.0
+ },
+ "voice_husk": {
+  "group": "voices",
+  "title": "Rotten Husk voice",
+  "plays": "the Rotten Husk starts an attack (a groan); quieter and higher when it is hit",
+  "max_rise_ms": 900,
+  "min_ms": 300,
+  "max_ms": 2500,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "voice_bloat": {
+  "group": "voices",
+  "title": "Bloat voice",
+  "plays": "the Bloat starts an attack (a wet gurgle); quieter and higher when it is hit",
+  "max_rise_ms": 900,
+  "min_ms": 300,
+  "max_ms": 2500,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "voice_gnats": {
+  "group": "voices",
+  "title": "Gnat Swarm voice",
+  "plays": "the Gnat Swarm starts an attack (a buzz); quieter and higher when it is hit",
+  "max_rise_ms": 900,
+  "min_ms": 300,
+  "max_ms": 2500,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "voice_shade": {
+  "group": "voices",
+  "title": "Shade voice",
+  "plays": "the Shade starts an attack (a whisper); quieter and higher when it is hit",
+  "max_rise_ms": 900,
+  "min_ms": 300,
+  "max_ms": 2500,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "voice_king": {
+  "group": "voices",
+  "title": "Hollow King voice",
+  "plays": "the Hollow King starts an attack (a roar); quieter and higher when he is hit",
+  "max_rise_ms": 900,
+  "min_ms": 300,
+  "max_ms": 2500,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "shout_alder": {
+  "group": "shouts",
+  "title": "Alder's shout",
+  "plays": "Alder uses a skill or joins the Team Ultimate (card #102)",
+  "max_rise_ms": 400,
+  "min_ms": 150,
+  "max_ms": 2000,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "shout_brin": {
+  "group": "shouts",
+  "title": "Brin's shout",
+  "plays": "Brin uses a skill or joins the Team Ultimate (card #102)",
+  "max_rise_ms": 400,
+  "min_ms": 150,
+  "max_ms": 2000,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "shout_cass": {
+  "group": "shouts",
+  "title": "Cass's shout",
+  "plays": "Cass uses a skill or joins the Team Ultimate (card #102)",
+  "max_rise_ms": 400,
+  "min_ms": 150,
+  "max_ms": 2000,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
  }
 }

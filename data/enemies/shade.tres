@@ -10,6 +10,7 @@
 [resource]
 script = ExtResource("6_727rv")
 id = "shade"
+voice_sfx = "voice_shade"
 display_name = "Shade"
 color = Color(0.29411766, 0.30980393, 0.47843137, 1)
 sprite_path = "res://assets/sprites/enemies/shade.png"

@@ -1,0 +1,125 @@
+{
+ "shout_alder": {
+  "a": {
+   "name": "Medieval war cry",
+   "desc": "A deep man's war cry, short and loud.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-521832.mp3",
+     "credit": "\"Middle Ages War Cry 2.wav\" by joelcarrsound, CC0, https://freesound.org/people/joelcarrsound/sounds/521832/"
+    }
+   ],
+   "len_ms": 1100,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Attack grunt",
+   "desc": "A man's hard grunt as he swings.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-464485.mp3",
+     "credit": "\"Male Attack Grunt\" by elynch0901, CC0, https://freesound.org/people/elynch0901/sounds/464485/"
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 200
+  },
+  "c": {
+   "name": "Heavy grunt",
+   "desc": "A long, heavy man's grunt of effort.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-399626.mp3",
+     "credit": "\"Male grunt.MP3\" by SoundsForHim, CC0, https://freesound.org/people/SoundsForHim/sounds/399626/"
+    }
+   ],
+   "len_ms": 1500,
+   "fade_ms": 200
+  }
+ },
+ "shout_brin": {
+  "a": {
+   "name": "Yaaah!",
+   "desc": "A fierce, rising yell.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-737957.mp3",
+     "credit": "\"Yaaaaah\" by qubodup, CC0, https://freesound.org/people/qubodup/sounds/737957/"
+    }
+   ],
+   "len_ms": 1300,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Swing grunt",
+   "desc": "A quick grunt with a weapon swing.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-661242.mp3",
+     "credit": "\"Swing grunt.mp3\" by DeqstersLab, CC0, https://freesound.org/people/DeqstersLab/sounds/661242/"
+    }
+   ],
+   "len_ms": 1000,
+   "fade_ms": 200
+  },
+  "c": {
+   "name": "Battle shout",
+   "desc": "A sharp, loud shout.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-740788.mp3",
+     "credit": "\"Shout\" by Beussa, CC0, https://freesound.org/people/Beussa/sounds/740788/"
+    }
+   ],
+   "len_ms": 1100,
+   "fade_ms": 200
+  }
+ },
+ "shout_cass": {
+  "a": {
+   "name": "Hyah!",
+   "desc": "A woman's quick, sharp 'hyah!'.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-343950.mp3",
+     "credit": "\"HYAH!.wav\" by Reitanna, CC0, https://freesound.org/people/Reitanna/sounds/343950/"
+    }
+   ],
+   "len_ms": 400,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Effort grunt (woman)",
+   "desc": "A woman's short grunt of effort.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-464675.mp3",
+     "credit": "\"FemaleGrunt1.wav\" by BranndyBottle, CC0, https://freesound.org/people/BranndyBottle/sounds/464675/"
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 200
+  },
+  "c": {
+   "name": "Effort grunt (man)",
+   "desc": "A man's short grunt of effort.",
+   "note": "CC0 Freesound voice",
+   "layers": [
+    {
+     "sound": "audio/search/voices/fs-788782.mp3",
+     "credit": "\"VO_Grunt 2\" by _MokeyMokey, CC0, https://freesound.org/people/_MokeyMokey/sounds/788782/"
+    }
+   ],
+   "len_ms": 1200,
+   "fade_ms": 200
+  }
+ }
+}

@@ -13,7 +13,7 @@
 
 A cue option is a list of layers. Layer fields: sound (kit id such as "hit/fs-198113-clang-4-1",
 or a file under tools/sound_kit with "credit"), gain_db, at_ms (where its start lands), start_ms
-and len_ms (which part of the recording), pitch (semitones, by playback speed), highpass_hz,
+and len_ms (which part of the recording), fade_in_ms (ease in when starting inside a sound), pitch (semitones, by playback speed), highpass_hz,
 lowpass_hz. Option fields: name, layers, len_ms, fade_ms, note. Loudness targets and limits come
 from cue_rules.json. Check the result with check_sfx.py.
 """

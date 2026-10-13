@@ -12,6 +12,7 @@
 [resource]
 script = ExtResource("2_ix30w")
 id = "alder"
+shout_sfx = "shout_alder"
 display_name = "Alder"
 color = Color(0.35686275, 0.49803922, 0.7490196, 1)
 sprite_path = "res://assets/sprites/characters/alder.png"

@@ -12,6 +12,7 @@
 [resource]
 script = ExtResource("2_i60gs")
 id = "cass"
+shout_sfx = "shout_cass"
 display_name = "Cass"
 color = Color(0.84705883, 0.72156864, 0.2901961, 1)
 sprite_path = "res://assets/sprites/characters/cass.png"

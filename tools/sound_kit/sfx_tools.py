@@ -95,6 +95,8 @@ def layer_audio(layer, cat):
     x = x[ms(layer.get("start_ms", 0)):]
     if layer.get("len_ms"):
         x = fade(x[:ms(layer["len_ms"])], 0, ms(10))
+    if layer.get("fade_in_ms"):   # starting inside a sound: ease in so the cut does not click
+        x = fade(x, ms(layer["fade_in_ms"]), 0)
     st = float(layer.get("pitch", 0))
     if st:
         # playback speed: +12 = twice as fast, an octave up (like a tape or sampler)

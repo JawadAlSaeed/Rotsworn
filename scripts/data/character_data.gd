@@ -24,6 +24,8 @@ extends Resource
 @export_range(1, 1000) var speed: int = 100
 @export var basic_attack: AbilityData
 @export var skills: Array[AbilityData] = []
+## Sound cue for a short shout when this hero uses a skill or joins the Team Ultimate (card #102).
+@export var shout_sfx: String = ""
 
 
 func all_abilities() -> Array[AbilityData]:

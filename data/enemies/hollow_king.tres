@@ -13,6 +13,7 @@
 [resource]
 script = ExtResource("9_porn1")
 id = "hollow_king"
+voice_sfx = "voice_king"
 display_name = "The Hollow King"
 color = Color(0.5568628, 0.18431373, 0.22745098, 1)
 sprite_path = "res://assets/sprites/enemies/hollow_king.png"

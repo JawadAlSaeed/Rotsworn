@@ -11,6 +11,7 @@
 [resource]
 script = ExtResource("7_rtdrg")
 id = "rotten_husk"
+voice_sfx = "voice_husk"
 display_name = "Rotten Husk"
 color = Color(0.47843137, 0.6392157, 0.26666668, 1)
 sprite_path = "res://assets/sprites/enemies/rotten_husk.png"

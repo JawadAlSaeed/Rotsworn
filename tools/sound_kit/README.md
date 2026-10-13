@@ -39,3 +39,14 @@ uv run sound-layer/scripts/sfx.py browse --type hit --like "metal heavy" --png a
 
 Then look at the picture it draws. Types: hit boom riser reverse transition whoosh swish glitch
 ui click key tick tap pop thump paper chime shimmer zap.
+
+## Music, ambience and voices
+
+- `find_music.py` searches OpenGameArt (CC0 / CC-BY only); `music_candidates.json` +
+  `music_selection.json` + `music_kit.py final` write `assets/audio/music/` (-16 LUFS, credits).
+- `ambience_candidates.json` + `ambience_selection.json` + `ambience_kit.py final` write seamless
+  CC0 loops to `assets/audio/ambience/`.
+- `freesound_fetch.py search|get` finds and downloads CC0 Freesound recordings (used for the enemy
+  voices in `candidates/voices.json`).
+- `make_picker.py --music`, `--ambience` or `--group=voices` makes a listening page.
+

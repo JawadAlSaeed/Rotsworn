@@ -52,6 +52,10 @@ var skill_runner: SkillSequenceRunner
 var defense_input: DefenseInput
 var autoplay: Autoplay
 
+## The song for the boss once it rages (set by Main from MusicSet; empty: no change).
+var rage_music_path: String = ""
+var rage_music_volume_db: float = 0.0
+
 var _encounter: EncounterData
 var _tuning: Tuning
 var _visuals: CombatVisuals
@@ -597,8 +601,13 @@ func _play(ev: Dictionary) -> void:
 			_waiting_runner = true
 			_set_active_pose(-1)
 			if String(ev.kind) == CombatEngine.SEQUENCE_SKILL:
+				_shout(int(ev.source), _abilities.get(String(ev.action)) as AbilityData)
 				skill_runner.start(ev, _abilities.get(String(ev.action)) as AbilityData)
 			else:
+				Sfx.duck_music(_visuals.music_duck_db, _visuals.music_duck_ms)
+				var voice := _voice_of(int(ev.source))
+				if not voice.is_empty():
+					Sfx.play(voice)
 				runner.start(ev, _attacks.get(String(ev.action)) as EnemyAttackData)
 		"turn_ended":
 			mirror.apply(ev)
@@ -618,6 +627,7 @@ func _play(ev: Dictionary) -> void:
 
 func _on_runner_finished(tail: Array[Dictionary]) -> void:
 	_waiting_runner = false
+	Sfx.duck_music(0.0, _visuals.music_duck_ms)
 	view.sync_alive(mirror)
 	# Online, later batches may already wait in the queue: the tail comes first (engine order).
 	var later := _queue.duplicate()
@@ -1001,6 +1011,29 @@ func _show_damage(ev: Dictionary) -> void:
 	v.flash(_visuals.flash_ms)
 	if mirror.is_alive(int(ev.target)):
 		v.play_pose(EnemyChoreography.Pose.HURT if to_enemy else FighterView.CharPose.HURT, _visuals.hurt_pose_ms)
+		var voice := _voice_of(int(ev.target)) if to_enemy else ""
+		if not voice.is_empty():
+			Sfx.play(voice, _visuals.voice_hurt_volume_db, _visuals.voice_hurt_pitch)
+
+
+## Heroes shout when one uses a skill (not the basic attack or Run), and all together on the Team
+## Ultimate (card #102).
+func _shout(actor: int, ability: AbilityData) -> void:
+	if ability == null or ability.escape:
+		return
+	var shouters: Array[int] = [actor]
+	if ability.team_ultimate:
+		shouters.assign(mirror.party_ids.filter(func(id: int) -> bool: return mirror.is_alive(id)))
+	for id: int in shouters:
+		var data := _data_by_id.get(id) as CharacterData
+		if data != null and data.basic_attack != ability and not data.shout_sfx.is_empty():
+			Sfx.play(data.shout_sfx)
+
+
+## An enemy's voice cue (empty for heroes and silent enemies).
+func _voice_of(id: int) -> String:
+	var data := _data_by_id.get(id) as EnemyData
+	return data.voice_sfx if data != null else ""
 
 
 ## Popups and sounds for the phase 2 events (DESIGN.md 2.10): healing, revive, AP, statuses,
@@ -1029,6 +1062,8 @@ func _show_feedback(ev: Dictionary) -> void:
 		"enemy_phase":
 			var boss := view.fighter(int(ev.enemy))
 			Sfx.play("boss_rage")
+			if not rage_music_path.is_empty():
+				Sfx.play_music(rage_music_path, rage_music_volume_db)
 			if boss != null:
 				boss.flash(_visuals.flash_ms * 4, HudStyle.LATE, 0.9)
 			hud.screen_flash(HudStyle.LATE, _visuals.screen_flash_phase)

@@ -9,6 +9,7 @@
 [resource]
 script = ExtResource("5_l0mvs")
 id = "gnat_swarm"
+voice_sfx = "voice_gnats"
 display_name = "Gnat Swarm"
 color = Color(0.7882353, 0.7058824, 0.34509805, 1)
 sprite_path = "res://assets/sprites/enemies/gnat_swarm.png"

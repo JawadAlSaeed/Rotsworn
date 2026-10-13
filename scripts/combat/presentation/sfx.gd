@@ -33,6 +33,20 @@ static func play_music(path: String, volume_db: float = 0.0) -> void:
 		audio.call(&"play_music", path, volume_db)
 
 
+## Loops a place's background sound (empty path: silence).
+static func play_ambience(path: String, volume_db: float = 0.0) -> void:
+	var audio := _audio()
+	if audio != null:
+		audio.call(&"play_ambience", path, volume_db)
+
+
+## Dips the music by `db` (0: back to full) over `ms`.
+static func duck_music(db: float, ms: int) -> void:
+	var audio := _audio()
+	if audio != null:
+		audio.call(&"duck_music", db, ms)
+
+
 ## Loads every cue now so the first parry sound has no loading hitch.
 static func preload_all() -> void:
 	var audio := _audio()

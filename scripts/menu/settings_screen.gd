@@ -1,6 +1,6 @@
 class_name SettingsScreen
 extends CanvasLayer
-## Settings (DESIGN.md 7.5): volume, fullscreen, lag calibration (the same
+## Settings (DESIGN.md 7.5): volumes (overall, music, effects, voices), fullscreen, lag calibration (the same
 ## beat test as F2 in a fight) and a list of the controls. Everything is saved per machine at once
 ## (PlayerSettings, user://settings.cfg). Left/right change a value, confirm toggles or opens.
 
@@ -21,7 +21,10 @@ const CONTROL_ROWS: Array[Array] = [
 const CONTROLS_TITLE_SIZE: int = 24
 const CONTROLS_GAP: int = 10
 
-enum Row { VOLUME, FULLSCREEN, CALIBRATE, RESET_LAG, BACK }
+enum Row { VOLUME, MUSIC, EFFECTS, VOICES, FULLSCREEN, CALIBRATE, RESET_LAG, BACK }
+
+## Which volume channel each volume row sets (PlayerSettings.CHANNELS).
+const VOLUME_ROWS := {Row.VOLUME: "master", Row.MUSIC: "music", Row.EFFECTS: "effects", Row.VOICES: "voice"}
 
 var _tuning: Tuning
 var _visuals: CombatVisuals
@@ -79,9 +82,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var step := -1 if answer == &"left" else 1
 	match _menu.index:
-		Row.VOLUME:
+		Row.VOLUME, Row.MUSIC, Row.EFFECTS, Row.VOICES:
 			if answer != &"confirm":
-				PlayerSettings.set_volume_percent(PlayerSettings.volume_percent() + step * PlayerSettings.VOLUME_STEP_PERCENT)
+				var channel := String(VOLUME_ROWS[_menu.index])
+				PlayerSettings.set_channel_percent(channel,
+						PlayerSettings.channel_percent(channel) + step * PlayerSettings.VOLUME_STEP_PERCENT)
 				Sfx.play("menu_move")
 		Row.FULLSCREEN:
 			PlayerSettings.set_fullscreen(not PlayerSettings.fullscreen())
@@ -114,7 +119,10 @@ func _on_calibration_closed() -> void:
 func _refresh() -> void:
 	var lag := PlayerSettings.latency_compensation_ms(_tuning)
 	var calibrated := PlayerSettings.is_calibrated()
-	_menu.set_item(Row.VOLUME, "Volume", true, "Louder or quieter.", "<  %d%%  >" % PlayerSettings.volume_percent())
+	_menu.set_item(Row.VOLUME, "Volume", true, "Everything louder or quieter.", _percent("master"))
+	_menu.set_item(Row.MUSIC, "Music", true, "The songs only.", _percent("music"))
+	_menu.set_item(Row.EFFECTS, "Effects", true, "Hits, parries, steps and menu sounds.", _percent("effects"))
+	_menu.set_item(Row.VOICES, "Voices", true, "Heroes and enemies shouting and growling.", _percent("voice"))
 	_menu.set_item(Row.FULLSCREEN, "Fullscreen", true, "Fill the whole screen, or a normal window.",
 			_on_off(PlayerSettings.fullscreen()))
 	_menu.set_item(Row.CALIBRATE, "Lag calibration", true,
@@ -123,6 +131,10 @@ func _refresh() -> void:
 	_menu.set_item(Row.RESET_LAG, "Reset lag to default", calibrated,
 			"Forget the measured lag and use the default (%d ms) again." % _tuning.input_latency_compensation_ms)
 	_menu.set_item(Row.BACK, "Back", true, "")
+
+
+static func _percent(channel: String) -> String:
+	return "<  %d%%  >" % PlayerSettings.channel_percent(channel)
 
 
 static func _on_off(value: bool) -> String:

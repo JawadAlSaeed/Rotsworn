@@ -380,6 +380,70 @@ name = "net_error"
 path = "res://assets/audio/sfx/net_error.wav"
 volume_db = -4.0
 
+[sub_resource type="Resource" id="Resource_v00"]
+script = ExtResource("1_8i8ux")
+name = "voice_husk"
+path = "res://assets/audio/sfx/voice_husk.wav"
+volume_db = -4.0
+pitch_jitter = 0.05
+voice = true
+
+[sub_resource type="Resource" id="Resource_v01"]
+script = ExtResource("1_8i8ux")
+name = "voice_bloat"
+path = "res://assets/audio/sfx/voice_bloat.wav"
+volume_db = -4.0
+pitch_jitter = 0.05
+voice = true
+
+[sub_resource type="Resource" id="Resource_v02"]
+script = ExtResource("1_8i8ux")
+name = "voice_gnats"
+path = "res://assets/audio/sfx/voice_gnats.wav"
+volume_db = -4.0
+pitch_jitter = 0.05
+voice = true
+
+[sub_resource type="Resource" id="Resource_v03"]
+script = ExtResource("1_8i8ux")
+name = "voice_shade"
+path = "res://assets/audio/sfx/voice_shade.wav"
+volume_db = -4.0
+pitch_jitter = 0.05
+voice = true
+
+[sub_resource type="Resource" id="Resource_v04"]
+script = ExtResource("1_8i8ux")
+name = "voice_king"
+path = "res://assets/audio/sfx/voice_king.wav"
+volume_db = -4.0
+pitch_jitter = 0.05
+voice = true
+
+[sub_resource type="Resource" id="Resource_h00"]
+script = ExtResource("1_8i8ux")
+name = "shout_alder"
+path = "res://assets/audio/sfx/shout_alder.wav"
+volume_db = -2.0
+pitch_jitter = 0.04
+voice = true
+
+[sub_resource type="Resource" id="Resource_h01"]
+script = ExtResource("1_8i8ux")
+name = "shout_brin"
+path = "res://assets/audio/sfx/shout_brin.wav"
+volume_db = -2.0
+pitch_jitter = 0.04
+voice = true
+
+[sub_resource type="Resource" id="Resource_h02"]
+script = ExtResource("1_8i8ux")
+name = "shout_cass"
+path = "res://assets/audio/sfx/shout_cass.wav"
+volume_db = -2.0
+pitch_jitter = 0.04
+voice = true
+
 [resource]
 script = ExtResource("2_tmwgw")
-cues = Array[ExtResource("1_8i8ux")]([SubResource("Resource_ne45t"), SubResource("Resource_lrnn1"), SubResource("Resource_fsrj5"), SubResource("Resource_oddbf"), SubResource("Resource_1xh2r"), SubResource("Resource_nyft8"), SubResource("Resource_t5kpp"), SubResource("Resource_a8kml"), SubResource("Resource_b27fb"), SubResource("Resource_8862e"), SubResource("Resource_vc4v8"), SubResource("Resource_2sva2"), SubResource("Resource_j7rql"), SubResource("Resource_pn3l1"), SubResource("Resource_wf26n"), SubResource("Resource_fub1v"), SubResource("Resource_2t21s"), SubResource("Resource_050hm"), SubResource("Resource_tfr7v"), SubResource("Resource_bgel4"), SubResource("Resource_pfo4v"), SubResource("Resource_eywhw"), SubResource("Resource_3is6k"), SubResource("Resource_8i8ux"), SubResource("Resource_tmwgw"), SubResource("Resource_34wyi"), SubResource("Resource_r24wd"), SubResource("Resource_jetbr"), SubResource("Resource_vkr65"), SubResource("Resource_0uy7s"), SubResource("Resource_fisfa"), SubResource("Resource_n00"), SubResource("Resource_n01"), SubResource("Resource_n02"), SubResource("Resource_n03"), SubResource("Resource_n04"), SubResource("Resource_n05"), SubResource("Resource_n06"), SubResource("Resource_n07"), SubResource("Resource_n08"), SubResource("Resource_n09"), SubResource("Resource_n10"), SubResource("Resource_n11"), SubResource("Resource_n12"), SubResource("Resource_n13"), SubResource("Resource_n14"), SubResource("Resource_n15"), SubResource("Resource_n16"), SubResource("Resource_n17"), SubResource("Resource_n18"), SubResource("Resource_n19"), SubResource("Resource_n20"), SubResource("Resource_n21"), SubResource("Resource_n22"), SubResource("Resource_n23"), SubResource("Resource_n24"), SubResource("Resource_n25"), SubResource("Resource_n26"), SubResource("Resource_n27"), SubResource("Resource_n28"), SubResource("Resource_n29"), SubResource("Resource_n30"), SubResource("Resource_n31")])
+cues = Array[ExtResource("1_8i8ux")]([SubResource("Resource_ne45t"), SubResource("Resource_lrnn1"), SubResource("Resource_fsrj5"), SubResource("Resource_oddbf"), SubResource("Resource_1xh2r"), SubResource("Resource_nyft8"), SubResource("Resource_t5kpp"), SubResource("Resource_a8kml"), SubResource("Resource_b27fb"), SubResource("Resource_8862e"), SubResource("Resource_vc4v8"), SubResource("Resource_2sva2"), SubResource("Resource_j7rql"), SubResource("Resource_pn3l1"), SubResource("Resource_wf26n"), SubResource("Resource_fub1v"), SubResource("Resource_2t21s"), SubResource("Resource_050hm"), SubResource("Resource_tfr7v"), SubResource("Resource_bgel4"), SubResource("Resource_pfo4v"), SubResource("Resource_eywhw"), SubResource("Resource_3is6k"), SubResource("Resource_8i8ux"), SubResource("Resource_tmwgw"), SubResource("Resource_34wyi"), SubResource("Resource_r24wd"), SubResource("Resource_jetbr"), SubResource("Resource_vkr65"), SubResource("Resource_0uy7s"), SubResource("Resource_fisfa"), SubResource("Resource_n00"), SubResource("Resource_n01"), SubResource("Resource_n02"), SubResource("Resource_n03"), SubResource("Resource_n04"), SubResource("Resource_n05"), SubResource("Resource_n06"), SubResource("Resource_n07"), SubResource("Resource_n08"), SubResource("Resource_n09"), SubResource("Resource_n10"), SubResource("Resource_n11"), SubResource("Resource_n12"), SubResource("Resource_n13"), SubResource("Resource_n14"), SubResource("Resource_n15"), SubResource("Resource_n16"), SubResource("Resource_n17"), SubResource("Resource_n18"), SubResource("Resource_n19"), SubResource("Resource_n20"), SubResource("Resource_n21"), SubResource("Resource_n22"), SubResource("Resource_n23"), SubResource("Resource_n24"), SubResource("Resource_n25"), SubResource("Resource_n26"), SubResource("Resource_n27"), SubResource("Resource_n28"), SubResource("Resource_n29"), SubResource("Resource_n30"), SubResource("Resource_n31"), SubResource("Resource_v00"), SubResource("Resource_v01"), SubResource("Resource_v02"), SubResource("Resource_v03"), SubResource("Resource_v04"), SubResource("Resource_h00"), SubResource("Resource_h01"), SubResource("Resource_h02")])

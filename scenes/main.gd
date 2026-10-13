@@ -245,7 +245,9 @@ func _show_screen(screen: Node) -> void:
 	if screen != null:
 		_screen = screen
 		add_child(screen)
-		Sfx.play_music(_music.menu_path, _music.volume_db)
+		Sfx.play_ambience("")
+		var song := _music.run_path if _is_run_screen(screen) and not _music.run_path.is_empty() else _music.menu_path
+		Sfx.play_music(song, _music.volume_db)
 	_watch_layer.visible = Net.is_client() and _is_run_screen(screen)
 
 
@@ -407,7 +409,12 @@ func _start_combat() -> void:
 	_combat.restart_requested.connect(_on_restart_requested)
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
-	Sfx.play_music(_music.fight_path, _music.volume_db)
+	Sfx.play_ambience("")
+	var boss := _encounter != null and _encounter.boss
+	Sfx.play_music(_music.boss_path if boss and not _music.boss_path.is_empty() else _music.fight_path, _music.volume_db)
+	if boss:
+		_combat.rage_music_path = _music.boss_rage_path
+		_combat.rage_music_volume_db = _music.volume_db
 	if Net.is_client():
 		_combat_accepts = true
 		var waiting := _combat_inbox.duplicate()
@@ -443,7 +450,8 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone.encounter_started.connect(_on_encounter_started)
 	_zone.cleared.connect(_on_zone_cleared)
 	add_child(_zone)
-	Sfx.play_music(_music.zone_path, _music.volume_db)
+	Sfx.play_music(_zone_song(), _music.volume_db)
+	_play_zone_ambience()
 	if _run != null:
 		var layer := CanvasLayer.new()
 		layer.name = "RunBar"
@@ -515,7 +523,8 @@ func _on_zone_return_requested(result: String) -> void:
 	_free_combat()
 	_zone_fight = {}
 	add_child(_zone)
-	Sfx.play_music(_music.zone_path, _music.volume_db)
+	Sfx.play_music(_zone_song(), _music.volume_db)
+	_play_zone_ambience()
 	_zone.resume(result)
 	if _run_bar != null:
 		_run_bar.refresh(_run)
@@ -1106,6 +1115,18 @@ func _net_host_tick(delta: float) -> void:
 		if _zone_send_s * float(_tuning.net_zone_send_hz) >= 1.0:
 			_zone_send_s = 0.0
 			Net.broadcast_fast("zone", _zone.net_snapshot())
+
+
+## The current zone's background loop; anything else (fights, screens) is silent underneath.
+func _play_zone_ambience() -> void:
+	var amb := _zone.ambience() if _zone != null else ["", 0.0]
+	Sfx.play_ambience(String(amb[0]), float(amb[1]))
+
+
+## The current zone's own song, else the shared zone song.
+func _zone_song() -> String:
+	var own := _zone.music_path() if _zone != null else ""
+	return own if not own.is_empty() else _music.zone_path
 
 
 func _is_run_screen(node: Node) -> bool:

@@ -47,6 +47,9 @@ texture={
 wav={
 "compress/mode": 0
 }
+oggvorbisstr={
+"loop": true
+}
 
 [input]
 

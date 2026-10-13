@@ -144,6 +144,7 @@ func _hollow_king() -> EnemyData:
 		return load(path) as EnemyData
 	var e := EnemyData.new()
 	e.id = "hollow_king"
+	e.voice_sfx = "voice_king"
 	e.display_name = "The Hollow King"
 	e.color = Color("8e2f3a")
 	e.sprite_path = "res://assets/sprites/enemies/hollow_king.png"
@@ -277,6 +278,8 @@ func _ash_look(base: StageLook) -> StageLook:
 func _sunken_bog(look: StageLook, leader: CharacterData, guard: EncounterData) -> ZoneData:
 	var zone := _zone("sunken_bog", "Sunken Bog", look, leader, Vector2(-14.0, -21.0), Vector2(14.0, 10.0))
 	zone.footstep_sfx = "footstep_mud"
+	zone.music_path = "res://assets/audio/music/zone_bog.ogg"
+	zone.ambience_path = "res://assets/audio/ambience/ambience_bog.ogg"
 	zone.blocks.assign([
 		_block(Vector3(0, 0, -23.5), Vector3(34, 5, 3), "cliff"),
 		_block(Vector3(-16.5, 0, -5.5), Vector3(3, 4, 36), "cliff"),
@@ -326,6 +329,8 @@ func _sunken_bog(look: StageLook, leader: CharacterData, guard: EncounterData) -
 func _ashen_ruins(look: StageLook, leader: CharacterData, guard: EncounterData) -> ZoneData:
 	var zone := _zone("ashen_ruins", "Ashen Ruins", look, leader, Vector2(-15.0, -21.0), Vector2(15.0, 10.0))
 	zone.footstep_sfx = "footstep_stone"
+	zone.music_path = "res://assets/audio/music/zone_ruins.ogg"
+	zone.ambience_path = "res://assets/audio/ambience/ambience_ruins.ogg"
 	zone.blocks.assign([
 		_block(Vector3(0, 0, -23.5), Vector3(36, 4, 2), "ruin_wall"),
 		_block(Vector3(-17, 0, -5.5), Vector3(2, 3.5, 36), "ruin_wall"),

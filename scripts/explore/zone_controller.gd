@@ -137,6 +137,16 @@ func look() -> StageLook:
 	return _zone.look
 
 
+## This zone's background loop and its volume (empty path: none).
+func ambience() -> Array:
+	return [_zone.ambience_path, _zone.ambience_volume_db] if _zone != null else ["", 0.0]
+
+
+## This zone's song (empty: none of its own).
+func music_path() -> String:
+	return _zone.music_path if _zone != null else ""
+
+
 func fights_started() -> int:
 	return _fights
 

@@ -61,5 +61,13 @@
  "player_leave": "c",
  "net_connected": "c",
  "net_error": "a",
- "victory": "a"
+ "victory": "a",
+ "voice_husk": "b",
+ "voice_bloat": "c",
+ "voice_gnats": "a",
+ "voice_shade": "a",
+ "voice_king": "a",
+ "shout_alder": "a",
+ "shout_brin": "a",
+ "shout_cass": "a"
 }
