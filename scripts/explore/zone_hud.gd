@@ -35,14 +35,14 @@ func setup(explore: ExploreVisuals, zone_name: String) -> void:
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
 
-	_title = HudStyle.make_label(zone_name, TITLE_SIZE, HudStyle.GOLD)
+	_title = HudStyle.make_title(zone_name, TITLE_SIZE, HudStyle.GOLD)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_title.offset_top = TITLE_TOP
 	_root.add_child(_title)
 	_fade(_title, explore.zone_title_ms)
 
-	_banner = HudStyle.make_label("", BANNER_SIZE, HudStyle.GOLD)
+	_banner = HudStyle.make_title("", BANNER_SIZE, HudStyle.GOLD)
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_banner.offset_top = BANNER_TOP
@@ -57,7 +57,8 @@ func setup(explore: ExploreVisuals, zone_name: String) -> void:
 	_count.offset_top = MARGIN
 	_root.add_child(_count)
 
-	var hint := HudStyle.make_label(_controls_text(), HINT_SIZE, HudStyle.TEXT)
+	var hint := HintBar.stack([[&"@move", "Move"], [&"field_strike", "Strike"], [&"pause", "Pause"]], HINT_SIZE,
+			["Hit an enemy before it touches you: FIRST STRIKE"])
 	hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	hint.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	hint.offset_left = MARGIN
@@ -128,8 +129,3 @@ func _fade(label: Label, ms: int) -> Tween:
 	tween.tween_property(label, "modulate:a", 0.0, float(ms) / 1000.0 * (1.0 - HOLD_SHARE))
 	tween.tween_callback(label.hide)
 	return tween
-
-
-static func _controls_text() -> String:
-	return "Move   WASD / arrows / left stick\nStrike   %s\nHit an enemy before it touches you: FIRST STRIKE\nPause   %s" % [
-			HudStyle.binding_text(&"field_strike"), HudStyle.binding_text(&"pause")]

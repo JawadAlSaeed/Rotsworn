@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AbilityData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_run"]
+
+[resource]
+script = ExtResource("1_run")
+id = "run"
+display_name = "Run"
+description = "Hit the circle PERFECTLY to leave the fight. Anything else and the turn is lost."
+target = 2
+press_times_ms = Array[int]([1300])
+ring_lead_percent = 160
+perfect_window_percent = 140
+ring_color = Color(0.55, 0.88, 1, 1)
+damage_percent = 0
+consumes_exposed = false
+escape = true

@@ -47,7 +47,8 @@ func apply(event: Dictionary) -> void:
 					"ap": int(d.ap),
 					"power": int(d.power),
 					"speed": int(d.speed),
-					"alive": int(d.hp) > 0,
+					"alive": int(d.hp) > 0 and not bool(d.get("escaped", false)),
+					"escaped": bool(d.get("escaped", false)),
 					"statuses": (d.get("statuses", {}) as Dictionary).duplicate(true),
 				}
 				fighters[f.id] = f
@@ -77,6 +78,10 @@ func apply(event: Dictionary) -> void:
 			team_gauge = int(event.value)
 		"intent":
 			intents[int(event.enemy)] = event.duplicate(true)
+		"escaped":
+			var runner := fighter(int(event.character))
+			runner.escaped = true
+			runner.alive = false
 		"ap_changed":
 			fighter(int(event.character)).ap = int(event.ap)
 		"timed_sequence_declared":
@@ -93,7 +98,7 @@ func apply(event: Dictionary) -> void:
 		"prompt_resolved":
 			var f := fighter(int(event.character))
 			f.hp = int(event.hp)
-			f.alive = f.hp > 0
+			f.alive = f.hp > 0 and not bool(f.get("escaped", false))
 			f.ap = int(event.ap)
 			if _is_current(event):
 				sequence.states[int(event.prompt)] = CombatEngine.PromptState.RESOLVED
@@ -131,7 +136,8 @@ func has_status(id: int, status: String) -> bool:
 func downed_party_ids() -> Array[int]:
 	var list: Array[int] = []
 	for id: int in party_ids:
-		if not is_alive(id):
+		# A hero who ran (DESIGN.md 2.13) is out of the fight, not down: nobody can revive them.
+		if not is_alive(id) and not bool(fighter(id).get("escaped", false)):
 			list.append(id)
 	return list
 
@@ -183,7 +189,7 @@ func _set_hp(id: int, hp: int) -> void:
 	if f.is_empty():
 		return
 	f.hp = hp
-	f.alive = hp > 0
+	f.alive = hp > 0 and not bool(f.get("escaped", false))
 
 
 func _is_current(event: Dictionary) -> bool:

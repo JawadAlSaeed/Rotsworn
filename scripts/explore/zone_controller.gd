@@ -190,8 +190,9 @@ func face(direction: Vector2) -> void:
 		_update_flip()
 
 
-## Back from fight `fight_index()` with its result: a beaten enemy is gone; after a defeat the
-## leader starts over at the zone's start and every enemy goes home. Nothing can start a fight
+## Back from fight `fight_index()` with its result: a beaten enemy is gone; one the party ran
+## from goes home; after a defeat the leader starts over at the zone's start and every enemy
+## goes home. Nothing can start a fight
 ## for explore_return_grace_ms.
 func resume(result: String) -> void:
 	if _fight_index >= 0 and _fight_index < _roamers.size():
@@ -201,6 +202,11 @@ func resume(result: String) -> void:
 			(r.view as FighterView).visible = false
 			_hud.set_notice(_fight_index, false)
 			_hud.set_tag(_fight_index, "", false)
+		elif result == "escaped":
+			# Ran away (DESIGN.md 2.13): the enemy goes home; the leader stays where it is.
+			(r.brain as RoamerBrain).reset()
+			r.pos = (r.brain as RoamerBrain).home
+			_hud.set_notice(_fight_index, false)
 		else:
 			_leader_pos = Vector2(_zone.player_start.x, _zone.player_start.z)
 			for other: Dictionary in _roamers:
@@ -208,6 +214,9 @@ func resume(result: String) -> void:
 				other.pos = (other.brain as RoamerBrain).home
 	_fight_index = -1
 	_frozen = false
+	# The swing that started the fight is over: zone time stood still during the fight, so it
+	# would otherwise still be "swinging" and start a fight during the fade back in.
+	_strike_until_ms = _time_ms
 	_grace_until_ms = _time_ms + float(_tuning.explore_return_grace_ms)
 	_update_goal()
 	_place_walkers(0.0)
@@ -346,7 +355,7 @@ func _process(delta: float) -> void:
 				pose = EnemyChoreography.Pose.LUNGE
 		(r.view as FighterView).set_pose(pose)
 		# An enemy that walks into a swing still in progress is struck first.
-		if striking and ZoneMotion.in_reach(_leader_pos, _facing, r.pos, _tuning.explore_strike_reach,
+		if striking and not calm and ZoneMotion.in_reach(_leader_pos, _facing, r.pos, _tuning.explore_strike_reach,
 				_tuning.explore_strike_arc_degrees):
 			_begin(i, CombatSetup.Opening.FIRST_STRIKE)
 			return

@@ -207,8 +207,12 @@ power unless stated. AP is per character.
     and, if every press of the skill was perfect, the skill's other bonus ("Perfect press: ...");
   - **GOOD** (inside `skill_press_window_ms`, 200 ms, around the perfect window): normal damage;
   - **MISS** (pressed too early or too late, or not at all): the hit still lands for
-    `skill_miss_damage_percent` (50%) of normal damage. A press before the good window shows EARLY
-    and starts the whiff lockout, so mashing never pays.
+    `skill_miss_damage_percent` (50%) of normal damage. A press before the good window shows EARLY,
+    starts the whiff lockout and, once that ring is on screen, **uses it up as a miss** (one press
+    per ring, user rule 2026-10-13): the lockout ending before the window no longer gives a second
+    try. A press before the ring appears (a double tap, a press meant for another ring) does not
+    spend it. The same goes
+    for follow-up rings. Defence presses keep the lockout-only rule.
   Multi-hit skills have one press per hit, and each press only affects its own hit. Non-damage
   effects (heal, AP, statuses...) always apply at their base value; only all-perfect adds the
   bonus.
@@ -299,6 +303,30 @@ How a fight starts depends on how it began in the zone (7.4):
   start normal; `--first-strike` starts one with the advantage.
 
 ---
+
+### 2.13 Run (phase 6, card #92, user design 2026-10-13)
+
+- On a hero's turn, **hold B** (Backspace) for `tuning.run_hold_ms` (500) to try to run; a ring
+  around the B button fills while held (user feedback), and a tap does nothing, so nobody runs by
+  accident.
+- Running is a skill-like action (`data/abilities/run.tres`, `escape = true`, every hero has it):
+  one slow press ring (`ring_lead_percent` 160) on the hero, with a wider PERFECT window
+  (`perfect_window_percent` 140 of `skill_perfect_window_ms`, user: "a tiny bit bigger"). Only a
+  **PERFECT** press gets out. A good press, an early press or no press only loses the turn (the
+  next fighter goes). Running deals no damage.
+- **Each hero runs alone** (user feedback 2026-10-13): a hero who gets out leaves the fight
+  (`escaped` event; dashes off and fades; the panel reads ESCAPED). They get no more turns, cannot
+  be targeted, revived or saved by Second Wind, and are not "down". The others fight on. The fight
+  ends as **"escaped"** once nobody is left standing in it and at least one hero ran (a hero downed
+  after the others ran is carried out); if the others win, it is a normal victory.
+- Not allowed against bosses (`EncounterData.boss`) or where `EncounterData.can_run` is false (the
+  run's final fight, The Last Gate): the Run row reads CAN'T RUN.
+- After an escape: in a zone, the enemy goes home and the leader stays where they are (with the
+  usual return grace); in a run, the HP carries on (a downed hero stands at
+  `run_downed_revive_hp`), with no gold and no XP; a practice fight shows ESCAPED with "fight
+  again".
+- The autoplay bot never runs, except in `--autoplay=escape` (runs on its first turn, presses
+  perfectly; checks the escape ending).
 
 ## 3. Defence timing
 
@@ -424,7 +452,7 @@ One judge per local player, holding the prompts of the characters that player an
 - Wind-up glow that ramps while the enemy holds, and a visible lunge of fixed length
   (`approach_ms`, about 200 ms) into an obvious contact point. Feints start a lunge, stop, hold,
   then do the real lunge.
-- Telegraph flash when each lunge, feint start or slam starts (`show_telegraph_flash`, F1 then F).
+- Telegraph flash when each lunge, feint start or slam starts (`show_telegraph_flash`, F1 then G).
   It is red-orange (`telegraph_flash_color`), never white: white on the enemy means "you parried".
 - One alert sound when the attack starts.
 - Motion sounds (`play_motion_sounds`, F1 then L): a whoosh as each lunge or feint starts and a
@@ -436,8 +464,9 @@ One judge per local player, holding the prompts of the characters that player an
 - Timing readout after each press (`show_timing_feedback`, F1 then T).
 - Wind-up crouch (`show_windup_crouch`, F1 then C): the enemy crouches as its wind-up glow
   builds (`windup_squash_percent` at full glow) and springs out of it as the lunge or slam starts.
-- Hit markers and the floor warning (`show_hit_markers`, F1 then H), see 3.8.
-- F, T, L, H and C are session toggles (not saved); the tuning values are their starting state.
+- Hit markers (`show_hit_markers`, off since phase 6, F1 then H in practice), see 3.8. The floor
+  warning under a ground hit always shows.
+- G, T, L, H and C are session toggles (not saved); the tuning values are their starting state.
 
 ### 3.8 Reading attacks (approved 2026-10-12, card #44)
 
@@ -467,6 +496,16 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
   living target, from `WARNING_START_SHARE` (0.3) of `floor_warning_strength` at the slam to full
   when the wave arrives.
 - Everything above is a pure function of attack time, so hit-stop freezes it with the enemy.
+- **No circles (user request 2026-10-13):** the hit marker (the hit's icon in a circle beside the
+  target) is off (`tuning.show_hit_markers` false; F1 > H in a practice fight), and the training
+  ring left the Settings screen: it is a practice aid only (F1 > R in a practice fight), never in a
+  run fight.
+- **Harder reading (phase 6, user request 2026-10-12):** the intent sign before the enemy's turn
+  and the attack banner's row show how many hits are coming and of which kind, but once the
+  first hit lands (its impact time) the banner row and the hit markers are hidden for the rest of
+  the string (`tuning.hide_intent_after_first_hit`, on). Thoughtful players remember the pattern.
+  The enemy's own motion still shows every hit: the wind-up glow in the hit's colour, the crouch,
+  the telegraph flash and the purple floor warning under a ground hit.
 
 ---
 
@@ -680,6 +719,11 @@ player's heroes.
 
 | Action | Keyboard | Xbox pad |
 |---|---|---|
+| `fight_attack` (your turn; Confirm too) | E | A |
+| `fight_skills` (your turn) | F | X |
+| `fight_items` (your turn, not in the game yet) | Tab | Y |
+| Run (your turn: hold `menu_cancel`, 2.13) | Backspace | B |
+| `fight_ultimate` (your turn) | U | RT |
 | `defend_parry` | Space | RB |
 | `defend_dodge` | Left Shift | B |
 | `defend_jump` | W | A |
@@ -701,14 +745,21 @@ menu (Backspace, Q or B do). B no longer leaves a zone.
 
 Phase 1 practice keys (keyboard only, when `practice_tools_enabled`): 1 to 5 force the enemy's
 next attack, I toggles "party cannot die", O toggles "enemy cannot die", R restarts the fight,
-F1 opens the stats overlay (inside it: R training ring, F telegraph flash, T timing readout,
+F1 opens the stats overlay (inside it: R training ring, G telegraph flash (F is the Skills key), T timing readout,
 L motion sounds, H hit markers, C wind-up crouch, V cinematic camera), F2 starts lag calibration (only while the action menu is open, never during an
 enemy attack). With `practice_tools_enabled` off, F1 and F2 are not available during a fight.
 On the victory/defeat screen F1 opens the stats, and Confirm or R fights again once
 `end_input_guard_ms` (800) has passed, so a late defence press never skips the screen.
 
-On-screen control hints are built from the Input Map (`HudStyle.binding_text`), so remaps made in
-Project Settings > Input Map show up in the hints.
+On-screen control hints are built from the Input Map (`HudStyle.binding_parts` /
+`binding_text`), so remaps made in Project Settings > Input Map show up in the hints. They show
+the device in use (card #45, `ButtonPrompts`, autoload `Prompts`): pad buttons (Xbox names, round
+coloured A/B/X/Y chips) while a pad is plugged in and was used last or was just plugged in;
+keyboard keys (key caps) once a key is pressed or the last pad is unplugged. Local co-op with the
+keyboard and a pad both playing shows both ("Space / RB"). Hints are `HintBar` rows of button
+chips (bottom of every menu screen, the fight and zone corners, the end screen) or `PromptLabel`
+text with `{action}` tokens; both redraw when the device changes. A practice key with no pad
+button still shows its key.
 
 Menus, defence and skill presses never run at the same time, so shared buttons do not clash
 (`DefenseInput` arms only the defence actions during an enemy attack and only `skill_press`
@@ -839,6 +890,70 @@ converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`).
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
   presses) and cannot stop, so a pause asked for mid-move shows "PAUSING AFTER THIS MOVE" and
   opens when it ends (`CombatController.request_pause`, `pause_reached`).
+
+### 7.6 Phase 6 Part A: UI polish and feedback (cards #37, #38, #45)
+
+UI (card #37):
+- Every screen outside a fight has the same look (`ListMenu.screen_column`): `MenuBackdrop` (dark
+  gradient, a sickly glow from below, slow rot motes drifting up, vignette), a gold title with a
+  fading gold line under it, and the button hints on a dark strip along the bottom
+  (`ListMenu.screen_footer`). The run map uses the same backdrop and footer.
+- Menu rows: the chosen row is a soft gold bar with a bright left edge (no "> " cursor) and
+  lights up for a moment when the cursor lands on it. A row can have a value on the right
+  (settings values, "Explore" / "Fight" in the practice list). The fight's action menu uses the
+  same gold bar.
+- Settings: values on the right; the controls are a panel of button chips that follows the
+  device in use.
+- Fight HUD (user picks 2026-10-12, built after the first Part A test):
+  - Action menu, Expedition 33 style (bottom left, user layout 2026-10-13), no cursor, one
+    button per option: A Attack (always, gains AP), X Skills (opens the skill list above it; up/down
+    choose, A use, B back), Y Items (SOON: not in the game yet, card #91), B Run (hold it, 2.13;
+    CAN'T RUN against bosses), RT Team Ultimate (LOCKED until the gauge is full). The target step
+    is unchanged.
+  - The bottom-left corner shows the DEFEND hints only during enemy attacks (and a "Skill
+    press" hint during a skill); on your turn it holds the action menu.
+  - Party panels: slimmer, with the hero's portrait, the name in the title font and the HP
+    number on the bar; the AP gems replace the "AP N" text.
+  - Turn order: a dark strip, a gold NOW tag on whose turn it is, enemies framed in red.
+  - Enemy HP: a framed panel per enemy, HP number on the bar, statuses as coloured badges.
+  - Team gauge: a framed bar that turns gold, reads ULTIMATE READY and glows when full.
+- Fight HUD (first pass): the controls corner is a stack of button chips; the intent sign under an enemy never
+  goes under the party panels or off the screen edge; the end screen's buttons are chips.
+- Run fights hide the practice panel and ignore the practice keys (1-5, I, O): a run is the real
+  game. F1 (stats) and F2 (calibration) still work.
+
+Feedback (card #38), numbers in `combat_visuals.tres` (group Feedback):
+- HP bars (party and enemies, `TrailBar`) keep the part a hit took lit in pale gold, then drain
+  it; heals fill the bar smoothly.
+- Party strikes and skill strikes throw sparks on the enemy (more on a counter).
+- A full-screen flash (additive) on counters (pale gold), the team ultimate (gold), a hero going
+  down (red) and an enemy's phase change (red).
+- A beaten enemy flashes and crumbles away pixel by pixel from the top (shader `dissolve`, glowing
+  green edge) with a burst of rot motes, instead of standing there greyed out.
+- Big hits (at least `big_hit_percent` of the target's max HP) show a bigger damage number.
+- While a standing hero is at or under `danger_hp_percent` HP, the screen edges pulse red.
+- The team gauge glows in and out while the ultimate is ready.
+
+Fonts (user pick "font A", 2026-10-12): a storybook serif, Cinzel (weight 700), for titles,
+hero and enemy names and banners (`HudStyle.make_title` / `title_settings`), and Alegreya Sans
+Medium for everything else (the default font of every control, set by `HudStyle.load_fonts()` at
+start-up). Both are free Google Fonts under the SIL Open Font License (licences next to the files
+in `assets/fonts/`). Paths in `data/presentation/ui_fonts.tres` (`UiFonts`); a missing file falls
+back to Godot's built-in font with a warning.
+
+Button pictures (`ButtonChip`, drawn with shapes, no art files), all in one light colour,
+outline style on a dark see-through fill (user pick 2026-10-13, from a reference picture): A/B/X/Y
+as a ring with the letter, Menu (three lines) and View (two windows) in a ring, the D-pad as an
+outlined cross with the meant arms' arrows lit (up/down to choose, left/right to change), sticks
+as a ring with an inner ring and L or R, other pad buttons as outlined pills, keyboard keys as
+outlined rounded keys. The lag calibration and players screens show their buttons as pictures
+too. Letters are centred on their ink
+across and on a capital letter's height up and down, so every key of a size shares a baseline
+(checked with `tools/chip_sheet.gd`, which draws every chip at four sizes).
+
+Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://shots/<name>/`
+(`ScreenShooter`), `--screen=menu|settings|players|practice` opens that screen at once, and
+`--pad-prompts` starts with pad buttons shown. Used to check the look without a person.
 
 ---
 
@@ -1131,7 +1246,8 @@ counters for longer and mixed strings (2.5, card #52).
 5. **Co-op** (done, approved 2026-10-12 after an online test with a friend): Part A local
    multi-device (9.1), Part B online by IP (9.2), the studio intro (7.5). Steam invites later
    (swap the transport).
-6. Polish: UI, feedback effects, audio pass, balance.
+6. **Polish**: Part A (built, waiting for playtest): UI, feedback effects, controller button
+   hints (7.6). Part B: audio pass and balance. Real art needs an artist (card #40).
 
 ### 11.1 To-do (from playtests)
 
@@ -1227,6 +1343,15 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | Map: first row zones, rest row before the final fight, no shop/rest twice in a row | a run opens with exploring and lets the party heal before the end, like Slay the Spire |
 | 2026-10-12 | Run fights have no "fight again" (R) | HP and gold carry on; a retry would undo a loss |
 | 2026-10-12 | Part B: loot = pick 1 of 3 after each guard + 2 gear in shops; boss with two phases | user picks "A, A" |
+| 2026-10-13 | Run: hold B, one slow ring, only PERFECT escapes; a miss loses the turn; never from bosses | user design; holding stops accidental runs |
+| 2026-10-13 | One press per skill or follow-up ring: an early press spends it as a miss | user found a second press after an early one still scored |
+| 2026-10-13 | Fight menu: A attack, X skills, Y items, B run, RT ultimate; no cursor | user layout (Expedition 33 style) |
+| 2026-10-13 | Hit markers off; training ring only in practice, not in Settings | user: the circle on enemy hits made the game easier |
+| 2026-10-12 | Intent shows until the first hit lands, then the hit row and markers hide | user request: a little harder, rewards remembering the pattern; the enemy's motion stays readable |
+| 2026-10-12 | Fonts: Cinzel titles, Alegreya Sans text (OFL) | user pick "font A": Octopath-like storybook titles, easy-to-read numbers |
+| 2026-10-12 | Phase 6 split: Part A UI + feedback + controller hints, Part B audio + balance | Part A can be built and judged from pictures; balance needs playtest feedback |
+| 2026-10-12 | Button hints follow the last device used; both kinds in mixed local co-op (card #45) | a pad player sees pad buttons, a keyboard player keys; mixed co-op needs both |
+| 2026-10-12 | Run fights hide the practice panel and practice keys | a run is the real game; the panel cluttered every run fight |
 | 2026-10-12 | Pause on Esc / Menu (not B); a fight pauses only between events | user request; attacks and skills are timed on the real clock and cannot be frozen fairly |
 | 2026-10-12 | Counters +25% per extra perfect hit, +50% for a parry-and-jump string (card #52) | user request: reward long and mixed strings |
 | 2026-10-12 | Party shares one level; gear is one passive per item; equipping never heals | simple to read; swapping gear must not be a free heal |

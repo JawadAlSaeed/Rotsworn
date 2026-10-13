@@ -20,12 +20,13 @@ signal roster_changed(players: PlayerRoster)
 const TITLE_SIZE: int = 64
 const PLAYER_SIZE: int = 34
 const DETAIL_SIZE: int = 26
-const HINT_SIZE: int = 24
 
 var _roster: PlayerRoster
 var _hero_names: Array[String] = []
 var _menu: ListMenu
 var _player_labels: Array[Label] = []
+## Per player line: "press [Confirm button] to join" with the button as a picture (empty slots).
+var _join_hints: Array[HintBar] = []
 var _online: bool = false
 var _is_host: bool = true
 
@@ -39,9 +40,8 @@ func setup(hero_names: Array[String], previous: PlayerRoster, first_device: int)
 	if _roster.device_of_player(0) != first_device:
 		# Someone else opened it: they are P1 now, alone.
 		_roster = PlayerRoster.solo(hero_names.size(), first_device)
-	var confirm := HudStyle.binding_text(&"menu_confirm")
-	_build("Players", "", "Join: %s on another pad or keyboard   Leave: %s\nUp/Down choose   Left/Right give a hero to another player" % [
-			confirm, HudStyle.binding_text(&"menu_cancel")])
+	_build("Players", "", [[&"@updown", "Choose"], [&"@leftright", "Give a hero"],
+			[&"menu_confirm", "Join (another pad or keyboard)"], [&"menu_cancel", "Leave"]])
 
 
 ## The online players screen. `roster` is the host's (online) roster; `is_host` false makes this
@@ -51,13 +51,12 @@ func setup_online(hero_names: Array[String], roster: PlayerRoster, is_host: bool
 	_roster = roster.copy()
 	_online = true
 	_is_host = is_host
-	var cancel := HudStyle.binding_text(&"menu_cancel")
 	if is_host:
 		var shown := ", ".join(addresses) if not addresses.is_empty() else "(no network found)"
 		_build("Host Online", "Friends join with this address:  %s   (port %d)" % [shown, port],
-				"Up/Down choose   Left/Right give a hero to another player   %s stop hosting" % cancel)
+				[[&"@updown", "Choose"], [&"@leftright", "Give a hero"], [&"menu_cancel", "Stop hosting"]])
 	else:
-		_build("Online Players", "Waiting for the host to start.", "%s leave" % cancel)
+		_build("Online Players", "Waiting for the host to start.", [[&"menu_cancel", "Leave"]])
 
 
 ## The roster as it is now (a copy).
@@ -88,26 +87,36 @@ func remove_peer(peer: int) -> void:
 		roster_changed.emit(_roster.copy())
 
 
-func _build(title: String, note: String, hint: String) -> void:
+func _build(title: String, note: String, hints: Array) -> void:
 	var column := ListMenu.screen_column(self, title, TITLE_SIZE)
 	if not note.is_empty():
 		column.add_child(ListMenu.centred_label(note, DETAIL_SIZE, HudStyle.GOLD))
 	for i: int in PlayerRoster.MAX_PLAYERS:
+		var line := HBoxContainer.new()
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.alignment = BoxContainer.ALIGNMENT_CENTER
+		line.add_theme_constant_override("separation", 10)
+		column.add_child(line)
 		var label := ListMenu.centred_label("", PLAYER_SIZE)
-		column.add_child(label)
+		line.add_child(label)
 		_player_labels.append(label)
+		var join := HintBar.new([[&"menu_confirm", "to join"]], PLAYER_SIZE, HudStyle.TEXT_DIM)
+		join.visible = false
+		line.add_child(join)
+		_join_hints.append(join)
 	column.add_child(Control.new())
 	_menu = ListMenu.new()
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(detail)
-	column.add_child(ListMenu.centred_label(hint, HINT_SIZE, HudStyle.TEXT_DIM))
+	ListMenu.screen_footer(self, hints)
 	var blank: Array[Dictionary] = []
 	for i: int in _hero_names.size() + 2:
 		blank.append({})
 	_menu.index = _hero_names.size()
 	_menu.set_items(blank, detail)
 	_refresh()
+	ButtonPrompts.listen(_refresh)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -192,6 +201,7 @@ func _player_name(player: int) -> String:
 func _refresh() -> void:
 	for i: int in _player_labels.size():
 		var label := _player_labels[i]
+		_join_hints[i].visible = false
 		if i < _roster.player_count():
 			var names := PackedStringArray()
 			for slot: int in _roster.heroes_of(i):
@@ -202,8 +212,9 @@ func _refresh() -> void:
 			label.text = "%s   waiting for a friend to join" % HudStyle.player_tag(i)
 			label.label_settings.font_color = HudStyle.TEXT_DIM
 		else:
-			label.text = "%s   press %s to join" % [HudStyle.player_tag(i), HudStyle.binding_text(&"menu_confirm")]
+			label.text = "%s   press" % HudStyle.player_tag(i)
 			label.label_settings.font_color = HudStyle.TEXT_DIM
+			_join_hints[i].visible = true
 	var coop := _roster.is_coop()
 	for slot: int in _hero_names.size():
 		var owner := _roster.owner_of(slot)

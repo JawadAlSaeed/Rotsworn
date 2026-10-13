@@ -10,9 +10,10 @@ const TITLE_SIZE: int = 64
 const TEXT_SIZE: int = 30
 const SMALL_SIZE: int = 26
 const NAME_SIZE: int = 34
-const HINT_SIZE: int = 24
 const PANEL_WIDTH: float = 430.0
 const EMPTY_TEXT := "(empty)"
+## Side padding of a gear slot row (room for the gold bar).
+const SLOT_PAD_X: int = 6
 
 var _run: RunState
 var _level: Label
@@ -21,7 +22,7 @@ var _panels: Array[PanelContainer] = []
 var _rows: Array[Dictionary] = []
 var _detail: Label
 var _bag: Label
-var _hint: Label
+var _hint: HintBar
 var _picker: ListMenu
 var _char: int = 0
 var _slot: int = 0
@@ -53,7 +54,7 @@ func setup(run: RunState, note: String = "") -> void:
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_theme_constant_override("separation", 6)
 		panel.add_child(box)
-		box.add_child(HudStyle.make_label(c.display_name, NAME_SIZE, c.color.lightened(0.25)))
+		box.add_child(HudStyle.make_title(c.display_name, NAME_SIZE, c.color.lightened(0.25)))
 		var stats := HudStyle.make_label("", SMALL_SIZE, HudStyle.TEXT_DIM)
 		box.add_child(stats)
 		var labels: Array[Label] = []
@@ -74,8 +75,7 @@ func setup(run: RunState, note: String = "") -> void:
 	_picker.item_size = TEXT_SIZE
 	_picker.visible = false
 	column.add_child(_picker)
-	_hint = ListMenu.centred_label("", HINT_SIZE, HudStyle.TEXT_DIM)
-	column.add_child(_hint)
+	_hint = ListMenu.screen_footer(self, [])
 	_redraw()
 
 
@@ -174,8 +174,9 @@ func _redraw() -> void:
 			var item: Variant = _run.gear[slot][g]
 			var selected := selected_char and g == _slot
 			var label := labels[g] as Label
-			label.text = ("> " if selected else "  ") + (item as GearData).display_name if item != null \
-					else ("> " if selected else "  ") + EMPTY_TEXT
+			label.text = (item as GearData).display_name if item != null else EMPTY_TEXT
+			# The chosen slot has the menus' gold bar (only while picking a slot, not in the picker).
+			label.add_theme_stylebox_override("normal", ListMenu.row_style(selected and not _picker.visible, SLOT_PAD_X))
 			label.label_settings.font_color = HudStyle.GOLD if selected else (HudStyle.TEXT if item != null else HudStyle.TEXT_DIM)
 	var worn: Variant = _run.gear[_char][_slot]
 	_detail.text = (worn as GearData).description if worn != null else "Empty slot."
@@ -188,11 +189,10 @@ func _redraw() -> void:
 
 func _redraw_hint() -> void:
 	if _picker.visible:
-		_hint.text = "Up/Down choose   %s select   %s back" % [HudStyle.binding_text(&"menu_confirm"),
-				HudStyle.binding_text(&"menu_cancel")]
+		_hint.set_entries([[&"@updown", "Choose"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]])
 	else:
-		_hint.text = "Left/Right character   Up/Down slot   %s change   %s done" % [
-				HudStyle.binding_text(&"menu_confirm"), HudStyle.binding_text(&"menu_cancel")]
+		_hint.set_entries([[&"@leftright", "Character"], [&"@updown", "Slot"], [&"menu_confirm", "Change"],
+				[&"menu_cancel", "Done"]])
 
 
 func _pressed(event: InputEvent, action: StringName) -> bool:

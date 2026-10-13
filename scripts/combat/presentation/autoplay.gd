@@ -72,7 +72,7 @@ func _process(_delta: float) -> void:
 	if not _runner.is_defending() and not _skill_runner.is_defending():
 		return
 	match _mode:
-		CombatOptions.AUTOPLAY_PERFECT:
+		CombatOptions.AUTOPLAY_PERFECT, CombatOptions.AUTOPLAY_ESCAPE:
 			_press_perfectly()
 		CombatOptions.AUTOPLAY_MASH:
 			_mash()
@@ -92,6 +92,11 @@ func on_menu_opened(actor_id: int) -> void:
 	if not _menu.is_open() or _mirror.turn != turn or _mirror.active_actor != actor_id:
 		return
 	var choice := _pick_ability()
+	if choice != null and choice.escape:
+		# Run like a player: hold Back until the ring around it fills (DESIGN.md 2.13).
+		_menu.hold_run()
+		_menu_picks += 1
+		return
 	if choice == null or not _menu.choose(choice.id, _pick_target(choice)):
 		print("AUTOPLAY_ERROR could not choose an ability for fighter %d" % actor_id)
 		return
@@ -148,7 +153,9 @@ func _pick_ability() -> AbilityData:
 	var usable: Array[AbilityData] = []
 	var basic: AbilityData = null
 	for ability: AbilityData in _menu.abilities():
-		if not _menu.is_usable(ability.id):
+		if ability.escape and _mode == CombatOptions.AUTOPLAY_ESCAPE and _menu.is_usable(ability.id):
+			return ability
+		if not _menu.is_usable(ability.id) or ability.escape:
 			continue
 		if ability.team_ultimate or ability.revive_percent > 0:
 			return ability

@@ -16,7 +16,6 @@ const ITEMS: Array[StringName] = [NEW_RUN, HOST_ONLINE, JOIN_ONLINE, PRACTICE, S
 const TITLE_SIZE: int = 96
 const SUBTITLE_SIZE: int = 30
 const DETAIL_SIZE: int = 26
-const HINT_SIZE: int = 24
 
 var _menu: ListMenu
 
@@ -33,14 +32,13 @@ func setup(start_item: StringName = NEW_RUN, notice: String = "") -> void:
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(detail)
-	column.add_child(ListMenu.centred_label("Up/Down choose   %s select" % HudStyle.binding_text(&"menu_confirm"),
-			HINT_SIZE, HudStyle.TEXT_DIM))
+	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Select"]])
 	var items: Array[Dictionary] = [
 		{"text": "New Run", "detail": "About 8 stops: zones, shops and rests, then the final fight."},
 		{"text": "Host Online", "detail": "Start a run friends can join from their own PCs."},
 		{"text": "Join Online", "detail": "Join a friend's run: type the address their screen shows."},
 		{"text": "Practice", "detail": "Any fight or zone on its own, at full HP."},
-		{"text": "Settings", "detail": "Volume, fullscreen, training ring, lag calibration, controls."},
+		{"text": "Settings", "detail": "Volume, fullscreen, lag calibration, controls."},
 		{"text": "Quit", "detail": ""},
 	]
 	_menu.index = maxi(0, ITEMS.find(start_item))

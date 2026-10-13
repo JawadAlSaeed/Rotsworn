@@ -288,6 +288,50 @@ extends Resource
 @export_range(8.0, 96.0, 1.0) var intent_icon_px: float = 30.0
 ## The intent sign sits this far below the enemy's feet on screen (pixels at 1080p).
 @export_range(0.0, 400.0, 1.0) var intent_sign_gap_px: float = 12.0
+## The defence controls (bottom left) show only while an enemy attack plays; they fade in and out
+## over this long.
+@export_range(0, 2000, 1, "suffix:ms") var controls_fade_ms: int = 140
+
+@export_group("Feedback")
+## HP bars: the part a hit took stays lit in this colour, then drains away (card #38).
+@export var hp_trail_color: Color = Color(1.0, 0.92, 0.6)
+@export_range(0, 3000, 1, "suffix:ms") var hp_trail_hold_ms: int = 350
+@export_range(0, 3000, 1, "suffix:ms") var hp_trail_drain_ms: int = 450
+## A heal fills the bar over this long.
+@export_range(0, 3000, 1, "suffix:ms") var heal_fill_ms: int = 300
+## Sparks when a party strike lands, and when a counter lands.
+@export_range(0, 32) var sparks_per_strike: int = 5
+@export_range(0, 48) var sparks_per_counter: int = 12
+@export var strike_spark_color: Color = Color(1.0, 0.95, 0.8)
+## A full-screen flash that fades over screen_flash_ms: its strength (0 to 1) on a counter, the
+## team ultimate, a hero going down and an enemy's phase change.
+@export_range(0, 2000, 1, "suffix:ms") var screen_flash_ms: int = 180
+@export_range(0.0, 1.0, 0.01) var screen_flash_counter: float = 0.18
+@export_range(0.0, 1.0, 0.01) var screen_flash_ultimate: float = 0.35
+@export_range(0.0, 1.0, 0.01) var screen_flash_downed: float = 0.25
+@export_range(0.0, 1.0, 0.01) var screen_flash_phase: float = 0.3
+## A beaten enemy dissolves into rot over this long, with a burst of motes in this colour; the
+## dissolving edge glows in death_edge_color.
+@export_range(0, 5000, 1, "suffix:ms") var death_dissolve_ms: int = 800
+@export_range(0, 64) var death_sparks: int = 16
+@export var death_spark_color: Color = Color(0.72, 0.88, 0.36)
+@export var death_edge_color: Color = Color(0.85, 1.0, 0.45)
+## Damage of at least this percent of the target's max HP shows a bigger number.
+@export_range(0, 100, 1, "suffix:%") var big_hit_percent: int = 15
+@export_range(1.0, 3.0, 0.05) var big_hit_scale: float = 1.4
+## When a standing hero is at or under this percent of max HP, the screen edges pulse red.
+@export_range(0, 100, 1, "suffix:%") var danger_hp_percent: int = 25
+@export_range(0.0, 1.0, 0.01) var danger_vignette_alpha: float = 0.35
+@export_range(0.1, 5.0, 0.05, "suffix:Hz") var danger_pulse_hz: float = 1.1
+## The team gauge glows in and out this fast while the ultimate is ready.
+@export_range(0.1, 5.0, 0.05, "suffix:Hz") var gauge_ready_pulse_hz: float = 1.5
+## A hero who runs (DESIGN.md 2.13) dashes this far back (world units) while fading out over
+## escape_run_ms.
+@export_range(0.0, 20.0, 0.1) var escape_run_distance: float = 5.0
+@export_range(0, 3000, 1, "suffix:ms") var escape_run_ms: int = 600
+## At the top of each pulse the ready gauge's gold glow reaches this far out of its frame
+## (pixels at 1080p).
+@export_range(0.0, 64.0, 1.0) var gauge_ready_glow_px: float = 16.0
 
 @export_group("Skills")
 ## A party member steps this far toward the enemy before a skill's first press (share of the way

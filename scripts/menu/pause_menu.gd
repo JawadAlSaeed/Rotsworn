@@ -31,18 +31,19 @@ func setup(leave_text: String, leave_detail: String) -> void:
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override("separation", 18)
 	add_child(column)
-	column.add_child(ListMenu.centred_label("PAUSED", TITLE_SIZE, HudStyle.GOLD))
+	column.add_child(ListMenu.centred_title("PAUSED", TITLE_SIZE))
+	column.add_child(ListMenu.divider())
 	_menu = ListMenu.new()
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(detail)
 	var items: Array[Dictionary] = [
-		{"text": "Continue", "detail": "%s or %s also continues." % [HudStyle.binding_text(&"pause"),
-				HudStyle.binding_text(&"menu_cancel")]},
-		{"text": "Settings", "detail": "Volume, fullscreen, training ring, lag calibration."},
+		{"text": "Continue", "detail": ""},
+		{"text": "Settings", "detail": "Volume, fullscreen, lag calibration, controls."},
 		{"text": leave_text, "detail": leave_detail},
 	]
 	_menu.set_items(items, detail)
+	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Select"], [&"pause", "Continue"]])
 
 
 func _unhandled_input(event: InputEvent) -> void:

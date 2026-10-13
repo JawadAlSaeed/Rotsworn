@@ -9,7 +9,6 @@ signal chosen(item: GearData)
 const TITLE_SIZE: int = 72
 const TEXT_SIZE: int = 30
 const DETAIL_SIZE: int = 28
-const HINT_SIZE: int = 24
 
 var _items: Array[GearData] = []
 var _menu: ListMenu
@@ -23,8 +22,7 @@ func setup(items: Array[GearData]) -> void:
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(detail)
-	column.add_child(ListMenu.centred_label("Up/Down choose   %s take" % HudStyle.binding_text(&"menu_confirm"),
-			HINT_SIZE, HudStyle.TEXT_DIM))
+	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Take"]])
 	var list: Array[Dictionary] = []
 	for item: GearData in items:
 		list.append({"text": item.display_name, "detail": item.description})

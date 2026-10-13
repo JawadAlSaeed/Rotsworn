@@ -74,7 +74,9 @@ extends RefCounted
 ##   practice_changed        {invulnerable_party, immortal_enemies, force_attack}
 ##                           also emitted (before timed_sequence_declared) when a forced
 ##                           attack is used and force_attack clears
-##   combat_ended            {result}        "victory" | "defeat"
+##   escaped                 {character}     that hero ran from the fight (Run, DESIGN.md 2.13)
+##   combat_ended            {result}        "victory" | "defeat" | "escaped" (every hero still
+##                                           standing ran, DESIGN.md 2.13)
 ##   command_rejected        {reason, command}   private to the sender; never broadcast/replayed
 
 ## combat_started "opening" names, by CombatSetup.Opening.
@@ -124,7 +126,7 @@ var sequence: Dictionary = {}
 var team_gauge: int = 0
 ## Enemy id -> {attack: String, targets: Array[int]}: what it does on its next turn.
 var intents: Dictionary = {}
-## "victory" or "defeat" once the fight is over.
+## "victory", "defeat" or "escaped" once the fight is over.
 var result: String = ""
 ## Practice options (only changeable when the setup allows practice).
 var practice: Dictionary = {"invulnerable_party": false, "immortal_enemies": false, "force_attack": ""}
@@ -230,7 +232,17 @@ func living_enemy_ids() -> Array[int]:
 func downed_party_ids() -> Array[int]:
 	var ids: Array[int] = []
 	for id: int in party_ids():
-		if not get_combatant(id).is_alive():
+		var c := get_combatant(id)
+		if not c.is_alive() and not c.escaped:
+			ids.append(id)
+	return ids
+
+
+## Party members who ran from the fight (DESIGN.md 2.13).
+func escaped_party_ids() -> Array[int]:
+	var ids: Array[int] = []
+	for id: int in party_ids():
+		if get_combatant(id).escaped:
 			ids.append(id)
 	return ids
 
@@ -337,6 +349,8 @@ func _build_lookups() -> void:
 			_abilities[ability.id] = ability
 	if _setup.team_ultimate != null:
 		_abilities[_setup.team_ultimate.id] = _setup.team_ultimate
+	if _setup.can_run and _setup.run_ability != null:
+		_abilities[_setup.run_ability.id] = _setup.run_ability
 	for data: EnemyData in _setup.enemies:
 		for attack: EnemyAttackData in data.attacks + data.phase_two_attacks:
 			_attacks[attack.id] = attack
@@ -363,6 +377,8 @@ func _build_combatants() -> void:
 			c.ability_ids.append(ability.id)
 		if _setup.team_ultimate != null:
 			c.ability_ids.append(_setup.team_ultimate.id)
+		if _setup.can_run and _setup.run_ability != null:
+			c.ability_ids.append(_setup.run_ability.id)
 		c.next_turn_at = Timeline.turn_cost(c.speed, tuning.timeline_base)
 		combatants.append(c)
 		slot += 1
@@ -517,7 +533,8 @@ func _check_end(events: Array[Dictionary]) -> bool:
 	if living_enemy_ids().is_empty():
 		outcome = "victory"
 	elif living_party_ids().is_empty():
-		outcome = "defeat"
+		# Nobody is left standing in the fight: if anyone got away, the party escaped.
+		outcome = "escaped" if not escaped_party_ids().is_empty() else "defeat"
 	if outcome.is_empty():
 		return false
 	result = outcome
@@ -821,7 +838,8 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 				miss = CombatMath.percent(good, tuning.skill_miss_damage_percent)
 			press_idxs.append(prompts.size())
 			prompts.append(_prompt(prompts.size(), hit_index, striker_id, at_ms, AttackHitData.Kind.PRESS,
-					Defense.build_windows(AttackHitData.Kind.PRESS, tuning), miss, good, perfect, ROLE_PRESS, []))
+					Defense.build_windows(AttackHitData.Kind.PRESS, tuning, ability.perfect_window_percent),
+					miss, good, perfect, ROLE_PRESS, []))
 	if ability.follow_ups and damaging and not ability.team_ultimate:
 		var last_ms := ability.press_times_ms[ability.press_times_ms.size() - 1]
 		var order := 0
@@ -874,6 +892,13 @@ func _maybe_land_skill(events: Array[Dictionary]) -> void:
 	sequence.landed = true
 	var actor := get_combatant(int(sequence.source))
 	var ability := get_ability(String(sequence.action))
+	if ability.escape:
+		# Run: only a perfect press gets this hero out of the fight.
+		if all_perfect and any_press:
+			actor.escaped = true
+			events.append({"type": "escaped", "character": actor.id})
+			_on_downed(actor, events)
+		return
 	var targets: Array[int] = []
 	targets.assign(sequence.targets)
 	_apply_effects(actor, ability, targets, all_perfect and any_press, int(sequence.exposed_target), events)
@@ -1293,7 +1318,7 @@ func _gear_ap_on_counter(actor: Combatant, events: Array[Dictionary]) -> void:
 func _second_winds(events: Array[Dictionary]) -> void:
 	for c: Combatant in combatants:
 		var pct := Passive.amount(c, Passive.SECOND_WIND)
-		if c.is_party() and not c.is_alive() and pct > 0 and not c.second_wind_used:
+		if c.is_party() and not c.is_alive() and not c.escaped and pct > 0 and not c.second_wind_used:
 			c.second_wind_used = true
 			_revive(c, c, pct, events)
 

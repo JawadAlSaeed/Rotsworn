@@ -59,7 +59,9 @@ whenever a decision is made or changed.
   Console build (for headless runs): `C:\Users\Drago\Godot\Godot_v4.7.2-stable_win64_console.exe`.
   Override either with the `GODOT` environment variable.
 - Tests: GUT 9.7.1 in `addons/gut`. Always run them with `run_tests.bat --no-pause` (from bash:
-  `cmd //c run_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name` makes
+  `cmd //c run_tests.bat --no-pause`; if cmd says "not recognized", run it from PowerShell:
+  `& .
+un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name` makes
   plain GUT skip files silently) and fails if any test file did not load or the log shows a
   script error. Run `--headless --path . --import` before any `-s` tool script too.
 - Tests must pass headless before you tell the user a phase is done.
@@ -68,8 +70,8 @@ whenever a decision is made or changed.
   export templates, installed). Online players must all run the same build (the content
   fingerprint differs between a build and a run from the editor).
 - Smoke test the whole fight without a human: run the game with `-- --autoplay` (bot defends
-  and presses perfectly), `-- --autoplay=miss` (never presses) or `-- --autoplay=mash` (mashes
-  buttons). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
+  and presses perfectly), `-- --autoplay=miss` (never presses), `-- --autoplay=mash` (mashes
+  buttons) or `-- --autoplay=escape` (presses perfectly and runs on its first turn). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
   from `data/encounters/` (default `husk_fight`), `--first-strike` to start it with the advantage,
   or `--zone=rotten_hollow` to have the bot walk the zone and fight every roaming enemy (ends with
   `AUTOPLAY_RESULT zone_clear` or `zone_defeat`), or `--run` to have the bot play a whole run
@@ -80,6 +82,10 @@ whenever a decision is made or changed.
   `--autoplay --join=127.0.0.1 --quit-on-end`; both must print the same `AUTOPLAY_RESULT` and
   `AUTOPLAY_MIRROR` lines (use `timeout 1500`). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
+- To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
+  every S seconds in `%APPDATA%/Godot/app_userdata/Rotten Lands/shots/<name>/`), combined with
+  `--screen=menu|settings|players|practice`, `--autoplay`, `--run` etc.; `--pad-prompts` shows pad
+  buttons. Look at the pictures before telling the user a visual change is done.
 - Always run headless Godot commands with a timeout (`timeout 120 ...`): a script error in a
   `-s` script leaves Godot running forever.
 
@@ -150,13 +156,14 @@ whenever a decision is made or changed.
 - `scripts/run/` the run: `RunMap` and `RunState` (pure, tested), map, shop, rest, loot, party
   and run-end screens, the gold and HP strip
 - `scripts/menu/` main menu, players screen (co-op lobby), settings, pause menu, yes/no prompt,
-  the shared `ListMenu`
+  the shared `ListMenu`, `MenuBackdrop`, `HintBar` (button chip hints) and `PromptLabel`
 - `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested) and `DeviceInput`
   (reading one device)
 - `scripts/net/` online: `DefenseArbiter` (host referee, pure, tested), `DataHash` (content
   fingerprint for the handshake)
 - `scripts/autoload/` global singletons (`Audio`, `UserSettings` = `PlayerSettings`, saved per
-  machine in `user://settings.cfg`, `Net` = `NetSession`, the online connection)
+  machine in `user://settings.cfg`, `Net` = `NetSession`, the online connection, `Prompts` =
+  `ButtonPrompts`, which buttons the hints show)
 - `scenes/` scenes
 - `tests/unit/` GUT tests
 - `tools/` headless helper scripts (placeholder generation, data bootstrap, `bootstrap_run.gd`

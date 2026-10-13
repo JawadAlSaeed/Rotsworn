@@ -70,9 +70,18 @@ extends Resource
 ## A whoosh when the enemy starts each lunge or slam (the sound of the motion). Toggle in a fight
 ## with F1 > L.
 @export var play_motion_sounds: bool = true
-## When a hit's motion starts, its icon pops up beside each target (and a floor warning glows
-## under them for a ground hit) until it lands. Toggle in a fight with F1 > H.
+## When a hit's motion starts, its icon pops up in a circle beside each target (and a floor warning
+## glows under them for a ground hit) until it lands. Off since phase 6 (user: the circle made the
+## game easier); the floor warning then still shows. Toggle in a practice fight with F1 > H.
 @export var show_hit_markers: bool = true
+## Harder reading (phase 6): the attack's hits (how many, which kind) show on the intent sign and
+## the attack banner until the first hit lands; from then on the banner's hit row and the hit
+## markers are hidden, so the rest of the string must be remembered. The enemy's own motion
+## (wind-up glow, crouch, floor warning) still shows each hit.
+@export var hide_intent_after_first_hit: bool = true
+## Run (DESIGN.md 2.13): hold Back (B / Backspace) this long on the action menu to try to run,
+## so a tap never runs by accident.
+@export_range(0, 3000, 10, "suffix:ms") var run_hold_ms: int = 500
 ## The enemy crouches while it winds up and springs out of it as the lunge or slam starts.
 ## Toggle in a fight with F1 > C.
 @export var show_windup_crouch: bool = true

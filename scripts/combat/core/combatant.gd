@@ -38,10 +38,13 @@ var passives: Dictionary = {}
 var second_wind_used: bool = false
 ## Enemy phase: 1, or 2 once it has dropped under its phase two HP (bosses).
 var phase: int = 1
+## Ran from the fight (DESIGN.md 2.13): out of it for good, neither standing nor downed.
+var escaped: bool = false
 
 
+## Standing in the fight (not downed, not escaped).
 func is_alive() -> bool:
-	return hp > 0
+	return hp > 0 and not escaped
 
 
 func is_party() -> bool:
@@ -73,6 +76,7 @@ static func from_dict(d: Dictionary) -> Combatant:
 	c.passives = (d.get("passives", {}) as Dictionary).duplicate()
 	c.second_wind_used = bool(d.get("second_wind_used", false))
 	c.phase = int(d.get("phase", 1))
+	c.escaped = bool(d.get("escaped", false))
 	return c
 
 
@@ -97,4 +101,5 @@ func to_dict() -> Dictionary:
 		"passives": passives.duplicate(),
 		"second_wind_used": second_wind_used,
 		"phase": phase,
+		"escaped": escaped,
 	}

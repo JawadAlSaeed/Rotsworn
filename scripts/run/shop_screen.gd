@@ -9,7 +9,6 @@ signal done
 const TITLE_SIZE: int = 72
 const TEXT_SIZE: int = 30
 const DETAIL_SIZE: int = 26
-const HINT_SIZE: int = 24
 
 var _run: RunState
 var _gear: Array[GearData] = []
@@ -38,8 +37,7 @@ func setup(run: RunState, gear: Array[GearData]) -> void:
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(detail)
-	column.add_child(ListMenu.centred_label("Up/Down choose   %s buy   %s back" % [
-			HudStyle.binding_text(&"menu_confirm"), HudStyle.binding_text(&"menu_cancel")], HINT_SIZE, HudStyle.TEXT_DIM))
+	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Buy"], [&"menu_cancel", "Back"]])
 	_menu.set_items([], detail)
 	_show_items()
 

@@ -229,6 +229,7 @@ func _ready() -> void:
 	add_child(hud)
 	hud.setup(view, _visuals, _tuning)
 	hud.action_menu.chosen.connect(_on_ability_chosen)
+	hud.action_menu.run_hold_ms = _tuning.run_hold_ms
 	hud.action_menu.target_changed.connect(_on_target_changed)
 	hud.calibration.setup(_visuals, _tuning, defense_input)
 
@@ -262,6 +263,8 @@ func _ready() -> void:
 	var setup := _run.fight_setup(_encounter, _pick_seed(), _opening) if _run != null 			else CombatSetup.from_encounter(_encounter, _tuning, _pick_seed(), _opening)
 	_setup = setup
 	setup.allow_practice = _tuning.practice_tools_enabled or _options.is_autoplay()
+	# A run is the real game: no training ring there (practice fights may still use it, F1 > R).
+	runner.training_ring_allowed = _run == null
 	print("Combat seed: %d  encounter: %s  opening: %s" % [setup.rng_seed, _encounter.id,
 			CombatEngine.OPENING_NAMES[setup.opening]])
 	for data: CharacterData in setup.party:
@@ -269,6 +272,8 @@ func _ready() -> void:
 			_abilities[ability.id] = ability
 	if setup.team_ultimate != null:
 		_abilities[setup.team_ultimate.id] = setup.team_ultimate
+	if setup.can_run and setup.run_ability != null:
+		_abilities[setup.run_ability.id] = setup.run_ability
 	for enemy: EnemyData in setup.enemies:
 		for attack: EnemyAttackData in enemy.attacks:
 			_attacks[attack.id] = attack
@@ -578,7 +583,7 @@ func _play(ev: Dictionary) -> void:
 		"downed":
 			mirror.apply(ev)
 			_show_downed(int(ev.target))
-		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge", "enemy_phase":
+		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge", "enemy_phase", "escaped":
 			mirror.apply(ev)
 			_show_feedback(ev)
 		"timed_sequence_declared":
@@ -656,6 +661,8 @@ func _maybe_open_menu() -> void:
 	var abilities := data.all_abilities()
 	if _setup.team_ultimate != null:
 		abilities.append(_setup.team_ultimate)
+	if _setup.can_run and _setup.run_ability != null:
+		abilities.append(_setup.run_ability)
 	var entries: Array[Dictionary] = []
 	for ability: AbilityData in abilities:
 		entries.append(_menu_entry(actor, ability))
@@ -727,9 +734,16 @@ func _on_combat_ended(result: String) -> void:
 	_ended_at_us = Time.get_ticks_usec()
 	hud.action_menu.close()
 	_set_active_pose(-1)
-	Sfx.play("victory" if result == "victory" else "defeat")
+	match result:
+		"victory":
+			Sfx.play("victory")
+		"escaped":
+			Sfx.play("dodge")
+		_:
+			Sfx.play("defeat")
 	view.camera.shot_end(view.arena_centre())
-	hud.show_end(result, _summary_text(), _end_hint())
+	var hints := _end_hints()
+	hud.show_end(result, _summary_text(), hints, "The host goes on for everyone." if _net_mode == NetMode.CLIENT else "")
 	if _options.is_autoplay():
 		_check_mirror()
 		if _net_mode != NetMode.LOCAL:
@@ -753,19 +767,19 @@ func _on_press_judged(action: int, report: Dictionary) -> void:
 		_defended[key] = int(_defended.get(key, 0)) + 1
 
 
-## What the end screen's buttons do.
-func _end_hint() -> String:
-	var confirm := HudStyle.binding_text(&"menu_confirm")
+## What the end screen's buttons do ([[action, text], ...] for the HUD's hint bar). R (fight
+## again) is a keyboard extra and is not listed.
+func _end_hints() -> Array:
+	var stats := [&"debug_overlay", "Stats"]
 	if _net_mode == NetMode.CLIENT:
-		return "The host goes on for everyone.      F1: stats"
+		return [stats]
 	if _run != null:
-		if _result != "victory":
-			return "%s:  see how the run went      F1: stats" % confirm
-		return "%s:  %s      F1: stats" % [confirm, "back to the zone" if _from_zone else "on with the run"]
+		if _result == "defeat":
+			return [[&"menu_confirm", "See how the run went"], stats]
+		return [[&"menu_confirm", "Back to the zone" if _from_zone else "On with the run"], stats]
 	if _from_zone:
-		return "%s:  back to the zone      R:  fight again      F1: stats" % confirm
-	return "%s  or  R:  fight again      %s:  choose a fight      F1: stats" % [confirm,
-			HudStyle.binding_text(&"menu_cancel")]
+		return [[&"menu_confirm", "Back to the zone"], stats]
+	return [[&"menu_confirm", "Fight again"], [&"menu_cancel", "Choose a fight"], stats]
 
 
 func _summary_text() -> String:
@@ -928,8 +942,12 @@ func _strike(actors: Array[int], target: int, sfx: String, results: Array[Dictio
 	if is_counter:
 		view.camera.shake(_visuals.shake_counter, _visuals.shake_counter_ms)
 		view.camera.punch(_visuals.punch_counter, _visuals.punch_ms)
+		hud.screen_flash(HudStyle.PARRY, _visuals.screen_flash_counter)
 	else:
 		view.camera.shake(_visuals.shake_strike, _visuals.shake_strike_ms)
+	if enemy != null:
+		view.spawn_sparks(enemy.centre_position(), _visuals.sparks_per_counter if is_counter else _visuals.sparks_per_strike,
+				1.0, _visuals.strike_spark_color)
 	for ev: Dictionary in results:
 		mirror.apply(ev)
 		if String(ev.type) == "damage":
@@ -962,7 +980,9 @@ func _show_damage(ev: Dictionary) -> void:
 	if v == null:
 		return
 	var to_enemy := not mirror.party_ids.has(int(ev.target))
-	hud.damage_number(int(ev.amount), v.head_position(), HudStyle.DAMAGE_DEALT if to_enemy else HudStyle.DAMAGE_TAKEN)
+	var max_hp := maxi(1, int(mirror.fighter(int(ev.target)).get("max_hp", 1)))
+	var big := int(ev.amount) * 100 >= max_hp * _visuals.big_hit_percent
+	hud.damage_number(int(ev.amount), v.head_position(), HudStyle.DAMAGE_DEALT if to_enemy else HudStyle.DAMAGE_TAKEN, big)
 	v.flash(_visuals.flash_ms)
 	if mirror.is_alive(int(ev.target)):
 		v.play_pose(EnemyChoreography.Pose.HURT if to_enemy else FighterView.CharPose.HURT, _visuals.hurt_pose_ms)
@@ -976,6 +996,16 @@ func _show_feedback(ev: Dictionary) -> void:
 	var v := view.fighter(target)
 	var head := v.head_position() if v != null else Vector3.ZERO
 	match type:
+		"escaped":
+			# The hero runs off the stage and fades out (DESIGN.md 2.13).
+			Sfx.play("dodge")
+			hud.popup("ESCAPED", head, HudStyle.JUMP)
+			if v != null:
+				v.clear_timed_pose()
+				v.set_pose(FighterView.CharPose.DODGE)
+				v.move_body(Vector3(-_visuals.escape_run_distance, 0.0, 0.0), float(_visuals.escape_run_ms) / 1000.0,
+						Tween.TRANS_QUAD, Tween.EASE_IN)
+				v.dissolve(_visuals.escape_run_ms, HudStyle.JUMP)
 		"ap_changed":
 			if int(ev.delta) > 0:
 				Sfx.play("ap_gain")
@@ -986,6 +1016,7 @@ func _show_feedback(ev: Dictionary) -> void:
 			Sfx.play("gauge_full")
 			if boss != null:
 				boss.flash(_visuals.flash_ms * 4, HudStyle.LATE, 0.9)
+			hud.screen_flash(HudStyle.LATE, _visuals.screen_flash_phase)
 			var text := String(ev.get("text", ""))
 			hud.show_center_banner(text if not text.is_empty() else "IT GROWS FURIOUS!", HudStyle.LATE,
 					_visuals.first_strike_banner_ms)
@@ -1025,8 +1056,13 @@ func _show_downed(id: int) -> void:
 	v.set_glow(0.0)
 	if mirror.party_ids.has(id):
 		v.set_pose(FighterView.CharPose.DOWN)
+		hud.screen_flash(HudStyle.DAMAGE_TAKEN, _visuals.screen_flash_downed)
 	else:
+		# A beaten enemy crumbles into rot (card #38).
 		v.set_pose(EnemyChoreography.Pose.HURT)
+		v.flash(_visuals.flash_ms * 2, _visuals.death_edge_color, 0.8)
+		v.dissolve(_visuals.death_dissolve_ms, _visuals.death_edge_color)
+		view.spawn_sparks(v.centre_position(), _visuals.death_sparks, 1.0, _visuals.death_spark_color)
 
 
 ## Ready pose for the party member whose turn it is (-1: nobody).
@@ -1053,9 +1089,12 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 	if hud.overlay.visible:
 		match key:
 			KEY_R:
-				PlayerSettings.set_show_timing_ring(not PlayerSettings.show_timing_ring(_tuning))
+				# The training ring is a practice aid: a run fight is the real game.
+				if _run == null:
+					PlayerSettings.set_show_timing_ring(not PlayerSettings.show_timing_ring(_tuning))
 				return true
-			KEY_F:
+			KEY_G:
+				# G, not F: F is the keyboard Skills button (fight_skills).
 				_options.telegraph_flash = not _options.telegraph_flash
 				return true
 			KEY_T:
@@ -1078,14 +1117,15 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 		KEY_F2:
 			# Only while the game waits for a menu choice, never during an attack or a skill.
 			if hud.action_menu.is_open() and not _runner_active():
+				hud.action_menu.cancel_hold()
 				hud.calibration.open()
 			return true
 		KEY_I:
-			if engine.phase != CombatEngine.Phase.ENDED:
+			if engine.phase != CombatEngine.Phase.ENDED and _run == null:
 				_enqueue(_submit(CombatCommands.practice({"invulnerable_party": not bool(mirror.practice.invulnerable_party)})))
 			return true
 		KEY_O:
-			if engine.phase != CombatEngine.Phase.ENDED:
+			if engine.phase != CombatEngine.Phase.ENDED and _run == null:
 				_enqueue(_submit(CombatCommands.practice({"immortal_enemies": not bool(mirror.practice.immortal_enemies)})))
 			return true
 		KEY_R:
@@ -1094,6 +1134,9 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 				restart_requested.emit()
 			return true
 	var index := PRACTICE_ATTACK_KEYS.find(key)
+	if index >= 0 and _run != null:
+		# A run fight is the real game: no forcing attacks.
+		return false
 	if index >= 0:
 		var attacks := _practice_attacks()
 		# The engine is already over while the last strike or attack still plays: nothing to force.
@@ -1117,8 +1160,9 @@ func _practice_attacks() -> Array[EnemyAttackData]:
 
 
 func _practice_text() -> String:
-	# Online the practice keys are off (they would change everyone's fight).
-	if not _tuning.practice_tools_enabled or _net_mode != NetMode.LOCAL:
+	# Online the practice keys are off (they would change everyone's fight), and a run fight is the
+	# real game: no practice panel there (F1 and F2 still work).
+	if not _tuning.practice_tools_enabled or _net_mode != NetMode.LOCAL or _run != null:
 		return ""
 	var forced := String(mirror.practice.get("force_attack", ""))
 	var attacks := _practice_attacks()

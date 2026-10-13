@@ -41,6 +41,11 @@ const STATUS_COLORS := {
 }
 
 const OUTLINE_RATIO: float = 0.2
+## The fonts (UiFonts). load_fonts() reads them once at start-up.
+const FONTS_PATH := "res://data/presentation/ui_fonts.tres"
+
+static var _title_font: Font
+static var _body_font: Font
 
 ## Xbox-style names for pad buttons in control hints.
 const PAD_BUTTON_NAMES := {
@@ -51,6 +56,68 @@ const PAD_BUTTON_NAMES := {
 	JOY_BUTTON_DPAD_UP: "D-pad up", JOY_BUTTON_DPAD_DOWN: "D-pad down",
 	JOY_BUTTON_DPAD_LEFT: "D-pad left", JOY_BUTTON_DPAD_RIGHT: "D-pad right",
 }
+
+## Xbox names for the triggers (they are axes, not buttons, in Godot).
+const PAD_AXIS_NAMES := {JOY_AXIS_TRIGGER_LEFT: "LT", JOY_AXIS_TRIGGER_RIGHT: "RT"}
+
+## Chip shape, as shares of the hint's font size or of the chip's height.
+const CHIP_HEIGHT_SHARE: float = 1.25
+const CHIP_TEXT_SHARE: float = 0.8
+## Movement "buttons" for hints: token -> [keyboard, pad].
+const NAV_TOKENS := {
+	&"@updown": ["↑↓", "D-pad ↑↓"], &"@leftright": ["←→", "D-pad ←→"],
+	&"@arrows": ["←↑→↓", "D-pad"], &"@move": ["WASD", "L-stick"],
+}
+
+
+## Loads the game's fonts (data/presentation/ui_fonts.tres) and makes the body font the default
+## for every Label and control. Call once at start-up, before any UI is built.
+static func load_fonts() -> void:
+	var data := load(FONTS_PATH) as UiFonts
+	if data == null:
+		push_warning("HudStyle: could not load %s, using the built-in font" % FONTS_PATH)
+		data = UiFonts.new()
+	_body_font = _font_file(data.body_font_path)
+	var title := _font_file(data.title_font_path)
+	if title != null:
+		var weighted := FontVariation.new()
+		weighted.base_font = title
+		weighted.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): data.title_weight}
+		_title_font = weighted
+	if _body_font != null:
+		ThemeDB.get_default_theme().default_font = _body_font
+		ThemeDB.fallback_font = _body_font
+
+
+static func _font_file(path: String) -> Font:
+	if path.is_empty() or not ResourceLoader.exists(path):
+		push_warning("HudStyle: font %s is missing, using the built-in font" % path)
+		return null
+	return load(path) as Font
+
+
+## The text font (the built-in one until load_fonts() ran).
+static func body_font() -> Font:
+	return _body_font if _body_font != null else ThemeDB.fallback_font
+
+
+## The title font: titles, hero and enemy names, banners.
+static func title_font() -> Font:
+	return _title_font if _title_font != null else body_font()
+
+
+## Like label_settings() but in the title font.
+static func title_settings(size: int, color: Color = TEXT) -> LabelSettings:
+	var s := label_settings(size, color)
+	s.font = title_font()
+	return s
+
+
+## Like make_label() but in the title font.
+static func make_title(text: String, size: int, color: Color = TEXT) -> Label:
+	var label := make_label(text, size, color)
+	label.label_settings = title_settings(size, color)
+	return label
 
 
 ## "P1", "P2", ... for co-op tags.
@@ -112,9 +179,13 @@ static func set_bar_color(b: ProgressBar, fill: Color) -> void:
 		fg.bg_color = fill
 
 
-## "Space / RB": the first keyboard key and the first pad button of an input action, read from
-## the Input Map so hints follow remaps made in Project Settings > Input Map.
-static func binding_text(action: StringName) -> String:
+## The first keyboard key and the first pad button of an input action: [key, pad] ("" when
+## that kind is not bound), read from the Input Map so hints follow remaps made in Project
+## Settings > Input Map. Also takes the NAV_TOKENS (moving in menus and zones).
+static func binding_parts(action: StringName) -> Array[String]:
+	if NAV_TOKENS.has(action):
+		var pair: Array = NAV_TOKENS[action]
+		return [String(pair[0]), String(pair[1])]
 	var key := ""
 	var pad := ""
 	if InputMap.has_action(action):
@@ -125,11 +196,32 @@ static func binding_text(action: StringName) -> String:
 			elif pad.is_empty() and ev is InputEventJoypadButton:
 				var button := (ev as InputEventJoypadButton).button_index
 				pad = String(PAD_BUTTON_NAMES.get(button, "Button %d" % button))
+			elif pad.is_empty() and ev is InputEventJoypadMotion and PAD_AXIS_NAMES.has((ev as InputEventJoypadMotion).axis):
+				pad = String(PAD_AXIS_NAMES[(ev as InputEventJoypadMotion).axis])
+	return [key, pad]
+
+
+## "Space", "RB" or "Space / RB": the action's button for the kind of hints shown now
+## (ButtonPrompts: keyboard keys, pad buttons, or both in mixed local co-op).
+static func binding_text(action: StringName) -> String:
+	var parts_in := binding_parts(action)
 	var parts := PackedStringArray()
-	for part: String in [key, pad]:
-		if not part.is_empty():
-			parts.append(part)
+	if ButtonPrompts.shows_keys() and not parts_in[0].is_empty():
+		parts.append(parts_in[0])
+	if ButtonPrompts.shows_pad() and not parts_in[1].is_empty():
+		parts.append(parts_in[1])
+	if parts.is_empty():
+		# The kind shown has no binding: show whatever exists rather than nothing.
+		for part: String in parts_in:
+			if not part.is_empty():
+				parts.append(part)
 	return " / ".join(parts) if not parts.is_empty() else "(not bound)"
+
+
+## A small button picture for hints (ButtonChip): round coloured A/B/X/Y, drawn Menu, View,
+## D-pad and stick symbols, dark pills for other pad buttons, light key caps for the keyboard.
+static func button_chip(button: String, pad: bool, font_size: int) -> ButtonChip:
+	return ButtonChip.new(button, pad, font_size)
 
 
 ## "+12" / "-8" for a millisecond offset.

@@ -28,6 +28,8 @@ var _lit_until_us: int = 0
 var _offsets_us: Array[int] = []
 var _title: Label
 var _text: Label
+## The button hints (save, cancel) as button pictures.
+var _hints: HintBar
 
 
 func _ready() -> void:
@@ -38,12 +40,23 @@ func _ready() -> void:
 	column.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	column.offset_top = 120.0
 	add_child(column)
-	_title = HudStyle.make_label("LAG CALIBRATION", TITLE_SIZE, HudStyle.GOLD)
+	_title = HudStyle.make_title("LAG CALIBRATION", TITLE_SIZE, HudStyle.GOLD)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_title)
+	# "Press [Parry button] exactly when the circle flashes." with the button as a picture.
+	var how := HBoxContainer.new()
+	how.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	how.alignment = BoxContainer.ALIGNMENT_CENTER
+	how.add_theme_constant_override("separation", 10)
+	how.add_child(HudStyle.make_label("Press", TEXT_SIZE))
+	how.add_child(HintBar.new([[&"defend_parry", ""]], TEXT_SIZE, HudStyle.TEXT))
+	how.add_child(HudStyle.make_label("exactly when the circle flashes.", TEXT_SIZE))
+	column.add_child(how)
 	_text = HudStyle.make_label("", TEXT_SIZE)
 	_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_text)
+	_hints = HintBar.new([], TEXT_SIZE, HudStyle.TEXT)
+	column.add_child(_hints)
 	visible = false
 
 
@@ -155,9 +168,6 @@ func _can_save() -> bool:
 
 func _update_text() -> void:
 	var lines := PackedStringArray()
-	var confirm := HudStyle.binding_text(&"menu_confirm")
-	var cancel := HudStyle.binding_text(&"menu_cancel")
-	lines.append("Press PARRY (%s) exactly when the circle flashes." % HudStyle.binding_text(&"defend_parry"))
 	lines.append("Beat %d / %d   presses counted: %d" % [_next_beat, _visuals.calibration_beats, _offsets_us.size()])
 	if _offsets_us.is_empty():
 		lines.append("Median offset: -")
@@ -169,12 +179,11 @@ func _update_text() -> void:
 			line += "   (saves %+d, the limit)" % saved
 		lines.append(line)
 	if _can_save():
-		lines.append("%s: save as lag compensation      %s: cancel" % [confirm, cancel])
-	elif _offsets_us.size() >= _visuals.calibration_min_presses:
-		lines.append("Too uneven to save: press WITH the beat, not after the flash.")
-		lines.append("%s: cancel" % cancel)
+		_hints.set_entries([[&"menu_confirm", "Save as lag compensation"], [&"menu_cancel", "Cancel"]])
 	else:
-		lines.append("%s: cancel" % cancel)
+		if _offsets_us.size() >= _visuals.calibration_min_presses:
+			lines.append("Too uneven to save: press WITH the beat, not after the flash.")
+		_hints.set_entries([[&"menu_cancel", "Cancel"]])
 	_text.text = "\n".join(lines)
 
 
