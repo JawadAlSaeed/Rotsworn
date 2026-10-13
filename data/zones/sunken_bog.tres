@@ -392,6 +392,7 @@ flip = true
 script = ExtResource("11_jyu1e")
 id = "sunken_bog"
 display_name = "Sunken Bog"
+footstep_sfx = "footstep_mud"
 look = ExtResource("9_7dio0")
 leader = ExtResource("7_fpga6")
 bounds_min = Vector2(-14, -21)

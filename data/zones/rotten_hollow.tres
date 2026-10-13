@@ -785,6 +785,7 @@ guard = true
 script = ExtResource("12_zone_d")
 id = "rotten_hollow"
 display_name = "Rotten Hollow"
+footstep_sfx = "footstep_grass"
 look = ExtResource("10_rotten")
 leader = ExtResource("11_brin")
 bounds_min = Vector2(-16.5, -22.5)

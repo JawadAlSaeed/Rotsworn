@@ -1,0 +1,356 @@
+{
+ "heal": {
+  "a": {
+   "name": "Warm chalice bell",
+   "desc": "A warm, low temple bell that rings softly and fades away.",
+   "note": "Main: ChaliceChime (E4 330 Hz with 887/1630 partials, sustained) lowpassed for warmth; a quiet tonal sparkle (shimmer sparkle-1) on top for the magic. Long soft fade.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/hit/ov-44fa9afa.wav",
+     "gain_db": 0,
+     "len_ms": 1350,
+     "lowpass_hz": 6000,
+     "credit": "\"ChaliceChime.wav\" by ChaliceAV, CC0, https://freesound.org/people/ChaliceAV/sounds/509926"
+    },
+    {
+     "sound": "shimmer/fs-578803-sparkle-1",
+     "gain_db": -10,
+     "at_ms": 30,
+     "len_ms": 1300,
+     "highpass_hz": 1200
+    }
+   ],
+   "len_ms": 1350,
+   "fade_ms": 700
+  },
+  "b": {
+   "name": "Airy wind chimes",
+   "desc": "A light brush of wind chimes with a faint crystal sparkle.",
+   "note": "Main: Zaphir chimes (metal rods, one cluster then a long thin tail). A quiet, highpassed atonal crystal chime run adds sparkle without a tune.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/chime/ov-32953220.wav",
+     "gain_db": 0,
+     "len_ms": 1350,
+     "credit": "\"Zaphirchimeslong.wav\" by NatBon, CC0, https://freesound.org/people/NatBon/sounds/556153"
+    },
+    {
+     "sound": "audio/search/magic/chime/ov-d3ef21b5.wav",
+     "gain_db": -11,
+     "at_ms": 60,
+     "len_ms": 1300,
+     "highpass_hz": 3000,
+     "credit": "\"MAGShim_Atonal Crystal Chime Transition.Short x20_EM\" by newlocknew, CC0, https://freesound.org/people/newlocknew/sounds/773403"
+    }
+   ],
+   "len_ms": 1350,
+   "fade_ms": 650
+  },
+  "c": {
+   "name": "Two glass tones",
+   "desc": "Two clear glass notes ringing softly, one just after the other.",
+   "note": "Main: wine glass (D#5 607 Hz, pure, slow decay). Second glass (C#6) pitched -3 to A#5 enters at 140 ms, a soft fifth above. No metal: clean glass.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/chime/ov-279d6dc2.wav",
+     "gain_db": 0,
+     "len_ms": 1350,
+     "credit": "\"20180325_Wine glass.wav\" by cabled_mess, CC0, https://freesound.org/people/cabled_mess/sounds/566925"
+    },
+    {
+     "sound": "audio/search/magic/chime/ov-bf92a302.wav",
+     "gain_db": -4,
+     "at_ms": 140,
+     "len_ms": 1200,
+     "pitch": -3,
+     "credit": "\"Jack's wine glass.mp3\" by peterannear, CC0, https://freesound.org/people/peterannear/sounds/252208"
+    }
+   ],
+   "len_ms": 1350,
+   "fade_ms": 650
+  }
+ },
+ "buff": {
+  "a": {
+   "name": "Strap and forge ring",
+   "desc": "A leather strap tugs tight, a buckle clicks, then steel rings.",
+   "note": "Main: anvil, forging hot steel (F#6, short ring) at 90 ms. Before it a small leather handle tug and the rpg metal latch: armour being tightened, then the strength ring.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/hit/ov-64046744.wav",
+     "gain_db": 0,
+     "at_ms": 90,
+     "len_ms": 480,
+     "credit": "\"Anvil - Lokomo A 100 kg - Forging hot steel 1 time short\" by ldezem, CC0, https://freesound.org/people/ldezem/sounds/386117"
+    },
+    {
+     "sound": "tap/kenney-rpg-handle-small-leather",
+     "gain_db": -12,
+     "at_ms": 0
+    },
+    {
+     "sound": "click/kenney-rpg-metal-latch",
+     "gain_db": -11,
+     "at_ms": 60
+    }
+   ],
+   "len_ms": 650,
+   "fade_ms": 250
+  },
+  "b": {
+   "name": "Bright blade ring",
+   "desc": "A bright blade rings out clean, with a tiny bell on top.",
+   "note": "Main: Dagger (4 kHz ringing blade, shing then long tonal tail). A quiet small bell (B7) adds a magic glint. Bright, clean, metallic.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/hit/ov-2fe14daf.wav",
+     "gain_db": 0,
+     "len_ms": 800,
+     "credit": "\"Dagger\" by IENBA, CC0, https://freesound.org/people/IENBA/sounds/611310"
+    },
+    {
+     "sound": "shimmer/fs-452371-small-bell-2",
+     "gain_db": -10,
+     "at_ms": 30,
+     "len_ms": 600
+    }
+   ],
+   "len_ms": 720,
+   "fade_ms": 320
+  },
+  "c": {
+   "name": "Rising bronze chimes",
+   "desc": "Three small bronze gong notes climbing upward, quick and hopeful.",
+   "note": "Main: talempong (bronze gong-chime, C#6) at 0; talempong 05 pitched +3 (F#6) at 85 ms; talempong 03 pitched +9 (A#6) at 170 ms: a rising major arpeggio, old and mystical.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/hit/ov-255c996e.wav",
+     "gain_db": -1,
+     "at_ms": 0,
+     "len_ms": 600,
+     "credit": "\"talempong_pacik_03.wav\" by ixnixnixn, CC0, https://freesound.org/people/ixnixnixn/sounds/214998"
+    },
+    {
+     "sound": "audio/search/magic/hit/ov-aba1449d.wav",
+     "gain_db": -2,
+     "at_ms": 85,
+     "len_ms": 600,
+     "pitch": 3,
+     "credit": "\"talempong_pacik_05.wav\" by ixnixnixn, CC0, https://freesound.org/people/ixnixnixn/sounds/215001"
+    },
+    {
+     "sound": "audio/search/magic/hit/ov-255c996e.wav",
+     "gain_db": -2,
+     "at_ms": 170,
+     "len_ms": 600,
+     "pitch": 9,
+     "credit": "\"talempong_pacik_03.wav\" by ixnixnixn, CC0, https://freesound.org/people/ixnixnixn/sounds/214998"
+    }
+   ],
+   "len_ms": 850,
+   "fade_ms": 350
+  }
+ },
+ "debuff": {
+  "a": {
+   "name": "Low wobbling toll",
+   "desc": "A dull low thud with a deep bowl that wobbles and sours.",
+   "note": "Main: singing bowl strike 2 (strong beating) pitched -5 and lowpassed: the beating becomes a slow wobble. A close body thump gives the hit.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/hit/ov-bfac4c19.wav",
+     "gain_db": 0,
+     "len_ms": 1000,
+     "pitch": -5,
+     "lowpass_hz": 2500,
+     "credit": "\"singing bowl - single strike 2\" by s-light, CC0, https://freesound.org/people/s-light/sounds/411483"
+    },
+    {
+     "sound": "thump/fs-389665-thump-close-wav-2",
+     "gain_db": -1,
+     "at_ms": 0
+    }
+   ],
+   "len_ms": 850,
+   "fade_ms": 350
+  },
+  "b": {
+   "name": "Wet rot splat",
+   "desc": "A heavy wet squelch, like rotten mush slapped onto skin.",
+   "note": "Main: wet splat squish 01 (low 265 Hz wet body), entered at 90 ms into the file so its loudest squelch lands early. Wet Splat 2 on the very front for a sharp slap (also hides the cut); a low carpet thump pitched down for weight.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/thump/ov-00fd5f6e.wav",
+     "gain_db": -2,
+     "len_ms": 600,
+     "credit": "\"wet splat squish 01.wav\" by 45t, CC0, https://freesound.org/people/45t/sounds/546089",
+     "start_ms": 90,
+     "at_ms": 4
+    },
+    {
+     "sound": "audio/search/magic/thump/ov-b9cb5367.wav",
+     "gain_db": -4,
+     "at_ms": 0,
+     "credit": "\"Wet Splat 2.mp3\" by nebulasnails, CC0, https://freesound.org/people/nebulasnails/sounds/495117"
+    },
+    {
+     "sound": "thump/fs-133282-thump-on-carpet-2",
+     "gain_db": -6,
+     "at_ms": 0,
+     "pitch": -3
+    }
+   ],
+   "len_ms": 650,
+   "fade_ms": 250
+  },
+  "c": {
+   "name": "Groaning rotten wood",
+   "desc": "A dark drum thud and old wood groaning under the weight.",
+   "note": "Main: creaking and groaning door, first groan only (0-550 ms), pitched -3 and lowpassed so it reads as rotting timber. A dark timpani under it gives the low hit at the start.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/hit/ov-96d8bc83.wav",
+     "gain_db": -3,
+     "len_ms": 560,
+     "pitch": -3,
+     "lowpass_hz": 5000,
+     "credit": "\"creaking and groaning door\" by odilonmarcenaro, CC0, https://freesound.org/people/odilonmarcenaro/sounds/271578"
+    },
+    {
+     "sound": "hit/fs-573244-dark-timpani-2-wav-1",
+     "gain_db": 0,
+     "at_ms": 0
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 260
+  }
+ },
+ "status_applied": {
+  "a": {
+   "name": "Seal stamp and bowl",
+   "desc": "A firm seal stamp pressed down, with a soft bowl ring after.",
+   "note": "Main: Stamp (814 Hz, sharp 16 ms thock). A bright singing bowl strike, quiet and short, rings under it as the chime.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/tap/ov-bb6f404c.wav",
+     "gain_db": 0,
+     "credit": "\"Stamp\" by kermite607, CC0, https://freesound.org/people/kermite607/sounds/362624"
+    },
+    {
+     "sound": "audio/search/magic/hit/ov-be918846.wav",
+     "gain_db": -12,
+     "at_ms": 8,
+     "len_ms": 450,
+     "credit": "\"singing bowl strike sound\" by inoshirodesign, CC0, https://freesound.org/people/inoshirodesign/sounds/271370"
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 250
+  },
+  "b": {
+   "name": "Metal click and ping",
+   "desc": "A small metal catch clicks shut with a soft glass ping.",
+   "note": "Main: Kenney rpg metal click (bright, short catch). Kenney interface glass ping (1.9 kHz, soft) 15 ms after: a click plus a soft chime.",
+   "layers": [
+    {
+     "sound": "click/kenney-rpg-metal-click",
+     "gain_db": 0
+    },
+    {
+     "sound": "chime/kenney-interface-glass-001",
+     "gain_db": -6,
+     "at_ms": 15
+    }
+   ],
+   "len_ms": 330,
+   "fade_ms": 150
+  },
+  "c": {
+   "name": "Wood knock and gong",
+   "desc": "A dry knock on wood with a faint shrine gong behind it.",
+   "note": "Main: Kenney light wood impact (379 Hz, dry knock). A small shrine gong (Kashiwa, 2.4 kHz) very quiet underneath for the magic tag.",
+   "layers": [
+    {
+     "sound": "tap/kenney-impact-impact-wood-light-002",
+     "gain_db": 0
+    },
+    {
+     "sound": "audio/search/magic/hit/ov-8154c100.wav",
+     "gain_db": -9,
+     "at_ms": 5,
+     "len_ms": 420,
+     "credit": "\"Japan_Kashiwa_Shrine_Hitting_a_Small_Gong.wav\" by RutgerMuller, CC0, https://freesound.org/people/RutgerMuller/sounds/364847"
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 250
+  }
+ },
+ "status_expired": {
+  "a": {
+   "name": "Soft bowl fade",
+   "desc": "A muffled low bowl tone that quickly fades to nothing.",
+   "note": "Main: singing bowl strike 3 (F#3) pitched -2, lowpassed at 1.6 kHz so the strike is soft; short with a long fade. Quiet sibling of the warm heal bell.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/hit/ov-3c14868e.wav",
+     "gain_db": 0,
+     "len_ms": 600,
+     "pitch": -2,
+     "lowpass_hz": 1600,
+     "credit": "\"singing bowl - single strike 3\" by s-light, CC0, https://freesound.org/people/s-light/sounds/415138"
+    }
+   ],
+   "len_ms": 550,
+   "fade_ms": 450
+  },
+  "b": {
+   "name": "Reversed metal shimmer",
+   "desc": "A short backwards ring that swells and vanishes, leaving a faint glint.",
+   "note": "Main: reversed metal pole hit, cut to 150-296 ms (starts near -22 dB, ends just before the reversed attack spike so there is no click) and pitched +5 so the swell lasts about 110 ms; lowpassed to stay soft. A very quiet lowpassed glass ding (-18 dB) at the cut-off leaves a faint after-glint so the end is not abrupt.",
+   "layers": [
+    {
+     "sound": "reverse/fs-710864-metal-pole-hit-reverse-1",
+     "gain_db": 0,
+     "start_ms": 150,
+     "pitch": 5,
+     "lowpass_hz": 6000,
+     "len_ms": 146
+    },
+    {
+     "sound": "chime/fs-404104-glass-ding-3",
+     "gain_db": -18,
+     "at_ms": 108,
+     "len_ms": 220,
+     "lowpass_hz": 3500
+    }
+   ],
+   "fade_ms": 150,
+   "len_ms": 320
+  },
+  "c": {
+   "name": "Candle snuffed out",
+   "desc": "A soft breath puff, like blowing out a small candle.",
+   "note": "Main: Blowing Out Candle_shorter (soft puff, 233 ms, peak at 129 ms) pitched -2. A second candle blow quieter underneath for body.",
+   "layers": [
+    {
+     "sound": "audio/search/magic/swish/ov-cd568a95.wav",
+     "gain_db": 0,
+     "pitch": -2,
+     "lowpass_hz": 6000,
+     "credit": "\"Blowing Out Candle_shorter.wav\" by tlcolbe, CC0, https://freesound.org/people/tlcolbe/sounds/406647"
+    },
+    {
+     "sound": "audio/search/magic/swish/ov-b16be105.wav",
+     "gain_db": -8,
+     "at_ms": 20,
+     "len_ms": 300,
+     "credit": "\"Candle blow.wav\" by JacobEmanuelMadrid, CC0, https://freesound.org/people/JacobEmanuelMadrid/sounds/656818"
+    }
+   ],
+   "len_ms": 380,
+   "fade_ms": 150
+  }
+ }
+}

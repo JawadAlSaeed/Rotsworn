@@ -72,6 +72,8 @@ var _inbox: Array[Dictionary] = []
 var _inbox_at_us: int = 0
 ## Follow-up allies who have stepped forward (id -> true).
 var _ready_allies: Dictionary = {}
+## A Run attempt (escape ability) saw its hero escape (else it failed).
+var _escaped_seen: bool = false
 ## The skill's press moments (PressNotes.notes), the middle of their row (where the strikers
 ## stand, chest height), how long before each press its ring appears, and the ring colour.
 var _notes: Array[Dictionary] = []
@@ -138,6 +140,7 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_tail.clear()
 	_tail_received = false
 	_ready_allies.clear()
+	_escaped_seen = false
 	_notes = PressNotes.notes(_prompts)
 	_ring_color = ability.ring_color if ability != null else HudStyle.TEXT
 	_note_anchor = _strikers_stand_point()
@@ -155,6 +158,8 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_input.arm_press()
 	var actor_name := String(_mirror.fighter(_actor).get("display_name", "?")).to_upper()
 	_hud.show_banner("%s: %s" % [actor_name, String(event.get("name", "?"))], HudStyle.GOLD)
+	if ability != null and ability.team_ultimate:
+		Sfx.play("ultimate_start")
 	_hud.set_skill_pressing(true)
 	for id: int in _strikers():
 		var v := _view.fighter(id)
@@ -360,6 +365,8 @@ func _expire(t: int) -> void:
 			_hud.popup("MISS", v.head_position(), HudStyle.MISS)
 		if String(prompt.role) != CombatEngine.ROLE_FOLLOW_UP:
 			strikes.append(idx)
+	if not expired.is_empty():
+		Sfx.play("skill_miss")
 	if not strikes.is_empty():
 		_strike(strikes, false)
 
@@ -396,7 +403,11 @@ func _apply_batch(events: Array[Dictionary]) -> void:
 	var in_tail := _tail_received
 	for ev: Dictionary in events:
 		var type := String(ev.get("type", ""))
+		if type == "escaped":
+			_escaped_seen = true
 		if type == "sequence_resolved":
+			if _ability != null and _ability.escape and not _escaped_seen:
+				Sfx.play("escape_fail")
 			in_tail = true
 			_tail_received = true
 		# Practice toggles are not part of any animation: apply them at once even in the tail.
@@ -431,10 +442,11 @@ func _strike(idxs: Array[int], good: bool) -> void:
 			_view.camera.shake(_visuals.shake_strike, _visuals.shake_strike_ms)
 			if _ability != null and _ability.team_ultimate and i == 0:
 				_hud.screen_flash(HudStyle.GOLD, _visuals.screen_flash_ultimate)
-			Sfx.play("follow_up" if follow_up else (_ability.impact_sfx if _ability != null else "strike"))
+			if _ability == null or not _ability.escape:
+				Sfx.play("follow_up" if follow_up else (_ability.impact_sfx if _ability != null else "strike"))
 			var back := Vector3.ZERO if follow_up else _approach_offset(id)
 			get_tree().create_timer(lunge_s * 2.0).timeout.connect(_step_back.bind(id, back))
-		else:
+		elif _ability == null or not _ability.escape:
 			Sfx.play(_ability.impact_sfx if _ability != null else "buff")
 			for target_id: int in _targets:
 				var tv := _view.fighter(target_id)
@@ -464,6 +476,7 @@ func _update_allies(t: int) -> void:
 		var v := _view.fighter(id)
 		if v != null and _mirror.is_alive(id):
 			v.set_pose(FighterView.CharPose.READY)
+			Sfx.play("follow_up_ready")
 			v.move_body(_approach_offset(id) * FOLLOW_UP_STEP_SHARE, float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
 
 

@@ -1,0 +1,296 @@
+{
+ "strike": {
+  "a": {
+   "name": "Wet blade stab",
+   "desc": "A quick knife jab into soft, rotten flesh with a dull thud.",
+   "note": "Knife Stab Melon (jawbutch, melon = classic flesh foley) cut 8 ms in so its burst peaks at once, plus a light body thud on clothing at -4 dB for weight. Sheet: one dense broadband burst 0-50 ms, gone by 200 ms, no tail (frequent cue).",
+   "layers": [
+    {
+     "sound": "audio/search/strike/hit/ov-082b92f0.wav",
+     "start_ms": 8,
+     "len_ms": 200,
+     "gain_db": 0,
+     "credit": "\"Knife Stab Melon.wav\" by jawbutch, CC0, https://freesound.org/people/jawbutch/sounds/344404",
+     "lowpass_hz": 5500
+    },
+    {
+     "sound": "thump/fs-496187-light-body-thud-on-clothing-1",
+     "gain_db": 0
+    }
+   ],
+   "len_ms": 260,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Bright sword cut",
+   "desc": "A crisp, bright steel blade cutting into a body.",
+   "note": "\"Sword hits the body\" (vdovitsky) started 22 ms in at its main cut (rise 6 ms), low punch (EminYILDIRIM) at -8 dB underneath; cut to 200 ms. Sheet: sharp spike, a short bright slice at 70-100 ms, quick fade.",
+   "layers": [
+    {
+     "sound": "audio/search/strike/hit/ov-35a333a3.wav",
+     "start_ms": 22,
+     "len_ms": 280,
+     "credit": "\"Sword hits the body.wav\" by vdovitsky, CC0, https://freesound.org/people/vdovitsky/sounds/411122"
+    },
+    {
+     "sound": "hit/fs-535362-punching-impact-sound-2",
+     "gain_db": -8,
+     "len_ms": 200
+    }
+   ],
+   "len_ms": 105,
+   "fade_ms": 40
+  },
+  "c": {
+   "name": "Dull wood chop",
+   "desc": "A short, dark chop with a dull thud under it.",
+   "note": "Chop.ogg (egomassive) for the bite, body_hit (insanity54) trimmed to 120 ms at -5 dB for low weight; 200 ms. Sheet: dark, low-heavy spectrum, dies within ~100 ms. The darkest and softest of the three.",
+   "layers": [
+    {
+     "sound": "hit/fs-536736-chop-ogg-1",
+     "len_ms": 250
+    },
+    {
+     "sound": "hit/fs-276600-body-hit-wav-1",
+     "gain_db": -5,
+     "len_ms": 120
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 60
+  }
+ },
+ "heavy_strike": {
+  "a": {
+   "name": "Crushing wet blow",
+   "desc": "A big, juicy crunch that tears into a rotten body.",
+   "note": "Same wet family as strike A, bigger: melon-chop (gagglepod) pitched -3 for a heavier squelch, Blunt Force Trauma (Clean and Juicy) at -4 dB for the sub punch, Gut Rip (Unbladed) at -4 dB as a tearing tail that fades over 220 ms. Sheet: hard hit, then a dense wet tear that decays smoothly by 400 ms.",
+   "layers": [
+    {
+     "sound": "audio/search/strike/hit/ov-457f8009.wav",
+     "pitch": -3,
+     "credit": "\"melon-chop-take2.wav\" by gagglepod, CC0, https://freesound.org/people/gagglepod/sounds/539534"
+    },
+    {
+     "sound": "audio/search/strike/hit/ov-d2fb0e45.wav",
+     "gain_db": -4,
+     "len_ms": 400,
+     "credit": "\"Blunt Force Trauma (Clean and Juicy)\" by TheFilmLook, CC0, https://freesound.org/people/TheFilmLook/sounds/365574"
+    },
+    {
+     "sound": "audio/search/strike/hit/ov-d5aee679.wav",
+     "len_ms": 420,
+     "gain_db": -4,
+     "at_ms": 5,
+     "credit": "\"Gut Rip (Unbladed)\" by magnuswaker, CC0, https://freesound.org/people/magnuswaker/sounds/530919"
+    }
+   ],
+   "len_ms": 420,
+   "fade_ms": 220
+  },
+  "b": {
+   "name": "Iron barrel bash",
+   "desc": "A heavy blow on a hollow iron barrel, short ring.",
+   "note": "Metal Impact (Rickplayer) for the iron slam and its low ring, thud2 (Topschool) at -2 dB for body weight. Sheet: one huge front spike (rise 7 ms), low metal ring decaying over 600 ms. Steel family (B).",
+   "layers": [
+    {
+     "sound": "hit/fs-530486-metal-impact-1",
+     "len_ms": 600,
+     "lowpass_hz": 1500,
+     "gain_db": 0
+    },
+    {
+     "sound": "hit/fs-443494-thud2-wav-1",
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 330,
+   "fade_ms": 150
+  },
+  "c": {
+   "name": "Axe into wood",
+   "desc": "A big axe chop biting deep, with a low thud underneath.",
+   "note": "Chopping wood.wav (14FPanskaSilovsky_Petr) for the axe bite and splinter crackle, DullThud (TriqyStudio) +1 dB so the front is the loudest point and adds low end. Sheet: strong low spike at 1 ms, wood chip ticks at 160-200 ms, 500 ms. Wood/chop family (C).",
+   "layers": [
+    {
+     "sound": "audio/search/strike/hit/ov-0e418dcb.wav",
+     "len_ms": 160,
+     "credit": "\"Chopping wood.wav\" by 14FPanskaSilovsky_Petr, CC0, https://freesound.org/people/14FPanskaSilovsky_Petr/sounds/419928"
+    },
+    {
+     "sound": "hit/fs-653370-dull-thud-wav-1",
+     "gain_db": 1
+    }
+   ],
+   "len_ms": 350,
+   "fade_ms": 150
+  }
+ },
+ "counter": {
+  "a": {
+   "name": "Stab and rip",
+   "desc": "A blade stabs into flesh and is ripped straight back out.",
+   "note": "Knife Stab Pull (neilsher): stab then pull, Headshot (Pablobd) at -3 dB for wet low weight, a sword movement swish at -8 dB for the slash air. Sheet: spike at 0, second burst (the pull) at 40-60 ms, cue faded over its last 170 ms so the Headshot hiss does not stop abruptly, 320 ms. Wet family (A).",
+   "layers": [
+    {
+     "sound": "audio/search/strike/hit/ov-da63fd90.wav",
+     "len_ms": 340,
+     "credit": "\"Knife Stab Pull.wav\" by neilsher, CC0, https://freesound.org/people/neilsher/sounds/411742"
+    },
+    {
+     "sound": "audio/search/strike/hit/ov-a81fe11a.wav",
+     "gain_db": -3,
+     "len_ms": 300,
+     "credit": "\"Headshot.wav\" by Pablobd, CC0, https://freesound.org/people/Pablobd/sounds/511194"
+    },
+    {
+     "sound": "swish/fs-395264-sword-movement-single-3-1",
+     "at_ms": 20,
+     "gain_db": -8
+    }
+   ],
+   "len_ms": 320,
+   "fade_ms": 170
+  },
+  "b": {
+   "name": "Ringing sword slash",
+   "desc": "A fast sword slash that hits hard and rings out bright.",
+   "note": "Hit Swing Sword Small (CogFireStudios) started 15 ms in (rise 11 ms), Schwing at -9 dB as the blade ring, punching impact (EminYILDIRIM) at -6 dB for weight. Sheet: dense bright body 0-300 ms with a smooth ring-out to 450 ms. Steel family (B).",
+   "layers": [
+    {
+     "sound": "hit/fs-547039-hit-swing-sword-small-1",
+     "start_ms": 15,
+     "len_ms": 450
+    },
+    {
+     "sound": "swish/fs-524215-schwing-1-1",
+     "at_ms": 10,
+     "gain_db": -9,
+     "len_ms": 300
+    },
+    {
+     "sound": "hit/fs-535362-punching-impact-sound-3",
+     "gain_db": -6
+    }
+   ],
+   "len_ms": 480,
+   "fade_ms": 150
+  },
+  "c": {
+   "name": "Heavy log-split chop",
+   "desc": "A big chop that splits something hard, with a punch under it.",
+   "note": "Splitting/chopping logs (Islabonita) for the crack, Kenney impactPunch_heavy_002 at -5 dB for weight, the slice part of Kenney knifeSlice2 at -12 dB as a faint follow-through. Sheet: low-heavy spike, mid crack, whole cue faded over its last 170 ms so no layer cut is audible, 330 ms. Wood/chop family (C).",
+   "layers": [
+    {
+     "sound": "audio/search/strike/hit/ov-3ad7e837.wav",
+     "len_ms": 340,
+     "credit": "\"Splitting / chopping logs in a shed.wav\" by Islabonita, CC0, https://freesound.org/people/Islabonita/sounds/220951"
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactPunch_heavy_002.ogg",
+     "gain_db": -5,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/knifeSlice2.ogg",
+     "start_ms": 150,
+     "at_ms": 30,
+     "gain_db": -12,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    }
+   ],
+   "len_ms": 330,
+   "fade_ms": 170
+  }
+ },
+ "team_counter": {
+  "a": {
+   "name": "Wet blade flurry",
+   "desc": "Several blades tear into rotten flesh at once, wet and brutal.",
+   "note": "Bigger take on counter A: Cabbage being chopped 2 (main chop), Sword stab 2 (ihitokage) flammed 15 ms later as a second hero's crunchy stab, Knife Stab Melon at 120 ms (-7 dB) as a third. Later hits kept lower so the limiter does not make them the peak (rise 19 ms). Sheet: dense wet block 0-170 ms, small after-ticks, 500 ms.",
+   "layers": [
+    {
+     "sound": "audio/search/strike/hit/ov-5f34c016.wav",
+     "len_ms": 500,
+     "credit": "\"Cabbage being chopped 2.wav\" by MessyAcousticApocalypse666, CC0, https://freesound.org/people/MessyAcousticApocalypse666/sounds/594781",
+     "lowpass_hz": 7000
+    },
+    {
+     "sound": "audio/search/strike/hit/ov-f2cc4abf.wav",
+     "len_ms": 200,
+     "at_ms": 15,
+     "credit": "\"Sword stab 2\" by ihitokage, CC0, https://freesound.org/people/ihitokage/sounds/395373"
+    },
+    {
+     "sound": "hit/fs-276600-body-hit-wav-1",
+     "gain_db": -8,
+     "at_ms": 120,
+     "len_ms": 200
+    }
+   ],
+   "len_ms": 650,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Steel blade volley",
+   "desc": "Several steel blades strike in quick succession, bright and ringing.",
+   "note": "Bigger take on counter B: Hit Swing Sword Small 3 (CogFireStudios) from 30 ms in as the first blade, then two metallic Knife Stab hits (neilsher) at 85 and 170 ms at -5 dB; each cut before the next stab so no stray late hit. Sheet: bright dense 0-250 ms with two visible stabs, smooth fade to 500 ms.",
+   "layers": [
+    {
+     "sound": "hit/fs-547041-hit-swing-sword-small-3-1",
+     "start_ms": 30,
+     "len_ms": 500
+    },
+    {
+     "sound": "audio/search/strike/hit/ov-3daa61e1.wav",
+     "at_ms": 85,
+     "gain_db": -5,
+     "len_ms": 220,
+     "credit": "\"Knife Stab.wav\" by neilsher, CC0, https://freesound.org/people/neilsher/sounds/411743"
+    },
+    {
+     "sound": "audio/search/strike/hit/ov-3daa61e1.wav",
+     "start_ms": 230,
+     "len_ms": 220,
+     "at_ms": 170,
+     "gain_db": -5,
+     "credit": "\"Knife Stab.wav\" by neilsher, CC0, https://freesound.org/people/neilsher/sounds/411743"
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactPunch_heavy_004.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "gain_db": -6,
+     "at_ms": 30
+    }
+   ],
+   "len_ms": 520,
+   "fade_ms": 220
+  },
+  "c": {
+   "name": "Chopping volley",
+   "desc": "Three heavy chops land one after another, thick and woody.",
+   "note": "Bigger take on counter C: Chopping wood 02 and 01 (micahlg) at 0 and 75 ms, Splitting logs at 150 ms (-3 dB). Sheet: three clearly separate low-heavy chops, the first the loudest, quiet tail to 485 ms. Most clearly 'several heroes' of the three.",
+   "layers": [
+    {
+     "sound": "audio/search/strike/hit/ov-9e60c7c0.wav",
+     "len_ms": 200,
+     "credit": "\"Chopping wood 02\" by micahlg, CC0, https://freesound.org/people/micahlg/sounds/421929"
+    },
+    {
+     "sound": "hit/fs-276600-body-hit-wav-1",
+     "gain_db": -2,
+     "at_ms": 35
+    },
+    {
+     "sound": "audio/search/strike/hit/ov-3ad7e837.wav",
+     "at_ms": 70,
+     "gain_db": -3,
+     "len_ms": 340,
+     "credit": "\"Splitting / chopping logs in a shed.wav\" by Islabonita, CC0, https://freesound.org/people/Islabonita/sounds/220951"
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 200
+  }
+ }
+}

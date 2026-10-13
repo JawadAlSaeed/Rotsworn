@@ -1,0 +1,342 @@
+{
+ "menu_move": {
+  "a": {
+   "name": "Wooden piece tap",
+   "desc": "A tiny wooden game piece nudged on a board.",
+   "note": "Chess piece set on a wooden board (close mic, raw take at 35.68 s: clean single contact with a short woody ring), pitched up 3 st so it stays tiny. Wood family with confirm a and cancel a.",
+   "layers": [
+    {
+     "sound": "audio/search/menu/raw_wav/ov-4bb8b5db.wav",
+     "start_ms": 35680,
+     "len_ms": 80,
+     "pitch": 3,
+     "credit": "\"Chess Pieces Move (Close)\" by JJTaynos, CC0, https://freesound.org/people/JJTaynos/sounds/733927"
+    }
+   ],
+   "len_ms": 70,
+   "fade_ms": 30
+  },
+  "b": {
+   "name": "Dry stone click",
+   "desc": "A tiny dry click of stone on stone.",
+   "note": "impactMining very short, high-passed",
+   "len_ms": 45,
+   "fade_ms": 35,
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactMining_001.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "len_ms": 50,
+     "highpass_hz": 800
+    }
+   ]
+  },
+  "c": {
+   "name": "Old clock tick",
+   "desc": "One soft tick from an old wind-up clock.",
+   "note": "Single clock tick (mechanism, 2 ms rise), cut short and low-passed at 7 kHz so it is not sharp on repeat. Mechanism family with confirm c (gate latch) and cancel c (door latch).",
+   "layers": [
+    {
+     "sound": "tick/fs-130388-clock-ticking-1",
+     "len_ms": 55,
+     "lowpass_hz": 7000
+    }
+   ],
+   "len_ms": 55,
+   "fade_ms": 20
+  }
+ },
+ "menu_confirm": {
+  "a": {
+   "name": "Rising wooden tap-tap",
+   "desc": "Two quick wooden taps, the second one higher, like a nod.",
+   "note": "Board piece placement (firm wooden knock), then the same knock 5 st higher 60 ms later and 3 dB down: a rising 'tok-tik' that reads as yes. Bigger take on move a.",
+   "layers": [
+    {
+     "sound": "audio/search/menu/tap/ov-a05c0c67.wav",
+     "len_ms": 110,
+     "credit": "\"Piece Placement.mp3\" by el_boss, CC0, https://freesound.org/people/el_boss/sounds/546119"
+    },
+    {
+     "sound": "audio/search/menu/tap/ov-a05c0c67.wav",
+     "gain_db": -3,
+     "pitch": 5,
+     "at_ms": 60,
+     "len_ms": 110,
+     "credit": "\"Piece Placement.mp3\" by el_boss, CC0, https://freesound.org/people/el_boss/sounds/546119"
+    }
+   ],
+   "len_ms": 220,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Stone tap, small bell",
+   "desc": "A stone knock that rings a small, old bell.",
+   "note": "One clean rock-on-rock hit (Rocks - hits, 38.06 s) gives the instant attack; a small glass bell ding pitched down 7 st and low-passed at 4 kHz rings under it, warm and old, not a phone chime.",
+   "layers": [
+    {
+     "sound": "audio/search/menu/raw_wav/ov-7528d3e8.wav",
+     "start_ms": 38058,
+     "len_ms": 150,
+     "credit": "\"Rocks - hits\" by JoseDu, CC0, https://freesound.org/people/JoseDu/sounds/328926"
+    },
+    {
+     "sound": "chime/fs-404104-glass-ding-2",
+     "gain_db": -3,
+     "pitch": -7,
+     "lowpass_hz": 4000,
+     "at_ms": 3,
+     "len_ms": 240
+    }
+   ],
+   "len_ms": 240,
+   "fade_ms": 90
+  },
+  "c": {
+   "name": "Iron gate latch",
+   "desc": "An iron gate latch lifting: clack, then a small click.",
+   "note": "Gate latch (dense iron clack, cut 7 ms in so the peak lands early) followed 55 ms later by the Kenney RPG metal latch pitched up 3 st, 8 dB down. Bigger take on move c.",
+   "layers": [
+    {
+     "sound": "audio/search/menu/click/ov-1fa10d62.wav",
+     "start_ms": 7,
+     "len_ms": 130,
+     "credit": "\"Gate Latch\" by mhtaylor67, CC0, https://freesound.org/people/mhtaylor67/sounds/126041"
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/metalLatch.ogg",
+     "gain_db": -4,
+     "pitch": 3,
+     "start_ms": 38,
+     "len_ms": 120,
+     "at_ms": 25,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "lowpass_hz": 6000
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 60
+  }
+ },
+ "menu_cancel": {
+  "a": {
+   "name": "Low wooden tock",
+   "desc": "A soft, low knock on a wooden table.",
+   "note": "Kenney wood impact (medium), pitched down 2 st and low-passed at 3 kHz: one dull tock, lower and softer than confirm a.",
+   "layers": [
+    {
+     "sound": "tap/kenney-impact-impact-wood-medium-001",
+     "pitch": 0,
+     "len_ms": 160
+    }
+   ],
+   "len_ms": 160,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Stone block set back",
+   "desc": "Small stones clatter as a block is set down.",
+   "note": "Two large cobblestone blocks (raw take at 12.02 s): a knock followed by a short stone rub. Pitched down 2 st, low-passed at 4 kHz. Lower than confirm b, no bell.",
+   "layers": [
+    {
+     "sound": "audio/search/menu/raw_wav/ov-25e65384.wav",
+     "start_ms": 12015,
+     "len_ms": 240,
+     "pitch": -2,
+     "lowpass_hz": 4000,
+     "credit": "\"two large cobblestone blocks\" by jobel0092, CC0, https://freesound.org/people/jobel0092/sounds/268055"
+    }
+   ],
+   "len_ms": 240,
+   "fade_ms": 80
+  },
+  "c": {
+   "name": "Door latch shuts",
+   "desc": "A wooden door pushed shut, its latch clicking, muffled.",
+   "note": "Kenney RPG door close, cut at the moment it meets the frame (195 ms) so the peak is early; pitched down 3 st and low-passed at 2.5 kHz so it is soft and lower than the gate latch of confirm c.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/doorClose_2.ogg",
+     "start_ms": 62,
+     "len_ms": 180,
+     "pitch": -3,
+     "lowpass_hz": 2500,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    }
+   ],
+   "len_ms": 180,
+   "fade_ms": 80
+  }
+ },
+ "pause_open": {
+  "a": {
+   "name": "Heavy book opens",
+   "desc": "A thick leather book cover thumping open.",
+   "note": "Kenney RPG book open, cut in just before the cover lands (45 ms) so the thump peaks early; a page-turn rustle trails underneath at -12 dB.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/bookOpen.ogg",
+     "start_ms": 45,
+     "len_ms": 110,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "paper/fs-151221-page-turn-2-2",
+     "gain_db": -12,
+     "at_ms": 12,
+     "start_ms": 36,
+     "len_ms": 160
+    }
+   ],
+   "len_ms": 260,
+   "fade_ms": 80
+  },
+  "b": {
+   "name": "Page flipped over",
+   "desc": "A big old page turned over with a soft rustle.",
+   "note": "Page turn (fs-397550), cut at the flip so it starts at once, pitched down 3 st to sound like a heavy parchment page.",
+   "layers": [
+    {
+     "sound": "paper/fs-397550-page-turn-03-wav-2",
+     "pitch": -3,
+     "start_ms": 36,
+     "len_ms": 200
+    }
+   ],
+   "len_ms": 240,
+   "fade_ms": 80
+  },
+  "c": {
+   "name": "Wooden lid creaks open",
+   "desc": "An old wooden lid or cabinet door creaking open.",
+   "note": "SFXWoodenObjectOpen raw take, cut at the first knock of the lid so the peak is early, then the wood creak tail.",
+   "layers": [
+    {
+     "sound": "audio/search/menu/raw_wav/ov-a7e08739.wav",
+     "start_ms": 318,
+     "len_ms": 360,
+     "credit": "\"SFXWoodenObjectOpen.wav\" by WakuWakuWakuWaku, CC0, https://freesound.org/people/WakuWakuWakuWaku/sounds/422975"
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 60
+  }
+ },
+ "metronome": {
+  "a": {
+   "name": "Hardwood claves",
+   "desc": "Two hardwood sticks struck: a bright, sharp clack.",
+   "note": "Claves, single hit, 1.1 ms rise in the source. Cut to 60 ms so beats never smear.",
+   "layers": [
+    {
+     "sound": "audio/search/menu/click/ov-1d31cddc.wav",
+     "len_ms": 60,
+     "credit": "\"claves 3.wav\" by marvman, CC0, https://freesound.org/people/marvman/sounds/58871"
+    }
+   ],
+   "len_ms": 60,
+   "fade_ms": 20
+  },
+  "b": {
+   "name": "Deep hollow woodblock",
+   "desc": "A hollow wooden block knocked once, deeper and rounder.",
+   "note": "Woodblock (medium), pitched down 3 st (tone near 1.5 kHz) so it sits clearly below the claves; cut 1 ms in to skip the soft first half-cycle so the peak comes at once; 60 ms.",
+   "layers": [
+    {
+     "sound": "audio/search/menu/click/ov-ad2f455c.wav",
+     "len_ms": 60,
+     "credit": "\"Woodblock-med.wav\" by hollandm, CC0, https://freesound.org/people/hollandm/sounds/692819",
+     "pitch": -3,
+     "start_ms": 1.0
+    }
+   ],
+   "len_ms": 60,
+   "fade_ms": 20
+  },
+  "c": {
+   "name": "Tiny timer tick",
+   "desc": "A tiny, dry tick from a wind-up timer.",
+   "note": "Ticking timer, one tick, cut 4.6 ms in to skip the soft pre-click so the peak is right at the start; about 26 ms, the shortest and driest of the three.",
+   "layers": [
+    {
+     "sound": "tick/fs-487725-ticking-timer-05-sec-wav-3",
+     "start_ms": 4.6
+    }
+   ],
+   "len_ms": 40,
+   "fade_ms": 10
+  }
+ },
+ "escape_fail": {
+  "a": {
+   "name": "Stumble and thud",
+   "desc": "A foot slams down hard, then boots scuffle in the dirt.",
+   "note": "FX_The_Gilligan_Stumble raw take: the dull body thud (3.545 s) leads, a slice of its earlier shuffle (2.06 to 2.30 s) follows 40 ms later as the scuffle tail, low-passed at 6 kHz.",
+   "layers": [
+    {
+     "sound": "audio/search/menu/raw_wav/ov-6bb97ac2.wav",
+     "start_ms": 3545,
+     "len_ms": 250,
+     "credit": "\"FX_The_Gilligan_Stumble.wav\" by PeteBarry, CC0, https://freesound.org/people/PeteBarry/sounds/493794"
+    },
+    {
+     "sound": "audio/search/menu/raw_wav/ov-6bb97ac2.wav",
+     "at_ms": 40,
+     "start_ms": 2060,
+     "len_ms": 240,
+     "lowpass_hz": 6000,
+     "credit": "\"FX_The_Gilligan_Stumble.wav\" by PeteBarry, CC0, https://freesound.org/people/PeteBarry/sounds/493794",
+     "gain_db": -1
+    }
+   ],
+   "len_ms": 380,
+   "fade_ms": 120
+  },
+  "b": {
+   "name": "Shoulder bump",
+   "desc": "A dull bump and a cloth rustle: the way out is blocked.",
+   "note": "medium punch plus cloth",
+   "len_ms": 300,
+   "fade_ms": 100,
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactPunch_medium_003.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/cloth3.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "gain_db": -6,
+     "at_ms": 10,
+     "len_ms": 200
+    }
+   ]
+  },
+  "c": {
+   "name": "Thrown to the ground",
+   "desc": "The hero lands hard on the ground, gear rattling.",
+   "note": "soft heavy impact plus leather and buckle",
+   "len_ms": 380,
+   "fade_ms": 120,
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactSoft_heavy_003.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/dropLeather.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "gain_db": -6,
+     "at_ms": 15,
+     "start_ms": 115,
+     "len_ms": 200
+    },
+    {
+     "sound": "tap/kenney-rpg-belt-handle2",
+     "gain_db": -12,
+     "at_ms": 60
+    }
+   ]
+  }
+ }
+}

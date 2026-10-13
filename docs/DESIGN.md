@@ -708,6 +708,26 @@ already playing lets it go on. Songs live in `assets/audio/music/` and may be co
 sound effects stay PCM. No song is set yet (the placeholder "tiebreaker" was only for the online
 test build and is removed): every place is silent until the soundtrack arrives.
 
+Sound effects (2026-10-13, phase 7 card #39): every cue in `assets/audio/sfx/` is built from real
+CC0 recordings (Kenney packs and Freesound, via the opus-sound-layer library), never synthesized.
+`tools/sound_kit/` holds the pipeline (README there): `cue_rules.json` lists all 66 sound moments
+with their limits (length, how soon the sound must peak, loudness target), `candidates/` three
+options per moment, `selection.json` the user's pick, `build_sfx.py final` writes the WAVs and
+`assets/audio/sfx/CREDITS.md`, `check_sfx.py` measures them. The user picked by ear on a listening
+page. Loudness targets kept the old placeholders' balance; where a clicky recording cannot reach
+it, the file is quieter and its `volume_db` in the library higher by the same amount.
+New moments (35 proposed, 32 picked): parry streak ring (pitch climbs `parry_ring_step_semitones`
+per parry in a row, up to `parry_ring_max_steps`, card #93), wrong button, guarded hit, missed
+skill press, EXPOSED combo, ultimate start, follow-up ready, enemy wind-up (starts its own length
+before each hit so it peaks on the impact, skipped where it would overlap the previous hit; off
+with the motion sounds, card #94), enemy crumble, boss rage, status wears off, turn order shift,
+fight start (normal fights), fight transition swirl, run away fails, gold and level up after a run
+win (`reward_sound_delay_ms`, `level_up_sound_gap_ms`), footsteps per zone ground (`ZoneData.
+footstep_sfx`, one per bob step), enemy spots you and gives up, zone arrival and zone clear, run
+begins, loot reveal, run cleared and run over, player joins and leaves, connected, connection
+problem. Skipped by the user: low HP warning, pause opens, status sticks. Not made (need other recordings
+or features): voices, zone ambience loops, backpack sounds.
+
 ---
 
 ## 6. Input
@@ -1251,6 +1271,8 @@ counters for longer and mixed strings (2.5, card #52).
 6. **Polish** (done, approved 2026-10-13): UI, feedback effects, controller button hints, fonts
    (7.6), Run (2.13), one press per ring, balance (shorter fights, same difficulty). Sound and
    music moved to phase 7; real art has its own phase.
+7. **Sound and music** (in progress): real recorded sound effects for 66 moments (5.3, done
+   2026-10-13); the soundtrack next.
 
 ### 11.1 To-do (from playtests)
 
@@ -1371,3 +1393,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | Ring speed per move as a percent of `ring_lead_ms` (basic 100, skills 85, big hits 65) | user request; per-move shapes are percentages of tuning values |
 | 2026-10-12 | Multi-press skills: numbered rings in a row (osu notes), one per press moment | user pick over "one at a time", which would have slowed fast skills down |
 | 2026-10-12 | Skill presses have three results: perfect (bonus), good (normal), miss (50%); osu-style ring with GOOD and PERFECT bands | user feedback: the ring had no visible spot to hit and no distinction between perfect and normal |
+| 2026-10-13 | Sound effects from real CC0 recordings, three options per moment, user picks by ear | the user asked; synthesized placeholders sounded fake; Claude cannot hear, so checks measure and the user listens |

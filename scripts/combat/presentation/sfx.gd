@@ -7,10 +7,16 @@ extends RefCounted
 const AUTOLOAD_PATH := ^"/root/Audio"
 
 
-static func play(cue: String, volume_offset_db: float = 0.0) -> void:
+static func play(cue: String, volume_offset_db: float = 0.0, pitch_scale: float = 1.0) -> void:
 	var audio := _audio()
 	if audio != null:
-		audio.call(&"play", cue, volume_offset_db)
+		audio.call(&"play", cue, volume_offset_db, pitch_scale)
+
+
+## How long a cue's sound lasts in ms (0 if it has none), to time a sound that must end on a beat.
+static func cue_length_ms(cue: String) -> int:
+	var audio := _audio()
+	return int(audio.call(&"cue_length_ms", cue)) if audio != null else 0
 
 
 ## Stops every sound (before quitting, so no playback is left running at exit).

@@ -84,6 +84,13 @@ func play(cue_name: String, volume_offset_db: float = 0.0, pitch_scale: float = 
 	player.play()
 
 
+## How long a cue's sound lasts in ms (0 for an unknown cue or a missing file).
+func cue_length_ms(cue_name: String) -> int:
+	var cue := _ensure_library().find(cue_name)
+	var stream := _stream_for(cue) if cue != null else null
+	return roundi(stream.get_length() * 1000.0) if stream != null else 0
+
+
 ## Loads every cue now so the first parry sound has no loading hitch.
 func preload_all() -> void:
 	for cue: SfxCue in _ensure_library().cues:

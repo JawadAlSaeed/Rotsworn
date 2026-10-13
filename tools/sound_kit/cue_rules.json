@@ -1,0 +1,671 @@
+{
+ "parry": {
+  "group": "defence",
+  "plays": "a hero parries an enemy hit at the right moment (press feedback)",
+  "max_rise_ms": 10,
+  "min_ms": 150,
+  "max_ms": 600,
+  "target_lu": -11.5,
+  "new": false,
+  "title": "Parry"
+ },
+ "parry_final": {
+  "group": "defence",
+  "plays": "the last hit of an enemy string is parried: brighter, bigger than parry",
+  "max_rise_ms": 12,
+  "min_ms": 250,
+  "max_ms": 1000,
+  "target_lu": -10.0,
+  "new": false,
+  "title": "Final parry"
+ },
+ "dodge": {
+  "group": "defence",
+  "plays": "a hero dodges an enemy hit (press feedback)",
+  "max_rise_ms": 60,
+  "min_ms": 120,
+  "max_ms": 450,
+  "target_lu": -14.0,
+  "new": false,
+  "title": "Dodge"
+ },
+ "jump": {
+  "group": "defence",
+  "plays": "a hero jumps clear of a ground wave (press feedback)",
+  "max_rise_ms": 20,
+  "min_ms": 100,
+  "max_ms": 450,
+  "target_lu": -14.0,
+  "new": false,
+  "title": "Jump"
+ },
+ "whiff": {
+  "group": "defence",
+  "plays": "a defence or skill press is early, late or the wrong button",
+  "max_rise_ms": 50,
+  "min_ms": 70,
+  "max_ms": 300,
+  "target_lu": -13.0,
+  "new": false,
+  "title": "Early or late press"
+ },
+ "locked": {
+  "group": "defence",
+  "plays": "a press during lockout, or a menu choice that is not allowed (muted click)",
+  "max_rise_ms": 8,
+  "min_ms": 30,
+  "max_ms": 180,
+  "target_lu": -21.0,
+  "new": false,
+  "title": "Locked press"
+ },
+ "hurt": {
+  "group": "defence",
+  "plays": "a hero takes damage from an enemy hit",
+  "max_rise_ms": 15,
+  "min_ms": 120,
+  "max_ms": 500,
+  "target_lu": -9.5,
+  "new": false,
+  "title": "Hero gets hit"
+ },
+ "strike": {
+  "group": "offence",
+  "plays": "a hero's basic attack lands; also the exploring strike swing",
+  "max_rise_ms": 15,
+  "min_ms": 100,
+  "max_ms": 450,
+  "target_lu": -16.0,
+  "new": false,
+  "title": "Basic attack"
+ },
+ "heavy_strike": {
+  "group": "offence",
+  "plays": "a big skill hit lands (Rend, Shield Bash...)",
+  "max_rise_ms": 20,
+  "min_ms": 200,
+  "max_ms": 800,
+  "target_lu": -11.0,
+  "new": false,
+  "title": "Heavy skill hit"
+ },
+ "counter": {
+  "group": "offence",
+  "plays": "a counterattack after a perfect defence string; also FIRST STRIKE in a zone",
+  "max_rise_ms": 20,
+  "min_ms": 200,
+  "max_ms": 800,
+  "target_lu": -13.0,
+  "new": false,
+  "title": "Counterattack"
+ },
+ "team_counter": {
+  "group": "offence",
+  "plays": "the whole team counterattacks together",
+  "max_rise_ms": 25,
+  "min_ms": 350,
+  "max_ms": 1300,
+  "target_lu": -11.5,
+  "new": false,
+  "title": "Team counter"
+ },
+ "follow_up": {
+  "group": "offence",
+  "plays": "an ally's follow-up strike press lands",
+  "max_rise_ms": 12,
+  "min_ms": 80,
+  "max_ms": 350,
+  "target_lu": -18.0,
+  "new": false,
+  "title": "Follow-up strike"
+ },
+ "skill_press": {
+  "group": "offence",
+  "plays": "a timed skill press is good or perfect (press feedback)",
+  "max_rise_ms": 10,
+  "min_ms": 80,
+  "max_ms": 400,
+  "target_lu": -14.0,
+  "new": false,
+  "title": "Skill press"
+ },
+ "ultimate": {
+  "group": "offence",
+  "plays": "the team ultimate hits",
+  "max_rise_ms": 40,
+  "min_ms": 400,
+  "max_ms": 1800,
+  "target_lu": -12.0,
+  "new": false,
+  "title": "Team ultimate hit"
+ },
+ "alert": {
+  "group": "enemy",
+  "plays": "an enemy attack starts (once per attack); also an enemy touches you in a zone",
+  "max_rise_ms": 80,
+  "min_ms": 150,
+  "max_ms": 700,
+  "target_lu": -11.0,
+  "new": false,
+  "title": "Enemy attack warning"
+ },
+ "lunge": {
+  "group": "enemy",
+  "plays": "an enemy lunges or feints toward a hero, about 200 ms before impact",
+  "max_rise_ms": 150,
+  "min_ms": 120,
+  "max_ms": 400,
+  "target_lu": -14.5,
+  "new": false,
+  "title": "Enemy lunge"
+ },
+ "slam": {
+  "group": "enemy",
+  "plays": "an enemy slams the ground and a ground wave launches",
+  "max_rise_ms": 30,
+  "min_ms": 250,
+  "max_ms": 1000,
+  "target_lu": -9.0,
+  "new": false,
+  "title": "Enemy ground slam"
+ },
+ "downed": {
+  "group": "state",
+  "plays": "a hero falls (downed)",
+  "max_rise_ms": 150,
+  "min_ms": 300,
+  "max_ms": 1200,
+  "target_lu": -12.0,
+  "new": false,
+  "title": "Hero falls"
+ },
+ "revive": {
+  "group": "state",
+  "plays": "a downed hero is revived",
+  "max_rise_ms": 500,
+  "min_ms": 400,
+  "max_ms": 1600,
+  "target_lu": -12.0,
+  "new": false,
+  "title": "Hero revived"
+ },
+ "heal": {
+  "group": "state",
+  "plays": "HP restored: heal skill, rest stop, shop potion",
+  "max_rise_ms": 400,
+  "min_ms": 300,
+  "max_ms": 1400,
+  "target_lu": -11.5,
+  "new": false,
+  "title": "Heal"
+ },
+ "buff": {
+  "group": "state",
+  "plays": "a buff lands; also equipping gear, taking loot, buying gear",
+  "max_rise_ms": 200,
+  "min_ms": 250,
+  "max_ms": 1000,
+  "target_lu": -12.0,
+  "new": false,
+  "title": "Buff and gear"
+ },
+ "debuff": {
+  "group": "state",
+  "plays": "a debuff lands on a target",
+  "max_rise_ms": 150,
+  "min_ms": 250,
+  "max_ms": 1000,
+  "target_lu": -9.0,
+  "new": false,
+  "title": "Debuff and mark"
+ },
+ "ap_gain": {
+  "group": "state",
+  "plays": "a hero gains AP",
+  "max_rise_ms": 60,
+  "min_ms": 80,
+  "max_ms": 400,
+  "target_lu": -13.0,
+  "new": false,
+  "title": "AP gained",
+  "volume_offset_db": 3.0
+ },
+ "gauge_full": {
+  "group": "state",
+  "plays": "the team gauge fills; also a first strike opening",
+  "max_rise_ms": 200,
+  "min_ms": 300,
+  "max_ms": 1400,
+  "target_lu": -13.5,
+  "new": false,
+  "title": "Team gauge full"
+ },
+ "turn_start": {
+  "group": "ui",
+  "plays": "a hero's turn starts (the action menu opens)",
+  "max_rise_ms": 20,
+  "min_ms": 50,
+  "max_ms": 350,
+  "target_lu": -16.5,
+  "new": false,
+  "title": "Your turn"
+ },
+ "menu_move": {
+  "group": "ui",
+  "plays": "the cursor moves in any menu",
+  "max_rise_ms": 8,
+  "min_ms": 20,
+  "max_ms": 150,
+  "target_lu": -17.5,
+  "new": false,
+  "title": "Menu cursor"
+ },
+ "menu_confirm": {
+  "group": "ui",
+  "plays": "a menu choice is confirmed",
+  "max_rise_ms": 15,
+  "min_ms": 50,
+  "max_ms": 300,
+  "target_lu": -13.5,
+  "new": false,
+  "title": "Menu confirm",
+  "volume_offset_db": 2.0
+ },
+ "menu_cancel": {
+  "group": "ui",
+  "plays": "back / cancel in a menu",
+  "max_rise_ms": 15,
+  "min_ms": 50,
+  "max_ms": 300,
+  "target_lu": -14.5,
+  "new": false,
+  "title": "Menu back",
+  "volume_offset_db": 2.0
+ },
+ "metronome": {
+  "group": "ui",
+  "plays": "lag calibration beat: the player presses on each tick (must be razor sharp)",
+  "max_rise_ms": 3,
+  "min_ms": 10,
+  "max_ms": 80,
+  "target_lu": -23.5,
+  "new": false,
+  "title": "Calibration beat"
+ },
+ "victory": {
+  "group": "run",
+  "plays": "a fight is won",
+  "max_rise_ms": 800,
+  "min_ms": 800,
+  "max_ms": 3000,
+  "target_lu": -12.0,
+  "new": false,
+  "title": "Victory"
+ },
+ "defeat": {
+  "group": "run",
+  "plays": "the party is defeated",
+  "max_rise_ms": 900,
+  "min_ms": 800,
+  "max_ms": 3000,
+  "target_lu": -11.5,
+  "new": false,
+  "title": "Defeat"
+ },
+ "parry_ring": {
+  "group": "defence",
+  "title": "Parry streak ring",
+  "plays": "a bright ring on top of each perfect parry in a string; the game raises its pitch with every parry (card #93)",
+  "max_rise_ms": 10,
+  "min_ms": 150,
+  "max_ms": 900,
+  "target_lu": -14.0,
+  "new": true
+ },
+ "wrong_button": {
+  "group": "defence",
+  "title": "Wrong button",
+  "plays": "you parried or dodged a hit that needed a jump, or jumped one that needed a parry (orange JUMP! or PARRY! hint)",
+  "max_rise_ms": 15,
+  "min_ms": 80,
+  "max_ms": 400,
+  "target_lu": -13.0,
+  "new": true
+ },
+ "guard_block": {
+  "group": "defence",
+  "title": "Guarded hit",
+  "plays": "an enemy hit lands on a Guarded hero and does less damage",
+  "max_rise_ms": 15,
+  "min_ms": 120,
+  "max_ms": 600,
+  "target_lu": -11.0,
+  "new": true
+ },
+ "skill_miss": {
+  "group": "offence",
+  "title": "Missed skill press",
+  "plays": "a skill ring passes with no good press: MISS and a weak strike",
+  "max_rise_ms": 20,
+  "min_ms": 80,
+  "max_ms": 400,
+  "target_lu": -15.0,
+  "new": true
+ },
+ "exposed_burst": {
+  "group": "offence",
+  "title": "Exposed combo",
+  "plays": "a hit uses up an enemy's EXPOSED mark for bonus damage",
+  "max_rise_ms": 25,
+  "min_ms": 250,
+  "max_ms": 1000,
+  "target_lu": -11.0,
+  "new": true
+ },
+ "ultimate_start": {
+  "group": "offence",
+  "title": "Ultimate begins",
+  "plays": "the Team Ultimate banner appears and all heroes step in",
+  "max_rise_ms": 600,
+  "min_ms": 400,
+  "max_ms": 1800,
+  "target_lu": -12.0,
+  "new": true
+ },
+ "follow_up_ready": {
+  "group": "offence",
+  "title": "Follow-up ready",
+  "plays": "an ally steps forward as their blue FOLLOW-UP ring appears (a heads-up for that player)",
+  "max_rise_ms": 30,
+  "min_ms": 80,
+  "max_ms": 400,
+  "target_lu": -16.0,
+  "new": true
+ },
+ "windup": {
+  "group": "enemy",
+  "title": "Enemy wind-up",
+  "plays": "builds up just before an enemy hit lands; its loudest point is its very end, which the game lines up with the impact (card #94)",
+  "max_rise_ms": 1200,
+  "min_ms": 250,
+  "max_ms": 1200,
+  "target_lu": -14.0,
+  "new": true,
+  "peak_at_end": true
+ },
+ "enemy_crumble": {
+  "group": "enemy",
+  "title": "Enemy crumbles",
+  "plays": "a beaten enemy dissolves pixel by pixel with a glowing green edge",
+  "max_rise_ms": 300,
+  "min_ms": 400,
+  "max_ms": 1600,
+  "target_lu": -15.0,
+  "new": true,
+  "volume_offset_db": 3.0
+ },
+ "boss_rage": {
+  "group": "enemy",
+  "title": "Boss rages",
+  "plays": "the Hollow King enters phase two: red flash and a RAGES banner",
+  "max_rise_ms": 300,
+  "min_ms": 500,
+  "max_ms": 2000,
+  "target_lu": -12.0,
+  "new": true,
+  "volume_offset_db": 2.0
+ },
+ "status_applied": {
+  "group": "state",
+  "title": "Status sticks",
+  "plays": "a status lands on a fighter: SLOWED, EXPOSED, TAUNTED, GUARDED or RIPOSTE",
+  "max_rise_ms": 60,
+  "min_ms": 150,
+  "max_ms": 700,
+  "target_lu": -14.0,
+  "new": true
+ },
+ "status_expired": {
+  "group": "state",
+  "title": "Status wears off",
+  "plays": "a status ends and its badge disappears",
+  "max_rise_ms": 150,
+  "min_ms": 150,
+  "max_ms": 700,
+  "target_lu": -17.0,
+  "new": true
+ },
+ "timeline_shift": {
+  "group": "state",
+  "title": "Turn order shifts",
+  "plays": "a fighter's next turn moves (DELAYED or HASTE) and the timeline reshuffles",
+  "max_rise_ms": 150,
+  "min_ms": 150,
+  "max_ms": 800,
+  "target_lu": -17.0,
+  "new": true,
+  "volume_offset_db": 3.0
+ },
+ "low_hp_warning": {
+  "group": "state",
+  "title": "Low HP warning",
+  "plays": "a hero drops into danger HP and the red edge pulse starts (plays once, not a loop)",
+  "max_rise_ms": 60,
+  "min_ms": 200,
+  "max_ms": 900,
+  "target_lu": -14.0,
+  "new": true
+ },
+ "fight_start": {
+  "group": "ui",
+  "title": "Fight begins",
+  "plays": "a normal fight starts and the fighters appear",
+  "max_rise_ms": 300,
+  "min_ms": 300,
+  "max_ms": 1500,
+  "target_lu": -12.0,
+  "new": true
+ },
+ "escape_fail": {
+  "group": "ui",
+  "title": "Run away fails",
+  "plays": "a Run press is not perfect: the hero stays and the turn is lost",
+  "max_rise_ms": 40,
+  "min_ms": 150,
+  "max_ms": 700,
+  "target_lu": -13.0,
+  "new": true
+ },
+ "gold_gain": {
+  "group": "run",
+  "title": "Gold earned",
+  "plays": "the fight end screen shows the gold you won",
+  "max_rise_ms": 60,
+  "min_ms": 150,
+  "max_ms": 900,
+  "target_lu": -13.0,
+  "new": true
+ },
+ "level_up": {
+  "group": "run",
+  "title": "Level up",
+  "plays": "the fight end screen shows LEVEL UP",
+  "max_rise_ms": 400,
+  "min_ms": 400,
+  "max_ms": 1800,
+  "target_lu": -12.0,
+  "new": true
+ },
+ "pause_open": {
+  "group": "ui",
+  "title": "Pause opens",
+  "plays": "the pause menu opens over a zone, a fight or the map",
+  "max_rise_ms": 30,
+  "min_ms": 60,
+  "max_ms": 400,
+  "target_lu": -14.0,
+  "new": true
+ },
+ "footstep_grass": {
+  "group": "explore",
+  "title": "Footstep on grass",
+  "plays": "the leader takes a step on grass and earth (Rotten Hollow)",
+  "max_rise_ms": 30,
+  "min_ms": 60,
+  "max_ms": 400,
+  "target_lu": -20.0,
+  "new": true
+ },
+ "footstep_mud": {
+  "group": "explore",
+  "title": "Footstep in mud",
+  "plays": "the leader takes a step in mud and muck (Sunken Bog)",
+  "max_rise_ms": 40,
+  "min_ms": 60,
+  "max_ms": 450,
+  "target_lu": -20.0,
+  "new": true
+ },
+ "footstep_stone": {
+  "group": "explore",
+  "title": "Footstep on stone",
+  "plays": "the leader takes a step on stone and ash (Ashen Ruins)",
+  "max_rise_ms": 30,
+  "min_ms": 60,
+  "max_ms": 400,
+  "target_lu": -20.0,
+  "new": true
+ },
+ "enemy_notice": {
+  "group": "explore",
+  "title": "Enemy spots you",
+  "plays": "a roaming enemy sees the leader and a red ! appears before it chases",
+  "max_rise_ms": 40,
+  "min_ms": 150,
+  "max_ms": 700,
+  "target_lu": -12.0,
+  "new": true
+ },
+ "enemy_give_up": {
+  "group": "explore",
+  "title": "Enemy gives up",
+  "plays": "a chasing enemy loses you and turns back home",
+  "max_rise_ms": 200,
+  "min_ms": 150,
+  "max_ms": 900,
+  "target_lu": -16.0,
+  "new": true
+ },
+ "encounter_swirl": {
+  "group": "explore",
+  "title": "Fight transition",
+  "plays": "the screen freezes and swirls into black as a fight starts",
+  "max_rise_ms": 700,
+  "min_ms": 400,
+  "max_ms": 1600,
+  "target_lu": -12.0,
+  "new": true
+ },
+ "zone_enter": {
+  "group": "explore",
+  "title": "Zone arrival",
+  "plays": "the zone's name fades in as you arrive",
+  "max_rise_ms": 500,
+  "min_ms": 400,
+  "max_ms": 2000,
+  "target_lu": -14.0,
+  "new": true
+ },
+ "zone_clear": {
+  "group": "explore",
+  "title": "Zone cleared",
+  "plays": "the guard is beaten and ZONE CLEAR shows",
+  "max_rise_ms": 400,
+  "min_ms": 600,
+  "max_ms": 2500,
+  "target_lu": -12.0,
+  "new": true
+ },
+ "run_begin": {
+  "group": "run",
+  "title": "Run starts",
+  "plays": "a new run starts and the map appears for the first time",
+  "max_rise_ms": 500,
+  "min_ms": 400,
+  "max_ms": 2000,
+  "target_lu": -13.0,
+  "new": true
+ },
+ "loot_reveal": {
+  "group": "run",
+  "title": "Loot reveal",
+  "plays": "the spoils screen appears after beating a guard",
+  "max_rise_ms": 400,
+  "min_ms": 300,
+  "max_ms": 1800,
+  "target_lu": -12.0,
+  "new": true
+ },
+ "run_cleared": {
+  "group": "run",
+  "title": "Run cleared",
+  "plays": "RUN CLEARED after beating the Hollow King",
+  "max_rise_ms": 800,
+  "min_ms": 1000,
+  "max_ms": 3500,
+  "target_lu": -11.0,
+  "new": true
+ },
+ "run_over": {
+  "group": "run",
+  "title": "Run over",
+  "plays": "RUN OVER after the party falls",
+  "max_rise_ms": 900,
+  "min_ms": 1000,
+  "max_ms": 3500,
+  "target_lu": -12.0,
+  "new": true
+ },
+ "player_join": {
+  "group": "coop",
+  "title": "Player joins",
+  "plays": "a friend connects and appears in the players list",
+  "max_rise_ms": 60,
+  "min_ms": 150,
+  "max_ms": 800,
+  "target_lu": -13.0,
+  "new": true
+ },
+ "player_leave": {
+  "group": "coop",
+  "title": "Player leaves",
+  "plays": "a friend disconnects, before or during a run",
+  "max_rise_ms": 100,
+  "min_ms": 150,
+  "max_ms": 800,
+  "target_lu": -14.5,
+  "new": true,
+  "volume_offset_db": 1.5
+ },
+ "net_connected": {
+  "group": "coop",
+  "title": "Connected",
+  "plays": "joining worked and the online players screen appears",
+  "max_rise_ms": 100,
+  "min_ms": 200,
+  "max_ms": 900,
+  "target_lu": -13.0,
+  "new": true
+ },
+ "net_error": {
+  "group": "coop",
+  "title": "Connection problem",
+  "plays": "joining failed, or the online game ended for you",
+  "max_rise_ms": 60,
+  "min_ms": 150,
+  "max_ms": 800,
+  "target_lu": -15.0,
+  "new": true,
+  "volume_offset_db": 2.0
+ }
+}

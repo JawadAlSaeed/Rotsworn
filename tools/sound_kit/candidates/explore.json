@@ -1,0 +1,403 @@
+{
+ "footstep_grass": {
+  "a": {
+   "name": "Soft grass brush",
+   "desc": "A light, quick swish of a foot pressing into soft grass.",
+   "note": "Kenney impact-sounds footstep_grass_001: instant transient then ~140 ms of airy grass rustle, nothing below the step; cut 190 ms so it never rings on.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/footstep_grass_001.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    }
+   ],
+   "len_ms": 190,
+   "fade_ms": 50
+  },
+  "b": {
+   "name": "Leather boot on earth",
+   "desc": "A plain leather boot stepping on soft earth.",
+   "note": "rpg footstep",
+   "fade_ms": 60,
+   "len_ms": 220,
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/footstep01.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "lowpass_hz": 7000,
+     "start_ms": 28
+    }
+   ]
+  },
+  "c": {
+   "name": "Heavy step on turf",
+   "desc": "A firmer, heavier footfall thudding into earth and grass.",
+   "note": "Freesound 'Stomping Footsteps on Grass' raw, the step at 20.35 s: low earth thud with grass crunch, peak at ~15 ms, decays by 200 ms.",
+   "layers": [
+    {
+     "sound": "audio/search/explore/thump/_raw/ov-0bf2a7a3.mp3",
+     "start_ms": 20350,
+     "len_ms": 240,
+     "highpass_hz": 60,
+     "credit": "\"Stomping Footsteps on Grass\" by sillygrizzlies, CC0, https://freesound.org/people/sillygrizzlies/sounds/635057",
+     "lowpass_hz": 6500
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactSoft_heavy_001.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "gain_db": -6,
+     "lowpass_hz": 600
+    }
+   ],
+   "fade_ms": 80,
+   "len_ms": 240
+  }
+ },
+ "footstep_mud": {
+  "a": {
+   "name": "Soft muddy squish",
+   "desc": "A soft, dull squish, like stepping into thick wet muck.",
+   "note": "Kenney footstep_snow_002 pitched -4 st and lowpassed at 3.5 kHz: the snow crunch turns into a dull, mushy squish; loudest at ~21 ms.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/footstep_snow_002.ogg",
+     "pitch": -4,
+     "lowpass_hz": 3500,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    },
+    {
+     "sound": "audio/search/big/thump/ov-6603440d.wav",
+     "credit": "\"Squelching SFX [5]\" by SoundDesignForYou, CC0, https://freesound.org/people/SoundDesignForYou/sounds/649979",
+     "gain_db": -6,
+     "len_ms": 100
+    }
+   ],
+   "len_ms": 105,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Boot in deep mud",
+   "desc": "A heavy boot sinking into mud with a wet squelch.",
+   "note": "Freesound 'Footsteps_Mountain_Boots_Mud_Mono' raw step at 9.5 s (boot strike with wet tail, lowpassed 5.5 kHz to darken the field hiss) plus a 'Feet Squelch' burst (lowpassed 4.5 kHz, -4 dB) 10 ms later for the sucking wetness.",
+   "layers": [
+    {
+     "sound": "audio/search/explore/thump/_raw/ov-2bb6ca39.mp3",
+     "start_ms": 9495,
+     "len_ms": 280,
+     "highpass_hz": 70,
+     "lowpass_hz": 5500,
+     "credit": "\"Footsteps_Mountain_Boots_Mud_Mono.wav\" by Nox_Sound, CC0, https://freesound.org/people/Nox_Sound/sounds/548384"
+    },
+    {
+     "sound": "audio/search/explore/thump/_raw/ov-586461b4.mp3",
+     "start_ms": 4720,
+     "len_ms": 220,
+     "highpass_hz": 90,
+     "lowpass_hz": 4500,
+     "gain_db": -4,
+     "at_ms": 10,
+     "credit": "\"Feet Squelch\" by eqavox, CC0, https://freesound.org/people/eqavox/sounds/683520"
+    }
+   ],
+   "len_ms": 280,
+   "fade_ms": 90
+  },
+  "c": {
+   "name": "Splash in bog water",
+   "desc": "A foot splashing down into shallow, muddy bog water.",
+   "note": "Freesound 'Step into water puddle / wade' (splashy, pitched -2 st for weight) over a low wet thud from 'Wet Footsteps 1 Front' at -5 dB; all over by 200 ms.",
+   "layers": [
+    {
+     "sound": "audio/search/explore/thump/ov-12a701e5.wav",
+     "pitch": -2,
+     "credit": "\"Step into water puddle / wade\" by Breviceps, CC0, https://freesound.org/people/Breviceps/sounds/450621"
+    },
+    {
+     "sound": "audio/search/explore/thump/ov-ca71d567.wav",
+     "gain_db": -5,
+     "len_ms": 200,
+     "credit": "\"Wet Footsteps 1 Front.wav\" by Starvolt, CC0, https://freesound.org/people/Starvolt/sounds/189227"
+    }
+   ],
+   "len_ms": 260,
+   "fade_ms": 70
+  }
+ },
+ "footstep_stone": {
+  "a": {
+   "name": "Hard stone tap",
+   "desc": "A short, clean tap of a boot on hard stone, with fine grit.",
+   "note": "Kenney footstep_concrete_002 pitched -2 st (hard heel click) landing 3 ms after a quiet gravel crunch layer (-9 dB) that adds ash grit and keeps the very first sample soft; 127 ms total.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/footstep_concrete_002.ogg",
+     "pitch": -2,
+     "at_ms": 3,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    },
+    {
+     "sound": "audio/search/explore/thump/ov-8dd17c4f.wav",
+     "gain_db": -14,
+     "lowpass_hz": 6000,
+     "credit": "\"Footsteps Gravel Running-Stop\" by KikeVilaplana, CC0, https://freesound.org/people/KikeVilaplana/sounds/436525"
+    }
+   ],
+   "fade_ms": 30
+  },
+  "b": {
+   "name": "Boot on flagstone",
+   "desc": "A leather boot heel landing on a stone floor, slight scrape.",
+   "note": "Freesound 'Footsteps Stone (11)': heel strike peak at ~9 ms then a soft sole scrape to 220 ms; recorded on real stone, mid-heavy.",
+   "layers": [
+    {
+     "sound": "audio/search/explore/thump/ov-6725a0fe.wav",
+     "credit": "\"Footsteps Stone (11).wav\" by Wdomino, CC0, https://freesound.org/people/Wdomino/sounds/517124"
+    }
+   ],
+   "fade_ms": 50
+  },
+  "c": {
+   "name": "Gritty ash crunch",
+   "desc": "A crunchy step on loose gravel, ash and rubble.",
+   "note": "Freesound 'footsteps - gravel 02': two quick crunch transients in the first 50 ms, then light grit; reads as rubble and ash under foot.",
+   "layers": [
+    {
+     "sound": "audio/search/explore/thump/ov-20f0f3e2.wav",
+     "len_ms": 220,
+     "credit": "\"footsteps - gravel 02.wav\" by Anthousai, CC0, https://freesound.org/people/Anthousai/sounds/398777"
+    }
+   ],
+   "fade_ms": 60
+  }
+ },
+ "enemy_notice": {
+  "a": {
+   "name": "Dark orchestra stab",
+   "desc": "A sudden, dark orchestral stab, like a horror film jolt.",
+   "note": "Library hit/fs-578374-shock-stab-04-1 (orchestral shock stab, rise 24 ms, low tonal body); cut to 600 ms with a 300 ms fade so only the jolt remains.",
+   "layers": [
+    {
+     "sound": "hit/fs-578374-shock-stab-04-1",
+     "len_ms": 700
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Ringing steel sting",
+   "desc": "A sharp, ringing metal clang over a deep drum hit.",
+   "note": "Library hit/fs-198114-clang-3-1 (trailer metal clang, 1 ms attack, ringing partials at 4-6 kHz) over hit/fs-573245-dark-timpani-1 at -4 dB for weight; cut 600 ms.",
+   "layers": [
+    {
+     "sound": "hit/fs-198114-clang-3-1",
+     "len_ms": 700
+    },
+    {
+     "sound": "hit/fs-573245-dark-timpani-1-wav-1",
+     "gain_db": -4,
+     "len_ms": 500
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 280
+  },
+  "c": {
+   "name": "Monster snarl",
+   "desc": "A sudden beastly snarl with a heavy thump underneath.",
+   "note": "Freesound 'Monster snarl 3' pitched -2 st (a real voiced creature snarl) plus library hit/fs-276600-body-hit for an instant thump so the loudest point lands at ~31 ms.",
+   "layers": [
+    {
+     "sound": "audio/search/explore/hit/ov-0817c1a6.wav",
+     "pitch": -2,
+     "len_ms": 700,
+     "credit": "\"Monster snarl 3.wav\" by pikachu09, CC0, https://freesound.org/people/pikachu09/sounds/204610"
+    },
+    {
+     "sound": "hit/fs-276600-body-hit-wav-1",
+     "gain_db": 2
+    }
+   ],
+   "len_ms": 650,
+   "fade_ms": 250
+  }
+ },
+ "enemy_give_up": {
+  "a": {
+   "name": "Soft turning swish",
+   "desc": "A soft cloth swirl as something turns away, then fading air.",
+   "note": "Library swish/fs-718668-wrapping-cloth-2 (real cloth movement, first 60 ms trimmed, -2 st) over whoosh/fs-449995-whoosh-med-low at -5 dB (-3 st, lowpassed 3 kHz) for the fading air; peak ~140 ms, cut at 540 ms with a 280 ms fade so the cloth's own end is faded out.",
+   "layers": [
+    {
+     "sound": "swish/fs-718668-wrapping-cloth-2",
+     "start_ms": 60,
+     "pitch": -2
+    },
+    {
+     "sound": "whoosh/fs-449995-whoosh-med-low-wav-1",
+     "start_ms": 70,
+     "pitch": -3,
+     "lowpass_hz": 3000,
+     "gain_db": -5
+    }
+   ],
+   "len_ms": 540,
+   "fade_ms": 280
+  },
+  "b": {
+   "name": "Ghostly fading sigh",
+   "desc": "A long, airy, ghostly whoosh drifting off into silence.",
+   "note": "Library transition/fs-522693-arrow-ghost-pass-whoosh, first 130 ms trimmed, pitched -3 st, lowpassed 5 kHz; peak ~170 ms, long 400 ms fade.",
+   "layers": [
+    {
+     "sound": "transition/fs-522693-arrow-ghost-pass-whoosh-1",
+     "start_ms": 130,
+     "pitch": -3,
+     "lowpass_hz": 5000
+    }
+   ],
+   "len_ms": 800,
+   "fade_ms": 400
+  },
+  "c": {
+   "name": "Growl fading off",
+   "desc": "A low growl that sinks and fades as it gives up.",
+   "note": "Freesound 'Monster Roar 02' pitched -2 st and lowpassed 3 kHz (distant, muffled) with a soft low whoosh (fs-449992) at -6 dB for the turn-away; peak ~60 ms, decays over 800 ms. Family of enemy_notice c.",
+   "layers": [
+    {
+     "sound": "audio/search/explore/hit/ov-f52ac5d2.wav",
+     "pitch": -2,
+     "lowpass_hz": 3000,
+     "len_ms": 500,
+     "credit": "\"Monster Roar 02\" by zerokingfull, CC0, https://freesound.org/people/zerokingfull/sounds/347410",
+     "start_ms": 450
+    },
+    {
+     "sound": "whoosh/fs-449992-whoosh-short-low-wav-1",
+     "gain_db": -6,
+     "pitch": -2
+    }
+   ],
+   "len_ms": 500,
+   "fade_ms": 350
+  }
+ },
+ "zone_enter": {
+  "a": {
+   "name": "Low horn blast",
+   "desc": "A deep, dark horn sounds and slowly fades.",
+   "note": "Library hit/fs-592066-horns-edited-1-3 (layered brass horns), pitched -2 st and lowpassed 3 kHz so it sits far away; sustained with a second swell at 1.2 s, 700 ms fade.",
+   "layers": [
+    {
+     "sound": "hit/fs-592066-horns-edited-1-3",
+     "pitch": -2,
+     "lowpass_hz": 3000,
+     "start_ms": 0
+    }
+   ],
+   "len_ms": 1950,
+   "fade_ms": 700
+  },
+  "b": {
+   "name": "Distant bell toll",
+   "desc": "One slow, far-off church bell toll fading into cold air.",
+   "note": "Freesound 'Gothic church bells' raw, the toll at 4.2 s, pitched -2 st and lowpassed 3.5 kHz; under it the cold cave reverb tail of hit/fs-130855-cold-cave-a at -8 dB.",
+   "layers": [
+    {
+     "sound": "audio/search/explore/chime/_raw/ov-5cf1fbaa.mp3",
+     "start_ms": 4200,
+     "len_ms": 2600,
+     "pitch": -2,
+     "lowpass_hz": 3500,
+     "credit": "\"Gothic church bells.mp3\" by Aeonemi, CC0, https://freesound.org/people/Aeonemi/sounds/180330"
+    },
+    {
+     "sound": "hit/fs-130855-cold-cave-a-mp3-1",
+     "gain_db": -8
+    }
+   ],
+   "len_ms": 1950,
+   "fade_ms": 800
+  },
+  "c": {
+   "name": "Distant thunder rumble",
+   "desc": "A low roll of far-off thunder rumbling through the place.",
+   "note": "Library boom/fs-581124-distant-thunder-3-3 (real distant thunder) with hit/fs-130855-cold-cave-a at -4 dB for a hollow, cave-like air; rumbles and fades over 1.9 s.",
+   "layers": [
+    {
+     "sound": "boom/fs-581124-distant-thunder-3-3"
+    },
+    {
+     "sound": "hit/fs-130855-cold-cave-a-mp3-1",
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 1950,
+   "fade_ms": 800
+  }
+ },
+ "zone_clear": {
+  "a": {
+   "name": "Dark brass fanfare",
+   "desc": "A short, dark brass fanfare with a drum hit and chimes.",
+   "note": "Library hit/fs-592096-triumph-tada-horns-1 pitched -3 st (triumph turned grim) + dark timpani hit (fs-573245) for the impact + fs-389789-chimes-3 at -10 dB entering at 120 ms as the shimmer. Bigger take on zone_enter a. Cut at 1.85 s with a 750 ms fade so the chime layer's end (1.68 s) is already faded.",
+   "layers": [
+    {
+     "sound": "hit/fs-592096-triumph-tada-horns-1-eo-wav-3",
+     "pitch": -3
+    },
+    {
+     "sound": "hit/fs-573245-dark-timpani-1-wav-1",
+     "gain_db": -2
+    },
+    {
+     "sound": "shimmer/fs-389789-chimes-3",
+     "gain_db": -10,
+     "at_ms": 120
+    }
+   ],
+   "len_ms": 1850,
+   "fade_ms": 750
+  },
+  "b": {
+   "name": "Great gong and bell",
+   "desc": "A huge gong strike ringing out, topped with a bright bell.",
+   "note": "Freesound 'gong hit loud close' (2 ms attack, long bronze bloom) + library chime/fs-185822-single-chime-1 at -10 dB, 80 ms later, as the old bell shimmer. Bigger take on zone_enter b.",
+   "layers": [
+    {
+     "sound": "audio/search/explore/hit/ov-6364209c.wav",
+     "credit": "\"gong hit loud close.wav\" by thma, CC0, https://freesound.org/people/thma/sounds/245878"
+    },
+    {
+     "sound": "chime/fs-185822-single-chime-1",
+     "gain_db": -10,
+     "at_ms": 80
+    }
+   ],
+   "len_ms": 2300,
+   "fade_ms": 900
+  },
+  "c": {
+   "name": "Orchestra hit and glimmer",
+   "desc": "A deep orchestral boom followed by a magical glimmering shimmer.",
+   "note": "Library hit/fs-559391-orchestral-hit-1 (deep, wide orchestral impact) + shimmer/fs-521873-glimmer at -13 dB from 60 ms for the reward sparkle. Bigger take on zone_enter c.",
+   "layers": [
+    {
+     "sound": "hit/fs-559391-orchestral-hit-1",
+     "highpass_hz": 40
+    },
+    {
+     "sound": "shimmer/fs-521873-glimmer-wav-3",
+     "gain_db": -13,
+     "at_ms": 60
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactPunch_heavy_003.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 2300,
+   "fade_ms": 800
+  }
+ }
+}

@@ -1,0 +1,329 @@
+{
+ "skill_press": {
+  "a": {
+   "name": "Steel lock snap",
+   "desc": "A crisp steel slide-lock snapping into place, with a tiny ring.",
+   "note": "Slide lock 1 (a real metal slide lock, cut 4 ms in so its snap peaks at 5 ms) for the snap; a Kenney light steel impact, highpassed and 4 dB down, adds a short bright ring for the reward. Sheet: spike at 5 ms, gone by 150 ms. (Chosen over the Kenney metal latch, which three other groups already lead with.)",
+   "layers": [
+    {
+     "sound": "audio/search/skills/click/ov-38254d26.wav",
+     "gain_db": 0,
+     "start_ms": 4,
+     "len_ms": 170,
+     "credit": "\"Slide lock 1.wav\" by ingudios, CC0, https://freesound.org/people/ingudios/sounds/119494"
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactMetal_light_002.ogg",
+     "gain_db": -4,
+     "at_ms": 6,
+     "len_ms": 150,
+     "highpass_hz": 1500,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    }
+   ],
+   "len_ms": 170,
+   "fade_ms": 70
+  },
+  "b": {
+   "name": "Wooden knock snap",
+   "desc": "A crisp wooden knock with a small crack in it.",
+   "note": "Woodcrack (1), a 40 ms dry crack, for the crisp top; the classic Wood Knock and a Kenney light wood tap give it a short hollow body (the crack alone is too thin to reach the loudness target).",
+   "layers": [
+    {
+     "sound": "audio/search/skills/tap/ov-3264aeea.wav",
+     "gain_db": 0,
+     "credit": "\"Woodcrack (1)\" by Sheyvan, CC0, https://freesound.org/people/Sheyvan/sounds/567053"
+    },
+    {
+     "sound": "tap/fs-369710-wood-knock",
+     "gain_db": 3
+    },
+    {
+     "sound": "tap/kenney-impact-impact-wood-light-004",
+     "gain_db": 0,
+     "len_ms": 120
+    }
+   ],
+   "len_ms": 130,
+   "fade_ms": 50
+  },
+  "c": {
+   "name": "Bright glass tink",
+   "desc": "A tiny, bright tink, like a fingernail on a glass.",
+   "note": "kenney light glass impact, original take",
+   "len_ms": 160,
+   "fade_ms": 80,
+   "layers": [
+    {
+     "sound": "tap/kenney-impact-impact-glass-light-001",
+     "len_ms": 160
+    }
+   ]
+  }
+ },
+ "skill_miss": {
+  "a": {
+   "name": "Dead metal clunk",
+   "desc": "A blade clunking dully off armour, flat and lifeless.",
+   "note": "Kenney medium metal impact pitched down 6 semitones and lowpassed at 1.4 kHz (all the ring and sparkle gone), over a dull hammer thump (fs-264879 third hit) for a blunt body. Steel family, the deflated twin of the steel snap.",
+   "layers": [
+    {
+     "sound": "tap/kenney-impact-impact-metal-medium-001",
+     "gain_db": 0,
+     "pitch": -6,
+     "lowpass_hz": 1400
+    },
+    {
+     "sound": "thump/fs-264879-three-dull-thumps-with-hamme-3",
+     "gain_db": -2,
+     "lowpass_hz": 2000
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 80
+  },
+  "b": {
+   "name": "Hollow wood tok",
+   "desc": "A hollow wooden knock, pitched low, like hitting an empty crate.",
+   "note": "Kenney medium wood impact pitched down 3 semitones and lowpassed at 2 kHz: a dead, hollow knock that says nothing landed.",
+   "layers": [
+    {
+     "sound": "tap/kenney-impact-impact-wood-medium-002",
+     "gain_db": 0,
+     "pitch": -3,
+     "lowpass_hz": 2000
+    }
+   ],
+   "len_ms": 220,
+   "fade_ms": 80
+  },
+  "c": {
+   "name": "Padded cloth bump",
+   "desc": "A weak blow bumping into thick cloth, soft and deflated.",
+   "note": "Medium Thud 1 (first take), lowpassed at 1.8 kHz, for a soft padded hit; a fabric flap right after it sells the limp follow-through. Sheet: thud at 7 ms, cloth noise until 120 ms.",
+   "layers": [
+    {
+     "sound": "thump/fs-342535-medium-thud-1-1",
+     "gain_db": 0,
+     "lowpass_hz": 1800
+    },
+    {
+     "sound": "swish/fs-580967-fabric-flaps",
+     "gain_db": -4,
+     "at_ms": 15
+    }
+   ],
+   "len_ms": 220,
+   "fade_ms": 80
+  }
+ },
+ "follow_up": {
+  "a": {
+   "name": "Quick blade nick",
+   "desc": "A fast, light steel slice, a small flick of a blade.",
+   "note": "Kenney RPG knifeSlice2, only its sharp first 160 ms (hard metal onset at 4 ms, then a quick decay; the later swell is cut off). Lighter and shorter than the main strike.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/knifeSlice2.ogg",
+     "gain_db": 0,
+     "len_ms": 160,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    }
+   ],
+   "len_ms": 160,
+   "fade_ms": 70
+  },
+  "b": {
+   "name": "Quick chop",
+   "desc": "A quick chop that thuds into its target.",
+   "note": "Kenney RPG chop, cut 45 ms in so it starts right on the bite (peak at 8 ms): wood body with a steel edge, cut tight.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/chop.ogg",
+     "gain_db": 0,
+     "start_ms": 45,
+     "len_ms": 190,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "lowpass_hz": 3000
+    },
+    {
+     "sound": "thump/fs-496187-light-body-thud-on-clothing-1",
+     "gain_db": -6
+    }
+   ],
+   "len_ms": 190,
+   "fade_ms": 70
+  },
+  "c": {
+   "name": "Fist jab",
+   "desc": "A quick gloved punch with a small whip of air.",
+   "note": "Punching Impact Sound (third take, peak at 8 ms, mid-low body) plus a quiet small whip snap for speed.",
+   "layers": [
+    {
+     "sound": "hit/fs-535362-punching-impact-sound-3",
+     "gain_db": 0,
+     "len_ms": 230,
+     "highpass_hz": 120
+    },
+    {
+     "sound": "swish/fs-733944-small-whip-4-1",
+     "gain_db": -3
+    }
+   ],
+   "len_ms": 230,
+   "fade_ms": 80
+  }
+ },
+ "follow_up_ready": {
+  "a": {
+   "name": "Blade drawn",
+   "desc": "A hilt click and a quick steel scrape as a blade comes out.",
+   "note": "Kenney RPG drawKnife3 from 120 ms: its hilt click lands at 12 ms. The bright middle of drawKnife1 (the steel scrape) is laid in 8 ms later, raised so the scrape stays audible after the click.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/drawKnife3.ogg",
+     "gain_db": 0,
+     "start_ms": 120,
+     "len_ms": 230,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/drawKnife1.ogg",
+     "gain_db": 8,
+     "at_ms": 8,
+     "start_ms": 125,
+     "len_ms": 200,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    }
+   ],
+   "len_ms": 240,
+   "fade_ms": 90
+  },
+  "b": {
+   "name": "Cloak rustle",
+   "desc": "A quick cloak and cloth rustle as someone steps in.",
+   "note": "Kenney RPG cloth2 from just before its main rustle: two cloth flicks, soft and grounded.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/cloth2.ogg",
+     "gain_db": 0,
+     "start_ms": 95,
+     "len_ms": 260,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    }
+   ],
+   "len_ms": 260,
+   "fade_ms": 90
+  },
+  "c": {
+   "name": "Buckle jingle step",
+   "desc": "A boot step with a belt buckle clinking, gear being readied.",
+   "note": "Kenney RPG beltHandle1 from its loudest clink (a ringing buckle) over a quiet Kenney wooden footstep.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/beltHandle1.ogg",
+     "gain_db": 0,
+     "start_ms": 105,
+     "len_ms": 200,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/footstep_wood_001.ogg",
+     "gain_db": -6,
+     "len_ms": 120,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "highpass_hz": 100
+    }
+   ],
+   "len_ms": 220,
+   "fade_ms": 80
+  }
+ },
+ "exposed_burst": {
+  "a": {
+   "name": "Bone-cracking blow",
+   "desc": "A heavy punch that cracks bone, with crunchy splinters after.",
+   "note": "Bone Crack (1) crunch first (spike at 5 ms), Face Punch (3) under it for a dense, meaty body, Bone Crack (2) crackles trailing from 60 ms.",
+   "layers": [
+    {
+     "sound": "audio/search/skills/hit/ov-bf2fabe5.wav",
+     "gain_db": 0,
+     "credit": "\"Bone Crack (1)\" by johnfolker, CC0, https://freesound.org/people/johnfolker/sounds/269025"
+    },
+    {
+     "sound": "hit/fs-269028-face-punch-3-1",
+     "gain_db": -4,
+     "len_ms": 300
+    },
+    {
+     "sound": "audio/search/skills/hit/ov-5250336b.wav",
+     "gain_db": -11,
+     "at_ms": 60,
+     "len_ms": 450,
+     "credit": "\"Bone Crack (2)\" by johnfolker, CC0, https://freesound.org/people/johnfolker/sounds/269024"
+    },
+    {
+     "sound": "boom/fs-636624-deep-hit-2",
+     "gain_db": -9,
+     "lowpass_hz": 250
+    }
+   ],
+   "len_ms": 520,
+   "fade_ms": 160
+  },
+  "b": {
+   "name": "Splintering timber",
+   "desc": "A heavy blow that splits old wood, splinters creaking after.",
+   "note": "Old heavy door kick (low wood body and rattle) with the Hydraulic log splitter crack laid on its peak, and wood splinters creaking from 60 ms.",
+   "layers": [
+    {
+     "sound": "hit/fs-452609-door-wood-old-heavy-kick-ope-1",
+     "gain_db": 0,
+     "start_ms": 5,
+     "len_ms": 550
+    },
+    {
+     "sound": "audio/search/skills/tap/ov-12a730c0.wav",
+     "gain_db": 2,
+     "at_ms": 17,
+     "credit": "\"Hydraulic log splitter\" by richwise, CC0, https://freesound.org/people/richwise/sounds/663946"
+    },
+    {
+     "sound": "audio/search/skills/tap/ov-0e5b71d6.wav",
+     "gain_db": -8,
+     "at_ms": 60,
+     "credit": "\"R27-16-Wood Splinters and Creaks.wav\" by craigsmith, CC0, https://freesound.org/people/craigsmith/sounds/483354"
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 180
+  },
+  "c": {
+   "name": "Stone shatter boom",
+   "desc": "Stone breaking apart over a deep boom, rubble trickling down.",
+   "note": "Stone Crumble 2 for the breaking rock and rubble, a Kenney pickaxe-on-rock hit (cut at 260 ms, before its metallic ring shows on the sheet) for a hard stony front, a deep hit for the burst and a low rumble tail.",
+   "layers": [
+    {
+     "sound": "audio/search/skills/hit/ov-b747fc4f.wav",
+     "gain_db": 0,
+     "start_ms": 4,
+     "credit": "\"Stone Crumble 2\" by Kastenfrosch, CC0, https://freesound.org/people/Kastenfrosch/sounds/521956"
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactMining_002.ogg",
+     "gain_db": -2,
+     "at_ms": 1,
+     "len_ms": 260,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    },
+    {
+     "sound": "boom/fs-636624-deep-hit-2",
+     "gain_db": -5,
+     "len_ms": 500
+    }
+   ],
+   "len_ms": 480,
+   "fade_ms": 220
+  }
+ }
+}

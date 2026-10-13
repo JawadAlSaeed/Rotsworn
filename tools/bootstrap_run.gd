@@ -276,6 +276,7 @@ func _ash_look(base: StageLook) -> StageLook:
 ## A wet hollow: winding ground between rotten trees and glowing fungus. Guard: husk and gnats.
 func _sunken_bog(look: StageLook, leader: CharacterData, guard: EncounterData) -> ZoneData:
 	var zone := _zone("sunken_bog", "Sunken Bog", look, leader, Vector2(-14.0, -21.0), Vector2(14.0, 10.0))
+	zone.footstep_sfx = "footstep_mud"
 	zone.blocks.assign([
 		_block(Vector3(0, 0, -23.5), Vector3(34, 5, 3), "cliff"),
 		_block(Vector3(-16.5, 0, -5.5), Vector3(3, 4, 36), "cliff"),
@@ -324,6 +325,7 @@ func _sunken_bog(look: StageLook, leader: CharacterData, guard: EncounterData) -
 ## Broken halls under a cold moon: colonnades and walls make corridors. Guard: shade and gnats.
 func _ashen_ruins(look: StageLook, leader: CharacterData, guard: EncounterData) -> ZoneData:
 	var zone := _zone("ashen_ruins", "Ashen Ruins", look, leader, Vector2(-15.0, -21.0), Vector2(15.0, 10.0))
+	zone.footstep_sfx = "footstep_stone"
 	zone.blocks.assign([
 		_block(Vector3(0, 0, -23.5), Vector3(36, 4, 2), "ruin_wall"),
 		_block(Vector3(-17, 0, -5.5), Vector3(2, 3.5, 36), "ruin_wall"),

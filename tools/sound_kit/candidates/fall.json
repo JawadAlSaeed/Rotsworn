@@ -1,0 +1,296 @@
+{
+ "downed": {
+  "a": {
+   "name": "Heavy body fall",
+   "desc": "A body drops hard onto the ground, with a low thud.",
+   "note": "body fall 2 plus low boom",
+   "layers": [
+    {
+     "sound": "thump/fs-395325-body-falling-on-the-ground-2-3"
+    },
+    {
+     "sound": "boom/fs-13862-10-wav-1",
+     "gain_db": -8
+    }
+   ],
+   "len_ms": 800,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Collapse in armour",
+   "desc": "A hero crumples to the floor, armour plates rattling.",
+   "note": "body fall 1 plus kenney plate impact",
+   "layers": [
+    {
+     "sound": "thump/fs-395331-body-falling-on-the-ground-1-1"
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactPlate_medium_000.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "gain_db": -8,
+     "at_ms": 40
+    }
+   ],
+   "len_ms": 700,
+   "fade_ms": 250
+  },
+  "c": {
+   "name": "Fall and dark toll",
+   "desc": "A body falls to the ground, then a low, sad bell.",
+   "note": "two body falls on wood plus pitched-down heavy bell",
+   "layers": [
+    {
+     "sound": "thump/fs-187136-body-fall-wav-1"
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactBell_heavy_002.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "pitch": -7,
+     "gain_db": -2,
+     "lowpass_hz": 2500,
+     "at_ms": 60
+    }
+   ],
+   "len_ms": 1000,
+   "fade_ms": 450
+  }
+ },
+ "revive": {
+  "a": {
+   "name": "Rising sparkle",
+   "desc": "A bright sparkle that lifts upward, full of hope.",
+   "note": "sparkling star",
+   "layers": [
+    {
+     "sound": "shimmer/fs-462095-sparkling-star-01-wav-2"
+    }
+   ],
+   "len_ms": 1400,
+   "fade_ms": 500
+  },
+  "b": {
+   "name": "Soft chimes",
+   "desc": "Soft wind chimes ring out gently.",
+   "note": "magic chimes",
+   "layers": [
+    {
+     "sound": "shimmer/fs-389789-chimes-3"
+    }
+   ],
+   "len_ms": 1400,
+   "fade_ms": 500
+  },
+  "c": {
+   "name": "Bell and glow",
+   "desc": "One warm bell with a soft magical glow around it.",
+   "note": "ding2 bell pitched down plus fantasy chime under it",
+   "layers": [
+    {
+     "sound": "chime/fs-159011-ding2-wav-1",
+     "pitch": -2
+    },
+    {
+     "sound": "shimmer/fs-376748-fantasy-ui-button-6-wav-1",
+     "gain_db": -8,
+     "at_ms": 30
+    }
+   ],
+   "len_ms": 1300,
+   "fade_ms": 500
+  }
+ },
+ "enemy_crumble": {
+  "a": {
+   "name": "Crumbling rubble",
+   "desc": "Stones and grit tumble down and settle.",
+   "note": "gravel impacts and falls",
+   "layers": [
+    {
+     "sound": "audio/search/big/hit/ov-3bb6fd08.wav",
+     "credit": "\"Gravel Impacts and Falls.wav\" by lolamadeus, CC0, https://freesound.org/people/lolamadeus/sounds/179341"
+    }
+   ],
+   "len_ms": 1000,
+   "fade_ms": 400
+  },
+  "b": {
+   "name": "Stones scatter",
+   "desc": "Small stones and bits scatter and fall apart.",
+   "note": "small rock and stone hits",
+   "layers": [
+    {
+     "sound": "audio/search/big/hit/ov-2a6f22f3.wav",
+     "credit": "\"Small Rock and Stone Hits.wav\" by lolamadeus, CC0, https://freesound.org/people/lolamadeus/sounds/179365"
+    },
+    {
+     "sound": "audio/search/big/hit/ov-3bb6fd08.wav",
+     "credit": "\"Gravel Impacts and Falls.wav\" by lolamadeus, CC0, https://freesound.org/people/lolamadeus/sounds/179341",
+     "at_ms": 60,
+     "gain_db": -3,
+     "pitch": 3
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 400
+  },
+  "c": {
+   "name": "Rotten wood gives way",
+   "desc": "Old rotten wood creaks and breaks apart.",
+   "note": "rpg creak plus heavy wood impact",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/creak2.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "gain_db": 0,
+     "at_ms": 0
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactWood_heavy_002.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "at_ms": 2,
+     "gain_db": -2
+    }
+   ],
+   "len_ms": 1000,
+   "fade_ms": 400
+  }
+ },
+ "boss_rage": {
+  "a": {
+   "name": "Huge dark boom",
+   "desc": "A huge thunder-like boom that shakes the room.",
+   "note": "huge explosion thunder plus heavy punch for mid range",
+   "layers": [
+    {
+     "sound": "boom/fs-320782-huge-explosion-thunder-explo-3"
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactPunch_heavy_000.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 1200,
+   "fade_ms": 700
+  },
+  "b": {
+   "name": "Gong of doom",
+   "desc": "A deep gong bashed hard, ringing with menace.",
+   "note": "low gong bash pitched down",
+   "layers": [
+    {
+     "sound": "audio/search/big/hit/ov-9346475a.wav",
+     "pitch": -5,
+     "credit": "\"Paiste Gong\" by LloydEvans09, CC0, https://freesound.org/people/LloydEvans09/sounds/185824"
+    }
+   ],
+   "len_ms": 1800,
+   "fade_ms": 700
+  },
+  "c": {
+   "name": "Rumbling growl",
+   "desc": "A deep, wet rumble like a giant beast growling.",
+   "note": "growling stomach pitched down plus deep hit",
+   "layers": [
+    {
+     "sound": "audio/search/big/boom/ov-5d68f004.wav",
+     "credit": "\"Growling stomach / Stomach rumbles\" by Breviceps, CC0, https://freesound.org/people/Breviceps/sounds/447911",
+     "pitch": -5
+    },
+    {
+     "sound": "boom/fs-636624-deep-hit-2",
+     "gain_db": -3
+    }
+   ],
+   "len_ms": 700,
+   "fade_ms": 350
+  }
+ },
+ "fight_start": {
+  "a": {
+   "name": "Sword drawn",
+   "desc": "A blade slides out of its sheath with a ring.",
+   "note": "schwing plus low boom",
+   "layers": [
+    {
+     "sound": "swish/fs-524215-schwing-1-1"
+    },
+    {
+     "sound": "boom/fs-13875-23-wav-1",
+     "gain_db": -8
+    }
+   ],
+   "len_ms": 700,
+   "fade_ms": 250
+  },
+  "b": {
+   "name": "Deep drum hit",
+   "desc": "One deep, drum-like hit, like a battle drum.",
+   "note": "heavy punch plus low boom",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactPunch_heavy_002.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    },
+    {
+     "sound": "boom/fs-13862-10-wav-1",
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 700,
+   "fade_ms": 300
+  },
+  "c": {
+   "name": "Bright gong",
+   "desc": "A gong struck once, ringing out to start the fight.",
+   "note": "gong sabi 2",
+   "layers": [
+    {
+     "sound": "audio/search/big/hit/ov-ce22a94e.wav",
+     "credit": "\"Gong sabi 2.wav\" by Logicogonist, CC0, https://freesound.org/people/Logicogonist/sounds/209917"
+    }
+   ],
+   "len_ms": 1400,
+   "fade_ms": 600
+  }
+ },
+ "encounter_swirl": {
+  "a": {
+   "name": "Deep swirl whoosh",
+   "desc": "A deep whoosh that sweeps across, like a gust.",
+   "note": "wipe2 transition pitched down",
+   "layers": [
+    {
+     "sound": "transition/fs-179779-wipe2-wav-1",
+     "pitch": -3
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Wet rushing whoosh",
+   "desc": "A deep, wet whoosh rushes past, like a wave.",
+   "note": "wet transition",
+   "layers": [
+    {
+     "sound": "transition/fs-234533-wet-transition-1"
+    }
+   ],
+   "len_ms": 800,
+   "fade_ms": 300
+  },
+  "c": {
+   "name": "Reverse swell",
+   "desc": "A sound played backwards, swelling up and cutting off.",
+   "note": "reverse fx 13",
+   "layers": [
+    {
+     "sound": "reverse/fs-503803-reverse-fx-13-wav-1"
+    }
+   ],
+   "len_ms": 730,
+   "fade_ms": 60
+  }
+ }
+}

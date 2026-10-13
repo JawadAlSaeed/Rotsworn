@@ -562,6 +562,8 @@ func _play(ev: Dictionary) -> void:
 			elif _encounter.boss:
 				Sfx.play("alert")
 				hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
+			else:
+				Sfx.play("fight_start")
 		"turn_started":
 			mirror.apply(ev)
 			if int(ev.team) == Combatant.Team.PARTY:
@@ -738,6 +740,8 @@ func _on_combat_ended(result: String) -> void:
 	match result:
 		"victory":
 			Sfx.play("victory")
+			if _run != null:
+				_play_reward_sounds()
 		"escaped":
 			Sfx.play("dodge")
 		_:
@@ -753,6 +757,16 @@ func _on_combat_ended(result: String) -> void:
 	# A zone fight hands the end back to the zone (Main); the zone decides when the run is over.
 	if _options.quit_on_end and not _from_zone and _run == null:
 		get_tree().create_timer(QUIT_DELAY_S).timeout.connect(_quit)
+
+
+## Gold, then level up when the party levels: after the victory sound, one at a time.
+func _play_reward_sounds() -> void:
+	var levels := _run.levels_from(RunState.encounter_xp(_encounter))
+	await _wait_ms(_visuals.reward_sound_delay_ms)
+	Sfx.play("gold_gain")
+	if levels > 0:
+		await _wait_ms(_visuals.level_up_sound_gap_ms)
+		Sfx.play("level_up")
 
 
 func _quit() -> void:
@@ -1014,7 +1028,7 @@ func _show_feedback(ev: Dictionary) -> void:
 					hud.popup("+%d AP" % int(ev.delta), head, HudStyle.AP_TEXT)
 		"enemy_phase":
 			var boss := view.fighter(int(ev.enemy))
-			Sfx.play("gauge_full")
+			Sfx.play("boss_rage")
 			if boss != null:
 				boss.flash(_visuals.flash_ms * 4, HudStyle.LATE, 0.9)
 			hud.screen_flash(HudStyle.LATE, _visuals.screen_flash_phase)
@@ -1038,8 +1052,12 @@ func _show_feedback(ev: Dictionary) -> void:
 				var status := String(ev.status)
 				hud.popup(String(HudStyle.STATUS_NAMES.get(status, status.to_upper())), head,
 						HudStyle.STATUS_COLORS.get(status, HudStyle.TEXT) as Color)
+			elif not bool(ev.active) and v != null and mirror.is_alive(target):
+				# A hit uses up EXPOSED for bonus damage (the combo payoff); other statuses just wear off.
+				Sfx.play("exposed_burst" if String(ev.status) == "exposed" else "status_expired")
 		"turn_shifted":
 			if v != null and int(ev.delta) != 0:
+				Sfx.play("timeline_shift")
 				hud.popup("DELAYED" if int(ev.delta) > 0 else "HASTE", head, HudStyle.JUMP)
 		"team_gauge":
 			# The gauge label itself turns gold and says READY (the banner slot may hold a skill name).
@@ -1051,7 +1069,7 @@ func _show_downed(id: int) -> void:
 	var v := view.fighter(id)
 	if v == null:
 		return
-	Sfx.play("downed")
+	Sfx.play("downed" if mirror.party_ids.has(id) else "enemy_crumble")
 	v.clear_timed_pose()
 	v.set_grey(1.0)
 	v.set_glow(0.0)

@@ -98,7 +98,7 @@ volume_db = -2.0
 script = ExtResource("1_8i8ux")
 name = "ap_gain"
 path = "res://assets/audio/sfx/ap_gain.wav"
-volume_db = -6.0
+volume_db = -3.0
 
 [sub_resource type="Resource" id="Resource_2t21s"]
 script = ExtResource("1_8i8ux")
@@ -116,13 +116,13 @@ volume_db = -10.0
 script = ExtResource("1_8i8ux")
 name = "menu_confirm"
 path = "res://assets/audio/sfx/menu_confirm.wav"
-volume_db = -8.0
+volume_db = -6.0
 
 [sub_resource type="Resource" id="Resource_bgel4"]
 script = ExtResource("1_8i8ux")
 name = "menu_cancel"
 path = "res://assets/audio/sfx/menu_cancel.wav"
-volume_db = -8.0
+volume_db = -6.0
 
 [sub_resource type="Resource" id="Resource_pfo4v"]
 script = ExtResource("1_8i8ux")
@@ -183,6 +183,203 @@ script = ExtResource("1_8i8ux")
 name = "ultimate"
 path = "res://assets/audio/sfx/ultimate.wav"
 
+[sub_resource type="Resource" id="Resource_n00"]
+script = ExtResource("1_8i8ux")
+name = "parry_ring"
+path = "res://assets/audio/sfx/parry_ring.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n01"]
+script = ExtResource("1_8i8ux")
+name = "wrong_button"
+path = "res://assets/audio/sfx/wrong_button.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n02"]
+script = ExtResource("1_8i8ux")
+name = "guard_block"
+path = "res://assets/audio/sfx/guard_block.wav"
+volume_db = -4.0
+pitch_jitter = 0.04
+
+[sub_resource type="Resource" id="Resource_n03"]
+script = ExtResource("1_8i8ux")
+name = "skill_miss"
+path = "res://assets/audio/sfx/skill_miss.wav"
+volume_db = -4.0
+pitch_jitter = 0.04
+
+[sub_resource type="Resource" id="Resource_n04"]
+script = ExtResource("1_8i8ux")
+name = "exposed_burst"
+path = "res://assets/audio/sfx/exposed_burst.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n05"]
+script = ExtResource("1_8i8ux")
+name = "ultimate_start"
+path = "res://assets/audio/sfx/ultimate_start.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n06"]
+script = ExtResource("1_8i8ux")
+name = "follow_up_ready"
+path = "res://assets/audio/sfx/follow_up_ready.wav"
+volume_db = -6.0
+
+[sub_resource type="Resource" id="Resource_n07"]
+script = ExtResource("1_8i8ux")
+name = "windup"
+path = "res://assets/audio/sfx/windup.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n08"]
+script = ExtResource("1_8i8ux")
+name = "enemy_crumble"
+path = "res://assets/audio/sfx/enemy_crumble.wav"
+volume_db = -1.0
+
+[sub_resource type="Resource" id="Resource_n09"]
+script = ExtResource("1_8i8ux")
+name = "boss_rage"
+path = "res://assets/audio/sfx/boss_rage.wav"
+volume_db = -2.0
+
+[sub_resource type="Resource" id="Resource_n10"]
+script = ExtResource("1_8i8ux")
+name = "status_expired"
+path = "res://assets/audio/sfx/status_expired.wav"
+volume_db = -6.0
+
+[sub_resource type="Resource" id="Resource_n11"]
+script = ExtResource("1_8i8ux")
+name = "timeline_shift"
+path = "res://assets/audio/sfx/timeline_shift.wav"
+volume_db = -3.0
+
+[sub_resource type="Resource" id="Resource_n12"]
+script = ExtResource("1_8i8ux")
+name = "footstep_grass"
+path = "res://assets/audio/sfx/footstep_grass.wav"
+volume_db = -6.0
+pitch_jitter = 0.08
+
+[sub_resource type="Resource" id="Resource_n13"]
+script = ExtResource("1_8i8ux")
+name = "footstep_mud"
+path = "res://assets/audio/sfx/footstep_mud.wav"
+volume_db = -6.0
+pitch_jitter = 0.08
+
+[sub_resource type="Resource" id="Resource_n14"]
+script = ExtResource("1_8i8ux")
+name = "footstep_stone"
+path = "res://assets/audio/sfx/footstep_stone.wav"
+volume_db = -6.0
+pitch_jitter = 0.08
+
+[sub_resource type="Resource" id="Resource_n15"]
+script = ExtResource("1_8i8ux")
+name = "enemy_notice"
+path = "res://assets/audio/sfx/enemy_notice.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n16"]
+script = ExtResource("1_8i8ux")
+name = "enemy_give_up"
+path = "res://assets/audio/sfx/enemy_give_up.wav"
+volume_db = -6.0
+
+[sub_resource type="Resource" id="Resource_n17"]
+script = ExtResource("1_8i8ux")
+name = "encounter_swirl"
+path = "res://assets/audio/sfx/encounter_swirl.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n18"]
+script = ExtResource("1_8i8ux")
+name = "zone_enter"
+path = "res://assets/audio/sfx/zone_enter.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n19"]
+script = ExtResource("1_8i8ux")
+name = "zone_clear"
+path = "res://assets/audio/sfx/zone_clear.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n20"]
+script = ExtResource("1_8i8ux")
+name = "gold_gain"
+path = "res://assets/audio/sfx/gold_gain.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n21"]
+script = ExtResource("1_8i8ux")
+name = "level_up"
+path = "res://assets/audio/sfx/level_up.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n22"]
+script = ExtResource("1_8i8ux")
+name = "run_begin"
+path = "res://assets/audio/sfx/run_begin.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n23"]
+script = ExtResource("1_8i8ux")
+name = "loot_reveal"
+path = "res://assets/audio/sfx/loot_reveal.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n24"]
+script = ExtResource("1_8i8ux")
+name = "run_cleared"
+path = "res://assets/audio/sfx/run_cleared.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n25"]
+script = ExtResource("1_8i8ux")
+name = "run_over"
+path = "res://assets/audio/sfx/run_over.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n26"]
+script = ExtResource("1_8i8ux")
+name = "escape_fail"
+path = "res://assets/audio/sfx/escape_fail.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n27"]
+script = ExtResource("1_8i8ux")
+name = "fight_start"
+path = "res://assets/audio/sfx/fight_start.wav"
+volume_db = -4.0
+
+[sub_resource type="Resource" id="Resource_n28"]
+script = ExtResource("1_8i8ux")
+name = "player_join"
+path = "res://assets/audio/sfx/player_join.wav"
+volume_db = -6.0
+
+[sub_resource type="Resource" id="Resource_n29"]
+script = ExtResource("1_8i8ux")
+name = "player_leave"
+path = "res://assets/audio/sfx/player_leave.wav"
+volume_db = -4.5
+
+[sub_resource type="Resource" id="Resource_n30"]
+script = ExtResource("1_8i8ux")
+name = "net_connected"
+path = "res://assets/audio/sfx/net_connected.wav"
+volume_db = -6.0
+
+[sub_resource type="Resource" id="Resource_n31"]
+script = ExtResource("1_8i8ux")
+name = "net_error"
+path = "res://assets/audio/sfx/net_error.wav"
+volume_db = -4.0
+
 [resource]
 script = ExtResource("2_tmwgw")
-cues = Array[ExtResource("1_8i8ux")]([SubResource("Resource_ne45t"), SubResource("Resource_lrnn1"), SubResource("Resource_fsrj5"), SubResource("Resource_oddbf"), SubResource("Resource_1xh2r"), SubResource("Resource_nyft8"), SubResource("Resource_t5kpp"), SubResource("Resource_a8kml"), SubResource("Resource_b27fb"), SubResource("Resource_8862e"), SubResource("Resource_vc4v8"), SubResource("Resource_2sva2"), SubResource("Resource_j7rql"), SubResource("Resource_pn3l1"), SubResource("Resource_wf26n"), SubResource("Resource_fub1v"), SubResource("Resource_2t21s"), SubResource("Resource_050hm"), SubResource("Resource_tfr7v"), SubResource("Resource_bgel4"), SubResource("Resource_pfo4v"), SubResource("Resource_eywhw"), SubResource("Resource_3is6k"), SubResource("Resource_8i8ux"), SubResource("Resource_tmwgw"), SubResource("Resource_34wyi"), SubResource("Resource_r24wd"), SubResource("Resource_jetbr"), SubResource("Resource_vkr65"), SubResource("Resource_0uy7s"), SubResource("Resource_fisfa")])
+cues = Array[ExtResource("1_8i8ux")]([SubResource("Resource_ne45t"), SubResource("Resource_lrnn1"), SubResource("Resource_fsrj5"), SubResource("Resource_oddbf"), SubResource("Resource_1xh2r"), SubResource("Resource_nyft8"), SubResource("Resource_t5kpp"), SubResource("Resource_a8kml"), SubResource("Resource_b27fb"), SubResource("Resource_8862e"), SubResource("Resource_vc4v8"), SubResource("Resource_2sva2"), SubResource("Resource_j7rql"), SubResource("Resource_pn3l1"), SubResource("Resource_wf26n"), SubResource("Resource_fub1v"), SubResource("Resource_2t21s"), SubResource("Resource_050hm"), SubResource("Resource_tfr7v"), SubResource("Resource_bgel4"), SubResource("Resource_pfo4v"), SubResource("Resource_eywhw"), SubResource("Resource_3is6k"), SubResource("Resource_8i8ux"), SubResource("Resource_tmwgw"), SubResource("Resource_34wyi"), SubResource("Resource_r24wd"), SubResource("Resource_jetbr"), SubResource("Resource_vkr65"), SubResource("Resource_0uy7s"), SubResource("Resource_fisfa"), SubResource("Resource_n00"), SubResource("Resource_n01"), SubResource("Resource_n02"), SubResource("Resource_n03"), SubResource("Resource_n04"), SubResource("Resource_n05"), SubResource("Resource_n06"), SubResource("Resource_n07"), SubResource("Resource_n08"), SubResource("Resource_n09"), SubResource("Resource_n10"), SubResource("Resource_n11"), SubResource("Resource_n12"), SubResource("Resource_n13"), SubResource("Resource_n14"), SubResource("Resource_n15"), SubResource("Resource_n16"), SubResource("Resource_n17"), SubResource("Resource_n18"), SubResource("Resource_n19"), SubResource("Resource_n20"), SubResource("Resource_n21"), SubResource("Resource_n22"), SubResource("Resource_n23"), SubResource("Resource_n24"), SubResource("Resource_n25"), SubResource("Resource_n26"), SubResource("Resource_n27"), SubResource("Resource_n28"), SubResource("Resource_n29"), SubResource("Resource_n30"), SubResource("Resource_n31")])

@@ -1,0 +1,306 @@
+{
+ "ap_gain": {
+  "a": {
+   "name": "Tiny bell ting",
+   "desc": "One small, bright bell ting that dies away quickly.",
+   "note": "short struck ding with natural decay",
+   "len_ms": 200,
+   "fade_ms": 140,
+   "layers": [
+    {
+     "sound": "chime/fs-515643-ding2-wav-1",
+     "lowpass_hz": 7000
+    }
+   ]
+  },
+  "b": {
+   "name": "Soft metal tink",
+   "desc": "A single soft tink of small metal.",
+   "note": "coindrop.wav (sagetyrtle, CC0): a coin hitting wood with one quick bounce, 2-9 kHz; lowpassed at 9 kHz and cut to 140 ms so the jingle never trails.",
+   "layers": [
+    {
+     "sound": "audio/search/turns/chime/ov-2a0e849b.wav",
+     "len_ms": 95,
+     "lowpass_hz": 6000,
+     "credit": "\"coindrop.wav\" by sagetyrtle, CC0, https://freesound.org/people/sagetyrtle/sounds/37225"
+    }
+   ],
+   "len_ms": 90,
+   "fade_ms": 50
+  },
+  "c": {
+   "name": "Wooden bead clicks",
+   "desc": "A few small wooden beads clicking, like an abacus.",
+   "note": "kit light wood tap twice",
+   "len_ms": 130,
+   "fade_ms": 60,
+   "layers": [
+    {
+     "sound": "tap/kenney-impact-impact-wood-light-000",
+     "pitch": 3
+    },
+    {
+     "sound": "tap/kenney-impact-impact-wood-light-002",
+     "pitch": 4,
+     "at_ms": 35,
+     "gain_db": -1
+    },
+    {
+     "sound": "tap/kenney-impact-impact-wood-light-000",
+     "pitch": 5,
+     "at_ms": 65,
+     "gain_db": -2
+    }
+   ]
+  }
+ },
+ "gauge_full": {
+  "a": {
+   "name": "Bright tower bell",
+   "desc": "A big old bell struck once, deep and ringing with weight.",
+   "note": "Church bell (odilonmarcenaro, CC0) strike, rich partials 300-3000 Hz, with a glass ding on top for the bright edge; cut to 1.3 s with a long fade.",
+   "layers": [
+    {
+     "sound": "audio/search/turns/chime/ov-e2b74c1d.wav",
+     "len_ms": 1400,
+     "credit": "\"enkhuizen catholic church.wav\" by odilonmarcenaro, CC0, https://freesound.org/people/odilonmarcenaro/sounds/120833",
+     "pitch": 6
+    },
+    {
+     "sound": "chime/fs-404104-glass-ding-3",
+     "gain_db": -3
+    }
+   ],
+   "len_ms": 1300,
+   "fade_ms": 650
+  },
+  "b": {
+   "name": "Singing bowl ring",
+   "desc": "A brass singing bowl struck with a mallet, a pure shimmering ring.",
+   "note": "Singing bowl strike (inoshirodesign, CC0), clean partials up to 9 kHz that hum on; a soft wooden mallet knock under it adds weight.",
+   "layers": [
+    {
+     "sound": "audio/search/turns/chime/ov-be918846.wav",
+     "len_ms": 1400,
+     "credit": "\"singing bowl strike sound\" by inoshirodesign, CC0, https://freesound.org/people/inoshirodesign/sounds/271370"
+    },
+    {
+     "sound": "tap/kenney-impact-impact-wood-heavy-003",
+     "gain_db": -6
+    }
+   ],
+   "len_ms": 1300,
+   "fade_ms": 700
+  },
+  "c": {
+   "name": "Handbell with chimes",
+   "desc": "A bright handbell rings while small chimes sparkle around it.",
+   "note": "Bright handbell ding (fs 611113, 4.7 kHz centroid) leads; hanging chimes (fs 389789) shimmer under it for a magical, celebratory finish.",
+   "layers": [
+    {
+     "sound": "chime/fs-611113-bell-ding-1-wav-1"
+    },
+    {
+     "sound": "shimmer/fs-389789-chimes-3",
+     "gain_db": -6,
+     "len_ms": 1300
+    }
+   ],
+   "len_ms": 1250,
+   "fade_ms": 600
+  }
+ },
+ "timeline_shift": {
+  "a": {
+   "name": "Page flick",
+   "desc": "A quick page flips over, like the turn order shuffling.",
+   "note": "rpg bookFlip, no casino",
+   "len_ms": 240,
+   "fade_ms": 80,
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/bookFlip3.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 25
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/bookFlip2.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "at_ms": 40,
+     "gain_db": -4
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/bookFlip1.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 560,
+     "at_ms": 80,
+     "gain_db": -4
+    }
+   ]
+  },
+  "b": {
+   "name": "Ratchet clicks",
+   "desc": "A metal ratchet turning a few notches, click click click.",
+   "note": "Three real ratchet notches in a row (pulley winch, then two Stahlwille tightening clicks) at 0, 90 and 170 ms, each a bit quieter, like a gear moving the order on.",
+   "layers": [
+    {
+     "sound": "tick/fs-454148-ratchet-pulley-winch-pull-me-3",
+     "len_ms": 30
+    },
+    {
+     "sound": "tick/fs-386205-ratchet-stahlwille-tighten-4-2",
+     "gain_db": -1,
+     "at_ms": 60,
+     "len_ms": 80
+    },
+    {
+     "sound": "tick/fs-386208-ratchet-drill-unbranded-tigh-3",
+     "gain_db": -3,
+     "at_ms": 120
+    }
+   ],
+   "len_ms": 320,
+   "fade_ms": 60
+  },
+  "c": {
+   "name": "Wooden drawer slide",
+   "desc": "A heavy wooden block shoved along a table, a short dull scrape.",
+   "note": "Wood drawer slide (kyles, CC0) gives the bump at the start; Dragging Furniture (Mrthenoronha, CC0) gives a wood-on-wood scrape body.",
+   "layers": [
+    {
+     "sound": "audio/search/turns/swish/ov-93224f6d.wav",
+     "credit": "\"wood drawer slide open close pull push.flac\" by kyles, CC0, https://freesound.org/people/kyles/sounds/455854"
+    },
+    {
+     "sound": "audio/search/turns/swish/ov-d000e330.wav",
+     "gain_db": -3,
+     "at_ms": 20,
+     "start_ms": 60,
+     "len_ms": 320,
+     "credit": "\"Dragging Furniture.wav\" by Mrthenoronha, CC0, https://freesound.org/people/Mrthenoronha/sounds/377016"
+    }
+   ],
+   "len_ms": 380,
+   "fade_ms": 120
+  }
+ },
+ "low_hp_warning": {
+  "a": {
+   "name": "Heartbeat",
+   "desc": "One heavy heartbeat, lub-dub, felt in the chest.",
+   "note": "The lub of a real heartbeat (Heart trouble, lisakale, CC0), lowpassed to drop a whine in the recording, with a muffled carpet thump on top so small speakers hear it; a softer close thump 270 ms later is the dub (about half as loud, so the lub stays the peak).",
+   "layers": [
+    {
+     "sound": "audio/search/turns/hit/ov-397f2c28.wav",
+     "len_ms": 240,
+     "lowpass_hz": 900,
+     "credit": "\"Heart trouble\" by lisakale, CC0, https://freesound.org/people/lisakale/sounds/138388",
+     "highpass_hz": 60
+    },
+    {
+     "sound": "thump/fs-133282-thump-on-carpet-2",
+     "gain_db": 3,
+     "lowpass_hz": 1500
+    },
+    {
+     "sound": "thump/fs-389665-thump-close-wav-2",
+     "gain_db": -6,
+     "at_ms": 270,
+     "lowpass_hz": 1200
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 180
+  },
+  "b": {
+   "name": "Dark drum doom",
+   "desc": "A dark, low drum hit with a soft thump.",
+   "note": "Dark timpani hit (fs 573245): a sharp low strike then a rumbling body; cut to 800 ms.",
+   "layers": [
+    {
+     "sound": "hit/fs-573245-dark-timpani-1-wav-1",
+     "highpass_hz": 50
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactSoft_heavy_000.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 800,
+   "fade_ms": 350
+  },
+  "c": {
+   "name": "Low iron toll",
+   "desc": "A heavy iron bell struck once, low and grim, a warning.",
+   "note": "Kenney heavy bell impact (iron, 360 Hz centroid, instant strike) darkened with a lowpass, with BELL.wav (kgeshev, CC0) pitched down 5 semitones under it for a slow funeral-toll hum.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactBell_heavy_004.ogg",
+     "lowpass_hz": 2500,
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds"
+    },
+    {
+     "sound": "audio/search/turns/chime/ov-9905ffd1.wav",
+     "pitch": -5,
+     "lowpass_hz": 3000,
+     "gain_db": -6,
+     "len_ms": 1000,
+     "credit": "\"BELL.wav\" by kgeshev, CC0, https://freesound.org/people/kgeshev/sounds/378799"
+    }
+   ],
+   "len_ms": 850,
+   "fade_ms": 450
+  }
+ },
+ "turn_start": {
+  "a": {
+   "name": "Soft wood knock",
+   "desc": "One soft knock on a wooden table.",
+   "note": "Classic wood knock (Mrguff) with a light Kenney wood impact underneath for a rounder body; about 150 ms.",
+   "layers": [
+    {
+     "sound": "tap/fs-369710-wood-knock",
+     "len_ms": 75
+    },
+    {
+     "sound": "tap/kenney-impact-impact-wood-light-001",
+     "gain_db": -6
+    }
+   ],
+   "len_ms": 160,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Small glass ding",
+   "desc": "A small glass tapped lightly, one clear ding.",
+   "note": "Glass ding (fs 404104) gives a clean bell tone near 2.4 kHz; cut to 300 ms so it stays short.",
+   "layers": [
+    {
+     "sound": "chime/fs-404104-glass-ding-1"
+    }
+   ],
+   "len_ms": 300,
+   "fade_ms": 180
+  },
+  "c": {
+   "name": "Soft metal latch",
+   "desc": "A small metal clasp clicking shut, quiet and tactile.",
+   "note": "Kenney RPG metal latch, softened with a lowpass, over a light leather/book place for body.",
+   "layers": [
+    {
+     "sound": "click/kenney-rpg-metal-latch",
+     "lowpass_hz": 7000
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/bookPlace1.ogg",
+     "gain_db": -8,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 42
+    }
+   ],
+   "len_ms": 150,
+   "fade_ms": 60
+  }
+ }
+}

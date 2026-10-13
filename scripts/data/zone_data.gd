@@ -19,3 +19,5 @@ extends Resource
 @export var props: Array[ZonePropData] = []
 @export var lights: Array[ZoneLightData] = []
 @export var enemies: Array[ZoneEnemyData] = []
+## Sound cue for each of the leader's steps (its ground: grass, mud, stone).
+@export var footstep_sfx: String = "footstep_grass"

@@ -1,0 +1,330 @@
+{
+ "victory": {
+  "a": {
+   "name": "Bright bell ring",
+   "desc": "One clear bright bell rings out with a soft sparkle around it.",
+   "note": "Single bell.m4a (clean bright bell, 1.6 s decay) pitched -2 for warmth, Kenney heavy bell strike under it for weight, bell-tree scrape for shimmer.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/shimmer/ov-4f1da2de.wav",
+     "gain_db": 0,
+     "pitch": -2,
+     "credit": "\"Single bell.m4a\" by brittgym98, CC0, https://freesound.org/people/brittgym98/sounds/532649"
+    },
+    {
+     "sound": "hit/kenney-impact-impact-bell-heavy-000",
+     "gain_db": -7
+    },
+    {
+     "sound": "audio/search/wins/shimmer/ov-fb89a63c.wav",
+     "gain_db": -9,
+     "at_ms": 30,
+     "credit": "\"Bell Tree (bell_tree_scrape3.wav)\" by Samulis, CC0, https://freesound.org/people/Samulis/sounds/375598"
+    }
+   ],
+   "len_ms": 2000,
+   "fade_ms": 700
+  },
+  "b": {
+   "name": "Gong with chimes",
+   "desc": "A bright temple gong is struck while old chimes tinkle over it.",
+   "note": "Gong sabi 2 (bright mid gong) pitched +3 to sound smaller and lighter, library magic chimes on top.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/hit/ov-ce22a94e.wav",
+     "gain_db": 0,
+     "pitch": 3,
+     "credit": "\"Gong sabi 2.wav\" by Logicogonist, CC0, https://freesound.org/people/Logicogonist/sounds/209917"
+    },
+    {
+     "sound": "shimmer/fs-389789-chimes-3",
+     "gain_db": -5,
+     "at_ms": 40
+    }
+   ],
+   "len_ms": 2400,
+   "fade_ms": 900
+  },
+  "c": {
+   "name": "Rising handbells",
+   "desc": "Three handbells ring upward, quick and happy, like a little fanfare.",
+   "note": "Real chromatic handbells: g#1 and c2 an octave down, then g#1 -5, staggered 150 ms: Ab-C-Eb rising major arpeggio.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/shimmer/ov-f758a0e1.wav",
+     "gain_db": 0,
+     "pitch": -12,
+     "credit": "\"chromatic handbells 12 tones g#1.wav\" by radwoc, CC0, https://freesound.org/people/radwoc/sounds/370005"
+    },
+    {
+     "sound": "audio/search/wins/shimmer/ov-bdd94921.wav",
+     "gain_db": 0,
+     "pitch": -12,
+     "at_ms": 150,
+     "credit": "\"chromatic handbells 12 tones c2.wav\" by radwoc, CC0, https://freesound.org/people/radwoc/sounds/370001"
+    },
+    {
+     "sound": "audio/search/wins/shimmer/ov-f758a0e1.wav",
+     "gain_db": 0,
+     "pitch": -5,
+     "at_ms": 300,
+     "credit": "\"chromatic handbells 12 tones g#1.wav\" by radwoc, CC0, https://freesound.org/people/radwoc/sounds/370005"
+    }
+   ],
+   "len_ms": 2400,
+   "fade_ms": 900
+  }
+ },
+ "run_cleared": {
+  "a": {
+   "name": "Cathedral bells peal",
+   "desc": "A great church bell booms while a whole tower of bells rings in celebration.",
+   "note": "Italian bells mid distant (dense joyful peal) as the bed, Kalomina's single church bell strike on top for the downbeat, bell-tree scrape shimmer.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/long/ov-4e3cc011-14s.wav",
+     "gain_db": 0,
+     "start_ms": 2040,
+     "len_ms": 3700,
+     "credit": "\"Italian bells mid distant.wav\" by mikewest, CC0, https://freesound.org/people/mikewest/sounds/411489"
+    },
+    {
+     "sound": "audio/search/wins/long/ov-0b943818-14s.wav",
+     "gain_db": -3,
+     "start_ms": 1175,
+     "len_ms": 3700,
+     "credit": "\"Church Bell.wav\" by Kalomina, CC0, https://freesound.org/people/Kalomina/sounds/611469"
+    },
+    {
+     "sound": "audio/search/wins/shimmer/ov-01cca565.wav",
+     "gain_db": -8,
+     "at_ms": 60,
+     "credit": "\"Bell Tree (bell_tree_scrape2.wav)\" by sgossner, CC0, https://freesound.org/people/sgossner/sounds/375597"
+    }
+   ],
+   "len_ms": 3400,
+   "fade_ms": 1000
+  },
+  "b": {
+   "name": "Great gong crash",
+   "desc": "A huge gong crashes and shimmers, with a deep gong booming underneath.",
+   "note": "Paiste Gong (bright wash, 4 s) over a low gong bash for weight, glimmer magic shimmer on top.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/hit/ov-9346475a.wav",
+     "gain_db": 0,
+     "credit": "\"Paiste Gong\" by LloydEvans09, CC0, https://freesound.org/people/LloydEvans09/sounds/185824"
+    },
+    {
+     "sound": "audio/search/wins/hit/ov-c8d52a28.wav",
+     "gain_db": -3,
+     "credit": "\"low gong bash\" by hiddenpersuader, CC0, https://freesound.org/people/hiddenpersuader/sounds/155460"
+    },
+    {
+     "sound": "shimmer/fs-521873-glimmer-wav-3",
+     "gain_db": -8,
+     "at_ms": 80
+    }
+   ],
+   "len_ms": 3400,
+   "fade_ms": 1100
+  },
+  "c": {
+   "name": "Anvil and handbells",
+   "desc": "A mighty anvil strike rings, then handbells climb upward in triumph.",
+   "note": "Anvil Strike Slow (deep ringing anvil) pitched +3.5 to sit on Ab, then handbells c2 -12 and g#1 -5 rising (bigger take on victory c).",
+   "layers": [
+    {
+     "sound": "audio/search/wins/hit/ov-a304feef.wav",
+     "gain_db": 0,
+     "pitch": 3.5,
+     "credit": "\"Anvil Strike Slow.wav\" by BaDoink, CC0, https://freesound.org/people/BaDoink/sounds/568568"
+    },
+    {
+     "sound": "audio/search/wins/shimmer/ov-bdd94921.wav",
+     "gain_db": -1,
+     "pitch": -12,
+     "at_ms": 180,
+     "credit": "\"chromatic handbells 12 tones c2.wav\" by radwoc, CC0, https://freesound.org/people/radwoc/sounds/370001"
+    },
+    {
+     "sound": "audio/search/wins/shimmer/ov-f758a0e1.wav",
+     "gain_db": -1,
+     "pitch": -5,
+     "at_ms": 380,
+     "credit": "\"chromatic handbells 12 tones g#1.wav\" by radwoc, CC0, https://freesound.org/people/radwoc/sounds/370005"
+    }
+   ],
+   "len_ms": 3400,
+   "fade_ms": 1200
+  }
+ },
+ "defeat": {
+  "a": {
+   "name": "Falling bell tolls",
+   "desc": "Two dark church bell tolls, the second one lower, like falling.",
+   "note": "Kalomina's clean church bell strike pitched -5, then again pitched -10 at 600 ms (falling fourth), deep boom under the first.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/long/ov-0b943818-14s.wav",
+     "gain_db": 0,
+     "pitch": -5,
+     "start_ms": 1175,
+     "len_ms": 1500,
+     "credit": "\"Church Bell.wav\" by Kalomina, CC0, https://freesound.org/people/Kalomina/sounds/611469"
+    },
+    {
+     "sound": "audio/search/wins/long/ov-0b943818-14s.wav",
+     "gain_db": -3,
+     "pitch": -10,
+     "start_ms": 1175,
+     "len_ms": 2000,
+     "at_ms": 600,
+     "credit": "\"Church Bell.wav\" by Kalomina, CC0, https://freesound.org/people/Kalomina/sounds/611469"
+    },
+    {
+     "sound": "boom/fs-539968-deep-boom-3",
+     "gain_db": -6
+    }
+   ],
+   "len_ms": 2800,
+   "fade_ms": 900
+  },
+  "b": {
+   "name": "Sinking gong",
+   "desc": "A huge low gong groans downward under distant rolling thunder.",
+   "note": "Gong Brilliant Paiste 32 inch pitched -5 (dark, slow), distant thunder rumble and a deep vent exhale under it.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/hit/ov-bd5e36e6.wav",
+     "gain_db": 0,
+     "pitch": -5,
+     "credit": "\"Gong Brilliant Paiste 32'\" by JensZygar, CC0, https://freesound.org/people/JensZygar/sounds/486629"
+    },
+    {
+     "sound": "boom/fs-581124-distant-thunder-3-2",
+     "gain_db": -4
+    },
+    {
+     "sound": "boom/fs-569422-sfx-whoosh-deep-vent-1-5-wav-2",
+     "gain_db": -9,
+     "at_ms": 60
+    }
+   ],
+   "len_ms": 2600,
+   "fade_ms": 1000
+  },
+  "c": {
+   "name": "Armour falls",
+   "desc": "A body crashes down, weapons clatter, and a deep breath of dust settles.",
+   "note": "Two body falls on wood (knees then body), Kenney metal pot clatter pitched -4 as dropped steel, deep vent whoosh low-passed at 1.2 kHz as the dark settling tail.",
+   "layers": [
+    {
+     "sound": "thump/fs-675927-s03-22-two-body-falls-on-woo-2",
+     "gain_db": 0
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/metalPot2.ogg",
+     "gain_db": -8,
+     "pitch": -4,
+     "at_ms": 60,
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio"
+    },
+    {
+     "sound": "boom/fs-569415-sfx-whoosh-deep-vent-1-11-wa-1",
+     "gain_db": -4,
+     "at_ms": 30,
+     "lowpass_hz": 1200
+    }
+   ],
+   "len_ms": 2400,
+   "fade_ms": 900
+  }
+ },
+ "run_over": {
+  "a": {
+   "name": "Funeral bell toll",
+   "desc": "A huge, slow funeral bell tolls twice as thunder rolls in the distance.",
+   "note": "Gothic church bells toll pitched -3 (deep), Kalomina bell pitched -9 at 1.5 s as a lower, quieter last toll, distant thunder underneath. Gothic layer low-passed at 5 kHz to tame a click in the source.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/long/ov-5cf1fbaa-14s.wav",
+     "gain_db": 0,
+     "pitch": -3,
+     "start_ms": 140,
+     "len_ms": 3600,
+     "lowpass_hz": 5000,
+     "credit": "\"Gothic church bells.mp3\" by Aeonemi, CC0, https://freesound.org/people/Aeonemi/sounds/180330"
+    },
+    {
+     "sound": "audio/search/wins/long/ov-0b943818-14s.wav",
+     "gain_db": -8,
+     "pitch": -9,
+     "start_ms": 1175,
+     "len_ms": 2200,
+     "at_ms": 1500,
+     "credit": "\"Church Bell.wav\" by Kalomina, CC0, https://freesound.org/people/Kalomina/sounds/611469"
+    },
+    {
+     "sound": "audio/search/wins/boom/ov-3a316ae0.wav",
+     "gain_db": -6,
+     "credit": "\"Distant Thunder\" by richwise, CC0, https://freesound.org/people/richwise/sounds/361401"
+    }
+   ],
+   "len_ms": 3400,
+   "fade_ms": 1200
+  },
+  "b": {
+   "name": "Last gong fading",
+   "desc": "A deep gong strikes, then a second, lower gong fades into rumbling dark.",
+   "note": "Low gong bash pitched -3, qubodup Gong pitched -8 at 1.3 s as a lower answer, distant bass rumble bed.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/hit/ov-c8d52a28.wav",
+     "gain_db": 0,
+     "pitch": -3,
+     "credit": "\"low gong bash\" by hiddenpersuader, CC0, https://freesound.org/people/hiddenpersuader/sounds/155460"
+    },
+    {
+     "sound": "audio/search/wins/hit/ov-27f423a7.wav",
+     "gain_db": -5,
+     "pitch": -8,
+     "at_ms": 1300,
+     "credit": "\"Gong\" by qubodup, CC0, https://freesound.org/people/qubodup/sounds/157432"
+    },
+    {
+     "sound": "audio/search/wins/boom/ov-d521cdd7.wav",
+     "gain_db": -5,
+     "credit": "\"Bass Rumble In The Distance\" by BrainClaim, CC0, https://freesound.org/people/BrainClaim/sounds/273805"
+    }
+   ],
+   "len_ms": 3400,
+   "fade_ms": 1200
+  },
+  "c": {
+   "name": "Hollow fading hum",
+   "desc": "A heavy thud, then a low metal bowl hums sadly until it dies away.",
+   "note": "E flat singing bowl struck, pitched -7 into a low hum, body thud on the start, deep anvil FX ring under it.",
+   "layers": [
+    {
+     "sound": "audio/search/wins/chime/ov-2e2253b8.wav",
+     "gain_db": 0,
+     "pitch": -7,
+     "credit": "\"E flat Tibetan singing bowl struck\" by mttvn, CC0, https://freesound.org/people/mttvn/sounds/535950"
+    },
+    {
+     "sound": "thump/fs-389665-thump-close-wav-2",
+     "gain_db": -2
+    },
+    {
+     "sound": "audio/search/wins/hit/ov-4011afbc.wav",
+     "gain_db": -5,
+     "pitch": -2,
+     "credit": "\"Anvil Strike Slow FX.wav\" by BaDoink, CC0, https://freesound.org/people/BaDoink/sounds/568569"
+    }
+   ],
+   "len_ms": 3400,
+   "fade_ms": 1300
+  }
+ }
+}

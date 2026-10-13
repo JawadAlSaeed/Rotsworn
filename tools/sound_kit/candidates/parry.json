@@ -1,0 +1,307 @@
+{
+ "parry": {
+  "a": {
+   "name": "Sword clash clang",
+   "desc": "Two swords meet: a sharp steel clang with a quick bright ring.",
+   "note": "Main: Freesound 'Swords Clash 4' (real sword clash, instant attack, tonal ring near 3.5 kHz), cut short so it can repeat fast. Under it a lowpassed Kenney heavy metal impact adds weight and dies away naturally.",
+   "layers": [
+    {
+     "sound": "audio/search/parry/hit/ov-9994425e.wav",
+     "len_ms": 420,
+     "credit": "\"Swords Clash 4\" by Christopherderp, CC0, https://freesound.org/people/Christopherderp/sounds/342391"
+    },
+    {
+     "sound": "tap/kenney-impact-impact-metal-heavy-000",
+     "gain_db": -6,
+     "lowpass_hz": 2500
+    }
+   ],
+   "len_ms": 380,
+   "fade_ms": 160
+  },
+  "b": {
+   "name": "Bright anvil ting",
+   "desc": "A light, bright hammer-on-anvil ting with a clean singing ring.",
+   "note": "Main: Freesound 'Anvil Strikes_5' (instant, many clean partials). A highpassed slice of 'heavy sword against sword' adds the blade scrape on top.",
+   "layers": [
+    {
+     "sound": "audio/search/parry/hit/ov-ccbf9fc5.wav",
+     "len_ms": 400,
+     "credit": "\"Anvil Strikes_5.wav\" by alan3809, CC0, https://freesound.org/people/alan3809/sounds/103071"
+    },
+    {
+     "sound": "audio/search/parry/hit/ov-2953d021.wav",
+     "gain_db": -6,
+     "len_ms": 150,
+     "highpass_hz": 1500,
+     "credit": "\"heavy sword against sword or shield\" by marchelonia, CC0, https://freesound.org/people/marchelonia/sounds/588278"
+    }
+   ],
+   "len_ms": 340,
+   "fade_ms": 150
+  },
+  "c": {
+   "name": "Shield edge clang",
+   "desc": "A blade knocked aside by a steel shield rim: heavier, darker clang.",
+   "note": "Main: kit 'shield guard' (sharp spike then a ringing tail). A lowpassed kit 'Metal Hit 2' (the main of final parry C) adds a darker, heavier iron body.",
+   "layers": [
+    {
+     "sound": "hit/fs-370203-shield-guard-1",
+     "len_ms": 450
+    },
+    {
+     "sound": "hit/fs-321482-metal-hit-2-1",
+     "gain_db": -3,
+     "lowpass_hz": 3000
+    }
+   ],
+   "len_ms": 300,
+   "fade_ms": 150
+  }
+ },
+ "parry_final": {
+  "a": {
+   "name": "Great sword clash",
+   "desc": "A huge two-sword clang that rings out bright and long.",
+   "note": "Bigger, brighter take on parry A. Main: kit 'Clang 4' (instant, ringing 4 and 5.5 kHz tones), with 'Swords Clash 4' (parry A's sword) at full level and Freesound 'Swords Clashing' for extra bright blade sparkle.",
+   "layers": [
+    {
+     "sound": "hit/fs-198113-clang-4-1",
+     "len_ms": 950,
+     "highpass_hz": 150
+    },
+    {
+     "sound": "audio/search/parry/hit/ov-9994425e.wav",
+     "len_ms": 750,
+     "credit": "\"Swords Clash 4\" by Christopherderp, CC0, https://freesound.org/people/Christopherderp/sounds/342391"
+    },
+    {
+     "sound": "audio/search/parry/hit/ov-4b8e557a.wav",
+     "gain_db": -4,
+     "credit": "\"Swords Clashing\" by Sam300Productions, CC0, https://freesound.org/people/Sam300Productions/sounds/611765"
+    }
+   ],
+   "len_ms": 850,
+   "fade_ms": 400
+  },
+  "b": {
+   "name": "Ringing anvil blow",
+   "desc": "A full hammer blow on an anvil that sings on afterwards.",
+   "note": "Bigger take on parry B. Main: first strike of Freesound 'Blacksmith' (cut before the second blow), with 'Anvil Strikes_5' and 'Anvil Hit 1' for the bright ring.",
+   "layers": [
+    {
+     "sound": "audio/search/parry/hit/ov-e9bd9323.wav",
+     "len_ms": 580,
+     "credit": "\"Blacksmith.wav\" by LarsErikErtzgaardRingen, CC0, https://freesound.org/people/LarsErikErtzgaardRingen/sounds/609757"
+    },
+    {
+     "sound": "audio/search/parry/hit/ov-ccbf9fc5.wav",
+     "gain_db": -4,
+     "credit": "\"Anvil Strikes_5.wav\" by alan3809, CC0, https://freesound.org/people/alan3809/sounds/103071"
+    },
+    {
+     "sound": "audio/search/parry/hit/ov-97072127.wav",
+     "gain_db": -6,
+     "credit": "\"Anvil Hit 1\" by michorvath, CC0, https://freesound.org/people/michorvath/sounds/270589"
+    }
+   ],
+   "len_ms": 750,
+   "fade_ms": 300
+  },
+  "c": {
+   "name": "Shield gong clang",
+   "desc": "A steel shield struck hard, ringing like a small old gong.",
+   "note": "Bigger take on parry C. Main: kit 'Metal Hit 2' (dense, darker heavy metal), with 'shield guard' on top for the rim clang and a bronze bell under it for the long gong-like ring.",
+   "layers": [
+    {
+     "sound": "hit/fs-321482-metal-hit-2-1"
+    },
+    {
+     "sound": "hit/fs-370203-shield-guard-1",
+     "gain_db": 0,
+     "highpass_hz": 180
+    },
+    {
+     "sound": "audio/search/parry/chime/ov-d23547a4.wav",
+     "gain_db": -8,
+     "len_ms": 900,
+     "credit": "\"bronze_bell_A_1.wav\" by strangehorizon, CC0, https://freesound.org/people/strangehorizon/sounds/614975"
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 400
+  }
+ },
+ "parry_ring": {
+  "a": {
+   "name": "Bronze bell ping",
+   "desc": "A small old bronze bell, struck once, warm and clear.",
+   "note": "Freesound 'bronze_bell_B_1': instant, clean partials around 2 kHz, short decay. Tonal, so pitching up per parry stays musical.",
+   "layers": [
+    {
+     "sound": "audio/search/parry/chime/ov-84ff72d8.wav",
+     "len_ms": 450,
+     "credit": "\"bronze_bell_B_1.wav\" by strangehorizon, CC0, https://freesound.org/people/strangehorizon/sounds/614973"
+    }
+   ],
+   "len_ms": 420,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Tiny bell ting",
+   "desc": "A tiny bright hand bell, one quick pure ting.",
+   "note": "Kit 'sqeeeek bell ting1': three pure partials, 0.23 s. The shortest and cleanest option for fast streaks.",
+   "layers": [
+    {
+     "sound": "chime/fs-237106-sqeeeek-bell-ting1-wav-1"
+    }
+   ],
+   "len_ms": 230,
+   "fade_ms": 100
+  },
+  "c": {
+   "name": "Singing blade ring",
+   "desc": "A sword blade left ringing after a strike, thin and steely.",
+   "note": "Freesound 'SharpeningBlade': a blade's tonal ring near 3 kHz. In-world steel rather than a bell.",
+   "layers": [
+    {
+     "sound": "audio/search/parry/chime/ov-71ff8485.wav",
+     "credit": "\"SharpeningBlade.wav\" by Sclolex, CC0, https://freesound.org/people/Sclolex/sounds/236008"
+    }
+   ],
+   "len_ms": 310,
+   "fade_ms": 150
+  }
+ },
+ "hurt": {
+  "a": {
+   "name": "Blade into flesh",
+   "desc": "A blade cuts into a body: a sharp slash with a meaty thud.",
+   "note": "Main: kit 'Hit Impact Sword 3' (blade hit, dense). Under it a kit body-fall thud adds the meaty weight and puts the hardest point at the very start.",
+   "layers": [
+    {
+     "sound": "hit/fs-547042-hit-impact-sword-3-1",
+     "len_ms": 400
+    },
+    {
+     "sound": "thump/fs-187136-body-fall-wav-1"
+    }
+   ],
+   "len_ms": 360,
+   "fade_ms": 150
+  },
+  "b": {
+   "name": "Heavy body blow",
+   "desc": "A heavy blunt blow to the chest, deep and punchy.",
+   "note": "Main: Freesound 'Punch (3)' (dense foley punch), cut before its after-tick. Kit 'thud2' adds the deep chest thump, kit 'Punching Impact Sound' the low knock. Kept short (200 ms).",
+   "layers": [
+    {
+     "sound": "audio/search/parry/hit/ov-cc907c95.wav",
+     "len_ms": 150,
+     "credit": "\"Punch (3)\" by johnfolker, CC0, https://freesound.org/people/johnfolker/sounds/269231"
+    },
+    {
+     "sound": "hit/fs-443494-thud2-wav-1",
+     "highpass_hz": 60
+    },
+    {
+     "sound": "hit/fs-535362-punching-impact-sound-1",
+     "gain_db": -6,
+     "highpass_hz": 60
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 110
+  },
+  "c": {
+   "name": "Wet stab and tear",
+   "desc": "A blade or claw stabs in and tears out: wet and gory.",
+   "note": "Main: Freesound 'Knife Stab Pull' (stab, instant). A slice of Freesound 'goreSplat' (from its loudest point) adds the wet tear; 'Knife Stab Melon' adds the juicy stab. Whole cue fades out smoothly by 230 ms.",
+   "layers": [
+    {
+     "sound": "audio/search/parry/hit/ov-da63fd90.wav",
+     "len_ms": 260,
+     "gain_db": -2,
+     "credit": "\"Knife Stab Pull.wav\" by neilsher, CC0, https://freesound.org/people/neilsher/sounds/411742"
+    },
+    {
+     "sound": "audio/search/parry/hit/ov-23b269d9.wav",
+     "start_ms": 50,
+     "at_ms": 3,
+     "len_ms": 230,
+     "gain_db": 0,
+     "credit": "\"goreSplat.wav\" by ThefitzyG, CC0, https://freesound.org/people/ThefitzyG/sounds/414296"
+    },
+    {
+     "sound": "audio/search/parry/hit/ov-082b92f0.wav",
+     "gain_db": -3,
+     "len_ms": 200,
+     "credit": "\"Knife Stab Melon.wav\" by jawbutch, CC0, https://freesound.org/people/jawbutch/sounds/344404"
+    }
+   ],
+   "len_ms": 230,
+   "fade_ms": 130
+  }
+ },
+ "guard_block": {
+  "a": {
+   "name": "Dull wooden shield",
+   "desc": "A hit thuds into a wooden shield: dull, solid, no ring.",
+   "note": "Main: kit old wooden door impact (4 ms rise), lowpassed so it stays dull. A Kenney heavy wood impact adds the low knock.",
+   "layers": [
+    {
+     "sound": "hit/fs-452610-door-wood-old-with-inlaid-gl-2",
+     "len_ms": 350,
+     "lowpass_hz": 3500
+    },
+    {
+     "sound": "tap/kenney-impact-impact-wood-heavy-003",
+     "gain_db": -3
+    }
+   ],
+   "len_ms": 320,
+   "fade_ms": 150
+  },
+  "b": {
+   "name": "Iron shield thud",
+   "desc": "A blow lands on an iron shield: a muffled, heavy clank.",
+   "note": "Main: Kenney heavy plate impact (dull iron, highpassed). A short, hard-lowpassed slice of kit 'Metal Hit 2' adds a muffled iron body with no ring.",
+   "layers": [
+    {
+     "sound": "tap/kenney-impact-impact-plate-heavy-000",
+     "highpass_hz": 120
+    },
+    {
+     "sound": "hit/fs-578789-metal-hit-2-1",
+     "gain_db": -5,
+     "lowpass_hz": 1800,
+     "len_ms": 250
+    }
+   ],
+   "len_ms": 260,
+   "fade_ms": 160
+  },
+  "c": {
+   "name": "Padded leather block",
+   "desc": "A hit sinks into a leather-faced shield: soft, muffled thump.",
+   "note": "Main: kit 'thud 2' (short dull thud), lowpassed. Kit 'thud2' adds low weight; a lowpassed punch-body foley adds the leather give.",
+   "layers": [
+    {
+     "sound": "thump/fs-405537-thud-2-wav-1",
+     "lowpass_hz": 2500
+    },
+    {
+     "sound": "hit/fs-443494-thud2-wav-1"
+    },
+    {
+     "sound": "thump/fs-675930-s03-14-punch-body-fall-short-1",
+     "gain_db": -2,
+     "lowpass_hz": 1500,
+     "len_ms": 200
+    }
+   ],
+   "len_ms": 230,
+   "fade_ms": 130
+  }
+ }
+}

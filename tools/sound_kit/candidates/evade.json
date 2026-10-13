@@ -1,0 +1,324 @@
+{
+ "dodge": {
+  "a": {
+   "name": "Heavy cloak swish",
+   "desc": "A thick cloak whips past as the hero twists aside.",
+   "note": "Main: kit cloth swish fs-14175 take 1 from 33 ms (skips its quiet lead-in so the flick lands by 47 ms). Under it a low air swosh (fs-60022) for body weight. Dark, fabric-first.",
+   "layers": [
+    {
+     "sound": "swish/fs-14175-27-wav-1",
+     "gain_db": 0,
+     "len_ms": 290,
+     "start_ms": 33
+    },
+    {
+     "sound": "swish/kenney-rpg-cloth1",
+     "gain_db": -4,
+     "at_ms": 5
+    }
+   ],
+   "len_ms": 300,
+   "fade_ms": 70
+  },
+  "b": {
+   "name": "Fast air whoosh",
+   "desc": "A clean, quick rush of air, like ducking a swing.",
+   "note": "Main: kit whoosh fs-449988 (med-high whoosh), cut from 82 ms so its swell peaks at 51 ms (raw rise 133 ms). A quiet bright swoosh (fs-475132) adds sheen. No cloth, pure air.",
+   "layers": [
+    {
+     "sound": "whoosh/fs-449988-whoosh-med-high-1",
+     "gain_db": 0,
+     "start_ms": 82,
+     "len_ms": 300
+    },
+    {
+     "sound": "whoosh/fs-475132-fx-swoosh-light-1",
+     "gain_db": -9,
+     "start_ms": 82,
+     "len_ms": 200,
+     "at_ms": 10
+    }
+   ],
+   "len_ms": 300,
+   "fade_ms": 90
+  },
+  "c": {
+   "name": "Gravel step and flick",
+   "desc": "A boot crunches on gravel as a cloak flicks past.",
+   "note": "Main: Freesound Nox_Sound 'Mountain Boots Gravel' (one gritty boot scuff, rise 21 ms); on top the kit bright cloth flick fs-14193. Ground material instead of air, like jump C.",
+   "layers": [
+    {
+     "sound": "audio/search/evade/thump/ov-3940deb3.wav",
+     "gain_db": 0,
+     "credit": "\"Footsteps_Mountain_Boots_Gravel_Mono.wav\" by Nox_Sound, CC0, https://freesound.org/people/Nox_Sound/sounds/556002"
+    },
+    {
+     "sound": "swish/fs-14193-45-wav-1",
+     "gain_db": -3,
+     "at_ms": 20
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 60
+  }
+ },
+ "jump": {
+  "a": {
+   "name": "Soft cloth landing",
+   "desc": "A light body thud in cloth, like a hop and soft landing.",
+   "note": "Main: kit cloth thump fs-389999 (rise 9 ms, a dense 20 ms padded thud). A quiet low body-to-ground thump (fs-435504) adds weight and Kenney rpg cloth1 the clothes moving. Dark and soft, same cloth family as dodge A.",
+   "layers": [
+    {
+     "sound": "thump/fs-389999-thump-cloth-1",
+     "gain_db": 0,
+     "len_ms": 220
+    },
+    {
+     "sound": "thump/fs-435504-body-falling-to-ground-1",
+     "gain_db": -6,
+     "at_ms": 1
+    },
+    {
+     "sound": "swish/kenney-rpg-cloth1",
+     "gain_db": -6,
+     "len_ms": 120
+    }
+   ],
+   "len_ms": 230,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Boot push-off",
+   "desc": "A boot kicks off hard ground with a quick lift of air.",
+   "note": "Main: Freesound 'Jump to concrete' (0.13 s, rise 4 ms) for the boot leaving the ground; a quiet short bright swish (kit fs-393811) after it gives the upward lift. Brighter and airy, like dodge B.",
+   "layers": [
+    {
+     "sound": "audio/search/evade/thump/ov-a80592a2.wav",
+     "gain_db": 0,
+     "credit": "\"Jump to concrete.WAV\" by 14FPanskaBubik_Lukas, CC0, https://freesound.org/people/14FPanskaBubik_Lukas/sounds/418538"
+    },
+    {
+     "sound": "swish/fs-393811-swish-single-4-1",
+     "gain_db": -12,
+     "at_ms": 15
+    }
+   ],
+   "len_ms": 220,
+   "fade_ms": 60
+  },
+  "c": {
+   "name": "Gritty rock hop",
+   "desc": "Mountain boots crunch on rock and gravel as the hero leaps.",
+   "note": "Main: Freesound Nox_Sound 'Boots Rock Jump Sequence' (rise 2 ms, gritty scrapes), a second rock boot scuff (Nox_Sound rock sequence) 30 ms later, and a quiet gritty ground layer (kit fs-395331) for body. All high-passed at 120 Hz to keep peaks down. Ground material, like dodge C; fits Ashen Ruins stone.",
+   "layers": [
+    {
+     "sound": "audio/search/evade/thump/ov-b82ceaf5.wav",
+     "gain_db": 0,
+     "len_ms": 240,
+     "credit": "\"Footsteps_Mountain_Boots_Rock_Jump_Sequence_Mono.wav\" by Nox_Sound, CC0, https://freesound.org/people/Nox_Sound/sounds/558477",
+     "highpass_hz": 120
+    },
+    {
+     "sound": "audio/search/evade/thump/ov-dee24aca.wav",
+     "gain_db": -3,
+     "at_ms": 30,
+     "credit": "\"Footsteps_Mountain_Boots_Rock_Sequence_Mono.wav\" by Nox_Sound, CC0, https://freesound.org/people/Nox_Sound/sounds/558812",
+     "highpass_hz": 120
+    },
+    {
+     "sound": "thump/fs-395331-body-falling-on-the-ground-1-1",
+     "gain_db": -6,
+     "len_ms": 120,
+     "highpass_hz": 120
+    }
+   ],
+   "len_ms": 190,
+   "fade_ms": 80
+  }
+ },
+ "whiff": {
+  "a": {
+   "name": "Slow sword miss",
+   "desc": "A heavy sword swings through empty air, a bit deflated.",
+   "note": "Main: kit fast sword swing fs-60004 from 15 ms, pitched down 3 semitones (slower, lower = sadder), with a quiet pitched-down blade movement (fs-395266) for edge.",
+   "layers": [
+    {
+     "sound": "whoosh/fs-60004-fast-sword-swing-sound-1",
+     "gain_db": 0,
+     "pitch": -3,
+     "start_ms": 15
+    },
+    {
+     "sound": "swish/fs-395266-sword-movement-single-1-1",
+     "gain_db": -8,
+     "pitch": -3,
+     "at_ms": 5
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Thin blade swipe",
+   "desc": "A light, thin blade flicks past and hits nothing.",
+   "note": "Main: kit sword movement single 3 (fs-395264, rise 18 ms, bright 2.4 kHz), pitched down 2 for a little droop. Short and clean.",
+   "layers": [
+    {
+     "sound": "swish/fs-395264-sword-movement-single-3-1",
+     "gain_db": 0,
+     "pitch": -2
+    }
+   ],
+   "len_ms": 120,
+   "fade_ms": 40
+  },
+  "c": {
+   "name": "Clumsy double swing",
+   "desc": "Two wobbly swishes, like flailing at air and missing.",
+   "note": "Main: kit double swish fs-388003 from 20 ms, pitched down 4 semitones and low-passed at 7 kHz so the two passes sag and slow. A flail rather than one clean miss.",
+   "layers": [
+    {
+     "sound": "swish/fs-388003-double-swish-1",
+     "gain_db": 0,
+     "pitch": -4,
+     "lowpass_hz": 7000,
+     "start_ms": 20,
+     "len_ms": 70
+    },
+    {
+     "sound": "swish/fs-388003-double-swish-1",
+     "gain_db": -3,
+     "pitch": -6,
+     "lowpass_hz": 7000,
+     "start_ms": 20,
+     "at_ms": 95,
+     "len_ms": 80
+    }
+   ],
+   "len_ms": 230,
+   "fade_ms": 60
+  }
+ },
+ "locked": {
+  "a": {
+   "name": "Dead iron latch",
+   "desc": "A tiny muffled iron latch that will not open.",
+   "note": "Main: Freesound 'Metal Latch Sound Effect 2' (dark 400 Hz), cut from 7 ms to skip a pre-click, 65 ms long, low-passed at 2.5 kHz so it reads as a stuck latch, not a ring.",
+   "layers": [
+    {
+     "sound": "audio/search/evade/click/ov-676c1d17.wav",
+     "gain_db": 0,
+     "len_ms": 50,
+     "lowpass_hz": 5000,
+     "credit": "\"Metal Latch Sound Effect 2\" by deleted_user_7146007, CC0, https://freesound.org/people/deleted_user_7146007/sounds/383800",
+     "start_ms": 7
+    }
+   ],
+   "len_ms": 50,
+   "fade_ms": 45
+  },
+  "b": {
+   "name": "Muffled cloth tap",
+   "desc": "A tiny dull tap, like knocking through thick cloth.",
+   "note": "impactSoft_medium very short",
+   "len_ms": 50,
+   "fade_ms": 30,
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactSoft_medium_001.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "len_ms": 60,
+     "highpass_hz": 200
+    }
+   ]
+  },
+  "c": {
+   "name": "Stuck old key",
+   "desc": "An old mechanical key pressed but jammed, a soft dull clack.",
+   "note": "Main: kit vintage typewriter key fs-194795 take 1 from 5 ms (skips a pre-tap), pitched down 3 and low-passed at 2.5 kHz: a dull, stuck clack.",
+   "layers": [
+    {
+     "sound": "key/fs-194795-vintage-keyboard-1-1",
+     "gain_db": 0,
+     "len_ms": 60,
+     "pitch": -3,
+     "lowpass_hz": 2500,
+     "start_ms": 5
+    }
+   ],
+   "len_ms": 70,
+   "fade_ms": 30
+  }
+ },
+ "wrong_button": {
+  "a": {
+   "name": "Dead wooden clunk",
+   "desc": "A dull thunk on a thick dead log, a flat 'no'.",
+   "note": "Main: kit tree-trunk wood impact fs-550918 take 3, first hit only (rise 11 ms, 360 Hz, dead and woody); a dull hammer thump (fs-264879 take 1) under it adds weight. Fits Rotten Hollow's rotting wood.",
+   "layers": [
+    {
+     "sound": "hit/fs-550918-fxsa-sc-wood-tree-trunk-impa-3",
+     "gain_db": 0,
+     "len_ms": 110,
+     "highpass_hz": 100
+    },
+    {
+     "sound": "thump/fs-264879-three-dull-thumps-with-hamme-1",
+     "gain_db": -5,
+     "highpass_hz": 150
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Dead padded thud",
+   "desc": "A flat, dead thump, like hitting a sandbag.",
+   "note": "kenney impactSoft_heavy, no ring",
+   "len_ms": 220,
+   "fade_ms": 100,
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactSoft_heavy_002.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "highpass_hz": 40
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactPunch_medium_001.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "gain_db": -8,
+     "lowpass_hz": 1500,
+     "highpass_hz": 40
+    }
+   ]
+  },
+  "c": {
+   "name": "Double door knock",
+   "desc": "Two quick, dull knocks on a wooden door.",
+   "note": "Main: kit door knock fs-268500 take 3 (first knock only, rise 4 ms) with a low-passed thud (fs-405535) 2 ms behind it for weight (offset avoids phase cancelling); then take 2's first knock pitched down 2 and 5 dB quieter at 85 ms, so the pair falls like a spoken 'uh-uh'.",
+   "layers": [
+    {
+     "sound": "hit/fs-268500-door-knock-wav-3",
+     "gain_db": 0,
+     "len_ms": 130
+    },
+    {
+     "sound": "hit/fs-268500-door-knock-wav-2",
+     "gain_db": -5,
+     "pitch": -2,
+     "len_ms": 150,
+     "at_ms": 85
+    },
+    {
+     "sound": "thump/fs-405535-thud-4-wav-1",
+     "gain_db": -4,
+     "len_ms": 110,
+     "lowpass_hz": 2500,
+     "at_ms": 2
+    }
+   ],
+   "len_ms": 250,
+   "fade_ms": 80
+  }
+ }
+}

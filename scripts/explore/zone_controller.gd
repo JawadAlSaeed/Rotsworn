@@ -226,6 +226,7 @@ func resume(result: String) -> void:
 		# A run moves on to the map now: nothing may start another fight on the way out.
 		_frozen = _run_mode
 		_hud.banner("ZONE CLEAR", HudStyle.GOLD, _explore.zone_title_ms)
+		Sfx.play("zone_clear")
 		cleared.emit()
 
 
@@ -303,6 +304,7 @@ func _build() -> void:
 	_hud.name = "ZoneHud"
 	add_child(_hud)
 	_hud.setup(_explore, _zone.display_name)
+	Sfx.play("zone_enter")
 	_update_goal()
 	_place_walkers(0.0)
 	_snap_camera()
@@ -329,7 +331,7 @@ func _process(delta: float) -> void:
 		_leader_pos = ZoneMotion.move(_leader_pos, step, LEADER_RADIUS, _obstacles, _zone.bounds_min, _zone.bounds_max)
 		_facing = move.normalized()
 		_update_flip()
-		_walk_phase += delta * _explore.walk_bob_hz
+		_advance_walk(delta)
 	else:
 		_walk_phase = 0.0
 	if not striking:
@@ -342,6 +344,7 @@ func _process(delta: float) -> void:
 			continue
 		var brain := r.brain as RoamerBrain
 		var velocity := brain.step(dt_ms, r.pos, _leader_pos, _tuning, not calm)
+		_sound_roamer(r)
 		if velocity.length() > 0.0:
 			r.pos = ZoneMotion.move(r.pos, velocity * delta, ROAMER_RADIUS, _obstacles, _zone.bounds_min, _zone.bounds_max)
 			r.phase = float(r.phase) + delta * _explore.roam_bob_hz
@@ -435,7 +438,7 @@ func _follow_host(delta: float) -> void:
 		_show_strike()
 		striking = true
 	if bool(_net.get("w", false)) and not striking:
-		_walk_phase += delta * _explore.walk_bob_hz
+		_advance_walk(delta)
 		_leader.set_pose(FighterView.CharPose.READY if fposmod(_walk_phase, 1.0) < 0.5 else FighterView.CharPose.IDLE)
 	elif not striking:
 		_walk_phase = 0.0
@@ -459,6 +462,7 @@ func _follow_host(delta: float) -> void:
 		r.pos = old.lerp(target, k)
 		var brain := r.brain as RoamerBrain
 		brain.state = clampi(int(entry[2]), 0, RoamerBrain.State.size() - 1) as RoamerBrain.State
+		_sound_roamer(r)
 		if absf(target.x - old.x) > 0.001:
 			(r.view as FighterView).set_flip((target.x > old.x) == _visuals.enemy_art_faces_left)
 		var moving := brain.state in [RoamerBrain.State.WANDER, RoamerBrain.State.CHASE, RoamerBrain.State.RETURN]
@@ -471,6 +475,27 @@ func _follow_host(delta: float) -> void:
 			RoamerBrain.State.CHASE:
 				pose = EnemyChoreography.Pose.LUNGE
 		(r.view as FighterView).set_pose(pose)
+
+
+## The walking bob; each time a foot comes down (every whole bob phase) a step sounds.
+func _advance_walk(delta: float) -> void:
+	var before := floori(_walk_phase)
+	_walk_phase += delta * _explore.walk_bob_hz
+	if floori(_walk_phase) > before:
+		Sfx.play(_zone.footstep_sfx)
+
+
+## A roaming enemy's state changed: a sting when it spots the leader, a sigh when it gives up.
+func _sound_roamer(r: Dictionary) -> void:
+	var state := (r.brain as RoamerBrain).state
+	var last := int(r.get("last_state", state))
+	r.last_state = state
+	if state == last:
+		return
+	if state == RoamerBrain.State.NOTICE:
+		Sfx.play("enemy_notice")
+	elif state == RoamerBrain.State.RETURN and last == RoamerBrain.State.CHASE:
+		Sfx.play("enemy_give_up")
 
 
 func _begin(index: int, opening: CombatSetup.Opening) -> void:

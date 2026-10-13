@@ -15,6 +15,7 @@ var _guard_s: float = 0.0
 func setup(run: RunState, input_guard_ms: int) -> void:
 	_guard_s = float(input_guard_ms) / 1000.0
 	var won := run.result == RunState.VICTORY
+	Sfx.play("run_cleared" if won else "run_over")
 	var column := ListMenu.screen_column(self, "RUN CLEARED" if won else "RUN OVER", TITLE_SIZE)
 	if not won:
 		(column.get_child(0) as Label).label_settings.font_color = HudStyle.LATE

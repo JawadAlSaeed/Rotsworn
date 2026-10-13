@@ -279,6 +279,14 @@ extends Resource
 @export_range(0, 5000, 1, "suffix:ms") var first_strike_banner_ms: int = 1300
 ## How long the TEAM COUNTER banner stays up.
 @export_range(0, 5000, 1, "suffix:ms") var team_banner_ms: int = 1100
+## After the victory sound in a run, the gold sound waits this long so the two do not pile up.
+@export_range(0, 5000, 1, "suffix:ms") var reward_sound_delay_ms: int = 700
+## Then the level-up sound (when the party levels) waits this long after the gold sound.
+@export_range(0, 5000, 1, "suffix:ms") var level_up_sound_gap_ms: int = 600
+## Each parry in a row within one enemy attack rings this many semitones higher (card #93).
+@export_range(0.0, 12.0, 0.5) var parry_ring_step_semitones: float = 2.0
+## The ring stops climbing after this many steps.
+@export_range(0, 24, 1) var parry_ring_max_steps: int = 6
 ## The victory or defeat screen fades in over this long.
 @export_range(0, 5000, 1, "suffix:ms") var end_fade_ms: int = 400
 ## Presses are ignored on the victory or defeat screen for this long (so a late defence press
