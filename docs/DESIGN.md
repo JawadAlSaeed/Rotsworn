@@ -1,8 +1,13 @@
-# Rotten Lands: design document
+# Rotsworn: design document
 
-Living document. Update it whenever a decision is made. "Rotten Lands" is a placeholder name and
-the setting is undecided, so every name below that belongs to content (characters, enemies, moves)
-is a placeholder stored in data files.
+Living document. Update it whenever a decision is made. The game is called **Rotsworn** (card #48,
+2026-10-13; it was "Rotten Lands" until phase 8). Names that belong to content (characters,
+enemies, moves) are stored in data files and can still change.
+
+Story (card #90): the rot rose from the Hollow King's grave and swallowed the land: forests to
+husks, rivers to bog, cities to ash. Alder, Brin and Cass are the Rotsworn, the last three who
+swore to walk into the rot and cut it out at its heart. The road is never the same twice, and the
+rot fights back.
 
 - Engine: Godot 4.7.2 stable, GDScript, Windows PC.
 - Players: 1 to 3, co-op. Party is always 3 characters. Humans control 1 to 3 of them; the host
@@ -666,6 +671,9 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | `RunData` | `data/runs/` | a kind of run: party, team ultimate, the zones a zone stop picks from, the final fight and its look, the shop's items, the gear pool |
 | `ShopItemData` | `data/shop/` | id, name, description, price, effect (heal one, heal all, max HP up for one), amount in percent |
 | `SfxLibrary` / `SfxCue` | `data/audio/sfx_library.tres` | sound cue name -> file path, volume, pitch jitter |
+| `BrandingData` | `data/branding/branding.tres` | logo path, title screen feel (logo size and fade, glow, fog, prompt), main menu logo and tagline, story blurb |
+| `CreditsData` | `data/branding/credits.tres` | credits text (# heading, ~ small print), roll speed, sizes |
+| `TipSet` | `data/branding/tips.tres` | loading tips, how long a card holds, optional art behind them, sizes |
 
 ### 5.2 Tuning file
 
@@ -920,9 +928,13 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
 
 Studio intro (2026-10-12): when the game starts it plays the "Developed by DragonRot" video
 (`assets/video/dragonrot_intro.ogv`, 4 s, path in `data/presentation/boot.tres`, `BootData`) on
-black, then the main menu. Any key, button or click skips it (after `skip_guard_ms`). A missing
+black, then the title screen (7.7). Any key, button or click skips it (after `skip_guard_ms`). A missing
 video goes straight to the menu. Autoplay never shows it. Godot plays Ogg Theora only: the MP4 was
-converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`).
+converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`). Phase 8 (user: it looked soft and
+stretched; the exported MP4 was only 1888x998 at a low bitrate): `tools/branding/render_intro.py`
+re-renders it from the original canvas animation (the user's `dragonrot-intro/source`) in a hidden
+browser at exactly 1920x1080, 60 fps, with its own WAV, Theora quality 10. The video and the logos
+are scaled smoothly (linear filter; the project's default is nearest, for pixel art).
 
 - **Main menu** (first screen, `MainMenu`): New Run, Practice (the fight and zone list, full HP,
   nothing carries over), Settings, Quit. The cursor comes back on the last item picked.
@@ -946,10 +958,19 @@ UI (card #37):
   gradient, a sickly glow from below, slow rot motes drifting up, vignette), a gold title with a
   fading gold line under it, and the button hints on a dark strip along the bottom
   (`ListMenu.screen_footer`). The run map uses the same backdrop and footer.
-- Menu rows: the chosen row is a soft gold bar with a bright left edge (no "> " cursor) and
-  lights up for a moment when the cursor lands on it. A row can have a value on the right
-  (settings values, "Explore" / "Fight" in the practice list). The fight's action menu uses the
-  same gold bar.
+- Menu rows (changed in phase 8, user pick 2026-10-13): no gold bar; the chosen choice is drawn
+  like the logo's letters (Cinzel at the logo's weight, 130% size, worn gold, brushed, its edges
+  crumbling and flickering like static, `text_static.gdshader`, gentler than the logo) and the
+  others are a little dimmer. Every row is as tall as a chosen one, so nothing moves. Numbers in
+  `data/presentation/ui_fonts.tres` (group "Menu choices"). The fight's action menu keeps its own
+  gold bar (`ListMenu.row_style`).
+- Titles and big words (user request, phase 8) use the same look (`HudStyle.make_worn_title`):
+  screen titles and the line under them, place names on loading cards and in zones, PAUSED, the
+  yes/no question, credits headings, the zone and fight banners (FIRST STRIKE!, ZONE CLEAR, TEAM
+  COUNTER...), VICTORY / DEFEAT / ESCAPED, LAG CALIBRATION; with a thin dark edge and soft shadow so
+  they read over a fight. A banner asking for GOLD gets the logo's worn gold; other colours (red
+  for rage, player colours) stay. Small labels and names keep the plain title font. The static
+  moves at 25% of the first setting (user: "lower the static to 25%"), here and on the logos.
 - Settings: values on the right; the controls are a panel of button chips that follows the
   device in use.
 - Fight HUD (user picks 2026-10-12, built after the first Part A test):
@@ -1002,6 +1023,60 @@ across and on a capital letter's height up and down, so every key of a size shar
 Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://shots/<name>/`
 (`ScreenShooter`), `--screen=menu|settings|players|practice` opens that screen at once, and
 `--pad-prompts` starts with pad buttons shown. Used to check the look without a person.
+
+### 7.7 Phase 8: branding (cards #47, #48, #82, #83, #85, #86, #87, #90)
+
+- **Name** (card #48): Rotsworn everywhere: window title and app name (`project.godot`), the
+  exported `Rotsworn.exe` / `Rotsworn.zip`, the GitHub repo (`JawadAlSaeed/Rotsworn`, renamed from
+  `Rotten-Lands`; GitHub redirects the old URL) and the board. Godot keeps `user://` in a folder
+  named after the game, so `PlayerSettings` reads a `settings.cfg` left in the old
+  `app_userdata/Rotten Lands/` folder once (calibration and volumes survive the rename).
+- **Logo and icon** (card #47, user pick 2026-10-13 after several rounds: the ComfyUI cut-out had
+  white edges, a flat vector was too cartoony, a painted 3D one's materials did not convince; the
+  user chose a minimal look like the Clair Obscur: Expedition 33 logo, option "B, rough"): made by
+  `tools/branding/minimal_branding.py`. ROTSWORN in slim capitals (Cinzel 600) in flat, worn gold
+  (brushed streaks, crumbling pitted edges, hairline cracks, flakes) on nothing, over a large faint
+  crest drawn flat: Alder's shield as an outline, Brin's twin daggers crossed and Cass's staff in
+  front of it, one bone-white ribbon tied straight across them (the user's sketch), its tails
+  flowing right; thin gaps where parts cross; the crest is cut away round the letters. No sword:
+  Alder becomes shield-only (card #56). Files: `assets/branding/rotsworn_logo.png` (still; menus,
+  loading cards, credits) and the title screen's layers (below). Game icon: the same crest, cleaner
+  and thicker so it reads at 16 px, on a black rounded tile (`icon.png` window, `icon.ico` exe,
+  `icon_1024.png` source). The painted logo (`paint_branding.py`, `metal_finish.py`,
+  `ribbon_cloth.py`) is kept for reference and writes to `tools/branding/out/painted/` only.
+- **Title screen** (card #82, `TitleScreen`): after the studio intro. The logo is drawn there as
+  three layers of the same size (`rotsworn_logo_back/tails/front.png`: crest, ribbon tails,
+  letters) so the tails sway gently in a slow wave from the knot (`ribbon_sway.gdshader`), and the
+  letters' worn edges flicker like static (user request): the front layer holds clean letters
+  (cracks only) and `letters_static.gdshader` eats pits and chips out of their edges and scatters
+  flakes, with a pattern that jumps `letters_static_fps` times a second; `letters_static_motion`
+  of it moves, the rest stays so the letters keep their shape (edge distances in
+  `rotsworn_logo_front_edge.png`). Numbers in `BrandingData`; missing layers fall back to the
+  still logo. The green glow and fog are kept dim (user: "too bright"). The menu background with
+  drifting fog (`scripts/menu/fog.gdshader`, two layers of soft noise, thicker low down), the logo
+  fading in and growing slightly, a soft green glow behind it that breathes, and "Press any button"
+  pulsing under it once the logo is in. Any key, button or click (after `skip_guard_ms`) fades to
+  the main menu. The title song starts here and carries on into the menu.
+- **Main menu**: the logo (smaller) replaces the text title, the tagline under it; a Credits row
+  before Quit. Its logo, and the credits', move like the title screen's (user request): all use `AnimatedLogo`
+  (swaying ribbon, flickering letter edges; drawn small, the cuts blend over a screen pixel so the
+  edges shimmer softly instead of sparkling).
+- **Font** (card #83): Cinzel already matches the logo's lettering (7.6), so it stays; menu
+  choices (`ListMenu` rows) now use it too, values (prices, settings) stay in Alegreya Sans.
+- **Credits** (card #87, `CreditsScreen`): from the main menu. The logo, the story, then who made
+  the game, every song with its licence (CC-BY needs it), the sound recordists, the fonts and
+  Godot's licence notice (with FreeType, ENet and Mbed TLS), rolling up to their own song
+  (`MusicSet.credits_path`: "Heroic Minority" by Alexandr Zhelanov, CC-BY 3.0). Down rolls faster,
+  Up rolls back, Back closes; they start again from the bottom after the end.
+- **Loading tips** (card #86): entering a zone (from the run map, the practice list, or online as
+  a client) shows a card over the black: the place's name, a random tip (never the same twice in a
+  row) and the logo in the corner, over the menu background (or `TipSet.background_path` art). It
+  stays `hold_ms` (2.6 s) and the zone is built at its end, so the zone starts when it is seen.
+  Clients and the bot do not hold it (the host already held it before telling the clients).
+- **Hero portraits** (card #85): waiting for painted art (the 24 px placeholders stay).
+- **Story** (card #90): at the top of this file, in `BrandingData.story`, the credits and the
+  README.
+- Dev tools: `--screen=title` and `--screen=credits`.
 
 ---
 
@@ -1302,6 +1377,10 @@ counters for longer and mixed strings (2.5, card #52).
 7. **Sound and music** (done, approved 2026-10-13): real recorded sound effects for 66 moments,
    songs per place with crossfades, boss rage song, music dip, zone ambience, enemy voices, hero
    shouts, volume sliders (5.3). Backpack sounds wait for the backpack (phase 11).
+8. **Branding** (done, approved 2026-10-14): the name Rotsworn, the minimal worn-gold logo and
+   game icon, title screen (swaying ribbon, letters flickering like static), worn-gold menu
+   choices and titles, credits, loading tips, story, the studio intro re-rendered in HD (7.5,
+   7.6, 7.7). Hero portraits wait for art; the trailer and Steam page come later.
 
 ### 11.1 To-do (from playtests)
 
@@ -1423,3 +1502,6 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | Multi-press skills: numbered rings in a row (osu notes), one per press moment | user pick over "one at a time", which would have slowed fast skills down |
 | 2026-10-12 | Skill presses have three results: perfect (bonus), good (normal), miss (50%); osu-style ring with GOOD and PERFECT bands | user feedback: the ring had no visible spot to hit and no distinction between perfect and normal |
 | 2026-10-13 | Sound effects from real CC0 recordings, three options per moment, user picks by ear | the user asked; synthesized placeholders sounded fake; Claude cannot hear, so checks measure and the user listens |
+| 2026-10-13 | The game is called Rotsworn (one word); repo renamed to `JawadAlSaeed/Rotsworn` | user pick; no game uses the name; one word matches the logo and is easy to search |
+| 2026-10-13 | Logo and icon painted by code (tools/branding): shield behind, twin daggers and staff in front, bound by a ribbon | user: the ComfyUI cut-out had white edges, a flat vector redo was too cartoony; no mushrooms, no bright spark |
+| 2026-10-13 | Loading tips hold 2.6 s, then the zone is built | long enough to read; the zone starts when it is seen |

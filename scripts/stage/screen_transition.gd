@@ -3,12 +3,19 @@ extends CanvasLayer
 ## Full-screen transitions (DESIGN.md 7.4), above every HUD. Into a fight: the current picture is
 ## frozen and swirls into black (swirl_out), then the fight fades in from black (fade_in). Back to
 ## a zone: fade to black (fade_out), then fade in. Each call can be awaited. Real time.
+## Over the black, a loading card can show a tip (show_tip / hide_tip, DESIGN.md 7.7, card #86).
 
 const SWIRL_SHADER := preload("res://scripts/stage/swirl.gdshader")
+const TIP_WIDTH_PX: float = 1200.0
+const CARD_MARGIN_PX: float = 32.0
 
 var _explore: ExploreVisuals
 var _picture: TextureRect
 var _black: ColorRect
+var _tips: TipSet
+var _logo_path: String = ""
+var _card: Control
+var _last_tip: int = -1
 
 
 func setup(explore: ExploreVisuals) -> void:
@@ -69,6 +76,98 @@ func fade_in() -> void:
 	_picture.visible = false
 	await _fade_black(0.0, float(_explore.transition_in_ms) / 1000.0)
 	_black.visible = false
+
+
+## The tips and the logo for loading cards (without them show_tip does nothing).
+func setup_tips(tips: TipSet, logo_path: String) -> void:
+	_tips = tips
+	_logo_path = logo_path
+
+
+## Shows a loading card over the black (call after fade_out or swirl_out): `title` (the place's
+## name) and a random tip, never the same twice in a row.
+func show_tip(title: String) -> void:
+	if _tips == null or _tips.tips.is_empty():
+		return
+	var pick := randi() % _tips.tips.size()
+	if pick == _last_tip and _tips.tips.size() > 1:
+		pick = (pick + 1) % _tips.tips.size()
+	_last_tip = pick
+	_card = _build_card(title, _tips.tips[pick])
+	add_child(_card)
+	_card.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_card, "modulate:a", 1.0, float(_tips.fade_ms) / 1000.0)
+	await tween.finished
+
+
+## Fades the loading card out (the black stays until fade_in).
+func hide_tip() -> void:
+	if _card == null:
+		return
+	var card := _card
+	_card = null
+	var tween := create_tween()
+	tween.tween_property(card, "modulate:a", 0.0, float(_tips.fade_ms) / 1000.0)
+	await tween.finished
+	card.queue_free()
+
+
+func _build_card(title: String, tip: String) -> Control:
+	var card := Control.new()
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.set_anchors_preset(Control.PRESET_FULL_RECT)
+	if _tips.background_path.is_empty():
+		card.add_child(MenuBackdrop.new())
+	else:
+		var art := TextureRect.new()
+		art.texture = AssetLoader.texture(_tips.background_path, Vector2i(64, 36))
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art.set_anchors_preset(Control.PRESET_FULL_RECT)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		card.add_child(art)
+		var dim := ColorRect.new()
+		dim.color = Color(0.0, 0.0, 0.0, float(_tips.background_dim_percent) / 100.0)
+		dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+		card.add_child(dim)
+	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.set_anchors_preset(Control.PRESET_FULL_RECT)
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 18)
+	card.add_child(column)
+	if not title.is_empty():
+		var heading := ListMenu.centred_title(title, _tips.title_size)
+		heading.label_settings.shadow_color = Color(0.0, 0.0, 0.0, 0.6)
+		heading.label_settings.shadow_offset = Vector2(0.0, 4.0)
+		column.add_child(heading)
+		column.add_child(ListMenu.divider())
+	var tip_head := HudStyle.make_title("Tip", int(_tips.tip_size * 0.75), HudStyle.TEXT_DIM)
+	tip_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(tip_head)
+	var text := ListMenu.centred_label(tip, _tips.tip_size)
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.custom_minimum_size.x = TIP_WIDTH_PX
+	text.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	column.add_child(text)
+	if _tips.logo_height_px > 0 and not _logo_path.is_empty():
+		var logo := TextureRect.new()
+		logo.texture = AssetLoader.texture(_logo_path, Vector2i(256, 144))
+		logo.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		var height := float(_tips.logo_height_px)
+		var width := height * float(logo.texture.get_width()) / maxf(1.0, float(logo.texture.get_height()))
+		logo.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		logo.offset_left = -width - CARD_MARGIN_PX
+		logo.offset_top = -height - CARD_MARGIN_PX
+		logo.offset_right = -CARD_MARGIN_PX
+		logo.offset_bottom = -CARD_MARGIN_PX
+		card.add_child(logo)
+	return card
 
 
 func _fade_black(to_alpha: float, seconds: float) -> void:

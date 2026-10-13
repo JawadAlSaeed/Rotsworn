@@ -40,7 +40,7 @@ func _ready() -> void:
 	column.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	column.offset_top = 120.0
 	add_child(column)
-	_title = HudStyle.make_title("LAG CALIBRATION", TITLE_SIZE, HudStyle.GOLD)
+	_title = HudStyle.make_worn_title("LAG CALIBRATION", TITLE_SIZE)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_title)
 	# "Press [Parry button] exactly when the circle flashes." with the button as a picture.

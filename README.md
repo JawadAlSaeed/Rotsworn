@@ -1,8 +1,14 @@
-# Rotten Lands
+# Rotsworn
+
+![Rotsworn](assets/branding/rotsworn_logo.png)
+
+The rot rose from the Hollow King's grave and swallowed the land: forests to husks, rivers to bog,
+cities to ash. Alder, Brin and Cass are the Rotsworn, the last three who swore to walk into the rot
+and cut it out at its heart. The road is never the same twice, and the rot fights back.
 
 Co-op (1 to 3 players) turn-based RPG roguelike with real-time parry, dodge and jump defence,
-inspired by Clair Obscur: Expedition 33. Made with Godot 4.7.2. "Rotten Lands" is a placeholder
-name and all art and sound are placeholders for now.
+inspired by Clair Obscur: Expedition 33. Made with Godot 4.7.2. The character and enemy art is
+still placeholder.
 
 - Design: [docs/DESIGN.md](docs/DESIGN.md)
 - Conventions for contributors: [CLAUDE.md](CLAUDE.md)

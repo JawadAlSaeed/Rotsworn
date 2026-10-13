@@ -35,14 +35,14 @@ func setup(explore: ExploreVisuals, zone_name: String) -> void:
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
 
-	_title = HudStyle.make_title(zone_name, TITLE_SIZE, HudStyle.GOLD)
+	_title = HudStyle.make_worn_title(zone_name, TITLE_SIZE)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_title.offset_top = TITLE_TOP
 	_root.add_child(_title)
 	_fade(_title, explore.zone_title_ms)
 
-	_banner = HudStyle.make_title("", BANNER_SIZE, HudStyle.GOLD)
+	_banner = HudStyle.make_worn_title("", BANNER_SIZE)
 	_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_banner.offset_top = BANNER_TOP
@@ -103,7 +103,7 @@ func set_tag(index: int, text: String, shown: bool, screen_pos: Vector2 = Vector
 ## Big text in the middle (FIRST STRIKE!, ZONE CLEAR) for `ms` milliseconds.
 func banner(text: String, color: Color, ms: int) -> void:
 	_banner.text = text
-	_banner.label_settings.font_color = color
+	_banner.label_settings.font_color = HudStyle.worn_color(color)
 	if _banner_tween != null and _banner_tween.is_valid():
 		_banner_tween.kill()
 	_banner_tween = _fade(_banner, ms)

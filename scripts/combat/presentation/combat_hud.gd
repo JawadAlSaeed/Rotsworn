@@ -57,7 +57,6 @@ const PANEL_GAP: int = 12
 const END_TITLE_SIZE: int = 150
 const END_HINT_SIZE: int = 40
 const END_DIM := Color(0.0, 0.0, 0.0, 0.62)
-const VICTORY_COLOR := Color(1.0, 0.85, 0.35)
 const DEFEAT_COLOR := Color(0.9, 0.3, 0.28)
 const TARGET_MARKER_SIZE: int = 40
 ## The arrow over a chosen or attacked fighter.
@@ -255,7 +254,7 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_banner.offset_top = BANNER_TOP
 	_root.add_child(_banner)
 
-	_center_banner = HudStyle.make_title("", CENTER_BANNER_SIZE, HudStyle.GOLD)
+	_center_banner = HudStyle.make_worn_title("", CENTER_BANNER_SIZE)
 	_center_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_center_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_center_banner.offset_top = CENTER_BANNER_TOP
@@ -465,7 +464,7 @@ func set_skill_pressing(on: bool) -> void:
 func show_center_banner(text: String, color: Color, ms: int) -> void:
 	_center_banner.offset_top = _banner_top(CENTER_BANNER_TOP)
 	_center_banner.text = text
-	_center_banner.label_settings.font_color = color
+	_center_banner.label_settings.font_color = HudStyle.worn_color(color)
 	_center_banner.visible = true
 	_center_banner.modulate = Color.WHITE
 	_center_banner.scale = Vector2.ONE
@@ -624,7 +623,7 @@ func show_end(result: String, summary: String, hints: Array, note: String = "") 
 	match result:
 		"victory":
 			_end_title.text = "VICTORY"
-			_end_title.label_settings.font_color = VICTORY_COLOR
+			_end_title.label_settings.font_color = HudStyle.worn_gold()
 		"escaped":
 			_end_title.text = "ESCAPED"
 			_end_title.label_settings.font_color = HudStyle.JUMP
@@ -959,7 +958,7 @@ func _build_end_screen() -> void:
 	column.set_anchors_preset(Control.PRESET_FULL_RECT)
 	column.add_theme_constant_override("separation", 24)
 	_end_screen.add_child(column)
-	_end_title = HudStyle.make_title("", END_TITLE_SIZE, VICTORY_COLOR)
+	_end_title = HudStyle.make_worn_title("", END_TITLE_SIZE)
 	_end_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_end_title)
 	_end_summary = HudStyle.make_label("", END_SUMMARY_SIZE)

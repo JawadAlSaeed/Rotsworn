@@ -43,9 +43,15 @@ const STATUS_COLORS := {
 const OUTLINE_RATIO: float = 0.2
 ## The fonts (UiFonts). load_fonts() reads them once at start-up.
 const FONTS_PATH := "res://data/presentation/ui_fonts.tres"
+const TEXT_STATIC_SHADER := preload("res://scripts/menu/text_static.gdshader")
+## Worn titles' dark edge, as a share of their size (thinner than OUTLINE_RATIO).
+const WORN_OUTLINE_RATIO: float = 0.06
 
 static var _title_font: Font
 static var _body_font: Font
+static var _select_font: Font
+static var _fonts: UiFonts
+static var _worn_material: ShaderMaterial
 
 ## Xbox-style names for pad buttons in control hints.
 const PAD_BUTTON_NAMES := {
@@ -77,16 +83,78 @@ static func load_fonts() -> void:
 	if data == null:
 		push_warning("HudStyle: could not load %s, using the built-in font" % FONTS_PATH)
 		data = UiFonts.new()
+	_fonts = data
 	_body_font = _font_file(data.body_font_path)
 	var title := _font_file(data.title_font_path)
 	if title != null:
-		var weighted := FontVariation.new()
-		weighted.base_font = title
-		weighted.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): data.title_weight}
-		_title_font = weighted
+		_title_font = _weighted(title, data.title_weight)
+		_select_font = _weighted(title, data.select_weight)
 	if _body_font != null:
 		ThemeDB.get_default_theme().default_font = _body_font
 		ThemeDB.fallback_font = _body_font
+
+
+static func _weighted(font: Font, weight: int) -> FontVariation:
+	var weighted := FontVariation.new()
+	weighted.base_font = font
+	weighted.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
+	return weighted
+
+
+## The font data (defaults until load_fonts() ran): the menu choices' look lives there too.
+static func fonts() -> UiFonts:
+	if _fonts == null:
+		_fonts = UiFonts.new()
+	return _fonts
+
+
+## The chosen menu choice's font: the title font at the logo's weight.
+static func select_font() -> Font:
+	return _select_font if _select_font != null else title_font()
+
+
+## The logo's worn gold (DESIGN.md 7.7).
+static func worn_gold() -> Color:
+	return fonts().select_color
+
+
+## Titles and big words that ask for GOLD get the logo's worn gold; other colours keep theirs.
+static func worn_color(color: Color) -> Color:
+	return worn_gold() if color == GOLD else color
+
+
+## Titles and big words like the logo's letters: the logo's weight, brushed, worn edges
+## flickering like static (text_static.gdshader), a thin dark edge and a soft shadow so they read
+## over a fight too. GOLD becomes the logo's worn gold.
+static func worn_settings(size: int, color: Color = GOLD) -> LabelSettings:
+	var s := LabelSettings.new()
+	s.font = select_font()
+	s.font_size = size
+	s.font_color = worn_color(color)
+	s.outline_size = maxi(2, roundi(float(size) * WORN_OUTLINE_RATIO))
+	s.outline_color = OUTLINE_COLOR
+	s.shadow_color = Color(0.0, 0.0, 0.0, 0.55)
+	s.shadow_offset = Vector2(0.0, maxf(2.0, float(size) * 0.05))
+	return s
+
+
+static func make_worn_title(text: String, size: int, color: Color = GOLD) -> Label:
+	var label := make_label(text, size, color)
+	label.label_settings = worn_settings(size, color)
+	label.material = worn_material()
+	return label
+
+
+## The flickering worn-gold look, shared by every title and the chosen menu choices.
+static func worn_material() -> ShaderMaterial:
+	if _worn_material == null:
+		var look := fonts()
+		_worn_material = ShaderMaterial.new()
+		_worn_material.shader = TEXT_STATIC_SHADER
+		_worn_material.set_shader_parameter("fps", look.select_static_fps)
+		_worn_material.set_shader_parameter("motion", look.select_static_motion)
+		_worn_material.set_shader_parameter("wear", look.select_wear)
+	return _worn_material
 
 
 static func _font_file(path: String) -> Font:

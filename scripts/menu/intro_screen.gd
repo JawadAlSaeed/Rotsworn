@@ -35,6 +35,8 @@ func setup(boot: BootData) -> void:
 	_player = VideoStreamPlayer.new()
 	_player.stream = stream
 	_player.expand = true
+	# Smooth scaling: the project draws pixel art sharp (nearest), which makes a scaled video jagged.
+	_player.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_player.volume_db = boot.intro_volume_db
 	_player.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(_player)

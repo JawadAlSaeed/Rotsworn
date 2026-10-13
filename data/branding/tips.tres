@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TipSet" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/tip_set.gd" id="1_tips"]
+
+[resource]
+script = ExtResource("1_tips")
+tips = PackedStringArray("Parry every hit of an attack and you strike back with a counter.", "Dodging is easier than parrying, but only a parry earns AP and a counter.", "Shockwaves along the ground cannot be parried or dodged: jump over them.", "Mashing locks your defence for a moment. One calm press per hit.", "The sign under an enemy shows its next attack, who it targets and every hit.", "If every hero parries a party-wide attack, you all strike back together: a Team Counter.", "Longer strings of perfect defence make bigger counters. Mixing parries and jumps adds more.", "Strike a roaming enemy before it touches you: First Strike lets your whole party act first.", "Hold Run to escape a fight. Only a perfect press gets you out, and never from a boss.", "A basic attack always gives 1 AP. Save AP for your strongest skills.", "Hit a skill's ring on the PERFECT band for extra damage.", "Fill the team gauge to unleash the Team Ultimate.", "In a run, HP carries over from stop to stop. Rests heal, shops sell potions and gear.", "Plan your road on the map: every path mixes zones, rests and shops differently.", "The Hollow King rages when badly hurt. Expect new attacks.")
+hold_ms = 2600
+fade_ms = 260
+background_path = ""
+background_dim_percent = 55
+title_size = 64
+tip_size = 34
+logo_height_px = 140

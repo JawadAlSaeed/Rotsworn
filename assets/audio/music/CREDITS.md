@@ -10,3 +10,4 @@ Free tracks from OpenGameArt.org, levelled to the same loudness (tools/sound_kit
 - **fight.ogg**: "Battle Theme A" by cynicmusic, CC0, https://opengameart.org/content/battle-theme-a
 - **boss.ogg**: "Tropic Strike" by Matthew Pablo, CC-BY 3.0, https://opengameart.org/content/tropic-strike-live-orchestra
 - **boss_rage.ogg**: "Drums in the Deepwood" by Elyvilon, CC-BY 4.0, https://opengameart.org/content/dark-forest-tribal-troll-folk-shamanic-music-drums-in-the-deepwood
+- **credits.ogg**: "Heroic Minority" by Alexandr Zhelanov, CC-BY 3.0, https://opengameart.org/content/heroic-minority

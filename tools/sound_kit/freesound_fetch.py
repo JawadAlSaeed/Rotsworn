@@ -12,7 +12,7 @@
 """
 import argparse, html, json, os, re, subprocess, sys, urllib.parse
 
-UA = "Mozilla/5.0 (RottenLands sound search)"
+UA = "Mozilla/5.0 (Rotsworn sound search)"
 
 
 def curl(url, binary=False):

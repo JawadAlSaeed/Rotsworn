@@ -10,6 +10,7 @@
   uv run tools/sound_kit/music_kit.py final
       Encode the option picked in music_selection.json for each slot ("a", or "other_slot/b") to
       assets/audio/music/<slot>.ogg (same loudness for every song) and write CREDITS.md there.
+      Add --only SLOT to encode just that slot (the other songs stay as they are).
 """
 import argparse, json, os, re, subprocess, sys, urllib.parse, urllib.request
 
@@ -82,6 +83,7 @@ def encode(src, dst, args, seconds=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("mode", choices=["options", "final"])
+    ap.add_argument("--only", help="final: encode only this slot (CREDITS.md still lists every slot)")
     a = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if a.mode == "options":
@@ -99,8 +101,10 @@ def main():
         # "key" picks from the slot's own options; "other_slot/key" borrows another slot's option.
         src_slot, key = pick.split("/") if "/" in pick else (slot, pick)
         opt = c[src_slot][key]
-        encode(download(src_slot, key, opt), os.path.join(GAME, slot + ".ogg"), ["-c:a", "libvorbis", "-q:a", "6"])
         lines.append(f"- **{slot}.ogg**: \"{opt['name']}\" by {opt['author']}, {opt['license']}, {opt['page']}")
+        if a.only and a.only != slot:
+            continue
+        encode(download(src_slot, key, opt), os.path.join(GAME, slot + ".ogg"), ["-c:a", "libvorbis", "-q:a", "6"])
         print(f"ok {slot} <- {key} ({opt['name']})")
     open(os.path.join(GAME, "CREDITS.md"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
 
