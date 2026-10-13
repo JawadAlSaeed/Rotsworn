@@ -11,7 +11,7 @@ the candidates can be reviewed and downloaded later. Only reads public pages.
 """
 import argparse, html, json, os, re, sys, time, urllib.parse, urllib.request
 
-UA = "Mozilla/5.0 (RottenLands music search)"
+UA = "Mozilla/5.0 (Rotsworn music search)"
 BASE = "https://opengameart.org"
 FREE = ("CC0", "CC-BY 3.0", "CC-BY 4.0")
 

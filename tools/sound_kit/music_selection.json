@@ -6,5 +6,6 @@
  "zone_ruins": "a",
  "fight": "a",
  "boss": "boss_rage/b",
- "boss_rage": "boss/c"
+ "boss_rage": "boss/c",
+ "credits": "title/b"
 }

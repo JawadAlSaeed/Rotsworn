@@ -28,6 +28,9 @@ const EXPLORE_VISUALS_PATH := "res://data/presentation/explore_visuals.tres"
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 const MUSIC_PATH := "res://data/audio/music.tres"
 const BOOT_PATH := "res://data/presentation/boot.tres"
+const BRANDING_PATH := "res://data/branding/branding.tres"
+const CREDITS_PATH := "res://data/branding/credits.tres"
+const TIPS_PATH := "res://data/branding/tips.tres"
 const COMBAT_SCENE := preload("res://scenes/combat.tscn")
 ## Autoplay: wait this long on an end screen or a run screen before going on (seconds).
 const AUTOPLAY_RETURN_S: float = 1.0
@@ -48,6 +51,7 @@ var _visuals: CombatVisuals
 var _explore: ExploreVisuals
 var _run_data: RunData
 var _music: MusicSet
+var _branding: BrandingData
 var _options: CombatOptions
 var _combat: CombatController
 var _select_index: int = 0
@@ -101,6 +105,10 @@ func _ready() -> void:
 	if _music == null:
 		push_warning("Main: could not load %s, no music" % MUSIC_PATH)
 		_music = MusicSet.new()
+	_branding = load(BRANDING_PATH) as BrandingData
+	if _branding == null:
+		push_warning("Main: could not load %s, using built-in branding defaults" % BRANDING_PATH)
+		_branding = BrandingData.new()
 	_encounters = FightSelect.load_encounters()
 	_zones = FightSelect.load_zones()
 	if _encounters.is_empty() or _tuning == null:
@@ -118,6 +126,11 @@ func _ready() -> void:
 	_transition.name = "Transition"
 	add_child(_transition)
 	_transition.setup(_explore)
+	var tips := load(TIPS_PATH) as TipSet
+	if tips == null:
+		push_warning("Main: could not load %s, no loading tips" % TIPS_PATH)
+	else:
+		_transition.setup_tips(tips, _branding.logo_path)
 	_build_watch_layer()
 	Net.message_received.connect(_on_net_message)
 	Net.peer_joined.connect(_on_net_peer_joined)
@@ -195,24 +208,37 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_lobby(_show_select)
 		"practice":
 			_show_select()
+		"title":
+			_show_title()
+		"credits":
+			_show_credits()
 		_:
 			_show_main_menu()
 
 
-## The studio intro when the game starts, then the main menu (no music until then).
+## The studio intro when the game starts, then the title screen (no music until then).
 func _show_intro() -> void:
 	var boot := load(BOOT_PATH) as BootData
 	if boot == null:
 		push_warning("Main: could not load %s, no intro" % BOOT_PATH)
-		_show_main_menu()
+		_show_title()
 		return
 	var intro := IntroScreen.new()
 	intro.name = "Intro"
 	intro.setup(boot)
 	intro.done.connect(func() -> void:
 		intro.queue_free()
-		_show_main_menu())
+		_show_title())
 	add_child(intro)
+
+
+## The title screen (card #82): any button fades to the main menu.
+func _show_title() -> void:
+	var title := TitleScreen.new()
+	title.name = "Title"
+	title.setup(_branding)
+	title.done.connect(_fade_to.bind(_show_main_menu))
+	_show_screen(title)
 
 
 ## A zone parked outside the tree during a fight is not freed with the tree: free it here.
@@ -247,6 +273,8 @@ func _show_screen(screen: Node) -> void:
 		add_child(screen)
 		Sfx.play_ambience("")
 		var song := _music.run_path if _is_run_screen(screen) and not _music.run_path.is_empty() else _music.menu_path
+		if screen is CreditsScreen and not _music.credits_path.is_empty():
+			song = _music.credits_path
 		Sfx.play_music(song, _music.volume_db)
 	_watch_layer.visible = Net.is_client() and _is_run_screen(screen)
 
@@ -258,8 +286,11 @@ func _free_screen() -> void:
 		_screen = null
 
 
-## Fades to black, runs `build` (which shows the next thing), and fades back in.
-func _fade_to(build: Callable) -> void:
+## Fades to black, runs `build` (which shows the next thing), and fades back in. With a
+## `tip_title` a loading card (that title and a tip, card #86) shows over the black for at least
+## the tips' hold_ms, and `build` runs at its end, so a zone starts when it is seen. Online clients
+## and the bot do not hold the card (the host already held it before sending the screen).
+func _fade_to(build: Callable, tip_title: String = "") -> void:
 	if _busy:
 		return
 	_busy = true
@@ -269,8 +300,19 @@ func _fade_to(build: Callable) -> void:
 		_transition.fade_in()
 		_end_busy()
 		return
+	if not tip_title.is_empty():
+		await _transition.show_tip(tip_title)
+		var tips := load(TIPS_PATH) as TipSet
+		if tips != null and tips.hold_ms > 0 and not Net.is_client() and not _options.is_autoplay():
+			await get_tree().create_timer(float(tips.hold_ms) / 1000.0).timeout
+		if gen != _flow_gen:
+			await _transition.hide_tip()
+			_transition.fade_in()
+			_end_busy()
+			return
 	build.call()
 	await get_tree().process_frame
+	await _transition.hide_tip()
 	await _transition.fade_in()
 	_end_busy()
 
@@ -288,7 +330,7 @@ func _show_main_menu() -> void:
 		_leave_online()
 	var menu := MainMenu.new()
 	menu.name = "MainMenu"
-	menu.setup(_menu_item, _notice)
+	menu.setup(_branding, _menu_item, _notice)
 	_notice = ""
 	menu.chosen.connect(_on_menu_chosen)
 	_show_screen(menu)
@@ -307,6 +349,8 @@ func _on_menu_chosen(item: StringName) -> void:
 			_show_lobby.call_deferred(_show_select.call_deferred)
 		MainMenu.SETTINGS:
 			_show_settings.call_deferred()
+		MainMenu.CREDITS:
+			_show_credits.call_deferred()
 		MainMenu.QUIT:
 			_quit_game()
 
@@ -350,6 +394,19 @@ func _show_settings() -> void:
 	_show_screen(settings)
 
 
+## The credits (card #87), to their own song; Back returns to the main menu.
+func _show_credits() -> void:
+	var credits := load(CREDITS_PATH) as CreditsData
+	if credits == null:
+		push_warning("Main: could not load %s, no credits" % CREDITS_PATH)
+		credits = CreditsData.new()
+	var screen := CreditsScreen.new()
+	screen.name = "Credits"
+	screen.setup(credits, _branding)
+	screen.closed.connect(_show_main_menu.call_deferred)
+	_show_screen(screen)
+
+
 func _show_select() -> void:
 	_run = null
 	var select := FightSelect.new()
@@ -370,7 +427,7 @@ func _on_fight_chosen(encounter: EncounterData) -> void:
 
 func _on_zone_chosen(zone: ZoneData) -> void:
 	_select_index = (_screen as FightSelect).selected_index()
-	_start_zone.call_deferred(zone)
+	_fade_to.call_deferred(_start_zone.bind(zone), zone.display_name)
 
 
 # --- fights -----------------------------------------------------------------------------------
@@ -589,7 +646,8 @@ func _on_stop_chosen(id: int) -> void:
 	print("Run stop %d: %s %s" % [_run.path.size(), RunMap.TYPE_NAMES[int(stop.type)], MapScreen.stop_name(_run, stop)])
 	match int(stop.type):
 		RunMap.StopType.ZONE:
-			_fade_to(_start_zone.bind(_run.zone_of(stop)))
+			var zone := _run.zone_of(stop)
+			_fade_to(_start_zone.bind(zone), zone.display_name if zone != null else "")
 		RunMap.StopType.REST:
 			_fade_to(_show_rest)
 		RunMap.StopType.SHOP:
@@ -1045,7 +1103,7 @@ func _client_screen(p: Dictionary) -> void:
 		"zone":
 			var zone := _zone_by_id(String(p.get("zone", "")))
 			if zone != null:
-				_fade_to(_start_zone.bind(zone))
+				_fade_to(_start_zone.bind(zone), zone.display_name)
 		"zone_fight":
 			_net_seed = int(p.get("seed", 1))
 			if _zone != null and _zone.is_inside_tree():

@@ -1,0 +1,87 @@
+[gd_resource type="Resource" script_class="CreditsData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/credits_data.gd" id="1_credits"]
+
+[resource]
+script = ExtResource("1_credits")
+text = "# A DragonRot game
+Made by Jawad Al-Saeed
+
+# Design, direction and testing
+Jawad Al-Saeed
+
+# Logo
+Jawad Al-Saeed
+
+# Music
+\"Death Is Just Another Path\" by Otto Halmén (CC-BY 3.0)
+\"Mystical Theme\" by Alexandr Zhelanov (CC-BY 3.0)
+\"Dark Forest Theme\" by cynicmusic (CC0)
+\"The Swamps\" by fluffclipse (CC-BY 3.0)
+\"Town in Ruins\" by HaelDB (CC0)
+\"Battle Theme A\" by cynicmusic (CC0)
+\"Tropic Strike\" by Matthew Pablo (CC-BY 3.0)
+\"Drums in the Deepwood\" by Elyvilon (CC-BY 4.0)
+\"Heroic Minority\" by Alexandr Zhelanov (CC-BY 3.0)
+All from OpenGameArt.org
+
+# Sound effects and ambience
+Real recordings from Freesound.org and Kenney (kenney.nl), all CC0, by:
+14FPanskaBubik_Lukas, 5ro4, adcbicycle, Aeonemi, ani_music
+Astounded, BaDoink, bolkmar, Breviceps, brittgym98
+CogFireStudios, Counter-gamer, craigsmith, Denis Chapon, DJmastah
+DJT4NN3R, dmstudio, dslrguide, el_boss, eldiariosonoro_
+EminYILDIRIM, Eponn, Fission9, florianreichelt, fmceretta
+gagglepod, Geoff-Bremner-Audio, hollandm, ihitokage, ingudios
+insanity54, jawbutch, jim-ph, joelcarrsound, johnfolker
+Kalomina, kinglseyzissou, Klerrp, kyles, launemax
+ldezem, lolamadeus, Mafon2, magnuswaker, MashedTatoes2
+MATRIXXX_, NapierFreesound, NatBon, nebulasnails, neilsher
+nekoninja, newlocknew, nicholasdaryl, noahpardo, Nox_Sound
+olver, opticaillusions, Pablobd, PeteBarry, pikachu09
+Profispiesser, qubodup, radwoc, RaspberryTickle, Reitanna
+richwise, Rizzard, Robson220pl, s-light, Sadiquecat
+Samulis, Sclolex, SecureSubset, sillygrizzlies, SlavicMagic
+Sorinious_Genious, SoundDesignForYou, sqeeeek, strangehorizon, TheFilmLook
+ThefitzyG, Topschool, TylerAM, vdovitsky, Wdomino
+Za-Games, zerokingfull
+and an anonymous Freesound user
+
+# Fonts
+Cinzel by The Cinzel Project Authors (SIL Open Font License 1.1)
+Alegreya Sans by The Alegreya Sans Project Authors (SIL Open Font License 1.1)
+
+# Inspired by
+Clair Obscur: Expedition 33 and Octopath Traveler
+
+# Made with
+Godot Engine (godotengine.org)
+
+~ This game uses Godot Engine, available under the following license:
+~ Copyright (c) 2014-present Godot Engine contributors. Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.
+~ Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+~ associated documentation files (the \"Software\"), to deal in the Software without restriction,
+~ including without limitation the rights to use, copy, modify, merge, publish, distribute,
+~ sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+~ furnished to do so, subject to the following conditions:
+~ The above copyright notice and this permission notice shall be included in all copies or
+~ substantial portions of the Software.
+~ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+~ BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+~ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+~ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+~ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+~
+~ Portions of this software are copyright (c) The FreeType Project (www.freetype.org). All rights reserved.
+~ ENet: Copyright (c) 2002-2020 Lee Salzman (MIT license).
+~ Mbed TLS: Copyright The Mbed TLS Contributors (Apache License 2.0).
+
+
+# Thank you for playing
+Keep the oath."
+scroll_px_per_s = 55.0
+fast_multiplier = 6.0
+heading_size = 40
+line_size = 30
+small_size = 20
+logo_height_px = 260

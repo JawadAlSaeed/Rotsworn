@@ -10,6 +10,9 @@ extends Node
 ## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
+## The game was called "Rotten Lands" before (card #48), and Godot keeps user:// in a folder named
+## after the game: a settings file left there is read once, so calibration and volumes survive.
+const OLD_NAME_DIR := "Rotten Lands"
 const SECTION_TIMING := "timing"
 const SECTION_CUES := "cues"
 const KEY_LATENCY := "latency_compensation_ms"
@@ -163,6 +166,11 @@ static func _settings() -> ConfigFile:
 	if _config == null:
 		_config = ConfigFile.new()
 		var err := _config.load(PATH)
+		if err == ERR_FILE_NOT_FOUND:
+			var old := OS.get_user_data_dir().get_base_dir().path_join(OLD_NAME_DIR).path_join("settings.cfg")
+			if FileAccess.file_exists(old) and _config.load(old) == OK:
+				_save()
+				return _config
 		if err != OK and err != ERR_FILE_NOT_FOUND:
 			push_warning("UserSettings: could not read %s (error %d); using defaults" % [PATH, err])
 	return _config

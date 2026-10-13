@@ -10,12 +10,12 @@ config_version=5
 
 [application]
 
-config/name="Rotten Lands"
-config/description="Co-op turn-based RPG roguelike (placeholder name)."
+config/name="Rotsworn"
+config/description="Co-op turn-based RPG roguelike."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 run/max_fps=480
-config/icon="res://icon.svg"
+config/icon="res://assets/branding/icon.png"
 
 [autoload]
 

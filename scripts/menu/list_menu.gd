@@ -3,8 +3,9 @@ extends VBoxContainer
 ## A vertical list of choices for the menus outside a fight (main menu, settings, shop, rest).
 ## Driven only by the menu_* input actions, like the fight list: the screen that owns it passes
 ## each input event to handle(), which moves the cursor itself and reports the rest.
-## Each item is a row: its text, and an optional value on the right (a price, a setting); the
-## chosen row is lit with a gold bar (card #37).
+## Each item is a row: its text, and an optional value on the right (a price, a setting). The
+## chosen row's text is drawn like the logo's letters: bigger, in worn gold, its edges flickering
+## like static (text_static.gdshader); the others are a little dimmer (DESIGN.md 7.7).
 
 const ITEM_SIZE: int = 40
 const DETAIL_SIZE: int = 26
@@ -66,9 +67,13 @@ func set_items(new_items: Array[Dictionary], detail_label: Label = null) -> void
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		line.add_theme_constant_override("separation", 24)
 		row.add_child(line)
-		var label := HudStyle.make_label("", item_size)
+		# Choices in the title font, like the logo (card #83); values stay in the body font.
+		var label := HudStyle.make_title("", item_size)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if centred else HORIZONTAL_ALIGNMENT_LEFT
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# Every row is as tall as a chosen one, so nothing moves when the choice changes.
+		label.custom_minimum_size.y = ceilf(HudStyle.select_font().get_height(_select_size()))
 		line.add_child(label)
 		var value := HudStyle.make_label("", item_size)
 		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -125,12 +130,22 @@ func redraw() -> void:
 		var value := String(items[i].get("value", ""))
 		_values[i].text = value
 		_values[i].visible = not value.is_empty()
-		var color := HudStyle.GOLD if selected else HudStyle.TEXT
+		var look := HudStyle.fonts()
+		var color := look.select_color if selected else look.idle_color
 		if not enabled:
 			color = HudStyle.TEXT_DIM.lightened(0.15) if selected else HudStyle.TEXT_DIM
-		_labels[i].label_settings.font_color = color
+		if selected and enabled:
+			var chosen := LabelSettings.new()
+			chosen.font = HudStyle.select_font()
+			chosen.font_size = _select_size()
+			chosen.font_color = color
+			_labels[i].label_settings = chosen
+			_labels[i].material = HudStyle.worn_material()
+		else:
+			_labels[i].label_settings = HudStyle.title_settings(item_size, color)
+			_labels[i].material = null
 		_values[i].label_settings.font_color = color
-		_rows[i].add_theme_stylebox_override("panel", row_style(selected))
+		_rows[i].add_theme_stylebox_override("panel", row_style(false))
 	if index != _shown_index and index < _rows.size():
 		_shown_index = index
 		var row := _rows[index]
@@ -138,6 +153,10 @@ func redraw() -> void:
 		row.create_tween().tween_property(row, "modulate", Color.WHITE, SELECTED_FLASH_S)
 	if _detail != null:
 		_detail.text = String(items[index].get("detail", "")) if index < items.size() else ""
+
+
+func _select_size() -> int:
+	return roundi(float(item_size) * float(HudStyle.fonts().select_size_percent) / 100.0)
 
 
 func _move(step: int) -> void:
@@ -187,7 +206,7 @@ static func screen_column(parent: Node, title: String, title_size: int = 64) -> 
 	column.add_theme_constant_override("separation", 18)
 	parent.add_child(column)
 	if not title.is_empty():
-		var label := HudStyle.make_title(title, title_size, HudStyle.GOLD)
+		var label := HudStyle.make_worn_title(title, title_size)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.label_settings.shadow_color = Color(0.0, 0.0, 0.0, 0.6)
 		label.label_settings.shadow_offset = Vector2(0.0, maxf(3.0, float(title_size) * 0.06))
@@ -199,9 +218,10 @@ static func screen_column(parent: Node, title: String, title_size: int = 64) -> 
 ## A thin gold line that fades out at both ends.
 static func divider(width: float = TITLE_DIVIDER_WIDTH) -> TextureRect:
 	var gradient := Gradient.new()
-	gradient.set_color(0, Color(HudStyle.GOLD, 0.0))
-	gradient.set_color(1, Color(HudStyle.GOLD, 0.0))
-	gradient.add_point(0.5, Color(HudStyle.GOLD, 0.85))
+	var gold := HudStyle.worn_gold()
+	gradient.set_color(0, Color(gold, 0.0))
+	gradient.set_color(1, Color(gold, 0.0))
+	gradient.add_point(0.5, Color(gold, 0.85))
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
 	texture.width = 256
@@ -235,7 +255,7 @@ static func screen_footer(parent: Node, entries: Array) -> HintBar:
 
 ## A centred title-font label for a screen column (titles outside screen_column).
 static func centred_title(text: String, size: int, color: Color = HudStyle.GOLD) -> Label:
-	var label := HudStyle.make_title(text, size, color)
+	var label := HudStyle.make_worn_title(text, size, color)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return label
 

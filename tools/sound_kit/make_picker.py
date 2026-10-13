@@ -26,10 +26,10 @@ GROUPS = [
 
 
 PAGES = {
-    "--music": dict(cands="music_candidates.json", dl="music_dl", out="picker_music", heading="Rotten Lands Music Picks",
+    "--music": dict(cands="music_candidates.json", dl="music_dl", out="picker_music", heading="Rotsworn Music Picks",
                     lede="Three free tracks for each place in the game. Each preview is the first 75 seconds; the time on each card is the full song. Pick the one that fits.",
                     group="Soundtrack", about="Every song plays at the same loudness in the game."),
-    "--ambience": dict(cands="ambience_candidates.json", dl="ambience_dl", out="picker_ambience", heading="Rotten Lands Ambience Picks",
+    "--ambience": dict(cands="ambience_candidates.json", dl="ambience_dl", out="picker_ambience", heading="Rotsworn Ambience Picks",
                        lede="Background sounds that loop quietly under the music while you explore. Each preview is the whole loop; listen to the end, it flows back into the start.",
                        group="Zone ambience", about="Plays on the Effects volume, quietly under the music."),
 }
@@ -59,7 +59,7 @@ def music(kind="--music"):
         cues.append(dict(id=slot, title=d["title"], plays=d["plays"], new=False, sharp=False, options=opts))
     data = dict(heading=cfg["heading"], lede=cfg["lede"], groups=[dict(title=cfg["group"], about=cfg["about"], cues=cues)])
     page = open(os.path.join(t.HERE, "picker_template.html"), encoding="utf-8").read()
-    page = page.replace("<title>Rotten Lands Sound Picks</title>", f"<title>{cfg['heading']}</title>")
+    page = page.replace("<title>Rotsworn Sound Picks</title>", f"<title>{cfg['heading']}</title>")
     open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(
         page.replace("/*DATA*/", json.dumps(data, ensure_ascii=False).replace("</", "<\\/")))
     print(f"{out}/index.html: {len(cues)} slots")
@@ -101,9 +101,9 @@ def main():
     page = open(os.path.join(t.HERE, "picker_template.html"), encoding="utf-8").read()
     extra = {}
     if only:
-        extra = dict(heading=f"Rotten Lands {only.title()} Picks",
+        extra = dict(heading=f"Rotsworn {only.title()} Picks",
                      lede="Three real recordings for each. Press play, then pick the one that fits.")
-        page = page.replace("<title>Rotten Lands Sound Picks</title>", f"<title>{extra['heading']}</title>")
+        page = page.replace("<title>Rotsworn Sound Picks</title>", f"<title>{extra['heading']}</title>")
     data = json.dumps(dict(groups=groups, **extra), ensure_ascii=False).replace("</", "<\\/")
     open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(page.replace("/*DATA*/", data))
     n = sum(len(g["cues"]) for g in groups)

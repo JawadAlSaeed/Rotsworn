@@ -15,6 +15,8 @@ extends Resource
 @export_file("*.wav", "*.ogg", "*.mp3") var boss_path: String = ""
 ## The boss fight once the boss rages (its phase change, card #97). Empty: the boss song goes on.
 @export_file("*.wav", "*.ogg", "*.mp3") var boss_rage_path: String = ""
+## The credits screen (card #87). Empty: the menu song.
+@export_file("*.wav", "*.ogg", "*.mp3") var credits_path: String = ""
 ## A new song fades in over this long while the old one fades out (a crossfade between places).
 @export_range(0, 10000, 10, "suffix:ms") var fade_in_ms: int = 1500
 @export_range(0, 10000, 10, "suffix:ms") var fade_out_ms: int = 1000

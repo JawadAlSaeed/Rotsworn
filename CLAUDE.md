@@ -1,4 +1,4 @@
-# Rotten Lands: project conventions
+# Rotsworn: project conventions
 
 Co-op (1 to 3 players) turn-based RPG roguelike. Combat is modelled on Clair Obscur: Expedition 33,
 the look on Octopath Traveler (HD-2D). Full design: `docs/DESIGN.md`. Keep that file current
@@ -15,7 +15,9 @@ whenever a decision is made or changed.
 
 ## Git and GitHub
 
-- Repo: https://github.com/JawadAlSaeed/Rotten-Lands (public). Branch: `main`.
+- Repo: https://github.com/JawadAlSaeed/Rotsworn (public; renamed from `Rotten-Lands` on
+  2026-10-13, GitHub redirects the old URL). Branch: `main`. The local folder keeps its old name,
+  `C:\Users\Drago\RottenLands`.
 - Commits are authored by the user as Jawad Al-Saeed <39744682+JawadAlSaeed@users.noreply.github.com>
   (repo-local `user.email`). GitHub blocks pushes that expose the private Gmail address.
 - **Never credit Claude or Anthropic anywhere in git or GitHub.** No `Co-Authored-By` trailer, no
@@ -26,7 +28,7 @@ whenever a decision is made or changed.
 
 ## Task board (the user's "todo")
 
-- Board: https://github.com/users/JawadAlSaeed/projects/2 (GitHub Project "Rotten Lands", number 2,
+- Board: https://github.com/users/JawadAlSaeed/projects/2 (GitHub Project "Rotsworn", number 2,
   owner `JawadAlSaeed`, linked to the repo). Columns are the `Status` field: Todo, In Progress, Done.
   Each card is a repo issue with a `phase-N` label (1 to 6, see DESIGN.md section 11) plus
   `enhancement` (or `bug` for bugs). Done cards are closed issues.
@@ -45,7 +47,7 @@ whenever a decision is made or changed.
 - IDs (stable): project `PVT_kwHOAl50qs4Bmqm-`, Status field `PVTSSF_lAHOAl50qs4Bmqm-zhlSrds`,
   options Todo `f75ad846`, In Progress `47fc9ee4`, Done `98236657`. Recipe (bash):
   ```
-  url=$(gh issue create -R JawadAlSaeed/Rotten-Lands -t "TITLE" -b "BODY" -l phase-N -l enhancement)
+  url=$(gh issue create -R JawadAlSaeed/Rotsworn -t "TITLE" -b "BODY" -l phase-N -l enhancement)
   item=$(gh project item-add 2 --owner JawadAlSaeed --url "$url" --format json --jq .id)
   gh project item-edit --id "$item" --project-id PVT_kwHOAl50qs4Bmqm- \
     --field-id PVTSSF_lAHOAl50qs4Bmqm-zhlSrds --single-select-option-id f75ad846
@@ -66,7 +68,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   script error. Run `--headless --path . --import` before any `-s` tool script too.
 - Tests must pass headless before you tell the user a phase is done.
 - `run_game.bat` runs the game, `open_editor.bat` opens the editor, `build_game.bat` builds the
-  shareable Windows game (`build/RottenLands.zip`, preset in `export_presets.cfg`; needs the 4.7.2
+  shareable Windows game (`build/Rotsworn.zip`, preset in `export_presets.cfg`; needs the 4.7.2
   export templates, installed). Online players must all run the same build (the content
   fingerprint differs between a build and a run from the editor).
 - Smoke test the whole fight without a human: run the game with `-- --autoplay` (bot defends
@@ -86,8 +88,8 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   `AUTOPLAY_MIRROR` lines (use `timeout 1500`). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
 - To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
-  every S seconds in `%APPDATA%/Godot/app_userdata/Rotten Lands/shots/<name>/`), combined with
-  `--screen=menu|settings|players|practice`, `--autoplay`, `--run` etc.; `--pad-prompts` shows pad
+  every S seconds in `%APPDATA%/Godot/app_userdata/Rotsworn/shots/<name>/`), combined with
+  `--screen=title|menu|settings|players|practice|credits`, `--autoplay`, `--run` etc.; `--pad-prompts` shows pad
   buttons. Look at the pictures before telling the user a visual change is done.
 - Always run headless Godot commands with a timeout (`timeout 120 ...`): a script error in a
   `-s` script leaves Godot running forever.
@@ -143,7 +145,8 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 
 ## Folder map
 
-- `data/` content resources (`.tres`), including `tuning/tuning.tres`,
+- `data/` content resources (`.tres`), including `tuning/tuning.tres`, `branding/` (logo, title
+  screen, credits, loading tips),
   `presentation/combat_visuals.tres`, `presentation/explore_visuals.tres`, `looks/`, `zones/`,
   `runs/` (the run), `shop/` (shop items) and `gear/`
 - `assets/` sprites, audio (placeholders until real art arrives)
