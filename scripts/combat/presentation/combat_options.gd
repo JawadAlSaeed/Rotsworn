@@ -4,7 +4,10 @@ extends RefCounted
 ## restart (R): the F1 overlay toggles and the defence statistics.
 ##
 ## User args (after "--" on the Godot command line):
-##   --autoplay[=perfect|miss|mash]  bot plays the fight (perfect is the default)
+##   --autoplay[=perfect|miss|mash|escape|average]  bot plays the fight (perfect is the default;
+##                                   escape presses perfectly and runs on its first turn; average
+##                                   lands --bot-skill percent of its presses)
+##   --bot-skill=N                   (with --autoplay=average) percent of presses it lands (60)
 ##   --quit-on-end                   quit one second after the fight ends
 ##   --seed=N                        fixed fight seed (else tuning fixed_seed, else random)
 ##   --encounter=ID                  start this encounter (data/encounters) instead of the list
@@ -16,10 +19,18 @@ extends RefCounted
 ##   --host=N                        host online; start a run once N players (2 or 3) are in
 ##   --join=ADDRESS                  join the online game at ADDRESS (DESIGN.md 9.2)
 ##   --leave-after=S                 (with --join) leave the game after S seconds and quit
+##   --shots=S                       save a picture of the window every S seconds (dev tool)
+##   --screen=NAME                   open a screen at once: menu, settings, players, practice
 
 const AUTOPLAY_PERFECT := "perfect"
 const AUTOPLAY_MISS := "miss"
 const AUTOPLAY_MASH := "mash"
+## Presses perfectly and tries to Run on its first turn (checks the escape ending, DESIGN.md 2.13).
+const AUTOPLAY_ESCAPE := "escape"
+## Plays like an average player for balance checks (DESIGN.md 10): lands bot_skill percent of
+## its defences and skill presses (some perfect, some good) and lets the rest go.
+const AUTOPLAY_AVERAGE := "average"
+const DEFAULT_BOT_SKILL: int = 60
 
 ## "" when a human plays, else AUTOPLAY_PERFECT, AUTOPLAY_MISS or AUTOPLAY_MASH.
 var autoplay_mode: String = ""
@@ -39,7 +50,12 @@ var host_players: int = 0
 var join_address: String = ""
 ## --leave-after=S (0: stay).
 var leave_after_s: int = 0
-## Session toggles (F1 overlay; not saved): telegraph flash (F), timing readout (T), the
+## --bot-skill=N for --autoplay=average (0 to 100).
+var bot_skill: int = DEFAULT_BOT_SKILL
+## --shots=S (0: no pictures) and --screen=NAME ("" : the normal start).
+var shots_every_s: float = 0.0
+var screen: String = ""
+## Session toggles (F1 overlay; not saved): telegraph flash (G), timing readout (T), the
 ## enemy's motion sounds (L: lunge whoosh and slam), hit markers (H), the wind-up crouch (C) and
 ## the cinematic camera (V).
 var telegraph_flash: bool = true
@@ -67,7 +83,7 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.autoplay_mode = AUTOPLAY_PERFECT
 		elif arg.begins_with("--autoplay="):
 			var mode := arg.substr("--autoplay=".length()).to_lower()
-			if mode in [AUTOPLAY_PERFECT, AUTOPLAY_MISS, AUTOPLAY_MASH]:
+			if mode in [AUTOPLAY_PERFECT, AUTOPLAY_MISS, AUTOPLAY_MASH, AUTOPLAY_ESCAPE, AUTOPLAY_AVERAGE]:
 				options.autoplay_mode = mode
 			else:
 				push_warning("CombatOptions: unknown autoplay mode '%s', using perfect" % mode)
@@ -87,6 +103,12 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.host_players = clampi(wanted.to_int(), 1, PlayerRoster.MAX_PLAYERS) if wanted.is_valid_int() else 2
 		elif arg.begins_with("--leave-after="):
 			options.leave_after_s = maxi(0, arg.substr("--leave-after=".length()).to_int())
+		elif arg.begins_with("--bot-skill="):
+			options.bot_skill = clampi(arg.substr("--bot-skill=".length()).to_int(), 0, 100)
+		elif arg.begins_with("--shots="):
+			options.shots_every_s = maxf(0.0, arg.substr("--shots=".length()).to_float())
+		elif arg.begins_with("--screen="):
+			options.screen = arg.substr("--screen=".length())
 		elif arg.begins_with("--join="):
 			options.join_address = arg.substr("--join=".length())
 		elif arg.begins_with("--players="):

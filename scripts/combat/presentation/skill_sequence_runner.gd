@@ -118,7 +118,16 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	var only: Array[int] = []
 	if _roster.is_online():
 		only = _roster.local_players()
-	_judges.set_prompts(_prompts, _owners, only)
+	_press_lead_us = maxi(1, (ability.ring_lead_ms(_tuning) if ability != null else _tuning.ring_lead_ms) * 1000)
+	# The judge spends a ring on an early press only once that ring is on screen (one press per
+	# ring, DESIGN.md 2.10): tell it how early each prompt's ring shows.
+	var judged: Array = []
+	for prompt: Dictionary in _prompts:
+		var copy := prompt.duplicate()
+		var follow_up := String(prompt.role) == CombatEngine.ROLE_FOLLOW_UP
+		copy["ring_lead_us"] = maxi(1, _tuning.ring_lead_ms * 1000) if follow_up else _press_lead_us
+		judged.append(copy)
+	_judges.set_prompts(judged, _owners, only)
 	_inbox.clear()
 	_inbox_at_us = 0
 	_clock = AttackClock.new()
@@ -130,7 +139,6 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_tail_received = false
 	_ready_allies.clear()
 	_notes = PressNotes.notes(_prompts)
-	_press_lead_us = maxi(1, (ability.ring_lead_ms(_tuning) if ability != null else _tuning.ring_lead_ms) * 1000)
 	_ring_color = ability.ring_color if ability != null else HudStyle.TEXT
 	_note_anchor = _strikers_stand_point()
 	var aim := _first_target()
@@ -147,6 +155,7 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_input.arm_press()
 	var actor_name := String(_mirror.fighter(_actor).get("display_name", "?")).to_upper()
 	_hud.show_banner("%s: %s" % [actor_name, String(event.get("name", "?"))], HudStyle.GOLD)
+	_hud.set_skill_pressing(true)
 	for id: int in _strikers():
 		var v := _view.fighter(id)
 		if v == null:
@@ -417,7 +426,11 @@ func _strike(idxs: Array[int], good: bool) -> void:
 			v.move_body(_view.strike_point(target) - v.position, lunge_s, Tween.TRANS_QUAD, Tween.EASE_IN)
 			if enemy != null:
 				_view.spawn_slash(enemy.centre_position(), i % 2 == 0, 1.0 if good else 0.6, i * _visuals.team_slash_gap_ms)
+				_view.spawn_sparks(enemy.centre_position(), _visuals.sparks_per_strike, 1.0 if good else 0.6,
+						_visuals.strike_spark_color)
 			_view.camera.shake(_visuals.shake_strike, _visuals.shake_strike_ms)
+			if _ability != null and _ability.team_ultimate and i == 0:
+				_hud.screen_flash(HudStyle.GOLD, _visuals.screen_flash_ultimate)
 			Sfx.play("follow_up" if follow_up else (_ability.impact_sfx if _ability != null else "strike"))
 			var back := Vector3.ZERO if follow_up else _approach_offset(id)
 			get_tree().create_timer(lunge_s * 2.0).timeout.connect(_step_back.bind(id, back))
@@ -617,6 +630,7 @@ func _check_finish(t: int) -> void:
 
 func _hand_back() -> void:
 	_active = false
+	_hud.set_skill_pressing(false)
 	_input.disarm()
 	_hud.hide_banner()
 	_hud.set_rings([])
@@ -624,7 +638,8 @@ func _hand_back() -> void:
 	var return_s := float(_tuning.action_return_ms) / 1000.0
 	for id: int in _mirror.party_ids:
 		var v := _view.fighter(id)
-		if v == null:
+		if v == null or bool(_mirror.fighter(id).get("escaped", false)):
+			# A hero who just ran keeps running off (DESIGN.md 2.13).
 			continue
 		v.set_pose(FighterView.CharPose.IDLE if _mirror.is_alive(id) else FighterView.CharPose.DOWN)
 		v.move_body(Vector3.ZERO, return_s, Tween.TRANS_QUAD, Tween.EASE_OUT)

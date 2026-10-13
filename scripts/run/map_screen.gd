@@ -11,7 +11,6 @@ signal party_requested
 
 const TITLE_SIZE: int = 48
 const DETAIL_SIZE: int = 28
-const HINT_SIZE: int = 24
 const STOP_LABEL_SIZE: int = 22
 const ICON_SIZE: int = 30
 ## Space between the gold and HP strip and the top stop.
@@ -41,11 +40,7 @@ var _centres: Dictionary = {}
 
 func setup(run: RunState) -> void:
 	_run = run
-	var bg := ColorRect.new()
-	bg.color = Color(0.04, 0.04, 0.06)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	add_child(MenuBackdrop.new())
 	_canvas = Control.new()
 	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -58,7 +53,7 @@ func setup(run: RunState) -> void:
 	top.offset_top = 20.0
 	top.add_theme_constant_override("separation", 10)
 	add_child(top)
-	top.add_child(ListMenu.centred_label(run.data.display_name, TITLE_SIZE, HudStyle.GOLD))
+	top.add_child(ListMenu.centred_title(run.data.display_name, TITLE_SIZE))
 	var centre := CenterContainer.new()
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(centre)
@@ -70,14 +65,13 @@ func setup(run: RunState) -> void:
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	bottom.offset_bottom = -24.0
+	bottom.offset_bottom = -ListMenu.FOOTER_STRIP_PX - 12.0
 	bottom.add_theme_constant_override("separation", 8)
 	add_child(bottom)
 	_detail = ListMenu.centred_label("", DETAIL_SIZE)
 	bottom.add_child(_detail)
-	bottom.add_child(ListMenu.centred_label("Left/Right choose   %s go   %s party   %s pause" % [
-			HudStyle.binding_text(&"menu_confirm"), HudStyle.binding_text(&"party_menu"),
-			HudStyle.binding_text(&"pause")], HINT_SIZE, HudStyle.TEXT_DIM))
+	ListMenu.screen_footer(self, [[&"@leftright", "Choose"], [&"menu_confirm", "Go"], [&"party_menu", "Party"],
+			[&"pause", "Pause"]])
 
 	_choices = run.choices()
 	_choices.sort_custom(func(a: int, b: int) -> bool: return int(run.map.stop(a).col) < int(run.map.stop(b).col))

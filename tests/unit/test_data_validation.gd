@@ -185,7 +185,7 @@ func _ability_problems(ability: AbilityData, tuning: Tuning) -> PackedStringArra
 		problems.append("%s: follow-ups need a damaging skill aimed at enemies" % ability.id)
 	var effects := [ability.ap_gain, ability.give_ap, ability.heal_percent, ability.revive_percent,
 			ability.turn_delay_percent, ability.turn_hasten_percent]
-	var does_something := damaging or not ability.status.is_empty() or ability.team_ultimate
+	var does_something := damaging or not ability.status.is_empty() or ability.team_ultimate or ability.escape
 	for value: int in effects:
 		does_something = does_something or value > 0
 	if not does_something:

@@ -12,3 +12,5 @@ extends Resource
 @export var team_ultimate: AbilityData
 ## A boss fight: its name is announced when the fight starts.
 @export var boss: bool = false
+## The party may try to run from this fight (DESIGN.md 2.13). Bosses never allow it.
+@export var can_run: bool = true

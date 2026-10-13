@@ -73,7 +73,7 @@ func update_text(stats: DefenseStats, tuning: Tuning, options: CombatOptions, lo
 		_body.text = "\n".join(lines)
 		return
 	lines.append("[R] Training ring: %s (saved)" % _on_off(PlayerSettings.show_timing_ring(tuning)))
-	lines.append("[F] Telegraph flash: %s" % _on_off(options.telegraph_flash))
+	lines.append("[G] Telegraph flash: %s" % _on_off(options.telegraph_flash))
 	lines.append("[T] Timing readout: %s" % _on_off(options.timing_readout))
 	lines.append("[L] Enemy motion sounds: %s" % _on_off(options.motion_sounds))
 	lines.append("[H] Hit markers: %s" % _on_off(options.hit_markers))

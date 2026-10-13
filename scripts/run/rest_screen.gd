@@ -32,6 +32,7 @@ func setup(run: RunState) -> void:
 	column.add_child(_menu)
 	var items: Array[Dictionary] = [{"text": "Rest"}]
 	_menu.set_items(items)
+	ListMenu.screen_footer(self, [[&"menu_confirm", "Select"]])
 
 
 ## Rests (once) and offers to go on. The bot calls this; the player uses confirm.

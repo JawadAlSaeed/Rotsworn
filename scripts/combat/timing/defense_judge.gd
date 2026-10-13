@@ -91,6 +91,7 @@ func set_prompts(prompts: Array) -> void:
 			"offset_us": 0,
 			"pressed": false,
 			"voided": false,
+			"ring_lead_us": int(p.get("ring_lead_us", -1)),
 		})
 	_prompts.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.idx) < int(b.idx))
 
@@ -181,6 +182,8 @@ func press(action: int, t_us: int, earliest_us: int = -1) -> Dictionary:
 			reason = Reason.WRONG_ACTION
 		elif nearest_offset < (windows[action] as Vector2i).x:
 			reason = Reason.EARLY
+			if action == Defense.Outcome.PRESS and _ring_shown(nearest, t):
+				_burn_press(int(nearest.at_us), t)
 	if reason == Reason.LATE and isolated:
 		var next_open := _next_window_open(int(nearest.get("hit", -1)), latest)
 		if next_open != NEVER:
@@ -255,6 +258,29 @@ func _tier(p: Dictionary, action: int, at: int, earliest: int, latest: int) -> i
 	if latest >= at + edges.x and earliest <= at + edges.y:
 		return Defense.Outcome.PRESS_PERFECT
 	return action
+
+
+## True if the prompt's ring is on screen at `t`: its `ring_lead_us` (set by the skill runner)
+## before its moment or later. A press long before a ring shows (a double tap, a co-op partner's
+## later follow-up) never spends it. Prompts without a ring lead never burn.
+static func _ring_shown(p: Dictionary, t: int) -> bool:
+	var lead := int(p.get("ring_lead_us", -1))
+	return lead >= 0 and int(p.at_us) - t <= lead
+
+
+## One press per skill ring (user rule, phase 6): a press too early for a skill or follow-up
+## press uses that ring up as a miss, so the lockout running out before the window cannot give a
+## second try. Every unresolved press prompt at that moment (one per character) is spent; they
+## are reported by the next advance() like expired prompts.
+func _burn_press(at_us: int, t: int) -> void:
+	for p: Dictionary in _prompts:
+		if p.resolved or int(p.at_us) != at_us or not (p.windows as Dictionary).has(Defense.Outcome.PRESS):
+			continue
+		p.resolved = true
+		p.outcome = Defense.Outcome.NONE
+		p.pressed = true
+		p.offset_us = t - at_us
+		_unreported.append(int(p.idx))
 
 
 func _compensate(t_us: int) -> int:

@@ -6,7 +6,6 @@ signal done
 
 const TITLE_SIZE: int = 96
 const TEXT_SIZE: int = 32
-const HINT_SIZE: int = 26
 var _age: float = 0.0
 ## Presses this soon after the screen appears are ignored, so a late press never skips it.
 var _guard_s: float = 0.0
@@ -20,8 +19,7 @@ func setup(run: RunState, input_guard_ms: int) -> void:
 	if not won:
 		(column.get_child(0) as Label).label_settings.font_color = HudStyle.LATE
 	column.add_child(ListMenu.centred_label(summary(run), TEXT_SIZE))
-	column.add_child(ListMenu.centred_label("%s:  main menu" % HudStyle.binding_text(&"menu_confirm"), HINT_SIZE,
-			HudStyle.TEXT_DIM))
+	ListMenu.screen_footer(self, [[&"menu_confirm", "Main menu"]])
 
 
 ## "Stops reached 5 of 8   Fights won 6   Level 3   Gold earned 140".

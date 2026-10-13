@@ -6,6 +6,8 @@ extends RefCounted
 ## call these functions and show the result.
 
 const VICTORY := "victory"
+## A fight left with Run (DESIGN.md 2.13).
+const ESCAPED := "escaped"
 const DEFEAT := "defeat"
 ## Salts for the seeded picks of each stop (loot and shop gear differ at the same stop).
 const LOOT_SALT: int = 7919
@@ -262,6 +264,13 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 ## back up at tuning.run_downed_revive_hp; a defeat ends the run.
 ## Returns {gold, xp, levels} (levels gained).
 func finish_fight(fight_result: String, party_hp: Array[int], encounter: EncounterData) -> Dictionary:
+	if fight_result == ESCAPED:
+		# Ran away (DESIGN.md 2.13): the HP carries on (a downed hero stands up at the floor),
+		# no gold, no XP, the run goes on.
+		for slot: int in hp.size():
+			var left := party_hp[slot] if slot < party_hp.size() else hp[slot]
+			hp[slot] = clampi(maxi(left, tuning.run_downed_revive_hp), 1, max_hp(slot))
+		return {"gold": 0, "xp": 0, "levels": 0}
 	if fight_result != VICTORY:
 		for slot: int in hp.size():
 			hp[slot] = 0

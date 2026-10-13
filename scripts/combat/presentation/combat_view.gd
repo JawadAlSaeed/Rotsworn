@@ -127,19 +127,27 @@ func sync_alive(mirror: CombatMirror) -> void:
 	for id: int in _fighters:
 		var v := fighter(id)
 		var alive := mirror.is_alive(id)
+		if v.is_party and bool(mirror.fighter(id).get("escaped", false)):
+			# A hero who ran is gone from the stage (DESIGN.md 2.13); let a running escape finish.
+			if not v.is_dissolving():
+				v.set_dissolve(1.0)
+			continue
 		v.set_grey(0.0 if alive else 1.0)
 		if v.is_party:
 			v.set_pose(FighterView.CharPose.IDLE if alive else FighterView.CharPose.DOWN)
+			v.set_dissolve(0.0)
 		else:
 			v.set_pose(EnemyChoreography.Pose.IDLE if alive else EnemyChoreography.Pose.HURT)
+			# A beaten enemy has crumbled away (card #38).
+			v.set_dissolve(0.0 if alive else 1.0)
 
 
-## A burst of sparks flying out from `at`.
-func spawn_sparks(at: Vector3, count: int, alpha: float = 1.0) -> void:
+## A burst of sparks flying out from `at`, tinted `color`.
+func spawn_sparks(at: Vector3, count: int, alpha: float = 1.0, color: Color = Color.WHITE) -> void:
 	for i: int in count:
 		var spark := _effect_sprite(_spark_texture, BaseMaterial3D.BILLBOARD_ENABLED)
 		spark.position = at
-		spark.modulate = Color(1.0, 1.0, 1.0, alpha)
+		spark.modulate = Color(color.r, color.g, color.b, alpha)
 		add_child(spark)
 		var angle := _rng.randf_range(0.0, TAU)
 		var dist := _visuals.spark_spread * _rng.randf_range(0.5, 1.0)

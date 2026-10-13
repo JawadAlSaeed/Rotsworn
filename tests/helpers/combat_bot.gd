@@ -82,6 +82,9 @@ func _pick_ability(engine: CombatEngine, actor: Combatant) -> String:
 	var usable: Array[String] = []
 	for id: String in actor.ability_ids:
 		var ability := engine.get_ability(id)
+		if ability.escape:
+			# The bot fights to the end (like the game's autoplay): it never runs.
+			continue
 		if ability.team_ultimate and engine.can_use(actor.id, id):
 			return id
 		if ability.revive_percent > 0 and engine.can_use(actor.id, id):

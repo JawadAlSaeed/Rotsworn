@@ -30,6 +30,9 @@ func setup(address: String) -> void:
 	_field.custom_minimum_size = Vector2(FIELD_WIDTH, 0.0)
 	_field.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_field.add_theme_font_size_override("font_size", FIELD_SIZE)
+	_field.add_theme_stylebox_override("normal", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.PANEL_BORDER, 2, 14))
+	_field.add_theme_stylebox_override("focus", HudStyle.panel(Color(0, 0, 0, 0), HudStyle.GOLD, 2, 14))
+	_field.add_theme_stylebox_override("read_only", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.TEXT_DIM, 2, 14))
 	_field.text_submitted.connect(_on_submitted)
 	row.add_child(_field)
 	_status = ListMenu.centred_label("", TEXT_SIZE, HudStyle.TEXT)

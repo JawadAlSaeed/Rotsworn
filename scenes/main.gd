@@ -92,7 +92,8 @@ var _client_done: bool = false
 
 
 func _ready() -> void:
-	_tuning = load(TUNING_PATH) as Tuning
+	HudStyle.load_fonts()
+	_tuning = load(_tuning_path()) as Tuning
 	_visuals = load(VISUALS_PATH) as CombatVisuals
 	_explore = load(EXPLORE_VISUALS_PATH) as ExploreVisuals
 	_run_data = load(RUN_PATH) as RunData
@@ -124,6 +125,11 @@ func _ready() -> void:
 	Net.host_lost.connect(_on_net_host_lost)
 	Net.refused.connect(_on_net_refused)
 	_options = CombatOptions.from_args(OS.get_cmdline_user_args(), _tuning)
+	if _options.shots_every_s > 0.0:
+		var shooter := ScreenShooter.new()
+		shooter.name = "Shots"
+		add_child(shooter)
+		shooter.setup(_options.shots_every_s, _options.screen if not _options.screen.is_empty() else "game")
 	# --players=N: pretend pads 0 to N-1 (only the bot presses them).
 	_players = PlayerRoster.solo(_hero_names().size(), 0 if _options.players > 1 else PlayerRoster.KEYBOARD)
 	for pad: int in range(1, _options.players):
@@ -142,6 +148,9 @@ func _ready() -> void:
 		return
 	if _options.run:
 		_new_run()
+		return
+	if not _options.screen.is_empty():
+		_open_dev_screen(_options.screen)
 		return
 	if not _options.zone_id.is_empty():
 		for zone: ZoneData in _zones:
@@ -166,6 +175,28 @@ func _ready() -> void:
 		_autoplay_fail("unknown encounter %s" % wanted)
 		return
 	_start_combat()
+
+
+## The tuning file: --tuning=PATH (dev tool, for balance checks with another set of numbers;
+## a user:// or res:// path), else data/tuning/tuning.tres.
+static func _tuning_path() -> String:
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--tuning="):
+			return arg.substr("--tuning=".length())
+	return TUNING_PATH
+
+
+## --screen=NAME (dev tool, for pictures of a screen).
+func _open_dev_screen(screen_name: String) -> void:
+	match screen_name:
+		"settings":
+			_show_settings()
+		"players":
+			_show_lobby(_show_select)
+		"practice":
+			_show_select()
+		_:
+			_show_main_menu()
 
 
 ## The studio intro when the game starts, then the main menu (no music until then).
@@ -250,6 +281,7 @@ func _end_busy() -> void:
 
 func _show_main_menu() -> void:
 	_run = null
+	ButtonPrompts.set_both(false)
 	if Net.is_online():
 		_leave_online()
 	var menu := MainMenu.new()
@@ -289,6 +321,9 @@ func _show_lobby(next: Callable) -> void:
 
 func _on_lobby_started(players: PlayerRoster, next: Callable) -> void:
 	_players = players
+	# Keyboard and pad players together: hints show both kinds of buttons (card #45).
+	ButtonPrompts.set_both(not Net.is_online() and _players.devices.has(PlayerRoster.KEYBOARD)
+			and _players.devices.any(func(device: int) -> bool: return device >= 0))
 	var names := PackedStringArray()
 	for device: int in _players.devices:
 		names.append(PlayerRoster.device_name(device))
@@ -486,7 +521,10 @@ func _on_zone_return_requested(result: String) -> void:
 	await get_tree().process_frame
 	await _transition.fade_in()
 	_end_busy()
-	if _run == null and result != "victory" and _options.is_autoplay():
+	if _run == null and result == "escaped" and _options.autoplay_mode == CombatOptions.AUTOPLAY_ESCAPE:
+		print("AUTOPLAY_RESULT zone_escaped fights=%d" % _zone.fights_started())
+		_autoplay_quit()
+	elif _run == null and result == "defeat" and _options.is_autoplay():
 		print("AUTOPLAY_RESULT zone_defeat fights=%d first_strikes=%d" % [_zone.fights_started(), _zone.first_strikes()])
 		_autoplay_quit()
 	elif _run != null and _zone.is_cleared() and not Net.is_client():
@@ -658,6 +696,12 @@ func _input(event: InputEvent) -> void:
 	if Net.is_client() and _is_run_screen(_screen) and _pause == null and _prompt == null and not pause:
 		if not event is InputEventMouseMotion:
 			get_viewport().set_input_as_handled()
+		return
+	# Online the fight goes on under the pause menu: the fight-only buttons (X / Y / RT) must not
+	# reach the action menu underneath (the pause menu only eats the menu buttons).
+	if (_pause != null or _prompt != null) and _combat != null and (event.is_action(&"fight_skills")
+			or event.is_action(&"fight_items") or event.is_action(&"fight_ultimate")):
+		get_viewport().set_input_as_handled()
 		return
 	if _pause != null or _prompt != null or _busy or not pause:
 		return

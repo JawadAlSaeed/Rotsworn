@@ -48,6 +48,8 @@ const MIN_WAVE_CRESTS: int = 2
 ## The floor warning starts at this share of its strength when the slam starts.
 const WARNING_START_SHARE: float = 0.3
 
+## The training ring is a practice aid: the controller turns it off for run fights.
+var training_ring_allowed: bool = true
 var _submit: Callable
 var _apply_now: Callable
 var _mirror: CombatMirror
@@ -183,6 +185,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_animating = true
 	_input.arm_all()
 	_hud.show_banner(_banner_text())
+	_hud.set_defending(true)
 	var kinds: Array = []
 	var times: Array = []
 	for hit: Dictionary in _hits:
@@ -728,7 +731,8 @@ func _update_wave(t: int) -> void:
 
 
 func _update_rings(t: int) -> void:
-	if not bool(_event.get("allow_timing_ring", true)) or not PlayerSettings.show_timing_ring(_tuning):
+	var ring_on := training_ring_allowed and bool(_event.get("allow_timing_ring", true))
+	if not ring_on or not PlayerSettings.show_timing_ring(_tuning):
 		_hud.set_rings([])
 		return
 	var rings: Array[Dictionary] = []
@@ -756,11 +760,18 @@ func _update_rings(t: int) -> void:
 func _update_reading(t: int) -> void:
 	var t_ms := float(t) / 1000.0
 	var states := HitRhythm.states(_hits, t_ms, _visuals)
+	# Once the first hit lands, the rest of the string is from memory (tuning
+	# hide_intent_after_first_hit): no hit row, no markers; the enemy's motion and the floor
+	# warning still show each hit.
+	var hidden := _tuning.hide_intent_after_first_hit and not _hits.is_empty() and t_ms >= float(_hits[0].at_ms)
 	_hud.set_banner_hit_states(states)
+	_hud.show_banner_hits(not hidden)
 	var markers: Array[Dictionary] = []
 	var warning := 0.0
 	var active := HitRhythm.active_hit(states)
-	if active >= 0 and _options.hit_markers:
+	# The floor warning under a ground hit always shows (the enemy's own tell); the hit markers
+	# only with their toggle (off by default since phase 6).
+	if active >= 0:
 		var hit: Dictionary = _hits[active]
 		var kind := int(hit.kind)
 		var ground := kind == AttackHitData.Kind.GROUND
@@ -771,7 +782,7 @@ func _update_reading(t: int) -> void:
 			var progress := clampf((t_ms - start) / maxf(1.0, float(hit.at_ms) - start), 0.0, 1.0)
 			warning = _visuals.floor_warning_strength * lerpf(WARNING_START_SHARE, 1.0, progress)
 		var enemy := _view.fighter(_source)
-		for id: int in _living_targets():
+		for id: int in ([] as Array[int]) if hidden or not _options.hit_markers else _living_targets():
 			var view := _view.fighter(id)
 			# The standing middle of the body: a jump does not carry the marker up.
 			var centre := _view.screen_position(view.centre_position() - Vector3(0.0, view.body_offset.y, 0.0))
@@ -827,6 +838,7 @@ func _hand_back() -> void:
 	_last_attack_longest_us = _longest_frame_us
 	_input.disarm()
 	_hud.hide_banner()
+	_hud.set_defending(false)
 	_hud.set_rings([])
 	_hud.set_hit_markers([])
 	_hud.set_locks([])

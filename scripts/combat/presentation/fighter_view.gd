@@ -56,6 +56,7 @@ var _flash_length_us: int = 1
 var _flash_strength: float = 1.0
 ## The one tween allowed to move the body (see move_body).
 var _move_tween: Tween
+var _dissolve_tween: Tween
 
 
 ## Builds the sprite and shadow. `fallback_size` is the sheet size to fake if the art is missing.
@@ -192,6 +193,32 @@ func set_floor_warning(strength: float, color: Color) -> void:
 	_warning.visible = strength > 0.0
 	if _warning.visible:
 		_warning_material.albedo_color = Color(color.r, color.g, color.b, clampf(strength, 0.0, 1.0))
+
+
+## A beaten enemy crumbles away over `ms` (its shadow fades with it), its edge glowing in
+## `edge_color`. ms 0 makes it gone at once; set_dissolve(0) brings it back.
+func dissolve(ms: int, edge_color: Color) -> void:
+	_material.set_shader_parameter("dissolve_edge_color", edge_color)
+	if _dissolve_tween != null and _dissolve_tween.is_valid():
+		_dissolve_tween.kill()
+	if ms <= 0:
+		set_dissolve(1.0)
+		return
+	_dissolve_tween = create_tween()
+	_dissolve_tween.tween_method(set_dissolve, 0.0, 1.0, float(ms) / 1000.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+## True while a dissolve() is still playing.
+func is_dissolving() -> bool:
+	return _dissolve_tween != null and _dissolve_tween.is_valid() and _dissolve_tween.is_running()
+
+
+## How much of the body has crumbled away (0 whole, 1 gone).
+func set_dissolve(amount: float) -> void:
+	if amount <= 0.0 and _dissolve_tween != null and _dissolve_tween.is_valid():
+		_dissolve_tween.kill()
+	_material.set_shader_parameter("dissolve", clampf(amount, 0.0, 1.0))
+	_shadow.modulate = Color(1.0, 1.0, 1.0, 1.0 - clampf(amount, 0.0, 1.0))
 
 
 ## Greyed-out look for a downed fighter (0..1).

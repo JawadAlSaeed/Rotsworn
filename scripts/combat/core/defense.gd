@@ -24,7 +24,9 @@ enum Outcome {
 ## Actions that work against a hit kind, each with its window edges in microseconds relative to
 ## impact: {Outcome: [early_us (negative), late_us]}. Plain arrays so events stay serialisable.
 ## Phase 4 passives that change windows per character plug in here.
-static func build_windows(kind: int, tuning: Tuning) -> Dictionary:
+## `perfect_percent` scales a skill press's PERFECT window (AbilityData.perfect_window_percent);
+## it never grows past the GOOD window.
+static func build_windows(kind: int, tuning: Tuning, perfect_percent: int = 100) -> Dictionary:
 	var windows: Dictionary = {}
 	if kind == AttackHitData.Kind.NORMAL:
 		var dodge: Vector2i = tuning.window_edges_us(tuning.dodge_window_ms)
@@ -36,7 +38,8 @@ static func build_windows(kind: int, tuning: Tuning) -> Dictionary:
 		windows[Outcome.JUMP] = [jump.x, jump.y]
 	elif kind == AttackHitData.Kind.PRESS:
 		var press: Vector2i = tuning.window_edges_us(tuning.skill_press_window_ms)
-		var perfect: Vector2i = tuning.window_edges_us(tuning.skill_perfect_window_ms)
+		var perfect_ms := mini(CombatMath.percent(tuning.skill_perfect_window_ms, perfect_percent), tuning.skill_press_window_ms)
+		var perfect: Vector2i = tuning.window_edges_us(perfect_ms)
 		windows[Outcome.PRESS] = [press.x, press.y]
 		windows[Outcome.PRESS_PERFECT] = [perfect.x, perfect.y]
 	return windows

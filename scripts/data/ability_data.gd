@@ -40,6 +40,9 @@ enum Target {
 ## How long this skill's press rings take to close, in percent of tuning ring_lead_ms: 100 is the
 ## normal speed, lower is a faster ring (harder), higher a slower one.
 @export_range(20, 300, 1, "suffix:%") var ring_lead_percent: int = 100
+## This skill's PERFECT window, in percent of tuning skill_perfect_window_ms (never wider than the
+## GOOD window). 100 is the normal size; Run uses a little more.
+@export_range(50, 300, 1, "suffix:%") var perfect_window_percent: int = 100
 ## Colour of this skill's press rings. A ring always turns gold while it is inside the PERFECT
 ## band, so avoid gold here.
 @export var ring_color: Color = Color(0.95, 0.94, 0.9)
@@ -107,3 +110,8 @@ func targets_enemies() -> bool:
 ## True if the ability targets party members (or only its user).
 func targets_party() -> bool:
 	return not targets_enemies()
+
+@export_group("Run")
+## Run (DESIGN.md 2.13): if every press is PERFECT the party leaves the fight (result
+## "escaped"); anything else and the turn is simply lost.
+@export var escape: bool = false

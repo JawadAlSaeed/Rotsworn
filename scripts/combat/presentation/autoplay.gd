@@ -6,7 +6,10 @@ extends Node
 ## - perfect: the correct press for every hit (parry for normal, jump for ground, the skill
 ##   button for skill and follow-up presses) at window centre;
 ## - miss: never presses;
-## - mash: random presses about every MASH_INTERVAL_MS.
+## - mash: random presses about every MASH_INTERVAL_MS;
+## - average: like a person of `bot_skill` percent (balance checks): each defence is landed with
+##   that chance (a parry or a dodge, a jump for a ground hit), otherwise it is not pressed; each
+##   skill press is landed with that chance, half of those perfect and half good.
 ## In co-op (--players=N) each player presses for their own heroes with their own device, so the
 ## per-player judging is played through too; mash presses as a random player. Online it presses
 ## only for this machine's player.
@@ -31,6 +34,8 @@ var _menu: ActionMenu
 var _tuning: Tuning
 var _rng := RandomNumberGenerator.new()
 var _seq: int = -1
+## Average bot: its decision per "plan:seq:hit:player".
+var _plans: Dictionary = {}
 ## "hit:player" keys already pressed (or with nothing to press) in this sequence.
 var _pressed: Dictionary = {}
 var _roster: PlayerRoster = PlayerRoster.solo(0)
@@ -41,6 +46,10 @@ var _last_frame_us: int = 0
 var _frame_us: int = 0
 var _reported: bool = false
 var _menu_picks: int = 0
+## Percent of presses the average bot lands (CombatOptions.bot_skill).
+var bot_skill: int = CombatOptions.DEFAULT_BOT_SKILL
+## Average bot: when the fight started (real time, ms) for the stats line.
+var _started_ms: int = 0
 var _stats: Dictionary = {
 	"parries": 0, "dodges": 0, "jumps": 0, "presses": 0, "perfect_presses": 0, "whiffs": 0,
 	"hits_taken": 0, "counters": 0, "team_counters": 0, "skills": 0, "ultimates": 0,
@@ -71,8 +80,10 @@ func _process(_delta: float) -> void:
 	_last_frame_us = now
 	if not _runner.is_defending() and not _skill_runner.is_defending():
 		return
+	if _started_ms == 0:
+		_started_ms = Time.get_ticks_msec()
 	match _mode:
-		CombatOptions.AUTOPLAY_PERFECT:
+		CombatOptions.AUTOPLAY_PERFECT, CombatOptions.AUTOPLAY_ESCAPE, CombatOptions.AUTOPLAY_AVERAGE:
 			_press_perfectly()
 		CombatOptions.AUTOPLAY_MASH:
 			_mash()
@@ -92,6 +103,11 @@ func on_menu_opened(actor_id: int) -> void:
 	if not _menu.is_open() or _mirror.turn != turn or _mirror.active_actor != actor_id:
 		return
 	var choice := _pick_ability()
+	if choice != null and choice.escape:
+		# Run like a player: hold Back until the ring around it fills (DESIGN.md 2.13).
+		_menu.hold_run()
+		_menu_picks += 1
+		return
 	if choice == null or not _menu.choose(choice.id, _pick_target(choice)):
 		print("AUTOPLAY_ERROR could not choose an ability for fighter %d" % actor_id)
 		return
@@ -142,13 +158,25 @@ func on_combat_finished(result: String) -> void:
 			+ " counters=%d team_counters=%d skills=%d ultimates=%d gauge=%d") % [_stats.parries, _stats.dodges,
 			_stats.jumps, _stats.presses, _stats.perfect_presses, _stats.whiffs, _stats.hits_taken, _stats.counters,
 			_stats.team_counters, _stats.skills, _stats.ultimates, _mirror.team_gauge])
+	# Balance numbers: turns, real seconds, and the party's HP left (percent of max, standing).
+	var hp := 0
+	var max_hp := 0
+	for id: int in _mirror.party_ids:
+		var f := _mirror.fighter(id)
+		max_hp += int(f.max_hp)
+		hp += int(f.hp) if bool(f.alive) else 0
+	@warning_ignore("integer_division")
+	print("AUTOPLAY_BALANCE turns=%d seconds=%d party_hp_percent=%d" % [_mirror.turn,
+			(Time.get_ticks_msec() - _started_ms) / 1000, hp * 100 / maxi(1, max_hp)])
 
 
 func _pick_ability() -> AbilityData:
 	var usable: Array[AbilityData] = []
 	var basic: AbilityData = null
 	for ability: AbilityData in _menu.abilities():
-		if not _menu.is_usable(ability.id):
+		if ability.escape and _mode == CombatOptions.AUTOPLAY_ESCAPE and _menu.is_usable(ability.id):
+			return ability
+		if not _menu.is_usable(ability.id) or ability.escape:
 			continue
 		if ability.team_ultimate or ability.revive_percent > 0:
 			return ability
@@ -204,6 +232,13 @@ func _press_perfectly() -> void:
 			var edges: Array = prompt.windows[action]
 			@warning_ignore("integer_division")
 			var centre := int(prompt.at_ms) * 1000 + (int(edges[0]) + int(edges[1])) / 2
+			if _mode == CombatOptions.AUTOPLAY_AVERAGE:
+				var plan := _average_plan(key, prompt, skill)
+				if plan.is_empty():
+					_pressed[key] = true
+					continue
+				action = int(plan.action)
+				centre = int(plan.at_us)
 			# Half a frame early: the press lands on average at the centre even when frames are slow.
 			@warning_ignore("integer_division")
 			var lead_us := _frame_us / 2
@@ -225,6 +260,37 @@ func _mash() -> void:
 		return
 	var player := players[_rng.randi_range(0, players.size() - 1)]
 	_input.inject_press(MASH_ACTIONS[_rng.randi_range(0, MASH_ACTIONS.size() - 1)], _roster.device_of_player(player))
+
+
+## The average bot's choice for one prompt, decided once per hit and player: {} (let it go) or
+## {action, at_us}: a parry or a dodge for a normal hit, a jump for a ground hit, a perfect or a
+## good skill press.
+func _average_plan(key: String, prompt: Dictionary, skill: bool) -> Dictionary:
+	var plan_key := "plan:%d:%s" % [_seq, key]
+	if _plans.has(plan_key):
+		return _plans[plan_key]
+	var plan: Dictionary = {}
+	if _rng.randi_range(1, 100) <= bot_skill:
+		var at := int(prompt.at_ms) * 1000
+		var windows: Dictionary = prompt.windows
+		var action := int((prompt.perfect as Array)[0])
+		if skill:
+			var perfect: Array = windows.get(Defense.Outcome.PRESS_PERFECT, windows[Defense.Outcome.PRESS])
+			var good: Array = windows[Defense.Outcome.PRESS]
+			var edges := perfect
+			if _rng.randi_range(0, 1) == 1:
+				# A good press: early, between the good and the perfect edges.
+				edges = [int(good[0]), int(perfect[0])]
+			@warning_ignore("integer_division")
+			plan = {"action": action, "at_us": at + (int(edges[0]) + int(edges[1])) / 2}
+		else:
+			if windows.has(Defense.Outcome.DODGE) and _rng.randi_range(0, 1) == 1:
+				action = Defense.Outcome.DODGE
+			var edges: Array = windows[action]
+			@warning_ignore("integer_division")
+			plan = {"action": action, "at_us": at + (int(edges[0]) + int(edges[1])) / 2}
+	_plans[plan_key] = plan
+	return plan
 
 
 ## The first prompt of a hit that player `player` can still answer, or {}.

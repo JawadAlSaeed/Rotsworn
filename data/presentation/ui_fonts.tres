@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="UiFonts" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ui_fonts.gd" id="1_fonts"]
+
+[resource]
+script = ExtResource("1_fonts")
+title_font_path = "res://assets/fonts/Cinzel.ttf"
+title_weight = 700
+body_font_path = "res://assets/fonts/AlegreyaSans-Medium.ttf"

@@ -415,3 +415,38 @@ func test_skill_press_is_perfect_inside_the_narrow_window_and_good_around_it() -
 	judge.press(press, AT + 10000)
 	assert_eq(judge.pop_ready(), [{"prompt": 0, "outcome": perfect, "offset_us": 10000, "pressed": true}],
 			"the released result says perfect")
+
+
+func test_an_early_skill_press_uses_the_ring_up() -> void:
+	# One press per ring (phase 6): pressing too early is a miss, even after the lockout ends.
+	var press := Defense.Outcome.PRESS
+	var good_edges := _edges(AttackHitData.Kind.PRESS, press)
+	var prompt := _prompt(0, 0, 0, 1000, AttackHitData.Kind.PRESS)
+	prompt["ring_lead_us"] = 700000
+	var judge := _judge([prompt])
+	var early_at := AT + int(good_edges[0]) - LOCKOUT_MS * 1000 - 50000
+	var early := judge.press(press, early_at)
+	assert_eq([early.result, early.reason], [WHIFF, EARLY])
+	var again := judge.press(press, AT)
+	assert_ne(again.result, SUCCESS, "no second try once the lockout is over")
+	assert_eq(judge.advance(AT), [0] as Array[int], "the ring is reported as spent")
+	assert_eq(judge.pop_ready(), [{"prompt": 0, "outcome": NONE, "offset_us": early_at - AT, "pressed": true}],
+			"released as a miss, marked as pressed (EARLY shows, not MISS)")
+
+
+func test_an_early_defence_press_can_still_be_followed_by_a_good_one() -> void:
+	# Defence keeps its rule: a whiff only locks the buttons for a while.
+	var judge := _single(AttackHitData.Kind.NORMAL)
+	var early := judge.press(PARRY, AT - 500000)
+	assert_eq(early.result, WHIFF)
+	assert_eq(judge.press(PARRY, AT).result, SUCCESS)
+
+
+func test_a_press_before_the_ring_shows_does_not_spend_it() -> void:
+	# A double tap or a press for something else long before the ring appears never burns it.
+	var press := Defense.Outcome.PRESS
+	var prompt := _prompt(0, 0, 0, 1000, AttackHitData.Kind.PRESS)
+	prompt["ring_lead_us"] = 300000
+	var judge := _judge([prompt])
+	assert_eq(judge.press(press, AT - 600000).result, WHIFF)
+	assert_eq(judge.press(press, AT).result, SUCCESS, "the ring was not on screen yet: still usable")

@@ -10,10 +10,16 @@ enum Opening {
 	FIRST_STRIKE,
 }
 
+## The Run action every hero has (DESIGN.md 2.13).
+const RUN_ABILITY_PATH := "res://data/abilities/run.tres"
+
 var party: Array[CharacterData] = []
 var enemies: Array[EnemyData] = []
 ## Offered to every party member when the team gauge is full (null = no team ultimate).
 var team_ultimate: AbilityData
+## Run (DESIGN.md 2.13): every hero gets it when can_run is true (not against bosses).
+var run_ability: AbilityData
+var can_run: bool = false
 var tuning: Tuning
 var rng_seed: int = 1
 ## Accept practice commands (force an attack, invulnerability). Off for real runs.
@@ -39,6 +45,8 @@ static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: i
 	setup.party = encounter.party.duplicate()
 	setup.enemies = encounter.enemies.duplicate()
 	setup.team_ultimate = encounter.team_ultimate
+	setup.run_ability = load(RUN_ABILITY_PATH) as AbilityData
+	setup.can_run = encounter.can_run and not encounter.boss and setup.run_ability != null
 	setup.tuning = p_tuning
 	setup.rng_seed = p_seed
 	return setup
@@ -100,6 +108,10 @@ func validate() -> PackedStringArray:
 		else:
 			for ability: AbilityData in c.all_abilities():
 				problems.append_array(_ability_problems(ability))
+	if run_ability != null:
+		problems.append_array(_ability_problems(run_ability))
+		if not run_ability.escape:
+			problems.append("run ability %s is not marked escape" % run_ability.id)
 	if team_ultimate != null:
 		problems.append_array(_ability_problems(team_ultimate))
 		if not team_ultimate.team_ultimate:
