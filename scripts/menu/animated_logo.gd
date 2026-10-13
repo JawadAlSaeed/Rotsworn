@@ -39,6 +39,8 @@ func _layer(path: String) -> TextureRect:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# Smooth scaling: the project draws pixel art sharp (nearest), which makes a scaled logo jagged.
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(rect)
 	if get_child_count() == 1:

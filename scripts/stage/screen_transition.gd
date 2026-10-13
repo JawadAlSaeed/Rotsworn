@@ -155,6 +155,7 @@ func _build_card(title: String, tip: String) -> Control:
 	if _tips.logo_height_px > 0 and not _logo_path.is_empty():
 		var logo := TextureRect.new()
 		logo.texture = AssetLoader.texture(_logo_path, Vector2i(256, 144))
+		logo.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

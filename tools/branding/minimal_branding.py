@@ -14,7 +14,8 @@ The game's files (assets/branding/):
   rotsworn_logo_front.png       title screen: the letters, cracks only (the wear is drawn live)
   rotsworn_logo_front_edge.png  title screen: how far each pixel is from a letter's edge, for the
                                 moving wear ("static"): 0.5 is the edge, 1 is EDGE_RANGE px inside
-  icon_1024.png, icon.png, icon.ico  the crest alone on a black tile
+  icon_1024.png, icon.png, icon.ico  the crest alone (centred on the staff) on a greenish-black tile;
+                                the .ico's small sizes use thicker lines
 """
 import math
 import os
@@ -50,6 +51,10 @@ STYLES = {
     "rough": dict(dagger_half=15, guard=(70, 14, 9, 72), grip=18, pommel=(18, 16, 30), fuller=(5, 22),
                   shield=(12, 4), staff=(12, 9, 10, 462), ribbon=(28, 24, 20),
                   near_px=5.0, patches=False, crest_wear=0.7, letter_wear=1.0, specks=160, ribbon_alpha=None),
+    # the rough crest with thicker lines, for the icon's small sizes (16 to 48 px)
+    "rough_bold": dict(dagger_half=30, guard=(84, 26, 18, 84), grip=30, pommel=(28, 24, 40), fuller=(8, 26),
+                       shield=(34, 12), staff=(30, 22, 18, 470), ribbon=(56, 48, 42),
+                       near_px=5.0, patches=False, crest_wear=0.25, letter_wear=1.0, specks=0, ribbon_alpha=None),
     "clean": dict(dagger_half=19, guard=(74, 18, 12, 76), grip=22, pommel=(22, 20, 34), fuller=(6, 24),
                   shield=(18, 6), staff=(16, 13, 13, 466), ribbon=(38, 32, 26),
                   near_px=2.5, patches=True, crest_wear=0.3, letter_wear=0.7, specks=50, ribbon_alpha=0.3),
@@ -145,7 +150,8 @@ def layouts():
         "crest_above": (1800, 1000, (900, 400, 0.5), 1.0, [("ROTSWORN", 190, 900, 850)]),
         "crest_behind": (1800, 1150, (900, 600, 0.85), 0.42, [("ROTSWORN", 220, 900, 690)]),
         "split": (2200, 900, (1060, 450, 0.55), 1.0, [("ROT", 200, 590, 520), ("SWORN", 200, 1760, 520)]),
-        "icon": (1024, 1024, (512, 560, 0.74), 1.0, []),
+        # the crest alone, centred on the staff and filling the height (spike -650 .. foot 466)
+        "icon": (1024, 1024, (512, 588, 0.826), 1.0, []),
     }
 
 
@@ -283,16 +289,32 @@ def crop_all(images, margin=MARGIN):
     return {k: v.crop(box) for k, v in images.items()}, box
 
 
-def make_icon():
-    """The crest alone, clean style (it must read at 16 px), on a black rounded tile."""
-    crest = build("icon", "clean")["logo"]
-    crest = crest.crop(crest.getbbox())
-    n = 1024
-    tile = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    ImageDraw.Draw(tile).rounded_rectangle((16, 16, n - 16, n - 16), radius=170, fill=(11, 11, 12, 255))
-    fit = int(n * 0.84)
-    crest.thumbnail((fit, fit), Image.LANCZOS)
-    tile.alpha_composite(crest, ((n - crest.width) // 2, (n - crest.height) // 2))
+## The icon's tile: the logo's greenish black, a little lighter in the middle (title screen colours).
+ICON_CENTRE = (30, 38, 22)
+ICON_EDGE = (9, 11, 8)
+ICON_GLOW = (120, 170, 40)
+
+
+def icon_tile(n):
+    """A rounded tile in the logo's greenish black, with a faint green glow in the middle."""
+    yy, xx = np.mgrid[0:n, 0:n].astype(np.float32)
+    r = np.hypot(xx - n / 2, yy - n * 0.47) / (n * 0.62)
+    t = np.clip(r, 0, 1)[..., None]
+    rgb = np.array(ICON_CENTRE, np.float32) * (1 - t) + np.array(ICON_EDGE, np.float32) * t
+    rgb += np.array(ICON_GLOW, np.float32) * (np.exp(-(r / 0.45) ** 2) * 0.08)[..., None]
+    mask = Image.new("L", (n, n), 0)
+    margin = n // 64
+    ImageDraw.Draw(mask).rounded_rectangle((margin, margin, n - margin, n - margin), radius=int(n * 0.16), fill=255)
+    tile = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+    tile.putalpha(mask)
+    return tile
+
+
+def make_icon(style):
+    """The logo's crest without the word, centred on the staff, on the greenish-black tile."""
+    crest = build("icon", style)["logo"].resize((1024, 1024), Image.LANCZOS)
+    tile = icon_tile(1024)
+    tile.alpha_composite(crest)
     return tile
 
 
@@ -307,10 +329,12 @@ def write_game_files():
     root = ((262 * sc + tx) * SCALE - box[0], (CROSS_Y * sc + ty) * SCALE - box[1])
     print(f"wrote the logo and its layers {size}")
     print(f"ribbon_root = Vector2({root[0] / size[0]:.4f}, {root[1] / size[1]:.4f})  letters_edge_range_px = {EDGE_RANGE}")
-    icon = make_icon()
+    icon = make_icon("rough")
+    small = make_icon("rough_bold")       # thin lines vanish at taskbar size: bolder ones there
     icon.save(os.path.join(BRANDING, "icon_1024.png"))
     icon.resize((256, 256), Image.LANCZOS).save(os.path.join(BRANDING, "icon.png"))
-    icon.save(os.path.join(BRANDING, "icon.ico"), sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    frames = [(small if s <= 48 else icon).resize((s, s), Image.LANCZOS) for s in (16, 24, 32, 48, 64, 128, 256)]
+    frames[-1].save(os.path.join(BRANDING, "icon.ico"), sizes=[f.size for f in frames], append_images=frames[:-1])
     print("wrote icon_1024.png, icon.png, icon.ico")
 
 

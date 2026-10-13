@@ -930,7 +930,11 @@ Studio intro (2026-10-12): when the game starts it plays the "Developed by Drago
 (`assets/video/dragonrot_intro.ogv`, 4 s, path in `data/presentation/boot.tres`, `BootData`) on
 black, then the title screen (7.7). Any key, button or click skips it (after `skip_guard_ms`). A missing
 video goes straight to the menu. Autoplay never shows it. Godot plays Ogg Theora only: the MP4 was
-converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`).
+converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`). Phase 8 (user: it looked soft and
+stretched; the exported MP4 was only 1888x998 at a low bitrate): `tools/branding/render_intro.py`
+re-renders it from the original canvas animation (the user's `dragonrot-intro/source`) in a hidden
+browser at exactly 1920x1080, 60 fps, with its own WAV, Theora quality 10. The video and the logos
+are scaled smoothly (linear filter; the project's default is nearest, for pixel art).
 
 - **Main menu** (first screen, `MainMenu`): New Run, Practice (the fight and zone list, full HP,
   nothing carries over), Settings, Quit. The cursor comes back on the last item picked.
@@ -1373,9 +1377,10 @@ counters for longer and mixed strings (2.5, card #52).
 7. **Sound and music** (done, approved 2026-10-13): real recorded sound effects for 66 moments,
    songs per place with crossfades, boss rage song, music dip, zone ambience, enemy voices, hero
    shouts, volume sliders (5.3). Backpack sounds wait for the backpack (phase 11).
-8. **Branding** (built, waiting for playtest): the name Rotsworn, logo and game icon, title
-   screen, menu font, credits, loading tips, story (7.7). Hero portraits wait for art; the
-   trailer and Steam page come later.
+8. **Branding** (done, approved 2026-10-14): the name Rotsworn, the minimal worn-gold logo and
+   game icon, title screen (swaying ribbon, letters flickering like static), worn-gold menu
+   choices and titles, credits, loading tips, story, the studio intro re-rendered in HD (7.5,
+   7.6, 7.7). Hero portraits wait for art; the trailer and Steam page come later.
 
 ### 11.1 To-do (from playtests)
 
