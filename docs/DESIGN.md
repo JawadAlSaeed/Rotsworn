@@ -319,8 +319,8 @@ How a fight starts depends on how it began in the zone (7.4):
   be targeted, revived or saved by Second Wind, and are not "down". The others fight on. The fight
   ends as **"escaped"** once nobody is left standing in it and at least one hero ran (a hero downed
   after the others ran is carried out); if the others win, it is a normal victory.
-- Not allowed against bosses (`EncounterData.boss`) or where `EncounterData.can_run` is false (the
-  run's final fight, The Last Gate): the Run row reads CAN'T RUN.
+- Not allowed against bosses (`EncounterData.boss`, which includes the run's final fight, the
+  Hollow King) or where `EncounterData.can_run` is false: the Run row reads CAN'T RUN.
 - After an escape: in a zone, the enemy goes home and the leader stays where they are (with the
   usual return grace); in a run, the HP carries on (a downed hero stands at
   `run_downed_revive_hp`), with no gold and no XP; a practice fight shows ESCAPED with "fight
@@ -1164,7 +1164,9 @@ counters for longer and mixed strings (2.5, card #52).
   reasons, release order (the normal@0 + ground@150 + jump@30 case), latency compensation,
   attack clock pauses, data file validation (2.9 rules).
 - Smoke test: `--autoplay` bot plays a full fight headless (`=perfect`, `=miss`, `=mash`), aiming
-  at window centres. At the end the game prints `AUTOPLAY_RESULT victory|defeat` and an
+  at window centres. Balance checks (phase 6): `=average --bot-skill=N` lands N% of its defences
+  (half parries, half dodges; jumps for ground hits) and N% of its skill presses (half perfect,
+  half good), letting the rest go; it prints `AUTOPLAY_BALANCE turns= seconds= party_hp_percent=`. At the end the game prints `AUTOPLAY_RESULT victory|defeat` and an
   `AUTOPLAY_STATS` line, then quits (with `--quit-on-end`). Problems print `AUTOPLAY_ERROR ...`
   (a rejected command, or the mirror not matching the engine). Run it with `--quit-after 60000` as
   a hard cap and a `timeout`, and fail if the result line is missing (a hang) or the log has an
@@ -1246,8 +1248,9 @@ counters for longer and mixed strings (2.5, card #52).
 5. **Co-op** (done, approved 2026-10-12 after an online test with a friend): Part A local
    multi-device (9.1), Part B online by IP (9.2), the studio intro (7.5). Steam invites later
    (swap the transport).
-6. **Polish**: Part A (built, waiting for playtest): UI, feedback effects, controller button
-   hints (7.6). Part B: audio pass and balance. Real art needs an artist (card #40).
+6. **Polish** (done, approved 2026-10-13): UI, feedback effects, controller button hints, fonts
+   (7.6), Run (2.13), one press per ring, balance (shorter fights, same difficulty). Sound and
+   music moved to phase 7; real art has its own phase.
 
 ### 11.1 To-do (from playtests)
 
@@ -1343,6 +1346,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | Map: first row zones, rest row before the final fight, no shop/rest twice in a row | a run opens with exploring and lets the party heal before the end, like Slay the Spire |
 | 2026-10-12 | Run fights have no "fight again" (R) | HP and gold carry on; a retry would undo a loss |
 | 2026-10-12 | Part B: loot = pick 1 of 3 after each guard + 2 gear in shops; boss with two phases | user picks "A, A" |
+| 2026-10-13 | Balance (card #41): enemy HP 1500 -> 900, enemy hit damage 28 -> 40 | user: keep it hard, make fights shorter; bot tests (average player bot) showed about 37% fewer turns with the same win rates |
 | 2026-10-13 | Run: hold B, one slow ring, only PERFECT escapes; a miss loses the turn; never from bosses | user design; holding stops accidental runs |
 | 2026-10-13 | One press per skill or follow-up ring: an early press spends it as a miss | user found a second press after an early one still scored |
 | 2026-10-13 | Fight menu: A attack, X skills, Y items, B run, RT ultimate; no cursor | user layout (Expedition 33 style) |

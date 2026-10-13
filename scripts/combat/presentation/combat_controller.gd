@@ -253,6 +253,7 @@ func _ready() -> void:
 		autoplay = Autoplay.new()
 		autoplay.name = "Autoplay"
 		autoplay.setup(_options.autoplay_mode, mirror, runner, skill_runner, defense_input, hud.action_menu, _tuning)
+		autoplay.bot_skill = _options.bot_skill
 		add_child(autoplay)
 		runner.press_judged.connect(autoplay.on_press_judged)
 		skill_runner.press_judged.connect(autoplay.on_press_judged)

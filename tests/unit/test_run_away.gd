@@ -1,7 +1,8 @@
 extends GutTest
 ## Run (DESIGN.md 2.13): a perfect press on the Run ring takes that hero out of the fight; the
-## fight ends as "escaped" once every standing hero ran. Anything else only costs the turn. Bosses and the final fight cannot be run from. An escape keeps the
-## run's HP and gives nothing.
+## fight ends as "escaped" once every standing hero ran. Anything else only costs the turn.
+## Bosses (the run's final fight is one) cannot be run from. An escape keeps the run's HP and
+## gives nothing.
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 const RUN_PATH := "res://data/runs/rotten_road.tres"
@@ -74,9 +75,9 @@ func test_no_run_when_the_fight_does_not_allow_it() -> void:
 	assert_eq(Fx.first_of(events, "command_rejected").get("reason"), "unknown_ability")
 
 
-func test_bosses_and_the_final_fight_cannot_be_run_from() -> void:
+func test_bosses_cannot_be_run_from() -> void:
 	var tuning := Tuning.new()
-	for case: Array in [["husk_fight", true], ["hollow_king", false], ["final_stand", false]]:
+	for case: Array in [["husk_fight", true], ["final_stand", true], ["hollow_king", false]]:
 		var encounter := load("res://data/encounters/%s.tres" % case[0]) as EncounterData
 		var setup := CombatSetup.from_encounter(encounter, tuning, 1)
 		assert_eq(setup.can_run, bool(case[1]), String(case[0]))

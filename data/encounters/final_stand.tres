@@ -17,4 +17,3 @@ display_name = "The Last Gate"
 party = Array[ExtResource("4_1bekw")]([ExtResource("5_bg52h"), ExtResource("6_r2gnp"), ExtResource("7_lkbtk")])
 enemies = Array[ExtResource("1_x0qbg")]([ExtResource("2_pl6uc"), ExtResource("3_wjr8a")])
 team_ultimate = ExtResource("9_smvry")
-can_run = false

@@ -93,7 +93,7 @@ var _client_done: bool = false
 
 func _ready() -> void:
 	HudStyle.load_fonts()
-	_tuning = load(TUNING_PATH) as Tuning
+	_tuning = load(_tuning_path()) as Tuning
 	_visuals = load(VISUALS_PATH) as CombatVisuals
 	_explore = load(EXPLORE_VISUALS_PATH) as ExploreVisuals
 	_run_data = load(RUN_PATH) as RunData
@@ -175,6 +175,15 @@ func _ready() -> void:
 		_autoplay_fail("unknown encounter %s" % wanted)
 		return
 	_start_combat()
+
+
+## The tuning file: --tuning=PATH (dev tool, for balance checks with another set of numbers;
+## a user:// or res:// path), else data/tuning/tuning.tres.
+static func _tuning_path() -> String:
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--tuning="):
+			return arg.substr("--tuning=".length())
+	return TUNING_PATH
 
 
 ## --screen=NAME (dev tool, for pictures of a screen).

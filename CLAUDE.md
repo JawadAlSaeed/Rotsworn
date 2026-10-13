@@ -71,7 +71,10 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   fingerprint differs between a build and a run from the editor).
 - Smoke test the whole fight without a human: run the game with `-- --autoplay` (bot defends
   and presses perfectly), `-- --autoplay=miss` (never presses), `-- --autoplay=mash` (mashes
-  buttons) or `-- --autoplay=escape` (presses perfectly and runs on its first turn). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
+  buttons), `-- --autoplay=escape` (presses perfectly and runs on its first turn) or
+  `-- --autoplay=average --bot-skill=60` (plays like an average player for balance checks: lands
+  that percent of its presses; prints an `AUTOPLAY_BALANCE turns= seconds= party_hp_percent=`
+  line). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
   from `data/encounters/` (default `husk_fight`), `--first-strike` to start it with the advantage,
   or `--zone=rotten_hollow` to have the bot walk the zone and fight every roaming enemy (ends with
   `AUTOPLAY_RESULT zone_clear` or `zone_defeat`), or `--run` to have the bot play a whole run
