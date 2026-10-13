@@ -1299,9 +1299,9 @@ counters for longer and mixed strings (2.5, card #52).
 6. **Polish** (done, approved 2026-10-13): UI, feedback effects, controller button hints, fonts
    (7.6), Run (2.13), one press per ring, balance (shorter fights, same difficulty). Sound and
    music moved to phase 7; real art has its own phase.
-7. **Sound and music** (in progress): real recorded sound effects for 66 moments (5.3, done
-   2026-10-13); songs per place, boss rage switch, music dip, zone ambience, volume channels
-   enemy voices and hero shouts (built 2026-10-13, waiting for an ear check).
+7. **Sound and music** (done, approved 2026-10-13): real recorded sound effects for 66 moments,
+   songs per place with crossfades, boss rage song, music dip, zone ambience, enemy voices, hero
+   shouts, volume sliders (5.3). Backpack sounds wait for the backpack (phase 11).
 
 ### 11.1 To-do (from playtests)
 
