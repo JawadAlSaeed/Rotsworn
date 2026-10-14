@@ -692,8 +692,10 @@ clamped by tuning's calibration bounds.
 - Sprites: `assets/sprites/<group>/<id>.png`. Sounds: `assets/audio/sfx/<cue>.wav`.
 - Battle sprites are one-row sheets of equal frames (`sprite_hframes` in the data):
   characters `idle, ready, parry, dodge, jump, hurt, strike, down` (8);
-  enemies `idle, windup, lunge, contact, hurt, slam` (6). Portraits are single images.
-  Placeholder characters are 32x48 px per frame, the enemy 64x64 px per frame.
+  enemies `idle, windup, lunge, contact, hurt, slam` (6). Portraits are single 48x48 images.
+  Heroes are 32x48 px per frame. Enemy frames are square and sized per enemy, so every fighter
+  has the same pixel density (`sprite_pixel_size` 0.045): Rotten Husk and Shade 72, Bloat 92,
+  Gnat Swarm 56, the Hollow King 108 (phase 9; the frame size is read from the sheet).
 - Paths are stored in the data files as plain `res://` paths (`@export_file_path`, not UIDs). To
   replace a placeholder, overwrite the file with a new one of the same name. `run_game.bat` imports
   new files before starting, so dropped-in art and sounds just work.
@@ -765,6 +767,37 @@ problem. Skipped by the user: low HP warning, pause opens, status sticks. Not ma
 or features): voices, zone ambience loops, backpack sounds.
 
 ---
+
+### 5.4 Art kit (phase 9, cards #40, #85, #116 to #124)
+
+All art is drawn by code (user pick, 2026-10-14) with the Python kit in `tools/art_kit/` (README
+there: the art bible and how to build). Characters, monsters and props are small 3D models made of
+simple shapes (signed distance fields), posed by a skeleton with IK and rendered straight into
+pixel art: 3x3 rays per pixel, one palette colour per pixel, one light from the upper left, ambient
+occlusion in creases, a 1-pixel outline in each material's dark colour and contour lines where
+parts overlap. Colours come from hue-shifted ramps (`kit/palette.py`; shadows lean violet,
+highlights warm). Ground textures, effects and icons are drawn in 2D with the same palette. One
+module per asset group (`tools/art_kit/assets/`), deterministic, previews in
+`tools/art_kit/preview/` (not in git). Poses are plain dicts, so phase 10 animations are made by
+blending poses into more frames.
+
+- Look: Octopath-like sprites in a muted, rotting world (greys, olive and moss, browns, violet
+  rot); the heroes carry the strong colours (Alder blue, Brin red, Cass gold); worn gold accents;
+  glows (rot green, cyan, amber, violet) only where they mean something.
+- Alder carries a big shield and a backpack and no sword (user, 2026-10-14; the shield-only
+  rework is card #56). Brin has twin daggers and a red headband; Cass a cyan-crystal staff, a
+  wide pointed hat and a gold robe.
+- Each enemy has its own body (before phase 9 all five were one recoloured placeholder):
+  the Rotten Husk a bark-skinned hunched husk with hooked claws; the Bloat a huge swollen belly
+  on stubby legs; the Gnat Swarm a cloud of gnats with eyes; the Shade a floating hooded wraith;
+  the Hollow King a crowned undead king with a glowing hollow chest and a cleaver.
+- Each place has its own backdrop (`StageLook.backdrop_path`).
+- Hero portraits also show on the party screen (card #85).
+- Height budget: the fight camera shows about 4.2 world units above an enemy's feet, so a
+  fighter's idle should stay under about 3.7 (popups go above it). The Hollow King is drawn at
+  camera scale 1.19 inside his 108 px frame (idle 3.6, sword raised 4.0); the heroes stand about
+  2.0 (44 px).
+- `python tools/art_kit/check.py` checks every file against the sprite contract.
 
 ## 6. Input
 
@@ -1381,6 +1414,16 @@ counters for longer and mixed strings (2.5, card #52).
    game icon, title screen (swaying ribbon, letters flickering like static), worn-gold menu
    choices and titles, credits, loading tips, story, the studio intro re-rendered in HD (7.5,
    7.6, 7.7). Hero portraits wait for art; the trailer and Steam page come later.
+9. **Real art** (done, approved 2026-10-14): every sprite drawn by code with the art kit (5.4):
+   heroes, enemies (each its own creature), portraits (48x48, also on the party screen), ground
+   textures, backdrops per place, props, effects, HUD icons (cards #40, #85, #116 to #124).
+10. **Animation**: multi-frame animations from blended poses: idle breathing, ready stance,
+    defence poses, hit reactions, skill moves, follow-up entrance, team ultimate, downed and
+    revive, victory, enemy wind-ups, hits and deaths, walking in four directions, item pickup
+    (cards #58 to #71).
+11. **New features**: backpack and items, class reworks (Alder shield-only, Brin twin daggers,
+    Cass healer), enemies that grow stronger deeper into a run (#105).
+12. **Monsters**: new monster types and variants, for example a fly and a hyena (card #125).
 
 ### 11.1 To-do (from playtests)
 
@@ -1505,3 +1548,8 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-13 | The game is called Rotsworn (one word); repo renamed to `JawadAlSaeed/Rotsworn` | user pick; no game uses the name; one word matches the logo and is easy to search |
 | 2026-10-13 | Logo and icon painted by code (tools/branding): shield behind, twin daggers and staff in front, bound by a ribbon | user: the ComfyUI cut-out had white edges, a flat vector redo was too cartoony; no mushrooms, no bright spark |
 | 2026-10-13 | Loading tips hold 2.6 s, then the zone is built | long enough to read; the zone starts when it is seen |
+| 2026-10-14 | Phase 9 art drawn by code (3D shapes rendered to pixel art), not free asset packs | user pick |
+| 2026-10-14 | Sprites keep their size (heroes 32x48); portraits grow from 24 to 48 px | user pick: Octopath-like chunky pixels; the HUD shows portraits at 56 to 64 px |
+| 2026-10-14 | Alder: shield and backpack, no sword | user request; matches the shield-only rework (#56) |
+| 2026-10-14 | Every fighter at one pixel density (0.045); enemy frames sized per enemy | mixed pixel sizes (0.04 to 0.075) looked uneven; on-screen sizes stay the same |
+| 2026-10-14 | #105 (enemies scale with run depth) moved to phase 11; new phase 12 for monsters | user pick |

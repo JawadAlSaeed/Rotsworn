@@ -1290,10 +1290,10 @@ func _warm_up_assets(setup: CombatSetup) -> void:
 	Sfx.preload_all()
 	for c: CharacterData in setup.party:
 		AssetLoader.texture(c.sprite_path, Vector2i(256, 48))
-		AssetLoader.texture(c.portrait_path, Vector2i(24, 24))
+		AssetLoader.texture(c.portrait_path, Vector2i(48, 48))
 	for e: EnemyData in setup.enemies:
 		AssetLoader.texture(e.sprite_path, Vector2i(384, 64))
-		AssetLoader.texture(e.portrait_path, Vector2i(24, 24))
+		AssetLoader.texture(e.portrait_path, Vector2i(48, 48))
 	for path: String in [_visuals.spark_path, _visuals.shockwave_path, _visuals.shadow_path,
 			_visuals.slash_path,
 			_visuals.lock_icon_path, _visuals.ap_pip_path, _visuals.ap_pip_empty_path,

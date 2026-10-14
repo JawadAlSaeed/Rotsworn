@@ -264,6 +264,7 @@ flip = true
 script = ExtResource("4_nctwb")
 floor_tile_path = "res://assets/sprites/env/ash_tile.png"
 floor_size = 90.0
+backdrop_path = "res://assets/sprites/env/backdrop_ashen_ruins.png"
 background_color = Color(0.06, 0.06, 0.09, 1)
 ambient_color = Color(0.38, 0.42, 0.58, 1)
 ambient_energy = 0.65
