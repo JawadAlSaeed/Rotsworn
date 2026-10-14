@@ -149,7 +149,7 @@ func _hollow_king() -> EnemyData:
 	e.color = Color("8e2f3a")
 	e.sprite_path = "res://assets/sprites/enemies/hollow_king.png"
 	e.portrait_path = "res://assets/sprites/portraits/hollow_king.png"
-	e.sprite_pixel_size = 0.075
+	e.sprite_pixel_size = 0.045
 	e.hp_percent = 350
 	e.power_percent = 120
 	e.speed = 140

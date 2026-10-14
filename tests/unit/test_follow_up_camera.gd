@@ -7,7 +7,8 @@ extends GutTest
 const SCREEN := Vector2i(1920, 1080)
 ## Pixels of slack for float rounding between the pure maths and the camera.
 const SLACK_PX: float = 2.0
-## Character art: 48 px tall frames at the default pixel size; enemy: the tallest shipped one.
+## Character art: 48 px tall frames at the default pixel size; enemy: the tallest shipped one
+## (frame height from its sheet times its pixel size).
 const CHARACTER_HEIGHT: float = 48.0 * 0.045 * 1.05
 const ENEMY_DIR := "res://data/enemies"
 
@@ -30,7 +31,9 @@ func _enemy_height() -> float:
 	for file: String in DirAccess.get_files_at(ENEMY_DIR):
 		if file.ends_with(".tres"):
 			var e := load(ENEMY_DIR.path_join(file)) as EnemyData
-			tallest = maxf(tallest, 64.0 * e.sprite_pixel_size * 1.05)
+			# Each enemy's frame height comes from its sheet (bigger monsters get bigger frames).
+			var frame_px := float(AssetLoader.texture(e.sprite_path, Vector2i(64 * e.sprite_hframes, 64)).get_height())
+			tallest = maxf(tallest, frame_px * e.sprite_pixel_size * 1.05)
 	return tallest
 
 

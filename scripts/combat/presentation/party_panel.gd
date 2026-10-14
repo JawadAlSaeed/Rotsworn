@@ -161,19 +161,7 @@ func _apply_border() -> void:
 
 
 func _make_portrait(texture: Texture2D, accent: Color) -> PanelContainer:
-	var frame := PanelContainer.new()
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	frame.add_theme_stylebox_override("panel", HudStyle.panel(PORTRAIT_BG, accent, PORTRAIT_PAD, PORTRAIT_PAD))
-	var face := TextureRect.new()
-	face.texture = texture
-	face.custom_minimum_size = Vector2(PORTRAIT_PX, PORTRAIT_PX)
-	face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	face.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.add_child(face)
-	return frame
+	return HudStyle.portrait_frame(texture, accent, PORTRAIT_PX, PORTRAIT_PAD, PORTRAIT_BG)
 
 
 ## The gem size: visuals ap_pip_px, made smaller when max_ap gems would not fit beside the

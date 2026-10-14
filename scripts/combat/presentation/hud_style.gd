@@ -224,6 +224,24 @@ static func panel(bg: Color = PANEL_BG, border: Color = PANEL_BORDER, border_px:
 	return box
 
 
+## A face picture in a frame bordered in `accent` (party panels, the party screen).
+static func portrait_frame(texture: Texture2D, accent: Color, px: float, pad: int = 2,
+		bg: Color = Color(0.0, 0.0, 0.0, 0.45)) -> PanelContainer:
+	var frame := PanelContainer.new()
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	frame.add_theme_stylebox_override("panel", panel(bg, accent, pad, pad))
+	var face := TextureRect.new()
+	face.texture = texture
+	face.custom_minimum_size = Vector2(px, px)
+	face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	face.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(face)
+	return frame
+
+
 static func bar(fill: Color, height: float) -> ProgressBar:
 	var b := ProgressBar.new()
 	b.show_percentage = false

@@ -16,6 +16,7 @@ display_name = "Rotten Husk"
 color = Color(0.47843137, 0.6392157, 0.26666668, 1)
 sprite_path = "res://assets/sprites/enemies/rotten_husk.png"
 portrait_path = "res://assets/sprites/portraits/rotten_husk.png"
+sprite_pixel_size = 0.045
 speed = 200
 attacks = Array[ExtResource("1_wmv88")]([ExtResource("2_cbueq"), ExtResource("3_baxc6"), ExtResource("4_vgvt7"), ExtResource("5_r0fm7"), ExtResource("6_gqtro")])
 gold = 15

@@ -21,3 +21,7 @@ desktop.ini
 
 # Agent worktrees
 .claude/worktrees/
+
+# Art kit previews (tools/art_kit/build.py)
+/tools/art_kit/preview/
+__pycache__/

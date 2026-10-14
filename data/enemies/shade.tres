@@ -15,6 +15,7 @@ display_name = "Shade"
 color = Color(0.29411766, 0.30980393, 0.47843137, 1)
 sprite_path = "res://assets/sprites/enemies/shade.png"
 portrait_path = "res://assets/sprites/portraits/shade.png"
+sprite_pixel_size = 0.045
 hp_percent = 90
 speed = 130
 attacks = Array[ExtResource("1_xlmdh")]([ExtResource("2_eqh5t"), ExtResource("3_i2yil"), ExtResource("4_48bed"), ExtResource("5_idxi1")])

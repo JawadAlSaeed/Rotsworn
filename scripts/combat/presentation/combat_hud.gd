@@ -331,10 +331,10 @@ func build_fighters(mirror: CombatMirror, data_by_id: Dictionary) -> void:
 	for id: int in mirror.fighters:
 		var data: Resource = data_by_id.get(id)
 		if data is CharacterData:
-			_portraits[id] = AssetLoader.texture((data as CharacterData).portrait_path, Vector2i(24, 24))
+			_portraits[id] = AssetLoader.texture((data as CharacterData).portrait_path, Vector2i(48, 48))
 			_colors[id] = (data as CharacterData).color
 		elif data is EnemyData:
-			_portraits[id] = AssetLoader.texture((data as EnemyData).portrait_path, Vector2i(24, 24))
+			_portraits[id] = AssetLoader.texture((data as EnemyData).portrait_path, Vector2i(48, 48))
 			_colors[id] = (data as EnemyData).color
 	# Panels in the same left-to-right order as the fighters on screen.
 	var party: Array[int] = mirror.party_ids.duplicate()

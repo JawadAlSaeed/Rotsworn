@@ -11,6 +11,9 @@ const TEXT_SIZE: int = 30
 const SMALL_SIZE: int = 26
 const NAME_SIZE: int = 34
 const PANEL_WIDTH: float = 430.0
+## The hero's face beside the name (card #85).
+const PORTRAIT_PX: float = 96.0
+const PORTRAIT_GAP: int = 14
 const EMPTY_TEXT := "(empty)"
 ## Side padding of a gear slot row (room for the gold bar).
 const SLOT_PAD_X: int = 6
@@ -54,7 +57,15 @@ func setup(run: RunState, note: String = "") -> void:
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_theme_constant_override("separation", 6)
 		panel.add_child(box)
-		box.add_child(HudStyle.make_title(c.display_name, NAME_SIZE, c.color.lightened(0.25)))
+		var head := HBoxContainer.new()
+		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		head.add_theme_constant_override("separation", PORTRAIT_GAP)
+		box.add_child(head)
+		var face := AssetLoader.texture(c.portrait_path, Vector2i(48, 48))
+		head.add_child(HudStyle.portrait_frame(face, c.color, PORTRAIT_PX))
+		var name_label := HudStyle.make_title(c.display_name, NAME_SIZE, c.color.lightened(0.25))
+		name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		head.add_child(name_label)
 		var stats := HudStyle.make_label("", SMALL_SIZE, HudStyle.TEXT_DIM)
 		box.add_child(stats)
 		var labels: Array[Label] = []

@@ -140,7 +140,7 @@ func _husk() -> EnemyData:
 			_hit(900, NORMAL, 35, 180), _hit(1200, NORMAL, 35, 180), _hit(1700, GROUND, 35, 400),
 			_hit(2300, NORMAL, 35, 200)]),
 	]
-	return _enemy("rotten_husk", "Rotten Husk", Color("7aa344"), 0.05, 100, 100, 200, attacks)
+	return _enemy("rotten_husk", "Rotten Husk", Color("7aa344"), 0.045, 100, 100, 200, attacks)
 
 
 func _bloat() -> EnemyData:
@@ -151,7 +151,7 @@ func _bloat() -> EnemyData:
 			_hit(1100, GROUND, 55, 450), _hit(1800, GROUND, 55, 450)]),
 		_attack("bloat_crush", "Crush", SINGLE, 1, true, [_hit(1400, NORMAL, 70, 300), _hit(2000, GROUND, 70, 400)]),
 	]
-	return _enemy("bloat", "Bloat", Color("8a6f9e"), 0.065, 180, 140, 80, attacks)
+	return _enemy("bloat", "Bloat", Color("8a6f9e"), 0.045, 180, 140, 80, attacks)
 
 
 func _gnat_swarm() -> EnemyData:
@@ -165,7 +165,7 @@ func _gnat_swarm() -> EnemyData:
 		_attack("gnat_swarm_sweep", "Swarm Sweep", PARTY, 1, true, [
 			_hit(900, NORMAL, 40, 180), _hit(1200, NORMAL, 40, 180), _hit(1500, NORMAL, 40, 180)]),
 	]
-	return _enemy("gnat_swarm", "Gnat Swarm", Color("c9b458"), 0.04, 50, 50, 160, attacks)
+	return _enemy("gnat_swarm", "Gnat Swarm", Color("c9b458"), 0.045, 50, 50, 160, attacks)
 
 
 func _shade() -> EnemyData:
@@ -178,7 +178,7 @@ func _shade() -> EnemyData:
 		_attack("shade_nightfall", "Nightfall", PARTY, 1, false, [
 			_hit(1000, GROUND, 60, 450), _hit(1600, NORMAL, 60, 200, true)]),
 	]
-	return _enemy("shade", "Shade", Color("4b4f7a"), 0.05, 90, 100, 130, attacks)
+	return _enemy("shade", "Shade", Color("4b4f7a"), 0.045, 90, 100, 130, attacks)
 
 
 # --- builders ---------------------------------------------------------------------------------
