@@ -1,4 +1,5 @@
-"""Brin, the Reaver: the hero sheet (8 poses, 32x48, facing right) and the 48x48 portrait.
+"""Brin, the Reaver: the hero sheet (a grid of 48x56 cells, facing right: row 0 the 8 key poses,
+then one row per animation clip) and the 48x48 portrait.
 
 Lean and quick: twin daggers, a red headband whose two tails trail behind the head, spiky dark
 hair, a red tunic under a leather vest, wrapped forearms, charcoal trousers, dark boots and a
@@ -20,6 +21,10 @@ carries the same keys (`complete()`), so blends never jump. Pose keys on top of
   eyes            "open", "wince" or "shut"
 Generated in-betweens should pass `frame_ok()` (1 clear pixel on the top, left and right);
 `render_fitted(pose)` nudges an in-between sideways when it touches one side.
+
+Clips (phase 10): `CLIPS` names each animation's cells in play order, an int being a row-0 key and
+a dict a pose (usually a `blend` of keyframes); `build` renders them in 48x56 cells with the
+legacy camera padded by `kit.clips.cell_camera`, so row 0 is pixel for pixel the 32x48 art.
 """
 from __future__ import annotations
 
@@ -35,11 +40,12 @@ from kit.color import to_oklch
 from kit.palette import INK, M, Material
 from kit.post import cleanup, contours, outline
 from kit.render import Camera, Frame, line3d, render
-from kit.rig import Build, Skeleton, pose_skeleton
+from kit.clips import cell_camera, render_clips
+from kit.rig import Build, Skeleton, blend, pose_skeleton
 from kit.sdf import (Box, Capsule, Ellipsoid, Intersect, Node, Prism, RoundCone, SmoothUnion,
                      Sphere, Subtract, Torus, Union, basis, rot)
 from kit.sheet import hstack
-from kit.specs import HERO_FRAME, HERO_POSES, PORTRAIT
+from kit.specs import HERO_BODY_W, HERO_CELL, HERO_FRAME, HERO_POSES, PORTRAIT
 
 # --- Look -----------------------------------------------------------------------------------------
 
@@ -825,16 +831,48 @@ def _old_vs_new(old_path: str, new: np.ndarray) -> np.ndarray | None:
     return np.concatenate([old, gap, new], axis=0)
 
 
+# --- Clips (phase 10) -----------------------------------------------------------------------------
+
+# Breathing: the out-breath end of each stance loop (key, half-way, out-breath, half-way). The
+# body sinks a little on bent knees, the blades dip and the headband tails drop; the head moves at
+# most 1 px from the key, because the game measures its head and popup anchors on cell 0 only.
+BREATH_OUT: dict[str, dict[str, Any]] = {
+    "idle": complete(dict(
+        POSES["idle"], pelvis=(0.0, HIP_Y + 0.2 - 0.8, 0.0), lean=3.5, head=(2.5, 6.0, 0.0),
+        hand_n=(-2.5, 14.6, 5.4), hand_f=(4.35, 14.8, -4.6), wind=(-1.0, -0.6, -0.1))),
+    "ready": complete(dict(
+        POSES["ready"], pelvis=(-1.0, HIP_Y - 5.6 - 0.9, 0.0), lean=33.0, head=(-22.0, -6.0, 0.0),
+        hand_n=(8.5, 14.7, 4.0), hand_f=(7.5, 18.7, -2.5), wind=(-1.0, -0.3, -0.1))),
+}
+
+
+def _breath(stance: str, t: float) -> dict[str, Any]:
+    return blend(POSES[stance], BREATH_OUT[stance], t)
+
+
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose). The game sets the timing.
+CLIPS: dict[str, list[Any]] = {
+    "idle": [HERO_POSES.index("idle"), _breath("idle", 0.5), _breath("idle", 1.0), _breath("idle", 0.5)],
+    "ready": [HERO_POSES.index("ready"), _breath("ready", 0.5), _breath("ready", 1.0), _breath("ready", 0.5)],
+}
+
+
 def build(ctx) -> None:
-    frames = [render_pose(POSES[name]) for name in HERO_POSES]
-    bad = [name for name, f in zip(HERO_POSES, frames) if not frame_ok(f)]
+    cam = cell_camera(Camera(*HERO_FRAME), HERO_CELL)
+    keys = [render_pose(POSES[name], cam) for name in HERO_POSES]
+    cells = render_clips(CLIPS, lambda p: render_pose(p, cam))
+    bad = [name for name, f in zip(HERO_POSES, keys) if not frame_ok(f)]
+    bad += sorted({name for name, cs in cells.items() for c in cs
+                   if isinstance(c, np.ndarray) and not frame_ok(c)})
     if bad:
         raise ValueError("brin: frames touch the frame edge (no outline room): %s" % ", ".join(bad))
-    sheet = hstack(frames)
+    ctx.save_fighter("sprites/characters/brin.png", keys, cells, HERO_CELL, HERO_BODY_W, "brin")
     portrait = render_portrait()
-    ctx.save("sprites/characters/brin.png", sheet, frame_w=HERO_FRAME[0])
     ctx.save("sprites/portraits/brin.png", portrait)
-    # Review pictures: actual size, 2x, and next to the old placeholder.
+    # Review pictures of the key poses at the old frame size: actual size, 2x, and next to the
+    # old placeholder (the cells crop back to the 32x48 frames exactly).
+    px = (HERO_CELL[0] - HERO_FRAME[0]) // 2
+    sheet = hstack([k[HERO_CELL[1] - HERO_FRAME[1]:, px:px + HERO_FRAME[0]] for k in keys])
     ctx.extra("sheet_1x.png", sheet, scale=1, frame_w=HERO_FRAME[0])
     ctx.extra("sheet_2x.png", sheet, scale=2, frame_w=HERO_FRAME[0])
     ctx.extra("portrait_1x.png", portrait, scale=1)

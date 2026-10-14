@@ -9,6 +9,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/king_false_crown.tres" id="7_5adux"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/king_hollow_wave.tres" id="8_nvtgn"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="9_porn1"]
+[ext_resource type="Resource" path="res://data/clips/hollow_king.tres" id="10_clips"]
 
 [resource]
 script = ExtResource("9_porn1")
@@ -18,6 +19,9 @@ display_name = "The Hollow King"
 color = Color(0.5568628, 0.18431373, 0.22745098, 1)
 sprite_path = "res://assets/sprites/enemies/hollow_king.png"
 portrait_path = "res://assets/sprites/portraits/hollow_king.png"
+sprite_clips = ExtResource("10_clips")
+death_style = 0
+idle_cycle_percent = 130
 sprite_pixel_size = 0.045
 hp_percent = 350
 power_percent = 120

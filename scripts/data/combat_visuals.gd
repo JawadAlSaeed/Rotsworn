@@ -387,3 +387,59 @@ extends Resource
 ## Refuse to save when the middle half of the last presses spreads wider than this: it means
 ## pressing by reaction instead of with the beat.
 @export_range(5, 500, 1, "suffix:ms") var calibration_max_spread_ms: int = 60
+
+@export_group("Animation")
+## Breathing loops (real time; each fighter a little out of step with the others): one idle,
+## combat-stance (ready) and downed cycle of a hero, and one idle cycle of an enemy (times the
+## enemy's idle_cycle_percent). A sheet without these clips shows its still pose (DESIGN.md 5.5).
+@export_range(100, 10000, 1, "suffix:ms") var idle_cycle_ms: int = 1600
+@export_range(100, 10000, 1, "suffix:ms") var ready_cycle_ms: int = 900
+@export_range(100, 10000, 1, "suffix:ms") var down_cycle_ms: int = 2400
+@export_range(100, 10000, 1, "suffix:ms") var enemy_idle_cycle_ms: int = 1800
+## Enemy wind-up (attack time, so a hit-stop freezes it): the coil plays over this long from the
+## wind-up's start (never longer than the wind-up), then the held wind-up shivers, one shiver
+## cycle every enemy_windup_shiver_ms.
+@export_range(10, 2000, 1, "suffix:ms") var enemy_windup_coil_ms: int = 240
+@export_range(10, 2000, 1, "suffix:ms") var enemy_windup_shiver_ms: int = 160
+## A heavy hit (at least big_hit_percent of max HP), a counter or a team counter staggers instead
+## of flinching: the stagger plays over this long and knocks a hero back this far (world units).
+@export_range(0, 3000, 1, "suffix:ms") var stagger_pose_ms: int = 480
+@export_range(0.0, 3.0, 0.05) var stagger_knockback: float = 0.6
+## Skills (skill time): the wind-up before each press plays over up to this long (times the
+## ability's windup_percent). The next press's wind-up starts no sooner than skill_strike_min_ms
+## after the previous strike lands, and a strike plays over skill_strike_pose_ms (cut short by
+## the next wind-up).
+@export_range(0, 2000, 1, "suffix:ms") var skill_windup_ms: int = 220
+@export_range(0, 2000, 1, "suffix:ms") var skill_strike_min_ms: int = 120
+@export_range(0, 2000, 1, "suffix:ms") var skill_strike_pose_ms: int = 270
+## A follow-up ally hops in to their spot (and back home) over this long, this high (world units).
+@export_range(10, 2000, 1, "suffix:ms") var follow_up_hop_ms: int = 220
+@export_range(0.0, 5.0, 0.05) var follow_up_hop_height: float = 0.8
+## A hero who goes down falls over fall_ms; a revived hero gets up over revive_pose_ms.
+@export_range(0, 3000, 1, "suffix:ms") var fall_ms: int = 360
+@export_range(0, 3000, 1, "suffix:ms") var revive_pose_ms: int = 420
+## An enemy with a death clip plays it over death_pose_ms and holds its last cell. A rotting one
+## (EnemyData.death_style ROT) starts dissolving death_dissolve_delay_ms into it, over
+## death_dissolve_ms. A bursting one (BURST) bursts into death_burst_sparks sparks of
+## death_burst_color when the clip ends and dissolves over death_burst_dissolve_ms.
+@export_range(0, 3000, 1, "suffix:ms") var death_pose_ms: int = 400
+@export_range(0, 3000, 1, "suffix:ms") var death_dissolve_delay_ms: int = 200
+@export_range(0, 96) var death_burst_sparks: int = 28
+@export_range(0, 3000, 1, "suffix:ms") var death_burst_dissolve_ms: int = 160
+@export var death_burst_color: Color = Color(0.9, 0.84, 0.52)
+## Victory: victory_pose_delay_ms after the end (plus victory_stagger_ms per party slot) each
+## standing hero plays the victory clip over victory_pose_ms, then loops the victory hold, one
+## cycle every victory_cycle_ms.
+@export_range(0, 5000, 1, "suffix:ms") var victory_pose_delay_ms: int = 300
+@export_range(0, 2000, 1, "suffix:ms") var victory_stagger_ms: int = 120
+@export_range(0, 5000, 1, "suffix:ms") var victory_pose_ms: int = 600
+@export_range(100, 10000, 1, "suffix:ms") var victory_cycle_ms: int = 1200
+## Fight start: draw_delay_ms after the fighters appear (plus draw_stagger_ms per party slot)
+## each hero draws their weapon over draw_pose_ms.
+@export_range(0, 5000, 1, "suffix:ms") var draw_delay_ms: int = 300
+@export_range(0, 2000, 1, "suffix:ms") var draw_stagger_ms: int = 90
+@export_range(0, 3000, 1, "suffix:ms") var draw_pose_ms: int = 450
+## A hero who runs away loops their run, one cycle every escape_run_cycle_ms.
+@export_range(50, 3000, 1, "suffix:ms") var escape_run_cycle_ms: int = 400
+## A boss entering phase two plays its rage clip over this long.
+@export_range(0, 5000, 1, "suffix:ms") var rage_pose_ms: int = 700

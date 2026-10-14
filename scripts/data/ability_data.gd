@@ -115,3 +115,13 @@ func targets_party() -> bool:
 ## Run (DESIGN.md 2.13): if every press is PERFECT the party leaves the fight (result
 ## "escaped"); anything else and the turn is simply lost.
 @export var escape: bool = false
+
+@export_group("Animation")
+## Clips the user plays for each press (presentation only, DESIGN.md 5.5): press k uses entry
+## k % size. The wind-up plays before the press's hit, the strike when it lands. A missing clip
+## falls back (strike_alt to strike, cast_windup to strike_windup, and so on); an empty list holds
+## the combat stance.
+@export var windup_clips: PackedStringArray = PackedStringArray(["strike_windup"])
+@export var strike_clips: PackedStringArray = PackedStringArray(["strike"])
+## Length of this ability's wind-ups, in percent of combat_visuals skill_windup_ms.
+@export_range(10, 500, 1, "suffix:%") var windup_percent: int = 100

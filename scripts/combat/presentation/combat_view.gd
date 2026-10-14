@@ -71,11 +71,11 @@ func add_fighter(id: int, is_party: bool, slot: int, data: Resource) -> FighterV
 	if is_party:
 		var c := data as CharacterData
 		view.setup(id, true, c.sprite_path, c.sprite_hframes, Vector2i(32, 48), c.sprite_pixel_size,
-				not _visuals.party_art_faces_right, _visuals)
+				not _visuals.party_art_faces_right, _visuals, c.sprite_clips)
 	else:
 		var e := data as EnemyData
 		view.setup(id, false, e.sprite_path, e.sprite_hframes, Vector2i(64, 64), e.sprite_pixel_size,
-				not _visuals.enemy_art_faces_left, _visuals)
+				not _visuals.enemy_art_faces_left, _visuals, e.sprite_clips, e.idle_cycle_percent)
 	_fighters[id] = view
 	return view
 
@@ -113,6 +113,22 @@ func arena_centre() -> Vector3:
 ## Where a party member stands to strike this enemy.
 func strike_point(enemy_id: int) -> Vector3:
 	return home_of(enemy_id) - Vector3(_visuals.strike_gap, 0.0, 0.0)
+
+
+## Where `id` stands relative to a strike point shared by all of `actors` (a team counter, the
+## team ultimate): it keeps team_strike_spread of its offset from the middle of their homes, so
+## every striker stays visible instead of overlapping.
+func team_spread_offset(id: int, actors: Array[int]) -> Vector3:
+	var centre := Vector3.ZERO
+	for actor: int in actors:
+		centre += home_of(actor)
+	centre /= float(maxi(1, actors.size()))
+	return spread_offset(home_of(id), centre, _visuals.team_strike_spread)
+
+
+## The team spread formula: `share` of a home's offset from the formation's middle.
+static func spread_offset(home: Vector3, formation_centre: Vector3, share: float) -> Vector3:
+	return (home - formation_centre) * share
 
 
 ## Screen position (HUD canvas pixels) of a world point.

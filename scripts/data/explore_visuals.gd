@@ -31,6 +31,15 @@ extends Resource
 @export_range(0.1, 10.0, 0.1) var walk_bob_hz: float = 3.4
 ## Roaming enemies bob more slowly while they wander.
 @export_range(0.1, 10.0, 0.1) var roam_bob_hz: float = 1.6
+## World units the leader walks per step (about 22 art pixels): the walk cycle and the footsteps
+## follow the distance actually moved, so feet stay planted against a wall or on a light tilt.
+## 0 = the old time-based steps (walk_bob_hz).
+@export_range(0.0, 5.0, 0.05) var walk_stride: float = 1.0
+## The same for roaming enemies.
+@export_range(0.0, 5.0, 0.05) var roam_stride: float = 0.9
+## When the stick points almost diagonally (its two axes within this of each other), the leader
+## keeps facing the way they already face, so the view does not flicker between side and front.
+@export_range(0.0, 1.0, 0.01) var walk_turn_margin: float = 0.2
 
 ## Online, the other players see the walkers glide to the host's positions with this time
 ## constant (smooths the position updates; DESIGN.md 9.2).
@@ -56,3 +65,9 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var transition_flash: float = 0.6
 ## The zone's name is shown when you arrive, for this long.
 @export_range(0, 10000, 1, "suffix:ms") var zone_title_ms: int = 2200
+
+@export_group("Item pickup")
+## When the zone's guard falls, the leader picks up the loot: the pickup clip starts this long
+## after the fight hands back and plays over pickup_ms.
+@export_range(0, 5000, 1, "suffix:ms") var pickup_delay_ms: int = 600
+@export_range(0, 5000, 1, "suffix:ms") var pickup_ms: int = 700

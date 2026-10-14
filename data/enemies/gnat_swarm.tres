@@ -5,6 +5,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_buzz.tres" id="3_hpkyw"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_swarm_sweep.tres" id="4_dotlr"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="5_l0mvs"]
+[ext_resource type="Resource" path="res://data/clips/gnat_swarm.tres" id="6_clips"]
 
 [resource]
 script = ExtResource("5_l0mvs")
@@ -14,6 +15,10 @@ display_name = "Gnat Swarm"
 color = Color(0.7882353, 0.7058824, 0.34509805, 1)
 sprite_path = "res://assets/sprites/enemies/gnat_swarm.png"
 portrait_path = "res://assets/sprites/portraits/gnat_swarm.png"
+sprite_clips = ExtResource("6_clips")
+death_style = 1
+death_color = Color(0.7882353, 0.7058824, 0.34509805, 1)
+idle_cycle_percent = 35
 sprite_pixel_size = 0.045
 hp_percent = 50
 power_percent = 50

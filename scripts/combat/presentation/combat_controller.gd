@@ -608,7 +608,8 @@ func _play(ev: Dictionary) -> void:
 				var voice := _voice_of(int(ev.source))
 				if not voice.is_empty():
 					Sfx.play(voice)
-				runner.start(ev, _attacks.get(String(ev.action)) as EnemyAttackData)
+				runner.start(ev, _attacks.get(String(ev.action)) as EnemyAttackData,
+						_data_by_id.get(int(ev.source)) as EnemyData)
 		"turn_ended":
 			mirror.apply(ev)
 			view.camera.reset_shot()

@@ -8,6 +8,7 @@ script = ExtResource("1_m6hkk")
 impact_ms = 1600
 damage_percent = 130
 approach_ms = 400
+anim = "belly"
 
 [resource]
 script = ExtResource("2_tpl2c")

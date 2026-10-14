@@ -11,6 +11,11 @@ extends RefCounted
 ## the contact pose is held until contact_after_close_ms past then, so a missed hit's flinch and
 ## hurt freeze show the enemy in contact; between hits the hold is capped by the next motion.
 ## `approach` in the result is 0 at the enemy's home and 1 at the contact point.
+##
+## Phase 10 (DESIGN.md 5.5) adds which beat of the attack a moment belongs to, so animation clips
+## can be laid over the same spans without changing them: `beat`, `beat_ms` (attack ms since the
+## beat began), `beat_len_ms` (its whole length; -1 for an open beat) and `beat_u` (progress 0..1;
+## for a lunge and a feint's false start the lunge progress, so both show the same frames).
 
 ## Frames of an enemy sheet (DESIGN.md 5.3).
 enum Pose {
@@ -22,17 +27,45 @@ enum Pose {
 	SLAM,
 }
 
+## Beats of an attack, in the order a hit plays them (DESIGN.md 5.5).
+enum Beat {
+	## Before the attack clock starts.
+	BEFORE,
+	## Wind-up before a hit's motion (pose WINDUP).
+	WINDUP,
+	## A ground hit's slam (pose SLAM).
+	SLAM,
+	## After the last ground hit's slam, until its wave reaches the party (pose IDLE).
+	GROUND_WAIT,
+	## A feint's false lunge (pose LUNGE).
+	FEINT_START,
+	## A feint's pause before the real lunge (pose WINDUP).
+	FEINT_HOLD,
+	## The lunge into the target, ending at impact (pose LUNGE).
+	LUNGE,
+	## Held in contact from impact (pose CONTACT).
+	CONTACT,
+	## Recoiling between the hits of a string (pose IDLE).
+	RECOIL,
+	## Walking home after the last hit (pose IDLE).
+	RETURN,
+	## Home again after the attack (pose IDLE).
+	AFTER,
+}
+
 const CUE_LUNGE := "lunge"
 const CUE_FEINT := "feint"
 const CUE_SLAM := "slam"
 
 
-## {pose: Pose, approach: float, glow: float (0..1 wind-up glow), hit: int} at attack time `t_ms`.
+## {pose: Pose, approach: float, glow: float (0..1 wind-up glow), hit: int, beat: Beat,
+## beat_ms: float, beat_len_ms: float, beat_u: float} at attack time `t_ms`.
 ## `hit` is the hit this pose belongs to (its wind-up, motion, contact, recoil or the walk home
-## after the last hit), -1 before the clock starts.
+## after the last hit), -1 before the clock starts. The beat keys only describe the spans the
+## pose already follows; they never change pose, approach or glow.
 static func sample(hits: Array, t_ms: float, v: CombatVisuals) -> Dictionary:
 	if hits.is_empty() or t_ms < 0.0:
-		return _pose(Pose.IDLE, 0.0, 0.0)
+		return _open(_pose(Pose.IDLE, 0.0, 0.0), Beat.BEFORE, 0.0)
 	var rest := 0.0
 	var hold_from := 0.0
 	for i: int in hits.size():
@@ -43,57 +76,73 @@ static func sample(hits: Array, t_ms: float, v: CombatVisuals) -> Dictionary:
 		var lunge_start := maxf(impact - approach_ms, hold_from)
 		var is_last := i == hits.size() - 1
 		if t_ms < start:
-			return _pose(Pose.WINDUP, rest, _ramp(t_ms, hold_from, start), i)
+			return _beat(_pose(Pose.WINDUP, rest, _ramp(t_ms, hold_from, start), i), Beat.WINDUP, t_ms,
+					hold_from, start)
 
 		if int(hit.kind) == AttackHitData.Kind.GROUND:
 			var slam_end := start + float(v.slam_hold_ms)
 			if not is_last:
 				slam_end = minf(slam_end, motion_start(hits, i + 1, v))
 			if t_ms < slam_end:
-				return _pose(Pose.SLAM, rest, 1.0 - _ramp(t_ms, start, slam_end), i)
+				return _beat(_pose(Pose.SLAM, rest, 1.0 - _ramp(t_ms, start, slam_end), i), Beat.SLAM, t_ms,
+						start, slam_end)
 			if is_last:
 				var back_from := maxf(slam_end, impact)
 				if t_ms < back_from:
-					return _pose(Pose.IDLE, rest, 0.0, i)
-				return _pose(Pose.IDLE, lerpf(rest, 0.0, _smooth(_ramp(t_ms, back_from, back_from + float(v.return_ms)))), 0.0, i)
+					return _beat(_pose(Pose.IDLE, rest, 0.0, i), Beat.GROUND_WAIT, t_ms, slam_end, back_from)
+				var home_at := back_from + float(v.return_ms)
+				var walked := _pose(Pose.IDLE, lerpf(rest, 0.0, _smooth(_ramp(t_ms, back_from, home_at))), 0.0, i)
+				if t_ms < home_at:
+					return _beat(walked, Beat.RETURN, t_ms, back_from, home_at)
+				return _open(walked, Beat.AFTER, t_ms - home_at)
 			hold_from = slam_end
 			continue
 
 		var from := rest
+		# A false start that runs past the lunge start (squeezed by the previous hit) delays it.
+		var lunge_from := lunge_start
 		if bool(hit.feint):
 			var portion := float(v.feint_portion_percent) / 100.0
 			var feint_end := start + approach_ms * portion
 			if t_ms < feint_end:
 				var u := (t_ms - start) / approach_ms
-				return _pose(Pose.LUNGE, rest + (1.0 - rest) * u * u, 1.0 - u, i)
+				return _beat(_pose(Pose.LUNGE, rest + (1.0 - rest) * u * u, 1.0 - u, i), Beat.FEINT_START, t_ms,
+						start, feint_end, u)
 			from = rest + (1.0 - rest) * portion * portion
 			if t_ms < lunge_start:
-				return _pose(Pose.WINDUP, from, _ramp(t_ms, feint_end, lunge_start), i)
+				return _beat(_pose(Pose.WINDUP, from, _ramp(t_ms, feint_end, lunge_start), i), Beat.FEINT_HOLD, t_ms,
+						feint_end, lunge_start)
+			lunge_from = maxf(lunge_start, feint_end)
 		if t_ms < impact:
 			var u := clampf((t_ms - lunge_start) / maxf(1.0, impact - lunge_start), 0.0, 1.0)
-			return _pose(Pose.LUNGE, from + (1.0 - from) * u * u, 1.0 - u, i)
+			return _beat(_pose(Pose.LUNGE, from + (1.0 - from) * u * u, 1.0 - u, i), Beat.LUNGE, t_ms, lunge_from,
+					impact, u)
 
 		var close := float(hit.get("close_ms", 0.0))
 		if is_last:
 			# Past the close time: the hit lands on the first frame after it, then its hurt freeze.
 			var hold_end := impact + maxf(float(v.contact_hold_ms), close + float(v.contact_after_close_ms))
 			if t_ms < hold_end:
-				return _pose(Pose.CONTACT, 1.0, 0.0, i)
-			var back := _smooth(_ramp(t_ms, hold_end, hold_end + float(v.return_ms)))
-			return _pose(Pose.IDLE, 1.0 - back, 0.0, i)
+				return _beat(_pose(Pose.CONTACT, 1.0, 0.0, i), Beat.CONTACT, t_ms, impact, hold_end)
+			var home_at := hold_end + float(v.return_ms)
+			var back := _smooth(_ramp(t_ms, hold_end, home_at))
+			if t_ms < home_at:
+				return _beat(_pose(Pose.IDLE, 1.0 - back, 0.0, i), Beat.RETURN, t_ms, hold_end, home_at)
+			return _open(_pose(Pose.IDLE, 1.0 - back, 0.0, i), Beat.AFTER, t_ms - home_at)
 
 		var available := maxf(0.0, motion_start(hits, i + 1, v) - impact)
 		var hold := minf(maxf(float(v.contact_hold_ms), close), maxf(0.0, available - float(v.recoil_min_ms)))
 		var recoil := minf(float(v.recoil_ms), available - hold)
 		var recoiled := 1.0 - float(v.recoil_percent) / 100.0
 		if t_ms < impact + hold:
-			return _pose(Pose.CONTACT, 1.0, 0.0, i)
+			return _beat(_pose(Pose.CONTACT, 1.0, 0.0, i), Beat.CONTACT, t_ms, impact, impact + hold)
 		if t_ms < impact + hold + recoil:
 			var r := _ramp(t_ms, impact + hold, impact + hold + recoil)
-			return _pose(Pose.IDLE, lerpf(1.0, recoiled, 1.0 - (1.0 - r) * (1.0 - r)), 0.0, i)
+			return _beat(_pose(Pose.IDLE, lerpf(1.0, recoiled, 1.0 - (1.0 - r) * (1.0 - r)), 0.0, i), Beat.RECOIL,
+					t_ms, impact + hold, impact + hold + recoil)
 		rest = recoiled
 		hold_from = impact + hold + recoil
-	return _pose(Pose.IDLE, 0.0, 0.0)
+	return _open(_pose(Pose.IDLE, 0.0, 0.0), Beat.AFTER, 0.0)
 
 
 ## Moments where something starts, in attack time: [{at_ms, type, hit}], type is CUE_LUNGE,
@@ -156,3 +205,22 @@ static func _smooth(x: float) -> float:
 
 static func _pose(pose: Pose, approach: float, glow: float, hit: int = -1) -> Dictionary:
 	return {"pose": pose, "approach": clampf(approach, 0.0, 1.0), "glow": clampf(glow, 0.0, 1.0), "hit": hit}
+
+
+## `s` with the beat keys of a beat spanning [from, to) in attack ms, at `t`. `u` is the beat's
+## progress; below 0 it is the share of the span already played.
+static func _beat(s: Dictionary, beat: Beat, t: float, from: float, to: float, u: float = -1.0) -> Dictionary:
+	s["beat"] = beat
+	s["beat_ms"] = maxf(0.0, t - from)
+	s["beat_len_ms"] = maxf(0.0, to - from)
+	s["beat_u"] = clampf(u if u >= 0.0 else _ramp(t, from, to), 0.0, 1.0)
+	return s
+
+
+## `s` with the keys of an open beat (no end), `elapsed` attack ms into it.
+static func _open(s: Dictionary, beat: Beat, elapsed: float) -> Dictionary:
+	s["beat"] = beat
+	s["beat_ms"] = maxf(0.0, elapsed)
+	s["beat_len_ms"] = -1.0
+	s["beat_u"] = 0.0
+	return s

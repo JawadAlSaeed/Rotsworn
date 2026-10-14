@@ -31,6 +31,7 @@ from typing import Any, Callable
 import numpy as np
 
 from kit import specs
+from kit.clips import cell_camera, render_clips
 from kit.palette import INK, M, Material
 from kit.post import cleanup, outline
 from kit.render import Camera, Frame, line3d, render
@@ -922,11 +923,18 @@ def portrait_camera() -> Camera:
     return cam
 
 
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose); none yet (phase 10 art).
+CLIPS: dict[str, list[Any]] = {}
+
+
 def build(ctx) -> None:
-    frames = [render_pose(POSES[name]) for name in specs.HERO_POSES]
+    # 48x56 cells: the lifted 32x48 hero camera padded, so the key poses keep their exact pixels.
+    cam = cell_camera(hero_camera(), specs.HERO_CELL)
+    frames = [render_pose(POSES[name], cam) for name in specs.HERO_POSES]
+    cells = render_clips(CLIPS, lambda p: render_pose(p, cam))
+    ctx.save_fighter("sprites/characters/%s.png" % ID, frames, cells, specs.HERO_CELL, specs.HERO_BODY_W, ID)
     sheet = hstack(frames)
-    ctx.save("sprites/characters/%s.png" % ID, sheet, frame_w=specs.HERO_FRAME[0])
-    ctx.extra("sheet_1x.png", sheet, scale=1, frame_w=specs.HERO_FRAME[0])
-    ctx.extra("sheet_2x.png", sheet, scale=2, frame_w=specs.HERO_FRAME[0])
+    ctx.extra("sheet_1x.png", sheet, scale=1, frame_w=specs.HERO_CELL[0])
+    ctx.extra("sheet_2x.png", sheet, scale=2, frame_w=specs.HERO_CELL[0])
     por = render_pose(PORTRAIT_POSE, portrait_camera(), portrait=True)
     ctx.save("sprites/portraits/%s.png" % ID, por)

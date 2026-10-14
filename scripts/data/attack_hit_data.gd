@@ -23,3 +23,6 @@ enum Kind {
 @export var feint: bool = false
 ## Sound cue played if the hit connects.
 @export var impact_sfx: String = "hurt"
+## Animation prefix for this hit's enemy clips (presentation only, DESIGN.md 5.5): `<anim>_lunge`
+## is tried before `lunge`, and so on. Empty: the plain clips.
+@export var anim: String = ""

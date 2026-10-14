@@ -280,7 +280,7 @@ func _build() -> void:
 	_world.add_child(_leader)
 	if c != null:
 		_leader.setup(-1, true, c.sprite_path, c.sprite_hframes, Vector2i(32, 48), c.sprite_pixel_size,
-				not _visuals.party_art_faces_right, _visuals)
+				not _visuals.party_art_faces_right, _visuals, c.sprite_clips)
 	else:
 		push_warning("ZoneController: zone %s has no leader" % _zone.id)
 		_leader.setup(-1, true, "", 8, Vector2i(32, 48), 0.045, false, _visuals)
@@ -295,7 +295,8 @@ func _build() -> void:
 		view.name = "Roamer%d" % i
 		_world.add_child(view)
 		view.setup(-2 - i, false, enemy.sprite_path, enemy.sprite_hframes, Vector2i(64, 64),
-				enemy.sprite_pixel_size, not _visuals.enemy_art_faces_left, _visuals)
+				enemy.sprite_pixel_size, not _visuals.enemy_art_faces_left, _visuals, enemy.sprite_clips,
+				enemy.idle_cycle_percent)
 		var home := Vector2(data.position.x, data.position.z)
 		var brain := RoamerBrain.new(home, data.wander_radius, hash(_zone.id) + i)
 		_roamers.append({"data": data, "view": view, "brain": brain, "pos": home, "defeated": false,

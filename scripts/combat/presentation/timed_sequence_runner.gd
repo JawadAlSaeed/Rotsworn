@@ -21,6 +21,11 @@ extends Node
 ## (to any player's results) arrive through take_events(): another player's defence is shown when
 ## its result arrives (a defence pose at once, a hit when the prompt would have closed). Every
 ## batch of events goes through one queue applied in arrival order, never out of engine order.
+##
+## Animation frames (DESIGN.md 5.5) are driven by attack time too: the attacker's clips per beat
+## (EnemyAnim) and each hero's defence, whiff, flinch and stagger clips (PartyAnim), so hit-stop
+## freezes them with the motion. Without clips every fighter shows exactly its pre-phase-10 pose.
+## start() drops leftover short reactions (a weapon draw, a hurt) so they never hide those frames.
 
 ## Everything from sequence_resolved on, to be played by the controller.
 signal finished(tail: Array[Dictionary])
@@ -79,8 +84,13 @@ var _cues: Array[Dictionary] = []
 var _next_cue: int = 0
 ## Contact effects waiting for their attack time: [{at_us, call: Callable}], in order.
 var _scheduled: Array[Dictionary] = []
-## Party member id -> {kind: Anim, frame, from_us, until_us, apex_us, land_us} (attack time).
+## Party member id -> {kind: Anim, frame, from_us, until_us, contact_us, apex_us, land_us, heavy}
+## (attack time).
 var _anims: Dictionary = {}
+## The attacker's idle loop on attack time: one cycle (ms) and its phase, chosen so it continues
+## the real-time loop the view played before the clock started.
+var _idle_period_ms: float = 1.0
+var _idle_phase_ms: float = 0.0
 ## Every press (any result) as {t, player} (attack time), for the MISS label.
 var _press_times: Array[Dictionary] = []
 ## "hit:player" keys of the hits a player whiffed against (never MISS for that player: they did
@@ -135,8 +145,10 @@ func set_players(roster: PlayerRoster, owners: Dictionary) -> void:
 
 
 ## Starts playing a timed_sequence_declared event (already applied to the mirror). `attack` is the
-## attack's data (for its training ring speed; null = the tuning default).
-func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
+## attack's data (for its training ring speed and its hits' animation prefixes; null = the tuning
+## default and plain clips). `enemy_data` is the attacker's data (its idle breathing speed; null =
+## 100%).
+func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyData = null) -> void:
 	_event = event
 	_seq = int(event.seq)
 	_source = int(event.source)
@@ -145,6 +157,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_latency_ms = PlayerSettings.latency_compensation_ms(_tuning)
 	# Each hit carries its close time on this machine, so the enemy holds contact until then.
 	_hits = EnemyChoreography.with_close_times(event.hits, _prompts, _latency_ms)
+	_add_hit_anims(attack)
 	_judges = JudgeSet.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
 			_tuning.late_press_report_ms)
 	# Online, other machines judge their own players' prompts.
@@ -157,6 +170,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_inbox_at_us = 0
 	_started_us = Time.get_ticks_usec()
 	_lead_in_end_us = _started_us + _tuning.attack_lead_in_ms * 1000
+	_set_idle_loop(enemy_data)
 	_cues = EnemyChoreography.cues(_hits, _visuals)
 	_ring_lead_us = maxi(1, (attack.ring_lead_ms(_tuning) if attack != null else _tuning.ring_lead_ms) * 1000)
 	_first_motion_us = roundi(float(_cues[0].at_ms) * 1000.0) if not _cues.is_empty() else 0
@@ -180,11 +194,14 @@ func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_last_frame_us = Time.get_ticks_usec()
 	_contact = _view.contact_point(_targets)
 	_view.camera.shot_attack(_view.home_of(_source), _contact)
-	# The runner moves the party every frame from here on: stop any leftover tweened movement.
+	# The runner moves the party every frame from here on: stop any leftover tweened movement, and
+	# any leftover short reaction (a weapon draw, a hurt) that would hide a defence frame. Bigger
+	# ones (a fall, a get-up) keep playing.
 	for id: int in _mirror.party_ids:
 		var view := _view.fighter(id)
 		if view != null:
 			view.move_body(view.body_offset, 0.0)
+			view.clear_timed_pose(FighterView.PRIO_BIG)
 	_active = true
 	_animating = true
 	_input.arm_all()
@@ -199,6 +216,8 @@ func start(event: Dictionary, attack: EnemyAttackData = null) -> void:
 	_hud.set_targeted(_targets)
 	var enemy := _view.fighter(_source)
 	if enemy != null:
+		# Nothing timed (a hurt, a stagger, a rage) may hide the attack's own frames.
+		enemy.clear_timed_pose(FighterView.PRIO_FINAL)
 		enemy.body_offset = Vector3.ZERO
 		enemy.set_pose(EnemyChoreography.Pose.IDLE)
 		enemy.set_squash(0.0)
@@ -528,8 +547,13 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 		_view.camera.shake(_visuals.shake_hurt, _visuals.shake_hurt_ms)
 	var view := _view.fighter(id)
 	view.flash(_visuals.flash_ms, HudStyle.DAMAGE_TAKEN, _visuals.hurt_flash_strength)
+	# A heavy hit (at least big_hit_percent of max HP, like the big damage number) staggers the
+	# hero: a longer pose and a bigger knockback (card #62). Presentation only.
+	var max_hp := maxi(1, int(_mirror.fighter(id).get("max_hp", 1)))
+	var heavy := int(prompt.damage) * 100 >= max_hp * _visuals.big_hit_percent
+	var pose_ms := _visuals.stagger_pose_ms if heavy else _visuals.hurt_pose_ms
 	_anims[id] = {"kind": Anim.HURT, "frame": FighterView.CharPose.HURT, "from_us": t,
-			"until_us": t + _visuals.hurt_pose_ms * 1000}
+			"until_us": t + pose_ms * 1000, "heavy": heavy}
 	# MISS first: popups in a column stack oldest on top, so the damage number (newest) stays
 	# at the head and MISS sits just above it.
 	var player := _judges.player_of_prompt(idx)
@@ -621,8 +645,17 @@ func _update_enemy(t: int) -> void:
 	var enemy := _view.fighter(_source)
 	if enemy == null:
 		return
-	var s := EnemyChoreography.sample(_hits, float(t) / 1000.0, _visuals)
-	enemy.set_pose(int(s.pose))
+	var t_ms := float(t) / 1000.0
+	var s := EnemyChoreography.sample(_hits, t_ms, _visuals)
+	# The beat's clip cell on attack time (cards #60, #63, #69); a missing clip shows the pose.
+	# A beaten enemy keeps the look its downing gave it while it still walks home.
+	if _mirror.is_alive(_source) and int(s.get("beat", -1)) == EnemyChoreography.Beat.AFTER:
+		# After the last beat, hand over to the real-time idle loop (no one-cell pop).
+		enemy.set_pose(EnemyChoreography.Pose.IDLE)
+	elif _mirror.is_alive(_source):
+		var frame := EnemyAnim.pick(s, _hits, enemy.clip_count, _visuals, t_ms, _idle_period_ms,
+				_idle_phase_ms)
+		enemy.show_clip(String(frame.clip), int(frame.index), int(s.pose))
 	enemy.set_glow(float(s.glow))
 	# The wind-up before a slam glows in the ground colour, before a lunge in the wind-up colour.
 	var hit_index := int(s.hit)
@@ -648,6 +681,9 @@ func _enemy_settled(t: int) -> bool:
 		enemy.body_offset = Vector3.ZERO
 		enemy.set_glow(0.0)
 		enemy.set_squash(0.0)
+		# Back to the real-time idle loop (the attack-time one would stop here).
+		if _mirror.is_alive(_source):
+			enemy.set_pose(EnemyChoreography.Pose.IDLE)
 	return true
 
 
@@ -660,10 +696,14 @@ func _update_party(t: int) -> void:
 		var view := _view.fighter(id)
 		if view == null:
 			continue
+		var anim: Dictionary = _anims.get(id, {})
+		var playing := not anim.is_empty() and t < int(anim.until_us)
 		if not _mirror.is_alive(id):
 			view.set_pose(FighterView.CharPose.DOWN)
 			view.set_grey(1.0)
-			view.body_offset = Vector3.ZERO
+			# The killing hit's knockback plays out (the fall plays over the down pose, card #66).
+			var knocked := playing and int(anim.kind) == Anim.HURT
+			view.body_offset = _anim_offset(id, anim, t) if knocked else Vector3.ZERO
 			continue
 		var pose := FighterView.CharPose.READY if _targets.has(id) else FighterView.CharPose.IDLE
 		var offset := Vector3.ZERO
@@ -671,11 +711,15 @@ func _update_party(t: int) -> void:
 		if bystander:
 			offset = _away_from_contact(id) * _visuals.bystander_step_back * (1.0 - (1.0 - step) * (1.0 - step))
 		view.set_tint(Color.WHITE.lerp(_visuals.bystander_tint, step) if bystander else Color.WHITE)
-		var anim: Dictionary = _anims.get(id, {})
-		if not anim.is_empty() and t < int(anim.until_us):
-			pose = int(anim.frame)
+		if playing:
 			offset += _anim_offset(id, anim, t)
-		view.set_pose(pose)
+			# Defence, whiff, flinch or stagger frames on attack time (cards #61, #62); a missing
+			# clip shows the anim's single pose.
+			var frame := PartyAnim.pick(anim, t, view.clip_count, DODGE_OUT_SHARE, DODGE_BACK_SHARE)
+			view.show_clip(String(frame.clip), int(frame.index), int(anim.frame))
+		else:
+			# Idle or combat stance: their real-time breathing loops (card #69).
+			view.set_pose(pose)
 		view.body_offset = offset
 
 
@@ -713,7 +757,8 @@ func _anim_offset(id: int, anim: Dictionary, t: int) -> Vector3:
 			return Vector3(0.0, _visuals.jump_height * y, 0.0)
 		Anim.HURT:
 			var s := clampf((float(t) - from) / maxf(1.0, until - from), 0.0, 1.0)
-			return away * _visuals.hurt_knockback * (1.0 - s) * (1.0 - s)
+			var knockback := _visuals.stagger_knockback if bool(anim.get("heavy", false)) else _visuals.hurt_knockback
+			return away * knockback * (1.0 - s) * (1.0 - s)
 	return Vector3.ZERO
 
 
@@ -892,6 +937,25 @@ func _hand_back() -> void:
 
 # --- helpers ----------------------------------------------------------------------------------
 
+## Copies each hit's animation prefix (AttackHitData.anim) into this machine's hit list. It is
+## presentation only: never part of the engine's events.
+func _add_hit_anims(attack: EnemyAttackData) -> void:
+	if attack == null:
+		return
+	for hit: Dictionary in _hits:
+		var index := int(hit.get("index", -1))
+		if index >= 0 and index < attack.hits.size() and attack.hits[index] != null:
+			hit["anim"] = attack.hits[index].anim
+
+
+## The attacker's idle loop on attack time: the view's real-time loop (same cycle and phase)
+## carried on from the clock start, so the switch is seamless and hit-stops freeze it.
+func _set_idle_loop(enemy: EnemyData) -> void:
+	var idle_percent := maxi(1, enemy.idle_cycle_percent if enemy != null else 100)
+	_idle_period_ms = float(maxi(1, CombatMath.percent(_visuals.enemy_idle_cycle_ms, idle_percent)))
+	_idle_phase_ms = ClipMath.phase_for(_source, _idle_period_ms) + float(_lead_in_end_us) / 1000.0
+
+
 ## Starts the defence pose and returns the attack time of its contact moment (sound, popup,
 ## hit-stop): the impact, or the press if later; for a jump also not before the body is clear
 ## of the wave, so the freeze never shows a successful jump standing in it.
@@ -916,6 +980,9 @@ func _start_defence_anim(id: int, action: int, t: int, impact_us: int, late_us: 
 					"until_us": apex + fall, "apex_us": apex, "land_us": apex + fall}
 			# The rise y = 1 - (1 - u)^2 reaches JUMP_CLEAR_HEIGHT at u = 1 - sqrt(1 - JUMP_CLEAR_HEIGHT).
 			contact = maxi(contact, t + roundi(float(rise) * (1.0 - sqrt(1.0 - JUMP_CLEAR_HEIGHT))))
+	# The parry clip turns into its hit frames at this moment (PartyAnim).
+	if _anims.has(id):
+		(_anims[id] as Dictionary)["contact_us"] = contact
 	return contact
 
 

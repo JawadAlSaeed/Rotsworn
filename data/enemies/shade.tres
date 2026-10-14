@@ -6,6 +6,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_stutter.tres" id="4_48bed"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_nightfall.tres" id="5_idxi1"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="6_727rv"]
+[ext_resource type="Resource" path="res://data/clips/shade.tres" id="7_clips"]
 
 [resource]
 script = ExtResource("6_727rv")
@@ -15,6 +16,9 @@ display_name = "Shade"
 color = Color(0.29411766, 0.30980393, 0.47843137, 1)
 sprite_path = "res://assets/sprites/enemies/shade.png"
 portrait_path = "res://assets/sprites/portraits/shade.png"
+sprite_clips = ExtResource("7_clips")
+death_color = Color(0.7254902, 0.54901963, 1, 1)
+idle_cycle_percent = 120
 sprite_pixel_size = 0.045
 hp_percent = 90
 speed = 130

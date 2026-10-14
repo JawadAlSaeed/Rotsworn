@@ -29,19 +29,25 @@ Layers, back to front:
    dark maw framed by lighter gnats with a few lit teeth;
 7. the stinger (contact): a needle of packed gnats poured from the maw, an impact star at its tip.
 
-Entry points for phase 10: POSES, model(pose), render_pose(pose) and render_portrait().
+Sheet: sprites/enemies/gnat_swarm.png, a grid of 56x56 cells (row 0 = the six key poses, then one
+row per animation clip, data/clips/gnat_swarm.tres). The clip cells (CLIPS) are blended pose dicts:
+a fast buzzing idle, the ball stretching into the lunge stream, and a death that scatters the
+swarm. Entry points: POSES, CLIPS, model(pose), render_pose(pose) and render_portrait().
 """
 from __future__ import annotations
 
 import math
+import os
 from typing import Any
 
 import numpy as np
 
 from kit.palette import INK, Material
+from kit.rig import blend
 from kit.post import cleanup
 from kit.render import Camera, Frame, render
 from kit.sdf import Ellipsoid, Node, SmoothUnion, rot
+from kit.clips import render_clips
 from kit.sheet import hstack
 from kit.specs import ENEMY_FRAME, ENEMY_POSES, PORTRAIT
 
@@ -130,6 +136,8 @@ def _gnats(k: int, density: float) -> dict[str, np.ndarray]:
 #   rim       optional share of the lit edge that is solid gold (default 1)
 #   tone      optional lift of the core's grain toward the mid tones (the portrait, default 0)
 #   inner_gold  optional share of the gold glints kept inside the lit edge (default 1)
+#   face_on   optional; below 0.5 no face is drawn (the death clip's scattered cloud, default 1)
+#   density   optional share of the gnats drawn (the death clip thins out, default 1)
 POSES: dict[str, dict[str, Any]] = {
     # Loose, round, hovering; the face at the upper front, a tail tapering down behind.
     "idle": {
@@ -1252,7 +1260,8 @@ def render_pose(pose: dict[str, Any], cam: Camera | None = None, density: float 
     cleanup(frame)
     core = fray_core(frame, cam, frame.part >= 0, float(pose.get("fray", 1.0)))
     grain_core(frame, cam, core, pose)
-    g = gnat_positions(pose, density)
+    # A clip cell may thin the swarm (the death clip's last gnats); the keys never set it.
+    g = gnat_positions(pose, density * float(pose.get("density", 1.0)))
     draw_surface_gnats(frame, cam, g, core)
     mass = mass_outline(frame, core)
     core = cut_holes(frame, cam, core)
@@ -1270,7 +1279,7 @@ def render_pose(pose: dict[str, Any], cam: Camera | None = None, density: float 
     draw_halo(frame, cam, g, (frame.part >= 0) | mass | lane, pose)
     draw_blow(frame, mass, pose)
     draw_splash(frame, mass, pose)
-    if face == "sprite":
+    if face == "sprite" and float(pose.get("face_on", 1.0)) >= 0.5:
         draw_face(frame, cam, pose)
         draw_sting(frame, pose, (lay["mx"], lay["my"] + len(lay["maw"]) // 2))
     elif face == "portrait":
@@ -1339,15 +1348,176 @@ def anim_test() -> np.ndarray:
     return hstack(frames)
 
 
+# --- Animation clips (phase 10, plan 4.2) ----------------------------------------------------------
+# In-betweens are pose dicts: kit.rig.blend of two keys (every gnat keeps its identity, so a blend
+# moves the cloud smoothly) plus a few changed keys. Streams are set by hand where a blend of two
+# different orbits would make a wild circle. "t" buzzes the gnats and slides the streams, so a
+# held shape still crawls. Row-0 keys by index: IDLE 0, WINDUP 1, LUNGE 2, CONTACT 3, HURT 4, SLAM 5.
+
+K_IDLE, K_WINDUP, K_LUNGE, K_CONTACT, K_HURT, K_SLAM = range(6)
+
+
+def _p(base: dict[str, Any], **kw: Any) -> dict[str, Any]:
+    """`base` with some keys changed (only keys the renderer knows)."""
+    bad = set(kw) - set(POSES["idle"]) - {"rim", "tone", "inner_gold", "face_on", "density"}
+    assert not bad, bad
+    return {**base, **kw}
+
+
+def _mix(a: dict[str, Any], b: dict[str, Any], u: float, /, **kw: Any) -> dict[str, Any]:
+    """blend(a, b, u) with some keys changed (u, not t: "t" is the buzz-time pose key)."""
+    return _p(blend(a, b, u), **kw)
+
+
+def _fill(stream: tuple, share: float) -> tuple:
+    """A stream with its filled share changed."""
+    return tuple(stream[:9]) + (share,)
+
+
+_I = POSES["idle"]
+_W = POSES["windup"]
+_L = POSES["lunge"]
+_C = POSES["contact"]
+_H = POSES["hurt"]
+_S = POSES["slam"]
+
+# Idle: the cloud buzzes in place and the orbit flows; the lobes breathe a little. Played as a
+# ping-pong (k0, a, b, a) so the buzz never jumps back.
+IDLE_A = _p(_I, t=0.22, swirl=30.0, belly=(-3.0, 20.5, 0.0, 8.2, 6.6, 7.6, 0.0),
+            tail=(-6.0, 13.5, 0.0, 5.0, 5.0, 4.5, -26.0))
+IDLE_B = _p(_I, t=0.44, swirl=35.0, belly=(-3.0, 21.0, 0.0, 8.4, 6.8, 7.8, 0.0),
+            tail=(-5.5, 14.0, 0.0, 5.0, 5.0, 4.5, -22.0), wisp=(-10.0, 9.5, -1.0, 3.0, 3.0, 2.5, -35.0))
+
+# Wind-up coil: the cloud pulls in and rises; the orbit tightens and tilts into the spinning
+# rings; the eyes start to flare.
+COIL_1 = _mix(_I, _W, 0.35, eye=1.0, glow=0.35, t=0.1)
+COIL_2 = _mix(_I, _W, 0.72, eye=2.0, glow=0.75, t=0.2)
+# The hold: the packed ball trembles and its rings spin.
+SHIVER = _p(_W, t=0.5, swirl=95.0, core=0.88,
+            head=(5.5, 33.5, 1.0, 6.5, 6.0, 6.5, 0.0), body=(-1.0, 30.5, 0.0, 8.5, 8.5, 8.0, 0.0))
+
+# Lunge: the ball stretches into a stream toward the target, face first; the rings unwind into
+# speed trails. The key (row 0) is the arriving frame.
+LUNGE_1 = _mix(_W, _L, 0.33, stream_a=(-0.5, 28.0, 0.0, 13.0, 15.0, 12.0, 80.0, 30.0, 300.0, 0.7),
+               stream_b=_fill(_L["stream_b"], 0.0), eye=2.0, glow=0.7, ragged=0.5, t=0.15)
+LUNGE_2 = _mix(_W, _L, 0.7, stream_a=_fill(_L["stream_a"], 0.55), stream_b=_fill(_L["stream_b"], 0.4),
+               eye=1.2, glow=0.4, ragged=0.9, t=0.3)
+
+# Contact follow-through: the needle drives in further, then the swarm draws back off it.
+FOLLOW_1 = _p(_C, sting=(13.0, 2.0, 24.0), t=0.2, head=(7.5, 22.5, 1.0, 7.5, 7.0, 7.0, -14.0))
+FOLLOW_2 = _mix(_C, _I, 0.3, sting=(5.0, 1.0, 20.0), stream_a=_fill(_L["stream_a"], 0.6),
+                stream_b=_fill(_L["stream_b"], 0.0), maw=1.2, eye=1.5, t=0.35)
+# Recoil (mid-string): pulls back into a loose cloud.
+RECOIL_1 = _mix(_C, _I, 0.55, sting=(0.0, 0.0, 0.0), stream_a=_fill(_I["stream_a"], 0.5),
+                stream_b=_I["stream_b"], eye=1.0, maw=1.0, t=0.4)
+# Return: drifts home, the orbit closing round it again.
+RETURN_1 = _mix(_C, _I, 0.6, sting=(0.0, 0.0, 0.0), stream_a=_fill(_I["stream_a"], 0.55),
+                stream_b=_I["stream_b"], eye=1.0, maw=0.9, t=0.3)
+RETURN_2 = _mix(_C, _I, 0.85, sting=(0.0, 0.0, 0.0), stream_a=_fill(_I["stream_a"], 0.8),
+                stream_b=_I["stream_b"], eye=1.0, maw=0.8, t=0.15)
+
+# Slam: the crash key, gnats splashing higher off the layer, then the cloud lifting off it.
+SLAM_SPLASH = _p(_S, splash=1.6, spread=1.7, scatter=0.25, t=0.3, drift=(0.0, 4.0, 0.0))
+SLAM_RISE = _mix(_S, _I, 0.4, stream_a=_fill(_I["stream_a"], 0.4), stream_b=_fill(_I["stream_b"], 0.0),
+                 splash=0.0, eye=1.4, t=0.45)
+SLAM_WAIT = _mix(_S, _I, 0.75, stream_a=_fill(_I["stream_a"], 0.75), stream_b=_fill(_I["stream_b"], 0.0),
+                 splash=0.0, eye=1.0, t=0.6)
+
+# Hurt: the blown-apart key, then the gnats swarming back together.
+HURT_1 = _mix(_H, _I, 0.5, stream_a=_fill(_I["stream_a"], 0.5), stream_b=_fill(_I["stream_b"], 0.0),
+              eye=0.0, maw=0.0, blow=0.3, gold_cut=-99.0, t=0.3)
+# Stagger: blown further apart and knocked back, then regathering.
+STAGGER_1 = _p(_H, spread=2.6, scatter=0.75, blow=1.4, drift=(-9.0, 3.0, 0.0), core=0.38,
+               head=(1.0, 34.0, 1.0, 8.0, 7.0, 7.5, 30.0), body=(-5.0, 27.0, 0.0, 10.0, 9.0, 9.0, 14.0), t=0.4)
+STAGGER_2 = _mix(STAGGER_1, _I, 0.55, stream_a=_fill(_I["stream_a"], 0.4), stream_b=_fill(_I["stream_b"], 0.0),
+                 eye=0.0, maw=0.0, blow=0.4, gold_cut=-99.0, t=0.6)
+
+# Death (BURST): the swarm bursts outward, the gnats flying off as streaks; the face goes out and
+# the cloud thins to a last spray (the game bursts it into sparks then).
+DEATH_1 = _p(_H, spread=1.9, scatter=0.6, core=0.38, t=0.3, streak=(0.0, -0.5, -2.0, 0.35))
+DEATH_2 = _p(_H, spread=2.3, scatter=0.85, core=0.26, blow=0.0, drift=(-2.0, 2.0, 0.0), t=0.6,
+             cores=(0.7, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0), sparkle=0.4, streak=(0.0, -0.5, -3.0, 0.55),
+             density=0.8)
+DEATH_3 = _p(DEATH_2, spread=2.7, scatter=1.0, core=0.1, face_on=0.0, drift=(0.0, 3.0, 0.0), t=0.9,
+             swirl=-60.0, sparkle=0.5, streak=(0.0, -0.5, -3.5, 0.6), density=0.5)
+DEATH_4 = _p(DEATH_3, spread=3.0, core=0.0, t=1.2, swirl=-90.0, drift=(2.0, 4.0, 0.0), sparkle=0.6,
+             streak=(0.0, -0.5, -2.5, 0.4), density=0.28)
+
+# Chasing (zone): the stretched stream, buzzing along.
+CHASE_A = _p(_L, t=0.33, head=(10.0, 26.5, 1.0, 7.5, 6.5, 7.0, -3.0))
+CHASE_B = _p(_L, t=0.66, head=(10.0, 25.5, 1.0, 7.5, 6.5, 7.0, -5.0), tail=(-17.5, 27.5, -1.0, 5.5, 4.0, 4.5, 12.0))
+
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose). Timing is the game's. The
+# swarm floats: walk reuses the idle cells.
+CLIPS: dict[str, list[Any]] = {
+    "idle": [K_IDLE, IDLE_A, IDLE_B, IDLE_A],
+    "windup": [COIL_1, COIL_2, K_WINDUP],
+    "windup_hold": [K_WINDUP, SHIVER],
+    "lunge": [LUNGE_1, LUNGE_2, K_LUNGE],
+    "contact": [K_CONTACT, FOLLOW_1, FOLLOW_2],
+    "recoil": [RECOIL_1, K_IDLE],
+    "return": [RETURN_1, RETURN_2, K_IDLE],
+    "slam": [K_SLAM, SLAM_SPLASH, SLAM_RISE],
+    "slam_recover": [SLAM_WAIT, K_IDLE],
+    "hurt": [K_HURT, HURT_1, K_IDLE],
+    "stagger": [K_HURT, STAGGER_1, STAGGER_2, K_IDLE],
+    "death": [DEATH_1, DEATH_2, DEATH_3, DEATH_4],
+    "walk": [K_IDLE, IDLE_A, IDLE_B, IDLE_A],
+    "chase": [K_LUNGE, CHASE_A, CHASE_B, CHASE_A],
+}
+# Review GIF lengths that differ from kit.clips (the fast buzz: idle_cycle_percent 35).
+IDLE_CYCLE_PERCENT = 35
+PREVIEW_MS = {"idle": 1800 * IDLE_CYCLE_PERCENT // 100}
+
+
+def _key(pose: dict[str, Any]) -> str:
+    return repr(sorted(pose.items()))
+
+
+def render_many(poses: list[dict[str, Any]]) -> list[np.ndarray]:
+    """render_pose for many poses, in worker processes; one by one when a pool cannot start."""
+    if len(poses) < 8:
+        return [render_pose(p) for p in poses]
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+        workers = max(1, min(len(poses) // 2, (os.cpu_count() or 2) - 1))
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            return list(ex.map(render_pose, poses))
+    except Exception as e:  # noqa: BLE001 - any pool failure: fall back to one process
+        print("  parallel render failed (%s); rendering one by one" % e)
+        return [render_pose(p) for p in poses]
+
+
+def _unique_poses(names: list[str]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for n in names:
+        for e in CLIPS[n]:
+            if isinstance(e, dict):
+                out.setdefault(_key(e), e)
+    return out
+
+
+def _key_poses() -> list[dict[str, Any]]:
+    return [POSES.get(name, POSES["idle"]) for name in ENEMY_POSES]
+
+
+def render_named_clips(names: list[str]) -> dict[str, list[np.ndarray]]:
+    """The cells of the named clips (row-0 keys rendered too), for review strips."""
+    uniq = _unique_poses(names)
+    imgs = render_many(_key_poses() + list(uniq.values()))
+    keys, done = imgs[:len(ENEMY_POSES)], dict(zip(uniq, imgs[len(ENEMY_POSES):]))
+    return {n: [keys[e] if isinstance(e, int) else done[_key(e)] for e in CLIPS[n]] for n in names}
+
+
 def build(ctx) -> None:
-    frames = []
-    for name in ENEMY_POSES:
-        pose = POSES.get(name, POSES["idle"])
-        img = render_pose(pose)
+    uniq = _unique_poses(list(CLIPS))
+    imgs = render_many(_key_poses() + list(uniq.values()))
+    frames, done = imgs[:len(ENEMY_POSES)], dict(zip(uniq, imgs[len(ENEMY_POSES):]))
+    for name, img in zip(ENEMY_POSES, frames):
         _check_margins(img, name)
-        frames.append(img)
+    cells = render_clips(CLIPS, lambda p: done[_key(p)])
+    ctx.save_fighter("sprites/enemies/%s.png" % ID, frames, cells, (S, S), S, ID, preview_ms=PREVIEW_MS)
     sheet = hstack(frames)
-    ctx.save("sprites/enemies/%s.png" % ID, sheet, frame_w=S)
     ctx.extra("sheet_1x.png", sheet, scale=1, frame_w=S)
     ctx.extra("sheet_2x.png", sheet, scale=2, frame_w=S)
     por = render_portrait()

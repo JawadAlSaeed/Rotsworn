@@ -24,6 +24,9 @@ uniform vec4 self_glow_color : source_color = vec4(1.0);
 uniform float normal_up : hint_range(0.0, 4.0) = 0.8;
 uniform float dissolve : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 dissolve_edge_color : source_color = vec4(0.85, 1.0, 0.45, 1.0);
+// Rows of cells in the sheet (a grid sheet, DESIGN.md 5.5), so the top-first dissolve bias is
+// measured within the shown cell rather than over the whole sheet.
+uniform float sheet_rows = 1.0;
 // Width of the glowing edge, as a share of the dissolve range.
 const float DISSOLVE_EDGE = 0.08;
 
@@ -49,8 +52,8 @@ void fragment() {
 	// One random value per art pixel, so the body crumbles pixel by pixel (fits the pixel art).
 	vec2 texel_cell = floor(UV * vec2(textureSize(sprite_texture, 0)));
 	float grain = fract(sin(dot(texel_cell, vec2(12.9898, 78.233))) * 43758.5453);
-	// Higher pixels go first: the body crumbles from the top down.
-	grain = grain * 0.7 + UV.y * 0.3;
+	// Higher pixels go first: the body crumbles from the top down (within the shown cell).
+	grain = grain * 0.7 + fract(UV.y * sheet_rows) * 0.3;
 	// Scaled so that dissolve 1 takes every pixel, edge included.
 	float cut = dissolve * (1.0 + DISSOLVE_EDGE);
 	if (dissolve > 0.0 && grain < cut) {

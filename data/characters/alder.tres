@@ -8,6 +8,7 @@
 [ext_resource type="Resource" path="res://data/abilities/shield_bash.tres" id="6_h71xp"]
 [ext_resource type="Resource" path="res://data/abilities/riposte_stance.tres" id="7_oh3nr"]
 [ext_resource type="Resource" path="res://data/abilities/payback.tres" id="8_sfqu4"]
+[ext_resource type="Resource" path="res://data/clips/alder.tres" id="9_clips"]
 
 [resource]
 script = ExtResource("2_ix30w")
@@ -17,6 +18,7 @@ display_name = "Alder"
 color = Color(0.35686275, 0.49803922, 0.7490196, 1)
 sprite_path = "res://assets/sprites/characters/alder.png"
 portrait_path = "res://assets/sprites/portraits/alder.png"
+sprite_clips = ExtResource("9_clips")
 hp_percent = 120
 power_percent = 90
 speed = 90

@@ -34,6 +34,7 @@ from typing import Any
 import numpy as np
 
 from kit import specs
+from kit.clips import cell_camera, render_clips
 from kit.palette import INK, M, Material
 from kit.post import cleanup, contours, outline
 from kit.render import Camera, Frame, line3d, render, stamp
@@ -742,10 +743,18 @@ def _review(path: str, frames: list[np.ndarray], cols: int, scale: int,
     out.save(path)
 
 
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose); none yet (phase 10 art).
+CLIPS: dict[str, list[Any]] = {}
+
+
 def build(ctx) -> None:
     from kit.context import PREVIEW
-    frames = [render_pose(POSES[name]) for name in specs.HERO_POSES]
-    ctx.save("sprites/characters/alder.png", hstack(frames), frame_w=specs.HERO_FRAME[0])
+    # 48x56 cells: the 32x48 camera padded, so the key poses keep their exact pixels.
+    cam = cell_camera(Camera(*specs.HERO_FRAME), specs.HERO_CELL)
+    frames = [render_pose(POSES[name], cam) for name in specs.HERO_POSES]
+    cells = render_clips(CLIPS, lambda p: render_pose(p, cam))
+    ctx.save_fighter("sprites/characters/alder.png", frames, cells, specs.HERO_CELL, specs.HERO_BODY_W,
+                     "alder")
     por = render_portrait()
     ctx.save("sprites/portraits/alder.png", por)
     out = os.path.join(PREVIEW, ctx.module)

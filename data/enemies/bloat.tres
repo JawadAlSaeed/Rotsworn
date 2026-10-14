@@ -6,6 +6,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/bloat_double_wave.tres" id="4_t3fou"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/bloat_crush.tres" id="5_vn1gu"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="6_odjum"]
+[ext_resource type="Resource" path="res://data/clips/bloat.tres" id="7_clips"]
 
 [resource]
 script = ExtResource("6_odjum")
@@ -15,6 +16,10 @@ display_name = "Bloat"
 color = Color(0.5411765, 0.43529412, 0.61960787, 1)
 sprite_path = "res://assets/sprites/enemies/bloat.png"
 portrait_path = "res://assets/sprites/portraits/bloat.png"
+sprite_clips = ExtResource("7_clips")
+death_style = 1
+death_color = Color(0.7490196, 0.9098039, 0.36862746, 1)
+idle_cycle_percent = 140
 sprite_pixel_size = 0.045
 hp_percent = 180
 power_percent = 140
