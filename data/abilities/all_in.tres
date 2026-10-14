@@ -13,3 +13,5 @@ ring_lead_percent = 65
 follow_ups = true
 damage_percent = 120
 press_damage_percent = 30
+windup_clips = PackedStringArray("strike_windup", "strike_alt_windup", "strike_windup", "strike_alt_windup", "strike_big_windup")
+strike_clips = PackedStringArray("strike", "strike_alt", "strike", "strike_alt", "strike_big")

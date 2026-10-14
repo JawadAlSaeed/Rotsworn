@@ -207,6 +207,8 @@ extends Resource
 @export_range(0.0, 2.0, 0.05) var hurt_knockback: float = 0.35
 ## White flash length on parries and hits.
 @export_range(0, 1000, 1, "suffix:ms") var flash_ms: int = 120
+## How strongly a beaten enemy flashes its death colour (0 to 1).
+@export_range(0.0, 1.0, 0.05) var death_flash_strength: float = 0.8
 ## Flash strengths (0 to 1): a failed press, the enemy on a parry, a jump, a hit taken.
 @export_range(0.0, 1.0, 0.05) var whiff_flash_strength: float = 0.35
 @export_range(0.0, 1.0, 0.05) var parry_enemy_flash_strength: float = 0.6

@@ -15,3 +15,5 @@ ring_lead_percent = 85
 damage_percent = 0
 turn_hasten_percent = 50
 press_turn_hasten_percent = 25
+windup_clips = PackedStringArray("cast_windup")
+strike_clips = PackedStringArray("cast")

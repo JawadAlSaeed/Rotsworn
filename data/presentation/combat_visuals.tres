@@ -92,6 +92,7 @@ whiff_pose_ms = 260
 hurt_pose_ms = 320
 hurt_knockback = 0.35
 flash_ms = 120
+death_flash_strength = 0.4
 whiff_flash_strength = 0.35
 parry_enemy_flash_strength = 0.6
 jump_flash_strength = 0.5

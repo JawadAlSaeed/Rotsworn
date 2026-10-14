@@ -13,3 +13,6 @@ ring_lead_percent = 65
 damage_percent = 200
 press_damage_percent = 50
 team_ultimate = true
+windup_clips = PackedStringArray("strike_big_windup")
+strike_clips = PackedStringArray("strike_alt", "strike_big")
+windup_percent = 130

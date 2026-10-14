@@ -15,3 +15,6 @@ follow_ups = true
 damage_percent = 180
 turn_delay_percent = 30
 press_turn_delay_percent = 30
+windup_clips = PackedStringArray("strike_big_windup")
+strike_clips = PackedStringArray("strike_big")
+windup_percent = 130

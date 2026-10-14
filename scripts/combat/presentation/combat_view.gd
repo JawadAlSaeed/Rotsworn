@@ -148,6 +148,9 @@ func sync_alive(mirror: CombatMirror) -> void:
 			if not v.is_dissolving():
 				v.set_dissolve(1.0)
 			continue
+		if not alive and not v.is_party and v.is_dying():
+			# A beaten enemy still plays its death and crumbles: snapping it gone would cut that short.
+			continue
 		v.set_grey(0.0 if alive else 1.0)
 		if v.is_party:
 			v.set_pose(FighterView.CharPose.IDLE if alive else FighterView.CharPose.DOWN)

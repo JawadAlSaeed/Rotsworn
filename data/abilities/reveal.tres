@@ -16,3 +16,5 @@ damage_percent = 60
 consumes_exposed = false
 press_ap_gain = 1
 status = "exposed"
+windup_clips = PackedStringArray("strike_alt_windup")
+strike_clips = PackedStringArray("strike_alt")

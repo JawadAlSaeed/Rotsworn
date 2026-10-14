@@ -8,6 +8,12 @@ strapped on top, a strap over the near pauldron).
 
 Phase 10 reuses this module: POSES holds the keyframes (plain dicts, blend them with
 kit.rig.blend), model(pose) builds the SDF model and render_pose(pose) renders one frame.
+CLIPS (end of the file) names every Tier 1 animation (plan 4.1) as cells in play order: an int is a
+row-0 key, a dict a pose (a keyframe from P() or an in-between from mix()). build() renders them in
+48x56 cells with the 32x48 camera padded (kit.clips.cell_camera), so row 0 stays the phase 9 art.
+No sword: strike is a shield shove, strike_alt an upward rim swipe, strike_big a two-hand shield
+slam, cast the shield raised overhead on a braced stance. The shield always hangs from the near
+hand (only the down pose drops it) and the backpack is part of the torso, so it shows in every cell.
 
 Pose keys on top of kit.rig.pose_skeleton's:
 - hip_lean: degrees the hips and skirt tip with the body (default a third of `lean`).
@@ -743,33 +749,287 @@ def _review(path: str, frames: list[np.ndarray], cols: int, scale: int,
     out.save(path)
 
 
-# Clip name -> cells in play order (int = a row-0 key, dict = a pose); none yet (phase 10 art).
-CLIPS: dict[str, list[Any]] = {}
+# --- Clips (phase 10) -------------------------------------------------------------------------
+
+K = {name: i for i, name in enumerate(specs.HERO_POSES)}
+
+
+def P(base: dict[str, Any], **kw: Any) -> dict[str, Any]:
+    """A keyframe: `base` with some keys changed (every key stays present, see _complete)."""
+    return _complete(dict(base, **kw))
+
+
+def mix(a: dict[str, Any], b: dict[str, Any], t: float, **kw: Any) -> dict[str, Any]:
+    """An in-between of two keyframes (t = 0 gives a), with some keys changed."""
+    return P(blend(a, b, t), **kw)
+
+
+IDLE, READY, PARRY, DODGE, JUMP, HURT, STRIKE, DOWN = (POSES[n] for n in specs.HERO_POSES)
+
+# Breathing: the out-breath end of each stance loop. The body sinks a little and the shield dips;
+# the head moves at most 1 px, because the game measures its anchors on the key cell only.
+IDLE_OUT = P(IDLE, pelvis=(0.0, HIP - 0.9, 0.0), lean=1.5, hand_n=(5.3, CH - 12.8, 7.4),
+             hand_f=(0.3, CH - 12.6, -7.6), head=(3.0, 0.0, 0.0))
+READY_OUT = P(READY, pelvis=(0.5, HIP - 3.9, 0.0), lean=11.5, hand_n=(6.6, CH - 7.9, 4.4),
+              hand_f=(4.0, CH - 9.4, -3.8), head=(7.0, 0.0, 0.0))
+
+# Draw (fight start): a hitch of the shoulders, the shield swung up and knocked across the
+# chest, then let down to the idle key.
+DRAW_1 = P(IDLE, pelvis=(-0.3, HIP - 1.6, 0.0), lean=5.0, hand_n=(3.2, CH - 10.8, 7.6),
+           shield_n=(0.8, 0.0, 0.6), shield_up=(0.15, 1.0, 0.0), shield_off=(0.5, -3.0),
+           hand_f=(-0.6, CH - 11.6, -7.4), head=(6.0, 0.0, 0.0))
+DRAW_2 = P(IDLE, pelvis=(0.4, HIP - 1.2, 0.0), lean=7.0, foot_n=(3.6, AH, 3.4), foot_f=(-3.4, AH, -3.0),
+           hand_n=(7.4, CH - 5.4, 5.0), elbow_n=(-0.5, -1.0, 0.8), hand_f=(3.6, CH - 8.0, -4.4),
+           shield_n=(0.8, 0.0, 0.6), shield_up=(0.0, 1.0, 0.0), shield_off=(0.0, -0.5), head=(4.0, 0.0, 0.0))
+DRAW_3 = mix(DRAW_2, IDLE, 0.55)
+
+# Parry: snap the shield up; on the hit it is driven back into him, then he pushes it out again.
+PARRY_SNAP = mix(READY, PARRY, 0.55)
+PARRY_HIT_1 = P(PARRY, pelvis=(-2.8, HIP - 3.4, 0.0), lean=-4.0, hip_lean=-2.0, toe_n=14.0,
+                hand_n=(5.4, CH - 1.4, 5.0), shield_push=0.0, shield_n=(0.75, 0.3, 0.6),
+                shield_up=(-0.6, 1.0, 0.0), head=(34.0, 0.0, 0.0), eyes=1)
+PARRY_HIT_2 = mix(PARRY_HIT_1, PARRY, 0.5, eyes=0)
+
+# Dodge: in and out of the key slide.
+DODGE_IN = mix(READY, DODGE, 0.45)
+DODGE_OUT = mix(DODGE, READY, 0.7)
+
+# Jump: crouch and push, rise tucked, the key at the top; then legs reach down and he lands low.
+JUMP_PUSH = P(READY, pelvis=(-1.2, HIP - 8.0, 0.0), lean=28.0, hip_lean=14.0,
+              hand_n=(5.0, CH - 14.5, 5.8), hand_f=(-6.5, CH - 15.0, -5.0), head=(-2.0, 0.0, 0.0))
+JUMP_TUCK = mix(JUMP_PUSH, JUMP, 0.6)
+JUMP_OPEN = P(JUMP, pelvis=(-1.0, 15.0, 0.0), lean=0.0, hip_lean=0.0,
+              foot_n=(2.6, 3.6, 3.0), foot_f=(-2.0, 4.8, -2.6), toe_n=-20.0, toe_f=-25.0,
+              hand_n=(6.0, 16.0, 6.2), hand_f=(-8.5, 20.5, -6.0))
+JUMP_LAND = P(JUMP_PUSH, pelvis=(-0.6, HIP - 5.4, 0.0), lean=14.0, hand_n=(6.4, CH - 9.5, 5.0),
+              hand_f=(-2.0, CH - 12.0, -5.0), shield_n=(0.8, 0.0, 0.6), shield_off=(0.0, -2.0))
+
+# Hurt: the key held, a recoil (shield coming back in), then the recovery toward ready.
+HURT_RECOIL = P(HURT, pelvis=(1.0, HIP - 2.4, 0.0), lean=-6.0, hip_lean=-2.0,
+                foot_f=(-1.8, AH, -2.6), toe_f=0.0, hand_n=(2.4, CH - 7.6, 8.2), elbow_n=(-0.6, -0.6, 0.8),
+                shield_n=(0.45, 0.1, 0.9), shield_up=(-0.3, 1.0, 0.0), hand_f=(-1.0, CH - 6.0, -5.4),
+                head=(-4.0, 0.0, 4.0), eyes=1)
+HURT_RECOVER = mix(HURT_RECOIL, READY, 0.55, eyes=0)
+
+# Stagger (a heavy hit): thrown back a step, the shield arm flung wide, then hunched forward to
+# catch his balance and slowly up again.
+STAGGER_1 = P(HURT, pelvis=(-2.6, HIP - 2.6, 0.0), lean=-34.0, hip_lean=-12.0,
+              foot_n=(5.0, AH, 3.0), foot_f=(-8.4, AH, -2.6), toe_n=24.0, toe_f=0.0,
+              hand_n=(-5.0, CH + 0.6, 8.0), hand_f=(-7.0, CH - 4.0, -5.2),
+              shield_n=(-0.35, 0.2, 0.92), shield_up=(-0.85, 0.55, 0.0), head=(-22.0, 0.0, 8.0), eyes=1)
+STAGGER_2 = P(READY, pelvis=(-1.6, HIP - 5.0, 0.0), lean=24.0, hip_lean=8.0,
+              foot_n=(4.4, AH, 3.0), foot_f=(-6.2, AH, -2.6), toe_f=4.0,
+              hand_n=(5.0, CH - 13.0, 6.6), hand_f=(2.0, CH - 15.0, -4.6),
+              shield_n=(0.9, -0.1, 0.4), shield_up=(0.2, 1.0, 0.0), shield_off=(0.0, -2.0),
+              head=(24.0, 0.0, -4.0), eyes=1)
+STAGGER_3 = mix(STAGGER_2, READY, 0.4, eyes=0)
+
+# Strike: shield shove. Wind-up: the shield drawn in to the chest, weight sinking onto the back
+# foot. The key is the hit; the shield follows through a touch further, then back to ready.
+STRIKE_W1 = P(READY, pelvis=(-1.2, HIP - 3.6, 0.0), lean=2.0, hip_lean=0.0,
+              foot_f=(-6.2, AH, -2.6), hand_n=(4.2, CH - 7.6, 5.4), hand_f=(1.6, CH - 9.0, -4.2),
+              shield_n=(0.82, 0.0, 0.57), head=(10.0, 0.0, 0.0))
+STRIKE_W2 = P(STRIKE_W1, pelvis=(-3.0, HIP - 4.8, 0.0), lean=-10.0, hip_lean=-4.0, twist=-22.0,
+              foot_f=(-7.4, AH, -2.6), hand_n=(0.6, CH - 7.6, 6.0), hand_f=(-4.6, CH - 10.6, -4.6),
+              shield_n=(0.8, 0.0, 0.6), head=(16.0, 0.0, 0.0))
+STRIKE_FOLLOW = P(STRIKE, hand_n=(12.6, CH - 5.6, 3.2), shield_push=1.2, lean=36.0)
+STRIKE_RECOVER = mix(STRIKE, READY, 0.55)
+
+# Strike alt: an upward rim swipe. Wind-up: crouched, the shield swung low and back with its rim
+# leading; the hit is the rim sweeping up in front; it follows through high, then back to ready.
+ALT_W1 = P(READY, pelvis=(-0.6, HIP - 4.6, 0.0), lean=18.0, hip_lean=8.0,
+           hand_n=(3.4, CH - 13.0, 6.6), elbow_n=(-0.6, -0.8, 0.6), hand_f=(3.6, CH - 10.0, -4.6),
+           shield_n=(0.45, -0.2, 0.87), shield_up=(0.6, -0.8, 0.0), shield_off=(0.0, 1.0), head=(14.0, 0.0, 0.0))
+ALT_W2 = P(ALT_W1, pelvis=(-1.2, HIP - 5.2, 0.0), lean=22.0, hand_n=(-0.8, CH - 14.0, 7.2),
+           shield_n=(0.25, -0.25, 0.94), shield_up=(-0.2, -1.0, 0.0), head=(18.0, 0.0, 0.0))
+ALT_1 = P(READY, pelvis=(0.6, HIP - 3.0, 0.0), lean=12.0, hip_lean=6.0,
+          foot_n=(6.4, AH, 3.0), foot_f=(-5.6, AH, -2.6), toe_f=12.0,
+          hand_n=(10.2, CH - 4.0, 4.6), elbow_n=(-0.4, -1.0, 0.6), hand_f=(0.0, CH - 10.0, -4.8),
+          shield_n=(0.35, 0.0, 0.94), shield_up=(1.0, 0.45, 0.0), shield_off=(0.0, 1.5), head=(0.0, 0.0, 0.0))
+ALT_2 = P(ALT_1, pelvis=(1.0, HIP - 1.4, 0.0), lean=-2.0, hip_lean=0.0, foot_f=(-5.2, AH + 1.0, -2.6),
+          toe_f=-20.0, hand_n=(7.4, CH + 5.4, 4.2), elbow_n=(-0.6, -0.6, 0.6), hand_f=(-2.0, CH - 9.0, -5.0),
+          shield_n=(0.3, 0.1, 0.95), shield_up=(0.3, 1.0, 0.0), shield_off=(0.0, 2.0), head=(-10.0, 0.0, 0.0))
+ALT_RECOVER = mix(ALT_2, READY, 0.55)
+
+# Strike big: a two-hand shield slam. Wind-up: both hands heave the shield up over the head; the
+# hit drives its tip down into the ground in front; he sags into it, then back to ready.
+BIG_W1 = P(READY, pelvis=(-0.6, HIP - 2.6, 0.0), lean=4.0, hip_lean=2.0,
+           hand_n=(4.4, CH - 2.0, 4.0), elbow_n=(-0.4, -1.0, 0.8), hand_f=(3.6, CH - 2.4, -1.6),
+           elbow_f=(-0.4, -1.0, -0.6), shield_n=(0.5, 0.0, 0.87), shield_up=(0.0, 1.0, 0.0),
+           shield_off=(0.0, 1.0), head=(-4.0, 0.0, 0.0))
+BIG_W2 = P(BIG_W1, pelvis=(-2.0, HIP - 2.0, 0.0), lean=-16.0, hip_lean=-5.0, foot_f=(-6.4, AH, -2.6),
+           hand_n=(-1.4, CH + 9.4, 3.4), hand_f=(-2.2, CH + 8.8, -1.8), elbow_n=(0.4, -0.2, 0.9),
+           elbow_f=(0.4, -0.2, -0.9), shield_n=(-0.2, 0.35, 0.92), shield_up=(-1.0, 0.45, 0.0),
+           shield_off=(-1.0, 0.5), head=(-18.0, 0.0, 0.0))
+BIG_1 = P(READY, pelvis=(0.0, HIP - 5.2, 0.0), lean=22.0, hip_lean=10.0,
+          foot_n=(6.0, AH, 3.0), foot_f=(-7.4, AH, -2.6), toe_f=10.0,
+          hand_n=(12.4, CH - 14.0, 4.6), elbow_n=(-0.2, -1.0, 0.8), hand_f=(11.2, CH - 13.4, -0.8),
+          elbow_f=(-0.2, -1.0, -0.6), shield_n=(0.55, 0.1, 0.83), shield_up=(0.3, 0.95, 0.0),
+          shield_off=(0.0, -5.6), head=(14.0, 0.0, 0.0))
+BIG_2 = P(BIG_1, pelvis=(-0.2, HIP - 6.4, 0.0), lean=28.0, hand_n=(12.2, CH - 15.0, 4.6),
+          hand_f=(11.0, CH - 14.4, -0.8), head=(24.0, 0.0, 0.0))
+BIG_RECOVER = mix(BIG_2, READY, 0.5)
+
+# Cast: the shield raised high on one arm and the stance braced wide (a rallying guard).
+CAST_1 = P(READY, pelvis=(-0.4, HIP - 5.6, 0.0), lean=-4.0, hip_lean=0.0,
+           foot_n=(6.8, AH, 3.2), foot_f=(-6.8, AH, -2.8), toe_f=6.0,
+           hand_n=(5.6, CH + 8.2, 4.6), elbow_n=(-0.4, -0.6, 0.8), hand_f=(3.4, HIP - 4.0, -5.0),
+           elbow_f=(-1.0, 0.0, -0.6), shield_n=(0.55, 0.55, 0.62), shield_up=(-0.75, 0.65, 0.0),
+           shield_off=(0.0, 0.0), head=(-16.0, 0.0, 0.0))
+CAST_2 = P(CAST_1, pelvis=(-0.5, HIP - 6.4, 0.0), hand_n=(5.8, CH + 7.4, 4.6), shield_push=0.6)
+CAST_W1 = mix(READY, CAST_1, 0.35)
+CAST_W2 = mix(READY, CAST_1, 0.7)
+CAST_RECOVER = mix(CAST_2, READY, 0.55)
+
+# Leap (the follow-up hop): crouch and spring, tucked in the air behind the shield, land low.
+# The game moves the body along the hop's arc, so the cells only lift the feet a little.
+LEAP_1 = P(JUMP_PUSH, lean=26.0, foot_f=(-6.6, AH + 0.8, -2.6), toe_f=-24.0, hand_n=(7.6, CH - 9.5, 5.0),
+           shield_n=(0.85, 0.0, 0.52), shield_off=(0.0, -1.5))
+LEAP_2 = P(JUMP, pelvis=(-0.6, HIP - 1.0, 0.0), lean=8.0, hip_lean=0.0,
+           foot_n=(4.2, 8.6, 3.0), foot_f=(-2.6, 9.6, -2.4), hand_n=(8.4, CH - 6.0, 5.0), hand_f=(-4.0, CH - 6.0, -5.6),
+           shield_n=(0.85, 0.0, 0.52), shield_up=(0.1, 1.0, 0.0), shield_off=(0.0, -1.0), head=(8.0, 0.0, 0.0))
+LEAP_3 = JUMP_LAND
+
+# Fall: from the hurt key down onto the knees, tipping forward with the shield sliding off, then the
+# down key. The dropped shield always heads for where it lies in the down key.
+SHIELD_REST = DOWN["shield_at"]
+FALL_1 = P(HURT, pelvis=(0.4, 11.0, 0.0), lean=18.0, hip_lean=10.0,
+           foot_n=(-4.2, AH, 3.4), foot_f=(-5.6, AH, -2.6), knee_n=(1.0, 0.0, 0.1), knee_f=(1.0, 0.0, -0.1),
+           toe_n=-40.0, toe_f=-40.0, hand_n=(5.4, 9.6, 7.0), elbow_n=(-0.6, 0.0, 0.8), hand_f=(3.0, 9.0, -5.0),
+           shield_n=(0.8, 0.0, 0.6), shield_up=(0.1, 1.0, 0.0), shield_off=(0.0, -1.0),
+           shield_at=SHIELD_REST, head=(28.0, 0.0, 0.0), eyes=1)
+FALL_2 = mix(FALL_1, DOWN, 0.55, shield_at=SHIELD_REST, eyes=1)
+
+# Get up: from the down key onto hands and knees, the shield taken up, a knee planted, then idle.
+GETUP_1 = P(FALL_1, pelvis=(-2.6, 9.8, 0.0), lean=58.0, hip_lean=30.0,
+            foot_n=(-8.4, AH, 3.6), foot_f=(-9.0, AH, -2.6), hand_n=(6.0, 3.2, 6.0), hand_f=(5.0, 2.6, -3.6),
+            elbow_n=(-1.0, 0.2, 0.6), shield_drop=0.55, shield_n=(0.4, 0.4, 0.85), shield_up=(1.0, 0.2, 0.0),
+            head=(-6.0, 0.0, 0.0), eyes=0)
+GETUP_2 = P(READY, pelvis=(-0.8, 12.2, 0.0), lean=16.0, hip_lean=6.0,
+            foot_n=(4.0, AH, 3.4), foot_f=(-6.6, AH, -2.6), knee_f=(1.0, 0.0, -0.1), toe_f=-40.0,
+            hand_n=(6.2, CH - 14.0, 6.0), hand_f=(3.6, 13.0, -3.8),
+            shield_n=(0.8, 0.0, 0.6), shield_off=(0.0, -2.0), head=(4.0, 0.0, 0.0))
+
+# Victory: the shield thrust up high, then planted tip-down in front with a hand on its rim, chest
+# out (victory_hold breathes on that).
+VIC_1 = P(READY, pelvis=(0.0, HIP - 4.6, 0.0), lean=14.0, hand_n=(5.0, CH - 11.0, 6.0),
+          hand_f=(1.4, CH - 12.0, -5.6), head=(10.0, 0.0, 0.0))
+VIC_2 = P(IDLE, pelvis=(0.4, HIP - 0.6, 0.0), lean=-6.0, hip_lean=-2.0, foot_n=(3.4, AH, 3.6),
+          foot_f=(-3.0, AH, -3.2), hand_n=(4.0, CH + 9.0, 5.2), elbow_n=(-0.4, -0.4, 0.9),
+          hand_f=(-1.0, CH - 11.0, -6.4), shield_n=(0.45, 0.1, 0.9), shield_up=(0.2, 1.0, 0.0),
+          shield_off=(0.0, 1.5), head=(-16.0, 0.0, 0.0))
+VIC_4 = P(IDLE, pelvis=(0.0, HIP - 0.5, 0.0), lean=-5.0, hip_lean=-1.5,
+          foot_n=(2.0, AH, 3.6), foot_f=(-3.2, AH, -3.2),
+          hand_n=(8.0, 18.2, 6.0), elbow_n=(-1.0, -0.2, 0.6), hand_f=(-2.6, HIP + 1.4, -6.4),
+          elbow_f=(-0.6, 0.2, -1.0), shield_n=(0.7, 0.0, 0.7), shield_up=(0.05, 1.0, 0.0),
+          shield_off=(0.0, -7.8), head=(-10.0, 0.0, 0.0))
+VIC_3 = mix(VIC_2, VIC_4, 0.5)
+VIC_4B = P(VIC_4, pelvis=(0.0, HIP - 1.1, 0.0), lean=-3.5, head=(-8.0, 0.0, 0.0))
+
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose). The game sets the timing.
+CLIPS: dict[str, list[Any]] = {
+    "idle": [K["idle"], mix(IDLE, IDLE_OUT, 0.5), IDLE_OUT, mix(IDLE, IDLE_OUT, 0.5)],
+    "ready": [K["ready"], mix(READY, READY_OUT, 0.5), READY_OUT, mix(READY, READY_OUT, 0.5)],
+    "draw": [DRAW_1, DRAW_2, DRAW_3, K["idle"]],
+    "parry": [PARRY_SNAP, K["parry"]],
+    "parry_hit": [PARRY_HIT_1, PARRY_HIT_2, K["parry"]],
+    "dodge": [DODGE_IN, K["dodge"], K["dodge"], DODGE_OUT],
+    "jump_up": [JUMP_PUSH, JUMP_TUCK, K["jump"]],
+    "jump_down": [K["jump"], JUMP_OPEN, JUMP_LAND],
+    "hurt": [K["hurt"], K["hurt"], HURT_RECOIL, HURT_RECOVER],
+    "stagger": [K["hurt"], STAGGER_1, STAGGER_1, STAGGER_2, STAGGER_3, HURT_RECOVER],
+    "strike_windup": [STRIKE_W1, STRIKE_W2],
+    "strike": [K["strike"], STRIKE_FOLLOW, STRIKE_RECOVER],
+    "strike_alt_windup": [ALT_W1, ALT_W2],
+    "strike_alt": [ALT_1, ALT_2, ALT_RECOVER],
+    "strike_big_windup": [BIG_W1, BIG_W2],
+    "strike_big": [BIG_1, BIG_2, BIG_RECOVER],
+    "cast_windup": [CAST_W1, CAST_W2],
+    "cast": [CAST_1, CAST_2, CAST_RECOVER],
+    "leap": [LEAP_1, LEAP_2, LEAP_3],
+    "fall": [K["hurt"], FALL_1, FALL_2, K["down"]],
+    "get_up": [K["down"], GETUP_1, GETUP_2, K["idle"]],
+    "victory": [VIC_1, VIC_2, VIC_3, VIC_4],
+    "victory_hold": [VIC_4, VIC_4B],
+}
+
+_CAM: list[Camera] = []
+
+
+def cell_cam() -> Camera:
+    """The 48x56 cell camera: the 32x48 sheet camera padded, so the key poses keep their pixels."""
+    if not _CAM:
+        _CAM.append(cell_camera(Camera(*specs.HERO_FRAME), specs.HERO_CELL))
+    return _CAM[0]
+
+
+def render_cell(pose: dict[str, Any]) -> np.ndarray:
+    """One 48x56 cell of Alder in `pose`."""
+    return render_pose(pose, cell_cam())
+
+
+def frame_ok(rgba: np.ndarray) -> bool:
+    """The sprite contract: a clear top row, left and right column (room for the outline)."""
+    s = rgba[..., 3] > 0
+    return not (s[0, :].any() or s[:, 0].any() or s[:, -1].any())
+
+
+def render_cells(poses: list[dict[str, Any]]) -> list[np.ndarray]:
+    """Renders many cells (about a second each), in worker processes when it can."""
+    if len(poses) < 8:
+        return [render_cell(p) for p in poses]
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+        workers = max(1, min(8, (os.cpu_count() or 2) - 2))
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            return list(ex.map(render_cell, poses, chunksize=2))
+    except (OSError, RuntimeError, ImportError):
+        return [render_cell(p) for p in poses]
+
+
+def clip_cells(names: list[str] | None = None) -> dict[str, list[Any]]:
+    """CLIPS (or only `names`) rendered: every distinct pose once, in parallel."""
+    from kit.clips import _norm
+    spec = {n: CLIPS[n] for n in (names or CLIPS)}
+    todo: dict[Any, dict[str, Any]] = {}
+    for entries in spec.values():
+        for e in entries:
+            if isinstance(e, dict):
+                todo.setdefault(_norm(e), e)
+    done = dict(zip(todo, render_cells(list(todo.values()))))
+    return render_clips(spec, lambda p: done[_norm(p)])
+
+
+def clip_strips(keys: list[np.ndarray], cells: dict[str, list[Any]]) -> np.ndarray:
+    """Every clip as one row of cells (int entries are the row-0 keys), for review pictures."""
+    cols = max(len(c) for c in cells.values())
+    blank = np.zeros((specs.HERO_CELL[1], specs.HERO_CELL[0], 4), dtype=np.uint8)
+    rows = [hstack([keys[c] if isinstance(c, int) else c for c in cs] + [blank] * (cols - len(cs)))
+            for cs in cells.values()]
+    return np.concatenate(rows, axis=0)
 
 
 def build(ctx) -> None:
     from kit.context import PREVIEW
     # 48x56 cells: the 32x48 camera padded, so the key poses keep their exact pixels.
-    cam = cell_camera(Camera(*specs.HERO_FRAME), specs.HERO_CELL)
-    frames = [render_pose(POSES[name], cam) for name in specs.HERO_POSES]
-    cells = render_clips(CLIPS, lambda p: render_pose(p, cam))
+    frames = [render_cell(POSES[name]) for name in specs.HERO_POSES]
+    cells = clip_cells()
+    bad = sorted({name for name, cs in cells.items() for c in cs
+                  if isinstance(c, np.ndarray) and not frame_ok(c)})
+    if bad:
+        raise ValueError("alder: clip cells touch the cell edge (no outline room): %s" % ", ".join(bad))
     ctx.save_fighter("sprites/characters/alder.png", frames, cells, specs.HERO_CELL, specs.HERO_BODY_W,
                      "alder")
+    # Every clip as a row of cells at game size and 3x (the GIFs cannot be reviewed everywhere).
+    strips = clip_strips(frames, cells)
+    ctx.extra("clips_1x.png", strips, scale=1)
+    ctx.extra("clips_3x.png", strips, scale=3, frame_w=specs.HERO_CELL[0])
+    sil = np.zeros_like(strips)
+    sil[..., :3] = 24
+    sil[..., 3] = np.where(strips[..., 3] > 0, 255, 0)
+    ctx.extra("clips_silhouettes.png", sil, scale=2, frame_w=specs.HERO_CELL[0])
     por = render_portrait()
     ctx.save("sprites/portraits/alder.png", por)
     out = os.path.join(PREVIEW, ctx.module)
     _review(os.path.join(out, "review_portrait.png"), [por], cols=1, scale=8)
-    # Phase 10 check: in-betweens made by blending keyframes keep the same proportions.
-    tweens = [render_pose(blend(POSES[a], POSES[b], t)) for a, b in (("idle", "ready"), ("ready", "strike"),
-                                                                     ("idle", "down"))
-              for t in (0.0, 0.5)] + [render_pose(POSES["down"])]
-    _review(os.path.join(out, "review_blend.png"), tweens, cols=7, scale=4)
     _review(os.path.join(out, "review_sheet.png"), frames, cols=4, scale=6)
-    # Silhouettes (every pose must read by shape alone).
-    sil = []
-    for f in frames:
-        s = np.zeros_like(f)
-        s[..., :3] = 24
-        s[..., 3] = np.where(f[..., 3] > 0, 255, 0)
-        sil.append(s)
-    _review(os.path.join(out, "review_silhouettes.png"), sil, cols=8, scale=3, bg=(220, 218, 214))

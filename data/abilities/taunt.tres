@@ -14,3 +14,5 @@ ring_lead_percent = 85
 damage_percent = 0
 press_ap_gain = 1
 status = "taunted"
+windup_clips = PackedStringArray("strike_alt_windup")
+strike_clips = PackedStringArray("strike_alt")

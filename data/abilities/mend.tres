@@ -15,3 +15,5 @@ ring_lead_percent = 85
 damage_percent = 0
 heal_percent = 30
 press_heal_percent = 15
+windup_clips = PackedStringArray("cast_windup")
+strike_clips = PackedStringArray("cast")

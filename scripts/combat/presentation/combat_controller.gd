@@ -42,6 +42,10 @@ const PRACTICE_ATTACK_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5]
 const PRACTICE_KEYS_PER_LINE: int = 3
 ## Autoplay: a fight where nothing was played for this long is stuck (its state is printed once).
 const AUTOPLAY_STUCK_MS: int = 60000
+## Strike clips of a dash strike or counter, by the striker's place among the attackers.
+const STRIKE_CLIPS: Array[String] = ["strike", "strike_alt"]
+## Damage causes that stagger the target whatever the amount (DESIGN.md 5.5).
+const STAGGER_CAUSES: Array[String] = ["counter", "team_counter"]
 
 var mirror := CombatMirror.new()
 var engine: CombatEngine
@@ -560,6 +564,7 @@ func _play(ev: Dictionary) -> void:
 		"combat_started":
 			mirror.apply(ev)
 			await _build_fighters()
+			_play_draw()
 			if String(ev.get("opening", "")) == "first_strike":
 				Sfx.play("gauge_full")
 				hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
@@ -751,6 +756,7 @@ func _on_combat_ended(result: String) -> void:
 	match result:
 		"victory":
 			Sfx.play("victory")
+			_play_victory()
 			if _run != null:
 				_play_reward_sounds()
 		"escaped":
@@ -942,23 +948,23 @@ func _strike(actors: Array[int], target: int, sfx: String, results: Array[Dictio
 	var return_s := float(_tuning.action_return_ms) / 1000.0
 	var strike_at := view.strike_point(target)
 	# Several attackers keep part of their formation so each one stays visible at the strike.
-	var formation_centre := Vector3.ZERO
-	for id: int in actors:
-		formation_centre += view.home_of(id)
-	formation_centre /= float(maxi(1, actors.size()))
 	for i: int in actors.size():
 		var v := view.fighter(actors[i])
 		if v == null:
 			continue
-		var spread := (v.position - formation_centre) * _visuals.team_strike_spread
+		var spread := view.team_spread_offset(actors[i], actors)
 		v.set_pose(FighterView.CharPose.READY)
 		v.move_body(strike_at + spread - v.position, dash_s, Tween.TRANS_QUAD, Tween.EASE_IN)
 	await _wait_ms(_tuning.action_dash_ms)
 
-	for id: int in actors:
-		var v := view.fighter(id)
+	for i: int in actors.size():
+		var v := view.fighter(actors[i])
 		if v != null:
-			v.set_pose(FighterView.CharPose.STRIKE)
+			# The strike clip (alternating with the backhand in a team strike, like the slashes),
+			# held on its last cell until the return (card #62); without a clip the strike key, as
+			# before. The READY base stays underneath.
+			v.play(STRIKE_CLIPS[i % STRIKE_CLIPS.size()], _visuals.skill_strike_pose_ms, FighterView.PRIO_REACT,
+					FighterView.CharPose.STRIKE, 0, true)
 	var slashes: Array[Tween] = []
 	if enemy != null:
 		# One slash per attacker, a little apart in time, alternating direction.
@@ -996,6 +1002,8 @@ func _strike(actors: Array[int], target: int, sfx: String, results: Array[Dictio
 		var v := view.fighter(id)
 		if v == null:
 			continue
+		# Ends the held strike; a fall or anything bigger keeps playing.
+		v.clear_timed_pose(FighterView.PRIO_BIG)
 		v.set_pose(FighterView.CharPose.IDLE if mirror.is_alive(id) else FighterView.CharPose.DOWN)
 		v.move_body(Vector3.ZERO, return_s, Tween.TRANS_QUAD, Tween.EASE_OUT)
 	await _wait_ms(_tuning.action_return_ms)
@@ -1011,7 +1019,15 @@ func _show_damage(ev: Dictionary) -> void:
 	hud.damage_number(int(ev.amount), v.head_position(), HudStyle.DAMAGE_DEALT if to_enemy else HudStyle.DAMAGE_TAKEN, big)
 	v.flash(_visuals.flash_ms)
 	if mirror.is_alive(int(ev.target)):
-		v.play_pose(EnemyChoreography.Pose.HURT if to_enemy else FighterView.CharPose.HURT, _visuals.hurt_pose_ms)
+		# During an enemy attack the runner plays a hero's flinch or stagger on attack time (card
+		# #62); a timed pose here would hide those frames.
+		if to_enemy or not runner.is_active():
+			var hurt_pose: int = EnemyChoreography.Pose.HURT if to_enemy else FighterView.CharPose.HURT
+			if big or String(ev.get("cause", "")) in STAGGER_CAUSES:
+				# A counter, a team counter or a heavy hit staggers; falls back to the hurt.
+				v.play("stagger", _visuals.stagger_pose_ms, FighterView.PRIO_BIG, hurt_pose)
+			else:
+				v.play_pose(hurt_pose, _visuals.hurt_pose_ms)
 		var voice := _voice_of(int(ev.target)) if to_enemy else ""
 		if not voice.is_empty():
 			Sfx.play(voice, _visuals.voice_hurt_volume_db, _visuals.voice_hurt_pitch)
@@ -1052,6 +1068,12 @@ func _show_feedback(ev: Dictionary) -> void:
 			if v != null:
 				v.clear_timed_pose()
 				v.set_pose(FighterView.CharPose.DODGE)
+				# The run-off: the run loop (or the side walk) turned to face away. Without either,
+				# the dodge pose facing the enemies, as before.
+				if v.has_clip("run"):
+					v.set_flip(_visuals.party_art_faces_right)
+					v.play("run", _visuals.escape_run_ms, FighterView.PRIO_BIG, FighterView.CharPose.DODGE, 0,
+							false, _visuals.escape_run_cycle_ms)
 				v.move_body(Vector3(-_visuals.escape_run_distance, 0.0, 0.0), float(_visuals.escape_run_ms) / 1000.0,
 						Tween.TRANS_QUAD, Tween.EASE_IN)
 				v.dissolve(_visuals.escape_run_ms, HudStyle.JUMP)
@@ -1067,6 +1089,8 @@ func _show_feedback(ev: Dictionary) -> void:
 				Sfx.play_music(rage_music_path, rage_music_volume_db)
 			if boss != null:
 				boss.flash(_visuals.flash_ms * 4, HudStyle.LATE, 0.9)
+				# Its rage clip, when the sheet has one (card #68).
+				boss.play("rage", _visuals.rage_pose_ms, FighterView.PRIO_BIG)
 			hud.screen_flash(HudStyle.LATE, _visuals.screen_flash_phase)
 			var text := String(ev.get("text", ""))
 			hud.show_center_banner(text if not text.is_empty() else "IT GROWS FURIOUS!", HudStyle.LATE,
@@ -1081,6 +1105,8 @@ func _show_feedback(ev: Dictionary) -> void:
 				v.set_grey(0.0)
 				v.clear_timed_pose()
 				v.set_pose(FighterView.CharPose.IDLE)
+				# Gets back up from the floor (card #66), when the sheet has the clip.
+				v.play("get_up", _visuals.revive_pose_ms, FighterView.PRIO_BIG)
 				v.flash(_visuals.flash_ms * 3, HudStyle.GOLD, 0.9)
 				hud.popup("REVIVED", head, HudStyle.HEAL)
 		"status_changed":
@@ -1111,13 +1137,44 @@ func _show_downed(id: int) -> void:
 	v.set_glow(0.0)
 	if mirror.party_ids.has(id):
 		v.set_pose(FighterView.CharPose.DOWN)
+		# Falls over onto the down pose (card #66); its first cell is the flinch.
+		v.play("fall", _visuals.fall_ms, FighterView.PRIO_BIG)
 		hud.screen_flash(HudStyle.DAMAGE_TAKEN, _visuals.screen_flash_downed)
-	else:
+	elif not v.has_clip("death"):
 		# A beaten enemy crumbles into rot (card #38).
 		v.set_pose(EnemyChoreography.Pose.HURT)
-		v.flash(_visuals.flash_ms * 2, _visuals.death_edge_color, 0.8)
+		v.flash(_visuals.flash_ms * 2, _visuals.death_edge_color, _visuals.death_flash_strength)
 		v.dissolve(_visuals.death_dissolve_ms, _visuals.death_edge_color)
 		view.spawn_sparks(v.centre_position(), _visuals.death_sparks, 1.0, _visuals.death_spark_color)
+	else:
+		_play_enemy_death(id, v)
+
+
+## A beaten enemy with a death clip plays it and holds its last cell (card #68). A rotting one
+## crumbles during the clip, its motes rising at once; a bursting one bursts into sparks when the
+## clip ends and vanishes quickly. Nothing is awaited: the burst is a one-shot timer.
+func _play_enemy_death(id: int, v: FighterView) -> void:
+	var data := _data_by_id.get(id) as EnemyData
+	var own := data != null and data.death_color.a > 0.0
+	var edge := data.death_color if own else _visuals.death_edge_color
+	v.set_pose(EnemyChoreography.Pose.HURT)
+	v.flash(_visuals.flash_ms * 2, edge, _visuals.death_flash_strength)
+	v.play("death", _visuals.death_pose_ms, FighterView.PRIO_FINAL, EnemyChoreography.Pose.HURT, 0, true)
+	if data != null and data.death_style == EnemyData.DeathStyle.BURST:
+		v.dissolve(_visuals.death_burst_dissolve_ms, edge, _visuals.death_pose_ms)
+		var color := data.death_color if own else _visuals.death_burst_color
+		get_tree().create_timer(float(_visuals.death_pose_ms) / 1000.0).timeout.connect(_burst.bind(id, color))
+	else:
+		v.dissolve(_visuals.death_dissolve_ms, edge, _visuals.death_dissolve_delay_ms)
+		view.spawn_sparks(v.centre_position(), _visuals.death_sparks, 1.0,
+				data.death_color if own else _visuals.death_spark_color)
+
+
+## The spark burst of a bursting enemy's death (at its body, wherever the death left it).
+func _burst(id: int, color: Color) -> void:
+	var v := view.fighter(id)
+	if v != null:
+		view.spawn_sparks(v.centre_position(), _visuals.death_burst_sparks, 1.0, color)
 
 
 ## Ready pose for the party member whose turn it is (-1: nobody).
@@ -1127,6 +1184,40 @@ func _set_active_pose(actor: int) -> void:
 		if v == null or not mirror.is_alive(id):
 			continue
 		v.set_pose(FighterView.CharPose.READY if id == actor else FighterView.CharPose.IDLE)
+
+
+## Fight start (card #70): each standing hero draws their weapon once the fade-in uncovers them,
+## one after another by party slot. Not awaited; an attack or a skill that starts first cancels it.
+func _play_draw() -> void:
+	for id: int in _standing_heroes():
+		var delay := _visuals.draw_delay_ms + _hero_slot(id) * _visuals.draw_stagger_ms
+		view.fighter(id).play("draw", _visuals.draw_pose_ms, FighterView.PRIO_REACT, -1, delay)
+
+
+## Won (card #67): each standing hero plays the victory clip, one after another by party slot,
+## then loops the victory hold. Not awaited; without the clips they keep breathing.
+func _play_victory() -> void:
+	for id: int in _standing_heroes():
+		var v := view.fighter(id)
+		var delay := _visuals.victory_pose_delay_ms + _hero_slot(id) * _visuals.victory_stagger_ms
+		v.play("victory", _visuals.victory_pose_ms, FighterView.PRIO_FINAL, -1, delay)
+		if v.has_clip("victory_hold"):
+			v.set_loop("victory_hold", _visuals.victory_cycle_ms, FighterView.CharPose.IDLE,
+					delay + _visuals.victory_pose_ms)
+
+
+## Heroes on the stage, alive and not escaped, who have a view.
+func _standing_heroes() -> Array[int]:
+	var ids: Array[int] = []
+	for id: int in mirror.party_ids:
+		if view.fighter(id) != null and mirror.is_alive(id) and not bool(mirror.fighter(id).get("escaped", false)):
+			ids.append(id)
+	return ids
+
+
+## A hero's party slot (0 to 2), for staggering their poses.
+func _hero_slot(id: int) -> int:
+	return maxi(0, _owner_slot(id))
 
 
 func _refresh() -> void:

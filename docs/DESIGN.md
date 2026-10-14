@@ -1447,7 +1447,7 @@ counters for longer and mixed strings (2.5, card #52).
 9. **Real art** (done, approved 2026-10-14): every sprite drawn by code with the art kit (5.4):
    heroes, enemies (each its own creature), portraits (48x48, also on the party screen), ground
    textures, backdrops per place, props, effects, HUD icons (cards #40, #85, #116 to #124).
-10. **Animation**: multi-frame animations from blended poses: idle breathing, ready stance,
+10. **Animation** (built, waiting for playtest, 2026-10-14): multi-frame animations from blended poses: idle breathing, ready stance,
     defence poses, hit reactions, skill moves, follow-up entrance, team ultimate, downed and
     revive, victory, enemy wind-ups, hits and deaths, walking in four directions, item pickup
     (cards #58 to #71).
