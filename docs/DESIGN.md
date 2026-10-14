@@ -1814,7 +1814,7 @@ user picked keeping them random but twice as common (Key find weight 4 to 8).
     (cards #58 to #71).
 11. **Backpack and items** (done, 2026-10-14, 8.1): grid backpack, consumables, charms, rarity, chests and
     keys, items in fights (cards #55, #57, #72, #73, #75 to #79, #91, #103).
-12. **Monsters** (built, waiting for playtest, 2026-10-14): three steps. Step 1 (built): new
+12. **Monsters** (done, approved 2026-10-14): three steps. Step 1 (built): new
     attack types (ranged throws 3.9, rock waves and a clearer wave 3.10, each hero in turn 3.11)
     given to the first monsters (2.14). Step 2 (built): new monsters, a Carrion Fly, a Rot Hyena
     (Pack Bite) and a Mire Toad (2.15). Step 3 (built): monster variants met deeper in a run
