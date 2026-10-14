@@ -21,6 +21,9 @@ ENEMY_FRAME = {
     "gnat_swarm": 56,
     "shade": 72,
     "hollow_king": 108,
+    "carrion_fly": 72,
+    "rot_hyena": 80,
+    "mire_toad": 96,
 }
 FIGHTER_PIXEL_SIZE = 0.045
 
@@ -34,7 +37,7 @@ MAX_SHEET = 4096
 
 # Clips whose cells may leave the floor (no feet-on-the-floor rule), and fighters that float.
 AIRBORNE = {"jump_up", "jump_down", "leap"}
-FLOATERS = {"gnat_swarm", "shade"}
+FLOATERS = {"gnat_swarm", "shade", "carrion_fly"}
 
 # Looping stances: every cell keeps its opaque top within 1 px of the clip's key (cell 0 for idle
 # and the stands, the ready key for ready), because the game measures head and popup anchors on
@@ -52,6 +55,9 @@ FIGHTERS = {
     "enemy_gnats": "gnat_swarm",
     "enemy_shade": "shade",
     "enemy_king": "hollow_king",
+    "enemy_fly": "carrion_fly",
+    "enemy_hyena": "rot_hyena",
+    "enemy_toad": "mire_toad",
 }
 
 # Tier 1 clip names (plan 4.1, 4.2). check.py --require <module or id> asserts them.

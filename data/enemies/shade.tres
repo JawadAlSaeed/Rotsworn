@@ -7,6 +7,8 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_nightfall.tres" id="5_idxi1"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="6_727rv"]
 [ext_resource type="Resource" path="res://data/clips/shade.tres" id="7_clips"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_bolts.tres" id="p12_shade_bolts"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_grave_spikes.tres" id="p12_shade_grave_spikes"]
 
 [resource]
 script = ExtResource("6_727rv")
@@ -22,6 +24,6 @@ idle_cycle_percent = 120
 sprite_pixel_size = 0.045
 hp_percent = 90
 speed = 130
-attacks = Array[ExtResource("1_xlmdh")]([ExtResource("2_eqh5t"), ExtResource("3_i2yil"), ExtResource("4_48bed"), ExtResource("5_idxi1")])
+attacks = Array[ExtResource("1_xlmdh")]([ExtResource("2_eqh5t"), ExtResource("3_i2yil"), ExtResource("4_48bed"), ExtResource("5_idxi1"), ExtResource("p12_shade_bolts"), ExtResource("p12_shade_grave_spikes")])
 gold = 20
 xp = 40

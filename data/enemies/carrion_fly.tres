@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/carrion_fly.tres" id="3_clips"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/fly_dive.tres" id="4_fly_dive"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/fly_buzz_dive.tres" id="5_fly_buzz_dive"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/fly_maggot_spit.tres" id="6_fly_maggot_spit"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/fly_strafe.tres" id="7_fly_strafe"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "carrion_fly"
+voice_sfx = "voice_fly"
+display_name = "Carrion Fly"
+color = Color(0.28, 0.33, 0.25, 1)
+sprite_path = "res://assets/sprites/enemies/carrion_fly.png"
+portrait_path = "res://assets/sprites/portraits/carrion_fly.png"
+sprite_clips = ExtResource("3_clips")
+death_style = 1
+death_color = Color(0.75, 0.91, 0.37, 1)
+idle_cycle_percent = 35
+sprite_pixel_size = 0.045
+hp_percent = 70
+power_percent = 80
+speed = 170
+attacks = Array[ExtResource("1_attack")]([ExtResource("4_fly_dive"), ExtResource("5_fly_buzz_dive"), ExtResource("6_fly_maggot_spit"), ExtResource("7_fly_strafe")])
+gold = 12
+xp = 25

@@ -24,9 +24,11 @@ func _declared_attacks() -> Array[Dictionary]:
 		var engine := CombatEngine.new(Fx.setup([attack]))
 		var declared := Fx.first_of(engine.start(), "timed_sequence_declared")
 		var prompts: Array = declared.prompts
+		var hits := EnemyChoreography.with_close_times(declared.hits as Array, prompts, LATENCY_MS)
+		EnemyChoreography.add_hit_data(hits, attack)
 		list.append({
 			"name": attack.id,
-			"hits": EnemyChoreography.with_close_times(declared.hits as Array, prompts, LATENCY_MS),
+			"hits": hits,
 			"prompts": prompts,
 		})
 	return list
@@ -55,7 +57,7 @@ func test_normal_lunges_reach_contact_exactly_at_impact() -> void:
 	for a: Dictionary in _declared_attacks():
 		for i: int in (a.hits as Array).size():
 			var hit: Dictionary = a.hits[i]
-			if int(hit.kind) != AttackHitData.Kind.NORMAL:
+			if int(hit.kind) != AttackHitData.Kind.NORMAL or EnemyChoreography.is_ranged(hit):
 				continue
 			var at := float(hit.at_ms)
 			var label := "%s hit %d" % [a.name, i]
@@ -72,7 +74,7 @@ func test_contact_holds_until_the_hit_closes_where_the_string_allows() -> void:
 		var hits: Array = a.hits
 		for i: int in hits.size():
 			var hit: Dictionary = hits[i]
-			if int(hit.kind) != AttackHitData.Kind.NORMAL:
+			if int(hit.kind) != AttackHitData.Kind.NORMAL or EnemyChoreography.is_ranged(hit):
 				continue
 			var at := float(hit.at_ms)
 			var hold := maxf(float(_visuals.contact_hold_ms), float(hit.close_ms))
@@ -103,6 +105,10 @@ func test_cues_match_the_motion() -> void:
 				assert_eq(mine.size(), 1, label)
 				assert_eq(String(mine[0].type), EnemyChoreography.CUE_SLAM, label)
 				assert_almost_eq(float(mine[0].at_ms), launch, EPS, label + ": the wave launches approach_ms before impact")
+			elif EnemyChoreography.is_ranged(hit):
+				assert_eq(mine.size(), 1, label)
+				assert_eq(String(mine[0].type), EnemyChoreography.CUE_SHOOT, label)
+				assert_almost_eq(float(mine[0].at_ms), launch, EPS, label + ": the throw leaves approach_ms before impact")
 			elif bool(hit.feint):
 				assert_eq(mine.size(), 2, label)
 				assert_eq(String(mine[0].type), EnemyChoreography.CUE_FEINT, label)
@@ -144,6 +150,8 @@ func test_each_cue_starts_its_beat() -> void:
 					expected = EnemyChoreography.Beat.FEINT_START
 				EnemyChoreography.CUE_SLAM:
 					expected = EnemyChoreography.Beat.SLAM
+				EnemyChoreography.CUE_SHOOT:
+					expected = EnemyChoreography.Beat.SHOOT
 			assert_eq(int(s.beat), expected, label)
 			assert_eq(int(s.hit), int(cue.hit), label)
 			assert_almost_eq(float(s.beat_ms), 0.0, EPS, label + ": the beat starts at its cue")
@@ -154,7 +162,7 @@ func test_contact_beat_starts_at_impact_and_the_lunge_arrives_just_before() -> v
 		var hits: Array = a.hits
 		for i: int in hits.size():
 			var hit: Dictionary = hits[i]
-			if int(hit.kind) != AttackHitData.Kind.NORMAL:
+			if int(hit.kind) != AttackHitData.Kind.NORMAL or EnemyChoreography.is_ranged(hit):
 				continue
 			var at := float(hit.at_ms)
 			var label := "%s hit %d" % [a.name, i]
@@ -209,6 +217,8 @@ func test_beats_are_contiguous_and_count_up() -> void:
 		EnemyChoreography.Beat.RECOIL: EnemyChoreography.Pose.IDLE,
 		EnemyChoreography.Beat.RETURN: EnemyChoreography.Pose.IDLE,
 		EnemyChoreography.Beat.AFTER: EnemyChoreography.Pose.IDLE,
+		EnemyChoreography.Beat.SHOOT: EnemyChoreography.Pose.CONTACT,
+		EnemyChoreography.Beat.FLIGHT: EnemyChoreography.Pose.IDLE,
 	}
 	for a: Dictionary in _declared_attacks():
 		var hits: Array = a.hits

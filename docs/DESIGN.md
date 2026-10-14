@@ -333,6 +333,94 @@ How a fight starts depends on how it began in the zone (7.4):
 - The autoplay bot never runs, except in `--autoplay=escape` (runs on its first turn, presses
   perfectly; checks the escape ending).
 
+### 2.14 Phase 12 moves (user request 2026-10-14, cards #114, #143, #145)
+
+The user asked for new attacks, ranged attacks from enemies and ground attacks that make rock
+waves. Three new kinds of move (rules in 3.9 to 3.11); step 1 gives them to the first monsters so
+they can be tried at once. Times in ms at tempo 100%.
+
+| Enemy | Attack | Targets | Weight | Hits |
+|---|---|---|---|---|
+| Rotten Husk | Rock Toss | one | 2 | thrown stone 1300 (110%), 600 ms flight |
+| Rotten Husk | Stone Spikes | one | 2 | ground 1300 (100%), rocks, 650 ms travel |
+| Bloat | Bile Spit | one | 2 | bile glob 1400 (120%), 650 ms flight |
+| Bloat | Bile Rain | party | 1 | bile globs 1300, 2000 (55% each) |
+| Bloat | Quake | party | 1 | ground 1300 (75%), rocks |
+| Gnat Swarm | Swarm Round | each in turn | 2 | normal 900, 1300, 1700 (40% each), one hero per hit |
+| Shade | Shadow Bolts | one | 2 | shade bolts 1000, 1450, 1800 (40% each), flights 500, 420, 320 |
+| Shade | Grave Spikes | one | 1 | normal 900 (45%), ground 1700 (60%), rocks |
+
+`tools/make_attack.py` writes these files from a short spec. In a practice fight the keys 1 to 9
+force an attack (they were 1 to 5), and `--attacks=ID,ID` makes the enemy use the listed attacks
+in turn (a dev tool for pictures).
+
+### 2.15 Phase 12 monsters (step 2, card #125)
+
+Three new monsters, each testing one thing like the phase 2 enemies (2.11). Starting numbers; tune
+in data. Times in ms at tempo 100%.
+
+| Enemy | Speed | HP | Power | Tests | Lives in |
+|---|---|---|---|---|---|
+| Carrion Fly | 170 | 70% | 80% | reaction: very short dives (130 to 150 ms lunges) | Rotten Hollow, Sunken Bog, Ashen Ruins |
+| Rot Hyena | 180 | 85% | 90% | packs: Pack Bite strikes each hero in turn (3.11), a laughing feint | Ashen Ruins (two at once) |
+| Mire Toad | 85 | 170% | 120% | jumping in rhythm: hop, hop, hop, each a ground wave | Sunken Bog (and its guard) |
+
+| Enemy | Attack | Targets | Weight | Hits |
+|---|---|---|---|---|
+| Carrion Fly | Dive | one | 3 | normal 1100 (110%), 140 ms dive |
+| Carrion Fly | Buzz Dive | one | 2 | normal 900, 1450, 1750 (50% each), 130 to 150 ms dives |
+| Carrion Fly | Maggot Spit | one | 2 | bile glob 1200 (90%), 420 ms flight |
+| Carrion Fly | Strafe | each in turn | 1 | normal 900, 1250, 1600 (45% each) |
+| Rot Hyena | Pack Bite | each in turn | 3 | normal 900, 1250, 1600 (40% each) |
+| Rot Hyena | Snap | one | 2 | normal 800 (80%) |
+| Rot Hyena | Cackle | one | 2 | normal 1500 (110%), feint, no training ring |
+| Rot Hyena | Pounce | one | 1 | normal 1300 (140%), 420 ms leap |
+| Mire Toad | Hop Hop Hop | party | 3 | ground 1100, 1600, 2100 (45% each), waves |
+| Mire Toad | Tongue Lash | one | 2 | normal 1150 (110%), 170 ms |
+| Mire Toad | Mud Spit | one | 2 | mud glob 1300 (100%), 550 ms flight |
+| Mire Toad | Belly Flop | party | 1 | ground 1500 (100%), rocks |
+
+- Fights: `fly_fight`, `fly_pair`, `hyena_pack`, `hyena_and_fly`, `toad_fight`, `toad_and_fly`. The
+  zones now hold: Rotten Hollow a Carrion Fly (was two Gnat Swarms); Sunken Bog two Carrion Flies
+  (was two Gnat Swarms), a Mire Toad (was the Bloat) and the guard Mire Toad and Carrion Fly (was
+  Husk and Gnat Swarm); Ashen Ruins the Rot Hyena Pack (was a Husk) and a Rot Hyena with a Carrion
+  Fly (was two Gnat Swarms). The zone files are edited directly (`tools/bootstrap_run.gd` is the
+  phase 4 starting point only).
+- Gold and XP: fly 12 / 25, hyena 15 / 30, toad 25 / 50.
+- Art (art kit `enemy_fly`, `enemy_hyena`, `enemy_toad` on the shared `kit/beast.py`): models built
+  straight from a pose dict (no humanoid rig); every Tier 1 enemy clip; the fly and the toad add
+  `windup_shoot` and `shoot` for their spits. The fly is a floater (wings twist rather than lift,
+  so its idle top stays put). Cells: fly 72, hyena 80, toad 96.
+- Voices until step 3: the fly borrows the gnats' voice, the hyena the husk's, the toad the
+  bloat's.
+- Balance check (average-player bot, skill 60, two seeds each): 10 wins in 12 fights.
+
+### 2.16 Monster variants and deep fights (phase 12 step 3, card #144)
+
+- A variant is a tougher, recoloured kin of a monster: the same body and clips (its EnemyData
+  points at the base's `data/clips/<base>.tres`), a sheet and portrait recoloured by the art kit's
+  `enemy_variants` module (OKLCH colour rules, `kit/variant.py`), HP x1.3, power x1.15, speed +10,
+  gold and XP x1.5, every move of its base plus one of its own:
+
+| Variant | Base | Look | Its own move |
+|---|---|---|---|
+| Ashen Husk | Rotten Husk | ash grey, ember core | Cinder Hail: party, two burning cinders thrown 1200, 1750 (50% each) |
+| Blight Bloat | Bloat | bile yellow | Bile Flood: one, three bile globs 950, 1300, 1650 (45% each) |
+| Blood Gnats | Gnat Swarm | blood red | Blood Rush: each in turn, five stings 800 to 2000 every 300 (30% each) |
+| Hollow Shade | Shade | ice blue | Bolt Storm: party, shade bolts 1000, 1500 (45% each) |
+| Bone Hyena | Rot Hyena | bone pale, red eyes | Frenzy: each in turn, four bites 800 to 1700 every 300 (40% each) |
+| Plague Fly | Carrion Fly | plague violet | Plague Spit: party, one bile glob each 1200 (60%) |
+| Elder Toad | Mire Toad | dark bog brown, red eyes | Quake Hop: party, rocks 1100, wave 1700, rocks 2300 (50% each) |
+
+- Deep fights: `EncounterData.deep` names a fight's deep version (`deep_<id>`, the same fight made of
+  variants). In a run, from map row `tuning.run_deep_row` (4, the second half of the 7 rows) on, a
+  zone's roaming enemies hold their deep fights (`RunState.is_deep()`, `ZoneController.configure(...,
+  deep)`): the roamer shows the variant and the fight is the deep one. Practice fights list them
+  too. Every fight a zone holds has one (test). Phase 13 (card #105) adds stat scaling by depth on
+  top.
+- Balance check (average-player bot at level 1 with no gear): 3 wins in 5 deep fights. A run
+  reaches them leveled and geared.
+
 ## 3. Defence timing
 
 ### 3.1 The clock
@@ -512,6 +600,52 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
   The enemy's own motion still shows every hit: the wind-up glow in the hit's colour, the crouch,
   the telegraph flash and the purple floor warning under a ground hit.
 
+### 3.9 Ranged hits (phase 12, card #143)
+
+- A normal hit with a `projectile` (`ProjectileData`, `data/projectiles/`: sprite sheet, loop
+  speed, arc height, trail, colour, launch sound and spot) is thrown instead of lunged. It is still
+  a normal hit for the rules: parry or dodge it when it arrives, and parrying every hit counters.
+  The engine never sees the projectile (it is presentation only, like the animation prefix).
+- The enemy winds up, throws at the launch moment (impact minus `approach_ms`, beat SHOOT, the
+  `shoot` clip, falling back to `contact`; wind-up `windup_shoot`, falling back to `windup`) and
+  waits where it stands while it flies (beat FLIGHT). It never walks in. A throw after a lunge
+  leaves from the recoil spot, then the enemy walks home.
+- The projectile flies on an arc from the enemy to the middle of the target's body and arrives at
+  impact, with two faint copies behind it. Then: a parry knocks it back up toward the enemy, a
+  dodge lets it fly on past, a hit bursts it in its colour. Party-wide: one projectile per hero.
+  All of it is a pure function of attack time, so hit-stop freezes it.
+- Rule (test): a projectile flies at least 300 ms, never on a feint or a ground hit.
+- First projectiles (art kit `fx_attacks`, 20x20 cells, 4 frames): bile glob (green), thrown
+  stone (grey, tumbling), shade bolt (violet). Launch sound: the lunge whoosh until real sounds are
+  picked (step 3).
+
+### 3.10 Ground looks: waves and rocks (phase 12, card #114)
+
+- A ground hit's `ground_look` is WAVE (the shockwave front) or ROCKS.
+- ROCKS: from the slam, rows of rock spikes burst out of the floor along a lane to each target
+  (`rock_row_spacing` apart), one row after another at the hit's travel speed, so the front is
+  easy to follow; the last row (`rock_final_count` bigger rocks) bursts right in front of the
+  target exactly at impact and stands until the hit can no longer be jumped. Each rock rises over
+  `rock_rise_ms`, stands `rock_hold_ms` and sinks over `rock_sink_ms`. A single-target rock hit
+  runs one lane, a party-wide one a lane per hero. Rocks are plain stone (purple stays "jump": the
+  floor warning and the wind-up glow say it). Sprite: `fx/rock_spike.png`, 4 shapes.
+- WAVE is clearer: a glowing band lies on the floor along the front (`wave_band_*`), so you see
+  exactly where the front is and when it touches each hero's floor warning.
+- Both: when a ground hit arrives, the floor warning under its targets flashes bright for
+  `floor_flash_ms`.
+
+### 3.11 Each hero in turn (phase 12, card #145)
+
+- `EnemyAttackData.TargetMode.EACH`: the targets are the standing heroes in party order from a
+  random one on (seeded), at most one per hit; hit i strikes only target i (round again when the
+  string has more hits than heroes). Normal hits only (test). In co-op each player defends their
+  own beat.
+- The intent sign and banner name the order: "Swarm Round -> CASS > ALDER > BRIN".
+- The enemy lunges at each hit's own target, swinging over from the last one during its wind-up
+  and lunge. Floor warnings and hit markers follow the hit's own target.
+- Counters: every target who parried all of their hits counters; if all of them did, it is one
+  team counter (like a party-wide attack).
+
 ---
 
 ## 4. Architecture
@@ -665,8 +799,9 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | `AbilityData` | `data/abilities/` | id, name, targeting, AP cost, press times, follow-ups, damage % and press bonus, Payback and Exposed bonuses, landing effects (AP gain/give, heal, revive, turn delay/hasten, status) each with a press bonus, team ultimate flag, sound |
 | `EnemyData` | `data/enemies/` | id, name, sprite paths, hp/power %, speed, attacks, gold and xp (paid in a run), phase two (HP %, attacks, speed, banner text: bosses) |
 | `GearData` | `data/gear/` | id, name, description, shop price, one effect and its amount |
-| `EnemyAttackData` | `data/enemy_attacks/` | id, name, target mode, weight, alert cue, ring allowed, hits |
-| `AttackHitData` | inside attacks | impact ms, kind (normal/ground), damage %, approach ms, feint |
+| `EnemyAttackData` | `data/enemy_attacks/` | id, name, target mode (one, party, each in turn), weight, alert cue, ring allowed, hits |
+| `AttackHitData` | inside attacks | impact ms, kind (normal/ground), damage %, approach ms, feint, projectile (ranged), ground look (wave/rocks) |
+| `ProjectileData` | `data/projectiles/` | what a ranged hit throws (3.9): sprite sheet, loop speed, size, arc, trail, colour, launch sound and spot |
 | `EncounterData` | `data/encounters/` | enemy list, party list and team ultimate (practice fights; a run uses its own party and ultimate), boss flag |
 | `RunData` | `data/runs/` | a kind of run: party, team ultimate, the zones a zone stop picks from, the final fight and its look, the shop's items, the gear pool |
 | `ItemData` | `data/items/` | backpack item (8.1): id, name, description, kind, rarity, price, shape, effect and amount, find weight, icon |
@@ -737,6 +872,14 @@ bus): it plays when the enemy starts an attack, and `voice_hurt_volume_db` quiet
 `voice_hurt_pitch` higher when it is hit (combat_visuals.tres). CC0 Freesound recordings, three
 options each (`candidates/voices.json`), fetched with `tools/sound_kit/freesound_fetch.py`. The Gnat
 Swarm's fly buzz annoyed the user and became an insect chitter.
+
+Phase 12 sounds (2026-10-14, `candidates/monsters.json`, picker
+https://claude.ai/artifact/X6Ma1kNdzGpyBVjhUgJ59H, db collection `picks`): `voice_fly` (a short
+squawk, no long buzz), `voice_hyena`, `voice_toad` (variants use their base's voice); `spit`,
+`throw` and `bolt_cast` play when a projectile leaves (`ProjectileData.launch_sfx`); `splat` when a
+glob hits (`ProjectileData.hit_sfx`, instead of the hit's own impact sound); `rock_rumble` with the
+slam of a rock ground hit. User picks (2026-10-14): hyena laugh, monster croak, scarab clicks
+(fly), monster spit, mud splat, rising whoosh (throw), dark swell (bolt), rock crumble.
 
 Hero shouts (2026-10-13, card #102): `CharacterData.shout_sfx` (a voice cue) plays when that hero
 uses a skill (not the basic attack, not Run); on the Team Ultimate every standing hero shouts.
@@ -865,7 +1008,7 @@ selects, Cancel goes back. **Pause** (Esc / Menu) works in fights, zones and on 
 (7.5); Main reads it before anything else, so in a fight Esc never acts as "back" in the action
 menu (Backspace, Q or B do). B no longer leaves a zone.
 
-Phase 1 practice keys (keyboard only, when `practice_tools_enabled`): 1 to 5 force the enemy's
+Phase 1 practice keys (keyboard only, when `practice_tools_enabled`): 1 to 9 force the enemy's
 next attack, I toggles "party cannot die", O toggles "enemy cannot die", R restarts the fight,
 F1 opens the stats overlay (inside it: R training ring, G telegraph flash (F is the Skills key), T timing readout,
 L motion sounds, H hit markers, C wind-up crouch, V cinematic camera), F2 starts lag calibration (only while the action menu is open, never during an
@@ -964,7 +1107,12 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
 ### 7.4 Phase 3: exploration (cards #23, #24)
 
 - **Practice list** (main menu > Practice): "Explore: ..." for every zone in `data/zones/` first,
-  then the test fights. `--zone=ID` starts in a zone.
+  then the test fights, the deep fights (variants, 2.16) last. `--zone=ID` starts in a zone.
+  Since phase 12 (user request 2026-10-14, the list ran off the screen) it is a scrolling grid of
+  picture cards, three to a row: a zone card shows the zone's backdrop, a fight card each of its
+  monsters' idle frame (up to three), with its name and "Fight", "Explore: N roaming" or "Deep
+  fight" under it. Arrows move, confirm starts, the mouse wheel scrolls, a click picks a card and
+  a click on the picked card starts it.
 - **The zone** (`ZoneData`, `ZoneController`): an HD-2D diorama seen from a high, narrow follow
   camera with strong depth of field (`explore_visuals.tres`). The leader (`ZoneData.leader`, Brin)
   walks with WASD / arrows / left stick (`move_*` actions), bobbing between the idle and ready
@@ -1029,7 +1177,9 @@ UI (card #37):
   crumbling and flickering like static, `text_static.gdshader`, gentler than the logo) and the
   others are a little dimmer. Every row is as tall as a chosen one, so nothing moves. Numbers in
   `data/presentation/ui_fonts.tres` (group "Menu choices"). The fight's action menu keeps its own
-  gold bar (`ListMenu.row_style`).
+  gold bar (`ListMenu.row_style`). Menu text and titles have no static any more
+  (`select_static_percent` 0, user request 2026-10-14: some words were hard to read): plain worn
+  gold letters. The logo keeps its full static (`letters_static.gdshader`, BrandingData).
 - Titles and big words (user request, phase 8) use the same look (`HudStyle.make_worn_title`):
   screen titles and the line under them, place names on loading cards and in zones, PAUSED, the
   yes/no question, credits headings, the zone and fight banners (FIRST STRIKE!, ZONE CLEAR, TEAM
@@ -1664,7 +1814,12 @@ user picked keeping them random but twice as common (Key find weight 4 to 8).
     (cards #58 to #71).
 11. **Backpack and items** (done, 2026-10-14, 8.1): grid backpack, consumables, charms, rarity, chests and
     keys, items in fights (cards #55, #57, #72, #73, #75 to #79, #91, #103).
-12. **Monsters**: new monster types and variants, for example a fly and a hyena (card #125).
+12. **Monsters** (built, waiting for playtest, 2026-10-14): three steps. Step 1 (built): new
+    attack types (ranged throws 3.9, rock waves and a clearer wave 3.10, each hero in turn 3.11)
+    given to the first monsters (2.14). Step 2 (built): new monsters, a Carrion Fly, a Rot Hyena
+    (Pack Bite) and a Mire Toad (2.15). Step 3 (built): monster variants met deeper in a run
+    (2.16) and the new sounds (5.3) (cards #114, #125, #143 to
+    #145).
 13. **Leveling and skills**: E33-style attributes and skill trees, critical hits, class reworks
     (Alder shield-only, Brin twin daggers, Cass healer), enemies that grow stronger deeper into a
     run (cards #56, #80, #81, #105, #134 to #139).
@@ -1802,3 +1957,8 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-14 | Gear never goes in the backpack; new gear goes straight onto a hero | user: a run gives about 5 or 6 gear for 9 slots, so spare gear would almost never happen |
 | 2026-10-14 | Shop potions go into the backpack; roaming monsters sometimes drop small things | user picks |
 | 2026-10-14 | Co-op: anyone moves backpack items at any time; online the host keeps the real backpack | user pick |
+| 2026-10-14 | Phase 12 adds ranged attacks, rock waves, each-hero-in-turn attacks and monster variants on top of new monsters | user request ("we need monster variants, new attacks, ranged attacks, ground attacks that create rock waves") |
+| 2026-10-14 | Projectiles, ground looks and the throw are presentation only; a ranged hit is a normal hit to the engine | keeps the engine and online sync unchanged |
+| 2026-10-14 | Variants are recoloured kin (same clips) met from map row 4 of a run, each with one move of its own | user asked for variants; recolouring keeps every animation for free |
+| 2026-10-14 | New sounds (3 voices, spit, throw, shadow bolt, splat, rock rumble) built from CC0 recordings, picked by the user on the listening page | user picks |
+| 2026-10-14 | No static on menu text and titles, just the gold tint (the logo keeps its static) | user: some texts were not readable |

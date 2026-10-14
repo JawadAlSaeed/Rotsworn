@@ -6,6 +6,8 @@ shader_type canvas_item;
 uniform float fps = 9.0;
 uniform float motion = 0.6;
 uniform float wear = 1.0;
+// How much of the static shows: 1 = all of it, 0 = none (clean letters, the brushed gold stays).
+uniform float strength = 1.0;
 
 // Feature sizes in screen pixels.
 const float PIT_CELL = 1.4;
@@ -50,6 +52,7 @@ void fragment() {
 	float pit = pit_n * (0.4 + 0.8 * near) - (0.8 - 0.08 * wear);
 	float chip = chip_n * near - (0.52 - 0.06 * wear);
 	float keep = (1.0 - smoothstep(-0.02, 0.02, pit)) * (1.0 - smoothstep(-0.02, 0.02, chip));
+	keep = mix(1.0, keep, strength);
 	// brushed streaks across the gold
 	float streak = noise(vec2(p.x / 40.0, p.y / 1.3));
 	vec3 rgb = font_color.rgb * (0.8 + 0.4 * streak);

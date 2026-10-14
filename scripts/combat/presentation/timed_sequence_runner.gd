@@ -26,6 +26,12 @@ extends Node
 ## (EnemyAnim) and each hero's defence, whiff, flinch and stagger clips (PartyAnim), so hit-stop
 ## freezes them with the motion. Without clips every fighter shows exactly its pre-phase-10 pose.
 ## start() drops leftover short reactions (a weapon draw, a hurt) so they never hide those frames.
+##
+## Phase 12 (DESIGN.md 3.9 to 3.11): a ranged hit's projectile flies from the enemy to each of its
+## targets and arrives at impact, then bounces off a parry, flies past a dodge or bursts on a hit;
+## a rock ground hit bursts rows of rocks along a lane to each target, the last row under them at
+## impact; a wave's front lies on the floor as a glowing band; an each-in-turn attack lunges at
+## each hit's own target. All of it is a pure function of attack time, like the rest.
 
 ## Everything from sequence_resolved on, to be played by the controller.
 signal finished(tail: Array[Dictionary])
@@ -52,6 +58,12 @@ const JUMP_CLEAR_HEIGHT: float = 0.6
 const MIN_WAVE_CRESTS: int = 2
 ## The floor warning starts at this share of its strength when the slam starts.
 const WARNING_START_SHARE: float = 0.3
+## A projectile's trail copies: the first is this opaque and each one this much smaller than the
+## one before.
+const TRAIL_ALPHA: float = 0.45
+const TRAIL_SHRINK: float = 0.15
+## The last row of rocks fans out across the lane this many times rock_scatter.
+const FINAL_ROW_SPREAD: float = 4.0
 
 ## The training ring is a practice aid: the controller turns it off for run fights.
 var training_ring_allowed: bool = true
@@ -115,6 +127,19 @@ var _wave_hit: int = -1
 ## How long before each hit the training ring appears (the attack's own ring speed).
 var _ring_lead_us: int = 1
 var _wave_dist: float = -1.0
+## Per hit: the party members it strikes (from the prompts) and where its lunge connects.
+var _hit_targets: Array = []
+var _hit_contacts: Array[Vector3] = []
+## Hit index -> the ProjectileData it throws (ranged hits only).
+var _projectile_of: Dictionary = {}
+## "hit:id" -> launch point of that projectile, fixed when it first shows.
+var _projectile_starts: Dictionary = {}
+## "hit:id" -> {kind: Defense.Outcome or -1 (it hit), at_us}: what happened when it arrived.
+var _projectile_ends: Dictionary = {}
+## Rock hit index -> where its lanes start (the enemy's feet at the slam).
+var _rock_starts: Dictionary = {}
+var _projectiles_drawn: int = 0
+var _rocks_drawn: int = 0
 ## Real time start() ran (bystanders step aside from then).
 var _started_us: int = 0
 ## Attack time of the first enemy motion (target arrows hide then).
@@ -158,6 +183,20 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	# Each hit carries its close time on this machine, so the enemy holds contact until then.
 	_hits = EnemyChoreography.with_close_times(event.hits, _prompts, _latency_ms)
 	_add_hit_anims(attack)
+	_hit_targets.clear()
+	for i: int in _hits.size():
+		_hit_targets.append([] as Array[int])
+	for prompt: Dictionary in _prompts:
+		var list: Array[int] = _hit_targets[int(prompt.hit)]
+		if not list.has(int(prompt.character)):
+			list.append(int(prompt.character))
+	_projectile_starts.clear()
+	_projectile_ends.clear()
+	_rock_starts.clear()
+	_view.set_projectiles([])
+	_view.set_rocks([])
+	_projectiles_drawn = 0
+	_rocks_drawn = 0
 	_judges = JudgeSet.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
 			_tuning.late_press_report_ms)
 	# Online, other machines judge their own players' prompts.
@@ -193,6 +232,11 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_longest_frame_us = 0
 	_last_frame_us = Time.get_ticks_usec()
 	_contact = _view.contact_point(_targets)
+	# Each hero in turn: every hit lunges at its own target.
+	_hit_contacts.clear()
+	for i: int in _hits.size():
+		var own: Array[int] = _hit_targets[i]
+		_hit_contacts.append(_view.contact_point(own) if _each_in_turn() and not own.is_empty() else _contact)
 	_view.camera.shot_attack(_view.home_of(_source), _contact)
 	# The runner moves the party every frame from here on: stop any leftover tweened movement, and
 	# any leftover short reaction (a weapon draw, a hurt) that would hide a defence frame. Bigger
@@ -316,6 +360,8 @@ func _process(_delta: float) -> void:
 		_drain(t)
 		_fire_cues(t)
 	_update_enemy(t)
+	_update_projectiles(t)
+	_update_rocks(t)
 	if _active:
 		_update_party(t)
 		_update_wave(t)
@@ -325,7 +371,7 @@ func _process(_delta: float) -> void:
 		_update_target_arrows(t)
 		# Read the time again: a contact effect above may have just started a hit-stop.
 		_check_finish(Time.get_ticks_usec(), t)
-	elif _enemy_settled(t):
+	elif _enemy_settled(t) and _projectiles_drawn == 0 and _rocks_drawn == 0:
 		_animating = false
 
 
@@ -480,6 +526,9 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 	var shown: Array[int] = []
 	var enemy_view := _view.fighter(_source)
 	for id: int in characters:
+		var key := _projectile_key(hit_index, id)
+		if _projectile_of.has(hit_index) and not _projectile_ends.has(key):
+			_projectile_ends[key] = {"kind": action, "at_us": attack_time_us()}
 		if not _mirror.is_alive(id):
 			continue
 		shown.append(id)
@@ -538,7 +587,11 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 		_parry_streak = 0
 		# A Guarded hero takes less damage: a dull block instead of the full hit sound.
 		var guarded := _mirror.has_status(id, "guarded")
-		Sfx.play("guard_block" if guarded else String((_hits[hit_index] as Dictionary).get("impact_sfx", "hurt")))
+		var impact := String((_hits[hit_index] as Dictionary).get("impact_sfx", "hurt"))
+		var thrown: ProjectileData = _projectile_of.get(hit_index)
+		if thrown != null and not thrown.hit_sfx.is_empty():
+			impact = thrown.hit_sfx
+		Sfx.play("guard_block" if guarded else impact)
 		# Only the last hit freezes: in a string the next lunge has often started by now.
 		if hit_index == _hits.size() - 1 and _tuning.hitstop_hurt_ms > 0:
 			_clock.pause_for(now, _tuning.hitstop_hurt_ms * 1000)
@@ -547,6 +600,12 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 		_view.camera.shake(_visuals.shake_hurt, _visuals.shake_hurt_ms)
 	var view := _view.fighter(id)
 	view.flash(_visuals.flash_ms, HudStyle.DAMAGE_TAKEN, _visuals.hurt_flash_strength)
+	# A projectile bursts on the hero it hit.
+	var key := _projectile_key(hit_index, id)
+	if _projectile_of.has(hit_index) and not _projectile_ends.has(key):
+		_projectile_ends[key] = {"kind": -1, "at_us": t}
+		var projectile: ProjectileData = _projectile_of[hit_index]
+		_view.spawn_sparks(_standing_centre(id), _visuals.projectile_burst_sparks, 1.0, projectile.color)
 	# A heavy hit (at least big_hit_percent of max HP, like the big damage number) staggers the
 	# hero: a longer pose and a bigger knockback (card #62). Presentation only.
 	var max_hp := maxi(1, int(_mirror.fighter(id).get("max_hp", 1)))
@@ -634,8 +693,17 @@ func _fire_cues(t: int) -> void:
 			EnemyChoreography.CUE_SLAM:
 				if _options.motion_sounds:
 					Sfx.play("slam")
-				_wave_hit = int(cue.hit)
-				_wave_dist = -1.0
+				if _ground_look(int(cue.hit)) == AttackHitData.GroundLook.ROCKS:
+					_rock_starts[int(cue.hit)] = enemy.body_position() if enemy != null else _contact
+					if _options.motion_sounds:
+						Sfx.play("rock_rumble")
+				else:
+					_wave_hit = int(cue.hit)
+					_wave_dist = -1.0
+			EnemyChoreography.CUE_SHOOT:
+				var projectile: ProjectileData = _projectile_of.get(int(cue.hit))
+				if _options.motion_sounds and projectile != null and not projectile.launch_sfx.is_empty():
+					Sfx.play(projectile.launch_sfx)
 			_:
 				if _options.motion_sounds:
 					Sfx.play("lunge")
@@ -665,9 +733,7 @@ func _update_enemy(t: int) -> void:
 	if _options.windup_crouch and int(s.pose) == EnemyChoreography.Pose.WINDUP:
 		crouch = float(s.glow) * float(_visuals.windup_squash_percent) / 100.0
 	enemy.set_squash(crouch)
-	var travel := _contact - enemy.position
-	travel.y = 0.0
-	enemy.body_offset = travel * float(s.approach)
+	enemy.body_offset = _enemy_travel(s, enemy.position) * float(s.approach)
 
 
 func _enemy_settled(t: int) -> bool:
@@ -799,7 +865,10 @@ func _update_wave(t: int) -> void:
 		p.y = 0.0
 		points.append(p)
 	var alpha := 1.0 if u <= close_u else 1.0 - (u - close_u) / maxf(0.001, gone_u - close_u)
-	_view.set_wave(points, clampf(minf(alpha, u * 4.0 + 0.2), 0.0, 1.0))
+	alpha = clampf(minf(alpha, u * 4.0 + 0.2), 0.0, 1.0)
+	_view.set_wave(points, alpha)
+	_view.set_wave_band(points[0], points[points.size() - 1], alpha * _visuals.wave_band_strength,
+			_visuals.ground_hit_color)
 
 
 func _update_rings(t: int) -> void:
@@ -841,6 +910,7 @@ func _update_reading(t: int) -> void:
 	var markers: Array[Dictionary] = []
 	var warning := 0.0
 	var active := HitRhythm.active_hit(states)
+	var warned: Array[int] = _hit_targets[active] if active >= 0 else ([] as Array[int])
 	# The floor warning under a ground hit always shows (the enemy's own tell); the hit markers
 	# only with their toggle (off by default since phase 6).
 	if active >= 0:
@@ -854,7 +924,7 @@ func _update_reading(t: int) -> void:
 			var progress := clampf((t_ms - start) / maxf(1.0, float(hit.at_ms) - start), 0.0, 1.0)
 			warning = _visuals.floor_warning_strength * lerpf(WARNING_START_SHARE, 1.0, progress)
 		var enemy := _view.fighter(_source)
-		for id: int in ([] as Array[int]) if hidden or not _options.hit_markers else _living_targets():
+		for id: int in ([] as Array[int]) if hidden or not _options.hit_markers else _living_of(warned):
 			var view := _view.fighter(id)
 			# The standing middle of the body: a jump does not carry the marker up.
 			var centre := _view.screen_position(view.centre_position() - Vector3(0.0, view.body_offset.y, 0.0))
@@ -869,10 +939,21 @@ func _update_reading(t: int) -> void:
 				"label": "JUMP" if ground else "",
 			})
 	_hud.set_hit_markers(markers)
+	# The moment a ground hit arrives, the warning under its targets flashes bright (card #114).
+	var flash := 0.0
+	var flashed: Array[int] = []
+	for i: int in _hits.size():
+		var hit: Dictionary = _hits[i]
+		var since := t_ms - float(hit.at_ms)
+		if int(hit.kind) == AttackHitData.Kind.GROUND and since >= 0.0 and since < float(_visuals.floor_flash_ms):
+			flash = 1.0 - since / maxf(1.0, float(_visuals.floor_flash_ms))
+			flashed = _hit_targets[i]
 	for id: int in _mirror.party_ids:
 		var view := _view.fighter(id)
 		if view != null:
-			var shown := warning if _targets.has(id) and _mirror.is_alive(id) else 0.0
+			var shown := 0.0
+			if _mirror.is_alive(id):
+				shown = maxf(warning if warned.has(id) else 0.0, flash if flashed.has(id) else 0.0)
 			view.set_floor_warning(shown, _visuals.ground_hit_color)
 
 
@@ -918,6 +999,7 @@ func _hand_back() -> void:
 	_hud.set_target_arrows([])
 	_view.hide_wave()
 	_wave_hit = -1
+	# Projectiles and rocks still flying or sinking keep playing (_process draws them until done).
 	var return_s := float(_tuning.action_return_ms) / 1000.0
 	for id: int in _mirror.party_ids:
 		var view := _view.fighter(id)
@@ -937,15 +1019,17 @@ func _hand_back() -> void:
 
 # --- helpers ----------------------------------------------------------------------------------
 
-## Copies each hit's animation prefix (AttackHitData.anim) into this machine's hit list. It is
-## presentation only: never part of the engine's events.
+## Copies each hit's animation prefix (AttackHitData.anim), projectile and ground look into this
+## machine's hit list. They are presentation only: never part of the engine's events.
 func _add_hit_anims(attack: EnemyAttackData) -> void:
+	_projectile_of.clear()
 	if attack == null:
 		return
-	for hit: Dictionary in _hits:
-		var index := int(hit.get("index", -1))
-		if index >= 0 and index < attack.hits.size() and attack.hits[index] != null:
-			hit["anim"] = attack.hits[index].anim
+	EnemyChoreography.add_hit_data(_hits, attack)
+	for i: int in _hits.size():
+		var index := int((_hits[i] as Dictionary).get("index", -1))
+		if EnemyChoreography.is_ranged(_hits[i]) and index >= 0 and index < attack.hits.size():
+			_projectile_of[i] = attack.hits[index].projectile
 
 
 ## The attacker's idle loop on attack time: the view's real-time loop (same cycle and phase)
@@ -1098,7 +1182,201 @@ func _last_impact_us() -> int:
 
 func _banner_text() -> String:
 	var enemy_name := String(_mirror.fighter(_source).get("display_name", "?"))
-	var target_text := "WHOLE PARTY"
-	if int(_event.get("mode", 0)) != EnemyAttackData.TargetMode.PARTY and _targets.size() == 1:
-		target_text = String(_mirror.fighter(_targets[0]).get("display_name", "?")).to_upper()
+	var target_text := CombatHud.target_text(_mirror, int(_event.get("mode", 0)), _targets)
 	return "%s: %s -> %s" % [enemy_name.to_upper(), String(_event.get("name", "?")), target_text]
+
+
+func _each_in_turn() -> bool:
+	return int(_event.get("mode", 0)) == EnemyAttackData.TargetMode.EACH
+
+
+func _ground_look(hit_index: int) -> int:
+	if hit_index < 0 or hit_index >= _hits.size():
+		return AttackHitData.GroundLook.WAVE
+	return int((_hits[hit_index] as Dictionary).get("ground_look", AttackHitData.GroundLook.WAVE))
+
+
+## The enemy's flat offset from home to where sample `s` is headed. Each hero in turn: a lunge
+## swings over from the previous hit's target to its own, so the enemy never jumps sideways.
+func _enemy_travel(s: Dictionary, home: Vector3) -> Vector3:
+	var hit_index := clampi(int(s.get("hit", 0)), 0, maxi(0, _hit_contacts.size() - 1))
+	var to := (_hit_contacts[hit_index] if not _hit_contacts.is_empty() else _contact) - home
+	if _each_in_turn() and hit_index > 0:
+		var share := -1.0
+		match int(s.get("beat", -1)):
+			EnemyChoreography.Beat.WINDUP, EnemyChoreography.Beat.FEINT_HOLD:
+				share = 0.0
+			EnemyChoreography.Beat.FEINT_START, EnemyChoreography.Beat.LUNGE:
+				share = float(s.get("beat_u", 0.0))
+		if share >= 0.0:
+			to = (_hit_contacts[hit_index - 1] - home).lerp(to, share * share * (3.0 - 2.0 * share))
+	to.y = 0.0
+	return to
+
+
+func _projectile_key(hit_index: int, id: int) -> String:
+	return "%d:%d" % [hit_index, id]
+
+
+## The middle of a hero's body where they stand (a dodge or a jump does not move it).
+func _standing_centre(id: int) -> Vector3:
+	var view := _view.fighter(id)
+	if view == null:
+		return _contact
+	return view.centre_position() - view.body_offset
+
+
+## Every projectile on screen at attack time `t`: in flight from launch to impact (with its trail),
+## held on the hero until the hit is decided, then bounced back off a parry or flying on past a
+## dodge, fading. A hit bursts (sparks in _land_hit) and is gone.
+func _update_projectiles(t: int) -> void:
+	if _projectile_of.is_empty():
+		return
+	var list: Array[Dictionary] = []
+	var t_ms := float(t) / 1000.0
+	var enemy := _view.fighter(_source)
+	for hit_index: int in _projectile_of:
+		var data: ProjectileData = _projectile_of[hit_index]
+		var launch := EnemyChoreography.motion_start(_hits, hit_index, _visuals)
+		if t_ms < launch:
+			continue
+		var impact := float((_hits[hit_index] as Dictionary).at_ms)
+		var flight := maxf(1.0, impact - launch)
+		var frame := int(floor((t_ms - launch) / maxf(1.0, float(data.loop_ms)) * float(data.hframes)))
+		for id: int in (_hit_targets[hit_index] as Array[int]):
+			var key := _projectile_key(hit_index, id)
+			if not _projectile_starts.has(key):
+				_projectile_starts[key] = _launch_point(enemy, data, id)
+			var from: Vector3 = _projectile_starts[key]
+			var to := _standing_centre(id)
+			var u := (t_ms - launch) / flight
+			if u <= 1.0:
+				for k: int in range(data.trail_count, 0, -1):
+					var tu := u - float(k * data.trail_gap_ms) / flight
+					if tu > 0.0:
+						list.append(_projectile_entry(data, frame, _arc(from, to, tu, data.arc_height),
+								TRAIL_ALPHA / float(k), 1.0 - TRAIL_SHRINK * float(k)))
+				list.append(_projectile_entry(data, frame, _arc(from, to, u, data.arc_height), 1.0, 1.0))
+				continue
+			var ending: Dictionary = _projectile_ends.get(key, {})
+			if ending.is_empty():
+				# Arrived, not decided yet (the late window is still open): it waits on the hero. A
+				# hero already down (their prompt was voided) or a result that never came: it is gone.
+				var close := float((_hits[hit_index] as Dictionary).get("close_ms", 0.0))
+				if _mirror.is_alive(id) and t_ms <= impact + close + float(_visuals.projectile_pass_ms):
+					list.append(_projectile_entry(data, frame, to, 1.0, 1.0))
+				continue
+			var kind := int(ending.kind)
+			if kind < 0:
+				continue
+			var since := float(t - int(ending.at_us)) / 1000.0
+			var back := from - to
+			back.y = 0.0
+			back = back.normalized() if back.length() > 0.0 else Vector3.RIGHT
+			if kind == Defense.Outcome.PARRY:
+				var v := since / maxf(1.0, float(_visuals.projectile_deflect_ms))
+				if v < 1.0:
+					var pos := to + back * _visuals.projectile_deflect_distance * v \
+							+ Vector3.UP * _visuals.projectile_deflect_rise * sin(v * PI * 0.5)
+					list.append(_projectile_entry(data, frame, pos, 1.0 - v, 1.0))
+			else:
+				var v := since / maxf(1.0, float(_visuals.projectile_pass_ms))
+				if v < 1.0:
+					list.append(_projectile_entry(data, frame, to - back * _visuals.projectile_pass_distance * v,
+							1.0 - v, 1.0))
+	_view.set_projectiles(list)
+	_projectiles_drawn = list.size()
+
+
+func _projectile_entry(data: ProjectileData, frame: int, pos: Vector3, alpha: float, size: float) -> Dictionary:
+	return {"path": data.texture_path, "hframes": data.hframes, "frame": posmod(frame, maxi(1, data.hframes)),
+			"pixel_size": data.pixel_size, "pos": pos, "alpha": alpha, "scale": size}
+
+
+## Where a projectile leaves the enemy: its centre, moved toward the target and up.
+func _launch_point(enemy: FighterView, data: ProjectileData, target: int) -> Vector3:
+	if enemy == null:
+		return _contact
+	var centre := enemy.centre_position()
+	var toward := _standing_centre(target) - centre
+	toward.y = 0.0
+	toward = toward.normalized() if toward.length() > 0.0 else Vector3.LEFT
+	return centre + toward * data.launch_offset.x + Vector3.UP * data.launch_offset.y
+
+
+## A point on a projectile's path at progress `u`: a straight line plus a lift that peaks halfway.
+static func _arc(from: Vector3, to: Vector3, u: float, height: float) -> Vector3:
+	return from.lerp(to, u) + Vector3.UP * height * 4.0 * u * (1.0 - u)
+
+
+## Rock ground hits at attack time `t`: along a lane from the slam to each target, rows of rocks
+## burst out one after another (the front moves at the hit's travel speed) and the last row bursts
+## under the target exactly at impact; each rock rises, stands and sinks (DESIGN.md 3.10).
+func _update_rocks(t: int) -> void:
+	if _rock_starts.is_empty():
+		return
+	var t_ms := float(t) / 1000.0
+	var list: Array[Dictionary] = []
+	var spacing := maxf(0.05, _visuals.rock_row_spacing)
+	for hit_index: int in _rock_starts:
+		var hit: Dictionary = _hits[hit_index]
+		var launch := EnemyChoreography.motion_start(_hits, hit_index, _visuals)
+		var impact := float(hit.at_ms)
+		var travel := maxf(1.0, impact - launch)
+		var final_end := impact + float(hit.get("close_ms", 0.0))
+		var start: Vector3 = _rock_starts[hit_index]
+		start.y = 0.0
+		for id: int in (_hit_targets[hit_index] as Array[int]):
+			var feet := _view.home_of(id)
+			feet.y = 0.0
+			var lane := feet - start
+			var length := lane.length()
+			if length <= 0.001:
+				continue
+			var dir := lane / length
+			var side := Vector3(dir.z, 0.0, -dir.x)
+			var rows := int(floor(length / spacing))
+			for row: int in range(rows, -1, -1):
+				# Row 0 stands at the target; row n is n spacings back toward the enemy.
+				var dist := length - float(row) * spacing
+				if dist < spacing * 0.5:
+					continue
+				var erupt := launch + travel * dist / length
+				var stand_until := final_end if row == 0 else erupt + float(_visuals.rock_rise_ms + _visuals.rock_hold_ms)
+				var height := _rock_height(t_ms, erupt, stand_until)
+				if height <= 0.0:
+					continue
+				var count := _visuals.rock_final_count if row == 0 else 1
+				var size := _visuals.rock_final_scale if row == 0 else 1.0
+				for k: int in count:
+					var scatter := _visuals.rock_scatter * (1.0 if row % 2 == 0 else -1.0)
+					if count > 1:
+						# The last row fans out in front of the hero, across the lane.
+						scatter = _visuals.rock_scatter * FINAL_ROW_SPREAD * (float(k) / float(count - 1) - 0.5)
+					var pos := start + dir * (dist - (_visuals.rock_scatter if row == 0 else 0.0)) + side * scatter
+					list.append({"pos": pos, "height": height, "frame": row * 3 + k + id, "scale": size})
+	_view.set_rocks(list)
+	_rocks_drawn = list.size()
+
+
+## A rock's height share at attack ms `t`: rises from `erupt`, stands until `stand_until`, sinks.
+func _rock_height(t: float, erupt: float, stand_until: float) -> float:
+	if t < erupt:
+		return 0.0
+	var rise := maxf(1.0, float(_visuals.rock_rise_ms))
+	if t < erupt + rise:
+		var u := (t - erupt) / rise
+		return 1.0 - (1.0 - u) * (1.0 - u)
+	var hold_end := maxf(stand_until, erupt + rise)
+	if t < hold_end:
+		return 1.0
+	var sink := maxf(1.0, float(_visuals.rock_sink_ms))
+	return clampf(1.0 - (t - hold_end) / sink, 0.0, 1.0)
+
+
+func _living_of(ids: Array[int]) -> Array[int]:
+	var list: Array[int] = []
+	for id: int in ids:
+		if _mirror.is_alive(id):
+			list.append(id)
+	return list

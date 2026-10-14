@@ -125,6 +125,8 @@ extends Resource
 @export_range(0, 2000, 1, "suffix:ms") var return_ms: int = 260
 ## The slam pose is held this long when a ground wave is launched.
 @export_range(0, 2000, 1, "suffix:ms") var slam_hold_ms: int = 260
+## The throw pose is held this long when a ranged hit leaves (DESIGN.md 3.9).
+@export_range(0, 2000, 1, "suffix:ms") var shoot_hold_ms: int = 220
 ## Length of the telegraph flash when a lunge starts.
 @export_range(0, 1000, 1, "suffix:ms") var telegraph_flash_ms: int = 90
 ## Strength of the telegraph flash (0 to 1).
@@ -140,6 +142,12 @@ extends Resource
 @export_range(0.1, 10.0, 0.05) var wave_min_travel: float = 2.0
 ## How far the wave front extends past the outer party members (world units).
 @export_range(0.0, 5.0, 0.05) var wave_line_margin: float = 0.8
+## A glowing band lies on the floor along the wave front, so you see exactly where the front is
+## and when it reaches each hero (card #114): its depth (world units) and strength (0 to 1).
+@export_range(0.05, 3.0, 0.05) var wave_band_depth: float = 0.45
+@export_range(0.0, 1.0, 0.05) var wave_band_strength: float = 0.75
+## When a ground hit arrives, the floor warning under each target flashes bright for this long.
+@export_range(0, 1000, 1, "suffix:ms") var floor_flash_ms: int = 160
 ## Glow colour of the enemy wind-up.
 @export var windup_glow_color: Color = Color(1.0, 0.45, 0.2)
 ## How strongly the wind-up glow is added on top of the sprite (0 to 1).
@@ -147,6 +155,34 @@ extends Resource
 ## While winding up, the enemy crouches: it gets this much shorter (and wider) at full glow, then
 ## springs back as the lunge or slam starts. Toggle in a fight with F1 > C.
 @export_range(0, 50, 1, "suffix:%") var windup_squash_percent: int = 12
+
+@export_group("Projectiles and rocks")
+## A parried projectile flies back up toward the enemy and fades over this long, this far.
+@export_range(10, 2000, 1, "suffix:ms") var projectile_deflect_ms: int = 280
+@export_range(0.0, 10.0, 0.05) var projectile_deflect_distance: float = 2.4
+@export_range(0.0, 5.0, 0.05) var projectile_deflect_rise: float = 1.6
+## A dodged projectile flies on past the hero and fades over this long, this far.
+@export_range(10, 2000, 1, "suffix:ms") var projectile_pass_ms: int = 220
+@export_range(0.0, 10.0, 0.05) var projectile_pass_distance: float = 2.2
+## Sparks in the projectile's colour when it hits.
+@export_range(0, 40) var projectile_burst_sparks: int = 7
+## Rock ground hits (AttackHitData.GroundLook.ROCKS): sheet of rock spikes (one row of
+## rock_hframes shapes, feet on the bottom row), drawn at fx_pixel_size times rock_scale.
+@export_file_path("*.png") var rock_path: String = "res://assets/sprites/fx/rock_spike.png"
+@export_range(1, 16) var rock_hframes: int = 4
+@export_range(0.1, 4.0, 0.05) var rock_scale: float = 1.0
+## Rows of rocks along each lane, this far apart (world units); the last row bursts under the
+## target exactly at impact, rock_final_count rocks rock_final_scale times bigger.
+@export_range(0.1, 5.0, 0.05) var rock_row_spacing: float = 0.75
+@export_range(1, 6) var rock_final_count: int = 3
+@export_range(0.5, 4.0, 0.05) var rock_final_scale: float = 1.5
+## Sideways scatter of the rocks in a lane (world units).
+@export_range(0.0, 2.0, 0.05) var rock_scatter: float = 0.18
+## Each rock rises over rock_rise_ms, stands rock_hold_ms, then sinks over rock_sink_ms (attack
+## time). The last row stands until the hit can no longer be jumped.
+@export_range(10, 1000, 1, "suffix:ms") var rock_rise_ms: int = 80
+@export_range(0, 2000, 1, "suffix:ms") var rock_hold_ms: int = 220
+@export_range(10, 2000, 1, "suffix:ms") var rock_sink_ms: int = 220
 
 @export_group("Reading attacks")
 ## Colour of a ground hit (jump it) everywhere: wind-up glow and flash before a slam, the hit

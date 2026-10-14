@@ -16,6 +16,11 @@ extends RefCounted
 ## can be laid over the same spans without changing them: `beat`, `beat_ms` (attack ms since the
 ## beat began), `beat_len_ms` (its whole length; -1 for an open beat) and `beat_u` (progress 0..1;
 ## for a lunge and a feint's false start the lunge progress, so both show the same frames).
+##
+## Phase 12 (DESIGN.md 3.9): a ranged hit (its dictionary has `ranged` true, set by the runner from
+## AttackHitData.projectile) never lunges. The enemy winds up, throws at the launch moment
+## (impact - approach_ms, beat SHOOT, pose CONTACT) and waits where it is while the projectile
+## flies (beat FLIGHT); the projectile arrives at impact.
 
 ## Frames of an enemy sheet (DESIGN.md 5.3).
 enum Pose {
@@ -51,11 +56,16 @@ enum Beat {
 	RETURN,
 	## Home again after the attack (pose IDLE).
 	AFTER,
+	## A ranged hit's throw (pose CONTACT).
+	SHOOT,
+	## After the last ranged hit's throw, until it arrives (pose IDLE).
+	FLIGHT,
 }
 
 const CUE_LUNGE := "lunge"
 const CUE_FEINT := "feint"
 const CUE_SLAM := "slam"
+const CUE_SHOOT := "shoot"
 
 
 ## {pose: Pose, approach: float, glow: float (0..1 wind-up glow), hit: int, beat: Beat,
@@ -96,6 +106,25 @@ static func sample(hits: Array, t_ms: float, v: CombatVisuals) -> Dictionary:
 					return _beat(walked, Beat.RETURN, t_ms, back_from, home_at)
 				return _open(walked, Beat.AFTER, t_ms - home_at)
 			hold_from = slam_end
+			continue
+
+		if is_ranged(hit):
+			var shoot_end := start + float(v.shoot_hold_ms)
+			if not is_last:
+				shoot_end = minf(shoot_end, motion_start(hits, i + 1, v))
+			if t_ms < shoot_end:
+				return _beat(_pose(Pose.CONTACT, rest, 1.0 - _ramp(t_ms, start, shoot_end), i), Beat.SHOOT, t_ms,
+						start, shoot_end)
+			if is_last:
+				var landed_at := maxf(shoot_end, impact)
+				if t_ms < landed_at:
+					return _beat(_pose(Pose.IDLE, rest, 0.0, i), Beat.FLIGHT, t_ms, shoot_end, landed_at)
+				var home_at := landed_at + (float(v.return_ms) if rest > 0.0 else 0.0)
+				var walked := _pose(Pose.IDLE, lerpf(rest, 0.0, _smooth(_ramp(t_ms, landed_at, home_at))), 0.0, i)
+				if t_ms < home_at:
+					return _beat(walked, Beat.RETURN, t_ms, landed_at, home_at)
+				return _open(walked, Beat.AFTER, t_ms - home_at)
+			hold_from = shoot_end
 			continue
 
 		var from := rest
@@ -146,7 +175,8 @@ static func sample(hits: Array, t_ms: float, v: CombatVisuals) -> Dictionary:
 
 
 ## Moments where something starts, in attack time: [{at_ms, type, hit}], type is CUE_LUNGE,
-## CUE_FEINT or CUE_SLAM. Used for the telegraph flash, the lunge and slam sounds and the wave.
+## CUE_FEINT, CUE_SLAM or CUE_SHOOT. Used for the telegraph flash, the lunge, slam and throw
+## sounds and the wave.
 static func cues(hits: Array, v: CombatVisuals) -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
 	for i: int in hits.size():
@@ -157,6 +187,9 @@ static func cues(hits: Array, v: CombatVisuals) -> Array[Dictionary]:
 		lunge_start = maxf(lunge_start, 0.0)
 		if int(hit.kind) == AttackHitData.Kind.GROUND:
 			list.append({"at_ms": lunge_start, "type": CUE_SLAM, "hit": i})
+			continue
+		if is_ranged(hit):
+			list.append({"at_ms": lunge_start, "type": CUE_SHOOT, "hit": i})
 			continue
 		if bool(hit.feint):
 			list.append({"at_ms": motion_start(hits, i, v), "type": CUE_FEINT, "hit": i})
@@ -182,15 +215,35 @@ static func with_close_times(hits: Array, prompts: Array, latency_ms: int) -> Ar
 	return list
 
 
-## When the visible motion for hit `i` starts (feint false start, lunge or slam), in attack ms.
+## Copies each hit's presentation-only data from the attack's file into `hits` (engine-declared
+## hit dictionaries, matched by their `index`): the animation prefix (`anim`), whether it throws a
+## projectile (`ranged`) and its ground look (`ground_look`). The engine never sends these.
+static func add_hit_data(hits: Array, attack: EnemyAttackData) -> void:
+	if attack == null:
+		return
+	for hit: Dictionary in hits:
+		var index := int(hit.get("index", -1))
+		if index >= 0 and index < attack.hits.size() and attack.hits[index] != null:
+			var data: AttackHitData = attack.hits[index]
+			hit["anim"] = data.anim
+			hit["ranged"] = data.projectile != null
+			hit["ground_look"] = data.ground_look
+
+
+## When the visible motion for hit `i` starts (feint false start, lunge, slam or throw), in attack ms.
 static func motion_start(hits: Array, i: int, v: CombatVisuals) -> float:
 	var hit: Dictionary = hits[i]
 	var start := float(hit.at_ms) - float(hit.approach_ms)
-	if int(hit.kind) == AttackHitData.Kind.NORMAL and bool(hit.feint):
+	if int(hit.kind) == AttackHitData.Kind.NORMAL and bool(hit.feint) and not is_ranged(hit):
 		start -= float(v.feint_lead_ms)
 	if i > 0:
 		start = maxf(start, float((hits[i - 1] as Dictionary).at_ms))
 	return maxf(start, 0.0)
+
+
+## True for a normal hit that throws a projectile instead of lunging.
+static func is_ranged(hit: Dictionary) -> bool:
+	return bool(hit.get("ranged", false)) and int(hit.kind) == AttackHitData.Kind.NORMAL
 
 
 static func _ramp(t: float, from: float, to: float) -> float:

@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/shade.tres" id="3_clips"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_delayed_rake.tres" id="4_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_cross_step.tres" id="5_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_stutter.tres" id="6_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_nightfall.tres" id="7_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_bolts.tres" id="8_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_grave_spikes.tres" id="9_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/hollow_bolt_storm.tres" id="10_atk"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "hollow_shade"
+voice_sfx = "voice_shade"
+display_name = "Hollow Shade"
+color = Color(0.5, 0.7, 0.85, 1)
+sprite_path = "res://assets/sprites/enemies/hollow_shade.png"
+portrait_path = "res://assets/sprites/portraits/hollow_shade.png"
+sprite_clips = ExtResource("3_clips")
+death_color = Color(0.55, 0.85, 1, 1)
+idle_cycle_percent = 120
+sprite_pixel_size = 0.045
+hp_percent = 115
+power_percent = 115
+speed = 140
+attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk"), ExtResource("9_atk"), ExtResource("10_atk")])
+gold = 30
+xp = 60

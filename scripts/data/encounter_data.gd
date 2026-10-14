@@ -14,3 +14,6 @@ extends Resource
 @export var boss: bool = false
 ## The party may try to run from this fight (DESIGN.md 2.13). Bosses never allow it.
 @export var can_run: bool = true
+## Deeper in a run (map row tuning run_deep_row on) a zone holds this fight instead: the same kind
+## of fight with variant monsters (DESIGN.md 2.16). Empty: always this fight.
+@export var deep: EncounterData

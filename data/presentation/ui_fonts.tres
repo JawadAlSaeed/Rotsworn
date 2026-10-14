@@ -14,3 +14,4 @@ idle_color = Color(0.78, 0.76, 0.7, 1)
 select_static_fps = 9.0
 select_static_motion = 0.15
 select_wear = 0.8
+select_static_percent = 0

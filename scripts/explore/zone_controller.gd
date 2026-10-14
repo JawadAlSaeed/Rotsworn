@@ -78,6 +78,8 @@ var _slash_texture: Texture2D
 var _fights: int = 0
 var _first_strikes: int = 0
 var _run_mode: bool = false
+## Deep in a run: roaming enemies hold their encounters' deep versions (variants, DESIGN.md 2.16).
+var _deep: bool = false
 var _cleared: bool = false
 var _players: PlayerRoster = PlayerRoster.solo(3)
 ## Online, not the host: positions come from the host.
@@ -94,12 +96,13 @@ var _paused: bool = false
 
 
 func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: ExploreVisuals,
-		run_mode: bool = false) -> void:
+		run_mode: bool = false, deep: bool = false) -> void:
 	_zone = zone
 	_tuning = tuning
 	_visuals = visuals
 	_explore = explore
 	_run_mode = run_mode
+	_deep = deep
 
 
 ## The players (default: solo). In co-op only player 1's device walks and strikes.
@@ -159,7 +162,7 @@ func fight_index() -> int:
 
 
 func encounter_of(index: int) -> EncounterData:
-	return (_roamers[index].data as ZoneEnemyData).encounter
+	return _roamers[index].encounter as EncounterData
 
 
 func look() -> StageLook:
@@ -428,7 +431,10 @@ func _build() -> void:
 		if data == null or data.encounter == null or data.encounter.enemies.is_empty():
 			push_warning("ZoneController: roaming enemy %d of %s has no encounter" % [i, _zone.id])
 			continue
-		var enemy := data.encounter.enemies[0]
+		var encounter := data.encounter
+		if _deep and encounter.deep != null and not encounter.deep.enemies.is_empty():
+			encounter = encounter.deep
+		var enemy := encounter.enemies[0]
 		var view := FighterView.new()
 		view.name = "Roamer%d" % i
 		_world.add_child(view)
@@ -437,8 +443,8 @@ func _build() -> void:
 				enemy.idle_cycle_percent)
 		var home := Vector2(data.position.x, data.position.z)
 		var brain := RoamerBrain.new(home, data.wander_radius, hash(_zone.id) + i)
-		_roamers.append({"data": data, "view": view, "brain": brain, "pos": home, "defeated": false,
-				"phase": float(i) * 0.37})
+		_roamers.append({"data": data, "encounter": encounter, "view": view, "brain": brain, "pos": home,
+				"defeated": false, "phase": float(i) * 0.37})
 
 	if _run_mode:
 		for pos: Vector3 in _zone.item_spots:

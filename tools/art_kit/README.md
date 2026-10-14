@@ -57,8 +57,11 @@ frames) stays near 1 to 2 minutes, so there is no render cache.
 - `kit/clips.py` animation clips: `cell_camera()` (the legacy camera padded to a bigger cell),
   `render_clips()`, `pack()` (grid sheet + clip map), `write_tres()` / `read_tres()` (the
   `SpriteClips` resource) and `previews()` (a GIF per clip and a labelled contact sheet).
+- `kit/beast.py` helpers for the phase 12 monsters (fly, hyena, toad): safe cones, a decal
+  painter, finishing passes, the floor-line nudge, parallel clip rendering, `build_enemy()`.
 - `kit/specs.py` the sprite contract (sizes, frame order, sheet grid, Tier 1 clip names).
-- `assets/<module>.py` one module per asset group, each with `build(ctx)`.
+- `assets/<module>.py` one module per asset group, each with `build(ctx)`. `fx_attacks` draws
+  the enemy attack effects of phase 12 (rock spikes, projectiles).
 
 ## Style rules (the art bible)
 

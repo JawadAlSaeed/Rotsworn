@@ -530,7 +530,7 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone_fight = {}
 	_zone = ZoneController.new()
 	_zone.name = "Zone"
-	_zone.configure(zone, _tuning, _visuals, _explore, _run != null)
+	_zone.configure(zone, _tuning, _visuals, _explore, _run != null, _run != null and _run.is_deep())
 	_zone.configure_players(_players)
 	if Net.is_client():
 		_zone.configure_remote()

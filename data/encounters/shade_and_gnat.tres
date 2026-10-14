@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="8_vcobb"]
 [ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="9_0pysm"]
 
+[ext_resource type="Resource" path="res://data/encounters/deep_shade_and_gnat.tres" id="deep_enc"]
 [resource]
 script = ExtResource("8_vcobb")
 id = "shade_and_gnat"
@@ -17,3 +18,4 @@ display_name = "Shade and Gnat Swarm"
 party = Array[ExtResource("4_22770")]([ExtResource("5_2p840"), ExtResource("6_20d3h"), ExtResource("7_fleaa")])
 enemies = Array[ExtResource("1_pvio8")]([ExtResource("2_xu7fb"), ExtResource("3_g2ktb")])
 team_ultimate = ExtResource("9_0pysm")
+deep = ExtResource("deep_enc")

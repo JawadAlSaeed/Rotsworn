@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ProjectileData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/projectile_data.gd" id="1_proj"]
+
+[resource]
+script = ExtResource("1_proj")
+id = "bile_glob"
+texture_path = "res://assets/sprites/fx/bile_glob.png"
+hframes = 4
+loop_ms = 260
+pixel_size = 0.045
+arc_height = 1.1
+trail_count = 2
+trail_gap_ms = 35
+color = Color(0.75, 0.91, 0.37, 1)
+launch_sfx = "spit"
+launch_offset = Vector2(0.7, 0.2)
+hit_sfx = "splat"

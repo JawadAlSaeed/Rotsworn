@@ -3,14 +3,21 @@ extends Node3D
 ## The 3D stage, HD-2D (DESIGN.md 7.3): the place's look (StageLook: lit ground, backdrop, sun,
 ## fog, bloom, colour grading, vignette) with its arena decoration, the combat camera with depth of
 ## field and cinematic shots, the fighters (party on the left facing right, enemies on the right)
-## and short-lived effects (sparks, slashes, ground-wave crests). All art comes from data paths via
-## AssetLoader.
+## and short-lived effects (sparks, slashes, ground-wave crests and their floor band, projectiles,
+## rock spikes). All art comes from data paths via AssetLoader.
 
 ## Effect animation shape: a slash grows to this scale, a spark shrinks to this one.
 const SLASH_GROWTH: float = 1.3
 const SPARK_END_SCALE: float = 0.4
 ## Effects drawn for one frame at fight start so the first parry has no compile hitch.
 const WARM_UP_ALPHA: float = 0.02
+## A missing projectile sheet shows placeholder cells this big.
+const PROJECTILE_FALLBACK_PX: int = 20
+## The wave's floor band sits just above the ground (and the floor warnings below it).
+const BAND_HEIGHT: float = 0.04
+## Across the band: transparent edges, a bright middle line.
+const BAND_EDGE_ALPHA: float = 0.0
+const BAND_MID_ALPHA: float = 1.0
 
 var camera: CombatCamera
 
@@ -20,6 +27,14 @@ var _spark_texture: Texture2D
 var _slash_texture: Texture2D
 var _wave_texture: Texture2D
 var _wave_crests: Array[Sprite3D] = []
+var _wave_band: MeshInstance3D
+var _wave_band_material: StandardMaterial3D
+var _rock_texture: Texture2D
+## Pooled sprites, shown and placed every frame by the attack runner.
+var _projectiles: Array[Sprite3D] = []
+var _rocks: Array[Sprite3D] = []
+## Projectile textures by path (loaded once per fight).
+var _projectile_textures: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 
 
@@ -36,6 +51,7 @@ func build(visuals: CombatVisuals, look: StageLook = null) -> void:
 	_spark_texture = AssetLoader.texture(visuals.spark_path, Vector2i(16, 16))
 	_slash_texture = AssetLoader.texture(visuals.slash_path, Vector2i(32, 32))
 	_wave_texture = AssetLoader.texture(visuals.shockwave_path, Vector2i(64, 16))
+	_rock_texture = AssetLoader.texture(visuals.rock_path, Vector2i(16 * maxi(1, visuals.rock_hframes), 24))
 
 	add_child(StageBuilder.environment(look))
 	add_child(StageBuilder.sun(look))
@@ -60,6 +76,7 @@ func build(visuals: CombatVisuals, look: StageLook = null) -> void:
 		crest.visible = false
 		add_child(crest)
 		_wave_crests.append(crest)
+	_build_wave_band()
 
 
 ## Adds the view for one fighter (from a combat_started fighter entry and its data resource).
@@ -215,6 +232,80 @@ func set_wave(points: Array[Vector3], alpha: float) -> void:
 func hide_wave() -> void:
 	for crest: Sprite3D in _wave_crests:
 		crest.visible = false
+	_wave_band.visible = false
+
+
+## Lays the wave's floor band from `a` to `b` (the front's ends, on the floor) at this strength
+## (0 hides it), in `color`.
+func set_wave_band(a: Vector3, b: Vector3, strength: float, color: Color) -> void:
+	var along := b - a
+	along.y = 0.0
+	_wave_band.visible = strength > 0.0 and along.length() > 0.001
+	if not _wave_band.visible:
+		return
+	var mid := (a + b) * 0.5
+	_wave_band.position = Vector3(mid.x, BAND_HEIGHT, mid.z)
+	_wave_band.basis = Basis(Vector3.UP, atan2(-along.z, along.x))
+	(_wave_band.mesh as PlaneMesh).size = Vector2(along.length(), _visuals.wave_band_depth)
+	_wave_band_material.albedo_color = Color(color.r, color.g, color.b, clampf(strength, 0.0, 1.0))
+
+
+## Shows one sprite per entry: {path, hframes, frame, pixel_size, pos, alpha, scale}. Entries past
+## the list hide; an empty list hides every projectile.
+func set_projectiles(list: Array[Dictionary]) -> void:
+	while _projectiles.size() < list.size():
+		var sprite := _effect_sprite(null, BaseMaterial3D.BILLBOARD_ENABLED)
+		sprite.name = "Projectile%d" % _projectiles.size()
+		add_child(sprite)
+		_projectiles.append(sprite)
+	for i: int in _projectiles.size():
+		var sprite := _projectiles[i]
+		sprite.visible = i < list.size()
+		if not sprite.visible:
+			continue
+		var p: Dictionary = list[i]
+		var path := String(p.path)
+		if not _projectile_textures.has(path):
+			_projectile_textures[path] = AssetLoader.texture(path, Vector2i(PROJECTILE_FALLBACK_PX * maxi(1, int(p.hframes)), PROJECTILE_FALLBACK_PX))
+		sprite.texture = _projectile_textures[path]
+		sprite.hframes = maxi(1, int(p.hframes))
+		sprite.frame = clampi(int(p.frame), 0, sprite.hframes - 1)
+		sprite.pixel_size = float(p.pixel_size)
+		sprite.position = p.pos
+		sprite.scale = Vector3.ONE * float(p.get("scale", 1.0))
+		sprite.modulate = Color(1.0, 1.0, 1.0, clampf(float(p.alpha), 0.0, 1.0))
+
+
+## Shows one rock spike per entry: {pos (feet on the floor), height (0..1 of its full height),
+## frame, scale}. An empty list hides every rock.
+func set_rocks(list: Array[Dictionary]) -> void:
+	var frames := maxi(1, _visuals.rock_hframes)
+	while _rocks.size() < list.size():
+		var rock := Sprite3D.new()
+		rock.name = "Rock%d" % _rocks.size()
+		rock.texture = _rock_texture
+		rock.hframes = frames
+		rock.pixel_size = _visuals.fx_pixel_size * _visuals.rock_scale
+		rock.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
+		rock.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		rock.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		rock.shaded = false
+		rock.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Feet on the node: scaling y grows the rock out of the floor.
+		rock.offset = Vector2(0.0, float(_rock_texture.get_height()) * 0.5)
+		add_child(rock)
+		_rocks.append(rock)
+	for i: int in _rocks.size():
+		var rock := _rocks[i]
+		var r: Dictionary = list[i] if i < list.size() else {}
+		var height := float(r.get("height", 0.0))
+		rock.visible = height > 0.0
+		if not rock.visible:
+			continue
+		var size := float(r.get("scale", 1.0))
+		rock.position = r.pos
+		rock.frame = posmod(int(r.get("frame", 0)), frames)
+		rock.scale = Vector3(size, size * height, size)
 
 
 ## Draws every effect once, nearly invisible, so their materials are compiled before the first
@@ -225,6 +316,8 @@ func warm_up() -> void:
 	spawn_slash(spot, true, WARM_UP_ALPHA)
 	var points: Array[Vector3] = [spot]
 	set_wave(points, WARM_UP_ALPHA)
+	set_wave_band(spot, spot + Vector3.RIGHT, WARM_UP_ALPHA, Color.WHITE)
+	set_rocks([{"pos": spot, "height": WARM_UP_ALPHA}])
 	for id: int in _fighters:
 		fighter(id).flash(1, Color.WHITE, WARM_UP_ALPHA)
 		fighter(id).set_floor_warning(WARM_UP_ALPHA, Color.WHITE)
@@ -233,8 +326,32 @@ func warm_up() -> void:
 ## Ends the warm-up started by warm_up().
 func finish_warm_up() -> void:
 	hide_wave()
+	set_rocks([])
 	for id: int in _fighters:
 		fighter(id).set_floor_warning(0.0, Color.WHITE)
+
+
+func _build_wave_band() -> void:
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+	gradient.colors = PackedColorArray([Color(1, 1, 1, BAND_EDGE_ALPHA), Color(1, 1, 1, BAND_MID_ALPHA),
+			Color(1, 1, 1, BAND_EDGE_ALPHA)])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill_from = Vector2(0.5, 0.0)
+	texture.fill_to = Vector2(0.5, 1.0)
+	_wave_band_material = StandardMaterial3D.new()
+	_wave_band_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_wave_band_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_wave_band_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_wave_band_material.albedo_texture = texture
+	_wave_band = MeshInstance3D.new()
+	_wave_band.name = "WaveBand"
+	_wave_band.mesh = PlaneMesh.new()
+	_wave_band.material_override = _wave_band_material
+	_wave_band.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_wave_band.visible = false
+	add_child(_wave_band)
 
 
 func _home_for(is_party: bool, slot: int) -> Vector3:

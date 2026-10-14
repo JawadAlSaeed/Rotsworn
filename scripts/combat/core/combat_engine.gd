@@ -593,7 +593,11 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 			"damage_percent": hit.damage_percent,
 			"impact_sfx": hit.impact_sfx,
 		})
-		for target_id: int in targets:
+		# Each hero in turn: hit i strikes only its own target (DESIGN.md 3.11).
+		var hit_targets: Array[int] = targets
+		if attack.target_mode == EnemyAttackData.TargetMode.EACH:
+			hit_targets = [targets[hit_index % targets.size()]]
+		for target_id: int in hit_targets:
 			prompts.append(_prompt(prompts.size(), hit_index, target_id, at_ms, hit.kind,
 					Defense.build_windows(hit.kind, tuning), _enemy_hit_damage(actor, get_combatant(target_id), hit.damage_percent),
 					0, 0, ROLE_DEFEND, []))
@@ -648,8 +652,9 @@ func _choose_intent(enemy: Combatant) -> Dictionary:
 	return {"attack": choices[pick].id, "targets": _pick_targets(enemy, choices[pick])}
 
 
-## Whole party for party-wide attacks; otherwise the taunter if one is standing, else a random
-## standing party member.
+## Whole party for party-wide attacks; standing heroes in party order from a random one on for
+## each-in-turn attacks (one per hit at most); otherwise the taunter if one is standing, else a random standing
+## party member.
 func _pick_targets(enemy: Combatant, attack: EnemyAttackData) -> Array[int]:
 	var living := living_party_ids()
 	var targets: Array[int] = []
@@ -657,6 +662,12 @@ func _pick_targets(enemy: Combatant, attack: EnemyAttackData) -> Array[int]:
 		return targets
 	if attack.target_mode == EnemyAttackData.TargetMode.PARTY:
 		return living
+	if attack.target_mode == EnemyAttackData.TargetMode.EACH:
+		# A string shorter than the party bites only as many heroes as it has hits.
+		var first := rng.range_int(0, living.size() - 1)
+		for i: int in mini(living.size(), maxi(1, attack.hits.size())):
+			targets.append(living[(first + i) % living.size()])
+		return targets
 	var taunter := _taunter_of(enemy)
 	if taunter >= 0:
 		targets.append(taunter)
@@ -675,6 +686,14 @@ func _taunter_of(enemy: Combatant) -> int:
 func _targets_still_valid(enemy: Combatant, attack: EnemyAttackData, targets: Array[int]) -> bool:
 	if attack.target_mode == EnemyAttackData.TargetMode.PARTY:
 		return targets == living_party_ids()
+	if attack.target_mode == EnemyAttackData.TargetMode.EACH:
+		var living := living_party_ids()
+		if targets.size() != mini(living.size(), maxi(1, attack.hits.size())):
+			return false
+		for id: int in targets:
+			if not living.has(id):
+				return false
+		return true
 	if targets.size() != 1 or not get_combatant(targets[0]).is_alive():
 		return false
 	var taunter := _taunter_of(enemy)
@@ -1376,7 +1395,7 @@ func _finish_sequence_if_done(events: Array[Dictionary]) -> void:
 
 
 ## Counter for every target who perfectly defended all of their prompts. If the attack was
-## party-wide and every target did, they strike together as one team counter instead.
+## party-wide (or each hero in turn) and every target did, they strike together as one team counter.
 func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 	if not attacker.is_alive():
 		return
@@ -1388,7 +1407,7 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 	if counterers.is_empty():
 		return
 	var team := (
-		int(sequence.mode) == EnemyAttackData.TargetMode.PARTY
+		int(sequence.mode) != EnemyAttackData.TargetMode.SINGLE
 		and targets.size() >= 2
 		and counterers.size() == targets.size()
 	)

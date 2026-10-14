@@ -29,6 +29,8 @@ const FALLBACK: Dictionary = {
 	"run": "walk_side",
 	"leap": "jump_up",
 	"windup_ground": "windup",
+	"windup_shoot": "windup",
+	"shoot": "contact",
 }
 ## The clip catalogue (DESIGN.md 5.5). These fall back only through FALLBACK (so jump_down never
 ## turns into down); any other name is a variant (`<prefix>_<x>` or `<x>_b`) of a catalogue clip.
@@ -42,7 +44,7 @@ const KNOWN: Array[String] = [
 	"run",
 	# Enemies.
 	"windup", "windup_hold", "windup_ground", "lunge", "contact", "recoil", "return", "slam",
-	"slam_recover", "death", "walk", "chase", "rage",
+	"slam_recover", "death", "walk", "chase", "rage", "windup_shoot", "shoot",
 ]
 ## Longest fallback chain followed (guards against a loop in the table).
 const MAX_STEPS: int = 8

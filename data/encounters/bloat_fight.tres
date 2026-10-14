@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="7_qv1e5"]
 [ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="8_vkf2o"]
 
+[ext_resource type="Resource" path="res://data/encounters/deep_bloat_fight.tres" id="deep_enc"]
 [resource]
 script = ExtResource("7_qv1e5")
 id = "bloat_fight"
@@ -16,3 +17,4 @@ display_name = "Bloat"
 party = Array[ExtResource("3_tbxp6")]([ExtResource("4_y0ldj"), ExtResource("5_k8ej8"), ExtResource("6_htlc4")])
 enemies = Array[ExtResource("1_mdvtj")]([ExtResource("2_momx1")])
 team_ultimate = ExtResource("8_vkf2o")
+deep = ExtResource("deep_enc")

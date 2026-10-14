@@ -7,6 +7,9 @@ enum TargetMode {
 	SINGLE,
 	## The whole party.
 	PARTY,
+	## Each hero in turn (Pack Bite, DESIGN.md 3.11): hit i strikes only the i-th target, the
+	## targets being every standing hero from a random one on, in party order. Normal hits only.
+	EACH,
 }
 
 ## Unique id used in events and save data.

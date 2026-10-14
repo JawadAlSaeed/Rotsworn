@@ -77,5 +77,13 @@
  "item_drop": "a",
  "item_found": "a",
  "item_combine": "c",
- "chest_open": "a"
+ "chest_open": "a",
+ "voice_hyena": "a",
+ "voice_toad": "a",
+ "voice_fly": "c",
+ "spit": "b",
+ "splat": "a",
+ "throw": "c",
+ "bolt_cast": "a",
+ "rock_rumble": "a"
 }

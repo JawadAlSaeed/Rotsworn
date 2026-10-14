@@ -208,6 +208,9 @@ extends Resource
 @export_group("Run")
 ## Rows of stops on the run map before the final fight (the final fight is one more stop).
 @export_range(2, 30) var run_map_rows: int = 7
+## From this map row on (0 = the first), zones hold their fights' deep versions: variant monsters
+## (EncounterData.deep, DESIGN.md 2.16).
+@export_range(0, 30) var run_deep_row: int = 4
 ## Each row has this many stops side by side, picked at random between the two numbers.
 @export_range(1, 6) var run_map_min_width: int = 2
 @export_range(1, 6) var run_map_max_width: int = 3

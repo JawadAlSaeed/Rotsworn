@@ -40,7 +40,7 @@ const QUIT_DELAY_S: float = 1.0
 ## After stopping all sounds, quitting waits this long (real time) so the audio server lets go of
 ## the playbacks; two frames are not enough and Godot reports "resources still in use at exit".
 const QUIT_AUDIO_RELEASE_S: float = 0.3
-const PRACTICE_ATTACK_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5]
+const PRACTICE_ATTACK_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]
 const PRACTICE_KEYS_PER_LINE: int = 3
 ## Autoplay: a fight where nothing was played for this long is stuck (its state is printed once).
 const AUTOPLAY_STUCK_MS: int = 60000
@@ -66,6 +66,9 @@ var _encounter: EncounterData
 var _tuning: Tuning
 var _visuals: CombatVisuals
 var _options: CombatOptions
+## --attacks: the next listed attack to force, and whether the last sequence was an enemy attack.
+var _forced_next: int = 0
+var _forced_seq_was_attack: bool = false
 ## The place the fight happens in (null: the fight list's look), how it starts, and whether it
 ## started in a zone (the end screen then goes back to the zone).
 var _look: StageLook
@@ -392,6 +395,7 @@ func _submit(command: Dictionary) -> Array[Dictionary]:
 	if _net_mode == NetMode.HOST:
 		var timing := String(command.get("type", "")) == CombatCommands.RESOLVE_PROMPTS
 		_host_sent(events, "timing" if timing else "flow", int(command.get("seq", -1)))
+	_force_listed_attack(events)
 	return events
 
 
@@ -399,7 +403,25 @@ func _submit_start() -> Array[Dictionary]:
 	var events := _keep_valid(engine.start())
 	if _net_mode == NetMode.HOST:
 		_host_sent(events, "flow", -1)
+	_force_listed_attack(events)
 	return events
+
+
+## --attacks (a dev tool for pictures): once the fight starts and after each enemy attack, the
+## next listed attack is forced through the practice tools (practice fights only).
+func _force_listed_attack(events: Array[Dictionary]) -> void:
+	if _options.forced_attacks.is_empty() or _net_mode != NetMode.LOCAL or _run != null:
+		return
+	for ev: Dictionary in events:
+		var type := String(ev.get("type", ""))
+		var after_attack := type == "sequence_resolved" and _forced_seq_was_attack
+		if type == "timed_sequence_declared":
+			_forced_seq_was_attack = String(ev.kind) == CombatEngine.SEQUENCE_ENEMY_ATTACK
+		if (type == "combat_started" or after_attack) and engine.phase != CombatEngine.Phase.ENDED:
+			var id := _options.forced_attacks[_forced_next % _options.forced_attacks.size()]
+			_forced_next += 1
+			events.append_array(_keep_valid(engine.submit(CombatCommands.practice({"force_attack": id}))))
+			return
 
 
 ## Host: sends a batch to the clients and keeps the arbiter up to date.
@@ -1375,7 +1397,7 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 	return false
 
 
-## The attacks of the first living enemy (what 1-5 force).
+## The attacks of the first living enemy (what 1-9 force).
 func _practice_attacks() -> Array[EnemyAttackData]:
 	var list: Array[EnemyAttackData] = []
 	for id: int in mirror.living_enemy_ids():
