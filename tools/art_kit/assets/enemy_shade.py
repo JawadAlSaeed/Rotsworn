@@ -15,10 +15,15 @@ and tuples, every pose carrying every key, so phase 10 can blend them (kit.rig.b
 in-between frames; IN_BETWEENS holds extra keys where a straight blend looks wrong:
 
     frame = render_pose(blend(POSES["idle"], POSES["windup"], 0.5))
+
+The sheet is a grid of 72x72 cells (row 0 = the six key poses, then one row per animation clip,
+data/clips/shade.tres); CLIPS builds every clip cell that way: a slow hover, the rise into the
+spread-armed wind-up, the comet swoop and a death that thins it into wisps.
 """
 from __future__ import annotations
 
 import math
+import os
 from collections import Counter, deque
 from dataclasses import replace
 from typing import Any
@@ -30,6 +35,7 @@ from kit.post import cleanup, contours, outline
 from kit.render import Camera, Frame, line3d, render
 from kit.rig import blend, two_bone
 from kit.sdf import Ellipsoid, Node, RoundCone, SmoothUnion, Subtract, Union, rot
+from kit.clips import render_clips
 from kit.sheet import hstack
 from kit.specs import ENEMY_FRAME, ENEMY_POSES, PORTRAIT
 
@@ -404,11 +410,16 @@ def model(p: dict[str, Any], line_claws: tuple[str, ...] = ()) -> Node:
     glow = p["glow"] >= 0.5
     hr = HEM_R * p["flare"]
     wr = p["waist"]
+    # Death clip cells thin the hood and the arms into wisps (`wisp` 0..1; never set on the keys,
+    # where both factors are exactly 1).
+    wisp = float(p.get("wisp", 0.0))
+    kh = 1.0 - 0.22 * wisp
+    ka = 1.0 - 0.45 * wisp
     # One soft body: hood, its drooping point, the mantle it falls onto, and the torso as two
     # long cones down the spine (a few big planes instead of a stack of blobs).
     body: list[Node] = [
-        Ellipsoid(CLOTH, head, (6.6, 7.0, 6.0), R=Hr, group="robe"),
-        RoundCone(CLOTH, head + Hr @ _v((-2.2, 2.6, 0.0)), head + sk["Pr"] @ _v((-7.0, 8.0, 0.0)), 4.2,
+        Ellipsoid(CLOTH, head, (6.6 * kh, 7.0 * kh, 6.0 * kh), R=Hr, group="robe"),
+        RoundCone(CLOTH, head + Hr @ _v((-2.2, 2.6, 0.0)), head + sk["Pr"] @ _v((-7.0, 8.0, 0.0)), 4.2 * kh,
                   0.6, group="robe"),
         Ellipsoid(CLOTH, chest + T @ _v((-0.8, 0.0, 0.0)), (6.2, 4.6, 8.6), R=T, group="robe"),
         RoundCone(CLOTH, chest + T @ _v((-0.3, -2.5, 0.0)), mid, 5.7, 5.3 * wr, group="robe"),
@@ -464,10 +475,10 @@ def model(p: dict[str, Any], line_claws: tuple[str, ...] = ()) -> Node:
     for s in ("n", "f"):
         el, ha = sk["elbow_" + s], sk["hand_" + s]
         parts += _sleeve(sk, p, s)
-        parts.append(RoundCone(LIMB, el, ha, ARM_R[0], ARM_R[1], group="arm" + s))
-        parts.append(Ellipsoid(LIMB, ha, (1.5, 1.2, 1.3), group="arm" + s))
+        parts.append(RoundCone(LIMB, el, ha, ARM_R[0] * ka, ARM_R[1] * ka, group="arm" + s))
+        parts.append(Ellipsoid(LIMB, ha, (1.5 * ka, 1.2 * ka, 1.3 * ka), group="arm" + s))
         if s not in line_claws:
-            parts += _claws(sk, p, s, glow)
+            parts += _claws(sk, p, s, glow, ka)
     return Union(*parts)
 
 
@@ -672,7 +683,8 @@ def render_frame(p: dict[str, Any], W: int = S, H: int = S, scale: float = 1.0,
     _bounce(frame)
     _rim(frame)
     _lip(frame)
-    _eyes(frame, cam, sk, p["eye"], big=portrait)
+    if p["eye"] >= -0.5:  # a death clip cell may put the eyes out (eye -1)
+        _eyes(frame, cam, sk, p["eye"], big=portrait)
     outline(frame)
     return frame
 
@@ -758,14 +770,166 @@ def portrait() -> np.ndarray:
     return portrait_frame().rgba()
 
 
+# --- Animation clips (phase 10, plan 4.2) ----------------------------------------------------------
+# In-betweens are pose dicts: kit.rig.blend of two keys plus a few changed keys (IN_BETWEENS-style
+# passing poses where a straight blend looks wrong). "drift" ripples the tails, so a held shape
+# still flows. Row-0 keys by index: IDLE 0, WINDUP 1, LUNGE 2, CONTACT 3, HURT 4, SLAM 5.
+
+K_IDLE, K_WINDUP, K_LUNGE, K_CONTACT, K_HURT, K_SLAM = range(6)
+
+
+def _p(pose: dict[str, Any], /, **kw: Any) -> dict[str, Any]:
+    """`pose` with some keys changed (pose keys only; `wisp` is the death clip's thinning)."""
+    bad = set(kw) - set(DEFAULTS) - {"wisp"}
+    assert not bad, bad
+    return {**pose, **kw}
+
+
+def _mix(a: dict[str, Any], b: dict[str, Any], u: float, /, **kw: Any) -> dict[str, Any]:
+    return _p(blend(a, b, u), **kw)
+
+
+_I = POSES["idle"]
+_W = POSES["windup"]
+_L = POSES["lunge"]
+_C = POSES["contact"]
+_H = POSES["hurt"]
+_S = POSES["slam"]
+
+# Idle: hovering, it sinks and rises a little (the hood's top stays within a pixel), the tails
+# ripple and the claws flex. Played as a ping-pong (k0, a, b, a).
+IDLE_A = _p(_I, base=(0.0, 29.6), drift=0.8, hand_n=(15.0, 23.5, 8.0), hand_f=(18.0, 32.6, -3.0),
+            claw_n=(24.0, 28.0), claw_f=(22.0, -46.0))
+IDLE_B = _p(_I, base=(0.0, 29.2), drift=1.6, hand_n=(15.4, 23.0, 8.0), hand_f=(18.3, 32.2, -3.0),
+            claw_n=(26.0, 34.0), claw_f=(24.0, -52.0), tail=(-6.5, -14.5))
+
+# Wind-up coil: it sinks and draws its claws in, then rises and spreads its arms; the claws and
+# tail tips catch the violet glow.
+COIL_1 = _mix(_I, _W, 0.22, base=(0.0, 28.6), hand_n=(10.0, 26.0, 9.0), hand_f=(14.0, 34.0, -4.0),
+              claw_n=(14.0, 45.0), claw_f=(14.0, -50.0), glow=0.45, eye=1.0, drift=0.5)
+COIL_2 = _mix(_I, _W, 0.75, glow=1.0, eye=2.0, drift=1.0)
+# The hold: the claws flex and the robe flutters.
+SHIVER = _p(_W, base=(-1.0, 34.6), drift=2.0, claw_n=(28.0, -42.0), claw_f=(28.0, -42.0),
+            hand_n=(-17.5, 54.8, 15.0), hand_f=(12.4, 59.8, -11.0), fan=24.0)
+
+# Lunge: from the spread wind-up, it pitches forward into the low comet swoop (the key is the
+# arriving frame).
+LUNGE_1 = _mix(_W, _L, 0.33, eye=2.0, glow=0.6)
+LUNGE_2 = _mix(_W, _L, 0.68, eye=1.0, glow=0.3)
+
+# Contact follow-through: the near claws rake on through and down, then it pulls up out of it.
+FOLLOW_1 = _p(_C, base=(16.0, 24.0), twist=-42.0, hand_n=(44.0, 12.0, 6.0), wrist_n=-50.0,
+              claw_n=(38.0, -55.0), hand_f=(-16.0, 50.0, -8.0), drift=4.2)
+FOLLOW_2 = _mix(_C, _I, 0.3, drift=4.6, eye=1.0)
+# Recoil (mid-string): drifts back off the target.
+RECOIL_1 = _mix(_C, _I, 0.55, drift=5.0, eye=1.0)
+# Return: glides home, leaning back, the tails trailing toward the target.
+RETURN_1 = _mix(_C, _I, 0.62, lean=-2.0, tail=(-1.0, -15.0), drift=5.0, eye=1.0)
+RETURN_2 = _mix(_C, _I, 0.88, lean=5.0, tail=(-4.0, -15.0), drift=5.6, eye=1.0)
+
+# Slam: the dive key, the robe whipping up as it strikes the ground, then swinging upright.
+SLAM_WHIP = _p(_S, base=(-6.0, 25.0), drift=5.6, lift=1.5, wave=3.4, tail=(-12.0, 12.0), rag=34.0)
+SLAM_RISE = _mix(_S, _I, 0.4, drift=6.4, sleeve=(-2.5, -3.5))  # a blended sleeve would hang 1 px (degenerate)
+SLAM_WAIT = _mix(_S, _I, 0.75, drift=7.0, eye=1.0)
+
+# Hurt: the folded-in key, then straightening (the tails swing back under it).
+HURT_1 = _mix(_H, _I, 0.5, tail=(-1.0, -16.0), curl=6.0, eye=0.0, glow=0.1)
+# Stagger: folded further and knocked back, then straightening.
+STAGGER_1 = _p(_H, base=(-11.0, 33.0), bend=66.0, hood=(36.0, -20.0, 6.0), tail=(14.0, -4.0), curl=38.0,
+               hand_n=(-1.0, 25.0, 8.0), hand_f=(-5.0, 29.0, -6.0), drift=5.4)
+STAGGER_2 = _mix(STAGGER_1, _I, 0.55, tail=(-2.0, -16.0), curl=8.0, eye=0.0, glow=0.1, drift=6.0)
+
+# Death (ROT, violet edge): it buckles, sags and thins out, the robe and arms stretching into
+# wisps that stream up and back; the eyes go out (the game rots it away meanwhile).
+DEATH_1 = _p(_H, drift=5.4, glow=0.0)
+DEATH_2 = _p(_H, base=(-6.0, 29.0), lean=-8.0, bend=34.0, hood=(42.0, -20.0, 10.0), hood_fwd=0.5,
+             hand_n=(4.0, 17.0, 8.0), hand_f=(0.0, 21.0, -6.0), claw_n=(6.0, 15.0), claw_f=(6.0, 15.0),
+             tail=(-8.0, -6.0), tail_len=1.3, tail_th=0.7, curl=-10.0, rag=26.0, tatter=1.6, wave=1.6,
+             waist=0.7, flare=0.95, sleeve_r=0.85, drift=6.2, eye=0.0, glow=0.0, wisp=0.35)
+DEATH_3 = _p(DEATH_2, base=(-6.0, 27.5), bend=40.0, hood=(48.0, -20.0, 14.0), tail=(-9.0, 3.0),
+             tail_len=1.5, tail_th=0.5, curl=-28.0, rag=32.0, tatter=2.1, wave=2.4, lift=2.0, waist=0.55,
+             flare=0.75, sleeve_r=0.65, drift=7.0, wisp=0.7, sleeve=(-4.0, 4.0))
+DEATH_4 = _p(DEATH_3, base=(-6.0, 26.5), bend=44.0, tail=(-7.0, 11.0), tail_len=1.75, tail_th=0.4, curl=-42.0,
+             rag=30.0, tatter=2.5, wave=3.0, lift=2.0, waist=0.45, flare=0.6, sleeve_r=0.5, drift=7.8, wisp=1.0,
+             eye=-1.0, sleeve=(-5.0, 7.0))
+
+# Chasing (zone): leaning into a fast glide, the tails streaming.
+CHASE_1 = _mix(_I, _L, 0.32, drift=0.6)
+CHASE_2 = _mix(_I, _L, 0.36, drift=1.5, base=(0.0, 28.6))
+CHASE_3 = _mix(_I, _L, 0.32, drift=2.4)
+
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose). Timing is the game's. The
+# shade floats: walk reuses the idle cells.
+CLIPS: dict[str, list[Any]] = {
+    "idle": [K_IDLE, IDLE_A, IDLE_B, IDLE_A],
+    "windup": [COIL_1, COIL_2, K_WINDUP],
+    "windup_hold": [K_WINDUP, SHIVER],
+    "lunge": [LUNGE_1, LUNGE_2, K_LUNGE],
+    "contact": [K_CONTACT, FOLLOW_1, FOLLOW_2],
+    "recoil": [RECOIL_1, K_IDLE],
+    "return": [RETURN_1, RETURN_2, K_IDLE],
+    "slam": [K_SLAM, SLAM_WHIP, SLAM_RISE],
+    "slam_recover": [SLAM_WAIT, K_IDLE],
+    "hurt": [K_HURT, HURT_1, K_IDLE],
+    "stagger": [K_HURT, STAGGER_1, STAGGER_2, K_IDLE],
+    "death": [DEATH_1, DEATH_2, DEATH_3, DEATH_4],
+    "walk": [K_IDLE, IDLE_A, IDLE_B, IDLE_A],
+    "chase": [CHASE_1, CHASE_2, CHASE_3, CHASE_2],
+}
+# Review GIF lengths that differ from kit.clips (a slow, eerie hover: idle_cycle_percent 120).
+IDLE_CYCLE_PERCENT = 120
+PREVIEW_MS = {"idle": 1800 * IDLE_CYCLE_PERCENT // 100}
+
+
+def _key(pose: dict[str, Any]) -> str:
+    return repr(sorted(pose.items()))
+
+
+def render_cell(p: dict[str, Any]) -> np.ndarray:
+    """One finished RGBA cell (module level, so worker processes can run it)."""
+    return render_frame(p).rgba()
+
+
+def render_many(poses: list[dict[str, Any]]) -> list[np.ndarray]:
+    """render_cell for many poses, in worker processes; one by one when a pool cannot start."""
+    if len(poses) < 4:
+        return [render_cell(p) for p in poses]
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+        workers = max(1, min(len(poses), (os.cpu_count() or 2) - 1))
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            return list(ex.map(render_cell, poses))
+    except Exception as e:  # noqa: BLE001 - any pool failure: fall back to one process
+        print("  parallel render failed (%s); rendering one by one" % e)
+        return [render_cell(p) for p in poses]
+
+
+def _unique_poses(names: list[str]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for n in names:
+        for e in CLIPS[n]:
+            if isinstance(e, dict):
+                out.setdefault(_key(e), e)
+    return out
+
+
+def render_named_clips(names: list[str]) -> dict[str, list[np.ndarray]]:
+    """The cells of the named clips (row-0 keys rendered too), for review strips."""
+    uniq = _unique_poses(names)
+    imgs = render_many([POSES[n] for n in ENEMY_POSES] + list(uniq.values()))
+    keys, done = imgs[:len(ENEMY_POSES)], dict(zip(uniq, imgs[len(ENEMY_POSES):]))
+    return {n: [keys[e] if isinstance(e, int) else done[_key(e)] for e in CLIPS[n]] for n in names}
+
+
 def build(ctx) -> None:
-    frames = []
     for name in ENEMY_POSES:
-        fr = render_frame(POSES[name])
-        print("  " + _check(fr, name))
-        frames.append(fr.rgba())
+        print("  " + _check(render_frame(POSES[name]), name))
+    uniq = _unique_poses(list(CLIPS))
+    imgs = render_many([POSES[name] for name in ENEMY_POSES] + list(uniq.values()))
+    frames, done = imgs[:len(ENEMY_POSES)], dict(zip(uniq, imgs[len(ENEMY_POSES):]))
+    cells = render_clips(CLIPS, lambda p: done[_key(p)])
+    ctx.save_fighter("sprites/enemies/%s.png" % ID, frames, cells, (S, S), S, ID, preview_ms=PREVIEW_MS)
     sheet = hstack(frames)
-    ctx.save("sprites/enemies/%s.png" % ID, sheet, frame_w=S)
     ctx.extra("sheet_x6.png", sheet, scale=5, frame_w=S)
     ctx.extra("sheet_x1.png", sheet, scale=1, frame_w=S)
     por = portrait()

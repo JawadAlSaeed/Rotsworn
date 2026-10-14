@@ -2,13 +2,16 @@
 hunched purple back, a small fat head sunk between the shoulders (pale face, gaping mouth), stubby
 clawed legs, short heavy arms ending in club fists, pustules and a few bile-green boils.
 
-Sheet: sprites/enemies/bloat.png (6 frames of 92x92, facing left) and its 48x48 portrait.
+Sheet: sprites/enemies/bloat.png, a grid of 92x92 cells facing left (row 0 = the six key poses,
+then one row per animation clip, data/clips/bloat.tres) and its 48x48 portrait.
 
-The body is a small custom skeleton (pelvis, torso frame, shoulders, IK arms and legs) so phase
-10 can blend the POSES dicts (kit.rig.blend) into in-between frames and call render_pose().
+The body is a small custom skeleton (pelvis, torso frame, shoulders, IK arms and legs), so the
+clip cells (CLIPS) are POSES dicts blended with kit.rig.blend plus a few changed keys: a slow
+heaving idle, a waddling walk, a swell-and-burst death and the Tier 2 belly wind-up.
 """
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import numpy as np
@@ -19,9 +22,10 @@ from kit.noise import fbm3
 from kit.palette import M, Material
 from kit.post import cleanup, contours, outline
 from kit.render import Camera, Frame, line3d, render
-from kit.rig import two_bone
+from kit.rig import blend, two_bone
 from kit.sdf import (Custom, Ellipsoid, Intersect, Node, Prim, RoundCone, SmoothUnion, Sphere, Subtract,
                      Union, basis, rot)
+from kit.clips import render_clips
 from kit.sheet import hstack
 from kit.specs import ENEMY_FRAME, ENEMY_POSES, PORTRAIT
 
@@ -681,6 +685,90 @@ def overlays(fr: Frame, cam: Camera, pose: dict[str, Any], sk: dict[str, Any]) -
     line3d(fr, cam, [lip, lip + _v((0.4, -drop, 0.2))], BILE, [3], group="drool", depth_bias=2.5)
     if float(pose.get("ground", 0.0)) > 0.5:
         _paint_impact(fr, cam, sk)
+    # Phase 10 clip cells only (the row-0 keys never set these keys).
+    if float(pose.get("dust", 0.0)) > 0.0:
+        _paint_dust(fr, cam, sk, float(pose["dust"]))
+    if float(pose.get("burst", 0.0)) > 0.0:
+        _paint_burst(fr, cam, sk, float(pose["burst"]))
+
+
+# The slam's second cell: dust thrown up at both ends of the body on the ground (screen offsets
+# from the body's ground footprint ends, pixels outward and up, and the puff radius).
+DUST_PUFFS = [(1.0, 3.0, 3.2), (-2.0, 8.0, 2.4), (4.0, 9.0, 1.8), (6.0, 3.0, 2.0), (1.0, 13.0, 1.4)]
+
+
+def _paint_dust(fr: Frame, cam: Camera, sk: dict[str, Any], amount: float) -> None:
+    """Round puffs of ash at both ends of the body's footprint, lit on top, only on clear
+    pixels (the body stays in front)."""
+    solid = fr.part >= 0
+    ys, xs = np.nonzero(solid[fr.H - 8:])
+    if len(xs) == 0:
+        return
+    x0, x1 = xs.min(), xs.max()
+    dust = fr.add_part(DUST, "dust")
+    ground = fr.H - 3
+    for side, end in ((-1, x0), (1, x1)):
+        for dx, dy, r in DUST_PUFFS:
+            px, py, r = end + side * dx * amount, ground - dy * amount, r * amount
+            for yy in range(int(py - r) - 1, int(py + r) + 2):
+                for xx in range(int(px - r) - 1, int(px + r) + 2):
+                    d = np.hypot(xx + 0.5 - px, (yy + 0.5 - py) * 1.15)
+                    if d > r or not (2 <= xx < fr.W - 2 and 2 <= yy < fr.H - 2) or solid[yy, xx]:
+                        continue
+                    i = 4 if yy + 0.5 < py - r * 0.35 else (3 if yy + 0.5 < py + r * 0.3 else 1)
+                    fr.put(xx, yy, dust, i, -1e5)
+
+
+# Death: glowing splits across the stretched gut (paths of azimuth, elevation on the belly as for
+# VEINS, and the burst share at which each one opens), and spores spraying out of the body
+# (screen offsets from the belly's centre, pixels, and the share they appear at).
+BURST_CRACKS = [
+    ([(30, 30), (36, 22), (33, 14), (40, 6), (37, -2)], 0.0),
+    ([(52, 12), (58, 4), (55, -6), (61, -14)], 0.0),
+    ([(18, -10), (24, -18), (20, -26)], 0.6),
+    ([(42, 36), (50, 30), (48, 24)], 0.6),
+    ([(64, 26), (70, 18)], 0.8),
+]
+BURST_SPORES = [(-34, -6, 0.6), (-30, -22, 0.8), (-22, -34, 0.6), (-8, -40, 0.9), (-38, 8, 0.9),
+                (-26, 20, 0.8), (6, -42, 1.0), (-40, -14, 1.0), (16, -36, 0.9), (-14, 28, 1.0),
+                (-37, -30, 1.0), (-2, -34, 1.0), (-31, 2, 1.0), (24, -28, 1.0), (-42, 18, 1.0)]
+
+
+def _paint_burst(fr: Frame, cam: Camera, sk: dict[str, Any], amount: float) -> None:
+    """The gut splitting with rot-light: glowing cracks over the visible belly (a dark seam
+    beside each) and, at a full burst, spores flung out round the body."""
+    glow = fr.add_part(GLOW, "burst")
+    seam = fr.add_part(BRUISE, "burst")
+    for path, need in BURST_CRACKS:
+        if amount < need:
+            continue
+        pts = [cam.project(_belly_point(sk, az, el)) for az, el in path]
+        for (x0, y0, d0), (x1, y1, d1) in zip(pts, pts[1:]):
+            n = int(max(abs(x1 - x0), abs(y1 - y0))) + 1
+            for k in range(n + 1):
+                u = k / n
+                x, y = int(np.floor(x0 + (x1 - x0) * u)), int(np.floor(y0 + (y1 - y0) * u))
+                if not (1 <= x < fr.W - 1 and 1 <= y < fr.H - 1):
+                    continue
+                if not _is_belly(fr, fr.part[y, x]) and fr.mats[fr.part[y, x]] is not GLOW:
+                    continue
+                if fr.depth[y, x] < d0 + (d1 - d0) * u - 2.0:
+                    continue
+                fr.part[y, x], fr.idx[y, x] = glow, GLOW.top()
+                if _is_belly(fr, fr.part[y, x + 1]):
+                    fr.part[y, x + 1], fr.idx[y, x + 1] = seam, 0
+    if amount < 0.6:
+        return
+    bx, by, _ = cam.project(sk["belly"])
+    for dx, dy, need in BURST_SPORES:
+        if amount < need:
+            continue
+        x, y = int(bx + dx), int(by + dy)
+        big = ((-1, 0, 1), (0, -1, 1), (1, 1, 0)) if need >= 0.9 else ()
+        for ddx, ddy, i in ((0, 0, GLOW.top()), (1, 0, 2), (0, 1, 2)) + big:
+            xx, yy = x + ddx, y + ddy
+            if 2 <= xx < fr.W - 2 and 2 <= yy < fr.H - 2 and fr.part[yy, xx] < 0:
+                fr.put(xx, yy, glow, i, -1e6)
 
 
 def render_frame(pose: dict[str, Any], cam: Camera) -> Frame:
@@ -748,10 +836,197 @@ def _on_dark(rgba: np.ndarray, color: tuple[int, int, int] = (0x1e, 0x1a, 0x24))
     return out
 
 
+# --- Animation clips (phase 10, plan 4.2) ----------------------------------------------------------
+# Every in-between is a pose dict built from the key poses with kit.rig.blend plus a few changed
+# keys, so it keeps the rig's proportions and the camera's fixed floor (feet stay put). Row 0 keys
+# are referenced by index (IDLE 0, WINDUP 1, LUNGE 2, CONTACT 3, HURT 4, SLAM 5).
+
+K_IDLE, K_WINDUP, K_LUNGE, K_CONTACT, K_HURT, K_SLAM = range(6)
+
+
+def _p(base: dict[str, Any], **kw: Any) -> dict[str, Any]:
+    """`base` with some keys changed (every key must already exist, so a typo fails loudly)."""
+    bad = set(kw) - set(DEFAULT_POSE) - {"dust", "burst", "eye_r"}
+    assert not bad, bad
+    return {**base, **kw}
+
+
+def _mix(a: str | dict[str, Any], b: str | dict[str, Any], t: float, **kw: Any) -> dict[str, Any]:
+    pa = POSES[a] if isinstance(a, str) else a
+    pb = POSES[b] if isinstance(b, str) else b
+    return _p(blend(pa, pb, t), **kw)
+
+
+_I = POSES["idle"]
+_W = POSES["windup"]
+_L = POSES["lunge"]
+_C = POSES["contact"]
+_H = POSES["hurt"]
+_S = POSES["slam"]
+
+# Idle: a slow heave. Breathing in, the belly swells, the body rises half a pixel and the short
+# arms drift out; the boils pulse a little brighter. The top stays within a pixel of the key.
+IDLE_IN = _p(_I, pelvis=(0.0, HIP_Y + 0.3, 0.0), belly=(1.025, 1.02, 1.025), jaw=0.66, glow=0.38,
+             hand_n=(-4.5, 42.6, 44.8), hand_f=(20.5, 44.6, -30.6), head=(5.0, -32.0, 0.0))
+IDLE_FULL = _p(_I, pelvis=(0.0, HIP_Y + 0.6, 0.0), belly=(1.05, 1.04, 1.05), jaw=0.72, glow=0.46,
+               hand_n=(-5.0, 43.2, 45.6), hand_f=(21.0, 45.2, -31.2), head=(4.0, -32.0, 0.0))
+
+# Wind-up coil: sinks and gathers the fists low (the anticipation), then heaves them up.
+COIL_1 = _mix(_I, _W, 0.12, pelvis=(-1.0, HIP_Y - 2.5, 0.0), squash=0.94, lean=2.0,
+              hand_n=(-9.0, 36.0, 40.0), hand_f=(15.0, 37.0, -28.0), belly=(1.04, 0.97, 1.04),
+              head=(10.0, -32.0, 0.0), jaw=0.8, glow=0.55)
+COIL_2 = _mix(_I, _W, 0.78, pelvis=(-2.5, HIP_Y - 0.6, 0.0), glow=0.85)
+# The hold's shiver: fists pushed a little higher, the gut quivering, every boil blazing.
+SHIVER = _p(_W, root=(3.8, 0.0, 0.0), hand_n=(-12.5, 72.5, 30.0), hand_f=(1.5, 70.4, -22.0),
+            belly=(1.08, 0.99, 1.05), ripple=0.35, jaw=0.9, head=(-22.0, -32.0, 2.0))
+
+# Lunge: from the reared-up wind-up into the belly-first waddle (the key is "arriving").
+LUNGE_1 = _mix(_W, _L, 0.34)
+LUNGE_2 = _mix(_W, _L, 0.7)
+
+# Contact follow-through: the belly squashes further into the target, then rebounds, jiggling.
+FOLLOW_1 = _p(_C, lean=21.0, belly=(0.84, 1.1, 1.1), belly_off=(18.0, 1.5, 0.0), hand_f=(37.0, 50.0, -20.0),
+              hand_n=(-2.0, 50.0, 32.0), jaw=0.9, ripple=0.3)
+FOLLOW_2 = _mix(_C, _I, 0.35, ripple=0.6, jaw=0.8)
+# Recoil (mid-string): pulls back off the target.
+RECOIL_1 = _mix(_C, _I, 0.55, ripple=0.4)
+# Return: steps back home, the near foot lifting and planting behind.
+RETURN_1 = _mix(_C, _I, 0.78, foot_n=(-5.0, ANKLE_H + 3.0, 20.0), toe_n=-20.0, ripple=0.3,
+                pelvis=(0.0, HIP_Y + 0.4, 0.0))
+RETURN_2 = _mix(_C, _I, 0.94, foot_n=(-1.0, ANKLE_H, 20.0), pelvis=(0.0, HIP_Y - 0.6, 0.0), ripple=0.15)
+
+# Slam: the impact key, then the body bouncing on the flattened gut in a cloud of dust, then
+# heaving itself up off the ground.
+SLAM_DUST = _p(_S, pelvis=(-6.0, 8.8, 0.0), squash=0.79, dust=1.0, glow=0.5)
+SLAM_RISE = _mix(_S, _I, 0.38, ground=0.0, glow=0.45, pelvis=(-4.0, 13.0, 0.0))
+SLAM_WAIT = _mix(_S, _I, 0.72, ground=0.0, glow=0.35)
+
+# Hurt: the key, then settling back down with the belly still wobbling.
+HURT_1 = _mix(_H, _I, 0.5, ripple=0.6, eyes=0.0)
+# Stagger (counter or big hit): rocks right back onto its heels, then sways forward and settles.
+STAGGER_1 = _p(_H, root=(5.0, 0.0, 0.0), pelvis=(0.0, HIP_Y - 1.5, 0.0), lean=-29.0, side=-7.0,
+               belly=(0.94, 1.1, 1.04), ripple=1.0, head=(-6.0, -32.0, 18.0), jaw=0.75,
+               hand_n=(-8.0, 54.0, 38.0), hand_f=(2.0, 56.0, -38.0), toe_n=26.0, toe_f=14.0)
+STAGGER_2 = _mix(STAGGER_1, _I, 0.55, ripple=0.7, eyes=0.0, lean=4.0)
+
+# Death (BURST): shudders, swells up onto its toes, the gut stretching and the boils blazing,
+# then splits with light (the game bursts it into sparks at the end of the clip).
+DEATH_1 = _p(_H, belly=(1.04, 1.12, 1.06), ripple=0.8, glow=0.6, jaw=0.9, eyes=0.0)
+DEATH_2 = _p(_I, pelvis=(0.0, HIP_Y + 1.5, 0.0), lean=-8.0, belly=(1.14, 1.18, 1.14),
+             belly_off=(2.0, 2.0, 0.0), head=(-14.0, -32.0, 0.0), jaw=1.0, teeth=0.0, glow=0.9, eyes=0.0,
+             hand_n=(-6.0, 50.0, 40.0), hand_f=(16.0, 54.0, -34.0), toe_n=-15.0, toe_f=-15.0)
+DEATH_3 = _p(DEATH_2, root=(-2.0, 0.0, 0.0), pelvis=(0.0, HIP_Y + 2.5, 0.0), belly=(1.22, 1.26, 1.2),
+             head=(-22.0, -32.0, 0.0), glow=1.0, hand_n=(-6.0, 55.0, 38.0), hand_f=(14.0, 59.0, -34.0),
+             burst=0.5)
+DEATH_4 = _p(DEATH_3, root=(-3.0, 0.0, 0.0), belly=(1.27, 1.3, 1.24), ripple=0.5, burst=1.0)
+
+# Walking (zone): a side-to-side waddle, a stubby stride, the arms swinging against the legs.
+WALK_1 = _p(_I, side=6.0, pelvis=(0.0, HIP_Y - 1.0, 0.0), belly=(1.02, 0.97, 1.02), foot_n=(12.0, ANKLE_H, 20.0),
+            foot_f=(-4.0, ANKLE_H, -19.0), toe_f=-18.0, hand_n=(-8.0, 42.0, 40.0), hand_f=(26.0, 46.0, -28.0),
+            head=(8.0, -30.0, -4.0))
+WALK_2 = _p(_I, pelvis=(0.0, HIP_Y + 1.2, 0.0), belly=(0.99, 1.04, 0.99), foot_n=(4.0, ANKLE_H, 20.0),
+            foot_f=(5.0, ANKLE_H + 4.0, -19.0), toe_f=-10.0, ripple=0.25)
+WALK_3 = _p(_I, side=-6.0, pelvis=(0.0, HIP_Y - 1.0, 0.0), belly=(1.02, 0.97, 1.02), foot_n=(-5.0, ANKLE_H, 20.0),
+            foot_f=(15.0, ANKLE_H, -19.0), toe_n=-18.0, hand_n=(4.0, 44.0, 40.0), hand_f=(12.0, 43.0, -30.0),
+            head=(8.0, -34.0, 4.0))
+WALK_4 = _p(_I, pelvis=(0.0, HIP_Y + 1.2, 0.0), belly=(0.99, 1.04, 0.99), foot_n=(4.0, ANKLE_H + 4.0, 20.0),
+            foot_f=(8.0, ANKLE_H, -19.0), toe_n=-10.0, ripple=0.25)
+# Chasing: belly first and leaning back like the lunge, longer strides, the arms pumping.
+CHASE_1 = _p(_L, root=(4.0, 0.0, 0.0), side=4.0, foot_n=(-12.0, ANKLE_H + 2.0, 20.0), toe_n=-35.0,
+             foot_f=(14.0, ANKLE_H, -18.0))
+CHASE_2 = _p(_L, root=(4.0, 0.0, 0.0), side=0.0, pelvis=(0.0, HIP_Y + 0.5, 0.0), foot_n=(2.0, ANKLE_H + 4.0, 20.0),
+             toe_n=-10.0, foot_f=(4.0, ANKLE_H, -18.0), hand_n=(-6.0, 42.0, 34.0), hand_f=(8.0, 46.0, -28.0))
+CHASE_3 = _p(_L, root=(4.0, 0.0, 0.0), side=-4.0, foot_n=(14.0, ANKLE_H, 20.0), toe_n=0.0,
+             foot_f=(-12.0, ANKLE_H + 2.0, -18.0), toe_f=-35.0, hand_n=(10.0, 50.0, 34.0), hand_f=(-8.0, 40.0, -28.0))
+CHASE_4 = _p(_L, root=(4.0, 0.0, 0.0), side=0.0, pelvis=(0.0, HIP_Y + 0.5, 0.0), foot_n=(4.0, ANKLE_H, 20.0),
+             toe_n=0.0, foot_f=(2.0, ANKLE_H + 4.0, -18.0), toe_f=-10.0, hand_n=(2.0, 46.0, 34.0),
+             hand_f=(2.0, 44.0, -28.0))
+
+# Tier 2, Belly Slam (attack hit anim "belly"): instead of raising its fists it draws a huge
+# breath, leaning back, the arms going wide and the gut swelling with every boil lit; then it
+# throws the swollen gut forward (belly_lunge ends on the lunge key, contact is the shared one).
+BELLY_1 = _p(_I, pelvis=(0.0, HIP_Y - 1.2, 0.0), lean=2.0, belly=(1.07, 1.04, 1.06), head=(-2.0, -32.0, 0.0),
+             jaw=0.3, glow=0.5, hand_n=(-6.0, 41.0, 41.0), hand_f=(21.0, 43.0, -33.0))
+BELLY_2 = _p(_I, pelvis=(-0.6, HIP_Y + 0.5, 0.0), lean=-8.0, belly=(1.14, 1.1, 1.12),
+             belly_off=(3.0, 1.5, 0.0), head=(-12.0, -32.0, 0.0), jaw=0.15, glow=0.8,
+             hand_n=(-4.0, 46.0, 37.0), hand_f=(22.0, 50.0, -35.0), toe_n=8.0)
+BELLY_FULL = _p(_I, pelvis=(-1.0, HIP_Y + 1.0, 0.0), lean=-12.0, belly=(1.2, 1.14, 1.16),
+                belly_off=(5.0, 2.0, 0.0), head=(-16.0, -32.0, 0.0), jaw=0.1, glow=1.0,
+                hand_n=(-3.0, 50.0, 35.0), hand_f=(22.0, 54.0, -35.0), toe_n=10.0)
+BELLY_SHIVER = _p(BELLY_FULL, belly=(1.22, 1.15, 1.18), ripple=0.3, root=(0.6, 0.0, 0.0),
+                  hand_n=(-3.4, 50.6, 35.4), hand_f=(22.4, 54.6, -35.4))
+BELLY_LUNGE_1 = _mix(BELLY_FULL, _L, 0.35, jaw=0.5)
+BELLY_LUNGE_2 = _mix(BELLY_FULL, _L, 0.7)
+
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose). Timing is the game's.
+CLIPS: dict[str, list[Any]] = {
+    "idle": [K_IDLE, IDLE_IN, IDLE_FULL, IDLE_IN],
+    "windup": [COIL_1, COIL_2, K_WINDUP],
+    "windup_hold": [K_WINDUP, SHIVER],
+    "lunge": [LUNGE_1, LUNGE_2, K_LUNGE],
+    "contact": [K_CONTACT, FOLLOW_1, FOLLOW_2],
+    "recoil": [RECOIL_1, K_IDLE],
+    "return": [RETURN_1, RETURN_2, K_IDLE],
+    "slam": [K_SLAM, SLAM_DUST, SLAM_RISE],
+    "slam_recover": [SLAM_WAIT, K_IDLE],
+    "hurt": [K_HURT, HURT_1, K_IDLE],
+    "stagger": [K_HURT, STAGGER_1, STAGGER_2, K_IDLE],
+    "death": [DEATH_1, DEATH_2, DEATH_3, DEATH_4],
+    "walk": [WALK_1, WALK_2, WALK_3, WALK_4],
+    "chase": [CHASE_1, CHASE_2, CHASE_3, CHASE_4],
+    # Tier 2 (per-attack prefix "belly"; any missing <belly>_<x> falls back to <x>).
+    "belly_windup": [BELLY_1, BELLY_2, BELLY_FULL],
+    "belly_windup_hold": [BELLY_FULL, BELLY_SHIVER],
+    "belly_lunge": [BELLY_LUNGE_1, BELLY_LUNGE_2, K_LUNGE],
+}
+# Review GIF lengths that differ from kit.clips (the slow heave: idle_cycle_percent 140).
+IDLE_CYCLE_PERCENT = 140
+PREVIEW_MS = {"idle": 1800 * IDLE_CYCLE_PERCENT // 100}
+
+
+def _key(pose: dict[str, Any]) -> str:
+    return repr(sorted(pose.items()))
+
+
+def render_many(poses: list[dict[str, Any]]) -> list[np.ndarray]:
+    """render_pose for many poses, in worker processes (a bloat frame takes seconds); one by one
+    when a process pool cannot start."""
+    if len(poses) < 4:
+        return [render_pose(p) for p in poses]
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+        workers = max(1, min(len(poses), (os.cpu_count() or 2) - 1))
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            return list(ex.map(render_pose, poses))
+    except Exception as e:  # noqa: BLE001 - any pool failure: fall back to one process
+        print("  parallel render failed (%s); rendering one by one" % e)
+        return [render_pose(p) for p in poses]
+
+
+def _unique_poses(names: list[str]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for n in names:
+        for e in CLIPS[n]:
+            if isinstance(e, dict):
+                out.setdefault(_key(e), e)
+    return out
+
+
+def render_named_clips(names: list[str]) -> dict[str, list[np.ndarray]]:
+    """The cells of the named clips (row-0 keys rendered too), for review strips."""
+    uniq = _unique_poses(names)
+    imgs = render_many([POSES[n] for n in ENEMY_POSES] + list(uniq.values()))
+    keys, done = imgs[:len(ENEMY_POSES)], dict(zip(uniq, imgs[len(ENEMY_POSES):]))
+    return {n: [keys[e] if isinstance(e, int) else done[_key(e)] for e in CLIPS[n]] for n in names}
+
+
 def build(ctx) -> None:
-    frames = [render_pose(POSES[name]) for name in ENEMY_POSES]
+    uniq = _unique_poses(list(CLIPS))
+    imgs = render_many([POSES[name] for name in ENEMY_POSES] + list(uniq.values()))
+    frames, done = imgs[:len(ENEMY_POSES)], dict(zip(uniq, imgs[len(ENEMY_POSES):]))
+    cells = render_clips(CLIPS, lambda p: done[_key(p)])
+    ctx.save_fighter("sprites/enemies/%s.png" % ID, frames, cells, (S, S), S, ID, preview_ms=PREVIEW_MS)
     sheet = hstack(frames)
-    ctx.save("sprites/enemies/%s.png" % ID, sheet, frame_w=S)
     face = portrait()
     ctx.save("sprites/portraits/%s.png" % ID, face)
     # Review pictures: the sheet at real size on the game's dark ground, and the portrait at

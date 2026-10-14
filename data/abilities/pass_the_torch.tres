@@ -15,3 +15,5 @@ ring_lead_percent = 85
 damage_percent = 0
 give_ap = 2
 press_give_ap = 1
+windup_clips = PackedStringArray("cast_windup")
+strike_clips = PackedStringArray("cast")

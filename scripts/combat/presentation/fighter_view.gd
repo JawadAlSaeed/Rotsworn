@@ -1,9 +1,16 @@
 class_name FighterView
 extends Node3D
-## One fighter on the stage: a billboard sprite whose frame is the pose, a shadow blob, a floor
-## warning (ground hits), and the flash / glow / crouch / greyed-out looks. The node itself stays at the fighter's home spot;
-## `body_offset` moves the body (dashes, lunges, dodges, jumps) and the shadow follows on the floor.
-## Poses are frame indices of the one-row sheet (DESIGN.md 5.3).
+## One fighter on the stage: a billboard sprite, a shadow blob, a floor warning (ground hits), and
+## the flash / glow / crouch / greyed-out looks. The node itself stays at the fighter's home spot;
+## `body_offset` moves the body (dashes, lunges, dodges, jumps, hops) and the shadow follows on
+## the floor.
+##
+## Frames (DESIGN.md 5.3 and 5.5). Without SpriteClips (or when the texture does not match them)
+## the sheet is one row and a pose is a frame index, exactly as before phase 10. With clips the
+## sheet is a grid: row 0 still holds the poses in the same order, and named clips play on a
+## ClipPlayer: a base (a key cell, a cell the caller drives from attack or skill time, or a
+## real-time loop) and one timed override with a priority. Every request shows its frame at once.
+## Clip names fall back through ClipNames to the caller's legacy pose.
 
 ## Frames of a character sheet.
 enum CharPose {
@@ -16,6 +23,11 @@ enum CharPose {
 	STRIKE,
 	DOWN,
 }
+
+## Override priorities (ClipPlayer): short reactions < big reactions < death and victory.
+const PRIO_REACT: int = ClipPlayer.PRIO_REACT
+const PRIO_BIG: int = ClipPlayer.PRIO_BIG
+const PRIO_FINAL: int = ClipPlayer.PRIO_FINAL
 
 const SHADER := preload("res://scripts/combat/presentation/fighter_sprite.gdshader")
 const SHADOW_HEIGHT := 0.02
@@ -41,40 +53,64 @@ var _shadow: Sprite3D
 var _warning: MeshInstance3D
 var _warning_material: StandardMaterial3D
 var _material: ShaderMaterial
+var _visuals: CombatVisuals
+## The sheet's grid and clips; null for a legacy one-row sheet.
+var _clips: SpriteClips
+var _player := ClipPlayer.new()
 var _hframes: int = 1
+var _vframes: int = 1
+var _cell_count: int = 1
+var _idle_percent: int = 100
+## Zone facing ("", "_front" or "_back"): clips with this suffix are tried first.
+var _facing_suffix: String = ""
 var _frame_height_px: float = 48.0
 ## Opaque part of the first frame, in pixels measured up from the feet (bottom of the frame).
 var _visible_top_px: float = 48.0
 var _visible_bottom_px: float = 0.0
 var _pixel_size: float = 0.045
 var _head_factor: float = 1.0
-var _base_pose: int = 0
-var _override_pose: int = -1
-var _override_until_us: int = 0
 var _flash_until_us: int = 0
 var _flash_length_us: int = 1
 var _flash_strength: float = 1.0
 ## The one tween allowed to move the body (see move_body).
 var _move_tween: Tween
 var _dissolve_tween: Tween
+## Sheets already warned about (their size does not match their clips).
+static var _warned_layout: Dictionary = {}
 
 
-## Builds the sprite and shadow. `fallback_size` is the sheet size to fake if the art is missing.
+## Builds the sprite and shadow. `hframes` and `frame_size` describe the legacy one-row sheet
+## (`frame_size` only fakes a missing file). With `clips` whose grid matches the texture, the sheet
+## is that grid. `idle_percent` scales an enemy's idle loop (EnemyData.idle_cycle_percent).
 func setup(id: int, party: bool, sheet_path: String, hframes: int, frame_size: Vector2i,
-		pixel_size: float, flip: bool, visuals: CombatVisuals) -> void:
+		pixel_size: float, flip: bool, visuals: CombatVisuals, clips: SpriteClips = null,
+		idle_percent: int = 100) -> void:
 	fighter_id = id
 	is_party = party
+	_visuals = visuals
+	_idle_percent = maxi(1, idle_percent)
 	_hframes = maxi(1, hframes)
+	_vframes = 1
 	_pixel_size = pixel_size
 	_head_factor = visuals.head_height_factor
-	var texture := AssetLoader.texture(sheet_path, Vector2i(frame_size.x * _hframes, frame_size.y))
+	var fallback_size := Vector2i(frame_size.x * _hframes, frame_size.y) if clips == null else clips.sheet_size()
+	var texture := AssetLoader.texture(sheet_path, fallback_size)
+	_clips = _matching_clips(clips, texture, sheet_path)
 	_frame_height_px = float(texture.get_height())
+	var body_width_px := float(texture.get_width()) / float(_hframes)
+	if _clips != null:
+		_hframes = _clips.hframes
+		_vframes = _clips.vframes
+		_frame_height_px = float(_clips.frame_size.y)
+		body_width_px = float(_clips.body_width_px)
+	_cell_count = _hframes * _vframes
 	_measure_visible(texture)
 
 	_sprite = Sprite3D.new()
 	_sprite.name = "Body"
 	_sprite.texture = texture
 	_sprite.hframes = _hframes
+	_sprite.vframes = _vframes
 	_sprite.pixel_size = pixel_size
 	_sprite.centered = true
 	_sprite.offset = Vector2(0.0, _frame_height_px * 0.5)
@@ -88,13 +124,15 @@ func setup(id: int, party: bool, sheet_path: String, hframes: int, frame_size: V
 	_material.set_shader_parameter("sprite_texture", texture)
 	_material.set_shader_parameter("glow_color", visuals.windup_glow_color)
 	_material.set_shader_parameter("glow_strength", visuals.windup_glow_strength)
+	# The dissolve's top-first bias works per cell of a grid sheet.
+	_material.set_shader_parameter("sheet_rows", float(_vframes))
 	_sprite.material_override = _material
 	add_child(_sprite)
 
 	_shadow = Sprite3D.new()
 	_shadow.name = "Shadow"
 	_shadow.texture = AssetLoader.texture(visuals.shadow_path, Vector2i(32, 12))
-	var frame_width := float(texture.get_width()) / float(_hframes) * pixel_size
+	var frame_width := body_width_px * pixel_size
 	_shadow.pixel_size = frame_width * visuals.shadow_width_factor / float(maxi(1, _shadow.texture.get_width()))
 	_shadow.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 	_shadow.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -107,35 +145,126 @@ func setup(id: int, party: bool, sheet_path: String, hframes: int, frame_size: V
 
 func _process(_delta: float) -> void:
 	var now := Time.get_ticks_usec()
-	var pose := _base_pose
-	if _override_pose >= 0:
-		if now < _override_until_us:
-			pose = _override_pose
-		else:
-			_override_pose = -1
-	_sprite.frame = clampi(pose, 0, _hframes - 1)
+	_sprite.frame = cell_at(float(now) / 1000.0)
 	var flash := 0.0
 	if now < _flash_until_us:
 		flash = _flash_strength * float(_flash_until_us - now) / float(_flash_length_us)
 	_material.set_shader_parameter("flash_amount", clampf(flash, 0.0, 1.0))
 
 
-## The pose shown when no timed pose is playing.
-func set_pose(frame: int) -> void:
-	_base_pose = frame
-	if _sprite != null and _override_pose < 0:
-		_sprite.frame = clampi(frame, 0, _hframes - 1)
+## The clip clock: real time in milliseconds (Time.get_ticks_usec, like flash()).
+static func now_ms() -> float:
+	return float(Time.get_ticks_usec()) / 1000.0
 
 
-## Shows `frame` for `ms` milliseconds (real time), then goes back to the base pose.
-func play_pose(frame: int, ms: int) -> void:
-	_override_pose = frame
-	_override_until_us = Time.get_ticks_usec() + ms * 1000
-	_sprite.frame = clampi(frame, 0, _hframes - 1)
+## The sheet cell shown at `time_ms` (now_ms() clock), clamped to the sheet.
+func cell_at(time_ms: float) -> int:
+	return clampi(_player.cell_at(time_ms), 0, _cell_count - 1)
 
 
-func clear_timed_pose() -> void:
-	_override_pose = -1
+## The base pose, shown when no timed pose plays. With clips, idle, ready and down (heroes) and
+## idle (enemies) loop their clip in real time when it has more than one cell, each fighter out of
+## step with the others; every other pose shows its row-0 key cell, as before.
+func set_pose(pose: int) -> void:
+	var cells := _loop_cells(pose)
+	if cells.size() > 1:
+		var period := _loop_period_ms(pose)
+		_player.set_base_loop(cells, period, ClipMath.phase_for(fighter_id, period))
+	else:
+		_player.set_base_cell(pose)
+	_show()
+
+
+## Shows `pose` for `ms` milliseconds (real time), then goes back to the base pose. With clips the
+## pose's clip plays spread over `ms`; without one, the pose's single frame, as before.
+func play_pose(pose: int, ms: int) -> void:
+	var cells := _cells(ClipNames.pose_name(pose, is_party))
+	if cells.is_empty():
+		cells = PackedInt32Array([pose])
+	_player.play(cells, now_ms(), float(ms), PRIO_REACT)
+	_show()
+
+
+## Drops the timed pose if its priority is below `below` (default: any), back to the base pose.
+func clear_timed_pose(below: int = PRIO_FINAL + 1) -> void:
+	_player.cancel_below(below)
+	_show()
+
+
+## Base: cell `index` of `clip` (a caller driving it from attack or skill time calls this every
+## frame). A missing clip shows set_pose(fallback_pose) instead (nothing when it is -1).
+func show_clip(clip: String, index: int, fallback_pose: int) -> void:
+	var cells := _cells(clip)
+	if cells.is_empty():
+		if fallback_pose >= 0:
+			set_pose(fallback_pose)
+		return
+	_player.set_base_cell(cells[clampi(index, 0, cells.size() - 1)])
+	_show()
+
+
+## Base: `clip` at progress `u` (0..1, its cells shared evenly); otherwise like show_clip.
+func show_clip_u(clip: String, u: float, fallback_pose: int) -> void:
+	show_clip(clip, ClipMath.stretch(clip_count(clip), u), fallback_pose)
+
+
+## Base: loops `clip` in real time, one cycle every `period_ms`, out of step with other fighters.
+## With `delay_ms` it starts from its first cell that much later and the current base shows until
+## then (call it once, not every frame). A missing clip shows set_pose(fallback_pose) (nothing
+## when it is -1).
+func set_loop(clip: String, period_ms: int, fallback_pose: int, delay_ms: int = 0) -> void:
+	var cells := _cells(clip)
+	if cells.is_empty():
+		if fallback_pose >= 0:
+			set_pose(fallback_pose)
+		return
+	var period := float(maxi(1, period_ms))
+	if delay_ms > 0:
+		_player.set_base_loop(cells, period, 0.0, now_ms() + float(delay_ms))
+	else:
+		_player.set_base_loop(cells, period, ClipMath.phase_for(fighter_id, period))
+	_show()
+
+
+## Override: plays `clip` over the base for `ms` (real time), its cells spread evenly, at priority
+## `prio` (PRIO_REACT, PRIO_BIG or PRIO_FINAL), starting after `delay_ms`. `hold` keeps its last
+## cell until cleared; `cycle_ms` above 0 loops it for the whole length instead. A missing clip
+## plays the single cell `fallback_pose` (nothing when it is -1). False when refused (a higher
+## priority one is pending or playing) or when there was nothing to play.
+func play(clip: String, ms: int, prio: int, fallback_pose: int = -1, delay_ms: int = 0,
+		hold: bool = false, cycle_ms: int = 0) -> bool:
+	var cells := _cells(clip)
+	if cells.is_empty():
+		if fallback_pose < 0:
+			return false
+		cells = PackedInt32Array([fallback_pose])
+	var played := _player.play(cells, now_ms(), float(ms), prio, float(delay_ms), hold, float(cycle_ms))
+	_show()
+	return played
+
+
+## Cells `clip` plays after the fallbacks (0: nothing fits, or a sheet without clips).
+func clip_count(clip: String) -> int:
+	return _cells(clip).size()
+
+
+func has_clip(clip: String) -> bool:
+	return clip_count(clip) > 0
+
+
+## True while a timed pose of at least `min_prio` is pending or playing.
+func is_busy(min_prio: int = PRIO_REACT) -> bool:
+	return _player.busy(now_ms(), min_prio)
+
+
+## True while it crumbles away or plays its death (or victory): a final look nothing should snap.
+func is_dying() -> bool:
+	return is_dissolving() or is_busy(PRIO_FINAL)
+
+
+## Zone facing: clips named with this suffix ("_front", "_back"; "" for side views) are tried first.
+func set_facing_suffix(suffix: String) -> void:
+	_facing_suffix = suffix
 
 
 ## Moves the body to `to` (relative to home) over `seconds`, replacing any movement still in
@@ -151,6 +280,24 @@ func move_body(to: Vector3, seconds: float, trans: Tween.TransitionType = Tween.
 		return
 	_move_tween = create_tween()
 	_move_tween.tween_property(self, "body_offset", to, seconds).set_trans(trans).set_ease(ease)
+
+
+## Hops the body to `to` over `seconds` along an arc `height` high (world units), replacing any
+## movement still in progress, like move_body. 0 seconds snaps.
+func hop_body(to: Vector3, seconds: float, height: float) -> void:
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	_move_tween = null
+	if seconds <= 0.0:
+		body_offset = to
+		return
+	_move_tween = create_tween()
+	_move_tween.tween_method(_hop_step.bind(body_offset, to, height), 0.0, 1.0, seconds)
+
+
+## Where a hop from `from` to `to`, `height` high, is at progress `u` (0..1).
+static func hop_point(from: Vector3, to: Vector3, u: float, height: float) -> Vector3:
+	return from.lerp(to, u) + Vector3(0.0, sin(PI * u) * height, 0.0)
 
 
 func set_body_offset(value: Vector3) -> void:
@@ -196,19 +343,25 @@ func set_floor_warning(strength: float, color: Color) -> void:
 
 
 ## A beaten enemy crumbles away over `ms` (its shadow fades with it), its edge glowing in
-## `edge_color`. ms 0 makes it gone at once; set_dissolve(0) brings it back.
-func dissolve(ms: int, edge_color: Color) -> void:
+## `edge_color`, starting after `delay_ms`. ms 0 makes it gone at once (after the delay);
+## set_dissolve(0) brings it back. is_dissolving() is true from the call on, delay included.
+func dissolve(ms: int, edge_color: Color, delay_ms: int = 0) -> void:
 	_material.set_shader_parameter("dissolve_edge_color", edge_color)
 	if _dissolve_tween != null and _dissolve_tween.is_valid():
 		_dissolve_tween.kill()
-	if ms <= 0:
+	if ms <= 0 and delay_ms <= 0:
 		set_dissolve(1.0)
 		return
 	_dissolve_tween = create_tween()
-	_dissolve_tween.tween_method(set_dissolve, 0.0, 1.0, float(ms) / 1000.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	if delay_ms > 0:
+		_dissolve_tween.tween_interval(float(delay_ms) / 1000.0)
+	if ms <= 0:
+		_dissolve_tween.tween_callback(_apply_dissolve.bind(1.0))
+	else:
+		_dissolve_tween.tween_method(_apply_dissolve, 0.0, 1.0, float(ms) / 1000.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
 
-## True while a dissolve() is still playing.
+## True while a dissolve() is still playing (or waiting for its delay).
 func is_dissolving() -> bool:
 	return _dissolve_tween != null and _dissolve_tween.is_valid() and _dissolve_tween.is_running()
 
@@ -217,8 +370,7 @@ func is_dissolving() -> bool:
 func set_dissolve(amount: float) -> void:
 	if amount <= 0.0 and _dissolve_tween != null and _dissolve_tween.is_valid():
 		_dissolve_tween.kill()
-	_material.set_shader_parameter("dissolve", clampf(amount, 0.0, 1.0))
-	_shadow.modulate = Color(1.0, 1.0, 1.0, 1.0 - clampf(amount, 0.0, 1.0))
+	_apply_dissolve(amount)
 
 
 ## Greyed-out look for a downed fighter (0..1).
@@ -286,8 +438,64 @@ func _build_floor_warning(diameter: float) -> void:
 	add_child(_warning)
 
 
-## Finds the opaque rows of frame 0, so popups sit on the art and not on empty frame space.
-## Falls back to the whole frame if the image cannot be read.
+## The dissolve look, without touching the tween (the dissolve tween itself drives this).
+func _apply_dissolve(amount: float) -> void:
+	_material.set_shader_parameter("dissolve", clampf(amount, 0.0, 1.0))
+	_shadow.modulate = Color(1.0, 1.0, 1.0, 1.0 - clampf(amount, 0.0, 1.0))
+
+
+func _hop_step(u: float, from: Vector3, to: Vector3, height: float) -> void:
+	body_offset = hop_point(from, to, u, height)
+
+
+## Writes the frame for now at once, so a request never waits for the next _process.
+func _show() -> void:
+	if _sprite != null:
+		_sprite.frame = cell_at(now_ms())
+
+
+## `clips` if `texture` is exactly their grid; otherwise null (the legacy one-row sheet), with one
+## warning per sheet when there were clips.
+func _matching_clips(clips: SpriteClips, texture: Texture2D, sheet_path: String) -> SpriteClips:
+	if clips == null or clips.matches(texture):
+		return clips
+	if not _warned_layout.has(sheet_path):
+		_warned_layout[sheet_path] = true
+		push_warning("FighterView: '%s' is %dx%d but its clips expect %s; showing it as one row of %d frames"
+				% [sheet_path, texture.get_width(), texture.get_height(), clips.sheet_size(), _hframes])
+	return null
+
+
+## The cells `clip` plays on this sheet after the fallbacks (empty without clips).
+func _cells(clip: String) -> PackedInt32Array:
+	return ClipNames.cells(_clips, clip, _facing_suffix)
+
+
+## The clip of a looping pose (idle, ready, down); empty for any other pose or without clips.
+func _loop_cells(pose: int) -> PackedInt32Array:
+	if _clips == null:
+		return PackedInt32Array()
+	var clip := ClipNames.pose_name(pose, is_party)
+	if not ClipNames.LOOPS.has(clip):
+		return PackedInt32Array()
+	return _cells(clip)
+
+
+## One cycle of a looping pose, in ms.
+func _loop_period_ms(pose: int) -> float:
+	if not is_party:
+		return float(maxi(1, CombatMath.percent(_visuals.enemy_idle_cycle_ms, _idle_percent)))
+	match pose:
+		CharPose.READY:
+			return float(_visuals.ready_cycle_ms)
+		CharPose.DOWN:
+			return float(_visuals.down_cycle_ms)
+	return float(_visuals.idle_cycle_ms)
+
+
+## Finds the opaque rows of frame 0 (cell 0 of a grid), so popups sit on the art and not on empty
+## frame space. Falls back to the whole frame if the image cannot be read.
+@warning_ignore("integer_division")
 func _measure_visible(texture: Texture2D) -> void:
 	_visible_top_px = _frame_height_px
 	_visible_bottom_px = 0.0
@@ -297,7 +505,11 @@ func _measure_visible(texture: Texture2D) -> void:
 	if image.is_compressed() and image.decompress() != OK:
 		return
 	var frame_w := image.get_width() / _hframes
-	var used := image.get_region(Rect2i(0, 0, frame_w, image.get_height())).get_used_rect()
+	var frame_h := image.get_height()
+	if _clips != null:
+		frame_w = _clips.frame_size.x
+		frame_h = _clips.frame_size.y
+	var used := image.get_region(Rect2i(0, 0, frame_w, frame_h)).get_used_rect()
 	if used.size.y <= 0:
 		return
 	_visible_top_px = _frame_height_px - float(used.position.y)

@@ -14,9 +14,14 @@ strokes each keeps its own outline. Close-ups (the portrait) use the same curves
 Eyes, lesions and the glowing mouth are small decals painted onto the rendered surface (only on
 the right body part, never off the silhouette), so they stay clean 2-3 pixel shapes.
 
-Phase 10 reuse: POSES holds the keyframes (plain dicts, every pose carrying every key), model(pose)
-builds the SDF model and render_pose(pose) draws one RGBA frame, so in-between frames are
-render_pose(blend(POSES[a], POSES[b], t)) with kit.rig.blend.
+Phase 10: POSES holds the keyframes (plain dicts, every pose carrying every key), model(pose)
+builds the SDF model and render_pose(pose) draws one RGBA frame. CLIPS (at the end) lists every
+animation clip of plan 4.2 as row-0 keys and pose dicts, most of them hand-set in-betweens
+(kit.rig.blend plus changes); the build renders them in worker processes. Pose keys used only by
+clips (absent = off, so the row-0 keys render exactly as in phase 9):
+    dead     1 = the rot core has gone dark (death)
+    rubble   0..1 flight time of the clods the slam throws up round the claws
+    crumbs   0..1 how much bark has fallen off onto the floor (death)
 """
 from __future__ import annotations
 
@@ -33,8 +38,9 @@ from kit.render import DEFAULT_LIGHT, Camera, Frame, line3d, render
 from kit.rig import Build, Skeleton, blend, pose_skeleton
 from kit.sdf import (Box, Cylinder, Ellipsoid, Node, Prim, Prism, RoundCone, SmoothUnion, Sphere,
                      Subtract, Torus, Union, basis, rot)
+from kit.clips import ENEMY_PREVIEW_MS, render_clips
 from kit.sheet import hstack
-from kit.specs import ENEMY_FRAME, ENEMY_POSES, PORTRAIT
+from kit.specs import ENEMY_FRAME, ENEMY_POSES, HERO_CELL, HERO_FRAME, PORTRAIT
 
 ID = "rotten_husk"
 S = ENEMY_FRAME[ID]
@@ -72,6 +78,10 @@ MAW = Material.make("husk_maw", "#3b2233", below=1, above=1, wrap=0.2, ao=0.2)
 # windup tell it flares to the bright rot glow with the eyes and the mouth.
 CORE = Material.make("husk_rot_core", "#7aa344", below=2, above=1, emissive=True, glow_index=2)
 CORE_HOT = Material(name="husk_rot_core_hot", colors=list(EYE.colors), emissive=True, glow_index=3)
+# Phase 10: the core once the husk is dead (a dark, unlit rot), and the clods its slam throws up
+# and the bark that falls off it as it crumbles.
+CORE_DEAD = Material.make("husk_rot_core_dead", "#3f4a30", below=1, above=1, wrap=0.3, ao=0.3)
+CLOD = Material.make("husk_clod", "#857260", wrap=0.35, ao=0.2)
 
 # --- Poses ---------------------------------------------------------------------------------------
 # Keys from kit.rig.pose_skeleton (pelvis, lean, side_lean, twist, hand_*, elbow_*, foot_*, knee_*,
@@ -490,8 +500,10 @@ def _torso(sk: Skeleton, pose: dict[str, Any]) -> Node:
         RoundCone(SKIN, sk["neck"], sk["neck_top"], 2.4, 1.7, group="torso"),
         k=2.2,
     )
-    # The rot core: a hole eaten into the near flank, lined with a rot-green glow.
+    # The rot core: a hole eaten into the near flank, lined with a rot-green glow (dark once dead).
     core = CORE_HOT if float(pose.get("glow", 0.0)) >= 0.9 else CORE
+    if float(pose.get("dead", 0.0)) >= 0.5:
+        core = CORE_DEAD
     cav_p, cav_n, CF = _cavity(sk)
     cavity = Ellipsoid(core, cav_p - cav_n * 0.6, (3.0, 1.9, 2.6), R=CF, group="cavity")
     parts: list[Node] = [Subtract(flesh, cavity, b_material=True)]
@@ -644,6 +656,33 @@ def _rags(sk: Skeleton, pose: dict[str, Any]) -> Node:
     return Bounded(Union(*parts))
 
 
+# Clods the slam throws up around each claw: (along x, across z, peak height, radius), design
+# units. They fly out and fall back over `rubble` 0..1 (0 and 1 = on the ground).
+RUBBLE = ((4.0, 3.0, 10.0, 2.1), (-4.0, 4.5, 7.0, 1.7), (1.0, 1.0, 15.0, 1.4))
+# Bark that falls off the husk as it crumbles (death): (x, z, radius, seed) lying on the ground.
+CRUMBS = ((14.0, 6.5, 1.8, 81), (-2.0, 8.0, 1.4, 82), (24.0, 2.0, 1.3, 83), (-18.0, 5.0, 1.6, 84))
+
+
+def _rubble(sk: Skeleton, pose: dict[str, Any]) -> list[Node]:
+    """The slam's clods (pose key `rubble`, the flight time 0..1) and the death's fallen bark
+    (pose key `crumbs` 0..1, how much has fallen)."""
+    out: list[Node] = []
+    t = float(pose.get("rubble", 0.0))
+    if 0.0 < t < 1.0:
+        for side, sgn in (("n", 1.0), ("f", -1.0)):
+            h = sk["hand_" + side]
+            for i, (dx, dz, peak, r) in enumerate(RUBBLE):
+                y = r + peak * 4.0 * t * (1.0 - t)
+                c = _v((h[0] + 3.0 + dx * t, y, h[2] + sgn * dz * t))
+                out.append(Box(CLOD, c, (r, r * 0.8, r), R=rot(30.0 * i + 50.0 * t, 20.0 * i, 40.0 * t),
+                               round=0.35, group="rubble"))
+    k = float(pose.get("crumbs", 0.0))
+    for i, (x, z, r, seed) in enumerate(CRUMBS[:int(round(k * len(CRUMBS)))]):
+        out.append(Ellipsoid(PLATE, _v((x, r * 0.55, z)), (r * 1.3, r * 0.55, r), R=rot(0.0, 37.0 * i, 0.0),
+                             group="crumbs", bumps=(0.12, 1.0, seed)))
+    return out
+
+
 def model(pose: dict[str, Any], sk: Skeleton | None = None, talons3d: bool = True) -> Node:
     """The husk as one SDF model for `pose` (design units scaled by SIZE). Sprites draw the
     talons as pixel lines instead (talons3d=False, then draw_talons after rendering)."""
@@ -656,6 +695,7 @@ def model(pose: dict[str, Any], sk: Skeleton | None = None, talons3d: bool = Tru
         _leg(sk, "n"),
         _leg(sk, "f"),
         _rags(sk, pose),
+        *_rubble(sk, pose),
     ), SIZE)
 
 
@@ -1066,6 +1106,9 @@ def _review(ctx, frames: list[np.ndarray], por: np.ndarray) -> None:
     row = np.zeros((S, 8 + len(heroes) * 40 + 2 * S + 8, 4), dtype=np.uint8)
     x = 8
     for h in heroes:
+        if h.shape[0] != HERO_FRAME[1]:  # a grid sheet: its idle key, cropped to the old frame
+            px = (HERO_CELL[0] - HERO_FRAME[0]) // 2
+            h = h[HERO_CELL[1] - HERO_FRAME[1]:HERO_CELL[1], px:px + HERO_FRAME[0]]
         row[S - h.shape[0]:, x:x + 32] = h[:, :32]
         x += 40
     row[:, x:x + S] = frames[0]
@@ -1086,6 +1129,210 @@ def _review(ctx, frames: list[np.ndarray], por: np.ndarray) -> None:
         ctx.extra("portraits_hud_2x.png", strip, scale=2)
 
 
+# --- Clips (phase 10) ----------------------------------------------------------------------------
+# The review GIFs breathe at game speed: this mirrors idle_cycle_percent in
+# data/enemies/rotten_husk.tres (the game's number; change both together).
+IDLE_CYCLE_PERCENT = 90
+# Row-0 keys by name (an int in a clip is a key cell).
+K = {n: i for i, n in enumerate(ENEMY_POSES)}
+
+
+def _k(name: str, **kw: Any) -> dict[str, Any]:
+    """Key pose `name` with some keys changed."""
+    p = dict(POSES[name])
+    p.update(kw)
+    return p
+
+
+def _mix(a: dict[str, Any], b: dict[str, Any], t: float, **kw: Any) -> dict[str, Any]:
+    """An in-between of two poses, with some keys then set by hand."""
+    p = blend(a, b, t)
+    p.update(kw)
+    return p
+
+
+IDLE, WINDUP, LUNGE, CONTACT, HURT, SLAM = (POSES[n] for n in ENEMY_POSES)
+
+# Breathing out: the hump sinks a hair, the head and arms sway forward and down, the jaw gapes.
+BREATH = _k("idle", pelvis=(-10.3, 20.8, 0.0), lean=56.0, side_lean=2.0, head=(-6.0, -28.0, -4.0),
+            jaw=34.0, hand_n=(15.5, 11.0, 8.0), hand_f=(19.5, 15.8, -6.0), rag=(0.8, 0.3))
+
+# The coil: sinks and draws the near claw back low, then sweeps it up as the core flares.
+COIL_1 = _k("idle", pelvis=(-9.0, 19.6, 0.0), lean=60.0, twist=-4.0, neck=104.0,
+            head=(-4.0, -20.0, 0.0), jaw=20.0, glow=0.6,
+            hand_n=(-13.0, 21.0, 8.0), elbow_n=(-0.2, -1.0, 0.6), claw_n=(-0.8, -0.6, 0.0),
+            hook_n=(1.0, 0.0, 0.0), hand_f=(16.0, 14.5, -6.0), toe_f=8.0)
+COIL_2 = _mix(COIL_1, WINDUP, 0.6, hand_n=(-17.0, 38.0, 7.0), elbow_n=(-0.4, 0.6, 0.8),
+              claw_n=(-0.2, 1.0, 0.0), hook_n=(1.0, 0.0, 0.0), glow=1.0, jaw=34.0)
+# Held: the raised claw trembles, the jaw works, the talons flex.
+SHIVER = _k("windup", pelvis=(-7.2, 22.7, 0.0), hand_n=(-11.0, 49.0, 6.5), spread_n=1.75,
+            jaw=46.0, head=(-28.0, -12.0, 6.0), hand_f=(14.5, 21.5, -7.0), spread_f=1.55,
+            rag=(-1.4, 0.2))
+
+# The lunge: drops forward as the raised claw comes over the top, then reaches out (arriving).
+LUNGE_1 = _k("windup", pelvis=(-8.0, 20.5, 0.0), lean=50.0, twist=0.0, side_lean=0.0,
+             neck=90.0, head=(-20.0, -14.0, 0.0), jaw=36.0, glow=1.0,
+             hand_n=(4.0, 46.0, 7.0), elbow_n=(-0.6, 0.4, 0.8), claw_n=(0.7, 0.7, 0.0),
+             hook_n=(0.7, -0.7, 0.0), spread_n=1.5,
+             hand_f=(6.0, 16.0, -7.0), foot_n=(7.0, 3.4, 4.6), toe_f=12.0, rag=(-2.0, 0.0))
+LUNGE_2 = _mix(LUNGE_1, LUNGE, 0.55, hand_n=(22.0, 36.0, 6.0), claw_n=(1.0, 0.2, 0.0),
+               hook_n=(0.3, -1.0, 0.0), foot_n=(9.0, 3.2, 4.6), glow=0.6)
+
+# Follow-through: the claw rakes down and back across the body, then hangs as it settles.
+FOLLOW_1 = _k("contact", pelvis=(-13.0, 17.5, 0.0), lean=68.0, twist=55.0, head=(-30.0, -18.0, 0.0),
+              jaw=30.0, glow=0.5, hand_n=(27.0, 11.0, 9.0), elbow_n=(-0.2, -1.0, 0.6),
+              claw_n=(0.3, -1.0, 0.3), hook_n=(-1.0, -0.3, 0.0), spread_n=1.6,
+              hand_f=(-10.0, 18.0, -7.0))
+FOLLOW_2 = _k("contact", pelvis=(-12.0, 18.5, 0.0), lean=62.0, twist=35.0, head=(-20.0, -20.0, 0.0),
+              jaw=26.0, glow=0.3, hand_n=(19.0, 10.0, 8.0), elbow_n=(-0.6, -0.6, 0.6),
+              claw_n=(0.3, -1.0, 0.1), hook_n=(1.0, 0.0, 0.0), spread_n=1.2,
+              hand_f=(4.0, 15.0, -7.0), toe_f=12.0, rag=(-1.0, 0.5))
+
+# Tier 2, the other claw (`lunge_b`, `contact_b`, e.g. every second hit of a string): the far
+# claw comes over the top and rakes while the near one swings back. It settles into the same
+# FOLLOW_2, so recoil and return follow it as they follow the near claw.
+LUNGE_B1 = _k("idle", pelvis=(-8.0, 20.5, 0.0), lean=50.0, side_lean=0.0, twist=-14.0, neck=92.0,
+              head=(-20.0, -16.0, 0.0), jaw=36.0, glow=0.9,
+              hand_f=(0.0, 44.0, -8.0), elbow_f=(-0.6, 0.4, -0.8), claw_f=(0.6, 0.8, 0.0),
+              hook_f=(0.7, -0.7, 0.0), spread_f=1.5,
+              hand_n=(-6.0, 18.0, 8.0), elbow_n=(0.0, -1.0, 0.6), claw_n=(-0.5, -1.0, 0.0),
+              foot_n=(6.0, 3.4, 4.6), toe_f=12.0, rag=(-2.0, 0.0))
+LUNGE_B2 = _mix(LUNGE_B1, LUNGE, 0.55, hand_f=(20.0, 34.0, -6.0), claw_f=(1.0, 0.2, 0.0),
+                hook_f=(0.3, -1.0, 0.0), spread_f=1.5, hand_n=(-12.0, 16.0, 7.0),
+                claw_n=(-0.6, -1.0, 0.0), hook_n=(1.0, 0.0, 0.0), foot_n=(9.0, 3.2, 4.6), glow=0.6)
+LUNGE_B3 = _k("lunge", twist=-10.0, hand_f=(29.0, 25.0, -5.0), elbow_f=(-0.4, -1.0, -0.6),
+              claw_f=(1.0, -0.3, 0.0), hook_f=(0.0, -1.0, 0.0), spread_f=1.4,
+              hand_n=(-14.0, 14.0, 8.0), elbow_n=(0.2, -1.0, 0.6), claw_n=(-0.6, -1.0, 0.0),
+              hook_n=(1.0, 0.0, 0.0), spread_n=0.8)
+CONTACT_B = _k("contact", twist=10.0, side_lean=3.0, hand_f=(27.0, 25.0, -3.0), elbow_f=(0.0, -1.0, -0.6),
+               claw_f=(1.0, -0.7, 0.0), hook_f=(-0.2, -1.0, 0.0), spread_f=1.8,
+               hand_n=(-12.0, 15.0, 8.0), elbow_n=(0.2, -1.0, 0.6), claw_n=(-0.6, -1.0, 0.0),
+               hook_n=(1.0, 0.0, 0.0), spread_n=0.8)
+FOLLOW_B1 = _k("contact", pelvis=(-13.0, 17.5, 0.0), lean=68.0, twist=0.0, head=(-30.0, -18.0, 0.0),
+               jaw=30.0, glow=0.5, hand_f=(26.0, 11.0, -6.0), elbow_f=(-0.2, -1.0, -0.6),
+               claw_f=(0.3, -1.0, -0.3), hook_f=(-1.0, -0.3, 0.0), spread_f=1.6,
+               hand_n=(-6.0, 16.0, 8.0), elbow_n=(0.0, -1.0, 0.6), claw_n=(-0.2, -1.0, 0.0),
+               hook_n=(1.0, 0.0, 0.0), spread_n=1.0)
+
+RECOIL_1 = _mix(FOLLOW_2, IDLE, 0.55, pelvis=(-12.0, 21.0, 0.0), lean=50.0)
+# Walking back home: a step back with the near foot, then a shuffle with the far one.
+RETURN_1 = _mix(FOLLOW_2, IDLE, 0.45, foot_n=(-2.0, 5.5, 4.6), glow=0.0)
+RETURN_2 = _mix(FOLLOW_2, IDLE, 0.8, foot_f=(-15.0, 3.8, -4.2), toe_f=14.0, glow=0.0)
+
+# The slam: clods thrown up round the claws while it is down, falling as it starts to rise.
+SLAM_DUST = _k("slam", pelvis=(-10.3, 19.9, 0.0), lean=82.0, jaw=42.0, rubble=0.45)
+SLAM_RISE = _mix(SLAM, IDLE, 0.3, rubble=0.85, glow=0.3)
+SLAM_UP = _mix(SLAM, IDLE, 0.6, glow=0.1)
+
+HURT_1 = _mix(HURT, IDLE, 0.5, eyes=1.0, hand_f=(14.0, 16.0, -7.0), hand_n=(8.0, 22.0, 8.0))
+# Stagger: knocked further back a step, then doubled over catching itself.
+STAGGER_1 = _k("hurt", pelvis=(-8.0, 20.8, 0.0), lean=-38.0, neck=-30.0, head=(-66.0, -4.0, 22.0),
+               jaw=44.0, hand_n=(-18.0, 27.0, 9.0), hand_f=(2.0, 46.0, -8.0),
+               foot_n=(-3.0, 2.2, 4.6), foot_f=(-17.0, 2.2, -4.0), toe_n=10.0, toe_f=12.0)
+STAGGER_2 = _k("idle", pelvis=(-11.0, 18.5, 0.0), lean=75.0, side_lean=0.0, twist=0.0,
+               neck=130.0, head=(-30.0, -20.0, 0.0), jaw=30.0, eyes=1.0,
+               hand_n=(6.0, 12.0, 8.0), hand_f=(10.0, 14.0, -6.0),
+               foot_n=(2.0, 2.2, 4.6), foot_f=(-18.0, 2.2, -4.4))
+
+# Death (rot): a last throe, the knees buckle as the core goes dark, it folds onto its knees and
+# crumbles face down, bark falling off it.
+DEATH_1 = _k("hurt", lean=-44.0, neck=-34.0, head=(-70.0, -4.0, 24.0), jaw=48.0,
+             hand_n=(-18.0, 38.0, 9.0), hand_f=(16.0, 46.0, -8.0))
+DEATH_2 = _k("idle", pelvis=(-9.0, 15.0, 0.0), lean=34.0, side_lean=6.0, twist=0.0, neck=96.0,
+             head=(14.0, -20.0, 16.0), jaw=34.0, eyes=0.0, dead=1.0,
+             hand_n=(4.0, 6.0, 9.0), elbow_n=(-1.0, 0.0, 0.6), claw_n=(0.0, -1.0, 0.0),
+             hand_f=(0.0, 8.0, -7.0), claw_f=(0.0, -1.0, 0.0),
+             foot_n=(2.0, 2.2, 4.6), foot_f=(-14.0, 2.2, -4.2), toe_f=0.0)
+DEATH_3 = _k("idle", pelvis=(-10.0, 11.0, 0.0), lean=60.0, side_lean=4.0, twist=0.0, neck=120.0,
+             head=(20.0, -20.0, 10.0), jaw=30.0, eyes=0.0, dead=1.0,
+             hand_n=(14.0, 3.0, 9.0), claw_n=(1.0, -0.4, 0.0), hand_f=(16.0, 4.0, -7.0),
+             foot_n=(-12.0, 2.2, 4.4), foot_f=(-14.0, 2.2, -4.4), toe_n=-60.0, toe_f=-60.0,
+             crumbs=0.25)
+DEATH_4 = _k("idle", pelvis=(-12.0, 11.0, 0.0), lean=100.0, side_lean=4.0, twist=0.0, neck=150.0,
+             head=(40.0, -10.0, 20.0), jaw=20.0, eyes=0.0, dead=1.0,
+             hand_n=(18.0, 2.5, 9.0), claw_n=(1.0, -0.2, 0.0), hand_f=(8.0, 2.5, -8.0),
+             claw_f=(1.0, -0.2, 0.0), foot_n=(-22.0, 2.2, 4.4), foot_f=(-24.0, 2.2, -4.4),
+             toe_n=-60.0, toe_f=-60.0, rag=(1.0, 0.0), crumbs=1.0)
+
+
+def _gait(near_x: float, far_x: float, near_up: float, far_up: float, bob: float, swing: float,
+          lean: float = 52.0, pelvis_y: float = 20.8, reach: float = 0.0, **kw: Any) -> dict[str, Any]:
+    """A walking or running frame: where each foot is along the ground (and lifted), the body's
+    bob, and the arms swinging against the legs (swing +1 = near claw forward; reach moves both
+    claws forward and up, as when it runs at its prey)."""
+    p = _k("idle", pelvis=(-6.0, pelvis_y + bob, 0.0), lean=lean, side_lean=-3.0 * swing,
+           twist=8.0 * swing, neck=100.0, head=(-14.0 - 3.0 * bob, -24.0, -3.0 * swing),
+           foot_n=(near_x, 2.2 + near_up, 4.6), foot_f=(far_x, 2.2 + far_up, -4.2),
+           knee_n=(1.0, 0.3 if near_up > 0.5 else 0.0, 0.15),
+           knee_f=(1.0, 0.3 if far_up > 0.5 else 0.0, -0.15),
+           toe_n=14.0 if near_up > 0.5 else 0.0, toe_f=14.0 if far_up > 0.5 else 0.0,
+           hand_n=(15.0 + 8.0 * swing + reach, 12.5 + 0.5 * reach, 8.0),
+           hand_f=(17.0 - 8.0 * swing + reach, 15.5 + 0.5 * reach, -6.0),
+           rag=(-1.5 * swing, 0.0))
+    p.update(kw)
+    return p
+
+
+# Two steps per cycle; a foot is planted on cells 0 and 2 (the footstep moments). A step is 18
+# design units (about 20 px = explore_visuals roam_stride 0.9 at 0.045 per px), so the planted
+# foot keeps pace with the ground.
+WALK = [_gait(6.0, -12.0, 0.0, 0.0, -0.4, -1.0), _gait(-3.0, -4.5, 0.0, 6.0, 0.9, 0.0),
+        _gait(-12.0, 6.0, 0.0, 0.0, -0.4, 1.0), _gait(-4.5, -3.0, 6.0, 0.0, 0.9, 0.0)]
+# The hunting lope: low and long, claws reaching for the prey, jaw open, eyes lit.
+_RUN = dict(lean=68.0, pelvis_y=19.0, reach=3.0, jaw=36.0, glow=0.6, neck=96.0)
+CHASE = [_gait(9.0, -15.0, 0.0, 1.5, -0.8, -1.1, **_RUN), _gait(-1.0, -10.0, 0.0, 8.0, 1.2, 0.0, **_RUN),
+         _gait(-15.0, 9.0, 1.5, 0.0, -0.8, 1.1, **_RUN), _gait(-10.0, -1.0, 8.0, 0.0, 1.2, 0.0, **_RUN)]
+
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose). The game sets the timing.
+CLIPS: dict[str, list[Any]] = {
+    "idle": [K["idle"], _mix(IDLE, BREATH, 0.5), BREATH, _mix(IDLE, BREATH, 0.5)],
+    "windup": [COIL_1, COIL_2, K["windup"]],
+    "windup_hold": [K["windup"], SHIVER],
+    "lunge": [LUNGE_1, LUNGE_2, K["lunge"]],
+    "contact": [K["contact"], FOLLOW_1, FOLLOW_2],
+    "recoil": [RECOIL_1, K["idle"]],
+    "return": [RETURN_1, RETURN_2, K["idle"]],
+    "slam": [K["slam"], SLAM_DUST, SLAM_RISE],
+    "slam_recover": [SLAM_UP, K["idle"]],
+    "hurt": [K["hurt"], HURT_1, K["idle"]],
+    "stagger": [K["hurt"], STAGGER_1, STAGGER_2, K["idle"]],
+    "death": [DEATH_1, DEATH_2, DEATH_3, DEATH_4],
+    "walk": WALK,
+    "chase": CHASE,
+    "lunge_b": [LUNGE_B1, LUNGE_B2, LUNGE_B3],
+    "contact_b": [CONTACT_B, FOLLOW_B1, FOLLOW_2],
+}
+
+
+def _render_cell(pose: dict[str, Any]) -> np.ndarray:
+    return _finish(render_frame(pose))
+
+
+def render_cells(poses: Sequence[dict[str, Any]]) -> list[np.ndarray]:
+    """Renders many poses, in worker processes when it can (a clip set is about 30 frames)."""
+    if len(poses) < 4:
+        return [_render_cell(p) for p in poses]
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+        workers = max(1, min(8, (os.cpu_count() or 2) - 2, len(poses)))
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            return list(ex.map(_render_cell, poses))
+    except (OSError, RuntimeError, ImportError):
+        return [_render_cell(p) for p in poses]
+
+
+def _clip_cells() -> dict[str, list[Any]]:
+    """CLIPS rendered: every distinct pose once, in parallel."""
+    from kit.clips import _norm
+    todo: dict[Any, dict[str, Any]] = {}
+    for entries in CLIPS.values():
+        for e in entries:
+            if isinstance(e, dict):
+                todo.setdefault(_norm(e), e)
+    done = dict(zip(todo, render_cells(list(todo.values()))))
+    return render_clips(CLIPS, lambda p: done[_norm(p)])
+
+
 def build(ctx) -> None:
     frames = []
     for name in ENEMY_POSES:
@@ -1094,8 +1341,9 @@ def build(ctx) -> None:
         for msg in _check(name, fr, f):
             print("  WARN", msg)
         frames.append(f)
-    sheet = hstack(frames)
-    ctx.save("sprites/enemies/%s.png" % ID, sheet, frame_w=S)
+    cells = _clip_cells()
+    ctx.save_fighter("sprites/enemies/%s.png" % ID, frames, cells, (S, S), S, ID,
+                     preview_ms={"idle": ENEMY_PREVIEW_MS["idle"] * IDLE_CYCLE_PERCENT // 100})
     por = render_portrait(PORTRAIT_POSE)
     ctx.save("sprites/portraits/%s.png" % ID, por)
     _review(ctx, frames, por)

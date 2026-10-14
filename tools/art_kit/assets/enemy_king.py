@@ -1,4 +1,4 @@
-"""The Hollow King, the final boss: enemy sheet (6 frames of 108x108, facing left) and portrait.
+"""The Hollow King, the final boss: enemy sheet (108x108 cells, facing left), clips and portrait.
 
 A tall, gaunt undead king: a skull face with rot-green eyes under a broken worn-gold crown,
 rusted dark armour with an open ribcage and a glowing rot core, a long ragged wine-red cloak and
@@ -29,6 +29,12 @@ Pose keys on top of kit.rig.pose_skeleton's (pelvis, lean, head, hand_*, foot_*,
     bury        how deep the blade tip goes into the ground (clipped below y = 0 when > 0)
     brow, socket   size of the brow ridges / eye sockets (1 = sprite size; the portrait scowls more)
     eye_cap, eye_y largest pupil radius and pupil height in the socket (small hot pupils, portrait)
+
+Phase 10 clips (CLIPS at the end: every clip of plan 4.2 plus rage and the `_b` chop, rendered in
+worker processes) add keys that are absent from the row-0 keys, so those render as in phase 9:
+    eyes        0 = the sockets go dark (death)
+    crown_at    model point the fallen crown's band is centred on (death); crown_rot its turn
+    debris_fly  how high and far the slam's rubble has flown (1 = the slam key)
 """
 from __future__ import annotations
 
@@ -42,9 +48,10 @@ from kit.noise import fbm3
 from kit.palette import M, Material
 from kit.post import cleanup, contours, outline
 from kit.render import Camera, Frame, line3d, render
-from kit.rig import Build, pose_skeleton
+from kit.rig import Build, blend, pose_skeleton
 from kit.sdf import (Box, Capsule, Custom, Ellipsoid, Intersect, Moved, Node, Prim, Prism,
                      RoundCone, SmoothUnion, Sphere, Subtract, Torus, Union, basis, rot)
+from kit.clips import ENEMY_PREVIEW_MS, render_clips
 from kit.sheet import hstack
 from kit.specs import ENEMY_FRAME, ENEMY_POSES, PORTRAIT
 
@@ -360,6 +367,8 @@ def skull(sk, pose: dict[str, Any], glow: float) -> list[Node]:
     # The pupils sit low in the sockets; `eye_cap` keeps them small where pixels are big (portrait).
     er = min(0.5 + 0.6 * glow, float(pose.get("eye_cap", 9.0)))
     ey = float(pose.get("eye_y", -0.6))
+    if float(pose.get("eyes", 1.0)) < 0.5:  # dead: the sockets go dark
+        return out
     for zs in (2.5, -2.5):
         out.append(Sphere(GLOW_CORE, at(4.9, ey, zs), er, group="glow"))
         out.append(Sphere(GLOW, at(5.0 + er * 0.7, ey, zs), er * 0.5, group="glow"))
@@ -434,6 +443,10 @@ def crown(sk, pose: dict[str, Any]) -> Node:
     tilt = float(pose["crown_tilt"])
     h = sk.head @ rot(tilt * 0.4, 0.0, -tilt)
     c = sk["head"] + sk.head @ _v((-0.9 - tilt * 0.05, CROWN_Y, 0.0))
+    if "crown_at" in pose:
+        # Knocked off (the death): the band's centre at a model point, turned by crown_rot.
+        c = _v(pose["crown_at"])
+        h = rot(*pose.get("crown_rot", (0.0, 0.0, 0.0)))
     band = Torus(GOLD, c, 5.6, 1.35, R=h, group="crown")
     parts: list[Node] = [band]
     # Points round the band (angle 0 = front, 90 = the near side). The one at the camera-facing
@@ -681,6 +694,8 @@ def debris(pose: dict[str, Any], tip: np.ndarray) -> list[Node]:
     k = float(pose["debris"])
     if k <= 0.01:
         return []
+    # debris_fly (phase 10 clips): how high and far the chunks have flown (1 = the slam key).
+    fly = float(pose.get("debris_fly", 1.0))
     rng = np.random.default_rng(91)
     _, GROUND_X, GROUND_Z = screen_axes(pose)
     out: list[Node] = []
@@ -688,8 +703,8 @@ def debris(pose: dict[str, Any], tip: np.ndarray) -> list[Node]:
     for i, (sx, y, r) in enumerate(((-13.0, 10.0, 3.0), (11.0, 16.0, 2.6), (-5.0, 25.0, 2.0),
                                     (-25.0, 2.8, 2.6), (21.0, 2.6, 2.2))):
         rr = r * (0.6 + 0.4 * k)
-        c = tip + GROUND_X * (sx * k * 0.8) + GROUND_Z * 2.0
-        c[1] = rr + (y - rr) * k
+        c = tip + GROUND_X * (sx * k * 0.8 * (0.5 + 0.5 * fly)) + GROUND_Z * 2.0
+        c[1] = rr + (y - rr) * k * fly
         out.append(Box(STONE, c, (rr, rr * 0.75, rr), R=rot(*rng.uniform(0, 90, 3)), round=0.35,
                        group="debris%d" % i))
     return out
@@ -748,8 +763,14 @@ def model(pose: dict[str, Any]) -> Node:
     sk = skeleton(pose)
     glow = float(pose["glow"])
     hc = sk["head"]
+    if "crown_at" in pose:  # the crown has fallen off: bounded on its own
+        ca = _v(pose["crown_at"])
+        head: Node = Union(bounded(Union(*skull(sk, pose, glow)), [hc + _v((0, 9, 0)), hc - _v((0, 9, 0))], 12.0),
+                           bounded(crown(sk, pose), [ca - _v((9, 9, 9)), ca + _v((9, 9, 9))], 3.0))
+    else:
+        head = bounded(Union(*skull(sk, pose, glow), crown(sk, pose)), [hc + _v((0, 14, 0)), hc - _v((0, 9, 0))], 12.0)
     groups: list[Node] = [
-        bounded(Union(*skull(sk, pose, glow), crown(sk, pose)), [hc + _v((0, 14, 0)), hc - _v((0, 9, 0))], 12.0),
+        head,
         bounded(Union(*torso(sk, pose, glow), *pauldron(sk, "n"), *pauldron(sk, "f")),
                 [sk["chest"], sk["pelvis"] - _v((0, 12, 0)), sk["neck"]], 20.0),
         cloak(sk, pose),
@@ -1018,6 +1039,240 @@ def _review_pictures(ctx, sheet: np.ndarray, por: np.ndarray) -> None:
          np.kron(por, np.ones((2, 2, 1), dtype=np.uint8))], axis=1), scale=2)
 
 
+# --- Clips (phase 10) ----------------------------------------------------------------------------
+# The review GIFs breathe at game speed: this mirrors idle_cycle_percent in
+# data/enemies/hollow_king.tres (the game's number; change both together).
+IDLE_CYCLE_PERCENT = 130
+# Row-0 keys by name (an int in a clip is a key cell).
+K = {n: i for i, n in enumerate(ENEMY_POSES)}
+
+
+def _k(name: str, **kw: Any) -> dict[str, Any]:
+    """Key pose `name` with some keys changed."""
+    p = dict(POSES[name])
+    p.update(kw)
+    return p
+
+
+def _mix(a: dict[str, Any], b: dict[str, Any], t: float, **kw: Any) -> dict[str, Any]:
+    """An in-between of two poses, with some keys then set by hand."""
+    p = blend(a, b, t)
+    p.update(kw)
+    return p
+
+
+IDLE, WINDUP, LUNGE, CONTACT, HURT, SLAM = (POSES[n] for n in ENEMY_POSES)
+H = HIP_Y
+
+# Breathing: the hands stay on the pommel (the planted sword never moves); the chest rises, the
+# cloak stirs and the rot core swells and brightens like a slow heartbeat.
+BREATH = _k("idle", lean=5.5, head=(10.0, -12.0, 0.0), glow=0.75, cloak_sway=1.5, cloak_flare=1.64)
+
+# The coil: pulls the cleaver out of the ground, swings it down and back, then hoists it high
+# behind as the far hand claws out. The blade's angle runs -90 -> -96 -> -160 -> -188 (172).
+COIL_1 = _k("idle", pelvis=(-1.0, H - 0.8, 0.0), lean=2.0, head=(14.0, -12.0, 0.0),
+            hand_n=(11.0, 61.0, 8.0), hand_f=(11.0, 63.0, 4.0), sword_ang=-96.0, sword_out=4.0,
+            bury=0.0, two_hand=1.0, glow=0.7, cloak_sway=-2.0, cloak_flare=1.45, turn=26.0)
+COIL_2 = _k("windup", pelvis=(-3.0, H - 2.2, 0.0), lean=-2.0, twist=-10.0, head=(-4.0, -4.0, 0.0),
+            hand_n=(-14.0, 70.0, 15.0), hand_f=(18.0, 62.0, 0.0), elbow_n=(0.0, -0.4, 1.0),
+            foot_n=(-6.0, 3.0, 10.5), foot_f=(12.0, 3.0, -8.0), sword_ang=-160.0, sword_out=-4.0,
+            two_hand=0.3, claw_f=0.7, glow=1.0, jaw=12.0, turn=22.0, cloak_sway=-4.0,
+            cloak_flare=1.25, cloak_lift=0.15)
+# Held high: the blade trembles, the claw flexes, the jaw works.
+SHIVER = _k("windup", hand_n=(-16.5, 87.0, 16.5), sword_ang=175.0, jaw=26.0, hand_f=(27.0, 67.0, -2.0),
+            head=(-14.0, 1.0, 2.0), cloak_sway=-6.5, pelvis=(-4.0, H - 2.8, 0.0))
+
+# The lunge: strides in, the cleaver coming down behind him to trail low (arriving, not yet
+# swung). Angles 172 -> 180 -> 190 -> 195 (-165).
+LUNGE_1 = _k("windup", pelvis=(0.0, H - 3.0, 0.0), lean=8.0, twist=-8.0, head=(-14.0, -8.0, 0.0),
+             hand_n=(-14.0, 72.0, 16.0), hand_f=(30.0, 62.0, 0.0), elbow_n=(-0.2, 0.0, 1.0),
+             foot_n=(6.0, 10.0, 9.0), foot_f=(12.0, 3.0, -7.0), knee_n=(1.0, 0.2, 0.2),
+             sword_ang=180.0, sword_out=0.0, glow=0.95, jaw=16.0, turn=18.0,
+             cloak_sway=-9.0, cloak_flare=1.12, cloak_lift=0.35, cloak_open=15.0)
+LUNGE_2 = _k("lunge", pelvis=(4.0, H - 5.0, 0.0), lean=16.0, head=(-16.0, -12.0, 0.0),
+             hand_n=(-8.0, 46.0, 16.0), hand_f=(34.0, 52.0, 2.0), elbow_n=(-0.3, 0.2, 1.0),
+             foot_n=(19.0, 5.0, 7.0), foot_f=(0.0, 3.0, -6.0), toe_f=20.0,
+             sword_ang=190.0, sword_out=4.0, glow=0.7, cloak_sway=-13.0, cloak_hem=3.0,
+             cloak_lift=0.4, cloak_open=30.0)
+
+# Follow-through: the cleaver carries on down until its point bites the floor, then rests there.
+FOLLOW_1 = _k("contact", pelvis=(12.0, H - 9.0, 0.0), lean=30.0, twist=-12.0, head=(-4.0, -14.0, 0.0),
+              hand_n=(31.0, 40.0, 0.0), hand_f=(27.0, 42.0, -4.0), sword_ang=-50.0, sword_out=26.0,
+              bury=1.0, glow=0.5, jaw=8.0, cloak_sway=-10.0, cloak_lift=0.35)
+FOLLOW_2 = _k("contact", pelvis=(10.0, H - 7.0, 0.0), lean=22.0, twist=-4.0, head=(2.0, -14.0, 0.0),
+              hand_n=(25.0, 41.0, 2.0), hand_f=(22.0, 43.0, -2.0), sword_ang=-68.0, sword_out=20.0,
+              bury=1.0, glow=0.45, jaw=4.0, cloak_sway=-6.0, cloak_lift=0.2, cloak_hem=2.0)
+
+# Tier 2, the other swing (`lunge_b`, `contact_b`, e.g. every second hit of a string): an
+# overhead chop. He strides in with the cleaver two-handed above his head, cocked down behind
+# it (arriving), it lands chopping down, and its point bites the floor into the same FOLLOW_2 as
+# the sweep. Angles 172 -> 165 -> 188 -> 205, then -48 on the chop.
+LUNGE_B1 = _k("windup", pelvis=(0.0, H - 3.0, 0.0), lean=6.0, twist=-6.0, head=(-12.0, -8.0, 0.0),
+              hand_n=(-8.0, 84.0, 14.0), elbow_n=(-0.2, 0.2, 1.0), two_hand=1.0,
+              foot_n=(6.0, 10.0, 9.0), foot_f=(12.0, 3.0, -7.0), knee_n=(1.0, 0.2, 0.2),
+              sword_ang=165.0, sword_out=-4.0, glow=0.95, jaw=16.0, turn=18.0,
+              cloak_sway=-9.0, cloak_flare=1.12, cloak_lift=0.35, cloak_open=15.0)
+LUNGE_B2 = _k("lunge", pelvis=(4.0, H - 5.0, 0.0), lean=10.0, head=(-14.0, -12.0, 0.0),
+              hand_n=(2.0, 86.0, 10.0), elbow_n=(-0.2, 0.0, 1.0), two_hand=1.0, claw_f=0.0,
+              foot_n=(19.0, 5.0, 7.0), foot_f=(0.0, 3.0, -6.0), toe_f=20.0,
+              sword_ang=188.0, sword_out=-2.0, glow=0.75, cloak_sway=-13.0, cloak_hem=3.0,
+              cloak_lift=0.4, cloak_open=30.0)
+LUNGE_B3 = _k("lunge", lean=14.0, head=(-14.0, -14.0, 0.0), hand_n=(10.0, 84.0, 8.0),
+              elbow_n=(-0.2, 0.0, 1.0), two_hand=1.0, claw_f=0.0, sword_ang=205.0, sword_out=-2.0,
+              glow=0.6)
+CONTACT_B = _k("contact", lean=26.0, hand_n=(33.0, 58.0, -3.0), hand_f=(30.0, 60.0, -6.0),
+               sword_ang=-48.0, sword_out=16.0, head=(-10.0, -14.0, 0.0))
+FOLLOW_B1 = _k("contact", pelvis=(12.0, H - 9.0, 0.0), lean=32.0, twist=-8.0, head=(-2.0, -14.0, 0.0),
+               hand_n=(30.0, 42.0, 0.0), hand_f=(27.0, 44.0, -4.0), sword_ang=-62.0, sword_out=12.0,
+               bury=1.0, glow=0.5, jaw=8.0, cloak_sway=-10.0, cloak_lift=0.35)
+
+RECOIL_1 = _mix(FOLLOW_2, IDLE, 0.5, bury=1.0)
+# Walking back home, the cleaver's point dragging: the front foot steps back, then the other.
+RETURN_1 = _mix(FOLLOW_2, IDLE, 0.4, foot_n=(14.0, 8.0, 9.0), bury=1.0, glow=0.45)
+RETURN_2 = _mix(FOLLOW_2, IDLE, 0.8, foot_f=(4.0, 6.0, -8.0), bury=1.0, glow=0.5)
+
+# The slam: rubble flies up round the planted blade, then falls as he starts to rise.
+SLAM_DUST = _k("slam", debris_fly=1.45, head=(-36.0, -16.0, 0.0), jaw=18.0, cloak_lift=0.6)
+SLAM_RISE = _k("slam", debris_fly=0.55, pelvis=(-5.0, 25.0, 0.0), lean=34.0, head=(-22.0, -14.0, 0.0),
+               jaw=10.0, cloak_lift=0.45, glow=0.75)
+SLAM_UP = _k("slam", pelvis=(-3.0, 34.0, 0.0), lean=20.0, head=(-6.0, -14.0, 0.0),
+             hand_n=(22.0, 38.0, 4.0), hand_f=(20.0, 40.0, 2.0), foot_n=(12.0, 3.0, 9.0),
+             foot_f=(-14.0, 3.0, -7.0), knee_n=(1.0, 0.0, 0.2), knee_f=(1.0, 0.0, -0.2), toe_f=10.0,
+             sword_ang=-86.0, bury=2.0, debris=0.25, glow=0.6, jaw=4.0, cloak_hem=1.0, cloak_lift=0.2,
+             cloak_sway=-6.0, cloak_flare=1.45)
+
+HURT_1 = _mix(HURT, IDLE, 0.5, crown_tilt=10.0)
+# Stagger: reels a step further back, crown knocked askew, then leans on the cleaver to catch
+# himself.
+STAGGER_1 = _k("hurt", pelvis=(-10.0, H - 3.0, 0.0), lean=-24.0, head=(-30.0, 6.0, 14.0), crown_tilt=34.0,
+               hand_f=(4.0, 64.0, 10.0), foot_n=(2.0, 8.0, 7.0), foot_f=(-16.0, 3.0, -6.0),
+               sword_ang=-150.0, sword_out=30.0, jaw=24.0, glow=0.05, cloak_sway=12.0)
+STAGGER_2 = _k("idle", pelvis=(-2.0, H - 6.0, 0.0), lean=26.0, head=(14.0, -12.0, 0.0),
+               hand_n=(14.0, 40.0, 6.0), hand_f=(14.0, 42.0, 2.0), foot_n=(4.0, 3.0, 12.0),
+               foot_f=(-6.0, 3.0, -8.0), sword_ang=-90.0, bury=2.0, crown_tilt=14.0, glow=0.3,
+               jaw=10.0, cloak_flare=1.4)
+
+# Death (rot): reels, drops to one knee on the planted cleaver, slumps over it as the crown
+# falls, and comes to rest head bowed with the crown on the floor before him.
+_KNEEL = dict(foot_n=(14.0, 3.0, 7.0), foot_f=(-20.0, 3.5, -6.0), knee_n=(1.0, 0.5, 0.2),
+              knee_f=(0.4, -1.0, -0.1), toe_f=-170.0, sword_ang=-88.0, sword_out=0.0, bury=3.0,
+              glow=0.0, eyes=0.0, turn=18.0, cloak_hem=0.5, cloak_flare=1.4, cloak_sway=-4.0)
+DEATH_1 = _k("hurt", pelvis=(-6.0, H - 2.0, 0.0), lean=-14.0, head=(-34.0, 0.0, 14.0), crown_tilt=30.0,
+             hand_f=(10.0, 58.0, 8.0), sword_ang=-120.0, sword_out=30.0, jaw=30.0, glow=0.05)
+DEATH_2 = _k("slam", pelvis=(-4.0, 26.0, 0.0), lean=26.0, head=(-4.0, -12.0, 10.0), crown_tilt=-28.0,
+             hand_n=(22.0, 40.0, 4.0), hand_f=(20.0, 42.0, 0.0), two_hand=0.6, jaw=20.0, debris=0.0,
+             **_KNEEL)
+DEATH_3 = _k("slam", pelvis=(-4.0, 24.0, 0.0), lean=36.0, head=(-18.0, -14.0, 14.0),
+             hand_n=(22.0, 34.0, 4.0), hand_f=(14.0, 20.0, -8.0), two_hand=0.0, claw_f=0.4, jaw=24.0,
+             debris=0.0, crown_at=(34.0, 27.0, -2.0), crown_rot=(40.0, 0.0, 80.0), **_KNEEL)
+DEATH_4 = _k("slam", pelvis=(-4.0, 22.0, 0.0), lean=44.0, head=(-18.0, -14.0, 20.0),
+             hand_n=(22.0, 30.0, 4.0), hand_f=(16.0, 8.0, -8.0), two_hand=0.0, claw_f=0.3, jaw=30.0,
+             debris=0.0, crown_at=(39.0, 7.5, -7.0), crown_rot=(15.0, 30.0, 75.0), **_KNEEL)
+
+
+# Rage (phase two, Tier 2): gathers himself over the pommel as the core flares, rips the cleaver
+# up, throws his arms wide and roars at the sky with the cloak billowing, then plants it again.
+RAGE_1 = _k("idle", pelvis=(0.0, H - 2.5, 0.0), lean=14.0, head=(8.0, -12.0, 0.0), glow=0.95,
+            jaw=6.0, cloak_flare=1.4, cloak_sway=-1.0)
+RAGE_2 = _k("idle", pelvis=(-1.0, H - 0.8, 0.0), lean=0.0, head=(-6.0, -10.0, 0.0),
+            hand_n=(11.0, 61.0, 8.0), hand_f=(11.0, 63.0, 4.0), sword_ang=-96.0, sword_out=4.0,
+            bury=0.0, glow=1.0, jaw=16.0, cloak_flare=1.5, cloak_lift=0.3, turn=26.0)
+RAGE_3 = _k("idle", pelvis=(-2.0, H - 1.5, 0.0), lean=-12.0, head=(-36.0, -6.0, 0.0),
+            hand_n=(-18.0, 47.0, 20.0), elbow_n=(-0.4, 0.2, 1.0), hand_f=(16.0, 84.0, -8.0),
+            elbow_f=(0.6, -0.6, -0.6), two_hand=0.0, claw_f=1.0, sword_ang=-150.0, sword_out=20.0,
+            bury=0.0, glow=1.0, jaw=34.0, turn=30.0, cloak_flare=1.75, cloak_lift=1.0,
+            cloak_open=30.0, cloak_sway=2.0)
+RAGE_4 = dict(RAGE_3, head=(-40.0, -2.0, 4.0), jaw=38.0, hand_f=(17.0, 86.0, -7.0),
+              cloak_lift=0.85, cloak_sway=3.5, sword_ang=-146.0)
+RAGE_5 = _k("idle", glow=1.0, jaw=8.0, cloak_lift=0.35, cloak_flare=1.7, head=(4.0, -12.0, 0.0))
+
+
+def _gait(near_x: float, far_x: float, near_up: float, far_up: float, bob: float, swing: float,
+          run: bool = False, **kw: Any) -> dict[str, Any]:
+    """A walking or running frame: each foot along the ground (and lifted), the body's bob and
+    the free claw swinging against the legs. Walking he drags the cleaver's point behind him;
+    running he carries it low and trailing."""
+    p = _k("idle", pelvis=(2.0, H - (5.0 if run else 2.0) + bob, 0.0), lean=18.0 if run else 6.0,
+           twist=-6.0 * swing, head=(-10.0 if run else 4.0, -12.0, 0.0), turn=22.0,
+           foot_n=(near_x, 3.0 + near_up, 9.0), foot_f=(far_x, 3.0 + far_up, -7.0),
+           knee_n=(1.0, 0.3 if near_up > 1 else 0.0, 0.2), knee_f=(1.0, 0.3 if far_up > 1 else 0.0, -0.2),
+           toe_n=16.0 if near_up > 1 else 0.0, toe_f=16.0 if far_up > 1 else 0.0,
+           hand_n=(-2.0 + 3.0 * swing, 40.0, 15.0), elbow_n=(-0.4, -0.4, 1.0),
+           hand_f=(14.0 - 10.0 * swing + (12.0 if run else 0.0), 46.0 + (4.0 if run else 0.0), -2.0),
+           elbow_f=(-0.4, -1.0, -0.4), two_hand=0.0, claw_f=0.8 if run else 0.5,
+           sword_ang=-168.0 if run else -150.0, sword_out=8.0, bury=1.0,
+           glow=0.6 if run else 0.5, jaw=14.0 if run else 0.0,
+           cloak_sway=(-14.0 if run else -5.0) + 2.0 * bob, cloak_flare=1.15 if run else 1.35,
+           cloak_lift=0.45 if run else 0.1, cloak_open=25.0 if run else 0.0, cloak_hem=3.0 if run else 1.0)
+    p.update(kw)
+    return p
+
+
+# Two steps per cycle; a foot is planted on cells 0 and 2 (the footstep moments).
+WALK = [_gait(14.0, -12.0, 0.0, 0.0, -0.8, -1.0), _gait(2.0, -2.0, 0.0, 9.0, 0.6, 0.0),
+        _gait(-12.0, 14.0, 0.0, 0.0, -0.8, 1.0), _gait(-2.0, 2.0, 9.0, 0.0, 0.6, 0.0)]
+CHASE = [_gait(22.0, -18.0, 0.0, 2.0, -1.5, -1.0, run=True), _gait(2.0, -6.0, 0.0, 14.0, 1.0, 0.0, run=True),
+         _gait(-18.0, 22.0, 2.0, 0.0, -1.5, 1.0, run=True), _gait(-6.0, 2.0, 14.0, 0.0, 1.0, 0.0, run=True)]
+
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose). The game sets the timing.
+CLIPS: dict[str, list[Any]] = {
+    "idle": [K["idle"], _mix(IDLE, BREATH, 0.5), BREATH, _mix(IDLE, BREATH, 0.5)],
+    "windup": [COIL_1, COIL_2, K["windup"]],
+    "windup_hold": [K["windup"], SHIVER],
+    "lunge": [LUNGE_1, LUNGE_2, K["lunge"]],
+    "contact": [K["contact"], FOLLOW_1, FOLLOW_2],
+    "recoil": [RECOIL_1, K["idle"]],
+    "return": [RETURN_1, RETURN_2, K["idle"]],
+    "slam": [K["slam"], SLAM_DUST, SLAM_RISE],
+    "slam_recover": [SLAM_UP, K["idle"]],
+    "hurt": [K["hurt"], HURT_1, K["idle"]],
+    "stagger": [K["hurt"], STAGGER_1, STAGGER_2, K["idle"]],
+    "death": [DEATH_1, DEATH_2, DEATH_3, DEATH_4],
+    "walk": WALK,
+    "chase": CHASE,
+    "rage": [RAGE_1, RAGE_2, RAGE_3, RAGE_4, RAGE_5],
+    "lunge_b": [LUNGE_B1, LUNGE_B2, LUNGE_B3],
+    "contact_b": [CONTACT_B, FOLLOW_B1, FOLLOW_2],
+}
+
+
+def _cam_state() -> tuple[float, float, float]:
+    camera()
+    return (_CAM[0].cx, _CAM[0].cy, float(_CAM[1]))  # type: ignore[union-attr]
+
+
+def _init_worker(state: tuple[float, float, float]) -> None:
+    """A render worker starts with the parent's fitted sheet camera (fitting it costs a render)."""
+    _CAM[:] = [Camera(S, S, scale=SHEET_SCALE, face="left", cx=state[0], cy=state[1]), state[2]]
+
+
+def render_cells(poses: list[dict[str, Any]]) -> list[np.ndarray]:
+    """Renders many poses (about 5 s each for the king), in worker processes when it can."""
+    if len(poses) < 4:
+        return [render_pose(p) for p in poses]
+    import os
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+        workers = max(1, min(8, (os.cpu_count() or 2) - 2, len(poses)))
+        with ProcessPoolExecutor(max_workers=workers, initializer=_init_worker,
+                                 initargs=(_cam_state(),)) as ex:
+            return list(ex.map(render_pose, poses))
+    except (OSError, RuntimeError, ImportError):
+        return [render_pose(p) for p in poses]
+
+
+def _clip_cells() -> dict[str, list[Any]]:
+    """CLIPS rendered: every distinct pose once, in parallel."""
+    from kit.clips import _norm
+    todo: dict[Any, dict[str, Any]] = {}
+    for entries in CLIPS.values():
+        for e in entries:
+            if isinstance(e, dict):
+                todo.setdefault(_norm(e), e)
+    done = dict(zip(todo, render_cells(list(todo.values()))))
+    return render_clips(CLIPS, lambda p: done[_norm(p)])
+
+
 def build(ctx) -> None:
     frames = []
     for name in ENEMY_POSES:
@@ -1025,8 +1280,9 @@ def build(ctx) -> None:
         for msg in check_margins(f, name):
             print("  warning:", msg)
         frames.append(f)
+    ctx.save_fighter("sprites/enemies/%s.png" % ID, frames, _clip_cells(), (S, S), S, ID,
+                     preview_ms={"idle": ENEMY_PREVIEW_MS["idle"] * IDLE_CYCLE_PERCENT // 100})
     sheet = hstack(frames)
-    ctx.save("sprites/enemies/%s.png" % ID, sheet, frame_w=S)
     por = render_pose(PORTRAIT_POSE, portrait_camera(), portrait=True)
     ctx.save("sprites/portraits/%s.png" % ID, por)
     _review_pictures(ctx, sheet, por)

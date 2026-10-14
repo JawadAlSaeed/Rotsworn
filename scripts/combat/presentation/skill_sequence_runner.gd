@@ -34,6 +34,11 @@ const GOOD_PRESS_VOLUME_DB: float = -6.0
 const RING_MIN_RADIUS_PX: float = 4.0
 ## Follow-up allies step this share of the way to their strike point when their ring appears.
 const FOLLOW_UP_STEP_SHARE: float = 0.5
+## The clips a follow-up ally winds up and strikes with (they fall back to the backhand).
+const FOLLOW_UP_WINDUPS: PackedStringArray = ["follow_up_windup"]
+const FOLLOW_UP_STRIKES: PackedStringArray = ["follow_up"]
+## A follow-up ally hops in and out of their spot with this clip.
+const LEAP_CLIP: String = "leap"
 
 var _submit: Callable
 var _apply_now: Callable
@@ -72,6 +77,12 @@ var _inbox: Array[Dictionary] = []
 var _inbox_at_us: int = 0
 ## Follow-up allies who have stepped forward (id -> true).
 var _ready_allies: Dictionary = {}
+## Contact moment (skill time, us) of each prompt that struck (prompt idx -> us), and prompts that
+## will never strike (a missed or voided follow-up), for the wind-up and strike frames.
+var _contacts: Dictionary = {}
+var _no_strike: Dictionary = {}
+## Each animated hero's prompts in press order (id -> Array[int] of prompt idx).
+var _anim_prompts: Dictionary = {}
 ## A Run attempt (escape ability) saw its hero escape (else it failed).
 var _escaped_seen: bool = false
 ## The skill's press moments (PressNotes.notes), the middle of their row (where the strikers
@@ -140,6 +151,9 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_tail.clear()
 	_tail_received = false
 	_ready_allies.clear()
+	_contacts.clear()
+	_no_strike.clear()
+	_anim_prompts = _prompts_by_hero()
 	_escaped_seen = false
 	_notes = PressNotes.notes(_prompts)
 	_ring_color = ability.ring_color if ability != null else HudStyle.TEXT
@@ -161,10 +175,16 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	if ability != null and ability.team_ultimate:
 		Sfx.play("ultimate_start")
 	_hud.set_skill_pressing(true)
+	# A leftover draw or hurt must never hide the driven skill frames (cancel rule, DESIGN.md 5.5).
+	for id: int in _follow_up_allies():
+		var ally := _view.fighter(id)
+		if ally != null:
+			ally.clear_timed_pose(FighterView.PRIO_BIG)
 	for id: int in _strikers():
 		var v := _view.fighter(id)
 		if v == null:
 			continue
+		v.clear_timed_pose(FighterView.PRIO_BIG)
 		v.set_pose(FighterView.CharPose.READY)
 		if _hits_enemies and not _targets.is_empty():
 			v.move_body(_approach_offset(id), float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
@@ -187,9 +207,7 @@ func take_events(events: Array[Dictionary]) -> void:
 	for ev: Dictionary in events:
 		var type := String(ev.get("type", ""))
 		if type == "prompts_voided":
-			for idx: int in ev.get("prompts", []):
-				_voided[int(idx)] = true
-			_judges.void_prompts(ev.get("prompts", []) as Array)
+			_void(ev.get("prompts", []) as Array)
 		if type != "prompt_resolved" or int(ev.get("seq", -1)) != _seq:
 			continue
 		var idx := int(ev.prompt)
@@ -205,10 +223,12 @@ func take_events(events: Array[Dictionary]) -> void:
 		_sent[idx] = true
 		var list: Array[int] = [idx]
 		if outcome == Defense.Outcome.NONE:
-			_schedule(t, _expire_remote.bind(idx))
+			_schedule(t, _expire_remote.bind(idx, t))
 		else:
 			show_at = maxi(show_at, at_us)
-			_schedule(maxi(t, at_us), _on_good_press.bind(list, int(ev.get("offset_us", 0)), outcome == Defense.Outcome.PRESS_PERFECT))
+			var contact_us := maxi(t, at_us)
+			_schedule(contact_us, _on_good_press.bind(list, int(ev.get("offset_us", 0)),
+					outcome == Defense.Outcome.PRESS_PERFECT, contact_us))
 	_push_batch(events, show_at)
 
 
@@ -225,15 +245,18 @@ func _drain(t: int) -> void:
 		_apply_batch((_inbox.pop_front() as Dictionary).events as Array[Dictionary])
 
 
-## Another player missed a press: MISS, and the strike without the bonus (not for a follow-up).
-func _expire_remote(idx: int) -> void:
+## Another player missed a press: MISS, and the strike without the bonus (a follow-up ally hops
+## home instead).
+func _expire_remote(idx: int, contact_us: int) -> void:
 	var prompt: Dictionary = _prompts[idx]
 	var v := _view.fighter(int(prompt.character))
 	if v != null:
 		_hud.popup("MISS", v.head_position(), HudStyle.MISS)
 	if String(prompt.role) != CombatEngine.ROLE_FOLLOW_UP:
 		var list: Array[int] = [idx]
-		_strike(list, false)
+		_strike(list, false, contact_us)
+	else:
+		_follow_up_off(idx)
 
 
 ## True between start() and the hand-back.
@@ -278,6 +301,7 @@ func _process(_delta: float) -> void:
 	_drain(t)
 	_update_rings(t)
 	_update_allies(t)
+	_update_poses(t)
 	_update_lock(t)
 	_check_finish(t)
 
@@ -312,7 +336,8 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 		DefenseJudge.Result.SUCCESS:
 			var impact_us := int((_hits[int(report.hit)] as Dictionary).at_ms) * 1000
 			var perfect := int(report.outcome) == Defense.Outcome.PRESS_PERFECT
-			_schedule(maxi(t, impact_us), _on_good_press.bind(answered, int(report.offset_us), perfect))
+			var contact_us := maxi(t, impact_us)
+			_schedule(contact_us, _on_good_press.bind(answered, int(report.offset_us), perfect, contact_us))
 		DefenseJudge.Result.WHIFF:
 			_on_whiff(report, player)
 		DefenseJudge.Result.LOCKED:
@@ -320,8 +345,8 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 	_release(t)
 
 
-## A good or perfect press reaches its contact moment.
-func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool) -> void:
+## A good or perfect press reaches its contact moment (`contact_us`, skill time).
+func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool, contact_us: int) -> void:
 	Sfx.play("skill_press", 0.0 if perfect else GOOD_PRESS_VOLUME_DB)
 	if perfect:
 		_clock.pause_for(Time.get_ticks_usec(), _tuning.hitstop_press_ms * 1000)
@@ -332,7 +357,7 @@ func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool) -> void:
 	for idx: int in idxs:
 		who.append(int((_prompts[idx] as Dictionary).character))
 	_hud.popup(text, _focus_head(who), HudStyle.GOLD if perfect else HudStyle.TEXT)
-	_strike(idxs, true)
+	_strike(idxs, true, contact_us)
 
 
 func _on_whiff(report: Dictionary, player: int) -> void:
@@ -365,10 +390,12 @@ func _expire(t: int) -> void:
 			_hud.popup("MISS", v.head_position(), HudStyle.MISS)
 		if String(prompt.role) != CombatEngine.ROLE_FOLLOW_UP:
 			strikes.append(idx)
+		else:
+			_follow_up_off(idx)
 	if not expired.is_empty():
 		Sfx.play("skill_miss")
 	if not strikes.is_empty():
-		_strike(strikes, false)
+		_strike(strikes, false, t)
 
 
 ## Sends the judge's released results to the engine. Its events are applied at the contact
@@ -393,9 +420,7 @@ func _release(t: int) -> void:
 	var events: Array[Dictionary] = _submit.call(CombatCommands.resolve_prompts(_seq, results))
 	for ev: Dictionary in events:
 		if String(ev.get("type", "")) == "prompts_voided":
-			for idx: int in ev.get("prompts", []):
-				_voided[int(idx)] = true
-			_judges.void_prompts(ev.get("prompts", []) as Array)
+			_void(ev.get("prompts", []) as Array)
 	_push_batch(events, show_at)
 
 
@@ -419,33 +444,44 @@ func _apply_batch(events: Array[Dictionary]) -> void:
 
 # --- animation --------------------------------------------------------------------------------
 
-## The strike of these prompts' characters: a lunge and a slash on the target for a damaging
-## skill (or a follow-up), a flash on the ally target for a support skill.
-func _strike(idxs: Array[int], good: bool) -> void:
+## The strike of these prompts' characters at `contact_us` (skill time): a lunge and a slash on the
+## target for a damaging skill (or a follow-up), a flash on the ally target for a support skill.
+## The strike frames come from _update_poses, on skill time, so the hit-stop holds them.
+func _strike(idxs: Array[int], good: bool, contact_us: int) -> void:
 	var lunge_s := float(_visuals.skill_lunge_ms) / 1000.0
 	var target := _first_target()
+	var team := _ability != null and _ability.team_ultimate
 	for i: int in idxs.size():
+		_contacts[idxs[i]] = contact_us
 		var prompt: Dictionary = _prompts[idxs[i]]
 		var id := int(prompt.character)
 		var v := _view.fighter(id)
 		if v == null or not _mirror.is_alive(id):
 			continue
 		var follow_up := String(prompt.role) == CombatEngine.ROLE_FOLLOW_UP
-		v.play_pose(FighterView.CharPose.STRIKE, _visuals.skill_lunge_ms * 3)
 		if _hits_enemies and target >= 0:
 			var enemy := _view.fighter(target)
-			v.move_body(_view.strike_point(target) - v.position, lunge_s, Tween.TRANS_QUAD, Tween.EASE_IN)
+			var strike_at := _view.strike_point(target)
+			if team:
+				# Card #65: each hero keeps part of the formation, so nobody hides behind another.
+				strike_at += _view.team_spread_offset(id, _strikers())
+			v.move_body(strike_at - v.position, lunge_s, Tween.TRANS_QUAD, Tween.EASE_IN)
 			if enemy != null:
 				_view.spawn_slash(enemy.centre_position(), i % 2 == 0, 1.0 if good else 0.6, i * _visuals.team_slash_gap_ms)
 				_view.spawn_sparks(enemy.centre_position(), _visuals.sparks_per_strike, 1.0 if good else 0.6,
 						_visuals.strike_spark_color)
 			_view.camera.shake(_visuals.shake_strike, _visuals.shake_strike_ms)
-			if _ability != null and _ability.team_ultimate and i == 0:
+			if team and i == 0:
 				_hud.screen_flash(HudStyle.GOLD, _visuals.screen_flash_ultimate)
 			if _ability == null or not _ability.escape:
 				Sfx.play("follow_up" if follow_up else (_ability.impact_sfx if _ability != null else "strike"))
-			var back := Vector3.ZERO if follow_up else _approach_offset(id)
-			get_tree().create_timer(lunge_s * 2.0).timeout.connect(_step_back.bind(id, back))
+			if follow_up:
+				# Hop home only after the follow-up strike clip has played (plus a perfect press's
+				# freeze), so its last cells are not cut off by the leap.
+				var strike_s := float(_visuals.skill_strike_pose_ms + _tuning.hitstop_press_ms) / 1000.0
+				get_tree().create_timer(maxf(lunge_s * 2.0, strike_s)).timeout.connect(_hop_home.bind(id))
+			else:
+				get_tree().create_timer(lunge_s * 2.0).timeout.connect(_step_back.bind(id, _approach_offset(id)))
 		elif _ability == null or not _ability.escape:
 			Sfx.play(_ability.impact_sfx if _ability != null else "buff")
 			for target_id: int in _targets:
@@ -462,7 +498,40 @@ func _step_back(id: int, to: Vector3) -> void:
 		v.move_body(to, float(_visuals.skill_lunge_ms) / 1000.0 * 2.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
 
 
-## Follow-up allies step forward when their ring appears (and stay home if it was voided).
+## A follow-up ally hops back home (after their strike, or when their prompt is gone).
+func _hop_home(id: int) -> void:
+	if not _active:
+		return
+	var v := _view.fighter(id)
+	if v == null or not _mirror.is_alive(id):
+		return
+	v.hop_body(Vector3.ZERO, float(_visuals.follow_up_hop_ms) / 1000.0, _visuals.follow_up_hop_height)
+	v.play(LEAP_CLIP, _visuals.follow_up_hop_ms, FighterView.PRIO_REACT)
+
+
+## The engine voided these prompts: no ring, no judging, and an ally who already hopped in for one
+## hops home again.
+func _void(idxs: Array) -> void:
+	for idx: int in idxs:
+		_voided[int(idx)] = true
+		_follow_up_off(int(idx))
+	_judges.void_prompts(idxs)
+
+
+## Follow-up prompt `idx` will never strike (missed or voided): its ally stops winding up and, if
+## they had hopped in, hops home.
+func _follow_up_off(idx: int) -> void:
+	if idx < 0 or idx >= _prompts.size() or _no_strike.has(idx):
+		return
+	var prompt: Dictionary = _prompts[idx]
+	if String(prompt.role) != CombatEngine.ROLE_FOLLOW_UP:
+		return
+	_no_strike[idx] = true
+	if _ready_allies.has(int(prompt.character)):
+		_hop_home(int(prompt.character))
+
+
+## Follow-up allies hop to their spot when their ring appears (and stay home if it was voided).
 func _update_allies(t: int) -> void:
 	var lead := _tuning.ring_lead_ms * 1000
 	for idx: int in _prompts.size():
@@ -477,7 +546,50 @@ func _update_allies(t: int) -> void:
 		if v != null and _mirror.is_alive(id):
 			v.set_pose(FighterView.CharPose.READY)
 			Sfx.play("follow_up_ready")
-			v.move_body(_approach_offset(id) * FOLLOW_UP_STEP_SHARE, float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
+			# Card #64: a hop in to the same half-step spot as before (so the framing is unchanged).
+			v.hop_body(_follow_up_offset(id), float(_visuals.follow_up_hop_ms) / 1000.0, _visuals.follow_up_hop_height)
+			v.play(LEAP_CLIP, _visuals.follow_up_hop_ms, FighterView.PRIO_REACT)
+
+
+## Card #58: every striker and every ally who hopped in shows their wind-up and strike frames on
+## skill time (SkillAnimPlan), so the perfect-press hit-stop holds the contact frame.
+func _update_poses(t: int) -> void:
+	var windup_us := _visuals.skill_windup_ms * 1000
+	var strike_us := _visuals.skill_strike_pose_ms * 1000
+	var gap_us := _visuals.skill_strike_min_ms * 1000
+	for id: int in _anim_prompts:
+		var v := _view.fighter(id)
+		if v == null or not _mirror.is_alive(id) or bool(_mirror.fighter(id).get("escaped", false)):
+			continue
+		var at: Array[int] = []
+		var contacts: Array[int] = []
+		var follow_up := false
+		for idx: int in _anim_prompts[id]:
+			var prompt: Dictionary = _prompts[idx]
+			follow_up = String(prompt.role) == CombatEngine.ROLE_FOLLOW_UP
+			if _voided.has(idx) or _no_strike.has(idx):
+				continue
+			at.append(int(prompt.at_ms) * 1000)
+			contacts.append(int(_contacts.get(idx, SkillAnimPlan.NO_CONTACT)))
+		if follow_up and not _ready_allies.has(id):
+			continue
+		var pick: Dictionary
+		if follow_up:
+			pick = SkillAnimPlan.pick(at, contacts, FOLLOW_UP_WINDUPS, FOLLOW_UP_STRIKES, windup_us,
+					strike_us, gap_us, t)
+		elif _ability != null:
+			pick = SkillAnimPlan.pick(at, contacts, _ability.windup_clips, _ability.strike_clips,
+					windup_us * _ability.windup_percent / 100, strike_us, gap_us, t)
+		else:
+			pick = SkillAnimPlan.stance()
+		var clip := String(pick.clip)
+		if clip.is_empty():
+			v.set_pose(FighterView.CharPose.READY)
+		else:
+			# Without the clip: the stance while winding up, the old strike key while striking.
+			var striking := int(pick.phase) == SkillAnimPlan.Phase.STRIKE
+			v.show_clip_u(clip, float(pick.u),
+					FighterView.CharPose.STRIKE if striking else FighterView.CharPose.READY)
 
 
 ## Every ally with a follow-up prompt (in prompt order).
@@ -497,7 +609,7 @@ func _frame_skill() -> void:
 	for id: int in _strikers():
 		_add_body_points(points, id, _approach_offset(id))
 	for id: int in _follow_up_allies():
-		_add_body_points(points, id, _approach_offset(id) * FOLLOW_UP_STEP_SHARE)
+		_add_body_points(points, id, _follow_up_offset(id))
 	if target >= 0:
 		_add_body_points(points, target, Vector3.ZERO)
 	if not points.is_empty():
@@ -567,7 +679,10 @@ func _add_follow_up_rings(rings: Array[Dictionary], t: int) -> void:
 		if v == null:
 			continue
 		var perfect: Array = windows.get(Defense.Outcome.PRESS_PERFECT, good)
-		var ring := _ring(_view.screen_position(v.centre_position()), rel, lead, 1.0, good, perfect, HudStyle.JUMP)
+		# Anchored at the ally's spot, not their body, so the hop in never moves the ring.
+		var chest := v.centre_position() - v.body_position()
+		var spot := v.global_position + _follow_up_offset(int(prompt.character)) + chest
+		var ring := _ring(_view.screen_position(spot), rel, lead, 1.0, good, perfect, HudStyle.JUMP)
 		ring["label"] = "FOLLOW-UP"
 		rings.append(ring)
 
@@ -709,6 +824,29 @@ func _strikers_stand_point() -> Vector3:
 		var actor := _view.fighter(_actor)
 		return actor.centre_position() if actor != null else Vector3.ZERO
 	return sum / float(count)
+
+
+## Each hero with a prompt (strikers and follow-up allies) -> their prompt idxs in press order.
+func _prompts_by_hero() -> Dictionary:
+	var by_hero: Dictionary = {}
+	for idx: int in _prompts.size():
+		var id := int((_prompts[idx] as Dictionary).character)
+		if not by_hero.has(id):
+			var list: Array[int] = []
+			by_hero[id] = list
+		(by_hero[id] as Array[int]).append(idx)
+	for id: int in by_hero:
+		(by_hero[id] as Array[int]).sort_custom(_earlier_prompt)
+	return by_hero
+
+
+func _earlier_prompt(a: int, b: int) -> bool:
+	return int((_prompts[a] as Dictionary).at_ms) < int((_prompts[b] as Dictionary).at_ms)
+
+
+## Where a follow-up ally waits for their ring: part of the way to their own approach spot.
+func _follow_up_offset(id: int) -> Vector3:
+	return _approach_offset(id) * FOLLOW_UP_STEP_SHARE
 
 
 ## Where a striker waits between hits: part of the way to the strike point.

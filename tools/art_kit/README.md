@@ -15,11 +15,26 @@ python tools/art_kit/build.py hero_alder fx_ui      # some modules
 python tools/art_kit/build.py --preview-only hero_alder   # previews only, game files untouched
 ```
 
-Game files go to `assets/...`; zoomed previews (on dark, mid and light backgrounds) to
-`tools/art_kit/preview/...` (not in git). Then import in Godot (`run_game.bat` does it).
+Game files go to `assets/...` (and a fighter's clip layout to `data/clips/<id>.tres`); zoomed
+previews (on dark, mid and light backgrounds) to `tools/art_kit/preview/...` (not in git). Then
+import in Godot (`run_game.bat` does it).
 `python tools/art_kit/check.py` checks every file against the sprite contract below (sizes,
-frame counts, alpha, nothing clipped, seamless ground textures).
+frame counts, alpha, nothing clipped, seamless ground textures, the clip rules).
 Builds are deterministic: no unseeded randomness, same code = same pixels.
+
+```bash
+python tools/art_kit/check.py                                   # the contract
+python tools/art_kit/check.py --legacy <dir>                    # + row 0 equals these old sheets
+python tools/art_kit/check.py --require hero_brin enemy_husk    # + every Tier 1 clip exists
+```
+
+`--legacy <dir>` takes a folder holding `characters/<id>.png` and `enemies/<id>.png` one-row
+sheets (for example a copy of the phase 9 sprites) and fails when a grid sheet's row 0 differs
+from them by a single pixel. `--require` takes fighter modules or ids (or `all`).
+
+Build times (one machine, October 2026): about 0.6 to 1 s per fighter frame; a hero with its
+portrait and previews takes 6 to 13 s, an enemy 9 to 32 s. A hero's full Tier 1 set (about 85
+frames) stays near 1 to 2 minutes, so there is no render cache.
 
 ## Files
 
@@ -38,8 +53,11 @@ Builds are deterministic: no unseeded randomness, same code = same pixels.
   knees), `blend()` (in-between poses), `body()` (a plain clothed body to dress up).
 - `kit/canvas.py` 2D drawing for tiles, effects and icons (`Canvas`).
 - `kit/noise.py` value noise and Voronoi, both able to tile seamlessly.
-- `kit/sheet.py`, `kit/context.py` saving sheets and previews.
-- `kit/specs.py` the sprite contract (sizes, frame order).
+- `kit/sheet.py`, `kit/context.py` saving sheets and previews (`grid()`, `ctx.save_fighter()`).
+- `kit/clips.py` animation clips: `cell_camera()` (the legacy camera padded to a bigger cell),
+  `render_clips()`, `pack()` (grid sheet + clip map), `write_tres()` / `read_tres()` (the
+  `SpriteClips` resource) and `previews()` (a GIF per clip and a labelled contact sheet).
+- `kit/specs.py` the sprite contract (sizes, frame order, sheet grid, Tier 1 clip names).
 - `assets/<module>.py` one module per asset group, each with `build(ctx)`.
 
 ## Style rules (the art bible)
@@ -80,8 +98,9 @@ fighter (`specs.FIGHTER_PIXEL_SIZE`).
 
 | What | Size | Frames, in order | Facing |
 |---|---|---|---|
-| Hero sheet `sprites/characters/<id>.png` | 8 frames of 32x48 | idle, ready, parry, dodge, jump, hurt, strike, down | right |
-| Enemy sheet `sprites/enemies/<id>.png` | 6 square frames (`ENEMY_FRAME`) | idle, windup, lunge, contact, hurt, slam | left |
+| Hero sheet `sprites/characters/<id>.png` | grid of 48x56 cells, 8 columns | row 0: idle, ready, parry, dodge, jump, hurt, strike, down; then one row per clip | right |
+| Enemy sheet `sprites/enemies/<id>.png` | grid of square cells (`ENEMY_FRAME`), 8 columns | row 0: idle, windup, lunge, contact, hurt, slam (cells 6 and 7 clear); then one row per clip | left |
+| Clips `data/clips/<id>.tres` | `SpriteClips`: frame_size, hframes, vframes, body_width_px, clips | generated with the sheet, never edited by hand | - |
 | Portrait `sprites/portraits/<id>.png` | 48x48 | one | as the fighter |
 | Ground textures `sprites/env/*_tile.png`, `cliff.png`, `ruin_wall.png` | 32x32, seamless | - | - |
 | Props `sprites/env/<prop>.png` | as before | - | - |
@@ -92,6 +111,24 @@ fighter (`specs.FIGHTER_PIXEL_SIZE`).
   centred left to right. The game measures frame 0 (idle) for where popups go above the head, so
   idle should be the fighter's normal full height. The jump pose stays inside the frame (the game
   lifts the sprite itself).
+- Hero cells are 48x56: the poses were drawn in 32x48 frames, and a cell is that frame with 8
+  clear pixels added on the left, the right and the top (`HERO_CELL`), so swings, leaps and the
+  shield have room. Render them with `kit.clips.cell_camera(Camera(32, 48), HERO_CELL)` (or the
+  module's own lifted camera): it renders a pose to exactly the old pixels. A plain
+  `Camera(48, 56)` does not quite (a few pixels differ on some poses from float rounding).
+  `body_width_px` stays 32 so the in-game shadow keeps its size. Enemies keep their squares.
+- Fighter sheets are grids (`SHEET_COLS` 8, at most `MAX_SHEET` 4096 px a side; 16 columns only
+  when 8 would be taller). Row 0 holds the legacy key poses in the order above, so the game's old
+  pose numbers still work. Each clip starts a new row (a clip longer than 8 cells wraps).
+  Identical cells are stored once; a clip may reuse any cell, the row-0 keys included.
+- A clip lists only which cells play, in order; a repeated cell holds longer. The game decides
+  how long a clip plays (`combat_visuals.tres`), never the art. Every cell keeps the rules above
+  (1 clear pixel border, hard alpha, feet on the second-to-last row), except the airborne clips
+  `jump_up`, `jump_down`, `leap` and the floating fighters (gnats, shade).
+- Cell 0 is the idle key, and the game measures head, centre and popup anchors on it only. So
+  every cell of `idle`, `stand_front` and `stand_back` keeps its top within 1 px of cell 0, and
+  every cell of `ready` within 1 px of the ready key. Walk cycles put a foot on the floor on
+  frames 0 and N/2 (the footstep moments).
 - What the poses mean in the game. Heroes: **idle** standing at home (most of the fight);
   **ready** combat stance on their turn; **parry** blocking or deflecting a hit; **dodge**
   sidestepping back (away from the enemy, to the left); **jump** tucked in the air over a ground
@@ -104,20 +141,32 @@ fighter (`specs.FIGHTER_PIXEL_SIZE`).
 
 ```python
 # tools/art_kit/assets/hero_example.py
-from kit.palette import M
+from kit.clips import cell_camera, render_clips
 from kit.render import Camera, render
 from kit.post import finish
-from kit.sheet import hstack
-from kit.sdf import Union, Sphere
+from kit.rig import blend
+from kit.specs import HERO_BODY_W, HERO_CELL, HERO_FRAME, HERO_POSES
+
+POSES = {"idle": {...}, "ready": {...}, ...}          # keyframes as plain dicts
+# Clip name -> cells in play order: an int is a row-0 key, a dict a pose (often a blend).
+CLIPS = {"idle": [0, blend(POSES["idle"], BREATH, 0.5), BREATH, blend(POSES["idle"], BREATH, 0.5)]}
+
+def render_pose(pose, cam):
+    return finish(render(model(pose), cam))
 
 def build(ctx):
-    frames = []
-    for pose in POSES:
-        cam = Camera(32, 48)
-        frame = render(model(pose), cam)
-        frames.append(finish(frame))
-    ctx.save("sprites/characters/example.png", hstack(frames), frame_w=32)
+    cam = cell_camera(Camera(*HERO_FRAME), HERO_CELL)
+    keys = [render_pose(POSES[name], cam) for name in HERO_POSES]
+    cells = render_clips(CLIPS, lambda p: render_pose(p, cam))
+    ctx.save_fighter("sprites/characters/example.png", keys, cells, HERO_CELL, HERO_BODY_W, "example")
 ```
 
+`save_fighter` writes the grid sheet, `data/clips/<id>.tres` (both skipped with `--preview-only`),
+the sheet preview, `preview/<module>/clips/<clip>.gif` (each clip at about game speed, 6x, on the
+dark floor; lengths from `kit.clips.PREVIEW_MS`, overridable per module with `preview_ms=`) and
+`preview/<module>/<module>_clips.png` (every clip as a labelled row of its cells). The game reads
+the clips once `sprite_clips` in the fighter's `data/characters/<id>.tres` or
+`data/enemies/<id>.tres` points at the generated file.
+
 Look at the previews (`tools/art_kit/preview/...`) after every change; judge them at 1x as well
-as zoomed. Keep poses as plain dicts (keyframes) so phase 10 can blend them into animations.
+as zoomed. Keep poses as plain dicts (keyframes) so they blend into in-betweens (`kit.rig.blend`).

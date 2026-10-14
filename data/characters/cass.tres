@@ -8,6 +8,7 @@
 [ext_resource type="Resource" path="res://data/abilities/pass_the_torch.tres" id="6_qukvg"]
 [ext_resource type="Resource" path="res://data/abilities/hasten.tres" id="7_myatl"]
 [ext_resource type="Resource" path="res://data/abilities/revive.tres" id="8_hatxr"]
+[ext_resource type="Resource" path="res://data/clips/cass.tres" id="9_clips"]
 
 [resource]
 script = ExtResource("2_i60gs")
@@ -17,5 +18,6 @@ display_name = "Cass"
 color = Color(0.84705883, 0.72156864, 0.2901961, 1)
 sprite_path = "res://assets/sprites/characters/cass.png"
 portrait_path = "res://assets/sprites/portraits/cass.png"
+sprite_clips = ExtResource("9_clips")
 basic_attack = ExtResource("1_imygi")
 skills = Array[ExtResource("3_rslfs")]([ExtResource("4_5hw5k"), ExtResource("5_7crvq"), ExtResource("6_qukvg"), ExtResource("7_myatl"), ExtResource("8_hatxr")])

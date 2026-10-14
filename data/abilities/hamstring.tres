@@ -15,3 +15,5 @@ status = "slowed"
 status_turns = 2
 press_status_turns = 1
 damage_percent = 150
+windup_clips = PackedStringArray("strike_alt_windup")
+strike_clips = PackedStringArray("strike_alt")

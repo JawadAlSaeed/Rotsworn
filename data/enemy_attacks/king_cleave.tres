@@ -7,6 +7,7 @@
 script = ExtResource("1_04rh4")
 damage_percent = 120
 approach_ms = 220
+anim = "cleave"
 
 [resource]
 script = ExtResource("2_yll31")

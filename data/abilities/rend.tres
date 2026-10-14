@@ -15,3 +15,6 @@ follow_ups = true
 damage_percent = 300
 press_damage_percent = 30
 exposed_bonus_percent = 150
+windup_clips = PackedStringArray("strike_big_windup")
+strike_clips = PackedStringArray("strike_big")
+windup_percent = 130

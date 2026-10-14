@@ -15,3 +15,5 @@ ring_lead_percent = 85
 damage_percent = 0
 status = "guarded"
 press_status_on_self = true
+windup_clips = PackedStringArray("cast_windup")
+strike_clips = PackedStringArray("cast")

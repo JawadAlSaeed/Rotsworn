@@ -30,6 +30,11 @@ const FIRST_STRIKE_PAUSE_S: float = 0.35
 const TOUCH_PAUSE_S: float = 0.15
 ## Name tags show over roaming enemies this many notice radii away or closer.
 const TAG_RANGE_SHARE: float = 1.6
+## A walk that covers less than this share of its full step (pushing into a wall) shows the
+## leader standing, so the feet never tread on the spot.
+const BLOCKED_SHARE: float = 0.1
+## A walking direction must lean this far left or right (ground axis share) to turn the side art.
+const SIDE_TURN: float = 0.1
 
 ## Online, the pause menu opens over a zone that goes on: the leader stands still meanwhile.
 var input_held: bool = false
@@ -47,7 +52,14 @@ var _hud: ZoneHud
 var _leader: FighterView
 var _leader_pos: Vector2 = Vector2.ZERO
 var _facing: Vector2 = Vector2(0.0, -1.0)
+## The leader's view (WalkFacing, DESIGN.md 5.5): starts walking away from the camera.
+var _view: WalkFacing.Facing = WalkFacing.Facing.BACK
+## The last side the leader turned to: the side art (strike, hurt, pickup, a missing view) uses it.
+var _side_left: bool = false
+## Walk cycle: one whole number per step (WalkFacing); a foot comes down on each.
 var _walk_phase: float = 0.0
+## The leader is really walking this frame (not standing, striking or pushing into a wall).
+var _stepping: bool = false
 ## One per roaming enemy: {data, view, brain, pos: Vector2, defeated: bool, phase: float}.
 var _roamers: Array[Dictionary] = []
 var _obstacles: Array[Dictionary] = []
@@ -96,7 +108,7 @@ func net_snapshot() -> Dictionary:
 		var pos: Vector2 = r.pos
 		roamers.append([pos.x, pos.y, int((r.brain as RoamerBrain).state), bool(r.defeated)])
 	return {"l": [_leader_pos.x, _leader_pos.y], "f": [_facing.x, _facing.y],
-			"w": _walk_phase > 0.0, "s": _strikes, "r": roamers}
+			"w": _stepping, "s": _strikes, "r": roamers}
 
 
 ## Remote: the host's latest positions (see net_snapshot()). Malformed data is ignored.
@@ -195,9 +207,18 @@ func is_frozen() -> bool:
 
 ## Turns the leader toward a ground direction (autoplay aims before striking).
 func face(direction: Vector2) -> void:
-	if direction.length() > 0.0001:
-		_facing = direction.normalized()
-		_update_flip()
+	_turn(direction)
+
+
+## The leader bends down for the guard's loot (#71) once the zone is cleared, in the moment before
+## the fade to the loot screen. Turns to its last side first: the pickup is side art.
+func play_pickup() -> void:
+	if not WalkFacing.is_side(_view):
+		_view = WalkFacing.Facing.SIDE_L if _side_left else WalkFacing.Facing.SIDE_R
+	_pose_leader()
+	_leader.play("pickup", _explore.pickup_ms, FighterView.PRIO_BIG, -1, _explore.pickup_delay_ms)
+	# Hook for #57: the picked-up item would fly from the leader's hands to its target here (a
+	# follower's backpack or a HUD slot; only the leader walks the zone for now).
 
 
 ## Back from fight `fight_index()` with its result: a beaten enemy is gone; one the party ran
@@ -224,6 +245,10 @@ func resume(result: String) -> void:
 				other.pos = (other.brain as RoamerBrain).home
 	_fight_index = -1
 	_frozen = false
+	# Back on its feet, standing: the walk the fight interrupted is over.
+	_walk_phase = 0.0
+	_stepping = false
+	_pose_leader()
 	# The swing that started the fight is over: zone time stood still during the fight, so it
 	# would otherwise still be "swinging" and start a fight during the fade back in.
 	_strike_until_ms = _time_ms
@@ -237,6 +262,8 @@ func resume(result: String) -> void:
 		_frozen = _run_mode
 		_hud.banner("ZONE CLEAR", HudStyle.GOLD, _explore.zone_title_ms)
 		Sfx.play("zone_clear")
+		if result == "victory":
+			play_pickup()
 		cleared.emit()
 
 
@@ -280,7 +307,7 @@ func _build() -> void:
 	_world.add_child(_leader)
 	if c != null:
 		_leader.setup(-1, true, c.sprite_path, c.sprite_hframes, Vector2i(32, 48), c.sprite_pixel_size,
-				not _visuals.party_art_faces_right, _visuals)
+				not _visuals.party_art_faces_right, _visuals, c.sprite_clips)
 	else:
 		push_warning("ZoneController: zone %s has no leader" % _zone.id)
 		_leader.setup(-1, true, "", 8, Vector2i(32, 48), 0.045, false, _visuals)
@@ -295,7 +322,8 @@ func _build() -> void:
 		view.name = "Roamer%d" % i
 		_world.add_child(view)
 		view.setup(-2 - i, false, enemy.sprite_path, enemy.sprite_hframes, Vector2i(64, 64),
-				enemy.sprite_pixel_size, not _visuals.enemy_art_faces_left, _visuals)
+				enemy.sprite_pixel_size, not _visuals.enemy_art_faces_left, _visuals, enemy.sprite_clips,
+				enemy.idle_cycle_percent)
 		var home := Vector2(data.position.x, data.position.z)
 		var brain := RoamerBrain.new(home, data.wander_radius, hash(_zone.id) + i)
 		_roamers.append({"data": data, "view": view, "brain": brain, "pos": home, "defeated": false,
@@ -335,17 +363,22 @@ func _process(delta: float) -> void:
 		return
 	var move := bot_move if use_bot else _leader_input()
 	var striking := _time_ms < _strike_until_ms
-	var walking := not striking and move.length() > MOVE_DEADZONE
+	# The loot pickup (a big timed pose) holds the leader still until it is done.
+	var walking := not striking and not _leader.is_busy(FighterView.PRIO_BIG) and move.length() > MOVE_DEADZONE
+	_stepping = false
 	if walking:
 		var step := move.limit_length(1.0) * _tuning.explore_walk_speed * delta
+		var before := _leader_pos
 		_leader_pos = ZoneMotion.move(_leader_pos, step, LEADER_RADIUS, _obstacles, _zone.bounds_min, _zone.bounds_max)
-		_facing = move.normalized()
-		_update_flip()
-		_advance_walk(delta)
+		_turn(move)
+		var moved := before.distance_to(_leader_pos)
+		_stepping = moved > step.length() * BLOCKED_SHARE
+		if _stepping:
+			_advance_walk(moved, delta)
 	else:
 		_walk_phase = 0.0
 	if not striking:
-		_leader.set_pose(FighterView.CharPose.READY if walking and fposmod(_walk_phase, 1.0) < 0.5 else FighterView.CharPose.IDLE)
+		_pose_leader()
 
 	var calm := _time_ms < _grace_until_ms
 	for i: int in _roamers.size():
@@ -356,17 +389,12 @@ func _process(delta: float) -> void:
 		var velocity := brain.step(dt_ms, r.pos, _leader_pos, _tuning, not calm)
 		_sound_roamer(r)
 		if velocity.length() > 0.0:
+			var before: Vector2 = r.pos
 			r.pos = ZoneMotion.move(r.pos, velocity * delta, ROAMER_RADIUS, _obstacles, _zone.bounds_min, _zone.bounds_max)
-			r.phase = float(r.phase) + delta * _explore.roam_bob_hz
+			_advance_roamer(r, before.distance_to(r.pos), delta)
 			if absf(velocity.x) > 0.05:
 				(r.view as FighterView).set_flip((velocity.x > 0.0) == _visuals.enemy_art_faces_left)
-		var pose := EnemyChoreography.Pose.IDLE
-		match brain.state:
-			RoamerBrain.State.NOTICE:
-				pose = EnemyChoreography.Pose.WINDUP
-			RoamerBrain.State.CHASE:
-				pose = EnemyChoreography.Pose.LUNGE
-		(r.view as FighterView).set_pose(pose)
+		_pose_roamer(r)
 		# An enemy that walks into a swing still in progress is struck first.
 		if striking and not calm and ZoneMotion.in_reach(_leader_pos, _facing, r.pos, _tuning.explore_strike_reach,
 				_tuning.explore_strike_arc_degrees):
@@ -423,8 +451,10 @@ func strike() -> void:
 		_begin(best, CombatSetup.Opening.FIRST_STRIKE)
 
 
-## The strike's pose, sound and slash (also on the other machines online).
+## The strike's pose, sound and slash (also on the other machines online). The strike is side art,
+## swung toward the last side the leader turned to.
 func _show_strike() -> void:
+	_show_side_art()
 	_leader.play_pose(FighterView.CharPose.STRIKE, _tuning.explore_strike_ms)
 	Sfx.play("strike")
 	var front := _leader_pos + _facing * _explore.strike_slash_distance
@@ -436,23 +466,23 @@ func _follow_host(delta: float) -> void:
 	if _net.is_empty():
 		return
 	var k := 1.0 - exp(-delta * 1000.0 / float(maxi(1, _explore.net_follow_ms)))
+	var leader_before := _leader_pos
 	_leader_pos = _leader_pos.lerp(Vector2(float(_net.l[0]), float(_net.l[1])), k)
-	var facing := Vector2(float(_net.f[0]), float(_net.f[1]))
-	if facing.length() > 0.0001:
-		_facing = facing.normalized()
-		_update_flip()
+	_turn(Vector2(float(_net.f[0]), float(_net.f[1])))
 	var striking := _time_ms < _strike_until_ms
 	if int(_net.get("s", 0)) != _strikes:
 		_strikes = int(_net.get("s", 0))
 		_strike_until_ms = _time_ms + float(_tuning.explore_strike_ms)
 		_show_strike()
 		striking = true
-	if bool(_net.get("w", false)) and not striking:
-		_advance_walk(delta)
-		_leader.set_pose(FighterView.CharPose.READY if fposmod(_walk_phase, 1.0) < 0.5 else FighterView.CharPose.IDLE)
-	elif not striking:
+	# The walk cycle follows this machine's own smoothed positions, so the feet match the glide.
+	_stepping = bool(_net.get("w", false)) and not striking
+	if _stepping:
+		_advance_walk(leader_before.distance_to(_leader_pos), delta)
+	else:
 		_walk_phase = 0.0
-		_leader.set_pose(FighterView.CharPose.IDLE)
+	if not striking:
+		_pose_leader()
 	for i: int in _roamers.size():
 		var r: Dictionary = _roamers[i]
 		var entry: Variant = (_net.r as Array)[i]
@@ -475,24 +505,91 @@ func _follow_host(delta: float) -> void:
 		_sound_roamer(r)
 		if absf(target.x - old.x) > 0.001:
 			(r.view as FighterView).set_flip((target.x > old.x) == _visuals.enemy_art_faces_left)
-		var moving := brain.state in [RoamerBrain.State.WANDER, RoamerBrain.State.CHASE, RoamerBrain.State.RETURN]
-		if moving:
-			r.phase = float(r.phase) + delta * _explore.roam_bob_hz
-		var pose := EnemyChoreography.Pose.IDLE
-		match brain.state:
-			RoamerBrain.State.NOTICE:
-				pose = EnemyChoreography.Pose.WINDUP
-			RoamerBrain.State.CHASE:
-				pose = EnemyChoreography.Pose.LUNGE
-		(r.view as FighterView).set_pose(pose)
+		if _is_moving(brain):
+			_advance_roamer(r, old.distance_to(r.pos), delta)
+		_pose_roamer(r)
 
 
-## The walking bob; each time a foot comes down (every whole bob phase) a step sounds.
-func _advance_walk(delta: float) -> void:
+## The leader walked `moved` world units this frame: the walk cycle moves on one step per
+## walk_stride (or by time with stride 0), and each time a foot comes down (every whole phase,
+## the walk clip's contact cells) a step sounds.
+func _advance_walk(moved: float, delta: float) -> void:
 	var before := floori(_walk_phase)
-	_walk_phase += delta * _explore.walk_bob_hz
+	if _explore.walk_stride > 0.0:
+		_walk_phase = WalkFacing.advance(_walk_phase, moved, _explore.walk_stride)
+	else:
+		_walk_phase += delta * _explore.walk_bob_hz
 	if floori(_walk_phase) > before:
 		Sfx.play(_zone.footstep_sfx)
+
+
+## A roaming enemy walked `moved` world units: its walk cycle (and bob) moves on one step per
+## roam_stride (or by time with stride 0).
+func _advance_roamer(r: Dictionary, moved: float, delta: float) -> void:
+	if _explore.roam_stride > 0.0:
+		r.phase = WalkFacing.advance(float(r.phase), moved, _explore.roam_stride)
+	else:
+		r.phase = float(r.phase) + delta * _explore.roam_bob_hz
+
+
+func _is_moving(brain: RoamerBrain) -> bool:
+	return brain.state in [RoamerBrain.State.WANDER, RoamerBrain.State.CHASE, RoamerBrain.State.RETURN]
+
+
+## Turns the leader toward ground direction `direction` (zero keeps the facing). The view comes
+## from WalkFacing, so a diagonal keeps it; a clear lean left or right also turns the side art.
+func _turn(direction: Vector2) -> void:
+	if direction.length() <= 0.0001:
+		return
+	_facing = direction.normalized()
+	_view = WalkFacing.pick(_facing, _view, _explore.walk_turn_margin)
+	if absf(_facing.x) > SIDE_TURN:
+		_side_left = _facing.x < 0.0
+
+
+## The leader's frame for its view (card #59). Walking: the view's walk clip at the walk phase.
+## Standing: the view's stand loop (the idle loop for a side view). A view with no art of its own
+## shows the side art toward the last side; only the side art is ever mirrored. With no walk clip
+## at all, the old READY / IDLE step flicker.
+func _pose_leader() -> void:
+	var clip := ("walk_" if _stepping else "stand_") + WalkFacing.SUFFIXES[_view]
+	var own_view := not WalkFacing.is_side(_view) and _leader.has_clip(clip)
+	if own_view:
+		_leader.set_flip(false)
+	else:
+		clip = "walk_side" if _stepping else ""
+		_show_side_art()
+	if _stepping:
+		var legacy := FighterView.CharPose.READY if fposmod(_walk_phase, 1.0) < 0.5 else FighterView.CharPose.IDLE
+		_leader.show_clip(clip, WalkFacing.cycle_index(_leader.clip_count(clip), _walk_phase), legacy)
+	elif clip.is_empty():
+		_leader.set_pose(FighterView.CharPose.IDLE)
+	else:
+		_leader.set_loop(clip, _visuals.idle_cycle_ms, FighterView.CharPose.IDLE)
+
+
+## Mirrors the leader's side art toward the last side it turned to (party art faces right).
+func _show_side_art() -> void:
+	_leader.set_flip(_side_left == _visuals.party_art_faces_right)
+
+
+## A roaming enemy's frame (side views only). Wandering and going home: its walk clip; chasing: its
+## chase clip, both at its walk phase. Noticing: the wind-up key; pausing: the idle loop. Without
+## those clips, the old poses (idle, lunge).
+func _pose_roamer(r: Dictionary) -> void:
+	var view := r.view as FighterView
+	var phase := float(r.phase)
+	match (r.brain as RoamerBrain).state:
+		RoamerBrain.State.WANDER, RoamerBrain.State.RETURN:
+			view.show_clip("walk", WalkFacing.cycle_index(view.clip_count("walk"), phase),
+					EnemyChoreography.Pose.IDLE)
+		RoamerBrain.State.CHASE:
+			view.show_clip("chase", WalkFacing.cycle_index(view.clip_count("chase"), phase),
+					EnemyChoreography.Pose.LUNGE)
+		RoamerBrain.State.NOTICE:
+			view.set_pose(EnemyChoreography.Pose.WINDUP)
+		_:
+			view.set_pose(EnemyChoreography.Pose.IDLE)
 
 
 ## A roaming enemy's state changed: a sting when it spots the leader, a sigh when it gives up.
@@ -522,6 +619,7 @@ func _begin(index: int, opening: CombatSetup.Opening) -> void:
 		await get_tree().create_timer(FIRST_STRIKE_PAUSE_S).timeout
 	else:
 		view.flash(_visuals.telegraph_flash_ms * 2, _visuals.telegraph_flash_color, 0.8)
+		_show_side_art()
 		_leader.play_pose(FighterView.CharPose.HURT, int(TOUCH_PAUSE_S * 1000.0) + _explore.transition_out_ms)
 		Sfx.play("alert")
 		await get_tree().create_timer(TOUCH_PAUSE_S).timeout
@@ -529,16 +627,10 @@ func _begin(index: int, opening: CombatSetup.Opening) -> void:
 	encounter_started.emit(index, opening)
 
 
-func _update_flip() -> void:
-	if absf(_facing.x) > 0.1:
-		# Party art faces right: facing left mirrors it.
-		_leader.set_flip((_facing.x < 0.0) == _visuals.party_art_faces_right)
-
-
 ## Puts every walker's node on its ground spot, with the walking bob.
 func _place_walkers(_delta: float) -> void:
 	_leader.position = Vector3(_leader_pos.x, 0.0, _leader_pos.y)
-	var bob := absf(sin(_walk_phase * PI)) * _explore.walk_bob_height
+	var bob := absf(sin(_walk_phase * PI)) * _explore.walk_bob_height if _stepping else 0.0
 	_leader.body_offset = Vector3(0.0, bob, 0.0)
 	for r: Dictionary in _roamers:
 		if bool(r.defeated):
@@ -546,7 +638,7 @@ func _place_walkers(_delta: float) -> void:
 		var pos: Vector2 = r.pos
 		var view := r.view as FighterView
 		view.position = Vector3(pos.x, 0.0, pos.y)
-		var moving := (r.brain as RoamerBrain).state in [RoamerBrain.State.WANDER, RoamerBrain.State.CHASE, RoamerBrain.State.RETURN]
+		var moving := _is_moving(r.brain as RoamerBrain)
 		view.body_offset = Vector3(0.0, absf(sin(float(r.phase) * PI)) * _explore.walk_bob_height if moving else 0.0, 0.0)
 
 

@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="SpriteClips" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/sprite_clips.gd" id="1_clips"]
+
+[resource]
+script = ExtResource("1_clips")
+frame_size = Vector2i(92, 92)
+hframes = 8
+vframes = 18
+body_width_px = 92
+clips = {
+"belly_lunge": PackedInt32Array(136, 137, 2),
+"belly_windup": PackedInt32Array(120, 121, 122),
+"belly_windup_hold": PackedInt32Array(122, 128),
+"chase": PackedInt32Array(112, 113, 114, 115),
+"contact": PackedInt32Array(3, 40, 41),
+"death": PackedInt32Array(96, 97, 98, 99),
+"hurt": PackedInt32Array(4, 80, 0),
+"idle": PackedInt32Array(0, 8, 9, 8),
+"lunge": PackedInt32Array(32, 33, 2),
+"recoil": PackedInt32Array(48, 0),
+"return": PackedInt32Array(56, 57, 0),
+"slam": PackedInt32Array(5, 64, 65),
+"slam_recover": PackedInt32Array(72, 0),
+"stagger": PackedInt32Array(4, 88, 89, 0),
+"walk": PackedInt32Array(104, 105, 106, 107),
+"windup": PackedInt32Array(16, 17, 1),
+"windup_hold": PackedInt32Array(1, 24)
+}

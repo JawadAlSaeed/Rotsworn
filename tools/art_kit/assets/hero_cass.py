@@ -31,6 +31,7 @@ from typing import Any, Callable
 import numpy as np
 
 from kit import specs
+from kit.clips import cell_camera, render_clips
 from kit.palette import INK, M, Material
 from kit.post import cleanup, outline
 from kit.render import Camera, Frame, line3d, render
@@ -196,7 +197,7 @@ _BASE: dict[str, Any] = dict(
     fringe=(0.3, 2.0), tails=(0.0, 0.0, 0.0), eyes="open", toe_n=0.0, toe_f=0.0,
     knee_n=(1.0, 0.0, 0.15), knee_f=(1.0, 0.0, -0.15), side_lean=0.0,
     grip_n=None, grip_f=None, dim=0.0, drape=0.0, hem_open=1.0, lock_front=0.0,
-    root=(0.0, 0.0, 0.0), root_shift=(0.0, 0.0, 0.0),
+    root=(0.0, 0.0, 0.0), root_shift=(0.0, 0.0, 0.0), burst=0.0, halo=0.0, trail=0.0,
 )
 
 
@@ -309,8 +310,15 @@ def skeleton(pose: dict[str, Any]) -> Skeleton:
     base, d = _staff(pose)
     for s in ("n", "f"):
         g = pose.get("grip_" + s)
-        if g is not None:
-            p["hand_" + s] = tuple(base + d * float(g))
+        if g is None:
+            continue
+        on_staff = base + d * float(g)
+        # grip_w_<s> (clip in-betweens): how far the hand has closed on the staff, 1 when left out.
+        w = float(pose.get("grip_w_" + s, 1.0))
+        if w >= 1.0 or "hand_" + s not in pose:
+            p["hand_" + s] = tuple(on_staff)
+        elif w > 0.0:
+            p["hand_" + s] = tuple(_v(pose["hand_" + s]) + (on_staff - _v(pose["hand_" + s])) * w)
     sk = pose_skeleton(BUILD, p)
     root = _v(pose.get("root", (0.0, 0.0, 0.0)))
     shift = _v(pose.get("root_shift", (0.0, 0.0, 0.0)))
@@ -530,6 +538,12 @@ def model(pose: dict[str, Any], portrait: bool = False) -> tuple[Node, list[Over
                          FIT, [3, 2], "fit"))
     if glow >= 1:
         ovs.append(_sparkle(cry, glow))
+    if float(pose.get("halo", 0.0)) >= 0.5:
+        ovs.append(_halo(cry, float(pose["halo"])))
+    if abs(float(pose.get("trail", 0.0))) >= 5.0:
+        ovs.append(_trail((sk["hand_n"] + sk["hand_f"]) * 0.5, cry, float(pose["trail"])))
+    if float(pose.get("burst", 0.0)) >= 0.5:
+        ovs.append(_burst(cry, float(pose["burst"])))
     if float(pose.get("ward", 0)) >= 0.5:
         ovs.append(_ward(sk, pose))
 
@@ -713,6 +727,92 @@ def _ward(sk: Skeleton, pose: dict[str, Any]) -> Overlay:
         for x, y, t in _ellipse_ring(cx, cy, float(a), float(b)):
             front = math.cos(math.radians(t)) > -0.2
             frame.put(x, y, hi, 3 if front else 2, -np.inf)
+
+    return ov
+
+
+def _fx_put(frame: Frame, part: int, x: int, y: int, i: int) -> None:
+    """One FX pixel on top of everything, kept a pixel inside the cell (the sprite contract wants a
+    clear top row and side columns) and never over the crystal or its claw."""
+    if not (1 <= x < frame.W - 1 and 1 <= y < frame.H - 1):
+        return
+    p = frame.part[y, x]
+    if p >= 0 and frame.groups[p] in ("crystal", "fit"):
+        return
+    frame.put(x, y, part, i, -np.inf)
+
+
+def _halo(c: np.ndarray, size: float) -> Overlay:
+    """Support magic (cast): a cyan ring around the crystal and motes drifting up from it.
+    size 1 = a small ring, 2 = a wider one with the motes higher."""
+
+    def ov(frame: Frame, cam: Camera) -> None:
+        cx, cy, _ = cam.project(c)
+        part = frame.add_part(FX, "cass_fx")
+        r = 3.2 + 1.6 * (size - 1.0)
+        for x, y, t in _ellipse_ring(cx, cy, r, r):
+            # A broken ring: bright on top, gaps low down, so it reads as light, not a hoop.
+            s = math.sin(math.radians(t))
+            if s < -0.55:
+                continue
+            _fx_put(frame, part, x, y, 3 if s > 0.2 else 2)
+        rise = 2.0 + 2.5 * (size - 1.0)
+        for dx, dy, i in ((-5.0, -3.0, 2), (4.5, -4.5, 3), (-2.0, -7.0, 3), (6.0, 0.5, 1)):
+            _fx_put(frame, part, int(math.floor(cx + dx)), int(math.floor(cy + dy - rise)), i)
+
+    return ov
+
+
+def _trail(pivot: np.ndarray, c: np.ndarray, span: float) -> Overlay:
+    """A swing smear: a cyan arc the crystal just swept, round the hands, over `span` degrees
+    behind the crystal (positive: it came down from above, negative: up from below). Bright by the
+    crystal, fading along the arc."""
+
+    def ov(frame: Frame, cam: Camera) -> None:
+        px, py, _ = cam.project(pivot)
+        cx, cy, _ = cam.project(c)
+        r = math.hypot(cx - px, -(cy - py))
+        if r < 4.0:
+            return
+        a0 = math.degrees(math.atan2(-(cy - py), cx - px))
+        part = frame.add_part(FX, "cass_fx")
+        n = max(2, int(abs(span) * math.pi / 180.0 * r))
+        for k in range(1, n + 1):
+            u = k / n
+            a = math.radians(a0 + span * (0.1 + 0.9 * u))
+            i = 3 if u < 0.3 else (2 if u < 0.7 else 1)
+            for rr, step in ((r, 1), (r - 1.4, 2)):
+                if step == 2 and (u > 0.6 or k % 2):
+                    continue
+                _fx_put(frame, part, int(math.floor(px + 0.5 + math.cos(a) * rr)),
+                        int(math.floor(py + 0.5 - math.sin(a) * rr)), i if step == 1 else max(1, i - 1))
+
+    return ov
+
+
+def _burst(c: np.ndarray, size: float) -> Overlay:
+    """The crystal burst (strike_big): eight rays out of the crystal, long ones level and upright,
+    short ones on the diagonals, and at size 2 a dotted shock ring around them."""
+
+    def ov(frame: Frame, cam: Camera) -> None:
+        cx, cy, _ = cam.project(c)
+        part = frame.add_part(FX, "cass_fx")
+        reach = 5.0 + 3.5 * (size - 1.0)
+        start = 2.0 + 1.5 * (size - 1.0)
+        for k in range(8):
+            a = math.radians(k * 45.0)
+            ln = reach if k % 2 == 0 else reach * 0.62
+            ux, uy = math.cos(a), -math.sin(a)
+            r = start
+            while r <= ln + 1e-6:
+                i = 3 if r < start + (ln - start) * 0.55 else (2 if r < ln - 0.5 else 1)
+                _fx_put(frame, part, int(math.floor(cx + 0.5 + ux * r)), int(math.floor(cy + 0.5 + uy * r)), i)
+                r += 1.0
+        if size >= 1.5:
+            rr = reach + 1.5
+            for n, (x, y, t) in enumerate(_ellipse_ring(cx, cy, rr, rr)):
+                if n % 3 == 0:
+                    _fx_put(frame, part, x, y, 1)
 
     return ov
 
@@ -922,11 +1022,388 @@ def portrait_camera() -> Camera:
     return cam
 
 
+# --- Clips (phase 10) -----------------------------------------------------------------------------
+
+K = {name: i for i, name in enumerate(specs.HERO_POSES)}
+
+
+def complete(pose: dict[str, Any]) -> dict[str, Any]:
+    """The pose with every key spelled out (kit.rig.blend copies a key missing on one side
+    wholesale, so keyframes that share all keys blend smoothly). It renders exactly like `pose`.
+
+    Hands: a hand on the staff (grip set) gets grip_w 1 and its hand_<s> set to where it really
+    is; a free hand gets grip_w 0 and a grip at the point of the staff nearest to it. Blending a
+    held and a free hand then slides the hand onto the staff instead of jumping halfway."""
+    out = dict(_BASE)
+    out.update(pose)
+    out.setdefault("pelvis", (0.0, H0, 0.0))
+    for k in ("lean", "side_lean", "twist", "hip_yaw"):
+        out.setdefault(k, 0.0)
+    out.setdefault("head", (0.0, 0.0, 0.0))
+    out.setdefault("staff_base", (6.0, 0.0, 1.0))
+    out.setdefault("staff_dir", (0.0, 1.0, 0.0))
+    hip_yaw = float(out["hip_yaw"])
+    torso = rot(0.0, hip_yaw + float(out["twist"]), 0.0) @ rot(float(out["side_lean"]), 0.0, -float(out["lean"]))
+    for s_, sgn in (("n", 1.0), ("f", -1.0)):
+        out.setdefault("elbow_" + s_, tuple(float(v) for v in torso @ _v((-1.0, -0.2, sgn * 0.5))))
+        out.setdefault("toe_yaw_" + s_, hip_yaw)
+    # Joints before the root turn (hand and foot keys live in the unturned frame).
+    sk = skeleton(dict(out, root=(0.0, 0.0, 0.0), root_shift=(0.0, 0.0, 0.0)))
+    base, d = _staff(out)
+    for s_ in ("n", "f"):
+        hand = tuple(float(v) for v in sk["hand_" + s_])
+        g = out.get("grip_" + s_)
+        if g is None:
+            out["hand_" + s_] = hand
+            out["grip_" + s_] = float(np.clip((_v(hand) - base) @ d, 0.0, STAFF_LEN))
+            out["grip_w_" + s_] = 0.0
+        else:
+            w = float(out.get("grip_w_" + s_, 1.0))
+            out["grip_w_" + s_] = w
+            if w >= 1.0 or "hand_" + s_ not in out:
+                out["hand_" + s_] = hand
+        out.setdefault("foot_" + s_, tuple(float(v) for v in sk["ankle_" + s_]))
+    return out
+
+
+def P(base: dict[str, Any], **kw: Any) -> dict[str, Any]:
+    """A keyframe: `base` with some keys changed, completed. Setting grip_<s> (a number or None)
+    without grip_w_<s> takes the hand's grip state from the new grip."""
+    p = dict(base)
+    for s_ in ("n", "f"):
+        if "grip_" + s_ in kw and "grip_w_" + s_ not in kw:
+            p.pop("grip_w_" + s_, None)
+    p.update(kw)
+    return complete(p)
+
+
+def B(a: dict[str, Any], b: dict[str, Any], t: float, **kw: Any) -> dict[str, Any]:
+    """An in-between of two completed keyframes, with some keys then set by hand."""
+    return P(blend(a, b, t), **kw)
+
+
+IDLE, READY, PARRY, DODGE = (complete(POSES[n]) for n in ("idle", "ready", "parry", "dodge"))
+JUMP, HURT, STRIKE, DOWN = (complete(POSES[n]) for n in ("jump", "hurt", "strike", "down"))
+
+# Breathing (idle and ready loops: key, half, out-breath, half). The body sinks a little on the
+# knees and the hands ride down with it; the head moves under a pixel, since the game measures the
+# head and popup anchors on cell 0 only. At home the staff stays planted; in the stance its tip
+# bobs with the arms.
+IDLE_OUT = P(IDLE, pelvis=(0.0, H0 - 0.1 - 0.6, 0.0), lean=2.6, head=(5.0, -24.0, 0.0), grip_f=19.0,
+             hand_n=(-0.7, 12.9, 3.8), hair=(0.0, -0.3, 0.0), tails=(0.0, -0.3, 0.0))
+READY_OUT = P(READY, pelvis=(-4.2, H0 - 2.4 - 0.7, 0.0), lean=15.0, head=(2.0, -27.0, 0.0),
+              staff_base=(-5.0, 1.3, 8.6), staff_dir=(0.36, 0.846, -0.393),
+              hair=(-0.8, -0.2, 0.0), tails=(-0.4, -0.3, 0.0))
+
+# Fight start: both hands take the staff and lift it, swing it up with the crystal flaring, and
+# plant it again with a thump (the crystal still lit), settling into the idle key.
+DRAW_1 = P(IDLE, pelvis=(-0.4, H0 - 1.2, 0.0), lean=8.0, head=(10.0, -24.0, 0.0),
+           staff_base=(6.6, 3.0, 0.4), staff_dir=(0.12, 0.99, -0.06), grip_n=14.0, grip_f=19.0,
+           glow=1, hair=(-0.4, -0.4, 0.0), tails=(-0.3, -0.2, 0.0))
+DRAW_2 = P(IDLE, pelvis=(-1.2, H0 + 0.2, 0.0), lean=0.0, head=(-10.0, -24.0, 0.0),
+           foot_n=(1.6, 1.4, 2.0), foot_f=(-2.6, 1.4, -1.8), toe_f=12.0,
+           staff_base=(-3.0, 9.0, 4.0), staff_dir=(0.42, 0.86, -0.29), grip_n=13.0, grip_f=17.0,
+           glow=2, hem=(-0.4, 0.4, 0.0), flare=0.8, hat_tilt=(0.0, 0.0, -6.0),
+           hair=(-1.2, 0.6, 0.0), tails=(-0.8, 0.4, 0.0))
+DRAW_3 = P(IDLE, pelvis=(0.0, H0 - 1.0, 0.0), lean=5.0, head=(6.0, -24.0, 0.0),
+           staff_base=(8.2, 0.0, -0.6), staff_dir=(0.0, 1.0, 0.0), grip_f=18.6, grip_n=None,
+           hand_n=(1.6, 13.6, 4.4), glow=1, hem=(0.3, -0.2, 0.0), flare=0.4,
+           hair=(0.4, -0.6, 0.0), tails=(0.2, -0.4, 0.0))
+
+# Parry: the snap up into the ward (no ring yet); when the blow lands the ring flares wide and
+# Cass is pushed back on her heels, then braces.
+PARRY_SNAP = B(READY, PARRY, 0.55, ward=0, eyes="open", glow=1)
+PARRY_HIT_1 = P(PARRY, pelvis=(-3.4, H0 - 1.8, 0.0), lean=-13.0, head=(12.0, -22.0, 0.0),
+                foot_n=(1.0, 1.4, 2.0), toe_n=16.0,
+                staff_base=(-3.2, 8.4, 13.2), glow=2, ward_at=(10.0, -1.0, 0.0), ward_r=(3.6, 10.5),
+                hem=(-1.2, 0.2, 0.0), flare=0.8, hat_tilt=(0.0, 0.0, 10.0),
+                hair=(1.4, 0.4, 0.0), tails=(1.0, 0.2, 0.0), eyes="wince")
+PARRY_HIT_2 = B(PARRY_HIT_1, PARRY, 0.5, glow=1, ward_r=(3.2, 9.6))
+
+# Dodge: in and out of the hop-back key (out is nearer the stance than in, so the two differ).
+DODGE_IN = B(READY, DODGE, 0.45)
+DODGE_OUT = B(DODGE, READY, 0.7)
+
+# Jump (over a ground wave): pushing off with the legs straight and the free arm thrown up, the
+# tuck, the key; then the legs reaching down with the robe billowing up, landing in a crouch with
+# the staff planted.
+JUMP_PUSH = P(JUMP, pelvis=(0.4, H0 + 1.4, 0.0), lean=6.0, head=(-8.0, -24.0, 0.0),
+              foot_n=(1.4, 2.6, 1.9), foot_f=(-1.6, 3.0, -1.8), toe_n=-38.0, toe_f=-44.0,
+              knee_n=(1.0, 0.0, 0.15), knee_f=(1.0, 0.0, -0.15),
+              staff_base=(5.6, 3.0, -2.6), staff_dir=(0.06, 0.998, 0.0), grip_f=16.0,
+              hand_n=(4.4, 25.0, 4.6), hem=(0.0, -0.4, 0.0), flare=0.6, hat_tilt=(0.0, 0.0, 4.0),
+              hair=(0.2, -1.4, 0.0), tails=(0.2, -1.0, 0.0))
+JUMP_TUCK = B(JUMP_PUSH, JUMP, 0.6)
+JUMP_OPEN = P(JUMP, pelvis=(0.4, H0 + 2.4, 0.0), lean=8.0, head=(-2.0, -24.0, 0.0),
+              foot_n=(1.4, 4.4, 1.9), foot_f=(-1.8, 5.0, -1.8), toe_n=-24.0, toe_f=-30.0,
+              knee_n=(1.0, 0.0, 0.15), knee_f=(1.0, 0.0, -0.15),
+              hand_n=(5.0, 19.0, 6.0), hem=(0.4, 1.8, 0.0), flare=2.6, hat_tilt=(0.0, 0.0, -4.0),
+              hair=(-0.4, 2.8, 0.0), tails=(-0.4, 2.6, 0.0))
+JUMP_LAND = P(READY, pelvis=(-1.6, H0 - 3.4, 0.0), lean=18.0, head=(-4.0, -27.0, 0.0),
+              foot_n=(2.4, 1.4, 2.2), foot_f=(-5.0, 1.4, -1.8), toe_f=10.0,
+              staff_base=(7.4, 0.0, -0.6), staff_dir=(0.1, 0.995, 0.0), grip_n=None, grip_f=14.0,
+              hand_n=(-6.0, 14.6, 4.6), glow=1, hem=(0.0, -0.4, 0.0), flare=1.4, hat_tilt=(0.0, 0.0, -2.0),
+              hair=(0.2, -1.0, 0.0), tails=(0.2, -0.8, 0.0))
+
+# Hurt: the hit key, sagging forward out of it (crystal still dark), back toward the stance.
+HURT_RECOIL = P(HURT, pelvis=(1.2, H0 - 2.4, 0.0), lean=2.0, head=(16.0, -20.0, 4.0),
+                foot_n=(5.4, 1.4, 2.0), toe_n=0.0, foot_f=(-1.6, 1.4, -1.8),
+                staff_base=(5.0, 3.0, 2.6), staff_dir=(0.34, 0.94, 0.0), grip_n=12.0,
+                hand_f=(4.4, 15.6, -3.8), hem=(0.8, 0.0, 0.0), flare=0.6, hat_tilt=(10.0, 0.0, 12.0),
+                hair=(0.6, -0.6, 0.0), tails=(0.6, -0.4, 0.0), eyes="wince")
+HURT_RECOVER = B(HURT_RECOIL, READY, 0.55, eyes="open", dim=0.0, glow=1)
+# Stagger (a big hit): thrown far back with a leg kicked up and the hat knocked askew, a stumbling
+# step back, doubled over leaning on the planted staff, then the same recovery.
+STAGGER_1 = P(HURT, pelvis=(0.4, H0 - 0.6, 0.0), lean=-32.0, head=(-22.0, -12.0, 10.0),
+              foot_n=(7.4, 5.2, 2.0), toe_n=30.0, foot_f=(0.6, 1.4, -1.8),
+              staff_base=(5.6, 8.4, 3.0), staff_dir=(0.45, 0.89, 0.0), grip_n=10.0,
+              hand_f=(2.6, 27.0, -3.6), hem=(2.8, 0.8, 0.0), flare=1.2, hat_tilt=(18.0, 0.0, 30.0),
+              hair=(3.8, 1.6, 0.0), tails=(2.6, 0.6, 0.0), eyes="wince")
+STAGGER_2 = P(HURT, pelvis=(-3.4, H0 - 1.8, 0.0), lean=-12.0, head=(2.0, -18.0, 6.0),
+              foot_n=(1.6, 3.8, 2.0), toe_n=12.0, foot_f=(-8.0, 1.4, -1.8), toe_f=0.0,
+              staff_base=(2.2, 4.4, 2.4), staff_dir=(0.28, 0.96, 0.0), grip_n=12.0,
+              hand_f=(5.6, 21.0, -3.4), hem=(1.6, 0.4, 0.0), flare=1.0, hat_tilt=(14.0, 0.0, 22.0),
+              hair=(2.0, 0.4, 0.0), tails=(1.6, 0.2, 0.0), eyes="wince")
+STAGGER_3 = P(HURT, pelvis=(-2.4, H0 - 3.8, 0.0), lean=30.0, head=(24.0, -20.0, 0.0),
+              foot_n=(3.4, 1.4, 2.2), toe_n=0.0, foot_f=(-6.8, 1.4, -1.8),
+              staff_base=(7.6, 0.0, 0.4), staff_dir=(-0.08, 0.997, 0.0), grip_n=13.0, grip_f=17.0,
+              dim=0.0, glow=0, hem=(0.2, 0.0, 0.0), flare=0.8, hat_tilt=(8.0, 0.0, 10.0),
+              hair=(-0.4, -0.8, 0.0), tails=(-0.2, -0.6, 0.0), eyes="wince")
+
+# Strike (staff poke): the staff drawn back level at the hip, weight on the back foot with the
+# front foot lifting into the step; the thrust key; over-reach; back toward the stance.
+STRIKE_W1 = P(STRIKE, pelvis=(-3.6, H0 - 2.6, 0.0), lean=6.0, head=(-4.0, -27.0, 0.0),
+              foot_n=(3.4, 1.4, 2.2), foot_f=(-7.0, 1.4, -1.8), toe_f=0.0, knee_n=(1.0, 0.0, 0.15),
+              staff_base=(-21.6, 14.0, -4.7), glow=1, hem=(0.2, 0.0, 0.0), flare=0.8,
+              hat_tilt=(0.0, 0.0, 0.0), hair=(-0.4, 0.0, 0.0), tails=(-0.4, 0.0, 0.0))
+STRIKE_W2 = P(STRIKE_W1, pelvis=(-4.4, H0 - 3.0, 0.0), lean=3.0,
+              foot_n=(4.4, 3.4, 2.2), toe_n=16.0, staff_base=(-23.0, 14.2, -4.9),
+              hair=(0.4, 0.0, 0.0), tails=(0.2, 0.0, 0.0))
+STRIKE_FOLLOW = P(STRIKE, pelvis=(1.0, H0 - 3.6, 0.0), lean=28.0, head=(-4.0, -27.0, 0.0),
+                  toe_f=-20.0, staff_base=(-14.0, 13.0, -3.6),
+                  hair=(-3.6, 1.0, 0.0), tails=(-2.6, 0.3, 0.0))
+STRIKE_RECOVER = B(STRIKE, READY, 0.55)
+
+# Strike alt (staff swing): held by the middle, the crystal end cocked up behind the head, swung
+# over and forward to chest height (the hit), and on down in front, then back to the stance.
+ALT_W1 = P(READY, pelvis=(-3.0, H0 - 2.0, 0.0), lean=-4.0, head=(-2.0, -24.0, 0.0),
+           foot_n=(2.6, 1.4, 2.2), foot_f=(-6.8, 1.4, -1.8),
+           staff_base=(7.6, 5.0, 3.6), staff_dir=(-0.35, 0.93, -0.12), grip_n=16.0, grip_f=21.0,
+           glow=1, hem=(0.4, 0.0, 0.0), flare=0.6, hat_tilt=(0.0, 0.0, 4.0),
+           hair=(0.6, 0.0, 0.0), tails=(0.4, 0.0, 0.0))
+ALT_W2 = P(ALT_W1, pelvis=(-3.6, H0 - 2.2, 0.0), lean=-9.0, head=(-4.0, -24.0, 0.0),
+           staff_base=(11.0, 7.4, 3.6), staff_dir=(-0.6, 0.79, -0.12),
+           foot_n=(3.4, 2.6, 2.2), toe_n=12.0, hair=(1.2, 0.2, 0.0))
+ALT_1 = P(READY, pelvis=(-0.6, H0 - 2.8, 0.0), lean=16.0, head=(-2.0, -27.0, 0.0),
+          foot_n=(6.6, 1.6, 2.0), foot_f=(-7.2, 1.5, -1.8), toe_f=-10.0,
+          staff_base=(-11.0, 12.0, -2.0), staff_dir=(0.86, 0.42, 0.28), grip_n=17.0, grip_f=22.0,
+          glow=2, trail=45.0, hem=(-1.0, 0.2, 0.0), flare=1.2, hat_tilt=(0.0, 0.0, 8.0),
+          hair=(-2.4, 0.6, 0.0), tails=(-1.8, 0.2, 0.0))
+ALT_2 = P(ALT_1, pelvis=(0.2, H0 - 3.6, 0.0), lean=24.0, head=(6.0, -27.0, 0.0),
+          staff_base=(-6.4, 27.4, -2.0), staff_dir=(0.7, -0.62, 0.36), grip_n=14.0, grip_f=19.0,
+          glow=1, trail=55.0, hair=(-2.8, 0.2, 0.0), tails=(-2.0, 0.0, 0.0))
+ALT_RECOVER = B(ALT_2, READY, 0.6, trail=0.0, staff_base=(-3.4, 6.0, 5.0), staff_dir=(0.5, 0.82, -0.28))
+
+# Strike big (crystal burst): the staff lifted high behind with the crystal flaring, a charge ring
+# gathering round it; thrust up at the enemy as the crystal bursts; the burst spreading; back.
+BIG_W1 = P(READY, pelvis=(-2.6, H0 - 1.4, 0.0), lean=-6.0, head=(-12.0, -24.0, 0.0),
+           foot_n=(2.8, 1.4, 2.2), foot_f=(-6.4, 1.4, -1.8),
+           staff_base=(8.0, 11.0, 2.0), staff_dir=(-0.45, 0.89, -0.1), grip_n=13.0, grip_f=17.0,
+           glow=2, hem=(0.4, 0.2, 0.0), flare=0.8, hat_tilt=(0.0, 0.0, 6.0),
+           hair=(0.8, -0.2, 0.0), tails=(0.6, 0.0, 0.0))
+BIG_W2 = P(BIG_W1, pelvis=(-3.4, H0 - 2.4, 0.0), lean=-12.0, head=(-16.0, -24.0, 0.0),
+           foot_f=(-7.0, 1.4, -1.8), toe_f=10.0,
+           staff_base=(10.6, 12.4, 2.0), staff_dir=(-0.62, 0.78, -0.1), halo=1.0,
+           hair=(1.4, 0.0, 0.0), tails=(1.0, 0.0, 0.0))
+BIG_1 = P(READY, pelvis=(0.2, H0 - 3.0, 0.0), lean=16.0, head=(-8.0, -27.0, 0.0),
+          foot_n=(7.0, 1.6, 2.0), foot_f=(-7.6, 1.5, -1.8), toe_f=-14.0,
+          staff_base=(-3.4, 7.0, 0.6), staff_dir=(0.55, 0.81, 0.2), grip_n=18.0, grip_f=23.0,
+          glow=2, burst=1.5, hem=(-1.4, 0.2, 0.0), flare=1.4, hat_tilt=(0.0, 0.0, 10.0),
+          hair=(-3.0, 0.8, 0.0), tails=(-2.0, 0.2, 0.0))
+BIG_2 = P(BIG_1, pelvis=(0.4, H0 - 3.4, 0.0), lean=20.0, burst=2.5, glow=1,
+          hair=(-2.4, 0.4, 0.0), tails=(-1.6, 0.0, 0.0))
+BIG_RECOVER = B(BIG_2, READY, 0.5, burst=0.0, glow=1)
+
+# Cast (support skills): the staff drawn in upright before the face, eyes shut; lifted as the
+# crystal brightens; raised high with a ring of light and motes rising off the crystal; held;
+# back to the stance.
+CAST_W1 = P(IDLE, pelvis=(-1.0, H0 - 0.9, 0.0), lean=4.0, head=(12.0, -24.0, 0.0),
+            foot_n=(1.2, 1.4, 1.8), foot_f=(-2.2, 1.4, -1.8),
+            staff_base=(4.6, 3.0, 1.0), staff_dir=(0.04, 0.999, 0.0), grip_n=14.0, grip_f=18.6,
+            glow=1, hair=(0.0, -0.4, 0.0), tails=(0.0, -0.3, 0.0), eyes="closed")
+CAST_W2 = P(CAST_W1, pelvis=(-1.0, H0 - 0.5, 0.0), head=(4.0, -24.0, 0.0),
+            staff_base=(4.6, 6.0, 1.0), glow=2, hem=(0.0, 0.2, 0.0), flare=0.3)
+CAST_1 = P(CAST_W1, pelvis=(-0.6, H0 + 0.3, 0.0), lean=-2.0, head=(-14.0, -24.0, 0.0),
+           foot_n=(1.0, 1.4, 1.8), foot_f=(-2.0, 1.4, -1.8), toe_n=-10.0, toe_f=-10.0,
+           staff_base=(5.0, 10.4, 0.6), staff_dir=(0.06, 0.998, 0.0), grip_n=14.0, grip_f=18.0,
+           glow=2, halo=2.0, hem=(0.0, 0.6, 0.0), flare=1.0, hat_tilt=(0.0, 0.0, -4.0),
+           hair=(0.0, 0.4, 0.0), tails=(0.0, 0.4, 0.0), eyes="open")
+CAST_2 = P(CAST_1, pelvis=(-0.6, H0 - 0.4, 0.0), toe_n=0.0, toe_f=0.0, staff_base=(5.0, 8.8, 0.6),
+           halo=1.0, hem=(0.0, 0.2, 0.0), flare=0.6, hair=(0.0, -0.2, 0.0), tails=(0.0, -0.2, 0.0))
+CAST_RECOVER = B(CAST_2, READY, 0.55, halo=0.0, glow=1)
+
+# Leap (a follow-up hopping in or out): crouch and push, tucked in the air, landing.
+LEAP_1 = P(READY, pelvis=(-1.8, H0 - 3.8, 0.0), lean=22.0, head=(-6.0, -27.0, 0.0),
+           foot_n=(3.0, 1.4, 2.2), foot_f=(-5.6, 1.4, -1.8), toe_f=30.0,
+           staff_base=(-4.2, 1.0, 8.0), hair=(-0.2, -0.8, 0.0), tails=(-0.2, -0.6, 0.0))
+LEAP_2 = P(READY, pelvis=(0.0, H0 + 3.2, 0.0), lean=18.0, head=(-4.0, -27.0, 0.0),
+           foot_n=(-2.6, 9.0, 1.9), foot_f=(-5.0, 8.0, -1.8), toe_n=-30.0, toe_f=-30.0,
+           knee_n=(1.0, 0.2, 0.2), knee_f=(1.0, 0.2, -0.2),
+           staff_base=(-4.2, 9.0, 6.6), hem=(-1.0, 1.2, 0.0), flare=2.2, hat_tilt=(0.0, 0.0, -10.0),
+           hair=(-1.6, 2.4, 0.0), tails=(-1.2, 2.0, 0.0))
+LEAP_3 = JUMP_LAND
+
+# Fall (downed): the hit key, knees buckling with the staff slipping out of her hands, tipping
+# over backwards with the hat knocked loose, the lying key (the hat landed on her legs).
+FALL_1 = P(HURT, pelvis=(0.4, H0 - 6.4, 0.0), lean=10.0, head=(28.0, -20.0, 6.0),
+           foot_n=(3.2, 1.4, 2.2), toe_n=0.0, foot_f=(-4.4, 1.4, -1.8), toe_f=20.0,
+           knee_n=(1.0, 0.0, 0.3), knee_f=(1.0, 0.0, -0.2),
+           staff_base=(6.4, 0.0, 1.8), staff_dir=(0.42, 0.9, 0.0), grip_n=None, grip_f=None,
+           hand_n=(2.6, 10.6, 4.4), hand_f=(-0.4, 11.4, -3.8),
+           hem=(0.6, -0.2, 0.0), flare=1.2, hat_tilt=(10.0, 0.0, 16.0),
+           hair=(0.6, -1.0, 0.0), tails=(0.4, -0.6, 0.0), eyes="closed")
+FALL_2 = B(FALL_1, DOWN, 0.5, drape=0.0, hem_open=1.0, hat_world=None, hat_tilt=(20.0, 0.0, 40.0),
+           eyes="closed")
+
+# Get up (revived): the lying key, up on one knee hauling on the planted staff with the hat still
+# on the floor, rising with the hat pushed back on, the idle key.
+GETUP_1 = P(READY, pelvis=(-1.0, 7.8, 0.0), lean=20.0, head=(4.0, -24.0, 0.0),
+            foot_n=(3.6, 1.4, 2.2), toe_n=0.0, foot_f=(-5.4, 1.6, -1.8), toe_f=60.0,
+            knee_n=(1.0, 0.2, 0.3), knee_f=(1.0, -1.0, -0.1),
+            staff_base=(6.4, 0.0, 0.8), staff_dir=(0.02, 1.0, 0.0), grip_n=12.0, grip_f=16.0,
+            glow=0, dim=1.0, hat_world=(-8.0, 3.2, 5.0, 0.0, 0.0, -8.0),
+            hem=(0.0, -0.2, 0.0), flare=0.8, hair=(0.0, -1.0, 0.0), tails=(0.0, -0.6, 0.0), eyes="wince")
+GETUP_2 = P(IDLE, pelvis=(-0.4, H0 - 2.0, 0.0), lean=8.0, head=(8.0, -24.0, 0.0),
+            foot_n=(1.6, 1.4, 1.8), foot_f=(-2.6, 1.4, -1.8),
+            staff_base=(8.2, 0.0, -0.6), grip_f=17.6, grip_n=None, hand_n=(4.6, 29.6, 4.4),
+            elbow_n=(0.0, -1.0, 0.6), glow=1, hat_tilt=(0.0, 0.0, -6.0),
+            hair=(0.0, -0.6, 0.0), tails=(0.0, -0.4, 0.0), eyes="open")
+
+# Victory: crouched with the staff swept low, swung up high with the crystal flaring, planted with
+# a ring of light and the free arm up in a cheer; the hold: the staff planted, tipping her hat.
+VIC_1 = P(READY, pelvis=(-2.0, H0 - 3.2, 0.0), lean=16.0, head=(4.0, -27.0, 0.0),
+          foot_n=(2.4, 1.4, 2.2), foot_f=(-6.0, 1.4, -1.8),
+          staff_base=(-9.0, 6.0, 6.0), staff_dir=(0.68, 0.62, -0.38), grip_n=12.0, grip_f=17.0,
+          glow=1, hem=(0.6, 0.0, 0.0), flare=0.8, hair=(0.2, -0.4, 0.0), tails=(0.2, -0.2, 0.0))
+VIC_2 = P(IDLE, pelvis=(-0.6, H0 + 0.2, 0.0), lean=-4.0, head=(-14.0, -24.0, 0.0),
+          foot_n=(1.4, 1.4, 2.0), foot_f=(-2.4, 1.4, -1.8), toe_n=-8.0, toe_f=-8.0,
+          staff_base=(9.0, 13.0, 1.0), staff_dir=(-0.5, 0.86, -0.1), grip_n=None, grip_f=17.0,
+          hand_n=(-3.0, 18.0, 5.4), glow=2, hem=(0.0, 0.6, 0.0), flare=1.0, hat_tilt=(0.0, 0.0, -6.0),
+          hair=(0.6, 0.8, 0.0), tails=(0.4, 0.6, 0.0))
+VIC_3 = P(IDLE, pelvis=(0.0, H0 - 0.4, 0.0), lean=-2.0, head=(-12.0, -24.0, 0.0),
+          foot_n=(1.4, 1.4, 2.2), foot_f=(-1.4, 1.4, -1.8),
+          staff_base=(8.4, 0.0, -0.6), staff_dir=(0.0, 1.0, 0.0), grip_f=19.0, grip_n=None,
+          hand_n=(10.0, 30.0, 2.0), elbow_n=(0.0, -1.0, 0.8), glow=2, halo=1.5,
+          hem=(0.0, -0.2, 0.0), flare=0.6, hair=(0.0, -0.4, 0.0), tails=(0.0, -0.3, 0.0), eyes="closed")
+VIC_4 = P(IDLE, pelvis=(0.0, H0 - 0.2, 0.0), lean=0.0, head=(-4.0, -30.0, 0.0),
+          foot_n=(1.6, 1.4, 2.2), foot_f=(-1.2, 1.4, -1.8),
+          staff_base=(8.4, 0.0, -0.6), staff_dir=(0.0, 1.0, 0.0), grip_f=19.4, grip_n=None,
+          hand_n=(4.6, 29.4, 4.4), elbow_n=(0.0, -1.0, 0.8), glow=1, hat_tilt=(0.0, 0.0, -8.0),
+          eyes="closed")
+VIC_4B = P(VIC_4, pelvis=(0.0, H0 - 0.8, 0.0), lean=0.6, grip_f=18.9, hand_n=(4.6, 28.9, 4.4),
+           hair=(0.0, -0.3, 0.0), tails=(0.0, -0.3, 0.0))
+
+# Clip name -> cells in play order (int = a row-0 key, dict = a pose). The game sets the timing.
+CLIPS: dict[str, list[Any]] = {
+    "idle": [K["idle"], B(IDLE, IDLE_OUT, 0.5), IDLE_OUT, B(IDLE, IDLE_OUT, 0.5)],
+    "ready": [K["ready"], B(READY, READY_OUT, 0.5), READY_OUT, B(READY, READY_OUT, 0.5)],
+    "draw": [DRAW_1, DRAW_2, DRAW_3, K["idle"]],
+    "parry": [PARRY_SNAP, K["parry"]],
+    "parry_hit": [PARRY_HIT_1, PARRY_HIT_2, K["parry"]],
+    "dodge": [DODGE_IN, K["dodge"], K["dodge"], DODGE_OUT],
+    "jump_up": [JUMP_PUSH, JUMP_TUCK, K["jump"]],
+    "jump_down": [K["jump"], JUMP_OPEN, JUMP_LAND],
+    "hurt": [K["hurt"], K["hurt"], HURT_RECOIL, HURT_RECOVER],
+    "stagger": [K["hurt"], STAGGER_1, STAGGER_1, STAGGER_2, STAGGER_3, HURT_RECOVER],
+    "strike_windup": [STRIKE_W1, STRIKE_W2],
+    "strike": [K["strike"], STRIKE_FOLLOW, STRIKE_RECOVER],
+    "strike_alt_windup": [ALT_W1, ALT_W2],
+    "strike_alt": [ALT_1, ALT_2, ALT_RECOVER],
+    "strike_big_windup": [BIG_W1, BIG_W2],
+    "strike_big": [BIG_1, BIG_2, BIG_RECOVER],
+    "cast_windup": [CAST_W1, CAST_W2],
+    "cast": [CAST_1, CAST_2, CAST_RECOVER],
+    "leap": [LEAP_1, LEAP_2, LEAP_3],
+    "fall": [K["hurt"], FALL_1, FALL_2, K["down"]],
+    "get_up": [K["down"], GETUP_1, GETUP_2, K["idle"]],
+    "victory": [VIC_1, VIC_2, VIC_3, VIC_4],
+    "victory_hold": [VIC_4, VIC_4B],
+}
+
+_CELL_CAM: list[Camera] = []
+
+
+def cell_cam() -> Camera:
+    """The 48x56 cell camera: the lifted 32x48 hero camera padded, so the key poses keep their
+    exact phase 9 pixels."""
+    if not _CELL_CAM:
+        _CELL_CAM.append(cell_camera(hero_camera(), specs.HERO_CELL))
+    return _CELL_CAM[0]
+
+
+def render_cell(pose: dict[str, Any]) -> np.ndarray:
+    """One finished 48x56 cell of `pose`."""
+    return render_pose(pose, cell_cam())
+
+
+def frame_ok(rgba: np.ndarray) -> bool:
+    """The sprite contract: a clear top row, left and right column (room for the outline)."""
+    s = rgba[..., 3] > 0
+    return not (s[0, :].any() or s[:, 0].any() or s[:, -1].any())
+
+
+def render_cells(poses: list[dict[str, Any]]) -> list[np.ndarray]:
+    """Renders many cells (about a second each), in worker processes when it can."""
+    if len(poses) < 6:
+        return [render_cell(p) for p in poses]
+    import os
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+        workers = max(1, min(8, (os.cpu_count() or 2) - 2, len(poses)))
+        with ProcessPoolExecutor(max_workers=workers) as ex:
+            return list(ex.map(render_cell, poses, chunksize=2))
+    except (OSError, RuntimeError, ImportError):
+        return [render_cell(p) for p in poses]
+
+
+def clip_cells(clips: dict[str, list[Any]] | None = None) -> dict[str, list[Any]]:
+    """CLIPS (or a part of it) rendered: every distinct pose once, in parallel."""
+    from kit.clips import _norm
+    clips = CLIPS if clips is None else clips
+    todo: dict[Any, dict[str, Any]] = {}
+    for entries in clips.values():
+        for e in entries:
+            if isinstance(e, dict):
+                todo.setdefault(_norm(e), e)
+    done = dict(zip(todo, render_cells(list(todo.values()))))
+    return render_clips(clips, lambda p: done[_norm(p)])
+
+
+def clip_strip(keys: list[np.ndarray], cells: dict[str, list[Any]], names: list[str]) -> np.ndarray:
+    """Review picture: one row per clip, its cells left to right (blank cells pad short clips)."""
+    most = max(len(cells[n]) for n in names)
+    blank = np.zeros((specs.HERO_CELL[1], specs.HERO_CELL[0], 4), dtype=np.uint8)
+    rows = [hstack([keys[c] if isinstance(c, int) else c for c in cells[n]] + [blank] * (most - len(cells[n])))
+            for n in names]
+    return np.concatenate(rows, axis=0)
+
+
 def build(ctx) -> None:
-    frames = [render_pose(POSES[name]) for name in specs.HERO_POSES]
-    sheet = hstack(frames)
-    ctx.save("sprites/characters/%s.png" % ID, sheet, frame_w=specs.HERO_FRAME[0])
-    ctx.extra("sheet_1x.png", sheet, scale=1, frame_w=specs.HERO_FRAME[0])
-    ctx.extra("sheet_2x.png", sheet, scale=2, frame_w=specs.HERO_FRAME[0])
+    cam = cell_cam()
+    keys = [render_pose(POSES[name], cam) for name in specs.HERO_POSES]
+    cells = clip_cells()
+    bad = [name for name, f in zip(specs.HERO_POSES, keys) if not frame_ok(f)]
+    bad += sorted({name for name, cs in cells.items() for c in cs if isinstance(c, np.ndarray) and not frame_ok(c)})
+    if bad:
+        raise ValueError("cass: frames touch the cell edge (no outline room): %s" % ", ".join(bad))
+    ctx.save_fighter("sprites/characters/%s.png" % ID, keys, cells, specs.HERO_CELL, specs.HERO_BODY_W, ID)
+    sheet = hstack(keys)
+    ctx.extra("sheet_1x.png", sheet, scale=1, frame_w=specs.HERO_CELL[0])
+    ctx.extra("sheet_2x.png", sheet, scale=2, frame_w=specs.HERO_CELL[0])
+    # Every clip at game size and 3x, one row per clip (the GIFs cannot be viewed everywhere).
+    names = list(CLIPS)
+    strip = clip_strip(keys, cells, names)
+    ctx.extra("clips_1x.png", strip, scale=1)
+    ctx.extra("clips_3x.png", strip, scale=3, frame_w=specs.HERO_CELL[0])
     por = render_pose(PORTRAIT_POSE, portrait_camera(), portrait=True)
     ctx.save("sprites/portraits/%s.png" % ID, por)

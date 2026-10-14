@@ -123,3 +123,125 @@ func test_nothing_moves_before_the_clock_or_after_the_attack() -> void:
 		var end := EnemyChoreography.sample(hits, settled, _visuals)
 		assert_eq(int(end.pose), EnemyChoreography.Pose.IDLE, a.name)
 		assert_almost_eq(float(end.approach), 0.0, EPS, a.name + ": back home")
+
+
+# --- beats (phase 10, DESIGN 5.5): which part of the attack a moment belongs to ----------------
+
+## The beat sample() gives at `t`.
+func _beat_at(hits: Array, t: float) -> int:
+	return int(EnemyChoreography.sample(hits, t, _visuals).beat)
+
+
+func test_each_cue_starts_its_beat() -> void:
+	for a: Dictionary in _declared_attacks():
+		var hits: Array = a.hits
+		for cue: Dictionary in EnemyChoreography.cues(hits, _visuals):
+			var s := EnemyChoreography.sample(hits, float(cue.at_ms), _visuals)
+			var label := "%s cue %s of hit %d" % [a.name, String(cue.type), int(cue.hit)]
+			var expected := EnemyChoreography.Beat.LUNGE
+			match String(cue.type):
+				EnemyChoreography.CUE_FEINT:
+					expected = EnemyChoreography.Beat.FEINT_START
+				EnemyChoreography.CUE_SLAM:
+					expected = EnemyChoreography.Beat.SLAM
+			assert_eq(int(s.beat), expected, label)
+			assert_eq(int(s.hit), int(cue.hit), label)
+			assert_almost_eq(float(s.beat_ms), 0.0, EPS, label + ": the beat starts at its cue")
+
+
+func test_contact_beat_starts_at_impact_and_the_lunge_arrives_just_before() -> void:
+	for a: Dictionary in _declared_attacks():
+		var hits: Array = a.hits
+		for i: int in hits.size():
+			var hit: Dictionary = hits[i]
+			if int(hit.kind) != AttackHitData.Kind.NORMAL:
+				continue
+			var at := float(hit.at_ms)
+			var label := "%s hit %d" % [a.name, i]
+			var contact := EnemyChoreography.sample(hits, at, _visuals)
+			assert_eq(int(contact.beat), EnemyChoreography.Beat.CONTACT, label)
+			assert_almost_eq(float(contact.beat_ms), 0.0, EPS, label + ": contact[0] shows exactly at impact")
+			assert_gt(float(contact.beat_len_ms), 0.0, label)
+			var arriving := EnemyChoreography.sample(hits, at - 0.5, _visuals)
+			assert_eq(int(arriving.beat), EnemyChoreography.Beat.LUNGE, label)
+			assert_gt(float(arriving.beat_u), 0.99, label + ": the lunge is arriving 0.5 ms before impact")
+			assert_lt(float(arriving.beat_u), 1.0, label)
+
+
+func test_a_feints_false_start_shows_the_same_progress_as_a_real_lunge() -> void:
+	var feints := 0
+	for a: Dictionary in _declared_attacks():
+		var hits: Array = a.hits
+		for i: int in hits.size():
+			var hit: Dictionary = hits[i]
+			if int(hit.kind) != AttackHitData.Kind.NORMAL or not bool(hit.feint):
+				continue
+			feints += 1
+			var start := EnemyChoreography.motion_start(hits, i, _visuals)
+			var lunge_start := float(hit.at_ms) - float(hit.approach_ms)
+			var portion := float(_visuals.feint_portion_percent) / 100.0
+			var label := "%s hit %d" % [a.name, i]
+			var x := 0.0
+			while x < float(hit.approach_ms) * portion:
+				var fake := EnemyChoreography.sample(hits, start + x, _visuals)
+				var real := EnemyChoreography.sample(hits, lunge_start + x, _visuals)
+				assert_eq(int(fake.beat), EnemyChoreography.Beat.FEINT_START, label)
+				assert_eq(int(real.beat), EnemyChoreography.Beat.LUNGE, label)
+				assert_almost_eq(float(fake.beat_u), float(real.beat_u), EPS, "%s at +%.0f ms" % [label, x])
+				x += 7.0
+			assert_eq(_beat_at(hits, start + float(hit.approach_ms) * portion), EnemyChoreography.Beat.FEINT_HOLD, label)
+	assert_gt(feints, 0, "the shipped attacks have feints")
+
+
+## Sweeps every shipped attack at 1 ms steps: each (hit, beat) is one unbroken run, its beat_ms
+## counts up from the run's start and never goes back, its length matches the run, and beat_u
+## stays within 0..1. The poses are the ones the beats name.
+func test_beats_are_contiguous_and_count_up() -> void:
+	var pose_of := {
+		EnemyChoreography.Beat.BEFORE: EnemyChoreography.Pose.IDLE,
+		EnemyChoreography.Beat.WINDUP: EnemyChoreography.Pose.WINDUP,
+		EnemyChoreography.Beat.SLAM: EnemyChoreography.Pose.SLAM,
+		EnemyChoreography.Beat.GROUND_WAIT: EnemyChoreography.Pose.IDLE,
+		EnemyChoreography.Beat.FEINT_START: EnemyChoreography.Pose.LUNGE,
+		EnemyChoreography.Beat.FEINT_HOLD: EnemyChoreography.Pose.WINDUP,
+		EnemyChoreography.Beat.LUNGE: EnemyChoreography.Pose.LUNGE,
+		EnemyChoreography.Beat.CONTACT: EnemyChoreography.Pose.CONTACT,
+		EnemyChoreography.Beat.RECOIL: EnemyChoreography.Pose.IDLE,
+		EnemyChoreography.Beat.RETURN: EnemyChoreography.Pose.IDLE,
+		EnemyChoreography.Beat.AFTER: EnemyChoreography.Pose.IDLE,
+	}
+	for a: Dictionary in _declared_attacks():
+		var hits: Array = a.hits
+		var last: Dictionary = hits[hits.size() - 1]
+		var end := float(last.at_ms) + float(last.close_ms) + float(_visuals.contact_after_close_ms) \
+				+ float(_visuals.slam_hold_ms) + float(_visuals.return_ms) + 300.0
+		var seen: Dictionary = {}
+		var key := ""
+		var run_from := 0.0
+		var previous := {}
+		var t := -50.0
+		while t <= end:
+			var s := EnemyChoreography.sample(hits, t, _visuals)
+			var label := "%s at %.0f ms" % [a.name, t]
+			assert_eq(int(s.pose), int(pose_of[int(s.beat)]), label + ": the pose the beat names")
+			assert_between(float(s.beat_u), 0.0, 1.0, label)
+			var now_key := "%d:%d" % [int(s.hit), int(s.beat)]
+			if now_key != key:
+				assert_false(seen.has(now_key), label + ": beat %s comes back" % now_key)
+				seen[now_key] = true
+				# Samples are 1 ms apart: a run starts less than 1 ms after its beat began.
+				assert_lt(float(s.beat_ms), 1.0, label + ": a new beat starts near 0 ms")
+				if not previous.is_empty() and float(previous.beat_len_ms) >= 0.0:
+					var run := t - run_from
+					assert_almost_eq(run, float(previous.beat_len_ms), 1.0, label + ": the run matched beat " + key)
+				key = now_key
+				run_from = t
+			else:
+				assert_true(float(s.beat_ms) >= float(previous.beat_ms), label + ": beat_ms never goes back")
+				# Before the clock there is no beat start to count from.
+				if int(s.beat) != EnemyChoreography.Beat.BEFORE:
+					assert_almost_eq(float(s.beat_ms) - float(previous.beat_ms), 1.0, EPS, label + ": beat_ms is elapsed time")
+				assert_eq(float(s.beat_len_ms), float(previous.beat_len_ms), label + ": one length per beat")
+			previous = s
+			t += 1.0
+		assert_eq(int(previous.beat), EnemyChoreography.Beat.AFTER, a.name + ": ends after the attack")
