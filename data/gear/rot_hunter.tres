@@ -7,5 +7,6 @@ script = ExtResource("1_s6m4i")
 id = "rot_hunter"
 display_name = "Rot Hunter"
 description = "Hits on Exposed enemies deal +50% more."
+rarity = 1
 effect = 9
 amount = 50

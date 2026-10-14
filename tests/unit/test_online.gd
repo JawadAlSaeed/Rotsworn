@@ -192,9 +192,10 @@ func test_run_state_round_trip() -> void:
 	run.hp[1] = 7
 	run.level = 3
 	run.xp = 11
-	run.take(run.data.gear[0])
-	run.take(run.data.gear[1])
-	run.equip(2, 0, run.data.gear[1])
+	run.wear(0, 1, run.data.gear[0])
+	run.wear(2, 0, run.data.gear[1])
+	run.add_item(run.data.shop_items[1])
+	run.add_item(run.data.shop_items[0])
 	var data := run.to_dict()
 	assert_eq(Fx.find_illegal_value(data), "", "only plain values go over the network")
 	var copy := RunState.from_dict(run.data, _tuning, data)
@@ -208,8 +209,11 @@ func test_run_state_refuses_what_does_not_fit() -> void:
 	var run := _run()
 	var before := run.to_dict()
 	var bad := before.duplicate(true)
-	bad.bag = ["no_such_gear"]
+	bad.gear[0][0] = "no_such_gear"
 	assert_false(run.apply_dict(bad), "unknown gear")
+	bad = before.duplicate(true)
+	bad.backpack[3] = [[1, "no_such_item", 0, 0, 0]]
+	assert_false(run.apply_dict(bad), "unknown item")
 	bad = before.duplicate(true)
 	bad.hp = [1, 2]
 	assert_false(run.apply_dict(bad), "wrong party size")

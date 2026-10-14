@@ -22,6 +22,7 @@ GROUPS = [
     ("ui", "Menus and fight flow", "Moving and choosing in menus, your turn, pausing, running away, calibration."),
     ("coop", "Co-op", "Friends joining, leaving and getting ready."),
     ("voices", "Enemy voices", "Each enemy's voice: it plays when the enemy starts an attack, and quieter and higher when it is hit."),
+    ("backpack", "Backpack and finds", "Picking up, putting down, turning and combining items in the backpack; finding things in zones; opening chests."),
 ]
 
 

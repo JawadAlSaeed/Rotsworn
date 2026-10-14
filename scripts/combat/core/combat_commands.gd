@@ -5,6 +5,7 @@ extends RefCounted
 ## replayed and sent over the network unchanged.
 
 const USE_ABILITY := "use_ability"
+const USE_ITEM := "use_item"
 const RESOLVE_PROMPTS := "resolve_prompts"
 const PRACTICE := "practice"
 
@@ -18,6 +19,18 @@ static func use_ability(turn: int, actor: int, ability_id: String, targets: Arra
 		"turn": turn,
 		"actor": actor,
 		"ability": ability_id,
+		"targets": targets.duplicate(),
+	}
+
+
+## A party member uses a backpack item on their turn (DESIGN.md 8.1). `uid` is the item's backpack
+## uid (CombatSetup.items); `targets` one combatant id for items used on someone, else empty.
+static func use_item(turn: int, actor: int, uid: int, targets: Array[int]) -> Dictionary:
+	return {
+		"type": USE_ITEM,
+		"turn": turn,
+		"actor": actor,
+		"uid": uid,
 		"targets": targets.duplicate(),
 	}
 

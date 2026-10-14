@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_28l28"]
+
+[resource]
+script = ExtResource("1_28l28")
+id = "knucklebone"
+display_name = "Lucky Knucklebone"
+description = "Gold from fights +10%."
+kind = 1
+price = 45
+find_weight = 4
+use_on_map = false
+family = 2
+charm_effect = 12
+charm_amount = 10
+icon_path = "res://assets/sprites/items/knucklebone.png"

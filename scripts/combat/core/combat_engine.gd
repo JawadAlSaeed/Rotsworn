@@ -21,12 +21,14 @@ extends RefCounted
 ##
 ## Commands (build them with CombatCommands):
 ##   use_ability      {turn, actor, ability, targets}            phase AWAITING_ACTION
+##   use_item         {turn, actor, uid, targets}                phase AWAITING_ACTION
 ##   resolve_prompts  {seq, results:[{prompt, outcome, offset_us}]}  phase AWAITING_TIMING
 ##                    partial is fine; per character, prompts must resolve in order
 ##   practice         {invulnerable_party?, immortal_enemies?, force_attack?}  if setup allows
 ##
 ## Events (Dictionary with "type"):
-##   combat_started          {seed, fighters:[Combatant.to_dict()], practice_allowed, opening}
+##   combat_started          {seed, fighters:[Combatant.to_dict()], practice_allowed, opening,
+##                           items:[item_info()]} (backpack items usable in this fight)
 ##                           opening: "normal" | "first_strike" (DESIGN.md 2.12)
 ##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms]}
 ##                           what this enemy will do on its next turn (DESIGN.md 2.8). Sent at
@@ -36,6 +38,7 @@ extends RefCounted
 ##   turn_started            {turn, actor, team, time}
 ##   turn_order              {order:[id]}      current actor first, then upcoming turns
 ##   ability_used            {turn, actor, ability, targets:[id]}
+##   item_used               {turn, actor, uid, item, name, targets:[id]} (DESIGN.md 8.1)
 ##   damage                  {source, target, amount, hp, max_hp, cause}
 ##                           cause: "ability" | "follow_up" | "counter" | "team_counter"
 ##   healed                  {source, target, amount, hp, max_hp}
@@ -105,6 +108,11 @@ const ROLE_DEFEND := "defend"
 const ROLE_PRESS := "press"
 const ROLE_FOLLOW_UP := "follow_up"
 const MAX_AUTO_TURNS: int = 1000
+## Who a fight item is used on (item_info().target).
+const ITEM_ALLY := "ally"
+const ITEM_PARTY := "party"
+const ITEM_ENEMIES := "enemies"
+const ITEM_DOWNED := "downed"
 
 var phase: Phase = Phase.NOT_STARTED
 var tuning: Tuning
@@ -130,10 +138,16 @@ var intents: Dictionary = {}
 var result: String = ""
 ## Practice options (only changeable when the setup allows practice).
 var practice: Dictionary = {"invulnerable_party": false, "immortal_enemies": false, "force_attack": ""}
+## Backpack items not used yet (uids, DESIGN.md 8.1).
+var items_left: Array[int] = []
 
 var _setup: CombatSetup
 var _abilities: Dictionary = {}
 var _attacks: Dictionary = {}
+## uid -> ItemData for the fight's items, their amounts (combined items are stronger) and names.
+var _items: Dictionary = {}
+var _item_amounts: Dictionary = {}
+var _item_names: Dictionary = {}
 
 
 func _init(setup: CombatSetup) -> void:
@@ -154,15 +168,22 @@ func start() -> Array[Dictionary]:
 		return events
 	_build_lookups()
 	_build_combatants()
+	items_left.clear()
+	for entry: Dictionary in _setup.items:
+		items_left.append(int(entry.uid))
 	var fighters: Array[Dictionary] = []
 	for c: Combatant in combatants:
 		fighters.append(c.to_dict())
+	var item_list: Array = []
+	for uid: int in items_left:
+		item_list.append(item_info(uid))
 	events.append({
 		"type": "combat_started",
 		"seed": _setup.rng_seed,
 		"fighters": fighters,
 		"practice_allowed": _setup.allow_practice,
 		"opening": OPENING_NAMES[_setup.opening],
+		"items": item_list,
 	})
 	for enemy_id: int in enemy_ids():
 		_pick_intent(get_combatant(enemy_id), events)
@@ -176,6 +197,8 @@ func submit(command: Dictionary) -> Array[Dictionary]:
 	match String(command.get("type", "")):
 		CombatCommands.USE_ABILITY:
 			_cmd_use_ability(command, events)
+		CombatCommands.USE_ITEM:
+			_cmd_use_item(command, events)
 		CombatCommands.RESOLVE_PROMPTS:
 			_cmd_resolve_prompts(command, events)
 		CombatCommands.PRACTICE:
@@ -201,6 +224,7 @@ static func restore(setup: CombatSetup, snap: Dictionary) -> CombatEngine:
 	engine.intents = (snap.intents as Dictionary).duplicate(true)
 	engine.result = String(snap.result)
 	engine.practice = (snap.practice as Dictionary).duplicate(true)
+	engine.items_left.assign(snap.get("items_left", []))
 	engine.rng.state = int(snap.rng_state)
 	return engine
 
@@ -296,6 +320,44 @@ func valid_targets(actor_id: int, ability_id: String) -> Array[int]:
 	return list
 
 
+## A fight item as plain data: {uid, id, name, description, ap_cost, target} (target: ITEM_ALLY,
+## ITEM_PARTY, ITEM_ENEMIES or ITEM_DOWNED). Empty if the uid is not one of the fight's items.
+func item_info(uid: int) -> Dictionary:
+	var item := _items.get(uid) as ItemData
+	if item == null:
+		return {}
+	return {"uid": uid, "id": item.id, "name": String(_item_names.get(uid, item.display_name)), "description": item.description,
+			"ap_cost": item.ap_cost, "target": item_target(item)}
+
+
+## Who an item is used on.
+static func item_target(item: ItemData) -> String:
+	match item.effect:
+		ItemData.Effect.HEAL_ONE:
+			return ITEM_ALLY
+		ItemData.Effect.REVIVE_ONE:
+			return ITEM_DOWNED
+		ItemData.Effect.DAMAGE_ALL:
+			return ITEM_ENEMIES
+	return ITEM_PARTY
+
+
+## The ids an item would pick from (ally, downed) or affect (party, enemies).
+func item_targets(uid: int) -> Array[int]:
+	var item := _items.get(uid) as ItemData
+	var list: Array[int] = []
+	if item == null:
+		return list
+	match item_target(item):
+		ITEM_ALLY, ITEM_PARTY:
+			list = living_party_ids()
+		ITEM_DOWNED:
+			list = downed_party_ids()
+		ITEM_ENEMIES:
+			list = living_enemy_ids()
+	return list
+
+
 ## Indices of prompts still waiting for a result.
 func pending_prompts() -> Array[int]:
 	var list: Array[int] = []
@@ -335,6 +397,7 @@ func snapshot() -> Dictionary:
 		"intents": intents.duplicate(true),
 		"result": result,
 		"practice": practice.duplicate(true),
+		"items_left": items_left.duplicate(),
 		"rng_state": rng.state,
 	}
 
@@ -347,6 +410,14 @@ func _build_lookups() -> void:
 	for data: CharacterData in _setup.party:
 		for ability: AbilityData in data.all_abilities():
 			_abilities[ability.id] = ability
+	_items.clear()
+	_item_amounts.clear()
+	_item_names.clear()
+	for entry: Dictionary in _setup.items:
+		var item := entry.item as ItemData
+		_items[int(entry.uid)] = item
+		_item_amounts[int(entry.uid)] = int(entry.get("amount", item.amount_percent))
+		_item_names[int(entry.uid)] = String(entry.get("name", item.display_name))
 	if _setup.team_ultimate != null:
 		_abilities[_setup.team_ultimate.id] = _setup.team_ultimate
 	if _setup.can_run and _setup.run_ability != null:
@@ -452,11 +523,17 @@ func _advance_turn(events: Array[Dictionary]) -> void:
 	push_warning("CombatEngine: turn guard reached; nobody can act")
 
 
-## Statuses that last until the holder's next turn end now.
+## Statuses that last until the holder's next turn end now; a hero carrying rotten items loses
+## some HP (never below 1).
 func _start_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 	for id: String in Status.ALL:
 		if Status.ends_at_own_turn(id) and actor.has_status(id):
 			_remove_status(actor, id, events)
+	var rot := Passive.amount(actor, Passive.ROT)
+	if rot > 0 and actor.is_alive():
+		var amount := mini(CombatMath.percent_min1(actor.max_hp, rot), actor.hp - 1)
+		if amount > 0:
+			_deal_damage(actor, actor, amount, "rot", events)
 
 
 ## Turn-counted statuses tick down; the defence count for Payback starts again (after the turn's
@@ -700,6 +777,67 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 				var pct := _skill_percent(actor, ability, false)
 				_deal_damage(actor, target, _skill_damage(actor.power, pct, _exposed_bonus(actor, ability, target_id == exposed)), "ability", events)
 	_apply_effects(actor, ability, targets, false, exposed, events)
+	_end_of_turn(actor, events)
+	events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
+	_advance_turn(events)
+
+
+## A backpack item used as the hero's action (DESIGN.md 8.1): it costs its AP, works at once (no
+## timed press), is gone for the rest of the fight, and the turn ends.
+func _cmd_use_item(command: Dictionary, events: Array[Dictionary]) -> void:
+	if phase != Phase.AWAITING_ACTION:
+		events.append(_reject("not_awaiting_action", command))
+		return
+	if int(command.get("turn", -1)) != turn_number:
+		events.append(_reject("wrong_turn", command))
+		return
+	var actor_id := int(command.get("actor", -1))
+	if actor_id != active_actor:
+		events.append(_reject("not_this_actors_turn", command))
+		return
+	var uid := int(command.get("uid", -1))
+	if not items_left.has(uid):
+		events.append(_reject("unknown_item", command))
+		return
+	var actor := get_combatant(actor_id)
+	var item := _items[uid] as ItemData
+	if actor.ap < item.ap_cost:
+		events.append(_reject("not_enough_ap", command))
+		return
+	var allowed := item_targets(uid)
+	var targets: Array[int] = []
+	if item_target(item) in [ITEM_ALLY, ITEM_DOWNED]:
+		var requested: Variant = command.get("targets", [])
+		if typeof(requested) != TYPE_ARRAY or (requested as Array).size() != 1:
+			events.append(_reject("needs_one_target", command))
+			return
+		var target_id := int((requested as Array)[0])
+		if not allowed.has(target_id):
+			events.append(_reject("invalid_target", command))
+			return
+		targets.append(target_id)
+	else:
+		targets = allowed
+		if targets.is_empty():
+			events.append(_reject("invalid_target", command))
+			return
+	if item.ap_cost > 0:
+		_change_ap(actor, -item.ap_cost, "spend", events)
+	items_left.erase(uid)
+	events.append({"type": "item_used", "turn": turn_number, "actor": actor.id, "uid": uid, "item": item.id,
+			"name": String(_item_names.get(uid, item.display_name)), "targets": targets.duplicate()})
+	var pct := int(_item_amounts.get(uid, item.amount_percent))
+	for target_id: int in targets:
+		var target := get_combatant(target_id)
+		match item.effect:
+			ItemData.Effect.HEAL_ONE, ItemData.Effect.HEAL_ALL:
+				if target.is_alive():
+					_heal(actor, target, CombatMath.percent_min1(target.max_hp, pct), events)
+			ItemData.Effect.REVIVE_ONE:
+				_revive(actor, target, pct, events)
+			ItemData.Effect.DAMAGE_ALL:
+				if target.is_alive():
+					_deal_damage(actor, target, _roll_damage(tuning.base_party_damage, pct), "item", events)
 	_end_of_turn(actor, events)
 	events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
 	_advance_turn(events)

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_t0a38"]
+
+[resource]
+script = ExtResource("1_t0a38")
+id = "salve"
+display_name = "Salve"
+description = "Heals one character by half of their max HP."
+price = 25
+effect = 1
+amount_percent = 50
+use_in_fight = true
+use_in_fight = true
+icon_path = "res://assets/sprites/items/salve.png"

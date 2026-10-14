@@ -445,3 +445,17 @@ extends Resource
 @export_range(50, 3000, 1, "suffix:ms") var escape_run_cycle_ms: int = 400
 ## A boss entering phase two plays its rage clip over this long.
 @export_range(0, 5000, 1, "suffix:ms") var rage_pose_ms: int = 700
+
+@export_group("Backpack")
+## A hero using a fight item: the item's name shows and the hero holds still this long before
+## its effect plays.
+@export_range(0, 3000, 1, "suffix:ms") var item_use_ms: int = 600
+## The backpack art behind the grid (DESIGN.md 8.1), one file per row count: "%d" is the rows.
+## Drawn by tools/art_kit/assets/items.py; these numbers must match it.
+@export var backpack_art_path: String = "res://assets/sprites/ui/backpack_%d.png"
+## Screen pixels per art pixel.
+@export_range(1, 8) var backpack_art_scale: int = 4
+## The first cell's top-left in the art, a cell's size and the gap between cells (art pixels).
+@export var backpack_grid_origin: Vector2i = Vector2i(14, 23)
+@export_range(4, 64) var backpack_cell_art_px: int = 23
+@export_range(0, 8) var backpack_gap_art_px: int = 1

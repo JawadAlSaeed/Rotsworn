@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_8m6i6"]
+
+[resource]
+script = ExtResource("1_8m6i6")
+id = "rain_pouch"
+display_name = "Rain Pouch"
+description = "Herb charms touching it work 50% better."
+kind = 1
+rarity = 1
+price = 80
+find_weight = 3
+use_on_map = false
+family = 3
+boost_family = 3
+boost_percent = 50
+icon_path = "res://assets/sprites/items/rain_pouch.png"

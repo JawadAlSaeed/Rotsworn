@@ -669,7 +669,7 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | `AttackHitData` | inside attacks | impact ms, kind (normal/ground), damage %, approach ms, feint |
 | `EncounterData` | `data/encounters/` | enemy list, party list and team ultimate (practice fights; a run uses its own party and ultimate), boss flag |
 | `RunData` | `data/runs/` | a kind of run: party, team ultimate, the zones a zone stop picks from, the final fight and its look, the shop's items, the gear pool |
-| `ShopItemData` | `data/shop/` | id, name, description, price, effect (heal one, heal all, max HP up for one), amount in percent |
+| `ItemData` | `data/items/` | backpack item (8.1): id, name, description, kind, rarity, price, shape, effect and amount, find weight, icon |
 | `SfxLibrary` / `SfxCue` | `data/audio/sfx_library.tres` | sound cue name -> file path, volume, pitch jitter |
 | `BrandingData` | `data/branding/branding.tres` | logo path, title screen feel (logo size and fade, glow, fog, prompt), main menu logo and tagline, story blurb |
 | `CreditsData` | `data/branding/credits.tres` | credits text (# heading, ~ small print), roll speed, sizes |
@@ -840,7 +840,7 @@ player's heroes.
 |---|---|---|
 | `fight_attack` (your turn; Confirm too) | E | A |
 | `fight_skills` (your turn) | F | X |
-| `fight_items` (your turn, not in the game yet) | Tab | Y |
+| `fight_items` (your turn: backpack items, 8.1) | Tab | Y |
 | Run (your turn: hold `menu_cancel`, 2.13) | Backspace | B |
 | `fight_ultimate` (your turn) | U | RT |
 | `defend_parry` | Space | RB |
@@ -851,10 +851,13 @@ player's heroes.
 | `menu_confirm` | Enter, E | A |
 | `menu_cancel` | Backspace, Q, Escape | B |
 | `pause` | Escape | Menu |
-| `party_menu` (run map) | Tab | Y |
+| `party_menu` (run map, zone, shop: the backpack) | Tab | Y |
 | `debug_overlay` | F1 | View |
 | `move_up/down/left/right` (zone) | WASD, arrow keys | D-pad, left stick |
 | `field_strike` (zone) | Space, J | X |
+| `field_pickup` (zone, near a glinting spot) | E, Enter | A |
+| `item_move` (backpack: pick up the item under the cursor to move it, put it down) | R | X |
+| `item_turn_left` / `item_turn_right` (backpack: turn the item in hand) | Z / C | LB / RB |
 
 Outside fights every screen (main menu, settings, practice list, map, shop, rest, party, loot)
 uses the `menu_*` actions: up/down pick, left/right change a setting or pick on the map, Confirm
@@ -1039,7 +1042,7 @@ UI (card #37):
 - Fight HUD (user picks 2026-10-12, built after the first Part A test):
   - Action menu, Expedition 33 style (bottom left, user layout 2026-10-13), no cursor, one
     button per option: A Attack (always, gains AP), X Skills (opens the skill list above it; up/down
-    choose, A use, B back), Y Items (SOON: not in the game yet, card #91), B Run (hold it, 2.13;
+    choose, A use, B back), Y Items (backpack items, 8.1), B Run (hold it, 2.13;
     CAN'T RUN against bosses), RT Team Ultimate (LOCKED until the gauge is full). The target step
     is unchanged.
   - The bottom-left corner shows the DEFEND hints only during enemy attacks (and a "Skill
@@ -1238,6 +1241,214 @@ counters for longer and mixed strings (2.5, card #52).
   False Crown (with a feint) and Hollow Wave; the banner says "THE HOLLOW KING RAGES!" and it picks
   a new intent at once. Its name is announced when the fight starts. It replaced "The Last Gate"
   as the run's final fight.
+
+### 8.1 Backpack and items (phase 11, plan agreed 2026-10-14)
+
+User picks: the backpack holds things and charms (placement matters); shop potions go into the
+backpack; roaming monsters sometimes drop small things; gear never goes into the backpack; in
+co-op anyone can open and move things at any time. The rest are proposed defaults.
+
+**Four kinds of things.**
+
+| Kind | What it does | In the backpack? |
+|---|---|---|
+| Gear (relics) | Worn by one hero, one passive (as today, 3 slots each) | Never. New gear goes straight onto a hero |
+| Consumables | Used up: in a fight (Y, Items) or on the map | Yes |
+| Charms | Work just by sitting in the backpack, for the whole party | Yes |
+| Keys and treasure | A key opens one chest; treasure is only worth gold | Yes |
+
+- **Gear:** when the party gets gear (guard spoils, shop, chest), it goes on a hero at once. If
+  that hero's slots are full, swap: the old piece is sold on the spot for `item_sell_percent`.
+- **Consumables (first set):** Salve (heal one 50%), Feast (heal all 30%), Tonic (one hero +15%
+  max HP for the run, map only), Bomb (damage to all enemies, fight only), Antidote (clears bad
+  statuses from one hero and heals a little). Salve, Feast and Tonic move from "used when bought"
+  to the backpack.
+- **Charms:** a party-wide passive while in the backpack (for example power +5%, +1 AP at fight
+  start, gold +10%). Each charm belongs to a family (Stone, Bone, Herb). Some charms boost the
+  charms that touch them (for example "touching Stone charms work 50% better"), so where things
+  sit matters (#72).
+- **Rotten items** (#73): charms (and a few gear pieces) that are very strong with a downside,
+  for example power +30% but every hero loses 2% HP each turn. They cannot be sold.
+- **Treasure:** rings, rot gems: no use, only gold at the shop. Space against money.
+
+**Shapes and the grid.** The backpack is 4 wide x 5 tall (20 cells). Each item has a shape:
+1x1, 1x2, 2x2, L (3 cells) or T (4 cells), and can be turned in 90 degree steps. Stronger items
+are usually bigger. Shapes, effects, rarity and prices live in each item's data file
+(`ItemData`, `data/items/`).
+
+**Rarity** (#75): common (grey border), rare (blue), legendary (gold); rotten items get a sickly
+green border. Deeper rows of the map give better odds (weights in `tuning.tres`).
+
+**Where things come from.**
+
+| Source | What | How |
+|---|---|---|
+| Guard | Gear | Pick 1 of 3, as today |
+| Roaming monster | Small consumable, key or treasure | `item_drop_percent` chance, shown on the fight's end screen ("Found: Salve") |
+| Ground | Consumables, treasure, sometimes a charm | 2 or 3 glinting spots per zone (in `ZoneData`); walk up and press Confirm (pickup animation) |
+| Chest (#79) | A rare or better charm or gear | 0 or 1 per zone, locked; uses up one Key from the backpack |
+| Shop | Consumables, keys, charms, gear, backpack upgrades | Buy; sell anything from the backpack (not rotten) for `item_sell_percent` (50%) |
+
+What a spot, drop or chest holds is picked by the run seed, so online players see the same.
+
+**Getting something new** (#76): it goes into the first free place it fits (any turn). If it does
+not fit, the backpack opens with the new item "in hand": rearrange to make room, drop something
+from the backpack, or leave the new item behind.
+
+**The backpack screen** (#55): the party screen (Tab / Y, no new button). Left: the selected
+hero's info and gear (left/right switches hero, as today). Right: the grid. Move the cursor,
+Confirm picks up or puts down, a rotate button turns the held item, Cancel puts it back. On a
+consumable, Confirm also offers "Use" (on the map) and "Drop". A small panel shows the item's
+name, rarity and effect, and which charms it touches.
+
+**In a fight** (#91): the Items button (Y) lists the backpack's usable consumables. Using one is
+the hero's action and costs the AP in its data (usually 1). It is a `use_item` command to the
+engine, so it is deterministic and works online. The fight gets the list of items at the start;
+what was used is taken out of the backpack when the fight ends.
+
+**Combine** (#78): put an item onto the same item of the same rarity: they become one item of
+the next rarity (common to rare to legendary). Consumables and charms only.
+
+**Bigger backpack** (#77): a "Bigger Pack" (shop or chest) adds one row, up to
+`backpack_max_rows` (7).
+
+**Sounds** (#103): pick up, put down, turn, cannot fit, drop, combine, chest opens, key used.
+
+**Co-op:** one shared backpack. Anyone can open and move things at any time. Online, the host
+keeps the real backpack: a client sends "move this", the host applies it and sends the result to
+everyone; if two players grab the same item, the first one wins.
+
+**Numbers** go in `tuning.tres` (a new "Backpack" group): `backpack_width` (4), `backpack_rows`
+(5), `backpack_max_rows` (7), `item_drop_percent`, `item_sell_percent` (50), the rarity weights per
+map row, ground spots and chests per zone.
+
+**Build order** (stop and test after each step):
+
+1. The backpack: grid, shapes, turning, the party screen, "does not fit", sounds (#57, #55, #76,
+   #103). Salve, Feast and Tonic move into the backpack; ground spots and monster drops.
+2. Items in use: rarity, items in fights, chests and keys, treasure and selling (#75, #91, #79).
+3. Depth: charms and neighbour bonuses, rotten items, combine, bigger backpack (#72, #73, #78,
+   #77).
+
+The run bot learns it too: it keeps whatever fits, uses a Salve when a hero is low, opens chests
+when it has a key, and sells treasure at shops.
+
+**Step 1 as built (2026-10-14, cards #57, #55, #76, #103):**
+
+- **Data:** `ItemData` (`scripts/data/item_data.gd`, `data/items/`): id, name, description, kind
+  (consumable, charm, key, treasure), rarity, price, shape (grid cells, unturned), effect and
+  amount, find weight, usable on the map, icon path. Salve (1x1, heal one 50%, 25 gold, weight
+  10), Feast (2x1, heal all 30%, 40, weight 4), Tonic (1x2, +15% max HP for the run, 45, weight 2).
+  `RunData.shop_items` and `found_items` list them; `ZoneData.item_spots` holds 3 glinting spots
+  per zone. `tools/bootstrap_items.gd` writes them and checks every spot against walls and props.
+  `ShopItemData` and `data/shop/` are gone.
+- **Rules** (`Backpack`, `scripts/run/backpack.gd`, pure, tested): the grid, shapes turned
+  clockwise in 90 degree steps, fits / first free place (any turn) / move / remove, a stable uid
+  per placed item, plain-data round trip. `RunState` owns it (`backpack`), adds `add_item`,
+  `place_item`, `move_item`, `drop_item`, `use_item` (on the map), `spot_item` and `drop_for`
+  (seeded), and `apply_op` (move, drop, use, swap_gear as plain data: online clients send these).
+  Gear: `wear` (a full slot sells the old piece for `item_sell_percent`), `swap_gear` (between
+  slots and heroes), `sell_new_gear`; the old gear bag, `take`, `equip` and `unequip` are gone.
+- **Backpack screen** (`PartyScreen`, drawn by `BackpackGrid`): left every hero's card (portrait,
+  stats, 3 gear slots side by side) and an info box; right the backpack art (`ui/backpack_<rows>.png`,
+  a canvas pack with a bedroll, drawn at 4x; its grid numbers in `combat_visuals.tres` "Backpack")
+  with the grid on its lining (cells 92 px, icons 16 px per cell, borders in the rarity colour).
+  Arrows move between slots and cells (up/down between heroes on the left). Confirm on gear picks it up; on another
+  slot it swaps. Confirm on an item: Use (on whom), Move, Throw away (asks first), Cancel. In hand,
+  R / X turns it; it shows green where it fits and red where not. Cancel puts it back.
+- **Something new in hand:** loot after a guard opens the party screen holding the gear ("Who
+  wears it?"); Cancel sells it. A shop item goes in where it fits first; with no room the backpack
+  opens with it in hand and leaving it refunds the gold. Shop gear opens the backpack with it in
+  hand. A new item can be put over exactly one other item: they swap, and the other is in hand.
+  Leaving an item asks first.
+- **Zones:** glinting spots (`fx/glint.png`, a pulsing glowing sparkle, look numbers in
+  `explore_visuals.tres`) in run zones. Within `explore_pickup_radius` (1.3) a "Pick up" hint
+  shows; `field_pickup` (E / Enter, A) picks it up: "Found: Salve", the pickup pose. No room: the
+  backpack opens over the zone with it in hand (left behind, the spot stays). Tab / Y opens the
+  backpack over a zone any time; the zone holds still (online, only the host's zone stops).
+- **Drops:** a beaten roaming enemy that is not the guard drops a found item `item_drop_percent`
+  (35%) of the time, seeded by run, stop and enemy; the fight's end screen says "Found: Salve".
+  No room: the backpack opens with it in hand after the fade back to the zone.
+- **Online:** clients can open the party screen from the map (Tab / Y) and use the one the host
+  opened; their changes go to the host as "bag" messages with an op; the host applies them in
+  order (a stale one is refused) and the run update redraws every open party screen. New things
+  in hand (loot, finds, shop) only happen on the host.
+- **Sounds** (#103, picked by the user 2026-10-14 from three real recordings each,
+  `tools/sound_kit/candidates/backpack.json`): `item_lift` belt and buckle, `item_place` soft
+  thump, `item_turn` paper slide, `item_no_room` dull knock, `item_drop` tossed pouch,
+  `item_found` coins and cloth, `item_combine` pop and shimmer, `chest_open` latch and creak.
+- **Bot:** shops buy everything affordable (gear goes on whoever has room); new gear and finds
+  are settled the simple way (`PartyScreen.auto_settle`); on the map it uses heals on whoever is
+  at or under 60% and tonics at once; in zones it first walks to each glinting spot (giving one
+  up after 25 s) and then to the guard. The run's result line adds `items=N`.
+- `--screen=party` opens a sample backpack with a Golden Idol in hand (for pictures).
+
+**Step 1 feedback (user, 2026-10-14):** show every hero at once instead of switching (done: one
+card per hero, the hero switch buttons are gone); make the backpack look like a backpack (done:
+the drawn pack); items whose shape makes sense (done: the Feast is a 2x1 loaf; odd shapes like L
+and T only for things shaped that way).
+
+**Step 2 as built (2026-10-14, cards #75, #91, #79):**
+
+- **Rarity** (#75): `ItemData.rarity` and now `GearData.rarity` (rare: War Drum, Riposte Ring,
+  Echo Charm, Keen Eye, Rot Hunter, Leaping Heart; legendary: Second Wind). Names and borders in
+  grey, blue or gold (backpack, party cards, shop, loot). Every seeded pick (finds, drops, chest
+  prizes, loot and shop gear) weighs each thing by `RunState.rarity_weight`: common 100%, rare
+  `item_rare_percent` (50) + `item_rare_row_percent` (15) per map row, legendary 10 + 10 per row.
+- **New items:** Bomb (1x1, fight only: every enemy takes 120% of base party damage, 30 gold),
+  Smelling Salts (1x1 rare, fight only: a downed hero back at 40%, 60), Key (2x1, 30), treasure:
+  Silver Ring (1x1, 40), Rot Gem (1x1 rare, 120), Golden Idol (1x2 legendary, 300). Shops sell
+  Salve, Feast, Tonic, Bomb, Smelling Salts and Key; zones can turn up all of them. The Antidote
+  waits until heroes can be poisoned (new monsters, phase 12).
+- **Items in fights** (#91): Y (Items) opens a list of the backpack's fight items above the main
+  options, like Skills (name, AP cost, greyed with the reason). Salve and Feast work in fights too.
+  `CombatSetup.items` ({uid, item}) come from the backpack; the engine command `use_item` {turn,
+  actor, uid, targets} spends `ap_cost` (1), applies the effect at once (heal, revive, damage with
+  cause "item"), emits `item_used` and ends the turn; a used uid is gone (`items_left`, in the
+  snapshot and the mirror's projection). The menu uses stand-in abilities named "item:<uid>". After
+  the fight `RunState.spend_items` takes the used ones out of the backpack. The fight bot revives
+  with salts, heals at 40% HP or less and bombs two or more enemies.
+- **Chests and keys** (#79): one chest per zone (`ZoneData.chests`, `env/chest_closed.png` and
+  `chest_open.png`). Near it the hint says "Open chest"; `field_pickup` with a Key in the backpack
+  uses the key and opens it (online the others see it open). Its prize (`RunState.chest_contents`,
+  seeded): `chest_gear_percent` (50%) rare or better gear the party does not wear (the backpack
+  opens with it in hand: who wears it), else a rare or better item. No key: "Locked. You need a
+  key."
+- **Selling:** in a shop, "Sell from the backpack" (or Tab / Y) opens the backpack; an item's menu
+  then has "Sell for N gold" (`item_sell_percent`, 50%). Op "sell" {uid}.
+- The zone bot also tries each zone's chest once (with or without a key).
+
+**Step 3 as built (2026-10-14, cards #72, #73, #78, #77):**
+
+- **Charms** (#72): `ItemData` kind CHARM with a family (Stone, Bone, Herb), a charm effect and
+  amount (a `GearData.Effect`, so the same stats and passives gear gives) that every hero gets
+  while it is in the backpack (`RunState.bonus`, `charm_totals`; gold charms count once for the
+  party). Booster charms (`boost_family`, `boost_percent`) have no bonus of their own: charms of
+  their family whose cells touch theirs side by side (`Backpack.touching`, not corners) work
+  `boost_percent` better. Stones: Ember Stone (power +5%), Iron Stone (enemy hits -5%), Lodestone
+  (2x2, boosts stones 50%). Bones: Lucky Knucklebone (gold +10%), Wolf Tooth (speed +5), Bone
+  Totem (1x3, boosts bones 50%). Herbs: Heartleaf (max HP +5%), Wake Root (L, +1 AP at fight
+  start), Rain Pouch (boosts herbs 50%). The backpack screen shows gold beads where a booster
+  touches a charm it boosts, and the charms' total under the backpack's title.
+- **Rotten items** (#73): `rotten` and `rot_percent`: every hero loses that percent of max HP at
+  the start of each of their turns in a fight (passive `rot`, damage cause "rot", never below 1
+  HP). Sickly green border; they cannot be sold. Rotting Heart (power +25%, rot 3%), Grave Moss
+  (2x1, a herb: +2 AP at fight start, rot 2%).
+- **Combine** (#78): put an item (in hand) onto the same item at the same level: the one under it
+  goes up a level ("Salve+", "Salve++"; a "+" on its corner), the one in hand is gone. Each level
+  is one rarity step up (not past legendary) and makes its effect, its charm bonus, its boost and
+  its price `combine_bonus_percent` (60%) stronger. Consumables and charms only. Op "combine" {uid,
+  into}; a backpack entry has a `level` (saved and sent online as a sixth number).
+- **Bigger backpack** (#77): Bigger Pack (kind UPGRADE, effect ADD_ROW, 100 gold): used the moment
+  the party gets it (shop, chest, find): one more row, up to `backpack_max_rows` (7). The art has
+  a version for 5, 6 and 7 rows. Shops stop selling it at the max.
+- **Shops** also sell `run_shop_charms` (2) charms per stop (seeded, by rarity, never rotten).
+
+**Step 3 feedback (user, 2026-10-14), done:** X (R) picks an item straight up to move it and puts
+it down again, no menu; LB / RB (Z / C) turn the item in hand; "Use" on an item for one hero moves
+the cursor onto the hero cards to pick who (no extra "Use on ..." lines).
+Keys were too rare once Step 3 added 21 kinds of finds (a whole zone could have none): the
+user picked keeping them random but twice as common (Key find weight 4 to 8).
 
 ---
 
@@ -1451,9 +1662,12 @@ counters for longer and mixed strings (2.5, card #52).
     defence poses, hit reactions, skill moves, follow-up entrance, team ultimate, downed and
     revive, victory, enemy wind-ups, hits and deaths, walking in four directions, item pickup
     (cards #58 to #71).
-11. **New features**: backpack and items, class reworks (Alder shield-only, Brin twin daggers,
-    Cass healer), enemies that grow stronger deeper into a run (#105).
+11. **Backpack and items** (done, 2026-10-14, 8.1): grid backpack, consumables, charms, rarity, chests and
+    keys, items in fights (cards #55, #57, #72, #73, #75 to #79, #91, #103).
 12. **Monsters**: new monster types and variants, for example a fly and a hyena (card #125).
+13. **Leveling and skills**: E33-style attributes and skill trees, critical hits, class reworks
+    (Alder shield-only, Brin twin daggers, Cass healer), enemies that grow stronger deeper into a
+    run (cards #56, #80, #81, #105, #134 to #139).
 
 ### 11.1 To-do (from playtests)
 
@@ -1583,3 +1797,8 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-14 | Alder: shield and backpack, no sword | user request; matches the shield-only rework (#56) |
 | 2026-10-14 | Every fighter at one pixel density (0.045); enemy frames sized per enemy | mixed pixel sizes (0.04 to 0.075) looked uneven; on-screen sizes stay the same |
 | 2026-10-14 | #105 (enemies scale with run depth) moved to phase 11; new phase 12 for monsters | user pick |
+| 2026-10-14 | Phase 11 is the backpack only; class reworks and #105 belong to phase 13 (leveling and skills) | matches the board |
+| 2026-10-14 | Backpack holds consumables, charms, keys and treasure; charms boost neighbours | user pick: packing should be a puzzle, not just storage |
+| 2026-10-14 | Gear never goes in the backpack; new gear goes straight onto a hero | user: a run gives about 5 or 6 gear for 9 slots, so spare gear would almost never happen |
+| 2026-10-14 | Shop potions go into the backpack; roaming monsters sometimes drop small things | user picks |
+| 2026-10-14 | Co-op: anyone moves backpack items at any time; online the host keeps the real backpack | user pick |

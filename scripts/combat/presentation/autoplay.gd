@@ -19,6 +19,8 @@ extends Node
 ## "AUTOPLAY_STATS ..." line.
 
 ## Pause before picking an action, so the menu is visible for a moment.
+## Uses a healing item when a standing hero is at or under this percent of max HP.
+const ITEM_HEAL_BELOW_PERCENT: int = 40
 const CHOOSE_DELAY_MS: int = 250
 const MASH_INTERVAL_MS: int = 70
 const MASH_JITTER_MS: int = 20
@@ -112,6 +114,8 @@ func on_menu_opened(actor_id: int) -> void:
 		print("AUTOPLAY_ERROR could not choose an ability for fighter %d" % actor_id)
 		return
 	_menu_picks += 1
+	if choice.id.begins_with(CombatController.ITEM_PREFIX):
+		print("AUTOPLAY_ITEM %s" % choice.display_name)
 	if choice.team_ultimate:
 		_stats.ultimates += 1
 	elif choice.ap_cost > 0:
@@ -173,10 +177,13 @@ func on_combat_finished(result: String) -> void:
 func _pick_ability() -> AbilityData:
 	var usable: Array[AbilityData] = []
 	var basic: AbilityData = null
+	var item := _pick_item()
+	if item != null:
+		return item
 	for ability: AbilityData in _menu.abilities():
 		if ability.escape and _mode == CombatOptions.AUTOPLAY_ESCAPE and _menu.is_usable(ability.id):
 			return ability
-		if not _menu.is_usable(ability.id) or ability.escape:
+		if not _menu.is_usable(ability.id) or ability.escape or ability.id.begins_with(CombatController.ITEM_PREFIX):
 			continue
 		if ability.team_ultimate or ability.revive_percent > 0:
 			return ability
@@ -187,6 +194,28 @@ func _pick_ability() -> AbilityData:
 	if not usable.is_empty():
 		return usable[_menu_picks % usable.size()]
 	return basic
+
+
+## A backpack item worth using now (DESIGN.md 8.1), or null: a revive when someone is down, a heal
+## when someone is at or under ITEM_HEAL_BELOW_PERCENT, a bomb against two or more enemies.
+func _pick_item() -> AbilityData:
+	var hurt := false
+	for id: int in _mirror.living_party_ids():
+		var f := _mirror.fighter(id)
+		hurt = hurt or int(f.hp) * 100 <= int(f.max_hp) * ITEM_HEAL_BELOW_PERCENT
+	for ability: AbilityData in _menu.abilities():
+		if not ability.id.begins_with(CombatController.ITEM_PREFIX) or not _menu.is_usable(ability.id):
+			continue
+		match ability.target:
+			AbilityData.Target.DOWNED_ALLY:
+				return ability
+			AbilityData.Target.ALLY, AbilityData.Target.SELF:
+				if hurt:
+					return ability
+			AbilityData.Target.ALL_ENEMIES:
+				if _mirror.living_enemy_ids().size() >= 2:
+					return ability
+	return null
 
 
 ## The most hurt ally for ally skills, else the first target offered.

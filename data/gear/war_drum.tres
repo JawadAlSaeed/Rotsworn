@@ -8,5 +8,6 @@ id = "war_drum"
 display_name = "War Drum"
 description = "Start every fight with +1 AP."
 price = 70
+rarity = 1
 effect = 3
 amount = 1

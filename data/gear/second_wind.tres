@@ -8,5 +8,6 @@ id = "second_wind"
 display_name = "Second Wind"
 description = "Once per fight: fall during an enemy attack, get back up when it ends with 30% HP."
 price = 80
+rarity = 2
 effect = 7
 amount = 30

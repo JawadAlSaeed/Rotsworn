@@ -16,6 +16,8 @@ const BANNER_TOP: float = 300.0
 const HOLD_SHARE: float = 0.7
 ## Name tags float this far above the "!" spot (pixels).
 const TAG_GAP: float = 6.0
+## The pick-up hint sits this far above the bottom edge, in the middle.
+const PICKUP_BOTTOM: float = 160.0
 
 var _explore: ExploreVisuals
 var _root: Control
@@ -25,9 +27,13 @@ var _banner: Label
 var _banner_tween: Tween
 ## Roamer index -> {notice: Label, tag: Label}.
 var _marks: Dictionary = {}
+## "E Pick up" / "E Open chest", shown while a glinting spot or a chest is in reach (DESIGN.md 8.1).
+var _pickup: Control
+var _pickup_text: String = ""
 
 
-func setup(explore: ExploreVisuals, zone_name: String) -> void:
+## `run_mode`: the controls also name the backpack (Tab / Y, DESIGN.md 8.1).
+func setup(explore: ExploreVisuals, zone_name: String, run_mode: bool = false) -> void:
 	_explore = explore
 	layer = 10
 	_root = Control.new()
@@ -57,13 +63,17 @@ func setup(explore: ExploreVisuals, zone_name: String) -> void:
 	_count.offset_top = MARGIN
 	_root.add_child(_count)
 
-	var hint := HintBar.stack([[&"@move", "Move"], [&"field_strike", "Strike"], [&"pause", "Pause"]], HINT_SIZE,
+	var controls: Array = [[&"@move", "Move"], [&"field_strike", "Strike"], [&"pause", "Pause"]]
+	if run_mode:
+		controls.insert(2, [&"party_menu", "Backpack"])
+	var hint := HintBar.stack(controls, HINT_SIZE,
 			["Hit an enemy before it touches you: FIRST STRIKE"])
 	hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	hint.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	hint.offset_left = MARGIN
 	hint.offset_bottom = -MARGIN
 	_root.add_child(hint)
+
 
 
 func set_enemies_left(count: int) -> void:
@@ -101,6 +111,24 @@ func set_tag(index: int, text: String, shown: bool, screen_pos: Vector2 = Vector
 
 
 ## Big text in the middle (FIRST STRIKE!, ZONE CLEAR) for `ms` milliseconds.
+## Shows the pick-up hint with this text ("" hides it).
+func set_pickup_hint(text: String) -> void:
+	if text == _pickup_text:
+		return
+	_pickup_text = text
+	if _pickup != null:
+		_pickup.queue_free()
+		_pickup = null
+	if text.is_empty():
+		return
+	_pickup = HintBar.entry_row(&"field_pickup", text, COUNT_SIZE, HudStyle.GOLD)
+	_pickup.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_pickup.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_pickup.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_pickup.offset_bottom = -PICKUP_BOTTOM
+	_root.add_child(_pickup)
+
+
 func banner(text: String, color: Color, ms: int) -> void:
 	_banner.text = text
 	_banner.label_settings.font_color = HudStyle.worn_color(color)

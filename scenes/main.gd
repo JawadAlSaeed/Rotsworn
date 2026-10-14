@@ -42,6 +42,8 @@ const QUIT_AUDIO_RELEASE_S: float = 0.3
 ## Online client: the "host is choosing" line over watched run screens.
 const WATCH_TEXT_SIZE: int = 26
 const WATCH_MARGIN_PX: float = 24.0
+## The backpack over a zone draws above the zone's HUD and run bar.
+const ZONE_BACKPACK_LAYER: int = 20
 
 var _encounters: Array[EncounterData] = []
 var _zones: Array[ZoneData] = []
@@ -84,6 +86,11 @@ var _sent_run: Dictionary = {}
 var _zone_send_s: float = 0.0
 ## Online client: "the host is choosing" over the run screens.
 var _watch_layer: CanvasLayer
+## The backpack open over a zone (DESIGN.md 8.1), and the glinting spot whose find waits on it.
+var _overlay: PartyScreen
+var _spot_pending: int = -1
+## What the zone fight's enemy drops (null: nothing).
+var _drop: ItemData
 ## Shown on the main menu next time (why an online game ended).
 var _notice: String = ""
 ## Bumped when an online game ends, so a transition that was under way stops after its fade.
@@ -212,8 +219,29 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_title()
 		"credits":
 			_show_credits()
+		"party":
+			_show_sample_backpack()
 		_:
 			_show_main_menu()
+
+
+## --screen=party: a new run with some gear worn and a few items packed, the party screen open
+## with a Golden Idol in hand (for pictures of the backpack).
+func _show_sample_backpack() -> void:
+	_run = RunState.begin(_run_data, _tuning, 3)
+	var items := _run.items_by_id()
+	_run.wear(0, 0, _run_data.gear[0])
+	_run.wear(0, 1, _run_data.gear[1])
+	_run.place_item(items["heartleaf"], 0, 0, 0)
+	_run.place_item(items["ember_stone"], 1, 0, 0)
+	_run.place_item(items["lodestone"], 2, 0, 0)
+	_run.place_item(items["iron_stone"], 2, 2, 0)
+	_run.place_item(items["salve"], 0, 1, 0, 1)
+	_run.place_item(items["rotting_heart"], 0, 4, 0)
+	_run.place_item(items["key"], 2, 4, 0)
+	_run.place_item(items["bomb"], 3, 2, 0)
+	_run.wear(1, 0, _run_data.gear[3])
+	_show_party("Found a Golden Idol. Where does it go?", true, {"item": items["golden_idol"]})
 
 
 ## The studio intro when the game starts, then the title screen (no music until then).
@@ -265,6 +293,7 @@ func _process(delta: float) -> void:
 
 ## Frees whatever is shown (fight, zone, screen, prompt) and shows `screen`, if any.
 func _show_screen(screen: Node) -> void:
+	_close_overlay()
 	_free_combat()
 	_free_zone()
 	_free_screen()
@@ -276,7 +305,8 @@ func _show_screen(screen: Node) -> void:
 		if screen is CreditsScreen and not _music.credits_path.is_empty():
 			song = _music.credits_path
 		Sfx.play_music(song, _music.volume_db)
-	_watch_layer.visible = Net.is_client() and _is_run_screen(screen)
+	# Anyone can change the backpack (DESIGN.md 8.1), so the party screen is not just watched.
+	_watch_layer.visible = Net.is_client() and _is_run_screen(screen) and not screen is PartyScreen
 
 
 func _free_screen() -> void:
@@ -451,6 +481,7 @@ func _start_combat() -> void:
 		_combat.configure(_encounter, _tuning, _visuals, _options, null, opening)
 	if _run != null:
 		_combat.configure_run(_run)
+		_combat.configure_drop(_drop if not _zone_fight.is_empty() else null)
 	_combat.configure_players(_players)
 	if Net.is_host():
 		_combat.configure_online(CombatController.NetMode.HOST, _net_seed)
@@ -506,6 +537,8 @@ func _start_zone(zone: ZoneData) -> void:
 	_send_screen({"name": "zone", "zone": zone.id})
 	_zone.encounter_started.connect(_on_encounter_started)
 	_zone.cleared.connect(_on_zone_cleared)
+	_zone.pickup_requested.connect(_on_spot_pickup)
+	_zone.chest_requested.connect(_on_chest)
 	add_child(_zone)
 	Sfx.play_music(_zone_song(), _music.volume_db)
 	_play_zone_ambience()
@@ -526,6 +559,7 @@ func _start_zone(zone: ZoneData) -> void:
 
 
 func _free_zone() -> void:
+	_close_overlay()
 	if _zone != null:
 		if _zone.is_inside_tree():
 			remove_child(_zone)
@@ -540,8 +574,11 @@ func _on_encounter_started(index: int, opening: CombatSetup.Opening) -> void:
 	if _busy:
 		return
 	_busy = true
+	_close_overlay()
 	_zone_fight = {"index": index, "opening": opening}
 	_encounter = _zone.encounter_of(index)
+	# The guard gives loot instead; others may drop something (the same on every machine: seeded).
+	_drop = _run.drop_for(_run.at, index) if _run != null and index != _zone.guard_index() else null
 	if Net.is_host():
 		_net_seed = randi_range(1, 2147483646)
 		Net.broadcast("screen", {"name": "zone_fight", "index": index, "opening": int(opening), "seed": _net_seed})
@@ -565,8 +602,13 @@ func _on_zone_return_requested(result: String) -> void:
 	if _busy or _zone == null:
 		return
 	_busy = true
+	var found: ItemData = null
 	if _run != null and not Net.is_client():
+		_run.spend_items(_combat.used_items())
 		_run.finish_fight(result, _combat.party_hp(), _encounter)
+		if result == RunState.VICTORY and _drop != null and _run.add_item(_drop) < 0:
+			found = _drop
+		_drop = null
 		_send_screen({"name": "zone_back", "result": result})
 		if _run.is_over():
 			# The run's end screen follows (online, the host sends it).
@@ -588,6 +630,8 @@ func _on_zone_return_requested(result: String) -> void:
 	await get_tree().process_frame
 	await _transition.fade_in()
 	_end_busy()
+	if found != null and _zone != null and not _zone.is_cleared():
+		_open_zone_backpack("The enemy dropped a %s, but the backpack is full." % found.display_name, {"item": found})
 	if _run == null and result == "escaped" and _options.autoplay_mode == CombatOptions.AUTOPLAY_ESCAPE:
 		print("AUTOPLAY_RESULT zone_escaped fights=%d" % _zone.fights_started())
 		_autoplay_quit()
@@ -675,6 +719,7 @@ func _start_final_fight() -> void:
 func _on_run_fight_over(result: String) -> void:
 	if _busy or _run == null:
 		return
+	_run.spend_items(_combat.used_items())
 	_run.finish_fight(result, _combat.party_hp(), _encounter)
 	_fade_to(_show_run_end)
 
@@ -690,15 +735,19 @@ func _show_rest() -> void:
 		_autoplay_rest.call_deferred(rest)
 
 
-func _show_shop(gear: Array[GearData] = []) -> void:
+func _show_shop(gear: Array[GearData] = [], charms: Array[ItemData] = []) -> void:
 	var shop := ShopScreen.new()
 	shop.name = "Shop"
 	if not Net.is_client():
 		gear = _run.shop_gear(_run.at)
-	shop.setup(_run, gear)
+		charms = _run.shop_charms(_run.at)
+	shop.setup(_run, gear, charms)
 	shop.done.connect(_fade_to.bind(_show_map))
 	_show_screen(shop)
-	_send_screen({"name": "shop", "gear": _gear_ids(gear)})
+	var charm_ids: Array = []
+	for item: ItemData in charms:
+		charm_ids.append(item.id)
+	_send_screen({"name": "shop", "gear": _gear_ids(gear), "charms": charm_ids})
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_shop.call_deferred(shop)
 
@@ -719,23 +768,28 @@ func _show_loot(gear: Array[GearData] = []) -> void:
 
 
 func _on_loot_chosen(item: GearData) -> void:
-	if item != null and _run.take(item):
-		_show_party.call_deferred("Found: %s. Put it on someone (or keep it in the bag)." % item.display_name, false)
+	if item != null and not _run.owns(item):
+		_show_party.call_deferred("Found: %s. Who wears it?" % item.display_name, false, {"gear": item})
 	else:
 		_fade_to(_show_map)
 
 
-## The party screen: gear and stats. From the map it closes back to the map at once; after loot
-## it fades on to the map.
-func _show_party(note: String, from_map: bool) -> void:
+## The party screen: gear, stats and the backpack. From the map it closes back to the map at once;
+## after loot it fades on to the map. Online clients change things through the host.
+func _show_party(note: String, from_map: bool, held: Dictionary = {}) -> void:
 	var party := PartyScreen.new()
 	party.name = "Party"
-	party.setup(_run, note)
+	party.remote = Net.is_client()
+	party.setup(_run, note, held)
+	party.op_requested.connect(_send_bag_op)
 	if from_map:
 		party.done.connect(_show_map.call_deferred)
 	else:
 		party.done.connect(_fade_to.bind(_show_map))
 	_show_screen(party)
+	if Net.is_client():
+		_watch_layer.visible = false
+		return
 	_send_screen({"name": "party", "note": note})
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_party.call_deferred(party)
@@ -750,8 +804,9 @@ func _show_run_end() -> void:
 	_send_screen({"name": "run_end"})
 	_client_done = Net.is_client()
 	if _options.is_autoplay():
-		print("AUTOPLAY_RESULT run_%s stops=%d fights=%d level=%d gear=%d gold=%d seed=%d" % [_run.result, _run.path.size(),
-				_run.fights_won, _run.level, _run.bag.size() + _worn_count(), _run.gold_earned, _run.run_seed])
+		print("AUTOPLAY_RESULT run_%s stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d" % [_run.result,
+				_run.path.size(), _run.fights_won, _run.level, _worn_count(), _run.backpack.entries.size(), _run.gold_earned,
+				_run.run_seed])
 		_autoplay_quit()
 
 
@@ -763,8 +818,16 @@ func _input(event: InputEvent) -> void:
 	if (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed():
 		_last_device = PlayerRoster.device_of(event)
 	var pause := event.is_action_pressed(&"pause", false, true)
-	# Online client on a run screen: the host chooses; only pause (to leave) works here.
-	if Net.is_client() and _is_run_screen(_screen) and _pause == null and _prompt == null and not pause:
+	# The backpack over a zone (anyone, any time: DESIGN.md 8.1).
+	if _overlay == null and _pause == null and _prompt == null and not _busy and _run != null and _zone != null 			and _zone.is_inside_tree() and not _zone.is_frozen() and event.is_action_pressed(&"party_menu", false, true):
+		get_viewport().set_input_as_handled()
+		Sfx.play("menu_confirm")
+		_open_zone_backpack("", {})
+		return
+	# Online client on a run screen: the host chooses; only pause (to leave) works here. The
+	# backpack is everyone's: the party screen takes input, and Tab / Y on the map opens it.
+	var own := _screen is PartyScreen or (_screen is MapScreen and event.is_action(&"party_menu"))
+	if Net.is_client() and _is_run_screen(_screen) and _pause == null and _prompt == null and not pause and not own:
 		if not event is InputEventMouseMotion:
 			get_viewport().set_input_as_handled()
 		return
@@ -1035,6 +1098,10 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 			"ack":
 				if _combat != null:
 					_combat.receive_ack(from_peer, int(payload.get("seq", -1)))
+			"bag":
+				# A player changed the shared backpack (DESIGN.md 8.1): first come, first served.
+				if _run != null and payload.get("op") is Dictionary and _run.apply_op(payload.op as Dictionary):
+					_refresh_party_views()
 		return
 	match kind:
 		"combat":
@@ -1125,7 +1192,13 @@ func _watched_screen_builder(p: Dictionary) -> Callable:
 		"rest":
 			return _show_rest
 		"shop":
-			return _show_shop.bind(_gear_from_ids(p.get("gear", []) as Array))
+			var charms: Array[ItemData] = []
+			if _run != null:
+				var by_id := _run.items_by_id()
+				for id: Variant in p.get("charms", []):
+					if by_id.has(str(id)):
+						charms.append(by_id[str(id)])
+			return _show_shop.bind(_gear_from_ids(p.get("gear", []) as Array), charms)
 		"loot":
 			return _show_loot.bind(_gear_from_ids(p.get("gear", []) as Array))
 		"party":
@@ -1135,11 +1208,127 @@ func _watched_screen_builder(p: Dictionary) -> Callable:
 	return _show_map
 
 
-## Client: the run changed on the host (a purchase, gear): show the watched screen again.
+## Client: the run changed on the host (a purchase, gear): show the watched screen again. A party
+## screen (this player may be busy in it) and the backpack over a zone only redraw.
 func _rebuild_watched_screen() -> void:
+	if _refresh_party_views():
+		return
 	if _busy or _net_screen.is_empty() or not _is_run_screen(_screen) or _screen is RunEndScreen:
 		return
 	_watched_screen_builder(_net_screen).call()
+
+
+## Redraws the open party screen or backpack after the run changed. True if one is open.
+func _refresh_party_views() -> bool:
+	var shown := false
+	for view: Variant in [_screen, _overlay]:
+		if view is PartyScreen and is_instance_valid(view):
+			(view as PartyScreen).refresh()
+			shown = true
+	return shown
+
+
+## Online client: asks the host to make a backpack change.
+func _send_bag_op(op: Dictionary) -> void:
+	if Net.is_client():
+		Net.send_to_host("bag", {"op": op})
+
+
+# --- the backpack over a zone (DESIGN.md 8.1) -------------------------------------------------
+
+## Opens the backpack over the zone, holding the zone still (online clients: only their own input
+## stops; the host's zone goes on). `held`: something new in hand ({item: ItemData}).
+func _open_zone_backpack(note: String, held: Dictionary) -> void:
+	if _overlay != null or _zone == null or _run == null:
+		return
+	_overlay = PartyScreen.new()
+	_overlay.name = "Backpack"
+	_overlay.layer = ZONE_BACKPACK_LAYER
+	_overlay.remote = Net.is_client()
+	_overlay.close_when_settled = not held.is_empty()
+	add_child(_overlay)
+	_overlay.setup(_run, note, held)
+	_overlay.op_requested.connect(_send_bag_op)
+	_overlay.left_behind.connect(_on_find_left)
+	_overlay.done.connect(_close_overlay)
+	if Net.is_client():
+		_zone.input_held = true
+	else:
+		_zone.set_paused(true)
+	if _options.is_autoplay() and not Net.is_client():
+		_autoplay_backpack.call_deferred(_overlay)
+
+
+func _close_overlay() -> void:
+	if _overlay == null:
+		return
+	_overlay.queue_free()
+	_overlay = null
+	if _spot_pending >= 0 and _zone != null:
+		_zone.take_spot(_spot_pending)
+	_spot_pending = -1
+	if _zone != null:
+		_zone.input_held = false
+		_zone.set_paused(false)
+
+
+## A find that did not fit was left behind: a glinting spot keeps it.
+func _on_find_left(item: ItemData) -> void:
+	if _spot_pending >= 0 and _run.spot_item(_run.at, _spot_pending) == item:
+		_spot_pending = -1
+
+
+## The leader tries a chest: a key from the backpack opens it; its prize goes into the backpack (an
+## item) or straight onto a hero (gear), with the backpack opening when it has to.
+func _on_chest(chest: int) -> void:
+	if _run == null or _zone == null or _overlay != null:
+		return
+	if not _run.use_key():
+		Sfx.play("locked")
+		_zone.announce("Locked. You need a key.")
+		return
+	_zone.open_chest(chest)
+	Sfx.play("chest_open")
+	var prize := _run.chest_contents(_run.at)
+	print("Run chest: %s" % (String(prize.get("id")) if prize != null else "empty"))
+	if prize is GearData:
+		_open_zone_backpack("The chest held the %s. Who wears it?" % (prize as GearData).display_name, {"gear": prize})
+	elif prize is ItemData:
+		var item := prize as ItemData
+		if item.kind == ItemData.Kind.UPGRADE:
+			_run.add_item(item)
+			_zone.announce("The chest held a %s. The backpack has %d rows." % [item.display_name, _run.backpack.rows])
+		elif _run.add_item(item) >= 0:
+			_zone.announce("The chest held: %s" % item.display_name)
+		else:
+			_open_zone_backpack("The chest held a %s, but the backpack is full." % item.display_name, {"item": item})
+	else:
+		_zone.announce("The chest is empty.")
+
+
+## The leader picks up glinting spot `spot`: into the backpack, or the backpack opens with it in hand.
+func _on_spot_pickup(spot: int) -> void:
+	if _run == null or _zone == null or _overlay != null:
+		return
+	var item := _run.spot_item(_run.at, spot)
+	if item == null:
+		_zone.take_spot(spot)
+		return
+	if item.kind == ItemData.Kind.UPGRADE:
+		_run.add_item(item)
+		_zone.take_spot(spot)
+		_zone.announce("Found: %s. The backpack has %d rows." % [item.display_name, _run.backpack.rows])
+		Sfx.play("item_found")
+		return
+	if _run.add_item(item) >= 0:
+		_zone.take_spot(spot)
+		_zone.announce("Found: %s" % item.display_name)
+		Sfx.play("item_found")
+		print("Run find: %s" % item.id)
+		return
+	_spot_pending = spot
+	Sfx.play("item_found")
+	_open_zone_backpack("Found a %s, but the backpack is full." % item.display_name, {"item": item})
 
 
 func _apply_run(p: Dictionary) -> void:
@@ -1263,9 +1452,10 @@ func _autoplay_map(map: MapScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(map) or not map.is_inside_tree() or _run == null:
 		return
+	_autoplay_use_items()
 	var pick := -1
 	var cheapest := 1 << 30
-	for item: ShopItemData in _run_data.shop_items:
+	for item: ItemData in _run_data.shop_items:
 		cheapest = mini(cheapest, item.price)
 	var hurt := false
 	for slot: int in _run.party_size():
@@ -1293,19 +1483,17 @@ func _autoplay_rest(rest: RestScreen) -> void:
 		rest.leave()
 
 
-## Autoplay in a shop: buys what it can afford, each for whoever has the least HP.
+## Autoplay in a shop: buys what it can afford; bought gear goes on whoever has room.
 func _autoplay_shop(shop: ShopScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(shop):
 		return
 	for i: int in shop.count():
-		if shop.can_buy(i):
-			var slot := 0
-			for s: int in _run.party_size():
-				if _run.hp[s] * _run.max_hp(slot) < _run.hp[slot] * _run.max_hp(s):
-					slot = s
-			shop.buy(i, slot)
-	print("Run shop: gold left %d, bag %d" % [_run.gold, _run.bag.size()])
+		if shop.can_buy(i) and shop.buy(i) and shop.overlay() != null:
+			_autoplay_settle(shop.overlay())
+			if shop.overlay() != null:
+				shop.overlay().close()
+	print("Run shop: gold left %d, items %d" % [_run.gold, _run.backpack.entries.size()])
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if is_instance_valid(shop):
 		shop.leave()
@@ -1318,24 +1506,49 @@ func _autoplay_loot(loot: LootScreen) -> void:
 		loot.take(0)
 
 
-## Autoplay on the party screen: puts every bag item on whoever has the most free slots.
+## Autoplay on the party screen: new gear in hand goes on whoever has the most free slots.
 func _autoplay_party(party: PartyScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(party) or _run == null:
 		return
-	for item: GearData in _run.bag.duplicate():
-		var best := -1
-		var free := 0
+	_autoplay_settle(party)
+	if is_instance_valid(party) and party.is_inside_tree():
+		party.close()
+
+
+## Autoplay: the backpack opened over a zone with a find that did not fit.
+func _autoplay_backpack(party: PartyScreen) -> void:
+	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+	if is_instance_valid(party) and party == _overlay:
+		_autoplay_settle(party)
+		if party == _overlay:
+			party.close()
+
+
+func _autoplay_settle(party: PartyScreen) -> void:
+	var worn := _worn_count()
+	var items := _run.backpack.entries.size()
+	party.auto_settle()
+	print("Run settle: worn %d -> %d, items %d -> %d, gold %d" % [worn, _worn_count(), items,
+			_run.backpack.entries.size(), _run.gold])
+
+
+## Autoplay on the map: uses healing items on whoever is hurt (like a player tidying up), and
+## tonics at once.
+func _autoplay_use_items() -> void:
+	for e: Dictionary in _run.backpack.entries.duplicate():
+		var item := e.item as ItemData
+		if not item.usable_on_map() or item.effect == ItemData.Effect.MAX_HP_ONE:
+			continue
+		var low := 0
 		for slot: int in _run.party_size():
-			var empty := _run.gear[slot].count(null)
-			if empty > free:
-				best = slot
-				free = empty
-		if best >= 0:
-			_run.equip(best, _run.free_gear_slot(best), item)
-			print("Run gear: %s on %s" % [item.id, _run.data.party[best].id])
-	if is_instance_valid(party):
-		party.done.emit()
+			if _run.hp[slot] * _run.max_hp(low) < _run.hp[low] * _run.max_hp(slot):
+				low = slot
+		if _run.hp[low] * 100 <= _run.max_hp(low) * AUTOPLAY_REST_BELOW_PERCENT and _run.use_item(int(e.uid), low):
+			print("Run use: %s on %s" % [item.id, _run.data.party[low].id])
+	for e: Dictionary in _run.backpack.entries.duplicate():
+		if (e.item as ItemData).effect == ItemData.Effect.MAX_HP_ONE and _run.use_item(int(e.uid), 0):
+			print("Run use: %s" % (e.item as ItemData).id)
 
 
 func _autoplay_fail(reason: String) -> void:

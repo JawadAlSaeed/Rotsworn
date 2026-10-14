@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_uv5ws"]
+
+[resource]
+script = ExtResource("1_uv5ws")
+id = "rot_gem"
+display_name = "Rot Gem"
+description = "Treasure. Sell it at a shop."
+kind = 3
+rarity = 1
+price = 120
+find_weight = 4
+use_on_map = false
+icon_path = "res://assets/sprites/items/rot_gem.png"

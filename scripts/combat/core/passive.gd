@@ -22,9 +22,12 @@ const EXPOSED := "exposed"
 const TOUGH := "tough"
 ## Heals this character gives are this percent stronger.
 const HEAL := "heal"
+## Rotten items (DESIGN.md 8.1): loses this percent of max HP at the start of each of their turns
+## (never below 1 HP).
+const ROT := "rot"
 
 const ALL: Array[String] = [START_AP, AP_ON_COUNTER, HEAL_ON_JUMP, COUNTER, SECOND_WIND, PERFECT_PRESS, EXPOSED,
-	TOUGH, HEAL]
+	TOUGH, HEAL, ROT]
 
 
 static func amount(c: Combatant, key: String) -> int:

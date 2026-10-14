@@ -15,7 +15,8 @@ const CONTROL_ROWS: Array[Array] = [
 	["Ultimate", &"fight_ultimate"],
 	["Parry", &"defend_parry"], ["Dodge", &"defend_dodge"], ["Jump", &"defend_jump"],
 	["Skill press", &"skill_press"], ["Confirm", &"menu_confirm"], ["Back", &"menu_cancel"],
-	["Strike (zone)", &"field_strike"], ["Move (zone)", &"@move"], ["Pause", &"pause"],
+	["Strike (zone)", &"field_strike"], ["Pick up (zone)", &"field_pickup"], ["Move (zone)", &"@move"],
+	["Party and backpack", &"party_menu"], ["Move item", &"item_move"], ["Turn item", &"item_turn_right"], ["Pause", &"pause"],
 	["Stats overlay", &"debug_overlay"],
 ]
 const CONTROLS_TITLE_SIZE: int = 24

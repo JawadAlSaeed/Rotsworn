@@ -25,7 +25,8 @@ const FOOTER_SIZE: int = 26
 const FOOTER_STRIP := Color(0.0, 0.0, 0.0, 0.45)
 const FOOTER_STRIP_PX: float = 76.0
 
-## Every item: {text: String, enabled: bool, detail: String, value: String}.
+## Every item: {text: String, enabled: bool, detail: String, value: String, color: Color (optional,
+## the text colour while not chosen)}.
 var items: Array[Dictionary] = []
 var index: int = 0
 var item_size: int = ITEM_SIZE
@@ -134,6 +135,9 @@ func redraw() -> void:
 		var color := look.select_color if selected else look.idle_color
 		if not enabled:
 			color = HudStyle.TEXT_DIM.lightened(0.15) if selected else HudStyle.TEXT_DIM
+		elif not selected and items[i].get("color") is Color:
+			# A row's own colour (for example an item's rarity) while it is not chosen.
+			color = items[i].color
 		if selected and enabled:
 			var chosen := LabelSettings.new()
 			chosen.font = HudStyle.select_font()

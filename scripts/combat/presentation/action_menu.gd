@@ -4,10 +4,12 @@ extends PanelContainer
 ## in the bottom-left corner and grows upwards.
 ## - Main layer (user layout, 2026-10-13): every option has its own button and there is no cursor:
 ##   A Attack (gains AP; Confirm too), X Skills, Y Items, B Run, RT Team Ultimate (dim until it
-##   can be used). Items is not in the game yet: shown, locked, "SOON". Run must be HELD
-##   (run_hold_ms) so a tap never runs; its row fills up while held (DESIGN.md 2.13).
-## - Skills layer: the class skills open above the main options (name and AP cost, greyed with the
-##   reason when they cannot be used now). Up/down choose, confirm uses, cancel goes back.
+##   can be used). Run must be HELD (run_hold_ms) so a tap never runs; its row fills up while held
+##   (DESIGN.md 2.13).
+## - Skills and Items layers: the class skills, or the backpack items usable in fights (DESIGN.md
+##   8.1), open above the main options (name and AP cost, greyed with the reason when they cannot
+##   be used now). Up/down choose, confirm uses, cancel (or the same button) goes back. An item
+##   entry is flagged "item" and its ability is a stand-in made by the controller.
 ## - Target step: if the ability needs a choice of target (an enemy, an ally, a downed ally) and
 ##   there is more than one, left/right or up/down cycles, confirm picks, cancel goes back to the
 ##   layer the ability came from.
@@ -27,7 +29,7 @@ enum Option { ATTACK, SKILLS, ITEMS, RUN, ULTIMATE }
 const OPTION_ACTIONS: Array[StringName] = [&"fight_attack", &"fight_skills", &"fight_items", &"menu_cancel",
 		&"fight_ultimate"]
 ## Options shown but not in the game yet (cards on the board).
-const SOON_OPTIONS: Array[int] = [Option.ITEMS]
+const SOON_OPTIONS: Array[int] = []
 const HOLD_TAG := "HOLD"
 const NO_RUN_TAG := "CAN'T RUN"
 ## The ring around the Run button that fills while Back is held: size as a share of the button,
@@ -40,6 +42,8 @@ const SOON_TAG := "SOON"
 const SKILLS_NAME := "Skills"
 const SKILLS_TEXT := "Your class skills. They cost AP: attack and parry hits to gain it."
 const NO_SKILLS_TEXT := "No class skills."
+const ITEMS_TEXT := "Backpack items. Using one is your turn."
+const NO_ITEMS_TEXT := "No items for fights in the backpack."
 const READY_TAG := "READY"
 const LOCKED_TAG := "LOCKED"
 
@@ -94,7 +98,12 @@ var run_hold_ms: int = 500
 ## When the Back hold started (Time ticks, ms), or -1 when Back is not held.
 var _hold_started_ms: int = -1
 var _hold_ring: HoldRing
+## The list open in the skills box (the skills or the items), and both lists.
 var _skill_entries: Array[int] = []
+var _skills_all: Array[int] = []
+var _items_all: Array[int] = []
+## Which list is open (Option.SKILLS or Option.ITEMS).
+var _listing: int = Option.SKILLS
 ## The highlighted main option (an Option).
 var _option: int = Option.ATTACK
 var _in_skills: bool = false
@@ -272,8 +281,8 @@ func _handle_skills_input(event: InputEvent) -> bool:
 		_move_skill(1)
 	elif _pressed(event, &"menu_confirm"):
 		_use_entry(_skill_entries[_skill_cursor])
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"fight_skills"):
-		# The skills button closes the list it opened.
+	elif _pressed(event, &"menu_cancel") or _pressed(event, OPTION_ACTIONS[_listing]):
+		# The button that opened the list closes it.
 		Sfx.play("menu_cancel")
 		_in_skills = false
 		_option = _home_option()
@@ -329,9 +338,13 @@ func _sort_entries() -> void:
 	_ultimate_entry = -1
 	_run_entry = -1
 	_skill_entries.clear()
+	_skills_all.clear()
+	_items_all.clear()
 	for i: int in _entries.size():
 		var ability := _entries[i].ability as AbilityData
-		if ability.escape:
+		if bool(_entries[i].get("item", false)):
+			_items_all.append(i)
+		elif ability.escape:
 			if _run_entry < 0:
 				_run_entry = i
 		elif ability.team_ultimate and _ultimate_entry < 0:
@@ -339,7 +352,9 @@ func _sort_entries() -> void:
 		elif not ability.team_ultimate and _attack_entry < 0:
 			_attack_entry = i
 		elif not ability.team_ultimate:
-			_skill_entries.append(i)
+			_skills_all.append(i)
+	_skill_entries = _skills_all.duplicate()
+	_listing = Option.SKILLS
 
 
 ## Where the highlight rests when a layer opens or a step is backed out of: Attack, so the attack
@@ -370,7 +385,9 @@ func _option_usable(option: int) -> bool:
 	if option in SOON_OPTIONS:
 		return false
 	if option == Option.SKILLS:
-		return not _skill_entries.is_empty()
+		return not _skills_all.is_empty()
+	if option == Option.ITEMS:
+		return not _items_all.is_empty()
 	var entry := _option_entry(option)
 	return entry >= 0 and bool(_entries[entry].usable)
 
@@ -380,14 +397,20 @@ func _pick_option(option: int) -> void:
 		Sfx.play("locked")
 		return
 	_option = option
-	if option != Option.SKILLS:
+	if option != Option.SKILLS and option != Option.ITEMS:
 		_use_entry(_option_entry(option))
 		return
-	if _skill_entries.is_empty():
+	var list := _skills_all if option == Option.SKILLS else _items_all
+	if list.is_empty():
 		Sfx.play("locked")
 		_redraw()
 		return
 	Sfx.play("menu_move")
+	if _listing != option or _skill_entries != list:
+		_listing = option
+		_skill_entries = list.duplicate()
+		_skill_cursor = 0
+		_build_skill_rows()
 	_in_skills = true
 	_skill_cursor = clampi(_skill_cursor, 0, _skill_entries.size() - 1)
 	_redraw()
@@ -472,8 +495,13 @@ func _show_entry(index: int) -> void:
 		_in_skills = false
 		_option = Option.ULTIMATE
 	else:
+		var listing := Option.ITEMS if _items_all.has(index) else Option.SKILLS
+		if _listing != listing:
+			_listing = listing
+			_skill_entries = (_items_all if listing == Option.ITEMS else _skills_all).duplicate()
+			_build_skill_rows()
 		_in_skills = true
-		_option = Option.SKILLS
+		_option = listing
 		_skill_cursor = maxi(0, _skill_entries.find(index))
 	_redraw()
 
@@ -610,6 +638,8 @@ func _redraw_options() -> Control:
 			tag = SOON_TAG
 		elif option == Option.RUN:
 			tag = HOLD_TAG if usable else NO_RUN_TAG
+		elif option == Option.ITEMS:
+			tag = str(_items_all.size()) if usable else ""
 		elif ability != null:
 			tag = _cost_text(ability)
 		var color := HudStyle.TEXT
@@ -667,8 +697,10 @@ func _redraw_footer() -> void:
 		if not bool(entry.usable):
 			text += "\n" + String(entry.reason)
 		_description.text = text
+	elif _listing == Option.ITEMS:
+		_description.text = ITEMS_TEXT if not _items_all.is_empty() else NO_ITEMS_TEXT
 	else:
-		_description.text = SKILLS_TEXT if not _skill_entries.is_empty() else NO_SKILLS_TEXT
+		_description.text = SKILLS_TEXT if not _skills_all.is_empty() else NO_SKILLS_TEXT
 	_target_label.visible = _choosing_target
 	if _choosing_target:
 		var target := int((_entries[_target_entry].targets as Array)[_target_index])

@@ -225,9 +225,9 @@ func test_loot_and_shop_offer_gear_the_party_does_not_own() -> void:
 	var loot := run.loot_choices(3)
 	assert_eq(loot.size(), Tuning.new().run_loot_choices)
 	assert_eq(run.loot_choices(3), loot, "the same stop offers the same loot")
-	assert_true(run.take(loot[0]))
-	assert_false(run.take(loot[0]), "one of each")
-	assert_false(run.loot_choices(3).has(loot[0]), "owned gear is not offered again")
+	assert_eq(run.wear(0, 0, loot[0]), 0)
+	assert_eq(run.wear(1, 0, loot[0]), -1, "one of each")
+	assert_false(run.loot_choices(3).has(loot[0]), "worn gear is not offered again")
 	var shop := run.shop_gear(4)
 	assert_eq(shop.size(), Tuning.new().run_shop_gear)
 	run.gold = 0
@@ -235,30 +235,36 @@ func test_loot_and_shop_offer_gear_the_party_does_not_own() -> void:
 	run.gold = shop[0].price
 	assert_true(run.buy_gear(shop[0]))
 	assert_eq(run.gold, 0)
-	assert_true(run.bag.has(shop[0]))
+	assert_eq(run.wear(2, 0, shop[0]), 0, "bought gear goes straight on a hero")
 
 
-func test_equip_swap_and_take_off() -> void:
+func test_wear_swap_and_sell_gear() -> void:
 	var run := _run()
 	var charm := _gear(run, GearData.Effect.MAX_HP)
 	var stone := _gear(run, GearData.Effect.POWER)
-	run.take(charm)
-	run.take(stone)
 	var hp_before := run.hp[0]
 	var max_before := run.max_hp(0)
-	assert_true(run.equip(0, 0, charm))
+	assert_eq(run.wear(0, 0, charm), 0, "an empty slot sells nothing")
 	assert_gt(run.max_hp(0), max_before)
 	assert_eq(run.hp[0], hp_before, "putting gear on never heals")
-	assert_false(run.bag.has(charm))
-	assert_true(run.equip(0, 0, stone), "swap")
-	assert_true(run.bag.has(charm), "the swapped item goes back to the bag")
+	run.gold = 0
+	assert_eq(run.wear(0, 0, stone), run.gear_sell_price(charm), "a full slot sells what was there")
+	assert_eq(run.gold, CombatMath.percent(charm.price, run.tuning.item_sell_percent))
+	assert_false(run.owns(charm), "sold gear is gone")
 	assert_eq(run.power_percent(0), 100 + stone.amount)
-	assert_false(run.equip(1, 0, stone), "only bag items can be put on")
-	run.equip(1, 0, charm)
+	assert_eq(run.wear(1, 0, stone), -1, "worn gear cannot be worn twice")
+	run.wear(1, 0, charm)
 	run.hp[1] = run.max_hp(1)
-	assert_true(run.unequip(1, 0))
-	assert_eq(run.hp[1], run.max_hp(1), "HP is cut to the lower max")
+	assert_true(run.swap_gear(1, 0, 2, 1), "gear moves to another hero")
+	assert_eq(run.gear[2][1], charm)
 	assert_eq(run.free_gear_slot(1), 0)
+	assert_eq(run.hp[1], run.max_hp(1), "HP is cut to the lower max")
+	assert_true(run.swap_gear(2, 1, 0, 0), "two worn pieces swap")
+	assert_eq(run.gear[0][0], charm)
+	assert_eq(run.gear[2][1], stone)
+	assert_false(run.swap_gear(1, 0, 2, 0), "an empty slot has nothing to move")
+	run.gold = 0
+	assert_eq(run.sell_new_gear(_gear(run, GearData.Effect.SPEED)), run.gold, "new gear nobody wears is sold")
 
 
 func test_gear_reaches_the_fight_setup() -> void:
@@ -267,8 +273,7 @@ func test_gear_reaches_the_fight_setup() -> void:
 	var boots := _gear(run, GearData.Effect.SPEED)
 	var coin := _gear(run, GearData.Effect.GOLD)
 	for item: GearData in [ring, boots, coin]:
-		run.take(item)
-		run.equip(1, run.free_gear_slot(1), item)
+		run.wear(1, run.free_gear_slot(1), item)
 	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
 	var setup := run.fight_setup(husk, 1, CombatSetup.Opening.NORMAL)
 	assert_eq(setup.party_passives[1], {Passive.COUNTER: ring.amount})

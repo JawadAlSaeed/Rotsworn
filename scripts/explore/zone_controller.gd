@@ -17,6 +17,11 @@ extends Node
 signal encounter_started(index: int, opening: CombatSetup.Opening)
 ## The zone is cleared: the guard is beaten (run), or every roaming enemy (practice).
 signal cleared
+## In a run, the leader asked to pick up glinting spot `spot` (DESIGN.md 8.1). Main decides what it
+## holds and calls take_spot() once the party has it.
+signal pickup_requested(spot: int)
+## In a run, the leader tried to open chest `chest`. Main checks for a key and calls open_chest().
+signal chest_requested(chest: int)
 
 ## Walker sizes on the ground (world units).
 const LEADER_RADIUS: float = 0.35
@@ -80,6 +85,12 @@ var _remote: bool = false
 ## Remote: the host's latest positions; the strike counter tells a new strike from an old one.
 var _net: Dictionary = {}
 var _strikes: int = 0
+## Glinting spots (run mode): {pos: Vector2, view: Sprite3D, taken: bool}.
+var _spots: Array[Dictionary] = []
+## Locked chests (run mode): {pos: Vector2, view: Sprite3D, opened: bool}.
+var _chests: Array[Dictionary] = []
+## Held still while a screen is open over the zone (the backpack): nothing moves, no input.
+var _paused: bool = false
 
 
 func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: ExploreVisuals,
@@ -107,8 +118,14 @@ func net_snapshot() -> Dictionary:
 	for r: Dictionary in _roamers:
 		var pos: Vector2 = r.pos
 		roamers.append([pos.x, pos.y, int((r.brain as RoamerBrain).state), bool(r.defeated)])
+	var taken: Array = []
+	for spot: Dictionary in _spots:
+		taken.append(bool(spot.taken))
+	var opened: Array = []
+	for chest: Dictionary in _chests:
+		opened.append(bool(chest.opened))
 	return {"l": [_leader_pos.x, _leader_pos.y], "f": [_facing.x, _facing.y],
-			"w": _stepping, "s": _strikes, "r": roamers}
+			"w": _stepping, "s": _strikes, "r": roamers, "p": taken, "c": opened}
 
 
 ## Remote: the host's latest positions (see net_snapshot()). Malformed data is ignored.
@@ -205,6 +222,101 @@ func is_frozen() -> bool:
 	return _frozen
 
 
+## Holds the zone still (a screen is open over it) or lets it go on.
+func set_paused(paused: bool) -> void:
+	_paused = paused
+
+
+func is_paused() -> bool:
+	return _paused
+
+
+## Glinting spots not picked up yet: index -> ground spot (autoplay).
+func spot_positions() -> Dictionary:
+	var found := {}
+	for i: int in _spots.size():
+		if not bool(_spots[i].taken):
+			found[i] = _spots[i].pos
+	return found
+
+
+## Chests not opened yet: index -> ground spot (autoplay).
+func chest_positions() -> Dictionary:
+	var found := {}
+	for i: int in _chests.size():
+		if not bool(_chests[i].opened):
+			found[i] = _chests[i].pos
+	return found
+
+
+## The closed chest within reach of the leader (-1: none).
+func chest_in_reach() -> int:
+	var best := -1
+	var best_dist := _tuning.explore_pickup_radius
+	for i: int in _chests.size():
+		var d := (_chests[i].pos as Vector2).distance_to(_leader_pos)
+		if not bool(_chests[i].opened) and d <= best_dist:
+			best = i
+			best_dist = d
+	return best
+
+
+## The chest opens (Main found a key): its lid swings up and the leader reaches in.
+func open_chest(chest: int) -> void:
+	if chest < 0 or chest >= _chests.size() or bool(_chests[chest].opened):
+		return
+	_chests[chest].opened = true
+	_show_chest_open(chest)
+	play_pickup(0)
+
+
+func _show_chest_open(chest: int) -> void:
+	var view := _chests[chest].view as Sprite3D
+	var tex := AssetLoader.texture(_explore.chest_open_path, Vector2i(28, 24))
+	view.texture = tex
+	(view.material_override as ShaderMaterial).set_shader_parameter("sprite_texture", tex)
+
+
+## The glinting spot within pickup reach of the leader (-1: none).
+func spot_in_reach() -> int:
+	var best := -1
+	var best_dist := _tuning.explore_pickup_radius
+	for i: int in _spots.size():
+		var d := (_spots[i].pos as Vector2).distance_to(_leader_pos)
+		if not bool(_spots[i].taken) and d <= best_dist:
+			best = i
+			best_dist = d
+	return best
+
+
+## The leader tries to pick up the spot in reach, or open the chest in reach (Main answers with
+## take_spot() or open_chest()).
+func pickup() -> void:
+	if _frozen or _paused or _remote:
+		return
+	var spot := spot_in_reach()
+	if spot >= 0:
+		pickup_requested.emit(spot)
+		return
+	var chest := chest_in_reach()
+	if chest >= 0:
+		chest_requested.emit(chest)
+
+
+## A short gold line over the zone (for example what was just found).
+func announce(text: String) -> void:
+	_hud.banner(text, HudStyle.GOLD, _explore.zone_title_ms)
+
+
+## The party has what spot `spot` held: it is gone, and the leader bends down for it.
+func take_spot(spot: int) -> void:
+	if spot < 0 or spot >= _spots.size() or bool(_spots[spot].taken):
+		return
+	_spots[spot].taken = true
+	(_spots[spot].view as Sprite3D).visible = false
+	play_pickup(0)
+
+
 ## Turns the leader toward a ground direction (autoplay aims before striking).
 func face(direction: Vector2) -> void:
 	_turn(direction)
@@ -212,13 +324,12 @@ func face(direction: Vector2) -> void:
 
 ## The leader bends down for the guard's loot (#71) once the zone is cleared, in the moment before
 ## the fade to the loot screen. Turns to its last side first: the pickup is side art.
-func play_pickup() -> void:
+func play_pickup(delay_ms: int = -1) -> void:
 	if not WalkFacing.is_side(_view):
 		_view = WalkFacing.Facing.SIDE_L if _side_left else WalkFacing.Facing.SIDE_R
 	_pose_leader()
-	_leader.play("pickup", _explore.pickup_ms, FighterView.PRIO_BIG, -1, _explore.pickup_delay_ms)
-	# Hook for #57: the picked-up item would fly from the leader's hands to its target here (a
-	# follower's backpack or a HUD slot; only the leader walks the zone for now).
+	_leader.play("pickup", _explore.pickup_ms, FighterView.PRIO_BIG, -1,
+			_explore.pickup_delay_ms if delay_ms < 0 else delay_ms)
 
 
 ## Back from fight `fight_index()` with its result: a beaten enemy is gone; one the party ran
@@ -329,6 +440,26 @@ func _build() -> void:
 		_roamers.append({"data": data, "view": view, "brain": brain, "pos": home, "defeated": false,
 				"phase": float(i) * 0.37})
 
+	if _run_mode:
+		for pos: Vector3 in _zone.item_spots:
+			var glint := ZonePropData.new()
+			glint.sprite_path = _explore.glint_path
+			glint.pixel_size = _explore.glint_pixel_size
+			glint.position = pos + Vector3(0.0, _explore.glint_height, 0.0)
+			glint.glow = _explore.glint_glow
+			glint.glow_color = _explore.glint_color
+			var view := StageBuilder.prop(glint)
+			_world.add_child(view)
+			_spots.append({"pos": Vector2(pos.x, pos.z), "view": view, "taken": false})
+		for pos: Vector3 in _zone.chests:
+			var chest := ZonePropData.new()
+			chest.sprite_path = _explore.chest_closed_path
+			chest.pixel_size = _explore.chest_pixel_size
+			chest.position = pos
+			var view := StageBuilder.prop(chest)
+			_world.add_child(view)
+			_chests.append({"pos": Vector2(pos.x, pos.z), "view": view, "opened": false})
+
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
 	_camera.fov = _explore.camera_fov
@@ -341,7 +472,7 @@ func _build() -> void:
 	_hud = ZoneHud.new()
 	_hud.name = "ZoneHud"
 	add_child(_hud)
-	_hud.setup(_explore, _zone.display_name)
+	_hud.setup(_explore, _zone.display_name, _run_mode)
 	Sfx.play("zone_enter")
 	_update_goal()
 	_place_walkers(0.0)
@@ -351,10 +482,11 @@ func _build() -> void:
 # --- every frame ------------------------------------------------------------------------------
 
 func _process(delta: float) -> void:
-	if _frozen:
+	if _frozen or _paused:
 		return
 	var dt_ms := delta * 1000.0
 	_time_ms += dt_ms
+	_pulse_spots()
 	if _remote:
 		_follow_host(delta)
 		_place_walkers(delta)
@@ -409,13 +541,31 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _frozen or _remote or input_held or not is_inside_tree():
+	if _frozen or _paused or _remote or input_held or not is_inside_tree():
 		return
 	# Pause (Esc / Menu) is Main's: it stops this node and opens the pause menu.
 	if event.is_action_pressed(&"field_strike", false, true):
 		get_viewport().set_input_as_handled()
 		if _players.player_of_device(PlayerRoster.device_of(event)) == 0:
 			strike()
+	elif event.is_action_pressed(&"field_pickup", false, true) and (spot_in_reach() >= 0 or chest_in_reach() >= 0):
+		get_viewport().set_input_as_handled()
+		if _players.player_of_device(PlayerRoster.device_of(event)) == 0:
+			pickup()
+
+
+## Glinting spots breathe in size; the pick-up hint shows when one is in reach.
+func _pulse_spots() -> void:
+	var t := fposmod(_time_ms / float(maxi(1, _explore.glint_pulse_ms)), 1.0)
+	var size := 1.0 + _explore.glint_pulse_share * 0.5 * (1.0 + sin(t * TAU))
+	for spot: Dictionary in _spots:
+		(spot.view as Sprite3D).scale = Vector3.ONE * size
+	var hint := ""
+	if not _remote and spot_in_reach() >= 0:
+		hint = "Pick up"
+	elif not _remote and chest_in_reach() >= 0:
+		hint = "Open chest"
+	_hud.set_pickup_hint(hint)
 
 
 ## The walk input: any device in solo and online (the host is player 1), only player 1's device in
@@ -465,6 +615,18 @@ func _show_strike() -> void:
 func _follow_host(delta: float) -> void:
 	if _net.is_empty():
 		return
+	var taken: Variant = _net.get("p", [])
+	if taken is Array and (taken as Array).size() == _spots.size():
+		for i: int in _spots.size():
+			if bool(taken[i]) and not bool(_spots[i].taken):
+				_spots[i].taken = true
+				(_spots[i].view as Sprite3D).visible = false
+	var opened: Variant = _net.get("c", [])
+	if opened is Array and (opened as Array).size() == _chests.size():
+		for i: int in _chests.size():
+			if bool(opened[i]) and not bool(_chests[i].opened):
+				_chests[i].opened = true
+				_show_chest_open(i)
 	var k := 1.0 - exp(-delta * 1000.0 / float(maxi(1, _explore.net_follow_ms)))
 	var leader_before := _leader_pos
 	_leader_pos = _leader_pos.lerp(Vector2(float(_net.l[0]), float(_net.l[1])), k)

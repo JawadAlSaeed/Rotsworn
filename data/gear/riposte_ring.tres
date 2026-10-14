@@ -8,5 +8,6 @@ id = "riposte_ring"
 display_name = "Riposte Ring"
 description = "Counters hit 50% harder."
 price = 70
+rarity = 1
 effect = 6
 amount = 50

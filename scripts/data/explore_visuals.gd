@@ -71,3 +71,16 @@ extends Resource
 ## after the fight hands back and plays over pickup_ms.
 @export_range(0, 5000, 1, "suffix:ms") var pickup_delay_ms: int = 600
 @export_range(0, 5000, 1, "suffix:ms") var pickup_ms: int = 700
+## A glinting spot (DESIGN.md 8.1): a glowing sparkle standing this high over the ground, pulsing
+## in size once per glint_pulse_ms by up to glint_pulse_share.
+@export_file_path("*.png") var glint_path: String = "res://assets/sprites/fx/glint.png"
+@export_range(0.005, 1.0, 0.001) var glint_pixel_size: float = 0.045
+@export_range(0.0, 5.0, 0.01) var glint_height: float = 0.25
+@export_range(0.0, 8.0, 0.05) var glint_glow: float = 2.5
+@export var glint_color: Color = Color(1.0, 0.85, 0.4)
+@export_range(100, 10000, 1, "suffix:ms") var glint_pulse_ms: int = 1400
+@export_range(0.0, 1.0, 0.01) var glint_pulse_share: float = 0.3
+## A zone's locked chest (DESIGN.md 8.1), closed and opened, standing at its feet.
+@export_file_path("*.png") var chest_closed_path: String = "res://assets/sprites/env/chest_closed.png"
+@export_file_path("*.png") var chest_open_path: String = "res://assets/sprites/env/chest_open.png"
+@export_range(0.005, 1.0, 0.001) var chest_pixel_size: float = 0.05

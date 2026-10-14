@@ -20,11 +20,12 @@ const SLOW_ENEMY: int = 10
 ## Field lists from the header of combat_engine.gd (the contract presentation and the network
 ## code rely on), plus the allowed values of the string enums.
 const EVENT_KEYS: Dictionary = {
-	"combat_started": ["seed", "fighters", "practice_allowed", "opening"],
+	"combat_started": ["seed", "fighters", "practice_allowed", "opening", "items"],
 	"intent": ["enemy", "attack", "name", "mode", "targets", "kinds", "times"],
 	"turn_started": ["turn", "actor", "team", "time"],
 	"turn_order": ["order"],
 	"ability_used": ["turn", "actor", "ability", "targets"],
+	"item_used": ["turn", "actor", "uid", "item", "name", "targets"],
 	"damage": ["source", "target", "amount", "hp", "max_hp", "cause"],
 	"healed": ["source", "target", "amount", "hp", "max_hp"],
 	"revived": ["source", "target", "hp", "max_hp"],
@@ -51,7 +52,7 @@ const PROMPT_KEYS: Array[String] = ["idx", "hit", "character", "at_ms", "kind", 
 		"press_damage", "perfect_damage", "role", "requires"]
 const STRING_VALUES: Dictionary = {
 	"timed_sequence_declared.kind": ["enemy_attack", "skill"],
-	"damage.cause": ["ability", "follow_up", "counter", "team_counter"],
+	"damage.cause": ["ability", "follow_up", "counter", "team_counter", "item", "rot"],
 	"ap_changed.reason": ["spend", "ability", "given", "gear"],
 	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte"],
 	"prompts_voided.reason": ["downed", "attacker_down", "targets_down", "no_good_press"],
@@ -961,6 +962,24 @@ func _support_events() -> Array[Dictionary]:
 	return events
 
 
+## A fight where a hero throws a bomb from the backpack (DESIGN.md 8.1).
+func _item_events() -> Array[Dictionary]:
+	var setup := Fx.shipped_setup(4)
+	setup.items.append({"uid": 7, "item": load("res://data/items/bomb.tres")})
+	var engine := CombatEngine.new(setup)
+	var events: Array[Dictionary] = engine.start()
+	var bot := Bot.new(Bot.Defence.PERFECT)
+	for i: int in 50:
+		if engine.phase == CombatEngine.Phase.AWAITING_ACTION:
+			break
+		events.append_array(engine.submit(bot.next_command(engine)))
+	engine.get_combatant(engine.active_actor).ap = 3
+	var no_targets: Array[int] = []
+	events.append_array(engine.submit(CombatCommands.use_item(engine.turn_number, engine.active_actor, 7, no_targets)))
+	assert_eq(Fx.of_type(events, "item_used").size(), 1, "the bomb was thrown")
+	return events
+
+
 ## A boss that enters phase two on the first counter (DESIGN 8, card #31).
 func _phase_two_events() -> Array[Dictionary]:
 	var setup := Fx.setup([_swipe()])
@@ -982,6 +1001,7 @@ func test_events_have_exactly_the_documented_fields() -> void:
 			events.append_array(run.events)
 	events.append_array(Fx.started([_swipe()]).submit({"type": "dance"}))
 	events.append_array(_phase_two_events())
+	events.append_array(_item_events())
 	var seen := {}
 	for i: int in events.size():
 		var e: Dictionary = events[i]

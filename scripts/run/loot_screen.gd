@@ -1,7 +1,8 @@
 class_name LootScreen
 extends CanvasLayer
 ## Loot after a zone's guard (DESIGN.md 8): pick one of a few pieces of gear the party does not
-## own yet. It goes to the bag; the party screen comes next to put it on someone.
+## own yet. The party screen comes next, with it in hand, to put it on someone (gear is always worn,
+## DESIGN.md 8.1).
 
 ## The item picked (null: the party took nothing).
 signal chosen(item: GearData)
@@ -25,7 +26,8 @@ func setup(items: Array[GearData]) -> void:
 	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Take"]])
 	var list: Array[Dictionary] = []
 	for item: GearData in items:
-		list.append({"text": item.display_name, "detail": item.description})
+		list.append({"text": item.display_name, "detail": "%s (%s)" % [item.description, BackpackGrid.rarity_name(int(item.rarity))],
+				"color": BackpackGrid.rarity_color(int(item.rarity))})
 	if items.is_empty():
 		list.append({"text": "Nothing left to find", "detail": "The party already has every piece of gear."})
 	_menu.set_items(list, detail)

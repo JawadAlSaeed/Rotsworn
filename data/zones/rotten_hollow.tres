@@ -41,8 +41,8 @@ texture_path = "res://assets/sprites/env/ruin_wall.png"
 script = ExtResource("1_zone_b")
 position = Vector3(6.5, 0, -9)
 size = Vector3(5, 1.8, 0.8)
+rotation_y_degrees = 90.0
 texture_path = "res://assets/sprites/env/ruin_wall.png"
-rotation_y_degrees = 90
 
 [sub_resource type="Resource" id="Resource_zone_block_data_5"]
 script = ExtResource("1_zone_b")
@@ -62,18 +62,119 @@ position = Vector3(4, 0, -21.5)
 size = Vector3(6, 1.2, 0.9)
 texture_path = "res://assets/sprites/env/ruin_wall.png"
 
+[sub_resource type="Resource" id="Resource_zone_enemy_data_106"]
+script = ExtResource("5_zone_e")
+encounter = ExtResource("4_husk_f")
+position = Vector3(2, 0, 1.5)
+
+[sub_resource type="Resource" id="Resource_zone_enemy_data_107"]
+script = ExtResource("5_zone_e")
+encounter = ExtResource("6_gnat_p")
+position = Vector3(-9.5, 0, -4.5)
+wander_radius = 3.0
+
+[sub_resource type="Resource" id="Resource_zone_enemy_data_108"]
+script = ExtResource("5_zone_e")
+encounter = ExtResource("7_shade_")
+position = Vector3(9, 0, -11)
+
+[sub_resource type="Resource" id="Resource_zone_enemy_data_109"]
+script = ExtResource("5_zone_e")
+encounter = ExtResource("8_bloat_")
+position = Vector3(-6, 0, -14)
+wander_radius = 2.0
+
+[sub_resource type="Resource" id="Resource_zone_enemy_data_110"]
+script = ExtResource("5_zone_e")
+encounter = ExtResource("9_bloat_")
+position = Vector3(1.5, 0, -18.5)
+wander_radius = 1.0
+guard = true
+
+[sub_resource type="Resource" id="Resource_zone_light_data_96"]
+script = ExtResource("3_zone_l")
+position = Vector3(-2, 1.9, 7.5)
+color = Color(1, 0.68, 0.38, 1)
+energy = 2.4
+reach = 7.0
+flicker_percent = 12
+
+[sub_resource type="Resource" id="Resource_zone_light_data_97"]
+script = ExtResource("3_zone_l")
+position = Vector3(2.5, 1.9, -1)
+color = Color(1, 0.68, 0.38, 1)
+energy = 2.4
+reach = 7.0
+flicker_percent = 12
+
+[sub_resource type="Resource" id="Resource_zone_light_data_98"]
+script = ExtResource("3_zone_l")
+position = Vector3(-3.5, 1.9, -12)
+color = Color(1, 0.68, 0.38, 1)
+energy = 2.4
+reach = 7.0
+flicker_percent = 12
+
+[sub_resource type="Resource" id="Resource_zone_light_data_99"]
+script = ExtResource("3_zone_l")
+position = Vector3(6.5, 1.9, -16)
+color = Color(1, 0.68, 0.38, 1)
+energy = 2.4
+reach = 7.0
+flicker_percent = 12
+
+[sub_resource type="Resource" id="Resource_zone_light_data_100"]
+script = ExtResource("3_zone_l")
+position = Vector3(-6.5, 0.6, 3.5)
+color = Color(0.35, 1, 0.85, 1)
+energy = 1.4
+reach = 4.0
+
+[sub_resource type="Resource" id="Resource_zone_light_data_101"]
+script = ExtResource("3_zone_l")
+position = Vector3(8.5, 0.6, 0.5)
+color = Color(0.35, 1, 0.85, 1)
+energy = 1.4
+reach = 4.0
+
+[sub_resource type="Resource" id="Resource_zone_light_data_102"]
+script = ExtResource("3_zone_l")
+position = Vector3(-11.5, 0.6, -11)
+color = Color(0.35, 1, 0.85, 1)
+energy = 1.4
+reach = 4.0
+
+[sub_resource type="Resource" id="Resource_zone_light_data_103"]
+script = ExtResource("3_zone_l")
+position = Vector3(3, 0.6, -15.5)
+color = Color(0.35, 1, 0.85, 1)
+energy = 1.4
+reach = 4.0
+
+[sub_resource type="Resource" id="Resource_zone_light_data_104"]
+script = ExtResource("3_zone_l")
+position = Vector3(-1, 0.6, -4)
+color = Color(0.35, 1, 0.85, 1)
+energy = 1.2
+reach = 3.5
+
+[sub_resource type="Resource" id="Resource_zone_light_data_105"]
+script = ExtResource("3_zone_l")
+position = Vector3(13, 0.6, 1)
+color = Color(0.35, 1, 0.85, 1)
+energy = 1.2
+reach = 3.5
+
 [sub_resource type="Resource" id="Resource_zone_prop_data_8"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(-12, 0, 6)
-pixel_size = 0.06
 solid_radius = 0.6
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_9"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(13, 0, 9)
-pixel_size = 0.06
 flip = true
 solid_radius = 0.6
 
@@ -81,14 +182,12 @@ solid_radius = 0.6
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(-14, 0, -8)
-pixel_size = 0.06
 solid_radius = 0.6
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_11"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(14, 0, -13)
-pixel_size = 0.06
 flip = true
 solid_radius = 0.6
 
@@ -96,14 +195,12 @@ solid_radius = 0.6
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(-5, 0, -21)
-pixel_size = 0.06
 solid_radius = 0.6
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_13"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(11, 0, -20)
-pixel_size = 0.06
 flip = true
 solid_radius = 0.6
 
@@ -111,14 +208,12 @@ solid_radius = 0.6
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
 position = Vector3(-5, 0, 4.5)
-pixel_size = 0.06
 solid_radius = 0.4
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_15"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
 position = Vector3(7.5, 0, -3)
-pixel_size = 0.06
 flip = true
 solid_radius = 0.4
 
@@ -126,14 +221,12 @@ solid_radius = 0.4
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
 position = Vector3(-9, 0, -18)
-pixel_size = 0.06
 solid_radius = 0.4
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_17"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
 position = Vector3(1.5, 0, -12)
-pixel_size = 0.06
 flip = true
 solid_radius = 0.4
 
@@ -676,118 +769,10 @@ sprite_path = "res://assets/sprites/env/grass.png"
 position = Vector3(9.3, 0, 6.49)
 pixel_size = 0.045
 
-[sub_resource type="Resource" id="Resource_zone_light_data_96"]
-script = ExtResource("3_zone_l")
-position = Vector3(-2, 1.9, 7.5)
-color = Color(1, 0.68, 0.38, 1)
-energy = 2.4
-reach = 7
-flicker_percent = 12
-
-[sub_resource type="Resource" id="Resource_zone_light_data_97"]
-script = ExtResource("3_zone_l")
-position = Vector3(2.5, 1.9, -1)
-color = Color(1, 0.68, 0.38, 1)
-energy = 2.4
-reach = 7
-flicker_percent = 12
-
-[sub_resource type="Resource" id="Resource_zone_light_data_98"]
-script = ExtResource("3_zone_l")
-position = Vector3(-3.5, 1.9, -12)
-color = Color(1, 0.68, 0.38, 1)
-energy = 2.4
-reach = 7
-flicker_percent = 12
-
-[sub_resource type="Resource" id="Resource_zone_light_data_99"]
-script = ExtResource("3_zone_l")
-position = Vector3(6.5, 1.9, -16)
-color = Color(1, 0.68, 0.38, 1)
-energy = 2.4
-reach = 7
-flicker_percent = 12
-
-[sub_resource type="Resource" id="Resource_zone_light_data_100"]
-script = ExtResource("3_zone_l")
-position = Vector3(-6.5, 0.6, 3.5)
-color = Color(0.35, 1, 0.85, 1)
-energy = 1.4
-reach = 4
-
-[sub_resource type="Resource" id="Resource_zone_light_data_101"]
-script = ExtResource("3_zone_l")
-position = Vector3(8.5, 0.6, 0.5)
-color = Color(0.35, 1, 0.85, 1)
-energy = 1.4
-reach = 4
-
-[sub_resource type="Resource" id="Resource_zone_light_data_102"]
-script = ExtResource("3_zone_l")
-position = Vector3(-11.5, 0.6, -11)
-color = Color(0.35, 1, 0.85, 1)
-energy = 1.4
-reach = 4
-
-[sub_resource type="Resource" id="Resource_zone_light_data_103"]
-script = ExtResource("3_zone_l")
-position = Vector3(3, 0.6, -15.5)
-color = Color(0.35, 1, 0.85, 1)
-energy = 1.4
-reach = 4
-
-[sub_resource type="Resource" id="Resource_zone_light_data_104"]
-script = ExtResource("3_zone_l")
-position = Vector3(-1, 0.6, -4)
-color = Color(0.35, 1, 0.85, 1)
-energy = 1.2
-reach = 3.5
-
-[sub_resource type="Resource" id="Resource_zone_light_data_105"]
-script = ExtResource("3_zone_l")
-position = Vector3(13, 0.6, 1)
-color = Color(0.35, 1, 0.85, 1)
-energy = 1.2
-reach = 3.5
-
-[sub_resource type="Resource" id="Resource_zone_enemy_data_106"]
-script = ExtResource("5_zone_e")
-encounter = ExtResource("4_husk_f")
-position = Vector3(2, 0, 1.5)
-wander_radius = 2.5
-
-[sub_resource type="Resource" id="Resource_zone_enemy_data_107"]
-script = ExtResource("5_zone_e")
-encounter = ExtResource("6_gnat_p")
-position = Vector3(-9.5, 0, -4.5)
-wander_radius = 3
-
-[sub_resource type="Resource" id="Resource_zone_enemy_data_108"]
-script = ExtResource("5_zone_e")
-encounter = ExtResource("7_shade_")
-position = Vector3(9, 0, -11)
-wander_radius = 2.5
-
-[sub_resource type="Resource" id="Resource_zone_enemy_data_109"]
-script = ExtResource("5_zone_e")
-encounter = ExtResource("8_bloat_")
-position = Vector3(-6, 0, -14)
-wander_radius = 2
-
-[sub_resource type="Resource" id="Resource_zone_enemy_data_110"]
-script = ExtResource("5_zone_e")
-encounter = ExtResource("9_bloat_")
-position = Vector3(1.5, 0, -18.5)
-wander_radius = 1
-guard = true
-
 [resource]
 script = ExtResource("12_zone_d")
 id = "rotten_hollow"
 display_name = "Rotten Hollow"
-footstep_sfx = "footstep_grass"
-music_path = "res://assets/audio/music/zone_hollow.ogg"
-ambience_path = "res://assets/audio/ambience/ambience_hollow.ogg"
 look = ExtResource("10_rotten")
 leader = ExtResource("11_brin")
 bounds_min = Vector2(-16.5, -22.5)
@@ -797,3 +782,7 @@ blocks = Array[ExtResource("1_zone_b")]([SubResource("Resource_zone_block_data_0
 props = Array[ExtResource("2_zone_p")]([SubResource("Resource_zone_prop_data_8"), SubResource("Resource_zone_prop_data_9"), SubResource("Resource_zone_prop_data_10"), SubResource("Resource_zone_prop_data_11"), SubResource("Resource_zone_prop_data_12"), SubResource("Resource_zone_prop_data_13"), SubResource("Resource_zone_prop_data_14"), SubResource("Resource_zone_prop_data_15"), SubResource("Resource_zone_prop_data_16"), SubResource("Resource_zone_prop_data_17"), SubResource("Resource_zone_prop_data_18"), SubResource("Resource_zone_prop_data_19"), SubResource("Resource_zone_prop_data_20"), SubResource("Resource_zone_prop_data_21"), SubResource("Resource_zone_prop_data_22"), SubResource("Resource_zone_prop_data_23"), SubResource("Resource_zone_prop_data_24"), SubResource("Resource_zone_prop_data_25"), SubResource("Resource_zone_prop_data_26"), SubResource("Resource_zone_prop_data_27"), SubResource("Resource_zone_prop_data_28"), SubResource("Resource_zone_prop_data_29"), SubResource("Resource_zone_prop_data_30"), SubResource("Resource_zone_prop_data_31"), SubResource("Resource_zone_prop_data_32"), SubResource("Resource_zone_prop_data_33"), SubResource("Resource_zone_prop_data_34"), SubResource("Resource_zone_prop_data_35"), SubResource("Resource_zone_prop_data_36"), SubResource("Resource_zone_prop_data_37"), SubResource("Resource_zone_prop_data_38"), SubResource("Resource_zone_prop_data_39"), SubResource("Resource_zone_prop_data_40"), SubResource("Resource_zone_prop_data_41"), SubResource("Resource_zone_prop_data_42"), SubResource("Resource_zone_prop_data_43"), SubResource("Resource_zone_prop_data_44"), SubResource("Resource_zone_prop_data_45"), SubResource("Resource_zone_prop_data_46"), SubResource("Resource_zone_prop_data_47"), SubResource("Resource_zone_prop_data_48"), SubResource("Resource_zone_prop_data_49"), SubResource("Resource_zone_prop_data_50"), SubResource("Resource_zone_prop_data_51"), SubResource("Resource_zone_prop_data_52"), SubResource("Resource_zone_prop_data_53"), SubResource("Resource_zone_prop_data_54"), SubResource("Resource_zone_prop_data_55"), SubResource("Resource_zone_prop_data_56"), SubResource("Resource_zone_prop_data_57"), SubResource("Resource_zone_prop_data_58"), SubResource("Resource_zone_prop_data_59"), SubResource("Resource_zone_prop_data_60"), SubResource("Resource_zone_prop_data_61"), SubResource("Resource_zone_prop_data_62"), SubResource("Resource_zone_prop_data_63"), SubResource("Resource_zone_prop_data_64"), SubResource("Resource_zone_prop_data_65"), SubResource("Resource_zone_prop_data_66"), SubResource("Resource_zone_prop_data_67"), SubResource("Resource_zone_prop_data_68"), SubResource("Resource_zone_prop_data_69"), SubResource("Resource_zone_prop_data_70"), SubResource("Resource_zone_prop_data_71"), SubResource("Resource_zone_prop_data_72"), SubResource("Resource_zone_prop_data_73"), SubResource("Resource_zone_prop_data_74"), SubResource("Resource_zone_prop_data_75"), SubResource("Resource_zone_prop_data_76"), SubResource("Resource_zone_prop_data_77"), SubResource("Resource_zone_prop_data_78"), SubResource("Resource_zone_prop_data_79"), SubResource("Resource_zone_prop_data_80"), SubResource("Resource_zone_prop_data_81"), SubResource("Resource_zone_prop_data_82"), SubResource("Resource_zone_prop_data_83"), SubResource("Resource_zone_prop_data_84"), SubResource("Resource_zone_prop_data_85"), SubResource("Resource_zone_prop_data_86"), SubResource("Resource_zone_prop_data_87"), SubResource("Resource_zone_prop_data_88"), SubResource("Resource_zone_prop_data_89"), SubResource("Resource_zone_prop_data_90"), SubResource("Resource_zone_prop_data_91"), SubResource("Resource_zone_prop_data_92"), SubResource("Resource_zone_prop_data_93"), SubResource("Resource_zone_prop_data_94"), SubResource("Resource_zone_prop_data_95")])
 lights = Array[ExtResource("3_zone_l")]([SubResource("Resource_zone_light_data_96"), SubResource("Resource_zone_light_data_97"), SubResource("Resource_zone_light_data_98"), SubResource("Resource_zone_light_data_99"), SubResource("Resource_zone_light_data_100"), SubResource("Resource_zone_light_data_101"), SubResource("Resource_zone_light_data_102"), SubResource("Resource_zone_light_data_103"), SubResource("Resource_zone_light_data_104"), SubResource("Resource_zone_light_data_105")])
 enemies = Array[ExtResource("5_zone_e")]([SubResource("Resource_zone_enemy_data_106"), SubResource("Resource_zone_enemy_data_107"), SubResource("Resource_zone_enemy_data_108"), SubResource("Resource_zone_enemy_data_109"), SubResource("Resource_zone_enemy_data_110")])
+item_spots = Array[Vector3]([Vector3(-14, 0, 3), Vector3(14.5, 0, -9.5), Vector3(-14.5, 0, -19.5)])
+chests = Array[Vector3]([Vector3(13.5, 0, -17)])
+music_path = "res://assets/audio/music/zone_hollow.ogg"
+ambience_path = "res://assets/audio/ambience/ambience_hollow.ogg"

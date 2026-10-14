@@ -34,6 +34,8 @@ signal pause_reached
 
 enum NetMode { LOCAL, HOST, CLIENT }
 
+## Stand-in ability ids for backpack items start with this (the uid follows).
+const ITEM_PREFIX := "item:"
 const QUIT_DELAY_S: float = 1.0
 ## After stopping all sounds, quitting waits this long (real time) so the audio server lets go of
 ## the playbacks; two frames are not enough and Godot reports "resources still in use at exit".
@@ -71,6 +73,9 @@ var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 var _from_zone: bool = false
 ## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
 var _run: RunState
+var _drop: ItemData
+## Fight item stand-in abilities by uid (see _item_ability()).
+var _item_abilities: Dictionary = {}
 ## Who plays (DESIGN.md 9.1): in co-op a device drives only its own heroes' menus and presses.
 var _players: PlayerRoster = PlayerRoster.solo(3)
 ## Party member id -> co-op player.
@@ -130,6 +135,12 @@ func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals,
 ## screen, and no "fight again". Call after configure(), before adding the node to the tree.
 func configure_run(run: RunState) -> void:
 	_run = run
+
+
+## What the beaten enemy drops (DESIGN.md 8.1; null: nothing). The end screen names it after a
+## victory; Main puts it in the backpack.
+func configure_drop(item: ItemData) -> void:
+	_drop = item
 
 
 ## The players and their heroes. Call before adding the node to the tree (default: solo).
@@ -195,6 +206,17 @@ func receive_command(peer: int, command: Dictionary) -> void:
 					targets.append(int(t))
 			_enqueue(_submit(CombatCommands.use_ability(int(command.get("turn", -1)), actor,
 					String(command.get("ability", "")), targets)))
+		CombatCommands.USE_ITEM:
+			var actor := int(command.get("actor", -1))
+			if engine.phase != CombatEngine.Phase.AWAITING_ACTION or actor != engine.active_actor \
+					or player < 0 or _players.owner_of(_owner_slot(actor)) != player:
+				return
+			var targets: Array[int] = []
+			if command.get("targets") is Array:
+				for t: Variant in command.targets:
+					targets.append(int(t))
+			_enqueue(_submit(CombatCommands.use_item(int(command.get("turn", -1)), actor, int(command.get("uid", -1)),
+					targets)))
 		CombatCommands.RESOLVE_PROMPTS:
 			if engine.phase != CombatEngine.Phase.AWAITING_TIMING or not command.get("results") is Array:
 				return
@@ -586,6 +608,11 @@ func _play(ev: Dictionary) -> void:
 			# Skills with presses are animated by the SkillSequenceRunner.
 			if used == null or used.press_times_ms.is_empty():
 				await _play_party_action(ev)
+		"item_used":
+			mirror.apply(ev)
+			_awaiting_turn = -1
+			_refresh()
+			await _play_item_used(ev)
 		"counter":
 			mirror.apply(ev)
 			await _play_counter(ev)
@@ -685,6 +712,14 @@ func _maybe_open_menu() -> void:
 	var entries: Array[Dictionary] = []
 	for ability: AbilityData in abilities:
 		entries.append(_menu_entry(actor, ability))
+	# Backpack items (DESIGN.md 8.1): stand-in abilities named "item:<uid>" so the menu's lists,
+	# costs and target step work the same.
+	var uids: Array = mirror.items.keys()
+	uids.sort()
+	for uid: int in uids:
+		var entry := _menu_entry(actor, _item_ability(mirror.items[uid] as Dictionary))
+		entry["item"] = true
+		entries.append(entry)
 	var player := _players.owner_of(_owner_slot(actor)) if _players.is_coop() else -1
 	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, entries, names, player)
 	view.camera.shot_turn(view.home_of(actor))
@@ -724,6 +759,34 @@ func _menu_entry(actor: int, ability: AbilityData) -> Dictionary:
 	return {"ability": ability, "usable": reason.is_empty(), "reason": reason, "targets": targets, "pick_target": pick}
 
 
+## The stand-in ability for a fight item (cached per uid).
+func _item_ability(info: Dictionary) -> AbilityData:
+	var uid := int(info.uid)
+	if _item_abilities.has(uid):
+		return _item_abilities[uid]
+	var ability := AbilityData.new()
+	ability.id = ITEM_PREFIX + str(uid)
+	ability.display_name = String(info.name)
+	ability.description = String(info.description)
+	ability.ap_cost = int(info.ap_cost)
+	match String(info.target):
+		CombatEngine.ITEM_ALLY:
+			ability.target = AbilityData.Target.ALLY
+		CombatEngine.ITEM_DOWNED:
+			ability.target = AbilityData.Target.DOWNED_ALLY
+		CombatEngine.ITEM_ENEMIES:
+			ability.target = AbilityData.Target.ALL_ENEMIES
+		_:
+			ability.target = AbilityData.Target.SELF
+	_item_abilities[uid] = ability
+	return ability
+
+
+## The backpack items used in this fight (uids): the run takes them out of the backpack.
+func used_items() -> Array[int]:
+	return mirror.used_items.duplicate()
+
+
 func _runner_active() -> bool:
 	return runner.is_active() or skill_runner.is_active()
 
@@ -736,6 +799,10 @@ func _on_ability_chosen(ability_id: String, target_id: int) -> void:
 		targets.append(target_id)
 	_menu_turn = -1
 	_sent_turn = mirror.turn
+	if ability_id.begins_with(ITEM_PREFIX):
+		var uid := int(ability_id.substr(ITEM_PREFIX.length()))
+		_enqueue(_submit(CombatCommands.use_item(mirror.turn, mirror.active_actor, uid, targets)))
+		return
 	_enqueue(_submit(CombatCommands.use_ability(mirror.turn, mirror.active_actor, ability_id, targets)))
 
 
@@ -825,6 +892,8 @@ func _summary_text() -> String:
 		var levels := _run.levels_from(xp)
 		if levels > 0:
 			text += "   LEVEL UP!  Level %d" % (_run.level + levels)
+		if _drop != null:
+			text += "   Found: %s" % _drop.display_name
 	return text
 
 
@@ -1125,6 +1194,20 @@ func _show_feedback(ev: Dictionary) -> void:
 			# The gauge label itself turns gold and says READY (the banner slot may hold a skill name).
 			if int(ev.delta) > 0 and int(ev.value) >= _tuning.team_gauge_max:
 				Sfx.play("gauge_full")
+
+
+## A hero uses a backpack item: its name over the hero, a sound, a short beat before its effect
+## (heals, a revive, the bomb's damage) plays from the events that follow.
+func _play_item_used(ev: Dictionary) -> void:
+	var actor := int(ev.actor)
+	var v := view.fighter(actor)
+	_set_active_pose(-1)
+	Sfx.play("item_lift")
+	hud.show_center_banner(String(ev.get("name", "")).to_upper(), HudStyle.GOLD, _visuals.item_use_ms)
+	if v != null:
+		v.flash(_visuals.flash_ms * 2, HudStyle.GOLD, 0.6)
+		v.play_pose(FighterView.CharPose.READY, _visuals.item_use_ms)
+	await get_tree().create_timer(float(_visuals.item_use_ms) / 1000.0).timeout
 
 
 func _show_downed(id: int) -> void:
