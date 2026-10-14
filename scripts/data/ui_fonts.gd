@@ -22,3 +22,6 @@ extends Resource
 @export_range(0.0, 60.0, 0.5) var select_static_fps: float = 9.0
 @export_range(0.0, 1.0, 0.05) var select_static_motion: float = 0.6
 @export_range(0.0, 2.0, 0.05) var select_wear: float = 1.0
+## How much of the static shows on menu text, in percent (100 = all of it; 0 = no effect at all:
+## plain gold letters). The logo's own static (BrandingData) is separate.
+@export_range(0, 100, 1, "suffix:%") var select_static_percent: int = 100

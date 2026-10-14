@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/rot_hyena.tres" id="3_clips"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/hyena_pack_bite.tres" id="4_hyena_pack_bite"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/hyena_snap.tres" id="5_hyena_snap"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/hyena_cackle.tres" id="6_hyena_cackle"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/hyena_pounce.tres" id="7_hyena_pounce"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "rot_hyena"
+voice_sfx = "voice_hyena"
+display_name = "Rot Hyena"
+color = Color(0.48, 0.42, 0.32, 1)
+sprite_path = "res://assets/sprites/enemies/rot_hyena.png"
+portrait_path = "res://assets/sprites/portraits/rot_hyena.png"
+sprite_clips = ExtResource("3_clips")
+death_style = 0
+death_color = Color(0.75, 0.91, 0.37, 1)
+idle_cycle_percent = 80
+sprite_pixel_size = 0.045
+hp_percent = 85
+power_percent = 90
+speed = 180
+attacks = Array[ExtResource("1_attack")]([ExtResource("4_hyena_pack_bite"), ExtResource("5_hyena_snap"), ExtResource("6_hyena_cackle"), ExtResource("7_hyena_pounce")])
+gold = 15
+xp = 30

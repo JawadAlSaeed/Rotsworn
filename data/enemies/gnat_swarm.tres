@@ -6,6 +6,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_swarm_sweep.tres" id="4_dotlr"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="5_l0mvs"]
 [ext_resource type="Resource" path="res://data/clips/gnat_swarm.tres" id="6_clips"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/gnat_swarm_round.tres" id="p12_gnat_swarm_round"]
 
 [resource]
 script = ExtResource("5_l0mvs")
@@ -23,6 +24,6 @@ sprite_pixel_size = 0.045
 hp_percent = 50
 power_percent = 50
 speed = 160
-attacks = Array[ExtResource("1_gy2t7")]([ExtResource("2_pc4gs"), ExtResource("3_hpkyw"), ExtResource("4_dotlr")])
+attacks = Array[ExtResource("1_gy2t7")]([ExtResource("2_pc4gs"), ExtResource("3_hpkyw"), ExtResource("4_dotlr"), ExtResource("p12_gnat_swarm_round")])
 gold = 8
 xp = 15

@@ -429,6 +429,19 @@ func hit_icon(kind: int) -> Texture2D:
 
 
 ## Shows these hit markers (see HitMarkerLayer); empty hides them all.
+## Who an enemy attack is aimed at, for its intent sign and banner: WHOLE PARTY, one name, or for
+## an each-in-turn attack the names in the order it strikes them ("CASS > ALDER > BRIN").
+static func target_text(mirror: CombatMirror, mode: int, targets: Array) -> String:
+	if mode == EnemyAttackData.TargetMode.PARTY or targets.is_empty():
+		return "WHOLE PARTY"
+	if mode == EnemyAttackData.TargetMode.SINGLE and targets.size() != 1:
+		return "WHOLE PARTY"
+	var names := PackedStringArray()
+	for id: Variant in targets:
+		names.append(String(mirror.fighter(int(id)).get("display_name", "?")).to_upper())
+	return " > ".join(names)
+
+
 func set_hit_markers(markers: Array[Dictionary]) -> void:
 	_marker_layer.set_markers(markers)
 
@@ -860,11 +873,8 @@ func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 	if intent.is_empty() or not mirror.is_alive(id) or not mirror.result.is_empty():
 		panel.visible = false
 		return
-	var target_text := "WHOLE PARTY"
-	var targets: Array = intent.get("targets", [])
-	if int(intent.get("mode", 0)) != EnemyAttackData.TargetMode.PARTY and targets.size() == 1:
-		target_text = String(mirror.fighter(int(targets[0])).get("display_name", "?")).to_upper()
-	(entry.label as Label).text = "%s -> %s" % [String(intent.get("name", "?")), target_text]
+	var who := target_text(mirror, int(intent.get("mode", 0)), intent.get("targets", []) as Array)
+	(entry.label as Label).text = "%s -> %s" % [String(intent.get("name", "?")), who]
 	var kinds: Array = intent.get("kinds", [])
 	var times: Array = intent.get("times", [])
 	var shown := [kinds, times]

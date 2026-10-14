@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="7_6wn03"]
 [ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="8_hfner"]
 
+[ext_resource type="Resource" path="res://data/encounters/deep_shade_fight.tres" id="deep_enc"]
 [resource]
 script = ExtResource("7_6wn03")
 id = "shade_fight"
@@ -16,3 +17,4 @@ display_name = "Shade"
 party = Array[ExtResource("3_m06fo")]([ExtResource("4_wtjqn"), ExtResource("5_ev15y"), ExtResource("6_pf147")])
 enemies = Array[ExtResource("1_j4fgh")]([ExtResource("2_tok4y")])
 team_ultimate = ExtResource("8_hfner")
+deep = ExtResource("deep_enc")

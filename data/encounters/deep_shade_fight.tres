@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_enemy"]
+[ext_resource type="Resource" path="res://data/enemies/hollow_shade.tres" id="2_hollow_shade"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="5_char"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="6_alder"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="7_brin"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="8_cass"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="9_enc"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="10_ult"]
+
+[resource]
+script = ExtResource("9_enc")
+id = "deep_shade_fight"
+display_name = "Hollow Shade"
+party = Array[ExtResource("5_char")]([ExtResource("6_alder"), ExtResource("7_brin"), ExtResource("8_cass")])
+enemies = Array[ExtResource("1_enemy")]([ExtResource("2_hollow_shade")])
+team_ultimate = ExtResource("10_ult")

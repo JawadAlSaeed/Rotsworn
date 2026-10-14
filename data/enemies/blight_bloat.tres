@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/bloat.tres" id="3_clips"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_belly_slam.tres" id="4_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_rot_wave.tres" id="5_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_double_wave.tres" id="6_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_crush.tres" id="7_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_bile_spit.tres" id="8_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_bile_rain.tres" id="9_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_quake.tres" id="10_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/blight_bile_flood.tres" id="11_atk"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "blight_bloat"
+voice_sfx = "voice_bloat"
+display_name = "Blight Bloat"
+color = Color(0.62, 0.6, 0.25, 1)
+sprite_path = "res://assets/sprites/enemies/blight_bloat.png"
+portrait_path = "res://assets/sprites/portraits/blight_bloat.png"
+sprite_clips = ExtResource("3_clips")
+death_style = 1
+death_color = Color(0.7490196, 0.9098039, 0.36862746, 1)
+idle_cycle_percent = 140
+sprite_pixel_size = 0.045
+hp_percent = 235
+power_percent = 160
+speed = 90
+attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk"), ExtResource("9_atk"), ExtResource("10_atk"), ExtResource("11_atk")])
+gold = 30
+xp = 60

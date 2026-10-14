@@ -22,6 +22,7 @@ GROUPS = [
     ("ui", "Menus and fight flow", "Moving and choosing in menus, your turn, pausing, running away, calibration."),
     ("coop", "Co-op", "Friends joining, leaving and getting ready."),
     ("voices", "Enemy voices", "Each enemy's voice: it plays when the enemy starts an attack, and quieter and higher when it is hit."),
+    ("monsters", "New monsters and attacks", "Phase 12: the Carrion Fly, Rot Hyena and Mire Toad voices, spits, throws, shadow bolts, globs splatting and rock waves."),
     ("backpack", "Backpack and finds", "Picking up, putting down, turning and combining items in the backpack; finding things in zones; opening chests."),
 ]
 

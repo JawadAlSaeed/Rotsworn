@@ -8,6 +8,8 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/husk_rot_combo.tres" id="6_gqtro"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="7_rtdrg"]
 [ext_resource type="Resource" path="res://data/clips/rotten_husk.tres" id="8_clips"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_rock_toss.tres" id="p12_husk_rock_toss"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_stone_spikes.tres" id="p12_husk_stone_spikes"]
 
 [resource]
 script = ExtResource("7_rtdrg")
@@ -22,6 +24,6 @@ death_style = 0
 idle_cycle_percent = 90
 sprite_pixel_size = 0.045
 speed = 200
-attacks = Array[ExtResource("1_wmv88")]([ExtResource("2_cbueq"), ExtResource("3_baxc6"), ExtResource("4_vgvt7"), ExtResource("5_r0fm7"), ExtResource("6_gqtro")])
+attacks = Array[ExtResource("1_wmv88")]([ExtResource("2_cbueq"), ExtResource("3_baxc6"), ExtResource("4_vgvt7"), ExtResource("5_r0fm7"), ExtResource("6_gqtro"), ExtResource("p12_husk_rock_toss"), ExtResource("p12_husk_stone_spikes")])
 gold = 15
 xp = 30

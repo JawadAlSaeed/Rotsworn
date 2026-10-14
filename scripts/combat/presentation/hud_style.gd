@@ -145,8 +145,11 @@ static func make_worn_title(text: String, size: int, color: Color = GOLD) -> Lab
 	return label
 
 
-## The flickering worn-gold look, shared by every title and the chosen menu choices.
+## The flickering worn-gold look, shared by every title and the chosen menu choices. Null (plain
+## gold letters, no static and no brushed streaks) when ui_fonts select_static_percent is 0.
 static func worn_material() -> ShaderMaterial:
+	if fonts().select_static_percent <= 0:
+		return null
 	if _worn_material == null:
 		var look := fonts()
 		_worn_material = ShaderMaterial.new()
@@ -154,6 +157,7 @@ static func worn_material() -> ShaderMaterial:
 		_worn_material.set_shader_parameter("fps", look.select_static_fps)
 		_worn_material.set_shader_parameter("motion", look.select_static_motion)
 		_worn_material.set_shader_parameter("wear", look.select_wear)
+		_worn_material.set_shader_parameter("strength", float(look.select_static_percent) / 100.0)
 	return _worn_material
 
 

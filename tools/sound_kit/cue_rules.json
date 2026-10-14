@@ -835,5 +835,90 @@
   "max_ms": 1400,
   "target_lu": -12.5,
   "new": true
+ },
+ "voice_hyena": {
+  "group": "monsters",
+  "title": "Rot Hyena voice",
+  "plays": "the Rot Hyena starts an attack; quieter and higher when it is hit",
+  "max_rise_ms": 900,
+  "min_ms": 300,
+  "max_ms": 2500,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "voice_toad": {
+  "group": "monsters",
+  "title": "Mire Toad voice",
+  "plays": "the Mire Toad starts an attack; quieter and higher when it is hit",
+  "max_rise_ms": 900,
+  "min_ms": 300,
+  "max_ms": 2500,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "voice_fly": {
+  "group": "monsters",
+  "title": "Carrion Fly voice",
+  "plays": "the Carrion Fly starts an attack; quieter and higher when it is hit",
+  "max_rise_ms": 900,
+  "min_ms": 300,
+  "max_ms": 2500,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "spit": {
+  "group": "monsters",
+  "title": "Spit",
+  "plays": "a monster spits a glob at a hero (bile, maggots, mud)",
+  "max_rise_ms": 150,
+  "min_ms": 150,
+  "max_ms": 800,
+  "target_lu": -14.5,
+  "new": true
+ },
+ "splat": {
+  "group": "monsters",
+  "title": "Glob splat",
+  "plays": "a spat glob hits a hero",
+  "max_rise_ms": 160,
+  "min_ms": 150,
+  "max_ms": 800,
+  "target_lu": -13.5,
+  "new": true,
+  "volume_offset_db": 4.0
+ },
+ "throw": {
+  "group": "monsters",
+  "title": "Throw",
+  "plays": "a monster throws a stone or a cinder at a hero",
+  "max_rise_ms": 450,
+  "min_ms": 200,
+  "max_ms": 800,
+  "target_lu": -14.5,
+  "new": true
+ },
+ "bolt_cast": {
+  "group": "monsters",
+  "title": "Shadow bolt",
+  "plays": "a shade lets a shadow bolt fly",
+  "max_rise_ms": 450,
+  "min_ms": 200,
+  "max_ms": 800,
+  "target_lu": -14.5,
+  "new": true
+ },
+ "rock_rumble": {
+  "group": "monsters",
+  "title": "Rock wave",
+  "plays": "rocks start bursting out of the ground toward the party",
+  "max_rise_ms": 200,
+  "min_ms": 400,
+  "max_ms": 1400,
+  "target_lu": -14.0,
+  "new": true,
+  "volume_offset_db": 3.0
  }
 }

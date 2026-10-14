@@ -766,7 +766,7 @@ func _shipped_attack_damage() -> Dictionary:
 
 func test_shipped_husk_two_attacks_never_kill_and_three_or_four_can() -> void:
 	var damage := _shipped_attack_damage()
-	assert_eq(damage.size(), 5, "five husk attacks")
+	assert_eq(damage.size(), 7, "seven husk attacks (phase 12 added Rock Toss and Stone Spikes)")
 	var values: Array[int] = []
 	for v: Variant in damage.values():
 		values.append(int(v))

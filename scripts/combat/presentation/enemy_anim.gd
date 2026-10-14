@@ -5,8 +5,9 @@ extends RefCounted
 ## time, so a hit-stop freezes the frames exactly like the motion, and contact[0] first shows at the
 ## impact moment the defence is judged against.
 ##
-## Per beat: the wind-up coils (`windup`, or `windup_ground` before a ground hit) over the first
-## enemy_windup_coil_ms of the wind-up, then shivers (`windup_hold`, a loop); a lunge and a feint's
+## Per beat: the wind-up coils (`windup`, `windup_ground` before a ground hit or `windup_shoot`
+## before a throw) over the first enemy_windup_coil_ms of the wind-up, then shivers (`windup_hold`,
+## a loop); a throw shows `shoot` over its beat and idles while it flies; a lunge and a feint's
 ## false start show `lunge` by lunge progress (so a feint looks like a lunge for its first part);
 ## `contact`, `slam` and `slam_recover` spread over their beat; `recoil` and `return` follow their
 ## progress; before and after the attack (and in any idle beat whose clip is missing) the enemy
@@ -25,6 +26,8 @@ const RECOIL := "recoil"
 const RETURN := "return"
 const SLAM := "slam"
 const SLAM_RECOVER := "slam_recover"
+const WINDUP_SHOOT := "windup_shoot"
+const SHOOT := "shoot"
 ## A hit's alternate limb (husk and king alternate claws): odd hits of a string try `<clip>_b`.
 const ALT_SUFFIX := "_b"
 
@@ -47,7 +50,8 @@ static func pick(s: Dictionary, hits: Array, count: Callable, v: CombatVisuals, 
 	match int(s.get("beat", EnemyChoreography.Beat.AFTER)):
 		EnemyChoreography.Beat.WINDUP:
 			var ground := int(hit.get("kind", AttackHitData.Kind.NORMAL)) == AttackHitData.Kind.GROUND
-			return _windup(name_for(WINDUP_GROUND if ground else WINDUP, prefix, alt),
+			var coil := WINDUP_GROUND if ground else (WINDUP_SHOOT if EnemyChoreography.is_ranged(hit) else WINDUP)
+			return _windup(name_for(coil, prefix, alt),
 					name_for(WINDUP_HOLD, prefix, alt), count, beat_ms, beat_len, v)
 		EnemyChoreography.Beat.FEINT_HOLD:
 			return _loop(name_for(WINDUP_HOLD, prefix, alt), count, beat_ms, float(v.enemy_windup_shiver_ms), {})
@@ -64,6 +68,10 @@ static func pick(s: Dictionary, hits: Array, count: Callable, v: CombatVisuals, 
 			return _spread(name_for(CONTACT, prefix, alt), count, beat_ms, beat_len, {})
 		EnemyChoreography.Beat.SLAM:
 			return _spread(name_for(SLAM, prefix, alt), count, beat_ms, beat_len, {})
+		EnemyChoreography.Beat.SHOOT:
+			return _spread(name_for(SHOOT, prefix, alt), count, beat_ms, beat_len, {})
+		EnemyChoreography.Beat.FLIGHT:
+			return idle
 		EnemyChoreography.Beat.GROUND_WAIT:
 			return _spread(name_for(SLAM_RECOVER, prefix, alt), count, beat_ms, beat_len, idle)
 		EnemyChoreography.Beat.RECOIL:

@@ -44,8 +44,9 @@ func _declared_attacks() -> Array[Dictionary]:
 			continue
 		var attack := load(ATTACK_DIR.path_join(file)) as EnemyAttackData
 		var declared := Fx.first_of(CombatEngine.new(Fx.setup([attack])).start(), "timed_sequence_declared")
-		list.append({"name": attack.id,
-				"hits": EnemyChoreography.with_close_times(declared.hits as Array, declared.prompts as Array, LATENCY_MS)})
+		var hits := EnemyChoreography.with_close_times(declared.hits as Array, declared.prompts as Array, LATENCY_MS)
+		EnemyChoreography.add_hit_data(hits, attack)
+		list.append({"name": attack.id, "hits": hits})
 	return list
 
 
@@ -78,7 +79,7 @@ func test_contact_cell_0_shows_at_impact_and_the_last_lunge_cell_just_before() -
 		var hits: Array = a.hits
 		for i: int in hits.size():
 			var hit: Dictionary = hits[i]
-			if int(hit.kind) != AttackHitData.Kind.NORMAL:
+			if int(hit.kind) != AttackHitData.Kind.NORMAL or EnemyChoreography.is_ranged(hit):
 				continue
 			var at := float(hit.at_ms)
 			var label := "%s hit %d" % [a.name, i]

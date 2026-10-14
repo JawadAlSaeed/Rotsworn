@@ -21,6 +21,8 @@ extends RefCounted
 ##   --leave-after=S                 (with --join) leave the game after S seconds and quit
 ##   --shots=S                       save a picture of the window every S seconds (dev tool)
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice
+##   --attacks=ID,ID,...             (practice fights) the enemy uses these attacks in this order,
+##                                   round and round (dev tool, for pictures of one move)
 
 const AUTOPLAY_PERFECT := "perfect"
 const AUTOPLAY_MISS := "miss"
@@ -55,6 +57,8 @@ var bot_skill: int = DEFAULT_BOT_SKILL
 ## --shots=S (0: no pictures) and --screen=NAME ("" : the normal start).
 var shots_every_s: float = 0.0
 var screen: String = ""
+## --attacks=ID,ID,... (empty: the enemy picks as always).
+var forced_attacks: PackedStringArray = PackedStringArray()
 ## Session toggles (F1 overlay; not saved): telegraph flash (G), timing readout (T), the
 ## enemy's motion sounds (L: lunge whoosh and slam), hit markers (H), the wind-up crouch (C) and
 ## the cinematic camera (V).
@@ -109,6 +113,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.shots_every_s = maxf(0.0, arg.substr("--shots=".length()).to_float())
 		elif arg.begins_with("--screen="):
 			options.screen = arg.substr("--screen=".length())
+		elif arg.begins_with("--attacks="):
+			options.forced_attacks = arg.substr("--attacks=".length()).split(",", false)
 		elif arg.begins_with("--join="):
 			options.join_address = arg.substr("--join=".length())
 		elif arg.begins_with("--players="):

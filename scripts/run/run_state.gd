@@ -231,6 +231,11 @@ func go(id: int) -> bool:
 	return true
 
 
+## True when the current stop is deep enough for variant monsters (tuning run_deep_row).
+func is_deep() -> bool:
+	return int(current().get("row", 0)) >= tuning.run_deep_row
+
+
 ## The zone of a zone stop (null for other stops).
 func zone_of(stop: Dictionary) -> ZoneData:
 	var index := int(stop.get("zone", -1))

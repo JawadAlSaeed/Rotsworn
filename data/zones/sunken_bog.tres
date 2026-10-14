@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_n6mcy"]
 [ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="2_jypso"]
-[ext_resource type="Resource" path="res://data/encounters/gnat_pair.tres" id="3_d0j50"]
+[ext_resource type="Resource" path="res://data/encounters/fly_pair.tres" id="3_d0j50"]
 [ext_resource type="Resource" path="res://data/encounters/husk_fight.tres" id="4_crqsi"]
-[ext_resource type="Resource" path="res://data/encounters/bloat_fight.tres" id="5_0fs8u"]
-[ext_resource type="Resource" path="res://data/encounters/husk_and_gnat.tres" id="6_flt1c"]
+[ext_resource type="Resource" path="res://data/encounters/toad_fight.tres" id="5_0fs8u"]
+[ext_resource type="Resource" path="res://data/encounters/toad_and_fly.tres" id="6_flt1c"]
 [ext_resource type="Resource" path="res://data/characters/brin.tres" id="7_fpga6"]
 [ext_resource type="Script" path="res://scripts/data/zone_light_data.gd" id="8_kdxmu"]
 [ext_resource type="Resource" path="res://data/looks/sunken_bog.tres" id="9_7dio0"]

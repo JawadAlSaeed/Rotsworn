@@ -11,6 +11,14 @@ enum Kind {
 	PRESS,
 }
 
+## How a ground hit looks on its way to the party (DESIGN.md 3.10). Presentation only.
+enum GroundLook {
+	## A shockwave front parallel to the party line.
+	WAVE,
+	## Rocks bursting out of the ground in a lane toward each target, the last row under them.
+	ROCKS,
+}
+
 ## When the hit lands, in milliseconds after the attack starts (scaled by tuning attack_tempo_percent).
 @export_range(0, 20000, 1, "suffix:ms") var impact_ms: int = 1000
 @export var kind: Kind = Kind.NORMAL
@@ -21,6 +29,11 @@ enum Kind {
 @export_range(50, 3000, 1, "suffix:ms") var approach_ms: int = 200
 ## Fake-out: the enemy starts a lunge early, stops, and holds before the real one.
 @export var feint: bool = false
+## Normal hits: what the enemy throws instead of lunging (null = a lunge). It flies for
+## approach_ms and arrives at impact (DESIGN.md 3.9). Presentation only.
+@export var projectile: ProjectileData
+## Ground hits: how the attack travels along the floor.
+@export var ground_look: GroundLook = GroundLook.WAVE
 ## Sound cue played if the hit connects.
 @export var impact_sfx: String = "hurt"
 ## Animation prefix for this hit's enemy clips (presentation only, DESIGN.md 5.5): `<anim>_lunge`

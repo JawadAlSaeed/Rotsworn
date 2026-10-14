@@ -1,0 +1,377 @@
+{
+ "voice_hyena": {
+  "a": {
+   "name": "Hyena laugh",
+   "desc": "The real thing: a short, mad hyena giggle.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-680846.mp3",
+     "credit": "\"HyenaLaugh3.wav\" by sounagix, CC0, https://freesound.org/people/sounagix/sounds/680846/"
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Hyena moan",
+   "desc": "A whining, hungry hyena moan.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-681388.mp3",
+     "credit": "\"Hyena Moan 1\" by sounagix, CC0, https://freesound.org/people/sounagix/sounds/681388/"
+    }
+   ],
+   "len_ms": 1000,
+   "fade_ms": 250
+  },
+  "c": {
+   "name": "Goblin cackle",
+   "desc": "A nasty little cackle, a bit lower.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-202096.mp3",
+     "credit": "\"Goblin Cackle.wav\" by spookymodem, CC0, https://freesound.org/people/spookymodem/sounds/202096/",
+     "start_ms": 350,
+     "fade_in_ms": 20,
+     "pitch": -3
+    }
+   ],
+   "len_ms": 1200,
+   "fade_ms": 300
+  }
+ },
+ "voice_toad": {
+  "a": {
+   "name": "Monster croak",
+   "desc": "A long, wet monster croak.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-582914.mp3",
+     "credit": "\"monster croak\" by birdOfTheNorth, CC0, https://freesound.org/people/birdOfTheNorth/sounds/582914/",
+     "start_ms": 100,
+     "fade_in_ms": 20
+    }
+   ],
+   "len_ms": 1400,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Deep croak",
+   "desc": "A frog croak pitched way down, slow and heavy.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-502531.mp3",
+     "credit": "\"Croak Sound Effect\" by mdfrenchij, CC0, https://freesound.org/people/mdfrenchij/sounds/502531/",
+     "start_ms": 600,
+     "fade_in_ms": 30,
+     "pitch": -5
+    }
+   ],
+   "len_ms": 1000,
+   "fade_ms": 250
+  },
+  "c": {
+   "name": "Giant frog",
+   "desc": "A short frog ribbit made huge (pitched down).",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-536759.mp3",
+     "credit": "\"Frog.ogg\" by egomassive, CC0, https://freesound.org/people/egomassive/sounds/536759/",
+     "pitch": -8
+    }
+   ],
+   "len_ms": 700,
+   "fade_ms": 200
+  }
+ },
+ "voice_fly": {
+  "a": {
+   "name": "Beetle squawk",
+   "desc": "A short, dry insect squawk (no long buzz).",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-502211.mp3",
+     "credit": "\"Beetle Squark5.wav\" by warrenXG, CC0, https://freesound.org/people/warrenXG/sounds/502211/"
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 120
+  },
+  "b": {
+   "name": "Fat fly",
+   "desc": "A quick, low fly buzz, cut short.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-670771.mp3",
+     "credit": "\"Fly.wav\" by JanzigDoplin, CC0, https://freesound.org/people/JanzigDoplin/sounds/670771/",
+     "pitch": -5
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 200
+  },
+  "c": {
+   "name": "Scarab clicks",
+   "desc": "Clicking, rattling insect mouthparts.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-348204.mp3",
+     "credit": "\"scarab.wav\" by konstantinusz, CC0, https://freesound.org/people/konstantinusz/sounds/348204/"
+    }
+   ],
+   "len_ms": 700,
+   "fade_ms": 200
+  }
+ },
+ "spit": {
+  "a": {
+   "name": "Quick spit",
+   "desc": "A short, sharp spit.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-667113.mp3",
+     "credit": "\"Spit.wav\" by saha213131, CC0, https://freesound.org/people/saha213131/sounds/667113/",
+     "start_ms": 900,
+     "fade_in_ms": 10
+    }
+   ],
+   "len_ms": 300,
+   "fade_ms": 80
+  },
+  "b": {
+   "name": "Monster spit",
+   "desc": "A gross, gurgling monster spit.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-676316.mp3",
+     "credit": "\"gross monster spitting / belching effect 01\" by rubberduck9999, CC0, https://freesound.org/people/rubberduck9999/sounds/676316/",
+     "start_ms": 150,
+     "fade_in_ms": 10,
+     "highpass_hz": 120
+    }
+   ],
+   "len_ms": 550,
+   "fade_ms": 150
+  },
+  "c": {
+   "name": "Wet spit",
+   "desc": "A wet spit with a little whoosh.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-155900.mp3",
+     "credit": "\"Spit2.wav\" by tiptoe84, CC0, https://freesound.org/people/tiptoe84/sounds/155900/",
+     "start_ms": 2400,
+     "fade_in_ms": 10
+    },
+    {
+     "sound": "reverse/fs-446010-backwards-whoosh-1",
+     "gain_db": -10,
+     "len_ms": 400
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 120
+  }
+ },
+ "splat": {
+  "a": {
+   "name": "Mud splat",
+   "desc": "A short, thick splat.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-445109.mp3",
+     "credit": "\"Mud Splat\" by Breviceps, CC0, https://freesound.org/people/Breviceps/sounds/445109/"
+    }
+   ],
+   "len_ms": 300,
+   "fade_ms": 80
+  },
+  "b": {
+   "name": "Slug splat",
+   "desc": "A squishy, wet splat.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-447930.mp3",
+     "credit": "\"Step on a slug (Splat!) 2\" by Breviceps, CC0, https://freesound.org/people/Breviceps/sounds/447930/"
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 200
+  },
+  "c": {
+   "name": "Slime hit",
+   "desc": "A slimy slap.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-433839.mp3",
+     "credit": "\"Slime 28.wav\" by Archos, CC0, https://freesound.org/people/Archos/sounds/433839/",
+     "start_ms": 50,
+     "fade_in_ms": 10
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 150
+  }
+ },
+ "throw": {
+  "a": {
+   "name": "Thrown object",
+   "desc": "Something heavy thrown through the air.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "hit/fs-272065-thrown-object-3"
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 150
+  },
+  "b": {
+   "name": "Deep whoosh",
+   "desc": "A deep whoosh of a big throw.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "boom/fs-569417-sfx-whoosh-deep-vent-1-1-wav-3",
+     "len_ms": 500
+    }
+   ],
+   "len_ms": 500,
+   "fade_ms": 200
+  },
+  "c": {
+   "name": "Rising whoosh",
+   "desc": "A whoosh that swells as it leaves the hand.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "reverse/fs-446010-backwards-whoosh-1",
+     "len_ms": 500
+    }
+   ],
+   "len_ms": 500,
+   "fade_ms": 150
+  }
+ },
+ "bolt_cast": {
+  "a": {
+   "name": "Dark swell",
+   "desc": "A short dark whoosh that sucks in, then lets go.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "reverse/fs-446010-backwards-whoosh-1",
+     "pitch": -5,
+     "len_ms": 500
+    }
+   ],
+   "len_ms": 500,
+   "fade_ms": 150
+  },
+  "b": {
+   "name": "Bright whoosh",
+   "desc": "A higher, quicker magic whoosh.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "boom/fs-569414-sfx-whoosh-deep-vent-1-12-wa-2",
+     "pitch": 3,
+     "len_ms": 450
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 150
+  },
+  "c": {
+   "name": "Dark crescendo",
+   "desc": "A low, magic rumble swelling as the bolt leaves.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "hit/fs-578575-dark-crescendo-2-3",
+     "len_ms": 600
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 200
+  }
+ },
+ "rock_rumble": {
+  "a": {
+   "name": "Rock crumble",
+   "desc": "Stones grinding and cracking out of the ground, over a low rumble.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-391919.mp3",
+     "credit": "\"PiedraDesmoronandose.wav\" by Trancox, CC0, https://freesound.org/people/Trancox/sounds/391919/",
+     "len_ms": 900
+    },
+    {
+     "sound": "boom/fs-569417-sfx-whoosh-deep-vent-1-1-wav-3",
+     "len_ms": 800,
+     "lowpass_hz": 700,
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 300
+  },
+  "b": {
+   "name": "Rock break",
+   "desc": "A crack and a spill of rubble over a low rumble.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase12/fs-262118.mp3",
+     "credit": "\"Kirkstall Rock Crumble .wav\" by rokenjocu, CC0, https://freesound.org/people/rokenjocu/sounds/262118/"
+    },
+    {
+     "sound": "boom/fs-569417-sfx-whoosh-deep-vent-1-1-wav-3",
+     "len_ms": 1000,
+     "lowpass_hz": 700,
+     "gain_db": -4
+    }
+   ],
+   "len_ms": 1200,
+   "fade_ms": 400
+  },
+  "c": {
+   "name": "Deep rumble",
+   "desc": "Rocks grinding with a deep boom under them.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "boom/fs-569417-sfx-whoosh-deep-vent-1-1-wav-3",
+     "len_ms": 800,
+     "lowpass_hz": 900
+    },
+    {
+     "sound": "audio/search/phase12/fs-391919.mp3",
+     "credit": "\"PiedraDesmoronandose.wav\" by Trancox, CC0, https://freesound.org/people/Trancox/sounds/391919/",
+     "start_ms": 650,
+     "fade_in_ms": 20,
+     "len_ms": 900,
+     "gain_db": -3
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 300
+  }
+ }
+}

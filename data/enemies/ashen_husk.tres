@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/rotten_husk.tres" id="3_clips"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_swipe.tres" id="4_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_flurry.tres" id="5_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_lingering_claw.tres" id="6_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_ground_slam.tres" id="7_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_rot_combo.tres" id="8_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_rock_toss.tres" id="9_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_stone_spikes.tres" id="10_atk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/ashen_cinder_hail.tres" id="11_atk"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "ashen_husk"
+voice_sfx = "voice_husk"
+display_name = "Ashen Husk"
+color = Color(0.55, 0.53, 0.52, 1)
+sprite_path = "res://assets/sprites/enemies/ashen_husk.png"
+portrait_path = "res://assets/sprites/portraits/ashen_husk.png"
+sprite_clips = ExtResource("3_clips")
+death_style = 0
+death_color = Color(0.94, 0.48, 0.21, 1)
+idle_cycle_percent = 90
+sprite_pixel_size = 0.045
+hp_percent = 130
+power_percent = 115
+speed = 210
+attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk"), ExtResource("9_atk"), ExtResource("10_atk"), ExtResource("11_atk")])
+gold = 22
+xp = 45
