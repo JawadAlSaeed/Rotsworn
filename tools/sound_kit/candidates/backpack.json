@@ -1,0 +1,444 @@
+{
+ "item_lift": {
+  "a": {
+   "name": "Cloth rustle",
+   "desc": "A quick rustle, like lifting something out of a cloth bag.",
+   "note": "Kenney cloth2, the first rustle only.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/cloth2.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 240,
+     "start_ms": 106,
+     "fade_in_ms": 6
+    }
+   ],
+   "len_ms": 240,
+   "fade_ms": 80
+  },
+  "b": {
+   "name": "Leather grab",
+   "desc": "A hand closing on a small leather thing.",
+   "note": "Kenney handleSmallLeather.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/handleSmallLeather.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 200,
+     "start_ms": 120,
+     "fade_in_ms": 3
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 70
+  },
+  "c": {
+   "name": "Belt and buckle",
+   "desc": "A strap shifting with a faint buckle clink.",
+   "note": "Kenney beltHandle1.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/beltHandle1.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 165,
+     "start_ms": 105,
+     "fade_in_ms": 3
+    }
+   ],
+   "len_ms": 165,
+   "fade_ms": 60
+  }
+ },
+ "item_place": {
+  "a": {
+   "name": "Soft thump",
+   "desc": "Something set down on cloth with a soft, dull thump.",
+   "note": "Kenney bookPlace1 (a book laid down).",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/bookPlace1.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 200,
+     "start_ms": 62,
+     "fade_in_ms": 3
+    }
+   ],
+   "len_ms": 200,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Leather pouch",
+   "desc": "A small leather pouch dropped into place.",
+   "note": "Kenney dropLeather, a little darker.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/dropLeather.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 280,
+     "gain_db": -2,
+     "lowpass_hz": 6000,
+     "start_ms": 118,
+     "fade_in_ms": 3
+    }
+   ],
+   "len_ms": 280,
+   "fade_ms": 80
+  },
+  "c": {
+   "name": "Set down",
+   "desc": "A light tap of something set neatly in its spot.",
+   "note": "Kenney card-place-1 with a soft impact under it.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/casino-audio/card-place-1.ogg",
+     "credit": "Kenney (kenney.nl), Casino Audio, CC0, https://kenney.nl/assets/casino-audio",
+     "len_ms": 240
+    },
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactSoft_medium_000.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "gain_db": -6
+    }
+   ],
+   "len_ms": 240,
+   "fade_ms": 70
+  }
+ },
+ "item_turn": {
+  "a": {
+   "name": "Cloth flip",
+   "desc": "A quick little cloth flip.",
+   "note": "Kenney cloth4, short and a little higher.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/cloth4.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 170,
+     "pitch": 2,
+     "start_ms": 82,
+     "fade_in_ms": 3
+    }
+   ],
+   "len_ms": 170,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Page flick",
+   "desc": "A short page-turn flick.",
+   "note": "A page turn, very short.",
+   "layers": [
+    {
+     "sound": "paper/fs-614080-page-turn-2-2"
+    }
+   ],
+   "len_ms": 100,
+   "fade_ms": 30
+  },
+  "c": {
+   "name": "Paper slide",
+   "desc": "A quick paper slide.",
+   "note": "A short page slide.",
+   "layers": [
+    {
+     "sound": "paper/fs-484920-page-slides-1-3"
+    }
+   ],
+   "len_ms": 90,
+   "fade_ms": 30
+  }
+ },
+ "item_no_room": {
+  "a": {
+   "name": "Dull knock",
+   "desc": "A dull wooden knock: it does not fit.",
+   "note": "Kenney impactWood_light, low and muffled.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactWood_light_000.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "len_ms": 170,
+     "pitch": -3,
+     "lowpass_hz": 2500
+    }
+   ],
+   "len_ms": 160,
+   "fade_ms": 60
+  },
+  "b": {
+   "name": "Muffled bump",
+   "desc": "A soft bump against something full.",
+   "note": "Kenney impactSoft_medium, lower.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactSoft_medium_000.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "pitch": -4,
+     "highpass_hz": 80
+    }
+   ],
+   "len_ms": 130,
+   "fade_ms": 60
+  },
+  "c": {
+   "name": "Stuck buckle",
+   "desc": "A buckle that will not close.",
+   "note": "Kenney metalClick, low and muffled.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/metalClick.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 150,
+     "pitch": -4,
+     "lowpass_hz": 3000,
+     "start_ms": 96,
+     "fade_in_ms": 2
+    }
+   ],
+   "len_ms": 150,
+   "fade_ms": 50
+  }
+ },
+ "item_drop": {
+  "a": {
+   "name": "Tossed pouch",
+   "desc": "A small pouch tossed away onto the ground.",
+   "note": "Kenney dropLeather, lower.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/dropLeather.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 360,
+     "pitch": -3,
+     "start_ms": 118,
+     "fade_in_ms": 3
+    }
+   ],
+   "len_ms": 360,
+   "fade_ms": 120
+  },
+  "b": {
+   "name": "Heavy thud",
+   "desc": "A heavier thing dropped on soft ground.",
+   "note": "Kenney impactSoft_heavy.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/impact-sounds/impactSoft_heavy_000.ogg",
+     "credit": "Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds",
+     "len_ms": 420
+    }
+   ],
+   "len_ms": 400,
+   "fade_ms": 140
+  },
+  "c": {
+   "name": "Book thump and rustle",
+   "desc": "A heavy little thump with a rustle.",
+   "note": "Kenney bookPlace2 from its hit, then cloth4, quieter.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/bookPlace2.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 76,
+     "fade_in_ms": 3,
+     "pitch": -3
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/cloth4.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 82,
+     "at_ms": 40,
+     "len_ms": 200,
+     "fade_in_ms": 3,
+     "gain_db": -8
+    }
+   ],
+   "len_ms": 330,
+   "fade_ms": 100
+  }
+ },
+ "item_found": {
+  "a": {
+   "name": "Coins and cloth",
+   "desc": "A little clink of coins with a cloth rustle: something picked up.",
+   "note": "Kenney handleCoins2 over a quiet cloth2.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/handleCoins2.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 270,
+     "start_ms": 70,
+     "fade_in_ms": 3
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/cloth2.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 200,
+     "gain_db": -8,
+     "start_ms": 100,
+     "fade_in_ms": 3
+    }
+   ],
+   "len_ms": 280,
+   "fade_ms": 100
+  },
+  "b": {
+   "name": "Glass ding",
+   "desc": "A small, clear glass ding over a rustle.",
+   "note": "A glass ding over Kenney cloth2.",
+   "layers": [
+    {
+     "sound": "chime/fs-404104-glass-ding-1",
+     "len_ms": 460
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/cloth2.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 260,
+     "gain_db": -6
+    }
+   ],
+   "len_ms": 460,
+   "fade_ms": 160
+  },
+  "c": {
+   "name": "Grab and bell",
+   "desc": "A leather grab, then a tiny bell.",
+   "note": "Kenney handleSmallLeather, then a short ding.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/handleSmallLeather.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 200,
+     "start_ms": 120,
+     "fade_in_ms": 3
+    },
+    {
+     "sound": "chime/fs-515643-ding2-wav-1",
+     "at_ms": 80,
+     "gain_db": -5
+    }
+   ],
+   "len_ms": 300,
+   "fade_ms": 100
+  }
+ },
+ "item_combine": {
+  "a": {
+   "name": "Latch and ding",
+   "desc": "A metal latch snapping shut, then a ding.",
+   "note": "Kenney metalLatch, then a quiet glass ding.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/metalLatch.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 40,
+     "fade_in_ms": 2
+    },
+    {
+     "sound": "chime/fs-404104-glass-ding-2",
+     "at_ms": 40,
+     "gain_db": -9
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Bright chime",
+   "desc": "One bright bell ding: it got better.",
+   "note": "A single bright ding.",
+   "layers": [
+    {
+     "sound": "chime/fs-159011-ding2-wav-1",
+     "len_ms": 900
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 300
+  },
+  "c": {
+   "name": "Pop and shimmer",
+   "desc": "A soft pop, then a ringing ding.",
+   "note": "A bloop pop, then a ding 60 ms later.",
+   "layers": [
+    {
+     "sound": "pop/fs-242113-pop-or-bloop-1"
+    },
+    {
+     "sound": "chime/fs-127149-ding-wav-1",
+     "at_ms": 60,
+     "gain_db": -3
+    }
+   ],
+   "len_ms": 800,
+   "fade_ms": 250
+  }
+ },
+ "chest_open": {
+  "a": {
+   "name": "Latch and creak",
+   "desc": "A latch clicks, then the wooden lid creaks open.",
+   "note": "Kenney metalLatch, then creak1.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/metalLatch.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "len_ms": 200
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/creak1.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "at_ms": 120,
+     "len_ms": 620
+    }
+   ],
+   "len_ms": 760,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Heavy lid",
+   "desc": "A heavy wooden lid swings up and bumps back.",
+   "note": "Kenney doorOpen_1 from its first creak, then a chest-lid knock.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/doorOpen_1.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 185,
+     "len_ms": 650,
+     "fade_in_ms": 4
+    },
+    {
+     "sound": "hit/fs-369988-lid-of-chest-hitting-norther-3",
+     "at_ms": 560,
+     "gain_db": -12
+    }
+   ],
+   "len_ms": 950,
+   "fade_ms": 250
+  },
+  "c": {
+   "name": "Creak and coins",
+   "desc": "A short creak, then coins inside.",
+   "note": "Kenney creak3, then handleCoins.",
+   "layers": [
+    {
+     "sound": "audio/kenney_full/rpg-audio/creak3.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 85,
+     "len_ms": 250,
+     "fade_in_ms": 3
+    },
+    {
+     "sound": "audio/kenney_full/rpg-audio/handleCoins.ogg",
+     "credit": "Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio",
+     "start_ms": 145,
+     "at_ms": 200,
+     "len_ms": 650,
+     "gain_db": -5
+    }
+   ],
+   "len_ms": 900,
+   "fade_ms": 250
+  }
+ }
+}

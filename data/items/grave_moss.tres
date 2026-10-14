@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_3c0hp"]
+
+[resource]
+script = ExtResource("1_3c0hp")
+id = "grave_moss"
+display_name = "Grave Moss"
+description = "Every hero starts each fight with +2 AP. Rotten: every hero loses 2% HP each turn."
+kind = 1
+rarity = 1
+price = 0
+shape = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0)])
+find_weight = 2
+use_on_map = false
+family = 3
+charm_effect = 3
+charm_amount = 2
+rotten = true
+rot_percent = 2
+icon_path = "res://assets/sprites/items/grave_moss.png"

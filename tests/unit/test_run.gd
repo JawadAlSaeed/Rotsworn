@@ -178,37 +178,44 @@ func test_rest_heals_a_share_of_max_hp() -> void:
 	assert_eq(healed[2], 0)
 
 
-func test_shop_items_cost_gold_and_do_what_they_say() -> void:
+func test_shop_items_cost_gold_and_do_what_they_say_when_used() -> void:
 	var run := _run()
-	var salve := _item(ShopItemData.Effect.HEAL_ONE)
-	var feast := _item(ShopItemData.Effect.HEAL_ALL)
-	var tonic := _item(ShopItemData.Effect.MAX_HP_ONE)
+	var salve := _item(ItemData.Effect.HEAL_ONE)
+	var feast := _item(ItemData.Effect.HEAL_ALL)
+	var tonic := _item(ItemData.Effect.MAX_HP_ONE)
 	run.gold = 0
 	run.hp[0] = 1
-	assert_false(run.buy(salve, 0), "no gold, no salve")
-	assert_eq(run.hp[0], 1)
+	assert_false(run.pay_for(salve), "no gold, no salve")
 	run.gold = salve.price + feast.price + tonic.price
-	assert_true(run.buy(salve, 0))
+	assert_true(run.pay_for(salve))
+	var uid := run.add_item(salve)
+	assert_gte(uid, 0, "a bought item goes into the backpack")
+	assert_eq(run.hp[0], 1, "it does nothing until used")
+	assert_false(run.use_item(uid, -1), "a salve needs someone picked")
+	assert_true(run.use_item(uid, 0))
 	assert_eq(run.hp[0], 1 + CombatMath.percent(run.max_hp(0), salve.amount_percent))
+	assert_false(run.backpack.has_uid(uid), "used up")
 	run.hp[1] = 1
 	run.hp[2] = 1
-	assert_true(run.buy(feast, -1), "a feast needs nobody picked")
+	assert_true(run.pay_for(feast))
+	assert_true(run.use_item(run.add_item(feast), -1), "a feast needs nobody picked")
 	assert_eq(run.hp[2], 1 + CombatMath.percent(run.max_hp(2), feast.amount_percent))
 	var before_max := run.max_hp(1)
 	var before_hp := run.hp[1]
-	assert_true(run.buy(tonic, 1))
+	assert_true(run.pay_for(tonic))
+	assert_true(run.use_item(run.add_item(tonic), 1))
 	assert_eq(run.max_hp(1), CombatMath.percent_min1(before_max, 100 + tonic.amount_percent))
 	assert_eq(run.hp[1], before_hp + run.max_hp(1) - before_max, "the new HP is filled")
 	assert_eq(run.gold, 0)
-	assert_false(run.can_buy(salve, 0))
+	assert_false(run.can_afford(salve))
 
 
-func _item(effect: ShopItemData.Effect) -> ShopItemData:
-	for item: ShopItemData in _data.shop_items:
+func _item(effect: ItemData.Effect) -> ItemData:
+	for item: ItemData in _data.shop_items:
 		if item.effect == effect:
 			return item
 	fail_test("the shipped shop sells effect %d" % effect)
-	return ShopItemData.new()
+	return ItemData.new()
 
 
 func test_fights_start_with_the_runs_hp_and_max_hp() -> void:
@@ -239,7 +246,7 @@ func test_shipped_run_is_complete() -> void:
 	assert_not_null(_data.final_look)
 	assert_gte(_data.zones.size(), 3, "three zones to pick from")
 	assert_gt(_data.shop_items.size(), 0)
-	for item: ShopItemData in _data.shop_items:
+	for item: ItemData in _data.shop_items:
 		assert_gt(item.price, 0, "%s costs something" % item.id)
 	for zone: ZoneData in _data.zones:
 		var guards := 0

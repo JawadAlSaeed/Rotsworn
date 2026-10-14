@@ -69,5 +69,13 @@
  "voice_king": "a",
  "shout_alder": "a",
  "shout_brin": "a",
- "shout_cass": "a"
+ "shout_cass": "a",
+ "item_lift": "c",
+ "item_place": "a",
+ "item_turn": "c",
+ "item_no_room": "a",
+ "item_drop": "a",
+ "item_found": "a",
+ "item_combine": "c",
+ "chest_open": "a"
 }

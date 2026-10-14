@@ -7,5 +7,6 @@ script = ExtResource("1_dnt6v")
 id = "keen_eye"
 display_name = "Keen Eye"
 description = "Perfect skill presses deal +25%."
+rarity = 1
 effect = 8
 amount = 25

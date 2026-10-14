@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_kik33"]
+
+[resource]
+script = ExtResource("1_kik33")
+id = "bone_totem"
+display_name = "Bone Totem"
+description = "Bone charms touching it work 50% better."
+kind = 1
+rarity = 1
+price = 90
+shape = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2)])
+find_weight = 3
+use_on_map = false
+family = 2
+boost_family = 2
+boost_percent = 50
+icon_path = "res://assets/sprites/items/bone_totem.png"

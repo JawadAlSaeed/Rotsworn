@@ -25,6 +25,10 @@ var intents: Dictionary = {}
 var practice: Dictionary = {"invulnerable_party": false, "immortal_enemies": false, "force_attack": ""}
 var practice_allowed: bool = false
 var seed_value: int = 0
+## Backpack items not used yet (DESIGN.md 8.1): uid -> CombatEngine.item_info() data.
+var items: Dictionary = {}
+## The uids used so far, in order (the run takes them out of the backpack afterwards).
+var used_items: Array[int] = []
 
 
 func apply(event: Dictionary) -> void:
@@ -35,6 +39,11 @@ func apply(event: Dictionary) -> void:
 			enemy_ids.clear()
 			seed_value = int(event.seed)
 			practice_allowed = bool(event.practice_allowed)
+			items.clear()
+			used_items.clear()
+			for info: Variant in event.get("items", []):
+				if info is Dictionary:
+					items[int((info as Dictionary).uid)] = (info as Dictionary).duplicate()
 			for d: Dictionary in event.fighters:
 				var f := {
 					"id": int(d.id),
@@ -107,6 +116,9 @@ func apply(event: Dictionary) -> void:
 			if _is_current(event):
 				for idx: int in event.prompts:
 					sequence.states[idx] = CombatEngine.PromptState.VOID
+		"item_used":
+			items.erase(int(event.uid))
+			used_items.append(int(event.uid))
 		"turn_ended":
 			if active_actor == int(event.actor):
 				active_actor = -1
@@ -167,8 +179,10 @@ func projection() -> Dictionary:
 		hp[id] = int(fighters[id].hp)
 		ap[id] = int(fighters[id].ap)
 		statuses[id] = (fighters[id].statuses as Dictionary).duplicate(true)
+	var left: Array = items.keys()
+	left.sort()
 	return {"hp": hp, "ap": ap, "statuses": statuses, "team_gauge": team_gauge, "result": result,
-			"practice": practice.duplicate()}
+			"practice": practice.duplicate(), "items_left": left}
 
 
 ## The same projection taken from CombatEngine.snapshot(), for tests.
@@ -180,8 +194,10 @@ static func project_snapshot(snap: Dictionary) -> Dictionary:
 		hp[int(d.id)] = int(d.hp)
 		ap[int(d.id)] = int(d.ap)
 		statuses[int(d.id)] = (d.statuses as Dictionary).duplicate(true)
+	var left: Array = (snap.get("items_left", []) as Array).duplicate()
+	left.sort()
 	return {"hp": hp, "ap": ap, "statuses": statuses, "team_gauge": int(snap.team_gauge),
-			"result": String(snap.result), "practice": (snap.practice as Dictionary).duplicate()}
+			"result": String(snap.result), "practice": (snap.practice as Dictionary).duplicate(), "items_left": left}
 
 
 func _set_hp(id: int, hp: int) -> void:

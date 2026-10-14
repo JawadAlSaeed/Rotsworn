@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_hfo6g"]
+
+[resource]
+script = ExtResource("1_hfo6g")
+id = "smelling_salts"
+display_name = "Smelling Salts"
+description = "In a fight: wakes a downed hero with 40% of their HP."
+rarity = 1
+price = 60
+effect = 5
+amount_percent = 40
+find_weight = 4
+use_on_map = false
+use_in_fight = true
+icon_path = "res://assets/sprites/items/smelling_salts.png"

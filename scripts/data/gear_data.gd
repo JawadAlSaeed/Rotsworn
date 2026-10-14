@@ -44,10 +44,45 @@ const PASSIVE_KEYS := {
 @export var id: String = ""
 @export var display_name: String = ""
 @export_multiline var description: String = ""
-## Shop price (gold).
+## Shop price (gold). Swapped out for new gear, it sells for tuning.item_sell_percent of this.
 @export_range(0, 10000) var price: int = 60
+## Common, rare or legendary (ItemData.Rarity): its name's colour, and how often loot offers it
+## (rarer gear turns up more the deeper the run goes, DESIGN.md 8.1).
+@export var rarity: ItemData.Rarity = ItemData.Rarity.COMMON
 @export var effect: Effect = Effect.MAX_HP
 @export_range(1, 1000) var amount: int = 10
+
+
+## What an effect of `amount` does, in a few words ("Power +5%"), for charms and gear.
+static func effect_text(effect: Effect, amount: int) -> String:
+	match effect:
+		Effect.MAX_HP:
+			return "Max HP +%d%%" % amount
+		Effect.POWER:
+			return "Power +%d%%" % amount
+		Effect.SPEED:
+			return "Speed +%d" % amount
+		Effect.START_AP:
+			return "+%d AP at fight start" % amount
+		Effect.AP_ON_COUNTER:
+			return "+%d AP per counter" % amount
+		Effect.HEAL_ON_JUMP:
+			return "Perfect jumps heal %d%%" % amount
+		Effect.COUNTER:
+			return "Counters +%d%%" % amount
+		Effect.SECOND_WIND:
+			return "Second wind at %d%%" % amount
+		Effect.PERFECT_PRESS:
+			return "Perfect presses +%d%%" % amount
+		Effect.EXPOSED:
+			return "Exposed +%d%%" % amount
+		Effect.TOUGH:
+			return "Enemy hits -%d%%" % amount
+		Effect.HEAL:
+			return "Heals +%d%%" % amount
+		Effect.GOLD:
+			return "Gold +%d%%" % amount
+	return ""
 
 
 ## The Passive key this gear gives in fights, or "" if it only changes stats or gold.

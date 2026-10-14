@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_v710t"]
+
+[resource]
+script = ExtResource("1_v710t")
+id = "tonic"
+display_name = "Tonic"
+description = "One character gets +15% max HP for the rest of the run."
+price = 45
+shape = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, 1)])
+effect = 3
+amount_percent = 15
+find_weight = 2
+icon_path = "res://assets/sprites/items/tonic.png"

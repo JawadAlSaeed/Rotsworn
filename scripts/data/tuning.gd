@@ -234,8 +234,37 @@ extends Resource
 ## Gear: a guard's loot offers this many items to pick one from; a shop sells this many.
 @export_range(1, 6) var run_loot_choices: int = 3
 @export_range(0, 6) var run_shop_gear: int = 2
+## A shop also sells this many charms (picked for the stop from the run's found charms, never
+## rotten ones: DESIGN.md 8.1).
+@export_range(0, 6) var run_shop_charms: int = 2
 ## Gear slots per character.
 @export_range(1, 6) var run_gear_slots: int = 3
+
+@export_group("Backpack")
+## The party's shared backpack grid (DESIGN.md 8.1): this many cells wide and this many rows tall
+## at the start of a run; upgrades add rows up to the max.
+@export_range(1, 10) var backpack_width: int = 4
+@export_range(1, 20) var backpack_rows: int = 5
+@export_range(1, 20) var backpack_max_rows: int = 7
+## A beaten roaming enemy (not the guard) drops a small item this often.
+@export_range(0, 100, 1, "suffix:%") var item_drop_percent: int = 35
+## Selling (an item at the shop, or gear swapped out for new gear) pays this share of its price.
+@export_range(0, 100, 1, "suffix:%") var item_sell_percent: int = 50
+## Rarity odds (DESIGN.md 8.1): when the run picks a find, a drop, a chest's prize or loot gear,
+## each thing's chance is its weight times a rarity share: common 100%, rare item_rare_percent plus
+## item_rare_row_percent per map row, legendary the same with its own numbers. So deeper stops
+## turn up rarer things.
+@export_range(0, 1000, 1, "suffix:%") var item_rare_percent: int = 50
+@export_range(0, 1000, 1, "suffix:%") var item_rare_row_percent: int = 15
+@export_range(0, 1000, 1, "suffix:%") var item_legendary_percent: int = 10
+@export_range(0, 1000, 1, "suffix:%") var item_legendary_row_percent: int = 10
+## Combining two of the same item (DESIGN.md 8.1) makes one a level higher: each level makes its
+## effect (heal, damage, charm bonus) this percent stronger and its price that much higher.
+@export_range(0, 1000, 1, "suffix:%") var combine_bonus_percent: int = 60
+## A chest holds gear this often (else a rare or better item).
+@export_range(0, 100, 1, "suffix:%") var chest_gear_percent: int = 50
+## The leader picks up a glinting spot from this close (world units).
+@export_range(0.1, 10.0, 0.05) var explore_pickup_radius: float = 1.3
 
 @export_group("Online")
 ## The port a host listens on and a client connects to (DESIGN.md 9.2).

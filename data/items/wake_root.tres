@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_i0a1a"]
+
+[resource]
+script = ExtResource("1_i0a1a")
+id = "wake_root"
+display_name = "Wake Root"
+description = "Every hero starts each fight with +1 AP."
+kind = 1
+rarity = 1
+price = 80
+shape = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)])
+find_weight = 3
+use_on_map = false
+family = 3
+charm_effect = 3
+charm_amount = 1
+icon_path = "res://assets/sprites/items/wake_root.png"

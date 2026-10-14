@@ -15,7 +15,9 @@ extends Resource
 @export var final_encounter: EncounterData
 ## How the final fight's place looks.
 @export var final_look: StageLook
-## What every shop sells (each item once per visit).
-@export var shop_items: Array[ShopItemData] = []
+## What every shop sells (each item once per visit); it goes into the backpack (DESIGN.md 8.1).
+@export var shop_items: Array[ItemData] = []
+## What a zone's glinting spots hold and its roaming enemies drop (picked by find weight).
+@export var found_items: Array[ItemData] = []
 ## Every piece of gear a run can find (as loot after a guard) or buy (in shops).
 @export var gear: Array[GearData] = []

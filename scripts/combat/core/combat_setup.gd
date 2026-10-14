@@ -36,6 +36,10 @@ var party_power_percent: Array[int] = []
 var party_speed_bonus: Array[int] = []
 ## Gear passives per slot (Passive keys -> amount).
 var party_passives: Array[Dictionary] = []
+## Backpack items the party can use in this fight (DESIGN.md 8.1): {uid: int, item: ItemData,
+## amount: int (its effect percent, stronger once combined), name: String}.
+## Each can be used once; the run takes the used ones out of the backpack afterwards.
+var items: Array[Dictionary] = []
 
 
 static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: int,
@@ -116,6 +120,14 @@ func validate() -> PackedStringArray:
 		problems.append_array(_ability_problems(team_ultimate))
 		if not team_ultimate.team_ultimate:
 			problems.append("team ultimate %s is not marked team_ultimate" % team_ultimate.id)
+	var uids := {}
+	for entry: Dictionary in items:
+		var item: Variant = entry.get("item")
+		if not item is ItemData or not (item as ItemData).usable_in_fight():
+			problems.append("fight item %s cannot be used in fights" % str(entry.get("uid")))
+		elif uids.has(int(entry.get("uid", -1))):
+			problems.append("fight item uid %d twice" % int(entry.uid))
+		uids[int(entry.get("uid", -1))] = true
 	for e: EnemyData in enemies:
 		if e == null:
 			problems.append("empty enemy slot")

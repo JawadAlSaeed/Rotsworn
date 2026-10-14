@@ -7,5 +7,6 @@ script = ExtResource("1_blq5u")
 id = "leaping_heart"
 display_name = "Leaping Heart"
 description = "Each perfect jump heals 5% of max HP."
+rarity = 1
 effect = 5
 amount = 5

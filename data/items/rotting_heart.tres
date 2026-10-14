@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_qmjjq"]
+
+[resource]
+script = ExtResource("1_qmjjq")
+id = "rotting_heart"
+display_name = "Rotting Heart"
+description = "Power +25% for every hero. Rotten: every hero loses 3% HP each turn."
+kind = 1
+rarity = 1
+price = 0
+find_weight = 2
+use_on_map = false
+charm_amount = 25
+rotten = true
+rot_percent = 3
+icon_path = "res://assets/sprites/items/rotting_heart.png"

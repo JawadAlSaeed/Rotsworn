@@ -1,12 +1,13 @@
 extends SceneTree
-## Creates the phase 4 run data (DESIGN.md 8): shop items, gear, the new encounters, two more
+## Creates the phase 4 run data (DESIGN.md 8): gear, the new encounters, two more
 ## zones (Sunken Bog, Ashen Ruins) with their looks, the boss (The Hollow King) with its attacks
 ## and look, and the run itself. Only writes files that do not exist yet, so edits made in the
 ## editor are never overwritten; an existing run only gains gear and the boss if it has none.
 ## Run headless:
 ##   godot --headless --path . -s tools/bootstrap_run.gd
 ## Add "-- --force" after the script to overwrite them (careful: loses edits).
-## Then run tools/gen_placeholders.gd to draw any new ground tiles.
+## Then run tools/gen_placeholders.gd to draw any new ground tiles, and tools/bootstrap_items.gd for
+## the backpack items the shops sell (phase 11).
 
 const ENV := "res://assets/sprites/env/"
 const SHROOM_GLOW := Color(0.35, 1.0, 0.85)
@@ -26,15 +27,8 @@ var _skipped := 0
 
 func _init() -> void:
 	_force = OS.get_cmdline_user_args().has("--force")
-	for dir: String in ["res://data/shop", "res://data/runs", "res://data/zones", "res://data/looks", "res://data/gear"]:
+	for dir: String in ["res://data/runs", "res://data/zones", "res://data/looks", "res://data/gear"]:
 		DirAccess.make_dir_recursive_absolute(dir)
-
-	var salve := _shop_item("salve", "Salve", "Heals one character by half of their max HP.", 25,
-			ShopItemData.Effect.HEAL_ONE, 50)
-	var feast := _shop_item("feast", "Feast", "Heals everyone by 30% of their max HP.", 40,
-			ShopItemData.Effect.HEAL_ALL, 30)
-	var tonic := _shop_item("tonic", "Tonic", "One character gets +15% max HP for the rest of the run.", 45,
-			ShopItemData.Effect.MAX_HP_ONE, 15)
 
 	var party: Array = [load("res://data/characters/alder.tres"), load("res://data/characters/brin.tres"),
 			load("res://data/characters/cass.tres")]
@@ -71,7 +65,6 @@ func _init() -> void:
 	run.zones.assign([load("res://data/zones/rotten_hollow.tres"), bog, ash])
 	run.final_encounter = king_fight
 	run.final_look = throne_look
-	run.shop_items.assign([salve, feast, tonic])
 	run.gear.assign(gear)
 	run = _save(run, run_path) as RunData
 	# A run saved before Part B: give it the gear and the boss.
@@ -214,18 +207,6 @@ func _save(res: Resource, path: String) -> Resource:
 		return res
 	_written += 1
 	return ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE)
-
-
-func _shop_item(id: String, title: String, desc: String, price: int, effect: ShopItemData.Effect,
-		pct: int) -> ShopItemData:
-	var item := ShopItemData.new()
-	item.id = id
-	item.display_name = title
-	item.description = desc
-	item.price = price
-	item.effect = effect
-	item.amount_percent = pct
-	return _save(item, "res://data/shop/%s.tres" % id) as ShopItemData
 
 
 func _encounter(id: String, title: String, party: Array, enemies: Array, ultimate: AbilityData) -> EncounterData:

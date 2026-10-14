@@ -19,6 +19,12 @@ extends Resource
 @export var props: Array[ZonePropData] = []
 @export var lights: Array[ZoneLightData] = []
 @export var enemies: Array[ZoneEnemyData] = []
+## Glinting spots (feet on the ground) the leader can pick something up from in a run (DESIGN.md
+## 8.1). What each holds is picked by the run's seed.
+@export var item_spots: Array[Vector3] = []
+## Locked chests (feet on the ground; 0 or 1 per zone). A key from the backpack opens one; what it
+## holds is picked by the run's seed (DESIGN.md 8.1).
+@export var chests: Array[Vector3] = []
 ## Sound cue for each of the leader's steps (its ground: grass, mud, stone).
 @export var footstep_sfx: String = "footstep_grass"
 ## This zone's song. Empty: MusicSet.zone_path.

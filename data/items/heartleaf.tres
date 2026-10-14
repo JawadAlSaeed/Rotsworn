@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_16sy8"]
+
+[resource]
+script = ExtResource("1_16sy8")
+id = "heartleaf"
+display_name = "Heartleaf"
+description = "Max HP +5% for every hero."
+kind = 1
+price = 50
+find_weight = 4
+use_on_map = false
+family = 3
+charm_effect = 0
+charm_amount = 5
+icon_path = "res://assets/sprites/items/heartleaf.png"

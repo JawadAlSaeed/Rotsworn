@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_4l68t"]
+
+[resource]
+script = ExtResource("1_4l68t")
+id = "silver_ring"
+display_name = "Silver Ring"
+description = "Treasure. Sell it at a shop."
+kind = 3
+price = 40
+find_weight = 6
+use_on_map = false
+icon_path = "res://assets/sprites/items/silver_ring.png"
