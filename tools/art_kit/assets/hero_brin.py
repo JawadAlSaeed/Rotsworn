@@ -901,7 +901,8 @@ def _walk_leg(phi: float, half: float, lift: float, z: float) -> tuple[tuple[flo
 
 def walk_pose(view: str, k: int) -> dict[str, Any]:
     """Cell k of the 8-cell walk seen from `view`: the near foot strikes on cell 0, the far foot on
-    cell 4 (the footstep moments), arms swinging against the legs, daggers trailing low."""
+    cell 4 (the footstep moments). Brin walks on guard (user, 2026-10-14): knees soft, leaning in,
+    both daggers held at chest height in a reverse grip (blades back along the arms), the arms only bobbing a little with the steps."""
     phi = k / WALK_CELLS
     side = view == "side"
     half, lift = WALK_HALF_STRIDE[view], WALK_LIFT[view]
@@ -910,21 +911,23 @@ def walk_pose(view: str, k: int) -> dict[str, Any]:
     foot_f, toe_f = _walk_leg(phi + 0.5, half, lift, -1.8 if side else -2.1)
     # Weight shifts over the planted foot (seen from the front and back).
     sway = 0.0 if side else -1.0 * sw
-    arm = 5.6 if side else 3.6
-    twist = (-12.0 if side else 0.0) - 6.0 * sw
+    arm = 1.2 if side else 0.8
+    bob = 0.5 * abs(sw)
+    twist = (-12.0 if side else 0.0) - 3.0 * sw
     return complete({
         "view": view,
-        "pelvis": (-0.4, WALK_HIP[k % 4], sway), "lean": 7.0, "twist": twist, "hip_yaw": 3.0 * sw,
+        "pelvis": (-0.4, WALK_HIP[k % 4] - 1.4, sway), "lean": 14.0, "twist": twist, "hip_yaw": 3.0 * sw,
         "side_lean": 0.0 if side else 2.5 * sw,
         "head": (-4.0, (8.0 if side else 0.0) + 6.0 * sw, 0.0),
         "foot_n": foot_n, "toe_n": toe_n, "knee_n": (1.0, 0.0, 0.15), "toe_yaw_n": 0.0,
         "foot_f": foot_f, "toe_f": toe_f, "knee_f": (1.0, 0.0, -0.15), "toe_yaw_f": 0.0,
-        "hand_n": (0.8 - arm * sw, 13.8 + 0.6 * abs(sw), 4.9 if side else 5.0),
-        "elbow_n": (-1.0, -0.2, 0.5),
-        "hand_f": (0.8 + arm * sw, 13.8 + 0.6 * abs(sw), -4.5 if side else -5.0),
-        "elbow_f": (-1.0, -0.2, -0.5),
-        "dag_n": (-0.35 - 0.25 * sw, -1.0, 0.2 if side else 0.35),
-        "dag_f": (-0.35 + 0.25 * sw, -1.0, -0.2 if side else -0.35),
+        "hand_n": (5.6 - arm * sw, 20.0 - bob, 3.6 if side else 4.2),
+        "elbow_n": (-1.0, -0.8, 0.6),
+        "hand_f": (4.6 + arm * sw, 21.2 - bob, -2.4 if side else -4.2),
+        "elbow_f": (-0.6, -1.0, -0.6),
+        # Reverse grip: the blades run back along the forearms (user, 2026-10-14).
+        "dag_n": (-0.72, -0.58, 0.25 if side else 0.55),
+        "dag_f": (-0.72, -0.50, -0.25 if side else -0.55),
         "wind": tuple(float(v) for v in WALK_WIND[view] + _v(0.0, 0.18 * math.sin(4.0 * math.pi * phi), 0.0)),
         "ground": 1.0, "eyes": "open",
     })
