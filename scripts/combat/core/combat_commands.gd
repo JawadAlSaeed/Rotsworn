@@ -52,7 +52,13 @@ static func prompt_result(prompt_idx: int, outcome: int, offset_us: int = 0) -> 
 
 
 ## Practice tools (only accepted when the setup allows practice). Every key is optional:
-## invulnerable_party: bool, immortal_enemies: bool, force_attack: String ("" clears it).
+## invulnerable_party: bool, immortal_enemies: bool, force_attack: String ("" clears it),
+## fill_gauge: bool (fills the team gauge; the tutorial). Tutorial staging (DESIGN.md 7.8):
+## hold_enemies / hold_party: bool (those turns pass), tempo_percent: int (enemy attack speed,
+## 0 = normal), full_ap: bool (every hero to max AP), gate: bool (enemy attacks wait at their
+## turn start), hero: int (only this hero acts, -1 = all), stage_attack: String (every enemy that has it always picks it, "" = normal),
+## open_gate: bool (the waiting enemy attacks now), pass_turn: bool (the hero
+## choosing, or the enemy at the gate, lets the turn go).
 static func practice(options: Dictionary) -> Dictionary:
 	var cmd := options.duplicate(true)
 	cmd["type"] = PRACTICE

@@ -31,6 +31,7 @@ const BOOT_PATH := "res://data/presentation/boot.tres"
 const BRANDING_PATH := "res://data/branding/branding.tres"
 const CREDITS_PATH := "res://data/branding/credits.tres"
 const TIPS_PATH := "res://data/branding/tips.tres"
+const TUTORIAL_PATH := "res://data/tutorial/tutorial.tres"
 const COMBAT_SCENE := preload("res://scenes/combat.tscn")
 ## Autoplay: wait this long on an end screen or a run screen before going on (seconds).
 const AUTOPLAY_RETURN_S: float = 1.0
@@ -88,6 +89,8 @@ var _zone_send_s: float = 0.0
 var _watch_layer: CanvasLayer
 ## The backpack open over a zone (DESIGN.md 8.1), and the glinting spot whose find waits on it.
 var _overlay: PartyScreen
+## The tutorial while it runs (DESIGN.md 7.8), else null.
+var _tutorial: TutorialRunner
 var _spot_pending: int = -1
 ## What the zone fight's enemy drops (null: nothing).
 var _drop: ItemData
@@ -227,6 +230,8 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_attributes(false)
 		"skills":
 			_show_sample_skills()
+		"tutorial":
+			_start_tutorial()
 		"calibration":
 			_show_settings()
 			(_screen as SettingsScreen).open_calibration()
@@ -415,6 +420,7 @@ func _end_busy() -> void:
 
 
 func _show_main_menu() -> void:
+	_end_tutorial()
 	_run = null
 	ButtonPrompts.set_both(false)
 	if Net.is_online():
@@ -431,7 +437,12 @@ func _on_menu_chosen(item: StringName) -> void:
 	_menu_item = item
 	match item:
 		MainMenu.NEW_RUN:
-			_show_lobby.call_deferred(_fade_to.bind(_new_run))
+			if not PlayerSettings.tutorial_offered() and not _options.is_autoplay():
+				_offer_tutorial.call_deferred()
+			else:
+				_show_lobby.call_deferred(_fade_to.bind(_new_run))
+		MainMenu.TUTORIAL:
+			_fade_to.call_deferred(_start_tutorial)
 		MainMenu.HOST_ONLINE:
 			_host_online.call_deferred()
 		MainMenu.JOIN_ONLINE:
@@ -538,8 +549,12 @@ func _start_combat() -> void:
 		_combat.configure(_encounter, _tuning, _visuals, _options, _run_data.final_look)
 		continue_to = _on_run_fight_over
 	else:
-		var opening := CombatSetup.Opening.FIRST_STRIKE if _options.first_strike else CombatSetup.Opening.NORMAL
+		# The tutorial starts with the heroes' turns (first strike) against a slower enemy.
+		var first := _options.first_strike or _tutorial != null
+		var opening := CombatSetup.Opening.FIRST_STRIKE if first else CombatSetup.Opening.NORMAL
 		_combat.configure(_encounter, _tuning, _visuals, _options, null, opening)
+		if _tutorial != null:
+			_combat.enemy_speed_percent = (load(TUTORIAL_PATH) as TutorialData).enemy_speed_percent
 	if _run != null:
 		_combat.configure_run(_run)
 		_combat.configure_drop(_drop if not _zone_fight.is_empty() else null)
@@ -554,7 +569,7 @@ func _start_combat() -> void:
 		_combat.continue_requested.connect(continue_to)
 		if _options.is_autoplay():
 			_combat.combat_finished.connect(_autoplay_continue.bind(continue_to))
-	_combat.pause_reached.connect(_open_pause)
+	_combat.pause_reached.connect(_on_combat_pause_reached)
 	_combat.restart_requested.connect(_on_restart_requested)
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
@@ -715,6 +730,73 @@ func _on_zone_cleared() -> void:
 		return
 	print("AUTOPLAY_RESULT zone_clear fights=%d first_strikes=%d" % [_zone.fights_started(), _zone.first_strikes()])
 	_autoplay_quit()
+
+
+# --- the tutorial (DESIGN.md 7.8, card #131) --------------------------------------------------
+
+## The first New Run asks once whether to play the tutorial first.
+func _offer_tutorial() -> void:
+	PlayerSettings.set_tutorial_offered(true)
+	_prompt = ConfirmPrompt.new()
+	_prompt.name = "TutorialPrompt"
+	_prompt.setup("Play the tutorial first?", "Five short lessons: attacking, skills, defending and the team "
+			+ "ultimate. It is always in the main menu too.", "Play the tutorial", "Start the run")
+	_prompt.answered.connect(func(yes: bool) -> void:
+		_prompt.queue_free()
+		_prompt = null
+		if yes:
+			_fade_to(_start_tutorial)
+		else:
+			_show_lobby(_fade_to.bind(_new_run)))
+	add_child(_prompt)
+
+
+## Starts the tutorial: its practice fight, one player, the lessons over it.
+func _start_tutorial() -> void:
+	var data := load(TUTORIAL_PATH) as TutorialData
+	if data == null or data.encounter == null:
+		push_error("Main: no tutorial data")
+		_show_main_menu()
+		return
+	_end_tutorial()
+	_run = null
+	_players = PlayerRoster.solo(data.encounter.party.size(), _last_device)
+	_tutorial = TutorialRunner.new()
+	_tutorial.name = "Tutorial"
+	add_child(_tutorial)
+	_tutorial.setup(data)
+	if _options.is_autoplay():
+		_tutorial.auto_confirm_s = 1.2
+	_tutorial.leave_requested.connect(_fade_to.bind(_show_main_menu))
+	_encounter = data.encounter
+	_zone_fight = {}
+	_start_combat()
+	_tutorial.attach_fight(_combat)
+	var from := 0
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--tutorial-step="):
+			from = arg.substr("--tutorial-step=".length()).to_int()
+	_tutorial.start(from)
+
+
+func _end_tutorial() -> void:
+	if _tutorial != null:
+		_tutorial.queue_free()
+		_tutorial = null
+
+
+## A fight paused: for the tutorial's card, or the pause menu.
+func _on_combat_pause_reached() -> void:
+	if _tutorial != null and _tutorial.pause_wanted():
+		_tutorial.on_paused()
+	else:
+		_open_pause()
+
+
+func _on_tutorial_skip() -> void:
+	_on_pause_resumed()
+	if _tutorial != null:
+		_tutorial.skip()
 
 
 # --- the run ----------------------------------------------------------------------------------
@@ -931,7 +1013,10 @@ func _open_pause() -> void:
 		_zone.input_held = true
 	_pause = PauseMenu.new()
 	_pause.name = "Pause"
-	if Net.is_host():
+	if _tutorial != null:
+		_pause.setup("Leave tutorial", "Back to the main menu.", "Skip this lesson", "Go on to the next one.")
+		_pause.extra_requested.connect(_on_tutorial_skip)
+	elif Net.is_host():
 		_pause.setup("End the game", "The run ends for everyone.")
 	elif Net.is_client():
 		_pause.setup("Leave the game", "You leave; the others play on.")
@@ -976,6 +1061,10 @@ func _on_pause_settings_closed(settings: SettingsScreen) -> void:
 
 ## Abandon the run (asks first) or, in practice, leave for the practice list.
 func _on_pause_leave() -> void:
+	if _tutorial != null:
+		_free_pause()
+		_fade_to.call_deferred(_show_main_menu)
+		return
 	if Net.is_online():
 		_pause.process_mode = Node.PROCESS_MODE_DISABLED
 		_prompt = ConfirmPrompt.new()

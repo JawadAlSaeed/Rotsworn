@@ -36,6 +36,7 @@ enum NetMode { LOCAL, HOST, CLIENT }
 
 ## Stand-in ability ids for backpack items start with this (the uid follows).
 const ITEM_PREFIX := "item:"
+const TUTORIAL_LOCKED := "Not in this lesson."
 const QUIT_DELAY_S: float = 1.0
 ## After stopping all sounds, quitting waits this long (real time) so the audio server lets go of
 ## the playbacks; two frames are not enough and Godot reports "resources still in use at exit".
@@ -55,6 +56,12 @@ var view: CombatView
 var hud: CombatHud
 var runner: TimedSequenceRunner
 var skill_runner: SkillSequenceRunner
+## A tutorial fight (DESIGN.md 7.8): no practice panel, the training ring always on.
+var tutorial_mode: bool = false
+## The tutorial's one allowed menu choice (an ability id; "" = any): the rest is locked.
+var tutorial_guide: String = ""
+## Enemy speed in percent of their data (set before the fight is added; the tutorial slows it).
+var enemy_speed_percent: int = 100
 var defense_input: DefenseInput
 var autoplay: Autoplay
 
@@ -311,6 +318,7 @@ func _ready() -> void:
 	var setup := _run.fight_setup(_encounter, _pick_seed(), _opening) if _run != null 			else CombatSetup.from_encounter(_encounter, _tuning, _pick_seed(), _opening)
 	_setup = setup
 	setup.allow_practice = _tuning.practice_tools_enabled or _options.is_autoplay()
+	setup.enemy_speed_percent = enemy_speed_percent
 	# A run is the real game: no training ring there (practice fights may still use it, F1 > R).
 	runner.training_ring_allowed = _run == null
 	print("Combat seed: %d  encounter: %s  opening: %s" % [setup.rng_seed, _encounter.id,
@@ -567,15 +575,42 @@ func _pump() -> void:
 			_enter_pause()
 
 
+## Makes this a tutorial fight (call after it is in the tree).
+func set_tutorial(on: bool) -> void:
+	tutorial_mode = on
+	if runner != null:
+		runner.force_ring = on
+
+
+## The tutorial allows only this menu choice (an ability id; "" = any). An open menu is redrawn.
+func set_tutorial_guide(ability_id: String) -> void:
+	tutorial_guide = ability_id
+	hud.action_menu.guide = ability_id
+	if hud.action_menu.is_open():
+		hud.action_menu.close()
+		_menu_turn = -1
+		_maybe_open_menu()
+
+
+## Sends a practice command (DESIGN.md 3.4; the tutorial drives its fight with these). Practice
+## fights only: ignored in a run, online, or once the fight is over.
+func practice_command(fields: Dictionary) -> void:
+	if engine == null or _run != null or _net_mode != NetMode.LOCAL or engine.phase == CombatEngine.Phase.ENDED:
+		return
+	_enqueue(_submit(CombatCommands.practice(fields)))
+
+
 ## Asks to pause. Returns false if this fight cannot pause now (over, or calibrating). During an
 ## enemy attack or a skill the pause starts when it is done ("PAUSING AFTER THIS MOVE").
-func request_pause() -> bool:
+
+## `quiet`: no "PAUSING AFTER THIS MOVE" banner (the tutorial pauses between its steps).
+func request_pause(quiet: bool = false) -> bool:
 	if _ended or _paused or hud.calibration.is_running():
 		return false
 	_pause_pending = true
 	if not _playing and not _waiting_runner:
 		_enter_pause()
-	else:
+	elif not quiet:
 		hud.show_center_banner("PAUSING AFTER THIS MOVE", HudStyle.TEXT, _visuals.first_strike_banner_ms)
 	return true
 
@@ -680,6 +715,8 @@ func _play(ev: Dictionary) -> void:
 						_data_by_id.get(int(ev.source)) as EnemyData)
 		"turn_ended":
 			mirror.apply(ev)
+			# A turn the tutorial passed may still have its menu open.
+			hud.action_menu.close()
 			view.camera.reset_shot()
 			_refresh()
 			event_played.emit(ev)
@@ -761,6 +798,11 @@ func _maybe_open_menu() -> void:
 		var entry := _menu_entry(actor, _item_ability(mirror.items[uid] as Dictionary))
 		entry["item"] = true
 		entries.append(entry)
+	if not tutorial_guide.is_empty():
+		for entry: Dictionary in entries:
+			if (entry.ability as AbilityData).id != tutorial_guide:
+				entry.usable = false
+				entry.reason = TUTORIAL_LOCKED
 	var player := _players.owner_of(_owner_slot(actor)) if _players.is_coop() else -1
 	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, entries, names, player)
 	view.camera.shot_turn(view.home_of(actor))
@@ -1479,7 +1521,7 @@ func _practice_attacks() -> Array[EnemyAttackData]:
 func _practice_text() -> String:
 	# Online the practice keys are off (they would change everyone's fight), and a run fight is the
 	# real game: no practice panel there (F1 and F2 still work).
-	if not _tuning.practice_tools_enabled or _net_mode != NetMode.LOCAL or _run != null:
+	if not _tuning.practice_tools_enabled or _net_mode != NetMode.LOCAL or _run != null or tutorial_mode:
 		return ""
 	var forced := String(mirror.practice.get("force_attack", ""))
 	var attacks := _practice_attacks()

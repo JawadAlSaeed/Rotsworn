@@ -50,6 +50,7 @@ const GRAPHICS := {
 }
 const SECTION_GAME := "game"
 const KEY_SHAKE := "screen_shake_percent"
+const KEY_TUTORIAL_OFFERED := "tutorial_offered"
 const SHAKE_STEP_PERCENT: int = 25
 const SECTION_ONLINE := "online"
 const KEY_JOIN_ADDRESS := "join_address"
@@ -242,6 +243,16 @@ static func set_graphics(key: String, value: bool) -> void:
 	if not GRAPHICS.has(key):
 		return
 	_settings().set_value(SECTION_GRAPHICS, key, value)
+	_save()
+
+
+## True once the tutorial was offered on the first New Run (DESIGN.md 7.8): it is asked once.
+static func tutorial_offered() -> bool:
+	return bool(_settings().get_value(SECTION_GAME, KEY_TUTORIAL_OFFERED, false))
+
+
+static func set_tutorial_offered(value: bool) -> void:
+	_settings().set_value(SECTION_GAME, KEY_TUTORIAL_OFFERED, value)
 	_save()
 
 

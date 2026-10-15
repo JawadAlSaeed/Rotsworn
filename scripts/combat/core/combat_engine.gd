@@ -94,6 +94,9 @@ enum Phase {
 	## The current timed sequence (`sequence`) has prompts waiting for results.
 	AWAITING_TIMING,
 	ENDED,
+	## The tutorial's gate (DESIGN.md 7.8): an enemy's turn has started and its attack waits for
+	## the practice command open_gate.
+	AWAITING_GATE,
 }
 
 enum PromptState {
@@ -140,6 +143,15 @@ var intents: Dictionary = {}
 var result: String = ""
 ## Practice options (only changeable when the setup allows practice).
 var practice: Dictionary = {"invulnerable_party": false, "immortal_enemies": false, "force_attack": ""}
+## The tutorial's staging (DESIGN.md 7.8), set by practice commands, local only: enemy turns pass
+## (hold_enemies), hero turns pass (hold_party), enemy attacks slowed (tempo_percent, 0 = tuning's).
+## gate: an enemy's attack waits at its turn start until open_gate (one try at a time).
+## attack: every enemy that has it always picks this attack (the lesson's), "" = normal picks.
+## hero: only this hero acts (the other heroes' turns pass), -1 = every hero.
+var stage: Dictionary = {"hold_enemies": false, "hold_party": false, "tempo_percent": 0, "gate": false,
+		"attack": "", "hero": -1}
+## The enemy waiting at the gate (-1: none).
+var _gated: int = -1
 ## Backpack items not used yet (uids, DESIGN.md 8.1).
 var items_left: Array[int] = []
 
@@ -482,7 +494,7 @@ func _build_combatants() -> void:
 		c.hp = c.max_hp
 		c.power = CombatMath.percent_min1(CombatMath.percent_min1(tuning.base_enemy_hit_damage, data.power_percent),
 				_setup.enemy_power_percent)
-		c.speed = maxi(1, data.speed)
+		c.speed = maxi(1, CombatMath.percent(data.speed, _setup.enemy_speed_percent))
 		c.base_speed = c.speed
 		for attack: EnemyAttackData in data.attacks:
 			c.attack_ids.append(attack.id)
@@ -521,12 +533,20 @@ func _advance_turn(events: Array[Dictionary]) -> void:
 		events.append({"type": "turn_started", "turn": turn_number, "actor": actor.id, "team": actor.team, "time": time_now})
 		_start_of_turn(actor, events)
 		events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
-		if not actor.is_alive():
-			# Bled out at the start of its turn: nothing more happens on it.
+		var held := bool(stage.hold_enemies)
+		if actor.is_party():
+			held = bool(stage.hold_party) or (int(stage.hero) >= 0 and actor.id != int(stage.hero))
+		if not actor.is_alive() or held:
+			# Bled out at the start of its turn, or held by the tutorial: the turn passes.
+			_end_of_turn(actor, events)
 			events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
 			continue
 		if actor.is_party():
 			phase = Phase.AWAITING_ACTION
+			return
+		if bool(stage.gate):
+			_gated = actor.id
+			phase = Phase.AWAITING_GATE
 			return
 		if _begin_enemy_attack(actor, events):
 			return
@@ -604,12 +624,12 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 	var prompts: Array[Dictionary] = []
 	for hit_index: int in attack.hits.size():
 		var hit: AttackHitData = attack.hits[hit_index]
-		var at_ms := CombatMath.percent(hit.impact_ms, tuning.attack_tempo_percent)
+		var at_ms := CombatMath.percent(hit.impact_ms, _tempo_percent())
 		hits.append({
 			"index": hit_index,
 			"at_ms": at_ms,
 			"kind": hit.kind,
-			"approach_ms": CombatMath.percent(hit.approach_ms, tuning.attack_tempo_percent),
+			"approach_ms": CombatMath.percent(hit.approach_ms, _tempo_percent()),
 			"feint": hit.feint,
 			"damage_percent": hit.damage_percent,
 			"impact_sfx": hit.impact_sfx,
@@ -660,6 +680,9 @@ func _pick_intent(enemy: Combatant, events: Array[Dictionary]) -> void:
 
 
 func _choose_intent(enemy: Combatant) -> Dictionary:
+	var staged := String(stage.attack)
+	if not staged.is_empty() and enemy.attack_ids.has(staged):
+		return {"attack": staged, "targets": _pick_targets(enemy, get_attack(staged))}
 	var choices: Array[EnemyAttackData] = []
 	var weights: Array[int] = []
 	for attack_id: String in enemy.attack_ids:
@@ -745,7 +768,7 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	var feints: Array[bool] = []
 	for hit: AttackHitData in attack.hits:
 		kinds.append(hit.kind)
-		times.append(CombatMath.percent(hit.impact_ms, tuning.attack_tempo_percent))
+		times.append(CombatMath.percent(hit.impact_ms, _tempo_percent()))
 		feints.append(hit.feint)
 	var targets: Array[int] = []
 	targets.assign(intent.targets)
@@ -952,8 +975,8 @@ func _cmd_practice(command: Dictionary, events: Array[Dictionary]) -> void:
 	if phase == Phase.NOT_STARTED or phase == Phase.ENDED:
 		events.append(_reject("not_in_combat", command))
 		return
-	if command.has("force_attack"):
-		var attack_id := String(command.force_attack)
+	for key: String in ["force_attack", "stage_attack"]:
+		var attack_id := String(command.get(key, ""))
 		if not attack_id.is_empty() and not _attacks.has(attack_id):
 			events.append(_reject("unknown_attack", command))
 			return
@@ -963,9 +986,60 @@ func _cmd_practice(command: Dictionary, events: Array[Dictionary]) -> void:
 		practice.immortal_enemies = bool(command.immortal_enemies)
 	if command.has("force_attack"):
 		practice.force_attack = String(command.force_attack)
+	for key: String in ["hold_enemies", "hold_party"]:
+		if command.has(key):
+			stage[key] = bool(command[key])
+	if command.has("tempo_percent"):
+		stage.tempo_percent = maxi(0, int(command.tempo_percent))
+	if command.has("gate"):
+		stage.gate = bool(command.gate)
+	if command.has("hero"):
+		stage.hero = int(command.hero)
+	if bool(command.get("full_ap", false)):
+		for id: int in living_party_ids():
+			var hero := get_combatant(id)
+			_change_ap(hero, tuning.max_ap - hero.ap, "given", events)
+	if bool(command.get("fill_gauge", false)):
+		# The tutorial's Team Ultimate lesson (DESIGN.md 7.8).
+		_change_gauge(tuning.team_gauge_max, events)
 	events.append(_practice_changed_event())
 	if command.has("force_attack"):
 		_show_forced_intent(events)
+	if command.has("stage_attack"):
+		stage.attack = String(command.stage_attack)
+		_show_staged_intents(events)
+	if bool(command.get("open_gate", false)) and phase == Phase.AWAITING_GATE:
+		_open_gate(events)
+	elif bool(command.get("pass_turn", false)):
+		_pass_turn(events)
+
+
+## The gated enemy attacks now (its forced attack and tempo as they are now).
+func _open_gate(events: Array[Dictionary]) -> void:
+	var actor := get_combatant(_gated)
+	_gated = -1
+	if actor != null and actor.is_alive() and _begin_enemy_attack(actor, events):
+		return
+	if actor != null:
+		_end_of_turn(actor, events)
+		events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
+	_advance_turn(events)
+
+
+## The tutorial moves on: the hero choosing an action, or the enemy at the gate, lets the turn go.
+func _pass_turn(events: Array[Dictionary]) -> void:
+	if phase != Phase.AWAITING_ACTION and phase != Phase.AWAITING_GATE:
+		return
+	var actor := get_combatant(active_actor)
+	_gated = -1
+	_end_of_turn(actor, events)
+	events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
+	_advance_turn(events)
+
+
+## Enemy attack tempo in percent: the tutorial's slowed attacks, else tuning's.
+func _tempo_percent() -> int:
+	return int(stage.tempo_percent) if int(stage.tempo_percent) > 0 else tuning.attack_tempo_percent
 
 
 ## The next enemy (in turn order) that has the forced attack shows it as its intent right away.
@@ -983,6 +1057,18 @@ func _show_forced_intent(events: Array[Dictionary]) -> void:
 			intents[id] = {"attack": forced, "targets": _pick_targets(c, get_attack(forced))}
 			events.append(_intent_event(id))
 		return
+
+
+## Every enemy that has the staged attack shows it as its intent right away.
+func _show_staged_intents(events: Array[Dictionary]) -> void:
+	var staged := String(stage.attack)
+	if staged.is_empty():
+		return
+	for id: int in living_enemy_ids():
+		var c := get_combatant(id)
+		if c.attack_ids.has(staged) and String((intents.get(id, {}) as Dictionary).get("attack", "")) != staged:
+			intents[id] = {"attack": staged, "targets": _pick_targets(c, get_attack(staged))}
+			events.append(_intent_event(id))
 
 
 func _practice_changed_event() -> Dictionary:

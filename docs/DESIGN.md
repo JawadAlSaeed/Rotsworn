@@ -722,7 +722,7 @@ Commands (Dictionary, `type` key; build with `CombatCommands`):
 |---|---|---|
 | `use_ability` | `turn`, `actor`, `ability`, `targets` | AWAITING_ACTION; `turn` must match |
 | `resolve_prompts` | `seq`, `results: [{prompt, outcome, offset_us}]` | AWAITING_TIMING; partial OK; per character in order |
-| `practice` | `invulnerable_party?`, `immortal_enemies?`, `force_attack?` | only if the setup allows practice |
+| `practice` | `invulnerable_party?`, `immortal_enemies?`, `force_attack?`; tutorial staging: `fill_gauge?`, `full_ap?`, `hold_enemies?`, `hold_party?`, `hero?`, `stage_attack?`, `tempo_percent?`, `gate?`, `open_gate?`, `pass_turn?` | only if the setup allows practice |
 
 Events: `combat_started`, `intent`, `turn_started`, `turn_order`, `ability_used`, `damage`,
 `healed`, `revived`, `downed`, `ap_changed`, `status_changed`, `turn_shifted`, `team_gauge`,
@@ -1315,6 +1315,48 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
 - Dev tools: `--screen=title` and `--screen=credits`.
 
 ---
+
+### 7.8 Tutorial (phase 14, card #131, lessons approved 2026-10-15; rebuilt the same day)
+
+First version (a lesson box over a free-running practice fight) was rejected by the user
+2026-10-15: "feels like a fight, not a tutorial"; the box covered the enemy intent; the text did
+not match the screen; no time to read before the enemy attacked. **Rebuilt (`TutorialRunner`,
+`TutorialOverlay`):**
+
+- **Every lesson is staged: explain -> try -> result.** The fight is paused
+  (`CombatController.request_pause`, `pause_reached` routed to the tutorial, not the pause menu)
+  and a big centred card (dimmed background) explains the move with button pictures; Enter
+  resumes. After every try the fight pauses again: "Good parry!" (next lesson) or "Too early /
+  too late, try again" (the same attack again).
+- **Only what the lesson needs happens**, through new practice commands: `hold_enemies` (enemy
+  turns pass, no attack: the attack and skill lessons), `hold_party` (hero turns pass: the defend
+  and counter lessons, so the Husk attacks at once and only once per try), `tempo_percent` (the
+  defend lessons' attacks slowed, e.g. 160%), `full_ap` (skills and ultimate lessons), and the
+  existing `force_attack`, `fill_gauge`, invulnerable party, immortal enemy. Plus `gate` (an
+  enemy's attack waits at its turn start; `open_gate` lets the step's one attack through when the
+  card closes, so the attack always matches the card) and `pass_turn` (between steps). The
+  step's attack is `stage_attack`: the enemy always picks it, so its intent sign always matches
+  the lesson. Each try ends with its turn (after any counter). The bot (autoplay) closes cards
+  by itself after 1.2 s.
+- **The player is guided to the one right choice** (user, 2026-10-15): each hero step names a
+  hero (practice `hero`: the other heroes' turns pass) and one `ability`: Brin's Attack,
+  Alder's Taunt (a skill with no follow-ups, user: follow-ups are the next lesson), Alder's
+  Shield Bash (follow-ups), Team Ultimate. The action menu locks everything else ("Not in this
+  lesson.") and the allowed row, and the Skills option leading to it, glows and pulses; in the
+  skills list the cursor stays on it.
+- **Card text matches the screen:** the first card of a hero step shows once that hero's menu is
+  open (when the hero changes, the fight runs on to their turn first), and names the hero and
+  the skill.
+- **While playing, only a one-line reminder** shows at the bottom centre above the hero bars,
+  never over the enemy, its intent sign or the attack banner.
+- Lessons (all in the one fight): 1 Attack (good press); 2a use a skill, 2b follow-up press on an
+  attacking skill; 3 parry, dodge, jump (one slowed swipe / ground slam per try); 4 counter
+  (Flurry, slowed); 5 Team Ultimate (gauge filled). No zone or map lesson (user, 2026-10-15:
+  walking and the map explain themselves).
+- Kept from v1: `TutorialData` / `TutorialStepData` (data/tutorial/tutorial.tres), `TutorialGoals`,
+  the Tutorial menu row, the one-time offer on the first New Run, "Skip this lesson" / "Leave
+  tutorial" in the pause menu, first strike + Husk at 50% speed, `--screen=tutorial`,
+  `--tutorial-step=N`.
 
 ## 8. Run structure (phase 4)
 
@@ -1965,6 +2007,7 @@ middle row costs 1 point, the bottom row 2):
     steps: step 1 (built, 8.2) XP and a level per hero, attributes and their screen, critical hits; step 2 the
     class reworks with skill trees (proposed to the user first); step 3 depth scaling. Nothing
     carries over between runs.
+14. **Tutorial** (done, approved 2026-10-15): the five lessons of 7.8 (card #131).
 
 ### 11.1 To-do (from playtests)
 
@@ -2125,3 +2168,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Lag calibration page laid out centred like the other pages | user (#113) |
 | 2026-10-15 | Run map to become an old paper map that unrolls, with painted places instead of letters | user (#111), not built yet |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |
+| 2026-10-15 | Tutorial on a practice fight where nobody can die, steps checked from fight events; offered once on the first New Run | user approved the six lessons (#131) |
+| 2026-10-15 | Tutorial: each hero lesson locks the menu to one glowing choice; no zone or map lesson (five lessons); the Skills lesson uses a skill without follow-ups (Taunt) | user play-test |

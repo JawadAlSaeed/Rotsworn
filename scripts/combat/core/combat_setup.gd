@@ -45,6 +45,8 @@ var start_team_gauge: int = 0
 ## unchanged).
 var enemy_hp_percent: int = 100
 var enemy_power_percent: int = 100
+## Every enemy's speed in percent of their data (the tutorial's slower enemy, DESIGN.md 7.8).
+var enemy_speed_percent: int = 100
 ## Backpack items the party can use in this fight (DESIGN.md 8.1): {uid: int, item: ItemData,
 ## amount: int (its effect percent, stronger once combined), name: String}.
 ## Each can be used once; the run takes the used ones out of the backpack afterwards.
@@ -124,7 +126,7 @@ func validate() -> PackedStringArray:
 			problems.append("party max HP and power percents must be at least 1 (is %d)" % pct)
 	if tuning != null and (start_team_gauge < 0 or start_team_gauge > tuning.team_gauge_max):
 		problems.append("start team gauge must be 0 .. team_gauge_max (is %d)" % start_team_gauge)
-	if enemy_hp_percent < 1 or enemy_power_percent < 1:
+	if enemy_hp_percent < 1 or enemy_power_percent < 1 or enemy_speed_percent < 1:
 		problems.append("enemy HP and power percents must be at least 1")
 	for passives: Dictionary in party_passives:
 		for key: Variant in passives:

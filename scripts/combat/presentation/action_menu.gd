@@ -14,6 +14,8 @@ extends PanelContainer
 ##   there is more than one, left/right or up/down cycles, confirm picks, cancel goes back to the
 ##   layer the ability came from.
 ## Driven only by input actions (no focus-driven buttons, so the parry key can never click it).
+## - Tutorial guide: with `guide` set (an ability id) only that choice can be made; its row (and
+##   the Skills option that leads to it) glows, everything else is locked (DESIGN.md 7.8).
 ## The basic attack is the first entry that is not the team ultimate (CharacterData.all_abilities()
 ## puts it first), the ultimate is the entry flagged team_ultimate, the skills are the rest.
 
@@ -68,6 +70,13 @@ const CHIP_COLUMN_WIDTH: float = 72.0
 const LOCKED_CHIP := Color(1.0, 1.0, 1.0, 0.4)
 ## While the skills list is open the main options step back to this.
 const RESTING_OPTIONS := Color(1.0, 1.0, 1.0, 0.55)
+## The tutorial's guided row pulses between white and this, once per GUIDE_PULSE_S.
+const GUIDE_GLOW := Color(1.6, 1.45, 0.9)
+const GUIDE_PULSE_S: float = 0.9
+
+## The tutorial's one allowed choice (an ability id; "" = any). The controller also marks every
+## other entry unusable; this only lights the way to it.
+var guide: String = ""
 
 var _title: Label
 var _skills_box: VBoxContainer
@@ -117,6 +126,9 @@ var _target_index: int = 0
 var _lit_row: Control = null
 ## Process frame of the last stick move (a held stick sends many motion events).
 var _stick_frame: int = -1
+## The guided row and its glow.
+var _guide_row: Control = null
+var _guide_tween: Tween = null
 
 
 func _ready() -> void:
@@ -183,10 +195,12 @@ func open(actor_name: String, accent: Color, entries: Array[Dictionary], names: 
 	_build_skill_rows()
 	_redraw()
 	visible = true
+	_redraw_guide()
 
 
 func close() -> void:
 	visible = false
+	_redraw_guide()
 	if _choosing_target:
 		_choosing_target = false
 		target_changed.emit(-1)
@@ -385,9 +399,9 @@ func _option_usable(option: int) -> bool:
 	if option in SOON_OPTIONS:
 		return false
 	if option == Option.SKILLS:
-		return not _skills_all.is_empty()
+		return not _skills_all.is_empty() and (guide.is_empty() or _skills_all.has(_guide_entry()))
 	if option == Option.ITEMS:
-		return not _items_all.is_empty()
+		return not _items_all.is_empty() and (guide.is_empty() or _items_all.has(_guide_entry()))
 	var entry := _option_entry(option)
 	return entry >= 0 and bool(_entries[entry].usable)
 
@@ -401,7 +415,7 @@ func _pick_option(option: int) -> void:
 		_use_entry(_option_entry(option))
 		return
 	var list := _skills_all if option == Option.SKILLS else _items_all
-	if list.is_empty():
+	if not _option_usable(option):
 		Sfx.play("locked")
 		_redraw()
 		return
@@ -413,6 +427,8 @@ func _pick_option(option: int) -> void:
 		_build_skill_rows()
 	_in_skills = true
 	_skill_cursor = clampi(_skill_cursor, 0, _skill_entries.size() - 1)
+	if not guide.is_empty():
+		_skill_cursor = maxi(0, _skill_entries.find(_guide_entry()))
 	_redraw()
 
 
@@ -514,6 +530,10 @@ func _default_target(entry: Dictionary) -> int:
 
 
 func _move_skill(step: int) -> void:
+	if not guide.is_empty():
+		# The tutorial allows one skill: the cursor stays on it.
+		Sfx.play("locked")
+		return
 	_skill_cursor = wrapi(_skill_cursor + step, 0, _skill_entries.size())
 	Sfx.play("menu_move")
 	_redraw()
@@ -611,6 +631,55 @@ func _redraw() -> void:
 			lit.modulate = ListMenu.SELECTED_FLASH
 			lit.create_tween().tween_property(lit, "modulate", Color.WHITE, ListMenu.SELECTED_FLASH_S)
 	_redraw_footer()
+	_redraw_guide()
+
+
+## The tutorial's guided row pulses: the option leading to it, or the skill in the open list.
+func _redraw_guide() -> void:
+	var row: Control = null
+	if not guide.is_empty() and visible and not _choosing_target:
+		var index := _guide_entry()
+		if _in_skills and _skill_entries.has(index):
+			row = _skill_rows[_skill_entries.find(index)]
+		elif not _in_skills and _guide_option() >= 0:
+			row = _option_rows[_guide_option()]
+	if row == _guide_row:
+		return
+	if _guide_tween != null:
+		_guide_tween.kill()
+		_guide_tween = null
+	if is_instance_valid(_guide_row):
+		_guide_row.modulate = Color.WHITE
+	_guide_row = row
+	if row == null:
+		return
+	_guide_tween = row.create_tween().set_loops()
+	_guide_tween.tween_property(row, "modulate", GUIDE_GLOW, GUIDE_PULSE_S * 0.5).set_trans(Tween.TRANS_SINE)
+	_guide_tween.tween_property(row, "modulate", Color.WHITE, GUIDE_PULSE_S * 0.5).set_trans(Tween.TRANS_SINE)
+
+
+## The entry the tutorial allows (-1: none).
+func _guide_entry() -> int:
+	if guide.is_empty():
+		return -1
+	for i: int in _entries.size():
+		if (_entries[i].ability as AbilityData).id == guide:
+			return i
+	return -1
+
+
+## The main option that leads to the tutorial's choice (-1: none).
+func _guide_option() -> int:
+	var index := _guide_entry()
+	if index < 0:
+		return -1
+	if index == _attack_entry:
+		return Option.ATTACK
+	if index == _ultimate_entry:
+		return Option.ULTIMATE
+	if index == _run_entry:
+		return Option.RUN
+	return Option.ITEMS if _items_all.has(index) else Option.SKILLS
 
 
 ## Draws the main options; returns the lit row.
@@ -622,8 +691,8 @@ func _redraw_options() -> Control:
 		row.visible = _option_shown(option)
 		if not row.visible:
 			continue
-		# No cursor on this layer: each option has its own button.
-		var lit := false
+		# No cursor on this layer: each option has its own button. The tutorial lights its choice.
+		var lit := option == _guide_option()
 		var usable := _option_usable(option)
 		var entry := _option_entry(option)
 		var ability: AbilityData = (_entries[entry].ability as AbilityData) if entry >= 0 else null
