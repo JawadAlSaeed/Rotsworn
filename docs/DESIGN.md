@@ -1733,6 +1733,11 @@ middle row costs 1 point, the bottom row 2):
   bolt flies to the target for each press, arriving on the hit; her heals and buffs never moved. Her
   normal attack still walks up and strikes.
 - **Alder** (#56): his sprite was already shield-only (phase 12); his skills are shield blows.
+- **Art** (checked 2026-10-15): the phase 10 sheets already fit the reworks. Brin's clips are the
+  near-dagger thrust (`strike`), the far-dagger backhand (`strike_alt`) and the two-dagger rip
+  (`strike_big`); Twin Fangs ends on the rip. Cass's sheet has the staff with the glowing crystal;
+  her spells play the staff thrust (crystal flaring) where she stands, her support skills the cast
+  (a ring and motes rising from the crystal).
 
 ---
 
@@ -1954,7 +1959,7 @@ middle row costs 1 point, the bottom row 2):
     (Pack Bite) and a Mire Toad (2.15). Step 3 (built): monster variants met deeper in a run
     (2.16) and the new sounds (5.3) (cards #114, #125, #143 to
     #145).
-13. **Leveling and skills** (in progress, branch `phase13-Leveling`): E33-style attributes and
+13. **Leveling and skills** (built 2026-10-15, branch `phase13-Leveling`): E33-style attributes and
     skill trees, critical hits, class reworks (Alder shield-only, Brin twin daggers, Cass healer),
     enemies that grow stronger deeper into a run (cards #56, #80, #81, #105, #134 to #139). Three
     steps: step 1 (built, 8.2) XP and a level per hero, attributes and their screen, critical hits; step 2 the

@@ -16,5 +16,5 @@ damage_percent = 90
 press_damage_percent = 20
 status = "exposed"
 status_needs_perfect = true
-windup_clips = PackedStringArray("strike_windup", "strike_alt_windup")
-strike_clips = PackedStringArray("strike", "strike_alt")
+windup_clips = PackedStringArray("strike_windup", "strike_big_windup")
+strike_clips = PackedStringArray("strike", "strike_big")
