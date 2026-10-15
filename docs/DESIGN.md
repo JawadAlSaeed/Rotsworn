@@ -1959,7 +1959,7 @@ middle row costs 1 point, the bottom row 2):
     (Pack Bite) and a Mire Toad (2.15). Step 3 (built): monster variants met deeper in a run
     (2.16) and the new sounds (5.3) (cards #114, #125, #143 to
     #145).
-13. **Leveling and skills** (built 2026-10-15, branch `phase13-Leveling`): E33-style attributes and
+13. **Leveling and skills** (done, approved 2026-10-15): E33-style attributes and
     skill trees, critical hits, class reworks (Alder shield-only, Brin twin daggers, Cass healer),
     enemies that grow stronger deeper into a run (cards #56, #80, #81, #105, #134 to #139). Three
     steps: step 1 (built, 8.2) XP and a level per hero, attributes and their screen, critical hits; step 2 the
