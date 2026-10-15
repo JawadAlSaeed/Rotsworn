@@ -2007,7 +2007,7 @@ middle row costs 1 point, the bottom row 2):
     steps: step 1 (built, 8.2) XP and a level per hero, attributes and their screen, critical hits; step 2 the
     class reworks with skill trees (proposed to the user first); step 3 depth scaling. Nothing
     carries over between runs.
-14. **Tutorial** (in progress, branch `phase14-Tutorial`): the five lessons of 7.8 (card #131).
+14. **Tutorial** (done, approved 2026-10-15): the five lessons of 7.8 (card #131).
 
 ### 11.1 To-do (from playtests)
 
