@@ -6,6 +6,8 @@ extends Resource
 ## Unique id used in commands and save data.
 @export var id: String = ""
 @export var display_name: String = ""
+## Its picture on the run map (DESIGN.md 8): the place painted on the old paper.
+@export_file("*.png") var map_icon_path: String = ""
 ## Lighting, post-processing, ground art; also used for the fights that start here.
 @export var look: StageLook
 ## The party member who walks around (their sprite and idle pose).

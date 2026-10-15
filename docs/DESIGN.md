@@ -1398,8 +1398,28 @@ equipped by one character. No progression between runs in v1.
   row, and at least one shop on the map. Every stop leads up to 1 or 2 stops of the next row;
   paths never cross; every stop can be reached. Each zone stop picks one of the run's zones, if
   possible not the zone met last on any path leading to it (shops and rests between do not
-  count). The map shows every stop (Z zone, R rest, $ shop, ! final), the path walked in gold,
-  and pulses the stop picked with left/right.
+  count). The map shows every stop, the path walked and the stop picked with left/right (how it
+  looks: "The paper map" below).
+- **The paper map** (card #111, user 2026-10-15; `MapScreen`, numbers in
+  `data/presentation/map_visuals.tres`, art by `tools/art_kit/assets/map_art.py`): the map is a
+  tall old parchment sheet held open between two rolled ends, taller than the screen and scrolled
+  like Slay the Spire's map (user, after the first try left no room for the paths between close
+  rows). Up/down held or the mouse wheel scroll it; left/right picks a next stop and the map glides
+  to keep it in the middle. Opening it plays the paper unrolling from the middle out to the top and
+  the bottom, then the ink soaks in row by row outward from the row in view, then the party's flag
+  (three stripes: Alder blue, Brin red, Cass gold) drops onto the stop the party is at. At a run's
+  start it opens on the boss's lair and pans down to the start first. Confirm, Back or Party
+  pressed while it opens only finishes it. Coming back from the party screen (and an online
+  client's redraw) shows it already open. Each stop is a small painted picture of the place, never
+  a letter: a zone its own place (`ZoneData.map_icon_path`: Rotten Hollow dead trees with a
+  glowing hollow, Sunken Bog a pool with reeds and a toadstool, Ashen Ruins broken columns), a
+  rest a campfire, a shop a little shop with a striped awning and a coin sign, the final fight the
+  boss's lair (`RunData.final_map_icon_path`: a crag with red eyes in its cave and a crown on the
+  peak). Names are written beside each picture in dark ink. Paths are ink dots: the walked path in
+  red, the routes open now in full ink, routes further up lighter, everything left behind faded.
+  The stop picked has a red pen circle around it. A small ink cross marks the start. Everything
+  on the map is pixel art at 3x (one art pixel is 3 screen pixels). `--screen=map` opens a sample
+  map two stops in, `--screen=map_start` one before the first stop (for pictures).
 - **Zone stop:** the zone in run mode. Its **guard** (`ZoneEnemyData.guard`, one per zone, at the
   far end, barely wanders) is marked in gold ("GUARD", no name since card #127) wherever it is on screen; beating it
   shows ZONE CLEAR and goes back to the map. Other roaming enemies are optional (more gold, more
@@ -2169,7 +2189,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Main menu: no tagline, no button bar; other hints stay | user (#130): only the main menu's bothered them |
 | 2026-10-15 | Tutorial: six lessons, offered once on the first run and always in the main menu | user approved (#131) |
 | 2026-10-15 | Lag calibration page laid out centred like the other pages | user (#113) |
-| 2026-10-15 | Run map to become an old paper map that unrolls, with painted places instead of letters | user (#111), not built yet |
+| 2026-10-15 | Run map is an old paper map that unrolls, with painted places instead of letters | user (#111) |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |
 | 2026-10-15 | Tutorial on a practice fight where nobody can die, steps checked from fight events; offered once on the first New Run | user approved the six lessons (#131) |
 | 2026-10-15 | Main menu cut to six rows: Online holds Host and Join, the tutorial is the first Practice card | user (#150) |

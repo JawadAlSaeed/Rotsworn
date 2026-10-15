@@ -334,6 +334,7 @@ pixel_size = 0.045
 [resource]
 script = ExtResource("11_v5w70")
 id = "ashen_ruins"
+map_icon_path = "res://assets/sprites/ui/map_zone_ashen_ruins.png"
 display_name = "Ashen Ruins"
 look = ExtResource("9_m1voa")
 leader = ExtResource("7_1v45n")

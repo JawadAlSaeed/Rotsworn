@@ -15,6 +15,8 @@ extends Resource
 @export var final_encounter: EncounterData
 ## How the final fight's place looks.
 @export var final_look: StageLook
+## The final fight's picture on the run map: the boss's lair.
+@export_file("*.png") var final_map_icon_path: String = ""
 ## What every shop sells (each item once per visit); it goes into the backpack (DESIGN.md 8.1).
 @export var shop_items: Array[ItemData] = []
 ## What a zone's glinting spots hold and its roaming enemies drop (picked by find weight).

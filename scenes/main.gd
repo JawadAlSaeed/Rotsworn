@@ -25,6 +25,7 @@ const DEFAULT_ENCOUNTER_ID := "husk_fight"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
 const EXPLORE_VISUALS_PATH := "res://data/presentation/explore_visuals.tres"
+const MAP_VISUALS_PATH := "res://data/presentation/map_visuals.tres"
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 const MUSIC_PATH := "res://data/audio/music.tres"
 const BOOT_PATH := "res://data/presentation/boot.tres"
@@ -52,6 +53,7 @@ var _encounter: EncounterData
 var _tuning: Tuning
 var _visuals: CombatVisuals
 var _explore: ExploreVisuals
+var _map_look: MapVisuals
 var _run_data: RunData
 var _music: MusicSet
 var _branding: BrandingData
@@ -110,6 +112,7 @@ func _ready() -> void:
 	_tuning = load(_tuning_path()) as Tuning
 	_visuals = load(VISUALS_PATH) as CombatVisuals
 	_explore = load(EXPLORE_VISUALS_PATH) as ExploreVisuals
+	_map_look = load(MAP_VISUALS_PATH) as MapVisuals
 	_run_data = load(RUN_PATH) as RunData
 	_music = load(MUSIC_PATH) as MusicSet
 	if _music == null:
@@ -132,6 +135,9 @@ func _ready() -> void:
 	if _explore == null:
 		push_warning("Main: could not load %s, using built-in exploration defaults" % EXPLORE_VISUALS_PATH)
 		_explore = ExploreVisuals.new()
+	if _map_look == null:
+		push_warning("Main: could not load %s, using built-in map defaults" % MAP_VISUALS_PATH)
+		_map_look = MapVisuals.new()
 	_transition = ScreenTransition.new()
 	_transition.name = "Transition"
 	add_child(_transition)
@@ -232,11 +238,23 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_skills()
 		"tutorial":
 			_start_tutorial()
+		"map":
+			_show_sample_map(2)
+		"map_start":
+			_show_sample_map(0)
 		"calibration":
 			_show_settings()
 			(_screen as SettingsScreen).open_calibration()
 		_:
 			_show_main_menu()
+
+
+## --screen=map: a new run two stops in; map_start: before the first stop (pictures of the map).
+func _show_sample_map(stops: int) -> void:
+	_run = RunState.begin(_run_data, _tuning, 3)
+	for i: int in stops:
+		_run.go(_run.choices()[0])
+	_show_map()
 
 
 ## --screen=party: a new run with some gear worn and a few items packed, the party screen open
@@ -817,12 +835,13 @@ func _new_run() -> void:
 	_show_map()
 
 
-func _show_map() -> void:
+## `unroll` false shows the map already open (back from the party screen, or redrawn online).
+func _show_map(unroll: bool = true) -> void:
 	if _run == null:
 		return
 	var map := MapScreen.new()
 	map.name = "Map"
-	map.setup(_run)
+	map.setup(_run, _map_look, unroll)
 	map.stop_chosen.connect(_on_stop_chosen)
 	map.quit_requested.connect(_open_pause)
 	map.party_requested.connect(_show_party.bind("", true))
@@ -932,7 +951,7 @@ func _show_party(note: String, from_map: bool, held: Dictionary = {}) -> void:
 	party.setup(_run, note, held)
 	party.op_requested.connect(_send_bag_op)
 	if from_map:
-		party.done.connect(_show_map.call_deferred)
+		party.done.connect(_show_map.bind(false).call_deferred)
 	else:
 		party.done.connect(_fade_to.bind(_show_map))
 	_show_screen(party)
@@ -1370,6 +1389,9 @@ func _rebuild_watched_screen() -> void:
 	if _refresh_party_views():
 		return
 	if _busy or _net_screen.is_empty() or not _is_run_screen(_screen) or _screen is RunEndScreen:
+		return
+	if _screen is MapScreen:
+		_show_map(false)
 		return
 	_watched_screen_builder(_net_screen).call()
 

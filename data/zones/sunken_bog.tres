@@ -391,6 +391,7 @@ flip = true
 [resource]
 script = ExtResource("11_jyu1e")
 id = "sunken_bog"
+map_icon_path = "res://assets/sprites/ui/map_zone_sunken_bog.png"
 display_name = "Sunken Bog"
 look = ExtResource("9_7dio0")
 leader = ExtResource("7_fpga6")

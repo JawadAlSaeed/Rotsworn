@@ -772,6 +772,7 @@ pixel_size = 0.045
 [resource]
 script = ExtResource("12_zone_d")
 id = "rotten_hollow"
+map_icon_path = "res://assets/sprites/ui/map_zone_rotten_hollow.png"
 display_name = "Rotten Hollow"
 look = ExtResource("10_rotten")
 leader = ExtResource("11_brin")
