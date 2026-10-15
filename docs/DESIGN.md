@@ -1161,8 +1161,11 @@ re-renders it from the original canvas animation (the user's `dragonrot-intro/so
 browser at exactly 1920x1080, 60 fps, with its own WAV, Theora quality 10. The video and the logos
 are scaled smoothly (linear filter; the project's default is nearest, for pixel art).
 
-- **Main menu** (first screen, `MainMenu`): New Run, Practice (the fight and zone list, full HP,
-  nothing carries over), Settings, Quit. The cursor comes back on the last item picked.
+- **Main menu** (first screen, `MainMenu`): New Run, Online, Practice (the tutorial card first,
+  then the fight and zone list, full HP, nothing carries over), Settings, Credits, Quit. The
+  cursor comes back on the last item picked. Card #150 (user, 2026-10-15): kept to six rows;
+  Online opens a second list in place (Host Online, Join Online, Back; cancel goes back) and
+  the tutorial moved from the menu into Practice.
 - **Settings** (`SettingsScreen`): volume (left/right, 10% steps), fullscreen on/off, training
   ring on/off, lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
   plus a read-only list of the controls (changing keys comes later). Saved per machine at once
@@ -2169,4 +2172,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Run map to become an old paper map that unrolls, with painted places instead of letters | user (#111), not built yet |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |
 | 2026-10-15 | Tutorial on a practice fight where nobody can die, steps checked from fight events; offered once on the first New Run | user approved the six lessons (#131) |
+| 2026-10-15 | Main menu cut to six rows: Online holds Host and Join, the tutorial is the first Practice card | user (#150) |
 | 2026-10-15 | Tutorial: each hero lesson locks the menu to one glowing choice; no zone or map lesson (five lessons); the Skills lesson uses a skill without follow-ups (Taunt) | user play-test |
