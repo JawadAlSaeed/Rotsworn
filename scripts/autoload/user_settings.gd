@@ -6,7 +6,8 @@ extends Node
 ## and they also work when no autoload exists (unit tests). UserSettings.x() works too.
 ## Holds what belongs to this machine and player rather than to the game's balance: the measured
 ## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
-## the volumes (overall, music, effects, voices) and fullscreen (settings screen), the last host address joined online. Anything not
+## the volumes (overall, music, effects, voices), the display and graphics options, screen shake
+## (settings screen, card #112), the last host address joined online. Anything not
 ## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
@@ -29,6 +30,27 @@ const CHANNELS := {
 }
 const SECTION_DISPLAY := "display"
 const KEY_FULLSCREEN := "fullscreen"
+const KEY_WINDOW_SIZE := "window_size"
+const KEY_VSYNC := "vsync"
+const KEY_FPS_LIMIT := "fps_limit"
+## Window sizes when not fullscreen (index 0: the maximised window, as before card #112).
+const WINDOW_SIZES: Array[Vector2i] = [Vector2i.ZERO, Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080),
+		Vector2i(2560, 1440)]
+## Frame rate limits (0: the project's own limit).
+const FPS_LIMITS: Array[int] = [0, 30, 60, 120, 144, 240]
+## Graphics options (card #112): each turns one part of a place's look on or off. A look that
+## does not use it stays without it either way.
+const SECTION_GRAPHICS := "graphics"
+const GRAPHICS := {
+	"fog": "Fog",
+	"bloom": "Bloom",
+	"shadows": "Shadows",
+	"ambient_occlusion": "Soft shadows",
+	"depth_of_field": "Depth of field",
+}
+const SECTION_GAME := "game"
+const KEY_SHAKE := "screen_shake_percent"
+const SHAKE_STEP_PERCENT: int = 25
 const SECTION_ONLINE := "online"
 const KEY_JOIN_ADDRESS := "join_address"
 const DEFAULT_JOIN_ADDRESS := "127.0.0.1"
@@ -43,6 +65,7 @@ func _ready() -> void:
 	_settings()
 	apply_volume()
 	apply_fullscreen()
+	apply_frame_options()
 
 
 ## Lag compensation in ms: the calibrated value if there is one (kept within tuning's
@@ -148,8 +171,88 @@ static func apply_fullscreen() -> void:
 	var mode := DisplayServer.window_get_mode()
 	if fullscreen() and mode != DisplayServer.WINDOW_MODE_FULLSCREEN:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-	elif not fullscreen() and mode == DisplayServer.WINDOW_MODE_FULLSCREEN:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
+	elif not fullscreen():
+		var wanted := window_size()
+		if wanted == Vector2i.ZERO:
+			if mode != DisplayServer.WINDOW_MODE_MAXIMIZED:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
+			return
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+		DisplayServer.window_set_size(wanted)
+		var screen := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
+		DisplayServer.window_set_position(screen.position + (screen.size - wanted) / 2)
+
+
+## The window size when not fullscreen (Vector2i.ZERO: maximised).
+static func window_size() -> Vector2i:
+	return WINDOW_SIZES[window_size_index()]
+
+
+static func window_size_index() -> int:
+	return clampi(int(_settings().get_value(SECTION_DISPLAY, KEY_WINDOW_SIZE, 0)), 0, WINDOW_SIZES.size() - 1)
+
+
+static func set_window_size_index(value: int) -> void:
+	_settings().set_value(SECTION_DISPLAY, KEY_WINDOW_SIZE, posmod(value, WINDOW_SIZES.size()))
+	_save()
+	apply_fullscreen()
+
+
+static func vsync() -> bool:
+	return bool(_settings().get_value(SECTION_DISPLAY, KEY_VSYNC, true))
+
+
+static func set_vsync(value: bool) -> void:
+	_settings().set_value(SECTION_DISPLAY, KEY_VSYNC, value)
+	_save()
+	apply_frame_options()
+
+
+## The frame rate limit (0: the project's own).
+static func fps_limit() -> int:
+	return FPS_LIMITS[fps_limit_index()]
+
+
+static func fps_limit_index() -> int:
+	return clampi(int(_settings().get_value(SECTION_DISPLAY, KEY_FPS_LIMIT, 0)), 0, FPS_LIMITS.size() - 1)
+
+
+static func set_fps_limit_index(value: int) -> void:
+	_settings().set_value(SECTION_DISPLAY, KEY_FPS_LIMIT, posmod(value, FPS_LIMITS.size()))
+	_save()
+	apply_frame_options()
+
+
+## VSync (on: the project's own mode) and the frame rate limit.
+static func apply_frame_options() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var project_vsync := int(ProjectSettings.get_setting("display/window/vsync/vsync_mode", DisplayServer.VSYNC_ENABLED))
+	DisplayServer.window_set_vsync_mode(project_vsync if vsync() else DisplayServer.VSYNC_DISABLED)
+	var limit := fps_limit()
+	Engine.max_fps = limit if limit > 0 else int(ProjectSettings.get_setting("application/run/max_fps", 0))
+
+
+## One graphics option (a GRAPHICS key); every option is on unless turned off.
+static func graphics(key: String) -> bool:
+	return bool(_settings().get_value(SECTION_GRAPHICS, key, true))
+
+
+static func set_graphics(key: String, value: bool) -> void:
+	if not GRAPHICS.has(key):
+		return
+	_settings().set_value(SECTION_GRAPHICS, key, value)
+	_save()
+
+
+## How strong camera shakes are, in percent (0: no shaking).
+static func screen_shake_percent() -> int:
+	return clampi(int(_settings().get_value(SECTION_GAME, KEY_SHAKE, 100)), 0, 100)
+
+
+static func set_screen_shake_percent(value: int) -> void:
+	_settings().set_value(SECTION_GAME, KEY_SHAKE, clampi(value, 0, 100))
+	_save()
 
 
 ## The host address typed last on the Join Online screen.

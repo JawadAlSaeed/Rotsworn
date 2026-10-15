@@ -23,10 +23,13 @@ func setup(run: RunState, input_guard_ms: int) -> void:
 	ListMenu.screen_footer(self, [[&"menu_confirm", "Main menu"]])
 
 
-## "Stops reached 5 of 8   Fights won 6   Level 3   Gold earned 140".
+## "Stops reached 5 of 8   Fights won 6   Levels 4 / 3 / 4   Gold earned 140".
 static func summary(run: RunState) -> String:
-	return "Stops reached  %d of %d      Fights won  %d      Level  %d      Gold earned  %d" % [run.path.size(),
-			run.map.row_count(), run.fights_won, run.level, run.gold_earned]
+	var levels := PackedStringArray()
+	for lv: int in run.levels:
+		levels.append(str(lv))
+	return "Stops reached  %d of %d      Fights won  %d      Level%s  %s      Gold earned  %d" % [run.path.size(),
+			run.map.row_count(), run.fights_won, "s" if levels.size() > 1 else "", " / ".join(levels), run.gold_earned]
 
 
 func _process(delta: float) -> void:

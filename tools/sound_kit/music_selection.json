@@ -1,11 +1,13 @@
 {
  "title": "c",
- "map": "c",
+ "map": "map_new/b",
  "zone_hollow": "a",
  "zone_bog": "a",
  "zone_ruins": "a",
  "fight": "a",
  "boss": "boss_rage/b",
  "boss_rage": "boss/c",
- "credits": "title/b"
+ "credits": "title/b",
+ "victory": "b",
+ "defeat": "c"
 }

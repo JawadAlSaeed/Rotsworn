@@ -84,6 +84,8 @@ MUD = M["bog_mud"]
 MUD_WET = Material.make("fx_mud_wet", "#5a5a36", below=2, above=2, wrap=0.3, spec=0.6, spec_power=10.0)
 SHADE = M["shade_edge"]
 SHADE_GLOW = M["glow_violet"]
+LIGHT = Material.make("fx_light", "#fff2b8", below=2, above=1, emissive=True)
+LIGHT_HALO = M["glow_amber"]
 
 # Every projectile model is centred here (model units = pixels), in the middle of its cell, and
 # drawn K times the size of its first sketch (12 px cells were too small to read in a fight).
@@ -149,12 +151,27 @@ def _cinder(frame: int) -> np.ndarray:
     return finish(render(model, _cam()))
 
 
+def _light(frame: int) -> np.ndarray:
+    """Cass's light bolt (card #81): a pale gold heart in a pulsing amber halo, with a short
+    comet tail of light."""
+    phase = frame / PROJ_FRAMES * math.tau
+    halo = Ellipsoid(LIGHT_HALO, CENTRE, (K * (3.4 + 0.5 * math.sin(phase)), K * (3.0 + 0.4 * math.sin(phase)), K * 2.6),
+                     group="halo")
+    # Heroes stand on the left and cast to the right: the tail trails on the left.
+    tail = Ellipsoid(LIGHT_HALO, (CENTRE[0] - K * 3.0, CENTRE[1], 0.0), (K * (2.4 + 0.4 * math.cos(phase)), K * 1.0, K * 1.0),
+                     group="halo")
+    heart = Sphere(LIGHT, (CENTRE[0] + K * 0.6, CENTRE[1], K * 2.2), K * (1.9 + 0.3 * math.cos(phase)), group="heart")
+    model = Union(SmoothUnion(halo, tail, k=K * 1.5), heart)
+    return finish(render(model, _cam()), contour_gap=0)
+
+
 PROJECTILES = {
     "cinder": _cinder,
     "mud_glob": _mud,
     "bile_glob": _glob,
     "thrown_stone": _stone,
     "shade_bolt": _bolt,
+    "light_bolt": _light,
 }
 
 

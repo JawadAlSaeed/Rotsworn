@@ -578,8 +578,12 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
   pause, then two quick hits.
 - **During the attack** the banner row shows each hit's state (`HitRhythm.states`): upcoming as
   is, active (bigger, `rhythm_active_scale`) from the moment its motion starts until impact, done
-  (faded, `rhythm_done_alpha`) after impact. A feint's hit is active from its false start, so the
-  marker never gives the feint away. At most one hit is active at a time.
+  (faded, `rhythm_done_alpha`) after impact. A feint's hit is active from its false start. At
+  most one hit is active at a time.
+- **Feints are marked** (card #129, user request; this replaced "the marker never gives the feint
+  away"): on the intent sign and the attack banner a feint's icon wears a dashed orange ring
+  (`rhythm_feint_color`, `_ring_scale`, `_ring_px`, `_dashes`; the intent event lists `feints`).
+  The player knows a false start is coming, not when the real lunge lands.
 - **Hit marker:** while a hit is active, its icon on a dark disc with a border in its colour sits
   beside each living target, on the side the enemy stands (`hit_marker_offset_px`), popping in
   over `hit_marker_pop_ms`; ground hits add "JUMP" under it. It sits beside the body, not above
@@ -852,7 +856,11 @@ clamped by tuning's calibration bounds.
 Music (2026-10-13, cards #84, #95, #97, #98): `data/audio/music.tres` (`MusicSet`) names the songs:
 `menu_path` (title theme and menus), `run_path` (map, shop, rest, loot, party, run end), `zone_path`
 (zones without their own song; each `ZoneData.music_path` names its own), `fight_path`, `boss_path`
-and `boss_rage_path` (the boss fight switches to it on the boss's phase change). The `Audio`
+and `boss_rage_path` (the boss fight switches to it on the boss's phase change), `victory_path` and
+`defeat_path` (cards #109, #126: a won or lost fight's end screen, `end_song_delay_ms` after the
+jingle, and RUN CLEARED / RUN OVER; user picks 2026-10-15: "Victory Theme for RPG" by cynicmusic
+and "Lament for a Warrior's Soul" by RandomMind; empty keeps the old songs). The run map song is
+"Treasure Hunter" by TAD (card #110, user pick 2026-10-15, was "Mystical Theme"). The `Audio`
 autoload loops the song on its own player (OGG imports loop, `oggvorbisstr` default in
 project.godot); a place naming the song already playing lets it go on. A new song crossfades in: it fades in over `fade_in_ms` while the old one fades
 out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). While an enemy attack plays
@@ -908,7 +916,7 @@ fight start (normal fights), fight transition swirl, run away fails, gold and le
 win (`reward_sound_delay_ms`, `level_up_sound_gap_ms`), footsteps per zone ground (`ZoneData.
 footstep_sfx`, one per bob step), enemy spots you and gives up, zone arrival and zone clear, run
 begins, loot reveal, run cleared and run over, player joins and leaves, connected, connection
-problem. Skipped by the user: low HP warning, pause opens, status sticks. Not made (need other recordings
+problem, critical hit (phase 13, 8.2). Skipped by the user: low HP warning, pause opens, status sticks. Not made (need other recordings
 or features): voices, zone ambience loops, backpack sounds.
 
 ---
@@ -1001,6 +1009,8 @@ player's heroes.
 | `field_pickup` (zone, near a glinting spot) | E, Enter | A |
 | `item_move` (backpack: pick up the item under the cursor to move it, put it down) | R | X |
 | `item_turn_left` / `item_turn_right` (backpack: turn the item in hand) | Z / C | LB / RB |
+| `party_attributes` (party screen shortcut: the attributes screen, 8.2; the card button is the main way) | T | LT |
+| `party_skills` (party screen shortcut: the skills screen, 8.4; the card button is the main way) | K | RT |
 
 Outside fights every screen (main menu, settings, practice list, map, shop, rest, party, loot)
 uses the `menu_*` actions: up/down pick, left/right change a setting or pick on the map, Confirm
@@ -1124,7 +1134,8 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
   `explore_notice_radius` an enemy stops and shows a red "!" for `explore_notice_ms` (fair
   warning), then chases at `explore_chase_speed` (slower than walking, so you can get away or turn
   and strike) until the leader is beyond `explore_give_up_radius`, then walks home
-  (`RoamerBrain`, pure and unit-tested). The fight's name shows over enemies nearby.
+  (`RoamerBrain`, pure and unit-tested). No names over roaming enemies (card #127,
+  `ExploreVisuals.show_roamer_names` off): the name shows once the fight starts.
 - **Starting a fight:** the field strike (`field_strike`: Space or J, pad X) swings in front of
   the leader; an enemy within `explore_strike_reach` and `explore_strike_arc_degrees` is struck:
   FIRST STRIKE (2.12). An enemy that touches the leader (`explore_touch_radius`) starts a normal
@@ -1156,6 +1167,13 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   ring on/off, lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
   plus a read-only list of the controls (changing keys comes later). Saved per machine at once
   (`PlayerSettings`, `user://settings.cfg`); volume and fullscreen are applied at start-up.
+  **Full menu (card #112):** four sections, LB / RB (Z / C) to change: **Graphics** (fullscreen;
+  window size when windowed: maximised, 1280x720 to 2560x1440; vsync, on = the project's mode;
+  frame limit: none, 30, 60, 120, 144, 240; fog, bloom, shadows, soft shadows (SSAO), depth of
+  field: each only turns off what a place's look uses, `StageBuilder.apply_settings` applies a
+  change at once even over a fight or zone), **Sound** (the four volumes), **Controls** (the list)
+  and **Game** (screen shake 0 to 100% in 25% steps, scaling every camera shake; the training
+  ring; lag calibration and its reset).
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions only.
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
   run map (B on the map too). Continue, Settings, and "Abandon run" (asks first, then the main
@@ -1273,7 +1291,7 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
   fading in and growing slightly, a soft green glow behind it that breathes, and "Press any button"
   pulsing under it once the logo is in. Any key, button or click (after `skip_guard_ms`) fades to
   the main menu. The title song starts here and carries on into the menu.
-- **Main menu**: the logo (smaller) replaces the text title, the tagline under it; a Credits row
+- **Main menu**: the logo (smaller) replaces the text title (no tagline and no button bar since card #130); a Credits row
   before Quit. Its logo, and the credits', move like the title screen's (user request): all use `AnimatedLogo`
   (swaying ribbon, flickering letter edges; drawn small, the cuts blend over a screen pixel so the
   edges shimmer softly instead of sparkling).
@@ -1289,6 +1307,8 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
   row) and the logo in the corner, over the menu background (or `TipSet.background_path` art). It
   stays `hold_ms` (2.6 s) and the zone is built at its end, so the zone starts when it is seen.
   Clients and the bot do not hold it (the host already held it before telling the clients).
+  While the black, the swirl or a loading card covers the screen, no input (mouse, keyboard, pad)
+  reaches anything behind it (`ScreenTransition._input`, card #132).
 - **Hero portraits** (card #85): waiting for painted art (the 24 px placeholders stay).
 - **Story** (card #90): at the top of this file, in `BrandingData.story`, the credits and the
   README.
@@ -1336,13 +1356,13 @@ equipped by one character. No progression between runs in v1.
   count). The map shows every stop (Z zone, R rest, $ shop, ! final), the path walked in gold,
   and pulses the stop picked with left/right.
 - **Zone stop:** the zone in run mode. Its **guard** (`ZoneEnemyData.guard`, one per zone, at the
-  far end, barely wanders) is named in gold ("GUARD: ...") wherever it is on screen; beating it
+  far end, barely wanders) is marked in gold ("GUARD", no name since card #127) wherever it is on screen; beating it
   shows ZONE CLEAR and goes back to the map. Other roaming enemies are optional (more gold, more
   risk). The top right says "Beat the GUARD at the exit / Optional enemies: N"; the run's gold and
   HP strip sits top left.
 - **HP carries over** between fights (`CombatSetup.party_start_hp` and `party_max_hp_percent`,
   used by the engine). After a victory a downed character gets back up at `run_downed_revive_hp`
-  (1). A defeat ends the run. AP, statuses and the team gauge reset every fight.
+  (1). A defeat ends the run. AP and statuses reset every fight; the team gauge carries over (8.3, card #146).
 - **Gold:** each enemy's `gold` (Husk 15, Bloat 20, Shade 20, Gnat Swarm 8) is paid when its
   fight is won; the end screen shows "+N gold". A run fight's end screen has no "fight again".
 - **Rest:** everyone heals `run_rest_heal_percent` (50%) of max HP, once.
@@ -1362,7 +1382,7 @@ counters for longer and mixed strings (2.5, card #52).
 
 **Part B as built:**
 
-- **Levels** (#30): the whole party shares one level (`RunState.level`, `xp`). Each enemy has `xp`
+- **Levels** (#30, replaced in phase 13 by a level per hero, 8.2): the whole party shares one level (`RunState.level`, `xp`). Each enemy has `xp`
   (Husk 30, Bloat 40, Shade 40, Gnat Swarm 15, boss 0). Level 2 needs `run_xp_first_level` (60),
   each next one `run_xp_level_step` (30) more, up to `run_max_level` (10). Each level adds
   `run_level_hp_percent` (8) to max HP and `run_level_power_percent` (8) to power, and heals what
@@ -1600,6 +1620,120 @@ the cursor onto the hero cards to pick who (no extra "Use on ..." lines).
 Keys were too rare once Step 3 added 21 kinds of finds (a whole zone could have none): the
 user picked keeping them random but twice as common (Key find weight 4 to 8).
 
+### 8.2 Levels, attributes and critical hits (phase 13 step 1, cards #134, #135, #137, #138)
+
+Replaces the shared party level of phase 4 (#30). Numbers live in `tuning.tres` (groups "Run" and
+"Attributes and critical hits"); the rules are in `RunState` and `Attributes` (pure, tested in
+`test_leveling.gd`).
+
+- **A level per hero** (user pick). Each hero has their own level (`RunState.levels`) and XP
+  (`xps`). A won fight pays the encounter's XP to every hero standing at the end and
+  `run_xp_downed_percent` (50) of it to a downed one. Level 2 needs `run_xp_first_level` (60),
+  each next one `run_xp_level_step` (30) more, up to `run_max_level` (10). Each level still adds
+  `run_level_hp_percent` (4) to max HP and `run_level_power_percent` (4) to power (was 8 each:
+  the attribute points now carry the rest) and heals what max HP grew.
+- **Attributes** (like Expedition 33). Each level up gives `attr_points_per_level` (3) points
+  (`attr_start_points` at the start, 0). Five attributes, each raising one stat per point:
+
+  | Attribute | Raises | Per point |
+  |---|---|---|
+  | Vitality | Health (max HP) | +`attr_vitality_hp_percent` (3) % |
+  | Might | Attack Power | +`attr_might_power_percent` (3) % |
+  | Agility | Speed | +`attr_agility_speed` (2) |
+  | Defense | enemy hits deal less | `attr_defense_percent` (2) % (the `tough` passive, with gear) |
+  | Luck | Critical Rate | +`attr_luck_crit_percent` (2) % (the `crit` passive) |
+
+  Defense and gear together never cut a hit by more than `tough_max_percent` (60). Points can be
+  taken back at any time and a reset is free; the HP a hero is missing stays the same through any
+  change, so respending never heals. Online, a change is a RunState op (`attributes`), like the
+  backpack: anyone may change any hero.
+- **Critical hits.** Every hero has `crit_base_percent` (5) plus Luck. A crit deals
+  `crit_damage_percent` (150) of the hit. Rolled through `CombatRng` when the damage is rolled (a
+  skill or follow-up press when the sequence is declared, so it is in the declared event; a missed
+  press never crits), for skill presses, follow-ups, instant abilities and counters (each hero's
+  share of a team counter on its own). Enemies never crit. The `damage` event says `crit`; the
+  fight shows CRITICAL! over a gold, big number (`crit_popup_size`) with the `critical` sound
+  (three options built, option A in place until the user picks).
+- **Level-up moment.** After a won fight, LEVEL UP! pops over each hero who levels
+  (`level_up_popup_size`) with the level-up sound; the end screen lists each hero's XP and new
+  level and says there are points to spend.
+- **Where to spend.** The status strip shows each hero's level and a gold "+N" while they have
+  points. Each hero card on the party screen (user request 2026-10-15) ends in two buttons after
+  the gear slots, **Attributes +N** and **Skills +N** (gold while points wait); the cursor moves
+  onto them like a gear slot and Confirm opens that screen for that hero (T / LT and K / RT stay as
+  hidden shortcuts). The info box under the cards only shows while it has something to say (an
+  item menu, choosing who to use an item on, something in hand, or a backpack item under the
+  cursor). The **attributes screen** (`AttributesScreen`) shows the
+  hero, level, XP and points to spend at the top; one row per attribute with its points, the stat
+  it raises, that stat now and what one point gives. Up / down picks, right (or Confirm) adds a
+  point, left takes one back, X / R resets (asks first), LB / RB (Z / C) changes hero, B / Tab / Y
+  / T closes.
+- The bot spends every point at once, evenly (the attribute with the fewest points first).
+- `--screen=attributes` opens it on a sample run (for pictures).
+
+### 8.3 Enemies grow with depth, the gauge carries over (cards #105, #146)
+
+- **Depth** (#105, phase 13 step 3, built early): every enemy in a run fight gets
+  `run_enemy_hp_row_percent` (5) more HP and `run_enemy_power_row_percent` (3) more power per map
+  row of the stop (row 0 as in its data; `CombatSetup.enemy_hp_percent` / `enemy_power_percent`,
+  set by `RunState.fight_setup`). On top of the deep variants (2.16). Bosses keep their own
+  numbers unless `run_enemy_scale_bosses` is on. Practice fights never grow.
+- **Team gauge** (#146): what is left of the team gauge when a run fight ends (won or escaped)
+  starts the next fight (`RunState.team_gauge`, `run_team_gauge_carry_percent` (100) of it; 0 =
+  the old rule). The fight shows it filling at the start. A new run starts empty. This replaces
+  "the team gauge resets every fight" for the gauge only (AP and statuses still reset).
+
+### 8.4 Skill trees (cards #136, #56, #80, #81, built 2026-10-15)
+
+User picks: 5 skills brought, 1 skill point per level, the trees of the proposal
+(`docs/proposals/skill_trees.html`), Cass casting every skill from afar except her normal attack.
+
+- `CharacterData.skill_tree` (`SkillTreeData`: `branches`, each a `SkillBranchData` with a name and
+  its skills top down). The top of each branch is known from the start of a run; the skill at
+  place N costs `skill_tier_costs[N]` (0, 1, 2) skill points and needs the one above it. Each level
+  up gives `skill_points_per_level` (1). A hero brings at most `skill_slots` (5) known skills into a
+  fight (the basic attack always comes); a new skill is brought at once while there is room.
+- `RunState.unlocked` / `loadout` per hero, ops `unlock` and `loadout` (online: anyone, like the
+  backpack), `CombatSetup.party_skills` gives the engine only what was brought; fights outside a
+  run give every skill. The action menu lists the fighter's own `ability_ids`.
+- **Skills screen** (`SkillsScreen`, the Skills button on a hero card, or K / RT; only for a hero with a
+  tree): the branches side by side, each skill Bringing (gold), Known, Learn: N pts (green) or
+  Locked. Confirm learns, brings or leaves behind; LB / RB changes hero.
+- The bot learns the cheapest skill it can until it cannot, and brings new ones while there is room.
+- `--screen=skills` shows it with sample trees made of today's skills, laid out as in the proposal.
+
+**The trees** (`data/skill_trees/<hero>.tres`; the top row is known at the start of a run, the
+middle row costs 1 point, the bottom row 2):
+
+| Hero | Branch | Start | 1 point | 2 points |
+|---|---|---|---|---|
+| Alder | Bulwark | Guard | Shield Wall (3 AP: whole party guarded; perfect +1 AP) | Unbreakable (4 AP: every enemy taunted, Alder guarded; perfect: riposte too) |
+| Alder | Bash | Shield Bash | Shield Throw (1 AP: 2 hits of 60%) | Earthshaker (4 AP: 140% to every enemy, their turns later) |
+| Alder | Retort | Taunt | Riposte Stance | Payback |
+| Brin | Flurry | Quick Cuts (now 4 x 40%) | Twin Fangs (2 AP: 2 x 90%; both perfect: Exposed) | All In (now 6 x 100%) |
+| Brin | Cripple | Hamstring | Open Vein (2 AP: 100% and Bleeding 3 turns) | Rend |
+| Brin | Shadow | Feint Step | Shadowstep (1 AP: next turn much sooner, Empowered) | Death Mark (3 AP: Marked for 3 skills) |
+| Cass | Mending | Mend | Renew (2 AP: Renew 3 turns) | Sanctuary (4 AP: heals the party 30%, perfect 40%) |
+| Cass | Light | Reveal (now a bolt) | Smite (2 AP: 160% bolt, +100% on Exposed) | Revive |
+| Cass | Grace | Pass the Torch | Hasten | Inspire (3 AP: everyone +1 AP, gauge +25) |
+
+- **New statuses** (`Status`, numbers in tuning "Skill statuses"): Bleeding (an enemy loses
+  `bleed_power_percent` (25) of the source's power at the start of each of its turns; damage cause
+  `bleed`; an enemy that bleeds out loses its turn), Renew / `regen` (a hero heals `regen_percent`
+  (12) of max HP at the start of each of their turns), Marked (the next N damaging skills on that one
+  enemy deal `marked_bonus_percent` (40) more; each skill that lands uses one), Empowered (the hero's
+  next damaging skill on enemies deals `empowered_bonus_percent` (30) more, then it is gone).
+- **New ability fields:** target `ALL_ALLIES` (every standing hero, no target step; heals, AP gifts,
+  hastes and statuses reach every party target), `status_needs_perfect`, `self_status` /
+  `press_self_status`, `gauge_gain`, and (presentation) `projectile` / `projectile_flight_ms`.
+- **Brin** (#80): the normal attack is now two cuts, one per dagger (`brin_attack`: 2 presses of 50%,
+  +15% each perfect); Quick Cuts, Twin Fangs and All In alternate the daggers.
+- **Cass** (#81, user note): Reveal and Smite are spells (`projectile = light_bolt`, drawn by
+  `tools/art_kit/assets/fx_attacks.py`): she stays where she stands, the ring sits on her, and a
+  bolt flies to the target for each press, arriving on the hit; her heals and buffs never moved. Her
+  normal attack still walks up and strikes.
+- **Alder** (#56): his sprite was already shield-only (phase 12); his skills are shield blows.
+
 ---
 
 ## 9. Multiplayer (phase 5)
@@ -1820,9 +1954,12 @@ user picked keeping them random but twice as common (Key find weight 4 to 8).
     (Pack Bite) and a Mire Toad (2.15). Step 3 (built): monster variants met deeper in a run
     (2.16) and the new sounds (5.3) (cards #114, #125, #143 to
     #145).
-13. **Leveling and skills**: E33-style attributes and skill trees, critical hits, class reworks
-    (Alder shield-only, Brin twin daggers, Cass healer), enemies that grow stronger deeper into a
-    run (cards #56, #80, #81, #105, #134 to #139).
+13. **Leveling and skills** (in progress, branch `phase13-Leveling`): E33-style attributes and
+    skill trees, critical hits, class reworks (Alder shield-only, Brin twin daggers, Cass healer),
+    enemies that grow stronger deeper into a run (cards #56, #80, #81, #105, #134 to #139). Three
+    steps: step 1 (built, 8.2) XP and a level per hero, attributes and their screen, critical hits; step 2 the
+    class reworks with skill trees (proposed to the user first); step 3 depth scaling. Nothing
+    carries over between runs.
 
 ### 11.1 To-do (from playtests)
 
@@ -1962,3 +2099,24 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-14 | Variants are recoloured kin (same clips) met from map row 4 of a run, each with one move of its own | user asked for variants; recolouring keeps every animation for free |
 | 2026-10-14 | New sounds (3 voices, spit, throw, shadow bolt, splat, rock rumble) built from CC0 recordings, picked by the user on the listening page | user picks |
 | 2026-10-14 | No static on menu text and titles, just the gold tint (the logo keeps its static) | user: some texts were not readable |
+| 2026-10-14 | Phase 13 in three steps: (1) XP, level up, attributes, attributes screen, critical hits (#134, #135, #137, #138); (2) class reworks with skill trees (#56, #80, #81, #136; trees proposed first); (3) enemies scale with run depth (#105) | user pick: step 1 first, trees build on it |
+| 2026-10-14 | Each hero has their own level and XP (replaces the shared party level) | user pick, like E33; a hero downed often can fall behind |
+| 2026-10-14 | Nothing carries over between runs: every run starts at level 1 with no points or skills (#139) | user pick: pure roguelike for now; can revisit later |
+| 2026-10-14 | Downed heroes get half the fight's XP | default proposed to the user; keeps a level per hero meaningful |
+| 2026-10-14 | 3 attribute points per level; levels keep +4% HP and power (was +8%) | points carry the rest of the growth |
+| 2026-10-14 | Attribute changes count at once, resetting is free, missing HP stays the same | no confirm step to forget; respending can never heal |
+| 2026-10-14 | Crits: 5% base, Luck +2% a point, 150% damage, party only, rolled with the damage | E33-like; rolled in the declared event so online stays in sync |
+| 2026-10-14 | Attributes screen on T / LT from the party screen | the party screen's other buttons were taken |
+| 2026-10-15 | Team gauge carries over between fights in a run (`run_team_gauge_carry_percent`, 100) | card #146 |
+| 2026-10-15 | No names over roaming enemies; the guard keeps a gold GUARD tag | card #127 |
+| 2026-10-15 | Feints marked with a dashed ring on the hit rows | card #129 (reverses "the marker never gives the feint away") |
+| 2026-10-15 | Loading screen blocks all input | card #132 |
+| 2026-10-15 | Settings in four sections with graphics options and screen shake | card #112 |
+| 2026-10-15 | Enemies grow 5% HP and 3% power per map row (not bosses) | card #105; first guess, to tune with play |
+| 2026-10-15 | Cass: every skill is ranged; only her normal attack walks up (#81) | user note |
+| 2026-10-15 | Skill trees: 5 skills brought, 1 skill point per level | user picks (#136) |
+| 2026-10-15 | Main menu: no tagline, no button bar; other hints stay | user (#130): only the main menu's bothered them |
+| 2026-10-15 | Tutorial: six lessons, offered once on the first run and always in the main menu | user approved (#131) |
+| 2026-10-15 | Lag calibration page laid out centred like the other pages | user (#113) |
+| 2026-10-15 | Run map to become an old paper map that unrolls, with painted places instead of letters | user (#111), not built yet |
+| 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |

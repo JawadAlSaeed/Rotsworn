@@ -190,34 +190,39 @@ func _run() -> RunState:
 	return RunState.begin(load(RUN_PATH) as RunData, Tuning.new(), 5)
 
 
-func test_xp_levels_the_whole_party() -> void:
+func test_xp_levels_one_hero() -> void:
 	var run := _run()
 	var t := Tuning.new()
 	var max_before := run.max_hp(0)
 	var power_before := run.power(0)
 	run.hp[0] = 10
-	assert_eq(run.levels_from(t.run_xp_first_level - 1), 0)
-	assert_eq(run.levels_from(t.run_xp_first_level), 1)
-	assert_eq(run.add_xp(t.run_xp_first_level + 5), 1)
-	assert_eq(run.level, 2)
-	assert_eq(run.xp, 5)
-	assert_eq(run.xp_to_next(), t.run_xp_first_level + t.run_xp_level_step)
+	assert_eq(run.levels_from(0, t.run_xp_first_level - 1), 0)
+	assert_eq(run.levels_from(0, t.run_xp_first_level), 1)
+	assert_eq(run.add_xp(0, t.run_xp_first_level + 5), 1)
+	assert_eq(run.levels[0], 2)
+	assert_eq(run.xps[0], 5)
+	assert_eq(run.levels[1], 1, "the others keep their own level")
+	assert_eq(run.xp_to_next(0), t.run_xp_first_level + t.run_xp_level_step)
 	assert_eq(run.max_hp(0), CombatSetup.scaled_max_hp(t, run.data.party[0], 100 + t.run_level_hp_percent))
 	assert_gt(run.power(0), power_before)
 	assert_eq(run.hp[0], 10 + run.max_hp(0) - max_before, "a level up heals what max HP grew")
-	run.add_xp(1000000)
-	assert_eq(run.level, t.run_max_level, "levels stop at the max")
-	assert_eq(run.xp, 0)
+	assert_eq(run.free_points(0), t.attr_start_points + t.attr_points_per_level, "a level up gives points")
+	run.add_xp(0, 1000000)
+	assert_eq(run.levels[0], t.run_max_level, "levels stop at the max")
+	assert_eq(run.xps[0], 0)
 
 
 func test_a_victory_pays_xp() -> void:
 	var run := _run()
 	run.go(run.choices()[0])
 	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
-	var hp: Array[int] = [50, 50, 50]
+	var hp: Array[int] = [50, 0, 50]
 	var got := run.finish_fight(RunState.VICTORY, hp, husk)
-	assert_eq(int(got.xp), RunState.encounter_xp(husk))
-	assert_gt(int(got.xp), 0)
+	var full := RunState.encounter_xp(husk)
+	assert_gt(full, 0)
+	assert_eq(int(got.xp[0]), full, "standing heroes get it all")
+	assert_eq(int(got.xp[1]), CombatMath.percent(full, run.tuning.run_xp_downed_percent), "the downed get less")
+	assert_eq(run.xps[1], int(got.xp[1]))
 
 
 func test_loot_and_shop_offer_gear_the_party_does_not_own() -> void:

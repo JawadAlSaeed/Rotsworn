@@ -20,7 +20,8 @@ extends RefCounted
 ##   --join=ADDRESS                  join the online game at ADDRESS (DESIGN.md 9.2)
 ##   --leave-after=S                 (with --join) leave the game after S seconds and quit
 ##   --shots=S                       save a picture of the window every S seconds (dev tool)
-##   --screen=NAME                   open a screen at once: menu, settings, players, practice
+##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
+##                                   title, credits, party, heroes, attributes, skills, calibration
 ##   --attacks=ID,ID,...             (practice fights) the enemy uses these attacks in this order,
 ##                                   round and round (dev tool, for pictures of one move)
 

@@ -39,14 +39,18 @@ PAGES = {
 
 def music(kind="--music"):
     """A listening page for songs or ambience loops: one row per slot, previews from audio/options_music."""
-    import subprocess
+    import subprocess, sys
     cfg = PAGES[kind]
     c = json.load(open(os.path.join(t.HERE, cfg["cands"]), encoding="utf-8"))
     out = os.path.join(t.HERE, "audio", cfg["out"])
     shutil.rmtree(out, ignore_errors=True)
     os.makedirs(os.path.join(out, "s"))
+    # --slots=victory,defeat: only those slots (a page for new songs only).
+    slots = next((a.split("=", 1)[1].split(",") for a in sys.argv if a.startswith("--slots=")), [])
     cues = []
     for slot, d in c.items():
+        if slots and slot not in slots:
+            continue
         opts = []
         for key in ("a", "b", "c"):
             o = d[key]

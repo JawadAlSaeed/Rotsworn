@@ -33,5 +33,5 @@ letters_wear = 1.6
 letters_specks = 1.0
 letters_speck_color = Color(0.84, 0.7, 0.48, 0.85)
 menu_logo_height_px = 280
-tagline = "a short run through the rot"
+tagline = ""
 story = "The rot rose from the Hollow King's grave and swallowed the land: forests to husks, rivers to bog, cities to ash. Alder, Brin and Cass are the Rotsworn, the last three who swore to walk into the rot and cut it out at its heart. The road is never the same twice, and the rot fights back."

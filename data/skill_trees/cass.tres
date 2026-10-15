@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="SkillTreeData" load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/skill_tree_data.gd" id="1_tree"]
+[ext_resource type="Script" path="res://scripts/data/skill_branch_data.gd" id="2_branch"]
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="3_ability"]
+[ext_resource type="Resource" path="res://data/abilities/mend.tres" id="a_mend"]
+[ext_resource type="Resource" path="res://data/abilities/renew.tres" id="a_renew"]
+[ext_resource type="Resource" path="res://data/abilities/sanctuary.tres" id="a_sanctuary"]
+[ext_resource type="Resource" path="res://data/abilities/reveal.tres" id="a_reveal"]
+[ext_resource type="Resource" path="res://data/abilities/smite.tres" id="a_smite"]
+[ext_resource type="Resource" path="res://data/abilities/revive.tres" id="a_revive"]
+[ext_resource type="Resource" path="res://data/abilities/pass_the_torch.tres" id="a_pass_the_torch"]
+[ext_resource type="Resource" path="res://data/abilities/hasten.tres" id="a_hasten"]
+[ext_resource type="Resource" path="res://data/abilities/inspire.tres" id="a_inspire"]
+
+[sub_resource type="Resource" id="b0"]
+script = ExtResource("2_branch")
+display_name = "Mending"
+skills = Array[ExtResource("3_ability")]([ExtResource("a_mend"), ExtResource("a_renew"), ExtResource("a_sanctuary")])
+
+[sub_resource type="Resource" id="b1"]
+script = ExtResource("2_branch")
+display_name = "Light"
+skills = Array[ExtResource("3_ability")]([ExtResource("a_reveal"), ExtResource("a_smite"), ExtResource("a_revive")])
+
+[sub_resource type="Resource" id="b2"]
+script = ExtResource("2_branch")
+display_name = "Grace"
+skills = Array[ExtResource("3_ability")]([ExtResource("a_pass_the_torch"), ExtResource("a_hasten"), ExtResource("a_inspire")])
+
+[resource]
+script = ExtResource("1_tree")
+branches = Array[ExtResource("2_branch")]([SubResource("b0"), SubResource("b1"), SubResource("b2")])

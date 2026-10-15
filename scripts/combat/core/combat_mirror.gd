@@ -51,6 +51,7 @@ func apply(event: Dictionary) -> void:
 					"slot": int(d.slot),
 					"data_id": String(d.data_id),
 					"display_name": String(d.display_name),
+					"ability_ids": (d.get("ability_ids", []) as Array).duplicate(),
 					"max_hp": int(d.max_hp),
 					"hp": int(d.hp),
 					"ap": int(d.ap),

@@ -151,7 +151,10 @@ func test_a_defeat_ends_the_run() -> void:
 	var run := _run()
 	run.go(run.choices()[0])
 	var after: Array[int] = [0, 0, 0]
-	assert_eq(run.finish_fight(RunState.DEFEAT, after, _data.final_encounter), {"gold": 0, "xp": 0, "levels": 0})
+	var got := run.finish_fight(RunState.DEFEAT, after, _data.final_encounter)
+	assert_eq(int(got.gold), 0)
+	assert_eq(Array(got.xp), [0, 0, 0], "no XP")
+	assert_eq(Array(got.levels), [0, 0, 0])
 	assert_true(run.is_over())
 	assert_eq(run.result, RunState.DEFEAT)
 	assert_false(run.go(run.map.stop(run.at).next[0]), "nothing goes on after the end")

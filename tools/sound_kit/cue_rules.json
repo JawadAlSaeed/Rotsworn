@@ -920,5 +920,15 @@
   "target_lu": -14.0,
   "new": true,
   "volume_offset_db": 3.0
+ },
+ "critical": {
+  "group": "offence",
+  "title": "Critical hit",
+  "plays": "a hero's hit is a critical hit (CRITICAL! over the number)",
+  "max_rise_ms": 20,
+  "min_ms": 200,
+  "max_ms": 1000,
+  "target_lu": -11.0,
+  "new": true
  }
 }

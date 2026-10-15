@@ -13,7 +13,12 @@ const VIGNETTE_LAYER: int = 5
 const SHADOW_DISTANCE: float = 45.0
 
 
-## The WorldEnvironment for a look.
+## Meta key holding what a look wants, so the player's graphics options (card #112) can turn
+## parts off and back on later (apply_settings).
+const META_LOOK := "stage_look_wants"
+
+
+## The WorldEnvironment for a look (with the player's graphics options applied).
 static func environment(look: StageLook) -> WorldEnvironment:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
@@ -47,6 +52,9 @@ static func environment(look: StageLook) -> WorldEnvironment:
 	var world_env := WorldEnvironment.new()
 	world_env.name = "WorldEnvironment"
 	world_env.environment = env
+	world_env.set_meta(META_LOOK, {"fog": env.fog_enabled, "volumetric": env.volumetric_fog_enabled,
+			"glow": env.glow_enabled, "ssao": env.ssao_enabled})
+	_apply_environment(world_env)
 	return world_env
 
 
@@ -57,9 +65,10 @@ static func sun(look: StageLook) -> DirectionalLight3D:
 	light.light_color = look.light_color
 	light.light_energy = look.light_energy
 	light.rotation_degrees = look.light_rotation_degrees
-	light.shadow_enabled = look.sun_shadows
 	light.shadow_opacity = look.sun_shadow_opacity
 	light.directional_shadow_max_distance = SHADOW_DISTANCE
+	light.set_meta(META_LOOK, {"shadows": look.sun_shadows})
+	_apply_sun(light)
 	return light
 
 
@@ -74,7 +83,49 @@ static func camera_attributes(far_enabled: bool, far_distance: float, far_transi
 	attributes.dof_blur_near_distance = near_distance
 	attributes.dof_blur_near_transition = near_transition
 	attributes.dof_blur_amount = amount
+	attributes.set_meta(META_LOOK, {"far": far_enabled, "near": near_enabled})
+	_apply_camera_attributes(attributes)
 	return attributes
+
+
+## Applies the player's graphics options to every built place under `root` (after a change in
+## the settings, which can open over a fight or a zone).
+static func apply_settings(root: Node) -> void:
+	if root == null:
+		return
+	for node: Node in root.find_children("*", "WorldEnvironment", true, false):
+		_apply_environment(node as WorldEnvironment)
+	for node: Node in root.find_children("*", "DirectionalLight3D", true, false):
+		_apply_sun(node as DirectionalLight3D)
+	for node: Node in root.find_children("*", "Camera3D", true, false):
+		var attributes := (node as Camera3D).attributes as CameraAttributesPractical
+		if attributes != null:
+			_apply_camera_attributes(attributes)
+
+
+static func _apply_environment(world_env: WorldEnvironment) -> void:
+	if not world_env.has_meta(META_LOOK) or world_env.environment == null:
+		return
+	var wants: Dictionary = world_env.get_meta(META_LOOK)
+	var env := world_env.environment
+	env.fog_enabled = bool(wants.fog) and PlayerSettings.graphics("fog")
+	env.volumetric_fog_enabled = bool(wants.volumetric) and PlayerSettings.graphics("fog")
+	env.glow_enabled = bool(wants.glow) and PlayerSettings.graphics("bloom")
+	env.ssao_enabled = bool(wants.ssao) and PlayerSettings.graphics("ambient_occlusion")
+
+
+static func _apply_sun(light: DirectionalLight3D) -> void:
+	if light.has_meta(META_LOOK):
+		light.shadow_enabled = bool((light.get_meta(META_LOOK) as Dictionary).shadows) and PlayerSettings.graphics("shadows")
+
+
+static func _apply_camera_attributes(attributes: CameraAttributesPractical) -> void:
+	if not attributes.has_meta(META_LOOK):
+		return
+	var wants: Dictionary = attributes.get_meta(META_LOOK)
+	var on := PlayerSettings.graphics("depth_of_field")
+	attributes.dof_blur_far_enabled = bool(wants.far) and on
+	attributes.dof_blur_near_enabled = bool(wants.near) and on
 
 
 ## The tiled ground plane, centred at `centre`.

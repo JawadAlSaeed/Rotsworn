@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_ability"]
+
+[resource]
+script = ExtResource("1_ability")
+id = "brin_attack"
+display_name = "Attack"
+description = "Two quick cuts, one per dagger. Gains 1 AP. Each perfect press: +15% on that cut."
+ap_cost = 0
+impact_sfx = "strike"
+press_times_ms = Array[int]([750, 980])
+damage_percent = 50
+press_damage_percent = 15
+consumes_exposed = false
+ap_gain = 1
+windup_clips = PackedStringArray("strike_windup", "strike_alt_windup")
+strike_clips = PackedStringArray("strike", "strike_alt")

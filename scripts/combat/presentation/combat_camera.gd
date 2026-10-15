@@ -130,7 +130,11 @@ func _apply(offset: Vector3) -> void:
 
 
 ## Shakes by up to `strength` world units, fading over `ms` milliseconds. Stronger shakes win.
+## The player's screen shake setting scales it (0: none, card #112).
 func shake(strength: float, ms: int) -> void:
+	strength *= float(PlayerSettings.screen_shake_percent()) / 100.0
+	if strength <= 0.0:
+		return
 	var now := Time.get_ticks_usec()
 	var current := 0.0
 	if now < _shake_until_us:

@@ -61,6 +61,13 @@ var autoplay: Autoplay
 ## The song for the boss once it rages (set by Main from MusicSet; empty: no change).
 var rage_music_path: String = ""
 var rage_music_volume_db: float = 0.0
+## Songs for the end screen (cards #109, #126; empty: the fight song goes on), started
+## end_music_delay_ms after the jingle.
+var victory_music_path: String = ""
+var defeat_music_path: String = ""
+var end_music_delay_ms: int = 0
+## Set once the game is quitting (--quit-on-end): no end song may start after the sounds stop.
+var _quitting: bool = false
 
 var _encounter: EncounterData
 var _tuning: Tuning
@@ -234,6 +241,11 @@ func receive_ack(peer: int, seq: int) -> void:
 
 
 ## Each party member's HP right now, by slot (the run carries it to the next fight).
+## The team gauge as the fight shows it (a run carries it into the next fight, card #146).
+func team_gauge() -> int:
+	return mirror.team_gauge
+
+
 func party_hp() -> Array[int]:
 	var list: Array[int] = []
 	list.resize(mirror.party_ids.size())
@@ -287,6 +299,8 @@ func _ready() -> void:
 		autoplay.name = "Autoplay"
 		autoplay.setup(_options.autoplay_mode, mirror, runner, skill_runner, defense_input, hud.action_menu, _tuning)
 		autoplay.bot_skill = _options.bot_skill
+		if _options.seed_override >= 0:
+			autoplay.set_seed(_options.seed_override)
 		add_child(autoplay)
 		runner.press_judged.connect(autoplay.on_press_judged)
 		skill_runner.press_judged.connect(autoplay.on_press_judged)
@@ -726,7 +740,12 @@ func _maybe_open_menu() -> void:
 	var names: Dictionary = {}
 	for id: int in mirror.fighters:
 		names[id] = String(mirror.fighter(id).display_name)
-	var abilities := data.all_abilities()
+	# Only what this hero brought into the fight (a run with skill trees, card #136).
+	var known: Array = mirror.fighter(actor).get("ability_ids", [])
+	var abilities: Array[AbilityData] = []
+	for ability: AbilityData in data.all_abilities():
+		if known.is_empty() or known.has(ability.id):
+			abilities.append(ability)
 	if _setup.team_ultimate != null:
 		abilities.append(_setup.team_ultimate)
 	if _setup.can_run and _setup.run_ability != null:
@@ -771,6 +790,9 @@ func _menu_entry(actor: int, ability: AbilityData) -> Dictionary:
 					targets.append(id)
 		AbilityData.Target.DOWNED_ALLY:
 			targets = mirror.downed_party_ids()
+		AbilityData.Target.ALL_ALLIES:
+			targets = mirror.living_party_ids()
+			pick = false
 	var reason := ""
 	if ability.team_ultimate and mirror.team_gauge < _tuning.team_gauge_max:
 		reason = "Needs a full team gauge. Good follow-up presses fill it."
@@ -848,10 +870,12 @@ func _on_combat_ended(result: String) -> void:
 			_play_victory()
 			if _run != null:
 				_play_reward_sounds()
+			_play_end_song(victory_music_path)
 		"escaped":
 			Sfx.play("dodge")
 		_:
 			Sfx.play("defeat")
+			_play_end_song(defeat_music_path)
 	view.camera.shot_end(view.arena_centre())
 	var hints := _end_hints()
 	hud.show_end(result, _summary_text(), hints, "The host goes on for everyone." if _net_mode == NetMode.CLIENT else "")
@@ -865,17 +889,44 @@ func _on_combat_ended(result: String) -> void:
 		get_tree().create_timer(QUIT_DELAY_S).timeout.connect(_quit)
 
 
-## Gold, then level up when the party levels: after the victory sound, one at a time.
+## Gold, then level up when a hero levels (DESIGN.md 8.2): after the victory sound, one at a time,
+## with LEVEL UP! over each hero who grew.
 func _play_reward_sounds() -> void:
-	var levels := _run.levels_from(RunState.encounter_xp(_encounter))
+	var risen := _levelling_heroes()
 	await _wait_ms(_visuals.reward_sound_delay_ms)
 	Sfx.play("gold_gain")
-	if levels > 0:
-		await _wait_ms(_visuals.level_up_sound_gap_ms)
-		Sfx.play("level_up")
+	if risen.is_empty():
+		return
+	await _wait_ms(_visuals.level_up_sound_gap_ms)
+	Sfx.play("level_up")
+	for id: int in risen:
+		var v := view.fighter(id)
+		if v != null:
+			hud.popup("LEVEL UP!", v.head_position(), HudStyle.GOLD, _visuals.level_up_popup_size)
+
+
+## The fighter ids of the heroes this victory levels up (the run adds the XP later).
+func _levelling_heroes() -> Array[int]:
+	var ids: Array[int] = []
+	var xp := _run.fight_xp(_encounter, party_hp())
+	for id: int in mirror.party_ids:
+		var slot := int(mirror.fighter(id).slot)
+		if slot >= 0 and slot < xp.size() and _run.levels_from(slot, xp[slot]) > 0:
+			ids.append(id)
+	return ids
+
+
+## The end screen's song, after the jingle (nothing if this place has none).
+func _play_end_song(path: String) -> void:
+	if path.is_empty():
+		return
+	await _wait_ms(end_music_delay_ms)
+	if _ended and is_inside_tree() and not _quitting:
+		Sfx.play_music(path, rage_music_volume_db)
 
 
 func _quit() -> void:
+	_quitting = true
 	Sfx.stop_all()
 	await get_tree().create_timer(QUIT_AUDIO_RELEASE_S, true, false, true).timeout
 	get_tree().quit(0)
@@ -909,13 +960,22 @@ func _summary_text() -> String:
 			int(_defended.get(Defense.Outcome.DODGE, 0)), int(_defended.get(Defense.Outcome.JUMP, 0)), _counters,
 			int(_defended.get(Defense.Outcome.PRESS_PERFECT, 0)), int(_defended.get(Defense.Outcome.PRESS, 0))]
 	if _run != null and _result == "victory":
-		var xp := RunState.encounter_xp(_encounter)
-		text += "\n+%d gold   +%d XP" % [_run.gold_for(_encounter), xp]
-		var levels := _run.levels_from(xp)
-		if levels > 0:
-			text += "   LEVEL UP!  Level %d" % (_run.level + levels)
+		text += "\n+%d gold" % _run.gold_for(_encounter)
 		if _drop != null:
 			text += "   Found: %s" % _drop.display_name
+		var xp := _run.fight_xp(_encounter, party_hp())
+		var parts := PackedStringArray()
+		var risen := false
+		for slot: int in _run.party_size():
+			var part := "%s +%d XP" % [_run.data.party[slot].display_name, xp[slot]]
+			var up := _run.levels_from(slot, xp[slot])
+			if up > 0:
+				part += " LEVEL UP! Lv %d" % (_run.levels[slot] + up)
+				risen = true
+			parts.append(part)
+		text += "\n" + "    ".join(parts)
+		if risen:
+			text += "\nNew attribute points: spend them on the party screen."
 	return text
 
 
@@ -1106,8 +1166,14 @@ func _show_damage(ev: Dictionary) -> void:
 		return
 	var to_enemy := not mirror.party_ids.has(int(ev.target))
 	var max_hp := maxi(1, int(mirror.fighter(int(ev.target)).get("max_hp", 1)))
-	var big := int(ev.amount) * 100 >= max_hp * _visuals.big_hit_percent
-	hud.damage_number(int(ev.amount), v.head_position(), HudStyle.DAMAGE_DEALT if to_enemy else HudStyle.DAMAGE_TAKEN, big)
+	var crit := bool(ev.get("crit", false))
+	var big := crit or int(ev.amount) * 100 >= max_hp * _visuals.big_hit_percent
+	if crit:
+		# CRITICAL! first, so the number pops under it (DESIGN.md 8.2).
+		hud.popup("CRITICAL!", v.head_position(), HudStyle.GOLD, _visuals.crit_popup_size)
+		Sfx.play("critical")
+	hud.damage_number(int(ev.amount), v.head_position(), HudStyle.GOLD if crit else (HudStyle.DAMAGE_DEALT if to_enemy
+			else HudStyle.DAMAGE_TAKEN), big)
 	v.flash(_visuals.flash_ms)
 	if mirror.is_alive(int(ev.target)):
 		# During an enemy attack the runner plays a hero's flinch or stagger on attack time (card

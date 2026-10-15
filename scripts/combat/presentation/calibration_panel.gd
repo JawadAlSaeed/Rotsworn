@@ -5,7 +5,8 @@ extends Control
 ## combat (the midpoint of the press interval). The median offset of the last presses becomes the
 ## player's lag compensation when they confirm (saved by UserSettings, clamped to tuning's
 ## calibration bounds); cancel discards it. Presses that spread too widely (pressing by reaction
-## instead of with the beat) cannot be saved.
+## instead of with the beat) cannot be saved. Laid out like the other pages (card #113): the title,
+## the line under it, the circle in the middle, the numbers and buttons under it, all centred.
 
 signal closed
 
@@ -30,19 +31,23 @@ var _title: Label
 var _text: Label
 ## The button hints (save, cancel) as button pictures.
 var _hints: HintBar
+## Room in the column where the circle is drawn.
+var _circle_space: Control
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	column.offset_top = 120.0
+	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 18)
 	add_child(column)
-	_title = HudStyle.make_worn_title("LAG CALIBRATION", TITLE_SIZE)
+	_title = HudStyle.make_worn_title("Lag Calibration", TITLE_SIZE)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_title)
+	column.add_child(ListMenu.divider())
 	# "Press [Parry button] exactly when the circle flashes." with the button as a picture.
 	var how := HBoxContainer.new()
 	how.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -52,10 +57,15 @@ func _ready() -> void:
 	how.add_child(HintBar.new([[&"defend_parry", ""]], TEXT_SIZE, HudStyle.TEXT))
 	how.add_child(HudStyle.make_label("exactly when the circle flashes.", TEXT_SIZE))
 	column.add_child(how)
+	_circle_space = Control.new()
+	_circle_space.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_circle_space.custom_minimum_size = Vector2(0.0, CIRCLE_RADIUS * 2.0 + CIRCLE_RING_WIDTH * 4.0)
+	column.add_child(_circle_space)
 	_text = HudStyle.make_label("", TEXT_SIZE)
 	_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_text)
 	_hints = HintBar.new([], TEXT_SIZE, HudStyle.TEXT)
+	_hints.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(_hints)
 	visible = false
 
@@ -72,6 +82,7 @@ func is_running() -> bool:
 
 
 func open() -> void:
+	_fill_screen()
 	_running = true
 	visible = true
 	_offsets_us.clear()
@@ -118,11 +129,20 @@ func _draw() -> void:
 	if not _running:
 		return
 	draw_rect(Rect2(Vector2.ZERO, size), DIM)
-	var centre := size * 0.5 + Vector2(0.0, 60.0)
+	var centre := _circle_space.get_global_rect().get_center() - global_position
 	var lit := Time.get_ticks_usec() < _lit_until_us
 	if lit:
 		draw_circle(centre, CIRCLE_RADIUS, CIRCLE_LIT)
 	draw_arc(centre, CIRCLE_RADIUS, 0.0, TAU, SEGMENTS, CIRCLE_LIT if lit else CIRCLE_IDLE, CIRCLE_RING_WIDTH, true)
+
+
+## Covers the whole screen, inside a fight's HUD or straight under a CanvasLayer (the settings
+## screen), where a full-rect anchor alone left it at size zero in the top left.
+func _fill_screen() -> void:
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if not get_parent() is Control and is_inside_tree():
+		set_deferred("position", Vector2.ZERO)
+		set_deferred("size", get_viewport_rect().size)
 
 
 func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int) -> void:

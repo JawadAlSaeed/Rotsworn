@@ -118,7 +118,8 @@ static func enemy(id: String, attacks: Array, speed: int = 200, hp_percent: int 
 
 
 ## Hand-made fight: the fixture party against one enemy that uses `attacks`.
-## options: tuning (Tuning, default Tuning.new()), seed (int, 1), practice (bool, false),
+## options: tuning (Tuning, default Tuning.new() with critical hits off, so damage is exact),
+## seed (int, 1), practice (bool, false),
 ## enemy_speed (int, 200: the enemy acts first; 10: the party gets many turns first),
 ## enemy_hp_percent (100), enemy_power_percent (100), hp_percents (Array, [100, 100, 100]).
 static func setup(attacks: Array, options: Dictionary = {}) -> CombatSetup:
@@ -126,10 +127,17 @@ static func setup(attacks: Array, options: Dictionary = {}) -> CombatSetup:
 	s.party = party(options.get("hp_percents", [100, 100, 100]) as Array)
 	s.enemies.append(enemy("foe", attacks, int(options.get("enemy_speed", 200)),
 			int(options.get("enemy_hp_percent", 100)), int(options.get("enemy_power_percent", 100))))
-	s.tuning = options.get("tuning", Tuning.new()) as Tuning
+	s.tuning = options.get("tuning", no_crit_tuning()) as Tuning
 	s.rng_seed = int(options.get("seed", 1))
 	s.allow_practice = bool(options.get("practice", false))
 	return s
+
+
+## Tuning.new() with critical hits off (DESIGN.md 8.2).
+static func no_crit_tuning() -> Tuning:
+	var t := Tuning.new()
+	t.crit_base_percent = 0
+	return t
 
 
 ## A started engine for setup(attacks, options).

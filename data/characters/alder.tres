@@ -9,6 +9,7 @@
 [ext_resource type="Resource" path="res://data/abilities/riposte_stance.tres" id="7_oh3nr"]
 [ext_resource type="Resource" path="res://data/abilities/payback.tres" id="8_sfqu4"]
 [ext_resource type="Resource" path="res://data/clips/alder.tres" id="9_clips"]
+[ext_resource type="Resource" path="res://data/skill_trees/alder.tres" id="20_tree"]
 
 [resource]
 script = ExtResource("2_ix30w")
@@ -24,3 +25,4 @@ power_percent = 90
 speed = 90
 basic_attack = ExtResource("1_lj0hf")
 skills = Array[ExtResource("3_ptke0")]([ExtResource("4_fnrkm"), ExtResource("5_eify3"), ExtResource("6_h71xp"), ExtResource("7_oh3nr"), ExtResource("8_sfqu4")])
+skill_tree = ExtResource("20_tree")

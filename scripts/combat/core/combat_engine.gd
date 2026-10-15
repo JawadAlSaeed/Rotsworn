@@ -30,7 +30,8 @@ extends RefCounted
 ##   combat_started          {seed, fighters:[Combatant.to_dict()], practice_allowed, opening,
 ##                           items:[item_info()]} (backpack items usable in this fight)
 ##                           opening: "normal" | "first_strike" (DESIGN.md 2.12)
-##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms]}
+##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms],
+##                           feints:[bool] (which hits are feints, card #129)}
 ##                           what this enemy will do on its next turn (DESIGN.md 2.8). Sent at
 ##                           fight start, after its turn, and whenever its targets change.
 ##                           times: each hit's impact, ms after the attack starts (with
@@ -39,8 +40,8 @@ extends RefCounted
 ##   turn_order              {order:[id]}      current actor first, then upcoming turns
 ##   ability_used            {turn, actor, ability, targets:[id]}
 ##   item_used               {turn, actor, uid, item, name, targets:[id]} (DESIGN.md 8.1)
-##   damage                  {source, target, amount, hp, max_hp, cause}
-##                           cause: "ability" | "follow_up" | "counter" | "team_counter"
+##   damage                  {source, target, amount, hp, max_hp, cause, crit (a critical hit)}
+##                           cause: "ability" | "follow_up" | "counter" | "team_counter" | "bleed"
 ##   healed                  {source, target, amount, hp, max_hp}
 ##   revived                 {source, target, hp, max_hp}
 ##   downed                  {target}
@@ -54,7 +55,8 @@ extends RefCounted
 ##                            alert_cue, allow_timing_ring, hits:[hit], prompts:[prompt]}
 ##       hit    = {index, at_ms, kind, approach_ms, feint, damage_percent, impact_sfx}
 ##       prompt = {idx, hit, character, at_ms, kind, windows:{Outcome:[early_us, late_us]},
-##                 perfect:[Outcome], damage, press_damage, perfect_damage, role, requires:[idx]}
+##                 perfect:[Outcome], damage, press_damage, perfect_damage, role, requires:[idx],
+##                 crit (a party press that crits if it lands)}
 ##       role: "defend" | "press" | "follow_up". damage is pre-rolled: for "defend" what the hit
 ##       deals if not avoided; for "press" and "follow_up" what it deals to each target on a miss
 ##       (damage), a good press (press_damage, outcome PRESS) and a perfect press (perfect_damage,
@@ -185,6 +187,9 @@ func start() -> Array[Dictionary]:
 		"opening": OPENING_NAMES[_setup.opening],
 		"items": item_list,
 	})
+	if _setup.start_team_gauge > 0:
+		# Carried over from the run's last fight (card #146).
+		_change_gauge(_setup.start_team_gauge, events)
 	for enemy_id: int in enemy_ids():
 		_pick_intent(get_combatant(enemy_id), events)
 	_advance_turn(events)
@@ -317,6 +322,8 @@ func valid_targets(actor_id: int, ability_id: String) -> Array[int]:
 					list.append(id)
 		AbilityData.Target.DOWNED_ALLY:
 			list = downed_party_ids()
+		AbilityData.Target.ALL_ALLIES:
+			list = living_party_ids()
 	return list
 
 
@@ -444,7 +451,7 @@ func _build_combatants() -> void:
 		c.power = _setup.party_power(slot, data)
 		c.speed = _setup.party_speed(slot, data)
 		c.base_speed = c.speed
-		for ability: AbilityData in data.all_abilities():
+		for ability: AbilityData in _setup.party_abilities(slot, data):
 			c.ability_ids.append(ability.id)
 		if _setup.team_ultimate != null:
 			c.ability_ids.append(_setup.team_ultimate.id)
@@ -470,9 +477,11 @@ func _build_combatants() -> void:
 			var letter := int(name_seen.get(data.display_name, 0))
 			name_seen[data.display_name] = letter + 1
 			c.display_name += " " + String.chr(65 + letter)
-		c.max_hp = CombatMath.percent_min1(tuning.base_enemy_hp, data.hp_percent)
+		c.max_hp = CombatMath.percent_min1(CombatMath.percent_min1(tuning.base_enemy_hp, data.hp_percent),
+				_setup.enemy_hp_percent)
 		c.hp = c.max_hp
-		c.power = CombatMath.percent_min1(tuning.base_enemy_hit_damage, data.power_percent)
+		c.power = CombatMath.percent_min1(CombatMath.percent_min1(tuning.base_enemy_hit_damage, data.power_percent),
+				_setup.enemy_power_percent)
 		c.speed = maxi(1, data.speed)
 		c.base_speed = c.speed
 		for attack: EnemyAttackData in data.attacks:
@@ -512,6 +521,10 @@ func _advance_turn(events: Array[Dictionary]) -> void:
 		events.append({"type": "turn_started", "turn": turn_number, "actor": actor.id, "team": actor.team, "time": time_now})
 		_start_of_turn(actor, events)
 		events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
+		if not actor.is_alive():
+			# Bled out at the start of its turn: nothing more happens on it.
+			events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
+			continue
 		if actor.is_party():
 			phase = Phase.AWAITING_ACTION
 			return
@@ -534,6 +547,14 @@ func _start_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 		var amount := mini(CombatMath.percent_min1(actor.max_hp, rot), actor.hp - 1)
 		if amount > 0:
 			_deal_damage(actor, actor, amount, "rot", events)
+	if actor.has_status(Status.BLEEDING) and actor.is_alive():
+		var source := get_combatant(int((actor.statuses[Status.BLEEDING] as Dictionary).source))
+		var power := source.power if source != null else 1
+		_deal_damage(source if source != null else actor, actor, CombatMath.percent_min1(power, tuning.bleed_power_percent),
+				"bleed", events)
+	if actor.has_status(Status.REGEN) and actor.is_alive():
+		var healer := get_combatant(int((actor.statuses[Status.REGEN] as Dictionary).source))
+		_heal(healer if healer != null else actor, actor, CombatMath.percent_min1(actor.max_hp, tuning.regen_percent), events)
 
 
 ## Turn-counted statuses tick down; the defence count for Payback starts again (after the turn's
@@ -721,9 +742,11 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	var attack := get_attack(String(intent.attack))
 	var kinds: Array[int] = []
 	var times: Array[int] = []
+	var feints: Array[bool] = []
 	for hit: AttackHitData in attack.hits:
 		kinds.append(hit.kind)
 		times.append(CombatMath.percent(hit.impact_ms, tuning.attack_tempo_percent))
+		feints.append(hit.feint)
 	var targets: Array[int] = []
 	targets.assign(intent.targets)
 	return {
@@ -735,6 +758,7 @@ func _intent_event(enemy_id: int) -> Dictionary:
 		"targets": targets,
 		"kinds": kinds,
 		"times": times,
+		"feints": feints,
 	}
 
 
@@ -766,7 +790,7 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 	var targets: Array[int] = []
 	var allowed := valid_targets(actor.id, ability.id)
 	match ability.target:
-		AbilityData.Target.ALL_ENEMIES, AbilityData.Target.SELF:
+		AbilityData.Target.ALL_ENEMIES, AbilityData.Target.SELF, AbilityData.Target.ALL_ALLIES:
 			targets = allowed
 		_:
 			var requested: Variant = command.get("targets", [])
@@ -794,7 +818,11 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 			var target := get_combatant(target_id)
 			if target.is_alive():
 				var pct := _skill_percent(actor, ability, false)
-				_deal_damage(actor, target, _skill_damage(actor.power, pct, _exposed_bonus(actor, ability, target_id == exposed)), "ability", events)
+				var crit := _roll_crit(actor)
+				var bonus := _exposed_bonus(actor, ability, target_id == exposed) + _marked_bonus(ability, targets) \
+						+ _empowered_bonus(actor, ability)
+				var amount := _skill_damage(actor.power, pct, bonus)
+				_deal_damage(actor, target, _crit_damage(amount) if crit else amount, "ability", events, crit)
 	_apply_effects(actor, ability, targets, false, exposed, events)
 	_end_of_turn(actor, events)
 	events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
@@ -988,15 +1016,25 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			var miss := 0
 			var good := 0
 			var perfect := 0
+			var crit := false
 			if damaging:
-				var bonus := _exposed_bonus(striker, ability, exposed >= 0)
+				var bonus := _exposed_bonus(striker, ability, exposed >= 0) + _marked_bonus(ability, targets) \
+						+ _empowered_bonus(striker, ability)
 				good = _skill_damage(striker.power, _skill_percent(striker, ability, false), bonus)
 				perfect = _skill_damage(striker.power, _skill_percent(striker, ability, true), bonus)
 				miss = CombatMath.percent(good, tuning.skill_miss_damage_percent)
+				# Rolled now with the damage, so it is in the declared event (DESIGN.md 8.2); a missed
+				# press never crits.
+				crit = _roll_crit(striker)
+				if crit:
+					good = _crit_damage(good)
+					perfect = _crit_damage(perfect)
 			press_idxs.append(prompts.size())
-			prompts.append(_prompt(prompts.size(), hit_index, striker_id, at_ms, AttackHitData.Kind.PRESS,
+			var press := _prompt(prompts.size(), hit_index, striker_id, at_ms, AttackHitData.Kind.PRESS,
 					Defense.build_windows(AttackHitData.Kind.PRESS, tuning, ability.perfect_window_percent),
-					miss, good, perfect, ROLE_PRESS, []))
+					miss, good, perfect, ROLE_PRESS, [])
+			press["crit"] = crit
+			prompts.append(press)
 	if ability.follow_ups and damaging and not ability.team_ultimate:
 		var last_ms := ability.press_times_ms[ability.press_times_ms.size() - 1]
 		var order := 0
@@ -1007,9 +1045,14 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			var hit_index := hits.size()
 			var ally := get_combatant(ally_id)
 			hits.append(_skill_hit(hit_index, at_ms, tuning.follow_up_percent, "strike"))
-			prompts.append(_prompt(prompts.size(), hit_index, ally_id, at_ms, AttackHitData.Kind.PRESS,
-					Defense.build_follow_up_windows(tuning), 0, _roll_damage(ally.power, tuning.follow_up_percent),
-					_roll_damage(ally.power, tuning.follow_up_perfect_percent), ROLE_FOLLOW_UP, press_idxs))
+			var good := _roll_damage(ally.power, tuning.follow_up_percent)
+			var perfect := _roll_damage(ally.power, tuning.follow_up_perfect_percent)
+			var crit := _roll_crit(ally)
+			var follow := _prompt(prompts.size(), hit_index, ally_id, at_ms, AttackHitData.Kind.PRESS,
+					Defense.build_follow_up_windows(tuning), 0, _crit_damage(good) if crit else good,
+					_crit_damage(perfect) if crit else perfect, ROLE_FOLLOW_UP, press_idxs)
+			follow["crit"] = crit
+			prompts.append(follow)
 			order += 1
 	_declare(SEQUENCE_SKILL, actor.id, ability.id, ability.display_name, ability.target, targets,
 			false, true, hits, prompts, events)
@@ -1069,30 +1112,39 @@ func _apply_effects(actor: Combatant, ability: AbilityData, targets: Array[int],
 	var timeline_changed := false
 	if exposed >= 0 and get_combatant(exposed).has_status(Status.EXPOSED):
 		_remove_status(get_combatant(exposed), Status.EXPOSED, events)
+	_use_damage_statuses(actor, ability, targets, events)
 	var first := get_combatant(targets[0]) if not targets.is_empty() else null
 	var gain := ability.ap_gain + (ability.press_ap_gain if good else 0)
 	if gain > 0:
 		_change_ap(actor, gain, "ability", events)
+	# Ally effects reach every party target (one for most skills, the whole party for ALL_ALLIES).
 	var give := ability.give_ap + (ability.press_give_ap if good else 0)
-	if give > 0 and first != null and first.is_party() and first.is_alive():
-		_change_ap(first, give, "given", events)
 	var heal := ability.heal_percent + (ability.press_heal_percent if good else 0)
-	if heal > 0 and first != null and first.is_party() and first.is_alive():
-		_heal(actor, first, CombatMath.percent_min1(first.max_hp, heal), events)
+	var hasten := ability.turn_hasten_percent + (ability.press_turn_hasten_percent if good else 0)
+	var delay := ability.turn_delay_percent + (ability.press_turn_delay_percent if good else 0)
+	for target_id: int in targets:
+		var target := get_combatant(target_id)
+		if not target.is_alive():
+			continue
+		if target.is_party():
+			if give > 0:
+				_change_ap(target, give, "given", events)
+			if heal > 0:
+				_heal(actor, target, CombatMath.percent_min1(target.max_hp, heal), events)
+			if hasten > 0:
+				var waiting := maxi(0, target.next_turn_at - time_now)
+				_shift_turn(target, -CombatMath.percent(waiting, mini(100, hasten)), events)
+				timeline_changed = true
+		elif delay > 0:
+			_shift_turn(target, CombatMath.percent(Timeline.turn_cost(target.speed, tuning.timeline_base), delay), events)
+			timeline_changed = true
 	var revive := ability.revive_percent + (ability.press_revive_percent if good else 0)
 	if revive > 0 and first != null and first.is_party() and not first.is_alive():
 		_revive(actor, first, revive, events)
 		timeline_changed = true
-	var delay := ability.turn_delay_percent + (ability.press_turn_delay_percent if good else 0)
-	if delay > 0 and first != null and first.is_alive():
-		_shift_turn(first, CombatMath.percent(Timeline.turn_cost(first.speed, tuning.timeline_base), delay), events)
-		timeline_changed = true
-	var hasten := ability.turn_hasten_percent + (ability.press_turn_hasten_percent if good else 0)
-	if hasten > 0 and first != null and first.is_alive():
-		var waiting := maxi(0, first.next_turn_at - time_now)
-		_shift_turn(first, -CombatMath.percent(waiting, mini(100, hasten)), events)
-		timeline_changed = true
-	if Status.is_known(ability.status):
+	if ability.gauge_gain > 0:
+		_change_gauge(ability.gauge_gain, events)
+	if Status.is_known(ability.status) and (good or not ability.status_needs_perfect):
 		var turns := ability.status_turns + (ability.press_status_turns if good else 0)
 		for target_id: int in targets:
 			var target := get_combatant(target_id)
@@ -1100,12 +1152,52 @@ func _apply_effects(actor: Combatant, ability: AbilityData, targets: Array[int],
 				timeline_changed = _add_status(target, ability.status, turns, actor.id, events) or timeline_changed
 		if good and ability.press_status_on_self and not targets.has(actor.id):
 			timeline_changed = _add_status(actor, ability.status, turns, actor.id, events) or timeline_changed
+	if actor.is_alive():
+		if Status.is_known(ability.self_status):
+			timeline_changed = _add_status(actor, ability.self_status, ability.self_status_turns, actor.id, events) \
+					or timeline_changed
+		if good and Status.is_known(ability.press_self_status):
+			timeline_changed = _add_status(actor, ability.press_self_status, ability.self_status_turns, actor.id, events) \
+					or timeline_changed
 	if ability.team_ultimate:
 		for id: int in downed_party_ids():
 			_revive(actor, get_combatant(id), tuning.team_ultimate_revive_percent, events)
 			timeline_changed = true
 	if timeline_changed:
 		events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
+
+
+## A damaging skill on enemies uses up the striker's Empowered and one use of each target's Marked.
+func _use_damage_statuses(actor: Combatant, ability: AbilityData, targets: Array[int], events: Array[Dictionary]) -> void:
+	if not _deals_damage(ability) or not ability.targets_enemies():
+		return
+	if actor.has_status(Status.EMPOWERED):
+		_remove_status(actor, Status.EMPOWERED, events)
+	for target_id: int in targets:
+		var target := get_combatant(target_id)
+		if not target.has_status(Status.MARKED):
+			continue
+		var entry: Dictionary = target.statuses[Status.MARKED]
+		var left := int(entry.turns) - 1
+		if left <= 0:
+			_remove_status(target, Status.MARKED, events)
+		else:
+			entry.turns = left
+			events.append(_status_event(target, Status.MARKED, true))
+
+
+## Extra percent for a skill on one Marked enemy (Death Mark).
+func _marked_bonus(ability: AbilityData, targets: Array[int]) -> int:
+	if not _deals_damage(ability) or ability.target != AbilityData.Target.SINGLE_ENEMY or targets.size() != 1:
+		return 0
+	return tuning.marked_bonus_percent if get_combatant(targets[0]).has_status(Status.MARKED) else 0
+
+
+## Extra percent for an Empowered striker's damaging skill (Shadowstep).
+func _empowered_bonus(striker: Combatant, ability: AbilityData) -> int:
+	if not _deals_damage(ability) or not ability.targets_enemies() or not striker.has_status(Status.EMPOWERED):
+		return 0
+	return tuning.empowered_bonus_percent
 
 
 func _deals_damage(ability: AbilityData) -> bool:
@@ -1198,6 +1290,8 @@ func _prompt(idx: int, hit: int, character: int, at_ms: int, kind: int, windows:
 		"perfect_damage": perfect_damage,
 		"role": role,
 		"requires": requires.duplicate(),
+		# A party press or follow-up that will be a critical hit if it lands (rolled at declare time).
+		"crit": false,
 	}
 
 
@@ -1287,13 +1381,14 @@ func _apply_press_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		"downed": false,
 	})
 	if amount > 0:
+		var crit := good and bool(prompt.get("crit", false))
 		var targets: Array = sequence.targets
 		# A follow-up strikes the skill's first target only.
 		var struck: Array = [targets[0]] if follow_up and not targets.is_empty() else targets
 		for target_id: int in struck:
 			var target := get_combatant(target_id)
 			if not target.is_party() and target.is_alive():
-				_deal_damage(striker, target, amount, "follow_up" if follow_up else "ability", events)
+				_deal_damage(striker, target, amount, "follow_up" if follow_up else "ability", events, crit)
 	if follow_up and good:
 		_change_gauge(tuning.team_gauge_per_follow_up, events)
 
@@ -1414,12 +1509,19 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 	if team:
 		var string := _string_of(-1)
 		var total := 0
+		var any_crit := false
 		for actor_id: int in counterers:
 			var actor := get_combatant(actor_id)
-			total += CombatMath.percent(actor.power, _counter_percent(actor, tuning.team_counter_percent, string))
+			var share := CombatMath.percent(actor.power, _counter_percent(actor, tuning.team_counter_percent, string))
+			# Each hero's share can crit on its own.
+			if _roll_crit(actor):
+				share = CombatMath.percent(share, tuning.crit_damage_percent)
+				any_crit = true
+			total += share
 		events.append({"type": "counter", "seq": sequence.seq, "actors": counterers.duplicate(), "target": attacker.id,
 				"team": true, "hits": string.x, "mixed": string.y == 1})
-		_deal_damage(get_combatant(counterers[0]), attacker, _apply_variance(maxi(1, total)), "team_counter", events)
+		_deal_damage(get_combatant(counterers[0]), attacker, _apply_variance(maxi(1, total)), "team_counter", events,
+				any_crit)
 		for actor_id: int in counterers:
 			_gear_ap_on_counter(get_combatant(actor_id), events)
 		return
@@ -1430,8 +1532,9 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 		var string := _string_of(actor_id)
 		events.append({"type": "counter", "seq": sequence.seq, "actors": [actor_id], "target": attacker.id, "team": false,
 				"hits": string.x, "mixed": string.y == 1})
-		_deal_damage(actor, attacker, _roll_damage(actor.power, _counter_percent(actor, tuning.counter_percent, string)),
-				"counter", events)
+		var amount := _roll_damage(actor.power, _counter_percent(actor, tuning.counter_percent, string))
+		var crit := _roll_crit(actor)
+		_deal_damage(actor, attacker, _crit_damage(amount) if crit else amount, "counter", events, crit)
 		_gear_ap_on_counter(actor, events)
 
 
@@ -1603,12 +1706,32 @@ func _roll_damage(power: int, pct: int) -> int:
 	return _apply_variance(CombatMath.percent_min1(power, pct))
 
 
+## A party member's chance of a critical hit (DESIGN.md 8.2): the base plus Luck. Enemies never crit.
+func crit_chance(c: Combatant) -> int:
+	if not c.is_party():
+		return 0
+	return clampi(tuning.crit_base_percent + Passive.amount(c, Passive.CRIT), 0, 100)
+
+
+## Rolls whether this hit of `striker` is a critical hit (no roll at 0%, so fights without crits
+## keep their old random sequence).
+func _roll_crit(striker: Combatant) -> bool:
+	var chance := crit_chance(striker)
+	if chance <= 0:
+		return false
+	return rng.range_int(0, 99) < chance
+
+
+func _crit_damage(amount: int) -> int:
+	return CombatMath.percent_min1(amount, tuning.crit_damage_percent)
+
+
 ## An enemy hit on a party member: power x hit percent, then Guard, then variance.
 func _enemy_hit_damage(enemy: Combatant, target: Combatant, pct: int) -> int:
 	var amount := CombatMath.percent_min1(enemy.power, pct)
 	if target.has_status(Status.GUARDED):
 		amount = CombatMath.percent_min1(amount, tuning.guard_damage_percent)
-	var tough := Passive.amount(target, Passive.TOUGH)
+	var tough := mini(Passive.amount(target, Passive.TOUGH), tuning.tough_max_percent)
 	if tough > 0:
 		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tough))
 	return _apply_variance(amount)
@@ -1633,7 +1756,9 @@ func _lose_hp(target: Combatant, amount: int) -> int:
 	return before - target.hp
 
 
-func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: String, events: Array[Dictionary]) -> void:
+## `crit`: a critical hit (the amount already has the crit bonus; the event says so for the popup).
+func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: String, events: Array[Dictionary],
+		crit: bool = false) -> void:
 	_lose_hp(target, amount)
 	events.append({
 		"type": "damage",
@@ -1643,6 +1768,7 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 		"hp": target.hp,
 		"max_hp": target.max_hp,
 		"cause": cause,
+		"crit": crit,
 	})
 	if not target.is_alive():
 		events.append({"type": "downed", "target": target.id})

@@ -21,12 +21,12 @@ const SLOW_ENEMY: int = 10
 ## code rely on), plus the allowed values of the string enums.
 const EVENT_KEYS: Dictionary = {
 	"combat_started": ["seed", "fighters", "practice_allowed", "opening", "items"],
-	"intent": ["enemy", "attack", "name", "mode", "targets", "kinds", "times"],
+	"intent": ["enemy", "attack", "name", "mode", "targets", "kinds", "times", "feints"],
 	"turn_started": ["turn", "actor", "team", "time"],
 	"turn_order": ["order"],
 	"ability_used": ["turn", "actor", "ability", "targets"],
 	"item_used": ["turn", "actor", "uid", "item", "name", "targets"],
-	"damage": ["source", "target", "amount", "hp", "max_hp", "cause"],
+	"damage": ["source", "target", "amount", "hp", "max_hp", "cause", "crit"],
 	"healed": ["source", "target", "amount", "hp", "max_hp"],
 	"revived": ["source", "target", "hp", "max_hp"],
 	"downed": ["target"],
@@ -49,12 +49,12 @@ const EVENT_KEYS: Dictionary = {
 }
 const HIT_KEYS: Array[String] = ["index", "at_ms", "kind", "approach_ms", "feint", "damage_percent", "impact_sfx"]
 const PROMPT_KEYS: Array[String] = ["idx", "hit", "character", "at_ms", "kind", "windows", "perfect", "damage",
-		"press_damage", "perfect_damage", "role", "requires"]
+		"press_damage", "perfect_damage", "role", "requires", "crit"]
 const STRING_VALUES: Dictionary = {
 	"timed_sequence_declared.kind": ["enemy_attack", "skill"],
-	"damage.cause": ["ability", "follow_up", "counter", "team_counter", "item", "rot"],
+	"damage.cause": ["ability", "follow_up", "counter", "team_counter", "item", "rot", "bleed"],
 	"ap_changed.reason": ["spend", "ability", "given", "gear"],
-	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte"],
+	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte", "bleeding", "regen", "marked", "empowered"],
 	"prompts_voided.reason": ["downed", "attacker_down", "targets_down", "no_good_press"],
 	"sequence_resolved.reason": ["completed", "targets_down", "attacker_down"],
 	"combat_ended.result": ["victory", "defeat"],
@@ -180,7 +180,7 @@ func test_basic_attack_damage_and_ap_gain() -> void:
 	var events := engine.submit(Fx.use(engine, "basic_attack"))
 	assert_eq(Fx.types(events), ["ability_used", "damage", "ap_changed", "turn_ended", "turn_started", "turn_order"])
 	assert_eq(events[0], {"type": "ability_used", "turn": 1, "actor": 1, "ability": "basic_attack", "targets": [FOE]})
-	assert_eq(events[1], {"type": "damage", "source": 1, "target": FOE, "amount": 48, "hp": 1452, "max_hp": 1500, "cause": "ability"})
+	assert_eq(events[1], {"type": "damage", "source": 1, "target": FOE, "amount": 48, "hp": 1452, "max_hp": 1500, "cause": "ability", "crit": false})
 	assert_eq(events[2], {"type": "ap_changed", "character": 1, "delta": 1, "ap": 2, "reason": "ability"})
 	assert_eq(events[3], {"type": "turn_ended", "turn": 1, "actor": 1})
 	assert_eq(events[4].actor, 2, "then speed 100")
@@ -516,7 +516,7 @@ func test_single_target_all_parried_counter() -> void:
 	assert_eq(events[start + 1], {"type": "counter", "seq": 1, "actors": [t], "target": FOE, "team": false,
 			"hits": 3, "mixed": false})
 	assert_eq(events[start + 2], {"type": "damage", "source": t, "target": FOE, "amount": amount,
-			"hp": 1500 - amount, "max_hp": 1500, "cause": "counter"})
+			"hp": 1500 - amount, "max_hp": 1500, "cause": "counter", "crit": false})
 	assert_eq(events[start + 3].type, "intent")
 	assert_eq(events[start + 4].type, "turn_ended")
 

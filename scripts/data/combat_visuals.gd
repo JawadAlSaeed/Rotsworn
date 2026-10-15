@@ -204,6 +204,12 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var rhythm_done_alpha: float = 0.3
 ## Faint line joining the icons of a rhythm row.
 @export var rhythm_line_color: Color = Color(1.0, 1.0, 1.0, 0.3)
+## A feint's hit icon wears a dashed ring (card #129): its colour, size (times the icon), line
+## width and number of dashes.
+@export var rhythm_feint_color: Color = Color(1.0, 0.6, 0.15, 1.0)
+@export_range(1.0, 3.0, 0.05) var rhythm_feint_ring_scale: float = 1.3
+@export_range(1.0, 8.0, 0.5) var rhythm_feint_ring_px: float = 3.0
+@export_range(2, 24) var rhythm_feint_dashes: int = 8
 ## Size of the hit icons in the attack banner (pixels at 1080p).
 @export_range(8.0, 128.0, 1.0) var banner_icon_px: float = 40.0
 ## Hit marker: when a hit's motion starts, its icon pops up beside each target, on the side the
@@ -321,6 +327,10 @@ extends Resource
 @export_range(0, 5000, 1, "suffix:ms") var reward_sound_delay_ms: int = 700
 ## Then the level-up sound (when the party levels) waits this long after the gold sound.
 @export_range(0, 5000, 1, "suffix:ms") var level_up_sound_gap_ms: int = 600
+## Font size of the LEVEL UP! popup over a hero who levels after a fight.
+@export_range(8, 200) var level_up_popup_size: int = 44
+## A critical hit shows its damage as a big hit, with CRITICAL! over it in this size.
+@export_range(8, 200) var crit_popup_size: int = 34
 ## Each parry in a row within one enemy attack rings this many semitones higher (card #93).
 @export_range(0.0, 12.0, 0.5) var parry_ring_step_semitones: float = 2.0
 ## The ring stops climbing after this many steps.

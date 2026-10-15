@@ -1,0 +1,92 @@
+{
+ "critical": {
+  "a": {
+   "name": "Crushing blow with a bell",
+   "desc": "The heavy skill hit, with a bright bell ringing out over it.",
+   "note": "heavy_strike A as it is, the handbell ding (gauge_full C) at -5 dB from 20 ms.",
+   "layers": [
+    {
+     "sound": "audio/search/strike/hit/ov-457f8009.wav",
+     "pitch": -3,
+     "credit": "\"melon-chop-take2.wav\" by gagglepod, CC0, https://freesound.org/people/gagglepod/sounds/539534"
+    },
+    {
+     "sound": "audio/search/strike/hit/ov-d2fb0e45.wav",
+     "gain_db": -4,
+     "len_ms": 400,
+     "credit": "\"Blunt Force Trauma (Clean and Juicy)\" by TheFilmLook, CC0, https://freesound.org/people/TheFilmLook/sounds/365574"
+    },
+    {
+     "sound": "audio/search/strike/hit/ov-d5aee679.wav",
+     "len_ms": 420,
+     "gain_db": -4,
+     "at_ms": 5,
+     "credit": "\"Gut Rip (Unbladed)\" by magnuswaker, CC0, https://freesound.org/people/magnuswaker/sounds/530919"
+    },
+    {
+     "sound": "chime/fs-611113-bell-ding-1-wav-1",
+     "gain_db": -5,
+     "at_ms": 20,
+     "len_ms": 700
+    }
+   ],
+   "len_ms": 750,
+   "fade_ms": 350
+  },
+  "b": {
+   "name": "Steel clang and sparkle",
+   "desc": "A hard metal clang with chimes sparkling after it.",
+   "note": "Metal Hit 2 (parry_final C body), hanging chimes at -8 dB from 30 ms.",
+   "layers": [
+    {
+     "sound": "hit/fs-321482-metal-hit-2-1"
+    },
+    {
+     "sound": "shimmer/fs-389789-chimes-3",
+     "gain_db": -8,
+     "at_ms": 30,
+     "len_ms": 800
+    }
+   ],
+   "len_ms": 800,
+   "fade_ms": 400
+  },
+  "c": {
+   "name": "Bone crack and ring",
+   "desc": "A bone-cracking punch with a short high ring on top.",
+   "note": "exposed_burst A, the bell ding at -9 dB from 10 ms, shorter.",
+   "layers": [
+    {
+     "sound": "audio/search/skills/hit/ov-bf2fabe5.wav",
+     "gain_db": 0,
+     "credit": "\"Bone Crack (1)\" by johnfolker, CC0, https://freesound.org/people/johnfolker/sounds/269025"
+    },
+    {
+     "sound": "hit/fs-269028-face-punch-3-1",
+     "gain_db": -4,
+     "len_ms": 300
+    },
+    {
+     "sound": "audio/search/skills/hit/ov-5250336b.wav",
+     "gain_db": -11,
+     "at_ms": 60,
+     "len_ms": 450,
+     "credit": "\"Bone Crack (2)\" by johnfolker, CC0, https://freesound.org/people/johnfolker/sounds/269024"
+    },
+    {
+     "sound": "boom/fs-636624-deep-hit-2",
+     "gain_db": -9,
+     "lowpass_hz": 250
+    },
+    {
+     "sound": "chime/fs-611113-bell-ding-1-wav-1",
+     "gain_db": -9,
+     "at_ms": 10,
+     "len_ms": 500
+    }
+   ],
+   "len_ms": 600,
+   "fade_ms": 300
+  }
+ }
+}

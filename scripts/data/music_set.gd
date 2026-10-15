@@ -17,6 +17,14 @@ extends Resource
 @export_file("*.wav", "*.ogg", "*.mp3") var boss_rage_path: String = ""
 ## The credits screen (card #87). Empty: the menu song.
 @export_file("*.wav", "*.ogg", "*.mp3") var credits_path: String = ""
+## A won fight's VICTORY screen and the RUN CLEARED screen (card #109). Empty: the fight song goes
+## on (the run song on RUN CLEARED).
+@export_file("*.wav", "*.ogg", "*.mp3") var victory_path: String = ""
+## A lost fight's DEFEAT screen and the RUN OVER screen (card #126). Empty: as for victory_path.
+@export_file("*.wav", "*.ogg", "*.mp3") var defeat_path: String = ""
+## The victory or defeat song starts this long after the fight ends, so the short jingle plays
+## first.
+@export_range(0, 10000, 10, "suffix:ms") var end_song_delay_ms: int = 1200
 ## A new song fades in over this long while the old one fades out (a crossfade between places).
 @export_range(0, 10000, 10, "suffix:ms") var fade_in_ms: int = 1500
 @export_range(0, 10000, 10, "suffix:ms") var fade_out_ms: int = 1000

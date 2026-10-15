@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="SkillTreeData" load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/skill_tree_data.gd" id="1_tree"]
+[ext_resource type="Script" path="res://scripts/data/skill_branch_data.gd" id="2_branch"]
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="3_ability"]
+[ext_resource type="Resource" path="res://data/abilities/quick_cuts.tres" id="a_quick_cuts"]
+[ext_resource type="Resource" path="res://data/abilities/twin_fangs.tres" id="a_twin_fangs"]
+[ext_resource type="Resource" path="res://data/abilities/all_in.tres" id="a_all_in"]
+[ext_resource type="Resource" path="res://data/abilities/hamstring.tres" id="a_hamstring"]
+[ext_resource type="Resource" path="res://data/abilities/open_vein.tres" id="a_open_vein"]
+[ext_resource type="Resource" path="res://data/abilities/rend.tres" id="a_rend"]
+[ext_resource type="Resource" path="res://data/abilities/feint_step.tres" id="a_feint_step"]
+[ext_resource type="Resource" path="res://data/abilities/shadowstep.tres" id="a_shadowstep"]
+[ext_resource type="Resource" path="res://data/abilities/death_mark.tres" id="a_death_mark"]
+
+[sub_resource type="Resource" id="b0"]
+script = ExtResource("2_branch")
+display_name = "Flurry"
+skills = Array[ExtResource("3_ability")]([ExtResource("a_quick_cuts"), ExtResource("a_twin_fangs"), ExtResource("a_all_in")])
+
+[sub_resource type="Resource" id="b1"]
+script = ExtResource("2_branch")
+display_name = "Cripple"
+skills = Array[ExtResource("3_ability")]([ExtResource("a_hamstring"), ExtResource("a_open_vein"), ExtResource("a_rend")])
+
+[sub_resource type="Resource" id="b2"]
+script = ExtResource("2_branch")
+display_name = "Shadow"
+skills = Array[ExtResource("3_ability")]([ExtResource("a_feint_step"), ExtResource("a_shadowstep"), ExtResource("a_death_mark")])
+
+[resource]
+script = ExtResource("1_tree")
+branches = Array[ExtResource("2_branch")]([SubResource("b0"), SubResource("b1"), SubResource("b2")])

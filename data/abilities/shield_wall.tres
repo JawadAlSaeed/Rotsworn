@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_ability"]
+
+[resource]
+script = ExtResource("1_ability")
+id = "shield_wall"
+display_name = "Shield Wall"
+description = "The whole party takes half damage until their next turn. Perfect press: +1 AP."
+target = 6
+ap_cost = 3
+impact_sfx = "buff"
+press_times_ms = Array[int]([800])
+ring_lead_percent = 85
+damage_percent = 0
+press_ap_gain = 1
+status = "guarded"
+windup_clips = PackedStringArray("cast_windup")
+strike_clips = PackedStringArray("cast")

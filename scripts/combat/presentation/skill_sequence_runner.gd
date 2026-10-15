@@ -39,6 +39,8 @@ const FOLLOW_UP_WINDUPS: PackedStringArray = ["follow_up_windup"]
 const FOLLOW_UP_STRIKES: PackedStringArray = ["follow_up"]
 ## A follow-up ally hops in and out of their spot with this clip.
 const LEAP_CLIP: String = "leap"
+## A bolt's trail copies: the first one this bright, each next one fainter.
+const BOLT_TRAIL_ALPHA: float = 0.45
 
 var _submit: Callable
 var _apply_now: Callable
@@ -59,6 +61,11 @@ var _hits: Array = []
 var _targets: Array[int] = []
 var _hits_enemies: bool = false
 var _ability: AbilityData
+## A spell (AbilityData.projectile, card #81): the caster stays where they stand and a bolt flies
+## to the target for each of their presses.
+var _ranged: bool = false
+## Press prompts whose bolt has left (its launch sound played).
+var _bolts_launched: Dictionary = {}
 var _clock := AttackClock.new()
 var _judges: JudgeSet
 var _roster: PlayerRoster = PlayerRoster.solo(0)
@@ -124,6 +131,8 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_hits = event.hits
 	_targets.assign(event.targets)
 	_hits_enemies = ability != null and ability.targets_enemies()
+	_ranged = ability != null and ability.projectile != null
+	_bolts_launched.clear()
 	_latency_ms = PlayerSettings.latency_compensation_ms(_tuning)
 	_judges = JudgeSet.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
 			_tuning.late_press_report_ms)
@@ -186,7 +195,7 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 			continue
 		v.clear_timed_pose(FighterView.PRIO_BIG)
 		v.set_pose(FighterView.CharPose.READY)
-		if _hits_enemies and not _targets.is_empty():
+		if _hits_enemies and not _targets.is_empty() and not _ranged:
 			v.move_body(_approach_offset(id), float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
 	sequence_started.emit(_seq)
 
@@ -302,6 +311,7 @@ func _process(_delta: float) -> void:
 	_update_rings(t)
 	_update_allies(t)
 	_update_poses(t)
+	_update_bolts(t)
 	_update_lock(t)
 	_check_finish(t)
 
@@ -459,17 +469,21 @@ func _strike(idxs: Array[int], good: bool, contact_us: int) -> void:
 		if v == null or not _mirror.is_alive(id):
 			continue
 		var follow_up := String(prompt.role) == CombatEngine.ROLE_FOLLOW_UP
+		# A spell's own presses land as its bolt arrives: the caster stays put (follow-ups still run in).
+		var cast := _ranged and not follow_up
 		if _hits_enemies and target >= 0:
 			var enemy := _view.fighter(target)
-			var strike_at := _view.strike_point(target)
-			if team:
-				# Card #65: each hero keeps part of the formation, so nobody hides behind another.
-				strike_at += _view.team_spread_offset(id, _strikers())
-			v.move_body(strike_at - v.position, lunge_s, Tween.TRANS_QUAD, Tween.EASE_IN)
+			if not cast:
+				var strike_at := _view.strike_point(target)
+				if team:
+					# Card #65: each hero keeps part of the formation, so nobody hides behind another.
+					strike_at += _view.team_spread_offset(id, _strikers())
+				v.move_body(strike_at - v.position, lunge_s, Tween.TRANS_QUAD, Tween.EASE_IN)
 			if enemy != null:
-				_view.spawn_slash(enemy.centre_position(), i % 2 == 0, 1.0 if good else 0.6, i * _visuals.team_slash_gap_ms)
+				if not cast:
+					_view.spawn_slash(enemy.centre_position(), i % 2 == 0, 1.0 if good else 0.6, i * _visuals.team_slash_gap_ms)
 				_view.spawn_sparks(enemy.centre_position(), _visuals.sparks_per_strike, 1.0 if good else 0.6,
-						_visuals.strike_spark_color)
+						_ability.projectile.color if cast else _visuals.strike_spark_color)
 			_view.camera.shake(_visuals.shake_strike, _visuals.shake_strike_ms)
 			if team and i == 0:
 				_hud.screen_flash(HudStyle.GOLD, _visuals.screen_flash_ultimate)
@@ -480,7 +494,7 @@ func _strike(idxs: Array[int], good: bool, contact_us: int) -> void:
 				# freeze), so its last cells are not cut off by the leap.
 				var strike_s := float(_visuals.skill_strike_pose_ms + _tuning.hitstop_press_ms) / 1000.0
 				get_tree().create_timer(maxf(lunge_s * 2.0, strike_s)).timeout.connect(_hop_home.bind(id))
-			else:
+			elif not cast:
 				get_tree().create_timer(lunge_s * 2.0).timeout.connect(_step_back.bind(id, _approach_offset(id)))
 		elif _ability == null or not _ability.escape:
 			Sfx.play(_ability.impact_sfx if _ability != null else "buff")
@@ -758,6 +772,8 @@ func _check_finish(t: int) -> void:
 
 func _hand_back() -> void:
 	_active = false
+	if _ranged:
+		_view.set_projectiles([])
 	_hud.set_skill_pressing(false)
 	_input.disarm()
 	_hud.hide_banner()
@@ -774,6 +790,55 @@ func _hand_back() -> void:
 	var tail: Array[Dictionary] = _tail.duplicate()
 	_tail.clear()
 	finished.emit(tail)
+
+
+## A spell's bolts at skill time `t`: each of the caster's presses sends one from the caster to
+## the target, leaving projectile_flight_ms before the press's hit and arriving on it.
+func _update_bolts(t: int) -> void:
+	if not _ranged:
+		return
+	var data := _ability.projectile
+	var target := _view.fighter(_first_target())
+	var list: Array[Dictionary] = []
+	var flight_us := maxi(1, _ability.projectile_flight_ms * 1000)
+	for idx: int in _prompts.size():
+		var prompt: Dictionary = _prompts[idx]
+		if String(prompt.role) != CombatEngine.ROLE_PRESS or _voided.has(idx) or target == null:
+			continue
+		var caster := _view.fighter(int(prompt.character))
+		if caster == null:
+			continue
+		var hit_us := int(prompt.at_ms) * 1000
+		var u := float(t - (hit_us - flight_us)) / float(flight_us)
+		if u < 0.0 or u > 1.0:
+			continue
+		if not _bolts_launched.has(idx):
+			_bolts_launched[idx] = true
+			if not data.launch_sfx.is_empty():
+				Sfx.play(data.launch_sfx)
+		var from := caster.centre_position()
+		var to := target.centre_position()
+		var toward := to - from
+		toward.y = 0.0
+		from += (toward.normalized() if toward.length() > 0.0 else Vector3.RIGHT) * data.launch_offset.x \
+				+ Vector3.UP * data.launch_offset.y
+		var frame := int(floor(float(t) / 1000.0 / maxf(1.0, float(data.loop_ms)) * float(data.hframes)))
+		for k: int in range(data.trail_count, 0, -1):
+			var tu := u - float(k * data.trail_gap_ms * 1000) / float(flight_us)
+			if tu > 0.0:
+				list.append(_bolt_entry(data, frame, _arc(from, to, tu, data.arc_height), BOLT_TRAIL_ALPHA / float(k)))
+		list.append(_bolt_entry(data, frame, _arc(from, to, u, data.arc_height), 1.0))
+	_view.set_projectiles(list)
+
+
+static func _bolt_entry(data: ProjectileData, frame: int, pos: Vector3, alpha: float) -> Dictionary:
+	return {"path": data.texture_path, "hframes": data.hframes, "frame": posmod(frame, maxi(1, data.hframes)),
+			"pixel_size": data.pixel_size, "pos": pos, "alpha": alpha, "scale": 1.0}
+
+
+## A point on a bolt's path at progress `u`: a straight line plus a lift that peaks halfway.
+static func _arc(from: Vector3, to: Vector3, u: float, height: float) -> Vector3:
+	return from.lerp(to, u) + Vector3.UP * height * 4.0 * u * (1.0 - u)
 
 
 # --- helpers ----------------------------------------------------------------------------------
@@ -853,7 +918,8 @@ func _follow_up_offset(id: int) -> Vector3:
 func _approach_offset(id: int) -> Vector3:
 	var target := _first_target()
 	var v := _view.fighter(id)
-	if target < 0 or v == null:
+	# A spell is cast from where the caster stands (their rings sit on them too).
+	if target < 0 or v == null or _ranged:
 		return Vector3.ZERO
 	return (_view.strike_point(target) - v.position) * _visuals.skill_approach_share
 

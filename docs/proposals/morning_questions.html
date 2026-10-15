@@ -1,0 +1,103 @@
+<title>Rotsworn Morning Questions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: one reading column of question cards; each card says what to decide, my pick, and why. */
+:root {
+  --bg: #12110f; --panel: #1c1a17; --line: #3a352c; --fg: #ece8de; --dim: #9a937f;
+  --gold: #e8c15a; --ok: #7fc8a0;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.5; margin: 0; padding-inline: 16px; padding-block: 32px 64px; }
+main { max-width: 820px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2 { font-family: var(--display); color: var(--gold); text-wrap: balance; margin: 0; letter-spacing: .02em; }
+h1 { font-size: clamp(28px, 6vw, 40px); }
+h2 { font-size: clamp(19px, 3.5vw, 23px); }
+p { margin: 0; }
+a { color: var(--gold); }
+.dim { color: var(--dim); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; display: grid; gap: 10px; min-width: 0; }
+.card.decide { border-color: var(--gold); }
+.tag { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+ul, ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.pick { color: var(--ok); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--dim); font-weight: 500; }
+.wrap { overflow-x: auto; }
+</style>
+
+<main>
+  <div style="display:grid;gap:10px">
+    <h1>Morning Questions</h1>
+    <p class="dim">What I need from you after last night's work. Each card is one decision. My pick is in green.</p>
+  </div>
+
+  <section class="card decide">
+    <span class="tag">Phase 13 · cards #136, #56, #80, #81</span>
+    <h2>1. Skill trees</h2>
+    <p>Open the <a href="https://claude.ai/artifact/3qaqDJAK8LkPrUJXTHKfRm">skill tree plan</a>. Two questions are at its top: how many skills a hero brings to a fight (<span class="pick">5</span> or 6), and skill points per level (<span class="pick">1</span> or 2). Your note about Cass is in it: every skill is ranged, only her normal attack walks up.</p>
+  </section>
+
+  <section class="card decide">
+    <span class="tag">Backlog · cards #109, #126, #110</span>
+    <h2>2. Three new songs</h2>
+    <p>Open the <a href="https://claude.ai/artifact/YDKwHYVGd9ofaW4SEQj84B">listening page</a>. Three songs for the victory screen, three sad songs for defeat and RUN OVER, and three new songs for the run map. Tap one of each. The game is already wired: once you pick, I drop the songs in.</p>
+  </section>
+
+  <section class="card decide">
+    <span class="tag">Backlog · card #130</span>
+    <h2>3. Which instructions to remove</h2>
+    <p>Here is every place the game explains itself:</p>
+    <div class="wrap"><table>
+      <tr><th>Where</th><th>What it says</th><th>My pick</th></tr>
+      <tr><td>Fight, bottom left</td><td>DEFEND box: the Parry, Dodge and Jump buttons, plus "Ground wave: Jump only" and "Parry every hit: counterattack"</td><td class="pick">Hide when "Control help" is off</td></tr>
+      <tr><td>Fight, bottom left</td><td>"Skill press" button during skills</td><td class="pick">Hide when off</td></tr>
+      <tr><td>Fight, skill rings</td><td>"PRESS" over each ring</td><td class="pick">Hide when off</td></tr>
+      <tr><td>Zone</td><td>"Hit an enemy before it touches you: FIRST STRIKE" and the move and strike buttons</td><td class="pick">Hide when off</td></tr>
+      <tr><td>Fight, action menu</td><td>The button next to Attack, Skills, Items</td><td>Keep (you need it to play)</td></tr>
+      <tr><td>Every menu, bottom bar</td><td>Choose, Select, Back</td><td>Keep</td></tr>
+      <tr><td>Zone, top right</td><td>"Beat the GUARD at the exit"</td><td>Keep (it is the goal)</td></tr>
+      <tr><td>Practice fights, top right</td><td>The practice keys</td><td>Keep (practice only)</td></tr>
+    </table></div>
+    <p>My idea: a <b>Control help</b> switch in Settings &gt; Game, on at first. Turning it off hides the four rows marked in green. Or tell me which rows to remove for everyone.</p>
+  </section>
+
+  <section class="card decide">
+    <span class="tag">Backlog · card #131</span>
+    <h2>4. The tutorial</h2>
+    <p>Six short lessons on the practice fight. Each shows one line of text, waits until you do it, and can be skipped with Start.</p>
+    <ol>
+      <li><b>Attack.</b> Press when the ring closes. Done after one good press.</li>
+      <li><b>Skills.</b> Cass uses Reveal, Brin uses Rend on the Exposed enemy, the others press for follow-ups.</li>
+      <li><b>Defend.</b> A slow single hit: parry it. Then dodge one. Then jump a ground wave. The training ring is on for this lesson.</li>
+      <li><b>Counter.</b> Parry every hit of a short string to strike back.</li>
+      <li><b>Team Ultimate.</b> The gauge starts full: use it.</li>
+      <li><b>Zone and map.</b> Walk, hit a roaming enemy first for FIRST STRIKE, pick up a glint, then choose a path on the map.</li>
+    </ol>
+    <p>When does it show? <span class="pick">Offered once, the first time you start a run, and always in the main menu</span>, or only in the main menu.</p>
+  </section>
+
+  <section class="card decide">
+    <span class="tag">Backlog · cards #113, #111</span>
+    <h2>5. Two things I need you to describe</h2>
+    <ul>
+      <li><b>Lag calibration (#113):</b> what goes wrong on that page? What happens, and what did you expect?</li>
+      <li><b>Map icons (#111):</b> what do you not like about the current Z, R, $ and ! marks? Hard to read, ugly, or not clear what they mean?</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <span class="tag">Balance check</span>
+    <h2>6. Is the game harder now?</h2>
+    <p>No. I let a bot play whole runs in the old game (before last night) and the new one, on the same seeds:</p>
+    <ul>
+      <li><b>Good player</b> (lands 80% of presses): 3 runs each. Old and new cleared all three, with the same number of fights.</li>
+      <li><b>Average player</b> (60%): 12 runs each. Old won 41 fights, new won 44. The average bot dies early in both (around the second stop), so the early game is hard for everyone. That was already true before.</li>
+    </ul>
+    <p class="dim">The deeper enemies (+5% HP, +3% damage per map row) are a first guess. Tell me if late stops feel too easy or too hard once you play.</p>
+  </section>
+</main>

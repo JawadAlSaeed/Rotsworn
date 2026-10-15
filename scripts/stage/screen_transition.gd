@@ -4,6 +4,7 @@ extends CanvasLayer
 ## frozen and swirls into black (swirl_out), then the fight fades in from black (fade_in). Back to
 ## a zone: fade to black (fade_out), then fade in. Each call can be awaited. Real time.
 ## Over the black, a loading card can show a tip (show_tip / hide_tip, DESIGN.md 7.7, card #86).
+## While anything of it covers the screen, no input reaches what is behind (card #132).
 
 const SWIRL_SHADER := preload("res://scripts/stage/swirl.gdshader")
 const TIP_WIDTH_PX: float = 1200.0
@@ -76,6 +77,18 @@ func fade_in() -> void:
 	_picture.visible = false
 	await _fade_black(0.0, float(_explore.transition_in_ms) / 1000.0)
 	_black.visible = false
+
+
+## True while the black, the swirl or a loading card covers the screen.
+func is_covering() -> bool:
+	return (_black.visible and _black.modulate.a > 0.0) or _picture.visible or _card != null
+
+
+## Eats every press, click and stick move while covering, so no button behind the loading card
+## can be used. _input runs before any screen's GUI and _unhandled_input.
+func _input(event: InputEvent) -> void:
+	if _black != null and is_covering():
+		get_viewport().set_input_as_handled()
 
 
 ## The tips and the logo for loading cards (without them show_tip does nothing).

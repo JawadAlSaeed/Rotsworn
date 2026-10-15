@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="SkillTreeData" load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/skill_tree_data.gd" id="1_tree"]
+[ext_resource type="Script" path="res://scripts/data/skill_branch_data.gd" id="2_branch"]
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="3_ability"]
+[ext_resource type="Resource" path="res://data/abilities/guard.tres" id="a_guard"]
+[ext_resource type="Resource" path="res://data/abilities/shield_wall.tres" id="a_shield_wall"]
+[ext_resource type="Resource" path="res://data/abilities/unbreakable.tres" id="a_unbreakable"]
+[ext_resource type="Resource" path="res://data/abilities/shield_bash.tres" id="a_shield_bash"]
+[ext_resource type="Resource" path="res://data/abilities/shield_throw.tres" id="a_shield_throw"]
+[ext_resource type="Resource" path="res://data/abilities/earthshaker.tres" id="a_earthshaker"]
+[ext_resource type="Resource" path="res://data/abilities/taunt.tres" id="a_taunt"]
+[ext_resource type="Resource" path="res://data/abilities/riposte_stance.tres" id="a_riposte_stance"]
+[ext_resource type="Resource" path="res://data/abilities/payback.tres" id="a_payback"]
+
+[sub_resource type="Resource" id="b0"]
+script = ExtResource("2_branch")
+display_name = "Bulwark"
+skills = Array[ExtResource("3_ability")]([ExtResource("a_guard"), ExtResource("a_shield_wall"), ExtResource("a_unbreakable")])
+
+[sub_resource type="Resource" id="b1"]
+script = ExtResource("2_branch")
+display_name = "Bash"
+skills = Array[ExtResource("3_ability")]([ExtResource("a_shield_bash"), ExtResource("a_shield_throw"), ExtResource("a_earthshaker")])
+
+[sub_resource type="Resource" id="b2"]
+script = ExtResource("2_branch")
+display_name = "Retort"
+skills = Array[ExtResource("3_ability")]([ExtResource("a_taunt"), ExtResource("a_riposte_stance"), ExtResource("a_payback")])
+
+[resource]
+script = ExtResource("1_tree")
+branches = Array[ExtResource("2_branch")]([SubResource("b0"), SubResource("b1"), SubResource("b2")])

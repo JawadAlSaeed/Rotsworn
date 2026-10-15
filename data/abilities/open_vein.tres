@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_ability"]
+
+[resource]
+script = ExtResource("1_ability")
+id = "open_vein"
+display_name = "Open Vein"
+description = "100% hit and Bleeding: the enemy loses 25% of Brin's power at the start of each of its next 3 turns. Perfect press: 4 turns."
+ap_cost = 2
+impact_sfx = "strike"
+press_times_ms = Array[int]([800])
+ring_lead_percent = 85
+follow_ups = true
+damage_percent = 100
+status = "bleeding"
+status_turns = 3
+press_status_turns = 1
+windup_clips = PackedStringArray("strike_alt_windup")
+strike_clips = PackedStringArray("strike_alt")

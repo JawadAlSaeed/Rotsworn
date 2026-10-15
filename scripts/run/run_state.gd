@@ -1,8 +1,8 @@
 class_name RunState
 extends RefCounted
 ## One run in progress (DESIGN.md 8): the map, where the party is on it, the party's HP (carried
-## from fight to fight), max HP boosts, gold, the party level and XP, the gear each hero wears and
-## the shared backpack (DESIGN.md 8.1). The run's rules live here as plain integer maths so they
+## from fight to fight), max HP boosts, gold, each hero's level, XP and attribute points (DESIGN.md
+## 8.2), the gear each hero wears and the shared backpack (DESIGN.md 8.1). The run's rules live here as plain integer maths so they
 ## are unit-tested; screens only call these functions and show the result.
 
 const VICTORY := "victory"
@@ -32,11 +32,19 @@ var gold: int = 0
 ## max HP; levels and gear add to it in total_max_hp_percent).
 var hp: Array[int] = []
 var max_hp_percent: Array[int] = []
-## The whole party shares one level; xp counts toward the next one.
-var level: int = 1
-var xp: int = 0
+## Per party slot: the hero's level, and the XP counting toward their next one.
+var levels: Array[int] = []
+var xps: Array[int] = []
+## Per party slot: points spent on each attribute (Attributes.COUNT ints).
+var attributes: Array[Array] = []
+## Per party slot, for heroes with a skill tree (DESIGN.md 8.4): the skills they know (ability
+## ids, starters included) and the ones they bring into fights.
+var unlocked: Array[Array] = []
+var loadout: Array[Array] = []
 ## Per party slot, tuning.run_gear_slots entries: GearData or null.
 var gear: Array[Array] = []
+## The team gauge carried from the last fight into the next one (card #146).
+var team_gauge: int = 0
 ## The shared backpack (items only: gear is always worn).
 var backpack: Backpack
 var fights_won: int = 0
@@ -56,6 +64,15 @@ static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int) -> RunState:
 	run.backpack = Backpack.new(p_tuning.backpack_width, p_tuning.backpack_rows)
 	for c: CharacterData in run_data.party:
 		run.max_hp_percent.append(100)
+		run.levels.append(1)
+		run.xps.append(0)
+		run.attributes.append(Attributes.empty())
+		var known: Array = []
+		if c.skill_tree != null:
+			for skill: AbilityData in c.skill_tree.starters():
+				known.append(skill.id)
+		run.unlocked.append(known.duplicate())
+		run.loadout.append(known.slice(0, p_tuning.skill_slots))
 		var slots: Array = []
 		slots.resize(p_tuning.run_gear_slots)
 		run.gear.append(slots)
@@ -76,7 +93,9 @@ func to_dict() -> Dictionary:
 		worn.append(ids)
 	return {
 		"seed": run_seed, "at": at, "path": Array(path), "gold": gold, "hp": Array(hp),
-		"max_hp_percent": Array(max_hp_percent), "level": level, "xp": xp, "gear": worn,
+		"max_hp_percent": Array(max_hp_percent), "levels": Array(levels), "xps": Array(xps),
+		"attributes": attributes.duplicate(true), "team_gauge": team_gauge, "gear": worn,
+		"unlocked": unlocked.duplicate(true), "loadout": loadout.duplicate(true),
 		"backpack": backpack.to_array(),
 		"fights_won": fights_won, "gold_earned": gold_earned, "result": result,
 	}
@@ -93,17 +112,26 @@ static func from_dict(run_data: RunData, p_tuning: Tuning, d: Dictionary) -> Run
 
 ## Sets this run (same seed) to to_dict() data. False (and nothing changed) if it does not fit.
 func apply_dict(d: Dictionary) -> bool:
-	for key: String in ["seed", "at", "gold", "level", "xp", "fights_won", "gold_earned"]:
+	for key: String in ["seed", "at", "gold", "team_gauge", "fights_won", "gold_earned"]:
 		if typeof(d.get(key)) != TYPE_INT:
 			return false
 	if int(d.seed) != run_seed or typeof(d.get("result")) != TYPE_STRING:
 		return false
-	for key: String in ["path", "hp", "max_hp_percent", "gear", "backpack"]:
+	for key: String in ["path", "hp", "max_hp_percent", "levels", "xps", "attributes", "gear", "backpack",
+			"unlocked", "loadout"]:
 		if not d.get(key) is Array:
 			return false
 	var size := party_size()
-	if (d.hp as Array).size() != size or (d.max_hp_percent as Array).size() != size or (d.gear as Array).size() != size:
-		return false
+	for key: String in ["hp", "max_hp_percent", "levels", "xps", "attributes", "gear", "unlocked", "loadout"]:
+		if (d[key] as Array).size() != size:
+			return false
+	for key: String in ["unlocked", "loadout"]:
+		for slot: int in size:
+			if not _skill_ids_fit(slot, d[key][slot]):
+				return false
+	for values: Variant in d.attributes:
+		if not Attributes.is_valid(values):
+			return false
 	var by_id: Dictionary = {}
 	for item: GearData in data.gear:
 		if item != null:
@@ -121,7 +149,7 @@ func apply_dict(d: Dictionary) -> bool:
 	var new_pack := Backpack.from_array(d.backpack, items_by_id())
 	if new_pack == null:
 		return false
-	for key: String in ["path", "hp", "max_hp_percent"]:
+	for key: String in ["path", "hp", "max_hp_percent", "levels", "xps"]:
 		for v: Variant in d[key]:
 			if typeof(v) != TYPE_INT:
 				return false
@@ -132,8 +160,17 @@ func apply_dict(d: Dictionary) -> bool:
 	gold = int(d.gold)
 	hp.assign(d.hp)
 	max_hp_percent.assign(d.max_hp_percent)
-	level = int(d.level)
-	xp = int(d.xp)
+	team_gauge = int(d.team_gauge)
+	levels.assign(d.levels)
+	xps.assign(d.xps)
+	var new_attributes: Array[Array] = []
+	for values: Variant in d.attributes:
+		var kept: Array[int] = []
+		kept.assign(values)
+		new_attributes.append(kept)
+	attributes = new_attributes
+	unlocked.assign((d.unlocked as Array).duplicate(true))
+	loadout.assign((d.loadout as Array).duplicate(true))
 	gear = new_gear
 	backpack = new_pack
 	fights_won = int(d.fights_won)
@@ -148,18 +185,20 @@ func party_size() -> int:
 
 # --- stats ------------------------------------------------------------------------------------
 
-## Max HP percent with tonics, levels, gear and charms.
+## Max HP percent with tonics, level, Vitality, gear and charms.
 func total_max_hp_percent(slot: int) -> int:
-	return max_hp_percent[slot] + (level - 1) * tuning.run_level_hp_percent + bonus(slot, GearData.Effect.MAX_HP)
+	return max_hp_percent[slot] + (levels[slot] - 1) * tuning.run_level_hp_percent \
+			+ attribute(slot, Attributes.Kind.VITALITY) * tuning.attr_vitality_hp_percent + bonus(slot, GearData.Effect.MAX_HP)
 
 
 func max_hp(slot: int) -> int:
 	return CombatSetup.scaled_max_hp(tuning, data.party[slot], total_max_hp_percent(slot))
 
 
-## Power percent with levels, gear and charms (100 = the character's normal power).
+## Power percent with level, Might, gear and charms (100 = the character's normal power).
 func power_percent(slot: int) -> int:
-	return 100 + (level - 1) * tuning.run_level_power_percent + bonus(slot, GearData.Effect.POWER)
+	return 100 + (levels[slot] - 1) * tuning.run_level_power_percent \
+			+ attribute(slot, Attributes.Kind.MIGHT) * tuning.attr_might_power_percent + bonus(slot, GearData.Effect.POWER)
 
 
 func power(slot: int) -> int:
@@ -168,7 +207,23 @@ func power(slot: int) -> int:
 
 
 func speed(slot: int) -> int:
-	return maxi(1, data.party[slot].speed + bonus(slot, GearData.Effect.SPEED))
+	return maxi(1, data.party[slot].speed + speed_bonus(slot))
+
+
+## Speed added to the hero's own: Agility, gear and charms.
+func speed_bonus(slot: int) -> int:
+	return attribute(slot, Attributes.Kind.AGILITY) * tuning.attr_agility_speed + bonus(slot, GearData.Effect.SPEED)
+
+
+## How much less enemy hits deal to this hero, in percent: Defense, gear and charms (capped as the
+## fight caps it).
+func defense_percent(slot: int) -> int:
+	return mini(int(passives(slot).get(Passive.TOUGH, 0)), tuning.tough_max_percent)
+
+
+## This hero's chance of a critical hit, in percent (the base, Luck).
+func crit_percent(slot: int) -> int:
+	return mini(100, tuning.crit_base_percent + int(passives(slot).get(Passive.CRIT, 0)))
 
 
 ## What slot `slot`'s gear and the backpack's charms (which help every hero) add up to for one
@@ -204,6 +259,12 @@ func passives(slot: int) -> Dictionary:
 	var rot := rot_percent()
 	if rot > 0:
 		found[Passive.ROT] = rot
+	var defense := attribute(slot, Attributes.Kind.DEFENSE) * tuning.attr_defense_percent
+	if defense > 0:
+		found[Passive.TOUGH] = int(found.get(Passive.TOUGH, 0)) + defense
+	var luck := attribute(slot, Attributes.Kind.LUCK) * tuning.attr_luck_crit_percent
+	if luck > 0:
+		found[Passive.CRIT] = luck
 	return found
 
 
@@ -270,7 +331,7 @@ func gold_for(encounter: EncounterData) -> int:
 
 
 ## The fight setup for an encounter in this run: the run's party, team ultimate, HP, max HP,
-## power, speed, gear passives and the backpack's fight items.
+## power, speed, gear passives, the backpack's fight items and the enemies grown with depth.
 func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Opening) -> CombatSetup:
 	var setup := CombatSetup.from_encounter(encounter, tuning, p_seed, opening)
 	setup.party = data.party.duplicate()
@@ -279,12 +340,31 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 	for slot: int in party_size():
 		setup.party_max_hp_percent.append(total_max_hp_percent(slot))
 		setup.party_power_percent.append(power_percent(slot))
-		setup.party_speed_bonus.append(bonus(slot, GearData.Effect.SPEED))
+		setup.party_speed_bonus.append(speed_bonus(slot))
 		setup.party_passives.append(passives(slot))
+		setup.party_skills.append(loadout[slot].duplicate() if has_tree(slot) else [])
 	for e: Dictionary in backpack.entries:
 		if (e.item as ItemData).usable_in_fight():
 			setup.items.append({"uid": int(e.uid), "item": e.item, "amount": entry_amount(e), "name": entry_name(e)})
+	setup.start_team_gauge = clampi(team_gauge, 0, tuning.team_gauge_max)
+	if not encounter.boss or tuning.run_enemy_scale_bosses:
+		setup.enemy_hp_percent = enemy_hp_percent()
+		setup.enemy_power_percent = enemy_power_percent()
 	return setup
+
+
+## Enemy HP at the current stop's depth, in percent of their data (DESIGN.md 8.3).
+func enemy_hp_percent() -> int:
+	return 100 + _depth() * tuning.run_enemy_hp_row_percent
+
+
+## Enemy power at the current stop's depth, in percent of their data.
+func enemy_power_percent() -> int:
+	return 100 + _depth() * tuning.run_enemy_power_row_percent
+
+
+func _depth() -> int:
+	return maxi(0, int(current().get("row", 0)))
 
 
 ## Takes the items used in a fight out of the backpack (uids that are already gone are skipped).
@@ -293,22 +373,24 @@ func spend_items(uids: Array[int]) -> void:
 		backpack.remove(uid)
 
 
-## A fight ended with these party HPs (per slot). A victory pays gold and XP and gets the downed
-## back up at tuning.run_downed_revive_hp; a defeat ends the run.
-## Returns {gold, xp, levels} (levels gained).
+## A fight ended with these party HPs (per slot). A victory pays gold and XP (each hero their own,
+## less for the downed) and gets the downed back up at tuning.run_downed_revive_hp; a defeat ends
+## the run. Returns {gold, xp: per slot, levels: per slot (levels gained)}.
 func finish_fight(fight_result: String, party_hp: Array[int], encounter: EncounterData) -> Dictionary:
+	var none := {"gold": 0, "xp": _zeros(), "levels": _zeros()}
 	if fight_result == ESCAPED:
 		# Ran away (DESIGN.md 2.13): the HP carries on (a downed hero stands up at the floor),
 		# no gold, no XP, the run goes on.
 		for slot: int in hp.size():
 			var left := party_hp[slot] if slot < party_hp.size() else hp[slot]
 			hp[slot] = clampi(maxi(left, tuning.run_downed_revive_hp), 1, max_hp(slot))
-		return {"gold": 0, "xp": 0, "levels": 0}
+		return none
 	if fight_result != VICTORY:
 		for slot: int in hp.size():
 			hp[slot] = 0
 		result = DEFEAT
-		return {"gold": 0, "xp": 0, "levels": 0}
+		return none
+	var gained := fight_xp(encounter, party_hp)
 	for slot: int in hp.size():
 		var after := party_hp[slot] if slot < party_hp.size() else hp[slot]
 		hp[slot] = clampi(maxi(after, tuning.run_downed_revive_hp), 1, max_hp(slot))
@@ -316,49 +398,237 @@ func finish_fight(fight_result: String, party_hp: Array[int], encounter: Encount
 	var won := gold_for(encounter)
 	gold += won
 	gold_earned += won
-	var gained := encounter_xp(encounter)
-	var levels := add_xp(gained)
+	var up := _zeros()
+	for slot: int in party_size():
+		up[slot] = add_xp(slot, gained[slot])
 	if int(current().get("type", -1)) == RunMap.StopType.FINAL:
 		result = VICTORY
-	return {"gold": won, "xp": gained, "levels": levels}
+	return {"gold": won, "xp": gained, "levels": up}
 
 
-# --- levels -----------------------------------------------------------------------------------
+## A fight ended with the team gauge at `value`: the next fight starts with
+## tuning.run_team_gauge_carry_percent of it (card #146).
+func carry_team_gauge(value: int) -> void:
+	team_gauge = CombatMath.percent(clampi(value, 0, tuning.team_gauge_max), tuning.run_team_gauge_carry_percent)
 
-## XP needed from this level to the next.
-func xp_to_next() -> int:
-	return tuning.run_xp_first_level + (level - 1) * tuning.run_xp_level_step
+
+## The XP each hero gets for winning `encounter` with these HPs left: the encounter's XP for those
+## standing, tuning.run_xp_downed_percent of it for the downed.
+func fight_xp(encounter: EncounterData, party_hp: Array[int]) -> Array[int]:
+	var full := encounter_xp(encounter)
+	var shares: Array[int] = []
+	for slot: int in party_size():
+		var standing := slot >= party_hp.size() or party_hp[slot] > 0
+		shares.append(full if standing else CombatMath.percent(full, tuning.run_xp_downed_percent))
+	return shares
 
 
-## Levels `amount` more XP would give from here (for the end screen, before it is added).
-func levels_from(amount: int) -> int:
-	var lv := level
-	var left := xp + amount
+func _zeros() -> Array[int]:
+	var zeros: Array[int] = []
+	zeros.resize(party_size())
+	zeros.fill(0)
+	return zeros
+
+
+# --- levels and attributes (DESIGN.md 8.2) ------------------------------------------------------
+
+## XP hero `slot` needs from their level to the next.
+func xp_to_next(slot: int) -> int:
+	return tuning.run_xp_first_level + (levels[slot] - 1) * tuning.run_xp_level_step
+
+
+func is_max_level(slot: int) -> bool:
+	return levels[slot] >= tuning.run_max_level
+
+
+## Levels `amount` more XP would give hero `slot` from here (for the end screen, before it is
+## added).
+func levels_from(slot: int, amount: int) -> int:
+	var lv := levels[slot]
+	var left := xps[slot] + amount
 	while lv < tuning.run_max_level:
 		var need := tuning.run_xp_first_level + (lv - 1) * tuning.run_xp_level_step
 		if left < need:
 			break
 		left -= need
 		lv += 1
-	return lv - level
+	return lv - levels[slot]
 
 
-## Adds XP; each level up raises max HP and power and heals what max HP grew. Returns levels gained.
-func add_xp(amount: int) -> int:
+## Adds XP to hero `slot`; each level up raises max HP and power, heals what max HP grew and gives
+## attribute points. Returns levels gained.
+func add_xp(slot: int, amount: int) -> int:
 	var gained := 0
-	xp += maxi(0, amount)
-	while level < tuning.run_max_level and xp >= xp_to_next():
-		xp -= xp_to_next()
-		var before: Array[int] = []
-		for slot: int in party_size():
-			before.append(max_hp(slot))
-		level += 1
+	xps[slot] += maxi(0, amount)
+	while levels[slot] < tuning.run_max_level and xps[slot] >= xp_to_next(slot):
+		xps[slot] -= xp_to_next(slot)
+		var before := max_hp(slot)
+		levels[slot] += 1
 		gained += 1
-		for slot: int in party_size():
-			hp[slot] = mini(max_hp(slot), hp[slot] + max_hp(slot) - before[slot])
-	if level >= tuning.run_max_level:
-		xp = 0
+		hp[slot] = mini(max_hp(slot), hp[slot] + max_hp(slot) - before)
+	if is_max_level(slot):
+		xps[slot] = 0
 	return gained
+
+
+## The highest level in the party (for summaries).
+func top_level() -> int:
+	var top := 1
+	for lv: int in levels:
+		top = maxi(top, lv)
+	return top
+
+
+## Points spent on one attribute.
+func attribute(slot: int, kind: int) -> int:
+	return int(attributes[slot][kind]) if slot < attributes.size() else 0
+
+
+## Every attribute point hero `slot` has earned so far.
+func earned_points(slot: int) -> int:
+	return tuning.attr_start_points + (levels[slot] - 1) * tuning.attr_points_per_level
+
+
+## Points hero `slot` has not spent yet.
+func free_points(slot: int) -> int:
+	return earned_points(slot) - Attributes.total(attributes[slot])
+
+
+## True if any hero has points to spend.
+func has_free_points() -> bool:
+	for slot: int in party_size():
+		if free_points(slot) > 0:
+			return true
+	return false
+
+
+## Sets hero `slot`'s attribute points (spending, undoing and resetting are all this). False (and
+## nothing changes) if it is malformed or spends more than they earned. The HP they are missing
+## stays the same, so no change ever heals (never below 1 HP).
+func set_attributes(slot: int, values: Variant) -> bool:
+	if slot < 0 or slot >= party_size() or not Attributes.is_valid(values):
+		return false
+	if Attributes.total(values) > earned_points(slot):
+		return false
+	var missing := max_hp(slot) - hp[slot]
+	var kept: Array[int] = []
+	kept.assign(values)
+	attributes[slot] = kept
+	hp[slot] = clampi(max_hp(slot) - missing, 1, max_hp(slot))
+	return true
+
+
+# --- skill trees (DESIGN.md 8.4, card #136) ----------------------------------------------------
+
+## True if hero `slot` has a skill tree (without one they always have every skill).
+func has_tree(slot: int) -> bool:
+	return slot >= 0 and slot < party_size() and data.party[slot].skill_tree != null
+
+
+func tree(slot: int) -> SkillTreeData:
+	return data.party[slot].skill_tree if has_tree(slot) else null
+
+
+## Every skill point hero `slot` has earned so far.
+func earned_skill_points(slot: int) -> int:
+	return (levels[slot] - 1) * tuning.skill_points_per_level
+
+
+## What unlocking `ability_id` costs (its place in its branch; -1 if it is not in the tree).
+func skill_cost(slot: int, ability_id: String) -> int:
+	if not has_tree(slot):
+		return -1
+	var at := tree(slot).place_of(ability_id)
+	if at.y < 0:
+		return -1
+	var costs := tuning.skill_tier_costs
+	return costs[mini(at.y, costs.size() - 1)] if not costs.is_empty() else 0
+
+
+func spent_skill_points(slot: int) -> int:
+	var total := 0
+	for id: Variant in unlocked[slot]:
+		total += maxi(0, skill_cost(slot, String(id)))
+	return total
+
+
+func free_skill_points(slot: int) -> int:
+	return earned_skill_points(slot) - spent_skill_points(slot)
+
+
+## True if hero `slot` can learn `ability_id` now: in their tree, not known yet, the skill above it
+## known, and enough free points.
+func can_unlock(slot: int, ability_id: String) -> bool:
+	var cost := skill_cost(slot, ability_id)
+	if cost < 0 or unlocked[slot].has(ability_id) or cost > free_skill_points(slot):
+		return false
+	var parent := tree(slot).parent_of(ability_id)
+	return parent == null or unlocked[slot].has(parent.id)
+
+
+## Learns a skill; it is brought into fights at once if there is a free slot.
+func unlock(slot: int, ability_id: String) -> bool:
+	if not can_unlock(slot, ability_id):
+		return false
+	unlocked[slot].append(ability_id)
+	if loadout[slot].size() < tuning.skill_slots:
+		loadout[slot].append(ability_id)
+	return true
+
+
+## Sets the skills hero `slot` brings: known skills, each once, at most tuning.skill_slots.
+func set_loadout(slot: int, ids: Variant) -> bool:
+	if not has_tree(slot) or not ids is Array or (ids as Array).size() > tuning.skill_slots:
+		return false
+	var seen := {}
+	for id: Variant in ids:
+		if typeof(id) != TYPE_STRING or not unlocked[slot].has(String(id)) or seen.has(String(id)):
+			return false
+		seen[String(id)] = true
+	loadout[slot] = (ids as Array).duplicate()
+	return true
+
+
+## The bot's way: learns whatever it can, cheapest first (the first branch on a tie), and brings
+## new skills while there is room.
+func auto_skills(slot: int) -> void:
+	if not has_tree(slot):
+		return
+	while true:
+		var best := ""
+		var best_cost := 1 << 30
+		for skill: AbilityData in tree(slot).all_skills():
+			if can_unlock(slot, skill.id) and skill_cost(slot, skill.id) < best_cost:
+				best = skill.id
+				best_cost = skill_cost(slot, skill.id)
+		if best.is_empty():
+			return
+		unlock(slot, best)
+
+
+## True if `ids` is a list of skills in hero `slot`'s tree (any list is fine without a tree only
+## if it is empty).
+func _skill_ids_fit(slot: int, ids: Variant) -> bool:
+	if not ids is Array:
+		return false
+	for id: Variant in ids:
+		if typeof(id) != TYPE_STRING or not has_tree(slot) or tree(slot).place_of(String(id)).x < 0:
+			return false
+	return true
+
+
+## The bot's way to spend: each free point goes to the attribute with the fewest points (the
+## first on a tie), so a hero grows evenly.
+func auto_spend(slot: int) -> void:
+	var values: Array[int] = []
+	values.assign(attributes[slot])
+	for i: int in free_points(slot):
+		var low := 0
+		for kind: int in Attributes.COUNT:
+			if values[kind] < values[low]:
+				low = kind
+		values[low] += 1
+	set_attributes(slot, values)
 
 
 # --- rest and care ----------------------------------------------------------------------------
@@ -623,7 +893,9 @@ func take_upgrade(item: ItemData) -> bool:
 ## host, which applies them in the order they arrive: DESIGN.md 8.1). Ops:
 ## {op: "move", uid, x, y, turn}, {op: "drop", uid}, {op: "use", uid, slot}, {op: "sell", uid},
 ## {op: "combine", uid, into},
-## {op: "swap_gear", from: [slot, gear_slot], to: [slot, gear_slot]}.
+## {op: "swap_gear", from: [slot, gear_slot], to: [slot, gear_slot]},
+## {op: "attributes", slot, values: [Attributes.COUNT ints]},
+## {op: "unlock", slot, ability}, {op: "loadout", slot, abilities: [ids]}.
 ## False (and nothing changes) if it is malformed or no longer possible (someone else got there
 ## first).
 func apply_op(op: Dictionary) -> bool:
@@ -645,6 +917,14 @@ func apply_op(op: Dictionary) -> bool:
 			return ints.call(["uid"]) and sell_item(int(op.uid)) >= 0
 		"combine":
 			return ints.call(["uid", "into"]) and combine(int(op.uid), int(op.into))
+		"attributes":
+			return ints.call(["slot"]) and set_attributes(int(op.slot), op.get("values"))
+		"unlock":
+			return ints.call(["slot"]) and typeof(op.get("ability")) == TYPE_STRING \
+					and int(op.slot) >= 0 and int(op.slot) < party_size() and unlock(int(op.slot), String(op.ability))
+		"loadout":
+			return ints.call(["slot"]) and int(op.slot) >= 0 and int(op.slot) < party_size() \
+					and set_loadout(int(op.slot), op.get("abilities"))
 		"swap_gear":
 			var from: Variant = op.get("from")
 			var to: Variant = op.get("to")

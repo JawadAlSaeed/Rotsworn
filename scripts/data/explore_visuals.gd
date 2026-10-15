@@ -49,6 +49,9 @@ extends Resource
 ## The "!" above a roaming enemy that has noticed the leader.
 @export_range(8, 200, 1) var notice_size: int = 52
 @export var notice_color: Color = Color(1.0, 0.3, 0.2)
+## Name roaming enemies over their heads when the leader is near (card #127: off, names show
+## once the fight starts). The guard keeps its gold GUARD tag either way, without its name.
+@export var show_roamer_names: bool = false
 ## The field strike's slash sits this far in front of the leader (world units).
 @export_range(0.0, 5.0, 0.05) var strike_slash_distance: float = 0.9
 ## Size of the "FIRST STRIKE!" text when a strike starts a fight.
