@@ -7,18 +7,23 @@ extends CanvasLayer
 signal resumed
 signal settings_requested
 signal leave_requested
+## The extra item (the tutorial's "Skip this lesson").
+signal extra_requested
 
 const TITLE_SIZE: int = 72
 const DETAIL_SIZE: int = 26
 const DIM := Color(0.0, 0.0, 0.0, 0.7)
 
-enum Item { CONTINUE, SETTINGS, LEAVE }
+enum Item { CONTINUE, SETTINGS, LEAVE, EXTRA }
 
 var _menu: ListMenu
+## What each row is (Item), in order.
+var _rows: Array[int] = []
 
 
-## `leave_text`: "Abandon run" or "Leave"; `leave_detail` says where it goes.
-func setup(leave_text: String, leave_detail: String) -> void:
+## `leave_text`: "Abandon run" or "Leave"; `leave_detail` says where it goes. `extra_text`: one
+## more row after Continue (empty: none).
+func setup(leave_text: String, leave_detail: String, extra_text: String = "", extra_detail: String = "") -> void:
 	layer = 50
 	var bg := ColorRect.new()
 	bg.color = DIM
@@ -37,11 +42,14 @@ func setup(leave_text: String, leave_detail: String) -> void:
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(detail)
-	var items: Array[Dictionary] = [
-		{"text": "Continue", "detail": ""},
-		{"text": "Settings", "detail": "Volume, fullscreen, lag calibration, controls."},
-		{"text": leave_text, "detail": leave_detail},
-	]
+	var items: Array[Dictionary] = [{"text": "Continue", "detail": ""}]
+	_rows = [Item.CONTINUE]
+	if not extra_text.is_empty():
+		items.append({"text": extra_text, "detail": extra_detail})
+		_rows.append(Item.EXTRA)
+	items.append({"text": "Settings", "detail": "Graphics, sound, controls and lag calibration."})
+	items.append({"text": leave_text, "detail": leave_detail})
+	_rows.append_array([Item.SETTINGS, Item.LEAVE])
 	_menu.set_items(items, detail)
 	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Select"], [&"pause", "Continue"]])
 
@@ -58,10 +66,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			resumed.emit()
 		&"confirm":
 			Sfx.play("menu_confirm")
-			match _menu.index:
+			match _rows[_menu.index]:
 				Item.CONTINUE:
 					resumed.emit()
 				Item.SETTINGS:
 					settings_requested.emit()
 				Item.LEAVE:
 					leave_requested.emit()
+				Item.EXTRA:
+					extra_requested.emit()

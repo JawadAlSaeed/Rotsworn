@@ -67,6 +67,8 @@ const FINAL_ROW_SPREAD: float = 4.0
 
 ## The training ring is a practice aid: the controller turns it off for run fights.
 var training_ring_allowed: bool = true
+## The training ring shows whatever the player's setting (the tutorial's defend lessons).
+var force_ring: bool = false
 var _submit: Callable
 var _apply_now: Callable
 var _mirror: CombatMirror
@@ -875,7 +877,7 @@ func _update_wave(t: int) -> void:
 
 func _update_rings(t: int) -> void:
 	var ring_on := training_ring_allowed and bool(_event.get("allow_timing_ring", true))
-	if not ring_on or not PlayerSettings.show_timing_ring(_tuning):
+	if not ring_on or not (force_ring or PlayerSettings.show_timing_ring(_tuning)):
 		_hud.set_rings([])
 		return
 	var rings: Array[Dictionary] = []

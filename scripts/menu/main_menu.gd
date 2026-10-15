@@ -8,13 +8,14 @@ extends CanvasLayer
 signal chosen(item: StringName)
 
 const NEW_RUN := &"new_run"
+const TUTORIAL := &"tutorial"
 const HOST_ONLINE := &"host_online"
 const JOIN_ONLINE := &"join_online"
 const PRACTICE := &"practice"
 const SETTINGS := &"settings"
 const CREDITS := &"credits"
 const QUIT := &"quit"
-const ITEMS: Array[StringName] = [NEW_RUN, HOST_ONLINE, JOIN_ONLINE, PRACTICE, SETTINGS, CREDITS, QUIT]
+const ITEMS: Array[StringName] = [NEW_RUN, TUTORIAL, HOST_ONLINE, JOIN_ONLINE, PRACTICE, SETTINGS, CREDITS, QUIT]
 const SUBTITLE_SIZE: int = 30
 const DETAIL_SIZE: int = 26
 
@@ -41,6 +42,7 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 	column.add_child(detail)
 	var items: Array[Dictionary] = [
 		{"text": "New Run", "detail": "About 8 stops: zones, shops and rests, then the final fight."},
+		{"text": "Tutorial", "detail": "Six short lessons: attacking, skills, defending, exploring."},
 		{"text": "Host Online", "detail": "Start a run friends can join from their own PCs."},
 		{"text": "Join Online", "detail": "Join a friend's run: type the address their screen shows."},
 		{"text": "Practice", "detail": "Any fight or zone on its own, at full HP."},

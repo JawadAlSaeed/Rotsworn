@@ -1,0 +1,120 @@
+[gd_resource type="Resource" script_class="TutorialData" load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/tutorial_data.gd" id="1_tut"]
+[ext_resource type="Script" path="res://scripts/data/tutorial_step_data.gd" id="2_step"]
+[ext_resource type="Resource" path="res://data/encounters/husk_fight.tres" id="3_fight"]
+
+[sub_resource type="Resource" id="s0"]
+script = ExtResource("2_step")
+lesson = 1
+title = "Attack"
+text = "It's Brin's turn (the gold frame). Choose Attack with {fight_attack}, the glowing line. A ring then shrinks onto Brin: press {skill_press} just as it closes."
+tip = "If the ring turns gold when you press, that's a perfect hit: more damage. Every attack also gives 1 AP."
+reminder = "Attack with {fight_attack}, then press {skill_press} as the ring closes."
+retry = "Not quite. Press {skill_press} when the shrinking ring reaches your hero, not before."
+goal = "good_press"
+hold = "enemies"
+hero = "brin"
+ability = "brin_attack"
+
+[sub_resource type="Resource" id="s1"]
+script = ExtResource("2_step")
+lesson = 2
+title = "Skills"
+text = "Now it's Alder's turn. Skills cost AP, the blue gems under each hero, and Alder has full AP. Open Skills with {fight_skills}, use Taunt (it glows) with {menu_confirm}, then press {skill_press} as its ring closes."
+tip = "Taunt makes the enemy hit Alder, who has the shield. Each hero has their own skills: Alder protects, Brin hits hard, Cass heals."
+reminder = "Open Skills with {fight_skills}, use Taunt with {menu_confirm}."
+retry = "Open Skills with {fight_skills} and use Taunt with {menu_confirm}."
+goal = "skill_used"
+hold = "enemies"
+hero = "alder"
+ability = "taunt"
+full_ap = true
+
+[sub_resource type="Resource" id="s2"]
+script = ExtResource("2_step")
+lesson = 2
+title = "Follow-ups"
+text = "Some skills hit the enemy, like Shield Bash. When one hits, the other heroes join in: blue FOLLOW-UP rings appear on Brin and Cass. Use Shield Bash, then press {skill_press} as each blue ring closes."
+tip = "Follow-ups add damage and fill the team gauge."
+reminder = "Use Shield Bash, then press {skill_press} on the blue rings."
+retry = "Hit Alder's ring first, then press {skill_press} as each blue ring closes."
+goal = "skill_follow_up"
+hold = "enemies"
+hero = "alder"
+ability = "shield_bash"
+full_ap = true
+
+[sub_resource type="Resource" id="s3"]
+script = ExtResource("2_step")
+lesson = 3
+title = "Parry"
+text = "Now the Husk attacks, slowed down. It swipes at one hero: a ring shrinks to the moment the claw lands. Press {defend_parry} just as it closes to parry."
+tip = "A parry blocks the hit and gives AP."
+reminder = "Press {defend_parry} as the ring closes."
+retry = "Too early or too late. Wait for the ring to close, then press {defend_parry}. Again!"
+goal = "parry"
+hold = "party"
+forced_attack = "husk_swipe"
+tempo_percent = 170
+
+[sub_resource type="Resource" id="s4"]
+script = ExtResource("2_step")
+lesson = 3
+title = "Dodge"
+text = "Same swipe, but this time dodge it: press {defend_dodge} as the ring closes."
+tip = "A dodge has more time to land than a parry, but gives no AP."
+reminder = "Press {defend_dodge} as the ring closes."
+retry = "Use {defend_dodge} this time, as the ring closes. Again!"
+goal = "dodge"
+hold = "party"
+forced_attack = "husk_swipe"
+tempo_percent = 170
+
+[sub_resource type="Resource" id="s5"]
+script = ExtResource("2_step")
+lesson = 3
+title = "Jump"
+text = "The Husk slams the ground: a wave runs along the floor (purple glow). A wave can't be parried or dodged. Press {defend_jump} as it reaches your hero."
+tip = "Jump over every ground wave. Watch for the purple glow under your heroes."
+reminder = "Press {defend_jump} as the wave reaches your hero."
+retry = "Jump with {defend_jump} right as the wave arrives. Again!"
+goal = "jump"
+hold = "party"
+forced_attack = "husk_ground_slam"
+tempo_percent = 170
+
+[sub_resource type="Resource" id="s6"]
+script = ExtResource("2_step")
+lesson = 4
+title = "Counter"
+text = "The Flurry is three swipes in a row. Parry all three with {defend_parry} and your hero strikes back: a counter."
+tip = "The longer the string you parry, the harder the counter."
+reminder = "Parry every swipe with {defend_parry}."
+retry = "Parry all three swipes, each as its ring closes. Again!"
+goal = "counter"
+hold = "party"
+forced_attack = "husk_flurry"
+tempo_percent = 150
+
+[sub_resource type="Resource" id="s7"]
+script = ExtResource("2_step")
+lesson = 5
+title = "Team Ultimate"
+text = "The team gauge (bottom right) is full. Choose Team Ultimate with {fight_ultimate}: all heroes strike together. Press {skill_press} on each ring."
+tip = "In a real fight, good follow-ups fill the gauge. The ultimate also brings back downed heroes."
+reminder = "Choose Team Ultimate with {fight_ultimate}, press {skill_press} on each ring."
+retry = "Choose Team Ultimate with {fight_ultimate} on your turn."
+goal = "ultimate"
+hold = "enemies"
+hero = "alder"
+ability = "team_ultimate"
+fill_gauge = true
+
+[resource]
+script = ExtResource("1_tut")
+encounter = ExtResource("3_fight")
+enemy_speed_percent = 50
+steps = Array[ExtResource("2_step")]([SubResource("s0"), SubResource("s1"), SubResource("s2"), SubResource("s3"), SubResource("s4"), SubResource("s5"), SubResource("s6"), SubResource("s7")])
+done_title = "Tutorial complete"
+done_text = "That's everything you need. Start a New Run from the main menu whenever you're ready."
