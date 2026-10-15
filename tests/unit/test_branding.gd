@@ -74,3 +74,11 @@ func test_tips_fit_on_a_card() -> void:
 func test_main_menu_has_credits() -> void:
 	assert_has(MainMenu.ITEMS, MainMenu.CREDITS)
 	assert_eq(MainMenu.ITEMS.back(), MainMenu.QUIT, "Quit stays last")
+
+
+func test_main_menu_is_short() -> void:
+	# Card #150: Host and Join sit under one Online row; the tutorial lives in Practice.
+	assert_eq(MainMenu.ITEMS.size(), 6)
+	assert_has(MainMenu.ITEMS, MainMenu.ONLINE)
+	assert_does_not_have(MainMenu.ITEMS, MainMenu.HOST_ONLINE)
+	assert_eq(MainMenu.ONLINE_ITEMS, [MainMenu.HOST_ONLINE, MainMenu.JOIN_ONLINE])

@@ -191,7 +191,7 @@ func _ready() -> void:
 		return
 	for i: int in _encounters.size():
 		if _encounters[i].id == wanted:
-			_select_index = _zones.size() + i
+			_select_index = 1 + _zones.size() + i  # after the tutorial card and the zones
 			_encounter = _encounters[i]
 	if _encounter == null:
 		push_error("Main: no encounter with id '%s'" % wanted)
@@ -441,8 +441,6 @@ func _on_menu_chosen(item: StringName) -> void:
 				_offer_tutorial.call_deferred()
 			else:
 				_show_lobby.call_deferred(_fade_to.bind(_new_run))
-		MainMenu.TUTORIAL:
-			_fade_to.call_deferred(_start_tutorial)
 		MainMenu.HOST_ONLINE:
 			_host_online.call_deferred()
 		MainMenu.JOIN_ONLINE:
@@ -513,8 +511,11 @@ func _show_select() -> void:
 	_run = null
 	var select := FightSelect.new()
 	select.name = "FightSelect"
-	select.setup(_zones, _encounters, _select_index)
+	select.setup(_zones, _encounters, _select_index, load(TUTORIAL_PATH) as TutorialData)
 	select.chosen.connect(_on_fight_chosen)
+	select.tutorial_chosen.connect(func() -> void:
+		_select_index = 0
+		_fade_to.call_deferred(_start_tutorial))
 	select.zone_chosen.connect(_on_zone_chosen)
 	select.back.connect(_show_main_menu.call_deferred)
 	_show_screen(select)

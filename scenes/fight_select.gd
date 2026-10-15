@@ -1,7 +1,7 @@
 class_name FightSelect
 extends CanvasLayer
-## Practice list (from the main menu): the zones to explore (data/zones, DESIGN.md 7.4) first,
-## then every test fight in data/encounters (DESIGN.md 2.11), the deep fights (variants, 2.16)
+## Practice list (from the main menu): the tutorial (DESIGN.md 7.8) first, then the zones to
+## explore (data/zones, DESIGN.md 7.4), then every test fight in data/encounters (DESIGN.md 2.11), the deep fights (variants, 2.16)
 ## last. A grid of picture cards, three to a row, that scrolls (user request 2026-10-14): a zone
 ## card shows the zone's backdrop, a fight card its monsters. The arrows (menu_* actions) move the
 ## choice, confirm starts it, cancel goes back to the main menu; the mouse wheel scrolls, a click
@@ -9,6 +9,7 @@ extends CanvasLayer
 
 signal chosen(encounter: EncounterData)
 signal zone_chosen(zone: ZoneData)
+signal tutorial_chosen
 signal back
 
 const ENCOUNTER_DIR := "res://data/encounters"
@@ -32,6 +33,8 @@ const DEEP_COLOR := Color(1.0, 0.45, 0.35)
 
 var _encounters: Array[EncounterData] = []
 var _zones: Array[ZoneData] = []
+## Cards before the zones (1 with the tutorial card).
+var _lead: int = 0
 var _index: int = 0
 var _cards: Array[PanelContainer] = []
 var _names: Array[Label] = []
@@ -104,8 +107,9 @@ static func idle_frame(enemy: EnemyData) -> Texture2D:
 	return atlas
 
 
-## Builds the grid with `start_index` chosen (zones come first, then encounters).
-func setup(zones: Array[ZoneData], encounters: Array[EncounterData], start_index: int) -> void:
+## Builds the grid with `start_index` chosen (the tutorial, if given, then zones, then encounters).
+func setup(zones: Array[ZoneData], encounters: Array[EncounterData], start_index: int,
+		tutorial: TutorialData = null) -> void:
 	_zones = zones
 	_encounters = encounters
 	var column := ListMenu.screen_column(self, "Practice", TITLE_SIZE)
@@ -126,6 +130,15 @@ func setup(zones: Array[ZoneData], encounters: Array[EncounterData], start_index
 	column.add_child(_detail)
 	ListMenu.screen_footer(self, [[&"@arrows", "Choose"], [&"menu_confirm", "Start"], [&"menu_cancel", "Main menu"]])
 
+	if tutorial != null and tutorial.encounter != null:
+		# The heroes' faces: the tutorial teaches them, not a monster.
+		var faces: Array[Texture2D] = []
+		for hero: CharacterData in tutorial.encounter.party:
+			if hero != null and not hero.portrait_path.is_empty() and faces.size() < MAX_PICTURES:
+				faces.append(AssetLoader.texture(hero.portrait_path, Vector2i(64, 64)))
+		grid.add_child(_card("Tutorial", "%d short lessons" % tutorial.lesson_count(), faces, false))
+		_details.append("Learn to fight: attacking, skills, defending and the team ultimate.")
+		_lead = 1
 	for zone: ZoneData in zones:
 		var pictures: Array[Texture2D] = []
 		if zone.look != null and not zone.look.backdrop_path.is_empty():
@@ -241,10 +254,12 @@ func _choose(i: int) -> void:
 
 func _start() -> void:
 	Sfx.play("menu_confirm")
-	if _index < _zones.size():
-		zone_chosen.emit(_zones[_index])
+	if _index < _lead:
+		tutorial_chosen.emit()
+	elif _index < _lead + _zones.size():
+		zone_chosen.emit(_zones[_index - _lead])
 	else:
-		chosen.emit(_encounters[_index - _zones.size()])
+		chosen.emit(_encounters[_index - _lead - _zones.size()])
 
 
 func _on_card_input(event: InputEvent, i: int) -> void:
