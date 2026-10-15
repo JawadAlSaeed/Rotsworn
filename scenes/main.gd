@@ -477,6 +477,7 @@ func _on_menu_chosen(item: StringName) -> void:
 func _show_lobby(next: Callable) -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
+	lobby.hero_portraits = _hero_portraits()
 	lobby.setup(_hero_names(), _players, _last_device)
 	lobby.started.connect(_on_lobby_started.bind(next))
 	lobby.back.connect(_show_main_menu.call_deferred)
@@ -502,6 +503,15 @@ func _hero_names() -> Array[String]:
 		for data: CharacterData in _run_data.party:
 			names.append(data.display_name)
 	return names
+
+
+## The heroes' big portraits (for the players screen), in party order.
+func _hero_portraits() -> Array[String]:
+	var paths: Array[String] = []
+	if _run_data != null:
+		for data: CharacterData in _run_data.party:
+			paths.append(data.big_portrait_path)
+	return paths
 
 
 func _show_settings() -> void:
@@ -1153,6 +1163,7 @@ func _host_online() -> void:
 	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, NetSession.HOST_PEER)
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
+	lobby.hero_portraits = _hero_portraits()
 	lobby.setup_online(_hero_names(), _players, true, NetSession.local_addresses(), _tuning.net_port)
 	lobby.roster_changed.connect(_on_online_roster_changed)
 	lobby.started.connect(_on_online_started)
@@ -1205,6 +1216,7 @@ func _on_net_peer_joined(peer: int) -> void:
 	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, peer)
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
+	lobby.hero_portraits = _hero_portraits()
 	lobby.setup_online(_hero_names(), _players, false, [] as Array[String], _tuning.net_port)
 	lobby.back.connect(_show_main_menu.call_deferred)
 	_show_screen(lobby)

@@ -35,6 +35,8 @@ var centred: bool = true
 ## Row width in pixels (0: CENTRED_ROW_WIDTH or LEFT_ROW_WIDTH).
 var row_width: float = 0.0
 var _rows: Array[PanelContainer] = []
+## Rows still in the list (the cursor stops on them) but drawn elsewhere by the owner.
+var _hidden: Dictionary = {}
 var _labels: Array[Label] = []
 var _values: Array[Label] = []
 var _detail: Label
@@ -79,6 +81,7 @@ func set_items(new_items: Array[Dictionary], detail_label: Label = null) -> void
 		var value := HudStyle.make_label("", item_size)
 		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		line.add_child(value)
+		row.visible = not _hidden.has(i)
 		add_child(row)
 		_rows.append(row)
 		_labels.append(label)
@@ -93,6 +96,17 @@ func set_item(i: int, text: String, enabled: bool = true, detail: String = "", v
 		return
 	items[i] = {"text": text, "enabled": enabled, "detail": detail, "value": value}
 	redraw()
+
+
+## Hides row `i` while keeping it in the list: the cursor still stops on it (the owner shows the
+## choice some other way, like the players screen's hero cards).
+func set_row_shown(i: int, shown: bool) -> void:
+	if shown:
+		_hidden.erase(i)
+	else:
+		_hidden[i] = true
+	if i >= 0 and i < _rows.size():
+		_rows[i].visible = shown
 
 
 func is_enabled(i: int) -> bool:

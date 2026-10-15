@@ -177,5 +177,6 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `tools/` headless helper scripts (placeholder generation, data bootstrap, `bootstrap_run.gd`
   for the run, shop, gear, boss and phase 4 zones); `tools/sound_kit/` builds the sound effects from
   real recordings (see its README); `tools/art_kit/` draws all the pixel art in Python (see its
-  README: the art bible, `python tools/art_kit/build.py [module]`)
+  README: the art bible, `python tools/art_kit/build.py [module]`; the heroes' painted portraits come
+  from pictures via `tools/art_kit/portraits_from_pictures.py`)
 - `docs/` design docs

@@ -1816,6 +1816,18 @@ middle row costs 1 point, the bottom row 2):
   P1 has Alder and Cass, P2 has Brin); left/right on a hero hands it to another player, as long as
   every player keeps one. Start (selected first) plays; P1's Back returns to the main menu. The
   roster is kept for the session (same P1 = same split next time).
+- **Hero cards** (cards #140, #141, user 2026-10-15): the players screen shows the heroes side by
+  side as big painted portraits, like an arcade select screen (Metal Slug was the reference, but
+  serious faces, not goofy): the players on one line at the top, then a framed card per hero (the
+  portrait's top 240 rows at 2x) with a name plate under it saying who plays it ("P1", or
+  "< P1 >" in co-op). Up/down still walks Alder, Brin, Cass, Start, Back; the hero the cursor is
+  on gets a gold frame and the others dim. The portraits are painted pictures the user made with
+  an AI image tool (`tools/art_kit/sources/portraits/`, the words in `PROMPTS.md` there), turned
+  into pixel art by `tools/art_kit/portraits_from_pictures.py`: 192x288, 64 colours
+  (`CharacterData.big_portrait_path`). The same tool cuts a 64x64 face from each picture (boxes in
+  `faces.json`), which is now the hero's `portrait_path`: the party panels, the turn order, the
+  party screen and the practice list all show it. (A code-drawn big portrait was tried first and
+  dropped: it looked like a clay toy.)
 - `PlayerRoster` (pure, `scripts/coop/`): players and their devices, hero slot -> player. A hero is
   a party slot, so the roster fits every fight. One player = solo: every device controls
   everything, exactly as before.
@@ -2010,7 +2022,7 @@ middle row costs 1 point, the bottom row 2):
    choices and titles, credits, loading tips, story, the studio intro re-rendered in HD (7.5,
    7.6, 7.7). Hero portraits wait for art; the trailer and Steam page come later.
 9. **Real art** (done, approved 2026-10-14): every sprite drawn by code with the art kit (5.4):
-   heroes, enemies (each its own creature), portraits (48x48, also on the party screen), ground
+   heroes, enemies (each its own creature), portraits (48x48; the heroes' were replaced by painted faces in 9.1's hero cards), ground
    textures, backdrops per place, props, effects, HUD icons (cards #40, #85, #116 to #124).
 10. **Animation** (built, waiting for playtest, 2026-10-14): multi-frame animations from blended poses: idle breathing, ready stance,
     defence poses, hit reactions, skill moves, follow-up entrance, team ultimate, downed and
@@ -2190,6 +2202,8 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Tutorial: six lessons, offered once on the first run and always in the main menu | user approved (#131) |
 | 2026-10-15 | Lag calibration page laid out centred like the other pages | user (#113) |
 | 2026-10-15 | Run map is an old paper map that unrolls, with painted places instead of letters | user (#111) |
+| 2026-10-15 | Run map scrolls (a tall sheet between two rollers, like Slay the Spire) | user: close rows left no room for the paths |
+| 2026-10-15 | Hero portraits are painted pictures (made by the user with an AI image tool) turned into pixel art; big cards on the players screen, 64x64 faces everywhere else | user (#140, #141); a code-drawn try looked bad |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |
 | 2026-10-15 | Tutorial on a practice fight where nobody can die, steps checked from fight events; offered once on the first New Run | user approved the six lessons (#131) |
 | 2026-10-15 | Main menu cut to six rows: Online holds Host and Join, the tutorial is the first Practice card | user (#150) |
