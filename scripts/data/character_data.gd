@@ -29,10 +29,15 @@ extends Resource
 @export_range(1, 1000) var speed: int = 100
 @export var basic_attack: AbilityData
 @export var skills: Array[AbilityData] = []
+## The hero's skill tree (card #136). Empty: no tree, the hero always has every skill in `skills`.
+## With a tree, a run gives the hero the skills they unlocked and chose to bring (RunState); fights
+## outside a run give them every skill.
+@export var skill_tree: SkillTreeData
 ## Sound cue for a short shout when this hero uses a skill or joins the Team Ultimate (card #102).
 @export var shout_sfx: String = ""
 
 
+## The basic attack, then every skill (the list, then any tree skill not in it).
 func all_abilities() -> Array[AbilityData]:
 	var list: Array[AbilityData] = []
 	if basic_attack != null:
@@ -40,4 +45,8 @@ func all_abilities() -> Array[AbilityData]:
 	for skill: AbilityData in skills:
 		if skill != null:
 			list.append(skill)
+	if skill_tree != null:
+		for skill: AbilityData in skill_tree.all_skills():
+			if not list.has(skill):
+				list.append(skill)
 	return list

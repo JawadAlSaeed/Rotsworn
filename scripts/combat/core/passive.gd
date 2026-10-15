@@ -1,6 +1,6 @@
 class_name Passive
 extends RefCounted
-## Passive effects a party member brings into a fight, from their gear (DESIGN.md 8). They are the
+## Passive effects a party member brings into a fight, from their gear and attributes (DESIGN.md 8). They are the
 ## keys of Combatant.passives; amounts are integers and add up when two items give the same one.
 ## Gear that only changes stats (max HP, power, speed) is folded into the setup instead.
 
@@ -25,9 +25,11 @@ const HEAL := "heal"
 ## Rotten items (DESIGN.md 8.1): loses this percent of max HP at the start of each of their turns
 ## (never below 1 HP).
 const ROT := "rot"
+## Adds this many points to the critical hit chance (Luck, DESIGN.md 8.2).
+const CRIT := "crit"
 
 const ALL: Array[String] = [START_AP, AP_ON_COUNTER, HEAL_ON_JUMP, COUNTER, SECOND_WIND, PERFECT_PRESS, EXPOSED,
-	TOUGH, HEAL, ROT]
+	TOUGH, HEAL, ROT, CRIT]
 
 
 static func amount(c: Combatant, key: String) -> int:

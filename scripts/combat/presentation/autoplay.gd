@@ -70,6 +70,12 @@ func setup(mode: String, mirror: CombatMirror, runner: TimedSequenceRunner, skil
 	_rng.randomize()
 
 
+## Makes the average bot's luck repeatable (--seed): the same seed lands the same presses, so a
+## balance check can be run again on another version.
+func set_seed(value: int) -> void:
+	_rng.seed = value
+
+
 ## Who plays which hero (see CombatController).
 func set_players(roster: PlayerRoster, owners: Dictionary) -> void:
 	_roster = roster

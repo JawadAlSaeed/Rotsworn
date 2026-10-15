@@ -190,8 +190,10 @@ func test_run_state_round_trip() -> void:
 	run.go(run.choices()[0])
 	run.gold = 123
 	run.hp[1] = 7
-	run.level = 3
-	run.xp = 11
+	run.add_xp(0, 200)
+	run.add_xp(2, 70)
+	run.auto_spend(0)
+	run.set_attributes(2, [1, 0, 0, 0, 1])
 	run.wear(0, 1, run.data.gear[0])
 	run.wear(2, 0, run.data.gear[1])
 	run.add_item(run.data.shop_items[1])

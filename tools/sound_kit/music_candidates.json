@@ -222,5 +222,89 @@
    "page": "https://opengameart.org/content/rise-of-spirit",
    "file": "Rise of spirit.ogg"
   }
+ },
+ "victory": {
+  "title": "Fight won",
+  "plays": "the VICTORY screen after a won fight (card #109)",
+  "a": {
+   "name": "Medieval: Victory Theme",
+   "desc": "A bright medieval tune, lute and drums, like a tavern cheering.",
+   "author": "RandomMind",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/medieval-victory-theme",
+   "file": "victory.wav"
+  },
+  "b": {
+   "name": "Victory Theme for RPG",
+   "desc": "A classic RPG win: big, proud and short, then a calm loop.",
+   "author": "cynicmusic",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/victory-theme-for-rpg",
+   "file": "Victory1_1.mp3"
+  },
+  "c": {
+   "name": "Orcs Victorious",
+   "desc": "A dark, heavy march: winning in a grim world.",
+   "author": "Bobjt",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/orcs-victorious",
+   "file": "orcs_victorious_2024.ogg"
+  }
+ },
+ "defeat": {
+  "title": "Fight lost and run over",
+  "plays": "a lost fight's DEFEAT screen and the RUN OVER screen (card #126)",
+  "a": {
+   "name": "Medieval: Defeat Theme",
+   "desc": "A slow, mournful medieval tune: the kingdom has fallen.",
+   "author": "RandomMind",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/medieval-defeat-theme",
+   "file": "defeat.wav"
+  },
+  "b": {
+   "name": "Death Is Just Another Path",
+   "desc": "Orchestral and solemn, like a funeral march.",
+   "author": "Otto Halmén",
+   "license": "CC-BY 3.0",
+   "page": "https://opengameart.org/content/death-is-just-another-path",
+   "file": "Death Is Just Another Path.ogg"
+  },
+  "c": {
+   "name": "Lament for a Warrior's Soul",
+   "desc": "Soft and sad strings, a farewell at a grave.",
+   "author": "RandomMind",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/fantasy-lament-for-a-warriors-soul",
+   "file": "Lament_for_a_Warriors_Soul_REUPLOAD.mp3"
+  }
+ },
+ "map_new": {
+  "title": "Run map (a new song)",
+  "plays": "the run map, shops, rests, loot and party screens (card #110: replaces Mystical Theme)",
+  "a": {
+   "name": "Frozen Orchard",
+   "desc": "A calm overworld theme, wintry and a little lonely.",
+   "author": "Bobjt",
+   "license": "CC-BY 4.0",
+   "page": "https://opengameart.org/content/frozen-orchard",
+   "file": "frozen orchard.mp3"
+  },
+  "b": {
+   "name": "Treasure Hunter",
+   "desc": "Orchestral adventure: violin and drums on the road.",
+   "author": "TAD",
+   "license": "CC0",
+   "page": "https://opengameart.org/content/treasure-hunter",
+   "file": "treasure_hunter_0.mp3"
+  },
+  "c": {
+   "name": "World Map",
+   "desc": "A classic JRPG world map, hopeful and wandering.",
+   "author": "Scrabbit",
+   "license": "CC-BY 4.0",
+   "page": "https://opengameart.org/content/world-map-1",
+   "file": "World Map_0.mp3"
+  }
  }
 }

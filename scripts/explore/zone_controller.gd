@@ -844,10 +844,11 @@ func _update_marks() -> void:
 		_hud.set_notice(i, on_screen and alert, screen)
 		var near := (r.pos as Vector2).distance_to(_leader_pos) <= _tuning.explore_notice_radius * TAG_RANGE_SHARE
 		if _run_mode and (r.data as ZoneEnemyData).guard:
-			# The guard is the way out: always named, in gold.
-			_hud.set_tag(i, "GUARD: " + encounter_of(i).display_name, on_screen, screen, HudStyle.GOLD)
+			# The guard is the way out: always marked, in gold.
+			var tag := "GUARD: " + encounter_of(i).display_name if _explore.show_roamer_names else "GUARD"
+			_hud.set_tag(i, tag, on_screen, screen, HudStyle.GOLD)
 		else:
-			_hud.set_tag(i, encounter_of(i).display_name, on_screen and near, screen)
+			_hud.set_tag(i, encounter_of(i).display_name, on_screen and near and _explore.show_roamer_names, screen)
 
 
 func _spawn_slash(at: Vector3) -> void:

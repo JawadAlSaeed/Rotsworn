@@ -20,6 +20,8 @@ enum Target {
 	OTHER_ALLY,
 	## A party member who is down (revive).
 	DOWNED_ALLY,
+	## Every standing party member, the user included (no target step; DESIGN.md 8.4).
+	ALL_ALLIES,
 }
 
 ## Unique id used in commands and save data. Never change it once content uses it.
@@ -82,14 +84,25 @@ enum Target {
 ## Brings the target ally's next turn closer by this percent of the wait left.
 @export_range(0, 100, 1, "suffix:%") var turn_hasten_percent: int = 0
 @export_range(0, 100, 1, "suffix:%") var press_turn_hasten_percent: int = 0
-## Status put on the target: "" (none), "exposed", "guarded", "taunted", "slowed", "riposte"
+## Status put on the target: "" (none), "exposed", "guarded", "taunted", "slowed", "riposte",
+## "bleeding", "regen", "marked", "empowered"
 ## (see scripts/combat/core/status.gd).
 @export var status: String = ""
-## How many of the holder's turns the status lasts (only "slowed" counts turns).
+## How many of the holder's turns the status lasts ("slowed", "bleeding", "regen"), or how many
+## skills it is good for ("marked").
 @export_range(0, 20) var status_turns: int = 0
 @export_range(0, 20) var press_status_turns: int = 0
 ## A perfect press also puts the status on the user (Guard).
 @export var press_status_on_self: bool = false
+## The status needs every press to be perfect (Twin Fangs: Exposed only on a perfect pair).
+@export var status_needs_perfect: bool = false
+## A status the user always gets, and one more on an all-perfect press (Unbreakable: guarded, and
+## riposte when perfect; Shadowstep: empowered). Same ids as `status`.
+@export var self_status: String = ""
+@export_range(0, 20) var self_status_turns: int = 0
+@export var press_self_status: String = ""
+## Adds this much to the team gauge when it lands (Inspire).
+@export_range(0, 1000) var gauge_gain: int = 0
 
 @export_group("Team")
 ## The team ultimate: needs a full team gauge and empties it, every standing party member strikes
@@ -125,3 +138,8 @@ func targets_party() -> bool:
 @export var strike_clips: PackedStringArray = PackedStringArray(["strike"])
 ## Length of this ability's wind-ups, in percent of combat_visuals skill_windup_ms.
 @export_range(10, 500, 1, "suffix:%") var windup_percent: int = 100
+## A spell (card #81): the user stays where they stand and this flies to the target for each hit,
+## arriving on the hit (presentation only). Null: the user walks up and strikes.
+@export var projectile: ProjectileData
+## How long it flies before each hit, in milliseconds.
+@export_range(50, 2000, 10, "suffix:ms") var projectile_flight_ms: int = 320

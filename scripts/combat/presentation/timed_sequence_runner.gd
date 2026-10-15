@@ -253,10 +253,12 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_hud.set_defending(true)
 	var kinds: Array = []
 	var times: Array = []
+	var feints: Array = []
 	for hit: Dictionary in _hits:
 		kinds.append(int(hit.kind))
 		times.append(int(hit.at_ms))
-	_hud.set_banner_hits(kinds, times)
+		feints.append(bool(hit.get("feint", false)))
+	_hud.set_banner_hits(kinds, times, feints)
 	_hud.set_targeted(_targets)
 	var enemy := _view.fighter(_source)
 	if enemy != null:

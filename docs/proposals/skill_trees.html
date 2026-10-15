@@ -1,0 +1,172 @@
+<title>Rotsworn Skill Trees</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: one reading column; per hero a 3-branch tree (columns = branches, rows = tiers), stacking on phones. */
+:root {
+  --bg: #12110f; --panel: #1c1a17; --line: #3a352c; --fg: #ece8de; --dim: #9a937f;
+  --gold: #e8c15a; --new: #7fc8a0; --start: #8fb3e6;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.5; margin: 0; padding-inline: 16px; padding-block: 32px 64px; }
+main { max-width: 980px; margin: 0 auto; display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--display); color: var(--gold); text-wrap: balance; margin: 0; letter-spacing: .02em; }
+h1 { font-size: clamp(30px, 6vw, 44px); }
+h2 { font-size: clamp(22px, 4vw, 28px); }
+h3 { font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+p { margin: 0; max-width: 68ch; }
+.lede { display: grid; gap: 12px; }
+.dim { color: var(--dim); }
+section { display: grid; gap: 16px; }
+.rules { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.rules li { padding-left: 18px; position: relative; max-width: 72ch; }
+.rules li::before { content: ""; position: absolute; left: 2px; top: .65em; width: 7px; height: 7px; background: var(--gold); transform: rotate(45deg); }
+.ask { border: 1px solid var(--gold); background: var(--panel); border-radius: 6px; padding: 18px 20px; display: grid; gap: 14px; }
+.ask ol { margin: 0; padding-left: 22px; display: grid; gap: 10px; }
+.ask b { color: var(--gold); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 15px; color: var(--dim); }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.hero { display: grid; gap: 14px; border-top: 1px solid var(--line); padding-top: 28px; }
+.hero header { display: grid; gap: 6px; }
+.tree { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.branch { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.branch > h3 { padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.skill { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--new); border-radius: 4px; padding: 10px 12px; display: grid; gap: 4px; position: relative; }
+.skill.start { border-left-color: var(--start); }
+.skill.kept { border-left-color: var(--gold); }
+.skill + .skill::before { content: ""; position: absolute; left: 22px; top: -11px; width: 1px; height: 10px; background: var(--line); }
+.skill .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.skill .name { font-weight: 700; }
+.skill .meta { font-size: 13px; color: var(--dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.skill .what { font-size: 15px; color: var(--fg); }
+.skill .tag { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.basic { font-size: 15px; color: var(--dim); }
+.basic b { color: var(--fg); }
+.new-tech { font-size: 15px; }
+@media (max-width: 720px) { .tree { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<main>
+  <div class="lede">
+    <h1>Skill Trees</h1>
+    <p>A proposal for card #136 and the three hero reworks (#56 Alder, #80 Brin, #81 Cass). Nothing here is built yet. Pick the two answers in the gold box, change anything you like, and I will build from it.</p>
+  </div>
+
+  <div class="ask">
+    <h2>Two choices for you</h2>
+    <ol>
+      <li><b>How many skills does a hero bring into a fight?</b> 5, like today (my pick: the action menu stays short and a choice still matters), or 6, like Expedition 33.</li>
+      <li><b>How are skill points earned?</b> 1 per level (my pick: a full run reaches about level 6, so you finish a branch or two, never the whole tree), or 2 per level (you see most of the tree each run).</li>
+    </ol>
+  </div>
+
+  <section>
+    <h2>How it works</h2>
+    <ul class="rules">
+      <li>Each hero has 9 skills in 3 branches. They start a run with the 3 skills at the top of each branch.</li>
+      <li>A level up gives a skill point (on top of the 3 attribute points). The second skill of a branch costs 1 point, the third costs 2, and each needs the one above it. So a whole tree costs 9 points.</li>
+      <li>Before a fight you choose which unlocked skills to bring, up to the slot limit. This happens on a new "Skills" page next to the attributes page (party screen).</li>
+      <li>Everything resets each run, as decided for #139.</li>
+      <li>All numbers below are first guesses. They go in the skill data files, so we tune them after you play.</li>
+    </ul>
+    <div class="legend">
+      <span class="chip"><span class="dot" style="background:var(--start)"></span>starts unlocked</span>
+      <span class="chip"><span class="dot" style="background:var(--gold)"></span>a skill you know, moved here</span>
+      <span class="chip"><span class="dot" style="background:var(--new)"></span>new skill</span>
+    </div>
+  </section>
+
+  <article class="hero">
+    <header>
+      <h2>Alder, the Warden</h2>
+      <p class="dim">Rework #56: only a big shield, like Braum. Every hit is a shield blow. He protects the party and punishes enemies who attack.</p>
+      <p class="basic"><b>Attack:</b> a quick shield jab (same numbers as today).</p>
+    </header>
+    <div class="tree">
+      <div class="branch">
+        <h3>Bulwark: protect</h3>
+        <div class="skill start"><div class="top"><span class="name">Guard</span><span class="meta">1 AP</span></div><div class="what">One ally takes half damage until their next turn.</div></div>
+        <div class="skill"><div class="top"><span class="name">Shield Wall</span><span class="meta">3 AP · 1 pt</span></div><div class="what">The whole party is guarded until Alder's next turn. Perfect press: +1 AP.</div></div>
+        <div class="skill"><div class="top"><span class="name">Unbreakable</span><span class="meta">4 AP · 2 pts</span></div><div class="what">Every enemy must attack Alder until his next turn, and he takes half damage. Perfect press: his counters hit x2 too.</div></div>
+      </div>
+      <div class="branch">
+        <h3>Bash: break</h3>
+        <div class="skill start"><div class="top"><span class="name">Shield Bash</span><span class="meta">2 AP</span></div><div class="what">180% hit. The enemy's next turn comes later.</div></div>
+        <div class="skill"><div class="top"><span class="name">Shield Throw</span><span class="meta">1 AP · 1 pt</span></div><div class="what">Throws the shield, it comes back: 2 hits of 60%, one press each.</div></div>
+        <div class="skill"><div class="top"><span class="name">Earthshaker</span><span class="meta">4 AP · 2 pts</span></div><div class="what">Slams the shield down: 140% to every enemy, all their turns come later.</div></div>
+      </div>
+      <div class="branch">
+        <h3>Retort: punish</h3>
+        <div class="skill start"><div class="top"><span class="name">Taunt</span><span class="meta">1 AP</span></div><div class="what">The enemy's next attack on one hero must hit Alder.</div></div>
+        <div class="skill kept"><div class="top"><span class="name">Riposte Stance</span><span class="meta">2 AP · 1 pt</span></div><div class="what">Until his next turn, his counters hit twice as hard.</div></div>
+        <div class="skill kept"><div class="top"><span class="name">Payback</span><span class="meta">3 AP · 2 pts</span></div><div class="what">150% hit, +50% for each perfect parry or jump since his last turn.</div></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="hero">
+    <header>
+      <h2>Brin, the Reaver</h2>
+      <p class="dim">Rework #80: twin daggers are the whole identity. Most skills strike once with each dagger, and each dagger hit has its own press.</p>
+      <p class="basic"><b>Attack:</b> two quick cuts, one per dagger (2 presses of 50% instead of 1 of 100%).</p>
+    </header>
+    <div class="tree">
+      <div class="branch">
+        <h3>Flurry: many cuts</h3>
+        <div class="skill start"><div class="top"><span class="name">Quick Cuts</span><span class="meta">1 AP</span></div><div class="what">4 hits of 40%, daggers taking turns.</div></div>
+        <div class="skill"><div class="top"><span class="name">Twin Fangs</span><span class="meta">2 AP · 1 pt</span></div><div class="what">Both daggers at once: 2 hits of 90%. Both presses perfect: the enemy becomes Exposed.</div></div>
+        <div class="skill kept"><div class="top"><span class="name">All In</span><span class="meta">5 AP · 2 pts</span></div><div class="what">6 hits of 100%, daggers taking turns.</div></div>
+      </div>
+      <div class="branch">
+        <h3>Cripple: weaken</h3>
+        <div class="skill start"><div class="top"><span class="name">Hamstring</span><span class="meta">2 AP</span></div><div class="what">150% hit. The enemy is slower for 2 of its turns.</div></div>
+        <div class="skill"><div class="top"><span class="name">Open Vein</span><span class="meta">2 AP · 1 pt</span></div><div class="what">100% hit and Bleeding: the enemy loses 25% of Brin's power at the start of each of its next 3 turns.</div></div>
+        <div class="skill kept"><div class="top"><span class="name">Rend</span><span class="meta">3 AP · 2 pts</span></div><div class="what">300% hit. Removes Exposed for +150%.</div></div>
+      </div>
+      <div class="branch">
+        <h3>Shadow: tempo</h3>
+        <div class="skill start"><div class="top"><span class="name">Feint Step</span><span class="meta">0 AP</span></div><div class="what">80% hit, +1 AP.</div></div>
+        <div class="skill"><div class="top"><span class="name">Shadowstep</span><span class="meta">1 AP · 1 pt</span></div><div class="what">Brin's next turn comes much sooner, and Brin's next skill deals +30%.</div></div>
+        <div class="skill"><div class="top"><span class="name">Death Mark</span><span class="meta">3 AP · 2 pts</span></div><div class="what">The enemy becomes Marked: the next 3 skills on it deal +40% (any hero).</div></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="hero">
+    <header>
+      <h2>Cass, the Mender</h2>
+      <p class="dim">Rework #81: a healer's staff with a glowing tip. Every skill is cast from where she stands: bolts fly to the enemy (the thrown-projectile look from phase 12), heals and buffs glow on the ally. She never walks up to the enemy for a skill.</p>
+      <p class="basic"><b>Attack:</b> the one close-up move: she walks up and strikes with the staff (your note, 15 Oct).</p>
+    </header>
+    <div class="tree">
+      <div class="branch">
+        <h3>Mending: heal</h3>
+        <div class="skill start"><div class="top"><span class="name">Mend</span><span class="meta">1 AP</span></div><div class="what">Heals one ally 30% of their max HP.</div></div>
+        <div class="skill"><div class="top"><span class="name">Renew</span><span class="meta">2 AP · 1 pt</span></div><div class="what">One ally heals 12% at the start of each of their next 3 turns.</div></div>
+        <div class="skill"><div class="top"><span class="name">Sanctuary</span><span class="meta">4 AP · 2 pts</span></div><div class="what">Heals the whole party 30%. Perfect press: 40%.</div></div>
+      </div>
+      <div class="branch">
+        <h3>Light: strike</h3>
+        <div class="skill start"><div class="top"><span class="name">Reveal</span><span class="meta">1 AP</span></div><div class="what">60% light bolt. The enemy becomes Exposed.</div></div>
+        <div class="skill"><div class="top"><span class="name">Smite</span><span class="meta">2 AP · 1 pt</span></div><div class="what">160% holy bolt. +100% on an Exposed enemy (and removes it).</div></div>
+        <div class="skill kept"><div class="top"><span class="name">Revive</span><span class="meta">3 AP · 2 pts</span></div><div class="what">Brings a downed ally back at 25% HP. Perfect press: 50%.</div></div>
+      </div>
+      <div class="branch">
+        <h3>Grace: support</h3>
+        <div class="skill start"><div class="top"><span class="name">Pass the Torch</span><span class="meta">2 AP</span></div><div class="what">Gives one ally 2 AP.</div></div>
+        <div class="skill kept"><div class="top"><span class="name">Hasten</span><span class="meta">2 AP · 1 pt</span></div><div class="what">One ally's next turn comes sooner.</div></div>
+        <div class="skill"><div class="top"><span class="name">Inspire</span><span class="meta">3 AP · 2 pts</span></div><div class="what">Every ally gets 1 AP and the team gauge fills by 25%.</div></div>
+      </div>
+    </div>
+  </article>
+
+  <section>
+    <h2>What has to be built</h2>
+    <p class="new-tech">New fight rules: Bleeding (damage at the start of a turn), Renew (healing at the start of a turn), Marked (a bonus for the next 3 skills), a party-wide guard, a heal for the whole party, and "every enemy must attack Alder". New art: Alder's shield-only poses (his sprite already lost the sword), Brin's dual-dagger poses and two-hit attack, Cass's staff and spell bolts. Then the Skills page, skill points on level up, and the bot learning to pick skills.</p>
+    <p class="dim">Revive moves deeper into Cass's tree, so early in a run only the Team Ultimate can revive. If that feels too harsh, Revive can be a starter instead of Reveal.</p>
+  </section>
+</main>

@@ -34,10 +34,13 @@ const PLAYER_COLORS: Array[Color] = [Color(0.4, 0.75, 1.0), Color(1.0, 0.5, 0.45
 ## Status badges (DESIGN.md 2.10): short name and colour per Status id.
 const STATUS_NAMES := {
 	"exposed": "EXPOSED", "guarded": "GUARD", "taunted": "TAUNTED", "slowed": "SLOWED", "riposte": "RIPOSTE",
+	"bleeding": "BLEEDING", "regen": "RENEW", "marked": "MARKED", "empowered": "EMPOWERED",
 }
 const STATUS_COLORS := {
 	"exposed": Color(1.0, 0.55, 0.3), "guarded": Color(0.55, 0.8, 1.0), "taunted": Color(1.0, 0.4, 0.4),
 	"slowed": Color(0.7, 0.6, 1.0), "riposte": Color(1.0, 0.85, 0.35),
+	"bleeding": Color(0.9, 0.2, 0.25), "regen": Color(0.45, 1.0, 0.5), "marked": Color(1.0, 0.3, 0.7),
+	"empowered": Color(1.0, 0.75, 0.3),
 }
 
 const OUTLINE_RATIO: float = 0.2
@@ -327,7 +330,7 @@ static func status_text(statuses: Dictionary) -> String:
 			continue
 		var text := String(STATUS_NAMES.get(id, id.to_upper()))
 		var turns := int((statuses[id] as Dictionary).get("turns", 0))
-		if Status.counts_turns(id) and turns > 0:
+		if Status.shows_count(id) and turns > 0:
 			text += " %d" % turns
 		parts.append(text)
 	return "  ".join(parts)

@@ -221,6 +221,15 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_credits()
 		"party":
 			_show_sample_backpack()
+		"attributes":
+			_show_sample_attributes()
+		"heroes":
+			_show_sample_attributes(false)
+		"skills":
+			_show_sample_skills()
+		"calibration":
+			_show_settings()
+			(_screen as SettingsScreen).open_calibration()
 		_:
 			_show_main_menu()
 
@@ -241,7 +250,55 @@ func _show_sample_backpack() -> void:
 	_run.place_item(items["key"], 2, 4, 0)
 	_run.place_item(items["bomb"], 3, 2, 0)
 	_run.wear(1, 0, _run_data.gear[3])
+	# Alder has levelled and has points to spend (the cards show "+N points", DESIGN.md 8.2).
+	_run.add_xp(0, 200)
 	_show_party("Found a Golden Idol. Where does it go?", true, {"item": items["golden_idol"]})
+
+
+## --screen=attributes: a run where Alder and Brin have levelled (Brin's points half spent), the
+## attributes screen open over the party screen (for pictures of it). --screen=heroes: the same
+## run on the party screen itself.
+func _show_sample_attributes(open: bool = true) -> void:
+	_run = RunState.begin(_run_data, _tuning, 3)
+	_run.add_xp(0, 400)
+	_run.add_xp(1, 200)
+	_run.set_attributes(1, [1, 2, 1, 0, 1])
+	_run.wear(1, 0, _run_data.gear[3])
+	_show_party("", true)
+	if open:
+		(_screen as PartyScreen).open_attributes()
+
+
+## --screen=skills: the skills screen on a run where each hero has a sample tree made of their
+## own skills, arranged as in the skill tree proposal (docs/proposals/skill_trees.html), with
+## Alder at level 4 (for pictures; the shipped heroes have no tree yet).
+func _show_sample_skills() -> void:
+	var data := _run_data.duplicate() as RunData
+	var party: Array[CharacterData] = []
+	var layout := {
+		"alder": [["Bulwark", ["guard"]], ["Bash", ["shield_bash"]], ["Retort", ["taunt", "riposte_stance", "payback"]]],
+		"brin": [["Flurry", ["quick_cuts", "all_in"]], ["Cripple", ["hamstring", "rend"]], ["Shadow", ["feint_step"]]],
+		"cass": [["Mending", ["mend"]], ["Light", ["reveal", "revive"]], ["Grace", ["pass_the_torch", "hasten"]]],
+	}
+	for c: CharacterData in _run_data.party:
+		var hero := c.duplicate() as CharacterData
+		var tree := SkillTreeData.new()
+		for pair: Array in layout.get(c.id, []):
+			var branch := SkillBranchData.new()
+			branch.display_name = String(pair[0])
+			for id: String in pair[1]:
+				var ability := load("res://data/abilities/%s.tres" % id) as AbilityData
+				if ability != null:
+					branch.skills.append(ability)
+			tree.branches.append(branch)
+		hero.skill_tree = tree
+		party.append(hero)
+	data.party = party
+	_run = RunState.begin(data, _tuning, 3)
+	_run.add_xp(0, 400)
+	_run.unlock(0, "riposte_stance")
+	_show_party("", true)
+	(_screen as PartyScreen).open_skills()
 
 
 ## The studio intro when the game starts, then the title screen (no music until then).
@@ -304,6 +361,10 @@ func _show_screen(screen: Node) -> void:
 		var song := _music.run_path if _is_run_screen(screen) and not _music.run_path.is_empty() else _music.menu_path
 		if screen is CreditsScreen and not _music.credits_path.is_empty():
 			song = _music.credits_path
+		if screen is RunEndScreen and _run != null:
+			var end := _music.victory_path if _run.result == RunState.VICTORY else _music.defeat_path
+			if not end.is_empty():
+				song = end
 		Sfx.play_music(song, _music.volume_db)
 	# Anyone can change the backpack (DESIGN.md 8.1), so the party screen is not just watched.
 	_watch_layer.visible = Net.is_client() and _is_run_screen(screen) and not screen is PartyScreen
@@ -500,9 +561,12 @@ func _start_combat() -> void:
 	Sfx.play_ambience("")
 	var boss := _encounter != null and _encounter.boss
 	Sfx.play_music(_music.boss_path if boss and not _music.boss_path.is_empty() else _music.fight_path, _music.volume_db)
+	_combat.rage_music_volume_db = _music.volume_db
+	_combat.victory_music_path = _music.victory_path
+	_combat.defeat_music_path = _music.defeat_path
+	_combat.end_music_delay_ms = _music.end_song_delay_ms
 	if boss:
 		_combat.rage_music_path = _music.boss_rage_path
-		_combat.rage_music_volume_db = _music.volume_db
 	if Net.is_client():
 		_combat_accepts = true
 		var waiting := _combat_inbox.duplicate()
@@ -606,6 +670,8 @@ func _on_zone_return_requested(result: String) -> void:
 	if _run != null and not Net.is_client():
 		_run.spend_items(_combat.used_items())
 		_run.finish_fight(result, _combat.party_hp(), _encounter)
+		_run.carry_team_gauge(_combat.team_gauge())
+		_autoplay_spend_points()
 		if result == RunState.VICTORY and _drop != null and _run.add_item(_drop) < 0:
 			found = _drop
 		_drop = null
@@ -805,8 +871,8 @@ func _show_run_end() -> void:
 	_client_done = Net.is_client()
 	if _options.is_autoplay():
 		print("AUTOPLAY_RESULT run_%s stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d" % [_run.result,
-				_run.path.size(), _run.fights_won, _run.level, _worn_count(), _run.backpack.entries.size(), _run.gold_earned,
-				_run.run_seed])
+				_run.path.size(), _run.fights_won, _run.top_level(), _worn_count(), _run.backpack.entries.size(),
+				_run.gold_earned, _run.run_seed])
 		_autoplay_quit()
 
 
@@ -1270,6 +1336,9 @@ func _close_overlay() -> void:
 	if _zone != null:
 		_zone.input_held = false
 		_zone.set_paused(false)
+	if _run_bar != null and _run != null:
+		# Attribute points and gear may have changed levels' marks and max HP.
+		_run_bar.refresh(_run)
 
 
 ## A find that did not fit was left behind: a glinting spot keeps it.
@@ -1504,6 +1573,21 @@ func _autoplay_loot(loot: LootScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if is_instance_valid(loot):
 		loot.take(0)
+
+
+## Autoplay: every hero spends their new attribute points evenly (DESIGN.md 8.2) and learns the
+## skills it can (8.4).
+func _autoplay_spend_points() -> void:
+	if not _options.is_autoplay() or Net.is_client() or _run == null:
+		return
+	for slot: int in _run.party_size():
+		if _run.has_tree(slot) and _run.free_skill_points(slot) > 0:
+			_run.auto_skills(slot)
+			print("Run skills: %s %s" % [_run.data.party[slot].id, str(_run.loadout[slot])])
+		if _run.free_points(slot) > 0:
+			_run.auto_spend(slot)
+			print("Run points: %s level %d attributes %s" % [_run.data.party[slot].id, _run.levels[slot],
+					str(_run.attributes[slot])])
 
 
 ## Autoplay on the party screen: new gear in hand goes on whoever has the most free slots.

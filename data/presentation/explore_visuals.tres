@@ -21,6 +21,7 @@ roam_bob_hz = 1.6
 net_follow_ms = 90
 notice_size = 52
 notice_color = Color(1, 0.3, 0.2, 1)
+show_roamer_names = false
 strike_slash_distance = 0.9
 first_strike_size = 64
 transition_out_ms = 850

@@ -2,7 +2,7 @@ class_name MainMenu
 extends CanvasLayer
 ## The main menu (DESIGN.md 7.5), after the title screen: the logo, then start a run, host or join
 ## an online run (DESIGN.md 9.2), practice (the fight and zone list), settings, credits, quit.
-## Up/down picks, confirm opens it.
+## Up/down picks, confirm opens it. No button bar here (card #130: the user found it clutter).
 
 ## One of ITEMS.
 signal chosen(item: StringName)
@@ -39,13 +39,12 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(detail)
-	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Select"]])
 	var items: Array[Dictionary] = [
 		{"text": "New Run", "detail": "About 8 stops: zones, shops and rests, then the final fight."},
 		{"text": "Host Online", "detail": "Start a run friends can join from their own PCs."},
 		{"text": "Join Online", "detail": "Join a friend's run: type the address their screen shows."},
 		{"text": "Practice", "detail": "Any fight or zone on its own, at full HP."},
-		{"text": "Settings", "detail": "Volume, fullscreen, lag calibration, controls."},
+		{"text": "Settings", "detail": "Graphics, sound, controls and lag calibration."},
 		{"text": "Credits", "detail": "Who made the game, and whose music and sounds it uses."},
 		{"text": "Quit", "detail": ""},
 	]

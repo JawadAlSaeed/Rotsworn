@@ -36,6 +36,15 @@ var party_power_percent: Array[int] = []
 var party_speed_bonus: Array[int] = []
 ## Gear passives per slot (Passive keys -> amount).
 var party_passives: Array[Dictionary] = []
+## The skills each slot brings (a run with skill trees, card #136): ability ids. Missing or
+## empty for a slot: every skill the character has.
+var party_skills: Array[Array] = []
+## The team gauge at the start of the fight (a run carries it over, card #146; 0 = empty).
+var start_team_gauge: int = 0
+## Every enemy's HP and power in percent of their data (a run's depth, DESIGN.md 8.3; 100 =
+## unchanged).
+var enemy_hp_percent: int = 100
+var enemy_power_percent: int = 100
 ## Backpack items the party can use in this fight (DESIGN.md 8.1): {uid: int, item: ItemData,
 ## amount: int (its effect percent, stronger once combined), name: String}.
 ## Each can be used once; the run takes the used ones out of the backpack afterwards.
@@ -73,6 +82,19 @@ func party_speed(slot: int, data: CharacterData) -> int:
 	return maxi(1, data.speed + (party_speed_bonus[slot] if slot < party_speed_bonus.size() else 0))
 
 
+## The abilities party member `slot` (`data`) can use: the basic attack, then the skills it
+## brings (party_skills), or every skill.
+func party_abilities(slot: int, data: CharacterData) -> Array[AbilityData]:
+	var all := data.all_abilities()
+	if slot >= party_skills.size() or party_skills[slot].is_empty():
+		return all
+	var list: Array[AbilityData] = []
+	for ability: AbilityData in all:
+		if ability == data.basic_attack or party_skills[slot].has(ability.id):
+			list.append(ability)
+	return list
+
+
 func party_passives_of(slot: int) -> Dictionary:
 	return party_passives[slot].duplicate() if slot < party_passives.size() else {}
 
@@ -100,6 +122,10 @@ func validate() -> PackedStringArray:
 	for pct: int in party_max_hp_percent + party_power_percent:
 		if pct < 1:
 			problems.append("party max HP and power percents must be at least 1 (is %d)" % pct)
+	if tuning != null and (start_team_gauge < 0 or start_team_gauge > tuning.team_gauge_max):
+		problems.append("start team gauge must be 0 .. team_gauge_max (is %d)" % start_team_gauge)
+	if enemy_hp_percent < 1 or enemy_power_percent < 1:
+		problems.append("enemy HP and power percents must be at least 1")
 	for passives: Dictionary in party_passives:
 		for key: Variant in passives:
 			if not Passive.ALL.has(String(key)):
@@ -159,6 +185,7 @@ func _ability_problems(ability: AbilityData) -> PackedStringArray:
 			problems.append("ability %s: press times must increase" % ability.id)
 			break
 		last = at_ms
-	if not ability.status.is_empty() and not Status.is_known(ability.status):
-		problems.append("ability %s: unknown status '%s'" % [ability.id, ability.status])
+	for id: String in [ability.status, ability.self_status, ability.press_self_status]:
+		if not id.is_empty() and not Status.is_known(id):
+			problems.append("ability %s: unknown status '%s'" % [ability.id, id])
 	return problems

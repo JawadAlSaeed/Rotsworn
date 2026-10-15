@@ -90,7 +90,8 @@ func test_an_escape_keeps_hp_and_gives_nothing() -> void:
 	for slot: int in run.party_size():
 		hp.append(maxi(1, run.max_hp(slot) / 2))
 	var reward := run.finish_fight(RunState.ESCAPED, hp, null)
-	assert_eq(reward, {"gold": 0, "xp": 0, "levels": 0})
+	assert_eq(int(reward.gold), 0)
+	assert_eq(Attributes.total(reward.xp), 0, "no XP")
 	assert_eq(run.hp, hp, "HP carries on")
 	assert_eq(run.gold, gold)
 	assert_false(run.is_over(), "the run goes on")

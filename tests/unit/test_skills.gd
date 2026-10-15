@@ -93,7 +93,7 @@ func test_perfect_good_and_missed_presses_deal_their_damage() -> void:
 	var events := _resolve(engine, [[0, PERFECT]])
 	assert_eq(Fx.first_of(events, "prompt_resolved").perfect, true)
 	assert_eq(Fx.first_of(events, "damage"), {"type": "damage", "source": 1, "target": FOE, "amount": 120,
-			"hp": 1380, "max_hp": 1500, "cause": "ability"})
+			"hp": 1380, "max_hp": 1500, "cause": "ability", "crit": false})
 	events = _resolve(engine, [[1, PRESS]])
 	assert_eq(Fx.first_of(events, "prompt_resolved").perfect, false)
 	assert_eq(Fx.first_of(events, "damage").amount, 96, "good: normal damage")
@@ -137,7 +137,7 @@ func test_good_follow_up_strikes_and_fills_the_gauge() -> void:
 	_resolve(engine, [[0, PRESS]])
 	var events := _resolve(engine, [[1, PRESS]])
 	assert_eq(Fx.first_of(events, "damage"), {"type": "damage", "source": 0, "target": FOE, "amount": 11,
-			"hp": 1500 - 48 - 11, "max_hp": 1500, "cause": "follow_up"})
+			"hp": 1500 - 48 - 11, "max_hp": 1500, "cause": "follow_up", "crit": false})
 	assert_eq(Fx.first_of(events, "team_gauge"), {"type": "team_gauge", "value": 10, "delta": 10, "max": 100})
 	events = _resolve(engine, [[2, NONE]])
 	assert_eq(Fx.of_type(events, "damage").size(), 0)

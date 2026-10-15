@@ -404,8 +404,8 @@ func show_banner(text: String, accent: Color = HudStyle.LATE) -> void:
 
 ## Shows the attack's hits under the banner text, spaced by time (`kinds` AttackHitData.Kind,
 ## `times` impacts in ms), all upcoming.
-func set_banner_hits(kinds: Array, times: Array) -> void:
-	_banner_row.set_hits(kinds, times, _hit_icons)
+func set_banner_hits(kinds: Array, times: Array, feints: Array = []) -> void:
+	_banner_row.set_hits(kinds, times, _hit_icons, feints)
 	_banner_row.set_states([])
 	_banner_row.modulate.a = 1.0
 	_banner_row.visible = not kinds.is_empty()
@@ -816,7 +816,7 @@ static func _status_badges(statuses: Dictionary) -> Array[Array]:
 			continue
 		var text := String(HudStyle.STATUS_NAMES.get(id, id.to_upper()))
 		var turns := int((statuses[id] as Dictionary).get("turns", 0))
-		if Status.counts_turns(id) and turns > 0:
+		if Status.shows_count(id) and turns > 0:
 			text += " %d" % turns
 		badges.append([id, text])
 	return badges
@@ -877,10 +877,11 @@ func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 	(entry.label as Label).text = "%s -> %s" % [String(intent.get("name", "?")), who]
 	var kinds: Array = intent.get("kinds", [])
 	var times: Array = intent.get("times", [])
-	var shown := [kinds, times]
+	var feints: Array = intent.get("feints", [])
+	var shown := [kinds, times, feints]
 	if shown != entry.shown:
 		entry.shown = shown
-		(entry.row as HitRowView).set_hits(kinds, times, _hit_icons)
+		(entry.row as HitRowView).set_hits(kinds, times, _hit_icons, feints)
 	panel.visible = true
 	panel.reset_size()
 

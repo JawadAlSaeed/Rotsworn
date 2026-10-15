@@ -3,13 +3,15 @@ extends Control
 ## A row of an enemy attack's hit icons spaced by time (HitRhythm.layout), joined by a faint
 ## line, so the beat and the pauses of a string read at a glance (DESIGN.md 3.8). Used on the
 ## intent sign and in the attack banner. During the attack each icon shows its HitRhythm.State:
-## upcoming as is, active bigger, done faded.
+## upcoming as is, active bigger, done faded. A feint's icon wears a broken ring (card #129), so
+## players know a false start is coming.
 
 var _icon_px: float = 30.0
 ## Rows that show an active hit are tall enough for it to grow without moving the row.
 var _room_to_grow: bool = false
 var _visuals: CombatVisuals
 var _textures: Array[Texture2D] = []
+var _feints: Array[bool] = []
 var _centres := PackedFloat32Array()
 var _states: Array[int] = []
 
@@ -24,11 +26,14 @@ func setup(icon_px: float, visuals: CombatVisuals, room_to_grow: bool = false) -
 
 
 ## One icon per hit: `kinds` are AttackHitData.Kind values, `times` their impacts (ms), and
-## `hit_icons` maps a kind to its texture. Every hit starts UPCOMING.
-func set_hits(kinds: Array, times: Array, hit_icons: Dictionary) -> void:
+## `hit_icons` maps a kind to its texture; `feints` says which hits are feints (empty: none).
+## Every hit starts UPCOMING.
+func set_hits(kinds: Array, times: Array, hit_icons: Dictionary, feints: Array = []) -> void:
 	_textures.clear()
-	for kind: Variant in kinds:
-		_textures.append(hit_icons.get(int(kind)) as Texture2D)
+	_feints.clear()
+	for i: int in kinds.size():
+		_textures.append(hit_icons.get(int(kinds[i])) as Texture2D)
+		_feints.append(i < feints.size() and bool(feints[i]))
 	_centres = HitRhythm.layout(times, _icon_px, _visuals.rhythm_px_per_ms, _visuals.rhythm_min_gap_px,
 			_visuals.rhythm_max_width_px)
 	_states.clear()
@@ -74,3 +79,17 @@ func _draw_icon(i: int, mid: float) -> void:
 		HitRhythm.State.DONE:
 			tint = Color(1.0, 1.0, 1.0, _visuals.rhythm_done_alpha)
 	draw_texture_rect(texture, Rect2(Vector2(_centres[i] - px * 0.5, mid - px * 0.5), Vector2(px, px)), false, tint)
+	if i < _feints.size() and _feints[i]:
+		_draw_feint_ring(Vector2(_centres[i], mid), px, tint.a)
+
+
+## A dashed ring around a feint's icon: a broken outline for a broken rhythm.
+func _draw_feint_ring(centre: Vector2, px: float, alpha: float) -> void:
+	var color := _visuals.rhythm_feint_color
+	color.a *= alpha
+	var radius := px * 0.5 * _visuals.rhythm_feint_ring_scale
+	var dashes := maxi(2, _visuals.rhythm_feint_dashes)
+	var step := TAU / float(dashes)
+	for d: int in dashes:
+		var start := float(d) * step
+		draw_arc(centre, radius, start, start + step * 0.55, 6, color, _visuals.rhythm_feint_ring_px, true)

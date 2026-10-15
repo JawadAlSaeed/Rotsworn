@@ -227,13 +227,63 @@ extends Resource
 @export_range(0, 100, 1, "suffix:%") var run_rest_heal_percent: int = 50
 ## After a won fight, a downed character gets back up with this much HP.
 @export_range(1, 1000) var run_downed_revive_hp: int = 1
-## Levels: the first level up needs this much XP, each next one this much more. The whole party
-## levels together; each level adds these percents to max HP and power (DESIGN.md 8).
+## Levels: the first level up needs this much XP, each next one this much more. Each hero has
+## their own level (DESIGN.md 8.2); each level adds these percents to max HP and power on top of
+## the attribute points it gives.
 @export_range(1, 100000) var run_xp_first_level: int = 60
 @export_range(0, 100000) var run_xp_level_step: int = 30
 @export_range(1, 99) var run_max_level: int = 10
-@export_range(0, 100, 1, "suffix:%") var run_level_hp_percent: int = 8
-@export_range(0, 100, 1, "suffix:%") var run_level_power_percent: int = 8
+@export_range(0, 100, 1, "suffix:%") var run_level_hp_percent: int = 4
+@export_range(0, 100, 1, "suffix:%") var run_level_power_percent: int = 4
+## A hero who is down when a fight is won gets this share of its XP (standing heroes get all).
+@export_range(0, 100, 1, "suffix:%") var run_xp_downed_percent: int = 50
+## Enemies grow with depth (DESIGN.md 8.3): each map row adds these percents to their HP and
+## power (row 0: as in their data). Bosses only grow when run_enemy_scale_bosses is on.
+@export_range(0, 100, 1, "suffix:%") var run_enemy_hp_row_percent: int = 5
+@export_range(0, 100, 1, "suffix:%") var run_enemy_power_row_percent: int = 3
+@export var run_enemy_scale_bosses: bool = false
+## The team gauge carries over from fight to fight in a run (card #146): this share of what was
+## left at the end of a fight starts the next one (0 = every fight starts empty).
+@export_range(0, 100, 1, "suffix:%") var run_team_gauge_carry_percent: int = 100
+
+@export_group("Attributes and critical hits")
+## Attribute points (DESIGN.md 8.2): each level up gives this many to spend; a hero starts a run
+## with attr_start_points.
+@export_range(0, 20) var attr_points_per_level: int = 3
+@export_range(0, 100) var attr_start_points: int = 0
+## What one point in each attribute gives. Vitality: max HP percent. Might: power percent.
+## Agility: speed. Defense: enemy hits deal this percent less. Luck: critical rate percent.
+@export_range(0, 100, 1, "suffix:%") var attr_vitality_hp_percent: int = 3
+@export_range(0, 100, 1, "suffix:%") var attr_might_power_percent: int = 3
+@export_range(0, 100) var attr_agility_speed: int = 2
+@export_range(0, 100, 1, "suffix:%") var attr_defense_percent: int = 2
+@export_range(0, 100, 1, "suffix:%") var attr_luck_crit_percent: int = 2
+## Every hero's chance that a hit is a critical hit, before Luck.
+@export_range(0, 100, 1, "suffix:%") var crit_base_percent: int = 5
+## A critical hit deals this percent of the normal damage.
+@export_range(100, 1000, 1, "suffix:%") var crit_damage_percent: int = 150
+## Enemy hits never lose more than this percent to Defense and gear together.
+@export_range(0, 100, 1, "suffix:%") var tough_max_percent: int = 60
+
+@export_group("Skill statuses")
+## Bleeding (Open Vein): the enemy loses this percent of the source's power at the start of each of
+## its turns. Renew: the hero heals this percent of max HP at the start of each of their turns.
+@export_range(0, 500, 1, "suffix:%") var bleed_power_percent: int = 25
+@export_range(0, 100, 1, "suffix:%") var regen_percent: int = 12
+## Marked (Death Mark): skills on a marked enemy deal this percent more. Empowered (Shadowstep):
+## the hero's next damaging skill deals this percent more.
+@export_range(0, 500, 1, "suffix:%") var marked_bonus_percent: int = 40
+@export_range(0, 500, 1, "suffix:%") var empowered_bonus_percent: int = 30
+
+@export_group("Skill trees")
+## Skill trees (DESIGN.md 8.4, card #136): each level up gives this many skill points; the
+## skill at place 0, 1, 2... of a branch costs skill_tier_costs at that place (0: known from the
+## start); a hero brings at most skill_slots skills into a fight (the basic attack is extra).
+@export_range(0, 10) var skill_points_per_level: int = 1
+@export var skill_tier_costs: Array[int] = [0, 1, 2]
+@export_range(1, 12) var skill_slots: int = 5
+
+@export_group("Run gear")
 ## Gear: a guard's loot offers this many items to pick one from; a shop sells this many.
 @export_range(1, 6) var run_loot_choices: int = 3
 @export_range(0, 6) var run_shop_gear: int = 2

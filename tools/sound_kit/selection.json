@@ -85,5 +85,6 @@
  "splat": "a",
  "throw": "c",
  "bolt_cast": "a",
- "rock_rumble": "a"
+ "rock_rumble": "a",
+ "critical": "a"
 }

@@ -1,17 +1,18 @@
-[gd_resource type="Resource" script_class="AbilityData" format=3]
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_wmrbb"]
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_ability"]
 
 [resource]
-script = ExtResource("1_wmrbb")
+script = ExtResource("1_ability")
 id = "all_in"
 display_name = "All In"
-description = "5 hits of 120%, one press each. Each perfect press: +30% on that hit."
+description = "6 hits of 100%, the daggers taking turns, one press each. Each perfect press: +30% on that hit."
 ap_cost = 5
-press_times_ms = Array[int]([800, 1050, 1300, 1550, 1800])
+impact_sfx = "strike"
+press_times_ms = Array[int]([800, 1020, 1240, 1460, 1680, 1900])
 ring_lead_percent = 65
 follow_ups = true
-damage_percent = 120
+damage_percent = 100
 press_damage_percent = 30
-windup_clips = PackedStringArray("strike_windup", "strike_alt_windup", "strike_windup", "strike_alt_windup", "strike_big_windup")
-strike_clips = PackedStringArray("strike", "strike_alt", "strike", "strike_alt", "strike_big")
+windup_clips = PackedStringArray("strike_windup", "strike_alt_windup", "strike_windup", "strike_alt_windup", "strike_windup", "strike_big_windup")
+strike_clips = PackedStringArray("strike", "strike_alt", "strike", "strike_alt", "strike", "strike_big")

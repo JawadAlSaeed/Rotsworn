@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_ability"]
+[ext_resource type="Resource" path="res://data/projectiles/light_bolt.tres" id="2_proj"]
+
+[resource]
+script = ExtResource("1_ability")
+id = "smite"
+display_name = "Smite"
+description = "A holy bolt for 160%. On an Exposed enemy: +100% (and the Exposed is used up). Perfect press: +30%."
+ap_cost = 2
+impact_sfx = "heavy_strike"
+press_times_ms = Array[int]([850])
+ring_lead_percent = 85
+follow_ups = true
+damage_percent = 160
+press_damage_percent = 30
+exposed_bonus_percent = 100
+windup_clips = PackedStringArray("strike_windup")
+strike_clips = PackedStringArray("strike")
+projectile = ExtResource("2_proj")

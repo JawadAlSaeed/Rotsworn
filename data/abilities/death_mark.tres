@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AbilityData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ability_data.gd" id="1_ability"]
+
+[resource]
+script = ExtResource("1_ability")
+id = "death_mark"
+display_name = "Death Mark"
+description = "The enemy is Marked: the next 3 skills on it (any hero's) deal +40%. Perfect press: 4 skills."
+ap_cost = 3
+impact_sfx = "debuff"
+press_times_ms = Array[int]([800])
+ring_lead_percent = 85
+damage_percent = 0
+status = "marked"
+status_turns = 3
+press_status_turns = 1
+windup_clips = PackedStringArray("strike_alt_windup")
+strike_clips = PackedStringArray("strike_alt")

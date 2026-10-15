@@ -13,6 +13,11 @@ extends CanvasLayer
 ## be worn (a full slot sells what was there) or sold; a new item placed, swapped with the one item
 ## it covers, or left behind. Online, a client's changes go to the host as RunState ops
 ## (op_requested); the host's run state comes back and refresh() redraws.
+## Each hero card ends in two buttons after the gear slots (user request 2026-10-15): Attributes
+## (DESIGN.md 8.2) and Skills (8.4, heroes with a tree), each showing the points left to spend;
+## Confirm on one opens that screen for the hero (T / K still work as shortcuts). The info box
+## under the cards only shows while it has something to say: an item menu, picking who to use an
+## item on, something in hand, or the backpack item under the cursor.
 
 signal done
 ## A new item in hand was left behind (it is not in the backpack).
@@ -25,12 +30,17 @@ enum Focus { GEAR, GRID }
 const TITLE_SIZE: int = 52
 const TEXT_SIZE: int = 28
 const SMALL_SIZE: int = 24
-const NAME_SIZE: int = 32
-const LEFT_WIDTH: float = 780.0
-const PORTRAIT_PX: float = 76.0
+const NAME_SIZE: int = 40
+## Gear slot and button text on the hero cards (a little bigger than the rest of the screen).
+const CARD_TEXT_SIZE: int = 27
+const LEFT_WIDTH: float = 1060.0
+const PORTRAIT_PX: float = 112.0
 const PORTRAIT_GAP: int = 14
 const COLUMN_GAP: int = 48
-const SLOT_WIDTH: float = 210.0
+const SLOT_WIDTH: float = 200.0
+## The Attributes and Skills buttons at the end of a card.
+const BUTTON_WIDTH: float = 175.0
+const BUTTON_GAP: int = 18
 const SLOT_PAD_X: int = 6
 const EMPTY_TEXT := "(empty)"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
@@ -56,6 +66,7 @@ var _level: Label
 var _note: Label
 ## One card per hero: {panel: PanelContainer, stats: Label, slots: Array[Label]}.
 var _cards: Array[Dictionary] = []
+var _info_panel: PanelContainer
 var _info_title: Label
 var _info: Label
 var _pack_label: Label
@@ -67,6 +78,10 @@ var _menu: ListMenu
 var _menu_choices: Array = []
 var _prompt: ConfirmPrompt
 var _hint: HintBar
+## The attributes screen while it is open over this one.
+var _attrs: AttributesScreen
+## The skills screen (heroes with a skill tree, DESIGN.md 8.4) while it is open over this one.
+var _skills: SkillsScreen
 
 
 ## `note`: a line at the top (for example what was just found). `held`: something new in hand,
@@ -116,6 +131,10 @@ func refresh() -> void:
 	_grid.setup(_run.backpack, _visuals())
 	_clamp_cursor()
 	_redraw()
+	if _attrs != null:
+		_attrs.refresh()
+	if _skills != null:
+		_skills.refresh()
 
 
 ## Something new is in hand (loot, a find, a swap).
@@ -158,18 +177,19 @@ func _build_hero_side() -> Control:
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.custom_minimum_size.x = LEFT_WIDTH
-	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	box.add_theme_constant_override("separation", 10)
+	# Top-aligned, so the cards never move when the info box shows or hides under them.
+	box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	box.add_theme_constant_override("separation", 12)
 	for slot: int in _run.party_size():
 		box.add_child(_build_card(slot))
-	var info_panel := PanelContainer.new()
-	info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	info_panel.add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.PANEL_BORDER, 2, 14))
-	box.add_child(info_panel)
+	_info_panel = PanelContainer.new()
+	_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info_panel.add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.PANEL_BORDER, 2, 14))
+	box.add_child(_info_panel)
 	var info_box := VBoxContainer.new()
 	info_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info_box.add_theme_constant_override("separation", 6)
-	info_panel.add_child(info_box)
+	_info_panel.add_child(info_box)
 	_info_title = HudStyle.make_label("", TEXT_SIZE, HudStyle.GOLD)
 	info_box.add_child(_info_title)
 	_info = HudStyle.make_label("", SMALL_SIZE, HudStyle.TEXT_DIM)
@@ -185,7 +205,8 @@ func _build_hero_side() -> Control:
 	return box
 
 
-## A hero's card: portrait, name and stats, then their gear slots side by side.
+## A hero's card: portrait, name and stats, then their gear slots side by side and the
+## Attributes and Skills buttons.
 func _build_card(slot: int) -> Control:
 	var c := _run.data.party[slot]
 	var panel := PanelContainer.new()
@@ -200,7 +221,8 @@ func _build_card(slot: int) -> Control:
 	row.add_child(portrait)
 	var right := VBoxContainer.new()
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	right.add_theme_constant_override("separation", 4)
+	right.alignment = BoxContainer.ALIGNMENT_CENTER
+	right.add_theme_constant_override("separation", 12)
 	row.add_child(right)
 	var head := HBoxContainer.new()
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -217,14 +239,39 @@ func _build_card(slot: int) -> Control:
 	right.add_child(slots_row)
 	var labels: Array[Label] = []
 	for g: int in _run.tuning.run_gear_slots:
-		var label := HudStyle.make_label("", SMALL_SIZE)
+		var label := HudStyle.make_label("", CARD_TEXT_SIZE)
 		label.custom_minimum_size.x = SLOT_WIDTH
 		label.clip_text = true
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		slots_row.add_child(label)
 		labels.append(label)
-	_cards.append({"panel": panel, "stats": stats, "slots": labels})
+	var gap := Control.new()
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gap.custom_minimum_size.x = BUTTON_GAP
+	slots_row.add_child(gap)
+	var buttons: Array[Label] = []
+	for i: int in (2 if _run.has_tree(slot) else 1):
+		var button := HudStyle.make_label("", CARD_TEXT_SIZE)
+		button.custom_minimum_size.x = BUTTON_WIDTH
+		button.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		slots_row.add_child(button)
+		buttons.append(button)
+	_cards.append({"panel": panel, "stats": stats, "slots": labels, "buttons": buttons})
 	return panel
+
+
+## The card cursor's place of the Attributes button (the Skills button is the next one).
+func _attributes_slot() -> int:
+	return _run.tuning.run_gear_slots
+
+
+## The last place on hero `hero`'s card: their Skills button, or Attributes without a tree.
+func _last_slot(hero: int) -> int:
+	return _attributes_slot() + (1 if _run.has_tree(hero) else 0)
+
+
+func _on_button() -> bool:
+	return _slot >= _attributes_slot()
 
 
 func _build_pack_side() -> Control:
@@ -251,7 +298,7 @@ func _visuals() -> CombatVisuals:
 # --- input ------------------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _prompt != null:
+	if _prompt != null or _attrs != null or _skills != null:
 		return
 	if _menu.visible:
 		_menu_input(event)
@@ -276,6 +323,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handled()
 		_turn_held(-1 if event.is_action(&"item_turn_left") else 1)
 		return
+	elif _pressed(event, &"party_attributes"):
+		_handled()
+		open_attributes()
+		return
+	elif _pressed(event, &"party_skills") and _any_tree():
+		_handled()
+		open_skills()
+		return
 	elif _pressed(event, &"menu_confirm"):
 		_handled()
 		_confirm()
@@ -291,7 +346,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _move(step: Vector2i) -> void:
-	var last_slot := _run.tuning.run_gear_slots - 1
+	var last_slot := _last_slot(_hero)
 	if _focus == Focus.GEAR:
 		if step.x > 0 and _slot >= last_slot:
 			if not _held.is_empty() and _held.kind == "gear":
@@ -308,6 +363,7 @@ func _move(step: Vector2i) -> void:
 			_slot += step.x
 		else:
 			_hero = wrapi(_hero + step.y, 0, _run.party_size())
+			_slot = mini(_slot, _last_slot(_hero))
 	else:
 		var to := _grid.cursor + step
 		if to.x < 0:
@@ -315,7 +371,7 @@ func _move(step: Vector2i) -> void:
 				return
 			_focus = Focus.GEAR
 			_hero = _row_hero(_grid.cursor.y)
-			_slot = last_slot
+			_slot = _last_slot(_hero)
 		else:
 			_grid.cursor = to
 			_clamp_cursor()
@@ -379,6 +435,14 @@ func _confirm() -> void:
 
 
 func _confirm_gear() -> void:
+	if _on_button():
+		if not _held.is_empty():
+			Sfx.play("locked")
+		elif _slot == _attributes_slot():
+			open_attributes()
+		else:
+			open_skills()
+		return
 	var worn: Variant = _run.gear[_hero][_slot]
 	if _held.is_empty():
 		if worn == null:
@@ -541,6 +605,59 @@ func _cancel() -> void:
 					_settled())
 
 
+## The attributes screen over this one, for the hero under the cursor (not while holding
+## something).
+func open_attributes() -> void:
+	if not _held.is_empty():
+		Sfx.play("locked")
+		return
+	var hero := _hero if _focus == Focus.GEAR else _row_hero(_grid.cursor.y)
+	_attrs = AttributesScreen.new()
+	_attrs.name = "Attributes"
+	_attrs.layer = layer + 1
+	_attrs.remote = remote
+	add_child(_attrs)
+	_attrs.setup(_run, hero)
+	_attrs.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
+	_attrs.done.connect(_close_attributes)
+	Sfx.play("menu_confirm")
+
+
+## The skills screen over this one, for the hero under the cursor (or the next with a tree).
+func open_skills() -> void:
+	if not _held.is_empty():
+		Sfx.play("locked")
+		return
+	var hero := _hero if _focus == Focus.GEAR else _row_hero(_grid.cursor.y)
+	_skills = SkillsScreen.new()
+	_skills.name = "Skills"
+	_skills.layer = layer + 1
+	_skills.remote = remote
+	add_child(_skills)
+	_skills.setup(_run, hero)
+	_skills.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
+	_skills.done.connect(func() -> void:
+		_skills.queue_free()
+		_skills = null
+		_redraw())
+	Sfx.play("menu_confirm")
+
+
+func _any_tree() -> bool:
+	for slot: int in _run.party_size():
+		if _run.has_tree(slot):
+			return true
+	return false
+
+
+func _close_attributes() -> void:
+	if _attrs == null:
+		return
+	_attrs.queue_free()
+	_attrs = null
+	_redraw()
+
+
 ## The new thing in hand is dealt with.
 func _settled() -> void:
 	if close_when_settled:
@@ -700,10 +817,7 @@ func _clamp_cursor() -> void:
 
 
 func _redraw() -> void:
-	if _run.level >= _run.tuning.run_max_level:
-		_level.text = "Level %d (max)   Gold %d" % [_run.level, _run.gold]
-	else:
-		_level.text = "Level %d    XP %d / %d    Gold %d" % [_run.level, _run.xp, _run.xp_to_next(), _run.gold]
+	_level.text = "Gold %d" % _run.gold
 	_note.text = _note_text
 	_note.visible = not _note_text.is_empty()
 	var from: Array = _held.from if not _held.is_empty() and _held.kind == "gear" else []
@@ -711,9 +825,20 @@ func _redraw() -> void:
 		var card: Dictionary = _cards[slot]
 		var chosen := (_focus == Focus.GEAR or _use_uid >= 0) and slot == _hero
 		(card.panel as PanelContainer).add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG,
-				HudStyle.GOLD if chosen else HudStyle.PANEL_BORDER, 3 if chosen else 2, 12))
-		(card.stats as Label).text = "HP %d / %d   Power %d   Speed %d" % [_run.hp[slot], _run.max_hp(slot),
-				_run.power(slot), _run.speed(slot)]
+				HudStyle.GOLD if chosen else HudStyle.PANEL_BORDER, 3 if chosen else 2, 16))
+		(card.stats as Label).text = "Lv %d   HP %d / %d   Power %d   Speed %d" % [_run.levels[slot], _run.hp[slot],
+				_run.max_hp(slot), _run.power(slot), _run.speed(slot)]
+		var buttons: Array = card.buttons
+		for b: int in buttons.size():
+			var button := buttons[b] as Label
+			var free := _run.free_points(slot) if b == 0 else _run.free_skill_points(slot)
+			button.text = ("Attributes" if b == 0 else "Skills") + ("  +%d" % free if free > 0 else "")
+			var on_it := chosen and _slot == _attributes_slot() + b and _use_uid < 0
+			# Framed like a button; gold when the cursor is on it.
+			var lit := on_it and not _menu.visible
+			button.add_theme_stylebox_override("normal", HudStyle.panel(Color(0.3, 0.25, 0.1, 0.5) if lit else HudStyle.PANEL_BG,
+					HudStyle.GOLD if lit else HudStyle.PANEL_BORDER, 2, 6))
+			button.label_settings.font_color = HudStyle.GOLD if on_it or free > 0 else HudStyle.TEXT
 		var labels: Array = card.slots
 		for g: int in labels.size():
 			var item: Variant = _run.gear[slot][g]
@@ -747,6 +872,8 @@ func _redraw() -> void:
 
 func _redraw_info() -> void:
 	_info_title.label_settings.font_color = HudStyle.GOLD
+	_info_panel.visible = _use_uid >= 0 or _menu.visible or not _held.is_empty() \
+			or (_focus == Focus.GRID and _run.backpack.uid_at(_grid.cursor) >= 0)
 	if _use_uid >= 0:
 		var e := _run.backpack.entry(_use_uid)
 		_info_title.text = "Use the %s on whom?" % RunState.entry_name(e)
@@ -759,7 +886,7 @@ func _redraw_info() -> void:
 		var text := String(thing.get("description"))
 		if _held.kind == "gear":
 			_info_title.text = "In hand: %s (gear)" % title
-			var worn: Variant = _run.gear[_hero][_slot]
+			var worn: Variant = _run.gear[_hero][_slot] if not _on_button() else null
 			if _focus == Focus.GEAR and holding_new() and worn != null:
 				text += "\nPut on here: sells the %s for %d gold." % [(worn as GearData).display_name,
 						_run.gear_sell_price(worn as GearData)]
@@ -777,6 +904,8 @@ func _redraw_info() -> void:
 		_info.text = text
 		return
 	if _focus == Focus.GEAR:
+		if _on_button():
+			return
 		var worn: Variant = _run.gear[_hero][_slot]
 		_info_title.text = (worn as GearData).display_name if worn != null else "Empty slot"
 		if worn != null:
@@ -875,7 +1004,10 @@ func _redraw_hint() -> void:
 		return
 	var entries: Array = [[&"@arrows", "Move"]]
 	if _held.is_empty():
-		entries.append([&"menu_confirm", "Pick up" if _focus == Focus.GEAR else "Choose"])
+		var confirm := "Choose"
+		if _focus == Focus.GEAR:
+			confirm = "Open" if _on_button() else "Pick up"
+		entries.append([&"menu_confirm", confirm])
 		if _focus == Focus.GRID:
 			entries.append([&"item_move", "Move"])
 	elif _held.kind == "item":
