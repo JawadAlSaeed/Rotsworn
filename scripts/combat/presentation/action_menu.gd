@@ -1,31 +1,41 @@
 class_name ActionMenu
-extends PanelContainer
-## The party member's action menu, Expedition 33 style: every pad button picks one thing. It sits
-## in the bottom-left corner and grows upwards.
-## - Main layer (user layout, 2026-10-13): every option has its own button and there is no cursor:
-##   A Attack (gains AP; Confirm too), X Skills, Y Items, B Run, RT Team Ultimate (dim until it
-##   can be used). Run must be HELD (run_hold_ms) so a tap never runs; its row fills up while held
-##   (DESIGN.md 2.13).
+extends Control
+## The party member's action menu (card #154): Expedition 33's command diamond, floating beside
+## the acting hero like Persona 5's (CombatHud calls follow() every frame with the hero's box on
+## screen), drawn as Persona 5's layered slanted plates (a black plate over one in the hero's
+## colour) around a thin gold ring with the hero's AP in its middle.
+## - Main layer (user layout, 2026-10-13): every option has its own button and there is no cursor.
+##   The four face buttons sit in a diamond, each with its plate beside it: A Attack (bottom; gains
+##   AP; Confirm too), X Skills (left), Y Items (top), B Run (right). An option that cannot be used
+##   now fades out. RT uses the Team Ultimate: its button is not in the diamond but on the team
+##   gauge (CombatHud shows it there while ultimate_ready(); user, 2026-10-16). Keyboard keys show instead on the keyboard. No name tag: the gold light
+##   under the hero and their lit card already say whose turn it is (user, 2026-10-15). Run must be HELD (run_hold_ms) so a tap never runs; a ring fills around its button while
+##   held (DESIGN.md 2.13).
 ## - Skills and Items layers: the class skills, or the backpack items usable in fights (DESIGN.md
-##   8.1), open above the main options (name and AP cost, greyed with the reason when they cannot
-##   be used now). Up/down choose, confirm uses, cancel (or the same button) goes back. An item
-##   entry is flagged "item" and its ability is a stand-in made by the controller.
+##   8.1), open beside the hero as a list of slanted rows (name and AP cost, greyed with the reason
+##   when they cannot be used now; at most VISIBLE_ROWS at once, the list scrolls). Up/down
+##   choose, confirm uses, cancel (or the same button) goes back. An item entry is flagged "item"
+##   and its ability is a stand-in made by the controller.
 ## - Target step: if the ability needs a choice of target (an enemy, an ally, a downed ally) and
 ##   there is more than one, left/right or up/down cycles, confirm picks, cancel goes back to the
 ##   layer the ability came from.
 ## Driven only by input actions (no focus-driven buttons, so the parry key can never click it).
-## - Tutorial guide: with `guide` set (an ability id) only that choice can be made; its row (and
-##   the Skills option that leads to it) glows, everything else is locked (DESIGN.md 7.8).
+## - Tutorial guide: with `guide` set (an ability id) only that choice can be made; its plate or
+##   row (and the Skills plate that leads to it) glows, everything else is locked (DESIGN.md 7.8).
 ## The basic attack is the first entry that is not the team ultimate (CharacterData.all_abilities()
 ## puts it first), the ultimate is the entry flagged team_ultimate, the skills are the rest.
 
 signal chosen(ability_id: String, target_id: int)
 ## The target being pointed at during the target step, or -1 when the step ends.
 signal target_changed(target_id: int)
+## The ultimate's button was pressed and it is being used (the gauge flashes).
+signal ultimate_pressed
 
-## The main options, in the order they are listed.
+## The main options.
 enum Option { ATTACK, SKILLS, ITEMS, RUN, ULTIMATE }
 
+## The options drawn in the diamond (the ultimate's button lives on the team gauge).
+const DIAMOND: Array[int] = [Option.ATTACK, Option.SKILLS, Option.ITEMS, Option.RUN]
 ## The button that picks each Option. Run is the Back button (B), which has nothing else to do on
 ## the main layer.
 const OPTION_ACTIONS: Array[StringName] = [&"fight_attack", &"fight_skills", &"fight_items", &"menu_cancel",
@@ -33,67 +43,124 @@ const OPTION_ACTIONS: Array[StringName] = [&"fight_attack", &"fight_skills", &"f
 ## Options shown but not in the game yet (cards on the board).
 const SOON_OPTIONS: Array[int] = []
 const HOLD_TAG := "HOLD"
-const NO_RUN_TAG := "CAN'T RUN"
-## The ring around the Run button that fills while Back is held: size as a share of the button,
-## line width in pixels.
-const HOLD_RING_SHARE: float = 1.45
-const HOLD_RING_WIDTH: float = 4.0
-const HOLD_RING_TRACK := Color(1.0, 1.0, 1.0, 0.18)
-const OPTION_NAMES: Array[String] = ["", "Skills", "Items", "Run", ""]
+const OPTION_NAMES: Array[String] = ["ATTACK", "SKILLS", "ITEMS", "RUN", ""]
 const SOON_TAG := "SOON"
-const SKILLS_NAME := "Skills"
 const SKILLS_TEXT := "Your class skills. They cost AP: attack and parry hits to gain it."
-const NO_SKILLS_TEXT := "No class skills."
 const ITEMS_TEXT := "Backpack items. Using one is your turn."
-const NO_ITEMS_TEXT := "No items for fights in the backpack."
-const READY_TAG := "READY"
-const LOCKED_TAG := "LOCKED"
+const TARGET_TITLE := "CHOOSE A TARGET"
 
-const TITLE_SIZE: int = 34
-const OPTION_SIZE: int = 30
-const TAG_SIZE: int = 20
-const SKILL_SIZE: int = 28
-const DESCRIPTION_SIZE: int = 22
-const HINT_SIZE: int = 20
-## Outer width. With MARGIN it ends near x = 484 on the 1920 canvas, clear of the party panels
-## (from about x = 560).
-const MENU_WIDTH: float = 460.0
-const PADDING: int = 16
-## Gap to the left and bottom edges of the screen.
-const MARGIN: float = 24.0
-## Side padding of each row (the gold bar's room).
-const ROW_PAD_X: int = 10
-const ROW_GAP: int = 12
-## The button pictures sit in a column this wide so the option names line up.
-const CHIP_COLUMN_WIDTH: float = 72.0
-## A locked option's button picture fades to this.
-const LOCKED_CHIP := Color(1.0, 1.0, 1.0, 0.4)
-## While the skills list is open the main options step back to this.
-const RESTING_OPTIONS := Color(1.0, 1.0, 1.0, 0.55)
-## The tutorial's guided row pulses between white and this, once per GUIDE_PULSE_S.
+## The diamond cluster (name tag, ring, sockets, plates), in its own coordinates.
+const CLUSTER := Vector2(640.0, 370.0)
+const DIAMOND_CENTRE := Vector2(310.0, 124.0)
+## How far each button sits from the centre, and the socket size.
+const ARM: float = 86.0
+const SOCKET_PX: float = 66.0
+## The ring's centre disc (the hero's AP).
+const HUB_RADIUS: float = 40.0
+const AP_SIZE: int = 40
+const AP_LABEL_SIZE: int = 14
+## Plates start this far beyond a socket's edge; the hero's coloured plate shows this far under
+## the black one.
+const PLATE_GAP: float = 8.0
+const PLATE_HEIGHT: float = 50.0
+const BACK_PLATE := Vector2(7.0, 6.0)
+const PLATE_SIZE: int = 30
+const TAG_SIZE: int = 19
+const CHIP_SIZE: int = 32
+const TARGET_TITLE_SIZE: int = 20
+## The diamond's centre sits this far right of the hero's box (room for the Skills plate).
+const BESIDE_PX: float = 320.0
+## Lists (skills, items) and the target panel open this far right of the hero.
+const LIST_GAP: float = 48.0
+const LIST_WIDTH: float = 500.0
+const LIST_TITLE_SIZE: int = 30
+const ROW_SIZE: int = 26
+const ROW_HEIGHT: float = 40.0
+const VISIBLE_ROWS: int = 6
+const DESCRIPTION_SIZE: int = 21
+const HINT_SIZE: int = 19
+const TARGET_NAME_SIZE: int = 40
+## Spots tried beside the hero, in order (the first that covers no enemy wins): as planned, lower
+## (onto the floor in front), closer, higher.
+const CLUSTER_TRIES: Array[Vector2] = [Vector2(0, 0), Vector2(0, 90), Vector2(0, 180), Vector2(-60, 90),
+		Vector2(-60, 180), Vector2(-90, 0), Vector2(0, -90), Vector2(60, 180), Vector2(-150, 180)]
+const PANEL_TRIES: Array[Vector2] = [Vector2(0, 0), Vector2(0, 90), Vector2(0, 180), Vector2(0, -90),
+		Vector2(-80, 120), Vector2(0, 260)]
+## Following the hero as the camera moves: how fast (per second) the cluster catches up.
+const FOLLOW_RATE: float = 14.0
+## The entrance: the cluster pops from small and tilted, the buttons fly out of the centre, the
+## plates slide out after them.
+const POP_S: float = 0.26
+const POP_SCALE: float = 0.55
+const POP_TILT: float = -0.14
+const STAGGER_S: float = 0.035
+const SLIDE_PX: float = 46.0
+## A plate that cannot be used fades to this.
+const LOCKED_TINT := Color(0.62, 0.62, 0.66, 0.5)
+const LOCKED_BACK := Color(0.35, 0.35, 0.38, 0.6)
+## The ring around the Run button that fills while Back is held: size as a share of the socket,
+## line width in pixels.
+const HOLD_RING_SHARE: float = 1.2
+const HOLD_RING_WIDTH: float = 5.0
+const HOLD_RING_TRACK := Color(1.0, 1.0, 1.0, 0.18)
+## The gold ring's slowly turning ticks.
+const TICKS: int = 16
+const TICK_SPIN: float = 0.25
+## The tutorial's guided plate pulses between white and this, once per GUIDE_PULSE_S.
 const GUIDE_GLOW := Color(1.6, 1.45, 0.9)
 const GUIDE_PULSE_S: float = 0.9
+## A pressed plate flashes this bright.
+const PRESS_FLASH := Color(1.8, 1.7, 1.4)
+const PRESS_FLASH_S: float = 0.16
 
 ## The tutorial's one allowed choice (an ability id; "" = any). The controller also marks every
 ## other entry unusable; this only lights the way to it.
 var guide: String = ""
+## How long Back must be held to run (ms; the controller sets it from tuning run_hold_ms).
+var run_hold_ms: int = 500
+## The acting hero, their AP and the most they can have (the controller sets them before open).
+var actor_id: int = -1
+var actor_ap: int = 0
+var max_ap: int = 0
 
-var _title: Label
-var _skills_box: VBoxContainer
-var _skills_divider: Control
-var _options_box: VBoxContainer
-var _target_label: Label
+var _accent: Color = HudStyle.GOLD
+## The diamond cluster: the name tag, the ring, a socket and a plate per Option.
+var _cluster: Cluster
+var _ap_label: Label
+var _ap_caption: Label
+var _sockets: Array[Socket] = []
+var _plates: Array[PanelContainer] = []
+var _plate_names: Array[Label] = []
+var _plate_tags: Array[Label] = []
+## Each plate's look when it is in place (the entrance animates to it).
+var _plate_rest: Array[Color] = []
+var _hold_ring: HoldRing
+## The list layer.
+var _list: PanelContainer
+var _list_title: Label
+var _list_ap: Label
+var _rows_box: VBoxContainer
+var _more_above: Label
+var _more_below: Label
 var _description: Label
 var _hint: HintBar
-## Per Option: its row, the box holding its button picture, its name and its tag (AP, READY...).
-var _option_rows: Array[PanelContainer] = []
-var _option_chips: Array[Control] = []
-var _option_names: Array[Label] = []
-var _option_tags: Array[Label] = []
-## Per skill (in _skill_entries order): its row, name and AP cost.
-var _skill_rows: Array[PanelContainer] = []
-var _skill_names: Array[Label] = []
-var _skill_costs: Array[Label] = []
+var _row_panels: Array[PanelContainer] = []
+var _row_names: Array[Label] = []
+var _row_costs: Array[Label] = []
+var _row_marks: Array[Label] = []
+## The target layer.
+var _target: PanelContainer
+var _target_name: Label
+var _target_detail: Label
+var _target_hint: HintBar
+## Where the hero is on screen, the area the menu must stay in, and whether the cluster has been
+## placed since it opened (the first placement snaps, later ones glide).
+var _body: Rect2 = Rect2()
+var _safe: Rect2 = Rect2()
+var _avoid: Array[Rect2] = []
+## The cluster's drawn parts (plates, sockets, ring, name tag) in its own coordinates.
+var _content: Rect2 = Rect2(Vector2.ZERO, CLUSTER)
+var _placed: bool = false
 ## Each: {ability: AbilityData, usable: bool, reason: String, targets: Array[int],
 ## pick_target: bool}.
 var _entries: Array[Dictionary] = []
@@ -102,86 +169,57 @@ var _names: Dictionary = {}
 var _attack_entry: int = -1
 var _ultimate_entry: int = -1
 var _run_entry: int = -1
-## How long Back must be held to run (ms; the controller sets it from tuning run_hold_ms).
-var run_hold_ms: int = 500
 ## When the Back hold started (Time ticks, ms), or -1 when Back is not held.
 var _hold_started_ms: int = -1
-var _hold_ring: HoldRing
-## The list open in the skills box (the skills or the items), and both lists.
+## The list open (the skills or the items), and both lists.
 var _skill_entries: Array[int] = []
 var _skills_all: Array[int] = []
 var _items_all: Array[int] = []
 ## Which list is open (Option.SKILLS or Option.ITEMS).
 var _listing: int = Option.SKILLS
-## The highlighted main option (an Option).
+## The option last used (Attack until something else is picked).
 var _option: int = Option.ATTACK
 var _in_skills: bool = false
-## The chosen skill (index into _skill_entries).
+## The chosen row (index into _skill_entries) and the first row shown.
 var _skill_cursor: int = 0
+var _scroll: int = 0
 var _choosing_target: bool = false
 ## The entry whose target is being chosen.
 var _target_entry: int = -1
 var _target_index: int = 0
-## The row last lit, so a newly lit row flashes once like the menus outside fights.
-var _lit_row: Control = null
+## Which layer was shown last (so only a change animates in): "main", "list" or "target".
+var _shown_layer: String = ""
 ## Process frame of the last stick move (a held stick sends many motion events).
 var _stick_frame: int = -1
-## The guided row and its glow.
-var _guide_row: Control = null
+## The guided plate or row and its glow.
+var _guide_node: Control = null
 var _guide_tween: Tween = null
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_pin_bottom_left()
-	custom_minimum_size = Vector2(MENU_WIDTH, 0.0)
-	add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.GOLD, 2, PADDING))
-	var column := VBoxContainer.new()
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_theme_constant_override("separation", 8)
-	add_child(column)
-	_title = HudStyle.make_title("", TITLE_SIZE)
-	column.add_child(_title)
-	_skills_box = VBoxContainer.new()
-	_skills_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_skills_box.add_theme_constant_override("separation", 2)
-	column.add_child(_skills_box)
-	_skills_divider = ListMenu.divider(_inner_width())
-	column.add_child(_skills_divider)
-	_options_box = VBoxContainer.new()
-	_options_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_options_box.add_theme_constant_override("separation", 4)
-	column.add_child(_options_box)
-	for option: int in Option.size():
-		_add_option_row(option)
-	# A ring around the Run button fills up while Back is held (centred on the button).
-	# It takes no room (size zero, centred by the chip column), so the row keeps its height.
-	_hold_ring = HoldRing.new()
-	_hold_ring.radius = float(OPTION_SIZE) * HudStyle.CHIP_HEIGHT_SHARE * HOLD_RING_SHARE * 0.5
-	_option_chips[Option.RUN].add_child(_hold_ring)
-	set_process(false)
-	_target_label = HudStyle.make_label("", DESCRIPTION_SIZE, HudStyle.GOLD)
-	column.add_child(_target_label)
-	_description = HudStyle.make_label("", DESCRIPTION_SIZE)
-	_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_description.custom_minimum_size = Vector2(_inner_width(), 0.0)
-	column.add_child(_description)
-	_hint = HintBar.new([], HINT_SIZE)
-	_hint.alignment = BoxContainer.ALIGNMENT_BEGIN
-	column.add_child(_hint)
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	_build_main()
+	_build_list()
+	_build_target()
 	visible = false
+	ButtonPrompts.listen(_relayout_later)
 
 
-## Opens the menu for one actor. `entries` as described on _entries; `names` maps fighter id ->
-## display name (for the target step).
-## `player` is the co-op player whose turn it is (-1 in solo: no tag).
-func open(actor_name: String, accent: Color, entries: Array[Dictionary], names: Dictionary, player: int = -1) -> void:
+## The button pictures changed (keyboard or pad): their widths too, so the plates move.
+func _relayout_later() -> void:
+	if visible:
+		_layout_plates.call_deferred()
+
+
+## Opens the menu for one actor (`accent`: their colour). `entries` as described on _entries;
+## `names` maps fighter id -> display name (for the target step).
+func open(accent: Color, entries: Array[Dictionary], names: Dictionary) -> void:
 	if _choosing_target:
 		target_changed.emit(-1)
-	_title.text = "%s's turn" % actor_name
-	if player >= 0:
-		_title.text += "  (%s)" % HudStyle.player_tag(player)
-	_title.label_settings.font_color = accent.lightened(0.25)
+	_accent = accent
+	_ap_label.text = str(actor_ap)
+	_cluster.accent = accent
 	_entries = entries
 	_names = names
 	_sort_entries()
@@ -191,15 +229,17 @@ func open(actor_name: String, accent: Color, entries: Array[Dictionary], names: 
 	_hold_started_ms = -1
 	_option = _home_option()
 	_skill_cursor = 0
-	_lit_row = null
-	_build_skill_rows()
-	_redraw()
+	_scroll = 0
+	_shown_layer = ""
+	_placed = false
+	_build_rows()
 	visible = true
-	_redraw_guide()
+	_redraw()
 
 
 func close() -> void:
 	visible = false
+	_shown_layer = ""
 	_redraw_guide()
 	if _choosing_target:
 		_choosing_target = false
@@ -208,6 +248,40 @@ func close() -> void:
 
 func is_open() -> bool:
 	return visible
+
+
+## True while the Team Ultimate can be used now (the gauge shows its button then).
+func ultimate_ready() -> bool:
+	return visible and not _in_skills and not _choosing_target and _ultimate_entry >= 0 \
+			and bool(_entries[_ultimate_entry].usable)
+
+
+## True while the skills or items list is up.
+func is_listing() -> bool:
+	return visible and _in_skills and not _choosing_target
+
+
+## Places the menu beside the hero (`body`: their box on screen), inside `safe` (the screen minus
+## the turn order strip and the party cards). CombatHud calls it every frame while the menu is
+## open, so the menu follows the camera.
+## `avoid` are boxes it should not cover (the enemies and their panels): of a few spots beside the
+## hero it takes the first that covers the least of them.
+func follow(body: Rect2, safe: Rect2, avoid: Array[Rect2], delta: float) -> void:
+	_body = body
+	_safe = safe
+	_avoid = avoid
+	if not visible:
+		return
+	var wanted := _cluster_spot()
+	if not _placed:
+		_cluster.position = wanted
+		_placed = true
+	else:
+		_cluster.position = _cluster.position.lerp(wanted, 1.0 - exp(-FOLLOW_RATE * delta))
+	if _list.visible:
+		_place_panel(_list)
+	if _target.visible:
+		_place_panel(_target)
 
 
 ## The abilities currently offered (empty when closed).
@@ -319,6 +393,7 @@ func _handle_target_input(event: InputEvent) -> bool:
 		_choosing_target = false
 		target_changed.emit(-1)
 		visible = false
+		_shown_layer = ""
 		chosen.emit((entry.ability as AbilityData).id, target)
 	elif _pressed(event, &"menu_cancel"):
 		Sfx.play("menu_cancel")
@@ -371,8 +446,8 @@ func _sort_entries() -> void:
 	_listing = Option.SKILLS
 
 
-## Where the highlight rests when a layer opens or a step is backed out of: Attack, so the attack
-## button (also a confirm button) always means Attack until the player moves the highlight.
+## The option a layer goes back to: Attack, so the attack button (also a confirm button) always
+## means Attack until the player picks something else.
 func _home_option() -> int:
 	return Option.ATTACK if _attack_entry >= 0 else Option.SKILLS
 
@@ -389,10 +464,10 @@ func _option_entry(option: int) -> int:
 	return -1
 
 
-## Skills, Items and Run are always listed (dim when not usable); Attack and the ultimate only
-## when offered.
+## Skills, Items and Run are always shown (faded when not usable); Attack only when offered. The
+## ultimate is never drawn here (its button is on the team gauge).
 func _option_shown(option: int) -> bool:
-	return option in [Option.SKILLS, Option.ITEMS, Option.RUN] or _option_entry(option) >= 0
+	return option in [Option.SKILLS, Option.ITEMS, Option.RUN] or (option == Option.ATTACK and _attack_entry >= 0)
 
 
 func _option_usable(option: int) -> bool:
@@ -407,11 +482,20 @@ func _option_usable(option: int) -> bool:
 
 
 func _pick_option(option: int) -> void:
+	if option == Option.ULTIMATE:
+		if _ultimate_entry < 0 or not bool(_entries[_ultimate_entry].usable):
+			Sfx.play("locked")
+			return
+		_option = option
+		ultimate_pressed.emit()
+		_use_entry(_ultimate_entry)
+		return
 	if not _option_shown(option) or option in SOON_OPTIONS:
 		Sfx.play("locked")
 		return
 	_option = option
 	if option != Option.SKILLS and option != Option.ITEMS:
+		_flash(_plates[option])
 		_use_entry(_option_entry(option))
 		return
 	var list := _skills_all if option == Option.SKILLS else _items_all
@@ -424,7 +508,8 @@ func _pick_option(option: int) -> void:
 		_listing = option
 		_skill_entries = list.duplicate()
 		_skill_cursor = 0
-		_build_skill_rows()
+		_scroll = 0
+		_build_rows()
 	_in_skills = true
 	_skill_cursor = clampi(_skill_cursor, 0, _skill_entries.size() - 1)
 	if not guide.is_empty():
@@ -445,7 +530,6 @@ func _start_hold() -> void:
 		Sfx.play("locked")
 		return
 	_hold_started_ms = Time.get_ticks_msec()
-	set_process(true)
 
 
 ## Drops a Back hold (the controller calls it before the lag calibration covers the menu).
@@ -467,16 +551,18 @@ func _stop_hold() -> void:
 
 
 func _process(_delta: float) -> void:
-	if _hold_started_ms < 0 or not visible or _in_skills or _choosing_target:
-		if _hold_started_ms >= 0:
-			_stop_hold()
-		set_process(false)
+	if not visible:
+		return
+	_cluster.queue_redraw()
+	if _hold_started_ms < 0:
+		return
+	if _in_skills or _choosing_target:
+		_stop_hold()
 		return
 	var held := Time.get_ticks_msec() - _hold_started_ms
 	_hold_ring.set_progress(clampf(float(held) / float(maxi(1, run_hold_ms)), 0.0, 1.0))
 	if held >= run_hold_ms:
 		_hold_started_ms = -1
-		set_process(false)
 		_hold_ring.set_progress(0.0)
 		_pick_option(Option.RUN)
 
@@ -499,10 +585,11 @@ func _use_entry(index: int) -> void:
 		return
 	Sfx.play("menu_confirm")
 	visible = false
+	_shown_layer = ""
 	chosen.emit((entry.ability as AbilityData).id, _default_target(entry))
 
 
-## Lights the option or skill row of an entry (the bot's picks show like a player's).
+## Lights the plate or row of an entry (the bot's picks show like a player's).
 func _show_entry(index: int) -> void:
 	if index == _attack_entry:
 		_in_skills = false
@@ -510,12 +597,15 @@ func _show_entry(index: int) -> void:
 	elif index == _ultimate_entry:
 		_in_skills = false
 		_option = Option.ULTIMATE
+	elif index == _run_entry:
+		_in_skills = false
+		_option = Option.RUN
 	else:
 		var listing := Option.ITEMS if _items_all.has(index) else Option.SKILLS
 		if _listing != listing:
 			_listing = listing
 			_skill_entries = (_items_all if listing == Option.ITEMS else _skills_all).duplicate()
-			_build_skill_rows()
+			_build_rows()
 		_in_skills = true
 		_option = listing
 		_skill_cursor = maxi(0, _skill_entries.find(index))
@@ -547,115 +637,478 @@ func _cycle_target(step: int) -> void:
 	target_changed.emit(int(targets[_target_index]))
 
 
-# --- building and drawing -----------------------------------------------------------------------
+# --- building -----------------------------------------------------------------------------------
 
-## Bottom-left corner, growing up and right. CombatHud sets other anchors before adding the menu;
-## this runs when it is added, so it wins. The offsets make a zero-size box at the corner, so the
-## panel always takes exactly its content's size and shrinks again when the skills list closes.
-func _pin_bottom_left() -> void:
-	set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	grow_horizontal = Control.GROW_DIRECTION_END
-	grow_vertical = Control.GROW_DIRECTION_BEGIN
-	offset_left = MARGIN
-	offset_right = MARGIN
-	offset_top = -MARGIN
-	offset_bottom = -MARGIN
+## A slanted black plate over a plate in `back` (Persona 5's layered print look).
+static func _plate_style(back: Color, border_px: int = 2, height: float = PLATE_HEIGHT) -> StyleBoxFlat:
+	var style := HudStyle.slant(HudStyle.INK_SOLID, HudStyle.EDGE, border_px, 6, height)
+	style.shadow_color = back
+	style.shadow_size = 1
+	style.shadow_offset = BACK_PLATE
+	return style
 
 
-func _inner_width() -> float:
-	return MENU_WIDTH - 2.0 * float(PADDING)
+## Where each Option's socket sits in the cluster (the diamond: Y top, X left, B right, A
+## bottom). The ultimate has no socket in the diamond: its button sits on its own plate.
+static func _socket_spot(option: int) -> Vector2:
+	match option:
+		Option.ATTACK:
+			return DIAMOND_CENTRE + Vector2(0.0, ARM)
+		Option.SKILLS:
+			return DIAMOND_CENTRE + Vector2(-ARM, 0.0)
+		Option.ITEMS:
+			return DIAMOND_CENTRE + Vector2(0.0, -ARM)
+		Option.RUN:
+			return DIAMOND_CENTRE + Vector2(ARM, 0.0)
+	return DIAMOND_CENTRE
 
 
-## One main option: its button picture (follows keyboard or pad), its name and a tag on the right.
-func _add_option_row(option: int) -> void:
-	var row := PanelContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var line := HBoxContainer.new()
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_theme_constant_override("separation", ROW_GAP)
-	row.add_child(line)
-	var chips := CenterContainer.new()
-	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chips.custom_minimum_size = Vector2(CHIP_COLUMN_WIDTH, 0.0)
-	chips.add_child(HintBar.new([[OPTION_ACTIONS[option], ""]], OPTION_SIZE, HudStyle.TEXT))
-	line.add_child(chips)
-	var label := HudStyle.make_label("", OPTION_SIZE)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.add_child(label)
-	var tag := HudStyle.make_label("", TAG_SIZE)
-	tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.add_child(tag)
-	_options_box.add_child(row)
-	_option_rows.append(row)
-	_option_chips.append(chips)
-	_option_names.append(label)
-	_option_tags.append(tag)
-
-
-func _build_skill_rows() -> void:
-	for row: PanelContainer in _skill_rows:
-		_skills_box.remove_child(row)
-		row.queue_free()
-	_skill_rows.clear()
-	_skill_names.clear()
-	_skill_costs.clear()
-	for i: int in _skill_entries.size():
-		var row := PanelContainer.new()
-		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+func _build_main() -> void:
+	_cluster = Cluster.new()
+	_cluster.size = CLUSTER
+	_cluster.pivot_offset = DIAMOND_CENTRE
+	add_child(_cluster)
+	# The hub: the hero's AP in the middle of the ring.
+	_ap_label = HudStyle.make_number("", AP_SIZE, HudStyle.AP_TEXT)
+	_ap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cluster.add_child(_ap_label)
+	_ap_caption = HudStyle.make_title("AP", AP_LABEL_SIZE, HudStyle.AP_TEXT)
+	_ap_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cluster.add_child(_ap_caption)
+	for option: int in Option.size():
+		if not DIAMOND.has(option):
+			_sockets.append(null)
+			_plates.append(null)
+			_plate_names.append(null)
+			_plate_tags.append(null)
+			_plate_rest.append(Color.WHITE)
+			continue
+		var socket := Socket.new()
+		socket.diameter = SOCKET_PX
+		socket.add_child(_chip(OPTION_ACTIONS[option]))
+		_sockets.append(socket)
+		var plate := PanelContainer.new()
+		plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		plate.add_theme_stylebox_override("panel", _plate_style(_accent))
 		var line := HBoxContainer.new()
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		line.add_theme_constant_override("separation", ROW_GAP)
-		row.add_child(line)
-		var label := HudStyle.make_label("", SKILL_SIZE)
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_theme_constant_override("separation", 10)
+		plate.add_child(line)
+		var label := HudStyle.make_title(OPTION_NAMES[option], PLATE_SIZE)
+		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		line.add_child(label)
-		var cost := HudStyle.make_label("", SKILL_SIZE)
-		cost.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		line.add_child(cost)
-		_skills_box.add_child(row)
-		_skill_rows.append(row)
-		_skill_names.append(label)
-		_skill_costs.append(cost)
+		var tag := HudStyle.make_title("", TAG_SIZE)
+		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(tag)
+		_cluster.add_child(plate)
+		_cluster.add_child(socket)
+		_plates.append(plate)
+		_plate_names.append(label)
+		_plate_tags.append(tag)
+		_plate_rest.append(Color.WHITE)
+	# A ring around the Run button fills up while Back is held.
+	_hold_ring = HoldRing.new()
+	_hold_ring.radius = SOCKET_PX * HOLD_RING_SHARE * 0.5
+	_sockets[Option.RUN].add_child(_hold_ring)
+	_hold_ring.position = Vector2(SOCKET_PX, SOCKET_PX) * 0.5
 
+
+## A button picture that follows keyboard or pad.
+func _chip(action: StringName) -> HintBar:
+	return HintBar.new([[action, ""]], CHIP_SIZE, HudStyle.TEXT)
+
+
+func _build_list() -> void:
+	_list = PanelContainer.new()
+	_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_list.custom_minimum_size = Vector2(LIST_WIDTH, 0.0)
+	_list.visible = false
+	add_child(_list)
+	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_theme_constant_override("separation", 6)
+	_list.add_child(column)
+	var header := HBoxContainer.new()
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(header)
+	_list_title = HudStyle.make_title("", LIST_TITLE_SIZE, HudStyle.GOLD)
+	_list_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_list_title)
+	_list_ap = HudStyle.make_title("", LIST_TITLE_SIZE - 6, HudStyle.AP_TEXT)
+	_list_ap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	header.add_child(_list_ap)
+	_more_above = HudStyle.make_label("▲", 16, HudStyle.EDGE)
+	_more_above.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_more_above)
+	_rows_box = VBoxContainer.new()
+	_rows_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rows_box.add_theme_constant_override("separation", 4)
+	column.add_child(_rows_box)
+	_more_below = HudStyle.make_label("▼", 16, HudStyle.EDGE)
+	_more_below.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_more_below)
+	column.add_child(ListMenu.divider(LIST_WIDTH - 60.0))
+	_description = HudStyle.make_label("", DESCRIPTION_SIZE)
+	_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_description.custom_minimum_size = Vector2(LIST_WIDTH - 48.0, 0.0)
+	column.add_child(_description)
+	_hint = HintBar.new([[&"@updown", "Choose"], [&"menu_confirm", "Use"], [&"menu_cancel", "Back"]], HINT_SIZE)
+	_hint.alignment = BoxContainer.ALIGNMENT_END
+	column.add_child(_hint)
+
+
+func _build_target() -> void:
+	_target = PanelContainer.new()
+	_target.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_target.custom_minimum_size = Vector2(LIST_WIDTH, 0.0)
+	_target.visible = false
+	add_child(_target)
+	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_theme_constant_override("separation", 6)
+	_target.add_child(column)
+	column.add_child(HudStyle.make_title(TARGET_TITLE, TARGET_TITLE_SIZE, HudStyle.GOLD))
+	_target_name = HudStyle.make_title("", TARGET_NAME_SIZE)
+	_target_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_target_name)
+	_target_detail = HudStyle.make_label("", DESCRIPTION_SIZE)
+	_target_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_target_detail.custom_minimum_size = Vector2(LIST_WIDTH - 48.0, 0.0)
+	column.add_child(_target_detail)
+	_target_hint = HintBar.new([[&"@leftright", "Target"], [&"menu_confirm", "Go"], [&"menu_cancel", "Back"]], HINT_SIZE)
+	_target_hint.alignment = BoxContainer.ALIGNMENT_END
+	column.add_child(_target_hint)
+
+
+func _build_rows() -> void:
+	for row: PanelContainer in _row_panels:
+		_rows_box.remove_child(row)
+		row.queue_free()
+	_row_panels.clear()
+	_row_names.clear()
+	_row_costs.clear()
+	_row_marks.clear()
+	for i: int in mini(VISIBLE_ROWS, _skill_entries.size()):
+		var row := PanelContainer.new()
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.custom_minimum_size = Vector2(0.0, ROW_HEIGHT)
+		var line := HBoxContainer.new()
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_theme_constant_override("separation", 10)
+		row.add_child(line)
+		var mark := HudStyle.make_title("▶", ROW_SIZE - 8, HudStyle.GOLD)
+		mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(mark)
+		var label := HudStyle.make_title("", ROW_SIZE)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(label)
+		var cost := HudStyle.make_title("", ROW_SIZE - 4)
+		cost.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(cost)
+		_rows_box.add_child(row)
+		_row_panels.append(row)
+		_row_names.append(label)
+		_row_costs.append(cost)
+		_row_marks.append(mark)
+
+
+# --- placing ------------------------------------------------------------------------------------
+
+## The cluster's top-left: the diamond's centre BESIDE_PX right of the hero, at their middle,
+## kept inside the safe area (without a hero box: the bottom-right corner of it).
+func _cluster_spot() -> Vector2:
+	var safe := _safe if _safe.size.x > 0.0 else Rect2(Vector2.ZERO, size)
+	if _body.size.x <= 0.0:
+		return _fit(safe.end - _content.end, _content, safe)
+	var home := Vector2(_body.end.x + BESIDE_PX, _body.get_center().y) - DIAMOND_CENTRE
+	return _best_spot(home, _content, safe, CLUSTER_TRIES)
+
+
+## Moves `spot` so `content` (offset by it) stays inside `safe`.
+static func _fit(spot: Vector2, content: Rect2, safe: Rect2) -> Vector2:
+	spot.x = clampf(spot.x, safe.position.x - content.position.x, maxf(safe.position.x - content.position.x,
+			safe.end.x - content.end.x))
+	spot.y = clampf(spot.y, safe.position.y - content.position.y, maxf(safe.position.y - content.position.y,
+			safe.end.y - content.end.y))
+	return spot.round()
+
+
+## Of `home` moved by each of `tries` (kept inside `safe`), the first spot where `content` covers
+## the least of the boxes to avoid.
+func _best_spot(home: Vector2, content: Rect2, safe: Rect2, tries: Array[Vector2]) -> Vector2:
+	var best := _fit(home, content, safe)
+	var best_cover := INF
+	for offset: Vector2 in tries:
+		var spot := _fit(home + offset, content, safe)
+		var box := Rect2(content.position + spot, content.size)
+		# The acting hero counts double: the menu stands beside them, never on them.
+		var cover := box.intersection(_body.grow(12.0)).get_area() * 2.0
+		for other: Rect2 in _avoid:
+			cover += box.intersection(other).get_area()
+		if cover < best_cover - 1.0:
+			best_cover = cover
+			best = spot
+	return best
+
+
+## A list or the target panel beside the hero (or where the cluster is), inside the safe area.
+func _place_panel(panel: Control) -> void:
+	panel.reset_size()
+	var safe := _safe if _safe.size.x > 0.0 else Rect2(Vector2.ZERO, size)
+	var box := Rect2(Vector2.ZERO, panel.size)
+	if _body.size.x <= 0.0:
+		panel.position = _fit(safe.end - panel.size, box, safe)
+		return
+	var home := Vector2(_body.end.x + LIST_GAP, _body.get_center().y - panel.size.y * 0.5)
+	panel.position = _best_spot(home, box, safe, PANEL_TRIES)
+
+
+## Every plate beside its socket (a long keyboard key makes its socket wider), the AP in the hub.
+func _layout_plates() -> void:
+	_ap_label.reset_size()
+	_ap_label.position = DIAMOND_CENTRE - Vector2(_ap_label.size.x * 0.5, _ap_label.size.y * 0.62)
+	_ap_caption.reset_size()
+	_ap_caption.position = DIAMOND_CENTRE + Vector2(-_ap_caption.size.x * 0.5, HUB_RADIUS * 0.3)
+	for option: int in DIAMOND:
+		var plate := _plates[option]
+		if not plate.visible:
+			continue
+		var socket := _sockets[option]
+		socket.outward = -1.0 if option == Option.SKILLS else (1.0 if option == Option.RUN else 0.0)
+		socket.position = _socket_spot(option) - Vector2(socket.diameter, socket.diameter) * 0.5
+		plate.reset_size()
+		var spot := _socket_spot(option)
+		var y := spot.y - plate.size.y * 0.5
+		match option:
+			Option.SKILLS:
+				plate.position = Vector2(spot.x - socket.reach(-1.0) - PLATE_GAP - plate.size.x, y)
+			_:
+				plate.position = Vector2(spot.x + socket.reach(1.0) + PLATE_GAP, y)
+		plate.position = plate.position.round()
+	var ring := ARM + 16.0
+	_content = Rect2(DIAMOND_CENTRE - Vector2(ring, ring), Vector2(ring, ring) * 2.0)
+	for option: int in DIAMOND:
+		if _plates[option].visible:
+			_content = _content.merge(Rect2(_plates[option].position, _plates[option].size + BACK_PLATE))
+
+
+# --- drawing ------------------------------------------------------------------------------------
 
 func _redraw() -> void:
-	var lit := _redraw_options()
-	var lit_skill := _redraw_skills()
-	if lit_skill != null:
-		lit = lit_skill
-	if lit != _lit_row:
-		_lit_row = lit
-		if lit != null and visible:
-			# The newly chosen row lights up for a moment, like ListMenu's rows.
-			lit.modulate = ListMenu.SELECTED_FLASH
-			lit.create_tween().tween_property(lit, "modulate", Color.WHITE, ListMenu.SELECTED_FLASH_S)
-	_redraw_footer()
+	var layer := "main"
+	if _choosing_target:
+		layer = "target"
+	elif _in_skills:
+		layer = "list"
+	_cluster.visible = layer == "main"
+	_list.visible = layer == "list"
+	_target.visible = layer == "target"
+	match layer:
+		"main":
+			_redraw_main()
+		"list":
+			_redraw_list()
+		"target":
+			_redraw_target()
+	if not _placed:
+		_cluster.position = _cluster_spot()
+		_placed = true
+	_layout_plates()
+	if _list.visible:
+		_place_panel(_list)
+	if _target.visible:
+		_place_panel(_target)
+	if layer != _shown_layer and visible:
+		_shown_layer = layer
+		_animate_in(layer)
 	_redraw_guide()
 
 
-## The tutorial's guided row pulses: the option leading to it, or the skill in the open list.
+## The diamond's plates: usable ones black over the hero's colour, the rest faded and grey.
+func _redraw_main() -> void:
+	_ap_label.text = str(actor_ap)
+	for option: int in DIAMOND:
+		var plate := _plates[option]
+		var socket := _sockets[option]
+		var shown := _option_shown(option)
+		plate.visible = shown
+		socket.visible = shown
+		if not shown:
+			continue
+		var usable := _option_usable(option)
+		var entry := _option_entry(option)
+		var ability: AbilityData = (_entries[entry].ability as AbilityData) if entry >= 0 else null
+		var tag := ""
+		var tag_color := HudStyle.AP_TEXT
+		if usable:
+			match option:
+				Option.RUN:
+					tag = HOLD_TAG
+					tag_color = HudStyle.JUMP
+				Option.ITEMS:
+					tag = str(_items_all.size())
+				Option.ATTACK:
+					tag = _cost_text(ability) if ability != null else ""
+		if option in SOON_OPTIONS:
+			tag = SOON_TAG
+		_plate_names[option].label_settings.font_color = HudStyle.TEXT if usable else HudStyle.TEXT_DIM
+		_plate_tags[option].text = tag
+		_plate_tags[option].visible = not tag.is_empty()
+		_plate_tags[option].label_settings.font_color = tag_color
+		var back := _accent if usable else LOCKED_BACK
+		var style := _plate_style(back)
+		style.border_color = HudStyle.EDGE if usable else HudStyle.EDGE_DIM
+		plate.add_theme_stylebox_override("panel", style)
+		_plate_rest[option] = Color.WHITE if usable else LOCKED_TINT
+		plate.modulate = _plate_rest[option]
+		socket.modulate = _plate_rest[option]
+		socket.ring = _accent.lightened(0.2) if usable else HudStyle.EDGE_DIM
+		socket.queue_redraw()
+
+
+## The skills or items list: the rows in view, the chosen one lit, the description under them.
+func _redraw_list() -> void:
+	_list.add_theme_stylebox_override("panel", _list_style())
+	_list_title.text = "SKILLS" if _listing == Option.SKILLS else "ITEMS"
+	_list_ap.text = "AP  %d / %d" % [actor_ap, max_ap] if max_ap > 0 else ""
+	if _skill_cursor < _scroll:
+		_scroll = _skill_cursor
+	elif _skill_cursor >= _scroll + VISIBLE_ROWS:
+		_scroll = _skill_cursor - VISIBLE_ROWS + 1
+	_scroll = clampi(_scroll, 0, maxi(0, _skill_entries.size() - VISIBLE_ROWS))
+	_more_above.modulate.a = 1.0 if _scroll > 0 else 0.0
+	_more_below.modulate.a = 1.0 if _scroll + VISIBLE_ROWS < _skill_entries.size() else 0.0
+	for i: int in _row_panels.size():
+		var index := _scroll + i
+		var row := _row_panels[i]
+		row.visible = index < _skill_entries.size()
+		if not row.visible:
+			continue
+		var entry: Dictionary = _entries[_skill_entries[index]]
+		var ability := entry.ability as AbilityData
+		var lit := index == _skill_cursor
+		var usable := bool(entry.usable)
+		_row_names[i].text = ability.display_name
+		_row_costs[i].text = _cost_text(ability)
+		var color := HudStyle.TEXT if usable else HudStyle.TEXT_DIM
+		if lit and usable:
+			color = Color.WHITE
+		_row_names[i].label_settings.font_color = color
+		_row_costs[i].label_settings.font_color = HudStyle.AP_TEXT if usable else HudStyle.TEXT_DIM
+		_row_marks[i].modulate.a = 1.0 if lit else 0.0
+		var style: StyleBoxFlat
+		if lit:
+			style = _plate_style(_accent if usable else LOCKED_BACK, 2, ROW_HEIGHT)
+			style.bg_color = Color(_accent.darkened(0.55), 0.97) if usable else HudStyle.INK_SOLID
+			style.border_color = HudStyle.GOLD if usable else HudStyle.EDGE_DIM
+		else:
+			style = HudStyle.slant(Color(1.0, 1.0, 1.0, 0.04), Color(0, 0, 0, 0), 0, 4, ROW_HEIGHT, HudStyle.SLANT, false)
+		row.add_theme_stylebox_override("panel", style)
+	var focus := _skill_entries[_skill_cursor] if not _skill_entries.is_empty() else -1
+	if focus >= 0:
+		var entry: Dictionary = _entries[focus]
+		var text := (entry.ability as AbilityData).description
+		if not bool(entry.usable):
+			text += "\n" + String(entry.reason)
+		_description.text = text
+	else:
+		_description.text = ITEMS_TEXT if _listing == Option.ITEMS else SKILLS_TEXT
+
+
+func _redraw_target() -> void:
+	_target.add_theme_stylebox_override("panel", _list_style())
+	var entry: Dictionary = _entries[_target_entry]
+	var targets: Array = entry.targets
+	var target := int(targets[_target_index])
+	var arrows := targets.size() > 1
+	_target_name.text = ("◀   %s   ▶" if arrows else "%s") % String(_names.get(target, "?")).to_upper()
+	_target_detail.text = "%s: %s" % [(entry.ability as AbilityData).display_name, (entry.ability as AbilityData).description]
+
+
+## The list and target panels: black, gold edge, the hero's colour showing under them.
+func _list_style() -> StyleBoxFlat:
+	var style := HudStyle.slant(HudStyle.INK_SOLID, HudStyle.EDGE, 2, 16, 400.0, 0.06)
+	style.shadow_color = Color(_accent, 0.9)
+	style.shadow_size = 1
+	style.shadow_offset = BACK_PLATE * 1.4
+	return style
+
+
+## A layer arrives: the diamond pops in small and tilted, its buttons fly out of the centre and
+## the plates slide out after them; a list or the target panel slides in from the side.
+func _animate_in(layer: String) -> void:
+	if layer == "main":
+		_cluster.scale = Vector2.ONE * POP_SCALE
+		_cluster.rotation = POP_TILT
+		_cluster.modulate.a = 0.0
+		var pop := _cluster.create_tween().set_parallel(true)
+		pop.tween_property(_cluster, "scale", Vector2.ONE, POP_S).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		pop.tween_property(_cluster, "rotation", 0.0, POP_S).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		pop.tween_property(_cluster, "modulate:a", 1.0, POP_S * 0.5)
+		var order: Array[int] = [Option.ATTACK, Option.SKILLS, Option.ITEMS, Option.RUN]
+		for i: int in order.size():
+			var option := order[i]
+			var socket := _sockets[option]
+			if socket.visible:
+				var home := socket.position
+				socket.position = DIAMOND_CENTRE - socket.size * 0.5
+				var fly := socket.create_tween()
+				fly.tween_property(socket, "position", home, POP_S).set_delay(STAGGER_S * i) \
+						.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			var plate := _plates[option]
+			if plate.visible:
+				var rest := plate.position
+				var from := DIAMOND_CENTRE.x - plate.size.x * 0.5
+				plate.position = Vector2(lerpf(rest.x, from, 0.35), rest.y)
+				plate.modulate = Color(_plate_rest[option], 0.0)
+				var slide := plate.create_tween().set_parallel(true)
+				slide.tween_property(plate, "position", rest, POP_S).set_delay(STAGGER_S * (i + 2)) \
+						.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+				slide.tween_property(plate, "modulate", _plate_rest[option], POP_S * 0.6).set_delay(STAGGER_S * (i + 2))
+		return
+	var panel := _list if layer == "list" else _target
+	var home := panel.position
+	panel.position = home + Vector2(-SLIDE_PX, 0.0)
+	panel.modulate.a = 0.0
+	var tween := panel.create_tween().set_parallel(true)
+	tween.tween_property(panel, "position", home, POP_S * 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(panel, "modulate:a", 1.0, POP_S * 0.5)
+
+
+## A plate flashes bright for a moment when its button is pressed.
+func _flash(node: Control) -> void:
+	node.modulate = PRESS_FLASH
+	node.create_tween().tween_property(node, "modulate", Color.WHITE, PRESS_FLASH_S)
+
+
+## The tutorial's guided plate or row pulses: the option leading to it, or the skill in the open
+## list.
 func _redraw_guide() -> void:
-	var row: Control = null
+	var node: Control = null
 	if not guide.is_empty() and visible and not _choosing_target:
 		var index := _guide_entry()
 		if _in_skills and _skill_entries.has(index):
-			row = _skill_rows[_skill_entries.find(index)]
+			var row := _skill_entries.find(index) - _scroll
+			if row >= 0 and row < _row_panels.size():
+				node = _row_panels[row]
 		elif not _in_skills and _guide_option() >= 0:
-			row = _option_rows[_guide_option()]
-	if row == _guide_row:
+			node = _plates[_guide_option()]
+	if node == _guide_node:
 		return
 	if _guide_tween != null:
 		_guide_tween.kill()
 		_guide_tween = null
-	if is_instance_valid(_guide_row):
-		_guide_row.modulate = Color.WHITE
-	_guide_row = row
-	if row == null:
+	if is_instance_valid(_guide_node):
+		# Back to its own look now (a plate that got locked since stays faded).
+		var plate := _plates.find(_guide_node)
+		_guide_node.modulate = _plate_rest[plate] if plate >= 0 else Color.WHITE
+	_guide_node = node
+	if node == null:
 		return
-	_guide_tween = row.create_tween().set_loops()
-	_guide_tween.tween_property(row, "modulate", GUIDE_GLOW, GUIDE_PULSE_S * 0.5).set_trans(Tween.TRANS_SINE)
-	_guide_tween.tween_property(row, "modulate", Color.WHITE, GUIDE_PULSE_S * 0.5).set_trans(Tween.TRANS_SINE)
+	_guide_tween = node.create_tween().set_loops()
+	_guide_tween.tween_property(node, "modulate", GUIDE_GLOW, GUIDE_PULSE_S * 0.5).set_trans(Tween.TRANS_SINE)
+	_guide_tween.tween_property(node, "modulate", Color.WHITE, GUIDE_PULSE_S * 0.5).set_trans(Tween.TRANS_SINE)
 
 
 ## The entry the tutorial allows (-1: none).
@@ -682,119 +1135,6 @@ func _guide_option() -> int:
 	return Option.ITEMS if _items_all.has(index) else Option.SKILLS
 
 
-## Draws the main options; returns the lit row.
-func _redraw_options() -> Control:
-	_options_box.modulate = RESTING_OPTIONS if _in_skills else Color.WHITE
-	var lit_row: Control = null
-	for option: int in Option.size():
-		var row := _option_rows[option]
-		row.visible = _option_shown(option)
-		if not row.visible:
-			continue
-		# No cursor on this layer: each option has its own button. The tutorial lights its choice.
-		var lit := option == _guide_option()
-		var usable := _option_usable(option)
-		var entry := _option_entry(option)
-		var ability: AbilityData = (_entries[entry].ability as AbilityData) if entry >= 0 else null
-		_option_names[option].text = ability.display_name if ability != null else OPTION_NAMES[option]
-
-		var tag := ""
-		var tag_color := HudStyle.AP_TEXT
-		if option == Option.ULTIMATE:
-			tag = READY_TAG if usable else LOCKED_TAG
-			tag_color = HudStyle.GAUGE_FILL
-		elif option in SOON_OPTIONS:
-			tag = SOON_TAG
-		elif option == Option.RUN:
-			tag = HOLD_TAG if usable else NO_RUN_TAG
-		elif option == Option.ITEMS:
-			tag = str(_items_all.size()) if usable else ""
-		elif ability != null:
-			tag = _cost_text(ability)
-		var color := HudStyle.TEXT
-		if not usable:
-			color = HudStyle.TEXT_DIM.lightened(0.15) if lit else HudStyle.TEXT_DIM
-			tag_color = HudStyle.TEXT_DIM
-		elif lit:
-			color = HudStyle.GOLD
-		elif option == Option.ULTIMATE:
-			color = HudStyle.GAUGE_FILL
-		_option_names[option].label_settings.font_color = color
-		_option_tags[option].text = tag
-		_option_tags[option].label_settings.font_color = tag_color
-		_option_chips[option].modulate = Color.WHITE if usable else LOCKED_CHIP
-		# The chosen option is lit with the same gold bar as the menus outside fights.
-		row.add_theme_stylebox_override("panel", ListMenu.row_style(lit, ROW_PAD_X))
-		if lit:
-			lit_row = row
-	return lit_row
-
-
-## Draws the skills list (shown only in the skills layer); returns the lit row, or null.
-func _redraw_skills() -> Control:
-	_skills_box.visible = _in_skills
-	_skills_divider.visible = _in_skills
-	if not _in_skills:
-		return null
-	var lit_row: Control = null
-	for i: int in _skill_rows.size():
-		var entry: Dictionary = _entries[_skill_entries[i]]
-		var ability := entry.ability as AbilityData
-		var lit := i == _skill_cursor
-		var usable := bool(entry.usable)
-		_skill_names[i].text = ability.display_name
-		_skill_costs[i].text = _cost_text(ability)
-		var color := HudStyle.TEXT
-		if not usable:
-			color = HudStyle.TEXT_DIM.lightened(0.15) if lit else HudStyle.TEXT_DIM
-		elif lit:
-			color = HudStyle.GOLD
-		_skill_names[i].label_settings.font_color = color
-		_skill_costs[i].label_settings.font_color = HudStyle.AP_TEXT if usable else color
-		_skill_rows[i].add_theme_stylebox_override("panel", ListMenu.row_style(lit, ROW_PAD_X))
-		if lit:
-			lit_row = _skill_rows[i]
-	return lit_row
-
-
-## The description of what is highlighted, the target being chosen and the button hints.
-func _redraw_footer() -> void:
-	var entry_index := _focused_entry()
-	if entry_index >= 0:
-		var entry: Dictionary = _entries[entry_index]
-		var text := (entry.ability as AbilityData).description
-		if not bool(entry.usable):
-			text += "\n" + String(entry.reason)
-		_description.text = text
-	elif _listing == Option.ITEMS:
-		_description.text = ITEMS_TEXT if not _items_all.is_empty() else NO_ITEMS_TEXT
-	else:
-		_description.text = SKILLS_TEXT if not _skills_all.is_empty() else NO_SKILLS_TEXT
-	_target_label.visible = _choosing_target
-	if _choosing_target:
-		var target := int((_entries[_target_entry].targets as Array)[_target_index])
-		_target_label.text = "Target: %s" % String(_names.get(target, "?"))
-		# Kept to two hints so the row fits the panel's width with keyboard key names.
-		_hint.set_entries([[&"@leftright", "Target"], [&"menu_cancel", "Back"]])
-	elif _in_skills:
-		_hint.set_entries([[&"@updown", "Choose"], [&"menu_confirm", "Use"], [&"menu_cancel", "Back"]])
-	else:
-		# Each option shows its own button: no extra hints.
-		_hint.set_entries([])
-	_hint.visible = _choosing_target or _in_skills
-	# The main layer has no cursor, so nothing to describe until a skill or target is chosen.
-	_description.visible = _choosing_target or _in_skills
-
-
-## The entry whose description shows (-1: the Skills option itself is highlighted).
-func _focused_entry() -> int:
-	if _choosing_target:
-		return _target_entry
-	if _in_skills:
-		return _skill_entries[_skill_cursor] if not _skill_entries.is_empty() else -1
-	return _option_entry(_option)
-
-
 ## "2 AP" for a skill that costs AP, "+1 AP" for one that gives it, else "".
 func _cost_text(ability: AbilityData) -> String:
 	if ability.ap_cost > 0:
@@ -804,9 +1144,103 @@ func _cost_text(ability: AbilityData) -> String:
 	return ""
 
 
+## The diamond's backdrop: a thin gold ring through the four buttons with slowly turning ticks,
+## and a dark hub ringed in the hero's colour (the AP sits on it).
+class Cluster extends Control:
+	var accent: Color = HudStyle.GOLD
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := ActionMenu.DIAMOND_CENTRE
+		var r := ActionMenu.ARM
+		draw_circle(c + ActionMenu.BACK_PLATE, r + 6.0, Color(0.0, 0.0, 0.0, 0.35))
+		draw_circle(c, r + 6.0, Color(0.02, 0.015, 0.03, 0.55))
+		draw_arc(c, r, 0.0, TAU, 72, Color(HudStyle.EDGE, 0.85), 3.0, true)
+		draw_arc(c, r + 10.0, 0.0, TAU, 72, Color(HudStyle.EDGE, 0.3), 1.5, true)
+		var spin := float(Time.get_ticks_msec()) * 0.001 * ActionMenu.TICK_SPIN
+		for i: int in ActionMenu.TICKS:
+			var a := spin + TAU * float(i) / float(ActionMenu.TICKS)
+			var dir := Vector2(cos(a), sin(a))
+			draw_line(c + dir * (r + 6.0), c + dir * (r + 14.0), Color(HudStyle.EDGE, 0.6), 2.0, true)
+		draw_circle(c + ActionMenu.BACK_PLATE * 0.6, ActionMenu.HUB_RADIUS, Color(accent, 0.9))
+		draw_circle(c, ActionMenu.HUB_RADIUS, HudStyle.INK_SOLID)
+		draw_arc(c, ActionMenu.HUB_RADIUS, 0.0, TAU, 48, HudStyle.EDGE, 2.0, true)
+
+
+## A round dark socket with a thin ring in the hero's colour, holding a button picture in its
+## middle (or, for a wide keyboard key, a slab as wide as the key).
+class Socket extends Control:
+	var diameter: float = 60.0
+	var ring: Color = HudStyle.EDGE
+	## Which way a wide key's slab grows: -1 left, 1 right (away from the hub, so it never covers
+	## the AP), 0 both ways.
+	var outward: float = 0.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _process(_delta: float) -> void:
+		size = Vector2(diameter, diameter)
+		for child: Node in get_children():
+			if child is HintBar:
+				var chip := child as Control
+				chip.reset_size()
+				chip.position = (size - chip.size) * 0.5 + Vector2(_shift(), 0.0)
+
+	## How far a wide slab's middle sits from the socket's middle.
+	func _shift() -> float:
+		return (visual_width() - diameter) * 0.5 * outward
+
+	## How far the socket reaches to the left and the right of its middle.
+	func reach(side: float) -> float:
+		return visual_width() * 0.5 + _shift() * side
+
+	## How wide the socket draws (a long keyboard key makes it a slab wider than the circle).
+	func visual_width() -> float:
+		return maxf(diameter, _chip_width() + 20.0)
+
+	## The widest button picture inside (read from the chips themselves, so it is right before the
+	## hint row has been laid out).
+	func _chip_width() -> float:
+		return _widest_chip(self)
+
+	static func _widest_chip(node: Node) -> float:
+		var widest := 0.0
+		for child: Node in node.get_children():
+			if child is ButtonChip:
+				widest = maxf(widest, (child as Control).custom_minimum_size.x)
+			else:
+				widest = maxf(widest, _widest_chip(child))
+		return widest
+
+	func _draw() -> void:
+		if diameter <= 0.0:
+			return
+		var centre := Vector2(diameter, diameter) * 0.5
+		var r := diameter * 0.5
+		var wide := visual_width() - diameter
+		if wide > 0.0:
+			var rect := Rect2(centre - Vector2(r + wide * 0.5 - _shift(), r), Vector2(diameter + wide, diameter))
+			var box := StyleBoxFlat.new()
+			box.bg_color = HudStyle.INK_SOLID
+			box.border_color = ring
+			box.set_border_width_all(3)
+			box.set_corner_radius_all(int(r))
+			box.shadow_color = Color(0.0, 0.0, 0.0, 0.55)
+			box.shadow_size = 1
+			box.shadow_offset = ActionMenu.BACK_PLATE * 0.6
+			draw_style_box(box, rect)
+			return
+		draw_circle(centre + ActionMenu.BACK_PLATE * 0.6, r, Color(0.0, 0.0, 0.0, 0.55))
+		draw_circle(centre, r, HudStyle.INK_SOLID)
+		draw_arc(centre, r - 1.5, 0.0, TAU, 48, ring, 3.0, true)
+
+
 ## A ring around the Run button that fills clockwise from the top while Back is held.
 class HoldRing extends Control:
-	## Drawn around this control's middle; the control itself has no size.
+	## Drawn around this control's position; the control itself has no size.
 	var radius: float = 24.0
 	var _progress: float = 0.0
 
@@ -822,7 +1256,6 @@ class HoldRing extends Control:
 	func _draw() -> void:
 		if _progress <= 0.0:
 			return
-		var centre := size * 0.5
-		draw_arc(centre, radius, 0.0, TAU, 48, ActionMenu.HOLD_RING_TRACK, ActionMenu.HOLD_RING_WIDTH, true)
+		draw_arc(Vector2.ZERO, radius, 0.0, TAU, 48, ActionMenu.HOLD_RING_TRACK, ActionMenu.HOLD_RING_WIDTH, true)
 		var start := -PI * 0.5
-		draw_arc(centre, radius, start, start + TAU * _progress, 48, HudStyle.JUMP, ActionMenu.HOLD_RING_WIDTH, true)
+		draw_arc(Vector2.ZERO, radius, start, start + TAU * _progress, 48, HudStyle.JUMP, ActionMenu.HOLD_RING_WIDTH, true)

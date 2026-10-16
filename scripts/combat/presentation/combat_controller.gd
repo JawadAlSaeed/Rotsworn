@@ -80,6 +80,8 @@ var _encounter: EncounterData
 var _tuning: Tuning
 var _visuals: CombatVisuals
 var _options: CombatOptions
+## The hero the turn spotlight is on (-1: none).
+var _spot_actor: int = -1
 ## --attacks: the next listed attack to force, and whether the last sequence was an enemy attack.
 var _forced_next: int = 0
 var _forced_seq_was_attack: bool = false
@@ -673,6 +675,7 @@ func _play(ev: Dictionary) -> void:
 				_awaiting_turn = int(ev.turn)
 		"ability_used":
 			mirror.apply(ev)
+			_spotlight(-1)
 			_awaiting_turn = -1
 			_refresh()
 			var used := _abilities.get(String(ev.ability)) as AbilityData
@@ -681,6 +684,7 @@ func _play(ev: Dictionary) -> void:
 				await _play_party_action(ev)
 		"item_used":
 			mirror.apply(ev)
+			_spotlight(-1)
 			_awaiting_turn = -1
 			_refresh()
 			await _play_item_used(ev)
@@ -703,6 +707,7 @@ func _play(ev: Dictionary) -> void:
 			_menu_turn = -1
 			_waiting_runner = true
 			_set_active_pose(-1)
+			_spotlight(-1)
 			if String(ev.kind) == CombatEngine.SEQUENCE_SKILL:
 				_shout(int(ev.source), _abilities.get(String(ev.action)) as AbilityData)
 				skill_runner.start(ev, _abilities.get(String(ev.action)) as AbilityData)
@@ -717,6 +722,7 @@ func _play(ev: Dictionary) -> void:
 			mirror.apply(ev)
 			# A turn the tutorial passed may still have its menu open.
 			hud.action_menu.close()
+			_spotlight(-1)
 			view.camera.reset_shot()
 			_refresh()
 			event_played.emit(ev)
@@ -766,6 +772,7 @@ func _maybe_open_menu() -> void:
 		hud.action_menu.close()
 		view.camera.shot_turn(view.home_of(actor))
 		_set_active_pose(actor)
+		_spotlight(actor)
 		hud.show_center_banner("%s is choosing" % HudStyle.player_tag(owner), HudStyle.player_color(owner),
 				_visuals.first_strike_banner_ms)
 		return
@@ -803,11 +810,34 @@ func _maybe_open_menu() -> void:
 			if (entry.ability as AbilityData).id != tutorial_guide:
 				entry.usable = false
 				entry.reason = TUTORIAL_LOCKED
-	var player := _players.owner_of(_owner_slot(actor)) if _players.is_coop() else -1
-	hud.action_menu.open(String(mirror.fighter(actor).display_name), data.color, entries, names, player)
+	hud.action_menu.actor_ap = int(mirror.fighter(actor).ap)
+	hud.action_menu.actor_id = actor
+	_spotlight(actor)
+	hud.action_menu.max_ap = _tuning.max_ap
+	hud.action_menu.open(data.color, entries, names)
 	view.camera.shot_turn(view.home_of(actor))
 	_set_active_pose(actor)
 	menu_opened.emit(actor)
+	if not _options.menu_keys.is_empty():
+		_press_menu_keys.call_deferred()
+
+
+## --menu-keys (dev tool, pictures of the menu): presses those actions on the menu; "|" starts the
+## next turn's list.
+func _press_menu_keys() -> void:
+	var keys := PackedStringArray()
+	while not _options.menu_keys.is_empty():
+		var action := _options.menu_keys[0]
+		_options.menu_keys.remove_at(0)
+		if action == "|":
+			break
+		keys.append(action)
+	for action: String in keys:
+		await get_tree().create_timer(0.35).timeout
+		var press := InputEventAction.new()
+		press.action = StringName(action)
+		press.pressed = true
+		hud.action_menu.handle_input(press)
 
 
 ## One action menu line, worked out from the mirror (the same rules the engine checks).
@@ -885,6 +915,7 @@ func _on_ability_chosen(ability_id: String, target_id: int) -> void:
 		targets.append(target_id)
 	_menu_turn = -1
 	_sent_turn = mirror.turn
+	_spotlight(-1)
 	if ability_id.begins_with(ITEM_PREFIX):
 		var uid := int(ability_id.substr(ITEM_PREFIX.length()))
 		_enqueue(_submit(CombatCommands.use_item(mirror.turn, mirror.active_actor, uid, targets)))
@@ -893,11 +924,7 @@ func _on_ability_chosen(ability_id: String, target_id: int) -> void:
 
 
 func _on_target_changed(target_id: int) -> void:
-	var v := view.fighter(target_id)
-	if v == null:
-		hud.set_target_marker(Vector3.ZERO, false)
-	else:
-		hud.set_target_marker(v.head_position(), true)
+	hud.set_target(target_id)
 
 
 func _on_combat_ended(result: String) -> void:
@@ -906,6 +933,7 @@ func _on_combat_ended(result: String) -> void:
 	_ended_at_us = Time.get_ticks_usec()
 	hud.action_menu.close()
 	_set_active_pose(-1)
+	_spotlight(-1)
 	match result:
 		"victory":
 			Sfx.play("victory")
@@ -1391,6 +1419,32 @@ func _burst(id: int, color: Color) -> void:
 
 
 ## Ready pose for the party member whose turn it is (-1: nobody).
+## The turn spotlight (card #154): the acting hero steps forward onto a gold ring, the other heroes
+## step away from them and dim, so whose turn it is reads at once. -1 sends everyone home.
+func _spotlight(actor: int) -> void:
+	if actor == _spot_actor:
+		return
+	_spot_actor = actor
+	var seconds := float(_visuals.turn_spot_ms) / 1000.0
+	var centre := view.home_of(actor) if actor >= 0 else Vector3.ZERO
+	for id: int in mirror.party_ids:
+		var v := view.fighter(id)
+		if v == null:
+			continue
+		if actor < 0:
+			v.set_stage(Vector3.ZERO, Color.WHITE, seconds)
+			v.set_floor_warning(0.0, _visuals.turn_ring_color)
+		elif id == actor:
+			v.set_stage(_visuals.turn_step, Color.WHITE, seconds)
+			v.set_floor_warning(_visuals.turn_ring_alpha, _visuals.turn_ring_color)
+		else:
+			# Back (away from the camera) and out to their own side, so they clear the menu.
+			var side := signf(view.home_of(id).x - centre.x)
+			var away := Vector3(side * 0.45, 0.0, -0.9).normalized() * _visuals.turn_step_away
+			v.set_stage(away, _visuals.bystander_tint, seconds)
+			v.set_floor_warning(0.0, _visuals.turn_ring_color)
+
+
 func _set_active_pose(actor: int) -> void:
 	for id: int in mirror.party_ids:
 		var v := view.fighter(id)

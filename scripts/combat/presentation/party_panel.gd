@@ -1,13 +1,17 @@
 class_name PartyPanel
 extends PanelContainer
-## One party member's panel at the bottom of the screen: portrait, name (title font, in the hero's
-## accent colour), HP bar with the numbers drawn on it (damage trail, red when low), AP gems (up to
-## max_ap), status line, DOWN state, co-op player tag, the active-turn highlight (gold) and the
-## "being attacked" highlight (red). Values come from the mirror. Slim on purpose: three panels
-## leave both bottom corners free (action menu or defence controls on the left, team gauge on the
-## right).
+## One party member's card at the bottom left of the screen (restyled in card #154 as a slanted
+## ink plate): portrait, name (title font, in the hero's accent colour), HP bar with the numbers
+## drawn on it (damage trail, red when low), AP gems (up to max_ap), status line, DOWN state, co-op
+## player tag, the active-turn highlight (gold edge and glow, the card steps up a little) and the
+## "being attacked" highlight (red). Values come from the mirror. The three cards leave the bottom
+## right corner to the action menu and the defence buttons.
 
-const PANEL_WIDTH: float = 284.0
+const PANEL_WIDTH: float = 300.0
+## The card's slant and its glow while it is this hero's turn (or they are under attack).
+const CARD_HEIGHT: float = 112.0
+const GLOW_PX: int = 10
+const ACTIVE_SCALE: float = 1.04
 const PADDING: int = 10
 const PORTRAIT_PX: float = 64.0
 const PORTRAIT_PAD: int = 2
@@ -43,6 +47,8 @@ var _pip_full: Texture2D
 var _pip_empty: Texture2D
 var _active: bool = false
 var _targeted: bool = false
+## Whether the card is (or is growing to be) stepped up for this hero's turn.
+var _lifted: bool = false
 
 
 ## `portrait` is the hero's face (null leaves the frame empty).
@@ -51,7 +57,7 @@ func setup(id: int, display_name: String, accent: Color, portrait: Texture2D, ma
 	fighter_id = id
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(PANEL_WIDTH, 0.0)
-	_style = HudStyle.panel(HudStyle.PANEL_BG, HudStyle.PANEL_BORDER, IDLE_BORDER_PX, PADDING)
+	_style = HudStyle.slant(HudStyle.INK, HudStyle.EDGE_DIM, IDLE_BORDER_PX, PADDING, CARD_HEIGHT, 0.12)
 	add_theme_stylebox_override("panel", _style)
 	_pip_full = AssetLoader.texture(visuals.ap_pip_path, Vector2i(10, 10))
 	_pip_empty = AssetLoader.texture(visuals.ap_pip_empty_path, Vector2i(10, 10))
@@ -79,7 +85,7 @@ func setup(id: int, display_name: String, accent: Color, portrait: Texture2D, ma
 
 	_hp_bar = TrailBar.new(HudStyle.HP_FILL, HP_BAR_HEIGHT, visuals.hp_trail_color, visuals.hp_trail_hold_ms,
 			visuals.hp_trail_drain_ms, visuals.heal_fill_ms)
-	_hp_text = HudStyle.make_label("", HP_TEXT_SIZE)
+	_hp_text = HudStyle.make_number("", HP_TEXT_SIZE)
 	info.add_child(PartyPanel.text_on_bar(_hp_bar, _hp_text))
 
 	var gems := _box(HBoxContainer.new(), GEM_GAP)
@@ -151,13 +157,24 @@ func set_targeted(targeted: bool) -> void:
 
 
 func _apply_border() -> void:
-	var color := HudStyle.PANEL_BORDER
+	var color := HudStyle.EDGE_DIM
 	if _targeted:
 		color = HudStyle.LATE
 	elif _active:
 		color = HudStyle.GOLD
+	var lit := _targeted or _active
 	_style.border_color = color
-	_style.set_border_width_all(ACTIVE_BORDER_PX if _targeted or _active else IDLE_BORDER_PX)
+	_style.set_border_width_all(ACTIVE_BORDER_PX if lit else IDLE_BORDER_PX)
+	_style.border_width_left = ACTIVE_BORDER_PX * 2 if lit else IDLE_BORDER_PX
+	# A lit card glows in its colour instead of the usual hard ink shadow.
+	_style.shadow_color = Color(color, 0.55) if lit else HudStyle.PLATE_SHADOW
+	_style.shadow_size = GLOW_PX if lit else 1
+	_style.shadow_offset = Vector2.ZERO if lit else HudStyle.PLATE_SHADOW_OFFSET
+	pivot_offset = Vector2(size.x * 0.5, size.y)
+	if _lifted != _active:
+		_lifted = _active
+		var wanted := Vector2.ONE * (ACTIVE_SCALE if _active else 1.0)
+		create_tween().tween_property(self, "scale", wanted, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _make_portrait(texture: Texture2D, accent: Color) -> PanelContainer:

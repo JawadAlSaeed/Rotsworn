@@ -25,3 +25,11 @@ extends Resource
 ## How much of the static shows on menu text, in percent (100 = all of it; 0 = no effect at all:
 ## plain gold letters). The logo's own static (BrandingData) is separate.
 @export_range(0, 100, 1, "suffix:%") var select_static_percent: int = 100
+
+@export_group("Numbers and popups")
+## HP, AP, the team gauge and damage numbers (card #154): a bold font with lining figures (every
+## digit the same height; the body font's default old-style digits looked uneven and cheap).
+@export_file("*.ttf", "*.otf") var number_font_path: String = "res://assets/fonts/AlegreyaSans-Bold.ttf"
+## The fight's floating words and damage numbers (PERFECT, PARRY, 128) lean like Persona 5's: how
+## far the letters slant (a share of their height).
+@export_range(0.0, 0.5, 0.01) var popup_slant: float = 0.2

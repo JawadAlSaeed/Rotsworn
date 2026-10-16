@@ -251,7 +251,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_active = true
 	_animating = true
 	_input.arm_all()
-	_hud.show_banner(_banner_text())
+	_hud.show_banner(String(_event.get("name", "?")), HudStyle.LATE, _banner_text())
 	_hud.set_defending(true)
 	var kinds: Array = []
 	var times: Array = []
@@ -1184,10 +1184,11 @@ func _last_impact_us() -> int:
 	return int((_hits[_hits.size() - 1] as Dictionary).at_ms) * 1000
 
 
+## The banner's small line: who attacks whom ("GNAT SWARM  >  CASS > ALDER").
 func _banner_text() -> String:
 	var enemy_name := String(_mirror.fighter(_source).get("display_name", "?"))
 	var target_text := CombatHud.target_text(_mirror, int(_event.get("mode", 0)), _targets)
-	return "%s: %s -> %s" % [enemy_name.to_upper(), String(_event.get("name", "?")), target_text]
+	return "%s  >  %s" % [enemy_name.to_upper(), target_text]
 
 
 func _each_in_turn() -> bool:

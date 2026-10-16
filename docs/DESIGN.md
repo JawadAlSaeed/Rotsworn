@@ -1361,6 +1361,73 @@ not match the screen; no time to read before the enemy attacked. **Rebuilt (`Tut
   tutorial" in the pause menu, first strike + Husk at 50% speed, `--screen=tutorial`,
   `--tutorial-step=N`.
 
+### 7.9 Fight HUD restyle (card #154, user 2026-10-15)
+
+The user called this make or break: the fight screen must be engaging, look awesome and nothing
+may overlap. Direction picked by the user: Expedition 33's calm layout with Persona 5's punch.
+Built while the user was away, reworked with them, approved 2026-10-16.
+
+- **One look:** every fight plate is a dark ink plate slanted like Persona 5's (StyleBoxFlat skew,
+  `HudStyle.slant()`), edged in a calm worn gold, with a hard offset ink shadow. Lit things (the
+  acting hero, a hero under attack, the current turn) glow in their colour instead. Big words
+  (TEAM COUNTER, a co-op "is choosing", VICTORY / DEFEAT) sit on a full-width ink band with gold
+  edges; VICTORY punches in.
+- **Layout (1920x1080, nothing overlaps):** turn order as a turn track down the left edge (user,
+  2026-10-16; it fades to 30% while an attack or a skill plays, when the camera moves in close), attack banner at the very top centre (above the enemies' throws and
+  spits; moved left when it would reach the enemy panels),
+  enemy panels top right, party cards bottom left with the team gauge as a fourth card, and the
+  bottom-right corner shows the DEFEND buttons while an enemy attack plays and the skill press
+  while a skill plays.
+- **Turn track** (user: the first column "seems basic"): a dark band fading to the right, a thin
+  gold track down its left side with a diamond marker per turn (gold and glowing for the current
+  one, else the fighter's colour, enemies red). Each turn is a slanted portrait card and a name
+  plate (black over the fighter's colour, a coloured left edge) with a slim HP bar. No hit icons
+  (user: the intent belongs on the enemy panels, where "NEXT" already shows it). The current turn steps out of the column, bigger, glowing,
+  with a gold NOW ribbon and a gold arm from the track; later turns fade back step by step. When a
+  turn ends the column slides up one place, the new leader pops in and the old one slides off to
+  the left.
+- **Whose turn (user, after the first try: "I don't know if it's my turn"):** the acting hero
+  steps forward onto a glowing gold ring on the floor, and the other heroes step back and out to
+  their side and dim (`turn_step`, `turn_step_away`, `turn_spot_ms`, `turn_ring_*` in
+  combat_visuals.tres). Everyone steps home when the choice is made.
+- **Action menu beside the hero (Persona 5 and Expedition 33):** the command diamond floats next
+  to the acting hero and follows them as the camera moves. Of a few spots beside the hero it takes
+  the first that covers neither the hero, the enemies, nor the enemy panels. The four face buttons
+  sit in a diamond around a thin gold ring with slowly turning ticks and the hero's AP in its
+  middle: Y Items (top), X Skills (left), B Run (right, hold), A Attack (bottom). Each plate is Persona 5's layered print: a black slanted plate
+  over one in the hero's colour. Anything that cannot be used now fades to grey (Items with no
+  items).
+- **The ultimate's button is on the team gauge** (user, 2026-10-16, like Expedition 33): the gauge
+  card shows "RT UNLEASH" under the bar, faded while the gauge fills, gold once it is full, and
+  breathing gold while a hero can use it now. RT on a hero's turn uses it (the gauge card
+  flashes); it is no longer in the diamond. Keyboard keys show on
+  the keyboard; a long key like Backspace gets a wide socket that grows away from the ring. No
+  name tag (user: the gold light and the lit hero card already say whose turn it is). Opening it, the diamond pops in small and tilted, the buttons fly out of the centre and
+  the plates slide out after them; a pressed plate flashes. Skills and Items open beside the hero
+  as a list of slanted rows (6 in view, the list scrolls; the chosen row is lit in the hero's
+  colour with a gold edge), the hero's AP in its header, the description and button hints under
+  it. The target step shows CHOOSE A TARGET with the target's name between arrows.
+- **Numbers and floating words (user: "the numbers and some words font" felt cheap):** the body
+  font's default digits were old-style (uneven heights). Every number now uses lining, tabular
+  digits; HP, AP and the gauge use a bold number font (`UiFonts.number_font_path`, Alegreya Sans
+  Bold) with a thin dark edge and a soft drop shadow instead of the thick outline. Damage numbers
+  and the floating words (PERFECT, PARRY, MISS, COUNTER) use the same bold font slanted like
+  Persona 5's (`UiFonts.popup_slant`) with a heavier edge.
+- **Target lock-on:** while a target is chosen, four gold corner brackets snap onto it and
+  breathe, with a bouncing chevron over it (it replaced the small arrow, which the enemy panels
+  could hide).
+- **Enemy panels:** short (name and HP numbers on one line, a slim bar), all the same width, and
+  each holds the enemy's next move: "NEXT  Sting String  >  CASS" with its hit icons. The
+  floating intent signs under the enemies are gone (`intent_sign_gap_px` is unused now).
+- **Attack banner:** the move's name big (worn title letters), a small line over it saying who
+  uses it on whom ("GNAT SWARM  >  CASS > ALDER"), the hit icons under it; it punches in.
+- **Defend corner:** a red DEFEND tag over three slanted plates, PARRY, DODGE and JUMP, each in its
+  defence colour with its button, and the two rules in small print. The skill press corner is the
+  same with a gold PRESS ON THE BEAT tag.
+- Dev tools: `--menu-keys=ACTION,...` presses those input actions on the action menu the first time
+  it opens ("|" moves on to the next turn's menu; for pictures of the skills list, the target step
+  or a later hero's turn); `--key-prompts` keeps keyboard keys shown even with a pad plugged in.
+
 ## 8. Run structure (phase 4)
 
 Slay-the-Spire style branching node map (host picks path). Node types: zone (small explorable
@@ -2203,6 +2270,10 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Lag calibration page laid out centred like the other pages | user (#113) |
 | 2026-10-15 | Run map is an old paper map that unrolls, with painted places instead of letters | user (#111) |
 | 2026-10-15 | Run map scrolls (a tall sheet between two rollers, like Slay the Spire) | user: close rows left no room for the paths |
+| 2026-10-15 | Fight HUD restyled: slanted Persona 5 plates, party cards bottom left, intent on the enemy panels, target lock-on (7.9) | user (#154), approved 2026-10-16 |
+| 2026-10-15 | Action menu floats beside the acting hero; the hero steps forward onto a gold ring, the others step back and dim; locked options fade; no name tag | user: it felt cheap and the turn was unclear |
+| 2026-10-16 | Turn order is a column on the left; the attack banner sits at the top; the ultimate's button (RT UNLEASH) is on the team gauge, not in the action menu | user: frees the top above enemy throws, cleaner menu |
+| 2026-10-15 | Lining digits everywhere; bold number font for HP, AP, gauge; slanted bold popups and damage numbers | user: the numbers' font felt cheap |
 | 2026-10-15 | Hero portraits are painted pictures (made by the user with an AI image tool) turned into pixel art; big cards on the players screen, 64x64 faces everywhere else | user (#140, #141); a code-drawn try looked bad |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |
 | 2026-10-15 | Tutorial on a practice fight where nobody can die, steps checked from fight events; offered once on the first New Run | user approved the six lessons (#131) |

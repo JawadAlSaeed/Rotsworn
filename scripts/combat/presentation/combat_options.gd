@@ -23,6 +23,10 @@ extends RefCounted
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
 ##                                   title, credits, party, heroes, attributes, skills, calibration,
 ##                                   tutorial, map, map_start
+##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the
+##                                   action menu opens, press these input actions on it (for
+##                                   example fight_skills,menu_down), then leave it waiting; "|"
+##                                   moves on to the next turn's menu
 ##   --attacks=ID,ID,...             (practice fights) the enemy uses these attacks in this order,
 ##                                   round and round (dev tool, for pictures of one move)
 
@@ -59,6 +63,8 @@ var bot_skill: int = DEFAULT_BOT_SKILL
 ## --shots=S (0: no pictures) and --screen=NAME ("" : the normal start).
 var shots_every_s: float = 0.0
 var screen: String = ""
+## --menu-keys=ACTION,... (dev tool; empty: none).
+var menu_keys: PackedStringArray = PackedStringArray()
 ## --attacks=ID,ID,... (empty: the enemy picks as always).
 var forced_attacks: PackedStringArray = PackedStringArray()
 ## Session toggles (F1 overlay; not saved): telegraph flash (G), timing readout (T), the
@@ -115,6 +121,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.shots_every_s = maxf(0.0, arg.substr("--shots=".length()).to_float())
 		elif arg.begins_with("--screen="):
 			options.screen = arg.substr("--screen=".length())
+		elif arg.begins_with("--menu-keys="):
+			options.menu_keys = arg.substr("--menu-keys=".length()).replace("|", ",|,").split(",", false)
 		elif arg.begins_with("--attacks="):
 			options.forced_attacks = arg.substr("--attacks=".length()).split(",", false)
 		elif arg.begins_with("--join="):
