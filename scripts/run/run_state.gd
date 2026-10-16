@@ -16,13 +16,34 @@ const SHOP_SALT: int = 104729
 const SPOT_SALT: int = 15485863
 const DROP_SALT: int = 32452843
 const CHEST_SALT: int = 49979687
+## Long zones (DESIGN.md 8.5): the layout of a zone visit, a deal's find, a champion's prize chest.
+const ZONE_SALT: int = 67867967
+const OFFER_SALT: int = 86028121
+const PRIZE_SALT: int = 104395301
+## Phase 15 stops and acts (DESIGN.md 8.6 to 8.11).
+const ACT_SALT: int = 122949829
+const ELITE_SALT: int = 141650939
+const EVENT_SALT: int = 160481183
+const TREASURE_SALT: int = 179424673
+const RESTOCK_SALT: int = 198491317
 ## Every piece of gear starts from this weight before rarity scales it.
 const GEAR_WEIGHT: int = 100
 
 var data: RunData
 var tuning: Tuning
 var run_seed: int = 1
+## The current act's map (a new one each act, DESIGN.md 8.9).
 var map: RunMap
+## The act the party is in (0 = the first).
+var act: int = 0
+## Stops visited in the whole run (every act).
+var visited: int = 0
+## Attribute points each hero got at campfires (Train), on top of their levels' (DESIGN.md 8.11).
+var bonus_points: Array[int] = []
+## Events met this run (their ids): an event never comes twice (DESIGN.md 8.7).
+var events_seen: Array[String] = []
+## How many times the shop at the current stop was restocked (DESIGN.md 8.10).
+var restocks: int = 0
 ## The stop the party is at (-1: before the first stop).
 var at: int = -1
 ## Stops visited, in order.
@@ -59,10 +80,11 @@ static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int) -> RunState:
 	run.data = run_data
 	run.tuning = p_tuning
 	run.run_seed = p_seed
-	run.map = RunMap.generate(CombatRng.new(p_seed), p_tuning, run_data.zones.size())
+	run.map = run._make_map(0)
 	run.gold = p_tuning.run_start_gold
 	run.backpack = Backpack.new(p_tuning.backpack_width, p_tuning.backpack_rows)
 	for c: CharacterData in run_data.party:
+		run.bonus_points.append(0)
 		run.max_hp_percent.append(100)
 		run.levels.append(1)
 		run.xps.append(0)
@@ -98,6 +120,8 @@ func to_dict() -> Dictionary:
 		"unlocked": unlocked.duplicate(true), "loadout": loadout.duplicate(true),
 		"backpack": backpack.to_array(),
 		"fights_won": fights_won, "gold_earned": gold_earned, "result": result,
+		"act": act, "visited": visited, "bonus_points": Array(bonus_points), "events_seen": Array(events_seen),
+		"restocks": restocks,
 	}
 
 
@@ -112,17 +136,18 @@ static func from_dict(run_data: RunData, p_tuning: Tuning, d: Dictionary) -> Run
 
 ## Sets this run (same seed) to to_dict() data. False (and nothing changed) if it does not fit.
 func apply_dict(d: Dictionary) -> bool:
-	for key: String in ["seed", "at", "gold", "team_gauge", "fights_won", "gold_earned"]:
+	for key: String in ["seed", "at", "gold", "team_gauge", "fights_won", "gold_earned", "act", "visited", "restocks"]:
 		if typeof(d.get(key)) != TYPE_INT:
 			return false
 	if int(d.seed) != run_seed or typeof(d.get("result")) != TYPE_STRING:
 		return false
 	for key: String in ["path", "hp", "max_hp_percent", "levels", "xps", "attributes", "gear", "backpack",
-			"unlocked", "loadout"]:
+			"unlocked", "loadout", "bonus_points", "events_seen"]:
 		if not d.get(key) is Array:
 			return false
 	var size := party_size()
-	for key: String in ["hp", "max_hp_percent", "levels", "xps", "attributes", "gear", "unlocked", "loadout"]:
+	for key: String in ["hp", "max_hp_percent", "levels", "xps", "attributes", "gear", "unlocked", "loadout",
+			"bonus_points"]:
 		if (d[key] as Array).size() != size:
 			return false
 	for key: String in ["unlocked", "loadout"]:
@@ -149,12 +174,24 @@ func apply_dict(d: Dictionary) -> bool:
 	var new_pack := Backpack.from_array(d.backpack, items_by_id())
 	if new_pack == null:
 		return false
-	for key: String in ["path", "hp", "max_hp_percent", "levels", "xps"]:
+	for key: String in ["path", "hp", "max_hp_percent", "levels", "xps", "bonus_points"]:
 		for v: Variant in d[key]:
 			if typeof(v) != TYPE_INT:
 				return false
-	if int(d.at) != -1 and map.stop(int(d.at)).is_empty():
+	for v: Variant in d.events_seen:
+		if typeof(v) != TYPE_STRING:
+			return false
+	if int(d.act) < 0 or int(d.act) >= acts().size():
 		return false
+	var act_map := map if int(d.act) == act else _make_map(int(d.act))
+	if int(d.at) != -1 and act_map.stop(int(d.at)).is_empty():
+		return false
+	act = int(d.act)
+	map = act_map
+	visited = int(d.visited)
+	restocks = int(d.restocks)
+	bonus_points.assign(d.bonus_points)
+	events_seen.assign(d.events_seen)
 	at = int(d.at)
 	path.assign(d.path)
 	gold = int(d.gold)
@@ -287,20 +324,229 @@ func choices() -> Array[int]:
 func go(id: int) -> bool:
 	if is_over() or not choices().has(id):
 		return false
+	# The event is picked before the party is there (event_of then picks a fresh one).
+	var event := event_of(id) if int(map.stop(id).type) == RunMap.StopType.EVENT else null
 	at = id
 	path.append(id)
+	visited += 1
+	restocks = 0
+	if event != null:
+		events_seen.append(event.id)
 	return true
+
+
+# --- acts (DESIGN.md 8.9) -----------------------------------------------------------------------
+
+var _acts: Array[ActData] = []
+
+
+## The run's acts. A run without acts is one act made of its own zones and final fight.
+func acts() -> Array[ActData]:
+	if _acts.is_empty():
+		if not data.acts.is_empty():
+			_acts.assign(data.acts)
+		else:
+			var only := ActData.new()
+			only.id = data.id
+			only.display_name = data.display_name
+			only.zones = data.zones
+			only.final_encounter = data.final_encounter
+			only.final_look = data.final_look
+			only.final_map_icon_path = data.final_map_icon_path
+			_acts.append(only)
+	return _acts
+
+
+## The current act (or act `index`).
+func act_data(index: int = -1) -> ActData:
+	var list := acts()
+	return list[clampi(act if index < 0 else index, 0, list.size() - 1)]
+
+
+func is_last_act() -> bool:
+	return act >= acts().size() - 1
+
+
+## The fight at the top of this act's map.
+func final_encounter() -> EncounterData:
+	return act_data().final_encounter
+
+
+func final_look() -> StageLook:
+	return act_data().final_look
+
+
+## The current stop is this act's boss, beaten, and more acts follow (Main moves on with next_act).
+func act_cleared() -> bool:
+	return not is_over() and not is_last_act() and int(current().get("type", -1)) == RunMap.StopType.FINAL
+
+
+## On to the next act: its own map from the start, and everyone heals tuning.run_act_heal_percent.
+func next_act() -> bool:
+	if is_last_act():
+		return false
+	act += 1
+	map = _make_map(act)
+	at = -1
+	path.clear()
+	for slot: int in hp.size():
+		heal(slot, CombatMath.percent(max_hp(slot), tuning.run_act_heal_percent))
+	return true
+
+
+## Act `index`'s map. The first act's comes from the run's seed alone (as before acts existed).
+func _make_map(index: int) -> RunMap:
+	var rng := CombatRng.new(run_seed if index == 0 else absi(run_seed * 31 + index * ACT_SALT) % 2147483647 + 1)
+	return RunMap.generate(rng, tuning, act_data(index).zones.size())
+
+
+# --- elite, event and treasure stops (DESIGN.md 8.6 to 8.8) -------------------------------------
+
+## The elite fight at stop `stop_id` (seeded; deep acts and rows bring the deep version).
+func elite_of(stop_id: int) -> EncounterData:
+	var pool := act_data().elites
+	if pool.is_empty():
+		return null
+	var rng := CombatRng.new(_salted(stop_id * ELITE_SALT + act * 31))
+	var encounter := pool[rng.range_int(0, pool.size() - 1)]
+	var row := int(map.stop(stop_id).get("row", 0))
+	if (act_data().deep or row >= tuning.run_deep_row) and encounter.deep != null:
+		return encounter.deep
+	return encounter
+
+
+## The event at stop `stop_id`: seeded, never one already met this run (unless every one was).
+## Once the party is at the stop, it is the event go() recorded there.
+func event_of(stop_id: int) -> EventData:
+	var pool := act_data().events
+	if pool.is_empty():
+		return null
+	if stop_id == at and int(current().get("type", -1)) == RunMap.StopType.EVENT and not events_seen.is_empty():
+		for event: EventData in pool:
+			if event != null and event.id == events_seen.back():
+				return event
+	var fresh: Array[EventData] = []
+	for event: EventData in pool:
+		if event != null and not events_seen.has(event.id):
+			fresh.append(event)
+	if fresh.is_empty():
+		fresh.assign(pool)
+	var rng := CombatRng.new(_salted(stop_id * EVENT_SALT + act * 37))
+	return fresh[rng.range_int(0, fresh.size() - 1)]
+
+
+## True if the party can take event choice `choice` (it can pay the price).
+func can_choose(choice: EventChoiceData) -> bool:
+	return choice != null and (choice.deal == null or can_take_offer(choice.deal))
+
+
+## Takes event choice `index` at stop `stop_id`: its deal, and with its risk_percent (seeded) its
+## risk deal too. Items come back for the caller to put in the backpack. Returns {ok: bool,
+## text: String, items: Array[ItemData], risk: bool}.
+func choose_event(choice: EventChoiceData, stop_id: int, index: int) -> Dictionary:
+	var items: Array[ItemData] = []
+	if not can_choose(choice):
+		return {"ok": false, "text": "Not enough gold.", "items": items, "risk": false}
+	var lines: Array[String] = []
+	if not choice.done_text.is_empty():
+		lines.append(choice.done_text)
+	if choice.deal != null:
+		var got := take_offer(choice.deal, stop_id, 1000 + index)
+		if got.item != null:
+			items.append(got.item)
+		if String(got.text) != "Nothing happened.":
+			lines.append(String(got.text))
+	var risk := false
+	var rng := CombatRng.new(_salted(stop_id * EVENT_SALT + index * 23 + act))
+	if choice.risk_percent > 0 and choice.risk_deal != null and rng.range_int(0, 99) < choice.risk_percent:
+		risk = true
+		if not choice.risk_text.is_empty():
+			lines.append(choice.risk_text)
+		# A risk is never refused for lack of gold: it takes what there is.
+		var hurt := choice.risk_deal.duplicate() as ZoneOfferData
+		hurt.cost_gold = mini(hurt.cost_gold, gold)
+		var got := take_offer(hurt, stop_id, 1050 + index)
+		if got.item != null:
+			items.append(got.item)
+		if String(got.text) != "Nothing happened.":
+			lines.append(String(got.text))
+	return {"ok": true, "text": "\n".join(lines), "items": items, "risk": risk}
+
+
+## What the chest of treasure stop `stop_id` holds: a prize like a locked chest's, picked as if the
+## stop were a few rows deeper (rarer things).
+func treasure_contents(stop_id: int) -> Resource:
+	return _rare_prize(CombatRng.new(_salted(stop_id * TREASURE_SALT + act * 41)), _row_of(stop_id) + 4)
+
+
+## Opening the treasure also gives tuning.run_treasure_gold. Returns it.
+func take_treasure_gold() -> int:
+	gold += tuning.run_treasure_gold
+	gold_earned += tuning.run_treasure_gold
+	return tuning.run_treasure_gold
+
+
+# --- shop services and the campfire (DESIGN.md 8.10, 8.11) -------------------------------------
+
+## True if item `uid` can go up a level (it can be combined and is not legendary yet).
+func can_upgrade(uid: int) -> bool:
+	var e := backpack.entry(uid)
+	return not e.is_empty() and (e.item as ItemData).combinable() and entry_rarity(e) < ItemData.Rarity.LEGENDARY
+
+
+## Item `uid` goes up a level, for `price` gold (0 at the campfire). False if it cannot.
+func upgrade_item(uid: int, price: int = 0) -> bool:
+	if not can_upgrade(uid) or gold < price:
+		return false
+	gold -= price
+	backpack.entry(uid).level = level_of(backpack.entry(uid)) + 1
+	return true
+
+
+## Rotten items in the backpack (uids), for the shop to take away.
+func rotten_uids() -> Array[int]:
+	var found: Array[int] = []
+	for e: Dictionary in backpack.entries:
+		if (e.item as ItemData).rotten:
+			found.append(int(e.uid))
+	return found
+
+
+## The shop takes rotten item `uid` away for tuning.shop_cleanse_price gold.
+func cleanse(uid: int) -> bool:
+	if not rotten_uids().has(uid) or gold < tuning.shop_cleanse_price:
+		return false
+	gold -= tuning.shop_cleanse_price
+	backpack.remove(uid)
+	return true
+
+
+## New wares on the shelves for tuning.shop_restock_price gold (shop_stock, shop_gear and
+## shop_charms change).
+func restock() -> bool:
+	if gold < tuning.shop_restock_price:
+		return false
+	gold -= tuning.shop_restock_price
+	restocks += 1
+	return true
+
+
+## Campfire Train: every hero gets tuning.rest_train_points attribute points.
+func train() -> void:
+	for slot: int in bonus_points.size():
+		bonus_points[slot] += tuning.rest_train_points
 
 
 ## True when the current stop is deep enough for variant monsters (tuning run_deep_row).
 func is_deep() -> bool:
-	return int(current().get("row", 0)) >= tuning.run_deep_row
+	return act_data().deep or int(current().get("row", 0)) >= tuning.run_deep_row
 
 
 ## The zone of a zone stop (null for other stops).
 func zone_of(stop: Dictionary) -> ZoneData:
 	var index := int(stop.get("zone", -1))
-	return data.zones[index] if index >= 0 and index < data.zones.size() else null
+	var zones := act_data().zones
+	return zones[index] if index >= 0 and index < zones.size() else null
 
 
 # --- fights -----------------------------------------------------------------------------------
@@ -327,7 +573,8 @@ func gold_for(encounter: EncounterData) -> int:
 	var extra := int(charm_totals().get(GearData.Effect.GOLD, 0))
 	for slot: int in party_size():
 		extra += gear_amount(slot, GearData.Effect.GOLD)
-	return CombatMath.percent(encounter_gold(encounter), 100 + extra)
+	var won := CombatMath.percent(encounter_gold(encounter), 100 + extra)
+	return CombatMath.percent(won, tuning.elite_gold_percent) if encounter.elite else won
 
 
 ## The fight setup for an encounter in this run: the run's party, team ultimate, HP, max HP,
@@ -350,6 +597,9 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 	if not encounter.boss or tuning.run_enemy_scale_bosses:
 		setup.enemy_hp_percent = enemy_hp_percent()
 		setup.enemy_power_percent = enemy_power_percent()
+	if encounter.elite:
+		setup.enemy_hp_percent = CombatMath.percent(setup.enemy_hp_percent, tuning.elite_hp_percent)
+		setup.enemy_power_percent = CombatMath.percent(setup.enemy_power_percent, tuning.elite_power_percent)
 	return setup
 
 
@@ -363,8 +613,9 @@ func enemy_power_percent() -> int:
 	return 100 + _depth() * tuning.run_enemy_power_row_percent
 
 
+## Map rows walked so far: the rows of the acts before this one, then this act's row.
 func _depth() -> int:
-	return maxi(0, int(current().get("row", 0)))
+	return act * (tuning.run_map_rows + 1) + maxi(0, int(current().get("row", 0)))
 
 
 ## Takes the items used in a fight out of the backpack (uids that are already gone are skipped).
@@ -401,7 +652,7 @@ func finish_fight(fight_result: String, party_hp: Array[int], encounter: Encount
 	var up := _zeros()
 	for slot: int in party_size():
 		up[slot] = add_xp(slot, gained[slot])
-	if int(current().get("type", -1)) == RunMap.StopType.FINAL:
+	if int(current().get("type", -1)) == RunMap.StopType.FINAL and is_last_act():
 		result = VICTORY
 	return {"gold": won, "xp": gained, "levels": up}
 
@@ -486,7 +737,7 @@ func attribute(slot: int, kind: int) -> int:
 
 ## Every attribute point hero `slot` has earned so far.
 func earned_points(slot: int) -> int:
-	return tuning.attr_start_points + (levels[slot] - 1) * tuning.attr_points_per_level
+	return tuning.attr_start_points + (levels[slot] - 1) * tuning.attr_points_per_level + bonus_points[slot]
 
 
 ## Points hero `slot` has not spent yet.
@@ -696,6 +947,24 @@ func wants(item: ItemData) -> bool:
 	return true
 
 
+## The items (not charms) a shop stop has on its shelves: up to tuning.run_shop_items of the run's
+## shop list, picked for the stop (seeded; a restock picks again), in the list's order.
+func shop_stock(stop_id: int) -> Array[ItemData]:
+	var left: Array[ItemData] = []
+	for item: ItemData in data.shop_items:
+		if item != null:
+			left.append(item)
+	var rng := CombatRng.new(_salted(stop_id * SHOP_SALT + 29 + restocks * RESTOCK_SALT))
+	var picked: Array[ItemData] = []
+	while picked.size() < tuning.run_shop_items and not left.is_empty():
+		picked.append(left.pop_at(rng.range_int(0, left.size() - 1)))
+	var ordered: Array[ItemData] = []
+	for item: ItemData in data.shop_items:
+		if picked.has(item):
+			ordered.append(item)
+	return ordered
+
+
 ## The charms a shop stop sells: up to tuning.run_shop_charms of the run's found charms, never
 ## rotten, picked by rarity at the stop's row (seeded).
 func shop_charms(stop_id: int) -> Array[ItemData]:
@@ -703,7 +972,7 @@ func shop_charms(stop_id: int) -> Array[ItemData]:
 	for item: ItemData in data.found_items:
 		if item != null and item.is_charm() and not item.rotten and not left.has(item):
 			left.append(item)
-	var rng := CombatRng.new(_salted(stop_id * SHOP_SALT + 17))
+	var rng := CombatRng.new(_salted(stop_id * SHOP_SALT + 17 + restocks * RESTOCK_SALT + act * 53))
 	var picked: Array[ItemData] = []
 	var row := _row_of(stop_id)
 	while picked.size() < tuning.run_shop_charms and not left.is_empty():
@@ -971,8 +1240,16 @@ func _key_uid() -> int:
 ## time a piece of rare or better gear the party does not wear, else a rare or better item (any
 ## item if the run has none that rare). GearData or ItemData; null if nothing at all is left.
 func chest_contents(stop_id: int) -> Resource:
-	var rng := CombatRng.new(_salted(stop_id * CHEST_SALT))
-	var row := _row_of(stop_id)
+	return _rare_prize(CombatRng.new(_salted(stop_id * CHEST_SALT)), _row_of(stop_id))
+
+
+## What the prize chest of champion `roamer` in the zone at stop `stop_id` holds (DESIGN.md 8.5):
+## the same kind of prize as a locked chest, seeded apart from it.
+func prize_contents(stop_id: int, roamer: int) -> Resource:
+	return _rare_prize(CombatRng.new(_salted(stop_id * PRIZE_SALT + roamer * 17)), _row_of(stop_id))
+
+
+func _rare_prize(rng: CombatRng, row: int) -> Resource:
 	if rng.range_int(0, 99) < tuning.chest_gear_percent:
 		var gear_left: Array[GearData] = []
 		var weights: Array = []
@@ -985,6 +1262,58 @@ func chest_contents(stop_id: int) -> Resource:
 			return gear_left[index]
 	var found := _pick_found(rng, row, ItemData.Rarity.RARE)
 	return found if found != null else _pick_found(rng, row)
+
+
+## The seed of the zone visit at stop `stop_id` (DESIGN.md 8.5): which sections, enemies, seals,
+## shrines and wanderer it has. The same on every machine.
+func zone_seed(stop_id: int) -> int:
+	return _salted(stop_id * ZONE_SALT)
+
+
+## True if the party can pay for the shrine or wanderer's deal (HP prices can always be paid: a
+## hero never drops below 1 HP for one).
+func can_take_offer(offer: ZoneOfferData) -> bool:
+	return offer != null and gold >= offer.cost_gold
+
+
+## Takes deal `index` of the zone at stop `stop_id` (DESIGN.md 8.5): pays its price and gives its
+## gifts, all but the item, which comes back for the caller to put in the backpack. Returns
+## {ok: bool, text: String (what happened, one line), item: ItemData or null}. Nothing changes if
+## the gold is short.
+func take_offer(offer: ZoneOfferData, stop_id: int, index: int) -> Dictionary:
+	if not can_take_offer(offer):
+		return {"ok": false, "text": "Not enough gold.", "item": null}
+	var parts: Array[String] = []
+	gold -= offer.cost_gold
+	if offer.cost_hp_percent > 0:
+		for slot: int in hp.size():
+			if hp[slot] > 0:
+				hp[slot] = maxi(1, hp[slot] - CombatMath.percent(max_hp(slot), offer.cost_hp_percent))
+		parts.append("Everyone lost %d%% HP" % offer.cost_hp_percent)
+	if offer.heal_percent > 0:
+		for slot: int in hp.size():
+			heal(slot, CombatMath.percent(max_hp(slot), offer.heal_percent))
+		parts.append("Everyone healed %d%%" % offer.heal_percent)
+	if offer.gold > 0:
+		gold += offer.gold
+		gold_earned += offer.gold
+		parts.append("+%d gold" % offer.gold)
+	if offer.xp > 0:
+		for slot: int in xps.size():
+			add_xp(slot, offer.xp)
+		parts.append("+%d XP each" % offer.xp)
+	if offer.team_gauge > 0:
+		team_gauge = mini(tuning.team_gauge_max, team_gauge + offer.team_gauge)
+		parts.append("Team gauge +%d" % offer.team_gauge)
+	var item: ItemData = offer.item
+	if item == null and offer.find_rarity >= 0:
+		var rng := CombatRng.new(_salted(stop_id * OFFER_SALT + index * 19))
+		item = _pick_found(rng, _row_of(stop_id), offer.find_rarity)
+		if item == null:
+			item = _pick_found(rng, _row_of(stop_id))
+	if item != null:
+		parts.append("Got: %s" % item.display_name)
+	return {"ok": true, "text": ". ".join(parts) if not parts.is_empty() else "Nothing happened.", "item": item}
 
 
 ## What glinting spot `spot` of the zone at stop `stop_id` holds (seeded; null if nothing can be
@@ -1013,8 +1342,9 @@ func rarity_weight(weight: int, rarity: int, row: int) -> int:
 	return weight
 
 
+## How deep stop `stop_id` is for rarity: later acts count the rows of the acts before them.
 func _row_of(stop_id: int) -> int:
-	return int(map.stop(stop_id).get("row", 0))
+	return act * (tuning.run_map_rows + 1) + int(map.stop(stop_id).get("row", 0))
 
 
 ## One of the run's found items at least `min_rarity` rare, by find weight and rarity.
@@ -1045,7 +1375,8 @@ static func _weighted_index(rng: CombatRng, weights: Array) -> int:
 
 
 func _salted(salt: int) -> int:
-	return absi(run_seed * 31 + salt) % 2147483647 + 1
+	# Each act's stops are numbered from 0 again: the act keeps their seeds apart.
+	return absi(run_seed * 31 + salt + act * 1000003) % 2147483647 + 1
 
 
 # --- gear -------------------------------------------------------------------------------------
@@ -1060,20 +1391,26 @@ func owns(item: GearData) -> bool:
 
 ## The loot a stop offers: up to tuning.run_loot_choices items the party does not own (seeded).
 func loot_choices(stop_id: int) -> Array[GearData]:
-	return _pick_gear(stop_id * LOOT_SALT, tuning.run_loot_choices, _row_of(stop_id))
+	return _pick_gear(stop_id * LOOT_SALT + act * 43, tuning.run_loot_choices, _row_of(stop_id),
+			tuning.run_spoils_min_rarity)
 
 
 ## The gear a shop stop sells: up to tuning.run_shop_gear items the party does not own (seeded).
 func shop_gear(stop_id: int) -> Array[GearData]:
-	return _pick_gear(stop_id * SHOP_SALT, tuning.run_shop_gear, _row_of(stop_id))
+	return _pick_gear(stop_id * SHOP_SALT + restocks * RESTOCK_SALT + act * 47, tuning.run_shop_gear, _row_of(stop_id))
 
 
-## Up to `count` pieces the party does not wear, picked by rarity at map row `row` (seeded).
-func _pick_gear(salt: int, count: int, row: int) -> Array[GearData]:
+## Up to `count` pieces the party does not wear, picked by rarity at map row `row` (seeded), of at
+## least `min_rarity` while the run still has enough such pieces.
+func _pick_gear(salt: int, count: int, row: int, min_rarity: int = 0) -> Array[GearData]:
 	var left: Array[GearData] = []
 	for item: GearData in data.gear:
-		if item != null and not owns(item):
+		if item != null and not owns(item) and item.rarity >= min_rarity:
 			left.append(item)
+	if left.size() < count:
+		for item: GearData in data.gear:
+			if item != null and not owns(item) and not left.has(item):
+				left.append(item)
 	var rng := CombatRng.new(_salted(salt))
 	var picked: Array[GearData] = []
 	while picked.size() < count and not left.is_empty():

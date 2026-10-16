@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_daxam"]
+[ext_resource type="Resource" path="res://data/enemies/gorged_one.tres" id="2_mnqgx"]
+[ext_resource type="Resource" path="res://data/enemies/blood_gnats.tres" id="3_t3v6b"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="4_kc7el"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="5_pkx46"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="6_j304h"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="7_njou1"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="8_yvvab"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="9_iojwu"]
+
+[resource]
+script = ExtResource("8_yvvab")
+id = "deep_guard_gorged_one"
+display_name = "The Gorged One"
+party = Array[ExtResource("4_kc7el")]([ExtResource("5_pkx46"), ExtResource("6_j304h"), ExtResource("7_njou1")])
+enemies = Array[ExtResource("1_daxam")]([ExtResource("2_mnqgx"), ExtResource("3_t3v6b")])
+team_ultimate = ExtResource("9_iojwu")
+can_run = false
+mini_boss = true

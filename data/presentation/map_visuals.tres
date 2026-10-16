@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="MapVisuals" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/map_visuals.gd" id="1_mapvis"]
+
+[resource]
+script = ExtResource("1_mapvis")
+paper_path = "res://assets/sprites/ui/map_paper.png"
+roller_path = "res://assets/sprites/ui/map_roller.png"
+shop_icon_path = "res://assets/sprites/ui/map_shop.png"
+rest_icon_path = "res://assets/sprites/ui/map_rest.png"
+elite_icon_path = "res://assets/sprites/ui/map_elite.png"
+event_icon_path = "res://assets/sprites/ui/map_event.png"
+treasure_icon_path = "res://assets/sprites/ui/map_treasure.png"
+unreachable_alpha = 0.35
+legend_size = 24
+flag_path = "res://assets/sprites/ui/map_flag.png"
+ring_path = "res://assets/sprites/ui/map_ring.png"
+ring_big_path = "res://assets/sprites/ui/map_ring_big.png"
+pixel_scale = 3
+paper_top_gap = 32
+paper_bottom_gap = 32
+top_margin = 30
+bottom_margin = 70
+start_gap = 26
+column_gap = 110
+flag_offset = Vector2i(-16, -21)
+flag_start_offset = Vector2i(-2, -20)
+ink_color = Color(0.25, 0.16, 0.11, 1)
+walked_color = Color(0.56, 0.17, 0.13, 1)
+route_alpha = 0.6
+faded_alpha = 0.35
+dot_spacing = 3
+walked_dot_size = 2
+label_size = 24
+label_gap = 4
+scroll_speed = 300
+wheel_step = 24
+scroll_follow_ms = 120
+start_pan_ms = 1400
+unroll_ms = 900
+ink_ms = 260
+row_stagger_ms = 70
+flag_drop_ms = 220
+flag_drop_height = 10
+pulse_hz = 1.6

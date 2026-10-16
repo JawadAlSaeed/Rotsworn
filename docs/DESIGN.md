@@ -1361,6 +1361,73 @@ not match the screen; no time to read before the enemy attacked. **Rebuilt (`Tut
   tutorial" in the pause menu, first strike + Husk at 50% speed, `--screen=tutorial`,
   `--tutorial-step=N`.
 
+### 7.9 Fight HUD restyle (card #154, user 2026-10-15)
+
+The user called this make or break: the fight screen must be engaging, look awesome and nothing
+may overlap. Direction picked by the user: Expedition 33's calm layout with Persona 5's punch.
+Built while the user was away, reworked with them, approved 2026-10-16.
+
+- **One look:** every fight plate is a dark ink plate slanted like Persona 5's (StyleBoxFlat skew,
+  `HudStyle.slant()`), edged in a calm worn gold, with a hard offset ink shadow. Lit things (the
+  acting hero, a hero under attack, the current turn) glow in their colour instead. Big words
+  (TEAM COUNTER, a co-op "is choosing", VICTORY / DEFEAT) sit on a full-width ink band with gold
+  edges; VICTORY punches in.
+- **Layout (1920x1080, nothing overlaps):** turn order as a turn track down the left edge (user,
+  2026-10-16; it fades to 30% while an attack or a skill plays, when the camera moves in close), attack banner at the very top centre (above the enemies' throws and
+  spits; moved left when it would reach the enemy panels),
+  enemy panels top right, party cards bottom left with the team gauge as a fourth card, and the
+  bottom-right corner shows the DEFEND buttons while an enemy attack plays and the skill press
+  while a skill plays.
+- **Turn track** (user: the first column "seems basic"): a dark band fading to the right, a thin
+  gold track down its left side with a diamond marker per turn (gold and glowing for the current
+  one, else the fighter's colour, enemies red). Each turn is a slanted portrait card and a name
+  plate (black over the fighter's colour, a coloured left edge) with a slim HP bar. No hit icons
+  (user: the intent belongs on the enemy panels, where "NEXT" already shows it). The current turn steps out of the column, bigger, glowing,
+  with a gold NOW ribbon and a gold arm from the track; later turns fade back step by step. When a
+  turn ends the column slides up one place, the new leader pops in and the old one slides off to
+  the left.
+- **Whose turn (user, after the first try: "I don't know if it's my turn"):** the acting hero
+  steps forward onto a glowing gold ring on the floor, and the other heroes step back and out to
+  their side and dim (`turn_step`, `turn_step_away`, `turn_spot_ms`, `turn_ring_*` in
+  combat_visuals.tres). Everyone steps home when the choice is made.
+- **Action menu beside the hero (Persona 5 and Expedition 33):** the command diamond floats next
+  to the acting hero and follows them as the camera moves. Of a few spots beside the hero it takes
+  the first that covers neither the hero, the enemies, nor the enemy panels. The four face buttons
+  sit in a diamond around a thin gold ring with slowly turning ticks and the hero's AP in its
+  middle: Y Items (top), X Skills (left), B Run (right, hold), A Attack (bottom). Each plate is Persona 5's layered print: a black slanted plate
+  over one in the hero's colour. Anything that cannot be used now fades to grey (Items with no
+  items).
+- **The ultimate's button is on the team gauge** (user, 2026-10-16, like Expedition 33): the gauge
+  card shows "RT UNLEASH" under the bar, faded while the gauge fills, gold once it is full, and
+  breathing gold while a hero can use it now. RT on a hero's turn uses it (the gauge card
+  flashes); it is no longer in the diamond. Keyboard keys show on
+  the keyboard; a long key like Backspace gets a wide socket that grows away from the ring. No
+  name tag (user: the gold light and the lit hero card already say whose turn it is). Opening it, the diamond pops in small and tilted, the buttons fly out of the centre and
+  the plates slide out after them; a pressed plate flashes. Skills and Items open beside the hero
+  as a list of slanted rows (6 in view, the list scrolls; the chosen row is lit in the hero's
+  colour with a gold edge), the hero's AP in its header, the description and button hints under
+  it. The target step shows CHOOSE A TARGET with the target's name between arrows.
+- **Numbers and floating words (user: "the numbers and some words font" felt cheap):** the body
+  font's default digits were old-style (uneven heights). Every number now uses lining, tabular
+  digits; HP, AP and the gauge use a bold number font (`UiFonts.number_font_path`, Alegreya Sans
+  Bold) with a thin dark edge and a soft drop shadow instead of the thick outline. Damage numbers
+  and the floating words (PERFECT, PARRY, MISS, COUNTER) use the same bold font slanted like
+  Persona 5's (`UiFonts.popup_slant`) with a heavier edge.
+- **Target lock-on:** while a target is chosen, four gold corner brackets snap onto it and
+  breathe, with a bouncing chevron over it (it replaced the small arrow, which the enemy panels
+  could hide).
+- **Enemy panels:** short (name and HP numbers on one line, a slim bar), all the same width, and
+  each holds the enemy's next move: "NEXT  Sting String  >  CASS" with its hit icons. The
+  floating intent signs under the enemies are gone (`intent_sign_gap_px` is unused now).
+- **Attack banner:** the move's name big (worn title letters), a small line over it saying who
+  uses it on whom ("GNAT SWARM  >  CASS > ALDER"), the hit icons under it; it punches in.
+- **Defend corner:** a red DEFEND tag over three slanted plates, PARRY, DODGE and JUMP, each in its
+  defence colour with its button, and the two rules in small print. The skill press corner is the
+  same with a gold PRESS ON THE BEAT tag.
+- Dev tools: `--menu-keys=ACTION,...` presses those input actions on the action menu the first time
+  it opens ("|" moves on to the next turn's menu; for pictures of the skills list, the target step
+  or a later hero's turn); `--key-prompts` keeps keyboard keys shown even with a pad plugged in.
+
 ## 8. Run structure (phase 4)
 
 Slay-the-Spire style branching node map (host picks path). Node types: zone (small explorable
@@ -1394,12 +1461,33 @@ equipped by one character. No progression between runs in v1.
 - **The map** (`RunMap`, pure, seeded with `CombatRng`; `MapScreen`): `run_map_rows` (7) rows of
   2 to 3 stops, then the final fight on top, so every path is 8 stops. The first row is all
   zones, the row before the final fight is all rests; middle rows are zone / shop / rest by weight
+  (phase 15 adds elites, events and a treasure row, and splits the run into acts: 8.9)
   (60 / 20 / 20), never a shop after a shop or a rest after a rest, no rest right before the rest
   row, and at least one shop on the map. Every stop leads up to 1 or 2 stops of the next row;
   paths never cross; every stop can be reached. Each zone stop picks one of the run's zones, if
   possible not the zone met last on any path leading to it (shops and rests between do not
-  count). The map shows every stop (Z zone, R rest, $ shop, ! final), the path walked in gold,
-  and pulses the stop picked with left/right.
+  count). The map shows every stop, the path walked and the stop picked with left/right (how it
+  looks: "The paper map" below).
+- **The paper map** (card #111, user 2026-10-15; `MapScreen`, numbers in
+  `data/presentation/map_visuals.tres`, art by `tools/art_kit/assets/map_art.py`): the map is a
+  tall old parchment sheet held open between two rolled ends, taller than the screen and scrolled
+  like Slay the Spire's map (user, after the first try left no room for the paths between close
+  rows). Up/down held or the mouse wheel scroll it; left/right picks a next stop and the map glides
+  to keep it in the middle. Opening it plays the paper unrolling from the middle out to the top and
+  the bottom, then the ink soaks in row by row outward from the row in view, then the party's flag
+  (three stripes: Alder blue, Brin red, Cass gold) drops onto the stop the party is at. At a run's
+  start it opens on the boss's lair and pans down to the start first. Confirm, Back or Party
+  pressed while it opens only finishes it. Coming back from the party screen (and an online
+  client's redraw) shows it already open. Each stop is a small painted picture of the place, never
+  a letter: a zone its own place (`ZoneData.map_icon_path`: Rotten Hollow dead trees with a
+  glowing hollow, Sunken Bog a pool with reeds and a toadstool, Ashen Ruins broken columns), a
+  rest a campfire, a shop a little shop with a striped awning and a coin sign, the final fight the
+  boss's lair (`RunData.final_map_icon_path`: a crag with red eyes in its cave and a crown on the
+  peak). Names are written beside each picture in dark ink. Paths are ink dots: the walked path in
+  red, the routes open now in full ink, routes further up lighter, everything left behind faded.
+  The stop picked has a red pen circle around it. A small ink cross marks the start. Everything
+  on the map is pixel art at 3x (one art pixel is 3 screen pixels). `--screen=map` opens a sample
+  map two stops in, `--screen=map_start` one before the first stop (for pictures).
 - **Zone stop:** the zone in run mode. Its **guard** (`ZoneEnemyData.guard`, one per zone, at the
   far end, barely wanders) is marked in gold ("GUARD", no name since card #127) wherever it is on screen; beating it
   shows ZONE CLEAR and goes back to the map. Other roaming enemies are optional (more gold, more
@@ -1410,7 +1498,8 @@ equipped by one character. No progression between runs in v1.
   (1). A defeat ends the run. AP and statuses reset every fight; the team gauge carries over (8.3, card #146).
 - **Gold:** each enemy's `gold` (Husk 15, Bloat 20, Shade 20, Gnat Swarm 8) is paid when its
   fight is won; the end screen shows "+N gold". A run fight's end screen has no "fight again".
-- **Rest:** everyone heals `run_rest_heal_percent` (50%) of max HP, once.
+- **Rest:** everyone heals `run_rest_heal_percent` (50%) of max HP, once. Since phase 15 a campfire
+  with three choices (8.11).
 - **Shop:** every item in `RunData.shop_items` once per visit: Salve (25 gold, heal one 50%),
   Feast (40, heal all 30%), Tonic (45, one character +15% max HP for the run, the new HP filled).
   Items for one character ask who gets it. (No revive: nobody stays down between fights.)
@@ -1784,6 +1873,138 @@ middle row costs 1 point, the bottom row 2):
   her spells play the staff thrust (crystal flaring) where she stands, her support skills the cast
   (a ring and motes rising from the crystal).
 
+### 8.5 Long zones (phase 15 step 1, cards #155, #164; user picks 2026-10-16)
+
+The user's problem: in a zone you could walk straight to the guard and leave. Picks: zones run
+left to right like a side-scroller (guard at the far right), 3 to 5 times longer, built from
+shuffled sections, with side paths, hidden spots, shrines, champions and wanderers. Depth (toward
+and away from the camera) stays as it was. The phase is 15 (the board label `phase-14` was renamed:
+phase 14 was the tutorial).
+
+- **Sections** (`ZoneSectionData`, `data/zones/sections/<zone>_<name>.tres`): a hand-made slice of a
+  zone, `width` long, in its own frame (x from 0 to width, z the zone's depth). It holds blocks,
+  props, lights, roaming enemy spots, glinting spots, chests, seal spots, shrine and wanderer spots,
+  and champions. Every section keeps the **lane** (z between `-LANE` and `+LANE`, 3 units) free at
+  both ends so any two sections join.
+- **A zone** (`ZoneData`) now names its `start_section`, its `middle_sections` pool, how many of them
+  a visit uses (`middle_count`, 3) and its `end_section` (the gate and the guard). `ZoneAssembler`
+  (pure, tested) picks and shuffles the middles with a seed and lays the sections end to end into
+  one flat `ZoneData` (the old fields: blocks, props, enemies, spots...), adding the back and side
+  walls. A zone without sections (old style) is used as it is.
+- **The seed**: in a run `RunState.zone_seed(stop)` (the same on every machine online), in practice a
+  new one each time. So a zone changes every visit: which middles, their order, which seal spot,
+  which roaming spots are filled (`ZoneEnemyData.chance_percent`) and with which fight (an empty
+  `encounter` takes one from the zone's `roamer_pool`), which shrine stands where.
+- **Seals and the gate** (the answer to "I can just walk to the guard"): each middle section holds
+  one **rot seal** (a glowing standing stone; one of its `seal_spots`, picked by the seed), often
+  down a side path or past enemies. The end section's **gate** (a wall of rotten roots across the
+  whole depth) stays shut until the party has `zone_seals_needed` (2) of the 3 seals (tuning; 0 =
+  no gate). Picking one up: walk to it, Confirm. The top right says "Seals 1 / 2: open the gate",
+  then "Beat the GUARD at the exit". Seals belong to this zone visit only (also in practice).
+- **Shrines** (`ZoneOfferData`, kind SHRINE, `data/offers/`): stand at a section's `shrine_spots`;
+  each visit picks them from the zone's `shrines` pool. Walk up, Confirm ("Pray") asks a yes/no
+  question with the price and the gift. Each works once. First set:
+  Healing Spring (free: everyone heals 30%), Blood Altar (everyone loses 20% of max HP, never below
+  1: a rare or better find), War Idol (free: team gauge +50), Shrine of Plenty (40 gold: every
+  hero +40 XP).
+- **Wanderers** (`ZoneOfferData`, kind WANDERER): `wanderer_percent` (60) of visits put one at one of
+  the sections' `wanderer_spots`, picked from the zone's `wanderers` pool. Same yes/no deal
+  ("Talk"): Key Peddler (30 gold: a Key), Grave Robber (45 gold: a rare or better find), Old
+  Pilgrim (free: everyone heals 15% and +20 XP).
+- **Champions** (`ZoneEnemyData.champion`): an elite fight (8.6) that stands still beside a
+  **prize chest** (`prize_spot`, no key needed). It never chases; touch
+  or strike it to fight. Beat it and the chest opens: a rare or better prize like a locked chest
+  (`RunState.prize_contents`). Optional, like every enemy but the guard.
+- **Side paths**: walls in a section split it into lanes; the back lanes end in nooks with a seal,
+  a glinting spot or a chest.
+- **Camera**: the same follow camera; the zone is about 130 units long (was about 30), so it scrolls
+  sideways as the party walks right. The floor is sized to the zone.
+- **Online**: the host's zone is the real one; its snapshot also carries the seals taken, the
+  offers used and the prize chests opened. Only the host answers a shrine or a wanderer.
+- **The bot** walks with `ZonePath` (A* on a grid over the zone, pure, tested), picks up the
+  seals, uses free shrines and deals it can pay for, opens chests, then goes to the guard. Tests
+  assemble every zone with many seeds and check that every spot, seal, shrine and the guard can be
+  reached from the start (gate open).
+
+### 8.6 Mini-boss guards and elite fights (phase 15 step 2, cards #156, #157)
+
+- **Guards are mini-bosses** (`EncounterData.mini_boss`): each zone's guard is a named kin of its
+  monster, recoloured by the art kit (`enemy_variants.py`), with a **phase two** at half HP (its
+  variant's moves, faster, a banner): Rotten Hollow **The Gorged One** (crimson bloat, with a gnat
+  swarm), Sunken Bog **Mire Mother** (teal toad, with a carrion fly), Ashen Ruins **Ash Warden**
+  (charcoal shade, with a gnat swarm). Their name is announced like a boss's and the boss song
+  plays; they cannot be run from; they still grow with depth. Deep zones bring their helpers as
+  variants (`deep_guard_*`). `tools/bootstrap_phase15.gd` writes them.
+- **Better reward**: spoils (after a guard, an elite or an act's boss) are gear of at least
+  `run_spoils_min_rarity` (rare) while the run has enough of it.
+- **Elite fights** (`EncounterData.elite`): enemies get `elite_hp_percent` (140), `elite_power_percent`
+  (115) and `elite_gold_percent` (150) on top of depth. Four: Twin Husks, The Laughing Pack (two
+  hyenas and a fly), Toad Court, Shade Coven, each with a deep version. They are met two ways:
+  an **Elite stop** on the map (a fight in one of the act's zones' look, then spoils), and the
+  zones' **champions** (8.5), now elite fights marked "ELITE" in their own colour (they no longer
+  force the deep version).
+
+### 8.7 Event stops "?" (card #158)
+
+- `EventData` (`data/events/`): a title, a short story, a picture and 1 or 2 choices
+  (`EventChoiceData`), always plus Leave. A choice has a deal (`ZoneOfferData`: gold, HP, heal, XP,
+  team gauge, an item, a find) and may have a risk: `risk_percent` of the time its `risk_deal`
+  strikes too (seeded by the run and stop, the same on every machine; a risk that costs gold takes
+  what there is). Choices the party cannot pay are greyed.
+- An act's "?" stops pick from its `events`, never one met before in the run
+  (`RunState.events_seen`, synced online). Eight to start: The Weeping Well, Gambler's Bones, A
+  Wounded Pilgrim, Rot Blossom, The Hanging Cage, Shrine of Old Kings, Merchant's Wreck, The
+  Whispering Mask.
+- `EventScreen`: the story, the choices, then what happened and Continue. Items go into the
+  backpack (it opens when full); online the host chooses and the clients see the result.
+
+### 8.8 Treasure stops (card #159)
+
+- Every stop of map row `run_treasure_row` (3) is a treasure chest. `TreasureScreen`: open it for
+  `run_treasure_gold` (30) and a prize like a locked chest's but picked as if 4 rows deeper
+  (`RunState.treasure_contents`): gear goes on a hero, an item into the backpack.
+
+### 8.9 Two acts (card #163) and the map (card #162)
+
+- `RunData.acts` (`ActData`, `data/runs/acts/`): each act has its zones, elite fights, events, a
+  boss with its lair look and map picture, and `deep` (every zone fight is its variant version).
+  **Act 1, The Rotten Road**: Rotten Hollow and Sunken Bog, boss **The Husk Lord** (an iron-black
+  husk kin with a rotten husk at its side, phase two at half HP). **Act 2, The Ashen Deep**: Ashen
+  Ruins, Sunken Bog and Rotten Hollow, all deep, boss The Hollow King. A run without acts is one act
+  made of its own fields.
+- Each act has its own map (`run_map_rows` 6 rows, then the boss; act 1 from the run's seed, later
+  acts from a seed of their own). Beating an act's boss gives spoils, everyone heals
+  `run_act_heal_percent` (50%), and the next act's map opens (its title says "Act 2: ..."). Only the
+  last boss ends the run. Depth (enemy growth, rarity) counts the rows of the acts before. Seeds of
+  finds, drops and chests take the act into account (each act numbers its stops from 0).
+- **The map** (card #162): stop kinds and weights: zone 45, event 25, elite 12 (not before row
+  `run_elite_min_row` 2, never two in a row), shop 12, rest 12; row 0 zones, row 3 treasure, the
+  row before the boss campfires, at least one shop. New painted pictures (art kit `map_art.py`):
+  a horned skull over crossed blades (elite), a red "?" (event), a gold-banded chest (treasure),
+  the Husk Lord's crowned hollow tree (act 1's lair). A **legend** down the left side names every
+  picture. **Planning**: while a next stop is picked, every stop and road it cannot lead to is
+  drawn faint (`unreachable_alpha`), so its roads ahead stand out.
+- Online: `RunState.to_dict` carries the act (the client rebuilds that act's map), the stops
+  visited, the campfire points, the events met and the shop's restocks.
+
+### 8.10 The shop (card #160)
+
+- `ShopScreen` is now a place: **The Rag Merchant** (a hooded trader with gold scales, art kit
+  `env_zone.py`) on the left with a line for every sale, the **shelves** on the right: this stop's
+  stock, `run_shop_items` (4) items picked from the run's shop list (`RunState.shop_stock`), 2
+  charms and 2 pieces of gear, a card each with its picture (items their icon, gear a gold amulet),
+  name in its rarity colour and price, SOLD when bought. Under them the **services**: Cleanse (35:
+  throw away a rotten item), Upgrade (45: an item up a level), Restock (20: new stock on the
+  shelves, `RunState.restocks`), Sell (the backpack) and Leave. No Heal service (user 2026-10-16:
+  it did the same as a Salve for the same price; healing is bought as items). Arrows move over shelves and services, Confirm buys, Tab / Y sells, Back leaves.
+
+### 8.11 The campfire (card #161)
+
+- A rest stop is a campfire: the heroes stand round a flickering fire with its glow, and the
+  player picks **one**: **Rest** (everyone heals `run_rest_heal_percent`), **Train** (every hero
+  gets `rest_train_points` (1) attribute point, `RunState.bonus_points`) or **Upgrade** (one
+  backpack item up a level for free). The bot rests when hurt, else upgrades, else trains.
+
 ---
 
 ## 9. Multiplayer (phase 5)
@@ -1796,6 +2017,18 @@ middle row costs 1 point, the bottom row 2):
   P1 has Alder and Cass, P2 has Brin); left/right on a hero hands it to another player, as long as
   every player keeps one. Start (selected first) plays; P1's Back returns to the main menu. The
   roster is kept for the session (same P1 = same split next time).
+- **Hero cards** (cards #140, #141, user 2026-10-15): the players screen shows the heroes side by
+  side as big painted portraits, like an arcade select screen (Metal Slug was the reference, but
+  serious faces, not goofy): the players on one line at the top, then a framed card per hero (the
+  portrait's top 240 rows at 2x) with a name plate under it saying who plays it ("P1", or
+  "< P1 >" in co-op). Up/down still walks Alder, Brin, Cass, Start, Back; the hero the cursor is
+  on gets a gold frame and the others dim. The portraits are painted pictures the user made with
+  an AI image tool (`tools/art_kit/sources/portraits/`, the words in `PROMPTS.md` there), turned
+  into pixel art by `tools/art_kit/portraits_from_pictures.py`: 192x288, 64 colours
+  (`CharacterData.big_portrait_path`). The same tool cuts a 64x64 face from each picture (boxes in
+  `faces.json`), which is now the hero's `portrait_path`: the party panels, the turn order, the
+  party screen and the practice list all show it. (A code-drawn big portrait was tried first and
+  dropped: it looked like a clay toy.)
 - `PlayerRoster` (pure, `scripts/coop/`): players and their devices, hero slot -> player. A hero is
   a party slot, so the roster fits every fight. One player = solo: every device controls
   everything, exactly as before.
@@ -1990,7 +2223,7 @@ middle row costs 1 point, the bottom row 2):
    choices and titles, credits, loading tips, story, the studio intro re-rendered in HD (7.5,
    7.6, 7.7). Hero portraits wait for art; the trailer and Steam page come later.
 9. **Real art** (done, approved 2026-10-14): every sprite drawn by code with the art kit (5.4):
-   heroes, enemies (each its own creature), portraits (48x48, also on the party screen), ground
+   heroes, enemies (each its own creature), portraits (48x48; the heroes' were replaced by painted faces in 9.1's hero cards), ground
    textures, backdrops per place, props, effects, HUD icons (cards #40, #85, #116 to #124).
 10. **Animation** (built, waiting for playtest, 2026-10-14): multi-frame animations from blended poses: idle breathing, ready stance,
     defence poses, hit reactions, skill moves, follow-up entrance, team ultimate, downed and
@@ -2011,6 +2244,11 @@ middle row costs 1 point, the bottom row 2):
     class reworks with skill trees (proposed to the user first); step 3 depth scaling. Nothing
     carries over between runs.
 14. **Tutorial** (done, approved 2026-10-15): the five lessons of 7.8 (card #131).
+15. **Zones and stops** (built 2026-10-16, waiting for playtest; the user asked for all four steps
+    before testing): four steps. Step 1 long zones (8.5: sections,
+    seals and a gate, shrines, wanderers, champions; cards #155, #164). Step 2 tougher fights
+    (guards as mini-bosses #156, elites #157). Step 3 the map and its stops (#162 map, #158 events,
+    #159 treasure, #160 shop, #161 rest). Step 4 longer runs (#163).
 
 ### 11.1 To-do (from playtests)
 
@@ -2169,7 +2407,22 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Main menu: no tagline, no button bar; other hints stay | user (#130): only the main menu's bothered them |
 | 2026-10-15 | Tutorial: six lessons, offered once on the first run and always in the main menu | user approved (#131) |
 | 2026-10-15 | Lag calibration page laid out centred like the other pages | user (#113) |
-| 2026-10-15 | Run map to become an old paper map that unrolls, with painted places instead of letters | user (#111), not built yet |
+| 2026-10-15 | Run map is an old paper map that unrolls, with painted places instead of letters | user (#111) |
+| 2026-10-15 | Run map scrolls (a tall sheet between two rollers, like Slay the Spire) | user: close rows left no room for the paths |
+| 2026-10-15 | Fight HUD restyled: slanted Persona 5 plates, party cards bottom left, intent on the enemy panels, target lock-on (7.9) | user (#154), approved 2026-10-16 |
+| 2026-10-15 | Action menu floats beside the acting hero; the hero steps forward onto a gold ring, the others step back and dim; locked options fade; no name tag | user: it felt cheap and the turn was unclear |
+| 2026-10-16 | Turn order is a column on the left; the attack banner sits at the top; the ultimate's button (RT UNLEASH) is on the team gauge, not in the action menu | user: frees the top above enemy throws, cleaner menu |
+| 2026-10-16 | Phase 15 step 1: zones run left to right, about 4 times longer, built from shuffled sections | user picks (#155, #164) |
+| 2026-10-16 | Seals open the gate to the guard (2 of 3, tuning) | user: "I can still go to the guard directly"; first try, to tune with play |
+| 2026-10-16 | Shrines, wanderers and champions in zones, all optional | user: keep all four zone things |
+| 2026-10-16 | Guards are named mini-bosses (recoloured kin) with a phase two; spoils are rare or better | card #156; recolours keep every animation |
+| 2026-10-16 | Elite fights: map stops and zone champions, +40% HP, +15% power, +50% gold | card #157; first guess |
+| 2026-10-16 | Events, treasure rows, a shop scene with services and a campfire with one of three choices | cards #158 to #161, Slay the Spire style |
+| 2026-10-16 | Two acts of 6 rows each: The Rotten Road (boss The Husk Lord) and The Ashen Deep (The Hollow King) | card #163; more acts and zones later |
+| 2026-10-16 | The map gets a legend and dims stops the pick cannot lead to | card #162 (planning) |
+| 2026-10-16 | Shop: no Heal service; each shop stocks 4 items, 2 charms, 2 gear (was the whole list) | user: the shop felt cluttered and Heal = a Salve for the same gold |
+| 2026-10-15 | Lining digits everywhere; bold number font for HP, AP, gauge; slanted bold popups and damage numbers | user: the numbers' font felt cheap |
+| 2026-10-15 | Hero portraits are painted pictures (made by the user with an AI image tool) turned into pixel art; big cards on the players screen, 64x64 faces everywhere else | user (#140, #141); a code-drawn try looked bad |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |
 | 2026-10-15 | Tutorial on a practice fight where nobody can die, steps checked from fight events; offered once on the first New Run | user approved the six lessons (#131) |
 | 2026-10-15 | Main menu cut to six rows: Online holds Host and Join, the tutorial is the first Practice card | user (#150) |

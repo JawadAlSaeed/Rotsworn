@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_xbyf5"]
+[ext_resource type="Resource" path="res://data/enemies/hollow_shade.tres" id="2_u6hwx"]
+[ext_resource type="Resource" path="res://data/enemies/blood_gnats.tres" id="3_egw3a"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="4_q685w"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="5_ba0c1"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="6_3t7cs"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="7_2vun1"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="8_bgneg"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="9_pki7j"]
+
+[resource]
+script = ExtResource("8_bgneg")
+id = "deep_elite_shade_coven"
+display_name = "Shade Coven"
+party = Array[ExtResource("4_q685w")]([ExtResource("5_ba0c1"), ExtResource("6_3t7cs"), ExtResource("7_2vun1")])
+enemies = Array[ExtResource("1_xbyf5")]([ExtResource("2_u6hwx"), ExtResource("2_u6hwx"), ExtResource("3_egw3a")])
+team_ultimate = ExtResource("9_pki7j")
+elite = true

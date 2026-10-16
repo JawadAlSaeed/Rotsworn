@@ -1,7 +1,10 @@
 [gd_resource type="Resource" script_class="RunData" format=3]
 
+[ext_resource type="Script" path="res://scripts/data/act_data.gd" id="1_2sbiv"]
 [ext_resource type="Resource" path="res://data/encounters/hollow_king.tres" id="1_pfciy"]
 [ext_resource type="Resource" path="res://data/looks/hollow_throne.tres" id="2_4r4bl"]
+[ext_resource type="Resource" path="res://data/runs/acts/rotten_road.tres" id="2_jca6s"]
+[ext_resource type="Resource" path="res://data/runs/acts/ashen_deep.tres" id="3_7qxmh"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="3_dfnv4"]
 [ext_resource type="Script" path="res://scripts/data/item_data.gd" id="3_pfciy"]
 [ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_qgnwx"]
@@ -55,9 +58,11 @@ id = "rotten_road"
 display_name = "The Rotten Road"
 party = Array[ExtResource("3_qgnwx")]([ExtResource("4_xh0st"), ExtResource("5_5lhx2"), ExtResource("6_biicf")])
 team_ultimate = ExtResource("12_dsxv5")
+acts = Array[ExtResource("1_2sbiv")]([ExtResource("2_jca6s"), ExtResource("3_7qxmh")])
 zones = Array[ExtResource("13_goumg")]([ExtResource("14_cisu8"), ExtResource("15_pfciy"), ExtResource("16_4r4bl")])
 final_encounter = ExtResource("1_pfciy")
 final_look = ExtResource("2_4r4bl")
+final_map_icon_path = "res://assets/sprites/ui/map_lair_hollow_king.png"
 shop_items = Array[ExtResource("3_pfciy")]([ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("6_cnqeh"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("9_7h55f"), ExtResource("15_l3kfd")])
 found_items = Array[ExtResource("3_pfciy")]([ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("6_cnqeh"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("9_7h55f"), ExtResource("10_r48q0"), ExtResource("11_7kshk"), ExtResource("12_jlagg"), ExtResource("13_lwxot"), ExtResource("14_qus8p"), ExtResource("15_l3kfd"), ExtResource("16_2sbiv"), ExtResource("17_jca6s"), ExtResource("18_7qxmh"), ExtResource("19_dl22l"), ExtResource("20_h1ots"), ExtResource("21_dy7w4"), ExtResource("22_81ydh"), ExtResource("23_m187n"), ExtResource("24_1i5p2")])
 gear = Array[ExtResource("3_dfnv4")]([ExtResource("4_cnqeh"), ExtResource("5_5blr4"), ExtResource("6_ic0fs"), ExtResource("7_igmpf"), ExtResource("8_5a6is"), ExtResource("9_v1mkt"), ExtResource("10_7h55f"), ExtResource("11_r48q0"), ExtResource("12_7kshk"), ExtResource("13_jlagg"), ExtResource("14_67ek5"), ExtResource("15_jtxfh"), ExtResource("16_o0k8w")])

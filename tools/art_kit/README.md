@@ -36,6 +36,15 @@ Build times (one machine, October 2026): about 0.6 to 1 s per fighter frame; a h
 portrait and previews takes 6 to 13 s, an enemy 9 to 32 s. A hero's full Tier 1 set (about 85
 frames) stays near 1 to 2 minutes, so there is no render cache.
 
+## Hero portraits from pictures
+
+The heroes' big portraits (players screen) and their small faces (everywhere else) are not drawn
+here: they are painted pictures in `sources/portraits/` (`PROMPTS.md` there has the words used
+with an AI image tool) that `python tools/art_kit/portraits_from_pictures.py [hero]` turns into
+pixel art: `assets/sprites/portraits_big/<id>.png` (192x288, 64 colours, k-means in OKLab) and
+`<id>_face.png` (64x64, the square in `faces.json`). The 48x48 portraits this kit draws for the
+heroes are no longer shown (enemies still use theirs).
+
 ## Files
 
 - `kit/color.py` colour maths and hue-shifted ramps (OKLCH).
@@ -60,7 +69,8 @@ frames) stays near 1 to 2 minutes, so there is no render cache.
 - `kit/beast.py` helpers for the phase 12 monsters (fly, hyena, toad): safe cones, a decal
   painter, finishing passes, the floor-line nudge, parallel clip rendering, `build_enemy()`.
 - `kit/specs.py` the sprite contract (sizes, frame order, sheet grid, Tier 1 clip names).
-- `assets/<module>.py` one module per asset group, each with `build(ctx)`. `fx_attacks` draws
+- `assets/<module>.py` one module per asset group, each with `build(ctx)`. `env_zone` draws the
+  long zones' things (phase 15): the rot seal, the gate tile, four shrines, three wanderers. `fx_attacks` draws
   the enemy attack effects of phase 12 (rock spikes, projectiles).
 
 ## Style rules (the art bible)

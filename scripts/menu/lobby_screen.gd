@@ -6,6 +6,10 @@ extends CanvasLayer
 ## player, as long as every player keeps a hero. Start begins with this roster; Back (or P1's
 ## Cancel) returns to the main menu and leaves the old roster alone.
 ##
+## The heroes stand side by side as big painted portraits (cards #140, #141), like an arcade
+## select screen: the one the cursor is on gets a gold frame, a name plate under each says who
+## plays it.
+##
 ## Online (DESIGN.md 9.2) one player is one machine. The host's screen shows the address friends
 ## type in; players join over the network (Main calls add_peer / remove_peer) and the host hands
 ## heroes out and starts. A client's screen only shows the roster the host sends (set_roster) and
@@ -20,6 +24,18 @@ signal roster_changed(players: PlayerRoster)
 const TITLE_SIZE: int = 64
 const PLAYER_SIZE: int = 34
 const DETAIL_SIZE: int = 26
+## Hero cards: the big portrait's top CARD_ROWS rows (the face and shoulders), CARD_SCALE times
+## its pixels, in a frame CARD_BORDER wide; the name plate under it.
+const CARD_SCALE: int = 2
+const CARD_ROWS: int = 240
+const CARD_BORDER: int = 4
+const CARD_GAP: int = 28
+const PLATE_SIZE: int = 34
+const CARD_FRAME := Color(0.36, 0.33, 0.3)
+const CARD_DIM := Color(0.55, 0.55, 0.55)
+
+## The heroes' big portraits, in hero order (set before setup).
+var hero_portraits: Array[String] = []
 
 var _roster: PlayerRoster
 var _hero_names: Array[String] = []
@@ -27,6 +43,9 @@ var _menu: ListMenu
 var _player_labels: Array[Label] = []
 ## Per player line: "press [Confirm button] to join" with the button as a picture (empty slots).
 var _join_hints: Array[HintBar] = []
+## Per hero: its card's frame and its name plate's owner tag.
+var _cards: Array[PanelContainer] = []
+var _card_tags: Array[Label] = []
 var _online: bool = false
 var _is_host: bool = true
 
@@ -93,12 +112,17 @@ func _build(title: String, note: String, hints: Array) -> void:
 	var column := ListMenu.screen_column(self, title, TITLE_SIZE)
 	if not note.is_empty():
 		column.add_child(ListMenu.centred_label(note, DETAIL_SIZE, HudStyle.GOLD))
+	# The players on one line, side by side.
+	var players := HBoxContainer.new()
+	players.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	players.alignment = BoxContainer.ALIGNMENT_CENTER
+	players.add_theme_constant_override("separation", 56)
+	column.add_child(players)
 	for i: int in PlayerRoster.MAX_PLAYERS:
 		var line := HBoxContainer.new()
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		line.alignment = BoxContainer.ALIGNMENT_CENTER
 		line.add_theme_constant_override("separation", 10)
-		column.add_child(line)
+		players.add_child(line)
 		var label := ListMenu.centred_label("", PLAYER_SIZE)
 		line.add_child(label)
 		_player_labels.append(label)
@@ -106,7 +130,7 @@ func _build(title: String, note: String, hints: Array) -> void:
 		join.visible = false
 		line.add_child(join)
 		_join_hints.append(join)
-	column.add_child(Control.new())
+	column.add_child(_build_cards())
 	_menu = ListMenu.new()
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
@@ -116,6 +140,8 @@ func _build(title: String, note: String, hints: Array) -> void:
 	for i: int in _hero_names.size() + 2:
 		blank.append({})
 	_menu.index = _hero_names.size()
+	for slot: int in _hero_names.size():
+		_menu.set_row_shown(slot, false)
 	_menu.set_items(blank, detail)
 	_refresh()
 	ButtonPrompts.listen(_refresh)
@@ -138,6 +164,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_refresh()
 		return
 	var answer := _menu.handle(event)
+	_update_cards()
 	if answer == &"":
 		return
 	var hero := _menu.index if _menu.index < _hero_names.size() else -1
@@ -167,6 +194,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _online_input(event: InputEvent) -> void:
 	var answer := _menu.handle(event)
+	_update_cards()
 	if answer == &"cancel" or (answer == &"confirm" and _menu.index == _hero_names.size() + 1):
 		Sfx.play("menu_cancel")
 		back.emit()
@@ -208,10 +236,10 @@ func _refresh() -> void:
 			var names := PackedStringArray()
 			for slot: int in _roster.heroes_of(i):
 				names.append(_hero_names[slot])
-			label.text = "%s   %s   %s" % [HudStyle.player_tag(i), _player_name(i), ", ".join(names)]
+			label.text = "%s   %s" % [HudStyle.player_tag(i), _player_name(i)]
 			label.label_settings.font_color = HudStyle.player_color(i)
 		elif _online:
-			label.text = "%s   waiting for a friend to join" % HudStyle.player_tag(i)
+			label.text = "%s   waiting for a friend" % HudStyle.player_tag(i)
 			label.label_settings.font_color = HudStyle.TEXT_DIM
 		else:
 			label.text = "%s   press" % HudStyle.player_tag(i)
@@ -228,6 +256,10 @@ func _refresh() -> void:
 		if _online:
 			detail = "The host hands out the heroes." if not _is_host else (detail if coop else "Friends who join share the heroes.")
 		_menu.set_item(slot, text, true, detail)
+		if slot < _card_tags.size():
+			var tag := HudStyle.player_tag(owner)
+			_card_tags[slot].text = "<  %s  >" % tag if coop else tag
+			_card_tags[slot].label_settings.font_color = HudStyle.player_color(owner)
 	var players := "alone" if not coop else "with %d players" % _roster.player_count()
 	if _online and not _is_host:
 		_menu.set_item(_hero_names.size(), "Start", false, "Only the host can start.")
@@ -238,3 +270,58 @@ func _refresh() -> void:
 	else:
 		_menu.set_item(_hero_names.size(), "Start", true, "Play %s." % players)
 		_menu.set_item(_hero_names.size() + 1, "Back", true, "Back to the main menu.")
+	_update_cards()
+
+
+## The hero cards in a row: each the hero's big portrait in a frame, a name plate under it.
+func _build_cards() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", CARD_GAP)
+	for slot: int in _hero_names.size():
+		var card := VBoxContainer.new()
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_theme_constant_override("separation", 6)
+		row.add_child(card)
+		var frame := PanelContainer.new()
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_child(frame)
+		var path := hero_portraits[slot] if slot < hero_portraits.size() else ""
+		var full := AssetLoader.texture(path, Vector2i(192, 288))
+		var face := AtlasTexture.new()
+		face.atlas = full
+		face.region = Rect2(0.0, 0.0, full.get_width(), mini(CARD_ROWS, full.get_height()))
+		var picture := TextureRect.new()
+		picture.texture = face
+		picture.custom_minimum_size = face.region.size * float(CARD_SCALE)
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.add_child(picture)
+		_cards.append(frame)
+		var plate := HBoxContainer.new()
+		plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		plate.alignment = BoxContainer.ALIGNMENT_CENTER
+		plate.add_theme_constant_override("separation", 18)
+		card.add_child(plate)
+		plate.add_child(HudStyle.make_title(_hero_names[slot], PLATE_SIZE))
+		var tag := HudStyle.make_title("", PLATE_SIZE)
+		plate.add_child(tag)
+		_card_tags.append(tag)
+	return row
+
+
+## The card the cursor is on gets a gold frame; while the cursor is on a hero the others dim.
+func _update_cards() -> void:
+	var on_hero := _menu != null and _menu.index < _cards.size()
+	for slot: int in _cards.size():
+		var chosen := on_hero and _menu.index == slot
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.03, 0.02, 0.03)
+		style.border_color = HudStyle.GOLD if chosen else CARD_FRAME
+		style.set_border_width_all(CARD_BORDER)
+		style.set_content_margin_all(CARD_BORDER)
+		_cards[slot].add_theme_stylebox_override("panel", style)
+		_cards[slot].get_parent().modulate = CARD_DIM if on_hero and not chosen else Color.WHITE

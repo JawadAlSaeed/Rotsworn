@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ZoneOfferData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="1_pcn42"]
+
+[resource]
+script = ExtResource("1_pcn42")
+id = "grave_robber"
+display_name = "Grave Robber"
+kind = 1
+question = "\"Something rare, 45 gold. No questions.\""
+detail = "The Grave Robber sells one rare or better find."
+yes_text = "Pay 45 gold"
+sprite_path = "res://assets/sprites/env/wanderer_robber.png"
+pixel_size = 0.045
+glow_color = Color(0.75, 0.6, 1, 1)
+solid_radius = 0.35
+cost_gold = 45
+find_rarity = 1

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Resource" path="res://data/encounters/deep_elite_toad_court.tres" id="1_6yaky"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_k6lfu"]
+[ext_resource type="Resource" path="res://data/enemies/mire_toad.tres" id="3_xi0ou"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="4_hrggb"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="5_4hdtr"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="6_boodg"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="7_mcjyf"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="8_armjl"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="9_ud0ge"]
+
+[resource]
+script = ExtResource("8_armjl")
+id = "elite_toad_court"
+display_name = "Toad Court"
+party = Array[ExtResource("4_hrggb")]([ExtResource("5_4hdtr"), ExtResource("6_boodg"), ExtResource("7_mcjyf")])
+enemies = Array[ExtResource("2_k6lfu")]([ExtResource("3_xi0ou"), ExtResource("3_xi0ou")])
+team_ultimate = ExtResource("9_ud0ge")
+elite = true
+deep = ExtResource("1_6yaky")

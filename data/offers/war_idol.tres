@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ZoneOfferData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="1_hypf0"]
+
+[resource]
+script = ExtResource("1_hypf0")
+id = "war_idol"
+display_name = "War Idol"
+question = "Pray to the War Idol?"
+detail = "Free. The team gauge fills by 50."
+yes_text = "Pray"
+sprite_path = "res://assets/sprites/env/shrine_idol.png"
+glow = 1.2
+glow_color = Color(1, 0.7, 0.3, 1)
+solid_radius = 0.5
+team_gauge = 50

@@ -43,6 +43,18 @@ const STATUS_COLORS := {
 	"empowered": Color(1.0, 0.75, 0.3),
 }
 
+## The fight HUD's look (card #154): dark ink plates slanted like Persona 5's, edged in a calm
+## worn gold like Expedition 33's. SLANT is the stylebox skew (how far the top edge leans right,
+## as a share of the plate's height).
+const SLANT: float = 0.28
+const INK := Color(0.035, 0.03, 0.045, 0.86)
+const INK_SOLID := Color(0.03, 0.025, 0.04, 0.95)
+const EDGE := Color(0.72, 0.6, 0.38, 0.9)
+const EDGE_DIM := Color(0.42, 0.37, 0.3, 0.75)
+## The hard ink shadow under every plate (Persona 5's offset print shadow).
+const PLATE_SHADOW := Color(0.0, 0.0, 0.0, 0.55)
+const PLATE_SHADOW_OFFSET := Vector2(5.0, 5.0)
+
 const OUTLINE_RATIO: float = 0.2
 ## The fonts (UiFonts). load_fonts() reads them once at start-up.
 const FONTS_PATH := "res://data/presentation/ui_fonts.tres"
@@ -53,6 +65,8 @@ const WORN_OUTLINE_RATIO: float = 0.06
 static var _title_font: Font
 static var _body_font: Font
 static var _select_font: Font
+static var _number_font: Font
+static var _punch_font: Font
 static var _fonts: UiFonts
 static var _worn_material: ShaderMaterial
 
@@ -87,7 +101,13 @@ static func load_fonts() -> void:
 		push_warning("HudStyle: could not load %s, using the built-in font" % FONTS_PATH)
 		data = UiFonts.new()
 	_fonts = data
-	_body_font = _font_file(data.body_font_path)
+	_body_font = _lining(_font_file(data.body_font_path))
+	var bold := _font_file(data.number_font_path)
+	if bold != null:
+		_number_font = _lining(bold)
+		var slanted := _lining(bold)
+		slanted.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(-data.popup_slant, 1.0), Vector2.ZERO)
+		_punch_font = slanted
 	var title := _font_file(data.title_font_path)
 	if title != null:
 		_title_font = _weighted(title, data.title_weight)
@@ -95,6 +115,18 @@ static func load_fonts() -> void:
 	if _body_font != null:
 		ThemeDB.get_default_theme().default_font = _body_font
 		ThemeDB.fallback_font = _body_font
+
+
+## The font with lining, tabular figures (every digit as tall and as wide as the others), so
+## numbers that change in place never jitter or look uneven.
+static func _lining(font: Font) -> FontVariation:
+	if font == null:
+		return null
+	var server := TextServerManager.get_primary_interface()
+	var lined := FontVariation.new()
+	lined.base_font = font
+	lined.opentype_features = {server.name_to_tag("lnum"): 1, server.name_to_tag("tnum"): 1}
+	return lined
 
 
 static func _weighted(font: Font, weight: int) -> FontVariation:
@@ -195,6 +227,37 @@ static func make_title(text: String, size: int, color: Color = TEXT) -> Label:
 	return label
 
 
+## Numbers on bars and counters (HP, AP, the team gauge): bold lining figures, a thin dark edge
+## and a soft drop shadow instead of the thick outline, so they read crisp.
+static func number_settings(size: int, color: Color = TEXT) -> LabelSettings:
+	var s := LabelSettings.new()
+	s.font = _number_font if _number_font != null else body_font()
+	s.font_size = size
+	s.font_color = color
+	s.outline_size = maxi(2, roundi(float(size) * 0.14))
+	s.outline_color = OUTLINE_COLOR
+	s.shadow_color = Color(0.0, 0.0, 0.0, 0.55)
+	s.shadow_offset = Vector2(0.0, maxf(1.0, float(size) * 0.08))
+	return s
+
+
+static func make_number(text: String, size: int, color: Color = TEXT) -> Label:
+	var label := make_label(text, size, color)
+	label.label_settings = number_settings(size, color)
+	return label
+
+
+## The fight's floating words and damage numbers: like number_settings but slanted (Persona 5) and
+## with a heavier edge, since they fly over the scene.
+static func punch_settings(size: int, color: Color = TEXT) -> LabelSettings:
+	var s := number_settings(size, color)
+	if _punch_font != null:
+		s.font = _punch_font
+	s.outline_size = maxi(3, roundi(float(size) * 0.17))
+	s.shadow_offset = Vector2(maxf(2.0, float(size) * 0.06), maxf(2.0, float(size) * 0.08))
+	return s
+
+
 ## "P1", "P2", ... for co-op tags.
 static func player_tag(player: int) -> String:
 	return "P%d" % (player + 1)
@@ -228,6 +291,27 @@ static func panel(bg: Color = PANEL_BG, border: Color = PANEL_BORDER, border_px:
 	box.set_border_width_all(border_px)
 	box.set_corner_radius_all(6)
 	box.set_content_margin_all(padding)
+	return box
+
+
+## A slanted fight plate (card #154): `bg` with a `border` edge, `pad` inside (more at the sides,
+## where the slant eats room: `slant` times the expected `height`), and the hard offset shadow.
+static func slant(bg: Color = INK, border: Color = EDGE, border_px: int = 2, pad: int = 10,
+		height: float = 48.0, slant_share: float = SLANT, shadow: bool = true) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = bg
+	box.border_color = border
+	box.set_border_width_all(border_px)
+	box.skew = Vector2(slant_share, 0.0)
+	box.anti_aliasing = true
+	box.set_content_margin_all(pad)
+	var side := float(pad) + slant_share * height * 0.5
+	box.content_margin_left = side
+	box.content_margin_right = side
+	if shadow:
+		box.shadow_color = PLATE_SHADOW
+		box.shadow_size = 1
+		box.shadow_offset = PLATE_SHADOW_OFFSET
 	return box
 
 

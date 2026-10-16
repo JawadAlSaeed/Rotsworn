@@ -7,7 +7,8 @@ extends SceneTree
 ##   godot --headless --path . -s tools/bootstrap_run.gd
 ## Add "-- --force" after the script to overwrite them (careful: loses edits).
 ## Then run tools/gen_placeholders.gd to draw any new ground tiles, and tools/bootstrap_items.gd for
-## the backpack items the shops sell (phase 11).
+## the backpack items the shops sell (phase 11). The zones it writes are the old small ones: since
+## phase 15 tools/bootstrap_zones.gd rebuilds them as long zones (run it again after a --force).
 
 const ENV := "res://assets/sprites/env/"
 const SHROOM_GLOW := Color(0.35, 1.0, 0.85)

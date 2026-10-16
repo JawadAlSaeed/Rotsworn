@@ -246,6 +246,35 @@ extends Resource
 ## left at the end of a fight starts the next one (0 = every fight starts empty).
 @export_range(0, 100, 1, "suffix:%") var run_team_gauge_carry_percent: int = 100
 
+@export_group("Run stops (phase 15)")
+## How often a middle row's stop is an elite fight or a "?" event (weights beside run_weight_zone,
+## _shop and _rest; DESIGN.md 8.6, 8.7). Elites never come before run_elite_min_row.
+@export_range(0, 1000) var run_weight_elite: int = 12
+@export_range(0, 1000) var run_weight_event: int = 25
+@export_range(0, 30) var run_elite_min_row: int = 2
+## Every stop of this row of an act's map is a treasure chest (DESIGN.md 8.8; -1: none).
+@export_range(-1, 30) var run_treasure_row: int = 3
+## Elite fights (elite map stops and zone champions): enemies get these percents of their HP,
+## power and gold.
+@export_range(10, 1000, 1, "suffix:%") var elite_hp_percent: int = 140
+@export_range(10, 1000, 1, "suffix:%") var elite_power_percent: int = 115
+@export_range(10, 1000, 1, "suffix:%") var elite_gold_percent: int = 150
+## Spoils after a guard or an elite are gear of at least this rarity (0 common, 1 rare, 2
+## legendary), when the run still has some.
+@export_range(0, 2) var run_spoils_min_rarity: int = 1
+## A treasure stop also gives this much gold.
+@export_range(0, 10000) var run_treasure_gold: int = 30
+## Between acts (DESIGN.md 8.9) everyone heals this percent of their max HP.
+@export_range(0, 100, 1, "suffix:%") var run_act_heal_percent: int = 50
+## The shop (DESIGN.md 8.10): this many items on its shelves (picked from the run's shop list),
+## and its services: throw away one rotten item, raise one item a level, new wares on the shelves.
+@export_range(0, 30) var run_shop_items: int = 4
+@export_range(0, 10000) var shop_cleanse_price: int = 35
+@export_range(0, 10000) var shop_upgrade_price: int = 45
+@export_range(0, 10000) var shop_restock_price: int = 20
+## Campfire (DESIGN.md 8.11): Train gives every hero this many attribute points.
+@export_range(0, 10) var rest_train_points: int = 1
+
 @export_group("Attributes and critical hits")
 ## Attribute points (DESIGN.md 8.2): each level up gives this many to spend; a hero starts a run
 ## with attr_start_points.
@@ -318,6 +347,11 @@ extends Resource
 @export_range(0, 100, 1, "suffix:%") var chest_gear_percent: int = 50
 ## The leader picks up a glinting spot from this close (world units).
 @export_range(0.1, 10.0, 0.05) var explore_pickup_radius: float = 1.3
+
+@export_group("Long zones")
+## The gate to a zone's guard opens once the party holds this many of the zone's rot seals
+## (DESIGN.md 8.5; one per middle section; 0 = no gate).
+@export_range(0, 10) var zone_seals_needed: int = 2
 
 @export_group("Online")
 ## The port a host listens on and a client connects to (DESIGN.md 9.2).

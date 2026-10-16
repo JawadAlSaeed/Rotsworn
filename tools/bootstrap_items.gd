@@ -162,7 +162,8 @@ func _booster(id: String, title: String, desc: String, price: int, family: ItemD
 
 
 func _add_spots(zone: ZoneData) -> void:
-	if zone == null:
+	# Long zones (DESIGN.md 8.5) keep their spots in their sections (tools/bootstrap_zones.gd).
+	if zone == null or ZoneAssembler.is_sectioned(zone):
 		return
 	var changed := false
 	if zone.item_spots.is_empty() and SPOTS.has(zone.id):

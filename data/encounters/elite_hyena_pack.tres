@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Resource" path="res://data/encounters/deep_elite_hyena_pack.tres" id="1_nf3di"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_tpu6n"]
+[ext_resource type="Resource" path="res://data/enemies/rot_hyena.tres" id="3_tljey"]
+[ext_resource type="Resource" path="res://data/enemies/carrion_fly.tres" id="4_8t11d"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="5_2c1vw"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="6_tqqx2"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="7_jqhrb"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="8_08ckr"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="9_gckpt"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="10_iqrm6"]
+
+[resource]
+script = ExtResource("9_gckpt")
+id = "elite_hyena_pack"
+display_name = "The Laughing Pack"
+party = Array[ExtResource("5_2c1vw")]([ExtResource("6_tqqx2"), ExtResource("7_jqhrb"), ExtResource("8_08ckr")])
+enemies = Array[ExtResource("2_tpu6n")]([ExtResource("3_tljey"), ExtResource("3_tljey"), ExtResource("4_8t11d")])
+team_ultimate = ExtResource("10_iqrm6")
+elite = true
+deep = ExtResource("1_nf3di")

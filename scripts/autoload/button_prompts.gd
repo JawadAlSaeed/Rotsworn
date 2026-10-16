@@ -18,13 +18,17 @@ const STICK_THRESHOLD: float = 0.5
 static var _pad: bool = false
 static var _both: bool = false
 static var _node: ButtonPrompts
+## --key-prompts: keys stay shown even when a pad moves (pictures on a machine with a pad).
+static var _keys_only: bool = false
 
 
 func _ready() -> void:
 	_node = self
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	# --pad-prompts (dev tool, for pictures): start with pad buttons shown.
-	_pad = not Input.get_connected_joypads().is_empty() or OS.get_cmdline_user_args().has("--pad-prompts")
+	# --pad-prompts / --key-prompts (dev tools, for pictures): start with pad buttons or keys shown.
+	var args := OS.get_cmdline_user_args()
+	_keys_only = args.has("--key-prompts")
+	_pad = (not Input.get_connected_joypads().is_empty() or args.has("--pad-prompts")) and not _keys_only
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	# window_input sees every event before any node can mark it handled (DefenseInput does).
 	get_window().window_input.connect(_on_window_input)
@@ -65,7 +69,7 @@ static func listen(method: Callable) -> void:
 
 
 static func _set_pad(on: bool) -> void:
-	if on == _pad:
+	if on == _pad or (on and _keys_only):
 		return
 	_pad = on
 	if not _both:

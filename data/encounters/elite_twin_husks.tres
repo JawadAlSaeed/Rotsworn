@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Resource" path="res://data/encounters/deep_elite_twin_husks.tres" id="1_a0rft"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_hhl8c"]
+[ext_resource type="Resource" path="res://data/enemies/rotten_husk.tres" id="3_maqkh"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="4_sfx46"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="5_55jyw"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="6_muud7"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="7_idwg2"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="8_7mqln"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="9_70mh1"]
+
+[resource]
+script = ExtResource("8_7mqln")
+id = "elite_twin_husks"
+display_name = "Twin Husks"
+party = Array[ExtResource("4_sfx46")]([ExtResource("5_55jyw"), ExtResource("6_muud7"), ExtResource("7_idwg2")])
+enemies = Array[ExtResource("2_hhl8c")]([ExtResource("3_maqkh"), ExtResource("3_maqkh")])
+team_ultimate = ExtResource("9_70mh1")
+elite = true
+deep = ExtResource("1_a0rft")

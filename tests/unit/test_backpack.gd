@@ -169,14 +169,20 @@ func test_shipped_items_are_sound() -> void:
 
 
 func test_zone_spots_stand_where_the_leader_can_reach() -> void:
-	for zone: ZoneData in _data.zones:
-		assert_gte(zone.item_spots.size(), 2, "%s has glinting spots" % zone.id)
-		var obstacles := ZoneMotion.obstacles(zone)
-		for spot: Vector3 in zone.item_spots:
-			var at := Vector2(spot.x, spot.z)
-			var free := ZoneMotion.move(at, Vector2.ZERO, ZoneController.LEADER_RADIUS, obstacles, zone.bounds_min,
-					zone.bounds_max)
-			assert_almost_eq(free.distance_to(at), 0.0, 0.01, "%s spot %s is free" % [zone.id, at])
+	for layout: ZoneData in _data.zones:
+		# A long zone is laid out anew each visit (DESIGN.md 8.5): check a few visits.
+		for seed_value: int in [1, 2, 3]:
+			_check_spots(ZoneAssembler.assemble(layout, seed_value))
+
+
+func _check_spots(zone: ZoneData) -> void:
+	assert_gte(zone.item_spots.size(), 2, "%s has glinting spots" % zone.id)
+	var obstacles := ZoneMotion.obstacles(zone)
+	for spot: Vector3 in zone.item_spots:
+		var at := Vector2(spot.x, spot.z)
+		var free := ZoneMotion.move(at, Vector2.ZERO, ZoneController.LEADER_RADIUS, obstacles, zone.bounds_min,
+				zone.bounds_max)
+		assert_almost_eq(free.distance_to(at), 0.0, 0.01, "%s spot %s is free" % [zone.id, at])
 
 
 # --- the party screen -------------------------------------------------------------------------
@@ -241,13 +247,18 @@ func test_selling_pays_and_removes() -> void:
 	assert_false(run.apply_op({"op": "sell", "uid": uid}), "already sold")
 
 
-func test_zones_have_a_reachable_chest() -> void:
-	for zone: ZoneData in _data.zones:
-		assert_eq(zone.chests.size(), 1, "%s has a chest" % zone.id)
-		var at := Vector2(zone.chests[0].x, zone.chests[0].z)
-		var free := ZoneMotion.move(at, Vector2.ZERO, ZoneController.LEADER_RADIUS, ZoneMotion.obstacles(zone),
-				zone.bounds_min, zone.bounds_max)
-		assert_almost_eq(free.distance_to(at), 0.0, 0.01, "%s chest is free" % zone.id)
+func test_zones_have_reachable_chests() -> void:
+	for layout: ZoneData in _data.zones:
+		var most := 0
+		for seed_value: int in range(1, 9):
+			var zone := ZoneAssembler.assemble(layout, seed_value)
+			most = maxi(most, zone.chests.size())
+			for chest: Vector3 in zone.chests:
+				var at := Vector2(chest.x, chest.z)
+				var free := ZoneMotion.move(at, Vector2.ZERO, ZoneController.LEADER_RADIUS, ZoneMotion.obstacles(zone),
+						zone.bounds_min, zone.bounds_max)
+				assert_almost_eq(free.distance_to(at), 0.0, 0.01, "%s chest is free" % zone.id)
+		assert_gt(most, 0, "%s has a locked chest on some visits" % layout.id)
 
 
 # --- step 3: charms, neighbours, rot, combining, a bigger backpack -----------------------------

@@ -15,3 +15,5 @@ select_static_fps = 9.0
 select_static_motion = 0.15
 select_wear = 0.8
 select_static_percent = 0
+number_font_path = "res://assets/fonts/AlegreyaSans-Bold.ttf"
+popup_slant = 0.2

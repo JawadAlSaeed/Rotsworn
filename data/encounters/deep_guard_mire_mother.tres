@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_qj8ms"]
+[ext_resource type="Resource" path="res://data/enemies/mire_mother.tres" id="2_oylwg"]
+[ext_resource type="Resource" path="res://data/enemies/plague_fly.tres" id="3_b3xmx"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="4_h6klg"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="5_vhdhr"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="6_aasww"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="7_ojvqu"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="8_2f1xf"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="9_mmtey"]
+
+[resource]
+script = ExtResource("8_2f1xf")
+id = "deep_guard_mire_mother"
+display_name = "Mire Mother"
+party = Array[ExtResource("4_h6klg")]([ExtResource("5_vhdhr"), ExtResource("6_aasww"), ExtResource("7_ojvqu")])
+enemies = Array[ExtResource("1_qj8ms")]([ExtResource("2_oylwg"), ExtResource("3_b3xmx")])
+team_ultimate = ExtResource("9_mmtey")
+can_run = false
+mini_boss = true

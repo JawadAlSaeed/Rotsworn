@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_0lfg4"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_belly_slam.tres" id="2_os6rj"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_rot_wave.tres" id="3_d8jt0"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_double_wave.tres" id="4_7jimn"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_crush.tres" id="5_fuqpq"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_bile_spit.tres" id="6_d82jo"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_bile_rain.tres" id="7_3u3us"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_quake.tres" id="8_qbx23"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/blight_bile_flood.tres" id="9_sufb1"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="10_ah3f4"]
+[ext_resource type="Resource" path="res://data/clips/bloat.tres" id="11_01qfk"]
+
+[resource]
+script = ExtResource("10_ah3f4")
+id = "gorged_one"
+display_name = "The Gorged One"
+color = Color(0.7, 0.25, 0.35, 1)
+sprite_path = "res://assets/sprites/enemies/gorged_one.png"
+sprite_clips = ExtResource("11_01qfk")
+death_style = 1
+death_color = Color(0.7490196, 0.9098039, 0.36862746, 1)
+idle_cycle_percent = 140
+portrait_path = "res://assets/sprites/portraits/gorged_one.png"
+sprite_pixel_size = 0.045
+hp_percent = 280
+power_percent = 150
+speed = 85
+attacks = Array[ExtResource("1_0lfg4")]([ExtResource("2_os6rj"), ExtResource("3_d8jt0"), ExtResource("4_7jimn"), ExtResource("5_fuqpq"), ExtResource("6_d82jo"), ExtResource("7_3u3us"), ExtResource("8_qbx23")])
+gold = 60
+xp = 130
+voice_sfx = "voice_bloat"
+phase_two_hp_percent = 50
+phase_two_attacks = Array[ExtResource("1_0lfg4")]([ExtResource("2_os6rj"), ExtResource("3_d8jt0"), ExtResource("4_7jimn"), ExtResource("5_fuqpq"), ExtResource("6_d82jo"), ExtResource("7_3u3us"), ExtResource("8_qbx23"), ExtResource("9_sufb1")])
+phase_two_speed = 125
+phase_two_text = "THE GORGED ONE SPLITS ITS SKIN!"

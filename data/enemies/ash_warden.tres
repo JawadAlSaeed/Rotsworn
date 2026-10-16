@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_5qwyb"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_delayed_rake.tres" id="2_2gfb1"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_cross_step.tres" id="3_48cf8"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_stutter.tres" id="4_r4fvk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_nightfall.tres" id="5_nrkbm"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_bolts.tres" id="6_lxa4g"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_grave_spikes.tres" id="7_ofos0"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/hollow_bolt_storm.tres" id="8_75tdb"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="9_vbww8"]
+[ext_resource type="Resource" path="res://data/clips/shade.tres" id="10_xxdr5"]
+
+[resource]
+script = ExtResource("9_vbww8")
+id = "ash_warden"
+display_name = "Ash Warden"
+color = Color(0.85, 0.45, 0.2, 1)
+sprite_path = "res://assets/sprites/enemies/ash_warden.png"
+sprite_clips = ExtResource("10_xxdr5")
+death_color = Color(0.7254902, 0.54901963, 1, 1)
+idle_cycle_percent = 120
+portrait_path = "res://assets/sprites/portraits/ash_warden.png"
+sprite_pixel_size = 0.045
+hp_percent = 250
+power_percent = 150
+speed = 115
+attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtResource("3_48cf8"), ExtResource("4_r4fvk"), ExtResource("5_nrkbm"), ExtResource("6_lxa4g"), ExtResource("7_ofos0")])
+gold = 60
+xp = 130
+voice_sfx = "voice_shade"
+phase_two_hp_percent = 50
+phase_two_attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtResource("3_48cf8"), ExtResource("4_r4fvk"), ExtResource("5_nrkbm"), ExtResource("6_lxa4g"), ExtResource("7_ofos0"), ExtResource("8_75tdb")])
+phase_two_speed = 155
+phase_two_text = "THE ASH WARDEN BURNS!"

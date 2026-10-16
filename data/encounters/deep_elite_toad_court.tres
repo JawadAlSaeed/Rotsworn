@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_n0lgm"]
+[ext_resource type="Resource" path="res://data/enemies/elder_toad.tres" id="2_m8ofk"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_dwp41"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="4_aa0l0"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="5_fau34"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="6_el23n"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="7_qfd87"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="8_ifmmu"]
+
+[resource]
+script = ExtResource("7_qfd87")
+id = "deep_elite_toad_court"
+display_name = "Toad Court"
+party = Array[ExtResource("3_dwp41")]([ExtResource("4_aa0l0"), ExtResource("5_fau34"), ExtResource("6_el23n")])
+enemies = Array[ExtResource("1_n0lgm")]([ExtResource("2_m8ofk"), ExtResource("2_m8ofk")])
+team_ultimate = ExtResource("8_ifmmu")
+elite = true

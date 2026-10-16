@@ -48,6 +48,11 @@ var is_party: bool = true
 var body_offset: Vector3 = Vector3.ZERO:
 	set = set_body_offset
 
+## Where the turn spotlight puts the body, on top of body_offset (card #154): the acting hero a
+## step forward, the others a step away. Animate it only through set_stage().
+var stage_offset: Vector3 = Vector3.ZERO:
+	set = _set_stage_offset
+
 var _sprite: Sprite3D
 var _shadow: Sprite3D
 var _warning: MeshInstance3D
@@ -74,6 +79,8 @@ var _flash_length_us: int = 1
 var _flash_strength: float = 1.0
 ## The one tween allowed to move the body (see move_body).
 var _move_tween: Tween
+var _stage_tween: Tween
+var _tint: Color = Color.WHITE
 var _dissolve_tween: Tween
 ## Sheets already warned about (their size does not match their clips).
 static var _warned_layout: Dictionary = {}
@@ -302,13 +309,36 @@ static func hop_point(from: Vector3, to: Vector3, u: float, height: float) -> Ve
 
 func set_body_offset(value: Vector3) -> void:
 	body_offset = value
+	_place_body()
+
+
+func _set_stage_offset(value: Vector3) -> void:
+	stage_offset = value
+	_place_body()
+
+
+func _place_body() -> void:
 	if _sprite == null:
 		return
-	_sprite.position = value
-	_shadow.position = Vector3(value.x, SHADOW_HEIGHT, value.z)
-	_warning.position = Vector3(value.x, WARNING_HEIGHT, value.z)
-	var lift := clampf(value.y / SHADOW_FADE_HEIGHT, 0.0, 1.0)
+	var at := body_offset + stage_offset
+	_sprite.position = at
+	_shadow.position = Vector3(at.x, SHADOW_HEIGHT, at.z)
+	_warning.position = Vector3(at.x, WARNING_HEIGHT, at.z)
+	var lift := clampf(body_offset.y / SHADOW_FADE_HEIGHT, 0.0, 1.0)
 	_shadow.scale = Vector3.ONE * lerpf(1.0, SHADOW_MIN_SCALE, lift)
+
+
+## The turn spotlight (card #154): glides to `offset` (see stage_offset) and `tint` over `seconds`.
+func set_stage(offset: Vector3, tint: Color, seconds: float) -> void:
+	if _stage_tween != null and _stage_tween.is_valid():
+		_stage_tween.kill()
+	if seconds <= 0.0:
+		stage_offset = offset
+		set_tint(tint)
+		return
+	_stage_tween = create_tween().set_parallel(true)
+	_stage_tween.tween_property(self, "stage_offset", offset, seconds).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_stage_tween.tween_method(set_tint, _tint, tint, seconds)
 
 
 ## White (or coloured) flash that fades over `ms` milliseconds of real time.
@@ -384,6 +414,7 @@ func set_flip(flip: bool) -> void:
 
 
 func set_tint(color: Color) -> void:
+	_tint = color
 	_material.set_shader_parameter("tint", color)
 
 
@@ -394,7 +425,7 @@ func sprite_height() -> float:
 
 ## Where the body is now (feet), in world space.
 func body_position() -> Vector3:
-	return global_position + body_offset
+	return global_position + body_offset + stage_offset
 
 
 ## Height of the visible art (opaque pixels of the first frame) in world units.

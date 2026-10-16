@@ -180,7 +180,7 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_active = true
 	_input.arm_press()
 	var actor_name := String(_mirror.fighter(_actor).get("display_name", "?")).to_upper()
-	_hud.show_banner("%s: %s" % [actor_name, String(event.get("name", "?"))], HudStyle.GOLD)
+	_hud.show_banner(String(event.get("name", "?")), HudStyle.GOLD, actor_name)
 	if ability != null and ability.team_ultimate:
 		Sfx.play("ultimate_start")
 	_hud.set_skill_pressing(true)

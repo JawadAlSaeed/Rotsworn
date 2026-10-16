@@ -135,7 +135,9 @@ func _zones() -> Array[ZoneData]:
 func test_shipped_zones_are_valid() -> void:
 	var zones := _zones()
 	assert_gt(zones.size(), 0, "phase 3 ships a zone")
-	for zone: ZoneData in zones:
+	for layout: ZoneData in zones:
+		# Long zones are laid out per visit (DESIGN.md 8.5): check one.
+		var zone := ZoneAssembler.assemble(layout, 7)
 		assert_false(zone.id.is_empty(), "every zone has an id")
 		assert_not_null(zone.look, "%s has a look" % zone.id)
 		assert_not_null(zone.leader, "%s has a leader" % zone.id)

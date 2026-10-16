@@ -1,23 +1,25 @@
 class_name CombatHud
 extends CanvasLayer
-## The combat HUD on the 1920x1080 canvas (DESIGN.md 7.1): turn order strip with intent icons
-## (top left), attack or skill banner (top centre), framed enemy HP panels with status badges (top
-## right), an intent sign under each enemy, practice status (top right), slim party panels (bottom
-## centre), team gauge (bottom right), action menu, popups and damage numbers, training and press
-## rings, hit markers, lock icon, the defence controls (bottom left, only while an enemy attack
-## plays), F1 overlay, calibration and the end screen. It shows what the CombatMirror says; world
-## positions are projected through the CombatView camera.
+## The combat HUD on the 1920x1080 canvas (DESIGN.md 7.1, restyled in card #154: slanted ink
+## plates edged in worn gold). The turn order as a turn track down the left edge,
+## the attack or skill banner at the top centre, a slanted panel per enemy with its HP, status
+## badges and the attack it will use next (top right), practice status (top right), party cards
+## and the team gauge (with the ultimate's UNLEASH button) bottom left, the defence buttons while
+## an enemy attack plays and the skill press while a skill plays (bottom right); the action menu
+## floats beside the acting hero. Also popups and damage numbers, training and press rings, hit
+## markers, lock icon, the target lock-on, F1 overlay, calibration and the end screen. It shows
+## what the CombatMirror says; world positions are projected through the CombatView camera.
 
 const MARGIN: float = 24.0
-## Banners sit at least this low, and always this far under the turn order strip (which is wide
-## enough to reach under a centred banner).
-const BANNER_TOP: float = 150.0
+## The attack banner sits at the top edge (the turn order is a column on the left since card #154,
+## so the top is free and the banner stays above the enemies' throws).
+const BANNER_TOP: float = 24.0
 const BANNER_GAP: float = 10.0
-const BANNER_SIZE: int = 40
+const BANNER_SIZE: int = 46
+const BANNER_FROM_SIZE: int = 20
 const CENTER_BANNER_SIZE: int = 96
-## The attack banner's slot: it is hidden before a counter plays, and this keeps the big text
-## above the defence readouts near the heads.
-const CENTER_BANNER_TOP: float = 150.0
+## The big centre words (TEAM COUNTER): under the attack banner's slot, above the heads.
+const CENTER_BANNER_TOP: float = 120.0
 ## Share of a centre banner's time it stays fully visible before fading.
 const CENTER_BANNER_HOLD_SHARE: float = 0.7
 const POPUP_SIZE: int = 40
@@ -29,14 +31,14 @@ const CORNER_TITLE_SIZE: int = 22
 const CORNER_BG := Color(0.02, 0.02, 0.04, 0.6)
 const CORNER_PAD: int = 12
 const CORNER_GAP: int = 6
-const PRACTICE_SIZE: int = 20
+const PRACTICE_SIZE: int = 17
 ## Enemy panels (top right).
 const ENEMY_NAME_SIZE: int = 26
 const ENEMY_HP_SIZE: int = 21
 const ENEMY_BAR_WIDTH: float = 380.0
-const ENEMY_BAR_HEIGHT: float = 28.0
-const ENEMY_PANEL_PAD: int = 10
-const ENEMY_PANEL_GAP: int = 6
+const ENEMY_BAR_HEIGHT: float = 14.0
+const ENEMY_PANEL_PAD: int = 8
+const ENEMY_PANEL_GAP: int = 4
 ## Between the enemy panels.
 const ENEMY_STACK_GAP: int = 10
 const ENEMY_PANEL_BORDER := Color(0.55, 0.18, 0.16, 0.9)
@@ -52,8 +54,12 @@ const BADGE_BORDER_PX: int = 2
 const BADGE_GAP: int = 6
 const BADGE_BG_DARKEN: float = 0.72
 const BADGE_BG_ALPHA: float = 0.92
-const MENU_BOTTOM: float = 236.0
-const PANEL_GAP: int = 12
+const PANEL_GAP: int = 14
+## The defence and skill press buttons (bottom right): one slanted plate per button.
+const PRESS_PLATE_SIZE: int = 24
+const PRESS_CHIP_SIZE: int = 28
+const PRESS_NOTE_SIZE: int = 17
+
 const END_TITLE_SIZE: int = 150
 const END_HINT_SIZE: int = 40
 const END_DIM := Color(0.0, 0.0, 0.0, 0.62)
@@ -63,7 +69,11 @@ const TARGET_MARKER_SIZE: int = 40
 const TARGET_ARROW := "▼"
 const END_SUMMARY_SIZE: int = 30
 ## Team gauge panel (bottom right).
-const GAUGE_WIDTH: float = 360.0
+const GAUGE_WIDTH: float = 300.0
+const UNLEASH_TEXT := "UNLEASH"
+const UNLEASH_SIZE: int = 26
+const UNLEASH_CHIP_SIZE: int = 26
+const UNLEASH_LOCKED := Color(0.6, 0.6, 0.64, 0.4)
 const GAUGE_HEIGHT: float = 28.0
 const GAUGE_LABEL_SIZE: int = 22
 const GAUGE_TEXT_SIZE: int = 21
@@ -77,8 +87,9 @@ const GAUGE_GLOW_MIN_SHARE: float = 0.35
 const GAUGE_GLOW_ALPHA: float = 0.75
 const ENEMY_STATUS_SIZE: int = 18
 const INTENT_SIZE: int = 22
-## Timeline hit icons, as a share of the intent sign's icon size.
-const TIMELINE_ICON_SHARE: float = 0.6
+## The turn order column's see-through while an attack or a skill plays, and how fast it fades.
+const TIMELINE_BUSY_ALPHA: float = 0.3
+const TIMELINE_FADE_S: float = 0.2
 ## Gap kept between stacked popups (pixels).
 const POPUP_GAP_PX: float = 4.0
 ## Popups whose spots are closer than this share of POPUP_WIDTH horizontally share a column.
@@ -100,6 +111,8 @@ var _root: Control
 var _timeline: TimelineRow
 var _banner: PanelContainer
 var _banner_label: Label
+## The banner's small line over the move's name: who uses it (and on whom).
+var _banner_from: Label
 ## The attack's hits under the banner text, spaced by time (hidden for skills).
 var _banner_row: HitRowView
 var _center_banner: Label
@@ -117,6 +130,8 @@ var _lock_icon: TextureRect
 ## More lock icons when several co-op players are locked out at once.
 var _extra_locks: Array[TextureRect] = []
 var _target_marker: Label
+## The lock-on frame around the fighter being targeted in the menu.
+var _reticle: Reticle
 ## One arrow per targeted character while an attack winds up.
 var _target_arrows: Array[Label] = []
 var _end_screen: Control
@@ -137,11 +152,15 @@ var _gauge_text: Label
 ## The gauge panel's frame: it turns gold and glows while the ultimate is ready.
 var _gauge_style: StyleBoxFlat
 var _gauge_full: bool = false
+var _gauge_panel: PanelContainer
+## The ultimate's button on the gauge card, and its word.
+var _unleash: HBoxContainer
+var _unleash_label: Label
 ## Bottom left: the defence controls while an enemy attack plays (set_defending) and the skill
 ## press hint during a skill (set_skill_pressing); empty otherwise, for the action menu.
-var _controls: PanelContainer
+var _controls: Control
 var _controls_tween: Tween
-var _skill_hint: PanelContainer
+var _skill_hint: Control
 var _skill_hint_tween: Tween
 ## Full-screen flash (counters, the ultimate, a hero going down) and the red edge pulse while a
 ## hero is low on HP (card #38).
@@ -150,8 +169,8 @@ var _flash_tween: Tween
 var _danger: TextureRect
 var _in_danger: bool = false
 var _time_s: float = 0.0
-## Enemy id -> {panel: PanelContainer, label: Label, row: HitRowView, shown: Array (kinds and
-## times on the row)}.
+## Enemy id -> the intent line on its panel: {panel: the line, label: Label, row: HitRowView,
+## shown: Array (kinds and times on the row)}.
 var _intent_signs: Dictionary = {}
 ## AttackHitData.Kind -> Texture2D.
 var _hit_icons: Dictionary = {}
@@ -219,6 +238,10 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_target_marker = HudStyle.make_label(TARGET_ARROW, TARGET_MARKER_SIZE, HudStyle.GOLD)
 	_target_marker.visible = false
 	_root.add_child(_target_marker)
+	_reticle = Reticle.new()
+	_reticle.name = "TargetReticle"
+	_reticle.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(_reticle)
 
 	_hit_icons = {
 		AttackHitData.Kind.NORMAL: AssetLoader.texture(visuals.hit_icon_normal_path, Vector2i(12, 12)),
@@ -227,18 +250,21 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_timeline = TimelineRow.new()
 	_timeline.name = "Timeline"
 	_timeline.position = Vector2(MARGIN, MARGIN)
-	_timeline.setup(tuning.turn_order_preview, visuals.portrait_px, _hit_icons, visuals.intent_icon_px * TIMELINE_ICON_SHARE)
+	_timeline.setup(tuning.turn_order_preview, visuals.portrait_px)
 	_root.add_child(_timeline)
 
 	_banner = PanelContainer.new()
 	_banner.name = "Banner"
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_banner.add_theme_stylebox_override("panel", HudStyle.panel(Color(0.08, 0.02, 0.02, 0.85), HudStyle.LATE, 3, 14))
+	_banner.add_theme_stylebox_override("panel", HudStyle.slant(Color(0.09, 0.02, 0.025, 0.93), HudStyle.LATE, 3, 12, 80.0, 0.18))
 	var banner_column := VBoxContainer.new()
 	banner_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner_column.add_theme_constant_override("separation", 6)
 	_banner.add_child(banner_column)
-	_banner_label = HudStyle.make_title("", BANNER_SIZE)
+	_banner_from = HudStyle.make_title("", BANNER_FROM_SIZE, HudStyle.TEXT_DIM.lightened(0.3))
+	_banner_from.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	banner_column.add_child(_banner_from)
+	_banner_label = HudStyle.make_worn_title("", BANNER_SIZE, HudStyle.TEXT)
 	_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner_column.add_child(_banner_label)
 	_banner_row = HitRowView.new()
@@ -256,6 +282,7 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 
 	_center_banner = HudStyle.make_worn_title("", CENTER_BANNER_SIZE)
 	_center_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_center_banner.add_theme_stylebox_override("normal", _band(3))
 	_center_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_center_banner.offset_top = CENTER_BANNER_TOP
 	_center_banner.visible = false
@@ -271,6 +298,7 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	right_column.offset_right = -MARGIN
 	right_column.offset_top = MARGIN
 	_root.add_child(right_column)
+	_root.move_child(_reticle, -1)
 	# Popups and the lock icon draw above the banners and timeline (never hidden under them);
 	# everything added after this (panels, menu, overlay, end screen) draws above them.
 	_root.move_child(_popup_layer, -1)
@@ -279,6 +307,7 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_enemy_box.name = "Enemies"
 	_enemy_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_enemy_box.add_theme_constant_override("separation", ENEMY_STACK_GAP)
+	_enemy_box.size_flags_horizontal = Control.SIZE_SHRINK_END
 	right_column.add_child(_enemy_box)
 	_practice_label = HudStyle.make_label("", PRACTICE_SIZE, HudStyle.GOLD)
 	_practice_label.name = "PracticeStatus"
@@ -287,32 +316,29 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_practice_label.visible = tuning.practice_tools_enabled
 	right_column.add_child(_practice_label)
 
-	_build_gauge()
-
 	_party_box = HBoxContainer.new()
 	_party_box.name = "Party"
 	_party_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_party_box.add_theme_constant_override("separation", PANEL_GAP)
-	_party_box.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_party_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_party_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_party_box.grow_horizontal = Control.GROW_DIRECTION_END
 	_party_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_party_box.offset_left = MARGIN
+	_party_box.offset_right = MARGIN
 	_party_box.offset_bottom = -MARGIN
 	_root.add_child(_party_box)
+	_build_gauge()
 
-	# Bottom left, hidden until needed: on the party's turn the action menu uses this corner.
-	_controls = _make_corner("ControlsHint", "DEFEND", HudStyle.LATE, HintBar.stack([[&"defend_parry", "Parry"],
-			[&"defend_dodge", "Dodge"], [&"defend_jump", "Jump"]], HINT_SIZE,
-			["Ground wave: Jump only", "Parry every hit: counterattack"]))
-	_skill_hint = _make_corner("SkillPressHint", "", HudStyle.GOLD,
-			HintBar.stack([[&"skill_press", "Skill press"]], HINT_SIZE))
+	# Bottom right, hidden until needed (the action menu uses this corner on the party's turn).
+	_controls = _make_corner("ControlsHint", "DEFEND", HudStyle.LATE, _defend_row(),
+			"Ground wave: Jump only    Parry every hit: counterattack")
+	_skill_hint = _make_corner("SkillPressHint", "PRESS ON THE BEAT", HudStyle.GOLD,
+			_press_row([[&"skill_press", "SKILL PRESS"]], HudStyle.GOLD))
 
 	action_menu = ActionMenu.new()
 	action_menu.name = "ActionMenu"
-	action_menu.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	action_menu.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	action_menu.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	action_menu.offset_bottom = -MENU_BOTTOM
 	_root.add_child(action_menu)
+	action_menu.ultimate_pressed.connect(_on_ultimate_pressed)
 
 	overlay = DebugOverlay.new()
 	overlay.name = "DebugOverlay"
@@ -346,9 +372,10 @@ func build_fighters(mirror: CombatMirror, data_by_id: Dictionary) -> void:
 		panel.setup(id, String(f.display_name), color_of(id), portrait(id), _tuning.max_ap, _visuals)
 		_party_box.add_child(panel)
 		_party_panels[id] = panel
+	# The gauge card goes after the heroes.
+	_party_box.move_child(_gauge_panel, -1)
 	for id: int in mirror.enemy_ids:
 		_enemy_rows[id] = _make_enemy_panel(id, String(mirror.fighter(id).display_name))
-		_intent_signs[id] = _make_intent_sign()
 
 
 ## Updates every bar, panel and the timeline from the mirror.
@@ -390,16 +417,25 @@ func color_of(id: int) -> Color:
 	return _colors.get(id, Color.WHITE) as Color
 
 
-## The attack banner (red border), or a skill banner with another accent colour.
-func show_banner(text: String, accent: Color = HudStyle.LATE) -> void:
+## The attack banner (red border), or a skill banner with another accent colour: the move's name
+## big, and over it a small line saying who uses it (and on whom).
+func show_banner(text: String, accent: Color = HudStyle.LATE, from: String = "") -> void:
 	# A fading TEAM COUNTER banner from the previous turn never sits under a new attack banner.
 	if _center_tween != null and _center_tween.is_valid():
 		_center_tween.kill()
 	_center_banner.visible = false
-	(_banner.get_theme_stylebox("panel") as StyleBoxFlat).border_color = accent
-	_banner_label.text = text
+	var style := _banner.get_theme_stylebox("panel") as StyleBoxFlat
+	style.border_color = accent
+	style.border_width_left = 8
+	style.border_width_right = 8
+	var was_shown := _banner.visible and _banner_label.text == text.to_upper()
+	_banner_label.text = text.to_upper()
+	_banner_from.text = from
+	_banner_from.visible = not from.is_empty()
 	_banner_row.visible = false
 	_fit_banner()
+	if not was_shown:
+		_punch(_banner)
 
 
 ## Shows the attack's hits under the banner text, spaced by time (`kinds` AttackHitData.Kind,
@@ -446,6 +482,35 @@ func set_hit_markers(markers: Array[Dictionary]) -> void:
 	_marker_layer.set_markers(markers)
 
 
+## A full-width ink band edged in worn gold, tilted a touch (behind the big words: TEAM COUNTER,
+## VICTORY).
+static func _band(edge_px: int) -> StyleBoxFlat:
+	var band := StyleBoxFlat.new()
+	band.bg_color = Color(0.02, 0.015, 0.03, 0.84)
+	band.border_color = HudStyle.EDGE
+	band.border_width_top = edge_px
+	band.border_width_bottom = edge_px
+	band.skew = Vector2(0.0, -0.02)
+	band.content_margin_top = 10 + edge_px
+	band.content_margin_bottom = 4 + edge_px
+	band.shadow_color = HudStyle.PLATE_SHADOW
+	band.shadow_size = 1
+	band.shadow_offset = Vector2(0.0, 8.0)
+	return band
+
+
+## A plate arrives with a punch: a little big and see-through, snapping to size (Persona 5's
+## slam-in, kept short so it never hides a hit).
+func _punch(node: Control) -> void:
+	node.reset_size()
+	node.pivot_offset = node.size * 0.5
+	node.scale = Vector2(1.18, 1.18)
+	node.modulate.a = 0.0
+	var tween := node.create_tween().set_parallel(true)
+	tween.tween_property(node, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(node, "modulate:a", 1.0, 0.1)
+
+
 ## Shows the banner and lets it take the size of its content again (centred), under the turn
 ## order strip.
 func _fit_banner() -> void:
@@ -455,6 +520,15 @@ func _fit_banner() -> void:
 	_banner.offset_right = 0.0
 	_banner.offset_top = top
 	_banner.offset_bottom = top
+	# Never under the enemy panels: when it would reach them, it moves left to clear them.
+	_banner.reset_size()
+	var right_edge := _enemy_box.get_global_rect().position.x - MARGIN
+	var half := _banner.get_combined_minimum_size().x * 0.5
+	var centre := _root.size.x * 0.5
+	if _enemy_box.get_global_rect().end.y > top and centre + half > right_edge:
+		var shift := maxf(centre + half - right_edge, 0.0)
+		_banner.offset_left = -shift
+		_banner.offset_right = -shift
 
 
 func hide_banner() -> void:
@@ -506,19 +580,78 @@ func _process(delta: float) -> void:
 	_time_s += delta
 	if not _popups.is_empty():
 		_layout_popups()
-	_place_intent_signs()
 	# The ready ultimate breathes (bar brightens, gold glow around its frame); the screen edges
 	# pulse red while a hero is in danger.
 	var glow := 0.5 + 0.5 * sin(_time_s * TAU * _visuals.gauge_ready_pulse_hz)
 	_gauge_bar.modulate = Color.WHITE.lerp(GAUGE_READY_BRIGHT, glow) if _gauge_full else Color.WHITE
+	# The unleash button: breathing gold while a hero can use the ultimate now, steady gold while
+	# full on someone else's turn, faded while the gauge fills.
+	var can_unleash := action_menu.ultimate_ready()
+	_unleash_label.label_settings.font_color = HudStyle.GOLD if _gauge_full else HudStyle.TEXT_DIM
+	if can_unleash:
+		_unleash.modulate = Color.WHITE.lerp(GAUGE_READY_BRIGHT, glow)
+	elif _gauge_full:
+		_unleash.modulate = Color(1.0, 1.0, 1.0, 0.7)
+	else:
+		_unleash.modulate = UNLEASH_LOCKED
 	if _gauge_full:
 		var reach := lerpf(GAUGE_GLOW_MIN_SHARE, 1.0, glow)
 		_gauge_style.shadow_size = roundi(_visuals.gauge_ready_glow_px * reach)
 		_gauge_style.shadow_color = Color(HudStyle.GOLD, GAUGE_GLOW_ALPHA * reach)
+	# The turn order column steps back while an attack or a skill plays (the camera moves in close
+	# then and the column would cover the heroes on the left).
+	var busy := _controls.visible or _skill_hint.visible
+	var wanted := TIMELINE_BUSY_ALPHA if busy else 1.0
+	_timeline.modulate.a = move_toward(_timeline.modulate.a, wanted, delta / TIMELINE_FADE_S)
+	if action_menu.visible:
+		action_menu.follow(_fighter_rect(action_menu.actor_id), _menu_area(), _menu_avoid(), delta)
+	if _reticle.visible:
+		_reticle.frame = _fighter_rect(_reticle.target)
+		_reticle.time_s = _time_s
+		_reticle.queue_redraw()
 	_danger.visible = _in_danger
 	if _in_danger:
 		var pulse := 0.5 + 0.5 * sin(_time_s * TAU * _visuals.danger_pulse_hz)
 		_danger.modulate = Color(1.0, 1.0, 1.0, _visuals.danger_vignette_alpha * (0.5 + 0.5 * pulse))
+
+
+## Where the action menu may go: right of the turn order column, above the party cards, inside the
+## screen's margins.
+func _menu_area() -> Rect2:
+	var left := _timeline.get_global_rect().end.x + BANNER_GAP if _timeline.visible else MARGIN
+	var top := MARGIN
+	var bottom := _party_box.get_global_rect().position.y - BANNER_GAP
+	return Rect2(Vector2(left, top), Vector2(_root.size.x - MARGIN - left, maxf(0.0, bottom - top)))
+
+
+## What the action menu should not cover: each standing enemy, the enemy panels and the practice
+## lines.
+func _menu_avoid() -> Array[Rect2]:
+	var boxes: Array[Rect2] = [_enemy_box.get_global_rect()]
+	if _banner.visible:
+		boxes.append(_banner.get_global_rect())
+	if _practice_label.visible and not _practice_label.text.is_empty():
+		boxes.append(_practice_label.get_global_rect())
+	for id: int in _enemy_rows:
+		var v := _view.fighter(id)
+		if v != null and v.visible and not v.is_dissolving():
+			boxes.append(_fighter_rect(id))
+	return boxes
+
+
+## A fighter's box on screen, from the top of the head to the feet (empty if unknown).
+func _fighter_rect(id: int) -> Rect2:
+	if id < 0:
+		return Rect2()
+	var v := _view.fighter(id)
+	if v == null:
+		return Rect2()
+	# The visible body's middle to its feet is about half its height.
+	var centre := _view.screen_position(v.centre_position())
+	var feet := _view.screen_position(v.body_position())
+	var half := maxf(40.0, feet.y - centre.y)
+	var wide := half * 1.4
+	return Rect2(Vector2(centre.x - wide * 0.5, centre.y - half * 1.1), Vector2(wide, half * 2.1))
 
 
 ## A full-screen flash of `color` at `strength` (0 to 1) that fades over screen_flash_ms. A
@@ -556,6 +689,7 @@ static func _vignette_texture(color: Color) -> GradientTexture2D:
 func _make_popup_label(text: String, color: Color, font_size: int) -> Label:
 	var seconds := float(_tuning.popup_ms) / 1000.0
 	var label := HudStyle.make_label(text, font_size, color)
+	label.label_settings = HudStyle.punch_settings(font_size, color)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.custom_minimum_size = Vector2(POPUP_WIDTH, 0.0)
 	_popup_layer.add_child(label)
@@ -621,6 +755,13 @@ func set_target_arrows(heads: Array[Vector3]) -> void:
 			arrow.position = _view.screen_position(heads[i]) - Vector2(arrow.size.x * 0.5, arrow.size.y)
 
 
+## Locks a gold frame onto the fighter being chosen as a target in the menu (-1 hides it).
+func set_target(id: int) -> void:
+	_reticle.target = id
+	_reticle.visible = id >= 0
+	_reticle.born_s = _time_s
+
+
 ## Points at the enemy being targeted (only shown when there is a choice); -1 hides it.
 func set_target_marker(world_pos: Vector3, shown: bool) -> void:
 	_target_marker.visible = shown
@@ -651,6 +792,9 @@ func show_end(result: String, summary: String, hints: Array, note: String = "") 
 	set_skill_pressing(false)
 	_end_screen.visible = true
 	_end_screen.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	_end_title.pivot_offset = _end_title.size * 0.5
+	_end_title.scale = Vector2(1.25, 1.25)
+	_end_title.create_tween().tween_property(_end_title, "scale", Vector2.ONE, 0.35) 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_end_screen.create_tween().tween_property(_end_screen, "modulate:a", 1.0, float(_visuals.end_fade_ms) / 1000.0)
 	# The F1 stats can be read on the end screen: draw them above its dim.
 	_root.move_child(overlay, -1)
@@ -673,35 +817,71 @@ func finish_warm_up() -> void:
 	_lock_icon.modulate = Color.WHITE
 
 
-## A banner's top: at least `wanted`, and clear of the turn order strip.
+## A banner's top (the turn order column is beside it, never above it).
 func _banner_top(wanted: float) -> float:
-	if not _timeline.visible:
-		return wanted
-	return maxf(wanted, _timeline.get_global_rect().end.y + BANNER_GAP)
+	return wanted
 
 
-## A see-through panel in the bottom left corner holding `content` (button hints) under an
-## optional `title`. Hidden until _fade_corner shows it.
-func _make_corner(node_name: String, title: String, title_color: Color, content: Control) -> PanelContainer:
-	var corner := PanelContainer.new()
+## The bottom-right corner (where the action menu sits on the party's turn): a slanted title tag
+## in `title_color`, `content` (button plates) under it and an optional `note`, right-aligned.
+## Hidden until _fade_corner shows it.
+func _make_corner(node_name: String, title: String, title_color: Color, content: Control, note: String = "") -> VBoxContainer:
+	var corner := VBoxContainer.new()
 	corner.name = node_name
 	corner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	corner.add_theme_stylebox_override("panel", HudStyle.panel(CORNER_BG, Color(0.0, 0.0, 0.0, 0.0), 0, CORNER_PAD))
-	var column := VBoxContainer.new()
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_theme_constant_override("separation", CORNER_GAP)
-	corner.add_child(column)
-	if not title.is_empty():
-		column.add_child(HudStyle.make_title(title, CORNER_TITLE_SIZE, title_color))
-	column.add_child(content)
-	corner.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	corner.alignment = BoxContainer.ALIGNMENT_END
+	corner.add_theme_constant_override("separation", 10)
+	var tag := PanelContainer.new()
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.size_flags_horizontal = Control.SIZE_SHRINK_END
+	tag.add_theme_stylebox_override("panel", HudStyle.slant(Color(title_color.darkened(0.7), 0.94), title_color, 3, 6, 44.0))
+	tag.add_child(HudStyle.make_title(title, CORNER_TITLE_SIZE + 8, title_color.lightened(0.2)))
+	corner.add_child(tag)
+	content.size_flags_horizontal = Control.SIZE_SHRINK_END
+	corner.add_child(content)
+	if not note.is_empty():
+		var label := HudStyle.make_label(note, PRESS_NOTE_SIZE, HudStyle.TEXT_DIM.lightened(0.25))
+		label.size_flags_horizontal = Control.SIZE_SHRINK_END
+		corner.add_child(label)
+	corner.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	corner.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	corner.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	corner.offset_left = MARGIN
+	corner.offset_right = -MARGIN
 	corner.offset_bottom = -MARGIN
 	corner.visible = false
 	corner.modulate.a = 0.0
 	_root.add_child(corner)
 	return corner
+
+
+## The three defence buttons as plates side by side, each in its defence colour.
+func _defend_row() -> HBoxContainer:
+	return _press_row([[&"defend_parry", "PARRY", HudStyle.PARRY], [&"defend_dodge", "DODGE", HudStyle.DODGE],
+			[&"defend_jump", "JUMP", HudStyle.JUMP]], HudStyle.EDGE)
+
+
+## A row of button plates: [[action, word, colour?], ...] (colour: the word's and the edge's).
+func _press_row(entries: Array, edge: Color) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 12)
+	for entry: Array in entries:
+		var color: Color = entry[2] if entry.size() > 2 else edge
+		var plate := PanelContainer.new()
+		plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var style := HudStyle.slant(HudStyle.INK_SOLID, color, 2, 8, 50.0)
+		style.border_width_left = 5
+		plate.add_theme_stylebox_override("panel", style)
+		var line := HBoxContainer.new()
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_theme_constant_override("separation", 10)
+		plate.add_child(line)
+		line.add_child(HintBar.new([[StringName(entry[0]), ""]], PRESS_CHIP_SIZE, HudStyle.TEXT))
+		var word := HudStyle.make_title(String(entry[1]), PRESS_PLATE_SIZE, color)
+		word.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(word)
+		row.add_child(plate)
+	return row
 
 
 ## Fades a bottom left corner in or out over controls_fade_ms (hidden once faded out). Takes the
@@ -720,30 +900,49 @@ func _fade_corner(corner: Control, on: bool, running: Tween) -> Tween:
 	return tween
 
 
-## Bottom right, beside the party panels: the shared team gauge in a small frame, its percentage
-## on the bar.
+## Bottom left, after the party cards (a card of its own, so it sits with the team): the shared
+## team gauge, its percentage on the bar.
 func _build_gauge() -> void:
 	var panel := PanelContainer.new()
 	panel.name = "TeamGauge"
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_gauge_style = HudStyle.panel(HudStyle.PANEL_BG, HudStyle.PANEL_BORDER, GAUGE_BORDER_PX, GAUGE_PAD)
+	_gauge_style = HudStyle.slant(HudStyle.INK, HudStyle.EDGE_DIM, GAUGE_BORDER_PX, GAUGE_PAD, PartyPanel.CARD_HEIGHT, 0.12)
 	panel.add_theme_stylebox_override("panel", _gauge_style)
-	panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	panel.offset_right = -MARGIN
-	panel.offset_bottom = -MARGIN
-	_root.add_child(panel)
+	panel.custom_minimum_size = Vector2(GAUGE_WIDTH, 0.0)
+	_party_box.add_child(panel)
+	_gauge_panel = panel
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override("separation", CORNER_GAP)
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(column)
 	_gauge_label = HudStyle.make_title("TEAM GAUGE", GAUGE_LABEL_SIZE, HudStyle.GAUGE_FILL)
 	column.add_child(_gauge_label)
 	_gauge_bar = HudStyle.bar(HudStyle.GAUGE_FILL, GAUGE_HEIGHT)
+	var track := _gauge_bar.get_theme_stylebox("background") as StyleBoxFlat
+	track.border_color = HudStyle.EDGE_DIM
+	track.set_border_width_all(1)
 	_gauge_bar.custom_minimum_size.x = GAUGE_WIDTH
-	_gauge_text = HudStyle.make_label("", GAUGE_TEXT_SIZE)
+	_gauge_text = HudStyle.make_number("", GAUGE_TEXT_SIZE)
 	column.add_child(PartyPanel.text_on_bar(_gauge_bar, _gauge_text))
+	# The ultimate's button lives here, not in the action menu (user, 2026-10-16): faded while the
+	# gauge fills, gold and breathing while a hero can unleash it.
+	_unleash = HBoxContainer.new()
+	_unleash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_unleash.alignment = BoxContainer.ALIGNMENT_CENTER
+	_unleash.add_theme_constant_override("separation", 10)
+	column.add_child(_unleash)
+	_unleash.add_child(HintBar.new([[&"fight_ultimate", ""]], UNLEASH_CHIP_SIZE, HudStyle.TEXT))
+	_unleash_label = HudStyle.make_title(UNLEASH_TEXT, UNLEASH_SIZE, HudStyle.TEXT_DIM)
+	_unleash_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_unleash.add_child(_unleash_label)
+	_unleash.modulate = UNLEASH_LOCKED
+
+
+## The ultimate's button was pressed: the gauge card flashes.
+func _on_ultimate_pressed() -> void:
+	_gauge_panel.modulate = Color(2.0, 1.8, 1.2)
+	_gauge_panel.create_tween().tween_property(_gauge_panel, "modulate", Color.WHITE, 0.25)
 
 
 func _refresh_gauge(value: int) -> void:
@@ -758,7 +957,7 @@ func _refresh_gauge(value: int) -> void:
 	_gauge_label.label_settings.font_color = HudStyle.GOLD if full else HudStyle.GAUGE_FILL
 	if full != _gauge_full:
 		HudStyle.set_bar_color(_gauge_bar, HudStyle.GOLD if full else HudStyle.GAUGE_FILL)
-		_gauge_style.border_color = HudStyle.GOLD if full else HudStyle.PANEL_BORDER
+		_gauge_style.border_color = HudStyle.GOLD if full else HudStyle.EDGE_DIM
 		_gauge_style.set_border_width_all(GAUGE_READY_BORDER_PX if full else GAUGE_BORDER_PX)
 		# _process draws the glow while full.
 		_gauge_style.shadow_size = 0
@@ -770,24 +969,57 @@ func _refresh_gauge(value: int) -> void:
 func _make_enemy_panel(id: int, display_name: String) -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.size_flags_horizontal = Control.SIZE_SHRINK_END
-	panel.add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG, ENEMY_PANEL_BORDER, 2, ENEMY_PANEL_PAD))
+	# Every enemy panel as wide as the widest, so the stack reads as one column.
+	panel.size_flags_horizontal = Control.SIZE_FILL
+	var style := HudStyle.slant(HudStyle.INK, ENEMY_PANEL_BORDER, 2, ENEMY_PANEL_PAD, 110.0, 0.12)
+	style.border_width_right = 6
+	panel.add_theme_stylebox_override("panel", style)
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override("separation", ENEMY_PANEL_GAP)
 	panel.add_child(column)
-	column.add_child(HudStyle.make_title(display_name, ENEMY_NAME_SIZE, color_of(id).lightened(ENEMY_NAME_LIGHTEN)))
+	# Name and HP numbers on one line, a slim bar under them: a short panel, so the stack stays
+	# clear of the enemies' heads.
+	var header := HBoxContainer.new()
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header.add_theme_constant_override("separation", 14)
+	column.add_child(header)
+	var hp_label := HudStyle.make_number("", ENEMY_HP_SIZE)
+	hp_label.size_flags_vertical = Control.SIZE_SHRINK_END
+	header.add_child(hp_label)
+	var name_label := HudStyle.make_title(display_name.to_upper(), ENEMY_NAME_SIZE, color_of(id).lightened(ENEMY_NAME_LIGHTEN))
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(name_label)
 	var bar := TrailBar.new(HudStyle.ENEMY_HP_FILL, ENEMY_BAR_HEIGHT, _visuals.hp_trail_color,
 			_visuals.hp_trail_hold_ms, _visuals.hp_trail_drain_ms, _visuals.heal_fill_ms)
 	bar.custom_minimum_size.x = ENEMY_BAR_WIDTH
-	var hp_label := HudStyle.make_label("", ENEMY_HP_SIZE)
-	column.add_child(PartyPanel.text_on_bar(bar, hp_label))
+	column.add_child(bar)
 	var badges := HBoxContainer.new()
 	badges.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badges.alignment = BoxContainer.ALIGNMENT_END
 	badges.add_theme_constant_override("separation", BADGE_GAP)
 	badges.visible = false
 	column.add_child(badges)
+	# What it will do next: "NEXT  Sting String > CASS" and one icon per hit, spaced by time.
+	var intent := HBoxContainer.new()
+	intent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	intent.alignment = BoxContainer.ALIGNMENT_END
+	intent.add_theme_constant_override("separation", 8)
+	intent.visible = false
+	column.add_child(intent)
+	var next := HudStyle.make_title("NEXT", INTENT_SIZE - 4, HudStyle.LATE)
+	next.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	intent.add_child(next)
+	var intent_label := HudStyle.make_label("", INTENT_SIZE)
+	intent_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	intent.add_child(intent_label)
+	var hits := HitRowView.new()
+	hits.setup(_visuals.intent_icon_px, _visuals)
+	hits.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	intent.add_child(hits)
 	_enemy_box.add_child(panel)
+	_intent_signs[id] = {"panel": intent, "label": intent_label, "row": hits, "shown": []}
 	return {"panel": panel, "bar": bar, "hp": hp_label, "badges": badges, "badge_key": ""}
 
 
@@ -841,40 +1073,19 @@ func _make_badge(status: String, text: String) -> PanelContainer:
 	return badge
 
 
-func _make_intent_sign() -> Dictionary:
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel", HudStyle.panel(Color(0.08, 0.02, 0.02, 0.8), HudStyle.LATE, 2, 6))
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", 6)
-	panel.add_child(row)
-	var label := HudStyle.make_label("", INTENT_SIZE)
-	row.add_child(label)
-	var hits := HitRowView.new()
-	hits.setup(_visuals.intent_icon_px, _visuals)
-	hits.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(hits)
-	panel.visible = false
-	_root.add_child(panel)
-	# Below the popups, so damage numbers and readouts are never hidden by a sign.
-	_root.move_child(panel, _popup_layer.get_index())
-	return {"panel": panel, "label": label, "row": hits, "shown": []}
-
-
-## "Flurry -> BRIN" (or "-> WHOLE PARTY") and one icon per hit spaced by time (the attack's
-## rhythm), from the enemy's intent.
+## "Flurry  >  BRIN" (or "WHOLE PARTY") and one icon per hit spaced by time (the attack's
+## rhythm), from the enemy's intent, on the enemy's panel.
 func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 	var entry: Dictionary = _intent_signs.get(id, {})
 	if entry.is_empty():
 		return
 	var intent: Dictionary = mirror.intents.get(id, {})
-	var panel := entry.panel as PanelContainer
+	var panel := entry.panel as Control
 	if intent.is_empty() or not mirror.is_alive(id) or not mirror.result.is_empty():
 		panel.visible = false
 		return
 	var who := target_text(mirror, int(intent.get("mode", 0)), intent.get("targets", []) as Array)
-	(entry.label as Label).text = "%s -> %s" % [String(intent.get("name", "?")), who]
+	(entry.label as Label).text = "%s  >  %s" % [String(intent.get("name", "?")), who]
 	var kinds: Array = intent.get("kinds", [])
 	var times: Array = intent.get("times", [])
 	var feints: Array = intent.get("feints", [])
@@ -883,26 +1094,6 @@ func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 		entry.shown = shown
 		(entry.row as HitRowView).set_hits(kinds, times, _hit_icons, feints)
 	panel.visible = true
-	panel.reset_size()
-
-
-## Keeps each intent sign just under its enemy's feet (clear of the HP bars and the popups over
-## heads; enemies further back stand higher on screen, so two signs never stack), above the
-## party panels and inside the screen.
-func _place_intent_signs() -> void:
-	for id: int in _intent_signs:
-		var panel := (_intent_signs[id] as Dictionary).panel as PanelContainer
-		var v := _view.fighter(id)
-		if not panel.visible or v == null:
-			continue
-		var feet := v.body_position()
-		feet.y = 0.0
-		var spot := _view.screen_position(feet) + Vector2(-panel.size.x * 0.5, _visuals.intent_sign_gap_px)
-		# Never under the party panels or off the screen's edge (card #37).
-		var floor_y := _party_box.get_global_rect().position.y - POPUP_GAP_PX - panel.size.y
-		spot.y = minf(spot.y, floor_y)
-		spot.x = clampf(spot.x, MARGIN, _root.size.x - MARGIN - panel.size.x)
-		panel.position = spot
 
 
 ## Places every live popup, newest first. Each rises popup_rise_px over its life from its spot
@@ -941,10 +1132,10 @@ func _layout_popups() -> void:
 	_popups = kept
 
 
-## Popups never go above this canvas y: below the timeline, and below the attack or TEAM COUNTER
-## banner while one shows.
+## Popups never go above this canvas y: below the screen's margin, and below the attack or TEAM
+## COUNTER banner while one shows.
 func _popup_ceiling() -> float:
-	var ceiling := _timeline.get_global_rect().end.y
+	var ceiling := MARGIN
 	if _banner.visible:
 		ceiling = maxf(ceiling, _banner.get_global_rect().end.y)
 	if _center_banner.visible:
@@ -971,6 +1162,7 @@ func _build_end_screen() -> void:
 	_end_screen.add_child(column)
 	_end_title = HudStyle.make_worn_title("", END_TITLE_SIZE)
 	_end_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_end_title.add_theme_stylebox_override("normal", _band(6))
 	column.add_child(_end_title)
 	_end_summary = HudStyle.make_label("", END_SUMMARY_SIZE)
 	_end_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -981,3 +1173,49 @@ func _build_end_screen() -> void:
 	_end_hint = HintBar.new([], END_HINT_SIZE, HudStyle.TEXT)
 	column.add_child(_end_hint)
 	_root.add_child(_end_screen)
+
+
+## Persona 5's lock-on: four gold corner brackets around the target that snap in from wide and
+## then breathe, with a bouncing chevron over the head.
+class Reticle extends Control:
+	const ARM_SHARE: float = 0.28
+	const LINE_PX: float = 6.0
+	const SNAP_S: float = 0.14
+	const BREATHE_HZ: float = 1.8
+	const BREATHE_PX: float = 6.0
+	const CHEVRON_PX: float = 26.0
+
+	var target: int = -1
+	var frame: Rect2 = Rect2()
+	var time_s: float = 0.0
+	var born_s: float = 0.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		visible = false
+
+	func _draw() -> void:
+		if target < 0 or frame.size.x <= 0.0:
+			return
+		var age := clampf((time_s - born_s) / SNAP_S, 0.0, 1.0)
+		var grow := (1.0 - age) * 60.0 + sin(time_s * TAU * BREATHE_HZ) * BREATHE_PX * age
+		var r := frame.grow(grow)
+		var arm := minf(r.size.x, r.size.y) * ARM_SHARE
+		var corners := [[r.position, Vector2(1, 0), Vector2(0, 1)],
+				[Vector2(r.end.x, r.position.y), Vector2(-1, 0), Vector2(0, 1)],
+				[Vector2(r.position.x, r.end.y), Vector2(1, 0), Vector2(0, -1)],
+				[r.end, Vector2(-1, 0), Vector2(0, -1)]]
+		var gold := Color(HudStyle.GOLD, age)
+		var ink := Color(0.0, 0.0, 0.0, 0.7 * age)
+		for c: Array in corners:
+			var p: Vector2 = c[0]
+			var pts := PackedVector2Array([p + (c[1] as Vector2) * arm, p, p + (c[2] as Vector2) * arm])
+			draw_polyline(pts, ink, LINE_PX + 4.0, true)
+			draw_polyline(pts, gold, LINE_PX, true)
+		var bob := sin(time_s * TAU * BREATHE_HZ) * 6.0
+		var tip := Vector2(r.get_center().x, r.position.y - 14.0 + bob)
+		var chevron := PackedVector2Array([tip, tip + Vector2(-CHEVRON_PX, -CHEVRON_PX * 0.8),
+				tip + Vector2(-CHEVRON_PX * 0.45, -CHEVRON_PX * 0.8), tip + Vector2(0.0, -CHEVRON_PX * 0.35),
+				tip + Vector2(CHEVRON_PX * 0.45, -CHEVRON_PX * 0.8), tip + Vector2(CHEVRON_PX, -CHEVRON_PX * 0.8)])
+		draw_colored_polygon(chevron, gold)
+		draw_polyline(chevron + PackedVector2Array([tip]), ink, 2.0, true)

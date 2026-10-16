@@ -505,3 +505,13 @@ extends Resource
 @export var backpack_grid_origin: Vector2i = Vector2i(14, 23)
 @export_range(4, 64) var backpack_cell_art_px: int = 23
 @export_range(0, 8) var backpack_gap_art_px: int = 1
+
+@export_group("Turn spotlight")
+## On a hero's turn (card #154) the acting hero steps turn_step (world units: toward the enemies
+## and the camera) onto a gold ring, and the other heroes step turn_step_away back and out to their
+## own side and dim to bystander_tint, over turn_spot_ms; everyone steps home when the choice is made.
+@export var turn_step: Vector3 = Vector3(0.35, 0.0, 0.3)
+@export_range(0.0, 3.0, 0.05) var turn_step_away: float = 1.1
+@export_range(0, 1000, 10, "suffix:ms") var turn_spot_ms: int = 200
+@export var turn_ring_color: Color = Color(1.0, 0.82, 0.3)
+@export_range(0.0, 1.0, 0.05) var turn_ring_alpha: float = 0.55

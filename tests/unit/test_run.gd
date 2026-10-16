@@ -88,6 +88,9 @@ func test_zone_stops_get_a_zone_not_met_last_on_the_way_there() -> void:
 	for s: int in range(1, SEEDS):
 		var map := _map(s)
 		for st: Dictionary in map.stops:
+			if int(st.type) == RunMap.StopType.ELITE:
+				assert_between(int(st.zone), 0, 2, "an elite fight takes place in a zone")
+				continue
 			if int(st.type) != RunMap.StopType.ZONE:
 				assert_eq(int(st.zone), -1)
 				continue
@@ -162,12 +165,19 @@ func test_a_defeat_ends_the_run() -> void:
 
 func test_winning_the_final_fight_clears_the_run() -> void:
 	var run := _run()
-	while run.map.stop(run.at).get("type", -1) != RunMap.StopType.FINAL:
-		assert_true(run.go(run.choices()[0]))
 	var after: Array[int] = [10, 10, 10]
-	run.finish_fight(RunState.VICTORY, after, _data.final_encounter)
+	# Every act's boss but the last opens the next act (DESIGN.md 8.9).
+	for act: int in run.acts().size():
+		while run.map.stop(run.at).get("type", -1) != RunMap.StopType.FINAL:
+			assert_true(run.go(run.choices()[0]))
+		assert_eq(run.path.size(), run.map.row_count(), "one stop per row")
+		run.finish_fight(RunState.VICTORY, after, run.final_encounter())
+		if act < run.acts().size() - 1:
+			assert_eq(run.result, "", "act %d's boss does not end the run" % (act + 1))
+			assert_true(run.act_cleared())
+			assert_true(run.next_act())
+			assert_eq(run.at, -1, "the next act starts at its bottom")
 	assert_eq(run.result, RunState.VICTORY)
-	assert_eq(run.path.size(), run.map.row_count(), "one stop per row")
 
 
 func test_rest_heals_a_share_of_max_hp() -> void:
@@ -251,7 +261,8 @@ func test_shipped_run_is_complete() -> void:
 	assert_gt(_data.shop_items.size(), 0)
 	for item: ItemData in _data.shop_items:
 		assert_gt(item.price, 0, "%s costs something" % item.id)
-	for zone: ZoneData in _data.zones:
+	for layout: ZoneData in _data.zones:
+		var zone := ZoneAssembler.assemble(layout, 1)
 		var guards := 0
 		for e: ZoneEnemyData in zone.enemies:
 			if e.guard:
