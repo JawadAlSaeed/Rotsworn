@@ -2,408 +2,49 @@
 
 [ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_n6mcy"]
 [ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="2_jypso"]
+[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_end.tres" id="2_xopu5"]
 [ext_resource type="Resource" path="res://data/encounters/fly_pair.tres" id="3_d0j50"]
 [ext_resource type="Resource" path="res://data/encounters/husk_fight.tres" id="4_crqsi"]
 [ext_resource type="Resource" path="res://data/encounters/toad_fight.tres" id="5_0fs8u"]
-[ext_resource type="Resource" path="res://data/encounters/toad_and_fly.tres" id="6_flt1c"]
 [ext_resource type="Resource" path="res://data/characters/brin.tres" id="7_fpga6"]
+[ext_resource type="Script" path="res://scripts/data/zone_section_data.gd" id="7_pp0bv"]
+[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_fork.tres" id="8_5s7if"]
 [ext_resource type="Script" path="res://scripts/data/zone_light_data.gd" id="8_kdxmu"]
 [ext_resource type="Resource" path="res://data/looks/sunken_bog.tres" id="9_7dio0"]
+[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_yard.tres" id="9_axtek"]
 [ext_resource type="Script" path="res://scripts/data/zone_prop_data.gd" id="10_lm0nt"]
+[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_pass.tres" id="10_n1m5q"]
 [ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="11_jyu1e"]
-
-[sub_resource type="Resource" id="Resource_y3l7e"]
-script = ExtResource("1_n6mcy")
-position = Vector3(0, 0, -23.5)
-size = Vector3(34, 5, 3)
-texture_path = "res://assets/sprites/env/cliff.png"
-
-[sub_resource type="Resource" id="Resource_glakb"]
-script = ExtResource("1_n6mcy")
-position = Vector3(-16.5, 0, -5.5)
-size = Vector3(3, 4, 36)
-texture_path = "res://assets/sprites/env/cliff.png"
-
-[sub_resource type="Resource" id="Resource_18ggi"]
-script = ExtResource("1_n6mcy")
-position = Vector3(16.5, 0, -5.5)
-size = Vector3(3, 4, 36)
-texture_path = "res://assets/sprites/env/cliff.png"
-
-[sub_resource type="Resource" id="Resource_6qiwx"]
-script = ExtResource("1_n6mcy")
-position = Vector3(-6, 0, -1)
-size = Vector3(6, 1.4, 0.8)
-texture_path = "res://assets/sprites/env/ruin_wall.png"
-
-[sub_resource type="Resource" id="Resource_nqmso"]
-script = ExtResource("1_n6mcy")
-position = Vector3(7, 0, -11)
-size = Vector3(5, 1.6, 0.8)
-rotation_y_degrees = 90.0
-texture_path = "res://assets/sprites/env/ruin_wall.png"
-
-[sub_resource type="Resource" id="Resource_xopu5"]
-script = ExtResource("1_n6mcy")
-position = Vector3(-10, 0, -15)
-size = Vector3(4, 2.5, 4)
-texture_path = "res://assets/sprites/env/cliff.png"
-
-[sub_resource type="Resource" id="Resource_pp0bv"]
-script = ExtResource("1_n6mcy")
-position = Vector3(10, 0, 3)
-size = Vector3(3, 2, 3)
-texture_path = "res://assets/sprites/env/cliff.png"
-
-[sub_resource type="Resource" id="Resource_5s7if"]
-script = ExtResource("2_jypso")
-encounter = ExtResource("3_d0j50")
-position = Vector3(-7, 0, -5)
-
-[sub_resource type="Resource" id="Resource_axtek"]
-script = ExtResource("2_jypso")
-encounter = ExtResource("4_crqsi")
-position = Vector3(6, 0, -3)
-
-[sub_resource type="Resource" id="Resource_n1m5q"]
-script = ExtResource("2_jypso")
-encounter = ExtResource("5_0fs8u")
-position = Vector3(-4, 0, -16)
-wander_radius = 2.0
-
-[sub_resource type="Resource" id="Resource_ntjl4"]
-script = ExtResource("2_jypso")
-encounter = ExtResource("6_flt1c")
-position = Vector3(0.5, 0, -18)
-wander_radius = 1.0
-guard = true
-
-[sub_resource type="Resource" id="Resource_jgxke"]
-script = ExtResource("8_kdxmu")
-position = Vector3(-2, 1.5, 6)
-color = Color(0.55, 1, 0.6, 1)
-reach = 7.0
-
-[sub_resource type="Resource" id="Resource_52r0a"]
-script = ExtResource("8_kdxmu")
-position = Vector3(4, 1.5, -6)
-color = Color(0.55, 1, 0.6, 1)
-reach = 7.0
-
-[sub_resource type="Resource" id="Resource_1w4uv"]
-script = ExtResource("8_kdxmu")
-position = Vector3(-6, 1.5, -14)
-color = Color(0.55, 1, 0.6, 1)
-reach = 7.0
-
-[sub_resource type="Resource" id="Resource_a0tev"]
-script = ExtResource("8_kdxmu")
-position = Vector3(-2.5, 1.9, -20)
-color = Color(1, 0.68, 0.38, 1)
-energy = 2.4
-reach = 7.0
-flicker_percent = 12
-
-[sub_resource type="Resource" id="Resource_ll1ct"]
-script = ExtResource("8_kdxmu")
-position = Vector3(3.5, 1.9, -20)
-color = Color(1, 0.68, 0.38, 1)
-energy = 2.4
-reach = 7.0
-flicker_percent = 12
-
-[sub_resource type="Resource" id="Resource_gtb43"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/rotten_tree.png"
-position = Vector3(-11, 0, 5)
-solid_radius = 0.6
-
-[sub_resource type="Resource" id="Resource_1tnml"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/rotten_tree.png"
-position = Vector3(12, 0, -3)
-flip = true
-solid_radius = 0.6
-
-[sub_resource type="Resource" id="Resource_urcme"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/rotten_tree.png"
-position = Vector3(-12, 0, -9)
-solid_radius = 0.6
-
-[sub_resource type="Resource" id="Resource_d5b0x"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/rotten_tree.png"
-position = Vector3(11, 0, -17)
-flip = true
-solid_radius = 0.6
-
-[sub_resource type="Resource" id="Resource_ihusw"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/rotten_tree.png"
-position = Vector3(-6, 0, -20)
-solid_radius = 0.6
-
-[sub_resource type="Resource" id="Resource_ytkuw"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/dead_tree.png"
-position = Vector3(4, 0, 1)
-solid_radius = 0.4
-
-[sub_resource type="Resource" id="Resource_cx4fs"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/dead_tree.png"
-position = Vector3(-3, 0, -9)
-flip = true
-solid_radius = 0.4
-
-[sub_resource type="Resource" id="Resource_5hep5"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/dead_tree.png"
-position = Vector3(5, 0, -15)
-solid_radius = 0.4
-
-[sub_resource type="Resource" id="Resource_kpgqk"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/rock.png"
-position = Vector3(-3, 0, 4.5)
-pixel_size = 0.05
-solid_radius = 0.7
-
-[sub_resource type="Resource" id="Resource_y8ixv"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/rock.png"
-position = Vector3(9.5, 0, -6.5)
-pixel_size = 0.05
-flip = true
-solid_radius = 0.7
-
-[sub_resource type="Resource" id="Resource_6dlxt"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/rock.png"
-position = Vector3(-8, 0, -11.5)
-pixel_size = 0.05
-solid_radius = 0.7
-
-[sub_resource type="Resource" id="Resource_hrnyk"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/pillar.png"
-position = Vector3(-2.5, 0, -20.5)
-pixel_size = 0.055
-solid_radius = 0.45
-
-[sub_resource type="Resource" id="Resource_all3w"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/pillar.png"
-position = Vector3(3.5, 0, -20.5)
-pixel_size = 0.055
-flip = true
-solid_radius = 0.45
-
-[sub_resource type="Resource" id="Resource_pgjoa"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/glow_shroom.png"
-position = Vector3(-7, 0, 3)
-pixel_size = 0.05
-glow = 1.5
-glow_color = Color(0.35, 1, 0.85, 1)
-
-[sub_resource type="Resource" id="Resource_xvd35"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/glow_shroom.png"
-position = Vector3(3, 0, -4.5)
-pixel_size = 0.05
-glow = 1.5
-glow_color = Color(0.35, 1, 0.85, 1)
-
-[sub_resource type="Resource" id="Resource_61yl2"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/glow_shroom.png"
-position = Vector3(-1, 0, -13)
-pixel_size = 0.05
-glow = 1.5
-glow_color = Color(0.35, 1, 0.85, 1)
-
-[sub_resource type="Resource" id="Resource_np4ab"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/glow_shroom.png"
-position = Vector3(8, 0, -19)
-pixel_size = 0.05
-glow = 1.5
-glow_color = Color(0.35, 1, 0.85, 1)
-
-[sub_resource type="Resource" id="Resource_2kbnr"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/glow_shroom.png"
-position = Vector3(-12.5, 0, -2)
-pixel_size = 0.05
-glow = 1.5
-glow_color = Color(0.35, 1, 0.85, 1)
-
-[sub_resource type="Resource" id="Resource_7lok5"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/glow_shroom.png"
-position = Vector3(12, 0, 7)
-pixel_size = 0.05
-glow = 1.5
-glow_color = Color(0.35, 1, 0.85, 1)
-
-[sub_resource type="Resource" id="Resource_7uq2v"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(-6.32, 0, -17.45)
-pixel_size = 0.045
-flip = true
-
-[sub_resource type="Resource" id="Resource_l7u4t"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(12.82, 0, -13.11)
-pixel_size = 0.045
-flip = true
-
-[sub_resource type="Resource" id="Resource_b3eme"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(13.76, 0, -20.01)
-pixel_size = 0.045
-flip = true
-
-[sub_resource type="Resource" id="Resource_bg670"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(-8.18, 0, -8.21)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_chacn"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(12.46, 0, -11.84)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_cj4kw"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(-4.37, 0, -17.09)
-pixel_size = 0.045
-flip = true
-
-[sub_resource type="Resource" id="Resource_ifbxg"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(-10.65, 0, -8.35)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_n4hkj"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(-6.47, 0, 9.14)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_1w73d"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(-3.57, 0, 5.33)
-pixel_size = 0.045
-flip = true
-
-[sub_resource type="Resource" id="Resource_oqna2"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(9.17, 0, -1.8)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_4u6yo"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(1.17, 0, -2.71)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_1s0sy"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(7.66, 0, 4.67)
-pixel_size = 0.045
-flip = true
-
-[sub_resource type="Resource" id="Resource_o65i5"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(10.6, 0, -14.27)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_313ga"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(10.73, 0, -13.34)
-pixel_size = 0.045
-flip = true
-
-[sub_resource type="Resource" id="Resource_swuh7"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(-13.4, 0, -16.47)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_o151g"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(8.33, 0, -12.89)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_kmvng"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(-2.41, 0, -13.32)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_5wjfa"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(-10.18, 0, -3.12)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_mr3q2"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(11.04, 0, -0.91)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_rivd3"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(13.16, 0, 5.21)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_pvlqi"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(3.31, 0, -4.24)
-pixel_size = 0.045
-
-[sub_resource type="Resource" id="Resource_nsnnf"]
-script = ExtResource("10_lm0nt")
-sprite_path = "res://assets/sprites/env/grass.png"
-position = Vector3(8.55, 0, -20.64)
-pixel_size = 0.045
-flip = true
+[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_court.tres" id="11_ntjl4"]
+[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_loop.tres" id="12_jgxke"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="13_52r0a"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="15_1w4uv"]
+[ext_resource type="Resource" path="res://data/offers/healing_spring.tres" id="20_a0tev"]
+[ext_resource type="Resource" path="res://data/offers/blood_altar.tres" id="21_ll1ct"]
+[ext_resource type="Resource" path="res://data/offers/war_idol.tres" id="22_gtb43"]
+[ext_resource type="Resource" path="res://data/offers/shrine_of_plenty.tres" id="23_1tnml"]
+[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_start.tres" id="24_urcme"]
+[ext_resource type="Resource" path="res://data/offers/key_peddler.tres" id="25_d5b0x"]
+[ext_resource type="Resource" path="res://data/offers/grave_robber.tres" id="26_ihusw"]
+[ext_resource type="Resource" path="res://data/offers/old_pilgrim.tres" id="27_ytkuw"]
 
 [resource]
 script = ExtResource("11_jyu1e")
 id = "sunken_bog"
-map_icon_path = "res://assets/sprites/ui/map_zone_sunken_bog.png"
 display_name = "Sunken Bog"
+map_icon_path = "res://assets/sprites/ui/map_zone_sunken_bog.png"
 look = ExtResource("9_7dio0")
 leader = ExtResource("7_fpga6")
-bounds_min = Vector2(-14, -21)
-bounds_max = Vector2(14, 10)
-player_start = Vector3(0, 0, 8)
-blocks = Array[ExtResource("1_n6mcy")]([SubResource("Resource_y3l7e"), SubResource("Resource_glakb"), SubResource("Resource_18ggi"), SubResource("Resource_6qiwx"), SubResource("Resource_nqmso"), SubResource("Resource_xopu5"), SubResource("Resource_pp0bv")])
-props = Array[ExtResource("10_lm0nt")]([SubResource("Resource_gtb43"), SubResource("Resource_1tnml"), SubResource("Resource_urcme"), SubResource("Resource_d5b0x"), SubResource("Resource_ihusw"), SubResource("Resource_ytkuw"), SubResource("Resource_cx4fs"), SubResource("Resource_5hep5"), SubResource("Resource_kpgqk"), SubResource("Resource_y8ixv"), SubResource("Resource_6dlxt"), SubResource("Resource_hrnyk"), SubResource("Resource_all3w"), SubResource("Resource_pgjoa"), SubResource("Resource_xvd35"), SubResource("Resource_61yl2"), SubResource("Resource_np4ab"), SubResource("Resource_2kbnr"), SubResource("Resource_7lok5"), SubResource("Resource_7uq2v"), SubResource("Resource_l7u4t"), SubResource("Resource_b3eme"), SubResource("Resource_bg670"), SubResource("Resource_chacn"), SubResource("Resource_cj4kw"), SubResource("Resource_ifbxg"), SubResource("Resource_n4hkj"), SubResource("Resource_1w73d"), SubResource("Resource_oqna2"), SubResource("Resource_4u6yo"), SubResource("Resource_1s0sy"), SubResource("Resource_o65i5"), SubResource("Resource_313ga"), SubResource("Resource_swuh7"), SubResource("Resource_o151g"), SubResource("Resource_kmvng"), SubResource("Resource_5wjfa"), SubResource("Resource_mr3q2"), SubResource("Resource_rivd3"), SubResource("Resource_pvlqi"), SubResource("Resource_nsnnf")])
-lights = Array[ExtResource("8_kdxmu")]([SubResource("Resource_jgxke"), SubResource("Resource_52r0a"), SubResource("Resource_1w4uv"), SubResource("Resource_a0tev"), SubResource("Resource_ll1ct")])
-enemies = Array[ExtResource("2_jypso")]([SubResource("Resource_5s7if"), SubResource("Resource_axtek"), SubResource("Resource_n1m5q"), SubResource("Resource_ntjl4")])
-item_spots = Array[Vector3]([Vector3(-12, 0, 1), Vector3(12.5, 0, -9.5), Vector3(-11.5, 0, -19)])
-chests = Array[Vector3]([Vector3(-12.5, 0, -12.5)])
+bounds_min = Vector2(0, -20)
+bounds_max = Vector2(1, 10)
+start_section = ExtResource("24_urcme")
+middle_sections = Array[ExtResource("7_pp0bv")]([ExtResource("8_5s7if"), ExtResource("9_axtek"), ExtResource("10_n1m5q"), ExtResource("11_ntjl4"), ExtResource("12_jgxke")])
+end_section = ExtResource("2_xopu5")
+roamer_pool = Array[ExtResource("15_1w4uv")]([ExtResource("3_d0j50"), ExtResource("4_crqsi"), ExtResource("5_0fs8u")])
+shrines = Array[ExtResource("13_52r0a")]([ExtResource("20_a0tev"), ExtResource("21_ll1ct"), ExtResource("22_gtb43"), ExtResource("23_1tnml")])
+wanderers = Array[ExtResource("13_52r0a")]([ExtResource("25_d5b0x"), ExtResource("26_ihusw"), ExtResource("27_ytkuw")])
+edge_texture_path = "res://assets/sprites/env/cliff.png"
+edge_height = 4.5
 footstep_sfx = "footstep_mud"
 music_path = "res://assets/audio/music/zone_bog.ogg"
 ambience_path = "res://assets/audio/ambience/ambience_bog.ogg"

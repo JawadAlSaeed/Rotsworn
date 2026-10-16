@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_2w2ai"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_xoq43"]
+[ext_resource type="Resource" path="res://data/items/salve.tres" id="3_q6p6b"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="4_cfwsd"]
+
+[sub_resource type="Resource" id="Resource_57a7m"]
+script = ExtResource("2_xoq43")
+cost_hp_percent = 10
+xp = 40
+
+[sub_resource type="Resource" id="Resource_xdfrg"]
+script = ExtResource("1_2w2ai")
+text = "Bind his wounds"
+detail = "Everyone loses 10% HP. Every hero gets 40 XP."
+deal = SubResource("Resource_57a7m")
+done_text = "He blesses you and limps on."
+
+[sub_resource type="Resource" id="Resource_57nmd"]
+script = ExtResource("2_xoq43")
+gold = 30
+item = ExtResource("3_q6p6b")
+
+[sub_resource type="Resource" id="Resource_38vm0"]
+script = ExtResource("2_xoq43")
+cost_hp_percent = 20
+
+[sub_resource type="Resource" id="Resource_firxf"]
+script = ExtResource("1_2w2ai")
+text = "Take the satchel"
+detail = "A salve and 30 gold. He might not be alone."
+deal = SubResource("Resource_57nmd")
+risk_percent = 50
+risk_deal = SubResource("Resource_38vm0")
+done_text = "He is too weak to stop you."
+risk_text = "His friends were watching. Everyone loses 20% HP."
+
+[resource]
+script = ExtResource("4_cfwsd")
+id = "wounded_pilgrim"
+title = "A Wounded Pilgrim"
+text = "A pilgrim lies in the road, bleeding through his robe. He clutches a satchel."
+picture_path = "res://assets/sprites/ui/map_event.png"
+choices = Array[ExtResource("1_2w2ai")]([SubResource("Resource_xdfrg"), SubResource("Resource_firxf")])

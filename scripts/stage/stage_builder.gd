@@ -129,9 +129,10 @@ static func _apply_camera_attributes(attributes: CameraAttributesPractical) -> v
 
 
 ## The tiled ground plane, centred at `centre`.
-static func ground(look: StageLook, centre: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+## `cover`: the floor reaches at least this far (x, z), for a long zone (DESIGN.md 8.5).
+static func ground(look: StageLook, centre: Vector3 = Vector3.ZERO, cover: Vector2 = Vector2.ZERO) -> MeshInstance3D:
 	var mesh := PlaneMesh.new()
-	mesh.size = Vector2(look.floor_size, look.floor_size)
+	mesh.size = Vector2(maxf(look.floor_size, cover.x), maxf(look.floor_size, cover.y))
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = AssetLoader.texture(look.floor_tile_path, Vector2i(32, 32))
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST

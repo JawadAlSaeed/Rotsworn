@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ZoneOfferData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="1_v2pl4"]
+
+[resource]
+script = ExtResource("1_v2pl4")
+id = "healing_spring"
+display_name = "Healing Spring"
+question = "Drink from the Healing Spring?"
+detail = "Free. Everyone heals 30% of their HP."
+yes_text = "Drink"
+sprite_path = "res://assets/sprites/env/shrine_spring.png"
+glow = 1.2
+glow_color = Color(0.35, 1, 0.85, 1)
+solid_radius = 0.5
+heal_percent = 30

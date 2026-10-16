@@ -69,7 +69,8 @@ heroes are no longer shown (enemies still use theirs).
 - `kit/beast.py` helpers for the phase 12 monsters (fly, hyena, toad): safe cones, a decal
   painter, finishing passes, the floor-line nudge, parallel clip rendering, `build_enemy()`.
 - `kit/specs.py` the sprite contract (sizes, frame order, sheet grid, Tier 1 clip names).
-- `assets/<module>.py` one module per asset group, each with `build(ctx)`. `fx_attacks` draws
+- `assets/<module>.py` one module per asset group, each with `build(ctx)`. `env_zone` draws the
+  long zones' things (phase 15): the rot seal, the gate tile, four shrines, three wanderers. `fx_attacks` draws
   the enemy attack effects of phase 12 (rock spikes, projectiles).
 
 ## Style rules (the art bible)

@@ -60,6 +60,31 @@ VARIANTS: dict[str, tuple[str, list, str]] = {
         (band(270, 350, 0.05), shift(to_h=20.0)),
         (anything, shift(to_h=60.0, pull=0.6, dl=-0.05, c=1.05)),
     ], "dark bog brown"),
+    # Phase 15 mini-bosses and the first act's boss (DESIGN.md 8.6, 8.9): named kin, bolder colours.
+    # The Gorged One (Rotten Hollow's guard): deep crimson flesh, a gold glow.
+    "gorged_one": ("bloat", [
+        (glow(90, 160), shift(to_h=75.0, c=1.3, dl=0.04)),
+        (band(270, 345, 0.03), shift(to_h=15.0, c=1.4, dl=0.02)),
+        (anything, shift(to_h=10.0, pull=0.7, c=1.3, dl=-0.03)),
+    ], "crimson, gold glow"),
+    # Mire Mother (Sunken Bog's guard): dark teal skin, cyan eyes.
+    "mire_mother": ("mire_toad", [
+        (glow(40, 160), shift(to_h=190.0, c=1.3, dl=0.04)),
+        (band(270, 350, 0.05), shift(to_h=175.0)),
+        (anything, shift(to_h=170.0, pull=0.6, dl=-0.06, c=1.1)),
+    ], "dark teal, cyan eyes"),
+    # Ash Warden (Ashen Ruins' guard): charcoal robes, ember orange glow.
+    "ash_warden": ("shade", [
+        (glow(250, 330), shift(to_h=45.0, c=1.4, dl=0.06)),
+        (glow(90, 160), shift(to_h=40.0, c=1.3)),
+        (anything, shift(to_h=30.0, c=0.5, dl=-0.04, pull=0.6)),
+    ], "charcoal, embers"),
+    # The Husk Lord (the first act's boss): black iron bark, a gold crown of rot.
+    "husk_lord": ("rotten_husk", [
+        (glow(90, 160), shift(to_h=80.0, c=1.4, dl=0.05)),
+        (band(270, 350, 0.05), shift(to_h=60.0, c=1.2)),
+        (anything, shift(c=0.35, dl=-0.07, to_h=270.0, pull=0.4)),
+    ], "black iron, gold rot"),
 }
 
 

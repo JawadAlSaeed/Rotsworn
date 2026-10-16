@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_imcgh"]
+[ext_resource type="Resource" path="res://data/enemies/husk_lord.tres" id="2_7t8bm"]
+[ext_resource type="Resource" path="res://data/enemies/rotten_husk.tres" id="3_0vpf3"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="4_peryt"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="5_lxhwh"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="6_u3chl"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="7_jjv8h"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="8_8kn6q"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="9_dw4de"]
+
+[resource]
+script = ExtResource("8_8kn6q")
+id = "husk_lord_fight"
+display_name = "The Husk Lord"
+party = Array[ExtResource("4_peryt")]([ExtResource("5_lxhwh"), ExtResource("6_u3chl"), ExtResource("7_jjv8h")])
+enemies = Array[ExtResource("1_imcgh")]([ExtResource("2_7t8bm"), ExtResource("3_0vpf3")])
+team_ultimate = ExtResource("9_dw4de")
+boss = true
+can_run = false

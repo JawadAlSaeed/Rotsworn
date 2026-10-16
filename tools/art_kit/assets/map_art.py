@@ -379,6 +379,115 @@ def make_lair() -> np.ndarray:
     return c.a
 
 
+def make_elite() -> np.ndarray:
+    """An elite fight (DESIGN.md 8.6): a horned skull over two crossed blades."""
+    c = Canvas(ICON, ICON)
+    for x0, y0, x1, y1 in ((3, 21, 20, 4), (20, 21, 3, 4)):
+        c.line(x0, y0, x1, y1, STONE[3])
+        c.line(x0 + 1, y0, x1 + 1, y1, STONE[1])
+    for hx, hy in ((4, 20), (19, 20)):
+        c.rect(hx - 1, hy - 1, hx + 1, hy + 1, DARKWOOD[1])
+    # Horns.
+    c.poly([(6.0, 9.0), (2.5, 4.0), (3.0, 1.5), (5.0, 5.0), (8.0, 7.0)], BONE[2])
+    c.poly([(17.0, 9.0), (20.5, 4.0), (20.0, 1.5), (18.0, 5.0), (15.0, 7.0)], BONE[2])
+    # The skull: dome, cheeks, jaw, dark eyes with a red glint.
+    c.ellipse(11.5, 10.5, 5.5, 5.0, BONE[3])
+    c.rect(8, 13, 15, 17, BONE[3])
+    c.rect(9, 17, 14, 18, BONE[2])
+    c.ellipse(9.2, 11.5, 1.6, 1.8, SEPIA[0])
+    c.ellipse(13.8, 11.5, 1.6, 1.8, SEPIA[0])
+    c.px(9, 11, RED[3])
+    c.px(14, 11, RED[3])
+    c.px(11, 14, SEPIA[0])
+    c.px(12, 14, SEPIA[0])
+    for tx in (10, 12, 14):
+        c.px(tx, 17, SEPIA[1])
+    c.line(8, 8, 10, 6, BONE[-1])
+    c.outline(INK_OUT)
+    return c.a
+
+
+def make_event() -> np.ndarray:
+    """A "?" stop (DESIGN.md 8.7): a big question mark in red ink over a curl of mist."""
+    c = Canvas(ICON, ICON)
+    c.ellipse(12.0, 19.0, 9.5, 3.0, PAPER[2])
+    c.ellipse(8.0, 17.5, 4.0, 2.0, PAPER[1])
+    c.ellipse(16.0, 18.0, 4.5, 2.0, PAPER[1])
+    rows = [
+        "..xxxxx..",
+        ".xxx.xxx.",
+        "xxx...xxx",
+        "......xxx",
+        ".....xxx.",
+        "....xxx..",
+        "...xxx...",
+        "...xxx...",
+        ".........",
+        "...xxx...",
+        "...xxx...",
+    ]
+    c.ascii(rows, {"x": RED_INK[1]}, x=7, y=3)
+    for y in range(3, 14):
+        for x in range(7, 16):
+            if c.get(x, y)[3] > 0 and c.get(x - 1, y)[3] == 0:
+                c.px(x, y, RED_INK[2])
+    c.outline(INK_OUT)
+    return c.a
+
+
+def make_treasure() -> np.ndarray:
+    """A treasure stop (DESIGN.md 8.8): a gold-banded chest, its lid a little open, light inside."""
+    c = Canvas(ICON, ICON)
+    c.ellipse(12.0, 21.0, 9.5, 1.8, SEPIA[1])
+    c.rect(4, 12, 19, 20, WOOD[2])
+    c.rect(4, 12, 5, 20, WOOD[3])
+    c.rect(18, 12, 19, 20, WOOD[1])
+    c.poly([(3.5, 11.5), (5.0, 6.0), (18.5, 6.0), (20.5, 11.5)], WOOD[3])
+    c.line(5, 7, 18, 7, WOOD[4])
+    c.rect(4, 11, 19, 11, AMBER[3])
+    for bx in (7, 16):
+        c.rect(bx, 6, bx + 1, 20, GOLD[2])
+        c.rect(bx, 6, bx, 20, GOLD[3])
+    c.rect(10, 13, 13, 16, GOLD[2])
+    c.px(11, 14, SEPIA[0])
+    c.px(12, 14, SEPIA[0])
+    c.px(11, 15, SEPIA[0])
+    c.px(9, 10, AMBER[-1])
+    c.px(14, 9, AMBER[-1])
+    c.outline(INK_OUT)
+    return c.a
+
+
+def make_lair_husk_lord() -> np.ndarray:
+    """The first act's boss lair (DESIGN.md 8.9): a huge hollow tree crowned in gold, eyes in its
+    hollow."""
+    c = Canvas(LAIR, LAIR)
+    c.ellipse(16.0, 29.5, 14.0, 2.4, MOSS[1])
+    # Roots and trunk.
+    c.poly([(5.0, 30.0), (10.0, 24.0), (11.0, 10.0), (21.0, 10.0), (22.0, 24.0), (27.0, 30.0)], DEAD[2])
+    c.poly([(5.0, 30.0), (10.0, 24.0), (11.0, 10.0), (15.0, 10.0), (14.0, 30.0)], DEAD[3])
+    c.line(18, 12, 20, 28, DEAD[1])
+    # Bare crooked limbs.
+    for x0, y0, x1, y1 in ((12, 11, 6, 5), (6, 5, 4, 6), (20, 11, 26, 4), (26, 4, 28, 5), (16, 10, 15, 6),
+                           (9, 8, 7, 9), (23, 8, 25, 9)):
+        c.line(x0, y0, x1, y1, DEAD[2])
+        c.line(x0 + 1, y0, x1 + 1, y1, DEAD[1])
+    # The hollow with eyes.
+    c.ellipse(16.0, 20.0, 3.6, 4.6, SEPIA[0])
+    c.px(15, 19, ROT[3])
+    c.px(17, 19, ROT[3])
+    c.px(15, 20, ROT[1])
+    c.px(17, 20, ROT[1])
+    # The gold crown caught in its branches.
+    c.rect(12, 6, 20, 7, GOLD[2])
+    c.rect(12, 6, 20, 6, GOLD[3])
+    for sx in (12, 16, 20):
+        c.rect(sx, 3, sx, 5, GOLD[3])
+    c.px(16, 7, RED[3])
+    c.outline(INK_OUT)
+    return c.a
+
+
 def make_flag() -> np.ndarray:
     """The party's banner: three stripes for the three heroes, a swallowtail end."""
     c = Canvas(14, 22)
@@ -442,6 +551,10 @@ def build(ctx) -> None:
         icons[zone_id] = fn()
         ctx.save("sprites/ui/map_zone_%s.png" % zone_id, icons[zone_id], scale=8)
     ctx.save("sprites/ui/map_lair_hollow_king.png", icons["lair"], scale=8)
+    ctx.save("sprites/ui/map_lair_husk_lord.png", make_lair_husk_lord(), scale=8)
+    ctx.save("sprites/ui/map_elite.png", make_elite(), scale=8)
+    ctx.save("sprites/ui/map_event.png", make_event(), scale=8)
+    ctx.save("sprites/ui/map_treasure.png", make_treasure(), scale=8)
     ctx.save("sprites/ui/map_flag.png", icons["flag"], scale=8)
     ctx.save("sprites/ui/map_ring.png", icons["ring"], scale=8)
     ctx.save("sprites/ui/map_ring_big.png", make_ring(RING_BIG), scale=8)

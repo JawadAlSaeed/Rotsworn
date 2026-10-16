@@ -9,6 +9,8 @@ extends Resource
 @export var party: Array[CharacterData] = []
 ## Offered to every party member when the team gauge is full.
 @export var team_ultimate: AbilityData
+## The acts of the run, in order (DESIGN.md 8.9). Empty: one act made of the fields below.
+@export var acts: Array[ActData] = []
 ## Each zone stop is one of these, picked at random when the map is made.
 @export var zones: Array[ZoneData] = []
 ## The fight at the top of the map. Until the boss exists (Part B) it is a hard normal fight.

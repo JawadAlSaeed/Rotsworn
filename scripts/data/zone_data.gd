@@ -27,6 +27,34 @@ extends Resource
 ## Locked chests (feet on the ground; 0 or 1 per zone). A key from the backpack opens one; what it
 ## holds is picked by the run's seed (DESIGN.md 8.1).
 @export var chests: Array[Vector3] = []
+## Rot seals (feet): the gate opens once the party holds tuning.zone_seals_needed of them (DESIGN.md 8.5).
+@export var seal_spots: Array[Vector3] = []
+## The gate to the guard (null: none): solid until enough seals are held.
+@export var gate: ZoneBlockData
+## Shrines and wanderers standing here (DESIGN.md 8.5), each at the spot of the same index.
+@export var offers: Array[ZoneOfferData] = []
+@export var offer_spots: Array[Vector3] = []
+
+@export_group("Sections")
+## A long zone (DESIGN.md 8.5) is built each visit by ZoneAssembler from these: the start, then
+## middle_count of the middle sections (picked and shuffled by a seed), then the end (gate and
+## guard). No start section: the zone is used as it is (the fields above).
+@export var start_section: ZoneSectionData
+@export var middle_sections: Array[ZoneSectionData] = []
+@export_range(0, 10) var middle_count: int = 3
+@export var end_section: ZoneSectionData
+## Fights for a section's roaming spots that name none.
+@export var roamer_pool: Array[EncounterData] = []
+## Shrines a section's shrine spots pick from.
+@export var shrines: Array[ZoneOfferData] = []
+## Wanderers; wanderer_percent of visits meet one.
+@export var wanderers: Array[ZoneOfferData] = []
+@export_range(0, 100, 1, "suffix:%") var wanderer_percent: int = 60
+## The texture of the walls the assembler puts along the back and at both ends.
+@export_file_path("*.png") var edge_texture_path: String = ""
+@export_range(0.5, 12.0, 0.1) var edge_height: float = 5.0
+
+@export_group("")
 ## Sound cue for each of the leader's steps (its ground: grass, mud, stone).
 @export var footstep_sfx: String = "footstep_grass"
 ## This zone's song. Empty: MusicSet.zone_path.

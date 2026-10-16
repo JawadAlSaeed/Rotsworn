@@ -7,6 +7,9 @@ extends Node
 ## when the party comes back. Walking is presentation, not combat: real time, floats, no engine.
 ## In a run (DESIGN.md 8) the zone is cleared by beating its guard at the exit; the other roaming
 ## enemies are optional. Outside a run (practice) every enemy must be beaten.
+## A long zone (DESIGN.md 8.5, laid out by ZoneAssembler before it gets here) also has rot seals
+## that open the gate to the guard, shrines and wanderers (deals Main asks about), and champions
+## that guard prize chests.
 ## In co-op only player 1 walks and strikes (DESIGN.md 9.1); the others watch.
 ## Online (DESIGN.md 9.2) the host's zone is the real one: it sends net_snapshot() several times a
 ## second. On the other machines the zone is `remote`: nothing moves by itself and no fight starts
@@ -22,6 +25,12 @@ signal cleared
 signal pickup_requested(spot: int)
 ## In a run, the leader tried to open chest `chest`. Main checks for a key and calls open_chest().
 signal chest_requested(chest: int)
+## In a run, the leader walked up to shrine or wanderer `offer` (DESIGN.md 8.5). Main asks the
+## question and calls use_offer() if the deal is taken.
+signal offer_requested(offer: int)
+## In a run, the leader opened the prize chest of a beaten champion (DESIGN.md 8.5). Main gives
+## its prize (open_prize() has already run).
+signal prize_requested(prize: int)
 
 ## Walker sizes on the ground (world units).
 const LEADER_RADIUS: float = 0.35
@@ -40,6 +49,11 @@ const TAG_RANGE_SHARE: float = 1.6
 const BLOCKED_SHARE: float = 0.1
 ## A walking direction must lean this far left or right (ground axis share) to turn the side art.
 const SIDE_TURN: float = 0.1
+## The floor reaches this far past the zone's bounds on every side (world units).
+const FLOOR_MARGIN: float = 30.0
+## Rot seals bob up and down this high, once per this long.
+const SEAL_BOB: float = 0.08
+const SEAL_BOB_MS: float = 2200.0
 
 ## Online, the pause menu opens over a zone that goes on: the leader stands still meanwhile.
 var input_held: bool = false
@@ -93,6 +107,17 @@ var _spots: Array[Dictionary] = []
 var _chests: Array[Dictionary] = []
 ## Held still while a screen is open over the zone (the backpack): nothing moves, no input.
 var _paused: bool = false
+## Rot seals (DESIGN.md 8.5): {pos: Vector2, view: Sprite3D, light: OmniLight3D, taken: bool}.
+var _seals: Array[Dictionary] = []
+## Seals the gate wants (0: no gate, or open from the start).
+var _seals_needed: int = 0
+## The gate to the guard: its block node and its obstacle (both null / empty once it is open).
+var _gate_view: MeshInstance3D
+var _gate_obstacle: Dictionary = {}
+## Shrines and wanderers: {pos: Vector2, data: ZoneOfferData, view: Sprite3D, used: bool}.
+var _offers: Array[Dictionary] = []
+## Champions' prize chests: {pos: Vector2, view: Sprite3D, roamer: int, opened: bool}.
+var _prizes: Array[Dictionary] = []
 
 
 func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: ExploreVisuals,
@@ -128,7 +153,15 @@ func net_snapshot() -> Dictionary:
 	for chest: Dictionary in _chests:
 		opened.append(bool(chest.opened))
 	return {"l": [_leader_pos.x, _leader_pos.y], "f": [_facing.x, _facing.y],
-			"w": _stepping, "s": _strikes, "r": roamers, "p": taken, "c": opened}
+			"w": _stepping, "s": _strikes, "r": roamers, "p": taken, "c": opened,
+			"g": _flags(_seals, "taken"), "o": _flags(_offers, "used"), "z": _flags(_prizes, "opened")}
+
+
+static func _flags(list: Array[Dictionary], key: String) -> Array:
+	var out: Array = []
+	for entry: Dictionary in list:
+		out.append(bool(entry[key]))
+	return out
 
 
 ## Remote: the host's latest positions (see net_snapshot()). Malformed data is ignored.
@@ -234,6 +267,72 @@ func is_paused() -> bool:
 	return _paused
 
 
+## Rot seals not taken yet: index -> ground spot (autoplay).
+func seal_positions() -> Dictionary:
+	var found := {}
+	for i: int in _seals.size():
+		if not bool(_seals[i].taken):
+			found[i] = _seals[i].pos
+	return found
+
+
+func seals_held() -> int:
+	var count := 0
+	for seal: Dictionary in _seals:
+		if bool(seal.taken):
+			count += 1
+	return count
+
+
+func seals_needed() -> int:
+	return _seals_needed
+
+
+func is_gate_open() -> bool:
+	return _gate_obstacle.is_empty()
+
+
+## What blocks walking right now (the gate while it is shut), for ZonePath (autoplay).
+func obstacles() -> Array[Dictionary]:
+	return _obstacles
+
+
+func bounds() -> Array[Vector2]:
+	return [_zone.bounds_min, _zone.bounds_max]
+
+
+## Shrines and wanderers not used yet: index -> ground spot (autoplay).
+func offer_positions() -> Dictionary:
+	var found := {}
+	for i: int in _offers.size():
+		if not bool(_offers[i].used):
+			found[i] = _offers[i].pos
+	return found
+
+
+func offer_data(offer: int) -> ZoneOfferData:
+	return _offers[offer].data as ZoneOfferData if offer >= 0 and offer < _offers.size() else null
+
+
+## Prize chests whose champion is beaten and that are still shut: index -> ground spot (autoplay).
+func prize_positions() -> Dictionary:
+	var found := {}
+	for i: int in _prizes.size():
+		if not bool(_prizes[i].opened) and bool(_roamers[int(_prizes[i].roamer)].defeated):
+			found[i] = _prizes[i].pos
+	return found
+
+
+## The roaming enemy whose prize chest `prize` is.
+func prize_roamer(prize: int) -> int:
+	return int(_prizes[prize].roamer)
+
+
+## Champions (DESIGN.md 8.5) by roamer index.
+func is_champion(index: int) -> bool:
+	return index >= 0 and index < _roamers.size() and (_roamers[index].data as ZoneEnemyData).champion
+
+
 ## Glinting spots not picked up yet: index -> ground spot (autoplay).
 func spot_positions() -> Dictionary:
 	var found := {}
@@ -292,8 +391,61 @@ func spot_in_reach() -> int:
 	return best
 
 
-## The leader tries to pick up the spot in reach, or open the chest in reach (Main answers with
-## take_spot() or open_chest()).
+## The rot seal within reach of the leader (-1: none).
+func seal_in_reach() -> int:
+	return _nearest_in_reach(_seals, "taken")
+
+
+## The shrine or wanderer within reach (-1: none; only in a run, where deals can be paid).
+func offer_in_reach() -> int:
+	return _nearest_in_reach(_offers, "used") if _run_mode else -1
+
+
+## The prize chest within reach whose champion is beaten (-1: none).
+func prize_in_reach() -> int:
+	var best := -1
+	var best_dist := _tuning.explore_pickup_radius
+	for i: int in _prizes.size():
+		var d := (_prizes[i].pos as Vector2).distance_to(_leader_pos)
+		if not bool(_prizes[i].opened) and bool(_roamers[int(_prizes[i].roamer)].defeated) and d <= best_dist:
+			best = i
+			best_dist = d
+	return best
+
+
+func _nearest_in_reach(list: Array[Dictionary], done_key: String) -> int:
+	var best := -1
+	var best_dist := _tuning.explore_pickup_radius
+	for i: int in list.size():
+		var d := (list[i].pos as Vector2).distance_to(_leader_pos)
+		if not bool(list[i][done_key]) and d <= best_dist:
+			best = i
+			best_dist = d
+	return best
+
+
+## What Confirm does here now: "" for nothing, else the hint's text.
+func _use_hint() -> String:
+	if _remote:
+		return ""
+	if spot_in_reach() >= 0:
+		return "Pick up"
+	if chest_in_reach() >= 0:
+		return "Open chest"
+	if prize_in_reach() >= 0 and _run_mode:
+		return "Open chest"
+	if seal_in_reach() >= 0:
+		return "Take the seal"
+	var offer := offer_in_reach()
+	if offer >= 0:
+		var data := _offers[offer].data as ZoneOfferData
+		return ("Pray at " if data.kind == ZoneOfferData.Kind.SHRINE else "Talk to ") + data.display_name
+	return ""
+
+
+## The leader uses what is in reach: picks up a spot, opens a chest (Main answers with take_spot()
+## or open_chest()), takes a seal, opens a beaten champion's prize chest, or walks up to a shrine
+## or wanderer (Main asks and answers with use_offer()).
 func pickup() -> void:
 	if _frozen or _paused or _remote:
 		return
@@ -304,6 +456,99 @@ func pickup() -> void:
 	var chest := chest_in_reach()
 	if chest >= 0:
 		chest_requested.emit(chest)
+		return
+	var prize := prize_in_reach()
+	if prize >= 0 and _run_mode:
+		open_prize(prize)
+		prize_requested.emit(prize)
+		return
+	var seal := seal_in_reach()
+	if seal >= 0:
+		take_seal(seal)
+		return
+	var offer := offer_in_reach()
+	if offer >= 0:
+		offer_requested.emit(offer)
+
+
+## The party takes rot seal `seal`: it is gone; with enough seals the gate opens.
+func take_seal(seal: int) -> void:
+	if seal < 0 or seal >= _seals.size() or bool(_seals[seal].taken):
+		return
+	_seals[seal].taken = true
+	_hide_seal(seal)
+	play_pickup(0)
+	Sfx.play("item_found")
+	var held := seals_held()
+	if _seals_needed > 0 and held >= _seals_needed and not is_gate_open():
+		_open_gate()
+	elif _seals_needed > held:
+		_hud.banner("Rot seal %d / %d" % [held, _seals_needed], HudStyle.GOLD, _explore.zone_title_ms)
+	_update_goal()
+
+
+func _hide_seal(seal: int) -> void:
+	(_seals[seal].view as Sprite3D).visible = false
+	(_seals[seal].light as OmniLight3D).visible = false
+
+
+## The gate sinks into the ground and stops blocking the way.
+func _open_gate() -> void:
+	if is_gate_open():
+		return
+	_obstacles.erase(_gate_obstacle)
+	_gate_obstacle = {}
+	_hud.banner("THE GATE OPENS", HudStyle.GOLD, _explore.zone_title_ms)
+	Sfx.play("zone_clear")
+	if _gate_view != null:
+		var sink := _gate_view.create_tween()
+		sink.tween_property(_gate_view, "position:y", _gate_view.position.y - _zone.gate.size.y - 0.1,
+				float(_explore.gate_open_ms) / 1000.0).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+		sink.tween_callback(_gate_view.hide)
+
+
+## Shrine or wanderer `offer` has given its gift: a shrine dims, a wanderer fades away.
+func use_offer(offer: int) -> void:
+	if offer < 0 or offer >= _offers.size() or bool(_offers[offer].used):
+		return
+	_offers[offer].used = true
+	_show_offer_used(offer, true)
+
+
+func _show_offer_used(offer: int, animate: bool) -> void:
+	var data := _offers[offer].data as ZoneOfferData
+	var view := _offers[offer].view as Sprite3D
+	if data.kind == ZoneOfferData.Kind.WANDERER:
+		var obstacle: Dictionary = _offers[offer].get("obstacle", {})
+		_obstacles.erase(obstacle)
+		if animate:
+			var fade := view.create_tween()
+			fade.tween_property(view, "modulate:a", 0.0, float(_explore.offer_fade_ms) / 1000.0)
+			fade.tween_callback(view.hide)
+		else:
+			view.hide()
+	else:
+		(view.material_override as ShaderMaterial).set_shader_parameter("self_glow",
+				data.glow * _explore.offer_used_glow_share)
+	var light: OmniLight3D = _offers[offer].get("light")
+	if light != null:
+		light.visible = false
+
+
+## The prize chest of a beaten champion opens (its lid swings up).
+func open_prize(prize: int) -> void:
+	if prize < 0 or prize >= _prizes.size() or bool(_prizes[prize].opened):
+		return
+	_prizes[prize].opened = true
+	_show_prize_open(prize)
+	play_pickup(0)
+
+
+func _show_prize_open(prize: int) -> void:
+	var view := _prizes[prize].view as Sprite3D
+	var tex := AssetLoader.texture(_explore.chest_open_path, Vector2i(28, 24))
+	view.texture = tex
+	(view.material_override as ShaderMaterial).set_shader_parameter("sprite_texture", tex)
 
 
 ## A short gold line over the zone (for example what was just found).
@@ -390,12 +635,17 @@ func _goal_met() -> bool:
 
 
 func _update_goal() -> void:
+	var lines: Array[String] = []
+	if not is_gate_open():
+		lines.append("Rot seals: %d / %d  (they open the gate)" % [seals_held(), _seals_needed])
 	var guard := guard_index()
 	if _run_mode and guard >= 0:
-		var others := enemies_left() - (0 if bool(_roamers[guard].defeated) else 1)
-		_hud.set_guard_goal(bool(_roamers[guard].defeated), others)
+		var beaten := bool(_roamers[guard].defeated)
+		lines.append("The way out is open" if beaten else "Beat the GUARD at the exit")
+		lines.append("Optional enemies: %d" % (enemies_left() - (0 if beaten else 1)))
 	else:
-		_hud.set_enemies_left(enemies_left())
+		lines.append("Enemies left: %d" % enemies_left() if enemies_left() > 0 else "All enemies beaten")
+	_hud.set_goal("\n".join(lines))
 
 
 # --- building ---------------------------------------------------------------------------------
@@ -408,7 +658,8 @@ func _build() -> void:
 	_world.add_child(StageBuilder.environment(look))
 	_world.add_child(StageBuilder.sun(look))
 	var centre := (_zone.bounds_min + _zone.bounds_max) * 0.5
-	_world.add_child(StageBuilder.ground(look, Vector3(centre.x, 0.0, centre.y)))
+	var cover := _zone.bounds_max - _zone.bounds_min + Vector2(FLOOR_MARGIN, FLOOR_MARGIN) * 2.0
+	_world.add_child(StageBuilder.ground(look, Vector3(centre.x, 0.0, centre.y), cover))
 	StageBuilder.add_contents(_world, _zone.blocks, _zone.props, _zone.lights)
 	add_child(StageBuilder.vignette(look))
 	_obstacles = ZoneMotion.obstacles(_zone)
@@ -465,6 +716,22 @@ func _build() -> void:
 			var view := StageBuilder.prop(chest)
 			_world.add_child(view)
 			_chests.append({"pos": Vector2(pos.x, pos.z), "view": view, "opened": false})
+		for i: int in _roamers.size():
+			var data := _roamers[i].data as ZoneEnemyData
+			if not data.champion:
+				continue
+			var chest := ZonePropData.new()
+			chest.sprite_path = _explore.chest_closed_path
+			chest.pixel_size = _explore.chest_pixel_size
+			chest.position = data.prize_spot
+			var view := StageBuilder.prop(chest)
+			_world.add_child(view)
+			_prizes.append({"pos": Vector2(data.prize_spot.x, data.prize_spot.z), "view": view, "roamer": i,
+					"opened": false})
+		for i: int in _zone.offers.size():
+			if _zone.offers[i] != null and i < _zone.offer_spots.size():
+				_add_offer(_zone.offers[i], _zone.offer_spots[i])
+	_build_seals_and_gate()
 
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
@@ -483,6 +750,68 @@ func _build() -> void:
 	_update_goal()
 	_place_walkers(0.0)
 	_snap_camera()
+
+
+## Rot seals (glowing stones with a small light) and the gate, solid until enough seals are held.
+func _build_seals_and_gate() -> void:
+	for pos: Vector3 in _zone.seal_spots:
+		var stone := ZonePropData.new()
+		stone.sprite_path = _explore.seal_path
+		stone.pixel_size = _explore.seal_pixel_size
+		stone.position = pos
+		stone.glow = _explore.seal_glow
+		stone.glow_color = _explore.seal_color
+		var view := StageBuilder.prop(stone)
+		_world.add_child(view)
+		var lamp := ZoneLightData.new()
+		lamp.position = pos + Vector3(0.0, 1.0, 0.4)
+		lamp.color = _explore.seal_color
+		lamp.energy = _explore.seal_light_energy
+		lamp.reach = _explore.seal_light_reach
+		lamp.flicker_percent = 15
+		lamp.flicker_hz = 2.0
+		var light := StageBuilder.light(lamp)
+		_world.add_child(light)
+		_seals.append({"pos": Vector2(pos.x, pos.z), "view": view, "light": light, "taken": false})
+	if _zone.gate == null:
+		return
+	_seals_needed = mini(_tuning.zone_seals_needed, _seals.size())
+	if _seals_needed <= 0:
+		return
+	_gate_view = StageBuilder.block(_zone.gate)
+	_gate_view.name = "Gate"
+	_world.add_child(_gate_view)
+	var g := _zone.gate
+	_gate_obstacle = {"centre": Vector2(g.position.x, g.position.z), "half": Vector2(g.size.x, g.size.z) * 0.5,
+			"angle": deg_to_rad(g.rotation_y_degrees)}
+	_obstacles.append(_gate_obstacle)
+
+
+## A shrine or a wanderer standing at `pos`, with a small light in its glow colour.
+func _add_offer(data: ZoneOfferData, pos: Vector3) -> void:
+	var prop := ZonePropData.new()
+	prop.sprite_path = data.sprite_path
+	prop.pixel_size = data.pixel_size
+	prop.position = pos
+	prop.glow = data.glow
+	prop.glow_color = data.glow_color
+	var view := StageBuilder.prop(prop)
+	_world.add_child(view)
+	var entry := {"pos": Vector2(pos.x, pos.z), "data": data, "view": view, "used": false}
+	if data.glow > 0.0:
+		var lamp := ZoneLightData.new()
+		lamp.position = pos + Vector3(0.0, 1.2, 0.5)
+		lamp.color = data.glow_color
+		lamp.energy = _explore.offer_light_energy
+		lamp.reach = _explore.offer_light_reach
+		var light := StageBuilder.light(lamp)
+		_world.add_child(light)
+		entry["light"] = light
+	if data.solid_radius > 0.0:
+		var obstacle := {"centre": Vector2(pos.x, pos.z), "radius": data.solid_radius}
+		_obstacles.append(obstacle)
+		entry["obstacle"] = obstacle
+	_offers.append(entry)
 
 
 # --- every frame ------------------------------------------------------------------------------
@@ -524,7 +853,8 @@ func _process(delta: float) -> void:
 		if bool(r.defeated):
 			continue
 		var brain := r.brain as RoamerBrain
-		var velocity := brain.step(dt_ms, r.pos, _leader_pos, _tuning, not calm)
+		# A champion never chases: it stands by its prize until someone walks into it.
+		var velocity := brain.step(dt_ms, r.pos, _leader_pos, _tuning, not calm and not (r.data as ZoneEnemyData).champion)
 		_sound_roamer(r)
 		if velocity.length() > 0.0:
 			var before: Vector2 = r.pos
@@ -554,7 +884,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		if _players.player_of_device(PlayerRoster.device_of(event)) == 0:
 			strike()
-	elif event.is_action_pressed(&"field_pickup", false, true) and (spot_in_reach() >= 0 or chest_in_reach() >= 0):
+	elif event.is_action_pressed(&"field_pickup", false, true) and not _use_hint().is_empty():
 		get_viewport().set_input_as_handled()
 		if _players.player_of_device(PlayerRoster.device_of(event)) == 0:
 			pickup()
@@ -566,12 +896,11 @@ func _pulse_spots() -> void:
 	var size := 1.0 + _explore.glint_pulse_share * 0.5 * (1.0 + sin(t * TAU))
 	for spot: Dictionary in _spots:
 		(spot.view as Sprite3D).scale = Vector3.ONE * size
-	var hint := ""
-	if not _remote and spot_in_reach() >= 0:
-		hint = "Pick up"
-	elif not _remote and chest_in_reach() >= 0:
-		hint = "Open chest"
-	_hud.set_pickup_hint(hint)
+	var bob := sin(_time_ms / SEAL_BOB_MS * TAU) * SEAL_BOB
+	for seal: Dictionary in _seals:
+		var view := seal.view as Sprite3D
+		view.position.y = bob
+	_hud.set_pickup_hint(_use_hint())
 
 
 ## The walk input: any device in solo and online (the host is player 1), only player 1's device in
@@ -633,6 +962,22 @@ func _follow_host(delta: float) -> void:
 			if bool(opened[i]) and not bool(_chests[i].opened):
 				_chests[i].opened = true
 				_show_chest_open(i)
+	var seals: Variant = _net.get("g", [])
+	if seals is Array and (seals as Array).size() == _seals.size():
+		for i: int in _seals.size():
+			if bool(seals[i]) and not bool(_seals[i].taken):
+				take_seal(i)
+	var used: Variant = _net.get("o", [])
+	if used is Array and (used as Array).size() == _offers.size():
+		for i: int in _offers.size():
+			if bool(used[i]):
+				use_offer(i)
+	var prizes: Variant = _net.get("z", [])
+	if prizes is Array and (prizes as Array).size() == _prizes.size():
+		for i: int in _prizes.size():
+			if bool(prizes[i]) and not bool(_prizes[i].opened):
+				_prizes[i].opened = true
+				_show_prize_open(i)
 	var k := 1.0 - exp(-delta * 1000.0 / float(maxi(1, _explore.net_follow_ms)))
 	var leader_before := _leader_pos
 	_leader_pos = _leader_pos.lerp(Vector2(float(_net.l[0]), float(_net.l[1])), k)
@@ -847,6 +1192,11 @@ func _update_marks() -> void:
 			# The guard is the way out: always marked, in gold.
 			var tag := "GUARD: " + encounter_of(i).display_name if _explore.show_roamer_names else "GUARD"
 			_hud.set_tag(i, tag, on_screen, screen, HudStyle.GOLD)
+		elif (r.data as ZoneEnemyData).champion:
+			# A champion (an elite fight, DESIGN.md 8.6) is a choice: marked from a little further away,
+			# in its own colour.
+			var close := (r.pos as Vector2).distance_to(_leader_pos) <= _tuning.explore_notice_radius * _explore.champion_tag_range
+			_hud.set_tag(i, "ELITE", on_screen and close, screen, _explore.champion_color)
 		else:
 			_hud.set_tag(i, encounter_of(i).display_name, on_screen and near and _explore.show_roamer_names, screen)
 

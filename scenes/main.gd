@@ -37,7 +37,7 @@ const COMBAT_SCENE := preload("res://scenes/combat.tscn")
 ## Autoplay: wait this long on an end screen or a run screen before going on (seconds).
 const AUTOPLAY_RETURN_S: float = 1.0
 ## Autoplay: give up when no fight has started for this long in a zone (seconds).
-const AUTOPLAY_ZONE_STUCK_S: float = 60.0
+const AUTOPLAY_ZONE_STUCK_S: float = 180.0
 ## Autoplay on the map: a rest is picked when someone is at or under this percent of max HP.
 const AUTOPLAY_REST_BELOW_PERCENT: int = 60
 const QUIT_AUDIO_RELEASE_S: float = 0.3
@@ -96,6 +96,8 @@ var _tutorial: TutorialRunner
 var _spot_pending: int = -1
 ## What the zone fight's enemy drops (null: nothing).
 var _drop: ItemData
+## Where a run fight away from a zone takes place (the act's boss lair, an elite's zone).
+var _fight_look: StageLook
 ## Shown on the main menu next time (why an online game ended).
 var _notice: String = ""
 ## Bumped when an online game ends, so a transition that was under way stops after its fade.
@@ -242,6 +244,10 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_map(2)
 		"map_start":
 			_show_sample_map(0)
+		"map_act2":
+			_show_sample_map(1, 1)
+		"shop", "campfire", "event", "treasure":
+			_show_sample_stop(screen_name)
 		"calibration":
 			_show_settings()
 			(_screen as SettingsScreen).open_calibration()
@@ -249,12 +255,45 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_main_menu()
 
 
-## --screen=map: a new run two stops in; map_start: before the first stop (pictures of the map).
-func _show_sample_map(stops: int) -> void:
+## --screen=map: a new run two stops in; map_start: before the first stop; map_act2: one stop into
+## the second act (pictures of the map).
+func _show_sample_map(stops: int, act: int = 0) -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
+	for i: int in act:
+		_run.next_act()
 	for i: int in stops:
 		_run.go(_run.choices()[0])
 	_show_map()
+
+
+## --screen=shop|campfire|event|treasure: a run standing at such a stop, with gold and a few items
+## (pictures of the phase 15 stop screens, DESIGN.md 8.7 to 8.11).
+func _show_sample_stop(kind: String) -> void:
+	_run = RunState.begin(_run_data, _tuning, 3)
+	_run.gold = 180
+	var items := _run.items_by_id()
+	_run.add_item(items["salve"])
+	_run.add_item(items["ember_stone"])
+	_run.add_item(items["rotting_heart"])
+	_run.hp[1] = CombatMath.percent(_run.max_hp(1), 50)
+	var want := {"shop": RunMap.StopType.SHOP, "campfire": RunMap.StopType.REST, "event": RunMap.StopType.EVENT,
+			"treasure": RunMap.StopType.TREASURE}[kind] as int
+	for s: Dictionary in _run.map.stops:
+		if int(s.type) == want:
+			_run.at = int(s.id)
+			_run.path.append(int(s.id))
+			break
+	if want == RunMap.StopType.EVENT:
+		_run.events_seen.append(_run.event_of(_run.at).id)
+	match kind:
+		"shop":
+			_show_shop()
+		"campfire":
+			_show_rest()
+		"event":
+			_show_event()
+		"treasure":
+			_show_treasure()
 
 
 ## --screen=party: a new run with some gear worn and a few items packed, the party screen open
@@ -575,7 +614,7 @@ func _start_combat() -> void:
 				_zone_fight.opening as CombatSetup.Opening, true)
 		continue_to = _on_zone_return_requested
 	elif _run != null:
-		_combat.configure(_encounter, _tuning, _visuals, _options, _run_data.final_look)
+		_combat.configure(_encounter, _tuning, _visuals, _options, _fight_look)
 		continue_to = _on_run_fight_over
 	else:
 		# The tutorial starts with the heroes' turns (first strike) against a slower enemy.
@@ -638,7 +677,14 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone_fight = {}
 	_zone = ZoneController.new()
 	_zone.name = "Zone"
-	_zone.configure(zone, _tuning, _visuals, _explore, _run != null, _run != null and _run.is_deep())
+	# A long zone is laid out anew each visit (DESIGN.md 8.5); in a run the same on every machine.
+	var layout_seed := randi_range(1, 2147483646)
+	if _run != null:
+		layout_seed = _run.zone_seed(_run.at)
+	elif _options.seed_override >= 0:
+		layout_seed = _options.seed_override + 1
+	_zone.configure(ZoneAssembler.assemble(zone, layout_seed), _tuning, _visuals, _explore, _run != null,
+			_run != null and _run.is_deep())
 	_zone.configure_players(_players)
 	if Net.is_client():
 		_zone.configure_remote()
@@ -647,6 +693,8 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone.cleared.connect(_on_zone_cleared)
 	_zone.pickup_requested.connect(_on_spot_pickup)
 	_zone.chest_requested.connect(_on_chest)
+	_zone.offer_requested.connect(_on_offer)
+	_zone.prize_requested.connect(_on_prize)
 	add_child(_zone)
 	Sfx.play_music(_zone_song(), _music.volume_db)
 	_play_zone_ambience()
@@ -840,7 +888,7 @@ func _new_run() -> void:
 	_run = RunState.begin(_run_data, _tuning, run_seed)
 	if Net.is_host():
 		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict()})
-	print("Run seed: %d  stops: %d" % [run_seed, _run.map.row_count()])
+	print("Run seed: %d  stops: %d  acts: %d" % [run_seed, _run.map.row_count(), _run.acts().size()])
 	Sfx.play("run_begin")
 	_show_map()
 
@@ -849,6 +897,11 @@ func _new_run() -> void:
 func _show_map(unroll: bool = true) -> void:
 	if _run == null:
 		return
+	# Back from an act's boss and its spoils: on to the next act's map (DESIGN.md 8.9).
+	if not Net.is_client() and _run.act_cleared():
+		_run.next_act()
+		Sfx.play("run_cleared")
+		print("Run act %d: %s" % [_run.act + 1, _run.act_data().display_name])
 	var map := MapScreen.new()
 	map.name = "Map"
 	map.setup(_run, _map_look, unroll)
@@ -865,7 +918,7 @@ func _on_stop_chosen(id: int) -> void:
 	if _busy or not _run.go(id):
 		return
 	var stop := _run.current()
-	print("Run stop %d: %s %s" % [_run.path.size(), RunMap.TYPE_NAMES[int(stop.type)], MapScreen.stop_name(_run, stop)])
+	print("Run stop %d: %s %s" % [_run.visited, RunMap.TYPE_NAMES[int(stop.type)], MapScreen.stop_name(_run, stop)])
 	match int(stop.type):
 		RunMap.StopType.ZONE:
 			var zone := _run.zone_of(stop)
@@ -876,11 +929,24 @@ func _on_stop_chosen(id: int) -> void:
 			_fade_to(_show_shop)
 		RunMap.StopType.FINAL:
 			_start_final_fight()
+		RunMap.StopType.ELITE:
+			_start_final_fight(true)
+		RunMap.StopType.EVENT:
+			_fade_to(_show_event)
+		RunMap.StopType.TREASURE:
+			_fade_to(_show_treasure)
 
 
-func _start_final_fight() -> void:
+## A run fight that is a stop of its own: the act's boss, or an elite fight (`elite`) in the look of
+## one of the act's zones.
+func _start_final_fight(elite: bool = false) -> void:
 	_busy = true
-	_encounter = _run_data.final_encounter
+	_encounter = _run.final_encounter()
+	_fight_look = _run.final_look()
+	if elite:
+		_encounter = _run.elite_of(_run.at)
+		var zone := _run.zone_of(_run.current())
+		_fight_look = zone.look if zone != null else _run.final_look()
 	_zone_fight = {}
 	if Net.is_host():
 		_net_seed = randi_range(1, 2147483646)
@@ -893,22 +959,33 @@ func _start_final_fight() -> void:
 	_end_busy()
 
 
-## The final fight's end screen was left: the run is over either way.
+## A boss or elite fight's end screen was left. A defeat (or the last boss) ends the run; an
+## elite or an act's boss gives spoils, then the map (the next act's, after a boss).
 func _on_run_fight_over(result: String) -> void:
 	if _busy or _run == null:
 		return
 	_run.spend_items(_combat.used_items())
 	_run.finish_fight(result, _combat.party_hp(), _encounter)
-	_fade_to(_show_run_end)
+	_run.carry_team_gauge(_combat.team_gauge())
+	_autoplay_spend_points()
+	if _run.is_over():
+		_fade_to(_show_run_end)
+	elif result == RunState.VICTORY:
+		var boss := int(_run.current().type) == RunMap.StopType.FINAL
+		_fade_to(_show_loot.bind([] as Array[GearData], "The boss fell. Take one." if boss else "The elite fell. Take one."))
+	else:
+		_fade_to(_show_map)
 
 
-func _show_rest() -> void:
+func _show_rest(result: String = "") -> void:
 	var rest := RestScreen.new()
 	rest.name = "Rest"
-	rest.setup(_run)
+	rest.remote = Net.is_client()
+	rest.setup(_run, RestScreen.FIRE_PATH, result)
 	rest.done.connect(_fade_to.bind(_show_map))
+	rest.acted.connect(func(text: String) -> void: _send_screen({"name": "rest", "result": text}))
 	_show_screen(rest)
-	_send_screen({"name": "rest"})
+	_send_screen({"name": "rest", "result": result})
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_rest.call_deferred(rest)
 
@@ -921,26 +998,61 @@ func _show_shop(gear: Array[GearData] = [], charms: Array[ItemData] = []) -> voi
 		charms = _run.shop_charms(_run.at)
 	shop.setup(_run, gear, charms)
 	shop.done.connect(_fade_to.bind(_show_map))
+	shop.restocked.connect(func() -> void: _send_shop_wares(_run.shop_gear(_run.at), _run.shop_charms(_run.at)))
 	_show_screen(shop)
-	var charm_ids: Array = []
-	for item: ItemData in charms:
-		charm_ids.append(item.id)
-	_send_screen({"name": "shop", "gear": _gear_ids(gear), "charms": charm_ids})
+	_send_shop_wares(gear, charms)
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_shop.call_deferred(shop)
 
 
-## The guard's loot (DESIGN.md 8): pick one, then the party screen to put it on.
-func _show_loot(gear: Array[GearData] = []) -> void:
+func _send_shop_wares(gear: Array[GearData], charms: Array[ItemData]) -> void:
+	var charm_ids: Array = []
+	for item: ItemData in charms:
+		charm_ids.append(item.id)
+	_send_screen({"name": "shop", "gear": _gear_ids(gear), "charms": charm_ids})
+
+
+## A "?" stop (DESIGN.md 8.7). `result`: online clients show what the host chose.
+func _show_event(result: String = "") -> void:
+	var screen := EventScreen.new()
+	screen.name = "Event"
+	screen.remote = Net.is_client()
+	screen.setup(_run, _run.event_of(_run.at), result)
+	screen.done.connect(_fade_to.bind(_show_map))
+	screen.chosen.connect(func(_index: int, text: String) -> void:
+		_send_screen({"name": "event", "result": text if not text.is_empty() else "You walk on."}))
+	_show_screen(screen)
+	_send_screen({"name": "event", "result": result})
+	if _options.is_autoplay() and not Net.is_client():
+		_autoplay_event.call_deferred(screen)
+
+
+## A treasure stop (DESIGN.md 8.8). `opened`: online clients show the chest as the host left it.
+func _show_treasure(opened: bool = false, text: String = "") -> void:
+	var screen := TreasureScreen.new()
+	screen.name = "Treasure"
+	screen.remote = Net.is_client()
+	screen.setup(_run, _explore, opened, text)
+	screen.done.connect(_fade_to.bind(_show_map))
+	screen.opened.connect(func() -> void: _send_screen({"name": "treasure", "opened": true}))
+	_show_screen(screen)
+	_send_screen({"name": "treasure", "opened": opened})
+	if _options.is_autoplay() and not Net.is_client():
+		_autoplay_treasure.call_deferred(screen)
+
+
+## Spoils after a guard, an elite or an act's boss (DESIGN.md 8, 8.6): pick one, then the party
+## screen to put it on.
+func _show_loot(gear: Array[GearData] = [], text: String = "") -> void:
 	var loot := LootScreen.new()
 	loot.name = "Loot"
 	if not Net.is_client():
 		gear = _run.loot_choices(_run.at)
-	loot.setup(gear)
+	loot.setup(gear, text)
 	loot.chosen.connect(_on_loot_chosen)
 	_show_screen(loot)
 	Sfx.play("loot_reveal")
-	_send_screen({"name": "loot", "gear": _gear_ids(gear)})
+	_send_screen({"name": "loot", "gear": _gear_ids(gear), "text": text})
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_loot.call_deferred(loot)
 
@@ -982,8 +1094,8 @@ func _show_run_end() -> void:
 	_send_screen({"name": "run_end"})
 	_client_done = Net.is_client()
 	if _options.is_autoplay():
-		print("AUTOPLAY_RESULT run_%s stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d" % [_run.result,
-				_run.path.size(), _run.fights_won, _run.top_level(), _worn_count(), _run.backpack.entries.size(),
+		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d" % [
+				_run.result, _run.act + 1, _run.visited, _run.fights_won, _run.top_level(), _worn_count(), _run.backpack.entries.size(),
 				_run.gold_earned, _run.run_seed])
 		_autoplay_quit()
 
@@ -1351,7 +1463,7 @@ func _client_screen(p: Dictionary) -> void:
 	if _run == null and name != "menu":
 		return
 	match name:
-		"map", "rest", "shop", "loot", "party", "run_end":
+		"map", "rest", "shop", "loot", "party", "run_end", "event", "treasure":
 			_net_screen = p
 			_fade_to(_watched_screen_builder(p))
 		"zone":
@@ -1366,7 +1478,7 @@ func _client_screen(p: Dictionary) -> void:
 				_zone.begin_remote(int(p.get("index", -1)), int(p.get("opening", 0)) as CombatSetup.Opening)
 		"final_fight":
 			_net_seed = int(p.get("seed", 1))
-			_start_final_fight()
+			_start_final_fight(int(_run.current().get("type", -1)) == RunMap.StopType.ELITE)
 		"zone_back":
 			# After a lost run the host sends the run's end next instead.
 			if not _run.is_over():
@@ -1377,7 +1489,11 @@ func _client_screen(p: Dictionary) -> void:
 func _watched_screen_builder(p: Dictionary) -> Callable:
 	match String(p.get("name", "")):
 		"rest":
-			return _show_rest
+			return _show_rest.bind(String(p.get("result", "")))
+		"event":
+			return _show_event.bind(String(p.get("result", "")))
+		"treasure":
+			return _show_treasure.bind(bool(p.get("opened", false)))
 		"shop":
 			var charms: Array[ItemData] = []
 			if _run != null:
@@ -1387,7 +1503,7 @@ func _watched_screen_builder(p: Dictionary) -> Callable:
 						charms.append(by_id[str(id)])
 			return _show_shop.bind(_gear_from_ids(p.get("gear", []) as Array), charms)
 		"loot":
-			return _show_loot.bind(_gear_from_ids(p.get("gear", []) as Array))
+			return _show_loot.bind(_gear_from_ids(p.get("gear", []) as Array), String(p.get("text", "")))
 		"party":
 			return _show_party.bind(String(p.get("note", "")), true)
 		"run_end":
@@ -1484,19 +1600,89 @@ func _on_chest(chest: int) -> void:
 	Sfx.play("chest_open")
 	var prize := _run.chest_contents(_run.at)
 	print("Run chest: %s" % (String(prize.get("id")) if prize != null else "empty"))
+	_give_prize(prize, "The chest")
+
+
+## The leader opened a beaten champion's prize chest (DESIGN.md 8.5): its prize goes into the
+## backpack or onto a hero, like a locked chest's.
+func _on_prize(prize: int) -> void:
+	if _run == null or _zone == null:
+		return
+	Sfx.play("chest_open")
+	var found := _run.prize_contents(_run.at, _zone.prize_roamer(prize))
+	print("Run prize chest: %s" % (String(found.get("id")) if found != null else "empty"))
+	_give_prize(found, "The champion's chest")
+
+
+## Gives a chest's prize: gear onto a hero (the backpack opens to pick who), an item into the
+## backpack (it opens with the item in hand when full). `from` names the chest in the line shown.
+func _give_prize(prize: Resource, from: String) -> void:
 	if prize is GearData:
-		_open_zone_backpack("The chest held the %s. Who wears it?" % (prize as GearData).display_name, {"gear": prize})
+		_open_zone_backpack("%s held the %s. Who wears it?" % [from, (prize as GearData).display_name], {"gear": prize})
 	elif prize is ItemData:
 		var item := prize as ItemData
 		if item.kind == ItemData.Kind.UPGRADE:
 			_run.add_item(item)
-			_zone.announce("The chest held a %s. The backpack has %d rows." % [item.display_name, _run.backpack.rows])
+			_zone.announce("%s held a %s. The backpack has %d rows." % [from, item.display_name, _run.backpack.rows])
 		elif _run.add_item(item) >= 0:
-			_zone.announce("The chest held: %s" % item.display_name)
+			_zone.announce("%s held: %s" % [from, item.display_name])
 		else:
-			_open_zone_backpack("The chest held a %s, but the backpack is full." % item.display_name, {"item": item})
+			_open_zone_backpack("%s held a %s, but the backpack is full." % [from, item.display_name], {"item": item})
 	else:
-		_zone.announce("The chest is empty.")
+		_zone.announce("%s is empty." % from)
+
+
+## The leader walked up to a shrine or a wanderer (DESIGN.md 8.5): its question, yes or no. The
+## zone holds still meanwhile. The bot takes every deal it can pay for.
+func _on_offer(offer: int) -> void:
+	if _run == null or _zone == null or _overlay != null or _prompt != null:
+		return
+	var data := _zone.offer_data(offer)
+	if data == null:
+		return
+	if _options.is_autoplay():
+		_take_offer(offer, _run.can_take_offer(data))
+		return
+	_zone.set_paused(true)
+	_prompt = ConfirmPrompt.new()
+	_prompt.name = "OfferPrompt"
+	var detail := data.detail
+	if not _run.can_take_offer(data):
+		detail += "
+You have %d gold." % _run.gold
+	_prompt.setup(data.question, detail, data.yes_text, data.no_text)
+	_prompt.answered.connect(func(yes: bool) -> void:
+		_prompt.queue_free()
+		_prompt = null
+		if _zone != null:
+			_zone.set_paused(false)
+			_take_offer(offer, yes))
+	add_child(_prompt)
+
+
+func _take_offer(offer: int, yes: bool) -> void:
+	if not yes or _zone == null:
+		return
+	var data := _zone.offer_data(offer)
+	var result := _run.take_offer(data, _run.at, offer)
+	if not bool(result.ok):
+		Sfx.play("locked")
+		_zone.announce(String(result.text))
+		return
+	_zone.use_offer(offer)
+	Sfx.play("item_found")
+	print("Run offer: %s" % data.id)
+	if _run_bar != null:
+		_run_bar.refresh(_run)
+	var item := result.item as ItemData
+	if item == null:
+		_zone.announce(String(result.text))
+	elif item.kind == ItemData.Kind.UPGRADE or _run.add_item(item) >= 0:
+		if item.kind == ItemData.Kind.UPGRADE:
+			_run.add_item(item)
+		_zone.announce(String(result.text))
+	else:
+		_open_zone_backpack("%s, but the backpack is full." % String(result.text), {"item": item})
 
 
 ## The leader picks up glinting spot `spot`: into the backpack, or the backpack opens with it in hand.
@@ -1571,7 +1757,7 @@ func _zone_song() -> String:
 
 func _is_run_screen(node: Node) -> bool:
 	return node is MapScreen or node is ShopScreen or node is RestScreen or node is LootScreen \
-			or node is PartyScreen or node is RunEndScreen
+			or node is PartyScreen or node is RunEndScreen or node is EventScreen or node is TreasureScreen
 
 
 func _gear_ids(gear: Array[GearData]) -> Array:
@@ -1650,11 +1836,12 @@ func _autoplay_map(map: MapScreen) -> void:
 	var cheapest := 1 << 30
 	for item: ItemData in _run_data.shop_items:
 		cheapest = mini(cheapest, item.price)
-	var hurt := false
-	for slot: int in _run.party_size():
-		hurt = hurt or _run.hp[slot] * 100 <= _run.max_hp(slot) * AUTOPLAY_REST_BELOW_PERCENT
-	for wanted: int in [RunMap.StopType.SHOP if _run.gold >= cheapest else -1,
-			RunMap.StopType.REST if hurt else -1, RunMap.StopType.ZONE]:
+	var hurt := _autoplay_hurt()
+	# Treasure first, a shop with gold, a campfire when hurt, then zones, events, and elites when
+	# healthy (each kind gets played).
+	for wanted: int in [RunMap.StopType.TREASURE, RunMap.StopType.SHOP if _run.gold >= cheapest else -1,
+			RunMap.StopType.REST if hurt else -1, RunMap.StopType.ELITE if not hurt else -1,
+			RunMap.StopType.EVENT, RunMap.StopType.ZONE]:
 		for id: int in map.choices():
 			if pick < 0 and int(_run.map.stop(id).type) == wanted:
 				pick = id
@@ -1666,11 +1853,18 @@ func _autoplay_map(map: MapScreen) -> void:
 	map.choose(pick)
 
 
+## Autoplay at a campfire: rests when someone is hurt, else upgrades an item or trains.
 func _autoplay_rest(rest: RestScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(rest):
 		return
-	rest.rest_now()
+	if _autoplay_hurt():
+		rest.rest_now()
+	elif not rest.upgradable().is_empty():
+		rest.upgrade_now(rest.upgradable()[0])
+	else:
+		rest.train_now()
+		_autoplay_spend_points()
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if is_instance_valid(rest):
 		rest.leave()
@@ -1690,6 +1884,50 @@ func _autoplay_shop(shop: ShopScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if is_instance_valid(shop):
 		shop.leave()
+
+
+## True if a hero is at or under AUTOPLAY_REST_BELOW_PERCENT of their max HP.
+func _autoplay_hurt() -> bool:
+	for slot: int in _run.party_size():
+		if _run.hp[slot] * 100 <= _run.max_hp(slot) * AUTOPLAY_REST_BELOW_PERCENT:
+			return true
+	return false
+
+
+## Autoplay at an event: takes the first choice it can pay for (risks too), then goes on.
+func _autoplay_event(screen: EventScreen) -> void:
+	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+	if not is_instance_valid(screen):
+		return
+	for i: int in screen.choice_count():
+		if screen.can_choose(i):
+			screen.choose(i)
+			break
+	await _autoplay_stop_gifts(screen)
+	if is_instance_valid(screen):
+		screen.leave()
+
+
+## Autoplay at a treasure stop: opens the chest, settles the prize, goes on.
+func _autoplay_treasure(screen: TreasureScreen) -> void:
+	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+	if not is_instance_valid(screen):
+		return
+	screen.open_chest()
+	await _autoplay_stop_gifts(screen)
+	if is_instance_valid(screen):
+		screen.leave()
+
+
+## Settles every backpack a stop screen opens for its gifts.
+func _autoplay_stop_gifts(screen: StopScreen) -> void:
+	while is_instance_valid(screen) and screen.is_settling():
+		await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+		if is_instance_valid(screen) and screen.overlay() != null:
+			_autoplay_settle(screen.overlay())
+			if is_instance_valid(screen) and screen.overlay() != null:
+				screen.overlay().close()
+	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 
 
 ## Autoplay after a guard: takes the first item.

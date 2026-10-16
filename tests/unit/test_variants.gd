@@ -30,8 +30,7 @@ func _enemy(id: String) -> EnemyData:
 func test_every_zone_fight_has_a_deep_version_of_variants() -> void:
 	var checked := 0
 	for zone: ZoneData in _data.zones:
-		for roamer: ZoneEnemyData in zone.enemies:
-			var encounter := roamer.encounter
+		for encounter: EncounterData in ZoneAssembler.encounters(zone):
 			var label := "%s: %s" % [zone.id, encounter.id]
 			assert_not_null(encounter.deep, label + " has a deep version")
 			if encounter.deep == null:
@@ -41,6 +40,9 @@ func test_every_zone_fight_has_a_deep_version_of_variants() -> void:
 			for i: int in encounter.enemies.size():
 				var base := encounter.enemies[i]
 				var variant := encounter.deep.enemies[i]
+				# A guard's mini-boss (DESIGN.md 8.6) stays itself; only its helpers turn into variants.
+				if encounter.mini_boss and variant == base:
+					continue
 				assert_eq(String(BASES.get(variant.id, "")), base.id, label + ": %s is the variant of %s" % [variant.id, base.id])
 			checked += 1
 	assert_gt(checked, 8, "the zones' fights")

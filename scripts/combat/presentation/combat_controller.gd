@@ -663,7 +663,7 @@ func _play(ev: Dictionary) -> void:
 			if String(ev.get("opening", "")) == "first_strike":
 				Sfx.play("gauge_full")
 				hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
-			elif _encounter.boss:
+			elif _encounter.boss or _encounter.mini_boss:
 				Sfx.play("alert")
 				hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
 			else:

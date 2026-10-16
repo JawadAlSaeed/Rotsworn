@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_fglnb"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_swipe.tres" id="2_0qbur"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_flurry.tres" id="3_1s4gw"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_lingering_claw.tres" id="4_euo7r"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_ground_slam.tres" id="5_wym7q"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_rot_combo.tres" id="6_bi55n"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_rock_toss.tres" id="7_yhvw2"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_stone_spikes.tres" id="8_s1xfh"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/ashen_cinder_hail.tres" id="9_tbuhi"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="10_vykjl"]
+[ext_resource type="Resource" path="res://data/clips/rotten_husk.tres" id="11_por0w"]
+
+[resource]
+script = ExtResource("10_vykjl")
+id = "husk_lord"
+display_name = "The Husk Lord"
+color = Color(0.75, 0.6, 0.25, 1)
+sprite_path = "res://assets/sprites/enemies/husk_lord.png"
+sprite_clips = ExtResource("11_por0w")
+idle_cycle_percent = 90
+portrait_path = "res://assets/sprites/portraits/husk_lord.png"
+sprite_pixel_size = 0.045
+hp_percent = 420
+power_percent = 140
+speed = 120
+attacks = Array[ExtResource("1_fglnb")]([ExtResource("2_0qbur"), ExtResource("3_1s4gw"), ExtResource("4_euo7r"), ExtResource("5_wym7q"), ExtResource("6_bi55n"), ExtResource("7_yhvw2"), ExtResource("8_s1xfh")])
+gold = 120
+xp = 260
+voice_sfx = "voice_husk"
+phase_two_hp_percent = 50
+phase_two_attacks = Array[ExtResource("1_fglnb")]([ExtResource("2_0qbur"), ExtResource("3_1s4gw"), ExtResource("4_euo7r"), ExtResource("5_wym7q"), ExtResource("6_bi55n"), ExtResource("7_yhvw2"), ExtResource("8_s1xfh"), ExtResource("9_tbuhi")])
+phase_two_speed = 165
+phase_two_text = "THE HUSK LORD TEARS FREE OF ITS BARK!"

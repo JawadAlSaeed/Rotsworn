@@ -22,7 +22,8 @@ extends RefCounted
 ##   --shots=S                       save a picture of the window every S seconds (dev tool)
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
 ##                                   title, credits, party, heroes, attributes, skills, calibration,
-##                                   tutorial, map, map_start
+##                                   tutorial, map, map_start, map_act2, shop, campfire,
+##                                   event, treasure
 ##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the
 ##                                   action menu opens, press these input actions on it (for
 ##                                   example fight_skills,menu_down), then leave it waiting; "|"

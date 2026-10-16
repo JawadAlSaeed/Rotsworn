@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="ActData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="1_84adt"]
+[ext_resource type="Resource" path="res://data/encounters/elite_twin_husks.tres" id="2_mv7kw"]
+[ext_resource type="Resource" path="res://data/encounters/elite_toad_court.tres" id="3_v7eke"]
+[ext_resource type="Resource" path="res://data/encounters/elite_hyena_pack.tres" id="4_t5rtb"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="5_6fojk"]
+[ext_resource type="Resource" path="res://data/events/weeping_well.tres" id="6_w7487"]
+[ext_resource type="Resource" path="res://data/events/gamblers_bones.tres" id="7_1ibg6"]
+[ext_resource type="Resource" path="res://data/events/wounded_pilgrim.tres" id="8_qdufg"]
+[ext_resource type="Resource" path="res://data/events/rot_blossom.tres" id="9_k1jud"]
+[ext_resource type="Resource" path="res://data/events/hanging_cage.tres" id="10_2hew3"]
+[ext_resource type="Resource" path="res://data/events/shrine_of_kings.tres" id="11_ys0x4"]
+[ext_resource type="Resource" path="res://data/events/merchant_wreck.tres" id="12_qj51d"]
+[ext_resource type="Resource" path="res://data/events/whispering_mask.tres" id="13_84cmk"]
+[ext_resource type="Resource" path="res://data/encounters/husk_lord_fight.tres" id="14_2c0ni"]
+[ext_resource type="Resource" path="res://data/looks/rotten_hollow.tres" id="15_wbtnn"]
+[ext_resource type="Script" path="res://scripts/data/act_data.gd" id="16_imrb8"]
+[ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="17_7u2c7"]
+[ext_resource type="Resource" path="res://data/zones/rotten_hollow.tres" id="18_6pl38"]
+[ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="19_nypkv"]
+
+[resource]
+script = ExtResource("16_imrb8")
+id = "rotten_road"
+display_name = "The Rotten Road"
+zones = Array[ExtResource("17_7u2c7")]([ExtResource("18_6pl38"), ExtResource("19_nypkv")])
+final_encounter = ExtResource("14_2c0ni")
+final_look = ExtResource("15_wbtnn")
+final_map_icon_path = "res://assets/sprites/ui/map_lair_husk_lord.png"
+elites = Array[ExtResource("1_84adt")]([ExtResource("2_mv7kw"), ExtResource("3_v7eke"), ExtResource("4_t5rtb")])
+events = Array[ExtResource("5_6fojk")]([ExtResource("6_w7487"), ExtResource("7_1ibg6"), ExtResource("8_qdufg"), ExtResource("9_k1jud"), ExtResource("10_2hew3"), ExtResource("11_ys0x4"), ExtResource("12_qj51d"), ExtResource("13_84cmk")])

@@ -1,7 +1,7 @@
 class_name LootScreen
 extends CanvasLayer
-## Loot after a zone's guard (DESIGN.md 8): pick one of a few pieces of gear the party does not
-## own yet. The party screen comes next, with it in hand, to put it on someone (gear is always worn,
+## Spoils after a zone's guard, an elite or an act's boss (DESIGN.md 8, 8.6): pick one of a few
+## pieces of gear the party does not own yet (rare or better while the run has them). The party screen comes next, with it in hand, to put it on someone (gear is always worn,
 ## DESIGN.md 8.1).
 
 ## The item picked (null: the party took nothing).
@@ -15,10 +15,12 @@ var _items: Array[GearData] = []
 var _menu: ListMenu
 
 
-func setup(items: Array[GearData]) -> void:
+## `text`: the line under the title (empty: the guard's).
+func setup(items: Array[GearData], text: String = "") -> void:
 	_items = items
 	var column := ListMenu.screen_column(self, "Spoils", TITLE_SIZE)
-	column.add_child(ListMenu.centred_label("The guard left something behind. Take one.", TEXT_SIZE))
+	column.add_child(ListMenu.centred_label(text if not text.is_empty() else "The guard left something behind. Take one.",
+			TEXT_SIZE))
 	_menu = ListMenu.new()
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)

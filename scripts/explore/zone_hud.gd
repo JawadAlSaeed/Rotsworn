@@ -27,7 +27,8 @@ var _banner: Label
 var _banner_tween: Tween
 ## Roamer index -> {notice: Label, tag: Label}.
 var _marks: Dictionary = {}
-## "E Pick up" / "E Open chest", shown while a glinting spot or a chest is in reach (DESIGN.md 8.1).
+## "E Pick up" / "E Open chest" / "E Pray"..., shown while something to use is in reach (DESIGN.md
+## 8.1, 8.5).
 var _pickup: Control
 var _pickup_text: String = ""
 
@@ -76,14 +77,9 @@ func setup(explore: ExploreVisuals, zone_name: String, run_mode: bool = false) -
 
 
 
-func set_enemies_left(count: int) -> void:
-	_count.text = "Enemies left: %d" % count if count > 0 else "All enemies beaten"
-
-
-## A run zone's goal: the guard at the exit, and how many optional enemies are left.
-func set_guard_goal(guard_beaten: bool, others_left: int) -> void:
-	var goal := "The way out is open" if guard_beaten else "Beat the GUARD at the exit"
-	_count.text = "%s\nOptional enemies: %d" % [goal, others_left]
+## The goal in the top right corner (DESIGN.md 7.4, 8.5): seals, the guard, enemies left.
+func set_goal(text: String) -> void:
+	_count.text = text
 
 
 ## The "!" over roamer `index` at a screen position (its head), or hidden.
@@ -110,7 +106,6 @@ func set_tag(index: int, text: String, shown: bool, screen_pos: Vector2 = Vector
 		tag.position = screen_pos - Vector2(tag.size.x * 0.5, tag.size.y + above + TAG_GAP)
 
 
-## Big text in the middle (FIRST STRIKE!, ZONE CLEAR) for `ms` milliseconds.
 ## Shows the pick-up hint with this text ("" hides it).
 func set_pickup_hint(text: String) -> void:
 	if text == _pickup_text:
@@ -129,6 +124,7 @@ func set_pickup_hint(text: String) -> void:
 	_root.add_child(_pickup)
 
 
+## Big text in the middle (FIRST STRIKE!, ZONE CLEAR) for `ms` milliseconds.
 func banner(text: String, color: Color, ms: int) -> void:
 	_banner.text = text
 	_banner.label_settings.font_color = HudStyle.worn_color(color)

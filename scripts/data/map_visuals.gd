@@ -11,6 +11,10 @@ extends Resource
 @export_file("*.png") var roller_path: String = "res://assets/sprites/ui/map_roller.png"
 @export_file("*.png") var shop_icon_path: String = "res://assets/sprites/ui/map_shop.png"
 @export_file("*.png") var rest_icon_path: String = "res://assets/sprites/ui/map_rest.png"
+## Phase 15 stops (DESIGN.md 8.6 to 8.8): an elite fight, a "?" event, a treasure chest.
+@export_file("*.png") var elite_icon_path: String = "res://assets/sprites/ui/map_elite.png"
+@export_file("*.png") var event_icon_path: String = "res://assets/sprites/ui/map_event.png"
+@export_file("*.png") var treasure_icon_path: String = "res://assets/sprites/ui/map_treasure.png"
 ## The party's banner, planted where the party is.
 @export_file("*.png") var flag_path: String = "res://assets/sprites/ui/map_flag.png"
 ## The red ink circle around the stop picked (the big one for the final fight's lair).
@@ -41,6 +45,12 @@ extends Resource
 @export_group("Ink")
 ## Names and the next routes.
 @export var ink_color: Color = Color(0.25, 0.16, 0.11)
+## Planning (card #162): stops and routes the picked stop cannot lead to are drawn this much
+## weaker, so the roads ahead of the pick stand out.
+@export_range(0.0, 1.0, 0.05) var unreachable_alpha: float = 0.35
+## The legend of stop pictures beside the map: picture size (art pixels times pixel_scale) and
+## its text size.
+@export_range(8, 64, 1) var legend_size: int = 24
 ## The path the party has walked.
 @export var walked_color: Color = Color(0.56, 0.17, 0.13)
 ## Routes further up the map (not open yet) are drawn this strong.

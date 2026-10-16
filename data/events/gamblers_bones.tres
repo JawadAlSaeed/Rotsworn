@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_7ykij"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_t5lnj"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="3_bnpk8"]
+
+[sub_resource type="Resource" id="Resource_mo28q"]
+script = ExtResource("2_t5lnj")
+cost_gold = 20
+gold = 60
+
+[sub_resource type="Resource" id="Resource_eps3v"]
+script = ExtResource("2_t5lnj")
+cost_gold = 60
+
+[sub_resource type="Resource" id="Resource_w7myb"]
+script = ExtResource("1_7ykij")
+text = "Roll the bones (20 gold)"
+detail = "Win 60 gold. Or lose it all."
+deal = SubResource("Resource_mo28q")
+risk_percent = 50
+risk_deal = SubResource("Resource_eps3v")
+done_text = "The dice come up sixes."
+risk_text = "The dice turn in the air. The skeleton takes its winnings."
+
+[sub_resource type="Resource" id="Resource_4bhs3"]
+script = ExtResource("2_t5lnj")
+gold = 15
+
+[sub_resource type="Resource" id="Resource_5jnxl"]
+script = ExtResource("2_t5lnj")
+cost_hp_percent = 10
+
+[sub_resource type="Resource" id="Resource_3q1gv"]
+script = ExtResource("1_7ykij")
+text = "Take its purse"
+detail = "15 gold. The dead do not like thieves."
+deal = SubResource("Resource_4bhs3")
+risk_percent = 40
+risk_deal = SubResource("Resource_5jnxl")
+done_text = "The purse is light."
+risk_text = "A bony hand snaps at you. Everyone loses 10% HP."
+
+[resource]
+script = ExtResource("3_bnpk8")
+id = "gamblers_bones"
+title = "Gambler's Bones"
+text = "A skeleton sits at a table of rotten wood, dice in its hand. It waits for a player."
+picture_path = "res://assets/sprites/ui/map_event.png"
+choices = Array[ExtResource("1_7ykij")]([SubResource("Resource_w7myb"), SubResource("Resource_3q1gv")])

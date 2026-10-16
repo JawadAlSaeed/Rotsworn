@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="ActData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="1_rmucm"]
+[ext_resource type="Resource" path="res://data/encounters/elite_shade_coven.tres" id="2_ascct"]
+[ext_resource type="Resource" path="res://data/encounters/elite_hyena_pack.tres" id="3_1j7iu"]
+[ext_resource type="Resource" path="res://data/encounters/elite_twin_husks.tres" id="4_qj73g"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="5_gyjvm"]
+[ext_resource type="Resource" path="res://data/events/weeping_well.tres" id="6_ipc13"]
+[ext_resource type="Resource" path="res://data/events/gamblers_bones.tres" id="7_elhsp"]
+[ext_resource type="Resource" path="res://data/events/wounded_pilgrim.tres" id="8_vspi0"]
+[ext_resource type="Resource" path="res://data/events/rot_blossom.tres" id="9_0hhef"]
+[ext_resource type="Resource" path="res://data/events/hanging_cage.tres" id="10_01usj"]
+[ext_resource type="Resource" path="res://data/events/shrine_of_kings.tres" id="11_vi8el"]
+[ext_resource type="Resource" path="res://data/events/merchant_wreck.tres" id="12_qhplm"]
+[ext_resource type="Resource" path="res://data/events/whispering_mask.tres" id="13_qi0j6"]
+[ext_resource type="Resource" path="res://data/encounters/hollow_king.tres" id="14_o8x47"]
+[ext_resource type="Resource" path="res://data/looks/hollow_throne.tres" id="15_4lg5q"]
+[ext_resource type="Script" path="res://scripts/data/act_data.gd" id="16_ujpjj"]
+[ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="17_dysjy"]
+[ext_resource type="Resource" path="res://data/zones/ashen_ruins.tres" id="18_b02j8"]
+[ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="19_c07p7"]
+[ext_resource type="Resource" path="res://data/zones/rotten_hollow.tres" id="20_ohqey"]
+
+[resource]
+script = ExtResource("16_ujpjj")
+id = "ashen_deep"
+display_name = "The Ashen Deep"
+zones = Array[ExtResource("17_dysjy")]([ExtResource("18_b02j8"), ExtResource("19_c07p7"), ExtResource("20_ohqey")])
+final_encounter = ExtResource("14_o8x47")
+final_look = ExtResource("15_4lg5q")
+final_map_icon_path = "res://assets/sprites/ui/map_lair_hollow_king.png"
+elites = Array[ExtResource("1_rmucm")]([ExtResource("2_ascct"), ExtResource("3_1j7iu"), ExtResource("4_qj73g")])
+events = Array[ExtResource("5_gyjvm")]([ExtResource("6_ipc13"), ExtResource("7_elhsp"), ExtResource("8_vspi0"), ExtResource("9_0hhef"), ExtResource("10_01usj"), ExtResource("11_vi8el"), ExtResource("12_qhplm"), ExtResource("13_qi0j6")])
+deep = true

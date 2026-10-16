@@ -87,3 +87,25 @@ extends Resource
 @export_file_path("*.png") var chest_closed_path: String = "res://assets/sprites/env/chest_closed.png"
 @export_file_path("*.png") var chest_open_path: String = "res://assets/sprites/env/chest_open.png"
 @export_range(0.005, 1.0, 0.001) var chest_pixel_size: float = 0.05
+
+@export_group("Long zones")
+## A rot seal (DESIGN.md 8.5): a glowing standing stone, bobbing slowly, and the light beside it.
+@export_file_path("*.png") var seal_path: String = "res://assets/sprites/env/seal_stone.png"
+@export_range(0.005, 1.0, 0.001) var seal_pixel_size: float = 0.05
+@export_range(0.0, 8.0, 0.05) var seal_glow: float = 1.6
+@export var seal_color: Color = Color(0.55, 1.0, 0.45)
+@export_range(0.0, 16.0, 0.05) var seal_light_energy: float = 1.6
+@export_range(0.1, 50.0, 0.1) var seal_light_reach: float = 4.0
+## The gate sinks into the ground over this long when the last seal needed is taken.
+@export_range(0, 10000, 1, "suffix:ms") var gate_open_ms: int = 1400
+## A shrine or wanderer's small light (its glow colour), this strong and far.
+@export_range(0.0, 16.0, 0.05) var offer_light_energy: float = 1.4
+@export_range(0.1, 50.0, 0.1) var offer_light_reach: float = 4.5
+## A used shrine dims to this share of its glow; a wanderer that dealt walks off (fades) over
+## offer_fade_ms.
+@export_range(0.0, 1.0, 0.01) var offer_used_glow_share: float = 0.25
+@export_range(0, 10000, 1, "suffix:ms") var offer_fade_ms: int = 900
+## A champion's tag (shown near it, like a name) and its colour.
+@export var champion_color: Color = Color(0.85, 0.45, 1.0)
+## Champion tags show this many notice radii away or closer.
+@export_range(0.5, 10.0, 0.1) var champion_tag_range: float = 2.0

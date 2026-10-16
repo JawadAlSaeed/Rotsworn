@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_7thw8"]
+[ext_resource type="Resource" path="res://data/enemies/ashen_husk.tres" id="2_bkt11"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_f34ng"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="4_0wd27"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="5_4gy85"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="6_1kw7e"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="7_badna"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="8_xa6oo"]
+
+[resource]
+script = ExtResource("7_badna")
+id = "deep_elite_twin_husks"
+display_name = "Twin Husks"
+party = Array[ExtResource("3_f34ng")]([ExtResource("4_0wd27"), ExtResource("5_4gy85"), ExtResource("6_1kw7e")])
+enemies = Array[ExtResource("1_7thw8")]([ExtResource("2_bkt11"), ExtResource("2_bkt11")])
+team_ultimate = ExtResource("8_xa6oo")
+elite = true

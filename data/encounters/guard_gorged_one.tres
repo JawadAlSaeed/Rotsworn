@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Resource" path="res://data/encounters/deep_guard_gorged_one.tres" id="1_xuffe"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_t4ec8"]
+[ext_resource type="Resource" path="res://data/enemies/gorged_one.tres" id="3_6cnn0"]
+[ext_resource type="Resource" path="res://data/enemies/gnat_swarm.tres" id="4_x8yxj"]
+[ext_resource type="Script" path="res://scripts/data/character_data.gd" id="5_cve1a"]
+[ext_resource type="Resource" path="res://data/characters/alder.tres" id="6_yspa0"]
+[ext_resource type="Resource" path="res://data/characters/brin.tres" id="7_lxq1u"]
+[ext_resource type="Resource" path="res://data/characters/cass.tres" id="8_hj3dx"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="9_8xqiw"]
+[ext_resource type="Resource" path="res://data/abilities/team_ultimate.tres" id="10_hvu0m"]
+
+[resource]
+script = ExtResource("9_8xqiw")
+id = "guard_gorged_one"
+display_name = "The Gorged One"
+party = Array[ExtResource("5_cve1a")]([ExtResource("6_yspa0"), ExtResource("7_lxq1u"), ExtResource("8_hj3dx")])
+enemies = Array[ExtResource("2_t4ec8")]([ExtResource("3_6cnn0"), ExtResource("4_x8yxj")])
+team_ultimate = ExtResource("10_hvu0m")
+can_run = false
+mini_boss = true
+deep = ExtResource("1_xuffe")

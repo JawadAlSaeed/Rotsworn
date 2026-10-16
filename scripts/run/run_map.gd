@@ -5,14 +5,17 @@ extends RefCounted
 ## row, paths never cross, every stop can be reached and every stop reaches the final fight.
 ## Pure and seeded (CombatRng), so the same seed always makes the same map.
 
-enum StopType { ZONE, REST, SHOP, FINAL }
+## ELITE, EVENT and TREASURE came in phase 15 (DESIGN.md 8.6 to 8.8); new types go at the end so
+## saved numbers keep their meaning.
+enum StopType { ZONE, REST, SHOP, FINAL, ELITE, EVENT, TREASURE }
 
-const TYPE_NAMES: Array[String] = ["zone", "rest", "shop", "final"]
+const TYPE_NAMES: Array[String] = ["zone", "rest", "shop", "final", "elite", "event", "treasure"]
 ## A middle stop re-rolls its type this many times to avoid repeating its parent's shop or rest.
 const TYPE_REROLLS: int = 6
 
 ## Every stop: {id: int, row: int, col: int, width: int (stops in that row), type: StopType,
-## zone: int (index into the run's zones, -1 if not a zone), next: Array[int], prev: Array[int]}.
+## zone: int (index into the act's zones: a zone stop's place, an elite fight's look; -1 for the
+## others), next: Array[int], prev: Array[int]}.
 var stops: Array[Dictionary] = []
 ## Stop ids per row, left to right. The last row holds only the final fight.
 var rows: Array[Array] = []
@@ -144,10 +147,13 @@ static func _can_add(pairs: Array[Vector2i], i: int, j: int) -> bool:
 	return true
 
 
+## Row 0 is zones, the row before the final fight rests, run_treasure_row treasure; the others
+## are picked by weight: zones, shops, rests, elites (not before run_elite_min_row) and events.
 func _assign_types(rng: CombatRng, tuning: Tuning) -> void:
 	var last := rows.size() - 1
-	var weights: Array[int] = [tuning.run_weight_zone, tuning.run_weight_rest, tuning.run_weight_shop]
-	var kinds: Array[int] = [StopType.ZONE, StopType.REST, StopType.SHOP]
+	var weights: Array[int] = [tuning.run_weight_zone, tuning.run_weight_rest, tuning.run_weight_shop,
+			tuning.run_weight_elite, tuning.run_weight_event]
+	var kinds: Array[int] = [StopType.ZONE, StopType.REST, StopType.SHOP, StopType.ELITE, StopType.EVENT]
 	var middle: Array[int] = []
 	for r: int in rows.size():
 		for id: int in rows[r]:
@@ -158,21 +164,26 @@ func _assign_types(rng: CombatRng, tuning: Tuning) -> void:
 				s.type = StopType.ZONE
 			elif r == last - 1:
 				s.type = StopType.REST
+			elif r == tuning.run_treasure_row:
+				s.type = StopType.TREASURE
 			else:
 				middle.append(id)
-				s.type = _pick_middle(rng, weights, kinds, s, r == last - 2)
+				var row_weights := weights.duplicate()
+				if r < tuning.run_elite_min_row:
+					row_weights[3] = 0
+				s.type = _pick_middle(rng, row_weights, kinds, s, r == last - 2)
 	if count_type(StopType.SHOP) == 0 and not middle.is_empty():
 		stops[middle[rng.range_int(0, middle.size() - 1)]].type = StopType.SHOP
 
 
-## A middle stop's type: never the same shop or rest as a stop leading to it, and no rest right
-## before the rest row.
+## A middle stop's type: never the same shop, rest or elite as a stop leading to it, and no rest
+## right before the rest row.
 func _pick_middle(rng: CombatRng, weights: Array[int], kinds: Array[int], s: Dictionary,
 		before_rest_row: bool) -> int:
 	for attempt: int in TYPE_REROLLS:
 		var index := rng.pick_weighted(weights)
 		var type := kinds[index] if index >= 0 else StopType.ZONE
-		if type == StopType.ZONE:
+		if type == StopType.ZONE or type == StopType.EVENT:
 			return type
 		if type == StopType.REST and before_rest_row:
 			continue
@@ -191,6 +202,10 @@ func _assign_zones(rng: CombatRng, zone_count: int) -> void:
 	if zone_count <= 0:
 		return
 	for s: Dictionary in stops:
+		if int(s.type) == StopType.ELITE:
+			# An elite fight takes place in one of the act's zones (its look).
+			s.zone = rng.range_int(0, zone_count - 1)
+			continue
 		if int(s.type) != StopType.ZONE:
 			continue
 		var recent := last_zones_before(int(s.id))

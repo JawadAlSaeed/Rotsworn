@@ -56,6 +56,8 @@ var _ink_row: int = 0
 ## The part of the paper on screen: art pixels tall, and its top on screen (set every frame).
 var _window_h: int = 0
 var _window_top: float = 0.0
+## Stops the picked choice can lead to (planning, card #162): id -> true.
+var _ahead: Dictionary = {}
 
 
 ## `unroll` false shows the map already open (back from the party screen, or redrawn online).
@@ -91,7 +93,10 @@ func setup(run: RunState, look: MapVisuals = null, unroll: bool = true) -> void:
 	top.offset_top = 20.0
 	top.add_theme_constant_override("separation", 10)
 	add_child(top)
-	top.add_child(ListMenu.centred_title(run.data.display_name, TITLE_SIZE))
+	var title := run.data.display_name
+	if run.acts().size() > 1:
+		title = "Act %d: %s" % [run.act + 1, run.act_data().display_name]
+	top.add_child(ListMenu.centred_title(title, TITLE_SIZE))
 	var centre := CenterContainer.new()
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(centre)
@@ -111,6 +116,7 @@ func setup(run: RunState, look: MapVisuals = null, unroll: bool = true) -> void:
 	ListMenu.screen_footer(self, [[&"@leftright", "Choose"], [&"@updown", "Scroll"], [&"menu_confirm", "Go"],
 			[&"party_menu", "Party"], [&"pause", "Pause"]])
 
+	add_child(_legend())
 	_choices = run.choices()
 	_choices.sort_custom(func(a: int, b: int) -> bool: return int(run.map.stop(a).col) < int(run.map.stop(b).col))
 	_sel = 0
@@ -230,11 +236,19 @@ static func describe(run: RunState, stop: Dictionary) -> String:
 			return "Zone: %s. Explore, then beat the guard at the exit. Other enemies are optional (more gold)." % (
 					zone.display_name if zone != null else "?")
 		RunMap.StopType.REST:
-			return "Rest: everyone heals %d%% of their max HP." % run.tuning.run_rest_heal_percent
+			return "Campfire: pick one: rest (heal %d%%), train (attribute points) or upgrade an item." % 					run.tuning.run_rest_heal_percent
 		RunMap.StopType.SHOP:
-			return "Shop: spend gold on healing and tonics."
+			return "Shop: items, charms and gear; healing, upgrades; sell what you do not need."
 		RunMap.StopType.FINAL:
+			if not run.is_last_act():
+				return "The boss of this act. Win to go on to the next act."
 			return "The final fight. Win it to clear the run."
+		RunMap.StopType.ELITE:
+			return "Elite fight: a much tougher fight. Better spoils: rare gear and more gold."
+		RunMap.StopType.EVENT:
+			return "Something strange: a choice to make, a risk or a reward."
+		RunMap.StopType.TREASURE:
+			return "Treasure: a chest with something rare inside, and gold."
 	return ""
 
 
@@ -244,16 +258,68 @@ static func stop_name(run: RunState, stop: Dictionary) -> String:
 			var zone := run.zone_of(stop)
 			return zone.display_name if zone != null else "Zone"
 		RunMap.StopType.REST:
-			return "Rest"
+			return "Campfire"
 		RunMap.StopType.SHOP:
 			return "Shop"
 		RunMap.StopType.FINAL:
-			return "Final fight"
+			return "Boss" if not run.is_last_act() else "Final fight"
+		RunMap.StopType.ELITE:
+			return "Elite"
+		RunMap.StopType.EVENT:
+			return "?"
+		RunMap.StopType.TREASURE:
+			return "Treasure"
 	return ""
 
 
 func _update_detail() -> void:
 	_detail.text = describe(_run, _run.map.stop(_choices[_sel])) if not _choices.is_empty() else ""
+	_ahead = reachable_from(_run.map, _choices[_sel]) if not _choices.is_empty() else {}
+
+
+## Every stop `from_id` can lead to, itself included (id -> true).
+static func reachable_from(map: RunMap, from_id: int) -> Dictionary:
+	var found := {}
+	var todo: Array[int] = [from_id]
+	while not todo.is_empty():
+		var id: int = todo.pop_back()
+		if found.has(id):
+			continue
+		found[id] = true
+		todo.append_array(map.stop(id).get("next", []))
+	return found
+
+
+## The legend: every kind of stop's picture and name, down the left side.
+func _legend() -> Control:
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	box.offset_left = 40.0
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.add_theme_constant_override("separation", 8)
+	var zone_icon := ""
+	if not _run.act_data().zones.is_empty():
+		zone_icon = _run.act_data().zones[0].map_icon_path
+	for entry: Array in [[zone_icon, "Zone"], [_look.elite_icon_path, "Elite"], [_look.event_icon_path, "Event"],
+			[_look.treasure_icon_path, "Treasure"], [_look.shop_icon_path, "Shop"], [_look.rest_icon_path, "Campfire"],
+			[_run.act_data().final_map_icon_path, "Boss"]]:
+		var row := HBoxContainer.new()
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_theme_constant_override("separation", 10)
+		var icon := TextureRect.new()
+		icon.texture = AssetLoader.texture(String(entry[0]), Vector2i(24, 24))
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size = Vector2(48.0, 48.0)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon)
+		var label := HudStyle.make_label(String(entry[1]), _look.legend_size, HudStyle.TEXT)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(label)
+		box.add_child(row)
+	return box
 
 
 # --- timing -----------------------------------------------------------------------------------
@@ -308,7 +374,13 @@ func _icon_for(stop: Dictionary) -> Texture2D:
 		RunMap.StopType.SHOP:
 			path = _look.shop_icon_path
 		RunMap.StopType.FINAL:
-			path = _run.data.final_map_icon_path
+			path = _run.act_data().final_map_icon_path
+		RunMap.StopType.ELITE:
+			path = _look.elite_icon_path
+		RunMap.StopType.EVENT:
+			path = _look.event_icon_path
+		RunMap.StopType.TREASURE:
+			path = _look.treasure_icon_path
 	return AssetLoader.texture(path, Vector2i(24, 24))
 
 
@@ -402,6 +474,8 @@ func _draw_routes(origin: Vector2) -> void:
 				color.a = _look.faded_alpha
 			else:
 				color.a = _look.route_alpha
+				if not _ahead.is_empty() and not (_ahead.has(from_id) and _ahead.has(n)):
+					color.a *= _look.unreachable_alpha
 			color.a *= minf(_row_ink(int(s.row)), _row_ink(int(map.stop(n).row)))
 			_dots(origin, _centres[from_id], _centres[n], STOP_CLEAR, STOP_CLEAR, color, size)
 	# The start mark (a small ink cross) and the routes from it.
@@ -456,6 +530,8 @@ func _draw_stops(origin: Vector2) -> void:
 		var alpha := ink
 		if not _run.path.has(id) and not choice and int(s.row) <= here:
 			alpha *= _look.faded_alpha
+		elif int(s.row) > here and not _ahead.is_empty() and not _ahead.has(id):
+			alpha *= _look.unreachable_alpha
 		var icon: Texture2D = _icons[id]
 		var size := icon.get_size()
 		_canvas.draw_texture_rect(icon, Rect2(_at(origin, centre - (size * 0.5).floor()), size * px), false,
