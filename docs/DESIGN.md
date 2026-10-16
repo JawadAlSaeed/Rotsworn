@@ -859,7 +859,8 @@ Music (2026-10-13, cards #84, #95, #97, #98): `data/audio/music.tres` (`MusicSet
 and `boss_rage_path` (the boss fight switches to it on the boss's phase change), `victory_path` and
 `defeat_path` (cards #109, #126: a won or lost fight's end screen, `end_song_delay_ms` after the
 jingle, and RUN CLEARED / RUN OVER; user picks 2026-10-15: "Victory Theme for RPG" by cynicmusic
-and "Lament for a Warrior's Soul" by RandomMind; empty keeps the old songs). The run map song is
+and "Lament for a Warrior's Soul" by RandomMind, which the Openverse pass replaced with "Sad Piano"
+by tyops; empty keeps the old songs). The run map song is
 "Treasure Hunter" by TAD (card #110, user pick 2026-10-15, was "Mystical Theme"). The `Audio`
 autoload loops the song on its own player (OGG imports loop, `oggvorbisstr` default in
 project.godot); a place naming the song already playing lets it go on. A new song crossfades in: it fades in over `fade_in_ms` while the old one fades
@@ -893,6 +894,21 @@ Hero shouts (2026-10-13, card #102): `CharacterData.shout_sfx` (a voice cue) pla
 uses a skill (not the basic attack, not Run); on the Team Ultimate every standing hero shouts.
 CC0 Freesound recordings, three options each (`candidates/shouts.json`); Brin's and Cass's options
 mix voice types because their voices are not decided in the design yet.
+
+Openverse pass (2026-10-16/17): every sound, song and loop in the game was put next to three free
+finds from api.openverse.org (CC0, public domain or CC BY only) on a listening page, with "NOW" (keep)
+as a fourth choice. Pipeline: `tools/sound_kit/openverse_fetch.py` (search, cached; `pick` with hand
+picks in `openverse_overrides.json`; `previews`; `redo` for slots marked "none fit"),
+`make_picker.py --openverse`, `openverse_build.py` (reads `openverse_selection.json`, cuts and levels
+effects to their `cue_rules.json` limits like `build_sfx.py`, songs like `music_kit.py`, loops like
+`ambience_kit.py`, and writes the credit lines). When Openverse had nothing good, finds came from
+Freesound and OpenGameArt voice packs. User picks: 24 effects (among them parry, dodge, whiff,
+heavy strike, boss rage, enemy crumble, fight start, level up, enemy notice "Monster AAH!", Alder's
+"HAH!", Cass's attack shout), the credits song ("Peaceful Fantasy Music" by TheoJT), the defeat song
+and the Sunken Bog loop (swamp frogs); the rest stay as they were. Brin's shout stays as it was after
+seven rounds of finds (the user wants a normal 25-year-old man's shout; still open). The user picked
+by ear, so a few picks peak later than `max_rise_ms`; they were kept on purpose. CC BY sources are
+named on the credits screen (`data/branding/credits.tres`, a test checks songs).
 
 Volume channels (2026-10-13, card #104): Settings has Volume (overall, the Master bus), Music,
 Effects and Voices, saved per machine (`PlayerSettings.CHANNELS`). The `Audio` autoload creates the
@@ -2427,3 +2443,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Tutorial on a practice fight where nobody can die, steps checked from fight events; offered once on the first New Run | user approved the six lessons (#131) |
 | 2026-10-15 | Main menu cut to six rows: Online holds Host and Join, the tutorial is the first Practice card | user (#150) |
 | 2026-10-15 | Tutorial: each hero lesson locks the menu to one glowing choice; no zone or map lesson (five lessons); the Skills lesson uses a skill without follow-ups (Taunt) | user play-test |
+| 2026-10-16 | Every sound, song and loop offered against three free Openverse finds (CC0 / CC BY); 27 replaced, the rest kept | user asked; CC BY is fine with a credit on the credits screen |

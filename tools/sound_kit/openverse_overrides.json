@@ -1,0 +1,177 @@
+{
+ "alert": [
+  "violinDanger",
+  "Beep warning",
+  "Nuclear Alarm"
+ ],
+ "ap_gain": [
+  "Ping.wav",
+  "SFX_MONOSJAM_rising_29",
+  "SFX_MONOSJAM_slayer_162"
+ ],
+ "locked": [
+  "Negative 2",
+  "Glitch_005",
+  "Muted Esteem"
+ ],
+ "enemy_crumble": [
+  "Breakup effect",
+  "Laser Beam Hits And Disintegra",
+  "Enemy Destroyed"
+ ],
+ "item_combine": [
+  "Kill / Crafting",
+  "Craft Item 3",
+  "Anvil - Lokomo A 100 kg - Comb"
+ ],
+ "item_drop": [
+  "drop-item-heavy2",
+  "drop-item-light1",
+  "Glass Handling"
+ ],
+ "item_place": [
+  "Wooden Object Place",
+  "put_item",
+  "BottlePut"
+ ],
+ "item_lift": [
+  "Pick up Item 2",
+  "Picking up small box",
+  "PickupItem.wav"
+ ],
+ "metronome": [
+  "METRONOME.wav",
+  "Perc_MetronomeQuartz_hi",
+  "Quick Clack"
+ ],
+ "player_join": [
+  "GASP_UI_Notification_1",
+  "[UI Sound] Approval",
+  "Double Beep"
+ ],
+ "player_leave": [
+  "UI Close menu",
+  "socket_connect_disconnect",
+  "Cancel (Retro"
+ ],
+ "slam": [
+  "Heavy Metal Thud on Ground",
+  "Medium Thud 1",
+  "object falls (5)"
+ ],
+ "team_counter": [
+  "Hit Swing Sword Small 3",
+  "Intense Punch",
+  "metallic clang"
+ ],
+ "exposed_burst": [
+  "LIGHTBULB SMASH 002",
+  "Chipping large Ice Block",
+  "Glass Break - Small Jar 01"
+ ],
+ "fight_start": [
+  "Sword Unsheath",
+  "Encounter",
+  "Sword Fast Unsheath"
+ ],
+ "parry_ring": [
+  "Metal ringing hits",
+  "Bell Ding",
+  "knife cling"
+ ],
+ "defeat": [
+  "Game Over Deep Epic",
+  "8-bit Game Over",
+  "Game Over 04"
+ ],
+ "dodge": [
+  "Whoosh_Swish_03",
+  "fast-swing-air-woosh",
+  "Fast Swoosh"
+ ],
+ "counter": [
+  "Sword 4.wav",
+  "Sword 7.wav",
+  "Samurai Slash2"
+ ],
+ "voice_gnats": [
+  "20060628.mosquito03",
+  "BEE_buzzin_02",
+  "20090628.mosquito.01"
+ ],
+ "music:credits": [
+  "Peaceful Fantasy Music",
+  "Fantasy Seaport",
+  "Twlight Piano loop"
+ ],
+ "music:zone_hollow": [
+  "Dark fantasy music four",
+  "Old ritual - Fantasy",
+  "Dark Myst Orchestra Strings"
+ ],
+ "music:zone_bog": [
+  "Sad Horror Music",
+  "Suspensify",
+  "swell pad"
+ ],
+ "music:zone_ruins": [
+  "Lonesome Angel",
+  "The last soul's way",
+  "Vestigium"
+ ],
+ "music:map": [
+  "It's time for an adventure",
+  "Realm of Adventure",
+  "RPG Shop Village theme"
+ ],
+ "music:fight": [
+  "ancient battle music",
+  "heavy strings (battle music)",
+  "medieval battle 1500"
+ ],
+ "music:boss_rage": [
+  "Cinematic Battle Music",
+  "Fight Music Synth Tense Loop",
+  "Raspberrymusic"
+ ],
+ "ambience:ambience_ruins": [
+  "Desert Wind",
+  "Kanyaka Ruin",
+  "Wind blowing and howling"
+ ],
+ "ambience:ambience_bog": [
+  "swamp frogs",
+  "swamp at night with crickets",
+  "Lake At Night"
+ ],
+ "voice_fly": [
+  "fly buzz against window",
+  "Bee Buzzing",
+  "20060628.mosquito02"
+ ],
+ "follow_up": [
+  "katana_cut1",
+  "samurai slash",
+  "katana_cut2"
+ ],
+ "skill_press": [
+  "Magic Lighting Spell Impact",
+  "Spell impact",
+  "Water Magic Impact"
+ ],
+ "run_begin": [
+  "war horn.wav",
+  "Booga Booga War Horn",
+  "inception-sound"
+ ],
+ "music:victory": [
+  "Triumphant",
+  "Path To Victory",
+  "Shine 1 (loop)"
+ ],
+ "shout_alder": [
+  "HAH! 01",
+  "Warcry Yarghh!",
+  "'To War!'"
+ ]
+}

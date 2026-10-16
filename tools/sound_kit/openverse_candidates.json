@@ -1,0 +1,4656 @@
+{
+ "alert": {
+  "options": {
+   "a": {
+    "id": "ed829790-9b12-455c-a42b-c0c3c227733c",
+    "title": "violinDanger.wav",
+    "creator": "Wagna",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Wagna/sounds/325987",
+    "url": "https://cdn.freesound.org/previews/325/325987_3271346-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1718,
+    "source": "freesound",
+    "query": "alert warning"
+   },
+   "b": {
+    "id": "e107a062-0c27-477e-bfec-b4149ddb32e6",
+    "title": "Beep warning",
+    "creator": "SamsterBirdies",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/SamsterBirdies/sounds/467882",
+    "url": "https://cdn.freesound.org/previews/467/467882_5487341-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1716,
+    "source": "freesound",
+    "query": "alert warning"
+   },
+   "c": {
+    "id": "37186a86-dfb0-4d7b-bab4-07664dc10513",
+    "title": "Nuclear Alarm",
+    "creator": "plasterbrain",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/plasterbrain/sounds/242856",
+    "url": "https://cdn.freesound.org/previews/242/242856_4284968-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2173,
+    "source": "freesound",
+    "query": "alert warning"
+   }
+  },
+  "pool": 8,
+  "locked": true
+ },
+ "ap_gain": {
+  "options": {
+   "a": {
+    "id": "e1b79152-e9a6-4b0e-a7dc-b7747e11dfb9",
+    "title": "Ping.wav",
+    "creator": "DrMrSir",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/DrMrSir/sounds/529559",
+    "url": "https://cdn.freesound.org/previews/529/529559_11669218-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1699,
+    "source": "freesound",
+    "query": "ui ping"
+   },
+   "b": {
+    "id": "26736468-7a5a-4c97-8afe-ef101a1e23b5",
+    "title": "SFX_MONOSJAM_rising_29.wav",
+    "creator": "MrFossy",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MrFossy/sounds/589124",
+    "url": "https://cdn.freesound.org/previews/589/589124_129727-hq.mp3",
+    "filetype": "mp3",
+    "ms": 378,
+    "source": "freesound",
+    "query": "ui ping"
+   },
+   "c": {
+    "id": "f401ff10-976e-4fb0-a861-7e0771cec731",
+    "title": "SFX_MONOSJAM_slayer_162.wav",
+    "creator": "MrFossy",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MrFossy/sounds/589319",
+    "url": "https://cdn.freesound.org/previews/589/589319_129727-hq.mp3",
+    "filetype": "mp3",
+    "ms": 622,
+    "source": "freesound",
+    "query": "ui ping"
+   }
+  },
+  "pool": 12,
+  "locked": true
+ },
+ "bolt_cast": {
+  "options": {
+   "a": {
+    "id": "925c003a-1463-4dd7-be21-b972424c42e4",
+    "title": "Dark Magic Cast Loop Short",
+    "creator": "EminYILDIRIM",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/EminYILDIRIM/sounds/550326",
+    "url": "https://cdn.freesound.org/previews/550/550326_10912485-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3000,
+    "source": "freesound",
+    "query": "dark magic cast"
+   },
+   "b": {
+    "id": "1bd1fe86-ab33-4808-bd53-c74a7286d2ef",
+    "title": "Magic Spell 09.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/523204",
+    "url": "https://cdn.freesound.org/previews/523/523204_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1382,
+    "source": "freesound",
+    "query": "dark magic cast"
+   },
+   "c": {
+    "id": "87a836ae-d9db-4c84-85e1-854752306a9e",
+    "title": "Magic Spell 05.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/495453",
+    "url": "https://cdn.freesound.org/previews/495/495453_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1000,
+    "source": "freesound",
+    "query": "dark magic cast"
+   }
+  },
+  "pool": 13,
+  "locked": true
+ },
+ "boss_rage": {
+  "options": {
+   "a": {
+    "id": "e6152a5c-3cec-45eb-9347-24ac7235df16",
+    "title": "Scary Monster Roar #2",
+    "creator": "NicknameLarry",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/NicknameLarry/sounds/489901",
+    "url": "https://cdn.freesound.org/previews/489/489901_10418401-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2784,
+    "source": "freesound",
+    "query": "monster roar"
+   },
+   "b": {
+    "id": "de357f0c-8324-4c7c-adc8-17223ce85126",
+    "title": "Didgeridoo Monster Roar",
+    "creator": "Noxdl",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Noxdl/sounds/204912",
+    "url": "https://cdn.freesound.org/previews/204/204912_3048844-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3122,
+    "source": "freesound",
+    "query": "monster roar"
+   },
+   "c": {
+    "id": "f52ac5d2-3bb8-4b27-99e9-5493698f0c76",
+    "title": "Monster Roar 02",
+    "creator": "zerokingfull",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/zerokingfull/sounds/347410",
+    "url": "https://cdn.freesound.org/previews/347/347410_4450479-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4804,
+    "source": "freesound",
+    "query": "monster roar"
+   }
+  },
+  "pool": 14,
+  "locked": true
+ },
+ "buff": {
+  "options": {
+   "a": {
+    "id": "dc3dbb96-2fe3-414e-96d3-e592b060e633",
+    "title": "Jump sound or Power Up sound",
+    "creator": "Cman634",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Cman634/sounds/198784",
+    "url": "https://cdn.freesound.org/previews/198/198784_3478269-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1894,
+    "source": "freesound",
+    "query": "power up"
+   },
+   "b": {
+    "id": "3362b5f8-12a4-4510-954e-3785874099b2",
+    "title": "Power Up 1 SFX",
+    "creator": "Eschwabe3",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/Eschwabe3/sounds/460131",
+    "url": "https://cdn.freesound.org/previews/460/460131_7867071-hq.mp3",
+    "filetype": "mp3",
+    "ms": 473,
+    "source": "freesound",
+    "query": "power up"
+   },
+   "c": {
+    "id": "d81ea62b-8ecc-4e03-a808-0ce354c6f0da",
+    "title": "Power Up 2 SFX",
+    "creator": "Eschwabe3",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/Eschwabe3/sounds/460132",
+    "url": "https://cdn.freesound.org/previews/460/460132_7867071-hq.mp3",
+    "filetype": "mp3",
+    "ms": 547,
+    "source": "freesound",
+    "query": "power up"
+   }
+  },
+  "pool": 12,
+  "locked": true
+ },
+ "chest_open": {
+  "options": {
+   "a": {
+    "id": "d144c6d8-7e2e-44cc-a314-f6dbdfa2b5fa",
+    "title": "chest openning crack",
+    "creator": "ssierra1202",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/ssierra1202/sounds/391947",
+    "url": "https://cdn.freesound.org/previews/391/391947_6450069-hq.mp3",
+    "filetype": "mp3",
+    "ms": 979,
+    "source": "freesound",
+    "query": "chest open"
+   },
+   "b": {
+    "id": "a7e08739-174f-4a60-90a9-532c2ebb6d62",
+    "title": "SFXWoodenObjectOpen.wav",
+    "creator": "WakuWakuWakuWaku",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/WakuWakuWakuWaku/sounds/422975",
+    "url": "https://cdn.freesound.org/previews/422/422975_6366356-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1940,
+    "source": "freesound",
+    "query": "chest open"
+   },
+   "c": {
+    "id": "051c90bc-b588-439c-8f14-ad41bc126ab7",
+    "title": "Open_01.wav",
+    "creator": "LittleRobotSoundFactory",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/LittleRobotSoundFactory/sounds/270338",
+    "url": "https://cdn.freesound.org/previews/270/270338_5123851-hq.mp3",
+    "filetype": "mp3",
+    "ms": 500,
+    "source": "freesound",
+    "query": "chest open"
+   }
+  },
+  "pool": 11,
+  "locked": true
+ },
+ "counter": {
+  "options": {
+   "a": {
+    "id": "0e9db320-0830-4c78-8245-609614313f1c",
+    "title": "Sword 4.wav",
+    "creator": "CpawsMusic",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/CpawsMusic/sounds/437113",
+    "url": "https://cdn.freesound.org/previews/437/437113_5599242-hq.mp3",
+    "filetype": "mp3",
+    "ms": 875,
+    "source": "freesound",
+    "query": "sword slash fast"
+   },
+   "b": {
+    "id": "7d2ea675-87b2-4666-a56b-fcc25816528a",
+    "title": "Sword 7.wav",
+    "creator": "CpawsMusic",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/CpawsMusic/sounds/437117",
+    "url": "https://cdn.freesound.org/previews/437/437117_5599242-hq.mp3",
+    "filetype": "mp3",
+    "ms": 875,
+    "source": "freesound",
+    "query": "sword slash fast"
+   },
+   "c": {
+    "id": "156dd020-8d32-4dfc-82e0-62854493d810",
+    "title": "Samurai Slash2",
+    "creator": "nekoninja",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/nekoninja/sounds/512785",
+    "url": "https://cdn.freesound.org/previews/512/512785_4682356-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3429,
+    "source": "freesound",
+    "query": ""
+   }
+  },
+  "pool": 5,
+  "locked": true
+ },
+ "critical": {
+  "options": {
+   "a": {
+    "id": "b49c185d-5d81-4551-9bc1-e4d71dcf8a4e",
+    "title": "Headshot sound",
+    "creator": "MadPanCake",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MadPanCake/sounds/660769",
+    "url": "https://cdn.freesound.org/previews/660/660769_5334162-hq.mp3",
+    "filetype": "mp3",
+    "ms": 444,
+    "source": "freesound",
+    "query": "critical hit"
+   },
+   "b": {
+    "id": "7a6daca6-2501-4c2a-a034-e1f4778deecb",
+    "title": "ANI Big Pipe Hit",
+    "creator": "ani_music",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/ani_music/sounds/244983",
+    "url": "https://cdn.freesound.org/previews/244/244983_3008343-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1000,
+    "source": "freesound",
+    "query": "heavy punch impact"
+   },
+   "c": {
+    "id": "8a6776c9-6a0b-4d6b-b51c-b0dcf4272fa8",
+    "title": "Big hit #1.wav",
+    "creator": "jdolea",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/jdolea/sounds/569037",
+    "url": "https://cdn.freesound.org/previews/569/569037_12771893-hq.mp3",
+    "filetype": "mp3",
+    "ms": 666,
+    "source": "freesound",
+    "query": "big hit"
+   }
+  },
+  "pool": 10,
+  "locked": true
+ },
+ "debuff": {
+  "options": {
+   "a": {
+    "id": "7a14b318-8f40-4d96-ac36-774555e616df",
+    "title": "Cursed Cow Buff Skill",
+    "creator": "EminYILDIRIM",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/EminYILDIRIM/sounds/559086",
+    "url": "https://cdn.freesound.org/previews/559/559086_10912485-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1333,
+    "source": "freesound",
+    "query": "curse spell"
+   },
+   "b": {
+    "id": "84991b6d-f01b-4501-8d25-9e43ee483ea1",
+    "title": "magicShield_down.wav",
+    "creator": "rafaelzimrp",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/rafaelzimrp/sounds/570852",
+    "url": "https://cdn.freesound.org/previews/570/570852_12068810-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3306,
+    "source": "freesound",
+    "query": "magic debuff"
+   },
+   "c": {
+    "id": "13ba1097-db54-41ea-b19f-093bdfb6dc13",
+    "title": "Shadow Evil Spell Dark Magic",
+    "creator": "EminYILDIRIM",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/EminYILDIRIM/sounds/559087",
+    "url": "https://cdn.freesound.org/previews/559/559087_10912485-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1866,
+    "source": "freesound",
+    "query": "dark magic"
+   }
+  },
+  "pool": 9,
+  "locked": true
+ },
+ "defeat": {
+  "options": {
+   "a": {
+    "id": "92242818-256c-4fb7-bf00-3a8d8636b94e",
+    "title": "Game Over Deep Epic",
+    "creator": "dersuperanton",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/dersuperanton/sounds/434465",
+    "url": "https://cdn.freesound.org/previews/434/434465_1992856-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2015,
+    "source": "freesound",
+    "query": "game over"
+   },
+   "b": {
+    "id": "a8afdd30-7626-4908-bbab-10a05cdf6752",
+    "title": "8-bit Game Over",
+    "creator": "Euphrosyyn",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Euphrosyyn/sounds/442127",
+    "url": "https://cdn.freesound.org/previews/442/442127_5051822-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1758,
+    "source": "freesound",
+    "query": "game over"
+   },
+   "c": {
+    "id": "0d97cc6a-81f0-4fc2-99e6-e9df664e82c8",
+    "title": "Game Over 04.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/365782",
+    "url": "https://cdn.freesound.org/previews/365/365782_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3249,
+    "source": "freesound",
+    "query": "game over"
+   }
+  },
+  "pool": 14,
+  "locked": true
+ },
+ "dodge": {
+  "options": {
+   "a": {
+    "id": "3d0e8e5f-aba8-42af-aa5f-85859c4e07d2",
+    "title": "Whoosh_Swish_03.wav",
+    "creator": "www.bonson.ca",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/www.bonson.ca/sounds/12658",
+    "url": "https://cdn.freesound.org/previews/12/12658_32482-hq.mp3",
+    "filetype": "mp3",
+    "ms": 445,
+    "source": "freesound",
+    "query": "whoosh fast"
+   },
+   "b": {
+    "id": "e60ae405-8491-4ea3-a939-1f1a60917857",
+    "title": "fast-swing-air-woosh",
+    "creator": "CosmicEmbers",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/CosmicEmbers/sounds/160756",
+    "url": "https://cdn.freesound.org/previews/160/160756_2895542-hq.mp3",
+    "filetype": "mp3",
+    "ms": 661,
+    "source": "freesound",
+    "query": "whoosh fast"
+   },
+   "c": {
+    "id": "9b264c5e-e7b4-45fb-9e06-3556d7e9d84b",
+    "title": "Fast Swoosh.wav",
+    "creator": "swidmark",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/swidmark/sounds/171321",
+    "url": "https://cdn.freesound.org/previews/171/171321_962819-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1851,
+    "source": "freesound",
+    "query": "whoosh fast"
+   }
+  },
+  "pool": 12,
+  "locked": true
+ },
+ "downed": {
+  "options": {
+   "a": {
+    "id": "3d55cb13-11dc-4653-975a-7cf274b4fb3a",
+    "title": "body-fall-5.wav",
+    "creator": "CosmicEmbers",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/CosmicEmbers/sounds/160742",
+    "url": "https://cdn.freesound.org/previews/160/160742_2895542-hq.mp3",
+    "filetype": "mp3",
+    "ms": 972,
+    "source": "freesound",
+    "query": "body fall"
+   },
+   "b": {
+    "id": "cf87daa9-f02a-44ae-a529-3e93cf127b01",
+    "title": "Body Fall Over.wav",
+    "creator": "raubana",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/raubana/sounds/82027",
+    "url": "https://cdn.freesound.org/previews/82/82027_1178110-hq.mp3",
+    "filetype": "mp3",
+    "ms": 351,
+    "source": "freesound",
+    "query": "body fall"
+   },
+   "c": {
+    "id": "745fc614-5907-4b06-8896-b016f10addbc",
+    "title": "Body falling to floor 7",
+    "creator": "JakLocke",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/JakLocke/sounds/261296",
+    "url": "https://cdn.freesound.org/previews/261/261296_4877546-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1459,
+    "source": "freesound",
+    "query": "body fall"
+   }
+  },
+  "pool": 15,
+  "locked": true
+ },
+ "encounter_swirl": {
+  "options": {
+   "a": {
+    "id": "eab8a6e2-0ac8-4615-9e0d-ebde30523783",
+    "title": "Deep Whoosh #1",
+    "creator": "Kinoton",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Kinoton/sounds/351256",
+    "url": "https://cdn.freesound.org/previews/351/351256_2247456-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3155,
+    "source": "freesound",
+    "query": "swoosh transition"
+   },
+   "b": {
+    "id": "39fe0057-5d71-4d9f-b95e-3bedd957ea40",
+    "title": "Whoosh.wav",
+    "creator": "_bepis",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/_bepis/sounds/414422",
+    "url": "https://cdn.freesound.org/previews/414/414422_6637889-hq.mp3",
+    "filetype": "mp3",
+    "ms": 580,
+    "source": "freesound",
+    "query": "swoosh transition"
+   },
+   "c": {
+    "id": "2c52e6df-7d04-40ab-b44a-86ff57be124d",
+    "title": "Woosh_Low_02.wav",
+    "creator": "moogy73",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/moogy73/sounds/425700",
+    "url": "https://cdn.freesound.org/previews/425/425700_760420-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3750,
+    "source": "freesound",
+    "query": "swoosh transition"
+   }
+  },
+  "pool": 13,
+  "locked": true
+ },
+ "enemy_crumble": {
+  "options": {
+   "a": {
+    "id": "e6a62070-1bef-485d-a3c6-29dbd9f13705",
+    "title": "Breakup effect (Disintegration)",
+    "creator": "Ana_V.",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Ana_V./sounds/711061",
+    "url": "https://cdn.freesound.org/previews/711/711061_8157624-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3047,
+    "source": "freesound",
+    "query": "disintegrate"
+   },
+   "b": {
+    "id": "260f542e-f8f2-4b2a-93ce-ccf704e7ca64",
+    "title": "Laser Beam Hits And Disintegrates Object.wav",
+    "creator": "Glitchedtones",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Glitchedtones/sounds/375922",
+    "url": "https://cdn.freesound.org/previews/375/375922_3294528-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2999,
+    "source": "freesound",
+    "query": "disintegrate"
+   },
+   "c": {
+    "id": "17b2bffe-2886-4a94-b488-aa8d06d4f1fd",
+    "title": "Enemy Destroyed",
+    "creator": "plasterbrain",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/plasterbrain/sounds/394466",
+    "url": "https://cdn.freesound.org/previews/394/394466_4284968-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1682,
+    "source": "freesound",
+    "query": "dissolve"
+   }
+  },
+  "pool": 3,
+  "locked": true
+ },
+ "enemy_give_up": {
+  "options": {
+   "a": {
+    "id": "ca55b47f-03ec-4011-8f51-c77f0ffc2858",
+    "title": "Low and Short Monster Growl or Purr",
+    "creator": "djlprojects",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/djlprojects/sounds/398254",
+    "url": "https://cdn.freesound.org/previews/398/398254_7062176-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1333,
+    "source": "freesound",
+    "query": "growl low"
+   },
+   "b": {
+    "id": "c3369754-8594-44d0-83ed-bed57bedc875",
+    "title": "Slide Object.flac",
+    "creator": "qubodup",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/qubodup/sounds/200992",
+    "url": "https://cdn.freesound.org/previews/200/200992_71257-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2015,
+    "source": "freesound",
+    "query": "lose interest"
+   },
+   "c": {
+    "id": "91a2cb98-0716-4706-97f1-06da3d9781fb",
+    "title": "Monster Growl",
+    "creator": "StormKat2035",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/StormKat2035/sounds/235177",
+    "url": "https://cdn.freesound.org/previews/235/235177_2560886-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4000,
+    "source": "freesound",
+    "query": "growl low"
+   }
+  },
+  "pool": 6,
+  "locked": true
+ },
+ "enemy_notice": {
+  "options": {
+   "a": {
+    "id": "da21550a-0154-49b3-b5bd-e759f853c3cc",
+    "title": "monster_surprised.ogg",
+    "creator": "mango777",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/mango777/sounds/547366",
+    "url": "https://cdn.freesound.org/previews/547/547366_6397342-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2094,
+    "source": "freesound",
+    "query": ""
+   },
+   "b": {
+    "id": "5f2b3982-ff2f-47a2-a625-51e8e787e403",
+    "title": "Monster Grunt 1",
+    "creator": "jackieAZ",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/jackieAZ/sounds/262430",
+    "url": "https://cdn.freesound.org/previews/262/262430_4385633-hq.mp3",
+    "filetype": "mp3",
+    "ms": 750,
+    "source": "freesound",
+    "query": ""
+   },
+   "c": {
+    "id": "a1bb7aba-21ec-49dd-92f7-2c19e5743f61",
+    "title": "Monster AAH!.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/506514",
+    "url": "https://cdn.freesound.org/previews/506/506514_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 425,
+    "source": "freesound",
+    "query": ""
+   }
+  },
+  "pool": 14,
+  "rejected": [
+   "15702da2-f22d-400f-8618-d7f4a01f29b0",
+   "4ed22824-fb6d-421f-acd6-884ac9e69c36",
+   "5b1d4043-2062-4d54-bcf2-f5baf5097b87",
+   "67d4ada3-a669-47e7-9257-a49c669063d5",
+   "70f138d1-3938-4873-9b45-0f89189662c2",
+   "739729d4-f33e-4f45-9b18-5cd31ea3cd50",
+   "89a1d9c3-7b54-4fd8-abf3-e3108b75d389",
+   "8d3bb921-ca64-4aff-93eb-8cc0f7245a36",
+   "923cf511-17b9-4225-b6af-5dc776ca1d94",
+   "b99f11d7-f8b1-4f3c-a9d5-4a4261a354d3",
+   "c18bf3f8-122f-4b81-ab4c-e1b7ffdffff5",
+   "c98a7126-c2b0-47d8-af69-3104c025c426",
+   "d25c1633-5fbb-4124-8ee8-bf081de9f8a1",
+   "ebbb850b-dec0-432f-a363-3e431311b4ab",
+   "ff72d770-c4e8-4ed8-a10c-1bf949703221"
+  ],
+  "locked": true
+ },
+ "escape_fail": {
+  "options": {
+   "a": {
+    "id": "cb7968cb-58aa-48ac-a20d-7080c9c0863b",
+    "title": "Function Fail",
+    "creator": "VincentM400",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/VincentM400/sounds/249616",
+    "url": "https://cdn.freesound.org/previews/249/249616_3657943-hq.mp3",
+    "filetype": "mp3",
+    "ms": 583,
+    "source": "freesound",
+    "query": "fail"
+   },
+   "b": {
+    "id": "284a1b05-7531-42ff-b2c0-d627e345746e",
+    "title": "FX failed spell.wav",
+    "creator": "v0idation",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/v0idation/sounds/115140",
+    "url": "https://cdn.freesound.org/previews/115/115140_942821-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3400,
+    "source": "freesound",
+    "query": "fail"
+   },
+   "c": {
+    "id": "d41bc8b2-2be9-4d1c-99be-b3d46b48af59",
+    "title": "fail down",
+    "creator": "jugraf",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/jugraf/sounds/370209",
+    "url": "https://cdn.freesound.org/previews/370/370209_1954916-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2345,
+    "source": "freesound",
+    "query": "fail"
+   }
+  },
+  "pool": 9,
+  "locked": true
+ },
+ "exposed_burst": {
+  "options": {
+   "a": {
+    "id": "b89946b3-169f-4910-a566-52856f50cb22",
+    "title": "LIGHTBULB SMASH 002.wav",
+    "creator": "sandyrb",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/sandyrb/sounds/148074",
+    "url": "https://cdn.freesound.org/previews/148/148074_14771-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1700,
+    "source": "freesound",
+    "query": "shatter impact"
+   },
+   "b": {
+    "id": "c092d1df-2c79-4bdd-9078-a2e643cac127",
+    "title": "Chipping large Ice Block 1.wav",
+    "creator": "kev_durr",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/kev_durr/sounds/426205",
+    "url": "https://cdn.freesound.org/previews/426/426205_5415774-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1687,
+    "source": "freesound",
+    "query": "shatter impact"
+   },
+   "c": {
+    "id": "a8395f81-a2ff-497d-a5c5-6dcc170b88cc",
+    "title": "Glass Break - Small Jar 01",
+    "creator": "RoganMcDougald",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/RoganMcDougald/sounds/260433",
+    "url": "https://cdn.freesound.org/previews/260/260433_4855185-hq.mp3",
+    "filetype": "mp3",
+    "ms": 668,
+    "source": "freesound",
+    "query": "shatter impact"
+   }
+  },
+  "pool": 11,
+  "locked": true
+ },
+ "fight_start": {
+  "options": {
+   "a": {
+    "id": "5932a217-879d-437e-a946-14c4e8fd492d",
+    "title": "Sword Unsheath",
+    "creator": "lucabia",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/lucabia/sounds/276872",
+    "url": "https://cdn.freesound.org/previews/276/276872_1989929-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2798,
+    "source": "freesound",
+    "query": "sword unsheath"
+   },
+   "b": {
+    "id": "56d65f68-af0b-4ac4-86bf-ea42b0fd0d82",
+    "title": "Encounter",
+    "creator": "InfamousLazure",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/InfamousLazure/sounds/545628",
+    "url": "https://cdn.freesound.org/previews/545/545628_10258649-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2168,
+    "source": "freesound",
+    "query": "battle start"
+   },
+   "c": {
+    "id": "18b4e02f-1bf6-4e1b-9566-ca66dc179b88",
+    "title": "Sword Fast Unsheath.wav",
+    "creator": "ethanchase7744",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/ethanchase7744/sounds/468695",
+    "url": "https://cdn.freesound.org/previews/468/468695_3928631-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1668,
+    "source": "freesound",
+    "query": "sword unsheath"
+   }
+  },
+  "pool": 14,
+  "locked": true
+ },
+ "follow_up": {
+  "options": {
+   "a": {
+    "id": "bef3e060-da32-4218-b803-7b5210404ea7",
+    "title": "katana_cut1.mp3",
+    "creator": "Taira Komori",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Taira%20Komori/sounds/215014",
+    "url": "https://cdn.freesound.org/previews/215/215014_1979597-hq.mp3",
+    "filetype": "mp3",
+    "ms": 717,
+    "source": "freesound",
+    "query": "katana slash"
+   },
+   "b": {
+    "id": "1c68d74a-a987-461d-96b3-77fb3d1f5286",
+    "title": "samurai slash",
+    "creator": "nekoninja",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/nekoninja/sounds/370204",
+    "url": "https://cdn.freesound.org/previews/370/370204_4682356-hq.mp3",
+    "filetype": "mp3",
+    "ms": 653,
+    "source": "freesound",
+    "query": "katana slash"
+   },
+   "c": {
+    "id": "7357d79d-9a37-42a8-992c-b1d9a907e6ae",
+    "title": "katana_cut2.mp3",
+    "creator": "Taira Komori",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Taira%20Komori/sounds/215013",
+    "url": "https://cdn.freesound.org/previews/215/215013_1979597-hq.mp3",
+    "filetype": "mp3",
+    "ms": 965,
+    "source": "freesound",
+    "query": "katana slash"
+   }
+  },
+  "pool": 3,
+  "rejected": [
+   "3c75888b-5aee-4c17-9273-8640880b08bc",
+   "77fd8680-a413-4a0f-a966-0fe9581f4e1b",
+   "ce88dbd3-0c80-4927-ad4f-0eee8c9624e4"
+  ],
+  "locked": true
+ },
+ "follow_up_ready": {
+  "options": {
+   "a": {
+    "id": "9a7c46ce-808b-4651-870f-bcf20a4a0a14",
+    "title": "ping 2.wav",
+    "creator": "cameronmusic",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/cameronmusic/sounds/138419",
+    "url": "https://cdn.freesound.org/previews/138/138419_2217665-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3476,
+    "source": "freesound",
+    "query": "notification ping"
+   },
+   "b": {
+    "id": "a4648313-abad-4b3d-ab1b-4244233dbaff",
+    "title": "Beep Ping",
+    "creator": "qubodup",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/qubodup/sounds/238995",
+    "url": "https://cdn.freesound.org/previews/238/238995_71257-hq.mp3",
+    "filetype": "mp3",
+    "ms": 750,
+    "source": "freesound",
+    "query": "notification ping"
+   },
+   "c": {
+    "id": "3120d1a8-1cd6-44ba-a099-b0f7b23da1a5",
+    "title": "Disco Clap",
+    "creator": "NenadSimic",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/NenadSimic/sounds/169085",
+    "url": "https://cdn.freesound.org/previews/169/169085_2514850-hq.mp3",
+    "filetype": "mp3",
+    "ms": 433,
+    "source": "freesound",
+    "query": "notification ping"
+   }
+  },
+  "pool": 12,
+  "locked": true
+ },
+ "footstep_grass": {
+  "options": {
+   "a": {
+    "id": "deb36613-d9bd-433b-879c-fa8b42da7b55",
+    "title": "6 footsteps grass",
+    "creator": "whothefuckisjojo",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/whothefuckisjojo/sounds/673305",
+    "url": "https://cdn.freesound.org/previews/673/673305_10022441-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2209,
+    "source": "freesound",
+    "query": "footstep grass"
+   },
+   "b": {
+    "id": "f46dff13-4e48-4c54-9c00-83b6e87421fd",
+    "title": "Running on grass with wet feet.aif",
+    "creator": "nathanaelsams",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/nathanaelsams/sounds/127955",
+    "url": "https://cdn.freesound.org/previews/127/127955_2111976-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2272,
+    "source": "freesound",
+    "query": "footstep grass"
+   },
+   "c": {
+    "id": "56378dca-ad73-4710-9f10-bbf34578617f",
+    "title": "running in grass",
+    "creator": "EvanSki",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/EvanSki/sounds/411148",
+    "url": "https://cdn.freesound.org/previews/411/411148_5747941-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2194,
+    "source": "freesound",
+    "query": "footstep grass"
+   }
+  },
+  "pool": 6,
+  "locked": true
+ },
+ "footstep_mud": {
+  "options": {
+   "a": {
+    "id": "4b3f6718-befb-472b-83ce-451ff61c33db",
+    "title": "A Step On Dirt.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/370367",
+    "url": "https://cdn.freesound.org/previews/370/370367_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 287,
+    "source": "freesound",
+    "query": "footstep mud"
+   },
+   "b": {
+    "id": "ea42efb9-a921-4a16-acad-eb2dea2432c1",
+    "title": "walk-mud01.wav",
+    "creator": "JanKoehl",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/JanKoehl/sounds/85604",
+    "url": "https://cdn.freesound.org/previews/85/85604_1078663-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1298,
+    "source": "freesound",
+    "query": "mud step"
+   },
+   "c": {
+    "id": "5d09b647-115f-43e3-af59-0430c4633320",
+    "title": "Broken Egg Squelch",
+    "creator": "d.n.audio.uk",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/d.n.audio.uk/sounds/461049",
+    "url": "https://cdn.freesound.org/previews/461/461049_147613-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1324,
+    "source": "freesound",
+    "query": "squelch"
+   }
+  },
+  "pool": 11,
+  "locked": true
+ },
+ "footstep_stone": {
+  "options": {
+   "a": {
+    "id": "e91fee6d-fb88-4f1a-8c25-5fddb8ea2343",
+    "title": "Footsteps Stone (1).wav",
+    "creator": "Wdomino",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Wdomino/sounds/517118",
+    "url": "https://cdn.freesound.org/previews/517/517118_5026978-hq.mp3",
+    "filetype": "mp3",
+    "ms": 661,
+    "source": "freesound",
+    "query": "footstep stone"
+   },
+   "b": {
+    "id": "fb940a93-dec7-46ea-9fef-e76c7b9901bc",
+    "title": "Footsteps Stone (6).wav",
+    "creator": "Wdomino",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Wdomino/sounds/517137",
+    "url": "https://cdn.freesound.org/previews/517/517137_5026978-hq.mp3",
+    "filetype": "mp3",
+    "ms": 571,
+    "source": "freesound",
+    "query": "footstep stone"
+   },
+   "c": {
+    "id": "d9cca11d-6a54-4eca-82d3-e54dd535aadd",
+    "title": "Footsteps Stone (8).wav",
+    "creator": "Wdomino",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Wdomino/sounds/517135",
+    "url": "https://cdn.freesound.org/previews/517/517135_5026978-hq.mp3",
+    "filetype": "mp3",
+    "ms": 482,
+    "source": "freesound",
+    "query": "footstep stone"
+   }
+  },
+  "pool": 13,
+  "locked": true
+ },
+ "gauge_full": {
+  "options": {
+   "a": {
+    "id": "a28280b7-8445-4c43-b22b-0bd1e35e487f",
+    "title": "power charging",
+    "creator": "AceOfSpadesProduc100",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/AceOfSpadesProduc100/sounds/337266",
+    "url": "https://cdn.freesound.org/previews/337/337266_5858296-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3157,
+    "source": "freesound",
+    "query": "power charged"
+   },
+   "b": {
+    "id": "fea8da53-71a8-40ae-b677-c25807fe9ccc",
+    "title": "Laser power charge loop pitch up.wav",
+    "creator": "ryusa",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/ryusa/sounds/531083",
+    "url": "https://cdn.freesound.org/previews/531/531083_9892063-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3662,
+    "source": "freesound",
+    "query": "power charged"
+   },
+   "c": {
+    "id": "7afe1043-c415-47ce-8dc0-711f18b6cf29",
+    "title": "Machine Charge.wav",
+    "creator": "Glitchedtones",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Glitchedtones/sounds/375925",
+    "url": "https://cdn.freesound.org/previews/375/375925_3294528-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2493,
+    "source": "freesound",
+    "query": "power charged"
+   }
+  },
+  "pool": 9,
+  "locked": true
+ },
+ "gold_gain": {
+  "options": {
+   "a": {
+    "id": "681fd988-e499-4a28-a01d-f09fd1ad4baf",
+    "title": "Coin GET!",
+    "creator": "plasterbrain",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/plasterbrain/sounds/242857",
+    "url": "https://cdn.freesound.org/previews/242/242857_4284968-hq.mp3",
+    "filetype": "mp3",
+    "ms": 285,
+    "source": "freesound",
+    "query": "coins"
+   },
+   "b": {
+    "id": "654cbaf1-8d92-47b7-9331-fb4cf22d4f17",
+    "title": "Video Game Coin",
+    "creator": "harrietniamh",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/harrietniamh/sounds/415083",
+    "url": "https://cdn.freesound.org/previews/415/415083_4061049-hq.mp3",
+    "filetype": "mp3",
+    "ms": 687,
+    "source": "freesound",
+    "query": "coins"
+   },
+   "c": {
+    "id": "f6c06e00-f851-4e3e-8158-f606515283eb",
+    "title": "Picked Coin Echo 2",
+    "creator": "NenadSimic",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/NenadSimic/sounds/171756",
+    "url": "https://cdn.freesound.org/previews/171/171756_2514850-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1718,
+    "source": "freesound",
+    "query": "coins"
+   }
+  },
+  "pool": 14,
+  "locked": true
+ },
+ "guard_block": {
+  "options": {
+   "a": {
+    "id": "3d87a8c3-3f3f-49d2-8b4c-729657396a5c",
+    "title": "magicShield_block.wav",
+    "creator": "rafaelzimrp",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/rafaelzimrp/sounds/570853",
+    "url": "https://cdn.freesound.org/previews/570/570853_12068810-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2233,
+    "source": "freesound",
+    "query": "shield block"
+   },
+   "b": {
+    "id": "280c9682-83a8-4760-8ccd-5ec5c5396962",
+    "title": "Shield Hit 2",
+    "creator": "JustInvoke",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/JustInvoke/sounds/138489",
+    "url": "https://cdn.freesound.org/previews/138/138489_758593-hq.mp3",
+    "filetype": "mp3",
+    "ms": 106,
+    "source": "freesound",
+    "query": "shield hit"
+   },
+   "c": {
+    "id": "3e8a83e2-4536-42c5-8693-09bc6e5e2411",
+    "title": "Block - [Rpg] 1",
+    "creator": "colorsCrimsonTears",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/colorsCrimsonTears/sounds/641896",
+    "url": "https://cdn.freesound.org/previews/641/641896_11785387-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1001,
+    "source": "freesound",
+    "query": "shield block"
+   }
+  },
+  "pool": 17,
+  "locked": true
+ },
+ "heal": {
+  "options": {
+   "a": {
+    "id": "e86f1108-f4c5-401c-9e0e-2e3387910eb2",
+    "title": "Magic spell heal bright bell brid reverb.wav",
+    "creator": "ryusa",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/ryusa/sounds/531082",
+    "url": "https://cdn.freesound.org/previews/531/531082_9892063-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2263,
+    "source": "freesound",
+    "query": "heal spell"
+   },
+   "b": {
+    "id": "af354fd5-a515-4a4d-8512-1065f8f17a25",
+    "title": "Magic_Spell_05.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/455207",
+    "url": "https://cdn.freesound.org/previews/455/455207_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1881,
+    "source": "freesound",
+    "query": "heal spell"
+   },
+   "c": {
+    "id": "1cb2787b-1ac4-4c6c-89d7-a7dd75fde27d",
+    "title": "Magic_Spell_01.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/455206",
+    "url": "https://cdn.freesound.org/previews/455/455206_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1894,
+    "source": "freesound",
+    "query": "heal spell"
+   }
+  },
+  "pool": 11,
+  "locked": true
+ },
+ "heavy_strike": {
+  "options": {
+   "a": {
+    "id": "bea75ba5-ac44-4a0a-a197-bc28f22e275a",
+    "title": "Sword Hit Heavy",
+    "creator": "EminYILDIRIM",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/EminYILDIRIM/sounds/536104",
+    "url": "https://cdn.freesound.org/previews/536/536104_10912485-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1200,
+    "source": "freesound",
+    "query": "heavy sword impact"
+   },
+   "b": {
+    "id": "3c27fa96-eaf7-440f-9d1c-d14db5e381ae",
+    "title": "Hit Impact Sword 3",
+    "creator": "CogFireStudios",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/CogFireStudios/sounds/547042",
+    "url": "https://cdn.freesound.org/previews/547/547042_7614679-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1300,
+    "source": "freesound",
+    "query": "heavy sword impact"
+   },
+   "c": {
+    "id": "b122081c-ef13-455b-8fd0-675fcbb8157e",
+    "title": "Hit Impact Sword 2",
+    "creator": "Eponn",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Eponn/sounds/547036",
+    "url": "https://cdn.freesound.org/previews/547/547036_7614679-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1209,
+    "source": "freesound",
+    "query": "heavy sword impact"
+   }
+  },
+  "pool": 6,
+  "locked": true
+ },
+ "hurt": {
+  "options": {
+   "a": {
+    "id": "0d3d3638-3431-4b66-9bec-1b1500f1e2c7",
+    "title": "Dull Decompression Punch Impact Explodes 96kHz",
+    "creator": "qubodup",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/qubodup/sounds/71274",
+    "url": "https://cdn.freesound.org/previews/71/71274_71257-hq.mp3",
+    "filetype": "mp3",
+    "ms": 756,
+    "source": "freesound",
+    "query": "punch impact"
+   },
+   "b": {
+    "id": "c5e1b337-c2e5-4faa-b1fa-2185c860103a",
+    "title": "Punch impact sound.wav",
+    "creator": "ms107",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/ms107/sounds/266823",
+    "url": "https://cdn.freesound.org/previews/266/266823_5035221-hq.mp3",
+    "filetype": "mp3",
+    "ms": 845,
+    "source": "freesound",
+    "query": "punch impact"
+   },
+   "c": {
+    "id": "feace790-8461-45af-af4c-1c7ac6d8007a",
+    "title": "Punching Impact Sound",
+    "creator": "EminYILDIRIM",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/EminYILDIRIM/sounds/535362",
+    "url": "https://cdn.freesound.org/previews/535/535362_10912485-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3600,
+    "source": "freesound",
+    "query": "punch impact"
+   }
+  },
+  "pool": 12,
+  "locked": true
+ },
+ "item_combine": {
+  "options": {
+   "a": {
+    "id": "31207ecd-b55d-4a9d-b8b2-71d7aeb680bc",
+    "title": "Kill / Crafting sound",
+    "creator": "MadPanCake",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MadPanCake/sounds/567849",
+    "url": "https://cdn.freesound.org/previews/567/567849_5334162-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1714,
+    "source": "freesound",
+    "query": "craft"
+   },
+   "b": {
+    "id": "904bd974-822f-4ad2-9fa9-074376fbb6f2",
+    "title": "Craft Item 3",
+    "creator": "SilverIllusionist",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/SilverIllusionist/sounds/580813",
+    "url": "https://cdn.freesound.org/previews/580/580813_7395592-hq.mp3",
+    "filetype": "mp3",
+    "ms": 693,
+    "source": "freesound",
+    "query": "craft"
+   },
+   "c": {
+    "id": "16e839d7-2a1e-4a33-9306-e32fa04ea07d",
+    "title": "Anvil - Lokomo A 100 kg - Combination of hot and cold hits",
+    "creator": "ldezem",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/ldezem/sounds/386124",
+    "url": "https://cdn.freesound.org/previews/386/386124_1655965-hq.mp3",
+    "filetype": "mp3",
+    "ms": 750,
+    "source": "freesound",
+    "query": "forge combine"
+   }
+  },
+  "pool": 4,
+  "locked": true
+ },
+ "item_drop": {
+  "options": {
+   "a": {
+    "id": "9c69f82f-15ad-409f-9ba0-53c67935d950",
+    "title": "drop-item-heavy2.mp3",
+    "creator": "rottako",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/rottako/sounds/693582",
+    "url": "https://cdn.freesound.org/previews/693/693582_3975583-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1300,
+    "source": "freesound",
+    "query": ""
+   },
+   "b": {
+    "id": "1c2c88b0-9c4f-4abb-8d55-ab7af2372fa8",
+    "title": "drop-item-light1.mp3",
+    "creator": "rottako",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/rottako/sounds/693583",
+    "url": "https://cdn.freesound.org/previews/693/693583_3975583-hq.mp3",
+    "filetype": "mp3",
+    "ms": 322,
+    "source": "freesound",
+    "query": ""
+   },
+   "c": {
+    "id": "62fdaea7-e2ae-4f2c-8256-97d527172904",
+    "title": "Glass Handling",
+    "creator": "qubodup",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/qubodup/sounds/219841",
+    "url": "https://cdn.freesound.org/previews/219/219841_71257-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2665,
+    "source": "freesound",
+    "query": "throw away"
+   }
+  },
+  "pool": 6,
+  "locked": true
+ },
+ "item_found": {
+  "options": {
+   "a": {
+    "id": "865bcd81-a611-4782-8e1e-638bbf81afa0",
+    "title": "Item Pickup",
+    "creator": "TreasureSounds",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/TreasureSounds/sounds/332629",
+    "url": "https://cdn.freesound.org/previews/332/332629_5794274-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1241,
+    "source": "freesound",
+    "query": "item pickup"
+   },
+   "b": {
+    "id": "3c785869-97e2-40ea-b9b1-38050b2efd24",
+    "title": "8-bit - Item Pickup",
+    "creator": "Antikore",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Antikore/sounds/457194",
+    "url": "https://cdn.freesound.org/previews/457/457194_8734822-hq.mp3",
+    "filetype": "mp3",
+    "ms": 184,
+    "source": "freesound",
+    "query": "item pickup"
+   },
+   "c": {
+    "id": "8b30bdb2-5703-4911-962d-963aa02d72a8",
+    "title": "item-pickup-v1.wav",
+    "creator": "DeltaCode",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/DeltaCode/sounds/678384",
+    "url": "https://cdn.freesound.org/previews/678/678384_3271378-hq.mp3",
+    "filetype": "mp3",
+    "ms": 180,
+    "source": "freesound",
+    "query": "item pickup"
+   }
+  },
+  "pool": 17,
+  "locked": true
+ },
+ "item_lift": {
+  "options": {
+   "a": {
+    "id": "5b0658a9-bc9c-47ac-9c93-f201e1ea3cf9",
+    "title": "Pick up Item 2.wav",
+    "creator": "SilverIllusionist",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/SilverIllusionist/sounds/411178",
+    "url": "https://cdn.freesound.org/previews/411/411178_7395592-hq.mp3",
+    "filetype": "mp3",
+    "ms": 406,
+    "source": "freesound",
+    "query": "pick up item"
+   },
+   "b": {
+    "id": "ed7c6616-b465-4570-9dbd-308855625688",
+    "title": "Picking up small box with items inside",
+    "creator": "WiesenWiesel",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/WiesenWiesel/sounds/216629",
+    "url": "https://cdn.freesound.org/previews/216/216629_1147856-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1387,
+    "source": "freesound",
+    "query": "pick up item"
+   },
+   "c": {
+    "id": "6a5df38d-f40e-4c21-9ea0-49bd695d056f",
+    "title": "PickupItem.wav",
+    "creator": "TriqyStudio",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/TriqyStudio/sounds/467610",
+    "url": "https://cdn.freesound.org/previews/467/467610_9659530-hq.mp3",
+    "filetype": "mp3",
+    "ms": 503,
+    "source": "freesound",
+    "query": "pick up item"
+   }
+  },
+  "pool": 15,
+  "locked": true
+ },
+ "item_no_room": {
+  "options": {
+   "a": {
+    "id": "b271b730-869f-442b-8b1e-ab6af8150496",
+    "title": "ui error1",
+    "creator": "Tissman",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Tissman/sounds/563583",
+    "url": "https://cdn.freesound.org/previews/563/563583_5452388-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3085,
+    "source": "freesound",
+    "query": "ui error click"
+   },
+   "b": {
+    "id": "13a903ff-91d8-4937-8e9b-9c2646296f44",
+    "title": "Select, Denied 01.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/404150",
+    "url": "https://cdn.freesound.org/previews/404/404150_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 136,
+    "source": "freesound",
+    "query": "denied"
+   },
+   "c": {
+    "id": "d6868f4c-9d46-4f70-8cb1-ba008472aa48",
+    "title": "Negative.wav",
+    "creator": "iwanPlays",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/iwanPlays/sounds/626085",
+    "url": "https://cdn.freesound.org/previews/626/626085_7108319-hq.mp3",
+    "filetype": "mp3",
+    "ms": 472,
+    "source": "freesound",
+    "query": "ui error click"
+   }
+  },
+  "pool": 11,
+  "locked": true
+ },
+ "item_place": {
+  "options": {
+   "a": {
+    "id": "967f01a3-16e3-4775-9a25-df8debd8e865",
+    "title": "Wooden Object Place",
+    "creator": "Kostas17",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/Kostas17/sounds/537709",
+    "url": "https://cdn.freesound.org/previews/537/537709_3377875-hq.mp3",
+    "filetype": "mp3",
+    "ms": 312,
+    "source": "freesound",
+    "query": "place object"
+   },
+   "b": {
+    "id": "d13b162e-ecea-4be6-891d-106da7d3b903",
+    "title": "put_item.wav",
+    "creator": "j1987",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/j1987/sounds/335751",
+    "url": "https://cdn.freesound.org/previews/335/335751_367313-hq.mp3",
+    "filetype": "mp3",
+    "ms": 565,
+    "source": "freesound",
+    "query": "place object"
+   },
+   "c": {
+    "id": "0f34ece0-e490-4a7f-9e5a-98e8ed5d2761",
+    "title": "BottlePut.flac",
+    "creator": "qubodup",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/qubodup/sounds/184285",
+    "url": "https://cdn.freesound.org/previews/184/184285_71257-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1000,
+    "source": "freesound",
+    "query": "place object"
+   }
+  },
+  "pool": 9,
+  "locked": true
+ },
+ "item_turn": {
+  "options": {
+   "a": {
+    "id": "6a36a3a6-d8b3-4d4b-ba68-c200ed2686f7",
+    "title": "bedsheet short.wav",
+    "creator": "tatianafeudal",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/tatianafeudal/sounds/511672",
+    "url": "https://cdn.freesound.org/previews/511/511672_6753194-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2854,
+    "source": "freesound",
+    "query": "cloth rustle short"
+   },
+   "b": {
+    "id": "b667d433-9f17-4dd3-a816-3e639e4561d5",
+    "title": "Rip 1",
+    "creator": "stevenmaertens",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/stevenmaertens/sounds/676614",
+    "url": "https://cdn.freesound.org/previews/676/676614_2578040-hq.mp3",
+    "filetype": "mp3",
+    "ms": 375,
+    "source": "freesound",
+    "query": "cloth rustle short"
+   },
+   "c": {
+    "id": "b98cce12-c955-4825-abd5-74c3d409e4e4",
+    "title": "Rip 3",
+    "creator": "stevenmaertens",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/stevenmaertens/sounds/676620",
+    "url": "https://cdn.freesound.org/previews/676/676620_2578040-hq.mp3",
+    "filetype": "mp3",
+    "ms": 443,
+    "source": "freesound",
+    "query": "cloth rustle short"
+   }
+  },
+  "pool": 11,
+  "locked": true
+ },
+ "jump": {
+  "options": {
+   "a": {
+    "id": "c50ca52d-6dc4-4cf8-ae76-3eefe75a4d52",
+    "title": "Splash, Jumping, C.wav",
+    "creator": "InspectorJ",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/InspectorJ/sounds/352099",
+    "url": "https://cdn.freesound.org/previews/352/352099_5121236-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3392,
+    "source": "freesound",
+    "query": "jump"
+   },
+   "b": {
+    "id": "37e41430-40ee-485d-98de-a6364ee5b600",
+    "title": "jumping",
+    "creator": "Leszek_Szary",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Leszek_Szary/sounds/146726",
+    "url": "https://cdn.freesound.org/previews/146/146726_2437358-hq.mp3",
+    "filetype": "mp3",
+    "ms": 336,
+    "source": "freesound",
+    "query": "jump"
+   },
+   "c": {
+    "id": "25153e86-61b3-40ce-9134-296f97ae59dd",
+    "title": "Text-Message or Videogame-Jump",
+    "creator": "CmdRobot",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/CmdRobot/sounds/264828",
+    "url": "https://cdn.freesound.org/previews/264/264828_214099-hq.mp3",
+    "filetype": "mp3",
+    "ms": 472,
+    "source": "freesound",
+    "query": "jump"
+   }
+  },
+  "pool": 10,
+  "locked": true
+ },
+ "level_up": {
+  "options": {
+   "a": {
+    "id": "ecc9e406-3ad2-4708-a3ef-1c6d5a153777",
+    "title": "Level Up 01",
+    "creator": "rhodesmas",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/rhodesmas/sounds/320655",
+    "url": "https://cdn.freesound.org/previews/320/320655_5260872-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1100,
+    "source": "freesound",
+    "query": "level up"
+   },
+   "b": {
+    "id": "0594d516-7c3a-45f7-9d5a-bd3f319493de",
+    "title": "Level-Up Sound FX",
+    "creator": "elmasmalo1",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/elmasmalo1/sounds/350841",
+    "url": "https://cdn.freesound.org/previews/350/350841_1172853-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4997,
+    "source": "freesound",
+    "query": "level up"
+   },
+   "c": {
+    "id": "0b351c8e-4407-4b94-8ed8-7f2fb9383178",
+    "title": "Video Game - Gain XP / Level up",
+    "creator": "AdamWeeden",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/AdamWeeden/sounds/157217",
+    "url": "https://cdn.freesound.org/previews/157/157217_1670580-hq.mp3",
+    "filetype": "mp3",
+    "ms": 583,
+    "source": "freesound",
+    "query": "level up"
+   }
+  },
+  "pool": 13,
+  "locked": true
+ },
+ "locked": {
+  "options": {
+   "a": {
+    "id": "412479ee-eea1-4104-b148-ecc6a54aecc5",
+    "title": "Negative 2",
+    "creator": "iwanPlays",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/iwanPlays/sounds/626084",
+    "url": "https://cdn.freesound.org/previews/626/626084_7108319-hq.mp3",
+    "filetype": "mp3",
+    "ms": 514,
+    "source": "freesound",
+    "query": "ui error click"
+   },
+   "b": {
+    "id": "2dc2c494-0f6f-4925-8a43-b75e26bf0f91",
+    "title": "Glitch_005.wav",
+    "creator": "AlienXXX",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/AlienXXX/sounds/271650",
+    "url": "https://cdn.freesound.org/previews/271/271650_97763-hq.mp3",
+    "filetype": "mp3",
+    "ms": 118,
+    "source": "freesound",
+    "query": "click muted"
+   },
+   "c": {
+    "id": "d561a649-98e2-410a-b416-19dca74329a8",
+    "title": "Muted Esteem.mp3",
+    "creator": "Streetpoptunez",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Streetpoptunez/sounds/578228",
+    "url": "https://cdn.freesound.org/previews/578/578228_7123687-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1032,
+    "source": "freesound",
+    "query": "click muted"
+   }
+  },
+  "pool": 9,
+  "locked": true
+ },
+ "loot_reveal": {
+  "options": {
+   "a": {
+    "id": "231ba398-6ae6-4b8b-b1b3-ac8d94aeb277",
+    "title": "Key.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/459694",
+    "url": "https://cdn.freesound.org/previews/459/459694_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 173,
+    "source": "freesound",
+    "query": "treasure reveal"
+   },
+   "b": {
+    "id": "b36e12f7-76fe-4f99-897d-149931751b5e",
+    "title": "Item.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/523755",
+    "url": "https://cdn.freesound.org/previews/523/523755_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1500,
+    "source": "freesound",
+    "query": "treasure reveal"
+   }
+  },
+  "pool": 2,
+  "locked": true
+ },
+ "lunge": {
+  "options": {
+   "a": {
+    "id": "00425c34-0bd4-4861-b470-1d445bc4a8bf",
+    "title": "Melee Weapon Swings",
+    "creator": "deleted_user_3656686",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/deleted_user_3656686/sounds/215160",
+    "url": "https://cdn.freesound.org/previews/215/215160_3656686-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2087,
+    "source": "freesound",
+    "query": "swoosh heavy"
+   },
+   "b": {
+    "id": "a5e6ba03-d078-4280-b747-5b2812f2b364",
+    "title": "long wispy woosh1.wav",
+    "creator": "newagesoup",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/newagesoup/sounds/377830",
+    "url": "https://cdn.freesound.org/previews/377/377830_4067257-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1875,
+    "source": "freesound",
+    "query": "attack swing"
+   },
+   "c": {
+    "id": "7cf4b7fa-6782-4976-aec1-f5ef642e3dcd",
+    "title": "Guns & Explosions Album - Metal impact 5.wav",
+    "creator": "OGsoundFX",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/OGsoundFX/sounds/423117",
+    "url": "https://cdn.freesound.org/previews/423/423117_3325582-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2000,
+    "source": "freesound",
+    "query": "swoosh heavy"
+   }
+  },
+  "pool": 22,
+  "locked": true
+ },
+ "menu_cancel": {
+  "options": {
+   "a": {
+    "id": "dfc77d82-004b-47d8-8458-a732b2d9269a",
+    "title": "sf3-sfx-menu-back-L.wav",
+    "creator": "broumbroum",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/broumbroum/sounds/50555",
+    "url": "https://cdn.freesound.org/previews/50/50555_594303-hq.mp3",
+    "filetype": "mp3",
+    "ms": 464,
+    "source": "freesound",
+    "query": "menu back"
+   },
+   "b": {
+    "id": "fa6fa040-422d-4232-b310-5ea0a1899662",
+    "title": "sf3-sfx-menu-back-R.wav",
+    "creator": "broumbroum",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/broumbroum/sounds/50556",
+    "url": "https://cdn.freesound.org/previews/50/50556_594303-hq.mp3",
+    "filetype": "mp3",
+    "ms": 464,
+    "source": "freesound",
+    "query": "menu back"
+   },
+   "c": {
+    "id": "abaa8d83-0dc1-4cd0-8002-23d5fc35e967",
+    "title": "sf3-sfx-menu-back.wav",
+    "creator": "broumbroum",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/broumbroum/sounds/50557",
+    "url": "https://cdn.freesound.org/previews/50/50557_594303-hq.mp3",
+    "filetype": "mp3",
+    "ms": 464,
+    "source": "freesound",
+    "query": "menu back"
+   }
+  },
+  "pool": 16,
+  "locked": true
+ },
+ "menu_confirm": {
+  "options": {
+   "a": {
+    "id": "8574f2ef-7930-4aa7-bab8-ecef9a36e3cf",
+    "title": "User Interface button menu confirmed delay arp synth",
+    "creator": "jerry.berumen",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/jerry.berumen/sounds/772765",
+    "url": "https://cdn.freesound.org/previews/772/772765_6753194-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2261,
+    "source": "freesound",
+    "query": "menu confirm"
+   },
+   "b": {
+    "id": "9ab04ff8-31d9-4c44-a170-50a14015d77f",
+    "title": "UI Confirmation Alert, C5.wav",
+    "creator": "InspectorJ",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/InspectorJ/sounds/403018",
+    "url": "https://cdn.freesound.org/previews/403/403018_5121236-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1302,
+    "source": "freesound",
+    "query": "menu confirm"
+   },
+   "c": {
+    "id": "143ebc84-1e33-4291-be48-e07e7a5319ce",
+    "title": "UI Confirmation Alert, A4.wav",
+    "creator": "InspectorJ",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/InspectorJ/sounds/403005",
+    "url": "https://cdn.freesound.org/previews/403/403005_5121236-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1357,
+    "source": "freesound",
+    "query": "menu confirm"
+   }
+  },
+  "pool": 19,
+  "locked": true
+ },
+ "menu_move": {
+  "options": {
+   "a": {
+    "id": "d9d9cc52-ed3d-4cd9-8232-ffe270e60640",
+    "title": "UI click",
+    "creator": "Ranner",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Ranner/sounds/488534",
+    "url": "https://cdn.freesound.org/previews/488/488534_5382295-hq.mp3",
+    "filetype": "mp3",
+    "ms": 599,
+    "source": "freesound",
+    "query": "ui click"
+   },
+   "b": {
+    "id": "ed5497bb-e550-41d6-850a-dcc0032abadc",
+    "title": "Menu UI Click 222",
+    "creator": "Erokia",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Erokia/sounds/470201",
+    "url": "https://cdn.freesound.org/previews/470/470201_9497060-hq.mp3",
+    "filetype": "mp3",
+    "ms": 335,
+    "source": "freesound",
+    "query": "ui click"
+   },
+   "c": {
+    "id": "bb4c4b4e-767b-46b9-9c6b-0895e43929f2",
+    "title": "UI Click 2.wav",
+    "creator": "FiveBrosStopMosYT",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/FiveBrosStopMosYT/sounds/537025",
+    "url": "https://cdn.freesound.org/previews/537/537025_10403565-hq.mp3",
+    "filetype": "mp3",
+    "ms": 410,
+    "source": "freesound",
+    "query": "ui click"
+   }
+  },
+  "pool": 18,
+  "locked": true
+ },
+ "metronome": {
+  "options": {
+   "a": {
+    "id": "cf6eda15-7334-4c95-a775-3605256fd08a",
+    "title": "METRONOME.wav",
+    "creator": "xtrgamr",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/xtrgamr/sounds/441644",
+    "url": "https://cdn.freesound.org/previews/441/441644_4157918-hq.mp3",
+    "filetype": "mp3",
+    "ms": 156,
+    "source": "freesound",
+    "query": "metronome click"
+   },
+   "b": {
+    "id": "78a07331-103e-441d-854c-e0924f630e73",
+    "title": "Perc_MetronomeQuartz_hi",
+    "creator": "LudwigMueller",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/LudwigMueller/sounds/548518",
+    "url": "https://cdn.freesound.org/previews/548/548518_1442200-hq.mp3",
+    "filetype": "mp3",
+    "ms": 169,
+    "source": "freesound",
+    "query": "metronome click"
+   },
+   "c": {
+    "id": "55b5a21c-8074-4182-8d4f-134fe462fec1",
+    "title": "Quick Clack",
+    "creator": "effectator",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/effectator/sounds/443328",
+    "url": "https://cdn.freesound.org/previews/443/443328_4827468-hq.mp3",
+    "filetype": "mp3",
+    "ms": 190,
+    "source": "freesound",
+    "query": "metronome click"
+   }
+  },
+  "pool": 5,
+  "locked": true
+ },
+ "net_connected": {
+  "options": {
+   "a": {
+    "id": "7ca49904-eb2f-4d63-901b-c7dc9312a887",
+    "title": "Connected 01",
+    "creator": "rhodesmas",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/rhodesmas/sounds/322897",
+    "url": "https://cdn.freesound.org/previews/322/322897_5260872-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1025,
+    "source": "freesound",
+    "query": "connected"
+   },
+   "b": {
+    "id": "1107bd74-ef14-40b1-a2e5-f1bd0e7677eb",
+    "title": "itsjustgreat.wav",
+    "creator": "shimsewn",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/shimsewn/sounds/38728",
+    "url": "https://cdn.freesound.org/previews/38/38728_338714-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1317,
+    "source": "freesound",
+    "query": "success chime"
+   },
+   "c": {
+    "id": "4c5a57ac-5e17-4ab6-b054-baaf2b87bfba",
+    "title": "Connected 02",
+    "creator": "rhodesmas",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/rhodesmas/sounds/322896",
+    "url": "https://cdn.freesound.org/previews/322/322896_5260872-hq.mp3",
+    "filetype": "mp3",
+    "ms": 751,
+    "source": "freesound",
+    "query": "connected"
+   }
+  },
+  "pool": 4,
+  "locked": true
+ },
+ "net_error": {
+  "options": {
+   "a": {
+    "id": "66c865c6-3691-413c-941e-4178e835e5c7",
+    "title": "error sound",
+    "creator": "KorGround",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/KorGround/sounds/344687",
+    "url": "https://cdn.freesound.org/previews/344/344687_6211528-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1032,
+    "source": "freesound",
+    "query": "error"
+   },
+   "b": {
+    "id": "8b4ee5c5-3c72-49bc-9254-bb7c568f05dd",
+    "title": "Error",
+    "creator": "BloodPixelHero",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/BloodPixelHero/sounds/572936",
+    "url": "https://cdn.freesound.org/previews/572/572936_10182789-hq.mp3",
+    "filetype": "mp3",
+    "ms": 458,
+    "source": "freesound",
+    "query": "error"
+   },
+   "c": {
+    "id": "01381184-7be3-4804-bd0d-14719096b595",
+    "title": "error",
+    "creator": "fisch12345",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/fisch12345/sounds/325113",
+    "url": "https://cdn.freesound.org/previews/325/325113_3246658-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3476,
+    "source": "freesound",
+    "query": "error"
+   }
+  },
+  "pool": 17,
+  "locked": true
+ },
+ "parry": {
+  "options": {
+   "a": {
+    "id": "0f9c565b-463a-45cb-af48-e545fcd78ef5",
+    "title": "block3.wav",
+    "creator": "Empiremonkey",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Empiremonkey/sounds/616493",
+    "url": "https://cdn.freesound.org/previews/616/616493_702542-hq.mp3",
+    "filetype": "mp3",
+    "ms": 603,
+    "source": "freesound",
+    "query": "sword parry"
+   },
+   "b": {
+    "id": "a16abece-6627-45d2-a18e-28f65b66bf70",
+    "title": "Sword Clash",
+    "creator": "loudernoises",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/loudernoises/sounds/334169",
+    "url": "https://cdn.freesound.org/previews/334/334169_5859881-hq.mp3",
+    "filetype": "mp3",
+    "ms": 517,
+    "source": "freesound",
+    "query": "sword clash"
+   },
+   "c": {
+    "id": "7e5aeb34-25ee-4f78-8eae-c63c964fa8fa",
+    "title": "Sword Clash 2",
+    "creator": "CTCollab",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/CTCollab/sounds/223632",
+    "url": "https://cdn.freesound.org/previews/223/223632_4155481-hq.mp3",
+    "filetype": "mp3",
+    "ms": 729,
+    "source": "freesound",
+    "query": "sword clash"
+   }
+  },
+  "pool": 15,
+  "locked": true
+ },
+ "parry_final": {
+  "options": {
+   "a": {
+    "id": "ebc5a3fb-2e09-4647-9ed2-a6bb10a26aed",
+    "title": "Sword_Clash (35).wav",
+    "creator": "JohnBuhr",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/JohnBuhr/sounds/326797",
+    "url": "https://cdn.freesound.org/previews/326/326797_4077311-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1323,
+    "source": "freesound",
+    "query": "sword clash ring"
+   },
+   "b": {
+    "id": "0fa20c9e-bc61-40e7-acfb-439083176c56",
+    "title": "Sword_Clash (9).wav",
+    "creator": "JohnBuhr",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/JohnBuhr/sounds/326867",
+    "url": "https://cdn.freesound.org/previews/326/326867_4077311-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1508,
+    "source": "freesound",
+    "query": "sword clash ring"
+   },
+   "c": {
+    "id": "34eb5e92-6864-4313-9ea9-1bb8e1cdaeec",
+    "title": "Sword_Clash (13).wav",
+    "creator": "JohnBuhr",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/JohnBuhr/sounds/326789",
+    "url": "https://cdn.freesound.org/previews/326/326789_4077311-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1968,
+    "source": "freesound",
+    "query": "sword clash ring"
+   }
+  },
+  "pool": 20,
+  "locked": true
+ },
+ "parry_ring": {
+  "options": {
+   "a": {
+    "id": "73beb40c-3aba-435b-bbaf-5affba047c8e",
+    "title": "Metal ringing hits",
+    "creator": "jorickhoofd",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/jorickhoofd/sounds/160080",
+    "url": "https://cdn.freesound.org/previews/160/160080_2888453-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1076,
+    "source": "freesound",
+    "query": "metal ring"
+   },
+   "b": {
+    "id": "58ab7974-3be2-49a2-831b-6d0b9dd2fb71",
+    "title": "Bell Ding",
+    "creator": "Natty23",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Natty23/sounds/411749",
+    "url": "https://cdn.freesound.org/previews/411/411749_1732887-hq.mp3",
+    "filetype": "mp3",
+    "ms": 882,
+    "source": "freesound",
+    "query": "metal ring"
+   },
+   "c": {
+    "id": "a1341b4c-92f4-4e0c-9198-3dc0e1ba226c",
+    "title": "knife cling",
+    "creator": "sgarrison2127",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/sgarrison2127/sounds/178079",
+    "url": "https://cdn.freesound.org/previews/178/178079_2977210-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1532,
+    "source": "freesound",
+    "query": "metal ring"
+   }
+  },
+  "pool": 5,
+  "locked": true
+ },
+ "player_join": {
+  "options": {
+   "a": {
+    "id": "2a0f27a0-8adb-4217-81fa-71176461c7cb",
+    "title": "GASP_UI_Notification_1.wav",
+    "creator": "Rob_Marion",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Rob_Marion/sounds/542043",
+    "url": "https://cdn.freesound.org/previews/542/542043_6856600-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1058,
+    "source": "freesound",
+    "query": "ui notification"
+   },
+   "b": {
+    "id": "a0bcc4b8-0355-4c06-9e3f-e2c8300bface",
+    "title": "[UI Sound] Approval - High Pitched Bell Synth",
+    "creator": "GabFitzgerald",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/GabFitzgerald/sounds/625174",
+    "url": "https://cdn.freesound.org/previews/625/625174_13251199-hq.mp3",
+    "filetype": "mp3",
+    "ms": 774,
+    "source": "freesound",
+    "query": "ui notification"
+   },
+   "c": {
+    "id": "0d2530b6-2642-4fe7-a526-284561bab82a",
+    "title": "Double Beep",
+    "creator": "andersmmg",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/andersmmg/sounds/511492",
+    "url": "https://cdn.freesound.org/previews/511/511492_5408716-hq.mp3",
+    "filetype": "mp3",
+    "ms": 491,
+    "source": "freesound",
+    "query": "ui notification"
+   }
+  },
+  "pool": 14,
+  "locked": true
+ },
+ "player_leave": {
+  "options": {
+   "a": {
+    "id": "e5cde912-a827-41a1-aa94-1d54a3db2c89",
+    "title": "UI Close menu",
+    "creator": "SamsterBirdies",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/SamsterBirdies/sounds/587834",
+    "url": "https://cdn.freesound.org/previews/587/587834_5487341-hq.mp3",
+    "filetype": "mp3",
+    "ms": 200,
+    "source": "freesound",
+    "query": "ui close"
+   },
+   "b": {
+    "id": "e6fd6783-2b36-4dca-97b1-9b26e4f1e44a",
+    "title": "socket_connect_disconnect.mp3",
+    "creator": "JustHallowed",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/JustHallowed/sounds/691007",
+    "url": "https://cdn.freesound.org/previews/691/691007_10295292-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1852,
+    "source": "freesound",
+    "query": "ui disconnect"
+   },
+   "c": {
+    "id": "a32653de-b1ae-428a-94e7-de7950117efe",
+    "title": "Cancel (Retro /Thin)",
+    "creator": "SilverIllusionist",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/SilverIllusionist/sounds/672943",
+    "url": "https://cdn.freesound.org/previews/672/672943_7395592-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1000,
+    "source": "freesound",
+    "query": "ui close"
+   }
+  },
+  "pool": 14,
+  "locked": true
+ },
+ "revive": {
+  "options": {
+   "a": {
+    "id": "26f90c84-2481-43a1-9eb9-0934af2c7e50",
+    "title": "Magic Aura Shimmer",
+    "creator": "EminYILDIRIM",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/EminYILDIRIM/sounds/547365",
+    "url": "https://cdn.freesound.org/previews/547/547365_10912485-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4333,
+    "source": "freesound",
+    "query": "magic heal chime"
+   },
+   "b": {
+    "id": "286c205e-86b8-4edd-acea-3b5171c07d60",
+    "title": "Light Cast Skill Loop ( Guidingbolt )",
+    "creator": "EminYILDIRIM",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/EminYILDIRIM/sounds/567854",
+    "url": "https://cdn.freesound.org/previews/567/567854_10912485-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4500,
+    "source": "freesound",
+    "query": "magic heal chime"
+   }
+  },
+  "pool": 2,
+  "locked": true
+ },
+ "rock_rumble": {
+  "options": {
+   "a": {
+    "id": "e2ab4b0b-160c-4fb1-b0cd-276d0e919dd8",
+    "title": "bass 16b.wav",
+    "creator": "Logicogonist",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Logicogonist/sounds/209943",
+    "url": "https://cdn.freesound.org/previews/209/209943_3797507-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1623,
+    "source": "freesound",
+    "query": "rock rumble"
+   },
+   "b": {
+    "id": "543846f1-1853-46ef-96a4-a1df45656f88",
+    "title": "PiedraDesmoronandose.wav",
+    "creator": "Trancox",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Trancox/sounds/391919",
+    "url": "https://cdn.freesound.org/previews/391/391919_7066974-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3281,
+    "source": "freesound",
+    "query": "rocks crumble"
+   },
+   "c": {
+    "id": "80813a25-7609-4fe5-80c2-d0cad51e4b01",
+    "title": "FX - Rock / stone falling debris",
+    "creator": "bolkmar",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/bolkmar/sounds/539178",
+    "url": "https://cdn.freesound.org/previews/539/539178_2927958-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1227,
+    "source": "freesound",
+    "query": "rock rumble"
+   }
+  },
+  "pool": 9,
+  "locked": true
+ },
+ "run_begin": {
+  "options": {
+   "a": {
+    "id": "25cf0b42-8bc9-411a-9036-9a0fbebd5eb9",
+    "title": "war horn.wav",
+    "creator": "adharca",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/adharca/sounds/539956",
+    "url": "https://cdn.freesound.org/previews/539/539956_4366671-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4356,
+    "source": "freesound",
+    "query": "horn fanfare"
+   },
+   "b": {
+    "id": "5b3e9b50-1402-4b30-8e6a-8963caacb001",
+    "title": "Booga Booga War Horn Variant 4",
+    "creator": "Palaniru",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Palaniru/sounds/720204",
+    "url": "https://cdn.freesound.org/previews/720/720204_15530838-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4876,
+    "source": "freesound",
+    "query": "war horn"
+   },
+   "c": {
+    "id": "6157a27d-2d66-4526-8330-aba3bf099331",
+    "title": "inception-sound.wav",
+    "creator": "mikobuntu",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/mikobuntu/sounds/255107",
+    "url": "https://cdn.freesound.org/previews/255/255107_1428489-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1955,
+    "source": "freesound",
+    "query": "war horn"
+   }
+  },
+  "pool": 2,
+  "rejected": [
+   "38a6f61e-7065-4e11-88bd-139902290cd0",
+   "4e115045-ff3d-46d7-87e2-397574a66da8",
+   "f7e35a7f-180e-4374-a2b9-29c9036f4e82"
+  ],
+  "locked": true
+ },
+ "run_cleared": {
+  "options": {
+   "a": {
+    "id": "fd417ec1-16be-4127-b8f1-26f4a6a6dfae",
+    "title": "triumph tada horns 1 eo.wav",
+    "creator": "Empiremonkey",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Empiremonkey/sounds/592096",
+    "url": "https://cdn.freesound.org/previews/592/592096_702542-hq.mp3",
+    "filetype": "mp3",
+    "ms": 5857,
+    "source": "freesound",
+    "query": "triumph fanfare"
+   },
+   "b": {
+    "id": "92bde208-08de-4533-b07a-a44d42d40fc5",
+    "title": "TaDa!.aif",
+    "creator": "jimhancock",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/jimhancock/sounds/256128",
+    "url": "https://cdn.freesound.org/previews/256/256128_375016-hq.mp3",
+    "filetype": "mp3",
+    "ms": 5941,
+    "source": "freesound",
+    "query": "win fanfare"
+   },
+   "c": {
+    "id": "dcf4143c-2dae-4e1c-9f48-8c52941dbcf0",
+    "title": "Level Up:Mission Complete (Primal) 1.wav",
+    "creator": "SilverIllusionist",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/SilverIllusionist/sounds/665206",
+    "url": "https://cdn.freesound.org/previews/665/665206_7395592-hq.mp3",
+    "filetype": "mp3",
+    "ms": 6500,
+    "source": "freesound",
+    "query": "triumph fanfare"
+   }
+  },
+  "pool": 18,
+  "locked": true
+ },
+ "run_over": {
+  "options": {
+   "a": {
+    "id": "2c73475f-a8ae-454f-b31e-eb207d56e0d3",
+    "title": "Game Over SFX and Voice.wav",
+    "creator": "landlucky",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/landlucky/sounds/277403",
+    "url": "https://cdn.freesound.org/previews/277/277403_5333187-hq.mp3",
+    "filetype": "mp3",
+    "ms": 6404,
+    "source": "freesound",
+    "query": "game over"
+   },
+   "b": {
+    "id": "140a86f3-36b8-411c-8b40-f694aed4e6b9",
+    "title": "Game-Over-Voice-2b.wav",
+    "creator": "SoundEffectsPodcast_com",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/SoundEffectsPodcast_com/sounds/256091",
+    "url": "https://cdn.freesound.org/previews/256/256091_4759914-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1264,
+    "source": "freesound",
+    "query": "game over"
+   },
+   "c": {
+    "id": "1f47046d-308e-4445-96f6-9bd07e3cd7bb",
+    "title": "Arcade Game Over",
+    "creator": "Poligonstudio",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Poligonstudio/sounds/412168",
+    "url": "https://cdn.freesound.org/previews/412/412168_7383104-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2000,
+    "source": "freesound",
+    "query": "game over"
+   }
+  },
+  "pool": 14,
+  "locked": true
+ },
+ "shout_alder": {
+  "options": {
+   "a": {
+    "id": "1ec30df8-275d-48fa-bdb0-34b9d5f4f0af",
+    "title": "HAH! 01.wav",
+    "creator": "sandyrb",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/sandyrb/sounds/85896",
+    "url": "https://cdn.freesound.org/previews/85/85896_14771-hq.mp3",
+    "filetype": "mp3",
+    "ms": 472,
+    "source": "freesound",
+    "query": "male shout"
+   },
+   "b": {
+    "id": "ac85dc72-c760-466d-9411-37835efa09f5",
+    "title": "Warcry Yarghh! - British Male",
+    "creator": "theuncertainman",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/theuncertainman/sounds/402645",
+    "url": "https://cdn.freesound.org/previews/402/402645_6492957-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3696,
+    "source": "freesound",
+    "query": "warrior shout"
+   },
+   "c": {
+    "id": "e1797d1b-c30e-4075-8c90-d339e346ea4f",
+    "title": "'To War!' Assault Drill Sergeant Shout",
+    "creator": "qubodup",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/qubodup/sounds/161967",
+    "url": "https://cdn.freesound.org/previews/161/161967_71257-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2190,
+    "source": "freesound",
+    "query": "male shout"
+   }
+  },
+  "pool": 18,
+  "rejected": [
+   "09e31a88-1a55-4429-9732-d8c1916f240d",
+   "554768e4-9f8e-47f4-a4ff-e0bb937b3b0a",
+   "e368ba3b-4ca9-4110-b8cc-5bb1197d67a1"
+  ],
+  "locked": true
+ },
+ "shout_brin": {
+  "options": {
+   "a": {
+    "id": "oga-hero-effort-a",
+    "title": "Valiant Genericus (Effort Noises)",
+    "creator": "tinsin",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://opengameart.org/content/generic-hero-effort-noises",
+    "url": "https://opengameart.org/content/generic-hero-effort-noises",
+    "filetype": "wav",
+    "ms": 970,
+    "source": "opengameart",
+    "query": ""
+   },
+   "b": {
+    "id": "oga-hero-effort-b",
+    "title": "Valiant Genericus (Effort Noises)",
+    "creator": "tinsin",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://opengameart.org/content/generic-hero-effort-noises",
+    "url": "https://opengameart.org/content/generic-hero-effort-noises",
+    "filetype": "wav",
+    "ms": 760,
+    "source": "opengameart",
+    "query": ""
+   },
+   "c": {
+    "id": "fs-85897",
+    "title": "HUH! 01.wav",
+    "creator": "sandyrb",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/sandyrb/sounds/85897",
+    "url": "https://freesound.org/people/sandyrb/sounds/85897",
+    "filetype": "mp3",
+    "ms": 518,
+    "source": "freesound",
+    "query": ""
+   }
+  },
+  "pool": 22,
+  "rejected": [
+   "23001470-c60a-4b61-98a5-512c805baa5e",
+   "2fc3388b-d21b-4658-af20-e0476e171416",
+   "2ffa1271-c20a-4441-b723-909b6be59b20",
+   "32b0f3f7-a44d-4c27-a2b5-612e141682c1",
+   "3bf6e565-bdb3-4ca1-932d-f5d520cd412f",
+   "47dfaceb-82b7-4dc5-9dae-e1bbbbbef2e9",
+   "5121fd21-5f93-4ab2-b830-d9bcd84ea4c2",
+   "62fda412-e3eb-4622-b79a-9953ec64c1f8",
+   "6cadf040-7c8e-4333-9e10-0dff63e3f761",
+   "8a96c64a-6a22-4c04-93e1-8decb15a39ad",
+   "9314fdbb-476c-4ee4-abad-6517664a3056",
+   "9f9e4ab3-71ee-4391-b9d0-858f930fcaa8",
+   "ac895d61-6d66-4c17-a119-439411e7ab11",
+   "d780a10a-0d09-4be6-a5a3-22808872b097",
+   "da9de4ff-a56f-43cc-85e7-ece40f8a61c1",
+   "dc8e56e2-fa94-4720-b93b-db15ffd4ecff",
+   "fs-221542",
+   "fs-464485",
+   "oga-yelling-1yell1",
+   "oga-yelling-2yell3",
+   "oga-yelling-3yell4"
+  ],
+  "locked": true
+ },
+ "shout_cass": {
+  "options": {
+   "a": {
+    "id": "oga-rpg-female-attack1",
+    "title": "Female RPG Voice Starter Pack: attack1",
+    "creator": "cicifyre",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://opengameart.org/content/female-rpg-voice-starter-pack",
+    "url": "https://opengameart.org/content/female-rpg-voice-starter-pack",
+    "filetype": "wav",
+    "ms": 291,
+    "source": "opengameart",
+    "query": ""
+   },
+   "b": {
+    "id": "oga-rpg-female-attack2",
+    "title": "Female RPG Voice Starter Pack: attack2",
+    "creator": "cicifyre",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://opengameart.org/content/female-rpg-voice-starter-pack",
+    "url": "https://opengameart.org/content/female-rpg-voice-starter-pack",
+    "filetype": "wav",
+    "ms": 352,
+    "source": "opengameart",
+    "query": ""
+   },
+   "c": {
+    "id": "oga-cute-female-hiya-1",
+    "title": "24 cute fighting game voice recordings: Hiya",
+    "creator": "bart",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://opengameart.org/content/24-cute-fighting-game-voice-recordings",
+    "url": "https://opengameart.org/content/24-cute-fighting-game-voice-recordings",
+    "filetype": "wav",
+    "ms": 1253,
+    "source": "opengameart",
+    "query": ""
+   }
+  },
+  "pool": 22,
+  "rejected": [
+   "15fb0460-02a3-450e-bba1-3122c0c1f2b2",
+   "1d427cd4-bf96-48af-b4e9-11a7a694ee40",
+   "23c61bd3-0b19-47d0-8e78-3ba429af4c10",
+   "2de75ee2-3e7a-4d32-8663-684cf0e0edce",
+   "3022947f-abb2-4b4a-83a8-91f8002b5469",
+   "347087ae-2b66-4c66-a969-1b226fa12925",
+   "3ed1d3e8-afdd-4721-b33c-7aeb8e1828e8",
+   "55b7e74a-d027-4d5b-8cd3-510cc540feea",
+   "59b6f3ea-0f29-42a2-bbfe-8661ffab355d",
+   "64b8c52b-3d3a-4dce-8f57-eb761107b5c1",
+   "82259b7d-44e1-4b45-86b0-6f4e85ed3278",
+   "ae786a56-8379-4ad0-8942-32d3fb9499f3",
+   "b39bbcbf-9ddf-4975-b1f0-d88962286739",
+   "b7ad50d7-c84e-4c27-bb8a-2119fc81338b",
+   "b8de66b6-8ab7-427d-800e-23c502f4ce72",
+   "d7d5a764-644f-482b-9742-6197f9e52282",
+   "e467aa57-3532-4c53-98a8-ef247c50b547",
+   "e6921eb6-01cf-4988-8ba3-2588e4261d3c"
+  ],
+  "locked": true
+ },
+ "skill_miss": {
+  "options": {
+   "a": {
+    "id": "de966d1d-1d74-478e-975b-244bb45879a0",
+    "title": "swoop_quick_01.aif",
+    "creator": "willc2_45220",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/willc2_45220/sounds/73600",
+    "url": "https://cdn.freesound.org/previews/73/73600_1110400-hq.mp3",
+    "filetype": "mp3",
+    "ms": 165,
+    "source": "freesound",
+    "query": "miss swing"
+   },
+   "b": {
+    "id": "c1aad2c5-4ec5-4550-a424-1e1962dfbcb8",
+    "title": "swoop_fat_01.aif",
+    "creator": "willc2_45220",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/willc2_45220/sounds/73598",
+    "url": "https://cdn.freesound.org/previews/73/73598_1110400-hq.mp3",
+    "filetype": "mp3",
+    "ms": 208,
+    "source": "freesound",
+    "query": "miss swing"
+   },
+   "c": {
+    "id": "42c201d4-dfa0-4165-ae75-5041853f95a1",
+    "title": "swoop_thick_01.aif",
+    "creator": "willc2_45220",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/willc2_45220/sounds/73601",
+    "url": "https://cdn.freesound.org/previews/73/73601_1110400-hq.mp3",
+    "filetype": "mp3",
+    "ms": 208,
+    "source": "freesound",
+    "query": "miss swing"
+   }
+  },
+  "pool": 6,
+  "locked": true
+ },
+ "skill_press": {
+  "options": {
+   "a": {
+    "id": "357cad28-d765-4276-929e-46b6b95dbfb0",
+    "title": "Magic Lighting Spell Impact & Punch",
+    "creator": "EminYILDIRIM",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/EminYILDIRIM/sounds/541480",
+    "url": "https://cdn.freesound.org/previews/541/541480_10912485-hq.mp3",
+    "filetype": "mp3",
+    "ms": 766,
+    "source": "freesound",
+    "query": "magic impact"
+   },
+   "b": {
+    "id": "f9f05a86-8318-48a6-a054-e28e5b23e13d",
+    "title": "Spell impact",
+    "creator": "Bertsz",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Bertsz/sounds/500911",
+    "url": "https://cdn.freesound.org/previews/500/500911_6714882-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3428,
+    "source": "freesound",
+    "query": "magic impact"
+   },
+   "c": {
+    "id": "e881d66a-0128-4241-aa16-32a4f9b43624",
+    "title": "Water Magic Impact",
+    "creator": "EminYILDIRIM",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/EminYILDIRIM/sounds/572006",
+    "url": "https://cdn.freesound.org/previews/572/572006_10912485-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2600,
+    "source": "freesound",
+    "query": "magic impact"
+   }
+  },
+  "pool": 10,
+  "rejected": [
+   "357a4dd3-753b-4113-ac65-dd4f96ef3018",
+   "6d193a83-570b-43c1-b8ba-39eca4b43028",
+   "70cc9dd3-a1fa-41da-832c-7e5cb76f8761"
+  ],
+  "locked": true
+ },
+ "slam": {
+  "options": {
+   "a": {
+    "id": "18db6860-ba56-447f-90de-f540632167e9",
+    "title": "Heavy Metal Thud on Ground",
+    "creator": "7of9Designs",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/7of9Designs/sounds/640204",
+    "url": "https://cdn.freesound.org/previews/640/640204_12131847-hq.mp3",
+    "filetype": "mp3",
+    "ms": 748,
+    "source": "freesound",
+    "query": "heavy thud ground"
+   },
+   "b": {
+    "id": "cf6310c4-6e77-4f81-a946-89126065ece7",
+    "title": "Medium Thud 1",
+    "creator": "sgrowe",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/sgrowe/sounds/342535",
+    "url": "https://cdn.freesound.org/previews/342/342535_6148875-hq.mp3",
+    "filetype": "mp3",
+    "ms": 951,
+    "source": "freesound",
+    "query": "heavy thud ground"
+   },
+   "c": {
+    "id": "4396a715-62c7-487e-a048-7606a510b86e",
+    "title": "object falls (5).wav",
+    "creator": "FreqMan",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/FreqMan/sounds/43603",
+    "url": "https://cdn.freesound.org/previews/43/43603_92661-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2485,
+    "source": "freesound",
+    "query": "heavy thud ground"
+   }
+  },
+  "pool": 8,
+  "locked": true
+ },
+ "spit": {
+  "options": {
+   "a": {
+    "id": "761d7cf2-6251-4a0e-8596-2b4693630141",
+    "title": "delphiz SPITTING LOOP #120.WAV",
+    "creator": "delphidebrain",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/delphidebrain/sounds/39718",
+    "url": "https://cdn.freesound.org/previews/39/39718_180659-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4000,
+    "source": "freesound",
+    "query": "spit"
+   },
+   "b": {
+    "id": "95ed6d39-ccf0-4908-af21-109faaa910c2",
+    "title": "spitting 20161025.wav",
+    "creator": "Gutek",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Gutek/sounds/364979",
+    "url": "https://cdn.freesound.org/previews/364/364979_121632-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2428,
+    "source": "freesound",
+    "query": "spit"
+   },
+   "c": {
+    "id": "2df024b9-e129-4fa6-a702-7ba74288f236",
+    "title": "Spit Water.wav",
+    "creator": "pugaeme",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/pugaeme/sounds/389239",
+    "url": "https://cdn.freesound.org/previews/389/389239_5778180-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2807,
+    "source": "freesound",
+    "query": "spit"
+   }
+  },
+  "pool": 7,
+  "locked": true
+ },
+ "splat": {
+  "options": {
+   "a": {
+    "id": "87ef15c5-a6c0-483c-883e-07d1ffa3c10c",
+    "title": "Splat!.wav",
+    "creator": "Whiprealgood",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Whiprealgood/sounds/87535",
+    "url": "https://cdn.freesound.org/previews/87/87535_1380975-hq.mp3",
+    "filetype": "mp3",
+    "ms": 453,
+    "source": "freesound",
+    "query": "splat"
+   },
+   "b": {
+    "id": "bbca4b60-bd57-43ab-a573-47b3554c6d9b",
+    "title": "Messy Splat 3",
+    "creator": "FoolBoyMedia",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/FoolBoyMedia/sounds/237927",
+    "url": "https://cdn.freesound.org/previews/237/237927_4019029-hq.mp3",
+    "filetype": "mp3",
+    "ms": 673,
+    "source": "freesound",
+    "query": "splat"
+   },
+   "c": {
+    "id": "ea60f262-c7a0-4fc2-83df-2c39b6b4fc72",
+    "title": "Splat",
+    "creator": "JustInvoke",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/JustInvoke/sounds/147017",
+    "url": "https://cdn.freesound.org/previews/147/147017_758593-hq.mp3",
+    "filetype": "mp3",
+    "ms": 394,
+    "source": "freesound",
+    "query": "splat"
+   }
+  },
+  "pool": 13,
+  "locked": true
+ },
+ "status_expired": {
+  "options": {
+   "a": {
+    "id": "2306f253-e55a-464f-a74f-08ee8057066e",
+    "title": "Vanish Spell 2",
+    "creator": "SilverIllusionist",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/SilverIllusionist/sounds/735171",
+    "url": "https://cdn.freesound.org/previews/735/735171_7395592-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3127,
+    "source": "freesound",
+    "query": "ui disappear"
+   },
+   "b": {
+    "id": "fe812b20-de69-46e4-9028-35a55c604d7d",
+    "title": "bubble pop out",
+    "creator": "tsidilin",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/tsidilin/sounds/254892",
+    "url": "https://cdn.freesound.org/previews/254/254892_1385065-hq.mp3",
+    "filetype": "mp3",
+    "ms": 185,
+    "source": "freesound",
+    "query": "pop out"
+   },
+   "c": {
+    "id": "b40f7310-10bc-4264-aa76-1e2b8add2f46",
+    "title": "Vanish Spell 1",
+    "creator": "SilverIllusionist",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/SilverIllusionist/sounds/735172",
+    "url": "https://cdn.freesound.org/previews/735/735172_7395592-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3127,
+    "source": "freesound",
+    "query": "ui disappear"
+   }
+  },
+  "pool": 10,
+  "locked": true
+ },
+ "strike": {
+  "options": {
+   "a": {
+    "id": "702f6f31-4c97-44d6-82fb-7e2d1de5e8a7",
+    "title": "My Sword Hit 1.wav.wav",
+    "creator": "freefire66",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/freefire66/sounds/175949",
+    "url": "https://cdn.freesound.org/previews/175/175949_2542588-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2387,
+    "source": "freesound",
+    "query": "sword hit"
+   },
+   "b": {
+    "id": "35a333a3-3113-4602-8365-9a9fc854a294",
+    "title": "Sword hits the body.wav",
+    "creator": "vdovitsky",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/vdovitsky/sounds/411122",
+    "url": "https://cdn.freesound.org/previews/411/411122_1424100-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1674,
+    "source": "freesound",
+    "query": "sword hit"
+   },
+   "c": {
+    "id": "f04317e1-430b-43cb-b9a6-6162672bb0c0",
+    "title": "Tyrael - Sword Hit Flesh - 02.wav",
+    "creator": "SoundFlakes",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/SoundFlakes/sounds/492239",
+    "url": "https://cdn.freesound.org/previews/492/492239_6596968-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1209,
+    "source": "freesound",
+    "query": "sword hit"
+   }
+  },
+  "pool": 9,
+  "locked": true
+ },
+ "team_counter": {
+  "options": {
+   "a": {
+    "id": "6b977c95-1b96-4656-8d60-b326440dfb7e",
+    "title": "Hit Swing Sword Small 3",
+    "creator": "CogFireStudios",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/CogFireStudios/sounds/547041",
+    "url": "https://cdn.freesound.org/previews/547/547041_7614679-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1312,
+    "source": "freesound",
+    "query": "sword impact heavy"
+   },
+   "b": {
+    "id": "eb022eae-a9ba-4d49-9426-4ecc31e51714",
+    "title": "Intense Punch",
+    "creator": "damnsatinist",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/damnsatinist/sounds/493916",
+    "url": "https://cdn.freesound.org/previews/493/493916_7470312-hq.mp3",
+    "filetype": "mp3",
+    "ms": 416,
+    "source": "freesound",
+    "query": "heavy impact"
+   },
+   "c": {
+    "id": "b3b839b5-46d4-4dbe-a706-81f41651953a",
+    "title": "metallic clang",
+    "creator": "mokasza",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/mokasza/sounds/810180",
+    "url": "https://cdn.freesound.org/previews/810/810180_17437502-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2077,
+    "source": "freesound",
+    "query": "sword impact heavy"
+   }
+  },
+  "pool": 6,
+  "locked": true
+ },
+ "throw": {
+  "options": {
+   "a": {
+    "id": "d9ec9f92-7577-4578-a3c6-bf428d1207a9",
+    "title": "Lacrosse pass",
+    "creator": "Lorenz01",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Lorenz01/sounds/632700",
+    "url": "https://cdn.freesound.org/previews/632/632700_12210645-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2559,
+    "source": "freesound",
+    "query": "throw whoosh"
+   },
+   "b": {
+    "id": "3b7cd621-7396-4c1b-a49d-ba46996a78ae",
+    "title": "Hard Swing 1",
+    "creator": "magnuswaker",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/magnuswaker/sounds/523230",
+    "url": "https://cdn.freesound.org/previews/523/523230_11537497-hq.mp3",
+    "filetype": "mp3",
+    "ms": 922,
+    "source": "freesound",
+    "query": "throw whoosh"
+   },
+   "c": {
+    "id": "577e433c-3137-4f2f-be30-50c506c9912c",
+    "title": "Magical Whoosh.m4a",
+    "creator": "JalynCatbtg",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/JalynCatbtg/sounds/632200",
+    "url": "https://cdn.freesound.org/previews/632/632200_13349052-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1114,
+    "source": "freesound",
+    "query": "throw whoosh"
+   }
+  },
+  "pool": 20,
+  "locked": true
+ },
+ "timeline_shift": {
+  "options": {
+   "a": {
+    "id": "06f1cccc-b1f6-4e7e-a463-085d333aaa99",
+    "title": "Slide / Whoosh",
+    "creator": "Mountain_Man",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Mountain_Man/sounds/405456",
+    "url": "https://cdn.freesound.org/previews/405/405456_5421751-hq.mp3",
+    "filetype": "mp3",
+    "ms": 417,
+    "source": "freesound",
+    "query": "ui slide"
+   },
+   "b": {
+    "id": "59f9d261-b06e-42a9-87da-7f2e8e6bdb00",
+    "title": "Slide_Sharp_00.wav",
+    "creator": "LittleRobotSoundFactory",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/LittleRobotSoundFactory/sounds/290384",
+    "url": "https://cdn.freesound.org/previews/290/290384_5123851-hq.mp3",
+    "filetype": "mp3",
+    "ms": 213,
+    "source": "freesound",
+    "query": "ui slide"
+   },
+   "c": {
+    "id": "079cb2cf-dfdc-4ce9-9c14-6f990c643c92",
+    "title": "Swipe.wav",
+    "creator": "MATRIXXX_",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/MATRIXXX_/sounds/702773",
+    "url": "https://cdn.freesound.org/previews/702/702773_6142149-hq.mp3",
+    "filetype": "mp3",
+    "ms": 879,
+    "source": "freesound",
+    "query": "ui slide"
+   }
+  },
+  "pool": 17,
+  "locked": true
+ },
+ "turn_start": {
+  "options": {
+   "a": {
+    "id": "d3ab488b-dee1-4c40-89ab-67837664b616",
+    "title": "UI Button Click",
+    "creator": "benzix2",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/benzix2/sounds/467951",
+    "url": "https://cdn.freesound.org/previews/467/467951_6769414-hq.mp3",
+    "filetype": "mp3",
+    "ms": 123,
+    "source": "freesound",
+    "query": "ui pop"
+   },
+   "b": {
+    "id": "63d3d3a4-9ce8-41c2-ad4f-a34ccc6092c3",
+    "title": "Mouth pop",
+    "creator": "jcallison",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/jcallison/sounds/258269",
+    "url": "https://cdn.freesound.org/previews/258/258269_4824549-hq.mp3",
+    "filetype": "mp3",
+    "ms": 323,
+    "source": "freesound",
+    "query": "ui pop"
+   },
+   "c": {
+    "id": "9427d2a8-19dd-4c63-9e06-08855daa708c",
+    "title": "Bubble Pop - High Pitched Short",
+    "creator": "elmasmalo1",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/elmasmalo1/sounds/377020",
+    "url": "https://cdn.freesound.org/previews/377/377020_1172853-hq.mp3",
+    "filetype": "mp3",
+    "ms": 80,
+    "source": "freesound",
+    "query": "ui pop"
+   }
+  },
+  "pool": 16,
+  "locked": true
+ },
+ "ultimate": {
+  "options": {
+   "a": {
+    "id": "a46d595e-2336-40cd-93b1-4536d7fde0cf",
+    "title": "Supernatural Explosion",
+    "creator": "Quaker540",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Quaker540/sounds/256960",
+    "url": "https://cdn.freesound.org/previews/256/256960_3545904-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2575,
+    "source": "freesound",
+    "query": "magic explosion"
+   },
+   "b": {
+    "id": "145799e4-35dd-437f-b79d-787b85cef0f4",
+    "title": "Energy impact 1",
+    "creator": "ihitokage",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/ihitokage/sounds/413219",
+    "url": "https://cdn.freesound.org/previews/413/413219_1675920-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1821,
+    "source": "freesound",
+    "query": "magic explosion"
+   },
+   "c": {
+    "id": "0e29ea12-efe8-4631-ba00-2100ce21d51f",
+    "title": "magicProjectile_impact.wav",
+    "creator": "rafaelzimrp",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/rafaelzimrp/sounds/570855",
+    "url": "https://cdn.freesound.org/previews/570/570855_12068810-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1941,
+    "source": "freesound",
+    "query": "magic explosion"
+   }
+  },
+  "pool": 11,
+  "locked": true
+ },
+ "ultimate_start": {
+  "options": {
+   "a": {
+    "id": "4cb9dc5a-6dc3-47dd-8441-0784c506a31b",
+    "title": "Risers - Horror Whooshes Tension Builder 1.mp3",
+    "creator": "original_sound",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/original_sound/sounds/494981",
+    "url": "https://cdn.freesound.org/previews/494/494981_6687700-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4507,
+    "source": "freesound",
+    "query": "riser"
+   },
+   "b": {
+    "id": "96a9062b-be8d-42ae-aacc-f64d3a34294a",
+    "title": "Riser",
+    "creator": "Rizzard",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Rizzard/sounds/561207",
+    "url": "https://cdn.freesound.org/previews/561/561207_10825267-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2000,
+    "source": "freesound",
+    "query": "riser"
+   },
+   "c": {
+    "id": "dd07153a-ca3d-4693-a6c8-fbe1338bce06",
+    "title": "Energy Riser",
+    "creator": "magnuswaker",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/magnuswaker/sounds/522095",
+    "url": "https://cdn.freesound.org/previews/522/522095_11537497-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1925,
+    "source": "freesound",
+    "query": "riser"
+   }
+  },
+  "pool": 3,
+  "locked": true
+ },
+ "victory": {
+  "options": {
+   "a": {
+    "id": "c816b555-f64b-4280-991a-94418d906826",
+    "title": "game-win.mp3",
+    "creator": "mickleness",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/mickleness/sounds/269198",
+    "url": "https://cdn.freesound.org/previews/269/269198_4409114-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2500,
+    "source": "freesound",
+    "query": "victory fanfare"
+   },
+   "b": {
+    "id": "edc61118-d630-4689-8843-d8eb8c8a2c10",
+    "title": "Jingle_Achievement_00.wav",
+    "creator": "LittleRobotSoundFactory",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/LittleRobotSoundFactory/sounds/270404",
+    "url": "https://cdn.freesound.org/previews/270/270404_5123851-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3562,
+    "source": "freesound",
+    "query": "win jingle"
+   },
+   "c": {
+    "id": "c867a46d-cf46-4cf1-beb2-0f34ed60ab2d",
+    "title": "Game Success Fanfare",
+    "creator": "el_boss",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/el_boss/sounds/677859",
+    "url": "https://cdn.freesound.org/previews/677/677859_9129912-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3381,
+    "source": "freesound",
+    "query": "victory fanfare"
+   }
+  },
+  "pool": 24,
+  "locked": true
+ },
+ "voice_bloat": {
+  "options": {
+   "a": {
+    "id": "ee51893c-f021-45a8-9601-ef2bd50de235",
+    "title": "Gurgled Scream",
+    "creator": "jacksonacademyashmore",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/jacksonacademyashmore/sounds/402861",
+    "url": "https://cdn.freesound.org/previews/402/402861_6938106-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1548,
+    "source": "freesound",
+    "query": "gurgle"
+   },
+   "b": {
+    "id": "ebef67a1-32de-46b4-9476-cfa38019bd12",
+    "title": "gurgle then slurp.wav",
+    "creator": "Kneedless",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Kneedless/sounds/167454",
+    "url": "https://cdn.freesound.org/previews/167/167454_3065829-hq.mp3",
+    "filetype": "mp3",
+    "ms": 7032,
+    "source": "freesound",
+    "query": "gurgle"
+   },
+   "c": {
+    "id": "5dfbc7b6-9b45-4d85-a2df-868bc282ec1d",
+    "title": "Water Gurgle #1",
+    "creator": "Eddiexander",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/Eddiexander/sounds/198319",
+    "url": "https://cdn.freesound.org/previews/198/198319_1346068-hq.mp3",
+    "filetype": "mp3",
+    "ms": 6143,
+    "source": "freesound",
+    "query": "gurgle"
+   }
+  },
+  "pool": 6,
+  "locked": true
+ },
+ "voice_fly": {
+  "options": {
+   "a": {
+    "id": "de22305f-becf-44e3-92b7-19d0c1764607",
+    "title": "fly buzz against window stereo noise reduced.flac",
+    "creator": "kyles",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/kyles/sounds/450345",
+    "url": "https://cdn.freesound.org/previews/450/450345_612689-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4629,
+    "source": "freesound",
+    "query": "fly buzz"
+   },
+   "b": {
+    "id": "a8602ffb-14db-4174-91fd-db3f7f94f2fc",
+    "title": "Bee Buzzing",
+    "creator": "JonCon_Library",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/JonCon_Library/sounds/481647",
+    "url": "https://cdn.freesound.org/previews/481/481647_9580304-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2521,
+    "source": "freesound",
+    "query": "fly buzz"
+   },
+   "c": {
+    "id": "1219174b-9c4c-4bb4-baa2-6d596b04f9ca",
+    "title": "20060628.mosquito02.flac",
+    "creator": "dobroide",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/dobroide/sounds/20305",
+    "url": "https://cdn.freesound.org/previews/20/20305_8043-hq.mp3",
+    "filetype": "mp3",
+    "ms": 5483,
+    "source": "freesound",
+    "query": ""
+   }
+  },
+  "pool": 1,
+  "locked": true
+ },
+ "voice_gnats": {
+  "options": {
+   "a": {
+    "id": "d387670e-f7e4-4f72-8dc2-0a3d7b8c5642",
+    "title": "20060628.mosquito03.flac",
+    "creator": "dobroide",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/dobroide/sounds/20306",
+    "url": "https://cdn.freesound.org/previews/20/20306_8043-hq.mp3",
+    "filetype": "mp3",
+    "ms": 6190,
+    "source": "freesound",
+    "query": "mosquito buzz"
+   },
+   "b": {
+    "id": "633fa4de-3a6a-4016-a71f-e86e6efbac64",
+    "title": "BEE_buzzin_02.wav",
+    "creator": "Department64",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Department64/sounds/103047",
+    "url": "https://cdn.freesound.org/previews/103/103047_861714-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2730,
+    "source": "freesound",
+    "query": "insect buzz"
+   },
+   "c": {
+    "id": "01b1c9f2-1a46-4845-b591-d08c9afcde56",
+    "title": "20090628.mosquito.01.wav",
+    "creator": "dobroide",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/dobroide/sounds/74941",
+    "url": "https://cdn.freesound.org/previews/74/74941_8043-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4922,
+    "source": "freesound",
+    "query": "mosquito buzz"
+   }
+  },
+  "pool": 1,
+  "locked": true
+ },
+ "voice_husk": {
+  "options": {
+   "a": {
+    "id": "b123c104-8556-43d2-8738-c385b6aa5105",
+    "title": "Burp Monster Zombie groan moan",
+    "creator": "EricsSoundschmiede",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/EricsSoundschmiede/sounds/463721",
+    "url": "https://cdn.freesound.org/previews/463/463721_1106446-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2786,
+    "source": "freesound",
+    "query": "zombie groan"
+   },
+   "b": {
+    "id": "7abcfdbc-2d2a-4fa9-9fe9-309a2e4496ca",
+    "title": "Zombie Groan",
+    "creator": "ChuckChuckGoof",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/ChuckChuckGoof/sounds/559558",
+    "url": "https://cdn.freesound.org/previews/559/559558_7817976-hq.mp3",
+    "filetype": "mp3",
+    "ms": 5050,
+    "source": "freesound",
+    "query": "zombie groan"
+   },
+   "c": {
+    "id": "87eb31ce-8c33-453f-ab1c-03d39ddc5b56",
+    "title": "Horror Scary Weird Noise Short Zombie Groan #15",
+    "creator": "N0IZ",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/N0IZ/sounds/642062",
+    "url": "https://cdn.freesound.org/previews/642/642062_13682514-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2279,
+    "source": "freesound",
+    "query": "zombie groan"
+   }
+  },
+  "pool": 13,
+  "locked": true
+ },
+ "voice_hyena": {
+  "options": {
+   "a": {
+    "id": "cda23765-d596-49f9-99e4-ceb6c73d136e",
+    "title": "Giggling call of a spotted hyena (Crocuta crocuta) - 1472-6785-10-9-S1",
+    "creator": "Mathevon N, Koralek A, Weldele M, Glickman S, Theunissen F",
+    "license": "by",
+    "license_version": "2.0",
+    "page": "https://commons.wikimedia.org/w/index.php?curid=22239325",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/c/cc/Giggling_call_of_a_spotted_hyena_%28Crocuta_crocuta%29_-_1472-6785-10-9-S1.oga",
+    "filetype": "oga",
+    "ms": 1017,
+    "source": "wikimedia_audio",
+    "query": "hyena"
+   },
+   "b": {
+    "id": "86af12df-8bf5-4599-985e-7397a99eddb7",
+    "title": "Hyena Moan 1",
+    "creator": "sounagix",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/sounagix/sounds/681388",
+    "url": "https://cdn.freesound.org/previews/681/681388_9938123-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1067,
+    "source": "freesound",
+    "query": "hyena"
+   },
+   "c": {
+    "id": "1616711c-8983-4791-82a9-260f64dd8ca4",
+    "title": "Hyena Moan 2",
+    "creator": "sounagix",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/sounagix/sounds/681389",
+    "url": "https://cdn.freesound.org/previews/681/681389_9938123-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1089,
+    "source": "freesound",
+    "query": "hyena"
+   }
+  },
+  "pool": 13,
+  "locked": true
+ },
+ "voice_king": {
+  "options": {
+   "a": {
+    "id": "6018bfd1-81b5-4872-ba3f-eb11eb09479c",
+    "title": "Monster Roar",
+    "creator": "NicknameLarry",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/NicknameLarry/sounds/487513",
+    "url": "https://cdn.freesound.org/previews/487/487513_10418401-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2757,
+    "source": "freesound",
+    "query": "monster roar"
+   },
+   "b": {
+    "id": "c093eca7-dd80-4120-92e2-d031af272886",
+    "title": "Low Monster Roar",
+    "creator": "Robson220pl",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Robson220pl/sounds/497056",
+    "url": "https://cdn.freesound.org/previews/497/497056_4444010-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4416,
+    "source": "freesound",
+    "query": "monster roar"
+   },
+   "c": {
+    "id": "261a35e2-b025-436a-9cb6-250483427945",
+    "title": "monster roar call sound effect",
+    "creator": "Garuda1982",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Garuda1982/sounds/552030",
+    "url": "https://cdn.freesound.org/previews/552/552030_2061858-hq.mp3",
+    "filetype": "mp3",
+    "ms": 6997,
+    "source": "freesound",
+    "query": "monster roar"
+   }
+  },
+  "pool": 12,
+  "locked": true
+ },
+ "voice_shade": {
+  "options": {
+   "a": {
+    "id": "a6dcedd0-91a7-415b-b7ab-3415e240fbd9",
+    "title": "Ghost whisper 1.wav",
+    "creator": "JammyGuyStudios",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/JammyGuyStudios/sounds/177901",
+    "url": "https://cdn.freesound.org/previews/177/177901_3091448-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2623,
+    "source": "freesound",
+    "query": "ghost whisper"
+   },
+   "b": {
+    "id": "bae2b772-a614-4a46-ad99-6367a8d4ca39",
+    "title": "Creepy Whispering",
+    "creator": "RaspberryTickle",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/RaspberryTickle/sounds/234044",
+    "url": "https://cdn.freesound.org/previews/234/234044_3795287-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4086,
+    "source": "freesound",
+    "query": "ghost whisper"
+   },
+   "c": {
+    "id": "e21843f4-2796-4bc8-bdf1-99548d75a652",
+    "title": "PB Remember Remember v2.wav",
+    "creator": "carmsie",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/carmsie/sounds/168305",
+    "url": "https://cdn.freesound.org/previews/168/168305_2878551-hq.mp3",
+    "filetype": "mp3",
+    "ms": 6977,
+    "source": "freesound",
+    "query": "ghost whisper"
+   }
+  },
+  "pool": 6,
+  "locked": true
+ },
+ "voice_toad": {
+  "options": {
+   "a": {
+    "id": "5c4818d5-1b6f-4ab5-8c31-7a5ef7dbee7d",
+    "title": "toad or something.wav",
+    "creator": "Reitanna",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Reitanna/sounds/343978",
+    "url": "https://cdn.freesound.org/previews/343/343978_950925-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2118,
+    "source": "freesound",
+    "query": "toad"
+   },
+   "b": {
+    "id": "3dc1282f-1763-4182-a906-e6712130b338",
+    "title": "Frogs on a summer night 3.MP3",
+    "creator": "macdaddyno1",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/macdaddyno1/sounds/396490",
+    "url": "https://cdn.freesound.org/previews/396/396490_313780-hq.mp3",
+    "filetype": "mp3",
+    "ms": 4219,
+    "source": "freesound",
+    "query": "toad croak"
+   },
+   "c": {
+    "id": "8514046f-926c-4c06-9136-a1637d15b344",
+    "title": "Croak Sound Effect",
+    "creator": "mdfrenchij",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/mdfrenchij/sounds/502531",
+    "url": "https://cdn.freesound.org/previews/502/502531_2434779-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1668,
+    "source": "freesound",
+    "query": "toad croak"
+   }
+  },
+  "pool": 4,
+  "rejected": [
+   "71f291f9-093d-499c-9060-efe1149636bd",
+   "8990971e-0de2-4546-bfc7-6e1f0ea43444",
+   "ff848bb2-513c-432e-8aa3-7583e79f3105"
+  ],
+  "locked": true
+ },
+ "whiff": {
+  "options": {
+   "a": {
+    "id": "b01c4663-5533-43a9-8042-85c8155d36b8",
+    "title": "swoop_hissy_01.aif",
+    "creator": "willc2_45220",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/willc2_45220/sounds/73599",
+    "url": "https://cdn.freesound.org/previews/73/73599_1110400-hq.mp3",
+    "filetype": "mp3",
+    "ms": 296,
+    "source": "freesound",
+    "query": "swing miss"
+   },
+   "b": {
+    "id": "3cc1427a-ea3e-445d-9edf-80df7438c21b",
+    "title": "Sword Swings.mp3",
+    "creator": "Sam300Productions",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Sam300Productions/sounds/611766",
+    "url": "https://cdn.freesound.org/previews/611/611766_13131817-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2365,
+    "source": "freesound",
+    "query": "swing miss"
+   },
+   "c": {
+    "id": "a3784aef-3b01-43d4-80ee-86b984cee354",
+    "title": "WhipStick 28.wav",
+    "creator": "Department64",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Department64/sounds/607862",
+    "url": "https://cdn.freesound.org/previews/607/607862_861714-hq.mp3",
+    "filetype": "mp3",
+    "ms": 372,
+    "source": "freesound",
+    "query": "swing miss"
+   }
+  },
+  "pool": 3,
+  "locked": true
+ },
+ "windup": {
+  "options": {
+   "a": {
+    "id": "82aef254-7826-4404-ac4d-ae5256e98c4e",
+    "title": "Laser Charge Up (Stronger)",
+    "creator": "magnuswaker",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/magnuswaker/sounds/592573",
+    "url": "https://cdn.freesound.org/previews/592/592573_11537497-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1100,
+    "source": "freesound",
+    "query": "charge up"
+   },
+   "b": {
+    "id": "f61cefbe-a47b-4a70-ba1e-9539eab73ef0",
+    "title": "Charging laser",
+    "creator": "lavik89",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/lavik89/sounds/168986",
+    "url": "https://cdn.freesound.org/previews/168/168986_2785139-hq.mp3",
+    "filetype": "mp3",
+    "ms": 2043,
+    "source": "freesound",
+    "query": "power charge"
+   },
+   "c": {
+    "id": "e6f2593e-52fb-494c-949f-7cba43674b59",
+    "title": "Electrical Shock (Zap).wav",
+    "creator": "BigKahuna360",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/BigKahuna360/sounds/160421",
+    "url": "https://cdn.freesound.org/previews/160/160421_2643065-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3641,
+    "source": "freesound",
+    "query": "charge up"
+   }
+  },
+  "pool": 9,
+  "locked": true
+ },
+ "wrong_button": {
+  "options": {
+   "a": {
+    "id": "af83a146-d1d4-4c02-a201-6a29617e20a5",
+    "title": "Wrong Answer",
+    "creator": "-Andreas",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/-Andreas/sounds/648462",
+    "url": "https://cdn.freesound.org/previews/648/648462_11771918-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1063,
+    "source": "freesound",
+    "query": "wrong buzzer"
+   },
+   "b": {
+    "id": "006ff936-90e8-4f3e-9104-e9317306e993",
+    "title": "buzzer2.wav",
+    "creator": "hypocore",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/hypocore/sounds/164089",
+    "url": "https://cdn.freesound.org/previews/164/164089_2975503-hq.mp3",
+    "filetype": "mp3",
+    "ms": 1529,
+    "source": "freesound",
+    "query": "wrong buzzer"
+   },
+   "c": {
+    "id": "85ada84a-2535-4fe5-8227-da677d22b231",
+    "title": "Wrong",
+    "creator": "TheBuilder15",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/TheBuilder15/sounds/415764",
+    "url": "https://cdn.freesound.org/previews/415/415764_6090639-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3001,
+    "source": "freesound",
+    "query": "wrong buzzer"
+   }
+  },
+  "pool": 8,
+  "locked": true
+ },
+ "zone_clear": {
+  "options": {
+   "a": {
+    "id": "da4d8940-eb47-4905-a8ef-363ec4123898",
+    "title": "Charm",
+    "creator": "Scrampunk",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Scrampunk/sounds/344696",
+    "url": "https://cdn.freesound.org/previews/344/344696_6212127-hq.mp3",
+    "filetype": "mp3",
+    "ms": 5012,
+    "source": "freesound",
+    "query": "victory jingle"
+   },
+   "b": {
+    "id": "5c18c434-1358-4e20-a741-ea7e59bbdca9",
+    "title": "Game Success Fanfare Short",
+    "creator": "el_boss",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/el_boss/sounds/677858",
+    "url": "https://cdn.freesound.org/previews/677/677858_9129912-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3381,
+    "source": "freesound",
+    "query": "success fanfare"
+   },
+   "c": {
+    "id": "76c9a708-fc44-4289-8d82-e9dbee1ca6fc",
+    "title": "Victory (short sting)",
+    "creator": "xkeril",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/xkeril/sounds/706753",
+    "url": "https://cdn.freesound.org/previews/706/706753_13504080-hq.mp3",
+    "filetype": "mp3",
+    "ms": 6000,
+    "source": "freesound",
+    "query": "victory jingle"
+   }
+  },
+  "pool": 16,
+  "locked": true
+ },
+ "zone_enter": {
+  "options": {
+   "a": {
+    "id": "66cbf370-92c6-4b04-8c44-b3b0b47209ec",
+    "title": "guitar swell 12.wav",
+    "creator": "Sub-d",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Sub-d/sounds/47031",
+    "url": "https://cdn.freesound.org/previews/47/47031_514283-hq.mp3",
+    "filetype": "mp3",
+    "ms": 6000,
+    "source": "freesound",
+    "query": "ambient swell"
+   },
+   "b": {
+    "id": "dc9c58e4-bc34-49c1-844b-8d13f627f707",
+    "title": "Scary_Bell / Chime",
+    "creator": "DRFX",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/DRFX/sounds/440065",
+    "url": "https://cdn.freesound.org/previews/440/440065_5106192-hq.mp3",
+    "filetype": "mp3",
+    "ms": 3046,
+    "source": "freesound",
+    "query": "mysterious chime"
+   },
+   "c": {
+    "id": "b049f2cb-e9c2-4516-983f-3c86d5dc9684",
+    "title": "Vibraphone Sting",
+    "creator": "nomiqbomi",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/nomiqbomi/sounds/578406",
+    "url": "https://cdn.freesound.org/previews/578/578406_10522382-hq.mp3",
+    "filetype": "mp3",
+    "ms": 5708,
+    "source": "freesound",
+    "query": "reveal sting"
+   }
+  },
+  "pool": 19,
+  "locked": true
+ },
+ "music:boss": {
+  "options": {
+   "a": {
+    "id": "fe4a3348-33a2-46ec-b427-579f9998851d",
+    "title": "Boss Battle Loop #3",
+    "creator": "Sirkoto51",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Sirkoto51/sounds/443128",
+    "url": "https://cdn.freesound.org/previews/443/443128_5225777-hq.mp3",
+    "filetype": "mp3",
+    "ms": 173333,
+    "source": "freesound",
+    "query": "boss battle"
+   },
+   "b": {
+    "id": "e45d3305-8cfd-480e-bd45-1a8cc0d8e555",
+    "title": "Boss Battle Loop #2",
+    "creator": "Sirkoto51",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Sirkoto51/sounds/367504",
+    "url": "https://cdn.freesound.org/previews/367/367504_5225777-hq.mp3",
+    "filetype": "mp3",
+    "ms": 77837,
+    "source": "freesound",
+    "query": "boss battle"
+   },
+   "c": {
+    "id": "c44371a3-f5aa-4c64-9cdb-afa8fac24b45",
+    "title": "Mystery Mammal - 11 - Boss Battle",
+    "creator": "Mystery Mammal",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://commons.wikimedia.org/w/index.php?curid=89466575",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/5/5b/Mystery_Mammal_-_11_-_Boss_Battle.ogg",
+    "filetype": "ogx",
+    "ms": 226063,
+    "source": "wikimedia_audio",
+    "query": "boss battle"
+   }
+  },
+  "pool": 12,
+  "locked": true
+ },
+ "music:boss_rage": {
+  "options": {
+   "a": {
+    "id": "3355e337-3d53-4364-8e2f-c770de6cae5d",
+    "title": "Cinematic Battle Music (Star Wars Style)",
+    "creator": "humanoide9000",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/humanoide9000/sounds/685841",
+    "url": "https://cdn.freesound.org/previews/685/685841_4361321-hq.mp3",
+    "filetype": "mp3",
+    "ms": 92435,
+    "source": "freesound",
+    "query": "epic battle drums"
+   },
+   "b": {
+    "id": "c4a320b7-838a-455b-97f5-e99edb356884",
+    "title": "Fight Music Synth Tense Loop",
+    "creator": "SnowFightStudios",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/SnowFightStudios/sounds/676998",
+    "url": "https://cdn.freesound.org/previews/676/676998_12064174-hq.mp3",
+    "filetype": "mp3",
+    "ms": 97284,
+    "source": "freesound",
+    "query": "epic battle music"
+   },
+   "c": {
+    "id": "43a5133e-d8a7-4319-a2e0-2bb753bef477",
+    "title": "Raspberrymusic – Aliens (Epic Hybrid Sci-Fi Music)",
+    "creator": "Infraction - No Copyright Music",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://commons.wikimedia.org/w/index.php?curid=146190312",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/f/f0/Raspberrymusic_%E2%80%93_Aliens_%28Epic_Hybrid_Sci-Fi_Music%29.opus",
+    "filetype": "ogx",
+    "ms": 150021,
+    "source": "wikimedia_audio",
+    "query": "epic battle music"
+   }
+  },
+  "pool": 2,
+  "locked": true
+ },
+ "music:credits": {
+  "options": {
+   "a": {
+    "id": "0013c74b-0054-4bf4-9a19-6e388c6d4d8a",
+    "title": "Peaceful Fantasy Music",
+    "creator": "TheoJT",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/TheoJT/sounds/698282",
+    "url": "https://cdn.freesound.org/previews/698/698282_6627602-hq.mp3",
+    "filetype": "mp3",
+    "ms": 180000,
+    "source": "freesound",
+    "query": "peaceful fantasy"
+   },
+   "b": {
+    "id": "63b205e1-f9b4-4186-8925-995e831cbc07",
+    "title": "Fantasy Seaport",
+    "creator": "szegvari",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/szegvari/sounds/555205",
+    "url": "https://cdn.freesound.org/previews/555/555205_2282212-hq.mp3",
+    "filetype": "mp3",
+    "ms": 117463,
+    "source": "freesound",
+    "query": "peaceful fantasy"
+   },
+   "c": {
+    "id": "b317ef0b-6f9b-4798-9b97-46188cee98a6",
+    "title": "Twlight Piano loop",
+    "creator": "Mark_Murray",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Mark_Murray/sounds/639958",
+    "url": "https://cdn.freesound.org/previews/639/639958_13315998-hq.mp3",
+    "filetype": "mp3",
+    "ms": 172000,
+    "source": "freesound",
+    "query": "peaceful fantasy"
+   }
+  },
+  "pool": 9,
+  "locked": true
+ },
+ "music:defeat": {
+  "options": {
+   "a": {
+    "id": "c055283b-69e0-4ff7-a6ad-fc10bed983e4",
+    "title": "Distant Sad Piano",
+    "creator": "PatrickLieberkind",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/PatrickLieberkind/sounds/216669",
+    "url": "https://cdn.freesound.org/previews/216/216669_2986310-hq.mp3",
+    "filetype": "mp3",
+    "ms": 80191,
+    "source": "freesound",
+    "query": "sad piano"
+   },
+   "b": {
+    "id": "43e23ebf-f6e0-4b8a-bd94-30f4f5132031",
+    "title": "Sad Piano",
+    "creator": "tyops",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/tyops/sounds/341913",
+    "url": "https://cdn.freesound.org/previews/341/341913_3914271-hq.mp3",
+    "filetype": "mp3",
+    "ms": 77333,
+    "source": "freesound",
+    "query": "sad piano"
+   },
+   "c": {
+    "id": "f7e5daa3-4bcd-493e-a77d-596b7fe74e3f",
+    "title": "Sad Piano",
+    "creator": "jacksonacademyashmore",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/jacksonacademyashmore/sounds/433929",
+    "url": "https://cdn.freesound.org/previews/433/433929_6938106-hq.mp3",
+    "filetype": "mp3",
+    "ms": 31178,
+    "source": "freesound",
+    "query": "sad piano"
+   }
+  },
+  "pool": 11,
+  "locked": true
+ },
+ "music:fight": {
+  "options": {
+   "a": {
+    "id": "c039073e-3a3c-4626-aef3-6474a4b5a591",
+    "title": "ancient battle music by kris klavenes on keyboard 29.10.2021.mp3",
+    "creator": "klavo1985",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/klavo1985/sounds/595645",
+    "url": "https://cdn.freesound.org/previews/595/595645_4701691-hq.mp3",
+    "filetype": "mp3",
+    "ms": 85330,
+    "source": "freesound",
+    "query": "battle music"
+   },
+   "b": {
+    "id": "efa8b794-0337-4330-adb4-fe5fb5ddb2af",
+    "title": "heavy strings (battle music)",
+    "creator": "kbrecordzz",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/kbrecordzz/sounds/595864",
+    "url": "https://cdn.freesound.org/previews/595/595864_6958161-hq.mp3",
+    "filetype": "mp3",
+    "ms": 68983,
+    "source": "freesound",
+    "query": "battle music"
+   },
+   "c": {
+    "id": "c1a521c4-3ba0-424e-b983-afc6c987c54b",
+    "title": "medieval battle 1500 AD BY KRIS KLAVENES.mp3",
+    "creator": "klavo1985",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/klavo1985/sounds/349382",
+    "url": "https://cdn.freesound.org/previews/349/349382_4701691-hq.mp3",
+    "filetype": "mp3",
+    "ms": 141428,
+    "source": "freesound",
+    "query": "battle music"
+   }
+  },
+  "pool": 5,
+  "locked": true
+ },
+ "music:map": {
+  "options": {
+   "a": {
+    "id": "0fee72f2-a0ff-44b3-83da-f0b92a97522f",
+    "title": "It's time for an adventure.wav",
+    "creator": "AwaziXosh",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/AwaziXosh/sounds/566208",
+    "url": "https://cdn.freesound.org/previews/566/566208_12000202-hq.mp3",
+    "filetype": "mp3",
+    "ms": 87920,
+    "source": "freesound",
+    "query": "fantasy adventure calm"
+   },
+   "b": {
+    "id": "42adca7e-4b2f-4980-83b3-4554a525df08",
+    "title": "Realm of Adventure",
+    "creator": "waxsocks",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/waxsocks/sounds/683938",
+    "url": "https://cdn.freesound.org/previews/683/683938_1766049-hq.mp3",
+    "filetype": "mp3",
+    "ms": 83841,
+    "source": "freesound",
+    "query": "fantasy exploration"
+   },
+   "c": {
+    "id": "5de24127-c522-43a9-8b0a-a5755f5c38f1",
+    "title": "RPG Shop Village theme",
+    "creator": "M-Murray",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/M-Murray/sounds/706052",
+    "url": "https://cdn.freesound.org/previews/706/706052_13315998-hq.mp3",
+    "filetype": "mp3",
+    "ms": 86125,
+    "source": "freesound",
+    "query": "fantasy exploration"
+   }
+  },
+  "pool": 2,
+  "locked": true
+ },
+ "music:title": {
+  "options": {
+   "a": {
+    "id": "812ddd75-73c0-4149-9653-d79496cf2129",
+    "title": "Castle Music Loop #1",
+    "creator": "Sirkoto51",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Sirkoto51/sounds/416632",
+    "url": "https://cdn.freesound.org/previews/416/416632_5225777-hq.mp3",
+    "filetype": "mp3",
+    "ms": 117736,
+    "source": "freesound",
+    "query": "dark fantasy theme"
+   },
+   "b": {
+    "id": "beeb91cc-fee0-4ed9-bb7e-92bda31ab584",
+    "title": "Dramatic Increasing",
+    "creator": "tyops",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/tyops/sounds/415123",
+    "url": "https://cdn.freesound.org/previews/415/415123_3914271-hq.mp3",
+    "filetype": "mp3",
+    "ms": 96433,
+    "source": "freesound",
+    "query": "epic fantasy orchestral"
+   },
+   "c": {
+    "id": "e0d52eba-bc0d-404f-b1fd-81aa3262559a",
+    "title": "Division (ISRC USUAN1700027)",
+    "creator": "Kevin MacLeod",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://commons.wikimedia.org/w/index.php?curid=64730131",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Division_%28ISRC_USUAN1700027%29.mp3",
+    "filetype": "mp3",
+    "ms": 66063,
+    "source": "wikimedia_audio",
+    "query": "dark fantasy theme"
+   }
+  },
+  "pool": 8,
+  "locked": true
+ },
+ "music:victory": {
+  "options": {
+   "a": {
+    "id": "f8dfa786-a70e-4924-9d91-15159a07d436",
+    "title": "Triumphant",
+    "creator": "GoodBMusic",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/GoodBMusic/sounds/583737",
+    "url": "https://cdn.freesound.org/previews/583/583737_13169282-hq.mp3",
+    "filetype": "mp3",
+    "ms": 121176,
+    "source": "freesound",
+    "query": "triumphant orchestral"
+   },
+   "b": {
+    "id": "eb4d5218-b1ce-4eb6-8232-6fb356a33dac",
+    "title": "Path To Victory (Upbeat, Energetic, Optimistic)",
+    "creator": "UNIVERSFIELD",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/UNIVERSFIELD/sounds/704530",
+    "url": "https://cdn.freesound.org/previews/704/704530_15090270-hq.mp3",
+    "filetype": "mp3",
+    "ms": 98757,
+    "source": "freesound",
+    "query": "victory music"
+   },
+   "c": {
+    "id": "5320156d-12cf-41c4-b88c-5cec0b016eb0",
+    "title": "Shine 1 (loop)",
+    "creator": "SkibkaMusic",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/SkibkaMusic/sounds/361139",
+    "url": "https://cdn.freesound.org/previews/361/361139_6607652-hq.mp3",
+    "filetype": "mp3",
+    "ms": 17944,
+    "source": "freesound",
+    "query": "victory music"
+   }
+  },
+  "pool": 5,
+  "rejected": [
+   "8cd608c0-5287-47ef-92e1-e2ade9d46f00",
+   "c666607b-6a31-4c1e-8f6e-956b83532a82",
+   "e9b9f7f6-0ae1-4272-b330-69ea81e9e1f4"
+  ],
+  "locked": true
+ },
+ "music:zone_bog": {
+  "options": {
+   "a": {
+    "id": "5d08f9f6-d366-443b-adef-ddf2d88910ad",
+    "title": "Sad Horror Music",
+    "creator": "TheoJT",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/TheoJT/sounds/510950",
+    "url": "https://cdn.freesound.org/previews/510/510950_6627602-hq.mp3",
+    "filetype": "mp3",
+    "ms": 68000,
+    "source": "freesound",
+    "query": "eerie music"
+   },
+   "b": {
+    "id": "0a6d1e6e-5218-42d9-8e14-cd25fe679757",
+    "title": "Suspensify",
+    "creator": "blimp66",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/blimp66/sounds/399060",
+    "url": "https://cdn.freesound.org/previews/399/399060_392324-hq.mp3",
+    "filetype": "mp3",
+    "ms": 121412,
+    "source": "freesound",
+    "query": "eerie music"
+   },
+   "c": {
+    "id": "8ffe518a-9756-4554-969e-c5d532619ccb",
+    "title": "swell pad.wav",
+    "creator": "ERH",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/ERH/sounds/34141",
+    "url": "https://cdn.freesound.org/previews/34/34141_215874-hq.mp3",
+    "filetype": "mp3",
+    "ms": 74000,
+    "source": "freesound",
+    "query": "eerie music"
+   }
+  },
+  "pool": 13,
+  "locked": true
+ },
+ "music:zone_hollow": {
+  "options": {
+   "a": {
+    "id": "ef686bdd-5c0b-464a-954f-0fe365f5485d",
+    "title": "Dark fantasy music four",
+    "creator": "guitarman213",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/guitarman213/sounds/734400",
+    "url": "https://cdn.freesound.org/previews/734/734400_15345947-hq.mp3",
+    "filetype": "mp3",
+    "ms": 164608,
+    "source": "freesound",
+    "query": "dark fantasy music"
+   },
+   "b": {
+    "id": "7e8730a9-ab95-42c8-938b-ed7308a77399",
+    "title": "Old ritual - Fantasy Background Soundscape Haunted Atmo Music Synth Drum Orchestra - Mastered.wav",
+    "creator": "szegvari",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/szegvari/sounds/595853",
+    "url": "https://cdn.freesound.org/previews/595/595853_2282212-hq.mp3",
+    "filetype": "mp3",
+    "ms": 78629,
+    "source": "freesound",
+    "query": "dark fantasy music"
+   },
+   "c": {
+    "id": "02b0c509-7e4e-4fc6-80cb-65450ff54579",
+    "title": "Dark Myst Orchestra Strings Winds Organ Drums Orchestral Cinematic Music Surround.wav",
+    "creator": "szegvari",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/szegvari/sounds/639662",
+    "url": "https://cdn.freesound.org/previews/639/639662_2282212-hq.mp3",
+    "filetype": "mp3",
+    "ms": 105067,
+    "source": "freesound",
+    "query": "dark fantasy music"
+   }
+  },
+  "pool": 19,
+  "locked": true
+ },
+ "music:zone_ruins": {
+  "options": {
+   "a": {
+    "id": "be917dc2-7f9a-4f45-9d09-921382dede79",
+    "title": "Lonesome Angel",
+    "creator": "Drakensson",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/Drakensson/sounds/543623",
+    "url": "https://cdn.freesound.org/previews/543/543623_6628165-hq.mp3",
+    "filetype": "mp3",
+    "ms": 114326,
+    "source": "freesound",
+    "query": "melancholic ambient music"
+   },
+   "b": {
+    "id": "c91bfb93-fa82-4f98-a6f7-3a885ce4de76",
+    "title": "The last soul's way",
+    "creator": "BloodPixelHero",
+    "license": "by",
+    "license_version": "4.0",
+    "page": "https://freesound.org/people/BloodPixelHero/sounds/510995",
+    "url": "https://cdn.freesound.org/previews/510/510995_10182789-hq.mp3",
+    "filetype": "mp3",
+    "ms": 111848,
+    "source": "freesound",
+    "query": "melancholic ambient music"
+   },
+   "c": {
+    "id": "ef37b50e-a52d-4dee-b0f7-68e9f27730cc",
+    "title": "Vestigium",
+    "creator": "Vrymaa",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/Vrymaa/sounds/722402",
+    "url": "https://cdn.freesound.org/previews/722/722402_13973196-hq.mp3",
+    "filetype": "mp3",
+    "ms": 61672,
+    "source": "freesound",
+    "query": "ancient ruins"
+   }
+  },
+  "pool": 13,
+  "locked": true
+ },
+ "ambience:ambience_bog": {
+  "options": {
+   "a": {
+    "id": "e835caab-a567-457f-a94a-e03a25be51cc",
+    "title": "swamp frogs.wav",
+    "creator": "Tomlija",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/Tomlija/sounds/99193",
+    "url": "https://cdn.freesound.org/previews/99/99193_1163166-hq.mp3",
+    "filetype": "mp3",
+    "ms": 118237,
+    "source": "freesound",
+    "query": "swamp ambience"
+   },
+   "b": {
+    "id": "a6eb1f1f-15e2-4172-ad7e-facb897a6133",
+    "title": "swamp at night with crickets and cicadas.mp3",
+    "creator": "mariethompson",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/mariethompson/sounds/516927",
+    "url": "https://cdn.freesound.org/previews/516/516927_2094018-hq.mp3",
+    "filetype": "mp3",
+    "ms": 33436,
+    "source": "freesound",
+    "query": "swamp ambience"
+   },
+   "c": {
+    "id": "2ce9bd5c-d3fc-4cbe-bad5-2546d567a29e",
+    "title": "Lake At Night.aif",
+    "creator": "timgormly",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/timgormly/sounds/148318",
+    "url": "https://cdn.freesound.org/previews/148/148318_2578041-hq.mp3",
+    "filetype": "mp3",
+    "ms": 44000,
+    "source": "freesound",
+    "query": "swamp ambience"
+   }
+  },
+  "pool": 8,
+  "locked": true
+ },
+ "ambience:ambience_hollow": {
+  "options": {
+   "a": {
+    "id": "951e6c56-5952-40ee-b652-bdc74e83374f",
+    "title": "Forest at night, crickets, cicadas and insects in the Sian Ka'an Biosphere Reserve",
+    "creator": "felix.blume",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/felix.blume/sounds/328293",
+    "url": "https://cdn.freesound.org/previews/328/328293_1661766-hq.mp3",
+    "filetype": "mp3",
+    "ms": 300629,
+    "source": "freesound",
+    "query": "forest ambience night"
+   },
+   "b": {
+    "id": "aa38cde0-8e82-491e-a8c2-6a8fb4b2eaad",
+    "title": "sfx_amb_forest_winter_night.wav",
+    "creator": "bajko",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/bajko/sounds/378048",
+    "url": "https://cdn.freesound.org/previews/378/378048_2341984-hq.mp3",
+    "filetype": "mp3",
+    "ms": 50626,
+    "source": "freesound",
+    "query": "forest ambience night"
+   },
+   "c": {
+    "id": "f66b0e00-3d45-4603-8a12-f4677294c781",
+    "title": "flock of crows.wav",
+    "creator": "Tomlija",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://freesound.org/people/Tomlija/sounds/98379",
+    "url": "https://cdn.freesound.org/previews/98/98379_1163166-hq.mp3",
+    "filetype": "mp3",
+    "ms": 67861,
+    "source": "freesound",
+    "query": "forest ambience night"
+   }
+  },
+  "pool": 17,
+  "locked": true
+ },
+ "ambience:ambience_ruins": {
+  "options": {
+   "a": {
+    "id": "7d2dce0d-a60d-4787-83de-77783d754ee1",
+    "title": "Desert Wind",
+    "creator": "Andrey Avkhimovich",
+    "license": "by",
+    "license_version": "3.0",
+    "page": "https://www.jamendo.com/track/1199569",
+    "url": "https://prod-1.storage.jamendo.com/?trackid=1199569&format=mp32",
+    "filetype": "mp32",
+    "ms": 144000,
+    "source": "jamendo",
+    "query": "desert wind"
+   },
+   "b": {
+    "id": "a3db2f7f-700a-45bc-871e-74a893be67ba",
+    "title": "Kanyaka Ruin",
+    "creator": "kangaroovindaloo",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/kangaroovindaloo/sounds/325186",
+    "url": "https://cdn.freesound.org/previews/325/325186_1728127-hq.mp3",
+    "filetype": "mp3",
+    "ms": 219794,
+    "source": "freesound",
+    "query": "wind ruins"
+   },
+   "c": {
+    "id": "226b394b-da94-4af7-92e0-9f4cec94ac12",
+    "title": "Wind blowing and howling in a plastic bottle, in the desert of Chile.",
+    "creator": "felix.blume",
+    "license": "cc0",
+    "license_version": "1.0",
+    "page": "https://freesound.org/people/felix.blume/sounds/147512",
+    "url": "https://cdn.freesound.org/previews/147/147512_1661766-hq.mp3",
+    "filetype": "mp3",
+    "ms": 120989,
+    "source": "freesound",
+    "query": "desert wind"
+   }
+  },
+  "pool": 24,
+  "locked": true
+ }
+}

@@ -5,9 +5,10 @@
   "max_rise_ms": 10,
   "min_ms": 150,
   "max_ms": 600,
-  "target_lu": -11.5,
+  "target_lu": -12.5,
   "new": false,
-  "title": "Parry"
+  "title": "Parry",
+  "volume_offset_db": 1.0
  },
  "parry_final": {
   "group": "defence",
@@ -45,9 +46,10 @@
   "max_rise_ms": 50,
   "min_ms": 70,
   "max_ms": 300,
-  "target_lu": -13.0,
+  "target_lu": -15.0,
   "new": false,
-  "title": "Early or late press"
+  "title": "Early or late press",
+  "volume_offset_db": 2.0
  },
  "locked": {
   "group": "defence",
@@ -175,9 +177,10 @@
   "max_rise_ms": 150,
   "min_ms": 300,
   "max_ms": 1200,
-  "target_lu": -12.0,
+  "target_lu": -15.5,
   "new": false,
-  "title": "Hero falls"
+  "title": "Hero falls",
+  "volume_offset_db": 3.5
  },
  "revive": {
   "group": "state",

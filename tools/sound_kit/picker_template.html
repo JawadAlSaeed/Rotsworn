@@ -1,4 +1,5 @@
 <title>Rotsworn Sound Picks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -30,7 +31,7 @@
 }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); margin: 0; }
-.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; }
 header.top { display: grid; gap: 8px; }
 h1 { font: 400 clamp(34px, 6vw, 56px)/1 var(--display); letter-spacing: 0.01em; margin: 0; text-wrap: balance; }
 .lede { color: var(--muted); max-width: 62ch; margin: 0; }
@@ -67,12 +68,13 @@ section.group > p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
 .tag { font: 500 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid currentColor; border-radius: 3px; padding: 0 5px; }
 .tag.new { color: var(--new); }
 .tag.sharp { color: var(--muted); }
-.takes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+.takes { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 8px; min-width: 0; }
 .take {
   position: relative; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; text-align: left;
   background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; min-width: 0;
   color: var(--ink); font: inherit;
 }
+.take.now { border-style: dashed; }
 .take[data-chosen="true"] { background: var(--chosen); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .take .head { display: flex; align-items: center; gap: 8px; }
 .play {
@@ -97,6 +99,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .copybox textarea { width: 100%; min-height: 90px; font: 12px var(--mono); background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
 @media (max-width: 760px) {
   .cue { grid-template-columns: minmax(0, 1fr); }
+  .takes { --cols: 2 !important; }
   .tools { grid-column: 1; }
 }
 @media (max-width: 520px) {
@@ -173,22 +176,22 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         if (c.new) tags.append(el("span", "tag new", "New"));
         if (c.sharp) tags.append(el("span", "tag sharp", "Must start instantly"));
         what.append(h, el("p", "plays", c.plays), tags);
-        const takes = el("div", "takes");
+        const takes = el("div", "takes"); takes.style.setProperty("--cols", String(Math.min(c.options.length, 4)));
         for (const o of c.options) {
-          const t = el("div", "take"); t.dataset.chosen = String(picks[c.id] === o.key);
+          const t = el("div", "take" + (o.now ? " now" : "")); t.dataset.chosen = String(picks[c.id] === o.key);
           const head = el("div", "head");
           const b = el("button", "play"); b.type = "button"; b.innerHTML = PLAY; b.dataset.on = "false";
           b.setAttribute("aria-label", "Play " + c.title + " option " + o.key.toUpperCase());
           b.addEventListener("click", () => play(o.src, b));
-          head.append(b, el("span", "letter", o.key.toUpperCase()), el("span", "ms", o.ms >= 10000 ? Math.round(o.ms / 1000) + " s" : o.ms + " ms"));
+          head.append(b, el("span", "letter", o.label || o.key.toUpperCase()), el("span", "ms", o.ms >= 10000 ? Math.round(o.ms / 1000) + " s" : o.ms + " ms"));
           const text = el("div"); text.append(el("div", "name", o.name), el("div", "desc", o.desc));
-          const p = el("button", "pick", picks[c.id] === o.key ? "Picked" : "Pick " + o.key.toUpperCase()); p.type = "button";
+          const p = el("button", "pick", picks[c.id] === o.key ? (o.now ? "Kept" : "Picked") : (o.now ? "Keep this" : "Pick " + o.key.toUpperCase())); p.type = "button";
           p.addEventListener("click", () => choose(c.id, o.key));
           t.append(head, text, p);
           takes.append(t);
         }
         const tools = el("div", "tools");
-        const redo = el("button", null, "None fit, make new ones"); redo.type = "button";
+        const redo = el("button", null, DATA.redo || "None fit, make new ones"); redo.type = "button";
         redo.setAttribute("aria-pressed", String(picks[c.id] === "redo"));
         redo.addEventListener("click", () => choose(c.id, "redo"));
         tools.append(redo);
