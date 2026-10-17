@@ -2300,8 +2300,8 @@ phase 14 was the tutorial).
     class reworks with skill trees (proposed to the user first); step 3 depth scaling. Nothing
     carries over between runs.
 14. **Tutorial** (done, approved 2026-10-15): the five lessons of 7.8 (card #131).
-15. **Zones and stops** (built 2026-10-16, waiting for playtest; the user asked for all four steps
-    before testing): four steps. Step 1 long zones (8.5: sections,
+15. **Zones and stops** (done 2026-10-17: merged to main, cards #155 to #164 closed by the user's
+    say-so before a full playtest; living zones 8.12 added on top): four steps. Step 1 long zones (8.5: sections,
     seals and a gate, shrines, wanderers, champions; cards #155, #164). Step 2 tougher fights
     (guards as mini-bosses #156, elites #157). Step 3 the map and its stops (#162 map, #158 events,
     #159 treasure, #160 shop, #161 rest). Step 4 longer runs (#163).
