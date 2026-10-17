@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/data/zone_prop_data.gd" id="3_fnc8k"]
 [ext_resource type="Script" path="res://scripts/data/stage_look.gd" id="4_xs20m"]
 
+[ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="99_amb"]
 [sub_resource type="Resource" id="Resource_plpue"]
 script = ExtResource("1_xiyoi")
 position = Vector3(0, 0, -10)
@@ -285,6 +286,21 @@ position = Vector3(8.17, 0, -5.19)
 pixel_size = 0.045
 flip = true
 
+[sub_resource type="Resource" id="Resource_burst"]
+script = ExtResource("99_amb")
+id = "rage_spores"
+texture_path = "res://assets/sprites/fx/spore.png"
+color = Color(0.7, 1, 0.5, 1)
+glow = 2.0
+amount = 36
+lifetime = 5.0
+size = 0.06
+area = Vector3(7, 1.2, 4)
+height = 1.2
+velocity = Vector3(0.1, 0.6, 0)
+spread = 40.0
+wobble = 0.5
+
 [resource]
 script = ExtResource("4_xs20m")
 floor_tile_path = "res://assets/sprites/env/bog_tile.png"
@@ -315,3 +331,15 @@ vignette_color = Color(0, 0.02, 0.01, 1)
 arena_blocks = Array[ExtResource("1_xiyoi")]([SubResource("Resource_plpue"), SubResource("Resource_q585u"), SubResource("Resource_1k12c")])
 arena_props = Array[ExtResource("3_fnc8k")]([SubResource("Resource_0fskb"), SubResource("Resource_uxuig"), SubResource("Resource_7o3vu"), SubResource("Resource_xgjss"), SubResource("Resource_p73mb"), SubResource("Resource_5e4o4"), SubResource("Resource_86ow3"), SubResource("Resource_n8k6e"), SubResource("Resource_vb884"), SubResource("Resource_ekraa"), SubResource("Resource_ph542"), SubResource("Resource_b3gli"), SubResource("Resource_fqiwn"), SubResource("Resource_3mvmg"), SubResource("Resource_qet41"), SubResource("Resource_yffhn"), SubResource("Resource_x2ufx"), SubResource("Resource_7qah6"), SubResource("Resource_gckdu"), SubResource("Resource_e58rb"), SubResource("Resource_tfn34"), SubResource("Resource_mvotm"), SubResource("Resource_nnqam"), SubResource("Resource_iirvl"), SubResource("Resource_5p0v6"), SubResource("Resource_7vj5p"), SubResource("Resource_b2r3i"), SubResource("Resource_rog5r"), SubResource("Resource_mq1ed"), SubResource("Resource_8x6ho"), SubResource("Resource_iqs3g"), SubResource("Resource_atitr")])
 arena_lights = Array[ExtResource("2_bykm5")]([SubResource("Resource_255ei"), SubResource("Resource_dxnm1"), SubResource("Resource_jqffc")])
+phase_two_enabled = true
+phase_background_color = Color(0.05, 0.07, 0.04, 1)
+phase_ambient_color = Color(0.36, 0.42, 0.26, 1)
+phase_ambient_energy = 0.6
+phase_light_color = Color(0.85, 0.95, 0.5, 1)
+phase_light_energy = 0.8
+phase_fog_color = Color(0.25, 0.29, 0.1, 1)
+phase_fog_density = 0.046
+phase_vignette_strength = 0.6
+phase_vignette_color = Color(0.02, 0.03, 0, 1)
+phase_lamp_percent = 115
+phase_burst = SubResource("Resource_burst")

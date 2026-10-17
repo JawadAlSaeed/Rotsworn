@@ -395,6 +395,19 @@ static func ambient(data: ZoneAmbientData) -> GPUParticles3D:
 	return particles
 
 
+## A one-time puff of the same particles (a boss's rage): all at once, then they drift off and the
+## node removes itself.
+static func burst(data: ZoneAmbientData) -> GPUParticles3D:
+	var particles := ambient(data)
+	particles.name = "Burst_" + data.id
+	particles.preprocess = 0.0
+	particles.one_shot = true
+	particles.explosiveness = 0.85
+	particles.emitting = true
+	particles.finished.connect(particles.queue_free)
+	return particles
+
+
 ## A point light, flickering if the data says so.
 static func light(data: ZoneLightData) -> OmniLight3D:
 	var lamp := FlickerLight.new()

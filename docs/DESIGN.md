@@ -1253,6 +1253,19 @@ an action already has keeps working.
   stays crisp. All numbers are in the StageLook. Ground pieces (moss, trails, leaves) dither their
   rim into the floor (`ZoneGroundData.fringe_pixels`, `edge_shade`) instead of ending in a cut line;
   boards and slabs keep a hard edge.
+- **The arena shifts when a boss rages** (card #196, `PhaseShift` pure and tested, `ArenaMood`):
+  on the `enemy_phase` event (a boss or a zone guard entering phase two) the room eases over
+  `phase_look_ms` (about 1.1 s) from its look to the look's `phase_*` values: sky, ambient and sun
+  colour and strength, fog colour and density, vignette strength and colour, and the lamps
+  (`phase_lamp_percent`), with a one-time puff of particles (`phase_burst`, embers or spores). Every
+  act boss lair and zone look has one (a test checks it): the Hollow King's throne goes blood red and
+  darker with a tight vignette and roaring braziers, the zone looks (guards, and the act 1 boss,
+  who fights in Rotten Hollow) shift a smaller step in their own colours (Hollow: plum and
+  amber, Bog: sickly yellow-green, Ruins: ember red). It is a slow tween, not a flash; under the
+  Flashes setting on Reduced or Off it takes `phase_look_calm_percent` as long (twice). The fog
+  Graphics option still wins (the tween only changes values). Presentation only: the engine, the
+  commands and the golden test are untouched. The shift never reaches an unreadable room: fighters
+  and markers stay clearly lit (checked in pictures of the Hollow King fight).
 - **Contact shadows** (card #186): props, trees, shrines and chests stand on a soft dark blob (the
   fighters' `shadow.png`), as wide as the prop's footprint (the opaque width of its lowest rows)
   times `prop_shadow_width_percent`, slid away from the sun by `prop_shadow_shift_percent`. All in
@@ -2259,6 +2272,12 @@ phase 14 was the tutorial).
   bends the top; feet stay; each prop's phase from where it stands).
 - **Air** (`ZoneAmbientData`, particles that follow the camera's spot): ruins ash falling and
   embers rising; swamp fireflies, low mist and spores; forest falling leaves and fireflies.
+- **Air in fights** (card #196): a fight in a zone's look (a zone fight, an elite, a guard) plays that
+  zone's `ZoneAmbientData` too: `combat_visuals` `fight_air_percent` of each particle count (50),
+  in a box `fight_air_depth_percent` as deep (60) and shifted `fight_air_offset` toward the back
+  wall, fixed in the arena (the combat camera glides, so it does not follow). They are 3D particles
+  behind and around the fighters; the HUD and the hit markers draw above them. A fight with no zone
+  (a boss lair, the practice list) uses its look's `arena_air` instead (the throne has embers).
 - **Critters** (`ZoneCritterData`): crows, frogs and rats idle (two frames) and get away when the
   leader comes within `critter_flee_radius` (a crow flies up and off, a frog hops away, a rat
   scurries off); for show only, each machine plays them itself online.
@@ -2882,3 +2901,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Every player action can be rebound in Settings > Controls, key and pad separately; the first input of an action is replaced, the aliases stay; conflicts only count between actions needed at the same time (swap offered); Escape, F2 and the pad's Menu button are reserved; applies to every pad | card #190; the two defence buttons can never share a key (no one-button parry and dodge), nothing can lock the player out, and the stamped timing path is untouched |
 | 2026-10-17 | Smarter enemies: no move more than twice running (data: `max_in_a_row`, `cooldown_turns`, finisher and desperation weights), and single-target attacks pick by a per-enemy rule (WOUNDED, LOWEST_HP, MARKED, AVOID_LAST) with a bias; Taunt still wins | card #189 (review: combat-rules-ai); the owner wants it hard, a weak hero must be in real danger; no attack file uses finisher or cooldown yet, to tune with play |
 | 2026-10-17 | Forced-choice hits: a rend (parry only, bone) and a sweep (dodge only, green, never countered) in elite, guard and boss fights and from the deep variants, about one hit in four; uneven gaps in every one-button string, a feint in every hard string; enemy attacks speed up with depth, elites, guards, bosses and phase two, never under 70% of authored; windows unchanged | cards #187, #188 and review combat-feel #4, #5, #9: dodge-everything and a steady tap beat the defence; nothing made easier |
+| 2026-10-17 | The arena shifts when a boss or guard enters phase two (sun, ambient, fog, vignette, lamps and a puff of embers or spores, over about a second; the Hollow King's throne goes blood red), and a zone's drifting particles also play, thinner, in its fights | card #196 (review audio-look #6, #9 and art-textures #11): a boss's rage was a banner over an unchanged room, and the fight dropped the zone's air; presentation only (nothing in the engine or the golden), slower under Reduced and Off flashes |

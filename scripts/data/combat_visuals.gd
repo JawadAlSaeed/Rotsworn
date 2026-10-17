@@ -615,3 +615,20 @@ func kind_color(kind: int, strike_color: Color) -> Color:
 		AttackHitData.Kind.SWEEP:
 			return sweep_hit_color
 	return strike_color
+
+
+@export_group("Arena mood")
+## How long the room takes to shift to its phase-two look when a boss or guard rages (StageLook
+## phase_*; DESIGN.md 7.3).
+@export_range(100, 5000, 50, "suffix:ms") var phase_look_ms: int = 1100
+## With the Flashes setting on Reduced or Off the shift takes this share of that time (slower,
+## so the change of light is gentler).
+@export_range(100, 400, 10, "suffix:%") var phase_look_calm_percent: int = 200
+## The zone's drifting particles also play in its fights: this share of each one's amount (a fight
+## is a busy picture; 0 = none).
+@export_range(0, 100, 5, "suffix:%") var fight_air_percent: int = 50
+## The fight's air box is this deep as a share of the zone's, and sits this far from the arena's
+## middle (world units; negative z is away from the camera), so it hangs behind and around the
+## fighters and never between the camera and the hit markers.
+@export_range(10, 100, 5, "suffix:%") var fight_air_depth_percent: int = 60
+@export var fight_air_offset: Vector3 = Vector3(0.0, 0.0, -2.0)
