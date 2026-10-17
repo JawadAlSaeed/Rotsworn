@@ -29,9 +29,16 @@ var seed_value: int = 0
 var items: Dictionary = {}
 ## The uids used so far, in order (the run takes them out of the backpack afterwards).
 var used_items: Array[int] = []
+## What happened in this fight, for the RUN OVER screen (card #191); fed by apply().
+var recap := FightRecap.new()
 
 
 func apply(event: Dictionary) -> void:
+	_apply(event)
+	recap.feed(event, self)
+
+
+func _apply(event: Dictionary) -> void:
 	match String(event.get("type", "")):
 		"combat_started":
 			fighters.clear()

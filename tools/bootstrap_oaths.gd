@@ -14,11 +14,11 @@ var _written: int = 0
 func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
 	var ladder: Array[OathData] = []
-	# Run start gold is 0 in tuning.tres, so Want's "start with nothing" needs no change to it.
+	# Run start gold is 0 in tuning.tres, so Want pinches the gold coming in instead.
 	ladder.append(_oath("thorns", "Oath of Thorns", "Elites have 20% more HP and hit 10% harder.",
 			{"elite_hp_percent_add": 20, "elite_power_percent_add": 10}))
-	ladder.append(_oath("want", "Oath of Want", "Shops charge 15% more. You start with nothing.",
-			{"shop_price_percent_add": 15}))
+	ladder.append(_oath("want", "Oath of Want", "Shops charge 15% more. Fights pay 25% less gold.",
+			{"shop_price_percent_add": 15, "gold_percent_add": -25}))
 	ladder.append(_oath("embers", "Oath of Embers", "The campfire's Rest heals 15 points of percent less.",
 			{"rest_heal_percent_add": -15}))
 	ladder.append(_oath("deep", "Oath of the Deep", "Enemies grow stronger faster with every row.",

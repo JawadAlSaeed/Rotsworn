@@ -7,6 +7,7 @@ signal done
 const TITLE_SIZE: int = 96
 const TEXT_SIZE: int = 32
 const OATH_SIZE: int = 44
+const RECAP_SIZE: int = 28
 var _age: float = 0.0
 ## Presses this soon after the screen appears are ignored, so a late press never skips it.
 var _guard_s: float = 0.0
@@ -14,7 +15,8 @@ var _guard_s: float = 0.0
 
 ## `input_guard_ms`: combat_visuals.tres end_input_guard_ms, like the fight's end screen.
 ## `unlocked_oath`: the oath this win opened on this machine (0: none), see DESIGN.md 8.15.
-func setup(run: RunState, input_guard_ms: int, unlocked_oath: int = 0) -> void:
+## `recap_lines`: how the last fight went (FightRecap.lines), shown on a defeat; empty: none.
+func setup(run: RunState, input_guard_ms: int, unlocked_oath: int = 0, recap_lines: Array[String] = []) -> void:
 	_guard_s = float(input_guard_ms) / 1000.0
 	var won := run.result == RunState.VICTORY
 	Sfx.play("run_cleared" if won else "run_over")
@@ -26,6 +28,8 @@ func setup(run: RunState, input_guard_ms: int, unlocked_oath: int = 0) -> void:
 				HudStyle.GOLD if won else HudStyle.LATE)
 		column.add_child(kept)
 	column.add_child(ListMenu.centred_label(summary(run), TEXT_SIZE))
+	for line: String in recap_lines:
+		column.add_child(ListMenu.centred_label(line, RECAP_SIZE))
 	if unlocked_oath > 0:
 		column.add_child(ListMenu.centred_title("Oath %d unlocked" % unlocked_oath, OATH_SIZE, HudStyle.GOLD))
 	ListMenu.screen_footer(self, [[&"menu_confirm", "Main menu"]])

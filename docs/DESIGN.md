@@ -874,7 +874,8 @@ clamped by tuning's calibration bounds.
 Music (2026-10-13, cards #84, #95, #97, #98): `data/audio/music.tres` (`MusicSet`) names the songs:
 `menu_path` (title theme and menus), `run_path` (map, shop, rest, loot, party, run end), `zone_path`
 (zones without their own song; each `ZoneData.music_path` names its own), `fight_path`, `boss_path`
-and `boss_rage_path` (the boss fight switches to it on the boss's phase change), `victory_path` and
+`elite_path` (elite fights, card #192; empty today, so elites use the fight song until a song is
+dropped in and named there) and `boss_rage_path` (the boss fight switches to it on the boss's phase change), `victory_path` and
 `defeat_path` (cards #109, #126: a won or lost fight's end screen, `end_song_delay_ms` after the
 jingle, and RUN CLEARED / RUN OVER; user picks 2026-10-15: "Victory Theme for RPG" by cynicmusic
 and "Lament for a Warrior's Soul" by RandomMind, which the Openverse pass replaced with "Sad Piano"
@@ -882,7 +883,10 @@ by tyops; empty keeps the old songs). The run map song is
 "Treasure Hunter" by TAD (card #110, user pick 2026-10-15, was "Mystical Theme"). The `Audio`
 autoload loops the song on its own player (OGG imports loop, `oggvorbisstr` default in
 project.godot); a place naming the song already playing lets it go on. A new song crossfades in: it fades in over `fade_in_ms` while the old one fades
-out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). While an enemy attack plays
+out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). The `Audio` autoload
+remembers how far into a song (and into a zone ambience loop) it was when something replaced it;
+coming back from a fight, the zone asks to `resume` and the song and the ambience go on from there
+with the usual crossfade instead of restarting at 0:00 (card #192). While an enemy attack plays
 the music dips by `music_duck_db` over `music_duck_ms` (combat_visuals.tres) so defence sounds stand
 out. Songs are free OpenGameArt tracks picked by the user from three options per place
 (`tools/sound_kit/music_candidates.json`, `music_selection.json`, `music_kit.py final`), all levelled
@@ -1582,7 +1586,13 @@ equipped by one character. No progression between runs in v1.
   Feast (40, heal all 30%), Tonic (45, one character +15% max HP for the run, the new HP filled).
   Items for one character ask who gets it. (No revive: nobody stays down between fights.)
 - **Run end:** RUN CLEARED or RUN OVER with stops reached, fights won and gold earned, then the
-  main menu. The pause menu's "Abandon run" quits a run (it asks first; the run and its save are
+  main menu. On RUN OVER a recap of the fight that finished the party follows (card #191): its
+  encounter and enemies, the stop, act and oath, the attack that did the most damage (all of its
+  hits added), the last blow and who it downed, and a defence line (parried, dodged, jumped, hits
+  taken of hits). `FightRecap` (`scripts/combat/core/`, pure, tested) is fed by `CombatMirror`
+  with every event in playback order, so the numbers come from the mirror, never the engine, and
+  every online machine builds its own copy from the same events (the host's and the clients'
+  agree). `scenes/main.gd` keeps the recap when a fight ends and hands the lines to the screen. The pause menu's "Abandon run" quits a run (it asks first; the run and its save are
   lost). "Save & Quit" keeps a local run for later (8.14).
 - **New zones** (`tools/bootstrap_run.gd` writes them, with their looks, the run, the shop and the
   new encounters, only if missing): Sunken Bog (green fog, muck tiles, glowing fungus; guard Rotten
@@ -2236,7 +2246,7 @@ oath", and a run at Oath N is that oath kept.
   An `OathData` is a title, one player-facing line and integer changes that default to "no change":
   `elite_hp_percent_add`, `elite_power_percent_add`, `boss_hp_percent_add`, `boss_power_percent_add`,
   `enemy_power_percent_add`, `enemy_hp_row_add`, `enemy_power_row_add`, `rest_heal_percent_add`,
-  `act_heal_percent_add`, `start_gold_add`, `shop_price_percent_add`, `loot_choices_add`,
+  `act_heal_percent_add`, `start_gold_add`, `shop_price_percent_add`, `gold_percent_add` (fight pay, floored at 0), `loot_choices_add`,
   `team_gauge_carry_percent_add` and `start_hp_percent` (the lowest one counts, 100 = full).
   `OathData.total(ladder, oath, field)` sums a change over oaths 1..N (a pure function, tested).
 - **The ladder** (first guess, tune with play):
@@ -2244,7 +2254,7 @@ oath", and a run at Oath N is that oath kept.
   | Oath | Name | Adds |
   |---|---|---|
   | 1 | Thorns | elites +20% HP and +10% power (on top of the elite numbers in tuning) |
-  | 2 | Want | shops charge 15% more (items, gear and services; selling is unchanged); you start with no gold |
+  | 2 | Want | shops charge 15% more (items, gear and services; selling is unchanged); fights pay 25% less gold (after charms and gear) |
   | 3 | Embers | the campfire's Rest heals 15 points of percent less (50% becomes 35%) |
   | 4 | the Deep | enemies grow +2% HP and +1% power more per map row (5% becomes 7%, 3% becomes 4%) |
   | 5 | Crowns | guards (mini-bosses) and act bosses +15% HP and +10% power |
@@ -2254,8 +2264,9 @@ oath", and a run at Oath N is that oath kept.
   | 9 | the Long Road | the heal between acts is 25 points of percent less (50% becomes 25%) |
   | 10 | Rot | every enemy +10% power |
 
-  The run's start gold is 0 in `tuning.tres`, so Want has nothing to take away yet (the field
-  `start_gold_add` works, and is tested, for when the purse is not empty).
+  The run's start gold is 0 in `tuning.tres`, so "start with nothing" did nothing; Want cuts the gold
+  coming in instead (`gold_percent_add`, in `RunState.gold_for`, after charms, gear and the elite
+  bonus). `start_gold_add` still works, and is tested, for when the purse is not empty.
 - **Where it lives**: `RunState.oath` (kept inside the ladder by `begin`), and the rules in
   `RunState`: `begin` (start gold and HP), `fight_setup` (elite, guard / boss and every enemy's
   power and HP), `enemy_hp_percent` / `enemy_power_percent` (growth per row), `rest_heal_percent`,
@@ -2747,3 +2758,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | A success freeze ignores only its owner's double tap; a teammate's press inside it is judged as if the freeze had not happened (`FreezeLedger`) | bug #180: one player's parry swallowed another player's on-time press in local co-op |
 | 2026-10-17 | "Flashes" setting: Full / Reduced / Off for screen flashes and white hit flashes | card #185, photosensitivity; default Full |
 | 2026-10-17 | F1 reading-aid toggles (G, T, L, H, C, V) are practice-fight only | a run fight is the real game; same rule as the training ring |
+| 2026-10-17 | RUN OVER shows a recap of the last fight (enemies, stop, act, oath, hardest hit, last blow, defence); zone song and ambience resume after a fight; elite fights have an `elite_path` song slot (empty); Oath of Want now cuts fight gold 25% (`gold_percent_add`) instead of "start with nothing" | cards #191, #192, fix to #173; the start gold is already 0, so the oath did nothing |

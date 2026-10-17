@@ -189,6 +189,25 @@ func test_start_gold_oath_can_take_gold_but_never_below_nothing() -> void:
 	assert_eq(_run(10).gold, _tuning.run_start_gold, "the shipped ladder leaves the (empty) purse alone")
 
 
+func test_want_cuts_the_gold_fights_pay() -> void:
+	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
+	var base := RunState.encounter_gold(husk)
+	assert_gt(base, 0)
+	assert_eq(_run(0).gold_for(husk), base, "no oath: full pay")
+	assert_eq(_run(1).gold_for(husk), base, "Thorns leaves the pay alone")
+	assert_eq(_run(2).gold_for(husk), CombatMath.percent(base, 75), "Want: 25% less")
+	assert_lt(_run(2).gold_for(husk), base)
+	assert_eq(OathData.total(_data.oaths, 2, &"gold_percent_add"), -25)
+
+
+func test_gold_cut_never_goes_below_nothing() -> void:
+	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
+	var ladder: Array[OathData] = [_oath({"gold_percent_add": -150})]
+	assert_eq(_run_with(ladder, 1).gold_for(husk), 0)
+	var two: Array[OathData] = [_oath({"gold_percent_add": -10}), _oath({"gold_percent_add": -15})]
+	assert_eq(_run_with(two, 2).gold_for(husk), CombatMath.percent(RunState.encounter_gold(husk), 75), "oaths stack")
+
+
 func test_the_party_starts_hurt_from_oath_six() -> void:
 	var full := _run(5)
 	var hurt := _run(6)

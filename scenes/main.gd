@@ -61,6 +61,10 @@ var _explore: ExploreVisuals
 var _map_look: MapVisuals
 var _run_data: RunData
 var _music: MusicSet
+## The last fight's recap for the RUN OVER screen (card #191): FightRecap.to_dict() and the
+## encounter's name. Online, every machine keeps its own copy of the same events.
+var _last_recap: Dictionary = {}
+var _last_recap_name: String = ""
 var _branding: BrandingData
 var _options: CombatOptions
 var _combat: CombatController
@@ -699,13 +703,20 @@ func _start_combat() -> void:
 		_combat.continue_requested.connect(continue_to)
 		if _options.is_autoplay():
 			_combat.combat_finished.connect(_autoplay_continue.bind(continue_to))
+	_combat.combat_finished.connect(_on_combat_finished)
 	_combat.pause_reached.connect(_on_combat_pause_reached)
 	_combat.restart_requested.connect(_on_restart_requested)
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
 	Sfx.play_ambience("")
 	var boss := _encounter != null and _encounter.boss
-	Sfx.play_music(_music.boss_path if boss and not _music.boss_path.is_empty() else _music.fight_path, _music.volume_db)
+	var elite := _encounter != null and _encounter.elite
+	var song := _music.fight_path
+	if boss and not _music.boss_path.is_empty():
+		song = _music.boss_path
+	elif elite and not _music.elite_path.is_empty():
+		song = _music.elite_path
+	Sfx.play_music(song, _music.volume_db)
 	_combat.rage_music_volume_db = _music.volume_db
 	_combat.victory_music_path = _music.victory_path
 	_combat.defeat_music_path = _music.defeat_path
@@ -718,6 +729,13 @@ func _start_combat() -> void:
 		_combat_inbox.clear()
 		for batch: Dictionary in waiting:
 			_combat.receive_batch(batch)
+
+
+## Keeps the fight's recap (who hit hardest, the last blow) in case it was the run's last fight.
+func _on_combat_finished(_result: String) -> void:
+	if _combat != null:
+		_last_recap = _combat.recap()
+		_last_recap_name = _encounter.display_name if _encounter != null else ""
 
 
 func _on_restart_requested() -> void:
@@ -852,8 +870,9 @@ func _on_zone_return_requested(result: String) -> void:
 	_free_combat()
 	_zone_fight = {}
 	add_child(_zone)
-	Sfx.play_music(_zone_song(), _music.volume_db)
-	_play_zone_ambience()
+	# The song and the ambience pick up where the fight cut them off (card #192).
+	Sfx.play_music(_zone_song(), _music.volume_db, true)
+	_play_zone_ambience(true)
 	_zone.resume(result)
 	if _run_bar != null:
 		_run_bar.refresh(_run)
@@ -1332,12 +1351,18 @@ func _show_run_end() -> void:
 			unlocked_now = after
 			if not _options.is_autoplay():
 				PlayerSettings.unlock_after_win(_run.oath, ladder)
-	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now)
+	var recap_lines: Array[String] = []
+	if _run.result != RunState.VICTORY:
+		var where := "Stop %d, act %d%s" % [_run.visited, _run.act + 1, ", " + OathData.label(_run.oath) if _run.oath > 0 else ""]
+		recap_lines = FightRecap.lines(_last_recap, _last_recap_name, where)
+	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now, recap_lines)
 	end.done.connect(_fade_to.bind(_show_main_menu))
 	_show_screen(end)
 	_send_screen({"name": "run_end"})
 	_client_done = Net.is_client()
 	if _options.is_autoplay():
+		for line: String in recap_lines:
+			print("AUTOPLAY_RECAP ", line)
 		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d oath=%d" % [
 				_run.result, _run.act + 1, _run.visited, _run.fights_won, _run.top_level(), _worn_count(), _run.backpack.entries.size(),
 				_run.gold_earned, _run.run_seed, _run.oath])
@@ -2119,9 +2144,10 @@ func _net_host_tick(delta: float) -> void:
 
 
 ## The current zone's background loop; anything else (fights, screens) is silent underneath.
-func _play_zone_ambience() -> void:
+## `resume`: back from a fight, the loop goes on where it was left.
+func _play_zone_ambience(resume: bool = false) -> void:
 	var amb := _zone.ambience() if _zone != null else ["", 0.0]
-	Sfx.play_ambience(String(amb[0]), float(amb[1]))
+	Sfx.play_ambience(String(amb[0]), float(amb[1]), resume)
 
 
 ## The current zone's own song, else the shared zone song.
