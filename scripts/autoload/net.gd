@@ -32,6 +32,8 @@ enum State { OFFLINE, HOSTING, CONNECTING, CONNECTED }
 
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const HOST_PEER: int = 1
+## Bumped when the handshake or the message format changes in a way the fingerprint cannot show.
+const PROTOCOL: int = 1
 ## Channel for reliable messages (flow and combat) and for unreliable position updates.
 const RELIABLE_CHANNEL: int = 0
 const FAST_CHANNEL: int = 1
@@ -193,7 +195,7 @@ func broadcast_fast(kind: String, payload: Dictionary = {}) -> void:
 # --- RPCs -------------------------------------------------------------------------------------
 
 @rpc("any_peer", "call_remote", "reliable", RELIABLE_CHANNEL)
-func _hello(their_fingerprint: Variant) -> void:
+func _hello(their_fingerprint: Variant, their_protocol: Variant) -> void:
 	if state != State.HOSTING:
 		return
 	var peer := multiplayer.get_remote_sender_id()
@@ -202,8 +204,9 @@ func _hello(their_fingerprint: Variant) -> void:
 		_refuse_peer(peer, "The game has already started.")
 	elif _welcomed.size() >= MAX_CLIENTS:
 		_refuse_peer(peer, "The game is full.")
-	elif typeof(their_fingerprint) != TYPE_STRING or String(their_fingerprint) != fingerprint():
-		_refuse_peer(peer, "Your game is a different version from the host's. Both need the same build.")
+	elif typeof(their_protocol) != TYPE_INT or int(their_protocol) != PROTOCOL 			or typeof(their_fingerprint) != TYPE_STRING or String(their_fingerprint) != fingerprint():
+		var theirs := DataHash.short_id(String(their_fingerprint)) if typeof(their_fingerprint) == TYPE_STRING else "?"
+		_refuse_peer(peer, "Your game is a different version from the host's (yours %s, the host's %s). Both need the same build." 				% [theirs, DataHash.short_id(fingerprint())])
 	else:
 		_welcomed[peer] = true
 		_welcome.rpc_id(peer)
@@ -261,7 +264,7 @@ func _on_peer_disconnected(peer: int) -> void:
 
 
 func _on_connected_to_server() -> void:
-	_hello.rpc_id(HOST_PEER, fingerprint())
+	_hello.rpc_id(HOST_PEER, fingerprint(), PROTOCOL)
 
 
 func _on_connection_failed() -> void:

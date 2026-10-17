@@ -169,6 +169,16 @@ func test_fingerprint_is_stable_and_sees_changes() -> void:
 	_write(dir + "/a.tres", "value = 1\n")
 	_write(dir + "/sub/b.tres.import", "anything")
 	assert_eq(DataHash.compute(dir, "1.0"), first, "import side files do not count")
+	var other := "user://test_data_hash_code"
+	DirAccess.make_dir_recursive_absolute(other)
+	_write(other + "/c.gd", "var a = 1
+")
+	var roots: Array[String] = [dir, other]
+	var both: String = DataHash.compute_roots(roots, "1.0")
+	_write(other + "/c.gd", "var a = 2
+")
+	assert_ne(DataHash.compute_roots(roots, "1.0"), both, "a changed script differs")
+	assert_eq(DataHash.short_id(both).length(), 8)
 	assert_eq(DataHash.of_game().length(), 64, "the game's own fingerprint is a SHA-256")
 
 

@@ -26,7 +26,7 @@ func _ready() -> void:
 	_node = self
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	# --pad-prompts / --key-prompts (dev tools, for pictures): start with pad buttons or keys shown.
-	var args := OS.get_cmdline_user_args()
+	var args := DevArgs.user_args()
 	_keys_only = args.has("--key-prompts")
 	_pad = (not Input.get_connected_joypads().is_empty() or args.has("--pad-prompts")) and not _keys_only
 	Input.joy_connection_changed.connect(_on_joy_connection_changed)
