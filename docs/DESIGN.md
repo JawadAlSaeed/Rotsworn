@@ -67,9 +67,29 @@ strike, return) takes about 0.55 s.
 
 ### 2.3 Enemy turn
 
-1. The enemy picks one of its attacks (weighted random, seeded RNG) and its targets:
-   single-target attacks pick a random living party member, party-wide attacks target every
-   living party member.
+1. The enemy picks one of its attacks and its targets (seeded RNG, integers only, card #189):
+   - **Which attack.** Weighted random over its moves, minus the ones it may not use right now:
+     a move is skipped while it is on **cooldown** (`cooldown_turns`, default 0: the enemy's next
+     N turns) or after it was used `max_in_a_row` turns running (default 2, 0 = no limit), as long
+     as another move is usable (a one-move enemy keeps using it). A move can also change weight
+     with the situation: `finisher_below_percent` + `finisher_weight_percent` (times this weight
+     while any standing hero is at or under that percent of max HP) and `low_hp_below_percent` +
+     `low_hp_weight_percent` (the same when the enemy itself is that low). All default to off, so
+     most attack files need no edit.
+   - **Who.** Party-wide attacks target every living hero; each-in-turn attacks are unchanged. A
+     single-target attack asks the enemy's `target_rule` (enemy data, with `target_bias_percent`).
+     Every standing hero starts at weight 100: `RANDOM` leaves it there; `WOUNDED` adds missing-HP
+     percent x bias; `LOWEST_HP` adds the bias to the hero with the least HP; `MARKED` adds it to
+     heroes under Exposed or Marked; `AVOID_LAST` adds it to everyone but the hero it hit last.
+     So nobody is ever safe and nothing is certain. Taunt still overrides the rule; downed and
+     escaped heroes are never picked.
+   - The enemy remembers its last 8 attacks, the cooldowns and its last target (in the snapshot,
+     so online and restore agree). The choice is still shown honestly as the intent. In practice
+     fights the intent event also carries the weights behind the pick (`odds`) so they can be
+     tuned by eye; it never changes what happens.
+   - Shipped rules: predators (hyenas, shades, flies, gnats) WOUNDED with a bias of 150 to 400;
+     husks and bloats RANDOM or mild WOUNDED (100); toads AVOID_LAST; guards and bosses
+     LOWEST_HP or WOUNDED (100 to 250), so a weak hero is in real danger.
 2. A **banner** at the top shows the attack name and either the one targeted character's name or
    "WHOLE PARTY". An alert sound plays once when the attack starts (not per hit).
 3. The attack plays in real time. **Only targeted characters defend.** Each hit is resolved per
@@ -2747,3 +2767,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | A success freeze ignores only its owner's double tap; a teammate's press inside it is judged as if the freeze had not happened (`FreezeLedger`) | bug #180: one player's parry swallowed another player's on-time press in local co-op |
 | 2026-10-17 | "Flashes" setting: Full / Reduced / Off for screen flashes and white hit flashes | card #185, photosensitivity; default Full |
 | 2026-10-17 | F1 reading-aid toggles (G, T, L, H, C, V) are practice-fight only | a run fight is the real game; same rule as the training ring |
+| 2026-10-17 | Smarter enemies: no move more than twice running (data: `max_in_a_row`, `cooldown_turns`, finisher and desperation weights), and single-target attacks pick by a per-enemy rule (WOUNDED, LOWEST_HP, MARKED, AVOID_LAST) with a bias; Taunt still wins | card #189 (review: combat-rules-ai); the owner wants it hard, a weak hero must be in real danger; no attack file uses finisher or cooldown yet, to tune with play |

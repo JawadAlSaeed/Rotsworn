@@ -29,5 +29,7 @@ hp_percent = 130
 power_percent = 115
 speed = 210
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk"), ExtResource("9_atk"), ExtResource("10_atk"), ExtResource("11_atk")])
+target_rule = 1
+target_bias_percent = 100
 gold = 22
 xp = 45

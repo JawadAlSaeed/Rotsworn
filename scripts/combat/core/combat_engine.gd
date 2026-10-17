@@ -31,7 +31,8 @@ extends RefCounted
 ##                           items:[item_info()]} (backpack items usable in this fight)
 ##                           opening: "normal" | "first_strike" (DESIGN.md 2.12)
 ##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms],
-##                           feints:[bool] (which hits are feints, card #129)}
+##                           feints:[bool] (which hits are feints, card #129),
+##                           odds? {attacks:[[id, weight]], targets:[[hero, weight]]} (practice only)}
 ##                           what this enemy will do on its next turn (DESIGN.md 2.8). Sent at
 ##                           fight start, after its turn, and whenever its targets change.
 ##                           times: each hit's impact, ms after the attack starts (with
@@ -597,6 +598,7 @@ func _end_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 
 ## Declares the enemy's intended attack as a timed sequence. Returns false if it has none.
 func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
+	actor.tick_cooldowns()
 	var intent: Dictionary = intents.get(actor.id, {})
 	var forced := String(practice.force_attack)
 	if not forced.is_empty() and actor.attack_ids.has(forced):
@@ -619,6 +621,8 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 		return false
 	if attack.target_mode == EnemyAttackData.TargetMode.SINGLE and actor.has_status(Status.TAUNTED):
 		_remove_status(actor, Status.TAUNTED, events)
+	actor.note_attack(attack.id, attack.cooldown_turns,
+			targets[0] if attack.target_mode == EnemyAttackData.TargetMode.SINGLE else -1)
 
 	var hits: Array[Dictionary] = []
 	var prompts: Array[Dictionary] = []
@@ -683,22 +687,66 @@ func _choose_intent(enemy: Combatant) -> Dictionary:
 	var staged := String(stage.attack)
 	if not staged.is_empty() and enemy.attack_ids.has(staged):
 		return {"attack": staged, "targets": _pick_targets(enemy, get_attack(staged))}
-	var choices: Array[EnemyAttackData] = []
-	var weights: Array[int] = []
+	var candidates: Array[EnemyAttackData] = []
 	for attack_id: String in enemy.attack_ids:
 		var candidate := get_attack(attack_id)
 		if candidate != null and not candidate.hits.is_empty() and candidate.weight > 0:
+			candidates.append(candidate)
+	# Skip moves that are on cooldown or have been used max_in_a_row times running, unless that
+	# leaves nothing to pick from (an enemy with a single move keeps using it).
+	var choices: Array[EnemyAttackData] = []
+	for candidate: EnemyAttackData in candidates:
+		if _attack_usable(enemy, candidate):
 			choices.append(candidate)
-			weights.append(candidate.weight)
+	if choices.is_empty():
+		choices = candidates
+	var weights: Array[int] = []
+	for candidate: EnemyAttackData in choices:
+		weights.append(_attack_weight(enemy, candidate))
 	var pick := rng.pick_weighted(weights)
 	if pick < 0:
 		return {}
-	return {"attack": choices[pick].id, "targets": _pick_targets(enemy, choices[pick])}
+	var intent := {"attack": choices[pick].id, "targets": _pick_targets(enemy, choices[pick])}
+	if _setup.allow_practice:
+		# Practice shows the odds behind the pick, so the weights can be tuned by eye. Not rules.
+		var attack_odds: Array = []
+		for i: int in choices.size():
+			attack_odds.append([choices[i].id, weights[i]])
+		var target_odds: Array = []
+		if choices[pick].target_mode == EnemyAttackData.TargetMode.SINGLE:
+			var living := living_party_ids()
+			var target_weights := _target_weights(enemy, living)
+			for i: int in living.size():
+				target_odds.append([living[i], target_weights[i]])
+		intent["odds"] = {"attacks": attack_odds, "targets": target_odds}
+	return intent
+
+
+## False while the move is on cooldown or the enemy has just used it max_in_a_row times running.
+func _attack_usable(enemy: Combatant, attack: EnemyAttackData) -> bool:
+	if int(enemy.attack_cooldowns.get(attack.id, 0)) > 0:
+		return false
+	return attack.max_in_a_row <= 0 or enemy.repeat_run(attack.id) < attack.max_in_a_row
+
+
+## The move's base weight, scaled by the situation: a finisher when a hero is nearly down, a
+## desperate move when the enemy itself is. Never below 1 so a pick always exists.
+func _attack_weight(enemy: Combatant, attack: EnemyAttackData) -> int:
+	var weight := attack.weight
+	if attack.finisher_below_percent > 0 and attack.finisher_weight_percent != 100:
+		for id: int in living_party_ids():
+			var hero := get_combatant(id)
+			if hero.hp * 100 <= hero.max_hp * attack.finisher_below_percent:
+				weight = CombatMath.percent_min1(weight, attack.finisher_weight_percent)
+				break
+	if attack.low_hp_below_percent > 0 and attack.low_hp_weight_percent != 100 			and enemy.hp * 100 <= enemy.max_hp * attack.low_hp_below_percent:
+		weight = CombatMath.percent_min1(weight, attack.low_hp_weight_percent)
+	return weight
 
 
 ## Whole party for party-wide attacks; standing heroes in party order from a random one on for
-## each-in-turn attacks (one per hit at most); otherwise the taunter if one is standing, else a random standing
-## party member.
+## each-in-turn attacks (one per hit at most); otherwise the taunter if one is standing, else a
+## standing hero chosen by the enemy's target rule (EnemyData.TargetRule, DESIGN.md 2.3).
 func _pick_targets(enemy: Combatant, attack: EnemyAttackData) -> Array[int]:
 	var living := living_party_ids()
 	var targets: Array[int] = []
@@ -716,8 +764,57 @@ func _pick_targets(enemy: Combatant, attack: EnemyAttackData) -> Array[int]:
 	if taunter >= 0:
 		targets.append(taunter)
 	else:
-		targets.append(living[rng.range_int(0, living.size() - 1)])
+		var data := _enemy_data(enemy)
+		if data == null or data.target_rule == EnemyData.TargetRule.RANDOM or living.size() == 1:
+			targets.append(living[rng.range_int(0, living.size() - 1)])
+		else:
+			targets.append(living[rng.pick_weighted(_target_weights(enemy, living))])
 	return targets
+
+
+## Chance (as integer weights) of each standing hero being hit by this enemy's single-target
+## attack. Every hero keeps at least 100, so nobody is ever safe and nothing is a sure thing.
+func _target_weights(enemy: Combatant, living: Array[int]) -> Array[int]:
+	var weights: Array[int] = []
+	var data := _enemy_data(enemy)
+	var rule := data.target_rule if data != null else EnemyData.TargetRule.RANDOM
+	var bias := data.target_bias_percent if data != null else 0
+	var lowest_hp := 0
+	for id: int in living:
+		var hp := get_combatant(id).hp
+		lowest_hp = hp if lowest_hp == 0 else mini(lowest_hp, hp)
+	var lowest_taken := false
+	for id: int in living:
+		var hero := get_combatant(id)
+		var weight := 100
+		match rule:
+			EnemyData.TargetRule.WOUNDED:
+				weight += CombatMath.percent(_missing_hp_percent(hero), bias)
+			EnemyData.TargetRule.LOWEST_HP:
+				# One hero only, even on a tie: the first in party order.
+				if hero.hp == lowest_hp and not lowest_taken:
+					lowest_taken = true
+					weight += bias
+			EnemyData.TargetRule.MARKED:
+				if hero.has_status(Status.EXPOSED) or hero.has_status(Status.MARKED):
+					weight += bias
+			EnemyData.TargetRule.AVOID_LAST:
+				if id != enemy.last_target:
+					weight += bias
+		weights.append(weight)
+	return weights
+
+
+## Share of max HP a fighter is missing, 0 to 100 (rounded down).
+@warning_ignore("integer_division")
+func _missing_hp_percent(c: Combatant) -> int:
+	return (c.max_hp - c.hp) * 100 / maxi(1, c.max_hp)
+
+
+func _enemy_data(enemy: Combatant) -> EnemyData:
+	if enemy.is_party() or enemy.slot >= _setup.enemies.size():
+		return null
+	return _setup.enemies[enemy.slot]
 
 
 func _taunter_of(enemy: Combatant) -> int:
@@ -772,7 +869,7 @@ func _intent_event(enemy_id: int) -> Dictionary:
 		feints.append(hit.feint)
 	var targets: Array[int] = []
 	targets.assign(intent.targets)
-	return {
+	var event := {
 		"type": "intent",
 		"enemy": enemy_id,
 		"attack": attack.id,
@@ -783,6 +880,9 @@ func _intent_event(enemy_id: int) -> Dictionary:
 		"times": times,
 		"feints": feints,
 	}
+	if intent.has("odds"):
+		event["odds"] = (intent.odds as Dictionary).duplicate(true)
+	return event
 
 
 # --- commands ---------------------------------------------------------------------------------

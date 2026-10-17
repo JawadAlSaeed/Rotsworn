@@ -25,5 +25,7 @@ hp_percent = 85
 power_percent = 90
 speed = 180
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_hyena_pack_bite"), ExtResource("5_hyena_snap"), ExtResource("6_hyena_cackle"), ExtResource("7_hyena_pounce")])
+target_rule = 1
+target_bias_percent = 300
 gold = 15
 xp = 30
