@@ -161,6 +161,11 @@ extends Resource
 @export_range(0, 500, 5, "suffix:%") var counter_mixed_bonus_percent: int = 50
 ## Counter damage while Riposte Stance is up, in percent of the normal counter (200 = x2).
 @export_range(100, 1000, 5, "suffix:%") var riposte_counter_percent: int = 200
+## Charged Dooms (card #195): breaking one staggers the enemy. It loses this many of its next turns
+## (the stagger ends when the last is lost), and takes this much extra damage from every source
+## while it lasts (50 = x1.5).
+@export_range(1, 4) var stagger_turns: int = 1
+@export_range(0, 500, 5, "suffix:%") var stagger_damage_taken_percent: int = 50
 
 @export_group("Timeline")
 ## One turn costs timeline_base / speed. Only the ratio between speeds matters.

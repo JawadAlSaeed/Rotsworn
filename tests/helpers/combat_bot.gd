@@ -56,6 +56,28 @@ func play(engine: CombatEngine) -> Dictionary:
 	return {"events": events, "commands": commands, "rejected": rejected}
 
 
+## Starts the fight and plays at most `steps` commands (a fight too long to finish). Same result
+## shape as play().
+func play_steps(engine: CombatEngine, steps: int) -> Dictionary:
+	var events: Array[Dictionary] = []
+	events.append_array(engine.start())
+	var commands: Array[Dictionary] = []
+	var rejected: Array[Dictionary] = []
+	for _step: int in steps:
+		if engine.phase == CombatEngine.Phase.ENDED:
+			break
+		var command := next_command(engine)
+		if command.is_empty():
+			break
+		commands.append(command)
+		var out := engine.submit(command)
+		for e: Dictionary in out:
+			if String(e.type) == "command_rejected":
+				rejected.append(e)
+		events.append_array(out)
+	return {"events": events, "commands": commands, "rejected": rejected}
+
+
 ## The command this bot sends in the engine's current state ({} if it has nothing to do).
 func next_command(engine: CombatEngine) -> Dictionary:
 	match engine.phase:
@@ -98,11 +120,16 @@ func _pick_ability(engine: CombatEngine, actor: Combatant) -> String:
 	return "basic_attack" if actor.ability_ids.has("basic_attack") else actor.ability_ids[0]
 
 
-## First living enemy; the most hurt ally; the first downed ally.
+## The enemy gathering a Doom (so the party can break it) else the first living enemy; the most
+## hurt ally; the first downed ally.
 func _pick_target(engine: CombatEngine, actor: Combatant, ability_id: String) -> int:
 	var options := engine.valid_targets(actor.id, ability_id)
 	if options.is_empty():
 		return -1
+	for id: int in options:
+		var foe := engine.get_combatant(id)
+		if not foe.is_party() and foe.charge_left > 0:
+			return id
 	if engine.get_combatant(options[0]).is_party() and engine.get_combatant(options[0]).is_alive():
 		var best := options[0]
 		for id: int in options:

@@ -37,6 +37,9 @@ extends RefCounted
 ##                           fight start, after its turn, and whenever its targets change.
 ##                           times: each hit's impact, ms after the attack starts (with
 ##                           attack_tempo_percent, like the declared hits' at_ms).
+##                           A Charged Doom (card #195) adds charge_left (enemy turns until it
+##                           unleashes), charge_total, charge_damage (taken since it was announced)
+##                           and break_hp (the damage that breaks it).
 ##   turn_started            {turn, actor, team, time}
 ##   turn_order              {order:[id]}      current actor first, then upcoming turns
 ##   ability_used            {turn, actor, ability, targets:[id]}
@@ -78,6 +81,18 @@ extends RefCounted
 ##                           reason: "completed" | "targets_down" | "attacker_down"
 ##   counter                 {seq, actors:[id], target, team, hits, mixed}  followed by a damage
 ##                           event. hits: perfectly defended hits it answers; mixed: parries and jumps
+##   doom_charging           {enemy, attack, name, left, total, damage, break_hp}   the enemy spent its
+##                           turn gathering a Doom (card #195); left > 0 turns remain
+##   doom_progress           {enemy, attack, damage, break_hp}   the party took more HP off a gathering
+##                           enemy, short of the break
+##   doom_broken             {enemy, attack, name, damage, break_hp, stagger_turns}   the party dealt
+##                           break_hp while the Doom was announced: it is cancelled and the enemy
+##                           staggered (a stagger_changed and a new intent follow)
+##   doom_unleashed          {enemy, attack, name}   the countdown ran out; the Doom strikes (its
+##                           timed_sequence_declared follows)
+##   stagger_changed         {enemy, turns, lost_turn}   the enemy is staggered for turns more of its
+##                           turns (it takes extra damage; damage events carry staggered: true);
+##                           lost_turn: it just lost one; turns 0: the stagger is over
 ##   enemy_phase             {enemy, phase, text}   a boss dropped under its phase two HP: new
 ##                           attacks, speed and attack tempo (an intent and turn_order follow)
 ##   turn_ended              {turn, actor}
@@ -157,6 +172,9 @@ var stage: Dictionary = {"hold_enemies": false, "hold_party": false, "tempo_perc
 		"attack": "", "hero": -1}
 ## The enemy waiting at the gate (-1: none).
 var _gated: int = -1
+## The enemy that just lost a turn to a stagger: its announced intent stays (set and used within
+## one submit, so it is not part of snapshots).
+var _keep_intent: int = -1
 ## Backpack items not used yet (uids, DESIGN.md 8.1).
 var items_left: Array[int] = []
 
@@ -503,6 +521,9 @@ func _build_combatants() -> void:
 		c.base_speed = c.speed
 		for attack: EnemyAttackData in data.attacks:
 			c.attack_ids.append(attack.id)
+			if attack.start_cooldown_turns > 0:
+				# A Doom never opens the fight (card #195).
+				c.attack_cooldowns[attack.id] = attack.start_cooldown_turns
 		c.next_turn_at = Timeline.turn_cost(c.speed, tuning.timeline_base)
 		combatants.append(c)
 		slot += 1
@@ -601,11 +622,18 @@ func _end_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 			entry.turns = left
 			events.append(_status_event(actor, id, true))
 	if not actor.is_party() and actor.is_alive():
-		_pick_intent(actor, events)
+		if _keep_intent == actor.id:
+			# It lost its turn to a stagger: what it announced still stands.
+			_keep_intent = -1
+		else:
+			_pick_intent(actor, events)
 
 
 ## Declares the enemy's intended attack as a timed sequence. Returns false if it has none.
 func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
+	if actor.staggered_turns > 0:
+		_lose_staggered_turn(actor, events)
+		return false
 	actor.tick_cooldowns()
 	var intent: Dictionary = intents.get(actor.id, {})
 	var forced := String(practice.force_attack)
@@ -618,6 +646,18 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 	if intent.is_empty():
 		intent = _choose_intent(actor)
 	var attack := get_attack(String(intent.get("attack", "")))
+	if attack != null and attack.is_doom():
+		# Charged Doom (card #195): every turn up to the last is spent gathering.
+		_arm_charge(actor, attack)
+		actor.charge_left -= 1
+		if actor.charge_left > 0:
+			events.append(_doom_event("doom_charging", actor, attack))
+			return false
+		actor.clear_charge()
+		events.append({"type": "doom_unleashed", "enemy": actor.id, "attack": attack.id, "name": attack.display_name})
+	elif actor.charge_left > 0:
+		# Something else was forced over the Doom (practice): the charge is dropped.
+		actor.clear_charge()
 	intents.erase(actor.id)
 	if attack == null:
 		return false
@@ -696,11 +736,15 @@ func _check_end(events: Array[Dictionary]) -> bool:
 
 ## Picks the enemy's next attack and targets (weighted, seeded) and announces it.
 func _pick_intent(enemy: Combatant, events: Array[Dictionary]) -> void:
+	if enemy.charge_left > 0:
+		# Gathering a Doom: the announced intent stays until it unleashes or is broken.
+		return
 	var intent := _choose_intent(enemy)
 	if intent.is_empty():
 		intents.erase(enemy.id)
 		return
 	intents[enemy.id] = intent
+	_arm_charge(enemy, get_attack(String(intent.attack)))
 	events.append(_intent_event(enemy.id))
 
 
@@ -911,6 +955,12 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	if any_mark:
 		# Honest intent (card #194): which hits leave a mark, "" for a plain one. Only when one does.
 		event["marks"] = marks
+	if attack.is_doom():
+		var charging := enemy.charge_attack == attack.id
+		event["charge_left"] = enemy.charge_left if charging else attack.charge_turns
+		event["charge_total"] = attack.charge_turns
+		event["charge_damage"] = enemy.charge_damage if charging else 0
+		event["break_hp"] = _break_hp(enemy, attack)
 	if intent.has("odds"):
 		event["odds"] = (intent.odds as Dictionary).duplicate(true)
 	return event
@@ -1203,6 +1253,7 @@ func _show_forced_intent(events: Array[Dictionary]) -> void:
 		var current: Dictionary = intents.get(id, {})
 		if String(current.get("attack", "")) != forced:
 			intents[id] = {"attack": forced, "targets": _pick_targets(c, get_attack(forced))}
+			_arm_charge(c, get_attack(forced))
 			events.append(_intent_event(id))
 		return
 
@@ -1216,6 +1267,7 @@ func _show_staged_intents(events: Array[Dictionary]) -> void:
 		var c := get_combatant(id)
 		if c.attack_ids.has(staged) and String((intents.get(id, {}) as Dictionary).get("attack", "")) != staged:
 			intents[id] = {"attack": staged, "targets": _pick_targets(c, get_attack(staged))}
+			_arm_charge(c, get_attack(staged))
 			events.append(_intent_event(id))
 
 
@@ -1957,6 +2009,8 @@ func _on_downed(target: Combatant, events: Array[Dictionary]) -> void:
 			_remove_status(target, id, events)
 	if not target.is_party():
 		intents.erase(target.id)
+		target.clear_charge()
+		target.staggered_turns = 0
 		return
 	for enemy_id: int in living_enemy_ids():
 		var enemy := get_combatant(enemy_id)
@@ -2031,8 +2085,12 @@ func _lose_hp(target: Combatant, amount: int) -> int:
 ## `crit`: a critical hit (the amount already has the crit bonus; the event says so for the popup).
 func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: String, events: Array[Dictionary],
 		crit: bool = false) -> void:
-	_lose_hp(target, amount)
-	events.append({
+	# A staggered enemy takes extra damage from every source (card #195).
+	var staggered := not target.is_party() and target.staggered_turns > 0
+	if staggered:
+		amount = CombatMath.percent_min1(amount, 100 + tuning.stagger_damage_taken_percent)
+	var lost := _lose_hp(target, amount)
+	var event := {
 		"type": "damage",
 		"source": source.id,
 		"target": target.id,
@@ -2041,12 +2099,85 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 		"max_hp": target.max_hp,
 		"cause": cause,
 		"crit": crit,
-	})
+	}
+	if staggered:
+		event["staggered"] = true
+	events.append(event)
 	if not target.is_alive():
 		events.append({"type": "downed", "target": target.id})
 		_on_downed(target, events)
 	elif not target.is_party():
+		_count_doom_damage(target, lost, events)
 		_maybe_enter_phase_two(target, events)
+
+
+# --- charged dooms (card #195) ----------------------------------------------------------------
+
+## The HP of damage that breaks `attack` for `enemy`.
+func _break_hp(enemy: Combatant, attack: EnemyAttackData) -> int:
+	return CombatMath.percent_min1(enemy.max_hp, attack.break_damage_percent)
+
+
+## Starts the countdown when `attack` (a Doom) becomes the enemy's intent. The turn it was
+## announced for is the first of the charge_turns it takes. No-op for other moves and when the
+## enemy is already charging this one.
+func _arm_charge(enemy: Combatant, attack: EnemyAttackData) -> void:
+	if attack == null or not attack.is_doom() or enemy.charge_attack == attack.id:
+		return
+	enemy.charge_attack = attack.id
+	enemy.charge_left = attack.charge_turns
+	enemy.charge_damage = 0
+
+
+func _doom_event(type: String, enemy: Combatant, attack: EnemyAttackData) -> Dictionary:
+	return {
+		"type": type,
+		"enemy": enemy.id,
+		"attack": attack.id,
+		"name": attack.display_name,
+		"left": enemy.charge_left,
+		"total": attack.charge_turns,
+		"damage": enemy.charge_damage,
+		"break_hp": _break_hp(enemy, attack),
+	}
+
+
+## HP the party took off a gathering enemy counts toward the break; enough breaks the Doom.
+func _count_doom_damage(enemy: Combatant, lost: int, events: Array[Dictionary]) -> void:
+	if enemy.charge_left <= 0 or lost <= 0:
+		return
+	var attack := get_attack(enemy.charge_attack)
+	if attack == null:
+		return
+	enemy.charge_damage += lost
+	if enemy.charge_damage >= _break_hp(enemy, attack):
+		_break_doom(enemy, attack, events)
+	else:
+		events.append({"type": "doom_progress", "enemy": enemy.id, "attack": attack.id, "damage": enemy.charge_damage,
+				"break_hp": _break_hp(enemy, attack)})
+
+
+## The Doom is cancelled and the enemy staggers: it loses its next turn(s) and takes extra damage
+## until then. The cooldown starts as if it had been used, and the enemy announces a new move.
+func _break_doom(enemy: Combatant, attack: EnemyAttackData, events: Array[Dictionary]) -> void:
+	var broken := _doom_event("doom_broken", enemy, attack)
+	broken.erase("left")
+	broken.erase("total")
+	broken["stagger_turns"] = tuning.stagger_turns
+	enemy.clear_charge()
+	enemy.note_attack(attack.id, attack.cooldown_turns, -1)
+	enemy.staggered_turns = tuning.stagger_turns
+	events.append(broken)
+	events.append({"type": "stagger_changed", "enemy": enemy.id, "turns": enemy.staggered_turns, "lost_turn": false})
+	_pick_intent(enemy, events)
+	events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
+
+
+## A staggered enemy's turn passes without an attack; its announced intent stays.
+func _lose_staggered_turn(enemy: Combatant, events: Array[Dictionary]) -> void:
+	enemy.staggered_turns -= 1
+	_keep_intent = enemy.id
+	events.append({"type": "stagger_changed", "enemy": enemy.id, "turns": enemy.staggered_turns, "lost_turn": true})
 
 
 ## A boss under its phase two HP changes attacks, speed and attack tempo, and picks a new intent.

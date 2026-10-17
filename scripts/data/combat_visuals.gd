@@ -572,6 +572,48 @@ extends Resource
 @export_range(4, 64) var backpack_cell_art_px: int = 23
 @export_range(0, 8) var backpack_gap_art_px: int = 1
 
+@export_group("Charged Dooms")
+## An enemy gathering a Doom (card #195, DESIGN.md 2.3): its body holds the wind-up crouch
+## (doom_squash_percent) and glows doom_glow_color, pulsing between doom_glow_min and doom_glow_max
+## once per doom_pulse_ms; with one turn left the pulse runs at doom_pulse_last_percent of that
+## time (quicker). Banner and HUD text use doom_text_color; the break bar break_bar_color.
+@export var doom_glow_color: Color = Color(0.9, 0.12, 0.3)
+@export_range(0.0, 1.0, 0.01) var doom_glow_min: float = 0.3
+@export_range(0.0, 1.0, 0.01) var doom_glow_max: float = 0.9
+@export_range(100, 5000, 1, "suffix:ms") var doom_pulse_ms: int = 1200
+@export_range(10, 100, 1, "suffix:%") var doom_pulse_last_percent: int = 50
+@export_range(0, 50, 1, "suffix:%") var doom_squash_percent: int = 10
+@export var doom_text_color: Color = Color(1.0, 0.3, 0.25)
+@export var break_bar_color: Color = Color(1.0, 0.82, 0.3)
+## The enemy spends a turn gathering: its banner (name and countdown) for doom_gather_banner_ms,
+## a rumble of trauma and a screen flash, and the turn waits doom_gather_beat_ms.
+@export_range(0, 5000, 1, "suffix:ms") var doom_gather_banner_ms: int = 1500
+@export_range(0.0, 1.0, 0.01) var doom_gather_shake: float = 0.35
+@export_range(0.0, 1.0, 0.01) var doom_gather_flash: float = 0.12
+@export_range(0, 3000, 1, "suffix:ms") var doom_gather_beat_ms: int = 450
+@export var doom_gather_sfx: String = "alert"
+## The Doom unleashes (before its attack banner): trauma, punch-in, flash, a beat.
+@export_range(0, 5000, 1, "suffix:ms") var doom_unleash_banner_ms: int = 1000
+@export_range(0.0, 1.0, 0.01) var doom_unleash_shake: float = 0.7
+@export_range(0.0, 5.0, 0.05) var doom_unleash_punch: float = 0.8
+@export_range(0.0, 1.0, 0.01) var doom_unleash_flash: float = 0.3
+@export_range(0, 3000, 1, "suffix:ms") var doom_unleash_beat_ms: int = 600
+@export var doom_unleash_sfx: String = "boss_rage"
+## BROKEN! is the large tier (card #179): a held freeze, trauma, a punch-in and a flash in
+## broken_flash_color, the banner, and the sound. The staggered enemy then holds its stagger pose,
+## glowing stagger_glow_color at stagger_glow strength, until it has lost its turn.
+@export_range(0, 5000, 1, "suffix:ms") var broken_banner_ms: int = 1600
+@export_range(0, 400, 5, "suffix:ms") var broken_hitstop_ms: int = 170
+@export_range(0.0, 1.0, 0.01) var broken_shake: float = 1.0
+@export_range(0.0, 5.0, 0.05) var broken_punch: float = 1.4
+@export_range(0.0, 1.0, 0.01) var broken_flash: float = 0.45
+@export var broken_flash_color: Color = Color(1.0, 0.95, 0.7)
+@export var broken_sfx: String = "team_counter"
+@export var stagger_sfx: String = "guard_block"
+@export var stagger_glow_color: Color = Color(0.55, 0.8, 1.0)
+@export_range(0.0, 1.0, 0.01) var stagger_glow: float = 0.5
+@export var stagger_text_color: Color = Color(0.6, 0.85, 1.0)
+
 @export_group("Turn spotlight")
 ## On a hero's turn (card #154) the acting hero steps turn_step (world units: toward the enemies
 ## and the camera) onto a gold ring, and the other heroes step turn_step_away back and out to their

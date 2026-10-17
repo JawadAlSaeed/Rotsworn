@@ -136,6 +136,63 @@ ATTACKS: dict[str, tuple] = {
         dict(at=1700, dmg=50, kind="ground", approach=450),
         dict(at=2250, dmg=50, kind="ground", approach=550, look="rocks"),
     ], {}),
+    # Phase 16 card #195: each guard's and act boss's signature Charged Doom (DESIGN.md 2.3). The
+    # extra fields: charge_turns (enemy turns from the announcement), break_damage_percent (the
+    # share of the enemy's max HP that breaks it), a cooldown, and a start cooldown so it never
+    # opens a fight. Party-wide strings with uneven gaps; forced kinds (rend, sweep) for the
+    # hard fights, where a sweep also takes the counter away.
+    "husk_timber_fall": ("Timber Fall", "party", 14, [
+        dict(at=1000, dmg=30, approach=380),
+        dict(at=1450, dmg=30, approach=300, forced="rend"),
+        dict(at=2300, dmg=34, kind="ground", approach=600, look="rocks"),
+        dict(at=3000, dmg=32, approach=600, projectile="thrown_stone"),
+        dict(at=3400, dmg=30, approach=260, forced="sweep"),
+        dict(at=4300, dmg=38, kind="ground", approach=650),
+        dict(at=5000, dmg=34, approach=320, forced="rend"),
+        dict(at=5800, dmg=38, approach=300, forced_feint=True),
+    ], {"charge_turns": 3, "break_damage_percent": 22, "cooldown_turns": 2, "start_cooldown_turns": 2}),
+    "king_crown_of_rot": ("Crown of Rot", "party", 8, [
+        dict(at=900, dmg=28, approach=180),
+        dict(at=1250, dmg=28, approach=160, forced="rend"),
+        dict(at=1950, dmg=28, approach=160, feint=True),
+        dict(at=2600, dmg=32, kind="ground", approach=500),
+        dict(at=3150, dmg=28, approach=160, forced="sweep"),
+        dict(at=3800, dmg=30, approach=450, projectile="light_bolt"),
+        dict(at=4200, dmg=30, approach=160, forced="rend"),
+        dict(at=5000, dmg=36, kind="ground", approach=600, look="rocks"),
+        dict(at=5600, dmg=30, approach=160, forced="sweep"),
+        dict(at=6000, dmg=36, approach=160),
+    ], {"charge_turns": 3, "break_damage_percent": 13, "cooldown_turns": 2, "start_cooldown_turns": 2}),
+    "bloat_gorge_burst": ("Gorge Burst", "party", 7, [
+        dict(at=1300, dmg=30, approach=650, projectile="bile_glob"),
+        dict(at=1750, dmg=30, approach=500, projectile="bile_glob"),
+        dict(at=2150, dmg=30, approach=450, projectile="bile_glob"),
+        dict(at=3000, dmg=36, kind="ground", approach=700, look="rocks"),
+        dict(at=3800, dmg=32, approach=300, forced="rend", forced_feint=True),
+        dict(at=4600, dmg=36, kind="ground", approach=650),
+        dict(at=5100, dmg=30, approach=400, projectile="bile_glob"),
+        dict(at=5600, dmg=34, approach=300, forced="sweep"),
+    ], {"charge_turns": 2, "break_damage_percent": 42, "cooldown_turns": 2, "start_cooldown_turns": 2}),
+    "toad_brood_tide": ("Brood Tide", "party", 7, [
+        dict(at=1100, dmg=34, kind="ground", approach=500),
+        dict(at=1600, dmg=34, kind="ground", approach=450),
+        dict(at=2300, dmg=30, approach=550, projectile="mud_glob"),
+        dict(at=2650, dmg=30, approach=170, forced="rend"),
+        dict(at=3500, dmg=36, kind="ground", approach=650, look="rocks"),
+        dict(at=4100, dmg=30, approach=450, projectile="mud_glob"),
+        dict(at=4800, dmg=30, approach=170, forced="sweep", forced_feint=True),
+        dict(at=5700, dmg=40, kind="ground", approach=700),
+    ], {"charge_turns": 2, "break_damage_percent": 21, "cooldown_turns": 2, "start_cooldown_turns": 2}),
+    "shade_ashfall": ("Ashfall", "party", 9, [
+        dict(at=1200, dmg=28, approach=560, projectile="cinder"),
+        dict(at=1650, dmg=28, approach=480, projectile="cinder"),
+        dict(at=2100, dmg=28, approach=220, forced="rend"),
+        dict(at=2900, dmg=34, kind="ground", approach=600, look="rocks"),
+        dict(at=3500, dmg=28, approach=480, projectile="cinder"),
+        dict(at=3950, dmg=28, approach=220, forced="sweep"),
+        dict(at=4850, dmg=34, kind="ground", approach=650),
+        dict(at=5450, dmg=32, approach=220, forced="rend", forced_feint=True),
+    ], {"charge_turns": 2, "break_damage_percent": 36, "cooldown_turns": 2, "start_cooldown_turns": 2}),
 }
 
 

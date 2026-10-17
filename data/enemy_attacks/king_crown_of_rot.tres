@@ -1,0 +1,86 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+[ext_resource type="Resource" path="res://data/projectiles/light_bolt.tres" id="3_light_bolt"]
+
+[sub_resource type="Resource" id="Hit_0"]
+script = ExtResource("1_hit")
+impact_ms = 900
+damage_percent = 28
+approach_ms = 180
+
+[sub_resource type="Resource" id="Hit_1"]
+script = ExtResource("1_hit")
+impact_ms = 1250
+forced_kind = 3
+damage_percent = 28
+approach_ms = 160
+
+[sub_resource type="Resource" id="Hit_2"]
+script = ExtResource("1_hit")
+impact_ms = 1950
+damage_percent = 28
+approach_ms = 160
+feint = true
+
+[sub_resource type="Resource" id="Hit_3"]
+script = ExtResource("1_hit")
+impact_ms = 2600
+kind = 1
+damage_percent = 32
+approach_ms = 500
+
+[sub_resource type="Resource" id="Hit_4"]
+script = ExtResource("1_hit")
+impact_ms = 3150
+forced_kind = 4
+damage_percent = 28
+approach_ms = 160
+
+[sub_resource type="Resource" id="Hit_5"]
+script = ExtResource("1_hit")
+impact_ms = 3800
+damage_percent = 30
+approach_ms = 450
+projectile = ExtResource("3_light_bolt")
+
+[sub_resource type="Resource" id="Hit_6"]
+script = ExtResource("1_hit")
+impact_ms = 4200
+forced_kind = 3
+damage_percent = 30
+approach_ms = 160
+
+[sub_resource type="Resource" id="Hit_7"]
+script = ExtResource("1_hit")
+impact_ms = 5000
+kind = 1
+damage_percent = 36
+approach_ms = 600
+ground_look = 1
+
+[sub_resource type="Resource" id="Hit_8"]
+script = ExtResource("1_hit")
+impact_ms = 5600
+forced_kind = 4
+damage_percent = 30
+approach_ms = 160
+
+[sub_resource type="Resource" id="Hit_9"]
+script = ExtResource("1_hit")
+impact_ms = 6000
+damage_percent = 36
+approach_ms = 160
+
+[resource]
+script = ExtResource("2_attack")
+id = "king_crown_of_rot"
+display_name = "Crown of Rot"
+target_mode = 1
+weight = 8
+charge_turns = 3
+break_damage_percent = 13
+cooldown_turns = 2
+start_cooldown_turns = 2
+hits = Array[ExtResource("1_hit")]([SubResource("Hit_0"), SubResource("Hit_1"), SubResource("Hit_2"), SubResource("Hit_3"), SubResource("Hit_4"), SubResource("Hit_5"), SubResource("Hit_6"), SubResource("Hit_7"), SubResource("Hit_8"), SubResource("Hit_9")])

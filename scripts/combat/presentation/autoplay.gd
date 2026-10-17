@@ -61,7 +61,10 @@ var _started_ms: int = 0
 var _stats: Dictionary = {
 	"parries": 0, "dodges": 0, "jumps": 0, "presses": 0, "perfect_presses": 0, "whiffs": 0,
 	"hits_taken": 0, "counters": 0, "team_counters": 0, "skills": 0, "ultimates": 0,
+	"dooms": 0, "broken": 0, "unleashed": 0,
 }
+## Enemies whose announced Doom has not been broken or unleashed yet (card #195).
+var _dooms_open: Dictionary = {}
 
 
 func setup(mode: String, mirror: CombatMirror, runner: TimedSequenceRunner, skill_runner: SkillSequenceRunner,
@@ -163,6 +166,16 @@ func on_event(event: Dictionary) -> void:
 				_stats.team_counters += 1
 			else:
 				_stats.counters += 1
+		"intent":
+			if event.has("charge_total") and not _dooms_open.has(int(event.enemy)):
+				_dooms_open[int(event.enemy)] = true
+				_stats.dooms += 1
+		"doom_broken":
+			_dooms_open.erase(int(event.enemy))
+			_stats.broken += 1
+		"doom_unleashed":
+			_dooms_open.erase(int(event.enemy))
+			_stats.unleashed += 1
 
 
 func on_combat_finished(result: String) -> void:
@@ -174,6 +187,8 @@ func on_combat_finished(result: String) -> void:
 			+ " counters=%d team_counters=%d skills=%d ultimates=%d gauge=%d") % [_stats.parries, _stats.dodges,
 			_stats.jumps, _stats.presses, _stats.perfect_presses, _stats.whiffs, _stats.hits_taken, _stats.counters,
 			_stats.team_counters, _stats.skills, _stats.ultimates, _mirror.team_gauge])
+	if int(_stats.dooms) > 0:
+		print("AUTOPLAY_DOOMS announced=%d broken=%d unleashed=%d" % [_stats.dooms, _stats.broken, _stats.unleashed])
 	# Balance numbers: turns, real seconds, and the party's HP left (percent of max, standing).
 	var hp := 0
 	var max_hp := 0
@@ -249,13 +264,16 @@ func _is_marked(id: int) -> bool:
 	return false
 
 
-## The most hurt ally for ally skills (a marked one first for a cleansing skill), else the first
-## target offered.
+## The most hurt ally for ally skills (a marked one first for a cleansing skill); against enemies the
+## one gathering a Doom (card #195: the party breaks it), else the first target offered.
 func _pick_target(ability: AbilityData) -> int:
 	var targets := _menu.targets_of(ability.id)
 	if targets.is_empty():
 		return -1
 	if ability.target != AbilityData.Target.ALLY and ability.target != AbilityData.Target.OTHER_ALLY:
+		for id: int in targets:
+			if _mirror.is_charging(id):
+				return id
 		return targets[0]
 	if ability.cleanse_count > 0:
 		var marked: Array[int] = []

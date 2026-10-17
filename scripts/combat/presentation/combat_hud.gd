@@ -87,6 +87,10 @@ const GAUGE_GLOW_MIN_SHARE: float = 0.35
 const GAUGE_GLOW_ALPHA: float = 0.75
 const ENEMY_STATUS_SIZE: int = 18
 const INTENT_SIZE: int = 22
+## The break bar under a gathering enemy's HP (card #195).
+const DOOM_BAR_HEIGHT: float = 10.0
+## The extra badge word of a staggered enemy.
+const STAGGER_BADGE_ID := "staggered"
 ## The turn order column's see-through while an attack or a skill plays, and how fast it fades.
 const TIMELINE_BUSY_ALPHA: float = 0.3
 const TIMELINE_FADE_S: float = 0.2
@@ -170,7 +174,8 @@ var _danger: TextureRect
 var _in_danger: bool = false
 var _time_s: float = 0.0
 ## Enemy id -> the intent line on its panel: {panel: the line, label: Label, row: HitRowView,
-## shown: Array (kinds and times on the row)}.
+## shown: Array (kinds and times on the row), next: the NEXT / DOOM word, doom: the Doom block,
+## doom_label: Label, doom_bar: TrailBar}.
 var _intent_signs: Dictionary = {}
 ## AttackHitData.Kind -> Texture2D.
 var _hit_icons: Dictionary = {}
@@ -399,7 +404,7 @@ func refresh(mirror: CombatMirror, practice_text: String) -> void:
 		hp_label.text = "%d / %d" % [int(f.hp), int(f.max_hp)] if alive else "DEFEATED"
 		hp_label.label_settings.font_color = HudStyle.TEXT if alive else HudStyle.TEXT_DIM
 		(row.panel as Control).modulate = Color.WHITE if alive else DEFEATED_TINT
-		_show_badges(row, (f.get("statuses", {}) as Dictionary) if alive else {})
+		_show_badges(row, (f.get("statuses", {}) as Dictionary) if alive else {}, int(f.get("staggered", 0)) if alive else 0)
 		_refresh_intent_sign(id, mirror)
 	_practice_label.text = practice_text
 	_refresh_gauge(mirror.team_gauge)
@@ -1005,6 +1010,20 @@ func _make_enemy_panel(id: int, display_name: String) -> Dictionary:
 	badges.add_theme_constant_override("separation", BADGE_GAP)
 	badges.visible = false
 	column.add_child(badges)
+	# A Doom being gathered (card #195): "DOOM IN 2" and a bar filling toward the break.
+	var doom := VBoxContainer.new()
+	doom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	doom.add_theme_constant_override("separation", 2)
+	doom.visible = false
+	column.add_child(doom)
+	var doom_label := HudStyle.make_title("", INTENT_SIZE, _visuals.doom_text_color)
+	doom_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	doom_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	doom.add_child(doom_label)
+	var doom_bar := TrailBar.new(_visuals.break_bar_color, DOOM_BAR_HEIGHT, _visuals.hp_trail_color,
+			_visuals.hp_trail_hold_ms, _visuals.hp_trail_drain_ms, _visuals.heal_fill_ms)
+	doom_bar.custom_minimum_size.x = ENEMY_BAR_WIDTH
+	doom.add_child(doom_bar)
 	# What it will do next: "NEXT  Sting String > CASS" and one icon per hit, spaced by time.
 	var intent := HBoxContainer.new()
 	intent.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1023,13 +1042,16 @@ func _make_enemy_panel(id: int, display_name: String) -> Dictionary:
 	hits.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	intent.add_child(hits)
 	_enemy_box.add_child(panel)
-	_intent_signs[id] = {"panel": intent, "label": intent_label, "row": hits, "shown": []}
+	_intent_signs[id] = {"panel": intent, "label": intent_label, "row": hits, "shown": [], "next": next,
+			"doom": doom, "doom_label": doom_label, "doom_bar": doom_bar}
 	return {"panel": panel, "bar": bar, "hp": hp_label, "badges": badges, "badge_key": ""}
 
 
 ## Rebuilds an enemy panel's status badges, only when what they say changed.
-func _show_badges(row: Dictionary, statuses: Dictionary) -> void:
+func _show_badges(row: Dictionary, statuses: Dictionary, staggered: int = 0) -> void:
 	var badges := _status_badges(statuses)
+	if staggered > 0:
+		badges.append([STAGGER_BADGE_ID, "STAGGERED"])
 	var key := str(badges)
 	if key == String(row.badge_key):
 		return
@@ -1061,6 +1083,8 @@ static func _status_badges(statuses: Dictionary) -> Array[Array]:
 ## A small rounded badge in the status's colour (HudStyle.STATUS_COLORS).
 func _make_badge(status: String, text: String) -> PanelContainer:
 	var color := HudStyle.STATUS_COLORS.get(status, HudStyle.TEXT) as Color
+	if status == STAGGER_BADGE_ID:
+		color = _visuals.stagger_text_color
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(color.darkened(BADGE_BG_DARKEN), BADGE_BG_ALPHA)
 	style.border_color = color
@@ -1085,6 +1109,7 @@ func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 		return
 	var intent: Dictionary = mirror.intents.get(id, {})
 	var panel := entry.panel as Control
+	_refresh_doom_sign(entry, id, mirror)
 	if intent.is_empty() or not mirror.is_alive(id) or not mirror.result.is_empty():
 		panel.visible = false
 		return
@@ -1099,6 +1124,23 @@ func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 		entry.shown = shown
 		(entry.row as HitRowView).set_hits(kinds, times, _hit_icons, feints, marks)
 	panel.visible = true
+
+
+## The Doom block of an enemy's panel (card #195): "DOOM IN 2   BREAK 120 / 840" over a bar that
+## fills as the party deals damage; hidden unless the enemy is gathering a Doom. The NEXT word
+## turns into DOOM.
+func _refresh_doom_sign(entry: Dictionary, id: int, mirror: CombatMirror) -> void:
+	var next := entry.next as Label
+	var charging := mirror.result.is_empty() and mirror.is_charging(id)
+	(entry.doom as Control).visible = charging
+	next.text = "DOOM" if charging else "NEXT"
+	next.label_settings.font_color = _visuals.doom_text_color if charging else HudStyle.LATE
+	if not charging:
+		return
+	var f := mirror.fighter(id)
+	var left := int(f.charge_left)
+	(entry.doom_label as Label).text = "DOOM IN %d    BREAK %d / %d" % [left, int(f.charge_damage), int(f.break_hp)]
+	(entry.doom_bar as TrailBar).set_values(int(f.charge_damage), int(f.break_hp))
 
 
 ## Places every live popup, newest first. Each rises popup_rise_px over its life from its spot
