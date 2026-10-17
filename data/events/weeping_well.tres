@@ -1,43 +1,52 @@
 [gd_resource type="Resource" script_class="EventData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_ataho"]
-[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_woeg7"]
-[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="3_synak"]
-
-[sub_resource type="Resource" id="Resource_cmmep"]
-script = ExtResource("2_woeg7")
-heal_percent = 40
-
-[sub_resource type="Resource" id="Resource_3weo5"]
-script = ExtResource("2_woeg7")
-cost_hp_percent = 15
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_woeg7"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_synak"]
+[ext_resource type="Resource" path="res://data/encounters/toad_and_fly.tres" id="3_cmmep"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="4_3weo5"]
 
 [sub_resource type="Resource" id="Resource_fwxmf"]
-script = ExtResource("1_ataho")
-text = "Drink"
-detail = "Everyone heals 40%. The water may bite back."
-deal = SubResource("Resource_cmmep")
-risk_percent = 30
-risk_deal = SubResource("Resource_3weo5")
-done_text = "The water is cold and sweet."
-risk_text = "It burns going down. Everyone loses 15% HP."
+script = ExtResource("2_synak")
+cost_max_hp_percent = 4
+heal_percent = 35
 
 [sub_resource type="Resource" id="Resource_o6nbn"]
-script = ExtResource("2_woeg7")
-cost_gold = 10
-team_gauge = 40
+script = ExtResource("2_synak")
+cost_hp_percent = 15
 
 [sub_resource type="Resource" id="Resource_me651"]
-script = ExtResource("1_ataho")
-text = "Drop a coin in (10 gold)"
-detail = "Wish for strength: the team gauge fills by 40."
-deal = SubResource("Resource_o6nbn")
+script = ExtResource("1_woeg7")
+text = "Drink deep"
+detail = "It is sweet, and it takes a little of you."
+deal = SubResource("Resource_fwxmf")
+risk_percent = 30
+risk_deal = SubResource("Resource_o6nbn")
+done_text = "The water is cold and sweet. You feel lighter, in more ways than one."
+risk_text = "It burns going down."
+
+[sub_resource type="Resource" id="Resource_gmhk6"]
+script = ExtResource("2_synak")
+cost_gold = 30
+team_gauge = 50
+
+[sub_resource type="Resource" id="Resource_earse"]
+script = ExtResource("2_synak")
+ambush = ExtResource("3_cmmep")
+
+[sub_resource type="Resource" id="Resource_v7q8j"]
+script = ExtResource("1_woeg7")
+text = "Drop a coin in"
+detail = "Wish for strength. Something may wish back."
+deal = SubResource("Resource_gmhk6")
+risk_percent = 25
+risk_deal = SubResource("Resource_earse")
 done_text = "The whispers turn to cheers."
+risk_text = "Something answers from below. It climbs."
 
 [resource]
-script = ExtResource("3_synak")
+script = ExtResource("4_3weo5")
 id = "weeping_well"
 title = "The Weeping Well"
 text = "A well of black water whispers your names. Something glints far below."
 picture_path = "res://assets/sprites/ui/map_event.png"
-choices = Array[ExtResource("1_ataho")]([SubResource("Resource_fwxmf"), SubResource("Resource_me651")])
+choices = Array[ExtResource("1_woeg7")]([SubResource("Resource_me651"), SubResource("Resource_v7q8j")])

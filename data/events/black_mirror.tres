@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_f3itm"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_qrbmj"]
+[ext_resource type="Resource" path="res://data/encounters/shade_and_gnat.tres" id="3_ewtbl"]
+[ext_resource type="Resource" path="res://data/items/rotting_heart.tres" id="4_jiln0"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="5_qfeqt"]
+
+[sub_resource type="Resource" id="Resource_pjeyh"]
+script = ExtResource("2_qrbmj")
+cost_max_hp_percent = 5
+xp = 100
+
+[sub_resource type="Resource" id="Resource_1c655"]
+script = ExtResource("2_qrbmj")
+ambush = ExtResource("3_ewtbl")
+
+[sub_resource type="Resource" id="Resource_f0rbg"]
+script = ExtResource("1_f3itm")
+text = "Touch the glass"
+detail = "Your reflections know a great deal."
+deal = SubResource("Resource_pjeyh")
+risk_percent = 40
+risk_deal = SubResource("Resource_1c655")
+done_text = "Your hands go in to the wrist. You come back knowing more."
+risk_text = "Your reflections step out."
+
+[sub_resource type="Resource" id="Resource_c0l3y"]
+script = ExtResource("2_qrbmj")
+cost_rotten = ExtResource("4_jiln0")
+gold = 90
+
+[sub_resource type="Resource" id="Resource_iqmj6"]
+script = ExtResource("1_f3itm")
+text = "Smash it"
+detail = "The shards cut into the pack, and something beats in there."
+deal = SubResource("Resource_c0l3y")
+done_text = "Seven years of bad luck, paid in advance."
+
+[resource]
+script = ExtResource("5_qfeqt")
+id = "black_mirror"
+title = "The Black Mirror"
+text = "A mirror of black glass leans against a drowned oak. Your reflections look back a moment too long."
+picture_path = "res://assets/sprites/ui/map_event.png"
+choices = Array[ExtResource("1_f3itm")]([SubResource("Resource_f0rbg"), SubResource("Resource_iqmj6")])

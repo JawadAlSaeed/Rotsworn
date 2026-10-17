@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_i2a0u"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_bhk4h"]
+[ext_resource type="Resource" path="res://data/encounters/shade_and_gnat.tres" id="3_ksqdb"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="4_hbean"]
+
+[sub_resource type="Resource" id="Resource_26s8m"]
+script = ExtResource("2_bhk4h")
+cost_item = 1
+heal_percent = 40
+xp = 40
+
+[sub_resource type="Resource" id="Resource_www38"]
+script = ExtResource("1_i2a0u")
+text = "Feed it"
+detail = "It eats what it is given, and gives back."
+deal = SubResource("Resource_26s8m")
+done_text = "The stitches strain. It sighs, and something warm passes through you."
+
+[sub_resource type="Resource" id="Resource_yplq4"]
+script = ExtResource("2_bhk4h")
+ambush = ExtResource("3_ksqdb")
+gold = 80
+xp = 40
+
+[sub_resource type="Resource" id="Resource_ig7sn"]
+script = ExtResource("1_i2a0u")
+text = "Cut the stitches"
+detail = "Coins in the straw. Teeth, too."
+deal = SubResource("Resource_yplq4")
+done_text = "What lived in it comes out screaming."
+
+[resource]
+script = ExtResource("4_hbean")
+id = "hungry_scarecrow"
+title = "The Hungry Scarecrow"
+text = "A scarecrow on a post, its sack head stuffed with grain. The mouth is stitched shut, and still it moans."
+picture_path = "res://assets/sprites/ui/map_event.png"
+choices = Array[ExtResource("1_i2a0u")]([SubResource("Resource_www38"), SubResource("Resource_ig7sn")])

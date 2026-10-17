@@ -1,32 +1,48 @@
 [gd_resource type="Resource" script_class="EventData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_32jjx"]
-[ext_resource type="Resource" path="res://data/items/key.tres" id="2_jsqmo"]
-[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="3_jkdek"]
-[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="4_o85w1"]
-
-[sub_resource type="Resource" id="Resource_wo1kw"]
-script = ExtResource("3_jkdek")
-item = ExtResource("2_jsqmo")
-
-[sub_resource type="Resource" id="Resource_g8bjg"]
-script = ExtResource("3_jkdek")
-cost_hp_percent = 20
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_jsqmo"]
+[ext_resource type="Resource" path="res://data/items/key.tres" id="2_jkdek"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="3_o85w1"]
+[ext_resource type="Resource" path="res://data/encounters/bloat_and_gnat.tres" id="4_wo1kw"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="5_g8bjg"]
 
 [sub_resource type="Resource" id="Resource_rn5qb"]
-script = ExtResource("1_32jjx")
+script = ExtResource("3_o85w1")
+item = ExtResource("2_jkdek")
+
+[sub_resource type="Resource" id="Resource_vq7hi"]
+script = ExtResource("3_o85w1")
+cost_hp_percent = 15
+cost_max_hp_percent = 6
+cost_max_hp_target = 2
+
+[sub_resource type="Resource" id="Resource_uj4h5"]
+script = ExtResource("1_jsqmo")
 text = "Climb up"
-detail = "Get the key. The branch is old."
-deal = SubResource("Resource_wo1kw")
-risk_percent = 35
-risk_deal = SubResource("Resource_g8bjg")
+detail = "The branch is old."
+deal = SubResource("Resource_rn5qb")
+risk_percent = 45
+risk_deal = SubResource("Resource_vq7hi")
 done_text = "You pry the key from cold fingers."
-risk_text = "The branch snaps. Everyone loses 20% HP."
+risk_text = "The branch snaps."
+
+[sub_resource type="Resource" id="Resource_q2mlj"]
+script = ExtResource("3_o85w1")
+ambush = ExtResource("4_wo1kw")
+gold = 60
+item = ExtResource("2_jkdek")
+
+[sub_resource type="Resource" id="Resource_50v7m"]
+script = ExtResource("1_jsqmo")
+text = "Fell the tree"
+detail = "The key and what hangs with it. The noise carries."
+deal = SubResource("Resource_q2mlj")
+done_text = "The cage splits open on the ground."
 
 [resource]
-script = ExtResource("4_o85w1")
+script = ExtResource("5_g8bjg")
 id = "hanging_cage"
 title = "The Hanging Cage"
 text = "An iron cage hangs from a dead tree. The body inside still holds a key."
 picture_path = "res://assets/sprites/ui/map_event.png"
-choices = Array[ExtResource("1_32jjx")]([SubResource("Resource_rn5qb")])
+choices = Array[ExtResource("1_jsqmo")]([SubResource("Resource_uj4h5"), SubResource("Resource_50v7m")])

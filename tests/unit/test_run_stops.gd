@@ -145,15 +145,18 @@ func test_an_event_choice_pays_gives_and_risks_the_same_way_every_time() -> void
 	var event := load("res://data/events/gamblers_bones.tres") as EventData
 	var roll := event.choices[0]
 	var a := _run(5)
-	a.gold = 100
+	a.gold = 200
 	var b := _run(5)
-	b.gold = 100
+	b.gold = 200
 	var ra := a.choose_event(roll, 4, 0)
 	var rb := b.choose_event(roll, 4, 0)
 	assert_true(bool(ra.ok))
 	assert_eq(a.gold, b.gold, "seeded: the same luck on every machine")
 	assert_eq(bool(ra.risk), bool(rb.risk))
-	assert_true(a.gold == 140 or a.gold == 80, "won 60 or lost it again (%d)" % a.gold)
+	var scale := a.event_scale(4)
+	var won := 200 - CombatMath.percent(roll.deal.cost_gold, scale) + CombatMath.percent(roll.deal.gold, scale)
+	var lost := won - CombatMath.percent(roll.risk_deal.cost_gold, scale)
+	assert_eq(a.gold, lost if bool(ra.risk) else won, "won the stake or lost it again (%d)" % a.gold)
 	var poor := _run(5)
 	poor.gold = 5
 	assert_false(poor.can_choose(roll))

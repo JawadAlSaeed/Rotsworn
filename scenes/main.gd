@@ -1161,6 +1161,8 @@ func _on_stop_chosen(id: int) -> void:
 func _enter_stop() -> void:
 	var stop := _run.current()
 	print("Run stop %d: %s %s" % [_run.visited, RunMap.TYPE_NAMES[int(stop.type)], MapScreen.stop_name(_run, stop)])
+	if _run.in_ambush():
+		print("Run ambush: %s (chance was %d%%)" % [_run.ambush_id, _run.unknown_fight_percent()])
 	match int(stop.type):
 		RunMap.StopType.ZONE:
 			var zone := _run.zone_of(stop)
@@ -1179,13 +1181,24 @@ func _enter_stop() -> void:
 			_fade_to(_show_treasure)
 
 
-## A run fight that is a stop of its own: the act's boss, or an elite fight (`elite`) in the look of
-## one of the act's zones.
+## A run fight that is a stop of its own: the act's boss, an elite fight (`elite`) in the look of
+## one of the act's zones, or an ambush (a "?" stop that turned into a fight, or an event choice
+## that ended in one; DESIGN.md 8.7).
 func _start_final_fight(elite: bool = false) -> void:
 	_busy = true
 	_encounter = _run.final_encounter()
 	_fight_look = _run.final_look()
-	if elite:
+	if _run.in_ambush():
+		_encounter = _run.ambush_encounter()
+		_fight_look = _run.ambush_look()
+		print("Run ambush fight: %s" % [_encounter.id if _encounter != null else "none"])
+		if _encounter == null:
+			push_error("Ambush %s has no encounter" % _run.ambush_id)
+			_run.end_ambush()
+			_end_busy()
+			_fade_to(_show_map)
+			return
+	elif elite:
 		_encounter = _run.elite_of(_run.at)
 		if _encounter == null:
 			# The map never rolls an elite stop for an act without elites; if one slips through,
@@ -1219,12 +1232,17 @@ func _on_run_fight_over(result: String) -> void:
 	if _busy or _run == null:
 		return
 	_run.spend_items(_combat.used_items())
+	var ambushed := _run.in_ambush()
+	var ambush_spoils := _run.ambush_spoils
 	_run.finish_fight(result, _combat.party_hp(), _encounter)
 	_run.carry_team_gauge(_combat.team_gauge())
 	_autoplay_spend_points()
 	if _run.is_over():
 		_clear_run_save()
 		_fade_to(_show_run_end)
+	elif result == RunState.VICTORY and ambushed and not ambush_spoils:
+		# An ambush pays gold and XP like any fight; spoils only when the event's data says so.
+		_fade_to(_show_map)
 	elif result == RunState.VICTORY:
 		var boss := int(_run.current().type) == RunMap.StopType.FINAL
 		_fade_to(_show_loot.bind([] as Array[GearData], "The boss fell. Take one." if boss else "The elite fell. Take one."))
@@ -1272,14 +1290,24 @@ func _show_event(result: String = "") -> void:
 	var screen := EventScreen.new()
 	screen.name = "Event"
 	screen.remote = Net.is_client()
-	screen.setup(_run, _run.event_of(_run.at), result)
-	screen.done.connect(_fade_to.bind(_show_map))
+	screen.setup(_run, null if _run.in_ambush() and result.is_empty() else _run.event_of(_run.at), result)
+	screen.done.connect(_on_event_done)
 	screen.chosen.connect(func(_index: int, text: String) -> void:
 		_send_screen({"name": "event", "result": text if not text.is_empty() else "You walk on."}))
 	_show_screen(screen)
 	_send_screen({"name": "event", "result": result})
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_event.call_deferred(screen)
+
+
+## An event (or an ambush page) was left: into the fight if it sprang an ambush, else the map.
+func _on_event_done() -> void:
+	if _busy:
+		return
+	if _run.in_ambush():
+		_start_final_fight()
+	else:
+		_fade_to(_show_map)
 
 
 ## A treasure stop (DESIGN.md 8.8). `opened`: online clients show the chest as the host left it.
@@ -2322,15 +2350,18 @@ func _autoplay_health() -> Vector3i:
 	return Vector3i(lowest, hp_sum * 100 / maxi(1, max_sum), lowest_level)
 
 
-## Autoplay at an event: takes the first choice it can pay for (risks too), then goes on.
+## Autoplay at an event: a careful player's pick (EventAutoplay), or Leave; an ambush page just
+## fights.
 func _autoplay_event(screen: EventScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(screen):
 		return
-	for i: int in screen.choice_count():
-		if screen.can_choose(i):
-			screen.choose(i)
-			break
+	if screen.choice_count() > 0:
+		var event := _run.event_of(_run.at)
+		var decision := EventAutoplay.decide(_run, event, _autoplay_health())
+		print("AUTOPLAY_EVENT %s -> %s" % [event.id, "choice %d" % int(decision.index) if int(decision.index) >= 0 else "leave"])
+		if int(decision.index) >= 0:
+			screen.choose(int(decision.index), int(decision.pick))
 	await _autoplay_stop_gifts(screen)
 	if is_instance_valid(screen):
 		screen.leave()
