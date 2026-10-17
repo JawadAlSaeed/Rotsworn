@@ -1466,6 +1466,12 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   comes back on the last item picked (a row of Extras reopens that list). Card #150 (user,
   2026-10-15) kept it short; card #208 (user, 2026-10-17: "it feels a bit cluttery", "practice is
   a dev thing") made it five rows.
+  In the corners, small and quiet like most games' title menus (card #210, user 2026-10-17):
+  bottom left the version, "v" and Project Settings' `application/config/version` (0.16.0, the
+  phase number; the same version the save check and the online handshake use, so raise it for a
+  build friends play together); bottom right the studio's DragonRot wordmark
+  (`assets/branding/dragonrot_logo.png`, cut from the studio intro by
+  `tools/branding/studio_logo.py`). Size, alpha and margin in `data/branding/branding.tres`.
 - **Settings** (`SettingsScreen`): volume (left/right, 10% steps), fullscreen on/off, training
   ring on/off (practice fights only; the row says so), flashes Full / Reduced / Off (card #185),
   lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
@@ -3332,3 +3338,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | The Rot Journal: a main-menu book of every enemy and attack the player has met (portrait or silhouette, where met, times beaten, each attack's hit kinds, marks and Doom, and the player's parried, dodged, jumped and hit counts), recorded from the presentation's event stream into its own `user://journal.json` (versioned, atomic, `.bak`); only a person's run fights count, practice, the tutorial and bots do not (a dev `--journal-path` makes everything count) | card #200 (review ui-input #9, Slay the Spire's compendium): a hard game should let the player study what beat them; practice stays out because its cheats and its full fight list would unlock and pollute the book (7.11) |
 | 2026-10-17 | Saves check only `data/` and the version (`DataHash.of_content`), not the code; the main menu has no description line under its rows | card #208 playtest: a code-only fix hid the user's saved run; the user found the line ("About 8 stops") out of date and not needed now that Continue and Journal exist |
 | 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
+| 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |

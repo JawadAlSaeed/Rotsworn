@@ -5,7 +5,8 @@ extends CanvasLayer
 ## Up/down picks, confirm opens it. No button bar here (card #130: the user found it clutter). Kept
 ## short (cards #150 and #208): Online and Extras open a second list in place (Host / Join; the
 ## tutorial, the Rot Journal (7.11), credits), cancel or Back goes back. Practice (any fight or zone
-## on its own) is a test tool: its row shows in Extras only in debug builds.
+## on its own) is a test tool: its row shows in Extras only in debug builds. The version sits in the
+## bottom-left corner and the studio's logo in the bottom-right.
 
 ## One of ITEMS (not the rows that open a list), or a row of a second list.
 signal chosen(item: StringName)
@@ -73,11 +74,46 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 	_menu = ListMenu.new()
 	column.add_child(_menu)
 	# No description line under the list (user, 2026-10-17): the rows speak for themselves.
+	_add_corners(branding)
 	if _extras.has(start_item):
 		_show_sub(EXTRAS, start_item)
 	else:
 		# Coming back from hosting or joining: the cursor rests on Online.
 		_show_main(ONLINE if ONLINE_ITEMS.has(start_item) else start_item)
+
+
+## The game's version (bottom left) and the studio's logo (bottom right), small and quiet, like
+## most games' title menus (user, 2026-10-17, card #210).
+func _add_corners(branding: BrandingData) -> void:
+	var margin := branding.corner_margin_px
+	var version := ListMenu.centred_label(version_text(), branding.version_size, HudStyle.TEXT_DIM)
+	version.name = "Version"
+	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	version.modulate.a = branding.corner_alpha
+	add_child(version)
+	version.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, margin)
+	if branding.studio_logo_path.is_empty():
+		return
+	var logo := TextureRect.new()
+	logo.name = "StudioLogo"
+	logo.texture = AssetLoader.texture(branding.studio_logo_path)
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Smooth, not the pixel-art nearest filter: the wordmark is drawn smaller than its file.
+	logo.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	var art := logo.texture.get_size()
+	var height := float(branding.studio_logo_height_px)
+	logo.custom_minimum_size = Vector2(height * art.x / maxf(1.0, art.y), height)
+	logo.modulate.a = branding.corner_alpha
+	add_child(logo)
+	logo.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, margin)
+
+
+## "v0.16.0": the project's version (Project Settings > Application > Config > Version), the same
+## one the online handshake and the save check use.
+static func version_text() -> String:
+	return "v" + str(ProjectSettings.get_setting("application/config/version", "0.0.0"))
 
 
 func _show_main(item: StringName) -> void:

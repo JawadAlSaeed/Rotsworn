@@ -68,6 +68,17 @@ extends Resource
 @export_range(40, 800, 1, "suffix:px") var menu_logo_height_px: int = 300
 ## The line under the main menu's logo.
 @export var tagline: String = "a short run through the rot"
+## The studio's wordmark in the menu's bottom-right corner, cut from the studio intro by
+## tools/branding/studio_logo.py ("" : none).
+@export_file("*.png") var studio_logo_path: String = "res://assets/branding/dragonrot_logo.png"
+## The corner logo's height on screen.
+@export_range(10, 200, 1, "suffix:px") var studio_logo_height_px: int = 34
+## The game's version in the bottom-left corner ("v" and Project Settings' version): text size.
+@export_range(8, 60, 1) var version_size: int = 22
+## How strongly the version and the studio logo show (quiet, like most games' title menus).
+@export_range(0.0, 1.0, 0.05) var corner_alpha: float = 0.7
+## Room between the screen's edges and the version / the studio logo.
+@export_range(0, 200, 1, "suffix:px") var corner_margin_px: int = 36
 
 @export_group("Story")
 ## What the world is and why the heroes are "sworn" (card #90): store page, trailer, credits.

@@ -84,3 +84,22 @@ func test_main_menu_is_short() -> void:
 	assert_eq(MainMenu.EXTRAS_ITEMS, [MainMenu.TUTORIAL, MainMenu.JOURNAL, MainMenu.CREDITS])
 	assert_does_not_have(MainMenu.EXTRAS_ITEMS, MainMenu.PRACTICE)
 	assert_eq(MainMenu.ONLINE_ITEMS, [MainMenu.HOST_ONLINE, MainMenu.JOIN_ONLINE])
+
+
+func test_main_menu_shows_the_version_and_the_studio_logo() -> void:
+	# Card #210: v and Project Settings' version bottom left, the DragonRot wordmark bottom right.
+	assert_eq(MainMenu.version_text(), "v" + str(ProjectSettings.get_setting("application/config/version")))
+	var branding := load("res://data/branding/branding.tres") as BrandingData
+	assert_true(AssetLoader.has_art(branding.studio_logo_path), "the studio logo file exists")
+	var menu := MainMenu.new()
+	add_child_autofree(menu)
+	menu.setup(branding)
+	var version := menu.get_node_or_null("Version") as Label
+	assert_not_null(version)
+	if version != null:
+		assert_eq(version.text, MainMenu.version_text())
+	var logo := menu.get_node_or_null("StudioLogo") as TextureRect
+	assert_not_null(logo)
+	if logo != null:
+		assert_eq(int(logo.custom_minimum_size.y), branding.studio_logo_height_px)
+
