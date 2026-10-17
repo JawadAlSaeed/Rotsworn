@@ -1,12 +1,14 @@
 class_name PauseMenu
 extends CanvasLayer
-## The pause menu (DESIGN.md 7.5): over a fight, a zone or the run map. Continue, Settings, and
-## Abandon run (in a run) or Leave (practice). Pause (Esc / Menu) or Back also continues.
-## Main stops whatever is under it while it is open.
+## The pause menu (DESIGN.md 7.5): over a fight, a zone or the run map. Continue, Settings, Save &
+## Quit (a local run, DESIGN.md 8.13) and Abandon run (in a run) or Leave (practice). Pause (Esc /
+## Menu) or Back also continues. Main stops whatever is under it while it is open.
 
 signal resumed
 signal settings_requested
 signal leave_requested
+## Save & Quit: keep the run in its slot and go to the main menu.
+signal save_quit_requested
 ## The extra item (the tutorial's "Skip this lesson").
 signal extra_requested
 
@@ -14,7 +16,7 @@ const TITLE_SIZE: int = 72
 const DETAIL_SIZE: int = 26
 const DIM := Color(0.0, 0.0, 0.0, 0.7)
 
-enum Item { CONTINUE, SETTINGS, LEAVE, EXTRA }
+enum Item { CONTINUE, SETTINGS, LEAVE, EXTRA, SAVE_QUIT }
 
 var _menu: ListMenu
 ## What each row is (Item), in order.
@@ -22,8 +24,10 @@ var _rows: Array[int] = []
 
 
 ## `leave_text`: "Abandon run" or "Leave"; `leave_detail` says where it goes. `extra_text`: one
-## more row after Continue (empty: none).
-func setup(leave_text: String, leave_detail: String, extra_text: String = "", extra_detail: String = "") -> void:
+## more row after Continue (empty: none). `save_text` (empty: none) is the Save & Quit row, just
+## before the leave row.
+func setup(leave_text: String, leave_detail: String, extra_text: String = "", extra_detail: String = "",
+		save_text: String = "", save_detail: String = "") -> void:
 	layer = 50
 	var bg := ColorRect.new()
 	bg.color = DIM
@@ -48,8 +52,12 @@ func setup(leave_text: String, leave_detail: String, extra_text: String = "", ex
 		items.append({"text": extra_text, "detail": extra_detail})
 		_rows.append(Item.EXTRA)
 	items.append({"text": "Settings", "detail": "Graphics, sound, controls and lag calibration."})
+	_rows.append(Item.SETTINGS)
+	if not save_text.is_empty():
+		items.append({"text": save_text, "detail": save_detail})
+		_rows.append(Item.SAVE_QUIT)
 	items.append({"text": leave_text, "detail": leave_detail})
-	_rows.append_array([Item.SETTINGS, Item.LEAVE])
+	_rows.append(Item.LEAVE)
 	_menu.set_items(items, detail)
 	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Select"], [&"pause", "Continue"]])
 
@@ -75,3 +83,5 @@ func _unhandled_input(event: InputEvent) -> void:
 					leave_requested.emit()
 				Item.EXTRA:
 					extra_requested.emit()
+				Item.SAVE_QUIT:
+					save_quit_requested.emit()

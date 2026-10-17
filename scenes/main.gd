@@ -19,7 +19,8 @@ extends Node
 ## DEFAULT_ENCOUNTER_ID), --zone=ID (start in that zone), --first-strike (with --encounter),
 ## --run (start a new run at once; the seed also picks the map), --players=N (co-op with N pretend
 ## pads, for the bot), --host=N (host online and start a run once N players are in), --join=ADDRESS
-## (join that host).
+## (join that host), --continue (pick up the saved run), --save-path=PATH (keep that save elsewhere;
+## the bot saves only with it).
 
 const DEFAULT_ENCOUNTER_ID := "husk_fight"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
@@ -110,6 +111,12 @@ var _flow_gen: int = 0
 var _combat_accepts: bool = false
 var _net_hold: bool = false
 var _client_done: bool = false
+## The main menu has had a choice made on it (until then a saved run is the cursor's first stop).
+var _menu_used: bool = false
+## The run as it was when the stop in progress was entered (the save holds it; Save & Quit inside a
+## stop writes it again), and whether it is a stop's (else the map's).
+var _checkpoint: Dictionary = {}
+var _checkpoint_in_stop: bool = false
 
 
 func _ready() -> void:
@@ -182,6 +189,9 @@ func _ready() -> void:
 		return
 	if _options.run:
 		_new_run()
+		return
+	if _options.continue_run:
+		_continue_run()
 		return
 	if not _options.screen.is_empty():
 		_open_dev_screen(_options.screen)
@@ -482,12 +492,17 @@ func _end_busy() -> void:
 func _show_main_menu() -> void:
 	_end_tutorial()
 	_run = null
+	_checkpoint = {}
+	_checkpoint_in_stop = false
 	ButtonPrompts.set_both(false)
 	if Net.is_online():
 		_leave_online()
+	var saved := _valid_save()
 	var menu := MainMenu.new()
 	menu.name = "MainMenu"
-	menu.setup(_branding, _menu_item, _notice)
+	# A saved run is where the cursor rests until the player picks something else.
+	var start := MainMenu.CONTINUE if not saved.is_empty() and not _menu_used else _menu_item
+	menu.setup(_branding, start, _notice, not saved.is_empty())
 	_notice = ""
 	menu.chosen.connect(_on_menu_chosen)
 	_show_screen(menu)
@@ -495,12 +510,15 @@ func _show_main_menu() -> void:
 
 func _on_menu_chosen(item: StringName) -> void:
 	_menu_item = item
+	_menu_used = true
 	match item:
+		MainMenu.CONTINUE:
+			_continue_with_players.call_deferred()
 		MainMenu.NEW_RUN:
-			if not PlayerSettings.tutorial_offered() and not _options.is_autoplay():
-				_offer_tutorial.call_deferred()
+			if _save_in_the_way():
+				_ask_overwrite_save.call_deferred()
 			else:
-				_show_lobby.call_deferred(_fade_to.bind(_new_run))
+				_start_new_run.call_deferred()
 		MainMenu.HOST_ONLINE:
 			_host_online.call_deferred()
 		MainMenu.JOIN_ONLINE:
@@ -513,6 +531,14 @@ func _on_menu_chosen(item: StringName) -> void:
 			_show_credits.call_deferred()
 		MainMenu.QUIT:
 			_quit_game()
+
+
+## New Run from the main menu: the tutorial offer (once), then the players screen, then the run.
+func _start_new_run() -> void:
+	if not PlayerSettings.tutorial_offered() and not _options.is_autoplay():
+		_offer_tutorial()
+	else:
+		_show_lobby(_fade_to.bind(_new_run))
 
 
 ## The players screen; Start keeps its roster and calls `next`.
@@ -772,6 +798,7 @@ func _on_zone_return_requested(result: String) -> void:
 		_drop = null
 		_send_screen({"name": "zone_back", "result": result})
 		if _run.is_over():
+			_clear_run_save()
 			# The run's end screen follows (online, the host sends it).
 			await _transition.fade_out()
 			_show_run_end()
@@ -879,6 +906,139 @@ func _on_tutorial_skip() -> void:
 		_tutorial.skip()
 
 
+# --- save and quit (DESIGN.md 8.13) -----------------------------------------------------------
+
+## Where the run is saved: --save-path=PATH (dev tool) or the player's one slot.
+func _run_save_path() -> String:
+	return _options.save_path if not _options.save_path.is_empty() else RunSave.PATH
+
+
+## True if this session may touch the save at all: local play only (online runs are never saved),
+## not the tutorial, and the bot only with --save-path (it must never touch the player's save).
+func _save_io_ok() -> bool:
+	return not Net.is_online() and _tutorial == null and (not _options.is_autoplay() or not _options.save_path.is_empty())
+
+
+## True if the run in progress is saved as it goes (a dev screen's sample run is not).
+func _save_allowed() -> bool:
+	return _run != null and _options.screen.is_empty() and _save_io_ok()
+
+
+## Saves the run now. `in_stop` is true right after a stop was chosen: continuing re-enters that
+## stop from its start, never the map (no dodging a hard stop by quitting).
+func _save_run(in_stop: bool) -> void:
+	if not _save_allowed():
+		return
+	_checkpoint = _run.to_dict()
+	_checkpoint_in_stop = in_stop
+	_write_checkpoint()
+
+
+func _write_checkpoint() -> bool:
+	if _checkpoint.is_empty():
+		return false
+	var saved := RunSave.save(_checkpoint, Net.fingerprint(), _checkpoint_in_stop, _players.player_count(), _run_save_path())
+	if not saved:
+		push_warning("Main: could not write the run save to %s" % _run_save_path())
+	return saved
+
+
+## The run ended or was abandoned: its save goes.
+func _clear_run_save() -> void:
+	_checkpoint = {}
+	_checkpoint_in_stop = false
+	if _save_io_ok():
+		RunSave.delete(_run_save_path())
+
+
+## The saved run that Continue would pick up: {state (a RunState), in_stop, players}, or {} if
+## there is none. A save that does not fit this game (another version or content, damaged, or
+## RunState refuses it) is deleted and the menu says so once.
+func _valid_save() -> Dictionary:
+	if not _save_io_ok() or _run_data == null or _tuning == null or not RunSave.exists(_run_save_path()):
+		return {}
+	var loaded := RunSave.load_save(Net.fingerprint(), _run_save_path())
+	var reason := ""
+	match String(loaded.status):
+		RunSave.LOADED:
+			var state := RunState.from_dict(_run_data, _tuning, loaded.run as Dictionary)
+			if state != null and not state.is_over():
+				loaded["state"] = state
+				return loaded
+			reason = "it does not fit this version of the game"
+		RunSave.MISSING:
+			return {}
+		_:
+			reason = String(loaded.get("reason", "the file is damaged"))
+	RunSave.delete(_run_save_path())
+	if _notice.is_empty():
+		_notice = "The saved run could not be continued (%s). It was deleted." % reason
+	return {}
+
+
+## A new run would overwrite a usable save.
+func _save_in_the_way() -> bool:
+	return not _valid_save().is_empty()
+
+
+func _ask_overwrite_save() -> void:
+	_prompt = ConfirmPrompt.new()
+	_prompt.name = "OverwritePrompt"
+	_prompt.setup("Start a new run?", "Your saved run will be lost.", "Start a new run", "Keep the saved run")
+	_prompt.answered.connect(func(yes: bool) -> void:
+		_prompt.queue_free()
+		_prompt = null
+		if yes:
+			_start_new_run())
+	add_child(_prompt)
+
+
+## Main menu, Continue: a co-op save goes through the players screen first (pads may have changed).
+func _continue_with_players() -> void:
+	var saved := _valid_save()
+	if saved.is_empty():
+		_show_main_menu()
+	elif int(saved.players) > 1:
+		_show_lobby(_continue_run)
+	else:
+		_continue_run()
+
+
+## Picks the saved run up: back in the stop it was saved in (from its start), or on the map.
+func _continue_run() -> void:
+	var saved := _valid_save()
+	if saved.is_empty():
+		_show_main_menu()
+		return
+	_run = saved.state as RunState
+	_checkpoint = saved.run as Dictionary
+	_checkpoint_in_stop = bool(saved.in_stop)
+	print("Run continued: seed %d  act %d  stop %d%s" % [_run.run_seed, _run.act + 1, _run.visited,
+			" (in progress)" if _checkpoint_in_stop else ""])
+	Sfx.play("run_begin")
+	if _checkpoint_in_stop and not _run.current().is_empty():
+		_enter_stop()
+	else:
+		_fade_to(_show_map)
+
+
+## Pause menu, Save & Quit: the run stays in its slot and the game goes back to the main menu.
+## Inside a stop the save already holds the state from when the stop was entered, and that is
+## what is kept; on the map the state is saved as it is now.
+func _on_pause_save_quit() -> void:
+	var saved := false
+	if _checkpoint_in_stop:
+		saved = _write_checkpoint()
+	else:
+		_save_run(false)
+		saved = not _checkpoint.is_empty()
+	_notice = "" if saved else "The run could not be saved."
+	_menu_item = MainMenu.CONTINUE
+	_menu_used = true
+	_free_pause()
+	_fade_to(_show_main_menu)
+
+
 # --- the run ----------------------------------------------------------------------------------
 
 func _new_run() -> void:
@@ -913,6 +1073,7 @@ func _show_map(unroll: bool = true) -> void:
 	map.party_requested.connect(_show_party.bind("", true))
 	_show_screen(map)
 	_send_screen({"name": "map"})
+	_save_run(false)
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_map.call_deferred(map)
 
@@ -920,6 +1081,12 @@ func _show_map(unroll: bool = true) -> void:
 func _on_stop_chosen(id: int) -> void:
 	if _busy or not _run.go(id):
 		return
+	_save_run(true)
+	_enter_stop()
+
+
+## Starts the stop the party is at: the stop just chosen on the map, or the one a saved run was in.
+func _enter_stop() -> void:
 	var stop := _run.current()
 	print("Run stop %d: %s %s" % [_run.visited, RunMap.TYPE_NAMES[int(stop.type)], MapScreen.stop_name(_run, stop)])
 	match int(stop.type):
@@ -979,6 +1146,7 @@ func _on_run_fight_over(result: String) -> void:
 	_run.carry_team_gauge(_combat.team_gauge())
 	_autoplay_spend_points()
 	if _run.is_over():
+		_clear_run_save()
 		_fade_to(_show_run_end)
 	elif result == RunState.VICTORY:
 		var boss := int(_run.current().type) == RunMap.StopType.FINAL
@@ -1096,6 +1264,7 @@ func _show_party(note: String, from_map: bool, held: Dictionary = {}) -> void:
 
 
 func _show_run_end() -> void:
+	_clear_run_save()
 	var end := RunEndScreen.new()
 	end.name = "RunEnd"
 	end.setup(_run, _visuals.end_input_guard_ms)
@@ -1172,6 +1341,11 @@ func _open_pause() -> void:
 		_pause.setup("End the game", "The run ends for everyone.")
 	elif Net.is_client():
 		_pause.setup("Leave the game", "You leave; the others play on.")
+	elif _run != null and _save_allowed():
+		var where := "The stop starts over when you continue." if _checkpoint_in_stop else "You continue from this map."
+		_pause.setup("Abandon run", "The run and its save are lost. Back to the main menu.", "", "",
+				"Save & Quit", "Keep the run and go to the main menu. %s" % where)
+		_pause.save_quit_requested.connect(_on_pause_save_quit)
 	elif _run != null:
 		_pause.setup("Abandon run", "The run is lost. Back to the main menu.")
 	else:
@@ -1247,6 +1421,8 @@ func _on_abandon_answered(yes: bool) -> void:
 	_prompt = null
 	if yes:
 		_free_pause()
+		if _run != null:
+			_clear_run_save()
 		_fade_to(_show_main_menu)
 	elif _pause != null:
 		_pause.process_mode = Node.PROCESS_MODE_INHERIT

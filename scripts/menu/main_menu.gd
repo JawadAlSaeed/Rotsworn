@@ -1,6 +1,7 @@
 class_name MainMenu
 extends CanvasLayer
-## The main menu (DESIGN.md 7.5), after the title screen: the logo, then start a run, play online
+## The main menu (DESIGN.md 7.5), after the title screen: the logo, then Continue (only when a run
+## is saved, DESIGN.md 8.13), start a run, play online
 ## (DESIGN.md 9.2), practice (the tutorial, fights and zones), settings, credits, quit. Up/down
 ## picks, confirm opens it. No button bar here (card #130: the user found it clutter). Kept short
 ## (card #150): Online opens a second list in place, Host or Join (cancel goes back), and the
@@ -9,6 +10,7 @@ extends CanvasLayer
 ## One of ITEMS, or HOST_ONLINE / JOIN_ONLINE from the Online list.
 signal chosen(item: StringName)
 
+const CONTINUE := &"continue"
 const NEW_RUN := &"new_run"
 const ONLINE := &"online"
 const HOST_ONLINE := &"host_online"
@@ -18,6 +20,7 @@ const SETTINGS := &"settings"
 const CREDITS := &"credits"
 const QUIT := &"quit"
 const ITEMS: Array[StringName] = [NEW_RUN, ONLINE, PRACTICE, SETTINGS, CREDITS, QUIT]
+const CONTINUE_DETAIL := "Pick the saved run up where you left it."
 ## The Online list; the last row goes back.
 const ONLINE_ITEMS: Array[StringName] = [HOST_ONLINE, JOIN_ONLINE]
 const SUBTITLE_SIZE: int = 30
@@ -29,11 +32,17 @@ var _menu: ListMenu
 var _detail: Label
 ## The Online list is showing.
 var _online: bool = false
+## The main list's rows in order (Continue is first when a run is saved).
+var _items: Array[StringName] = []
 
 
 ## `start_item` is selected first (the last thing picked when coming back). `notice` says why
-## the player is back here (an online game ended), if anything.
-func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: String = "") -> void:
+## the player is back here (an online game ended), if anything. `can_continue` adds the Continue row.
+func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: String = "",
+		can_continue: bool = false) -> void:
+	_items = ITEMS.duplicate()
+	if can_continue:
+		_items.push_front(CONTINUE)
 	var column := ListMenu.screen_column(self, "")
 	# The same living logo as the title screen: the ribbon sways, the letters' edges flicker.
 	var logo := AnimatedLogo.new()
@@ -57,7 +66,9 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 
 func _show_main(item: StringName) -> void:
 	_online = false
-	var items: Array[Dictionary] = [
+	var items: Array[Dictionary] = []
+	var rows: Array[Dictionary] = [
+		{"text": "Continue", "detail": CONTINUE_DETAIL},
 		{"text": "New Run", "detail": "About 8 stops: zones, shops and rests, then the final fight."},
 		{"text": "Online", "detail": "Host a run friends join from their own PCs, or join theirs."},
 		{"text": "Practice", "detail": "The tutorial, and any fight or zone on its own at full HP."},
@@ -65,7 +76,9 @@ func _show_main(item: StringName) -> void:
 		{"text": "Credits", "detail": "Who made the game, and whose music and sounds it uses."},
 		{"text": "Quit", "detail": ""},
 	]
-	_menu.index = maxi(0, ITEMS.find(item))
+	# Continue is the first row; without a save it is left out.
+	items.assign(rows if _items.has(CONTINUE) else rows.slice(1))
+	_menu.index = maxi(0, _items.find(item))
 	_menu.set_items(items, _detail)
 
 
@@ -85,10 +98,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		&"confirm":
 			if not _online:
 				Sfx.play("menu_confirm")
-				if ITEMS[_menu.index] == ONLINE:
+				if _items[_menu.index] == ONLINE:
 					_show_online()
 				else:
-					chosen.emit(ITEMS[_menu.index])
+					chosen.emit(_items[_menu.index])
 			elif _menu.index < ONLINE_ITEMS.size():
 				Sfx.play("menu_confirm")
 				chosen.emit(ONLINE_ITEMS[_menu.index])

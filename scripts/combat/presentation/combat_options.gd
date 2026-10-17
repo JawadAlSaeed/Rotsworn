@@ -14,6 +14,9 @@ extends RefCounted
 ##   --zone=ID                       start in this zone (data/zones) instead of the list
 ##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
 ##   --run                           start a new run at once (DESIGN.md 8)
+##   --save-path=PATH                (dev tool) keep the run save at PATH (a user:// path); the bot
+##                                   never touches the player's real save, so it saves only with this
+##   --continue                      continue the run save at once (with --save-path for the bot)
 ##   --players=N                     co-op with N players (1 to 3), one pretend pad each, heroes
 ##                                   split evenly (DESIGN.md 9.1; for the autoplay bot)
 ##   --host=N                        host online; start a run once N players (2 or 3) are in
@@ -52,6 +55,10 @@ var encounter_id: String = ""
 var zone_id: String = ""
 var first_strike: bool = false
 var run: bool = false
+## --continue: pick up the saved run at once.
+var continue_run: bool = false
+## --save-path=PATH ("" : the real save, and no saving for the bot).
+var save_path: String = ""
 ## Players from --players (1 = solo).
 var players: int = 1
 ## --host=N (0: not hosting) and --join=ADDRESS ("" : not joining).
@@ -111,6 +118,10 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.first_strike = true
 		elif arg == "--run":
 			options.run = true
+		elif arg == "--continue":
+			options.continue_run = true
+		elif arg.begins_with("--save-path="):
+			options.save_path = arg.substr("--save-path=".length())
 		elif arg.begins_with("--host="):
 			var wanted := arg.substr("--host=".length())
 			options.host_players = clampi(wanted.to_int(), 1, PlayerRoster.MAX_PLAYERS) if wanted.is_valid_int() else 2
