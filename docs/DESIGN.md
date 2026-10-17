@@ -3110,6 +3110,16 @@ upgrade to take blindly.
     seals and a gate, shrines, wanderers, champions; cards #155, #164). Step 2 tougher fights
     (guards as mini-bosses #156, elites #157). Step 3 the map and its stops (#162 map, #158 events,
     #159 treasure, #160 shop, #161 rest). Step 4 longer runs (#163).
+16. **Review pass** (built 2026-10-17 while the owner was away, waiting for playtest; branch
+    `phase16-Review`, cards #173 to #200): the whole game reviewed against the game-dev skills in
+    `.claude/skills/`, then fixed and made harder. Run: Oaths (8.15), Save & Quit (8.14), run
+    exploits and the final boss (8.13), "?" events with real prices and ambushes (8.7), rot-touched
+    gear (8.16). Fights: rends and sweeps (must parry / must dodge, 2.4), faster enemies with depth
+    (8.3), smarter enemies (2.3), hits that leave a mark (2.7), Charged Dooms (2.3), trauma shake and
+    big-moment impact (7.3), the arena's phase-two shift and zone air (7.3, 8.12). Also: co-op
+    hit-stop fix, pad-drop pause, rebinding (6), Flashes setting, defeat recap, resuming music, the
+    Rot Journal, ground textures and event pictures (5.4), build fingerprint and release-build
+    switches, voice pool and limiter.
 
 ### 11.1 To-do (from playtests)
 
