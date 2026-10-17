@@ -6,7 +6,7 @@
 script = ExtResource("1_xy2xp")
 id = "mend"
 display_name = "Mend"
-description = "Heals one ally for 30% of their max HP. Perfect press: 45%."
+description = "Heals one ally for 30% of their max HP. Perfect press: 45%. Lifts one mark (rot, blight or weakness); a perfect press lifts all."
 target = 3
 ap_cost = 1
 impact_sfx = "heal"
@@ -15,5 +15,7 @@ ring_lead_percent = 85
 damage_percent = 0
 heal_percent = 30
 press_heal_percent = 15
+cleanse_count = 1
+press_cleanse_count = 2
 windup_clips = PackedStringArray("cast_windup")
 strike_clips = PackedStringArray("cast")

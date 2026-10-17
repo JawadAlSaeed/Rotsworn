@@ -42,6 +42,9 @@ var _player_label: Label
 var _hp_bar: TrailBar
 var _hp_text: Label
 var _status_label: Label
+## The hero debuffs (rot, blight, weakness) with their turns left, each in its own colour (card #194).
+var _debuff_box: BoxContainer
+var _debuff_key: String = ""
 var _pips: Array[TextureRect] = []
 var _pip_full: Texture2D
 var _pip_empty: Texture2D
@@ -104,9 +107,14 @@ func setup(id: int, display_name: String, accent: Color, portrait: Texture2D, ma
 
 	# Full panel width, so a few statuses fit; an empty label keeps its line, so the panel does
 	# not change height when a status comes or goes.
+	var status_row := _box(HBoxContainer.new(), COLUMN_GAP)
+	column.add_child(status_row)
+	_debuff_box = _box(HBoxContainer.new(), COLUMN_GAP)
+	status_row.add_child(_debuff_box)
 	_status_label = HudStyle.make_label("", STATUS_SIZE, HudStyle.GOLD)
 	_status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	column.add_child(_status_label)
+	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	status_row.add_child(_status_label)
 
 
 ## `bar` with `text` drawn centred on top of it (HP and gauge numbers on their bars); add the
@@ -136,10 +144,26 @@ func refresh(f: Dictionary, active: bool) -> void:
 	_hp_text.label_settings.font_color = HudStyle.TEXT if alive else (HudStyle.JUMP if escaped else HudStyle.HP_LOW)
 	for i: int in _pips.size():
 		_pips[i].texture = _pip_full if i < ap else _pip_empty
-	_status_label.text = HudStyle.status_text(f.get("statuses", {}) as Dictionary)
+	var statuses := f.get("statuses", {}) as Dictionary
+	_status_label.text = HudStyle.status_text(statuses, true)
+	_show_debuffs(HudStyle.debuff_words(statuses))
 	modulate = Color.WHITE if alive else DOWN_TINT
 	_active = active
 	_apply_border()
+
+
+## Rebuilds the debuff words ([[id, "ROT 2"], ...]) only when they changed.
+func _show_debuffs(words: Array[Array]) -> void:
+	var key := str(words)
+	if key == _debuff_key:
+		return
+	_debuff_key = key
+	for child: Node in _debuff_box.get_children():
+		_debuff_box.remove_child(child)
+		child.queue_free()
+	for word: Array in words:
+		_debuff_box.add_child(HudStyle.make_label(String(word[1]), STATUS_SIZE,
+				HudStyle.STATUS_COLORS.get(String(word[0]), HudStyle.TEXT) as Color))
 
 
 ## Shows which co-op player controls this character (player < 0 hides the tag).

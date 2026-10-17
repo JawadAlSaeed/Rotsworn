@@ -442,8 +442,8 @@ func show_banner(text: String, accent: Color = HudStyle.LATE, from: String = "")
 
 ## Shows the attack's hits under the banner text, spaced by time (`kinds` AttackHitData.Kind,
 ## `times` impacts in ms), all upcoming.
-func set_banner_hits(kinds: Array, times: Array, feints: Array = []) -> void:
-	_banner_row.set_hits(kinds, times, _hit_icons, feints)
+func set_banner_hits(kinds: Array, times: Array, feints: Array = [], marks: Array = []) -> void:
+	_banner_row.set_hits(kinds, times, _hit_icons, feints, marks)
 	_banner_row.set_states([])
 	_banner_row.modulate.a = 1.0
 	_banner_row.visible = not kinds.is_empty()
@@ -1089,14 +1089,15 @@ func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 		panel.visible = false
 		return
 	var who := target_text(mirror, int(intent.get("mode", 0)), intent.get("targets", []) as Array)
-	(entry.label as Label).text = "%s  >  %s" % [String(intent.get("name", "?")), who]
+	var marks: Array = intent.get("marks", [])
+	(entry.label as Label).text = "%s  >  %s%s" % [String(intent.get("name", "?")), who, HudStyle.mark_text(marks)]
 	var kinds: Array = intent.get("kinds", [])
 	var times: Array = intent.get("times", [])
 	var feints: Array = intent.get("feints", [])
-	var shown := [kinds, times, feints]
+	var shown := [kinds, times, feints, marks]
 	if shown != entry.shown:
 		entry.shown = shown
-		(entry.row as HitRowView).set_hits(kinds, times, _hit_icons, feints)
+		(entry.row as HitRowView).set_hits(kinds, times, _hit_icons, feints, marks)
 	panel.visible = true
 
 

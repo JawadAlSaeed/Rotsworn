@@ -87,6 +87,12 @@ strike, return) takes about 0.55 s.
      so online and restore agree). The choice is still shown honestly as the intent. In practice
      fights the intent event also carries the weights behind the pick (`odds`) so they can be
      tuned by eye; it never changes what happens.
+   - **Marks (card #194).** A hit can leave a mark on the hero it lands on (2.7): a hero debuff
+     or an AP drain. The intent says so: the `intent` event carries `marks` (one entry per hit, ""
+     for a plain hit, only when some hit marks), the intent sign and the attack banner append
+     `[ROT]`, `[BLIGHT]`, `[WEAK]` or `[AP DRAIN]`, and the marking hit's icon wears a small dot in
+     that colour. A hit that cannot mark in this fight (hard-only marks in an ordinary fight)
+     shows nothing, so the sign never lies either way.
    - Shipped rules: predators (hyenas, shades, flies, gnats) WOUNDED with a bias of 150 to 400;
      husks and bloats RANDOM or mild WOUNDED (100); toads AVOID_LAST; guards and bosses
      LOWEST_HP or WOUNDED (100 to 250), so a weak hero is in real danger.
@@ -202,6 +208,47 @@ strike, return) takes about 0.55 s.
   are voided. Phase 2 adds revive (a target revived mid-attack does not rejoin that attack).
 - All three downed = defeat (in a run: run over). All enemies at 0 HP = victory. Victory or defeat
   can happen in the middle of an attack.
+- **Marks: hero debuffs and AP drain (card #194, review combat-rules-ai #3).** Failing to defend
+  used to cost only HP. Now an enemy hit can also carry a mark, set on the hit in the attack's
+  data (`AttackHitData.on_hit_status`, `on_hit_status_turns`, `on_hit_ap_drain`). It lands only
+  when that hit is **undefended** (outcome NONE: no dodge, parry or jump that answers it; a wrong
+  button on a rend, sweep or ground hit still counts as undefended) **and the hero survives it**
+  (a hero downed by the hit gets nothing). A successful defence prevents it, so defence has a
+  second stake. It is applied in the engine's defend-prompt resolution, after the
+  `prompt_resolved` event, with the existing `_add_status` (a `status_changed` event) and an
+  `ap_changed` event with reason `drain`. `on_hit_hard_only` (default off; every shipped mark sets
+  it) holds the mark back unless the fight is hard (an elite, guard or boss fight, or an enemy
+  with `forced_hits`, like `forced_kind`), so one attack file serves the ordinary fight as plain
+  damage and the hard one as damage plus a mark. Nothing marks in the tutorial fight or in
+  ordinary first-zone fights.
+
+  | Status | Effect (numbers in `tuning.tres`) | Ends |
+  |---|---|---|
+  | Rotting (`rotting`) | at the start of each of the hero's turns they lose `rotting_percent` (6) of max HP, never below 1 HP from rot alone (damage cause `rotting`) | `on_hit_status_turns` of their turns |
+  | Blighted (`blighted`) | healing they receive is cut by `blighted_heal_cut_percent` (50), at least 1 HP when it heals at all; applies to every heal (skills, Renew, items, gear) | same |
+  | Weakened (`weakened`) | their power is cut by `weakened_power_cut_percent` (25): skills, follow-ups, counters, team counters and the damage of a Bleeding they put on an enemy | same |
+
+  They count down at the end of the holder's turns like Slowed, show their turns left on the
+  hero's panel (a short coloured word: ROT 2, BLIGHT 2, WEAK 2) and a popup when they land. **They
+  stack by refreshing, never by multiplying:** a second hit sets the turns to the longer of the
+  two. A downed hero loses them all. Statuses are built fresh with each fight (a fight starts
+  from `CombatSetup`, and the run saves only HP), so the end of a fight and a campfire Rest
+  clear them without any code. The AP drain takes `on_hit_ap_drain` AP (never below 0) with a
+  `-N AP` popup.
+
+  **Cleanse.** `AbilityData.cleanse_count` (+ `press_cleanse_count` on an all-perfect press)
+  removes that many debuffs from each ally a healing skill heals, **before** the heal lands, in
+  the order rotting, blighted, weakened (so lifting Blight frees that very heal). Decision: Mend
+  and Sanctuary lift **one** on a normal press and **all three** on a perfect one, so Cass's
+  timing matters; Renew does not cleanse (it is a slow heal). Items: `ItemData.cleanse_count`;
+  the Salve lifts one in a fight (the Antidote of the item list is not built). The autoplay bot
+  prefers a cleansing skill when a hero is marked, and aims it at a marked hero.
+
+  Shipped marks (one marking hit per string at most): Bile Spit and Bile Flood's last bolt
+  (Blighted 2), Rot Combo's last hit (Rotting 2), Rot Cascade's last hit (Rotting 3, the Hollow
+  King), Pounce and Pack Bite's last hit (Weakened 2), Shadow Bolts' last bolt (1 AP drain).
+  `tools/make_attack.py` writes these with the hit options `mark`, `mark_turns`, `ap_drain`,
+  `hard_only`.
 
 ### 2.8 Phase 2 features (planned, not built yet)
 
@@ -310,7 +357,7 @@ power unless stated. AP is per character.
 
 | Skill | AP | Effect | Good press |
 |---|---|---|---|
-| Mend | 1 | heal one ally 30% of their max HP | 45% |
+| Mend | 1 | heal one ally 30% of their max HP, lift one hero debuff (2.7) | 45%, lift all |
 | Reveal | 1 | 60% hit, enemy becomes Exposed | +1 AP |
 | Pass the Torch | 2 | give one ally 2 AP | 3 AP |
 | Hasten | 2 | one ally's next turn comes sooner | sooner still |
@@ -1762,7 +1809,8 @@ co-op anyone can open and move things at any time. The rest are proposed default
   that hero's slots are full, swap: the old piece is sold on the spot for `item_sell_percent`.
 - **Consumables (first set):** Salve (heal one 50%), Feast (heal all 30%), Tonic (one hero +15%
   max HP for the run, map only), Bomb (damage to all enemies, fight only), Antidote (clears bad
-  statuses from one hero and heals a little). Salve, Feast and Tonic move from "used when bought"
+  statuses from one hero and heals a little; card #194: for now the Salve is the cleansing item,
+  it lifts one hero debuff in a fight, 2.7). Salve, Feast and Tonic move from "used when bought"
   to the backpack. **Tonic cap** (card #175): a hero can drink at most `tonic_max_per_hero` (2)
   Tonics in a run (`RunState.tonics_used`, kept in `to_dict`), because gold plus Restock turned
   into endless max HP. The party screen greys the choice with a line saying why, a capped hero is
@@ -2064,7 +2112,7 @@ middle row costs 1 point, the bottom row 2):
 | Brin | Flurry | Quick Cuts (now 4 x 40%) | Twin Fangs (2 AP: 2 x 90%; both perfect: Exposed) | All In (now 6 x 100%) |
 | Brin | Cripple | Hamstring | Open Vein (2 AP: 100% and Bleeding 3 turns) | Rend |
 | Brin | Shadow | Feint Step | Shadowstep (1 AP: next turn much sooner, Empowered) | Death Mark (3 AP: Marked for 3 skills) |
-| Cass | Mending | Mend | Renew (2 AP: Renew 3 turns) | Sanctuary (4 AP: heals the party 30%, perfect 40%) |
+| Cass | Mending | Mend | Renew (2 AP: Renew 3 turns) | Sanctuary (4 AP: heals the party 30%, perfect 40%; lifts one debuff from each, all on a perfect press) |
 | Cass | Light | Reveal (now a bolt) | Smite (2 AP: 160% bolt, +100% on Exposed) | Revive |
 | Cass | Grace | Pass the Torch | Hasten | Inspire (3 AP: everyone +1 AP, gauge +25) |
 
@@ -2961,3 +3009,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Smarter enemies: no move more than twice running (data: `max_in_a_row`, `cooldown_turns`, finisher and desperation weights), and single-target attacks pick by a per-enemy rule (WOUNDED, LOWEST_HP, MARKED, AVOID_LAST) with a bias; Taunt still wins | card #189 (review: combat-rules-ai); the owner wants it hard, a weak hero must be in real danger; no attack file uses finisher or cooldown yet, to tune with play |
 | 2026-10-17 | Forced-choice hits: a rend (parry only, bone) and a sweep (dodge only, green, never countered) in elite, guard and boss fights and from the deep variants, about one hit in four; uneven gaps in every one-button string, a feint in every hard string; enemy attacks speed up with depth, elites, guards, bosses and phase two, never under 70% of authored; windows unchanged | cards #187, #188 and review combat-feel #4, #5, #9: dodge-everything and a steady tap beat the defence; nothing made easier |
 | 2026-10-17 | "?" events are real trade-offs: new prices (permanent max HP, a backpack item, a rotten-item curse, an ambush fight), every choice costs something scarce, gold and XP grow with depth, 16 events with act 2's own list, and a "?" stop can turn into an ambush (15% + 15% per "?" passed without a fight, seeded per stop, state in the run dict) | card #193 (review: run-structure); the owner wants it hard, so a "?" tempts and never gives for free (8.7) |
+| 2026-10-17 | Enemy hits can leave a mark when undefended and survived: hero debuffs Rotting (6% max HP at turn start, never below 1), Blighted (healing -50%), Weakened (power -25%), or an AP drain; they refresh, never stack; Mend and Sanctuary cleanse one (all on a perfect press), the Salve one; shipped marks are hard-fight-only and on few hits (bile, rot combo, King's cascade, hyena bites, shade bolts); the intent, banner and hit icons announce them | card #194 (review: combat-rules-ai #3): failing to defend cost only HP, and Cass had no job beyond healing |

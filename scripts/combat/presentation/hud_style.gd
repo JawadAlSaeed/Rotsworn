@@ -35,12 +35,16 @@ const PLAYER_COLORS: Array[Color] = [Color(0.4, 0.75, 1.0), Color(1.0, 0.5, 0.45
 const STATUS_NAMES := {
 	"exposed": "EXPOSED", "guarded": "GUARD", "taunted": "TAUNTED", "slowed": "SLOWED", "riposte": "RIPOSTE",
 	"bleeding": "BLEEDING", "regen": "RENEW", "marked": "MARKED", "empowered": "EMPOWERED",
+	# Hero debuffs and the AP drain mark (card #194).
+	"rotting": "ROT", "blighted": "BLIGHT", "weakened": "WEAK", "ap_drain": "AP DRAIN",
 }
 const STATUS_COLORS := {
 	"exposed": Color(1.0, 0.55, 0.3), "guarded": Color(0.55, 0.8, 1.0), "taunted": Color(1.0, 0.4, 0.4),
 	"slowed": Color(0.7, 0.6, 1.0), "riposte": Color(1.0, 0.85, 0.35),
 	"bleeding": Color(0.9, 0.2, 0.25), "regen": Color(0.45, 1.0, 0.5), "marked": Color(1.0, 0.3, 0.7),
 	"empowered": Color(1.0, 0.75, 0.3),
+	"rotting": Color(0.68, 0.86, 0.22), "blighted": Color(0.82, 0.45, 0.88), "weakened": Color(0.72, 0.74, 0.84),
+	"ap_drain": Color(0.55, 0.88, 1.0),
 }
 
 ## The fight HUD's look (card #154): dark ink plates slanted like Persona 5's, edged in a calm
@@ -498,11 +502,12 @@ static func wrong_action_text(kind: int) -> String:
 	return "PARRY!"
 
 
-## "GUARD  SLOWED 2" from a fighter's statuses (mirror format), in Status.ALL order.
-static func status_text(statuses: Dictionary) -> String:
+## "GUARD  SLOWED 2" from a fighter's statuses (mirror format), in Status.ALL order. The hero
+## debuffs are left out when `skip_debuffs` (the party panel draws them in their own colours).
+static func status_text(statuses: Dictionary, skip_debuffs: bool = false) -> String:
 	var parts := PackedStringArray()
 	for id: String in Status.ALL:
-		if not statuses.has(id):
+		if not statuses.has(id) or (skip_debuffs and Status.is_debuff(id)):
 			continue
 		var text := String(STATUS_NAMES.get(id, id.to_upper()))
 		var turns := int((statuses[id] as Dictionary).get("turns", 0))
@@ -510,3 +515,34 @@ static func status_text(statuses: Dictionary) -> String:
 			text += " %d" % turns
 		parts.append(text)
 	return "  ".join(parts)
+
+
+## [[debuff id, "ROT 2"], ...] for the hero debuffs in a fighter's statuses (mirror format), with the
+## turns left (card #194).
+static func debuff_words(statuses: Dictionary) -> Array[Array]:
+	var words: Array[Array] = []
+	for id: String in Status.DEBUFFS:
+		if not statuses.has(id):
+			continue
+		var text := String(STATUS_NAMES.get(id, id.to_upper()))
+		var turns := int((statuses[id] as Dictionary).get("turns", 0))
+		if turns > 0:
+			text += " %d" % turns
+		words.append([id, text])
+	return words
+
+
+## "  [ROT]" for the marks an attack's hits leave (a mark id per hit, "" for none), each word once; ""
+## when no hit marks. Appended to the intent and the banner so a marking hit is announced (card #194).
+static func mark_text(marks: Array) -> String:
+	var words := PackedStringArray()
+	for mark: Variant in marks:
+		var id := String(mark)
+		if id.is_empty():
+			continue
+		var word := String(STATUS_NAMES.get(id, id.to_upper()))
+		if not words.has(word):
+			words.append(word)
+	if words.is_empty():
+		return ""
+	return "  [%s]" % "/".join(words)

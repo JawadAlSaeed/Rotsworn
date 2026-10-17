@@ -6,12 +6,17 @@ extends Control
 ## upcoming as is, active bigger, done faded. A feint's icon wears a broken ring (card #129), so
 ## players know a false start is coming.
 
+## The mark dot radius as a share of the icon.
+const MARK_DOT_SHARE: float = 0.24
+
 var _icon_px: float = 30.0
 ## Rows that show an active hit are tall enough for it to grow without moving the row.
 var _room_to_grow: bool = false
 var _visuals: CombatVisuals
 var _textures: Array[Texture2D] = []
 var _feints: Array[bool] = []
+## Per hit: the mark it leaves ("" = none; a debuff id or Status.MARK_AP_DRAIN), card #194.
+var _marks: Array[String] = []
 var _centres := PackedFloat32Array()
 var _states: Array[int] = []
 
@@ -26,14 +31,16 @@ func setup(icon_px: float, visuals: CombatVisuals, room_to_grow: bool = false) -
 
 
 ## One icon per hit: `kinds` are AttackHitData.Kind values, `times` their impacts (ms), and
-## `hit_icons` maps a kind to its texture; `feints` says which hits are feints (empty: none).
-## Every hit starts UPCOMING.
-func set_hits(kinds: Array, times: Array, hit_icons: Dictionary, feints: Array = []) -> void:
+## `hit_icons` maps a kind to its texture; `feints` says which hits are feints (empty: none);
+## `marks` the mark each hit leaves (empty: none do). Every hit starts UPCOMING.
+func set_hits(kinds: Array, times: Array, hit_icons: Dictionary, feints: Array = [], marks: Array = []) -> void:
 	_textures.clear()
 	_feints.clear()
+	_marks.clear()
 	for i: int in kinds.size():
 		_textures.append(hit_icons.get(int(kinds[i])) as Texture2D)
 		_feints.append(i < feints.size() and bool(feints[i]))
+		_marks.append(String(marks[i]) if i < marks.size() else "")
 	_centres = HitRhythm.layout(times, _icon_px, _visuals.rhythm_px_per_ms, _visuals.rhythm_min_gap_px,
 			_visuals.rhythm_max_width_px)
 	_states.clear()
@@ -81,6 +88,19 @@ func _draw_icon(i: int, mid: float) -> void:
 	draw_texture_rect(texture, Rect2(Vector2(_centres[i] - px * 0.5, mid - px * 0.5), Vector2(px, px)), false, tint)
 	if i < _feints.size() and _feints[i]:
 		_draw_feint_ring(Vector2(_centres[i], mid), px, tint.a)
+	if i < _marks.size() and not _marks[i].is_empty():
+		_draw_mark(Vector2(_centres[i], mid), px, tint.a, _marks[i])
+
+
+## A small dot in the mark colour on the icon lower right: this hit leaves a mark (rot, blight,
+## weakness or an AP drain) if it lands.
+func _draw_mark(centre: Vector2, px: float, alpha: float, mark: String) -> void:
+	var color := HudStyle.STATUS_COLORS.get(mark, HudStyle.TEXT) as Color
+	color.a *= alpha
+	var radius := maxf(3.0, px * MARK_DOT_SHARE)
+	var at := centre + Vector2(px, px) * 0.5 - Vector2(radius, radius) * 0.5
+	draw_circle(at, radius, Color(0.03, 0.025, 0.04, 0.9 * alpha))
+	draw_circle(at, radius * 0.72, color)
 
 
 ## A dashed ring around a feint's icon: a broken outline for a broken rhythm.

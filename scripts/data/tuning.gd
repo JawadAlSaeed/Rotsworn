@@ -332,6 +332,12 @@ extends Resource
 ## the hero's next damaging skill deals this percent more.
 @export_range(0, 500, 1, "suffix:%") var marked_bonus_percent: int = 40
 @export_range(0, 500, 1, "suffix:%") var empowered_bonus_percent: int = 30
+## Hero debuffs left by enemy hits (card #194). Rotting: the hero loses this percent of max HP at
+## the start of each of their turns, never below 1 HP from rot alone. Blighted: healing they
+## receive is cut by this percent. Weakened: their power is cut by this percent.
+@export_range(0, 100, 1, "suffix:%") var rotting_percent: int = 6
+@export_range(0, 100, 1, "suffix:%") var blighted_heal_cut_percent: int = 50
+@export_range(0, 100, 1, "suffix:%") var weakened_power_cut_percent: int = 25
 
 @export_group("Skill trees")
 ## Skill trees (DESIGN.md 8.4, card #136): each level up gives this many skill points; the
