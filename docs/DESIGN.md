@@ -1131,6 +1131,26 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
   decoration around the combat arena (blocks, props, lamps). A zone and the fights that start in
   it share its look; the fight list's fights use `combat_visuals.tres` `stage_look`.
   `StageBuilder` builds it all for both.
+- **The floor does not repeat like wallpaper** (card #186, `floor_ground.gdshader`): each place has
+  three drawn variants of its floor tile (`hollow_floor`, `ash_tile`, `bog_tile`, `throne_tile`, each
+  with `_b` and `_c`; the Hollow Throne no longer borrows the ash). They are calm: one ramp in three
+  close steps, a luma spread under 10, detail in small clusters, no stripes (`check.py` tests the
+  spread, the row and column averages and that the three variants share a tone). The shader gives
+  every ragged region of the floor (`floor_region_world_size`, edge bent by `floor_region_warp`) one
+  of the variants and mirrors it (`floor_mirror`), and drifts the brightness in a few steps over
+  wide areas (`floor_tone_*`). Every decision is made per art pixel with nearest sampling, so it
+  stays crisp. All numbers are in the StageLook. Ground pieces (moss, trails, leaves) dither their
+  rim into the floor (`ZoneGroundData.fringe_pixels`, `edge_shade`) instead of ending in a cut line;
+  boards and slabs keep a hard edge.
+- **Contact shadows** (card #186): props, trees, shrines and chests stand on a soft dark blob (the
+  fighters' `shadow.png`), as wide as the prop's footprint (the opaque width of its lowest rows)
+  times `prop_shadow_width_percent`, slid away from the sun by `prop_shadow_shift_percent`. All in
+  the StageLook ("Contact shadows"). Ground cover (grass, ferns, reeds), glowing props, critters
+  and item glints get none (`ZonePropData.contact_shadow`).
+- **One pixel size:** scenery is drawn at 0.045 to 0.05 world units a pixel, like the fighters (a
+  test checks every prop in the zones and the arenas, and that ground pieces use the floor's 1.6
+  tile size). Trees, logs, huts and ruins that were scaled up to 0.055 to 0.07 are now 0.05, so
+  they are a little smaller; redrawing the big ones larger at native size is a later art job.
 - **Lit sprites:** fighters and props are billboards lit by the sun, ambient light and lamps
   (`fighter_sprite.gdshader`: the lighting normal leans up, `normal_up`, so a sprite is lit like the
   ground it stands on). Flashes and glows are emission, so bloom catches them. Props can glow on
@@ -2651,6 +2671,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-16 | Shop: no Heal service; each shop stocks 4 items, 2 charms, 2 gear (was the whole list) | user: the shop felt cluttered and Heal = a Salve for the same gold |
 | 2026-10-17 | Zones get their own places, ground pieces and water, wind, drifting particles and critters | user: zones must feel alive and fit their theme (8.12) |
 | 2026-10-17 | Save & Quit: one local-run slot, saved on the map and on entering a stop; Continue re-enters an unfinished stop from its start, never the map; deleted when the run ends or is abandoned; online runs not saved | card #174; quitting must not dodge a hard stop, and losing 2 acts to a closed window was the worst way to lose |
+| 2026-10-17 | Floors: three calm variants per place mixed by region, mirrored and tone-drifted by a shader; ground pieces fade into the floor; props get contact shadows; scenery drawn at the fighters' pixel size (0.045 to 0.05) | card #186 (review: art-textures 0, 2, 3; audio-look 0); not an ease change: only the look |
 | 2026-10-15 | Lining digits everywhere; bold number font for HP, AP, gauge; slanted bold popups and damage numbers | user: the numbers' font felt cheap |
 | 2026-10-15 | Hero portraits are painted pictures (made by the user with an AI image tool) turned into pixel art; big cards on the players screen, 64x64 faces everywhere else | user (#140, #141); a code-drawn try looked bad |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |

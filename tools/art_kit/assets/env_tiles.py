@@ -413,84 +413,6 @@ def blob(x: float, y: float, r: float, rag: np.ndarray, squash: float = 1.3) -> 
     return np.hypot(dx, dy) + (rag - 0.5) * 1.6 < r
 
 
-# Ash in fine, warm-grey steps, so the drifts read as one soft powder.
-ASH_SOFT = Material.make("ash_soft", "#74726f", below=3, above=2, step_l=0.04, grey_hue=70,
-                         shadow_chroma=0.6, shadow_shift=4).colors
-# Scorched, bare stone: a warm charcoal next to the ash (the cool wall stone reads as bruises).
-CHAR = Material.make("char", "#57514d", grey_hue=55, step_l=0.06, shadow_chroma=0.8).colors
-
-
-def ash_tile(var: int = 1) -> np.ndarray:
-    """Ashen Ruins ground: a soft skin of grey ash drifted over cracked flagstones. Where the ash
-    is thin the slabs' cracks print through it, in two spots the wind has bared the scorched
-    stone, cinders lie about and one dim ember smoulders in a crack."""
-    tex = Tex([ASH_SOFT, CHAR, EMBER_DIM])
-    AS, CH, EM = 0, 1, 2
-    sid, edge = stones(17 + var, 3, 0.8, 1.3, warp_cells=4)
-    crack = joints(sid)
-    # Ash depth: no tile-sized waves, so every tile carries the same weight.
-    drift = norm(highpass(pnoise(71 + var, 4, 2, gain=0.4) * 0.75 + pnoise(72, 8, 1) * 0.25))
-    q_thin, q_show, q_crest = np.quantile(drift, (0.26, 0.58, 0.82))
-    thin = drift < q_thin
-    alight = shade(drift * 3.0, 1.0)
-    # The ash in three tones: thin ash (the stone darkens it), the even skin, and the lit crests
-    # of the deepest drifts.
-    tex.set(np.ones((T, T), bool), AS, np.where(thin, 2, 3) + ((drift > q_crest) & (alight > 0.0)))
-    # The slabs' cracks print through the ash as dark lines where it is thin or even, in runs
-    # long enough to read as cracks (deep drifts bury them).
-    seen = keep_long(crack & (drift < q_show), 6)
-    tex.set(seen, AS, 1)
-    tex.set(seen & thin, AS, 0)
-    tex.clean(keep=seen)
-
-    # Two bare spots, one in each of two opposite quarters, drawn out by the wind over a crack:
-    # flat scorched stone, the ash bank's shadow along its top, the bank lit below it.
-    rag = pnoise(73 + var, 8, 1)
-    cy_, cx_ = np.nonzero(crack)
-    bare = np.zeros((T, T), dtype=bool)
-    for (x, y, r) in ((9.5, 9.0, 5.0), (25.0, 24.5, 4.0)):
-        i = int(np.hypot(wrapd(x)[cx_], wrapd(y)[cy_]).argmin())
-        bare |= blob(cx_[i] + 0.5, cy_[i] + 0.5, r, rag, 2.2)
-    tex.set(bare, CH, 3)
-    tex.set(bare & wshift(~bare, 0, -1), CH, 2)
-    tex.set(bare & crack, CH, 1)
-    bank = ~bare & wshift(bare, 0, -1)
-    tex.set(bank, AS, 4)
-    tex.clean(keep=bare & crack)
-
-    # Cinders: charred lumps of three sizes, lit on top, each with a soft shadow on the ash.
-    # They sit one step below the ash in value, so they do not dot the ground like a grid.
-    for (x, y, shape) in ((24, 7, ("_aa", "abb", "_b_")), (5, 25, ("aa", "bb")), (16, 17, ("ab",))):
-        for r, row in enumerate(shape):
-            for c, ch in enumerate(row):
-                if ch != "_":
-                    tex.px(x + c, y + r, CH, {"a": 3, "b": 2}[ch])
-        w = len(shape[-1])
-        for c in range(1, w + 1):
-            if tex.mat[(y + len(shape)) % T, (x + c) % T] == AS:
-                tex.px(x + c, y + len(shape), AS, 2)
-    # One dim ember in a crack of the larger bare spot: a hot core and its glow beside it.
-    ys, xs = np.nonzero(bare & crack)
-    if len(ys):
-        d = np.hypot(wrapd(11.0)[xs], wrapd(9.5)[ys])
-        i = int(d.argmin())
-        ex, ey = int(xs[i]), int(ys[i])
-        tex.px(ex, ey, EM, 2)
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            if crack[(ey + dy) % T, (ex + dx) % T] or bare[(ey + dy) % T, (ex + dx) % T]:
-                tex.px(ex + dx, ey + dy, EM, 1)
-                break
-    return tex.rgba()
-
-
-# Bog mud: one brown-olive family in close steps, so the mud reads as one wet material.
-BOG_MUD = Material.make("bog_mud_wet", "#4f4632", below=3, above=3, step_l=0.035,
-                        shadow_chroma=0.85, shadow_shift=3).colors
-# Standing bog water: a grey green that mirrors the murky sky, a touch lighter than wet mud.
-BOG_POOL = Material.make("bog_pool", "#404b45", step_l=0.045, shadow_chroma=0.8,
-                         light_chroma=0.7).colors
-
-
 def fill_small(mask: np.ndarray, smallest: int) -> np.ndarray:
     """Removes the parts of a mask smaller than `smallest` pixels, and fills its holes smaller
     than that (so pools have no pinholes and no one-pixel splashes)."""
@@ -502,73 +424,6 @@ def fill_small(mask: np.ndarray, smallest: int) -> np.ndarray:
             if sel.sum() < smallest:
                 out[sel] = val
     return out
-
-
-def bog_tile(var: int = 7) -> np.ndarray:
-    """Sunken Bog ground: soft wet mud in large wetter and drier patches, irregular pools of
-    standing water filled to the brim (they run across the tile's edges, several sizes), a few
-    clods and wet glints, a little moss on the higher mud."""
-    tex = Tex([BOG_MUD, BOG_POOL, MOSS_DIM])
-    MU, WA, MO = 0, 1, 2
-    rng = np.random.default_rng(404 + var)
-    wn = pnoise(91 + var, 4, 2) * 0.7 + pnoise(97 + var, 8, 1) * 0.3
-    water = fill_small(wn > np.quantile(wn, 0.72), 6)
-    # Mud: wetter and drier in big, soft patches of two close tones (no rings round the pools,
-    # which would draw a net of dark lines across the ground).
-    wet = pnoise(94 + var, 3, 2, gain=0.4)
-    damp = fill_small(~water & (wet < np.quantile(wet[~water], 0.45)), 12)
-    tex.set(~water, MU, np.where(damp, 2, 3))
-    # The pool's near shore (lower right, toward the camera): a one-pixel lip of wet mud.
-    lip = ~water & (wshift(water, 0, -1) | wshift(water, -1, 0))
-    tex.set(lip, MU, 1)
-    # Water: one flat, still surface mirroring the murk, a touch lighter than the mud.
-    tex.set(water, WA, 2)
-    # Moss on the bank of a pool, in a few small clumps.
-    mn = pnoise(95 + var, 6, 1)
-    bank = ~water & ~lip & (wshift(water, 1, 0) | wshift(water, 0, 1) | wshift(water, 2, 0) |
-                            wshift(water, 0, 2))
-    seedm = bank & top(np.where(bank, mn, -1.0), 0.012)
-    moss = seedm | (wshift(seedm, 1, 0) & ~water) | (wshift(seedm, 0, -1) & ~water)
-    moss = fill_small(moss, 3)
-    tex.set(moss, MO, 1)
-    tex.set(moss & ~wshift(moss, 0, -1) & ~wshift(moss, -1, 0), MO, 2)
-    tex.clean()
-    # A dull, broken sheen of the sky on the open water: short streaks away from the shore,
-    # brightest in the middle.
-    inner = water & wshift(water, 0, -1) & wshift(water, 0, 1) & wshift(water, -1, 0) & wshift(
-        water, 1, 0)
-    ys, xs = np.nonzero(inner)
-    used = np.zeros((T, T), dtype=bool)
-    for i in rng.permutation(len(ys)):
-        y, x = int(ys[i]), int(xs[i])
-        L = int(rng.integers(2, 6))
-        run = [(x + k) % T for k in range(L)]
-        near = [(x + k) % T for k in range(-4, L + 4)]
-        if not all(inner[y, c] for c in run) or used[np.arange(y - 3, y + 4) % T][:, near].any():
-            continue
-        for k, c in enumerate(run):
-            tex.px(c, y, WA, 4 if (L >= 4 and k == L // 2) else 3)
-            used[y, c] = True
-        if used.sum() > 16:
-            break
-    # Wet glints on the damp mud by the water.
-    ys, xs = np.nonzero(damp & wshift(damp, 1, 0) & wshift(damp, -1, 0) & wshift(damp, 2, 0))
-    for i in rng.permutation(len(ys))[:4]:
-        tex.px(int(xs[i]), int(ys[i]), MU, 4)
-        tex.px(int(xs[i]) + 1, int(ys[i]), MU, 4)
-    # Clods of mud: rounded lumps lit on top, a shadow tucked under each.
-    clods = (("_aa_", "abbb", "_cc_"), ("aa_", "bbb", "cc_"), ("_ab", "abb", "cc_"))
-    for (x, y, k) in ((2, 9, 0), (18, 1, 1), (28, 27, 2)):
-        for r, row in enumerate(clods[k]):
-            for c, ch in enumerate(row):
-                if ch != "_" and tex.mat[(y + r) % T, (x + c) % T] == MU:
-                    tex.px(x + c, y + r, MU, {"a": 5, "b": 4, "c": 2}[ch])
-    # Wet glints: short streaks of light on the drier mud.
-    for (x, y, L) in ((6, 3, 2), (22, 14, 2), (12, 30, 2)):
-        for k in range(L):
-            if tex.mat[y % T, (x + k) % T] == MU and tex.lvl[y % T, (x + k) % T] >= 3:
-                tex.px(x + k, y, MU, 5)
-    return tex.rgba()
 
 
 # Cliff rock: the darkest, coolest stone of the set, so the back walls sit behind the ground.
@@ -1623,8 +1478,6 @@ BACKDROPS = {
 def build(ctx) -> None:
     textures = {
         "floor_tile": floor_tile,
-        "ash_tile": ash_tile,
-        "bog_tile": bog_tile,
         "cliff": cliff,
         "ruin_wall": ruin_wall,
     }

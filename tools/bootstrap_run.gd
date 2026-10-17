@@ -184,6 +184,8 @@ func _hit(impact_ms: int, kind: AttackHitData.Kind, pct: int, approach_ms: int, 
 ## The boss's hall: the Ashen Ruins under a red glow.
 func _throne_look(base: StageLook) -> StageLook:
 	var look := base.duplicate(true) as StageLook
+	look.floor_tile_path = ENV + "throne_tile.png"
+	look.floor_variant_paths = [ENV + "throne_tile_b.png", ENV + "throne_tile_c.png"]
 	look.background_color = Color(0.07, 0.03, 0.04)
 	look.ambient_color = Color(0.42, 0.3, 0.34)
 	look.light_color = Color(1.0, 0.7, 0.6)
@@ -225,6 +227,7 @@ func _encounter(id: String, title: String, party: Array, enemies: Array, ultimat
 func _bog_look(base: StageLook) -> StageLook:
 	var look := base.duplicate(true) as StageLook
 	look.floor_tile_path = ENV + "bog_tile.png"
+	look.floor_variant_paths = [ENV + "bog_tile_b.png", ENV + "bog_tile_c.png"]
 	look.background_color = Color(0.04, 0.07, 0.06)
 	look.ambient_color = Color(0.3, 0.42, 0.36)
 	look.light_color = Color(0.85, 1.0, 0.8)
@@ -243,6 +246,7 @@ func _bog_look(base: StageLook) -> StageLook:
 func _ash_look(base: StageLook) -> StageLook:
 	var look := base.duplicate(true) as StageLook
 	look.floor_tile_path = ENV + "ash_tile.png"
+	look.floor_variant_paths = [ENV + "ash_tile_b.png", ENV + "ash_tile_c.png"]
 	look.background_color = Color(0.06, 0.06, 0.09)
 	look.ambient_color = Color(0.38, 0.42, 0.58)
 	look.light_color = Color(0.75, 0.85, 1.0)
@@ -272,19 +276,19 @@ func _sunken_bog(look: StageLook, leader: CharacterData, guard: EncounterData) -
 		_block(Vector3(10, 0, 3), Vector3(3, 2, 3), "cliff"),
 	])
 	var props: Array[ZonePropData] = [
-		_prop("rotten_tree", Vector3(-11, 0, 5), 0.06, 0.6),
-		_prop("rotten_tree", Vector3(12, 0, -3), 0.06, 0.6, true),
-		_prop("rotten_tree", Vector3(-12, 0, -9), 0.06, 0.6),
-		_prop("rotten_tree", Vector3(11, 0, -17), 0.06, 0.6, true),
-		_prop("rotten_tree", Vector3(-6, 0, -20), 0.06, 0.6),
-		_prop("dead_tree", Vector3(4, 0, 1), 0.06, 0.4),
-		_prop("dead_tree", Vector3(-3, 0, -9), 0.06, 0.4, true),
-		_prop("dead_tree", Vector3(5, 0, -15), 0.06, 0.4),
+		_prop("rotten_tree", Vector3(-11, 0, 5), 0.05, 0.6),
+		_prop("rotten_tree", Vector3(12, 0, -3), 0.05, 0.6, true),
+		_prop("rotten_tree", Vector3(-12, 0, -9), 0.05, 0.6),
+		_prop("rotten_tree", Vector3(11, 0, -17), 0.05, 0.6, true),
+		_prop("rotten_tree", Vector3(-6, 0, -20), 0.05, 0.6),
+		_prop("dead_tree", Vector3(4, 0, 1), 0.05, 0.4),
+		_prop("dead_tree", Vector3(-3, 0, -9), 0.05, 0.4, true),
+		_prop("dead_tree", Vector3(5, 0, -15), 0.05, 0.4),
 		_prop("rock", Vector3(-3, 0, 4.5), 0.05, 0.7),
 		_prop("rock", Vector3(9.5, 0, -6.5), 0.05, 0.7, true),
 		_prop("rock", Vector3(-8, 0, -11.5), 0.05, 0.7),
-		_prop("pillar", Vector3(-2.5, 0, -20.5), 0.055, 0.45),
-		_prop("pillar", Vector3(3.5, 0, -20.5), 0.055, 0.45, true),
+		_prop("pillar", Vector3(-2.5, 0, -20.5), 0.05, 0.45),
+		_prop("pillar", Vector3(3.5, 0, -20.5), 0.05, 0.45, true),
 	]
 	for spot: Vector3 in [Vector3(-7, 0, 3), Vector3(3, 0, -4.5), Vector3(-1, 0, -13), Vector3(8, 0, -19),
 			Vector3(-12.5, 0, -2), Vector3(12, 0, 7)]:
@@ -325,12 +329,12 @@ func _ashen_ruins(look: StageLook, leader: CharacterData, guard: EncounterData) 
 	var props: Array[ZonePropData] = []
 	for spot: Vector3 in [Vector3(-3, 0, 4), Vector3(3, 0, 4), Vector3(-3, 0, -4), Vector3(3, 0, -4.5),
 			Vector3(-2, 0, -11), Vector3(2, 0, -11), Vector3(-2.5, 0, -20.5), Vector3(2.5, 0, -20.5)]:
-		props.append(_prop("pillar", spot, 0.055, 0.45, spot.x > 0.0))
+		props.append(_prop("pillar", spot, 0.05, 0.45, spot.x > 0.0))
 	props.append_array([
-		_prop("dead_tree", Vector3(-12, 0, 6), 0.06, 0.4),
-		_prop("dead_tree", Vector3(12, 0, 7), 0.06, 0.4, true),
-		_prop("dead_tree", Vector3(-13, 0, -18), 0.06, 0.4),
-		_prop("dead_tree", Vector3(13, 0, -3), 0.06, 0.4, true),
+		_prop("dead_tree", Vector3(-12, 0, 6), 0.05, 0.4),
+		_prop("dead_tree", Vector3(12, 0, 7), 0.05, 0.4, true),
+		_prop("dead_tree", Vector3(-13, 0, -18), 0.05, 0.4),
+		_prop("dead_tree", Vector3(13, 0, -3), 0.05, 0.4, true),
 		_prop("rock", Vector3(6.5, 0, 4), 0.05, 0.7),
 		_prop("rock", Vector3(-6, 0, -9), 0.05, 0.7, true),
 		_prop("rock", Vector3(12.5, 0, -12), 0.05, 0.7),

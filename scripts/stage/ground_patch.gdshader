@@ -1,6 +1,7 @@
 // A piece of ground laid on the floor (DESIGN.md 8.12): a road, a trail, mud, moss, planks or
 // water. The texture tiles in world space like the floor's, so pieces line up with it; the edge is
-// eaten away by value noise measured per art pixel, so it stays ragged and pixel-sharp. Water
+// eaten away by value noise measured per art pixel, so it stays ragged and pixel-sharp, and a
+// land piece's rim dithers away into the floor instead of ending in a cut line. Water
 // scrolls its texture in two layers, darkens toward the middle, keeps a dark muddy rim at the
 // shore and throws a few sparkles.
 shader_type spatial;
@@ -22,13 +23,24 @@ uniform vec4 shore_color : source_color = vec4(0.1, 0.09, 0.06, 1.0);
 // Water: how fast the two layers drift (tiles a second), and the sparkles' share.
 uniform float flow = 0.06;
 uniform float sparkle = 0.04;
+// The rim fades into the floor this many art pixels deep (dithered); the outer two pixels are
+// shaded by edge_shade.
+uniform float fringe_px = 4.0;
+uniform float edge_shade = 0.9;
 
 varying vec3 world_pos;
 varying vec2 local_pos;
 
+// A hash without sin(): sin() of large numbers loses precision on some GPUs and shows blocks.
 float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
 }
+
+// 4x4 ordered dither thresholds in (0, 1): a tidy pixel-art stipple, not noise.
+const float BAYER[16] = float[16](0.03, 0.53, 0.16, 0.66, 0.78, 0.28, 0.91, 0.41,
+		0.22, 0.72, 0.09, 0.59, 0.97, 0.47, 0.84, 0.34);
 
 float value_noise(vec2 p) {
 	vec2 i = floor(p);
@@ -85,9 +97,17 @@ void fragment() {
 			discard;
 		}
 		color = texel.rgb * tint.rgb;
-		// The edge pixels a step darker, so a piece sits in the floor rather than on it.
-		if (edge < px_world) {
-			color *= 0.78;
+		// The rim thins out into the floor (ordered dither, so the pixels stay tidy), and what is
+		// left of it is a touch darker: a piece sits in the floor rather than on it.
+		float fringe = fringe_px * px_world;
+		if (edge < fringe) {
+			int bi = int(mod(cell.y, 4.0)) * 4 + int(mod(cell.x, 4.0));
+			if (BAYER[bi] > edge / fringe) {
+				discard;
+			}
+		}
+		if (edge < px_world * 2.0) {
+			color *= edge_shade;
 		}
 	}
 	ALBEDO = color;

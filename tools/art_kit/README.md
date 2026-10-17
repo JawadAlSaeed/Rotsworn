@@ -69,6 +69,11 @@ heroes are no longer shown (enemies still use theirs).
 - `kit/beast.py` helpers for the phase 12 monsters (fly, hyena, toad): safe cones, a decal
   painter, finishing passes, the floor-line nudge, parallel clip rendering, `build_enemy()`.
 - `kit/specs.py` the sprite contract (sizes, frame order, sheet grid, Tier 1 clip names).
+- `assets/env_floor.py` the four places' open floors (card #186): three calm variants each
+  (`hollow_floor`, `ash_tile`, `bog_tile`, `throne_tile`, plus `_b` and `_c`), a calm moss and leaf
+  patch. The base is a sum of waves (isotropic, exactly periodic: no stripes), the detail is
+  scattered by a seeded generator. Keep floors low contrast (luma spread under 10) and the three
+  variants at one tone; `check.py` enforces it. The floor shader mixes them in game.
 - `assets/<module>.py` one module per asset group, each with `build(ctx)`. `env_zone` draws the
   long zones' things (phase 15): the rot seal, the gate tile, four shrines, three wanderers. `fx_attacks` draws
   the enemy attack effects of phase 12 (rock spikes, projectiles).
