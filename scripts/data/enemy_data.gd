@@ -81,3 +81,14 @@ enum TargetRule {
 @export_range(0, 100, 1, "suffix:%") var phase_two_tempo_percent: int = 0
 ## Shown as a banner when phase two starts.
 @export var phase_two_text: String = ""
+
+
+## Every attack this enemy can ever use: its own, then the phase-two-only ones (an attack in both
+## lists once). The engine's lookup, the fight's presentation data and the practice keys all want
+## this, so a phase-two-only attack is never missing its projectile, rock wave or animation.
+func all_attacks() -> Array[EnemyAttackData]:
+	var list: Array[EnemyAttackData] = []
+	for attack: EnemyAttackData in attacks + phase_two_attacks:
+		if attack != null and not list.has(attack):
+			list.append(attack)
+	return list

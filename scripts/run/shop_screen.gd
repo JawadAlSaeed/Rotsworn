@@ -13,6 +13,9 @@ extends CanvasLayer
 signal done
 ## Host: the shelves changed (a restock): Main tells the clients the new wares.
 signal restocked
+## Something irreversible happened (a purchase, a restock, a sale, a cleanse or an upgrade): Main
+## saves the run now, so Continue does not take it back (card #197).
+signal acted
 
 const TITLE_SIZE: int = 64
 const TEXT_SIZE: int = 28
@@ -46,6 +49,8 @@ var _bought: Dictionary = {}
 var _overlay: PartyScreen
 ## The item whose purchase waits on the backpack (refunded if it is left behind).
 var _pending: ItemData
+## The backpack is open with a purchase in hand (gear to wear, or an item with no room yet).
+var _holding: bool = false
 ## Picking an item for Cleanse or Upgrade: a list over the shelves (uids in menu order).
 var _pick_menu: ListMenu
 var _pick_panel: PanelContainer
@@ -62,6 +67,10 @@ func setup(run: RunState, gear: Array[GearData], charms: Array[ItemData] = [],
 	_gear = gear
 	_items = run.shop_stock(run.at)
 	_items.append_array(charms)
+	# Items bought before a Continue stay sold (gear leaves the shelf by itself: the party owns it).
+	for index: int in run.shop_sold:
+		if index < _items.size():
+			_bought[index] = true
 	_gear_icon = AssetLoader.texture("res://assets/sprites/ui/gear_icon.png", Vector2i(16, 16))
 	var column := ListMenu.screen_column(self, "The Rag Merchant", TITLE_SIZE)
 	var centre := CenterContainer.new()
@@ -172,6 +181,7 @@ func buy(index: int) -> bool:
 		return false
 	_bought[index] = true
 	if index < items().size():
+		_run.mark_sold(index)
 		var item := items()[index]
 		_run.pay_for(item)
 		Sfx.play("gold_gain")
@@ -179,9 +189,11 @@ func buy(index: int) -> bool:
 			_run.add_item(item)
 			Sfx.play("level_up")
 			_say.text = "\"A bigger pack. %d rows now.\"" % _run.backpack.rows
+			acted.emit()
 		elif _run.add_item(item) >= 0:
 			Sfx.play("item_place")
 			_say.text = "\"The %s. Good choice.\"" % item.display_name
+			acted.emit()
 		else:
 			_pending = item
 			_open_backpack("No room for the %s. Make room, or leave it (your gold comes back)." % item.display_name,
@@ -205,6 +217,7 @@ func restock() -> bool:
 	_say.text = "\"Let me see what is in the back.\""
 	set_wares(_run.shop_gear(_run.at), _run.shop_charms(_run.at))
 	restocked.emit()
+	acted.emit()
 	return true
 
 
@@ -456,6 +469,7 @@ func _pick_input(event: InputEvent) -> void:
 		if ok:
 			Sfx.play("item_drop" if _pick_kind == "cleanse" else "item_combine")
 			_say.text = "\"Gone. Good riddance.\"" if _pick_kind == "cleanse" else "\"Your %s, better than new.\"" % name
+			acted.emit()
 		else:
 			Sfx.play("locked")
 		_close_pick()
@@ -471,6 +485,11 @@ func _open_backpack(note: String, held: Dictionary) -> void:
 	_overlay.setup(_run, note, held)
 	_overlay.left_behind.connect(_on_left_behind)
 	_overlay.done.connect(_close_backpack)
+	# A sale is final at once, unless a purchase is still in hand (it is saved when the backpack closes).
+	_holding = not held.is_empty()
+	_overlay.sold.connect(func() -> void:
+		if not _holding:
+			acted.emit())
 
 
 func _on_left_behind(thing: Resource) -> void:
@@ -478,6 +497,7 @@ func _on_left_behind(thing: Resource) -> void:
 		_run.gold += _run.item_price(_pending)
 		_say.text = "\"Changed your mind? Here is your gold.\""
 		_bought.erase(items().find(_pending))
+		_run.unmark_sold(items().find(_pending))
 	_pending = null
 
 
@@ -486,4 +506,7 @@ func _close_backpack() -> void:
 		_overlay.queue_free()
 		_overlay = null
 	_pending = null
+	_holding = false
 	_rebuild()
+	# Whatever was bought, worn, sold or given back while the backpack was open is settled now.
+	acted.emit()

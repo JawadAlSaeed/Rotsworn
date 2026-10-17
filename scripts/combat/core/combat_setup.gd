@@ -181,7 +181,7 @@ func validate() -> PackedStringArray:
 		for a: EnemyAttackData in e.attacks + e.phase_two_attacks:
 			if a != null and a.is_doom():
 				problems.append_array(_doom_problems(a))
-		for a: EnemyAttackData in e.attacks:
+		for a: EnemyAttackData in e.attacks + e.phase_two_attacks:
 			if a == null:
 				problems.append("enemy %s has an empty attack slot" % e.id)
 				continue

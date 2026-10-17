@@ -49,6 +49,14 @@ var bonus_points: Array[int] = []
 var events_seen: Array[String] = []
 ## How many times the shop at the current stop was restocked (DESIGN.md 8.10).
 var restocks: int = 0
+## Shop items (by shelf index) bought at the current stop; a restock empties it. Saved, so a continued
+## run does not put a bought item back on the shelf (card #197).
+var shop_sold: Array[int] = []
+## The current stop already had its irreversible action (an event choice taken, a chest opened) and
+## `stop_text` is what the screen then shows. Saved, so Continue resumes after it, never replays its
+## random results (card #197).
+var stop_done: bool = false
+var stop_text: String = ""
 ## "?" stops passed since the last ambush fight: each one raises the chance that the next "?" stop
 ## is an ambush (tuning unknown_fight_percent_*, DESIGN.md 8.7). Any ambush starts it over.
 var ambush_streak: int = 0
@@ -141,7 +149,7 @@ func to_dict() -> Dictionary:
 		"backpack": backpack.to_array(),
 		"fights_won": fights_won, "gold_earned": gold_earned, "result": result,
 		"act": act, "visited": visited, "bonus_points": Array(bonus_points), "events_seen": Array(events_seen),
-		"restocks": restocks, "oath": oath,
+		"restocks": restocks, "oath": oath, "shop_sold": Array(shop_sold), "stop_done": stop_done, "stop_text": stop_text,
 		"ambush_streak": ambush_streak, "ambush_id": ambush_id, "ambush_spoils": ambush_spoils,
 	}
 
@@ -211,6 +219,17 @@ func apply_dict(d: Dictionary) -> bool:
 		return false
 	if String(d.ambush_id) != "" and _find_ambush(String(d.ambush_id)) == null:
 		return false
+	# Optional (older saves lack them): what the current stop already did.
+	var sold: Array[int] = []
+	if d.has("shop_sold"):
+		if not d.shop_sold is Array:
+			return false
+		for v: Variant in d.shop_sold:
+			if typeof(v) != TYPE_INT or int(v) < 0:
+				return false
+			sold.append(int(v))
+	if (d.has("stop_done") and typeof(d.stop_done) != TYPE_BOOL) or (d.has("stop_text") and typeof(d.stop_text) != TYPE_STRING):
+		return false
 	var act_map := map if int(d.act) == act else _make_map(int(d.act))
 	if int(d.at) != -1 and act_map.stop(int(d.at)).is_empty():
 		return false
@@ -219,6 +238,9 @@ func apply_dict(d: Dictionary) -> bool:
 	map = act_map
 	visited = int(d.visited)
 	restocks = int(d.restocks)
+	shop_sold = sold
+	stop_done = bool(d.get("stop_done", false))
+	stop_text = String(d.get("stop_text", ""))
 	ambush_streak = int(d.ambush_streak)
 	ambush_id = String(d.ambush_id)
 	ambush_spoils = bool(d.ambush_spoils)
@@ -368,9 +390,17 @@ func go(id: int) -> bool:
 	path.append(id)
 	visited += 1
 	restocks = 0
+	_start_stop()
 	if event != null:
 		events_seen.append(event.id)
 	return true
+
+
+## A stop begins: nothing was done at it yet.
+func _start_stop() -> void:
+	shop_sold.clear()
+	stop_done = false
+	stop_text = ""
 
 
 # --- acts (DESIGN.md 8.9) -----------------------------------------------------------------------
@@ -426,6 +456,7 @@ func next_act() -> bool:
 	act += 1
 	map = _make_map(act)
 	end_ambush()
+	_start_stop()
 	at = -1
 	path.clear()
 	for slot: int in hp.size():
@@ -598,6 +629,9 @@ func choose_event(choice: EventChoiceData, stop_id: int, index: int, pick: int =
 			items.append(got.item)
 		if String(got.text) != "Nothing happened.":
 			lines.append(String(got.text))
+	# The result is final from here on (card #197): a saved run resumes after it, not before it.
+	stop_done = true
+	stop_text = "\n".join(lines) if not lines.is_empty() else "You walk on."
 	return {"ok": true, "text": "\n".join(lines), "items": items, "risk": risk, "ambush": in_ambush()}
 
 
@@ -758,7 +792,19 @@ func restock() -> bool:
 		return false
 	gold -= price
 	restocks += 1
+	shop_sold.clear()
 	return true
+
+
+## Shelf `index` of this stop's shop was bought (kept for a continued run).
+func mark_sold(index: int) -> void:
+	if index >= 0 and not shop_sold.has(index):
+		shop_sold.append(index)
+
+
+## Shelf `index` is back on sale (the purchase was undone).
+func unmark_sold(index: int) -> void:
+	shop_sold.erase(index)
 
 
 ## Campfire Train: every hero gets tuning.rest_train_points attribute points.
@@ -917,6 +963,17 @@ func finish_fight(fight_result: String, party_hp: Array[int], encounter: Encount
 	if int(current().get("type", -1)) == RunMap.StopType.FINAL and is_last_act():
 		result = VICTORY
 	return {"gold": won, "xp": gained, "levels": up}
+
+
+## True if a fight that ended with `fight_result` ends the run (finish_fight sets the result): any
+## defeat, or the last act's boss beaten. An escape never does. Main uses it to close the save the
+## moment the fight is decided, before the end screen.
+func decides_run(fight_result: String) -> bool:
+	if is_over() or fight_result == ESCAPED:
+		return false
+	if fight_result != VICTORY:
+		return true
+	return int(current().get("type", -1)) == RunMap.StopType.FINAL and is_last_act()
 
 
 ## A fight ended with the team gauge at `value`: the next fight starts with

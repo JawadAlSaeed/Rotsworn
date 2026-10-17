@@ -2568,24 +2568,41 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
   `run_save.json.bak` until the new file is in place; a load falls back to the backup if the main
   file is gone or broken. A write that fails leaves the old save as it was.
 - **When it saves:** every time the map shows (between stops, after the next act's map is made, and
-  back from the party screen) and right after a stop is chosen (marked "in stop"). Nothing is saved
-  inside a stop: the stop-entry save is what Continue loads.
-- **Continue in a stop starts that stop again from its start**, with the run exactly as it was when
-  the stop was entered and the same seed (same zone layout, fight, event, shop, treasure). Never the
-  map: quitting never dodges a hard stop. Anything done inside the stop and not finished (items
-  picked up, fights won, gold spent) is undone, which also stops save-scumming. Killing the game
-  or closing the window works the same way: the last save is the one that counts.
-- **Deleted** when the run ends (win or loss, at the moment the last fight is decided) and when the
-  run is abandoned from the pause menu.
+  back from the party screen), right after a stop is chosen (marked "in stop"), and again, still
+  "in stop", right after anything inside a stop that cannot be taken back (card #197): an event
+  choice (the moment its risk is rolled, and again once its gifts are settled), a shop purchase,
+  restock, sale, cleanse or upgrade, and an opened treasure chest (once its prize is settled).
+  Run fields hold what the stop already did: `stop_done` and `stop_text` (the event's result or
+  the chest's text) and `shop_sold` (the shelf items bought).
+- **Continue in a stop starts that stop again from its start**, with the run as it was at the last
+  save and the same seed (same zone layout, fight, event, shop, treasure). Never the map: quitting
+  never dodges a hard stop. What a stop's screen already settled stays settled, so a random result
+  can never be seen and then undone by closing the window: an event comes back on its result page
+  (Continue, or Fight if the choice sprang an ambush), a treasure stop on its open chest, a shop
+  with the gold spent and the bought items still marked sold (a restock keeps its new shelves).
+  Anything else done in a stop and not finished (a zone's fights, items picked up there) is undone.
+  Known gaps: a gift that was still waiting for room in the backpack when the window closed is
+  lost, and spoils (a guard's, an elite's or a boss's) are not saved while the wear screen is open;
+  they are saved the moment the map shows.
+- **Deleted** when the run is certain to be over: on a defeat the moment the fight is decided (not
+  an escape), on the last act's boss win the same, so closing the game on the end screen cannot
+  leave a save that replays a decided fight (`RunState.decides_run`). The win also opens its next
+  oath at once (never lowering the highest one open); the end screen still reads "Oath N kept /
+  Oath N+1 unlocked" from the value before the unlock. Also deleted when the run is abandoned from
+  the pause menu, and when the player starts a new run over it. An abandoned dev sample run
+  (`--screen=map` and the like) never touches the real save.
 - **Main menu:** a "Continue" row at the top, only when a usable save exists; the cursor rests on
-  it until something else is picked. A save that does not fit (another game version or changed
-  content, a damaged file, or `RunState.from_dict` refusing it) is deleted and the menu says so
-  once. Because the fingerprint covers all of `data/` and the version, a new build, or a run from
-  the editor versus an exported build, cannot read the other's save. A co-op save goes through the
+  it until something else is picked. A save made by another build (other format version or
+  other content) is intact, so it is **kept**: Continue is hidden, the menu says once per session
+  why, and the file stays for the build that made it. A damaged file, or one `RunState.from_dict`
+  refuses, is deleted and the menu says so. Because the fingerprint covers all of `data/` and the
+  version, a new build, or a run from the editor versus an exported build, cannot read the other's
+  save, but switching between them no longer destroys it. New Run with any file in the slot (also
+  one kept from another build) asks first and then removes it. A co-op save goes through the
   players screen first (pads may have changed). New Run with a save present asks first ("Your saved
   run will be lost"), since the new run overwrites the slot at its first map.
 - **Pause menu** (a fight, a zone, the map; local run only): "Save & Quit" sits above "Abandon run".
-  On the map it saves the state as it is; inside a stop it keeps the stop-entry save. Then back to
+  On the map it saves the state as it is (and says so if the write failed); inside a stop it keeps the latest stop save. Then back to
   the main menu with the cursor on Continue.
 - **Dev tools:** `--save-path=PATH` keeps the save elsewhere and `--continue` continues it at once.
   The autoplay bot never touches the player's save: it saves only when `--save-path` is given.
@@ -3128,4 +3145,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | "?" events are real trade-offs: new prices (permanent max HP, a backpack item, a rotten-item curse, an ambush fight), every choice costs something scarce, gold and XP grow with depth, 16 events with act 2's own list, and a "?" stop can turn into an ambush (15% + 15% per "?" passed without a fight, seeded per stop, state in the run dict) | card #193 (review: run-structure); the owner wants it hard, so a "?" tempts and never gives for free (8.7) |
 | 2026-10-17 | Enemy hits can leave a mark when undefended and survived: hero debuffs Rotting (6% max HP at turn start, never below 1), Blighted (healing -50%), Weakened (power -25%), or an AP drain; they refresh, never stack; Mend and Sanctuary cleanse one (all on a perfect press), the Salve one; shipped marks are hard-fight-only and on few hits (bile, rot combo, King's cascade, hyena bites, shade bolts); the intent, banner and hit icons announce them | card #194 (review: combat-rules-ai #3): failing to defend cost only HP, and Cass had no job beyond healing |
 | 2026-10-17 | The arena shifts when a boss or guard enters phase two (sun, ambient, fog, vignette, lamps and a puff of embers or spores, over about a second; the Hollow King's throne goes blood red), and a zone's drifting particles also play, thinner, in its fights | card #196 (review audio-look #6, #9 and art-textures #11): a boss's rage was a banner over an unchanged room, and the fight dropped the zone's air; presentation only (nothing in the engine or the golden), slower under Reduced and Off flashes |
+| 2026-10-17 | Where phase 16 features meet: the run save is deleted the moment the last fight is decided (and the win opens its oath then); a save from another build is kept, not deleted; Continue resumes after an event choice, purchase or opened chest instead of replaying the stop; phase-two-only attacks get their projectiles and animations; a Doom picked inside a hero's skill is announced; a pad drop on an idle fight shows its card | card #197 (integration review): a window close dodged event risks and shop restocks, a patch or the editor destroyed a good save, and a decided run could be replayed (8.14) |
 | 2026-10-17 | Charged Dooms: each guard and act boss has one signature Doom (Gorge Burst, Brood Tide, Ashfall, Timber Fall, Crown of Rot), announced with a countdown (2 or 3 enemy turns) the party can break by dealing a share of the enemy's max HP (13% to 45%): the Doom is cancelled and the enemy loses its next turn and takes +50% damage; unbroken it unleashes as a party-wide string of 8 to 10 hits with rends and sweeps; delay skills never reset the countdown; never the first pick of a fight, cooldown 2, about one per 4 to 6 boss turns; the bots focus the gatherer | card #195 (review: combat-rules-ai #9, E33 break meets Slay the Spire intent); the owner wants it hard but readable; break shares set from bot runs, to retune from play |

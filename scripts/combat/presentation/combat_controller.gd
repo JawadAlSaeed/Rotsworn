@@ -342,7 +342,8 @@ func _ready() -> void:
 	if setup.can_run and setup.run_ability != null:
 		_abilities[setup.run_ability.id] = setup.run_ability
 	for enemy: EnemyData in setup.enemies:
-		for attack: EnemyAttackData in enemy.attacks:
+		# Phase-two-only attacks too: their projectiles, rock waves and animations live in this data.
+		for attack: EnemyAttackData in enemy.all_attacks():
 			_attacks[attack.id] = attack
 	_warm_up_assets(setup)
 	if _net_mode == NetMode.CLIENT:
@@ -647,8 +648,14 @@ func _enter_pause() -> void:
 ## feedback (numbers, popups).
 func _apply_now(ev: Dictionary) -> void:
 	_progress_ms = Time.get_ticks_msec()
+	# A Doom picked inside a skill's batch (the boss entering phase two on a hero's hit) is announced
+	# here too, without the awaited beat (the skill goes on).
+	var announced := String(ev.get("type", "")) == "intent" and _announces_doom(ev)
 	mirror.apply(ev)
 	match String(ev.get("type", "")):
+		"intent":
+			if announced:
+				_show_doom_banner(ev, int(ev.charge_left))
 		"downed":
 			_show_downed(int(ev.target))
 			# A kill by a skill's press: its animation clock holds for the freeze (a hit-stop), so
@@ -1796,9 +1803,7 @@ func _practice_attacks() -> Array[EnemyAttackData]:
 	for id: int in mirror.living_enemy_ids():
 		var data := _data_by_id.get(id) as EnemyData
 		if data != null:
-			for attack: EnemyAttackData in data.attacks:
-				if attack != null:
-					list.append(attack)
+			list.append_array(data.all_attacks())
 			break
 	return list
 

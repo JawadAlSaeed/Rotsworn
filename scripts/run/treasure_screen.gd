@@ -65,6 +65,9 @@ func open_chest() -> void:
 		name = (prize as ItemData).display_name
 	_text.text = ("Inside: %s and %d gold." % [name, coins]) if not name.is_empty() else "Only %d gold." % coins
 	_show(true)
+	# The chest stays open for a continued run (Main saves once the prize is settled).
+	run.stop_done = true
+	run.stop_text = _text.text
 	opened.emit()
 	var gifts: Array = []
 	if prize != null:

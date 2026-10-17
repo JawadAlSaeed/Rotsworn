@@ -130,6 +130,13 @@ var _menu_used: bool = false
 ## stop writes it again), and whether it is a stop's (else the map's).
 var _checkpoint: Dictionary = {}
 var _checkpoint_in_stop: bool = false
+## The run whose last fight was decided (its save is gone and must not come back), and the oath
+## its win opened (shown by the run end screen; the unlock is granted when the fight is decided).
+var _decided_run: RunState = null
+var _decided_unlock: int = 0
+## The "saved by another build" notice was shown once this session (the file stays, so it must not
+## nag on every visit to the main menu).
+var _mismatch_told: bool = false
 
 
 func _ready() -> void:
@@ -737,11 +744,24 @@ func _start_combat() -> void:
 			_combat.receive_batch(batch)
 
 
-## Keeps the fight's recap (who hit hardest, the last blow) in case it was the run's last fight.
-func _on_combat_finished(_result: String) -> void:
+## Keeps the fight's recap (who hit hardest, the last blow) in case it was the run's last fight, and
+## closes the run the moment its last fight is decided (card #197).
+func _on_combat_finished(result: String) -> void:
 	if _combat != null:
 		_last_recap = _combat.recap()
 		_last_recap_name = _encounter.display_name if _encounter != null else ""
+	_close_decided_run(result)
+
+
+## A defeat, or the last act's boss beaten, ends the run for certain: the save goes now (closing the
+## game on the end screen must not leave a save that replays the decided fight), and a win opens its
+## oath at once. The end screen shows what was opened. Clients leave it to their end screen.
+func _close_decided_run(result: String) -> void:
+	if _run == null or Net.is_client() or _decided_run == _run or not _run.decides_run(result):
+		return
+	_decided_run = _run
+	_decided_unlock = _grant_win_unlock() if result == RunState.VICTORY else 0
+	_clear_run_save()
 
 
 func _on_restart_requested() -> void:
@@ -963,8 +983,12 @@ func _end_tutorial() -> void:
 func _on_combat_pause_reached() -> void:
 	if _pad_pause_wanted:
 		_pad_pause_wanted = false
-		if _pause == null and _prompt == null and not _lost_pad_players().is_empty():
-			_show_pad_overlay()
+		if _pause == null and _prompt == null:
+			if not _lost_pad_players().is_empty():
+				_show_pad_overlay()
+			elif _combat != null:
+				# The pad came back before the pause landed: no menu, the fight just goes on.
+				_combat.resume_after_pause()
 			return
 	if _tutorial != null and _tutorial.pause_wanted():
 		_tutorial.on_paused()
@@ -991,19 +1015,33 @@ func _save_io_ok() -> bool:
 	return not Net.is_online() and _tutorial == null and (not _options.is_autoplay() or not _options.save_path.is_empty())
 
 
-## True if the run in progress is saved as it goes (a dev screen's sample run is not).
+## True if this session works on the player's one save slot (a dev screen's sample run does not).
+func _save_slot_ok() -> bool:
+	return _options.screen.is_empty() and _save_io_ok()
+
+
+## True if the run in progress is saved as it goes (not a dev sample run, not one already decided).
 func _save_allowed() -> bool:
-	return _run != null and _options.screen.is_empty() and _save_io_ok()
+	return _run != null and _decided_run != _run and _save_slot_ok()
 
 
 ## Saves the run now. `in_stop` is true right after a stop was chosen: continuing re-enters that
-## stop from its start, never the map (no dodging a hard stop by quitting).
-func _save_run(in_stop: bool) -> void:
+## stop from its start, never the map (no dodging a hard stop by quitting); what the party already
+## did there is in the state (RunState.stop_done, shop_sold), so Continue picks up after it. False if
+## nothing was saved (not allowed, or the write failed).
+func _save_run(in_stop: bool) -> bool:
 	if not _save_allowed():
-		return
+		return false
 	_checkpoint = _run.to_dict()
 	_checkpoint_in_stop = in_stop
-	_write_checkpoint()
+	return _write_checkpoint()
+
+
+## A stop's screen just settled something that cannot be taken back (an event choice, a purchase,
+## an opened chest): the checkpoint is written again, still inside the stop (card #197).
+func _save_stop_progress() -> void:
+	if _run != null and _checkpoint_in_stop:
+		_save_run(true)
 
 
 func _write_checkpoint() -> bool:
@@ -1015,17 +1053,20 @@ func _write_checkpoint() -> bool:
 	return saved
 
 
-## The run ended or was abandoned: its save goes.
+## The run ended or was abandoned: its save goes. Only on the real save slot: a dev screen's sample
+## run (--screen=map and so on) has no save of its own and must never delete the player's.
 func _clear_run_save() -> void:
 	_checkpoint = {}
 	_checkpoint_in_stop = false
-	if _save_io_ok():
+	if _save_slot_ok():
 		RunSave.delete(_run_save_path())
 
 
 ## The saved run that Continue would pick up: {state (a RunState), in_stop, players}, or {} if
-## there is none. A save that does not fit this game (another version or content, damaged, or
-## RunState refuses it) is deleted and the menu says so once.
+## there is none. A file that is damaged, or that RunState refuses, is deleted and the menu says so
+## once. A save made by another build (other version or content, the editor and an exported game
+## fingerprint differently) is intact: it stays on disk, Continue is hidden and the menu says why;
+## only starting a new run over it removes it (card #197).
 func _valid_save() -> Dictionary:
 	if not _save_io_ok() or _run_data == null or _tuning == null or not RunSave.exists(_run_save_path()):
 		return {}
@@ -1042,15 +1083,21 @@ func _valid_save() -> Dictionary:
 			return {}
 		_:
 			reason = String(loaded.get("reason", "the file is damaged"))
+			if bool(loaded.get("keep", false)):
+				if not _mismatch_told and _notice.is_empty():
+					_mismatch_told = true
+					_notice = "The saved run was made by another build of the game (%s), so it cannot be continued here. " \
+							% reason + "It is kept: open that build to carry on, or start a new run to replace it."
+				return {}
 	RunSave.delete(_run_save_path())
 	if _notice.is_empty():
 		_notice = "The saved run could not be continued (%s). It was deleted." % reason
 	return {}
 
 
-## A new run would overwrite a usable save.
+## A new run would overwrite a save: a usable one, or one kept from another build.
 func _save_in_the_way() -> bool:
-	return not _valid_save().is_empty()
+	return not _valid_save().is_empty() or (_save_io_ok() and RunSave.exists(_run_save_path()))
 
 
 func _ask_overwrite_save() -> void:
@@ -1102,8 +1149,7 @@ func _on_pause_save_quit() -> void:
 	if _checkpoint_in_stop:
 		saved = _write_checkpoint()
 	else:
-		_save_run(false)
-		saved = not _checkpoint.is_empty()
+		saved = _save_run(false)
 	_notice = "" if saved else "The run could not be saved."
 	_menu_item = MainMenu.CONTINUE
 	_menu_used = true
@@ -1119,6 +1165,9 @@ func _new_run() -> void:
 		_autoplay_fail("no run data")
 		_show_main_menu()
 		return
+	# A save in the way (asked about already) goes now: also one kept from another build.
+	if _save_slot_ok():
+		RunSave.delete(_run_save_path())
 	var run_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
 	if _options.oath >= 0:
 		_oath = _options.oath
@@ -1179,9 +1228,10 @@ func _enter_stop() -> void:
 		RunMap.StopType.ELITE:
 			_start_final_fight(true)
 		RunMap.StopType.EVENT:
-			_fade_to(_show_event)
+			# A continued run whose choice was already made shows its result, never the choices again.
+			_fade_to(_show_event.bind(_run.stop_text if _run.stop_done else ""))
 		RunMap.StopType.TREASURE:
-			_fade_to(_show_treasure)
+			_fade_to(_show_treasure.bind(_run.stop_done, _run.stop_text if _run.stop_done else ""))
 
 
 ## A run fight that is a stop of its own: the act's boss, an elite fight (`elite`) in the look of
@@ -1278,6 +1328,7 @@ func _show_shop(gear: Array[GearData] = [], charms: Array[ItemData] = []) -> voi
 	shop.setup(_run, gear, charms)
 	shop.done.connect(_fade_to.bind(_show_map))
 	shop.restocked.connect(func() -> void: _send_shop_wares(_run.shop_gear(_run.at), _run.shop_charms(_run.at)))
+	shop.acted.connect(_save_stop_progress)
 	_show_screen(shop)
 	_send_shop_wares(gear, charms)
 	if _options.is_autoplay() and not Net.is_client():
@@ -1298,8 +1349,12 @@ func _show_event(result: String = "") -> void:
 	screen.remote = Net.is_client()
 	screen.setup(_run, null if _run.in_ambush() and result.is_empty() else _run.event_of(_run.at), result)
 	screen.done.connect(_on_event_done)
-	screen.chosen.connect(func(_index: int, text: String) -> void:
-		_send_screen({"name": "event", "result": text if not text.is_empty() else "You walk on."}))
+	screen.chosen.connect(func(index: int, text: String) -> void:
+		_send_screen({"name": "event", "result": text if not text.is_empty() else "You walk on."})
+		# The risk is rolled: lock the result in (a Leave, index -1, took nothing).
+		if index >= 0:
+			_save_stop_progress())
+	screen.gifts_settled.connect(_save_stop_progress)
 	_show_screen(screen)
 	_send_screen({"name": "event", "result": result})
 	if _options.is_autoplay() and not Net.is_client():
@@ -1324,6 +1379,7 @@ func _show_treasure(opened: bool = false, text: String = "") -> void:
 	screen.setup(_run, _explore, opened, text)
 	screen.done.connect(_fade_to.bind(_show_map))
 	screen.opened.connect(func() -> void: _send_screen({"name": "treasure", "opened": true}))
+	screen.gifts_settled.connect(_save_stop_progress)
 	_show_screen(screen)
 	_send_screen({"name": "treasure", "opened": opened})
 	if _options.is_autoplay() and not Net.is_client():
@@ -1374,20 +1430,29 @@ func _show_party(note: String, from_map: bool, held: Dictionary = {}) -> void:
 		_autoplay_party.call_deferred(party)
 
 
+## A win at oath N opens oath N+1 on this machine (never lowering what is open). Returns the oath
+## that was newly opened (0: none), worked out from the value before the unlock, for the end screen.
+## Bot runs only show it.
+func _grant_win_unlock() -> int:
+	var ladder := _run.data.oaths.size()
+	var before := PlayerSettings.highest_oath_unlocked()
+	var after := PlayerSettings.oath_after_win(before, _run.oath, ladder)
+	if after <= before:
+		return 0
+	if not _options.is_autoplay():
+		PlayerSettings.unlock_after_win(_run.oath, ladder)
+	return after
+
+
 func _show_run_end() -> void:
 	_clear_run_save()
 	var end := RunEndScreen.new()
 	end.name = "RunEnd"
-	# A win at oath N opens oath N+1 on this machine (online players too). Bot runs only show it.
+	# A win at oath N opens oath N+1 on this machine (online players too). The host and local play
+	# opened it when the fight was decided; the end screen only shows what that did.
 	var unlocked_now := 0
 	if _run.result == RunState.VICTORY:
-		var ladder := _run.data.oaths.size()
-		var before := PlayerSettings.highest_oath_unlocked()
-		var after := PlayerSettings.oath_after_win(before, _run.oath, ladder)
-		if after > before:
-			unlocked_now = after
-			if not _options.is_autoplay():
-				PlayerSettings.unlock_after_win(_run.oath, ladder)
+		unlocked_now = _decided_unlock if _decided_run == _run else _grant_win_unlock()
 	var recap_lines: Array[String] = []
 	if _run.result != RunState.VICTORY:
 		var where := "Stop %d, act %d%s" % [_run.visited, _run.act + 1, ", " + OathData.label(_run.oath) if _run.oath > 0 else ""]
@@ -1436,7 +1501,11 @@ func _watch_pads() -> void:
 	if lost.is_empty() or _busy or _pause != null or _prompt != null or _tutorial != null:
 		return
 	if _combat != null and _combat.is_inside_tree():
-		_pad_pause_wanted = _combat.request_pause(true) or _pad_pause_wanted
+		# The flag goes up first: an idle fight pauses (and emits pause_reached) inside request_pause.
+		var was_wanted := _pad_pause_wanted
+		_pad_pause_wanted = true
+		if not _combat.request_pause(true):
+			_pad_pause_wanted = was_wanted
 	elif _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
 		_show_pad_overlay()
 
@@ -1576,7 +1645,7 @@ func _open_pause() -> void:
 	elif Net.is_client():
 		_pause.setup("Leave the game", "You leave; the others play on.")
 	elif _run != null and _save_allowed():
-		var where := "The stop starts over when you continue." if _checkpoint_in_stop else "You continue from this map."
+		var where := "The stop starts over when you continue (what you already did there stays done)." if _checkpoint_in_stop else "You continue from this map."
 		_pause.setup("Abandon run", "The run and its save are lost. Back to the main menu.", "", "",
 				"Save & Quit", "Keep the run and go to the main menu. %s" % where)
 		_pause.save_quit_requested.connect(_on_pause_save_quit)
@@ -2362,7 +2431,7 @@ func _autoplay_event(screen: EventScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(screen):
 		return
-	if screen.choice_count() > 0:
+	if screen.choice_count() > 0 and not _run.stop_done:
 		var event := _run.event_of(_run.at)
 		var decision := EventAutoplay.decide(_run, event, _autoplay_health())
 		print("AUTOPLAY_EVENT %s -> %s" % [event.id, "choice %d" % int(decision.index) if int(decision.index) >= 0 else "leave"])

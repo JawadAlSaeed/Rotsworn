@@ -22,6 +22,8 @@ extends CanvasLayer
 signal done
 ## A new item in hand was left behind (it is not in the backpack).
 signal left_behind(item: ItemData)
+## An item was sold here (the shop saves the run then).
+signal sold
 ## Online client: a change for the host to make (RunState.apply_op data).
 signal op_requested(op: Dictionary)
 
@@ -808,8 +810,8 @@ func _confirm_prompt(question: String, detail: String, yes: String, no: String, 
 func _ask(op: Dictionary) -> void:
 	if remote:
 		op_requested.emit(op)
-	else:
-		_run.apply_op(op)
+	elif _run.apply_op(op) and String(op.get("op", "")) == "sell":
+		sold.emit()
 
 
 # --- drawing ----------------------------------------------------------------------------------

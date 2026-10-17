@@ -17,7 +17,8 @@ const BACKUP_SUFFIX := ".bak"
 ## load_save() statuses.
 const LOADED := "loaded"
 const MISSING := "missing"
-## A file exists but cannot be used (wrong version or content, damaged); `reason` says why.
+## A file exists but cannot be used (wrong version or content, damaged); `reason` says why, and
+## `keep` is true when the file is intact and just belongs to another build (leave it on disk).
 const REJECTED := "rejected"
 
 
@@ -77,9 +78,9 @@ static func _read(path: String, fingerprint: String) -> Dictionary:
 		return _rejected("the file is damaged")
 	var body: Dictionary = json.data
 	if not _is_number(body.get("format")) or int(body.format) != FORMAT_VERSION:
-		return _rejected("it was saved by another version of the game")
+		return _rejected("it was saved by another version of the game", true)
 	if typeof(body.get("fingerprint")) != TYPE_STRING or String(body.fingerprint) != fingerprint:
-		return _rejected("the game's content has changed since it was saved")
+		return _rejected("the game's content has changed since it was saved", true)
 	if not body.get("run") is Dictionary or typeof(body.get("in_stop")) != TYPE_BOOL:
 		return _rejected("the file is damaged")
 	var players := 1
@@ -92,8 +93,9 @@ static func _is_number(value: Variant) -> bool:
 	return typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT
 
 
-static func _rejected(reason: String) -> Dictionary:
-	return {"status": REJECTED, "reason": reason}
+## `keep`: the file is intact, only another build's (it must not be deleted: that build can still read it).
+static func _rejected(reason: String, keep: bool = false) -> Dictionary:
+	return {"status": REJECTED, "reason": reason, "keep": keep}
 
 
 ## Moves the finished temp file over `path`, keeping the old save as the backup until the new
