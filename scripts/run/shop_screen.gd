@@ -149,10 +149,10 @@ func overlay() -> PartyScreen:
 func _info(index: int) -> Array:
 	if index < items().size():
 		var item := items()[index]
-		return [item.display_name, item.price, item.description, int(item.rarity),
+		return [item.display_name, _run.item_price(item), item.description, int(item.rarity),
 				AssetLoader.texture(item.icon_path, item.size() * 16)]
 	var gear := _gear[index - items().size()]
-	return [gear.display_name, gear.price, "Gear: " + gear.description, int(gear.rarity), _gear_icon]
+	return [gear.display_name, _run.gear_price(gear), "Gear: " + gear.description, int(gear.rarity), _gear_icon]
 
 
 ## True if thing `index` is still for sale and affordable.
@@ -226,14 +226,14 @@ func _service_info(kind: String) -> Array:
 	match kind:
 		"cleanse":
 			var rotten := not _run.rotten_uids().is_empty()
-			return ["Cleanse", "%d gold" % t.shop_cleanse_price, "Throw away one rotten item from the backpack." if rotten
-					else "Nothing rotten in the backpack.", rotten and _run.gold >= t.shop_cleanse_price]
+			return ["Cleanse", "%d gold" % _run.cleanse_price(), "Throw away one rotten item from the backpack." if rotten
+					else "Nothing rotten in the backpack.", rotten and _run.gold >= _run.cleanse_price()]
 		"upgrade":
 			var any := false
 			for e: Dictionary in _run.backpack.entries:
 				any = any or _run.can_upgrade(int(e.uid))
-			return ["Upgrade", "%d gold" % t.shop_upgrade_price, "One item in the backpack goes up a level." if any
-					else "Nothing in the backpack can be upgraded.", any and _run.gold >= t.shop_upgrade_price]
+			return ["Upgrade", "%d gold" % _run.upgrade_price(), "One item in the backpack goes up a level." if any
+					else "Nothing in the backpack can be upgraded.", any and _run.gold >= _run.upgrade_price()]
 		"restock":
 			return ["Restock", "%d gold" % _run.restock_price(), "New charms and gear on the shelves. Costs more each time.",
 					_run.gold >= _run.restock_price()]
@@ -452,7 +452,7 @@ func _pick_input(event: InputEvent) -> void:
 	elif answer == &"confirm" and not _pick_uids.is_empty():
 		var uid := _pick_uids[_pick_menu.index]
 		var name := RunState.entry_name(_run.backpack.entry(uid))
-		var ok := _run.cleanse(uid) if _pick_kind == "cleanse" else _run.upgrade_item(uid, _run.tuning.shop_upgrade_price)
+		var ok := _run.cleanse(uid) if _pick_kind == "cleanse" else _run.upgrade_item(uid, _run.upgrade_price())
 		if ok:
 			Sfx.play("item_drop" if _pick_kind == "cleanse" else "item_combine")
 			_say.text = "\"Gone. Good riddance.\"" if _pick_kind == "cleanse" else "\"Your %s, better than new.\"" % name
@@ -475,7 +475,7 @@ func _open_backpack(note: String, held: Dictionary) -> void:
 
 func _on_left_behind(thing: Resource) -> void:
 	if _pending != null and thing == _pending:
-		_run.gold += _pending.price
+		_run.gold += _run.item_price(_pending)
 		_say.text = "\"Changed your mind? Here is your gold.\""
 		_bought.erase(items().find(_pending))
 	_pending = null

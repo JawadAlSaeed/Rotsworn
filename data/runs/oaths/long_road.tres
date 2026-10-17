@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="OathData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="1_w81wi"]
+
+[resource]
+script = ExtResource("1_w81wi")
+id = "long_road"
+title = "Oath of the Long Road"
+description = "The rest between acts heals 25 points of percent less."
+act_heal_percent_add = -25

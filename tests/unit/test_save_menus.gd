@@ -1,5 +1,5 @@
 extends GutTest
-## The menus around Save & Quit (DESIGN 8.13): the main menu has a Continue row only when a run is
+## The menus around Save & Quit (DESIGN 8.14): the main menu has a Continue row only when a run is
 ## saved, and picking it says so; the pause menu's Save & Quit row asks for a save and quit.
 
 var _picked: Array[StringName] = []

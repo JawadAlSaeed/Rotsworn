@@ -1,6 +1,6 @@
 class_name RunSave
 extends RefCounted
-## The one saved run (Save & Quit, DESIGN.md 8.13): a JSON file holding RunState.to_dict() as it
+## The one saved run (Save & Quit, DESIGN.md 8.14): a JSON file holding RunState.to_dict() as it
 ## is (this class never looks at its keys), a format version, the content fingerprint (DataHash)
 ## and whether the party is inside a stop. Local runs only; online runs are never saved.
 ##

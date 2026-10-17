@@ -32,6 +32,8 @@ const GEAR_WEIGHT: int = 100
 var data: RunData
 var tuning: Tuning
 var run_seed: int = 1
+## The oath this run is played at (0: none; DESIGN.md 8.15). Oaths 1 to this number are in force.
+var oath: int = 0
 ## The current act's map (a new one each act, DESIGN.md 8.9).
 var map: RunMap
 ## The act the party is in (0 = the first).
@@ -77,14 +79,16 @@ var gold_earned: int = 0
 var result: String = ""
 
 
-## A new run of `run_data` with this seed: a fresh map, full HP, the starting gold, level 1.
-static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int) -> RunState:
+## A new run of `run_data` with this seed at oath `p_oath` (0: none; kept inside the ladder): a
+## fresh map, the starting gold and HP (the oaths can lower both), level 1.
+static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int, p_oath: int = 0) -> RunState:
 	var run := RunState.new()
 	run.data = run_data
 	run.tuning = p_tuning
 	run.run_seed = p_seed
+	run.oath = OathData.clamp_oath(run_data.oaths, p_oath)
 	run.map = run._make_map(0)
-	run.gold = p_tuning.run_start_gold
+	run.gold = maxi(0, p_tuning.run_start_gold + run.oath_total(&"start_gold_add"))
 	run.backpack = Backpack.new(p_tuning.backpack_width, p_tuning.backpack_rows)
 	for c: CharacterData in run_data.party:
 		run.bonus_points.append(0)
@@ -102,8 +106,9 @@ static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int) -> RunState:
 		var slots: Array = []
 		slots.resize(p_tuning.run_gear_slots)
 		run.gear.append(slots)
+	var start_hp := OathData.start_hp_for(run_data.oaths, run.oath)
 	for slot: int in run_data.party.size():
-		run.hp.append(run.max_hp(slot))
+		run.hp.append(maxi(1, CombatMath.percent(run.max_hp(slot), start_hp)))
 	return run
 
 
@@ -125,7 +130,7 @@ func to_dict() -> Dictionary:
 		"backpack": backpack.to_array(),
 		"fights_won": fights_won, "gold_earned": gold_earned, "result": result,
 		"act": act, "visited": visited, "bonus_points": Array(bonus_points), "events_seen": Array(events_seen),
-		"restocks": restocks,
+		"restocks": restocks, "oath": oath,
 	}
 
 
@@ -134,15 +139,18 @@ func to_dict() -> Dictionary:
 static func from_dict(run_data: RunData, p_tuning: Tuning, d: Dictionary) -> RunState:
 	if typeof(d.get("seed")) != TYPE_INT:
 		return null
-	var run := RunState.begin(run_data, p_tuning, int(d.seed))
+	var run := RunState.begin(run_data, p_tuning, int(d.seed), int(d.get("oath", 0)) if typeof(d.get("oath")) == TYPE_INT else 0)
 	return run if run.apply_dict(d) else null
 
 
 ## Sets this run (same seed) to to_dict() data. False (and nothing changed) if it does not fit.
 func apply_dict(d: Dictionary) -> bool:
-	for key: String in ["seed", "at", "gold", "team_gauge", "fights_won", "gold_earned", "act", "visited", "restocks"]:
+	for key: String in ["seed", "at", "gold", "team_gauge", "fights_won", "gold_earned", "act", "visited", "restocks",
+			"oath"]:
 		if typeof(d.get(key)) != TYPE_INT:
 			return false
+	if int(d.oath) < 0 or int(d.oath) > data.oaths.size():
+		return false
 	if int(d.seed) != run_seed or typeof(d.get("result")) != TYPE_STRING:
 		return false
 	for key: String in ["path", "hp", "max_hp_percent", "tonics_used", "levels", "xps", "attributes", "gear", "backpack",
@@ -190,6 +198,7 @@ func apply_dict(d: Dictionary) -> bool:
 	var act_map := map if int(d.act) == act else _make_map(int(d.act))
 	if int(d.at) != -1 and act_map.stop(int(d.at)).is_empty():
 		return false
+	oath = int(d.oath)
 	act = int(d.act)
 	map = act_map
 	visited = int(d.visited)
@@ -386,7 +395,7 @@ func act_cleared() -> bool:
 	return not is_over() and not is_last_act() and int(current().get("type", -1)) == RunMap.StopType.FINAL
 
 
-## On to the next act: its own map from the start, and everyone heals tuning.run_act_heal_percent.
+## On to the next act: its own map from the start, and everyone heals act_heal_percent().
 func next_act() -> bool:
 	if is_last_act():
 		return false
@@ -395,7 +404,7 @@ func next_act() -> bool:
 	at = -1
 	path.clear()
 	for slot: int in hp.size():
-		heal(slot, CombatMath.percent(max_hp(slot), tuning.run_act_heal_percent))
+		heal(slot, CombatMath.percent(max_hp(slot), act_heal_percent()))
 	return true
 
 
@@ -519,11 +528,11 @@ func rotten_uids() -> Array[int]:
 	return found
 
 
-## The shop takes rotten item `uid` away for tuning.shop_cleanse_price gold.
+## The shop takes rotten item `uid` away for cleanse_price() gold.
 func cleanse(uid: int) -> bool:
-	if not rotten_uids().has(uid) or gold < tuning.shop_cleanse_price:
+	if not rotten_uids().has(uid) or gold < cleanse_price():
 		return false
-	gold -= tuning.shop_cleanse_price
+	gold -= cleanse_price()
 	backpack.remove(uid)
 	_clamp_hp()
 	return true
@@ -532,7 +541,7 @@ func cleanse(uid: int) -> bool:
 ## What the next restock costs: tuning.shop_restock_price, plus tuning.shop_restock_step for every
 ## restock already bought in this shop visit.
 func restock_price() -> int:
-	return tuning.shop_restock_price + restocks * tuning.shop_restock_step
+	return shop_price(tuning.shop_restock_price + restocks * tuning.shop_restock_step)
 
 
 ## New wares on the shelves for restock_price() gold (shop_stock, shop_gear and shop_charms
@@ -613,19 +622,28 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 		setup.enemy_hp_percent = enemy_hp_percent()
 		setup.enemy_power_percent = enemy_power_percent()
 	if encounter.elite:
-		setup.enemy_hp_percent = CombatMath.percent(setup.enemy_hp_percent, tuning.elite_hp_percent)
-		setup.enemy_power_percent = CombatMath.percent(setup.enemy_power_percent, tuning.elite_power_percent)
+		setup.enemy_hp_percent = CombatMath.percent(setup.enemy_hp_percent,
+				maxi(1, tuning.elite_hp_percent + oath_total(&"elite_hp_percent_add")))
+		setup.enemy_power_percent = CombatMath.percent(setup.enemy_power_percent,
+				maxi(1, tuning.elite_power_percent + oath_total(&"elite_power_percent_add")))
+	# Oaths (DESIGN.md 8.15): guards count as bosses; every enemy's power goes up on top.
+	if encounter.boss or encounter.mini_boss:
+		setup.enemy_hp_percent = CombatMath.percent(setup.enemy_hp_percent, 100 + oath_total(&"boss_hp_percent_add"))
+		setup.enemy_power_percent = CombatMath.percent(setup.enemy_power_percent,
+				100 + oath_total(&"boss_power_percent_add"))
+	setup.enemy_power_percent = CombatMath.percent(setup.enemy_power_percent,
+			100 + oath_total(&"enemy_power_percent_add"))
 	return setup
 
 
 ## Enemy HP at the current stop's depth, in percent of their data (DESIGN.md 8.3).
 func enemy_hp_percent() -> int:
-	return 100 + _depth() * tuning.run_enemy_hp_row_percent
+	return 100 + _depth() * maxi(0, tuning.run_enemy_hp_row_percent + oath_total(&"enemy_hp_row_add"))
 
 
 ## Enemy power at the current stop's depth, in percent of their data.
 func enemy_power_percent() -> int:
-	return 100 + _depth() * tuning.run_enemy_power_row_percent
+	return 100 + _depth() * maxi(0, tuning.run_enemy_power_row_percent + oath_total(&"enemy_power_row_add"))
 
 
 ## Map rows walked so far: the rows of the acts before this one, then this act's row.
@@ -674,9 +692,9 @@ func finish_fight(fight_result: String, party_hp: Array[int], encounter: Encount
 
 
 ## A fight ended with the team gauge at `value`: the next fight starts with
-## tuning.run_team_gauge_carry_percent of it (card #146).
+## team_gauge_carry_percent() of it (card #146).
 func carry_team_gauge(value: int) -> void:
-	team_gauge = CombatMath.percent(clampi(value, 0, tuning.team_gauge_max), tuning.run_team_gauge_carry_percent)
+	team_gauge = CombatMath.percent(clampi(value, 0, tuning.team_gauge_max), team_gauge_carry_percent())
 
 
 ## The XP each hero gets for winning `encounter` with these HPs left: the encounter's XP for those
@@ -920,12 +938,58 @@ func auto_spend(slot: int) -> void:
 
 # --- rest and care ----------------------------------------------------------------------------
 
-## Rest: everyone heals tuning.run_rest_heal_percent of their max HP. Returns HP healed per slot.
+## Rest: everyone heals rest_heal_percent() of their max HP. Returns HP healed per slot.
 func rest() -> Array[int]:
 	var healed: Array[int] = []
 	for slot: int in hp.size():
-		healed.append(heal(slot, CombatMath.percent(max_hp(slot), tuning.run_rest_heal_percent)))
+		healed.append(heal(slot, CombatMath.percent(max_hp(slot), rest_heal_percent())))
 	return healed
+
+
+# --- oaths (DESIGN.md 8.15) ---------------------------------------------------------------------
+
+## The oath modifier `field` (an OathData property) summed over oaths 1 to this run's.
+func oath_total(field: StringName) -> int:
+	return OathData.total(data.oaths, oath, field)
+
+
+## Percent of max HP a campfire Rest heals, with the oaths.
+func rest_heal_percent() -> int:
+	return clampi(tuning.run_rest_heal_percent + oath_total(&"rest_heal_percent_add"), 0, 100)
+
+
+## Percent of max HP everyone heals between acts, with the oaths.
+func act_heal_percent() -> int:
+	return clampi(tuning.run_act_heal_percent + oath_total(&"act_heal_percent_add"), 0, 100)
+
+
+## Percent of the team gauge that carries into the next fight, with the oaths.
+func team_gauge_carry_percent() -> int:
+	return clampi(tuning.run_team_gauge_carry_percent + oath_total(&"team_gauge_carry_percent_add"), 0, 100)
+
+
+## What a shop charges for something whose normal price is `base`, with the oaths. Selling pays on
+## the normal price (sell_price), so a dearer shop never pays more.
+func shop_price(base: int) -> int:
+	return CombatMath.percent(base, maxi(0, 100 + oath_total(&"shop_price_percent_add")))
+
+
+## What a shop item costs.
+func item_price(item: ItemData) -> int:
+	return shop_price(item.price)
+
+
+## What a piece of shop gear costs.
+func gear_price(item: GearData) -> int:
+	return shop_price(item.price)
+
+
+func cleanse_price() -> int:
+	return shop_price(tuning.shop_cleanse_price)
+
+
+func upgrade_price() -> int:
+	return shop_price(tuning.shop_upgrade_price)
 
 
 ## Heals one character (never above max HP). Returns how much was healed.
@@ -954,14 +1018,14 @@ func sell_price(price: int) -> int:
 
 ## True if the party has the gold for `item`.
 func can_afford(item: ItemData) -> bool:
-	return item != null and gold >= item.price
+	return item != null and gold >= item_price(item)
 
 
 ## Pays for `item` (the caller puts it in the backpack). False if the gold is short.
 func pay_for(item: ItemData) -> bool:
 	if not can_afford(item):
 		return false
-	gold -= item.price
+	gold -= item_price(item)
 	return true
 
 
@@ -1459,9 +1523,15 @@ func owns(item: GearData) -> bool:
 	return false
 
 
-## The loot a stop offers: up to tuning.run_loot_choices items the party does not own (seeded).
+## How many pieces of gear the spoils offer: tuning.run_loot_choices, fewer with the oaths (never
+## fewer than one).
+func loot_choice_count() -> int:
+	return maxi(1, tuning.run_loot_choices + oath_total(&"loot_choices_add"))
+
+
+## The loot a stop offers: up to loot_choice_count() items the party does not own (seeded).
 func loot_choices(stop_id: int) -> Array[GearData]:
-	return _pick_gear(stop_id * LOOT_SALT + act * 43, tuning.run_loot_choices, _row_of(stop_id),
+	return _pick_gear(stop_id * LOOT_SALT + act * 43, loot_choice_count(), _row_of(stop_id),
 			tuning.run_spoils_min_rarity)
 
 
@@ -1495,7 +1565,7 @@ func _pick_gear(salt: int, count: int, row: int, min_rarity: int = 0) -> Array[G
 
 
 func can_buy_gear(item: GearData) -> bool:
-	return item != null and not owns(item) and gold >= item.price
+	return item != null and not owns(item) and gold >= gear_price(item)
 
 
 ## Pays for shop gear (the caller then has it in hand: wear it or sell it). False if it cannot
@@ -1503,7 +1573,7 @@ func can_buy_gear(item: GearData) -> bool:
 func buy_gear(item: GearData) -> bool:
 	if not can_buy_gear(item):
 		return false
-	gold -= item.price
+	gold -= gear_price(item)
 	return true
 
 

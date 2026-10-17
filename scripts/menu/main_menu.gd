@@ -1,7 +1,7 @@
 class_name MainMenu
 extends CanvasLayer
 ## The main menu (DESIGN.md 7.5), after the title screen: the logo, then Continue (only when a run
-## is saved, DESIGN.md 8.13), start a run, play online
+## is saved, DESIGN.md 8.14), start a run, play online
 ## (DESIGN.md 9.2), practice (the tutorial, fights and zones), settings, credits, quit. Up/down
 ## picks, confirm opens it. No button bar here (card #130: the user found it clutter). Kept short
 ## (card #150): Online opens a second list in place, Host or Join (cancel goes back), and the

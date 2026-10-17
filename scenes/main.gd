@@ -20,7 +20,8 @@ extends Node
 ## --run (start a new run at once; the seed also picks the map), --players=N (co-op with N pretend
 ## pads, for the bot), --host=N (host online and start a run once N players are in), --join=ADDRESS
 ## (join that host), --continue (pick up the saved run), --save-path=PATH (keep that save elsewhere;
-## the bot saves only with it).
+## the bot saves only with it), --oath=N (play the run at oath N; also unlocks it on the players
+## screen).
 
 const DEFAULT_ENCOUNTER_ID := "husk_fight"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
@@ -74,6 +75,8 @@ var _run_bar: RunPartyBar
 var _transition: ScreenTransition
 ## The run in progress (null outside a run).
 var _run: RunState
+## The oath the next run is played at (DESIGN.md 8.15): the players screen's pick, or --oath=N.
+var _oath: int = 0
 ## The fight that started in the zone: {index, opening}, or empty.
 var _zone_fight: Dictionary = {}
 var _busy: bool = false
@@ -241,6 +244,8 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_settings()
 		"players":
 			_show_lobby(_show_select)
+		"oaths":
+			_show_lobby(_fade_to.bind(_new_run), true)
 		"practice":
 			_show_select()
 		"title":
@@ -545,14 +550,17 @@ func _start_new_run() -> void:
 	if not PlayerSettings.tutorial_offered() and not _options.is_autoplay():
 		_offer_tutorial()
 	else:
-		_show_lobby(_fade_to.bind(_new_run))
+		_show_lobby(_fade_to.bind(_new_run), true)
 
 
-## The players screen; Start keeps its roster and calls `next`.
-func _show_lobby(next: Callable) -> void:
+## The players screen; Start keeps its roster and calls `next`. `with_oaths`: a run's screen, with
+## the Oath row (DESIGN.md 8.15).
+func _show_lobby(next: Callable, with_oaths: bool = false) -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
 	lobby.hero_portraits = _hero_portraits()
+	if with_oaths:
+		_give_oaths(lobby)
 	if not _options.is_autoplay():
 		# A pad that was unplugged since the last run must not come back as a ghost player.
 		_players.drop_missing(_connected_pads())
@@ -562,10 +570,23 @@ func _show_lobby(next: Callable) -> void:
 	_show_screen(lobby)
 
 
-func _on_lobby_started(players: PlayerRoster, next: Callable) -> void:
+## The players screen of a run gets the oath ladder, the highest oath this machine unlocked (--oath=N
+## unlocks up to N for tests and pictures) and the last pick to start on.
+func _give_oaths(lobby: LobbyScreen) -> void:
+	if _run_data == null:
+		return
+	lobby.oaths = _run_data.oaths
+	lobby.oath_unlocked = maxi(PlayerSettings.highest_oath_unlocked(), _options.oath)
+	lobby.start_oath = _options.oath if _options.oath >= 0 else _oath
+
+
+func _on_lobby_started(players: PlayerRoster, oath: int, next: Callable) -> void:
 	_players = players
 	if not _options.is_autoplay():
 		_players.drop_missing(_connected_pads())
+	# Practice has no Oath row: the pick for the next run stays as it was.
+	if _screen is LobbyScreen and not (_screen as LobbyScreen).oaths.is_empty():
+		_oath = oath
 	# Keyboard and pad players together: hints show both kinds of buttons (card #45).
 	ButtonPrompts.set_both(not Net.is_online() and _players.devices.has(PlayerRoster.KEYBOARD)
 			and _players.devices.any(func(device: int) -> bool: return device >= 0))
@@ -875,7 +896,7 @@ func _offer_tutorial() -> void:
 		if yes:
 			_fade_to(_start_tutorial)
 		else:
-			_show_lobby(_fade_to.bind(_new_run)))
+			_show_lobby(_fade_to.bind(_new_run), true))
 	add_child(_prompt)
 
 
@@ -932,7 +953,7 @@ func _on_tutorial_skip() -> void:
 		_tutorial.skip()
 
 
-# --- save and quit (DESIGN.md 8.13) -----------------------------------------------------------
+# --- save and quit (DESIGN.md 8.14) -----------------------------------------------------------
 
 ## Where the run is saved: --save-path=PATH (dev tool) or the player's one slot.
 func _run_save_path() -> String:
@@ -1074,10 +1095,13 @@ func _new_run() -> void:
 		_show_main_menu()
 		return
 	var run_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
-	_run = RunState.begin(_run_data, _tuning, run_seed)
+	if _options.oath >= 0:
+		_oath = _options.oath
+	_run = RunState.begin(_run_data, _tuning, run_seed, _oath)
+	_oath = _run.oath
 	if Net.is_host():
-		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict()})
-	print("Run seed: %d  stops: %d  acts: %d" % [run_seed, _run.map.row_count(), _run.acts().size()])
+		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict(), "oath": _run.oath})
+	print("Run seed: %d  oath: %d  stops: %d  acts: %d" % [run_seed, _run.oath, _run.map.row_count(), _run.acts().size()])
 	Sfx.play("run_begin")
 	_show_map()
 
@@ -1298,15 +1322,25 @@ func _show_run_end() -> void:
 	_clear_run_save()
 	var end := RunEndScreen.new()
 	end.name = "RunEnd"
-	end.setup(_run, _visuals.end_input_guard_ms)
+	# A win at oath N opens oath N+1 on this machine (online players too). Bot runs only show it.
+	var unlocked_now := 0
+	if _run.result == RunState.VICTORY:
+		var ladder := _run.data.oaths.size()
+		var before := PlayerSettings.highest_oath_unlocked()
+		var after := PlayerSettings.oath_after_win(before, _run.oath, ladder)
+		if after > before:
+			unlocked_now = after
+			if not _options.is_autoplay():
+				PlayerSettings.unlock_after_win(_run.oath, ladder)
+	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now)
 	end.done.connect(_fade_to.bind(_show_main_menu))
 	_show_screen(end)
 	_send_screen({"name": "run_end"})
 	_client_done = Net.is_client()
 	if _options.is_autoplay():
-		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d" % [
+		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d oath=%d" % [
 				_run.result, _run.act + 1, _run.visited, _run.fights_won, _run.top_level(), _worn_count(), _run.backpack.entries.size(),
-				_run.gold_earned, _run.run_seed])
+				_run.gold_earned, _run.run_seed, _run.oath])
 		_autoplay_quit()
 
 
@@ -1600,8 +1634,10 @@ func _host_online() -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
 	lobby.hero_portraits = _hero_portraits()
+	_give_oaths(lobby)
 	lobby.setup_online(_hero_names(), _players, true, NetSession.local_addresses(), _tuning.net_port)
 	lobby.roster_changed.connect(_on_online_roster_changed)
+	lobby.oath_changed.connect(_on_online_oath_changed)
 	lobby.started.connect(_on_online_started)
 	lobby.back.connect(_show_main_menu.call_deferred)
 	_show_screen(lobby)
@@ -1610,16 +1646,28 @@ func _host_online() -> void:
 
 func _on_online_roster_changed(players: PlayerRoster) -> void:
 	_players = players
-	Net.broadcast("lobby", {"roster": players.to_dict()})
+	Net.broadcast("lobby", {"roster": players.to_dict(), "oath": _lobby_oath()})
 	if _options.host_players > 0 and players.player_count() >= _options.host_players:
 		_autoplay_start_online()
 
 
+## The oath picked on the players screen now (0 without one).
+func _lobby_oath() -> int:
+	return (_screen as LobbyScreen).oath() if _screen is LobbyScreen else 0
+
+
+## Online host: the oath pick changed; the clients show it.
+func _on_online_oath_changed(oath: int) -> void:
+	_oath = oath
+	Net.broadcast("lobby", {"roster": _players.to_dict(), "oath": oath})
+
+
 ## The host pressed Start: nobody else can join now; the run begins (the clients follow).
-func _on_online_started(players: PlayerRoster) -> void:
+func _on_online_started(players: PlayerRoster, oath: int) -> void:
 	if _busy or not _screen is LobbyScreen:
 		return
 	_players = players
+	_oath = oath
 	Net.closed = true
 	print("Players: %d online" % players.player_count())
 	_fade_to(_new_run)
@@ -1653,6 +1701,8 @@ func _on_net_peer_joined(peer: int) -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
 	lobby.hero_portraits = _hero_portraits()
+	if _run_data != null:
+		lobby.oaths = _run_data.oaths
 	lobby.setup_online(_hero_names(), _players, false, [] as Array[String], _tuning.net_port)
 	lobby.back.connect(_show_main_menu.call_deferred)
 	_show_screen(lobby)
@@ -1740,6 +1790,7 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 			if roster != null and _screen is LobbyScreen:
 				_players = roster
 				(_screen as LobbyScreen).set_roster(roster)
+				(_screen as LobbyScreen).set_oath(int(payload.get("oath", 0)))
 		_:
 			if kind == "screen" and String(payload.get("name", "")) in ["zone_fight", "final_fight"]:
 				# Batches from here on belong to the next fight.
@@ -1762,7 +1813,7 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
 			if roster != null:
 				_players = roster
-			_run = RunState.begin(_run_data, _tuning, int(p.get("seed", 1)))
+			_run = RunState.begin(_run_data, _tuning, int(p.get("seed", 1)), int(p.get("oath", 0)))
 			Sfx.play("run_begin")
 		"roster":
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
@@ -2138,7 +2189,7 @@ func _autoplay_leave_later() -> void:
 func _autoplay_start_online() -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if _screen is LobbyScreen:
-		_on_online_started((_screen as LobbyScreen).roster())
+		_on_online_started((_screen as LobbyScreen).roster(), (_screen as LobbyScreen).oath())
 
 
 # --- autoplay ---------------------------------------------------------------------------------

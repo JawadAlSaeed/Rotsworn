@@ -1,5 +1,5 @@
 extends GutTest
-## Save & Quit (DESIGN 8.13): the run save round trips through a file, a write that fails leaves the
+## Save & Quit (DESIGN 8.14): the run save round trips through a file, a write that fails leaves the
 ## old save alone, a save from other content or another format is refused, and delete clears it
 ## all. Every test uses a file in the OS temp folder, never the player's real save.
 

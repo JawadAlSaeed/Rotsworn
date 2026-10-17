@@ -1,7 +1,7 @@
 class_name PauseMenu
 extends CanvasLayer
 ## The pause menu (DESIGN.md 7.5): over a fight, a zone or the run map. Continue, Settings, Save &
-## Quit (a local run, DESIGN.md 8.13) and Abandon run (in a run) or Leave (practice). Pause (Esc /
+## Quit (a local run, DESIGN.md 8.14) and Abandon run (in a run) or Leave (practice). Pause (Esc /
 ## Menu) or Back also continues. Main stops whatever is under it while it is open.
 
 signal resumed

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="OathData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="1_qqf6m"]
+
+[resource]
+script = ExtResource("1_qqf6m")
+id = "thorns"
+title = "Oath of Thorns"
+description = "Elites have 20% more HP and hit 10% harder."
+elite_hp_percent_add = 20
+elite_power_percent_add = 10
