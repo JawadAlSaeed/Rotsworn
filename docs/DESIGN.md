@@ -1198,7 +1198,7 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   ring; lag calibration and its reset).
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions only.
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
-  run map (B on the map too). Continue, Settings, "Save & Quit" (a local run, 8.13), and "Abandon
+  run map (B on the map too). Continue, Settings, "Save & Quit" (a local run, 8.14), and "Abandon
   run" (asks first, then the main menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
   under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
@@ -1469,7 +1469,7 @@ equipped by one character. No progression between runs in v1.
 - **Build order:** Part A (main menu and settings #46, map #26, stops #27, HP carry-over, gold,
   shop and rest), stop for testing; then Part B (loot #28, gear #29, levels #30, boss #31).
 - **Part A picks (user, 2026-10-12):** build two more zones now (3 in all); the shop sells care
-  for the party until gear exists; quitting mid-run lost the run then (a save came later: 8.13).
+  for the party until gear exists; quitting mid-run lost the run then (a save came later: 8.14).
 
 **Part A as built:**
 
@@ -1524,7 +1524,7 @@ equipped by one character. No progression between runs in v1.
   Items for one character ask who gets it. (No revive: nobody stays down between fights.)
 - **Run end:** RUN CLEARED or RUN OVER with stops reached, fights won and gold earned, then the
   main menu. The pause menu's "Abandon run" quits a run (it asks first; the run and its save are
-  lost). "Save & Quit" keeps a local run for later (8.13).
+  lost). "Save & Quit" keeps a local run for later (8.14).
 - **New zones** (`tools/bootstrap_run.gd` writes them, with their looks, the run, the shop and the
   new encounters, only if missing): Sunken Bog (green fog, muck tiles, glowing fungus; guard Rotten
   Husk and Gnat Swarm) and Ashen Ruins (cold moonlight, ash tiles, colonnades; guard Shade and Gnat
