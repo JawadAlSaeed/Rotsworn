@@ -40,4 +40,5 @@ elites = Array[ExtResource("1_rmucm")]([ExtResource("2_ascct"), ExtResource("3_1
 events = Array[ExtResource("5_gyjvm")]([ExtResource("6_ipc13"), ExtResource("7_elhsp"), ExtResource("13_qi0j6"), ExtResource("12_qhplm"), ExtResource("11_vi8el"), ExtResource("16_qi0j6"), ExtResource("17_o8x47"), ExtResource("18_4lg5q"), ExtResource("19_ujpjj"), ExtResource("20_dysjy")])
 deep = true
 ambushes = Array[ExtResource("1_rmucm")]([ExtResource("2_vspi0"), ExtResource("3_0hhef"), ExtResource("4_01usj"), ExtResource("5_vi8el"), ExtResource("6_qhplm")])
+ambush_picture_path = "res://assets/sprites/events/ambush_ashen_deep.png"
 ambush_text = "The ashes shifted. What was lying in them was only waiting for you."

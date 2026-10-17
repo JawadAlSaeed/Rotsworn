@@ -38,4 +38,5 @@ final_map_icon_path = "res://assets/sprites/ui/map_lair_husk_lord.png"
 elites = Array[ExtResource("1_84adt")]([ExtResource("2_mv7kw"), ExtResource("3_v7eke"), ExtResource("4_t5rtb")])
 events = Array[ExtResource("5_6fojk")]([ExtResource("6_w7487"), ExtResource("7_1ibg6"), ExtResource("8_qdufg"), ExtResource("9_k1jud"), ExtResource("10_2hew3"), ExtResource("12_qj51d"), ExtResource("13_84cmk"), ExtResource("18_84cmk"), ExtResource("19_2c0ni"), ExtResource("20_wbtnn")])
 ambushes = Array[ExtResource("1_84adt")]([ExtResource("2_qdufg"), ExtResource("3_k1jud"), ExtResource("4_2hew3"), ExtResource("5_ys0x4"), ExtResource("6_qj51d")])
+ambush_picture_path = "res://assets/sprites/events/ambush_rotten_road.png"
 ambush_text = "The mark on the map was bait. Something on the Rotten Road was waiting for you."

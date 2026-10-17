@@ -42,5 +42,5 @@ script = ExtResource("4_2013q")
 id = "rot_blossom"
 title = "Rot Blossom"
 text = "A huge violet flower grows from a corpse. Its fruit smells of honey and graves."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/rot_blossom.png"
 choices = Array[ExtResource("1_kg8lf")]([SubResource("Resource_mbptl"), SubResource("Resource_yw60j")])

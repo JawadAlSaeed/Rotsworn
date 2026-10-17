@@ -44,5 +44,5 @@ script = ExtResource("5_g8bjg")
 id = "hanging_cage"
 title = "The Hanging Cage"
 text = "An iron cage hangs from a dead tree. The body inside still holds a key."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/hanging_cage.png"
 choices = Array[ExtResource("1_jsqmo")]([SubResource("Resource_uj4h5"), SubResource("Resource_50v7m")])

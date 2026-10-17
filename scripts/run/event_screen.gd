@@ -12,10 +12,10 @@ signal done
 ## Host: a choice was taken (Main tells the clients, who show the same result).
 signal chosen(index: int, text: String)
 
-const PICTURE_SCALE: int = 4
 const TEXT_WIDTH: float = 1400.0
 
 var _event: EventData
+var _look: StopVisuals
 var _menu: ListMenu
 var _text: Label
 var _result: Label
@@ -33,6 +33,7 @@ var _pick_ids: Array[int] = []
 func setup(p_run: RunState, event: EventData, result: String = "") -> void:
 	run = p_run
 	_event = event
+	_look = StopVisuals.load_default()
 	_ambush_page = result.is_empty() and run.in_ambush()
 	var title := event.title if event != null else "A strange place"
 	if _ambush_page:
@@ -42,16 +43,7 @@ func setup(p_run: RunState, event: EventData, result: String = "") -> void:
 	var picture_path := event.picture_path if event != null else ""
 	if _ambush_page or picture_path.is_empty():
 		picture_path = run.act_data().ambush_picture_path
-	if not picture_path.is_empty():
-		var picture := TextureRect.new()
-		picture.texture = AssetLoader.texture(picture_path, Vector2i(48, 48))
-		picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		picture.custom_minimum_size = picture.texture.get_size() * PICTURE_SCALE
-		picture.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		column.add_child(picture)
+	column.add_child(_picture_frame(picture_path))
 	_text = ListMenu.centred_label(_story(), TEXT_SIZE)
 	_wrap(_text)
 	column.add_child(_text)
@@ -72,6 +64,35 @@ func setup(p_run: RunState, event: EventData, result: String = "") -> void:
 		_show_ambush()
 	else:
 		_show_choices()
+
+
+## The event's painted picture in a thin worn-gold frame (StopVisuals), drawn with the nearest
+## filter so it is never blurred. A missing file shows the old question mark, a little bigger.
+func _picture_frame(path: String) -> Control:
+	var scale := _look.event_picture_scale
+	if path.is_empty() or not AssetLoader.has_art(path):
+		path = _look.fallback_picture_path
+		scale = _look.fallback_picture_scale
+	var picture := TextureRect.new()
+	picture.texture = AssetLoader.texture(path, Vector2i(48, 48))
+	picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.custom_minimum_size = picture.texture.get_size() * scale
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = _look.frame_backing_color
+	style.set_border_width_all(_look.frame_border)
+	style.border_color = _look.frame_border_color
+	style.set_content_margin_all(float(_look.frame_padding))
+	style.shadow_size = _look.frame_shadow
+	style.shadow_color = Color(0.0, 0.0, 0.0, _look.frame_shadow_alpha)
+	var frame := PanelContainer.new()
+	frame.add_theme_stylebox_override("panel", style)
+	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(picture)
+	return frame
 
 
 func _wrap(label: Label) -> void:

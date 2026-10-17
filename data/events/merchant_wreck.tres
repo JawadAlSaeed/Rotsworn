@@ -40,5 +40,5 @@ script = ExtResource("4_8c7j5")
 id = "merchant_wreck"
 title = "Merchant's Wreck"
 text = "A wagon lies on its side in the mud, its horses long gone. Crates spill from the back."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/merchant_wreck.png"
 choices = Array[ExtResource("1_nj52y")]([SubResource("Resource_vsmwg"), SubResource("Resource_f7atb")])

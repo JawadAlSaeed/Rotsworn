@@ -48,5 +48,5 @@ script = ExtResource("4_3weo5")
 id = "weeping_well"
 title = "The Weeping Well"
 text = "A well of black water whispers your names. Something glints far below."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/weeping_well.png"
 choices = Array[ExtResource("1_woeg7")]([SubResource("Resource_me651"), SubResource("Resource_v7q8j")])

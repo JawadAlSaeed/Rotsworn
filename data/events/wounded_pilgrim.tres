@@ -43,5 +43,5 @@ script = ExtResource("5_xdfrg")
 id = "wounded_pilgrim"
 title = "A Wounded Pilgrim"
 text = "A pilgrim lies in the road, bleeding through his robe. He clutches a satchel."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/wounded_pilgrim.png"
 choices = Array[ExtResource("1_xoq43")]([SubResource("Resource_38vm0"), SubResource("Resource_48870")])

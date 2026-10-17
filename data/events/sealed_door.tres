@@ -36,5 +36,5 @@ script = ExtResource("4_pwmvt")
 id = "sealed_door"
 title = "The Sealed Door"
 text = "A door of black iron in the hillside, sealed with rust and wax. Behind it, something pounds the slow beat of a heart."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/sealed_door.png"
 choices = Array[ExtResource("1_tpga3")]([SubResource("Resource_y7swh"), SubResource("Resource_c7pwp")])

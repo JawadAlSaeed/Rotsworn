@@ -43,5 +43,5 @@ script = ExtResource("4_fggki")
 id = "shrine_of_kings"
 title = "Shrine of Old Kings"
 text = "Crowned statues kneel around an altar of gold leaf. The gold is loose."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/shrine_of_kings.png"
 choices = Array[ExtResource("1_qfx4u")]([SubResource("Resource_ko8hq"), SubResource("Resource_uq3pf")])
