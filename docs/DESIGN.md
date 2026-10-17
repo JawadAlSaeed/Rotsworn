@@ -2660,9 +2660,9 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
 
 - **One slot:** `user://run_save.json`, written by `RunSave` (`scripts/run/run_save.gd`, pure, tested).
   It holds `RunState.to_dict()` exactly as it is (the save never reads its keys, so new run fields
-  are saved without changing it), a format version, the content fingerprint (`DataHash.of_content`: `data/` and the
-  version, not the code, so a code-only fix keeps a saved run; card #208), whether the party is inside a stop, and how many players share
-  the pads.
+  are saved without changing it), a format version, the content fingerprint (`DataHash.of_content`, only to tell which
+  build wrote it: it is not checked, see below), whether the party is inside a stop, and how many
+  players share the pads.
 - **Safe writes:** the new save goes to `run_save.json.tmp` first; the old save is kept as
   `run_save.json.bak` until the new file is in place; a load falls back to the backup if the main
   file is gone or broken. A write that fails leaves the old save as it was.
@@ -2691,12 +2691,12 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
   the pause menu, and when the player starts a new run over it. An abandoned dev sample run
   (`--screen=map` and the like) never touches the real save.
 - **Main menu:** a "Continue" row at the top, only when a usable save exists; the cursor rests on
-  it until something else is picked. A save made by another build (other format version or
-  other content) is intact, so it is **kept**: Continue is hidden, the menu says once per session
-  why, and the file stays for the build that made it. A damaged file, or one `RunState.from_dict`
-  refuses, is deleted and the menu says so. Because the fingerprint covers all of `data/` and the
-  version (not the scripts), a build with other content cannot read the other's save, but switching
-  between them no longer destroys it, and a code-only fix keeps the run. New Run with any file in the slot (also
+  it until something else is picked. Any build continues a save `RunState.from_dict` accepts
+  (card #208, playtest: the game changes almost every day and a content check hid the player's run
+  twice); the run plays on with the new numbers. Only a save of another format version is kept
+  aside (Continue hidden, the menu says why once per session). A damaged file, or one
+  `RunState.from_dict` refuses (unknown gear, items or skills, a wrong party, a stop not on the
+  map), is deleted and the menu says so. New Run with any file in the slot (also
   one kept from another build) asks first and then removes it. A co-op save goes through the
   players screen first (pads may have changed). New Run with a save present asks first ("Your saved
   run will be lost"), since the new run overwrites the slot at its first map.
@@ -3339,3 +3339,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Saves check only `data/` and the version (`DataHash.of_content`), not the code; the main menu has no description line under its rows | card #208 playtest: a code-only fix hid the user's saved run; the user found the line ("About 8 stops") out of date and not needed now that Continue and Journal exist |
 | 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
 | 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |
+| 2026-10-17 | A saved run is continued by any build that can read it (no content check); only the save format version and RunState's own checks decide | card #208 playtest: one data change (the menu logo) hid the run again; the game changes almost daily |

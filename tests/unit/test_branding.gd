@@ -102,4 +102,11 @@ func test_main_menu_shows_the_version_and_the_studio_logo() -> void:
 	assert_not_null(logo)
 	if logo != null:
 		assert_eq(int(logo.custom_minimum_size.y), branding.studio_logo_height_px)
+		# Fully on screen, its bottom-right corner a margin from the screen's (it once hung off).
+		assert_eq(logo.anchor_left, 1.0)
+		assert_eq(logo.anchor_top, 1.0)
+		assert_eq(int(logo.offset_right), -branding.corner_margin_px)
+		assert_eq(int(logo.offset_bottom), -branding.corner_margin_px)
+		assert_almost_eq(logo.offset_right - logo.offset_left, logo.custom_minimum_size.x, 0.5)
+		assert_almost_eq(logo.offset_bottom - logo.offset_top, logo.custom_minimum_size.y, 0.5)
 

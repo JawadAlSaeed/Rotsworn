@@ -35,6 +35,8 @@ const LABELS: Dictionary = {
 }
 const SUBTITLE_SIZE: int = 30
 const DETAIL_SIZE: int = 26
+## How wide a notice (why the player is back here) may run before it wraps.
+const NOTICE_WIDTH: float = 1100.0
 ## Room between the logo and the list (pixels, on top of the column's spacing).
 const LOGO_GAP: float = 28.0
 
@@ -67,7 +69,12 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 	if not branding.tagline.is_empty():
 		column.add_child(ListMenu.centred_label(branding.tagline, SUBTITLE_SIZE, HudStyle.TEXT_DIM))
 	if not notice.is_empty():
-		column.add_child(ListMenu.centred_label(notice, DETAIL_SIZE, HudStyle.LATE))
+		# Wrapped in a centred block: a long notice ran off both sides of the screen (card #208).
+		var note := ListMenu.centred_label(notice, DETAIL_SIZE, HudStyle.LATE)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.custom_minimum_size.x = NOTICE_WIDTH
+		note.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		column.add_child(note)
 	var gap := Control.new()
 	gap.custom_minimum_size.y = LOGO_GAP
 	column.add_child(gap)
@@ -107,7 +114,17 @@ func _add_corners(branding: BrandingData) -> void:
 	logo.custom_minimum_size = Vector2(height * art.x / maxf(1.0, art.y), height)
 	logo.modulate.a = branding.corner_alpha
 	add_child(logo)
-	logo.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, margin)
+	# Placed by hand from its known size: the preset's "minimum size" mode saw a size of 0 and put
+	# the logo's top-left corner in the screen's corner, so it hung off the screen (card #210).
+	var size := logo.custom_minimum_size
+	logo.anchor_left = 1.0
+	logo.anchor_top = 1.0
+	logo.anchor_right = 1.0
+	logo.anchor_bottom = 1.0
+	logo.offset_left = -margin - size.x
+	logo.offset_top = -margin - size.y
+	logo.offset_right = -margin
+	logo.offset_bottom = -margin
 
 
 ## "v0.16.0": the project's version (Project Settings > Application > Config > Version), the same

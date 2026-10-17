@@ -1116,7 +1116,11 @@ func _clear_run_save() -> void:
 func _valid_save() -> Dictionary:
 	if not _save_io_ok() or _run_data == null or _tuning == null or not RunSave.exists(_run_save_path()):
 		return {}
-	var loaded := RunSave.load_save(_save_fingerprint(), _run_save_path())
+	# No content check (card #208): the game changes almost every day, and every change hid the
+	# player's run. RunState.from_dict still refuses a run that does not fit (unknown gear, items or
+	# skills, a wrong party, a stop that is not on the map); the fingerprint stays in the file only to
+	# tell which build wrote it.
+	var loaded := RunSave.load_save("", _run_save_path())
 	var reason := ""
 	match String(loaded.status):
 		RunSave.LOADED:
