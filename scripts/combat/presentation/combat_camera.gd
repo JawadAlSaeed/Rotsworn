@@ -18,13 +18,11 @@ var _orbit_degrees: float = 0.0
 var _pos: Vector3 = Vector3.ZERO
 var _target: Vector3 = Vector3.ZERO
 var _fov: float = 40.0
-var _shake_strength: float = 0.0
-var _shake_until_us: int = 0
-var _shake_length_us: int = 1
+var _trauma := CameraTrauma.new()
+var _last_us: int = 0
 var _punch_amount: float = 0.0
 var _punch_until_us: int = 0
 var _punch_length_us: int = 1
-var _rng := RandomNumberGenerator.new()
 
 
 func setup(visuals: CombatVisuals) -> void:
@@ -33,7 +31,9 @@ func setup(visuals: CombatVisuals) -> void:
 	_pos = _goal.pos
 	_target = _goal.target
 	_fov = float(_goal.fov)
-	_rng.randomize()
+	_trauma.configure(visuals.shake_hz, visuals.shake_decay_per_s, visuals.shake_max_offset,
+			visuals.shake_max_roll_deg)
+	_last_us = Time.get_ticks_usec()
 	_apply(Vector3.ZERO)
 
 
@@ -111,39 +111,41 @@ func _process(delta: float) -> void:
 	_target = _target.lerp(goal.target, k)
 	_fov = lerpf(_fov, float(goal.fov), k)
 	var now := Time.get_ticks_usec()
-	var offset := Vector3.ZERO
-	if now < _shake_until_us:
-		var s := _shake_strength * float(_shake_until_us - now) / float(_shake_length_us)
-		offset += Vector3(_rng.randf_range(-s, s), _rng.randf_range(-s, s), 0.0)
+	# Trauma drains on real time and the wave reads the clock, so the shake looks the same at any
+	# frame rate and still runs through a hit-stop freeze.
+	_trauma.step(float(now - _last_us) / 1000000.0)
+	_last_us = now
+	var shake_scale := float(PlayerSettings.screen_shake_percent()) / 100.0
+	var time_s := float(now) / 1000000.0
+	var offset := _trauma.offset(time_s, shake_scale)
 	if now < _punch_until_us:
 		var p := float(_punch_until_us - now) / float(_punch_length_us)
 		offset += (_target - _pos).normalized() * _punch_amount * p * p
-	_apply(offset)
+	_apply(offset, _trauma.roll(time_s, shake_scale))
 
 
-func _apply(offset: Vector3) -> void:
+func _apply(offset: Vector3, roll: float = 0.0) -> void:
 	fov = _fov
 	var pos := _pos + offset
 	if pos.is_equal_approx(_target):
 		return
-	transform = Transform3D(Basis.looking_at(_target - _pos, Vector3.UP), pos)
+	var basis := Basis.looking_at(_target - _pos, Vector3.UP)
+	if roll != 0.0:
+		basis = basis * Basis(Vector3.BACK, roll)
+	transform = Transform3D(basis, pos)
 
 
-## Shakes by up to `strength` world units, fading over `ms` milliseconds. Stronger shakes win.
-## The player's screen shake setting scales it (0: none, card #112).
-func shake(strength: float, ms: int) -> void:
-	strength *= float(PlayerSettings.screen_shake_percent()) / 100.0
-	if strength <= 0.0:
-		return
-	var now := Time.get_ticks_usec()
-	var current := 0.0
-	if now < _shake_until_us:
-		current = _shake_strength * float(_shake_until_us - now) / float(_shake_length_us)
-	if strength < current:
-		return
-	_shake_strength = strength
-	_shake_length_us = maxi(1, ms * 1000)
-	_shake_until_us = now + _shake_length_us
+## Adds trauma (0 to 1, clamped) to the shake: impacts add up, so a string of parries builds and a
+## big moment is clearly bigger than a graze (CameraTrauma, card #179). The player's screen shake
+## setting scales the result (0: none, card #112).
+func add_trauma(amount: float) -> void:
+	_trauma.add(amount)
+
+
+## Older call shape: `strength` is a trauma amount now; the length is set by the shared decay rate
+## (shake_decay_per_s), so `ms` is only kept so existing callers keep working.
+func shake(strength: float, _ms: int = 0) -> void:
+	add_trauma(strength)
 
 
 ## Moves toward the target by `amount` world units and eases back over `ms` milliseconds.

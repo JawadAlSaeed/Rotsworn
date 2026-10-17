@@ -255,6 +255,7 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var whiff_flash_strength: float = 0.35
 @export_range(0.0, 1.0, 0.05) var parry_enemy_flash_strength: float = 0.6
 @export_range(0.0, 1.0, 0.05) var jump_flash_strength: float = 0.5
+@export_range(0.0, 1.0, 0.05) var dodge_flash_strength: float = 0.3
 @export_range(0.0, 1.0, 0.05) var hurt_flash_strength: float = 0.8
 ## During a single-target attack the other party members step back this far (world units) and
 ## take this tint, so the lunge lane and the target are clear.
@@ -279,25 +280,74 @@ extends Resource
 @export_range(0, 500, 1, "suffix:ms") var team_slash_gap_ms: int = 70
 
 @export_group("Camera feel")
-## Screen shake when a hit lands on the party (world units, decays over the duration).
-@export_range(0.0, 2.0, 0.01) var shake_hurt: float = 0.1
-@export_range(0, 2000, 1, "suffix:ms") var shake_hurt_ms: int = 200
-## Shake on a parry, and a stronger one on the parry of the last hit.
-@export_range(0.0, 2.0, 0.01) var shake_parry: float = 0.09
-@export_range(0.0, 2.0, 0.01) var shake_parry_final: float = 0.14
-@export_range(0, 2000, 1, "suffix:ms") var shake_parry_ms: int = 120
+## Camera shake is a trauma model (CameraTrauma, card #179). Every impact below adds trauma (0 to
+## 1, clamped; they stack, so a string of parries builds up). Trauma drains by shake_decay_per_s a
+## second, and the shown shake is trauma SQUARED times shake_max_offset (world units) plus a roll of
+## up to shake_max_roll_deg degrees, wobbling at shake_hz (the base frequency of three sines; keep
+## it under about 7 so the top layer stays under half of a 60 fps frame rate).
+@export_range(1.0, 12.0, 0.5, "suffix:Hz") var shake_hz: float = 6.0
+@export_range(0.1, 10.0, 0.05, "suffix:/s") var shake_decay_per_s: float = 1.5
+@export_range(0.0, 2.0, 0.01) var shake_max_offset: float = 0.32
+@export_range(0.0, 10.0, 0.1, "suffix:deg") var shake_max_roll_deg: float = 1.6
+## Trauma when a hit lands on the party, and when it is a heavy hit (big_hit_percent of max HP).
+@export_range(0.0, 1.0, 0.01) var shake_hurt: float = 0.3
+@export_range(0.0, 1.0, 0.01) var shake_hurt_heavy: float = 0.7
+## Trauma on a parry, and on the parry of the last hit; a dodge only nudges.
+@export_range(0.0, 1.0, 0.01) var shake_parry: float = 0.4
+@export_range(0.0, 1.0, 0.01) var shake_parry_final: float = 0.7
+@export_range(0.0, 1.0, 0.01) var shake_dodge: float = 0.1
 ## Camera punch-in on a parry (world units toward the target).
 @export_range(0.0, 5.0, 0.05) var punch_parry: float = 0.35
 ## Bigger punch-in on the parry of the last hit.
 @export_range(0.0, 5.0, 0.05) var punch_parry_final: float = 0.8
-## Shake and punch when a counter or a strike lands.
-@export_range(0.0, 2.0, 0.01) var shake_counter: float = 0.16
-@export_range(0, 2000, 1, "suffix:ms") var shake_counter_ms: int = 220
+## A heavy hit on the party punches in a little.
+@export_range(0.0, 5.0, 0.05) var punch_hurt_heavy: float = 0.4
+## Party strikes: a graze or good press, a perfect press, a critical hit, one hit of the Team
+## Ultimate. Each also has its own punch-in. Sparks grow with the tier (a share of sparks_per_strike).
+@export_range(0.0, 1.0, 0.01) var shake_strike: float = 0.2
+@export_range(0.0, 1.0, 0.01) var shake_strike_perfect: float = 0.4
+@export_range(0.0, 5.0, 0.05) var punch_strike_perfect: float = 0.3
+@export_range(0.0, 1.0, 0.01) var shake_crit: float = 0.55
+@export_range(0.0, 5.0, 0.05) var punch_crit: float = 0.5
+@export_range(0.0, 1.0, 0.01) var shake_ultimate_hit: float = 0.5
+@export_range(0.0, 5.0, 0.05) var punch_ultimate_hit: float = 0.35
+@export_range(100, 400, 5, "suffix:%") var spark_tier_medium_percent: int = 150
+@export_range(100, 600, 5, "suffix:%") var spark_tier_large_percent: int = 220
+## Counters: trauma and punch-in for a counter and a team counter.
+@export_range(0.0, 1.0, 0.01) var shake_counter: float = 0.7
 @export_range(0.0, 5.0, 0.05) var punch_counter: float = 0.9
-@export_range(0.0, 2.0, 0.01) var shake_strike: float = 0.06
-@export_range(0, 2000, 1, "suffix:ms") var shake_strike_ms: int = 140
+@export_range(0.0, 1.0, 0.01) var shake_team_counter: float = 0.9
+@export_range(0.0, 5.0, 0.05) var punch_team_counter: float = 1.2
 ## How long a punch-in takes to settle back.
 @export_range(10, 2000, 1, "suffix:ms") var punch_ms: int = 220
+## The large tier (card #179): the last enemy falling, and a boss or guard falling. The body holds
+## on its hurt pose for the freeze (kept short), while the camera shakes and punches in and the
+## screen flashes, before the end shot starts. Shake is trauma; flash is screen flash strength.
+@export_range(0, 400, 5, "suffix:ms") var kill_hitstop_ms: int = 110
+@export_range(0.0, 1.0, 0.01) var kill_shake: float = 0.8
+@export_range(0.0, 5.0, 0.05) var kill_punch: float = 0.9
+@export_range(0.0, 1.0, 0.01) var kill_flash: float = 0.25
+@export_range(0, 400, 5, "suffix:ms") var boss_kill_hitstop_ms: int = 170
+@export_range(0.0, 1.0, 0.01) var boss_kill_shake: float = 1.0
+@export_range(0.0, 5.0, 0.05) var boss_kill_punch: float = 1.4
+@export_range(0.0, 1.0, 0.01) var boss_kill_flash: float = 0.45
+## A boss entering its next phase: trauma, a punch-in that settles over phase_punch_ms.
+@export_range(0.0, 1.0, 0.01) var phase_shake: float = 0.9
+@export_range(0.0, 5.0, 0.05) var phase_punch: float = 1.0
+@export_range(10, 2000, 1, "suffix:ms") var phase_punch_ms: int = 500
+## A hero going down: trauma.
+@export_range(0.0, 1.0, 0.01) var downed_shake: float = 0.65
+## A boss or guard fight opens with the camera pulled back this far (world units) and gliding in
+## over intro_push_ms, with a little trauma.
+@export_range(0.0, 5.0, 0.05) var intro_push: float = 1.2
+@export_range(10, 3000, 1, "suffix:ms") var intro_push_ms: int = 900
+@export_range(0.0, 1.0, 0.01) var intro_shake: float = 0.3
+## A struck enemy recoils away from the heroes this far (world units) and comes back: a normal
+## hit, and a critical hit, counter or heavy hit. It is out for recoil_out_ms, back over recoil_back_ms.
+@export_range(0.0, 2.0, 0.01) var enemy_hit_knockback: float = 0.16
+@export_range(0.0, 2.0, 0.01) var enemy_heavy_knockback: float = 0.4
+@export_range(10, 1000, 1, "suffix:ms") var recoil_out_ms: int = 70
+@export_range(10, 1000, 1, "suffix:ms") var recoil_back_ms: int = 220
 
 @export_group("HUD")
 ## How far popups float up while fading (pixels at 1080p).
@@ -374,6 +424,12 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var screen_flash_ultimate: float = 0.35
 @export_range(0.0, 1.0, 0.01) var screen_flash_downed: float = 0.25
 @export_range(0.0, 1.0, 0.01) var screen_flash_phase: float = 0.3
+## The "Flashes" setting (card #185): at Reduced a screen flash keeps this percent of its strength
+## and a flash on a fighter keeps flash_reduced_fighter_percent; at Off screen flashes are gone
+## and a fighter flash keeps only flash_off_fighter_percent (a faint tint, so a hit still reads).
+@export_range(0, 100, 1, "suffix:%") var flash_reduced_screen_percent: int = 40
+@export_range(0, 100, 1, "suffix:%") var flash_reduced_fighter_percent: int = 50
+@export_range(0, 100, 1, "suffix:%") var flash_off_fighter_percent: int = 15
 ## A beaten enemy dissolves into rot over this long, with a burst of motes in this colour; the
 ## dissolving edge glows in death_edge_color.
 @export_range(0, 5000, 1, "suffix:ms") var death_dissolve_ms: int = 800
@@ -515,3 +571,23 @@ extends Resource
 @export_range(0, 1000, 10, "suffix:ms") var turn_spot_ms: int = 200
 @export var turn_ring_color: Color = Color(1.0, 0.82, 0.3)
 @export_range(0.0, 1.0, 0.05) var turn_ring_alpha: float = 0.55
+
+
+## Multiplier for a full-screen flash under flash mode `mode` (PlayerSettings.FLASH_*).
+func screen_flash_scale(mode: int) -> float:
+	match mode:
+		PlayerSettings.FLASH_REDUCED:
+			return float(flash_reduced_screen_percent) / 100.0
+		PlayerSettings.FLASH_OFF:
+			return 0.0
+	return 1.0
+
+
+## Multiplier for a flash on a fighter (white hit flashes, the telegraph flash) under `mode`.
+func fighter_flash_scale(mode: int) -> float:
+	match mode:
+		PlayerSettings.FLASH_REDUCED:
+			return float(flash_reduced_fighter_percent) / 100.0
+		PlayerSettings.FLASH_OFF:
+			return float(flash_off_fighter_percent) / 100.0
+	return 1.0

@@ -38,7 +38,7 @@ const SECTION_ROWS := {
 		"ambient_occlusion", "depth_of_field", "back"],
 	Section.SOUND: ["master", "music", "effects", "voice", "back"],
 	Section.CONTROLS: [],
-	Section.GAME: ["screen_shake", "timing_ring", "calibrate", "reset_lag", "back"],
+	Section.GAME: ["screen_shake", "flashes", "timing_ring", "calibrate", "reset_lag", "back"],
 }
 const GRAPHICS_DETAIL := {
 	"fog": "Mist over the zones and fights. Off is faster on slow PCs.",
@@ -161,6 +161,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				step = 1 if PlayerSettings.screen_shake_percent() < 100 else -4
 			PlayerSettings.set_screen_shake_percent(PlayerSettings.screen_shake_percent() + step * PlayerSettings.SHAKE_STEP_PERCENT)
 			Sfx.play("menu_move")
+		"flashes":
+			PlayerSettings.set_flash_mode(PlayerSettings.flash_mode() + (1 if answer == &"confirm" else step))
+			Sfx.play("menu_move")
 		"timing_ring":
 			PlayerSettings.set_show_timing_ring(not PlayerSettings.show_timing_ring(_tuning))
 			Sfx.play("menu_confirm")
@@ -238,9 +241,13 @@ func _refresh() -> void:
 			"screen_shake":
 				_menu.set_item(i, "Screen shake", true, "How much the camera shakes on hits and parries.",
 						"<  %d%%  >" % PlayerSettings.screen_shake_percent())
+			"flashes":
+				_menu.set_item(i, "Flashes", true,
+						"How bright the screen and hit flashes are. Reduced or Off helps if flashing bothers you.",
+						"<  %s  >" % String(PlayerSettings.FLASH_NAMES[PlayerSettings.flash_mode()]))
 			"timing_ring":
 				_menu.set_item(i, "Training ring", true,
-						"A shrinking ring shows when each enemy hit lands. For learning; off by default.",
+						"A shrinking ring shows when each enemy hit lands. Practice fights only; off by default.",
 						_on_off(PlayerSettings.show_timing_ring(_tuning)))
 			"calibrate":
 				_menu.set_item(i, "Lag calibration", true,

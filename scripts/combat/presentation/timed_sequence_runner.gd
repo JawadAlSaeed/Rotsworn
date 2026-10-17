@@ -110,9 +110,10 @@ var _press_times: Array[Dictionary] = []
 ## "hit:player" keys of the hits a player whiffed against (never MISS for that player: they did
 ## press).
 var _whiffed_hits: Dictionary = {}
-## Real time span of the hurt freeze on the last hit; presses inside it are still judged.
-var _hurt_pause_from_us: int = -1
-var _hurt_pause_to_us: int = -1
+## Who owns each hit-stop freeze on the shared clock (card #180): an owner's own taps inside it are
+## ignored; every other press is still judged, as if the freeze had not happened. The hurt freeze
+## on the last hit has no owner.
+var _freezes := FreezeLedger.new()
 var _contact: Vector3 = Vector3.ZERO
 var _tail: Array[Dictionary] = []
 var _tail_received: bool = false
@@ -221,8 +222,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_anims.clear()
 	_press_times.clear()
 	_whiffed_hits.clear()
-	_hurt_pause_from_us = -1
-	_hurt_pause_to_us = -1
+	_freezes.clear()
 	_tail.clear()
 	_tail_received = false
 	_has_counter = false
@@ -414,12 +414,14 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 	var t := _clock.attack_time_us(stamp_us)
 	var earliest := -1
 	if _clock.is_paused(stamp_us):
-		# Presses during a success freeze are ignored: no judgement, no lockout (DESIGN.md 3.3).
-		# The hurt freeze on a last hit is the exception: every prompt is resolved by then, so the
-		# press can only be a LATE report, judged at the time it would have had without the freeze.
-		if stamp_us < _hurt_pause_from_us or stamp_us >= _hurt_pause_to_us:
+		# A press by the owner of a success freeze is a double tap: ignored, no judgement, no
+		# lockout (DESIGN.md 3.3). Anyone else's press, and any press during the hurt freeze on a
+		# last hit (every prompt is resolved by then, so it can only be a LATE report), is judged
+		# at the time it would have had without the freeze.
+		var shift := _freezes.press_shift_us(stamp_us, player)
+		if shift == FreezeLedger.IGNORE:
 			return
-		t += stamp_us - _hurt_pause_from_us
+		t += shift
 	elif previous_pump_us > 0 and previous_pump_us < stamp_us:
 		var e := _clock.attack_time_us(previous_pump_us)
 		if e >= 0:
@@ -510,8 +512,8 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 			var step := mini(_parry_streak, _visuals.parry_ring_max_steps)
 			Sfx.play("parry_ring", 0.0, pow(2.0, step * _visuals.parry_ring_step_semitones / 12.0))
 			_parry_streak += 1
-			_clock.pause_for(now, (_tuning.hitstop_parry_final_ms if final else _tuning.hitstop_parry_ms) * 1000)
-			_view.camera.shake(_visuals.shake_parry_final if final else _visuals.shake_parry, _visuals.shake_parry_ms)
+			_freeze(now, _tuning.hitstop_parry_final_ms if final else _tuning.hitstop_parry_ms, characters)
+			_view.camera.add_trauma(_visuals.shake_parry_final if final else _visuals.shake_parry)
 			_view.camera.punch(_visuals.punch_parry_final if final else _visuals.punch_parry, _visuals.punch_ms)
 			var enemy := _view.fighter(_source)
 			if enemy != null:
@@ -520,11 +522,12 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 			text = "DODGE"
 			color = HudStyle.DODGE
 			Sfx.play("dodge")
+			_view.camera.add_trauma(_visuals.shake_dodge)
 		Defense.Outcome.JUMP:
 			text = "JUMP"
 			color = HudStyle.JUMP
 			Sfx.play("jump")
-			_clock.pause_for(now, _tuning.hitstop_jump_ms * 1000)
+			_freeze(now, _tuning.hitstop_jump_ms, characters)
 	if _options.timing_readout:
 		text += " " + HudStyle.signed_ms(roundi(float(offset_us) / 1000.0))
 	var shown: Array[int] = []
@@ -545,9 +548,23 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 			_view.spawn_sparks(at, _visuals.sparks_per_parry)
 		elif action == Defense.Outcome.JUMP:
 			view.flash(_visuals.flash_ms, HudStyle.JUMP, _visuals.jump_flash_strength)
+		elif action == Defense.Outcome.DODGE:
+			view.flash(_visuals.flash_ms, HudStyle.DODGE, _visuals.dodge_flash_strength)
 	# One readout per press, even when it answered several characters at once.
 	if not shown.is_empty():
 		_hud.popup(text, _focus_head(shown), color)
+
+
+## Freezes the shared attack clock for `ms` from `now`, owned by the players behind `characters`
+## (none: nobody's, the hurt freeze).
+func _freeze(now: int, ms: int, characters: Array[int]) -> void:
+	var players: Array[int] = []
+	for id: int in characters:
+		var player := int(_owners.get(id, 0))
+		if not players.has(player):
+			players.append(player)
+	_clock.pause_for(now, ms * 1000)
+	_freezes.add(now, ms * 1000, players)
 
 
 # --- per-frame steps --------------------------------------------------------------------------
@@ -586,6 +603,11 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 	if not _mirror.is_alive(id):
 		return
 	var hit_index := int(prompt.hit)
+	# A heavy hit (at least big_hit_percent of max HP, like the big damage number) staggers the
+	# hero: a longer pose and a bigger knockback (card #62), and it shakes the camera harder than
+	# a graze (card #179). Presentation only.
+	var max_hp := maxi(1, int(_mirror.fighter(id).get("max_hp", 1)))
+	var heavy := int(prompt.damage) * 100 >= max_hp * _visuals.big_hit_percent
 	if not sounded.has(hit_index):
 		sounded[hit_index] = true
 		_parry_streak = 0
@@ -598,10 +620,10 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 		Sfx.play("guard_block" if guarded else impact)
 		# Only the last hit freezes: in a string the next lunge has often started by now.
 		if hit_index == _hits.size() - 1 and _tuning.hitstop_hurt_ms > 0:
-			_clock.pause_for(now, _tuning.hitstop_hurt_ms * 1000)
-			_hurt_pause_from_us = now
-			_hurt_pause_to_us = now + _tuning.hitstop_hurt_ms * 1000
-		_view.camera.shake(_visuals.shake_hurt, _visuals.shake_hurt_ms)
+			_freeze(now, _tuning.hitstop_hurt_ms, [])
+		_view.camera.add_trauma(_visuals.shake_hurt_heavy if heavy else _visuals.shake_hurt)
+		if heavy:
+			_view.camera.punch(_visuals.punch_hurt_heavy, _visuals.punch_ms)
 	var view := _view.fighter(id)
 	view.flash(_visuals.flash_ms, HudStyle.DAMAGE_TAKEN, _visuals.hurt_flash_strength)
 	# A projectile bursts on the hero it hit.
@@ -610,10 +632,6 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 		_projectile_ends[key] = {"kind": -1, "at_us": t}
 		var projectile: ProjectileData = _projectile_of[hit_index]
 		_view.spawn_sparks(_standing_centre(id), _visuals.projectile_burst_sparks, 1.0, projectile.color)
-	# A heavy hit (at least big_hit_percent of max HP, like the big damage number) staggers the
-	# hero: a longer pose and a bigger knockback (card #62). Presentation only.
-	var max_hp := maxi(1, int(_mirror.fighter(id).get("max_hp", 1)))
-	var heavy := int(prompt.damage) * 100 >= max_hp * _visuals.big_hit_percent
 	var pose_ms := _visuals.stagger_pose_ms if heavy else _visuals.hurt_pose_ms
 	_anims[id] = {"kind": Anim.HURT, "frame": FighterView.CharPose.HURT, "from_us": t,
 			"until_us": t + pose_ms * 1000, "heavy": heavy}

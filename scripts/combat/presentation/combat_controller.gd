@@ -131,6 +131,9 @@ var _enemy_hits: Dictionary = {}
 var _counters: int = 0
 ## Combatant id -> CharacterData or EnemyData.
 var _data_by_id: Dictionary = {}
+## The freeze (ms) of the large-tier kill just shown by _show_downed (card #179): whatever plays
+## the kill waits it out once, so the body holds before the next shot. 0: none.
+var _kill_freeze_ms: int = 0
 ## Ability id -> AbilityData.
 var _abilities: Dictionary = {}
 ## Enemy attack id -> EnemyAttackData (for its training ring speed).
@@ -641,6 +644,9 @@ func _apply_now(ev: Dictionary) -> void:
 	match String(ev.get("type", "")):
 		"downed":
 			_show_downed(int(ev.target))
+			# A kill by a skill's press: its animation clock holds for the freeze (a hit-stop), so
+			# the strike stays on its impact frame; nothing here waits for it.
+			skill_runner.hold(_take_kill_freeze())
 		"prompt_resolved":
 			if String(mirror.sequence.get("kind", "")) == CombatEngine.SEQUENCE_ENEMY_ATTACK:
 				_enemy_hits["%d:%d" % [int(ev.seq), int(ev.hit)]] = true
@@ -666,6 +672,9 @@ func _play(ev: Dictionary) -> void:
 			elif _encounter.boss or _encounter.mini_boss:
 				Sfx.play("alert")
 				hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
+				# The camera starts pulled back and pushes in with a little trauma (card #179).
+				view.camera.add_trauma(_visuals.intro_shake)
+				view.camera.punch(-_visuals.intro_push, _visuals.intro_push_ms)
 			else:
 				Sfx.play("fight_start")
 		"turn_started":
@@ -697,6 +706,8 @@ func _play(ev: Dictionary) -> void:
 		"downed":
 			mirror.apply(ev)
 			_show_downed(int(ev.target))
+			# The large-tier kill holds for its freeze before the next event (the end shot).
+			await _wait_ms(_take_kill_freeze())
 		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge", "enemy_phase", "escaped":
 			mirror.apply(ev)
 			_show_feedback(ev)
@@ -1141,7 +1152,7 @@ func _play_counter(ev: Dictionary) -> void:
 		var enemy := view.fighter(int(ev.target))
 		if enemy != null:
 			hud.popup(label, enemy.head_position(), HudStyle.GOLD)
-	await _strike(actors, int(ev.target), "team_counter" if team else "counter", _take_following(), true)
+	await _strike(actors, int(ev.target), "team_counter" if team else "counter", _take_following(), true, team)
 
 
 ## "COUNTER!", "COUNTER x5!", "TEAM COUNTER x4 MIXED!": a longer or mixed string hits harder
@@ -1163,7 +1174,8 @@ func _take_following() -> Array[Dictionary]:
 	return taken
 
 
-func _strike(actors: Array[int], target: int, sfx: String, results: Array[Dictionary], is_counter: bool) -> void:
+func _strike(actors: Array[int], target: int, sfx: String, results: Array[Dictionary], is_counter: bool,
+		team: bool = false) -> void:
 	var enemy := view.fighter(target)
 	var dash_s := float(_tuning.action_dash_ms) / 1000.0
 	var return_s := float(_tuning.action_return_ms) / 1000.0
@@ -1193,11 +1205,11 @@ func _strike(actors: Array[int], target: int, sfx: String, results: Array[Dictio
 			slashes.append(view.spawn_slash(enemy.centre_position(), i % 2 == 0, 1.0, i * _visuals.team_slash_gap_ms))
 	Sfx.play(sfx)
 	if is_counter:
-		view.camera.shake(_visuals.shake_counter, _visuals.shake_counter_ms)
-		view.camera.punch(_visuals.punch_counter, _visuals.punch_ms)
+		view.camera.add_trauma(_visuals.shake_team_counter if team else _visuals.shake_counter)
+		view.camera.punch(_visuals.punch_team_counter if team else _visuals.punch_counter, _visuals.punch_ms)
 		hud.screen_flash(HudStyle.PARRY, _visuals.screen_flash_counter)
 	else:
-		view.camera.shake(_visuals.shake_strike, _visuals.shake_strike_ms)
+		view.camera.add_trauma(_visuals.shake_strike)
 	if enemy != null:
 		view.spawn_sparks(enemy.centre_position(), _visuals.sparks_per_counter if is_counter else _visuals.sparks_per_strike,
 				1.0, _visuals.strike_spark_color)
@@ -1209,11 +1221,14 @@ func _strike(actors: Array[int], target: int, sfx: String, results: Array[Dictio
 			_show_downed(int(ev.target))
 		event_played.emit(ev)
 	_refresh()
-	if is_counter and _tuning.hitstop_counter_ms > 0:
-		# Counter hit-stop: the slashes freeze on the impact frame, then play out.
+	# Hit-stop: the slashes freeze on the impact frame, then play out. A counter has one, and so
+	# does the blow that ends the fight or fells a boss (the longer of the two, once).
+	var stop_ms := _tuning.hitstop_counter_ms if is_counter else 0
+	stop_ms = maxi(stop_ms, _take_kill_freeze())
+	if stop_ms > 0:
 		for tween: Tween in slashes:
 			tween.set_speed_scale(0.0)
-		await _wait_ms(_tuning.hitstop_counter_ms)
+		await _wait_ms(stop_ms)
 		for tween: Tween in slashes:
 			if tween.is_valid():
 				tween.set_speed_scale(1.0)
@@ -1245,7 +1260,16 @@ func _show_damage(ev: Dictionary) -> void:
 	hud.damage_number(int(ev.amount), v.head_position(), HudStyle.GOLD if crit else (HudStyle.DAMAGE_DEALT if to_enemy
 			else HudStyle.DAMAGE_TAKEN), big)
 	v.flash(_visuals.flash_ms)
+	if to_enemy and crit:
+		view.camera.add_trauma(_visuals.shake_crit)
+		view.camera.punch(_visuals.punch_crit, _visuals.punch_ms)
 	if mirror.is_alive(int(ev.target)):
+		# A struck enemy recoils away from the heroes and settles back (card #179), more for a
+		# heavy, critical or countered hit. Not during an enemy attack: the runner owns its body.
+		if to_enemy and not runner.is_active():
+			var heavy := big or String(ev.get("cause", "")) in STAGGER_CAUSES
+			v.recoil(Vector3(_visuals.enemy_heavy_knockback if heavy else _visuals.enemy_hit_knockback, 0.0, 0.0),
+					float(_visuals.recoil_out_ms) / 1000.0, float(_visuals.recoil_back_ms) / 1000.0)
 		# During an enemy attack the runner plays a hero's flinch or stagger on attack time (card
 		# #62); a timed pose here would hide those frames.
 		if to_enemy or not runner.is_active():
@@ -1319,6 +1343,8 @@ func _show_feedback(ev: Dictionary) -> void:
 				# Its rage clip, when the sheet has one (card #68).
 				boss.play("rage", _visuals.rage_pose_ms, FighterView.PRIO_BIG)
 			hud.screen_flash(HudStyle.LATE, _visuals.screen_flash_phase)
+			view.camera.add_trauma(_visuals.phase_shake)
+			view.camera.punch(_visuals.phase_punch, _visuals.phase_punch_ms)
 			var text := String(ev.get("text", ""))
 			hud.show_center_banner(text if not text.is_empty() else "IT GROWS FURIOUS!", HudStyle.LATE,
 					_visuals.first_strike_banner_ms)
@@ -1381,14 +1407,67 @@ func _show_downed(id: int) -> void:
 		# Falls over onto the down pose (card #66); its first cell is the flinch.
 		v.play("fall", _visuals.fall_ms, FighterView.PRIO_BIG)
 		hud.screen_flash(HudStyle.DAMAGE_TAKEN, _visuals.screen_flash_downed)
-	elif not v.has_clip("death"):
+		view.camera.add_trauma(_visuals.downed_shake)
+		return
+	# The large tier (card #179): the last enemy and a boss or guard fall with a held freeze,
+	# shake, punch-in and flash. Whatever plays this kill waits out _kill_freeze_ms.
+	var hold_ms := _big_kill(id)
+	if not v.has_clip("death"):
 		# A beaten enemy crumbles into rot (card #38).
 		v.set_pose(EnemyChoreography.Pose.HURT)
 		v.flash(_visuals.flash_ms * 2, _visuals.death_edge_color, _visuals.death_flash_strength)
+		if hold_ms > 0:
+			await _wait_ms(hold_ms)
+			if not is_instance_valid(v):
+				return
 		v.dissolve(_visuals.death_dissolve_ms, _visuals.death_edge_color)
 		view.spawn_sparks(v.centre_position(), _visuals.death_sparks, 1.0, _visuals.death_spark_color)
 	else:
+		if hold_ms > 0:
+			# The body holds on its hurt pose, flashing, until the freeze ends; then the death clip.
+			v.set_pose(EnemyChoreography.Pose.HURT)
+			v.flash(hold_ms, Color.WHITE, 0.9)
+			await _wait_ms(hold_ms)
+			if not is_instance_valid(v):
+				return
 		_play_enemy_death(id, v)
+
+
+## The large-tier impact for enemy `id` falling, if it is one (the fight's last enemy, or the boss
+## of a boss or guard fight): shake, punch-in and screen flash now, and the freeze in ms (also
+## kept in _kill_freeze_ms for whatever plays the kill to wait out). 0: a normal kill.
+func _big_kill(id: int) -> int:
+	var boss := _is_boss(id)
+	if not boss and not mirror.living_enemy_ids().is_empty():
+		return 0
+	var hold_ms := _visuals.boss_kill_hitstop_ms if boss else _visuals.kill_hitstop_ms
+	view.camera.add_trauma(_visuals.boss_kill_shake if boss else _visuals.kill_shake)
+	view.camera.punch(_visuals.boss_kill_punch if boss else _visuals.kill_punch, _visuals.punch_ms)
+	hud.screen_flash(Color.WHITE, _visuals.boss_kill_flash if boss else _visuals.kill_flash)
+	_kill_freeze_ms = maxi(_kill_freeze_ms, hold_ms)
+	return hold_ms
+
+
+## True for the boss of a boss or guard fight: the enemy with the most HP (the first of equals).
+func _is_boss(id: int) -> bool:
+	if _encounter == null or not (_encounter.boss or _encounter.mini_boss):
+		return false
+	var best := -1
+	var best_hp := -1
+	for enemy_id: int in mirror.enemy_ids:
+		var data := _data_by_id.get(enemy_id) as EnemyData
+		var hp := data.hp_percent if data != null else 0
+		if hp > best_hp:
+			best_hp = hp
+			best = enemy_id
+	return best == id
+
+
+## The pending kill freeze (ms), cleared: whoever plays the kill waits it once.
+func _take_kill_freeze() -> int:
+	var ms := _kill_freeze_ms
+	_kill_freeze_ms = 0
+	return ms
 
 
 ## A beaten enemy with a death clip plays it and holds its last cell (card #68). A rotting one
@@ -1500,6 +1579,10 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 	if key == KEY_NONE:
 		return false
 	if hud.overlay.visible:
+		# G, T, L, H, C and V change what the player sees or hears of an attack: practice only. A
+		# run fight is the real game (card #179, DESIGN.md 3.7); F1 and F2 still work there.
+		if _run != null and key in [KEY_G, KEY_T, KEY_L, KEY_H, KEY_C, KEY_V]:
+			return false
 		match key:
 			KEY_R:
 				# The training ring is a practice aid: a run fight is the real game.
