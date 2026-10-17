@@ -372,6 +372,13 @@ extends Resource
 ## Zones: the host sends the leader and roaming enemy positions this many times a second.
 @export_range(1, 60) var net_zone_send_hz: int = 20
 
+@export_group("Controls")
+## Settings > Controls (card #190): after picking a key or button to change, the game waits this
+## long for the new one, then gives up and leaves the old one.
+@export_range(1000, 30000, 100, "suffix:ms") var rebind_capture_ms: int = 6000
+## Picking Reset to defaults asks twice; the second press must come within this long.
+@export_range(500, 10000, 100, "suffix:ms") var rebind_reset_confirm_ms: int = 4000
+
 @export_group("Practice and debug")
 ## Phase 1 practice keys: 1-5 force an enemy attack, I = party cannot die,
 ## O = enemy cannot die, R = restart, F1 = stats overlay, F2 = lag calibration.

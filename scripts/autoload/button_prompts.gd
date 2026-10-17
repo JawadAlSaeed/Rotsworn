@@ -68,6 +68,11 @@ static func listen(method: Callable) -> void:
 		_node.changed.connect(method)
 
 
+## Redraws every hint (a key or button was rebound, card #190).
+static func refresh() -> void:
+	_emit()
+
+
 static func _set_pad(on: bool) -> void:
 	if on == _pad or (on and _keys_only):
 		return

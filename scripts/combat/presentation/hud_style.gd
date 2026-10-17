@@ -86,11 +86,15 @@ const PAD_AXIS_NAMES := {JOY_AXIS_TRIGGER_LEFT: "LT", JOY_AXIS_TRIGGER_RIGHT: "R
 ## Chip shape, as shares of the hint's font size or of the chip's height.
 const CHIP_HEIGHT_SHARE: float = 1.25
 const CHIP_TEXT_SHARE: float = 0.8
-## Movement "buttons" for hints: token -> [keyboard, pad].
+## Movement "buttons" for hints: token -> the actions it stands for, in the order they are written
+## (so "WASD" is up, left, down, right). Their text follows the player's own bindings (nav_parts).
 const NAV_TOKENS := {
-	&"@updown": ["↑↓", "D-pad ↑↓"], &"@leftright": ["←→", "D-pad ←→"],
-	&"@arrows": ["←↑→↓", "D-pad"], &"@move": ["WASD", "L-stick"],
+	&"@updown": [&"menu_up", &"menu_down"], &"@leftright": [&"menu_left", &"menu_right"],
+	&"@arrows": [&"menu_left", &"menu_up", &"menu_right", &"menu_down"],
+	&"@move": [&"move_up", &"move_left", &"move_down", &"move_right"],
 }
+const ARROW_GLYPHS := {"Up": "↑", "Down": "↓", "Left": "←", "Right": "→"}
+const DPAD_GLYPHS := {"D-pad up": "↑", "D-pad down": "↓", "D-pad left": "←", "D-pad right": "→"}
 
 
 ## Loads the game's fonts (data/presentation/ui_fonts.tres) and makes the body font the default
@@ -361,8 +365,7 @@ static func set_bar_color(b: ProgressBar, fill: Color) -> void:
 ## Settings > Input Map. Also takes the NAV_TOKENS (moving in menus and zones).
 static func binding_parts(action: StringName) -> Array[String]:
 	if NAV_TOKENS.has(action):
-		var pair: Array = NAV_TOKENS[action]
-		return [String(pair[0]), String(pair[1])]
+		return nav_parts(action)
 	var key := ""
 	var pad := ""
 	if InputMap.has_action(action):
@@ -376,6 +379,55 @@ static func binding_parts(action: StringName) -> Array[String]:
 			elif pad.is_empty() and ev is InputEventJoypadMotion and PAD_AXIS_NAMES.has((ev as InputEventJoypadMotion).axis):
 				pad = String(PAD_AXIS_NAMES[(ev as InputEventJoypadMotion).axis])
 	return [key, pad]
+
+
+## [keys, pad] text for a NAV_TOKENS token, read from the bindings: "↑↓" and "D-pad ↑↓" while the
+## menu keys are the arrows and the D-pad, "WASD" and "L-stick" while walking is on its defaults,
+## the button names joined with "/" once the player has changed them.
+static func nav_parts(token: StringName) -> Array[String]:
+	var keys := PackedStringArray()
+	var pads := PackedStringArray()
+	for action: StringName in NAV_TOKENS[token]:
+		var parts := binding_parts(action)
+		keys.append(parts[0])
+		pads.append(parts[1])
+	var key_text := ""
+	if keys.size() > 0 and keys.size() == _count_in(keys, ARROW_GLYPHS):
+		for k: String in keys:
+			key_text += String(ARROW_GLYPHS[k])
+	elif _all_single(keys):
+		key_text = "".join(keys)
+	else:
+		key_text = "/".join(keys)
+	var pad_text := ""
+	if pads.size() > 0 and pads.size() == _count_in(pads, DPAD_GLYPHS):
+		if token == &"@move":
+			# The stick walks as well as the D-pad.
+			pad_text = "L-stick"
+		elif pads.size() >= 4:
+			pad_text = "D-pad"
+		else:
+			pad_text = "D-pad "
+			for pad_name: String in pads:
+				pad_text += String(DPAD_GLYPHS[pad_name])
+	else:
+		pad_text = "/".join(pads)
+	return [key_text, pad_text]
+
+
+static func _count_in(names: PackedStringArray, table: Dictionary) -> int:
+	var n := 0
+	for button_name: String in names:
+		if table.has(button_name):
+			n += 1
+	return n
+
+
+static func _all_single(names: PackedStringArray) -> bool:
+	for button_name: String in names:
+		if button_name.length() != 1:
+			return false
+	return not names.is_empty()
 
 
 ## "Space", "RB" or "Space / RB": the action's button for the kind of hints shown now
@@ -393,6 +445,20 @@ static func binding_text(action: StringName) -> String:
 			if not part.is_empty():
 				parts.append(part)
 	return " / ".join(parts) if not parts.is_empty() else "(not bound)"
+
+
+## The name of a bound input (ControlBindings): "Space", "RB", "LT", "Button 14".
+static func input_name(input: Dictionary) -> String:
+	match String(input.get("k", "")):
+		"key":
+			return OS.get_keycode_string(int(input.get("code", 0)) as Key)
+		"btn":
+			var button := int(input.get("code", 0))
+			return String(PAD_BUTTON_NAMES.get(button, "Button %d" % button))
+		"axis":
+			var axis := int(input.get("code", 0))
+			return String(PAD_AXIS_NAMES.get(axis, "Axis %d" % axis))
+	return "(not bound)"
 
 
 ## A small button picture for hints (ButtonChip): round coloured A/B/X/Y, drawn Menu, View,
