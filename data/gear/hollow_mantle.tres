@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_517j2"]
+
+[resource]
+script = ExtResource("1_517j2")
+id = "hollow_mantle"
+display_name = "Hollow Mantle"
+description = "Enemy hits deal 25% less, but you are 10 slower."
+price = 90
+rarity = 1
+effect = 10
+amount = 25
+rot_touched = true
+drawback = 2
+drawback_amount = 10

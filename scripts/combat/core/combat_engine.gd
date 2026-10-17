@@ -46,7 +46,7 @@ extends RefCounted
 ##   item_used               {turn, actor, uid, item, name, targets:[id]} (DESIGN.md 8.1)
 ##   damage                  {source, target, amount, hp, max_hp, cause, crit (a critical hit)}
 ##                           cause: "ability" | "follow_up" | "counter" | "team_counter" | "bleed"
-##                           | "item" | "rot" (gear) | "rotting" (the Rotting debuff)
+##                           | "item" | "rot" (gear) | "rotting" (the Rotting debuff) | "thorns" (gear)
 ##   healed                  {source, target, amount, hp, max_hp}
 ##   revived                 {source, target, hp, max_hp}
 ##   downed                  {target}
@@ -1025,7 +1025,7 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 				var crit := _roll_crit(actor)
 				var bonus := _exposed_bonus(actor, ability, target_id == exposed) + _marked_bonus(ability, targets) \
 						+ _empowered_bonus(actor, ability)
-				var amount := _skill_damage(actor.power, pct, bonus)
+				var amount := _skill_damage(_power_of(actor), pct, bonus)
 				_deal_damage(actor, target, _crit_damage(amount) if crit else amount, "ability", events, crit)
 	_apply_effects(actor, ability, targets, false, exposed, events)
 	_end_of_turn(actor, events)
@@ -1431,7 +1431,7 @@ func _apply_effects(actor: Combatant, ability: AbilityData, targets: Array[int],
 		_revive(actor, first, revive, events)
 		timeline_changed = true
 	if ability.gauge_gain > 0:
-		_change_gauge(ability.gauge_gain, events)
+		_change_gauge(_gauge_gain(actor, ability.gauge_gain), events)
 	if Status.is_known(ability.status) and (good or not ability.status_needs_perfect):
 		var turns := ability.status_turns + (ability.press_status_turns if good else 0)
 		for target_id: int in targets:
@@ -1603,13 +1603,16 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 	var ap_delta := 0
 	var perfect := (prompt.perfect as Array).has(outcome)
 	if outcome != Defense.Outcome.NONE:
-		ap_delta = _change_ap_silent(target, Defense.ap_reward(outcome, tuning))
+		ap_delta = _change_ap_silent(target, _defence_ap(target, outcome))
 		if perfect:
 			target.perfect_defenses += 1
 	else:
 		damage = int(prompt.damage)
 		_lose_hp(target, damage)
 	var downed := not target.is_alive()
+	var thorn_events: Array[Dictionary] = []
+	if damage > 0:
+		_reflect_thorns(target, damage, thorn_events)
 	var resolved := {
 		"type": "prompt_resolved",
 		"seq": sequence.seq,
@@ -1627,6 +1630,7 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		"downed": downed,
 	}
 	events.append(resolved)
+	events.append_array(thorn_events)
 	if downed:
 		events.append({"type": "downed", "target": target.id})
 		_on_downed(target, events)
@@ -1634,6 +1638,27 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		_heal(target, target, CombatMath.percent_min1(target.max_hp, Passive.amount(target, Passive.HEAL_ON_JUMP)), events)
 	if not downed and outcome == Defense.Outcome.NONE:
 		_apply_hit_marks(target, prompt, events)
+
+
+## AP a successful defence earns: the tuned reward plus rot-touched gear (DESIGN.md 8.16), never below 0.
+func _defence_ap(target: Combatant, outcome: int) -> int:
+	var reward := Defense.ap_reward(outcome, tuning)
+	if outcome == Defense.Outcome.DODGE:
+		reward += Passive.amount(target, Passive.DODGE_AP)
+	elif outcome == Defense.Outcome.PARRY:
+		reward += Passive.amount(target, Passive.PARRY_AP)
+	return maxi(0, reward)
+
+
+## Thorned gear: the enemy whose hit landed on `target` takes a share of the damage back.
+func _reflect_thorns(target: Combatant, damage: int, events: Array[Dictionary]) -> void:
+	var pct := Passive.amount(target, Passive.THORNS)
+	if pct <= 0 or sequence.is_empty():
+		return
+	var attacker := get_combatant(int(sequence.source))
+	if attacker == null or attacker.is_party() or not attacker.is_alive():
+		return
+	_deal_damage(target, attacker, CombatMath.percent_min1(damage, pct), "thorns", events)
 
 
 ## The mark a hit leaves on a hero who took it undefended and is still standing (card #194): a
@@ -1692,7 +1717,7 @@ func _apply_press_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 			if not target.is_party() and target.is_alive():
 				_deal_damage(striker, target, amount, "follow_up" if follow_up else "ability", events, crit)
 	if follow_up and good:
-		_change_gauge(tuning.team_gauge_per_follow_up, events)
+		_change_gauge(_gauge_gain(striker, tuning.team_gauge_per_follow_up), events)
 
 
 ## A follow-up counts only if at least one of the prompts it requires was a good or perfect press.
@@ -1963,7 +1988,8 @@ func _shift_turn(c: Combatant, delta: int, events: Array[Dictionary]) -> void:
 
 
 func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary]) -> void:
-	amount = CombatMath.percent(amount, 100 + Passive.amount(source, Passive.HEAL))
+	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(source, Passive.HEAL)))
+	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(target, Passive.HEAL_TAKEN)))
 	if target.has_status(Status.BLIGHTED) and amount > 0:
 		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tuning.blighted_heal_cut_percent))
 	var before := target.hp
@@ -1974,9 +2000,13 @@ func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dict
 
 ## A fighter's power with Weakened applied (card #194).
 func _power_of(c: Combatant) -> int:
+	var power := c.power
+	var ember := Passive.amount(c, Passive.LOW_HP_POWER)
+	if ember > 0 and c.is_alive() and c.hp * 100 < c.max_hp * tuning.rot_low_hp_percent:
+		power = CombatMath.percent_min1(power, 100 + ember)
 	if c.has_status(Status.WEAKENED):
-		return CombatMath.percent_min1(c.power, maxi(0, 100 - tuning.weakened_power_cut_percent))
-	return c.power
+		return CombatMath.percent_min1(power, maxi(0, 100 - tuning.weakened_power_cut_percent))
+	return power
 
 
 ## Removes up to `count` hero debuffs from `target`, in Status.DEBUFFS order. Returns how many went.
@@ -2019,6 +2049,11 @@ func _on_downed(target: Combatant, events: Array[Dictionary]) -> void:
 	_refresh_intents(events)
 
 
+## Team gauge `amount` earned by `source`, bigger with gauge gear (DESIGN.md 8.16).
+func _gauge_gain(source: Combatant, amount: int) -> int:
+	return CombatMath.percent(amount, maxi(0, 100 + Passive.amount(source, Passive.GAUGE)))
+
+
 func _change_gauge(delta: int, events: Array[Dictionary]) -> void:
 	var before := team_gauge
 	team_gauge = clampi(team_gauge + delta, 0, tuning.team_gauge_max)
@@ -2058,7 +2093,8 @@ func _enemy_hit_damage(enemy: Combatant, target: Combatant, pct: int) -> int:
 	if target.has_status(Status.GUARDED):
 		amount = CombatMath.percent_min1(amount, tuning.guard_damage_percent)
 	var tough := mini(Passive.amount(target, Passive.TOUGH), tuning.tough_max_percent)
-	if tough > 0:
+	if tough != 0:
+		# Below 0 (rot-touched gear's drawback) the hit lands harder.
 		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tough))
 	return _apply_variance(amount)
 
@@ -2106,9 +2142,18 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 	if not target.is_alive():
 		events.append({"type": "downed", "target": target.id})
 		_on_downed(target, events)
+		_heal_on_kill(source, target, events)
 	elif not target.is_party():
 		_count_doom_damage(target, lost, events)
 		_maybe_enter_phase_two(target, events)
+
+
+## Kill-heal gear (DESIGN.md 8.16): a hero whose hit downed an enemy heals a share of their max HP.
+func _heal_on_kill(killer: Combatant, victim: Combatant, events: Array[Dictionary]) -> void:
+	var pct := Passive.amount(killer, Passive.KILL_HEAL)
+	if pct <= 0 or victim.is_party() or not killer.is_party() or not killer.is_alive():
+		return
+	_heal(killer, killer, CombatMath.percent_min1(killer.max_hp, pct), events)
 
 
 # --- charged dooms (card #195) ----------------------------------------------------------------

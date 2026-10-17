@@ -193,7 +193,7 @@ func _show_choices() -> void:
 	_picking.clear()
 	var up := upgradable()
 	var list: Array[Dictionary] = [
-		{"text": "Rest", "enabled": not remote, "detail": "Everyone heals %d%% of their max HP." % run.rest_heal_percent()},
+		{"text": "Rest", "enabled": not remote, "detail": _rest_detail()},
 		{"text": "Train", "enabled": not remote, "detail": "Every hero gets %d attribute point%s." % [
 				run.tuning.rest_train_points, "" if run.tuning.rest_train_points == 1 else "s"]},
 		{"text": "Upgrade an item", "enabled": not remote and not up.is_empty(),
@@ -201,6 +201,15 @@ func _show_choices() -> void:
 				else "Nothing in the backpack can be upgraded."},
 	]
 	_menu.set_items(list)
+
+
+## What Rest does, naming any hero whose gear changes it (Hunger Charm, DESIGN.md 8.16).
+func _rest_detail() -> String:
+	var text := "Everyone heals %d%% of their max HP." % run.rest_heal_percent()
+	for slot: int in run.party_size():
+		if run.rest_heal_percent_of(slot) != run.rest_heal_percent():
+			text += " %s heals %d%%." % [run.data.party[slot].display_name, run.rest_heal_percent_of(slot)]
+	return text
 
 
 func _show_upgrades() -> void:

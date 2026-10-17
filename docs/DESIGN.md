@@ -1859,7 +1859,9 @@ counters for longer and mixed strings (2.5, card #52).
   -15%), Mender's Charm (heals +30%), Lucky Coin (gold +25%). Stats (max HP, power, speed) are
   folded into the fight setup by `RunState`; the rest are `Passive` keys the engine applies
   (`CombatSetup.party_passives`, `Combatant.passives`). Putting gear on never heals (no free
-  heal by swapping); taking it off cuts HP to the lower max.
+  heal by swapping); taking it off cuts HP to the lower max. Twelve more pieces, the
+  **rot-touched** ones (strong, each with a price), are in 8.16 (card #198); the list above is the
+  ordinary 13.
 - **Loot** (#28): after a zone's guard, ZONE CLEAR, then "Spoils": pick 1 of `run_loot_choices`
   (3) items the party does not own (seeded per stop), then the party screen to put it on. Shops
   also sell `run_shop_gear` (2) such items at their price, after the care items.
@@ -1900,6 +1902,10 @@ co-op anyone can open and move things at any time. The rest are proposed default
   Tonics in a run (`RunState.tonics_used`, kept in `to_dict`), because gold plus Restock turned
   into endless max HP. The party screen greys the choice with a line saying why, a capped hero is
   skipped by the bot, and the shop stops selling Tonics when every hero is full (`RunState.wants`).
+  **Tonics do not level** (card #198): a combined or upgraded Tonic would have given more max HP per
+  drink and got round the cap, so `ItemData.combinable()` is false for the Tonic (no campfire or shop
+  upgrade, no combining) and `RunState.entry_amount` always returns its plain `amount_percent`, even
+  for a levelled Tonic in an old save.
 - **Charms:** a party-wide passive while in the backpack (for example power +5%, +1 AP at fight
   start, gold +10%). Each charm belongs to a family (Stone, Bone, Herb). Some charms boost the
   charms that touch them (for example "touching Stone charms work 50% better"), so where things
@@ -2304,7 +2310,8 @@ phase 14 was the tutorial).
   `bootstrap_phase15.gd` does not know it). The choreography golden test took the five new files
   (55 attacks, every older hash unchanged).
 - **Better reward**: spoils (after a guard, an elite or an act's boss) are gear of at least
-  `run_spoils_min_rarity` (rare) while the run has enough of it.
+  `run_spoils_min_rarity` (rare) while the run has enough of it, and one of the choices is a
+  rot-touched piece (8.16).
 - **Elite fights** (`EncounterData.elite`): enemies get `elite_hp_percent` (140), `elite_power_percent`
   (115) and `elite_gold_percent` (150) on top of depth. Four: Twin Husks, The Laughing Pack (two
   hyenas and a fly), Toad Court, Shade Coven, each with a deep version. They are met two ways:
@@ -2665,6 +2672,75 @@ oath", and a run at Oath N is that oath kept.
   screen). The `AUTOPLAY_RESULT run_...` line ends with `oath=N`.
 - Tests: `tests/unit/test_oaths.gd`.
 
+### 8.16 Rot-touched gear (card #198, 2026-10-17)
+
+Strong pieces with a price, in the spirit of Slay the Spire's boss relics and Expedition 33's Pictos:
+each one makes a hero clearly better at one thing and clearly worse at another (or, for one piece,
+only works in a risky state). They are for a party that wants the game harder still, not an
+upgrade to take blindly.
+
+- **Data**: a `GearData` with `rot_touched = true` (its own violet name colour, `GearData.ROT_TOUCHED_COLOR`, and
+  the tag "rot-touched" in the loot, shop and party screens), an `effect` / `amount` as before and a
+  **drawback**: `drawback` (any `GearData.Effect`) plus `drawback_amount` (0 = none). A drawback is
+  the effect worn as a loss: "Max HP -15%", "Enemy hits +10%" (a Tough drawback), "Parries give 1
+  less AP". `GearData.contribution(effect)` is what a piece adds to one effect, signed; `RunState.gear_amount`
+  and `RunState.passives` sum it, so a drawback on the same key as an upside simply takes away (a
+  total of 0 is dropped). `GearData.effect_line()` is the one-line text; every piece also has a
+  hand-written `description` that says both halves in plain words. Twelve pieces are written by
+  `tools/bootstrap_rot_gear.gd` into `data/gear/` and the run's gear list.
+- **New effects** (appended to `GearData.Effect`, so older files keep their numbers) and the
+  `Passive` keys the engine runs for them (all integers, signed, add up across pieces):
+  `HEAL_TAKEN` (healing the hero receives, in `_heal` and in `RunState.heal`), `KILL_HEAL` (a
+  hero's hit that downs an enemy heals them a share of max HP, in `_deal_damage`), `LOW_HP_POWER` (power
+  while HP is under `tuning.rot_low_hp_percent`, 30, in `_power_of`; a basic attack now also uses
+  `_power_of`), `DODGE_AP` and `PARRY_AP` (AP per defence on top of `ap_per_parry`, never below 0),
+  `THORNS` (an enemy whose hit lands takes that share of the damage as a `damage` event with cause
+  `thorns`; nothing for a defended hit; an enemy killed this way voids its remaining prompts like
+  after a counter), `GAUGE` (the team gauge a hero's skills and follow-ups fill), `ROT` (the
+  existing start-of-turn HP loss, now also from gear and added to the rotten items' rot), `CRIT`
+  (critical hit points from gear; Luck adds to it). Existing keys can now be negative: `TOUGH` below
+  0 makes enemy hits land harder, `START_AP` below 0 starts a fight with less AP (never below 0),
+  `COUNTER`, `PERFECT_PRESS`, `EXPOSED`, `HEAL` below 0 weaken them. Two effects are run-only:
+  `REST_HEAL` (the wearer's share of the campfire's Rest, `RunState.rest_heal_percent_of`; the Rest
+  screen names a hero who heals less) and `WIN_WOUND` (after each fight won the wearer loses that percent of max HP for good,
+  through `lose_max_hp`, so the same floor as events: `event_max_hp_floor_percent`).
+- **The twelve**:
+
+  | Piece | Rarity | Upside | Price |
+  |---|---|---|---|
+  | Rotten Crown | legendary | Power +35% | healing received -40% |
+  | Gravebound Ring | rare | Counters +80% | max HP -15% |
+  | Hunger Charm | rare | each kill heals 8% max HP | the campfire's Rest heals the wearer nothing |
+  | Last Ember | rare | Power +40% while under 30% HP | (the condition is the price) |
+  | Ash Veil | rare | each dodge gives +1 AP | a parry gives no AP |
+  | Thorned Gauntlet | rare | enemies that hit the wearer take 30% of the damage back | the wearer takes 10% more |
+  | Oathbreaker's Band | legendary | +2 AP at fight start | lose 5% max HP after each fight won |
+  | Chain of Silence | rare | the wearer's skills and follow-ups fill the team gauge 50% more | start fights with 1 AP less |
+  | Bloodletter's Fang | rare | critical hit chance +25% | lose 4% max HP at the start of each of the wearer's turns (never below 1 HP) |
+  | Hollow Mantle | rare | enemy hits deal 25% less | speed -10 |
+  | Pale Tithe | rare | perfect skill presses +40% | the heals the wearer gives are 50% weaker |
+  | Plague Bell | rare | hits on Exposed enemies +90% more | power -10% |
+
+  The first guess for every number; tune from play. A drawback like "the wearer cannot use skills
+  costing 1 AP" (the card's idea for Chain of Silence) was not built: the engine checks AP cost in
+  several places and the fight menu in more, so it would have changed the deterministic core and the
+  HUD for one piece; "starts fights with 1 AP less" puts the same pressure on through data.
+- **Where they appear**: spoils (elites and act bosses, `RunState.loot_choices`) offer
+  `tuning.rot_gear_spoils_count` (1) rot-touched pieces among their `run_loot_choices` (3), listed last, and
+  the ordinary choices come from the ordinary pool; the guarantee needs room, so with one choice
+  (the Oath of Scarcity at its floor) the choice stays ordinary, and it falls back to ordinary gear when the run
+  has no unworn rot-touched piece left. `run_spoils_min_rarity` still applies to both. Shop shelves
+  and chest prizes draw from all gear, but a rot-touched piece weighs `tuning.rot_gear_weight_percent` (35%)
+  of an ordinary one there, so shops sell them rarely. All picks are seeded per stop as before.
+- **The bot** (`GearBot`, `scripts/run/gear_bot.gd`, pure): the `--run` bot takes the rarest spoil, and
+  a rot-touched piece (scored higher) unless its drawback is on Max HP, Power, Tough, healing received,
+  rot, wounds or Rest, which it refuses. If a refused piece reaches it another way (a chest) it sells
+  it on the spot instead of wearing it (`PartyScreen.auto_settle`). The run prints `Run loot: took <id>`.
+- **Online / save**: gear is saved and sent by id as before, so nothing new is stored; wounds change
+  `max_hp_percent`, which is already in the run save.
+- Tests: `tests/unit/test_rot_gear.gd` (each new passive in the engine, each piece's numbers and
+  drawback on the run side, spoils, shops, the bot, the Tonic fix, determinism, saving).
+
 ---
 
 ## 9. Multiplayer (phase 5)
@@ -2846,6 +2922,12 @@ oath", and a run at Oath N is that oath kept.
   victory pays XP; loot and shop gear are seeded and never offer owned gear; equip, swap, take
   off (no free heal, HP clamped); gear reaches the fight setup and the gold bonus; the shipped gear
   and boss are complete. The event-fields test also covers `enemy_phase`.
+- Rot-touched gear (`test_rot_gear.gd`, card #198): each new passive (healing received, kill heal,
+  low-HP power, dodge and parry AP, thorns, gauge, negative start AP and Tough, rot) in the engine
+  with its drawback; every shipped piece's numbers and a valid fight setup; Hunger Charm's Rest,
+  Oathbreaker's Band's wounds and floor; spoils always offer one (and never force it on a single
+  choice); shops sell them rarely; the bot's pick; Tonics cannot be upgraded and always give the
+  plain amount; the same seed gives the same events; a save keeps worn pieces.
 - Charged Dooms (`test_charged_dooms.gd`, card #195): the announce (countdown and break threshold on
   the intent), a Doom never opens a fight, gather then unleash with no break (the string hits the
   whole party), the cooldown, delays leave the countdown alone, damage counts toward the break to
@@ -3147,3 +3229,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | The arena shifts when a boss or guard enters phase two (sun, ambient, fog, vignette, lamps and a puff of embers or spores, over about a second; the Hollow King's throne goes blood red), and a zone's drifting particles also play, thinner, in its fights | card #196 (review audio-look #6, #9 and art-textures #11): a boss's rage was a banner over an unchanged room, and the fight dropped the zone's air; presentation only (nothing in the engine or the golden), slower under Reduced and Off flashes |
 | 2026-10-17 | Where phase 16 features meet: the run save is deleted the moment the last fight is decided (and the win opens its oath then); a save from another build is kept, not deleted; Continue resumes after an event choice, purchase or opened chest instead of replaying the stop; phase-two-only attacks get their projectiles and animations; a Doom picked inside a hero's skill is announced; a pad drop on an idle fight shows its card | card #197 (integration review): a window close dodged event risks and shop restocks, a patch or the editor destroyed a good save, and a decided run could be replayed (8.14) |
 | 2026-10-17 | Charged Dooms: each guard and act boss has one signature Doom (Gorge Burst, Brood Tide, Ashfall, Timber Fall, Crown of Rot), announced with a countdown (2 or 3 enemy turns) the party can break by dealing a share of the enemy's max HP (13% to 45%): the Doom is cancelled and the enemy loses its next turn and takes +50% damage; unbroken it unleashes as a party-wide string of 8 to 10 hits with rends and sweeps; delay skills never reset the countdown; never the first pick of a fight, cooldown 2, about one per 4 to 6 boss turns; the bots focus the gatherer | card #195 (review: combat-rules-ai #9, E33 break meets Slay the Spire intent); the owner wants it hard but readable; break shares set from bot runs, to retune from play |
+| 2026-10-17 | Rot-touched gear: twelve strong pieces that each cost something (Rotten Crown, Gravebound Ring, Hunger Charm, Last Ember, Ash Veil, Thorned Gauntlet, Oathbreaker's Band, Chain of Silence, Bloodletter's Fang, Hollow Mantle, Pale Tithe, Plague Bell), in their own violet colour, as a `rot_touched` flag and a data-driven drawback on `GearData`; elite and boss spoils always offer one among their choices (never as the only choice), shops and chests weigh them 35%; Tonics cannot be combined or upgraded, so the 2-Tonic cap really limits max HP | card #198 (Slay the Spire boss relics, Expedition 33 Pictos; the owner wants it hard). A "skills cost +1 AP" drawback was left out (it touches the core's cost checks and the HUD); "1 AP less at fight start" instead. Numbers are first guesses, to retune from play (8.16) |

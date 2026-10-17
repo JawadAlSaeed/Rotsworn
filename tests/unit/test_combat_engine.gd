@@ -52,7 +52,7 @@ const PROMPT_KEYS: Array[String] = ["idx", "hit", "character", "at_ms", "kind", 
 		"press_damage", "perfect_damage", "role", "requires", "crit"]
 const STRING_VALUES: Dictionary = {
 	"timed_sequence_declared.kind": ["enemy_attack", "skill"],
-	"damage.cause": ["ability", "follow_up", "counter", "team_counter", "item", "rot", "bleed", "rotting"],
+	"damage.cause": ["ability", "follow_up", "counter", "team_counter", "item", "rot", "bleed", "rotting", "thorns"],
 	"ap_changed.reason": ["spend", "ability", "given", "gear", "drain"],
 	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte", "bleeding", "regen", "marked", "empowered", "rotting", "blighted", "weakened"],
 	"prompts_voided.reason": ["downed", "attacker_down", "targets_down", "no_good_press"],

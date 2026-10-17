@@ -31,6 +31,10 @@ const AMBUSH_SALT: int = 217645177
 const COST_SALT: int = 236887691
 ## Every piece of gear starts from this weight before rarity scales it.
 const GEAR_WEIGHT: int = 100
+## Seeds the spoils' guaranteed rot-touched pick apart from the normal picks.
+const ROT_GEAR_SALT: int = 253645133
+## Which gear a pick draws from (see _pick_gear).
+enum GearPool { ANY, NORMAL, ROT_TOUCHED }
 
 var data: RunData
 var tuning: Tuning
@@ -324,12 +328,13 @@ func bonus(slot: int, effect: GearData.Effect) -> int:
 	return gear_amount(slot, effect) + int(charm_totals().get(effect, 0))
 
 
-## What slot `slot`'s worn gear adds up to for one effect.
+## What slot `slot`'s worn gear adds up to for one effect: the effects add, rot-touched drawbacks
+## take away (GearData.contribution), so the total can be below 0.
 func gear_amount(slot: int, effect: GearData.Effect) -> int:
 	var total := 0
 	for item: Variant in gear[slot]:
-		if item != null and (item as GearData).effect == effect:
-			total += (item as GearData).amount
+		if item != null:
+			total += (item as GearData).contribution(effect)
 	return total
 
 
@@ -340,9 +345,12 @@ func passives(slot: int) -> Dictionary:
 	for item: Variant in gear[slot]:
 		if item == null:
 			continue
-		var key := (item as GearData).passive_key()
-		if not key.is_empty():
-			found[key] = int(found.get(key, 0)) + (item as GearData).amount
+		# Effects and rot-touched drawbacks together (a drawback on the same key takes away).
+		for effect: int in GearData.PASSIVE_KEYS:
+			var delta := (item as GearData).contribution(effect as GearData.Effect)
+			if delta != 0:
+				var key := String(GearData.PASSIVE_KEYS[effect])
+				found[key] = int(found.get(key, 0)) + delta
 	var charms := charm_totals()
 	for effect: int in charms:
 		var key := String(GearData.PASSIVE_KEYS.get(effect, ""))
@@ -350,13 +358,16 @@ func passives(slot: int) -> Dictionary:
 			found[key] = int(found.get(key, 0)) + int(charms[effect])
 	var rot := rot_percent()
 	if rot > 0:
-		found[Passive.ROT] = rot
+		found[Passive.ROT] = int(found.get(Passive.ROT, 0)) + rot
 	var defense := attribute(slot, Attributes.Kind.DEFENSE) * tuning.attr_defense_percent
 	if defense > 0:
 		found[Passive.TOUGH] = int(found.get(Passive.TOUGH, 0)) + defense
 	var luck := attribute(slot, Attributes.Kind.LUCK) * tuning.attr_luck_crit_percent
 	if luck > 0:
-		found[Passive.CRIT] = luck
+		found[Passive.CRIT] = int(found.get(Passive.CRIT, 0)) + luck
+	for key: String in found.keys():
+		if int(found[key]) == 0:
+			found.erase(key)
 	return found
 
 
@@ -954,6 +965,7 @@ func finish_fight(fight_result: String, party_hp: Array[int], encounter: Encount
 		var after := party_hp[slot] if slot < party_hp.size() else hp[slot]
 		hp[slot] = clampi(maxi(after, tuning.run_downed_revive_hp), 1, max_hp(slot))
 	fights_won += 1
+	_wound_winners()
 	var won := gold_for(encounter)
 	gold += won
 	gold_earned += won
@@ -963,6 +975,15 @@ func finish_fight(fight_result: String, party_hp: Array[int], encounter: Encount
 	if int(current().get("type", -1)) == RunMap.StopType.FINAL and is_last_act():
 		result = VICTORY
 	return {"gold": won, "xp": gained, "levels": up}
+
+
+## Gear that wounds its wearer (Oathbreaker's Band, DESIGN.md 8.16): after each fight won they lose
+## max HP for good (the floor of lose_max_hp applies).
+func _wound_winners() -> void:
+	for slot: int in hp.size():
+		var wound := gear_amount(slot, GearData.Effect.WIN_WOUND)
+		if wound > 0:
+			lose_max_hp(slot, wound)
 
 
 ## True if a fight that ended with `fight_result` ends the run (finish_fight sets the result): any
@@ -1227,8 +1248,14 @@ func auto_spend(slot: int) -> void:
 func rest() -> Array[int]:
 	var healed: Array[int] = []
 	for slot: int in hp.size():
-		healed.append(heal(slot, CombatMath.percent(max_hp(slot), rest_heal_percent())))
+		healed.append(heal(slot, CombatMath.percent(max_hp(slot), rest_heal_percent_of(slot))))
 	return healed
+
+
+## The percent of max HP a campfire Rest heals hero `slot`: the same for everyone, less (or none)
+## for a wearer of gear with a Rest drawback (Hunger Charm, DESIGN.md 8.16).
+func rest_heal_percent_of(slot: int) -> int:
+	return CombatMath.percent(rest_heal_percent(), clampi(100 + gear_amount(slot, GearData.Effect.REST_HEAL), 0, 1000))
 
 
 # --- oaths (DESIGN.md 8.15) ---------------------------------------------------------------------
@@ -1277,9 +1304,12 @@ func upgrade_price() -> int:
 	return shop_price(tuning.shop_upgrade_price)
 
 
-## Heals one character (never above max HP). Returns how much was healed.
-func heal(slot: int, amount: int) -> int:
+## Heals one character (never above max HP). Returns how much was healed. `scaled`: gear that
+## changes the healing a hero receives (DESIGN.md 8.16) applies; a Tonic's new HP is not a heal.
+func heal(slot: int, amount: int, scaled: bool = true) -> int:
 	var before := hp[slot]
+	if scaled:
+		amount = CombatMath.percent(maxi(amount, 0), maxi(0, 100 + gear_amount(slot, GearData.Effect.HEAL_TAKEN)))
 	hp[slot] = clampi(before + maxi(amount, 0), 1, max_hp(slot))
 	return hp[slot] - before
 
@@ -1446,9 +1476,9 @@ func apply_item(item: ItemData, slot: int, amount: int = -1) -> void:
 				heal(s, CombatMath.percent(max_hp(s), pct))
 		ItemData.Effect.MAX_HP_ONE:
 			var before := max_hp(slot)
-			max_hp_percent[slot] += pct
+			max_hp_percent[slot] += item.amount_percent
 			tonics_used[slot] += 1
-			heal(slot, max_hp(slot) - before)
+			heal(slot, max_hp(slot) - before, false)
 
 
 # --- levels, charms, rot and combining (DESIGN.md 8.1) -----------------------------------------
@@ -1460,6 +1490,9 @@ static func level_of(e: Dictionary) -> int:
 
 ## A placed item's effect percent: its own, stronger by tuning.combine_bonus_percent per level.
 func entry_amount(e: Dictionary) -> int:
+	# A Tonic's max HP never grows with levels (card #198): that would get round tonic_max_per_hero.
+	if (e.item as ItemData).effect == ItemData.Effect.MAX_HP_ONE:
+		return (e.item as ItemData).amount_percent
 	return CombatMath.percent((e.item as ItemData).amount_percent, 100 + level_of(e) * tuning.combine_bonus_percent)
 
 
@@ -1675,7 +1708,8 @@ func _rare_prize(rng: CombatRng, row: int) -> Resource:
 		for item: GearData in data.gear:
 			if item != null and not owns(item) and item.rarity >= ItemData.Rarity.RARE:
 				gear_left.append(item)
-				weights.append(rarity_weight(GEAR_WEIGHT, item.rarity, row))
+				var weight := rarity_weight(GEAR_WEIGHT, item.rarity, row)
+				weights.append(CombatMath.percent(weight, tuning.rot_gear_weight_percent) if item.rot_touched else weight)
 		var index := _weighted_index(rng, weights)
 		if index >= 0:
 			return gear_left[index]
@@ -1894,32 +1928,58 @@ func loot_choice_count() -> int:
 
 ## The loot a stop offers: up to loot_choice_count() items the party does not own (seeded).
 func loot_choices(stop_id: int) -> Array[GearData]:
-	return _pick_gear(stop_id * LOOT_SALT + act * 43, loot_choice_count(), _row_of(stop_id),
-			tuning.run_spoils_min_rarity)
+	var salt := stop_id * LOOT_SALT + act * 43
+	var row := _row_of(stop_id)
+	var count := loot_choice_count()
+	# Rot-touched gear (DESIGN.md 8.16): spoils offer some among their choices (listed last), but
+	# never as the only choice.
+	var rot_count := mini(tuning.rot_gear_spoils_count, count - 1)
+	var rot: Array[GearData] = []
+	if rot_count > 0:
+		rot = _pick_gear(salt + ROT_GEAR_SALT, rot_count, row, tuning.run_spoils_min_rarity, GearPool.ROT_TOUCHED)
+	var picked := _pick_gear(salt, count - rot.size(), row, tuning.run_spoils_min_rarity, GearPool.NORMAL)
+	picked.append_array(rot)
+	if picked.size() < count:
+		picked.append_array(_pick_gear(salt + 1, count - picked.size(), row, 0, GearPool.ANY, picked))
+	return picked
 
 
 ## The gear a shop stop sells: up to tuning.run_shop_gear items the party does not own (seeded).
 func shop_gear(stop_id: int) -> Array[GearData]:
-	return _pick_gear(stop_id * SHOP_SALT + restocks * RESTOCK_SALT + act * 47, tuning.run_shop_gear, _row_of(stop_id))
+	return _pick_gear(stop_id * SHOP_SALT + restocks * RESTOCK_SALT + act * 47, tuning.run_shop_gear, _row_of(stop_id),
+			0, GearPool.ANY, [], true)
 
 
 ## Up to `count` pieces the party does not wear, picked by rarity at map row `row` (seeded), of at
-## least `min_rarity` while the run still has enough such pieces.
-func _pick_gear(salt: int, count: int, row: int, min_rarity: int = 0) -> Array[GearData]:
-	var left: Array[GearData] = []
+## least `min_rarity` while the pool still has enough such pieces. `pool`: all gear, only the
+## ordinary pieces or only the rot-touched ones; `skip`: pieces already picked; `rare_rot`: rot-touched
+## pieces weigh tuning.rot_gear_weight_percent of an ordinary one (shop shelves).
+func _pick_gear(salt: int, count: int, row: int, min_rarity: int = 0, pool: GearPool = GearPool.ANY,
+		skip: Array[GearData] = [], rare_rot: bool = false) -> Array[GearData]:
+	var all: Array[GearData] = []
 	for item: GearData in data.gear:
-		if item != null and not owns(item) and item.rarity >= min_rarity:
+		if item == null or owns(item) or skip.has(item):
+			continue
+		if (pool == GearPool.NORMAL and item.rot_touched) or (pool == GearPool.ROT_TOUCHED and not item.rot_touched):
+			continue
+		all.append(item)
+	var left: Array[GearData] = []
+	for item: GearData in all:
+		if item.rarity >= min_rarity:
 			left.append(item)
 	if left.size() < count:
-		for item: GearData in data.gear:
-			if item != null and not owns(item) and not left.has(item):
+		for item: GearData in all:
+			if not left.has(item):
 				left.append(item)
 	var rng := CombatRng.new(_salted(salt))
 	var picked: Array[GearData] = []
 	while picked.size() < count and not left.is_empty():
 		var weights: Array = []
 		for g: GearData in left:
-			weights.append(rarity_weight(GEAR_WEIGHT, g.rarity, row))
+			var weight := rarity_weight(GEAR_WEIGHT, g.rarity, row)
+			if rare_rot and g.rot_touched:
+				weight = CombatMath.percent(weight, tuning.rot_gear_weight_percent)
+			weights.append(weight)
 		var index := _weighted_index(rng, weights)
 		if index < 0:
 			break

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_w25ha"]
+
+[resource]
+script = ExtResource("1_w25ha")
+id = "last_ember"
+display_name = "Last Ember"
+description = "Power +40% while your HP is under 30%."
+price = 90
+rarity = 1
+effect = 15
+amount = 40
+rot_touched = true

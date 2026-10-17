@@ -28,11 +28,17 @@ func setup(items: Array[GearData], text: String = "") -> void:
 	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Take"]])
 	var list: Array[Dictionary] = []
 	for item: GearData in items:
-		list.append({"text": item.display_name, "detail": "%s (%s)" % [item.description, BackpackGrid.rarity_name(int(item.rarity))],
-				"color": BackpackGrid.rarity_color(int(item.rarity))})
+		var step := BackpackGrid.gear_step(item)
+		list.append({"text": item.display_name, "detail": "%s (%s)" % [item.description, BackpackGrid.rarity_name(step)],
+				"color": BackpackGrid.rarity_color(step)})
 	if items.is_empty():
 		list.append({"text": "Nothing left to find", "detail": "The party already has every piece of gear."})
 	_menu.set_items(list, detail)
+
+
+## The pieces on offer, in the order shown.
+func choices() -> Array[GearData]:
+	return _items
 
 
 ## Takes item `index` (the bot calls this; the player uses confirm).

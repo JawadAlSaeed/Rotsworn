@@ -18,8 +18,11 @@ const NO_FIT := Color(1.0, 0.36, 0.3)
 ## Where the item in hand came from stays as a faint shape.
 const ORIGIN_ALPHA: float = 0.25
 ## Rarity colours (borders here, names in the shop and the item info).
-const RARITY_COLORS: Array[Color] = [Color(0.75, 0.75, 0.77), Color(0.38, 0.62, 1.0), Color(1.0, 0.8, 0.3)]
-const RARITY_NAMES: Array[String] = ["common", "rare", "legendary"]
+## The last step is not a rarity but the rot-touched tag of gear (DESIGN.md 8.16): its own colour.
+const RARITY_COLORS: Array[Color] = [Color(0.75, 0.75, 0.77), Color(0.38, 0.62, 1.0), Color(1.0, 0.8, 0.3),
+		GearData.ROT_TOUCHED_COLOR]
+const RARITY_NAMES: Array[String] = ["common", "rare", "legendary", "rot-touched"]
+const ROT_TOUCHED_STEP: int = 3
 ## Rotten items: a sickly green border, whatever their rarity.
 const ROTTEN_COLOR := Color(0.55, 0.85, 0.3)
 const LINK_COLOR := Color(1.0, 0.82, 0.3)
@@ -82,6 +85,11 @@ func cell_pos(cell: Vector2i) -> Vector2:
 
 static func rarity_color(rarity: int) -> Color:
 	return RARITY_COLORS[clampi(rarity, 0, RARITY_COLORS.size() - 1)]
+
+
+## The colour/name step of a piece of gear: its rarity, or the rot-touched tag.
+static func gear_step(item: GearData) -> int:
+	return ROT_TOUCHED_STEP if item.rot_touched else int(item.rarity)
 
 
 static func rarity_name(rarity: int) -> String:

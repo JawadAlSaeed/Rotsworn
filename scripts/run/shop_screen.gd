@@ -161,7 +161,7 @@ func _info(index: int) -> Array:
 		return [item.display_name, _run.item_price(item), item.description, int(item.rarity),
 				AssetLoader.texture(item.icon_path, item.size() * 16)]
 	var gear := _gear[index - items().size()]
-	return [gear.display_name, _run.gear_price(gear), "Gear: " + gear.description, int(gear.rarity), _gear_icon]
+	return [gear.display_name, _run.gear_price(gear), "Gear: " + gear.description, BackpackGrid.gear_step(gear), _gear_icon]
 
 
 ## True if thing `index` is still for sale and affordable.

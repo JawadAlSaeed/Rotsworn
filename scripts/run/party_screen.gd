@@ -160,7 +160,8 @@ func auto_settle() -> void:
 			if empty > free:
 				best = slot
 				free = empty
-		if best >= 0:
+		# The bot passes over rot-touched gear whose price it cannot bear (GearBot).
+		if best >= 0 and GearBot.score(_held.item as GearData) >= 0:
 			_run.wear(best, _run.free_gear_slot(best), _held.item as GearData)
 		else:
 			_run.sell_new_gear(_held.item as GearData)
@@ -863,7 +864,7 @@ func _redraw() -> void:
 			if selected:
 				color = HudStyle.GOLD
 			elif item != null and not lifted:
-				color = BackpackGrid.rarity_color(int((item as GearData).rarity))
+				color = BackpackGrid.rarity_color(BackpackGrid.gear_step(item as GearData))
 			label.label_settings.font_color = color
 	_pack_label.text = "Backpack   %d of %d cells free" % [_run.backpack.free_cells(), _run.backpack.cell_count()]
 	_charm_label.text = _charm_summary()
@@ -901,6 +902,8 @@ func _redraw_info() -> void:
 		var text := String(thing.get("description"))
 		if _held.kind == "gear":
 			_info_title.text = "In hand: %s (gear)" % title
+			if (_held.item as GearData).rot_touched:
+				_info_title.label_settings.font_color = GearData.ROT_TOUCHED_COLOR
 			var worn: Variant = _run.gear[_hero][_slot] if not _on_button() else null
 			if _focus == Focus.GEAR and holding_new() and worn != null:
 				text += "\nPut on here: sells the %s for %d gold." % [(worn as GearData).display_name,
@@ -924,8 +927,8 @@ func _redraw_info() -> void:
 		var worn: Variant = _run.gear[_hero][_slot]
 		_info_title.text = (worn as GearData).display_name if worn != null else "Empty slot"
 		if worn != null:
-			_info_title.text += "   (%s)" % BackpackGrid.rarity_name(int((worn as GearData).rarity))
-			_info_title.label_settings.font_color = BackpackGrid.rarity_color(int((worn as GearData).rarity))
+			_info_title.text += "   (%s)" % BackpackGrid.rarity_name(BackpackGrid.gear_step(worn as GearData))
+			_info_title.label_settings.font_color = BackpackGrid.rarity_color(BackpackGrid.gear_step(worn as GearData))
 		_info.text = (worn as GearData).description if worn != null else "New gear can go here."
 		return
 	var uid := _run.backpack.uid_at(_grid.cursor)
