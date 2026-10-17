@@ -184,7 +184,7 @@ func test_ranged_rocks_and_each_in_turn_follow_the_rules() -> void:
 	var rocks := 0
 	var each := 0
 	for attack: EnemyAttackData in _shipped_attacks():
-		var declared := Fx.first_of(CombatEngine.new(Fx.setup([attack])).start(), "timed_sequence_declared")
+		var declared := Fx.declared_attack(attack)
 		var hits := EnemyChoreography.with_close_times(declared.hits as Array, declared.prompts as Array, 0)
 		EnemyChoreography.add_hit_data(hits, attack)
 		if attack.target_mode == EACH:

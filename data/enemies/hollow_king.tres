@@ -10,6 +10,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/king_hollow_wave.tres" id="8_nvtgn"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="9_porn1"]
 [ext_resource type="Resource" path="res://data/clips/hollow_king.tres" id="10_clips"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/king_crown_of_rot.tres" id="99_doom"]
 
 [resource]
 script = ExtResource("9_porn1")
@@ -26,13 +27,13 @@ sprite_pixel_size = 0.045
 hp_percent = 650
 power_percent = 165
 speed = 155
-attacks = Array[ExtResource("1_8x5qf")]([ExtResource("2_bb311"), ExtResource("3_i7sdn"), ExtResource("4_yy5q6"), ExtResource("5_nm3hv")])
+attacks = Array[ExtResource("1_8x5qf")]([ExtResource("2_bb311"), ExtResource("3_i7sdn"), ExtResource("4_yy5q6"), ExtResource("5_nm3hv"), ExtResource("99_doom")])
 target_rule = 2
 target_bias_percent = 250
 gold = 0
 xp = 0
 phase_two_hp_percent = 50
-phase_two_attacks = Array[ExtResource("1_8x5qf")]([ExtResource("2_bb311"), ExtResource("5_nm3hv"), ExtResource("6_g3tki"), ExtResource("7_5adux"), ExtResource("8_nvtgn")])
+phase_two_attacks = Array[ExtResource("1_8x5qf")]([ExtResource("2_bb311"), ExtResource("5_nm3hv"), ExtResource("6_g3tki"), ExtResource("7_5adux"), ExtResource("8_nvtgn"), ExtResource("99_doom")])
 phase_two_speed = 210
 phase_two_tempo_percent = 90
 phase_two_text = "THE HOLLOW KING RAGES!"

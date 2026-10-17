@@ -133,6 +133,23 @@ static func setup(attacks: Array, options: Dictionary = {}) -> CombatSetup:
 	return s
 
 
+## The timed_sequence_declared event of `attack` as the engine declares it for the fixture foe:
+## usually at once; a Charged Doom (card #195) gathers first, so the heroes strike a foe too big
+## to break until it unleashes. `options` as setup().
+static func declared_attack(attack: EnemyAttackData, options: Dictionary = {}) -> Dictionary:
+	var opts := options.duplicate()
+	if attack.is_doom() and not opts.has("enemy_hp_percent"):
+		opts["enemy_hp_percent"] = 100000
+	var engine := CombatEngine.new(setup([attack], opts))
+	var events := engine.start()
+	for _i: int in 80:
+		var declared := first_of(events, "timed_sequence_declared")
+		if not declared.is_empty() or engine.phase != CombatEngine.Phase.AWAITING_ACTION:
+			return declared
+		events = engine.submit(use(engine, "basic_attack"))
+	return {}
+
+
 ## Tuning.new() with critical hits off (DESIGN.md 8.2).
 static func no_crit_tuning() -> Tuning:
 	var t := Tuning.new()

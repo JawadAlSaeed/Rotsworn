@@ -96,6 +96,49 @@ strike, return) takes about 0.55 s.
    target (see 3). Targets are marked: red arrows over them until the enemy starts moving, and a
    red border on their party panels for the whole attack. During a single-target attack the other
    party members step back and dim, so the lunge lane and the target are clear.
+4. **Charged Dooms** (card #195; Expedition 33's break meets Slay the Spire's big intent). A move
+   with `charge_turns` above 0 is a **Doom**: a big party-wide string the enemy does not throw at
+   once. Data on `EnemyAttackData`: `charge_turns`, `break_damage_percent` (share of the enemy's
+   max HP), `cooldown_turns` (at least 1), `start_cooldown_turns` and the usual weight. The engine
+   refuses a Doom that is not party-wide, has no break or no cooldown (`CombatSetup.validate`).
+   - **Announced and counted down.** When the engine picks a Doom as the intent, the countdown
+     starts at once: the `intent` event carries `charge_left` (= `charge_turns`), `charge_total`,
+     `charge_damage` (0) and `break_hp`. `charge_turns` is the number of the enemy's turns from
+     the announcement: each enemy turn counts it down; while it is still above 0 that turn is spent
+     **gathering** (`doom_charging {left}`: no attack, no new pick, the intent stays); on the turn
+     it reaches 0 the Doom **unleashes** (`doom_unleashed`, then the ordinary timed sequence, with
+     the hard-fight rend and sweep kinds as in 2.4; a string with a sweep can never be countered).
+     So 3 means two gathering turns and the strike on the third. The party acts in between.
+   - **Break.** All HP the party takes off the enemy while the Doom stands announced or gathering
+     counts, whoever or whatever deals it (skills, follow-ups, counters, bleed, items):
+     `doom_progress {damage, break_hp}`. At `break_damage_percent` of its max HP the Doom is
+     **broken** (`doom_broken`): the charge is cancelled, the Doom starts its cooldown as if used,
+     the enemy is **staggered** (`stagger_changed {turns}`): it loses its next `stagger_turns`
+     turns (tuning, 1) and takes `stagger_damage_taken_percent` (tuning, 50) more damage from every
+     source until then (those `damage` events carry `staggered: true`). It announces a new move at
+     once (never the Doom, which is cooling down); that announced move stands through the lost turn
+     (no re-roll), then happens on its next turn. `stagger_changed {lost_turn: true}` marks each
+     lost turn, `turns: 0` the end.
+   - **Delays.** The countdown counts the enemy's turns, not time. Shield Bash, Earthshaker,
+     Hamstring and Slow push the enemy's next turn back without touching `charge_left` or the
+     damage already counted: they never reset or cancel the charge, they give the party more turns
+     inside the window (the best answer short of breaking it). A Doom charge also survives phase
+     two (the Doom is on both lists, the new pick is skipped while gathering), heroes going down or
+     coming back (the intent re-targets, the countdown stays) and a snapshot or restore (`charge_attack`,
+     `charge_left`, `charge_damage`, `staggered_turns` are in `Combatant.to_dict`). A downed enemy
+     drops it.
+   - **Pacing.** `start_cooldown_turns` 2 keeps a Doom out of the fight's first two picks (never in
+     phase one's first turn), `cooldown_turns` 2 keeps it from coming back at once; with the shipped
+     weights (about 40% of picks once ready) a boss announces one about every 4 to 6 of its own
+     turns (measured over 40 seeds: Ash Warden 3.9, Gorged One 4.4, Mire Mother 4.8, Husk Lord 6.0,
+     Hollow King 5.5; the first is announced for its third turn at the earliest). Measured by a bot that always focuses the gatherer and defends perfectly, over 30
+     seeds: a Doom is broken about 7 times in 10 (the King's about 6); a bot that loses a
+     share of its defences (heroes fall, so fewer strikes) breaks about 2 in 10. That is the intended price of the break: striking is the
+     answer, but not every turn can be a strike.
+   - **Bots.** The fight bots (test bot and the autoplay) aim their single-target skills at the
+     enemy that is gathering a Doom, else at the first enemy. `AUTOPLAY_DOOMS announced= broken=
+     unleashed=` is printed in the end lines of a fight that had one.
+   - **Shown** (card #195, numbers in `combat_visuals.tres`, "Charged Dooms"): see 7.10.
 
 ### 2.4 Defensive actions
 
@@ -806,7 +849,8 @@ Commands (Dictionary, `type` key; build with `CombatCommands`):
 Events: `combat_started`, `intent`, `turn_started`, `turn_order`, `ability_used`, `damage`,
 `healed`, `revived`, `downed`, `ap_changed`, `status_changed`, `turn_shifted`, `team_gauge`,
 `timed_sequence_declared`, `prompt_resolved`, `prompts_voided`, `sequence_resolved` (boundary:
-all prompts done, counters follow), `counter`, `enemy_phase` (a boss's phase two), `turn_ended`,
+all prompts done, counters follow), `counter`, `enemy_phase` (a boss's phase two), `doom_charging`,
+`doom_progress`, `doom_broken`, `doom_unleashed`, `stagger_changed` (Charged Dooms, 2.3), `turn_ended`,
 `practice_changed`, `combat_ended`,
 `command_rejected`. Every event that changes HP, AP or the gauge carries the value after the
 change. Full field lists are at the top of `combat_engine.gd`.
@@ -1617,6 +1661,34 @@ Built while the user was away, reworked with them, approved 2026-10-16.
   it opens ("|" moves on to the next turn's menu; for pictures of the skills list, the target step
   or a later hero's turn); `--key-prompts` keeps keyboard keys shown even with a pad plugged in.
 
+### 7.10 Charged Dooms on screen (card #195, DESIGN.md 2.3)
+
+All numbers, colours and cues are in `combat_visuals.tres` ("Charged Dooms"); the controller reads
+only the mirror (`charge_left`, `charge_damage`, `break_hp`, `staggered` on the enemy's fighter dict).
+
+- **Announced** (an `intent` with charge fields the mirror did not know): a centre banner
+  "TIMBER FALL IN 3" in the doom red, a flash, a rumble, the alert sound, a beat. Every gathering
+  turn (`doom_charging`) plays the same banner with the new count.
+- **Aura.** While it gathers, the enemy holds its wind-up crouch (`doom_squash_percent`) and glows
+  `doom_glow_color`, pulsing every `doom_pulse_ms` (quicker, `doom_pulse_last_percent`, with one turn
+  left). `CombatController._update_doom_look` drives it every frame from the mirror;
+  `CombatView.sync_alive` keeps the crouch after other enemies' attacks.
+- **Enemy panel.** The NEXT word turns into DOOM; a block over the intent line reads
+  "DOOM IN 2    BREAK 120 / 840" with a gold bar that fills as the party deals damage.
+  A staggered enemy wears a STAGGERED badge.
+- **Turn order.** An enemy's gathering turns carry a tag with the turns until the Doom (3, 2),
+  its unleash turn reads DOOM, a staggered enemy's next turn reads STAGGER (`TimelineRow.doom_tag`,
+  pure and static).
+- **Unleash.** The Doom's name with "!", a heavy rumble, punch-in and flash, a beat; then the
+  attack's own banner and string as for any attack.
+- **BROKEN!** The large tier of card #179 (7.6): a gold "BROKEN!" banner, a held freeze
+  (`broken_hitstop_ms`, also holding the skill's clock when a press broke it), `broken_shake`,
+  `broken_punch`, a flash, sparks and a sound; the enemy then drops into its stagger pose (a held
+  `stagger` clip, falling back to hurt) with a cold glow and a STAGGERED popup, and shows TURN LOST
+  over its head when the stagger ends.
+- Sounds reuse existing cues named in the data (`doom_gather_sfx`, `doom_unleash_sfx`,
+  `broken_sfx`, `stagger_sfx`).
+
 ## 8. Run structure (phase 4)
 
 Slay-the-Spire style branching node map (host picks path). Node types: zone (small explorable
@@ -2152,6 +2224,24 @@ phase 14 was the tutorial).
   (charcoal shade, with a gnat swarm). Their name is announced like a boss's and the boss song
   plays; they cannot be run from; they still grow with depth. Deep zones bring their helpers as
   variants (`deep_guard_*`). `tools/bootstrap_phase15.gd` writes them.
+- **Signature Dooms** (card #195, 2.3): each guard and each act boss has exactly one Charged Doom,
+  on both its phase lists (a data test checks it; no other enemy has one). Party-wide strings of
+  8 to 10 hits at 28 to 40% of the enemy's power, uneven gaps, ground hits, thrown hits and the
+  hard-fight rends and sweeps (a forced feint in each):
+
+  | Enemy | Doom | Turns | Break | Hits | Weight |
+  |---|---|---|---|---|---|
+  | Gorged One | Gorge Burst (bile and quakes) | 2 | 42% | 8 | 7 |
+  | Mire Mother | Brood Tide (waves and mud) | 2 | 21% | 8 | 7 |
+  | Ash Warden | Ashfall (cinders and rocks) | 2 | 36% | 8 | 9 |
+  | The Husk Lord (act 1 boss) | Timber Fall | 3 | 22% | 8 | 14 |
+  | The Hollow King (act 2 boss) | Crown of Rot | 3 | 13% | 10 | 8 |
+
+  The break shares were set from bot runs (2.3): a focused, perfectly defending bot breaks about
+  7 in 10 (the King about 6 in 10); they are meant to be re-tuned from play. All five files are
+  written by `tools/make_attack.py`; the enemy files list the Doom by hand (the one-shot
+  `bootstrap_phase15.gd` does not know it). The choreography golden test took the five new files
+  (55 attacks, every older hash unchanged).
 - **Better reward**: spoils (after a guard, an elite or an act's boss) are gear of at least
   `run_spoils_min_rarity` (rare) while the run has enough of it.
 - **Elite fights** (`EncounterData.elite`): enemies get `elite_hp_percent` (140), `elite_power_percent`
@@ -2594,6 +2684,14 @@ oath", and a run at Oath N is that oath kept.
   victory pays XP; loot and shop gear are seeded and never offer owned gear; equip, swap, take
   off (no free heal, HP clamped); gear reaches the fight setup and the gold bonus; the shipped gear
   and boss are complete. The event-fields test also covers `enemy_phase`.
+- Charged Dooms (`test_charged_dooms.gd`, card #195): the announce (countdown and break threshold on
+  the intent), a Doom never opens a fight, gather then unleash with no break (the string hits the
+  whole party), the cooldown, delays leave the countdown alone, damage counts toward the break to
+  the point, a break cancels the charge and staggers (extra damage, the lost turn, the intent that
+  stands), `stagger_turns` from tuning, bleed breaks too, phase two and fallen heroes keep the
+  charge, snapshot and restore mid-charge play on identically, same seed same events, plain event
+  values and fields, the mirror matches the engine after whole fights, the bots aim at the gatherer,
+  setup refuses malformed Dooms, and each shipped guard and boss has exactly one well-formed Doom.
 - Phase 5 Part A (`test_coop.gd`): solo controls everything from any device; join, leave, the
   even split, handing heroes over (never leaving a player without one), device codes of events,
   the shipped party fits three players; per player judging (a press answers only its player's
@@ -2882,3 +2980,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Every player action can be rebound in Settings > Controls, key and pad separately; the first input of an action is replaced, the aliases stay; conflicts only count between actions needed at the same time (swap offered); Escape, F2 and the pad's Menu button are reserved; applies to every pad | card #190; the two defence buttons can never share a key (no one-button parry and dodge), nothing can lock the player out, and the stamped timing path is untouched |
 | 2026-10-17 | Smarter enemies: no move more than twice running (data: `max_in_a_row`, `cooldown_turns`, finisher and desperation weights), and single-target attacks pick by a per-enemy rule (WOUNDED, LOWEST_HP, MARKED, AVOID_LAST) with a bias; Taunt still wins | card #189 (review: combat-rules-ai); the owner wants it hard, a weak hero must be in real danger; no attack file uses finisher or cooldown yet, to tune with play |
 | 2026-10-17 | Forced-choice hits: a rend (parry only, bone) and a sweep (dodge only, green, never countered) in elite, guard and boss fights and from the deep variants, about one hit in four; uneven gaps in every one-button string, a feint in every hard string; enemy attacks speed up with depth, elites, guards, bosses and phase two, never under 70% of authored; windows unchanged | cards #187, #188 and review combat-feel #4, #5, #9: dodge-everything and a steady tap beat the defence; nothing made easier |
+| 2026-10-17 | Charged Dooms: each guard and act boss has one signature Doom (Gorge Burst, Brood Tide, Ashfall, Timber Fall, Crown of Rot), announced with a countdown (2 or 3 enemy turns) the party can break by dealing a share of the enemy's max HP (13% to 45%): the Doom is cancelled and the enemy loses its next turn and takes +50% damage; unbroken it unleashes as a party-wide string of 8 to 10 hits with rends and sweeps; delay skills never reset the countdown; never the first pick of a fight, cooldown 2, about one per 4 to 6 boss turns; the bots focus the gatherer | card #195 (review: combat-rules-ai #9, E33 break meets Slay the Spire intent); the owner wants it hard but readable; break shares set from bot runs, to retune from play |

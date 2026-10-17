@@ -131,9 +131,12 @@ var _enemy_hits: Dictionary = {}
 var _counters: int = 0
 ## Combatant id -> CharacterData or EnemyData.
 var _data_by_id: Dictionary = {}
-## The freeze (ms) of the large-tier kill just shown by _show_downed (card #179): whatever plays
-## the kill waits it out once, so the body holds before the next shot. 0: none.
+## The freeze (ms) of the large-tier kill just shown by _show_downed (card #179), or of a BROKEN
+## Doom (card #195): whatever plays it waits it out once, so the body holds before the next shot.
+## 0: none.
 var _kill_freeze_ms: int = 0
+## Enemy id -> true while its Doom glow or stagger glow is lit (so it is switched off once).
+var _doom_lit: Dictionary = {}
 ## Ability id -> AbilityData.
 var _abilities: Dictionary = {}
 ## Enemy attack id -> EnemyAttackData (for its training ring speed).
@@ -362,6 +365,7 @@ func _process(_delta: float) -> void:
 		if not due.is_empty():
 			_submit_remote_results(_arbiter.seq(), due)
 	hud.overlay.update_text(_options.stats, _tuning, _options, runner.longest_frame_ms(), _ended)
+	_update_doom_look()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -652,6 +656,10 @@ func _apply_now(ev: Dictionary) -> void:
 				_enemy_hits["%d:%d" % [int(ev.seq), int(ev.hit)]] = true
 		"damage":
 			_show_damage(ev)
+		"doom_broken":
+			# Broken by a skill's press: the skill's clock holds for the freeze, like a big kill.
+			_show_feedback(ev)
+			skill_runner.hold(_take_kill_freeze())
 		_:
 			_show_feedback(ev)
 	_refresh()
@@ -711,6 +719,24 @@ func _play(ev: Dictionary) -> void:
 		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge", "enemy_phase", "escaped":
 			mirror.apply(ev)
 			_show_feedback(ev)
+		"intent":
+			# A Doom just announced (card #195) gets its banner; every other intent is silent.
+			var announced := _announces_doom(ev)
+			mirror.apply(ev)
+			if announced:
+				_show_doom_banner(ev, int(ev.charge_left))
+				await _wait_ms(_visuals.doom_gather_beat_ms)
+		"doom_charging", "doom_progress", "doom_unleashed", "stagger_changed":
+			mirror.apply(ev)
+			_show_feedback(ev)
+			if type == "doom_charging":
+				await _wait_ms(_visuals.doom_gather_beat_ms)
+			elif type == "doom_unleashed":
+				await _wait_ms(_visuals.doom_unleash_beat_ms)
+		"doom_broken":
+			mirror.apply(ev)
+			_show_feedback(ev)
+			await _wait_ms(_take_kill_freeze())
 		"timed_sequence_declared":
 			mirror.apply(ev)
 			hud.action_menu.close()
@@ -1353,6 +1379,14 @@ func _show_feedback(ev: Dictionary) -> void:
 			var text := String(ev.get("text", ""))
 			hud.show_center_banner(text if not text.is_empty() else "IT GROWS FURIOUS!", HudStyle.LATE,
 					_visuals.first_strike_banner_ms)
+		"doom_charging":
+			_show_doom_banner(ev, int(ev.left))
+		"doom_unleashed":
+			_show_doom_unleashed(ev)
+		"doom_broken":
+			_show_doom_broken(ev)
+		"stagger_changed":
+			_show_stagger(ev)
 		"healed":
 			if v != null:
 				hud.damage_number(int(ev.amount), head, HudStyle.HEAL)
@@ -1383,6 +1417,107 @@ func _show_feedback(ev: Dictionary) -> void:
 			# The gauge label itself turns gold and says READY (the banner slot may hold a skill name).
 			if int(ev.delta) > 0 and int(ev.value) >= _tuning.team_gauge_max:
 				Sfx.play("gauge_full")
+
+
+# --- charged dooms (card #195, DESIGN.md 2.3) -------------------------------------------------
+
+## True if this intent event announces a Doom the mirror does not know yet (a retarget of a Doom
+## already gathering does not count).
+func _announces_doom(ev: Dictionary) -> bool:
+	return ev.has("charge_total") and int(ev.charge_left) == int(ev.charge_total) \
+			and not mirror.is_charging(int(ev.enemy))
+
+
+## The Doom's banner: its name and the turns until it unleashes. Shown when it is announced and on
+## every turn the enemy spends gathering it (a rumble, a flash in the doom colour, a sound).
+func _show_doom_banner(ev: Dictionary, left: int) -> void:
+	var title := String(ev.get("name", ev.get("attack", ""))).to_upper()
+	var boss := view.fighter(int(ev.enemy))
+	Sfx.play(_visuals.doom_gather_sfx)
+	hud.show_center_banner("%s IN %d" % [title, left], _visuals.doom_text_color, _visuals.doom_gather_banner_ms)
+	hud.screen_flash(_visuals.doom_glow_color, _visuals.doom_gather_flash)
+	view.camera.add_trauma(_visuals.doom_gather_shake)
+	if boss != null:
+		boss.flash(_visuals.flash_ms * 3, _visuals.doom_glow_color, 0.8)
+		boss.set_pose(EnemyChoreography.Pose.WINDUP)
+
+
+## The countdown ran out: the Doom's name, a heavy rumble and punch-in, then its attack begins.
+func _show_doom_unleashed(ev: Dictionary) -> void:
+	var boss := view.fighter(int(ev.enemy))
+	Sfx.play(_visuals.doom_unleash_sfx)
+	hud.show_center_banner(String(ev.get("name", "")).to_upper() + "!", _visuals.doom_text_color,
+			_visuals.doom_unleash_banner_ms)
+	hud.screen_flash(_visuals.doom_glow_color, _visuals.doom_unleash_flash)
+	view.camera.add_trauma(_visuals.doom_unleash_shake)
+	view.camera.punch(_visuals.doom_unleash_punch, _visuals.punch_ms)
+	if boss != null:
+		boss.flash(_visuals.flash_ms * 4, _visuals.doom_glow_color, 1.0)
+
+
+## BROKEN!: the large tier (card #179). The freeze is kept in _kill_freeze_ms for whatever plays
+## the event to wait out.
+func _show_doom_broken(ev: Dictionary) -> void:
+	var boss := view.fighter(int(ev.enemy))
+	Sfx.play(_visuals.broken_sfx)
+	hud.show_center_banner("BROKEN!", HudStyle.GOLD, _visuals.broken_banner_ms)
+	hud.screen_flash(_visuals.broken_flash_color, _visuals.broken_flash)
+	view.camera.add_trauma(_visuals.broken_shake)
+	view.camera.punch(_visuals.broken_punch, _visuals.punch_ms)
+	if boss != null:
+		boss.set_squash(0.0)
+		boss.flash(maxi(_visuals.broken_hitstop_ms, _visuals.flash_ms * 4), _visuals.broken_flash_color, 0.9)
+		view.spawn_sparks(boss.centre_position(), _visuals.death_sparks, 1.0, _visuals.broken_flash_color)
+	_kill_freeze_ms = maxi(_kill_freeze_ms, _visuals.broken_hitstop_ms)
+
+
+## The stagger starts (the enemy falls into its stagger pose and holds it), costs a turn, or ends.
+func _show_stagger(ev: Dictionary) -> void:
+	var enemy := int(ev.enemy)
+	var v := view.fighter(enemy)
+	if v == null or not mirror.is_alive(enemy):
+		return
+	if bool(ev.lost_turn):
+		hud.popup("TURN LOST", v.head_position(), _visuals.stagger_text_color)
+		if int(ev.turns) <= 0:
+			v.clear_timed_pose()
+			v.set_pose(EnemyChoreography.Pose.IDLE)
+		return
+	Sfx.play(_visuals.stagger_sfx)
+	hud.popup("STAGGERED", v.head_position(), _visuals.stagger_text_color)
+	# Held until the stagger is over (a clip with a hold keeps its last cell).
+	v.play("stagger", _visuals.stagger_pose_ms, FighterView.PRIO_BIG, EnemyChoreography.Pose.HURT, 0, true)
+
+
+## Every frame: an enemy gathering a Doom pulses in the doom colour (quicker on its last turn) and
+## crouches; a staggered one glows cold; when either ends the glow and crouch are switched off
+## once. Everything else is left to the attack choreography.
+func _update_doom_look() -> void:
+	if view == null or mirror.enemy_ids.is_empty():
+		return
+	var now_ms := float(Time.get_ticks_msec())
+	for id: int in mirror.enemy_ids:
+		var v := view.fighter(id)
+		if v == null:
+			continue
+		if mirror.is_charging(id):
+			var cycle := float(_visuals.doom_pulse_ms)
+			if int(mirror.fighter(id).charge_left) <= 1:
+				cycle = cycle * float(_visuals.doom_pulse_last_percent) / 100.0
+			var wave := 0.5 + 0.5 * sin(now_ms / maxf(1.0, cycle) * TAU)
+			v.set_glow_color(_visuals.doom_glow_color)
+			v.set_glow(lerpf(_visuals.doom_glow_min, _visuals.doom_glow_max, wave))
+			v.set_squash(float(_visuals.doom_squash_percent) / 100.0)
+			_doom_lit[id] = true
+		elif mirror.is_staggered(id):
+			v.set_glow_color(_visuals.stagger_glow_color)
+			v.set_glow(_visuals.stagger_glow)
+			v.set_squash(0.0)
+			_doom_lit[id] = true
+		elif bool(_doom_lit.get(id, false)):
+			_doom_lit[id] = false
+			v.set_glow(0.0)
+			v.set_squash(0.0)
 
 
 ## A hero uses a backpack item: its name over the hero, a sound, a short beat before its effect

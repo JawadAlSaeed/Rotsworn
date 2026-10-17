@@ -52,6 +52,14 @@ var escaped: bool = false
 ## Enemy only: its own attack tempo on top of the fight's, in percent (100 = as the fight; lower =
 ## faster). Phase two sets it (EnemyData.phase_two_tempo_percent, card #188).
 var tempo_percent: int = 100
+## Enemy only, Charged Doom (card #195): the Doom being charged ("" = none), the enemy turns left
+## until it unleashes (the countdown), the HP the party took off the enemy since it was announced
+## (toward the break), and the enemy turns it still loses to a stagger (it also takes extra damage
+## while above 0).
+var charge_attack: String = ""
+var charge_left: int = 0
+var charge_damage: int = 0
+var staggered_turns: int = 0
 
 
 ## Standing in the fight (not downed, not escaped).
@@ -93,6 +101,10 @@ static func from_dict(d: Dictionary) -> Combatant:
 	c.attack_cooldowns = (d.get("attack_cooldowns", {}) as Dictionary).duplicate()
 	c.last_target = int(d.get("last_target", -1))
 	c.tempo_percent = int(d.get("tempo_percent", 100))
+	c.charge_attack = String(d.get("charge_attack", ""))
+	c.charge_left = int(d.get("charge_left", 0))
+	c.charge_damage = int(d.get("charge_damage", 0))
+	c.staggered_turns = int(d.get("staggered_turns", 0))
 	return c
 
 
@@ -122,7 +134,18 @@ func to_dict() -> Dictionary:
 		"attack_cooldowns": attack_cooldowns.duplicate(),
 		"last_target": last_target,
 		"tempo_percent": tempo_percent,
+		"charge_attack": charge_attack,
+		"charge_left": charge_left,
+		"charge_damage": charge_damage,
+		"staggered_turns": staggered_turns,
 	}
+
+
+## The Doom charge ends (unleashed, broken or the enemy fell).
+func clear_charge() -> void:
+	charge_attack = ""
+	charge_left = 0
+	charge_damage = 0
 
 
 ## How many of the latest attacks in a row were this one.

@@ -28,13 +28,14 @@ const CUE_TIME_SCALE: float = 1000.0
 ## Separates the sample stream from the cue stream in the hashed integers.
 const SECTION_MARK: int = -2147483647
 ## Shipped enemy attacks when this golden was recorded (a guard against files silently skipped).
-const EXPECTED_ATTACKS: int = 50
+const EXPECTED_ATTACKS: int = 55
 
 ## Recorded 2026-10-14 on the phase 9 tree, before any phase 10 lane; phase 12 added its attacks
-## (every older hash unchanged). Some attacks share a hash
+## (every older hash unchanged); phase 16 (card #195) added the five Charged Dooms, again with
+## every older hash unchanged. Some attacks share a hash
 ## because their hits are timed the same (for example husk_flurry, gnat_swarm_sweep and
 ## king_crown_sweep).
-const EXPECTED_HASH := "6782273bdabb674b75798a0f546e430e0077054b63ca5084fa0b502331803e0a"
+const EXPECTED_HASH := "c035e785250ef6ca28b898f0b7dae7d8641f1a34e0f23b0c4d144423a0f33692"
 const EXPECTED_BY_ATTACK: Dictionary = {
 	"ashen_cinder_hail": "097a20436142decf6db61d60b9ef529c05f0cec1b9754c8987b09927f4037a5c",
 	"blight_bile_flood": "d8add67a45208428173f0e21e722f6ac466ef2b02fc430dfc693b36a40a9f2a8",
@@ -43,6 +44,7 @@ const EXPECTED_BY_ATTACK: Dictionary = {
 	"bloat_bile_spit": "84f4506da756d3862c45ca188725b66407bf51a4fcfbfec69b11494eacde8ae3",
 	"bloat_crush": "bc3d1c6d433867c71a7a66cc99c9cc7e00e400b18ba56837dbb3e89a646ceeed",
 	"bloat_double_wave": "e9c810f664019396017f4274cd004776317991995d56641efaebf189cf1b094a",
+	"bloat_gorge_burst": "78dfde073c0f39b6345a51eb989d8fba69741e073286994681b689c8eeaab032",
 	"bloat_quake": "889c7c8d81106fe3198577fb81c6d41463d929de8d9d866ea8f2bf7f6a5a1f92",
 	"bloat_rot_wave": "0693fd1225095ddd62ca9e5a53ed3829c09a7dda351dcf60e978e717d6dfce0f",
 	"blood_rush": "8bd3f4d099e7ef5eef335986d622c95b4446291c7b61a720e64480bf383f5284",
@@ -64,11 +66,13 @@ const EXPECTED_BY_ATTACK: Dictionary = {
 	"husk_rot_combo": "3233fe26784ec9f2f068a6bd18db3fb9837d45d4fedb77d366b6078df3894f3d",
 	"husk_stone_spikes": "adc41b271189e379cb86fca9e5e2e8b73917a05318bb95b352f6cd80acc3b3ca",
 	"husk_swipe": "e8b8d6f1ae174efa61f79affdee2cf7e3e72d177f5ae6a272c7c31c31be1adc0",
+	"husk_timber_fall": "1fdf3e15039046b6a3d800f388e59c4ada52b276dffec03222e0079aa3fee5c6",
 	"hyena_cackle": "d2dbb84fe278e3f1b4254340a14948db88ae680b97c928592a0328b6c6930d8f",
 	"hyena_pack_bite": "8c628aea38bb8e4adeac32298403918e5a108d5bb23f013ce9e90e9aa5bb9919",
 	"hyena_pounce": "7fe2ac8c44e1d0966ad3f388a21eb788287762a90786bb4789e0091b6522457e",
 	"hyena_snap": "862126dd65f322a02531e9e5f3c8901a6a48ed547fcc227f433e0a70b0d46bdd",
 	"king_cleave": "0a4b5285af56c888a2cc00850a501a5ee4980aca93c22be88dbabe2b9965a5b2",
+	"king_crown_of_rot": "e963a7094bfc96584d7b2f394786f2a754f60f278610b685882d564dbba01798",
 	"king_crown_sweep": "bbfdba01625527f1545c2a17d2a22e74a7994eb4daa25ebbdbc94322441955cf",
 	"king_false_crown": "33ed73490e4eae9fae29ae9bde43e46d17213f8a0b9782eee92dcf1fdaddf754",
 	"king_grave_stomp": "2baf7e17b713227bb22d996263131e7b070d62001eb65fb23ce614e286d3e017",
@@ -76,6 +80,7 @@ const EXPECTED_BY_ATTACK: Dictionary = {
 	"king_kingsfall": "aa24ac483cbc48a612bd752bf716c3875943c559eeaa7c4dbe4c03f55c9d148b",
 	"king_rot_cascade": "261fa15c7a19bdbaa1fdc888eceac4b758d7f5fbeef1b25283232778c781c0a3",
 	"plague_spit": "b8518ed292a2d6b50b1b5f8f43211b8ad1a9c5f222eaedc4f26354297fb99745",
+	"shade_ashfall": "911a45a1e3278c727859151249525da7864c21eff46e6ac06bbde947185f70a5",
 	"shade_bolts": "c7f48d42abbaf5ec740a7c66e4179f8ab8c607b4164c6c76bddb3467a871fa20",
 	"shade_cross_step": "e6f9380b81cfa79e15827e471f9e11f1c627bb07f510dbee750add226fbe027d",
 	"shade_delayed_rake": "34d5b1cccffe39e290ccb3960d76617d8ed416206a1df551d66cbd11f0460bab",
@@ -83,6 +88,7 @@ const EXPECTED_BY_ATTACK: Dictionary = {
 	"shade_nightfall": "7f2ea6fde7188923c99357436597db2a63733a96f78ebb787a3e0918ffcd159e",
 	"shade_stutter": "bfe1f10569984d764d810fc11b2e866c10b2747cffb55ea20b1676791a0c5f15",
 	"toad_belly_flop": "b6834808c0ebe71755aa71e7fd9e35eaa3addb7101b7bbd2c8a6182acddc8617",
+	"toad_brood_tide": "a1949266a6aaf0573c50a51202005f81d914c4e45fd910fc188b1616fefc6222",
 	"toad_hop_hop": "3d2b03f62f912c0fd4945f7c7de7a1537cf3c14a675b7bd23ab73e2c5f896106",
 	"toad_mud_spit": "d30e7b3d9d1c7a9a21a8dbd0ea6b29a57f4c10549a5986fffae3f0885412b6b1",
 	"toad_tongue": "8e714f9f82f632895a2df76b0a9217452445897624ff6bb6d771836f9e42dec1",
@@ -100,8 +106,7 @@ func _shipped_attacks() -> Dictionary:
 		assert_not_null(attack, file)
 		if attack == null:
 			continue
-		var engine := CombatEngine.new(Fx.setup([attack], {"tuning": tuning}))
-		var declared := Fx.first_of(engine.start(), "timed_sequence_declared")
+		var declared := Fx.declared_attack(attack, {"tuning": tuning})
 		assert_false(declared.is_empty(), attack.id + ": the engine declares the attack at start")
 		if declared.is_empty():
 			continue

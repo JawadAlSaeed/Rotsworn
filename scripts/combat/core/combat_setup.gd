@@ -178,6 +178,9 @@ func validate() -> PackedStringArray:
 		if e == null:
 			problems.append("empty enemy slot")
 			continue
+		for a: EnemyAttackData in e.attacks + e.phase_two_attacks:
+			if a != null and a.is_doom():
+				problems.append_array(_doom_problems(a))
 		for a: EnemyAttackData in e.attacks:
 			if a == null:
 				problems.append("enemy %s has an empty attack slot" % e.id)
@@ -197,6 +200,19 @@ func validate() -> PackedStringArray:
 					problems.append("attack %s: hit times must increase" % a.id)
 				else:
 					last = h.impact_ms
+	return problems
+
+
+## A Charged Doom (card #195) is party-wide, has a break threshold, and cools down so a break
+## cannot be followed by the same Doom at once.
+func _doom_problems(a: EnemyAttackData) -> PackedStringArray:
+	var problems := PackedStringArray()
+	if a.target_mode != EnemyAttackData.TargetMode.PARTY:
+		problems.append("doom %s must be party-wide" % a.id)
+	if a.break_damage_percent < 1:
+		problems.append("doom %s needs a break_damage_percent" % a.id)
+	if a.cooldown_turns < 1:
+		problems.append("doom %s needs a cooldown of at least 1 turn" % a.id)
 	return problems
 
 

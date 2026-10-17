@@ -173,7 +173,9 @@ func sync_alive(mirror: CombatMirror) -> void:
 			v.set_pose(FighterView.CharPose.IDLE if alive else FighterView.CharPose.DOWN)
 			v.set_dissolve(0.0)
 		else:
-			v.set_pose(EnemyChoreography.Pose.IDLE if alive else EnemyChoreography.Pose.HURT)
+			# An enemy gathering a Doom (card #195) keeps its wind-up crouch.
+			var rest := EnemyChoreography.Pose.WINDUP if mirror.is_charging(id) else EnemyChoreography.Pose.IDLE
+			v.set_pose(rest if alive else EnemyChoreography.Pose.HURT)
 			# A beaten enemy has crumbled away (card #38).
 			v.set_dissolve(0.0 if alive else 1.0)
 

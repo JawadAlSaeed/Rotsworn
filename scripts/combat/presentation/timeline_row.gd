@@ -23,6 +23,12 @@ const BAND_COLOR := Color(0.0, 0.0, 0.0, 0.62)
 const CURRENT_BORDER_PX: int = 3
 const OTHER_BORDER_PX: int = 2
 const CARD_SLANT: float = 0.1
+## The Doom tag on an enemy's card (card #195): its countdown, DOOM on the turn it unleashes, or
+## STAGGER on the turn it will lose.
+const TAG_SIZE: int = 13
+const TAG_DOOM := "DOOM"
+const TAG_STAGGER := "STAGGER"
+const TAG_TEXT_COLOR := Color(0.07, 0.04, 0.04)
 const NOW_TEXT := "NOW"
 const NOW_SIZE: int = 14
 const NOW_TEXT_COLOR := Color(0.12, 0.08, 0.02)
@@ -77,6 +83,7 @@ func show_order(order: Array[int], mirror: CombatMirror, portraits: Dictionary, 
 		var current := i == 0 and id == mirror.active_actor
 		var enemy := not mirror.party_ids.has(id)
 		_fill_entry(e, id, current, enemy, portraits, colors)
+		_fill_tag(e, doom_tag(order, i, mirror))
 		var size_now := _layout_entry(e)
 		var target := Vector2(ENTRY_X + (STEP_OUT if current else 0.0), y)
 		e["side"] = _side_color(id, enemy, colors)
@@ -99,6 +106,30 @@ func show_order(order: Array[int], mirror: CombatMirror, portraits: Dictionary, 
 func _process(_delta: float) -> void:
 	if visible:
 		queue_redraw()
+
+
+## The tag for turn `index` of `order` (card #195): for an enemy gathering a Doom, the turns before
+## the unleash count down (the number is the turns until the Doom, counting that one) and the
+## unleash turn reads DOOM; the next turn of a staggered enemy reads STAGGER. The enemy's turn in
+## progress is not tagged. "" for every other turn.
+static func doom_tag(order: Array[int], index: int, mirror: CombatMirror) -> String:
+	var id := order[index]
+	if mirror.party_ids.has(id) or not mirror.is_alive(id):
+		return ""
+	if index == 0 and id == mirror.active_actor:
+		return ""
+	var nth := 0
+	for i: int in range(index + 1):
+		if order[i] == id and not (i == 0 and id == mirror.active_actor):
+			nth += 1
+	var left := int(mirror.fighter(id).get("charge_left", 0))
+	if left > 0:
+		if nth > left:
+			return ""
+		return TAG_DOOM if nth == left else str(left - nth + 1)
+	if nth > 0 and int(mirror.fighter(id).get("staggered", 0)) >= nth:
+		return TAG_STAGGER
+	return ""
 
 
 ## The dark band fading to the right, the gold track and a marker beside each turn.
@@ -151,7 +182,14 @@ func _make_entry() -> Dictionary:
 	frame.add_child(portrait)
 	var now := _make_now_tag()
 	holder.add_child(now)
-	return {"holder": holder, "frame": frame, "portrait": portrait, "now": now}
+	var tag := PanelContainer.new()
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.visible = false
+	var tag_label := HudStyle.make_title("", TAG_SIZE, TAG_TEXT_COLOR)
+	tag_label.label_settings.outline_size = 0
+	tag.add_child(tag_label)
+	holder.add_child(tag)
+	return {"holder": holder, "frame": frame, "portrait": portrait, "now": now, "tag": tag, "tag_label": tag_label}
 
 
 func _fill_entry(e: Dictionary, id: int, current: bool, enemy: bool, portraits: Dictionary,
@@ -173,6 +211,17 @@ func _fill_entry(e: Dictionary, id: int, current: bool, enemy: bool, portraits: 
 	(e.now as Control).visible = current
 
 
+## Shows or hides the Doom tag of one entry.
+func _fill_tag(e: Dictionary, text: String) -> void:
+	var tag: PanelContainer = e.tag
+	tag.visible = not text.is_empty()
+	if text.is_empty():
+		return
+	var color := HudStyle.JUMP if text == TAG_STAGGER else HudStyle.LATE
+	(e.tag_label as Label).text = text
+	tag.add_theme_stylebox_override("panel", HudStyle.slant(color, HudStyle.OUTLINE_COLOR, 1, 1, 18.0))
+
+
 ## Places the parts of one turn inside its holder; returns the holder's size.
 func _layout_entry(e: Dictionary) -> Vector2:
 	var frame: PanelContainer = e.frame
@@ -181,6 +230,9 @@ func _layout_entry(e: Dictionary) -> Vector2:
 	frame.position = Vector2.ZERO
 	now.reset_size()
 	now.position = Vector2(-4.0, -now.size.y * 0.55)
+	var tag: PanelContainer = e.tag
+	tag.reset_size()
+	tag.position = Vector2(frame.size.x - tag.size.x + 8.0, frame.size.y - tag.size.y * 0.55)
 	var holder: Control = e.holder
 	holder.size = frame.size
 	holder.pivot_offset = frame.size * 0.5
