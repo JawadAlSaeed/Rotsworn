@@ -67,6 +67,8 @@ var _ranged: bool = false
 ## Press prompts whose bolt has left (its launch sound played).
 var _bolts_launched: Dictionary = {}
 var _clock := AttackClock.new()
+## Who owns each perfect press's freeze on the shared clock (card #180, see FreezeLedger).
+var _freezes := FreezeLedger.new()
 var _judges: JudgeSet
 var _roster: PlayerRoster = PlayerRoster.solo(0)
 ## Party member id -> player index (empty: everyone is player 0).
@@ -154,6 +156,7 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_inbox_at_us = 0
 	_clock = AttackClock.new()
 	_clock.start(Time.get_ticks_usec())
+	_freezes.clear()
 	_sent.clear()
 	_voided.clear()
 	_scheduled.clear()
@@ -287,6 +290,16 @@ func is_clock_paused() -> bool:
 	return _clock.is_started() and _clock.is_paused(Time.get_ticks_usec())
 
 
+## Holds the skill's animation clock for `ms` (a hit-stop on a killing blow, card #179). Nobody
+## owns this freeze, so every player's presses are still judged as if it had not happened.
+func hold(ms: int) -> void:
+	if not _active or ms <= 0 or not _clock.is_started():
+		return
+	var now := Time.get_ticks_usec()
+	_clock.pause_for(now, ms * 1000)
+	_freezes.add(now, ms * 1000, [] as Array[int])
+
+
 ## The lag compensation the current judge uses.
 func latency_us() -> int:
 	return _latency_ms * 1000
@@ -324,11 +337,16 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 	var player := _roster.player_of_device(device)
 	if not _judges.players().has(player):
 		return
-	if _clock.is_paused(stamp_us):
-		return
 	var t := _clock.attack_time_us(stamp_us)
 	var earliest := -1
-	if previous_pump_us > 0 and previous_pump_us < stamp_us:
+	if _clock.is_paused(stamp_us):
+		# The owner's own tap inside their perfect-press freeze is a double tap: ignored. Another
+		# player's press is judged as if the freeze had not happened (card #180).
+		var shift := _freezes.press_shift_us(stamp_us, player)
+		if shift == FreezeLedger.IGNORE:
+			return
+		t += shift
+	elif previous_pump_us > 0 and previous_pump_us < stamp_us:
 		var e := _clock.attack_time_us(previous_pump_us)
 		if e >= 0:
 			earliest = e
@@ -359,7 +377,14 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool, contact_us: int) -> void:
 	Sfx.play("skill_press", 0.0 if perfect else GOOD_PRESS_VOLUME_DB)
 	if perfect:
-		_clock.pause_for(Time.get_ticks_usec(), _tuning.hitstop_press_ms * 1000)
+		var owners: Array[int] = []
+		for idx: int in idxs:
+			var player := int(_owners.get(int((_prompts[idx] as Dictionary).character), 0))
+			if not owners.has(player):
+				owners.append(player)
+		var now := Time.get_ticks_usec()
+		_clock.pause_for(now, _tuning.hitstop_press_ms * 1000)
+		_freezes.add(now, _tuning.hitstop_press_ms * 1000, owners)
 	var text := "PERFECT" if perfect else "GOOD"
 	if _options.timing_readout:
 		text += " " + HudStyle.signed_ms(roundi(float(offset_us) / 1000.0))
@@ -367,7 +392,7 @@ func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool, contact_us:
 	for idx: int in idxs:
 		who.append(int((_prompts[idx] as Dictionary).character))
 	_hud.popup(text, _focus_head(who), HudStyle.GOLD if perfect else HudStyle.TEXT)
-	_strike(idxs, true, contact_us)
+	_strike(idxs, true, contact_us, perfect)
 
 
 func _on_whiff(report: Dictionary, player: int) -> void:
@@ -456,11 +481,24 @@ func _apply_batch(events: Array[Dictionary]) -> void:
 
 ## The strike of these prompts' characters at `contact_us` (skill time): a lunge and a slash on the
 ## target for a damaging skill (or a follow-up), a flash on the ally target for a support skill.
-## The strike frames come from _update_poses, on skill time, so the hit-stop holds them.
-func _strike(idxs: Array[int], good: bool, contact_us: int) -> void:
+## The strike frames come from _update_poses, on skill time, so the hit-stop holds them. The impact
+## grows with the moment (card #179): a graze or good press is small, a perfect press medium, a
+## hit of the Team Ultimate large (more shake, punch-in and sparks).
+func _strike(idxs: Array[int], good: bool, contact_us: int, perfect: bool = false) -> void:
 	var lunge_s := float(_visuals.skill_lunge_ms) / 1000.0
 	var target := _first_target()
 	var team := _ability != null and _ability.team_ultimate
+	var shake := _visuals.shake_strike
+	var punch := 0.0
+	var spark_percent := 100
+	if good and team:
+		shake = _visuals.shake_ultimate_hit
+		punch = _visuals.punch_ultimate_hit
+		spark_percent = _visuals.spark_tier_large_percent
+	elif good and perfect:
+		shake = _visuals.shake_strike_perfect
+		punch = _visuals.punch_strike_perfect
+		spark_percent = _visuals.spark_tier_medium_percent
 	for i: int in idxs.size():
 		_contacts[idxs[i]] = contact_us
 		var prompt: Dictionary = _prompts[idxs[i]]
@@ -482,9 +520,11 @@ func _strike(idxs: Array[int], good: bool, contact_us: int) -> void:
 			if enemy != null:
 				if not cast:
 					_view.spawn_slash(enemy.centre_position(), i % 2 == 0, 1.0 if good else 0.6, i * _visuals.team_slash_gap_ms)
-				_view.spawn_sparks(enemy.centre_position(), _visuals.sparks_per_strike, 1.0 if good else 0.6,
-						_ability.projectile.color if cast else _visuals.strike_spark_color)
-			_view.camera.shake(_visuals.shake_strike, _visuals.shake_strike_ms)
+				_view.spawn_sparks(enemy.centre_position(), CombatMath.percent(_visuals.sparks_per_strike, spark_percent),
+						1.0 if good else 0.6, _ability.projectile.color if cast else _visuals.strike_spark_color)
+			_view.camera.add_trauma(shake)
+			if punch > 0.0:
+				_view.camera.punch(punch, _visuals.punch_ms)
 			if team and i == 0:
 				_hud.screen_flash(HudStyle.GOLD, _visuals.screen_flash_ultimate)
 			if _ability == null or not _ability.escape:

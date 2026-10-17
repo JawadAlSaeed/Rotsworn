@@ -474,9 +474,13 @@ in data. Times in ms at tempo 100%.
   hit taken 50 ms (only on an attack's last hit: a missed hit is judged about 118 ms after impact,
   when in a string the next lunge has often started, and freezing that looks like a stutter),
   dodge 0, counter 120 ms.
-- **Presses during a success freeze (parry, jump) are ignored** (no judgement, no lockout). The
-  hurt freeze on an attack's last hit is the exception: every prompt is already resolved, so such
-  a press can only be a LATE report, judged at the time it would have had without the freeze.
+- **Presses during a success freeze (parry, jump, perfect skill press) are ignored only for the
+  player who owns the freeze** (no judgement, no lockout): that is their own double tap. Card #180
+  (bug): the clock is shared, so one player's parry used to swallow a teammate's on-time press
+  inside the freeze. `FreezeLedger` (pure, tested) records who owns each freeze; a press by anyone
+  else is judged at the time it would have had without the freeze (attack time plus the real time
+  since the freeze began), the same trick as the hurt freeze. The hurt freeze on an attack's last
+  hit has no owner: every prompt is already resolved, so such a press can only be a LATE report.
 - Press stamps are converted from real time to attack time before judging.
 
 ### 3.4 Windows
@@ -538,7 +542,9 @@ One judge per local player, holding the prompts of the characters that player an
 - Distinct sounds: parry clang (brighter on the final hit), dodge whoosh, jump thump, hit taken,
   whiff swish, locked click.
 - Parry sparks burst on the defender's front edge (`spark_toward_enemy`). Screen shake is stronger
-  on a parry than on a hit taken (parry 0.09, final parry 0.14, hurt 0.1).
+  on a parry than on a hit taken, and a heavy hit shakes more than a graze (trauma values: parry
+  0.4, final parry 0.7, hit taken 0.3, heavy hit 0.7; see 7.3). A dodge only nudges (0.1) and
+  flashes its hero faintly cool (card #179).
 
 ### 3.7 Cues (all toggleable)
 
@@ -560,6 +566,15 @@ One judge per local player, holding the prompts of the characters that player an
 - Hit markers (`show_hit_markers`, off since phase 6, F1 then H in practice), see 3.8. The floor
   warning under a ground hit always shows.
 - G, T, L, H and C are session toggles (not saved); the tuning values are their starting state.
+  **They only work in practice fights** (F1 then the letter), like the training ring: a run fight
+  is the real game and F1 there only opens the stats (godot-code-health #6, 2026-10-17).
+- **Flashes setting** (Settings > Game, card #185): Full (default), Reduced or Off. It scales every
+  full-screen flash (counter, ultimate, hero down, phase change, kills) and every flash on a
+  fighter (white parry and hit flashes, the telegraph flash in strings). Reduced keeps
+  `flash_reduced_screen_percent` (40) of a screen flash and `flash_reduced_fighter_percent` (50)
+  of a fighter flash; Off drops screen flashes entirely and leaves a faint
+  `flash_off_fighter_percent` (15) tint so a hit still reads. Saved per machine. It only softens
+  light, never timing: the telegraph is still there.
 
 ### 3.8 Reading attacks (approved 2026-10-12, card #44)
 
@@ -1039,6 +1054,7 @@ next attack, I toggles "party cannot die", O toggles "enemy cannot die", R resta
 F1 opens the stats overlay (inside it: R training ring, G telegraph flash (F is the Skills key), T timing readout,
 L motion sounds, H hit markers, C wind-up crouch, V cinematic camera), F2 starts lag calibration (only while the action menu is open, never during an
 enemy attack). With `practice_tools_enabled` off, F1 and F2 are not available during a fight.
+In a run fight only F1 (stats) and F2 (calibration) work; G, T, L, H, C and V do nothing there.
 On the victory/defeat screen F1 opens the stats, and Confirm or R fights again once
 `end_input_guard_ms` (800) has passed, so a late defence press never skips the screen.
 
@@ -1129,6 +1145,25 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
   toward the attacker and its targets during the banner lead-in and is **settled the moment the
   attack clock starts**, so the view holds still while you defend (defence is the star); a counter
   pushes in; victory and defeat circle the arena. Shake and punch-in play on top. Real time.
+- **Camera shake is a trauma model** (`CameraTrauma`, pure, tested; card #179). Each impact adds
+  trauma (0 to 1, clamped, so a string of parries builds up); trauma drains `shake_decay_per_s`
+  (1.5) a second; the shown shake is trauma squared times `shake_max_offset` (0.32 world units)
+  plus a small roll (`shake_max_roll_deg`, 1.6), driven by three sines of the clock at a fixed
+  `shake_hz` (6), never a random number per frame, so it looks the same at any frame rate. The
+  Settings screen's screen shake percent scales the result. `CombatCamera.shake(strength, ms)` is
+  kept as a shim for `add_trauma(strength)`. Every number is in `combat_visuals.tres`.
+- **Impact tiers** (card #179, presentation only). Small: a graze, a good press (trauma 0.2). Medium:
+  a perfect press (0.4, punch 0.3), a critical hit (0.55, punch 0.5), a heavy hit taken (0.7, punch
+  0.4), a counter (0.7, punch 0.9); sparks grow 150%. Large: a Team Ultimate hit (0.5, punch 0.35,
+  sparks 220%), a team counter (0.9, punch 1.2), a hero going down (0.65 plus the red flash), a boss
+  phase change (0.9, punch 1.0 over 500 ms), the last enemy falling (0.8, punch 0.9, flash 0.25) and
+  a boss or guard falling (1.0, punch 1.4, flash 0.45). The two kills hold: the body stays on its
+  hurt pose for `kill_hitstop_ms` (110) or `boss_kill_hitstop_ms` (170) and the strike freezes on
+  its impact frame (a skill's clock is held, an attack's slashes stop) before the dissolve and the
+  end shot. A boss or guard fight opens with the camera pulled back `intro_push` (1.2) and gliding
+  in over 900 ms. A struck enemy recoils away from the heroes (`enemy_hit_knockback`,
+  `enemy_heavy_knockback` for crits, heavy hits and counters) and settles back. The boss of a boss
+  or guard fight is the enemy with the most HP.
 
 ### 7.4 Phase 3: exploration (cards #23, #24)
 
@@ -1183,7 +1218,8 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   Online opens a second list in place (Host Online, Join Online, Back; cancel goes back) and
   the tutorial moved from the menu into Practice.
 - **Settings** (`SettingsScreen`): volume (left/right, 10% steps), fullscreen on/off, training
-  ring on/off, lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
+  ring on/off (practice fights only; the row says so), flashes Full / Reduced / Off (card #185),
+  lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
   plus a read-only list of the controls (changing keys comes later). Saved per machine at once
   (`PlayerSettings`, `user://settings.cfg`); volume and fullscreen are applied at start-up.
   **Full menu (card #112):** four sections, LB / RB (Z / C) to change: **Graphics** (fullscreen;
@@ -2485,3 +2521,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Main menu cut to six rows: Online holds Host and Join, the tutorial is the first Practice card | user (#150) |
 | 2026-10-15 | Tutorial: each hero lesson locks the menu to one glowing choice; no zone or map lesson (five lessons); the Skills lesson uses a skill without follow-ups (Taunt) | user play-test |
 | 2026-10-16 | Every sound, song and loop offered against three free Openverse finds (CC0 / CC BY); 27 replaced, the rest kept | user asked; CC BY is fine with a credit on the credits screen |
+| 2026-10-17 | Fight feel: camera shake is a trauma model; the biggest moments (last kill, boss kill, phase change, boss intro, hero down) get a short hold, shake, punch-in and flash; perfect presses, crits, heavy hits and ultimate hits hit harder; struck enemies recoil | cards #179 and the combat-feel review; presentation only, freezes at most 170 ms |
+| 2026-10-17 | A success freeze ignores only its owner's double tap; a teammate's press inside it is judged as if the freeze had not happened (`FreezeLedger`) | bug #180: one player's parry swallowed another player's on-time press in local co-op |
+| 2026-10-17 | "Flashes" setting: Full / Reduced / Off for screen flashes and white hit flashes | card #185, photosensitivity; default Full |
+| 2026-10-17 | F1 reading-aid toggles (G, T, L, H, C, V) are practice-fight only | a run fight is the real game; same rule as the training ring |

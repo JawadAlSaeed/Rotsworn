@@ -289,6 +289,16 @@ func move_body(to: Vector3, seconds: float, trans: Tween.TransitionType = Tween.
 	_move_tween.tween_property(self, "body_offset", to, seconds).set_trans(trans).set_ease(ease)
 
 
+## A hit knocks the body `offset` away and it comes back: out over `out_s`, home over `back_s`
+## (replaces any movement in progress, like move_body).
+func recoil(offset: Vector3, out_s: float, back_s: float) -> void:
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	_move_tween = create_tween()
+	_move_tween.tween_property(self, "body_offset", offset, maxf(0.001, out_s)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_move_tween.tween_property(self, "body_offset", Vector3.ZERO, maxf(0.001, back_s)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
 ## Hops the body to `to` over `seconds` along an arc `height` high (world units), replacing any
 ## movement still in progress, like move_body. 0 seconds snaps.
 func hop_body(to: Vector3, seconds: float, height: float) -> void:
@@ -341,8 +351,11 @@ func set_stage(offset: Vector3, tint: Color, seconds: float) -> void:
 	_stage_tween.tween_method(set_tint, _tint, tint, seconds)
 
 
-## White (or coloured) flash that fades over `ms` milliseconds of real time.
+## White (or coloured) flash that fades over `ms` milliseconds of real time. The player's Flashes
+## setting scales the strength (card #185).
 func flash(ms: int, color: Color = Color.WHITE, strength: float = 1.0) -> void:
+	if _visuals != null:
+		strength *= _visuals.fighter_flash_scale(PlayerSettings.flash_mode())
 	_flash_length_us = maxi(1, ms * 1000)
 	_flash_until_us = Time.get_ticks_usec() + _flash_length_us
 	_flash_strength = strength

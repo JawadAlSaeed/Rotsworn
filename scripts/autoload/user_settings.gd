@@ -6,8 +6,8 @@ extends Node
 ## and they also work when no autoload exists (unit tests). UserSettings.x() works too.
 ## Holds what belongs to this machine and player rather than to the game's balance: the measured
 ## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
-## the volumes (overall, music, effects, voices), the display and graphics options, screen shake
-## (settings screen, card #112), the last host address joined online. Anything not
+## the volumes (overall, music, effects, voices), the display and graphics options, screen shake and
+## flashes (settings screen, cards #112 and #185), the last host address joined online. Anything not
 ## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
@@ -50,6 +50,13 @@ const GRAPHICS := {
 }
 const SECTION_GAME := "game"
 const KEY_SHAKE := "screen_shake_percent"
+const KEY_FLASH := "flash_mode"
+## The Flashes setting (card #185): how strong screen flashes and white hit flashes are. The
+## numbers for Reduced and Off live in data/presentation/combat_visuals.tres.
+const FLASH_FULL: int = 0
+const FLASH_REDUCED: int = 1
+const FLASH_OFF: int = 2
+const FLASH_NAMES: Array[String] = ["Full", "Reduced", "Off"]
 const KEY_TUTORIAL_OFFERED := "tutorial_offered"
 const SHAKE_STEP_PERCENT: int = 25
 const SECTION_ONLINE := "online"
@@ -263,6 +270,18 @@ static func screen_shake_percent() -> int:
 
 static func set_screen_shake_percent(value: int) -> void:
 	_settings().set_value(SECTION_GAME, KEY_SHAKE, clampi(value, 0, 100))
+	_save()
+
+
+## Flashes: FLASH_FULL (default), FLASH_REDUCED or FLASH_OFF. Bad values read as Full.
+static func flash_mode() -> int:
+	var mode := int(_settings().get_value(SECTION_GAME, KEY_FLASH, FLASH_FULL))
+	return mode if mode >= FLASH_FULL and mode <= FLASH_OFF else FLASH_FULL
+
+
+## Sets the flash mode; the number wraps around (so Right on Off goes to Full).
+static func set_flash_mode(value: int) -> void:
+	_settings().set_value(SECTION_GAME, KEY_FLASH, posmod(value, FLASH_NAMES.size()))
 	_save()
 
 

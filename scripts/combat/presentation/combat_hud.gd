@@ -655,8 +655,10 @@ func _fighter_rect(id: int) -> Rect2:
 
 
 ## A full-screen flash of `color` at `strength` (0 to 1) that fades over screen_flash_ms. A
-## stronger flash replaces a weaker one still fading.
+## stronger flash replaces a weaker one still fading. The player's Flashes setting scales it
+## (card #185).
 func screen_flash(color: Color, strength: float) -> void:
+	strength *= _visuals.screen_flash_scale(PlayerSettings.flash_mode())
 	if strength <= 0.0:
 		return
 	if _flash_tween != null and _flash_tween.is_valid():
