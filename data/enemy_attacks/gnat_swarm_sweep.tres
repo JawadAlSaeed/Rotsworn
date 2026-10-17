@@ -8,6 +8,7 @@ script = ExtResource("1_uwuqr")
 impact_ms = 900
 damage_percent = 40
 approach_ms = 180
+forced_feint = true
 
 [sub_resource type="Resource" id="Resource_w5qm6"]
 script = ExtResource("1_uwuqr")
@@ -17,9 +18,10 @@ approach_ms = 180
 
 [sub_resource type="Resource" id="Resource_ybdqn"]
 script = ExtResource("1_uwuqr")
-impact_ms = 1500
+impact_ms = 1650
 damage_percent = 40
 approach_ms = 180
+forced_kind = 4
 
 [resource]
 script = ExtResource("2_stpu8")

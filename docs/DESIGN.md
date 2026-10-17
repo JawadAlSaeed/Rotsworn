@@ -81,12 +81,37 @@ strike, return) takes about 0.55 s.
 
 | Action | Window (default) | Works against | Result |
 |---|---|---|---|
-| Dodge | 250 ms | normal hits | no damage, no reward |
-| Parry | 150 ms | normal hits | no damage, +AP (`ap_per_parry`, 1) |
+| Dodge | 250 ms | normal hits, sweeps | no damage, no reward |
+| Parry | 150 ms | normal hits, rends | no damage, +AP (`ap_per_parry`, 1) |
 | Jump  | 220 ms | ground hits | no damage, +AP (`ap_per_jump`, default 0) |
 
 - Ground hits (shockwaves along the floor) can only be avoided by jumping. Dodging or parrying
   them fails. Jumping into a normal hit fails.
+- **Forced-choice hits (card #187, 2026-10-17):** two more kinds make the three buttons a real
+  choice, so dodging everything (the easy, safe button) stops working in the hard fights.
+  - **Rend** (bone-coloured claw icon): only a **parry** stops it. A dodge or a jump is the wrong
+    button: the hit lands, the hint says "MUST PARRY". A parried rend is perfect (it counts for
+    counters like a parried normal hit, and as a parry for the mixed bonus).
+  - **Sweep** (green crescent icon): only a **dodge** avoids it. A parry or a jump is the wrong
+    button: the hit lands, "MUST DODGE". A sweep has no perfect answer, so **a string with a sweep
+    in it can be survived but never countered** (2.5).
+  - Same windows as the parry and the dodge (no window was changed). `Defense.build_windows` stays
+    the one place that decides which button works against which kind; the judge reports the
+    wrong button as WRONG_ACTION like a parry on a ground hit, the engine sanitises every result
+    against the declared windows, and online the host's referee turns a wrong-button result into
+    a hit taken (`DefenseArbiter.accept`).
+  - **Where:** an attack's normal hit carries `forced_kind` (REND or SWEEP) and may carry
+    `forced_feint`. They only show in **hard fights**: elite, guard and boss fights
+    (`CombatSetup.forced_hits`, set from the encounter's flags) and against the deep variants
+    (`EnemyData.forced_hits`, 2.16), which use them everywhere. Ordinary act-one fights and the
+    tutorial play the same strings as plain normal hits without the extra feints. About one hit in
+    four of the strings hard fights use is forced (a test keeps it between 15% and 40%); a forced
+    hit always comes at least 300 ms after the hit before it, so there is time to see its colour
+    and change buttons (test).
+  - Bots: the perfect bot presses `Defense.best_outcome` (parry a rend, dodge a sweep); the
+    average bot first reads a rend or sweep and misreads it (the other button, on time) with
+    (100 - skill) / 2 percent chance, then lands it with its usual skill chance.
+  - Tests: `tests/unit/test_hit_kinds_tempo.gd` (with the tempo of 8.3).
 - A press that matches nothing is a **whiff**: that player's defence buttons are locked for
   `whiff_lockout_ms` (300). **Pressing while locked restarts the lock.** A simulation showed this
   drops mashing success to 0% while an honest miss costs only that one hit. An isolated LATE
@@ -105,7 +130,9 @@ strike, return) takes about 0.55 s.
 
 ### 2.5 Counters
 
-- A hit is **perfectly defended** by a Parry (normal hit) or a Jump (ground hit).
+- A hit is **perfectly defended** by a Parry (normal hit or rend) or a Jump (ground hit). A sweep
+  (dodge only, 2.4) has no perfect answer, so a hero whose prompts include a sweep cannot counter
+  that attack (card #187).
 - A targeted character who perfectly defends **every** hit of an attack counterattacks for
   `counter_percent` (150%) of their power.
 - If the attack was party-wide and **every** targeted character perfectly defended every hit,
@@ -190,14 +217,20 @@ Times are ms after the attack starts, at tempo 100%.
 | Attack | Targets | Weight | Hits | Notes |
 |---|---|---|---|---|
 | Swipe | one | 3 | normal 900 (100%) | wind-up glow, 200 ms lunge |
-| Flurry | one | 3 | normal 900 / 1200 / 1500 (45% each) | 300 ms rhythm |
+| Flurry | one | 3 | normal 900 / 1200 / 1650 (45% each) | 300 then a held 450 ms; hard fights: the first swipe feints, the last is a rend |
 | Lingering Claw | one | 2 | normal 1600 (130%) | feint: false start, hold, real lunge; no training ring |
 | Ground Slam | party | 1 | ground 1100 (80%) | shockwave front parallel to the party, reaches all at once |
 | Rot Combo | party | 1 | normal 900, normal 1200, ground 1700, normal 2300 (35% each) | 500+ ms either side of the ground hit (jump airtime) |
 
 Data rules (checked by a test): impact times increase; normal hits at least 250 ms apart; at
 least 450 ms between a ground hit and its neighbours; mid-string parry hit-stop at least 30 ms
-under the parry window's early part.
+under the parry window's early part. Card #187 adds: no string of three or more hits of one kind
+has all its gaps equal (review combat-feel #4: a steady tap rhythm beat them), a forced hit is at
+least 300 ms after the hit before it, and a feint inside a string at least 550 ms after the hit
+before it (its false start would eat that hit's contact pose); a feint on a first hit has the whole
+wind-up. Re-authored 2026-10-17: Buzz, Sting String, Swarm Sweep, Swarm Round, Pack Bite, Strafe,
+Buzz Dive, Flurry, Hop Hop Hop, Quake Hop, Bile Flood, Blood Rush, Frenzy, Crown Sweep, Rot Cascade
+and Kingsfall (its first three hits) now have uneven gaps.
 
 ### 2.10 Phase 2 class kits (approved 2026-10-12)
 
@@ -408,13 +441,15 @@ in data. Times in ms at tempo 100%.
 | Variant | Base | Look | Its own move |
 |---|---|---|---|
 | Ashen Husk | Rotten Husk | ash grey, ember core | Cinder Hail: party, two burning cinders thrown 1200, 1750 (50% each) |
-| Blight Bloat | Bloat | bile yellow | Bile Flood: one, three bile globs 950, 1300, 1650 (45% each) |
-| Blood Gnats | Gnat Swarm | blood red | Blood Rush: each in turn, five stings 800 to 2000 every 300 (30% each) |
+| Blight Bloat | Bloat | bile yellow | Bile Flood: one, three bile globs 950, 1300, 1750 (45% each) |
+| Blood Gnats | Gnat Swarm | blood red | Blood Rush: each in turn, five stings 800 (a feint), 1100, 1350, 1800, 2100 (a sweep) (30% each) |
 | Hollow Shade | Shade | ice blue | Bolt Storm: party, shade bolts 1000, 1500 (45% each) |
-| Bone Hyena | Rot Hyena | bone pale, red eyes | Frenzy: each in turn, four bites 800 to 1700 every 300 (40% each) |
+| Bone Hyena | Rot Hyena | bone pale, red eyes | Frenzy: each in turn, four bites 800, 1100, 1800 (a feinting rend), 2050 (40% each) |
 | Plague Fly | Carrion Fly | plague violet | Plague Spit: party, one bile glob each 1200 (60%) |
-| Elder Toad | Mire Toad | dark bog brown, red eyes | Quake Hop: party, rocks 1100, wave 1700, rocks 2300 (50% each) |
+| Elder Toad | Mire Toad | dark bog brown, red eyes | Quake Hop: party, rocks 1100, wave 1700, rocks 2250 (50% each) |
 
+- Every variant has `forced_hits` on (card #187, 2.4): its rends and sweeps and forced feints show in
+  every fight it is in, so the second half of a run reads harder.
 - Deep fights: `EncounterData.deep` names a fight's deep version (`deep_<id>`, the same fight made of
   variants). In a run, from map row `tuning.run_deep_row` (4, the second half of the 7 rows) on, a
   zone's roaming enemies hold their deep fights (`RunState.is_deep()`, `ZoneController.configure(...,
@@ -540,7 +575,8 @@ One judge per local player, holding the prompts of the characters that player an
 - The lock icon sits under the defenders' feet, clear of the readouts.
 - Feedback comes from the local judge at press time, never from engine events (so it stays
   instant online): "PARRY" / "DODGE" / "JUMP" plus the offset ("+12"), whiffs as "EARLY -130"
-  (blue) or "LATE +70" (red), wrong button as "JUMP!" / "PARRY!" hints (orange), "MISS" when a hit
+  (blue) or "LATE +70" (red), wrong button as "JUMP!" / "PARRY!" hints (orange; "MUST PARRY" on a
+  rend, "MUST DODGE" on a sweep, card #187), "MISS" when a hit
   lands with no press, a lock icon during lockout, a muted click for a locked press.
 - Distinct sounds: parry clang (brighter on the final hit), dodge whoosh, jump thump, hit taken,
   whiff swish, locked click.
@@ -586,9 +622,14 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
 "icons only" over a rhythm-game strip with a moving line).
 
 - **One colour per defence:** red-orange (`telegraph_flash_color`, `normal_hit_color`) = a normal
-  hit, parry or dodge it; purple (`ground_hit_color`) = a ground hit, jump it; white = you parried.
-  The wind-up glow and the telegraph flash before a slam, the ground hit icon, its marker, the
-  floor warning and the training ring's ground colour are all purple.
+  hit, parry or dodge it; purple (`ground_hit_color`) = a ground hit, jump it; bone
+  (`rend_hit_color`, near the PARRY readout's yellow, never pure white) = a rend, parry only;
+  sickly green (`sweep_hit_color`, near the DODGE readout's green) = a sweep, dodge only (card
+  #187); white = you parried. The wind-up glow and the telegraph flash before a hit, its icon
+  (claw marks for a rend, a crescent for a sweep, `hit_rend.png` / `hit_sweep.png` drawn by the art
+  kit's `fx_ui`), its marker and the training ring all take the hit's colour
+  (`CombatVisuals.kind_color`); the marker and the ring add the one button's name ("JUMP",
+  "PARRY", "DODGE"). Ground hits also get the purple floor warning.
 - **Rhythm rows:** the intent sign and the attack banner show one icon per hit, centres
   `rhythm_px_per_ms` (0.2) apart per millisecond between impacts and never closer than the icon
   plus `rhythm_min_gap_px`; a row wider than `rhythm_max_width_px` is squeezed evenly
@@ -1894,6 +1935,19 @@ Replaces the shared party level of phase 4 (#30). Numbers live in `tuning.tres` 
 
 ### 8.3 Enemies grow with depth, the gauge carries over (cards #105, #146)
 
+- **Faster with depth (card #188, 2026-10-17):** enemy attacks also speed up. `CombatSetup.
+  attack_tempo_percent` (0 = tuning `attack_tempo_percent`) scales every hit's impact and lunge
+  (lower = faster; the windows keep their size). `RunState.fight_setup` fills it: tuning
+  `attack_tempo_percent` less `run_enemy_tempo_row_percent` (1) per row of depth (the same depth as
+  HP, acts included), then elite fights take `elite_tempo_percent` (94) of that, guards
+  `guard_tempo_percent` (94), bosses `boss_tempo_percent` (92). Entering phase two, an enemy's
+  strings speed up by its `EnemyData.phase_two_tempo_percent` (Hollow King 90, Husk Lord 92, the
+  three guards 94), kept on the combatant (`Combatant.tempo_percent`, in the snapshot). Nothing
+  goes under `attack_tempo_floor_percent` (70) of the authored timing (`CombatSetup.tempo_floor`).
+  The intent's times and the declared hits carry the result, so the judge, the bots and online
+  play need nothing new. Practice fights play at the authored speed (no run); the tutorial keeps
+  its own slow tempo. Example: the act-two Hollow King (depth about 13) plays at about 80%, about
+  72% in phase two.
 - **Depth** (#105, phase 13 step 3, built early): every enemy in a run fight gets
   `run_enemy_hp_row_percent` (5) more HP and `run_enemy_power_row_percent` (3) more power per map
   row of the stop (row 0 as in its data; `CombatSetup.enemy_hp_percent` / `enemy_power_percent`,
@@ -2747,3 +2801,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | A success freeze ignores only its owner's double tap; a teammate's press inside it is judged as if the freeze had not happened (`FreezeLedger`) | bug #180: one player's parry swallowed another player's on-time press in local co-op |
 | 2026-10-17 | "Flashes" setting: Full / Reduced / Off for screen flashes and white hit flashes | card #185, photosensitivity; default Full |
 | 2026-10-17 | F1 reading-aid toggles (G, T, L, H, C, V) are practice-fight only | a run fight is the real game; same rule as the training ring |
+| 2026-10-17 | Forced-choice hits: a rend (parry only, bone) and a sweep (dodge only, green, never countered) in elite, guard and boss fights and from the deep variants, about one hit in four; uneven gaps in every one-button string, a feint in every hard string; enemy attacks speed up with depth, elites, guards, bosses and phase two, never under 70% of authored; windows unchanged | cards #187, #188 and review combat-feel #4, #5, #9: dodge-everything and a steady tap beat the defence; nothing made easier |

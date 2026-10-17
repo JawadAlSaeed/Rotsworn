@@ -32,4 +32,5 @@ voice_sfx = "voice_shade"
 phase_two_hp_percent = 50
 phase_two_attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtResource("3_48cf8"), ExtResource("4_r4fvk"), ExtResource("5_nrkbm"), ExtResource("6_lxa4g"), ExtResource("7_ofos0"), ExtResource("8_75tdb")])
 phase_two_speed = 155
+phase_two_tempo_percent = 94
 phase_two_text = "THE ASH WARDEN BURNS!"

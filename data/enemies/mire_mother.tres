@@ -30,4 +30,5 @@ voice_sfx = "voice_toad"
 phase_two_hp_percent = 50
 phase_two_attacks = Array[ExtResource("1_18q8n")]([ExtResource("2_t8inl"), ExtResource("3_cx7q1"), ExtResource("4_8idxc"), ExtResource("5_t2xw7"), ExtResource("6_7aj0h")])
 phase_two_speed = 145
+phase_two_tempo_percent = 94
 phase_two_text = "THE MIRE MOTHER CALLS THE MUD!"

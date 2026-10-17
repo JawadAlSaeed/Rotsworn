@@ -9,6 +9,7 @@ impact_ms = 1600
 damage_percent = 130
 approach_ms = 400
 anim = "belly"
+forced_kind = 4
 
 [resource]
 script = ExtResource("2_tpl2c")

@@ -32,4 +32,5 @@ xp = 0
 phase_two_hp_percent = 50
 phase_two_attacks = Array[ExtResource("1_8x5qf")]([ExtResource("2_bb311"), ExtResource("5_nm3hv"), ExtResource("6_g3tki"), ExtResource("7_5adux"), ExtResource("8_nvtgn")])
 phase_two_speed = 210
+phase_two_tempo_percent = 90
 phase_two_text = "THE HOLLOW KING RAGES!"

@@ -40,6 +40,9 @@ var second_wind_used: bool = false
 var phase: int = 1
 ## Ran from the fight (DESIGN.md 2.13): out of it for good, neither standing nor downed.
 var escaped: bool = false
+## Enemy only: its own attack tempo on top of the fight's, in percent (100 = as the fight; lower =
+## faster). Phase two sets it (EnemyData.phase_two_tempo_percent, card #188).
+var tempo_percent: int = 100
 
 
 ## Standing in the fight (not downed, not escaped).
@@ -77,6 +80,7 @@ static func from_dict(d: Dictionary) -> Combatant:
 	c.second_wind_used = bool(d.get("second_wind_used", false))
 	c.phase = int(d.get("phase", 1))
 	c.escaped = bool(d.get("escaped", false))
+	c.tempo_percent = int(d.get("tempo_percent", 100))
 	return c
 
 
@@ -102,4 +106,5 @@ func to_dict() -> Dictionary:
 		"second_wind_used": second_wind_used,
 		"phase": phase,
 		"escaped": escaped,
+		"tempo_percent": tempo_percent,
 	}

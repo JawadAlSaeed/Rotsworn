@@ -3,13 +3,16 @@ extends Node
 ## Test bot for `-- --autoplay[=perfect|miss|mash]` (DESIGN.md 10). It plays through the same
 ## paths as a person: menu choices go through the ActionMenu, defence and skill presses are
 ## injected into DefenseInput and judged like real ones.
-## - perfect: the correct press for every hit (parry for normal, jump for ground, the skill
-##   button for skill and follow-up presses) at window centre;
+## - perfect: the correct press for every hit (Defense.best_outcome: parry for a normal hit or a
+##   rend, dodge for a sweep, jump for ground, the skill button for skill and follow-up presses)
+##   at window centre;
 ## - miss: never presses;
 ## - mash: random presses about every MASH_INTERVAL_MS;
 ## - average: like a person of `bot_skill` percent (balance checks): each defence is landed with
 ##   that chance (a parry or a dodge, a jump for a ground hit), otherwise it is not pressed; each
-##   skill press is landed with that chance, half of those perfect and half good.
+##   skill press is landed with that chance, half of those perfect and half good. A rend or a sweep
+##   (card #187) is read first: it is misread (the other of parry and dodge, on time) with
+##   (100 - skill) * MISREAD_SHARE_PERCENT / 100 percent chance, so a better player misreads less.
 ## In co-op (--players=N) each player presses for their own heroes with their own device, so the
 ## per-player judging is played through too; mash presses as a random player. Online it presses
 ## only for this machine's player.
@@ -26,6 +29,9 @@ const MASH_INTERVAL_MS: int = 70
 const MASH_JITTER_MS: int = 20
 const MASH_ACTIONS: Array[int] = [Defense.Outcome.PARRY, Defense.Outcome.DODGE, Defense.Outcome.JUMP,
 		Defense.Outcome.PRESS]
+## Average bot: share of its missing skill that shows up as misreading a rend or a sweep (a decent
+## reader at skill 70 reads 85% of them right; the timing roll comes after).
+const MISREAD_SHARE_PERCENT: int = 50
 
 var _mode: String = CombatOptions.AUTOPLAY_PERFECT
 var _mirror: CombatMirror
@@ -263,7 +269,7 @@ func _press_perfectly() -> void:
 			if prompt.is_empty():
 				_pressed[key] = true
 				continue
-			var action := int((prompt.perfect as Array)[0])
+			var action := Defense.best_outcome(int(prompt.kind))
 			var edges: Array = prompt.windows[action]
 			@warning_ignore("integer_division")
 			var centre := int(prompt.at_ms) * 1000 + (int(edges[0]) + int(edges[1])) / 2
@@ -305,10 +311,21 @@ func _average_plan(key: String, prompt: Dictionary, skill: bool) -> Dictionary:
 	if _plans.has(plan_key):
 		return _plans[plan_key]
 	var plan: Dictionary = {}
+	var kind := int(prompt.kind)
+	@warning_ignore("integer_division")
+	var misread_percent := (100 - bot_skill) * MISREAD_SHARE_PERCENT / 100
+	if not skill and AttackHitData.is_forced(kind) and _rng.randi_range(1, 100) <= misread_percent:
+		# Misread: the other button, pressed on time (a whiff, the hit lands).
+		var wrong := Defense.Outcome.DODGE if kind == AttackHitData.Kind.REND else Defense.Outcome.PARRY
+		var right: Array = prompt.windows[Defense.best_outcome(kind)]
+		@warning_ignore("integer_division")
+		plan = {"action": wrong, "at_us": int(prompt.at_ms) * 1000 + (int(right[0]) + int(right[1])) / 2}
+		_plans[plan_key] = plan
+		return plan
 	if _rng.randi_range(1, 100) <= bot_skill:
 		var at := int(prompt.at_ms) * 1000
 		var windows: Dictionary = prompt.windows
-		var action := int((prompt.perfect as Array)[0])
+		var action := Defense.best_outcome(kind)
 		if skill:
 			var perfect: Array = windows.get(Defense.Outcome.PRESS_PERFECT, windows[Defense.Outcome.PRESS])
 			var good: Array = windows[Defense.Outcome.PRESS]
@@ -319,7 +336,7 @@ func _average_plan(key: String, prompt: Dictionary, skill: bool) -> Dictionary:
 			@warning_ignore("integer_division")
 			plan = {"action": action, "at_us": at + (int(edges[0]) + int(edges[1])) / 2}
 		else:
-			if windows.has(Defense.Outcome.DODGE) and _rng.randi_range(0, 1) == 1:
+			if windows.has(Defense.Outcome.DODGE) and windows.has(Defense.Outcome.PARRY) and _rng.randi_range(0, 1) == 1:
 				action = Defense.Outcome.DODGE
 			var edges: Array = windows[action]
 			@warning_ignore("integer_division")

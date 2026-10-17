@@ -11,25 +11,27 @@ approach_ms = 180
 
 [sub_resource type="Resource" id="Resource_dwme1"]
 script = ExtResource("1_jdrte")
-impact_ms = 1200
+impact_ms = 1250
 damage_percent = 25
 approach_ms = 180
+forced_kind = 3
 
 [sub_resource type="Resource" id="Resource_8acmc"]
 script = ExtResource("1_jdrte")
-impact_ms = 1700
+impact_ms = 1750
 kind = 1
 damage_percent = 25
 approach_ms = 400
 
 [sub_resource type="Resource" id="Resource_l5cs7"]
 script = ExtResource("1_jdrte")
-impact_ms = 2200
+impact_ms = 2300
 damage_percent = 25
+feint = true
 
 [sub_resource type="Resource" id="Resource_6xy3f"]
 script = ExtResource("1_jdrte")
-impact_ms = 2700
+impact_ms = 2800
 kind = 1
 damage_percent = 25
 approach_ms = 400

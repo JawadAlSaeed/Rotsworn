@@ -8,6 +8,7 @@ script = ExtResource("1_o45p4")
 impact_ms = 1600
 damage_percent = 130
 feint = true
+forced_kind = 3
 
 [resource]
 script = ExtResource("2_1klyw")

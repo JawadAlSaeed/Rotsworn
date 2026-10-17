@@ -34,6 +34,10 @@ extends Resource
 @export_file_path("*.png") var hit_icon_normal_path: String = "res://assets/sprites/ui/hit_normal.png"
 ## Enemy intent icon for a ground hit: jump it (12x12).
 @export_file_path("*.png") var hit_icon_ground_path: String = "res://assets/sprites/ui/hit_ground.png"
+## Enemy intent icon for a rend: parry it, nothing else works (12x12, card #187).
+@export_file_path("*.png") var hit_icon_rend_path: String = "res://assets/sprites/ui/hit_rend.png"
+## Enemy intent icon for a sweep: dodge it, nothing else works (12x12, card #187).
+@export_file_path("*.png") var hit_icon_sweep_path: String = "res://assets/sprites/ui/hit_sweep.png"
 
 @export_group("Stage layout")
 ## Where each party slot stands (feet). Keep them on one straight line: ground waves travel with
@@ -191,6 +195,12 @@ extends Resource
 @export var ground_hit_color: Color = Color(0.78, 0.4, 1.0)
 ## Border colour of a normal hit's marker (parry or dodge it).
 @export var normal_hit_color: Color = Color(1.0, 0.3, 0.2)
+## Colour of a rend (parry only, card #187) everywhere a hit shows its kind: the wind-up glow and
+## telegraph flash before it, its marker and ring. Bone, near the PARRY readout's yellow, never
+## pure white (white means "you parried").
+@export var rend_hit_color: Color = Color(0.96, 0.86, 0.58)
+## Colour of a sweep (dodge only, card #187): sickly green, near the DODGE readout's green.
+@export var sweep_hit_color: Color = Color(0.6, 0.86, 0.22)
 ## Rhythm rows (intent sign and attack banner): icon centres are this many pixels apart per
 ## millisecond between impacts, so the beat and the pauses of a string show.
 @export_range(0.01, 2.0, 0.01) var rhythm_px_per_ms: float = 0.2
@@ -591,3 +601,17 @@ func fighter_flash_scale(mode: int) -> float:
 		PlayerSettings.FLASH_OFF:
 			return float(flash_off_fighter_percent) / 100.0
 	return 1.0
+
+
+## The colour that says which defence a hit kind needs (DESIGN.md 3.8): `strike_color` for a
+## normal hit (the telegraph or the marker colour, by use), the ground purple, the rend bone or
+## the sweep green.
+func kind_color(kind: int, strike_color: Color) -> Color:
+	match kind:
+		AttackHitData.Kind.GROUND:
+			return ground_hit_color
+		AttackHitData.Kind.REND:
+			return rend_hit_color
+		AttackHitData.Kind.SWEEP:
+			return sweep_hit_color
+	return strike_color

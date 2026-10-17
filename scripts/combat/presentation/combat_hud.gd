@@ -246,6 +246,8 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_hit_icons = {
 		AttackHitData.Kind.NORMAL: AssetLoader.texture(visuals.hit_icon_normal_path, Vector2i(12, 12)),
 		AttackHitData.Kind.GROUND: AssetLoader.texture(visuals.hit_icon_ground_path, Vector2i(12, 12)),
+		AttackHitData.Kind.REND: AssetLoader.texture(visuals.hit_icon_rend_path, Vector2i(12, 12)),
+		AttackHitData.Kind.SWEEP: AssetLoader.texture(visuals.hit_icon_sweep_path, Vector2i(12, 12)),
 	}
 	_timeline = TimelineRow.new()
 	_timeline.name = "Timeline"

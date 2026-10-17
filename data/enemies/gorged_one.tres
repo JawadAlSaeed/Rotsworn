@@ -34,4 +34,5 @@ voice_sfx = "voice_bloat"
 phase_two_hp_percent = 50
 phase_two_attacks = Array[ExtResource("1_0lfg4")]([ExtResource("2_os6rj"), ExtResource("3_d8jt0"), ExtResource("4_7jimn"), ExtResource("5_fuqpq"), ExtResource("6_d82jo"), ExtResource("7_3u3us"), ExtResource("8_qbx23"), ExtResource("9_sufb1")])
 phase_two_speed = 125
+phase_two_tempo_percent = 94
 phase_two_text = "THE GORGED ONE SPLITS ITS SKIN!"

@@ -6,6 +6,7 @@
 [sub_resource type="Resource" id="Hit_0"]
 script = ExtResource("1_hit")
 impact_ms = 1500
+forced_kind = 4
 damage_percent = 110
 approach_ms = 220
 feint = true
