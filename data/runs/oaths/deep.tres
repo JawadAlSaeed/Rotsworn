@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="OathData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="1_y1cym"]
+
+[resource]
+script = ExtResource("1_y1cym")
+id = "deep"
+title = "Oath of the Deep"
+description = "Enemies grow stronger faster with every row."
+enemy_hp_row_add = 2
+enemy_power_row_add = 1

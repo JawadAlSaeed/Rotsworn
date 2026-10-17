@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="OathData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="1_vsekp"]
+
+[resource]
+script = ExtResource("1_vsekp")
+id = "rot"
+title = "Oath of Rot"
+description = "Every enemy hits 10% harder."
+enemy_power_percent_add = 10

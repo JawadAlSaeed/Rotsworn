@@ -52,6 +52,8 @@ var encounter_id: String = ""
 var zone_id: String = ""
 var first_strike: bool = false
 var run: bool = false
+## --oath=N: the oath a bot run (--run) or an autoplay host plays at (-1: none given, the lobby's pick).
+var oath: int = -1
 ## Players from --players (1 = solo).
 var players: int = 1
 ## --host=N (0: not hosting) and --join=ADDRESS ("" : not joining).
@@ -111,6 +113,12 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.first_strike = true
 		elif arg == "--run":
 			options.run = true
+		elif arg.begins_with("--oath="):
+			var level := arg.substr("--oath=".length())
+			if level.is_valid_int() and level.to_int() >= 0:
+				options.oath = level.to_int()
+			else:
+				push_warning("CombatOptions: --oath needs a whole number from 0, got '%s'" % level)
 		elif arg.begins_with("--host="):
 			var wanted := arg.substr("--host=".length())
 			options.host_players = clampi(wanted.to_int(), 1, PlayerRoster.MAX_PLAYERS) if wanted.is_valid_int() else 2

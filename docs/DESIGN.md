@@ -2061,6 +2061,64 @@ phase 14 was the tutorial).
 - `tools/zone_map_preview.gd` draws every zone from above to a picture (ground, water, walls,
   props, enemies, seals, shrines) to check a layout without opening the game.
 
+### 8.13 Oaths (difficulty ladder, card #173, 2026-10-17)
+
+The run's difficulty ladder, like Slay the Spire's Ascension. The game is hard on purpose, so an
+oath only ever makes a run harder; nothing in it makes anything easier. The credits end "Keep the
+oath", and a run at Oath N is that oath kept.
+
+- **Rule**: oath 0 is the plain run. A run at Oath N has the rules of oaths 1 to N, all at once; each
+  oath lists only what it adds, so they stack. `RunData.oaths` holds the ladder in order (Oath 1 is
+  index 0); each is an `OathData` (`data/runs/oaths/*.tres`, written by `tools/bootstrap_oaths.gd`).
+  An `OathData` is a title, one player-facing line and integer changes that default to "no change":
+  `elite_hp_percent_add`, `elite_power_percent_add`, `boss_hp_percent_add`, `boss_power_percent_add`,
+  `enemy_power_percent_add`, `enemy_hp_row_add`, `enemy_power_row_add`, `rest_heal_percent_add`,
+  `act_heal_percent_add`, `start_gold_add`, `shop_price_percent_add`, `loot_choices_add`,
+  `team_gauge_carry_percent_add` and `start_hp_percent` (the lowest one counts, 100 = full).
+  `OathData.total(ladder, oath, field)` sums a change over oaths 1..N (a pure function, tested).
+- **The ladder** (first guess, tune with play):
+
+  | Oath | Name | Adds |
+  |---|---|---|
+  | 1 | Thorns | elites +20% HP and +10% power (on top of the elite numbers in tuning) |
+  | 2 | Want | shops charge 15% more (items, gear and services; selling is unchanged); you start with no gold |
+  | 3 | Embers | the campfire's Rest heals 15 points of percent less (50% becomes 35%) |
+  | 4 | the Deep | enemies grow +2% HP and +1% power more per map row (5% becomes 7%, 3% becomes 4%) |
+  | 5 | Crowns | guards (mini-bosses) and act bosses +15% HP and +10% power |
+  | 6 | Wounds | the party starts the run at 75% HP |
+  | 7 | Scarcity | spoils offer one choice fewer (never fewer than one) |
+  | 8 | Silence | only half of the team gauge carries into the next fight |
+  | 9 | the Long Road | the heal between acts is 25 points of percent less (50% becomes 25%) |
+  | 10 | Rot | every enemy +10% power |
+
+  The run's start gold is 0 in `tuning.tres`, so Want has nothing to take away yet (the field
+  `start_gold_add` works, and is tested, for when the purse is not empty).
+- **Where it lives**: `RunState.oath` (kept inside the ladder by `begin`), and the rules in
+  `RunState`: `begin` (start gold and HP), `fight_setup` (elite, guard / boss and every enemy's
+  power and HP), `enemy_hp_percent` / `enemy_power_percent` (growth per row), `rest_heal_percent`,
+  `act_heal_percent`, `loot_choice_count`, `shop_price` and its item / gear / service prices, and
+  `team_gauge_carry_percent`. The shop and campfire screens show the changed numbers. Bosses and
+  guards still do not grow per row (`run_enemy_scale_bosses`), so the per-row oath touches only the
+  ordinary and elite fights.
+- **Online**: `to_dict` / `apply_dict` carry `oath` (an int from 0 to the ladder's length, else the
+  whole state is refused), so a client plays the host's oath; the host's `run_start` and the lobby
+  messages carry it too.
+- **Unlock**: per machine, in `user://settings.cfg` (`PlayerSettings.highest_oath_unlocked`, starts
+  at 0). Winning a run at Oath N unlocks N+1; it never lowers and stops at the ladder's end
+  (`PlayerSettings.oath_after_win`, pure and tested). Online clients unlock on a win too. Bot runs
+  (`--autoplay`) never write the file.
+- **Picking**: the players screen of a run (New Run and Host Online, not Practice) has an Oath row
+  under the heroes: Left / Right (or Confirm to go round) picks none up to the highest unlocked, and
+  the rules of that oath and the ones below it are listed beside the hero cards (newest first), with
+  the oath's line under the menu. Online only the host picks; a waiting client sees the host's pick.
+  The last pick is kept for the next run in the same session.
+- **Shown**: the map's title says "| Oath N" when N is more than 0. The run's end screen says
+  "OATH N KEPT" (or "OATH N BROKEN" on a defeat) and, when a win opens a new oath, "Oath N+1 unlocked".
+- **Dev switch**: `--oath=N` starts the bot's run (`--run`, or an autoplay host) at oath N (kept
+  inside the ladder) and unlocks up to N on the players screen (`--screen=oaths` shows that
+  screen). The `AUTOPLAY_RESULT run_...` line ends with `oath=N`.
+- Tests: `tests/unit/test_oaths.gd`.
+
 ---
 
 ## 9. Multiplayer (phase 5)
@@ -2242,7 +2300,8 @@ phase 14 was the tutorial).
   picks a shop when it has gold, a rest when someone is at or under 60% HP, else a zone; in zones
   it walks to the guard; in shops it buys what it can for whoever is lowest; it takes the first
   loot and puts every bag item on whoever has the most free slots. Ends with
-  `AUTOPLAY_RESULT run_victory|run_defeat stops=N fights=N level=N gear=N gold=N seed=N`.
+  `AUTOPLAY_RESULT run_victory|run_defeat stops=N fights=N level=N gear=N gold=N seed=N oath=N`
+  (add `--oath=N` to play at an oath, 8.13).
 - Phase 2 (`test_skills.gd` and additions elsewhere): press prompts and press damage, follow-ups
   (declared per ally, voided after missed presses, gauge), the team ultimate (gauge check, all
   strike, revive), revive and heal and AP gifts, Exposed / Guard / Taunt / Slow / Riposte /
@@ -2478,6 +2537,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-16 | The map gets a legend and dims stops the pick cannot lead to | card #162 (planning) |
 | 2026-10-16 | Shop: no Heal service; each shop stocks 4 items, 2 charms, 2 gear (was the whole list) | user: the shop felt cluttered and Heal = a Salve for the same gold |
 | 2026-10-17 | Zones get their own places, ground pieces and water, wind, drifting particles and critters | user: zones must feel alive and fit their theme (8.12) |
+| 2026-10-17 | Oaths: a ten-step difficulty ladder (Thorns, Want, Embers, the Deep, Crowns, Wounds, Scarcity, Silence, the Long Road, Rot), unlocked per machine by winning, picked in the players screen | card #173; the game should be hard, a ladder only ever adds difficulty (8.13) |
 | 2026-10-15 | Lining digits everywhere; bold number font for HP, AP, gauge; slanted bold popups and damage numbers | user: the numbers' font felt cheap |
 | 2026-10-15 | Hero portraits are painted pictures (made by the user with an AI image tool) turned into pixel art; big cards on the players screen, 64x64 faces everywhere else | user (#140, #141); a code-drawn try looked bad |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |

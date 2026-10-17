@@ -25,3 +25,6 @@ extends Resource
 @export var found_items: Array[ItemData] = []
 ## Every piece of gear a run can find (as loot after a guard) or buy (in shops).
 @export var gear: Array[GearData] = []
+## The difficulty ladder (DESIGN.md 8.13), in order: Oath 1 is index 0. A run at Oath N has the
+## rules of oaths 1 to N. Empty: no ladder.
+@export var oaths: Array[OathData] = []

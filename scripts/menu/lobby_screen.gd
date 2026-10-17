@@ -10,23 +10,33 @@ extends CanvasLayer
 ## select screen: the one the cursor is on gets a gold frame, a name plate under each says who
 ## plays it.
 ##
+## A run's screen (not practice) also has an Oath row (DESIGN.md 8.13): left/right picks how hard the
+## run is, from none up to the highest oath this machine unlocked; the rules of the picked oath and
+## those below it are listed beside the cards. Online only the host picks; the clients see its pick.
+##
 ## Online (DESIGN.md 9.2) one player is one machine. The host's screen shows the address friends
 ## type in; players join over the network (Main calls add_peer / remove_peer) and the host hands
 ## heroes out and starts. A client's screen only shows the roster the host sends (set_roster) and
 ## waits; its Back leaves the game.
 
-## Confirmed: play with `players`.
-signal started(players: PlayerRoster)
+## Confirmed: play with `players` at oath `oath` (0: none; always 0 in practice).
+signal started(players: PlayerRoster, oath: int)
 signal back
 ## Online host: the roster changed (to send to the clients).
 signal roster_changed(players: PlayerRoster)
+## Online host: the oath pick changed (to send to the clients).
+signal oath_changed(oath: int)
 
 const TITLE_SIZE: int = 64
 const PLAYER_SIZE: int = 34
 const DETAIL_SIZE: int = 26
 ## Hero cards: the big portrait's top CARD_ROWS rows (the face and shoulders), CARD_SCALE times
 ## its pixels, in a frame CARD_BORDER wide; the name plate under it.
-const CARD_SCALE: int = 2
+const CARD_SCALE: float = 2.0
+## With an oath row the cards are smaller, to make room for the oath's rules beside them.
+const CARD_SCALE_OATH: float = 1.5
+const RULES_WIDTH: float = 640.0
+const RULES_SIZE: int = 22
 const CARD_ROWS: int = 240
 const CARD_BORDER: int = 4
 const CARD_GAP: int = 28
@@ -36,6 +46,11 @@ const CARD_DIM := Color(0.55, 0.55, 0.55)
 
 ## The heroes' big portraits, in hero order (set before setup).
 var hero_portraits: Array[String] = []
+## The oath ladder (set before setup; empty: no Oath row, as in practice), the highest oath this
+## machine may pick, and the oath to start on.
+var oaths: Array[OathData] = []
+var oath_unlocked: int = 0
+var start_oath: int = 0
 
 var _roster: PlayerRoster
 var _hero_names: Array[String] = []
@@ -48,6 +63,9 @@ var _cards: Array[PanelContainer] = []
 var _card_tags: Array[Label] = []
 var _online: bool = false
 var _is_host: bool = true
+var _oath: int = 0
+var _rules_title: Label
+var _rules: Label
 
 
 ## `previous` is the last roster (its hero split is kept when the same players come back);
@@ -59,7 +77,8 @@ func setup(hero_names: Array[String], previous: PlayerRoster, first_device: int)
 	if _roster.device_of_player(0) != first_device:
 		# Someone else opened it: they are P1 now, alone.
 		_roster = PlayerRoster.solo(hero_names.size(), first_device)
-	_build("Players", "", [[&"@updown", "Choose"], [&"@leftright", "Give a hero"],
+	_oath = clampi(start_oath, 0, mini(oath_unlocked, oaths.size()))
+	_build("Players", "", [[&"@updown", "Choose"], [&"@leftright", "Give a hero / pick the oath"],
 			[&"menu_confirm", "Join (another pad or keyboard)"], [&"menu_cancel", "Leave"]])
 
 
@@ -70,10 +89,11 @@ func setup_online(hero_names: Array[String], roster: PlayerRoster, is_host: bool
 	_roster = roster.copy()
 	_online = true
 	_is_host = is_host
+	_oath = clampi(start_oath, 0, mini(oath_unlocked, oaths.size())) if is_host else 0
 	if is_host:
 		var shown := ", ".join(addresses) if not addresses.is_empty() else "(no network found)"
 		_build("Host Online", "Friends join with this address:  %s   (port %d)" % [shown, port],
-				[[&"@updown", "Choose"], [&"@leftright", "Give a hero"], [&"menu_cancel", "Stop hosting"]])
+				[[&"@updown", "Choose"], [&"@leftright", "Give a hero / pick the oath"], [&"menu_cancel", "Stop hosting"]])
 	else:
 		_build("Online Players", "Waiting for the host to start.", [[&"menu_cancel", "Leave"]])
 
@@ -81,6 +101,17 @@ func setup_online(hero_names: Array[String], roster: PlayerRoster, is_host: bool
 ## The roster as it is now (a copy).
 func roster() -> PlayerRoster:
 	return _roster.copy()
+
+
+## The oath picked (0: none).
+func oath() -> int:
+	return _oath
+
+
+## Online client: the host picked oath `oath`.
+func set_oath(oath: int) -> void:
+	_oath = clampi(oath, 0, oaths.size())
+	_refresh()
 
 
 ## Online client: the host sent a new roster.
@@ -130,16 +161,19 @@ func _build(title: String, note: String, hints: Array) -> void:
 		join.visible = false
 		line.add_child(join)
 		_join_hints.append(join)
-	column.add_child(_build_cards())
+	if oaths.is_empty():
+		column.add_child(_build_cards())
+	else:
+		column.add_child(_build_cards_and_rules())
 	_menu = ListMenu.new()
 	column.add_child(_menu)
 	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(detail)
 	ListMenu.screen_footer(self, hints)
 	var blank: Array[Dictionary] = []
-	for i: int in _hero_names.size() + 2:
+	for i: int in _start_row() + 2:
 		blank.append({})
-	_menu.index = _hero_names.size()
+	_menu.index = _start_row()
 	for slot: int in _hero_names.size():
 		_menu.set_row_shown(slot, false)
 	_menu.set_items(blank, detail)
@@ -168,6 +202,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if answer == &"":
 		return
 	var hero := _menu.index if _menu.index < _hero_names.size() else -1
+	if _menu.index == _oath_row() and answer in [&"left", &"right", &"confirm"]:
+		_step_oath(-1 if answer == &"left" else 1, answer == &"confirm")
+		return
 	match answer:
 		&"cancel":
 			Sfx.play("menu_cancel")
@@ -181,10 +218,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				Sfx.play("menu_move")
 				_refresh()
 		&"confirm":
-			if _menu.index == _hero_names.size():
+			if _menu.index == _start_row():
 				Sfx.play("menu_confirm")
-				started.emit(_roster.copy())
-			elif _menu.index == _hero_names.size() + 1:
+				started.emit(_roster.copy(), _oath)
+			elif _menu.index == _back_row():
 				Sfx.play("menu_cancel")
 				back.emit()
 			elif hero >= 0 and _roster.move_hero(hero, 1):
@@ -195,13 +232,16 @@ func _unhandled_input(event: InputEvent) -> void:
 func _online_input(event: InputEvent) -> void:
 	var answer := _menu.handle(event)
 	_update_cards()
-	if answer == &"cancel" or (answer == &"confirm" and _menu.index == _hero_names.size() + 1):
+	if answer == &"cancel" or (answer == &"confirm" and _menu.index == _back_row()):
 		Sfx.play("menu_cancel")
 		back.emit()
 		return
 	if not _is_host:
 		return
 	var hero := _menu.index if _menu.index < _hero_names.size() else -1
+	if _menu.index == _oath_row() and answer in [&"left", &"right", &"confirm"]:
+		_step_oath(-1 if answer == &"left" else 1, answer == &"confirm")
+		return
 	match answer:
 		&"left", &"right":
 			if hero >= 0 and _roster.move_hero(hero, -1 if answer == &"left" else 1):
@@ -209,9 +249,9 @@ func _online_input(event: InputEvent) -> void:
 				_refresh()
 				roster_changed.emit(_roster.copy())
 		&"confirm":
-			if _menu.index == _hero_names.size():
+			if _menu.index == _start_row():
 				Sfx.play("menu_confirm")
-				started.emit(_roster.copy())
+				started.emit(_roster.copy(), _oath)
 			elif hero >= 0 and _roster.move_hero(hero, 1):
 				Sfx.play("menu_move")
 				_refresh()
@@ -261,16 +301,79 @@ func _refresh() -> void:
 			_card_tags[slot].text = "<  %s  >" % tag if coop else tag
 			_card_tags[slot].label_settings.font_color = HudStyle.player_color(owner)
 	var players := "alone" if not coop else "with %d players" % _roster.player_count()
+	var start := _start_row()
 	if _online and not _is_host:
-		_menu.set_item(_hero_names.size(), "Start", false, "Only the host can start.")
-		_menu.set_item(_hero_names.size() + 1, "Leave", true, "Leave the game.")
+		_menu.set_item(start, "Start", false, "Only the host can start.")
+		_menu.set_item(start + 1, "Leave", true, "Leave the game.")
 	elif _online:
-		_menu.set_item(_hero_names.size(), "Start", true, "Start a run %s." % players)
-		_menu.set_item(_hero_names.size() + 1, "Back", true, "Stop hosting.")
+		_menu.set_item(start, "Start", true, "Start a run %s." % players)
+		_menu.set_item(start + 1, "Back", true, "Stop hosting.")
 	else:
-		_menu.set_item(_hero_names.size(), "Start", true, "Play %s." % players)
-		_menu.set_item(_hero_names.size() + 1, "Back", true, "Back to the main menu.")
+		_menu.set_item(start, "Start", true, "Play %s." % players)
+		_menu.set_item(start + 1, "Back", true, "Back to the main menu.")
+	_refresh_oath()
 	_update_cards()
+
+
+# --- the oath row (DESIGN.md 8.13) ---------------------------------------------------------------
+
+## The menu row of the Oath pick (-1: this screen has none), then Start, then Back.
+func _oath_row() -> int:
+	return _hero_names.size() if not oaths.is_empty() else -1
+
+
+func _start_row() -> int:
+	return _hero_names.size() + (0 if oaths.is_empty() else 1)
+
+
+func _back_row() -> int:
+	return _start_row() + 1
+
+
+## The highest oath that can be picked on this screen.
+func _oath_top() -> int:
+	return mini(oath_unlocked, oaths.size())
+
+
+## Moves the oath pick one step. `wrap`: from the top it goes back to none (the Confirm button).
+func _step_oath(step: int, wrap: bool) -> void:
+	if oaths.is_empty() or (_online and not _is_host):
+		Sfx.play("locked")
+		return
+	var next := _oath + step
+	if wrap and next > _oath_top():
+		next = 0
+	next = clampi(next, 0, _oath_top())
+	if next == _oath:
+		Sfx.play("locked")
+		return
+	_oath = next
+	Sfx.play("menu_move")
+	_refresh()
+	if _online:
+		oath_changed.emit(_oath)
+
+
+## The Oath row and the rules beside the cards.
+func _refresh_oath() -> void:
+	if oaths.is_empty():
+		return
+	var chosen: OathData = oaths[_oath - 1] if _oath > 0 else null
+	var mine := not _online or _is_host
+	var text := "Oath   %s%s%s" % ["<  " if mine and _oath > 0 else "", str(_oath) if _oath > 0 else "none",
+			"  >" if mine and _oath < _oath_top() else ""]
+	var detail := "No oath: the road as it is."
+	if chosen != null:
+		detail = "%s: %s" % [chosen.title, chosen.description]
+	if not mine:
+		detail += "  The host picks the oath."
+	elif _oath == _oath_top() and _oath < oaths.size():
+		detail += "  Win a run at this oath to unlock the next."
+	_menu.set_item(_oath_row(), text, true, detail)
+	if _rules_title != null:
+		_rules_title.text = OathData.label(_oath) if _oath > 0 else "No oath"
+		var lines := OathData.rule_lines(oaths, _oath)
+		_rules.text = "\n".join(lines) if not lines.is_empty() else "The road as it is."
 
 
 ## The hero cards in a row: each the hero's big portrait in a frame, a name plate under it.
@@ -294,7 +397,7 @@ func _build_cards() -> HBoxContainer:
 		face.region = Rect2(0.0, 0.0, full.get_width(), mini(CARD_ROWS, full.get_height()))
 		var picture := TextureRect.new()
 		picture.texture = face
-		picture.custom_minimum_size = face.region.size * float(CARD_SCALE)
+		picture.custom_minimum_size = face.region.size * (CARD_SCALE if oaths.is_empty() else CARD_SCALE_OATH)
 		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -310,6 +413,27 @@ func _build_cards() -> HBoxContainer:
 		var tag := HudStyle.make_title("", PLATE_SIZE)
 		plate.add_child(tag)
 		_card_tags.append(tag)
+	return row
+
+
+## The hero cards with the oath's rules panel on their right.
+func _build_cards_and_rules() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 56)
+	row.add_child(_build_cards())
+	var panel := VBoxContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.custom_minimum_size.x = RULES_WIDTH
+	panel.add_theme_constant_override("separation", 10)
+	_rules_title = HudStyle.make_title("", PLATE_SIZE, HudStyle.GOLD)
+	panel.add_child(_rules_title)
+	_rules = HudStyle.make_label("", RULES_SIZE, HudStyle.TEXT)
+	_rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_rules.custom_minimum_size.x = RULES_WIDTH
+	panel.add_child(_rules)
+	row.add_child(panel)
 	return row
 
 

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="OathData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="1_bk0pt"]
+
+[resource]
+script = ExtResource("1_bk0pt")
+id = "crowns"
+title = "Oath of Crowns"
+description = "Guards and bosses have 15% more HP and hit 10% harder."
+boss_hp_percent_add = 15
+boss_power_percent_add = 10

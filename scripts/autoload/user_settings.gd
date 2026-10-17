@@ -7,7 +7,7 @@ extends Node
 ## Holds what belongs to this machine and player rather than to the game's balance: the measured
 ## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
 ## the volumes (overall, music, effects, voices), the display and graphics options, screen shake
-## (settings screen, card #112), the last host address joined online. Anything not
+## (settings screen, card #112), the highest oath unlocked (DESIGN.md 8.13), the last host address joined online. Anything not
 ## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
@@ -50,6 +50,8 @@ const GRAPHICS := {
 }
 const SECTION_GAME := "game"
 const KEY_SHAKE := "screen_shake_percent"
+## The highest oath this machine has unlocked (DESIGN.md 8.13); 0 until a run is won.
+const KEY_OATH_UNLOCKED := "oath_unlocked"
 const KEY_TUTORIAL_OFFERED := "tutorial_offered"
 const SHAKE_STEP_PERCENT: int = 25
 const SECTION_ONLINE := "online"
@@ -244,6 +246,27 @@ static func set_graphics(key: String, value: bool) -> void:
 		return
 	_settings().set_value(SECTION_GRAPHICS, key, value)
 	_save()
+
+
+## The highest oath (difficulty step, DESIGN.md 8.13) unlocked on this machine. 0: only the plain run.
+static func highest_oath_unlocked() -> int:
+	return maxi(0, int(_settings().get_value(SECTION_GAME, KEY_OATH_UNLOCKED, 0)))
+
+
+## What the highest unlocked oath becomes after winning a run at `won_oath` on a ladder of
+## `ladder_size` oaths: one more than the oath won, never lower than `unlocked`, never past the
+## ladder. Pure, so it is tested without a settings file.
+static func oath_after_win(unlocked: int, won_oath: int, ladder_size: int) -> int:
+	return clampi(maxi(unlocked, won_oath + 1), 0, maxi(0, ladder_size))
+
+
+## Records a won run at `won_oath` (online players too). Returns the highest oath unlocked now.
+static func unlock_after_win(won_oath: int, ladder_size: int) -> int:
+	var now := oath_after_win(highest_oath_unlocked(), won_oath, ladder_size)
+	if now != highest_oath_unlocked():
+		_settings().set_value(SECTION_GAME, KEY_OATH_UNLOCKED, now)
+		_save()
+	return now
 
 
 ## True once the tutorial was offered on the first New Run (DESIGN.md 7.8): it is asked once.
