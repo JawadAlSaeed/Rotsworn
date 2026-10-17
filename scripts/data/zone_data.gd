@@ -20,6 +20,12 @@ extends Resource
 @export var blocks: Array[ZoneBlockData] = []
 @export var props: Array[ZonePropData] = []
 @export var lights: Array[ZoneLightData] = []
+## Roads, trails, mud, moss, planks and water laid on the floor (DESIGN.md 8.12).
+@export var grounds: Array[ZoneGroundData] = []
+## Small animals that get away when the leader comes near (DESIGN.md 8.12).
+@export var critters: Array[ZoneCritterData] = []
+## What always drifts through the air here: fireflies, ash, leaves, spores, mist (DESIGN.md 8.12).
+@export var ambient: Array[ZoneAmbientData] = []
 @export var enemies: Array[ZoneEnemyData] = []
 ## Glinting spots (feet on the ground) the leader can pick something up from in a run (DESIGN.md
 ## 8.1). What each holds is picked by the run's seed.

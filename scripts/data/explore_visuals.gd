@@ -109,3 +109,19 @@ extends Resource
 @export var champion_color: Color = Color(0.85, 0.45, 1.0)
 ## Champion tags show this many notice radii away or closer.
 @export_range(0.5, 10.0, 0.1) var champion_tag_range: float = 2.0
+
+@export_group("Life")
+## Critters (DESIGN.md 8.12): they get away when the leader comes this close, play their move
+## frames this fast and are gone after critter_away_s.
+@export_range(0.5, 20.0, 0.1) var critter_flee_radius: float = 3.2
+@export_range(0.02, 1.0, 0.01) var critter_frame_s: float = 0.12
+@export_range(0.2, 10.0, 0.1) var critter_away_s: float = 2.4
+## A crow flies off this fast (sideways, world units a second) while climbing this fast.
+@export_range(0.1, 20.0, 0.1) var crow_speed: float = 4.0
+@export_range(0.0, 20.0, 0.1) var crow_climb: float = 2.6
+## A frog hops away: its speed, one hop's length in seconds and how high it hops.
+@export_range(0.1, 20.0, 0.1) var frog_speed: float = 2.2
+@export_range(0.05, 2.0, 0.01) var frog_hop_s: float = 0.35
+@export_range(0.0, 3.0, 0.01) var frog_hop_height: float = 0.35
+## A rat scurries off this fast.
+@export_range(0.1, 20.0, 0.1) var rat_speed: float = 4.5

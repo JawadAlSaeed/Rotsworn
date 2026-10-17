@@ -23,18 +23,37 @@ position = Vector3(5.5, 0, -6.5)
 size = Vector3(4, 1.4, 0.7)
 texture_path = "res://assets/sprites/env/ruin_wall.png"
 
+[sub_resource type="Resource" id="Resource_zone_light_data_35"]
+script = ExtResource("3_zone_l")
+position = Vector3(-4.2, 1.9, -4.6)
+color = Color(1, 0.68, 0.38, 1)
+energy = 2.2
+flicker_percent = 12
+
+[sub_resource type="Resource" id="Resource_zone_light_data_36"]
+script = ExtResource("3_zone_l")
+position = Vector3(3.6, 0.6, -4.8)
+color = Color(0.35, 1, 0.85, 1)
+energy = 1.6
+reach = 4.5
+
+[sub_resource type="Resource" id="Resource_zone_light_data_37"]
+script = ExtResource("3_zone_l")
+position = Vector3(-6.2, 0.6, -1.2)
+color = Color(0.35, 1, 0.85, 1)
+energy = 1.2
+reach = 3.5
+
 [sub_resource type="Resource" id="Resource_zone_prop_data_3"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(-8, 0, -3)
-pixel_size = 0.06
 solid_radius = 0.6
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_4"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(8.8, 0, -4)
-pixel_size = 0.06
 flip = true
 solid_radius = 0.6
 
@@ -42,7 +61,6 @@ solid_radius = 0.6
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
 position = Vector3(-5.5, 0, -6.5)
-pixel_size = 0.06
 solid_radius = 0.4
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_6"]
@@ -242,66 +260,25 @@ position = Vector3(8.17, 0, -5.19)
 pixel_size = 0.045
 flip = true
 
-[sub_resource type="Resource" id="Resource_zone_light_data_35"]
-script = ExtResource("3_zone_l")
-position = Vector3(-4.2, 1.9, -4.6)
-color = Color(1, 0.68, 0.38, 1)
-energy = 2.2
-reach = 6
-flicker_percent = 12
-
-[sub_resource type="Resource" id="Resource_zone_light_data_36"]
-script = ExtResource("3_zone_l")
-position = Vector3(3.6, 0.6, -4.8)
-color = Color(0.35, 1, 0.85, 1)
-energy = 1.6
-reach = 4.5
-
-[sub_resource type="Resource" id="Resource_zone_light_data_37"]
-script = ExtResource("3_zone_l")
-position = Vector3(-6.2, 0.6, -1.2)
-color = Color(0.35, 1, 0.85, 1)
-energy = 1.2
-reach = 3.5
-
 [resource]
 script = ExtResource("4_stage_")
-floor_tile_path = "res://assets/sprites/env/floor_tile.png"
-floor_tile_world_size = 1.6
+floor_tile_path = "res://assets/sprites/env/leaf_litter.png"
 floor_size = 90.0
-backdrop_path = "res://assets/sprites/env/backdrop.png"
-backdrop_position = Vector3(0, 0, -13)
-backdrop_pixel_size = 0.1
 background_color = Color(0.06, 0.07, 0.1, 1)
 ambient_color = Color(0.34, 0.36, 0.5, 1)
 ambient_energy = 0.65
 light_color = Color(1, 0.86, 0.7, 1)
 light_energy = 1.35
 light_rotation_degrees = Vector3(-48, -35, 0)
-sun_shadows = true
-sun_shadow_opacity = 0.75
 fog_color = Color(0.17, 0.19, 0.28, 1)
 fog_density = 0.02
 fog_height_density = 0.12
 fog_height = 0.4
-volumetric_fog = false
-volumetric_fog_density = 0.02
-volumetric_fog_albedo = Color(0.8, 0.8, 0.9, 1)
-glow_enabled = true
 glow_intensity = 0.9
-glow_strength = 1.0
-glow_bloom = 0.05
 glow_hdr_threshold = 0.85
-tonemap_mode = 2
-tonemap_exposure = 1.0
-tonemap_white = 6.0
-brightness = 1.0
 contrast = 1.12
 saturation = 1.15
-ssao = true
-ssao_intensity = 2.0
 vignette_strength = 0.5
-vignette_color = Color(0, 0, 0.02, 1)
 arena_blocks = Array[ExtResource("1_zone_b")]([SubResource("Resource_zone_block_data_0"), SubResource("Resource_zone_block_data_1"), SubResource("Resource_zone_block_data_2")])
 arena_props = Array[ExtResource("2_zone_p")]([SubResource("Resource_zone_prop_data_3"), SubResource("Resource_zone_prop_data_4"), SubResource("Resource_zone_prop_data_5"), SubResource("Resource_zone_prop_data_6"), SubResource("Resource_zone_prop_data_7"), SubResource("Resource_zone_prop_data_8"), SubResource("Resource_zone_prop_data_9"), SubResource("Resource_zone_prop_data_10"), SubResource("Resource_zone_prop_data_11"), SubResource("Resource_zone_prop_data_12"), SubResource("Resource_zone_prop_data_13"), SubResource("Resource_zone_prop_data_14"), SubResource("Resource_zone_prop_data_15"), SubResource("Resource_zone_prop_data_16"), SubResource("Resource_zone_prop_data_17"), SubResource("Resource_zone_prop_data_18"), SubResource("Resource_zone_prop_data_19"), SubResource("Resource_zone_prop_data_20"), SubResource("Resource_zone_prop_data_21"), SubResource("Resource_zone_prop_data_22"), SubResource("Resource_zone_prop_data_23"), SubResource("Resource_zone_prop_data_24"), SubResource("Resource_zone_prop_data_25"), SubResource("Resource_zone_prop_data_26"), SubResource("Resource_zone_prop_data_27"), SubResource("Resource_zone_prop_data_28"), SubResource("Resource_zone_prop_data_29"), SubResource("Resource_zone_prop_data_30"), SubResource("Resource_zone_prop_data_31"), SubResource("Resource_zone_prop_data_32"), SubResource("Resource_zone_prop_data_33"), SubResource("Resource_zone_prop_data_34")])
 arena_lights = Array[ExtResource("3_zone_l")]([SubResource("Resource_zone_light_data_35"), SubResource("Resource_zone_light_data_36"), SubResource("Resource_zone_light_data_37")])

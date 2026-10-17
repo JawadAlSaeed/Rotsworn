@@ -272,3 +272,52 @@ func test_shipped_deals_make_sense() -> void:
 		assert_gt(gives, 0, "%s gives something" % offer.id)
 		assert_true(ResourceLoader.exists(offer.sprite_path), "%s has its sprite" % offer.id)
 	assert_eq(seen, 7, "four shrines and three wanderers")
+
+
+# --- living zones (DESIGN.md 8.12) --------------------------------------------------------------
+
+func test_deep_water_blocks_walking_but_not_its_shore() -> void:
+	var pool := ZoneGroundData.new()
+	pool.kind = ZoneGroundData.Kind.WATER
+	pool.solid = true
+	pool.round = true
+	pool.size = Vector2(8.0, 4.0)
+	var obstacles := ZoneMotion.ground_obstacles(pool)
+	assert_gt(obstacles.size(), 1, "an ellipse is filled with circles")
+	var into := ZoneMotion.move(Vector2(-6.0, 0.0), Vector2(6.0, 0.0), 0.35, obstacles, Vector2(-20, -20), Vector2(20, 20))
+	assert_lt(into.x, -2.0, "a walker cannot wade into deep water")
+	var past := ZoneMotion.move(Vector2(-6.0, 3.0), Vector2(12.0, 0.0), 0.35, obstacles, Vector2(-20, -20), Vector2(20, 20))
+	assert_almost_eq(past.x, 6.0, 0.01, "and walks past it on the bank")
+	var rect := ZoneGroundData.new()
+	rect.solid = true
+	rect.size = Vector2(6.0, 2.0)
+	rect.rotation_y_degrees = 90.0
+	var box := ZoneMotion.ground_obstacles(rect)
+	assert_eq(box.size(), 1)
+	assert_true(ZonePath._overlaps(Vector2(0.0, 2.5), 0.1, box[0]), "turned with the piece")
+
+
+func test_every_zone_is_alive() -> void:
+	for layout: ZoneData in _zones():
+		var zone := ZoneAssembler.assemble(layout, 3)
+		assert_false(zone.ambient.is_empty(), "%s has something in the air" % zone.id)
+		assert_gt(zone.critters.size(), 3, "%s has critters" % zone.id)
+		assert_gt(zone.grounds.size(), 10, "%s has ground pieces" % zone.id)
+		var swaying := 0
+		for p: ZonePropData in zone.props:
+			if p.sway > 0.0:
+				swaying += 1
+			assert_true(ResourceLoader.exists(p.sprite_path), "%s: %s exists" % [zone.id, p.sprite_path])
+		assert_gt(swaying, 10, "%s: plants sway in the wind" % zone.id)
+		for g: ZoneGroundData in zone.grounds:
+			assert_true(ResourceLoader.exists(g.texture_path), "%s: %s exists" % [zone.id, g.texture_path])
+		for c: ZoneCritterData in zone.critters:
+			assert_true(ResourceLoader.exists(c.sprite_path))
+		for a: ZoneAmbientData in zone.ambient:
+			assert_true(ResourceLoader.exists(a.texture_path))
+	var bog := ZoneAssembler.assemble(load("res://data/zones/sunken_bog.tres") as ZoneData, 3)
+	var water := 0
+	for g: ZoneGroundData in bog.grounds:
+		if g.kind == ZoneGroundData.Kind.WATER and g.solid:
+			water += 1
+	assert_gt(water, 4, "the swamp has deep water")

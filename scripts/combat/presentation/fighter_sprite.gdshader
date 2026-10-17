@@ -27,12 +27,22 @@ uniform vec4 dissolve_edge_color : source_color = vec4(0.85, 1.0, 0.45, 1.0);
 // Rows of cells in the sheet (a grid sheet, DESIGN.md 5.5), so the top-first dissolve bias is
 // measured within the shown cell rather than over the whole sheet.
 uniform float sheet_rows = 1.0;
+// Wind on props (DESIGN.md 8.12): the sprite's top sways this far (world units) and back; the
+// feet stay put. Each prop's phase comes from where it stands, so a field never moves in step.
+uniform float sway = 0.0;
+uniform float sway_speed = 1.1;
 // Width of the glowing edge, as a share of the dissolve range.
 const float DISSOLVE_EDGE = 0.08;
 
 varying vec3 world_normal;
 
 void vertex() {
+	if (sway > 0.0) {
+		float top = 1.0 - UV.y;
+		float phase = MODEL_MATRIX[3].x * 0.9 + MODEL_MATRIX[3].z * 0.53;
+		float wave = sin(TIME * sway_speed + phase) * 0.7 + sin(TIME * sway_speed * 2.3 + phase * 1.7) * 0.3;
+		VERTEX.x += wave * sway * top * top / max(length(MODEL_MATRIX[0].xyz), 0.0001);
+	}
 	vec3 facing = normalize(cross(INV_VIEW_MATRIX[0].xyz, vec3(0.0, 1.0, 0.0)));
 	vec3 scale = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
 	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(

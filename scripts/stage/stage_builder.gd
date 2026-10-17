@@ -7,6 +7,10 @@ extends RefCounted
 
 const PROP_SHADER := preload("res://scripts/combat/presentation/fighter_sprite.gdshader")
 const VIGNETTE_SHADER := preload("res://scripts/stage/vignette.gdshader")
+const GROUND_SHADER := preload("res://scripts/stage/ground_patch.gdshader")
+## Ground pieces float this far over the floor, and this much more per layer (no z-fighting).
+const GROUND_LIFT: float = 0.012
+const GROUND_LAYER_LIFT: float = 0.006
 ## The vignette draws above the 3D view and below every HUD (layer 10 and up).
 const VIGNETTE_LAYER: int = 5
 ## Shadows reach this far from the camera (world units).
@@ -207,8 +211,96 @@ static func prop(data: ZonePropData) -> Sprite3D:
 	mat.set_shader_parameter("sprite_texture", tex)
 	mat.set_shader_parameter("self_glow", data.glow)
 	mat.set_shader_parameter("self_glow_color", data.glow_color)
+	mat.set_shader_parameter("sway", data.sway)
 	sprite.material_override = mat
 	return sprite
+
+
+## A piece of ground on the floor (DESIGN.md 8.12): a road, mud, planks or water.
+static func ground_patch(data: ZoneGroundData) -> MeshInstance3D:
+	var mesh := PlaneMesh.new()
+	mesh.size = data.size
+	var mat := ShaderMaterial.new()
+	mat.shader = GROUND_SHADER
+	var tex := AssetLoader.texture(data.texture_path, Vector2i(32, 32))
+	mat.set_shader_parameter("ground_texture", tex)
+	mat.set_shader_parameter("tile_world", data.texture_world_size)
+	mat.set_shader_parameter("tile_px", float(tex.get_width()) if tex != null else 32.0)
+	mat.set_shader_parameter("tint", data.tint)
+	mat.set_shader_parameter("half_size", data.size * 0.5)
+	mat.set_shader_parameter("round_shape", data.round)
+	mat.set_shader_parameter("edge_noise", data.edge_noise)
+	mat.set_shader_parameter("water", data.kind == ZoneGroundData.Kind.WATER)
+	mat.set_shader_parameter("deep_color", data.deep_color)
+	var node := MeshInstance3D.new()
+	node.mesh = mesh
+	node.material_override = mat
+	node.position = Vector3(data.position.x, GROUND_LIFT + GROUND_LAYER_LIFT * float(data.layer), data.position.z)
+	node.rotation_degrees = Vector3(0.0, data.rotation_y_degrees, 0.0)
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return node
+
+
+## Particles always drifting through a place (DESIGN.md 8.12), in a box around the node's spot
+## (move the node with the camera; the particles stay where they are in the world).
+static func ambient(data: ZoneAmbientData) -> GPUParticles3D:
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	process.emission_box_extents = data.area
+	var speed := data.velocity.length()
+	process.direction = data.velocity.normalized() if speed > 0.0001 else Vector3.UP
+	process.spread = data.spread
+	process.initial_velocity_min = speed * 0.6
+	process.initial_velocity_max = speed * 1.4
+	process.gravity = Vector3.ZERO
+	process.scale_min = 0.7
+	process.scale_max = 1.3
+	if data.wobble > 0.0:
+		process.turbulence_enabled = true
+		process.turbulence_noise_strength = data.wobble
+		process.turbulence_noise_scale = 2.5
+		process.turbulence_influence_min = 0.05
+		process.turbulence_influence_max = 0.15
+	if data.spin:
+		process.angle_min = -180.0
+		process.angle_max = 180.0
+		process.angular_velocity_min = -90.0
+		process.angular_velocity_max = 90.0
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0))
+	fade.set_color(1, Color(1, 1, 1, 0))
+	fade.add_point(0.2, Color(1, 1, 1, 1))
+	fade.add_point(0.8, Color(1, 1, 1, 1))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = fade
+	process.color_ramp = ramp
+	process.color = data.color
+	var quad := QuadMesh.new()
+	quad.size = Vector2(data.size, data.size)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = AssetLoader.texture(data.texture_path, Vector2i(4, 4))
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED if data.glow > 0.0 else BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if data.soft else BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	if data.glow > 0.0:
+		mat.emission_enabled = true
+		mat.emission = data.color
+		mat.emission_energy_multiplier = data.glow
+		mat.emission_texture = mat.albedo_texture
+	quad.material = mat
+	var particles := GPUParticles3D.new()
+	particles.name = "Ambient_" + data.id
+	particles.process_material = process
+	particles.draw_pass_1 = quad
+	particles.amount = data.amount
+	particles.lifetime = data.lifetime
+	particles.preprocess = data.lifetime
+	particles.local_coords = false
+	particles.visibility_aabb = AABB(-data.area - Vector3(20, 10, 20), (data.area + Vector3(20, 10, 20)) * 2.0)
+	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return particles
 
 
 ## A point light, flickering if the data says so.
@@ -222,9 +314,12 @@ static func light(data: ZoneLightData) -> OmniLight3D:
 	return lamp
 
 
-## Adds every block, prop and light under `parent`.
+## Adds every block, prop and light (and ground piece) under `parent`.
 static func add_contents(parent: Node3D, blocks: Array[ZoneBlockData], props: Array[ZonePropData],
-		lights: Array[ZoneLightData]) -> void:
+		lights: Array[ZoneLightData], grounds: Array[ZoneGroundData] = []) -> void:
+	for data: ZoneGroundData in grounds:
+		if data != null:
+			parent.add_child(ground_patch(data))
 	for data: ZoneBlockData in blocks:
 		if data != null:
 			parent.add_child(block(data))

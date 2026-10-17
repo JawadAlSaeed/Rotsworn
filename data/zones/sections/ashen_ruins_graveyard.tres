@@ -1,0 +1,443 @@
+[gd_resource type="Resource" script_class="ZoneSectionData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_7xqh8"]
+[ext_resource type="Script" path="res://scripts/data/zone_critter_data.gd" id="2_eq171"]
+[ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="3_jgxfx"]
+[ext_resource type="Resource" path="res://data/encounters/elite_shade_coven.tres" id="4_w2h4f"]
+[ext_resource type="Script" path="res://scripts/data/zone_ground_data.gd" id="5_dmv6e"]
+[ext_resource type="Script" path="res://scripts/data/zone_light_data.gd" id="6_6knf6"]
+[ext_resource type="Script" path="res://scripts/data/zone_prop_data.gd" id="7_d3uhd"]
+[ext_resource type="Script" path="res://scripts/data/zone_section_data.gd" id="8_sqsbv"]
+
+[sub_resource type="Resource" id="Resource_7xqh8"]
+script = ExtResource("1_7xqh8")
+position = Vector3(9, 0, -14.5)
+size = Vector3(11, 2.4, 0.9)
+rotation_y_degrees = 90.00000250447816
+texture_path = "res://assets/sprites/env/ruin_wall.png"
+
+[sub_resource type="Resource" id="Resource_eq171"]
+script = ExtResource("1_7xqh8")
+position = Vector3(23, 0, -14.5)
+size = Vector3(11, 2.4, 0.9)
+rotation_y_degrees = 90.00000250447816
+texture_path = "res://assets/sprites/env/ruin_wall.png"
+
+[sub_resource type="Resource" id="Resource_jgxfx"]
+script = ExtResource("1_7xqh8")
+position = Vector3(11.3, 0, -9)
+size = Vector3(4.6000004, 2.4, 0.9)
+texture_path = "res://assets/sprites/env/ruin_wall.png"
+
+[sub_resource type="Resource" id="Resource_w2h4f"]
+script = ExtResource("1_7xqh8")
+position = Vector3(20.7, 0, -9)
+size = Vector3(4.6000004, 2.4, 0.9)
+texture_path = "res://assets/sprites/env/ruin_wall.png"
+
+[sub_resource type="Resource" id="Resource_dmv6e"]
+script = ExtResource("2_eq171")
+position = Vector3(6, 0, -9)
+sprite_path = "res://assets/sprites/env/critter_crow.png"
+
+[sub_resource type="Resource" id="Resource_6knf6"]
+script = ExtResource("2_eq171")
+position = Vector3(27, 0, -13)
+sprite_path = "res://assets/sprites/env/critter_crow.png"
+
+[sub_resource type="Resource" id="Resource_d3uhd"]
+script = ExtResource("2_eq171")
+kind = 2
+position = Vector3(12, 0, 6.8)
+sprite_path = "res://assets/sprites/env/critter_rat.png"
+
+[sub_resource type="Resource" id="Resource_sqsbv"]
+script = ExtResource("3_jgxfx")
+encounter = ExtResource("4_w2h4f")
+position = Vector3(16, 0, -13.5)
+wander_radius = 0.0
+champion = true
+prize_spot = Vector3(16, 0, -18)
+
+[sub_resource type="Resource" id="Resource_8ovry"]
+script = ExtResource("3_jgxfx")
+position = Vector3(9, 0, 1.5)
+chance_percent = 80
+
+[sub_resource type="Resource" id="Resource_i3bsy"]
+script = ExtResource("3_jgxfx")
+position = Vector3(24, 0, 1)
+chance_percent = 60
+
+[sub_resource type="Resource" id="Resource_p0nmf"]
+script = ExtResource("5_dmv6e")
+position = Vector3(7.5, 0, 0.8)
+size = Vector2(19.418814, 4)
+rotation_y_degrees = -2.6942844447708314
+texture_path = "res://assets/sprites/env/road_cobble.png"
+edge_noise = 0.45
+layer = 1
+tint = Color(0.86, 0.84, 0.86, 1)
+
+[sub_resource type="Resource" id="Resource_0xdbb"]
+script = ExtResource("5_dmv6e")
+position = Vector3(24.5, 0, 0.8)
+size = Vector2(19.418814, 4)
+rotation_y_degrees = 2.6942844447708314
+texture_path = "res://assets/sprites/env/road_cobble.png"
+edge_noise = 0.45
+layer = 1
+tint = Color(0.86, 0.84, 0.86, 1)
+
+[sub_resource type="Resource" id="Resource_n4wme"]
+script = ExtResource("5_dmv6e")
+position = Vector3(16, 0, -14.5)
+size = Vector2(13, 10.5)
+texture_path = "res://assets/sprites/env/paving.png"
+edge_noise = 0.2
+
+[sub_resource type="Resource" id="Resource_4hwfr"]
+script = ExtResource("5_dmv6e")
+position = Vector3(5, 0, -11)
+size = Vector2(7, 11)
+round = true
+texture_path = "res://assets/sprites/env/ash_ground.png"
+edge_noise = 0.5
+
+[sub_resource type="Resource" id="Resource_i4ln0"]
+script = ExtResource("5_dmv6e")
+position = Vector3(27, 0, -11)
+size = Vector2(7, 11)
+round = true
+texture_path = "res://assets/sprites/env/ash_ground.png"
+edge_noise = 0.5
+
+[sub_resource type="Resource" id="Resource_51mxb"]
+script = ExtResource("6_6knf6")
+position = Vector3(12.5, 1.6, -7.2999997)
+color = Color(1, 0.55, 0.25, 1)
+energy = 2.8
+reach = 7.5
+flicker_percent = 18
+
+[sub_resource type="Resource" id="Resource_b2b72"]
+script = ExtResource("6_6knf6")
+position = Vector3(19.5, 1.6, -7.2999997)
+color = Color(1, 0.55, 0.25, 1)
+energy = 2.8
+reach = 7.5
+flicker_percent = 18
+
+[sub_resource type="Resource" id="Resource_dobme"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/brazier.png"
+position = Vector3(12.5, 0, -7.6)
+pixel_size = 0.05
+solid_radius = 0.4
+glow = 1.0
+glow_color = Color(1, 0.55, 0.25, 1)
+
+[sub_resource type="Resource" id="Resource_u6p0u"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/brazier.png"
+position = Vector3(19.5, 0, -7.6)
+pixel_size = 0.05
+solid_radius = 0.4
+glow = 1.0
+glow_color = Color(1, 0.55, 0.25, 1)
+
+[sub_resource type="Resource" id="Resource_cxtbn"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(2, 0, -6.5)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_05510"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(30, 0, -6.2)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_n3y8h"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(3.9, 0, -6.1)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_sta0m"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(28.1, 0, -5.8)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_ohy7l"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(5.8, 0, -6.5)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_y2jo0"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(26.2, 0, -6.2)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_mctht"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(7.7, 0, -6.1)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_2vqt5"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(24.3, 0, -5.8)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_wni1r"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(2, 0, -10.1)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_o2xg3"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(30, 0, -9.8)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_7qbpf"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(3.9, 0, -9.7)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_ld6cw"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(28.1, 0, -9.4)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_7fn7l"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(5.8, 0, -10.1)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_xdfvh"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(26.2, 0, -9.8)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_2nsus"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(7.7, 0, -9.7)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_koxoh"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(24.3, 0, -9.4)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_a2tw4"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(2, 0, -13.7)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_skscb"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(30, 0, -13.4)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_y5gjg"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(3.9, 0, -13.3)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_i32x0"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(28.1, 0, -13)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_rnpne"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(5.8, 0, -13.7)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_4m0vf"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(26.2, 0, -13.4)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_hnbo4"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(7.7, 0, -13.3)
+pixel_size = 0.05
+
+[sub_resource type="Resource" id="Resource_sjhug"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/gravestone.png"
+position = Vector3(24.3, 0, -13)
+pixel_size = 0.05
+flip = true
+
+[sub_resource type="Resource" id="Resource_lrppf"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/dead_tree.png"
+position = Vector3(5, 0, 6.5)
+solid_radius = 0.4
+
+[sub_resource type="Resource" id="Resource_3b81w"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/dead_tree.png"
+position = Vector3(27.5, 0, -18)
+flip = true
+solid_radius = 0.4
+
+[sub_resource type="Resource" id="Resource_g5j8w"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/bones.png"
+position = Vector3(13, 0, -15.5)
+pixel_size = 0.045
+
+[sub_resource type="Resource" id="Resource_jh775"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/bones.png"
+position = Vector3(24, 0, 6)
+pixel_size = 0.045
+
+[sub_resource type="Resource" id="Resource_n0yba"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(25.18, 0, 5.99)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_833f5"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(13.95, 0, -7.52)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_orus7"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(16.33, 0, -15.82)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_gwnco"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(13.78, 0, 6.45)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_oo7rh"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(13.31, 0, -0.02)
+pixel_size = 0.045
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_owokp"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(1, 0, -16.8)
+pixel_size = 0.045
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_twfvy"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(2.22, 0, -11.96)
+pixel_size = 0.045
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_pi4gb"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(11.91, 0, -11.46)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_von0x"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(20.3, 0, -0.77)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_d60yv"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(9.94, 0, 0.89)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_k66xx"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/pillar.png"
+position = Vector3(4.28, 0, -19.5)
+pixel_size = 0.055
+
+[sub_resource type="Resource" id="Resource_67q6d"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/arch_broken.png"
+position = Vector3(12.21, 0, -19.6)
+pixel_size = 0.055
+
+[sub_resource type="Resource" id="Resource_iigo2"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/wall_low.png"
+position = Vector3(21.12, 0, -19.4)
+pixel_size = 0.055
+
+[sub_resource type="Resource" id="Resource_tp5bk"]
+script = ExtResource("7_d3uhd")
+sprite_path = "res://assets/sprites/env/pillar.png"
+position = Vector3(27.41, 0, -19.5)
+pixel_size = 0.055
+
+[resource]
+script = ExtResource("8_sqsbv")
+id = "ashen_ruins_graveyard"
+width = 32.0
+blocks = Array[ExtResource("1_7xqh8")]([SubResource("Resource_7xqh8"), SubResource("Resource_eq171"), SubResource("Resource_jgxfx"), SubResource("Resource_w2h4f")])
+props = Array[ExtResource("7_d3uhd")]([SubResource("Resource_dobme"), SubResource("Resource_u6p0u"), SubResource("Resource_cxtbn"), SubResource("Resource_05510"), SubResource("Resource_n3y8h"), SubResource("Resource_sta0m"), SubResource("Resource_ohy7l"), SubResource("Resource_y2jo0"), SubResource("Resource_mctht"), SubResource("Resource_2vqt5"), SubResource("Resource_wni1r"), SubResource("Resource_o2xg3"), SubResource("Resource_7qbpf"), SubResource("Resource_ld6cw"), SubResource("Resource_7fn7l"), SubResource("Resource_xdfvh"), SubResource("Resource_2nsus"), SubResource("Resource_koxoh"), SubResource("Resource_a2tw4"), SubResource("Resource_skscb"), SubResource("Resource_y5gjg"), SubResource("Resource_i32x0"), SubResource("Resource_rnpne"), SubResource("Resource_4m0vf"), SubResource("Resource_hnbo4"), SubResource("Resource_sjhug"), SubResource("Resource_lrppf"), SubResource("Resource_3b81w"), SubResource("Resource_g5j8w"), SubResource("Resource_jh775"), SubResource("Resource_n0yba"), SubResource("Resource_833f5"), SubResource("Resource_orus7"), SubResource("Resource_gwnco"), SubResource("Resource_oo7rh"), SubResource("Resource_owokp"), SubResource("Resource_twfvy"), SubResource("Resource_pi4gb"), SubResource("Resource_von0x"), SubResource("Resource_d60yv"), SubResource("Resource_k66xx"), SubResource("Resource_67q6d"), SubResource("Resource_iigo2"), SubResource("Resource_tp5bk")])
+lights = Array[ExtResource("6_6knf6")]([SubResource("Resource_51mxb"), SubResource("Resource_b2b72")])
+grounds = Array[ExtResource("5_dmv6e")]([SubResource("Resource_p0nmf"), SubResource("Resource_0xdbb"), SubResource("Resource_n4wme"), SubResource("Resource_4hwfr"), SubResource("Resource_i4ln0")])
+critters = Array[ExtResource("2_eq171")]([SubResource("Resource_dmv6e"), SubResource("Resource_6knf6"), SubResource("Resource_d3uhd")])
+enemies = Array[ExtResource("3_jgxfx")]([SubResource("Resource_sqsbv"), SubResource("Resource_8ovry"), SubResource("Resource_i3bsy")])
+item_spots = Array[Vector3]([Vector3(9, 0, 7.5)])
+seal_spots = Array[Vector3]([Vector3(4, 0, -17), Vector3(28, 0, -15)])
+wanderer_spots = Array[Vector3]([Vector3(29, 0, 6.5)])

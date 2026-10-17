@@ -10,6 +10,8 @@ extends RefCounted
 const PASSES: int = 3
 ## Long steps are split so a fast walker never jumps through a thin wall.
 const MAX_STEP: float = 0.25
+## Deep water blocks from this far inside its drawn edge (the ragged shore can be stepped on).
+const SHORE: float = 0.35
 
 
 ## The obstacles of a zone: solid props (circles) and solid blocks (boxes).
@@ -22,6 +24,35 @@ static func obstacles(zone: ZoneData) -> Array[Dictionary]:
 		if block != null and block.solid:
 			list.append({"centre": Vector2(block.position.x, block.position.z),
 					"half": Vector2(block.size.x, block.size.z) * 0.5, "angle": deg_to_rad(block.rotation_y_degrees)})
+	for ground: ZoneGroundData in zone.grounds:
+		if ground != null and ground.solid:
+			list.append_array(ground_obstacles(ground))
+	return list
+
+
+## Deep water as obstacles (DESIGN.md 8.12): a rectangle is a box kept a little inside its ragged
+## edge; an ellipse is a row of circles along its long axis that fill it.
+static func ground_obstacles(ground: ZoneGroundData) -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	var centre := Vector2(ground.position.x, ground.position.z)
+	var angle := deg_to_rad(ground.rotation_y_degrees)
+	var half := ground.size * 0.5 - Vector2(SHORE, SHORE)
+	if half.x <= 0.0 or half.y <= 0.0:
+		return list
+	if not ground.round:
+		list.append({"centre": centre, "half": half, "angle": angle})
+		return list
+	var long_x := half.x >= half.y
+	var a := half.x if long_x else half.y
+	var b := half.y if long_x else half.x
+	var axis := (Vector2.RIGHT if long_x else Vector2.DOWN).rotated(-angle)
+	var count := maxi(1, ceili(a / b * 1.5))
+	for i: int in count:
+		var t := 0.0 if count == 1 else lerpf(-1.0, 1.0, float(i) / float(count - 1))
+		var along := t * (a - b * 0.6)
+		var r := b * sqrt(maxf(0.0, 1.0 - (along / a) * (along / a)))
+		if r > 0.2:
+			list.append({"centre": centre + axis * along, "radius": r})
 	return list
 
 

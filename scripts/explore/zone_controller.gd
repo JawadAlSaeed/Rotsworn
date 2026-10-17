@@ -118,6 +118,13 @@ var _gate_obstacle: Dictionary = {}
 var _offers: Array[Dictionary] = []
 ## Champions' prize chests: {pos: Vector2, view: Sprite3D, roamer: int, opened: bool}.
 var _prizes: Array[Dictionary] = []
+## Drifting particles (DESIGN.md 8.12): {node: GPUParticles3D, height: float}; they follow the
+## camera's spot.
+var _ambient: Array[Dictionary] = []
+## Crows, frogs and rats: {data, view: Sprite3D, pos: Vector3, state: 0 idle / 1 away / 2 gone,
+## t: seconds in the state, next: seconds to the next idle frame, dir: float (-1 / 1), frame}.
+var _critters: Array[Dictionary] = []
+var _critter_rng := RandomNumberGenerator.new()
 
 
 func configure(zone: ZoneData, tuning: Tuning, visuals: CombatVisuals, explore: ExploreVisuals,
@@ -660,7 +667,14 @@ func _build() -> void:
 	var centre := (_zone.bounds_min + _zone.bounds_max) * 0.5
 	var cover := _zone.bounds_max - _zone.bounds_min + Vector2(FLOOR_MARGIN, FLOOR_MARGIN) * 2.0
 	_world.add_child(StageBuilder.ground(look, Vector3(centre.x, 0.0, centre.y), cover))
-	StageBuilder.add_contents(_world, _zone.blocks, _zone.props, _zone.lights)
+	StageBuilder.add_contents(_world, _zone.blocks, _zone.props, _zone.lights, _zone.grounds)
+	for data: ZoneAmbientData in _zone.ambient:
+		if data != null:
+			var particles := StageBuilder.ambient(data)
+			_world.add_child(particles)
+			_ambient.append({"node": particles, "height": data.height})
+	for i: int in _zone.critters.size():
+		_add_critter(_zone.critters[i], i)
 	add_child(StageBuilder.vignette(look))
 	_obstacles = ZoneMotion.obstacles(_zone)
 	_slash_texture = AssetLoader.texture(_visuals.slash_path, Vector2i(32, 32))
@@ -814,6 +828,73 @@ func _add_offer(data: ZoneOfferData, pos: Vector3) -> void:
 	_offers.append(entry)
 
 
+## A crow, frog or rat (DESIGN.md 8.12): a 4-frame sprite (idle, idle, move, move) lit like a prop.
+func _add_critter(data: ZoneCritterData, index: int) -> void:
+	if data == null:
+		return
+	var prop := ZonePropData.new()
+	prop.sprite_path = data.sprite_path
+	prop.pixel_size = data.pixel_size
+	prop.position = data.position
+	prop.flip = data.flip
+	var view := StageBuilder.prop(prop)
+	view.hframes = 4
+	view.frame = 0
+	_world.add_child(view)
+	_critter_rng.seed = hash(_zone.id) + index * 7
+	_critters.append({"data": data, "view": view, "pos": data.position, "state": 0, "t": 0.0,
+			"next": _critter_rng.randf_range(0.3, 1.5), "dir": -1.0 if data.flip else 1.0, "frame": 0})
+
+
+## The drifting particles follow the camera's spot; critters idle, then get away from the leader.
+func _update_life(delta: float) -> void:
+	var spot := Vector3(_leader_pos.x, 0.0, _leader_pos.y)
+	for a: Dictionary in _ambient:
+		(a.node as GPUParticles3D).global_position = spot + Vector3(0.0, float(a.height), 0.0)
+	for c: Dictionary in _critters:
+		_update_critter(c, delta)
+
+
+func _update_critter(c: Dictionary, delta: float) -> void:
+	var view := c.view as Sprite3D
+	var data := c.data as ZoneCritterData
+	c.t = float(c.t) + delta
+	match int(c.state):
+		0:
+			c.next = float(c.next) - delta
+			if float(c.next) <= 0.0:
+				c.frame = 1 - int(c.frame)
+				view.frame = int(c.frame)
+				c.next = _critter_rng.randf_range(0.4, 1.6)
+			var pos: Vector3 = c.pos
+			if Vector2(pos.x, pos.z).distance_to(_leader_pos) <= _explore.critter_flee_radius:
+				c.state = 1
+				c.t = 0.0
+				c.dir = 1.0 if pos.x >= _leader_pos.x else -1.0
+				# The art faces right.
+				view.flip_h = c.dir < 0.0
+		1:
+			var t := float(c.t)
+			var step: Vector3
+			match data.kind:
+				ZoneCritterData.Kind.CROW:
+					step = Vector3(c.dir * _explore.crow_speed, _explore.crow_climb, -_explore.crow_speed * 0.4) * delta
+				ZoneCritterData.Kind.FROG:
+					step = Vector3(c.dir * _explore.frog_speed * delta, 0.0, 0.0)
+				_:
+					step = Vector3(c.dir * _explore.rat_speed * delta, 0.0, 0.0)
+			c.pos = (c.pos as Vector3) + step
+			var pos: Vector3 = c.pos
+			var hop := 0.0
+			if data.kind == ZoneCritterData.Kind.FROG:
+				hop = absf(sin(t * PI / maxf(0.05, _explore.frog_hop_s))) * _explore.frog_hop_height
+			view.position = pos + Vector3(0.0, hop, 0.0)
+			view.frame = 2 + (int(t / _explore.critter_frame_s) % 2)
+			if t >= _explore.critter_away_s:
+				c.state = 2
+				view.visible = false
+
+
 # --- every frame ------------------------------------------------------------------------------
 
 func _process(delta: float) -> void:
@@ -827,6 +908,7 @@ func _process(delta: float) -> void:
 		_place_walkers(delta)
 		_follow_camera(delta)
 		_update_marks()
+		_update_life(delta)
 		return
 	var move := bot_move if use_bot else _leader_input()
 	var striking := _time_ms < _strike_until_ms
@@ -874,6 +956,7 @@ func _process(delta: float) -> void:
 	_place_walkers(delta)
 	_follow_camera(delta)
 	_update_marks()
+	_update_life(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:

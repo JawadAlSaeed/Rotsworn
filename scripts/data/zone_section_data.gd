@@ -11,6 +11,10 @@ extends Resource
 @export var blocks: Array[ZoneBlockData] = []
 @export var props: Array[ZonePropData] = []
 @export var lights: Array[ZoneLightData] = []
+## Roads, trails, mud, moss, planks and water (DESIGN.md 8.12).
+@export var grounds: Array[ZoneGroundData] = []
+## Crows, frogs and rats (DESIGN.md 8.12).
+@export var critters: Array[ZoneCritterData] = []
 ## Roaming enemies, guards and champions. An enemy with no encounter takes one from the zone's
 ## roamer_pool; chance_percent decides whether it is there on a visit.
 @export var enemies: Array[ZoneEnemyData] = []

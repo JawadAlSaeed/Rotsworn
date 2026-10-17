@@ -1,54 +1,54 @@
 extends SceneTree
-## Writes the long zones of phase 15 (DESIGN.md 8.5): the shrines and wanderers (data/offers/), the
+## Writes the long zones (DESIGN.md 8.5, 8.12): the shrines and wanderers (data/offers/), the
 ## sections of each zone (data/zones/sections/) and the zones themselves (data/zones/), which keep
-## their id, name, look, leader, map picture, sounds and fights but are now built from sections.
-## Every zone gets the same five kinds of middle section, dressed in its own props and walls (some
-## mirrored left to right): Fork (a wall splits off a back path), Yard (a champion's walled yard),
-## Pass (cliffs squeeze the way), Court (pillars and ruins), Loop (a rock mass to walk around).
-## Run: Godot --headless --path . -s tools/bootstrap_zones.gd   (rewrites every file it owns)
+## their id, name, look, leader, map picture, sounds and fights but are built from sections.
+## Every zone has its own places (user, 2026-10-17: "the ruins should have ruins, roads; the swamp
+## should have a swamp, jungle; make the zones feel alive"):
+## - Ashen Ruins, a dead city: a cobbled road through it all, a gate, an old road between broken
+##   walls, a plaza with a dry fountain and statues, a colonnade, a walled graveyard with a crypt
+##   (the champion), a collapsed hall; braziers, banners, ash falling, embers, crows and rats.
+## - Sunken Bog, swamp and jungle: water everywhere with boardwalks across, a stilt village, a
+##   mangrove tangle, a lily pond (the champion on a spit of land), a glowing mushroom grove;
+##   reeds, lily pads, lanterns, fireflies, mist and spores, frogs and crows.
+## - Rotten Hollow, a rotting forest: a dirt trail under dense trees, a forest trail with a side
+##   clearing, a woodcutter's camp with a campfire, a ruined chapel yard (the champion), a thorn
+##   thicket, a giant fallen tree; ferns, bushes, falling leaves, fireflies, crows and rats.
+## Solid decoration keeps clear of every spot that matters and of water; tests check that every
+## spot can be reached on many visits (tests/unit/test_long_zones.gd).
+## Run: Godot --headless --path . -s tools/bootstrap_zones.gd   (after tools/bootstrap_phase15.gd)
 
 const ENV := "res://assets/sprites/env/"
+const FX := "res://assets/sprites/fx/"
 const SHROOM_GLOW := Color(0.35, 1.0, 0.85)
 const LAMP_LIGHT := Color(1.0, 0.68, 0.38)
 const BOG_LIGHT := Color(0.55, 1.0, 0.6)
+const FIRE_LIGHT := Color(1.0, 0.55, 0.25)
 ## The depth of every long zone (z), the same frame every section is drawn in.
 const Z_BACK: float = -20.0
 const Z_FRONT: float = 10.0
-## Solid decoration keeps this far from every spot that matters and out of the main lane.
-const KEEP_OUT: float = 2.2
-const LANE_KEEP: float = 3.6
-## A block in front of the lane (toward the camera) is never taller than this, so it never hides
-## the leader.
-const FRONT_HEIGHT: float = 1.3
+## Scattered solid decoration keeps this far from every spot that matters.
+const KEEP_OUT: float = 2.0
 
 var _written: int = 0
+var _rng := RandomNumberGenerator.new()
 
 
 func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://data/offers"))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://data/zones/sections"))
 	var offers := _offers()
-	_zone("rotten_hollow", offers, {
-		"edge": "cliff", "wall": "ruin_wall", "rock_block": "cliff",
-		"trees": [["rotten_tree", 0.06, 0.6], ["dead_tree", 0.06, 0.4]],
-		"glow": SHROOM_GLOW, "light": LAMP_LIGHT, "grass": 18, "shrooms": 2, "lamps": true,
-		"champion": "res://data/encounters/elite_twin_husks.tres", "flip": [],
-		"guard": "res://data/encounters/guard_gorged_one.tres",
-	})
-	_zone("sunken_bog", offers, {
-		"edge": "cliff", "wall": "ruin_wall", "rock_block": "cliff",
-		"trees": [["rotten_tree", 0.06, 0.6], ["rotten_tree", 0.06, 0.6], ["dead_tree", 0.06, 0.4]],
-		"glow": BOG_LIGHT, "light": BOG_LIGHT, "grass": 14, "shrooms": 5, "lamps": false,
-		"champion": "res://data/encounters/elite_toad_court.tres", "flip": ["fork", "pass"],
-		"guard": "res://data/encounters/guard_mire_mother.tres",
-	})
-	_zone("ashen_ruins", offers, {
-		"edge": "ruin_wall", "wall": "ruin_wall", "rock_block": "cliff",
-		"trees": [["dead_tree", 0.06, 0.4], ["pillar", 0.055, 0.45]],
-		"glow": SHROOM_GLOW, "light": LAMP_LIGHT, "grass": 10, "shrooms": 1, "lamps": true,
-		"champion": "res://data/encounters/elite_shade_coven.tres", "flip": ["yard", "loop"],
-		"guard": "res://data/encounters/guard_ash_warden.tres",
-	})
+	_zone("ashen_ruins", offers, "res://data/encounters/guard_ash_warden.tres", ENV + "ruin_wall.png",
+			[_start_ruins(), _ruins_road(), _ruins_plaza(), _ruins_colonnade(), _ruins_graveyard(), _ruins_hall(),
+			_end_ruins()], _ruins_air())
+	_zone("sunken_bog", offers, "res://data/encounters/guard_mire_mother.tres", "",
+			[_start_bog(), _bog_boardwalk(), _bog_village(), _bog_mangroves(), _bog_pond(), _bog_grove(), _end_bog()],
+			_bog_air())
+	_zone("rotten_hollow", offers, "res://data/encounters/guard_gorged_one.tres", "",
+			[_start_hollow(), _hollow_trail(), _hollow_camp(), _hollow_chapel(), _hollow_thicket(), _hollow_fallen(),
+			_end_hollow()], _hollow_air())
+	var hollow_look := load("res://data/looks/rotten_hollow.tres") as StageLook
+	hollow_look.floor_tile_path = ENV + "leaf_litter.png"
+	_save(hollow_look, hollow_look.resource_path)
 	print("bootstrap_zones: wrote %d files" % _written)
 	quit()
 
@@ -113,24 +113,24 @@ func _offer(id: String, title: String, kind: ZoneOfferData.Kind, sprite: String,
 
 # --- a zone -----------------------------------------------------------------------------------
 
-func _zone(id: String, offers: Dictionary, theme: Dictionary) -> void:
+## `sections`: start, five middles, end (each already built, saved here). `edge`: the texture of the
+## walls along the back and the ends ("" for none: a tree line stands there instead).
+func _zone(id: String, offers: Dictionary, guard_path: String, edge: String, sections: Array,
+		ambient: Array[ZoneAmbientData]) -> void:
 	var path := "res://data/zones/%s.tres" % id
 	var zone := load(path) as ZoneData
-	# The roaming fights: the zone's pool once it is a long zone, else its old roaming enemies.
 	var pool: Array[EncounterData] = []
 	pool.assign(zone.roamer_pool)
-	for e: ZoneEnemyData in zone.enemies:
-		if e != null and e.encounter != null and not e.guard and not pool.has(e.encounter):
-			pool.append(e.encounter)
-	var guard := load(String(theme.guard)) as EncounterData
-	if guard == null:
-		push_error("bootstrap_zones: %s has no guard (run tools/bootstrap_phase15.gd first)" % id)
-		return
-	theme["id"] = id
-	theme["guard"] = guard
+	var guard := load(guard_path) as EncounterData
+	for sec: ZoneSectionData in sections:
+		for e: ZoneEnemyData in sec.enemies:
+			if e.guard:
+				e.encounter = guard
 	zone.blocks.clear()
 	zone.props.clear()
 	zone.lights.clear()
+	zone.grounds.clear()
+	zone.critters.clear()
 	zone.enemies.clear()
 	zone.item_spots.clear()
 	zone.chests.clear()
@@ -138,6 +138,7 @@ func _zone(id: String, offers: Dictionary, theme: Dictionary) -> void:
 	zone.gate = null
 	zone.offers.clear()
 	zone.offer_spots.clear()
+	zone.ambient.assign(ambient)
 	zone.bounds_min = Vector2(0.0, Z_BACK)
 	zone.bounds_max = Vector2(1.0, Z_FRONT)
 	zone.player_start = Vector3.ZERO
@@ -146,191 +147,965 @@ func _zone(id: String, offers: Dictionary, theme: Dictionary) -> void:
 	zone.wanderers.assign([offers.peddler, offers.robber, offers.pilgrim])
 	zone.wanderer_percent = 60
 	zone.middle_count = 3
-	zone.edge_texture_path = ENV + String(theme.edge) + ".png"
+	zone.edge_texture_path = edge
 	zone.edge_height = 4.5
-	zone.start_section = _section(_start(theme), theme)
-	zone.middle_sections.assign([
-		_section(_fork(theme), theme),
-		_section(_yard(theme), theme),
-		_section(_pass(theme), theme),
-		_section(_court(theme), theme),
-		_section(_loop(theme), theme),
-	])
-	zone.end_section = _section(_end(theme), theme)
+	var saved: Array[ZoneSectionData] = []
+	for sec: ZoneSectionData in sections:
+		sec.id = "%s_%s" % [id, sec.id]
+		saved.append(_save(sec, "res://data/zones/sections/%s.tres" % sec.id) as ZoneSectionData)
+	zone.start_section = saved[0]
+	zone.middle_sections.assign(saved.slice(1, 6))
+	zone.end_section = saved[6]
 	_save(zone, path)
+	for old: String in DirAccess.get_files_at("res://data/zones/sections"):
+		if old.begins_with(id + "_") and old.ends_with(".tres"):
+			var keep := false
+			for sec: ZoneSectionData in saved:
+				keep = keep or old == sec.id + ".tres"
+			if not keep:
+				DirAccess.remove_absolute(ProjectSettings.globalize_path("res://data/zones/sections/" + old))
 
 
-## Mirrors a section left to right when its zone asks, adds the decoration, saves it.
-func _section(sec: ZoneSectionData, theme: Dictionary) -> ZoneSectionData:
-	var kind := sec.id
-	sec.id = "%s_%s" % [theme.id, kind]
-	if (theme.flip as Array).has(kind):
-		_mirror(sec)
-	_decorate(sec, theme)
-	return _save(sec, "res://data/zones/sections/%s.tres" % sec.id) as ZoneSectionData
-
-
-func _mirror(sec: ZoneSectionData) -> void:
-	var w := sec.width
-	var flip := func(v: Vector3) -> Vector3: return Vector3(w - v.x, v.y, v.z)
-	for b: ZoneBlockData in sec.blocks:
-		b.position = flip.call(b.position)
-		b.rotation_y_degrees = -b.rotation_y_degrees
-	for p: ZonePropData in sec.props:
-		p.position = flip.call(p.position)
-		p.flip = not p.flip
-	for l: ZoneLightData in sec.lights:
-		l.position = flip.call(l.position)
-	for e: ZoneEnemyData in sec.enemies:
-		e.position = flip.call(e.position)
-		e.prize_spot = flip.call(e.prize_spot)
-	for list: Array[Vector3] in [sec.item_spots, sec.chests, sec.seal_spots, sec.shrine_spots, sec.wanderer_spots]:
-		for i: int in list.size():
-			list[i] = flip.call(list[i])
-	if sec.gate != null:
-		sec.gate.position = flip.call(sec.gate.position)
-
-
-# --- the sections -----------------------------------------------------------------------------
-
-## The way in: the party arrives at the left. A lamp and a glinting spot by the back wall.
-func _start(theme: Dictionary) -> ZoneSectionData:
-	var sec := _new("start", 16.0)
-	sec.player_start = Vector3(3.0, 0.0, 1.0)
-	sec.item_spots.append(Vector3(9.0, 0.0, -14.0))
-	_lamp(sec, theme, Vector3(6.0, 0.0, -4.5))
-	_lamp(sec, theme, Vector3(12.0, 0.0, 4.5))
-	return sec
-
-
-## A long wall splits the way: the main lane in front, a back path behind it that runs the whole
-## section, with the seal and a find at its far end.
-func _fork(theme: Dictionary) -> ZoneSectionData:
-	var sec := _new("fork", 30.0)
-	sec.blocks.append(_block(Vector3(15.0, 0.0, -6.0), Vector3(18.0, 1.8, 0.9), theme.wall))
-	sec.blocks.append(_block(Vector3(15.0, 0.0, -13.0), Vector3(10.0, 3.0, 3.0), theme.rock_block))
-	sec.seal_spots.assign([Vector3(15.0, 0.0, -16.5), Vector3(15.0, 0.0, -9.0)])
-	sec.item_spots.append(Vector3(26.0, 0.0, -15.0))
-	sec.shrine_spots.append(Vector3(15.0, 0.0, 6.5))
-	sec.enemies.append(_roamer(Vector3(10.0, 0.0, 1.0), 2.5, 80))
-	sec.enemies.append(_roamer(Vector3(22.0, 0.0, -10.0), 2.0, 70))
-	sec.enemies.append(_roamer(Vector3(24.0, 0.0, 5.0), 2.0, 40))
-	_lamp(sec, theme, Vector3(5.0, 0.0, -4.5))
-	_lamp(sec, theme, Vector3(25.0, 0.0, -4.5))
-	return sec
-
-
-## A walled yard at the back with one way in: a champion stands guard over its prize chest.
-func _yard(theme: Dictionary) -> ZoneSectionData:
-	var sec := _new("yard", 30.0)
-	sec.blocks.append(_block(Vector3(8.0, 0.0, -14.5), Vector3(0.9, 2.2, 11.0), theme.wall))
-	sec.blocks.append(_block(Vector3(22.0, 0.0, -14.5), Vector3(0.9, 2.2, 11.0), theme.wall))
-	sec.blocks.append(_block(Vector3(10.25, 0.0, -9.0), Vector3(4.5, 2.2, 0.9), theme.wall))
-	sec.blocks.append(_block(Vector3(19.75, 0.0, -9.0), Vector3(4.5, 2.2, 0.9), theme.wall))
-	var champion := _roamer(Vector3(15.0, 0.0, -14.0), 0.0, 100)
-	champion.encounter = load(String(theme.champion)) as EncounterData
-	champion.champion = true
-	champion.prize_spot = Vector3(15.0, 0.0, -18.0)
-	sec.enemies.append(champion)
-	sec.seal_spots.assign([Vector3(4.0, 0.0, -16.0), Vector3(26.5, 0.0, -16.0)])
-	sec.item_spots.append(Vector3(5.0, 0.0, 7.5))
-	sec.wanderer_spots.append(Vector3(26.0, 0.0, -5.0))
-	sec.enemies.append(_roamer(Vector3(9.0, 0.0, 2.0), 2.5, 80))
-	sec.enemies.append(_roamer(Vector3(24.0, 0.0, -1.0), 2.5, 60))
-	_lamp(sec, theme, Vector3(12.0, 0.0, -7.5))
-	_lamp(sec, theme, Vector3(18.0, 0.0, -7.5))
-	return sec
-
-
-## Cliffs squeeze the way into a narrow pass with an enemy in it. A locked chest waits at the back.
-func _pass(theme: Dictionary) -> ZoneSectionData:
-	var sec := _new("pass", 28.0)
-	sec.blocks.append(_block(Vector3(14.0, 0.0, -11.75), Vector3(4.0, 3.5, 16.5), theme.rock_block))
-	sec.blocks.append(_block(Vector3(14.0, 0.0, 7.0), Vector3(4.0, FRONT_HEIGHT, 6.0), theme.rock_block))
-	sec.seal_spots.assign([Vector3(6.0, 0.0, -16.0), Vector3(22.0, 0.0, -16.0)])
-	sec.chests.append(Vector3(25.0, 0.0, -18.0))
-	sec.item_spots.append(Vector3(22.0, 0.0, 8.0))
-	sec.shrine_spots.append(Vector3(5.0, 0.0, 6.0))
-	sec.enemies.append(_roamer(Vector3(19.0, 0.0, 0.0), 1.5, 90))
-	sec.enemies.append(_roamer(Vector3(7.0, 0.0, -9.0), 2.5, 60))
-	sec.enemies.append(_roamer(Vector3(22.0, 0.0, -10.0), 2.5, 50))
-	_glow(sec, theme, Vector3(11.0, 0.0, -2.8))
-	_glow(sec, theme, Vector3(17.0, 0.0, 3.6))
-	return sec
-
-
-## A ruined court: rows of pillars and broken walls, a wanderer's corner, a locked chest.
-func _court(theme: Dictionary) -> ZoneSectionData:
-	var sec := _new("court", 32.0)
-	for x: float in [8.0, 14.0, 20.0, 26.0]:
-		for z: float in [-13.0, -7.0]:
-			sec.props.append(_prop("pillar", Vector3(x, 0.0, z), 0.055, 0.45, x > 16.0))
-	sec.blocks.append(_block(Vector3(11.0, 0.0, -17.0), Vector3(6.0, 1.6, 0.8), theme.wall))
-	sec.blocks.append(_block(Vector3(23.0, 0.0, -10.0), Vector3(0.8, 1.6, 4.0), theme.wall))
-	sec.seal_spots.assign([Vector3(17.0, 0.0, -17.5), Vector3(29.0, 0.0, -10.0)])
-	sec.chests.append(Vector3(3.0, 0.0, -18.0))
-	sec.item_spots.append(Vector3(20.0, 0.0, 7.5))
-	sec.shrine_spots.append(Vector3(17.0, 0.0, -10.0))
-	sec.wanderer_spots.append(Vector3(6.0, 0.0, 5.5))
-	sec.enemies.append(_roamer(Vector3(11.0, 0.0, -10.0), 2.0, 80))
-	sec.enemies.append(_roamer(Vector3(24.0, 0.0, -2.0), 2.5, 70))
-	sec.enemies.append(_roamer(Vector3(28.0, 0.0, 5.0), 2.0, 50))
-	_lamp(sec, theme, Vector3(14.0, 0.0, -4.0))
-	_lamp(sec, theme, Vector3(26.0, 0.0, -4.0))
-	return sec
-
-
-## A big rock mass to walk around: the seal waits behind it, watched by an enemy.
-func _loop(theme: Dictionary) -> ZoneSectionData:
-	var sec := _new("loop", 30.0)
-	sec.blocks.append(_block(Vector3(15.0, 0.0, -9.0), Vector3(12.0, 3.5, 7.0), theme.rock_block))
-	sec.seal_spots.assign([Vector3(15.0, 0.0, -16.5), Vector3(24.0, 0.0, -16.0)])
-	sec.item_spots.append(Vector3(6.0, 0.0, -16.0))
-	sec.shrine_spots.append(Vector3(4.0, 0.0, -11.0))
-	sec.wanderer_spots.append(Vector3(25.0, 0.0, 6.0))
-	sec.enemies.append(_roamer(Vector3(15.0, 0.0, -15.0), 4.0, 85))
-	sec.enemies.append(_roamer(Vector3(10.0, 0.0, 3.0), 2.5, 70))
-	sec.enemies.append(_roamer(Vector3(21.0, 0.0, 1.0), 2.5, 50))
-	_glow(sec, theme, Vector3(8.5, 0.0, -5.0))
-	_glow(sec, theme, Vector3(21.5, 0.0, -13.0))
-	return sec
-
-
-## The end: a gate of rotten roots across the whole depth, then the guard's ground.
-func _end(theme: Dictionary) -> ZoneSectionData:
-	var sec := _new("end", 26.0)
-	var gate := _block(Vector3(4.0, 0.0, (Z_BACK + Z_FRONT) * 0.5), Vector3(1.2, 2.6, Z_FRONT - Z_BACK), "rot_gate")
-	gate.texture_world_size = 2.4
-	sec.gate = gate
-	var guard := ZoneEnemyData.new()
-	guard.encounter = theme.guard as EncounterData
-	guard.position = Vector3(18.0, 0.0, -1.0)
-	guard.wander_radius = 1.0
-	guard.guard = true
-	sec.enemies.append(guard)
-	for z: float in [-6.0, 4.0]:
-		sec.props.append(_prop("pillar", Vector3(14.0, 0.0, z), 0.055, 0.45, z > 0.0))
-		sec.props.append(_prop("pillar", Vector3(22.0, 0.0, z), 0.055, 0.45, z > 0.0))
-	_lamp(sec, theme, Vector3(8.0, 0.0, -4.5))
-	_lamp(sec, theme, Vector3(8.0, 0.0, 4.5))
-	sec.lights.append(_light(Vector3(18.0, 2.0, -1.0), theme.light, 2.6, 8.0, 10))
-	return sec
-
-
-func _new(kind: String, width: float) -> ZoneSectionData:
+func _new(kind: String, width: float, seed_value: int) -> ZoneSectionData:
 	var sec := ZoneSectionData.new()
 	sec.id = kind
 	sec.width = width
+	_rng.seed = seed_value
 	return sec
 
 
-# --- decoration -------------------------------------------------------------------------------
+# ================================================================================================
+# Ashen Ruins: a dead city under falling ash
+# ================================================================================================
 
-## Trees, rocks, glowing fungus and grass at seeded random spots that keep clear of the lane, the
-## blocks and every spot that matters (so nothing that counts is ever walled in).
-func _decorate(sec: ZoneSectionData, theme: Dictionary) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(sec.id)
+const RUIN_ROAD := ENV + "road_cobble.png"
+const RUIN_PAVING := ENV + "paving.png"
+const RUIN_ASH := ENV + "ash_ground.png"
+const ROAD_TINT := Color(0.86, 0.84, 0.86)
+
+
+func _ruins_air() -> Array[ZoneAmbientData]:
+	return [
+		_air("ash", FX + "ash_flake.png", Color(0.82, 0.8, 0.78), 0.0, 80, 7.0, 0.07, Vector3(14, 3, 4.5), 3.0,
+				Vector3(0.18, -0.32, 0.04), 25.0, 0.2),
+		_air("embers", FX + "mote.png", Color(1.0, 0.55, 0.2), 2.6, 22, 5.0, 0.06, Vector3(13, 1.2, 8), 0.8,
+				Vector3(0.05, 0.35, 0.0), 40.0, 0.5),
+	]
+
+
+## A brazier with its fire light.
+func _brazier(sec: ZoneSectionData, at: Vector2) -> void:
+	_p(sec, "brazier", at, 0.05, 0.4, 0.0, false, 1.0, FIRE_LIGHT)
+	sec.lights.append(_light(Vector3(at.x, 1.6, at.y + 0.3), FIRE_LIGHT, 2.8, 7.5, 18))
+
+
+## A broken wall: a low ruin block from `a` to `b` (on the ground) and its rubble.
+func _ruin_wall(sec: ZoneSectionData, a: Vector2, b: Vector2, height: float = 1.6, thick: float = 0.8) -> void:
+	var mid := (a + b) * 0.5
+	var length := a.distance_to(b)
+	var turn := -rad_to_deg((b - a).angle())
+	sec.blocks.append(_block(Vector3(mid.x, 0.0, mid.y), Vector3(length, height, thick), "ruin_wall", turn))
+
+
+func _start_ruins() -> ZoneSectionData:
+	var sec := _new("start", 18.0, 1101)
+	sec.player_start = Vector3(2.5, 0.0, 1.0)
+	_path(sec, [Vector2(-1, 0.4), Vector2(9, -0.2), Vector2(19, 0.2)], 4.2, RUIN_ROAD, 1, ROAD_TINT)
+	# The old city gate: two posts either side of the road, banners on them.
+	sec.blocks.append(_block(Vector3(6.5, 0, -3.9), Vector3(1.6, 3.6, 1.6), "ruin_wall"))
+	sec.blocks.append(_block(Vector3(6.5, 0, 3.9), Vector3(1.6, 3.0, 1.6), "ruin_wall"))
+	_ruin_wall(sec, Vector2(6.5, -5.0), Vector2(6.5, -12.0), 2.4, 1.0)
+	_ruin_wall(sec, Vector2(6.5, 5.0), Vector2(6.5, 8.0), 1.2, 1.0)
+	_p(sec, "banner_torn", Vector2(7.6, -4.8), 0.05, 0.0, 0.05)
+	_p(sec, "banner_torn", Vector2(7.6, 4.9), 0.05, 0.0, 0.05, true)
+	_brazier(sec, Vector2(11.5, -3.4))
+	_brazier(sec, Vector2(11.5, 3.6))
+	_p(sec, "statue_headless", Vector2(12.0, -14.0), 0.055, 1.0)
+	_ground(sec, Vector2(10, -9), Vector2(8, 5), RUIN_ASH, true, 0)
+	_ground(sec, Vector2(14, 7), Vector2(7, 3), RUIN_ASH, true, 0)
+	_p(sec, "rubble", Vector2(3.5, -8.5), 0.05, 0.8)
+	_p(sec, "rubble", Vector2(15.5, 6.5), 0.05, 0.8)
+	_p(sec, "dead_tree", Vector2(2.0, -17.0), 0.06, 0.4)
+	_p(sec, "bones", Vector2(9.0, 6.0), 0.045, 0.0)
+	sec.item_spots.append(Vector3(3.0, 0, -13.0))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(14.5, -9.0))
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(4.0, 6.5))
+	_ruins_back(sec)
+	return sec
+
+
+## Behind every ruins section: arches and broken walls against the back wall; dead grass between
+## the stones.
+func _ruins_back(sec: ZoneSectionData) -> void:
+	_scatter(sec, [["grass", 0.045, 0.0, 0.05]], int(sec.width / 3.0))
+	var x := 3.0 + _rng.randf() * 4.0
+	while x < sec.width - 2.0:
+		var kind := _rng.randi_range(0, 2)
+		if kind == 0:
+			_p(sec, "arch_broken", Vector2(x, -19.6), 0.055, 0.0)
+		elif kind == 1:
+			_p(sec, "wall_low", Vector2(x, -19.4), 0.055, 0.0)
+		else:
+			_p(sec, "pillar", Vector2(x, -19.5), 0.055, 0.0)
+		x += 5.0 + _rng.randf() * 4.0
+
+
+## The old road: a straight stretch between broken walls, an alley behind them to a burnt house.
+func _ruins_road() -> ZoneSectionData:
+	var sec := _new("road", 32.0, 1201)
+	_path(sec, [Vector2(-1, 0.2), Vector2(10, -0.4), Vector2(22, 0.5), Vector2(33, 0.0)], 4.4, RUIN_ROAD, 1, ROAD_TINT)
+	_ruin_wall(sec, Vector2(3, -4.6), Vector2(12, -4.6), 1.5)
+	_ruin_wall(sec, Vector2(16, -4.6), Vector2(27, -4.6), 1.3)
+	_ruin_wall(sec, Vector2(6, 4.8), Vector2(14, 4.8), 1.1)
+	_ruin_wall(sec, Vector2(19, 4.8), Vector2(29, 4.8), 1.2)
+	# The burnt house at the back right, its door toward the alley.
+	_ruin_wall(sec, Vector2(18, -9), Vector2(18, -16.5), 2.6, 0.9)
+	_ruin_wall(sec, Vector2(18, -16.5), Vector2(29.5, -16.5), 2.8, 0.9)
+	_ruin_wall(sec, Vector2(29.5, -16.5), Vector2(29.5, -9), 2.2, 0.9)
+	_ruin_wall(sec, Vector2(18, -9), Vector2(21.5, -9), 2.0, 0.9)
+	_ruin_wall(sec, Vector2(25.5, -9), Vector2(29.5, -9), 1.6, 0.9)
+	_ground(sec, Vector2(23.7, -12.7), Vector2(10, 6.6), RUIN_PAVING, false, 0, 0.2)
+	sec.seal_spots.assign([Vector3(23.5, 0, -13.0), Vector3(8.0, 0, -14.5)])
+	sec.item_spots.append(Vector3(28.5, 0, 7.5))
+	sec.shrine_spots.append(Vector3(9.0, 0, 7.0))
+	sec.enemies.append(_roamer(Vector2(10, 0.5), 2.5, 85))
+	sec.enemies.append(_roamer(Vector2(24, -12.5), 1.6, 70))
+	sec.enemies.append(_roamer(Vector2(25, 6.5), 2.0, 45))
+	_brazier(sec, Vector2(14.0, -3.0))
+	_brazier(sec, Vector2(16.5, 3.4))
+	_p(sec, "banner_torn", Vector2(12.5, -5.6), 0.05, 0.0, 0.05)
+	_p(sec, "column_fallen", Vector2(7.0, -10.5), 0.055, 1.2)
+	_p(sec, "rubble", Vector2(21.0, -6.5), 0.05, 0.7)
+	_p(sec, "rubble", Vector2(3.0, 7.5), 0.05, 0.7)
+	_p(sec, "bones", Vector2(26.5, -6.2), 0.045, 0.0)
+	_p(sec, "statue_headless", Vector2(3.0, -15.5), 0.055, 1.0)
+	_ground(sec, Vector2(8, -14), Vector2(9, 6), RUIN_ASH, true, 0)
+	_ground(sec, Vector2(16, 7.5), Vector2(10, 3.6), RUIN_ASH, true, 0)
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(13.0, -6.2))
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(21.0, 7.0))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(27.0, -18.5))
+	_ruins_back(sec)
+	return sec
+
+
+## The plaza: paved square, a dry fountain in the middle, statues, braziers; the road crosses it.
+func _ruins_plaza() -> ZoneSectionData:
+	var sec := _new("plaza", 34.0, 1301)
+	_ground(sec, Vector2(17, -4.5), Vector2(25, 15), RUIN_PAVING, false, 0, 0.3)
+	_path(sec, [Vector2(-1, 0.0), Vector2(6, 0.0)], 4.4, RUIN_ROAD, 1, ROAD_TINT)
+	_path(sec, [Vector2(28, 0.0), Vector2(35, 0.0)], 4.4, RUIN_ROAD, 1, ROAD_TINT)
+	_p(sec, "fountain", Vector2(17.0, -4.5), 0.055, 2.2)
+	for at: Vector2 in [Vector2(8.5, -10.5), Vector2(25.5, -10.5)]:
+		_p(sec, "statue_headless", at, 0.055, 1.0, 0.0, at.x > 17.0)
+	_brazier(sec, Vector2(10.5, 2.6))
+	_brazier(sec, Vector2(23.5, 2.6))
+	_brazier(sec, Vector2(13.0, -10.5))
+	_brazier(sec, Vector2(21.0, -10.5))
+	_p(sec, "arch_broken", Vector2(17.0, -17.5), 0.055, 1.0)
+	_p(sec, "banner_torn", Vector2(6.0, -6.0), 0.05, 0.0, 0.05)
+	_p(sec, "banner_torn", Vector2(28.0, -6.0), 0.05, 0.0, 0.05, true)
+	_p(sec, "column_fallen", Vector2(30.0, 7.0), 0.055, 1.2)
+	_p(sec, "rubble", Vector2(4.0, 6.5), 0.05, 0.7)
+	sec.seal_spots.assign([Vector3(17.0, 0, -14.5), Vector3(31.5, 0, -14.0)])
+	sec.wanderer_spots.append(Vector3(6.0, 0, -12.0))
+	sec.shrine_spots.append(Vector3(28.5, 0, -12.0))
+	sec.chests.append(Vector3(3.0, 0, -17.5))
+	sec.item_spots.append(Vector3(17.0, 0, 7.5))
+	sec.enemies.append(_roamer(Vector2(12.0, -14.0), 2.0, 80))
+	sec.enemies.append(_roamer(Vector2(24.0, 5.0), 2.5, 70))
+	sec.enemies.append(_roamer(Vector2(8.0, 1.0), 2.0, 45))
+	_ground(sec, Vector2(30, -16), Vector2(7, 6), RUIN_ASH, true, 1)
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(18.5, -2.2))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(9.0, -12.5))
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(29.0, 5.5))
+	_ruins_back(sec)
+	return sec
+
+
+## The colonnade: a covered walk of pillars at the back behind a low wall, rubble in front.
+func _ruins_colonnade() -> ZoneSectionData:
+	var sec := _new("colonnade", 32.0, 1401)
+	_path(sec, [Vector2(-1, 1.0), Vector2(16, 0.4), Vector2(33, 1.0)], 4.4, RUIN_ROAD, 1, ROAD_TINT)
+	_ground(sec, Vector2(16, -11), Vector2(25, 8.5), RUIN_PAVING, false, 0, 0.25)
+	var x := 5.5
+	while x <= 27.0:
+		_p(sec, "pillar", Vector2(x, -7.2), 0.055, 0.45)
+		_p(sec, "pillar", Vector2(x, -14.8), 0.055, 0.45, 0.0, true)
+		x += 4.3
+	_ruin_wall(sec, Vector2(3, -4.8), Vector2(12, -4.8), 1.2)
+	_ruin_wall(sec, Vector2(20, -4.8), Vector2(29, -4.8), 1.0)
+	_p(sec, "column_fallen", Vector2(14.0, 6.5), 0.055, 1.2)
+	for at: Vector2 in [Vector2(5.0, 6.0), Vector2(23.0, 7.5), Vector2(28.5, 6.0)]:
+		_p(sec, "rubble", at, 0.05, 0.7)
+	_brazier(sec, Vector2(16.0, -3.4))
+	sec.seal_spots.assign([Vector3(27.5, 0, -11.0), Vector3(4.0, 0, -11.0)])
+	sec.item_spots.append(Vector3(18.0, 0, 7.8))
+	sec.shrine_spots.append(Vector3(9.0, 0, 7.0))
+	sec.wanderer_spots.append(Vector3(30.0, 0, -18.0))
+	sec.enemies.append(_roamer(Vector2(16.0, -11.0), 3.0, 85))
+	sec.enemies.append(_roamer(Vector2(8.0, 2.0), 2.0, 70))
+	sec.enemies.append(_roamer(Vector2(25.0, 1.5), 2.0, 50))
+	_ground(sec, Vector2(20, 7), Vector2(12, 4), RUIN_ASH, true, 0)
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(12.0, -5.8))
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(20.0, -11.0))
+	_ruins_back(sec)
+	return sec
+
+
+## The graveyard: rows of headstones round a walled crypt yard where a champion keeps its prize.
+func _ruins_graveyard() -> ZoneSectionData:
+	var sec := _new("graveyard", 32.0, 1501)
+	_path(sec, [Vector2(-1, 0.4), Vector2(16, 1.2), Vector2(33, 0.4)], 4.0, RUIN_ROAD, 1, ROAD_TINT)
+	_ruin_wall(sec, Vector2(9, -9), Vector2(9, -20), 2.4, 0.9)
+	_ruin_wall(sec, Vector2(23, -9), Vector2(23, -20), 2.4, 0.9)
+	_ruin_wall(sec, Vector2(9, -9), Vector2(13.6, -9), 2.4, 0.9)
+	_ruin_wall(sec, Vector2(18.4, -9), Vector2(23, -9), 2.4, 0.9)
+	_ground(sec, Vector2(16, -14.5), Vector2(13, 10.5), RUIN_PAVING, false, 0, 0.2)
+	var champion := _roamer(Vector2(16.0, -13.5), 0.0, 100)
+	champion.encounter = load("res://data/encounters/elite_shade_coven.tres") as EncounterData
+	champion.champion = true
+	champion.prize_spot = Vector3(16.0, 0, -18.0)
+	sec.enemies.append(champion)
+	_brazier(sec, Vector2(12.5, -7.6))
+	_brazier(sec, Vector2(19.5, -7.6))
+	for row: int in 3:
+		for col: int in 4:
+			var at := Vector2(2.0 + col * 1.9, -6.5 - row * 3.6 + (col % 2) * 0.4)
+			_p(sec, "gravestone", at, 0.05, 0.0, 0.0, col % 2 == 0)
+			_p(sec, "gravestone", Vector2(32.0 - at.x, at.y + 0.3), 0.05, 0.0, 0.0, col % 2 == 1)
+	_p(sec, "dead_tree", Vector2(5.0, 6.5), 0.06, 0.4)
+	_p(sec, "dead_tree", Vector2(27.5, -18.0), 0.06, 0.4, 0.0, true)
+	_p(sec, "bones", Vector2(13.0, -15.5), 0.045, 0.0)
+	_p(sec, "bones", Vector2(24.0, 6.0), 0.045, 0.0)
+	sec.seal_spots.assign([Vector3(4.0, 0, -17.0), Vector3(28.0, 0, -15.0)])
+	sec.item_spots.append(Vector3(9.0, 0, 7.5))
+	sec.wanderer_spots.append(Vector3(29.0, 0, 6.5))
+	sec.enemies.append(_roamer(Vector2(9.0, 1.5), 2.5, 80))
+	sec.enemies.append(_roamer(Vector2(24.0, 1.0), 2.5, 60))
+	_ground(sec, Vector2(5, -11), Vector2(7, 11), RUIN_ASH, true, 0)
+	_ground(sec, Vector2(27, -11), Vector2(7, 11), RUIN_ASH, true, 0)
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(6.0, -9.0))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(27.0, -13.0))
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(12.0, 6.8))
+	_ruins_back(sec)
+	return sec
+
+
+## A collapsed hall: two rooms behind a long wall with doorways, braziers still burning inside.
+func _ruins_hall() -> ZoneSectionData:
+	var sec := _new("hall", 34.0, 1601)
+	_path(sec, [Vector2(-1, 1.2), Vector2(17, 1.8), Vector2(35, 1.2)], 4.2, RUIN_ROAD, 1, ROAD_TINT)
+	_ruin_wall(sec, Vector2(4, -6), Vector2(9, -6), 2.6, 0.9)
+	_ruin_wall(sec, Vector2(13, -6), Vector2(21, -6), 2.4, 0.9)
+	_ruin_wall(sec, Vector2(25, -6), Vector2(30, -6), 2.2, 0.9)
+	_ruin_wall(sec, Vector2(4, -6), Vector2(4, -20), 2.6, 0.9)
+	_ruin_wall(sec, Vector2(30, -6), Vector2(30, -20), 2.6, 0.9)
+	_ruin_wall(sec, Vector2(17, -10.5), Vector2(17, -20), 2.6, 0.9)
+	_ground(sec, Vector2(17, -13), Vector2(25, 13.5), RUIN_PAVING, false, 0, 0.2)
+	_brazier(sec, Vector2(7.0, -8.5))
+	_brazier(sec, Vector2(27.0, -8.5))
+	_p(sec, "rubble", Vector2(11.0, -17.0), 0.05, 0.7)
+	_p(sec, "column_fallen", Vector2(23.5, -16.5), 0.055, 1.2)
+	_p(sec, "statue_headless", Vector2(17.0, -8.5), 0.055, 1.0)
+	_p(sec, "banner_torn", Vector2(14.0, -6.9), 0.05, 0.0, 0.05)
+	_p(sec, "banner_torn", Vector2(20.0, -6.9), 0.05, 0.0, 0.05, true)
+	sec.seal_spots.assign([Vector3(8.0, 0, -15.5), Vector3(27.0, 0, -16.5)])
+	sec.chests.append(Vector3(12.5, 0, -18.5))
+	sec.item_spots.append(Vector3(31.5, 0, 7.0))
+	sec.shrine_spots.append(Vector3(17.0, 0, 7.0))
+	sec.enemies.append(_roamer(Vector2(9.5, -12.5), 2.0, 80))
+	sec.enemies.append(_roamer(Vector2(24.0, -12.0), 2.0, 70))
+	sec.enemies.append(_roamer(Vector2(17.0, 3.0), 2.5, 50))
+	for at: Vector2 in [Vector2(3.0, 7.0), Vector2(25.0, 7.5)]:
+		_p(sec, "rubble", at, 0.05, 0.7)
+	_ground(sec, Vector2(9, 7), Vector2(12, 4), RUIN_ASH, true, 0)
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(21.0, -15.0))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(31.5, -4.0))
+	_ruins_back(sec)
+	return sec
+
+
+func _end_ruins() -> ZoneSectionData:
+	var sec := _new("end", 26.0, 1701)
+	_path(sec, [Vector2(-1, 0.0), Vector2(8, 0.0)], 4.2, RUIN_ROAD, 1, ROAD_TINT)
+	_ground(sec, Vector2(17, -1.5), Vector2(17, 15), RUIN_PAVING, false, 0, 0.3)
+	_gate(sec)
+	_guard(sec, Vector2(17.0, -1.0))
+	for at: Vector2 in [Vector2(11.0, -9.0), Vector2(23.0, -9.0)]:
+		_p(sec, "statue_headless", at, 0.055, 1.0, 0.0, at.x > 17.0)
+	_brazier(sec, Vector2(11.0, 4.5))
+	_brazier(sec, Vector2(23.0, 4.5))
+	_p(sec, "arch_broken", Vector2(17.0, -15.0), 0.055, 1.0)
+	_p(sec, "banner_torn", Vector2(13.5, -9.5), 0.05, 0.0, 0.05)
+	_p(sec, "banner_torn", Vector2(20.5, -9.5), 0.05, 0.0, 0.05, true)
+	sec.lights.append(_light(Vector3(17.0, 2.2, -1.0), FIRE_LIGHT, 2.6, 8.0, 10))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(22.0, -14.0))
+	_ruins_back(sec)
+	return sec
+
+
+# ================================================================================================
+# Sunken Bog: swamp and jungle, water everywhere
+# ================================================================================================
+
+const BOG_MUD := ENV + "mud.png"
+const BOG_MOSS := ENV + "moss.png"
+const BOG_PLANKS := ENV + "planks.png"
+const WATER_TINT := Color(0.75, 0.95, 0.85)
+const WATER_DEEP := Color(0.03, 0.08, 0.07)
+
+
+func _bog_air() -> Array[ZoneAmbientData]:
+	return [
+		_air("fireflies", FX + "mote.png", Color(0.75, 1.0, 0.45), 3.0, 40, 7.0, 0.08, Vector3(14, 1.2, 9), 1.3,
+				Vector3(0.05, 0.02, 0.0), 180.0, 1.2),
+		_air("mist", FX + "mist.png", Color(0.78, 0.92, 0.82, 0.22), 0.0, 18, 12.0, 1.8, Vector3(16, 0.15, 4.0),
+				0.35, Vector3(0.25, 0.0, 0.05), 20.0, 0.0, true),
+		_air("spores", FX + "spore.png", Color(0.7, 1.0, 0.6), 1.2, 26, 8.0, 0.05, Vector3(14, 1.5, 9), 1.0,
+				Vector3(0.0, 0.22, 0.0), 35.0, 0.6),
+	]
+
+
+## A pool of deep water with lily pads on it and reeds round its edge.
+func _pool(sec: ZoneSectionData, centre: Vector2, size: Vector2, lilies: bool = true, reeds: int = 4) -> void:
+	_ground(sec, centre, size, ENV + "water.png", true, 0, 0.5, true, WATER_TINT, WATER_DEEP)
+	if lilies:
+		_lily(sec, centre + Vector2(size.x * 0.12, -size.y * 0.1), size * 0.55)
+	for i: int in reeds:
+		var a := _rng.randf() * TAU
+		var at := centre + Vector2(cos(a) * size.x * 0.5, sin(a) * size.y * 0.5)
+		_p(sec, "reeds", at, 0.045, 0.0, 0.06, _rng.randf() < 0.5)
+
+
+## Lily pads floating on water (bigger tiles than the ground's, so the pads read).
+func _lily(sec: ZoneSectionData, at: Vector2, size: Vector2) -> void:
+	_ground(sec, at, size, ENV + "lily_pads.png", true, 1, 0.6)
+	sec.grounds.back().texture_world_size = 3.4
+
+
+## Deep water as a rectangle (channels, lagoons): solid, rippling.
+func _lagoon(sec: ZoneSectionData, centre: Vector2, size: Vector2) -> void:
+	_ground(sec, centre, size, ENV + "water.png", false, 0, 0.6, true, WATER_TINT, WATER_DEEP)
+
+
+func _bog_lantern(sec: ZoneSectionData, at: Vector2) -> void:
+	_p(sec, "swamp_lantern", at, 0.05, 0.3, 0.0, at.x > sec.width * 0.5, 1.0, LAMP_LIGHT)
+	sec.lights.append(_light(Vector3(at.x + 0.3, 1.4, at.y + 0.3), LAMP_LIGHT, 2.2, 6.5, 12))
+
+
+## The bog's back edge: a wall of swamp trees beyond the bounds, ferns at their feet.
+func _bog_back(sec: ZoneSectionData) -> void:
+	var x := -0.5 + _rng.randf() * 2.0
+	while x < sec.width:
+		var kind := _rng.randi_range(0, 2)
+		var name: String = ["mangrove", "moss_tree", "rotten_tree"][kind]
+		_p(sec, name, Vector2(x, -21.5 - _rng.randf() * 2.5), 0.06, 0.0, 0.02, _rng.randf() < 0.5)
+		x += 3.0 + _rng.randf() * 2.5
+	x = 1.0
+	while x < sec.width:
+		_p(sec, "fern", Vector2(x, -19.6 - _rng.randf() * 0.4), 0.045, 0.0, 0.06, _rng.randf() < 0.5)
+		x += 2.2 + _rng.randf() * 2.0
+
+
+## Low growth across the front edge (blurred by the camera), framing the view.
+func _front_edge(sec: ZoneSectionData, names: Array) -> void:
+	var x := _rng.randf() * 3.0
+	while x < sec.width:
+		var name: String = names[_rng.randi_range(0, names.size() - 1)]
+		_p(sec, name, Vector2(x, 10.6 + _rng.randf() * 1.4), 0.045 if name != "bush" else 0.05, 0.0, 0.05,
+				_rng.randf() < 0.5)
+		x += 2.5 + _rng.randf() * 3.0
+
+
+func _start_bog() -> ZoneSectionData:
+	var sec := _new("start", 18.0, 2101)
+	sec.player_start = Vector3(2.5, 0.0, 1.0)
+	_path(sec, [Vector2(-1, 0.3), Vector2(9, -0.4), Vector2(19, 0.2)], 3.6, BOG_MUD, 1)
+	_pool(sec, Vector2(12.5, 7.0), Vector2(9, 4.5))
+	_pool(sec, Vector2(7.0, -12.0), Vector2(8, 5))
+	_bog_lantern(sec, Vector2(8.0, -3.2))
+	_p(sec, "moss_tree", Vector2(3.0, -16.0), 0.06, 0.6, 0.02)
+	_p(sec, "mangrove", Vector2(14.5, -14.5), 0.06, 0.8, 0.02, true)
+	_p(sec, "giant_mushroom", Vector2(16.0, -6.5), 0.055, 0.8, 0.0, false, 1.0, SHROOM_GLOW)
+	_ground(sec, Vector2(3, 6), Vector2(5, 3.5), BOG_MOSS, true, 0)
+	sec.item_spots.append(Vector3(13.0, 0, -9.5))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(10.0, 4.4))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(5.0, -9.2))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06], ["reeds", 0.045, 0.0, 0.06], ["grass", 0.045, 0.0, 0.05]], 14)
+	_bog_back(sec)
+	_front_edge(sec, ["reeds", "fern"])
+	_end_trees(sec, -2.0, ["mangrove", "moss_tree"])
+	return sec
+
+
+## The boardwalk: wide water front and back; planks carry the way across, and a side walk runs
+## out to a muddy island at the back where the seal waits.
+func _bog_boardwalk() -> ZoneSectionData:
+	var sec := _new("boardwalk", 32.0, 2201)
+	_lagoon(sec, Vector2(9.0, -10.5), Vector2(9.0, 12.5))
+	_lagoon(sec, Vector2(23.0, -10.5), Vector2(9.0, 12.5))
+	_lagoon(sec, Vector2(16.0, 6.8), Vector2(18.0, 5.0))
+	_lily(sec, Vector2(9.5, -9.0), Vector2(5, 6))
+	_lily(sec, Vector2(23.0, 6.6), Vector2(6, 3))
+	_path(sec, [Vector2(-1, 0.0), Vector2(33, 0.0)], 4.2, BOG_MUD, 1)
+	_path(sec, [Vector2(4, -0.3), Vector2(28, 0.3)], 3.4, BOG_PLANKS, 2)
+	_path(sec, [Vector2(16, -2.0), Vector2(16, -8.5)], 2.6, BOG_PLANKS, 2)
+	_ground(sec, Vector2(16.0, -13.0), Vector2(7.5, 8.0), BOG_MUD, true, 1)
+	_ground(sec, Vector2(16.0, -13.0), Vector2(5.0, 5.0), BOG_MOSS, true, 2)
+	_p(sec, "mangrove", Vector2(7.5, -12.0), 0.06, 0.0, 0.02)
+	_p(sec, "mangrove", Vector2(25.0, -9.0), 0.06, 0.0, 0.02, true)
+	_p(sec, "moss_tree", Vector2(11.0, -16.0), 0.06, 0.0, 0.02)
+	for at: Vector2 in [Vector2(6.0, -2.4), Vector2(14.0, 2.4), Vector2(22.0, -2.4)]:
+		_bog_lantern(sec, at)
+	for i: int in 10:
+		var at := Vector2(5.0 + i * 2.4 + _rng.randf(), -4.6 if i % 2 == 0 else 4.5)
+		_p(sec, "reeds", at, 0.045, 0.0, 0.06, i % 3 == 0)
+	sec.seal_spots.assign([Vector3(16.0, 0, -14.0), Vector3(29.5, 0, -16.0)])
+	sec.item_spots.append(Vector3(2.5, 0, -14.0))
+	sec.shrine_spots.append(Vector3(29.0, 0, 6.5))
+	sec.enemies.append(_roamer(Vector2(10.0, 0.0), 2.0, 85))
+	sec.enemies.append(_roamer(Vector2(22.0, 0.0), 2.0, 70))
+	sec.enemies.append(_roamer(Vector2(16.0, -12.5), 1.5, 55))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(13.0, -4.6))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(19.5, 4.6))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(17.5, -15.0))
+	_bog_back(sec)
+	_front_edge(sec, ["reeds"])
+	return sec
+
+
+## The stilt village: huts on stilts over the mud, planks between them, lanterns, puddles.
+func _bog_village() -> ZoneSectionData:
+	var sec := _new("village", 34.0, 2301)
+	_ground(sec, Vector2(17, -6), Vector2(32, 20), BOG_MUD, false, 0, 0.8)
+	_path(sec, [Vector2(-1, 0.4), Vector2(35, 0.4)], 3.4, BOG_PLANKS, 2)
+	_p(sec, "stilt_hut", Vector2(8.0, -12.5), 0.06, 2.0)
+	_p(sec, "stilt_hut", Vector2(20.0, -15.0), 0.06, 2.0, 0.0, true)
+	_p(sec, "stilt_hut", Vector2(29.5, -9.0), 0.06, 1.8)
+	_path(sec, [Vector2(8.0, -1.5), Vector2(8.0, -9.0)], 2.0, BOG_PLANKS, 2)
+	_path(sec, [Vector2(29.5, -1.5), Vector2(29.5, -6.0)], 2.0, BOG_PLANKS, 2)
+	_ground(sec, Vector2(14.0, -8.0), Vector2(3.5, 2.2), ENV + "water.png", true, 1, 0.3, false, WATER_TINT, WATER_DEEP)
+	_ground(sec, Vector2(23.0, 6.0), Vector2(5.0, 2.6), ENV + "water.png", true, 1, 0.3, false, WATER_TINT, WATER_DEEP)
+	_pool(sec, Vector2(3.0, 6.5), Vector2(5.0, 3.6), true, 3)
+	for at: Vector2 in [Vector2(5.0, -2.4), Vector2(16.5, 2.4), Vector2(25.0, -2.4), Vector2(12.0, -14.5)]:
+		_bog_lantern(sec, at)
+	_p(sec, "log", Vector2(14.0, 6.5), 0.05, 0.8)
+	_p(sec, "giant_mushroom", Vector2(32.0, -16.0), 0.055, 0.8, 0.0, true, 1.0, SHROOM_GLOW)
+	sec.wanderer_spots.append(Vector3(14.0, 0, -4.5))
+	sec.shrine_spots.append(Vector3(25.0, 0, 6.5))
+	sec.chests.append(Vector3(4.0, 0, -17.0))
+	sec.seal_spots.assign([Vector3(20.0, 0, -19.0), Vector3(31.5, 0, -14.0)])
+	sec.item_spots.append(Vector3(17.0, 0, 7.5))
+	sec.enemies.append(_roamer(Vector2(12.0, 1.0), 2.5, 85))
+	sec.enemies.append(_roamer(Vector2(25.0, -5.0), 2.0, 70))
+	sec.enemies.append(_roamer(Vector2(20.0, 6.0), 1.5, 45))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(9.5, -9.5))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(22.0, 4.2))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(14.5, -6.3))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06], ["reeds", 0.045, 0.0, 0.06]], 12)
+	_bog_back(sec)
+	_front_edge(sec, ["reeds", "fern"])
+	return sec
+
+
+## The mangrove tangle: channels of water between stilt-rooted trees; the way winds back to a
+## hidden clearing.
+func _bog_mangroves() -> ZoneSectionData:
+	var sec := _new("mangroves", 32.0, 2401)
+	_path(sec, [Vector2(-1, 0.6), Vector2(11, -0.8), Vector2(21, 0.8), Vector2(33, 0.0)], 3.4, BOG_MUD, 1)
+	_pool(sec, Vector2(7.0, -9.0), Vector2(8.0, 6.0))
+	_pool(sec, Vector2(24.0, -11.0), Vector2(9.0, 7.0))
+	_pool(sec, Vector2(14.0, 6.6), Vector2(10.0, 4.4))
+	_pool(sec, Vector2(28.0, 6.4), Vector2(6.0, 3.6), false, 2)
+	_ground(sec, Vector2(16.0, -16.0), Vector2(8.0, 6.0), BOG_MOSS, true, 1)
+	for at: Vector2 in [Vector2(5.5, -14.5), Vector2(11.5, -5.5), Vector2(19.5, -6.0), Vector2(12.0, -16.5),
+			Vector2(20.5, -17.5), Vector2(29.5, -15.5), Vector2(3.0, -5.0)]:
+		_p(sec, "mangrove", at, 0.06, 0.9, 0.02, at.x > 16.0)
+	_p(sec, "moss_tree", Vector2(28.0, -4.5), 0.06, 0.6, 0.02, true)
+	_p(sec, "giant_mushroom", Vector2(16.0, -11.5), 0.055, 0.8, 0.0, false, 1.0, SHROOM_GLOW)
+	sec.lights.append(_light(Vector3(16.0, 1.5, -11.0), SHROOM_GLOW, 1.8, 6.0, 0))
+	_bog_lantern(sec, Vector2(9.0, 2.4))
+	sec.seal_spots.assign([Vector3(16.0, 0, -16.5), Vector3(3.0, 0, -17.5)])
+	sec.item_spots.append(Vector3(30.0, 0, 2.5))
+	sec.shrine_spots.append(Vector3(4.0, 0, 6.5))
+	sec.enemies.append(_roamer(Vector2(16.0, -15.0), 2.0, 85))
+	sec.enemies.append(_roamer(Vector2(9.0, 0.0), 2.0, 70))
+	sec.enemies.append(_roamer(Vector2(24.0, 1.0), 2.0, 55))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(4.0, -6.3))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(20.0, -8.0))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(22.5, -6.5))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06]], 10)
+	_bog_back(sec)
+	_front_edge(sec, ["reeds", "fern"])
+	return sec
+
+
+## The lily pond: two ponds hold a spit of land between them where a champion guards its chest.
+func _bog_pond() -> ZoneSectionData:
+	var sec := _new("pond", 32.0, 2501)
+	_path(sec, [Vector2(-1, 0.4), Vector2(16, 1.0), Vector2(33, 0.4)], 3.6, BOG_MUD, 1)
+	_pool(sec, Vector2(8.0, -11.0), Vector2(9.5, 14.0), true, 6)
+	_pool(sec, Vector2(24.0, -11.0), Vector2(9.5, 14.0), true, 6)
+	_ground(sec, Vector2(16.0, -13.0), Vector2(6.0, 14.0), BOG_MOSS, false, 1, 0.5)
+	_path(sec, [Vector2(16.0, -1.5), Vector2(16.0, -6.5)], 2.6, BOG_PLANKS, 2)
+	var champion := _roamer(Vector2(16.0, -12.0), 0.0, 100)
+	champion.encounter = load("res://data/encounters/elite_toad_court.tres") as EncounterData
+	champion.champion = true
+	champion.prize_spot = Vector3(16.0, 0, -17.5)
+	sec.enemies.append(champion)
+	_bog_lantern(sec, Vector2(14.5, -6.0))
+	_bog_lantern(sec, Vector2(17.5, -6.0))
+	_p(sec, "moss_tree", Vector2(2.5, -6.0), 0.06, 0.6, 0.02)
+	_p(sec, "mangrove", Vector2(29.5, -5.5), 0.06, 0.8, 0.02, true)
+	sec.seal_spots.assign([Vector3(2.5, 0, -17.0), Vector3(29.5, 0, -17.0)])
+	sec.item_spots.append(Vector3(16.0, 0, 7.5))
+	sec.wanderer_spots.append(Vector3(28.5, 0, 6.0))
+	sec.enemies.append(_roamer(Vector2(8.0, 1.5), 2.0, 80))
+	sec.enemies.append(_roamer(Vector2(24.0, 1.5), 2.0, 60))
+	_ground(sec, Vector2(8, 7), Vector2(9, 3.5), BOG_MOSS, true, 0)
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(12.5, -6.0))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(19.8, -15.0))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(4.0, -4.2))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06]], 8)
+	_bog_back(sec)
+	_front_edge(sec, ["reeds", "fern"])
+	return sec
+
+
+## The mushroom grove: giant glowing mushrooms in rings on moss, puddles, spores in the air.
+func _bog_grove() -> ZoneSectionData:
+	var sec := _new("grove", 30.0, 2601)
+	_path(sec, [Vector2(-1, 0.0), Vector2(15, -0.8), Vector2(31, 0.0)], 3.4, BOG_MUD, 1)
+	_ground(sec, Vector2(15.0, -12.0), Vector2(22.0, 13.0), BOG_MOSS, true, 0, 0.8)
+	for i: int in 7:
+		var a := float(i) / 7.0 * TAU + 0.45
+		if absf(a - PI * 0.5) < 0.5:
+			continue
+		var at := Vector2(15.0 + cos(a) * 5.5, -13.0 + sin(a) * 4.0)
+		_p(sec, "giant_mushroom", at, 0.055, 0.8, 0.0, cos(a) > 0.0, 1.0, SHROOM_GLOW)
+	sec.lights.append(_light(Vector3(15.0, 1.8, -13.0), SHROOM_GLOW, 2.2, 7.5, 0))
+	for at: Vector2 in [Vector2(4.0, -7.0), Vector2(26.0, -7.5), Vector2(25.0, 6.5)]:
+		_p(sec, "giant_mushroom", at, 0.055, 0.8, 0.0, at.x > 15.0, 1.0, SHROOM_GLOW)
+		sec.lights.append(_light(Vector3(at.x, 1.5, at.y + 0.5), SHROOM_GLOW, 1.4, 5.0, 0))
+	_ground(sec, Vector2(8.0, 6.0), Vector2(4.0, 2.4), ENV + "water.png", true, 1, 0.3, false, WATER_TINT, WATER_DEEP)
+	_p(sec, "log", Vector2(20.0, -18.5), 0.05, 0.8)
+	sec.seal_spots.assign([Vector3(15.0, 0, -14.0), Vector3(27.0, 0, -16.5)])
+	sec.item_spots.append(Vector3(4.0, 0, -12.0))
+	sec.item_spots.append(Vector3(21.0, 0, 7.0))
+	sec.shrine_spots.append(Vector3(11.0, 0, 6.5))
+	sec.enemies.append(_roamer(Vector2(15.0, -9.0), 3.0, 85))
+	sec.enemies.append(_roamer(Vector2(7.0, 1.0), 2.0, 70))
+	sec.enemies.append(_roamer(Vector2(24.0, 0.5), 2.0, 50))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(6.0, 4.4))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(21.0, -17.8))
+	_scatter(sec, [["glow_shroom", 0.05, 0.0, 0.0], ["fern", 0.045, 0.0, 0.06]], 14)
+	_bog_back(sec)
+	_front_edge(sec, ["fern"])
+	return sec
+
+
+func _end_bog() -> ZoneSectionData:
+	var sec := _new("end", 26.0, 2701)
+	_path(sec, [Vector2(-1, 0.0), Vector2(27, 0.0)], 3.6, BOG_MUD, 1)
+	_gate(sec)
+	_guard(sec, Vector2(17.0, -1.0))
+	_ground(sec, Vector2(17.0, -2.0), Vector2(14.0, 9.0), BOG_MOSS, true, 1, 0.6)
+	_pool(sec, Vector2(17.0, -13.5), Vector2(15.0, 7.0), true, 6)
+	_pool(sec, Vector2(17.0, 8.2), Vector2(13.0, 3.0), true, 3)
+	_bog_lantern(sec, Vector2(11.0, -5.5))
+	_bog_lantern(sec, Vector2(23.0, -5.5))
+	_p(sec, "moss_tree", Vector2(8.5, -15.0), 0.06, 0.6, 0.02)
+	_p(sec, "mangrove", Vector2(25.0, -15.5), 0.06, 0.8, 0.02, true)
+	sec.lights.append(_light(Vector3(17.0, 2.0, -1.0), BOG_LIGHT, 2.6, 8.0, 10))
+	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(12.0, -9.5))
+	_bog_back(sec)
+	_front_edge(sec, ["reeds"])
+	_end_trees(sec, sec.width + 2.0, ["mangrove", "moss_tree"])
+	return sec
+
+
+# ================================================================================================
+# Rotten Hollow: a rotting forest
+# ================================================================================================
+
+const TRAIL := ENV + "dirt_trail.png"
+## The trail a shade lighter than the dark forest floor, so it reads as the way.
+const TRAIL_TINT := Color(1.25, 1.18, 1.05)
+const LEAVES := ENV + "leaf_litter.png"
+const HOLLOW_MOSS := ENV + "moss.png"
+
+
+func _hollow_air() -> Array[ZoneAmbientData]:
+	return [
+		_air("leaves", FX + "leaf.png", Color(1, 1, 1), 0.0, 40, 9.0, 0.14, Vector3(14, 3, 4.5), 4.5,
+				Vector3(0.3, -0.45, 0.05), 35.0, 0.7, false, true),
+		_air("fireflies", FX + "mote.png", Color(1.0, 0.85, 0.45), 2.6, 22, 7.0, 0.07, Vector3(14, 1.2, 9), 1.3,
+				Vector3(0.05, 0.03, 0.0), 180.0, 1.0),
+	]
+
+
+func _lamp(sec: ZoneSectionData, at: Vector2) -> void:
+	_p(sec, "lamp", at, 0.05, 0.3)
+	sec.lights.append(_light(Vector3(at.x, 1.9, at.y + 0.3), LAMP_LIGHT, 2.4, 7.0, 12))
+
+
+## Thick forest: big trees in a band, the solid ones away from `keep` spots.
+func _forest(sec: ZoneSectionData, area: Rect2, count: int) -> void:
+	_scatter(sec, [["rotten_tree", 0.06, 0.6, 0.02], ["dead_tree", 0.06, 0.4, 0.0], ["pine_dead", 0.06, 0.4, 0.0],
+			["bush", 0.05, 0.5, 0.03]], count, area)
+
+
+## Low growth (bushes, stumps) in `area`: for the front, where trees would hide the party.
+func _undergrowth(sec: ZoneSectionData, area: Rect2, count: int) -> void:
+	_scatter(sec, [["bush", 0.05, 0.5, 0.03], ["stump", 0.05, 0.5, 0.0]], count, area)
+
+
+## A wall of trees just past one end of a zone (x), front to back.
+func _end_trees(sec: ZoneSectionData, x: float, names: Array) -> void:
+	var z := Z_BACK
+	while z < Z_FRONT + 2.0:
+		var name: String = names[_rng.randi_range(0, names.size() - 1)]
+		_p(sec, name, Vector2(x + _rng.randf_range(-1.0, 1.0), z), 0.06, 0.0, 0.02, _rng.randf() < 0.5)
+		z += 2.4 + _rng.randf() * 1.6
+
+
+## The hollow's back edge: a wall of trees beyond the bounds, bushes at their feet.
+func _hollow_back(sec: ZoneSectionData) -> void:
+	var x := -0.5 + _rng.randf() * 2.0
+	while x < sec.width:
+		var name: String = ["rotten_tree", "pine_dead", "dead_tree", "rotten_tree"][_rng.randi_range(0, 3)]
+		_p(sec, name, Vector2(x, -21.0 - _rng.randf() * 3.0), 0.06, 0.0, 0.02, _rng.randf() < 0.5)
+		x += 2.6 + _rng.randf() * 2.2
+	x = 0.5
+	while x < sec.width:
+		_p(sec, "bush" if _rng.randf() < 0.5 else "fern", Vector2(x, -19.7 - _rng.randf() * 0.5),
+				0.05, 0.0, 0.04, _rng.randf() < 0.5)
+		x += 2.0 + _rng.randf() * 2.0
+
+
+func _start_hollow() -> ZoneSectionData:
+	var sec := _new("start", 18.0, 3101)
+	sec.player_start = Vector3(2.5, 0.0, 1.0)
+	_path(sec, [Vector2(-1, 0.3), Vector2(9, -0.5), Vector2(19, 0.2)], 3.4, TRAIL, 1, TRAIL_TINT)
+	_p(sec, "signpost", Vector2(7.0, -2.6), 0.05, 0.3)
+	_p(sec, "fence", Vector2(10.0, 4.4), 0.05, 0.0)
+	_p(sec, "fence", Vector2(14.0, 4.6), 0.05, 0.0, 0.0, true)
+	_lamp(sec, Vector2(12.0, -3.2))
+	_p(sec, "stump", Vector2(4.0, 5.5), 0.05, 0.5)
+	sec.item_spots.append(Vector3(14.0, 0, -12.0))
+	_forest(sec, Rect2(0, -19, 18, 13), 8)
+	_ground(sec, Vector2(9, -12), Vector2(10, 7), HOLLOW_MOSS, true, 0)
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(7.6, -3.4))
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(15.0, 6.5))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06], ["grass", 0.045, 0.0, 0.05]], 14)
+	_hollow_back(sec)
+	_front_edge(sec, ["fern", "bush"])
+	_end_trees(sec, -2.0, ["rotten_tree", "pine_dead", "dead_tree"])
+	return sec
+
+
+## The forest trail: a winding trail under dense trees; a side trail climbs to a clearing behind
+## a band of thorns, where the seal waits in a ring of stumps.
+func _hollow_trail() -> ZoneSectionData:
+	var sec := _new("trail", 32.0, 3201)
+	_path(sec, [Vector2(-1, 0.0), Vector2(8, -1.4), Vector2(16, 1.0), Vector2(24, -0.6), Vector2(33, 0.0)], 3.4,
+			TRAIL, 1, TRAIL_TINT)
+	_path(sec, [Vector2(14, -0.5), Vector2(17, -6.0), Vector2(20, -12.5)], 2.6, TRAIL, 1, TRAIL_TINT)
+	_ground(sec, Vector2(21.0, -14.0), Vector2(9.0, 7.0), HOLLOW_MOSS, true, 0)
+	for at: Vector2 in [Vector2(18.0, -15.5), Vector2(24.0, -15.5), Vector2(21.0, -17.5)]:
+		_p(sec, "stump", at, 0.05, 0.5)
+	for x: float in [4.0, 7.5, 11.0, 24.5, 28.0]:
+		_p(sec, "thorns", Vector2(x, -8.5 - fmod(x, 2.0)), 0.05, 0.8)
+	_lamp(sec, Vector2(10.0, -3.6))
+	_lamp(sec, Vector2(26.0, 2.6))
+	sec.seal_spots.assign([Vector3(21.0, 0, -14.0), Vector3(4.0, 0, -15.5)])
+	sec.item_spots.append(Vector3(10.0, 0, 7.0))
+	sec.shrine_spots.append(Vector3(28.0, 0, -5.0))
+	sec.enemies.append(_roamer(Vector2(8.0, 0.0), 2.5, 85))
+	sec.enemies.append(_roamer(Vector2(21.0, -12.0), 1.6, 65))
+	sec.enemies.append(_roamer(Vector2(27.0, 4.0), 2.0, 50))
+	_forest(sec, Rect2(0, -19, 32, 9), 12)
+	_undergrowth(sec, Rect2(0, 4.2, 32, 5.4), 6)
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(18.5, -16.5))
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(3.0, 4.5))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06], ["grass", 0.045, 0.0, 0.05], ["glow_shroom", 0.05, 0.0, 0.0]], 18)
+	_hollow_back(sec)
+	_front_edge(sec, ["fern", "bush"])
+	return sec
+
+
+## The woodcutter's camp: a clearing with a campfire, stumps and logs, a broken cart and a well.
+func _hollow_camp() -> ZoneSectionData:
+	var sec := _new("camp", 32.0, 3301)
+	_path(sec, [Vector2(-1, 0.6), Vector2(33, 0.0)], 3.4, TRAIL, 1, TRAIL_TINT)
+	_ground(sec, Vector2(16.0, -7.5), Vector2(20.0, 13.0), TRAIL, true, 0, 0.9)
+	_p(sec, "campfire", Vector2(16.0, -7.5), 0.05, 0.6, 0.0, false, 1.4, FIRE_LIGHT)
+	sec.lights.append(_light(Vector3(16.0, 1.0, -7.0), FIRE_LIGHT, 3.0, 8.0, 25))
+	for at: Vector2 in [Vector2(13.0, -9.0), Vector2(19.0, -9.5), Vector2(16.0, -4.6)]:
+		_p(sec, "stump", at, 0.05, 0.5)
+	_p(sec, "log", Vector2(12.0, -12.5), 0.05, 0.8)
+	_p(sec, "log", Vector2(21.0, -5.0), 0.05, 0.8, 0.0, true)
+	_p(sec, "cart", Vector2(8.0, -13.5), 0.05, 1.2)
+	_p(sec, "well", Vector2(25.0, -12.5), 0.05, 1.0)
+	_p(sec, "fence", Vector2(27.5, -6.5), 0.05, 0.0)
+	_p(sec, "fence", Vector2(5.0, -6.0), 0.05, 0.0, 0.0, true)
+	_lamp(sec, Vector2(11.0, 2.8))
+	sec.wanderer_spots.append(Vector3(14.0, 0, -6.0))
+	sec.shrine_spots.append(Vector3(27.0, 0, 6.0))
+	sec.chests.append(Vector3(4.5, 0, -17.0))
+	sec.seal_spots.assign([Vector3(16.0, 0, -17.0), Vector3(29.5, 0, -16.0)])
+	sec.item_spots.append(Vector3(22.0, 0, 7.5))
+	sec.enemies.append(_roamer(Vector2(8.0, 1.0), 2.5, 85))
+	sec.enemies.append(_roamer(Vector2(24.0, 1.0), 2.5, 70))
+	sec.enemies.append(_roamer(Vector2(21.0, -16.0), 1.6, 55))
+	_undergrowth(sec, Rect2(0, 4.2, 32, 5.4), 6)
+	_forest(sec, Rect2(0, -19, 5, 12), 2)
+	_forest(sec, Rect2(27, -19, 5, 9), 2)
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(9.5, -11.0))
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(24.0, -9.5))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06], ["grass", 0.045, 0.0, 0.05]], 14)
+	_hollow_back(sec)
+	_front_edge(sec, ["fern", "bush"])
+	return sec
+
+
+## The chapel yard: the broken walls of a forest chapel, grave crosses all round; a champion
+## keeps its chest inside.
+func _hollow_chapel() -> ZoneSectionData:
+	var sec := _new("chapel", 32.0, 3401)
+	_path(sec, [Vector2(-1, 0.4), Vector2(16, 1.4), Vector2(33, 0.4)], 3.4, TRAIL, 1, TRAIL_TINT)
+	sec.blocks.append(_block(Vector3(9.0, 0, -14.5), Vector3(0.9, 2.6, 11.0), "ruin_wall"))
+	sec.blocks.append(_block(Vector3(23.0, 0, -14.5), Vector3(0.9, 2.2, 11.0), "ruin_wall"))
+	sec.blocks.append(_block(Vector3(11.3, 0, -9.0), Vector3(4.6, 2.4, 0.9), "ruin_wall"))
+	sec.blocks.append(_block(Vector3(20.7, 0, -9.0), Vector3(4.6, 1.8, 0.9), "ruin_wall"))
+	_ground(sec, Vector2(16.0, -14.5), Vector2(13.0, 10.5), ENV + "paving.png", false, 0, 0.3)
+	var champion := _roamer(Vector2(16.0, -13.5), 0.0, 100)
+	champion.encounter = load("res://data/encounters/elite_twin_husks.tres") as EncounterData
+	champion.champion = true
+	champion.prize_spot = Vector3(16.0, 0, -18.0)
+	sec.enemies.append(champion)
+	_lamp(sec, Vector2(13.0, -7.6))
+	_lamp(sec, Vector2(19.0, -7.6))
+	for i: int in 8:
+		var at := Vector2(2.0 + (i % 4) * 1.8, -6.0 - floorf(i / 4.0) * 4.5)
+		_p(sec, "grave_cross", at, 0.05, 0.0, 0.0, i % 2 == 0)
+		_p(sec, "grave_cross", Vector2(32.0 - at.x, at.y - 0.5), 0.05, 0.0, 0.0, i % 2 == 1)
+	_p(sec, "grave_cross", Vector2(13.0, -16.0), 0.05, 0.0)
+	_p(sec, "rotten_tree", Vector2(6.0, 6.5), 0.06, 0.6)
+	_p(sec, "rotten_tree", Vector2(27.0, -18.0), 0.06, 0.6, 0.02, true)
+	sec.seal_spots.assign([Vector3(4.0, 0, -16.0), Vector3(28.0, 0, -15.5)])
+	sec.item_spots.append(Vector3(27.0, 0, 7.0))
+	sec.wanderer_spots.append(Vector3(5.0, 0, -2.5))
+	sec.enemies.append(_roamer(Vector2(9.0, 1.5), 2.5, 80))
+	sec.enemies.append(_roamer(Vector2(23.0, 1.0), 2.5, 60))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(4.0, -6.8))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(28.5, -11.0))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06], ["grass", 0.045, 0.0, 0.05]], 14)
+	_hollow_back(sec)
+	_front_edge(sec, ["fern", "bush"])
+	return sec
+
+
+## The thorn thicket: briars choke the back half; one way winds through to the seal.
+func _hollow_thicket() -> ZoneSectionData:
+	var sec := _new("thicket", 32.0, 3501)
+	_path(sec, [Vector2(-1, 0.0), Vector2(16, -1.0), Vector2(33, 0.0)], 3.4, TRAIL, 1, TRAIL_TINT)
+	_path(sec, [Vector2(10, -1.5), Vector2(12, -8.0), Vector2(16, -12.5), Vector2(16, -16.0)], 2.4, TRAIL, 1, TRAIL_TINT)
+	var thorns: Array[Vector2] = [Vector2(4, -6), Vector2(6, -9), Vector2(8, -13), Vector2(5, -16), Vector2(9, -18),
+			Vector2(14.5, -6.5), Vector2(19, -8.5), Vector2(20, -12.5), Vector2(19.5, -16.5), Vector2(12.5, -18.5),
+			Vector2(23, -6), Vector2(26, -9.5), Vector2(24, -14.5), Vector2(28.5, -5.5)]
+	for at: Vector2 in thorns:
+		_p(sec, "thorns", at, 0.05, 0.9, 0.0, int(at.x) % 2 == 0)
+	_ground(sec, Vector2(16, -16), Vector2(6, 5), HOLLOW_MOSS, true, 0)
+	_lamp(sec, Vector2(6.0, 2.8))
+	sec.seal_spots.assign([Vector3(16.0, 0, -16.0), Vector3(29.0, 0, -12.0)])
+	sec.item_spots.append(Vector3(4.0, 0, -12.5))
+	sec.shrine_spots.append(Vector3(16.0, 0, 6.5))
+	sec.chests.append(Vector3(29.5, 0, -18.5))
+	sec.enemies.append(_roamer(Vector2(15.0, -11.0), 2.0, 85))
+	sec.enemies.append(_roamer(Vector2(8.0, 0.5), 2.0, 70))
+	sec.enemies.append(_roamer(Vector2(25.0, 1.0), 2.0, 55))
+	_undergrowth(sec, Rect2(0, 4.2, 32, 5.4), 6)
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(22.0, -11.0))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(3.0, -12.0))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06], ["grass", 0.045, 0.0, 0.05]], 12)
+	_hollow_back(sec)
+	_front_edge(sec, ["fern", "bush"])
+	return sec
+
+
+## The fallen giant: a great dead tree lies across the forest; the way goes round its broken top.
+func _hollow_fallen() -> ZoneSectionData:
+	var sec := _new("fallen", 32.0, 3601)
+	_path(sec, [Vector2(-1, 0.6), Vector2(33, 0.0)], 3.4, TRAIL, 1, TRAIL_TINT)
+	var x := 3.0
+	while x < 26.0:
+		if x < 14.5 or x > 17.5:
+			_p(sec, "log", Vector2(x, -7.0 - (x - 3.0) * 0.12), 0.07, 1.0, 0.0, x > 16.0)
+		x += 2.2
+	_p(sec, "rotten_tree", Vector2(28.0, -8.5), 0.06, 0.6, 0.02, true)
+	for at: Vector2 in [Vector2(6.0, -8.6), Vector2(11.0, -9.2), Vector2(20.0, -10.0), Vector2(24.0, -10.4)]:
+		_p(sec, "glow_shroom", at, 0.05, 0.0, 0.0, false, 1.5, SHROOM_GLOW)
+	sec.lights.append(_light(Vector3(10.0, 1.2, -8.5), SHROOM_GLOW, 1.4, 5.5, 0))
+	sec.lights.append(_light(Vector3(22.0, 1.2, -9.5), SHROOM_GLOW, 1.4, 5.5, 0))
+	_ground(sec, Vector2(16.0, -14.5), Vector2(22.0, 9.0), HOLLOW_MOSS, true, 0, 0.7)
+	_lamp(sec, Vector2(16.0, 2.8))
+	sec.seal_spots.assign([Vector3(16.0, 0, -15.0), Vector3(5.5, 0, -16.0)])
+	sec.item_spots.append(Vector3(10.0, 0, -15.0))
+	sec.item_spots.append(Vector3(27.0, 0, 7.0))
+	sec.wanderer_spots.append(Vector3(26.0, 0, -15.0))
+	sec.enemies.append(_roamer(Vector2(16.0, -13.0), 2.5, 85))
+	sec.enemies.append(_roamer(Vector2(8.0, 1.0), 2.0, 70))
+	sec.enemies.append(_roamer(Vector2(25.0, 0.5), 2.0, 50))
+	_undergrowth(sec, Rect2(0, 4.2, 32, 5.4), 6)
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(9.0, -7.9))
+	_critter(sec, ZoneCritterData.Kind.RAT, Vector2(20.0, -6.0))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06], ["grass", 0.045, 0.0, 0.05]], 14)
+	_hollow_back(sec)
+	_front_edge(sec, ["fern", "bush"])
+	return sec
+
+
+func _end_hollow() -> ZoneSectionData:
+	var sec := _new("end", 26.0, 3701)
+	_path(sec, [Vector2(-1, 0.0), Vector2(27, 0.0)], 3.4, TRAIL, 1, TRAIL_TINT)
+	_ground(sec, Vector2(17.0, -2.0), Vector2(16.0, 12.0), HOLLOW_MOSS, true, 0, 0.6)
+	_gate(sec)
+	_guard(sec, Vector2(17.0, -1.0))
+	for at: Vector2 in [Vector2(10.0, -10.0), Vector2(24.0, -11.0), Vector2(11.0, 6.5), Vector2(23.5, 6.0)]:
+		_p(sec, "rotten_tree", at, 0.06, 0.6, 0.02, at.x > 17.0)
+	_lamp(sec, Vector2(12.0, -4.0))
+	_lamp(sec, Vector2(22.0, -4.0))
+	for at: Vector2 in [Vector2(14.0, -12.0), Vector2(20.0, -12.5)]:
+		_p(sec, "grave_cross", at, 0.05, 0.0)
+	sec.lights.append(_light(Vector3(17.0, 2.0, -1.0), LAMP_LIGHT, 2.6, 8.0, 10))
+	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(14.5, -12.8))
+	_scatter(sec, [["fern", 0.045, 0.0, 0.06]], 8)
+	_hollow_back(sec)
+	_front_edge(sec, ["fern", "bush"])
+	_end_trees(sec, sec.width + 2.0, ["rotten_tree", "pine_dead", "dead_tree"])
+	return sec
+
+
+# --- shared pieces ----------------------------------------------------------------------------
+
+## The gate of rotten roots across the whole depth at x 4 (DESIGN.md 8.5).
+func _gate(sec: ZoneSectionData) -> void:
+	var gate := _block(Vector3(4.0, 0.0, (Z_BACK + Z_FRONT) * 0.5), Vector3(1.2, 2.6, Z_FRONT - Z_BACK), "rot_gate")
+	gate.texture_world_size = 2.4
+	sec.gate = gate
+
+
+func _guard(sec: ZoneSectionData, at: Vector2) -> void:
+	var guard := ZoneEnemyData.new()
+	guard.position = Vector3(at.x, 0.0, at.y)
+	guard.wander_radius = 1.0
+	guard.guard = true
+	sec.enemies.append(guard)
+
+
+## A road or trail through points (x, z): one ground piece per stretch, overlapping at the joints.
+func _path(sec: ZoneSectionData, points: Array, width: float, texture: String, layer: int,
+		tint: Color = Color(1, 1, 1)) -> void:
+	for i: int in points.size() - 1:
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		var g := ZoneGroundData.new()
+		g.position = Vector3((a.x + b.x) * 0.5, 0.0, (a.y + b.y) * 0.5)
+		g.size = Vector2(a.distance_to(b) + width * 0.6, width)
+		g.rotation_y_degrees = -rad_to_deg((b - a).angle())
+		g.texture_path = texture
+		g.edge_noise = 0.45
+		g.layer = layer
+		g.tint = tint
+		sec.grounds.append(g)
+
+
+func _ground(sec: ZoneSectionData, at: Vector2, size: Vector2, texture: String, round: bool = false, layer: int = 0,
+		edge: float = 0.5, solid: bool = false, tint: Color = Color(1, 1, 1), deep: Color = Color(0.04, 0.1, 0.09)) -> void:
+	var g := ZoneGroundData.new()
+	g.kind = ZoneGroundData.Kind.WATER if texture.ends_with("water.png") else ZoneGroundData.Kind.PATCH
+	g.position = Vector3(at.x, 0.0, at.y)
+	g.size = size
+	g.round = round
+	g.texture_path = texture
+	g.edge_noise = edge
+	g.layer = layer
+	g.tint = tint
+	g.deep_color = deep
+	g.solid = solid
+	sec.grounds.append(g)
+
+
+## A prop at (x, z). `glow` above 0 makes it shine in `glow_color`.
+func _p(sec: ZoneSectionData, sprite: String, at: Vector2, pixel: float, solid: float, sway: float = 0.0,
+		flip: bool = false, glow: float = 0.0, glow_color: Color = Color(1, 1, 1)) -> void:
+	var prop := ZonePropData.new()
+	prop.sprite_path = ENV + sprite + ".png"
+	prop.position = Vector3(snappedf(at.x, 0.01), 0.0, snappedf(at.y, 0.01))
+	prop.pixel_size = pixel
+	prop.solid_radius = solid
+	prop.flip = flip
+	prop.sway = sway
+	prop.glow = glow
+	prop.glow_color = glow_color
+	sec.props.append(prop)
+
+
+func _critter(sec: ZoneSectionData, kind: ZoneCritterData.Kind, at: Vector2) -> void:
+	var c := ZoneCritterData.new()
+	c.kind = kind
+	c.position = Vector3(at.x, 0.0, at.y)
+	c.sprite_path = ENV + "critter_%s.png" % ["crow", "frog", "rat"][kind]
+	c.pixel_size = 0.045
+	c.flip = _rng.randf() < 0.5
+	sec.critters.append(c)
+
+
+func _air(id: String, texture: String, color: Color, glow: float, amount: int, lifetime: float, size: float,
+		area: Vector3, height: float, velocity: Vector3, spread: float, wobble: float, soft: bool = false,
+		spin: bool = false) -> ZoneAmbientData:
+	var a := ZoneAmbientData.new()
+	a.id = id
+	a.texture_path = texture
+	a.color = color
+	a.glow = glow
+	a.amount = amount
+	a.lifetime = lifetime
+	a.size = size
+	a.area = area
+	a.height = height
+	a.velocity = velocity
+	a.spread = spread
+	a.wobble = wobble
+	a.soft = soft
+	a.spin = spin
+	return a
+
+
+## `count` props picked from `kinds` ([sprite, pixel, solid, sway] each) at random spots in `area`
+## (default: the whole section) that keep clear of the spots that matter, the blocks, deep water,
+## other solid props and (for solid props) the walkways.
+func _scatter(sec: ZoneSectionData, kinds: Array, count: int, area: Rect2 = Rect2()) -> void:
+	if area.size == Vector2.ZERO:
+		area = Rect2(0.5, Z_BACK + 0.5, sec.width - 1.0, Z_FRONT - Z_BACK - 1.0)
+	var keep := _keep_spots(sec)
+	var placed := 0
+	var tries := 0
+	while placed < count and tries < count * 40:
+		tries += 1
+		var kind: Array = kinds[_rng.randi_range(0, kinds.size() - 1)]
+		var at := Vector2(_rng.randf_range(area.position.x, area.end.x), _rng.randf_range(area.position.y, area.end.y))
+		var solid := float(kind[2])
+		if not _clear(sec, keep, at, solid):
+			continue
+		_p(sec, String(kind[0]), at, float(kind[1]), solid, float(kind[3]), _rng.randf() < 0.5)
+		if solid > 0.0:
+			keep.append(Vector3(at.x, 0.0, at.y))
+		placed += 1
+
+
+func _keep_spots(sec: ZoneSectionData) -> Array[Vector3]:
 	var keep: Array[Vector3] = []
 	keep.append_array(sec.item_spots)
 	keep.append_array(sec.chests)
@@ -343,76 +1118,51 @@ func _decorate(sec: ZoneSectionData, theme: Dictionary) -> void:
 		if e.champion:
 			keep.append(e.prize_spot)
 	for p: ZonePropData in sec.props:
-		keep.append(p.position)
-	var trees: Array = theme.trees
-	var placed := 0
-	var tries := 0
-	while placed < int(sec.width / 5.0) and tries < 400:
-		tries += 1
-		var kind: Array = trees[rng.randi_range(0, trees.size() - 1)]
-		var spot := Vector3(rng.randf_range(1.0, sec.width - 1.0), 0.0, rng.randf_range(Z_BACK + 1.0, Z_FRONT - 1.0))
-		# Trees stand along the back, never in the walkways or in front of the camera's view.
-		if spot.z > -LANE_KEEP - 10.0:
-			continue
-		if _clear(sec, keep, spot, float(kind[2])):
-			sec.props.append(_prop(String(kind[0]), _snap(spot), float(kind[1]), float(kind[2]), rng.randf() < 0.5))
-			keep.append(spot)
-			placed += 1
-	placed = 0
-	tries = 0
-	while placed < 2 and tries < 200:
-		tries += 1
-		var spot := Vector3(rng.randf_range(1.0, sec.width - 1.0), 0.0, rng.randf_range(Z_BACK + 1.0, Z_FRONT - 1.0))
-		if absf(spot.z) < LANE_KEEP:
-			continue
-		if _clear(sec, keep, spot, 0.7):
-			sec.props.append(_prop("rock", _snap(spot), 0.05, 0.7, rng.randf() < 0.5))
-			keep.append(spot)
-			placed += 1
-	for i: int in int(theme.shrooms):
-		var spot := Vector3(rng.randf_range(1.0, sec.width - 1.0), 0.0, rng.randf_range(Z_BACK + 1.0, Z_FRONT - 1.0))
-		sec.props.append(_glow_prop("glow_shroom", _snap(spot), 0.05, 1.5, theme.glow))
-	for i: int in int(theme.grass):
-		var spot := Vector3(rng.randf_range(0.5, sec.width - 0.5), 0.0, rng.randf_range(Z_BACK + 0.5, Z_FRONT - 0.5))
-		sec.props.append(_prop("grass", _snap(spot), 0.045, 0.0, rng.randf() < 0.5))
+		if p.solid_radius > 0.0:
+			keep.append(p.position)
+	return keep
 
 
-## True if a solid prop of `radius` at `spot` stays clear of the blocks and the kept spots.
-func _clear(sec: ZoneSectionData, keep: Array[Vector3], spot: Vector3, radius: float) -> bool:
+## True if a prop of solid `radius` (0: walk-through) can stand at `at`.
+func _clear(sec: ZoneSectionData, keep: Array[Vector3], at: Vector2, radius: float) -> bool:
+	var reach := KEEP_OUT + radius if radius > 0.0 else 0.9
 	for k: Vector3 in keep:
-		if Vector2(k.x, k.z).distance_to(Vector2(spot.x, spot.z)) < KEEP_OUT + radius:
+		if Vector2(k.x, k.z).distance_to(at) < reach:
 			return false
-	var at := Vector2(spot.x, spot.z)
 	for b: ZoneBlockData in sec.blocks:
 		var o := {"centre": Vector2(b.position.x, b.position.z), "half": Vector2(b.size.x, b.size.z) * 0.5,
 				"angle": deg_to_rad(b.rotation_y_degrees)}
-		if ZonePath._overlaps(at, radius + 1.2, o):
+		if ZonePath._overlaps(at, radius + 0.8, o):
 			return false
+	for g: ZoneGroundData in sec.grounds:
+		if not g.solid and not (radius > 0.0 and g.layer >= 1 and g.texture_path != ENV + "lily_pads.png"):
+			continue
+		if g.solid:
+			for o: Dictionary in ZoneMotion.ground_obstacles(g):
+				if ZonePath._overlaps(at, radius + 0.5, o):
+					return false
+		elif _on_ground(g, at, radius + 0.6):
+			# Solid props keep off roads, trails and boardwalks.
+			return false
+	if radius > 0.0 and absf(at.y) < 3.6:
+		return false
 	return true
 
 
-func _snap(v: Vector3) -> Vector3:
-	return Vector3(snappedf(v.x, 0.01), 0.0, snappedf(v.z, 0.01))
+## True if `at` is within `margin` of ground piece `g` (its rectangle or ellipse).
+func _on_ground(g: ZoneGroundData, at: Vector2, margin: float) -> bool:
+	var local := (at - Vector2(g.position.x, g.position.z)).rotated(deg_to_rad(g.rotation_y_degrees))
+	var half := g.size * 0.5 + Vector2(margin, margin)
+	if g.round:
+		return (local.x / half.x) * (local.x / half.x) + (local.y / half.y) * (local.y / half.y) <= 1.0
+	return absf(local.x) <= half.x and absf(local.y) <= half.y
 
 
-func _lamp(sec: ZoneSectionData, theme: Dictionary, at: Vector3) -> void:
-	if bool(theme.lamps):
-		sec.props.append(_prop("lamp", at, 0.05, 0.3))
-		sec.lights.append(_light(at + Vector3(0.0, 1.9, 0.3), LAMP_LIGHT, 2.4, 7.0, 12))
-	else:
-		_glow(sec, theme, at)
+# --- small builders ---------------------------------------------------------------------------
 
-
-func _glow(sec: ZoneSectionData, theme: Dictionary, at: Vector3) -> void:
-	sec.props.append(_glow_prop("glow_shroom", at, 0.05, 1.5, theme.glow))
-	sec.lights.append(_light(at + Vector3(0.0, 1.2, 0.3), theme.glow, 1.8, 6.0, 0))
-
-
-# --- small builders (as in bootstrap_run.gd) --------------------------------------------------
-
-func _roamer(pos: Vector3, wander: float, chance: int) -> ZoneEnemyData:
+func _roamer(at: Vector2, wander: float, chance: int) -> ZoneEnemyData:
 	var roamer := ZoneEnemyData.new()
-	roamer.position = pos
+	roamer.position = Vector3(at.x, 0.0, at.y)
 	roamer.wander_radius = wander
 	roamer.chance_percent = chance
 	return roamer
@@ -425,23 +1175,6 @@ func _block(pos: Vector3, size: Vector3, texture: String, turn: float = 0.0) -> 
 	block.texture_path = ENV + texture + ".png"
 	block.rotation_y_degrees = turn
 	return block
-
-
-func _prop(sprite: String, pos: Vector3, pixel: float, solid: float, flip: bool = false) -> ZonePropData:
-	var prop := ZonePropData.new()
-	prop.sprite_path = ENV + sprite + ".png"
-	prop.position = pos
-	prop.pixel_size = pixel
-	prop.solid_radius = solid
-	prop.flip = flip
-	return prop
-
-
-func _glow_prop(sprite: String, pos: Vector3, pixel: float, glow: float, color: Color) -> ZonePropData:
-	var prop := _prop(sprite, pos, pixel, 0.0)
-	prop.glow = glow
-	prop.glow_color = color
-	return prop
 
 
 func _light(pos: Vector3, color: Color, energy: float, reach: float, flicker: int) -> ZoneLightData:

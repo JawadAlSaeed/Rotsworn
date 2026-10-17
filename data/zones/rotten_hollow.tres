@@ -1,25 +1,28 @@
 [gd_resource type="Resource" script_class="ZoneData" format=3]
 
+[ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="1_mwejp"]
 [ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_zone_b"]
 [ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_end.tres" id="2_7qkf5"]
 [ext_resource type="Script" path="res://scripts/data/zone_prop_data.gd" id="2_zone_p"]
+[ext_resource type="Script" path="res://scripts/data/zone_critter_data.gd" id="3_j8kl2"]
 [ext_resource type="Script" path="res://scripts/data/zone_light_data.gd" id="3_zone_l"]
 [ext_resource type="Resource" path="res://data/encounters/husk_fight.tres" id="4_husk_f"]
 [ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="5_zone_e"]
 [ext_resource type="Resource" path="res://data/encounters/fly_fight.tres" id="6_gnat_p"]
+[ext_resource type="Script" path="res://scripts/data/zone_ground_data.gd" id="6_wophx"]
 [ext_resource type="Script" path="res://scripts/data/zone_section_data.gd" id="7_0y0bn"]
 [ext_resource type="Resource" path="res://data/encounters/shade_fight.tres" id="7_shade_"]
 [ext_resource type="Resource" path="res://data/encounters/bloat_fight.tres" id="8_bloat_"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_fork.tres" id="8_r5qu6"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_yard.tres" id="9_mwejp"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_pass.tres" id="10_j8kl2"]
 [ext_resource type="Resource" path="res://data/looks/rotten_hollow.tres" id="10_rotten"]
+[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_trail.tres" id="11_7i7ie"]
 [ext_resource type="Resource" path="res://data/characters/brin.tres" id="11_brin"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_court.tres" id="11_wophx"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_loop.tres" id="12_7i7ie"]
+[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_camp.tres" id="12_cxwx8"]
 [ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="12_zone_d"]
+[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_chapel.tres" id="13_6jne5"]
 [ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="13_cxwx8"]
+[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_thicket.tres" id="14_skf40"]
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="15_6jne5"]
+[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_fallen.tres" id="15_tacki"]
 [ext_resource type="Resource" path="res://data/offers/healing_spring.tres" id="21_skf40"]
 [ext_resource type="Resource" path="res://data/offers/blood_altar.tres" id="22_tacki"]
 [ext_resource type="Resource" path="res://data/offers/war_idol.tres" id="23_jgeta"]
@@ -28,6 +31,34 @@
 [ext_resource type="Resource" path="res://data/offers/key_peddler.tres" id="26_p8rad"]
 [ext_resource type="Resource" path="res://data/offers/grave_robber.tres" id="27_b1m00"]
 [ext_resource type="Resource" path="res://data/offers/old_pilgrim.tres" id="28_rlip7"]
+
+[sub_resource type="Resource" id="Resource_mwejp"]
+script = ExtResource("1_mwejp")
+id = "leaves"
+texture_path = "res://assets/sprites/fx/leaf.png"
+lifetime = 9.0
+size = 0.14
+area = Vector3(14, 3, 4.5)
+height = 4.5
+velocity = Vector3(0.3, -0.45, 0.05)
+spread = 35.0
+wobble = 0.7
+spin = true
+
+[sub_resource type="Resource" id="Resource_j8kl2"]
+script = ExtResource("1_mwejp")
+id = "fireflies"
+texture_path = "res://assets/sprites/fx/mote.png"
+color = Color(1, 0.85, 0.45, 1)
+glow = 2.6
+amount = 22
+lifetime = 7.0
+size = 0.07
+area = Vector3(14, 1.2, 9)
+height = 1.3
+velocity = Vector3(0.05, 0.03, 0)
+spread = 180.0
+wobble = 1.0
 
 [resource]
 script = ExtResource("12_zone_d")
@@ -38,13 +69,13 @@ look = ExtResource("10_rotten")
 leader = ExtResource("11_brin")
 bounds_min = Vector2(0, -20)
 bounds_max = Vector2(1, 10)
+ambient = Array[ExtResource("1_mwejp")]([SubResource("Resource_mwejp"), SubResource("Resource_j8kl2")])
 start_section = ExtResource("25_hycp2")
-middle_sections = Array[ExtResource("7_0y0bn")]([ExtResource("8_r5qu6"), ExtResource("9_mwejp"), ExtResource("10_j8kl2"), ExtResource("11_wophx"), ExtResource("12_7i7ie")])
+middle_sections = Array[ExtResource("7_0y0bn")]([ExtResource("11_7i7ie"), ExtResource("12_cxwx8"), ExtResource("13_6jne5"), ExtResource("14_skf40"), ExtResource("15_tacki")])
 end_section = ExtResource("2_7qkf5")
 roamer_pool = Array[ExtResource("15_6jne5")]([ExtResource("4_husk_f"), ExtResource("6_gnat_p"), ExtResource("7_shade_"), ExtResource("8_bloat_")])
 shrines = Array[ExtResource("13_cxwx8")]([ExtResource("21_skf40"), ExtResource("22_tacki"), ExtResource("23_jgeta"), ExtResource("24_5iekg")])
 wanderers = Array[ExtResource("13_cxwx8")]([ExtResource("26_p8rad"), ExtResource("27_b1m00"), ExtResource("28_rlip7")])
-edge_texture_path = "res://assets/sprites/env/cliff.png"
 edge_height = 4.5
 music_path = "res://assets/audio/music/zone_hollow.ogg"
 ambience_path = "res://assets/audio/ambience/ambience_hollow.ogg"

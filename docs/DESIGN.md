@@ -2021,6 +2021,46 @@ phase 14 was the tutorial).
   gets `rest_train_points` (1) attribute point, `RunState.bonus_points`) or **Upgrade** (one
   backpack item up a level for free). The bot rests when hurt, else upgrades, else trains.
 
+### 8.12 Living zones (user, 2026-10-17: "the ruins should have ruins, roads; the swamp should have a swamp, jungle; make the zones feel alive")
+
+- **Each zone has its own places** (`tools/bootstrap_zones.gd`, 5 middles each, 3 per visit):
+  - **Ashen Ruins**, a dead city: a cobbled road runs through it all; the city gate (posts,
+    banners, braziers), the Old Road between broken walls with a burnt house behind them, the Plaza
+    (paving, a dry fountain, statues, braziers), the Colonnade (a covered walk of pillars), the
+    Graveyard (rows of headstones round a walled crypt: the champion), the Collapsed Hall (rooms
+    behind a wall with doorways); arches and broken walls line the back wall.
+  - **Sunken Bog**, swamp and jungle: deep water everywhere (it blocks walking) with lily pads and
+    reeds; the Boardwalk (planks across two lagoons, a side walk to an island), the Stilt Village
+    (huts on stilts, planks, lanterns, puddles), the Mangrove Tangle, the Lily Pond (two ponds hold
+    a spit of land with the champion), the Mushroom Grove (rings of glowing giant mushrooms); a
+    wall of swamp trees stands past the back and both ends.
+  - **Rotten Hollow**, a rotting forest on a dark leaf-litter floor: a dirt trail under dense
+    trees; the Forest Trail (a side trail behind thorns to a clearing), the Woodcutter's Camp
+    (campfire, stumps, logs, a cart, a well), the Chapel Yard (ruined chapel walls and grave
+    crosses: the champion), the Thorn Thicket (one way through the briars), the Fallen Giant (a dead
+    tree lying across the forest); a tree wall past the back and both ends.
+- **Ground pieces** (`ZoneGroundData`, `scripts/stage/ground_patch.gdshader`): roads, trails,
+  paving, mud, moss, ash, planks, lily pads and water laid on the floor, their textures tiling in
+  world space like the floor's, their edges eaten away per art pixel (`edge_noise`). Water scrolls
+  two layers of its texture, darkens toward the middle, keeps a muddy rim and sparkles; solid water
+  is obstacles for walking (`ZoneMotion.ground_obstacles`: a box, or circles filling an ellipse,
+  `SHORE` inside the drawn edge). Textures: art kit `env_ground.py`.
+- **Props** (art kit `env_life.py`): ruins (broken arch, knight statue, fallen column, rubble,
+  brazier, torn banner, gravestone, dry fountain, low wall, bones), swamp (reeds, mangrove, mossy
+  tree, giant mushroom, log, stilt hut, swamp lantern, fern), forest (bush, stump, thorns, fence,
+  cart, well, signpost, grave cross, dead pine) and the woodcutter's campfire.
+- **Wind** (`ZonePropData.sway`): grass, reeds, ferns, banners and trees sway (the sprite shader
+  bends the top; feet stay; each prop's phase from where it stands).
+- **Air** (`ZoneAmbientData`, particles that follow the camera's spot): ruins ash falling and
+  embers rising; swamp fireflies, low mist and spores; forest falling leaves and fireflies.
+- **Critters** (`ZoneCritterData`): crows, frogs and rats idle (two frames) and get away when the
+  leader comes within `critter_flee_radius` (a crow flies up and off, a frog hops away, a rat
+  scurries off); for show only, each machine plays them itself online.
+- **Front and ends**: low growth (reeds, ferns, bushes) just past the front edge frames the view
+  (the camera blurs it); nothing tall stands in front of the walkways.
+- `tools/zone_map_preview.gd` draws every zone from above to a picture (ground, water, walls,
+  props, enemies, seals, shrines) to check a layout without opening the game.
+
 ---
 
 ## 9. Multiplayer (phase 5)
@@ -2437,6 +2477,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-16 | Two acts of 6 rows each: The Rotten Road (boss The Husk Lord) and The Ashen Deep (The Hollow King) | card #163; more acts and zones later |
 | 2026-10-16 | The map gets a legend and dims stops the pick cannot lead to | card #162 (planning) |
 | 2026-10-16 | Shop: no Heal service; each shop stocks 4 items, 2 charms, 2 gear (was the whole list) | user: the shop felt cluttered and Heal = a Salve for the same gold |
+| 2026-10-17 | Zones get their own places, ground pieces and water, wind, drifting particles and critters | user: zones must feel alive and fit their theme (8.12) |
 | 2026-10-15 | Lining digits everywhere; bold number font for HP, AP, gauge; slanted bold popups and damage numbers | user: the numbers' font felt cheap |
 | 2026-10-15 | Hero portraits are painted pictures (made by the user with an AI image tool) turned into pixel art; big cards on the players screen, 64x64 faces everywhere else | user (#140, #141); a code-drawn try looked bad |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |
