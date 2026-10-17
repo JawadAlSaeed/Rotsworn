@@ -256,11 +256,13 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	var kinds: Array = []
 	var times: Array = []
 	var feints: Array = []
+	var marks: Array = []
 	for hit: Dictionary in _hits:
 		kinds.append(int(hit.kind))
 		times.append(int(hit.at_ms))
 		feints.append(bool(hit.get("feint", false)))
-	_hud.set_banner_hits(kinds, times, feints)
+		marks.append(String(hit.get("mark", "")))
+	_hud.set_banner_hits(kinds, times, feints, marks)
 	_hud.set_targeted(_targets)
 	var enemy := _view.fighter(_source)
 	if enemy != null:
@@ -1211,7 +1213,10 @@ func _last_impact_us() -> int:
 func _banner_text() -> String:
 	var enemy_name := String(_mirror.fighter(_source).get("display_name", "?"))
 	var target_text := CombatHud.target_text(_mirror, int(_event.get("mode", 0)), _targets)
-	return "%s  >  %s" % [enemy_name.to_upper(), target_text]
+	var marks: Array = []
+	for hit: Dictionary in _hits:
+		marks.append(String(hit.get("mark", "")))
+	return "%s  >  %s%s" % [enemy_name.to_upper(), target_text, HudStyle.mark_text(marks)]
 
 
 func _each_in_turn() -> bool:

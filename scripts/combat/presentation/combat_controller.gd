@@ -1334,6 +1334,10 @@ func _show_feedback(ev: Dictionary) -> void:
 						Tween.TRANS_QUAD, Tween.EASE_IN)
 				v.dissolve(_visuals.escape_run_ms, HudStyle.JUMP)
 		"ap_changed":
+			if int(ev.delta) < 0 and String(ev.reason) == "drain" and v != null:
+				# An enemy hit drained AP (card #194).
+				Sfx.play("status_expired")
+				hud.popup("%d AP" % int(ev.delta), head, HudStyle.STATUS_COLORS["ap_drain"] as Color)
 			if int(ev.delta) > 0:
 				Sfx.play("ap_gain")
 				if String(ev.reason) in ["given", "gear"] and v != null:

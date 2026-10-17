@@ -43,18 +43,20 @@ extends RefCounted
 ##   item_used               {turn, actor, uid, item, name, targets:[id]} (DESIGN.md 8.1)
 ##   damage                  {source, target, amount, hp, max_hp, cause, crit (a critical hit)}
 ##                           cause: "ability" | "follow_up" | "counter" | "team_counter" | "bleed"
+##                           | "item" | "rot" (gear) | "rotting" (the Rotting debuff)
 ##   healed                  {source, target, amount, hp, max_hp}
 ##   revived                 {source, target, hp, max_hp}
 ##   downed                  {target}
 ##   ap_changed              {character, delta, ap, reason}  reason: "spend" | "ability" | "given"
-##                           | "gear"
+##                           | "gear" | "drain" (an enemy hit that drains AP, card #194)
 ##   status_changed          {target, status, active, turns, source}   see Status
 ##   turn_shifted            {target, delta}   a fighter's next turn moved (delta in timeline
 ##                           ticks: negative = sooner); a turn_order event follows
 ##   team_gauge              {value, delta, max}
 ##   timed_sequence_declared {seq, kind, source, action, name, mode, targets:[id],
 ##                            alert_cue, allow_timing_ring, hits:[hit], prompts:[prompt]}
-##       hit    = {index, at_ms, kind, approach_ms, feint, damage_percent, impact_sfx}
+##       hit    = {index, at_ms, kind, approach_ms, feint, damage_percent, impact_sfx,
+##                 mark (only on a hit that marks, card #194: a hero debuff id or Status.MARK_AP_DRAIN)}
 ##                kind is the hit's kind in this fight (a forced kind in a hard fight, card #187);
 ##                at_ms and approach_ms are scaled by the enemy's tempo (card #188).
 ##       prompt = {idx, hit, character, at_ms, kind, windows:{Outcome:[early_us, late_us]},
@@ -570,9 +572,13 @@ func _start_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 		var amount := mini(CombatMath.percent_min1(actor.max_hp, rot), actor.hp - 1)
 		if amount > 0:
 			_deal_damage(actor, actor, amount, "rot", events)
+	if actor.has_status(Status.ROTTING) and actor.is_alive():
+		var rotted := mini(CombatMath.percent_min1(actor.max_hp, tuning.rotting_percent), actor.hp - 1)
+		if rotted > 0:
+			_deal_damage(actor, actor, rotted, "rotting", events)
 	if actor.has_status(Status.BLEEDING) and actor.is_alive():
 		var source := get_combatant(int((actor.statuses[Status.BLEEDING] as Dictionary).source))
-		var power := source.power if source != null else 1
+		var power := _power_of(source) if source != null else 1
 		_deal_damage(source if source != null else actor, actor, CombatMath.percent_min1(power, tuning.bleed_power_percent),
 				"bleed", events)
 	if actor.has_status(Status.REGEN) and actor.is_alive():
@@ -634,7 +640,7 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 		var hit: AttackHitData = attack.hits[hit_index]
 		var at_ms := CombatMath.percent(hit.impact_ms, tempo)
 		var kind := hit.kind_in(hard)
-		hits.append({
+		var declared := {
 			"index": hit_index,
 			"at_ms": at_ms,
 			"kind": kind,
@@ -642,15 +648,25 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 			"feint": hit.feint_in(hard),
 			"damage_percent": hit.damage_percent,
 			"impact_sfx": hit.impact_sfx,
-		})
+		}
+		var marks := hit.marks_in(hard)
+		if marks:
+			declared["mark"] = hit.mark_id_in(hard)
+		hits.append(declared)
 		# Each hero in turn: hit i strikes only its own target (DESIGN.md 3.11).
 		var hit_targets: Array[int] = targets
 		if attack.target_mode == EnemyAttackData.TargetMode.EACH:
 			hit_targets = [targets[hit_index % targets.size()]]
 		for target_id: int in hit_targets:
-			prompts.append(_prompt(prompts.size(), hit_index, target_id, at_ms, kind,
+			var defend := _prompt(prompts.size(), hit_index, target_id, at_ms, kind,
 					Defense.build_windows(kind, tuning), _enemy_hit_damage(actor, get_combatant(target_id), hit.damage_percent),
-					0, 0, ROLE_DEFEND, []))
+					0, 0, ROLE_DEFEND, [])
+			if marks:
+				# Only a marking hit carries these, so every other fight's events stay as they were.
+				defend["mark_status"] = hit.on_hit_status
+				defend["mark_turns"] = hit.on_hit_status_turns
+				defend["mark_ap"] = hit.on_hit_ap_drain
+			prompts.append(defend)
 	_declare(SEQUENCE_ENEMY_ATTACK, actor.id, attack.id, attack.display_name, attack.target_mode, targets,
 			attack.alert_cue, attack.allow_timing_ring, hits, prompts, events)
 	return true
@@ -868,6 +884,8 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	var kinds: Array[int] = []
 	var times: Array[int] = []
 	var feints: Array[bool] = []
+	var marks: Array[String] = []
+	var any_mark := false
 	var enemy := get_combatant(enemy_id)
 	var tempo := _tempo_percent(enemy)
 	var hard := _forced_hits(enemy)
@@ -875,6 +893,8 @@ func _intent_event(enemy_id: int) -> Dictionary:
 		kinds.append(hit.kind_in(hard))
 		times.append(CombatMath.percent(hit.impact_ms, tempo))
 		feints.append(hit.feint_in(hard))
+		marks.append(hit.mark_id_in(hard))
+		any_mark = any_mark or hit.marks_in(hard)
 	var targets: Array[int] = []
 	targets.assign(intent.targets)
 	var event := {
@@ -888,6 +908,9 @@ func _intent_event(enemy_id: int) -> Dictionary:
 		"times": times,
 		"feints": feints,
 	}
+	if any_mark:
+		# Honest intent (card #194): which hits leave a mark, "" for a plain one. Only when one does.
+		event["marks"] = marks
 	if intent.has("odds"):
 		event["odds"] = (intent.odds as Dictionary).duplicate(true)
 	return event
@@ -1010,6 +1033,7 @@ func _cmd_use_item(command: Dictionary, events: Array[Dictionary]) -> void:
 		match item.effect:
 			ItemData.Effect.HEAL_ONE, ItemData.Effect.HEAL_ALL:
 				if target.is_alive():
+					_cleanse(target, item.cleanse_count, events)
 					_heal(actor, target, CombatMath.percent_min1(target.max_hp, pct), events)
 			ItemData.Effect.REVIVE_ONE:
 				_revive(actor, target, pct, events)
@@ -1230,8 +1254,8 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			if damaging:
 				var bonus := _exposed_bonus(striker, ability, exposed >= 0) + _marked_bonus(ability, targets) \
 						+ _empowered_bonus(striker, ability)
-				good = _skill_damage(striker.power, _skill_percent(striker, ability, false), bonus)
-				perfect = _skill_damage(striker.power, _skill_percent(striker, ability, true), bonus)
+				good = _skill_damage(_power_of(striker), _skill_percent(striker, ability, false), bonus)
+				perfect = _skill_damage(_power_of(striker), _skill_percent(striker, ability, true), bonus)
 				miss = CombatMath.percent(good, tuning.skill_miss_damage_percent)
 				# Rolled now with the damage, so it is in the declared event (DESIGN.md 8.2); a missed
 				# press never crits.
@@ -1255,8 +1279,8 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			var hit_index := hits.size()
 			var ally := get_combatant(ally_id)
 			hits.append(_skill_hit(hit_index, at_ms, tuning.follow_up_percent, "strike"))
-			var good := _roll_damage(ally.power, tuning.follow_up_percent)
-			var perfect := _roll_damage(ally.power, tuning.follow_up_perfect_percent)
+			var good := _roll_damage(_power_of(ally), tuning.follow_up_percent)
+			var perfect := _roll_damage(_power_of(ally), tuning.follow_up_perfect_percent)
 			var crit := _roll_crit(ally)
 			var follow := _prompt(prompts.size(), hit_index, ally_id, at_ms, AttackHitData.Kind.PRESS,
 					Defense.build_follow_up_windows(tuning), 0, _crit_damage(good) if crit else good,
@@ -1340,6 +1364,8 @@ func _apply_effects(actor: Combatant, ability: AbilityData, targets: Array[int],
 			if give > 0:
 				_change_ap(target, give, "given", events)
 			if heal > 0:
+				# The cleanse comes first, so lifting Blighted frees this very heal.
+				_cleanse(target, ability.cleanse_count + (ability.press_cleanse_count if good else 0), events)
 				_heal(actor, target, CombatMath.percent_min1(target.max_hp, heal), events)
 			if hasten > 0:
 				var waiting := maxi(0, target.next_turn_at - time_now)
@@ -1554,6 +1580,20 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		_on_downed(target, events)
 	elif perfect and outcome == Defense.Outcome.JUMP and Passive.amount(target, Passive.HEAL_ON_JUMP) > 0:
 		_heal(target, target, CombatMath.percent_min1(target.max_hp, Passive.amount(target, Passive.HEAL_ON_JUMP)), events)
+	if not downed and outcome == Defense.Outcome.NONE:
+		_apply_hit_marks(target, prompt, events)
+
+
+## The mark a hit leaves on a hero who took it undefended and is still standing (card #194): a
+## debuff (refreshing its turns if the hero already has it) and/or an AP drain. A hero downed by the
+## hit, or one who defended it, gets nothing.
+func _apply_hit_marks(target: Combatant, prompt: Dictionary, events: Array[Dictionary]) -> void:
+	var id := String(prompt.get("mark_status", ""))
+	if Status.is_debuff(id):
+		_add_status(target, id, maxi(1, int(prompt.get("mark_turns", 1))), int(sequence.source), events)
+	var drain := int(prompt.get("mark_ap", 0))
+	if drain > 0:
+		_change_ap(target, -drain, "drain", events)
 
 
 ## A skill press or follow-up press: its hit lands on every standing target.
@@ -1722,7 +1762,7 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 		var any_crit := false
 		for actor_id: int in counterers:
 			var actor := get_combatant(actor_id)
-			var share := CombatMath.percent(actor.power, _counter_percent(actor, tuning.team_counter_percent, string))
+			var share := CombatMath.percent(_power_of(actor), _counter_percent(actor, tuning.team_counter_percent, string))
 			# Each hero's share can crit on its own.
 			if _roll_crit(actor):
 				share = CombatMath.percent(share, tuning.crit_damage_percent)
@@ -1742,7 +1782,7 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 		var string := _string_of(actor_id)
 		events.append({"type": "counter", "seq": sequence.seq, "actors": [actor_id], "target": attacker.id, "team": false,
 				"hits": string.x, "mixed": string.y == 1})
-		var amount := _roll_damage(actor.power, _counter_percent(actor, tuning.counter_percent, string))
+		var amount := _roll_damage(_power_of(actor), _counter_percent(actor, tuning.counter_percent, string))
 		var crit := _roll_crit(actor)
 		_deal_damage(actor, attacker, _crit_damage(amount) if crit else amount, "counter", events, crit)
 		_gear_ap_on_counter(actor, events)
@@ -1872,10 +1912,31 @@ func _shift_turn(c: Combatant, delta: int, events: Array[Dictionary]) -> void:
 
 func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary]) -> void:
 	amount = CombatMath.percent(amount, 100 + Passive.amount(source, Passive.HEAL))
+	if target.has_status(Status.BLIGHTED) and amount > 0:
+		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tuning.blighted_heal_cut_percent))
 	var before := target.hp
 	target.hp = mini(target.max_hp, target.hp + amount)
 	events.append({"type": "healed", "source": source.id, "target": target.id, "amount": target.hp - before,
 			"hp": target.hp, "max_hp": target.max_hp})
+
+
+## A fighter's power with Weakened applied (card #194).
+func _power_of(c: Combatant) -> int:
+	if c.has_status(Status.WEAKENED):
+		return CombatMath.percent_min1(c.power, maxi(0, 100 - tuning.weakened_power_cut_percent))
+	return c.power
+
+
+## Removes up to `count` hero debuffs from `target`, in Status.DEBUFFS order. Returns how many went.
+func _cleanse(target: Combatant, count: int, events: Array[Dictionary]) -> int:
+	var removed := 0
+	for id: String in Status.DEBUFFS:
+		if removed >= count:
+			break
+		if target.has_status(id):
+			_remove_status(target, id, events)
+			removed += 1
+	return removed
 
 
 ## Brings a downed party member back (DESIGN.md 2.1: next turn one turn cost from now).

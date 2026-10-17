@@ -35,6 +35,9 @@ impact_ms = 2800
 kind = 1
 damage_percent = 25
 approach_ms = 400
+on_hit_status = "rotting"
+on_hit_status_turns = 3
+on_hit_hard_only = true
 
 [resource]
 script = ExtResource("2_tdgly")

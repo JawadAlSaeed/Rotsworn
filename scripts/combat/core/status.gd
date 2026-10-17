@@ -27,11 +27,34 @@ const MARKED := "marked"
 ## then it is gone.
 const EMPOWERED := "empowered"
 
-const ALL: Array[String] = [EXPOSED, GUARDED, TAUNTED, SLOWED, RIPOSTE, BLEEDING, REGEN, MARKED, EMPOWERED]
+## Hero debuffs (card #194). An enemy hit that lands undefended can leave one (AttackHitData.on_hit_status).
+## Each lasts `turns` of the holder's turns; hit again, the turns refresh (never stack or multiply).
+## At the start of each of the holder's turns they lose rotting_percent of max HP, never below 1 HP
+## from rot alone.
+const ROTTING := "rotting"
+## Healing the holder receives is cut by blighted_heal_cut_percent.
+const BLIGHTED := "blighted"
+## The holder's power is cut by weakened_power_cut_percent (skills, counters, follow-ups, bleed).
+const WEAKENED := "weakened"
+
+const ALL: Array[String] = [EXPOSED, GUARDED, TAUNTED, SLOWED, RIPOSTE, BLEEDING, REGEN, MARKED, EMPOWERED,
+		ROTTING, BLIGHTED, WEAKENED]
+
+## The debuffs, in the order a cleanse removes them (the one that hurts most first).
+const DEBUFFS: Array[String] = [ROTTING, BLIGHTED, WEAKENED]
+
+## The mark an enemy hit shows when it only drains AP (not a status). Presentation and the intent
+## event use it like a status id.
+const MARK_AP_DRAIN := "ap_drain"
 
 
 static func is_known(id: String) -> bool:
 	return ALL.has(id)
+
+
+## True for a hero debuff an enemy hit can leave (and a cleanse removes).
+static func is_debuff(id: String) -> bool:
+	return DEBUFFS.has(id)
 
 
 ## True if the status ends when its holder's next turn starts.
@@ -41,7 +64,7 @@ static func ends_at_own_turn(id: String) -> bool:
 
 ## True if the status counts down at the end of each of its holder's turns.
 static func counts_turns(id: String) -> bool:
-	return id == SLOWED or id == BLEEDING or id == REGEN
+	return id == SLOWED or id == BLEEDING or id == REGEN or is_debuff(id)
 
 
 ## True if the status shows a number of uses or turns left.

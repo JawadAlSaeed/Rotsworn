@@ -7,7 +7,10 @@ Godot can edit the files afterwards like any other; this only saves typing the s
 Hit spec: dict(at=ms, dmg=percent, kind="normal"|"ground"|"rend"|"sweep", approach=ms, feint=bool,
 projectile="<id in data/projectiles>", look="wave"|"rocks", sfx="<impact cue>", anim="<prefix>",
 forced="rend"|"sweep" (what a normal hit becomes in a hard fight, card #187),
-forced_feint=bool (a feint in a hard fight only)).
+forced_feint=bool (a feint in a hard fight only),
+mark="rotting"|"blighted"|"weakened" (a debuff the hit leaves on a hero it lands on undefended),
+mark_turns=int (its length, default 2), ap_drain=int (AP the hero loses to the hit),
+hard_only=bool (the mark only comes in a hard fight: elite, guard, boss or deep variant; card #194)).
 """
 from __future__ import annotations
 
@@ -30,7 +33,7 @@ ATTACKS: dict[str, tuple] = {
         dict(at=1300, dmg=100, kind="ground", approach=650, look="rocks"),
     ], {}),
     "bloat_bile_spit": ("Bile Spit", "single", 2, [
-        dict(at=1400, dmg=120, approach=650, projectile="bile_glob"),
+        dict(at=1400, dmg=120, approach=650, projectile="bile_glob", mark="blighted", hard_only=True),
     ], {}),
     "bloat_bile_rain": ("Bile Rain", "party", 1, [
         dict(at=1300, dmg=55, approach=750, projectile="bile_glob"),
@@ -47,7 +50,7 @@ ATTACKS: dict[str, tuple] = {
     "shade_bolts": ("Shadow Bolts", "single", 2, [
         dict(at=1000, dmg=40, approach=500, projectile="shade_bolt"),
         dict(at=1450, dmg=40, approach=420, projectile="shade_bolt"),
-        dict(at=1800, dmg=40, approach=320, projectile="shade_bolt"),
+        dict(at=1800, dmg=40, approach=320, projectile="shade_bolt", ap_drain=1, hard_only=True),
     ], {}),
     "shade_grave_spikes": ("Grave Spikes", "single", 1, [
         dict(at=900, dmg=45, approach=200, forced_feint=True),
@@ -73,7 +76,7 @@ ATTACKS: dict[str, tuple] = {
     "hyena_pack_bite": ("Pack Bite", "each", 3, [
         dict(at=900, dmg=40, approach=220),
         dict(at=1250, dmg=40, approach=200),
-        dict(at=1950, dmg=40, approach=200, forced="rend", forced_feint=True),
+        dict(at=1950, dmg=40, approach=200, forced="rend", forced_feint=True, mark="weakened", hard_only=True),
     ], {}),
     "hyena_snap": ("Snap", "single", 2, [
         dict(at=800, dmg=80, approach=200),
@@ -82,7 +85,7 @@ ATTACKS: dict[str, tuple] = {
         dict(at=1500, dmg=110, approach=220, feint=True, forced="sweep"),
     ], {"allow_timing_ring": "false"}),
     "hyena_pounce": ("Pounce", "single", 1, [
-        dict(at=1300, dmg=140, approach=420),
+        dict(at=1300, dmg=140, approach=420, mark="weakened", hard_only=True),
     ], {}),
     "toad_hop_hop": ("Hop Hop Hop", "party", 3, [
         dict(at=1100, dmg=45, kind="ground", approach=450),
@@ -106,7 +109,7 @@ ATTACKS: dict[str, tuple] = {
     "blight_bile_flood": ("Bile Flood", "single", 2, [
         dict(at=950, dmg=45, approach=450, projectile="bile_glob"),
         dict(at=1300, dmg=45, approach=380, projectile="bile_glob"),
-        dict(at=1750, dmg=45, approach=350, projectile="bile_glob"),
+        dict(at=1750, dmg=45, approach=350, projectile="bile_glob", mark="blighted", hard_only=True),
     ], {}),
     "blood_rush": ("Blood Rush", "each", 2, [
         dict(at=800, dmg=30, approach=180, feint=True),
@@ -159,6 +162,14 @@ def hit_block(rid: str, h: dict, projectiles: dict[str, str]) -> str:
         lines.append('impact_sfx = "%s"' % h["sfx"])
     if h.get("anim"):
         lines.append('anim = "%s"' % h["anim"])
+    if h.get("mark"):
+        lines.append('on_hit_status = "%s"' % h["mark"])
+        if h.get("mark_turns", 2) != 2:
+            lines.append("on_hit_status_turns = %d" % h["mark_turns"])
+    if h.get("ap_drain"):
+        lines.append("on_hit_ap_drain = %d" % h["ap_drain"])
+    if h.get("hard_only"):
+        lines.append("on_hit_hard_only = true")
     return "\n".join(lines)
 
 

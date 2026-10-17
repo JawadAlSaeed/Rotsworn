@@ -10,6 +10,8 @@ impact_ms = 1400
 damage_percent = 120
 approach_ms = 650
 projectile = ExtResource("3_bile_glob")
+on_hit_status = "blighted"
+on_hit_hard_only = true
 
 [resource]
 script = ExtResource("2_attack")

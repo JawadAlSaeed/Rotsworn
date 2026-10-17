@@ -193,6 +193,8 @@ func validate() -> PackedStringArray:
 				elif h.forced_kind != AttackHitData.Kind.NORMAL and (h.kind != AttackHitData.Kind.NORMAL
 						or not AttackHitData.is_forced(h.forced_kind)):
 					problems.append("attack %s: a forced kind is REND or SWEEP, on a normal hit" % a.id)
+				elif not h.on_hit_status.is_empty() and not Status.is_debuff(h.on_hit_status):
+					problems.append("attack %s: on_hit_status '%s' is not a hero debuff" % [a.id, h.on_hit_status])
 				elif h.impact_ms <= last:
 					problems.append("attack %s: hit times must increase" % a.id)
 				else:

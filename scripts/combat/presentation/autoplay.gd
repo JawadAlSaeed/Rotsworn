@@ -199,6 +199,9 @@ func _pick_ability() -> AbilityData:
 			continue
 		if ability.team_ultimate or ability.revive_percent > 0:
 			return ability
+		if ability.cleanse_count > 0 and _any_marked():
+			# The healer lifts a mark (rot, blight, weakness) before it costs the party more.
+			return ability
 		if ability.ap_cost == 0 and basic == null:
 			basic = ability
 		else:
@@ -230,13 +233,37 @@ func _pick_item() -> AbilityData:
 	return null
 
 
-## The most hurt ally for ally skills, else the first target offered.
+## True if a standing hero carries a hero debuff (card #194).
+func _any_marked() -> bool:
+	for id: int in _mirror.living_party_ids():
+		if _is_marked(id):
+			return true
+	return false
+
+
+func _is_marked(id: int) -> bool:
+	var statuses: Dictionary = _mirror.fighter(id).get("statuses", {})
+	for debuff: String in Status.DEBUFFS:
+		if statuses.has(debuff):
+			return true
+	return false
+
+
+## The most hurt ally for ally skills (a marked one first for a cleansing skill), else the first
+## target offered.
 func _pick_target(ability: AbilityData) -> int:
 	var targets := _menu.targets_of(ability.id)
 	if targets.is_empty():
 		return -1
 	if ability.target != AbilityData.Target.ALLY and ability.target != AbilityData.Target.OTHER_ALLY:
 		return targets[0]
+	if ability.cleanse_count > 0:
+		var marked: Array[int] = []
+		for id: int in targets:
+			if _is_marked(id):
+				marked.append(id)
+		if not marked.is_empty():
+			targets = marked
 	var best := targets[0]
 	for id: int in targets:
 		var f := _mirror.fighter(id)
