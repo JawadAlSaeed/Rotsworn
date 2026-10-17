@@ -10,6 +10,7 @@ var _base_energy: float = 1.0
 var _flicker: float = 0.0
 var _hz: float = 6.0
 var _phase: float = 0.0
+var _scale: float = 1.0
 
 
 func setup(energy: float, flicker_percent: int, hz: float) -> void:
@@ -24,4 +25,12 @@ func setup(energy: float, flicker_percent: int, hz: float) -> void:
 func _process(_delta: float) -> void:
 	var t := float(Time.get_ticks_msec()) / 1000.0 * TAU * _hz + _phase
 	var wave := (sin(t) + sin(t * SECOND_WAVE_RATIO) * SECOND_WAVE_SHARE) / (1.0 + SECOND_WAVE_SHARE)
-	light_energy = _base_energy * (1.0 - _flicker * (0.5 + 0.5 * wave))
+	light_energy = _base_energy * _scale * (1.0 - _flicker * (0.5 + 0.5 * wave))
+
+
+## Scales the strength (1 = as authored): the arena's phase-two shift. A steady lamp follows at
+## once, a flickering one on its next frame.
+func set_energy_scale(scale: float) -> void:
+	_scale = scale
+	if _flicker <= 0.0:
+		light_energy = _base_energy * _scale

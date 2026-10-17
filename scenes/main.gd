@@ -113,6 +113,8 @@ var _spot_pending: int = -1
 var _drop: ItemData
 ## Where a run fight away from a zone takes place (the act's boss lair, an elite's zone).
 var _fight_look: StageLook
+## The zone air of the run fight being built (an elite's zone); empty for a boss.
+var _fight_air: Array[ZoneAmbientData] = []
 ## Shown on the main menu next time (why an online game ended).
 var _notice: String = ""
 ## Bumped when an online game ends, so a transition that was under way stops after its fade.
@@ -680,10 +682,11 @@ func _start_combat() -> void:
 	var continue_to := Callable()
 	if not _zone_fight.is_empty():
 		_combat.configure(_encounter, _tuning, _visuals, _options, _zone.look(),
-				_zone_fight.opening as CombatSetup.Opening, true)
+				_zone_fight.opening as CombatSetup.Opening, true, _zone.ambient_air())
 		continue_to = _on_zone_return_requested
 	elif _run != null:
-		_combat.configure(_encounter, _tuning, _visuals, _options, _fight_look)
+		_combat.configure(_encounter, _tuning, _visuals, _options, _fight_look,
+				CombatSetup.Opening.NORMAL, false, _fight_air)
 		continue_to = _on_run_fight_over
 	else:
 		# The tutorial starts with the heroes' turns (first strike) against a slower enemy.
@@ -1188,6 +1191,7 @@ func _start_final_fight(elite: bool = false) -> void:
 	_busy = true
 	_encounter = _run.final_encounter()
 	_fight_look = _run.final_look()
+	_fight_air = []
 	if _run.in_ambush():
 		_encounter = _run.ambush_encounter()
 		_fight_look = _run.ambush_look()
@@ -1209,6 +1213,8 @@ func _start_final_fight(elite: bool = false) -> void:
 			return
 		var zone := _run.zone_of(_run.current())
 		_fight_look = zone.look if zone != null else _run.final_look()
+		if zone != null:
+			_fight_air = zone.ambient
 	_zone_fight = {}
 	if Net.is_host():
 		_net_seed = randi_range(1, 2147483646)

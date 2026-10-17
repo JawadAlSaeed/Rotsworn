@@ -88,6 +88,8 @@ var _forced_seq_was_attack: bool = false
 ## The place the fight happens in (null: the fight list's look), how it starts, and whether it
 ## started in a zone (the end screen then goes back to the zone).
 var _look: StageLook
+## The zone's drifting particles, played thinner in its fights (DESIGN.md 8.12); empty: the look's own.
+var _air: Array[ZoneAmbientData] = []
 var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 var _from_zone: bool = false
 ## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
@@ -143,7 +145,8 @@ var _attacks: Dictionary = {}
 ## Call before adding the node to the tree. `look` null uses the fight list's look.
 func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals, options: CombatOptions,
 		look: StageLook = null, opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL,
-		from_zone: bool = false) -> void:
+		from_zone: bool = false, air: Array[ZoneAmbientData] = []) -> void:
+	_air = air
 	_encounter = encounter
 	_tuning = tuning
 	_visuals = visuals
@@ -278,7 +281,7 @@ func _ready() -> void:
 	view = CombatView.new()
 	view.name = "View"
 	add_child(view)
-	view.build(_visuals, _look)
+	view.build(_visuals, _look, _air)
 	view.camera.cinematic = _options.cinematic_camera
 
 	hud = CombatHud.new()
@@ -1352,6 +1355,7 @@ func _show_feedback(ev: Dictionary) -> void:
 				# Its rage clip, when the sheet has one (card #68).
 				boss.play("rage", _visuals.rage_pose_ms, FighterView.PRIO_BIG)
 			hud.screen_flash(HudStyle.LATE, _visuals.screen_flash_phase)
+			view.shift_to_phase_two()
 			view.camera.add_trauma(_visuals.phase_shake)
 			view.camera.punch(_visuals.phase_punch, _visuals.phase_punch_ms)
 			var text := String(ev.get("text", ""))

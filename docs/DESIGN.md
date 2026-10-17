@@ -1300,6 +1300,19 @@ an action already has keeps working.
   stays crisp. All numbers are in the StageLook. Ground pieces (moss, trails, leaves) dither their
   rim into the floor (`ZoneGroundData.fringe_pixels`, `edge_shade`) instead of ending in a cut line;
   boards and slabs keep a hard edge.
+- **The arena shifts when a boss rages** (card #196, `PhaseShift` pure and tested, `ArenaMood`):
+  on the `enemy_phase` event (a boss or a zone guard entering phase two) the room eases over
+  `phase_look_ms` (about 1.1 s) from its look to the look's `phase_*` values: sky, ambient and sun
+  colour and strength, fog colour and density, vignette strength and colour, and the lamps
+  (`phase_lamp_percent`), with a one-time puff of particles (`phase_burst`, embers or spores). Every
+  act boss lair and zone look has one (a test checks it): the Hollow King's throne goes blood red and
+  darker with a tight vignette and roaring braziers, the zone looks (guards, and the act 1 boss,
+  who fights in Rotten Hollow) shift a smaller step in their own colours (Hollow: plum and
+  amber, Bog: sickly yellow-green, Ruins: ember red). It is a slow tween, not a flash; under the
+  Flashes setting on Reduced or Off it takes `phase_look_calm_percent` as long (twice). The fog
+  Graphics option still wins (the tween only changes values). Presentation only: the engine, the
+  commands and the golden test are untouched. The shift never reaches an unreadable room: fighters
+  and markers stay clearly lit (checked in pictures of the Hollow King fight).
 - **Contact shadows** (card #186): props, trees, shrines and chests stand on a soft dark blob (the
   fighters' `shadow.png`), as wide as the prop's footprint (the opaque width of its lowest rows)
   times `prop_shadow_width_percent`, slid away from the sun by `prop_shadow_shift_percent`. All in
@@ -2385,6 +2398,12 @@ scarce, and a "?" can turn into a fight.
   bends the top; feet stay; each prop's phase from where it stands).
 - **Air** (`ZoneAmbientData`, particles that follow the camera's spot): ruins ash falling and
   embers rising; swamp fireflies, low mist and spores; forest falling leaves and fireflies.
+- **Air in fights** (card #196): a fight in a zone's look (a zone fight, an elite, a guard) plays that
+  zone's `ZoneAmbientData` too: `combat_visuals` `fight_air_percent` of each particle count (50),
+  in a box `fight_air_depth_percent` as deep (60) and shifted `fight_air_offset` toward the back
+  wall, fixed in the arena (the combat camera glides, so it does not follow). They are 3D particles
+  behind and around the fighters; the HUD and the hit markers draw above them. A fight with no zone
+  (a boss lair, the practice list) uses its look's `arena_air` instead (the throne has embers).
 - **Critters** (`ZoneCritterData`): crows, frogs and rats idle (two frames) and get away when the
   leader comes within `critter_flee_radius` (a crow flies up and off, a frog hops away, a rat
   scurries off); for show only, each machine plays them itself online.
@@ -3010,3 +3029,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Forced-choice hits: a rend (parry only, bone) and a sweep (dodge only, green, never countered) in elite, guard and boss fights and from the deep variants, about one hit in four; uneven gaps in every one-button string, a feint in every hard string; enemy attacks speed up with depth, elites, guards, bosses and phase two, never under 70% of authored; windows unchanged | cards #187, #188 and review combat-feel #4, #5, #9: dodge-everything and a steady tap beat the defence; nothing made easier |
 | 2026-10-17 | "?" events are real trade-offs: new prices (permanent max HP, a backpack item, a rotten-item curse, an ambush fight), every choice costs something scarce, gold and XP grow with depth, 16 events with act 2's own list, and a "?" stop can turn into an ambush (15% + 15% per "?" passed without a fight, seeded per stop, state in the run dict) | card #193 (review: run-structure); the owner wants it hard, so a "?" tempts and never gives for free (8.7) |
 | 2026-10-17 | Enemy hits can leave a mark when undefended and survived: hero debuffs Rotting (6% max HP at turn start, never below 1), Blighted (healing -50%), Weakened (power -25%), or an AP drain; they refresh, never stack; Mend and Sanctuary cleanse one (all on a perfect press), the Salve one; shipped marks are hard-fight-only and on few hits (bile, rot combo, King's cascade, hyena bites, shade bolts); the intent, banner and hit icons announce them | card #194 (review: combat-rules-ai #3): failing to defend cost only HP, and Cass had no job beyond healing |
+| 2026-10-17 | The arena shifts when a boss or guard enters phase two (sun, ambient, fog, vignette, lamps and a puff of embers or spores, over about a second; the Hollow King's throne goes blood red), and a zone's drifting particles also play, thinner, in its fights | card #196 (review audio-look #6, #9 and art-textures #11): a boss's rage was a banner over an unchanged room, and the fight dropped the zone's air; presentation only (nothing in the engine or the golden), slower under Reduced and Off flashes |

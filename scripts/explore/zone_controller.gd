@@ -211,6 +211,11 @@ func look() -> StageLook:
 	return _zone.look
 
 
+## The particles drifting through this zone (also played, thinner, in its fights).
+func ambient_air() -> Array[ZoneAmbientData]:
+	return _zone.ambient
+
+
 ## This zone's background loop and its volume (empty path: none).
 func ambience() -> Array:
 	return [_zone.ambience_path, _zone.ambience_volume_db] if _zone != null else ["", 0.0]

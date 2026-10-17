@@ -103,3 +103,26 @@ extends Resource
 @export var arena_blocks: Array[ZoneBlockData] = []
 @export var arena_props: Array[ZonePropData] = []
 @export var arena_lights: Array[ZoneLightData] = []
+## Air that drifts in a fight in this place when the fight's zone has none of its own (the
+## Hollow King's throne: embers). A zone's fights use the zone's own ambient list instead
+## (DESIGN.md 8.12, 7.3). Thinned by combat_visuals fight_air_percent.
+@export var arena_air: Array[ZoneAmbientData] = []
+
+@export_group("Phase two")
+## The room shifts when a boss or guard enters phase two (DESIGN.md 7.3): the light, fog and
+## vignette tween to the values below over combat_visuals phase_look_ms. Off: the room stays.
+@export var phase_two_enabled: bool = false
+@export var phase_background_color: Color = Color(0.07, 0.03, 0.04)
+@export var phase_ambient_color: Color = Color(0.32, 0.34, 0.42)
+@export_range(0.0, 4.0, 0.05) var phase_ambient_energy: float = 0.7
+@export var phase_light_color: Color = Color(1.0, 0.92, 0.82)
+@export_range(0.0, 8.0, 0.05) var phase_light_energy: float = 1.1
+@export var phase_fog_color: Color = Color(0.16, 0.18, 0.24)
+@export_range(0.0, 0.3, 0.001) var phase_fog_density: float = 0.025
+@export_range(0.0, 1.0, 0.01) var phase_vignette_strength: float = 0.45
+@export var phase_vignette_color: Color = Color(0.0, 0.0, 0.02)
+## The arena's lamps and braziers burn at this share of their strength (100 = unchanged; above
+## 100 they roar).
+@export_range(0, 300, 5, "suffix:%") var phase_lamp_percent: int = 100
+## A one-time puff of particles when the shift starts (embers, ash); null: none.
+@export var phase_burst: ZoneAmbientData
