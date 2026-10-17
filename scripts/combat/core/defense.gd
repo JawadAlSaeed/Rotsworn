@@ -36,6 +36,14 @@ static func build_windows(kind: int, tuning: Tuning, perfect_percent: int = 100)
 	elif kind == AttackHitData.Kind.GROUND:
 		var jump: Vector2i = tuning.window_edges_us(tuning.jump_window_ms)
 		windows[Outcome.JUMP] = [jump.x, jump.y]
+	elif kind == AttackHitData.Kind.REND:
+		# Forced choice (card #187): only the parry answers it, at its usual window.
+		var parry_only: Vector2i = tuning.window_edges_us(tuning.parry_window_ms)
+		windows[Outcome.PARRY] = [parry_only.x, parry_only.y]
+	elif kind == AttackHitData.Kind.SWEEP:
+		# Forced choice: only the dodge answers it, at its usual window.
+		var dodge_only: Vector2i = tuning.window_edges_us(tuning.dodge_window_ms)
+		windows[Outcome.DODGE] = [dodge_only.x, dodge_only.y]
 	elif kind == AttackHitData.Kind.PRESS:
 		var press: Vector2i = tuning.window_edges_us(tuning.skill_press_window_ms)
 		var perfect_ms := mini(CombatMath.percent(tuning.skill_perfect_window_ms, perfect_percent), tuning.skill_press_window_ms)
@@ -57,16 +65,32 @@ static func is_press(outcome: int) -> bool:
 	return outcome == Outcome.PRESS or outcome == Outcome.PRESS_PERFECT
 
 
-## Outcomes that count toward a counterattack for this hit kind.
+## Outcomes that count toward a counterattack for this hit kind. A sweep has none: a string with
+## a sweep in it can be survived but never countered (card #187).
 static func perfect_outcomes(kind: int) -> Array[int]:
 	var list: Array[int] = []
-	if kind == AttackHitData.Kind.NORMAL:
+	if kind == AttackHitData.Kind.NORMAL or kind == AttackHitData.Kind.REND:
 		list.append(Outcome.PARRY)
 	elif kind == AttackHitData.Kind.GROUND:
 		list.append(Outcome.JUMP)
 	elif kind == AttackHitData.Kind.PRESS:
 		list.append(Outcome.PRESS_PERFECT)
 	return list
+
+
+## The best answer to a hit kind: what a perfect player presses (a parry for a normal hit or a
+## rend, a dodge for a sweep, a jump for a ground hit, a perfect press for a skill press).
+static func best_outcome(kind: int) -> int:
+	match kind:
+		AttackHitData.Kind.NORMAL, AttackHitData.Kind.REND:
+			return Outcome.PARRY
+		AttackHitData.Kind.SWEEP:
+			return Outcome.DODGE
+		AttackHitData.Kind.GROUND:
+			return Outcome.JUMP
+		AttackHitData.Kind.PRESS:
+			return Outcome.PRESS_PERFECT
+	return Outcome.NONE
 
 
 ## The outcome if the prompt allows it, otherwise NONE.

@@ -4,8 +4,10 @@
     python tools/make_attack.py --force    # rewrites them all
 
 Godot can edit the files afterwards like any other; this only saves typing the sub-resources.
-Hit spec: dict(at=ms, dmg=percent, kind="normal"|"ground", approach=ms, feint=bool,
-projectile="<id in data/projectiles>", look="wave"|"rocks", sfx="<impact cue>", anim="<prefix>").
+Hit spec: dict(at=ms, dmg=percent, kind="normal"|"ground"|"rend"|"sweep", approach=ms, feint=bool,
+projectile="<id in data/projectiles>", look="wave"|"rocks", sfx="<impact cue>", anim="<prefix>",
+forced="rend"|"sweep" (what a normal hit becomes in a hard fight, card #187),
+forced_feint=bool (a feint in a hard fight only)).
 """
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "data", "enemy_attacks")
 MODES = {"single": 0, "party": 1, "each": 2}
-KINDS = {"normal": 0, "ground": 1}
+KINDS = {"normal": 0, "ground": 1, "rend": 3, "sweep": 4}
 LOOKS = {"wave": 0, "rocks": 1}
 
 # id: (display name, target mode, weight, hits, extra attack fields)
@@ -38,9 +40,9 @@ ATTACKS: dict[str, tuple] = {
         dict(at=1300, dmg=75, kind="ground", approach=700, look="rocks"),
     ], {}),
     "gnat_swarm_round": ("Swarm Round", "each", 2, [
-        dict(at=900, dmg=40, approach=200),
-        dict(at=1300, dmg=40, approach=220),
-        dict(at=1700, dmg=40, approach=220),
+        dict(at=900, dmg=40, approach=200, forced_feint=True),
+        dict(at=1250, dmg=40, approach=220),
+        dict(at=1750, dmg=40, approach=220, forced="rend"),
     ], {}),
     "shade_bolts": ("Shadow Bolts", "single", 2, [
         dict(at=1000, dmg=40, approach=500, projectile="shade_bolt"),
@@ -48,7 +50,7 @@ ATTACKS: dict[str, tuple] = {
         dict(at=1800, dmg=40, approach=320, projectile="shade_bolt"),
     ], {}),
     "shade_grave_spikes": ("Grave Spikes", "single", 1, [
-        dict(at=900, dmg=45, approach=200),
+        dict(at=900, dmg=45, approach=200, forced_feint=True),
         dict(at=1700, dmg=60, kind="ground", approach=600, look="rocks"),
     ], {}),
     # Phase 12 step 2: the new monsters (DESIGN.md 2.15).
@@ -57,27 +59,27 @@ ATTACKS: dict[str, tuple] = {
     ], {}),
     "fly_buzz_dive": ("Buzz Dive", "single", 2, [
         dict(at=900, dmg=50, approach=150),
-        dict(at=1450, dmg=50, approach=130),
-        dict(at=1750, dmg=50, approach=130),
+        dict(at=1600, dmg=50, approach=130, forced="sweep", forced_feint=True),
+        dict(at=1900, dmg=50, approach=130),
     ], {}),
     "fly_maggot_spit": ("Maggot Spit", "single", 2, [
         dict(at=1200, dmg=90, approach=420, projectile="bile_glob"),
     ], {}),
     "fly_strafe": ("Strafe", "each", 1, [
-        dict(at=900, dmg=45, approach=150),
+        dict(at=900, dmg=45, approach=150, forced_feint=True),
         dict(at=1250, dmg=45, approach=150),
-        dict(at=1600, dmg=45, approach=150),
+        dict(at=1700, dmg=45, approach=150, forced="sweep"),
     ], {}),
     "hyena_pack_bite": ("Pack Bite", "each", 3, [
         dict(at=900, dmg=40, approach=220),
         dict(at=1250, dmg=40, approach=200),
-        dict(at=1600, dmg=40, approach=200),
+        dict(at=1950, dmg=40, approach=200, forced="rend", forced_feint=True),
     ], {}),
     "hyena_snap": ("Snap", "single", 2, [
         dict(at=800, dmg=80, approach=200),
     ], {}),
     "hyena_cackle": ("Cackle", "single", 2, [
-        dict(at=1500, dmg=110, approach=220, feint=True),
+        dict(at=1500, dmg=110, approach=220, feint=True, forced="sweep"),
     ], {"allow_timing_ring": "false"}),
     "hyena_pounce": ("Pounce", "single", 1, [
         dict(at=1300, dmg=140, approach=420),
@@ -85,10 +87,10 @@ ATTACKS: dict[str, tuple] = {
     "toad_hop_hop": ("Hop Hop Hop", "party", 3, [
         dict(at=1100, dmg=45, kind="ground", approach=450),
         dict(at=1600, dmg=45, kind="ground", approach=450),
-        dict(at=2100, dmg=45, kind="ground", approach=450),
+        dict(at=2250, dmg=45, kind="ground", approach=450),
     ], {}),
     "toad_tongue": ("Tongue Lash", "single", 2, [
-        dict(at=1150, dmg=110, approach=170),
+        dict(at=1150, dmg=110, approach=170, forced="rend"),
     ], {}),
     "toad_mud_spit": ("Mud Spit", "single", 2, [
         dict(at=1300, dmg=100, approach=550, projectile="mud_glob"),
@@ -104,14 +106,14 @@ ATTACKS: dict[str, tuple] = {
     "blight_bile_flood": ("Bile Flood", "single", 2, [
         dict(at=950, dmg=45, approach=450, projectile="bile_glob"),
         dict(at=1300, dmg=45, approach=380, projectile="bile_glob"),
-        dict(at=1650, dmg=45, approach=350, projectile="bile_glob"),
+        dict(at=1750, dmg=45, approach=350, projectile="bile_glob"),
     ], {}),
     "blood_rush": ("Blood Rush", "each", 2, [
-        dict(at=800, dmg=30, approach=180),
+        dict(at=800, dmg=30, approach=180, feint=True),
         dict(at=1100, dmg=30, approach=180),
-        dict(at=1400, dmg=30, approach=180),
-        dict(at=1700, dmg=30, approach=180),
-        dict(at=2000, dmg=30, approach=180),
+        dict(at=1350, dmg=30, approach=180),
+        dict(at=1800, dmg=30, approach=180),
+        dict(at=2100, dmg=30, approach=180, forced="sweep"),
     ], {}),
     "hollow_bolt_storm": ("Bolt Storm", "party", 2, [
         dict(at=1000, dmg=45, approach=520, projectile="shade_bolt"),
@@ -120,8 +122,8 @@ ATTACKS: dict[str, tuple] = {
     "bone_frenzy": ("Frenzy", "each", 2, [
         dict(at=800, dmg=40, approach=180),
         dict(at=1100, dmg=40, approach=180),
-        dict(at=1400, dmg=40, approach=180),
-        dict(at=1700, dmg=40, approach=180),
+        dict(at=1800, dmg=40, approach=180, forced="rend", feint=True),
+        dict(at=2050, dmg=40, approach=180),
     ], {}),
     "plague_spit": ("Plague Spit", "party", 2, [
         dict(at=1200, dmg=60, approach=500, projectile="bile_glob"),
@@ -129,7 +131,7 @@ ATTACKS: dict[str, tuple] = {
     "elder_quake_hop": ("Quake Hop", "party", 2, [
         dict(at=1100, dmg=50, kind="ground", approach=500, look="rocks"),
         dict(at=1700, dmg=50, kind="ground", approach=450),
-        dict(at=2300, dmg=50, kind="ground", approach=550, look="rocks"),
+        dict(at=2250, dmg=50, kind="ground", approach=550, look="rocks"),
     ], {}),
 }
 
@@ -140,10 +142,14 @@ def hit_block(rid: str, h: dict, projectiles: dict[str, str]) -> str:
     kind = KINDS[h.get("kind", "normal")]
     if kind:
         lines.append("kind = %d" % kind)
+    if h.get("forced"):
+        lines.append("forced_kind = %d" % KINDS[h["forced"]])
     lines.append("damage_percent = %d" % h["dmg"])
     lines.append("approach_ms = %d" % h.get("approach", 200))
     if h.get("feint"):
         lines.append("feint = true")
+    if h.get("forced_feint"):
+        lines.append("forced_feint = true")
     if h.get("projectile"):
         lines.append('projectile = ExtResource("%s")' % projectiles[h["projectile"]])
     look = LOOKS[h.get("look", "wave")]

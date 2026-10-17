@@ -8,6 +8,7 @@ script = ExtResource("1_wmcie")
 impact_ms = 1400
 damage_percent = 70
 approach_ms = 300
+forced_feint = true
 
 [sub_resource type="Resource" id="Resource_al8qe"]
 script = ExtResource("1_wmcie")

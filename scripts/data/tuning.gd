@@ -40,6 +40,10 @@ extends Resource
 @export_range(0, 3000, 1, "suffix:ms") var attack_lead_in_ms: int = 700
 ## Speed of every enemy attack, in percent of its authored timing. 120 = 20% slower.
 @export_range(25, 300, 1, "suffix:%") var attack_tempo_percent: int = 100
+## Enemy attacks never play faster than this percent of their authored timing, whatever depth,
+## elites, bosses and phase two add up to (card #188): the windows stay the same size, so the
+## lunges must stay readable.
+@export_range(25, 100, 1, "suffix:%") var attack_tempo_floor_percent: int = 70
 ## Time after an attack's last hit before the turn moves on (when there is no counter).
 @export_range(0, 3000, 1, "suffix:ms") var attack_recover_ms: int = 450
 ## Freeze on a parry that is not the attack's last hit. Keep it well under the early part of
@@ -259,6 +263,14 @@ extends Resource
 @export_range(10, 1000, 1, "suffix:%") var elite_hp_percent: int = 140
 @export_range(10, 1000, 1, "suffix:%") var elite_power_percent: int = 115
 @export_range(10, 1000, 1, "suffix:%") var elite_gold_percent: int = 150
+## Enemies get faster deeper in a run (card #188): each map row of depth takes this many percent
+## off the fight's attack tempo (lower tempo = faster strings). Then elite, guard and boss fights
+## take their own percent of that. Floored by attack_tempo_floor_percent. Practice fights keep
+## the authored timing.
+@export_range(0, 10, 1, "suffix:%") var run_enemy_tempo_row_percent: int = 1
+@export_range(50, 100, 1, "suffix:%") var elite_tempo_percent: int = 94
+@export_range(50, 100, 1, "suffix:%") var guard_tempo_percent: int = 94
+@export_range(50, 100, 1, "suffix:%") var boss_tempo_percent: int = 92
 ## Spoils after a guard or an elite are gear of at least this rarity (0 common, 1 rare, 2
 ## legendary), when the run still has some.
 @export_range(0, 2) var run_spoils_min_rarity: int = 1

@@ -65,6 +65,9 @@ enum TargetRule {
 @export_range(0, 10000) var xp: int = 20
 ## Sound cue for its voice (card #101): when it starts an attack, and quieter and higher when hit.
 @export var voice_sfx: String = ""
+## Its hits always take their forced kinds (AttackHitData.forced_kind, card #187), even in an
+## ordinary fight: the deep variants. Elite, guard and boss fights use them anyway.
+@export var forced_hits: bool = false
 
 @export_group("Phase two (bosses)")
 ## When its HP drops to this percent of max HP or lower, it enters phase two: it attacks with
@@ -73,5 +76,8 @@ enum TargetRule {
 @export var phase_two_attacks: Array[EnemyAttackData] = []
 ## Speed in phase two (0 = unchanged).
 @export_range(0, 1000) var phase_two_speed: int = 0
+## Its attacks' tempo in phase two, in percent of the fight's (card #188): lower = faster strings
+## (0 or 100 = unchanged). The fight's floor (tuning attack_tempo_floor_percent) still holds.
+@export_range(0, 100, 1, "suffix:%") var phase_two_tempo_percent: int = 0
 ## Shown as a banner when phase two starts.
 @export var phase_two_text: String = ""

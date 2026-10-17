@@ -17,13 +17,15 @@ approach_ms = 180
 
 [sub_resource type="Resource" id="Hit_2"]
 script = ExtResource("1_hit")
-impact_ms = 1400
+impact_ms = 1800
+forced_kind = 3
 damage_percent = 40
 approach_ms = 180
+feint = true
 
 [sub_resource type="Resource" id="Hit_3"]
 script = ExtResource("1_hit")
-impact_ms = 1700
+impact_ms = 2050
 damage_percent = 40
 approach_ms = 180
 

@@ -234,16 +234,16 @@ static func add_hit_data(hits: Array, attack: EnemyAttackData) -> void:
 static func motion_start(hits: Array, i: int, v: CombatVisuals) -> float:
 	var hit: Dictionary = hits[i]
 	var start := float(hit.at_ms) - float(hit.approach_ms)
-	if int(hit.kind) == AttackHitData.Kind.NORMAL and bool(hit.feint) and not is_ranged(hit):
+	if AttackHitData.is_strike(int(hit.kind)) and bool(hit.feint) and not is_ranged(hit):
 		start -= float(v.feint_lead_ms)
 	if i > 0:
 		start = maxf(start, float((hits[i - 1] as Dictionary).at_ms))
 	return maxf(start, 0.0)
 
 
-## True for a normal hit that throws a projectile instead of lunging.
+## True for a strike (normal, rend or sweep) that throws a projectile instead of lunging.
 static func is_ranged(hit: Dictionary) -> bool:
-	return bool(hit.get("ranged", false)) and int(hit.kind) == AttackHitData.Kind.NORMAL
+	return bool(hit.get("ranged", false)) and AttackHitData.is_strike(int(hit.kind))
 
 
 static func _ramp(t: float, from: float, to: float) -> float:

@@ -20,7 +20,7 @@ projectile = ExtResource("3_bile_glob")
 
 [sub_resource type="Resource" id="Hit_2"]
 script = ExtResource("1_hit")
-impact_ms = 1650
+impact_ms = 1750
 damage_percent = 45
 approach_ms = 350
 projectile = ExtResource("3_bile_glob")

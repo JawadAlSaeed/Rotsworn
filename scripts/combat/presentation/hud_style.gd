@@ -472,6 +472,32 @@ static func signed_ms(ms: int) -> String:
 	return ("+%d" % ms) if ms >= 0 else str(ms)
 
 
+## The word under a hit's marker and ring that names the only button that answers it ("" for a
+## normal hit, which a parry or a dodge answers; DESIGN.md 3.8).
+static func kind_label(kind: int) -> String:
+	match kind:
+		AttackHitData.Kind.GROUND:
+			return "JUMP"
+		AttackHitData.Kind.REND:
+			return "PARRY"
+		AttackHitData.Kind.SWEEP:
+			return "DODGE"
+	return ""
+
+
+## The hint after a wrong button (DESIGN.md 3.6): what the hit needed. A rend or a sweep says it
+## outright ("MUST PARRY", "MUST DODGE", card #187).
+static func wrong_action_text(kind: int) -> String:
+	match kind:
+		AttackHitData.Kind.GROUND:
+			return "JUMP!"
+		AttackHitData.Kind.REND:
+			return "MUST PARRY"
+		AttackHitData.Kind.SWEEP:
+			return "MUST DODGE"
+	return "PARRY!"
+
+
 ## "GUARD  SLOWED 2" from a fighter's statuses (mirror format), in Status.ALL order.
 static func status_text(statuses: Dictionary) -> String:
 	var parts := PackedStringArray()

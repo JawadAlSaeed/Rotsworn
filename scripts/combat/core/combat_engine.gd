@@ -55,6 +55,8 @@ extends RefCounted
 ##   timed_sequence_declared {seq, kind, source, action, name, mode, targets:[id],
 ##                            alert_cue, allow_timing_ring, hits:[hit], prompts:[prompt]}
 ##       hit    = {index, at_ms, kind, approach_ms, feint, damage_percent, impact_sfx}
+##                kind is the hit's kind in this fight (a forced kind in a hard fight, card #187);
+##                at_ms and approach_ms are scaled by the enemy's tempo (card #188).
 ##       prompt = {idx, hit, character, at_ms, kind, windows:{Outcome:[early_us, late_us]},
 ##                 perfect:[Outcome], damage, press_damage, perfect_damage, role, requires:[idx],
 ##                 crit (a party press that crits if it lands)}
@@ -75,7 +77,7 @@ extends RefCounted
 ##   counter                 {seq, actors:[id], target, team, hits, mixed}  followed by a damage
 ##                           event. hits: perfectly defended hits it answers; mixed: parries and jumps
 ##   enemy_phase             {enemy, phase, text}   a boss dropped under its phase two HP: new
-##                           attacks and speed (an intent and turn_order follow)
+##                           attacks, speed and attack tempo (an intent and turn_order follow)
 ##   turn_ended              {turn, actor}
 ##   practice_changed        {invulnerable_party, immortal_enemies, force_attack}
 ##                           also emitted (before timed_sequence_declared) when a forced
@@ -626,15 +628,18 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 
 	var hits: Array[Dictionary] = []
 	var prompts: Array[Dictionary] = []
+	var tempo := _tempo_percent(actor)
+	var hard := _forced_hits(actor)
 	for hit_index: int in attack.hits.size():
 		var hit: AttackHitData = attack.hits[hit_index]
-		var at_ms := CombatMath.percent(hit.impact_ms, _tempo_percent())
+		var at_ms := CombatMath.percent(hit.impact_ms, tempo)
+		var kind := hit.kind_in(hard)
 		hits.append({
 			"index": hit_index,
 			"at_ms": at_ms,
-			"kind": hit.kind,
-			"approach_ms": CombatMath.percent(hit.approach_ms, _tempo_percent()),
-			"feint": hit.feint,
+			"kind": kind,
+			"approach_ms": CombatMath.percent(hit.approach_ms, tempo),
+			"feint": hit.feint_in(hard),
 			"damage_percent": hit.damage_percent,
 			"impact_sfx": hit.impact_sfx,
 		})
@@ -643,8 +648,8 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 		if attack.target_mode == EnemyAttackData.TargetMode.EACH:
 			hit_targets = [targets[hit_index % targets.size()]]
 		for target_id: int in hit_targets:
-			prompts.append(_prompt(prompts.size(), hit_index, target_id, at_ms, hit.kind,
-					Defense.build_windows(hit.kind, tuning), _enemy_hit_damage(actor, get_combatant(target_id), hit.damage_percent),
+			prompts.append(_prompt(prompts.size(), hit_index, target_id, at_ms, kind,
+					Defense.build_windows(kind, tuning), _enemy_hit_damage(actor, get_combatant(target_id), hit.damage_percent),
 					0, 0, ROLE_DEFEND, []))
 	_declare(SEQUENCE_ENEMY_ATTACK, actor.id, attack.id, attack.display_name, attack.target_mode, targets,
 			attack.alert_cue, attack.allow_timing_ring, hits, prompts, events)
@@ -863,10 +868,13 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	var kinds: Array[int] = []
 	var times: Array[int] = []
 	var feints: Array[bool] = []
+	var enemy := get_combatant(enemy_id)
+	var tempo := _tempo_percent(enemy)
+	var hard := _forced_hits(enemy)
 	for hit: AttackHitData in attack.hits:
-		kinds.append(hit.kind)
-		times.append(CombatMath.percent(hit.impact_ms, _tempo_percent()))
-		feints.append(hit.feint)
+		kinds.append(hit.kind_in(hard))
+		times.append(CombatMath.percent(hit.impact_ms, tempo))
+		feints.append(hit.feint_in(hard))
 	var targets: Array[int] = []
 	targets.assign(intent.targets)
 	var event := {
@@ -1137,9 +1145,25 @@ func _pass_turn(events: Array[Dictionary]) -> void:
 	_advance_turn(events)
 
 
-## Enemy attack tempo in percent: the tutorial's slowed attacks, else tuning's.
-func _tempo_percent() -> int:
-	return int(stage.tempo_percent) if int(stage.tempo_percent) > 0 else tuning.attack_tempo_percent
+## `enemy`'s attack tempo in percent of its authored timing (lower = faster, card #188): the
+## tutorial's slowed attacks as they are; else the fight's tempo (CombatSetup.attack_tempo_percent,
+## 0 = tuning's) times the enemy's own (phase two), floored by CombatSetup.tempo_floor.
+func _tempo_percent(enemy: Combatant) -> int:
+	if int(stage.tempo_percent) > 0:
+		return int(stage.tempo_percent)
+	var base := _setup.attack_tempo_percent if _setup.attack_tempo_percent > 0 else tuning.attack_tempo_percent
+	var own := enemy.tempo_percent if enemy != null and enemy.tempo_percent > 0 else 100
+	return maxi(CombatMath.percent(base, own), CombatSetup.tempo_floor(tuning))
+
+
+## True if `enemy`'s hits take their forced kinds (card #187): a hard fight (elite, guard, boss) or
+## an enemy that always uses them (the deep variants).
+func _forced_hits(enemy: Combatant) -> bool:
+	if _setup.forced_hits:
+		return true
+	if enemy == null or enemy.is_party() or enemy.slot >= _setup.enemies.size():
+		return false
+	return _setup.enemies[enemy.slot].forced_hits
 
 
 ## The next enemy (in turn order) that has the forced attack shows it as its intent right away.
@@ -1747,7 +1771,8 @@ func _string_of(character_id: int) -> Vector2i:
 		if character_id >= 0 and int(prompt.character) != character_id:
 			continue
 		hits += 1
-		normal = normal or int(prompt.kind) == AttackHitData.Kind.NORMAL
+		# A rend is parried like a normal hit (a sweep never reaches a counter: it has no perfect answer).
+		normal = normal or int(prompt.kind) == AttackHitData.Kind.NORMAL or int(prompt.kind) == AttackHitData.Kind.REND
 		ground = ground or int(prompt.kind) == AttackHitData.Kind.GROUND
 	if character_id < 0:
 		hits = (sequence.hits as Array).size()
@@ -1963,7 +1988,7 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 		_maybe_enter_phase_two(target, events)
 
 
-## A boss under its phase two HP changes attacks and speed, and picks a new intent.
+## A boss under its phase two HP changes attacks, speed and attack tempo, and picks a new intent.
 func _maybe_enter_phase_two(enemy: Combatant, events: Array[Dictionary]) -> void:
 	if enemy.phase != 1 or enemy.slot >= _setup.enemies.size():
 		return
@@ -1976,6 +2001,9 @@ func _maybe_enter_phase_two(enemy: Combatant, events: Array[Dictionary]) -> void
 	enemy.attack_ids.clear()
 	for attack: EnemyAttackData in data.phase_two_attacks:
 		enemy.attack_ids.append(attack.id)
+	if data.phase_two_tempo_percent > 0:
+		# Its strings speed up (card #188), on top of the fight's tempo.
+		enemy.tempo_percent = data.phase_two_tempo_percent
 	if data.phase_two_speed > 0:
 		enemy.base_speed = data.phase_two_speed
 		# A slowed boss stays slowed: the slow is a share of its (new) normal speed.

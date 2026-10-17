@@ -477,10 +477,7 @@ func _on_whiff(action: int, report: Dictionary, t: int, player: int) -> void:
 			color = HudStyle.EARLY
 		DefenseJudge.Reason.WRONG_ACTION:
 			color = HudStyle.WRONG
-			text = "PARRY!"
-			var hit_index := int(report.hit)
-			if hit_index >= 0 and int((_hits[hit_index] as Dictionary).kind) == AttackHitData.Kind.GROUND:
-				text = "JUMP!"
+			text = HudStyle.wrong_action_text(_kind_of(int(report.hit)))
 	if reason != DefenseJudge.Reason.WRONG_ACTION and _options.timing_readout and int(report.hit) >= 0:
 		text += " " + HudStyle.signed_ms(offset_ms)
 	if int(report.hit) >= 0:
@@ -701,6 +698,13 @@ func _schedule_windups() -> void:
 		free_from_us = impact_us
 
 
+## The kind of hit `hit_index` in this attack (NORMAL when there is none).
+func _kind_of(hit_index: int) -> int:
+	if hit_index < 0 or hit_index >= _hits.size():
+		return AttackHitData.Kind.NORMAL
+	return int((_hits[hit_index] as Dictionary).kind)
+
+
 func _fire_cues(t: int) -> void:
 	var t_ms := float(t) / 1000.0
 	while _next_cue < _cues.size() and t_ms >= float(_cues[_next_cue].at_ms):
@@ -708,8 +712,11 @@ func _fire_cues(t: int) -> void:
 		_next_cue += 1
 		var enemy := _view.fighter(_source)
 		if _options.telegraph_flash and enemy != null:
-			# A slam flashes in the ground colour: the colour says which defence the hit needs.
-			var color := _visuals.ground_hit_color if String(cue.type) == EnemyChoreography.CUE_SLAM else _visuals.telegraph_flash_color
+			# The flash is in the hit's colour: it says which defence the hit needs (a slam purple,
+			# a rend bone, a sweep green, a normal hit red-orange).
+			var color := _visuals.kind_color(_kind_of(int(cue.get("hit", -1))), _visuals.telegraph_flash_color)
+			if String(cue.type) == EnemyChoreography.CUE_SLAM:
+				color = _visuals.ground_hit_color
 			enemy.flash(_visuals.telegraph_flash_ms, color, _visuals.telegraph_flash_strength)
 		match String(cue.type):
 			EnemyChoreography.CUE_SLAM:
@@ -747,10 +754,9 @@ func _update_enemy(t: int) -> void:
 				_idle_phase_ms)
 		enemy.show_clip(String(frame.clip), int(frame.index), int(s.pose))
 	enemy.set_glow(float(s.glow))
-	# The wind-up before a slam glows in the ground colour, before a lunge in the wind-up colour.
-	var hit_index := int(s.hit)
-	var ground := hit_index >= 0 and int((_hits[hit_index] as Dictionary).kind) == AttackHitData.Kind.GROUND
-	enemy.set_glow_color(_visuals.ground_hit_color if ground else _visuals.windup_glow_color)
+	# The wind-up glows in the hit's colour: purple before a slam, bone before a rend, green before
+	# a sweep, the wind-up colour before a normal lunge.
+	enemy.set_glow_color(_visuals.kind_color(_kind_of(int(s.hit)), _visuals.windup_glow_color))
 	var crouch := 0.0
 	if _options.windup_crouch and int(s.pose) == EnemyChoreography.Pose.WINDUP:
 		crouch = float(s.glow) * float(_visuals.windup_squash_percent) / 100.0
@@ -908,12 +914,11 @@ func _update_rings(t: int) -> void:
 		if not _mirror.is_alive(id):
 			continue
 		var u := float(t - (at - lead)) / float(lead)
-		var ground := int(prompt.kind) == AttackHitData.Kind.GROUND
 		rings.append({
 			"pos": _view.screen_position(_view.fighter(id).centre_position()),
 			"radius": lerpf(_visuals.ring_start_radius_px, _visuals.ring_end_radius_px, u),
-			"color": _visuals.ground_hit_color if ground else HudStyle.RING_NORMAL,
-			"label": "JUMP" if ground else "",
+			"color": _visuals.kind_color(int(prompt.kind), HudStyle.RING_NORMAL),
+			"label": HudStyle.kind_label(int(prompt.kind)),
 		})
 	_hud.set_rings(rings)
 
@@ -957,8 +962,8 @@ func _update_reading(t: int) -> void:
 				"pos": centre + Vector2(_visuals.hit_marker_offset_px.x * side, _visuals.hit_marker_offset_px.y),
 				"size": px,
 				"texture": _hud.hit_icon(kind),
-				"color": _visuals.ground_hit_color if ground else _visuals.normal_hit_color,
-				"label": "JUMP" if ground else "",
+				"color": _visuals.kind_color(kind, _visuals.normal_hit_color),
+				"label": HudStyle.kind_label(kind),
 			})
 	_hud.set_hit_markers(markers)
 	# The moment a ground hit arrives, the warning under its targets flashes bright (card #114).

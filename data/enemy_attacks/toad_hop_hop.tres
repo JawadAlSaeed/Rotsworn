@@ -19,7 +19,7 @@ approach_ms = 450
 
 [sub_resource type="Resource" id="Hit_2"]
 script = ExtResource("1_hit")
-impact_ms = 2100
+impact_ms = 2250
 kind = 1
 damage_percent = 45
 approach_ms = 450

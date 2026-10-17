@@ -636,7 +636,22 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 				100 + oath_total(&"boss_power_percent_add"))
 	setup.enemy_power_percent = CombatMath.percent(setup.enemy_power_percent,
 			100 + oath_total(&"enemy_power_percent_add"))
+	setup.attack_tempo_percent = enemy_tempo_percent(encounter)
 	return setup
+
+
+## How fast this fight's enemy attacks play at the current stop, in percent of their authored
+## timing (card #188; lower = faster): tuning attack_tempo_percent less run_enemy_tempo_row_percent
+## per row of depth, then the elite, guard or boss percent, never under the floor.
+func enemy_tempo_percent(encounter: EncounterData) -> int:
+	var tempo := tuning.attack_tempo_percent - _depth() * maxi(0, tuning.run_enemy_tempo_row_percent)
+	if encounter.boss:
+		tempo = CombatMath.percent(tempo, tuning.boss_tempo_percent)
+	elif encounter.mini_boss:
+		tempo = CombatMath.percent(tempo, tuning.guard_tempo_percent)
+	elif encounter.elite:
+		tempo = CombatMath.percent(tempo, tuning.elite_tempo_percent)
+	return maxi(tempo, CombatSetup.tempo_floor(tuning))
 
 
 ## Enemy HP at the current stop's depth, in percent of their data (DESIGN.md 8.3).
