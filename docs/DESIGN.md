@@ -1457,11 +1457,21 @@ re-renders it from the original canvas animation (the user's `dragonrot-intro/so
 browser at exactly 1920x1080, 60 fps, with its own WAV, Theora quality 10. The video and the logos
 are scaled smoothly (linear filter; the project's default is nearest, for pixel art).
 
-- **Main menu** (first screen, `MainMenu`): New Run, Online, Practice (the tutorial card first,
-  then the fight and zone list, full HP, nothing carries over), Journal (7.11), Settings, Credits, Quit. The
-  cursor comes back on the last item picked. Card #150 (user, 2026-10-15): kept to six rows;
-  Online opens a second list in place (Host Online, Join Online, Back; cancel goes back) and
-  the tutorial moved from the menu into Practice.
+- **Main menu** (first screen, `MainMenu`): (Continue,) New Run, Online, Extras, Settings, Quit, with
+  no description line under the rows. Online and Extras open a second list in place (cancel or
+  Back goes back): Online has Host Online and Join Online; Extras has Tutorial, Journal (7.11) and
+  Credits. Practice (the tutorial card first, then the fight and zone list, full HP, nothing
+  carries over) is a test tool: its row shows in Extras, after Tutorial, only in debug builds
+  (`OS.is_debug_build()`: the editor and `run_game.bat`), never in the shared game. The cursor
+  comes back on the last item picked (a row of Extras reopens that list). Card #150 (user,
+  2026-10-15) kept it short; card #208 (user, 2026-10-17: "it feels a bit cluttery", "practice is
+  a dev thing") made it five rows.
+  In the corners, small and quiet like most games' title menus (card #210, user 2026-10-17):
+  bottom left the version, "v" and Project Settings' `application/config/version` (0.16.0, the
+  phase number; the same version the save check and the online handshake use, so raise it for a
+  build friends play together); bottom right the studio's DragonRot wordmark
+  (`assets/branding/dragonrot_logo.png`, cut from the studio intro by
+  `tools/branding/studio_logo.py`). Size, alpha and margin in `data/branding/branding.tres`.
 - **Settings** (`SettingsScreen`): volume (left/right, 10% steps), fullscreen on/off, training
   ring on/off (practice fights only; the row says so), flashes Full / Reduced / Off (card #185),
   lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
@@ -2650,9 +2660,9 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
 
 - **One slot:** `user://run_save.json`, written by `RunSave` (`scripts/run/run_save.gd`, pure, tested).
   It holds `RunState.to_dict()` exactly as it is (the save never reads its keys, so new run fields
-  are saved without changing it), a format version, the content fingerprint (`DataHash.of_content`: `data/` and the
-  version, not the code, so a code-only fix keeps a saved run; card #208), whether the party is inside a stop, and how many players share
-  the pads.
+  are saved without changing it), a format version, the content fingerprint (`DataHash.of_content`, only to tell which
+  build wrote it: it is not checked, see below), whether the party is inside a stop, and how many
+  players share the pads.
 - **Safe writes:** the new save goes to `run_save.json.tmp` first; the old save is kept as
   `run_save.json.bak` until the new file is in place; a load falls back to the backup if the main
   file is gone or broken. A write that fails leaves the old save as it was.
@@ -2681,12 +2691,12 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
   the pause menu, and when the player starts a new run over it. An abandoned dev sample run
   (`--screen=map` and the like) never touches the real save.
 - **Main menu:** a "Continue" row at the top, only when a usable save exists; the cursor rests on
-  it until something else is picked. A save made by another build (other format version or
-  other content) is intact, so it is **kept**: Continue is hidden, the menu says once per session
-  why, and the file stays for the build that made it. A damaged file, or one `RunState.from_dict`
-  refuses, is deleted and the menu says so. Because the fingerprint covers all of `data/` and the
-  version (not the scripts), a build with other content cannot read the other's save, but switching
-  between them no longer destroys it, and a code-only fix keeps the run. New Run with any file in the slot (also
+  it until something else is picked. Any build continues a save `RunState.from_dict` accepts
+  (card #208, playtest: the game changes almost every day and a content check hid the player's run
+  twice); the run plays on with the new numbers. Only a save of another format version is kept
+  aside (Continue hidden, the menu says why once per session). A damaged file, or one
+  `RunState.from_dict` refuses (unknown gear, items or skills, a wrong party, a stop not on the
+  map), is deleted and the menu says so. New Run with any file in the slot (also
   one kept from another build) asks first and then removes it. A co-op save goes through the
   players screen first (pads may have changed). New Run with a save present asks first ("Your saved
   run will be lost"), since the new run overwrites the slot at its first map.
@@ -3327,3 +3337,6 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Every "?" event and each act's ambush page has its own painted 128x64 scene (`sprites/events/`, drawn by `art_kit/assets/event_art.py`: a flat dithered back plus a 3D-rendered subject, one palette, at most 96 colours); the event screen shows it at scale 4 in a thin worn-gold frame (`StopVisuals`, `stop_visuals.tres`), nearest filter, with the old question mark as the fallback for a missing file | card #199; the owner found the tiny question mark in a black void flat, and each event is a story worth seeing (8.7) |
 | 2026-10-17 | The Rot Journal: a main-menu book of every enemy and attack the player has met (portrait or silhouette, where met, times beaten, each attack's hit kinds, marks and Doom, and the player's parried, dodged, jumped and hit counts), recorded from the presentation's event stream into its own `user://journal.json` (versioned, atomic, `.bak`); only a person's run fights count, practice, the tutorial and bots do not (a dev `--journal-path` makes everything count) | card #200 (review ui-input #9, Slay the Spire's compendium): a hard game should let the player study what beat them; practice stays out because its cheats and its full fight list would unlock and pollute the book (7.11) |
 | 2026-10-17 | Saves check only `data/` and the version (`DataHash.of_content`), not the code; the main menu has no description line under its rows | card #208 playtest: a code-only fix hid the user's saved run; the user found the line ("About 8 stops") out of date and not needed now that Continue and Journal exist |
+| 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
+| 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |
+| 2026-10-17 | A saved run is continued by any build that can read it (no content check); only the save format version and RunState's own checks decide | card #208 playtest: one data change (the menu logo) hid the run again; the game changes almost daily |

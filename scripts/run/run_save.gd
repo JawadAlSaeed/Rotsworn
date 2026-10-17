@@ -45,7 +45,8 @@ static func save(run: Dictionary, fingerprint: String, in_stop: bool, players: i
 
 
 ## Reads the save. {status: LOADED, run, in_stop, players}, {status: MISSING}, or {status:
-## REJECTED, reason}. `fingerprint` is the running game's; a save made by other content is rejected.
+## REJECTED, reason}. `fingerprint`: if not empty, a save made by other content is rejected; empty
+## (what the game passes, card #208): any save RunState can take is loaded, whatever changed since.
 static func load_save(fingerprint: String, path: String = PATH) -> Dictionary:
 	var result := _read(path, fingerprint)
 	if result.status == LOADED:
@@ -79,7 +80,8 @@ static func _read(path: String, fingerprint: String) -> Dictionary:
 	var body: Dictionary = json.data
 	if not _is_number(body.get("format")) or int(body.format) != FORMAT_VERSION:
 		return _rejected("it was saved by another version of the game", true)
-	if typeof(body.get("fingerprint")) != TYPE_STRING or String(body.fingerprint) != fingerprint:
+	if not fingerprint.is_empty() and (typeof(body.get("fingerprint")) != TYPE_STRING
+			or String(body.fingerprint) != fingerprint):
 		return _rejected("the game's content has changed since it was saved", true)
 	if not body.get("run") is Dictionary or typeof(body.get("in_stop")) != TYPE_BOOL:
 		return _rejected("the file is damaged")

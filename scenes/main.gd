@@ -536,7 +536,8 @@ func _show_main_menu() -> void:
 	menu.name = "MainMenu"
 	# A saved run is where the cursor rests until the player picks something else.
 	var start := MainMenu.CONTINUE if not saved.is_empty() and not _menu_used else _menu_item
-	menu.setup(_branding, start, _notice, not saved.is_empty())
+	# Practice (any fight or zone on its own) is a test tool: only debug builds list it (card #208).
+	menu.setup(_branding, start, _notice, not saved.is_empty(), OS.is_debug_build())
 	_notice = ""
 	menu.chosen.connect(_on_menu_chosen)
 	_show_screen(menu)
@@ -557,6 +558,8 @@ func _on_menu_chosen(item: StringName) -> void:
 			_host_online.call_deferred()
 		MainMenu.JOIN_ONLINE:
 			_show_join.call_deferred()
+		MainMenu.TUTORIAL:
+			_fade_to.call_deferred(_start_tutorial)
 		MainMenu.PRACTICE:
 			_show_lobby.call_deferred(_show_select.call_deferred)
 		MainMenu.JOURNAL:
@@ -1113,7 +1116,11 @@ func _clear_run_save() -> void:
 func _valid_save() -> Dictionary:
 	if not _save_io_ok() or _run_data == null or _tuning == null or not RunSave.exists(_run_save_path()):
 		return {}
-	var loaded := RunSave.load_save(_save_fingerprint(), _run_save_path())
+	# No content check (card #208): the game changes almost every day, and every change hid the
+	# player's run. RunState.from_dict still refuses a run that does not fit (unknown gear, items or
+	# skills, a wrong party, a stop that is not on the map); the fingerprint stays in the file only to
+	# tell which build wrote it.
+	var loaded := RunSave.load_save("", _run_save_path())
 	var reason := ""
 	match String(loaded.status):
 		RunSave.LOADED:
