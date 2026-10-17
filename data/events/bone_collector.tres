@@ -35,5 +35,5 @@ script = ExtResource("3_0ai72")
 id = "bone_collector"
 title = "The Bone Collector"
 text = "A man in a coat of knucklebones sits in a hollow tree. \"Trade, traveller? I buy what the road gave you.\""
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/bone_collector.png"
 choices = Array[ExtResource("1_y1g3y")]([SubResource("Resource_0il55"), SubResource("Resource_wjgfv")])

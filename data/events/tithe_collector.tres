@@ -35,5 +35,5 @@ script = ExtResource("3_wapaf")
 id = "tithe_collector"
 title = "The Tithe Collector"
 text = "A hooded figure stands in the road with a bowl. It does not speak. The bowl is bone-dry, and the road behind it is gone."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/tithe_collector.png"
 choices = Array[ExtResource("1_b6itd")]([SubResource("Resource_pvnxw"), SubResource("Resource_i1xgv")])

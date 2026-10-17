@@ -42,5 +42,5 @@ script = ExtResource("5_qfeqt")
 id = "black_mirror"
 title = "The Black Mirror"
 text = "A mirror of black glass leans against a drowned oak. Your reflections look back a moment too long."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/black_mirror.png"
 choices = Array[ExtResource("1_f3itm")]([SubResource("Resource_f0rbg"), SubResource("Resource_iqmj6")])

@@ -48,5 +48,5 @@ script = ExtResource("4_eps3v")
 id = "gamblers_bones"
 title = "Gambler's Bones"
 text = "A skeleton sits at a table of rotten wood, dice in its hand. It waits for a player."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/gamblers_bones.png"
 choices = Array[ExtResource("1_t5lnj")]([SubResource("Resource_5jnxl"), SubResource("Resource_0vj17")])

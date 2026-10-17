@@ -8,7 +8,8 @@ extends SceneTree
 
 const ENC := "res://data/encounters/"
 const EVENTS := "res://data/events/"
-const PICTURE := "res://assets/sprites/ui/map_event.png"
+## Each event's painted picture (tools/art_kit/assets/event_art.py, card #199): <this folder>/<event id>.png.
+const PICTURE_DIR := "res://assets/sprites/events/"
 
 var _written: int = 0
 
@@ -28,12 +29,14 @@ func _init() -> void:
 	act1.ambushes.assign(_encs(["bloat_and_gnat", "hyena_and_fly", "toad_and_fly", "shade_and_gnat", "fly_pair"]))
 	act1.ambush_title = "An Ambush!"
 	act1.ambush_text = "The mark on the map was bait. Something on the Rotten Road was waiting for you."
+	act1.ambush_picture_path = PICTURE_DIR + "ambush_rotten_road.png"
 	var act2 := load("res://data/runs/acts/ashen_deep.tres") as ActData
 	act2.events.assign(_pick(events, ["weeping_well", "gamblers_bones", "whispering_mask", "merchant_wreck",
 			"shrine_of_kings", "black_mirror", "drowned_chapel", "buried_cairn", "sealed_door", "widows_wager"]))
 	act2.ambushes.assign(_encs(["hyena_pack", "hyena_and_fly", "shade_and_gnat", "toad_and_fly", "bloat_and_gnat"]))
 	act2.ambush_title = "An Ambush!"
 	act2.ambush_text = "The ashes shifted. What was lying in them was only waiting for you."
+	act2.ambush_picture_path = PICTURE_DIR + "ambush_ashen_deep.png"
 	_save(act1, "res://data/runs/acts/rotten_road.tres")
 	_save(act2, "res://data/runs/acts/ashen_deep.tres")
 	print("bootstrap_events: wrote %d files" % _written)
@@ -217,7 +220,7 @@ func _event(id: String, title: String, text: String, choices: Array) -> EventDat
 	event.id = id
 	event.title = title
 	event.text = text
-	event.picture_path = PICTURE
+	event.picture_path = PICTURE_DIR + id + ".png"
 	event.choices.assign(choices)
 	return event
 

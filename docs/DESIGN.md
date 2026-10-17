@@ -1144,6 +1144,10 @@ blending poses into more frames.
   camera scale 1.19 inside his 108 px frame (idle 3.6, sword raised 4.0); the heroes stand about
   2.0 (44 px).
 - `python tools/art_kit/check.py` checks every file against the sprite contract.
+- The "?" stops' pictures (card #199) are small painted scenes, not sprites: `assets/event_art.py`
+  paints a 128x64 back and puts a 3D-rendered subject on it (details in 8.7). One per event file and
+  one per act's ambush page, in `assets/sprites/events/`; `check.py` demands a picture for every
+  file in `data/events/`.
 
 ### 5.5 Animation clips (phase 10, cards #58 to #71)
 
@@ -2368,7 +2372,7 @@ scarce, and a "?" can turn into a fight.
   was saved on entering the stop (8.14) comes back to the same ambush page.
 - **The events.** An act's "?" stops pick from its `events`, never one met before in the run
   (`RunState.events_seen`, synced online). Sixteen, written by `tools/bootstrap_events.gd` (which
-  also fills both acts' event lists and ambush pools; the event picture is the existing `map_event.png`):
+  also fills both acts' event lists and ambush pools; every event has its own picture, see "The pictures" below):
 
   | Event | Act | Choices (every one has a price) |
   |---|---|---|
@@ -2392,8 +2396,39 @@ scarce, and a "?" can turn into a fight.
   Act 1 draws from the first ten, act 2 from the last ten; four are in both. The act's ambush pools:
   act 1 Bloat and Gnat Swarm, Rot Hyena and Carrion Fly, Mire Toad and Carrion Fly, Shade and Gnat Swarm,
   Two Carrion Flies; act 2 the Rot Hyena Pack plus four of those (deep versions).
-- `EventScreen`: the story, the choices, then what happened and Continue (or Fight). Items go into
+- `EventScreen`: the picture, the story, the choices, then what happened and Continue (or Fight). Items go into
   the backpack (it opens when full); online the host chooses and the clients see the result.
+- **The pictures (card #199, 2026-10-17).** Each event has its own painted scene,
+  `assets/sprites/events/<event id>.png`, and each act its own for the ambush page
+  (`events/ambush_rotten_road.png`, `events/ambush_ashen_deep.png`, `ActData.ambush_picture_path`);
+  16 + 2, all drawn by `tools/art_kit/assets/event_art.py` (art bible: 5.4; the kit README). They are
+  128x64 art pixels, fully opaque, at most 96 colours, and what each shows is the event's own story:
+  the Well a stone well with a rotting roof, weeping cyan and a glint on the black water; Gambler's
+  Bones a skeleton in a gambler's hat at a rotten table, dice and a candle; the Pilgrim a robed man
+  on the road with his satchel and a pool of blood; the Rot Blossom a huge violet flower growing out
+  of a corpse; the Hanging Cage an iron cage on a dead limb with the key in a dead hand; the Wreck a
+  wagon on its side with spilled crates and hyena eyes in the dark; the Mask a golden crowned mask in
+  the moss with whispers rising; the Bone Collector a hooded man in a coat of knucklebones inside a
+  hollow tree; the Scarecrow a sack-headed scarecrow with a stitched mouth over a dead field; the
+  Tithe Collector a hooded figure with a bowl on the rim of a hole where the road was; the Old Kings
+  three robed stone kings kneeling at a gold altar; the Black Mirror a gilt mirror of black glass in
+  dark water with three figures looking out of it; the Chapel a church sunk to its roof in black
+  water, a bell in the tower and rings spreading; the Cairn a cairn with a scratched name and the
+  pit someone left; the Sealed Door an iron door with three wax seals in a hillside, ember light
+  under it; the Widow a woman in black by a cold hearth with the husband's empty chair. The act 1
+  ambush is a road closing in with eyes in the trees and a dropped purse as bait; the act 2 ambush
+  pale hands and ember eyes in the ash round a half-buried coffer.
+  Made like the rest of the world: a flat painted back (sky, two ridges, bare trees, ground, mist,
+  glow and vignette from the shared colour ramps, bands cut by a light ordered dither) with the
+  subject in front built as a small 3D model and rendered by the same camera and light as the props
+  and fighters, over a soft contact shadow, then every pixel is snapped to the colours the scene
+  was made from. Dusk, night, olive or ash skies, never bright; glows (cyan, amber, violet, ember)
+  only where the story has magic or fire.
+  `StopVisuals` (`data/presentation/stop_visuals.tres`) holds how the screen shows it: scale 4 (so
+  512x256 on screen, nearest filter, never blurred), a thin worn-gold frame with a dark gap and a
+  soft shadow. An event whose file is missing shows the old question mark (`map_event.png`, scale 4)
+  in the same frame. `tools/bootstrap_events.gd` writes the picture paths; `check.py` and
+  `test_event_pictures.gd` keep every event and act picture present, the right size and opaque.
 - **The bot** (`EventAutoplay`, pure, tested) plays a careful player: it takes a choice only if the
   reward is worth the price (its own gold values, named consts), pays no permanent max HP while the
   weakest hero is under 70%, walks into a possible ambush only while the party is fit for an elite
@@ -3147,3 +3182,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | The arena shifts when a boss or guard enters phase two (sun, ambient, fog, vignette, lamps and a puff of embers or spores, over about a second; the Hollow King's throne goes blood red), and a zone's drifting particles also play, thinner, in its fights | card #196 (review audio-look #6, #9 and art-textures #11): a boss's rage was a banner over an unchanged room, and the fight dropped the zone's air; presentation only (nothing in the engine or the golden), slower under Reduced and Off flashes |
 | 2026-10-17 | Where phase 16 features meet: the run save is deleted the moment the last fight is decided (and the win opens its oath then); a save from another build is kept, not deleted; Continue resumes after an event choice, purchase or opened chest instead of replaying the stop; phase-two-only attacks get their projectiles and animations; a Doom picked inside a hero's skill is announced; a pad drop on an idle fight shows its card | card #197 (integration review): a window close dodged event risks and shop restocks, a patch or the editor destroyed a good save, and a decided run could be replayed (8.14) |
 | 2026-10-17 | Charged Dooms: each guard and act boss has one signature Doom (Gorge Burst, Brood Tide, Ashfall, Timber Fall, Crown of Rot), announced with a countdown (2 or 3 enemy turns) the party can break by dealing a share of the enemy's max HP (13% to 45%): the Doom is cancelled and the enemy loses its next turn and takes +50% damage; unbroken it unleashes as a party-wide string of 8 to 10 hits with rends and sweeps; delay skills never reset the countdown; never the first pick of a fight, cooldown 2, about one per 4 to 6 boss turns; the bots focus the gatherer | card #195 (review: combat-rules-ai #9, E33 break meets Slay the Spire intent); the owner wants it hard but readable; break shares set from bot runs, to retune from play |
+| 2026-10-17 | Every "?" event and each act's ambush page has its own painted 128x64 scene (`sprites/events/`, drawn by `art_kit/assets/event_art.py`: a flat dithered back plus a 3D-rendered subject, one palette, at most 96 colours); the event screen shows it at scale 4 in a thin worn-gold frame (`StopVisuals`, `stop_visuals.tres`), nearest filter, with the old question mark as the fallback for a missing file | card #199; the owner found the tiny question mark in a black void flat, and each event is a story worth seeing (8.7) |

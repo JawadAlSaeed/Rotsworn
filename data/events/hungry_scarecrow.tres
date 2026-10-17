@@ -36,5 +36,5 @@ script = ExtResource("4_hbean")
 id = "hungry_scarecrow"
 title = "The Hungry Scarecrow"
 text = "A scarecrow on a post, its sack head stuffed with grain. The mouth is stitched shut, and still it moans."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/hungry_scarecrow.png"
 choices = Array[ExtResource("1_i2a0u")]([SubResource("Resource_www38"), SubResource("Resource_ig7sn")])

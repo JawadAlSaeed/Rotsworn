@@ -42,5 +42,5 @@ script = ExtResource("5_un371")
 id = "drowned_chapel"
 title = "The Drowned Chapel"
 text = "A chapel sunk to its roof in black water. A bell still hangs in the tower, and something below keeps time with it."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/drowned_chapel.png"
 choices = Array[ExtResource("1_iu4xt")]([SubResource("Resource_0575h"), SubResource("Resource_pxgaw")])

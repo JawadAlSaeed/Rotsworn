@@ -36,5 +36,5 @@ script = ExtResource("4_m2d1d")
 id = "buried_cairn"
 title = "The Buried Cairn"
 text = "A cairn of grey stones, a name scratched on it. Fresh earth lies beside it. Someone dug here, and stopped."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/buried_cairn.png"
 choices = Array[ExtResource("1_xk34j")]([SubResource("Resource_pyl0w"), SubResource("Resource_o7ddt")])

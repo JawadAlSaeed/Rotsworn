@@ -43,5 +43,5 @@ script = ExtResource("5_u8l76")
 id = "whispering_mask"
 title = "The Whispering Mask"
 text = "A golden mask lies in the moss. It whispers how strong you could be."
-picture_path = "res://assets/sprites/ui/map_event.png"
+picture_path = "res://assets/sprites/events/whispering_mask.png"
 choices = Array[ExtResource("1_c4ksu")]([SubResource("Resource_go2ci"), SubResource("Resource_pwx6o")])

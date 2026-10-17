@@ -54,6 +54,11 @@ UI = {"ap_pip": (10, 10), "ap_pip_empty": (10, 10), "hit_normal": (12, 12), "hit
       "map_zone_ashen_ruins": (24, 24), "map_lair_hollow_king": (32, 32), "map_flag": (14, 22),
       "map_ring": (30, 30), "map_ring_big": (40, 40)}
 
+# The "?" pictures (card #199): one per event file in data/events/, and one per act's ambush page.
+EVENT_PICTURE = (128, 64)
+EVENT_PICTURE_COLOURS = 96
+AMBUSH_PICTURES = ["ambush_rotten_road", "ambush_ashen_deep"]
+
 errors: list[str] = []
 warnings: list[str] = []
 
@@ -352,6 +357,17 @@ def main() -> int:
         a = load(rel)
         if a is not None and size_is(rel, a, w, h):
             hard_alpha(rel, a)
+    events_dir = os.path.join(ROOT, "data", "events")
+    event_ids = sorted(f[:-5] for f in os.listdir(events_dir) if f.endswith(".tres")) if os.path.isdir(events_dir) else []
+    for e in event_ids + AMBUSH_PICTURES:
+        rel = "events/%s.png" % e
+        a = load(rel)
+        if a is not None and size_is(rel, a, *EVENT_PICTURE):
+            if (a[..., 3] != 255).any():
+                errors.append("%s: event pictures must be fully opaque" % rel)
+            n = len({tuple(int(v) for v in px) for px in a.reshape(-1, 4)})
+            if n > EVENT_PICTURE_COLOURS:
+                errors.append("%s: %d colours (at most %d)" % (rel, n, EVENT_PICTURE_COLOURS))
     for w in warnings:
         print("warning:", w)
     for e in errors:
