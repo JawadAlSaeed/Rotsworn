@@ -18,6 +18,21 @@ enum TargetMode {
 @export var target_mode: TargetMode = TargetMode.SINGLE
 ## How likely the enemy is to pick this move compared to its other moves.
 @export_range(0, 100) var weight: int = 1
+@export_group("Choice (DESIGN.md 2.3)")
+## The enemy may pick this move at most this many turns running while it has another usable move
+## (0 = no limit). Stops a husk swiping five times in a row.
+@export_range(0, 8) var max_in_a_row: int = 2
+## After the enemy uses it, it cannot pick it again for this many of its next turns (0 = none).
+@export_range(0, 8) var cooldown_turns: int = 0
+## Finisher: when any standing hero is at or under finisher_below_percent of their max HP, the
+## weight is multiplied by finisher_weight_percent. 0 below percent = off.
+@export_range(0, 100, 1, "suffix:%") var finisher_below_percent: int = 0
+@export_range(1, 1000, 1, "suffix:%") var finisher_weight_percent: int = 100
+## Desperation: when the enemy itself is at or under low_hp_below_percent of its max HP, the
+## weight is multiplied by low_hp_weight_percent. 0 below percent = off.
+@export_range(0, 100, 1, "suffix:%") var low_hp_below_percent: int = 0
+@export_range(1, 1000, 1, "suffix:%") var low_hp_weight_percent: int = 100
+@export_group("")
 ## Play the alert sound when the attack starts.
 @export var alert_cue: bool = true
 ## Allow the training ring on this attack (turn off for feints).

@@ -25,5 +25,7 @@ hp_percent = 70
 power_percent = 80
 speed = 170
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_fly_dive"), ExtResource("5_fly_buzz_dive"), ExtResource("6_fly_maggot_spit"), ExtResource("7_fly_strafe")])
+target_rule = 1
+target_bias_percent = 300
 gold = 12
 xp = 25
