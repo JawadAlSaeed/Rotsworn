@@ -557,6 +557,8 @@ func set_skill_pressing(on: bool) -> void:
 ## Big text in the middle of the screen (TEAM COUNTER) for `ms` milliseconds.
 func show_center_banner(text: String, color: Color, ms: int) -> void:
 	_center_banner.offset_top = _banner_top(CENTER_BANNER_TOP)
+	# Over the enemy panels: a long name (a Doom's "CROWN OF ROT IN 3") used to slide under them.
+	_center_banner.move_to_front()
 	_center_banner.text = text
 	_center_banner.label_settings.font_color = HudStyle.worn_color(color)
 	_center_banner.visible = true
