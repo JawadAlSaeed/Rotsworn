@@ -179,8 +179,9 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `tests/unit/` GUT tests
 - `tools/` headless helper scripts (placeholder generation, data bootstrap, `bootstrap_run.gd`
   for the run, shop, gear, boss and phase 4 zones; `bootstrap_zones.gd` for the long zones' sections,
-  shrines and wanderers, DESIGN.md 8.5; `bootstrap_phase15.gd` for the mini-boss guards, elite fights,
-  events and the run's two acts, 8.6 to 8.9, run before bootstrap_zones.gd; `zone_map_preview.gd` draws
+  shrines and wanderers, DESIGN.md 8.5; `bootstrap_phase15.gd` for the mini-boss guards, elite fights
+  and the run's two acts, 8.6 to 8.9, run before bootstrap_zones.gd; `bootstrap_events.gd` for the "?"
+  events and the acts' ambush pools, 8.7, run after bootstrap_phase15.gd; `zone_map_preview.gd` draws
   every zone from above to a picture, `-- --out=DIR --seed=N`, to check a layout without the game); `tools/sound_kit/` builds the sound effects from
   real recordings (see its README); `tools/art_kit/` draws all the pixel art in Python (see its
   README: the art bible, `python tools/art_kit/build.py [module]`; the heroes' painted portraits come

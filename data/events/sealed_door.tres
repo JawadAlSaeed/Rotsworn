@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_tpga3"]
+[ext_resource type="Resource" path="res://data/encounters/elite_shade_coven.tres" id="2_ah6b8"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="3_cv3ef"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="4_pwmvt"]
+
+[sub_resource type="Resource" id="Resource_4jomo"]
+script = ExtResource("3_cv3ef")
+ambush = ExtResource("2_ah6b8")
+ambush_spoils = true
+gold = 60
+
+[sub_resource type="Resource" id="Resource_y7swh"]
+script = ExtResource("1_tpga3")
+text = "Break the seal"
+detail = "A guard stands behind it. A good guard guards something good."
+deal = SubResource("Resource_4jomo")
+done_text = "The wax cracks. The beat stops."
+
+[sub_resource type="Resource" id="Resource_wau37"]
+script = ExtResource("3_cv3ef")
+cost_item = 2
+gold = 80
+find_rarity = 1
+
+[sub_resource type="Resource" id="Resource_c7pwp"]
+script = ExtResource("1_tpga3")
+text = "Pick the lock"
+detail = "Your tools stay in the lock."
+deal = SubResource("Resource_wau37")
+done_text = "The beat slows. The door gives."
+
+[resource]
+script = ExtResource("4_pwmvt")
+id = "sealed_door"
+title = "The Sealed Door"
+text = "A door of black iron in the hillside, sealed with rust and wax. Behind it, something pounds the slow beat of a heart."
+picture_path = "res://assets/sprites/ui/map_event.png"
+choices = Array[ExtResource("1_tpga3")]([SubResource("Resource_y7swh"), SubResource("Resource_c7pwp")])

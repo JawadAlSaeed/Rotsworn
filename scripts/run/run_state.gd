@@ -26,6 +26,9 @@ const ELITE_SALT: int = 141650939
 const EVENT_SALT: int = 160481183
 const TREASURE_SALT: int = 179424673
 const RESTOCK_SALT: int = 198491317
+## Phase 16 "?" stops: the ambush roll of a stop, and the random picks of an event's costs.
+const AMBUSH_SALT: int = 217645177
+const COST_SALT: int = 236887691
 ## Every piece of gear starts from this weight before rarity scales it.
 const GEAR_WEIGHT: int = 100
 
@@ -46,6 +49,14 @@ var bonus_points: Array[int] = []
 var events_seen: Array[String] = []
 ## How many times the shop at the current stop was restocked (DESIGN.md 8.10).
 var restocks: int = 0
+## "?" stops passed since the last ambush fight: each one raises the chance that the next "?" stop
+## is an ambush (tuning unknown_fight_percent_*, DESIGN.md 8.7). Any ambush starts it over.
+var ambush_streak: int = 0
+## The encounter ("" none) the party must fight at the current stop: a "?" stop that turned into an
+## ambush, or an event choice that ended in one. Cleared when that fight ends.
+var ambush_id: String = ""
+## The ambush ends in spoils (one piece of gear), like an elite's.
+var ambush_spoils: bool = false
 ## The stop the party is at (-1: before the first stop).
 var at: int = -1
 ## Stops visited, in order.
@@ -131,6 +142,7 @@ func to_dict() -> Dictionary:
 		"fights_won": fights_won, "gold_earned": gold_earned, "result": result,
 		"act": act, "visited": visited, "bonus_points": Array(bonus_points), "events_seen": Array(events_seen),
 		"restocks": restocks, "oath": oath,
+		"ambush_streak": ambush_streak, "ambush_id": ambush_id, "ambush_spoils": ambush_spoils,
 	}
 
 
@@ -146,9 +158,11 @@ static func from_dict(run_data: RunData, p_tuning: Tuning, d: Dictionary) -> Run
 ## Sets this run (same seed) to to_dict() data. False (and nothing changed) if it does not fit.
 func apply_dict(d: Dictionary) -> bool:
 	for key: String in ["seed", "at", "gold", "team_gauge", "fights_won", "gold_earned", "act", "visited", "restocks",
-			"oath"]:
+			"oath", "ambush_streak"]:
 		if typeof(d.get(key)) != TYPE_INT:
 			return false
+	if int(d.ambush_streak) < 0 or typeof(d.get("ambush_id")) != TYPE_STRING or typeof(d.get("ambush_spoils")) != TYPE_BOOL:
+		return false
 	if int(d.oath) < 0 or int(d.oath) > data.oaths.size():
 		return false
 	if int(d.seed) != run_seed or typeof(d.get("result")) != TYPE_STRING:
@@ -195,6 +209,8 @@ func apply_dict(d: Dictionary) -> bool:
 			return false
 	if int(d.act) < 0 or int(d.act) >= acts().size():
 		return false
+	if String(d.ambush_id) != "" and _find_ambush(String(d.ambush_id)) == null:
+		return false
 	var act_map := map if int(d.act) == act else _make_map(int(d.act))
 	if int(d.at) != -1 and act_map.stop(int(d.at)).is_empty():
 		return false
@@ -203,6 +219,9 @@ func apply_dict(d: Dictionary) -> bool:
 	map = act_map
 	visited = int(d.visited)
 	restocks = int(d.restocks)
+	ambush_streak = int(d.ambush_streak)
+	ambush_id = String(d.ambush_id)
+	ambush_spoils = bool(d.ambush_spoils)
 	bonus_points.assign(d.bonus_points)
 	events_seen.assign(d.events_seen)
 	at = int(d.at)
@@ -338,8 +357,13 @@ func choices() -> Array[int]:
 func go(id: int) -> bool:
 	if is_over() or not choices().has(id):
 		return false
-	# The event is picked before the party is there (event_of then picks a fresh one).
-	var event := event_of(id) if int(map.stop(id).type) == RunMap.StopType.EVENT else null
+	# The event is picked before the party is there (event_of then picks a fresh one). A "?" stop
+	# may turn into an ambush instead (DESIGN.md 8.7); that one is no event, so none is used up.
+	ambush_id = ""
+	ambush_spoils = false
+	var event: EventData = null
+	if int(map.stop(id).type) == RunMap.StopType.EVENT and not _roll_ambush(id):
+		event = event_of(id)
 	at = id
 	path.append(id)
 	visited += 1
@@ -401,6 +425,7 @@ func next_act() -> bool:
 		return false
 	act += 1
 	map = _make_map(act)
+	end_ambush()
 	at = -1
 	path.clear()
 	for slot: int in hp.size():
@@ -451,23 +476,112 @@ func event_of(stop_id: int) -> EventData:
 	return fresh[rng.range_int(0, fresh.size() - 1)]
 
 
-## True if the party can take event choice `choice` (it can pay the price).
-func can_choose(choice: EventChoiceData) -> bool:
-	return choice != null and (choice.deal == null or can_take_offer(choice.deal))
+# --- "?" stops: ambushes and the costs of event choices (DESIGN.md 8.7) -------------------------
+
+## The chance, in percent, that the next "?" stop is an ambush fight: unknown_fight_percent_base plus
+## unknown_fight_percent_step for every "?" stop passed without one.
+func unknown_fight_percent() -> int:
+	return clampi(tuning.unknown_fight_percent_base + ambush_streak * tuning.unknown_fight_percent_step, 0, 100)
+
+
+## Rolls whether "?" stop `stop_id` is an ambush (seeded by the stop, so it is the same on every
+## machine). If so the ambush is set and the count starts over; if not the count grows. An act
+## with no ambushes never rolls.
+func _roll_ambush(stop_id: int) -> bool:
+	var pool := act_data().ambushes
+	if pool.is_empty():
+		return false
+	var rng := CombatRng.new(_salted(stop_id * AMBUSH_SALT))
+	var roll := rng.range_int(0, 99)
+	var encounter := pool[rng.range_int(0, pool.size() - 1)]
+	if encounter == null or roll >= unknown_fight_percent():
+		ambush_streak += 1
+		return false
+	_set_ambush(encounter, false)
+	return true
+
+
+func _set_ambush(encounter: EncounterData, spoils: bool) -> void:
+	ambush_id = encounter.id
+	ambush_spoils = spoils
+	ambush_streak = 0
+
+
+## True while the party must fight an ambush at this stop.
+func in_ambush() -> bool:
+	return not ambush_id.is_empty()
+
+
+## The ambush fight: its encounter, in its deep version in a deep act or row (null: none).
+func ambush_encounter() -> EncounterData:
+	var base := _find_ambush(ambush_id)
+	if base == null:
+		return null
+	return base.deep if is_deep() and base.deep != null else base
+
+
+## The ambush is over (fought, or the act ended).
+func end_ambush() -> void:
+	ambush_id = ""
+	ambush_spoils = false
+
+
+## The look of an ambush fight: one of the act's zones' (picked by the stop).
+func ambush_look() -> StageLook:
+	var zones := act_data().zones
+	if zones.is_empty():
+		return final_look()
+	var zone := zones[absi(at) % zones.size()]
+	return zone.look if zone != null and zone.look != null else final_look()
+
+
+## An ambush encounter by id: the act pools' and every event choice's.
+func _find_ambush(id: String) -> EncounterData:
+	if id.is_empty():
+		return null
+	for act_info: ActData in acts():
+		for encounter: EncounterData in act_info.ambushes:
+			if encounter != null and encounter.id == id:
+				return encounter
+		for event: EventData in act_info.events:
+			if event == null:
+				continue
+			for choice: EventChoiceData in event.choices:
+				for deal: ZoneOfferData in [choice.deal, choice.risk_deal]:
+					if deal != null and deal.ambush != null and deal.ambush.id == id:
+						return deal.ambush
+	return null
+
+
+## The percent an event at stop `stop_id` pays and charges its gold and XP at: 100, plus
+## tuning.event_reward_row_percent for every map row of depth.
+func event_scale(stop_id: int) -> int:
+	return 100 + _row_of(stop_id) * tuning.event_reward_row_percent if stop_id >= 0 else 100
+
+
+## True if the party can take event choice `choice` at stop `stop_id` (default: the current one),
+## which means it can pay the price.
+func can_choose(choice: EventChoiceData, stop_id: int = -2) -> bool:
+	if choice == null:
+		return false
+	var scale := event_scale(at if stop_id == -2 else stop_id)
+	return choice.deal == null or can_take_offer(choice.deal, scale)
 
 
 ## Takes event choice `index` at stop `stop_id`: its deal, and with its risk_percent (seeded) its
-## risk deal too. Items come back for the caller to put in the backpack. Returns {ok: bool,
-## text: String, items: Array[ItemData], risk: bool}.
-func choose_event(choice: EventChoiceData, stop_id: int, index: int) -> Dictionary:
+## risk deal too. `pick` answers a deal that asks for a hero (slot) or an item (uid): see
+## ZoneOfferData.pick_kind. Items come back for the caller to put in the backpack. Returns
+## {ok: bool, text: String, items: Array[ItemData], risk: bool, ambush: bool}.
+func choose_event(choice: EventChoiceData, stop_id: int, index: int, pick: int = -1) -> Dictionary:
 	var items: Array[ItemData] = []
-	if not can_choose(choice):
-		return {"ok": false, "text": "Not enough gold.", "items": items, "risk": false}
+	var scale := event_scale(stop_id)
+	if not can_choose(choice, stop_id) or (choice.deal != null and not pick_fits(choice.deal, pick)):
+		return {"ok": false, "text": "You cannot pay that.", "items": items, "risk": false, "ambush": false}
 	var lines: Array[String] = []
 	if not choice.done_text.is_empty():
 		lines.append(choice.done_text)
 	if choice.deal != null:
-		var got := take_offer(choice.deal, stop_id, 1000 + index)
+		var got := take_offer(choice.deal, stop_id, 1000 + index, scale, pick)
 		if got.item != null:
 			items.append(got.item)
 		if String(got.text) != "Nothing happened.":
@@ -478,15 +592,107 @@ func choose_event(choice: EventChoiceData, stop_id: int, index: int) -> Dictiona
 		risk = true
 		if not choice.risk_text.is_empty():
 			lines.append(choice.risk_text)
-		# A risk is never refused for lack of gold: it takes what there is.
-		var hurt := choice.risk_deal.duplicate() as ZoneOfferData
-		hurt.cost_gold = mini(hurt.cost_gold, gold)
-		var got := take_offer(hurt, stop_id, 1050 + index)
+		# A risk is never refused: it takes what there is, from a hero or an item picked by the seed.
+		var got := take_offer(choice.risk_deal, stop_id, 1050 + index, scale, -1, true)
 		if got.item != null:
 			items.append(got.item)
 		if String(got.text) != "Nothing happened.":
 			lines.append(String(got.text))
-	return {"ok": true, "text": "\n".join(lines), "items": items, "risk": risk}
+	return {"ok": true, "text": "\n".join(lines), "items": items, "risk": risk, "ambush": in_ambush()}
+
+
+## True if `pick` answers what `offer` asks the player to pick (and is true of any deal that asks
+## for nothing).
+func pick_fits(offer: ZoneOfferData, pick: int) -> bool:
+	match offer.pick_kind():
+		ZoneOfferData.Pick.HERO:
+			return pick >= 0 and pick < party_size() and hero_can_lose_max_hp(pick)
+		ZoneOfferData.Pick.ITEM:
+			return losable_uids().has(pick)
+	return true
+
+
+## Backpack items an event may take: everything but rotten items (nobody misses those).
+func losable_uids() -> Array[int]:
+	var found: Array[int] = []
+	if backpack == null:
+		return found
+	for e: Dictionary in backpack.entries:
+		if not (e.item as ItemData).rotten:
+			found.append(int(e.uid))
+	return found
+
+
+## True if hero `slot` can lose max HP to an event without going under the floor
+## (tuning.event_max_hp_floor_percent of their normal max HP).
+func hero_can_lose_max_hp(slot: int) -> bool:
+	return slot >= 0 and slot < max_hp_percent.size() and max_hp_percent[slot] > tuning.event_max_hp_floor_percent
+
+
+## Hero `slot` loses `percent` of their max HP for good, as far as the floor allows. Returns the
+## points of normal max HP taken off (0 if they were at the floor).
+func lose_max_hp(slot: int, percent: int) -> int:
+	var points := mini(maxi(1, CombatMath.percent(total_max_hp_percent(slot), percent)),
+			max_hp_percent[slot] - tuning.event_max_hp_floor_percent)
+	if points <= 0:
+		return 0
+	max_hp_percent[slot] -= points
+	_clamp_hp()
+	return points
+
+
+## What the shown choice costs and gives, for the event screen: "Price: ...   Reward: ...   n% risk:
+## ..." with the depth scaling applied, so the numbers on screen are the numbers paid.
+func choice_summary(choice: EventChoiceData, stop_id: int = -2) -> String:
+	if choice == null or choice.deal == null:
+		return ""
+	var scale := event_scale(at if stop_id == -2 else stop_id)
+	var parts: Array[String] = []
+	var lines := offer_lines(choice.deal, scale)
+	if not (lines.price as Array).is_empty():
+		parts.append("Price: " + ", ".join(lines.price as Array))
+	if not (lines.gift as Array).is_empty():
+		parts.append("Reward: " + ", ".join(lines.gift as Array))
+	if choice.risk_percent > 0 and choice.risk_deal != null:
+		var risk := offer_lines(choice.risk_deal, scale)
+		var all: Array = (risk.price as Array) + (risk.gift as Array)
+		parts.append("%d%% risk: %s" % [choice.risk_percent, ", ".join(all)])
+	return "   ".join(parts)
+
+
+## A deal in words: {price: Array[String], gift: Array[String]}, gold and XP at `scale` percent.
+func offer_lines(offer: ZoneOfferData, scale: int = 100) -> Dictionary:
+	var price: Array[String] = []
+	var gift: Array[String] = []
+	if offer.cost_gold > 0:
+		price.append("%d gold" % CombatMath.percent(offer.cost_gold, scale))
+	if offer.cost_hp_percent > 0:
+		price.append("everyone loses %d%% HP" % offer.cost_hp_percent)
+	if offer.cost_max_hp_percent > 0:
+		var who := ["everyone", "a hero you pick", "a random hero"][int(offer.cost_max_hp_target)] as String
+		price.append("%s loses %d%% max HP for good" % [who, offer.cost_max_hp_percent])
+	match offer.cost_item:
+		ZoneOfferData.ItemCost.RANDOM:
+			price.append("a random pack item")
+		ZoneOfferData.ItemCost.CHOSEN:
+			price.append("a pack item you pick")
+	if offer.cost_rotten != null:
+		price.append("curse: %s (rotten)" % offer.cost_rotten.display_name)
+	if offer.ambush != null:
+		price.append("ambush: %s%s" % [offer.ambush.display_name, ", with spoils" if offer.ambush_spoils else ""])
+	if offer.heal_percent > 0:
+		gift.append("everyone heals %d%%" % offer.heal_percent)
+	if offer.gold > 0:
+		gift.append("+%d gold" % CombatMath.percent(offer.gold, scale))
+	if offer.xp > 0:
+		gift.append("+%d XP each" % CombatMath.percent(offer.xp, scale))
+	if offer.team_gauge > 0:
+		gift.append("team gauge +%d" % offer.team_gauge)
+	if offer.item != null:
+		gift.append(offer.item.display_name)
+	elif offer.find_rarity >= 0:
+		gift.append(["an item", "a rare item", "a legendary item"][clampi(offer.find_rarity, 0, 2)] as String)
+	return {"price": price, "gift": gift}
 
 
 ## What the chest of treasure stop `stop_id` holds: a prize like a locked chest's, picked as if the
@@ -621,6 +827,9 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 		if (e.item as ItemData).usable_in_fight():
 			setup.items.append({"uid": int(e.uid), "item": e.item, "amount": entry_amount(e), "name": entry_name(e)})
 	setup.start_team_gauge = clampi(team_gauge, 0, tuning.team_gauge_max)
+	if in_ambush():
+		# An ambush is sprung on the party: no running unless the tuning allows it.
+		setup.can_run = setup.can_run and tuning.ambush_can_run
 	if not encounter.boss or tuning.run_enemy_scale_bosses:
 		setup.enemy_hp_percent = enemy_hp_percent()
 		setup.enemy_power_percent = enemy_power_percent()
@@ -681,6 +890,7 @@ func spend_items(uids: Array[int]) -> void:
 ## the run. Returns {gold, xp: per slot, levels: per slot (levels gained)}.
 func finish_fight(fight_result: String, party_hp: Array[int], encounter: EncounterData) -> Dictionary:
 	var none := {"gold": 0, "xp": _zeros(), "levels": _zeros()}
+	end_ambush()
 	if fight_result == ESCAPED:
 		# Ran away (DESIGN.md 2.13): the HP carries on (a downed hero stands up at the floor),
 		# no gold, no XP, the run goes on.
@@ -1422,50 +1632,128 @@ func zone_seed(stop_id: int) -> int:
 	return _salted(stop_id * ZONE_SALT)
 
 
-## True if the party can pay for the shrine or wanderer's deal (HP prices can always be paid: a
-## hero never drops below 1 HP for one).
-func can_take_offer(offer: ZoneOfferData) -> bool:
-	return offer != null and gold >= offer.cost_gold
+## True if the party can pay for the shrine or wanderer's deal. HP prices can always be paid (a
+## hero never drops below 1 HP for one); an event's deal (`scale` is its gold and XP percent, see
+## event_scale) also needs a hero who can still lose max HP, something in the backpack to lose, and
+## room for a curse. A deal that asks for a pick is checked again when it is taken.
+func can_take_offer(offer: ZoneOfferData, scale: int = 100) -> bool:
+	if offer == null or gold < CombatMath.percent(offer.cost_gold, scale):
+		return false
+	if offer.cost_max_hp_percent > 0:
+		var anyone := false
+		for slot: int in party_size():
+			anyone = anyone or hero_can_lose_max_hp(slot)
+		if not anyone:
+			return false
+	if offer.cost_item != ZoneOfferData.ItemCost.NONE and losable_uids().is_empty():
+		return false
+	return offer.cost_rotten == null or not backpack.find_spot(offer.cost_rotten).is_empty()
 
 
-## Takes deal `index` of the zone at stop `stop_id` (DESIGN.md 8.5): pays its price and gives its
-## gifts, all but the item, which comes back for the caller to put in the backpack. Returns
+## Takes deal `index` of the zone or event at stop `stop_id` (DESIGN.md 8.5, 8.7): pays its price and
+## gives its gifts, all but the item, which comes back for the caller to put in the backpack. Returns
 ## {ok: bool, text: String (what happened, one line), item: ItemData or null}. Nothing changes if
-## the gold is short.
-func take_offer(offer: ZoneOfferData, stop_id: int, index: int) -> Dictionary:
-	if not can_take_offer(offer):
-		return {"ok": false, "text": "Not enough gold.", "item": null}
+## the deal cannot be paid. `scale`: percent for the deal's gold and XP; `pick`: the hero or item the
+## player picked (see ZoneOfferData.pick_kind); `forced` (a risk): never refused, it takes what
+## there is.
+func take_offer(offer: ZoneOfferData, stop_id: int, index: int, scale: int = 100, pick: int = -1,
+		forced: bool = false) -> Dictionary:
+	if not forced and (not can_take_offer(offer, scale) or not pick_fits(offer, pick)):
+		var short := offer != null and gold < CombatMath.percent(offer.cost_gold, scale)
+		return {"ok": false, "text": "Not enough gold." if short else "You cannot pay that.", "item": null}
 	var parts: Array[String] = []
-	gold -= offer.cost_gold
+	var rng := CombatRng.new(_salted(stop_id * COST_SALT + index * 29))
+	gold -= mini(CombatMath.percent(offer.cost_gold, scale), gold)
 	if offer.cost_hp_percent > 0:
 		for slot: int in hp.size():
 			if hp[slot] > 0:
 				hp[slot] = maxi(1, hp[slot] - CombatMath.percent(max_hp(slot), offer.cost_hp_percent))
 		parts.append("Everyone lost %d%% HP" % offer.cost_hp_percent)
+	if offer.cost_max_hp_percent > 0:
+		parts.append(_take_max_hp(offer, pick, rng))
+	if offer.cost_item != ZoneOfferData.ItemCost.NONE:
+		parts.append(_take_item(offer, pick, rng))
+	if offer.cost_rotten != null:
+		if add_item(offer.cost_rotten) >= 0:
+			parts.append("The %s settles in your pack" % offer.cost_rotten.display_name)
+		else:
+			parts.append("The %s finds no room and rots away" % offer.cost_rotten.display_name)
+	if offer.ambush != null and not in_ambush():
+		_set_ambush(offer.ambush, offer.ambush_spoils)
+		parts.append("An ambush!")
 	if offer.heal_percent > 0:
 		for slot: int in hp.size():
 			heal(slot, CombatMath.percent(max_hp(slot), offer.heal_percent))
 		parts.append("Everyone healed %d%%" % offer.heal_percent)
 	if offer.gold > 0:
-		gold += offer.gold
-		gold_earned += offer.gold
-		parts.append("+%d gold" % offer.gold)
+		var won := CombatMath.percent(offer.gold, scale)
+		gold += won
+		gold_earned += won
+		parts.append("+%d gold" % won)
 	if offer.xp > 0:
+		var xp_each := CombatMath.percent(offer.xp, scale)
 		for slot: int in xps.size():
-			add_xp(slot, offer.xp)
-		parts.append("+%d XP each" % offer.xp)
+			add_xp(slot, xp_each)
+		parts.append("+%d XP each" % xp_each)
 	if offer.team_gauge > 0:
 		team_gauge = mini(tuning.team_gauge_max, team_gauge + offer.team_gauge)
 		parts.append("Team gauge +%d" % offer.team_gauge)
 	var item: ItemData = offer.item
 	if item == null and offer.find_rarity >= 0:
-		var rng := CombatRng.new(_salted(stop_id * OFFER_SALT + index * 19))
-		item = _pick_found(rng, _row_of(stop_id), offer.find_rarity)
+		var find_rng := CombatRng.new(_salted(stop_id * OFFER_SALT + index * 19))
+		item = _pick_found(find_rng, _row_of(stop_id), offer.find_rarity)
 		if item == null:
-			item = _pick_found(rng, _row_of(stop_id))
+			item = _pick_found(find_rng, _row_of(stop_id))
 	if item != null:
 		parts.append("Got: %s" % item.display_name)
 	return {"ok": true, "text": ". ".join(parts) if not parts.is_empty() else "Nothing happened.", "item": item}
+
+
+## The max HP part of a deal: who loses it (everyone, the picked hero, or one by the seed; a
+## risk's chosen hero is also by the seed) and what it says.
+func _take_max_hp(offer: ZoneOfferData, pick: int, rng: CombatRng) -> String:
+	var lost: Array[String] = []
+	var slots: Array[int] = []
+	match offer.cost_max_hp_target:
+		ZoneOfferData.HpTarget.EVERYONE:
+			for slot: int in party_size():
+				slots.append(slot)
+		ZoneOfferData.HpTarget.CHOSEN:
+			slots.append(pick if pick >= 0 and pick < party_size() else _random_slot(rng))
+		_:
+			slots.append(_random_slot(rng))
+	for slot: int in slots:
+		if lose_max_hp(slot, offer.cost_max_hp_percent) > 0:
+			lost.append(data.party[slot].display_name)
+	if lost.is_empty():
+		return "Nothing more could be taken from your strength"
+	if slots.size() > 1 and lost.size() == slots.size():
+		return "Everyone lost %d%% max HP for good" % offer.cost_max_hp_percent
+	return "%s lost %d%% max HP for good" % [" and ".join(lost), offer.cost_max_hp_percent]
+
+
+## A hero for a random cost: one who can still lose max HP, else any.
+func _random_slot(rng: CombatRng) -> int:
+	var able: Array[int] = []
+	for slot: int in party_size():
+		if hero_can_lose_max_hp(slot):
+			able.append(slot)
+	if able.is_empty():
+		return rng.range_int(0, party_size() - 1)
+	return able[rng.range_int(0, able.size() - 1)]
+
+
+## The item part of a deal: the picked item, or one by the seed, leaves the backpack.
+func _take_item(offer: ZoneOfferData, pick: int, rng: CombatRng) -> String:
+	var able := losable_uids()
+	if able.is_empty():
+		return "There was nothing in the pack to lose"
+	var uid: int = pick if offer.cost_item == ZoneOfferData.ItemCost.CHOSEN and able.has(pick) \
+			else able[rng.range_int(0, able.size() - 1)]
+	var label := entry_name(backpack.entry(uid))
+	backpack.remove(uid)
+	_clamp_hp()
+	return "Lost: %s" % label
 
 
 ## What glinting spot `spot` of the zone at stop `stop_id` holds (seeded; null if nothing can be

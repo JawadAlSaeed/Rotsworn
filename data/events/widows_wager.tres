@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_g3vo2"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_co480"]
+[ext_resource type="Resource" path="res://data/items/rotting_heart.tres" id="3_qlb4n"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="4_fifyh"]
+
+[sub_resource type="Resource" id="Resource_aj560"]
+script = ExtResource("2_co480")
+cost_gold = 40
+xp = 110
+
+[sub_resource type="Resource" id="Resource_qcfv1"]
+script = ExtResource("2_co480")
+cost_hp_percent = 15
+cost_max_hp_percent = 8
+cost_max_hp_target = 2
+
+[sub_resource type="Resource" id="Resource_cxj47"]
+script = ExtResource("1_g3vo2")
+text = "Take his seat"
+detail = "Buy in, and see what the chips are worth."
+deal = SubResource("Resource_aj560")
+risk_percent = 50
+risk_deal = SubResource("Resource_qcfv1")
+done_text = "The chips fall your way, and the fire warms."
+risk_text = "She smiles. Someone is lighter by the end."
+
+[sub_resource type="Resource" id="Resource_356ch"]
+script = ExtResource("2_co480")
+cost_max_hp_percent = 10
+cost_max_hp_target = 1
+find_rarity = 2
+
+[sub_resource type="Resource" id="Resource_tpldo"]
+script = ExtResource("2_co480")
+cost_hp_percent = 25
+cost_rotten = ExtResource("3_qlb4n")
+
+[sub_resource type="Resource" id="Resource_xcbyu"]
+script = ExtResource("1_g3vo2")
+text = "Stake a hero's strength"
+detail = "A rare prize, if the hand is good."
+deal = SubResource("Resource_356ch")
+risk_percent = 40
+risk_deal = SubResource("Resource_tpldo")
+done_text = "The hand is good. Her smile is gone."
+risk_text = "The hand is hers. Something is dealt back into your pack."
+
+[resource]
+script = ExtResource("4_fifyh")
+id = "widows_wager"
+title = "The Widow's Wager"
+text = "A woman in black sits by a cold fire, shuffling bone chips. \"My husband lost everything at this table. Do you want his seat?\""
+picture_path = "res://assets/sprites/ui/map_event.png"
+choices = Array[ExtResource("1_g3vo2")]([SubResource("Resource_cxj47"), SubResource("Resource_xcbyu")])

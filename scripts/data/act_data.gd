@@ -17,3 +17,11 @@ extends Resource
 @export var events: Array[EventData] = []
 ## Every zone fight here is its deep (variant) version (DESIGN.md 2.16).
 @export var deep: bool = false
+## A "?" stop can turn into an ambush instead of an event (tuning unknown_fight_percent_base and
+## unknown_fight_percent_step; DESIGN.md 8.7): it fights one of these. A deep act fights their deep
+## versions.
+@export var ambushes: Array[EncounterData] = []
+@export var ambush_title: String = "An Ambush!"
+@export_multiline var ambush_text: String = "The mark on the map was bait. Something was waiting for you."
+## The picture on an ambush page (the event picture fallback).
+@export_file("*.png") var ambush_picture_path: String = "res://assets/sprites/ui/map_event.png"

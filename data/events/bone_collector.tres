@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_y1g3y"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_v2fpc"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="3_0ai72"]
+
+[sub_resource type="Resource" id="Resource_cbalh"]
+script = ExtResource("2_v2fpc")
+cost_gold = 20
+cost_item = 2
+find_rarity = 1
+
+[sub_resource type="Resource" id="Resource_0il55"]
+script = ExtResource("1_y1g3y")
+text = "Trade an item and some coin"
+detail = "He gives something older than what you offer."
+deal = SubResource("Resource_cbalh")
+done_text = "He turns your gift over, grinning, and hands you something stranger."
+
+[sub_resource type="Resource" id="Resource_2dfw5"]
+script = ExtResource("2_v2fpc")
+cost_max_hp_percent = 7
+cost_max_hp_target = 1
+gold = 110
+
+[sub_resource type="Resource" id="Resource_wjgfv"]
+script = ExtResource("1_y1g3y")
+text = "Sell him a rib"
+detail = "One of you pays in bone."
+deal = SubResource("Resource_2dfw5")
+done_text = "It does not hurt. That is the worst of it."
+
+[resource]
+script = ExtResource("3_0ai72")
+id = "bone_collector"
+title = "The Bone Collector"
+text = "A man in a coat of knucklebones sits in a hollow tree. \"Trade, traveller? I buy what the road gave you.\""
+picture_path = "res://assets/sprites/ui/map_event.png"
+choices = Array[ExtResource("1_y1g3y")]([SubResource("Resource_0il55"), SubResource("Resource_wjgfv")])

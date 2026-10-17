@@ -2161,19 +2161,96 @@ phase 14 was the tutorial).
   zones' **champions** (8.5), now elite fights marked "ELITE" in their own colour (they no longer
   force the deep version). Elite fights cannot be run from (2.13).
 
-### 8.7 Event stops "?" (card #158)
+### 8.7 Event stops "?" (card #158, rebuilt as real trade-offs in card #193, 2026-10-17)
+
+The owner wants the game hard, so a "?" is a temptation, never a gift. Every choice costs something
+scarce, and a "?" can turn into a fight.
 
 - `EventData` (`data/events/`): a title, a short story, a picture and 1 or 2 choices
-  (`EventChoiceData`), always plus Leave. A choice has a deal (`ZoneOfferData`: gold, HP, heal, XP,
-  team gauge, an item, a find) and may have a risk: `risk_percent` of the time its `risk_deal`
-  strikes too (seeded by the run and stop, the same on every machine; a risk that costs gold takes
-  what there is). Choices the party cannot pay are greyed.
-- An act's "?" stops pick from its `events`, never one met before in the run
-  (`RunState.events_seen`, synced online). Eight to start: The Weeping Well, Gambler's Bones, A
-  Wounded Pilgrim, Rot Blossom, The Hanging Cage, Shrine of Old Kings, Merchant's Wreck, The
-  Whispering Mask.
-- `EventScreen`: the story, the choices, then what happened and Continue. Items go into the
-  backpack (it opens when full); online the host chooses and the clients see the result.
+  (`EventChoiceData`), always plus Leave (the screen adds it, so no event can lack it). A choice has a
+  deal (`ZoneOfferData`) and may have a risk: `risk_percent` of the time its `risk_deal` strikes too
+  (seeded by the run and stop, the same on every machine). Choices the party cannot pay are greyed.
+  Shrines and wanderers (8.5) use the same `ZoneOfferData`; the new prices below are for events.
+- **Prices a deal can have** (all in `ZoneOfferData`, all optional, together with the old gold and
+  HP prices):
+  - `cost_max_hp_percent` with `cost_max_hp_target`: **permanent max HP**, a percent of the hero's
+    current max HP (`RunState.lose_max_hp`; a levelled hero loses more points). The target is
+    EVERYONE, CHOSEN (the player picks the hero) or RANDOM (the seed picks one). It never takes a hero
+    under `event_max_hp_floor_percent` (40) of their normal max HP, and the choice is greyed when every
+    hero is at the floor. HP is clamped to the new max. A chosen hero at the floor cannot be picked.
+  - `cost_item`: **lose a backpack item**, RANDOM (seeded) or CHOSEN (the player picks). Rotten items
+    are never taken (nobody misses those). Greyed when the backpack holds nothing that can be lost.
+  - `cost_rotten`: **a curse**. One of the rotten items that already exist (Rotting Heart, Grave Moss)
+    goes into the backpack at once; it is strong and it rots the party in fights until the shop's
+    Cleanse (or throwing it away) removes it. Greyed when it would not fit. An event deal never has
+    both an item price and a curse (a test keeps it so; the check for room would depend on the pick).
+  - `ambush` (+ `ambush_spoils`): **a fight**. After the story the party fights that encounter through
+    the run's own fight path (`Main._start_final_fight`, like an elite stop: HP carries on, gold and XP
+    as for any fight, a defeat ends the run). Spoils (one piece of gear) only if `ambush_spoils` is on.
+    A deep act or row fights the encounter's deep version (`RunState.ambush_encounter`), so every
+    ambush encounter must have one (a test checks). Ambush fights cannot be run from
+    (`tuning.ambush_can_run`, off).
+  - A **risk may cost any of these too**, not only HP. A risk is never refused: it takes what there is
+    (a hero or an item picked by the seed, a curse that finds no room rots away).
+  - Choices that need a hero or an item first (`ZoneOfferData.pick_kind`) open a short list on the
+    event screen ("Who pays?", "What goes?") with Back. A deal asks for at most one pick.
+- **The screen writes the deal out** (`RunState.choice_summary`): "Price: ... Reward: ... 40% risk:
+  ...", with the depth scaling already applied, then the choice's flavour line. Numbers are never
+  typed into the choice text. After a choice that sprang an ambush, Continue reads "Fight".
+- **Depth**: gold and XP in an event (prices and rewards alike, so the trade keeps its shape) grow by
+  `tuning.event_reward_row_percent` (6) for every map row of depth, acts counting the rows before them
+  (`RunState.event_scale`): 100% on row 0 of act 1, about 130% on its row 5, about 166% on row 4
+  of act 2.
+- **A "?" stop can be an ambush instead of an event.** On entering a "?" stop (`RunState.go`) the run
+  rolls once, seeded by the stop (`AMBUSH_SALT`), against `unknown_fight_percent_base` (15) plus
+  `unknown_fight_percent_step` (15) for every "?" stop passed without a fight since the last one.
+  A hit starts the count over (so does an ambush sprung by a choice); a miss raises it
+  (`RunState.ambush_streak`, 15%, 30%, 45%, ...). The stop then shows its own page, "An Ambush!"
+  (`ActData.ambush_title` and `ambush_text`, and the fight's name), with one choice, Fight; no event
+  is used up. The fight is one of the act's `ActData.ambushes` (ordinary 2 to 3 enemy fights, in
+  their deep version in act 2) in the look of one of the act's zones; it pays gold and XP and gives
+  no spoils.
+- **Online and Save & Quit**: the host chooses, the clients see the result. The run dict carries the
+  new state (`ambush_streak`, `ambush_id`, `ambush_spoils`; `apply_dict` refuses a negative or
+  non-integer counter, a non-string id, a non-bool flag or an id that is no ambush of this run's
+  data), so a client opening the event screen or the fight sees the same ambush, and a saved run that
+  was saved on entering the stop (8.14) comes back to the same ambush page.
+- **The events.** An act's "?" stops pick from its `events`, never one met before in the run
+  (`RunState.events_seen`, synced online). Sixteen, written by `tools/bootstrap_events.gd` (which
+  also fills both acts' event lists and ambush pools; the event picture is the existing `map_event.png`):
+
+  | Event | Act | Choices (every one has a price) |
+  |---|---|---|
+  | The Weeping Well | 1, 2 | Drink: heal 35%, everyone -4% max HP, 30% risk -15% HP; coin: team gauge +50, 25% risk an ambush |
+  | Gambler's Bones | 1, 2 | Stake 25 gold for 80, 55% to lose 100; or the purse: 60 gold, 55% -10% HP and a Grave Moss curse |
+  | A Wounded Pilgrim | 1 | Give an item of your pick: XP and a 20% heal; or the satchel: gold and a Salve, 55% an ambush |
+  | Rot Blossom | 1 | One hero eats the fruit (-6% max HP): heal 35%, 30% risk; or the seed pod: a rare find and a curse |
+  | The Hanging Cage | 1 | Climb: the Key, 45% risk of -6% max HP (random hero) and -15% HP; or fell the tree: Key and gold, certain ambush |
+  | Merchant's Wreck | 1, 2 | Search the crates: a rare find, 45% an ambush (the hyenas); or pry the strongbox: 70 gold for a random pack item |
+  | The Whispering Mask | 1, 2 | A chosen hero wears it (-8% max HP): 90 XP each, 40% risk; or sell it: a Golden Idol and a curse |
+  | The Bone Collector | 1 | Trade a chosen item and gold for a rare find; or sell a rib (a chosen hero -7% max HP) for gold |
+  | The Hungry Scarecrow | 1 | Feed it a random item: heal 40% and XP; or cut the stitches: gold, XP and a certain ambush |
+  | The Tithe Collector | 1 | Pay coin: heal 30% and gauge; or pay blood (everyone -6% max HP): gold and XP |
+  | Shrine of Old Kings | 2 | Kneel (a chosen hero -8% max HP): gauge +70 and XP; or pry the gold: 100 gold, 55% an elite ambush with spoils |
+  | The Black Mirror | 2 | Touch it (-5% max HP all): 100 XP, 40% an ambush; or smash it: 90 gold and a Rotting Heart curse |
+  | The Drowned Chapel | 2 | Ring the bell (-5% max HP all): heal 45%, 50% an ambush; or take the silver: 120 gold and a curse |
+  | The Buried Cairn | 2 | Dig: gold and a rare find, certain ambush; or say the name (lose a chosen item): gauge and XP |
+  | The Sealed Door | 2 | Break the seal: gold, an elite ambush with spoils; or pick the lock (lose a chosen item): gold and a rare find |
+  | The Widow's Wager | 2 | Buy in (40 gold): XP, 50% a random hero -8% max HP; or stake a hero (-10% max HP): a legendary find, 40% a curse |
+
+  Act 1 draws from the first ten, act 2 from the last ten; four are in both. The act's ambush pools:
+  act 1 Bloat and Gnat Swarm, Rot Hyena and Carrion Fly, Mire Toad and Carrion Fly, Shade and Gnat Swarm,
+  Two Carrion Flies; act 2 the Rot Hyena Pack plus four of those (deep versions).
+- `EventScreen`: the story, the choices, then what happened and Continue (or Fight). Items go into
+  the backpack (it opens when full); online the host chooses and the clients see the result.
+- **The bot** (`EventAutoplay`, pure, tested) plays a careful player: it takes a choice only if the
+  reward is worth the price (its own gold values, named consts), pays no permanent max HP while the
+  weakest hero is under 70%, walks into a possible ambush only while the party is fit for an elite
+  (`ZoneAutoplay.is_ready`), takes a curse only for a reward worth 120 gold or more, hands over its
+  cheapest item, and charges max HP to its healthiest hero. Otherwise it leaves. It fights every
+  ambush page (there is no way around). Its habits are not game rules.
+- Numbers are a first guess to tune with play (`--autoplay=average --bot-skill=60` over many seeds);
+  nothing here makes a run easier.
 
 ### 8.8 Treasure stops (card #159)
 
@@ -2206,7 +2283,8 @@ phase 14 was the tutorial).
   `has_elites` and `has_events` (filled from the act's lists) and zeroes their weights, and Main
   leaves an Elite stop with no fight as an empty stop with an error instead of crashing (card #176).
 - Online: `RunState.to_dict` carries the act (the client rebuilds that act's map), the stops
-  visited, the campfire points, the events met, the shop's restocks and the Tonics drunk.
+  visited, the campfire points, the events met, the shop's restocks, the Tonics drunk and the "?"
+  ambush state (8.7).
 
 ### 8.10 The shop (card #160)
 
@@ -2882,3 +2960,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Every player action can be rebound in Settings > Controls, key and pad separately; the first input of an action is replaced, the aliases stay; conflicts only count between actions needed at the same time (swap offered); Escape, F2 and the pad's Menu button are reserved; applies to every pad | card #190; the two defence buttons can never share a key (no one-button parry and dodge), nothing can lock the player out, and the stamped timing path is untouched |
 | 2026-10-17 | Smarter enemies: no move more than twice running (data: `max_in_a_row`, `cooldown_turns`, finisher and desperation weights), and single-target attacks pick by a per-enemy rule (WOUNDED, LOWEST_HP, MARKED, AVOID_LAST) with a bias; Taunt still wins | card #189 (review: combat-rules-ai); the owner wants it hard, a weak hero must be in real danger; no attack file uses finisher or cooldown yet, to tune with play |
 | 2026-10-17 | Forced-choice hits: a rend (parry only, bone) and a sweep (dodge only, green, never countered) in elite, guard and boss fights and from the deep variants, about one hit in four; uneven gaps in every one-button string, a feint in every hard string; enemy attacks speed up with depth, elites, guards, bosses and phase two, never under 70% of authored; windows unchanged | cards #187, #188 and review combat-feel #4, #5, #9: dodge-everything and a steady tap beat the defence; nothing made easier |
+| 2026-10-17 | "?" events are real trade-offs: new prices (permanent max HP, a backpack item, a rotten-item curse, an ambush fight), every choice costs something scarce, gold and XP grow with depth, 16 events with act 2's own list, and a "?" stop can turn into an ambush (15% + 15% per "?" passed without a fight, seeded per stop, state in the run dict) | card #193 (review: run-structure); the owner wants it hard, so a "?" tempts and never gives for free (8.7) |

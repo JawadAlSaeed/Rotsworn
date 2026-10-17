@@ -274,6 +274,18 @@ extends Resource
 ## Spoils after a guard or an elite are gear of at least this rarity (0 common, 1 rare, 2
 ## legendary), when the run still has some.
 @export_range(0, 2) var run_spoils_min_rarity: int = 1
+## "?" stops (DESIGN.md 8.7). The chance (percent) that a "?" stop is an ambush fight instead of an
+## event is unknown_fight_percent_base, plus unknown_fight_percent_step for every "?" stop passed
+## without a fight since the last one (the count starts over after any ambush). Seeded per stop.
+@export_range(0, 100, 1, "suffix:%") var unknown_fight_percent_base: int = 15
+@export_range(0, 100, 1, "suffix:%") var unknown_fight_percent_step: int = 15
+## Events pay (and charge) gold and XP grown by this percent per map row of depth (acts count the
+## rows before them), so the same event stays a trade late in the run.
+@export_range(0, 100, 1, "suffix:%") var event_reward_row_percent: int = 6
+## An event cannot take a hero below this percent of their normal max HP (before levels and gear).
+@export_range(1, 100, 1, "suffix:%") var event_max_hp_floor_percent: int = 40
+## An ambush fight can be run from (DESIGN.md 2.13). Off: it is a commitment like an elite.
+@export var ambush_can_run: bool = false
 ## A treasure stop also gives this much gold.
 @export_range(0, 10000) var run_treasure_gold: int = 30
 ## Between acts (DESIGN.md 8.9) everyone heals this percent of their max HP.

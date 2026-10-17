@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_iu4xt"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_sl7d3"]
+[ext_resource type="Resource" path="res://data/encounters/toad_and_fly.tres" id="3_xb32n"]
+[ext_resource type="Resource" path="res://data/items/grave_moss.tres" id="4_r8qxc"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="5_un371"]
+
+[sub_resource type="Resource" id="Resource_kuuup"]
+script = ExtResource("2_sl7d3")
+cost_max_hp_percent = 5
+heal_percent = 45
+
+[sub_resource type="Resource" id="Resource_r7ecd"]
+script = ExtResource("2_sl7d3")
+ambush = ExtResource("3_xb32n")
+
+[sub_resource type="Resource" id="Resource_0575h"]
+script = ExtResource("1_iu4xt")
+text = "Ring the bell"
+detail = "It heals. It also calls."
+deal = SubResource("Resource_kuuup")
+risk_percent = 50
+risk_deal = SubResource("Resource_r7ecd")
+done_text = "The sound rolls over the water. The wounds close."
+risk_text = "The drowned come to the call."
+
+[sub_resource type="Resource" id="Resource_kuvdt"]
+script = ExtResource("2_sl7d3")
+cost_rotten = ExtResource("4_r8qxc")
+gold = 120
+
+[sub_resource type="Resource" id="Resource_pxgaw"]
+script = ExtResource("1_iu4xt")
+text = "Take the silver from the altar"
+detail = "It was left for someone. It is cold."
+deal = SubResource("Resource_kuvdt")
+done_text = "The silver is cold. So is the thing that follows it into the pack."
+
+[resource]
+script = ExtResource("5_un371")
+id = "drowned_chapel"
+title = "The Drowned Chapel"
+text = "A chapel sunk to its roof in black water. A bell still hangs in the tower, and something below keeps time with it."
+picture_path = "res://assets/sprites/ui/map_event.png"
+choices = Array[ExtResource("1_iu4xt")]([SubResource("Resource_0575h"), SubResource("Resource_pxgaw")])
