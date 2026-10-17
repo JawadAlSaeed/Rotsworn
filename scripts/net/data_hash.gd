@@ -44,6 +44,14 @@ static func of_game() -> String:
 	return compute_roots(roots, str(ProjectSettings.get_setting("application/config/version", "")))
 
 
+## What a saved run is checked against (DESIGN.md 8.14): the data and the version, not the code, so
+## a code-only fix keeps a saved run going (card #208). A run saved under other ids or numbers is
+## not loaded.
+static func of_content() -> String:
+	var roots: Array[String] = [DATA_DIR]
+	return compute_roots(roots, str(ProjectSettings.get_setting("application/config/version", "")))
+
+
 ## A short form of a fingerprint to show people ("a1b2c3d4"), so two builds are easy to compare.
 static func short_id(fingerprint: String) -> String:
 	return fingerprint.substr(0, 8)

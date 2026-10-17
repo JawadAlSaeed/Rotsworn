@@ -2650,8 +2650,8 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
 
 - **One slot:** `user://run_save.json`, written by `RunSave` (`scripts/run/run_save.gd`, pure, tested).
   It holds `RunState.to_dict()` exactly as it is (the save never reads its keys, so new run fields
-  are saved without changing it), a format version, the content fingerprint (`DataHash`, the same
-  one the online handshake uses), whether the party is inside a stop, and how many players share
+  are saved without changing it), a format version, the content fingerprint (`DataHash.of_content`: `data/` and the
+  version, not the code, so a code-only fix keeps a saved run; card #208), whether the party is inside a stop, and how many players share
   the pads.
 - **Safe writes:** the new save goes to `run_save.json.tmp` first; the old save is kept as
   `run_save.json.bak` until the new file is in place; a load falls back to the backup if the main
@@ -2685,8 +2685,8 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
   other content) is intact, so it is **kept**: Continue is hidden, the menu says once per session
   why, and the file stays for the build that made it. A damaged file, or one `RunState.from_dict`
   refuses, is deleted and the menu says so. Because the fingerprint covers all of `data/` and the
-  version, a new build, or a run from the editor versus an exported build, cannot read the other's
-  save, but switching between them no longer destroys it. New Run with any file in the slot (also
+  version (not the scripts), a build with other content cannot read the other's save, but switching
+  between them no longer destroys it, and a code-only fix keeps the run. New Run with any file in the slot (also
   one kept from another build) asks first and then removes it. A co-op save goes through the
   players screen first (pads may have changed). New Run with a save present asks first ("Your saved
   run will be lost"), since the new run overwrites the slot at its first map.
@@ -3326,3 +3326,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Rot-touched gear: twelve strong pieces that each cost something (Rotten Crown, Gravebound Ring, Hunger Charm, Last Ember, Ash Veil, Thorned Gauntlet, Oathbreaker's Band, Chain of Silence, Bloodletter's Fang, Hollow Mantle, Pale Tithe, Plague Bell), in their own violet colour, as a `rot_touched` flag and a data-driven drawback on `GearData`; elite and boss spoils always offer one among their choices (never as the only choice), shops and chests weigh them 35%; Tonics cannot be combined or upgraded, so the 2-Tonic cap really limits max HP | card #198 (Slay the Spire boss relics, Expedition 33 Pictos; the owner wants it hard). A "skills cost +1 AP" drawback was left out (it touches the core's cost checks and the HUD); "1 AP less at fight start" instead. Numbers are first guesses, to retune from play (8.16) |
 | 2026-10-17 | Every "?" event and each act's ambush page has its own painted 128x64 scene (`sprites/events/`, drawn by `art_kit/assets/event_art.py`: a flat dithered back plus a 3D-rendered subject, one palette, at most 96 colours); the event screen shows it at scale 4 in a thin worn-gold frame (`StopVisuals`, `stop_visuals.tres`), nearest filter, with the old question mark as the fallback for a missing file | card #199; the owner found the tiny question mark in a black void flat, and each event is a story worth seeing (8.7) |
 | 2026-10-17 | The Rot Journal: a main-menu book of every enemy and attack the player has met (portrait or silhouette, where met, times beaten, each attack's hit kinds, marks and Doom, and the player's parried, dodged, jumped and hit counts), recorded from the presentation's event stream into its own `user://journal.json` (versioned, atomic, `.bak`); only a person's run fights count, practice, the tutorial and bots do not (a dev `--journal-path` makes everything count) | card #200 (review ui-input #9, Slay the Spire's compendium): a hard game should let the player study what beat them; practice stays out because its cheats and its full fight list would unlock and pollute the book (7.11) |
+| 2026-10-17 | Saves check only `data/` and the version (`DataHash.of_content`), not the code; the main menu has no description line under its rows | card #208 playtest: a code-only fix hid the user's saved run; the user found the line ("About 8 stops") out of date and not needed now that Continue and Journal exist |

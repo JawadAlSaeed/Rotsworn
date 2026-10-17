@@ -31,7 +31,6 @@ const DETAIL_SIZE: int = 26
 const LOGO_GAP: float = 28.0
 
 var _menu: ListMenu
-var _detail: Label
 ## The Online list is showing.
 var _online: bool = false
 ## The main list's rows in order (Continue is first when a run is saved).
@@ -60,8 +59,7 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 	column.add_child(gap)
 	_menu = ListMenu.new()
 	column.add_child(_menu)
-	_detail = ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
-	column.add_child(_detail)
+	# No description line under the list (user, 2026-10-17): the rows speak for themselves.
 	# Coming back from hosting or joining: the cursor rests on Online.
 	_show_main(ONLINE if ONLINE_ITEMS.has(start_item) else start_item)
 
@@ -71,7 +69,7 @@ func _show_main(item: StringName) -> void:
 	var items: Array[Dictionary] = []
 	var rows: Array[Dictionary] = [
 		{"text": "Continue", "detail": CONTINUE_DETAIL},
-		{"text": "New Run", "detail": "About 8 stops: zones, shops and rests, then the final fight."},
+		{"text": "New Run", "detail": "Two acts of zones, events, shops and rests, each ending in a boss."},
 		{"text": "Online", "detail": "Host a run friends join from their own PCs, or join theirs."},
 		{"text": "Practice", "detail": "The tutorial, and any fight or zone on its own at full HP."},
 		{"text": "Journal", "detail": "Every enemy and attack you have met, and how you fared."},
@@ -82,7 +80,7 @@ func _show_main(item: StringName) -> void:
 	# Continue is the first row; without a save it is left out.
 	items.assign(rows if _items.has(CONTINUE) else rows.slice(1))
 	_menu.index = maxi(0, _items.find(item))
-	_menu.set_items(items, _detail)
+	_menu.set_items(items)
 
 
 func _show_online() -> void:
@@ -93,7 +91,7 @@ func _show_online() -> void:
 		{"text": "Back", "detail": ""},
 	]
 	_menu.index = 0
-	_menu.set_items(items, _detail)
+	_menu.set_items(items)
 
 
 func _unhandled_input(event: InputEvent) -> void:

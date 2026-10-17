@@ -180,6 +180,9 @@ func test_fingerprint_is_stable_and_sees_changes() -> void:
 	assert_ne(DataHash.compute_roots(roots, "1.0"), both, "a changed script differs")
 	assert_eq(DataHash.short_id(both).length(), 8)
 	assert_eq(DataHash.of_game().length(), 64, "the game's own fingerprint is a SHA-256")
+	# Saves check data and version only, so a code-only update keeps a saved run (card #208).
+	assert_eq(DataHash.of_content().length(), 64)
+	assert_ne(DataHash.of_content(), DataHash.of_game(), "the save fingerprint leaves the code out")
 
 
 func _write(path: String, text: String) -> void:

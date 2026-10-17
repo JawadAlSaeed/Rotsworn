@@ -132,6 +132,8 @@ var _menu_used: bool = false
 ## stop writes it again), and whether it is a stop's (else the map's).
 var _checkpoint: Dictionary = {}
 var _checkpoint_in_stop: bool = false
+## DataHash.of_content(), worked out once (hashing data/ takes a moment).
+var _content_fingerprint: String = ""
 ## The run whose last fight was decided (its save is gone and must not come back), and the oath
 ## its win opened (shown by the run end screen; the unlock is granted when the fight is decided).
 var _decided_run: RunState = null
@@ -1077,10 +1079,18 @@ func _save_stop_progress() -> void:
 		_save_run(true)
 
 
+## The fingerprint a save is checked against: data and version only, so a code-only update keeps a
+## saved run (card #208; the online handshake still checks the code, Net.fingerprint).
+func _save_fingerprint() -> String:
+	if _content_fingerprint.is_empty():
+		_content_fingerprint = DataHash.of_content()
+	return _content_fingerprint
+
+
 func _write_checkpoint() -> bool:
 	if _checkpoint.is_empty():
 		return false
-	var saved := RunSave.save(_checkpoint, Net.fingerprint(), _checkpoint_in_stop, _players.player_count(), _run_save_path())
+	var saved := RunSave.save(_checkpoint, _save_fingerprint(), _checkpoint_in_stop, _players.player_count(), _run_save_path())
 	if not saved:
 		push_warning("Main: could not write the run save to %s" % _run_save_path())
 	return saved
@@ -1103,7 +1113,7 @@ func _clear_run_save() -> void:
 func _valid_save() -> Dictionary:
 	if not _save_io_ok() or _run_data == null or _tuning == null or not RunSave.exists(_run_save_path()):
 		return {}
-	var loaded := RunSave.load_save(Net.fingerprint(), _run_save_path())
+	var loaded := RunSave.load_save(_save_fingerprint(), _run_save_path())
 	var reason := ""
 	match String(loaded.status):
 		RunSave.LOADED:
