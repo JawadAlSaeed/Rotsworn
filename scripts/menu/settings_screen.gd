@@ -2,10 +2,16 @@ class_name SettingsScreen
 extends CanvasLayer
 ## Settings (DESIGN.md 7.5, card #112) in four sections, changed with LB / RB (Z / C):
 ## Graphics (fullscreen, window size, vsync, frame limit, fog, bloom, shadows, soft shadows, depth
-## of field), Sound (overall, music, effects, voices), Controls (the list of buttons) and Game
-## (screen shake, the training ring, lag calibration). Everything is saved per machine at once
-## (PlayerSettings, user://settings.cfg) and graphics changes show at once, even over a fight.
-## Left/right change a value, confirm toggles or opens.
+## of field), Sound (overall, music, effects, voices), Controls (every key and button can be
+## rebound, card #190) and Game (screen shake, the training ring, lag calibration). Everything is
+## saved per machine at once (PlayerSettings, user://settings.cfg) and graphics changes show at
+## once, even over a fight. Left/right change a value, confirm toggles or opens.
+##
+## Controls: one row per action with its key and its pad button. Left/Right pick the Key or the Pad
+## column, Confirm waits for the new key or button (Escape or the pad's Menu button cancels, and so
+## does waiting too long). A button an action in the same group already has asks to swap them;
+## ControlBindings holds the rules. "Reset to defaults" is a row of the list (asks twice). A change
+## applies to every pad: there are no per-pad bindings.
 
 signal closed
 
@@ -17,17 +23,10 @@ const DETAIL_SIZE: int = 26
 const ROW_WIDTH: float = 760.0
 ## Smaller rows than other menus: the graphics section has ten.
 const ITEM_SIZE: int = 32
-const CONTROL_ROWS: Array[Array] = [
-	["Attack", &"fight_attack"], ["Skills", &"fight_skills"], ["Items", &"fight_items"],
-	["Ultimate", &"fight_ultimate"],
-	["Parry", &"defend_parry"], ["Dodge", &"defend_dodge"], ["Jump", &"defend_jump"],
-	["Skill press", &"skill_press"], ["Confirm", &"menu_confirm"], ["Back", &"menu_cancel"],
-	["Strike (zone)", &"field_strike"], ["Pick up (zone)", &"field_pickup"], ["Move (zone)", &"@move"],
-	["Party and backpack", &"party_menu"], ["Attributes", &"party_attributes"], ["Skills", &"party_skills"], ["Move item", &"item_move"],
-	["Turn item", &"item_turn_right"], ["Pause", &"pause"], ["Stats overlay", &"debug_overlay"],
-]
-const CONTROLS_TITLE_SIZE: int = 24
-const CONTROLS_GAP: int = 10
+## The Controls list is wider (a key and a button per row) and scrolls: this many rows show.
+const CONTROLS_ROW_WIDTH: float = 1180.0
+const CONTROLS_WINDOW: int = 10
+const COLUMN_GAP := "      "
 
 enum Section { GRAPHICS, SOUND, CONTROLS, GAME }
 const SECTION_NAMES: Array[String] = ["Graphics", "Sound", "Controls", "Game"]
@@ -37,9 +36,13 @@ const SECTION_ROWS := {
 	Section.GRAPHICS: ["fullscreen", "window_size", "vsync", "fps_limit", "fog", "bloom", "shadows",
 		"ambient_occlusion", "depth_of_field", "back"],
 	Section.SOUND: ["master", "music", "effects", "voice", "back"],
-	Section.CONTROLS: [],
+	Section.CONTROLS: [],  # built by _rows_of: one row per action, then reset and back
 	Section.GAME: ["screen_shake", "flashes", "timing_ring", "calibrate", "reset_lag", "back"],
 }
+const SECTION_HINTS: Array = [[&"item_turn_left", "Section"], [&"item_turn_right", "Section"],
+		[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]]
+const CONTROLS_HINTS: Array = [[&"item_turn_left", "Section"], [&"item_turn_right", "Section"],
+		[&"@updown", "Choose"], [&"@leftright", "Key or pad"], [&"menu_confirm", "Change"], [&"menu_cancel", "Back"]]
 const GRAPHICS_DETAIL := {
 	"fog": "Mist over the zones and fights. Off is faster on slow PCs.",
 	"bloom": "The soft glow around lights and bright things.",
@@ -60,11 +63,24 @@ var _section: Section = Section.GRAPHICS
 var _tabs: Array[Label] = []
 var _menu: ListMenu
 var _detail: Label
-var _controls: Control
-var _input: DefenseInput
+var _defense_input: DefenseInput
 var _calibration: CalibrationPanel
 var _page: Control
 var _footer: HintBar
+var _bindings: ControlBindings
+## The column Left/Right chose in the Controls list: ControlBindings.KEY or PAD.
+var _column: String = ControlBindings.KEY
+## Waiting for the new input of this action and kind ("" kind: not waiting).
+var _capture_action: StringName = &""
+var _capture_kind: String = ""
+var _capture_until_ms: int = 0
+## A swap waiting for Confirm: {action, input, other}; empty when none.
+var _swap: Dictionary = {}
+## The message under the list (a refusal, a question) until the cursor moves.
+var _note: String = ""
+var _note_is_problem: bool = false
+## When a second Confirm on "Reset to defaults" still counts (Time.get_ticks_msec).
+var _reset_until_ms: int = 0
 
 
 func setup(tuning: Tuning, visuals: CombatVisuals) -> void:
@@ -87,23 +103,55 @@ func setup(tuning: Tuning, visuals: CombatVisuals) -> void:
 	_menu.item_size = ITEM_SIZE
 	_menu.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(_menu)
-	_controls = _controls_panel()
-	_controls.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(_controls)
+	_bindings = ControlBindings.current()
 	_detail = ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(_detail)
-	_footer = ListMenu.screen_footer(self, [[&"item_turn_left", "Section"], [&"item_turn_right", "Section"],
-			[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]])
+	_footer = ListMenu.screen_footer(self, [])
 	_show_section(Section.GRAPHICS)
 
-	_input = DefenseInput.new()
-	_input.name = "DefenseInput"
-	add_child(_input)
+	_defense_input = DefenseInput.new()
+	_defense_input.name = "DefenseInput"
+	add_child(_defense_input)
 	_calibration = CalibrationPanel.new()
 	_calibration.name = "Calibration"
 	add_child(_calibration)
-	_calibration.setup(_visuals, _tuning, _input)
+	_calibration.setup(_visuals, _tuning, _defense_input)
 	_calibration.closed.connect(_on_calibration_closed)
+
+
+func _process(_delta: float) -> void:
+	if _capture_kind != "" and Time.get_ticks_msec() >= _capture_until_ms:
+		_end_capture("Nothing pressed: the old button stays.", false)
+
+
+## While the Controls list waits for a new key or button every key and pad press comes here first
+## (so Escape and the Menu button can cancel, and Pause or Confirm cannot act meanwhile).
+func _input(event: InputEvent) -> void:
+	if _capture_kind == "" or _calibration.is_running():
+		return
+	if event is InputEventKey:
+		var key := event as InputEventKey
+		if not key.pressed or key.echo:
+			return
+		get_viewport().set_input_as_handled()
+		if ControlBindings.input_from_event(key).get("code", 0) == KEY_ESCAPE:
+			_end_capture("Cancelled: the old button stays.", false)
+		elif _capture_kind == ControlBindings.KEY:
+			_try_assign(ControlBindings.input_from_event(key))
+	elif event is InputEventJoypadButton:
+		var button := event as InputEventJoypadButton
+		if not button.pressed:
+			return
+		get_viewport().set_input_as_handled()
+		if button.button_index == JOY_BUTTON_START:
+			_end_capture("Cancelled: the old button stays.", false)
+		elif _capture_kind == ControlBindings.PAD:
+			_try_assign(ControlBindings.input_from_event(button))
+	elif event is InputEventJoypadMotion and _capture_kind == ControlBindings.PAD:
+		var motion := event as InputEventJoypadMotion
+		if ControlBindings.TRIGGER_AXES.has(motion.axis) and motion.axis_value >= ControlBindings.TRIGGER_CAPTURE_VALUE:
+			get_viewport().set_input_as_handled()
+			_try_assign({"k": "axis", "code": int(motion.axis), "dir": 1})
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -111,27 +159,43 @@ func _unhandled_input(event: InputEvent) -> void:
 		_calibration.handle_input(event)
 		get_viewport().set_input_as_handled()
 		return
+	if _capture_kind != "":
+		# Waiting for a new key: nothing else may act (a stick must not move the cursor).
+		get_viewport().set_input_as_handled()
+		return
+	if not _swap.is_empty():
+		if event.is_action_pressed(&"menu_confirm", false, true):
+			get_viewport().set_input_as_handled()
+			_do_swap()
+		elif event.is_action_pressed(&"menu_cancel", false, true) or event.is_action_pressed(&"pause", false, true):
+			get_viewport().set_input_as_handled()
+			_swap = {}
+			_set_note("Not swapped: nothing changed.", false)
+			_refresh()
+		return
 	if event.is_action_pressed(&"item_turn_left", false, true) or event.is_action_pressed(&"item_turn_right", false, true):
 		get_viewport().set_input_as_handled()
 		var step := -1 if event.is_action(&"item_turn_left") else 1
 		_show_section(posmod(_section + step, Section.size()) as Section)
 		Sfx.play("menu_move")
 		return
-	if _section == Section.CONTROLS:
-		if event.is_action_pressed(&"menu_cancel", false, true):
-			get_viewport().set_input_as_handled()
-			Sfx.play("menu_cancel")
-			closed.emit()
-		return
 	var answer := _menu.handle(event)
 	if answer == &"":
+		if _section == Section.CONTROLS and (event.is_action_pressed(&"menu_up", false, true)
+				or event.is_action_pressed(&"menu_down", false, true)):
+			_note = ""
+			_reset_until_ms = 0
+			_refresh()
 		return
 	if answer == &"cancel":
 		Sfx.play("menu_cancel")
 		closed.emit()
 		return
 	var step := -1 if answer == &"left" else 1
-	var row := String(SECTION_ROWS[_section][_menu.index])
+	var row := String(_rows_of(_section)[_menu.index])
+	if row.begins_with("ctl:"):
+		_controls_answer(StringName(row.substr(4)), answer)
+		return
 	match row:
 		"master", "music", "effects", "voice":
 			if answer != &"confirm":
@@ -183,6 +247,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				Sfx.play("menu_cancel")
 				closed.emit()
 				return
+		"reset":
+			if answer == &"confirm":
+				_reset_controls()
+				return
 	_refresh()
 
 
@@ -197,15 +265,18 @@ func _show_section(section: Section) -> void:
 	_section = section
 	for i: int in _tabs.size():
 		_tabs[i].label_settings.font_color = HudStyle.GOLD if i == section else HudStyle.TEXT_DIM
-	var rows: Array = SECTION_ROWS[section]
-	_menu.visible = not rows.is_empty()
-	_controls.visible = rows.is_empty()
+	var rows := _rows_of(section)
+	var controls := section == Section.CONTROLS
+	_menu.row_width = CONTROLS_ROW_WIDTH if controls else ROW_WIDTH
+	_menu.window_rows = CONTROLS_WINDOW if controls else 0
 	var blank: Array[Dictionary] = []
 	for i: int in rows.size():
 		blank.append({})
 	_menu.index = 0
 	_menu.set_items(blank, _detail)
-	_detail.text = "Changing keys comes later." if rows.is_empty() else ""
+	_note = ""
+	_reset_until_ms = 0
+	_footer.set_entries(CONTROLS_HINTS if controls else SECTION_HINTS)
 	_refresh()
 
 
@@ -216,9 +287,12 @@ func _on_calibration_closed() -> void:
 
 
 func _refresh() -> void:
-	var rows: Array = SECTION_ROWS[_section]
+	var rows := _rows_of(_section)
 	for i: int in rows.size():
 		var row := String(rows[i])
+		if row.begins_with("ctl:"):
+			_refresh_control(i, StringName(row.substr(4)), rows.size())
+			continue
 		match row:
 			"master", "music", "effects", "voice":
 				_menu.set_item(i, String(VOLUME_DETAIL[row][0]), true, String(VOLUME_DETAIL[row][1]), _percent(row))
@@ -257,8 +331,13 @@ func _refresh() -> void:
 			"reset_lag":
 				_menu.set_item(i, "Reset lag to default", PlayerSettings.is_calibrated(),
 						"Forget the measured lag and use the default (%d ms) again." % _tuning.input_latency_compensation_ms)
+			"reset":
+				_menu.set_item(i, "Reset to defaults", true,
+						"Put every key and button back as the game came. Press Confirm twice.",
+						"" if _bindings.is_default() else "changed")
 			"back":
 				_menu.set_item(i, "Back", true, "")
+	_show_note()
 
 
 static func _window_text() -> String:
@@ -274,24 +353,170 @@ static func _on_off(value: bool) -> String:
 	return "ON" if value else "OFF"
 
 
-## The controls, one button chip per action (keyboard keys or pad buttons, see ButtonPrompts).
-static func _controls_panel() -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.PANEL_BORDER, 2, 22))
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_constant_override("separation", CONTROLS_GAP)
-	panel.add_child(box)
-	var grid := GridContainer.new()
-	grid.columns = 4
-	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	grid.add_theme_constant_override("h_separation", 28)
-	grid.add_theme_constant_override("v_separation", CONTROLS_GAP)
-	box.add_child(grid)
-	for pair: Array in CONTROL_ROWS:
-		grid.add_child(HudStyle.make_label(String(pair[0]), CONTROLS_SIZE, HudStyle.TEXT))
-		var chips := HintBar.new([[StringName(pair[1]), ""]], CONTROLS_SIZE)
-		chips.alignment = BoxContainer.ALIGNMENT_BEGIN
-		grid.add_child(chips)
-	return panel
+# --- controls (card #190) -------------------------------------------------------------------
+
+## The rows of a section by id. Controls: "ctl:<action>" for each rebindable action, then reset and back.
+func _rows_of(section: Section) -> Array:
+	if section != Section.CONTROLS:
+		return SECTION_ROWS[section]
+	var rows: Array = []
+	for action: StringName in ControlBindings.ACTIONS:
+		rows.append("ctl:" + String(action))
+	rows.append("reset")
+	rows.append("back")
+	return rows
+
+
+## Opens the screen on a section (for pictures and tests).
+func open_section(section: Section) -> void:
+	_show_section(section)
+
+
+func _refresh_control(i: int, action: StringName, total: int) -> void:
+	var chosen := i == _menu.index
+	var waiting := chosen and _capture_kind != "" and _capture_action == action
+	var key_text := _column_text(action, ControlBindings.KEY, chosen, waiting)
+	var pad_text := _column_text(action, ControlBindings.PAD, chosen, waiting)
+	var also := _aliases(action)
+	var detail := String(ControlBindings.DETAILS.get(action, ""))
+	if not also.is_empty():
+		detail += "  Also: " + also + "."
+	detail += "   (%d of %d)" % [i + 1, total]
+	_menu.set_item(i, String(ControlBindings.LABELS.get(action, String(action))), true, detail,
+			"Key  %s%sPad  %s" % [key_text, COLUMN_GAP, pad_text])
+
+
+## One column's text: the button's name, with arrows on the column Left/Right chose, or a prompt
+## while the game waits for the new one.
+func _column_text(action: StringName, kind: String, chosen: bool, waiting: bool) -> String:
+	var text := HudStyle.input_name(_bindings.primary(action, kind))
+	var picked := chosen and kind == _column
+	if waiting and picked:
+		return "press a %s ..." % ("key" if kind == ControlBindings.KEY else "button")
+	if picked:
+		return "<  %s  >" % text
+	return text
+
+
+## The other keys and buttons that still do the action's job ("E, Enter"; a stick is just "stick").
+func _aliases(action: StringName) -> String:
+	var names := PackedStringArray()
+	var inputs := _bindings.inputs(action, _column)
+	for i: int in range(1, inputs.size()):
+		var label := HudStyle.input_name(inputs[i])
+		if inputs[i].get("k", "") == "axis" and not ControlBindings.TRIGGER_AXES.has(int(inputs[i].get("code", -1))):
+			label = "stick"
+		if not names.has(label):
+			names.append(label)
+	return ", ".join(names)
+
+
+## Confirm on a control row starts waiting for the new input; Left/Right pick the column.
+func _controls_answer(action: StringName, answer: StringName) -> void:
+	if answer == &"left" or answer == &"right":
+		_column = ControlBindings.PAD if answer == &"right" else ControlBindings.KEY
+		Sfx.play("menu_move")
+		_note = ""
+		_refresh()
+		return
+	_capture_action = action
+	_capture_kind = _column
+	_capture_until_ms = Time.get_ticks_msec() + _tuning.rebind_capture_ms
+	_set_note("Press the new %s for %s.   Escape or the pad's Menu button: cancel."
+			% ["key" if _column == ControlBindings.KEY else "pad button", ControlBindings.LABELS.get(action, String(action))], false)
+	Sfx.play("menu_confirm")
+	_refresh()
+
+
+## A key or button arrived while waiting. Rebinds, or says why not and keeps waiting.
+func _try_assign(input: Dictionary) -> void:
+	var result := _bindings.assign(_capture_action, input)
+	if bool(result.ok):
+		_end_capture("%s is now %s." % [ControlBindings.LABELS.get(_capture_action, ""), HudStyle.input_name(input)], true)
+		return
+	_capture_until_ms = Time.get_ticks_msec() + _tuning.rebind_capture_ms
+	Sfx.play("locked")
+	match String(result.why):
+		"reserved":
+			_set_note("%s cannot be used (it cancels this step, or is the calibration key). Press another."
+					% HudStyle.input_name(input), true)
+		"conflict":
+			var other: StringName = (result.with as Array)[0]
+			var other_name := String(ControlBindings.LABELS.get(other, String(other)))
+			if _bindings.can_swap(_capture_action, input):
+				_swap = {"action": _capture_action, "input": input, "other": other}
+				_capture_kind = ""
+				_set_note("%s is already %s. Confirm: swap them.   Back: leave it." % [HudStyle.input_name(input), other_name], true)
+			else:
+				_set_note("%s is already %s, and they cannot trade places. Press another."
+						% [HudStyle.input_name(input), other_name], true)
+		_:
+			_set_note("That cannot be used. Press another.", true)
+	_refresh()
+
+
+func _do_swap() -> void:
+	var action: StringName = _swap.action
+	var input: Dictionary = _swap.input
+	_swap = {}
+	var result := _bindings.assign(action, input, true)
+	if bool(result.ok):
+		_commit()
+		Sfx.play("menu_confirm")
+		_set_note("%s is now %s, and %s took the old button." % [ControlBindings.LABELS.get(action, ""),
+				HudStyle.input_name(input), ControlBindings.LABELS.get(result.swapped, "")], false)
+	else:
+		Sfx.play("locked")
+		_set_note("They cannot trade places.", true)
+	_refresh()
+
+
+func _end_capture(message: String, changed: bool) -> void:
+	_capture_kind = ""
+	_capture_action = &""
+	if changed:
+		_commit()
+		Sfx.play("menu_confirm")
+	else:
+		Sfx.play("menu_cancel")
+	_set_note(message, false)
+	_refresh()
+
+
+## Saves the bindings, puts them in the Input Map and redraws every button hint.
+func _commit() -> void:
+	PlayerSettings.set_control_overrides(_bindings.overrides())
+	_bindings.apply_to_input_map(true)
+	ButtonPrompts.refresh()
+
+
+## "Reset to defaults": the first Confirm asks, a second one soon after does it.
+func _reset_controls() -> void:
+	var now := Time.get_ticks_msec()
+	if _bindings.is_default():
+		_set_note("Everything is already as the game came.", false)
+		Sfx.play("locked")
+	elif now <= _reset_until_ms:
+		_bindings.reset_all()
+		_commit()
+		_reset_until_ms = 0
+		_set_note("Every key and button is back to the default.", false)
+		Sfx.play("menu_confirm")
+	else:
+		_reset_until_ms = now + _tuning.rebind_reset_confirm_ms
+		_set_note("Press Confirm again to put every key and button back to the default.", true)
+		Sfx.play("menu_move")
+	_refresh()
+
+
+func _set_note(text: String, problem: bool) -> void:
+	_note = text
+	_note_is_problem = problem
+
+
+func _show_note() -> void:
+	if _note.is_empty():
+		_detail.label_settings.font_color = HudStyle.TEXT_DIM
+		return
+	_detail.text = _note
+	_detail.label_settings.font_color = HudStyle.LATE if _note_is_problem else HudStyle.GOLD

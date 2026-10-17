@@ -277,6 +277,9 @@ func _open_dev_screen(screen_name: String) -> void:
 		"calibration":
 			_show_settings()
 			(_screen as SettingsScreen).open_calibration()
+		"controls":
+			_show_settings()
+			(_screen as SettingsScreen).open_section(SettingsScreen.Section.CONTROLS)
 		_:
 			_show_main_menu()
 

@@ -8,7 +8,7 @@ extends Node
 ## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
 ## the volumes (overall, music, effects, voices), the display and graphics options, screen shake and
 ## flashes (settings screen, cards #112 and #185), the highest oath unlocked (DESIGN.md 8.15), the
-## last host address joined online. Anything not
+## last host address joined online, the rebound keys and buttons (card #190, ControlBindings). Anything not
 ## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
@@ -65,10 +65,14 @@ const SHAKE_STEP_PERCENT: int = 25
 const SECTION_ONLINE := "online"
 const KEY_JOIN_ADDRESS := "join_address"
 const DEFAULT_JOIN_ADDRESS := "127.0.0.1"
+## Rebound keys and buttons (card #190): one entry per changed action, see ControlBindings.
+const SECTION_CONTROLS := "controls"
 const DEFAULT_VOLUME_PERCENT: int = 100
 const VOLUME_STEP_PERCENT: int = 10
 
 static var _config: ConfigFile
+## False in unit tests: settings change in memory only and user://settings.cfg is never written.
+static var _persist: bool = true
 
 
 func _ready() -> void:
@@ -77,6 +81,10 @@ func _ready() -> void:
 	apply_volume()
 	apply_fullscreen()
 	apply_frame_options()
+	# Before any screen reads the Input Map: the rebound keys and buttons (card #190).
+	# A test run (godot -s) keeps the project's own keys, whatever this machine has saved.
+	if not OS.get_cmdline_args().has("-s") and not OS.get_cmdline_args().has("--script"):
+		ControlBindings.install(control_overrides())
 
 
 ## Lag compensation in ms: the calibrated value if there is one (kept within tuning's
@@ -319,6 +327,32 @@ static func set_join_address(value: String) -> void:
 	_save()
 
 
+## The rebound keys and buttons: {action: {"key": [...], "pad": [...]}}, only the changed actions
+## (see ControlBindings.overrides).
+static func control_overrides() -> Dictionary:
+	var out := {}
+	var cfg := _settings()
+	if cfg.has_section(SECTION_CONTROLS):
+		for action: String in cfg.get_section_keys(SECTION_CONTROLS):
+			out[action] = cfg.get_value(SECTION_CONTROLS, action, {})
+	return out
+
+
+## Saves the rebound keys and buttons (the whole list: actions left out go back to the default).
+static func set_control_overrides(overrides: Dictionary) -> void:
+	var cfg := _settings()
+	if cfg.has_section(SECTION_CONTROLS):
+		cfg.erase_section(SECTION_CONTROLS)
+	for action: String in overrides:
+		cfg.set_value(SECTION_CONTROLS, action, overrides[action])
+	_save()
+
+
+## Unit tests: stop writing user://settings.cfg (settings then only live in memory).
+static func set_persistence(on: bool) -> void:
+	_persist = on
+
+
 static func _settings() -> ConfigFile:
 	if _config == null:
 		_config = ConfigFile.new()
@@ -334,6 +368,8 @@ static func _settings() -> ConfigFile:
 
 
 static func _save() -> void:
+	if not _persist:
+		return
 	var err := _settings().save(PATH)
 	if err != OK:
 		push_warning("UserSettings: could not save %s (error %d)" % [PATH, err])

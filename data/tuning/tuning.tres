@@ -161,5 +161,7 @@ net_connect_timeout_ms = 6000
 net_ack_timeout_ms = 3000
 net_deadline_grace_ms = 1500
 net_zone_send_hz = 20
+rebind_capture_ms = 6000
+rebind_reset_confirm_ms = 4000
 practice_tools_enabled = true
 fixed_seed = 0

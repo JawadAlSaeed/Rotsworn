@@ -1023,7 +1023,8 @@ blending poses into more frames.
 
 ## 6. Input
 
-Defined in `project.godot` (Project > Project Settings > Input Map in the editor). Solo: every
+Defined in `project.godot` (Project > Project Settings > Input Map in the editor); the table below
+is the default, and every key and button can be changed in Settings > Controls (6.1). Solo: every
 device controls the single player. Co-op (9.1): each player has one device (the keyboard counts as
 one device, `PlayerRoster.KEYBOARD`; pads by their Godot device id) and it controls only that
 player's heroes.
@@ -1069,7 +1070,9 @@ On the victory/defeat screen F1 opens the stats, and Confirm or R fights again o
 `end_input_guard_ms` (800) has passed, so a late defence press never skips the screen.
 
 On-screen control hints are built from the Input Map (`HudStyle.binding_parts` /
-`binding_text`), so remaps made in Project Settings > Input Map show up in the hints. They show
+`binding_text`), so remaps made in Settings > Controls (6.1) or in Project Settings > Input Map show
+up in the hints (the movement tokens `@move`, `@updown`, `@leftright` and `@arrows` are built from the
+four actions they stand for, `HudStyle.nav_parts`). They show
 the device in use (card #45, `ButtonPrompts`, autoload `Prompts`): pad buttons (Xbox names, round
 coloured A/B/X/Y chips) while a pad is plugged in and was used last or was just plugged in;
 keyboard keys (key caps) once a key is pressed or the last pad is unplugged. Local co-op with the
@@ -1085,6 +1088,49 @@ during a skill). Godot's built-in
 `ui_cancel` gains pad B. `DefenseInput` marks the presses it consumes as handled, and menus are
 driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engine.time_scale`
 (both would drop presses or freeze timers); `DefenseInput` runs with `PROCESS_MODE_ALWAYS`.
+
+### 6.1 Rebinding keys and buttons (card #190)
+
+Settings > Controls lists every player action (28: the fight menu, Parry / Dodge / Jump / Skill
+press, walking, Strike and Pick up, the menu directions, Confirm, Back / run, Pause, the backpack
+and party shortcuts, the stats overlay) with its key and its pad button side by side. Up / Down pick
+a row (the list scrolls, ten rows show), Left / Right pick the Key or the Pad column, Confirm waits
+for the new input ("press a key ..."). Escape (or the pad's Menu button) cancels, and so does
+waiting `rebind_capture_ms` (tuning, 6 s). Everything works from the keyboard or a pad, no mouse.
+A pad press can be a button or a trigger; sticks cannot be captured (drift), but a stick direction
+an action already has keeps working.
+
+- **What is rebound.** Each action has an ordered list of keys and one of pad inputs. Rebinding
+  replaces the FIRST of the list (the one the hints show); the others stay as aliases (the arrows
+  next to WASD, the stick next to the D-pad, E next to Enter). The row's help line names them
+  ("Also: Up"). "Skill press" is its own row, so changing Parry does not change it.
+- **Conflicts.** `ControlBindings.GROUPS` are the sets of actions needed at the same time: Parry /
+  Dodge / Jump (with Pause and the stats overlay), Skill press (with the same two), the fight menu,
+  walking and the zone, and the menus. An input already held by another action of a shared group is
+  refused or swapped, never doubled. If exactly one action holds it and the trade is possible, the
+  game asks ("Space is already Parry. Confirm: swap them. Back: leave it."); the other action takes
+  the old input, wherever the new one was in its list. Otherwise it says so and keeps waiting.
+  Groups that never run together may share a button (W jumps in a fight and walks up a menu; Parry
+  and Skill press both default to Space). Attack and Confirm may share (the action menu does), and
+  so may Back and Pause (Escape; Main reads Pause first).
+- **No lock-out.** Rebinding only replaces, so every action keeps a key and a pad input, and
+  Confirm, Back and Pause are checked to still have both (`ControlBindings.reachable`). Escape, F2
+  (the lag calibration key) and the pad's Menu button cannot be given to an action: they cancel the
+  "press the new button" step and keep Pause until reset. "Reset to defaults" is a row of the list
+  (asks twice, within `rebind_reset_confirm_ms`). A saved file that clashes or lost Confirm / Back /
+  Pause is dropped whole at start-up.
+- **Saving.** Per machine in `PlayerSettings` (`user://settings.cfg`, section `[controls]`, one entry
+  per changed action: `{"key": [...], "pad": [...]}` of `{k, code}` inputs). `PlayerSettings._ready`
+  calls `ControlBindings.install` before any screen reads the Input Map; a test run (`-s`) keeps the
+  project's own keys. Actions never changed stay as `project.godot` defines them.
+- **Timing path unchanged.** Rebinding rewrites the Input Map events; `DefenseInput._input` still
+  matches them with `is_action_pressed` and stamps the press as before (a test feeds it a rebound
+  key and button). Pad events are bound to all devices (device -1), so a rebinding applies to every
+  pad: per-pad rebinding is out of scope (the hints and the roster treat all pads alike).
+- **Code.** `ControlBindings` (`scripts/core/control_bindings.gd`, pure: defaults, groups, conflict
+  check, swap, save / load, writing the Input Map), the Controls section of `SettingsScreen`,
+  `ButtonPrompts.refresh` redraws every hint after a change, `ListMenu.window_rows` scrolls a long
+  list. Dev: `--screen=controls`.
 
 ---
 
@@ -1250,13 +1296,13 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
 - **Settings** (`SettingsScreen`): volume (left/right, 10% steps), fullscreen on/off, training
   ring on/off (practice fights only; the row says so), flashes Full / Reduced / Off (card #185),
   lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
-  plus a read-only list of the controls (changing keys comes later). Saved per machine at once
+  plus the controls list (rebinding, 6.1). Saved per machine at once
   (`PlayerSettings`, `user://settings.cfg`); volume and fullscreen are applied at start-up.
   **Full menu (card #112):** four sections, LB / RB (Z / C) to change: **Graphics** (fullscreen;
   window size when windowed: maximised, 1280x720 to 2560x1440; vsync, on = the project's mode;
   frame limit: none, 30, 60, 120, 144, 240; fog, bloom, shadows, soft shadows (SSAO), depth of
   field: each only turns off what a place's look uses, `StageBuilder.apply_settings` applies a
-  change at once even over a fight or zone), **Sound** (the four volumes), **Controls** (the list)
+  change at once even over a fight or zone), **Sound** (the four volumes), **Controls** (rebind every key and button, 6.1)
   and **Game** (screen shake 0 to 100% in 25% steps, scaling every camera shake; the training
   ring; lag calibration and its reset).
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions only.
@@ -1290,8 +1336,8 @@ UI (card #37):
   they read over a fight. A banner asking for GOLD gets the logo's worn gold; other colours (red
   for rage, player colours) stay. Small labels and names keep the plain title font. The static
   moves at 25% of the first setting (user: "lower the static to 25%"), here and on the logos.
-- Settings: values on the right; the controls are a panel of button chips that follows the
-  device in use.
+- Settings: values on the right; the controls are rows with the key and the pad button of each
+  action (6.1; before card #190 they were a read-only panel of chips).
 - Fight HUD (user picks 2026-10-12, built after the first Part A test):
   - Action menu, Expedition 33 style (bottom left, user layout 2026-10-13), no cursor, one
     button per option: A Attack (always, gains AP), X Skills (opens the skill list above it; up/down
@@ -2759,3 +2805,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | "Flashes" setting: Full / Reduced / Off for screen flashes and white hit flashes | card #185, photosensitivity; default Full |
 | 2026-10-17 | F1 reading-aid toggles (G, T, L, H, C, V) are practice-fight only | a run fight is the real game; same rule as the training ring |
 | 2026-10-17 | RUN OVER shows a recap of the last fight (enemies, stop, act, oath, hardest hit, last blow, defence); zone song and ambience resume after a fight; elite fights have an `elite_path` song slot (empty); Oath of Want now cuts fight gold 25% (`gold_percent_add`) instead of "start with nothing" | cards #191, #192, fix to #173; the start gold is already 0, so the oath did nothing |
+| 2026-10-17 | Every player action can be rebound in Settings > Controls, key and pad separately; the first input of an action is replaced, the aliases stay; conflicts only count between actions needed at the same time (swap offered); Escape, F2 and the pad's Menu button are reserved; applies to every pad | card #190; the two defence buttons can never share a key (no one-button parry and dodge), nothing can lock the player out, and the stamped timing path is untouched |
