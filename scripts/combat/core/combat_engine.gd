@@ -1878,7 +1878,9 @@ func _maybe_enter_phase_two(enemy: Combatant, events: Array[Dictionary]) -> void
 		enemy.attack_ids.append(attack.id)
 	if data.phase_two_speed > 0:
 		enemy.base_speed = data.phase_two_speed
-		_set_speed(enemy, data.phase_two_speed)
+		# A slowed boss stays slowed: the slow is a share of its (new) normal speed.
+		_set_speed(enemy, CombatMath.percent_min1(data.phase_two_speed, tuning.slow_speed_percent)
+				if enemy.has_status(Status.SLOWED) else data.phase_two_speed)
 	events.append({"type": "enemy_phase", "enemy": enemy.id, "phase": 2, "text": data.phase_two_text})
 	_pick_intent(enemy, events)
 	events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})

@@ -51,7 +51,7 @@ func _init() -> void:
 
 	var gear := _gear_list()
 	var king := _hollow_king()
-	var king_fight := _encounter("hollow_king", "The Hollow King", party, [king], ultimate)
+	var king_fight := _encounter("hollow_king", "The Hollow King", party, [king, load("res://data/enemies/hollow_shade.tres")], ultimate)
 	if not king_fight.boss:
 		king_fight.boss = true
 		ResourceSaver.save(king_fight, king_fight.resource_path)
@@ -144,15 +144,15 @@ func _hollow_king() -> EnemyData:
 	e.sprite_path = "res://assets/sprites/enemies/hollow_king.png"
 	e.portrait_path = "res://assets/sprites/portraits/hollow_king.png"
 	e.sprite_pixel_size = 0.045
-	e.hp_percent = 350
-	e.power_percent = 120
-	e.speed = 140
+	e.hp_percent = 650
+	e.power_percent = 165
+	e.speed = 155
 	e.gold = 0
 	e.xp = 0
 	e.attacks.assign([cleave, sweep, stomp, cascade])
 	e.phase_two_hp_percent = 50
 	e.phase_two_attacks.assign([cleave, cascade, kingsfall, false_crown, wave])
-	e.phase_two_speed = 175
+	e.phase_two_speed = 210
 	e.phase_two_text = "THE HOLLOW KING RAGES!"
 	return _save(e, path) as EnemyData
 

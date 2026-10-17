@@ -325,7 +325,10 @@ How a fight starts depends on how it began in the zone (7.4):
   ends as **"escaped"** once nobody is left standing in it and at least one hero ran (a hero downed
   after the others ran is carried out); if the others win, it is a normal victory.
 - Not allowed against bosses (`EncounterData.boss`, which includes the run's final fight, the
-  Hollow King) or where `EncounterData.can_run` is false: the Run row reads CAN'T RUN.
+  Hollow King), guards (`mini_boss`), elite fights (`elite`: map Elite stops and zone champions;
+  card #175, otherwise a player could read an elite's moves for free and leave) or where
+  `EncounterData.can_run` is false: the Run row reads CAN'T RUN. The first three are a rule in
+  `CombatSetup.from_encounter`, so a new one made in data cannot be left runnable by a forgotten flag.
 - After an escape: in a zone, the enemy goes home and the leader stays where they are (with the
   usual return grace); in a run, the HP carries on (a downed hero stands at
   `run_downed_revive_hp`), with no gold and no XP; a practice fight shows ESCAPED with "fight
@@ -1555,9 +1558,10 @@ counters for longer and mixed strings (2.5, card #52).
   character's HP, power, speed and 3 slots, the bag. Left/right character, up/down slot,
   Confirm: put on / swap / take off.
 - **Boss** (#31): The Hollow King (`hollow_king`, encounter flagged `boss`, its own red look
-  "hollow_throne"), 350% HP, 120% power, speed 140. Phase one: Cleave, Crown Sweep, Grave Stomp,
+  "hollow_throne"), 650% HP, 165% power, speed 155, with a Hollow Shade at its side (retuned in
+  card #177, see 8.13; it was 350% / 120% / 140 and alone). Phase one: Cleave, Crown Sweep, Grave Stomp,
   Rot Cascade (5 hits, parries and jumps). At 50% HP (`EnemyData.phase_two_hp_percent`) it enters
-  phase two once: speed 175, attacks Cleave, Rot Cascade, Kingsfall (6 hits party-wide, mixed),
+  phase two once: speed 210 (was 175), attacks Cleave, Rot Cascade, Kingsfall (6 hits party-wide, mixed),
   False Crown (with a feint) and Hollow Wave; the banner says "THE HOLLOW KING RAGES!" and it picks
   a new intent at once. Its name is announced when the fight starts. It replaced "The Last Gate"
   as the run's final fight.
@@ -1582,7 +1586,10 @@ co-op anyone can open and move things at any time. The rest are proposed default
 - **Consumables (first set):** Salve (heal one 50%), Feast (heal all 30%), Tonic (one hero +15%
   max HP for the run, map only), Bomb (damage to all enemies, fight only), Antidote (clears bad
   statuses from one hero and heals a little). Salve, Feast and Tonic move from "used when bought"
-  to the backpack.
+  to the backpack. **Tonic cap** (card #175): a hero can drink at most `tonic_max_per_hero` (2)
+  Tonics in a run (`RunState.tonics_used`, kept in `to_dict`), because gold plus Restock turned
+  into endless max HP. The party screen greys the choice with a line saying why, a capped hero is
+  skipped by the bot, and the shop stops selling Tonics when every hero is full (`RunState.wants`).
 - **Charms:** a party-wide passive while in the backpack (for example power +5%, +1 AP at fight
   start, gold +10%). Each charm belongs to a family (Stone, Bone, Herb). Some charms boost the
   charms that touch them (for example "touching Stone charms work 50% better"), so where things
@@ -1795,7 +1802,11 @@ Replaces the shared party level of phase 4 (#30). Numbers live in `tuning.tres` 
 
   Defense and gear together never cut a hit by more than `tough_max_percent` (60). Points can be
   taken back at any time and a reset is free; the HP a hero is missing stays the same through any
-  change, so respending never heals. Online, a change is a RunState op (`attributes`), like the
+  change, so respending never heals. A change that would leave a hero under 1 HP (they are so
+  wounded that the max HP they give back is more than the HP they have) is refused instead of
+  clamped (card #175): a clamp forgot some of the missing HP, and respending then handed it back as
+  a free heal, always available because downed heroes stand at 1 HP. The screen says "too wounded
+  to give up that max HP. Heal first." (`RunState.attributes_wound_blocked`). Online, a change is a RunState op (`attributes`), like the
   backpack: anyone may change any hero.
 - **Critical hits.** Every hero has `crit_base_percent` (5) plus Luck. A crit deals
   `crit_damage_percent` (150) of the hit. Rolled through `CombatRng` when the damage is rolled (a
@@ -1958,7 +1969,7 @@ phase 14 was the tutorial).
   hyenas and a fly), Toad Court, Shade Coven, each with a deep version. They are met two ways:
   an **Elite stop** on the map (a fight in one of the act's zones' look, then spoils), and the
   zones' **champions** (8.5), now elite fights marked "ELITE" in their own colour (they no longer
-  force the deep version).
+  force the deep version). Elite fights cannot be run from (2.13).
 
 ### 8.7 Event stops "?" (card #158)
 
@@ -1992,7 +2003,8 @@ phase 14 was the tutorial).
   acts from a seed of their own). Beating an act's boss gives spoils, everyone heals
   `run_act_heal_percent` (50%), and the next act's map opens (its title says "Act 2: ..."). Only the
   last boss ends the run. Depth (enemy growth, rarity) counts the rows of the acts before. Seeds of
-  finds, drops and chests take the act into account (each act numbers its stops from 0).
+  finds, drops and chests take the act into account (each act numbers its stops from 0); a locked
+  chest also takes its index in the zone into the seed, so two chests in one visit differ (card #176).
 - **The map** (card #162): stop kinds and weights: zone 45, event 25, elite 12 (not before row
   `run_elite_min_row` 2, never two in a row), shop 12, rest 12; row 0 zones, row 3 treasure, the
   row before the boss campfires, at least one shop. New painted pictures (art kit `map_art.py`):
@@ -2000,8 +2012,11 @@ phase 14 was the tutorial).
   the Husk Lord's crowned hollow tree (act 1's lair). A **legend** down the left side names every
   picture. **Planning**: while a next stop is picked, every stop and road it cannot lead to is
   drawn faint (`unreachable_alpha`), so its roads ahead stand out.
+- An act with no elite fights or no events never gets those stops: `RunMap.generate` takes
+  `has_elites` and `has_events` (filled from the act's lists) and zeroes their weights, and Main
+  leaves an Elite stop with no fight as an empty stop with an error instead of crashing (card #176).
 - Online: `RunState.to_dict` carries the act (the client rebuilds that act's map), the stops
-  visited, the campfire points, the events met and the shop's restocks.
+  visited, the campfire points, the events met, the shop's restocks and the Tonics drunk.
 
 ### 8.10 The shop (card #160)
 
@@ -2010,8 +2025,9 @@ phase 14 was the tutorial).
   stock, `run_shop_items` (4) items picked from the run's shop list (`RunState.shop_stock`), 2
   charms and 2 pieces of gear, a card each with its picture (items their icon, gear a gold amulet),
   name in its rarity colour and price, SOLD when bought. Under them the **services**: Cleanse (35:
-  throw away a rotten item), Upgrade (45: an item up a level), Restock (20: new stock on the
-  shelves, `RunState.restocks`), Sell (the backpack) and Leave. No Heal service (user 2026-10-16:
+  throw away a rotten item), Upgrade (45: an item up a level), Restock (20, and `shop_restock_step` (20) more
+  for every restock already bought at this shop, back to 20 at the next stop: new stock on the
+  shelves, `RunState.restocks`, `restock_price()`; card #175), Sell (the backpack) and Leave. No Heal service (user 2026-10-16:
   it did the same as a Salve for the same price; healing is bought as items). Arrows move over shelves and services, Confirm buys, Tab / Y sells, Back leaves.
 
 ### 8.11 The campfire (card #161)
@@ -2060,6 +2076,58 @@ phase 14 was the tutorial).
   (the camera blurs it); nothing tall stands in front of the walkways.
 - `tools/zone_map_preview.gd` draws every zone from above to a picture (ground, water, walls,
   props, enemies, seals, shrines) to check a layout without opening the game.
+
+### 8.13 Phase 16 run balance (cards #175 to #178, 2026-10-17)
+
+The owner wants the game hard, so these only close exploits and make the last fight harder; nothing
+here makes a run easier.
+
+- **Gold must not become endless max HP** (#175). Tonic gave +15% max HP for the rest of the run for
+  45 gold and Restock re-rolled the shelves for a flat 20, so gold turned into HP without limit.
+  Two caps, both in `tuning.tres`: each Restock at one shop costs `shop_restock_step` (20) more than
+  the last (`RunState.restock_price`; the count starts over at the next stop), and a hero can drink
+  at most `tonic_max_per_hero` (2) Tonics per run (`RunState.tonics_used`, `tonics_left`). A capped
+  hero is greyed on the party screen's hero cards with the reason in the info line, the shop stops
+  selling Tonics once every hero is full, and a Tonic drunk by one hero still works for another.
+- **A reset never heals** (#175). `set_attributes` keeps the HP a hero is missing the same, which is
+  exact until the lower max HP would leave them under 1 HP. The old code clamped to 1 there and
+  forgot the rest of the missing HP, so reset, respend gave it back: a free heal of the whole
+  Vitality bonus, always available because a downed hero stands at 1 HP. Now such a change is
+  refused ("too wounded to give up that max HP. Heal first."). Chosen over "keep HP absolute"
+  because that would stop a Vitality point from filling the hero when it is first spent.
+  Random sequences of changes are tested to leave the missing HP unchanged.
+- **Elites cannot be run from** (#175), a rule in `CombatSetup.from_encounter` (see 2.13), not eight
+  edited files.
+- **Small bugs** (#176): HP is clamped to max after every backpack change that can drop a charm's
+  max HP (sell, throw away, combine, move, cleanse, items used in a fight); a locked chest's prize
+  seed includes the chest's index; a Slowed boss that enters phase two stays slowed (the slow is
+  taken from its new normal speed, so Hamstring is not wasted); the map never rolls Elite or Event
+  stops for an act with none (8.9).
+- **The Hollow King is the hardest fight** (#177). It was softer than what came before: 350% HP,
+  120% power, speed 140 to 175, alone, while the Husk Lord (act 1) has a Rotten Husk at its side, and
+  the deep guards in act 2 grow with depth (up to about +65% HP and +39% power) but bosses do not
+  (`run_enemy_scale_bosses` is off, 8.3). Counting each attack's hits, the King's party-wide damage
+  was about 144 per 100 ticks (170 in phase two) against about 215 (270) for the Husk Lord fight and
+  about 315 (440) for Mire Mother with her fly at the deepest row. Data-only retune of
+  `hollow_king.tres`: 650% HP (5850), 165% power, speed 155, phase two speed 210 (phase two still at
+  half HP), and a Hollow Shade stands at its side (`data/encounters/hollow_king.tres`). That is
+  about 220 (280) damage per 100 ticks from the King alone, 325 (385) with the shade, and about 1.3
+  times the HP of the toughest guard at the deepest row (6885 against 5184), so the fight is the
+  longest and hardest of the run. A test
+  keeps it so (`test_run_balance.gd`: more HP than the Husk Lord fight and every guard at the
+  deepest row, at least their power, faster and enraging faster). The attacks themselves are
+  unchanged, so a player who defends well takes the same hits as before, only more of them and for
+  longer.
+- **An honest balance bot** (#178). The bot used to fight every champion and roamer at any HP, so
+  its runs died early and said little. It now plays like a careful player (named consts in
+  `ZoneAutoplay` and `Main`, not game rules): a champion or optional roamer is fought only while
+  the weakest hero has at least 60% HP, the party averages 80% and every hero is at least level 3
+  (an elite is 40% tougher than a normal fight, and a fresh party loses it); roamers within 6 units are
+  hunted for XP and gold while healthy; it uses its healing items before it walks into the guard; on
+  the map it takes an Elite stop only while healthy and picks a campfire when any hero is at or
+  under 60% or the party averages under 75%; at a campfire it rests when hurt, else upgrades or
+  trains. A hero capped on Tonics is skipped. The bot cannot dodge a roamer that notices it. Do not
+  tune enemies to make these runs win; read them as "an average player's run".
 
 ---
 
@@ -2239,8 +2307,9 @@ phase 14 was the tutorial).
   `--autoplay --join=127.0.0.1 --quit-on-end` (both headless, about 15 minutes). Both print the
   same `AUTOPLAY_RESULT run_...` line and the same `AUTOPLAY_MIRROR` hashes, and no ERROR lines.
 - Run smoke test: `--autoplay --run --quit-on-end` (add `--seed=N` for a fixed map). The bot
-  picks a shop when it has gold, a rest when someone is at or under 60% HP, else a zone; in zones
-  it walks to the guard; in shops it buys what it can for whoever is lowest; it takes the first
+  picks a shop when it has gold, a rest when someone is at or under 60% HP (or the party averages
+  under 75%), an elite stop only while the party is healthy, else a zone; in zones
+  it walks to the guard, after its healing items; in shops it buys what it can for whoever is lowest; it takes the first
   loot and puts every bag item on whoever has the most free slots. Ends with
   `AUTOPLAY_RESULT run_victory|run_defeat stops=N fights=N level=N gear=N gold=N seed=N`.
 - Phase 2 (`test_skills.gd` and additions elsewhere): press prompts and press damage, follow-ups
@@ -2485,3 +2554,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Main menu cut to six rows: Online holds Host and Join, the tutorial is the first Practice card | user (#150) |
 | 2026-10-15 | Tutorial: each hero lesson locks the menu to one glowing choice; no zone or map lesson (five lessons); the Skills lesson uses a skill without follow-ups (Taunt) | user play-test |
 | 2026-10-16 | Every sound, song and loop offered against three free Openverse finds (CC0 / CC BY); 27 replaced, the rest kept | user asked; CC BY is fine with a credit on the credits screen |
+| 2026-10-17 | Run exploits closed (Restock price rises, 2 Tonics per hero, a reset cannot heal, elites cannot be run from), small run bugs fixed, the Hollow King retuned to the hardest fight, the balance bot plays carefully | cards #175 to #178; the owner wants the game hard, so nothing here makes it easier (8.13) |

@@ -368,6 +368,33 @@ func test_slow_rescales_the_wait_and_wears_off_after_its_turns() -> void:
 	assert_eq(foe.speed, 100, "speed restored")
 
 
+func test_a_slow_survives_the_bosses_phase_two() -> void:
+	var hamstring := Fx.skill("hamstring", ENEMY, 5, [800], {"damage_percent": 1, "status": Status.SLOWED, "status_turns": 3})
+	var tuning := Tuning.new()
+	tuning.start_ap = 5
+	var setup := Fx.kit_setup([[], [hamstring], []], [_swipe()], {"enemy_speed": 100, "tuning": tuning})
+	var rage := Fx.attack("rage", [Fx.hit(900)])
+	var engine := CombatEngine.new(setup)
+	engine.start()
+	var foe := engine.get_combatant(FOE)
+	_use(engine, "hamstring")
+	_resolve(engine, [[0, NONE]])
+	assert_eq(foe.speed, 75, "slowed")
+	# Now the boss turns on its phase two (it is under 99% HP) with a faster pace.
+	setup.enemies[0].phase_two_hp_percent = 99
+	setup.enemies[0].phase_two_attacks.assign([rage])
+	setup.enemies[0].phase_two_speed = 200
+	var bot := preload("res://tests/helpers/combat_bot.gd").new()
+	for i: int in 60:
+		if foe.phase == 2 or engine.phase == CombatEngine.Phase.ENDED:
+			break
+		engine.submit(bot.next_command(engine))
+	assert_eq(foe.phase, 2, "phase two began")
+	assert_true(foe.has_status(Status.SLOWED), "still slowed")
+	assert_eq(foe.base_speed, 200, "its normal pace is the phase two speed")
+	assert_eq(foe.speed, CombatMath.percent_min1(200, tuning.slow_speed_percent), "slowed from the new pace")
+
+
 func test_shield_bash_pushes_the_enemy_turn_and_hasten_pulls_an_ally_turn() -> void:
 	var bash := Fx.skill("bash", ENEMY, 0, [800], {"damage_percent": 100, "turn_delay_percent": 30, "press_turn_delay_percent": 30})
 	var hasten := Fx.skill("hasten", OTHER, 0, [800], {"damage_percent": 0, "turn_hasten_percent": 50, "press_turn_hasten_percent": 25})
