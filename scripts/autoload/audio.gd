@@ -8,6 +8,7 @@ extends Node
 const LIBRARY_PATH := "res://data/audio/sfx_library.tres"
 const POOL_SIZE := 24
 const MUSIC_SET_PATH := "res://data/audio/music.tres"
+const MIX_PATH := "res://data/audio/mix.tres"
 ## A fading song counts as silent here.
 const SILENT_DB := -60.0
 
@@ -15,7 +16,9 @@ var _library: SfxLibrary
 ## cue name -> AudioStream (null if it failed to load)
 var _streams: Dictionary = {}
 var _pool: Array[AudioStreamPlayer] = []
-var _next_player := 0
+var _mix: AudioMix
+## cue name -> when it last started (ms), for the per-cue cooldown.
+var _last_start_ms: Dictionary = {}
 var _warned: Dictionary = {}
 ## Two players so the old song can fade out while the new one fades in; _music is the current one.
 var _music_players: Array[AudioStreamPlayer] = []
@@ -41,6 +44,11 @@ func _ready() -> void:
 	for channel: String in ["music", "effects", "voice"]:
 		_ensure_bus(String(PlayerSettings.CHANNELS[channel].bus))
 	PlayerSettings.apply_volume()
+	_mix = load(MIX_PATH) as AudioMix if ResourceLoader.exists(MIX_PATH) else null
+	if _mix == null:
+		push_warning("Audio: no mix at %s, using defaults" % MIX_PATH)
+		_mix = AudioMix.new()
+	_add_master_limiter()
 	_ensure_library()
 	for i: int in POOL_SIZE:
 		var player := AudioStreamPlayer.new()
@@ -184,8 +192,19 @@ func play(cue_name: String, volume_offset_db: float = 0.0, pitch_scale: float = 
 	if _pool.is_empty():
 		_warn_once("_no_pool", "Audio: play('%s') before the Audio node is ready" % cue_name)
 		return
-	var player := _pool[_next_player]
-	_next_player = (_next_player + 1) % _pool.size()
+	var now := Time.get_ticks_msec()
+	if VoicePool.in_cooldown(int(_last_start_ms.get(cue_name, -1)), now, _mix.cue_cooldown_ms):
+		return
+	_last_start_ms[cue_name] = now
+	var busy: Array[bool] = []
+	var remaining: Array[float] = []
+	for p: AudioStreamPlayer in _pool:
+		busy.append(p.playing)
+		var left := 0.0
+		if p.playing and p.stream != null:
+			left = maxf(0.0, p.stream.get_length() - p.get_playback_position())
+		remaining.append(left)
+	var player := _pool[VoicePool.pick(busy, remaining)]
 	player.stream = stream
 	player.bus = String(PlayerSettings.CHANNELS["voice" if cue.voice else "effects"].bus)
 	player.volume_db = cue.volume_db + volume_offset_db
@@ -201,6 +220,19 @@ func cue_length_ms(cue_name: String) -> int:
 	var cue := _ensure_library().find(cue_name)
 	var stream := _stream_for(cue) if cue != null else null
 	return roundi(stream.get_length() * 1000.0) if stream != null else 0
+
+
+## A hard limiter on Master (with a little headroom before it), so stacked cues never clip.
+func _add_master_limiter() -> void:
+	var master := AudioServer.get_bus_index(&"Master")
+	for i: int in AudioServer.get_bus_effect_count(master):
+		if AudioServer.get_bus_effect(master, i) is AudioEffectHardLimiter:
+			return
+	var limiter := AudioEffectHardLimiter.new()
+	limiter.pre_gain_db = _mix.limiter_pre_gain_db
+	limiter.ceiling_db = _mix.limiter_ceiling_db
+	limiter.release = _mix.limiter_release_s
+	AudioServer.add_bus_effect(master, limiter)
 
 
 ## Adds an audio bus (sent to Master) unless it exists, so the settings can turn it up or down.

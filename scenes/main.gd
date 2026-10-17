@@ -78,6 +78,10 @@ var _zone_idle_s: float = 0.0
 var _players: PlayerRoster
 ## The device of the last button press (it becomes P1 on the players screen).
 var _last_device: int = PlayerRoster.KEYBOARD
+## Local co-op: the card shown while a player's pad is gone, and whether the fight should pause
+## for it as soon as the current move ends.
+var _pad_overlay: PadLostOverlay
+var _pad_pause_wanted: bool = false
 ## Online: the seed of the next fight (the host picks it), client messages waiting for the current
 ## transition, combat batches that arrived before their fight was built, the last screen the host
 ## sent (rebuilt when the run changes), and the run state the host sent last.
@@ -155,7 +159,7 @@ func _ready() -> void:
 	Net.peer_left.connect(_on_net_peer_left)
 	Net.host_lost.connect(_on_net_host_lost)
 	Net.refused.connect(_on_net_refused)
-	_options = CombatOptions.from_args(OS.get_cmdline_user_args(), _tuning)
+	_options = CombatOptions.from_args(DevArgs.user_args(), _tuning)
 	if _options.shots_every_s > 0.0:
 		var shooter := ScreenShooter.new()
 		shooter.name = "Shots"
@@ -211,7 +215,7 @@ func _ready() -> void:
 ## The tuning file: --tuning=PATH (dev tool, for balance checks with another set of numbers;
 ## a user:// or res:// path), else data/tuning/tuning.tres.
 static func _tuning_path() -> String:
-	for arg: String in OS.get_cmdline_user_args():
+	for arg: String in DevArgs.user_args():
 		if arg.begins_with("--tuning="):
 			return arg.substr("--tuning=".length())
 	return TUNING_PATH
@@ -398,6 +402,8 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	if Net.is_host():
 		_net_host_tick(delta)
+	if not _options.is_autoplay():
+		_watch_pads()
 	# Autoplay guard: a zone that never reaches a fight is stuck.
 	if not _options.is_autoplay() or _zone == null or not _zone.is_inside_tree() or _zone.is_frozen():
 		_zone_idle_s = 0.0
@@ -413,6 +419,7 @@ func _process(delta: float) -> void:
 ## Frees whatever is shown (fight, zone, screen, prompt) and shows `screen`, if any.
 func _show_screen(screen: Node) -> void:
 	_close_overlay()
+	_close_pad_overlay()
 	_free_combat()
 	_free_zone()
 	_free_screen()
@@ -517,6 +524,9 @@ func _show_lobby(next: Callable) -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
 	lobby.hero_portraits = _hero_portraits()
+	if not _options.is_autoplay():
+		# A pad that was unplugged since the last run must not come back as a ghost player.
+		_players.drop_missing(_connected_pads())
 	lobby.setup(_hero_names(), _players, _last_device)
 	lobby.started.connect(_on_lobby_started.bind(next))
 	lobby.back.connect(_show_main_menu.call_deferred)
@@ -525,6 +535,8 @@ func _show_lobby(next: Callable) -> void:
 
 func _on_lobby_started(players: PlayerRoster, next: Callable) -> void:
 	_players = players
+	if not _options.is_autoplay():
+		_players.drop_missing(_connected_pads())
 	# Keyboard and pad players together: hints show both kinds of buttons (card #45).
 	ButtonPrompts.set_both(not Net.is_online() and _players.devices.has(PlayerRoster.KEYBOARD)
 			and _players.devices.any(func(device: int) -> bool: return device >= 0))
@@ -758,6 +770,7 @@ func _on_zone_return_requested(result: String) -> void:
 	if _busy or _zone == null:
 		return
 	_busy = true
+	var gen := _flow_gen
 	var found: ItemData = null
 	if _run != null and not Net.is_client():
 		_run.spend_items(_combat.used_items())
@@ -771,12 +784,20 @@ func _on_zone_return_requested(result: String) -> void:
 		if _run.is_over():
 			# The run's end screen follows (online, the host sends it).
 			await _transition.fade_out()
+			if gen != _flow_gen:
+				_transition.fade_in()
+				_end_busy()
+				return
 			_show_run_end()
 			await get_tree().process_frame
 			await _transition.fade_in()
 			_end_busy()
 			return
 	await _transition.fade_out()
+	if gen != _flow_gen or _zone == null:
+		_transition.fade_in()
+		_end_busy()
+		return
 	_free_combat()
 	_zone_fight = {}
 	add_child(_zone)
@@ -850,7 +871,7 @@ func _start_tutorial() -> void:
 	_start_combat()
 	_tutorial.attach_fight(_combat)
 	var from := 0
-	for arg: String in OS.get_cmdline_user_args():
+	for arg: String in DevArgs.user_args():
 		if arg.begins_with("--tutorial-step="):
 			from = arg.substr("--tutorial-step=".length()).to_int()
 	_tutorial.start(from)
@@ -864,6 +885,11 @@ func _end_tutorial() -> void:
 
 ## A fight paused: for the tutorial's card, or the pause menu.
 func _on_combat_pause_reached() -> void:
+	if _pad_pause_wanted:
+		_pad_pause_wanted = false
+		if _pause == null and _prompt == null and not _lost_pad_players().is_empty():
+			_show_pad_overlay()
+			return
 	if _tutorial != null and _tutorial.pause_wanted():
 		_tutorial.on_paused()
 	else:
@@ -951,8 +977,13 @@ func _start_final_fight(elite: bool = false) -> void:
 	if Net.is_host():
 		_net_seed = randi_range(1, 2147483646)
 		_send_screen({"name": "final_fight", "seed": _net_seed})
+	var gen := _flow_gen
 	Sfx.play("encounter_swirl")
 	await _transition.swirl_out()
+	if gen != _flow_gen or _run == null:
+		_transition.fade_in()
+		_end_busy()
+		return
 	_start_combat()
 	await get_tree().process_frame
 	await _transition.fade_in()
@@ -1100,6 +1131,105 @@ func _show_run_end() -> void:
 		_autoplay_quit()
 
 
+# --- pad drop and window focus (DESIGN.md 9.1) ------------------------------------------------
+
+## The Godot ids of the pads that are plugged in.
+static func _connected_pads() -> Array[int]:
+	var pads: Array[int] = []
+	pads.assign(Input.get_connected_joypads())
+	return pads
+
+
+## Local co-op players whose pad is gone (never online; the roster ignores keyboards).
+func _lost_pad_players() -> Array[int]:
+	if Net.is_online() or _players == null or not _players.is_coop():
+		return [] as Array[int]
+	return _players.missing_players(_connected_pads())
+
+
+## Every frame in local co-op: when a player's pad is gone during a fight or a zone, hold the game
+## under a card until they are back (their heroes would wait forever otherwise, and P1 could not
+## walk). A pad that returns under the same id carries on by itself.
+func _watch_pads() -> void:
+	var lost := _lost_pad_players()
+	if _pad_overlay != null:
+		if lost.is_empty():
+			_resume_after_pad_card()
+		else:
+			_pad_overlay.show_player(lost[0])
+		return
+	if lost.is_empty() or _busy or _pause != null or _prompt != null or _tutorial != null:
+		return
+	if _combat != null and _combat.is_inside_tree():
+		_pad_pause_wanted = _combat.request_pause(true) or _pad_pause_wanted
+	elif _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
+		_show_pad_overlay()
+
+
+func _show_pad_overlay() -> void:
+	var lost := _lost_pad_players()
+	if _pad_overlay != null or lost.is_empty():
+		return
+	_hold_behind_overlay(true)
+	_pad_overlay = PadLostOverlay.new()
+	_pad_overlay.name = "PadLost"
+	_pad_overlay.setup(_players)
+	_pad_overlay.show_player(lost[0])
+	_pad_overlay.claimed.connect(_on_pad_claimed)
+	_pad_overlay.dropped.connect(_on_pad_dropped)
+	add_child(_pad_overlay)
+
+
+func _close_pad_overlay() -> void:
+	_pad_pause_wanted = false
+	if _pad_overlay != null:
+		_pad_overlay.queue_free()
+		_pad_overlay = null
+
+
+func _resume_after_pad_card() -> void:
+	_close_pad_overlay()
+	_hold_behind_overlay(false)
+	if _combat != null and _combat.is_paused():
+		_combat.resume_after_pause()
+
+
+func _on_pad_claimed(device: int) -> void:
+	var lost := _lost_pad_players()
+	if not lost.is_empty() and _players.replace_device(lost[0], device):
+		Sfx.play("menu_confirm")
+		ButtonPrompts.set_both(_players.devices.has(PlayerRoster.KEYBOARD)
+				and _players.devices.any(func(d: int) -> bool: return d >= 0))
+		_refresh_roster_users()
+		_watch_pads()
+
+
+func _on_pad_dropped() -> void:
+	var lost := _lost_pad_players()
+	if not lost.is_empty() and _players.leave(lost[0]):
+		Sfx.play("menu_cancel")
+		_refresh_roster_users()
+		_watch_pads()
+
+
+## The fight and the zone read the roster in place; tell them it changed.
+func _refresh_roster_users() -> void:
+	if _combat != null:
+		_combat.update_players(_players)
+	if _zone != null:
+		_zone.configure_players(_players)
+
+
+## The window lost focus (alt-tab, the Steam overlay, a notification): a fight or zone pauses,
+## alone or in local co-op. Never online, where the others play on.
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_APPLICATION_FOCUS_OUT and what != NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		return
+	if Net.is_online() or _options == null or _options.is_autoplay():
+		return
+	_pause_game()
+
+
 # --- pause ------------------------------------------------------------------------------------
 
 ## Pause (Esc / Menu, DESIGN.md 7.5) over a fight, a zone or the run map. Main reads it before the
@@ -1134,16 +1264,24 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_open_pause()
 		return
+	if _pause_game():
+		get_viewport().set_input_as_handled()
+
+
+## Pauses the fight (after the current move), the zone or the run map. True if it started one.
+func _pause_game() -> bool:
+	if _pause != null or _prompt != null or _busy or _pad_overlay != null:
+		return false
 	if _combat != null and _combat.is_inside_tree():
 		# A fight pauses between moves; it calls back with pause_reached.
-		if _combat.request_pause():
-			get_viewport().set_input_as_handled()
-	elif _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
-		get_viewport().set_input_as_handled()
+		return _combat.request_pause()
+	if _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
 		_open_pause()
-	elif _screen is MapScreen:
-		get_viewport().set_input_as_handled()
+		return true
+	if _screen is MapScreen:
 		_open_pause()
+		return true
+	return false
 
 
 func _open_pause() -> void:

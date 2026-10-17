@@ -912,8 +912,11 @@ named on the credits screen (`data/branding/credits.tres`, a test checks songs).
 
 Volume channels (2026-10-13, card #104): Settings has Volume (overall, the Master bus), Music,
 Effects and Voices, saved per machine (`PlayerSettings.CHANNELS`). The `Audio` autoload creates the
-Music, Effects and Voice buses; songs play on Music, sound effects and ambience on Effects, cues
-with `SfxCue.voice` on Voice.
+Music, Effects and Voice buses (and, card #183, a hard limiter on Master with a little headroom,
+numbers in `data/audio/mix.tres`); songs play on Music, sound effects and ambience on Effects, cues
+with `SfxCue.voice` on Voice. Cues use a free player of the 24 first and only steal when all are
+busy (the one with the least time left, `VoicePool`); the same cue is not started twice inside
+`cue_cooldown_ms` (30 ms), so three identical hurts on one frame do not stack.
 
 Sound effects (2026-10-13, phase 7 card #39): every cue in `assets/audio/sfx/` is built from real
 CC0 recordings (Kenney packs and Freesound, via the opus-sound-layer library), never synthesized.
@@ -2101,6 +2104,18 @@ phase 14 was the tutorial).
 - **Zones**: only P1 walks and strikes (approved 2026-10-12); `DeviceInput` reads one device
   through the Input Map. Run screens (map, shop, rest, party, loot), pause and end screens: anyone.
 - Bot: `--players=N` plays co-op with N pretend pads; each player presses for their own heroes.
+- **A pad drops** (card #181, 2026-10-17): in local co-op, Main checks every frame that each pad in
+  the roster is still plugged in (`PlayerRoster.missing_players`). If one is gone during a fight
+  (after the current move) or a zone, the game is held under a "P2: controller disconnected" card
+  (`PadLostOverlay`). The pad coming back under the same id carries on by itself; a button on
+  another pad (or Confirm on a free keyboard) takes the seat over (`replace_device`); Pause gives
+  the seat up and the heroes are dealt out again. The players screen drops pads that are gone
+  (`drop_missing`) so a run never starts with a ghost player.
+- **Window focus** (card #181): alt-tab, the Steam overlay or a notification pauses a fight (after
+  the current move) or a zone, solo and local co-op. Never online, where the others play on.
+- **Walking** (card #184): the move actions use a stick deadzone of 0.2 (menus and buttons keep
+  0.5). The walk reads the stick as one vector with a radial deadzone, solo, online and co-op alike
+  (`DeviceInput.radial_deadzone`), so a diagonal push no longer snaps to an axis.
 
 ### 9.2 Online co-op (phase 5 Part B, done)
 
@@ -2113,7 +2128,9 @@ phase 14 was the tutorial).
   high-level API, so Steam's peer (GodotSteam: friend invites, NAT punch-through and relays) can
   replace ENet later without touching the game.
 - **Handshake**: a client first sends its content fingerprint (`DataHash`: SHA-256 of every file
-  under `data/`, line endings ignored, plus the project version). A mismatch, a full game (3
+  under `data/`, `scripts/` and `scenes/`, line endings ignored, plus the project version in
+  `project.godot`; card #182, so a code-only change also splits the builds) and a protocol number.
+  A refusal names both short build ids ("yours a1b2c3d4, the host's e5f6a7b8"). A mismatch, a full game (3
   players) or a started run is refused with a reason shown on the Join screen. Until welcomed, a
   client's messages are ignored. A client that never says hello is dropped after
   `net_connect_timeout_ms`.
@@ -2162,7 +2179,14 @@ phase 14 was the tutorial).
   its open prompts are resolved at once and the others are told. If the host leaves (or ends the
   game from the pause menu), everyone goes back to the main menu with a note. Online, the pause
   menu opens over a game that goes on (it offers Leave / End the game).
-- **Sharing the game**: `build_game.bat` exports `build/RottenLands.zip` (one exe). Everyone online
+- **Sharing the game**: `build_game.bat` exports `build/Rotsworn.zip` (one exe). It is a release
+  export, and it deletes the old exe and zip first and fails loudly (log in `build/export.log`)
+  if the export fails, so a stale file is never handed out. Bump `config/version` in
+  `project.godot` for each build you share. The dev command-line switches (`--autoplay`,
+  `--tuning`, `--seed`, `--encounter`, `--first-strike`, `--host` ...) are read only in debug
+  builds (`DevArgs`, `OS.is_debug_build()`): the editor and `run_game.bat` keep them, a release
+  build ignores them. Online, a lost final-fight or zone-return fade (the host left during it)
+  now uncovers the screen instead of leaving a black card that eats input. Everyone online
   plays that same build: a run from the editor has a different content fingerprint (the export
   stores resources differently) and is refused.
 - Bot: `--host=N` hosts and starts a run once N players are in; `--join=ADDRESS` joins. Both play
@@ -2485,3 +2509,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Main menu cut to six rows: Online holds Host and Join, the tutorial is the first Practice card | user (#150) |
 | 2026-10-15 | Tutorial: each hero lesson locks the menu to one glowing choice; no zone or map lesson (five lessons); the Skills lesson uses a skill without follow-ups (Taunt) | user play-test |
 | 2026-10-16 | Every sound, song and loop offered against three free Openverse finds (CC0 / CC BY); 27 replaced, the rest kept | user asked; CC BY is fine with a credit on the credits screen |
+| 2026-10-17 | Co-op: a dropped pad holds the game under a card until it returns, is replaced or the seat is given up; the window losing focus pauses (offline only) | robustness review (#181) |
+| 2026-10-17 | Handshake fingerprint covers scripts, scenes and the version, plus a protocol number; dev switches work in debug builds only; build_game.bat fails loudly | robustness review (#182); harder to cheat, no stale builds |
+| 2026-10-17 | Sound: free voice first, steal the one nearly done, 30 ms per-cue cooldown, Master hard limiter | robustness review (#183) |
+| 2026-10-17 | Move actions' deadzone 0.2, radial for the walk in every mode | robustness review (#184) |

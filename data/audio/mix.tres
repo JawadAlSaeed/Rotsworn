@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="AudioMix" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/audio_mix.gd" id="1_mix"]
+
+[resource]
+script = ExtResource("1_mix")
+limiter_ceiling_db = -1.0
+limiter_pre_gain_db = -2.0
+limiter_release_s = 0.1
+cue_cooldown_ms = 30
