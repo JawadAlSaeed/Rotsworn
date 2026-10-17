@@ -32,6 +32,9 @@ extends Resource
 @export var start_gold_add: int = 0
 ## Added to every shop price (items, gear, services). Selling is not changed.
 @export var shop_price_percent_add: int = 0
+## Added to the gold a won fight pays, in percent (negative: less; the pay never goes below 0).
+## Applied after the party's gold charms and gear.
+@export var gold_percent_add: int = 0
 ## Added to the number of spoils choices (negative: fewer; never fewer than one).
 @export var loot_choices_add: int = 0
 ## Added to tuning run_team_gauge_carry_percent (negative: less of the gauge carries over).

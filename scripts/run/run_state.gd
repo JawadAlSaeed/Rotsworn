@@ -592,13 +592,16 @@ static func encounter_xp(encounter: EncounterData) -> int:
 	return total
 
 
-## Gold this run gets for an encounter, with the party's gold gear and gold charms.
+## Gold this run gets for an encounter, with the party's gold gear and gold charms, then the
+## oaths' cut (Want, DESIGN.md 8.15; never below 0).
 func gold_for(encounter: EncounterData) -> int:
 	var extra := int(charm_totals().get(GearData.Effect.GOLD, 0))
 	for slot: int in party_size():
 		extra += gear_amount(slot, GearData.Effect.GOLD)
 	var won := CombatMath.percent(encounter_gold(encounter), 100 + extra)
-	return CombatMath.percent(won, tuning.elite_gold_percent) if encounter.elite else won
+	if encounter.elite:
+		won = CombatMath.percent(won, tuning.elite_gold_percent)
+	return CombatMath.percent(won, maxi(0, 100 + oath_total(&"gold_percent_add")))
 
 
 ## The fight setup for an encounter in this run: the run's party, team ultimate, HP, max HP,

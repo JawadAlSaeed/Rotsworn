@@ -11,6 +11,9 @@ extends Resource
 ## Zones without a song of their own (ZoneData.music_path).
 @export_file("*.wav", "*.ogg", "*.mp3") var zone_path: String = ""
 @export_file("*.wav", "*.ogg", "*.mp3") var fight_path: String = ""
+## Elite fights (EncounterData.elite, card #192). Empty: the fight song. No elite song exists yet;
+## drop one into assets/audio/music/ and name it here.
+@export_file("*.wav", "*.ogg", "*.mp3") var elite_path: String = ""
 ## Boss fights. Empty: the fight song.
 @export_file("*.wav", "*.ogg", "*.mp3") var boss_path: String = ""
 ## The boss fight once the boss rages (its phase change, card #97). Empty: the boss song goes on.

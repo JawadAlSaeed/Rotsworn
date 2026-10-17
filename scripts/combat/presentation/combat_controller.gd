@@ -1035,6 +1035,11 @@ func _end_hints() -> Array:
 	return [[&"menu_confirm", "Fight again"], [&"menu_cancel", "Choose a fight"], stats]
 
 
+## The fight so far as plain numbers (FightRecap.to_dict), read from the mirror (rule 7).
+func recap() -> Dictionary:
+	return mirror.recap.to_dict()
+
+
 func _summary_text() -> String:
 	var text := "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d\nskill presses: perfect %d, good %d" % [
 			_enemy_hits.size(), int(_defended.get(Defense.Outcome.PARRY, 0)),

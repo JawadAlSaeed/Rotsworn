@@ -6,5 +6,6 @@
 script = ExtResource("1_ey6wd")
 id = "want"
 title = "Oath of Want"
-description = "Shops charge 15% more. You start with nothing."
+description = "Shops charge 15% more. Fights pay 25% less gold."
 shop_price_percent_add = 15
+gold_percent_add = -25

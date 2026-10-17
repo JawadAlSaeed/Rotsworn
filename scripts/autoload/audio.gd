@@ -4,6 +4,8 @@ extends Node
 ## Usage: Audio.play("parry")
 ## Music: play_music(path) loops one song; asking for the song already playing lets it go on (no
 ## restart). A new song crossfades in (two players) with the fade times from data/audio/music.tres.
+## Where a song was when it was faded out is remembered; asking with `resume` picks it up there
+## (the zone song after a fight, card #192).
 
 const LIBRARY_PATH := "res://data/audio/sfx_library.tres"
 const POOL_SIZE := 24
@@ -37,6 +39,8 @@ var _duck_tween: Tween
 ## The place's background loop (zone ambience), on the Effects bus.
 var _ambience: AudioStreamPlayer
 var _ambience_path: String = ""
+## Song or ambience path -> seconds into it when it was replaced (used by `resume`, then forgotten).
+var _positions: Dictionary = {}
 
 
 func _ready() -> void:
@@ -75,8 +79,17 @@ func _ready() -> void:
 	_ambience.finished.connect(_ambience.play)
 
 
+## Where a remembered position should restart a stream of `length` seconds: the position itself,
+## or the start when it is unknown, negative or past the end.
+static func resume_position(saved: float, length: float) -> float:
+	if saved <= 0.0 or (length > 0.0 and saved >= length):
+		return 0.0
+	return saved
+
+
 ## Loops the song at `path` (empty: silence). The song already playing goes on untouched.
-func play_music(path: String, volume_db: float = 0.0) -> void:
+## `resume`: start from where this song was left off, if it was (default: from the start).
+func play_music(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
 	_music_base_db = volume_db
 	if path == _music_path and _music.playing:
 		_update_music_volume()
@@ -85,6 +98,8 @@ func play_music(path: String, volume_db: float = 0.0) -> void:
 	if _duck_tween != null:
 		_duck_tween.kill()
 	_music_duck_db = 0.0
+	if not _music_path.is_empty() and _music.playing:
+		_positions[_music_path] = _music.get_playback_position()
 	_fade_out(_music)
 	_music_path = path
 	if path.is_empty():
@@ -106,7 +121,8 @@ func play_music(path: String, volume_db: float = 0.0) -> void:
 	if _fade_in_tween != null:
 		_fade_in_tween.kill()
 	_set_music_fade(0.0 if _fade_in_s > 0.0 else 1.0)
-	_music.play()
+	_music.play(resume_position(float(_positions.get(path, 0.0)), stream.get_length()) if resume else 0.0)
+	_positions.erase(path)
 	if _fade_in_s > 0.0:
 		_fade_in_tween = create_tween()
 		_fade_in_tween.tween_method(_set_music_fade, 0.0, 1.0, _fade_in_s)
@@ -151,10 +167,13 @@ func _apply_music_volume(duck_db: float) -> void:
 
 
 ## Loops the background sound at `path` (empty: silence). The loop already playing goes on.
-func play_ambience(path: String, volume_db: float = 0.0) -> void:
+## `resume`: start from where this loop was left off, if it was.
+func play_ambience(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
 	_ambience.volume_db = volume_db
 	if path == _ambience_path and _ambience.playing:
 		return
+	if not _ambience_path.is_empty() and _ambience.playing:
+		_positions[_ambience_path] = _ambience.get_playback_position()
 	_ambience_path = path
 	_ambience.stop()
 	_ambience.stream = null
@@ -165,11 +184,13 @@ func play_ambience(path: String, volume_db: float = 0.0) -> void:
 		_warn_once(path, "Audio: no playable ambience at '%s'" % path)
 		return
 	_ambience.stream = stream
-	_ambience.play()
+	_ambience.play(resume_position(float(_positions.get(path, 0.0)), stream.get_length()) if resume else 0.0)
+	_positions.erase(path)
 
 
 func stop_music() -> void:
 	_music_path = ""
+	_positions.clear()
 	for tween: Tween in _fade_out_tweens.values():
 		tween.kill()
 	_fade_out_tweens.clear()
