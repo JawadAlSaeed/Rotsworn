@@ -1,0 +1,582 @@
+[gd_resource type="Resource" script_class="ZoneSectionData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_8p6gi"]
+[ext_resource type="Script" path="res://scripts/data/zone_critter_data.gd" id="2_ame5y"]
+[ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="3_vk4e1"]
+[ext_resource type="Script" path="res://scripts/data/zone_ground_data.gd" id="4_vjakw"]
+[ext_resource type="Script" path="res://scripts/data/zone_light_data.gd" id="5_v70ag"]
+[ext_resource type="Script" path="res://scripts/data/zone_prop_data.gd" id="6_23vov"]
+[ext_resource type="Script" path="res://scripts/data/zone_section_data.gd" id="7_h1qfr"]
+
+[sub_resource type="Resource" id="Resource_8p6gi"]
+script = ExtResource("2_ame5y")
+kind = 2
+position = Vector3(22, 0, -11)
+sprite_path = "res://assets/sprites/env/critter_rat.png"
+
+[sub_resource type="Resource" id="Resource_ame5y"]
+script = ExtResource("2_ame5y")
+position = Vector3(3, 0, -12)
+sprite_path = "res://assets/sprites/env/critter_crow.png"
+
+[sub_resource type="Resource" id="Resource_vk4e1"]
+script = ExtResource("3_vk4e1")
+position = Vector3(15, 0, -11)
+wander_radius = 2.0
+chance_percent = 85
+
+[sub_resource type="Resource" id="Resource_vjakw"]
+script = ExtResource("3_vk4e1")
+position = Vector3(8, 0, 0.5)
+wander_radius = 2.0
+chance_percent = 70
+
+[sub_resource type="Resource" id="Resource_v70ag"]
+script = ExtResource("3_vk4e1")
+position = Vector3(25, 0, 1)
+wander_radius = 2.0
+chance_percent = 55
+
+[sub_resource type="Resource" id="Resource_23vov"]
+script = ExtResource("4_vjakw")
+position = Vector3(7.5, 0, -0.5)
+size = Vector2(19.069387, 3.4)
+rotation_y_degrees = 3.366460649908123
+texture_path = "res://assets/sprites/env/dirt_trail.png"
+edge_noise = 0.45
+layer = 1
+tint = Color(1.25, 1.18, 1.05, 1)
+
+[sub_resource type="Resource" id="Resource_h1qfr"]
+script = ExtResource("4_vjakw")
+position = Vector3(24.5, 0, -0.5)
+size = Vector2(19.069387, 3.4)
+rotation_y_degrees = -3.366460649908123
+texture_path = "res://assets/sprites/env/dirt_trail.png"
+edge_noise = 0.45
+layer = 1
+tint = Color(1.25, 1.18, 1.05, 1)
+
+[sub_resource type="Resource" id="Resource_78piy"]
+script = ExtResource("4_vjakw")
+position = Vector3(11, 0, -4.75)
+size = Vector2(8.240735, 2.4)
+rotation_y_degrees = 72.89727029446877
+texture_path = "res://assets/sprites/env/dirt_trail.png"
+edge_noise = 0.45
+layer = 1
+tint = Color(1.25, 1.18, 1.05, 1)
+
+[sub_resource type="Resource" id="Resource_f4rfh"]
+script = ExtResource("4_vjakw")
+position = Vector3(14, 0, -10.25)
+size = Vector2(7.4607973, 2.4)
+rotation_y_degrees = 48.36646147526038
+texture_path = "res://assets/sprites/env/dirt_trail.png"
+edge_noise = 0.45
+layer = 1
+tint = Color(1.25, 1.18, 1.05, 1)
+
+[sub_resource type="Resource" id="Resource_2m4m2"]
+script = ExtResource("4_vjakw")
+position = Vector3(16, 0, -14.25)
+size = Vector2(4.94, 2.4)
+rotation_y_degrees = 90.00000250447816
+texture_path = "res://assets/sprites/env/dirt_trail.png"
+edge_noise = 0.45
+layer = 1
+tint = Color(1.25, 1.18, 1.05, 1)
+
+[sub_resource type="Resource" id="Resource_f7x6k"]
+script = ExtResource("4_vjakw")
+position = Vector3(16, 0, -16)
+size = Vector2(6, 5)
+round = true
+texture_path = "res://assets/sprites/env/moss.png"
+edge_noise = 0.5
+
+[sub_resource type="Resource" id="Resource_hk84o"]
+script = ExtResource("5_v70ag")
+position = Vector3(6, 1.9, 3.1)
+color = Color(1, 0.68, 0.38, 1)
+energy = 2.4
+reach = 7.0
+flicker_percent = 12
+
+[sub_resource type="Resource" id="Resource_3f4oo"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(4, 0, -6)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_cslii"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(6, 0, -9)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_ycfq8"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(8, 0, -13)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_b3o7a"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(5, 0, -16)
+pixel_size = 0.05
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_ts068"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(9, 0, -18)
+pixel_size = 0.05
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_a5fmc"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(14.5, 0, -6.5)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_m5q3x"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(19, 0, -8.5)
+pixel_size = 0.05
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_0rklb"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(20, 0, -12.5)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_5ijhp"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(19.5, 0, -16.5)
+pixel_size = 0.05
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_8iuf3"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(12.5, 0, -18.5)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_f26pt"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(23, 0, -6)
+pixel_size = 0.05
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_kvo3u"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(26, 0, -9.5)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_wxpic"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(24, 0, -14.5)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_a1yak"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/thorns.png"
+position = Vector3(28.5, 0, -5.5)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.9
+
+[sub_resource type="Resource" id="Resource_0fp7w"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/lamp.png"
+position = Vector3(6, 0, 2.8)
+pixel_size = 0.05
+solid_radius = 0.3
+
+[sub_resource type="Resource" id="Resource_v1m7a"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/stump.png"
+position = Vector3(9.72, 0, 7.7)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.5
+
+[sub_resource type="Resource" id="Resource_gysg0"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(9.13, 0, 5.07)
+pixel_size = 0.05
+solid_radius = 0.5
+sway = 0.03
+
+[sub_resource type="Resource" id="Resource_f28r8"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(21.24, 0, 7.46)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.5
+sway = 0.03
+
+[sub_resource type="Resource" id="Resource_x103s"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/stump.png"
+position = Vector3(2.3, 0, 6.6)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.5
+
+[sub_resource type="Resource" id="Resource_d1jvd"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(19.29, 0, 5.42)
+pixel_size = 0.05
+solid_radius = 0.5
+sway = 0.03
+
+[sub_resource type="Resource" id="Resource_2v3wn"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/stump.png"
+position = Vector3(27.62, 0, 7.78)
+pixel_size = 0.05
+flip = true
+solid_radius = 0.5
+
+[sub_resource type="Resource" id="Resource_2x6uf"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(18.47, 0, -6.21)
+pixel_size = 0.045
+sway = 0.06
+
+[sub_resource type="Resource" id="Resource_dq06b"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(2.34, 0, -17.71)
+pixel_size = 0.045
+flip = true
+sway = 0.06
+
+[sub_resource type="Resource" id="Resource_t1yse"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(29.88, 0, 7.89)
+pixel_size = 0.045
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_v2bpo"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(15.75, 0, -11.93)
+pixel_size = 0.045
+flip = true
+sway = 0.06
+
+[sub_resource type="Resource" id="Resource_g5m8u"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(27.48, 0, -6.55)
+pixel_size = 0.045
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_71wbe"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(26.15, 0, -4.02)
+pixel_size = 0.045
+sway = 0.06
+
+[sub_resource type="Resource" id="Resource_di3vf"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(17.03, 0, 2.61)
+pixel_size = 0.045
+sway = 0.06
+
+[sub_resource type="Resource" id="Resource_ftum8"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(16, 0, 4.77)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_nr1ny"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(22.93, 0, 5.98)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_6c0qp"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(2.33, 0, -15.83)
+pixel_size = 0.045
+flip = true
+sway = 0.06
+
+[sub_resource type="Resource" id="Resource_kcmgl"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(23.8, 0, -3.98)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_ls2ag"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(7.22, 0, -17.79)
+pixel_size = 0.045
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_gx74u"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/rotten_tree.png"
+position = Vector3(0.69, 0, -23.72)
+flip = true
+sway = 0.02
+
+[sub_resource type="Resource" id="Resource_6w8xf"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/dead_tree.png"
+position = Vector3(4.33, 0, -21.16)
+flip = true
+sway = 0.02
+
+[sub_resource type="Resource" id="Resource_a2178"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/pine_dead.png"
+position = Vector3(7.6, 0, -23.06)
+flip = true
+sway = 0.02
+
+[sub_resource type="Resource" id="Resource_g4h3i"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/rotten_tree.png"
+position = Vector3(12, 0, -21.26)
+flip = true
+sway = 0.02
+
+[sub_resource type="Resource" id="Resource_2gq23"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/rotten_tree.png"
+position = Vector3(15.29, 0, -21.7)
+sway = 0.02
+
+[sub_resource type="Resource" id="Resource_o5tpf"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/pine_dead.png"
+position = Vector3(17.99, 0, -22.14)
+flip = true
+sway = 0.02
+
+[sub_resource type="Resource" id="Resource_12loq"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/pine_dead.png"
+position = Vector3(22.36, 0, -23.24)
+sway = 0.02
+
+[sub_resource type="Resource" id="Resource_t2ii0"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/rotten_tree.png"
+position = Vector3(25.27, 0, -23.79)
+flip = true
+sway = 0.02
+
+[sub_resource type="Resource" id="Resource_hbjnj"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/pine_dead.png"
+position = Vector3(29.66, 0, -23.96)
+flip = true
+sway = 0.02
+
+[sub_resource type="Resource" id="Resource_ommfh"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(0.5, 0, -19.73)
+pixel_size = 0.05
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_3owwk"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(3.29, 0, -20.19)
+pixel_size = 0.05
+flip = true
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_f7af0"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(5.38, 0, -20.17)
+pixel_size = 0.05
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_5vf5u"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(7.39, 0, -19.7)
+pixel_size = 0.05
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_sdx7s"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(9.83, 0, -20.12)
+pixel_size = 0.05
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_7k3mm"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(13.39, 0, -19.71)
+pixel_size = 0.05
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_gvvm6"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(15.69, 0, -20.04)
+pixel_size = 0.05
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_1s20c"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(18.7, 0, -20.08)
+pixel_size = 0.05
+flip = true
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_wwoie"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(21.98, 0, -20.07)
+pixel_size = 0.05
+flip = true
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_nxph5"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(25, 0, -19.94)
+pixel_size = 0.05
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_0rpay"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(28.24, 0, -19.79)
+pixel_size = 0.05
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_fbiay"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(31.13, 0, -19.76)
+pixel_size = 0.05
+flip = true
+sway = 0.04
+
+[sub_resource type="Resource" id="Resource_bccmq"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(2.63, 0, 11.31)
+pixel_size = 0.045
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_vdddq"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(6.48, 0, 11.93)
+pixel_size = 0.05
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_3upyi"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(9.79, 0, 11.71)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_rcb3h"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(13.34, 0, 11.78)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_vueee"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(16.11, 0, 11.58)
+pixel_size = 0.05
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_t1icb"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(18.9, 0, 10.89)
+pixel_size = 0.05
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_r57tx"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/bush.png"
+position = Vector3(24.08, 0, 11.09)
+pixel_size = 0.05
+flip = true
+sway = 0.05
+
+[sub_resource type="Resource" id="Resource_0qf2k"]
+script = ExtResource("6_23vov")
+sprite_path = "res://assets/sprites/env/fern.png"
+position = Vector3(28.82, 0, 11.41)
+pixel_size = 0.045
+flip = true
+sway = 0.05
+
+[resource]
+script = ExtResource("7_h1qfr")
+id = "rotten_hollow_thicket"
+width = 32.0
+props = Array[ExtResource("6_23vov")]([SubResource("Resource_3f4oo"), SubResource("Resource_cslii"), SubResource("Resource_ycfq8"), SubResource("Resource_b3o7a"), SubResource("Resource_ts068"), SubResource("Resource_a5fmc"), SubResource("Resource_m5q3x"), SubResource("Resource_0rklb"), SubResource("Resource_5ijhp"), SubResource("Resource_8iuf3"), SubResource("Resource_f26pt"), SubResource("Resource_kvo3u"), SubResource("Resource_wxpic"), SubResource("Resource_a1yak"), SubResource("Resource_0fp7w"), SubResource("Resource_v1m7a"), SubResource("Resource_gysg0"), SubResource("Resource_f28r8"), SubResource("Resource_x103s"), SubResource("Resource_d1jvd"), SubResource("Resource_2v3wn"), SubResource("Resource_2x6uf"), SubResource("Resource_dq06b"), SubResource("Resource_t1yse"), SubResource("Resource_v2bpo"), SubResource("Resource_g5m8u"), SubResource("Resource_71wbe"), SubResource("Resource_di3vf"), SubResource("Resource_ftum8"), SubResource("Resource_nr1ny"), SubResource("Resource_6c0qp"), SubResource("Resource_kcmgl"), SubResource("Resource_ls2ag"), SubResource("Resource_gx74u"), SubResource("Resource_6w8xf"), SubResource("Resource_a2178"), SubResource("Resource_g4h3i"), SubResource("Resource_2gq23"), SubResource("Resource_o5tpf"), SubResource("Resource_12loq"), SubResource("Resource_t2ii0"), SubResource("Resource_hbjnj"), SubResource("Resource_ommfh"), SubResource("Resource_3owwk"), SubResource("Resource_f7af0"), SubResource("Resource_5vf5u"), SubResource("Resource_sdx7s"), SubResource("Resource_7k3mm"), SubResource("Resource_gvvm6"), SubResource("Resource_1s20c"), SubResource("Resource_wwoie"), SubResource("Resource_nxph5"), SubResource("Resource_0rpay"), SubResource("Resource_fbiay"), SubResource("Resource_bccmq"), SubResource("Resource_vdddq"), SubResource("Resource_3upyi"), SubResource("Resource_rcb3h"), SubResource("Resource_vueee"), SubResource("Resource_t1icb"), SubResource("Resource_r57tx"), SubResource("Resource_0qf2k")])
+lights = Array[ExtResource("5_v70ag")]([SubResource("Resource_hk84o")])
+grounds = Array[ExtResource("4_vjakw")]([SubResource("Resource_23vov"), SubResource("Resource_h1qfr"), SubResource("Resource_78piy"), SubResource("Resource_f4rfh"), SubResource("Resource_2m4m2"), SubResource("Resource_f7x6k")])
+critters = Array[ExtResource("2_ame5y")]([SubResource("Resource_8p6gi"), SubResource("Resource_ame5y")])
+enemies = Array[ExtResource("3_vk4e1")]([SubResource("Resource_vk4e1"), SubResource("Resource_vjakw"), SubResource("Resource_v70ag")])
+item_spots = Array[Vector3]([Vector3(4, 0, -12.5)])
+chests = Array[Vector3]([Vector3(29.5, 0, -18.5)])
+seal_spots = Array[Vector3]([Vector3(16, 0, -16), Vector3(29, 0, -12)])
+shrine_spots = Array[Vector3]([Vector3(16, 0, 6.5)])

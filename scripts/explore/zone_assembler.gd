@@ -37,6 +37,9 @@ static func assemble(zone: ZoneData, seed_value: int) -> ZoneData:
 	out.blocks.append_array(zone.blocks)
 	out.props.append_array(zone.props)
 	out.lights.append_array(zone.lights)
+	out.grounds.append_array(zone.grounds)
+	out.critters.append_array(zone.critters)
+	out.ambient.append_array(zone.ambient)
 	out.enemies.append_array(zone.enemies)
 	out.item_spots.append_array(zone.item_spots)
 	out.chests.append_array(zone.chests)
@@ -60,6 +63,14 @@ static func assemble(zone: ZoneData, seed_value: int) -> ZoneData:
 			var l := light.duplicate() as ZoneLightData
 			l.position += at
 			out.lights.append(l)
+		for ground: ZoneGroundData in section.grounds:
+			var g := ground.duplicate() as ZoneGroundData
+			g.position += at
+			out.grounds.append(g)
+		for critter: ZoneCritterData in section.critters:
+			var c := critter.duplicate() as ZoneCritterData
+			c.position += at
+			out.critters.append(c)
 		for enemy: ZoneEnemyData in section.enemies:
 			if enemy == null:
 				continue

@@ -71,8 +71,79 @@ def music(kind="--music"):
     print(f"{out}/index.html: {len(cues)} slots")
 
 
+LICENSE_NAMES = {"cc0": "CC0", "pdm": "public domain", "by": "CC BY"}
+
+
+def openverse():
+    """The page for openverse_fetch.py: the sound in the game now, then three Openverse finds."""
+    import openverse_fetch as ov
+    c = json.load(open(ov.CANDS, encoding="utf-8"))
+    ss = ov.slots()
+    import sys
+    # --slots=a,b: a smaller page with only those slots (audio/picker_openverse_more/)
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv if a.startswith("--slots=")), [])
+    out = os.path.join(t.HERE, "audio", "picker_openverse_more" if only else "picker_openverse")
+    shutil.rmtree(out, ignore_errors=True)
+    os.makedirs(os.path.join(out, "s"))
+
+    def ms(path):
+        import subprocess
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
+                           capture_output=True, text=True).stdout
+        return int(float(r.strip() or 0) * 1000)
+
+    by_group = {}
+    for slot, d in c.items():
+        if only and slot not in only:
+            continue
+        s, safe = ss[slot], slot.replace(":", "_")
+        opts = []
+        for key in ["o"] + sorted(d["options"]):
+            src = os.path.join(ov.PREV, f"{safe}_{key}.mp3")
+            if not os.path.exists(src):
+                continue
+            shutil.copy(src, os.path.join(out, "s", f"{safe}_{key}.mp3"))
+            if key == "o":
+                opts.append(dict(key="o", label="NOW", now=True, name="In the game now",
+                                 desc="The sound Rotsworn plays today.", ms=ms(s["original"]), src=f"s/{safe}_o.mp3"))
+                continue
+            o = d["options"][key]
+            lic = LICENSE_NAMES.get(o["license"], o["license"])
+            opts.append(dict(key=key, name=o["title"], desc=f"By {o['creator']} ({lic}, {o['source']}).",
+                             ms=o["ms"], src=f"s/{safe}_{key}.mp3"))
+        if len(opts) < 2:
+            continue
+        name = slot.split(":", 1)[-1]
+        by_group.setdefault(s["group"], []).append(dict(id=slot, title=s["title"], plays=s["plays"], new=False,
+                                                        sharp=False, options=opts, name=name))
+    order = GROUPS + [("music", "Music", "Songs. Each preview is the first minute; the time on each card is the full song."),
+                      ("ambience", "Zone ambience", "Background loops under the music while you explore. Each preview is the first 40 seconds.")]
+    groups = []
+    for gid, title, about in order:
+        if by_group.get(gid):
+            groups.append(dict(title=title, about=about, cues=by_group.pop(gid)))
+    for gid, cues in by_group.items():
+        groups.append(dict(title=gid.title(), about="", cues=cues))
+    heading = "Rotsworn Openverse Second Picks" if only else "Rotsworn Openverse Picks"
+    data = dict(heading=heading, redo="None fit, search again",
+                lede=("Every sound in the game. NOW is the sound Rotsworn plays today; A, B and C are free recordings "
+                      "found on Openverse. Sound effect previews start at the first sound and play at the same loudness. "
+                      "Pick one, or keep NOW.") if not only else
+                     ("The sounds where none of the first three fit. NOW is the sound Rotsworn plays today; A, B "
+                      "and C are new Openverse finds. Pick one, or keep NOW."),
+                groups=groups)
+    page = open(os.path.join(t.HERE, "picker_template.html"), encoding="utf-8").read()
+    page = page.replace("<title>Rotsworn Sound Picks</title>", f"<title>{heading}</title>")
+    open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(
+        page.replace("/*DATA*/", json.dumps(data, ensure_ascii=False).replace("</", "<\\/")))
+    n = sum(len(g["cues"]) for g in groups)
+    print(f"{out}/index.html: {n} sounds, {sum(len(x['options']) for g in groups for x in g['cues'])} files")
+
+
 def main():
     import sys
+    if "--openverse" in sys.argv:
+        return openverse()
     for kind in PAGES:
         if kind in sys.argv:
             return music(kind)

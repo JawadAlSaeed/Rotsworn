@@ -1,0 +1,44 @@
+{
+ "follow_up": [
+  "sword slash quick",
+  "katana slash"
+ ],
+ "skill_press": [
+  "magic impact",
+  "spell hit"
+ ],
+ "enemy_notice": [
+  "monster grunt",
+  "creature alert",
+  "monster surprise",
+  "monster sniff"
+ ],
+ "run_begin": [
+  "war horn",
+  "horn fanfare"
+ ],
+ "voice_toad": [
+  "toad",
+  "bullfrog croak"
+ ],
+ "music:victory": [
+  "victory music",
+  "triumphant orchestral"
+ ],
+ "shout_alder": [
+  "male shout",
+  "warrior shout"
+ ],
+ "shout_brin": [
+  "hup",
+  "young male shout",
+  "male hah",
+  "man hey"
+ ],
+ "shout_cass": [
+  "cute girl",
+  "girl yay",
+  "anime girl",
+  "girl hya"
+ ]
+}

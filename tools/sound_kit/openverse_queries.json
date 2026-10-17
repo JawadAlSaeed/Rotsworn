@@ -1,0 +1,522 @@
+{
+ "parry": [
+  "sword parry",
+  "sword clash",
+  "metal clang"
+ ],
+ "parry_final": [
+  "sword clash ring",
+  "metal impact ring",
+  "sword hit heavy"
+ ],
+ "dodge": [
+  "whoosh fast",
+  "swoosh",
+  "dodge"
+ ],
+ "jump": [
+  "jump",
+  "jump cloth",
+  "hop"
+ ],
+ "whiff": [
+  "swing miss",
+  "whoosh short",
+  "air swish"
+ ],
+ "locked": [
+  "click muted",
+  "button click dull",
+  "ui error click"
+ ],
+ "hurt": [
+  "punch impact",
+  "body hit",
+  "hit flesh"
+ ],
+ "strike": [
+  "sword hit",
+  "sword slash",
+  "blade hit"
+ ],
+ "heavy_strike": [
+  "heavy sword impact",
+  "heavy hit impact",
+  "axe hit"
+ ],
+ "counter": [
+  "sword slash fast",
+  "sword combo",
+  "blade swing hit"
+ ],
+ "team_counter": [
+  "sword clash multiple",
+  "battle impact big",
+  "heavy impact",
+  "sword impact heavy"
+ ],
+ "follow_up": [
+  "sword slash quick",
+  "katana slash"
+ ],
+ "skill_press": [
+  "magic impact",
+  "spell hit"
+ ],
+ "ultimate": [
+  "magic explosion",
+  "epic impact",
+  "big explosion magic"
+ ],
+ "alert": [
+  "alert warning",
+  "danger sting",
+  "warning chime"
+ ],
+ "lunge": [
+  "whoosh lunge",
+  "swoosh heavy",
+  "attack swing"
+ ],
+ "slam": [
+  "ground slam",
+  "heavy thud ground",
+  "earth impact"
+ ],
+ "downed": [
+  "body fall",
+  "body falling ground",
+  "collapse thud"
+ ],
+ "revive": [
+  "magic revive",
+  "resurrection magic",
+  "magic heal chime",
+  "angelic choir short"
+ ],
+ "heal": [
+  "heal spell",
+  "healing magic",
+  "magic sparkle"
+ ],
+ "buff": [
+  "power up",
+  "magic buff",
+  "spell power up"
+ ],
+ "debuff": [
+  "curse spell",
+  "magic debuff",
+  "dark magic"
+ ],
+ "ap_gain": [
+  "pickup coin bright",
+  "ui ping",
+  "chime short"
+ ],
+ "gauge_full": [
+  "power charged",
+  "charge complete",
+  "energy full"
+ ],
+ "turn_start": [
+  "ui pop",
+  "menu open",
+  "ui whoosh short"
+ ],
+ "menu_move": [
+  "ui click",
+  "menu select click",
+  "tick"
+ ],
+ "menu_confirm": [
+  "menu confirm",
+  "ui confirm",
+  "button select"
+ ],
+ "menu_cancel": [
+  "menu back",
+  "ui cancel",
+  "button back"
+ ],
+ "metronome": [
+  "metronome click",
+  "metronome",
+  "wood block click"
+ ],
+ "victory": [
+  "victory fanfare",
+  "win jingle",
+  "level complete"
+ ],
+ "defeat": [
+  "game over",
+  "defeat jingle",
+  "lose sound"
+ ],
+ "parry_ring": [
+  "metal ring",
+  "bell ping",
+  "anvil ring"
+ ],
+ "wrong_button": [
+  "wrong buzzer",
+  "error buzz",
+  "ui error"
+ ],
+ "guard_block": [
+  "shield block",
+  "shield hit",
+  "wood shield impact"
+ ],
+ "skill_miss": [
+  "miss swing",
+  "fail whoosh",
+  "weak hit"
+ ],
+ "exposed_burst": [
+  "shatter impact",
+  "glass break hit",
+  "burst impact"
+ ],
+ "ultimate_start": [
+  "epic rise",
+  "power charge magic",
+  "riser"
+ ],
+ "follow_up_ready": [
+  "ready chime",
+  "notification ping",
+  "ui ping blue"
+ ],
+ "windup": [
+  "charge up",
+  "power charge",
+  "riser short"
+ ],
+ "enemy_crumble": [
+  "dissolve",
+  "disintegrate",
+  "sand crumble"
+ ],
+ "boss_rage": [
+  "monster roar",
+  "demon roar",
+  "beast roar"
+ ],
+ "status_expired": [
+  "ui disappear",
+  "pop out",
+  "fade out whoosh"
+ ],
+ "timeline_shift": [
+  "ui slide",
+  "swoosh ui",
+  "card shuffle"
+ ],
+ "fight_start": [
+  "battle start",
+  "sword unsheath",
+  "sword draw"
+ ],
+ "escape_fail": [
+  "fail",
+  "stumble",
+  "trip fall"
+ ],
+ "gold_gain": [
+  "coins",
+  "coin pickup",
+  "gold coins"
+ ],
+ "level_up": [
+  "level up",
+  "level up fanfare",
+  "achievement"
+ ],
+ "footstep_grass": [
+  "footstep grass",
+  "footsteps grass",
+  "step dirt"
+ ],
+ "footstep_mud": [
+  "footstep mud",
+  "mud step",
+  "squelch"
+ ],
+ "footstep_stone": [
+  "footstep stone",
+  "footsteps stone",
+  "step gravel"
+ ],
+ "enemy_notice": [
+  "monster grunt",
+  "creature alert",
+  "monster surprise",
+  "monster sniff"
+ ],
+ "enemy_give_up": [
+  "sigh monster",
+  "growl low",
+  "lose interest"
+ ],
+ "encounter_swirl": [
+  "swoosh transition",
+  "whoosh transition",
+  "vortex"
+ ],
+ "zone_enter": [
+  "ambient swell",
+  "mysterious chime",
+  "reveal sting"
+ ],
+ "zone_clear": [
+  "victory jingle",
+  "success fanfare",
+  "complete chime"
+ ],
+ "run_begin": [
+  "war horn",
+  "horn fanfare"
+ ],
+ "loot_reveal": [
+  "treasure reveal",
+  "magic reveal",
+  "sparkle reveal",
+  "magic chime reveal"
+ ],
+ "run_cleared": [
+  "victory fanfare orchestral",
+  "triumph fanfare",
+  "win fanfare"
+ ],
+ "run_over": [
+  "game over",
+  "sad ending",
+  "defeat sting"
+ ],
+ "player_join": [
+  "join notification",
+  "ui notification",
+  "chime positive"
+ ],
+ "player_leave": [
+  "leave notification",
+  "ui disconnect",
+  "chime negative",
+  "ui close"
+ ],
+ "net_connected": [
+  "connected",
+  "success chime",
+  "ui success"
+ ],
+ "net_error": [
+  "error",
+  "error notification",
+  "ui fail"
+ ],
+ "voice_husk": [
+  "zombie groan",
+  "zombie moan",
+  "undead groan"
+ ],
+ "voice_bloat": [
+  "gurgle",
+  "monster gurgle",
+  "burp gross"
+ ],
+ "voice_gnats": [
+  "insects swarm",
+  "insect buzz",
+  "bugs chitter",
+  "mosquito buzz"
+ ],
+ "voice_shade": [
+  "ghost whisper",
+  "creepy whisper",
+  "spirit whisper"
+ ],
+ "voice_king": [
+  "monster roar",
+  "giant roar",
+  "ogre roar"
+ ],
+ "shout_alder": [
+  "male shout",
+  "warrior shout"
+ ],
+ "shout_brin": [
+  "hup",
+  "young male shout",
+  "male hah",
+  "man hey"
+ ],
+ "shout_cass": [
+  "cute girl",
+  "girl yay",
+  "anime girl",
+  "girl hya"
+ ],
+ "item_lift": [
+  "pick up item",
+  "cloth rustle",
+  "leather pickup"
+ ],
+ "item_place": [
+  "put down item",
+  "item drop wood",
+  "place object"
+ ],
+ "item_turn": [
+  "cloth rustle short",
+  "rotate click",
+  "item rotate"
+ ],
+ "item_no_room": [
+  "ui error click",
+  "denied",
+  "bump"
+ ],
+ "item_drop": [
+  "throw away",
+  "item drop",
+  "drop object"
+ ],
+ "item_found": [
+  "item pickup",
+  "pickup sparkle",
+  "found item"
+ ],
+ "item_combine": [
+  "craft",
+  "forge combine",
+  "crafting magic"
+ ],
+ "chest_open": [
+  "chest open",
+  "treasure chest open",
+  "wooden chest"
+ ],
+ "voice_hyena": [
+  "hyena",
+  "hyena laugh",
+  "dog snarl"
+ ],
+ "voice_toad": [
+  "toad",
+  "bullfrog croak",
+  "frog",
+  "toad croak"
+ ],
+ "voice_fly": [
+  "fly buzz",
+  "insect chitter",
+  "bug screech",
+  "fly buzzing"
+ ],
+ "spit": [
+  "spit",
+  "spitting",
+  "slime throw"
+ ],
+ "splat": [
+  "splat",
+  "slime splat",
+  "squish"
+ ],
+ "throw": [
+  "throw whoosh",
+  "rock throw",
+  "throwing"
+ ],
+ "bolt_cast": [
+  "dark magic cast",
+  "magic bolt",
+  "spell cast"
+ ],
+ "rock_rumble": [
+  "rock rumble",
+  "earthquake rumble",
+  "rocks crumble"
+ ],
+ "critical": [
+  "critical hit",
+  "heavy punch impact",
+  "big hit"
+ ],
+ "music:title": [
+  "dark fantasy theme",
+  "epic fantasy orchestral",
+  "fantasy main theme"
+ ],
+ "music:map": [
+  "fantasy adventure calm",
+  "medieval tavern",
+  "fantasy exploration"
+ ],
+ "music:zone_hollow": [
+  "dark forest ambient",
+  "mysterious forest",
+  "dark fantasy ambient",
+  "dark fantasy music"
+ ],
+ "music:zone_bog": [
+  "swamp ambient",
+  "eerie ambient",
+  "dark ambient water",
+  "eerie music"
+ ],
+ "music:zone_ruins": [
+  "ancient ruins",
+  "desolate ambient",
+  "dark ambient ruins",
+  "melancholic ambient music"
+ ],
+ "music:fight": [
+  "battle music",
+  "fantasy battle",
+  "combat music"
+ ],
+ "music:boss": [
+  "boss battle",
+  "epic battle orchestral",
+  "boss fight"
+ ],
+ "music:boss_rage": [
+  "intense boss battle",
+  "epic battle drums",
+  "intense battle",
+  "epic battle music"
+ ],
+ "music:victory": [
+  "victory music",
+  "triumphant orchestral"
+ ],
+ "music:defeat": [
+  "sad piano",
+  "game over music",
+  "sad theme"
+ ],
+ "music:credits": [
+  "fantasy ending theme",
+  "peaceful fantasy",
+  "credits music"
+ ],
+ "ambience:ambience_hollow": [
+  "forest ambience night",
+  "forest ambience",
+  "dark forest ambience"
+ ],
+ "ambience:ambience_bog": [
+  "swamp ambience",
+  "marsh frogs",
+  "bog ambience"
+ ],
+ "ambience:ambience_ruins": [
+  "wind ruins",
+  "desolate wind",
+  "wind howling",
+  "desert wind"
+ ]
+}

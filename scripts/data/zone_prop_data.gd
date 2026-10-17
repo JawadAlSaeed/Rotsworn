@@ -15,3 +15,6 @@ extends Resource
 ## Glow (emission) strength: makes it light up and bloom, for fungus or embers (0 = none).
 @export_range(0.0, 8.0, 0.05) var glow: float = 0.0
 @export var glow_color: Color = Color(1.0, 1.0, 1.0)
+## Wind (DESIGN.md 8.12): the top of the sprite sways this far (world units) and back, slowly;
+## grass, reeds and leaves sway, stone does not (0).
+@export_range(0.0, 1.0, 0.005) var sway: float = 0.0

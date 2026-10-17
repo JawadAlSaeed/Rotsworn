@@ -50,3 +50,19 @@ ui click key tick tap pop thump paper chime shimmer zap.
   voices in `candidates/voices.json`).
 - `make_picker.py --music`, `--ambience` or `--group=voices` makes a listening page.
 
+
+## Openverse pass (every sound against free finds)
+
+```bash
+python openverse_fetch.py search     # asks api.openverse.org (20 a minute, 200 a day; cached in audio/openverse/cache)
+python openverse_fetch.py pick       # a, b, c per slot -> openverse_candidates.json (hand picks: openverse_overrides.json)
+python openverse_fetch.py previews   # downloads and listening copies
+uv run make_picker.py --openverse    # the page: NOW (keep) plus A, B, C; --slots=x,y for a smaller page
+python openverse_fetch.py redo x,y   # new finds for slots marked "none fit" (words in openverse_queries_redo.json)
+uv run openverse_build.py            # builds openverse_selection.json {slot: o|a|b|c} into the game, with credits
+```
+
+Slots are the cue names, `music:<song>` and `ambience:<loop>`. Only CC0, public domain and CC BY are
+kept; CC BY sources also go on the credits screen (`data/branding/credits.tres`). A find from
+Freesound or OpenGameArt can be added by hand to `openverse_candidates.json` (file in
+`audio/openverse/dl/<id>.<filetype>`, `"locked": true`).
