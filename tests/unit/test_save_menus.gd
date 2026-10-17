@@ -24,10 +24,10 @@ func _press(node: Node, action: StringName) -> void:
 	node._unhandled_input(event)
 
 
-func _main_menu(can_continue: bool, start: StringName = MainMenu.NEW_RUN) -> MainMenu:
+func _main_menu(can_continue: bool, start: StringName = MainMenu.NEW_RUN, practice: bool = false) -> MainMenu:
 	var menu := MainMenu.new()
 	add_child_autofree(menu)
-	menu.setup(BrandingData.new(), start, "", can_continue)
+	menu.setup(BrandingData.new(), start, "", can_continue, practice)
 	menu.chosen.connect(func(item: StringName) -> void: _picked.append(item))
 	return menu
 
@@ -58,8 +58,30 @@ func test_main_menu_with_a_save_starts_on_continue() -> void:
 
 
 func test_main_menu_rows_still_map_to_their_choices_after_continue() -> void:
-	var menu := _main_menu(true, MainMenu.PRACTICE)
-	assert_eq(_list_in(menu).index, 3, "Practice is the fourth row with Continue above New Run and Online")
+	var menu := _main_menu(true, MainMenu.SETTINGS)
+	assert_eq(_list_in(menu).index, 4, "Settings is the fifth row with Continue above New Run, Online, Extras")
+	_press(menu, &"menu_confirm")
+	assert_eq(_picked, [MainMenu.SETTINGS] as Array[StringName])
+
+
+func test_extras_opens_in_place_and_back_returns() -> void:
+	var menu := _main_menu(false, MainMenu.EXTRAS)
+	var list := _list_in(menu)
+	_press(menu, &"menu_confirm")
+	assert_eq(_picked.size(), 0, "Extras opens a list, it is not a choice")
+	assert_eq(list.items.map(func(row: Dictionary) -> String: return String(row.text)),
+			["Tutorial", "Journal", "Credits", "Back"], "players see no Practice")
+	_press(menu, &"menu_confirm")
+	assert_eq(_picked, [MainMenu.TUTORIAL] as Array[StringName])
+	_press(menu, &"menu_cancel")
+	assert_eq(String(list.items[list.index].text), "Extras", "cancel goes back to the Extras row")
+
+
+func test_practice_shows_in_extras_only_for_test_builds() -> void:
+	var menu := _main_menu(false, MainMenu.PRACTICE, true)
+	var list := _list_in(menu)
+	assert_eq(String(list.items[list.index].text), "Practice", "coming back from Practice reopens Extras on it")
+	assert_eq(list.items.size(), 5, "Tutorial, Practice, Journal, Credits, Back")
 	_press(menu, &"menu_confirm")
 	assert_eq(_picked, [MainMenu.PRACTICE] as Array[StringName])
 

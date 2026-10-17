@@ -536,7 +536,8 @@ func _show_main_menu() -> void:
 	menu.name = "MainMenu"
 	# A saved run is where the cursor rests until the player picks something else.
 	var start := MainMenu.CONTINUE if not saved.is_empty() and not _menu_used else _menu_item
-	menu.setup(_branding, start, _notice, not saved.is_empty())
+	# Practice (any fight or zone on its own) is a test tool: only debug builds list it (card #208).
+	menu.setup(_branding, start, _notice, not saved.is_empty(), OS.is_debug_build())
 	_notice = ""
 	menu.chosen.connect(_on_menu_chosen)
 	_show_screen(menu)
@@ -557,6 +558,8 @@ func _on_menu_chosen(item: StringName) -> void:
 			_host_online.call_deferred()
 		MainMenu.JOIN_ONLINE:
 			_show_join.call_deferred()
+		MainMenu.TUTORIAL:
+			_fade_to.call_deferred(_start_tutorial)
 		MainMenu.PRACTICE:
 			_show_lobby.call_deferred(_show_select.call_deferred)
 		MainMenu.JOURNAL:

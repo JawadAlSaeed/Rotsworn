@@ -1457,11 +1457,15 @@ re-renders it from the original canvas animation (the user's `dragonrot-intro/so
 browser at exactly 1920x1080, 60 fps, with its own WAV, Theora quality 10. The video and the logos
 are scaled smoothly (linear filter; the project's default is nearest, for pixel art).
 
-- **Main menu** (first screen, `MainMenu`): New Run, Online, Practice (the tutorial card first,
-  then the fight and zone list, full HP, nothing carries over), Journal (7.11), Settings, Credits, Quit. The
-  cursor comes back on the last item picked. Card #150 (user, 2026-10-15): kept to six rows;
-  Online opens a second list in place (Host Online, Join Online, Back; cancel goes back) and
-  the tutorial moved from the menu into Practice.
+- **Main menu** (first screen, `MainMenu`): (Continue,) New Run, Online, Extras, Settings, Quit, with
+  no description line under the rows. Online and Extras open a second list in place (cancel or
+  Back goes back): Online has Host Online and Join Online; Extras has Tutorial, Journal (7.11) and
+  Credits. Practice (the tutorial card first, then the fight and zone list, full HP, nothing
+  carries over) is a test tool: its row shows in Extras, after Tutorial, only in debug builds
+  (`OS.is_debug_build()`: the editor and `run_game.bat`), never in the shared game. The cursor
+  comes back on the last item picked (a row of Extras reopens that list). Card #150 (user,
+  2026-10-15) kept it short; card #208 (user, 2026-10-17: "it feels a bit cluttery", "practice is
+  a dev thing") made it five rows.
 - **Settings** (`SettingsScreen`): volume (left/right, 10% steps), fullscreen on/off, training
   ring on/off (practice fights only; the row says so), flashes Full / Reduced / Off (card #185),
   lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
@@ -3327,3 +3331,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Every "?" event and each act's ambush page has its own painted 128x64 scene (`sprites/events/`, drawn by `art_kit/assets/event_art.py`: a flat dithered back plus a 3D-rendered subject, one palette, at most 96 colours); the event screen shows it at scale 4 in a thin worn-gold frame (`StopVisuals`, `stop_visuals.tres`), nearest filter, with the old question mark as the fallback for a missing file | card #199; the owner found the tiny question mark in a black void flat, and each event is a story worth seeing (8.7) |
 | 2026-10-17 | The Rot Journal: a main-menu book of every enemy and attack the player has met (portrait or silhouette, where met, times beaten, each attack's hit kinds, marks and Doom, and the player's parried, dodged, jumped and hit counts), recorded from the presentation's event stream into its own `user://journal.json` (versioned, atomic, `.bak`); only a person's run fights count, practice, the tutorial and bots do not (a dev `--journal-path` makes everything count) | card #200 (review ui-input #9, Slay the Spire's compendium): a hard game should let the player study what beat them; practice stays out because its cheats and its full fight list would unlock and pollute the book (7.11) |
 | 2026-10-17 | Saves check only `data/` and the version (`DataHash.of_content`), not the code; the main menu has no description line under its rows | card #208 playtest: a code-only fix hid the user's saved run; the user found the line ("About 8 stops") out of date and not needed now that Continue and Journal exist |
+| 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
