@@ -17,7 +17,7 @@ var party: Array[CharacterData] = []
 var enemies: Array[EnemyData] = []
 ## Offered to every party member when the team gauge is full (null = no team ultimate).
 var team_ultimate: AbilityData
-## Run (DESIGN.md 2.13): every hero gets it when can_run is true (not against bosses).
+## Run (DESIGN.md 2.13): every hero gets it when can_run is true (not against bosses, guards or elites).
 var run_ability: AbilityData
 var can_run: bool = false
 var tuning: Tuning
@@ -61,7 +61,9 @@ static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: i
 	setup.enemies = encounter.enemies.duplicate()
 	setup.team_ultimate = encounter.team_ultimate
 	setup.run_ability = load(RUN_ABILITY_PATH) as AbilityData
-	setup.can_run = encounter.can_run and not encounter.boss and setup.run_ability != null
+	# Bosses, guards and elites are commitments (DESIGN.md 2.13): a rule here, so a new one in data
+	# can never be left runnable by a forgotten can_run flag.
+	setup.can_run = encounter.can_run and not encounter.boss and not encounter.mini_boss 			and not encounter.elite and setup.run_ability != null
 	setup.tuning = p_tuning
 	setup.rng_seed = p_seed
 	return setup

@@ -53,6 +53,9 @@ var gold: int = 0
 ## max HP; levels and gear add to it in total_max_hp_percent).
 var hp: Array[int] = []
 var max_hp_percent: Array[int] = []
+## Per party slot: Tonics (permanent max HP) the hero has drunk; tuning.tonic_max_per_hero is the
+## most (card #175: gold must not turn into endless max HP).
+var tonics_used: Array[int] = []
 ## Per party slot: the hero's level, and the XP counting toward their next one.
 var levels: Array[int] = []
 var xps: Array[int] = []
@@ -86,6 +89,7 @@ static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int) -> RunState:
 	for c: CharacterData in run_data.party:
 		run.bonus_points.append(0)
 		run.max_hp_percent.append(100)
+		run.tonics_used.append(0)
 		run.levels.append(1)
 		run.xps.append(0)
 		run.attributes.append(Attributes.empty())
@@ -115,7 +119,7 @@ func to_dict() -> Dictionary:
 		worn.append(ids)
 	return {
 		"seed": run_seed, "at": at, "path": Array(path), "gold": gold, "hp": Array(hp),
-		"max_hp_percent": Array(max_hp_percent), "levels": Array(levels), "xps": Array(xps),
+		"max_hp_percent": Array(max_hp_percent), "tonics_used": Array(tonics_used), "levels": Array(levels), "xps": Array(xps),
 		"attributes": attributes.duplicate(true), "team_gauge": team_gauge, "gear": worn,
 		"unlocked": unlocked.duplicate(true), "loadout": loadout.duplicate(true),
 		"backpack": backpack.to_array(),
@@ -141,13 +145,13 @@ func apply_dict(d: Dictionary) -> bool:
 			return false
 	if int(d.seed) != run_seed or typeof(d.get("result")) != TYPE_STRING:
 		return false
-	for key: String in ["path", "hp", "max_hp_percent", "levels", "xps", "attributes", "gear", "backpack",
+	for key: String in ["path", "hp", "max_hp_percent", "tonics_used", "levels", "xps", "attributes", "gear", "backpack",
 			"unlocked", "loadout", "bonus_points", "events_seen"]:
 		if not d.get(key) is Array:
 			return false
 	var size := party_size()
-	for key: String in ["hp", "max_hp_percent", "levels", "xps", "attributes", "gear", "unlocked", "loadout",
-			"bonus_points"]:
+	for key: String in ["hp", "max_hp_percent", "tonics_used", "levels", "xps", "attributes", "gear", "unlocked",
+			"loadout", "bonus_points"]:
 		if (d[key] as Array).size() != size:
 			return false
 	for key: String in ["unlocked", "loadout"]:
@@ -174,7 +178,7 @@ func apply_dict(d: Dictionary) -> bool:
 	var new_pack := Backpack.from_array(d.backpack, items_by_id())
 	if new_pack == null:
 		return false
-	for key: String in ["path", "hp", "max_hp_percent", "levels", "xps", "bonus_points"]:
+	for key: String in ["path", "hp", "max_hp_percent", "tonics_used", "levels", "xps", "bonus_points"]:
 		for v: Variant in d[key]:
 			if typeof(v) != TYPE_INT:
 				return false
@@ -197,6 +201,7 @@ func apply_dict(d: Dictionary) -> bool:
 	gold = int(d.gold)
 	hp.assign(d.hp)
 	max_hp_percent.assign(d.max_hp_percent)
+	tonics_used.assign(d.tonics_used)
 	team_gauge = int(d.team_gauge)
 	levels.assign(d.levels)
 	xps.assign(d.xps)
@@ -397,7 +402,9 @@ func next_act() -> bool:
 ## Act `index`'s map. The first act's comes from the run's seed alone (as before acts existed).
 func _make_map(index: int) -> RunMap:
 	var rng := CombatRng.new(run_seed if index == 0 else absi(run_seed * 31 + index * ACT_SALT) % 2147483647 + 1)
-	return RunMap.generate(rng, tuning, act_data(index).zones.size())
+	var act_info := act_data(index)
+	return RunMap.generate(rng, tuning, act_info.zones.size(), not act_info.elites.is_empty(),
+			not act_info.events.is_empty())
 
 
 # --- elite, event and treasure stops (DESIGN.md 8.6 to 8.8) -------------------------------------
@@ -518,15 +525,23 @@ func cleanse(uid: int) -> bool:
 		return false
 	gold -= tuning.shop_cleanse_price
 	backpack.remove(uid)
+	_clamp_hp()
 	return true
 
 
-## New wares on the shelves for tuning.shop_restock_price gold (shop_stock, shop_gear and
-## shop_charms change).
+## What the next restock costs: tuning.shop_restock_price, plus tuning.shop_restock_step for every
+## restock already bought in this shop visit.
+func restock_price() -> int:
+	return tuning.shop_restock_price + restocks * tuning.shop_restock_step
+
+
+## New wares on the shelves for restock_price() gold (shop_stock, shop_gear and shop_charms
+## change).
 func restock() -> bool:
-	if gold < tuning.shop_restock_price:
+	var price := restock_price()
+	if gold < price:
 		return false
-	gold -= tuning.shop_restock_price
+	gold -= price
 	restocks += 1
 	return true
 
@@ -622,6 +637,7 @@ func _depth() -> int:
 func spend_items(uids: Array[int]) -> void:
 	for uid: int in uids:
 		backpack.remove(uid)
+	_clamp_hp()
 
 
 ## A fight ended with these party HPs (per slot). A victory pays gold and XP (each hero their own,
@@ -754,12 +770,16 @@ func has_free_points() -> bool:
 
 
 ## Sets hero `slot`'s attribute points (spending, undoing and resetting are all this). False (and
-## nothing changes) if it is malformed or spends more than they earned. The HP they are missing
-## stays the same, so no change ever heals (never below 1 HP).
+## nothing changes) if it is malformed, spends more than they earned, or takes back so much max HP
+## that the hero is too wounded to stand it (card #175). The HP they are missing stays exactly the
+## same, so no change ever heals: a change that would push them under 1 HP is refused instead of
+## clamped, because a clamp forgets missing HP and a respend would then hand it back.
 func set_attributes(slot: int, values: Variant) -> bool:
 	if slot < 0 or slot >= party_size() or not Attributes.is_valid(values):
 		return false
 	if Attributes.total(values) > earned_points(slot):
+		return false
+	if attributes_wound_blocked(slot, values):
 		return false
 	var missing := max_hp(slot) - hp[slot]
 	var kept: Array[int] = []
@@ -767,6 +787,22 @@ func set_attributes(slot: int, values: Variant) -> bool:
 	attributes[slot] = kept
 	hp[slot] = clampi(max_hp(slot) - missing, 1, max_hp(slot))
 	return true
+
+
+## True if hero `slot` is too wounded to change their attribute points to `values`: with the
+## same HP missing, the lower max HP would leave them under 1 HP.
+func attributes_wound_blocked(slot: int, values: Variant) -> bool:
+	if slot < 0 or slot >= party_size() or not Attributes.is_valid(values):
+		return false
+	var kept: Array[int] = []
+	kept.assign(values)
+	var old: Array[int] = []
+	old.assign(attributes[slot])
+	var missing := max_hp(slot) - hp[slot]
+	attributes[slot] = kept
+	var new_max := max_hp(slot)
+	attributes[slot] = old
+	return new_max - missing < 1
 
 
 # --- skill trees (DESIGN.md 8.4, card #136) ----------------------------------------------------
@@ -944,6 +980,11 @@ func wants(item: ItemData) -> bool:
 		return false
 	if item.kind == ItemData.Kind.UPGRADE:
 		return item.effect == ItemData.Effect.ADD_ROW and backpack.rows < tuning.backpack_max_rows
+	if item.effect == ItemData.Effect.MAX_HP_ONE:
+		for slot: int in party_size():
+			if tonics_left(slot) > 0:
+				return true
+		return false
 	return true
 
 
@@ -993,12 +1034,16 @@ func place_item(item: ItemData, x: int, y: int, turn: int, level: int = 0) -> in
 
 
 func move_item(uid: int, x: int, y: int, turn: int) -> bool:
-	return backpack.move(uid, x, y, turn)
+	var moved := backpack.move(uid, x, y, turn)
+	_clamp_hp()
+	return moved
 
 
 ## Throws item `uid` away (it is gone).
 func drop_item(uid: int) -> bool:
-	return backpack.remove(uid) != null
+	var gone := backpack.remove(uid) != null
+	_clamp_hp()
+	return gone
 
 
 ## True if backpack item `uid` can be used on the map now (on character `slot` if it needs one).
@@ -1009,7 +1054,27 @@ func can_use_item(uid: int, slot: int) -> bool:
 	var item := e.item as ItemData
 	if not item.usable_on_map():
 		return false
-	return not item.needs_target() or (slot >= 0 and slot < hp.size())
+	if item.needs_target() and (slot < 0 or slot >= hp.size()):
+		return false
+	return not (item.effect == ItemData.Effect.MAX_HP_ONE and tonics_left(slot) <= 0)
+
+
+## Tonics hero `slot` can still drink this run (tuning.tonic_max_per_hero is the most).
+func tonics_left(slot: int) -> int:
+	if slot < 0 or slot >= tonics_used.size():
+		return 0
+	return maxi(0, tuning.tonic_max_per_hero - tonics_used[slot])
+
+
+## Why backpack item `uid` cannot be used on hero `slot` right now ("" when it can), for screens
+## to show next to a greyed hero.
+func use_blocked_reason(uid: int, slot: int) -> String:
+	if can_use_item(uid, slot):
+		return ""
+	var e := backpack.entry(uid)
+	if not e.is_empty() and (e.item as ItemData).effect == ItemData.Effect.MAX_HP_ONE and slot >= 0 and slot < hp.size():
+		return "%s has drunk all %d Tonics they can." % [data.party[slot].display_name, tuning.tonic_max_per_hero]
+	return "It cannot be used on them."
 
 
 ## Uses backpack item `uid` on the map (on character `slot` if it needs one); it is used up.
@@ -1033,6 +1098,7 @@ func apply_item(item: ItemData, slot: int, amount: int = -1) -> void:
 		ItemData.Effect.MAX_HP_ONE:
 			var before := max_hp(slot)
 			max_hp_percent[slot] += pct
+			tonics_used[slot] += 1
 			heal(slot, max_hp(slot) - before)
 
 
@@ -1135,6 +1201,7 @@ func combine(uid: int, into: int) -> bool:
 		return false
 	backpack.remove(uid)
 	backpack.entry(into).level = level_of(backpack.entry(into)) + 1
+	_clamp_hp()
 	return true
 
 
@@ -1144,6 +1211,7 @@ func combine_new(item: ItemData, into: int) -> bool:
 	if target.is_empty() or not _combines(item, 0, target):
 		return false
 	target.level = level_of(target) + 1
+	_clamp_hp()
 	return true
 
 
@@ -1215,6 +1283,7 @@ func sell_item(uid: int) -> int:
 	var gained := sell_price(entry_price(e))
 	backpack.remove(uid)
 	gold += gained
+	_clamp_hp()
 	return gained
 
 
@@ -1236,11 +1305,12 @@ func _key_uid() -> int:
 	return -1
 
 
-## What the chest of the zone at stop `stop_id` holds (seeded): tuning.chest_gear_percent of the
-## time a piece of rare or better gear the party does not wear, else a rare or better item (any
-## item if the run has none that rare). GearData or ItemData; null if nothing at all is left.
-func chest_contents(stop_id: int) -> Resource:
-	return _rare_prize(CombatRng.new(_salted(stop_id * CHEST_SALT)), _row_of(stop_id))
+## What locked chest number `chest` of the zone at stop `stop_id` holds (seeded; the chest index
+## keeps two chests in one visit apart): tuning.chest_gear_percent of the time a piece of rare or
+## better gear the party does not wear, else a rare or better item (any item if the run has none
+## that rare). GearData or ItemData; null if nothing at all is left.
+func chest_contents(stop_id: int, chest: int = 0) -> Resource:
+	return _rare_prize(CombatRng.new(_salted(stop_id * CHEST_SALT + chest * 31)), _row_of(stop_id))
 
 
 ## What the prize chest of champion `roamer` in the zone at stop `stop_id` holds (DESIGN.md 8.5):

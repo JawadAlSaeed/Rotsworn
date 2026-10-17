@@ -91,7 +91,7 @@ func test_a_reset_never_heals() -> void:
 	assert_true(run.set_attributes(0, [run.earned_points(0), 0, 0, 0, 0]))
 	assert_eq(run.max_hp(0) - run.hp[0], 30, "spending again does not heal either")
 	run.hp[0] = 1
-	run.set_attributes(0, Attributes.empty())
+	assert_false(run.set_attributes(0, Attributes.empty()), "too wounded to take the points back (card #175)")
 	assert_eq(run.hp[0], 1, "never below 1 HP")
 
 

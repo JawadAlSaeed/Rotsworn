@@ -38,6 +38,8 @@ const PORTRAIT_PX: float = 112.0
 const PORTRAIT_GAP: int = 14
 const COLUMN_GAP: int = 48
 const SLOT_WIDTH: float = 200.0
+## A hero card that cannot take the item in hand is drawn this see-through.
+const GREYED_ALPHA: float = 0.5
 ## The Attributes and Skills buttons at the end of a card.
 const BUTTON_WIDTH: float = 175.0
 const BUTTON_GAP: int = 18
@@ -743,9 +745,13 @@ func _target_input(event: InputEvent) -> void:
 		_hero = wrapi(_hero + 1, 0, _run.party_size())
 		Sfx.play("menu_move")
 	elif _pressed(event, &"menu_confirm") or _pressed(event, &"item_move"):
-		var uid := _use_uid
-		_use_uid = -1
-		_use_on(uid, _hero)
+		if not remote and not _run.can_use_item(_use_uid, _hero):
+			# Stay on the hero cards: the info line says why this hero cannot (a capped Tonic).
+			Sfx.play("locked")
+		else:
+			var uid := _use_uid
+			_use_uid = -1
+			_use_on(uid, _hero)
 	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu"):
 		_use_uid = -1
 		Sfx.play("menu_cancel")
@@ -767,6 +773,7 @@ func _use_on(uid: int, slot: int) -> void:
 		_note_text = "Used the %s%s." % [name, " on " + _run.data.party[slot].display_name if slot >= 0 else ""]
 	else:
 		Sfx.play("locked")
+		_note_text = _run.use_blocked_reason(uid, slot)
 	_redraw()
 
 
@@ -824,6 +831,9 @@ func _redraw() -> void:
 	for slot: int in _cards.size():
 		var card: Dictionary = _cards[slot]
 		var chosen := (_focus == Focus.GEAR or _use_uid >= 0) and slot == _hero
+		# While choosing who gets an item, a hero who cannot have it (a full Tonic drinker) is greyed.
+		var greyed := _use_uid >= 0 and not _run.can_use_item(_use_uid, slot)
+		(card.panel as PanelContainer).modulate = Color(1.0, 1.0, 1.0, GREYED_ALPHA if greyed else 1.0)
 		(card.panel as PanelContainer).add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG,
 				HudStyle.GOLD if chosen else HudStyle.PANEL_BORDER, 3 if chosen else 2, 16))
 		(card.stats as Label).text = "Lv %d   HP %d / %d   Power %d   Speed %d" % [_run.levels[slot], _run.hp[slot],
@@ -879,6 +889,9 @@ func _redraw_info() -> void:
 		_info_title.text = "Use the %s on whom?" % RunState.entry_name(e)
 		_info.text = "%s: HP %d / %d. Pick a hero card above." % [_run.data.party[_hero].display_name, _run.hp[_hero],
 				_run.max_hp(_hero)]
+		var blocked := _run.use_blocked_reason(_use_uid, _hero)
+		if not blocked.is_empty():
+			_info.text = blocked + " Pick another hero."
 		return
 	if not _held.is_empty():
 		var thing: Resource = _held.item

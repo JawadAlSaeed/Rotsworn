@@ -235,8 +235,8 @@ func _service_info(kind: String) -> Array:
 			return ["Upgrade", "%d gold" % t.shop_upgrade_price, "One item in the backpack goes up a level." if any
 					else "Nothing in the backpack can be upgraded.", any and _run.gold >= t.shop_upgrade_price]
 		"restock":
-			return ["Restock", "%d gold" % t.shop_restock_price, "New charms and gear on the shelves.",
-					_run.gold >= t.shop_restock_price]
+			return ["Restock", "%d gold" % _run.restock_price(), "New charms and gear on the shelves. Costs more each time.",
+					_run.gold >= _run.restock_price()]
 		"sell":
 			return ["Sell", "", "Open the backpack: items sell for %d%% of their price." % t.item_sell_percent, true]
 	return ["Leave", "", "Back to the map.", true]

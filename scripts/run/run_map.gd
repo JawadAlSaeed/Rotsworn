@@ -22,7 +22,10 @@ var rows: Array[Array] = []
 
 
 ## Makes a map: tuning.run_map_rows rows, then the final fight. `zone_count` zones to pick from.
-static func generate(rng: CombatRng, tuning: Tuning, zone_count: int) -> RunMap:
+## An act with no elite fights or no events (`has_elites`, `has_events` false) never gets those
+## stops, so a stop can never be left with nothing to play.
+static func generate(rng: CombatRng, tuning: Tuning, zone_count: int, has_elites: bool = true,
+		has_events: bool = true) -> RunMap:
 	var map := RunMap.new()
 	var row_total := maxi(2, tuning.run_map_rows)
 	var lo := clampi(mini(tuning.run_map_min_width, tuning.run_map_max_width), 1, 6)
@@ -32,7 +35,7 @@ static func generate(rng: CombatRng, tuning: Tuning, zone_count: int) -> RunMap:
 	map._add_row(row_total, 1)
 	for r: int in row_total:
 		map._connect(r, rng, tuning.run_map_extra_path_percent)
-	map._assign_types(rng, tuning)
+	map._assign_types(rng, tuning, has_elites, has_events)
 	map._assign_zones(rng, zone_count)
 	return map
 
@@ -149,7 +152,7 @@ static func _can_add(pairs: Array[Vector2i], i: int, j: int) -> bool:
 
 ## Row 0 is zones, the row before the final fight rests, run_treasure_row treasure; the others
 ## are picked by weight: zones, shops, rests, elites (not before run_elite_min_row) and events.
-func _assign_types(rng: CombatRng, tuning: Tuning) -> void:
+func _assign_types(rng: CombatRng, tuning: Tuning, has_elites: bool = true, has_events: bool = true) -> void:
 	var last := rows.size() - 1
 	var weights: Array[int] = [tuning.run_weight_zone, tuning.run_weight_rest, tuning.run_weight_shop,
 			tuning.run_weight_elite, tuning.run_weight_event]
@@ -169,8 +172,10 @@ func _assign_types(rng: CombatRng, tuning: Tuning) -> void:
 			else:
 				middle.append(id)
 				var row_weights := weights.duplicate()
-				if r < tuning.run_elite_min_row:
+				if r < tuning.run_elite_min_row or not has_elites:
 					row_weights[3] = 0
+				if not has_events:
+					row_weights[4] = 0
 				s.type = _pick_middle(rng, row_weights, kinds, s, r == last - 2)
 	if count_type(StopType.SHOP) == 0 and not middle.is_empty():
 		stops[middle[rng.range_int(0, middle.size() - 1)]].type = StopType.SHOP

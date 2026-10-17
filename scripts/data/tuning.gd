@@ -272,6 +272,11 @@ extends Resource
 @export_range(0, 10000) var shop_cleanse_price: int = 35
 @export_range(0, 10000) var shop_upgrade_price: int = 45
 @export_range(0, 10000) var shop_restock_price: int = 20
+## Each restock in one shop visit costs this much more than the last (card #175: stops gold from
+## turning into endless Tonics by re-rolling the shelves).
+@export_range(0, 10000) var shop_restock_step: int = 20
+## A hero can drink at most this many Tonics (permanent max HP) in a run (card #175).
+@export_range(0, 99) var tonic_max_per_hero: int = 2
 ## Campfire (DESIGN.md 8.11): Train gives every hero this many attribute points.
 @export_range(0, 10) var rest_train_points: int = 1
 

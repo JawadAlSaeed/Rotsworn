@@ -38,8 +38,11 @@ const COMBAT_SCENE := preload("res://scenes/combat.tscn")
 const AUTOPLAY_RETURN_S: float = 1.0
 ## Autoplay: give up when no fight has started for this long in a zone (seconds).
 const AUTOPLAY_ZONE_STUCK_S: float = 180.0
-## Autoplay on the map: a rest is picked when someone is at or under this percent of max HP.
+## Autoplay on the map: a rest is picked when someone is at or under this percent of max HP, or the
+## party averages under AUTOPLAY_REST_AVERAGE_PERCENT. An elite stop is only taken while the party is
+## healthy, like a champion in a zone (ZoneAutoplay). These are the bot's habits, not game rules.
 const AUTOPLAY_REST_BELOW_PERCENT: int = 60
+const AUTOPLAY_REST_AVERAGE_PERCENT: int = 75
 const QUIT_AUDIO_RELEASE_S: float = 0.3
 ## Online client: the "host is choosing" line over watched run screens.
 const WATCH_TEXT_SIZE: int = 26
@@ -711,7 +714,7 @@ func _start_zone(zone: ZoneData) -> void:
 		var bot := ZoneAutoplay.new()
 		bot.name = "ZoneAutoplay"
 		_zone.add_child(bot)
-		bot.setup(_zone, _tuning, _options.autoplay_mode, _run != null)
+		bot.setup(_zone, _tuning, _options.autoplay_mode, _run != null, _autoplay_health, _autoplay_use_items)
 
 
 func _free_zone() -> void:
@@ -945,6 +948,13 @@ func _start_final_fight(elite: bool = false) -> void:
 	_fight_look = _run.final_look()
 	if elite:
 		_encounter = _run.elite_of(_run.at)
+		if _encounter == null:
+			# The map never rolls an elite stop for an act without elites; if one slips through,
+			# leave it as an empty stop instead of crashing the fight.
+			push_error("Elite stop %d has no elite fight in act %d" % [_run.at, _run.act])
+			_end_busy()
+			_fade_to(_show_map)
+			return
 		var zone := _run.zone_of(_run.current())
 		_fight_look = zone.look if zone != null else _run.final_look()
 	_zone_fight = {}
@@ -1598,7 +1608,7 @@ func _on_chest(chest: int) -> void:
 		return
 	_zone.open_chest(chest)
 	Sfx.play("chest_open")
-	var prize := _run.chest_contents(_run.at)
+	var prize := _run.chest_contents(_run.at, chest)
 	print("Run chest: %s" % (String(prize.get("id")) if prize != null else "empty"))
 	_give_prize(prize, "The chest")
 
@@ -1840,7 +1850,7 @@ func _autoplay_map(map: MapScreen) -> void:
 	# Treasure first, a shop with gold, a campfire when hurt, then zones, events, and elites when
 	# healthy (each kind gets played).
 	for wanted: int in [RunMap.StopType.TREASURE, RunMap.StopType.SHOP if _run.gold >= cheapest else -1,
-			RunMap.StopType.REST if hurt else -1, RunMap.StopType.ELITE if not hurt else -1,
+			RunMap.StopType.REST if hurt else -1, RunMap.StopType.ELITE if _autoplay_elite_ready() else -1,
 			RunMap.StopType.EVENT, RunMap.StopType.ZONE]:
 		for id: int in map.choices():
 			if pick < 0 and int(_run.map.stop(id).type) == wanted:
@@ -1851,6 +1861,11 @@ func _autoplay_map(map: MapScreen) -> void:
 		_autoplay_fail("map_no_choice")
 		return
 	map.choose(pick)
+
+
+## True if the party is fit for an elite fight (the same habit as a zone champion).
+func _autoplay_elite_ready() -> bool:
+	return ZoneAutoplay.is_ready(_autoplay_health())
 
 
 ## Autoplay at a campfire: rests when someone is hurt, else upgrades an item or trains.
@@ -1886,12 +1901,31 @@ func _autoplay_shop(shop: ShopScreen) -> void:
 		shop.leave()
 
 
-## True if a hero is at or under AUTOPLAY_REST_BELOW_PERCENT of their max HP.
+## True if a hero is at or under AUTOPLAY_REST_BELOW_PERCENT of their max HP, or the party as a
+## whole is under AUTOPLAY_REST_AVERAGE_PERCENT.
 func _autoplay_hurt() -> bool:
 	for slot: int in _run.party_size():
 		if _run.hp[slot] * 100 <= _run.max_hp(slot) * AUTOPLAY_REST_BELOW_PERCENT:
 			return true
-	return false
+	return _autoplay_health().y < AUTOPLAY_REST_AVERAGE_PERCENT
+
+
+## The party's state: x the weakest hero's HP percent of max, y the party's average HP percent, z the
+## lowest hero level (ZoneAutoplay reads it).
+@warning_ignore("integer_division")
+func _autoplay_health() -> Vector3i:
+	if _run == null:
+		return Vector3i(100, 100, 99)
+	var lowest := 100
+	var lowest_level := 99
+	var hp_sum := 0
+	var max_sum := 0
+	for slot: int in _run.party_size():
+		lowest = mini(lowest, _run.hp[slot] * 100 / maxi(1, _run.max_hp(slot)))
+		lowest_level = mini(lowest_level, _run.levels[slot])
+		hp_sum += _run.hp[slot]
+		max_sum += _run.max_hp(slot)
+	return Vector3i(lowest, hp_sum * 100 / maxi(1, max_sum), lowest_level)
 
 
 ## Autoplay at an event: takes the first choice it can pay for (risks too), then goes on.
@@ -1993,7 +2027,14 @@ func _autoplay_use_items() -> void:
 		if _run.hp[low] * 100 <= _run.max_hp(low) * AUTOPLAY_REST_BELOW_PERCENT and _run.use_item(int(e.uid), low):
 			print("Run use: %s on %s" % [item.id, _run.data.party[low].id])
 	for e: Dictionary in _run.backpack.entries.duplicate():
-		if (e.item as ItemData).effect == ItemData.Effect.MAX_HP_ONE and _run.use_item(int(e.uid), 0):
+		if (e.item as ItemData).effect != ItemData.Effect.MAX_HP_ONE:
+			continue
+		# A hero can only drink so many (tuning.tonic_max_per_hero): the one with the most left.
+		var drinker := 0
+		for slot: int in _run.party_size():
+			if _run.tonics_left(slot) > _run.tonics_left(drinker):
+				drinker = slot
+		if _run.use_item(int(e.uid), drinker):
 			print("Run use: %s" % (e.item as ItemData).id)
 
 
