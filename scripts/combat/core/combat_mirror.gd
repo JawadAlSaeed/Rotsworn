@@ -33,11 +33,14 @@ var items: Dictionary = {}
 var used_items: Array[int] = []
 ## What happened in this fight, for the RUN OVER screen (card #191); fed by apply().
 var recap := FightRecap.new()
+## What this fight adds to the Rot Journal (card #200); fed by apply() like the recap.
+var journal := JournalTally.new()
 
 
 func apply(event: Dictionary) -> void:
 	_apply(event)
 	recap.feed(event, self)
+	journal.feed(event, self)
 
 
 func _apply(event: Dictionary) -> void:
