@@ -26,6 +26,10 @@ approach_ms = 400
 script = ExtResource("1_pexva")
 impact_ms = 2300
 damage_percent = 35
+forced_kind = 4
+forced_feint = true
+on_hit_status = "rotting"
+on_hit_hard_only = true
 
 [resource]
 script = ExtResource("2_67ahq")

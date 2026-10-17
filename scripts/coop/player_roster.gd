@@ -131,6 +131,47 @@ func device_of_player(player: int) -> int:
 	return devices[player] if player >= 0 and player < devices.size() else ANY
 
 
+## Local players whose pad is no longer in `connected` (the Godot joypad ids that are plugged in),
+## as player indexes. The keyboard and code-driven devices never go missing. Empty online.
+func missing_players(connected: Array[int]) -> Array[int]:
+	var list: Array[int] = []
+	if is_online():
+		return list
+	for player: int in devices.size():
+		if devices[player] >= 0 and not connected.has(devices[player]):
+			list.append(player)
+	return list
+
+
+## Player `player` carries on with another device (their pad came back under a new id, or they
+## took another pad or the keyboard). Refused if the device is already someone's or the player is
+## unknown.
+func replace_device(player: int, new_device: int) -> bool:
+	if is_online() or player < 0 or player >= devices.size() or devices.has(new_device):
+		return false
+	if new_device == ANY:
+		return false
+	devices[player] = new_device
+	return true
+
+
+## Before a run starts: players whose pad is gone leave (their heroes are dealt out again); if P1's
+## pad is gone and the keyboard is free, P1 plays on the keyboard. Returns how many were changed.
+func drop_missing(connected: Array[int]) -> int:
+	var changed := 0
+	# Leave from the back so the indexes stay valid.
+	var gone := missing_players(connected)
+	gone.reverse()
+	for player: int in gone:
+		if devices.size() > 1:
+			leave(player)
+			changed += 1
+		elif not devices.has(KEYBOARD):
+			devices[player] = KEYBOARD
+			changed += 1
+	return changed
+
+
 ## The player who controls hero `slot` (0 for an unknown slot, so a bigger party still plays).
 func owner_of(slot: int) -> int:
 	return owners[slot] if slot >= 0 and slot < owners.size() else 0

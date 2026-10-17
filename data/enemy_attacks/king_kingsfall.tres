@@ -17,25 +17,28 @@ approach_ms = 160
 
 [sub_resource type="Resource" id="Resource_diroy"]
 script = ExtResource("1_8abch")
-impact_ms = 1400
+impact_ms = 1500
 damage_percent = 25
 approach_ms = 160
+forced_kind = 3
 
 [sub_resource type="Resource" id="Resource_c2lli"]
 script = ExtResource("1_8abch")
-impact_ms = 1900
+impact_ms = 2000
 kind = 1
 damage_percent = 25
 approach_ms = 400
 
 [sub_resource type="Resource" id="Resource_nwubd"]
 script = ExtResource("1_8abch")
-impact_ms = 2400
+impact_ms = 2550
 damage_percent = 25
+forced_kind = 4
+feint = true
 
 [sub_resource type="Resource" id="Resource_qlmjl"]
 script = ExtResource("1_8abch")
-impact_ms = 2900
+impact_ms = 3050
 kind = 1
 damage_percent = 25
 approach_ms = 400

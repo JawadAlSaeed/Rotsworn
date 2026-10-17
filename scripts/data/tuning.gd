@@ -40,6 +40,10 @@ extends Resource
 @export_range(0, 3000, 1, "suffix:ms") var attack_lead_in_ms: int = 700
 ## Speed of every enemy attack, in percent of its authored timing. 120 = 20% slower.
 @export_range(25, 300, 1, "suffix:%") var attack_tempo_percent: int = 100
+## Enemy attacks never play faster than this percent of their authored timing, whatever depth,
+## elites, bosses and phase two add up to (card #188): the windows stay the same size, so the
+## lunges must stay readable.
+@export_range(25, 100, 1, "suffix:%") var attack_tempo_floor_percent: int = 70
 ## Time after an attack's last hit before the turn moves on (when there is no counter).
 @export_range(0, 3000, 1, "suffix:ms") var attack_recover_ms: int = 450
 ## Freeze on a parry that is not the attack's last hit. Keep it well under the early part of
@@ -157,6 +161,11 @@ extends Resource
 @export_range(0, 500, 5, "suffix:%") var counter_mixed_bonus_percent: int = 50
 ## Counter damage while Riposte Stance is up, in percent of the normal counter (200 = x2).
 @export_range(100, 1000, 5, "suffix:%") var riposte_counter_percent: int = 200
+## Charged Dooms (card #195): breaking one staggers the enemy. It loses this many of its next turns
+## (the stagger ends when the last is lost), and takes this much extra damage from every source
+## while it lasts (50 = x1.5).
+@export_range(1, 4) var stagger_turns: int = 1
+@export_range(0, 500, 5, "suffix:%") var stagger_damage_taken_percent: int = 50
 
 @export_group("Timeline")
 ## One turn costs timeline_base / speed. Only the ratio between speeds matters.
@@ -259,9 +268,29 @@ extends Resource
 @export_range(10, 1000, 1, "suffix:%") var elite_hp_percent: int = 140
 @export_range(10, 1000, 1, "suffix:%") var elite_power_percent: int = 115
 @export_range(10, 1000, 1, "suffix:%") var elite_gold_percent: int = 150
+## Enemies get faster deeper in a run (card #188): each map row of depth takes this many percent
+## off the fight's attack tempo (lower tempo = faster strings). Then elite, guard and boss fights
+## take their own percent of that. Floored by attack_tempo_floor_percent. Practice fights keep
+## the authored timing.
+@export_range(0, 10, 1, "suffix:%") var run_enemy_tempo_row_percent: int = 1
+@export_range(50, 100, 1, "suffix:%") var elite_tempo_percent: int = 94
+@export_range(50, 100, 1, "suffix:%") var guard_tempo_percent: int = 94
+@export_range(50, 100, 1, "suffix:%") var boss_tempo_percent: int = 92
 ## Spoils after a guard or an elite are gear of at least this rarity (0 common, 1 rare, 2
 ## legendary), when the run still has some.
 @export_range(0, 2) var run_spoils_min_rarity: int = 1
+## "?" stops (DESIGN.md 8.7). The chance (percent) that a "?" stop is an ambush fight instead of an
+## event is unknown_fight_percent_base, plus unknown_fight_percent_step for every "?" stop passed
+## without a fight since the last one (the count starts over after any ambush). Seeded per stop.
+@export_range(0, 100, 1, "suffix:%") var unknown_fight_percent_base: int = 15
+@export_range(0, 100, 1, "suffix:%") var unknown_fight_percent_step: int = 15
+## Events pay (and charge) gold and XP grown by this percent per map row of depth (acts count the
+## rows before them), so the same event stays a trade late in the run.
+@export_range(0, 100, 1, "suffix:%") var event_reward_row_percent: int = 6
+## An event cannot take a hero below this percent of their normal max HP (before levels and gear).
+@export_range(1, 100, 1, "suffix:%") var event_max_hp_floor_percent: int = 40
+## An ambush fight can be run from (DESIGN.md 2.13). Off: it is a commitment like an elite.
+@export var ambush_can_run: bool = false
 ## A treasure stop also gives this much gold.
 @export_range(0, 10000) var run_treasure_gold: int = 30
 ## Between acts (DESIGN.md 8.9) everyone heals this percent of their max HP.
@@ -272,6 +301,11 @@ extends Resource
 @export_range(0, 10000) var shop_cleanse_price: int = 35
 @export_range(0, 10000) var shop_upgrade_price: int = 45
 @export_range(0, 10000) var shop_restock_price: int = 20
+## Each restock in one shop visit costs this much more than the last (card #175: stops gold from
+## turning into endless Tonics by re-rolling the shelves).
+@export_range(0, 10000) var shop_restock_step: int = 20
+## A hero can drink at most this many Tonics (permanent max HP) in a run (card #175).
+@export_range(0, 99) var tonic_max_per_hero: int = 2
 ## Campfire (DESIGN.md 8.11): Train gives every hero this many attribute points.
 @export_range(0, 10) var rest_train_points: int = 1
 
@@ -303,6 +337,12 @@ extends Resource
 ## the hero's next damaging skill deals this percent more.
 @export_range(0, 500, 1, "suffix:%") var marked_bonus_percent: int = 40
 @export_range(0, 500, 1, "suffix:%") var empowered_bonus_percent: int = 30
+## Hero debuffs left by enemy hits (card #194). Rotting: the hero loses this percent of max HP at
+## the start of each of their turns, never below 1 HP from rot alone. Blighted: healing they
+## receive is cut by this percent. Weakened: their power is cut by this percent.
+@export_range(0, 100, 1, "suffix:%") var rotting_percent: int = 6
+@export_range(0, 100, 1, "suffix:%") var blighted_heal_cut_percent: int = 50
+@export_range(0, 100, 1, "suffix:%") var weakened_power_cut_percent: int = 25
 
 @export_group("Skill trees")
 ## Skill trees (DESIGN.md 8.4, card #136): each level up gives this many skill points; the
@@ -321,6 +361,15 @@ extends Resource
 @export_range(0, 6) var run_shop_charms: int = 2
 ## Gear slots per character.
 @export_range(1, 6) var run_gear_slots: int = 3
+## Rot-touched gear (DESIGN.md 8.16): strong pieces with a price. Spoils (elite, boss) offer this
+## many of them among their choices when the run has some left (never the only choice).
+@export_range(0, 3) var rot_gear_spoils_count: int = 1
+## Where rot-touched gear competes with the rest (shop shelves, chest prizes) its weight is this
+## percent of a normal piece's, so shops sell it rarely.
+@export_range(0, 100, 1, "suffix:%") var rot_gear_weight_percent: int = 35
+## Last Ember style gear (Passive.LOW_HP_POWER) works while the wearer's HP is under this percent
+## of their max.
+@export_range(1, 99, 1, "suffix:%") var rot_low_hp_percent: int = 30
 
 @export_group("Backpack")
 ## The party's shared backpack grid (DESIGN.md 8.1): this many cells wide and this many rows tall
@@ -366,6 +415,13 @@ extends Resource
 @export_range(0, 30000, 1, "suffix:ms") var net_deadline_grace_ms: int = 1500
 ## Zones: the host sends the leader and roaming enemy positions this many times a second.
 @export_range(1, 60) var net_zone_send_hz: int = 20
+
+@export_group("Controls")
+## Settings > Controls (card #190): after picking a key or button to change, the game waits this
+## long for the new one, then gives up and leaves the old one.
+@export_range(1000, 30000, 100, "suffix:ms") var rebind_capture_ms: int = 6000
+## Picking Reset to defaults asks twice; the second press must come within this long.
+@export_range(500, 10000, 100, "suffix:ms") var rebind_reset_confirm_ms: int = 4000
 
 @export_group("Practice and debug")
 ## Phase 1 practice keys: 1-5 force an enemy attack, I = party cannot die,

@@ -12,7 +12,8 @@ extends Resource
 @export var team_ultimate: AbilityData
 ## A boss fight: its name is announced when the fight starts.
 @export var boss: bool = false
-## The party may try to run from this fight (DESIGN.md 2.13). Bosses never allow it.
+## The party may try to run from this fight (DESIGN.md 2.13). Bosses, guards and elite fights never
+## allow it, whatever this says (CombatSetup).
 @export var can_run: bool = true
 ## A zone's guard (DESIGN.md 8.6): its name is announced like a boss's, but it grows with depth
 ## like any fight.

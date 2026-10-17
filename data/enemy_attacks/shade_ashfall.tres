@@ -1,0 +1,75 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+[ext_resource type="Resource" path="res://data/projectiles/cinder.tres" id="3_cinder"]
+
+[sub_resource type="Resource" id="Hit_0"]
+script = ExtResource("1_hit")
+impact_ms = 1200
+damage_percent = 28
+approach_ms = 560
+projectile = ExtResource("3_cinder")
+
+[sub_resource type="Resource" id="Hit_1"]
+script = ExtResource("1_hit")
+impact_ms = 1650
+damage_percent = 28
+approach_ms = 480
+projectile = ExtResource("3_cinder")
+
+[sub_resource type="Resource" id="Hit_2"]
+script = ExtResource("1_hit")
+impact_ms = 2100
+forced_kind = 3
+damage_percent = 28
+approach_ms = 220
+
+[sub_resource type="Resource" id="Hit_3"]
+script = ExtResource("1_hit")
+impact_ms = 2900
+kind = 1
+damage_percent = 34
+approach_ms = 600
+ground_look = 1
+
+[sub_resource type="Resource" id="Hit_4"]
+script = ExtResource("1_hit")
+impact_ms = 3500
+damage_percent = 28
+approach_ms = 480
+projectile = ExtResource("3_cinder")
+
+[sub_resource type="Resource" id="Hit_5"]
+script = ExtResource("1_hit")
+impact_ms = 3950
+forced_kind = 4
+damage_percent = 28
+approach_ms = 220
+
+[sub_resource type="Resource" id="Hit_6"]
+script = ExtResource("1_hit")
+impact_ms = 4850
+kind = 1
+damage_percent = 34
+approach_ms = 650
+
+[sub_resource type="Resource" id="Hit_7"]
+script = ExtResource("1_hit")
+impact_ms = 5450
+forced_kind = 3
+damage_percent = 32
+approach_ms = 220
+forced_feint = true
+
+[resource]
+script = ExtResource("2_attack")
+id = "shade_ashfall"
+display_name = "Ashfall"
+target_mode = 1
+weight = 9
+charge_turns = 2
+break_damage_percent = 36
+cooldown_turns = 2
+start_cooldown_turns = 2
+hits = Array[ExtResource("1_hit")]([SubResource("Hit_0"), SubResource("Hit_1"), SubResource("Hit_2"), SubResource("Hit_3"), SubResource("Hit_4"), SubResource("Hit_5"), SubResource("Hit_6"), SubResource("Hit_7")])

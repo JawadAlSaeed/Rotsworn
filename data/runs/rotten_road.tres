@@ -51,6 +51,29 @@
 [ext_resource type="Resource" path="res://data/items/heartleaf.tres" id="22_81ydh"]
 [ext_resource type="Resource" path="res://data/items/wake_root.tres" id="23_m187n"]
 [ext_resource type="Resource" path="res://data/items/rain_pouch.tres" id="24_1i5p2"]
+[ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="42_jhtoh"]
+[ext_resource type="Resource" path="res://data/gear/rotten_crown.tres" id="42_y3kuw"]
+[ext_resource type="Resource" path="res://data/runs/oaths/thorns.tres" id="43_lj346"]
+[ext_resource type="Resource" path="res://data/gear/gravebound_ring.tres" id="43_yco0i"]
+[ext_resource type="Resource" path="res://data/gear/hunger_charm.tres" id="44_341yx"]
+[ext_resource type="Resource" path="res://data/runs/oaths/want.tres" id="44_iwyxx"]
+[ext_resource type="Resource" path="res://data/gear/last_ember.tres" id="45_25vbo"]
+[ext_resource type="Resource" path="res://data/runs/oaths/embers.tres" id="45_jpepd"]
+[ext_resource type="Resource" path="res://data/runs/oaths/deep.tres" id="46_lsmoe"]
+[ext_resource type="Resource" path="res://data/gear/ash_veil.tres" id="46_ofupd"]
+[ext_resource type="Resource" path="res://data/runs/oaths/crowns.tres" id="47_1svv3"]
+[ext_resource type="Resource" path="res://data/gear/thorned_gauntlet.tres" id="47_u6080"]
+[ext_resource type="Resource" path="res://data/runs/oaths/wounds.tres" id="48_hbev2"]
+[ext_resource type="Resource" path="res://data/gear/oathbreakers_band.tres" id="48_vao3x"]
+[ext_resource type="Resource" path="res://data/gear/chain_of_silence.tres" id="49_232c1"]
+[ext_resource type="Resource" path="res://data/runs/oaths/scarcity.tres" id="49_m7uq7"]
+[ext_resource type="Resource" path="res://data/runs/oaths/silence.tres" id="50_iy2sh"]
+[ext_resource type="Resource" path="res://data/gear/bloodletters_fang.tres" id="50_nj8y8"]
+[ext_resource type="Resource" path="res://data/runs/oaths/long_road.tres" id="51_ax47g"]
+[ext_resource type="Resource" path="res://data/gear/hollow_mantle.tres" id="51_mjcxu"]
+[ext_resource type="Resource" path="res://data/gear/pale_tithe.tres" id="52_klwt4"]
+[ext_resource type="Resource" path="res://data/runs/oaths/rot.tres" id="52_vhvxm"]
+[ext_resource type="Resource" path="res://data/gear/plague_bell.tres" id="53_vo0gh"]
 
 [resource]
 script = ExtResource("7_hnbrd")
@@ -65,4 +88,5 @@ final_look = ExtResource("2_4r4bl")
 final_map_icon_path = "res://assets/sprites/ui/map_lair_hollow_king.png"
 shop_items = Array[ExtResource("3_pfciy")]([ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("6_cnqeh"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("9_7h55f"), ExtResource("15_l3kfd")])
 found_items = Array[ExtResource("3_pfciy")]([ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("6_cnqeh"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("9_7h55f"), ExtResource("10_r48q0"), ExtResource("11_7kshk"), ExtResource("12_jlagg"), ExtResource("13_lwxot"), ExtResource("14_qus8p"), ExtResource("15_l3kfd"), ExtResource("16_2sbiv"), ExtResource("17_jca6s"), ExtResource("18_7qxmh"), ExtResource("19_dl22l"), ExtResource("20_h1ots"), ExtResource("21_dy7w4"), ExtResource("22_81ydh"), ExtResource("23_m187n"), ExtResource("24_1i5p2")])
-gear = Array[ExtResource("3_dfnv4")]([ExtResource("4_cnqeh"), ExtResource("5_5blr4"), ExtResource("6_ic0fs"), ExtResource("7_igmpf"), ExtResource("8_5a6is"), ExtResource("9_v1mkt"), ExtResource("10_7h55f"), ExtResource("11_r48q0"), ExtResource("12_7kshk"), ExtResource("13_jlagg"), ExtResource("14_67ek5"), ExtResource("15_jtxfh"), ExtResource("16_o0k8w")])
+gear = Array[ExtResource("3_dfnv4")]([ExtResource("4_cnqeh"), ExtResource("5_5blr4"), ExtResource("6_ic0fs"), ExtResource("7_igmpf"), ExtResource("8_5a6is"), ExtResource("9_v1mkt"), ExtResource("10_7h55f"), ExtResource("11_r48q0"), ExtResource("12_7kshk"), ExtResource("13_jlagg"), ExtResource("14_67ek5"), ExtResource("15_jtxfh"), ExtResource("16_o0k8w"), ExtResource("42_y3kuw"), ExtResource("43_yco0i"), ExtResource("44_341yx"), ExtResource("45_25vbo"), ExtResource("46_ofupd"), ExtResource("47_u6080"), ExtResource("48_vao3x"), ExtResource("49_232c1"), ExtResource("50_nj8y8"), ExtResource("51_mjcxu"), ExtResource("52_klwt4"), ExtResource("53_vo0gh")])
+oaths = Array[ExtResource("42_jhtoh")]([ExtResource("43_lj346"), ExtResource("44_iwyxx"), ExtResource("45_jpepd"), ExtResource("46_lsmoe"), ExtResource("47_1svv3"), ExtResource("48_hbev2"), ExtResource("49_m7uq7"), ExtResource("50_iy2sh"), ExtResource("51_ax47g"), ExtResource("52_vhvxm")])

@@ -8,7 +8,7 @@ extends Resource
 ## Where its feet are.
 @export var position: Vector3 = Vector3.ZERO
 ## World units per pixel.
-@export_range(0.005, 1.0, 0.001) var pixel_size: float = 0.06
+@export_range(0.005, 1.0, 0.001) var pixel_size: float = 0.05
 @export var flip: bool = false
 ## The player and roaming enemies cannot walk closer than this to its feet (0 = walk through).
 @export_range(0.0, 10.0, 0.05) var solid_radius: float = 0.0
@@ -18,3 +18,7 @@ extends Resource
 ## Wind (DESIGN.md 8.12): the top of the sprite sways this far (world units) and back, slowly;
 ## grass, reeds and leaves sway, stone does not (0).
 @export_range(0.0, 1.0, 0.005) var sway: float = 0.0
+## A soft shadow blob on the ground under it (StageLook "Contact shadows"). Turn off for flat
+## ground cover (grass, ferns, reeds), where a blob would only dirty the floor. Glowing props
+## never get one.
+@export var contact_shadow: bool = true

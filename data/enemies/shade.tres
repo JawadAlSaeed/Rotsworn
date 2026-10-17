@@ -25,5 +25,7 @@ sprite_pixel_size = 0.045
 hp_percent = 90
 speed = 130
 attacks = Array[ExtResource("1_xlmdh")]([ExtResource("2_eqh5t"), ExtResource("3_i2yil"), ExtResource("4_48bed"), ExtResource("5_idxi1"), ExtResource("p12_shade_bolts"), ExtResource("p12_shade_grave_spikes")])
+target_rule = 1
+target_bias_percent = 300
 gold = 20
 xp = 40

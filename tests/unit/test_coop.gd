@@ -286,3 +286,57 @@ func test_lobby_keeps_the_last_split_for_the_same_p1() -> void:
 	var other := PlayerRoster.solo(3, 3)
 	other.join(0)
 	assert_false(_lobby(other).roster().is_coop(), "someone else opened it: they start alone")
+
+
+# --- a pad drops (card #181) --------------------------------------------------------------------
+
+func _pair() -> PlayerRoster:
+	var roster := PlayerRoster.solo(3, 0)
+	roster.join(1)
+	return roster
+
+
+func test_missing_players_sees_a_pad_that_is_gone() -> void:
+	var roster := _pair()
+	assert_eq(roster.missing_players([0, 1] as Array[int]), [] as Array[int])
+	assert_eq(roster.missing_players([0] as Array[int]), [1] as Array[int])
+	assert_eq(roster.missing_players([] as Array[int]), [0, 1] as Array[int])
+	var with_keys := PlayerRoster.solo(3, KEYBOARD)
+	with_keys.join(2)
+	assert_eq(with_keys.missing_players([] as Array[int]), [1] as Array[int], "the keyboard never goes missing")
+
+
+func test_replace_device_takes_over_a_seat() -> void:
+	var roster := _pair()
+	assert_true(roster.replace_device(1, 5))
+	assert_eq(roster.devices, [0, 5] as Array[int])
+	assert_eq(roster.player_of_device(5), 1)
+	assert_true(roster.may_control(5, 1), "the new pad controls P2's hero")
+	assert_false(roster.may_control(1, 1), "the old id no longer does")
+	assert_false(roster.replace_device(1, 0), "a device already in the roster is refused")
+	assert_false(roster.replace_device(4, 7), "no such player")
+	assert_false(roster.replace_device(0, PlayerRoster.ANY))
+
+
+func test_drop_missing_before_a_run() -> void:
+	var roster := _pair()
+	assert_eq(roster.drop_missing([0, 1] as Array[int]), 0)
+	assert_eq(roster.drop_missing([0] as Array[int]), 1)
+	assert_eq(roster.devices, [0] as Array[int])
+	assert_eq(roster.owners, [0, 0, 0] as Array[int], "the dropped player's heroes are dealt out again")
+	assert_true(roster.validate().is_empty())
+	var all_gone := _pair()
+	all_gone.drop_missing([] as Array[int])
+	assert_eq(all_gone.devices, [KEYBOARD] as Array[int], "P1 falls back to the keyboard")
+	assert_true(all_gone.validate().is_empty())
+
+
+func test_stick_diagonal_is_not_snapped_to_an_axis() -> void:
+	# A push at about 25 degrees: the old per-axis deadzone zeroed y.
+	var v := DeviceInput.radial_deadzone(Vector2(0.9, 0.42), 0.2)
+	assert_gt(v.x, 0.0)
+	assert_gt(v.y, 0.0, "the vertical part survives")
+	assert_almost_eq(v.angle(), Vector2(0.9, 0.42).angle(), 0.001, "direction is kept")
+	assert_eq(DeviceInput.radial_deadzone(Vector2(0.15, 0.1), 0.2), Vector2.ZERO, "inside the deadzone")
+	assert_almost_eq(DeviceInput.radial_deadzone(Vector2(1.0, 0.0), 0.2).length(), 1.0, 0.001)
+	assert_lt(DeviceInput.radial_deadzone(Vector2(0.3, 0.0), 0.2).length(), 0.3, "rises from zero at the edge")

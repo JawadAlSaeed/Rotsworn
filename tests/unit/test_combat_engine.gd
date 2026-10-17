@@ -52,9 +52,9 @@ const PROMPT_KEYS: Array[String] = ["idx", "hit", "character", "at_ms", "kind", 
 		"press_damage", "perfect_damage", "role", "requires", "crit"]
 const STRING_VALUES: Dictionary = {
 	"timed_sequence_declared.kind": ["enemy_attack", "skill"],
-	"damage.cause": ["ability", "follow_up", "counter", "team_counter", "item", "rot", "bleed"],
-	"ap_changed.reason": ["spend", "ability", "given", "gear"],
-	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte", "bleeding", "regen", "marked", "empowered"],
+	"damage.cause": ["ability", "follow_up", "counter", "team_counter", "item", "rot", "bleed", "rotting", "thorns"],
+	"ap_changed.reason": ["spend", "ability", "given", "gear", "drain"],
+	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte", "bleeding", "regen", "marked", "empowered", "rotting", "blighted", "weakened"],
 	"prompts_voided.reason": ["downed", "attacker_down", "targets_down", "no_good_press"],
 	"sequence_resolved.reason": ["completed", "targets_down", "attacker_down"],
 	"combat_ended.result": ["victory", "defeat"],
@@ -1010,6 +1010,10 @@ func test_events_have_exactly_the_documented_fields() -> void:
 		if not EVENT_KEYS.has(type):
 			fail_test("undocumented event type '%s'" % type)
 			return
+		if type == "intent" and e.has("odds"):
+			# Practice fights add the odds behind the pick (checked in test_enemy_ai.gd).
+			e = e.duplicate()
+			e.erase("odds")
 		if _sorted_keys(e) != _expected_keys(EVENT_KEYS[type], true):
 			fail_test("%s has fields %s, documented %s" % [type, str(_sorted_keys(e)), str(_expected_keys(EVENT_KEYS[type], true))])
 			return

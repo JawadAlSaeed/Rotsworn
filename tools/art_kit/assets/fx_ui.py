@@ -485,6 +485,54 @@ def make_hit_ground() -> np.ndarray:
         "e": EARTH[1], "f": EARTH[2]})
 
 
+# Forced-choice hits (card #187): the game's rend_hit_color (bone, near the PARRY readout's
+# yellow) and sweep_hit_color (sickly green, near the DODGE readout's green).
+REND_HIT = "#f5db94"
+SWEEP_HIT = "#99db38"
+REND = ramp(REND_HIT, below=3, above=1, step_l=0.1)  # 5 colours, darkest first
+SWEEP = ramp(SWEEP_HIT, below=3, above=1, step_l=0.1)
+
+
+def make_hit_rend() -> np.ndarray:
+    """Three claw gashes raking down to the left, in bone: bright tips at the top, thick middles,
+    shaded thin tails; the middle gash longest. A hit only a parry stops (a dodge or a jump is the
+    wrong button)."""
+    return _icon(12, [
+        "............",
+        "......W.....",
+        "...W..WL..W.",
+        "...WL.LL..WL",
+        "..WLL.LM.WLL",
+        "..LLM.LM.LLM",
+        "..LM.LMs.LM.",
+        ".LMs.LM..Ms.",
+        ".Ms..Ms..s..",
+        ".s...M......",
+        ".....s......",
+        "............",
+    ], {"W": REND[4], "L": REND[3], "M": REND[2], "s": REND[1]})
+
+
+def make_hit_sweep() -> np.ndarray:
+    """A wide crescent, the path of a low swing from one side to the other, in sickly green: thin
+    bright tips up at both ends, the thick shaded belly at the bottom. Too wide to parry or jump
+    over: a hit only a dodge avoids."""
+    return _icon(12, [
+        "............",
+        "............",
+        ".T........T.",
+        ".LT......TL.",
+        ".LT......TL.",
+        ".MLT....TLM.",
+        "..MLTTTTLM..",
+        "..mMLLLLMm..",
+        "...mmMMmm...",
+        ".....dd.....",
+        "............",
+        "............",
+    ], {"T": SWEEP[4], "L": SWEEP[3], "M": SWEEP[2], "m": SWEEP[1], "d": SWEEP[0]})
+
+
 def make_lock() -> np.ndarray:
     """A padlock: iron shackle over a bevelled worn-gold body (light top and left, dark right and
     bottom) with a keyhole: a dark slot whose shaded top reads as the round head."""
@@ -619,6 +667,8 @@ def review_sheet(parts: dict[str, np.ndarray]) -> np.ndarray:
     _paste(sheet, _scale_nearest(parts["hit_ground"], 18), 24, y + 44)
     _paste(sheet, _scale_nearest(parts["hit_normal"], 30), 76, y + 22)
     _paste(sheet, _scale_nearest(parts["hit_ground"], 30), 108, y + 22)
+    _paste(sheet, _scale_nearest(parts["hit_rend"], 18), 44, y + 44)
+    _paste(sheet, _scale_nearest(parts["hit_sweep"], 18), 64, y + 44)
     _paste(sheet, _scale_nearest(parts["lock"], 56), 152, y + 2)
     # Hit markers: the icon on a dark disc with the normal (red-orange) or ground (purple) ring.
     _disc(sheet, 150, 168, 25, (230, 110, 60), 3)
@@ -756,11 +806,13 @@ def build(ctx) -> None:
         "ap_pip_empty": make_ap_pip_empty(),
         "hit_normal": make_hit_normal(),
         "hit_ground": make_hit_ground(),
+        "hit_rend": make_hit_rend(),
+        "hit_sweep": make_hit_sweep(),
         "lock": make_lock(),
     }
     for name in ("shadow", "slash", "spark", "shockwave"):
         ctx.save("sprites/fx/%s.png" % name, parts[name])
-    for name in ("ap_pip", "ap_pip_empty", "hit_normal", "hit_ground", "lock"):
+    for name in ("ap_pip", "ap_pip_empty", "hit_normal", "hit_ground", "hit_rend", "hit_sweep", "lock"):
         ctx.save("sprites/ui/%s.png" % name, parts[name])
     sheet = review_sheet(parts)
     _save_sheet(ctx, "review_1x.png", sheet, 1)

@@ -3,7 +3,8 @@ rem Runs every unit test headless (no window). Results are printed below.
 setlocal
 if "%GODOT%"=="" set "GODOT=C:\Users\Drago\Godot\Godot_v4.7.2-stable_win64_console.exe"
 cd /d "%~dp0"
-set "LOG=%TEMP%\rotsworn_tests.log"
+rem A log of its own per run, so test runs in several worktrees at once do not clash.
+set "LOG=%TEMP%\rotsworn_tests_%RANDOM%%RANDOM%.log"
 echo Importing project files...
 "%GODOT%" --headless --path . --import >nul 2>&1
 echo Running tests...

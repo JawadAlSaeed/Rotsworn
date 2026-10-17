@@ -6,10 +6,11 @@
 script = ExtResource("1_t0a38")
 id = "salve"
 display_name = "Salve"
-description = "Heals one character by half of their max HP."
+description = "Heals one character by half of their max HP, and lifts one mark (rot, blight or weakness) in a fight."
 price = 25
 effect = 1
 amount_percent = 50
+cleanse_count = 1
 use_in_fight = true
 use_in_fight = true
 icon_path = "res://assets/sprites/items/salve.png"

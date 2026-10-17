@@ -19,6 +19,8 @@ approach_ms = 400
 script = ExtResource("1_vsply")
 impact_ms = 2000
 damage_percent = 45
+forced_kind = 4
+forced_feint = true
 
 [resource]
 script = ExtResource("2_2i3li")

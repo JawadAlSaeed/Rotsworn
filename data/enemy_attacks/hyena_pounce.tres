@@ -8,6 +8,8 @@ script = ExtResource("1_hit")
 impact_ms = 1300
 damage_percent = 140
 approach_ms = 420
+on_hit_status = "weakened"
+on_hit_hard_only = true
 
 [resource]
 script = ExtResource("2_attack")

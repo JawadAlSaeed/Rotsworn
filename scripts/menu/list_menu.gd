@@ -34,6 +34,9 @@ var item_size: int = ITEM_SIZE
 var centred: bool = true
 ## Row width in pixels (0: CENTRED_ROW_WIDTH or LEFT_ROW_WIDTH).
 var row_width: float = 0.0
+## How many rows show at once (0: all). A longer list scrolls with the cursor (the Controls list).
+var window_rows: int = 0
+var _top: int = 0
 var _rows: Array[PanelContainer] = []
 ## Rows still in the list (the cursor stops on them) but drawn elsewhere by the owner.
 var _hidden: Dictionary = {}
@@ -81,12 +84,13 @@ func set_items(new_items: Array[Dictionary], detail_label: Label = null) -> void
 		var value := HudStyle.make_label("", item_size)
 		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		line.add_child(value)
-		row.visible = not _hidden.has(i)
+		row.visible = not _hidden.has(i) and _in_window(i)
 		add_child(row)
 		_rows.append(row)
 		_labels.append(label)
 		_values.append(value)
 	index = clampi(index, 0, maxi(0, items.size() - 1))
+	_top = 0
 	_shown_index = -1
 	redraw()
 
@@ -106,7 +110,7 @@ func set_row_shown(i: int, shown: bool) -> void:
 	else:
 		_hidden[i] = true
 	if i >= 0 and i < _rows.size():
-		_rows[i].visible = shown
+		_rows[i].visible = shown and _in_window(i)
 
 
 func is_enabled(i: int) -> bool:
@@ -138,6 +142,7 @@ func handle(event: InputEvent) -> StringName:
 
 
 func redraw() -> void:
+	_scroll_to_index()
 	for i: int in _labels.size():
 		var selected := i == index
 		var enabled := is_enabled(i)
@@ -171,6 +176,29 @@ func redraw() -> void:
 		row.create_tween().tween_property(row, "modulate", Color.WHITE, SELECTED_FLASH_S)
 	if _detail != null:
 		_detail.text = String(items[index].get("detail", "")) if index < items.size() else ""
+
+
+## True when row `i` is inside the visible window (always, without one).
+func _in_window(i: int) -> bool:
+	return window_rows <= 0 or (i >= _top and i < _top + window_rows)
+
+
+## Moves the window so the chosen row is inside it, and shows only the rows in it.
+func _scroll_to_index() -> void:
+	if window_rows <= 0:
+		return
+	if index < _top:
+		_top = index
+	elif index >= _top + window_rows:
+		_top = index - window_rows + 1
+	_top = clampi(_top, 0, maxi(0, items.size() - window_rows))
+	for i: int in _rows.size():
+		_rows[i].visible = not _hidden.has(i) and _in_window(i)
+
+
+## The first row shown (0 without a window).
+func top_row() -> int:
+	return _top
 
 
 func _select_size() -> int:

@@ -69,9 +69,23 @@ heroes are no longer shown (enemies still use theirs).
 - `kit/beast.py` helpers for the phase 12 monsters (fly, hyena, toad): safe cones, a decal
   painter, finishing passes, the floor-line nudge, parallel clip rendering, `build_enemy()`.
 - `kit/specs.py` the sprite contract (sizes, frame order, sheet grid, Tier 1 clip names).
+- `assets/env_floor.py` the four places' open floors (card #186): three calm variants each
+  (`hollow_floor`, `ash_tile`, `bog_tile`, `throne_tile`, plus `_b` and `_c`), a calm moss and leaf
+  patch. The base is a sum of waves (isotropic, exactly periodic: no stripes), the detail is
+  scattered by a seeded generator. Keep floors low contrast (luma spread under 10) and the three
+  variants at one tone; `check.py` enforces it. The floor shader mixes them in game.
 - `assets/<module>.py` one module per asset group, each with `build(ctx)`. `env_zone` draws the
   long zones' things (phase 15): the rot seal, the gate tile, four shrines, three wanderers. `fx_attacks` draws
   the enemy attack effects of phase 12 (rock spikes, projectiles).
+- `assets/event_art.py` (card #199) the "?" stops' pictures: one 128x64 painted scene per event in
+  `data/events/` and one per act's ambush page, saved to `sprites/events/` (also a contact sheet in
+  `preview/event_art/events_contact.png`). Not sprites: a flat painted back (`_event_paint.py`'s `Painter`: sky,
+  ridges, trees, ground, mist, glow, vignette from palette ramps, a light ordered dither cuts the bands) with the
+  event's subject in front, built as a 3D model and rendered with the shared camera and light (`render_fit`,
+  `finish_prop`) over a contact shadow. Every pixel ends up one of the colours the scene was built from
+  (at most 96); `check.py` enforces size, opacity and the colour cap, and that every event file has a picture.
+  A scene takes 1 to 25 s; the module builds in about 90 s. Keep them dusk, night, olive or ash, never bright,
+  and never cartoony: no smiling faces, no flat toy colours; a glow only where the story has fire or magic.
 
 ## Style rules (the art bible)
 

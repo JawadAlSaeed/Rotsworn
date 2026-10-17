@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_evvwu"]
+
+[resource]
+script = ExtResource("1_evvwu")
+id = "chain_of_silence"
+display_name = "Chain of Silence"
+description = "Your skills and follow-ups fill the team gauge 50% more, but you start fights with 1 AP less."
+price = 80
+rarity = 1
+effect = 19
+amount = 50
+rot_touched = true
+drawback = 3
+drawback_amount = 1

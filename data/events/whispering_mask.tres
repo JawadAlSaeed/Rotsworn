@@ -1,43 +1,47 @@
 [gd_resource type="Resource" script_class="EventData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_blalh"]
-[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_c4ksu"]
-[ext_resource type="Resource" path="res://data/items/golden_idol.tres" id="3_6fo4r"]
-[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="4_42een"]
-
-[sub_resource type="Resource" id="Resource_7163m"]
-script = ExtResource("2_c4ksu")
-xp = 70
-
-[sub_resource type="Resource" id="Resource_u8l76"]
-script = ExtResource("2_c4ksu")
-cost_hp_percent = 20
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_c4ksu"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_6fo4r"]
+[ext_resource type="Resource" path="res://data/items/grave_moss.tres" id="3_42een"]
+[ext_resource type="Resource" path="res://data/items/golden_idol.tres" id="4_7163m"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="5_u8l76"]
 
 [sub_resource type="Resource" id="Resource_0j0xp"]
-script = ExtResource("1_blalh")
-text = "Put it on"
-detail = "Every hero gets 70 XP. Its voice may be too much."
-deal = SubResource("Resource_7163m")
-risk_percent = 50
-risk_deal = SubResource("Resource_u8l76")
-done_text = "Visions of old battles fill your heads."
-risk_text = "It screams. Everyone loses 20% HP."
+script = ExtResource("2_6fo4r")
+cost_max_hp_percent = 8
+cost_max_hp_target = 1
+xp = 90
 
 [sub_resource type="Resource" id="Resource_e1jt7"]
-script = ExtResource("2_c4ksu")
-item = ExtResource("3_6fo4r")
+script = ExtResource("2_6fo4r")
+cost_hp_percent = 25
 
 [sub_resource type="Resource" id="Resource_go2ci"]
-script = ExtResource("1_blalh")
+script = ExtResource("1_c4ksu")
+text = "One of you puts it on"
+detail = "The mask takes its price from the wearer."
+deal = SubResource("Resource_0j0xp")
+risk_percent = 40
+risk_deal = SubResource("Resource_e1jt7")
+done_text = "Visions of old battles fill your head."
+risk_text = "It screams."
+
+[sub_resource type="Resource" id="Resource_pv4sv"]
+script = ExtResource("2_6fo4r")
+cost_rotten = ExtResource("3_42een")
+item = ExtResource("4_7163m")
+
+[sub_resource type="Resource" id="Resource_pwx6o"]
+script = ExtResource("1_c4ksu")
 text = "Wrap it up to sell"
-detail = "A golden idol for the shop."
-deal = SubResource("Resource_e1jt7")
-done_text = "It goes quiet in the dark of the pack."
+detail = "A golden idol for the shop. It does not stay quiet."
+deal = SubResource("Resource_pv4sv")
+done_text = "It goes quiet in the dark of the pack. Almost."
 
 [resource]
-script = ExtResource("4_42een")
+script = ExtResource("5_u8l76")
 id = "whispering_mask"
 title = "The Whispering Mask"
 text = "A golden mask lies in the moss. It whispers how strong you could be."
-picture_path = "res://assets/sprites/ui/map_event.png"
-choices = Array[ExtResource("1_blalh")]([SubResource("Resource_0j0xp"), SubResource("Resource_go2ci")])
+picture_path = "res://assets/sprites/events/whispering_mask.png"
+choices = Array[ExtResource("1_c4ksu")]([SubResource("Resource_go2ci"), SubResource("Resource_pwx6o")])

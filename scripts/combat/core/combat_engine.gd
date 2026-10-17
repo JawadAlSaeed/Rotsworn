@@ -31,29 +31,37 @@ extends RefCounted
 ##                           items:[item_info()]} (backpack items usable in this fight)
 ##                           opening: "normal" | "first_strike" (DESIGN.md 2.12)
 ##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms],
-##                           feints:[bool] (which hits are feints, card #129)}
+##                           feints:[bool] (which hits are feints, card #129),
+##                           odds? {attacks:[[id, weight]], targets:[[hero, weight]]} (practice only)}
 ##                           what this enemy will do on its next turn (DESIGN.md 2.8). Sent at
 ##                           fight start, after its turn, and whenever its targets change.
 ##                           times: each hit's impact, ms after the attack starts (with
 ##                           attack_tempo_percent, like the declared hits' at_ms).
+##                           A Charged Doom (card #195) adds charge_left (enemy turns until it
+##                           unleashes), charge_total, charge_damage (taken since it was announced)
+##                           and break_hp (the damage that breaks it).
 ##   turn_started            {turn, actor, team, time}
 ##   turn_order              {order:[id]}      current actor first, then upcoming turns
 ##   ability_used            {turn, actor, ability, targets:[id]}
 ##   item_used               {turn, actor, uid, item, name, targets:[id]} (DESIGN.md 8.1)
 ##   damage                  {source, target, amount, hp, max_hp, cause, crit (a critical hit)}
 ##                           cause: "ability" | "follow_up" | "counter" | "team_counter" | "bleed"
+##                           | "item" | "rot" (gear) | "rotting" (the Rotting debuff) | "thorns" (gear)
 ##   healed                  {source, target, amount, hp, max_hp}
 ##   revived                 {source, target, hp, max_hp}
 ##   downed                  {target}
 ##   ap_changed              {character, delta, ap, reason}  reason: "spend" | "ability" | "given"
-##                           | "gear"
+##                           | "gear" | "drain" (an enemy hit that drains AP, card #194)
 ##   status_changed          {target, status, active, turns, source}   see Status
 ##   turn_shifted            {target, delta}   a fighter's next turn moved (delta in timeline
 ##                           ticks: negative = sooner); a turn_order event follows
 ##   team_gauge              {value, delta, max}
 ##   timed_sequence_declared {seq, kind, source, action, name, mode, targets:[id],
 ##                            alert_cue, allow_timing_ring, hits:[hit], prompts:[prompt]}
-##       hit    = {index, at_ms, kind, approach_ms, feint, damage_percent, impact_sfx}
+##       hit    = {index, at_ms, kind, approach_ms, feint, damage_percent, impact_sfx,
+##                 mark (only on a hit that marks, card #194: a hero debuff id or Status.MARK_AP_DRAIN)}
+##                kind is the hit's kind in this fight (a forced kind in a hard fight, card #187);
+##                at_ms and approach_ms are scaled by the enemy's tempo (card #188).
 ##       prompt = {idx, hit, character, at_ms, kind, windows:{Outcome:[early_us, late_us]},
 ##                 perfect:[Outcome], damage, press_damage, perfect_damage, role, requires:[idx],
 ##                 crit (a party press that crits if it lands)}
@@ -73,8 +81,20 @@ extends RefCounted
 ##                           reason: "completed" | "targets_down" | "attacker_down"
 ##   counter                 {seq, actors:[id], target, team, hits, mixed}  followed by a damage
 ##                           event. hits: perfectly defended hits it answers; mixed: parries and jumps
+##   doom_charging           {enemy, attack, name, left, total, damage, break_hp}   the enemy spent its
+##                           turn gathering a Doom (card #195); left > 0 turns remain
+##   doom_progress           {enemy, attack, damage, break_hp}   the party took more HP off a gathering
+##                           enemy, short of the break
+##   doom_broken             {enemy, attack, name, damage, break_hp, stagger_turns}   the party dealt
+##                           break_hp while the Doom was announced: it is cancelled and the enemy
+##                           staggered (a stagger_changed and a new intent follow)
+##   doom_unleashed          {enemy, attack, name}   the countdown ran out; the Doom strikes (its
+##                           timed_sequence_declared follows)
+##   stagger_changed         {enemy, turns, lost_turn}   the enemy is staggered for turns more of its
+##                           turns (it takes extra damage; damage events carry staggered: true);
+##                           lost_turn: it just lost one; turns 0: the stagger is over
 ##   enemy_phase             {enemy, phase, text}   a boss dropped under its phase two HP: new
-##                           attacks and speed (an intent and turn_order follow)
+##                           attacks, speed and attack tempo (an intent and turn_order follow)
 ##   turn_ended              {turn, actor}
 ##   practice_changed        {invulnerable_party, immortal_enemies, force_attack}
 ##                           also emitted (before timed_sequence_declared) when a forced
@@ -152,6 +172,9 @@ var stage: Dictionary = {"hold_enemies": false, "hold_party": false, "tempo_perc
 		"attack": "", "hero": -1}
 ## The enemy waiting at the gate (-1: none).
 var _gated: int = -1
+## The enemy that just lost a turn to a stagger: its announced intent stays (set and used within
+## one submit, so it is not part of snapshots).
+var _keep_intent: int = -1
 ## Backpack items not used yet (uids, DESIGN.md 8.1).
 var items_left: Array[int] = []
 
@@ -498,6 +521,9 @@ func _build_combatants() -> void:
 		c.base_speed = c.speed
 		for attack: EnemyAttackData in data.attacks:
 			c.attack_ids.append(attack.id)
+			if attack.start_cooldown_turns > 0:
+				# A Doom never opens the fight (card #195).
+				c.attack_cooldowns[attack.id] = attack.start_cooldown_turns
 		c.next_turn_at = Timeline.turn_cost(c.speed, tuning.timeline_base)
 		combatants.append(c)
 		slot += 1
@@ -567,9 +593,13 @@ func _start_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 		var amount := mini(CombatMath.percent_min1(actor.max_hp, rot), actor.hp - 1)
 		if amount > 0:
 			_deal_damage(actor, actor, amount, "rot", events)
+	if actor.has_status(Status.ROTTING) and actor.is_alive():
+		var rotted := mini(CombatMath.percent_min1(actor.max_hp, tuning.rotting_percent), actor.hp - 1)
+		if rotted > 0:
+			_deal_damage(actor, actor, rotted, "rotting", events)
 	if actor.has_status(Status.BLEEDING) and actor.is_alive():
 		var source := get_combatant(int((actor.statuses[Status.BLEEDING] as Dictionary).source))
-		var power := source.power if source != null else 1
+		var power := _power_of(source) if source != null else 1
 		_deal_damage(source if source != null else actor, actor, CombatMath.percent_min1(power, tuning.bleed_power_percent),
 				"bleed", events)
 	if actor.has_status(Status.REGEN) and actor.is_alive():
@@ -592,11 +622,19 @@ func _end_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 			entry.turns = left
 			events.append(_status_event(actor, id, true))
 	if not actor.is_party() and actor.is_alive():
-		_pick_intent(actor, events)
+		if _keep_intent == actor.id:
+			# It lost its turn to a stagger: what it announced still stands.
+			_keep_intent = -1
+		else:
+			_pick_intent(actor, events)
 
 
 ## Declares the enemy's intended attack as a timed sequence. Returns false if it has none.
 func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
+	if actor.staggered_turns > 0:
+		_lose_staggered_turn(actor, events)
+		return false
+	actor.tick_cooldowns()
 	var intent: Dictionary = intents.get(actor.id, {})
 	var forced := String(practice.force_attack)
 	if not forced.is_empty() and actor.attack_ids.has(forced):
@@ -608,6 +646,18 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 	if intent.is_empty():
 		intent = _choose_intent(actor)
 	var attack := get_attack(String(intent.get("attack", "")))
+	if attack != null and attack.is_doom():
+		# Charged Doom (card #195): every turn up to the last is spent gathering.
+		_arm_charge(actor, attack)
+		actor.charge_left -= 1
+		if actor.charge_left > 0:
+			events.append(_doom_event("doom_charging", actor, attack))
+			return false
+		actor.clear_charge()
+		events.append({"type": "doom_unleashed", "enemy": actor.id, "attack": attack.id, "name": attack.display_name})
+	elif actor.charge_left > 0:
+		# Something else was forced over the Doom (practice): the charge is dropped.
+		actor.clear_charge()
 	intents.erase(actor.id)
 	if attack == null:
 		return false
@@ -619,29 +669,44 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 		return false
 	if attack.target_mode == EnemyAttackData.TargetMode.SINGLE and actor.has_status(Status.TAUNTED):
 		_remove_status(actor, Status.TAUNTED, events)
+	actor.note_attack(attack.id, attack.cooldown_turns,
+			targets[0] if attack.target_mode == EnemyAttackData.TargetMode.SINGLE else -1)
 
 	var hits: Array[Dictionary] = []
 	var prompts: Array[Dictionary] = []
+	var tempo := _tempo_percent(actor)
+	var hard := _forced_hits(actor)
 	for hit_index: int in attack.hits.size():
 		var hit: AttackHitData = attack.hits[hit_index]
-		var at_ms := CombatMath.percent(hit.impact_ms, _tempo_percent())
-		hits.append({
+		var at_ms := CombatMath.percent(hit.impact_ms, tempo)
+		var kind := hit.kind_in(hard)
+		var declared := {
 			"index": hit_index,
 			"at_ms": at_ms,
-			"kind": hit.kind,
-			"approach_ms": CombatMath.percent(hit.approach_ms, _tempo_percent()),
-			"feint": hit.feint,
+			"kind": kind,
+			"approach_ms": CombatMath.percent(hit.approach_ms, tempo),
+			"feint": hit.feint_in(hard),
 			"damage_percent": hit.damage_percent,
 			"impact_sfx": hit.impact_sfx,
-		})
+		}
+		var marks := hit.marks_in(hard)
+		if marks:
+			declared["mark"] = hit.mark_id_in(hard)
+		hits.append(declared)
 		# Each hero in turn: hit i strikes only its own target (DESIGN.md 3.11).
 		var hit_targets: Array[int] = targets
 		if attack.target_mode == EnemyAttackData.TargetMode.EACH:
 			hit_targets = [targets[hit_index % targets.size()]]
 		for target_id: int in hit_targets:
-			prompts.append(_prompt(prompts.size(), hit_index, target_id, at_ms, hit.kind,
-					Defense.build_windows(hit.kind, tuning), _enemy_hit_damage(actor, get_combatant(target_id), hit.damage_percent),
-					0, 0, ROLE_DEFEND, []))
+			var defend := _prompt(prompts.size(), hit_index, target_id, at_ms, kind,
+					Defense.build_windows(kind, tuning), _enemy_hit_damage(actor, get_combatant(target_id), hit.damage_percent),
+					0, 0, ROLE_DEFEND, [])
+			if marks:
+				# Only a marking hit carries these, so every other fight's events stay as they were.
+				defend["mark_status"] = hit.on_hit_status
+				defend["mark_turns"] = hit.on_hit_status_turns
+				defend["mark_ap"] = hit.on_hit_ap_drain
+			prompts.append(defend)
 	_declare(SEQUENCE_ENEMY_ATTACK, actor.id, attack.id, attack.display_name, attack.target_mode, targets,
 			attack.alert_cue, attack.allow_timing_ring, hits, prompts, events)
 	return true
@@ -671,11 +736,15 @@ func _check_end(events: Array[Dictionary]) -> bool:
 
 ## Picks the enemy's next attack and targets (weighted, seeded) and announces it.
 func _pick_intent(enemy: Combatant, events: Array[Dictionary]) -> void:
+	if enemy.charge_left > 0:
+		# Gathering a Doom: the announced intent stays until it unleashes or is broken.
+		return
 	var intent := _choose_intent(enemy)
 	if intent.is_empty():
 		intents.erase(enemy.id)
 		return
 	intents[enemy.id] = intent
+	_arm_charge(enemy, get_attack(String(intent.attack)))
 	events.append(_intent_event(enemy.id))
 
 
@@ -683,22 +752,66 @@ func _choose_intent(enemy: Combatant) -> Dictionary:
 	var staged := String(stage.attack)
 	if not staged.is_empty() and enemy.attack_ids.has(staged):
 		return {"attack": staged, "targets": _pick_targets(enemy, get_attack(staged))}
-	var choices: Array[EnemyAttackData] = []
-	var weights: Array[int] = []
+	var candidates: Array[EnemyAttackData] = []
 	for attack_id: String in enemy.attack_ids:
 		var candidate := get_attack(attack_id)
 		if candidate != null and not candidate.hits.is_empty() and candidate.weight > 0:
+			candidates.append(candidate)
+	# Skip moves that are on cooldown or have been used max_in_a_row times running, unless that
+	# leaves nothing to pick from (an enemy with a single move keeps using it).
+	var choices: Array[EnemyAttackData] = []
+	for candidate: EnemyAttackData in candidates:
+		if _attack_usable(enemy, candidate):
 			choices.append(candidate)
-			weights.append(candidate.weight)
+	if choices.is_empty():
+		choices = candidates
+	var weights: Array[int] = []
+	for candidate: EnemyAttackData in choices:
+		weights.append(_attack_weight(enemy, candidate))
 	var pick := rng.pick_weighted(weights)
 	if pick < 0:
 		return {}
-	return {"attack": choices[pick].id, "targets": _pick_targets(enemy, choices[pick])}
+	var intent := {"attack": choices[pick].id, "targets": _pick_targets(enemy, choices[pick])}
+	if _setup.allow_practice:
+		# Practice shows the odds behind the pick, so the weights can be tuned by eye. Not rules.
+		var attack_odds: Array = []
+		for i: int in choices.size():
+			attack_odds.append([choices[i].id, weights[i]])
+		var target_odds: Array = []
+		if choices[pick].target_mode == EnemyAttackData.TargetMode.SINGLE:
+			var living := living_party_ids()
+			var target_weights := _target_weights(enemy, living)
+			for i: int in living.size():
+				target_odds.append([living[i], target_weights[i]])
+		intent["odds"] = {"attacks": attack_odds, "targets": target_odds}
+	return intent
+
+
+## False while the move is on cooldown or the enemy has just used it max_in_a_row times running.
+func _attack_usable(enemy: Combatant, attack: EnemyAttackData) -> bool:
+	if int(enemy.attack_cooldowns.get(attack.id, 0)) > 0:
+		return false
+	return attack.max_in_a_row <= 0 or enemy.repeat_run(attack.id) < attack.max_in_a_row
+
+
+## The move's base weight, scaled by the situation: a finisher when a hero is nearly down, a
+## desperate move when the enemy itself is. Never below 1 so a pick always exists.
+func _attack_weight(enemy: Combatant, attack: EnemyAttackData) -> int:
+	var weight := attack.weight
+	if attack.finisher_below_percent > 0 and attack.finisher_weight_percent != 100:
+		for id: int in living_party_ids():
+			var hero := get_combatant(id)
+			if hero.hp * 100 <= hero.max_hp * attack.finisher_below_percent:
+				weight = CombatMath.percent_min1(weight, attack.finisher_weight_percent)
+				break
+	if attack.low_hp_below_percent > 0 and attack.low_hp_weight_percent != 100 			and enemy.hp * 100 <= enemy.max_hp * attack.low_hp_below_percent:
+		weight = CombatMath.percent_min1(weight, attack.low_hp_weight_percent)
+	return weight
 
 
 ## Whole party for party-wide attacks; standing heroes in party order from a random one on for
-## each-in-turn attacks (one per hit at most); otherwise the taunter if one is standing, else a random standing
-## party member.
+## each-in-turn attacks (one per hit at most); otherwise the taunter if one is standing, else a
+## standing hero chosen by the enemy's target rule (EnemyData.TargetRule, DESIGN.md 2.3).
 func _pick_targets(enemy: Combatant, attack: EnemyAttackData) -> Array[int]:
 	var living := living_party_ids()
 	var targets: Array[int] = []
@@ -716,8 +829,57 @@ func _pick_targets(enemy: Combatant, attack: EnemyAttackData) -> Array[int]:
 	if taunter >= 0:
 		targets.append(taunter)
 	else:
-		targets.append(living[rng.range_int(0, living.size() - 1)])
+		var data := _enemy_data(enemy)
+		if data == null or data.target_rule == EnemyData.TargetRule.RANDOM or living.size() == 1:
+			targets.append(living[rng.range_int(0, living.size() - 1)])
+		else:
+			targets.append(living[rng.pick_weighted(_target_weights(enemy, living))])
 	return targets
+
+
+## Chance (as integer weights) of each standing hero being hit by this enemy's single-target
+## attack. Every hero keeps at least 100, so nobody is ever safe and nothing is a sure thing.
+func _target_weights(enemy: Combatant, living: Array[int]) -> Array[int]:
+	var weights: Array[int] = []
+	var data := _enemy_data(enemy)
+	var rule := data.target_rule if data != null else EnemyData.TargetRule.RANDOM
+	var bias := data.target_bias_percent if data != null else 0
+	var lowest_hp := 0
+	for id: int in living:
+		var hp := get_combatant(id).hp
+		lowest_hp = hp if lowest_hp == 0 else mini(lowest_hp, hp)
+	var lowest_taken := false
+	for id: int in living:
+		var hero := get_combatant(id)
+		var weight := 100
+		match rule:
+			EnemyData.TargetRule.WOUNDED:
+				weight += CombatMath.percent(_missing_hp_percent(hero), bias)
+			EnemyData.TargetRule.LOWEST_HP:
+				# One hero only, even on a tie: the first in party order.
+				if hero.hp == lowest_hp and not lowest_taken:
+					lowest_taken = true
+					weight += bias
+			EnemyData.TargetRule.MARKED:
+				if hero.has_status(Status.EXPOSED) or hero.has_status(Status.MARKED):
+					weight += bias
+			EnemyData.TargetRule.AVOID_LAST:
+				if id != enemy.last_target:
+					weight += bias
+		weights.append(weight)
+	return weights
+
+
+## Share of max HP a fighter is missing, 0 to 100 (rounded down).
+@warning_ignore("integer_division")
+func _missing_hp_percent(c: Combatant) -> int:
+	return (c.max_hp - c.hp) * 100 / maxi(1, c.max_hp)
+
+
+func _enemy_data(enemy: Combatant) -> EnemyData:
+	if enemy.is_party() or enemy.slot >= _setup.enemies.size():
+		return null
+	return _setup.enemies[enemy.slot]
 
 
 func _taunter_of(enemy: Combatant) -> int:
@@ -766,13 +928,20 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	var kinds: Array[int] = []
 	var times: Array[int] = []
 	var feints: Array[bool] = []
+	var marks: Array[String] = []
+	var any_mark := false
+	var enemy := get_combatant(enemy_id)
+	var tempo := _tempo_percent(enemy)
+	var hard := _forced_hits(enemy)
 	for hit: AttackHitData in attack.hits:
-		kinds.append(hit.kind)
-		times.append(CombatMath.percent(hit.impact_ms, _tempo_percent()))
-		feints.append(hit.feint)
+		kinds.append(hit.kind_in(hard))
+		times.append(CombatMath.percent(hit.impact_ms, tempo))
+		feints.append(hit.feint_in(hard))
+		marks.append(hit.mark_id_in(hard))
+		any_mark = any_mark or hit.marks_in(hard)
 	var targets: Array[int] = []
 	targets.assign(intent.targets)
-	return {
+	var event := {
 		"type": "intent",
 		"enemy": enemy_id,
 		"attack": attack.id,
@@ -783,6 +952,18 @@ func _intent_event(enemy_id: int) -> Dictionary:
 		"times": times,
 		"feints": feints,
 	}
+	if any_mark:
+		# Honest intent (card #194): which hits leave a mark, "" for a plain one. Only when one does.
+		event["marks"] = marks
+	if attack.is_doom():
+		var charging := enemy.charge_attack == attack.id
+		event["charge_left"] = enemy.charge_left if charging else attack.charge_turns
+		event["charge_total"] = attack.charge_turns
+		event["charge_damage"] = enemy.charge_damage if charging else 0
+		event["break_hp"] = _break_hp(enemy, attack)
+	if intent.has("odds"):
+		event["odds"] = (intent.odds as Dictionary).duplicate(true)
+	return event
 
 
 # --- commands ---------------------------------------------------------------------------------
@@ -844,7 +1025,7 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 				var crit := _roll_crit(actor)
 				var bonus := _exposed_bonus(actor, ability, target_id == exposed) + _marked_bonus(ability, targets) \
 						+ _empowered_bonus(actor, ability)
-				var amount := _skill_damage(actor.power, pct, bonus)
+				var amount := _skill_damage(_power_of(actor), pct, bonus)
 				_deal_damage(actor, target, _crit_damage(amount) if crit else amount, "ability", events, crit)
 	_apply_effects(actor, ability, targets, false, exposed, events)
 	_end_of_turn(actor, events)
@@ -902,6 +1083,7 @@ func _cmd_use_item(command: Dictionary, events: Array[Dictionary]) -> void:
 		match item.effect:
 			ItemData.Effect.HEAL_ONE, ItemData.Effect.HEAL_ALL:
 				if target.is_alive():
+					_cleanse(target, item.cleanse_count, events)
 					_heal(actor, target, CombatMath.percent_min1(target.max_hp, pct), events)
 			ItemData.Effect.REVIVE_ONE:
 				_revive(actor, target, pct, events)
@@ -1037,9 +1219,25 @@ func _pass_turn(events: Array[Dictionary]) -> void:
 	_advance_turn(events)
 
 
-## Enemy attack tempo in percent: the tutorial's slowed attacks, else tuning's.
-func _tempo_percent() -> int:
-	return int(stage.tempo_percent) if int(stage.tempo_percent) > 0 else tuning.attack_tempo_percent
+## `enemy`'s attack tempo in percent of its authored timing (lower = faster, card #188): the
+## tutorial's slowed attacks as they are; else the fight's tempo (CombatSetup.attack_tempo_percent,
+## 0 = tuning's) times the enemy's own (phase two), floored by CombatSetup.tempo_floor.
+func _tempo_percent(enemy: Combatant) -> int:
+	if int(stage.tempo_percent) > 0:
+		return int(stage.tempo_percent)
+	var base := _setup.attack_tempo_percent if _setup.attack_tempo_percent > 0 else tuning.attack_tempo_percent
+	var own := enemy.tempo_percent if enemy != null and enemy.tempo_percent > 0 else 100
+	return maxi(CombatMath.percent(base, own), CombatSetup.tempo_floor(tuning))
+
+
+## True if `enemy`'s hits take their forced kinds (card #187): a hard fight (elite, guard, boss) or
+## an enemy that always uses them (the deep variants).
+func _forced_hits(enemy: Combatant) -> bool:
+	if _setup.forced_hits:
+		return true
+	if enemy == null or enemy.is_party() or enemy.slot >= _setup.enemies.size():
+		return false
+	return _setup.enemies[enemy.slot].forced_hits
 
 
 ## The next enemy (in turn order) that has the forced attack shows it as its intent right away.
@@ -1055,6 +1253,7 @@ func _show_forced_intent(events: Array[Dictionary]) -> void:
 		var current: Dictionary = intents.get(id, {})
 		if String(current.get("attack", "")) != forced:
 			intents[id] = {"attack": forced, "targets": _pick_targets(c, get_attack(forced))}
+			_arm_charge(c, get_attack(forced))
 			events.append(_intent_event(id))
 		return
 
@@ -1068,6 +1267,7 @@ func _show_staged_intents(events: Array[Dictionary]) -> void:
 		var c := get_combatant(id)
 		if c.attack_ids.has(staged) and String((intents.get(id, {}) as Dictionary).get("attack", "")) != staged:
 			intents[id] = {"attack": staged, "targets": _pick_targets(c, get_attack(staged))}
+			_arm_charge(c, get_attack(staged))
 			events.append(_intent_event(id))
 
 
@@ -1106,8 +1306,8 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			if damaging:
 				var bonus := _exposed_bonus(striker, ability, exposed >= 0) + _marked_bonus(ability, targets) \
 						+ _empowered_bonus(striker, ability)
-				good = _skill_damage(striker.power, _skill_percent(striker, ability, false), bonus)
-				perfect = _skill_damage(striker.power, _skill_percent(striker, ability, true), bonus)
+				good = _skill_damage(_power_of(striker), _skill_percent(striker, ability, false), bonus)
+				perfect = _skill_damage(_power_of(striker), _skill_percent(striker, ability, true), bonus)
 				miss = CombatMath.percent(good, tuning.skill_miss_damage_percent)
 				# Rolled now with the damage, so it is in the declared event (DESIGN.md 8.2); a missed
 				# press never crits.
@@ -1131,8 +1331,8 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			var hit_index := hits.size()
 			var ally := get_combatant(ally_id)
 			hits.append(_skill_hit(hit_index, at_ms, tuning.follow_up_percent, "strike"))
-			var good := _roll_damage(ally.power, tuning.follow_up_percent)
-			var perfect := _roll_damage(ally.power, tuning.follow_up_perfect_percent)
+			var good := _roll_damage(_power_of(ally), tuning.follow_up_percent)
+			var perfect := _roll_damage(_power_of(ally), tuning.follow_up_perfect_percent)
 			var crit := _roll_crit(ally)
 			var follow := _prompt(prompts.size(), hit_index, ally_id, at_ms, AttackHitData.Kind.PRESS,
 					Defense.build_follow_up_windows(tuning), 0, _crit_damage(good) if crit else good,
@@ -1216,6 +1416,8 @@ func _apply_effects(actor: Combatant, ability: AbilityData, targets: Array[int],
 			if give > 0:
 				_change_ap(target, give, "given", events)
 			if heal > 0:
+				# The cleanse comes first, so lifting Blighted frees this very heal.
+				_cleanse(target, ability.cleanse_count + (ability.press_cleanse_count if good else 0), events)
 				_heal(actor, target, CombatMath.percent_min1(target.max_hp, heal), events)
 			if hasten > 0:
 				var waiting := maxi(0, target.next_turn_at - time_now)
@@ -1229,7 +1431,7 @@ func _apply_effects(actor: Combatant, ability: AbilityData, targets: Array[int],
 		_revive(actor, first, revive, events)
 		timeline_changed = true
 	if ability.gauge_gain > 0:
-		_change_gauge(ability.gauge_gain, events)
+		_change_gauge(_gauge_gain(actor, ability.gauge_gain), events)
 	if Status.is_known(ability.status) and (good or not ability.status_needs_perfect):
 		var turns := ability.status_turns + (ability.press_status_turns if good else 0)
 		for target_id: int in targets:
@@ -1401,13 +1603,16 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 	var ap_delta := 0
 	var perfect := (prompt.perfect as Array).has(outcome)
 	if outcome != Defense.Outcome.NONE:
-		ap_delta = _change_ap_silent(target, Defense.ap_reward(outcome, tuning))
+		ap_delta = _change_ap_silent(target, _defence_ap(target, outcome))
 		if perfect:
 			target.perfect_defenses += 1
 	else:
 		damage = int(prompt.damage)
 		_lose_hp(target, damage)
 	var downed := not target.is_alive()
+	var thorn_events: Array[Dictionary] = []
+	if damage > 0:
+		_reflect_thorns(target, damage, thorn_events)
 	var resolved := {
 		"type": "prompt_resolved",
 		"seq": sequence.seq,
@@ -1425,11 +1630,47 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		"downed": downed,
 	}
 	events.append(resolved)
+	events.append_array(thorn_events)
 	if downed:
 		events.append({"type": "downed", "target": target.id})
 		_on_downed(target, events)
 	elif perfect and outcome == Defense.Outcome.JUMP and Passive.amount(target, Passive.HEAL_ON_JUMP) > 0:
 		_heal(target, target, CombatMath.percent_min1(target.max_hp, Passive.amount(target, Passive.HEAL_ON_JUMP)), events)
+	if not downed and outcome == Defense.Outcome.NONE:
+		_apply_hit_marks(target, prompt, events)
+
+
+## AP a successful defence earns: the tuned reward plus rot-touched gear (DESIGN.md 8.16), never below 0.
+func _defence_ap(target: Combatant, outcome: int) -> int:
+	var reward := Defense.ap_reward(outcome, tuning)
+	if outcome == Defense.Outcome.DODGE:
+		reward += Passive.amount(target, Passive.DODGE_AP)
+	elif outcome == Defense.Outcome.PARRY:
+		reward += Passive.amount(target, Passive.PARRY_AP)
+	return maxi(0, reward)
+
+
+## Thorned gear: the enemy whose hit landed on `target` takes a share of the damage back.
+func _reflect_thorns(target: Combatant, damage: int, events: Array[Dictionary]) -> void:
+	var pct := Passive.amount(target, Passive.THORNS)
+	if pct <= 0 or sequence.is_empty():
+		return
+	var attacker := get_combatant(int(sequence.source))
+	if attacker == null or attacker.is_party() or not attacker.is_alive():
+		return
+	_deal_damage(target, attacker, CombatMath.percent_min1(damage, pct), "thorns", events)
+
+
+## The mark a hit leaves on a hero who took it undefended and is still standing (card #194): a
+## debuff (refreshing its turns if the hero already has it) and/or an AP drain. A hero downed by the
+## hit, or one who defended it, gets nothing.
+func _apply_hit_marks(target: Combatant, prompt: Dictionary, events: Array[Dictionary]) -> void:
+	var id := String(prompt.get("mark_status", ""))
+	if Status.is_debuff(id):
+		_add_status(target, id, maxi(1, int(prompt.get("mark_turns", 1))), int(sequence.source), events)
+	var drain := int(prompt.get("mark_ap", 0))
+	if drain > 0:
+		_change_ap(target, -drain, "drain", events)
 
 
 ## A skill press or follow-up press: its hit lands on every standing target.
@@ -1476,7 +1717,7 @@ func _apply_press_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 			if not target.is_party() and target.is_alive():
 				_deal_damage(striker, target, amount, "follow_up" if follow_up else "ability", events, crit)
 	if follow_up and good:
-		_change_gauge(tuning.team_gauge_per_follow_up, events)
+		_change_gauge(_gauge_gain(striker, tuning.team_gauge_per_follow_up), events)
 
 
 ## A follow-up counts only if at least one of the prompts it requires was a good or perfect press.
@@ -1598,7 +1839,7 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 		var any_crit := false
 		for actor_id: int in counterers:
 			var actor := get_combatant(actor_id)
-			var share := CombatMath.percent(actor.power, _counter_percent(actor, tuning.team_counter_percent, string))
+			var share := CombatMath.percent(_power_of(actor), _counter_percent(actor, tuning.team_counter_percent, string))
 			# Each hero's share can crit on its own.
 			if _roll_crit(actor):
 				share = CombatMath.percent(share, tuning.crit_damage_percent)
@@ -1618,7 +1859,7 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 		var string := _string_of(actor_id)
 		events.append({"type": "counter", "seq": sequence.seq, "actors": [actor_id], "target": attacker.id, "team": false,
 				"hits": string.x, "mixed": string.y == 1})
-		var amount := _roll_damage(actor.power, _counter_percent(actor, tuning.counter_percent, string))
+		var amount := _roll_damage(_power_of(actor), _counter_percent(actor, tuning.counter_percent, string))
 		var crit := _roll_crit(actor)
 		_deal_damage(actor, attacker, _crit_damage(amount) if crit else amount, "counter", events, crit)
 		_gear_ap_on_counter(actor, events)
@@ -1647,7 +1888,8 @@ func _string_of(character_id: int) -> Vector2i:
 		if character_id >= 0 and int(prompt.character) != character_id:
 			continue
 		hits += 1
-		normal = normal or int(prompt.kind) == AttackHitData.Kind.NORMAL
+		# A rend is parried like a normal hit (a sweep never reaches a counter: it has no perfect answer).
+		normal = normal or int(prompt.kind) == AttackHitData.Kind.NORMAL or int(prompt.kind) == AttackHitData.Kind.REND
 		ground = ground or int(prompt.kind) == AttackHitData.Kind.GROUND
 	if character_id < 0:
 		hits = (sequence.hits as Array).size()
@@ -1746,11 +1988,37 @@ func _shift_turn(c: Combatant, delta: int, events: Array[Dictionary]) -> void:
 
 
 func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary]) -> void:
-	amount = CombatMath.percent(amount, 100 + Passive.amount(source, Passive.HEAL))
+	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(source, Passive.HEAL)))
+	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(target, Passive.HEAL_TAKEN)))
+	if target.has_status(Status.BLIGHTED) and amount > 0:
+		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tuning.blighted_heal_cut_percent))
 	var before := target.hp
 	target.hp = mini(target.max_hp, target.hp + amount)
 	events.append({"type": "healed", "source": source.id, "target": target.id, "amount": target.hp - before,
 			"hp": target.hp, "max_hp": target.max_hp})
+
+
+## A fighter's power with Weakened applied (card #194).
+func _power_of(c: Combatant) -> int:
+	var power := c.power
+	var ember := Passive.amount(c, Passive.LOW_HP_POWER)
+	if ember > 0 and c.is_alive() and c.hp * 100 < c.max_hp * tuning.rot_low_hp_percent:
+		power = CombatMath.percent_min1(power, 100 + ember)
+	if c.has_status(Status.WEAKENED):
+		return CombatMath.percent_min1(power, maxi(0, 100 - tuning.weakened_power_cut_percent))
+	return power
+
+
+## Removes up to `count` hero debuffs from `target`, in Status.DEBUFFS order. Returns how many went.
+func _cleanse(target: Combatant, count: int, events: Array[Dictionary]) -> int:
+	var removed := 0
+	for id: String in Status.DEBUFFS:
+		if removed >= count:
+			break
+		if target.has_status(id):
+			_remove_status(target, id, events)
+			removed += 1
+	return removed
 
 
 ## Brings a downed party member back (DESIGN.md 2.1: next turn one turn cost from now).
@@ -1771,12 +2039,19 @@ func _on_downed(target: Combatant, events: Array[Dictionary]) -> void:
 			_remove_status(target, id, events)
 	if not target.is_party():
 		intents.erase(target.id)
+		target.clear_charge()
+		target.staggered_turns = 0
 		return
 	for enemy_id: int in living_enemy_ids():
 		var enemy := get_combatant(enemy_id)
 		if enemy.has_status(Status.TAUNTED) and int((enemy.statuses[Status.TAUNTED] as Dictionary).source) == target.id:
 			_remove_status(enemy, Status.TAUNTED, events)
 	_refresh_intents(events)
+
+
+## Team gauge `amount` earned by `source`, bigger with gauge gear (DESIGN.md 8.16).
+func _gauge_gain(source: Combatant, amount: int) -> int:
+	return CombatMath.percent(amount, maxi(0, 100 + Passive.amount(source, Passive.GAUGE)))
 
 
 func _change_gauge(delta: int, events: Array[Dictionary]) -> void:
@@ -1818,7 +2093,8 @@ func _enemy_hit_damage(enemy: Combatant, target: Combatant, pct: int) -> int:
 	if target.has_status(Status.GUARDED):
 		amount = CombatMath.percent_min1(amount, tuning.guard_damage_percent)
 	var tough := mini(Passive.amount(target, Passive.TOUGH), tuning.tough_max_percent)
-	if tough > 0:
+	if tough != 0:
+		# Below 0 (rot-touched gear's drawback) the hit lands harder.
 		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tough))
 	return _apply_variance(amount)
 
@@ -1845,8 +2121,12 @@ func _lose_hp(target: Combatant, amount: int) -> int:
 ## `crit`: a critical hit (the amount already has the crit bonus; the event says so for the popup).
 func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: String, events: Array[Dictionary],
 		crit: bool = false) -> void:
-	_lose_hp(target, amount)
-	events.append({
+	# A staggered enemy takes extra damage from every source (card #195).
+	var staggered := not target.is_party() and target.staggered_turns > 0
+	if staggered:
+		amount = CombatMath.percent_min1(amount, 100 + tuning.stagger_damage_taken_percent)
+	var lost := _lose_hp(target, amount)
+	var event := {
 		"type": "damage",
 		"source": source.id,
 		"target": target.id,
@@ -1855,15 +2135,97 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 		"max_hp": target.max_hp,
 		"cause": cause,
 		"crit": crit,
-	})
+	}
+	if staggered:
+		event["staggered"] = true
+	events.append(event)
 	if not target.is_alive():
 		events.append({"type": "downed", "target": target.id})
 		_on_downed(target, events)
+		_heal_on_kill(source, target, events)
 	elif not target.is_party():
+		_count_doom_damage(target, lost, events)
 		_maybe_enter_phase_two(target, events)
 
 
-## A boss under its phase two HP changes attacks and speed, and picks a new intent.
+## Kill-heal gear (DESIGN.md 8.16): a hero whose hit downed an enemy heals a share of their max HP.
+func _heal_on_kill(killer: Combatant, victim: Combatant, events: Array[Dictionary]) -> void:
+	var pct := Passive.amount(killer, Passive.KILL_HEAL)
+	if pct <= 0 or victim.is_party() or not killer.is_party() or not killer.is_alive():
+		return
+	_heal(killer, killer, CombatMath.percent_min1(killer.max_hp, pct), events)
+
+
+# --- charged dooms (card #195) ----------------------------------------------------------------
+
+## The HP of damage that breaks `attack` for `enemy`.
+func _break_hp(enemy: Combatant, attack: EnemyAttackData) -> int:
+	return CombatMath.percent_min1(enemy.max_hp, attack.break_damage_percent)
+
+
+## Starts the countdown when `attack` (a Doom) becomes the enemy's intent. The turn it was
+## announced for is the first of the charge_turns it takes. No-op for other moves and when the
+## enemy is already charging this one.
+func _arm_charge(enemy: Combatant, attack: EnemyAttackData) -> void:
+	if attack == null or not attack.is_doom() or enemy.charge_attack == attack.id:
+		return
+	enemy.charge_attack = attack.id
+	enemy.charge_left = attack.charge_turns
+	enemy.charge_damage = 0
+
+
+func _doom_event(type: String, enemy: Combatant, attack: EnemyAttackData) -> Dictionary:
+	return {
+		"type": type,
+		"enemy": enemy.id,
+		"attack": attack.id,
+		"name": attack.display_name,
+		"left": enemy.charge_left,
+		"total": attack.charge_turns,
+		"damage": enemy.charge_damage,
+		"break_hp": _break_hp(enemy, attack),
+	}
+
+
+## HP the party took off a gathering enemy counts toward the break; enough breaks the Doom.
+func _count_doom_damage(enemy: Combatant, lost: int, events: Array[Dictionary]) -> void:
+	if enemy.charge_left <= 0 or lost <= 0:
+		return
+	var attack := get_attack(enemy.charge_attack)
+	if attack == null:
+		return
+	enemy.charge_damage += lost
+	if enemy.charge_damage >= _break_hp(enemy, attack):
+		_break_doom(enemy, attack, events)
+	else:
+		events.append({"type": "doom_progress", "enemy": enemy.id, "attack": attack.id, "damage": enemy.charge_damage,
+				"break_hp": _break_hp(enemy, attack)})
+
+
+## The Doom is cancelled and the enemy staggers: it loses its next turn(s) and takes extra damage
+## until then. The cooldown starts as if it had been used, and the enemy announces a new move.
+func _break_doom(enemy: Combatant, attack: EnemyAttackData, events: Array[Dictionary]) -> void:
+	var broken := _doom_event("doom_broken", enemy, attack)
+	broken.erase("left")
+	broken.erase("total")
+	broken["stagger_turns"] = tuning.stagger_turns
+	enemy.clear_charge()
+	enemy.note_attack(attack.id, attack.cooldown_turns, -1)
+	enemy.staggered_turns = tuning.stagger_turns
+	events.append(broken)
+	events.append({"type": "stagger_changed", "enemy": enemy.id, "turns": enemy.staggered_turns, "lost_turn": false})
+	_pick_intent(enemy, events)
+	events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
+
+
+## A staggered enemy's turn passes without an attack; its announced intent stays.
+func _lose_staggered_turn(enemy: Combatant, events: Array[Dictionary]) -> void:
+	enemy.staggered_turns -= 1
+	_keep_intent = enemy.id
+	events.append({"type": "stagger_changed", "enemy": enemy.id, "turns": enemy.staggered_turns, "lost_turn": true})
+
+
+## A boss under its phase two HP changes attacks, speed and attack tempo, and picks a new intent.
 func _maybe_enter_phase_two(enemy: Combatant, events: Array[Dictionary]) -> void:
 	if enemy.phase != 1 or enemy.slot >= _setup.enemies.size():
 		return
@@ -1876,9 +2238,14 @@ func _maybe_enter_phase_two(enemy: Combatant, events: Array[Dictionary]) -> void
 	enemy.attack_ids.clear()
 	for attack: EnemyAttackData in data.phase_two_attacks:
 		enemy.attack_ids.append(attack.id)
+	if data.phase_two_tempo_percent > 0:
+		# Its strings speed up (card #188), on top of the fight's tempo.
+		enemy.tempo_percent = data.phase_two_tempo_percent
 	if data.phase_two_speed > 0:
 		enemy.base_speed = data.phase_two_speed
-		_set_speed(enemy, data.phase_two_speed)
+		# A slowed boss stays slowed: the slow is a share of its (new) normal speed.
+		_set_speed(enemy, CombatMath.percent_min1(data.phase_two_speed, tuning.slow_speed_percent)
+				if enemy.has_status(Status.SLOWED) else data.phase_two_speed)
 	events.append({"type": "enemy_phase", "enemy": enemy.id, "phase": 2, "text": data.phase_two_text})
 	_pick_intent(enemy, events)
 	events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})

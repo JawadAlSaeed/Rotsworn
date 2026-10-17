@@ -96,6 +96,8 @@ func setup(run: RunState, look: MapVisuals = null, unroll: bool = true) -> void:
 	var title := run.data.display_name
 	if run.acts().size() > 1:
 		title = "Act %d: %s" % [run.act + 1, run.act_data().display_name]
+	if run.oath > 0:
+		title += "   |   Oath %d" % run.oath
 	top.add_child(ListMenu.centred_title(title, TITLE_SIZE))
 	var centre := CenterContainer.new()
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -236,7 +238,7 @@ static func describe(run: RunState, stop: Dictionary) -> String:
 			return "Zone: %s. Explore, then beat the guard at the exit. Other enemies are optional (more gold)." % (
 					zone.display_name if zone != null else "?")
 		RunMap.StopType.REST:
-			return "Campfire: pick one: rest (heal %d%%), train (attribute points) or upgrade an item." % 					run.tuning.run_rest_heal_percent
+			return "Campfire: pick one: rest (heal %d%%), train (attribute points) or upgrade an item." % run.rest_heal_percent()
 		RunMap.StopType.SHOP:
 			return "Shop: items, charms and gear; healing, upgrades; sell what you do not need."
 		RunMap.StopType.FINAL:

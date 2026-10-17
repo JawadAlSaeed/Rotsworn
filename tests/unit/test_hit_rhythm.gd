@@ -23,8 +23,7 @@ func _declared_attacks() -> Array[Dictionary]:
 		if not file.ends_with(".tres"):
 			continue
 		var attack := load(ATTACK_DIR.path_join(file)) as EnemyAttackData
-		var engine := CombatEngine.new(Fx.setup([attack]))
-		var declared := Fx.first_of(engine.start(), "timed_sequence_declared")
+		var declared := Fx.declared_attack(attack)
 		list.append({"name": attack.id, "hits": declared.hits})
 	return list
 

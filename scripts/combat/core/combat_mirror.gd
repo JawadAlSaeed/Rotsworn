@@ -7,7 +7,9 @@ extends RefCounted
 ## Pure: no nodes, no time.
 
 ## id -> {id, team, slot, data_id, display_name, max_hp, hp, ap, power, speed, alive,
-## statuses: {status id: {turns, source}}}
+## statuses: {status id: {turns, source}}, and for enemies the Charged Doom state (card #195):
+## charge_attack ("" = none), charge_left (enemy turns until it unleashes), charge_total, charge_damage
+## (taken toward the break), break_hp (the damage that breaks it), staggered (turns it still loses)}
 var fighters: Dictionary = {}
 var party_ids: Array[int] = []
 var enemy_ids: Array[int] = []
@@ -29,9 +31,19 @@ var seed_value: int = 0
 var items: Dictionary = {}
 ## The uids used so far, in order (the run takes them out of the backpack afterwards).
 var used_items: Array[int] = []
+## What happened in this fight, for the RUN OVER screen (card #191); fed by apply().
+var recap := FightRecap.new()
+## What this fight adds to the Rot Journal (card #200); fed by apply() like the recap.
+var journal := JournalTally.new()
 
 
 func apply(event: Dictionary) -> void:
+	_apply(event)
+	recap.feed(event, self)
+	journal.feed(event, self)
+
+
+func _apply(event: Dictionary) -> void:
 	match String(event.get("type", "")):
 		"combat_started":
 			fighters.clear()
@@ -60,6 +72,12 @@ func apply(event: Dictionary) -> void:
 					"alive": int(d.hp) > 0 and not bool(d.get("escaped", false)),
 					"escaped": bool(d.get("escaped", false)),
 					"statuses": (d.get("statuses", {}) as Dictionary).duplicate(true),
+					"charge_attack": String(d.get("charge_attack", "")),
+					"charge_left": int(d.get("charge_left", 0)),
+					"charge_total": 0,
+					"charge_damage": int(d.get("charge_damage", 0)),
+					"break_hp": 0,
+					"staggered": int(d.get("staggered_turns", 0)),
 				}
 				fighters[f.id] = f
 				if f.team == Combatant.Team.PARTY:
@@ -76,6 +94,8 @@ func apply(event: Dictionary) -> void:
 		"downed":
 			_set_hp(int(event.target), 0)
 			intents.erase(int(event.target))
+			_clear_doom(int(event.target))
+			fighter(int(event.target))["staggered"] = 0
 		"healed", "revived":
 			_set_hp(int(event.target), int(event.hp))
 		"status_changed":
@@ -88,6 +108,23 @@ func apply(event: Dictionary) -> void:
 			team_gauge = int(event.value)
 		"intent":
 			intents[int(event.enemy)] = event.duplicate(true)
+			_note_doom_intent(event)
+		"doom_charging":
+			var gathering := fighter(int(event.enemy))
+			gathering.charge_attack = String(event.attack)
+			gathering.charge_left = int(event.left)
+			gathering.charge_total = int(event.total)
+			gathering.charge_damage = int(event.damage)
+			gathering.break_hp = int(event.break_hp)
+		"doom_progress":
+			fighter(int(event.enemy)).charge_damage = int(event.damage)
+		"doom_broken":
+			_clear_doom(int(event.enemy))
+			fighter(int(event.enemy))["staggered"] = int(event.stagger_turns)
+		"doom_unleashed":
+			_clear_doom(int(event.enemy))
+		"stagger_changed":
+			fighter(int(event.enemy))["staggered"] = int(event.turns)
 		"escaped":
 			var runner := fighter(int(event.character))
 			runner.escaped = true
@@ -134,6 +171,43 @@ func apply(event: Dictionary) -> void:
 			active_actor = -1
 
 
+## An intent that is a Charged Doom says how far its countdown and damage are; any other intent
+## means the enemy is not charging.
+func _note_doom_intent(event: Dictionary) -> void:
+	var f := fighter(int(event.enemy))
+	if f.is_empty():
+		return
+	if event.has("charge_total"):
+		f.charge_attack = String(event.attack)
+		f.charge_left = int(event.charge_left)
+		f.charge_total = int(event.charge_total)
+		f.charge_damage = int(event.charge_damage)
+		f.break_hp = int(event.break_hp)
+	else:
+		_clear_doom(int(event.enemy))
+
+
+func _clear_doom(id: int) -> void:
+	var f := fighter(id)
+	if f.is_empty():
+		return
+	f.charge_attack = ""
+	f.charge_left = 0
+	f.charge_total = 0
+	f.charge_damage = 0
+	f.break_hp = 0
+
+
+## True while the enemy is gathering a Doom (the countdown runs and the party can break it).
+func is_charging(id: int) -> bool:
+	return is_alive(id) and int(fighter(id).get("charge_left", 0)) > 0
+
+
+## True while the enemy is staggered.
+func is_staggered(id: int) -> bool:
+	return is_alive(id) and int(fighter(id).get("staggered", 0)) > 0
+
+
 func fighter(id: int) -> Dictionary:
 	return fighters.get(id, {})
 
@@ -176,14 +250,16 @@ func projection() -> Dictionary:
 	var hp: Dictionary = {}
 	var ap: Dictionary = {}
 	var statuses: Dictionary = {}
+	var dooms: Dictionary = {}
 	for id: int in fighters:
 		hp[id] = int(fighters[id].hp)
 		ap[id] = int(fighters[id].ap)
 		statuses[id] = (fighters[id].statuses as Dictionary).duplicate(true)
+		dooms[id] = [int(fighters[id].charge_left), int(fighters[id].charge_damage), int(fighters[id].staggered)]
 	var left: Array = items.keys()
 	left.sort()
 	return {"hp": hp, "ap": ap, "statuses": statuses, "team_gauge": team_gauge, "result": result,
-			"practice": practice.duplicate(), "items_left": left}
+			"practice": practice.duplicate(), "items_left": left, "dooms": dooms}
 
 
 ## The same projection taken from CombatEngine.snapshot(), for tests.
@@ -191,14 +267,17 @@ static func project_snapshot(snap: Dictionary) -> Dictionary:
 	var hp: Dictionary = {}
 	var ap: Dictionary = {}
 	var statuses: Dictionary = {}
+	var dooms: Dictionary = {}
 	for d: Dictionary in snap.combatants:
 		hp[int(d.id)] = int(d.hp)
 		ap[int(d.id)] = int(d.ap)
 		statuses[int(d.id)] = (d.statuses as Dictionary).duplicate(true)
+		dooms[int(d.id)] = [int(d.get("charge_left", 0)), int(d.get("charge_damage", 0)), int(d.get("staggered_turns", 0))]
 	var left: Array = (snap.get("items_left", []) as Array).duplicate()
 	left.sort()
 	return {"hp": hp, "ap": ap, "statuses": statuses, "team_gauge": int(snap.team_gauge),
-			"result": String(snap.result), "practice": (snap.practice as Dictionary).duplicate(), "items_left": left}
+			"result": String(snap.result), "practice": (snap.practice as Dictionary).duplicate(), "items_left": left,
+			"dooms": dooms}
 
 
 func _set_hp(id: int, hp: int) -> void:

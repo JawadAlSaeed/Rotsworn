@@ -11,6 +11,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/ashen_cinder_hail.tres" id="9_tbuhi"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="10_vykjl"]
 [ext_resource type="Resource" path="res://data/clips/rotten_husk.tres" id="11_por0w"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/husk_timber_fall.tres" id="99_doom"]
 
 [resource]
 script = ExtResource("10_vykjl")
@@ -25,11 +26,14 @@ sprite_pixel_size = 0.045
 hp_percent = 420
 power_percent = 140
 speed = 120
-attacks = Array[ExtResource("1_fglnb")]([ExtResource("2_0qbur"), ExtResource("3_1s4gw"), ExtResource("4_euo7r"), ExtResource("5_wym7q"), ExtResource("6_bi55n"), ExtResource("7_yhvw2"), ExtResource("8_s1xfh")])
+attacks = Array[ExtResource("1_fglnb")]([ExtResource("2_0qbur"), ExtResource("3_1s4gw"), ExtResource("4_euo7r"), ExtResource("5_wym7q"), ExtResource("6_bi55n"), ExtResource("7_yhvw2"), ExtResource("8_s1xfh"), ExtResource("99_doom")])
+target_rule = 1
+target_bias_percent = 200
 gold = 120
 xp = 260
 voice_sfx = "voice_husk"
 phase_two_hp_percent = 50
-phase_two_attacks = Array[ExtResource("1_fglnb")]([ExtResource("2_0qbur"), ExtResource("3_1s4gw"), ExtResource("4_euo7r"), ExtResource("5_wym7q"), ExtResource("6_bi55n"), ExtResource("7_yhvw2"), ExtResource("8_s1xfh"), ExtResource("9_tbuhi")])
+phase_two_attacks = Array[ExtResource("1_fglnb")]([ExtResource("2_0qbur"), ExtResource("3_1s4gw"), ExtResource("4_euo7r"), ExtResource("5_wym7q"), ExtResource("6_bi55n"), ExtResource("7_yhvw2"), ExtResource("8_s1xfh"), ExtResource("9_tbuhi"), ExtResource("99_doom")])
 phase_two_speed = 165
+phase_two_tempo_percent = 92
 phase_two_text = "THE HUSK LORD TEARS FREE OF ITS BARK!"

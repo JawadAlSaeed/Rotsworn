@@ -1500,5 +1500,5 @@ def build(ctx) -> None:
         made[name] = rgba
     ctx.extra("lineup_1x.png", lineup(list(made.values())), scale=1)
     ctx.extra("lineup_3x.png", lineup(list(made.values())), scale=3)
-    for tile in ("floor_tile", "ash_tile", "bog_tile"):
+    for tile in ("hollow_floor", "ash_tile", "bog_tile"):
         ctx.extra("scene_%s.png" % tile, scene(made, "sprites/env/%s.png" % tile), scale=3)

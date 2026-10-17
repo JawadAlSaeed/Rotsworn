@@ -24,6 +24,12 @@ static func texture(path: String, fallback_size: Vector2i = Vector2i(32, 32)) ->
 	return fallback_texture(fallback_size)
 
 
+## Is there art at `path` (imported, or a raw file waiting for its import)? Unlike `texture` this
+## never warns, so a caller can pick its own fallback.
+static func has_art(path: String) -> bool:
+	return not path.is_empty() and (ResourceLoader.exists(path) or FileAccess.file_exists(path))
+
+
 ## A magenta/black checkerboard (4 px squares), cached per size.
 @warning_ignore("integer_division")
 static func fallback_texture(size: Vector2i) -> Texture2D:

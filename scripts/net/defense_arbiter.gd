@@ -14,6 +14,9 @@ extends RefCounted
 ##   press) by an explicit command, so the replay log has it;
 ## - results from a client are accepted only for prompts of that client's own heroes, for the
 ##   current sequence, and once per prompt (duplicates and stale sequences are dropped);
+## - a result naming an action the prompt does not accept (a dodge on a rend, a parry on a sweep
+##   or a ground hit; card #187) is refused: it is accepted as NONE, the hit lands. The engine
+##   sanitises the same way (Defense.sanitize), so a modded client gains nothing either way;
 ## - a client that leaves has all its open prompts resolved as NONE at once.
 ## The host's own players' prompts are not tracked here: the host's runner answers them.
 
@@ -23,7 +26,7 @@ var _hitstop_per_hit_us: int = 0
 var _seq: int = -1
 var _lead_in_us: int = 0
 var _declared_us: int = 0
-## Prompt idx -> {peer, close_us (sequence time), hit, resolved}
+## Prompt idx -> {peer, close_us (sequence time), hit, resolved, windows (the declared windows)}
 var _prompts: Dictionary = {}
 ## Peer -> host time its ack arrived.
 var _acks: Dictionary = {}
@@ -57,7 +60,7 @@ func declare(seq: int, prompts: Array, owners: Dictionary, lead_in_ms: int, now_
 		for action: Variant in (p.windows as Dictionary):
 			latest = maxi(latest, int((p.windows[action] as Array)[1]))
 		_prompts[idx] = {"peer": int(owners[idx]), "close_us": int(p.at_ms) * 1000 + latest, "hit": int(p.hit),
-				"resolved": false}
+				"resolved": false, "windows": (p.windows as Dictionary).duplicate(true)}
 
 
 ## The sequence being refereed (-1 if none).
@@ -80,7 +83,8 @@ func ack(peer: int, seq: int, now_us: int) -> void:
 
 
 ## Filters a client's results: only this sequence, only its own open prompts, each once. The
-## accepted ones count as resolved. Returns them in prompt order.
+## accepted ones count as resolved. An outcome the prompt does not accept comes back as NONE.
+## Returns them in prompt order.
 func accept(peer: int, seq: int, results: Array) -> Array[Dictionary]:
 	var accepted: Array[Dictionary] = []
 	if seq != _seq:
@@ -95,7 +99,11 @@ func accept(peer: int, seq: int, results: Array) -> Array[Dictionary]:
 		if int(p.peer) != peer or bool(p.resolved):
 			continue
 		p.resolved = true
-		accepted.append(r as Dictionary)
+		var result := (r as Dictionary).duplicate()
+		var outcome: Variant = result.get("outcome", Defense.Outcome.NONE)
+		var numeric := typeof(outcome) == TYPE_INT or typeof(outcome) == TYPE_FLOAT
+		result.outcome = Defense.sanitize(int(outcome) if numeric else Defense.Outcome.NONE, p.windows)
+		accepted.append(result)
 	accepted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.prompt) < int(b.prompt))
 	return accepted
 

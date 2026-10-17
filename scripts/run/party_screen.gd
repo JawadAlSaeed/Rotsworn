@@ -22,6 +22,8 @@ extends CanvasLayer
 signal done
 ## A new item in hand was left behind (it is not in the backpack).
 signal left_behind(item: ItemData)
+## An item was sold here (the shop saves the run then).
+signal sold
 ## Online client: a change for the host to make (RunState.apply_op data).
 signal op_requested(op: Dictionary)
 
@@ -38,6 +40,8 @@ const PORTRAIT_PX: float = 112.0
 const PORTRAIT_GAP: int = 14
 const COLUMN_GAP: int = 48
 const SLOT_WIDTH: float = 200.0
+## A hero card that cannot take the item in hand is drawn this see-through.
+const GREYED_ALPHA: float = 0.5
 ## The Attributes and Skills buttons at the end of a card.
 const BUTTON_WIDTH: float = 175.0
 const BUTTON_GAP: int = 18
@@ -156,7 +160,8 @@ func auto_settle() -> void:
 			if empty > free:
 				best = slot
 				free = empty
-		if best >= 0:
+		# The bot passes over rot-touched gear whose price it cannot bear (GearBot).
+		if best >= 0 and GearBot.score(_held.item as GearData) >= 0:
 			_run.wear(best, _run.free_gear_slot(best), _held.item as GearData)
 		else:
 			_run.sell_new_gear(_held.item as GearData)
@@ -743,9 +748,13 @@ func _target_input(event: InputEvent) -> void:
 		_hero = wrapi(_hero + 1, 0, _run.party_size())
 		Sfx.play("menu_move")
 	elif _pressed(event, &"menu_confirm") or _pressed(event, &"item_move"):
-		var uid := _use_uid
-		_use_uid = -1
-		_use_on(uid, _hero)
+		if not remote and not _run.can_use_item(_use_uid, _hero):
+			# Stay on the hero cards: the info line says why this hero cannot (a capped Tonic).
+			Sfx.play("locked")
+		else:
+			var uid := _use_uid
+			_use_uid = -1
+			_use_on(uid, _hero)
 	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu"):
 		_use_uid = -1
 		Sfx.play("menu_cancel")
@@ -767,6 +776,7 @@ func _use_on(uid: int, slot: int) -> void:
 		_note_text = "Used the %s%s." % [name, " on " + _run.data.party[slot].display_name if slot >= 0 else ""]
 	else:
 		Sfx.play("locked")
+		_note_text = _run.use_blocked_reason(uid, slot)
 	_redraw()
 
 
@@ -801,8 +811,8 @@ func _confirm_prompt(question: String, detail: String, yes: String, no: String, 
 func _ask(op: Dictionary) -> void:
 	if remote:
 		op_requested.emit(op)
-	else:
-		_run.apply_op(op)
+	elif _run.apply_op(op) and String(op.get("op", "")) == "sell":
+		sold.emit()
 
 
 # --- drawing ----------------------------------------------------------------------------------
@@ -824,6 +834,9 @@ func _redraw() -> void:
 	for slot: int in _cards.size():
 		var card: Dictionary = _cards[slot]
 		var chosen := (_focus == Focus.GEAR or _use_uid >= 0) and slot == _hero
+		# While choosing who gets an item, a hero who cannot have it (a full Tonic drinker) is greyed.
+		var greyed := _use_uid >= 0 and not _run.can_use_item(_use_uid, slot)
+		(card.panel as PanelContainer).modulate = Color(1.0, 1.0, 1.0, GREYED_ALPHA if greyed else 1.0)
 		(card.panel as PanelContainer).add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG,
 				HudStyle.GOLD if chosen else HudStyle.PANEL_BORDER, 3 if chosen else 2, 16))
 		(card.stats as Label).text = "Lv %d   HP %d / %d   Power %d   Speed %d" % [_run.levels[slot], _run.hp[slot],
@@ -851,7 +864,7 @@ func _redraw() -> void:
 			if selected:
 				color = HudStyle.GOLD
 			elif item != null and not lifted:
-				color = BackpackGrid.rarity_color(int((item as GearData).rarity))
+				color = BackpackGrid.rarity_color(BackpackGrid.gear_step(item as GearData))
 			label.label_settings.font_color = color
 	_pack_label.text = "Backpack   %d of %d cells free" % [_run.backpack.free_cells(), _run.backpack.cell_count()]
 	_charm_label.text = _charm_summary()
@@ -879,6 +892,9 @@ func _redraw_info() -> void:
 		_info_title.text = "Use the %s on whom?" % RunState.entry_name(e)
 		_info.text = "%s: HP %d / %d. Pick a hero card above." % [_run.data.party[_hero].display_name, _run.hp[_hero],
 				_run.max_hp(_hero)]
+		var blocked := _run.use_blocked_reason(_use_uid, _hero)
+		if not blocked.is_empty():
+			_info.text = blocked + " Pick another hero."
 		return
 	if not _held.is_empty():
 		var thing: Resource = _held.item
@@ -886,6 +902,8 @@ func _redraw_info() -> void:
 		var text := String(thing.get("description"))
 		if _held.kind == "gear":
 			_info_title.text = "In hand: %s (gear)" % title
+			if (_held.item as GearData).rot_touched:
+				_info_title.label_settings.font_color = GearData.ROT_TOUCHED_COLOR
 			var worn: Variant = _run.gear[_hero][_slot] if not _on_button() else null
 			if _focus == Focus.GEAR and holding_new() and worn != null:
 				text += "\nPut on here: sells the %s for %d gold." % [(worn as GearData).display_name,
@@ -909,8 +927,8 @@ func _redraw_info() -> void:
 		var worn: Variant = _run.gear[_hero][_slot]
 		_info_title.text = (worn as GearData).display_name if worn != null else "Empty slot"
 		if worn != null:
-			_info_title.text += "   (%s)" % BackpackGrid.rarity_name(int((worn as GearData).rarity))
-			_info_title.label_settings.font_color = BackpackGrid.rarity_color(int((worn as GearData).rarity))
+			_info_title.text += "   (%s)" % BackpackGrid.rarity_name(BackpackGrid.gear_step(worn as GearData))
+			_info_title.label_settings.font_color = BackpackGrid.rarity_color(BackpackGrid.gear_step(worn as GearData))
 		_info.text = (worn as GearData).description if worn != null else "New gear can go here."
 		return
 	var uid := _run.backpack.uid_at(_grid.cursor)

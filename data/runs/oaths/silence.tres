@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="OathData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="1_2op4o"]
+
+[resource]
+script = ExtResource("1_2op4o")
+id = "silence"
+title = "Oath of Silence"
+description = "Only half the team gauge carries into the next fight."
+team_gauge_carry_percent_add = -50

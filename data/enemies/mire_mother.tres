@@ -8,6 +8,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/elder_quake_hop.tres" id="6_7aj0h"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="7_oqc1p"]
 [ext_resource type="Resource" path="res://data/clips/mire_toad.tres" id="8_yn3ih"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/toad_brood_tide.tres" id="99_doom"]
 
 [resource]
 script = ExtResource("7_oqc1p")
@@ -23,11 +24,14 @@ sprite_pixel_size = 0.045
 hp_percent = 270
 power_percent = 145
 speed = 105
-attacks = Array[ExtResource("1_18q8n")]([ExtResource("2_t8inl"), ExtResource("3_cx7q1"), ExtResource("4_8idxc"), ExtResource("5_t2xw7")])
+attacks = Array[ExtResource("1_18q8n")]([ExtResource("2_t8inl"), ExtResource("3_cx7q1"), ExtResource("4_8idxc"), ExtResource("5_t2xw7"), ExtResource("99_doom")])
+target_rule = 2
+target_bias_percent = 100
 gold = 60
 xp = 130
 voice_sfx = "voice_toad"
 phase_two_hp_percent = 50
-phase_two_attacks = Array[ExtResource("1_18q8n")]([ExtResource("2_t8inl"), ExtResource("3_cx7q1"), ExtResource("4_8idxc"), ExtResource("5_t2xw7"), ExtResource("6_7aj0h")])
+phase_two_attacks = Array[ExtResource("1_18q8n")]([ExtResource("2_t8inl"), ExtResource("3_cx7q1"), ExtResource("4_8idxc"), ExtResource("5_t2xw7"), ExtResource("6_7aj0h"), ExtResource("99_doom")])
 phase_two_speed = 145
+phase_two_tempo_percent = 94
 phase_two_text = "THE MIRE MOTHER CALLS THE MUD!"

@@ -25,5 +25,7 @@ hp_percent = 170
 power_percent = 120
 speed = 85
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_toad_hop_hop"), ExtResource("5_toad_tongue"), ExtResource("6_toad_mud_spit"), ExtResource("7_toad_belly_flop")])
+target_rule = 4
+target_bias_percent = 100
 gold = 25
 xp = 50

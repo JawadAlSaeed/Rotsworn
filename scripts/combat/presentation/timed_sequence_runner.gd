@@ -110,9 +110,10 @@ var _press_times: Array[Dictionary] = []
 ## "hit:player" keys of the hits a player whiffed against (never MISS for that player: they did
 ## press).
 var _whiffed_hits: Dictionary = {}
-## Real time span of the hurt freeze on the last hit; presses inside it are still judged.
-var _hurt_pause_from_us: int = -1
-var _hurt_pause_to_us: int = -1
+## Who owns each hit-stop freeze on the shared clock (card #180): an owner's own taps inside it are
+## ignored; every other press is still judged, as if the freeze had not happened. The hurt freeze
+## on the last hit has no owner.
+var _freezes := FreezeLedger.new()
 var _contact: Vector3 = Vector3.ZERO
 var _tail: Array[Dictionary] = []
 var _tail_received: bool = false
@@ -221,8 +222,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_anims.clear()
 	_press_times.clear()
 	_whiffed_hits.clear()
-	_hurt_pause_from_us = -1
-	_hurt_pause_to_us = -1
+	_freezes.clear()
 	_tail.clear()
 	_tail_received = false
 	_has_counter = false
@@ -256,11 +256,13 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	var kinds: Array = []
 	var times: Array = []
 	var feints: Array = []
+	var marks: Array = []
 	for hit: Dictionary in _hits:
 		kinds.append(int(hit.kind))
 		times.append(int(hit.at_ms))
 		feints.append(bool(hit.get("feint", false)))
-	_hud.set_banner_hits(kinds, times, feints)
+		marks.append(String(hit.get("mark", "")))
+	_hud.set_banner_hits(kinds, times, feints, marks)
 	_hud.set_targeted(_targets)
 	var enemy := _view.fighter(_source)
 	if enemy != null:
@@ -414,12 +416,14 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 	var t := _clock.attack_time_us(stamp_us)
 	var earliest := -1
 	if _clock.is_paused(stamp_us):
-		# Presses during a success freeze are ignored: no judgement, no lockout (DESIGN.md 3.3).
-		# The hurt freeze on a last hit is the exception: every prompt is resolved by then, so the
-		# press can only be a LATE report, judged at the time it would have had without the freeze.
-		if stamp_us < _hurt_pause_from_us or stamp_us >= _hurt_pause_to_us:
+		# A press by the owner of a success freeze is a double tap: ignored, no judgement, no
+		# lockout (DESIGN.md 3.3). Anyone else's press, and any press during the hurt freeze on a
+		# last hit (every prompt is resolved by then, so it can only be a LATE report), is judged
+		# at the time it would have had without the freeze.
+		var shift := _freezes.press_shift_us(stamp_us, player)
+		if shift == FreezeLedger.IGNORE:
 			return
-		t += stamp_us - _hurt_pause_from_us
+		t += shift
 	elif previous_pump_us > 0 and previous_pump_us < stamp_us:
 		var e := _clock.attack_time_us(previous_pump_us)
 		if e >= 0:
@@ -475,10 +479,7 @@ func _on_whiff(action: int, report: Dictionary, t: int, player: int) -> void:
 			color = HudStyle.EARLY
 		DefenseJudge.Reason.WRONG_ACTION:
 			color = HudStyle.WRONG
-			text = "PARRY!"
-			var hit_index := int(report.hit)
-			if hit_index >= 0 and int((_hits[hit_index] as Dictionary).kind) == AttackHitData.Kind.GROUND:
-				text = "JUMP!"
+			text = HudStyle.wrong_action_text(_kind_of(int(report.hit)))
 	if reason != DefenseJudge.Reason.WRONG_ACTION and _options.timing_readout and int(report.hit) >= 0:
 		text += " " + HudStyle.signed_ms(offset_ms)
 	if int(report.hit) >= 0:
@@ -510,8 +511,8 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 			var step := mini(_parry_streak, _visuals.parry_ring_max_steps)
 			Sfx.play("parry_ring", 0.0, pow(2.0, step * _visuals.parry_ring_step_semitones / 12.0))
 			_parry_streak += 1
-			_clock.pause_for(now, (_tuning.hitstop_parry_final_ms if final else _tuning.hitstop_parry_ms) * 1000)
-			_view.camera.shake(_visuals.shake_parry_final if final else _visuals.shake_parry, _visuals.shake_parry_ms)
+			_freeze(now, _tuning.hitstop_parry_final_ms if final else _tuning.hitstop_parry_ms, characters)
+			_view.camera.add_trauma(_visuals.shake_parry_final if final else _visuals.shake_parry)
 			_view.camera.punch(_visuals.punch_parry_final if final else _visuals.punch_parry, _visuals.punch_ms)
 			var enemy := _view.fighter(_source)
 			if enemy != null:
@@ -520,11 +521,12 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 			text = "DODGE"
 			color = HudStyle.DODGE
 			Sfx.play("dodge")
+			_view.camera.add_trauma(_visuals.shake_dodge)
 		Defense.Outcome.JUMP:
 			text = "JUMP"
 			color = HudStyle.JUMP
 			Sfx.play("jump")
-			_clock.pause_for(now, _tuning.hitstop_jump_ms * 1000)
+			_freeze(now, _tuning.hitstop_jump_ms, characters)
 	if _options.timing_readout:
 		text += " " + HudStyle.signed_ms(roundi(float(offset_us) / 1000.0))
 	var shown: Array[int] = []
@@ -545,9 +547,23 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 			_view.spawn_sparks(at, _visuals.sparks_per_parry)
 		elif action == Defense.Outcome.JUMP:
 			view.flash(_visuals.flash_ms, HudStyle.JUMP, _visuals.jump_flash_strength)
+		elif action == Defense.Outcome.DODGE:
+			view.flash(_visuals.flash_ms, HudStyle.DODGE, _visuals.dodge_flash_strength)
 	# One readout per press, even when it answered several characters at once.
 	if not shown.is_empty():
 		_hud.popup(text, _focus_head(shown), color)
+
+
+## Freezes the shared attack clock for `ms` from `now`, owned by the players behind `characters`
+## (none: nobody's, the hurt freeze).
+func _freeze(now: int, ms: int, characters: Array[int]) -> void:
+	var players: Array[int] = []
+	for id: int in characters:
+		var player := int(_owners.get(id, 0))
+		if not players.has(player):
+			players.append(player)
+	_clock.pause_for(now, ms * 1000)
+	_freezes.add(now, ms * 1000, players)
 
 
 # --- per-frame steps --------------------------------------------------------------------------
@@ -586,6 +602,11 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 	if not _mirror.is_alive(id):
 		return
 	var hit_index := int(prompt.hit)
+	# A heavy hit (at least big_hit_percent of max HP, like the big damage number) staggers the
+	# hero: a longer pose and a bigger knockback (card #62), and it shakes the camera harder than
+	# a graze (card #179). Presentation only.
+	var max_hp := maxi(1, int(_mirror.fighter(id).get("max_hp", 1)))
+	var heavy := int(prompt.damage) * 100 >= max_hp * _visuals.big_hit_percent
 	if not sounded.has(hit_index):
 		sounded[hit_index] = true
 		_parry_streak = 0
@@ -598,10 +619,10 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 		Sfx.play("guard_block" if guarded else impact)
 		# Only the last hit freezes: in a string the next lunge has often started by now.
 		if hit_index == _hits.size() - 1 and _tuning.hitstop_hurt_ms > 0:
-			_clock.pause_for(now, _tuning.hitstop_hurt_ms * 1000)
-			_hurt_pause_from_us = now
-			_hurt_pause_to_us = now + _tuning.hitstop_hurt_ms * 1000
-		_view.camera.shake(_visuals.shake_hurt, _visuals.shake_hurt_ms)
+			_freeze(now, _tuning.hitstop_hurt_ms, [])
+		_view.camera.add_trauma(_visuals.shake_hurt_heavy if heavy else _visuals.shake_hurt)
+		if heavy:
+			_view.camera.punch(_visuals.punch_hurt_heavy, _visuals.punch_ms)
 	var view := _view.fighter(id)
 	view.flash(_visuals.flash_ms, HudStyle.DAMAGE_TAKEN, _visuals.hurt_flash_strength)
 	# A projectile bursts on the hero it hit.
@@ -610,10 +631,6 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 		_projectile_ends[key] = {"kind": -1, "at_us": t}
 		var projectile: ProjectileData = _projectile_of[hit_index]
 		_view.spawn_sparks(_standing_centre(id), _visuals.projectile_burst_sparks, 1.0, projectile.color)
-	# A heavy hit (at least big_hit_percent of max HP, like the big damage number) staggers the
-	# hero: a longer pose and a bigger knockback (card #62). Presentation only.
-	var max_hp := maxi(1, int(_mirror.fighter(id).get("max_hp", 1)))
-	var heavy := int(prompt.damage) * 100 >= max_hp * _visuals.big_hit_percent
 	var pose_ms := _visuals.stagger_pose_ms if heavy else _visuals.hurt_pose_ms
 	_anims[id] = {"kind": Anim.HURT, "frame": FighterView.CharPose.HURT, "from_us": t,
 			"until_us": t + pose_ms * 1000, "heavy": heavy}
@@ -683,6 +700,13 @@ func _schedule_windups() -> void:
 		free_from_us = impact_us
 
 
+## The kind of hit `hit_index` in this attack (NORMAL when there is none).
+func _kind_of(hit_index: int) -> int:
+	if hit_index < 0 or hit_index >= _hits.size():
+		return AttackHitData.Kind.NORMAL
+	return int((_hits[hit_index] as Dictionary).kind)
+
+
 func _fire_cues(t: int) -> void:
 	var t_ms := float(t) / 1000.0
 	while _next_cue < _cues.size() and t_ms >= float(_cues[_next_cue].at_ms):
@@ -690,8 +714,11 @@ func _fire_cues(t: int) -> void:
 		_next_cue += 1
 		var enemy := _view.fighter(_source)
 		if _options.telegraph_flash and enemy != null:
-			# A slam flashes in the ground colour: the colour says which defence the hit needs.
-			var color := _visuals.ground_hit_color if String(cue.type) == EnemyChoreography.CUE_SLAM else _visuals.telegraph_flash_color
+			# The flash is in the hit's colour: it says which defence the hit needs (a slam purple,
+			# a rend bone, a sweep green, a normal hit red-orange).
+			var color := _visuals.kind_color(_kind_of(int(cue.get("hit", -1))), _visuals.telegraph_flash_color)
+			if String(cue.type) == EnemyChoreography.CUE_SLAM:
+				color = _visuals.ground_hit_color
 			enemy.flash(_visuals.telegraph_flash_ms, color, _visuals.telegraph_flash_strength)
 		match String(cue.type):
 			EnemyChoreography.CUE_SLAM:
@@ -729,10 +756,9 @@ func _update_enemy(t: int) -> void:
 				_idle_phase_ms)
 		enemy.show_clip(String(frame.clip), int(frame.index), int(s.pose))
 	enemy.set_glow(float(s.glow))
-	# The wind-up before a slam glows in the ground colour, before a lunge in the wind-up colour.
-	var hit_index := int(s.hit)
-	var ground := hit_index >= 0 and int((_hits[hit_index] as Dictionary).kind) == AttackHitData.Kind.GROUND
-	enemy.set_glow_color(_visuals.ground_hit_color if ground else _visuals.windup_glow_color)
+	# The wind-up glows in the hit's colour: purple before a slam, bone before a rend, green before
+	# a sweep, the wind-up colour before a normal lunge.
+	enemy.set_glow_color(_visuals.kind_color(_kind_of(int(s.hit)), _visuals.windup_glow_color))
 	var crouch := 0.0
 	if _options.windup_crouch and int(s.pose) == EnemyChoreography.Pose.WINDUP:
 		crouch = float(s.glow) * float(_visuals.windup_squash_percent) / 100.0
@@ -890,12 +916,11 @@ func _update_rings(t: int) -> void:
 		if not _mirror.is_alive(id):
 			continue
 		var u := float(t - (at - lead)) / float(lead)
-		var ground := int(prompt.kind) == AttackHitData.Kind.GROUND
 		rings.append({
 			"pos": _view.screen_position(_view.fighter(id).centre_position()),
 			"radius": lerpf(_visuals.ring_start_radius_px, _visuals.ring_end_radius_px, u),
-			"color": _visuals.ground_hit_color if ground else HudStyle.RING_NORMAL,
-			"label": "JUMP" if ground else "",
+			"color": _visuals.kind_color(int(prompt.kind), HudStyle.RING_NORMAL),
+			"label": HudStyle.kind_label(int(prompt.kind)),
 		})
 	_hud.set_rings(rings)
 
@@ -939,8 +964,8 @@ func _update_reading(t: int) -> void:
 				"pos": centre + Vector2(_visuals.hit_marker_offset_px.x * side, _visuals.hit_marker_offset_px.y),
 				"size": px,
 				"texture": _hud.hit_icon(kind),
-				"color": _visuals.ground_hit_color if ground else _visuals.normal_hit_color,
-				"label": "JUMP" if ground else "",
+				"color": _visuals.kind_color(kind, _visuals.normal_hit_color),
+				"label": HudStyle.kind_label(kind),
 			})
 	_hud.set_hit_markers(markers)
 	# The moment a ground hit arrives, the warning under its targets flashes bright (card #114).
@@ -1188,7 +1213,10 @@ func _last_impact_us() -> int:
 func _banner_text() -> String:
 	var enemy_name := String(_mirror.fighter(_source).get("display_name", "?"))
 	var target_text := CombatHud.target_text(_mirror, int(_event.get("mode", 0)), _targets)
-	return "%s  >  %s" % [enemy_name.to_upper(), target_text]
+	var marks: Array = []
+	for hit: Dictionary in _hits:
+		marks.append(String(hit.get("mark", "")))
+	return "%s  >  %s%s" % [enemy_name.to_upper(), target_text, HudStyle.mark_text(marks)]
 
 
 func _each_in_turn() -> bool:

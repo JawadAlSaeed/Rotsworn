@@ -51,6 +51,9 @@ enum Effect {
 @export var shape: Array[Vector2i] = [Vector2i.ZERO]
 @export var effect: Effect = Effect.NONE
 @export_range(0, 1000, 1, "suffix:%") var amount_percent: int = 0
+## In a fight, a healing item also removes this many hero debuffs from each hero it heals (card
+## #194; see AbilityData.cleanse_count). 3 clears all.
+@export_range(0, 3) var cleanse_count: int = 0
 ## How often it turns up in glinting spots and monster drops, against the run's other found
 ## items (a weight, not a percent).
 @export_range(0, 1000) var find_weight: int = 10
@@ -90,9 +93,10 @@ func is_charm() -> bool:
 	return kind == Kind.CHARM
 
 
-## True if two of it can be combined into a stronger one (consumables and charms).
+## True if two of it can be combined into a stronger one (consumables and charms). Not the Tonic: a
+## stronger Tonic would give more max HP per drink and get round tonic_max_per_hero (card #198).
 func combinable() -> bool:
-	return kind == Kind.CONSUMABLE or kind == Kind.CHARM
+	return (kind == Kind.CONSUMABLE and effect != Effect.MAX_HP_ONE) or kind == Kind.CHARM
 
 
 ## True if it can be used in a fight.

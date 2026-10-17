@@ -11,6 +11,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/blight_bile_flood.tres" id="9_sufb1"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="10_ah3f4"]
 [ext_resource type="Resource" path="res://data/clips/bloat.tres" id="11_01qfk"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_gorge_burst.tres" id="99_doom"]
 
 [resource]
 script = ExtResource("10_ah3f4")
@@ -27,11 +28,14 @@ sprite_pixel_size = 0.045
 hp_percent = 280
 power_percent = 150
 speed = 85
-attacks = Array[ExtResource("1_0lfg4")]([ExtResource("2_os6rj"), ExtResource("3_d8jt0"), ExtResource("4_7jimn"), ExtResource("5_fuqpq"), ExtResource("6_d82jo"), ExtResource("7_3u3us"), ExtResource("8_qbx23")])
+attacks = Array[ExtResource("1_0lfg4")]([ExtResource("2_os6rj"), ExtResource("3_d8jt0"), ExtResource("4_7jimn"), ExtResource("5_fuqpq"), ExtResource("6_d82jo"), ExtResource("7_3u3us"), ExtResource("8_qbx23"), ExtResource("99_doom")])
+target_rule = 1
+target_bias_percent = 150
 gold = 60
 xp = 130
 voice_sfx = "voice_bloat"
 phase_two_hp_percent = 50
-phase_two_attacks = Array[ExtResource("1_0lfg4")]([ExtResource("2_os6rj"), ExtResource("3_d8jt0"), ExtResource("4_7jimn"), ExtResource("5_fuqpq"), ExtResource("6_d82jo"), ExtResource("7_3u3us"), ExtResource("8_qbx23"), ExtResource("9_sufb1")])
+phase_two_attacks = Array[ExtResource("1_0lfg4")]([ExtResource("2_os6rj"), ExtResource("3_d8jt0"), ExtResource("4_7jimn"), ExtResource("5_fuqpq"), ExtResource("6_d82jo"), ExtResource("7_3u3us"), ExtResource("8_qbx23"), ExtResource("9_sufb1"), ExtResource("99_doom")])
 phase_two_speed = 125
+phase_two_tempo_percent = 94
 phase_two_text = "THE GORGED ONE SPLITS ITS SKIN!"

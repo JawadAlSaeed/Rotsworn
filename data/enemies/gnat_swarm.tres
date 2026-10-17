@@ -25,5 +25,7 @@ hp_percent = 50
 power_percent = 50
 speed = 160
 attacks = Array[ExtResource("1_gy2t7")]([ExtResource("2_pc4gs"), ExtResource("3_hpkyw"), ExtResource("4_dotlr"), ExtResource("p12_gnat_swarm_round")])
+target_rule = 1
+target_bias_percent = 150
 gold = 8
 xp = 15

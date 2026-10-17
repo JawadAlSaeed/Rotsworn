@@ -67,26 +67,120 @@ strike, return) takes about 0.55 s.
 
 ### 2.3 Enemy turn
 
-1. The enemy picks one of its attacks (weighted random, seeded RNG) and its targets:
-   single-target attacks pick a random living party member, party-wide attacks target every
-   living party member.
+1. The enemy picks one of its attacks and its targets (seeded RNG, integers only, card #189):
+   - **Which attack.** Weighted random over its moves, minus the ones it may not use right now:
+     a move is skipped while it is on **cooldown** (`cooldown_turns`, default 0: the enemy's next
+     N turns) or after it was used `max_in_a_row` turns running (default 2, 0 = no limit), as long
+     as another move is usable (a one-move enemy keeps using it). A move can also change weight
+     with the situation: `finisher_below_percent` + `finisher_weight_percent` (times this weight
+     while any standing hero is at or under that percent of max HP) and `low_hp_below_percent` +
+     `low_hp_weight_percent` (the same when the enemy itself is that low). All default to off, so
+     most attack files need no edit.
+   - **Who.** Party-wide attacks target every living hero; each-in-turn attacks are unchanged. A
+     single-target attack asks the enemy's `target_rule` (enemy data, with `target_bias_percent`).
+     Every standing hero starts at weight 100: `RANDOM` leaves it there; `WOUNDED` adds missing-HP
+     percent x bias; `LOWEST_HP` adds the bias to the hero with the least HP; `MARKED` adds it to
+     heroes under Exposed or Marked; `AVOID_LAST` adds it to everyone but the hero it hit last.
+     So nobody is ever safe and nothing is certain. Taunt still overrides the rule; downed and
+     escaped heroes are never picked.
+   - The enemy remembers its last 8 attacks, the cooldowns and its last target (in the snapshot,
+     so online and restore agree). The choice is still shown honestly as the intent. In practice
+     fights the intent event also carries the weights behind the pick (`odds`) so they can be
+     tuned by eye; it never changes what happens.
+   - **Marks (card #194).** A hit can leave a mark on the hero it lands on (2.7): a hero debuff
+     or an AP drain. The intent says so: the `intent` event carries `marks` (one entry per hit, ""
+     for a plain hit, only when some hit marks), the intent sign and the attack banner append
+     `[ROT]`, `[BLIGHT]`, `[WEAK]` or `[AP DRAIN]`, and the marking hit's icon wears a small dot in
+     that colour. A hit that cannot mark in this fight (hard-only marks in an ordinary fight)
+     shows nothing, so the sign never lies either way.
+   - Shipped rules: predators (hyenas, shades, flies, gnats) WOUNDED with a bias of 150 to 400;
+     husks and bloats RANDOM or mild WOUNDED (100); toads AVOID_LAST; guards and bosses
+     LOWEST_HP or WOUNDED (100 to 250), so a weak hero is in real danger.
 2. A **banner** at the top shows the attack name and either the one targeted character's name or
    "WHOLE PARTY". An alert sound plays once when the attack starts (not per hit).
 3. The attack plays in real time. **Only targeted characters defend.** Each hit is resolved per
    target (see 3). Targets are marked: red arrows over them until the enemy starts moving, and a
    red border on their party panels for the whole attack. During a single-target attack the other
    party members step back and dim, so the lunge lane and the target are clear.
+4. **Charged Dooms** (card #195; Expedition 33's break meets Slay the Spire's big intent). A move
+   with `charge_turns` above 0 is a **Doom**: a big party-wide string the enemy does not throw at
+   once. Data on `EnemyAttackData`: `charge_turns`, `break_damage_percent` (share of the enemy's
+   max HP), `cooldown_turns` (at least 1), `start_cooldown_turns` and the usual weight. The engine
+   refuses a Doom that is not party-wide, has no break or no cooldown (`CombatSetup.validate`).
+   - **Announced and counted down.** When the engine picks a Doom as the intent, the countdown
+     starts at once: the `intent` event carries `charge_left` (= `charge_turns`), `charge_total`,
+     `charge_damage` (0) and `break_hp`. `charge_turns` is the number of the enemy's turns from
+     the announcement: each enemy turn counts it down; while it is still above 0 that turn is spent
+     **gathering** (`doom_charging {left}`: no attack, no new pick, the intent stays); on the turn
+     it reaches 0 the Doom **unleashes** (`doom_unleashed`, then the ordinary timed sequence, with
+     the hard-fight rend and sweep kinds as in 2.4; a string with a sweep can never be countered).
+     So 3 means two gathering turns and the strike on the third. The party acts in between.
+   - **Break.** All HP the party takes off the enemy while the Doom stands announced or gathering
+     counts, whoever or whatever deals it (skills, follow-ups, counters, bleed, items):
+     `doom_progress {damage, break_hp}`. At `break_damage_percent` of its max HP the Doom is
+     **broken** (`doom_broken`): the charge is cancelled, the Doom starts its cooldown as if used,
+     the enemy is **staggered** (`stagger_changed {turns}`): it loses its next `stagger_turns`
+     turns (tuning, 1) and takes `stagger_damage_taken_percent` (tuning, 50) more damage from every
+     source until then (those `damage` events carry `staggered: true`). It announces a new move at
+     once (never the Doom, which is cooling down); that announced move stands through the lost turn
+     (no re-roll), then happens on its next turn. `stagger_changed {lost_turn: true}` marks each
+     lost turn, `turns: 0` the end.
+   - **Delays.** The countdown counts the enemy's turns, not time. Shield Bash, Earthshaker,
+     Hamstring and Slow push the enemy's next turn back without touching `charge_left` or the
+     damage already counted: they never reset or cancel the charge, they give the party more turns
+     inside the window (the best answer short of breaking it). A Doom charge also survives phase
+     two (the Doom is on both lists, the new pick is skipped while gathering), heroes going down or
+     coming back (the intent re-targets, the countdown stays) and a snapshot or restore (`charge_attack`,
+     `charge_left`, `charge_damage`, `staggered_turns` are in `Combatant.to_dict`). A downed enemy
+     drops it.
+   - **Pacing.** `start_cooldown_turns` 2 keeps a Doom out of the fight's first two picks (never in
+     phase one's first turn), `cooldown_turns` 2 keeps it from coming back at once; with the shipped
+     weights (about 40% of picks once ready) a boss announces one about every 4 to 6 of its own
+     turns (measured over 40 seeds: Ash Warden 3.9, Gorged One 4.4, Mire Mother 4.8, Husk Lord 6.0,
+     Hollow King 5.5; the first is announced for its third turn at the earliest). Measured by a bot that always focuses the gatherer and defends perfectly, over 30
+     seeds: a Doom is broken about 7 times in 10 (the King's about 6); a bot that loses a
+     share of its defences (heroes fall, so fewer strikes) breaks about 2 in 10. That is the intended price of the break: striking is the
+     answer, but not every turn can be a strike.
+   - **Bots.** The fight bots (test bot and the autoplay) aim their single-target skills at the
+     enemy that is gathering a Doom, else at the first enemy. `AUTOPLAY_DOOMS announced= broken=
+     unleashed=` is printed in the end lines of a fight that had one.
+   - **Shown** (card #195, numbers in `combat_visuals.tres`, "Charged Dooms"): see 7.10.
 
 ### 2.4 Defensive actions
 
 | Action | Window (default) | Works against | Result |
 |---|---|---|---|
-| Dodge | 250 ms | normal hits | no damage, no reward |
-| Parry | 150 ms | normal hits | no damage, +AP (`ap_per_parry`, 1) |
+| Dodge | 250 ms | normal hits, sweeps | no damage, no reward |
+| Parry | 150 ms | normal hits, rends | no damage, +AP (`ap_per_parry`, 1) |
 | Jump  | 220 ms | ground hits | no damage, +AP (`ap_per_jump`, default 0) |
 
 - Ground hits (shockwaves along the floor) can only be avoided by jumping. Dodging or parrying
   them fails. Jumping into a normal hit fails.
+- **Forced-choice hits (card #187, 2026-10-17):** two more kinds make the three buttons a real
+  choice, so dodging everything (the easy, safe button) stops working in the hard fights.
+  - **Rend** (bone-coloured claw icon): only a **parry** stops it. A dodge or a jump is the wrong
+    button: the hit lands, the hint says "MUST PARRY". A parried rend is perfect (it counts for
+    counters like a parried normal hit, and as a parry for the mixed bonus).
+  - **Sweep** (green crescent icon): only a **dodge** avoids it. A parry or a jump is the wrong
+    button: the hit lands, "MUST DODGE". A sweep has no perfect answer, so **a string with a sweep
+    in it can be survived but never countered** (2.5).
+  - Same windows as the parry and the dodge (no window was changed). `Defense.build_windows` stays
+    the one place that decides which button works against which kind; the judge reports the
+    wrong button as WRONG_ACTION like a parry on a ground hit, the engine sanitises every result
+    against the declared windows, and online the host's referee turns a wrong-button result into
+    a hit taken (`DefenseArbiter.accept`).
+  - **Where:** an attack's normal hit carries `forced_kind` (REND or SWEEP) and may carry
+    `forced_feint`. They only show in **hard fights**: elite, guard and boss fights
+    (`CombatSetup.forced_hits`, set from the encounter's flags) and against the deep variants
+    (`EnemyData.forced_hits`, 2.16), which use them everywhere. Ordinary act-one fights and the
+    tutorial play the same strings as plain normal hits without the extra feints. About one hit in
+    four of the strings hard fights use is forced (a test keeps it between 15% and 40%); a forced
+    hit always comes at least 300 ms after the hit before it, so there is time to see its colour
+    and change buttons (test).
+  - Bots: the perfect bot presses `Defense.best_outcome` (parry a rend, dodge a sweep); the
+    average bot first reads a rend or sweep and misreads it (the other button, on time) with
+    (100 - skill) / 2 percent chance, then lands it with its usual skill chance.
+  - Tests: `tests/unit/test_hit_kinds_tempo.gd` (with the tempo of 8.3).
 - A press that matches nothing is a **whiff**: that player's defence buttons are locked for
   `whiff_lockout_ms` (300). **Pressing while locked restarts the lock.** A simulation showed this
   drops mashing success to 0% while an honest miss costs only that one hit. An isolated LATE
@@ -105,7 +199,9 @@ strike, return) takes about 0.55 s.
 
 ### 2.5 Counters
 
-- A hit is **perfectly defended** by a Parry (normal hit) or a Jump (ground hit).
+- A hit is **perfectly defended** by a Parry (normal hit or rend) or a Jump (ground hit). A sweep
+  (dodge only, 2.4) has no perfect answer, so a hero whose prompts include a sweep cannot counter
+  that attack (card #187).
 - A targeted character who perfectly defends **every** hit of an attack counterattacks for
   `counter_percent` (150%) of their power.
 - If the attack was party-wide and **every** targeted character perfectly defended every hit,
@@ -155,6 +251,47 @@ strike, return) takes about 0.55 s.
   are voided. Phase 2 adds revive (a target revived mid-attack does not rejoin that attack).
 - All three downed = defeat (in a run: run over). All enemies at 0 HP = victory. Victory or defeat
   can happen in the middle of an attack.
+- **Marks: hero debuffs and AP drain (card #194, review combat-rules-ai #3).** Failing to defend
+  used to cost only HP. Now an enemy hit can also carry a mark, set on the hit in the attack's
+  data (`AttackHitData.on_hit_status`, `on_hit_status_turns`, `on_hit_ap_drain`). It lands only
+  when that hit is **undefended** (outcome NONE: no dodge, parry or jump that answers it; a wrong
+  button on a rend, sweep or ground hit still counts as undefended) **and the hero survives it**
+  (a hero downed by the hit gets nothing). A successful defence prevents it, so defence has a
+  second stake. It is applied in the engine's defend-prompt resolution, after the
+  `prompt_resolved` event, with the existing `_add_status` (a `status_changed` event) and an
+  `ap_changed` event with reason `drain`. `on_hit_hard_only` (default off; every shipped mark sets
+  it) holds the mark back unless the fight is hard (an elite, guard or boss fight, or an enemy
+  with `forced_hits`, like `forced_kind`), so one attack file serves the ordinary fight as plain
+  damage and the hard one as damage plus a mark. Nothing marks in the tutorial fight or in
+  ordinary first-zone fights.
+
+  | Status | Effect (numbers in `tuning.tres`) | Ends |
+  |---|---|---|
+  | Rotting (`rotting`) | at the start of each of the hero's turns they lose `rotting_percent` (6) of max HP, never below 1 HP from rot alone (damage cause `rotting`) | `on_hit_status_turns` of their turns |
+  | Blighted (`blighted`) | healing they receive is cut by `blighted_heal_cut_percent` (50), at least 1 HP when it heals at all; applies to every heal (skills, Renew, items, gear) | same |
+  | Weakened (`weakened`) | their power is cut by `weakened_power_cut_percent` (25): skills, follow-ups, counters, team counters and the damage of a Bleeding they put on an enemy | same |
+
+  They count down at the end of the holder's turns like Slowed, show their turns left on the
+  hero's panel (a short coloured word: ROT 2, BLIGHT 2, WEAK 2) and a popup when they land. **They
+  stack by refreshing, never by multiplying:** a second hit sets the turns to the longer of the
+  two. A downed hero loses them all. Statuses are built fresh with each fight (a fight starts
+  from `CombatSetup`, and the run saves only HP), so the end of a fight and a campfire Rest
+  clear them without any code. The AP drain takes `on_hit_ap_drain` AP (never below 0) with a
+  `-N AP` popup.
+
+  **Cleanse.** `AbilityData.cleanse_count` (+ `press_cleanse_count` on an all-perfect press)
+  removes that many debuffs from each ally a healing skill heals, **before** the heal lands, in
+  the order rotting, blighted, weakened (so lifting Blight frees that very heal). Decision: Mend
+  and Sanctuary lift **one** on a normal press and **all three** on a perfect one, so Cass's
+  timing matters; Renew does not cleanse (it is a slow heal). Items: `ItemData.cleanse_count`;
+  the Salve lifts one in a fight (the Antidote of the item list is not built). The autoplay bot
+  prefers a cleansing skill when a hero is marked, and aims it at a marked hero.
+
+  Shipped marks (one marking hit per string at most): Bile Spit and Bile Flood's last bolt
+  (Blighted 2), Rot Combo's last hit (Rotting 2), Rot Cascade's last hit (Rotting 3, the Hollow
+  King), Pounce and Pack Bite's last hit (Weakened 2), Shadow Bolts' last bolt (1 AP drain).
+  `tools/make_attack.py` writes these with the hit options `mark`, `mark_turns`, `ap_drain`,
+  `hard_only`.
 
 ### 2.8 Phase 2 features (planned, not built yet)
 
@@ -190,14 +327,20 @@ Times are ms after the attack starts, at tempo 100%.
 | Attack | Targets | Weight | Hits | Notes |
 |---|---|---|---|---|
 | Swipe | one | 3 | normal 900 (100%) | wind-up glow, 200 ms lunge |
-| Flurry | one | 3 | normal 900 / 1200 / 1500 (45% each) | 300 ms rhythm |
+| Flurry | one | 3 | normal 900 / 1200 / 1650 (45% each) | 300 then a held 450 ms; hard fights: the first swipe feints, the last is a rend |
 | Lingering Claw | one | 2 | normal 1600 (130%) | feint: false start, hold, real lunge; no training ring |
 | Ground Slam | party | 1 | ground 1100 (80%) | shockwave front parallel to the party, reaches all at once |
 | Rot Combo | party | 1 | normal 900, normal 1200, ground 1700, normal 2300 (35% each) | 500+ ms either side of the ground hit (jump airtime) |
 
 Data rules (checked by a test): impact times increase; normal hits at least 250 ms apart; at
 least 450 ms between a ground hit and its neighbours; mid-string parry hit-stop at least 30 ms
-under the parry window's early part.
+under the parry window's early part. Card #187 adds: no string of three or more hits of one kind
+has all its gaps equal (review combat-feel #4: a steady tap rhythm beat them), a forced hit is at
+least 300 ms after the hit before it, and a feint inside a string at least 550 ms after the hit
+before it (its false start would eat that hit's contact pose); a feint on a first hit has the whole
+wind-up. Re-authored 2026-10-17: Buzz, Sting String, Swarm Sweep, Swarm Round, Pack Bite, Strafe,
+Buzz Dive, Flurry, Hop Hop Hop, Quake Hop, Bile Flood, Blood Rush, Frenzy, Crown Sweep, Rot Cascade
+and Kingsfall (its first three hits) now have uneven gaps.
 
 ### 2.10 Phase 2 class kits (approved 2026-10-12)
 
@@ -257,7 +400,7 @@ power unless stated. AP is per character.
 
 | Skill | AP | Effect | Good press |
 |---|---|---|---|
-| Mend | 1 | heal one ally 30% of their max HP | 45% |
+| Mend | 1 | heal one ally 30% of their max HP, lift one hero debuff (2.7) | 45%, lift all |
 | Reveal | 1 | 60% hit, enemy becomes Exposed | +1 AP |
 | Pass the Torch | 2 | give one ally 2 AP | 3 AP |
 | Hasten | 2 | one ally's next turn comes sooner | sooner still |
@@ -325,7 +468,10 @@ How a fight starts depends on how it began in the zone (7.4):
   ends as **"escaped"** once nobody is left standing in it and at least one hero ran (a hero downed
   after the others ran is carried out); if the others win, it is a normal victory.
 - Not allowed against bosses (`EncounterData.boss`, which includes the run's final fight, the
-  Hollow King) or where `EncounterData.can_run` is false: the Run row reads CAN'T RUN.
+  Hollow King), guards (`mini_boss`), elite fights (`elite`: map Elite stops and zone champions;
+  card #175, otherwise a player could read an elite's moves for free and leave) or where
+  `EncounterData.can_run` is false: the Run row reads CAN'T RUN. The first three are a rule in
+  `CombatSetup.from_encounter`, so a new one made in data cannot be left runnable by a forgotten flag.
 - After an escape: in a zone, the enemy goes home and the leader stays where they are (with the
   usual return grace); in a run, the HP carries on (a downed hero stands at
   `run_downed_revive_hp`), with no gold and no XP; a practice fight shows ESCAPED with "fight
@@ -405,13 +551,15 @@ in data. Times in ms at tempo 100%.
 | Variant | Base | Look | Its own move |
 |---|---|---|---|
 | Ashen Husk | Rotten Husk | ash grey, ember core | Cinder Hail: party, two burning cinders thrown 1200, 1750 (50% each) |
-| Blight Bloat | Bloat | bile yellow | Bile Flood: one, three bile globs 950, 1300, 1650 (45% each) |
-| Blood Gnats | Gnat Swarm | blood red | Blood Rush: each in turn, five stings 800 to 2000 every 300 (30% each) |
+| Blight Bloat | Bloat | bile yellow | Bile Flood: one, three bile globs 950, 1300, 1750 (45% each) |
+| Blood Gnats | Gnat Swarm | blood red | Blood Rush: each in turn, five stings 800 (a feint), 1100, 1350, 1800, 2100 (a sweep) (30% each) |
 | Hollow Shade | Shade | ice blue | Bolt Storm: party, shade bolts 1000, 1500 (45% each) |
-| Bone Hyena | Rot Hyena | bone pale, red eyes | Frenzy: each in turn, four bites 800 to 1700 every 300 (40% each) |
+| Bone Hyena | Rot Hyena | bone pale, red eyes | Frenzy: each in turn, four bites 800, 1100, 1800 (a feinting rend), 2050 (40% each) |
 | Plague Fly | Carrion Fly | plague violet | Plague Spit: party, one bile glob each 1200 (60%) |
-| Elder Toad | Mire Toad | dark bog brown, red eyes | Quake Hop: party, rocks 1100, wave 1700, rocks 2300 (50% each) |
+| Elder Toad | Mire Toad | dark bog brown, red eyes | Quake Hop: party, rocks 1100, wave 1700, rocks 2250 (50% each) |
 
+- Every variant has `forced_hits` on (card #187, 2.4): its rends and sweeps and forced feints show in
+  every fight it is in, so the second half of a run reads harder.
 - Deep fights: `EncounterData.deep` names a fight's deep version (`deep_<id>`, the same fight made of
   variants). In a run, from map row `tuning.run_deep_row` (4, the second half of the 7 rows) on, a
   zone's roaming enemies hold their deep fights (`RunState.is_deep()`, `ZoneController.configure(...,
@@ -474,9 +622,13 @@ in data. Times in ms at tempo 100%.
   hit taken 50 ms (only on an attack's last hit: a missed hit is judged about 118 ms after impact,
   when in a string the next lunge has often started, and freezing that looks like a stutter),
   dodge 0, counter 120 ms.
-- **Presses during a success freeze (parry, jump) are ignored** (no judgement, no lockout). The
-  hurt freeze on an attack's last hit is the exception: every prompt is already resolved, so such
-  a press can only be a LATE report, judged at the time it would have had without the freeze.
+- **Presses during a success freeze (parry, jump, perfect skill press) are ignored only for the
+  player who owns the freeze** (no judgement, no lockout): that is their own double tap. Card #180
+  (bug): the clock is shared, so one player's parry used to swallow a teammate's on-time press
+  inside the freeze. `FreezeLedger` (pure, tested) records who owns each freeze; a press by anyone
+  else is judged at the time it would have had without the freeze (attack time plus the real time
+  since the freeze began), the same trick as the hurt freeze. The hurt freeze on an attack's last
+  hit has no owner: every prompt is already resolved, so such a press can only be a LATE report.
 - Press stamps are converted from real time to attack time before judging.
 
 ### 3.4 Windows
@@ -533,12 +685,15 @@ One judge per local player, holding the prompts of the characters that player an
 - The lock icon sits under the defenders' feet, clear of the readouts.
 - Feedback comes from the local judge at press time, never from engine events (so it stays
   instant online): "PARRY" / "DODGE" / "JUMP" plus the offset ("+12"), whiffs as "EARLY -130"
-  (blue) or "LATE +70" (red), wrong button as "JUMP!" / "PARRY!" hints (orange), "MISS" when a hit
+  (blue) or "LATE +70" (red), wrong button as "JUMP!" / "PARRY!" hints (orange; "MUST PARRY" on a
+  rend, "MUST DODGE" on a sweep, card #187), "MISS" when a hit
   lands with no press, a lock icon during lockout, a muted click for a locked press.
 - Distinct sounds: parry clang (brighter on the final hit), dodge whoosh, jump thump, hit taken,
   whiff swish, locked click.
 - Parry sparks burst on the defender's front edge (`spark_toward_enemy`). Screen shake is stronger
-  on a parry than on a hit taken (parry 0.09, final parry 0.14, hurt 0.1).
+  on a parry than on a hit taken, and a heavy hit shakes more than a graze (trauma values: parry
+  0.4, final parry 0.7, hit taken 0.3, heavy hit 0.7; see 7.3). A dodge only nudges (0.1) and
+  flashes its hero faintly cool (card #179).
 
 ### 3.7 Cues (all toggleable)
 
@@ -560,6 +715,15 @@ One judge per local player, holding the prompts of the characters that player an
 - Hit markers (`show_hit_markers`, off since phase 6, F1 then H in practice), see 3.8. The floor
   warning under a ground hit always shows.
 - G, T, L, H and C are session toggles (not saved); the tuning values are their starting state.
+  **They only work in practice fights** (F1 then the letter), like the training ring: a run fight
+  is the real game and F1 there only opens the stats (godot-code-health #6, 2026-10-17).
+- **Flashes setting** (Settings > Game, card #185): Full (default), Reduced or Off. It scales every
+  full-screen flash (counter, ultimate, hero down, phase change, kills) and every flash on a
+  fighter (white parry and hit flashes, the telegraph flash in strings). Reduced keeps
+  `flash_reduced_screen_percent` (40) of a screen flash and `flash_reduced_fighter_percent` (50)
+  of a fighter flash; Off drops screen flashes entirely and leaves a faint
+  `flash_off_fighter_percent` (15) tint so a hit still reads. Saved per machine. It only softens
+  light, never timing: the telegraph is still there.
 
 ### 3.8 Reading attacks (approved 2026-10-12, card #44)
 
@@ -568,9 +732,14 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
 "icons only" over a rhythm-game strip with a moving line).
 
 - **One colour per defence:** red-orange (`telegraph_flash_color`, `normal_hit_color`) = a normal
-  hit, parry or dodge it; purple (`ground_hit_color`) = a ground hit, jump it; white = you parried.
-  The wind-up glow and the telegraph flash before a slam, the ground hit icon, its marker, the
-  floor warning and the training ring's ground colour are all purple.
+  hit, parry or dodge it; purple (`ground_hit_color`) = a ground hit, jump it; bone
+  (`rend_hit_color`, near the PARRY readout's yellow, never pure white) = a rend, parry only;
+  sickly green (`sweep_hit_color`, near the DODGE readout's green) = a sweep, dodge only (card
+  #187); white = you parried. The wind-up glow and the telegraph flash before a hit, its icon
+  (claw marks for a rend, a crescent for a sweep, `hit_rend.png` / `hit_sweep.png` drawn by the art
+  kit's `fx_ui`), its marker and the training ring all take the hit's colour
+  (`CombatVisuals.kind_color`); the marker and the ring add the one button's name ("JUMP",
+  "PARRY", "DODGE"). Ground hits also get the purple floor warning.
 - **Rhythm rows:** the intent sign and the attack banner show one icon per hit, centres
   `rhythm_px_per_ms` (0.2) apart per millisecond between impacts and never closer than the icon
   plus `rhythm_min_gap_px`; a row wider than `rhythm_max_width_px` is squeezed evenly
@@ -727,7 +896,8 @@ Commands (Dictionary, `type` key; build with `CombatCommands`):
 Events: `combat_started`, `intent`, `turn_started`, `turn_order`, `ability_used`, `damage`,
 `healed`, `revived`, `downed`, `ap_changed`, `status_changed`, `turn_shifted`, `team_gauge`,
 `timed_sequence_declared`, `prompt_resolved`, `prompts_voided`, `sequence_resolved` (boundary:
-all prompts done, counters follow), `counter`, `enemy_phase` (a boss's phase two), `turn_ended`,
+all prompts done, counters follow), `counter`, `enemy_phase` (a boss's phase two), `doom_charging`,
+`doom_progress`, `doom_broken`, `doom_unleashed`, `stagger_changed` (Charged Dooms, 2.3), `turn_ended`,
 `practice_changed`, `combat_ended`,
 `command_rejected`. Every event that changes HP, AP or the gauge carries the value after the
 change. Full field lists are at the top of `combat_engine.gd`.
@@ -856,7 +1026,8 @@ clamped by tuning's calibration bounds.
 Music (2026-10-13, cards #84, #95, #97, #98): `data/audio/music.tres` (`MusicSet`) names the songs:
 `menu_path` (title theme and menus), `run_path` (map, shop, rest, loot, party, run end), `zone_path`
 (zones without their own song; each `ZoneData.music_path` names its own), `fight_path`, `boss_path`
-and `boss_rage_path` (the boss fight switches to it on the boss's phase change), `victory_path` and
+`elite_path` (elite fights, card #192; empty today, so elites use the fight song until a song is
+dropped in and named there) and `boss_rage_path` (the boss fight switches to it on the boss's phase change), `victory_path` and
 `defeat_path` (cards #109, #126: a won or lost fight's end screen, `end_song_delay_ms` after the
 jingle, and RUN CLEARED / RUN OVER; user picks 2026-10-15: "Victory Theme for RPG" by cynicmusic
 and "Lament for a Warrior's Soul" by RandomMind, which the Openverse pass replaced with "Sad Piano"
@@ -864,7 +1035,10 @@ by tyops; empty keeps the old songs). The run map song is
 "Treasure Hunter" by TAD (card #110, user pick 2026-10-15, was "Mystical Theme"). The `Audio`
 autoload loops the song on its own player (OGG imports loop, `oggvorbisstr` default in
 project.godot); a place naming the song already playing lets it go on. A new song crossfades in: it fades in over `fade_in_ms` while the old one fades
-out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). While an enemy attack plays
+out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). The `Audio` autoload
+remembers how far into a song (and into a zone ambience loop) it was when something replaced it;
+coming back from a fight, the zone asks to `resume` and the song and the ambience go on from there
+with the usual crossfade instead of restarting at 0:00 (card #192). While an enemy attack plays
 the music dips by `music_duck_db` over `music_duck_ms` (combat_visuals.tres) so defence sounds stand
 out. Songs are free OpenGameArt tracks picked by the user from three options per place
 (`tools/sound_kit/music_candidates.json`, `music_selection.json`, `music_kit.py final`), all levelled
@@ -912,8 +1086,11 @@ named on the credits screen (`data/branding/credits.tres`, a test checks songs).
 
 Volume channels (2026-10-13, card #104): Settings has Volume (overall, the Master bus), Music,
 Effects and Voices, saved per machine (`PlayerSettings.CHANNELS`). The `Audio` autoload creates the
-Music, Effects and Voice buses; songs play on Music, sound effects and ambience on Effects, cues
-with `SfxCue.voice` on Voice.
+Music, Effects and Voice buses (and, card #183, a hard limiter on Master with a little headroom,
+numbers in `data/audio/mix.tres`); songs play on Music, sound effects and ambience on Effects, cues
+with `SfxCue.voice` on Voice. Cues use a free player of the 24 first and only steal when all are
+busy (the one with the least time left, `VoicePool`); the same cue is not started twice inside
+`cue_cooldown_ms` (30 ms), so three identical hurts on one frame do not stack.
 
 Sound effects (2026-10-13, phase 7 card #39): every cue in `assets/audio/sfx/` is built from real
 CC0 recordings (Kenney packs and Freesound, via the opus-sound-layer library), never synthesized.
@@ -967,6 +1144,10 @@ blending poses into more frames.
   camera scale 1.19 inside his 108 px frame (idle 3.6, sword raised 4.0); the heroes stand about
   2.0 (44 px).
 - `python tools/art_kit/check.py` checks every file against the sprite contract.
+- The "?" stops' pictures (card #199) are small painted scenes, not sprites: `assets/event_art.py`
+  paints a 128x64 back and puts a 3D-rendered subject on it (details in 8.7). One per event file and
+  one per act's ambush page, in `assets/sprites/events/`; `check.py` demands a picture for every
+  file in `data/events/`.
 
 ### 5.5 Animation clips (phase 10, cards #58 to #71)
 
@@ -998,7 +1179,8 @@ blending poses into more frames.
 
 ## 6. Input
 
-Defined in `project.godot` (Project > Project Settings > Input Map in the editor). Solo: every
+Defined in `project.godot` (Project > Project Settings > Input Map in the editor); the table below
+is the default, and every key and button can be changed in Settings > Controls (6.1). Solo: every
 device controls the single player. Co-op (9.1): each player has one device (the keyboard counts as
 one device, `PlayerRoster.KEYBOARD`; pads by their Godot device id) and it controls only that
 player's heroes.
@@ -1039,11 +1221,14 @@ next attack, I toggles "party cannot die", O toggles "enemy cannot die", R resta
 F1 opens the stats overlay (inside it: R training ring, G telegraph flash (F is the Skills key), T timing readout,
 L motion sounds, H hit markers, C wind-up crouch, V cinematic camera), F2 starts lag calibration (only while the action menu is open, never during an
 enemy attack). With `practice_tools_enabled` off, F1 and F2 are not available during a fight.
+In a run fight only F1 (stats) and F2 (calibration) work; G, T, L, H, C and V do nothing there.
 On the victory/defeat screen F1 opens the stats, and Confirm or R fights again once
 `end_input_guard_ms` (800) has passed, so a late defence press never skips the screen.
 
 On-screen control hints are built from the Input Map (`HudStyle.binding_parts` /
-`binding_text`), so remaps made in Project Settings > Input Map show up in the hints. They show
+`binding_text`), so remaps made in Settings > Controls (6.1) or in Project Settings > Input Map show
+up in the hints (the movement tokens `@move`, `@updown`, `@leftright` and `@arrows` are built from the
+four actions they stand for, `HudStyle.nav_parts`). They show
 the device in use (card #45, `ButtonPrompts`, autoload `Prompts`): pad buttons (Xbox names, round
 coloured A/B/X/Y chips) while a pad is plugged in and was used last or was just plugged in;
 keyboard keys (key caps) once a key is pressed or the last pad is unplugged. Local co-op with the
@@ -1059,6 +1244,49 @@ during a skill). Godot's built-in
 `ui_cancel` gains pad B. `DefenseInput` marks the presses it consumes as handled, and menus are
 driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engine.time_scale`
 (both would drop presses or freeze timers); `DefenseInput` runs with `PROCESS_MODE_ALWAYS`.
+
+### 6.1 Rebinding keys and buttons (card #190)
+
+Settings > Controls lists every player action (28: the fight menu, Parry / Dodge / Jump / Skill
+press, walking, Strike and Pick up, the menu directions, Confirm, Back / run, Pause, the backpack
+and party shortcuts, the stats overlay) with its key and its pad button side by side. Up / Down pick
+a row (the list scrolls, ten rows show), Left / Right pick the Key or the Pad column, Confirm waits
+for the new input ("press a key ..."). Escape (or the pad's Menu button) cancels, and so does
+waiting `rebind_capture_ms` (tuning, 6 s). Everything works from the keyboard or a pad, no mouse.
+A pad press can be a button or a trigger; sticks cannot be captured (drift), but a stick direction
+an action already has keeps working.
+
+- **What is rebound.** Each action has an ordered list of keys and one of pad inputs. Rebinding
+  replaces the FIRST of the list (the one the hints show); the others stay as aliases (the arrows
+  next to WASD, the stick next to the D-pad, E next to Enter). The row's help line names them
+  ("Also: Up"). "Skill press" is its own row, so changing Parry does not change it.
+- **Conflicts.** `ControlBindings.GROUPS` are the sets of actions needed at the same time: Parry /
+  Dodge / Jump (with Pause and the stats overlay), Skill press (with the same two), the fight menu,
+  walking and the zone, and the menus. An input already held by another action of a shared group is
+  refused or swapped, never doubled. If exactly one action holds it and the trade is possible, the
+  game asks ("Space is already Parry. Confirm: swap them. Back: leave it."); the other action takes
+  the old input, wherever the new one was in its list. Otherwise it says so and keeps waiting.
+  Groups that never run together may share a button (W jumps in a fight and walks up a menu; Parry
+  and Skill press both default to Space). Attack and Confirm may share (the action menu does), and
+  so may Back and Pause (Escape; Main reads Pause first).
+- **No lock-out.** Rebinding only replaces, so every action keeps a key and a pad input, and
+  Confirm, Back and Pause are checked to still have both (`ControlBindings.reachable`). Escape, F2
+  (the lag calibration key) and the pad's Menu button cannot be given to an action: they cancel the
+  "press the new button" step and keep Pause until reset. "Reset to defaults" is a row of the list
+  (asks twice, within `rebind_reset_confirm_ms`). A saved file that clashes or lost Confirm / Back /
+  Pause is dropped whole at start-up.
+- **Saving.** Per machine in `PlayerSettings` (`user://settings.cfg`, section `[controls]`, one entry
+  per changed action: `{"key": [...], "pad": [...]}` of `{k, code}` inputs). `PlayerSettings._ready`
+  calls `ControlBindings.install` before any screen reads the Input Map; a test run (`-s`) keeps the
+  project's own keys. Actions never changed stay as `project.godot` defines them.
+- **Timing path unchanged.** Rebinding rewrites the Input Map events; `DefenseInput._input` still
+  matches them with `is_action_pressed` and stamps the press as before (a test feeds it a rebound
+  key and button). Pad events are bound to all devices (device -1), so a rebinding applies to every
+  pad: per-pad rebinding is out of scope (the hints and the roster treat all pads alike).
+- **Code.** `ControlBindings` (`scripts/core/control_bindings.gd`, pure: defaults, groups, conflict
+  check, swap, save / load, writing the Input Map), the Controls section of `SettingsScreen`,
+  `ButtonPrompts.refresh` redraws every hint after a change, `ListMenu.window_rows` scrolls a long
+  list. Dev: `--screen=controls`.
 
 ---
 
@@ -1109,6 +1337,39 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
   decoration around the combat arena (blocks, props, lamps). A zone and the fights that start in
   it share its look; the fight list's fights use `combat_visuals.tres` `stage_look`.
   `StageBuilder` builds it all for both.
+- **The floor does not repeat like wallpaper** (card #186, `floor_ground.gdshader`): each place has
+  three drawn variants of its floor tile (`hollow_floor`, `ash_tile`, `bog_tile`, `throne_tile`, each
+  with `_b` and `_c`; the Hollow Throne no longer borrows the ash). They are calm: one ramp in three
+  close steps, a luma spread under 10, detail in small clusters, no stripes (`check.py` tests the
+  spread, the row and column averages and that the three variants share a tone). The shader gives
+  every ragged region of the floor (`floor_region_world_size`, edge bent by `floor_region_warp`) one
+  of the variants and mirrors it (`floor_mirror`), and drifts the brightness in a few steps over
+  wide areas (`floor_tone_*`). Every decision is made per art pixel with nearest sampling, so it
+  stays crisp. All numbers are in the StageLook. Ground pieces (moss, trails, leaves) dither their
+  rim into the floor (`ZoneGroundData.fringe_pixels`, `edge_shade`) instead of ending in a cut line;
+  boards and slabs keep a hard edge.
+- **The arena shifts when a boss rages** (card #196, `PhaseShift` pure and tested, `ArenaMood`):
+  on the `enemy_phase` event (a boss or a zone guard entering phase two) the room eases over
+  `phase_look_ms` (about 1.1 s) from its look to the look's `phase_*` values: sky, ambient and sun
+  colour and strength, fog colour and density, vignette strength and colour, and the lamps
+  (`phase_lamp_percent`), with a one-time puff of particles (`phase_burst`, embers or spores). Every
+  act boss lair and zone look has one (a test checks it): the Hollow King's throne goes blood red and
+  darker with a tight vignette and roaring braziers, the zone looks (guards, and the act 1 boss,
+  who fights in Rotten Hollow) shift a smaller step in their own colours (Hollow: plum and
+  amber, Bog: sickly yellow-green, Ruins: ember red). It is a slow tween, not a flash; under the
+  Flashes setting on Reduced or Off it takes `phase_look_calm_percent` as long (twice). The fog
+  Graphics option still wins (the tween only changes values). Presentation only: the engine, the
+  commands and the golden test are untouched. The shift never reaches an unreadable room: fighters
+  and markers stay clearly lit (checked in pictures of the Hollow King fight).
+- **Contact shadows** (card #186): props, trees, shrines and chests stand on a soft dark blob (the
+  fighters' `shadow.png`), as wide as the prop's footprint (the opaque width of its lowest rows)
+  times `prop_shadow_width_percent`, slid away from the sun by `prop_shadow_shift_percent`. All in
+  the StageLook ("Contact shadows"). Ground cover (grass, ferns, reeds), glowing props, critters
+  and item glints get none (`ZonePropData.contact_shadow`).
+- **One pixel size:** scenery is drawn at 0.045 to 0.05 world units a pixel, like the fighters (a
+  test checks every prop in the zones and the arenas, and that ground pieces use the floor's 1.6
+  tile size). Trees, logs, huts and ruins that were scaled up to 0.055 to 0.07 are now 0.05, so
+  they are a little smaller; redrawing the big ones larger at native size is a later art job.
 - **Lit sprites:** fighters and props are billboards lit by the sun, ambient light and lamps
   (`fighter_sprite.gdshader`: the lighting normal leans up, `normal_up`, so a sprite is lit like the
   ground it stands on). Flashes and glows are emission, so bloom catches them. Props can glow on
@@ -1129,6 +1390,25 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
   toward the attacker and its targets during the banner lead-in and is **settled the moment the
   attack clock starts**, so the view holds still while you defend (defence is the star); a counter
   pushes in; victory and defeat circle the arena. Shake and punch-in play on top. Real time.
+- **Camera shake is a trauma model** (`CameraTrauma`, pure, tested; card #179). Each impact adds
+  trauma (0 to 1, clamped, so a string of parries builds up); trauma drains `shake_decay_per_s`
+  (1.5) a second; the shown shake is trauma squared times `shake_max_offset` (0.32 world units)
+  plus a small roll (`shake_max_roll_deg`, 1.6), driven by three sines of the clock at a fixed
+  `shake_hz` (6), never a random number per frame, so it looks the same at any frame rate. The
+  Settings screen's screen shake percent scales the result. `CombatCamera.shake(strength, ms)` is
+  kept as a shim for `add_trauma(strength)`. Every number is in `combat_visuals.tres`.
+- **Impact tiers** (card #179, presentation only). Small: a graze, a good press (trauma 0.2). Medium:
+  a perfect press (0.4, punch 0.3), a critical hit (0.55, punch 0.5), a heavy hit taken (0.7, punch
+  0.4), a counter (0.7, punch 0.9); sparks grow 150%. Large: a Team Ultimate hit (0.5, punch 0.35,
+  sparks 220%), a team counter (0.9, punch 1.2), a hero going down (0.65 plus the red flash), a boss
+  phase change (0.9, punch 1.0 over 500 ms), the last enemy falling (0.8, punch 0.9, flash 0.25) and
+  a boss or guard falling (1.0, punch 1.4, flash 0.45). The two kills hold: the body stays on its
+  hurt pose for `kill_hitstop_ms` (110) or `boss_kill_hitstop_ms` (170) and the strike freezes on
+  its impact frame (a skill's clock is held, an attack's slashes stop) before the dissolve and the
+  end shot. A boss or guard fight opens with the camera pulled back `intro_push` (1.2) and gliding
+  in over 900 ms. A struck enemy recoils away from the heroes (`enemy_hit_knockback`,
+  `enemy_heavy_knockback` for crits, heavy hits and counters) and settles back. The boss of a boss
+  or guard fight is the enemy with the most HP.
 
 ### 7.4 Phase 3: exploration (cards #23, #24)
 
@@ -1178,25 +1458,26 @@ browser at exactly 1920x1080, 60 fps, with its own WAV, Theora quality 10. The v
 are scaled smoothly (linear filter; the project's default is nearest, for pixel art).
 
 - **Main menu** (first screen, `MainMenu`): New Run, Online, Practice (the tutorial card first,
-  then the fight and zone list, full HP, nothing carries over), Settings, Credits, Quit. The
+  then the fight and zone list, full HP, nothing carries over), Journal (7.11), Settings, Credits, Quit. The
   cursor comes back on the last item picked. Card #150 (user, 2026-10-15): kept to six rows;
   Online opens a second list in place (Host Online, Join Online, Back; cancel goes back) and
   the tutorial moved from the menu into Practice.
 - **Settings** (`SettingsScreen`): volume (left/right, 10% steps), fullscreen on/off, training
-  ring on/off, lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
-  plus a read-only list of the controls (changing keys comes later). Saved per machine at once
+  ring on/off (practice fights only; the row says so), flashes Full / Reduced / Off (card #185),
+  lag calibration (the same beat test as F2 in a fight) and "reset lag to default",
+  plus the controls list (rebinding, 6.1). Saved per machine at once
   (`PlayerSettings`, `user://settings.cfg`); volume and fullscreen are applied at start-up.
   **Full menu (card #112):** four sections, LB / RB (Z / C) to change: **Graphics** (fullscreen;
   window size when windowed: maximised, 1280x720 to 2560x1440; vsync, on = the project's mode;
   frame limit: none, 30, 60, 120, 144, 240; fog, bloom, shadows, soft shadows (SSAO), depth of
   field: each only turns off what a place's look uses, `StageBuilder.apply_settings` applies a
-  change at once even over a fight or zone), **Sound** (the four volumes), **Controls** (the list)
+  change at once even over a fight or zone), **Sound** (the four volumes), **Controls** (rebind every key and button, 6.1)
   and **Game** (screen shake 0 to 100% in 25% steps, scaling every camera shake; the training
   ring; lag calibration and its reset).
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions only.
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
-  run map (B on the map too). Continue, Settings, and "Abandon run" (asks first, then the main
-  menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
+  run map (B on the map too). Continue, Settings, "Save & Quit" (a local run, 8.14), and "Abandon
+  run" (asks first, then the main menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
   under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
   presses) and cannot stop, so a pause asked for mid-move shows "PAUSING AFTER THIS MOVE" and
@@ -1224,8 +1505,8 @@ UI (card #37):
   they read over a fight. A banner asking for GOLD gets the logo's worn gold; other colours (red
   for rage, player colours) stay. Small labels and names keep the plain title font. The static
   moves at 25% of the first setting (user: "lower the static to 25%"), here and on the logos.
-- Settings: values on the right; the controls are a panel of button chips that follows the
-  device in use.
+- Settings: values on the right; the controls are rows with the key and the pad button of each
+  action (6.1; before card #190 they were a read-only panel of chips).
 - Fight HUD (user picks 2026-10-12, built after the first Part A test):
   - Action menu, Expedition 33 style (bottom left, user layout 2026-10-13), no cursor, one
     button per option: A Attack (always, gains AP), X Skills (opens the skill list above it; up/down
@@ -1444,6 +1725,81 @@ Built while the user was away, reworked with them, approved 2026-10-16.
   it opens ("|" moves on to the next turn's menu; for pictures of the skills list, the target step
   or a later hero's turn); `--key-prompts` keeps keyboard keys shown even with a pad plugged in.
 
+### 7.10 Charged Dooms on screen (card #195, DESIGN.md 2.3)
+
+All numbers, colours and cues are in `combat_visuals.tres` ("Charged Dooms"); the controller reads
+only the mirror (`charge_left`, `charge_damage`, `break_hp`, `staggered` on the enemy's fighter dict).
+
+- **Announced** (an `intent` with charge fields the mirror did not know): a centre banner
+  "TIMBER FALL IN 3" in the doom red, a flash, a rumble, the alert sound, a beat. Every gathering
+  turn (`doom_charging`) plays the same banner with the new count.
+- **Aura.** While it gathers, the enemy holds its wind-up crouch (`doom_squash_percent`) and glows
+  `doom_glow_color`, pulsing every `doom_pulse_ms` (quicker, `doom_pulse_last_percent`, with one turn
+  left). `CombatController._update_doom_look` drives it every frame from the mirror;
+  `CombatView.sync_alive` keeps the crouch after other enemies' attacks.
+- **Enemy panel.** The NEXT word turns into DOOM; a block over the intent line reads
+  "DOOM IN 2    BREAK 120 / 840" with a gold bar that fills as the party deals damage.
+  A staggered enemy wears a STAGGERED badge.
+- **Turn order.** An enemy's gathering turns carry a tag with the turns until the Doom (3, 2),
+  its unleash turn reads DOOM, a staggered enemy's next turn reads STAGGER (`TimelineRow.doom_tag`,
+  pure and static).
+- **Unleash.** The Doom's name with "!", a heavy rumble, punch-in and flash, a beat; then the
+  attack's own banner and string as for any attack.
+- **BROKEN!** The large tier of card #179 (7.6): a gold "BROKEN!" banner, a held freeze
+  (`broken_hitstop_ms`, also holding the skill's clock when a press broke it), `broken_shake`,
+  `broken_punch`, a flash, sparks and a sound; the enemy then drops into its stagger pose (a held
+  `stagger` clip, falling back to hurt) with a cold glow and a STAGGERED popup, and shows TURN LOST
+  over its head when the stagger ends.
+- Sounds reuse existing cues named in the data (`doom_gather_sfx`, `doom_unleash_sfx`,
+  `broken_sfx`, `stagger_sfx`).
+
+### 7.11 The Rot Journal (card #200, review ui-input #9)
+
+A book of every enemy and attack the player has met, from the main menu row "Journal" (Slay the
+Spire's compendium). It is a reference and a record, not a reward: nothing in it changes a fight.
+
+- **Screen** (`JournalScreen`, `scripts/menu/`, `--screen=journal`): the menu backdrop, a worn-gold
+  "Rot Journal" title, the progress line ("Met 7 of 19 enemies"), then two parts. Left, a `ListMenu`
+  of every enemy in `data/enemies/` (alphabetical; one never met reads "???" and is dimmed). Right,
+  the chosen enemy in an ink plate: its portrait (a dark silhouette until met), name, "Met in N
+  fights, Beaten N times", where it was met (zone names, or the fight's name for a lair or elite,
+  the first six), then one row per attack it can ever use (phase-two ones too). A row shows the
+  attack's name, the hit kinds seen (Normal, Ground, Rend, Sweep), the marks seen (ROT, BLIGHT,
+  WEAK, AP DRAIN, in the HUD's colours), a red DOOM tag for a Charged Doom, and the player's record
+  against it: parried, dodged, jumped, hit (and broken, for a Doom). An attack never seen reads "???"
+  with nothing else. A legend line under the rows says what answers each kind. Up/down chooses,
+  Back closes (`HintBar` at the foot); keyboard and pad like every menu. Everything fits 1920x1080
+  (a test measures the fullest page).
+- **What is recorded.** `JournalTally` (`scripts/journal/`) is fed by `CombatMirror.apply` with
+  every event in playback order, exactly as `FightRecap` is (CLAUDE.md rule 7: presentation reads
+  events, never the engine; online clients record their own identical copy). It counts per enemy
+  type (the data id): fights it was in, copies that went down, and per attack: times it struck, each
+  hit's kind and mark as declared (a hard fight's forced rends and sweeps show as such), and the
+  outcome of every hit aimed at the party (parried, dodged, jumped, or hit). A Doom the party broke
+  counts as broken. Counts are in hits, like the RUN OVER recap. When the fight ends, `Main` hands
+  `CombatController.journal_fight()` to `JournalFile.record`. A fight left half way (the window
+  closed) is not recorded.
+- **What counts.** A person's fights in a run (zone fights, elites, guards, bosses; won, lost or
+  fled). **Practice fights, the tutorial and bots write nothing** (`RotJournal.counts_fight`):
+  practice has invulnerable and immortal cheats and lists every fight, so counting it would unlock
+  the whole book in minutes and mix cheated numbers into a record; a bot's numbers say nothing
+  about the player. `--journal-path=PATH` (dev tool) keeps the journal at a `user://` path and
+  makes every fight count, bots and practice included: how the headless smoke runs fill a journal
+  without touching the real one.
+- **File** (`JournalFile`, `RotJournal`): `user://journal.json`, per machine, separate from the run
+  save and from settings. `{format: 1, journal: {enemies: {id: {name, met, beaten, places, attacks:
+  {id: {name, seen, broken, parried, dodged, jumped, hit, kinds, marks}}}}}}`. Written like
+  `RunSave`: temp file, flush, old file kept as `.bak` until the new one is in place; a load falls
+  back to the `.bak` when the file is missing or damaged. A file of another `format` is refused,
+  kept as it is, and never written over (a newer build may still read it); a damaged file with no
+  backup starts a new journal. Loading drops junk (wrong types count 0, unknown kinds are ignored)
+  and clamps every count to 999999. It does not carry the content fingerprint: an entry names an
+  enemy and an attack by id, and the screen shows what the current data still knows (a renamed or
+  removed id simply no longer shows). No migration exists yet; `format` is there for the first
+  change of shape. The journal is local: an online player's book is their own.
+- **Not in it (yet):** per-hero records, damage dealt, the loot an enemy drops, and sorting or
+  filtering. Entries are never reset by a new run; delete `journal.json` to start the book again.
+
 ## 8. Run structure (phase 4)
 
 Slay-the-Spire style branching node map (host picks path). Node types: zone (small explorable
@@ -1466,7 +1822,7 @@ equipped by one character. No progression between runs in v1.
 - **Build order:** Part A (main menu and settings #46, map #26, stops #27, HP carry-over, gold,
   shop and rest), stop for testing; then Part B (loot #28, gear #29, levels #30, boss #31).
 - **Part A picks (user, 2026-10-12):** build two more zones now (3 in all); the shop sells care
-  for the party until gear exists; quitting mid-run loses the run (no save yet).
+  for the party until gear exists; quitting mid-run lost the run then (a save came later: 8.14).
 
 **Part A as built:**
 
@@ -1520,7 +1876,14 @@ equipped by one character. No progression between runs in v1.
   Feast (40, heal all 30%), Tonic (45, one character +15% max HP for the run, the new HP filled).
   Items for one character ask who gets it. (No revive: nobody stays down between fights.)
 - **Run end:** RUN CLEARED or RUN OVER with stops reached, fights won and gold earned, then the
-  main menu. The pause menu's "Abandon run" quits a run (it asks first; the run is lost).
+  main menu. On RUN OVER a recap of the fight that finished the party follows (card #191): its
+  encounter and enemies, the stop, act and oath, the attack that did the most damage (all of its
+  hits added), the last blow and who it downed, and a defence line (parried, dodged, jumped, hits
+  taken of hits). `FightRecap` (`scripts/combat/core/`, pure, tested) is fed by `CombatMirror`
+  with every event in playback order, so the numbers come from the mirror, never the engine, and
+  every online machine builds its own copy from the same events (the host's and the clients'
+  agree). `scenes/main.gd` keeps the recap when a fight ends and hands the lines to the screen. The pause menu's "Abandon run" quits a run (it asks first; the run and its save are
+  lost). "Save & Quit" keeps a local run for later (8.14).
 - **New zones** (`tools/bootstrap_run.gd` writes them, with their looks, the run, the shop and the
   new encounters, only if missing): Sunken Bog (green fog, muck tiles, glowing fungus; guard Rotten
   Husk and Gnat Swarm) and Ashen Ruins (cold moonlight, ash tiles, colonnades; guard Shade and Gnat
@@ -1547,7 +1910,9 @@ counters for longer and mixed strings (2.5, card #52).
   -15%), Mender's Charm (heals +30%), Lucky Coin (gold +25%). Stats (max HP, power, speed) are
   folded into the fight setup by `RunState`; the rest are `Passive` keys the engine applies
   (`CombatSetup.party_passives`, `Combatant.passives`). Putting gear on never heals (no free
-  heal by swapping); taking it off cuts HP to the lower max.
+  heal by swapping); taking it off cuts HP to the lower max. Twelve more pieces, the
+  **rot-touched** ones (strong, each with a price), are in 8.16 (card #198); the list above is the
+  ordinary 13.
 - **Loot** (#28): after a zone's guard, ZONE CLEAR, then "Spoils": pick 1 of `run_loot_choices`
   (3) items the party does not own (seeded per stop), then the party screen to put it on. Shops
   also sell `run_shop_gear` (2) such items at their price, after the care items.
@@ -1555,9 +1920,10 @@ counters for longer and mixed strings (2.5, card #52).
   character's HP, power, speed and 3 slots, the bag. Left/right character, up/down slot,
   Confirm: put on / swap / take off.
 - **Boss** (#31): The Hollow King (`hollow_king`, encounter flagged `boss`, its own red look
-  "hollow_throne"), 350% HP, 120% power, speed 140. Phase one: Cleave, Crown Sweep, Grave Stomp,
+  "hollow_throne"), 650% HP, 165% power, speed 155, with a Hollow Shade at its side (retuned in
+  card #177, see 8.13; it was 350% / 120% / 140 and alone). Phase one: Cleave, Crown Sweep, Grave Stomp,
   Rot Cascade (5 hits, parries and jumps). At 50% HP (`EnemyData.phase_two_hp_percent`) it enters
-  phase two once: speed 175, attacks Cleave, Rot Cascade, Kingsfall (6 hits party-wide, mixed),
+  phase two once: speed 210 (was 175), attacks Cleave, Rot Cascade, Kingsfall (6 hits party-wide, mixed),
   False Crown (with a feint) and Hollow Wave; the banner says "THE HOLLOW KING RAGES!" and it picks
   a new intent at once. Its name is announced when the fight starts. It replaced "The Last Gate"
   as the run's final fight.
@@ -1581,8 +1947,16 @@ co-op anyone can open and move things at any time. The rest are proposed default
   that hero's slots are full, swap: the old piece is sold on the spot for `item_sell_percent`.
 - **Consumables (first set):** Salve (heal one 50%), Feast (heal all 30%), Tonic (one hero +15%
   max HP for the run, map only), Bomb (damage to all enemies, fight only), Antidote (clears bad
-  statuses from one hero and heals a little). Salve, Feast and Tonic move from "used when bought"
-  to the backpack.
+  statuses from one hero and heals a little; card #194: for now the Salve is the cleansing item,
+  it lifts one hero debuff in a fight, 2.7). Salve, Feast and Tonic move from "used when bought"
+  to the backpack. **Tonic cap** (card #175): a hero can drink at most `tonic_max_per_hero` (2)
+  Tonics in a run (`RunState.tonics_used`, kept in `to_dict`), because gold plus Restock turned
+  into endless max HP. The party screen greys the choice with a line saying why, a capped hero is
+  skipped by the bot, and the shop stops selling Tonics when every hero is full (`RunState.wants`).
+  **Tonics do not level** (card #198): a combined or upgraded Tonic would have given more max HP per
+  drink and got round the cap, so `ItemData.combinable()` is false for the Tonic (no campfire or shop
+  upgrade, no combining) and `RunState.entry_amount` always returns its plain `amount_percent`, even
+  for a levelled Tonic in an old save.
 - **Charms:** a party-wide passive while in the backpack (for example power +5%, +1 AP at fight
   start, gold +10%). Each charm belongs to a family (Stone, Bone, Herb). Some charms boost the
   charms that touch them (for example "touching Stone charms work 50% better"), so where things
@@ -1795,7 +2169,11 @@ Replaces the shared party level of phase 4 (#30). Numbers live in `tuning.tres` 
 
   Defense and gear together never cut a hit by more than `tough_max_percent` (60). Points can be
   taken back at any time and a reset is free; the HP a hero is missing stays the same through any
-  change, so respending never heals. Online, a change is a RunState op (`attributes`), like the
+  change, so respending never heals. A change that would leave a hero under 1 HP (they are so
+  wounded that the max HP they give back is more than the HP they have) is refused instead of
+  clamped (card #175): a clamp forgot some of the missing HP, and respending then handed it back as
+  a free heal, always available because downed heroes stand at 1 HP. The screen says "too wounded
+  to give up that max HP. Heal first." (`RunState.attributes_wound_blocked`). Online, a change is a RunState op (`attributes`), like the
   backpack: anyone may change any hero.
 - **Critical hits.** Every hero has `crit_base_percent` (5) plus Luck. A crit deals
   `crit_damage_percent` (150) of the hit. Rolled through `CombatRng` when the damage is rolled (a
@@ -1823,6 +2201,19 @@ Replaces the shared party level of phase 4 (#30). Numbers live in `tuning.tres` 
 
 ### 8.3 Enemies grow with depth, the gauge carries over (cards #105, #146)
 
+- **Faster with depth (card #188, 2026-10-17):** enemy attacks also speed up. `CombatSetup.
+  attack_tempo_percent` (0 = tuning `attack_tempo_percent`) scales every hit's impact and lunge
+  (lower = faster; the windows keep their size). `RunState.fight_setup` fills it: tuning
+  `attack_tempo_percent` less `run_enemy_tempo_row_percent` (1) per row of depth (the same depth as
+  HP, acts included), then elite fights take `elite_tempo_percent` (94) of that, guards
+  `guard_tempo_percent` (94), bosses `boss_tempo_percent` (92). Entering phase two, an enemy's
+  strings speed up by its `EnemyData.phase_two_tempo_percent` (Hollow King 90, Husk Lord 92, the
+  three guards 94), kept on the combatant (`Combatant.tempo_percent`, in the snapshot). Nothing
+  goes under `attack_tempo_floor_percent` (70) of the authored timing (`CombatSetup.tempo_floor`).
+  The intent's times and the declared hits carry the result, so the judge, the bots and online
+  play need nothing new. Practice fights play at the authored speed (no run); the tutorial keeps
+  its own slow tempo. Example: the act-two Hollow King (depth about 13) plays at about 80%, about
+  72% in phase two.
 - **Depth** (#105, phase 13 step 3, built early): every enemy in a run fight gets
   `run_enemy_hp_row_percent` (5) more HP and `run_enemy_power_row_percent` (3) more power per map
   row of the stop (row 0 as in its data; `CombatSetup.enemy_hp_percent` / `enemy_power_percent`,
@@ -1863,7 +2254,7 @@ middle row costs 1 point, the bottom row 2):
 | Brin | Flurry | Quick Cuts (now 4 x 40%) | Twin Fangs (2 AP: 2 x 90%; both perfect: Exposed) | All In (now 6 x 100%) |
 | Brin | Cripple | Hamstring | Open Vein (2 AP: 100% and Bleeding 3 turns) | Rend |
 | Brin | Shadow | Feint Step | Shadowstep (1 AP: next turn much sooner, Empowered) | Death Mark (3 AP: Marked for 3 skills) |
-| Cass | Mending | Mend | Renew (2 AP: Renew 3 turns) | Sanctuary (4 AP: heals the party 30%, perfect 40%) |
+| Cass | Mending | Mend | Renew (2 AP: Renew 3 turns) | Sanctuary (4 AP: heals the party 30%, perfect 40%; lifts one debuff from each, all on a perfect press) |
 | Cass | Light | Reveal (now a bolt) | Smite (2 AP: 160% bolt, +100% on Exposed) | Revive |
 | Cass | Grace | Pass the Torch | Hasten | Inspire (3 AP: everyone +1 AP, gauge +25) |
 
@@ -1951,28 +2342,155 @@ phase 14 was the tutorial).
   (charcoal shade, with a gnat swarm). Their name is announced like a boss's and the boss song
   plays; they cannot be run from; they still grow with depth. Deep zones bring their helpers as
   variants (`deep_guard_*`). `tools/bootstrap_phase15.gd` writes them.
+- **Signature Dooms** (card #195, 2.3): each guard and each act boss has exactly one Charged Doom,
+  on both its phase lists (a data test checks it; no other enemy has one). Party-wide strings of
+  8 to 10 hits at 28 to 40% of the enemy's power, uneven gaps, ground hits, thrown hits and the
+  hard-fight rends and sweeps (a forced feint in each):
+
+  | Enemy | Doom | Turns | Break | Hits | Weight |
+  |---|---|---|---|---|---|
+  | Gorged One | Gorge Burst (bile and quakes) | 2 | 42% | 8 | 7 |
+  | Mire Mother | Brood Tide (waves and mud) | 2 | 21% | 8 | 7 |
+  | Ash Warden | Ashfall (cinders and rocks) | 2 | 36% | 8 | 9 |
+  | The Husk Lord (act 1 boss) | Timber Fall | 3 | 22% | 8 | 14 |
+  | The Hollow King (act 2 boss) | Crown of Rot | 3 | 13% | 10 | 8 |
+
+  The break shares were set from bot runs (2.3): a focused, perfectly defending bot breaks about
+  7 in 10 (the King about 6 in 10); they are meant to be re-tuned from play. All five files are
+  written by `tools/make_attack.py`; the enemy files list the Doom by hand (the one-shot
+  `bootstrap_phase15.gd` does not know it). The choreography golden test took the five new files
+  (55 attacks, every older hash unchanged).
 - **Better reward**: spoils (after a guard, an elite or an act's boss) are gear of at least
-  `run_spoils_min_rarity` (rare) while the run has enough of it.
+  `run_spoils_min_rarity` (rare) while the run has enough of it, and one of the choices is a
+  rot-touched piece (8.16).
 - **Elite fights** (`EncounterData.elite`): enemies get `elite_hp_percent` (140), `elite_power_percent`
   (115) and `elite_gold_percent` (150) on top of depth. Four: Twin Husks, The Laughing Pack (two
   hyenas and a fly), Toad Court, Shade Coven, each with a deep version. They are met two ways:
   an **Elite stop** on the map (a fight in one of the act's zones' look, then spoils), and the
   zones' **champions** (8.5), now elite fights marked "ELITE" in their own colour (they no longer
-  force the deep version).
+  force the deep version). Elite fights cannot be run from (2.13).
 
-### 8.7 Event stops "?" (card #158)
+### 8.7 Event stops "?" (card #158, rebuilt as real trade-offs in card #193, 2026-10-17)
+
+The owner wants the game hard, so a "?" is a temptation, never a gift. Every choice costs something
+scarce, and a "?" can turn into a fight.
 
 - `EventData` (`data/events/`): a title, a short story, a picture and 1 or 2 choices
-  (`EventChoiceData`), always plus Leave. A choice has a deal (`ZoneOfferData`: gold, HP, heal, XP,
-  team gauge, an item, a find) and may have a risk: `risk_percent` of the time its `risk_deal`
-  strikes too (seeded by the run and stop, the same on every machine; a risk that costs gold takes
-  what there is). Choices the party cannot pay are greyed.
-- An act's "?" stops pick from its `events`, never one met before in the run
-  (`RunState.events_seen`, synced online). Eight to start: The Weeping Well, Gambler's Bones, A
-  Wounded Pilgrim, Rot Blossom, The Hanging Cage, Shrine of Old Kings, Merchant's Wreck, The
-  Whispering Mask.
-- `EventScreen`: the story, the choices, then what happened and Continue. Items go into the
-  backpack (it opens when full); online the host chooses and the clients see the result.
+  (`EventChoiceData`), always plus Leave (the screen adds it, so no event can lack it). A choice has a
+  deal (`ZoneOfferData`) and may have a risk: `risk_percent` of the time its `risk_deal` strikes too
+  (seeded by the run and stop, the same on every machine). Choices the party cannot pay are greyed.
+  Shrines and wanderers (8.5) use the same `ZoneOfferData`; the new prices below are for events.
+- **Prices a deal can have** (all in `ZoneOfferData`, all optional, together with the old gold and
+  HP prices):
+  - `cost_max_hp_percent` with `cost_max_hp_target`: **permanent max HP**, a percent of the hero's
+    current max HP (`RunState.lose_max_hp`; a levelled hero loses more points). The target is
+    EVERYONE, CHOSEN (the player picks the hero) or RANDOM (the seed picks one). It never takes a hero
+    under `event_max_hp_floor_percent` (40) of their normal max HP, and the choice is greyed when every
+    hero is at the floor. HP is clamped to the new max. A chosen hero at the floor cannot be picked.
+  - `cost_item`: **lose a backpack item**, RANDOM (seeded) or CHOSEN (the player picks). Rotten items
+    are never taken (nobody misses those). Greyed when the backpack holds nothing that can be lost.
+  - `cost_rotten`: **a curse**. One of the rotten items that already exist (Rotting Heart, Grave Moss)
+    goes into the backpack at once; it is strong and it rots the party in fights until the shop's
+    Cleanse (or throwing it away) removes it. Greyed when it would not fit. An event deal never has
+    both an item price and a curse (a test keeps it so; the check for room would depend on the pick).
+  - `ambush` (+ `ambush_spoils`): **a fight**. After the story the party fights that encounter through
+    the run's own fight path (`Main._start_final_fight`, like an elite stop: HP carries on, gold and XP
+    as for any fight, a defeat ends the run). Spoils (one piece of gear) only if `ambush_spoils` is on.
+    A deep act or row fights the encounter's deep version (`RunState.ambush_encounter`), so every
+    ambush encounter must have one (a test checks). Ambush fights cannot be run from
+    (`tuning.ambush_can_run`, off).
+  - A **risk may cost any of these too**, not only HP. A risk is never refused: it takes what there is
+    (a hero or an item picked by the seed, a curse that finds no room rots away).
+  - Choices that need a hero or an item first (`ZoneOfferData.pick_kind`) open a short list on the
+    event screen ("Who pays?", "What goes?") with Back. A deal asks for at most one pick.
+- **The screen writes the deal out** (`RunState.choice_summary`): "Price: ... Reward: ... 40% risk:
+  ...", with the depth scaling already applied, then the choice's flavour line. Numbers are never
+  typed into the choice text. After a choice that sprang an ambush, Continue reads "Fight".
+- **Depth**: gold and XP in an event (prices and rewards alike, so the trade keeps its shape) grow by
+  `tuning.event_reward_row_percent` (6) for every map row of depth, acts counting the rows before them
+  (`RunState.event_scale`): 100% on row 0 of act 1, about 130% on its row 5, about 166% on row 4
+  of act 2.
+- **A "?" stop can be an ambush instead of an event.** On entering a "?" stop (`RunState.go`) the run
+  rolls once, seeded by the stop (`AMBUSH_SALT`), against `unknown_fight_percent_base` (15) plus
+  `unknown_fight_percent_step` (15) for every "?" stop passed without a fight since the last one.
+  A hit starts the count over (so does an ambush sprung by a choice); a miss raises it
+  (`RunState.ambush_streak`, 15%, 30%, 45%, ...). The stop then shows its own page, "An Ambush!"
+  (`ActData.ambush_title` and `ambush_text`, and the fight's name), with one choice, Fight; no event
+  is used up. The fight is one of the act's `ActData.ambushes` (ordinary 2 to 3 enemy fights, in
+  their deep version in act 2) in the look of one of the act's zones; it pays gold and XP and gives
+  no spoils.
+- **Online and Save & Quit**: the host chooses, the clients see the result. The run dict carries the
+  new state (`ambush_streak`, `ambush_id`, `ambush_spoils`; `apply_dict` refuses a negative or
+  non-integer counter, a non-string id, a non-bool flag or an id that is no ambush of this run's
+  data), so a client opening the event screen or the fight sees the same ambush, and a saved run that
+  was saved on entering the stop (8.14) comes back to the same ambush page.
+- **The events.** An act's "?" stops pick from its `events`, never one met before in the run
+  (`RunState.events_seen`, synced online). Sixteen, written by `tools/bootstrap_events.gd` (which
+  also fills both acts' event lists and ambush pools; every event has its own picture, see "The pictures" below):
+
+  | Event | Act | Choices (every one has a price) |
+  |---|---|---|
+  | The Weeping Well | 1, 2 | Drink: heal 35%, everyone -4% max HP, 30% risk -15% HP; coin: team gauge +50, 25% risk an ambush |
+  | Gambler's Bones | 1, 2 | Stake 25 gold for 80, 55% to lose 100; or the purse: 60 gold, 55% -10% HP and a Grave Moss curse |
+  | A Wounded Pilgrim | 1 | Give an item of your pick: XP and a 20% heal; or the satchel: gold and a Salve, 55% an ambush |
+  | Rot Blossom | 1 | One hero eats the fruit (-6% max HP): heal 35%, 30% risk; or the seed pod: a rare find and a curse |
+  | The Hanging Cage | 1 | Climb: the Key, 45% risk of -6% max HP (random hero) and -15% HP; or fell the tree: Key and gold, certain ambush |
+  | Merchant's Wreck | 1, 2 | Search the crates: a rare find, 45% an ambush (the hyenas); or pry the strongbox: 70 gold for a random pack item |
+  | The Whispering Mask | 1, 2 | A chosen hero wears it (-8% max HP): 90 XP each, 40% risk; or sell it: a Golden Idol and a curse |
+  | The Bone Collector | 1 | Trade a chosen item and gold for a rare find; or sell a rib (a chosen hero -7% max HP) for gold |
+  | The Hungry Scarecrow | 1 | Feed it a random item: heal 40% and XP; or cut the stitches: gold, XP and a certain ambush |
+  | The Tithe Collector | 1 | Pay coin: heal 30% and gauge; or pay blood (everyone -6% max HP): gold and XP |
+  | Shrine of Old Kings | 2 | Kneel (a chosen hero -8% max HP): gauge +70 and XP; or pry the gold: 100 gold, 55% an elite ambush with spoils |
+  | The Black Mirror | 2 | Touch it (-5% max HP all): 100 XP, 40% an ambush; or smash it: 90 gold and a Rotting Heart curse |
+  | The Drowned Chapel | 2 | Ring the bell (-5% max HP all): heal 45%, 50% an ambush; or take the silver: 120 gold and a curse |
+  | The Buried Cairn | 2 | Dig: gold and a rare find, certain ambush; or say the name (lose a chosen item): gauge and XP |
+  | The Sealed Door | 2 | Break the seal: gold, an elite ambush with spoils; or pick the lock (lose a chosen item): gold and a rare find |
+  | The Widow's Wager | 2 | Buy in (40 gold): XP, 50% a random hero -8% max HP; or stake a hero (-10% max HP): a legendary find, 40% a curse |
+
+  Act 1 draws from the first ten, act 2 from the last ten; four are in both. The act's ambush pools:
+  act 1 Bloat and Gnat Swarm, Rot Hyena and Carrion Fly, Mire Toad and Carrion Fly, Shade and Gnat Swarm,
+  Two Carrion Flies; act 2 the Rot Hyena Pack plus four of those (deep versions).
+- `EventScreen`: the picture, the story, the choices, then what happened and Continue (or Fight). Items go into
+  the backpack (it opens when full); online the host chooses and the clients see the result.
+- **The pictures (card #199, 2026-10-17).** Each event has its own painted scene,
+  `assets/sprites/events/<event id>.png`, and each act its own for the ambush page
+  (`events/ambush_rotten_road.png`, `events/ambush_ashen_deep.png`, `ActData.ambush_picture_path`);
+  16 + 2, all drawn by `tools/art_kit/assets/event_art.py` (art bible: 5.4; the kit README). They are
+  128x64 art pixels, fully opaque, at most 96 colours, and what each shows is the event's own story:
+  the Well a stone well with a rotting roof, weeping cyan and a glint on the black water; Gambler's
+  Bones a skeleton in a gambler's hat at a rotten table, dice and a candle; the Pilgrim a robed man
+  on the road with his satchel and a pool of blood; the Rot Blossom a huge violet flower growing out
+  of a corpse; the Hanging Cage an iron cage on a dead limb with the key in a dead hand; the Wreck a
+  wagon on its side with spilled crates and hyena eyes in the dark; the Mask a golden crowned mask in
+  the moss with whispers rising; the Bone Collector a hooded man in a coat of knucklebones inside a
+  hollow tree; the Scarecrow a sack-headed scarecrow with a stitched mouth over a dead field; the
+  Tithe Collector a hooded figure with a bowl on the rim of a hole where the road was; the Old Kings
+  three robed stone kings kneeling at a gold altar; the Black Mirror a gilt mirror of black glass in
+  dark water with three figures looking out of it; the Chapel a church sunk to its roof in black
+  water, a bell in the tower and rings spreading; the Cairn a cairn with a scratched name and the
+  pit someone left; the Sealed Door an iron door with three wax seals in a hillside, ember light
+  under it; the Widow a woman in black by a cold hearth with the husband's empty chair. The act 1
+  ambush is a road closing in with eyes in the trees and a dropped purse as bait; the act 2 ambush
+  pale hands and ember eyes in the ash round a half-buried coffer.
+  Made like the rest of the world: a flat painted back (sky, two ridges, bare trees, ground, mist,
+  glow and vignette from the shared colour ramps, bands cut by a light ordered dither) with the
+  subject in front built as a small 3D model and rendered by the same camera and light as the props
+  and fighters, over a soft contact shadow, then every pixel is snapped to the colours the scene
+  was made from. Dusk, night, olive or ash skies, never bright; glows (cyan, amber, violet, ember)
+  only where the story has magic or fire.
+  `StopVisuals` (`data/presentation/stop_visuals.tres`) holds how the screen shows it: scale 4 (so
+  512x256 on screen, nearest filter, never blurred), a thin worn-gold frame with a dark gap and a
+  soft shadow. An event whose file is missing shows the old question mark (`map_event.png`, scale 4)
+  in the same frame. `tools/bootstrap_events.gd` writes the picture paths; `check.py` and
+  `test_event_pictures.gd` keep every event and act picture present, the right size and opaque.
+- **The bot** (`EventAutoplay`, pure, tested) plays a careful player: it takes a choice only if the
+  reward is worth the price (its own gold values, named consts), pays no permanent max HP while the
+  weakest hero is under 70%, walks into a possible ambush only while the party is fit for an elite
+  (`ZoneAutoplay.is_ready`), takes a curse only for a reward worth 120 gold or more, hands over its
+  cheapest item, and charges max HP to its healthiest hero. Otherwise it leaves. It fights every
+  ambush page (there is no way around). Its habits are not game rules.
+- Numbers are a first guess to tune with play (`--autoplay=average --bot-skill=60` over many seeds);
+  nothing here makes a run easier.
 
 ### 8.8 Treasure stops (card #159)
 
@@ -1992,7 +2510,8 @@ phase 14 was the tutorial).
   acts from a seed of their own). Beating an act's boss gives spoils, everyone heals
   `run_act_heal_percent` (50%), and the next act's map opens (its title says "Act 2: ..."). Only the
   last boss ends the run. Depth (enemy growth, rarity) counts the rows of the acts before. Seeds of
-  finds, drops and chests take the act into account (each act numbers its stops from 0).
+  finds, drops and chests take the act into account (each act numbers its stops from 0); a locked
+  chest also takes its index in the zone into the seed, so two chests in one visit differ (card #176).
 - **The map** (card #162): stop kinds and weights: zone 45, event 25, elite 12 (not before row
   `run_elite_min_row` 2, never two in a row), shop 12, rest 12; row 0 zones, row 3 treasure, the
   row before the boss campfires, at least one shop. New painted pictures (art kit `map_art.py`):
@@ -2000,8 +2519,12 @@ phase 14 was the tutorial).
   the Husk Lord's crowned hollow tree (act 1's lair). A **legend** down the left side names every
   picture. **Planning**: while a next stop is picked, every stop and road it cannot lead to is
   drawn faint (`unreachable_alpha`), so its roads ahead stand out.
+- An act with no elite fights or no events never gets those stops: `RunMap.generate` takes
+  `has_elites` and `has_events` (filled from the act's lists) and zeroes their weights, and Main
+  leaves an Elite stop with no fight as an empty stop with an error instead of crashing (card #176).
 - Online: `RunState.to_dict` carries the act (the client rebuilds that act's map), the stops
-  visited, the campfire points, the events met and the shop's restocks.
+  visited, the campfire points, the events met, the shop's restocks, the Tonics drunk and the "?"
+  ambush state (8.7).
 
 ### 8.10 The shop (card #160)
 
@@ -2010,8 +2533,9 @@ phase 14 was the tutorial).
   stock, `run_shop_items` (4) items picked from the run's shop list (`RunState.shop_stock`), 2
   charms and 2 pieces of gear, a card each with its picture (items their icon, gear a gold amulet),
   name in its rarity colour and price, SOLD when bought. Under them the **services**: Cleanse (35:
-  throw away a rotten item), Upgrade (45: an item up a level), Restock (20: new stock on the
-  shelves, `RunState.restocks`), Sell (the backpack) and Leave. No Heal service (user 2026-10-16:
+  throw away a rotten item), Upgrade (45: an item up a level), Restock (20, and `shop_restock_step` (20) more
+  for every restock already bought at this shop, back to 20 at the next stop: new stock on the
+  shelves, `RunState.restocks`, `restock_price()`; card #175), Sell (the backpack) and Leave. No Heal service (user 2026-10-16:
   it did the same as a Salve for the same price; healing is bought as items). Arrows move over shelves and services, Confirm buys, Tab / Y sells, Back leaves.
 
 ### 8.11 The campfire (card #161)
@@ -2053,6 +2577,12 @@ phase 14 was the tutorial).
   bends the top; feet stay; each prop's phase from where it stands).
 - **Air** (`ZoneAmbientData`, particles that follow the camera's spot): ruins ash falling and
   embers rising; swamp fireflies, low mist and spores; forest falling leaves and fireflies.
+- **Air in fights** (card #196): a fight in a zone's look (a zone fight, an elite, a guard) plays that
+  zone's `ZoneAmbientData` too: `combat_visuals` `fight_air_percent` of each particle count (50),
+  in a box `fight_air_depth_percent` as deep (60) and shifted `fight_air_offset` toward the back
+  wall, fixed in the arena (the combat camera glides, so it does not follow). They are 3D particles
+  behind and around the fighters; the HUD and the hit markers draw above them. A fight with no zone
+  (a boss lair, the practice list) uses its look's `arena_air` instead (the throne has embers).
 - **Critters** (`ZoneCritterData`): crows, frogs and rats idle (two frames) and get away when the
   leader comes within `critter_flee_radius` (a crow flies up and off, a frog hops away, a rat
   scurries off); for show only, each machine plays them itself online.
@@ -2060,6 +2590,238 @@ phase 14 was the tutorial).
   (the camera blurs it); nothing tall stands in front of the walkways.
 - `tools/zone_map_preview.gd` draws every zone from above to a picture (ground, water, walls,
   props, enemies, seals, shrines) to check a layout without opening the game.
+
+### 8.13 Phase 16 run balance (cards #175 to #178, 2026-10-17)
+
+The owner wants the game hard, so these only close exploits and make the last fight harder; nothing
+here makes a run easier.
+
+- **Gold must not become endless max HP** (#175). Tonic gave +15% max HP for the rest of the run for
+  45 gold and Restock re-rolled the shelves for a flat 20, so gold turned into HP without limit.
+  Two caps, both in `tuning.tres`: each Restock at one shop costs `shop_restock_step` (20) more than
+  the last (`RunState.restock_price`; the count starts over at the next stop), and a hero can drink
+  at most `tonic_max_per_hero` (2) Tonics per run (`RunState.tonics_used`, `tonics_left`). A capped
+  hero is greyed on the party screen's hero cards with the reason in the info line, the shop stops
+  selling Tonics once every hero is full, and a Tonic drunk by one hero still works for another.
+- **A reset never heals** (#175). `set_attributes` keeps the HP a hero is missing the same, which is
+  exact until the lower max HP would leave them under 1 HP. The old code clamped to 1 there and
+  forgot the rest of the missing HP, so reset, respend gave it back: a free heal of the whole
+  Vitality bonus, always available because a downed hero stands at 1 HP. Now such a change is
+  refused ("too wounded to give up that max HP. Heal first."). Chosen over "keep HP absolute"
+  because that would stop a Vitality point from filling the hero when it is first spent.
+  Random sequences of changes are tested to leave the missing HP unchanged.
+- **Elites cannot be run from** (#175), a rule in `CombatSetup.from_encounter` (see 2.13), not eight
+  edited files.
+- **Small bugs** (#176): HP is clamped to max after every backpack change that can drop a charm's
+  max HP (sell, throw away, combine, move, cleanse, items used in a fight); a locked chest's prize
+  seed includes the chest's index; a Slowed boss that enters phase two stays slowed (the slow is
+  taken from its new normal speed, so Hamstring is not wasted); the map never rolls Elite or Event
+  stops for an act with none (8.9).
+- **The Hollow King is the hardest fight** (#177). It was softer than what came before: 350% HP,
+  120% power, speed 140 to 175, alone, while the Husk Lord (act 1) has a Rotten Husk at its side, and
+  the deep guards in act 2 grow with depth (up to about +65% HP and +39% power) but bosses do not
+  (`run_enemy_scale_bosses` is off, 8.3). Counting each attack's hits, the King's party-wide damage
+  was about 144 per 100 ticks (170 in phase two) against about 215 (270) for the Husk Lord fight and
+  about 315 (440) for Mire Mother with her fly at the deepest row. Data-only retune of
+  `hollow_king.tres`: 650% HP (5850), 165% power, speed 155, phase two speed 210 (phase two still at
+  half HP), and a Hollow Shade stands at its side (`data/encounters/hollow_king.tres`). That is
+  about 220 (280) damage per 100 ticks from the King alone, 325 (385) with the shade, and about 1.3
+  times the HP of the toughest guard at the deepest row (6885 against 5184), so the fight is the
+  longest and hardest of the run. A test
+  keeps it so (`test_run_balance.gd`: more HP than the Husk Lord fight and every guard at the
+  deepest row, at least their power, faster and enraging faster). The attacks themselves are
+  unchanged, so a player who defends well takes the same hits as before, only more of them and for
+  longer.
+- **An honest balance bot** (#178). The bot used to fight every champion and roamer at any HP, so
+  its runs died early and said little. It now plays like a careful player (named consts in
+  `ZoneAutoplay` and `Main`, not game rules): a champion or optional roamer is fought only while
+  the weakest hero has at least 60% HP, the party averages 80% and every hero is at least level 3
+  (an elite is 40% tougher than a normal fight, and a fresh party loses it); roamers within 6 units are
+  hunted for XP and gold while healthy; it uses its healing items before it walks into the guard; on
+  the map it takes an Elite stop only while healthy and picks a campfire when any hero is at or
+  under 60% or the party averages under 75%; at a campfire it rests when hurt, else upgrades or
+  trains. A hero capped on Tonics is skipped. The bot cannot dodge a roamer that notices it. Do not
+  tune enemies to make these runs win; read them as "an average player's run".
+
+### 8.14 Save & Quit (card #174)
+
+A local run can be put down and picked up later, Slay the Spire style. Online runs are never saved
+(one machine cannot save for everyone), and neither is the tutorial or a practice fight.
+
+- **One slot:** `user://run_save.json`, written by `RunSave` (`scripts/run/run_save.gd`, pure, tested).
+  It holds `RunState.to_dict()` exactly as it is (the save never reads its keys, so new run fields
+  are saved without changing it), a format version, the content fingerprint (`DataHash.of_content`: `data/` and the
+  version, not the code, so a code-only fix keeps a saved run; card #208), whether the party is inside a stop, and how many players share
+  the pads.
+- **Safe writes:** the new save goes to `run_save.json.tmp` first; the old save is kept as
+  `run_save.json.bak` until the new file is in place; a load falls back to the backup if the main
+  file is gone or broken. A write that fails leaves the old save as it was.
+- **When it saves:** every time the map shows (between stops, after the next act's map is made, and
+  back from the party screen), right after a stop is chosen (marked "in stop"), and again, still
+  "in stop", right after anything inside a stop that cannot be taken back (card #197): an event
+  choice (the moment its risk is rolled, and again once its gifts are settled), a shop purchase,
+  restock, sale, cleanse or upgrade, and an opened treasure chest (once its prize is settled).
+  Run fields hold what the stop already did: `stop_done` and `stop_text` (the event's result or
+  the chest's text) and `shop_sold` (the shelf items bought).
+- **Continue in a stop starts that stop again from its start**, with the run as it was at the last
+  save and the same seed (same zone layout, fight, event, shop, treasure). Never the map: quitting
+  never dodges a hard stop. What a stop's screen already settled stays settled, so a random result
+  can never be seen and then undone by closing the window: an event comes back on its result page
+  (Continue, or Fight if the choice sprang an ambush), a treasure stop on its open chest, a shop
+  with the gold spent and the bought items still marked sold (a restock keeps its new shelves).
+  Anything else done in a stop and not finished (a zone's fights, items picked up there) is undone.
+  Known gaps: a gift that was still waiting for room in the backpack when the window closed is
+  lost, and spoils (a guard's, an elite's or a boss's) are not saved while the wear screen is open;
+  they are saved the moment the map shows.
+- **Deleted** when the run is certain to be over: on a defeat the moment the fight is decided (not
+  an escape), on the last act's boss win the same, so closing the game on the end screen cannot
+  leave a save that replays a decided fight (`RunState.decides_run`). The win also opens its next
+  oath at once (never lowering the highest one open); the end screen still reads "Oath N kept /
+  Oath N+1 unlocked" from the value before the unlock. Also deleted when the run is abandoned from
+  the pause menu, and when the player starts a new run over it. An abandoned dev sample run
+  (`--screen=map` and the like) never touches the real save.
+- **Main menu:** a "Continue" row at the top, only when a usable save exists; the cursor rests on
+  it until something else is picked. A save made by another build (other format version or
+  other content) is intact, so it is **kept**: Continue is hidden, the menu says once per session
+  why, and the file stays for the build that made it. A damaged file, or one `RunState.from_dict`
+  refuses, is deleted and the menu says so. Because the fingerprint covers all of `data/` and the
+  version (not the scripts), a build with other content cannot read the other's save, but switching
+  between them no longer destroys it, and a code-only fix keeps the run. New Run with any file in the slot (also
+  one kept from another build) asks first and then removes it. A co-op save goes through the
+  players screen first (pads may have changed). New Run with a save present asks first ("Your saved
+  run will be lost"), since the new run overwrites the slot at its first map.
+- **Pause menu** (a fight, a zone, the map; local run only): "Save & Quit" sits above "Abandon run".
+  On the map it saves the state as it is (and says so if the write failed); inside a stop it keeps the latest stop save. Then back to
+  the main menu with the cursor on Continue.
+- **Dev tools:** `--save-path=PATH` keeps the save elsewhere and `--continue` continues it at once.
+  The autoplay bot never touches the player's save: it saves only when `--save-path` is given.
+### 8.15 Oaths (difficulty ladder, card #173, 2026-10-17)
+
+The run's difficulty ladder, like Slay the Spire's Ascension. The game is hard on purpose, so an
+oath only ever makes a run harder; nothing in it makes anything easier. The credits end "Keep the
+oath", and a run at Oath N is that oath kept.
+
+- **Rule**: oath 0 is the plain run. A run at Oath N has the rules of oaths 1 to N, all at once; each
+  oath lists only what it adds, so they stack. `RunData.oaths` holds the ladder in order (Oath 1 is
+  index 0); each is an `OathData` (`data/runs/oaths/*.tres`, written by `tools/bootstrap_oaths.gd`).
+  An `OathData` is a title, one player-facing line and integer changes that default to "no change":
+  `elite_hp_percent_add`, `elite_power_percent_add`, `boss_hp_percent_add`, `boss_power_percent_add`,
+  `enemy_power_percent_add`, `enemy_hp_row_add`, `enemy_power_row_add`, `rest_heal_percent_add`,
+  `act_heal_percent_add`, `start_gold_add`, `shop_price_percent_add`, `gold_percent_add` (fight pay, floored at 0), `loot_choices_add`,
+  `team_gauge_carry_percent_add` and `start_hp_percent` (the lowest one counts, 100 = full).
+  `OathData.total(ladder, oath, field)` sums a change over oaths 1..N (a pure function, tested).
+- **The ladder** (first guess, tune with play):
+
+  | Oath | Name | Adds |
+  |---|---|---|
+  | 1 | Thorns | elites +20% HP and +10% power (on top of the elite numbers in tuning) |
+  | 2 | Want | shops charge 15% more (items, gear and services; selling is unchanged); fights pay 25% less gold (after charms and gear) |
+  | 3 | Embers | the campfire's Rest heals 15 points of percent less (50% becomes 35%) |
+  | 4 | the Deep | enemies grow +2% HP and +1% power more per map row (5% becomes 7%, 3% becomes 4%) |
+  | 5 | Crowns | guards (mini-bosses) and act bosses +15% HP and +10% power |
+  | 6 | Wounds | the party starts the run at 75% HP |
+  | 7 | Scarcity | spoils offer one choice fewer (never fewer than one) |
+  | 8 | Silence | only half of the team gauge carries into the next fight |
+  | 9 | the Long Road | the heal between acts is 25 points of percent less (50% becomes 25%) |
+  | 10 | Rot | every enemy +10% power |
+
+  The run's start gold is 0 in `tuning.tres`, so "start with nothing" did nothing; Want cuts the gold
+  coming in instead (`gold_percent_add`, in `RunState.gold_for`, after charms, gear and the elite
+  bonus). `start_gold_add` still works, and is tested, for when the purse is not empty.
+- **Where it lives**: `RunState.oath` (kept inside the ladder by `begin`), and the rules in
+  `RunState`: `begin` (start gold and HP), `fight_setup` (elite, guard / boss and every enemy's
+  power and HP), `enemy_hp_percent` / `enemy_power_percent` (growth per row), `rest_heal_percent`,
+  `act_heal_percent`, `loot_choice_count`, `shop_price` and its item / gear / service prices, and
+  `team_gauge_carry_percent`. The shop and campfire screens show the changed numbers. Bosses and
+  guards still do not grow per row (`run_enemy_scale_bosses`), so the per-row oath touches only the
+  ordinary and elite fights.
+- **Online**: `to_dict` / `apply_dict` carry `oath` (an int from 0 to the ladder's length, else the
+  whole state is refused), so a client plays the host's oath; the host's `run_start` and the lobby
+  messages carry it too.
+- **Unlock**: per machine, in `user://settings.cfg` (`PlayerSettings.highest_oath_unlocked`, starts
+  at 0). Winning a run at Oath N unlocks N+1; it never lowers and stops at the ladder's end
+  (`PlayerSettings.oath_after_win`, pure and tested). Online clients unlock on a win too. Bot runs
+  (`--autoplay`) never write the file.
+- **Picking**: the players screen of a run (New Run and Host Online, not Practice) has an Oath row
+  under the heroes: Left / Right (or Confirm to go round) picks none up to the highest unlocked, and
+  the rules of that oath and the ones below it are listed beside the hero cards (newest first), with
+  the oath's line under the menu. Online only the host picks; a waiting client sees the host's pick.
+  The last pick is kept for the next run in the same session.
+- **Shown**: the map's title says "| Oath N" when N is more than 0. The run's end screen says
+  "OATH N KEPT" (or "OATH N BROKEN" on a defeat) and, when a win opens a new oath, "Oath N+1 unlocked".
+- **Dev switch**: `--oath=N` starts the bot's run (`--run`, or an autoplay host) at oath N (kept
+  inside the ladder) and unlocks up to N on the players screen (`--screen=oaths` shows that
+  screen). The `AUTOPLAY_RESULT run_...` line ends with `oath=N`.
+- Tests: `tests/unit/test_oaths.gd`.
+
+### 8.16 Rot-touched gear (card #198, 2026-10-17)
+
+Strong pieces with a price, in the spirit of Slay the Spire's boss relics and Expedition 33's Pictos:
+each one makes a hero clearly better at one thing and clearly worse at another (or, for one piece,
+only works in a risky state). They are for a party that wants the game harder still, not an
+upgrade to take blindly.
+
+- **Data**: a `GearData` with `rot_touched = true` (its own violet name colour, `GearData.ROT_TOUCHED_COLOR`, and
+  the tag "rot-touched" in the loot, shop and party screens), an `effect` / `amount` as before and a
+  **drawback**: `drawback` (any `GearData.Effect`) plus `drawback_amount` (0 = none). A drawback is
+  the effect worn as a loss: "Max HP -15%", "Enemy hits +10%" (a Tough drawback), "Parries give 1
+  less AP". `GearData.contribution(effect)` is what a piece adds to one effect, signed; `RunState.gear_amount`
+  and `RunState.passives` sum it, so a drawback on the same key as an upside simply takes away (a
+  total of 0 is dropped). `GearData.effect_line()` is the one-line text; every piece also has a
+  hand-written `description` that says both halves in plain words. Twelve pieces are written by
+  `tools/bootstrap_rot_gear.gd` into `data/gear/` and the run's gear list.
+- **New effects** (appended to `GearData.Effect`, so older files keep their numbers) and the
+  `Passive` keys the engine runs for them (all integers, signed, add up across pieces):
+  `HEAL_TAKEN` (healing the hero receives, in `_heal` and in `RunState.heal`), `KILL_HEAL` (a
+  hero's hit that downs an enemy heals them a share of max HP, in `_deal_damage`), `LOW_HP_POWER` (power
+  while HP is under `tuning.rot_low_hp_percent`, 30, in `_power_of`; a basic attack now also uses
+  `_power_of`), `DODGE_AP` and `PARRY_AP` (AP per defence on top of `ap_per_parry`, never below 0),
+  `THORNS` (an enemy whose hit lands takes that share of the damage as a `damage` event with cause
+  `thorns`; nothing for a defended hit; an enemy killed this way voids its remaining prompts like
+  after a counter), `GAUGE` (the team gauge a hero's skills and follow-ups fill), `ROT` (the
+  existing start-of-turn HP loss, now also from gear and added to the rotten items' rot), `CRIT`
+  (critical hit points from gear; Luck adds to it). Existing keys can now be negative: `TOUGH` below
+  0 makes enemy hits land harder, `START_AP` below 0 starts a fight with less AP (never below 0),
+  `COUNTER`, `PERFECT_PRESS`, `EXPOSED`, `HEAL` below 0 weaken them. Two effects are run-only:
+  `REST_HEAL` (the wearer's share of the campfire's Rest, `RunState.rest_heal_percent_of`; the Rest
+  screen names a hero who heals less) and `WIN_WOUND` (after each fight won the wearer loses that percent of max HP for good,
+  through `lose_max_hp`, so the same floor as events: `event_max_hp_floor_percent`).
+- **The twelve**:
+
+  | Piece | Rarity | Upside | Price |
+  |---|---|---|---|
+  | Rotten Crown | legendary | Power +35% | healing received -40% |
+  | Gravebound Ring | rare | Counters +80% | max HP -15% |
+  | Hunger Charm | rare | each kill heals 8% max HP | the campfire's Rest heals the wearer nothing |
+  | Last Ember | rare | Power +40% while under 30% HP | (the condition is the price) |
+  | Ash Veil | rare | each dodge gives +1 AP | a parry gives no AP |
+  | Thorned Gauntlet | rare | enemies that hit the wearer take 30% of the damage back | the wearer takes 10% more |
+  | Oathbreaker's Band | legendary | +2 AP at fight start | lose 5% max HP after each fight won |
+  | Chain of Silence | rare | the wearer's skills and follow-ups fill the team gauge 50% more | start fights with 1 AP less |
+  | Bloodletter's Fang | rare | critical hit chance +25% | lose 4% max HP at the start of each of the wearer's turns (never below 1 HP) |
+  | Hollow Mantle | rare | enemy hits deal 25% less | speed -10 |
+  | Pale Tithe | rare | perfect skill presses +40% | the heals the wearer gives are 50% weaker |
+  | Plague Bell | rare | hits on Exposed enemies +90% more | power -10% |
+
+  The first guess for every number; tune from play. A drawback like "the wearer cannot use skills
+  costing 1 AP" (the card's idea for Chain of Silence) was not built: the engine checks AP cost in
+  several places and the fight menu in more, so it would have changed the deterministic core and the
+  HUD for one piece; "starts fights with 1 AP less" puts the same pressure on through data.
+- **Where they appear**: spoils (elites and act bosses, `RunState.loot_choices`) offer
+  `tuning.rot_gear_spoils_count` (1) rot-touched pieces among their `run_loot_choices` (3), listed last, and
+  the ordinary choices come from the ordinary pool; the guarantee needs room, so with one choice
+  (the Oath of Scarcity at its floor) the choice stays ordinary, and it falls back to ordinary gear when the run
+  has no unworn rot-touched piece left. `run_spoils_min_rarity` still applies to both. Shop shelves
+  and chest prizes draw from all gear, but a rot-touched piece weighs `tuning.rot_gear_weight_percent` (35%)
+  of an ordinary one there, so shops sell them rarely. All picks are seeded per stop as before.
+- **The bot** (`GearBot`, `scripts/run/gear_bot.gd`, pure): the `--run` bot takes the rarest spoil, and
+  a rot-touched piece (scored higher) unless its drawback is on Max HP, Power, Tough, healing received,
+  rot, wounds or Rest, which it refuses. If a refused piece reaches it another way (a chest) it sells
+  it on the spot instead of wearing it (`PartyScreen.auto_settle`). The run prints `Run loot: took <id>`.
+- **Online / save**: gear is saved and sent by id as before, so nothing new is stored; wounds change
+  `max_hp_percent`, which is already in the run save.
+- Tests: `tests/unit/test_rot_gear.gd` (each new passive in the engine, each piece's numbers and
+  drawback on the run side, spoils, shops, the bot, the Tonic fix, determinism, saving).
 
 ---
 
@@ -2101,6 +2863,20 @@ phase 14 was the tutorial).
 - **Zones**: only P1 walks and strikes (approved 2026-10-12); `DeviceInput` reads one device
   through the Input Map. Run screens (map, shop, rest, party, loot), pause and end screens: anyone.
 - Bot: `--players=N` plays co-op with N pretend pads; each player presses for their own heroes.
+- **A pad drops** (card #181, 2026-10-17): in local co-op, Main checks every frame that each pad in
+  the roster is still plugged in (`PlayerRoster.missing_players`). If one is gone during a fight
+  (after the current move) or a zone, the game is held under a "P2: controller disconnected" card
+  (`PadLostOverlay`). The pad coming back under the same id carries on by itself; a button on
+  another pad (or Confirm on a free keyboard) takes the seat over (`replace_device`); Pause gives
+  the seat up and the heroes are dealt out again. The players screen drops pads that are gone
+  (`drop_missing`) so a run never starts with a ghost player.
+- **Window focus** (card #181): alt-tab, the Steam overlay or a notification pauses a fight (after
+  the current move) or a zone, solo and local co-op. Never online, where the others play on. The
+  pause is opened on the next idle moment, never inside the focus event (card #208: focus lost
+  while a zone was being built made the pause menu fail to appear, holding the game still).
+- **Walking** (card #184): the move actions use a stick deadzone of 0.2 (menus and buttons keep
+  0.5). The walk reads the stick as one vector with a radial deadzone, solo, online and co-op alike
+  (`DeviceInput.radial_deadzone`), so a diagonal push no longer snaps to an axis.
 
 ### 9.2 Online co-op (phase 5 Part B, done)
 
@@ -2113,7 +2889,9 @@ phase 14 was the tutorial).
   high-level API, so Steam's peer (GodotSteam: friend invites, NAT punch-through and relays) can
   replace ENet later without touching the game.
 - **Handshake**: a client first sends its content fingerprint (`DataHash`: SHA-256 of every file
-  under `data/`, line endings ignored, plus the project version). A mismatch, a full game (3
+  under `data/`, `scripts/` and `scenes/`, line endings ignored, plus the project version in
+  `project.godot`; card #182, so a code-only change also splits the builds) and a protocol number.
+  A refusal names both short build ids ("yours a1b2c3d4, the host's e5f6a7b8"). A mismatch, a full game (3
   players) or a started run is refused with a reason shown on the Join screen. Until welcomed, a
   client's messages are ignored. A client that never says hello is dropped after
   `net_connect_timeout_ms`.
@@ -2162,7 +2940,14 @@ phase 14 was the tutorial).
   its open prompts are resolved at once and the others are told. If the host leaves (or ends the
   game from the pause menu), everyone goes back to the main menu with a note. Online, the pause
   menu opens over a game that goes on (it offers Leave / End the game).
-- **Sharing the game**: `build_game.bat` exports `build/RottenLands.zip` (one exe). Everyone online
+- **Sharing the game**: `build_game.bat` exports `build/Rotsworn.zip` (one exe). It is a release
+  export, and it deletes the old exe and zip first and fails loudly (log in `build/export.log`)
+  if the export fails, so a stale file is never handed out. Bump `config/version` in
+  `project.godot` for each build you share. The dev command-line switches (`--autoplay`,
+  `--tuning`, `--seed`, `--encounter`, `--first-strike`, `--host` ...) are read only in debug
+  builds (`DevArgs`, `OS.is_debug_build()`): the editor and `run_game.bat` keep them, a release
+  build ignores them. Online, a lost final-fight or zone-return fade (the host left during it)
+  now uncovers the screen instead of leaving a black card that eats input. Everyone online
   plays that same build: a run from the editor has a different content fingerprint (the export
   stores resources differently) and is refused.
 - Bot: `--host=N` hosts and starts a run once N players are in; `--join=ADDRESS` joins. Both play
@@ -2221,6 +3006,20 @@ phase 14 was the tutorial).
   victory pays XP; loot and shop gear are seeded and never offer owned gear; equip, swap, take
   off (no free heal, HP clamped); gear reaches the fight setup and the gold bonus; the shipped gear
   and boss are complete. The event-fields test also covers `enemy_phase`.
+- Rot-touched gear (`test_rot_gear.gd`, card #198): each new passive (healing received, kill heal,
+  low-HP power, dodge and parry AP, thorns, gauge, negative start AP and Tough, rot) in the engine
+  with its drawback; every shipped piece's numbers and a valid fight setup; Hunger Charm's Rest,
+  Oathbreaker's Band's wounds and floor; spoils always offer one (and never force it on a single
+  choice); shops sell them rarely; the bot's pick; Tonics cannot be upgraded and always give the
+  plain amount; the same seed gives the same events; a save keeps worn pieces.
+- Charged Dooms (`test_charged_dooms.gd`, card #195): the announce (countdown and break threshold on
+  the intent), a Doom never opens a fight, gather then unleash with no break (the string hits the
+  whole party), the cooldown, delays leave the countdown alone, damage counts toward the break to
+  the point, a break cancels the charge and staggers (extra damage, the lost turn, the intent that
+  stands), `stagger_turns` from tuning, bleed breaks too, phase two and fallen heroes keep the
+  charge, snapshot and restore mid-charge play on identically, same seed same events, plain event
+  values and fields, the mirror matches the engine after whole fights, the bots aim at the gatherer,
+  setup refuses malformed Dooms, and each shipped guard and boss has exactly one well-formed Doom.
 - Phase 5 Part A (`test_coop.gd`): solo controls everything from any device; join, leave, the
   even split, handing heroes over (never leaving a player without one), device codes of events,
   the shipped party fits three players; per player judging (a press answers only its player's
@@ -2235,14 +3034,22 @@ phase 14 was the tutorial).
   current sequence, once; a leaving client resolved at once; engine-resolved prompts left alone),
   the fingerprint (stable, version, line endings, changed numbers, import files ignored) and the
   run state round trip (and refusals that change nothing).
+- Save & Quit (`test_run_save.gd`, temp files only): a save round trips the whole run, numbers come
+  back as ints, unknown keys survive, other content or format and damaged files are refused, a
+  failed write keeps the old save, the backup covers a broken main file, delete clears all.
 - Online smoke test: start `--autoplay --host=2 --seed=N --quit-on-end` and then
   `--autoplay --join=127.0.0.1 --quit-on-end` (both headless, about 15 minutes). Both print the
   same `AUTOPLAY_RESULT run_...` line and the same `AUTOPLAY_MIRROR` hashes, and no ERROR lines.
+- Save & Quit smoke test: `--autoplay --run --seed=N --save-path=FILE`, stop it part way with a
+  timeout, then `--autoplay --continue --quit-on-end --save-path=FILE`: the second run prints
+  `Run continued: ...` and plays on from that stop. A finished run deletes FILE.
 - Run smoke test: `--autoplay --run --quit-on-end` (add `--seed=N` for a fixed map). The bot
-  picks a shop when it has gold, a rest when someone is at or under 60% HP, else a zone; in zones
-  it walks to the guard; in shops it buys what it can for whoever is lowest; it takes the first
+  picks a shop when it has gold, a rest when someone is at or under 60% HP (or the party averages
+  under 75%), an elite stop only while the party is healthy, else a zone; in zones
+  it walks to the guard, after its healing items; in shops it buys what it can for whoever is lowest; it takes the first
   loot and puts every bag item on whoever has the most free slots. Ends with
-  `AUTOPLAY_RESULT run_victory|run_defeat stops=N fights=N level=N gear=N gold=N seed=N`.
+  `AUTOPLAY_RESULT run_victory|run_defeat stops=N fights=N level=N gear=N gold=N seed=N oath=N`
+  (add `--oath=N` to play at an oath, 8.15).
 - Phase 2 (`test_skills.gd` and additions elsewhere): press prompts and press damage, follow-ups
   (declared per ally, voided after missed presses, gauge), the team ultimate (gauge check, all
   strike, revive), revive and heal and AP gifts, Exposed / Guard / Taunt / Slow / Riposte /
@@ -2300,11 +3107,21 @@ phase 14 was the tutorial).
     class reworks with skill trees (proposed to the user first); step 3 depth scaling. Nothing
     carries over between runs.
 14. **Tutorial** (done, approved 2026-10-15): the five lessons of 7.8 (card #131).
-15. **Zones and stops** (built 2026-10-16, waiting for playtest; the user asked for all four steps
-    before testing): four steps. Step 1 long zones (8.5: sections,
+15. **Zones and stops** (done 2026-10-17: merged to main, cards #155 to #164 closed by the user's
+    say-so before a full playtest; living zones 8.12 added on top): four steps. Step 1 long zones (8.5: sections,
     seals and a gate, shrines, wanderers, champions; cards #155, #164). Step 2 tougher fights
     (guards as mini-bosses #156, elites #157). Step 3 the map and its stops (#162 map, #158 events,
     #159 treasure, #160 shop, #161 rest). Step 4 longer runs (#163).
+16. **Review pass** (built 2026-10-17 while the owner was away, waiting for playtest; branch
+    `phase16-Review`, cards #173 to #200): the whole game reviewed against the game-dev skills in
+    `.claude/skills/`, then fixed and made harder. Run: Oaths (8.15), Save & Quit (8.14), run
+    exploits and the final boss (8.13), "?" events with real prices and ambushes (8.7), rot-touched
+    gear (8.16). Fights: rends and sweeps (must parry / must dodge, 2.4), faster enemies with depth
+    (8.3), smarter enemies (2.3), hits that leave a mark (2.7), Charged Dooms (2.3), trauma shake and
+    big-moment impact (7.3), the arena's phase-two shift and zone air (7.3, 8.12). Also: co-op
+    hit-stop fix, pad-drop pause, rebinding (6), Flashes setting, defeat recap, resuming music, the
+    Rot Journal, ground textures and event pictures (5.4), build fingerprint and release-build
+    switches, voice pool and limiter.
 
 ### 11.1 To-do (from playtests)
 
@@ -2478,6 +3295,9 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-16 | The map gets a legend and dims stops the pick cannot lead to | card #162 (planning) |
 | 2026-10-16 | Shop: no Heal service; each shop stocks 4 items, 2 charms, 2 gear (was the whole list) | user: the shop felt cluttered and Heal = a Salve for the same gold |
 | 2026-10-17 | Zones get their own places, ground pieces and water, wind, drifting particles and critters | user: zones must feel alive and fit their theme (8.12) |
+| 2026-10-17 | Save & Quit: one local-run slot, saved on the map and on entering a stop; Continue re-enters an unfinished stop from its start, never the map; deleted when the run ends or is abandoned; online runs not saved | card #174; quitting must not dodge a hard stop, and losing 2 acts to a closed window was the worst way to lose |
+| 2026-10-17 | Floors: three calm variants per place mixed by region, mirrored and tone-drifted by a shader; ground pieces fade into the floor; props get contact shadows; scenery drawn at the fighters' pixel size (0.045 to 0.05) | card #186 (review: art-textures 0, 2, 3; audio-look 0); not an ease change: only the look |
+| 2026-10-17 | Oaths: a ten-step difficulty ladder (Thorns, Want, Embers, the Deep, Crowns, Wounds, Scarcity, Silence, the Long Road, Rot), unlocked per machine by winning, picked in the players screen | card #173; the game should be hard, a ladder only ever adds difficulty (8.15) |
 | 2026-10-15 | Lining digits everywhere; bold number font for HP, AP, gauge; slanted bold popups and damage numbers | user: the numbers' font felt cheap |
 | 2026-10-15 | Hero portraits are painted pictures (made by the user with an AI image tool) turned into pixel art; big cards on the players screen, 64x64 faces everywhere else | user (#140, #141); a code-drawn try looked bad |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |
@@ -2485,3 +3305,25 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-15 | Main menu cut to six rows: Online holds Host and Join, the tutorial is the first Practice card | user (#150) |
 | 2026-10-15 | Tutorial: each hero lesson locks the menu to one glowing choice; no zone or map lesson (five lessons); the Skills lesson uses a skill without follow-ups (Taunt) | user play-test |
 | 2026-10-16 | Every sound, song and loop offered against three free Openverse finds (CC0 / CC BY); 27 replaced, the rest kept | user asked; CC BY is fine with a credit on the credits screen |
+| 2026-10-17 | Run exploits closed (Restock price rises, 2 Tonics per hero, a reset cannot heal, elites cannot be run from), small run bugs fixed, the Hollow King retuned to the hardest fight, the balance bot plays carefully | cards #175 to #178; the owner wants the game hard, so nothing here makes it easier (8.13) |
+| 2026-10-17 | Co-op: a dropped pad holds the game under a card until it returns, is replaced or the seat is given up; the window losing focus pauses (offline only) | robustness review (#181) |
+| 2026-10-17 | Handshake fingerprint covers scripts, scenes and the version, plus a protocol number; dev switches work in debug builds only; build_game.bat fails loudly | robustness review (#182); harder to cheat, no stale builds |
+| 2026-10-17 | Sound: free voice first, steal the one nearly done, 30 ms per-cue cooldown, Master hard limiter | robustness review (#183) |
+| 2026-10-17 | Move actions' deadzone 0.2, radial for the walk in every mode | robustness review (#184) |
+| 2026-10-17 | Fight feel: camera shake is a trauma model; the biggest moments (last kill, boss kill, phase change, boss intro, hero down) get a short hold, shake, punch-in and flash; perfect presses, crits, heavy hits and ultimate hits hit harder; struck enemies recoil | cards #179 and the combat-feel review; presentation only, freezes at most 170 ms |
+| 2026-10-17 | A success freeze ignores only its owner's double tap; a teammate's press inside it is judged as if the freeze had not happened (`FreezeLedger`) | bug #180: one player's parry swallowed another player's on-time press in local co-op |
+| 2026-10-17 | "Flashes" setting: Full / Reduced / Off for screen flashes and white hit flashes | card #185, photosensitivity; default Full |
+| 2026-10-17 | F1 reading-aid toggles (G, T, L, H, C, V) are practice-fight only | a run fight is the real game; same rule as the training ring |
+| 2026-10-17 | RUN OVER shows a recap of the last fight (enemies, stop, act, oath, hardest hit, last blow, defence); zone song and ambience resume after a fight; elite fights have an `elite_path` song slot (empty); Oath of Want now cuts fight gold 25% (`gold_percent_add`) instead of "start with nothing" | cards #191, #192, fix to #173; the start gold is already 0, so the oath did nothing |
+| 2026-10-17 | Every player action can be rebound in Settings > Controls, key and pad separately; the first input of an action is replaced, the aliases stay; conflicts only count between actions needed at the same time (swap offered); Escape, F2 and the pad's Menu button are reserved; applies to every pad | card #190; the two defence buttons can never share a key (no one-button parry and dodge), nothing can lock the player out, and the stamped timing path is untouched |
+| 2026-10-17 | Smarter enemies: no move more than twice running (data: `max_in_a_row`, `cooldown_turns`, finisher and desperation weights), and single-target attacks pick by a per-enemy rule (WOUNDED, LOWEST_HP, MARKED, AVOID_LAST) with a bias; Taunt still wins | card #189 (review: combat-rules-ai); the owner wants it hard, a weak hero must be in real danger; no attack file uses finisher or cooldown yet, to tune with play |
+| 2026-10-17 | Forced-choice hits: a rend (parry only, bone) and a sweep (dodge only, green, never countered) in elite, guard and boss fights and from the deep variants, about one hit in four; uneven gaps in every one-button string, a feint in every hard string; enemy attacks speed up with depth, elites, guards, bosses and phase two, never under 70% of authored; windows unchanged | cards #187, #188 and review combat-feel #4, #5, #9: dodge-everything and a steady tap beat the defence; nothing made easier |
+| 2026-10-17 | "?" events are real trade-offs: new prices (permanent max HP, a backpack item, a rotten-item curse, an ambush fight), every choice costs something scarce, gold and XP grow with depth, 16 events with act 2's own list, and a "?" stop can turn into an ambush (15% + 15% per "?" passed without a fight, seeded per stop, state in the run dict) | card #193 (review: run-structure); the owner wants it hard, so a "?" tempts and never gives for free (8.7) |
+| 2026-10-17 | Enemy hits can leave a mark when undefended and survived: hero debuffs Rotting (6% max HP at turn start, never below 1), Blighted (healing -50%), Weakened (power -25%), or an AP drain; they refresh, never stack; Mend and Sanctuary cleanse one (all on a perfect press), the Salve one; shipped marks are hard-fight-only and on few hits (bile, rot combo, King's cascade, hyena bites, shade bolts); the intent, banner and hit icons announce them | card #194 (review: combat-rules-ai #3): failing to defend cost only HP, and Cass had no job beyond healing |
+| 2026-10-17 | The arena shifts when a boss or guard enters phase two (sun, ambient, fog, vignette, lamps and a puff of embers or spores, over about a second; the Hollow King's throne goes blood red), and a zone's drifting particles also play, thinner, in its fights | card #196 (review audio-look #6, #9 and art-textures #11): a boss's rage was a banner over an unchanged room, and the fight dropped the zone's air; presentation only (nothing in the engine or the golden), slower under Reduced and Off flashes |
+| 2026-10-17 | Where phase 16 features meet: the run save is deleted the moment the last fight is decided (and the win opens its oath then); a save from another build is kept, not deleted; Continue resumes after an event choice, purchase or opened chest instead of replaying the stop; phase-two-only attacks get their projectiles and animations; a Doom picked inside a hero's skill is announced; a pad drop on an idle fight shows its card | card #197 (integration review): a window close dodged event risks and shop restocks, a patch or the editor destroyed a good save, and a decided run could be replayed (8.14) |
+| 2026-10-17 | Charged Dooms: each guard and act boss has one signature Doom (Gorge Burst, Brood Tide, Ashfall, Timber Fall, Crown of Rot), announced with a countdown (2 or 3 enemy turns) the party can break by dealing a share of the enemy's max HP (13% to 45%): the Doom is cancelled and the enemy loses its next turn and takes +50% damage; unbroken it unleashes as a party-wide string of 8 to 10 hits with rends and sweeps; delay skills never reset the countdown; never the first pick of a fight, cooldown 2, about one per 4 to 6 boss turns; the bots focus the gatherer | card #195 (review: combat-rules-ai #9, E33 break meets Slay the Spire intent); the owner wants it hard but readable; break shares set from bot runs, to retune from play |
+| 2026-10-17 | Rot-touched gear: twelve strong pieces that each cost something (Rotten Crown, Gravebound Ring, Hunger Charm, Last Ember, Ash Veil, Thorned Gauntlet, Oathbreaker's Band, Chain of Silence, Bloodletter's Fang, Hollow Mantle, Pale Tithe, Plague Bell), in their own violet colour, as a `rot_touched` flag and a data-driven drawback on `GearData`; elite and boss spoils always offer one among their choices (never as the only choice), shops and chests weigh them 35%; Tonics cannot be combined or upgraded, so the 2-Tonic cap really limits max HP | card #198 (Slay the Spire boss relics, Expedition 33 Pictos; the owner wants it hard). A "skills cost +1 AP" drawback was left out (it touches the core's cost checks and the HUD); "1 AP less at fight start" instead. Numbers are first guesses, to retune from play (8.16) |
+| 2026-10-17 | Every "?" event and each act's ambush page has its own painted 128x64 scene (`sprites/events/`, drawn by `art_kit/assets/event_art.py`: a flat dithered back plus a 3D-rendered subject, one palette, at most 96 colours); the event screen shows it at scale 4 in a thin worn-gold frame (`StopVisuals`, `stop_visuals.tres`), nearest filter, with the old question mark as the fallback for a missing file | card #199; the owner found the tiny question mark in a black void flat, and each event is a story worth seeing (8.7) |
+| 2026-10-17 | The Rot Journal: a main-menu book of every enemy and attack the player has met (portrait or silhouette, where met, times beaten, each attack's hit kinds, marks and Doom, and the player's parried, dodged, jumped and hit counts), recorded from the presentation's event stream into its own `user://journal.json` (versioned, atomic, `.bak`); only a person's run fights count, practice, the tutorial and bots do not (a dev `--journal-path` makes everything count) | card #200 (review ui-input #9, Slay the Spire's compendium): a hard game should let the player study what beat them; practice stays out because its cheats and its full fight list would unlock and pollute the book (7.11) |
+| 2026-10-17 | Saves check only `data/` and the version (`DataHash.of_content`), not the code; the main menu has no description line under its rows | card #208 playtest: a code-only fix hid the user's saved run; the user found the line ("About 8 stops") out of date and not needed now that Continue and Journal exist |

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StopVisuals" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/stop_visuals.gd" id="1_stopvis"]
+
+[resource]
+script = ExtResource("1_stopvis")
+event_picture_scale = 4
+fallback_picture_path = "res://assets/sprites/ui/map_event.png"
+fallback_picture_scale = 4
+frame_border = 3
+frame_padding = 4
+frame_border_color = Color(0.56, 0.44, 0.22, 1)
+frame_backing_color = Color(0.04, 0.035, 0.05, 1)
+frame_shadow = 16
+frame_shadow_alpha = 0.7

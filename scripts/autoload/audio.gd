@@ -4,10 +4,13 @@ extends Node
 ## Usage: Audio.play("parry")
 ## Music: play_music(path) loops one song; asking for the song already playing lets it go on (no
 ## restart). A new song crossfades in (two players) with the fade times from data/audio/music.tres.
+## Where a song was when it was faded out is remembered; asking with `resume` picks it up there
+## (the zone song after a fight, card #192).
 
 const LIBRARY_PATH := "res://data/audio/sfx_library.tres"
 const POOL_SIZE := 24
 const MUSIC_SET_PATH := "res://data/audio/music.tres"
+const MIX_PATH := "res://data/audio/mix.tres"
 ## A fading song counts as silent here.
 const SILENT_DB := -60.0
 
@@ -15,7 +18,9 @@ var _library: SfxLibrary
 ## cue name -> AudioStream (null if it failed to load)
 var _streams: Dictionary = {}
 var _pool: Array[AudioStreamPlayer] = []
-var _next_player := 0
+var _mix: AudioMix
+## cue name -> when it last started (ms), for the per-cue cooldown.
+var _last_start_ms: Dictionary = {}
 var _warned: Dictionary = {}
 ## Two players so the old song can fade out while the new one fades in; _music is the current one.
 var _music_players: Array[AudioStreamPlayer] = []
@@ -34,6 +39,8 @@ var _duck_tween: Tween
 ## The place's background loop (zone ambience), on the Effects bus.
 var _ambience: AudioStreamPlayer
 var _ambience_path: String = ""
+## Song or ambience path -> seconds into it when it was replaced (used by `resume`, then forgotten).
+var _positions: Dictionary = {}
 
 
 func _ready() -> void:
@@ -41,6 +48,11 @@ func _ready() -> void:
 	for channel: String in ["music", "effects", "voice"]:
 		_ensure_bus(String(PlayerSettings.CHANNELS[channel].bus))
 	PlayerSettings.apply_volume()
+	_mix = load(MIX_PATH) as AudioMix if ResourceLoader.exists(MIX_PATH) else null
+	if _mix == null:
+		push_warning("Audio: no mix at %s, using defaults" % MIX_PATH)
+		_mix = AudioMix.new()
+	_add_master_limiter()
 	_ensure_library()
 	for i: int in POOL_SIZE:
 		var player := AudioStreamPlayer.new()
@@ -67,8 +79,17 @@ func _ready() -> void:
 	_ambience.finished.connect(_ambience.play)
 
 
+## Where a remembered position should restart a stream of `length` seconds: the position itself,
+## or the start when it is unknown, negative or past the end.
+static func resume_position(saved: float, length: float) -> float:
+	if saved <= 0.0 or (length > 0.0 and saved >= length):
+		return 0.0
+	return saved
+
+
 ## Loops the song at `path` (empty: silence). The song already playing goes on untouched.
-func play_music(path: String, volume_db: float = 0.0) -> void:
+## `resume`: start from where this song was left off, if it was (default: from the start).
+func play_music(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
 	_music_base_db = volume_db
 	if path == _music_path and _music.playing:
 		_update_music_volume()
@@ -77,6 +98,8 @@ func play_music(path: String, volume_db: float = 0.0) -> void:
 	if _duck_tween != null:
 		_duck_tween.kill()
 	_music_duck_db = 0.0
+	if not _music_path.is_empty() and _music.playing:
+		_positions[_music_path] = _music.get_playback_position()
 	_fade_out(_music)
 	_music_path = path
 	if path.is_empty():
@@ -98,7 +121,8 @@ func play_music(path: String, volume_db: float = 0.0) -> void:
 	if _fade_in_tween != null:
 		_fade_in_tween.kill()
 	_set_music_fade(0.0 if _fade_in_s > 0.0 else 1.0)
-	_music.play()
+	_music.play(resume_position(float(_positions.get(path, 0.0)), stream.get_length()) if resume else 0.0)
+	_positions.erase(path)
 	if _fade_in_s > 0.0:
 		_fade_in_tween = create_tween()
 		_fade_in_tween.tween_method(_set_music_fade, 0.0, 1.0, _fade_in_s)
@@ -143,10 +167,13 @@ func _apply_music_volume(duck_db: float) -> void:
 
 
 ## Loops the background sound at `path` (empty: silence). The loop already playing goes on.
-func play_ambience(path: String, volume_db: float = 0.0) -> void:
+## `resume`: start from where this loop was left off, if it was.
+func play_ambience(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
 	_ambience.volume_db = volume_db
 	if path == _ambience_path and _ambience.playing:
 		return
+	if not _ambience_path.is_empty() and _ambience.playing:
+		_positions[_ambience_path] = _ambience.get_playback_position()
 	_ambience_path = path
 	_ambience.stop()
 	_ambience.stream = null
@@ -157,11 +184,13 @@ func play_ambience(path: String, volume_db: float = 0.0) -> void:
 		_warn_once(path, "Audio: no playable ambience at '%s'" % path)
 		return
 	_ambience.stream = stream
-	_ambience.play()
+	_ambience.play(resume_position(float(_positions.get(path, 0.0)), stream.get_length()) if resume else 0.0)
+	_positions.erase(path)
 
 
 func stop_music() -> void:
 	_music_path = ""
+	_positions.clear()
 	for tween: Tween in _fade_out_tweens.values():
 		tween.kill()
 	_fade_out_tweens.clear()
@@ -184,8 +213,19 @@ func play(cue_name: String, volume_offset_db: float = 0.0, pitch_scale: float = 
 	if _pool.is_empty():
 		_warn_once("_no_pool", "Audio: play('%s') before the Audio node is ready" % cue_name)
 		return
-	var player := _pool[_next_player]
-	_next_player = (_next_player + 1) % _pool.size()
+	var now := Time.get_ticks_msec()
+	if VoicePool.in_cooldown(int(_last_start_ms.get(cue_name, -1)), now, _mix.cue_cooldown_ms):
+		return
+	_last_start_ms[cue_name] = now
+	var busy: Array[bool] = []
+	var remaining: Array[float] = []
+	for p: AudioStreamPlayer in _pool:
+		busy.append(p.playing)
+		var left := 0.0
+		if p.playing and p.stream != null:
+			left = maxf(0.0, p.stream.get_length() - p.get_playback_position())
+		remaining.append(left)
+	var player := _pool[VoicePool.pick(busy, remaining)]
 	player.stream = stream
 	player.bus = String(PlayerSettings.CHANNELS["voice" if cue.voice else "effects"].bus)
 	player.volume_db = cue.volume_db + volume_offset_db
@@ -201,6 +241,19 @@ func cue_length_ms(cue_name: String) -> int:
 	var cue := _ensure_library().find(cue_name)
 	var stream := _stream_for(cue) if cue != null else null
 	return roundi(stream.get_length() * 1000.0) if stream != null else 0
+
+
+## A hard limiter on Master (with a little headroom before it), so stacked cues never clip.
+func _add_master_limiter() -> void:
+	var master := AudioServer.get_bus_index(&"Master")
+	for i: int in AudioServer.get_bus_effect_count(master):
+		if AudioServer.get_bus_effect(master, i) is AudioEffectHardLimiter:
+			return
+	var limiter := AudioEffectHardLimiter.new()
+	limiter.pre_gain_db = _mix.limiter_pre_gain_db
+	limiter.ceiling_db = _mix.limiter_ceiling_db
+	limiter.release = _mix.limiter_release_s
+	AudioServer.add_bus_effect(master, limiter)
 
 
 ## Adds an audio bus (sent to Master) unless it exists, so the settings can turn it up or down.

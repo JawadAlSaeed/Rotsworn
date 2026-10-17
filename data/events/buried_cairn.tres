@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="EventData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_xk34j"]
+[ext_resource type="Resource" path="res://data/encounters/hyena_pack.tres" id="2_g1kcq"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="3_1vjvm"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="4_m2d1d"]
+
+[sub_resource type="Resource" id="Resource_t8c4w"]
+script = ExtResource("3_1vjvm")
+ambush = ExtResource("2_g1kcq")
+gold = 120
+find_rarity = 1
+
+[sub_resource type="Resource" id="Resource_pyl0w"]
+script = ExtResource("1_xk34j")
+text = "Dig"
+detail = "Gold and an old blade. The keeper does not like it."
+deal = SubResource("Resource_t8c4w")
+done_text = "The spade rings on something that is not stone."
+
+[sub_resource type="Resource" id="Resource_bylx7"]
+script = ExtResource("3_1vjvm")
+cost_item = 2
+xp = 60
+team_gauge = 40
+
+[sub_resource type="Resource" id="Resource_o7ddt"]
+script = ExtResource("1_xk34j")
+text = "Say the name over the stones"
+detail = "Leave something behind for them."
+deal = SubResource("Resource_bylx7")
+done_text = "The wind stops. The name sounds like a door closing gently."
+
+[resource]
+script = ExtResource("4_m2d1d")
+id = "buried_cairn"
+title = "The Buried Cairn"
+text = "A cairn of grey stones, a name scratched on it. Fresh earth lies beside it. Someone dug here, and stopped."
+picture_path = "res://assets/sprites/events/buried_cairn.png"
+choices = Array[ExtResource("1_xk34j")]([SubResource("Resource_pyl0w"), SubResource("Resource_o7ddt")])

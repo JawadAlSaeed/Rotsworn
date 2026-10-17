@@ -17,7 +17,7 @@ var party: Array[CharacterData] = []
 var enemies: Array[EnemyData] = []
 ## Offered to every party member when the team gauge is full (null = no team ultimate).
 var team_ultimate: AbilityData
-## Run (DESIGN.md 2.13): every hero gets it when can_run is true (not against bosses).
+## Run (DESIGN.md 2.13): every hero gets it when can_run is true (not against bosses, guards or elites).
 var run_ability: AbilityData
 var can_run: bool = false
 var tuning: Tuning
@@ -47,6 +47,12 @@ var enemy_hp_percent: int = 100
 var enemy_power_percent: int = 100
 ## Every enemy's speed in percent of their data (the tutorial's slower enemy, DESIGN.md 7.8).
 var enemy_speed_percent: int = 100
+## How fast enemy attacks play, in percent of their authored timing (card #188; lower = faster,
+## 0 = tuning attack_tempo_percent). A run sets it from depth, elites, guards and bosses; it never
+## goes under tempo_floor().
+var attack_tempo_percent: int = 0
+## Hits take their forced kinds (REND, SWEEP; card #187): elite, guard and boss fights.
+var forced_hits: bool = false
 ## Backpack items the party can use in this fight (DESIGN.md 8.1): {uid: int, item: ItemData,
 ## amount: int (its effect percent, stronger once combined), name: String}.
 ## Each can be used once; the run takes the used ones out of the backpack afterwards.
@@ -61,10 +67,20 @@ static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: i
 	setup.enemies = encounter.enemies.duplicate()
 	setup.team_ultimate = encounter.team_ultimate
 	setup.run_ability = load(RUN_ABILITY_PATH) as AbilityData
-	setup.can_run = encounter.can_run and not encounter.boss and setup.run_ability != null
+	# Bosses, guards and elites are commitments (DESIGN.md 2.13): a rule here, so a new one in data
+	# can never be left runnable by a forgotten can_run flag.
+	setup.can_run = encounter.can_run and not encounter.boss and not encounter.mini_boss 			and not encounter.elite and setup.run_ability != null
 	setup.tuning = p_tuning
 	setup.rng_seed = p_seed
+	# Hard fights read the forced-choice hits (card #187): a data rule, like can_run above.
+	setup.forced_hits = encounter.elite or encounter.boss or encounter.mini_boss
 	return setup
+
+
+## The fastest enemy attacks may play, in percent of their authored timing (card #188): tuning
+## attack_tempo_floor_percent, or the global tempo if that is set faster on purpose.
+static func tempo_floor(p_tuning: Tuning) -> int:
+	return mini(p_tuning.attack_tempo_floor_percent, p_tuning.attack_tempo_percent)
 
 
 ## Max HP of party member `slot` (`data`) in this fight: the character's own max HP, scaled by
@@ -128,6 +144,8 @@ func validate() -> PackedStringArray:
 		problems.append("start team gauge must be 0 .. team_gauge_max (is %d)" % start_team_gauge)
 	if enemy_hp_percent < 1 or enemy_power_percent < 1 or enemy_speed_percent < 1:
 		problems.append("enemy HP and power percents must be at least 1")
+	if attack_tempo_percent < 0:
+		problems.append("attack tempo percent must be 0 (tuning's) or more")
 	for passives: Dictionary in party_passives:
 		for key: Variant in passives:
 			if not Passive.ALL.has(String(key)):
@@ -160,7 +178,10 @@ func validate() -> PackedStringArray:
 		if e == null:
 			problems.append("empty enemy slot")
 			continue
-		for a: EnemyAttackData in e.attacks:
+		for a: EnemyAttackData in e.attacks + e.phase_two_attacks:
+			if a != null and a.is_doom():
+				problems.append_array(_doom_problems(a))
+		for a: EnemyAttackData in e.attacks + e.phase_two_attacks:
 			if a == null:
 				problems.append("enemy %s has an empty attack slot" % e.id)
 				continue
@@ -172,10 +193,28 @@ func validate() -> PackedStringArray:
 					problems.append("attack %s has an empty hit slot" % a.id)
 				elif h.kind == AttackHitData.Kind.PRESS:
 					problems.append("attack %s: PRESS is for party skills only" % a.id)
+				elif h.forced_kind != AttackHitData.Kind.NORMAL and (h.kind != AttackHitData.Kind.NORMAL
+						or not AttackHitData.is_forced(h.forced_kind)):
+					problems.append("attack %s: a forced kind is REND or SWEEP, on a normal hit" % a.id)
+				elif not h.on_hit_status.is_empty() and not Status.is_debuff(h.on_hit_status):
+					problems.append("attack %s: on_hit_status '%s' is not a hero debuff" % [a.id, h.on_hit_status])
 				elif h.impact_ms <= last:
 					problems.append("attack %s: hit times must increase" % a.id)
 				else:
 					last = h.impact_ms
+	return problems
+
+
+## A Charged Doom (card #195) is party-wide, has a break threshold, and cools down so a break
+## cannot be followed by the same Doom at once.
+func _doom_problems(a: EnemyAttackData) -> PackedStringArray:
+	var problems := PackedStringArray()
+	if a.target_mode != EnemyAttackData.TargetMode.PARTY:
+		problems.append("doom %s must be party-wide" % a.id)
+	if a.break_damage_percent < 1:
+		problems.append("doom %s needs a break_damage_percent" % a.id)
+	if a.cooldown_turns < 1:
+		problems.append("doom %s needs a cooldown of at least 1 turn" % a.id)
 	return problems
 
 

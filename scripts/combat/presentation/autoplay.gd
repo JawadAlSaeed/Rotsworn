@@ -3,13 +3,16 @@ extends Node
 ## Test bot for `-- --autoplay[=perfect|miss|mash]` (DESIGN.md 10). It plays through the same
 ## paths as a person: menu choices go through the ActionMenu, defence and skill presses are
 ## injected into DefenseInput and judged like real ones.
-## - perfect: the correct press for every hit (parry for normal, jump for ground, the skill
-##   button for skill and follow-up presses) at window centre;
+## - perfect: the correct press for every hit (Defense.best_outcome: parry for a normal hit or a
+##   rend, dodge for a sweep, jump for ground, the skill button for skill and follow-up presses)
+##   at window centre;
 ## - miss: never presses;
 ## - mash: random presses about every MASH_INTERVAL_MS;
 ## - average: like a person of `bot_skill` percent (balance checks): each defence is landed with
 ##   that chance (a parry or a dodge, a jump for a ground hit), otherwise it is not pressed; each
-##   skill press is landed with that chance, half of those perfect and half good.
+##   skill press is landed with that chance, half of those perfect and half good. A rend or a sweep
+##   (card #187) is read first: it is misread (the other of parry and dodge, on time) with
+##   (100 - skill) * MISREAD_SHARE_PERCENT / 100 percent chance, so a better player misreads less.
 ## In co-op (--players=N) each player presses for their own heroes with their own device, so the
 ## per-player judging is played through too; mash presses as a random player. Online it presses
 ## only for this machine's player.
@@ -26,6 +29,9 @@ const MASH_INTERVAL_MS: int = 70
 const MASH_JITTER_MS: int = 20
 const MASH_ACTIONS: Array[int] = [Defense.Outcome.PARRY, Defense.Outcome.DODGE, Defense.Outcome.JUMP,
 		Defense.Outcome.PRESS]
+## Average bot: share of its missing skill that shows up as misreading a rend or a sweep (a decent
+## reader at skill 70 reads 85% of them right; the timing roll comes after).
+const MISREAD_SHARE_PERCENT: int = 50
 
 var _mode: String = CombatOptions.AUTOPLAY_PERFECT
 var _mirror: CombatMirror
@@ -55,7 +61,10 @@ var _started_ms: int = 0
 var _stats: Dictionary = {
 	"parries": 0, "dodges": 0, "jumps": 0, "presses": 0, "perfect_presses": 0, "whiffs": 0,
 	"hits_taken": 0, "counters": 0, "team_counters": 0, "skills": 0, "ultimates": 0,
+	"dooms": 0, "broken": 0, "unleashed": 0,
 }
+## Enemies whose announced Doom has not been broken or unleashed yet (card #195).
+var _dooms_open: Dictionary = {}
 
 
 func setup(mode: String, mirror: CombatMirror, runner: TimedSequenceRunner, skill_runner: SkillSequenceRunner,
@@ -157,6 +166,16 @@ func on_event(event: Dictionary) -> void:
 				_stats.team_counters += 1
 			else:
 				_stats.counters += 1
+		"intent":
+			if event.has("charge_total") and not _dooms_open.has(int(event.enemy)):
+				_dooms_open[int(event.enemy)] = true
+				_stats.dooms += 1
+		"doom_broken":
+			_dooms_open.erase(int(event.enemy))
+			_stats.broken += 1
+		"doom_unleashed":
+			_dooms_open.erase(int(event.enemy))
+			_stats.unleashed += 1
 
 
 func on_combat_finished(result: String) -> void:
@@ -168,6 +187,8 @@ func on_combat_finished(result: String) -> void:
 			+ " counters=%d team_counters=%d skills=%d ultimates=%d gauge=%d") % [_stats.parries, _stats.dodges,
 			_stats.jumps, _stats.presses, _stats.perfect_presses, _stats.whiffs, _stats.hits_taken, _stats.counters,
 			_stats.team_counters, _stats.skills, _stats.ultimates, _mirror.team_gauge])
+	if int(_stats.dooms) > 0:
+		print("AUTOPLAY_DOOMS announced=%d broken=%d unleashed=%d" % [_stats.dooms, _stats.broken, _stats.unleashed])
 	# Balance numbers: turns, real seconds, and the party's HP left (percent of max, standing).
 	var hp := 0
 	var max_hp := 0
@@ -192,6 +213,9 @@ func _pick_ability() -> AbilityData:
 		if not _menu.is_usable(ability.id) or ability.escape or ability.id.begins_with(CombatController.ITEM_PREFIX):
 			continue
 		if ability.team_ultimate or ability.revive_percent > 0:
+			return ability
+		if ability.cleanse_count > 0 and _any_marked():
+			# The healer lifts a mark (rot, blight, weakness) before it costs the party more.
 			return ability
 		if ability.ap_cost == 0 and basic == null:
 			basic = ability
@@ -224,13 +248,40 @@ func _pick_item() -> AbilityData:
 	return null
 
 
-## The most hurt ally for ally skills, else the first target offered.
+## True if a standing hero carries a hero debuff (card #194).
+func _any_marked() -> bool:
+	for id: int in _mirror.living_party_ids():
+		if _is_marked(id):
+			return true
+	return false
+
+
+func _is_marked(id: int) -> bool:
+	var statuses: Dictionary = _mirror.fighter(id).get("statuses", {})
+	for debuff: String in Status.DEBUFFS:
+		if statuses.has(debuff):
+			return true
+	return false
+
+
+## The most hurt ally for ally skills (a marked one first for a cleansing skill); against enemies the
+## one gathering a Doom (card #195: the party breaks it), else the first target offered.
 func _pick_target(ability: AbilityData) -> int:
 	var targets := _menu.targets_of(ability.id)
 	if targets.is_empty():
 		return -1
 	if ability.target != AbilityData.Target.ALLY and ability.target != AbilityData.Target.OTHER_ALLY:
+		for id: int in targets:
+			if _mirror.is_charging(id):
+				return id
 		return targets[0]
+	if ability.cleanse_count > 0:
+		var marked: Array[int] = []
+		for id: int in targets:
+			if _is_marked(id):
+				marked.append(id)
+		if not marked.is_empty():
+			targets = marked
 	var best := targets[0]
 	for id: int in targets:
 		var f := _mirror.fighter(id)
@@ -263,7 +314,7 @@ func _press_perfectly() -> void:
 			if prompt.is_empty():
 				_pressed[key] = true
 				continue
-			var action := int((prompt.perfect as Array)[0])
+			var action := Defense.best_outcome(int(prompt.kind))
 			var edges: Array = prompt.windows[action]
 			@warning_ignore("integer_division")
 			var centre := int(prompt.at_ms) * 1000 + (int(edges[0]) + int(edges[1])) / 2
@@ -305,10 +356,21 @@ func _average_plan(key: String, prompt: Dictionary, skill: bool) -> Dictionary:
 	if _plans.has(plan_key):
 		return _plans[plan_key]
 	var plan: Dictionary = {}
+	var kind := int(prompt.kind)
+	@warning_ignore("integer_division")
+	var misread_percent := (100 - bot_skill) * MISREAD_SHARE_PERCENT / 100
+	if not skill and AttackHitData.is_forced(kind) and _rng.randi_range(1, 100) <= misread_percent:
+		# Misread: the other button, pressed on time (a whiff, the hit lands).
+		var wrong := Defense.Outcome.DODGE if kind == AttackHitData.Kind.REND else Defense.Outcome.PARRY
+		var right: Array = prompt.windows[Defense.best_outcome(kind)]
+		@warning_ignore("integer_division")
+		plan = {"action": wrong, "at_us": int(prompt.at_ms) * 1000 + (int(right[0]) + int(right[1])) / 2}
+		_plans[plan_key] = plan
+		return plan
 	if _rng.randi_range(1, 100) <= bot_skill:
 		var at := int(prompt.at_ms) * 1000
 		var windows: Dictionary = prompt.windows
-		var action := int((prompt.perfect as Array)[0])
+		var action := Defense.best_outcome(kind)
 		if skill:
 			var perfect: Array = windows.get(Defense.Outcome.PRESS_PERFECT, windows[Defense.Outcome.PRESS])
 			var good: Array = windows[Defense.Outcome.PRESS]
@@ -319,7 +381,7 @@ func _average_plan(key: String, prompt: Dictionary, skill: bool) -> Dictionary:
 			@warning_ignore("integer_division")
 			plan = {"action": action, "at_us": at + (int(edges[0]) + int(edges[1])) / 2}
 		else:
-			if windows.has(Defense.Outcome.DODGE) and _rng.randi_range(0, 1) == 1:
+			if windows.has(Defense.Outcome.DODGE) and windows.has(Defense.Outcome.PARRY) and _rng.randi_range(0, 1) == 1:
 				action = Defense.Outcome.DODGE
 			var edges: Array = windows[action]
 			@warning_ignore("integer_division")

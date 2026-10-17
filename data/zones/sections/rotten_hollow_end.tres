@@ -72,6 +72,7 @@ flicker_percent = 10
 [sub_resource type="Resource" id="Resource_uxqe0"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(10, 0, -10)
 solid_radius = 0.6
 sway = 0.02
@@ -79,6 +80,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_j1yud"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(24, 0, -11)
 flip = true
 solid_radius = 0.6
@@ -87,6 +89,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_g3cjg"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(11, 0, 6.5)
 solid_radius = 0.6
 sway = 0.02
@@ -94,6 +97,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_n1a05"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(23.5, 0, 6)
 flip = true
 solid_radius = 0.6
@@ -128,6 +132,7 @@ pixel_size = 0.05
 [sub_resource type="Resource" id="Resource_w0xn5"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(13.53, 0, -3.73)
 pixel_size = 0.045
 flip = true
@@ -136,6 +141,7 @@ sway = 0.06
 [sub_resource type="Resource" id="Resource_1iffe"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(10.93, 0, 8.89)
 pixel_size = 0.045
 sway = 0.06
@@ -143,6 +149,7 @@ sway = 0.06
 [sub_resource type="Resource" id="Resource_p8nf1"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(14.04, 0, -12.45)
 pixel_size = 0.045
 flip = true
@@ -151,6 +158,7 @@ sway = 0.06
 [sub_resource type="Resource" id="Resource_lev8m"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(13.02, 0, -4.53)
 pixel_size = 0.045
 sway = 0.06
@@ -158,6 +166,7 @@ sway = 0.06
 [sub_resource type="Resource" id="Resource_iq7nc"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(8.12, 0, -5.64)
 pixel_size = 0.045
 sway = 0.06
@@ -165,6 +174,7 @@ sway = 0.06
 [sub_resource type="Resource" id="Resource_t3mye"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(13.6, 0, -17.51)
 pixel_size = 0.045
 flip = true
@@ -173,6 +183,7 @@ sway = 0.06
 [sub_resource type="Resource" id="Resource_n428u"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(2, 0, -16.56)
 pixel_size = 0.045
 sway = 0.06
@@ -180,6 +191,7 @@ sway = 0.06
 [sub_resource type="Resource" id="Resource_oaoxh"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(24.51, 0, 6.99)
 pixel_size = 0.045
 flip = true
@@ -188,6 +200,7 @@ sway = 0.06
 [sub_resource type="Resource" id="Resource_keht7"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
+pixel_size = 0.05
 position = Vector3(0.73, 0, -22.67)
 flip = true
 sway = 0.02
@@ -195,6 +208,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_ydkmd"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
+pixel_size = 0.05
 position = Vector3(4.18, 0, -22.54)
 flip = true
 sway = 0.02
@@ -202,6 +216,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_lk5uq"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(8.05, 0, -22.08)
 flip = true
 sway = 0.02
@@ -209,6 +224,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_qrw4l"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
+pixel_size = 0.05
 position = Vector3(11.69, 0, -23.05)
 flip = true
 sway = 0.02
@@ -216,6 +232,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_il3gb"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
+pixel_size = 0.05
 position = Vector3(15, 0, -21.76)
 flip = true
 sway = 0.02
@@ -223,18 +240,21 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_3hv3j"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(18.32, 0, -22.89)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_71e06"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/pine_dead.png"
+pixel_size = 0.05
 position = Vector3(21.46, 0, -23.62)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_kpxq2"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(25.36, 0, -21.11)
 flip = true
 sway = 0.02
@@ -242,6 +262,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_7mpv2"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(0.5, 0, -19.75)
 pixel_size = 0.05
 flip = true
@@ -250,6 +271,7 @@ sway = 0.04
 [sub_resource type="Resource" id="Resource_sucfm"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(3.7, 0, -20.16)
 pixel_size = 0.05
 flip = true
@@ -265,6 +287,7 @@ sway = 0.04
 [sub_resource type="Resource" id="Resource_pxnsq"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(9.82, 0, -19.74)
 pixel_size = 0.05
 flip = true
@@ -273,6 +296,7 @@ sway = 0.04
 [sub_resource type="Resource" id="Resource_et5g6"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(13.64, 0, -19.97)
 pixel_size = 0.05
 flip = true
@@ -281,6 +305,7 @@ sway = 0.04
 [sub_resource type="Resource" id="Resource_0igru"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(15.82, 0, -20.18)
 pixel_size = 0.05
 sway = 0.04
@@ -288,6 +313,7 @@ sway = 0.04
 [sub_resource type="Resource" id="Resource_pwgqg"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(19.24, 0, -19.83)
 pixel_size = 0.05
 sway = 0.04
@@ -310,6 +336,7 @@ sway = 0.05
 [sub_resource type="Resource" id="Resource_tfijs"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(5.09, 0, 10.75)
 pixel_size = 0.045
 flip = true
@@ -318,6 +345,7 @@ sway = 0.05
 [sub_resource type="Resource" id="Resource_t0juh"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(8.58, 0, 11.46)
 pixel_size = 0.045
 flip = true
@@ -334,6 +362,7 @@ sway = 0.05
 [sub_resource type="Resource" id="Resource_l0igw"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(16.29, 0, 11.77)
 pixel_size = 0.045
 sway = 0.05
@@ -341,6 +370,7 @@ sway = 0.05
 [sub_resource type="Resource" id="Resource_vl2y5"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
+contact_shadow = false
 position = Vector3(19.92, 0, 11.73)
 pixel_size = 0.045
 flip = true
@@ -357,6 +387,7 @@ sway = 0.05
 [sub_resource type="Resource" id="Resource_2dv4d"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
+pixel_size = 0.05
 position = Vector3(27.63, 0, -20)
 flip = true
 sway = 0.02
@@ -364,6 +395,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_d53hx"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/pine_dead.png"
+pixel_size = 0.05
 position = Vector3(27.52, 0, -17.15)
 flip = true
 sway = 0.02
@@ -371,36 +403,42 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_wvsww"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(27.53, 0, -13.22)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_77jup"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(28.05, 0, -9.51)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_kxfm6"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(28.13, 0, -6.24)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_q8d14"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(27.78, 0, -2.6)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_ww2s7"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
+pixel_size = 0.05
 position = Vector3(28.01, 0, 1.2)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_hrluo"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(27.8, 0, 4.48)
 flip = true
 sway = 0.02
@@ -408,6 +446,7 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_ruw5g"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/pine_dead.png"
+pixel_size = 0.05
 position = Vector3(27.46, 0, 8.43)
 sway = 0.02
 

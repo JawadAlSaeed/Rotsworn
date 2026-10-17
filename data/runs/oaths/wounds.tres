@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="OathData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="1_4gd0e"]
+
+[resource]
+script = ExtResource("1_4gd0e")
+id = "wounds"
+title = "Oath of Wounds"
+description = "The party starts the run at 75% HP."
+start_hp_percent = 75

@@ -21,8 +21,7 @@ func _declared_attacks() -> Array[Dictionary]:
 		if not file.ends_with(".tres"):
 			continue
 		var attack := load(ATTACK_DIR.path_join(file)) as EnemyAttackData
-		var engine := CombatEngine.new(Fx.setup([attack]))
-		var declared := Fx.first_of(engine.start(), "timed_sequence_declared")
+		var declared := Fx.declared_attack(attack)
 		var prompts: Array = declared.prompts
 		var hits := EnemyChoreography.with_close_times(declared.hits as Array, prompts, LATENCY_MS)
 		EnemyChoreography.add_hit_data(hits, attack)

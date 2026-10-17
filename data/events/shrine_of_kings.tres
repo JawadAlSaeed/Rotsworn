@@ -1,42 +1,47 @@
 [gd_resource type="Resource" script_class="EventData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_i82t5"]
-[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_qfx4u"]
-[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="3_km2f6"]
-
-[sub_resource type="Resource" id="Resource_xq0dj"]
-script = ExtResource("2_qfx4u")
-team_gauge = 50
-
-[sub_resource type="Resource" id="Resource_fggki"]
-script = ExtResource("1_i82t5")
-text = "Kneel with them"
-detail = "The team gauge fills by 50."
-deal = SubResource("Resource_xq0dj")
-done_text = "For a moment you feel the old kings' strength."
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="1_qfx4u"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_km2f6"]
+[ext_resource type="Resource" path="res://data/encounters/elite_twin_husks.tres" id="3_xq0dj"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="4_fggki"]
 
 [sub_resource type="Resource" id="Resource_0c0is"]
-script = ExtResource("2_qfx4u")
-gold = 70
+script = ExtResource("2_km2f6")
+cost_max_hp_percent = 8
+cost_max_hp_target = 1
+xp = 40
+team_gauge = 70
 
 [sub_resource type="Resource" id="Resource_ko8hq"]
-script = ExtResource("2_qfx4u")
-cost_hp_percent = 25
+script = ExtResource("1_qfx4u")
+text = "Kneel with them"
+detail = "An old king takes a tithe of blood."
+deal = SubResource("Resource_0c0is")
+done_text = "For a moment you feel the old kings' strength."
 
 [sub_resource type="Resource" id="Resource_jibmv"]
-script = ExtResource("1_i82t5")
+script = ExtResource("2_km2f6")
+gold = 100
+
+[sub_resource type="Resource" id="Resource_62ot1"]
+script = ExtResource("2_km2f6")
+ambush = ExtResource("3_xq0dj")
+ambush_spoils = true
+
+[sub_resource type="Resource" id="Resource_uq3pf"]
+script = ExtResource("1_qfx4u")
 text = "Pry off the gold"
-detail = "70 gold. The kings may not allow it."
-deal = SubResource("Resource_0c0is")
-risk_percent = 60
-risk_deal = SubResource("Resource_ko8hq")
+detail = "The kings may not allow it."
+deal = SubResource("Resource_jibmv")
+risk_percent = 55
+risk_deal = SubResource("Resource_62ot1")
 done_text = "The gold comes away in sheets."
-risk_text = "The statues' eyes open. Everyone loses 25% HP."
+risk_text = "The statues' eyes open. Two of them stand."
 
 [resource]
-script = ExtResource("3_km2f6")
+script = ExtResource("4_fggki")
 id = "shrine_of_kings"
 title = "Shrine of Old Kings"
 text = "Crowned statues kneel around an altar of gold leaf. The gold is loose."
-picture_path = "res://assets/sprites/ui/map_event.png"
-choices = Array[ExtResource("1_i82t5")]([SubResource("Resource_fggki"), SubResource("Resource_jibmv")])
+picture_path = "res://assets/sprites/events/shrine_of_kings.png"
+choices = Array[ExtResource("1_qfx4u")]([SubResource("Resource_ko8hq"), SubResource("Resource_uq3pf")])

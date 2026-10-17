@@ -35,12 +35,16 @@ const PLAYER_COLORS: Array[Color] = [Color(0.4, 0.75, 1.0), Color(1.0, 0.5, 0.45
 const STATUS_NAMES := {
 	"exposed": "EXPOSED", "guarded": "GUARD", "taunted": "TAUNTED", "slowed": "SLOWED", "riposte": "RIPOSTE",
 	"bleeding": "BLEEDING", "regen": "RENEW", "marked": "MARKED", "empowered": "EMPOWERED",
+	# Hero debuffs and the AP drain mark (card #194).
+	"rotting": "ROT", "blighted": "BLIGHT", "weakened": "WEAK", "ap_drain": "AP DRAIN",
 }
 const STATUS_COLORS := {
 	"exposed": Color(1.0, 0.55, 0.3), "guarded": Color(0.55, 0.8, 1.0), "taunted": Color(1.0, 0.4, 0.4),
 	"slowed": Color(0.7, 0.6, 1.0), "riposte": Color(1.0, 0.85, 0.35),
 	"bleeding": Color(0.9, 0.2, 0.25), "regen": Color(0.45, 1.0, 0.5), "marked": Color(1.0, 0.3, 0.7),
 	"empowered": Color(1.0, 0.75, 0.3),
+	"rotting": Color(0.68, 0.86, 0.22), "blighted": Color(0.82, 0.45, 0.88), "weakened": Color(0.72, 0.74, 0.84),
+	"ap_drain": Color(0.55, 0.88, 1.0),
 }
 
 ## The fight HUD's look (card #154): dark ink plates slanted like Persona 5's, edged in a calm
@@ -86,11 +90,15 @@ const PAD_AXIS_NAMES := {JOY_AXIS_TRIGGER_LEFT: "LT", JOY_AXIS_TRIGGER_RIGHT: "R
 ## Chip shape, as shares of the hint's font size or of the chip's height.
 const CHIP_HEIGHT_SHARE: float = 1.25
 const CHIP_TEXT_SHARE: float = 0.8
-## Movement "buttons" for hints: token -> [keyboard, pad].
+## Movement "buttons" for hints: token -> the actions it stands for, in the order they are written
+## (so "WASD" is up, left, down, right). Their text follows the player's own bindings (nav_parts).
 const NAV_TOKENS := {
-	&"@updown": ["↑↓", "D-pad ↑↓"], &"@leftright": ["←→", "D-pad ←→"],
-	&"@arrows": ["←↑→↓", "D-pad"], &"@move": ["WASD", "L-stick"],
+	&"@updown": [&"menu_up", &"menu_down"], &"@leftright": [&"menu_left", &"menu_right"],
+	&"@arrows": [&"menu_left", &"menu_up", &"menu_right", &"menu_down"],
+	&"@move": [&"move_up", &"move_left", &"move_down", &"move_right"],
 }
+const ARROW_GLYPHS := {"Up": "↑", "Down": "↓", "Left": "←", "Right": "→"}
+const DPAD_GLYPHS := {"D-pad up": "↑", "D-pad down": "↓", "D-pad left": "←", "D-pad right": "→"}
 
 
 ## Loads the game's fonts (data/presentation/ui_fonts.tres) and makes the body font the default
@@ -361,8 +369,7 @@ static func set_bar_color(b: ProgressBar, fill: Color) -> void:
 ## Settings > Input Map. Also takes the NAV_TOKENS (moving in menus and zones).
 static func binding_parts(action: StringName) -> Array[String]:
 	if NAV_TOKENS.has(action):
-		var pair: Array = NAV_TOKENS[action]
-		return [String(pair[0]), String(pair[1])]
+		return nav_parts(action)
 	var key := ""
 	var pad := ""
 	if InputMap.has_action(action):
@@ -376,6 +383,55 @@ static func binding_parts(action: StringName) -> Array[String]:
 			elif pad.is_empty() and ev is InputEventJoypadMotion and PAD_AXIS_NAMES.has((ev as InputEventJoypadMotion).axis):
 				pad = String(PAD_AXIS_NAMES[(ev as InputEventJoypadMotion).axis])
 	return [key, pad]
+
+
+## [keys, pad] text for a NAV_TOKENS token, read from the bindings: "↑↓" and "D-pad ↑↓" while the
+## menu keys are the arrows and the D-pad, "WASD" and "L-stick" while walking is on its defaults,
+## the button names joined with "/" once the player has changed them.
+static func nav_parts(token: StringName) -> Array[String]:
+	var keys := PackedStringArray()
+	var pads := PackedStringArray()
+	for action: StringName in NAV_TOKENS[token]:
+		var parts := binding_parts(action)
+		keys.append(parts[0])
+		pads.append(parts[1])
+	var key_text := ""
+	if keys.size() > 0 and keys.size() == _count_in(keys, ARROW_GLYPHS):
+		for k: String in keys:
+			key_text += String(ARROW_GLYPHS[k])
+	elif _all_single(keys):
+		key_text = "".join(keys)
+	else:
+		key_text = "/".join(keys)
+	var pad_text := ""
+	if pads.size() > 0 and pads.size() == _count_in(pads, DPAD_GLYPHS):
+		if token == &"@move":
+			# The stick walks as well as the D-pad.
+			pad_text = "L-stick"
+		elif pads.size() >= 4:
+			pad_text = "D-pad"
+		else:
+			pad_text = "D-pad "
+			for pad_name: String in pads:
+				pad_text += String(DPAD_GLYPHS[pad_name])
+	else:
+		pad_text = "/".join(pads)
+	return [key_text, pad_text]
+
+
+static func _count_in(names: PackedStringArray, table: Dictionary) -> int:
+	var n := 0
+	for button_name: String in names:
+		if table.has(button_name):
+			n += 1
+	return n
+
+
+static func _all_single(names: PackedStringArray) -> bool:
+	for button_name: String in names:
+		if button_name.length() != 1:
+			return false
+	return not names.is_empty()
 
 
 ## "Space", "RB" or "Space / RB": the action's button for the kind of hints shown now
@@ -395,6 +451,20 @@ static func binding_text(action: StringName) -> String:
 	return " / ".join(parts) if not parts.is_empty() else "(not bound)"
 
 
+## The name of a bound input (ControlBindings): "Space", "RB", "LT", "Button 14".
+static func input_name(input: Dictionary) -> String:
+	match String(input.get("k", "")):
+		"key":
+			return OS.get_keycode_string(int(input.get("code", 0)) as Key)
+		"btn":
+			var button := int(input.get("code", 0))
+			return String(PAD_BUTTON_NAMES.get(button, "Button %d" % button))
+		"axis":
+			var axis := int(input.get("code", 0))
+			return String(PAD_AXIS_NAMES.get(axis, "Axis %d" % axis))
+	return "(not bound)"
+
+
 ## A small button picture for hints (ButtonChip): round coloured A/B/X/Y, drawn Menu, View,
 ## D-pad and stick symbols, dark pills for other pad buttons, light key caps for the keyboard.
 static func button_chip(button: String, pad: bool, font_size: int) -> ButtonChip:
@@ -406,11 +476,38 @@ static func signed_ms(ms: int) -> String:
 	return ("+%d" % ms) if ms >= 0 else str(ms)
 
 
-## "GUARD  SLOWED 2" from a fighter's statuses (mirror format), in Status.ALL order.
-static func status_text(statuses: Dictionary) -> String:
+## The word under a hit's marker and ring that names the only button that answers it ("" for a
+## normal hit, which a parry or a dodge answers; DESIGN.md 3.8).
+static func kind_label(kind: int) -> String:
+	match kind:
+		AttackHitData.Kind.GROUND:
+			return "JUMP"
+		AttackHitData.Kind.REND:
+			return "PARRY"
+		AttackHitData.Kind.SWEEP:
+			return "DODGE"
+	return ""
+
+
+## The hint after a wrong button (DESIGN.md 3.6): what the hit needed. A rend or a sweep says it
+## outright ("MUST PARRY", "MUST DODGE", card #187).
+static func wrong_action_text(kind: int) -> String:
+	match kind:
+		AttackHitData.Kind.GROUND:
+			return "JUMP!"
+		AttackHitData.Kind.REND:
+			return "MUST PARRY"
+		AttackHitData.Kind.SWEEP:
+			return "MUST DODGE"
+	return "PARRY!"
+
+
+## "GUARD  SLOWED 2" from a fighter's statuses (mirror format), in Status.ALL order. The hero
+## debuffs are left out when `skip_debuffs` (the party panel draws them in their own colours).
+static func status_text(statuses: Dictionary, skip_debuffs: bool = false) -> String:
 	var parts := PackedStringArray()
 	for id: String in Status.ALL:
-		if not statuses.has(id):
+		if not statuses.has(id) or (skip_debuffs and Status.is_debuff(id)):
 			continue
 		var text := String(STATUS_NAMES.get(id, id.to_upper()))
 		var turns := int((statuses[id] as Dictionary).get("turns", 0))
@@ -418,3 +515,34 @@ static func status_text(statuses: Dictionary) -> String:
 			text += " %d" % turns
 		parts.append(text)
 	return "  ".join(parts)
+
+
+## [[debuff id, "ROT 2"], ...] for the hero debuffs in a fighter's statuses (mirror format), with the
+## turns left (card #194).
+static func debuff_words(statuses: Dictionary) -> Array[Array]:
+	var words: Array[Array] = []
+	for id: String in Status.DEBUFFS:
+		if not statuses.has(id):
+			continue
+		var text := String(STATUS_NAMES.get(id, id.to_upper()))
+		var turns := int((statuses[id] as Dictionary).get("turns", 0))
+		if turns > 0:
+			text += " %d" % turns
+		words.append([id, text])
+	return words
+
+
+## "  [ROT]" for the marks an attack's hits leave (a mark id per hit, "" for none), each word once; ""
+## when no hit marks. Appended to the intent and the banner so a marking hit is announced (card #194).
+static func mark_text(marks: Array) -> String:
+	var words := PackedStringArray()
+	for mark: Variant in marks:
+		var id := String(mark)
+		if id.is_empty():
+			continue
+		var word := String(STATUS_NAMES.get(id, id.to_upper()))
+		if not words.has(word):
+			words.append(word)
+	if words.is_empty():
+		return ""
+	return "  [%s]" % "/".join(words)

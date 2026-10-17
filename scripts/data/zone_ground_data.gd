@@ -33,3 +33,8 @@ enum Kind {
 @export var deep_color: Color = Color(0.04, 0.1, 0.09)
 ## Walkers cannot step onto it (deep water).
 @export var solid: bool = false
+## The rim of a (non-water) piece fades into the floor: this many art pixels deep it thins out in
+## a dither pattern, so the floor shows through and there is no cut-out edge (0 = a hard edge).
+@export_range(0, 12, 1) var fringe_pixels: int = 4
+## The outermost two art pixels are this much darker than the rest (1 = not darker).
+@export_range(0.5, 1.0, 0.01) var edge_shade: float = 0.9

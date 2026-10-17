@@ -36,11 +36,15 @@ var _rocks: Array[Sprite3D] = []
 ## Projectile textures by path (loaded once per fight).
 var _projectile_textures: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
+## Shifts the room to its phase-two look when a boss or guard rages (DESIGN.md 7.3).
+var _mood: ArenaMood
+var _look: StageLook
 
 
 ## Builds the stage in `look` (null: the fight list's look from the visuals). Call once before
-## adding fighters.
-func build(visuals: CombatVisuals, look: StageLook = null) -> void:
+## adding fighters. `air` is the zone's drifting particles (DESIGN.md 8.12), played thinner in
+## the fight; empty: the look's own arena_air.
+func build(visuals: CombatVisuals, look: StageLook = null, air: Array[ZoneAmbientData] = []) -> void:
 	_visuals = visuals
 	if look == null:
 		look = visuals.stage_look
@@ -53,12 +57,25 @@ func build(visuals: CombatVisuals, look: StageLook = null) -> void:
 	_wave_texture = AssetLoader.texture(visuals.shockwave_path, Vector2i(64, 16))
 	_rock_texture = AssetLoader.texture(visuals.rock_path, Vector2i(16 * maxi(1, visuals.rock_hframes), 24))
 
-	add_child(StageBuilder.environment(look))
-	add_child(StageBuilder.sun(look))
+	_look = look
+	var world_env := StageBuilder.environment(look)
+	var sun := StageBuilder.sun(look)
+	var vignette := StageBuilder.vignette(look)
+	add_child(world_env)
+	add_child(sun)
 	add_child(StageBuilder.ground(look))
 	add_child(StageBuilder.backdrop(look))
-	StageBuilder.add_contents(self, look.arena_blocks, look.arena_props, look.arena_lights)
-	add_child(StageBuilder.vignette(look))
+	StageBuilder.add_contents(self, look.arena_blocks, look.arena_props, look.arena_lights, [], look)
+	_add_air(look, air)
+	add_child(vignette)
+	var lamps: Array[FlickerLight] = []
+	for node: Node in find_children("*", "FlickerLight", false, false):
+		lamps.append(node as FlickerLight)
+	_mood = ArenaMood.new()
+	_mood.name = "ArenaMood"
+	add_child(_mood)
+	_mood.setup(look, world_env.environment, sun,
+			(vignette.get_child(0) as ColorRect).material as ShaderMaterial, lamps)
 
 	camera = CombatCamera.new()
 	camera.name = "Camera"
@@ -77,6 +94,31 @@ func build(visuals: CombatVisuals, look: StageLook = null) -> void:
 		add_child(crest)
 		_wave_crests.append(crest)
 	_build_wave_band()
+
+
+## The zone's air in the arena: thinned copies of its particles, in a fixed box behind and around
+## the fighters (the combat camera glides, so the box does not follow it).
+func _add_air(look: StageLook, air: Array[ZoneAmbientData]) -> void:
+	var list := air if not air.is_empty() else look.arena_air
+	if list.is_empty() or _visuals.fight_air_percent <= 0:
+		return
+	for data: ZoneAmbientData in PhaseShift.fight_air(list, _visuals.fight_air_percent, _visuals.fight_air_depth_percent):
+		var particles := StageBuilder.ambient(data)
+		particles.position = _visuals.fight_air_offset + Vector3(0.0, data.height, 0.0)
+		add_child(particles)
+
+
+## The room shifts toward its phase-two look (a boss or guard rages). Does nothing if the look has
+## none or it already shifted. Takes longer under the Reduced and Off Flashes settings.
+func shift_to_phase_two() -> void:
+	if _mood == null or not PhaseShift.has_shift(_look) or _mood.shifted():
+		return
+	_mood.begin(PhaseShift.duration_ms(_visuals.phase_look_ms, _visuals.phase_look_calm_percent,
+			PlayerSettings.flash_mode()))
+	if _look.phase_burst != null:
+		var burst := StageBuilder.burst(_look.phase_burst)
+		burst.position = _visuals.fight_air_offset + Vector3(0.0, _look.phase_burst.height, 0.0)
+		add_child(burst)
 
 
 ## Adds the view for one fighter (from a combat_started fighter entry and its data resource).
@@ -173,7 +215,9 @@ func sync_alive(mirror: CombatMirror) -> void:
 			v.set_pose(FighterView.CharPose.IDLE if alive else FighterView.CharPose.DOWN)
 			v.set_dissolve(0.0)
 		else:
-			v.set_pose(EnemyChoreography.Pose.IDLE if alive else EnemyChoreography.Pose.HURT)
+			# An enemy gathering a Doom (card #195) keeps its wind-up crouch.
+			var rest := EnemyChoreography.Pose.WINDUP if mirror.is_charging(id) else EnemyChoreography.Pose.IDLE
+			v.set_pose(rest if alive else EnemyChoreography.Pose.HURT)
 			# A beaten enemy has crumbled away (card #38).
 			v.set_dissolve(0.0 if alive else 1.0)
 

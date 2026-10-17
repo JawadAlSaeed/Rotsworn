@@ -34,6 +34,10 @@ extends Resource
 @export_file_path("*.png") var hit_icon_normal_path: String = "res://assets/sprites/ui/hit_normal.png"
 ## Enemy intent icon for a ground hit: jump it (12x12).
 @export_file_path("*.png") var hit_icon_ground_path: String = "res://assets/sprites/ui/hit_ground.png"
+## Enemy intent icon for a rend: parry it, nothing else works (12x12, card #187).
+@export_file_path("*.png") var hit_icon_rend_path: String = "res://assets/sprites/ui/hit_rend.png"
+## Enemy intent icon for a sweep: dodge it, nothing else works (12x12, card #187).
+@export_file_path("*.png") var hit_icon_sweep_path: String = "res://assets/sprites/ui/hit_sweep.png"
 
 @export_group("Stage layout")
 ## Where each party slot stands (feet). Keep them on one straight line: ground waves travel with
@@ -191,6 +195,12 @@ extends Resource
 @export var ground_hit_color: Color = Color(0.78, 0.4, 1.0)
 ## Border colour of a normal hit's marker (parry or dodge it).
 @export var normal_hit_color: Color = Color(1.0, 0.3, 0.2)
+## Colour of a rend (parry only, card #187) everywhere a hit shows its kind: the wind-up glow and
+## telegraph flash before it, its marker and ring. Bone, near the PARRY readout's yellow, never
+## pure white (white means "you parried").
+@export var rend_hit_color: Color = Color(0.96, 0.86, 0.58)
+## Colour of a sweep (dodge only, card #187): sickly green, near the DODGE readout's green.
+@export var sweep_hit_color: Color = Color(0.6, 0.86, 0.22)
 ## Rhythm rows (intent sign and attack banner): icon centres are this many pixels apart per
 ## millisecond between impacts, so the beat and the pauses of a string show.
 @export_range(0.01, 2.0, 0.01) var rhythm_px_per_ms: float = 0.2
@@ -255,6 +265,7 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var whiff_flash_strength: float = 0.35
 @export_range(0.0, 1.0, 0.05) var parry_enemy_flash_strength: float = 0.6
 @export_range(0.0, 1.0, 0.05) var jump_flash_strength: float = 0.5
+@export_range(0.0, 1.0, 0.05) var dodge_flash_strength: float = 0.3
 @export_range(0.0, 1.0, 0.05) var hurt_flash_strength: float = 0.8
 ## During a single-target attack the other party members step back this far (world units) and
 ## take this tint, so the lunge lane and the target are clear.
@@ -279,25 +290,74 @@ extends Resource
 @export_range(0, 500, 1, "suffix:ms") var team_slash_gap_ms: int = 70
 
 @export_group("Camera feel")
-## Screen shake when a hit lands on the party (world units, decays over the duration).
-@export_range(0.0, 2.0, 0.01) var shake_hurt: float = 0.1
-@export_range(0, 2000, 1, "suffix:ms") var shake_hurt_ms: int = 200
-## Shake on a parry, and a stronger one on the parry of the last hit.
-@export_range(0.0, 2.0, 0.01) var shake_parry: float = 0.09
-@export_range(0.0, 2.0, 0.01) var shake_parry_final: float = 0.14
-@export_range(0, 2000, 1, "suffix:ms") var shake_parry_ms: int = 120
+## Camera shake is a trauma model (CameraTrauma, card #179). Every impact below adds trauma (0 to
+## 1, clamped; they stack, so a string of parries builds up). Trauma drains by shake_decay_per_s a
+## second, and the shown shake is trauma SQUARED times shake_max_offset (world units) plus a roll of
+## up to shake_max_roll_deg degrees, wobbling at shake_hz (the base frequency of three sines; keep
+## it under about 7 so the top layer stays under half of a 60 fps frame rate).
+@export_range(1.0, 12.0, 0.5, "suffix:Hz") var shake_hz: float = 6.0
+@export_range(0.1, 10.0, 0.05, "suffix:/s") var shake_decay_per_s: float = 1.5
+@export_range(0.0, 2.0, 0.01) var shake_max_offset: float = 0.32
+@export_range(0.0, 10.0, 0.1, "suffix:deg") var shake_max_roll_deg: float = 1.6
+## Trauma when a hit lands on the party, and when it is a heavy hit (big_hit_percent of max HP).
+@export_range(0.0, 1.0, 0.01) var shake_hurt: float = 0.3
+@export_range(0.0, 1.0, 0.01) var shake_hurt_heavy: float = 0.7
+## Trauma on a parry, and on the parry of the last hit; a dodge only nudges.
+@export_range(0.0, 1.0, 0.01) var shake_parry: float = 0.4
+@export_range(0.0, 1.0, 0.01) var shake_parry_final: float = 0.7
+@export_range(0.0, 1.0, 0.01) var shake_dodge: float = 0.1
 ## Camera punch-in on a parry (world units toward the target).
 @export_range(0.0, 5.0, 0.05) var punch_parry: float = 0.35
 ## Bigger punch-in on the parry of the last hit.
 @export_range(0.0, 5.0, 0.05) var punch_parry_final: float = 0.8
-## Shake and punch when a counter or a strike lands.
-@export_range(0.0, 2.0, 0.01) var shake_counter: float = 0.16
-@export_range(0, 2000, 1, "suffix:ms") var shake_counter_ms: int = 220
+## A heavy hit on the party punches in a little.
+@export_range(0.0, 5.0, 0.05) var punch_hurt_heavy: float = 0.4
+## Party strikes: a graze or good press, a perfect press, a critical hit, one hit of the Team
+## Ultimate. Each also has its own punch-in. Sparks grow with the tier (a share of sparks_per_strike).
+@export_range(0.0, 1.0, 0.01) var shake_strike: float = 0.2
+@export_range(0.0, 1.0, 0.01) var shake_strike_perfect: float = 0.4
+@export_range(0.0, 5.0, 0.05) var punch_strike_perfect: float = 0.3
+@export_range(0.0, 1.0, 0.01) var shake_crit: float = 0.55
+@export_range(0.0, 5.0, 0.05) var punch_crit: float = 0.5
+@export_range(0.0, 1.0, 0.01) var shake_ultimate_hit: float = 0.5
+@export_range(0.0, 5.0, 0.05) var punch_ultimate_hit: float = 0.35
+@export_range(100, 400, 5, "suffix:%") var spark_tier_medium_percent: int = 150
+@export_range(100, 600, 5, "suffix:%") var spark_tier_large_percent: int = 220
+## Counters: trauma and punch-in for a counter and a team counter.
+@export_range(0.0, 1.0, 0.01) var shake_counter: float = 0.7
 @export_range(0.0, 5.0, 0.05) var punch_counter: float = 0.9
-@export_range(0.0, 2.0, 0.01) var shake_strike: float = 0.06
-@export_range(0, 2000, 1, "suffix:ms") var shake_strike_ms: int = 140
+@export_range(0.0, 1.0, 0.01) var shake_team_counter: float = 0.9
+@export_range(0.0, 5.0, 0.05) var punch_team_counter: float = 1.2
 ## How long a punch-in takes to settle back.
 @export_range(10, 2000, 1, "suffix:ms") var punch_ms: int = 220
+## The large tier (card #179): the last enemy falling, and a boss or guard falling. The body holds
+## on its hurt pose for the freeze (kept short), while the camera shakes and punches in and the
+## screen flashes, before the end shot starts. Shake is trauma; flash is screen flash strength.
+@export_range(0, 400, 5, "suffix:ms") var kill_hitstop_ms: int = 110
+@export_range(0.0, 1.0, 0.01) var kill_shake: float = 0.8
+@export_range(0.0, 5.0, 0.05) var kill_punch: float = 0.9
+@export_range(0.0, 1.0, 0.01) var kill_flash: float = 0.25
+@export_range(0, 400, 5, "suffix:ms") var boss_kill_hitstop_ms: int = 170
+@export_range(0.0, 1.0, 0.01) var boss_kill_shake: float = 1.0
+@export_range(0.0, 5.0, 0.05) var boss_kill_punch: float = 1.4
+@export_range(0.0, 1.0, 0.01) var boss_kill_flash: float = 0.45
+## A boss entering its next phase: trauma, a punch-in that settles over phase_punch_ms.
+@export_range(0.0, 1.0, 0.01) var phase_shake: float = 0.9
+@export_range(0.0, 5.0, 0.05) var phase_punch: float = 1.0
+@export_range(10, 2000, 1, "suffix:ms") var phase_punch_ms: int = 500
+## A hero going down: trauma.
+@export_range(0.0, 1.0, 0.01) var downed_shake: float = 0.65
+## A boss or guard fight opens with the camera pulled back this far (world units) and gliding in
+## over intro_push_ms, with a little trauma.
+@export_range(0.0, 5.0, 0.05) var intro_push: float = 1.2
+@export_range(10, 3000, 1, "suffix:ms") var intro_push_ms: int = 900
+@export_range(0.0, 1.0, 0.01) var intro_shake: float = 0.3
+## A struck enemy recoils away from the heroes this far (world units) and comes back: a normal
+## hit, and a critical hit, counter or heavy hit. It is out for recoil_out_ms, back over recoil_back_ms.
+@export_range(0.0, 2.0, 0.01) var enemy_hit_knockback: float = 0.16
+@export_range(0.0, 2.0, 0.01) var enemy_heavy_knockback: float = 0.4
+@export_range(10, 1000, 1, "suffix:ms") var recoil_out_ms: int = 70
+@export_range(10, 1000, 1, "suffix:ms") var recoil_back_ms: int = 220
 
 @export_group("HUD")
 ## How far popups float up while fading (pixels at 1080p).
@@ -374,6 +434,12 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var screen_flash_ultimate: float = 0.35
 @export_range(0.0, 1.0, 0.01) var screen_flash_downed: float = 0.25
 @export_range(0.0, 1.0, 0.01) var screen_flash_phase: float = 0.3
+## The "Flashes" setting (card #185): at Reduced a screen flash keeps this percent of its strength
+## and a flash on a fighter keeps flash_reduced_fighter_percent; at Off screen flashes are gone
+## and a fighter flash keeps only flash_off_fighter_percent (a faint tint, so a hit still reads).
+@export_range(0, 100, 1, "suffix:%") var flash_reduced_screen_percent: int = 40
+@export_range(0, 100, 1, "suffix:%") var flash_reduced_fighter_percent: int = 50
+@export_range(0, 100, 1, "suffix:%") var flash_off_fighter_percent: int = 15
 ## A beaten enemy dissolves into rot over this long, with a burst of motes in this colour; the
 ## dissolving edge glows in death_edge_color.
 @export_range(0, 5000, 1, "suffix:ms") var death_dissolve_ms: int = 800
@@ -506,6 +572,48 @@ extends Resource
 @export_range(4, 64) var backpack_cell_art_px: int = 23
 @export_range(0, 8) var backpack_gap_art_px: int = 1
 
+@export_group("Charged Dooms")
+## An enemy gathering a Doom (card #195, DESIGN.md 2.3): its body holds the wind-up crouch
+## (doom_squash_percent) and glows doom_glow_color, pulsing between doom_glow_min and doom_glow_max
+## once per doom_pulse_ms; with one turn left the pulse runs at doom_pulse_last_percent of that
+## time (quicker). Banner and HUD text use doom_text_color; the break bar break_bar_color.
+@export var doom_glow_color: Color = Color(0.9, 0.12, 0.3)
+@export_range(0.0, 1.0, 0.01) var doom_glow_min: float = 0.3
+@export_range(0.0, 1.0, 0.01) var doom_glow_max: float = 0.9
+@export_range(100, 5000, 1, "suffix:ms") var doom_pulse_ms: int = 1200
+@export_range(10, 100, 1, "suffix:%") var doom_pulse_last_percent: int = 50
+@export_range(0, 50, 1, "suffix:%") var doom_squash_percent: int = 10
+@export var doom_text_color: Color = Color(1.0, 0.3, 0.25)
+@export var break_bar_color: Color = Color(1.0, 0.82, 0.3)
+## The enemy spends a turn gathering: its banner (name and countdown) for doom_gather_banner_ms,
+## a rumble of trauma and a screen flash, and the turn waits doom_gather_beat_ms.
+@export_range(0, 5000, 1, "suffix:ms") var doom_gather_banner_ms: int = 1500
+@export_range(0.0, 1.0, 0.01) var doom_gather_shake: float = 0.35
+@export_range(0.0, 1.0, 0.01) var doom_gather_flash: float = 0.12
+@export_range(0, 3000, 1, "suffix:ms") var doom_gather_beat_ms: int = 450
+@export var doom_gather_sfx: String = "alert"
+## The Doom unleashes (before its attack banner): trauma, punch-in, flash, a beat.
+@export_range(0, 5000, 1, "suffix:ms") var doom_unleash_banner_ms: int = 1000
+@export_range(0.0, 1.0, 0.01) var doom_unleash_shake: float = 0.7
+@export_range(0.0, 5.0, 0.05) var doom_unleash_punch: float = 0.8
+@export_range(0.0, 1.0, 0.01) var doom_unleash_flash: float = 0.3
+@export_range(0, 3000, 1, "suffix:ms") var doom_unleash_beat_ms: int = 600
+@export var doom_unleash_sfx: String = "boss_rage"
+## BROKEN! is the large tier (card #179): a held freeze, trauma, a punch-in and a flash in
+## broken_flash_color, the banner, and the sound. The staggered enemy then holds its stagger pose,
+## glowing stagger_glow_color at stagger_glow strength, until it has lost its turn.
+@export_range(0, 5000, 1, "suffix:ms") var broken_banner_ms: int = 1600
+@export_range(0, 400, 5, "suffix:ms") var broken_hitstop_ms: int = 170
+@export_range(0.0, 1.0, 0.01) var broken_shake: float = 1.0
+@export_range(0.0, 5.0, 0.05) var broken_punch: float = 1.4
+@export_range(0.0, 1.0, 0.01) var broken_flash: float = 0.45
+@export var broken_flash_color: Color = Color(1.0, 0.95, 0.7)
+@export var broken_sfx: String = "team_counter"
+@export var stagger_sfx: String = "guard_block"
+@export var stagger_glow_color: Color = Color(0.55, 0.8, 1.0)
+@export_range(0.0, 1.0, 0.01) var stagger_glow: float = 0.5
+@export var stagger_text_color: Color = Color(0.6, 0.85, 1.0)
+
 @export_group("Turn spotlight")
 ## On a hero's turn (card #154) the acting hero steps turn_step (world units: toward the enemies
 ## and the camera) onto a gold ring, and the other heroes step turn_step_away back and out to their
@@ -515,3 +623,54 @@ extends Resource
 @export_range(0, 1000, 10, "suffix:ms") var turn_spot_ms: int = 200
 @export var turn_ring_color: Color = Color(1.0, 0.82, 0.3)
 @export_range(0.0, 1.0, 0.05) var turn_ring_alpha: float = 0.55
+
+
+## Multiplier for a full-screen flash under flash mode `mode` (PlayerSettings.FLASH_*).
+func screen_flash_scale(mode: int) -> float:
+	match mode:
+		PlayerSettings.FLASH_REDUCED:
+			return float(flash_reduced_screen_percent) / 100.0
+		PlayerSettings.FLASH_OFF:
+			return 0.0
+	return 1.0
+
+
+## Multiplier for a flash on a fighter (white hit flashes, the telegraph flash) under `mode`.
+func fighter_flash_scale(mode: int) -> float:
+	match mode:
+		PlayerSettings.FLASH_REDUCED:
+			return float(flash_reduced_fighter_percent) / 100.0
+		PlayerSettings.FLASH_OFF:
+			return float(flash_off_fighter_percent) / 100.0
+	return 1.0
+
+
+## The colour that says which defence a hit kind needs (DESIGN.md 3.8): `strike_color` for a
+## normal hit (the telegraph or the marker colour, by use), the ground purple, the rend bone or
+## the sweep green.
+func kind_color(kind: int, strike_color: Color) -> Color:
+	match kind:
+		AttackHitData.Kind.GROUND:
+			return ground_hit_color
+		AttackHitData.Kind.REND:
+			return rend_hit_color
+		AttackHitData.Kind.SWEEP:
+			return sweep_hit_color
+	return strike_color
+
+
+@export_group("Arena mood")
+## How long the room takes to shift to its phase-two look when a boss or guard rages (StageLook
+## phase_*; DESIGN.md 7.3).
+@export_range(100, 5000, 50, "suffix:ms") var phase_look_ms: int = 1100
+## With the Flashes setting on Reduced or Off the shift takes this share of that time (slower,
+## so the change of light is gentler).
+@export_range(100, 400, 10, "suffix:%") var phase_look_calm_percent: int = 200
+## The zone's drifting particles also play in its fights: this share of each one's amount (a fight
+## is a busy picture; 0 = none).
+@export_range(0, 100, 5, "suffix:%") var fight_air_percent: int = 50
+## The fight's air box is this deep as a share of the zone's, and sits this far from the arena's
+## middle (world units; negative z is away from the camera), so it hangs behind and around the
+## fighters and never between the camera and the hit markers.
+@export_range(10, 100, 5, "suffix:%") var fight_air_depth_percent: int = 60
+@export var fight_air_offset: Vector3 = Vector3(0.0, 0.0, -2.0)

@@ -10,6 +10,20 @@ enum DeathStyle {
 	BURST,
 }
 
+## How a single-target attack of this enemy picks its hero (DESIGN.md 2.3). Taunt always wins.
+enum TargetRule {
+	## Every standing hero is equally likely.
+	RANDOM,
+	## The more HP a hero is missing, the likelier (weight 100 + missing percent x bias / 100).
+	WOUNDED,
+	## The standing hero with the least HP gets the bias added on top of the base weight.
+	LOWEST_HP,
+	## Heroes under Exposed or Marked get the bias added (for future enemy debuffs).
+	MARKED,
+	## Anyone but the hero it hit last gets the bias added.
+	AVOID_LAST,
+}
+
 ## Unique id used in events and save data.
 @export var id: String = ""
 @export var display_name: String = ""
@@ -43,11 +57,17 @@ enum DeathStyle {
 ## Turn speed. 100 is average; 200 acts twice as often as 100.
 @export_range(1, 1000) var speed: int = 100
 @export var attacks: Array[EnemyAttackData] = []
+## Who it hunts with single-target attacks, and how hard (extra weight on top of 100 per hero).
+@export var target_rule: TargetRule = TargetRule.RANDOM
+@export_range(0, 1000, 1, "suffix:%") var target_bias_percent: int = 0
 ## Gold and XP the party gets for beating it in a run (DESIGN.md 8).
 @export_range(0, 10000) var gold: int = 10
 @export_range(0, 10000) var xp: int = 20
 ## Sound cue for its voice (card #101): when it starts an attack, and quieter and higher when hit.
 @export var voice_sfx: String = ""
+## Its hits always take their forced kinds (AttackHitData.forced_kind, card #187), even in an
+## ordinary fight: the deep variants. Elite, guard and boss fights use them anyway.
+@export var forced_hits: bool = false
 
 @export_group("Phase two (bosses)")
 ## When its HP drops to this percent of max HP or lower, it enters phase two: it attacks with
@@ -56,5 +76,19 @@ enum DeathStyle {
 @export var phase_two_attacks: Array[EnemyAttackData] = []
 ## Speed in phase two (0 = unchanged).
 @export_range(0, 1000) var phase_two_speed: int = 0
+## Its attacks' tempo in phase two, in percent of the fight's (card #188): lower = faster strings
+## (0 or 100 = unchanged). The fight's floor (tuning attack_tempo_floor_percent) still holds.
+@export_range(0, 100, 1, "suffix:%") var phase_two_tempo_percent: int = 0
 ## Shown as a banner when phase two starts.
 @export var phase_two_text: String = ""
+
+
+## Every attack this enemy can ever use: its own, then the phase-two-only ones (an attack in both
+## lists once). The engine's lookup, the fight's presentation data and the practice keys all want
+## this, so a phase-two-only attack is never missing its projectile, rock wave or animation.
+func all_attacks() -> Array[EnemyAttackData]:
+	var list: Array[EnemyAttackData] = []
+	for attack: EnemyAttackData in attacks + phase_two_attacks:
+		if attack != null and not list.has(attack):
+			list.append(attack)
+	return list

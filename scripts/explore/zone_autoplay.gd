@@ -5,7 +5,9 @@ extends Node
 ## open the gate. In a run it then picks up the glinting spots, tries each chest once, takes every
 ## shrine's and wanderer's deal (Main says yes when the party can pay), fights the champions and
 ## opens their prize chests, and at last heads for the guard at the exit (DESIGN.md 8); other
-## enemies are fought only if they catch it. In practice it fights every roaming enemy. In
+## enemies are fought only if they catch it. It plays like a careful player (card #178): it goes for
+## a champion, or hunts a roamer for XP, only while the party is healthy, and uses its healing items
+## before it walks into the guard. In practice it fights every roaming enemy. In
 ## "perfect" mode it stops in reach, turns to an enemy and strikes (FIRST STRIKE); in "miss" and
 ## "mash" modes it walks into it (a normal start). The fights are played by the combat Autoplay.
 
@@ -27,6 +29,16 @@ const PATH_MARGIN: float = 0.1
 const STUCK_DISTANCE: float = 0.15
 const STUCK_CHECK_S: float = 0.5
 const NUDGE_S: float = 0.4
+## A careful player takes an optional fight (a champion) only while the weakest hero has at least
+## CHAMPION_MIN_LOWEST_PERCENT of their HP, the party averages CHAMPION_MIN_AVERAGE_PERCENT and
+## every hero is at least level CHAMPION_MIN_LEVEL (an elite is 40% tougher than a normal fight, so a
+## fresh party leaves it alone). These are the bot's habits, not game rules.
+const CHAMPION_MIN_LOWEST_PERCENT: int = 60
+const CHAMPION_MIN_AVERAGE_PERCENT: int = 80
+const CHAMPION_MIN_LEVEL: int = 3
+## Optional roamers (not the guard, not champions) within OPTIONAL_HUNT_RANGE are fought for their
+## XP and gold, with the same health rule as a champion.
+const OPTIONAL_HUNT_RANGE: float = 6.0
 ## Keys of the things it walks to, by kind (index added).
 const SPOT_KEY: int = 0
 const CHEST_KEY: int = 1000
@@ -50,13 +62,22 @@ var _check_t: float = 0.0
 var _check_pos: Vector2 = Vector2.ZERO
 var _nudge_t: float = 0.0
 var _nudge_sign: float = 1.0
+## Run mode: () -> Vector3i(lowest hero HP percent, party average HP percent, lowest hero level),
+## set by Main.
+var _party_health: Callable
+## Run mode: called once when only the guard is left (Main uses healing items).
+var _before_guard: Callable
+var _prepared: bool = false
 
 
 ## `run_mode`: a run zone (finds, deals, champions, then the guard); else every enemy is fought.
-func setup(zone: ZoneController, tuning: Tuning, mode: String, run_mode: bool = false) -> void:
+func setup(zone: ZoneController, tuning: Tuning, mode: String, run_mode: bool = false,
+		party_health: Callable = Callable(), before_guard: Callable = Callable()) -> void:
 	_zone = zone
 	_tuning = tuning
 	_run_mode = run_mode
+	_party_health = party_health
+	_before_guard = before_guard
 	_strike_first = mode == CombatOptions.AUTOPLAY_PERFECT
 	zone.use_bot = true
 
@@ -119,18 +140,40 @@ func _goals() -> Dictionary:
 	_add(goals, CHEST_KEY, _zone.chest_positions())
 	_add(goals, OFFER_KEY, _zone.offer_positions())
 	_add(goals, PRIZE_KEY, _zone.prize_positions())
-	for i: int in enemies:
-		if _zone.is_champion(i):
-			goals[ENEMY_KEY + i] = enemies[i]
+	var guard := _zone.guard_index()
+	var healthy := _is_healthy()
+	if healthy:
+		var me := _zone.leader_ground()
+		for i: int in enemies:
+			if _zone.is_champion(i):
+				goals[ENEMY_KEY + i] = enemies[i]
+			elif i != guard and me.distance_to(enemies[i] as Vector2) <= OPTIONAL_HUNT_RANGE:
+				goals[ENEMY_KEY + i] = enemies[i]
 	for key: int in _skipped:
 		goals.erase(key)
 	if goals.is_empty():
-		var guard := _zone.guard_index()
+		if not _prepared and _before_guard.is_valid():
+			_prepared = true
+			_before_guard.call()
 		if enemies.has(guard):
 			goals[ENEMY_KEY + guard] = enemies[guard]
 		else:
 			_add(goals, ENEMY_KEY, enemies)
 	return goals
+
+
+## True if the party (lowest HP percent, average HP percent, lowest level) is fit for an optional
+## fight.
+static func is_ready(health: Vector3i) -> bool:
+	return health.x >= CHAMPION_MIN_LOWEST_PERCENT and health.y >= CHAMPION_MIN_AVERAGE_PERCENT 			and health.z >= CHAMPION_MIN_LEVEL
+
+
+## True if the party is fit for an optional fight (always, without a health reader).
+func _is_healthy() -> bool:
+	if not _party_health.is_valid():
+		return true
+	var health: Vector3i = _party_health.call()
+	return is_ready(health)
 
 
 ## How close it walks to use the target (not an enemy).

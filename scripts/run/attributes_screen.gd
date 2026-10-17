@@ -5,7 +5,8 @@ extends CanvasLayer
 ## attributes with the points in each; right of each, the stat it raises, its value now and what
 ## one more point gives. Up / down picks an attribute, right adds a point, left takes one back,
 ## X / R takes every point back (a free reset), LB / RB (Z / C) changes hero. Every change counts
-## at once (no confirm step); the HP a hero is missing stays the same, so a reset never heals.
+## at once (no confirm step); the HP a hero is missing stays the same, so a reset never heals (a
+## hero too wounded to lose the max HP cannot take those points back).
 ## Online, a client's changes go to the host as RunState ops (op_requested).
 
 signal done
@@ -36,6 +37,8 @@ var _rows: Array[Dictionary] = []
 var _info: Label
 var _hint: HintBar
 var _prompt: ConfirmPrompt
+## Why the last change was refused (shown in the info line until the next change).
+var _warning: String = ""
 
 
 func setup(run: RunState, hero: int) -> void:
@@ -120,6 +123,8 @@ func _cell(text: String, width: float, font_size: int, color: Color) -> Label:
 func _unhandled_input(event: InputEvent) -> void:
 	if _prompt != null:
 		return
+	if event.is_pressed():
+		_warning = ""
 	if _pressed(event, &"menu_up"):
 		_row = wrapi(_row - 1, 0, Attributes.COUNT)
 		Sfx.play("menu_move")
@@ -159,6 +164,8 @@ func _change(step: int) -> void:
 		Sfx.play("locked")
 		return
 	values[_row] += step
+	if _too_wounded(values):
+		return
 	_ask({"op": "attributes", "slot": _hero, "values": values})
 	Sfx.play("buff" if step > 0 else "menu_cancel")
 
@@ -175,10 +182,21 @@ func _ask_reset() -> void:
 		_handled()
 		_prompt.queue_free()
 		_prompt = null
-		if yes:
+		if yes and not _too_wounded(Attributes.empty()):
 			_ask({"op": "attributes", "slot": _hero, "values": Attributes.empty()})
 			Sfx.play("menu_confirm")
 		_redraw())
+
+
+## True (with a sound and a line saying why) if the hero is too wounded to take those points back.
+func _too_wounded(values: Array[int]) -> bool:
+	_warning = ""
+	if not _run.attributes_wound_blocked(_hero, values):
+		return false
+	_warning = "%s is too wounded to give up that max HP. Heal first." % _run.data.party[_hero].display_name
+	Sfx.play("locked")
+	_redraw()
+	return true
 
 
 ## Makes a change: here, or (online client) by asking the host.
@@ -214,7 +232,7 @@ func _redraw() -> void:
 		(row.panel as PanelContainer).add_theme_stylebox_override("panel", ListMenu.row_style(kind == _row))
 		(row.points as Label).text = str(_run.attribute(_hero, kind))
 		(row.value as Label).text = values[kind]
-	_info.text = "Each level up gives %d points. Resetting is free." % _run.tuning.attr_points_per_level
+	_info.text = _warning if not _warning.is_empty() else 			"Each level up gives %d points. Resetting is free." % _run.tuning.attr_points_per_level
 	var entries: Array = [[&"@updown", "Attribute"], [&"menu_right", "Add"], [&"menu_left", "Take back"],
 			[&"item_move", "Reset"]]
 	if _run.party_size() > 1:

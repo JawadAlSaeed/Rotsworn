@@ -8,9 +8,15 @@ extends RefCounted
 const PROP_SHADER := preload("res://scripts/combat/presentation/fighter_sprite.gdshader")
 const VIGNETTE_SHADER := preload("res://scripts/stage/vignette.gdshader")
 const GROUND_SHADER := preload("res://scripts/stage/ground_patch.gdshader")
+const FLOOR_SHADER := preload("res://scripts/stage/floor_ground.gdshader")
 ## Ground pieces float this far over the floor, and this much more per layer (no z-fighting).
 const GROUND_LIFT: float = 0.012
 const GROUND_LAYER_LIFT: float = 0.006
+## Prop shadows sit this far over the floor: above every ground piece (up to layer 9), so a
+## road under a tree does not hide its shadow.
+const PROP_SHADOW_LIFT: float = 0.07
+## The footprints measured so far (texture key -> width in art pixels).
+static var _footprints: Dictionary = {}
 ## The vignette draws above the 3D view and below every HUD (layer 10 and up).
 const VIGNETTE_LAYER: int = 5
 ## Shadows reach this far from the camera (world units).
@@ -132,21 +138,32 @@ static func _apply_camera_attributes(attributes: CameraAttributesPractical) -> v
 	attributes.dof_blur_near_enabled = bool(wants.near) and on
 
 
-## The tiled ground plane, centred at `centre`.
+## The tiled ground plane, centred at `centre`: the look's tile and its variants, mixed region by
+## region with tone drift by floor_ground.gdshader (card #186), all in world space so the pattern
+## does not move when the plane is centred elsewhere.
 ## `cover`: the floor reaches at least this far (x, z), for a long zone (DESIGN.md 8.5).
 static func ground(look: StageLook, centre: Vector3 = Vector3.ZERO, cover: Vector2 = Vector2.ZERO) -> MeshInstance3D:
 	var mesh := PlaneMesh.new()
 	mesh.size = Vector2(maxf(look.floor_size, cover.x), maxf(look.floor_size, cover.y))
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = AssetLoader.texture(look.floor_tile_path, Vector2i(32, 32))
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mat.texture_repeat = true
-	# World-space tiling, so the pattern does not move when the plane is centred elsewhere.
-	mat.uv1_triplanar = true
-	mat.uv1_world_triplanar = true
-	mat.uv1_scale = Vector3.ONE / maxf(0.01, look.floor_tile_world_size)
-	mat.roughness = 1.0
-	mat.metallic_specular = 0.0
+	var tile_a := AssetLoader.texture(look.floor_tile_path, Vector2i(32, 32))
+	var tiles: Array[Texture2D] = [tile_a]
+	for path: String in look.floor_variant_paths:
+		if tiles.size() < 3 and not path.is_empty():
+			tiles.append(AssetLoader.texture(path, Vector2i(32, 32)))
+	var mat := ShaderMaterial.new()
+	mat.shader = FLOOR_SHADER
+	mat.set_shader_parameter("tile_a", tiles[0])
+	mat.set_shader_parameter("tile_b", tiles[mini(1, tiles.size() - 1)])
+	mat.set_shader_parameter("tile_c", tiles[mini(2, tiles.size() - 1)])
+	mat.set_shader_parameter("variants", tiles.size())
+	mat.set_shader_parameter("tile_world", maxf(0.01, look.floor_tile_world_size))
+	mat.set_shader_parameter("tile_px", float(tile_a.get_width()))
+	mat.set_shader_parameter("region_world", look.floor_region_world_size)
+	mat.set_shader_parameter("region_warp", look.floor_region_warp)
+	mat.set_shader_parameter("mirror", look.floor_mirror)
+	mat.set_shader_parameter("tone_world", look.floor_tone_world_size)
+	mat.set_shader_parameter("tone_strength", look.floor_tone_strength)
+	mat.set_shader_parameter("tone_steps", float(look.floor_tone_steps))
 	var floor_mesh := MeshInstance3D.new()
 	floor_mesh.name = "Floor"
 	floor_mesh.mesh = mesh
@@ -195,8 +212,9 @@ static func block(data: ZoneBlockData) -> MeshInstance3D:
 	return node
 
 
-## A lit billboard sprite standing at its feet (trees, rocks, lamps).
-static func prop(data: ZonePropData) -> Sprite3D:
+## A lit billboard sprite standing at its feet (trees, rocks, lamps). With a `look`, it gets a
+## soft contact shadow blob on the ground under it (card #186), a child that moves with it.
+static func prop(data: ZonePropData, look: StageLook = null) -> Sprite3D:
 	var tex := AssetLoader.texture(data.sprite_path, Vector2i(32, 32))
 	var sprite := Sprite3D.new()
 	sprite.texture = tex
@@ -213,7 +231,79 @@ static func prop(data: ZonePropData) -> Sprite3D:
 	mat.set_shader_parameter("self_glow_color", data.glow_color)
 	mat.set_shader_parameter("sway", data.sway)
 	sprite.material_override = mat
+	if look != null and data.contact_shadow and data.glow <= 0.0:
+		var shadow := contact_shadow(data, tex, look)
+		if shadow != null:
+			sprite.add_child(shadow)
 	return sprite
+
+
+## The ground blob under a prop (null if its footprint is too thin). Wide as the prop's footprint
+## times the look's width share, slid away from the sun, lying flat just over the floor. A child
+## of the prop sprite, so it takes the prop's place (its y is taken off to land on the floor).
+static func contact_shadow(data: ZonePropData, tex: Texture2D, look: StageLook) -> Sprite3D:
+	if look.prop_shadow_opacity <= 0.0 or tex == null:
+		return null
+	var footprint := footprint_width_px(tex, look.prop_shadow_footprint_percent)
+	if footprint < look.prop_shadow_min_footprint_px:
+		return null
+	var blob := AssetLoader.texture(look.prop_shadow_path, Vector2i(32, 12))
+	var width := float(footprint) * data.pixel_size * float(look.prop_shadow_width_percent) / 100.0
+	var shadow := Sprite3D.new()
+	shadow.name = "ContactShadow"
+	shadow.texture = blob
+	shadow.pixel_size = width / float(maxi(1, blob.get_width()))
+	shadow.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	shadow.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	shadow.modulate = Color(1.0, 1.0, 1.0, look.prop_shadow_opacity)
+	var away := sun_direction_on_ground(look.light_rotation_degrees) * width * float(look.prop_shadow_shift_percent) / 100.0
+	shadow.position = Vector3(away.x, PROP_SHADOW_LIFT - data.position.y, away.y)
+	return shadow
+
+
+## Which way a shadow falls on the ground (unit vector on x, z) for a sun turned by
+## `rotation_degrees` (a directional light shines along its own -z).
+static func sun_direction_on_ground(rotation_degrees: Vector3) -> Vector2:
+	var shine := Basis.from_euler(Vector3(deg_to_rad(rotation_degrees.x), deg_to_rad(rotation_degrees.y),
+			deg_to_rad(rotation_degrees.z))) * Vector3.FORWARD
+	var flat := Vector2(shine.x, shine.z)
+	return flat.normalized() if flat.length() > 0.0001 else Vector2.ZERO
+
+
+## The widest run of opaque pixels in the lowest `rows_percent` of the texture's height (at least
+## two rows), in art pixels: what a prop stands on. Cached per texture.
+static func footprint_width_px(tex: Texture2D, rows_percent: int) -> int:
+	var id := tex.resource_path if not tex.resource_path.is_empty() else str(tex.get_instance_id())
+	var key := "%s|%d" % [id, rows_percent]
+	if _footprints.has(key):
+		return _footprints[key]
+	var width := tex.get_width()
+	var image := tex.get_image()
+	if image != null and not image.is_empty():
+		if image.is_compressed():
+			image.decompress()
+		width = footprint_of_image(image, rows_percent)
+	_footprints[key] = width
+	return width
+
+
+## The pure part of footprint_width_px, for an image.
+static func footprint_of_image(image: Image, rows_percent: int) -> int:
+	var h := image.get_height()
+	var rows := maxi(2, int(ceil(float(h) * float(rows_percent) / 100.0)))
+	var best := 0
+	for y: int in range(maxi(0, h - rows), h):
+		var first := -1
+		var last := -1
+		for x: int in image.get_width():
+			if image.get_pixel(x, y).a >= 0.5:
+				if first < 0:
+					first = x
+				last = x
+		if first >= 0:
+			best = maxi(best, last - first + 1)
+	return best
 
 
 ## A piece of ground on the floor (DESIGN.md 8.12): a road, mud, planks or water.
@@ -232,6 +322,8 @@ static func ground_patch(data: ZoneGroundData) -> MeshInstance3D:
 	mat.set_shader_parameter("edge_noise", data.edge_noise)
 	mat.set_shader_parameter("water", data.kind == ZoneGroundData.Kind.WATER)
 	mat.set_shader_parameter("deep_color", data.deep_color)
+	mat.set_shader_parameter("fringe_px", float(data.fringe_pixels))
+	mat.set_shader_parameter("edge_shade", data.edge_shade)
 	var node := MeshInstance3D.new()
 	node.mesh = mesh
 	node.material_override = mat
@@ -303,6 +395,19 @@ static func ambient(data: ZoneAmbientData) -> GPUParticles3D:
 	return particles
 
 
+## A one-time puff of the same particles (a boss's rage): all at once, then they drift off and the
+## node removes itself.
+static func burst(data: ZoneAmbientData) -> GPUParticles3D:
+	var particles := ambient(data)
+	particles.name = "Burst_" + data.id
+	particles.preprocess = 0.0
+	particles.one_shot = true
+	particles.explosiveness = 0.85
+	particles.emitting = true
+	particles.finished.connect(particles.queue_free)
+	return particles
+
+
 ## A point light, flickering if the data says so.
 static func light(data: ZoneLightData) -> OmniLight3D:
 	var lamp := FlickerLight.new()
@@ -314,9 +419,10 @@ static func light(data: ZoneLightData) -> OmniLight3D:
 	return lamp
 
 
-## Adds every block, prop and light (and ground piece) under `parent`.
+## Adds every block, prop and light (and ground piece) under `parent`. With a `look`, props get
+## contact shadows.
 static func add_contents(parent: Node3D, blocks: Array[ZoneBlockData], props: Array[ZonePropData],
-		lights: Array[ZoneLightData], grounds: Array[ZoneGroundData] = []) -> void:
+		lights: Array[ZoneLightData], grounds: Array[ZoneGroundData] = [], look: StageLook = null) -> void:
 	for data: ZoneGroundData in grounds:
 		if data != null:
 			parent.add_child(ground_patch(data))
@@ -325,7 +431,7 @@ static func add_contents(parent: Node3D, blocks: Array[ZoneBlockData], props: Ar
 			parent.add_child(block(data))
 	for data: ZonePropData in props:
 		if data != null:
-			parent.add_child(prop(data))
+			parent.add_child(prop(data, look))
 	for data: ZoneLightData in lights:
 		if data != null:
 			parent.add_child(light(data))

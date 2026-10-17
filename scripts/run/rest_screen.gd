@@ -1,7 +1,7 @@
 class_name RestScreen
 extends StopScreen
 ## A rest stop as a campfire (DESIGN.md 8.11, card #161): the heroes stand round a fire in the
-## dark, and the player picks ONE thing to do: Rest (everyone heals tuning.run_rest_heal_percent),
+## dark, and the player picks ONE thing to do: Rest (everyone heals rest_heal_percent(), less with oaths),
 ## Train (every hero gets tuning.rest_train_points attribute points) or Upgrade (one item in the
 ## backpack goes up a level). Then back to the map. The bot calls rest_now() (or train_now() /
 ## upgrade_now()) and leave().
@@ -193,7 +193,7 @@ func _show_choices() -> void:
 	_picking.clear()
 	var up := upgradable()
 	var list: Array[Dictionary] = [
-		{"text": "Rest", "enabled": not remote, "detail": "Everyone heals %d%% of their max HP." % run.tuning.run_rest_heal_percent},
+		{"text": "Rest", "enabled": not remote, "detail": _rest_detail()},
 		{"text": "Train", "enabled": not remote, "detail": "Every hero gets %d attribute point%s." % [
 				run.tuning.rest_train_points, "" if run.tuning.rest_train_points == 1 else "s"]},
 		{"text": "Upgrade an item", "enabled": not remote and not up.is_empty(),
@@ -201,6 +201,15 @@ func _show_choices() -> void:
 				else "Nothing in the backpack can be upgraded."},
 	]
 	_menu.set_items(list)
+
+
+## What Rest does, naming any hero whose gear changes it (Hunger Charm, DESIGN.md 8.16).
+func _rest_detail() -> String:
+	var text := "Everyone heals %d%% of their max HP." % run.rest_heal_percent()
+	for slot: int in run.party_size():
+		if run.rest_heal_percent_of(slot) != run.rest_heal_percent():
+			text += " %s heals %d%%." % [run.data.party[slot].display_name, run.rest_heal_percent_of(slot)]
+	return text
 
 
 func _show_upgrades() -> void:

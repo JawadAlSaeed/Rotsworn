@@ -6,8 +6,9 @@ extends Node
 ## and they also work when no autoload exists (unit tests). UserSettings.x() works too.
 ## Holds what belongs to this machine and player rather than to the game's balance: the measured
 ## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
-## the volumes (overall, music, effects, voices), the display and graphics options, screen shake
-## (settings screen, card #112), the last host address joined online. Anything not
+## the volumes (overall, music, effects, voices), the display and graphics options, screen shake and
+## flashes (settings screen, cards #112 and #185), the highest oath unlocked (DESIGN.md 8.15), the
+## last host address joined online, the rebound keys and buttons (card #190, ControlBindings). Anything not
 ## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
@@ -50,15 +51,28 @@ const GRAPHICS := {
 }
 const SECTION_GAME := "game"
 const KEY_SHAKE := "screen_shake_percent"
+const KEY_FLASH := "flash_mode"
+## The Flashes setting (card #185): how strong screen flashes and white hit flashes are. The
+## numbers for Reduced and Off live in data/presentation/combat_visuals.tres.
+const FLASH_FULL: int = 0
+const FLASH_REDUCED: int = 1
+const FLASH_OFF: int = 2
+const FLASH_NAMES: Array[String] = ["Full", "Reduced", "Off"]
+## The highest oath this machine has unlocked (DESIGN.md 8.15); 0 until a run is won.
+const KEY_OATH_UNLOCKED := "oath_unlocked"
 const KEY_TUTORIAL_OFFERED := "tutorial_offered"
 const SHAKE_STEP_PERCENT: int = 25
 const SECTION_ONLINE := "online"
 const KEY_JOIN_ADDRESS := "join_address"
 const DEFAULT_JOIN_ADDRESS := "127.0.0.1"
+## Rebound keys and buttons (card #190): one entry per changed action, see ControlBindings.
+const SECTION_CONTROLS := "controls"
 const DEFAULT_VOLUME_PERCENT: int = 100
 const VOLUME_STEP_PERCENT: int = 10
 
 static var _config: ConfigFile
+## False in unit tests: settings change in memory only and user://settings.cfg is never written.
+static var _persist: bool = true
 
 
 func _ready() -> void:
@@ -67,6 +81,10 @@ func _ready() -> void:
 	apply_volume()
 	apply_fullscreen()
 	apply_frame_options()
+	# Before any screen reads the Input Map: the rebound keys and buttons (card #190).
+	# A test run (godot -s) keeps the project's own keys, whatever this machine has saved.
+	if not OS.get_cmdline_args().has("-s") and not OS.get_cmdline_args().has("--script"):
+		ControlBindings.install(control_overrides())
 
 
 ## Lag compensation in ms: the calibrated value if there is one (kept within tuning's
@@ -246,6 +264,27 @@ static func set_graphics(key: String, value: bool) -> void:
 	_save()
 
 
+## The highest oath (difficulty step, DESIGN.md 8.15) unlocked on this machine. 0: only the plain run.
+static func highest_oath_unlocked() -> int:
+	return maxi(0, int(_settings().get_value(SECTION_GAME, KEY_OATH_UNLOCKED, 0)))
+
+
+## What the highest unlocked oath becomes after winning a run at `won_oath` on a ladder of
+## `ladder_size` oaths: one more than the oath won, never lower than `unlocked`, never past the
+## ladder. Pure, so it is tested without a settings file.
+static func oath_after_win(unlocked: int, won_oath: int, ladder_size: int) -> int:
+	return clampi(maxi(unlocked, won_oath + 1), 0, maxi(0, ladder_size))
+
+
+## Records a won run at `won_oath` (online players too). Returns the highest oath unlocked now.
+static func unlock_after_win(won_oath: int, ladder_size: int) -> int:
+	var now := oath_after_win(highest_oath_unlocked(), won_oath, ladder_size)
+	if now != highest_oath_unlocked():
+		_settings().set_value(SECTION_GAME, KEY_OATH_UNLOCKED, now)
+		_save()
+	return now
+
+
 ## True once the tutorial was offered on the first New Run (DESIGN.md 7.8): it is asked once.
 static func tutorial_offered() -> bool:
 	return bool(_settings().get_value(SECTION_GAME, KEY_TUTORIAL_OFFERED, false))
@@ -266,6 +305,18 @@ static func set_screen_shake_percent(value: int) -> void:
 	_save()
 
 
+## Flashes: FLASH_FULL (default), FLASH_REDUCED or FLASH_OFF. Bad values read as Full.
+static func flash_mode() -> int:
+	var mode := int(_settings().get_value(SECTION_GAME, KEY_FLASH, FLASH_FULL))
+	return mode if mode >= FLASH_FULL and mode <= FLASH_OFF else FLASH_FULL
+
+
+## Sets the flash mode; the number wraps around (so Right on Off goes to Full).
+static func set_flash_mode(value: int) -> void:
+	_settings().set_value(SECTION_GAME, KEY_FLASH, posmod(value, FLASH_NAMES.size()))
+	_save()
+
+
 ## The host address typed last on the Join Online screen.
 static func join_address() -> String:
 	return String(_settings().get_value(SECTION_ONLINE, KEY_JOIN_ADDRESS, DEFAULT_JOIN_ADDRESS))
@@ -274,6 +325,32 @@ static func join_address() -> String:
 static func set_join_address(value: String) -> void:
 	_settings().set_value(SECTION_ONLINE, KEY_JOIN_ADDRESS, value.strip_edges())
 	_save()
+
+
+## The rebound keys and buttons: {action: {"key": [...], "pad": [...]}}, only the changed actions
+## (see ControlBindings.overrides).
+static func control_overrides() -> Dictionary:
+	var out := {}
+	var cfg := _settings()
+	if cfg.has_section(SECTION_CONTROLS):
+		for action: String in cfg.get_section_keys(SECTION_CONTROLS):
+			out[action] = cfg.get_value(SECTION_CONTROLS, action, {})
+	return out
+
+
+## Saves the rebound keys and buttons (the whole list: actions left out go back to the default).
+static func set_control_overrides(overrides: Dictionary) -> void:
+	var cfg := _settings()
+	if cfg.has_section(SECTION_CONTROLS):
+		cfg.erase_section(SECTION_CONTROLS)
+	for action: String in overrides:
+		cfg.set_value(SECTION_CONTROLS, action, overrides[action])
+	_save()
+
+
+## Unit tests: stop writing user://settings.cfg (settings then only live in memory).
+static func set_persistence(on: bool) -> void:
+	_persist = on
 
 
 static func _settings() -> ConfigFile:
@@ -291,6 +368,8 @@ static func _settings() -> ConfigFile:
 
 
 static func _save() -> void:
+	if not _persist:
+		return
 	var err := _settings().save(PATH)
 	if err != OK:
 		push_warning("UserSettings: could not save %s (error %d)" % [PATH, err])

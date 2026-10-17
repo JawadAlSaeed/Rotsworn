@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_dpw4g"]
+
+[resource]
+script = ExtResource("1_dpw4g")
+id = "gravebound_ring"
+display_name = "Gravebound Ring"
+description = "Counters hit 80% harder, but your max HP is 15% lower."
+price = 100
+rarity = 1
+effect = 6
+amount = 80
+rot_touched = true
+drawback_amount = 15

@@ -10,6 +10,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/hollow_bolt_storm.tres" id="8_75tdb"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="9_vbww8"]
 [ext_resource type="Resource" path="res://data/clips/shade.tres" id="10_xxdr5"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/shade_ashfall.tres" id="99_doom"]
 
 [resource]
 script = ExtResource("9_vbww8")
@@ -25,11 +26,14 @@ sprite_pixel_size = 0.045
 hp_percent = 250
 power_percent = 150
 speed = 115
-attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtResource("3_48cf8"), ExtResource("4_r4fvk"), ExtResource("5_nrkbm"), ExtResource("6_lxa4g"), ExtResource("7_ofos0")])
+attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtResource("3_48cf8"), ExtResource("4_r4fvk"), ExtResource("5_nrkbm"), ExtResource("6_lxa4g"), ExtResource("7_ofos0"), ExtResource("99_doom")])
+target_rule = 2
+target_bias_percent = 150
 gold = 60
 xp = 130
 voice_sfx = "voice_shade"
 phase_two_hp_percent = 50
-phase_two_attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtResource("3_48cf8"), ExtResource("4_r4fvk"), ExtResource("5_nrkbm"), ExtResource("6_lxa4g"), ExtResource("7_ofos0"), ExtResource("8_75tdb")])
+phase_two_attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtResource("3_48cf8"), ExtResource("4_r4fvk"), ExtResource("5_nrkbm"), ExtResource("6_lxa4g"), ExtResource("7_ofos0"), ExtResource("8_75tdb"), ExtResource("99_doom")])
 phase_two_speed = 155
+phase_two_tempo_percent = 94
 phase_two_text = "THE ASH WARDEN BURNS!"
