@@ -1195,8 +1195,8 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   ring; lag calibration and its reset).
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions only.
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
-  run map (B on the map too). Continue, Settings, and "Abandon run" (asks first, then the main
-  menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
+  run map (B on the map too). Continue, Settings, "Save & Quit" (a local run, 8.13), and "Abandon
+  run" (asks first, then the main menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
   under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
   presses) and cannot stop, so a pause asked for mid-move shows "PAUSING AFTER THIS MOVE" and
@@ -1466,7 +1466,7 @@ equipped by one character. No progression between runs in v1.
 - **Build order:** Part A (main menu and settings #46, map #26, stops #27, HP carry-over, gold,
   shop and rest), stop for testing; then Part B (loot #28, gear #29, levels #30, boss #31).
 - **Part A picks (user, 2026-10-12):** build two more zones now (3 in all); the shop sells care
-  for the party until gear exists; quitting mid-run loses the run (no save yet).
+  for the party until gear exists; quitting mid-run lost the run then (a save came later: 8.13).
 
 **Part A as built:**
 
@@ -1520,7 +1520,8 @@ equipped by one character. No progression between runs in v1.
   Feast (40, heal all 30%), Tonic (45, one character +15% max HP for the run, the new HP filled).
   Items for one character ask who gets it. (No revive: nobody stays down between fights.)
 - **Run end:** RUN CLEARED or RUN OVER with stops reached, fights won and gold earned, then the
-  main menu. The pause menu's "Abandon run" quits a run (it asks first; the run is lost).
+  main menu. The pause menu's "Abandon run" quits a run (it asks first; the run and its save are
+  lost). "Save & Quit" keeps a local run for later (8.13).
 - **New zones** (`tools/bootstrap_run.gd` writes them, with their looks, the run, the shop and the
   new encounters, only if missing): Sunken Bog (green fog, muck tiles, glowing fungus; guard Rotten
   Husk and Gnat Swarm) and Ashen Ruins (cold moonlight, ash tiles, colonnades; guard Shade and Gnat
@@ -2061,6 +2062,42 @@ phase 14 was the tutorial).
 - `tools/zone_map_preview.gd` draws every zone from above to a picture (ground, water, walls,
   props, enemies, seals, shrines) to check a layout without opening the game.
 
+### 8.13 Save & Quit (card #174)
+
+A local run can be put down and picked up later, Slay the Spire style. Online runs are never saved
+(one machine cannot save for everyone), and neither is the tutorial or a practice fight.
+
+- **One slot:** `user://run_save.json`, written by `RunSave` (`scripts/run/run_save.gd`, pure, tested).
+  It holds `RunState.to_dict()` exactly as it is (the save never reads its keys, so new run fields
+  are saved without changing it), a format version, the content fingerprint (`DataHash`, the same
+  one the online handshake uses), whether the party is inside a stop, and how many players share
+  the pads.
+- **Safe writes:** the new save goes to `run_save.json.tmp` first; the old save is kept as
+  `run_save.json.bak` until the new file is in place; a load falls back to the backup if the main
+  file is gone or broken. A write that fails leaves the old save as it was.
+- **When it saves:** every time the map shows (between stops, after the next act's map is made, and
+  back from the party screen) and right after a stop is chosen (marked "in stop"). Nothing is saved
+  inside a stop: the stop-entry save is what Continue loads.
+- **Continue in a stop starts that stop again from its start**, with the run exactly as it was when
+  the stop was entered and the same seed (same zone layout, fight, event, shop, treasure). Never the
+  map: quitting never dodges a hard stop. Anything done inside the stop and not finished (items
+  picked up, fights won, gold spent) is undone, which also stops save-scumming. Killing the game
+  or closing the window works the same way: the last save is the one that counts.
+- **Deleted** when the run ends (win or loss, at the moment the last fight is decided) and when the
+  run is abandoned from the pause menu.
+- **Main menu:** a "Continue" row at the top, only when a usable save exists; the cursor rests on
+  it until something else is picked. A save that does not fit (another game version or changed
+  content, a damaged file, or `RunState.from_dict` refusing it) is deleted and the menu says so
+  once. Because the fingerprint covers all of `data/` and the version, a new build, or a run from
+  the editor versus an exported build, cannot read the other's save. A co-op save goes through the
+  players screen first (pads may have changed). New Run with a save present asks first ("Your saved
+  run will be lost"), since the new run overwrites the slot at its first map.
+- **Pause menu** (a fight, a zone, the map; local run only): "Save & Quit" sits above "Abandon run".
+  On the map it saves the state as it is; inside a stop it keeps the stop-entry save. Then back to
+  the main menu with the cursor on Continue.
+- **Dev tools:** `--save-path=PATH` keeps the save elsewhere and `--continue` continues it at once.
+  The autoplay bot never touches the player's save: it saves only when `--save-path` is given.
+
 ---
 
 ## 9. Multiplayer (phase 5)
@@ -2235,9 +2272,15 @@ phase 14 was the tutorial).
   current sequence, once; a leaving client resolved at once; engine-resolved prompts left alone),
   the fingerprint (stable, version, line endings, changed numbers, import files ignored) and the
   run state round trip (and refusals that change nothing).
+- Save & Quit (`test_run_save.gd`, temp files only): a save round trips the whole run, numbers come
+  back as ints, unknown keys survive, other content or format and damaged files are refused, a
+  failed write keeps the old save, the backup covers a broken main file, delete clears all.
 - Online smoke test: start `--autoplay --host=2 --seed=N --quit-on-end` and then
   `--autoplay --join=127.0.0.1 --quit-on-end` (both headless, about 15 minutes). Both print the
   same `AUTOPLAY_RESULT run_...` line and the same `AUTOPLAY_MIRROR` hashes, and no ERROR lines.
+- Save & Quit smoke test: `--autoplay --run --seed=N --save-path=FILE`, stop it part way with a
+  timeout, then `--autoplay --continue --quit-on-end --save-path=FILE`: the second run prints
+  `Run continued: ...` and plays on from that stop. A finished run deletes FILE.
 - Run smoke test: `--autoplay --run --quit-on-end` (add `--seed=N` for a fixed map). The bot
   picks a shop when it has gold, a rest when someone is at or under 60% HP, else a zone; in zones
   it walks to the guard; in shops it buys what it can for whoever is lowest; it takes the first
@@ -2478,6 +2521,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-16 | The map gets a legend and dims stops the pick cannot lead to | card #162 (planning) |
 | 2026-10-16 | Shop: no Heal service; each shop stocks 4 items, 2 charms, 2 gear (was the whole list) | user: the shop felt cluttered and Heal = a Salve for the same gold |
 | 2026-10-17 | Zones get their own places, ground pieces and water, wind, drifting particles and critters | user: zones must feel alive and fit their theme (8.12) |
+| 2026-10-17 | Save & Quit: one local-run slot, saved on the map and on entering a stop; Continue re-enters an unfinished stop from its start, never the map; deleted when the run ends or is abandoned; online runs not saved | card #174; quitting must not dodge a hard stop, and losing 2 acts to a closed window was the worst way to lose |
 | 2026-10-15 | Lining digits everywhere; bold number font for HP, AP, gauge; slanted bold popups and damage numbers | user: the numbers' font felt cheap |
 | 2026-10-15 | Hero portraits are painted pictures (made by the user with an AI image tool) turned into pixel art; big cards on the players screen, 64x64 faces everywhere else | user (#140, #141); a code-drawn try looked bad |
 | 2026-10-15 | Attributes and Skills are buttons on each hero card; the info box only shows when needed | user: pressing LT / RT felt wrong, the box under the heroes was useless |
