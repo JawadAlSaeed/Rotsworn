@@ -40,7 +40,12 @@ CLIPS_DIR = os.path.join(ROOT, "data", "clips")
 HEROES = ["alder", "brin", "cass"]
 PROPS = {"dead_tree": (48, 64), "rotten_tree": (64, 80), "rock": (32, 24), "pillar": (24, 56),
          "lamp": (16, 48), "glow_shroom": (24, 24), "grass": (24, 12)}
-TILES = ["floor_tile", "ash_tile", "bog_tile", "cliff", "ruin_wall"]
+TILES = ["floor_tile", "cliff", "ruin_wall"]
+# The open floors (card #186): three variants each, calm, seamless, no stripes.
+FLOORS = ["hollow_floor", "ash_tile", "bog_tile", "throne_tile"]
+FLOOR_FILES = [f + s for f in FLOORS for s in ("", "_b", "_c")]
+# The ground patches that lie on the floor: also seamless and stripe-free (they may be busier).
+PATCHES = ["leaf_litter", "moss"]
 BACKDROPS = ["backdrop", "backdrop_ashen_ruins", "backdrop_sunken_bog", "backdrop_hollow_throne"]
 FX = {"shadow": (32, 12), "shockwave": (64, 16), "slash": (32, 32), "spark": (16, 16)}
 UI = {"ap_pip": (10, 10), "ap_pip_empty": (10, 10), "hit_normal": (12, 12), "hit_ground": (12, 12),
@@ -239,6 +244,24 @@ def seam(rel: str, a: np.ndarray) -> None:
                       % (rel, border_x, border_y, inner_x, inner_y))
 
 
+def luma(a: np.ndarray) -> np.ndarray:
+    return a[..., :3].astype(float) @ np.array([0.299, 0.587, 0.114])
+
+
+def calm(rel: str, a: np.ndarray, max_std: float) -> None:
+    """A floor must be low contrast and must not stripe: the average of each row (or column) may
+    not swing more than a share of the tile's own spread, or tiling it draws bands across the
+    screen. Both are the complaint behind card #186."""
+    l = luma(a)
+    std = l.std()
+    if std > max_std:
+        errors.append("%s: too busy for a floor (luma spread %.1f, at most %.1f)" % (rel, std, max_std))
+    rows, cols = l.mean(1).std(), l.mean(0).std()
+    if max(rows, cols) > 0.45 * std + 1.0:
+        errors.append("%s: stripes when tiled (row averages vary %.1f, column %.1f, spread %.1f)"
+                      % (rel, rows, cols, std))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Checks the art against the sprite contract.")
     ap.add_argument("--legacy", metavar="DIR",
@@ -299,6 +322,21 @@ def main() -> int:
             if (a[..., 3] < 255).any():
                 errors.append("%s: ground textures must be fully opaque" % rel)
             seam(rel, a)
+    means: dict[str, list[float]] = {}
+    for t in FLOOR_FILES + PATCHES:
+        rel = "env/%s.png" % t
+        a = load(rel)
+        if a is not None and size_is(rel, a, 32, 32):
+            if (a[..., 3] < 255).any():
+                errors.append("%s: ground textures must be fully opaque" % rel)
+            seam(rel, a)
+            calm(rel, a, 10.0 if t in FLOOR_FILES else 16.0)
+            if t in FLOOR_FILES:
+                means.setdefault(t.rsplit("_", 1)[0] if t[-2:] in ("_b", "_c") else t, []).append(luma(a).mean())
+    for name, m in means.items():
+        if len(m) == 3 and max(m) - min(m) > 3.0:
+            errors.append("env/%s: variants differ in tone by %.1f luma, so the floor would blotch"
+                          % (name, max(m) - min(m)))
     for b in BACKDROPS:
         rel = "env/%s.png" % b
         a = load(rel)

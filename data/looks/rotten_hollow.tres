@@ -47,12 +47,14 @@ reach = 3.5
 [sub_resource type="Resource" id="Resource_zone_prop_data_3"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(-8, 0, -3)
 solid_radius = 0.6
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_4"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
+pixel_size = 0.05
 position = Vector3(8.8, 0, -4)
 flip = true
 solid_radius = 0.6
@@ -60,6 +62,7 @@ solid_radius = 0.6
 [sub_resource type="Resource" id="Resource_zone_prop_data_5"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
+pixel_size = 0.05
 position = Vector3(-5.5, 0, -6.5)
 solid_radius = 0.4
 
@@ -67,14 +70,14 @@ solid_radius = 0.4
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/pillar.png"
 position = Vector3(1.5, 0, -6.5)
-pixel_size = 0.055
+pixel_size = 0.05
 solid_radius = 0.45
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_7"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/pillar.png"
 position = Vector3(-1.8, 0, -7.8)
-pixel_size = 0.055
+pixel_size = 0.05
 solid_radius = 0.45
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_8"]
@@ -120,12 +123,14 @@ glow_color = Color(0.45, 1, 0.9, 1)
 [sub_resource type="Resource" id="Resource_zone_prop_data_13"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-3.88, 0, -4.49)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_14"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-9.41, 0, -0.64)
 pixel_size = 0.045
 flip = true
@@ -133,6 +138,7 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_15"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-9.72, 0, -0.93)
 pixel_size = 0.045
 flip = true
@@ -140,6 +146,7 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_16"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-1.46, 0, -5.3)
 pixel_size = 0.045
 flip = true
@@ -147,12 +154,14 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_17"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-8.28, 0, -3.77)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_18"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(9.85, 0, -0.23)
 pixel_size = 0.045
 flip = true
@@ -160,12 +169,14 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_19"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(10.48, 0, -5.53)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_20"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-4.63, 0, -4.56)
 pixel_size = 0.045
 flip = true
@@ -173,12 +184,14 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_21"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-7.02, 0, -0.18)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_22"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-9.62, 0, -5.4)
 pixel_size = 0.045
 flip = true
@@ -186,30 +199,35 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_23"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-1.03, 0, -3)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_24"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(4.38, 0, -3.56)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_25"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(5.05, 0, -3.12)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_26"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-8.4, 0, -1.82)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_27"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-7.66, 0, -1.11)
 pixel_size = 0.045
 flip = true
@@ -217,18 +235,21 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_28"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(9.78, 0, -1.26)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_29"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-9.67, 0, 1.01)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_30"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(10.85, 0, 2.22)
 pixel_size = 0.045
 flip = true
@@ -236,6 +257,7 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_31"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-10.5, 0, -1.38)
 pixel_size = 0.045
 flip = true
@@ -243,12 +265,14 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_32"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-8.42, 0, -5.41)
 pixel_size = 0.045
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_33"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(-8.15, 0, -3.52)
 pixel_size = 0.045
 flip = true
@@ -256,13 +280,20 @@ flip = true
 [sub_resource type="Resource" id="Resource_zone_prop_data_34"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/grass.png"
+contact_shadow = false
 position = Vector3(8.17, 0, -5.19)
 pixel_size = 0.045
 flip = true
 
 [resource]
 script = ExtResource("4_stage_")
-floor_tile_path = "res://assets/sprites/env/leaf_litter.png"
+floor_tile_path = "res://assets/sprites/env/hollow_floor.png"
+floor_variant_paths = Array[String](["res://assets/sprites/env/hollow_floor_b.png", "res://assets/sprites/env/hollow_floor_c.png"])
+floor_tone_strength = 0.12
+floor_region_world_size = 7.0
+prop_shadow_shift_percent = 20
+prop_shadow_width_percent = 210
+prop_shadow_opacity = 1.0
 floor_size = 90.0
 background_color = Color(0.06, 0.07, 0.1, 1)
 ambient_color = Color(0.34, 0.36, 0.5, 1)

@@ -57,7 +57,7 @@ func build(visuals: CombatVisuals, look: StageLook = null) -> void:
 	add_child(StageBuilder.sun(look))
 	add_child(StageBuilder.ground(look))
 	add_child(StageBuilder.backdrop(look))
-	StageBuilder.add_contents(self, look.arena_blocks, look.arena_props, look.arena_lights)
+	StageBuilder.add_contents(self, look.arena_blocks, look.arena_props, look.arena_lights, [], look)
 	add_child(StageBuilder.vignette(look))
 
 	camera = CombatCamera.new()

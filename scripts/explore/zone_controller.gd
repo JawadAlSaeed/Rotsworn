@@ -65,6 +65,8 @@ var _zone: ZoneData
 var _tuning: Tuning
 var _visuals: CombatVisuals
 var _explore: ExploreVisuals
+## The place's look (props built later, like shrines and chests, take their contact shadow from it).
+var _look: StageLook
 var _world: Node3D
 var _camera: Camera3D
 var _hud: ZoneHud
@@ -667,7 +669,8 @@ func _build() -> void:
 	var centre := (_zone.bounds_min + _zone.bounds_max) * 0.5
 	var cover := _zone.bounds_max - _zone.bounds_min + Vector2(FLOOR_MARGIN, FLOOR_MARGIN) * 2.0
 	_world.add_child(StageBuilder.ground(look, Vector3(centre.x, 0.0, centre.y), cover))
-	StageBuilder.add_contents(_world, _zone.blocks, _zone.props, _zone.lights, _zone.grounds)
+	StageBuilder.add_contents(_world, _zone.blocks, _zone.props, _zone.lights, _zone.grounds, look)
+	_look = look
 	for data: ZoneAmbientData in _zone.ambient:
 		if data != null:
 			var particles := StageBuilder.ambient(data)
@@ -714,6 +717,7 @@ func _build() -> void:
 	if _run_mode:
 		for pos: Vector3 in _zone.item_spots:
 			var glint := ZonePropData.new()
+			glint.contact_shadow = false
 			glint.sprite_path = _explore.glint_path
 			glint.pixel_size = _explore.glint_pixel_size
 			glint.position = pos + Vector3(0.0, _explore.glint_height, 0.0)
@@ -727,7 +731,7 @@ func _build() -> void:
 			chest.sprite_path = _explore.chest_closed_path
 			chest.pixel_size = _explore.chest_pixel_size
 			chest.position = pos
-			var view := StageBuilder.prop(chest)
+			var view := StageBuilder.prop(chest, _look)
 			_world.add_child(view)
 			_chests.append({"pos": Vector2(pos.x, pos.z), "view": view, "opened": false})
 		for i: int in _roamers.size():
@@ -738,7 +742,7 @@ func _build() -> void:
 			chest.sprite_path = _explore.chest_closed_path
 			chest.pixel_size = _explore.chest_pixel_size
 			chest.position = data.prize_spot
-			var view := StageBuilder.prop(chest)
+			var view := StageBuilder.prop(chest, _look)
 			_world.add_child(view)
 			_prizes.append({"pos": Vector2(data.prize_spot.x, data.prize_spot.z), "view": view, "roamer": i,
 					"opened": false})
@@ -775,7 +779,7 @@ func _build_seals_and_gate() -> void:
 		stone.position = pos
 		stone.glow = _explore.seal_glow
 		stone.glow_color = _explore.seal_color
-		var view := StageBuilder.prop(stone)
+		var view := StageBuilder.prop(stone, _look)
 		_world.add_child(view)
 		var lamp := ZoneLightData.new()
 		lamp.position = pos + Vector3(0.0, 1.0, 0.4)
@@ -809,7 +813,7 @@ func _add_offer(data: ZoneOfferData, pos: Vector3) -> void:
 	prop.position = pos
 	prop.glow = data.glow
 	prop.glow_color = data.glow_color
-	var view := StageBuilder.prop(prop)
+	var view := StageBuilder.prop(prop, _look)
 	_world.add_child(view)
 	var entry := {"pos": Vector2(pos.x, pos.z), "data": data, "view": view, "used": false}
 	if data.glow > 0.0:
@@ -837,6 +841,7 @@ func _add_critter(data: ZoneCritterData, index: int) -> void:
 	prop.pixel_size = data.pixel_size
 	prop.position = data.position
 	prop.flip = data.flip
+	prop.contact_shadow = false
 	var view := StageBuilder.prop(prop)
 	view.hframes = 4
 	view.frame = 0

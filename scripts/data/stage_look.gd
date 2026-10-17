@@ -11,6 +11,23 @@ extends Resource
 @export_file_path("*.png") var floor_tile_path: String = "res://assets/sprites/env/floor_tile.png"
 ## World size of one ground tile.
 @export_range(0.1, 10.0, 0.05) var floor_tile_world_size: float = 1.6
+## Extra drawn variants of the ground tile (same palette, other pattern; up to two). The floor
+## shader gives each ragged region of the floor one of the tiles, so the pattern never repeats
+## across the screen like wallpaper. Empty: only floor_tile_path.
+@export_file_path("*.png") var floor_variant_paths: Array[String] = []
+## Width of one region of the floor (world units) that has its own variant and mirroring.
+## 0 = no regions, one even tile.
+@export_range(0.0, 40.0, 0.5) var floor_region_world_size: float = 7.0
+## How much the noise bends the edge of a region (share of its size).
+@export_range(0.0, 1.0, 0.05) var floor_region_warp: float = 0.5
+## Regions also mirror the tile (left-right, up-down) at random: more patterns from the same art.
+## Turn it off for a floor whose lighting is drawn into the tile and must keep its direction.
+@export var floor_mirror: bool = true
+## The floor drifts lighter and darker in a few steps over areas this wide (world units).
+@export_range(0.0, 60.0, 0.5) var floor_tone_world_size: float = 9.0
+## How far it drifts (share of the brightness each way; 0 = no drift) and in how many steps.
+@export_range(0.0, 0.5, 0.01) var floor_tone_strength: float = 0.12
+@export_range(2, 8) var floor_tone_steps: int = 4
 ## Width and depth of the ground plane in world units.
 @export_range(4.0, 400.0, 0.5) var floor_size: float = 48.0
 ## Far background silhouettes (320x120, transparent background), drawn behind the combat arena.
@@ -66,6 +83,20 @@ extends Resource
 ## Dark edges of the screen (0 = none, 1 = strong).
 @export_range(0.0, 1.0, 0.01) var vignette_strength: float = 0.45
 @export var vignette_color: Color = Color(0.0, 0.0, 0.02)
+
+@export_group("Contact shadows")
+## Props, trees, shrines and walkers-by get a soft dark blob on the ground under them (the same
+## blob the fighters stand on). How dark it is (0 = none).
+@export_range(0.0, 1.0, 0.05) var prop_shadow_opacity: float = 1.0
+## Blob width as a share of the prop's footprint (the opaque width of its lowest rows).
+@export_range(20, 400, 5, "suffix:%") var prop_shadow_width_percent: int = 210
+## The lowest rows measured for the footprint, as a share of the sprite's height.
+@export_range(5, 60, 1, "suffix:%") var prop_shadow_footprint_percent: int = 16
+## Footprints narrower than this (art pixels) get no blob (a thin twig does not need one).
+@export_range(0, 40, 1) var prop_shadow_min_footprint_px: int = 6
+## The blob slides away from the sun by this share of its width, so it reads as the sun's shadow.
+@export_range(0, 100, 1, "suffix:%") var prop_shadow_shift_percent: int = 20
+@export_file_path("*.png") var prop_shadow_path: String = "res://assets/sprites/fx/shadow.png"
 
 @export_group("Combat arena")
 ## Decoration around a fight that happens in this place (kept clear of the fighters' spots).

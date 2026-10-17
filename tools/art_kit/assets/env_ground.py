@@ -14,6 +14,7 @@ import math
 import numpy as np
 
 from kit.palette import M, Material
+from assets.env_floor import leaf_patch, moss_calm
 from assets.env_tiles import (DIRT_DIM, MOSS_DIM, T, Tex, despeckle, joints, norm, pnoise, shade,
                               stones, top, wrapd, wshift)
 
@@ -94,26 +95,8 @@ def dirt_trail() -> np.ndarray:
 
 
 def leaf_litter() -> np.ndarray:
-    """Forest floor: dead leaves over dark earth, a few fresher rust ones on top."""
-    tex = Tex([EARTH, LEAF_DEAD, LEAF])
-    tex.set(np.ones((T, T), bool), 0, 2)
-    tex.set(top(pnoise(232, 4, 2), 0.4), 0, 1)
-    rng = np.random.default_rng(231)
-    yy, xx = np.mgrid[0:T, 0:T]
-    for i in range(30):
-        cx, cy = rng.uniform(0, T, 2)
-        ang = rng.uniform(0, math.pi)
-        a, b = rng.uniform(1.8, 2.8), rng.uniform(0.9, 1.4)
-        dx = wrapd(cx)[None, :]
-        dy = wrapd(cy)[:, None]
-        u = dx * math.cos(ang) + dy * math.sin(ang)
-        v = -dx * math.sin(ang) + dy * math.cos(ang)
-        leaf = (u / a) ** 2 + (v / b) ** 2 < 1.0
-        m = 2 if i % 5 == 0 else 1
-        lvl = 1 + (u < 0) * 1 - (v > 0.4) * 1
-        tex.set(leaf, m, lvl)
-    tex.clean()
-    return tex.rgba()
+    """A drift of fallen leaves over dark earth (calm, no stripes: see env_floor)."""
+    return leaf_patch()
 
 
 def mud() -> np.ndarray:
@@ -130,15 +113,8 @@ def mud() -> np.ndarray:
 
 
 def moss() -> np.ndarray:
-    """A thick moss carpet in clumps, lit on their upper left."""
-    tex = Tex([MOSS_DIM, LILY])
-    h = pnoise(251, 6, 3)
-    lvl = 1.5 + shade(h * 5.0) * 7.0 + (h - 0.5) * 2.0
-    tex.set(np.ones((T, T), bool), 0, lvl)
-    bright = top(h + shade(h * 5.0), 0.1)
-    tex.set(bright, 1, 3)
-    tex.clean()
-    return tex.rgba()
+    """A dull olive moss carpet in small clumps (the shader dithers its edge into the floor)."""
+    return moss_calm()
 
 
 def planks() -> np.ndarray:

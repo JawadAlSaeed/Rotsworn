@@ -47,7 +47,8 @@ func _init() -> void:
 			[_start_hollow(), _hollow_trail(), _hollow_camp(), _hollow_chapel(), _hollow_thicket(), _hollow_fallen(),
 			_end_hollow()], _hollow_air())
 	var hollow_look := load("res://data/looks/rotten_hollow.tres") as StageLook
-	hollow_look.floor_tile_path = ENV + "leaf_litter.png"
+	hollow_look.floor_tile_path = ENV + "hollow_floor.png"
+	hollow_look.floor_variant_paths = [ENV + "hollow_floor_b.png", ENV + "hollow_floor_c.png"]
 	_save(hollow_look, hollow_look.resource_path)
 	print("bootstrap_zones: wrote %d files" % _written)
 	quit()
@@ -220,12 +221,12 @@ func _start_ruins() -> ZoneSectionData:
 	_p(sec, "banner_torn", Vector2(7.6, 4.9), 0.05, 0.0, 0.05, true)
 	_brazier(sec, Vector2(11.5, -3.4))
 	_brazier(sec, Vector2(11.5, 3.6))
-	_p(sec, "statue_headless", Vector2(12.0, -14.0), 0.055, 1.0)
+	_p(sec, "statue_headless", Vector2(12.0, -14.0), 0.05, 1.0)
 	_ground(sec, Vector2(10, -9), Vector2(8, 5), RUIN_ASH, true, 0)
 	_ground(sec, Vector2(14, 7), Vector2(7, 3), RUIN_ASH, true, 0)
 	_p(sec, "rubble", Vector2(3.5, -8.5), 0.05, 0.8)
 	_p(sec, "rubble", Vector2(15.5, 6.5), 0.05, 0.8)
-	_p(sec, "dead_tree", Vector2(2.0, -17.0), 0.06, 0.4)
+	_p(sec, "dead_tree", Vector2(2.0, -17.0), 0.05, 0.4)
 	_p(sec, "bones", Vector2(9.0, 6.0), 0.045, 0.0)
 	sec.item_spots.append(Vector3(3.0, 0, -13.0))
 	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(14.5, -9.0))
@@ -242,11 +243,11 @@ func _ruins_back(sec: ZoneSectionData) -> void:
 	while x < sec.width - 2.0:
 		var kind := _rng.randi_range(0, 2)
 		if kind == 0:
-			_p(sec, "arch_broken", Vector2(x, -19.6), 0.055, 0.0)
+			_p(sec, "arch_broken", Vector2(x, -19.6), 0.05, 0.0)
 		elif kind == 1:
-			_p(sec, "wall_low", Vector2(x, -19.4), 0.055, 0.0)
+			_p(sec, "wall_low", Vector2(x, -19.4), 0.05, 0.0)
 		else:
-			_p(sec, "pillar", Vector2(x, -19.5), 0.055, 0.0)
+			_p(sec, "pillar", Vector2(x, -19.5), 0.05, 0.0)
 		x += 5.0 + _rng.randf() * 4.0
 
 
@@ -274,11 +275,11 @@ func _ruins_road() -> ZoneSectionData:
 	_brazier(sec, Vector2(14.0, -3.0))
 	_brazier(sec, Vector2(16.5, 3.4))
 	_p(sec, "banner_torn", Vector2(12.5, -5.6), 0.05, 0.0, 0.05)
-	_p(sec, "column_fallen", Vector2(7.0, -10.5), 0.055, 1.2)
+	_p(sec, "column_fallen", Vector2(7.0, -10.5), 0.05, 1.2)
 	_p(sec, "rubble", Vector2(21.0, -6.5), 0.05, 0.7)
 	_p(sec, "rubble", Vector2(3.0, 7.5), 0.05, 0.7)
 	_p(sec, "bones", Vector2(26.5, -6.2), 0.045, 0.0)
-	_p(sec, "statue_headless", Vector2(3.0, -15.5), 0.055, 1.0)
+	_p(sec, "statue_headless", Vector2(3.0, -15.5), 0.05, 1.0)
 	_ground(sec, Vector2(8, -14), Vector2(9, 6), RUIN_ASH, true, 0)
 	_ground(sec, Vector2(16, 7.5), Vector2(10, 3.6), RUIN_ASH, true, 0)
 	_critter(sec, ZoneCritterData.Kind.CROW, Vector2(13.0, -6.2))
@@ -294,17 +295,17 @@ func _ruins_plaza() -> ZoneSectionData:
 	_ground(sec, Vector2(17, -4.5), Vector2(25, 15), RUIN_PAVING, false, 0, 0.3)
 	_path(sec, [Vector2(-1, 0.0), Vector2(6, 0.0)], 4.4, RUIN_ROAD, 1, ROAD_TINT)
 	_path(sec, [Vector2(28, 0.0), Vector2(35, 0.0)], 4.4, RUIN_ROAD, 1, ROAD_TINT)
-	_p(sec, "fountain", Vector2(17.0, -4.5), 0.055, 2.2)
+	_p(sec, "fountain", Vector2(17.0, -4.5), 0.05, 2.2)
 	for at: Vector2 in [Vector2(8.5, -10.5), Vector2(25.5, -10.5)]:
-		_p(sec, "statue_headless", at, 0.055, 1.0, 0.0, at.x > 17.0)
+		_p(sec, "statue_headless", at, 0.05, 1.0, 0.0, at.x > 17.0)
 	_brazier(sec, Vector2(10.5, 2.6))
 	_brazier(sec, Vector2(23.5, 2.6))
 	_brazier(sec, Vector2(13.0, -10.5))
 	_brazier(sec, Vector2(21.0, -10.5))
-	_p(sec, "arch_broken", Vector2(17.0, -17.5), 0.055, 1.0)
+	_p(sec, "arch_broken", Vector2(17.0, -17.5), 0.05, 1.0)
 	_p(sec, "banner_torn", Vector2(6.0, -6.0), 0.05, 0.0, 0.05)
 	_p(sec, "banner_torn", Vector2(28.0, -6.0), 0.05, 0.0, 0.05, true)
-	_p(sec, "column_fallen", Vector2(30.0, 7.0), 0.055, 1.2)
+	_p(sec, "column_fallen", Vector2(30.0, 7.0), 0.05, 1.2)
 	_p(sec, "rubble", Vector2(4.0, 6.5), 0.05, 0.7)
 	sec.seal_spots.assign([Vector3(17.0, 0, -14.5), Vector3(31.5, 0, -14.0)])
 	sec.wanderer_spots.append(Vector3(6.0, 0, -12.0))
@@ -329,12 +330,12 @@ func _ruins_colonnade() -> ZoneSectionData:
 	_ground(sec, Vector2(16, -11), Vector2(25, 8.5), RUIN_PAVING, false, 0, 0.25)
 	var x := 5.5
 	while x <= 27.0:
-		_p(sec, "pillar", Vector2(x, -7.2), 0.055, 0.45)
-		_p(sec, "pillar", Vector2(x, -14.8), 0.055, 0.45, 0.0, true)
+		_p(sec, "pillar", Vector2(x, -7.2), 0.05, 0.45)
+		_p(sec, "pillar", Vector2(x, -14.8), 0.05, 0.45, 0.0, true)
 		x += 4.3
 	_ruin_wall(sec, Vector2(3, -4.8), Vector2(12, -4.8), 1.2)
 	_ruin_wall(sec, Vector2(20, -4.8), Vector2(29, -4.8), 1.0)
-	_p(sec, "column_fallen", Vector2(14.0, 6.5), 0.055, 1.2)
+	_p(sec, "column_fallen", Vector2(14.0, 6.5), 0.05, 1.2)
 	for at: Vector2 in [Vector2(5.0, 6.0), Vector2(23.0, 7.5), Vector2(28.5, 6.0)]:
 		_p(sec, "rubble", at, 0.05, 0.7)
 	_brazier(sec, Vector2(16.0, -3.4))
@@ -373,8 +374,8 @@ func _ruins_graveyard() -> ZoneSectionData:
 			var at := Vector2(2.0 + col * 1.9, -6.5 - row * 3.6 + (col % 2) * 0.4)
 			_p(sec, "gravestone", at, 0.05, 0.0, 0.0, col % 2 == 0)
 			_p(sec, "gravestone", Vector2(32.0 - at.x, at.y + 0.3), 0.05, 0.0, 0.0, col % 2 == 1)
-	_p(sec, "dead_tree", Vector2(5.0, 6.5), 0.06, 0.4)
-	_p(sec, "dead_tree", Vector2(27.5, -18.0), 0.06, 0.4, 0.0, true)
+	_p(sec, "dead_tree", Vector2(5.0, 6.5), 0.05, 0.4)
+	_p(sec, "dead_tree", Vector2(27.5, -18.0), 0.05, 0.4, 0.0, true)
 	_p(sec, "bones", Vector2(13.0, -15.5), 0.045, 0.0)
 	_p(sec, "bones", Vector2(24.0, 6.0), 0.045, 0.0)
 	sec.seal_spots.assign([Vector3(4.0, 0, -17.0), Vector3(28.0, 0, -15.0)])
@@ -405,8 +406,8 @@ func _ruins_hall() -> ZoneSectionData:
 	_brazier(sec, Vector2(7.0, -8.5))
 	_brazier(sec, Vector2(27.0, -8.5))
 	_p(sec, "rubble", Vector2(11.0, -17.0), 0.05, 0.7)
-	_p(sec, "column_fallen", Vector2(23.5, -16.5), 0.055, 1.2)
-	_p(sec, "statue_headless", Vector2(17.0, -8.5), 0.055, 1.0)
+	_p(sec, "column_fallen", Vector2(23.5, -16.5), 0.05, 1.2)
+	_p(sec, "statue_headless", Vector2(17.0, -8.5), 0.05, 1.0)
 	_p(sec, "banner_torn", Vector2(14.0, -6.9), 0.05, 0.0, 0.05)
 	_p(sec, "banner_torn", Vector2(20.0, -6.9), 0.05, 0.0, 0.05, true)
 	sec.seal_spots.assign([Vector3(8.0, 0, -15.5), Vector3(27.0, 0, -16.5)])
@@ -432,10 +433,10 @@ func _end_ruins() -> ZoneSectionData:
 	_gate(sec)
 	_guard(sec, Vector2(17.0, -1.0))
 	for at: Vector2 in [Vector2(11.0, -9.0), Vector2(23.0, -9.0)]:
-		_p(sec, "statue_headless", at, 0.055, 1.0, 0.0, at.x > 17.0)
+		_p(sec, "statue_headless", at, 0.05, 1.0, 0.0, at.x > 17.0)
 	_brazier(sec, Vector2(11.0, 4.5))
 	_brazier(sec, Vector2(23.0, 4.5))
-	_p(sec, "arch_broken", Vector2(17.0, -15.0), 0.055, 1.0)
+	_p(sec, "arch_broken", Vector2(17.0, -15.0), 0.05, 1.0)
 	_p(sec, "banner_torn", Vector2(13.5, -9.5), 0.05, 0.0, 0.05)
 	_p(sec, "banner_torn", Vector2(20.5, -9.5), 0.05, 0.0, 0.05, true)
 	sec.lights.append(_light(Vector3(17.0, 2.2, -1.0), FIRE_LIGHT, 2.6, 8.0, 10))
@@ -477,10 +478,10 @@ func _pool(sec: ZoneSectionData, centre: Vector2, size: Vector2, lilies: bool = 
 		_p(sec, "reeds", at, 0.045, 0.0, 0.06, _rng.randf() < 0.5)
 
 
-## Lily pads floating on water (bigger tiles than the ground's, so the pads read).
+## Lily pads floating on water (the same pixel size as the floor, so the pads match the heroes).
 func _lily(sec: ZoneSectionData, at: Vector2, size: Vector2) -> void:
 	_ground(sec, at, size, ENV + "lily_pads.png", true, 1, 0.6)
-	sec.grounds.back().texture_world_size = 3.4
+	sec.grounds.back().texture_world_size = 1.6
 
 
 ## Deep water as a rectangle (channels, lagoons): solid, rippling.
@@ -499,7 +500,7 @@ func _bog_back(sec: ZoneSectionData) -> void:
 	while x < sec.width:
 		var kind := _rng.randi_range(0, 2)
 		var name: String = ["mangrove", "moss_tree", "rotten_tree"][kind]
-		_p(sec, name, Vector2(x, -21.5 - _rng.randf() * 2.5), 0.06, 0.0, 0.02, _rng.randf() < 0.5)
+		_p(sec, name, Vector2(x, -21.5 - _rng.randf() * 2.5), 0.05, 0.0, 0.02, _rng.randf() < 0.5)
 		x += 3.0 + _rng.randf() * 2.5
 	x = 1.0
 	while x < sec.width:
@@ -524,9 +525,9 @@ func _start_bog() -> ZoneSectionData:
 	_pool(sec, Vector2(12.5, 7.0), Vector2(9, 4.5))
 	_pool(sec, Vector2(7.0, -12.0), Vector2(8, 5))
 	_bog_lantern(sec, Vector2(8.0, -3.2))
-	_p(sec, "moss_tree", Vector2(3.0, -16.0), 0.06, 0.6, 0.02)
-	_p(sec, "mangrove", Vector2(14.5, -14.5), 0.06, 0.8, 0.02, true)
-	_p(sec, "giant_mushroom", Vector2(16.0, -6.5), 0.055, 0.8, 0.0, false, 1.0, SHROOM_GLOW)
+	_p(sec, "moss_tree", Vector2(3.0, -16.0), 0.05, 0.6, 0.02)
+	_p(sec, "mangrove", Vector2(14.5, -14.5), 0.05, 0.8, 0.02, true)
+	_p(sec, "giant_mushroom", Vector2(16.0, -6.5), 0.05, 0.8, 0.0, false, 1.0, SHROOM_GLOW)
 	_ground(sec, Vector2(3, 6), Vector2(5, 3.5), BOG_MOSS, true, 0)
 	sec.item_spots.append(Vector3(13.0, 0, -9.5))
 	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(10.0, 4.4))
@@ -552,9 +553,9 @@ func _bog_boardwalk() -> ZoneSectionData:
 	_path(sec, [Vector2(16, -2.0), Vector2(16, -8.5)], 2.6, BOG_PLANKS, 2)
 	_ground(sec, Vector2(16.0, -13.0), Vector2(7.5, 8.0), BOG_MUD, true, 1)
 	_ground(sec, Vector2(16.0, -13.0), Vector2(5.0, 5.0), BOG_MOSS, true, 2)
-	_p(sec, "mangrove", Vector2(7.5, -12.0), 0.06, 0.0, 0.02)
-	_p(sec, "mangrove", Vector2(25.0, -9.0), 0.06, 0.0, 0.02, true)
-	_p(sec, "moss_tree", Vector2(11.0, -16.0), 0.06, 0.0, 0.02)
+	_p(sec, "mangrove", Vector2(7.5, -12.0), 0.05, 0.0, 0.02)
+	_p(sec, "mangrove", Vector2(25.0, -9.0), 0.05, 0.0, 0.02, true)
+	_p(sec, "moss_tree", Vector2(11.0, -16.0), 0.05, 0.0, 0.02)
 	for at: Vector2 in [Vector2(6.0, -2.4), Vector2(14.0, 2.4), Vector2(22.0, -2.4)]:
 		_bog_lantern(sec, at)
 	for i: int in 10:
@@ -579,9 +580,9 @@ func _bog_village() -> ZoneSectionData:
 	var sec := _new("village", 34.0, 2301)
 	_ground(sec, Vector2(17, -6), Vector2(32, 20), BOG_MUD, false, 0, 0.8)
 	_path(sec, [Vector2(-1, 0.4), Vector2(35, 0.4)], 3.4, BOG_PLANKS, 2)
-	_p(sec, "stilt_hut", Vector2(8.0, -12.5), 0.06, 2.0)
-	_p(sec, "stilt_hut", Vector2(20.0, -15.0), 0.06, 2.0, 0.0, true)
-	_p(sec, "stilt_hut", Vector2(29.5, -9.0), 0.06, 1.8)
+	_p(sec, "stilt_hut", Vector2(8.0, -12.5), 0.05, 2.0)
+	_p(sec, "stilt_hut", Vector2(20.0, -15.0), 0.05, 2.0, 0.0, true)
+	_p(sec, "stilt_hut", Vector2(29.5, -9.0), 0.05, 1.8)
 	_path(sec, [Vector2(8.0, -1.5), Vector2(8.0, -9.0)], 2.0, BOG_PLANKS, 2)
 	_path(sec, [Vector2(29.5, -1.5), Vector2(29.5, -6.0)], 2.0, BOG_PLANKS, 2)
 	_ground(sec, Vector2(14.0, -8.0), Vector2(3.5, 2.2), ENV + "water.png", true, 1, 0.3, false, WATER_TINT, WATER_DEEP)
@@ -590,7 +591,7 @@ func _bog_village() -> ZoneSectionData:
 	for at: Vector2 in [Vector2(5.0, -2.4), Vector2(16.5, 2.4), Vector2(25.0, -2.4), Vector2(12.0, -14.5)]:
 		_bog_lantern(sec, at)
 	_p(sec, "log", Vector2(14.0, 6.5), 0.05, 0.8)
-	_p(sec, "giant_mushroom", Vector2(32.0, -16.0), 0.055, 0.8, 0.0, true, 1.0, SHROOM_GLOW)
+	_p(sec, "giant_mushroom", Vector2(32.0, -16.0), 0.05, 0.8, 0.0, true, 1.0, SHROOM_GLOW)
 	sec.wanderer_spots.append(Vector3(14.0, 0, -4.5))
 	sec.shrine_spots.append(Vector3(25.0, 0, 6.5))
 	sec.chests.append(Vector3(4.0, 0, -17.0))
@@ -620,9 +621,9 @@ func _bog_mangroves() -> ZoneSectionData:
 	_ground(sec, Vector2(16.0, -16.0), Vector2(8.0, 6.0), BOG_MOSS, true, 1)
 	for at: Vector2 in [Vector2(5.5, -14.5), Vector2(11.5, -5.5), Vector2(19.5, -6.0), Vector2(12.0, -16.5),
 			Vector2(20.5, -17.5), Vector2(29.5, -15.5), Vector2(3.0, -5.0)]:
-		_p(sec, "mangrove", at, 0.06, 0.9, 0.02, at.x > 16.0)
-	_p(sec, "moss_tree", Vector2(28.0, -4.5), 0.06, 0.6, 0.02, true)
-	_p(sec, "giant_mushroom", Vector2(16.0, -11.5), 0.055, 0.8, 0.0, false, 1.0, SHROOM_GLOW)
+		_p(sec, "mangrove", at, 0.05, 0.9, 0.02, at.x > 16.0)
+	_p(sec, "moss_tree", Vector2(28.0, -4.5), 0.05, 0.6, 0.02, true)
+	_p(sec, "giant_mushroom", Vector2(16.0, -11.5), 0.05, 0.8, 0.0, false, 1.0, SHROOM_GLOW)
 	sec.lights.append(_light(Vector3(16.0, 1.5, -11.0), SHROOM_GLOW, 1.8, 6.0, 0))
 	_bog_lantern(sec, Vector2(9.0, 2.4))
 	sec.seal_spots.assign([Vector3(16.0, 0, -16.5), Vector3(3.0, 0, -17.5)])
@@ -655,8 +656,8 @@ func _bog_pond() -> ZoneSectionData:
 	sec.enemies.append(champion)
 	_bog_lantern(sec, Vector2(14.5, -6.0))
 	_bog_lantern(sec, Vector2(17.5, -6.0))
-	_p(sec, "moss_tree", Vector2(2.5, -6.0), 0.06, 0.6, 0.02)
-	_p(sec, "mangrove", Vector2(29.5, -5.5), 0.06, 0.8, 0.02, true)
+	_p(sec, "moss_tree", Vector2(2.5, -6.0), 0.05, 0.6, 0.02)
+	_p(sec, "mangrove", Vector2(29.5, -5.5), 0.05, 0.8, 0.02, true)
 	sec.seal_spots.assign([Vector3(2.5, 0, -17.0), Vector3(29.5, 0, -17.0)])
 	sec.item_spots.append(Vector3(16.0, 0, 7.5))
 	sec.wanderer_spots.append(Vector3(28.5, 0, 6.0))
@@ -682,10 +683,10 @@ func _bog_grove() -> ZoneSectionData:
 		if absf(a - PI * 0.5) < 0.5:
 			continue
 		var at := Vector2(15.0 + cos(a) * 5.5, -13.0 + sin(a) * 4.0)
-		_p(sec, "giant_mushroom", at, 0.055, 0.8, 0.0, cos(a) > 0.0, 1.0, SHROOM_GLOW)
+		_p(sec, "giant_mushroom", at, 0.05, 0.8, 0.0, cos(a) > 0.0, 1.0, SHROOM_GLOW)
 	sec.lights.append(_light(Vector3(15.0, 1.8, -13.0), SHROOM_GLOW, 2.2, 7.5, 0))
 	for at: Vector2 in [Vector2(4.0, -7.0), Vector2(26.0, -7.5), Vector2(25.0, 6.5)]:
-		_p(sec, "giant_mushroom", at, 0.055, 0.8, 0.0, at.x > 15.0, 1.0, SHROOM_GLOW)
+		_p(sec, "giant_mushroom", at, 0.05, 0.8, 0.0, at.x > 15.0, 1.0, SHROOM_GLOW)
 		sec.lights.append(_light(Vector3(at.x, 1.5, at.y + 0.5), SHROOM_GLOW, 1.4, 5.0, 0))
 	_ground(sec, Vector2(8.0, 6.0), Vector2(4.0, 2.4), ENV + "water.png", true, 1, 0.3, false, WATER_TINT, WATER_DEEP)
 	_p(sec, "log", Vector2(20.0, -18.5), 0.05, 0.8)
@@ -714,8 +715,8 @@ func _end_bog() -> ZoneSectionData:
 	_pool(sec, Vector2(17.0, 8.2), Vector2(13.0, 3.0), true, 3)
 	_bog_lantern(sec, Vector2(11.0, -5.5))
 	_bog_lantern(sec, Vector2(23.0, -5.5))
-	_p(sec, "moss_tree", Vector2(8.5, -15.0), 0.06, 0.6, 0.02)
-	_p(sec, "mangrove", Vector2(25.0, -15.5), 0.06, 0.8, 0.02, true)
+	_p(sec, "moss_tree", Vector2(8.5, -15.0), 0.05, 0.6, 0.02)
+	_p(sec, "mangrove", Vector2(25.0, -15.5), 0.05, 0.8, 0.02, true)
 	sec.lights.append(_light(Vector3(17.0, 2.0, -1.0), BOG_LIGHT, 2.6, 8.0, 10))
 	_critter(sec, ZoneCritterData.Kind.FROG, Vector2(12.0, -9.5))
 	_bog_back(sec)
@@ -751,7 +752,7 @@ func _lamp(sec: ZoneSectionData, at: Vector2) -> void:
 
 ## Thick forest: big trees in a band, the solid ones away from `keep` spots.
 func _forest(sec: ZoneSectionData, area: Rect2, count: int) -> void:
-	_scatter(sec, [["rotten_tree", 0.06, 0.6, 0.02], ["dead_tree", 0.06, 0.4, 0.0], ["pine_dead", 0.06, 0.4, 0.0],
+	_scatter(sec, [["rotten_tree", 0.05, 0.6, 0.02], ["dead_tree", 0.05, 0.4, 0.0], ["pine_dead", 0.05, 0.4, 0.0],
 			["bush", 0.05, 0.5, 0.03]], count, area)
 
 
@@ -765,7 +766,7 @@ func _end_trees(sec: ZoneSectionData, x: float, names: Array) -> void:
 	var z := Z_BACK
 	while z < Z_FRONT + 2.0:
 		var name: String = names[_rng.randi_range(0, names.size() - 1)]
-		_p(sec, name, Vector2(x + _rng.randf_range(-1.0, 1.0), z), 0.06, 0.0, 0.02, _rng.randf() < 0.5)
+		_p(sec, name, Vector2(x + _rng.randf_range(-1.0, 1.0), z), 0.05, 0.0, 0.02, _rng.randf() < 0.5)
 		z += 2.4 + _rng.randf() * 1.6
 
 
@@ -774,7 +775,7 @@ func _hollow_back(sec: ZoneSectionData) -> void:
 	var x := -0.5 + _rng.randf() * 2.0
 	while x < sec.width:
 		var name: String = ["rotten_tree", "pine_dead", "dead_tree", "rotten_tree"][_rng.randi_range(0, 3)]
-		_p(sec, name, Vector2(x, -21.0 - _rng.randf() * 3.0), 0.06, 0.0, 0.02, _rng.randf() < 0.5)
+		_p(sec, name, Vector2(x, -21.0 - _rng.randf() * 3.0), 0.05, 0.0, 0.02, _rng.randf() < 0.5)
 		x += 2.6 + _rng.randf() * 2.2
 	x = 0.5
 	while x < sec.width:
@@ -891,8 +892,8 @@ func _hollow_chapel() -> ZoneSectionData:
 		_p(sec, "grave_cross", at, 0.05, 0.0, 0.0, i % 2 == 0)
 		_p(sec, "grave_cross", Vector2(32.0 - at.x, at.y - 0.5), 0.05, 0.0, 0.0, i % 2 == 1)
 	_p(sec, "grave_cross", Vector2(13.0, -16.0), 0.05, 0.0)
-	_p(sec, "rotten_tree", Vector2(6.0, 6.5), 0.06, 0.6)
-	_p(sec, "rotten_tree", Vector2(27.0, -18.0), 0.06, 0.6, 0.02, true)
+	_p(sec, "rotten_tree", Vector2(6.0, 6.5), 0.05, 0.6)
+	_p(sec, "rotten_tree", Vector2(27.0, -18.0), 0.05, 0.6, 0.02, true)
 	sec.seal_spots.assign([Vector3(4.0, 0, -16.0), Vector3(28.0, 0, -15.5)])
 	sec.item_spots.append(Vector3(27.0, 0, 7.0))
 	sec.wanderer_spots.append(Vector3(5.0, 0, -2.5))
@@ -941,9 +942,9 @@ func _hollow_fallen() -> ZoneSectionData:
 	var x := 3.0
 	while x < 26.0:
 		if x < 14.5 or x > 17.5:
-			_p(sec, "log", Vector2(x, -7.0 - (x - 3.0) * 0.12), 0.07, 1.0, 0.0, x > 16.0)
+			_p(sec, "log", Vector2(x, -7.0 - (x - 3.0) * 0.12), 0.05, 1.0, 0.0, x > 16.0)
 		x += 2.2
-	_p(sec, "rotten_tree", Vector2(28.0, -8.5), 0.06, 0.6, 0.02, true)
+	_p(sec, "rotten_tree", Vector2(28.0, -8.5), 0.05, 0.6, 0.02, true)
 	for at: Vector2 in [Vector2(6.0, -8.6), Vector2(11.0, -9.2), Vector2(20.0, -10.0), Vector2(24.0, -10.4)]:
 		_p(sec, "glow_shroom", at, 0.05, 0.0, 0.0, false, 1.5, SHROOM_GLOW)
 	sec.lights.append(_light(Vector3(10.0, 1.2, -8.5), SHROOM_GLOW, 1.4, 5.5, 0))
@@ -973,7 +974,7 @@ func _end_hollow() -> ZoneSectionData:
 	_gate(sec)
 	_guard(sec, Vector2(17.0, -1.0))
 	for at: Vector2 in [Vector2(10.0, -10.0), Vector2(24.0, -11.0), Vector2(11.0, 6.5), Vector2(23.5, 6.0)]:
-		_p(sec, "rotten_tree", at, 0.06, 0.6, 0.02, at.x > 17.0)
+		_p(sec, "rotten_tree", at, 0.05, 0.6, 0.02, at.x > 17.0)
 	_lamp(sec, Vector2(12.0, -4.0))
 	_lamp(sec, Vector2(22.0, -4.0))
 	for at: Vector2 in [Vector2(14.0, -12.0), Vector2(20.0, -12.5)]:
@@ -1021,6 +1022,10 @@ func _path(sec: ZoneSectionData, points: Array, width: float, texture: String, l
 		sec.grounds.append(g)
 
 
+const FRINGE := {"planks.png": 0, "paving.png": 2, "road_cobble.png": 2}
+const FLAT_PROPS := ["fern", "grass", "reeds"]
+
+
 func _ground(sec: ZoneSectionData, at: Vector2, size: Vector2, texture: String, round: bool = false, layer: int = 0,
 		edge: float = 0.5, solid: bool = false, tint: Color = Color(1, 1, 1), deep: Color = Color(0.04, 0.1, 0.09)) -> void:
 	var g := ZoneGroundData.new()
@@ -1034,6 +1039,8 @@ func _ground(sec: ZoneSectionData, at: Vector2, size: Vector2, texture: String, 
 	g.tint = tint
 	g.deep_color = deep
 	g.solid = solid
+	# Hard-edged ground (boards, slabs) keeps its edge; earth, moss and leaves fade into the floor.
+	g.fringe_pixels = FRINGE.get(texture.get_file(), g.fringe_pixels)
 	sec.grounds.append(g)
 
 
@@ -1044,6 +1051,8 @@ func _p(sec: ZoneSectionData, sprite: String, at: Vector2, pixel: float, solid: 
 	prop.sprite_path = ENV + sprite + ".png"
 	prop.position = Vector3(snappedf(at.x, 0.01), 0.0, snappedf(at.y, 0.01))
 	prop.pixel_size = pixel
+	# Ground cover gets no contact shadow (a blob under every fern would dirty the floor).
+	prop.contact_shadow = not FLAT_PROPS.has(sprite)
 	prop.solid_radius = solid
 	prop.flip = flip
 	prop.sway = sway
