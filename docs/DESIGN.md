@@ -2871,7 +2871,9 @@ upgrade to take blindly.
   the seat up and the heroes are dealt out again. The players screen drops pads that are gone
   (`drop_missing`) so a run never starts with a ghost player.
 - **Window focus** (card #181): alt-tab, the Steam overlay or a notification pauses a fight (after
-  the current move) or a zone, solo and local co-op. Never online, where the others play on.
+  the current move) or a zone, solo and local co-op. Never online, where the others play on. The
+  pause is opened on the next idle moment, never inside the focus event (card #208: focus lost
+  while a zone was being built made the pause menu fail to appear, holding the game still).
 - **Walking** (card #184): the move actions use a stick deadzone of 0.2 (menus and buttons keep
   0.5). The walk reads the stick as one vector with a radial deadzone, solo, online and co-op alike
   (`DeviceInput.radial_deadzone`), so a diagonal push no longer snaps to an axis.

@@ -1604,7 +1604,9 @@ func _notification(what: int) -> void:
 		return
 	if Net.is_online() or _options == null or _options.is_autoplay():
 		return
-	_pause_game()
+	# Deferred (card #208): focus can go while Main is adding a child (entering a zone), and a pause
+	# menu added then fails, leaving the game held still behind a menu that never appeared.
+	_pause_game.call_deferred()
 
 
 # --- pause ------------------------------------------------------------------------------------
