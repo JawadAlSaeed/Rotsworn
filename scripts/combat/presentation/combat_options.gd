@@ -16,6 +16,9 @@ extends RefCounted
 ##   --run                           start a new run at once (DESIGN.md 8)
 ##   --save-path=PATH                (dev tool) keep the run save at PATH (a user:// path); the bot
 ##                                   never touches the player's real save, so it saves only with this
+##   --journal-path=PATH             (dev tool) keep the Rot Journal at PATH (a user:// path); with it
+##                                   every fight counts (bots and practice too), without it only a
+##                                   person's run fights are written, to the real journal
 ##   --continue                      continue the run save at once (with --save-path for the bot)
 ##   --players=N                     co-op with N players (1 to 3), one pretend pad each, heroes
 ##                                   split evenly (DESIGN.md 9.1; for the autoplay bot)
@@ -24,7 +27,7 @@ extends RefCounted
 ##   --leave-after=S                 (with --join) leave the game after S seconds and quit
 ##   --shots=S                       save a picture of the window every S seconds (dev tool)
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
-##                                   title, credits, party, heroes, attributes, skills, calibration,
+##                                   title, credits, journal, party, heroes, attributes, skills, calibration,
 ##                                   tutorial, map, map_start, map_act2, shop, campfire,
 ##                                   event, treasure
 ##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the
@@ -59,6 +62,8 @@ var run: bool = false
 var continue_run: bool = false
 ## --save-path=PATH ("" : the real save, and no saving for the bot).
 var save_path: String = ""
+## --journal-path=PATH ("" : the real journal, and no recording for bots or practice fights).
+var journal_path: String = ""
 ## --oath=N: the oath a bot run (--run) or an autoplay host plays at (-1: none given, the lobby's pick).
 var oath: int = -1
 ## Players from --players (1 = solo).
@@ -124,6 +129,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.continue_run = true
 		elif arg.begins_with("--save-path="):
 			options.save_path = arg.substr("--save-path=".length())
+		elif arg.begins_with("--journal-path="):
+			options.journal_path = arg.substr("--journal-path=".length())
 		elif arg.begins_with("--oath="):
 			var level := arg.substr("--oath=".length())
 			if level.is_valid_int() and level.to_int() >= 0:

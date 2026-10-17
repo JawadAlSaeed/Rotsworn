@@ -75,6 +75,8 @@ var _screen: Node
 var _prompt: ConfirmPrompt
 var _pause: PauseMenu
 var _zone: ZoneController
+## The display name of the zone being played (the journal's "met at").
+var _zone_name: String = ""
 var _run_bar: RunPartyBar
 var _transition: ScreenTransition
 ## The run in progress (null outside a run).
@@ -265,6 +267,8 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_title()
 		"credits":
 			_show_credits()
+		"journal":
+			_show_journal()
 		"party":
 			_show_sample_backpack()
 		"attributes":
@@ -553,6 +557,8 @@ func _on_menu_chosen(item: StringName) -> void:
 			_show_join.call_deferred()
 		MainMenu.PRACTICE:
 			_show_lobby.call_deferred(_show_select.call_deferred)
+		MainMenu.JOURNAL:
+			_show_journal.call_deferred()
 		MainMenu.SETTINGS:
 			_show_settings.call_deferred()
 		MainMenu.CREDITS:
@@ -637,6 +643,31 @@ func _show_settings() -> void:
 	settings.setup(_tuning, _visuals)
 	settings.closed.connect(_show_main_menu.call_deferred)
 	_show_screen(settings)
+
+
+## The Rot Journal (card #200): what the player has met, read from the journal file when it opens.
+func _show_journal() -> void:
+	var screen := JournalScreen.new()
+	screen.name = "Journal"
+	screen.setup(JournalFile.load_journal(_journal_path()).journal as RotJournal, JournalScreen.load_enemies())
+	screen.closed.connect(_show_main_menu.call_deferred)
+	_show_screen(screen)
+
+
+## Where the journal lives: --journal-path=PATH (dev tool), else the real file.
+func _journal_path() -> String:
+	return _options.journal_path if not _options.journal_path.is_empty() else JournalFile.PATH
+
+
+## Writes the fight that just ended into the journal, if it counts (RotJournal.counts_fight), from
+## what the presentation saw (the controller's mirror), never from the engine.
+func _record_journal(fight: Dictionary) -> void:
+	if not RotJournal.counts_fight(_run != null, _options.is_autoplay(), _tutorial != null,
+			not _options.journal_path.is_empty()):
+		return
+	var where := _zone_name if not _zone_fight.is_empty() else (_encounter.display_name if _encounter != null else "")
+	if not JournalFile.record(fight, where, _journal_path()):
+		push_warning("Main: the Rot Journal could not be written")
 
 
 ## The credits (card #87), to their own song; Back returns to the main menu.
@@ -749,6 +780,7 @@ func _start_combat() -> void:
 func _on_combat_finished(result: String) -> void:
 	if _combat != null:
 		_last_recap = _combat.recap()
+		_record_journal(_combat.journal_fight())
 		_last_recap_name = _encounter.display_name if _encounter != null else ""
 	_close_decided_run(result)
 
@@ -783,6 +815,7 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone_fight = {}
 	_zone = ZoneController.new()
 	_zone.name = "Zone"
+	_zone_name = zone.display_name
 	# A long zone is laid out anew each visit (DESIGN.md 8.5); in a run the same on every machine.
 	var layout_seed := randi_range(1, 2147483646)
 	if _run != null:

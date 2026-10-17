@@ -2,7 +2,8 @@ class_name MainMenu
 extends CanvasLayer
 ## The main menu (DESIGN.md 7.5), after the title screen: the logo, then Continue (only when a run
 ## is saved, DESIGN.md 8.14), start a run, play online
-## (DESIGN.md 9.2), practice (the tutorial, fights and zones), settings, credits, quit. Up/down
+## (DESIGN.md 9.2), practice (the tutorial, fights and zones), the Rot Journal (7.11), settings,
+## credits, quit. Up/down
 ## picks, confirm opens it. No button bar here (card #130: the user found it clutter). Kept short
 ## (card #150): Online opens a second list in place, Host or Join (cancel goes back), and the
 ## tutorial is the first card in Practice.
@@ -16,10 +17,11 @@ const ONLINE := &"online"
 const HOST_ONLINE := &"host_online"
 const JOIN_ONLINE := &"join_online"
 const PRACTICE := &"practice"
+const JOURNAL := &"journal"
 const SETTINGS := &"settings"
 const CREDITS := &"credits"
 const QUIT := &"quit"
-const ITEMS: Array[StringName] = [NEW_RUN, ONLINE, PRACTICE, SETTINGS, CREDITS, QUIT]
+const ITEMS: Array[StringName] = [NEW_RUN, ONLINE, PRACTICE, JOURNAL, SETTINGS, CREDITS, QUIT]
 const CONTINUE_DETAIL := "Pick the saved run up where you left it."
 ## The Online list; the last row goes back.
 const ONLINE_ITEMS: Array[StringName] = [HOST_ONLINE, JOIN_ONLINE]
@@ -72,6 +74,7 @@ func _show_main(item: StringName) -> void:
 		{"text": "New Run", "detail": "About 8 stops: zones, shops and rests, then the final fight."},
 		{"text": "Online", "detail": "Host a run friends join from their own PCs, or join theirs."},
 		{"text": "Practice", "detail": "The tutorial, and any fight or zone on its own at full HP."},
+		{"text": "Journal", "detail": "Every enemy and attack you have met, and how you fared."},
 		{"text": "Settings", "detail": "Graphics, sound, controls and lag calibration."},
 		{"text": "Credits", "detail": "Who made the game, and whose music and sounds it uses."},
 		{"text": "Quit", "detail": ""},

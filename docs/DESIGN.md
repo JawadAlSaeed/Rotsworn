@@ -1458,7 +1458,7 @@ browser at exactly 1920x1080, 60 fps, with its own WAV, Theora quality 10. The v
 are scaled smoothly (linear filter; the project's default is nearest, for pixel art).
 
 - **Main menu** (first screen, `MainMenu`): New Run, Online, Practice (the tutorial card first,
-  then the fight and zone list, full HP, nothing carries over), Settings, Credits, Quit. The
+  then the fight and zone list, full HP, nothing carries over), Journal (7.11), Settings, Credits, Quit. The
   cursor comes back on the last item picked. Card #150 (user, 2026-10-15): kept to six rows;
   Online opens a second list in place (Host Online, Join Online, Back; cancel goes back) and
   the tutorial moved from the menu into Practice.
@@ -1752,6 +1752,53 @@ only the mirror (`charge_left`, `charge_damage`, `break_hp`, `staggered` on the 
   over its head when the stagger ends.
 - Sounds reuse existing cues named in the data (`doom_gather_sfx`, `doom_unleash_sfx`,
   `broken_sfx`, `stagger_sfx`).
+
+### 7.11 The Rot Journal (card #200, review ui-input #9)
+
+A book of every enemy and attack the player has met, from the main menu row "Journal" (Slay the
+Spire's compendium). It is a reference and a record, not a reward: nothing in it changes a fight.
+
+- **Screen** (`JournalScreen`, `scripts/menu/`, `--screen=journal`): the menu backdrop, a worn-gold
+  "Rot Journal" title, the progress line ("Met 7 of 19 enemies"), then two parts. Left, a `ListMenu`
+  of every enemy in `data/enemies/` (alphabetical; one never met reads "???" and is dimmed). Right,
+  the chosen enemy in an ink plate: its portrait (a dark silhouette until met), name, "Met in N
+  fights, Beaten N times", where it was met (zone names, or the fight's name for a lair or elite,
+  the first six), then one row per attack it can ever use (phase-two ones too). A row shows the
+  attack's name, the hit kinds seen (Normal, Ground, Rend, Sweep), the marks seen (ROT, BLIGHT,
+  WEAK, AP DRAIN, in the HUD's colours), a red DOOM tag for a Charged Doom, and the player's record
+  against it: parried, dodged, jumped, hit (and broken, for a Doom). An attack never seen reads "???"
+  with nothing else. A legend line under the rows says what answers each kind. Up/down chooses,
+  Back closes (`HintBar` at the foot); keyboard and pad like every menu. Everything fits 1920x1080
+  (a test measures the fullest page).
+- **What is recorded.** `JournalTally` (`scripts/journal/`) is fed by `CombatMirror.apply` with
+  every event in playback order, exactly as `FightRecap` is (CLAUDE.md rule 7: presentation reads
+  events, never the engine; online clients record their own identical copy). It counts per enemy
+  type (the data id): fights it was in, copies that went down, and per attack: times it struck, each
+  hit's kind and mark as declared (a hard fight's forced rends and sweeps show as such), and the
+  outcome of every hit aimed at the party (parried, dodged, jumped, or hit). A Doom the party broke
+  counts as broken. Counts are in hits, like the RUN OVER recap. When the fight ends, `Main` hands
+  `CombatController.journal_fight()` to `JournalFile.record`. A fight left half way (the window
+  closed) is not recorded.
+- **What counts.** A person's fights in a run (zone fights, elites, guards, bosses; won, lost or
+  fled). **Practice fights, the tutorial and bots write nothing** (`RotJournal.counts_fight`):
+  practice has invulnerable and immortal cheats and lists every fight, so counting it would unlock
+  the whole book in minutes and mix cheated numbers into a record; a bot's numbers say nothing
+  about the player. `--journal-path=PATH` (dev tool) keeps the journal at a `user://` path and
+  makes every fight count, bots and practice included: how the headless smoke runs fill a journal
+  without touching the real one.
+- **File** (`JournalFile`, `RotJournal`): `user://journal.json`, per machine, separate from the run
+  save and from settings. `{format: 1, journal: {enemies: {id: {name, met, beaten, places, attacks:
+  {id: {name, seen, broken, parried, dodged, jumped, hit, kinds, marks}}}}}}`. Written like
+  `RunSave`: temp file, flush, old file kept as `.bak` until the new one is in place; a load falls
+  back to the `.bak` when the file is missing or damaged. A file of another `format` is refused,
+  kept as it is, and never written over (a newer build may still read it); a damaged file with no
+  backup starts a new journal. Loading drops junk (wrong types count 0, unknown kinds are ignored)
+  and clamps every count to 999999. It does not carry the content fingerprint: an entry names an
+  enemy and an attack by id, and the screen shows what the current data still knows (a renamed or
+  removed id simply no longer shows). No migration exists yet; `format` is there for the first
+  change of shape. The journal is local: an online player's book is their own.
+- **Not in it (yet):** per-hero records, damage dealt, the loot an enemy drops, and sorting or
+  filtering. Entries are never reset by a new run; delete `journal.json` to start the book again.
 
 ## 8. Run structure (phase 4)
 
@@ -3266,3 +3313,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Charged Dooms: each guard and act boss has one signature Doom (Gorge Burst, Brood Tide, Ashfall, Timber Fall, Crown of Rot), announced with a countdown (2 or 3 enemy turns) the party can break by dealing a share of the enemy's max HP (13% to 45%): the Doom is cancelled and the enemy loses its next turn and takes +50% damage; unbroken it unleashes as a party-wide string of 8 to 10 hits with rends and sweeps; delay skills never reset the countdown; never the first pick of a fight, cooldown 2, about one per 4 to 6 boss turns; the bots focus the gatherer | card #195 (review: combat-rules-ai #9, E33 break meets Slay the Spire intent); the owner wants it hard but readable; break shares set from bot runs, to retune from play |
 | 2026-10-17 | Rot-touched gear: twelve strong pieces that each cost something (Rotten Crown, Gravebound Ring, Hunger Charm, Last Ember, Ash Veil, Thorned Gauntlet, Oathbreaker's Band, Chain of Silence, Bloodletter's Fang, Hollow Mantle, Pale Tithe, Plague Bell), in their own violet colour, as a `rot_touched` flag and a data-driven drawback on `GearData`; elite and boss spoils always offer one among their choices (never as the only choice), shops and chests weigh them 35%; Tonics cannot be combined or upgraded, so the 2-Tonic cap really limits max HP | card #198 (Slay the Spire boss relics, Expedition 33 Pictos; the owner wants it hard). A "skills cost +1 AP" drawback was left out (it touches the core's cost checks and the HUD); "1 AP less at fight start" instead. Numbers are first guesses, to retune from play (8.16) |
 | 2026-10-17 | Every "?" event and each act's ambush page has its own painted 128x64 scene (`sprites/events/`, drawn by `art_kit/assets/event_art.py`: a flat dithered back plus a 3D-rendered subject, one palette, at most 96 colours); the event screen shows it at scale 4 in a thin worn-gold frame (`StopVisuals`, `stop_visuals.tres`), nearest filter, with the old question mark as the fallback for a missing file | card #199; the owner found the tiny question mark in a black void flat, and each event is a story worth seeing (8.7) |
+| 2026-10-17 | The Rot Journal: a main-menu book of every enemy and attack the player has met (portrait or silhouette, where met, times beaten, each attack's hit kinds, marks and Doom, and the player's parried, dodged, jumped and hit counts), recorded from the presentation's event stream into its own `user://journal.json` (versioned, atomic, `.bak`); only a person's run fights count, practice, the tutorial and bots do not (a dev `--journal-path` makes everything count) | card #200 (review ui-input #9, Slay the Spire's compendium): a hard game should let the player study what beat them; practice stays out because its cheats and its full fight list would unlock and pollute the book (7.11) |

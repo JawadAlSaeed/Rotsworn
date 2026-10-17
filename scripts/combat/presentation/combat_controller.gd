@@ -1076,6 +1076,11 @@ func recap() -> Dictionary:
 	return mirror.recap.to_dict()
 
 
+## What the fight adds to the Rot Journal (JournalTally.to_dict), read from the mirror (rule 7).
+func journal_fight() -> Dictionary:
+	return mirror.journal.to_dict()
+
+
 func _summary_text() -> String:
 	var text := "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d\nskill presses: perfect %d, good %d" % [
 			_enemy_hits.size(), int(_defended.get(Defense.Outcome.PARRY, 0)),
