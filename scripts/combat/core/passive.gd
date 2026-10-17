@@ -28,8 +28,25 @@ const ROT := "rot"
 ## Adds this many points to the critical hit chance (Luck, DESIGN.md 8.2).
 const CRIT := "crit"
 
+## Rot-touched gear (DESIGN.md 8.16). Their drawbacks are the same keys with a negative amount, so
+## START_AP, COUNTER, PERFECT_PRESS, EXPOSED, TOUGH (hits deal MORE) and HEAL can also be below 0.
+## Healing this character receives is this percent stronger (negative: weaker).
+const HEAL_TAKEN := "heal_taken"
+## Every kill this character makes heals them this percent of their max HP.
+const KILL_HEAL := "kill_heal"
+## Power +this percent while their HP is under tuning.rot_low_hp_percent of their max.
+const LOW_HP_POWER := "low_hp_power"
+## AP gained on each dodge (the base is 0).
+const DODGE_AP := "dodge_ap"
+## AP gained on each parry, added to tuning.ap_per_parry (negative: the parry gives less, never below 0).
+const PARRY_AP := "parry_ap"
+## An enemy hit that lands on this character hurts the enemy for this percent of the damage dealt.
+const THORNS := "thorns"
+## The team gauge this character's skills and follow-ups fill is this percent bigger.
+const GAUGE := "gauge"
+
 const ALL: Array[String] = [START_AP, AP_ON_COUNTER, HEAL_ON_JUMP, COUNTER, SECOND_WIND, PERFECT_PRESS, EXPOSED,
-	TOUGH, HEAL, ROT, CRIT]
+	TOUGH, HEAL, ROT, CRIT, HEAL_TAKEN, KILL_HEAL, LOW_HP_POWER, DODGE_AP, PARRY_AP, THORNS, GAUGE]
 
 
 static func amount(c: Combatant, key: String) -> int:

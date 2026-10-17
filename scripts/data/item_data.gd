@@ -93,9 +93,10 @@ func is_charm() -> bool:
 	return kind == Kind.CHARM
 
 
-## True if two of it can be combined into a stronger one (consumables and charms).
+## True if two of it can be combined into a stronger one (consumables and charms). Not the Tonic: a
+## stronger Tonic would give more max HP per drink and get round tonic_max_per_hero (card #198).
 func combinable() -> bool:
-	return kind == Kind.CONSUMABLE or kind == Kind.CHARM
+	return (kind == Kind.CONSUMABLE and effect != Effect.MAX_HP_ONE) or kind == Kind.CHARM
 
 
 ## True if it can be used in a fight.

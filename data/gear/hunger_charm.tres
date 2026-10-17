@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_esr3c"]
+
+[resource]
+script = ExtResource("1_esr3c")
+id = "hunger_charm"
+display_name = "Hunger Charm"
+description = "Each kill heals you 8% of your max HP, but the campfire's Rest heals you nothing."
+price = 90
+rarity = 1
+effect = 14
+amount = 8
+rot_touched = true
+drawback = 21
+drawback_amount = 100

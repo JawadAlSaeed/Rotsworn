@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_u7b5j"]
+
+[resource]
+script = ExtResource("1_u7b5j")
+id = "bloodletters_fang"
+display_name = "Bloodletter's Fang"
+description = "Critical hit chance +25%, but you lose 4% max HP at the start of each of your turns."
+price = 90
+rarity = 1
+effect = 23
+amount = 25
+rot_touched = true
+drawback = 20
+drawback_amount = 4

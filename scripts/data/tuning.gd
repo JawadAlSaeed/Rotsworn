@@ -361,6 +361,15 @@ extends Resource
 @export_range(0, 6) var run_shop_charms: int = 2
 ## Gear slots per character.
 @export_range(1, 6) var run_gear_slots: int = 3
+## Rot-touched gear (DESIGN.md 8.16): strong pieces with a price. Spoils (elite, boss) offer this
+## many of them among their choices when the run has some left (never the only choice).
+@export_range(0, 3) var rot_gear_spoils_count: int = 1
+## Where rot-touched gear competes with the rest (shop shelves, chest prizes) its weight is this
+## percent of a normal piece's, so shops sell it rarely.
+@export_range(0, 100, 1, "suffix:%") var rot_gear_weight_percent: int = 35
+## Last Ember style gear (Passive.LOW_HP_POWER) works while the wearer's HP is under this percent
+## of their max.
+@export_range(1, 99, 1, "suffix:%") var rot_low_hp_percent: int = 30
 
 @export_group("Backpack")
 ## The party's shared backpack grid (DESIGN.md 8.1): this many cells wide and this many rows tall

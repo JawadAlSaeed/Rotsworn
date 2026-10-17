@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_7usf7"]
+
+[resource]
+script = ExtResource("1_7usf7")
+id = "ash_veil"
+display_name = "Ash Veil"
+description = "Each dodge gives +1 AP, but a parry gives no AP."
+price = 80
+rarity = 1
+effect = 16
+amount = 1
+rot_touched = true
+drawback = 17
+drawback_amount = 1

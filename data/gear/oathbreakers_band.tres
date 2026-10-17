@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_cu5pr"]
+
+[resource]
+script = ExtResource("1_cu5pr")
+id = "oathbreakers_band"
+display_name = "Oathbreaker's Band"
+description = "+2 AP at the start of every fight, but you lose 5% max HP after each fight won."
+price = 110
+rarity = 2
+effect = 3
+amount = 2
+rot_touched = true
+drawback = 22
+drawback_amount = 5

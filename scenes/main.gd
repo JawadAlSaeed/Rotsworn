@@ -2464,11 +2464,15 @@ func _autoplay_stop_gifts(screen: StopScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 
 
-## Autoplay after a guard: takes the first item.
+## Autoplay after a guard: takes the rarest piece, a rot-touched one when its price is bearable
+## (GearBot, DESIGN.md 8.16).
 func _autoplay_loot(loot: LootScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if is_instance_valid(loot):
-		loot.take(0)
+		var index := GearBot.pick(loot.choices())
+		if index < loot.choices().size():
+			print("Run loot: took %s" % loot.choices()[index].id)
+		loot.take(index)
 
 
 ## Autoplay: every hero spends their new attribute points evenly (DESIGN.md 8.2) and learns the
