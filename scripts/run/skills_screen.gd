@@ -147,7 +147,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_build_tree()
 			_redraw()
 		return
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu") or _pressed(event, &"party_skills"):
+	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu") or _pressed(event, &"party_skills") or MenuMouse.is_back(event):
 		_handled()
 		Sfx.play("menu_cancel")
 		close()

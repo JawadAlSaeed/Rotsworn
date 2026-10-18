@@ -444,6 +444,7 @@ func _process(delta: float) -> void:
 		_net_host_tick(delta)
 	if not _options.is_autoplay():
 		_watch_pads()
+		MouseCursor.set_menus_allowed(_mouse_wanted())
 	# Autoplay guard: a zone that never reaches a fight is stuck.
 	if not _options.is_autoplay() or _zone == null or not _zone.is_inside_tree() or _zone.is_frozen():
 		_zone_idle_s = 0.0
@@ -452,6 +453,19 @@ func _process(delta: float) -> void:
 	if _zone_idle_s > AUTOPLAY_ZONE_STUCK_S:
 		_zone_idle_s = 0.0
 		_autoplay_fail("zone_stuck")
+
+
+## True on every menu (the main menu, run screens, pause, settings, the backpack over a zone) and
+## false while a fight or a zone is being played: those are keyboard and pad games, so the mouse
+## pointer stays hidden there (card #202).
+func _mouse_wanted() -> bool:
+	if _pause != null or _prompt != null or _overlay != null:
+		return true
+	for child: Node in get_children():
+		if child is SettingsScreen:
+			return true
+	var playing := (_combat != null and _combat.is_inside_tree()) or (_zone != null and _zone.is_inside_tree())
+	return not playing
 
 
 # --- screens ----------------------------------------------------------------------------------

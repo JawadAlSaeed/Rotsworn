@@ -20,6 +20,8 @@ const STOP_CLEAR: float = 14.0
 const START_CLEAR: float = 6.0
 ## Half the start cross (art pixels).
 const START_MARK: int = 3
+## How far past a stop's picture the pointer still counts as on it (screen pixels).
+const STOP_POINT_SLACK: int = 12
 
 var _run: RunState
 var _look: MapVisuals
@@ -180,6 +182,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_time_ms = _intro_ms()
 				_scroll = _target
 				return
+	if event is InputEventMouse and not is_unrolling() and _mouse_input(event):
+		return
 	if event is InputEventMouseButton and event.pressed and not is_unrolling():
 		var wheel := 0.0
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -228,6 +232,49 @@ func _pressed(event: InputEvent, action: StringName) -> bool:
 	if not event.is_action_pressed(action, false, true):
 		return false
 	return not (event is InputEventJoypadMotion) or Input.is_action_just_pressed(action)
+
+
+## The mouse (card #202): pointing at one of the next stops picks it (the map does not scroll
+## under the pointer), a left click goes there, a right click or the back button opens the pause
+## menu. The wheel scrolls (below). True when the event was used.
+func _mouse_input(event: InputEvent) -> bool:
+	if event is InputEventMouseMotion:
+		var hovered := _choice_at((event as InputEventMouse).position)
+		if hovered >= 0 and hovered != _sel:
+			_sel = hovered
+			_follow_focus = false
+			Sfx.play("menu_move")
+			_update_detail()
+			get_viewport().set_input_as_handled()
+			return true
+	elif MenuMouse.is_click(event):
+		var clicked := _choice_at((event as InputEventMouse).position)
+		if clicked >= 0:
+			get_viewport().set_input_as_handled()
+			choose(_choices[clicked])
+			return true
+	elif MenuMouse.is_back(event):
+		get_viewport().set_input_as_handled()
+		Sfx.play("menu_cancel")
+		quit_requested.emit()
+		return true
+	return false
+
+
+## The next stop (index into the choices) whose picture is under the viewport `point`, -1 for none.
+## Stops scrolled out of the open part of the paper cannot be pointed at.
+func _choice_at(point: Vector2) -> int:
+	if _choices.is_empty() or MenuMouse.control_at([_view], point) < 0:
+		return -1
+	var origin := _origin()
+	var to_screen := _canvas.get_global_transform_with_canvas()
+	var centres: Array[Vector2] = []
+	var radius := 0.0
+	for id: int in _choices:
+		var icon: Texture2D = _icons[id]
+		radius = maxf(radius, maxf(icon.get_size().x, icon.get_size().y) * 0.5 * float(_look.pixel_scale))
+		centres.append(to_screen * _at(origin, Vector2(_centres[id])))
+	return MenuMouse.nearest_within(centres, point, radius + float(STOP_POINT_SLACK))
 
 
 ## What the chosen stop is, in words.

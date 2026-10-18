@@ -7,9 +7,9 @@ extends Node
 ## Holds what belongs to this machine and player rather than to the game's balance: the measured
 ## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
 ## the volumes (overall, music, effects, voices), the display and graphics options, screen shake and
-## flashes (settings screen, cards #112 and #185), the highest oath unlocked (DESIGN.md 8.15), the
-## last host address joined online, the rebound keys and buttons (card #190, ControlBindings). Anything not
-## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
+## flashes (settings screen, cards #112 and #185), the text size (card #203), the highest oath
+## unlocked (DESIGN.md 8.15), the last host address joined online, the rebound keys and buttons
+## (card #190, ControlBindings). Anything not saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
 ## The game was called "Rotten Lands" before (card #48), and Godot keeps user:// in a folder named
@@ -52,6 +52,10 @@ const GRAPHICS := {
 const SECTION_GAME := "game"
 const KEY_SHAKE := "screen_shake_percent"
 const KEY_FLASH := "flash_mode"
+const KEY_TEXT_SIZE := "text_size"
+## The Text size setting (card #203): names of the steps. The percents live in
+## data/presentation/ui_fonts.tres (UiFonts.text_size_percents), one per name.
+const TEXT_SIZE_NAMES: Array[String] = ["Normal", "Large", "Larger"]
 ## The Flashes setting (card #185): how strong screen flashes and white hit flashes are. The
 ## numbers for Reduced and Off live in data/presentation/combat_visuals.tres.
 const FLASH_FULL: int = 0
@@ -81,10 +85,12 @@ func _ready() -> void:
 	apply_volume()
 	apply_fullscreen()
 	apply_frame_options()
-	# Before any screen reads the Input Map: the rebound keys and buttons (card #190).
-	# A test run (godot -s) keeps the project's own keys, whatever this machine has saved.
+	# Before any screen reads the Input Map: the rebound keys and buttons (card #190), and before any
+	# text is built: the text size (card #203).
+	# A test run (godot -s) keeps the project's own keys and text size, whatever this machine has saved.
 	if not OS.get_cmdline_args().has("-s") and not OS.get_cmdline_args().has("--script"):
 		ControlBindings.install(control_overrides())
+		apply_text_size()
 
 
 ## Lag compensation in ms: the calibrated value if there is one (kept within tuning's
@@ -315,6 +321,25 @@ static func flash_mode() -> int:
 static func set_flash_mode(value: int) -> void:
 	_settings().set_value(SECTION_GAME, KEY_FLASH, posmod(value, FLASH_NAMES.size()))
 	_save()
+
+
+## The text size step: 0 Normal (default), 1 Large, 2 Larger. A bad saved value reads as Normal.
+static func text_size_index() -> int:
+	var index := int(_settings().get_value(SECTION_GAME, KEY_TEXT_SIZE, 0))
+	return index if index >= 0 and index < TEXT_SIZE_NAMES.size() else 0
+
+
+## Sets the text size; the number wraps around (Right on Larger goes to Normal). Text built from
+## now on uses it (HudStyle.scaled).
+static func set_text_size_index(value: int) -> void:
+	_settings().set_value(SECTION_GAME, KEY_TEXT_SIZE, posmod(value, TEXT_SIZE_NAMES.size()))
+	_save()
+	apply_text_size()
+
+
+## Gives the saved text size to HudStyle (start-up, and whenever it changes).
+static func apply_text_size() -> void:
+	HudStyle.set_text_size_index(text_size_index())
 
 
 ## The host address typed last on the Join Online screen.
