@@ -31,6 +31,9 @@ signal combat_finished(result: String)
 ## A pause asked for with request_pause() can start now: nothing is being timed. Main stops this
 ## node (process disabled) and shows the pause menu; resume_after_pause() goes on.
 signal pause_reached
+## Online host: the fight is between moves and client `peer`, who joined again, gets the fight as it
+## stands now (Main gives the player their seat back first, so the roster arrives before it).
+signal resume_ready(peer: int)
 
 enum NetMode { LOCAL, HOST, CLIENT }
 
@@ -106,6 +109,10 @@ var _net_mode: int = NetMode.LOCAL
 var _fight_seed: int = -1
 ## Host: the referee for clients' prompts.
 var _arbiter: DefenseArbiter
+## Host: clients who joined again mid-fight and wait for the next quiet moment to get the fight.
+var _resume_peers: Array[int] = []
+## Client (rejoined mid-fight): batches are skipped until the host's "resume" batch arrives.
+var _resume_pending: bool = false
 ## Online: timing batches for a sequence this machine has not started yet: [{seq, events}].
 var _timing_inbox: Array[Dictionary] = []
 ## Client: the turn a party member waits for a choice in (-1: none), and the turn a choice was
@@ -202,6 +209,40 @@ func update_players(players: PlayerRoster, gone_peer: int = -1) -> void:
 		_maybe_open_menu()
 
 
+## Online client that joined again mid-fight (card #205): this machine missed the fight so far.
+## Everything before the host's "resume" batch (the fight as it stands) is skipped.
+func expect_resume() -> void:
+	_resume_pending = true
+
+
+## Online host: client `peer` joined again mid-fight; it gets the fight at the next moment nothing
+## is being timed (a hero's turn, or the end), never in the middle of an attack.
+func queue_resume(peer: int) -> void:
+	if _net_mode != NetMode.HOST or _resume_peers.has(peer):
+		return
+	_resume_peers.append(peer)
+	_try_resume.call_deferred()
+
+
+## Online host: client `peer` went away again before it got the fight.
+func cancel_resume(peer: int) -> void:
+	_resume_peers.erase(peer)
+
+
+func _try_resume() -> void:
+	if _net_mode != NetMode.HOST or engine == null or _resume_peers.is_empty():
+		return
+	var events := engine.resume_events()
+	if events.is_empty():
+		return
+	var peers := _resume_peers.duplicate()
+	_resume_peers.clear()
+	for peer: int in peers:
+		resume_ready.emit(peer)
+		Net.send_to(peer, "combat", {"kind": "resume", "seq": -1, "events": events})
+		print("Fight resumed for peer %d at turn %d" % [peer, engine.turn_number])
+
+
 ## Online: a batch of events from the host ({kind, seq, events}).
 func receive_batch(payload: Dictionary) -> void:
 	if _net_mode != NetMode.CLIENT or not payload.get("events") is Array:
@@ -210,7 +251,15 @@ func receive_batch(payload: Dictionary) -> void:
 	for ev: Variant in payload.events:
 		if ev is Dictionary:
 			events.append(ev as Dictionary)
-	if String(payload.get("kind", "")) == "timing":
+	var kind := String(payload.get("kind", ""))
+	if _resume_pending or kind == "resume":
+		# Joined again mid-fight: what came before the fight as it stands is already in it.
+		if kind == "resume" and _resume_pending:
+			_resume_pending = false
+			_timing_inbox.clear()
+			_enqueue(events)
+		return
+	if kind == "timing":
 		_route_timing(int(payload.get("seq", -1)), events)
 	else:
 		_enqueue(events)
@@ -464,6 +513,8 @@ func _host_sent(events: Array[Dictionary], kind: String, seq: int) -> void:
 	if events.is_empty():
 		return
 	Net.broadcast("combat", {"kind": kind, "seq": seq, "events": events})
+	if not _resume_peers.is_empty():
+		_try_resume.call_deferred()
 	for ev: Dictionary in events:
 		match String(ev.get("type", "")):
 			"combat_started":

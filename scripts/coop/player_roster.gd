@@ -26,6 +26,10 @@ var owners: Array[int] = []
 var peers: Array[int] = []
 ## Online: the peer id of this machine.
 var local_peer: int = 0
+## Online, mid-run: players whose machine lost the connection (DESIGN.md 9.2). They keep their seat
+## (and their heroes in `owners`) for the rejoin grace time; meanwhile the host (P1) plays those
+## heroes (owner_of() says so).
+var away: Array[int] = []
 
 
 ## One player owning every hero. `device` is the one that started it (any device still works).
@@ -52,12 +56,13 @@ func copy() -> PlayerRoster:
 	roster.owners = owners.duplicate()
 	roster.peers = peers.duplicate()
 	roster.local_peer = local_peer
+	roster.away = away.duplicate()
 	return roster
 
 
 ## The roster as plain data, to send over the network (local_peer is not sent: it is per machine).
 func to_dict() -> Dictionary:
-	return {"devices": Array(devices), "owners": Array(owners), "peers": Array(peers)}
+	return {"devices": Array(devices), "owners": Array(owners), "peers": Array(peers), "away": Array(away)}
 
 
 ## A roster from to_dict() data, seen from machine `p_local_peer`. Null if the data is malformed.
@@ -72,6 +77,12 @@ static func from_dict(d: Dictionary, p_local_peer: int) -> PlayerRoster:
 	roster.devices.assign(d.devices)
 	roster.owners.assign(d.owners)
 	roster.peers.assign(d.peers)
+	# "away" came with rejoining (card #205); an older message without it has nobody away.
+	if d.get("away") is Array:
+		for v: Variant in d.away:
+			if typeof(v) != TYPE_INT:
+				return null
+		roster.away.assign(d.away)
 	roster.local_peer = p_local_peer
 	if not roster.validate().is_empty():
 		return null
@@ -172,18 +183,60 @@ func drop_missing(connected: Array[int]) -> int:
 	return changed
 
 
-## The player who controls hero `slot` (0 for an unknown slot, so a bigger party still plays).
+## The player who controls hero `slot` now (0 for an unknown slot, so a bigger party still plays).
+## A hero whose player is away is played by the host (P1) until they are back.
 func owner_of(slot: int) -> int:
+	var player := seat_of(slot)
+	return 0 if away.has(player) else player
+
+
+## The player whose seat hero `slot` belongs to, away or not (0 for an unknown slot).
+func seat_of(slot: int) -> int:
 	return owners[slot] if slot >= 0 and slot < owners.size() else 0
 
 
-## The hero slots player `player` controls, in slot order.
+## The hero slots player `player` controls now, in slot order (none while they are away).
 func heroes_of(player: int) -> Array[int]:
 	var list: Array[int] = []
 	for slot: int in owners.size():
-		if owners[slot] == player:
+		if owner_of(slot) == player:
 			list.append(slot)
 	return list
+
+
+## Online, mid-run: peer `peer` lost the connection. Their seat and heroes stay theirs; the host
+## plays the heroes meanwhile. False for the host, an unknown peer, or one already away.
+func set_away(peer: int) -> bool:
+	var player := peers.find(peer)
+	if player <= 0 or away.has(player):
+		return false
+	away.append(player)
+	away.sort()
+	return true
+
+
+func is_away(player: int) -> bool:
+	return away.has(player)
+
+
+## Online: the player who had peer `old_peer` came back as `new_peer` (a new connection has a new
+## id). They stay away (the host still plays their heroes) until set_back(). Returns the player, or
+## -1 if `old_peer` has no seat (or is the host) or `new_peer` already has one.
+func rebind_peer(old_peer: int, new_peer: int) -> int:
+	var player := peers.find(old_peer)
+	if player <= 0 or new_peer <= 0 or peers.has(new_peer):
+		return -1
+	peers[player] = new_peer
+	return player
+
+
+## Online: peer `peer`'s player plays their own heroes again. False if they were not away.
+func set_back(peer: int) -> bool:
+	var player := peers.find(peer)
+	if player < 0 or not away.has(player):
+		return false
+	away.erase(player)
+	return true
 
 
 ## True if this device may act for hero `slot` (its menu, presses).
@@ -235,6 +288,11 @@ func drop_peer(peer: int) -> bool:
 			owners[slot] = 0
 		elif owners[slot] > player:
 			owners[slot] -= 1
+	var still_away: Array[int] = []
+	for p: int in away:
+		if p != player:
+			still_away.append(p - 1 if p > player else p)
+	away = still_away
 	return true
 
 
@@ -275,9 +333,16 @@ func validate() -> Array[String]:
 	for slot: int in owners.size():
 		if owners[slot] < 0 or owners[slot] >= devices.size():
 			problems.append("hero %d has no player" % slot)
+	for player: int in away:
+		if player <= 0 or player >= devices.size() or not is_online():
+			problems.append("only an online client can be away (P%d)" % (player + 1))
 	if owners.size() >= devices.size():
 		for player: int in devices.size():
-			if heroes_of(player).is_empty():
+			var seats := 0
+			for slot: int in owners.size():
+				if owners[slot] == player:
+					seats += 1
+			if seats == 0:
 				problems.append("P%d has no hero" % (player + 1))
 	return problems
 

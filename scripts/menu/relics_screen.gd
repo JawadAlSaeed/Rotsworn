@@ -82,6 +82,10 @@ var _detail_more: Label
 var _hero_box: HBoxContainer
 var _slots_box: VBoxContainer
 var _hint: HintBar
+## The grid cards and slot cards on screen, and the grid index of each card (for the mouse).
+var _card_nodes: Array = []
+var _card_ids: Array[int] = []
+var _slot_nodes: Array = []
 
 
 ## Main menu use: `collection` and its picks; `relics`: every Relic of the run (RunData.gear);
@@ -313,6 +317,8 @@ func _found_count() -> int:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_pressed() and not event.is_echo():
 		_warning = ""
+	if _mouse_input(event):
+		return
 	if _pressed(event, &"item_turn_left") or _pressed(event, &"item_turn_right"):
 		_handled()
 		_hero = wrapi(_hero + (-1 if event.is_action(&"item_turn_left") else 1), 0, maxi(1, _party.size()))
@@ -323,6 +329,57 @@ func _unhandled_input(event: InputEvent) -> void:
 		_slots_input(event)
 	else:
 		_grid_input(event)
+
+
+## The mouse (card #202): pointing at a card or a slot picks it, a left click is Confirm on it, a
+## right click (or the mouse's back button) is Back, the wheel moves the grid a row. True when used.
+func _mouse_input(event: InputEvent) -> bool:
+	if MenuMouse.is_back(event):
+		_handled()
+		Sfx.play("menu_cancel")
+		if _zone == Zone.GRID:
+			_zone = Zone.SLOTS
+			_redraw()
+		else:
+			close()
+		return true
+	var mouse := event as InputEventMouse
+	if mouse == null:
+		return false
+	var wheel := MenuMouse.wheel_step((event as InputEventMouseButton).button_index) \
+			if MenuMouse.is_press(event) else 0
+	if wheel != 0 and _zone == Zone.GRID:
+		_handled()
+		var to := _cursor + wheel * COLUMNS
+		if to >= 0 and to < _listed.size():
+			_cursor = to
+			_redraw()
+		return true
+	var card := MenuMouse.control_at(_card_nodes, mouse.position)
+	var slot := MenuMouse.control_at(_slot_nodes, mouse.position)
+	if event is InputEventMouseMotion:
+		if card >= 0 and _zone == Zone.GRID and _card_ids[card] != _cursor:
+			_cursor = _card_ids[card]
+		elif slot >= 0 and _zone == Zone.SLOTS and slot != _slot:
+			_slot = slot
+		else:
+			return false
+		Sfx.play("menu_move")
+		_redraw()
+		return true
+	if MenuMouse.is_click(event):
+		if card >= 0 and _zone == Zone.GRID:
+			_handled()
+			_cursor = _card_ids[card]
+			put(_listed[_cursor])
+			return true
+		if slot >= 0:
+			_handled()
+			_slot = slot
+			_zone = Zone.SLOTS
+			open_grid()
+			return true
+	return false
 
 
 func _slots_input(event: InputEvent) -> void:
@@ -490,8 +547,13 @@ func _redraw_grid() -> void:
 	elif row >= _top_row + ROWS:
 		_top_row = row - ROWS + 1
 	_top_row = clampi(_top_row, 0, maxi(0, ceili(float(_listed.size()) / float(COLUMNS)) - ROWS))
+	_card_nodes.clear()
+	_card_ids.clear()
 	for i: int in range(_top_row * COLUMNS, mini(_listed.size(), (_top_row + ROWS) * COLUMNS)):
-		_grid.add_child(_grid_card(_listed[i], i == _cursor and _zone == Zone.GRID))
+		var card := _grid_card(_listed[i], i == _cursor and _zone == Zone.GRID)
+		_grid.add_child(card)
+		_card_nodes.append(card)
+		_card_ids.append(i)
 
 
 func _grid_card(item: GearData, chosen: bool) -> Control:
@@ -564,6 +626,7 @@ func _redraw_hero() -> void:
 	for child: Node in _slots_box.get_children():
 		_slots_box.remove_child(child)
 		child.free()
+	_slot_nodes.clear()
 	if _party.is_empty():
 		return
 	var c := _party[_hero]
@@ -580,8 +643,11 @@ func _redraw_hero() -> void:
 		swap.alignment = BoxContainer.ALIGNMENT_BEGIN
 		swap.add_theme_constant_override("separation", 8)
 		names.add_child(swap)
+	_slot_nodes.clear()
 	for slot: int in _slot_count():
-		_slots_box.add_child(_slot_card(slot))
+		var card := _slot_card(slot)
+		_slots_box.add_child(card)
+		_slot_nodes.append(card)
 
 
 ## A big card for slot `slot`: the diamond, name, stat line, level and what it does.

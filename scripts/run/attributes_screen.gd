@@ -142,7 +142,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif _pressed(event, &"item_turn_left") or _pressed(event, &"item_turn_right"):
 		_hero = wrapi(_hero + (-1 if event.is_action(&"item_turn_left") else 1), 0, _run.party_size())
 		Sfx.play("menu_move")
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu") or _pressed(event, &"party_attributes"):
+	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu") or _pressed(event, &"party_attributes") or MenuMouse.is_back(event):
 		_handled()
 		Sfx.play("menu_cancel")
 		close()

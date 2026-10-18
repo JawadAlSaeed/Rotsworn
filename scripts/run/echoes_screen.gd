@@ -60,6 +60,9 @@ var _detail_more: Label
 var _learning: Label
 var _right: VBoxContainer
 var _hint: HintBar
+## The Echo rows on screen and the list index of each (for the mouse).
+var _row_nodes: Array = []
+var _row_ids: Array[int] = []
 
 
 func setup(run: RunState, hero: int) -> void:
@@ -126,6 +129,42 @@ func _relist() -> void:
 	_cursor = clampi(_listed.find(keep) if keep != null and _listed.has(keep) else _cursor, 0, maxi(0, _listed.size() - 1))
 
 
+## The mouse (card #202): pointing at an Echo picks it, a left click puts it on or takes it off, a
+## right click (or the mouse's back button) closes, the wheel moves a row. True when used.
+func _mouse_input(event: InputEvent) -> bool:
+	if MenuMouse.is_back(event):
+		_handled()
+		Sfx.play("menu_cancel")
+		close()
+		return true
+	var mouse := event as InputEventMouse
+	if mouse == null:
+		return false
+	var wheel := MenuMouse.wheel_step((event as InputEventMouseButton).button_index) \
+			if MenuMouse.is_press(event) else 0
+	if wheel != 0:
+		_handled()
+		var to := _cursor + wheel * COLUMNS
+		if to >= 0 and to < _listed.size():
+			_cursor = to
+			_redraw()
+		return true
+	var row := MenuMouse.control_at(_row_nodes, mouse.position)
+	if row < 0:
+		return false
+	if event is InputEventMouseMotion and _row_ids[row] != _cursor:
+		_cursor = _row_ids[row]
+		Sfx.play("menu_move")
+		_redraw()
+		return true
+	if MenuMouse.is_click(event):
+		_handled()
+		_cursor = _row_ids[row]
+		toggle()
+		return true
+	return false
+
+
 ## Makes a change: here, or (online client) by asking the host.
 func _ask(op: Dictionary) -> void:
 	if remote:
@@ -139,6 +178,8 @@ func _ask(op: Dictionary) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_pressed() and not event.is_echo():
 		_warning = ""
+	if _mouse_input(event):
+		return
 	var step := 0
 	if _pressed(event, &"item_turn_left") or _pressed(event, &"item_turn_right"):
 		_hero = wrapi(_hero + (-1 if event.is_action(&"item_turn_left") else 1), 0, _run.party_size())
@@ -283,8 +324,13 @@ func _redraw_grid() -> void:
 		_top_row = row
 	elif row >= _top_row + ROWS:
 		_top_row = row - ROWS + 1
+	_row_nodes.clear()
+	_row_ids.clear()
 	for i: int in range(_top_row * COLUMNS, mini(_listed.size(), (_top_row + ROWS) * COLUMNS)):
-		_grid.add_child(_row_card(_listed[i], i == _cursor))
+		var card := _row_card(_listed[i], i == _cursor)
+		_grid.add_child(card)
+		_row_nodes.append(card)
+		_row_ids.append(i)
 
 
 ## One Echo: its diamond, name and cost; purple while this hero wears it, dim while they cannot.

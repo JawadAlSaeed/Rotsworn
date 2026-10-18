@@ -5,7 +5,7 @@ extends CanvasLayer
 ## settings, quit.
 ## Up/down picks, confirm opens it. No button bar here (card #130: the user found it clutter). Kept
 ## short (cards #150 and #208): Online and Extras open a second list in place (Host / Join; the
-## tutorial, the Rot Journal (7.11), credits), cancel or Back goes back. Practice (any fight or zone
+## tutorial, the Glossary (7.12), the Rot Journal (7.11), credits), cancel or Back goes back. Practice (any fight or zone
 ## on its own) is a test tool: its row shows in Extras only in debug builds. The version sits in the
 ## bottom-left corner and the studio's logo in the bottom-right.
 
@@ -22,6 +22,7 @@ const TUTORIAL := &"tutorial"
 const PRACTICE := &"practice"
 const JOURNAL := &"journal"
 const RELICS := &"relics"
+const GLOSSARY := &"glossary"
 const SETTINGS := &"settings"
 const CREDITS := &"credits"
 const QUIT := &"quit"
@@ -29,11 +30,11 @@ const ITEMS: Array[StringName] = [NEW_RUN, ONLINE, RELICS, EXTRAS, SETTINGS, QUI
 ## The Online list; Back follows it.
 const ONLINE_ITEMS: Array[StringName] = [HOST_ONLINE, JOIN_ONLINE]
 ## The Extras list for players (user 2026-10-17: the menu felt cluttered); Back follows it.
-const EXTRAS_ITEMS: Array[StringName] = [TUTORIAL, JOURNAL, CREDITS]
+const EXTRAS_ITEMS: Array[StringName] = [TUTORIAL, GLOSSARY, JOURNAL, CREDITS]
 const LABELS: Dictionary = {
 	CONTINUE: "Continue", NEW_RUN: "New Run", ONLINE: "Online", EXTRAS: "Extras", SETTINGS: "Settings",
 	QUIT: "Quit", HOST_ONLINE: "Host Online", JOIN_ONLINE: "Join Online", TUTORIAL: "Tutorial",
-	PRACTICE: "Practice", JOURNAL: "Journal", CREDITS: "Credits", RELICS: "Relics",
+	PRACTICE: "Practice", GLOSSARY: "Glossary", JOURNAL: "Journal", CREDITS: "Credits", RELICS: "Relics",
 }
 const SUBTITLE_SIZE: int = 30
 const DETAIL_SIZE: int = 26

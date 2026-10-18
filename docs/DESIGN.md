@@ -408,6 +408,26 @@ power unless stated. AP is per character.
 
 Intended combo: Cass Reveals, Brin Rends; Alder Taunts, parries, then cashes in with Payback.
 
+**Cass's spells shoot after the press (card #166, 2026-10-18, like Expedition 33).** Her ranged
+skills (Reveal, Smite: every skill with a `projectile`) used to launch the bolt
+`projectile_flight_ms` before the ring closed, so it was already landing when she pressed. Now the
+bolt leaves her staff at the moment of the press and flies `projectile_flight_ms` (320), and the
+strike lands with it: sparks, the damage numbers, the target's hit and a perfect press's hit-stop
+wait for the landing. Her staff-thrust frames start with the release. The press feedback (the
+sound, GOOD or PERFECT and the timing readout) still shows at the press.
+- A press that missed is still a shot: an early press that used the ring up releases at that
+  press; a press that never came releases at the end of the press window (its moment plus the
+  late edge plus the lag compensation, `SpellShot.window_end_us`), so a skill never stalls. It
+  lands as a miss (50%).
+- Visual order only. The windows, the judge, the engine's damage and every event are unchanged;
+  the events are simply shown when the bolt lands (`SpellShot`, pure, unit-tested). The latest a
+  bolt can land (end of window plus flight, 520 ms after the ring's moment) is before the allies'
+  follow-up moment (`follow_up_delay_ms` 700), so the order read is: press, bolt, landing, allies
+  strike (a test checks it for the shipped spells).
+- Online: a remote player's good press launches the bolt when its result arrives here, and a
+  press that never came when the other machine reports the miss, so both screens show the same
+  order a network delay apart; the event batch waits for the landing like the local one.
+
 ### 2.11 Phase 2 enemies (approved 2026-10-12)
 
 Each enemy tests one defence skill. Starting numbers; tune in data. Times in ms at tempo 100%.
@@ -609,6 +629,34 @@ in data. Times in ms at tempo 100%.
   refuses to save when the middle half of the presses spreads wider than
   `calibration_max_spread_ms` (60): that means pressing by reaction to the flash, not with the
   beat. The F1 overlay also shows the rolling median offset of real parries and of all presses.
+- **One value per kind of input (card #204).** A keyboard and a wireless pad lag differently (easily
+  20 to 40 ms, a third to half of the 70 ms perfect window), so the measurement is saved per kind:
+  `latency_keyboard_ms` and `latency_pad_ms` in `user://settings.cfg` (`PlayerSettings.INPUT_KEYBOARD`
+  / `INPUT_PAD`; a device code of 0 and up is a pad, the keyboard, the mouse and the autoplay bot
+  are "keyboard"). The first press in the calibration decides which kind is being measured, the
+  panel says so ("Measuring: controller") and saves only that kind; presses from the other kind
+  are ignored. A value saved before the kinds existed (`latency_compensation_ms`) still counts for
+  both until that kind is calibrated itself. A kind never calibrated uses the tuning default.
+  Judging: a sequence's `JudgeSet` is built with the smaller of the two values as its base; each
+  press passes the extra lag of the device that made it (`extra_latency_ms`: its value minus the
+  base, never negative) and is judged that much earlier, exactly as if the judge had been built
+  with that device's own value. `DefenseJudge` is unchanged, the base only decides when an
+  unanswered hit expires (never earlier than the laggier device needs), and the enemy's contact
+  hold and the window marks use the base. In co-op each player's presses use their own pad's value
+  (roster device), in solo whichever device actually pressed. Online, each machine uses its own
+  settings for its own players.
+- **Offered once to a new player (card #204).** Settings > Game > Lag calibration was the only way
+  in and nothing told anyone. The first New Run that does not start the tutorial asks "Calibrate
+  your timing?" (about 15 seconds; "recommended for wireless pads and TVs, which add lag"; Not now
+  is selected first, Calibrate now runs `CalibrationScreen`, the calibration panel on its own
+  screen) and then goes on to the players screen either way. `PlayerSettings.calibration_offered`
+  remembers it was asked (once only, in `[game]` beside `tutorial_offered`); a player who already
+  calibrated is never asked (`calibration_offer_due`). Never in autoplay, never online (hosting and
+  joining do not pass through New Run). **Order with the tutorial offer:** one question per New
+  Run press. Tutorial first (7.8); answering "Start the run" goes straight on to the calibration
+  offer; answering "Play the tutorial" leaves the calibration offer for the next New Run, so the
+  two never stack in one go. `--screen=calibration_offer` shows the question over the main menu
+  without using up the once-only flag.
 
 ### 3.3 Attack clock and hit-stop
 
@@ -787,6 +835,24 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
   impact, with two faint copies behind it. Then: a parry knocks it back up toward the enemy, a
   dodge lets it fly on past, a hit bursts it in its colour. Party-wide: one projectile per hero.
   All of it is a pure function of attack time, so hit-stop freezes it.
+- **Ranged indicator (card #165, 2026-10-18):** a thrown hit shows which hero it flies at and when
+  it arrives. On each hero the projectile is aimed at, four corner brackets close in from
+  `ranged_aim_start_px` to `ranged_aim_end_px` (half size) and meet exactly at the hit's declared
+  impact, the time the defence is judged on (`RangedAim.progress`, 0 at the throw, 1 at impact; a
+  test checks every shipped ranged hit against its prompts), and a dashed path (the flight arc,
+  `ranged_aim_path_points` samples) runs from the projectile to the hero, shrinking as it flies.
+  It is brackets, not a circle, so it is never taken for a press ring. It shows
+  `ranged_aim_lead_ms` (450) before the throw, so the wind-up already says who gets it, fades in and
+  out over `ranged_aim_fade_ms`, takes the hit's kind colour like the melee markers (3.8: red-orange
+  normal, bone rend, green sweep; a rend or a sweep names its button under the brackets,
+  `ranged_aim_label`), and stays on the hero until the hit is decided (never gone before the
+  impact). When the brackets lock it fills faintly and brightens for `ranged_aim_pulse_ms`, scaled
+  by the Flashes setting (none with Flashes off; Reduced shows the Reduced share). Party-wide throws
+  get one per hero; a hero who goes down loses theirs. It is on in run fights too
+  (`tuning.show_ranged_aim`, default on, unlike the hit markers): it is the projectile's own flight
+  made readable, not extra pre-information, so `hide_intent_after_first_hit` does not hide it.
+  Pure function of attack time, so hit-stop freezes it with the projectile; nothing goes to the
+  engine. `RangedAimLayer` draws it in the HUD; the runner feeds it every frame.
 - Rule (test): a projectile flies at least 300 ms, never on a feint or a ground hit.
 - First projectiles (art kit `fx_attacks`, 20x20 cells, 4 frames): bile glob (green), thrown
   stone (grey, tumbling), shade bolt (violet). Launch sound: the lunge whoosh until real sounds are
@@ -1079,8 +1145,13 @@ effects to their `cue_rules.json` limits like `build_sfx.py`, songs like `music_
 Freesound and OpenGameArt voice packs. User picks: 24 effects (among them parry, dodge, whiff,
 heavy strike, boss rage, enemy crumble, fight start, level up, enemy notice "Monster AAH!", Alder's
 "HAH!", Cass's attack shout), the credits song ("Peaceful Fantasy Music" by TheoJT), the defeat song
-and the Sunken Bog loop (swamp frogs); the rest stay as they were. Brin's shout stays as it was after
-seven rounds of finds (the user wants a normal 25-year-old man's shout; still open). The user picked
+and the Sunken Bog loop (swamp frogs); the rest stay as they were. Brin's shout stayed as it was
+after seven rounds of finds; card #171 (2026-10-18) is the eighth: four plain young-man battle
+shouts (`tools/sound_kit/brin_shout_candidates.json`, built by `brin_shout_build.py` into
+`assets/audio/sfx/candidates/brin_shout_1..4.wav`, levelled like the other hero shouts, credits in
+`candidates/CREDITS.md`), number 1 wired in as `shout_brin.wav` ("Male Attack Grunt 1" by F.M.Audio,
+CC BY 4.0, named on the credits screen); the user may pick another by changing `pick` and running the
+script. The user picked
 by ear, so a few picks peak later than `max_rise_ms`; they were kept on purpose. CC BY sources are
 named on the credits screen (`data/branding/credits.tres`, a test checks songs).
 
@@ -1212,7 +1283,7 @@ player's heroes.
 
 Outside fights every screen (main menu, settings, practice list, map, shop, rest, party, loot)
 uses the `menu_*` actions: up/down pick, left/right change a setting or pick on the map, Confirm
-selects, Cancel goes back. **Pause** (Esc / Menu) works in fights, zones and on the run map
+selects, Cancel goes back; the mouse does the same (6.2). **Pause** (Esc / Menu) works in fights, zones and on the run map
 (7.5); Main reads it before anything else, so in a fight Esc never acts as "back" in the action
 menu (Backspace, Q or B do). B no longer leaves a zone.
 
@@ -1252,7 +1323,8 @@ press, walking, Strike and Pick up, the menu directions, Confirm, Back / run, Pa
 and party shortcuts, the stats overlay) with its key and its pad button side by side. Up / Down pick
 a row (the list scrolls, ten rows show), Left / Right pick the Key or the Pad column, Confirm waits
 for the new input ("press a key ..."). Escape (or the pad's Menu button) cancels, and so does
-waiting `rebind_capture_ms` (tuning, 6 s). Everything works from the keyboard or a pad, no mouse.
+waiting `rebind_capture_ms` (tuning, 6 s). Everything works from the keyboard or a pad; the mouse also
+works (6.2) but can never be bound.
 A pad press can be a button or a trigger; sticks cannot be captured (drift), but a stick direction
 an action already has keeps working.
 
@@ -1287,6 +1359,45 @@ an action already has keeps working.
   check, swap, save / load, writing the Input Map), the Controls section of `SettingsScreen`,
   `ButtonPrompts.refresh` redraws every hint after a change, `ListMenu.window_rows` scrolls a long
   list. Dev: `--screen=controls`.
+
+### 6.2 Mouse in the menus (card #202, review ui-input #4)
+
+The game is a keyboard and pad game, but every menu also works with the mouse (a PC player clicks
+"New Run" without asking why nothing happens). Keyboard and pad behave exactly as before.
+
+- **What the mouse does.** Pointing at a row chooses it (the same cursor, sound and highlight as the
+  keys). A left click confirms the row under it; a right click or the mouse's back button (the
+  side button) goes back (Cancel); the wheel moves the cursor and stops at the ends. A click on
+  nothing does nothing.
+- **Where.** Every `ListMenu` gets it from one place, `ListMenu.handle` (the entry every list screen
+  already calls): the main menu with Online and Extras, the pause menu, the Yes / No prompts, the
+  players screen (Start, Back), the Rot Journal, the settings, the rest, event, loot and treasure
+  lists, the shop's "which item" list and the backpack's item menu. Screens with their own cards
+  use `MenuMouse` for the same meaning: the practice list (hover and click a card, right click
+  back), the run map (hover and click one of the next stops, right click opens the pause menu),
+  the shop (hover and click a shelf card or service, right click leaves), the backpack (hover and
+  click a grid cell: the cursor goes there and Confirm happens; right click is Back), the
+  attributes and skills screens (right click is Back), the credits, the Join Online screen and the
+  end-of-run screen. The hero cards and gear slots of the backpack, the attribute and skill rows and
+  the players screen's hero cards are keys and pad only for now.
+- **Settings.** The section names (Graphics, Sound, Controls, Game) are clickable. On a row whose
+  value Left / Right change (volumes, window size, frame limit, shake, flashes, text size), the left
+  half of the row clicked steps it down and the right half up (`SettingsScreen.SIDED_ROWS`); other
+  rows are toggled or opened as with Confirm. In Controls the click chooses the Key or the Pad
+  column by the half of the value text that was clicked and waits for the new input; a right click
+  cancels the wait or the swap question.
+- **The pointer.** Autoload `Pointer` (`MouseCursor`) hides the OS pointer while a key, a pad
+  button or a stick (past 0.5) was the last thing used and shows it again the moment the mouse
+  moves or clicks. It is always hidden in fights and zones (`Main._mouse_wanted`: false while a
+  fight or zone is on screen and no pause menu, settings screen, prompt or backpack is over it).
+  The fight's own menus are keys and pad only: a mouse never presses a defence.
+- **The timing path is untouched.** No Input Map action has a mouse event (a test checks every
+  action), and `DefenseInput` only answers the defence actions, so a click can never be a parry,
+  dodge, jump or skill press. Mouse events are only read by menus, which are not on screen during an
+  attack. In co-op the mouse counts as the keyboard device (`PlayerRoster.device_of`).
+- **Code.** `MenuMouse` (`scripts/menu/menu_mouse.gd`, pure: row and cell hit tests, the button
+  meanings, the pointer rule; tested), `ListMenu.handle` (`clicked_share` says where across a row
+  a click landed), `MouseCursor`, `BackpackGrid.cell_at`.
 
 ---
 
@@ -1449,7 +1560,7 @@ an action already has keeps working.
 
 Studio intro (2026-10-12): when the game starts it plays the "Developed by DragonRot" video
 (`assets/video/dragonrot_intro.ogv`, 4 s, path in `data/presentation/boot.tres`, `BootData`) on
-black, then the title screen (7.7). Any key, button or click skips it (after `skip_guard_ms`). A missing
+black, then the "Controller recommended" notice and the title screen (7.7). Any key, button or click skips it (after `skip_guard_ms`). A missing
 video goes straight to the menu. Autoplay never shows it. Godot plays Ogg Theora only: the MP4 was
 converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`). Phase 8 (user: it looked soft and
 stretched; the exported MP4 was only 1888x998 at a low bitrate): `tools/branding/render_intro.py`
@@ -1459,8 +1570,8 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
 
 - **Main menu** (first screen, `MainMenu`): (Continue,) New Run, Online, Relics (8.17, phase 17), Extras, Settings, Quit, with
   no description line under the rows. Online and Extras open a second list in place (cancel or
-  Back goes back): Online has Host Online and Join Online; Extras has Tutorial, Journal (7.11) and
-  Credits. Practice (the tutorial card first, then the fight and zone list, full HP, nothing
+  Back goes back): Online has Host Online and Join Online; Extras has Tutorial, Glossary (7.12), Journal (7.11)
+  and Credits. Practice (the tutorial card first, then the fight and zone list, full HP, nothing
   carries over) is a test tool: its row shows in Extras, after Tutorial, only in debug builds
   (`OS.is_debug_build()`: the editor and `run_game.bat`), never in the shared game. The cursor
   comes back on the last item picked (a row of Extras reopens that list). Card #150 (user,
@@ -1483,10 +1594,28 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   field: each only turns off what a place's look uses, `StageBuilder.apply_settings` applies a
   change at once even over a fight or zone), **Sound** (the four volumes), **Controls** (rebind every key and button, 6.1)
   and **Game** (screen shake 0 to 100% in 25% steps, scaling every camera shake; the training
-  ring; lag calibration and its reset).
+  ring; lag calibration, which shows the keyboard's and the pad's value, and its reset, 3.2).
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions only.
+  and **Game** (text size, below; screen shake 0 to 100% in 25% steps, scaling every camera
+  shake; flashes; the training ring; lag calibration and its reset).
+- **Text size** (card #203, review ui-input #5; Settings > Game): Normal, Large, Larger. Every body,
+  title and number label, the menu choices, the hint chips and the Join Online field are built at
+  the chosen percent of the size the screen asks for (`HudStyle.scaled`, so the fight HUD, the
+  zone HUD and the tutorial text follow too). The percents (100, 115, 130) live in
+  `data/presentation/ui_fonts.tres` (`text_size_percents`, one per name in
+  `PlayerSettings.TEXT_SIZE_NAMES`) and are kept gentle because the HUD plates and menus are laid
+  out for 1920 x 1080. Not scaled: the big gold titles, banners and damage popups (already
+  large), and text drawn straight on the canvas (hit marks, the training ring, the map's stop
+  names). The choice is saved per machine (`PlayerSettings`, `[game] text_size`) and given to
+  `HudStyle` at start-up; changing it rebuilds the settings page at once and redraws every hint,
+  menus opened afterwards use it, and a fight's HUD from the next fight on. Lists that are tall at
+  normal size (Graphics has ten rows) show fewer rows at once and scroll
+  (`SettingsScreen.fitting_rows`). A test builds every settings section at the largest size and
+  checks it fits 1920 x 1080.
+- Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions and the mouse
+  (6.2).
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
-  run map (B on the map too). Continue, Settings, "Save & Quit" (a local run, 8.14), and "Abandon
+  run map (B on the map too). Continue, Settings, Glossary (7.12), "Save & Quit" (a local run, 8.14), and "Abandon
   run" (asks first, then the main menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
   under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
@@ -1566,7 +1695,7 @@ across and on a capital letter's height up and down, so every key of a size shar
 
 Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://shots/<name>/`
 (`ScreenShooter`), `--screen=menu|settings|players|practice` opens that screen at once, and
-`--pad-prompts` starts with pad buttons shown. Used to check the look without a person.
+`--pad-prompts` starts with pad buttons shown. Used to check the look without a person. With the owner at the PC use `quiet_run.bat` (10.1), which opens the window without taking focus.
 
 ### 7.7 Phase 8: branding (cards #47, #48, #82, #83, #85, #86, #87, #90)
 
@@ -1625,6 +1754,22 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
 - Dev tools: `--screen=title` and `--screen=credits`.
 
 ---
+
+- **Controller notice** (card #167, user request): between the studio intro and the title screen a
+  short "Controller recommended" screen (`ControllerNotice`, `scripts/menu/`): the menu's dark
+  background, a gamepad drawn in the logo's style (`assets/branding/controller_mark.png`, made by
+  `tools/branding/controller_mark.py` with the logo's own worn-gold wear: a double outline like the
+  crest's shield, the cross pad, four buttons, two sticks and the staff's gem; shown 240 px tall,
+  smooth with mipmaps; user 2026-10-18: the first pixel-art icon "fries me", "one with the game
+  logo style") and the heading in the worn-gold title lettering, nothing else (the user dropped the
+  second line; `controller_text` stays in the data, empty). It fades in (500 ms), holds (2400 ms), fades out (600 ms) by itself and any key,
+  button or click ends it early after a 1500 ms guard (playtest 2026-10-18: a quick double tap past
+  the intro skipped it unseen at 400 ms; a key still held from the intro does not skip it). It
+  fades over black (a black floor under it), not Godot's grey clear colour. Text, icon, sizes and every time are in `data/branding/branding.tres` ("Controller notice"
+  group); a hold time of 0 turns it off, and `controller_skip_with_pad` (off) leaves it out for a
+  player whose pad is already plugged in. No music or sound of its own (the menu music starts with
+  the title). Not shown in autoplay or any `--screen=` start; `--screen=controller` shows it, then the
+  title.
 
 ### 7.8 Tutorial (phase 14, card #131, lessons approved 2026-10-15; rebuilt the same day)
 
@@ -1809,6 +1954,46 @@ Spire's compendium). It is a reference and a record, not a reward: nothing in it
   change of shape. The journal is local: an online player's book is their own.
 - **Not in it (yet):** per-hero records, damage dealt, the loot an enemy drops, and sorting or
   filtering. Entries are never reset by a new run; delete `journal.json` to start the book again.
+
+### 7.12 The Glossary (card #207)
+
+A book that explains the game's terms and icons, so nobody has to guess what a purple wave, a
+bone-coloured claw, EXPOSED or a rot-touched piece means. A reference, not a reward: it changes
+nothing in a fight. It is reached two ways, and both open on the first topic:
+
+- **Extras on the main menu**, a row "Glossary" right after Tutorial (`MainMenu.GLOSSARY`); Back
+  returns to Extras with the cursor on that row.
+- **The pause menu**, a row "Glossary" after Settings (`PauseMenu.glossary_requested`). It opens
+  over the pause menu (layer above it, the pause menu hidden and disabled while it is open, like the
+  settings screen from the pause menu) and Back returns to the pause menu. It reads only, so a fight
+  stays paused (or, online, goes on) exactly as under the pause menu; it never touches the timing of a
+  fight. `Main._free_pause` also frees it if the pause menu goes.
+- **Screen** (`GlossaryScreen`, `scripts/menu/`): the menu backdrop, a worn-gold "Glossary" title, then
+  a topic strip ("< previous topic  TOPIC  next topic >", "Topic 3 of 14, 8 terms"), then two parts like
+  the Rot Journal. Left, a `ListMenu` of the topic's terms (10 rows at a time, scrolls). Right, the
+  chosen term in an ink plate: a square plate with the game's own icon (whole-number scaled so the
+  pixel art stays crisp, edged in the term's colour) or, with no icon, a swatch of its colour; the
+  term's name in worn gold; "Shown as  PARRY" in the term's colour when the game prints a word for
+  it; then two or three plain lines. Up/down chooses a term, left/right changes topic (wrapping round
+  the ends), Back closes (`HintBar` at the foot); keyboard and pad like every menu. Everything fits
+  1920x1080 (a test measures every page).
+- **Content is data**: `data/glossary/glossary.tres` (`GlossaryData`: `topic_ids`, `topic_names`,
+  `entries`; each `GlossaryEntry`: `id`, `topic`, `term`, `text`, `tag`, `icon_path`, `color`, where an
+  alpha of 0 means no colour). `tools/bootstrap_glossary.gd` wrote the first version (109 terms in 14
+  topics: The fight, Reading attacks, Defence, Skills and AP, Counters and team, Marks on enemies, Marks
+  on heroes, Dooms, Enemies, The map, In a zone, Gear and items, Shops and camps, The run); after that,
+  edit the `.tres` (or the tool's list and re-run it, not both). The tool takes the hit kinds'
+  colours and icons from `combat_visuals.tres` and the status words and colours from `HudStyle`, and a
+  test (`tests/unit/test_glossary.gd`) keeps the book equal to them, so the screen and the book cannot
+  drift apart. Every term needs an id, a known topic, a short name (26 characters at most), text (260
+  at most), and an icon file that exists; a list of the card's terms must all be present. Text names
+  buttons by what they do ("the Run button", "Confirm"), never by a key, because pad and keyboard
+  both play.
+- **Dev picture**: `--screen=glossary` opens it; `--screen=glossary_<topic id>` opens on that topic
+  (`glossary_reading`, `glossary_dooms`, `glossary_hero_marks` and so on).
+- **Not in it (yet):** the tutorial (the interactive tutorial is being extended in phase 17, so the
+  glossary does not link to it or change it), enemies and attacks (the Rot Journal, 7.11, has those),
+  and per-item or per-gear descriptions (the party screen and shops show those).
 
 ## 8. Run structure (phase 4)
 
@@ -2295,7 +2480,8 @@ middle row costs 1 point, the bottom row 2):
   +15% each perfect); Quick Cuts, Twin Fangs and All In alternate the daggers.
 - **Cass** (#81, user note): Reveal and Smite are spells (`projectile = light_bolt`, drawn by
   `tools/art_kit/assets/fx_attacks.py`): she stays where she stands, the ring sits on her, and a
-  bolt flies to the target for each press, arriving on the hit; her heals and buffs never moved. Her
+  bolt flies to the target for each press, leaving at the press and landing after its flight
+  (card #166, 2.10); her heals and buffs never moved. Her
   normal attack still walks up and strikes.
 - **Alder** (#56): his sprite was already shield-only (phase 12); his skills are shield blows.
 - **Art** (checked 2026-10-15): the phase 10 sheets already fit the reworks. Brin's clips are the
@@ -3081,10 +3267,46 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   results only for its own heroes, the current sequence, and once per prompt. The host also sends
   a character's earlier still-open prompts as NONE with a later one, so the engine never refuses a
   batch.
-- **Someone leaves**: a client that leaves mid-run hands its heroes to the host (P3 becomes P2);
-  its open prompts are resolved at once and the others are told. If the host leaves (or ends the
-  game from the pause menu), everyone goes back to the main menu with a note. Online, the pause
-  menu opens over a game that goes on (it offers Leave / End the game).
+- **Someone leaves**: a client that leaves for good mid-run (or whose seat's grace time ran out,
+  below) hands its heroes to the host (P3 becomes P2); its open prompts are resolved at once and
+  the others are told. A client that leaves on purpose (Leave in the pause menu, or quitting)
+  says goodbye first and its line closes a moment later, so its seat is given up at once rather
+  than kept for a rejoin. If the host leaves (or ends the game from the pause menu), everyone goes
+  back to the main menu with a note. Online, the pause menu opens over a game that goes on (it
+  offers Leave / End the game).
+- **Dropping and rejoining** (card #205, 2026-10-18):
+  - *Heartbeat*: both ends keep pinging (ENet), and a connection that answers nothing for
+    `net_drop_min_ms` .. `net_drop_max_ms` (3 to 6 s) counts as lost, so a pulled cable, a crash or
+    a Wi-Fi blip never freezes a fight for long.
+  - *Seat tokens*: the welcome gives each client a secret random token (`SeatBook`,
+    `scripts/net/`, pure), kept in memory on both machines. A client whose connection goes during
+    a run is "away": the host keeps its seat for `net_rejoin_grace_ms` (120 s) and everyone sees a
+    small chip, "P2 away" (top right; the host's also counts the seat's time down). It never
+    blocks the game.
+  - *While away*: the host's player plays the away heroes (their menus open on the host, the host
+    defends for them; with the bot it is the host's bot), exactly as when a player leaves, but the
+    seat (P2 stays P2) and the heroes stay theirs. Prompts that were open on the away machine
+    when it went count as not defended (NONE, by the DefenseArbiter, at once). Chosen over waiting
+    at their turn: nobody sits frozen for two minutes, and it is what leaving already did.
+  - *Coming back*: the dropped player's game opens the Join screen with the host's address and a
+    note ("Press Enter (A on a pad) to take your seat back"; the Join screen now takes a pad's
+    confirm too). The hello carries the token after the build fingerprint check; a started
+    game lets in only a token's own seat (no token, a wrong one or an
+    expired one: "The game has already started"). A token wins its seat even if the host has not
+    noticed the old connection die yet (the old one is let go), and a peer that already has a seat
+    cannot take another. The host then sends `run_start`, the place screen it is on (map, zone,
+    shop ...) with the whole run, and the fight message if a fight is on.
+  - *Mid-fight*: the rejoined player's fight skips the host's batches until a "resume" batch
+    (`CombatEngine.resume_events()`: combat_started with every fighter as they are now, the
+    practice options, the team gauge, every intent, the turn order and the waiting turn, or the
+    end). The host sends it at the next moment nothing is timed (a hero's turn, or the end), never
+    mid-attack, and gives the seat back at that same moment (the roster goes first), so no attack
+    is half theirs. The mirror rebuilt from it equals the engine (a test), and normal event flow
+    continues; `AUTOPLAY_MIRROR` still matches on every machine. Outside a fight the seat comes
+    back at once.
+  - If the grace time runs out the seat is given up as above. Limits: the token lives in memory,
+    so a player whose game crashed (restarted) cannot take the seat back; only a dropped
+    connection can. The away chip reads "P2 away"; the host's player sees the countdown.
 - **Sharing the game**: `build_game.bat` exports `build/Rotsworn.zip` (one exe). It is a release
   export, and it deletes the old exe and zip first and fails loudly (log in `build/export.log`)
   if the export fails, so a stale file is never handed out. Bump `config/version` in
@@ -3096,7 +3318,11 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   plays that same build: a run from the editor has a different content fingerprint (the export
   stores resources differently) and is refused.
 - Bot: `--host=N` hosts and starts a run once N players are in; `--join=ADDRESS` joins. Both play
-  with `--autoplay`; each presses only for its own player.
+  with `--autoplay`; each presses only for its own player. `--drop-after=S` makes a client drop off
+  the network S seconds after joining without a word (the host finds out through the heartbeat);
+  `--drop-in-fight` makes that drop wait for the next fight and come a few seconds into it;
+  `--rejoin[=S]` joins again S seconds (default 10) after losing the host. Without `--rejoin` an
+  autoplay client that loses the host still fails with `AUTOPLAY_ERROR host_lost`.
 
 ---
 
@@ -3179,6 +3405,13 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   current sequence, once; a leaving client resolved at once; engine-resolved prompts left alone),
   the fingerprint (stable, version, line endings, changed numbers, import files ignored) and the
   run state round trip (and refusals that change nothing).
+- Rejoining (`test_rejoin.gd`, card #205): seat tokens (one seat per token and per peer, no claim
+  without the right token, a token wins its own seat, the grace time runs out exactly), the away
+  seat in the roster (the host plays it, nobody moves up, it travels as data, the same seat comes
+  back under a new peer id, a seat given up while another is away), and `resume_events()` (never
+  mid-attack, changes nothing, a fresh mirror built from it equals the engine and ends the fight
+  the same as a mirror that saw everything, and after the end it says how it ended). Online
+  smoke: the client pair with `--drop-after=S --rejoin`.
 - Save & Quit (`test_run_save.gd`, temp files only): a save round trips the whole run, numbers come
   back as ints, unknown keys survive, other content or format and damaged files are refused, a
   failed write keeps the old save, the backup covers a broken main file, delete clears all.
@@ -3202,6 +3435,44 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   re-targeting when a target falls), duplicate enemy names, the press rules for every shipped
   ability, every encounter starts. Autoplay picks skills and allies' targets and presses skill
   and follow-up prompts at window centre.
+
+### 10.1 Quiet picture runs (card #168)
+
+A windowed test run (`--shots`, `--screen`, an autoplay with pictures) used to grab keyboard and
+mouse focus, which broke whatever the owner was playing at the time. `quiet_run.bat` fixes that.
+
+- **Use**: `quiet_run.bat <the game's own switches>`, for example `quiet_run.bat --shots=2 --screen=menu`
+  or `quiet_run.bat --autoplay --shots=3 --quit-on-end`. No `--` needed. Launcher options go first:
+  `-Size 1280x720` (default 1920x1080, shrunk to fit the screen, always 16:9), `-Headless` (no
+  window, for checking the launcher), `-DryRun` (print the plan: screens, place, command),
+  `-PrepareOnly` (build the shadow project only), `-NoImport`. A switch that holds `|` needs quotes.
+- **Where the window goes**: the first screen that is not the main one, centred. With one screen
+  it opens on that screen and is pushed to the bottom of the window stack (no activation) for the
+  first 30 s, so it does not cover the owner's game. It starts with no sound (`--audio-driver Dummy`).
+- **How it never takes focus**: Godot's no-focus window flag (`display/window/size/no_focus`) must
+  be set before the window exists and has no command-line form. The launcher therefore builds a
+  shadow project in `%LOCALAPPDATA%\Rotsworn-quiet\<folder>-<hash>\`: its own `project.godot` (a
+  copy of the real one with `no_focus=true` and windowed mode), folder links (junctions) to every
+  real folder and copies of the root files. Godot runs with `--path` on the shadow. The real
+  project and its `project.godot` are never edited and no `override.cfg` is used (one next to the Godot
+  exe was not read in a test, and one in the project folder would be read by every normal start;
+  `project_settings_override` is a fixed path in `project.godot`), so a normal start, the
+  editor or the tests can not pick the flag up, even while a quiet run is going. Saves, settings
+  and the `shots/` folder are shared with normal runs (same game name).
+- **In the game**: `QuietWindow.active()` reads the same project setting. `PlayerSettings.apply_fullscreen`
+  then leaves the window alone, because fullscreen or maximised would activate it. A test checks
+  `project.godot` never contains `no_focus` and that a test run is not quiet.
+- **Checking it for real** (opens a window, only with the owner's OK; the owner keeps typing in
+  another window meanwhile): `powershell -NoProfile -ExecutionPolicy Bypass -File tools\quiet_focus_check.ps1 -Seconds 20 --shots=2 --screen=menu`.
+  It remembers the focused window (`GetForegroundWindow`), starts the quiet run hidden, samples
+  the focused window's process 10 times a second and prints where the game window sits (which
+  screen), then PASS, FAIL (game had focus) or INCONCLUSIVE (no window appeared). The launcher
+  itself was checked headless (settings differ between the shadow and the real project, a full
+  autoplay fight through the shadow ends with `AUTOPLAY_RESULT victory`); the live window test is
+  still to be done.
+- **Limits**: Windows only. A new window is shown without activation but may flash on top of other
+  windows for a moment on a one-screen PC before it is sent to the bottom. The window cannot be
+  typed into (that is the point); bots and `--menu-keys` do not need input.
 
 ---
 
@@ -3482,7 +3753,18 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Saves check only `data/` and the version (`DataHash.of_content`), not the code; the main menu has no description line under its rows | card #208 playtest: a code-only fix hid the user's saved run; the user found the line ("About 8 stops") out of date and not needed now that Continue and Journal exist |
 | 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
 | 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |
+| 2026-10-18 | "Controller recommended" notice between the studio intro and the title: icon from the art kit, worn-gold heading, fades out after about 3.5 s or on any button; all text and times in `branding.tres` | card #167; the game is pad-first (Expedition 33 model) and the notice is data so the user can tune or switch it off |
+| 2026-10-18 | The lag calibration is offered once, on the first New Run that does not start the tutorial; lag compensation is saved per kind of input (keyboard / pad) and the judge adds the pressing device's extra lag to a base that is the smaller of the two | card #204 and review finding ui-input 3: a pad and a keyboard differ by a third of the perfect window; one question per New Run press so the tutorial and calibration offers never stack |
 | 2026-10-17 | A saved run is continued by any build that can read it (no content check); only the save format version and RunState's own checks decide | card #208 playtest: one data change (the menu logo) hid the run again; the game changes almost daily |
+| 2026-10-18 | Picture runs while the owner is at the PC go through `quiet_run.bat`: a shadow project (own project.godot with `display/window/size/no_focus=true`, folder links to the real folders) under `%LOCALAPPDATA%\Rotsworn-quiet`, window on the second screen (else behind the others), no sound; the game skips its fullscreen/maximise step when that flag is on (10.1) | a normal windowed run grabbed keyboard and mouse focus; the flag cannot be set after the window exists or from the command line, and an override file in the project folder or beside the exe would reach normal starts or is not read (card #168) |
+| 2026-10-18 | Brin's shout is a short, plain young man's battle shout (a clear "hah!", 0.4 s, dry), not the old rising yell: four candidates sit in `assets/audio/sfx/candidates/`, number 1 (F.M.Audio's "Male Attack Grunt 1", CC BY 4.0) is in the game; the pick is one number in `tools/sound_kit/brin_shout_candidates.json` | card #171; the user wants a normal 25-year-old man's shout after seven rounds of finds missed it. Chosen from measurements and spectrograms (clean harmonics, no reverb tail, 0.3 to 0.5 s like Alder's and Cass's), not by ear, so the user's ear decides (5.3) |
+| 2026-10-18 | Ranged enemy hits get an indicator: corner brackets on the hero the projectile flies at that close exactly at the declared impact (the judged time), plus a dashed path from the projectile, in the hit kind colour; on in run fights, Flashes-aware (`show_ranged_aim`, 3.9) | card #165 (not circles: the user dislikes circles in reading, 3.8) |
+| 2026-10-18 | Cass's spells (Reveal, Smite) shoot after the press: the bolt leaves the staff at the press (or at the end of the window if none came) and the strike, numbers and hit-stop wait for it to land; judge, windows and engine unchanged (2.10) | card #166, like Expedition 33 |
+| 2026-10-18 | Every menu works with the mouse: point to choose, left click confirms, right click or the back button goes back, the wheel scrolls; the pointer hides while keys or a pad are used and in fights and zones; the fight's own menus stay keys and pad | card #202 (review ui-input #4): PC players click "New Run" and nothing happened. One entry, `ListMenu.handle`, so every list screen got it; no Input Map action has a mouse event, so a click can never be a defence (6.2) |
+| 2026-10-18 | Settings > Game > Text size (Normal 100%, Large 115%, Larger 130%), applied through `HudStyle.scaled` to every body, title and number label; the percents live in `ui_fonts.tres` | card #203 (review ui-input #5): fixed 14 to 22 px text. Gentle steps because the HUD plates and menu lists are laid out for 1920 x 1080 and were checked without a window; titles, banners and popups keep their size (7.5) |
+| 2026-10-18 | The Glossary: a main-menu Extras row (after Tutorial) and a pause-menu row open a book of 109 terms in 14 topics (hit kinds and defences, skills, counters, marks, Dooms, enemies, the map, zones, gear, shops, the run), each with the game's own icon or colour and two or three plain lines, from `data/glossary/glossary.tres`; topic strip with left/right, terms in a `ListMenu`; colours and words are tested against `combat_visuals.tres` and `HudStyle` | card #207: the game has many icons and words and nowhere to look them up; the owner keeps the interactive tutorial for phase 17, so the book stands alone |
+| 2026-10-18 | Online: a dropped client keeps its seat for 120 s (seat token, "P2 away" chip, the host plays its heroes meanwhile) and gets it back from the Join screen; mid-fight it gets the fight as it stands at the next hero's turn (`resume_events`); a heartbeat drops a silent connection after 3 to 6 s | card #205 and the net review: a Wi-Fi blip ended a player's run for good and a pulled cable froze fights for up to 30 s; playing the heroes for them beats a two-minute freeze, and handing the seat back between moves means no attack is half one player's |
+| 2026-10-18 | Ranged-hit brackets made bolder: 8 px lines (was 5), 150 to 56 px (was 120 to 46), shown 450 ms before the throw (was 300), the dashed path at full strength | playtest: the user did not notice them (card #165) |
 | 2026-10-18 | Rotsworn becomes a roguelite: monsters drop Relics (E33's Pictos, renamed; the run's 25 gear pieces become the first ones) kept forever on the machine; a copy levels a Relic; wearing a Relic for about 4 won fights (bigger fights count more) teaches its Echo (E33's Lumina, renamed) for that run only, and Echoes, their bars and Echo points (from level ups) all start over every run; Relic slots open during a run (1, then after the first guard, then after act 1's boss); online uses the host's Relics; enemies +5% power and two Relic oaths (11 the Empty Hand, 12 Forgetting); Reset progress in Settings | user idea and picks (names Relics and Echoes, Echoes learned again every run, only Relics and their levels stay, host's Relics online); replaces "nothing carries over" (#139); more choices, not more power, so the oaths keep it hard (8.17) |
 | 2026-10-18 | The Relics and Echoes pages look like Expedition 33's Pictos and Lumina pages (card grid and big slot cards; tabs, costs, stats, attribute radar and points), with drawn diamond icons until real pictures | user playtest: "make the menuing bearable, similar to Expedition 33" (8.17) |
 | 2026-10-18 | The backpack's charms are removed: six of their ideas became Relics (31 in all), the rotten ones are curses that only hurt, the rest are faded treasure for older saves; shops sell 3 Relics | user pick (option A) after asking whether a backpack is too much with Relics and Echoes: charms were a third buff system; supplies, keys and curses still give real choices (card #240, 8.1) |

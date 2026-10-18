@@ -25,6 +25,7 @@ Audio="*res://scripts/autoload/audio.gd"
 UserSettings="*res://scripts/autoload/user_settings.gd"
 Net="*res://scripts/autoload/net.gd"
 Prompts="*res://scripts/autoload/button_prompts.gd"
+Pointer="*res://scripts/autoload/mouse_cursor.gd"
 
 [display]
 

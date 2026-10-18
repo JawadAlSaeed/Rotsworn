@@ -77,12 +77,12 @@ func test_main_menu_has_credits() -> void:
 
 
 func test_main_menu_is_short() -> void:
-	# Cards #150 and #208: Host and Join sit under one Online row; the tutorial, the journal and
-	# the credits under Extras; Practice is a test tool, not a player row.
+	# Cards #150 and #208: Host and Join sit under one Online row; the tutorial, the glossary, the
+	# journal and the credits under Extras; Practice is a test tool, not a player row. Phase 17 adds Relics.
 	assert_eq(MainMenu.ITEMS, [MainMenu.NEW_RUN, MainMenu.ONLINE, MainMenu.RELICS, MainMenu.EXTRAS, MainMenu.SETTINGS,
 			MainMenu.QUIT])
 	assert_does_not_have(MainMenu.ITEMS, MainMenu.HOST_ONLINE)
-	assert_eq(MainMenu.EXTRAS_ITEMS, [MainMenu.TUTORIAL, MainMenu.JOURNAL, MainMenu.CREDITS])
+	assert_eq(MainMenu.EXTRAS_ITEMS, [MainMenu.TUTORIAL, MainMenu.GLOSSARY, MainMenu.JOURNAL, MainMenu.CREDITS])
 	assert_does_not_have(MainMenu.EXTRAS_ITEMS, MainMenu.PRACTICE)
 	assert_eq(MainMenu.ONLINE_ITEMS, [MainMenu.HOST_ONLINE, MainMenu.JOIN_ONLINE])
 

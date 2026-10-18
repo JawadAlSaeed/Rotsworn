@@ -336,6 +336,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _use_uid >= 0:
 		_target_input(event)
 		return
+	if event is InputEventMouse and _mouse_input(event):
+		return
 	var step := Vector2i.ZERO
 	if _pressed(event, &"menu_left"):
 		step.x = -1
@@ -365,7 +367,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handled()
 		_confirm()
 		return
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu"):
+	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu") or MenuMouse.is_back(event):
 		_handled()
 		_cancel()
 		return
@@ -373,6 +375,37 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	_handled()
 	_move(step)
+
+
+## The mouse over the backpack grid (card #202): pointing at a cell puts the cursor there, a left
+## click is Confirm on it (picks the item or puts the one in hand down). The hero cards and the gear
+## slots still use the keys and the pad. True when the event was used.
+func _mouse_input(event: InputEvent) -> bool:
+	if not _held.is_empty() and _held.kind == "gear":
+		return false  # gear is worn, never carried in the backpack
+	if event is InputEventMouseMotion:
+		var hovered := _grid.cell_at((event as InputEventMouse).position)
+		if hovered.x >= 0:
+			var focus_before := _focus
+			var cursor_before := _grid.cursor
+			_focus = Focus.GRID
+			_grid.cursor = hovered
+			_clamp_cursor()
+			if focus_before != _focus or cursor_before != _grid.cursor:
+				Sfx.play("menu_move")
+				_redraw()
+				_handled()
+				return true
+	elif MenuMouse.is_click(event):
+		var clicked := _grid.cell_at((event as InputEventMouse).position)
+		if clicked.x >= 0:
+			_focus = Focus.GRID
+			_grid.cursor = clicked
+			_clamp_cursor()
+			_handled()
+			_confirm_grid()
+			return true
+	return false
 
 
 func _move(step: Vector2i) -> void:
@@ -831,7 +864,7 @@ func _target_input(event: InputEvent) -> void:
 			var uid := _use_uid
 			_use_uid = -1
 			_use_on(uid, _hero)
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu"):
+	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu") or MenuMouse.is_back(event):
 		_use_uid = -1
 		Sfx.play("menu_cancel")
 	else:
