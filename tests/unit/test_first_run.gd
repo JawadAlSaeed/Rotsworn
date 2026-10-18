@@ -32,7 +32,8 @@ func test_notice_data_is_complete_and_the_icon_exists() -> void:
 	var branding := load(BRANDING_PATH) as BrandingData
 	assert_not_null(branding)
 	assert_false(branding.controller_title.strip_edges().is_empty())
-	assert_false(branding.controller_text.strip_edges().is_empty())
+	# Heading only (user 2026-10-18): the second line is empty in the shipped data.
+	assert_true(branding.controller_text.strip_edges().is_empty(), "no second line")
 	assert_true(ResourceLoader.exists(branding.controller_icon_path), "the icon: %s" % branding.controller_icon_path)
 	assert_gt(branding.controller_hold_ms, 0, "the shipped notice shows")
 	assert_gt(ControllerNotice.total_ms(branding), branding.controller_skip_guard_ms,

@@ -1,8 +1,8 @@
 class_name ControllerNotice
 extends CanvasLayer
 ## The "Controller recommended" screen (DESIGN.md 7.7, card #167), after the studio intro and
-## before the title: the controller icon, a worn-gold heading and one line over the menu's
-## background. It fades in, holds and fades out by itself; any key, button or click (after the skip
+## before the title: the controller picture and a worn-gold heading (and an optional line) over the
+## menu's background. It fades in, holds and fades out by itself; any key, button or click (after the skip
 ## guard) ends it early. `done` comes once. Text, icon and every time live in
 ## data/branding/branding.tres (BrandingData). A missing icon falls back to the placeholder.
 
@@ -31,6 +31,13 @@ static func total_ms(branding: BrandingData) -> int:
 func setup(branding: BrandingData) -> void:
 	_branding = branding
 	layer = 40
+	# A black floor that never fades: without it the fade showed Godot's grey clear colour (a grey
+	# flash between the intro and the title, seen in a picture run).
+	var floor_rect := ColorRect.new()
+	floor_rect.color = Color.BLACK
+	floor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	floor_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(floor_rect)
 	_root = Control.new()
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -47,16 +54,19 @@ func setup(branding: BrandingData) -> void:
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	# Pixel art: whole-number scaling keeps it crisp.
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# Drawn in the logo's worn-gold line style (tools/branding/controller_mark.py) and shown smaller
+	# than its file, so smooth with mipmaps, not the pixel art's nearest filter.
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	icon.custom_minimum_size = Vector2(0.0, float(branding.controller_icon_height_px))
 	column.add_child(icon)
 	var heading := HudStyle.make_worn_title(branding.controller_title, branding.controller_title_size)
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(heading)
-	var line := HudStyle.make_label(branding.controller_text, branding.controller_text_size, HudStyle.TEXT_DIM)
-	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(line)
+	# No second line by default (user 2026-10-18: "only the yellow line is enough").
+	if not branding.controller_text.is_empty():
+		var line := HudStyle.make_label(branding.controller_text, branding.controller_text_size, HudStyle.TEXT_DIM)
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(line)
 
 
 func _ready() -> void:

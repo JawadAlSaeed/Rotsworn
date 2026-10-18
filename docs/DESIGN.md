@@ -1757,13 +1757,15 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
 
 - **Controller notice** (card #167, user request): between the studio intro and the title screen a
   short "Controller recommended" screen (`ControllerNotice`, `scripts/menu/`): the menu's dark
-  background, a controller icon (`assets/sprites/ui/controller.png`, 32x22, drawn by
-  `tools/art_kit/assets/fx_ui.py` like the other HUD icons: an iron body lit from the top, a cross
-  pad, four worn-gold buttons, two sticks; shown at 220 px, nearest-neighbour), the heading in the
-  worn-gold title lettering and one dim line ("Rotsworn plays best with a controller. A keyboard
-  works too."). It fades in (500 ms), holds (2400 ms), fades out (600 ms) by itself and any key,
-  button or click ends it early after a 400 ms guard (a key still held from the intro does not skip
-  it). Text, icon, sizes and every time are in `data/branding/branding.tres` ("Controller notice"
+  background, a gamepad drawn in the logo's style (`assets/branding/controller_mark.png`, made by
+  `tools/branding/controller_mark.py` with the logo's own worn-gold wear: a double outline like the
+  crest's shield, the cross pad, four buttons, two sticks and the staff's gem; shown 240 px tall,
+  smooth with mipmaps; user 2026-10-18: the first pixel-art icon "fries me", "one with the game
+  logo style") and the heading in the worn-gold title lettering, nothing else (the user dropped the
+  second line; `controller_text` stays in the data, empty). It fades in (500 ms), holds (2400 ms), fades out (600 ms) by itself and any key,
+  button or click ends it early after a 1500 ms guard (playtest 2026-10-18: a quick double tap past
+  the intro skipped it unseen at 400 ms; a key still held from the intro does not skip it). It
+  fades over black (a black floor under it), not Godot's grey clear colour. Text, icon, sizes and every time are in `data/branding/branding.tres` ("Controller notice"
   group); a hold time of 0 turns it off, and `controller_skip_with_pad` (off) leaves it out for a
   player whose pad is already plugged in. No music or sound of its own (the menu music starts with
   the title). Not shown in autoplay or any `--screen=` start; `--screen=controller` shows it, then the
