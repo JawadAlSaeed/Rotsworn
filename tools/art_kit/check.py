@@ -49,7 +49,7 @@ PATCHES = ["leaf_litter", "moss"]
 BACKDROPS = ["backdrop", "backdrop_ashen_ruins", "backdrop_sunken_bog", "backdrop_hollow_throne"]
 FX = {"shadow": (32, 12), "shockwave": (64, 16), "slash": (32, 32), "spark": (16, 16)}
 UI = {"ap_pip": (10, 10), "ap_pip_empty": (10, 10), "hit_normal": (12, 12), "hit_ground": (12, 12),
-      "lock": (12, 12), "map_paper": (440, 520), "map_roller": (450, 16), "map_shop": (24, 24),
+      "lock": (12, 12), "controller": (32, 22), "map_paper": (440, 520), "map_roller": (450, 16), "map_shop": (24, 24),
       "map_rest": (24, 24), "map_zone_rotten_hollow": (24, 24), "map_zone_sunken_bog": (24, 24),
       "map_zone_ashen_ruins": (24, 24), "map_lair_hollow_king": (32, 32), "map_flag": (14, 22),
       "map_ring": (30, 30), "map_ring_big": (40, 40)}

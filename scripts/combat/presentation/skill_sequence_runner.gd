@@ -135,7 +135,7 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_hits_enemies = ability != null and ability.targets_enemies()
 	_ranged = ability != null and ability.projectile != null
 	_bolts_launched.clear()
-	_latency_ms = PlayerSettings.latency_compensation_ms(_tuning)
+	_latency_ms = PlayerSettings.base_latency_compensation_ms(_tuning)
 	_judges = JudgeSet.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
 			_tuning.late_press_report_ms)
 	# Online, other machines judge their own players' prompts.
@@ -300,9 +300,15 @@ func hold(ms: int) -> void:
 	_freezes.add(now, ms * 1000, [] as Array[int])
 
 
-## The lag compensation the current judge uses.
+## The base lag compensation the current judges use (the smaller of the keyboard's and the pad's,
+## DESIGN.md 3.2). Window edges drawn for the player use it too.
 func latency_us() -> int:
 	return _latency_ms * 1000
+
+
+## How much more the device that made a press lags than the base (card #204).
+func _extra_latency_ms(device: int) -> int:
+	return PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.input_kind_of_device(device)) - _latency_ms
 
 
 ## True if this prompt can still be answered (not sent, not voided, and for a follow-up, a
@@ -350,7 +356,7 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 		var e := _clock.attack_time_us(previous_pump_us)
 		if e >= 0:
 			earliest = e
-	var report := _judges.press(player, action, t, earliest)
+	var report := _judges.press(player, action, t, earliest, _extra_latency_ms(device))
 	var answered: Array[int] = []
 	for idx: int in report.prompts:
 		if is_prompt_open(idx):

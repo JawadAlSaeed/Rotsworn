@@ -609,6 +609,34 @@ in data. Times in ms at tempo 100%.
   refuses to save when the middle half of the presses spreads wider than
   `calibration_max_spread_ms` (60): that means pressing by reaction to the flash, not with the
   beat. The F1 overlay also shows the rolling median offset of real parries and of all presses.
+- **One value per kind of input (card #204).** A keyboard and a wireless pad lag differently (easily
+  20 to 40 ms, a third to half of the 70 ms perfect window), so the measurement is saved per kind:
+  `latency_keyboard_ms` and `latency_pad_ms` in `user://settings.cfg` (`PlayerSettings.INPUT_KEYBOARD`
+  / `INPUT_PAD`; a device code of 0 and up is a pad, the keyboard, the mouse and the autoplay bot
+  are "keyboard"). The first press in the calibration decides which kind is being measured, the
+  panel says so ("Measuring: controller") and saves only that kind; presses from the other kind
+  are ignored. A value saved before the kinds existed (`latency_compensation_ms`) still counts for
+  both until that kind is calibrated itself. A kind never calibrated uses the tuning default.
+  Judging: a sequence's `JudgeSet` is built with the smaller of the two values as its base; each
+  press passes the extra lag of the device that made it (`extra_latency_ms`: its value minus the
+  base, never negative) and is judged that much earlier, exactly as if the judge had been built
+  with that device's own value. `DefenseJudge` is unchanged, the base only decides when an
+  unanswered hit expires (never earlier than the laggier device needs), and the enemy's contact
+  hold and the window marks use the base. In co-op each player's presses use their own pad's value
+  (roster device), in solo whichever device actually pressed. Online, each machine uses its own
+  settings for its own players.
+- **Offered once to a new player (card #204).** Settings > Game > Lag calibration was the only way
+  in and nothing told anyone. The first New Run that does not start the tutorial asks "Calibrate
+  your timing?" (about 15 seconds; "recommended for wireless pads and TVs, which add lag"; Not now
+  is selected first, Calibrate now runs `CalibrationScreen`, the calibration panel on its own
+  screen) and then goes on to the players screen either way. `PlayerSettings.calibration_offered`
+  remembers it was asked (once only, in `[game]` beside `tutorial_offered`); a player who already
+  calibrated is never asked (`calibration_offer_due`). Never in autoplay, never online (hosting and
+  joining do not pass through New Run). **Order with the tutorial offer:** one question per New
+  Run press. Tutorial first (7.8); answering "Start the run" goes straight on to the calibration
+  offer; answering "Play the tutorial" leaves the calibration offer for the next New Run, so the
+  two never stack in one go. `--screen=calibration_offer` shows the question over the main menu
+  without using up the once-only flag.
 
 ### 3.3 Attack clock and hit-stop
 
@@ -1449,7 +1477,7 @@ an action already has keeps working.
 
 Studio intro (2026-10-12): when the game starts it plays the "Developed by DragonRot" video
 (`assets/video/dragonrot_intro.ogv`, 4 s, path in `data/presentation/boot.tres`, `BootData`) on
-black, then the title screen (7.7). Any key, button or click skips it (after `skip_guard_ms`). A missing
+black, then the "Controller recommended" notice and the title screen (7.7). Any key, button or click skips it (after `skip_guard_ms`). A missing
 video goes straight to the menu. Autoplay never shows it. Godot plays Ogg Theora only: the MP4 was
 converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`). Phase 8 (user: it looked soft and
 stretched; the exported MP4 was only 1888x998 at a low bitrate): `tools/branding/render_intro.py`
@@ -1483,7 +1511,7 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   field: each only turns off what a place's look uses, `StageBuilder.apply_settings` applies a
   change at once even over a fight or zone), **Sound** (the four volumes), **Controls** (rebind every key and button, 6.1)
   and **Game** (screen shake 0 to 100% in 25% steps, scaling every camera shake; the training
-  ring; lag calibration and its reset).
+  ring; lag calibration, which shows the keyboard's and the pad's value, and its reset, 3.2).
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions only.
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
   run map (B on the map too). Continue, Settings, "Save & Quit" (a local run, 8.14), and "Abandon
@@ -1625,6 +1653,20 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
 - Dev tools: `--screen=title` and `--screen=credits`.
 
 ---
+
+- **Controller notice** (card #167, user request): between the studio intro and the title screen a
+  short "Controller recommended" screen (`ControllerNotice`, `scripts/menu/`): the menu's dark
+  background, a controller icon (`assets/sprites/ui/controller.png`, 32x22, drawn by
+  `tools/art_kit/assets/fx_ui.py` like the other HUD icons: an iron body lit from the top, a cross
+  pad, four worn-gold buttons, two sticks; shown at 220 px, nearest-neighbour), the heading in the
+  worn-gold title lettering and one dim line ("Rotsworn plays best with a controller. A keyboard
+  works too."). It fades in (500 ms), holds (2400 ms), fades out (600 ms) by itself and any key,
+  button or click ends it early after a 400 ms guard (a key still held from the intro does not skip
+  it). Text, icon, sizes and every time are in `data/branding/branding.tres` ("Controller notice"
+  group); a hold time of 0 turns it off, and `controller_skip_with_pad` (off) leaves it out for a
+  player whose pad is already plugged in. No music or sound of its own (the menu music starts with
+  the title). Not shown in autoplay or any `--screen=` start; `--screen=controller` shows it, then the
+  title.
 
 ### 7.8 Tutorial (phase 14, card #131, lessons approved 2026-10-15; rebuilt the same day)
 
@@ -3339,4 +3381,6 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Saves check only `data/` and the version (`DataHash.of_content`), not the code; the main menu has no description line under its rows | card #208 playtest: a code-only fix hid the user's saved run; the user found the line ("About 8 stops") out of date and not needed now that Continue and Journal exist |
 | 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
 | 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |
+| 2026-10-18 | "Controller recommended" notice between the studio intro and the title: icon from the art kit, worn-gold heading, fades out after about 3.5 s or on any button; all text and times in `branding.tres` | card #167; the game is pad-first (Expedition 33 model) and the notice is data so the user can tune or switch it off |
+| 2026-10-18 | The lag calibration is offered once, on the first New Run that does not start the tutorial; lag compensation is saved per kind of input (keyboard / pad) and the judge adds the pressing device's extra lag to a base that is the smaller of the two | card #204 and review finding ui-input 3: a pad and a keyboard differ by a third of the perfect window; one question per New Run press so the tutorial and calibration offers never stack |
 | 2026-10-17 | A saved run is continued by any build that can read it (no content check); only the save format version and RunState's own checks decide | card #208 playtest: one data change (the menu logo) hid the run again; the game changes almost daily |

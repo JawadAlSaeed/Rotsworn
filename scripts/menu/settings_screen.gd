@@ -324,10 +324,13 @@ func _refresh() -> void:
 						"A shrinking ring shows when each enemy hit lands. Practice fights only; off by default.",
 						_on_off(PlayerSettings.show_timing_ring(_tuning)))
 			"calibrate":
+				var lag_note := "" if PlayerSettings.is_calibrated() else " These are the defaults until you calibrate."
 				_menu.set_item(i, "Lag calibration", true,
-						"Press Parry with a beat to measure your screen and pad lag. Do this once per setup.",
-						"%s ms%s" % [HudStyle.signed_ms(PlayerSettings.latency_compensation_ms(_tuning)),
-						"" if PlayerSettings.is_calibrated() else " (default)"])
+						"Press Parry with a beat to measure your screen and input lag. Keys and pad are measured "
+						+ "separately: press with the one you play with." + lag_note,
+						"Keys %s  Pad %s ms" % [
+						HudStyle.signed_ms(PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.INPUT_KEYBOARD)),
+						HudStyle.signed_ms(PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.INPUT_PAD))])
 			"reset_lag":
 				_menu.set_item(i, "Reset lag to default", PlayerSettings.is_calibrated(),
 						"Forget the measured lag and use the default (%d ms) again." % _tuning.input_latency_compensation_ms)
