@@ -415,6 +415,14 @@ extends Resource
 @export_range(0, 30000, 1, "suffix:ms") var net_deadline_grace_ms: int = 1500
 ## Zones: the host sends the leader and roaming enemy positions this many times a second.
 @export_range(1, 60) var net_zone_send_hz: int = 20
+## Heartbeat (card #205): a connection that answers nothing (a pulled cable, a crash, Wi-Fi gone)
+## counts as lost after at least the first and at most the second of these. Both ends keep pinging
+## each other, so a silent drop never freezes a fight longer than this.
+@export_range(500, 60000, 1, "suffix:ms") var net_drop_min_ms: int = 3000
+@export_range(500, 60000, 1, "suffix:ms") var net_drop_max_ms: int = 6000
+## A client that dropped mid-run keeps its seat this long (the host plays its heroes meanwhile); it
+## can join again with the host's address and play on. After this the seat is given up (0: never kept).
+@export_range(0, 1800000, 1, "suffix:ms") var net_rejoin_grace_ms: int = 120000
 
 @export_group("Controls")
 ## Settings > Controls (card #190): after picking a key or button to change, the game waits this

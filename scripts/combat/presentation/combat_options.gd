@@ -46,6 +46,9 @@ const AUTOPLAY_ESCAPE := "escape"
 ## its defences and skill presses (some perfect, some good) and lets the rest go.
 const AUTOPLAY_AVERAGE := "average"
 const DEFAULT_BOT_SKILL: int = 60
+## --rejoin without a number: join again this many seconds after losing the host (longer than the
+## heartbeat, so the host has marked the seat away and plays on meanwhile).
+const DEFAULT_REJOIN_S: int = 10
 
 ## "" when a human plays, else AUTOPLAY_PERFECT, AUTOPLAY_MISS or AUTOPLAY_MASH.
 var autoplay_mode: String = ""
@@ -73,6 +76,13 @@ var host_players: int = 0
 var join_address: String = ""
 ## --leave-after=S (0: stay).
 var leave_after_s: int = 0
+## --drop-after=S (0: never): an online client drops off the network without a word after S
+## seconds, like a pulled cable (card #205). --rejoin[=S]: after losing the host it joins again
+## S seconds later (0: it does not). --drop-in-fight: the drop waits for the next fight after
+## those S seconds and comes a few seconds into it (to test rejoining mid-fight).
+var drop_after_s: int = 0
+var rejoin_after_s: int = 0
+var drop_in_fight: bool = false
 ## --bot-skill=N for --autoplay=average (0 to 100).
 var bot_skill: int = DEFAULT_BOT_SKILL
 ## --shots=S (0: no pictures) and --screen=NAME ("" : the normal start).
@@ -142,6 +152,14 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.host_players = clampi(wanted.to_int(), 1, PlayerRoster.MAX_PLAYERS) if wanted.is_valid_int() else 2
 		elif arg.begins_with("--leave-after="):
 			options.leave_after_s = maxi(0, arg.substr("--leave-after=".length()).to_int())
+		elif arg.begins_with("--drop-after="):
+			options.drop_after_s = maxi(0, arg.substr("--drop-after=".length()).to_int())
+		elif arg == "--drop-in-fight":
+			options.drop_in_fight = true
+		elif arg == "--rejoin":
+			options.rejoin_after_s = DEFAULT_REJOIN_S
+		elif arg.begins_with("--rejoin="):
+			options.rejoin_after_s = maxi(1, arg.substr("--rejoin=".length()).to_int())
 		elif arg.begins_with("--bot-skill="):
 			options.bot_skill = clampi(arg.substr("--bot-skill=".length()).to_int(), 0, 100)
 		elif arg.begins_with("--shots="):
