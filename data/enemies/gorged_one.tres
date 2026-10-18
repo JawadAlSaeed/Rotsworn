@@ -11,6 +11,11 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/blight_bile_flood.tres" id="9_sufb1"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="10_ah3f4"]
 [ext_resource type="Resource" path="res://data/clips/bloat.tres" id="11_01qfk"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="11_d82jo"]
+[ext_resource type="Resource" path="res://data/gear/hunger_charm.tres" id="12_3u3us"]
+[ext_resource type="Resource" path="res://data/gear/war_drum.tres" id="13_qbx23"]
+[ext_resource type="Resource" path="res://data/gear/second_wind.tres" id="14_sufb1"]
+[ext_resource type="Resource" path="res://data/gear/black_ichor.tres" id="15_3u3us"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/bloat_gorge_burst.tres" id="99_doom"]
 
 [resource]
@@ -34,6 +39,7 @@ target_bias_percent = 150
 gold = 60
 xp = 130
 voice_sfx = "voice_bloat"
+relic_drops = Array[ExtResource("11_d82jo")]([ExtResource("12_3u3us"), ExtResource("13_qbx23"), ExtResource("14_sufb1"), ExtResource("15_3u3us")])
 phase_two_hp_percent = 50
 phase_two_attacks = Array[ExtResource("1_0lfg4")]([ExtResource("2_os6rj"), ExtResource("3_d8jt0"), ExtResource("4_7jimn"), ExtResource("5_fuqpq"), ExtResource("6_d82jo"), ExtResource("7_3u3us"), ExtResource("8_qbx23"), ExtResource("9_sufb1"), ExtResource("99_doom")])
 phase_two_speed = 125

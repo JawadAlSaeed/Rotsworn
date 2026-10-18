@@ -1,8 +1,8 @@
 class_name LootScreen
 extends CanvasLayer
 ## Spoils after a zone's guard, an elite or an act's boss (DESIGN.md 8, 8.6): pick one of a few
-## pieces of gear the party does not own yet (rare or better while the run has them). The party screen comes next, with it in hand, to put it on someone (gear is always worn,
-## DESIGN.md 8.1).
+## Relics (8.17) that are new or that a copy would still level up (rare or better while the run has
+## them). It joins the Relics for good; the party screen comes next to put it on someone.
 
 ## The item picked (null: the party took nothing).
 signal chosen(item: GearData)
@@ -15,8 +15,9 @@ var _items: Array[GearData] = []
 var _menu: ListMenu
 
 
-## `text`: the line under the title (empty: the guard's).
-func setup(items: Array[GearData], text: String = "") -> void:
+## `text`: the line under the title (empty: the guard's). `run`: to say which Relics are new and
+## which a copy would level up.
+func setup(items: Array[GearData], text: String = "", run: RunState = null) -> void:
 	_items = items
 	var column := ListMenu.screen_column(self, "Spoils", TITLE_SIZE)
 	column.add_child(ListMenu.centred_label(text if not text.is_empty() else "The guard left something behind. Take one.",
@@ -29,10 +30,13 @@ func setup(items: Array[GearData], text: String = "") -> void:
 	var list: Array[Dictionary] = []
 	for item: GearData in items:
 		var step := BackpackGrid.gear_step(item)
-		list.append({"text": item.display_name, "detail": "%s (%s)" % [item.description, BackpackGrid.rarity_name(step)],
-				"color": BackpackGrid.rarity_color(step)})
+		var level := run.relic_level(item) if run != null else 0
+		var tag := "New" if level <= 0 else "Lv %d > %d" % [level, level + 1]
+		list.append({"text": item.display_name, "value": tag,
+				"detail": "%s (%s)  %s" % [item.description, BackpackGrid.rarity_name(step), item.stat_text(maxi(1, level + 1))],
+				"color": GearData.ROT_TOUCHED_COLOR if item.rot_touched else BackpackGrid.rarity_color(step)})
 	if items.is_empty():
-		list.append({"text": "Nothing left to find", "detail": "The party already has every piece of gear."})
+		list.append({"text": "Nothing left to find", "detail": "Every Relic is at its top level."})
 	_menu.set_items(list, detail)
 
 

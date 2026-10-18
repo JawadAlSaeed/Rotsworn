@@ -13,3 +13,6 @@ effect = 6
 amount = 80
 rot_touched = true
 drawback_amount = 15
+stat = 1
+stat_points = 3
+echo_cost = 2

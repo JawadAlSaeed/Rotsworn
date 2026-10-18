@@ -10,7 +10,11 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/husk_stone_spikes.tres" id="8_s1xfh"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/ashen_cinder_hail.tres" id="9_tbuhi"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="10_vykjl"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="11_bi55n"]
 [ext_resource type="Resource" path="res://data/clips/rotten_husk.tres" id="11_por0w"]
+[ext_resource type="Resource" path="res://data/gear/war_drum.tres" id="12_yhvw2"]
+[ext_resource type="Resource" path="res://data/gear/oathbreakers_band.tres" id="13_s1xfh"]
+[ext_resource type="Resource" path="res://data/gear/gravebound_ring.tres" id="14_tbuhi"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/husk_timber_fall.tres" id="99_doom"]
 
 [resource]
@@ -32,6 +36,7 @@ target_bias_percent = 200
 gold = 120
 xp = 260
 voice_sfx = "voice_husk"
+relic_drops = Array[ExtResource("11_bi55n")]([ExtResource("12_yhvw2"), ExtResource("13_s1xfh"), ExtResource("14_tbuhi")])
 phase_two_hp_percent = 50
 phase_two_attacks = Array[ExtResource("1_fglnb")]([ExtResource("2_0qbur"), ExtResource("3_1s4gw"), ExtResource("4_euo7r"), ExtResource("5_wym7q"), ExtResource("6_bi55n"), ExtResource("7_yhvw2"), ExtResource("8_s1xfh"), ExtResource("9_tbuhi"), ExtResource("99_doom")])
 phase_two_speed = 165

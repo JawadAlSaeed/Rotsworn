@@ -1,5 +1,5 @@
 extends SceneTree
-## Writes the difficulty ladder (DESIGN.md 8.15): ten oaths in data/runs/oaths/ and the run's
+## Writes the difficulty ladder (DESIGN.md 8.15, 8.17): twelve oaths in data/runs/oaths/ and the run's
 ## list of them. Each oath only lists what it ADDS; a run at Oath N has oaths 1 to N together.
 ## Rewrites every file it owns. Run it after bootstrap_phase15.gd (that one keeps the oaths: it
 ## loads the run first).
@@ -35,6 +35,11 @@ func _init() -> void:
 			{"act_heal_percent_add": -25}))
 	ladder.append(_oath("rot", "Oath of Rot", "Every enemy hits 10% harder.",
 			{"enemy_power_percent_add": 10}))
+	# Phase 17 (DESIGN.md 8.17): Relics stay between runs, so the top of the ladder bites into them.
+	ladder.append(_oath("empty_hand", "Oath of the Empty Hand", "Each hero has one Relic slot fewer all run.",
+			{"relic_slots_add": -1}))
+	ladder.append(_oath("forgetting", "Oath of Forgetting", "Heroes get half the Echo points.",
+			{"echo_points_percent_add": -50}))
 	var run := load(RUN_PATH) as RunData
 	run.oaths.assign(ladder)
 	var err := ResourceSaver.save(run, RUN_PATH)

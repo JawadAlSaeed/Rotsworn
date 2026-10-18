@@ -25,8 +25,8 @@ const RARITY_NAMES: Array[String] = ["common", "rare", "legendary", "rot-touched
 const ROT_TOUCHED_STEP: int = 3
 ## Rotten items: a sickly green border, whatever their rarity.
 const ROTTEN_COLOR := Color(0.55, 0.85, 0.3)
+## The item the one in hand would combine into, and level marks: gold.
 const LINK_COLOR := Color(1.0, 0.82, 0.3)
-const LINK_PX: float = 7.0
 const LEVEL_FONT_SIZE: int = 26
 ## With no art: a plain frame this many pixels around the grid.
 const NO_ART_MARGIN: float = 24.0
@@ -38,8 +38,6 @@ var show_cursor: bool = true
 var held_item: ItemData
 var held_turn: int = 0
 var held_uid: int = -1
-## Gold links between charms that boost each other: [cell, cell] pairs side by side.
-var links: Array = []
 ## The item the one in hand would combine into (-1: none): drawn with a gold outline.
 var combine_into: int = -1
 var _visuals: CombatVisuals
@@ -83,6 +81,28 @@ func cell_pos(cell: Vector2i) -> Vector2:
 	return _origin + Vector2(cell) * (_cell + _gap)
 
 
+## The cell under a viewport point (the way mouse events report it), Vector2i(-1, -1) for none
+## (card #202). The gaps between cells belong to the cell before them.
+func cell_at(point: Vector2) -> Vector2i:
+	if pack == null:
+		return Vector2i(-1, -1)
+	return cell_index(MenuMouse.local_point(self, point), _origin, _cell, _gap, pack.width, pack.rows)
+
+
+## The cell a point inside the grid's own coordinates falls in, for a grid of `width` x `rows`
+## cells of `cell` pixels with `gap` pixels between them, its first cell at `origin`; (-1, -1) outside.
+static func cell_index(local: Vector2, origin: Vector2, cell: float, gap: float, width: int, rows: int) -> Vector2i:
+	var rel := local - origin
+	if rel.x < 0.0 or rel.y < 0.0:
+		return Vector2i(-1, -1)
+	var step := cell + gap
+	var x := floori(rel.x / step)
+	var y := floori(rel.y / step)
+	if x >= width or y >= rows:
+		return Vector2i(-1, -1)
+	return Vector2i(x, y)
+
+
 static func rarity_color(rarity: int) -> Color:
 	return RARITY_COLORS[clampi(rarity, 0, RARITY_COLORS.size() - 1)]
 
@@ -115,12 +135,6 @@ func _draw() -> void:
 		if int(e.uid) == combine_into:
 			border = LINK_COLOR
 		_draw_item(item, int(e.x), int(e.y), int(e.turn), ORIGIN_ALPHA if lifted else 1.0, border, RunState.level_of(e))
-	for pair: Array in links:
-		# A gold bead on the shared edge of two cells.
-		var a := cell_pos(pair[0]) + Vector2(_cell, _cell) * 0.5
-		var b := cell_pos(pair[1]) + Vector2(_cell, _cell) * 0.5
-		draw_circle((a + b) * 0.5, LINK_PX, LINK_COLOR)
-		draw_circle((a + b) * 0.5, LINK_PX * 0.5, Color(1.0, 0.97, 0.8))
 	if held_item != null:
 		var fits := pack.fits(held_item, cursor.x, cursor.y, held_turn, held_uid) or combine_into >= 0
 		_draw_item(held_item, cursor.x, cursor.y, held_turn, HELD_ALPHA, FITS if fits else NO_FIT)

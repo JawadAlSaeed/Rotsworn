@@ -11,3 +11,5 @@ price = 80
 rarity = 2
 effect = 7
 amount = 30
+stat_points = 4
+echo_cost = 3

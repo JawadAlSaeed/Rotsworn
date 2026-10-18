@@ -6,20 +6,23 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/hyena_pack_bite.tres" id="4_hyena_pack_bite"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/hyena_snap.tres" id="5_hyena_snap"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/hyena_cackle.tres" id="6_hyena_cackle"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="6_qyi6d"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/hyena_pounce.tres" id="7_hyena_pounce"]
+[ext_resource type="Resource" path="res://data/gear/quick_boots.tres" id="7_u2ex2"]
+[ext_resource type="Resource" path="res://data/gear/riposte_ring.tres" id="8_56guc"]
+[ext_resource type="Resource" path="res://data/gear/bloodletters_fang.tres" id="9_b43nk"]
+[ext_resource type="Resource" path="res://data/gear/wake_root.tres" id="10_u2ex2"]
 
 [resource]
 script = ExtResource("2_enemy")
 id = "rot_hyena"
-voice_sfx = "voice_hyena"
 display_name = "Rot Hyena"
 color = Color(0.48, 0.42, 0.32, 1)
 sprite_path = "res://assets/sprites/enemies/rot_hyena.png"
-portrait_path = "res://assets/sprites/portraits/rot_hyena.png"
 sprite_clips = ExtResource("3_clips")
-death_style = 0
 death_color = Color(0.75, 0.91, 0.37, 1)
 idle_cycle_percent = 80
+portrait_path = "res://assets/sprites/portraits/rot_hyena.png"
 sprite_pixel_size = 0.045
 hp_percent = 85
 power_percent = 90
@@ -29,3 +32,5 @@ target_rule = 1
 target_bias_percent = 300
 gold = 15
 xp = 30
+voice_sfx = "voice_hyena"
+relic_drops = Array[ExtResource("6_qyi6d")]([ExtResource("7_u2ex2"), ExtResource("8_56guc"), ExtResource("9_b43nk"), ExtResource("10_u2ex2")])

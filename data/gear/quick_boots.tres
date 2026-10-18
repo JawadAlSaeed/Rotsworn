@@ -9,3 +9,5 @@ display_name = "Quick Boots"
 description = "Speed +15: turns come sooner."
 effect = 2
 amount = 15
+stat = 2
+stat_points = 2

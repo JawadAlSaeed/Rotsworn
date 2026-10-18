@@ -553,6 +553,66 @@ def make_lock() -> np.ndarray:
         "G": LOCK_BODY[2], "g": LOCK_BODY[1], "a": LOCK_BODY[0], "k": INK})
 
 
+def make_controller() -> np.ndarray:
+    """A game controller seen from above (card #167, the "Controller recommended" screen): an
+    iron body lit from the top (light edge, dark underside) with two bumpers, two grips, a cross
+    pad on the left, four worn-gold buttons on the right and two sticks. Built from a few shapes
+    and then shaded by depth below the top edge, so it keeps the HUD icons' flat, outlined look."""
+    W, H = 32, 22
+    ys, xs = np.mgrid[0:H, 0:W]
+    px, py = xs + 0.5, ys + 0.5
+
+    def rrect(x0: float, y0: float, x1: float, y1: float, r: float) -> np.ndarray:
+        cx = np.clip(px, x0 + r, x1 - r)
+        cy = np.clip(py, y0 + r, y1 - r)
+        return (px - cx) ** 2 + (py - cy) ** 2 <= r * r
+
+    def ellipse(cx: float, cy: float, rx: float, ry: float) -> np.ndarray:
+        return ((px - cx) / rx) ** 2 + ((py - cy) / ry) ** 2 <= 1.0
+
+    bumpers = rrect(6, 2, 12, 6, 1.5) | rrect(20, 2, 26, 6, 1.5)
+    body = rrect(2, 4, 30, 14, 4.5) | ellipse(8, 14.5, 6.0, 6.0) | ellipse(24, 14.5, 6.0, 6.0)
+    mask = body | bumpers
+    top = np.full(W, H, dtype=int)
+    for x in range(W):
+        col = np.nonzero(body[:, x])[0]
+        if col.size:
+            top[x] = col[0]
+    depth = ys - top[None, :]
+    idx = np.where(depth < 1, 4, np.where(depth < 4, 3, np.where(depth < 9, 2, 1)))
+    idx = np.where(bumpers & ~body, 4, idx)
+    img = _rgba(SHACKLE, idx, np.where(mask, 255, 0))
+    c = Canvas(W, H)
+    c.a[:] = img
+    # Seam between the bumpers and the body.
+    for x0, x1 in ((6, 12), (20, 26)):
+        for x in range(x0 + 1, x1 - 1):
+            c.px(x, 5, SHACKLE[1])
+    # Cross pad: a plus of ink with a lit centre.
+    for dx, dy in ((0, -2), (-1, -1), (0, -1), (1, -1), (-2, 0), (-1, 0), (0, 0), (1, 0), (2, 0),
+                   (-1, 1), (0, 1), (1, 1), (0, 2)):
+        c.px(9 + dx, 9 + dy, INK)
+    c.px(9, 9, SHACKLE[2])
+    # Buttons: four gold gems in a diamond, each lit top left.
+    for bx, by in ((23, 7), (26, 9), (23, 11), (20, 9)):
+        c.px(bx, by, LOCK_BODY[4])
+        c.px(bx + 1, by, LOCK_BODY[2])
+        c.px(bx, by + 1, LOCK_BODY[2])
+        c.px(bx + 1, by + 1, LOCK_BODY[1])
+    # Sticks: a dark well with a lighter cap.
+    for sx, sy in ((13, 13), (19, 13)):
+        for dx in range(-1, 3):
+            for dy in range(-1, 3):
+                if not (dx in (-1, 2) and dy in (-1, 2)):
+                    c.px(sx + dx, sy + dy, INK)
+        c.px(sx, sy, SHACKLE[4])
+        c.px(sx + 1, sy, SHACKLE[3])
+        c.px(sx, sy + 1, SHACKLE[3])
+        c.px(sx + 1, sy + 1, SHACKLE[2])
+    c.outline(INK)
+    return c.a
+
+
 # --- Review pictures -------------------------------------------------------------------------
 
 def _over(bg: tuple[int, int, int], img: np.ndarray) -> np.ndarray:
@@ -809,10 +869,11 @@ def build(ctx) -> None:
         "hit_rend": make_hit_rend(),
         "hit_sweep": make_hit_sweep(),
         "lock": make_lock(),
+        "controller": make_controller(),
     }
     for name in ("shadow", "slash", "spark", "shockwave"):
         ctx.save("sprites/fx/%s.png" % name, parts[name])
-    for name in ("ap_pip", "ap_pip_empty", "hit_normal", "hit_ground", "hit_rend", "hit_sweep", "lock"):
+    for name in ("ap_pip", "ap_pip_empty", "hit_normal", "hit_ground", "hit_rend", "hit_sweep", "lock", "controller"):
         ctx.save("sprites/ui/%s.png" % name, parts[name])
     sheet = review_sheet(parts)
     _save_sheet(ctx, "review_1x.png", sheet, 1)

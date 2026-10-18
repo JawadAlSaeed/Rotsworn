@@ -6,13 +6,12 @@
 script = ExtResource("1_qmjjq")
 id = "rotting_heart"
 display_name = "Rotting Heart"
-description = "Power +25% for every hero. Rotten: every hero loses 3% HP each turn."
+description = "A curse. Every hero loses 3% HP each turn in fights while you carry it. A shop's Cleanse throws it away."
 kind = 1
 rarity = 1
 price = 0
-find_weight = 2
+find_weight = 0
 use_on_map = false
-charm_amount = 25
 rotten = true
 rot_percent = 3
 icon_path = "res://assets/sprites/items/rotting_heart.png"

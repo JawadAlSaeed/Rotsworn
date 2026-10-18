@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Rotsworn"
 config/description="Co-op turn-based RPG roguelike."
-config/version="0.16.0"
+config/version="0.17.0"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 run/max_fps=480
@@ -25,6 +25,7 @@ Audio="*res://scripts/autoload/audio.gd"
 UserSettings="*res://scripts/autoload/user_settings.gd"
 Net="*res://scripts/autoload/net.gd"
 Prompts="*res://scripts/autoload/button_prompts.gd"
+Pointer="*res://scripts/autoload/mouse_cursor.gd"
 
 [display]
 

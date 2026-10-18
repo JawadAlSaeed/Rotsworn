@@ -7,22 +7,26 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/bloat_crush.tres" id="5_vn1gu"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="6_odjum"]
 [ext_resource type="Resource" path="res://data/clips/bloat.tres" id="7_clips"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_bile_spit.tres" id="p12_bloat_bile_spit"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="9_fucfb"]
+[ext_resource type="Resource" path="res://data/gear/menders_charm.tres" id="10_v6b7q"]
+[ext_resource type="Resource" path="res://data/gear/iron_charm.tres" id="11_7p0nu"]
+[ext_resource type="Resource" path="res://data/gear/hunger_charm.tres" id="12_ewlat"]
+[ext_resource type="Resource" path="res://data/gear/rain_pouch.tres" id="13_v6b7q"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/bloat_bile_rain.tres" id="p12_bloat_bile_rain"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bloat_bile_spit.tres" id="p12_bloat_bile_spit"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/bloat_quake.tres" id="p12_bloat_quake"]
 
 [resource]
 script = ExtResource("6_odjum")
 id = "bloat"
-voice_sfx = "voice_bloat"
 display_name = "Bloat"
 color = Color(0.5411765, 0.43529412, 0.61960787, 1)
 sprite_path = "res://assets/sprites/enemies/bloat.png"
-portrait_path = "res://assets/sprites/portraits/bloat.png"
 sprite_clips = ExtResource("7_clips")
 death_style = 1
 death_color = Color(0.7490196, 0.9098039, 0.36862746, 1)
 idle_cycle_percent = 140
+portrait_path = "res://assets/sprites/portraits/bloat.png"
 sprite_pixel_size = 0.045
 hp_percent = 180
 power_percent = 140
@@ -30,3 +34,5 @@ speed = 80
 attacks = Array[ExtResource("1_3185s")]([ExtResource("2_0j26f"), ExtResource("3_otoad"), ExtResource("4_t3fou"), ExtResource("5_vn1gu"), ExtResource("p12_bloat_bile_spit"), ExtResource("p12_bloat_bile_rain"), ExtResource("p12_bloat_quake")])
 gold = 20
 xp = 40
+voice_sfx = "voice_bloat"
+relic_drops = Array[ExtResource("9_fucfb")]([ExtResource("10_v6b7q"), ExtResource("11_7p0nu"), ExtResource("12_ewlat"), ExtResource("13_v6b7q")])

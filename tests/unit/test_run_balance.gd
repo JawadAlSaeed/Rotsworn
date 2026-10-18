@@ -177,41 +177,35 @@ func test_an_elite_made_in_data_needs_no_can_run_flag() -> void:
 
 # --- HP above max -----------------------------------------------------------------------------
 
-func test_hp_never_stays_above_max_after_a_charm_leaves() -> void:
-	var run := _run()
-	var charm := run.items_by_id()["heartleaf"] as ItemData
-	for how: String in ["sell", "drop", "cleanse"]:
+## Since phase 17 only Relics and Echoes raise max HP (the backpack's charms are gone, DESIGN.md
+## 8.17): taking one off, moving it, or taking an Echo off never leaves a hero above max HP.
+func test_hp_never_stays_above_max_after_a_relic_or_echo_comes_off() -> void:
+	var charm: GearData = null
+	for item: GearData in _run().data.gear:
+		if item.effect == GearData.Effect.MAX_HP and not item.rot_touched:
+			charm = item
+	for how: String in ["take_off", "swap", "echo"]:
 		var r := _run()
-		var uid := r.add_item(charm)
-		assert_gt(uid, -1)
+		r.guards_beaten = 1
+		var wearer := 1 if how == "echo" else 0
+		r.wear(wearer, 0, charm)
+		if how == "echo":
+			r.mastery[charm.id] = r.tuning.mastery_needed
+			r.add_xp(0, 400)
+			assert_true(r.set_echo(0, charm, true))
 		for slot: int in r.party_size():
 			r.hp[slot] = r.max_hp(slot)
-		var with_charm := r.max_hp(0)
+		var with_it := r.max_hp(0)
 		match how:
-			"sell":
-				r.sell_item(uid)
-			"drop":
-				r.drop_item(uid)
-			"cleanse":
-				r.spend_items([uid] as Array[int])
-		assert_lt(r.max_hp(0), with_charm, "%s: the charm was worth max HP" % how)
+			"take_off":
+				r.take_off(0, 0)
+			"swap":
+				r.swap_gear(0, 0, 2, 1)
+			"echo":
+				r.set_echo(0, charm, false)
+		assert_lt(r.max_hp(0), with_it, "%s: it was worth max HP" % how)
 		for slot: int in r.party_size():
 			assert_lte(r.hp[slot], r.max_hp(slot), "%s: hero %d" % [how, slot])
-
-
-func test_combining_and_moving_charms_keep_hp_in_range() -> void:
-	var run := _run()
-	var charm := run.items_by_id()["heartleaf"] as ItemData
-	var a := run.add_item(charm)
-	var b := run.add_item(charm)
-	for slot: int in run.party_size():
-		run.hp[slot] = run.max_hp(slot)
-	assert_true(run.combine(a, b))
-	for slot: int in run.party_size():
-		assert_lte(run.hp[slot], run.max_hp(slot))
-	run.drop_item(b)
-	for slot: int in run.party_size():
-		assert_lte(run.hp[slot], run.max_hp(slot), "dropping the combined charm")
 
 
 # --- locked chests ----------------------------------------------------------------------------

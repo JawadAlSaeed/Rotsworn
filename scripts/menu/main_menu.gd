@@ -1,10 +1,11 @@
 class_name MainMenu
 extends CanvasLayer
 ## The main menu (DESIGN.md 7.5), after the title screen: the logo, then Continue (only when a run
-## is saved, DESIGN.md 8.14), start a run, play online (DESIGN.md 9.2), Extras, settings, quit.
+## is saved, DESIGN.md 8.14), start a run, play online (DESIGN.md 9.2), the Relics (8.17), Extras,
+## settings, quit.
 ## Up/down picks, confirm opens it. No button bar here (card #130: the user found it clutter). Kept
 ## short (cards #150 and #208): Online and Extras open a second list in place (Host / Join; the
-## tutorial, the Rot Journal (7.11), credits), cancel or Back goes back. Practice (any fight or zone
+## tutorial, the Glossary (7.12), the Rot Journal (7.11), credits), cancel or Back goes back. Practice (any fight or zone
 ## on its own) is a test tool: its row shows in Extras only in debug builds. The version sits in the
 ## bottom-left corner and the studio's logo in the bottom-right.
 
@@ -20,25 +21,28 @@ const EXTRAS := &"extras"
 const TUTORIAL := &"tutorial"
 const PRACTICE := &"practice"
 const JOURNAL := &"journal"
+const RELICS := &"relics"
+const GLOSSARY := &"glossary"
 const SETTINGS := &"settings"
 const CREDITS := &"credits"
 const QUIT := &"quit"
-const ITEMS: Array[StringName] = [NEW_RUN, ONLINE, EXTRAS, SETTINGS, QUIT]
+const ITEMS: Array[StringName] = [NEW_RUN, ONLINE, RELICS, EXTRAS, SETTINGS, QUIT]
 ## The Online list; Back follows it.
 const ONLINE_ITEMS: Array[StringName] = [HOST_ONLINE, JOIN_ONLINE]
 ## The Extras list for players (user 2026-10-17: the menu felt cluttered); Back follows it.
-const EXTRAS_ITEMS: Array[StringName] = [TUTORIAL, JOURNAL, CREDITS]
+const EXTRAS_ITEMS: Array[StringName] = [TUTORIAL, GLOSSARY, JOURNAL, CREDITS]
 const LABELS: Dictionary = {
 	CONTINUE: "Continue", NEW_RUN: "New Run", ONLINE: "Online", EXTRAS: "Extras", SETTINGS: "Settings",
 	QUIT: "Quit", HOST_ONLINE: "Host Online", JOIN_ONLINE: "Join Online", TUTORIAL: "Tutorial",
-	PRACTICE: "Practice", JOURNAL: "Journal", CREDITS: "Credits",
+	PRACTICE: "Practice", GLOSSARY: "Glossary", JOURNAL: "Journal", CREDITS: "Credits", RELICS: "Relics",
 }
 const SUBTITLE_SIZE: int = 30
 const DETAIL_SIZE: int = 26
 ## How wide a notice (why the player is back here) may run before it wraps.
 const NOTICE_WIDTH: float = 1100.0
-## Room between the logo and the list (pixels, on top of the column's spacing).
-const LOGO_GAP: float = 28.0
+## Room between the logo and the list (pixels, on top of the column's spacing; small since phase 17
+## added the Relics row, so Quit keeps clear of the bottom edge with Continue shown).
+const LOGO_GAP: float = 4.0
 
 var _menu: ListMenu
 ## The main row whose second list is showing (ONLINE or EXTRAS), or empty for the main list.
@@ -127,7 +131,7 @@ func _add_corners(branding: BrandingData) -> void:
 	logo.offset_bottom = -margin
 
 
-## "v0.16.0": the project's version (Project Settings > Application > Config > Version), the same
+## "v0.17.0": the project's version (Project Settings > Application > Config > Version), the same
 ## one the online handshake and the save check use.
 static func version_text() -> String:
 	return "v" + str(ProjectSettings.get_setting("application/config/version", "0.0.0"))

@@ -62,7 +62,9 @@ func update_text(stats: DefenseStats, tuning: Tuning, options: CombatOptions, lo
 	if not stats.recent_all_us.is_empty():
 		lines.append("All presses median (last %d): %+.1f ms" % [stats.recent_all_us.size(), stats.recent_all_median_ms()])
 	var source := "calibrated (F2)" if PlayerSettings.is_calibrated() else "tuning default"
-	lines.append("Lag compensation: %d ms" % PlayerSettings.latency_compensation_ms(tuning))
+	lines.append("Lag compensation: keys %d ms, pad %d ms" % [
+			PlayerSettings.latency_compensation_ms(tuning, PlayerSettings.INPUT_KEYBOARD),
+			PlayerSettings.latency_compensation_ms(tuning, PlayerSettings.INPUT_PAD)])
 	lines.append("    (%s)" % source)
 	lines.append("FPS %d   VSync %s" % [Engine.get_frames_per_second(), _vsync_name()])
 	lines.append("Audio latency %.1f ms" % (AudioServer.get_output_latency() * 1000.0))

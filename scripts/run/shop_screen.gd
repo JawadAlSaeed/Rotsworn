@@ -1,13 +1,14 @@
 class_name ShopScreen
 extends CanvasLayer
 ## A shop stop as a place (DESIGN.md 8.10, card #160): the shopkeeper on the left with a line to say,
-## the shelves on the right with this stop's stock (a few items, a few charms, a few pieces of gear;
+## the shelves on the right with this stop's stock (a few items and a few Relics;
 ## user 2026-10-16: the whole list was too crowded), each with its picture, name and price, and
 ## under them the services: Cleanse (throw away a rotten item), Upgrade (an item up a level),
 ## Restock (new wares), Sell (the backpack opens to sell) and Leave. Healing is bought as items. Arrows
 ## move over the shelves and services, Confirm buys or uses, Tab / Y opens the backpack to sell,
 ## Back leaves. A bought item goes into the backpack where it fits first; with no room the backpack
-## opens with it in hand (leaving it gives the gold back). Bought gear goes on a hero at once.
+## opens with it in hand (leaving it gives the gold back). A bought Relic joins the run (a copy
+## raises its level, DESIGN.md 8.17) and, if nobody wears it, the backpack opens to put it on a hero.
 ## The bot uses count(), can_buy(), buy(), overlay() and leave().
 
 signal done
@@ -34,7 +35,7 @@ const SOLD_DIM := Color(1.0, 1.0, 1.0, 0.35)
 
 var _run: RunState
 var _gear: Array[GearData] = []
-## The items this shop sells: the stop's stock (RunState.shop_stock), then its charms.
+## The items this shop sells: the stop's stock (RunState.shop_stock).
 var _items: Array[ItemData] = []
 var _bar: RunPartyBar
 var _say: Label
@@ -59,17 +60,15 @@ var _pick_kind: String = ""
 var _gear_icon: Texture2D
 
 
-## `gear`: the gear this shop sells (RunState.shop_gear for the stop); `charms`: its charms
-## (RunState.shop_charms).
-func setup(run: RunState, gear: Array[GearData], charms: Array[ItemData] = [],
+## `gear`: the Relics this shop sells (RunState.shop_gear for the stop).
+func setup(run: RunState, gear: Array[GearData],
 		keeper_path: String = "res://assets/sprites/env/shopkeeper.png") -> void:
 	_run = run
 	_gear = gear
 	_items = run.shop_stock(run.at)
-	_items.append_array(charms)
-	# Items bought before a Continue stay sold (gear leaves the shelf by itself: the party owns it).
+	# Things bought before a Continue stay sold (items, then Relics, by shelf index).
 	for index: int in run.shop_sold:
-		if index < _items.size():
+		if index < count():
 			_bought[index] = true
 	_gear_icon = AssetLoader.texture("res://assets/sprites/ui/gear_icon.png", Vector2i(16, 16))
 	var column := ListMenu.screen_column(self, "The Rag Merchant", TITLE_SIZE)
@@ -139,7 +138,7 @@ func _keeper(path: String) -> Control:
 	return box
 
 
-## Items for sale: the stop's stock, then its charms.
+## Items for sale: the stop's stock.
 func items() -> Array[ItemData]:
 	return _items
 
@@ -161,7 +160,10 @@ func _info(index: int) -> Array:
 		return [item.display_name, _run.item_price(item), item.description, int(item.rarity),
 				AssetLoader.texture(item.icon_path, item.size() * 16)]
 	var gear := _gear[index - items().size()]
-	return [gear.display_name, _run.gear_price(gear), "Gear: " + gear.description, BackpackGrid.gear_step(gear), _gear_icon]
+	var level := _run.relic_level(gear)
+	var owned := " (you have it at level %d: a copy raises it)" % level if level > 0 else " (new)"
+	return [gear.display_name, _run.gear_price(gear), "Relic%s: %s" % [owned, gear.description], BackpackGrid.gear_step(gear),
+			_gear_icon]
 
 
 ## True if thing `index` is still for sale and affordable.
@@ -200,32 +202,36 @@ func buy(index: int) -> bool:
 					{"item": item})
 	else:
 		var gear := _gear[index - items().size()]
-		_run.buy_gear(gear)
+		_run.mark_sold(index)
+		var found := _run.buy_gear(gear)
 		Sfx.play("gold_gain")
 		_say.text = "\"Wear it well.\""
-		_open_backpack("Bought the %s. Who wears it?" % gear.display_name, {"gear": gear})
+		acted.emit()
+		if not _run.is_worn(gear):
+			_open_backpack("%s. Who wears it?" % RunState.relic_find_text(found), {"gear": gear})
+		else:
+			_say.text = "\"%s.\"" % RunState.relic_find_text(found)
 	_rebuild()
 	return true
 
 
-## Restock service: new charms and gear (Main gives the new wares with set_wares()).
+## Restock service: new items and Relics (Main gives the new wares with set_wares()).
 func restock() -> bool:
 	if not _run.restock():
 		Sfx.play("locked")
 		return false
 	Sfx.play("gold_gain")
 	_say.text = "\"Let me see what is in the back.\""
-	set_wares(_run.shop_gear(_run.at), _run.shop_charms(_run.at))
+	set_wares(_run.shop_gear(_run.at))
 	restocked.emit()
 	acted.emit()
 	return true
 
 
 ## New wares on the shelves (after a restock; online clients get them from the host).
-func set_wares(gear: Array[GearData], charms: Array[ItemData]) -> void:
+func set_wares(gear: Array[GearData]) -> void:
 	_gear = gear
 	_items = _run.shop_stock(_run.at)
-	_items.append_array(charms)
 	_bought.clear()
 	_rebuild()
 
@@ -248,7 +254,7 @@ func _service_info(kind: String) -> Array:
 			return ["Upgrade", "%d gold" % _run.upgrade_price(), "One item in the backpack goes up a level." if any
 					else "Nothing in the backpack can be upgraded.", any and _run.gold >= _run.upgrade_price()]
 		"restock":
-			return ["Restock", "%d gold" % _run.restock_price(), "New charms and gear on the shelves. Costs more each time.",
+			return ["Restock", "%d gold" % _run.restock_price(), "New items and Relics on the shelves. Costs more each time.",
 					_run.gold >= _run.restock_price()]
 		"sell":
 			return ["Sell", "", "Open the backpack: items sell for %d%% of their price." % t.item_sell_percent, true]
@@ -342,6 +348,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _pick_menu != null:
 		_pick_input(event)
 		return
+	if event is InputEventMouse and _mouse_input(event):
+		return
 	if event.is_action_pressed(&"party_menu", false, true):
 		get_viewport().set_input_as_handled()
 		Sfx.play("menu_confirm")
@@ -368,6 +376,34 @@ func _unhandled_input(event: InputEvent) -> void:
 	if step != Vector2i.ZERO:
 		get_viewport().set_input_as_handled()
 		_move(step)
+
+
+## The mouse (card #202): pointing at a shelf card or a service chooses it, a left click buys or
+## uses it, a right click or the back button leaves. True when the event was used.
+func _mouse_input(event: InputEvent) -> bool:
+	var all: Array = _cards + _service_cards
+	if event is InputEventMouseMotion:
+		var hovered := MenuMouse.control_at(all, (event as InputEventMouse).position)
+		if hovered >= 0 and hovered != _sel:
+			_sel = hovered
+			Sfx.play("menu_move")
+			_show_selection()
+			get_viewport().set_input_as_handled()
+			return true
+	elif MenuMouse.is_click(event):
+		var clicked := MenuMouse.control_at(all, (event as InputEventMouse).position)
+		if clicked >= 0:
+			_sel = clicked
+			_show_selection()
+			get_viewport().set_input_as_handled()
+			_use_selected()
+			return true
+	elif MenuMouse.is_back(event):
+		get_viewport().set_input_as_handled()
+		Sfx.play("menu_cancel")
+		leave()
+		return true
+	return false
 
 
 ## A held key repeats; a stick counts once per push (it sends many motion events).

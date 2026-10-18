@@ -8,3 +8,4 @@ id = "iron_charm"
 display_name = "Iron Charm"
 description = "Max HP +20%."
 amount = 20
+stat_points = 2

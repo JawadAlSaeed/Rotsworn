@@ -6,21 +6,23 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_sting_string.tres" id="4_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_buzz.tres" id="5_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_swarm_sweep.tres" id="6_atk"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="7_6ytf2"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_swarm_round.tres" id="7_atk"]
+[ext_resource type="Resource" path="res://data/gear/bloodletters_fang.tres" id="8_48ly8"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/blood_rush.tres" id="8_atk"]
+[ext_resource type="Resource" path="res://data/gear/ash_veil.tres" id="9_0t4fd"]
 
 [resource]
 script = ExtResource("2_enemy")
 id = "blood_gnats"
-voice_sfx = "voice_gnats"
 display_name = "Blood Gnats"
 color = Color(0.6, 0.15, 0.15, 1)
 sprite_path = "res://assets/sprites/enemies/blood_gnats.png"
-portrait_path = "res://assets/sprites/portraits/blood_gnats.png"
 sprite_clips = ExtResource("3_clips")
 death_style = 1
 death_color = Color(0.86, 0.25, 0.25, 1)
 idle_cycle_percent = 35
+portrait_path = "res://assets/sprites/portraits/blood_gnats.png"
 sprite_pixel_size = 0.045
 hp_percent = 65
 power_percent = 55
@@ -28,6 +30,8 @@ speed = 170
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk")])
 target_rule = 1
 target_bias_percent = 200
-forced_hits = true
 gold = 12
 xp = 22
+voice_sfx = "voice_gnats"
+relic_drops = Array[ExtResource("7_6ytf2")]([ExtResource("8_48ly8"), ExtResource("9_0t4fd")])
+forced_hits = true

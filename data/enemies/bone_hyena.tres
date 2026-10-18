@@ -7,20 +7,21 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/hyena_snap.tres" id="5_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/hyena_cackle.tres" id="6_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/hyena_pounce.tres" id="7_atk"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="7_isb6f"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/bone_frenzy.tres" id="8_atk"]
+[ext_resource type="Resource" path="res://data/gear/riposte_ring.tres" id="8_y2krw"]
+[ext_resource type="Resource" path="res://data/gear/gravebound_ring.tres" id="9_p1cjn"]
 
 [resource]
 script = ExtResource("2_enemy")
 id = "bone_hyena"
-voice_sfx = "voice_hyena"
 display_name = "Bone Hyena"
 color = Color(0.78, 0.74, 0.64, 1)
 sprite_path = "res://assets/sprites/enemies/bone_hyena.png"
-portrait_path = "res://assets/sprites/portraits/bone_hyena.png"
 sprite_clips = ExtResource("3_clips")
-death_style = 0
 death_color = Color(0.9, 0.3, 0.25, 1)
 idle_cycle_percent = 80
+portrait_path = "res://assets/sprites/portraits/bone_hyena.png"
 sprite_pixel_size = 0.045
 hp_percent = 110
 power_percent = 105
@@ -28,6 +29,8 @@ speed = 190
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk")])
 target_rule = 1
 target_bias_percent = 400
-forced_hits = true
 gold = 22
 xp = 45
+voice_sfx = "voice_hyena"
+relic_drops = Array[ExtResource("7_isb6f")]([ExtResource("8_y2krw"), ExtResource("9_p1cjn")])
+forced_hits = true

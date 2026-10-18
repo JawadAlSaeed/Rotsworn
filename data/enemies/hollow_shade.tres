@@ -9,19 +9,22 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_nightfall.tres" id="7_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_bolts.tres" id="8_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_grave_spikes.tres" id="9_atk"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="9_n3te2"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/hollow_bolt_storm.tres" id="10_atk"]
+[ext_resource type="Resource" path="res://data/gear/last_ember.tres" id="10_r3uml"]
+[ext_resource type="Resource" path="res://data/gear/keen_eye.tres" id="11_8t3pg"]
+[ext_resource type="Resource" path="res://data/gear/echo_charm.tres" id="12_oaee8"]
 
 [resource]
 script = ExtResource("2_enemy")
 id = "hollow_shade"
-voice_sfx = "voice_shade"
 display_name = "Hollow Shade"
 color = Color(0.5, 0.7, 0.85, 1)
 sprite_path = "res://assets/sprites/enemies/hollow_shade.png"
-portrait_path = "res://assets/sprites/portraits/hollow_shade.png"
 sprite_clips = ExtResource("3_clips")
 death_color = Color(0.55, 0.85, 1, 1)
 idle_cycle_percent = 120
+portrait_path = "res://assets/sprites/portraits/hollow_shade.png"
 sprite_pixel_size = 0.045
 hp_percent = 115
 power_percent = 115
@@ -29,6 +32,8 @@ speed = 140
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk"), ExtResource("9_atk"), ExtResource("10_atk")])
 target_rule = 1
 target_bias_percent = 400
-forced_hits = true
 gold = 30
 xp = 60
+voice_sfx = "voice_shade"
+relic_drops = Array[ExtResource("9_n3te2")]([ExtResource("10_r3uml"), ExtResource("11_8t3pg"), ExtResource("12_oaee8")])
+forced_hits = true

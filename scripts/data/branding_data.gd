@@ -29,6 +29,26 @@ extends Resource
 ## Presses in the first moments are ignored (a key held from the intro must not skip the title).
 @export_range(0, 3000, 1, "suffix:ms") var skip_guard_ms: int = 500
 
+@export_group("Controller notice")
+## The "Controller recommended" screen between the studio intro and the title (DESIGN.md 7.7, card
+## #167): a controller icon, a worn-gold heading and one line, on the menu's background. It fades
+## in, stays, fades out by itself; any key or button skips it. 0 hold time: no notice.
+@export var controller_title: String = "Controller recommended"
+@export_multiline var controller_text: String = "Rotsworn plays best with a controller. A keyboard works too."
+## The icon (drawn by tools/art_kit, fx_ui) and its height on screen.
+@export_file("*.png") var controller_icon_path: String = "res://assets/sprites/ui/controller.png"
+@export_range(40, 600, 1, "suffix:px") var controller_icon_height_px: int = 220
+@export_range(12, 120, 1) var controller_title_size: int = 64
+@export_range(12, 80, 1) var controller_text_size: int = 30
+@export_range(0, 3000, 10, "suffix:ms") var controller_fade_in_ms: int = 500
+## How long the notice stays fully shown (0: the notice is left out).
+@export_range(0, 10000, 10, "suffix:ms") var controller_hold_ms: int = 2400
+@export_range(0, 3000, 10, "suffix:ms") var controller_fade_out_ms: int = 600
+## Presses in the first moments are ignored (a key still held from the intro must not skip it).
+@export_range(0, 3000, 1, "suffix:ms") var controller_skip_guard_ms: int = 400
+## True: a player who already has a pad plugged in at start-up does not see the notice.
+@export var controller_skip_with_pad: bool = false
+
 @export_group("Title screen ribbon")
 ## The title screen draws the logo as three layers of the same size, so the ribbon's tails can
 ## sway between the crest and the ribbon's wraps and letters (tools/branding/paint_branding.py

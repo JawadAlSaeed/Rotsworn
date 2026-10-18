@@ -6,20 +6,23 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/fly_dive.tres" id="4_fly_dive"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/fly_buzz_dive.tres" id="5_fly_buzz_dive"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/fly_maggot_spit.tres" id="6_fly_maggot_spit"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="6_or2uk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/fly_strafe.tres" id="7_fly_strafe"]
+[ext_resource type="Resource" path="res://data/gear/lucky_coin.tres" id="7_jhxbd"]
+[ext_resource type="Resource" path="res://data/gear/leaping_heart.tres" id="8_0gl4p"]
+[ext_resource type="Resource" path="res://data/gear/heartleaf.tres" id="9_jhxbd"]
 
 [resource]
 script = ExtResource("2_enemy")
 id = "carrion_fly"
-voice_sfx = "voice_fly"
 display_name = "Carrion Fly"
 color = Color(0.28, 0.33, 0.25, 1)
 sprite_path = "res://assets/sprites/enemies/carrion_fly.png"
-portrait_path = "res://assets/sprites/portraits/carrion_fly.png"
 sprite_clips = ExtResource("3_clips")
 death_style = 1
 death_color = Color(0.75, 0.91, 0.37, 1)
 idle_cycle_percent = 35
+portrait_path = "res://assets/sprites/portraits/carrion_fly.png"
 sprite_pixel_size = 0.045
 hp_percent = 70
 power_percent = 80
@@ -29,3 +32,5 @@ target_rule = 1
 target_bias_percent = 300
 gold = 12
 xp = 25
+voice_sfx = "voice_fly"
+relic_drops = Array[ExtResource("6_or2uk")]([ExtResource("7_jhxbd"), ExtResource("8_0gl4p"), ExtResource("9_jhxbd")])

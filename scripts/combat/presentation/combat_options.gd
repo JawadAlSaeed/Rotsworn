@@ -28,7 +28,8 @@ extends RefCounted
 ##   --shots=S                       save a picture of the window every S seconds (dev tool)
 ##   --perf-log=S                    print frames a second and draw calls every S seconds (dev tool)
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
-##                                   title, credits, journal, party, heroes, attributes, skills, calibration,
+##                                   title, controller, calibration_offer, credits, glossary (glossary_<topic> opens that
+##                                   topic: glossary_reading), journal, party, heroes, attributes, skills, calibration,
 ##                                   tutorial, map, map_start, map_act2, shop, campfire,
 ##                                   event, treasure
 ##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the
@@ -47,6 +48,9 @@ const AUTOPLAY_ESCAPE := "escape"
 ## its defences and skill presses (some perfect, some good) and lets the rest go.
 const AUTOPLAY_AVERAGE := "average"
 const DEFAULT_BOT_SKILL: int = 60
+## --rejoin without a number: join again this many seconds after losing the host (longer than the
+## heartbeat, so the host has marked the seat away and plays on meanwhile).
+const DEFAULT_REJOIN_S: int = 10
 
 ## "" when a human plays, else AUTOPLAY_PERFECT, AUTOPLAY_MISS or AUTOPLAY_MASH.
 var autoplay_mode: String = ""
@@ -65,6 +69,11 @@ var continue_run: bool = false
 var save_path: String = ""
 ## --journal-path=PATH ("" : the real journal, and no recording for bots or practice fights).
 var journal_path: String = ""
+## --relics-path=PATH ("" : the real Relic collection, which bots never read or write).
+var relics_path: String = ""
+## --relics=none|all: the pretend collection a bot run starts with (DESIGN.md 8.17; "" : none for
+## bots, the real one for a person). "all" has every Relic at its top level, for balance runs.
+var relics_mode: String = ""
 ## --oath=N: the oath a bot run (--run) or an autoplay host plays at (-1: none given, the lobby's pick).
 var oath: int = -1
 ## Players from --players (1 = solo).
@@ -74,6 +83,13 @@ var host_players: int = 0
 var join_address: String = ""
 ## --leave-after=S (0: stay).
 var leave_after_s: int = 0
+## --drop-after=S (0: never): an online client drops off the network without a word after S
+## seconds, like a pulled cable (card #205). --rejoin[=S]: after losing the host it joins again
+## S seconds later (0: it does not). --drop-in-fight: the drop waits for the next fight after
+## those S seconds and comes a few seconds into it (to test rejoining mid-fight).
+var drop_after_s: int = 0
+var rejoin_after_s: int = 0
+var drop_in_fight: bool = false
 ## --bot-skill=N for --autoplay=average (0 to 100).
 var bot_skill: int = DEFAULT_BOT_SKILL
 ## --shots=S (0: no pictures) and --screen=NAME ("" : the normal start).
@@ -134,6 +150,14 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.save_path = arg.substr("--save-path=".length())
 		elif arg.begins_with("--journal-path="):
 			options.journal_path = arg.substr("--journal-path=".length())
+		elif arg.begins_with("--relics-path="):
+			options.relics_path = arg.substr("--relics-path=".length())
+		elif arg.begins_with("--relics="):
+			var mode := arg.substr("--relics=".length()).to_lower()
+			if mode in ["none", "all"]:
+				options.relics_mode = mode
+			else:
+				push_warning("CombatOptions: --relics needs none or all, got '%s'" % mode)
 		elif arg.begins_with("--oath="):
 			var level := arg.substr("--oath=".length())
 			if level.is_valid_int() and level.to_int() >= 0:
@@ -145,6 +169,14 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.host_players = clampi(wanted.to_int(), 1, PlayerRoster.MAX_PLAYERS) if wanted.is_valid_int() else 2
 		elif arg.begins_with("--leave-after="):
 			options.leave_after_s = maxi(0, arg.substr("--leave-after=".length()).to_int())
+		elif arg.begins_with("--drop-after="):
+			options.drop_after_s = maxi(0, arg.substr("--drop-after=".length()).to_int())
+		elif arg == "--drop-in-fight":
+			options.drop_in_fight = true
+		elif arg == "--rejoin":
+			options.rejoin_after_s = DEFAULT_REJOIN_S
+		elif arg.begins_with("--rejoin="):
+			options.rejoin_after_s = maxi(1, arg.substr("--rejoin=".length()).to_int())
 		elif arg.begins_with("--bot-skill="):
 			options.bot_skill = clampi(arg.substr("--bot-skill=".length()).to_int(), 0, 100)
 		elif arg.begins_with("--shots="):

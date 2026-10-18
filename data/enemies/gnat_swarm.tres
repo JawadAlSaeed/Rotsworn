@@ -6,20 +6,23 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_swarm_sweep.tres" id="4_dotlr"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="5_l0mvs"]
 [ext_resource type="Resource" path="res://data/clips/gnat_swarm.tres" id="6_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="6_rflmq"]
+[ext_resource type="Resource" path="res://data/gear/quick_boots.tres" id="7_71j6l"]
+[ext_resource type="Resource" path="res://data/gear/lucky_coin.tres" id="8_epyn7"]
+[ext_resource type="Resource" path="res://data/gear/ember_stone.tres" id="9_71j6l"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_swarm_round.tres" id="p12_gnat_swarm_round"]
 
 [resource]
 script = ExtResource("5_l0mvs")
 id = "gnat_swarm"
-voice_sfx = "voice_gnats"
 display_name = "Gnat Swarm"
 color = Color(0.7882353, 0.7058824, 0.34509805, 1)
 sprite_path = "res://assets/sprites/enemies/gnat_swarm.png"
-portrait_path = "res://assets/sprites/portraits/gnat_swarm.png"
 sprite_clips = ExtResource("6_clips")
 death_style = 1
 death_color = Color(0.7882353, 0.7058824, 0.34509805, 1)
 idle_cycle_percent = 35
+portrait_path = "res://assets/sprites/portraits/gnat_swarm.png"
 sprite_pixel_size = 0.045
 hp_percent = 50
 power_percent = 50
@@ -29,3 +32,5 @@ target_rule = 1
 target_bias_percent = 150
 gold = 8
 xp = 15
+voice_sfx = "voice_gnats"
+relic_drops = Array[ExtResource("6_rflmq")]([ExtResource("7_71j6l"), ExtResource("8_epyn7"), ExtResource("9_71j6l")])

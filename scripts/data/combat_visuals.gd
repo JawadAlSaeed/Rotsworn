@@ -231,6 +231,24 @@ extends Resource
 ## The marker pops in from this scale over this long (attack time, so hit-stop freezes it).
 @export_range(1.0, 4.0, 0.05) var hit_marker_pop_scale: float = 1.6
 @export_range(0, 1000, 1, "suffix:ms") var hit_marker_pop_ms: int = 120
+## Ranged-hit indicator (DESIGN.md 3.9, card #165): on every hero a thrown projectile flies at,
+## four corner brackets close in from ranged_aim_start_px to ranged_aim_end_px (half size, pixels
+## at 1080p) and meet exactly at the hit's impact, with a dashed path (ranged_aim_dash_px dashes,
+## ranged_aim_gap_px apart, ranged_aim_path_points samples of the flight arc) from the projectile
+## to the hero. It shows ranged_aim_lead_ms before the throw, fades in and out over
+## ranged_aim_fade_ms and, when the bracket locks, brightens for ranged_aim_pulse_ms (scaled by
+## the Flashes setting). A rend or a sweep names its button under the bracket.
+@export_range(0, 2000, 10, "suffix:ms") var ranged_aim_lead_ms: int = 300
+@export_range(1, 1000, 1, "suffix:ms") var ranged_aim_fade_ms: int = 140
+@export_range(8.0, 400.0, 1.0) var ranged_aim_start_px: float = 120.0
+@export_range(8.0, 400.0, 1.0) var ranged_aim_end_px: float = 46.0
+@export_range(1.0, 16.0, 0.5) var ranged_aim_line_px: float = 5.0
+@export_range(2.0, 60.0, 1.0) var ranged_aim_dash_px: float = 16.0
+@export_range(2.0, 60.0, 1.0) var ranged_aim_gap_px: float = 10.0
+@export_range(2, 40) var ranged_aim_path_points: int = 14
+@export_range(0.0, 1.0, 0.05) var ranged_aim_path_strength: float = 0.7
+@export_range(0, 1000, 1, "suffix:ms") var ranged_aim_pulse_ms: int = 180
+@export var ranged_aim_label: bool = true
 ## Floor warning under each target of a ground hit, from the slam until the wave arrives: its
 ## diameter (world units) and its strength when the wave arrives (it starts fainter).
 @export_range(0.1, 6.0, 0.05) var floor_warning_size: float = 1.9

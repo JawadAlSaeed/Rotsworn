@@ -1,14 +1,16 @@
 class_name ItemData
 extends Resource
-## One thing that lives in the party's backpack (DESIGN.md 8.1): a consumable, a charm, a key or
-## treasure. It has a shape on the backpack grid, a rarity and a price. Gear is not an item: it is
-## always worn (GearData).
+## One thing that lives in the party's backpack (DESIGN.md 8.1): a consumable, a curse, a key or
+## treasure. It has a shape on the backpack grid, a rarity and a price. Relics are not items: they
+## are worn (GearData). Phase 17 took the charms out (their buffs are what Relics and Echoes do now,
+## DESIGN.md 8.17); the old charm files stay as treasure so older saves still load.
 
 enum Kind {
 	## Used up: in a fight (Items) or on the map.
 	CONSUMABLE,
-	## Works just by sitting in the backpack (phase 11 step 3).
-	CHARM,
+	## Only hurts: rotten, every hero loses rot_percent HP each turn in fights while it is carried.
+	## Events give them as a price; a shop's Cleanse throws one away. (Was CHARM before phase 17.)
+	CURSE,
 	## Opens one chest (phase 11 step 2).
 	KEY,
 	## Only worth gold at the shop.
@@ -16,9 +18,6 @@ enum Kind {
 	## Used the moment the party gets it (a bigger backpack); never kept in the backpack.
 	UPGRADE,
 }
-
-## Charm families (DESIGN.md 8.1): some charms boost the charms of a family that touch them.
-enum Family { NONE, STONE, BONE, HERB }
 
 enum Rarity { COMMON, RARE, LEGENDARY }
 
@@ -62,16 +61,8 @@ enum Effect {
 ## Can it be used in a fight (Items, Y)? Using one is the hero's action and costs ap_cost AP.
 @export var use_in_fight: bool = false
 @export_range(0, 9) var ap_cost: int = 1
-## A charm's family, what it gives every hero while it is in the backpack (a gear effect and its
-## amount), and the family whose touching charms it boosts by boost_percent (DESIGN.md 8.1).
-@export var family: Family = Family.NONE
-@export var charm_effect: GearData.Effect = GearData.Effect.POWER
-@export_range(0, 1000) var charm_amount: int = 0
-@export var boost_family: Family = Family.NONE
-@export_range(0, 1000, 1, "suffix:%") var boost_percent: int = 0
-## Rotten (DESIGN.md 8.1): very strong, but every hero loses rot_percent of their max HP at the
-## start of each of their turns in a fight (never below 1 HP) while it is in the backpack. It
-## cannot be sold.
+## Rotten (DESIGN.md 8.1): every hero loses rot_percent of their max HP at the start of each of
+## their turns in a fight (never below 1 HP) while it is in the backpack. It cannot be sold.
 @export var rotten: bool = false
 @export_range(0, 100, 1, "suffix:%") var rot_percent: int = 0
 ## Its picture, drawn over its cells unturned (missing file: a placeholder).
@@ -88,15 +79,15 @@ func usable_on_map() -> bool:
 	return kind == Kind.CONSUMABLE and use_on_map and effect in [Effect.HEAL_ONE, Effect.HEAL_ALL, Effect.MAX_HP_ONE]
 
 
-## True if it is a charm.
-func is_charm() -> bool:
-	return kind == Kind.CHARM
+## True if it is a curse.
+func is_curse() -> bool:
+	return kind == Kind.CURSE
 
 
-## True if two of it can be combined into a stronger one (consumables and charms). Not the Tonic: a
-## stronger Tonic would give more max HP per drink and get round tonic_max_per_hero (card #198).
+## True if two of it can be combined into a stronger one (consumables). Not the Tonic: a stronger
+## Tonic would give more max HP per drink and get round tonic_max_per_hero (card #198).
 func combinable() -> bool:
-	return (kind == Kind.CONSUMABLE and effect != Effect.MAX_HP_ONE) or kind == Kind.CHARM
+	return kind == Kind.CONSUMABLE and effect != Effect.MAX_HP_ONE
 
 
 ## True if it can be used in a fight.

@@ -13,6 +13,8 @@ const COUNTER := "counter"
 const ULTIMATE := "ultimate"
 
 const FIGHT_GOALS: Array[String] = [GOOD_PRESS, SKILL_USED, SKILL_FOLLOW_UP, PARRY, DODGE, JUMP, COUNTER, ULTIMATE]
+## A card to read, no fight action (the Relics and Echoes lesson, DESIGN.md 8.17): closing it moves on.
+const READ := "read"
 
 
 ## True if `event` (applied in a fight whose current timed sequence is `sequence`) reaches `goal`.

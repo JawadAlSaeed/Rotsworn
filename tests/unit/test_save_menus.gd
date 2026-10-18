@@ -59,7 +59,7 @@ func test_main_menu_with_a_save_starts_on_continue() -> void:
 
 func test_main_menu_rows_still_map_to_their_choices_after_continue() -> void:
 	var menu := _main_menu(true, MainMenu.SETTINGS)
-	assert_eq(_list_in(menu).index, 4, "Settings is the fifth row with Continue above New Run, Online, Extras")
+	assert_eq(_list_in(menu).index, 5, "Settings is the sixth row with Continue above New Run, Online, Relics, Extras")
 	_press(menu, &"menu_confirm")
 	assert_eq(_picked, [MainMenu.SETTINGS] as Array[StringName])
 
@@ -70,7 +70,7 @@ func test_extras_opens_in_place_and_back_returns() -> void:
 	_press(menu, &"menu_confirm")
 	assert_eq(_picked.size(), 0, "Extras opens a list, it is not a choice")
 	assert_eq(list.items.map(func(row: Dictionary) -> String: return String(row.text)),
-			["Tutorial", "Journal", "Credits", "Back"], "players see no Practice")
+			["Tutorial", "Glossary", "Journal", "Credits", "Back"], "players see no Practice")
 	_press(menu, &"menu_confirm")
 	assert_eq(_picked, [MainMenu.TUTORIAL] as Array[StringName])
 	_press(menu, &"menu_cancel")
@@ -81,7 +81,7 @@ func test_practice_shows_in_extras_only_for_test_builds() -> void:
 	var menu := _main_menu(false, MainMenu.PRACTICE, true)
 	var list := _list_in(menu)
 	assert_eq(String(list.items[list.index].text), "Practice", "coming back from Practice reopens Extras on it")
-	assert_eq(list.items.size(), 5, "Tutorial, Practice, Journal, Credits, Back")
+	assert_eq(list.items.size(), 6, "Tutorial, Practice, Glossary, Journal, Credits, Back")
 	_press(menu, &"menu_confirm")
 	assert_eq(_picked, [MainMenu.PRACTICE] as Array[StringName])
 
@@ -101,16 +101,16 @@ func test_pause_menu_save_and_quit_row() -> void:
 	var texts: Array[String] = []
 	for item: Dictionary in list.items:
 		texts.append(String(item.text))
-	assert_eq(texts, ["Continue", "Settings", "Save & Quit", "Abandon run"] as Array[String])
-	list.index = 2
+	assert_eq(texts, ["Continue", "Settings", "Glossary", "Save & Quit", "Abandon run"] as Array[String])
+	list.index = 3
 	_press(pause, &"menu_confirm")
 	assert_eq(_save_quit, 1)
 	assert_eq(_left, 0)
-	list.index = 3
+	list.index = 4
 	_press(pause, &"menu_confirm")
 	assert_eq(_left, 1, "Abandon run still leaves")
 
 
 func test_pause_menu_without_save_has_no_such_row() -> void:
 	var pause := _pause_menu("")
-	assert_eq(_list_in(pause).items.size(), 3)
+	assert_eq(_list_in(pause).items.size(), 4, "Continue, Settings, Glossary, Abandon run")

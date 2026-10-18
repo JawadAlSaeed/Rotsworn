@@ -29,7 +29,7 @@ func setup(address: String) -> void:
 	_field.text = address
 	_field.custom_minimum_size = Vector2(FIELD_WIDTH, 0.0)
 	_field.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_field.add_theme_font_size_override("font_size", FIELD_SIZE)
+	_field.add_theme_font_size_override("font_size", HudStyle.scaled(FIELD_SIZE))
 	_field.add_theme_stylebox_override("normal", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.PANEL_BORDER, 2, 14))
 	_field.add_theme_stylebox_override("focus", HudStyle.panel(Color(0, 0, 0, 0), HudStyle.GOLD, 2, 14))
 	_field.add_theme_stylebox_override("read_only", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.TEXT_DIM, 2, 14))
@@ -38,7 +38,7 @@ func setup(address: String) -> void:
 	_status = ListMenu.centred_label("", TEXT_SIZE, HudStyle.TEXT)
 	column.add_child(_status)
 	column.add_child(ListMenu.centred_label(
-			"Type the address the host's screen shows, then Enter.   Esc: back\n"
+			"Type the address the host's screen shows, then Enter (A on a pad).   Esc (B): back\n"
 			+ "Same Wi-Fi: it just works. Over the internet: both use Tailscale (or the host opens the port).",
 			HINT_SIZE, HudStyle.TEXT_DIM))
 	_field.call_deferred("grab_focus")
@@ -52,6 +52,18 @@ func show_problem(text: String) -> void:
 	_status.text = text
 	_status.label_settings.font_color = HudStyle.LATE
 	_field.grab_focus()
+
+
+## Shows how things stand (not a problem): "Back in, catching up ..." while the host sends the game.
+func show_status(text: String) -> void:
+	_status.text = text
+	_status.label_settings.font_color = HudStyle.TEXT
+
+
+## Connects to `address` as if it had been typed and Enter pressed (the bot rejoining).
+func submit(address: String) -> void:
+	_field.text = address
+	_on_submitted(address)
 
 
 func _on_submitted(text: String) -> void:
@@ -69,7 +81,12 @@ func _input(event: InputEvent) -> void:
 	# The text field takes most keys, so Back is read here: Esc, or the pad's Back button.
 	var key := event as InputEventKey
 	var pad_back := event is InputEventJoypadButton and event.is_action_pressed(&"menu_cancel", false, true)
-	if (key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE) or pad_back:
+	if (key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE) or pad_back or MenuMouse.is_back(event):
 		get_viewport().set_input_as_handled()
 		Sfx.play("menu_cancel")
 		back.emit()
+	elif event is InputEventJoypadButton and event.is_action_pressed(&"menu_confirm", false, true):
+		# A pad cannot press Enter in the text field: its confirm button connects (a remembered
+		# address, or the one a dropped player's seat waits at).
+		get_viewport().set_input_as_handled()
+		_on_submitted(_field.text)

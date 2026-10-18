@@ -10,3 +10,4 @@ description = "Heals you give are 30% stronger."
 price = 50
 effect = 11
 amount = 30
+stat_points = 2

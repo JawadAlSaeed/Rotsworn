@@ -78,6 +78,11 @@ extends Resource
 ## glows under them for a ground hit) until it lands. Off since phase 6 (user: the circle made the
 ## game easier); the floor warning then still shows. Toggle in a practice fight with F1 > H.
 @export var show_hit_markers: bool = true
+## Ranged-hit indicator (DESIGN.md 3.9, card #165): while a thrown projectile flies, brackets on
+## the hero it flies at close in and meet at the moment the defence is judged on, with a dashed
+## path from the projectile. It is the projectile's own flight made readable, so it stays on in
+## run fights (unlike the hit markers).
+@export var show_ranged_aim: bool = true
 ## Harder reading (phase 6): the attack's hits (how many, which kind) show on the intent sign and
 ## the attack banner until the first hit lands; from then on the banner's hit row and the hit
 ## markers are hidden, so the rest of the string must be remembered. The enemy's own motion
@@ -353,12 +358,10 @@ extends Resource
 @export_range(1, 12) var skill_slots: int = 5
 
 @export_group("Run gear")
-## Gear: a guard's loot offers this many items to pick one from; a shop sells this many.
+## Relics: a guard's loot offers this many to pick one from; a shop sells this many (phase 17:
+## the shelves' charms are gone, DESIGN.md 8.17).
 @export_range(1, 6) var run_loot_choices: int = 3
-@export_range(0, 6) var run_shop_gear: int = 2
-## A shop also sells this many charms (picked for the stop from the run's found charms, never
-## rotten ones: DESIGN.md 8.1).
-@export_range(0, 6) var run_shop_charms: int = 2
+@export_range(0, 6) var run_shop_gear: int = 3
 ## Gear slots per character.
 @export_range(1, 6) var run_gear_slots: int = 3
 ## Rot-touched gear (DESIGN.md 8.16): strong pieces with a price. Spoils (elite, boss) offer this
@@ -370,6 +373,32 @@ extends Resource
 ## Last Ember style gear (Passive.LOW_HP_POWER) works while the wearer's HP is under this percent
 ## of their max.
 @export_range(1, 99, 1, "suffix:%") var rot_low_hp_percent: int = 30
+
+@export_group("Relics and Echoes")
+## Relic slots open during a run (DESIGN.md 8.17): this many at the start, one more after the first
+## guard is beaten and one more after act 1's boss, never more than run_gear_slots.
+@export_range(1, 6) var relic_slots_start: int = 1
+## A copy of a Relic raises its level, up to this one; a copy past it turns into relic_spare_gold.
+@export_range(1, 10) var relic_max_level: int = 5
+@export_range(0, 1000) var relic_spare_gold: int = 30
+## Chance, per enemy beaten in a won run fight, that it drops one of its Relics.
+@export_range(0, 100, 1, "suffix:%") var relic_drop_percent: int = 10
+## In spoils, shops and chests a Relic the player already has (a copy) weighs this percent of a
+## new one, so new Relics turn up more.
+@export_range(0, 100, 1, "suffix:%") var relic_copy_weight_percent: int = 50
+## Mastery (DESIGN.md 8.17): a worn Relic gets this many points per won fight (by the fight's kind);
+## at mastery_needed its Echo is learned for the rest of the run.
+@export_range(0, 20) var mastery_fight: int = 1
+@export_range(0, 20) var mastery_elite: int = 2
+@export_range(0, 20) var mastery_guard: int = 3
+@export_range(0, 20) var mastery_boss: int = 5
+@export_range(1, 100) var mastery_needed: int = 4
+## Echo points a hero has to wear Echoes: this many at level 1, plus this many per level up.
+@export_range(0, 20) var echo_start_points: int = 0
+@export_range(0, 10) var echo_points_per_level: int = 1
+## Every enemy's power in run fights, in percent (phase 17: Relics stay between runs, so the base
+## run is a little harder; practice fights keep their data).
+@export_range(50, 300, 1, "suffix:%") var enemy_power_base_percent: int = 105
 
 @export_group("Backpack")
 ## The party's shared backpack grid (DESIGN.md 8.1): this many cells wide and this many rows tall
@@ -415,6 +444,14 @@ extends Resource
 @export_range(0, 30000, 1, "suffix:ms") var net_deadline_grace_ms: int = 1500
 ## Zones: the host sends the leader and roaming enemy positions this many times a second.
 @export_range(1, 60) var net_zone_send_hz: int = 20
+## Heartbeat (card #205): a connection that answers nothing (a pulled cable, a crash, Wi-Fi gone)
+## counts as lost after at least the first and at most the second of these. Both ends keep pinging
+## each other, so a silent drop never freezes a fight longer than this.
+@export_range(500, 60000, 1, "suffix:ms") var net_drop_min_ms: int = 3000
+@export_range(500, 60000, 1, "suffix:ms") var net_drop_max_ms: int = 6000
+## A client that dropped mid-run keeps its seat this long (the host plays its heroes meanwhile); it
+## can join again with the host's address and play on. After this the seat is given up (0: never kept).
+@export_range(0, 1800000, 1, "suffix:ms") var net_rejoin_grace_ms: int = 120000
 
 @export_group("Controls")
 ## Settings > Controls (card #190): after picking a key or button to change, the game waits this

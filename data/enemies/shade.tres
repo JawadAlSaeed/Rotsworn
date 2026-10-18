@@ -7,20 +7,23 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_nightfall.tres" id="5_idxi1"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="6_727rv"]
 [ext_resource type="Resource" path="res://data/clips/shade.tres" id="7_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="8_tm3to"]
+[ext_resource type="Resource" path="res://data/gear/keen_eye.tres" id="9_ytdib"]
+[ext_resource type="Resource" path="res://data/gear/rot_hunter.tres" id="10_t3pfc"]
+[ext_resource type="Resource" path="res://data/gear/wake_root.tres" id="11_ytdib"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_bolts.tres" id="p12_shade_bolts"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_grave_spikes.tres" id="p12_shade_grave_spikes"]
 
 [resource]
 script = ExtResource("6_727rv")
 id = "shade"
-voice_sfx = "voice_shade"
 display_name = "Shade"
 color = Color(0.29411766, 0.30980393, 0.47843137, 1)
 sprite_path = "res://assets/sprites/enemies/shade.png"
-portrait_path = "res://assets/sprites/portraits/shade.png"
 sprite_clips = ExtResource("7_clips")
 death_color = Color(0.7254902, 0.54901963, 1, 1)
 idle_cycle_percent = 120
+portrait_path = "res://assets/sprites/portraits/shade.png"
 sprite_pixel_size = 0.045
 hp_percent = 90
 speed = 130
@@ -29,3 +32,5 @@ target_rule = 1
 target_bias_percent = 300
 gold = 20
 xp = 40
+voice_sfx = "voice_shade"
+relic_drops = Array[ExtResource("8_tm3to")]([ExtResource("9_ytdib"), ExtResource("10_t3pfc"), ExtResource("11_ytdib")])

@@ -1,11 +1,18 @@
 class_name SettingsScreen
 extends CanvasLayer
-## Settings (DESIGN.md 7.5, card #112) in four sections, changed with LB / RB (Z / C):
+## Settings (DESIGN.md 7.5, card #112) in four sections, changed with LB / RB (Z / C), or by clicking
+## the section's name:
 ## Graphics (fullscreen, window size, vsync, frame limit, fog, bloom, shadows, soft shadows, depth
 ## of field), Sound (overall, music, effects, voices), Controls (every key and button can be
-## rebound, card #190) and Game (screen shake, the training ring, lag calibration). Everything is
-## saved per machine at once (PlayerSettings, user://settings.cfg) and graphics changes show at
-## once, even over a fight. Left/right change a value, confirm toggles or opens.
+## rebound, card #190) and Game (text size, screen shake, flashes, the training ring, lag calibration,
+## Reset progress). Everything is saved per machine at once (PlayerSettings, user://settings.cfg)
+## and graphics changes show at once, even over a fight. Left/right change a value, confirm toggles
+## or opens. Reset progress (DESIGN.md 8.17) asks twice and then emits progress_reset for Main to
+## wipe the Relics, the unlocked oaths and a saved run; it is only offered from the main menu, never
+## in a run.
+## The mouse (card #202): pointing at a row chooses it, a click confirms it (on a row with a value
+## that Left / Right change, the left half of the row steps down and the right half up), a right
+## click or the back button goes back.
 ##
 ## Controls: one row per action with its key and its pad button. Left/Right pick the Key or the Pad
 ## column, Confirm waits for the new key or button (Escape or the pad's Menu button cancels, and so
@@ -14,6 +21,8 @@ extends CanvasLayer
 ## applies to every pad: there are no per-pad bindings.
 
 signal closed
+## The player confirmed Reset progress twice (Main wipes the files).
+signal progress_reset
 
 const TITLE_SIZE: int = 56
 const TAB_SIZE: int = 34
@@ -37,8 +46,15 @@ const SECTION_ROWS := {
 		"ambient_occlusion", "depth_of_field", "back"],
 	Section.SOUND: ["master", "music", "effects", "voice", "back"],
 	Section.CONTROLS: [],  # built by _rows_of: one row per action, then reset and back
-	Section.GAME: ["screen_shake", "flashes", "timing_ring", "calibrate", "reset_lag", "back"],
+	Section.GAME: ["text_size", "screen_shake", "flashes", "timing_ring", "calibrate", "reset_lag", "reset_progress",
+		"back"],
 }
+## Rows whose value Left / Right change: a mouse click steps it by the side of the row it lands on.
+const SIDED_ROWS: Array[String] = ["master", "music", "effects", "voice", "window_size", "fps_limit",
+		"screen_shake", "flashes", "text_size"]
+## How many rows of a list fit on screen at the normal text size; bigger text shows fewer (the list
+## scrolls with the cursor).
+const ROWS_AT_NORMAL_SIZE: int = 10
 const SECTION_HINTS: Array = [[&"item_turn_left", "Section"], [&"item_turn_right", "Section"],
 		[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]]
 const CONTROLS_HINTS: Array = [[&"item_turn_left", "Section"], [&"item_turn_right", "Section"],
@@ -67,6 +83,8 @@ var _defense_input: DefenseInput
 var _calibration: CalibrationPanel
 var _page: Control
 var _footer: HintBar
+## What _build_page added to this screen (freed and rebuilt when the text size changes).
+var _built: Array[Node] = []
 var _bindings: ControlBindings
 ## The column Left/Right chose in the Controls list: ControlBindings.KEY or PAD.
 var _column: String = ControlBindings.KEY
@@ -81,11 +99,30 @@ var _note: String = ""
 var _note_is_problem: bool = false
 ## When a second Confirm on "Reset to defaults" still counts (Time.get_ticks_msec).
 var _reset_until_ms: int = 0
+## Reset progress can be picked (the main menu's settings; not the pause menu's, mid-run).
+var _allow_reset: bool = false
+var _prompt: ConfirmPrompt
 
 
-func setup(tuning: Tuning, visuals: CombatVisuals) -> void:
+func setup(tuning: Tuning, visuals: CombatVisuals, allow_reset: bool = false) -> void:
 	_tuning = tuning
 	_visuals = visuals
+	_allow_reset = allow_reset
+	_build_page()
+	_defense_input = DefenseInput.new()
+	_defense_input.name = "DefenseInput"
+	add_child(_defense_input)
+	_calibration = CalibrationPanel.new()
+	_calibration.name = "Calibration"
+	add_child(_calibration)
+	_calibration.setup(_visuals, _tuning, _defense_input)
+	_calibration.closed.connect(_on_calibration_closed)
+
+
+## The backdrop, title, section names, list, detail line and hints.
+func _build_page() -> void:
+	var before := get_child_count()
+	_tabs.clear()
 	var column := ListMenu.screen_column(self, "Settings", TITLE_SIZE)
 	_page = column
 	var tabs := HBoxContainer.new()
@@ -107,16 +144,24 @@ func setup(tuning: Tuning, visuals: CombatVisuals) -> void:
 	_detail = ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(_detail)
 	_footer = ListMenu.screen_footer(self, [])
+	_built.clear()
+	for i: int in range(before, get_child_count()):
+		_built.append(get_child(i))
 	_show_section(Section.GRAPHICS)
 
-	_defense_input = DefenseInput.new()
-	_defense_input.name = "DefenseInput"
-	add_child(_defense_input)
-	_calibration = CalibrationPanel.new()
-	_calibration.name = "Calibration"
-	add_child(_calibration)
-	_calibration.setup(_visuals, _tuning, _defense_input)
-	_calibration.closed.connect(_on_calibration_closed)
+
+## Builds the page again, so every label has the new text size (card #203), and comes back to the
+## same section and row.
+func _rebuild_page() -> void:
+	var section := _section
+	var row := _menu.index
+	for node: Node in _built:
+		remove_child(node)
+		node.queue_free()
+	_build_page()
+	_show_section(section)
+	_menu.index = clampi(row, 0, maxi(0, _menu.items.size() - 1))
+	_refresh()
 
 
 func _process(_delta: float) -> void:
@@ -155,19 +200,25 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _prompt != null:
+		return
 	if _calibration.is_running():
 		_calibration.handle_input(event)
 		get_viewport().set_input_as_handled()
 		return
 	if _capture_kind != "":
-		# Waiting for a new key: nothing else may act (a stick must not move the cursor).
+		# Waiting for a new key: nothing else may act (a stick must not move the cursor). A right
+		# click or the mouse's back button cancels, like Escape.
 		get_viewport().set_input_as_handled()
+		if MenuMouse.is_back(event):
+			_end_capture("Cancelled: the old button stays.", false)
 		return
 	if not _swap.is_empty():
-		if event.is_action_pressed(&"menu_confirm", false, true):
+		if event.is_action_pressed(&"menu_confirm", false, true) or MenuMouse.is_click(event):
 			get_viewport().set_input_as_handled()
 			_do_swap()
-		elif event.is_action_pressed(&"menu_cancel", false, true) or event.is_action_pressed(&"pause", false, true):
+		elif event.is_action_pressed(&"menu_cancel", false, true) or event.is_action_pressed(&"pause", false, true) \
+				or MenuMouse.is_back(event):
 			get_viewport().set_input_as_handled()
 			_swap = {}
 			_set_note("Not swapped: nothing changed.", false)
@@ -179,10 +230,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		_show_section(posmod(_section + step, Section.size()) as Section)
 		Sfx.play("menu_move")
 		return
+	# Clicking a section's name opens it.
+	if MenuMouse.is_click(event):
+		var tab := MenuMouse.control_at(_tabs, (event as InputEventMouse).position)
+		if tab >= 0:
+			get_viewport().set_input_as_handled()
+			if tab != _section:
+				Sfx.play("menu_move")
+				_show_section(tab as Section)
+			return
+	var cursor_before := _menu.index
 	var answer := _menu.handle(event)
 	if answer == &"":
 		if _section == Section.CONTROLS and (event.is_action_pressed(&"menu_up", false, true)
-				or event.is_action_pressed(&"menu_down", false, true)):
+				or event.is_action_pressed(&"menu_down", false, true) or _menu.index != cursor_before):
 			_note = ""
 			_reset_until_ms = 0
 			_refresh()
@@ -191,8 +252,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		Sfx.play("menu_cancel")
 		closed.emit()
 		return
-	var step := -1 if answer == &"left" else 1
 	var row := String(_rows_of(_section)[_menu.index])
+	if answer == &"confirm" and _menu.clicked_share >= 0.0:
+		# A mouse click: on a value that Left / Right change it steps by the side that was clicked;
+		# on a control it picks the Key or the Pad column.
+		if SIDED_ROWS.has(row):
+			answer = &"left" if MenuMouse.side_of(_menu.clicked_share) < 0 else &"right"
+		elif row.begins_with("ctl:") and _menu.clicked_value_share >= 0.0:
+			_column = ControlBindings.PAD if MenuMouse.side_of(_menu.clicked_value_share) > 0 else ControlBindings.KEY
+	var step := -1 if answer == &"left" else 1
 	if row.begins_with("ctl:"):
 		_controls_answer(StringName(row.substr(4)), answer)
 		return
@@ -220,6 +288,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			PlayerSettings.set_graphics(row, not PlayerSettings.graphics(row))
 			StageBuilder.apply_settings(get_tree().root)
 			Sfx.play("menu_confirm")
+		"text_size":
+			PlayerSettings.set_text_size_index(PlayerSettings.text_size_index() + (1 if answer == &"confirm" else step))
+			Sfx.play("menu_move")
+			# Every hint bar redraws at the new size; this page is built again.
+			ButtonPrompts.refresh()
+			_rebuild_page()
+			return
 		"screen_shake":
 			if answer == &"confirm":
 				step = 1 if PlayerSettings.screen_shake_percent() < 100 else -4
@@ -251,7 +326,42 @@ func _unhandled_input(event: InputEvent) -> void:
 			if answer == &"confirm":
 				_reset_controls()
 				return
+		"reset_progress":
+			if answer == &"confirm":
+				_ask_reset_progress()
+				return
 	_refresh()
+
+
+## Reset progress: asks, then asks again, then emits progress_reset.
+func _ask_reset_progress() -> void:
+	if not _allow_reset:
+		Sfx.play("locked")
+		_set_note("Progress can only be reset from the main menu, not during a run.", true)
+		_refresh()
+		return
+	Sfx.play("menu_confirm")
+	_confirm("Reset all progress?", "Your Relics and their levels, the oaths you unlocked and a saved run are wiped. "
+			+ "Settings, controls and the Journal stay.", "Reset", "Keep my progress", func() -> void:
+				_confirm("Are you sure?", "This cannot be undone.", "Yes, wipe it", "No", func() -> void:
+					progress_reset.emit()
+					Sfx.play("menu_confirm")
+					_set_note("Progress reset: a fresh start.", false)
+					_refresh()))
+
+
+func _confirm(question: String, detail: String, yes: String, no: String, on_yes: Callable) -> void:
+	_prompt = ConfirmPrompt.new()
+	add_child(_prompt)
+	_prompt.setup(question, detail, yes, no)
+	_prompt.answered.connect(func(answer: bool) -> void:
+		get_viewport().set_input_as_handled()
+		_prompt.queue_free()
+		_prompt = null
+		if answer:
+			on_yes.call_deferred()
+		else:
+			Sfx.play("menu_cancel"))
 
 
 ## Opens the lag calibration over this screen (also for --screen=calibration pictures).
@@ -268,7 +378,9 @@ func _show_section(section: Section) -> void:
 	var rows := _rows_of(section)
 	var controls := section == Section.CONTROLS
 	_menu.row_width = CONTROLS_ROW_WIDTH if controls else ROW_WIDTH
-	_menu.window_rows = CONTROLS_WINDOW if controls else 0
+	# Bigger text shows fewer rows at once (the list scrolls with the cursor).
+	var fit := fitting_rows(HudStyle.text_scale_percent())
+	_menu.window_rows = mini(CONTROLS_WINDOW, fit) if controls else (fit if rows.size() > fit else 0)
 	var blank: Array[Dictionary] = []
 	for i: int in rows.size():
 		blank.append({})
@@ -278,6 +390,13 @@ func _show_section(section: Section) -> void:
 	_reset_until_ms = 0
 	_footer.set_entries(CONTROLS_HINTS if controls else SECTION_HINTS)
 	_refresh()
+
+
+## How many list rows fit on the screen at a text size (percent): all ROWS_AT_NORMAL_SIZE at normal
+## size, fewer when the text is bigger (never fewer than 4). Pure.
+static func fitting_rows(percent: int) -> int:
+	@warning_ignore("integer_division")
+	return maxi(4, ROWS_AT_NORMAL_SIZE * 100 / maxi(100, percent))
 
 
 func _on_calibration_closed() -> void:
@@ -312,6 +431,10 @@ func _refresh() -> void:
 			"fog", "bloom", "shadows", "ambient_occlusion", "depth_of_field":
 				_menu.set_item(i, String(PlayerSettings.GRAPHICS[row]), true, String(GRAPHICS_DETAIL[row]),
 						_on_off(PlayerSettings.graphics(row)))
+			"text_size":
+				_menu.set_item(i, "Text size", true,
+						"How big the text is. Menus change at once; a fight's HUD changes from the next fight.",
+						"<  %s  >" % String(PlayerSettings.TEXT_SIZE_NAMES[PlayerSettings.text_size_index()]))
 			"screen_shake":
 				_menu.set_item(i, "Screen shake", true, "How much the camera shakes on hits and parries.",
 						"<  %d%%  >" % PlayerSettings.screen_shake_percent())
@@ -324,13 +447,20 @@ func _refresh() -> void:
 						"A shrinking ring shows when each enemy hit lands. Practice fights only; off by default.",
 						_on_off(PlayerSettings.show_timing_ring(_tuning)))
 			"calibrate":
+				var lag_note := "" if PlayerSettings.is_calibrated() else " These are the defaults until you calibrate."
 				_menu.set_item(i, "Lag calibration", true,
-						"Press Parry with a beat to measure your screen and pad lag. Do this once per setup.",
-						"%s ms%s" % [HudStyle.signed_ms(PlayerSettings.latency_compensation_ms(_tuning)),
-						"" if PlayerSettings.is_calibrated() else " (default)"])
+						"Press Parry with a beat to measure your screen and input lag. Keys and pad are measured "
+						+ "separately: press with the one you play with." + lag_note,
+						"Keys %s  Pad %s ms" % [
+						HudStyle.signed_ms(PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.INPUT_KEYBOARD)),
+						HudStyle.signed_ms(PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.INPUT_PAD))])
 			"reset_lag":
 				_menu.set_item(i, "Reset lag to default", PlayerSettings.is_calibrated(),
 						"Forget the measured lag and use the default (%d ms) again." % _tuning.input_latency_compensation_ms)
+			"reset_progress":
+				_menu.set_item(i, "Reset progress", _allow_reset,
+						"Wipe your Relics, unlocked oaths and saved run for a fresh start. Asks twice."
+						if _allow_reset else "Only from the main menu's settings, not during a run.")
 			"reset":
 				_menu.set_item(i, "Reset to defaults", true,
 						"Put every key and button back as the game came. Press Confirm twice.",

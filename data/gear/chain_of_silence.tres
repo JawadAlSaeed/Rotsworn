@@ -14,3 +14,6 @@ amount = 50
 rot_touched = true
 drawback = 3
 drawback_amount = 1
+stat = 3
+stat_points = 3
+echo_cost = 2

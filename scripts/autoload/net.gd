@@ -11,6 +11,13 @@ extends Node
 ## Handshake: a client sends its content fingerprint (DataHash) first. The host answers welcome or
 ## refuse; a refused client is dropped. Until welcomed, a client's messages are ignored.
 ##
+## Rejoining (card #205): the welcome carries a secret seat token (SeatBook), kept in memory on both
+## sides. A client whose connection goes during a run keeps its seat "away" for
+## `net_rejoin_grace_ms`; joining again from the Join screen sends the token with the hello and
+## gets that seat back (the build fingerprint is checked first, as always). Both ends ping each
+## other, and a connection that stays silent for `net_drop_min_ms` .. `net_drop_max_ms` counts as
+## lost, so a pulled cable never freezes a fight for long.
+##
 ## Messages are (kind: String, payload: Dictionary) pairs of plain data. Reliable ones keep their
 ## order on one channel (game flow and combat must never overtake each other); position updates go
 ## unreliable on their own channel.
@@ -21,8 +28,12 @@ signal state_changed(state: int)
 signal refused(reason: String)
 ## Host: a client passed the handshake. Client: we were welcomed (peer = our own id).
 signal peer_joined(peer: int)
-## Host: a welcomed client left.
+## Host: a welcomed client left (or its seat's grace time ran out).
 signal peer_left(peer: int)
+## Host: a welcomed client's connection went during a run; its seat is kept for the grace time.
+signal peer_away(peer: int)
+## Host: the client that had `old_peer` joined again as `new_peer` (its seat token matched).
+signal peer_rejoined(old_peer: int, new_peer: int)
 ## Client: the host is gone.
 signal host_lost
 ## A message from `from_peer` (1 = the host).
@@ -33,7 +44,7 @@ enum State { OFFLINE, HOSTING, CONNECTING, CONNECTED }
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const HOST_PEER: int = 1
 ## Bumped when the handshake or the message format changes in a way the fingerprint cannot show.
-const PROTOCOL: int = 1
+const PROTOCOL: int = 2
 ## Channel for reliable messages (flow and combat) and for unreliable position updates.
 const RELIABLE_CHANNEL: int = 0
 const FAST_CHANNEL: int = 1
@@ -41,6 +52,12 @@ const FAST_CHANNEL: int = 1
 const MAX_CLIENTS: int = PlayerRoster.MAX_PLAYERS - 1
 ## A refused client is dropped this long after the refusal, so the message arrives first.
 const REFUSE_LINGER_S: float = 0.5
+## A client leaving on purpose closes its connection this long after its goodbye.
+const BYE_LINGER_S: float = 0.25
+## ENet's own factor for its resend timeout (its default); the drop times come from tuning.
+const ENET_TIMEOUT_LIMIT: int = 32
+## Bytes of randomness in a seat token.
+const TOKEN_BYTES: int = 16
 
 var state: int = State.OFFLINE
 var _tuning: Tuning
@@ -48,9 +65,23 @@ var _fingerprint: String = ""
 ## Host: peers that passed the handshake (peer -> true), and when each unverified peer connected.
 var _welcomed: Dictionary = {}
 var _pending_since_ms: Dictionary = {}
+## Host: clients that said goodbye (they left on purpose: no seat is kept for them).
+var _leaving: Dictionary = {}
 var _connect_started_ms: int = 0
-## When on, the host refuses new clients (a run started).
+## When on, the host refuses new clients (a run started); only a seat's token gets back in.
 var closed: bool = false
+## Host: the seats and their tokens.
+var seats := SeatBook.new()
+## Client: our seat token and the address we joined (kept after leave(), so a dropped player can
+## join again; forget_seat() clears the token), and whether the last welcome gave a seat back.
+var _seat_token: String = ""
+var _seat_address: String = ""
+var rejoined: bool = false
+## Dev (--drop-after): the connection we dropped without a word, kept but never serviced again, so
+## the host only notices through the heartbeat, as with a pulled cable.
+var _silent_peer: MultiplayerPeer
+## Connections that said goodbye and close a moment later (held so they are not freed at once).
+var _closing: Array[MultiplayerPeer] = []
 
 
 func _ready() -> void:
@@ -74,18 +105,23 @@ func _process(_delta: float) -> void:
 			if now - int(_pending_since_ms[peer]) > _tuning.net_connect_timeout_ms:
 				_pending_since_ms.erase(peer)
 				_kick(peer)
+		for peer: int in seats.expired(now, _tuning.net_rejoin_grace_ms):
+			peer_left.emit(peer)
 
 
 ## Starts hosting on `port` (0 = the tuning port). Returns OK or the error.
 func host(port: int = 0) -> Error:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_server(port if port > 0 else _tuning.net_port, MAX_CLIENTS)
+	# One spare connection: a player coming back can get in before the host has noticed their old
+	# connection die (the handshake still keeps the game at MAX_CLIENTS).
+	var err := peer.create_server(port if port > 0 else _tuning.net_port, MAX_CLIENTS + 1)
 	if err != OK:
 		return err
 	multiplayer.multiplayer_peer = peer
 	multiplayer.server_relay = false
 	closed = false
+	seats.clear()
 	_set_state(State.HOSTING)
 	return OK
 
@@ -100,19 +136,77 @@ func join(address: String, port: int = 0) -> Error:
 		return err
 	multiplayer.multiplayer_peer = peer
 	_connect_started_ms = Time.get_ticks_msec()
+	rejoined = false
+	if _seat_address != address.strip_edges():
+		# A seat token is only worth showing to the host that gave it.
+		_seat_token = ""
+	_seat_address = address.strip_edges()
 	_set_state(State.CONNECTING)
 	return OK
 
 
-## Closes the connection (if any) and goes back offline.
-func leave() -> void:
+## Closes the connection (if any) and goes back offline. A client still connected says goodbye
+## first, so the host gives its seat up at once instead of keeping it for a rejoin (`goodbye`
+## false: the host is already gone).
+func leave(goodbye: bool = true) -> void:
+	if goodbye and state == State.CONNECTED:
+		_bye.rpc_id(HOST_PEER)
+		var enet := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+		if enet != null and enet.host != null:
+			enet.host.flush()
+		_seat_token = ""
+		# The host handles a disconnect before the messages that came with it, so the line goes
+		# down a moment later, after the goodbye was read.
+		_closing.append(multiplayer.multiplayer_peer)
+		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+		get_tree().create_timer(BYE_LINGER_S, true, false, true).timeout.connect(_close_oldest)
 	if multiplayer.multiplayer_peer != null and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	_welcomed.clear()
 	_pending_since_ms.clear()
+	_leaving.clear()
+	seats.clear()
 	closed = false
 	_set_state(State.OFFLINE)
+
+
+func _close_oldest() -> void:
+	if not _closing.is_empty():
+		_closing.pop_front().close()
+
+
+## Client: true while we hold a seat token (we were in a game and may join it again).
+func has_seat() -> bool:
+	return not _seat_token.is_empty()
+
+
+## Client: the address of the host whose seat we hold ("" if none).
+func seat_address() -> String:
+	return _seat_address if has_seat() else ""
+
+
+## Client: forgets our seat (the run is over, or the host ended the game).
+func forget_seat() -> void:
+	_seat_token = ""
+
+
+## Dev (--drop-after): the client drops off the network without telling the host, like a pulled
+## cable. The host finds out through the heartbeat; this machine reacts as to a lost host.
+func drop_silently() -> void:
+	if state != State.CONNECTED:
+		return
+	# Never polled again: no answer, no goodbye.
+	_silent_peer = multiplayer.multiplayer_peer
+	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+	_welcomed.clear()
+	_set_state(State.OFFLINE)
+	host_lost.emit()
+
+
+## Host: how long the seat of away peer `peer` is still kept (ms).
+func seat_time_left(peer: int) -> int:
+	return seats.time_left(peer, Time.get_ticks_msec(), _tuning.net_rejoin_grace_ms)
 
 
 func is_online() -> bool:
@@ -195,30 +289,54 @@ func broadcast_fast(kind: String, payload: Dictionary = {}) -> void:
 # --- RPCs -------------------------------------------------------------------------------------
 
 @rpc("any_peer", "call_remote", "reliable", RELIABLE_CHANNEL)
-func _hello(their_fingerprint: Variant, their_protocol: Variant) -> void:
+func _hello(their_fingerprint: Variant, their_protocol: Variant, their_token: Variant) -> void:
 	if state != State.HOSTING:
 		return
 	var peer := multiplayer.get_remote_sender_id()
 	_pending_since_ms.erase(peer)
-	if closed:
+	var token := String(their_token) if typeof(their_token) == TYPE_STRING else ""
+	if typeof(their_protocol) != TYPE_INT or int(their_protocol) != PROTOCOL \
+			or typeof(their_fingerprint) != TYPE_STRING or String(their_fingerprint) != fingerprint():
+		var theirs := DataHash.short_id(String(their_fingerprint)) if typeof(their_fingerprint) == TYPE_STRING else "?"
+		_refuse_peer(peer, "Your game is a different version from the host's (yours %s, the host's %s). Both need the same build." \
+				% [theirs, DataHash.short_id(fingerprint())])
+	elif closed and seats.peer_of(token) > 0:
+		# Our player is back: a seat's token is the only way into a started game, and only into
+		# that seat.
+		var old := seats.claim(token, peer)
+		if _welcomed.erase(old):
+			# The host had not noticed the old connection die yet: it is let go.
+			_kick(old)
+		_welcomed[peer] = true
+		_welcome.rpc_id(peer, token, true)
+		peer_rejoined.emit(old, peer)
+	elif closed:
 		_refuse_peer(peer, "The game has already started.")
 	elif _welcomed.size() >= MAX_CLIENTS:
 		_refuse_peer(peer, "The game is full.")
-	elif typeof(their_protocol) != TYPE_INT or int(their_protocol) != PROTOCOL 			or typeof(their_fingerprint) != TYPE_STRING or String(their_fingerprint) != fingerprint():
-		var theirs := DataHash.short_id(String(their_fingerprint)) if typeof(their_fingerprint) == TYPE_STRING else "?"
-		_refuse_peer(peer, "Your game is a different version from the host's (yours %s, the host's %s). Both need the same build." 				% [theirs, DataHash.short_id(fingerprint())])
 	else:
+		var fresh := _new_token()
+		seats.add(peer, fresh)
 		_welcomed[peer] = true
-		_welcome.rpc_id(peer)
+		_welcome.rpc_id(peer, fresh, false)
 		peer_joined.emit(peer)
 
 
 @rpc("authority", "call_remote", "reliable", RELIABLE_CHANNEL)
-func _welcome() -> void:
+func _welcome(token: Variant, was_rejoin: Variant) -> void:
 	if state != State.CONNECTING:
 		return
+	_seat_token = String(token) if typeof(token) == TYPE_STRING else ""
+	rejoined = typeof(was_rejoin) == TYPE_BOOL and bool(was_rejoin)
 	_set_state(State.CONNECTED)
 	peer_joined.emit(multiplayer.get_unique_id())
+
+
+@rpc("any_peer", "call_remote", "reliable", RELIABLE_CHANNEL)
+func _bye() -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	if state == State.HOSTING and _welcomed.has(peer):
+		_leaving[peer] = true
 
 
 @rpc("authority", "call_remote", "reliable", RELIABLE_CHANNEL)
@@ -255,16 +373,39 @@ func _to_client_fast(kind: Variant, payload: Variant) -> void:
 func _on_peer_connected(peer: int) -> void:
 	if state == State.HOSTING:
 		_pending_since_ms[peer] = Time.get_ticks_msec()
+		_set_heartbeat(peer)
 
 
 func _on_peer_disconnected(peer: int) -> void:
 	_pending_since_ms.erase(peer)
-	if state == State.HOSTING and _welcomed.erase(peer):
+	var said_goodbye := _leaving.erase(peer)
+	if state != State.HOSTING or not _welcomed.erase(peer):
+		return
+	if closed and not said_goodbye and _tuning.net_rejoin_grace_ms > 0 and seats.set_away(peer, Time.get_ticks_msec()):
+		peer_away.emit(peer)
+	else:
+		seats.remove(peer)
 		peer_left.emit(peer)
 
 
 func _on_connected_to_server() -> void:
-	_hello.rpc_id(HOST_PEER, fingerprint(), PROTOCOL)
+	_set_heartbeat(HOST_PEER)
+	_hello.rpc_id(HOST_PEER, fingerprint(), PROTOCOL, _seat_token)
+
+
+## The heartbeat: ENet pings the other end all the time; this bounds how long a silent connection
+## may go unanswered before it counts as lost (tuning).
+func _set_heartbeat(peer: int) -> void:
+	var enet := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if enet == null:
+		return
+	var link := enet.get_peer(peer)
+	if link != null:
+		link.set_timeout(ENET_TIMEOUT_LIMIT, _tuning.net_drop_min_ms, maxi(_tuning.net_drop_min_ms, _tuning.net_drop_max_ms))
+
+
+func _new_token() -> String:
+	return Crypto.new().generate_random_bytes(TOKEN_BYTES).hex_encode()
 
 
 func _on_connection_failed() -> void:
@@ -273,7 +414,7 @@ func _on_connection_failed() -> void:
 
 func _on_server_disconnected() -> void:
 	var was_connected := state == State.CONNECTED
-	leave()
+	leave(false)
 	if was_connected:
 		host_lost.emit()
 	else:

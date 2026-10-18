@@ -9,7 +9,11 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_grave_spikes.tres" id="7_ofos0"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/hollow_bolt_storm.tres" id="8_75tdb"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="9_vbww8"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="10_lxa4g"]
 [ext_resource type="Resource" path="res://data/clips/shade.tres" id="10_xxdr5"]
+[ext_resource type="Resource" path="res://data/gear/ash_veil.tres" id="11_ofos0"]
+[ext_resource type="Resource" path="res://data/gear/last_ember.tres" id="12_75tdb"]
+[ext_resource type="Resource" path="res://data/gear/pale_tithe.tres" id="13_vbww8"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_ashfall.tres" id="99_doom"]
 
 [resource]
@@ -32,6 +36,7 @@ target_bias_percent = 150
 gold = 60
 xp = 130
 voice_sfx = "voice_shade"
+relic_drops = Array[ExtResource("10_lxa4g")]([ExtResource("11_ofos0"), ExtResource("12_75tdb"), ExtResource("13_vbww8")])
 phase_two_hp_percent = 50
 phase_two_attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtResource("3_48cf8"), ExtResource("4_r4fvk"), ExtResource("5_nrkbm"), ExtResource("6_lxa4g"), ExtResource("7_ofos0"), ExtResource("8_75tdb"), ExtResource("99_doom")])
 phase_two_speed = 155

@@ -186,8 +186,10 @@ func test_boss_enters_phase_two_once() -> void:
 
 # --- the run: levels and gear -----------------------------------------------------------------
 
+## A run with every Relic slot open and Relics without stat lines, so each test sees only the
+## effect it checks (the slots and stat lines have their own tests in test_relics.gd).
 func _run() -> RunState:
-	return RunState.begin(load(RUN_PATH) as RunData, Tuning.new(), 5)
+	return RunState.begin(Fx.without_relic_stats(load(RUN_PATH) as RunData), Fx.all_slots(), 5)
 
 
 func test_xp_levels_one_hero() -> void:
@@ -225,37 +227,42 @@ func test_a_victory_pays_xp() -> void:
 	assert_eq(run.xps[1], int(got.xp[1]))
 
 
-func test_loot_and_shop_offer_gear_the_party_does_not_own() -> void:
+func test_loot_and_shop_offer_relics_a_copy_still_helps() -> void:
 	var run := _run()
 	var loot := run.loot_choices(3)
 	assert_eq(loot.size(), Tuning.new().run_loot_choices)
 	assert_eq(run.loot_choices(3), loot, "the same stop offers the same loot")
 	assert_eq(run.wear(0, 0, loot[0]), 0)
+	assert_true(run.owns(loot[0]), "a Relic worn at once joins the run")
 	assert_eq(run.wear(1, 0, loot[0]), -1, "one of each")
-	assert_false(run.loot_choices(3).has(loot[0]), "worn gear is not offered again")
+	# A Relic at its top level is never offered again (a copy would only be gold).
+	run.relics[loot[0].id] = run.tuning.relic_max_level
+	assert_false(run.loot_choices(3).has(loot[0]), "a maxed Relic is not offered")
 	var shop := run.shop_gear(4)
 	assert_eq(shop.size(), Tuning.new().run_shop_gear)
 	run.gold = 0
-	assert_false(run.buy_gear(shop[0]))
+	assert_true(run.buy_gear(shop[0]).is_empty(), "no gold, no Relic")
 	run.gold = shop[0].price
-	assert_true(run.buy_gear(shop[0]))
+	assert_false(run.buy_gear(shop[0]).is_empty())
 	assert_eq(run.gold, 0)
-	assert_eq(run.wear(2, 0, shop[0]), 0, "bought gear goes straight on a hero")
+	assert_true(run.owns(shop[0]), "a bought Relic joins the run")
+	assert_eq(run.wear(2, 0, shop[0]), 0, "and goes on a hero")
 
 
-func test_wear_swap_and_sell_gear() -> void:
+func test_wear_and_swap_relics() -> void:
 	var run := _run()
 	var charm := _gear(run, GearData.Effect.MAX_HP)
 	var stone := _gear(run, GearData.Effect.POWER)
 	var hp_before := run.hp[0]
 	var max_before := run.max_hp(0)
-	assert_eq(run.wear(0, 0, charm), 0, "an empty slot sells nothing")
+	assert_eq(run.wear(0, 0, charm), 0)
 	assert_gt(run.max_hp(0), max_before)
-	assert_eq(run.hp[0], hp_before, "putting gear on never heals")
+	assert_eq(run.hp[0], hp_before, "putting a Relic on never heals")
 	run.gold = 0
-	assert_eq(run.wear(0, 0, stone), run.gear_sell_price(charm), "a full slot sells what was there")
-	assert_eq(run.gold, CombatMath.percent(charm.price, run.tuning.item_sell_percent))
-	assert_false(run.owns(charm), "sold gear is gone")
+	assert_eq(run.wear(0, 0, stone), 0, "a full slot takes the new Relic")
+	assert_eq(run.gold, 0, "nothing is sold")
+	assert_true(run.owns(charm), "the old Relic goes back to the run's Relics")
+	assert_false(run.is_worn(charm))
 	assert_eq(run.power_percent(0), 100 + stone.amount)
 	assert_eq(run.wear(1, 0, stone), -1, "worn gear cannot be worn twice")
 	run.wear(1, 0, charm)
@@ -268,8 +275,10 @@ func test_wear_swap_and_sell_gear() -> void:
 	assert_eq(run.gear[0][0], charm)
 	assert_eq(run.gear[2][1], stone)
 	assert_false(run.swap_gear(1, 0, 2, 0), "an empty slot has nothing to move")
-	run.gold = 0
-	assert_eq(run.sell_new_gear(_gear(run, GearData.Effect.SPEED)), run.gold, "new gear nobody wears is sold")
+	assert_true(run.take_off(0, 0))
+	assert_false(run.is_worn(charm), "taken off, it stays the run's")
+	assert_true(run.owns(charm))
+	assert_false(run.take_off(0, 0), "nothing left to take off")
 
 
 func test_gear_reaches_the_fight_setup() -> void:
