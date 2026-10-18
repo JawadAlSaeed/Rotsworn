@@ -3130,10 +3130,46 @@ upgrade to take blindly.
   results only for its own heroes, the current sequence, and once per prompt. The host also sends
   a character's earlier still-open prompts as NONE with a later one, so the engine never refuses a
   batch.
-- **Someone leaves**: a client that leaves mid-run hands its heroes to the host (P3 becomes P2);
-  its open prompts are resolved at once and the others are told. If the host leaves (or ends the
-  game from the pause menu), everyone goes back to the main menu with a note. Online, the pause
-  menu opens over a game that goes on (it offers Leave / End the game).
+- **Someone leaves**: a client that leaves for good mid-run (or whose seat's grace time ran out,
+  below) hands its heroes to the host (P3 becomes P2); its open prompts are resolved at once and
+  the others are told. A client that leaves on purpose (Leave in the pause menu, or quitting)
+  says goodbye first and its line closes a moment later, so its seat is given up at once rather
+  than kept for a rejoin. If the host leaves (or ends the game from the pause menu), everyone goes
+  back to the main menu with a note. Online, the pause menu opens over a game that goes on (it
+  offers Leave / End the game).
+- **Dropping and rejoining** (card #205, 2026-10-18):
+  - *Heartbeat*: both ends keep pinging (ENet), and a connection that answers nothing for
+    `net_drop_min_ms` .. `net_drop_max_ms` (3 to 6 s) counts as lost, so a pulled cable, a crash or
+    a Wi-Fi blip never freezes a fight for long.
+  - *Seat tokens*: the welcome gives each client a secret random token (`SeatBook`,
+    `scripts/net/`, pure), kept in memory on both machines. A client whose connection goes during
+    a run is "away": the host keeps its seat for `net_rejoin_grace_ms` (120 s) and everyone sees a
+    small chip, "P2 away" (top right; the host's also counts the seat's time down). It never
+    blocks the game.
+  - *While away*: the host's player plays the away heroes (their menus open on the host, the host
+    defends for them; with the bot it is the host's bot), exactly as when a player leaves, but the
+    seat (P2 stays P2) and the heroes stay theirs. Prompts that were open on the away machine
+    when it went count as not defended (NONE, by the DefenseArbiter, at once). Chosen over waiting
+    at their turn: nobody sits frozen for two minutes, and it is what leaving already did.
+  - *Coming back*: the dropped player's game opens the Join screen with the host's address and a
+    note ("Press Enter (A on a pad) to take your seat back"; the Join screen now takes a pad's
+    confirm too). The hello carries the token after the build fingerprint check; a started
+    game lets in only a token's own seat (no token, a wrong one or an
+    expired one: "The game has already started"). A token wins its seat even if the host has not
+    noticed the old connection die yet (the old one is let go), and a peer that already has a seat
+    cannot take another. The host then sends `run_start`, the place screen it is on (map, zone,
+    shop ...) with the whole run, and the fight message if a fight is on.
+  - *Mid-fight*: the rejoined player's fight skips the host's batches until a "resume" batch
+    (`CombatEngine.resume_events()`: combat_started with every fighter as they are now, the
+    practice options, the team gauge, every intent, the turn order and the waiting turn, or the
+    end). The host sends it at the next moment nothing is timed (a hero's turn, or the end), never
+    mid-attack, and gives the seat back at that same moment (the roster goes first), so no attack
+    is half theirs. The mirror rebuilt from it equals the engine (a test), and normal event flow
+    continues; `AUTOPLAY_MIRROR` still matches on every machine. Outside a fight the seat comes
+    back at once.
+  - If the grace time runs out the seat is given up as above. Limits: the token lives in memory,
+    so a player whose game crashed (restarted) cannot take the seat back; only a dropped
+    connection can. The away chip reads "P2 away"; the host's player sees the countdown.
 - **Sharing the game**: `build_game.bat` exports `build/Rotsworn.zip` (one exe). It is a release
   export, and it deletes the old exe and zip first and fails loudly (log in `build/export.log`)
   if the export fails, so a stale file is never handed out. Bump `config/version` in
@@ -3145,7 +3181,11 @@ upgrade to take blindly.
   plays that same build: a run from the editor has a different content fingerprint (the export
   stores resources differently) and is refused.
 - Bot: `--host=N` hosts and starts a run once N players are in; `--join=ADDRESS` joins. Both play
-  with `--autoplay`; each presses only for its own player.
+  with `--autoplay`; each presses only for its own player. `--drop-after=S` makes a client drop off
+  the network S seconds after joining without a word (the host finds out through the heartbeat);
+  `--drop-in-fight` makes that drop wait for the next fight and come a few seconds into it;
+  `--rejoin[=S]` joins again S seconds (default 10) after losing the host. Without `--rejoin` an
+  autoplay client that loses the host still fails with `AUTOPLAY_ERROR host_lost`.
 
 ---
 
@@ -3228,6 +3268,13 @@ upgrade to take blindly.
   current sequence, once; a leaving client resolved at once; engine-resolved prompts left alone),
   the fingerprint (stable, version, line endings, changed numbers, import files ignored) and the
   run state round trip (and refusals that change nothing).
+- Rejoining (`test_rejoin.gd`, card #205): seat tokens (one seat per token and per peer, no claim
+  without the right token, a token wins its own seat, the grace time runs out exactly), the away
+  seat in the roster (the host plays it, nobody moves up, it travels as data, the same seat comes
+  back under a new peer id, a seat given up while another is away), and `resume_events()` (never
+  mid-attack, changes nothing, a fresh mirror built from it equals the engine and ends the fight
+  the same as a mirror that saw everything, and after the end it says how it ended). Online
+  smoke: the client pair with `--drop-after=S --rejoin`.
 - Save & Quit (`test_run_save.gd`, temp files only): a save round trips the whole run, numbers come
   back as ints, unknown keys survive, other content or format and damaged files are refused, a
   failed write keeps the old save, the backup covers a broken main file, delete clears all.
@@ -3571,3 +3618,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-18 | Every menu works with the mouse: point to choose, left click confirms, right click or the back button goes back, the wheel scrolls; the pointer hides while keys or a pad are used and in fights and zones; the fight's own menus stay keys and pad | card #202 (review ui-input #4): PC players click "New Run" and nothing happened. One entry, `ListMenu.handle`, so every list screen got it; no Input Map action has a mouse event, so a click can never be a defence (6.2) |
 | 2026-10-18 | Settings > Game > Text size (Normal 100%, Large 115%, Larger 130%), applied through `HudStyle.scaled` to every body, title and number label; the percents live in `ui_fonts.tres` | card #203 (review ui-input #5): fixed 14 to 22 px text. Gentle steps because the HUD plates and menu lists are laid out for 1920 x 1080 and were checked without a window; titles, banners and popups keep their size (7.5) |
 | 2026-10-18 | The Glossary: a main-menu Extras row (after Tutorial) and a pause-menu row open a book of 109 terms in 14 topics (hit kinds and defences, skills, counters, marks, Dooms, enemies, the map, zones, gear, shops, the run), each with the game's own icon or colour and two or three plain lines, from `data/glossary/glossary.tres`; topic strip with left/right, terms in a `ListMenu`; colours and words are tested against `combat_visuals.tres` and `HudStyle` | card #207: the game has many icons and words and nowhere to look them up; the owner keeps the interactive tutorial for phase 17, so the book stands alone |
+| 2026-10-18 | Online: a dropped client keeps its seat for 120 s (seat token, "P2 away" chip, the host plays its heroes meanwhile) and gets it back from the Join screen; mid-fight it gets the fight as it stands at the next hero's turn (`resume_events`); a heartbeat drops a silent connection after 3 to 6 s | card #205 and the net review: a Wi-Fi blip ended a player's run for good and a pulled cable froze fights for up to 30 s; playing the heroes for them beats a two-minute freeze, and handing the seat back between moves means no attack is half one player's |

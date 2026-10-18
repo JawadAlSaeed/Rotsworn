@@ -38,7 +38,7 @@ func setup(address: String) -> void:
 	_status = ListMenu.centred_label("", TEXT_SIZE, HudStyle.TEXT)
 	column.add_child(_status)
 	column.add_child(ListMenu.centred_label(
-			"Type the address the host's screen shows, then Enter.   Esc: back\n"
+			"Type the address the host's screen shows, then Enter (A on a pad).   Esc (B): back\n"
 			+ "Same Wi-Fi: it just works. Over the internet: both use Tailscale (or the host opens the port).",
 			HINT_SIZE, HudStyle.TEXT_DIM))
 	_field.call_deferred("grab_focus")
@@ -52,6 +52,18 @@ func show_problem(text: String) -> void:
 	_status.text = text
 	_status.label_settings.font_color = HudStyle.LATE
 	_field.grab_focus()
+
+
+## Shows how things stand (not a problem): "Back in, catching up ..." while the host sends the game.
+func show_status(text: String) -> void:
+	_status.text = text
+	_status.label_settings.font_color = HudStyle.TEXT
+
+
+## Connects to `address` as if it had been typed and Enter pressed (the bot rejoining).
+func submit(address: String) -> void:
+	_field.text = address
+	_on_submitted(address)
 
 
 func _on_submitted(text: String) -> void:
@@ -73,3 +85,8 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		Sfx.play("menu_cancel")
 		back.emit()
+	elif event is InputEventJoypadButton and event.is_action_pressed(&"menu_confirm", false, true):
+		# A pad cannot press Enter in the text field: its confirm button connects (a remembered
+		# address, or the one a dropped player's seat waits at).
+		get_viewport().set_input_as_handled()
+		_on_submitted(_field.text)
