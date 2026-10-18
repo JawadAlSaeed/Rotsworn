@@ -1062,10 +1062,23 @@ func _on_zone_cleared() -> void:
 
 # --- the tutorial (DESIGN.md 7.8, card #131) --------------------------------------------------
 
+## A question over the main menu hides the menu while it is open: the menu's gold letters showed
+## through the prompt's dark backdrop (card #204, seen in a picture run).
+func _hide_menu_behind(prompt: ConfirmPrompt) -> void:
+	if not _screen is MainMenu:
+		return
+	var menu := _screen as MainMenu
+	menu.visible = false
+	prompt.tree_exited.connect(func() -> void:
+		if is_instance_valid(menu):
+			menu.visible = true)
+
+
 ## The first New Run asks once whether to play the tutorial first.
 func _offer_tutorial() -> void:
 	PlayerSettings.set_tutorial_offered(true)
 	_prompt = ConfirmPrompt.new()
+	_hide_menu_behind(_prompt)
 	_prompt.name = "TutorialPrompt"
 	_prompt.setup("Play the tutorial first?", "Five short lessons: attacking, skills, defending and the team "
 			+ "ultimate. It is always in the main menu too.", "Play the tutorial", "Start the run")
@@ -1094,6 +1107,7 @@ func _offer_calibration(remember: bool = true) -> void:
 	if remember:
 		PlayerSettings.set_calibration_offered(true)
 	_prompt = ConfirmPrompt.new()
+	_hide_menu_behind(_prompt)
 	_prompt.name = "CalibrationPrompt"
 	_prompt.setup("Calibrate your timing?", "Takes about 15 seconds. Recommended for wireless pads and TVs, "
 			+ "which add lag. It is always in Settings under Game.", "Calibrate now", "Not now")
@@ -1293,6 +1307,7 @@ func _save_in_the_way() -> bool:
 
 func _ask_overwrite_save() -> void:
 	_prompt = ConfirmPrompt.new()
+	_hide_menu_behind(_prompt)
 	_prompt.name = "OverwritePrompt"
 	_prompt.setup("Start a new run?", "Your saved run will be lost.", "Start a new run", "Keep the saved run")
 	_prompt.answered.connect(func(yes: bool) -> void:
