@@ -7,6 +7,7 @@ extends RefCounted
 
 static var _fallbacks: Dictionary = {}
 static var _raw: Dictionary = {}
+static var _meshes: Dictionary = {}
 static var _warned: Dictionary = {}
 
 
@@ -22,6 +23,29 @@ static func texture(path: String, fallback_size: Vector2i = Vector2i(32, 32)) ->
 			return raw
 	_warn_once(path, "AssetLoader: missing texture '%s', using placeholder" % path)
 	return fallback_texture(fallback_size)
+
+
+## The mesh of the 3D model at `path` (a .glb holding one mesh at the origin, DESIGN.md 5.6), or
+## null with one warning if it is missing, so the caller can fall back to its plain shape.
+static func mesh(path: String) -> Mesh:
+	if _meshes.has(path):
+		return _meshes[path]
+	var found: Mesh = null
+	if not path.is_empty() and ResourceLoader.exists(path):
+		var scene := load(path) as PackedScene
+		if scene != null:
+			var root := scene.instantiate()
+			var holder := root as MeshInstance3D
+			if holder == null:
+				var all := root.find_children("*", "MeshInstance3D", true, false)
+				holder = all[0] as MeshInstance3D if not all.is_empty() else null
+			if holder != null:
+				found = holder.mesh
+			root.free()
+	if found == null:
+		_warn_once(path, "AssetLoader: missing model '%s', using the plain shape" % path)
+	_meshes[path] = found
+	return found
 
 
 ## Is there art at `path` (imported, or a raw file waiting for its import)? Unlike `texture` this

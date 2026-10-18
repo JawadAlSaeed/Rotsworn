@@ -87,6 +87,9 @@ extends Resource
 @export_file_path("*.png") var chest_closed_path: String = "res://assets/sprites/env/chest_closed.png"
 @export_file_path("*.png") var chest_open_path: String = "res://assets/sprites/env/chest_open.png"
 @export_range(0.005, 1.0, 0.001) var chest_pixel_size: float = 0.05
+## The chests as 3D pieces (DESIGN.md 5.6), shown instead of the sprites above (null: the sprites).
+@export var chest_piece: WorldPieceData
+@export var chest_open_piece: WorldPieceData
 
 @export_group("Long zones")
 ## A rot seal (DESIGN.md 8.5): a glowing standing stone, bobbing slowly, and the light beside it.
@@ -94,6 +97,8 @@ extends Resource
 @export_range(0.005, 1.0, 0.001) var seal_pixel_size: float = 0.05
 @export_range(0.0, 8.0, 0.05) var seal_glow: float = 1.6
 @export var seal_color: Color = Color(0.55, 1.0, 0.45)
+## The seal as a 3D piece (DESIGN.md 5.6), shown instead of the sprite (null: the sprite).
+@export var seal_piece: WorldPieceData
 @export_range(0.0, 16.0, 0.05) var seal_light_energy: float = 1.6
 @export_range(0.1, 50.0, 0.1) var seal_light_reach: float = 4.0
 ## The gate sinks into the ground over this long when the last seal needed is taken.

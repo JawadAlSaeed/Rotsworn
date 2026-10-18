@@ -24,4 +24,6 @@ desktop.ini
 
 # Art kit previews (tools/art_kit/build.py)
 /tools/art_kit/preview/
+# Blender kit previews (tools/blender_kit/build.py)
+/tools/blender_kit/preview/
 __pycache__/

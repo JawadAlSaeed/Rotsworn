@@ -307,7 +307,8 @@ func test_every_zone_is_alive() -> void:
 		for p: ZonePropData in zone.props:
 			if p.sway > 0.0:
 				swaying += 1
-			assert_true(ResourceLoader.exists(p.sprite_path), "%s: %s exists" % [zone.id, p.sprite_path])
+			var art := p.piece.model_path if p.piece != null else p.sprite_path
+			assert_true(ResourceLoader.exists(art), "%s: %s exists" % [zone.id, art])
 		assert_gt(swaying, 10, "%s: plants sway in the wind" % zone.id)
 		for g: ZoneGroundData in zone.grounds:
 			assert_true(ResourceLoader.exists(g.texture_path), "%s: %s exists" % [zone.id, g.texture_path])

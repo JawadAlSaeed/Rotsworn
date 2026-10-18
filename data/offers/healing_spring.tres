@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ZoneOfferData" format=3]
 
 [ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="1_v2pl4"]
+[ext_resource type="Resource" path="res://data/pieces/shrine_spring.tres" id="pc_shrine_spring"]
 
 [resource]
 script = ExtResource("1_v2pl4")
@@ -12,5 +13,6 @@ yes_text = "Drink"
 sprite_path = "res://assets/sprites/env/shrine_spring.png"
 glow = 1.2
 glow_color = Color(0.35, 1, 0.85, 1)
+piece = ExtResource("pc_shrine_spring")
 solid_radius = 0.5
 heal_percent = 30

@@ -33,6 +33,11 @@ enum Kind {
 @export var deep_color: Color = Color(0.04, 0.1, 0.09)
 ## Walkers cannot step onto it (deep water).
 @export var solid: bool = false
+## Water only: a stream's flow, in world units a second along the piece's own x and z (before
+## turning); zero is still water's slow drift (card #232).
+@export var flow: Vector2 = Vector2.ZERO
+## Water only: the share of spots where a ripple ring spreads now and then (0: none).
+@export_range(0.0, 1.0, 0.01) var ripples: float = 0.0
 ## The rim of a (non-water) piece fades into the floor: this many art pixels deep it thins out in
 ## a dither pattern, so the floor shows through and there is no cut-out edge (0 = a hard edge).
 @export_range(0, 12, 1) var fringe_pixels: int = 4

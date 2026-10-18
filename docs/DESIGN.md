@@ -1177,6 +1177,122 @@ blending poses into more frames.
   one-shots: react < big < final), `ClipNames` (names and the fallback chain, for example
   `stagger` -> `hurt`), all in `scripts/combat/presentation/`; `FighterView` uses them.
 
+### 5.6 World pieces from Blender (phase 18, cards #221 to #237, 2026-10-18)
+
+The solid world in 3D (phase 18 in 11). It started as a test (card #221) of whether real shapes beat
+plain boxes and flat sprites. Heroes, monsters, people, animals and soft props (grass, ferns,
+reeds, bushes) stay with the art kit (5.4).
+
+- **The Blender kit** (`tools/blender_kit/`, its README; card #222). `build.py` builds every piece
+  in Blender 5.2 with no window (`blender --background --factory-startup --python
+  tools/blender_kit/build.py -- [names] [--preview]`) and writes one `.glb` per piece to
+  `assets/models/`. A fixed seed per piece: the same code always gives the same file. It prints
+  each piece's size and triangles. Shared parts in `kit/` (boxes, tubes, faceted rocks, plane
+  cuts, broken brick courses, fallen bricks, planks, the vertex colours, the export); one module
+  per group of pieces in `pieces/` (`stone`, `wood`). `--preview` renders the review sheet
+  (`tools/blender_kit/preview/pieces.png`, not in git): every piece side by side from the zone
+  camera's angle, wearing its pixel textures the way the game lays them, so a piece is judged
+  without opening the game. `python tools/blender_kit/check.py` checks the contract below.
+- **The contract.** One mesh at the origin (no move, turn or scale), front towards Blender's -Y,
+  footprint centred, foot at height 0, flat shaded, at most 1500 triangles, vertex colours `Col`,
+  one material per surface named like the surface (`stone`, `bark`, `rot`), no textures in the
+  file. Imports turn off automatic LODs (the pieces are already low-poly).
+- **Piece files** (`data/pieces/<id>.tres`, `WorldPieceData`; card #223): the model, and per
+  surface (`PieceSurfaceData`) its name, tileable texture, texture world size and glow (emission
+  strength and colour, following the texture's pixels: lamp glass, embers, a shrine's crystal).
+  Each model surface wears the piece surface of the same name, else the one at its index; no
+  match, or a missing model (then a 1 m box), shows the checkerboard with one warning. The same
+  model in another zone's stone is just another piece file. `texture_sharpness` keeps each slanted
+  face to one clean projection. Copies of a piece share their materials.
+- **Placing a piece.** A `ZonePropData` with `piece` stands it at its own size times `scale`,
+  turned by `rotation_y_degrees`, mirrored by `flip`, solid as a circle of `solid_radius` (0: walk
+  through); it casts a real shadow, so no contact blob, and sprite fields, `glow` and `sway` are
+  unused. A `ZoneBlockData` with `piece` stretches it to the block's `size`, solid as its box (for
+  long walls). `StageBuilder.prop_view` and `block` build both; arena props (`StageLook`) work the
+  same way.
+- **Shape only, the zone's own pixels.** Textures are laid in world space (triplanar), so they never
+  stretch. The model's vertex colours tint them: patchy moss on faces that look up, a darker
+  foot, dark faces (a hollow).
+- **Texture scale.** At a texture world size of 1.6, one texture pixel is 0.05 m, the same as a
+  prop sprite's pixel. The wall's courses (0.4 m) line up with `ruin_wall.png`'s brick rows.
+  `bark.png` (art kit `env_tiles.bark`) was drawn for the stump.
+- **Flat sprites on a piece.** A piece can carry flat sprites (`WorldPieceData.sprites`,
+  `PieceSpriteData`: sprite, offset from the foot, pixel size, glow, sway): fire stays pixel art
+  (`flame.png`, `flame_big.png`, drawn by `env_life`) and sways.
+- **Glow and dimming.** Lamp glass, coals, gold, holy water, runes, eyes and rot are glowing
+  surfaces. A used shrine dims (`StageBuilder.dim_glow`, `offer_used_glow_share`): it takes a
+  dimmed copy of the piece's materials. Every piece material lives in a shared cache (also the
+  dimmed copies): a material owned only by its node errors in the renderer when the node is freed.
+- **Making the data.** `build.py` writes a missing piece file from the kit's surfaces (texture,
+  world size, glow) and carried sprites; it never overwrites one. `python
+  tools/blender_kit/swap_props.py SPRITE=PIECE[:TURN[:SCALE]] ...` sets `piece` on every prop in
+  `data/` that uses that sprite (zone sections, zones, arena looks), keeps the sprite path, sets
+  `scale` from a sprite's other pixel size, and gives each copy a turn of up to TURN degrees
+  picked from the file and the prop's id (a row of gravestones does not look stamped).
+- **Old props in 3D (phase 18 step 2, cards #224 to #228).** Stone (#224): `rock`, `rubble`,
+  `wall_low`, `arch_broken`, `pillar` (fluted, snapped), `column_fallen`, `statue_headless`,
+  `gravestone`, `grave_cross`, `bones`. Wood and village (#225): `fence`, `signpost`, `cart`,
+  `log`, `well`, `stilt_hut` (its window glows), the stump sprite as `stump_rotten` at scale 0.55,
+  and the chests (`chest_closed`, `chest_open`: `ExploreVisuals.chest_piece`, `chest_open_piece`;
+  opening swaps the piece, the two front faces lined up so the box does not jump). Fire (#227):
+  `lamp`, `brazier`, `swamp_lantern`, `campfire`. Shrines (#226): `shrine_altar`, `shrine_idol`,
+  `shrine_plenty`, `shrine_spring` (`ZoneOfferData.piece`), `seal_stone`
+  (`ExploreVisuals.seal_piece`; it still bobs and hides when taken), `fountain` (dry), and
+  `rot_gate`, a 30 m wall of roots with glowing rot (each end section's gate block). Wanderers and
+  the shopkeeper stay sprites (people). Trees stay flat (#228): a try with a 3D trunk under
+  the flat crown looked worse, the smooth folded wood clashing with the crisp pixel leaves. New textures (art kit `env_tiles`):
+  `stone_dressed`, `bone`, `thatch`, `iron`, `gold`, `glass`, `cloth_red`, `glow_pale` (a pale
+  surface that glows in the colour the piece gives it).
+- **New pieces (step 3, cards #229, #230).** `stairs_broken` (five worn steps up to a landing),
+  `bridge_planks` (a 4.2 m footbridge, walkable: it stands 0.24 m sunk so its deck sits just over
+  the water), `house_broken` (a ruined cottage, a doorway facing front, roof beams fallen in),
+  `tower_ruined` (the stub of a round tower broken off from 1 to 4 m), `gate_ruined` (two
+  pillars, the lintel fallen). Raised ground: `ledge_rock` (a 6 m shelf, 1.2 m high) and
+  `ledge_rock_tall` (a 2.5 m cliff edge), a craggy rock face with the zone's ground on top; the
+  `_ash` and `_bog` piece files are the same models with ash and mud on top. Looks only: walking
+  stays flat, a ledge is solid like a wall.
+- **More plants (step 3, card #231).** Flat sprites from the art kit (`env_life`): `grass_tall`,
+  `grass_ash`, `flowers_pale`, `flowers_violet`, `fern_big`, `bush_dead`, `mushrooms_small`.
+- **Living water (step 3, card #232).** `ZoneGroundData.flow` (a stream's flow along the piece's own
+  x and z, in m a second; `StageBuilder.water_flow` turns it into world tiles a second) and
+  `ripples` (the share of 3 m cells where a ripple ring spreads every 4 s). The water shader runs
+  both layers downstream for a stream, stipples the muddy rim into the water (a soft shore) and
+  draws the rings. Rotten Hollow's `fallen` section has a stream from the back to the front, solid
+  water either side of a plank bridge where the trail crosses (the water under the bridge is not
+  solid), reeds on its banks. Every water piece has ripples.
+- **Dressing the zones (step 4, cards #233 to #236).** `tools/dress_zones.gd` (headless; `--
+  --only=SECTION|arenas`, `--dry-run`) adds to every section, picked by a seed from its id: two big
+  pieces in the back band (z -12.5 to -6.5) as blocks, small 3D props (rocks, rubble, stumps, logs,
+  bones, fallen columns) off the path as solid circles, and clusters of the plants that sway, all in
+  the zone's theme (Rotten Hollow: moss ledges, mossy rocks, a ruined house; Ashen Ruins: towers,
+  gates, stairs, ash ledges; Sunken Bog: mud ledges, stilt huts). Nothing goes on a trail, road,
+  boardwalk or in water, near a spot, an enemy's home, the start or the lane at either end, or into
+  anything solid. What it adds is named `dressed` (`resource_name`), so a second run replaces it.
+  The fight arenas (`--only=arenas`): every arena block is replaced by the arena's own layout
+  (`ARENA_LAYOUTS`): four `cliff_wall` pieces (8 m long, 5 m high, a craggy face in bands with the
+  look's ground on top; `_ash` and `_bog` files) close the back in place of the flat back box,
+  and each arena has its own pieces in place of the side box and the low wall box: Rotten Hollow
+  a moss ledge, a ruined house, a mossy rock, a stump, a fence and a log; Ashen Ruins a tower stub,
+  a fallen gate, broken stairs, an ash ledge, rubble and bones; Sunken Bog a mud ledge, a stilt
+  hut with its lit window, a rock, a log, a stump and a swamp lantern; the Hollow King's throne
+  broken stairs, two headless statues, two more pillars, a fallen column and rubble. They all
+  stand behind the fighters (z -4.5 and further back) or out at the sides; the shared trees,
+  pillars, rocks, lamp, mushrooms and grass stay. The fight camera's depth of field softens them.
+- **Measuring (step 5, card #237).** `-- --perf-log=S` (with the game in a window) turns vsync and
+  the frame cap off and prints `PERF fps= slowest_fps= draws= objects= triangles=` every S seconds
+  and `PERF_SUMMARY` at the end (`PerfLog`). Measured 2026-10-18 (one machine, the zone bot for 30 s
+  in each zone, before phase 18 against after it): the same 142 frames a second in all three zones
+  (the machine's cap), draw calls up 11 to 19% (Rotten Hollow 140 to 158 on average, Ashen Ruins
+  181 to 201, Sunken Bog 164 to 195). The slowest frames (7 to 8 a second, loading and the fight
+  swirl) are the same before and after. No batching needed yet.
+- **The first pieces.** `ruin_wall_broken` (a brick wall 4 m long, built course by course so its
+  broken top steps like brickwork, with loose top bricks, one brick knocked back and fallen bricks
+  in front; a block), `rock_mossy` (a faceted boulder, a smaller one leaning on it, a pebble; a
+  prop, solid radius 1.05) and `stump_rotten` (a flared stump broken off in splinters, hollow and
+  rotted inside on its own `rot` surface, five roots diving into the ground; a prop at scale
+  0.85, solid radius 0.5), all in the start of Rotten Hollow (`rotten_hollow_start`), the stump in
+  place of the stump sprite.
+
 ## 6. Input
 
 Defined in `project.godot` (Project > Project Settings > Input Map in the editor); the table below
@@ -3132,6 +3248,20 @@ upgrade to take blindly.
     hit-stop fix, pad-drop pause, rebinding (6), Flashes setting, defeat recap, resuming music, the
     Rot Journal, ground textures and event pictures (5.4), build fingerprint and release-build
     switches, voice pool and limiter.
+17. **Relics and Echoes** (planned, cards #212 to #220).
+18. **Blender world** (built 2026-10-18 while the owner was out, branch `phase18-Blender`, waiting
+    for review; cards #221 to #237; 5.6): the solid world made in 3D
+    with Blender like Octopath Traveler's, and more life in the zones. Rule: hard, solid things
+    become Blender pieces; soft, thin or swaying things (grass, ferns, reeds, bushes), people,
+    animals, heroes and monsters stay flat pixel art. Five steps. Step 1 tools: the test pieces
+    (#221), a Blender kit with shared parts, a check and a preview sheet (#222), pieces with more
+    than one texture, round collision and glow (#223). Step 2 old props to 3D: stone and ruins
+    (#224), wood and village (#225), shrines, seals, gate and fountain (#226), lamps and fires with
+    flat flames (#227), one tree tried with a 3D trunk and flat leaves (#228, idea). Step 3 new
+    pieces and a living world: stairs, bridges, broken houses and towers (#229), raised ground with
+    ledges and cliff edges, looks only at first (#230), more plants from the art kit (#231), living
+    water and a stream (#232). Step 4 fill the zones: Rotten Hollow (#233), Ashen Ruins (#234),
+    Sunken Bog (#235), the fight arenas (#236). Step 5: performance (#237).
 
 ### 11.1 To-do (from playtests)
 
@@ -3340,3 +3470,6 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
 | 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |
 | 2026-10-17 | A saved run is continued by any build that can read it (no content check); only the save format version and RunState's own checks decide | card #208 playtest: one data change (the menu logo) hid the run again; the game changes almost daily |
+| 2026-10-18 | Test: world pieces (wall, boulder, stump) built in Blender by code, shown as blocks with a model and the zone's own textures (5.6) | user asked if Blender helps: the world gains most (plain boxes until now), the sprites already work; user picked a small test (card #221) |
+| 2026-10-18 | Phase 18 "Blender world": solid things in 3D (Blender), soft things, people and creatures stay flat pixel art; plus more plants, ruins and living water | user, after the test; the mix is how HD-2D (Octopath) does it, and 3D grass would look busier and lose its sway (cards #221 to #237) |
+| 2026-10-18 | Trees stay flat sprites | card #228 try: a 3D trunk under the flat crown clashed with the pixel leaves; the user left the choice open and flat was the recommendation |

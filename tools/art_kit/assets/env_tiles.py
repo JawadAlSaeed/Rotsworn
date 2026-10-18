@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image
 
 from kit.canvas import rgba8
-from kit.color import hex_to_rgb, mix, rgb_to_hex
+from kit.color import from_oklch, hex_to_rgb, mix, rgb_to_hex
 from kit.context import PREVIEW
 from kit.noise import fbm2
 from kit.palette import INK, M, Material
@@ -616,6 +616,189 @@ def ruin_wall(var: int = 0) -> np.ndarray:
     tex.px(28, 8, MO, 1)
     # Shift the courses so no mortar line runs along the tile's own edge (still seamless).
     return np.roll(tex.rgba(), 4, axis=0)
+
+
+# Bark for the 3D world pieces (card #221): the stump sprite's bark, in finer steps so a facet can
+# turn a little from its neighbour.
+BARK_TILE = Material.make("bark_tile", "#5a4a40", below=2, above=2, step_l=0.045,
+                          shadow_chroma=0.85, shadow_shift=6).colors
+
+
+def bark(var: int = 0) -> np.ndarray:
+    """Old bark for 3D stumps and logs: tall plates between dark wavy furrows, each plate lit on
+    its left edge and shaded on its right, a few pale streaks, and cross-cracks where a plate
+    has split."""
+    tex = Tex([BARK_TILE])
+    BK = 0
+    rng = np.random.default_rng(611 + var)
+    base = (0, 6, 11, 17, 22, 27)  # furrow columns (plates 5 or 6 px wide)
+    wiggle = [np.rint((pnoise_1d(621 + k + var * 7, 2, octaves=2) - 0.5) * 2.6).astype(np.int64)
+              for k in range(len(base))]
+    streak = pnoise_1d(641 + var, 8, octaves=2) > 0.68
+    lvl = np.full((T, T), 3, dtype=np.int64)
+    plate = np.zeros((T, T), dtype=np.int64)
+    for y in range(T):
+        cols = sorted(((b + int(w[y])) % T, k) for k, (b, w) in enumerate(zip(base, wiggle)))
+        for i, (x0, k) in enumerate(cols):
+            x1 = cols[(i + 1) % len(cols)][0] + (T if i + 1 == len(cols) else 0)
+            width = x1 - x0
+            for rel in range(width):
+                x = (x0 + rel) % T
+                plate[y, x] = k
+                if rel == 0:
+                    lvl[y, x] = 0
+                elif rel == 1:
+                    lvl[y, x] = 4
+                elif rel == width - 1:
+                    lvl[y, x] = 1
+                elif rel == width - 2 and width > 5:
+                    lvl[y, x] = 2
+                elif streak[x]:
+                    lvl[y, x] = 2
+    furrow = lvl == 0
+    tex.set(np.ones((T, T), bool), BK, lvl)
+    tex.clean(keep=furrow)
+    # Cross-cracks: a plate split across, the crack dark, the piece below lit along its top.
+    for k in range(len(base)):
+        for _ in range(2):
+            y = int(rng.integers(0, T))
+            row = (plate[y] == k) & ~furrow[y]
+            below = (plate[(y + 1) % T] == k) & ~furrow[(y + 1) % T]
+            tex.lvl[y] = np.where(row, 1, tex.lvl[y])
+            tex.lvl[(y + 1) % T] = np.where(below, np.maximum(tex.lvl[(y + 1) % T], 4), tex.lvl[(y + 1) % T])
+    return tex.rgba()
+
+
+# Carved, weathered stone for 3D pillars, statues, arches and gravestones (card #224): the prop
+# sprites' lichen-tinted stone (env_props STONE), so 3D and flat stone props match.
+DRESSED = [from_oklch(L, C, h) for L, C, h in ((0.27, 0.018, 295.0), (0.345, 0.012, 330.0),
+                                              (0.415, 0.012, 95.0), (0.485, 0.016, 100.0),
+                                              (0.56, 0.017, 95.0))]
+# Old bone: ivory gone grey-yellow, a step paler than the stone.
+BONE = Material.make("bone_tile", "#a99d82", below=2, above=1, step_l=0.06, shadow_chroma=0.8).colors
+
+
+def _weathered(ramp: list[str], seed: int, base: int, cracks: int, pits: int,
+               dark: float = 0.0) -> np.ndarray:
+    """A worn surface: big soft patches a step lighter (and the `dark` share a step darker), small
+    clusters of grain, a few hairline cracks (dark, lit on their lower lip) and pits."""
+    tex = Tex([ramp])
+    top_ = len(ramp) - 1
+    rng = np.random.default_rng(seed)
+    patch = pnoise(seed, 2, octaves=2)
+    grain = pnoise(seed + 1, 8, octaves=2)
+    lvl = np.full((T, T), base, dtype=np.int64)
+    lvl = np.where(top(patch, 0.28), base + 1, lvl)
+    if dark > 0.0:
+        lvl = np.where(patch < np.quantile(patch, dark), base - 1, lvl)
+    lvl = np.where(top(grain, 0.08), lvl + 1, lvl)
+    lvl = np.where((grain < np.quantile(grain, 0.05)) & (lvl > base - 1), lvl - 1, lvl)
+    tex.set(np.ones((T, T), bool), 0, np.clip(lvl, 1, top_))
+    tex.clean()
+    keep = np.zeros((T, T), dtype=bool)
+    for _ in range(cracks):
+        path = crack_path(rng, int(rng.integers(0, T)), int(rng.integers(0, T)), 4, rng.uniform(0.0, math.tau))
+        for (x, y) in path:
+            tex.px(x, y, 0, 0)
+            keep[y % T, x % T] = True
+            tex.bump(x, y + 1, 1)
+            keep[(y + 1) % T, x % T] = True
+    for _ in range(pits):
+        x, y = int(rng.integers(0, T)), int(rng.integers(0, T))
+        tex.px(x, y, 0, 0)
+        tex.bump(x, y + 1, 1)
+        keep[y % T, x % T] = keep[(y + 1) % T, x % T] = True
+    return tex.rgba()
+
+
+def stone_dressed(var: int = 0) -> np.ndarray:
+    """Carved stone, long weathered: soft patches, lichen-pale grain, two hairline cracks, pits."""
+    return _weathered(DRESSED, 702 + var, base=2, cracks=2, pits=5)
+
+
+def bone(var: int = 0) -> np.ndarray:
+    """Old bone: soft patches, grain, one crack, a few pits."""
+    return _weathered(BONE, 731 + var, base=2, cracks=1, pits=3, dark=0.06)
+
+
+# Village pieces (card #225): straw roofs, chest bands, lock plates, lit windows and lamp glass.
+THATCH = Material.make("thatch_tile", "#7d6a45", below=2, above=2, step_l=0.05, shadow_chroma=0.85,
+                       shadow_shift=6).colors
+IRON = Material.make("iron_tile", "#3d3f4a", below=2, above=2, step_l=0.06).colors
+GOLD = Material.make("gold_tile", "#b08a3a", below=2, above=2, step_l=0.07, light_shift=8).colors
+GLASS = M["glow_amber"].colors
+
+
+def thatch(var: int = 0) -> np.ndarray:
+    """Old straw thatch: rows of bundles, each lit along its top and shadowed under the row
+    above, its straws streaking down in clusters, a few dark gaps where it has rotted."""
+    tex = Tex([THATCH])
+    rng = np.random.default_rng(751 + var)
+    lvl = np.full((T, T), 2, dtype=np.int64)
+    row_h = 8
+    for r in range(T // row_h):
+        y0 = r * row_h
+        shift = int(rng.integers(0, T))
+        streak = np.roll(pnoise_1d(761 + r + var * 5, 8, octaves=2), shift)
+        for dy in range(row_h):
+            y = y0 + dy
+            lvl[y] = np.where(streak > 0.62, 3, np.where(streak < 0.3, 1, 2))
+        lvl[y0] = np.where(streak > 0.4, 4, 3)               # the lit straw ends of this row
+        lvl[(y0 + row_h - 1) % T] = 1                         # tucked under the row below
+        lvl[(y0 + row_h - 2) % T] = np.minimum(lvl[(y0 + row_h - 2) % T], 2)
+    tex.set(np.ones((T, T), bool), 0, lvl)
+    tex.clean()
+    for _ in range(4):  # rotted gaps
+        x, y = int(rng.integers(0, T)), int(rng.integers(0, T))
+        for (dx, dy) in ((0, 0), (0, 1), (1, 1)):
+            tex.px(x + dx, y + dy, 0, 0)
+    return tex.rgba()
+
+
+def iron(var: int = 0) -> np.ndarray:
+    """Dark wrought iron: soft patches, pits, one scratch."""
+    return _weathered(IRON, 771 + var, base=2, cracks=1, pits=6, dark=0.1)
+
+
+def gold(var: int = 0) -> np.ndarray:
+    """Worn gold: a soft sheen, a few dark dents."""
+    return _weathered(GOLD, 781 + var, base=3, cracks=0, pits=3)
+
+
+# Shrines (card #226): an altar's red cloth, and a pale surface that glows in whatever colour the
+# piece gives it (rune cuts, holy water, an idol's eyes).
+CLOTH = Material.make("cloth_tile", "#7a2a28", below=2, above=1, step_l=0.05, shadow_chroma=0.85).colors
+PALE = Material.make("pale_tile", "#d8d4c8", below=2, above=1, step_l=0.04).colors
+
+
+def cloth_red(var: int = 0) -> np.ndarray:
+    """Old red cloth: a coarse weave (faint rows and columns), soft folds, a few dark stains."""
+    tex = Tex([CLOTH])
+    yy, xx = np.mgrid[0:T, 0:T]
+    fold = pnoise(791 + var, 2, octaves=2)
+    lvl = np.where(top(fold, 0.3), 3, np.where(fold < np.quantile(fold, 0.2), 1, 2))
+    lvl = np.where(((xx + yy) % 4 == 0) & (lvl > 1), lvl - 1, lvl)
+    tex.set(np.ones((T, T), bool), 0, lvl)
+    tex.clean(passes=1)
+    return tex.rgba()
+
+
+def glow_pale(var: int = 0) -> np.ndarray:
+    """A pale, nearly even surface for glowing parts: the game's glow colour gives the hue."""
+    return _weathered(PALE, 801 + var, base=2, cracks=0, pits=0)
+
+
+def glass(var: int = 0) -> np.ndarray:
+    """Warm lamp glass in small panes: amber, brighter in the middle of each pane, dark leading
+    between them (every 8 pixels), for lit windows and lantern glass (it glows in the game)."""
+    tex = Tex([GLASS])
+    yy, xx = np.mgrid[0:T, 0:T]
+    px, py = xx % 8, yy % 8
+    edge = np.minimum(np.minimum(px, 7 - px), np.minimum(py, 7 - py))
+    lvl = np.clip(1 + edge, 1, len(GLASS) - 1)
+    lead = (px == 0) | (py == 0)
+    tex.set(np.ones((T, T), bool), 0, np.where(lead, 0, lvl))
+    return tex.rgba()
 
 
 # --- Backdrops ----------------------------------------------------------------------------------
@@ -1480,6 +1663,15 @@ def build(ctx) -> None:
         "floor_tile": floor_tile,
         "cliff": cliff,
         "ruin_wall": ruin_wall,
+        "bark": bark,
+        "stone_dressed": stone_dressed,
+        "bone": bone,
+        "thatch": thatch,
+        "iron": iron,
+        "gold": gold,
+        "glass": glass,
+        "cloth_red": cloth_red,
+        "glow_pale": glow_pale,
     }
     imgs = {}
     for name, fn in textures.items():

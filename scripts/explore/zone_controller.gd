@@ -105,20 +105,20 @@ var _net: Dictionary = {}
 var _strikes: int = 0
 ## Glinting spots (run mode): {pos: Vector2, view: Sprite3D, taken: bool}.
 var _spots: Array[Dictionary] = []
-## Locked chests (run mode): {pos: Vector2, view: Sprite3D, opened: bool}.
+## Locked chests (run mode): {pos: Vector2, view: Sprite3D or a 3D piece, opened: bool}.
 var _chests: Array[Dictionary] = []
 ## Held still while a screen is open over the zone (the backpack): nothing moves, no input.
 var _paused: bool = false
-## Rot seals (DESIGN.md 8.5): {pos: Vector2, view: Sprite3D, light: OmniLight3D, taken: bool}.
+## Rot seals (DESIGN.md 8.5): {pos: Vector2, view: Sprite3D or a 3D piece, light: OmniLight3D, taken: bool}.
 var _seals: Array[Dictionary] = []
 ## Seals the gate wants (0: no gate, or open from the start).
 var _seals_needed: int = 0
 ## The gate to the guard: its block node and its obstacle (both null / empty once it is open).
 var _gate_view: MeshInstance3D
 var _gate_obstacle: Dictionary = {}
-## Shrines and wanderers: {pos: Vector2, data: ZoneOfferData, view: Sprite3D, used: bool}.
+## Shrines and wanderers: {pos: Vector2, data: ZoneOfferData, view: Sprite3D or a 3D piece, used: bool}.
 var _offers: Array[Dictionary] = []
-## Champions' prize chests: {pos: Vector2, view: Sprite3D, roamer: int, opened: bool}.
+## Champions' prize chests: {pos: Vector2, view: Sprite3D or a 3D piece, roamer: int, opened: bool}.
 var _prizes: Array[Dictionary] = []
 ## Drifting particles (DESIGN.md 8.12): {node: GPUParticles3D, height: float}; they follow the
 ## camera's spot.
@@ -387,10 +387,28 @@ func open_chest(chest: int) -> void:
 
 
 func _show_chest_open(chest: int) -> void:
-	var view := _chests[chest].view as Sprite3D
-	var tex := AssetLoader.texture(_explore.chest_open_path, Vector2i(28, 24))
-	view.texture = tex
-	(view.material_override as ShaderMaterial).set_shader_parameter("sprite_texture", tex)
+	_show_open(_chests[chest])
+
+
+## A chest (or a champion's prize chest) shows itself open: the open sprite, or the open 3D
+## piece in place of the closed one. The two pieces share the box's front (only the lid differs,
+## thrown back), so their front faces line up and the box does not jump.
+func _show_open(entry: Dictionary) -> void:
+	var sprite := entry.view as Sprite3D
+	if sprite != null:
+		var tex := AssetLoader.texture(_explore.chest_open_path, Vector2i(28, 24))
+		sprite.texture = tex
+		(sprite.material_override as ShaderMaterial).set_shader_parameter("sprite_texture", tex)
+		return
+	var old := entry.view as MeshInstance3D
+	if old == null or _explore.chest_open_piece == null:
+		return
+	var view := StageBuilder.piece_view(_explore.chest_open_piece)
+	view.transform = old.transform
+	view.position += old.basis * Vector3(0.0, 0.0, old.mesh.get_aabb().end.z - view.mesh.get_aabb().end.z)
+	old.add_sibling(view)
+	old.queue_free()
+	entry["view"] = view
 
 
 ## The glinting spot within pickup reach of the leader (-1: none).
@@ -502,7 +520,7 @@ func take_seal(seal: int) -> void:
 
 
 func _hide_seal(seal: int) -> void:
-	(_seals[seal].view as Sprite3D).visible = false
+	(_seals[seal].view as Node3D).visible = false
 	(_seals[seal].light as OmniLight3D).visible = false
 
 
@@ -531,7 +549,7 @@ func use_offer(offer: int) -> void:
 
 func _show_offer_used(offer: int, animate: bool) -> void:
 	var data := _offers[offer].data as ZoneOfferData
-	var view := _offers[offer].view as Sprite3D
+	var view := _offers[offer].view as Node3D
 	if data.kind == ZoneOfferData.Kind.WANDERER:
 		var obstacle: Dictionary = _offers[offer].get("obstacle", {})
 		_obstacles.erase(obstacle)
@@ -542,8 +560,7 @@ func _show_offer_used(offer: int, animate: bool) -> void:
 		else:
 			view.hide()
 	else:
-		(view.material_override as ShaderMaterial).set_shader_parameter("self_glow",
-				data.glow * _explore.offer_used_glow_share)
+		StageBuilder.dim_glow(view, data.glow, _explore.offer_used_glow_share)
 	var light: OmniLight3D = _offers[offer].get("light")
 	if light != null:
 		light.visible = false
@@ -559,10 +576,7 @@ func open_prize(prize: int) -> void:
 
 
 func _show_prize_open(prize: int) -> void:
-	var view := _prizes[prize].view as Sprite3D
-	var tex := AssetLoader.texture(_explore.chest_open_path, Vector2i(28, 24))
-	view.texture = tex
-	(view.material_override as ShaderMaterial).set_shader_parameter("sprite_texture", tex)
+	_show_open(_prizes[prize])
 
 
 ## A short gold line over the zone (for example what was just found).
@@ -735,8 +749,9 @@ func _build() -> void:
 			var chest := ZonePropData.new()
 			chest.sprite_path = _explore.chest_closed_path
 			chest.pixel_size = _explore.chest_pixel_size
+			chest.piece = _explore.chest_piece
 			chest.position = pos
-			var view := StageBuilder.prop(chest, _look)
+			var view := StageBuilder.prop_view(chest, _look)
 			_world.add_child(view)
 			_chests.append({"pos": Vector2(pos.x, pos.z), "view": view, "opened": false})
 		for i: int in _roamers.size():
@@ -746,8 +761,9 @@ func _build() -> void:
 			var chest := ZonePropData.new()
 			chest.sprite_path = _explore.chest_closed_path
 			chest.pixel_size = _explore.chest_pixel_size
+			chest.piece = _explore.chest_piece
 			chest.position = data.prize_spot
-			var view := StageBuilder.prop(chest, _look)
+			var view := StageBuilder.prop_view(chest, _look)
 			_world.add_child(view)
 			_prizes.append({"pos": Vector2(data.prize_spot.x, data.prize_spot.z), "view": view, "roamer": i,
 					"opened": false})
@@ -784,7 +800,8 @@ func _build_seals_and_gate() -> void:
 		stone.position = pos
 		stone.glow = _explore.seal_glow
 		stone.glow_color = _explore.seal_color
-		var view := StageBuilder.prop(stone, _look)
+		stone.piece = _explore.seal_piece
+		var view := StageBuilder.prop_view(stone, _look)
 		_world.add_child(view)
 		var lamp := ZoneLightData.new()
 		lamp.position = pos + Vector3(0.0, 1.0, 0.4)
@@ -818,7 +835,8 @@ func _add_offer(data: ZoneOfferData, pos: Vector3) -> void:
 	prop.position = pos
 	prop.glow = data.glow
 	prop.glow_color = data.glow_color
-	var view := StageBuilder.prop(prop, _look)
+	prop.piece = data.piece
+	var view := StageBuilder.prop_view(prop, _look)
 	_world.add_child(view)
 	var entry := {"pos": Vector2(pos.x, pos.z), "data": data, "view": view, "used": false}
 	if data.glow > 0.0:
@@ -991,8 +1009,7 @@ func _pulse_spots() -> void:
 		(spot.view as Sprite3D).scale = Vector3.ONE * size
 	var bob := sin(_time_ms / SEAL_BOB_MS * TAU) * SEAL_BOB
 	for seal: Dictionary in _seals:
-		var view := seal.view as Sprite3D
-		view.position.y = bob
+		(seal.view as Node3D).position.y = bob
 	_hud.set_pickup_hint(_use_hint())
 
 

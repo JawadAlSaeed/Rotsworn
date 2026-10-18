@@ -75,7 +75,7 @@ func test_data_paths_are_plain_res_paths_under_assets() -> void:
 	assert_gt(paths.size(), 10, "found the asset paths in the data")
 	for path: String in paths:
 		assert_true(path.begins_with(ASSETS_DIR + "/"), "%s: %s is a res://assets/... path" % [paths[path], path])
-		assert_true(path.get_extension() in ["png", "wav", "ogg", "mp3", "ogv", "ttf", "otf"], "%s: %s has an asset extension" % [paths[path], path])
+		assert_true(path.get_extension() in ["png", "wav", "ogg", "mp3", "ogv", "ttf", "otf", "glb"], "%s: %s has an asset extension" % [paths[path], path])
 
 
 func test_every_data_path_exists() -> void:

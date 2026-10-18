@@ -26,6 +26,7 @@ extends RefCounted
 ##   --join=ADDRESS                  join the online game at ADDRESS (DESIGN.md 9.2)
 ##   --leave-after=S                 (with --join) leave the game after S seconds and quit
 ##   --shots=S                       save a picture of the window every S seconds (dev tool)
+##   --perf-log=S                    print frames a second and draw calls every S seconds (dev tool)
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
 ##                                   title, credits, journal, party, heroes, attributes, skills, calibration,
 ##                                   tutorial, map, map_start, map_act2, shop, campfire,
@@ -78,6 +79,8 @@ var bot_skill: int = DEFAULT_BOT_SKILL
 ## --shots=S (0: no pictures) and --screen=NAME ("" : the normal start).
 var shots_every_s: float = 0.0
 var screen: String = ""
+## --perf-log=S (0: none): print frames a second and draw calls every S seconds (card #237).
+var perf_every_s: float = 0.0
 ## --menu-keys=ACTION,... (dev tool; empty: none).
 var menu_keys: PackedStringArray = PackedStringArray()
 ## --attacks=ID,ID,... (empty: the enemy picks as always).
@@ -146,6 +149,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.bot_skill = clampi(arg.substr("--bot-skill=".length()).to_int(), 0, 100)
 		elif arg.begins_with("--shots="):
 			options.shots_every_s = maxf(0.0, arg.substr("--shots=".length()).to_float())
+		elif arg.begins_with("--perf-log="):
+			options.perf_every_s = maxf(0.0, arg.substr("--perf-log=".length()).to_float())
 		elif arg.begins_with("--screen="):
 			options.screen = arg.substr("--screen=".length())
 		elif arg.begins_with("--menu-keys="):

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WorldPieceData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/world_piece_data.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/data/piece_surface_data.gd" id="2_surface"]
+
+[sub_resource type="Resource" id="Resource_stone"]
+script = ExtResource("2_surface")
+name = "stone"
+texture_path = "res://assets/sprites/env/stone_dressed.png"
+
+[sub_resource type="Resource" id="Resource_water"]
+script = ExtResource("2_surface")
+name = "water"
+texture_path = "res://assets/sprites/env/glow_pale.png"
+glow = 1.6
+glow_color = Color(0.35, 1.0, 0.85, 1)
+
+[resource]
+script = ExtResource("1_piece")
+id = "shrine_spring"
+model_path = "res://assets/models/shrine_spring.glb"
+surfaces = Array[ExtResource("2_surface")]([SubResource("Resource_stone"), SubResource("Resource_water")])

@@ -22,3 +22,12 @@ extends Resource
 ## ground cover (grass, ferns, reeds), where a blob would only dirty the floor. Glowing props
 ## never get one.
 @export var contact_shadow: bool = true
+
+@export_group("3D piece")
+## A 3D piece shown instead of the sprite (DESIGN.md 5.6): its foot at `position`, its own size
+## times `scale`, turned by `rotation_y_degrees`, mirrored by `flip`, solid as a circle of
+## `solid_radius`. It casts a real shadow and its surfaces carry their own glow, so the sprite
+## fields, `glow`, `sway` and `contact_shadow` are unused. Null: the sprite.
+@export var piece: WorldPieceData
+@export_range(-180.0, 180.0, 0.5) var rotation_y_degrees: float = 0.0
+@export_range(0.1, 4.0, 0.01) var scale: float = 1.0

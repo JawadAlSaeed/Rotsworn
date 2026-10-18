@@ -1,6 +1,9 @@
 [gd_resource type="Resource" script_class="ExploreVisuals" format=3]
 
 [ext_resource type="Script" path="res://scripts/data/explore_visuals.gd" id="1_explore"]
+[ext_resource type="Resource" path="res://data/pieces/chest_closed.tres" id="pc_chest_closed"]
+[ext_resource type="Resource" path="res://data/pieces/chest_open.tres" id="pc_chest_open"]
+[ext_resource type="Resource" path="res://data/pieces/seal_stone.tres" id="pc_seal_stone"]
 
 [resource]
 script = ExtResource("1_explore")
@@ -44,10 +47,13 @@ glint_pulse_share = 0.3
 chest_closed_path = "res://assets/sprites/env/chest_closed.png"
 chest_open_path = "res://assets/sprites/env/chest_open.png"
 chest_pixel_size = 0.05
+chest_piece = ExtResource("pc_chest_closed")
+chest_open_piece = ExtResource("pc_chest_open")
 seal_path = "res://assets/sprites/env/seal_stone.png"
 seal_pixel_size = 0.05
 seal_glow = 1.6
 seal_color = Color(0.55, 1, 0.45, 1)
+seal_piece = ExtResource("pc_seal_stone")
 seal_light_energy = 1.6
 seal_light_reach = 4.0
 gate_open_ms = 1400

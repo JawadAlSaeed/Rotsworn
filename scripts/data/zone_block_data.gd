@@ -14,3 +14,7 @@ extends Resource
 @export_range(0.1, 10.0, 0.05) var texture_world_size: float = 1.6
 ## The player and roaming enemies cannot walk through it.
 @export var solid: bool = true
+## A 3D piece shown instead of the box (DESIGN.md 5.6): stretched to fill `size`, its footprint
+## centred on `position`, wearing the piece's own textures (the two texture fields above are then
+## unused). Solid as the box. Null: the plain box.
+@export var piece: WorldPieceData

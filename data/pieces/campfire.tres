@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="WorldPieceData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/world_piece_data.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/data/piece_surface_data.gd" id="2_surface"]
+[ext_resource type="Script" path="res://scripts/data/piece_sprite_data.gd" id="3_sprite"]
+
+[sub_resource type="Resource" id="Resource_bark"]
+script = ExtResource("2_surface")
+name = "bark"
+texture_path = "res://assets/sprites/env/bark.png"
+
+[sub_resource type="Resource" id="Resource_stone"]
+script = ExtResource("2_surface")
+name = "stone"
+texture_path = "res://assets/sprites/env/cliff.png"
+
+[sub_resource type="Resource" id="Resource_ember"]
+script = ExtResource("2_surface")
+name = "ember"
+texture_path = "res://assets/sprites/env/gold.png"
+glow = 1.4
+glow_color = Color(1.0, 0.55, 0.25, 1)
+
+[sub_resource type="Resource" id="Resource_sprite0"]
+script = ExtResource("3_sprite")
+sprite_path = "res://assets/sprites/env/flame_big.png"
+offset = Vector3(-0.009, 0.080, 0.045)
+glow = 1.4
+glow_color = Color(1.0, 0.55, 0.25, 1)
+sway = 0.02
+
+[resource]
+script = ExtResource("1_piece")
+id = "campfire"
+model_path = "res://assets/models/campfire.glb"
+surfaces = Array[ExtResource("2_surface")]([SubResource("Resource_bark"), SubResource("Resource_stone"), SubResource("Resource_ember")])
+sprites = Array[ExtResource("3_sprite")]([SubResource("Resource_sprite0")])

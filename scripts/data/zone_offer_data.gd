@@ -51,6 +51,9 @@ enum Kind {
 @export var glow_color: Color = Color(1.0, 1.0, 1.0)
 ## Walkers cannot come closer than this to its feet.
 @export_range(0.0, 5.0, 0.05) var solid_radius: float = 0.45
+## A 3D piece shown instead of the sprite (DESIGN.md 5.6; shrines). Its glowing surfaces carry
+## the glow; the glow above still sets the light beside it. Null: the sprite.
+@export var piece: WorldPieceData
 
 @export_group("Price")
 @export_range(0, 10000) var cost_gold: int = 0

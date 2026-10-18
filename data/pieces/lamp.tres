@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WorldPieceData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/world_piece_data.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/data/piece_surface_data.gd" id="2_surface"]
+
+[sub_resource type="Resource" id="Resource_iron"]
+script = ExtResource("2_surface")
+name = "iron"
+texture_path = "res://assets/sprites/env/iron.png"
+
+[sub_resource type="Resource" id="Resource_glass"]
+script = ExtResource("2_surface")
+name = "glass"
+texture_path = "res://assets/sprites/env/glass.png"
+glow = 1.6
+glow_color = Color(1.0, 0.68, 0.36, 1)
+
+[resource]
+script = ExtResource("1_piece")
+id = "lamp"
+model_path = "res://assets/models/lamp.glb"
+surfaces = Array[ExtResource("2_surface")]([SubResource("Resource_iron"), SubResource("Resource_glass")])

@@ -2,8 +2,9 @@
 // water. The texture tiles in world space like the floor's, so pieces line up with it; the edge is
 // eaten away by value noise measured per art pixel, so it stays ragged and pixel-sharp, and a
 // land piece's rim dithers away into the floor instead of ending in a cut line. Water
-// scrolls its texture in two layers, darkens toward the middle, keeps a dark muddy rim at the
-// shore and throws a few sparkles.
+// scrolls its texture in two layers (downstream, for a stream), darkens toward the middle, keeps a
+// dark muddy rim at the shore that stipples into the water, spreads a ripple ring now and then and
+// throws a few sparkles.
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, diffuse_lambert_wrap, specular_disabled;
 
@@ -23,6 +24,10 @@ uniform vec4 shore_color : source_color = vec4(0.1, 0.09, 0.06, 1.0);
 // Water: how fast the two layers drift (tiles a second), and the sparkles' share.
 uniform float flow = 0.06;
 uniform float sparkle = 0.04;
+// Water: a stream's flow (world x, z, in tiles a second; zero: the still drift above), and the
+// share of spots where a ripple ring spreads now and then (card #232).
+uniform vec2 flow_dir = vec2(0.0);
+uniform float ripple = 0.0;
 // The rim fades into the floor this many art pixels deep (dithered); the outer two pixels are
 // shaded by edge_shade.
 uniform float fringe_px = 4.0;
@@ -78,18 +83,37 @@ void fragment() {
 	vec2 uv = world_pos.xz / tile_world;
 	vec3 color;
 	if (water) {
-		vec2 a_uv = floor((uv * 0.8 + vec2(TIME * flow, TIME * flow * 0.55)) * tile_px) / tile_px;
-		vec2 b_uv = floor((uv * 1.25 + vec2(-TIME * flow * 0.7, TIME * flow * 0.4)) * tile_px) / tile_px;
+		bool stream = dot(flow_dir, flow_dir) > 0.0;
+		// A stream: both layers run downstream, the second a little slower and across.
+		vec2 drift_a = stream ? -flow_dir : vec2(flow, flow * 0.55);
+		vec2 drift_b = stream ? -flow_dir * 0.6 + vec2(-flow_dir.y, flow_dir.x) * 0.12 : vec2(-flow * 0.7, flow * 0.4);
+		vec2 a_uv = floor((uv * 0.8 + TIME * drift_a) * tile_px) / tile_px;
+		vec2 b_uv = floor((uv * 1.25 + TIME * drift_b) * tile_px) / tile_px;
 		vec3 a = texture(ground_texture, a_uv).rgb;
 		vec3 b = texture(ground_texture, b_uv).rgb;
 		float depth = clamp(edge / 1.6, 0.0, 1.0);
 		color = mix((a + b) * 0.5 * tint.rgb, deep_color.rgb, depth * 0.55);
-		// A muddy rim at the shore, one or two art pixels wide.
-		if (edge < px_world * 2.0) {
-			color = shore_color.rgb;
+		// A muddy rim at the shore, two art pixels wide, then two more where wet mud and water
+		// mix in a stipple: the shore is soft, not a cut line.
+		int bi = int(mod(cell.y, 4.0)) * 4 + int(mod(cell.x, 4.0));
+		if (edge < px_world * 2.0 || (edge < px_world * 4.0 && BAYER[bi] > (edge / px_world - 2.0) * 0.5)) {
+			color = mix(shore_color.rgb, color, edge < px_world * 2.0 ? 0.0 : 0.35);
+		}
+		// Ripples: in each 3 m cell a ring now and then spreads from a spot and fades.
+		float ring = 0.0;
+		if (ripple > 0.0) {
+			vec2 rc = floor(world_pos.xz / 3.0);
+			float phase = TIME / 4.0 + hash(rc);
+			float k = floor(phase);
+			float grow = fract(phase);
+			vec2 centre = (rc + vec2(hash(rc + k), hash(rc + k + 17.0))) * 3.0;
+			float d = length((cell + 0.5) * px_world - centre);
+			ring = step(abs(d - grow * 0.9), px_world * 0.6) * (1.0 - grow) * step(hash(rc + k * 3.1), ripple)
+					* step(px_world * 4.0, edge);
+			color = mix(color, color * 1.6 + vec3(0.05), ring);
 		}
 		float twinkle = step(1.0 - sparkle, hash(floor(a_uv * tile_px) + floor(TIME * 1.7)));
-		EMISSION = color * 0.12 + vec3(twinkle) * 0.35 * (1.0 - depth * 0.5);
+		EMISSION = color * 0.12 + vec3(twinkle) * 0.35 * (1.0 - depth * 0.5) + vec3(ring) * 0.08;
 	} else {
 		vec4 texel = texture(ground_texture, uv);
 		// Sparse pieces (lily pads, scattered leaves) leave their clear pixels out.

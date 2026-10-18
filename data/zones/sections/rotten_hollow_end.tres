@@ -3,11 +3,36 @@
 [ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_67caa"]
 [ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="2_6kfhb"]
 [ext_resource type="Script" path="res://scripts/data/zone_critter_data.gd" id="2_gvcv4"]
+[ext_resource type="Resource" path="res://data/pieces/ledge_rock.tres" id="2_j1yud"]
 [ext_resource type="Resource" path="res://data/encounters/guard_gorged_one.tres" id="3_67caa"]
+[ext_resource type="Resource" path="res://data/pieces/ledge_rock_tall.tres" id="3_g3cjg"]
 [ext_resource type="Script" path="res://scripts/data/zone_light_data.gd" id="4_3pvd0"]
 [ext_resource type="Script" path="res://scripts/data/zone_ground_data.gd" id="5_3pvd0"]
 [ext_resource type="Script" path="res://scripts/data/zone_prop_data.gd" id="5_8op0t"]
 [ext_resource type="Script" path="res://scripts/data/zone_section_data.gd" id="6_xrohb"]
+[ext_resource type="Resource" path="res://data/pieces/rock.tres" id="13_n1a05"]
+[ext_resource type="Resource" path="res://data/pieces/rubble.tres" id="14_nsm5v"]
+[ext_resource type="Resource" path="res://data/pieces/stump_rotten.tres" id="15_2qc6r"]
+[ext_resource type="Resource" path="res://data/pieces/log.tres" id="16_bw7e4"]
+[ext_resource type="Resource" path="res://data/pieces/grave_cross.tres" id="pc_grave_cross"]
+[ext_resource type="Resource" path="res://data/pieces/lamp.tres" id="pc_lamp"]
+[ext_resource type="Resource" path="res://data/pieces/rot_gate.tres" id="pc_rot_gate"]
+
+[sub_resource type="Resource" id="Resource_f2u8r"]
+resource_name = "dressed"
+script = ExtResource("1_67caa")
+position = Vector3(10.677429, 0, -12.247158)
+size = Vector3(6, 1.2968988, 2.1860273)
+rotation_y_degrees = -3.9508529
+piece = ExtResource("2_j1yud")
+
+[sub_resource type="Resource" id="Resource_tvq4d"]
+resource_name = "dressed"
+script = ExtResource("1_67caa")
+position = Vector3(18.34003, 0, -7.826749)
+size = Vector3(6, 2.5471354, 2.6350214)
+rotation_y_degrees = 3.6579914
+piece = ExtResource("3_g3cjg")
 
 [sub_resource type="Resource" id="Resource_gvcv4"]
 script = ExtResource("2_gvcv4")
@@ -27,6 +52,7 @@ position = Vector3(4, 0, -5)
 size = Vector3(1.2, 2.6, 30)
 texture_path = "res://assets/sprites/env/rot_gate.png"
 texture_world_size = 2.4
+piece = ExtResource("pc_rot_gate")
 
 [sub_resource type="Resource" id="Resource_xrohb"]
 script = ExtResource("5_3pvd0")
@@ -72,7 +98,6 @@ flicker_percent = 10
 [sub_resource type="Resource" id="Resource_uxqe0"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(10, 0, -10)
 solid_radius = 0.6
 sway = 0.02
@@ -80,7 +105,6 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_j1yud"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(24, 0, -11)
 flip = true
 solid_radius = 0.6
@@ -89,7 +113,6 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_g3cjg"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(11, 0, 6.5)
 solid_radius = 0.6
 sway = 0.02
@@ -97,7 +120,6 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_n1a05"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(23.5, 0, 6)
 flip = true
 solid_radius = 0.6
@@ -107,100 +129,101 @@ sway = 0.02
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/lamp.png"
 position = Vector3(12, 0, -4)
-pixel_size = 0.05
 solid_radius = 0.3
+piece = ExtResource("pc_lamp")
 
 [sub_resource type="Resource" id="Resource_2qc6r"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/lamp.png"
 position = Vector3(22, 0, -4)
-pixel_size = 0.05
 solid_radius = 0.3
+piece = ExtResource("pc_lamp")
 
 [sub_resource type="Resource" id="Resource_bw7e4"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/grave_cross.png"
 position = Vector3(14, 0, -12)
-pixel_size = 0.05
+piece = ExtResource("pc_grave_cross")
+rotation_y_degrees = -6.9
 
 [sub_resource type="Resource" id="Resource_fnuk5"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/grave_cross.png"
 position = Vector3(20, 0, -12.5)
-pixel_size = 0.05
+piece = ExtResource("pc_grave_cross")
+rotation_y_degrees = -2.8
 
 [sub_resource type="Resource" id="Resource_w0xn5"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(13.53, 0, -3.73)
 pixel_size = 0.045
 flip = true
 sway = 0.06
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_1iffe"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(10.93, 0, 8.89)
 pixel_size = 0.045
 sway = 0.06
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_p8nf1"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(14.04, 0, -12.45)
 pixel_size = 0.045
 flip = true
 sway = 0.06
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_lev8m"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(13.02, 0, -4.53)
 pixel_size = 0.045
 sway = 0.06
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_iq7nc"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(8.12, 0, -5.64)
 pixel_size = 0.045
 sway = 0.06
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_t3mye"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(13.6, 0, -17.51)
 pixel_size = 0.045
 flip = true
 sway = 0.06
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_n428u"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(2, 0, -16.56)
 pixel_size = 0.045
 sway = 0.06
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_oaoxh"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(24.51, 0, 6.99)
 pixel_size = 0.045
 flip = true
 sway = 0.06
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_keht7"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
-pixel_size = 0.05
 position = Vector3(0.73, 0, -22.67)
 flip = true
 sway = 0.02
@@ -208,7 +231,6 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_ydkmd"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
-pixel_size = 0.05
 position = Vector3(4.18, 0, -22.54)
 flip = true
 sway = 0.02
@@ -216,7 +238,6 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_lk5uq"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(8.05, 0, -22.08)
 flip = true
 sway = 0.02
@@ -224,7 +245,6 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_qrw4l"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
-pixel_size = 0.05
 position = Vector3(11.69, 0, -23.05)
 flip = true
 sway = 0.02
@@ -232,7 +252,6 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_il3gb"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
-pixel_size = 0.05
 position = Vector3(15, 0, -21.76)
 flip = true
 sway = 0.02
@@ -240,21 +259,18 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_3hv3j"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(18.32, 0, -22.89)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_71e06"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/pine_dead.png"
-pixel_size = 0.05
 position = Vector3(21.46, 0, -23.62)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_kpxq2"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(25.36, 0, -21.11)
 flip = true
 sway = 0.02
@@ -262,132 +278,120 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_7mpv2"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(0.5, 0, -19.75)
-pixel_size = 0.05
 flip = true
 sway = 0.04
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_sucfm"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(3.7, 0, -20.16)
-pixel_size = 0.05
 flip = true
 sway = 0.04
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_ifxrw"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/bush.png"
 position = Vector3(6.53, 0, -19.97)
-pixel_size = 0.05
 sway = 0.04
 
 [sub_resource type="Resource" id="Resource_pxnsq"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(9.82, 0, -19.74)
-pixel_size = 0.05
 flip = true
 sway = 0.04
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_et5g6"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(13.64, 0, -19.97)
-pixel_size = 0.05
 flip = true
 sway = 0.04
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_0igru"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(15.82, 0, -20.18)
-pixel_size = 0.05
 sway = 0.04
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_pwgqg"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(19.24, 0, -19.83)
-pixel_size = 0.05
 sway = 0.04
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_gsacy"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/bush.png"
 position = Vector3(22.41, 0, -19.98)
-pixel_size = 0.05
 sway = 0.04
 
 [sub_resource type="Resource" id="Resource_lojg6"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/bush.png"
 position = Vector3(2.56, 0, 10.87)
-pixel_size = 0.05
 flip = true
 sway = 0.05
 
 [sub_resource type="Resource" id="Resource_tfijs"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(5.09, 0, 10.75)
 pixel_size = 0.045
 flip = true
 sway = 0.05
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_t0juh"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(8.58, 0, 11.46)
 pixel_size = 0.045
 flip = true
 sway = 0.05
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_rg41g"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/bush.png"
 position = Vector3(12.61, 0, 11.05)
-pixel_size = 0.05
 flip = true
 sway = 0.05
 
 [sub_resource type="Resource" id="Resource_l0igw"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(16.29, 0, 11.77)
 pixel_size = 0.045
 sway = 0.05
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_vl2y5"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/fern.png"
-contact_shadow = false
 position = Vector3(19.92, 0, 11.73)
 pixel_size = 0.045
 flip = true
 sway = 0.05
+contact_shadow = false
 
 [sub_resource type="Resource" id="Resource_1wqti"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/bush.png"
 position = Vector3(22.71, 0, 11.93)
-pixel_size = 0.05
 flip = true
 sway = 0.05
 
 [sub_resource type="Resource" id="Resource_2dv4d"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
-pixel_size = 0.05
 position = Vector3(27.63, 0, -20)
 flip = true
 sway = 0.02
@@ -395,7 +399,6 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_d53hx"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/pine_dead.png"
-pixel_size = 0.05
 position = Vector3(27.52, 0, -17.15)
 flip = true
 sway = 0.02
@@ -403,42 +406,36 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_wvsww"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(27.53, 0, -13.22)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_77jup"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(28.05, 0, -9.51)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_kxfm6"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(28.13, 0, -6.24)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_q8d14"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(27.78, 0, -2.6)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_ww2s7"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
-pixel_size = 0.05
 position = Vector3(28.01, 0, 1.2)
 sway = 0.02
 
 [sub_resource type="Resource" id="Resource_hrluo"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
-pixel_size = 0.05
 position = Vector3(27.8, 0, 4.48)
 flip = true
 sway = 0.02
@@ -446,15 +443,326 @@ sway = 0.02
 [sub_resource type="Resource" id="Resource_ruw5g"]
 script = ExtResource("5_8op0t")
 sprite_path = "res://assets/sprites/env/pine_dead.png"
-pixel_size = 0.05
 position = Vector3(27.46, 0, 8.43)
 sway = 0.02
+
+[sub_resource type="Resource" id="Resource_wlef2"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+position = Vector3(12.085509, 0, 3.0503197)
+solid_radius = 0.45
+piece = ExtResource("13_n1a05")
+rotation_y_degrees = 73.0
+scale = 0.76
+
+[sub_resource type="Resource" id="Resource_uigrw"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+position = Vector3(17.287094, 0, 5.953228)
+flip = true
+piece = ExtResource("14_nsm5v")
+rotation_y_degrees = -60.0
+scale = 0.6900000000000001
+
+[sub_resource type="Resource" id="Resource_y02qv"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+position = Vector3(13.447215, 0, -5.894258)
+flip = true
+solid_radius = 0.30000000000000004
+piece = ExtResource("15_2qc6r")
+rotation_y_degrees = 179.0
+scale = 0.5700000000000001
+
+[sub_resource type="Resource" id="Resource_jgyf1"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+position = Vector3(18.398827, 0, 6.8297863)
+flip = true
+piece = ExtResource("16_bw7e4")
+rotation_y_degrees = -17.0
+scale = 0.9
+
+[sub_resource type="Resource" id="Resource_jhamq"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/fern_big.png"
+position = Vector3(8.97, 0, -5.81)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_en1hr"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/fern_big.png"
+position = Vector3(7.05, 0, -4.87)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_er1yq"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/fern_big.png"
+position = Vector3(7.04, 0, -4.7)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_cy6sf"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/flowers_violet.png"
+position = Vector3(6.81, 0, -4.39)
+pixel_size = 0.045
+flip = true
+sway = 0.02
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_3f3bq"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass_tall.png"
+position = Vector3(22.83, 0, 6.79)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_qh76d"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/fern_big.png"
+position = Vector3(21.95, 0, 7.34)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_nqbjp"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass_tall.png"
+position = Vector3(22.67, 0, 6.63)
+pixel_size = 0.045
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_v2s3j"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/flowers_pale.png"
+position = Vector3(8.11, 0, -9.71)
+pixel_size = 0.045
+flip = true
+sway = 0.02
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_ughhu"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(21.63, 0, -12.52)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_uctux"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass_tall.png"
+position = Vector3(21.29, 0, -13.03)
+pixel_size = 0.045
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_utjcl"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(21.6, 0, -12.91)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_53mfq"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/fern_big.png"
+position = Vector3(17.45, 0, -4.64)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_yp5j3"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/fern_big.png"
+position = Vector3(17.17, 0, -4.21)
+pixel_size = 0.045
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_g328q"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/fern_big.png"
+position = Vector3(17.38, 0, -4.08)
+pixel_size = 0.045
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_4xmt3"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/flowers_pale.png"
+position = Vector3(0.73, 0, 5.09)
+pixel_size = 0.045
+flip = true
+sway = 0.02
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_45qmh"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/mushrooms_small.png"
+position = Vector3(1.29, 0, 5.66)
+pixel_size = 0.045
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_u440a"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/mushrooms_small.png"
+position = Vector3(-0.17, 0, 5.55)
+pixel_size = 0.045
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_lyu0h"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(12.94, 0, -10.56)
+pixel_size = 0.045
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_q5tak"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(11.19, 0, -9.78)
+pixel_size = 0.045
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_2jejx"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(12.58, 0, -8.88)
+pixel_size = 0.045
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_hv78y"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/flowers_violet.png"
+position = Vector3(12.16, 0, -8.98)
+pixel_size = 0.045
+flip = true
+sway = 0.02
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_8wwhd"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass.png"
+position = Vector3(9.57, 0, -7.31)
+pixel_size = 0.045
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_cbf1g"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/fern_big.png"
+position = Vector3(10.19, 0, -6.22)
+pixel_size = 0.045
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_d1d55"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/mushrooms_small.png"
+position = Vector3(9.32, 0, -7.66)
+pixel_size = 0.045
+flip = true
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_18fi7"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass_tall.png"
+position = Vector3(17.85, 0, 3.74)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_aj2lw"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/flowers_pale.png"
+position = Vector3(18.99, 0, 3.54)
+pixel_size = 0.045
+sway = 0.02
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_6wxh4"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/flowers_pale.png"
+position = Vector3(17.88, 0, 4.34)
+pixel_size = 0.045
+flip = true
+sway = 0.02
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_kipr4"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/flowers_pale.png"
+position = Vector3(18.22, 0, 3.15)
+pixel_size = 0.045
+sway = 0.02
+contact_shadow = false
+
+[sub_resource type="Resource" id="Resource_sfama"]
+resource_name = "dressed"
+script = ExtResource("5_8op0t")
+sprite_path = "res://assets/sprites/env/grass_tall.png"
+position = Vector3(17.95, 0, 4.4)
+pixel_size = 0.045
+flip = true
+sway = 0.03
+contact_shadow = false
 
 [resource]
 script = ExtResource("6_xrohb")
 id = "rotten_hollow_end"
 width = 26.0
-props = Array[ExtResource("5_8op0t")]([SubResource("Resource_uxqe0"), SubResource("Resource_j1yud"), SubResource("Resource_g3cjg"), SubResource("Resource_n1a05"), SubResource("Resource_nsm5v"), SubResource("Resource_2qc6r"), SubResource("Resource_bw7e4"), SubResource("Resource_fnuk5"), SubResource("Resource_w0xn5"), SubResource("Resource_1iffe"), SubResource("Resource_p8nf1"), SubResource("Resource_lev8m"), SubResource("Resource_iq7nc"), SubResource("Resource_t3mye"), SubResource("Resource_n428u"), SubResource("Resource_oaoxh"), SubResource("Resource_keht7"), SubResource("Resource_ydkmd"), SubResource("Resource_lk5uq"), SubResource("Resource_qrw4l"), SubResource("Resource_il3gb"), SubResource("Resource_3hv3j"), SubResource("Resource_71e06"), SubResource("Resource_kpxq2"), SubResource("Resource_7mpv2"), SubResource("Resource_sucfm"), SubResource("Resource_ifxrw"), SubResource("Resource_pxnsq"), SubResource("Resource_et5g6"), SubResource("Resource_0igru"), SubResource("Resource_pwgqg"), SubResource("Resource_gsacy"), SubResource("Resource_lojg6"), SubResource("Resource_tfijs"), SubResource("Resource_t0juh"), SubResource("Resource_rg41g"), SubResource("Resource_l0igw"), SubResource("Resource_vl2y5"), SubResource("Resource_1wqti"), SubResource("Resource_2dv4d"), SubResource("Resource_d53hx"), SubResource("Resource_wvsww"), SubResource("Resource_77jup"), SubResource("Resource_kxfm6"), SubResource("Resource_q8d14"), SubResource("Resource_ww2s7"), SubResource("Resource_hrluo"), SubResource("Resource_ruw5g")])
+blocks = Array[ExtResource("1_67caa")]([SubResource("Resource_f2u8r"), SubResource("Resource_tvq4d")])
+props = Array[ExtResource("5_8op0t")]([SubResource("Resource_uxqe0"), SubResource("Resource_j1yud"), SubResource("Resource_g3cjg"), SubResource("Resource_n1a05"), SubResource("Resource_nsm5v"), SubResource("Resource_2qc6r"), SubResource("Resource_bw7e4"), SubResource("Resource_fnuk5"), SubResource("Resource_w0xn5"), SubResource("Resource_1iffe"), SubResource("Resource_p8nf1"), SubResource("Resource_lev8m"), SubResource("Resource_iq7nc"), SubResource("Resource_t3mye"), SubResource("Resource_n428u"), SubResource("Resource_oaoxh"), SubResource("Resource_keht7"), SubResource("Resource_ydkmd"), SubResource("Resource_lk5uq"), SubResource("Resource_qrw4l"), SubResource("Resource_il3gb"), SubResource("Resource_3hv3j"), SubResource("Resource_71e06"), SubResource("Resource_kpxq2"), SubResource("Resource_7mpv2"), SubResource("Resource_sucfm"), SubResource("Resource_ifxrw"), SubResource("Resource_pxnsq"), SubResource("Resource_et5g6"), SubResource("Resource_0igru"), SubResource("Resource_pwgqg"), SubResource("Resource_gsacy"), SubResource("Resource_lojg6"), SubResource("Resource_tfijs"), SubResource("Resource_t0juh"), SubResource("Resource_rg41g"), SubResource("Resource_l0igw"), SubResource("Resource_vl2y5"), SubResource("Resource_1wqti"), SubResource("Resource_2dv4d"), SubResource("Resource_d53hx"), SubResource("Resource_wvsww"), SubResource("Resource_77jup"), SubResource("Resource_kxfm6"), SubResource("Resource_q8d14"), SubResource("Resource_ww2s7"), SubResource("Resource_hrluo"), SubResource("Resource_ruw5g"), SubResource("Resource_wlef2"), SubResource("Resource_uigrw"), SubResource("Resource_y02qv"), SubResource("Resource_jgyf1"), SubResource("Resource_jhamq"), SubResource("Resource_en1hr"), SubResource("Resource_er1yq"), SubResource("Resource_cy6sf"), SubResource("Resource_3f3bq"), SubResource("Resource_qh76d"), SubResource("Resource_nqbjp"), SubResource("Resource_v2s3j"), SubResource("Resource_ughhu"), SubResource("Resource_uctux"), SubResource("Resource_utjcl"), SubResource("Resource_53mfq"), SubResource("Resource_yp5j3"), SubResource("Resource_g328q"), SubResource("Resource_4xmt3"), SubResource("Resource_45qmh"), SubResource("Resource_u440a"), SubResource("Resource_lyu0h"), SubResource("Resource_q5tak"), SubResource("Resource_2jejx"), SubResource("Resource_hv78y"), SubResource("Resource_8wwhd"), SubResource("Resource_cbf1g"), SubResource("Resource_d1d55"), SubResource("Resource_18fi7"), SubResource("Resource_aj2lw"), SubResource("Resource_6wxh4"), SubResource("Resource_kipr4"), SubResource("Resource_sfama")])
 lights = Array[ExtResource("4_3pvd0")]([SubResource("Resource_sgrq6"), SubResource("Resource_x4rj4"), SubResource("Resource_47utk")])
 grounds = Array[ExtResource("5_3pvd0")]([SubResource("Resource_xrohb"), SubResource("Resource_iik7t")])
 critters = Array[ExtResource("2_gvcv4")]([SubResource("Resource_gvcv4")])

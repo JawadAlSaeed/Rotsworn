@@ -195,6 +195,11 @@ func _ready() -> void:
 		shooter.name = "Shots"
 		add_child(shooter)
 		shooter.setup(_options.shots_every_s, _options.screen if not _options.screen.is_empty() else "game")
+	if _options.perf_every_s > 0.0:
+		var perf := PerfLog.new()
+		perf.name = "PerfLog"
+		add_child(perf)
+		perf.setup(_options.perf_every_s)
 	# --players=N: pretend pads 0 to N-1 (only the bot presses them).
 	_players = PlayerRoster.solo(_hero_names().size(), 0 if _options.players > 1 else PlayerRoster.KEYBOARD)
 	for pad: int in range(1, _options.players):

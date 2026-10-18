@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="WorldPieceData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/world_piece_data.gd" id="1_piece"]
+[ext_resource type="Script" path="res://scripts/data/piece_surface_data.gd" id="2_surface"]
+
+[sub_resource type="Resource" id="Resource_rock"]
+script = ExtResource("2_surface")
+name = "rock"
+texture_path = "res://assets/sprites/env/cliff.png"
+
+[sub_resource type="Resource" id="Resource_top"]
+script = ExtResource("2_surface")
+name = "top"
+texture_path = "res://assets/sprites/env/mud.png"
+
+[resource]
+script = ExtResource("1_piece")
+id = "cliff_wall_bog"
+model_path = "res://assets/models/cliff_wall.glb"
+surfaces = Array[ExtResource("2_surface")]([SubResource("Resource_rock"), SubResource("Resource_top")])

@@ -172,6 +172,31 @@ def make_brazier() -> np.ndarray:
     return finish_prop(frame, skip_groups=("flame", "coal"))
 
 
+@_prop("flame", 0.05)
+def make_flame() -> np.ndarray:
+    """The brazier's fire on its own (card #227): a tall flame and a short one, cut flat at the
+    bottom. 3D braziers carry it as a flat sprite, so the fire stays pixel art and sways."""
+    parts = [RoundCone(EMBER, (0, 0.0, 1.0), (0.4, 10.0, 1.2), 3.4, 0.4, group="flame"),
+             RoundCone(EMBER, (-2.0, 0.0, 1.4), (-2.8, 6.0, 1.4), 1.8, 0.3, group="flame")]
+    model = _face(GroundCut(Union(*parts)))
+    frame, _ = render_fit(model, 12, 14, name="flame")
+    return finish_prop(frame, skip_groups=("flame",))
+
+
+@_prop("flame_big", 0.05)
+def make_flame_big() -> np.ndarray:
+    """The campfire's fire on its own (card #227): three flames round a bright core."""
+    parts = [RoundCone(EMBER, (0.0, 0.0, 0.0), (0.0, 14.0, 0.0), 4.2, 0.4, group="flame"),
+             RoundCone(EMBER, (-2.6, 0.0, 0.6), (-3.6, 9.0, 0.8), 2.6, 0.3, group="flame"),
+             RoundCone(EMBER, (2.8, 0.0, 0.4), (3.8, 10.5, 0.6), 2.6, 0.3, group="flame"),
+             RoundCone(Material("life_flame_core", ["#ffd27a", "#ffe9b0", "#fff6d8"], emissive=True, glow_index=1,
+                                outline=ink_outline("#c26a2a", 0.3)), (0.0, 0.5, 3.6), (0.0, 8.0, 3.4),
+                       2.0, 0.3, group="core")]
+    model = _face(GroundCut(Union(*parts)))
+    frame, _ = render_fit(model, 20, 18, name="flame_big")
+    return finish_prop(frame, skip_groups=("flame", "core"))
+
+
 @_prop("banner_torn", 0.05)
 def make_banner_torn() -> np.ndarray:
     """A pole with a torn, faded red banner hanging from a cross bar (it sways in the wind)."""
@@ -451,6 +476,122 @@ def make_thorns() -> np.ndarray:
             ang += rng.uniform(-0.45, 0.45)
             if y < 2:
                 break
+    return _outlined(c)
+
+
+# --- More plants (card #231): so no two spots of ground look the same ------------------------------
+
+
+def _blades(c: Canvas, rng: np.random.Generator, n: int, x_lo: float, x_hi: float, top_lo: int, top_hi: int,
+            lean: float, ramp: list[str], tip: list[str] | None = None) -> None:
+    """Grass blades from the bottom row up to a random top, each bending its own way, lighter
+    toward the tip (it catches the light), darkest at the root."""
+    H = c.a.shape[0]
+    for i in range(n):
+        x0 = rng.uniform(x_lo, x_hi)
+        top = int(rng.integers(top_lo, top_hi))
+        bend = rng.uniform(-lean, lean)
+        for y in range(top, H):
+            t = (y - top) / max(1, H - 1 - top)
+            x = int(round(x0 + bend * (1.0 - t) ** 2))
+            if H - 1 - y < 2:
+                col = ramp[1]
+            elif y - top < 2:
+                col = (tip or ramp)[3]
+            else:
+                col = ramp[2 + (i % 2) - (1 if t > 0.6 else 0)]
+            c.px(x, y, col)
+
+
+@_prop("grass_tall", 0.045)
+def make_grass_tall() -> np.ndarray:
+    """A tall tuft of wild grass, a few dry blades among the green (it sways)."""
+    c = Canvas(16, 22)
+    rng = np.random.default_rng(901)
+    _blades(c, rng, 6, 2, 14, 1, 9, 3.5, M["grass"].colors, M["leaves_rot"].colors)
+    _blades(c, rng, 2, 3, 13, 4, 11, 3.0, M["canvas"].colors)
+    return _outlined(c)
+
+
+def _flowers(seed: int, heads: list[str]) -> np.ndarray:
+    c = Canvas(18, 12)
+    rng = np.random.default_rng(seed)
+    _blades(c, rng, 5, 3, 15, 5, 9, 1.5, M["grass"].colors)
+    for i in range(7):
+        x, y = int(rng.integers(2, 16)), int(rng.integers(2, 7))
+        c.line(x, y + 1, x + int(rng.integers(-1, 2)), 11, M["grass"].colors[1 + i % 2])
+        col = heads[i % len(heads)]
+        c.rect(x, y - 1, x + 1, y, col)
+        c.px(x, y - 1, heads[0])
+    return _outlined(c)
+
+
+@_prop("flowers_pale", 0.045)
+def make_flowers_pale() -> np.ndarray:
+    """A clump of small pale wildflowers, cream and a little yellow (they sway)."""
+    return _flowers(911, [M["cloth_cream"].colors[3], M["bone"].colors[2], M["gold"].colors[3]])
+
+
+@_prop("flowers_violet", 0.045)
+def make_flowers_violet() -> np.ndarray:
+    """A clump of small rot-violet flowers (they sway)."""
+    return _flowers(921, [M["cloth_purple"].colors[3], M["rot_purple"].colors[3], M["cloth_purple"].colors[2]])
+
+
+@_prop("fern_big", 0.045)
+def make_fern_big() -> np.ndarray:
+    """A big olive forest fern: long arching fronds with paired leaflets (it sways)."""
+    c = Canvas(30, 22)
+    g = CANOPY.colors
+    fronds = ((15, 21, -13, 8), (15, 21, -7, 3), (15, 21, -1, 1), (15, 21, 6, 2), (15, 21, 13, 7), (15, 21, 3, 6))
+    for i, (x0, y0, dx, peak) in enumerate(fronds):
+        steps = 15
+        for s in range(steps + 1):
+            t = s / steps
+            x = x0 + dx * t
+            y = y0 - (y0 - peak) * math.sin(t * math.pi * 0.85)
+            c.px(int(round(x)), int(round(y)), g[1 + (i % 2)])
+            if 0 < s < steps and s % 2 == 0:
+                c.px(int(round(x)), int(round(y)) - 1, g[3])
+                c.px(int(round(x)) + (1 if dx > 0 else -1), int(round(y)) + 1, g[2])
+    return _outlined(c)
+
+
+@_prop("bush_dead", 0.05)
+def make_bush_dead() -> np.ndarray:
+    """A low bush the rot has killed: dry brown-olive leaves, bare twigs poking out (it sways a
+    little)."""
+    parts = [Ellipsoid(DEAD_LEAF, (x, y, z), (r, r * 0.75, r * 0.8), group="leaf", bumps=(0.6, 0.7, 931 + i))
+             for i, (x, y, z, r) in enumerate(((0.0, 4.5, 0.0, 5.6), (-5.0, 3.5, 1.0, 4.0), (4.6, 3.6, -1.0, 4.2)))]
+    for i, (a, b) in enumerate((((-3.0, 6.0, 1.0), (-7.0, 11.0, 1.0)), ((2.0, 7.0, 0.0), (5.0, 12.0, 0.5)),
+                                ((0.0, 8.0, 1.0), (0.5, 13.0, 1.0)))):
+        parts.append(Capsule(ROT_BARK, a, b, 0.45, group="twig", thin=True))
+    model = _face(GroundCut(Union(*parts)))
+    frame, _ = render_fit(model, 24, 16, centre="bbox", name="bush_dead")
+    return finish_prop(frame)
+
+
+@_prop("mushrooms_small", 0.045)
+def make_mushrooms_small() -> np.ndarray:
+    """Three little mushrooms in the leaf litter, two brown and one rot-violet."""
+    c = Canvas(14, 10)
+    stem = M["bone"].colors
+    for (x, h, w, cap) in ((3, 4, 2, M["leather"].colors), (7, 6, 3, M["leather"].colors),
+                           (11, 3, 2, M["rot_purple"].colors)):
+        c.rect(x, 9 - h, x, 9, stem[2])
+        c.rect(x - w, 9 - h - 1, x + w, 9 - h, cap[2])
+        c.rect(x - w + 1, 9 - h - 2, x + w - 1, 9 - h - 2, cap[3])
+        c.px(x - w, 9 - h, cap[1])
+    return _outlined(c)
+
+
+@_prop("grass_ash", 0.045)
+def make_grass_ash() -> np.ndarray:
+    """A tuft of grass gone grey in the ash, a few blades still dull green (it sways)."""
+    c = Canvas(20, 12)
+    rng = np.random.default_rng(941)
+    _blades(c, rng, 8, 2, 16, 1, 7, 2.5, M["ash"].colors)
+    _blades(c, rng, 3, 4, 14, 3, 8, 2.0, M["leaves_rot"].colors)
     return _outlined(c)
 
 

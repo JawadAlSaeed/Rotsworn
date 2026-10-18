@@ -17,6 +17,11 @@ const GROUND_LAYER_LIFT: float = 0.006
 const PROP_SHADOW_LIFT: float = 0.07
 ## The footprints measured so far (texture key -> width in art pixels).
 static var _footprints: Dictionary = {}
+## The materials of 3D pieces made so far ("piece|surface index|glow share" -> material), shared
+## by copies.
+static var _piece_materials: Dictionary = {}
+## A built 3D piece remembers its WorldPieceData here (dim_glow needs it).
+const META_PIECE := &"world_piece"
 ## The vignette draws above the 3D view and below every HUD (layer 10 and up).
 const VIGNETTE_LAYER: int = 5
 ## Shadows reach this far from the camera (world units).
@@ -190,26 +195,161 @@ static func backdrop(look: StageLook) -> Sprite3D:
 	return sprite
 
 
-## A solid textured block (the texture tiles in world space on every side).
+## A solid textured block (the texture tiles in world space on every side). With a piece
+## (DESIGN.md 5.6) it shows the piece instead of the box, stretched to fill the same size (the
+## textures are in world space, so they never stretch).
 static func block(data: ZoneBlockData) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = data.size
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = AssetLoader.texture(data.texture_path, Vector2i(32, 32))
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mat.texture_repeat = true
-	mat.uv1_triplanar = true
-	mat.uv1_world_triplanar = true
-	mat.uv1_scale = Vector3.ONE / maxf(0.01, data.texture_world_size)
-	mat.roughness = 1.0
-	mat.metallic_specular = 0.0
+	if data.piece != null:
+		var view := piece_view(data.piece)
+		view.rotation_degrees = Vector3(0.0, data.rotation_y_degrees, 0.0)
+		view.scale = data.size / view.mesh.get_aabb().size.max(Vector3.ONE * 0.001)
+		_stand(view, data.position)
+		return view
+	var box := BoxMesh.new()
+	box.size = data.size
 	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.material_override = mat
+	node.mesh = box
+	node.material_override = _world_material(AssetLoader.texture(data.texture_path, Vector2i(32, 32)),
+			data.texture_world_size)
 	node.position = data.position + Vector3(0.0, data.size.y * 0.5, 0.0)
 	node.rotation_degrees = Vector3(0.0, data.rotation_y_degrees, 0.0)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	return node
+
+
+## A prop as the game shows it: its 3D piece when it has one (DESIGN.md 5.6), else its sprite.
+static func prop_view(data: ZonePropData, look: StageLook = null) -> Node3D:
+	if data.piece == null:
+		return prop(data, look)
+	var view := piece_view(data.piece)
+	view.rotation_degrees = Vector3(0.0, data.rotation_y_degrees, 0.0)
+	view.scale = Vector3(-data.scale if data.flip else data.scale, data.scale, data.scale)
+	_stand(view, data.position)
+	return view
+
+
+## A 3D world piece (DESIGN.md 5.6) at the origin: each of the model's surfaces wears the piece
+## surface of the same name (else the one at its index): its texture laid in world space, tinted
+## by the model's vertex colours, glowing if it says so. A surface with no match, or a missing
+## model (then a 1 m box), shows the checkerboard placeholder, with one warning.
+static func piece_view(piece: WorldPieceData) -> MeshInstance3D:
+	var node := MeshInstance3D.new()
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var model := AssetLoader.mesh(piece.model_path)
+	if model == null:
+		var box := BoxMesh.new()
+		box.size = Vector3.ONE
+		node.mesh = box
+		node.material_override = _world_material(AssetLoader.fallback_texture(Vector2i(32, 32)), 1.6)
+		return node
+	node.mesh = model
+	node.set_meta(META_PIECE, piece)
+	for i: int in model.get_surface_count():
+		node.set_surface_override_material(i, _piece_material(piece, model, i))
+	for carried: PieceSpriteData in piece.sprites:
+		if carried == null:
+			continue
+		var flat := ZonePropData.new()
+		flat.sprite_path = carried.sprite_path
+		flat.pixel_size = carried.pixel_size
+		flat.position = carried.offset
+		flat.glow = carried.glow
+		flat.glow_color = carried.glow_color
+		flat.sway = carried.sway
+		node.add_child(prop(flat))
+	return node
+
+
+## Dims a built prop's glow to `share` (a used shrine): a sprite's self glow to share of `glow`,
+## or every glowing surface of a 3D piece and the sprites it carries to share of their own (the
+## piece takes the dimmed copy of its shared materials, so other copies keep their glow).
+static func dim_glow(view: Node3D, glow: float, share: float) -> void:
+	var sprite := view as Sprite3D
+	if sprite != null:
+		(sprite.material_override as ShaderMaterial).set_shader_parameter("self_glow", glow * share)
+		return
+	var node := view as MeshInstance3D
+	if node == null or node.mesh == null or not node.has_meta(META_PIECE):
+		return
+	var piece := node.get_meta(META_PIECE) as WorldPieceData
+	for i: int in node.mesh.get_surface_count():
+		var surface := piece_surface(piece, node.mesh, i)
+		if surface != null and surface.glow > 0.0:
+			node.set_surface_override_material(i, _piece_material(piece, node.mesh, i, share))
+	for child: Node in node.get_children():
+		var carried := child as Sprite3D
+		if carried != null and carried.material_override is ShaderMaterial:
+			var mat := carried.material_override as ShaderMaterial
+			mat.set_shader_parameter("self_glow", float(mat.get_shader_parameter("self_glow")) * share)
+
+
+## Moves a placed view (already turned and scaled) so the middle of its mesh's footprint, at the
+## mesh's lowest point, lands on `foot`.
+static func _stand(view: MeshInstance3D, foot: Vector3) -> void:
+	var bounds := view.mesh.get_aabb()
+	var own_foot := Vector3(bounds.get_center().x, bounds.position.y, bounds.get_center().z)
+	view.position = foot - view.basis * own_foot
+
+
+## A texture tiled in world space on every side (blocks and pieces).
+static func _world_material(tex: Texture2D, world_size: float) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = tex
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.texture_repeat = true
+	mat.uv1_triplanar = true
+	mat.uv1_world_triplanar = true
+	mat.uv1_scale = Vector3.ONE / maxf(0.01, world_size)
+	mat.roughness = 1.0
+	mat.metallic_specular = 0.0
+	return mat
+
+
+## The material of surface `index` of a piece's model with its glow times `glow_share`, shared by
+## every copy (fewer materials draw faster). The cache keeps every one alive: a material owned by a
+## node alone errors in the renderer when the node is freed.
+static func _piece_material(piece: WorldPieceData, model: Mesh, index: int,
+		glow_share: float = 1.0) -> StandardMaterial3D:
+	var key := "%s|%d|%.3f" % [piece.resource_path if not piece.resource_path.is_empty()
+			else str(piece.get_instance_id()), index, glow_share]
+	if _piece_materials.has(key):
+		return _piece_materials[key]
+	var surface := piece_surface(piece, model, index)
+	if surface == null:
+		push_warning("StageBuilder: piece '%s' has no surface for the model's surface %d" % [piece.id, index])
+	var mat := _make_piece_material(piece, surface, glow_share)
+	_piece_materials[key] = mat
+	return mat
+
+
+## A new material for one piece surface (null: the checkerboard), its glow times `glow_share`.
+static func _make_piece_material(piece: WorldPieceData, surface: PieceSurfaceData,
+		glow_share: float = 1.0) -> StandardMaterial3D:
+	var mat: StandardMaterial3D
+	if surface == null:
+		mat = _world_material(AssetLoader.fallback_texture(Vector2i(32, 32)), 1.6)
+	else:
+		var tex := AssetLoader.texture(surface.texture_path, Vector2i(32, 32))
+		mat = _world_material(tex, surface.texture_world_size)
+		if surface.glow > 0.0:
+			mat.emission_enabled = true
+			mat.emission = surface.glow_color
+			mat.emission_energy_multiplier = surface.glow * glow_share
+			mat.emission_texture = tex
+	mat.vertex_color_use_as_albedo = true
+	mat.uv1_triplanar_sharpness = piece.texture_sharpness
+	return mat
+
+
+## The piece surface that paints surface `index` of the model: the one named like the model's
+## material there, else the one at the same index, else null.
+static func piece_surface(piece: WorldPieceData, model: Mesh, index: int) -> PieceSurfaceData:
+	var own := model.surface_get_material(index)
+	if own != null:
+		for surface: PieceSurfaceData in piece.surfaces:
+			if surface != null and surface.name == own.resource_name:
+				return surface
+	return piece.surfaces[index] if index < piece.surfaces.size() else null
 
 
 ## A lit billboard sprite standing at its feet (trees, rocks, lamps). With a `look`, it gets a
@@ -324,6 +464,8 @@ static func ground_patch(data: ZoneGroundData) -> MeshInstance3D:
 	mat.set_shader_parameter("deep_color", data.deep_color)
 	mat.set_shader_parameter("fringe_px", float(data.fringe_pixels))
 	mat.set_shader_parameter("edge_shade", data.edge_shade)
+	mat.set_shader_parameter("flow_dir", water_flow(data))
+	mat.set_shader_parameter("ripple", data.ripples)
 	var node := MeshInstance3D.new()
 	node.mesh = mesh
 	node.material_override = mat
@@ -331,6 +473,13 @@ static func ground_patch(data: ZoneGroundData) -> MeshInstance3D:
 	node.rotation_degrees = Vector3(0.0, data.rotation_y_degrees, 0.0)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return node
+
+
+## A stream's flow for the water shader: the piece's flow turned with the piece into world x and z,
+## in texture tiles a second (zero: still water).
+static func water_flow(data: ZoneGroundData) -> Vector2:
+	var turned := Vector3(data.flow.x, 0.0, data.flow.y).rotated(Vector3.UP, deg_to_rad(data.rotation_y_degrees))
+	return Vector2(turned.x, turned.z) / maxf(0.01, data.texture_world_size)
 
 
 ## Particles always drifting through a place (DESIGN.md 8.12), in a box around the node's spot
@@ -431,7 +580,7 @@ static func add_contents(parent: Node3D, blocks: Array[ZoneBlockData], props: Ar
 			parent.add_child(block(data))
 	for data: ZonePropData in props:
 		if data != null:
-			parent.add_child(prop(data, look))
+			parent.add_child(prop_view(data, look))
 	for data: ZoneLightData in lights:
 		if data != null:
 			parent.add_child(light(data))
