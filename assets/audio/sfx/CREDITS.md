@@ -73,7 +73,7 @@ credit not required but given) or CC BY (credit required, given on that line).
 - **voice_shade**: audio/search/voices/fs-234044.mp3 ("Creepy Whispering" by RaspberryTickle, CC0, https://freesound.org/people/RaspberryTickle/sounds/234044/)
 - **voice_king**: audio/search/voices/fs-497056.mp3 ("Low Monster Roar" by Robson220pl, CC0, https://freesound.org/people/Robson220pl/sounds/497056/)
 - **shout_alder**: "HAH! 01.wav" by sandyrb, CC BY 4.0, https://freesound.org/people/sandyrb/sounds/85896 (found on Openverse)
-- **shout_brin**: audio/search/voices/fs-737957.mp3 ("Yaaaaah" by qubodup, CC0, https://freesound.org/people/qubodup/sounds/737957/)
+- **shout_brin**: "Male Attack Grunt 1.wav" by F.M.Audio, CC BY 4.0, https://freesound.org/people/F.M.Audio/sounds/695378/
 - **shout_cass**: "Female RPG Voice Starter Pack: attack2" by cicifyre, CC0, https://opengameart.org/content/female-rpg-voice-starter-pack (found on Openverse)
 - **item_lift**: audio/kenney_full/rpg-audio/beltHandle1.ogg (Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio)
 - **item_place**: audio/kenney_full/rpg-audio/bookPlace1.ogg (Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio)
