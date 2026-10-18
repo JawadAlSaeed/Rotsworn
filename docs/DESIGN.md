@@ -1283,7 +1283,7 @@ player's heroes.
 
 Outside fights every screen (main menu, settings, practice list, map, shop, rest, party, loot)
 uses the `menu_*` actions: up/down pick, left/right change a setting or pick on the map, Confirm
-selects, Cancel goes back. **Pause** (Esc / Menu) works in fights, zones and on the run map
+selects, Cancel goes back; the mouse does the same (6.2). **Pause** (Esc / Menu) works in fights, zones and on the run map
 (7.5); Main reads it before anything else, so in a fight Esc never acts as "back" in the action
 menu (Backspace, Q or B do). B no longer leaves a zone.
 
@@ -1323,7 +1323,8 @@ press, walking, Strike and Pick up, the menu directions, Confirm, Back / run, Pa
 and party shortcuts, the stats overlay) with its key and its pad button side by side. Up / Down pick
 a row (the list scrolls, ten rows show), Left / Right pick the Key or the Pad column, Confirm waits
 for the new input ("press a key ..."). Escape (or the pad's Menu button) cancels, and so does
-waiting `rebind_capture_ms` (tuning, 6 s). Everything works from the keyboard or a pad, no mouse.
+waiting `rebind_capture_ms` (tuning, 6 s). Everything works from the keyboard or a pad; the mouse also
+works (6.2) but can never be bound.
 A pad press can be a button or a trigger; sticks cannot be captured (drift), but a stick direction
 an action already has keeps working.
 
@@ -1358,6 +1359,45 @@ an action already has keeps working.
   check, swap, save / load, writing the Input Map), the Controls section of `SettingsScreen`,
   `ButtonPrompts.refresh` redraws every hint after a change, `ListMenu.window_rows` scrolls a long
   list. Dev: `--screen=controls`.
+
+### 6.2 Mouse in the menus (card #202, review ui-input #4)
+
+The game is a keyboard and pad game, but every menu also works with the mouse (a PC player clicks
+"New Run" without asking why nothing happens). Keyboard and pad behave exactly as before.
+
+- **What the mouse does.** Pointing at a row chooses it (the same cursor, sound and highlight as the
+  keys). A left click confirms the row under it; a right click or the mouse's back button (the
+  side button) goes back (Cancel); the wheel moves the cursor and stops at the ends. A click on
+  nothing does nothing.
+- **Where.** Every `ListMenu` gets it from one place, `ListMenu.handle` (the entry every list screen
+  already calls): the main menu with Online and Extras, the pause menu, the Yes / No prompts, the
+  players screen (Start, Back), the Rot Journal, the settings, the rest, event, loot and treasure
+  lists, the shop's "which item" list and the backpack's item menu. Screens with their own cards
+  use `MenuMouse` for the same meaning: the practice list (hover and click a card, right click
+  back), the run map (hover and click one of the next stops, right click opens the pause menu),
+  the shop (hover and click a shelf card or service, right click leaves), the backpack (hover and
+  click a grid cell: the cursor goes there and Confirm happens; right click is Back), the
+  attributes and skills screens (right click is Back), the credits, the Join Online screen and the
+  end-of-run screen. The hero cards and gear slots of the backpack, the attribute and skill rows and
+  the players screen's hero cards are keys and pad only for now.
+- **Settings.** The section names (Graphics, Sound, Controls, Game) are clickable. On a row whose
+  value Left / Right change (volumes, window size, frame limit, shake, flashes, text size), the left
+  half of the row clicked steps it down and the right half up (`SettingsScreen.SIDED_ROWS`); other
+  rows are toggled or opened as with Confirm. In Controls the click chooses the Key or the Pad
+  column by the half of the value text that was clicked and waits for the new input; a right click
+  cancels the wait or the swap question.
+- **The pointer.** Autoload `Pointer` (`MouseCursor`) hides the OS pointer while a key, a pad
+  button or a stick (past 0.5) was the last thing used and shows it again the moment the mouse
+  moves or clicks. It is always hidden in fights and zones (`Main._mouse_wanted`: false while a
+  fight or zone is on screen and no pause menu, settings screen, prompt or backpack is over it).
+  The fight's own menus are keys and pad only: a mouse never presses a defence.
+- **The timing path is untouched.** No Input Map action has a mouse event (a test checks every
+  action), and `DefenseInput` only answers the defence actions, so a click can never be a parry,
+  dodge, jump or skill press. Mouse events are only read by menus, which are not on screen during an
+  attack. In co-op the mouse counts as the keyboard device (`PlayerRoster.device_of`).
+- **Code.** `MenuMouse` (`scripts/menu/menu_mouse.gd`, pure: row and cell hit tests, the button
+  meanings, the pointer rule; tested), `ListMenu.handle` (`clicked_share` says where across a row
+  a click landed), `MouseCursor`, `BackpackGrid.cell_at`.
 
 ---
 
@@ -1556,6 +1596,24 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   and **Game** (screen shake 0 to 100% in 25% steps, scaling every camera shake; the training
   ring; lag calibration, which shows the keyboard's and the pad's value, and its reset, 3.2).
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions only.
+  and **Game** (text size, below; screen shake 0 to 100% in 25% steps, scaling every camera
+  shake; flashes; the training ring; lag calibration and its reset).
+- **Text size** (card #203, review ui-input #5; Settings > Game): Normal, Large, Larger. Every body,
+  title and number label, the menu choices, the hint chips and the Join Online field are built at
+  the chosen percent of the size the screen asks for (`HudStyle.scaled`, so the fight HUD, the
+  zone HUD and the tutorial text follow too). The percents (100, 115, 130) live in
+  `data/presentation/ui_fonts.tres` (`text_size_percents`, one per name in
+  `PlayerSettings.TEXT_SIZE_NAMES`) and are kept gentle because the HUD plates and menus are laid
+  out for 1920 x 1080. Not scaled: the big gold titles, banners and damage popups (already
+  large), and text drawn straight on the canvas (hit marks, the training ring, the map's stop
+  names). The choice is saved per machine (`PlayerSettings`, `[game] text_size`) and given to
+  `HudStyle` at start-up; changing it rebuilds the settings page at once and redraws every hint,
+  menus opened afterwards use it, and a fight's HUD from the next fight on. Lists that are tall at
+  normal size (Graphics has ten rows) show fewer rows at once and scroll
+  (`SettingsScreen.fitting_rows`). A test builds every settings section at the largest size and
+  checks it fits 1920 x 1080.
+- Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions and the mouse
+  (6.2).
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
   run map (B on the map too). Continue, Settings, "Save & Quit" (a local run, 8.14), and "Abandon
   run" (asks first, then the main menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
@@ -3470,3 +3528,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-18 | Brin's shout is a short, plain young man's battle shout (a clear "hah!", 0.4 s, dry), not the old rising yell: four candidates sit in `assets/audio/sfx/candidates/`, number 1 (F.M.Audio's "Male Attack Grunt 1", CC BY 4.0) is in the game; the pick is one number in `tools/sound_kit/brin_shout_candidates.json` | card #171; the user wants a normal 25-year-old man's shout after seven rounds of finds missed it. Chosen from measurements and spectrograms (clean harmonics, no reverb tail, 0.3 to 0.5 s like Alder's and Cass's), not by ear, so the user's ear decides (5.3) |
 | 2026-10-18 | Ranged enemy hits get an indicator: corner brackets on the hero the projectile flies at that close exactly at the declared impact (the judged time), plus a dashed path from the projectile, in the hit kind colour; on in run fights, Flashes-aware (`show_ranged_aim`, 3.9) | card #165 (not circles: the user dislikes circles in reading, 3.8) |
 | 2026-10-18 | Cass's spells (Reveal, Smite) shoot after the press: the bolt leaves the staff at the press (or at the end of the window if none came) and the strike, numbers and hit-stop wait for it to land; judge, windows and engine unchanged (2.10) | card #166, like Expedition 33 |
+| 2026-10-18 | Every menu works with the mouse: point to choose, left click confirms, right click or the back button goes back, the wheel scrolls; the pointer hides while keys or a pad are used and in fights and zones; the fight's own menus stay keys and pad | card #202 (review ui-input #4): PC players click "New Run" and nothing happened. One entry, `ListMenu.handle`, so every list screen got it; no Input Map action has a mouse event, so a click can never be a defence (6.2) |
+| 2026-10-18 | Settings > Game > Text size (Normal 100%, Large 115%, Larger 130%), applied through `HudStyle.scaled` to every body, title and number label; the percents live in `ui_fonts.tres` | card #203 (review ui-input #5): fixed 14 to 22 px text. Gentle steps because the HUD plates and menu lists are laid out for 1920 x 1080 and were checked without a window; titles, banners and popups keep their size (7.5) |

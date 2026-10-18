@@ -342,6 +342,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _pick_menu != null:
 		_pick_input(event)
 		return
+	if event is InputEventMouse and _mouse_input(event):
+		return
 	if event.is_action_pressed(&"party_menu", false, true):
 		get_viewport().set_input_as_handled()
 		Sfx.play("menu_confirm")
@@ -368,6 +370,34 @@ func _unhandled_input(event: InputEvent) -> void:
 	if step != Vector2i.ZERO:
 		get_viewport().set_input_as_handled()
 		_move(step)
+
+
+## The mouse (card #202): pointing at a shelf card or a service chooses it, a left click buys or
+## uses it, a right click or the back button leaves. True when the event was used.
+func _mouse_input(event: InputEvent) -> bool:
+	var all: Array = _cards + _service_cards
+	if event is InputEventMouseMotion:
+		var hovered := MenuMouse.control_at(all, (event as InputEventMouse).position)
+		if hovered >= 0 and hovered != _sel:
+			_sel = hovered
+			Sfx.play("menu_move")
+			_show_selection()
+			get_viewport().set_input_as_handled()
+			return true
+	elif MenuMouse.is_click(event):
+		var clicked := MenuMouse.control_at(all, (event as InputEventMouse).position)
+		if clicked >= 0:
+			_sel = clicked
+			_show_selection()
+			get_viewport().set_input_as_handled()
+			_use_selected()
+			return true
+	elif MenuMouse.is_back(event):
+		get_viewport().set_input_as_handled()
+		Sfx.play("menu_cancel")
+		leave()
+		return true
+	return false
 
 
 ## A held key repeats; a stick counts once per push (it sends many motion events).

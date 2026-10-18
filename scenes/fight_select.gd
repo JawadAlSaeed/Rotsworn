@@ -263,6 +263,11 @@ func _start() -> void:
 
 
 func _on_card_input(event: InputEvent, i: int) -> void:
+	# Moving the mouse over a card chooses it (card #202). Motion only: a card scrolling under a
+	# resting pointer while the keys move must not steal the choice.
+	if event is InputEventMouseMotion:
+		_choose(i)
+		return
 	var click := event as InputEventMouseButton
 	if click == null or not click.pressed or click.button_index != MOUSE_BUTTON_LEFT:
 		return
@@ -276,7 +281,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _cards.is_empty():
 		return
 	var handled := true
-	if _pressed(event, &"menu_left"):
+	if MenuMouse.is_back(event):
+		Sfx.play("menu_cancel")
+		back.emit()
+	elif _pressed(event, &"menu_left"):
 		_choose(wrapi(_index - 1, 0, _cards.size()))
 	elif _pressed(event, &"menu_right"):
 		_choose(wrapi(_index + 1, 0, _cards.size()))

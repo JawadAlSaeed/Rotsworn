@@ -29,7 +29,7 @@ func setup(address: String) -> void:
 	_field.text = address
 	_field.custom_minimum_size = Vector2(FIELD_WIDTH, 0.0)
 	_field.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_field.add_theme_font_size_override("font_size", FIELD_SIZE)
+	_field.add_theme_font_size_override("font_size", HudStyle.scaled(FIELD_SIZE))
 	_field.add_theme_stylebox_override("normal", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.PANEL_BORDER, 2, 14))
 	_field.add_theme_stylebox_override("focus", HudStyle.panel(Color(0, 0, 0, 0), HudStyle.GOLD, 2, 14))
 	_field.add_theme_stylebox_override("read_only", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.TEXT_DIM, 2, 14))
@@ -69,7 +69,7 @@ func _input(event: InputEvent) -> void:
 	# The text field takes most keys, so Back is read here: Esc, or the pad's Back button.
 	var key := event as InputEventKey
 	var pad_back := event is InputEventJoypadButton and event.is_action_pressed(&"menu_cancel", false, true)
-	if (key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE) or pad_back:
+	if (key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE) or pad_back or MenuMouse.is_back(event):
 		get_viewport().set_input_as_handled()
 		Sfx.play("menu_cancel")
 		back.emit()

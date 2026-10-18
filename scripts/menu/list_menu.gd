@@ -1,8 +1,10 @@
 class_name ListMenu
 extends VBoxContainer
 ## A vertical list of choices for the menus outside a fight (main menu, settings, shop, rest).
-## Driven only by the menu_* input actions, like the fight list: the screen that owns it passes
-## each input event to handle(), which moves the cursor itself and reports the rest.
+## Driven by the menu_* input actions, like the fight list, and by the mouse (card #202): the
+## screen that owns it passes each input event to handle(), which moves the cursor itself and
+## reports the rest. Pointing at a row chooses it, a left click confirms it, a right click or the
+## mouse's back button goes back and the wheel moves the cursor.
 ## Each item is a row: its text, and an optional value on the right (a price, a setting). The
 ## chosen row's text is drawn like the logo's letters: bigger, in worn gold, its edges flickering
 ## like static (text_static.gdshader); the others are a little dimmer (DESIGN.md 7.7).
@@ -46,6 +48,11 @@ var _detail: Label
 var _shown_index: int = -1
 ## Process frame of the last stick move (a held stick sends many motion events).
 var _stick_frame: int = -1
+## After a left click was reported as &"confirm": how far across the row it landed (0 to 1), and
+## across the row's value text (-1 when it was not on the value). -1 after any other answer. A screen
+## can use them to step a setting down or up by the side that was clicked.
+var clicked_share: float = -1.0
+var clicked_value_share: float = -1.0
 
 
 func _init() -> void:
@@ -121,6 +128,10 @@ func is_enabled(i: int) -> bool:
 ## &"cancel", &"left" or &"right" for the owner to act on, or &"" if the event was not for menus.
 ## Marks every menu event as handled.
 func handle(event: InputEvent) -> StringName:
+	if event is InputEventMouse:
+		return _handle_mouse(event)
+	clicked_share = -1.0
+	clicked_value_share = -1.0
 	var answer := &""
 	if _pressed(event, &"menu_up"):
 		_move(-1)
@@ -139,6 +150,62 @@ func handle(event: InputEvent) -> StringName:
 	if is_inside_tree():
 		get_viewport().set_input_as_handled()
 	return answer
+
+
+## The mouse: pointing at a row chooses it (and returns &""), a left click on a row returns
+## &"confirm" (after choosing it), a right click or the back button returns &"cancel", the wheel
+## moves the cursor (stopping at the ends). Clicks and the wheel are marked handled; so is a move
+## that lands on another row. Nothing happens while the list is not shown.
+func _handle_mouse(event: InputEvent) -> StringName:
+	clicked_share = -1.0
+	clicked_value_share = -1.0
+	if items.is_empty() or not is_visible_in_tree():
+		return &""
+	var answer := &""
+	if event is InputEventMouseMotion:
+		var hovered := row_at((event as InputEventMouse).position)
+		if hovered < 0 or hovered == index:
+			return &""
+		_choose_row(hovered)
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		var button := (event as InputEventMouseButton).button_index
+		var wheel := MenuMouse.wheel_step(button)
+		if wheel != 0:
+			var next := clampi(index + wheel, 0, items.size() - 1)
+			if next != index:
+				_choose_row(next)
+		else:
+			answer = MenuMouse.answer_for_button(button)
+			if answer == &"confirm":
+				var row := row_at((event as InputEventMouse).position)
+				if row < 0:
+					return &""
+				if row != index:
+					_choose_row(row)
+				_remember_click(row, (event as InputEventMouse).position)
+			elif answer == &"":
+				return &""
+	else:
+		return &""
+	if is_inside_tree():
+		get_viewport().set_input_as_handled()
+	return answer
+
+
+## The row (item index) under a viewport point, -1 for none. Only rows that are shown count.
+func row_at(point: Vector2) -> int:
+	return MenuMouse.control_at(_rows, point)
+
+
+func _choose_row(i: int) -> void:
+	index = i
+	Sfx.play("menu_move")
+	redraw()
+
+
+func _remember_click(row: int, point: Vector2) -> void:
+	clicked_share = MenuMouse.share_across(_rows[row], point)
+	clicked_value_share = MenuMouse.share_across(_values[row], point)
 
 
 func redraw() -> void:
@@ -202,7 +269,7 @@ func top_row() -> int:
 
 
 func _select_size() -> int:
-	return roundi(float(item_size) * float(HudStyle.fonts().select_size_percent) / 100.0)
+	return HudStyle.scaled(roundi(float(item_size) * float(HudStyle.fonts().select_size_percent) / 100.0))
 
 
 func _move(step: int) -> void:

@@ -83,6 +83,28 @@ func cell_pos(cell: Vector2i) -> Vector2:
 	return _origin + Vector2(cell) * (_cell + _gap)
 
 
+## The cell under a viewport point (the way mouse events report it), Vector2i(-1, -1) for none
+## (card #202). The gaps between cells belong to the cell before them.
+func cell_at(point: Vector2) -> Vector2i:
+	if pack == null:
+		return Vector2i(-1, -1)
+	return cell_index(MenuMouse.local_point(self, point), _origin, _cell, _gap, pack.width, pack.rows)
+
+
+## The cell a point inside the grid's own coordinates falls in, for a grid of `width` x `rows`
+## cells of `cell` pixels with `gap` pixels between them, its first cell at `origin`; (-1, -1) outside.
+static func cell_index(local: Vector2, origin: Vector2, cell: float, gap: float, width: int, rows: int) -> Vector2i:
+	var rel := local - origin
+	if rel.x < 0.0 or rel.y < 0.0:
+		return Vector2i(-1, -1)
+	var step := cell + gap
+	var x := floori(rel.x / step)
+	var y := floori(rel.y / step)
+	if x >= width or y >= rows:
+		return Vector2i(-1, -1)
+	return Vector2i(x, y)
+
+
 static func rarity_color(rarity: int) -> Color:
 	return RARITY_COLORS[clampi(rarity, 0, RARITY_COLORS.size() - 1)]
 

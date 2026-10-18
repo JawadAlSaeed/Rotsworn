@@ -73,6 +73,10 @@ static var _number_font: Font
 static var _punch_font: Font
 static var _fonts: UiFonts
 static var _worn_material: ShaderMaterial
+## The player's text size (Settings > Game, card #203): an index into UiFonts.text_size_percents.
+## Set by PlayerSettings when the game starts and when the player changes it; 0 (normal) until then,
+## so unit tests never depend on this machine's settings.
+static var _text_size_index: int = 0
 
 ## Xbox-style names for pad buttons in control hints.
 const PAD_BUTTON_NAMES := {
@@ -142,6 +146,31 @@ static func _weighted(font: Font, weight: int) -> FontVariation:
 	weighted.base_font = font
 	weighted.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
 	return weighted
+
+
+## Picks the text size (an index into UiFonts.text_size_percents). Text built from now on uses it;
+## what is already on screen keeps the size it had.
+static func set_text_size_index(index: int) -> void:
+	_text_size_index = maxi(0, index)
+
+
+static func text_size_index() -> int:
+	return _text_size_index
+
+
+## The text size in percent (100 = as drawn).
+static func text_scale_percent() -> int:
+	return fonts().text_percent(_text_size_index)
+
+
+## A font size with the player's text size applied (card #203). Every body, title and number
+## label goes through this (label_settings, number_settings, the menu choices, the button chips);
+## the big gold titles, damage popups and banners keep their size, they are already large.
+static func scaled(size: int) -> int:
+	var percent := text_scale_percent()
+	if percent == 100:
+		return size
+	return maxi(1, roundi(float(size) * float(percent) / 100.0))
 
 
 ## The font data (defaults until load_fonts() ran): the menu choices' look lives there too.
@@ -237,7 +266,9 @@ static func make_title(text: String, size: int, color: Color = TEXT) -> Label:
 
 ## Numbers on bars and counters (HP, AP, the team gauge): bold lining figures, a thin dark edge
 ## and a soft drop shadow instead of the thick outline, so they read crisp.
-static func number_settings(size: int, color: Color = TEXT) -> LabelSettings:
+static func number_settings(size: int, color: Color = TEXT, follow_text_size: bool = true) -> LabelSettings:
+	if follow_text_size:
+		size = scaled(size)
 	var s := LabelSettings.new()
 	s.font = _number_font if _number_font != null else body_font()
 	s.font_size = size
@@ -258,7 +289,7 @@ static func make_number(text: String, size: int, color: Color = TEXT) -> Label:
 ## The fight's floating words and damage numbers: like number_settings but slanted (Persona 5) and
 ## with a heavier edge, since they fly over the scene.
 static func punch_settings(size: int, color: Color = TEXT) -> LabelSettings:
-	var s := number_settings(size, color)
+	var s := number_settings(size, color, false)
 	if _punch_font != null:
 		s.font = _punch_font
 	s.outline_size = maxi(3, roundi(float(size) * 0.17))
@@ -276,6 +307,7 @@ static func player_color(player: int) -> Color:
 
 
 static func label_settings(size: int, color: Color = TEXT) -> LabelSettings:
+	size = scaled(size)
 	var s := LabelSettings.new()
 	s.font_size = size
 	s.font_color = color
@@ -468,7 +500,7 @@ static func input_name(input: Dictionary) -> String:
 ## A small button picture for hints (ButtonChip): round coloured A/B/X/Y, drawn Menu, View,
 ## D-pad and stick symbols, dark pills for other pad buttons, light key caps for the keyboard.
 static func button_chip(button: String, pad: bool, font_size: int) -> ButtonChip:
-	return ButtonChip.new(button, pad, font_size)
+	return ButtonChip.new(button, pad, scaled(font_size))
 
 
 ## "+12" / "-8" for a millisecond offset.

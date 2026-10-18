@@ -52,7 +52,8 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _age < _guard_s:
 		return
-	if event.is_action_pressed(&"menu_confirm", false, true) or event.is_action_pressed(&"menu_cancel", false, true):
+	var clicked := MenuMouse.is_press(event) and MenuMouse.answer_for_button((event as InputEventMouseButton).button_index) != &""
+	if event.is_action_pressed(&"menu_confirm", false, true) or event.is_action_pressed(&"menu_cancel", false, true) or clicked:
 		get_viewport().set_input_as_handled()
 		Sfx.play("menu_confirm")
 		done.emit()
