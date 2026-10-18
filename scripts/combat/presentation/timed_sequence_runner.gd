@@ -373,6 +373,7 @@ func _process(_delta: float) -> void:
 		_update_wave(t)
 		_update_rings(t)
 		_update_reading(t)
+		_update_ranged_aims(t)
 		_update_lock(t)
 		_update_target_arrows(t)
 		# Read the time again: a contact effect above may have just started a hit-stop.
@@ -986,6 +987,59 @@ func _update_reading(t: int) -> void:
 			view.set_floor_warning(shown, _visuals.ground_hit_color)
 
 
+## The ranged-hit indicators (DESIGN.md 3.9, card #165): for each hero a projectile flies at, four
+## brackets that close in and meet exactly at the hit's declared impact (the time the defence is
+## judged on) and a dashed path from the projectile to the hero, in the hit's kind colour. Pure
+## functions of attack time (RangedAim), so hit-stop freezes them with the projectile.
+func _update_ranged_aims(t: int) -> void:
+	if _projectile_of.is_empty() or not _tuning.show_ranged_aim:
+		_hud.set_ranged_aims([])
+		return
+	var t_ms := float(t) / 1000.0
+	var aims: Array[Dictionary] = []
+	var enemy := _view.fighter(_source)
+	var pulse_scale := _visuals.screen_flash_scale(PlayerSettings.flash_mode())
+	for hit_index: int in _projectile_of:
+		var data: ProjectileData = _projectile_of[hit_index]
+		var hit: Dictionary = _hits[hit_index]
+		var kind := int(hit.kind)
+		var launch := EnemyChoreography.motion_start(_hits, hit_index, _visuals)
+		var impact := float(hit.at_ms)
+		for id: int in _living_of(_hit_targets[hit_index]):
+			var key := _projectile_key(hit_index, id)
+			# A defended or landed hit ends the indicator at its decision, never before the impact.
+			var end := impact + float(hit.get("close_ms", 0.0))
+			if _projectile_ends.has(key):
+				end = maxf(impact, float((_projectile_ends[key] as Dictionary).at_us) / 1000.0)
+			var s := RangedAim.state(t_ms, launch, impact, end, float(_visuals.ranged_aim_lead_ms),
+					float(_visuals.ranged_aim_fade_ms))
+			if not bool(s.shown):
+				continue
+			var to := _standing_centre(id)
+			var from: Vector3 = _projectile_starts.get(key, _launch_point(enemy, data, id))
+			var points := PackedVector2Array()
+			var steps := maxi(1, _visuals.ranged_aim_path_points)
+			for k: int in steps + 1:
+				var u := lerpf(float(s.progress), 1.0, float(k) / float(steps))
+				points.append(_view.screen_position(_arc(from, to, u, data.arc_height)))
+			var pulse := RangedAim.lock_pulse(t_ms, impact, float(_visuals.ranged_aim_pulse_ms)) * pulse_scale
+			aims.append({
+				"center": _view.screen_position(to),
+				"half": RangedAim.radius_px(float(s.progress), _visuals.ranged_aim_start_px, _visuals.ranged_aim_end_px),
+				"color": _visuals.kind_color(kind, _visuals.normal_hit_color),
+				"alpha": float(s.alpha),
+				"path": points,
+				"path_strength": _visuals.ranged_aim_path_strength,
+				"locked": bool(s.locked),
+				"pulse": pulse,
+				"label": HudStyle.kind_label(kind) if _visuals.ranged_aim_label else "",
+				"line_px": _visuals.ranged_aim_line_px,
+				"dash_px": _visuals.ranged_aim_dash_px,
+				"gap_px": _visuals.ranged_aim_gap_px,
+			})
+	_hud.set_ranged_aims(aims)
+
+
 ## A lock icon at the feet of each locked-out player's heroes.
 func _update_lock(t: int) -> void:
 	var spots: Array[Vector3] = []
@@ -1023,6 +1077,7 @@ func _hand_back() -> void:
 	_hud.set_defending(false)
 	_hud.set_rings([])
 	_hud.set_hit_markers([])
+	_hud.set_ranged_aims([])
 	_hud.set_locks([])
 	_hud.set_targeted([])
 	_hud.set_target_arrows([])
