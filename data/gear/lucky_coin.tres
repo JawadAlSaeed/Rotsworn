@@ -10,3 +10,5 @@ description = "The party earns 25% more gold from fights."
 price = 40
 effect = 12
 amount = 25
+stat = 4
+stat_points = 2

@@ -59,7 +59,7 @@ func test_main_menu_with_a_save_starts_on_continue() -> void:
 
 func test_main_menu_rows_still_map_to_their_choices_after_continue() -> void:
 	var menu := _main_menu(true, MainMenu.SETTINGS)
-	assert_eq(_list_in(menu).index, 4, "Settings is the fifth row with Continue above New Run, Online, Extras")
+	assert_eq(_list_in(menu).index, 5, "Settings is the sixth row with Continue above New Run, Online, Relics, Extras")
 	_press(menu, &"menu_confirm")
 	assert_eq(_picked, [MainMenu.SETTINGS] as Array[StringName])
 

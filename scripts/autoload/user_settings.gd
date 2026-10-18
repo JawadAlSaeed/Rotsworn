@@ -285,6 +285,12 @@ static func unlock_after_win(won_oath: int, ladder_size: int) -> int:
 	return now
 
 
+## Settings > Reset progress (DESIGN.md 8.17): back to no oath unlocked.
+static func reset_oath_unlocks() -> void:
+	_settings().set_value(SECTION_GAME, KEY_OATH_UNLOCKED, 0)
+	_save()
+
+
 ## True once the tutorial was offered on the first New Run (DESIGN.md 7.8): it is asked once.
 static func tutorial_offered() -> bool:
 	return bool(_settings().get_value(SECTION_GAME, KEY_TUTORIAL_OFFERED, false))

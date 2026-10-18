@@ -1,10 +1,13 @@
 class_name GearData
 extends Resource
-## One piece of gear (DESIGN.md 8), like a Picto in Clair Obscur: a passive effect for the
-## character who wears it. Found as loot after a zone's guard, or bought in shops. Each item is
-## worn by one character at a time; unworn gear waits in the party's bag.
+## One Relic (DESIGN.md 8.17; "gear" in the code, from before phase 17), like a Picto in Clair
+## Obscur: a passive effect and a small stat line for the hero who wears it. Monsters drop them,
+## spoils, shops and chests offer them, and the player keeps them forever (RelicCollection); a copy
+## raises a Relic's level, which grows its stat line. Each Relic is worn by one hero at a time.
+## Worn for a few won fights in a run it teaches its Echo: the effect without the stat line, worn
+## by any hero for `echo_cost` Echo points until the run ends.
 ## Rot-touched pieces (DESIGN.md 8.16) are strong but come with a price: a drawback, which is
-## another effect worn as a loss (`drawback` / `drawback_amount`).
+## another effect worn as a loss (`drawback` / `drawback_amount`). Their Echo keeps the price.
 
 enum Effect {
 	## Max HP +amount%.
@@ -71,6 +74,18 @@ const PASSIVE_KEYS := {
 	Effect.ROT: Passive.ROT, Effect.CRIT: Passive.CRIT,
 }
 
+## What a Relic is for, as the Echoes screen's tabs group them (like Expedition 33's Lumina tabs).
+enum Category { OFFENSIVE, DEFENSIVE, SUPPORT }
+const CATEGORY_NAMES: Array[String] = ["Offensive", "Defensive", "Support"]
+## Effect -> Category (an effect not listed is Support).
+const CATEGORIES := {
+	Effect.POWER: Category.OFFENSIVE, Effect.COUNTER: Category.OFFENSIVE, Effect.PERFECT_PRESS: Category.OFFENSIVE,
+	Effect.EXPOSED: Category.OFFENSIVE, Effect.LOW_HP_POWER: Category.OFFENSIVE, Effect.CRIT: Category.OFFENSIVE,
+	Effect.THORNS: Category.OFFENSIVE,
+	Effect.MAX_HP: Category.DEFENSIVE, Effect.TOUGH: Category.DEFENSIVE, Effect.SECOND_WIND: Category.DEFENSIVE,
+	Effect.HEAL_ON_JUMP: Category.DEFENSIVE, Effect.KILL_HEAL: Category.DEFENSIVE, Effect.SPEED: Category.DEFENSIVE,
+}
+
 ## Effects that only exist as a drawback: their amount is a loss, not a gain.
 const LOSS_EFFECTS: Array[int] = [Effect.ROT, Effect.WIN_WOUND]
 
@@ -93,6 +108,18 @@ const ROT_TOUCHED_COLOR := Color(0.78, 0.4, 0.95)
 ## drawback takes max HP away; a Tough drawback makes enemy hits hurt more). 0 = no drawback.
 @export var drawback: Effect = Effect.MAX_HP
 @export_range(0, 1000) var drawback_amount: int = 0
+
+@export_group("Relic (DESIGN.md 8.17)")
+## The stat line: attribute points (Attributes.Kind) the wearer gets on top of the ones they spent.
+@export_enum("Vitality", "Might", "Agility", "Defense", "Luck") var stat: int = 0
+## Points of `stat` at level 1 (0: no stat line), and how many each level after the first adds.
+@export_range(0, 20) var stat_points: int = 0
+@export_range(0, 10) var stat_points_per_level: int = 1
+## Echo points it costs a hero to wear this Relic's Echo.
+@export_range(1, 10) var echo_cost: int = 1
+## The Relic's picture inside its diamond on the Relics and Echoes screens (empty or missing: a
+## drawn sign for its category, RelicIcon).
+@export_file_path("*.png") var icon_path: String = ""
 
 
 ## What an effect of `amount` does, in a few words ("Power +5%"), for charms and gear.
@@ -199,6 +226,24 @@ func effect_line() -> String:
 	if has_drawback():
 		line += "  |  " + drawback_text(drawback, drawback_amount)
 	return line
+
+
+## Offensive, defensive or support (a Category, by its effect).
+func category() -> int:
+	return int(CATEGORIES.get(effect, Category.SUPPORT))
+
+
+## The stat line's attribute points at Relic level `level` (1 = just found).
+func stat_points_at(level: int) -> int:
+	if stat_points <= 0:
+		return 0
+	return stat_points + maxi(0, level - 1) * stat_points_per_level
+
+
+## The stat line in a few words ("Might +3"), or "" if there is none.
+func stat_text(level: int) -> String:
+	var points := stat_points_at(level)
+	return "%s +%d" % [Attributes.NAMES[stat], points] if points > 0 else ""
 
 
 ## The Passive key this gear gives in fights, or "" if it only changes stats or gold.

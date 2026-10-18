@@ -5,15 +5,11 @@
 [resource]
 script = ExtResource("1_jxcd5")
 id = "lodestone"
-display_name = "Lodestone"
-description = "Stone charms touching it work 50% better."
-kind = 1
-rarity = 1
+display_name = "Faded Lodestone"
+description = "An old charm. Its power faded when the Relics woke. Worth gold at a shop."
+kind = 3
 price = 90
 shape = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)])
-find_weight = 3
+find_weight = 0
 use_on_map = false
-family = 1
-boost_family = 1
-boost_percent = 50
 icon_path = "res://assets/sprites/items/lodestone.png"

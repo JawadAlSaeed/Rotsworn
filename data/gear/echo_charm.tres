@@ -5,8 +5,11 @@
 [resource]
 script = ExtResource("1_273gq")
 id = "echo_charm"
-display_name = "Echo Charm"
+display_name = "Rebound Charm"
 description = "+1 AP after each counter."
 rarity = 1
 effect = 4
 amount = 1
+stat = 2
+stat_points = 3
+echo_cost = 2

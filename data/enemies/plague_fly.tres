@@ -7,20 +7,23 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/fly_buzz_dive.tres" id="5_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/fly_maggot_spit.tres" id="6_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/fly_strafe.tres" id="7_atk"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="7_dut48"]
+[ext_resource type="Resource" path="res://data/gear/plague_bell.tres" id="8_5hr46"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/plague_spit.tres" id="8_atk"]
+[ext_resource type="Resource" path="res://data/gear/echo_charm.tres" id="9_3csgw"]
+[ext_resource type="Resource" path="res://data/gear/gravebloom.tres" id="10_5hr46"]
 
 [resource]
 script = ExtResource("2_enemy")
 id = "plague_fly"
-voice_sfx = "voice_fly"
 display_name = "Plague Fly"
 color = Color(0.5, 0.3, 0.55, 1)
 sprite_path = "res://assets/sprites/enemies/plague_fly.png"
-portrait_path = "res://assets/sprites/portraits/plague_fly.png"
 sprite_clips = ExtResource("3_clips")
 death_style = 1
 death_color = Color(0.75, 0.91, 0.37, 1)
 idle_cycle_percent = 35
+portrait_path = "res://assets/sprites/portraits/plague_fly.png"
 sprite_pixel_size = 0.045
 hp_percent = 90
 power_percent = 90
@@ -28,6 +31,8 @@ speed = 180
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk")])
 target_rule = 1
 target_bias_percent = 300
-forced_hits = true
 gold = 18
 xp = 37
+voice_sfx = "voice_fly"
+relic_drops = Array[ExtResource("7_dut48")]([ExtResource("8_5hr46"), ExtResource("9_3csgw"), ExtResource("10_5hr46")])
+forced_hits = true

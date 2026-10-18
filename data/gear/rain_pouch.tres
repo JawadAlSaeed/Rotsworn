@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_dgbyb"]
+
+[resource]
+script = ExtResource("1_dgbyb")
+id = "rain_pouch"
+display_name = "Rain Pouch"
+description = "The campfire's Rest heals the wearer 50% more."
+price = 50
+effect = 21
+amount = 50
+stat_points = 2

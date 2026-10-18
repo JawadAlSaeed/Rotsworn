@@ -6,21 +6,23 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/toad_hop_hop.tres" id="4_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/toad_tongue.tres" id="5_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/toad_mud_spit.tres" id="6_atk"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="7_0hyif"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/toad_belly_flop.tres" id="7_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/elder_quake_hop.tres" id="8_atk"]
+[ext_resource type="Resource" path="res://data/gear/chain_of_silence.tres" id="8_gdd65"]
+[ext_resource type="Resource" path="res://data/gear/hollow_mantle.tres" id="9_4dj2e"]
+[ext_resource type="Resource" path="res://data/gear/rain_pouch.tres" id="10_gdd65"]
 
 [resource]
 script = ExtResource("2_enemy")
 id = "elder_toad"
-voice_sfx = "voice_toad"
 display_name = "Elder Toad"
 color = Color(0.45, 0.35, 0.22, 1)
 sprite_path = "res://assets/sprites/enemies/elder_toad.png"
-portrait_path = "res://assets/sprites/portraits/elder_toad.png"
 sprite_clips = ExtResource("3_clips")
-death_style = 0
 death_color = Color(0.94, 0.4, 0.25, 1)
 idle_cycle_percent = 150
+portrait_path = "res://assets/sprites/portraits/elder_toad.png"
 sprite_pixel_size = 0.045
 hp_percent = 220
 power_percent = 140
@@ -28,6 +30,8 @@ speed = 95
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk")])
 target_rule = 4
 target_bias_percent = 150
-forced_hits = true
 gold = 37
 xp = 75
+voice_sfx = "voice_toad"
+relic_drops = Array[ExtResource("7_0hyif")]([ExtResource("8_gdd65"), ExtResource("9_4dj2e"), ExtResource("10_gdd65")])
+forced_hits = true

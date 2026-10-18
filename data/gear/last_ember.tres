@@ -12,3 +12,6 @@ rarity = 1
 effect = 15
 amount = 40
 rot_touched = true
+stat = 1
+stat_points = 3
+echo_cost = 2

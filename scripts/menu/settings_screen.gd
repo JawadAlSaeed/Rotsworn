@@ -3,9 +3,11 @@ extends CanvasLayer
 ## Settings (DESIGN.md 7.5, card #112) in four sections, changed with LB / RB (Z / C):
 ## Graphics (fullscreen, window size, vsync, frame limit, fog, bloom, shadows, soft shadows, depth
 ## of field), Sound (overall, music, effects, voices), Controls (every key and button can be
-## rebound, card #190) and Game (screen shake, the training ring, lag calibration). Everything is
-## saved per machine at once (PlayerSettings, user://settings.cfg) and graphics changes show at
-## once, even over a fight. Left/right change a value, confirm toggles or opens.
+## rebound, card #190) and Game (screen shake, the training ring, lag calibration, Reset progress).
+## Everything is saved per machine at once (PlayerSettings, user://settings.cfg) and graphics
+## changes show at once, even over a fight. Left/right change a value, confirm toggles or opens.
+## Reset progress (DESIGN.md 8.17) asks twice and then emits progress_reset for Main to wipe the
+## Relics, the unlocked oaths and a saved run; it is only offered from the main menu, never in a run.
 ##
 ## Controls: one row per action with its key and its pad button. Left/Right pick the Key or the Pad
 ## column, Confirm waits for the new key or button (Escape or the pad's Menu button cancels, and so
@@ -14,6 +16,8 @@ extends CanvasLayer
 ## applies to every pad: there are no per-pad bindings.
 
 signal closed
+## The player confirmed Reset progress twice (Main wipes the files).
+signal progress_reset
 
 const TITLE_SIZE: int = 56
 const TAB_SIZE: int = 34
@@ -37,7 +41,7 @@ const SECTION_ROWS := {
 		"ambient_occlusion", "depth_of_field", "back"],
 	Section.SOUND: ["master", "music", "effects", "voice", "back"],
 	Section.CONTROLS: [],  # built by _rows_of: one row per action, then reset and back
-	Section.GAME: ["screen_shake", "flashes", "timing_ring", "calibrate", "reset_lag", "back"],
+	Section.GAME: ["screen_shake", "flashes", "timing_ring", "calibrate", "reset_lag", "reset_progress", "back"],
 }
 const SECTION_HINTS: Array = [[&"item_turn_left", "Section"], [&"item_turn_right", "Section"],
 		[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]]
@@ -81,11 +85,15 @@ var _note: String = ""
 var _note_is_problem: bool = false
 ## When a second Confirm on "Reset to defaults" still counts (Time.get_ticks_msec).
 var _reset_until_ms: int = 0
+## Reset progress can be picked (the main menu's settings; not the pause menu's, mid-run).
+var _allow_reset: bool = false
+var _prompt: ConfirmPrompt
 
 
-func setup(tuning: Tuning, visuals: CombatVisuals) -> void:
+func setup(tuning: Tuning, visuals: CombatVisuals, allow_reset: bool = false) -> void:
 	_tuning = tuning
 	_visuals = visuals
+	_allow_reset = allow_reset
 	var column := ListMenu.screen_column(self, "Settings", TITLE_SIZE)
 	_page = column
 	var tabs := HBoxContainer.new()
@@ -155,6 +163,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _prompt != null:
+		return
 	if _calibration.is_running():
 		_calibration.handle_input(event)
 		get_viewport().set_input_as_handled()
@@ -251,7 +261,42 @@ func _unhandled_input(event: InputEvent) -> void:
 			if answer == &"confirm":
 				_reset_controls()
 				return
+		"reset_progress":
+			if answer == &"confirm":
+				_ask_reset_progress()
+				return
 	_refresh()
+
+
+## Reset progress: asks, then asks again, then emits progress_reset.
+func _ask_reset_progress() -> void:
+	if not _allow_reset:
+		Sfx.play("locked")
+		_set_note("Progress can only be reset from the main menu, not during a run.", true)
+		_refresh()
+		return
+	Sfx.play("menu_confirm")
+	_confirm("Reset all progress?", "Your Relics and their levels, the oaths you unlocked and a saved run are wiped. "
+			+ "Settings, controls and the Journal stay.", "Reset", "Keep my progress", func() -> void:
+				_confirm("Are you sure?", "This cannot be undone.", "Yes, wipe it", "No", func() -> void:
+					progress_reset.emit()
+					Sfx.play("menu_confirm")
+					_set_note("Progress reset: a fresh start.", false)
+					_refresh()))
+
+
+func _confirm(question: String, detail: String, yes: String, no: String, on_yes: Callable) -> void:
+	_prompt = ConfirmPrompt.new()
+	add_child(_prompt)
+	_prompt.setup(question, detail, yes, no)
+	_prompt.answered.connect(func(answer: bool) -> void:
+		get_viewport().set_input_as_handled()
+		_prompt.queue_free()
+		_prompt = null
+		if answer:
+			on_yes.call_deferred()
+		else:
+			Sfx.play("menu_cancel"))
 
 
 ## Opens the lag calibration over this screen (also for --screen=calibration pictures).
@@ -331,6 +376,10 @@ func _refresh() -> void:
 			"reset_lag":
 				_menu.set_item(i, "Reset lag to default", PlayerSettings.is_calibrated(),
 						"Forget the measured lag and use the default (%d ms) again." % _tuning.input_latency_compensation_ms)
+			"reset_progress":
+				_menu.set_item(i, "Reset progress", _allow_reset,
+						"Wipe your Relics, unlocked oaths and saved run for a fresh start. Asks twice."
+						if _allow_reset else "Only from the main menu's settings, not during a run.")
 			"reset":
 				_menu.set_item(i, "Reset to defaults", true,
 						"Put every key and button back as the game came. Press Confirm twice.",

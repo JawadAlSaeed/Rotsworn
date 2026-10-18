@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="TutorialData" load_steps=12 format=3]
+[gd_resource type="Resource" script_class="TutorialData" load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/tutorial_data.gd" id="1_tut"]
 [ext_resource type="Script" path="res://scripts/data/tutorial_step_data.gd" id="2_step"]
@@ -111,10 +111,26 @@ hero = "alder"
 ability = "team_ultimate"
 fill_gauge = true
 
+[sub_resource type="Resource" id="s8"]
+script = ExtResource("2_step")
+lesson = 6
+title = "Relics"
+text = "Monsters, guards, shops and chests give Relics, and you keep them forever, even when a run is lost. Each one gives a small stat and an effect. Find a Relic you already have and it gets one level stronger."
+tip = "Pick what each hero brings on the main menu's Relics screen. A run opens one Relic slot at the start, the second after the first guard, the third after act 1's boss."
+goal = "read"
+
+[sub_resource type="Resource" id="s9"]
+script = ExtResource("2_step")
+lesson = 6
+title = "Echoes"
+text = "Wear a Relic for about 4 won fights and you learn its Echo: its effect without the stat. Any hero can wear an Echo for Echo points, which level ups give. Open Echoes on the party screen ({party_menu} on the map)."
+tip = "Echoes are learned again in every run: each run builds from zero. Only Relics and their levels stay."
+goal = "read"
+
 [resource]
 script = ExtResource("1_tut")
 encounter = ExtResource("3_fight")
 enemy_speed_percent = 50
-steps = Array[ExtResource("2_step")]([SubResource("s0"), SubResource("s1"), SubResource("s2"), SubResource("s3"), SubResource("s4"), SubResource("s5"), SubResource("s6"), SubResource("s7")])
+steps = Array[ExtResource("2_step")]([SubResource("s0"), SubResource("s1"), SubResource("s2"), SubResource("s3"), SubResource("s4"), SubResource("s5"), SubResource("s6"), SubResource("s7"), SubResource("s8"), SubResource("s9")])
 done_title = "Tutorial complete"
 done_text = "That's everything you need. Start a New Run from the main menu whenever you're ready."

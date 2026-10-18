@@ -233,7 +233,9 @@ func test_enemies_grow_each_row() -> void:
 	var plain := CombatMath.percent_min1(t.base_enemy_hp, husk.enemies[0].hp_percent)
 	assert_eq(foe.max_hp, CombatMath.percent_min1(plain, run.enemy_hp_percent()))
 	var power := CombatMath.percent_min1(t.base_enemy_hit_damage, husk.enemies[0].power_percent)
-	assert_eq(foe.power, CombatMath.percent_min1(power, run.enemy_power_percent()))
+	# The run's base enemy power (phase 17, tuning enemy_power_base_percent) comes on top of depth.
+	assert_eq(setup.enemy_power_percent, CombatMath.percent(run.enemy_power_percent(), t.enemy_power_base_percent))
+	assert_eq(foe.power, CombatMath.percent_min1(power, setup.enemy_power_percent))
 
 
 func test_bosses_keep_their_own_numbers() -> void:

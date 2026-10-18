@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_r0duj"]
+
+[resource]
+script = ExtResource("1_r0duj")
+id = "black_ichor"
+display_name = "Black Ichor"
+description = "Power +25%, but the wearer loses 3% of max HP at the start of each of their turns."
+price = 110
+rarity = 1
+effect = 1
+amount = 25
+rot_touched = true
+drawback = 20
+drawback_amount = 3
+stat = 1
+stat_points = 3
+echo_cost = 2

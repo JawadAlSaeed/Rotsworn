@@ -10,20 +10,23 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/husk_rot_combo.tres" id="8_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/husk_rock_toss.tres" id="9_atk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/husk_stone_spikes.tres" id="10_atk"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="10_p8obk"]
+[ext_resource type="Resource" path="res://data/gear/war_drum.tres" id="11_28dpe"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/ashen_cinder_hail.tres" id="11_atk"]
+[ext_resource type="Resource" path="res://data/gear/thick_hide.tres" id="12_rovri"]
+[ext_resource type="Resource" path="res://data/gear/thorned_gauntlet.tres" id="13_b1ueo"]
+[ext_resource type="Resource" path="res://data/gear/ember_stone.tres" id="14_28dpe"]
 
 [resource]
 script = ExtResource("2_enemy")
 id = "ashen_husk"
-voice_sfx = "voice_husk"
 display_name = "Ashen Husk"
 color = Color(0.55, 0.53, 0.52, 1)
 sprite_path = "res://assets/sprites/enemies/ashen_husk.png"
-portrait_path = "res://assets/sprites/portraits/ashen_husk.png"
 sprite_clips = ExtResource("3_clips")
-death_style = 0
 death_color = Color(0.94, 0.48, 0.21, 1)
 idle_cycle_percent = 90
+portrait_path = "res://assets/sprites/portraits/ashen_husk.png"
 sprite_pixel_size = 0.045
 hp_percent = 130
 power_percent = 115
@@ -31,6 +34,8 @@ speed = 210
 attacks = Array[ExtResource("1_attack")]([ExtResource("4_atk"), ExtResource("5_atk"), ExtResource("6_atk"), ExtResource("7_atk"), ExtResource("8_atk"), ExtResource("9_atk"), ExtResource("10_atk"), ExtResource("11_atk")])
 target_rule = 1
 target_bias_percent = 100
-forced_hits = true
 gold = 22
 xp = 45
+voice_sfx = "voice_husk"
+relic_drops = Array[ExtResource("10_p8obk")]([ExtResource("11_28dpe"), ExtResource("12_rovri"), ExtResource("13_b1ueo"), ExtResource("14_28dpe")])
+forced_hits = true

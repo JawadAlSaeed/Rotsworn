@@ -173,6 +173,27 @@ static func shipped_setup(rng_seed: int, p_tuning: Tuning = null, practice: bool
 
 
 ## A copy of the shipped tuning file (only for tests that validate the data itself).
+## A Tuning (the script's rules, or a copy of `from`) with every Relic slot open from the start, for
+## run tests that are not about the slots (DESIGN.md 8.17).
+static func all_slots(from: Tuning = null) -> Tuning:
+	var t := (from.duplicate(true) as Tuning) if from != null else Tuning.new()
+	t.relic_slots_start = t.run_gear_slots
+	return t
+
+
+## The run's data with copies of its Relics that have no stat line, for tests of an effect's own
+## numbers (DESIGN.md 8.17); the shipped files are not touched.
+static func without_relic_stats(data: RunData) -> RunData:
+	var copy := data.duplicate() as RunData
+	var gear: Array[GearData] = []
+	for item: GearData in data.gear:
+		var plain := item.duplicate() as GearData
+		plain.stat_points = 0
+		gear.append(plain)
+	copy.gear = gear
+	return copy
+
+
 static func shipped_tuning() -> Tuning:
 	return (load(TUNING_PATH) as Tuning).duplicate(true) as Tuning
 

@@ -17,17 +17,26 @@ func _resolved(prompt: int, outcome: int, seq: int = 4) -> Dictionary:
 	return {"type": "prompt_resolved", "seq": seq, "prompt": prompt, "outcome": outcome}
 
 
-func test_the_tutorial_has_five_fight_lessons() -> void:
+func test_the_tutorial_has_five_fight_lessons_then_relics() -> void:
 	var data := load(TUTORIAL_PATH) as TutorialData
 	assert_not_null(data)
 	assert_not_null(data.encounter)
-	assert_eq(data.lesson_count(), 5)
+	assert_eq(data.lesson_count(), 6)
+	var cards: Array[String] = []
 	for step: TutorialStepData in data.steps:
+		if step.goal == TutorialGoals.READ:
+			# The Relics and Echoes lesson (DESIGN.md 8.17): cards only, at the end.
+			assert_eq(step.lesson, 6, "%s is the last lesson" % step.title)
+			assert_false(step.text.is_empty(), step.title)
+			cards.append(step.title)
+			continue
+		assert_true(cards.is_empty(), "%s: the fight lessons come first" % step.title)
 		assert_true(TutorialGoals.FIGHT_GOALS.has(step.goal), "%s: known goal" % step.title)
 		assert_false(step.text.is_empty(), step.title)
 		assert_false(step.reminder.is_empty(), "%s has a reminder line" % step.title)
 		assert_false(step.retry.is_empty(), "%s says what to fix" % step.title)
 		assert_true(step.hold in ["enemies", "party"], "%s stages who acts" % step.title)
+	assert_eq(cards, ["Relics", "Echoes"] as Array[String], "the last lesson explains Relics, then Echoes")
 
 
 func test_the_skills_lesson_comes_before_follow_ups_and_has_none() -> void:

@@ -6,8 +6,9 @@ extends Node
 ## the same try. In the fight only what the step needs happens (practice staging commands): in the
 ## attack, skill and ultimate steps only the lesson's hero acts and their menu allows only the
 ## lesson's choice; in the defend steps the heroes' turns pass and the enemy waits at a gate until
-## the card is closed, then makes the step's one attack, slowed. Main routes the fight's
-## `pause_reached` here while `pause_wanted()`.
+## the card is closed, then makes the step's one attack, slowed. A "read" step (the Relics and
+## Echoes lesson, DESIGN.md 8.17) is only its card: the fight stays paused and closing it moves on.
+## Main routes the fight's `pause_reached` here while `pause_wanted()`.
 
 ## The end card was closed: back to the main menu.
 signal leave_requested
@@ -115,6 +116,8 @@ func _close_card() -> void:
 			leave_requested.emit()
 		"good":
 			_go_to(_step + 1)
+		"step" when current() != null and current().goal == TutorialGoals.READ:
+			_go_to(_step + 1)
 		_:
 			# "step" or "retry": the player tries now.
 			_overlay.show_reminder(current().reminder)
@@ -139,6 +142,10 @@ func _go_to(index: int) -> void:
 		return
 	if not _fight_ready:
 		# The fight's first event stages the step.
+		return
+	if current().goal == TutorialGoals.READ:
+		# Only a card to read: the fight stays as it is (paused after the last try's card).
+		_show_step_card()
 		return
 	if _stage(current()):
 		# The turn moves on to the lesson's hero first; the card shows with their menu.

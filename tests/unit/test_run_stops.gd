@@ -222,9 +222,9 @@ func test_shop_services() -> void:
 	assert_eq(RunState.level_of(run.backpack.entry(salve)), 1)
 	assert_eq(run.gold, gold - _tuning.shop_upgrade_price)
 	run.go(run.choices()[0])
-	var before := str(run.shop_stock(run.at)) + str(run.shop_gear(run.at)) + str(run.shop_charms(run.at))
+	var before := str(run.shop_stock(run.at)) + str(run.shop_gear(run.at))
 	assert_true(run.restock())
-	var after := str(run.shop_stock(run.at)) + str(run.shop_gear(run.at)) + str(run.shop_charms(run.at))
+	var after := str(run.shop_stock(run.at)) + str(run.shop_gear(run.at))
 	assert_ne(after, before, "new wares after a restock")
 	run.gold = 0
 	assert_false(run.restock(), "no gold, no service")

@@ -64,6 +64,11 @@ var continue_run: bool = false
 var save_path: String = ""
 ## --journal-path=PATH ("" : the real journal, and no recording for bots or practice fights).
 var journal_path: String = ""
+## --relics-path=PATH ("" : the real Relic collection, which bots never read or write).
+var relics_path: String = ""
+## --relics=none|all: the pretend collection a bot run starts with (DESIGN.md 8.17; "" : none for
+## bots, the real one for a person). "all" has every Relic at its top level, for balance runs.
+var relics_mode: String = ""
 ## --oath=N: the oath a bot run (--run) or an autoplay host plays at (-1: none given, the lobby's pick).
 var oath: int = -1
 ## Players from --players (1 = solo).
@@ -131,6 +136,14 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.save_path = arg.substr("--save-path=".length())
 		elif arg.begins_with("--journal-path="):
 			options.journal_path = arg.substr("--journal-path=".length())
+		elif arg.begins_with("--relics-path="):
+			options.relics_path = arg.substr("--relics-path=".length())
+		elif arg.begins_with("--relics="):
+			var mode := arg.substr("--relics=".length()).to_lower()
+			if mode in ["none", "all"]:
+				options.relics_mode = mode
+			else:
+				push_warning("CombatOptions: --relics needs none or all, got '%s'" % mode)
 		elif arg.begins_with("--oath="):
 			var level := arg.substr("--oath=".length())
 			if level.is_valid_int() and level.to_int() >= 0:

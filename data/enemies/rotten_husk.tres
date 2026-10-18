@@ -8,22 +8,26 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/husk_rot_combo.tres" id="6_gqtro"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="7_rtdrg"]
 [ext_resource type="Resource" path="res://data/clips/rotten_husk.tres" id="8_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="9_unug0"]
+[ext_resource type="Resource" path="res://data/gear/iron_charm.tres" id="10_icl7v"]
+[ext_resource type="Resource" path="res://data/gear/thick_hide.tres" id="11_ihtfv"]
+[ext_resource type="Resource" path="res://data/gear/whetstone.tres" id="12_x4mhd"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/husk_rock_toss.tres" id="p12_husk_rock_toss"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/husk_stone_spikes.tres" id="p12_husk_stone_spikes"]
 
 [resource]
 script = ExtResource("7_rtdrg")
 id = "rotten_husk"
-voice_sfx = "voice_husk"
 display_name = "Rotten Husk"
 color = Color(0.47843137, 0.6392157, 0.26666668, 1)
 sprite_path = "res://assets/sprites/enemies/rotten_husk.png"
-portrait_path = "res://assets/sprites/portraits/rotten_husk.png"
 sprite_clips = ExtResource("8_clips")
-death_style = 0
 idle_cycle_percent = 90
+portrait_path = "res://assets/sprites/portraits/rotten_husk.png"
 sprite_pixel_size = 0.045
 speed = 200
 attacks = Array[ExtResource("1_wmv88")]([ExtResource("2_cbueq"), ExtResource("3_baxc6"), ExtResource("4_vgvt7"), ExtResource("5_r0fm7"), ExtResource("6_gqtro"), ExtResource("p12_husk_rock_toss"), ExtResource("p12_husk_stone_spikes")])
 gold = 15
 xp = 30
+voice_sfx = "voice_husk"
+relic_drops = Array[ExtResource("9_unug0")]([ExtResource("10_icl7v"), ExtResource("11_ihtfv"), ExtResource("12_x4mhd")])

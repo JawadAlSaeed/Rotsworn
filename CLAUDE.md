@@ -82,7 +82,8 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   `AUTOPLAY_RESULT zone_clear` or `zone_defeat`), or `--run` to have the bot play a whole run
   (map, zones to the guard, shops, rests, final fight; ends with `AUTOPLAY_RESULT run_victory` or
   `run_defeat`, about 10 to 20 minutes, so use `timeout 1500`; add `--oath=N` to play it at difficulty
-  oath N, DESIGN.md 8.15). Add `--players=2` or
+  oath N, DESIGN.md 8.15; a bot run starts with no Relics, `--relics=all` gives it every Relic at
+  its top level, `--relics-path=PATH` lets it use and bank into its own Relic file, 8.17). Add `--players=2` or
   `--players=3` to any of these for co-op (pretend pads; each bot player presses for their own heroes).
   Online: start `--autoplay --host=2 --seed=7 --quit-on-end` in the background, then
   `--autoplay --join=127.0.0.1 --quit-on-end`; both must print the same `AUTOPLAY_RESULT` and
@@ -90,7 +91,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
 - To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
   every S seconds in `%APPDATA%/Godot/app_userdata/Rotsworn/shots/<name>/`), combined with
-  `--screen=title|menu|settings|controls|players|practice|credits|party|heroes|attributes|skills|calibration|tutorial|map|map_start`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
+  `--screen=title|menu|settings|controls|players|practice|credits|party|heroes|attributes|skills|echoes|relics|party_relics|calibration|tutorial|map|map_start`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
   skills list (or any state; `|` moves on to the next turn) for pictures; `--pad-prompts` shows pad
   buttons, `--key-prompts` keyboard keys. Look at the pictures before telling the user a visual change is done.
 - Always run headless Godot commands with a timeout (`timeout 120 ...`): a script error in a
@@ -165,7 +166,10 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `scripts/explore/` zones: walking, roaming enemies, zone HUD, zone bot, `ZoneAssembler` (lays a
   long zone's sections out per visit) and `ZonePath` (A* for the bot and tests)
 - `scripts/run/` the run: `RunMap` and `RunState` (pure, tested), map, shop, campfire (rest), event,
-  treasure, loot, party and run-end screens (`StopScreen` hands out gifts), the gold and HP strip
+  treasure, loot, party, Echoes and run-end screens (`StopScreen` hands out gifts), the gold and HP
+  strip
+- `scripts/relics/` the Relics kept between runs (DESIGN.md 8.17): `RelicCollection` (pure, tested)
+  and `RelicFile` (`user://progress.json`); the main menu's `RelicsScreen` is in `scripts/menu/`
 - `scripts/menu/` main menu, players screen (co-op lobby), settings, pause menu, yes/no prompt,
   the shared `ListMenu`, `MenuBackdrop`, `HintBar` (button chip hints) and `PromptLabel`
 - `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested) and `DeviceInput`
@@ -181,7 +185,8 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   for the run, shop, gear, boss and phase 4 zones; `bootstrap_zones.gd` for the long zones' sections,
   shrines and wanderers, DESIGN.md 8.5; `bootstrap_phase15.gd` for the mini-boss guards, elite fights
   and the run's two acts, 8.6 to 8.9, run before bootstrap_zones.gd; `bootstrap_events.gd` for the "?"
-  events and the acts' ambush pools, 8.7, run after bootstrap_phase15.gd; `zone_map_preview.gd` draws
+  events and the acts' ambush pools, 8.7, run after bootstrap_phase15.gd; `bootstrap_relics.gd` for
+  the Relics' stat lines, Echo costs and the monsters' drops, 8.17; `zone_map_preview.gd` draws
   every zone from above to a picture, `-- --out=DIR --seed=N`, to check a layout without the game); `tools/sound_kit/` builds the sound effects from
   real recordings (see its README); `tools/art_kit/` draws all the pixel art in Python (see its
   README: the art bible, `python tools/art_kit/build.py [module]`; the heroes' painted portraits come

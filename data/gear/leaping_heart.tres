@@ -10,3 +10,5 @@ description = "Each perfect jump heals 5% of max HP."
 rarity = 1
 effect = 5
 amount = 5
+stat_points = 3
+echo_cost = 2

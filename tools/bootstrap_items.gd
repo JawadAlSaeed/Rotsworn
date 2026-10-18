@@ -1,8 +1,10 @@
 extends SceneTree
 ## Creates the phase 11 backpack data (DESIGN.md 8.1): the items (Salve, Feast, Tonic, which used
 ## to be used the moment they were bought; Bomb, Smelling Salts, Key; treasure), the run's shop and
-## found lists, the charms (step 3: stones, bones, herbs, rotten ones) and the Bigger Pack, and the
-## glinting spots and chests in the run's zones. Only writes item files that do not exist yet, and only gives a zone
+## found lists, the curses (Rotting Heart, Grave Moss: events' prices) and the Bigger Pack, and the
+## glinting spots and chests in the run's zones. Phase 17 took the charms out (DESIGN.md 8.17): their
+## files are written as faded treasure nobody finds any more, kept so older saves still load (the
+## best charm ideas became Relics: tools/bootstrap_relics.gd). Only writes item files that do not exist yet, and only gives a zone
 ## spots or chests if it has none, so edits made in the editor are never overwritten. Every spot and
 ## chest is checked against the zone's walls and props (one the leader cannot reach is an error).
 ## Run headless:
@@ -16,8 +18,6 @@ const SPOT_CLEARANCE: float = 0.6
 const E := ItemData.Effect
 const K := ItemData.Kind
 const R := ItemData.Rarity
-const F := ItemData.Family
-const G := GearData.Effect
 
 ## Glinting spots per zone (x, z on the ground): off the straight way to the guard, so finding
 ## them means exploring a little.
@@ -68,26 +68,20 @@ func _init() -> void:
 	var square: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]
 	var pole: Array[Vector2i] = [Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2)]
 	var bend: Array[Vector2i] = [Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]
-	var charms: Array[ItemData] = [
-		_charm("ember_stone", "Ember Stone", "Power +5% for every hero.", 50, F.STONE, G.POWER, 5, one, R.COMMON),
-		_charm("iron_stone", "Iron Stone", "Enemy hits deal 5% less to every hero.", 50, F.STONE, G.TOUGH, 5, one, R.COMMON),
-		_booster("lodestone", "Lodestone", "Stone charms touching it work 50% better.", 90, F.STONE, 50, square),
-		_charm("knucklebone", "Lucky Knucklebone", "Gold from fights +10%.", 45, F.BONE, G.GOLD, 10, one, R.COMMON),
-		_charm("wolf_tooth", "Wolf Tooth", "Speed +5 for every hero.", 50, F.BONE, G.SPEED, 5, one, R.COMMON),
-		_booster("bone_totem", "Bone Totem", "Bone charms touching it work 50% better.", 90, F.BONE, 50, pole),
-		_charm("heartleaf", "Heartleaf", "Max HP +5% for every hero.", 50, F.HERB, G.MAX_HP, 5, one, R.COMMON),
-		_charm("wake_root", "Wake Root", "Every hero starts each fight with +1 AP.", 80, F.HERB, G.START_AP, 1, bend, R.RARE),
-		_booster("rain_pouch", "Rain Pouch", "Herb charms touching it work 50% better.", 80, F.HERB, 50, one),
+	var faded: Array[ItemData] = [
+		_faded("ember_stone", "Ember Stone", 50, one), _faded("iron_stone", "Iron Stone", 50, one),
+		_faded("lodestone", "Lodestone", 90, square), _faded("knucklebone", "Lucky Knucklebone", 45, one),
+		_faded("wolf_tooth", "Wolf Tooth", 50, one), _faded("bone_totem", "Bone Totem", 90, pole),
+		_faded("heartleaf", "Heartleaf", 50, one), _faded("wake_root", "Wake Root", 80, bend),
+		_faded("rain_pouch", "Rain Pouch", 80, one),
 	]
-	var heart := _charm("rotting_heart", "Rotting Heart", "Power +25% for every hero. Rotten: every hero loses 3% HP each turn.",
-			0, F.NONE, G.POWER, 25, one, R.RARE, 3)
-	var moss := _charm("grave_moss", "Grave Moss", "Every hero starts each fight with +2 AP. Rotten: every hero loses 2% HP each turn.",
-			0, F.HERB, G.START_AP, 2, wide, R.RARE, 2)
+	var heart := _curse("rotting_heart", "Rotting Heart", 3, one)
+	var moss := _curse("grave_moss", "Grave Moss", 2, wide)
 	var pack := _item("bigger_pack", "Bigger Pack", "The backpack gets one more row, at once.", 100, E.ADD_ROW, 0, one, 1,
 			K.UPGRADE, R.RARE, false, false)
 	var shop: Array[ItemData] = [salve, feast, tonic, bomb, salts, key, pack]
 	var found: Array[ItemData] = [salve, feast, tonic, bomb, salts, key, ring, gem, idol, heart, moss, pack]
-	found.append_array(charms)
+	found.append_array(faded)
 	run.shop_items = shop
 	run.found_items = found
 	_check(ResourceSaver.save(run, RUN_PATH), RUN_PATH)
@@ -121,42 +115,24 @@ func _item(id: String, title: String, desc: String, price: int, effect: ItemData
 	return ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE) as ItemData
 
 
-## A charm (DESIGN.md 8.1): gives every hero `amount` of `effect` while in the backpack. With
-## `rot` > 0 it is rotten.
-func _charm(id: String, title: String, desc: String, price: int, family: ItemData.Family, effect: GearData.Effect,
-		amount: int, shape: Array[Vector2i], rarity: ItemData.Rarity, rot: int = 0) -> ItemData:
+## A charm from before phase 17, now faded treasure (DESIGN.md 8.17): no effect, never found again
+## (find weight 0), only worth gold; kept so older saves that carry one still load.
+func _faded(id: String, title: String, price: int, shape: Array[Vector2i]) -> ItemData:
+	var item := _item(id, "Faded " + title, "An old charm. Its power faded when the Relics woke. Worth gold at a shop.",
+			price, E.NONE, 0, shape, 0, K.TREASURE, R.COMMON, false, false)
+	return item
+
+
+## A curse (DESIGN.md 8.1, 8.7): rotten, every hero loses `rot` percent HP each turn in fights while
+## it is carried; events give it as a price and a shop's Cleanse throws it away. Never found.
+func _curse(id: String, title: String, rot: int, shape: Array[Vector2i]) -> ItemData:
 	var path := "res://data/items/%s.tres" % id
 	if FileAccess.file_exists(path) and not _force:
 		return load(path) as ItemData
-	var item := ItemData.new()
-	item.id = id
-	item.display_name = title
-	item.description = desc
-	item.kind = K.CHARM
-	item.rarity = rarity
-	item.price = price
-	item.shape = shape
-	item.family = family
-	item.charm_effect = effect
-	item.charm_amount = amount
-	item.rotten = rot > 0
+	var item := _item(id, title, "A curse. Every hero loses %d%% HP each turn in fights while you carry it. " % rot
+			+ "A shop's Cleanse throws it away.", 0, E.NONE, 0, shape, 0, K.CURSE, R.RARE, false, false)
+	item.rotten = true
 	item.rot_percent = rot
-	item.find_weight = 2 if rot > 0 else (4 if rarity == R.COMMON else 3)
-	item.use_on_map = false
-	item.icon_path = ICONS + id + ".png"
-	_check(ResourceSaver.save(item, path), path)
-	return ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE) as ItemData
-
-
-## A booster charm: no bonus of its own; charms of `family` touching it work `percent` better.
-func _booster(id: String, title: String, desc: String, price: int, family: ItemData.Family, percent: int,
-		shape: Array[Vector2i]) -> ItemData:
-	var path := "res://data/items/%s.tres" % id
-	if FileAccess.file_exists(path) and not _force:
-		return load(path) as ItemData
-	var item := _charm(id, title, desc, price, family, G.POWER, 0, shape, R.RARE)
-	item.boost_family = family
-	item.boost_percent = percent
 	_check(ResourceSaver.save(item, path), path)
 	return ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE) as ItemData
 

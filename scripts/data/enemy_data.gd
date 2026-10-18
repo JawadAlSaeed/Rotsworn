@@ -65,6 +65,9 @@ enum TargetRule {
 @export_range(0, 10000) var xp: int = 20
 ## Sound cue for its voice (card #101): when it starts an attack, and quieter and higher when hit.
 @export var voice_sfx: String = ""
+## Relics this enemy can drop when a run fight against it is won (DESIGN.md 8.17): one of them, by
+## the tuning's relic_drop_percent chance per enemy beaten.
+@export var relic_drops: Array[GearData] = []
 ## Its hits always take their forced kinds (AttackHitData.forced_kind, card #187), even in an
 ## ordinary fight: the deep variants. Elite, guard and boss fights use them anyway.
 @export var forced_hits: bool = false

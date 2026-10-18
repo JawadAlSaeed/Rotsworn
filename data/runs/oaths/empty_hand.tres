@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="OathData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="1_msmo1"]
+
+[resource]
+script = ExtResource("1_msmo1")
+id = "empty_hand"
+title = "Oath of the Empty Hand"
+description = "Each hero has one Relic slot fewer all run."
+relic_slots_add = -1

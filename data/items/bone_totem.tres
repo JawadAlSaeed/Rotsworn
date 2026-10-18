@@ -5,15 +5,11 @@
 [resource]
 script = ExtResource("1_kik33")
 id = "bone_totem"
-display_name = "Bone Totem"
-description = "Bone charms touching it work 50% better."
-kind = 1
-rarity = 1
+display_name = "Faded Bone Totem"
+description = "An old charm. Its power faded when the Relics woke. Worth gold at a shop."
+kind = 3
 price = 90
 shape = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2)])
-find_weight = 3
+find_weight = 0
 use_on_map = false
-family = 2
-boost_family = 2
-boost_percent = 50
 icon_path = "res://assets/sprites/items/bone_totem.png"

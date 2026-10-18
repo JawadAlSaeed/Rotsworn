@@ -5,13 +5,10 @@
 [resource]
 script = ExtResource("1_28l28")
 id = "knucklebone"
-display_name = "Lucky Knucklebone"
-description = "Gold from fights +10%."
-kind = 1
+display_name = "Faded Lucky Knucklebone"
+description = "An old charm. Its power faded when the Relics woke. Worth gold at a shop."
+kind = 3
 price = 45
-find_weight = 4
+find_weight = 0
 use_on_map = false
-family = 2
-charm_effect = 12
-charm_amount = 10
 icon_path = "res://assets/sprites/items/knucklebone.png"

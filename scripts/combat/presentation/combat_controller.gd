@@ -1090,6 +1090,9 @@ func _summary_text() -> String:
 		text += "\n+%d gold" % _run.gold_for(_encounter)
 		if _drop != null:
 			text += "   Found: %s" % _drop.display_name
+		var relic_lines := _run.win_relic_lines(_encounter)
+		if not relic_lines.is_empty():
+			text += "\n" + "    ".join(relic_lines)
 		var xp := _run.fight_xp(_encounter, party_hp())
 		var parts := PackedStringArray()
 		var risen := false

@@ -25,8 +25,8 @@ const RARITY_NAMES: Array[String] = ["common", "rare", "legendary", "rot-touched
 const ROT_TOUCHED_STEP: int = 3
 ## Rotten items: a sickly green border, whatever their rarity.
 const ROTTEN_COLOR := Color(0.55, 0.85, 0.3)
+## The item the one in hand would combine into, and level marks: gold.
 const LINK_COLOR := Color(1.0, 0.82, 0.3)
-const LINK_PX: float = 7.0
 const LEVEL_FONT_SIZE: int = 26
 ## With no art: a plain frame this many pixels around the grid.
 const NO_ART_MARGIN: float = 24.0
@@ -38,8 +38,6 @@ var show_cursor: bool = true
 var held_item: ItemData
 var held_turn: int = 0
 var held_uid: int = -1
-## Gold links between charms that boost each other: [cell, cell] pairs side by side.
-var links: Array = []
 ## The item the one in hand would combine into (-1: none): drawn with a gold outline.
 var combine_into: int = -1
 var _visuals: CombatVisuals
@@ -115,12 +113,6 @@ func _draw() -> void:
 		if int(e.uid) == combine_into:
 			border = LINK_COLOR
 		_draw_item(item, int(e.x), int(e.y), int(e.turn), ORIGIN_ALPHA if lifted else 1.0, border, RunState.level_of(e))
-	for pair: Array in links:
-		# A gold bead on the shared edge of two cells.
-		var a := cell_pos(pair[0]) + Vector2(_cell, _cell) * 0.5
-		var b := cell_pos(pair[1]) + Vector2(_cell, _cell) * 0.5
-		draw_circle((a + b) * 0.5, LINK_PX, LINK_COLOR)
-		draw_circle((a + b) * 0.5, LINK_PX * 0.5, Color(1.0, 0.97, 0.8))
 	if held_item != null:
 		var fits := pack.fits(held_item, cursor.x, cursor.y, held_turn, held_uid) or combine_into >= 0
 		_draw_item(held_item, cursor.x, cursor.y, held_turn, HELD_ALPHA, FITS if fits else NO_FIT)

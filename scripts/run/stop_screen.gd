@@ -2,9 +2,9 @@ class_name StopScreen
 extends CanvasLayer
 ## What the run's newer stop screens share (events, treasure, the campfire; DESIGN.md 8.7 to
 ## 8.11): the gold and HP strip, and handing out what the party got. An item goes into the backpack
-## where it fits first; a bigger backpack is used at once; an item with no room, or a piece of gear
-## (always worn), opens the backpack over the screen with it in hand. Several gifts go one after
-## the other. Online, only the host hands things out (clients watch).
+## where it fits first; a bigger backpack is used at once; an item with no room, or a new Relic
+## nobody wears (DESIGN.md 8.17), opens the backpack over the screen with it in hand. Several gifts
+## go one after the other. Online, only the host hands things out (clients watch).
 
 ## Every gift is settled (the backpack closed again).
 signal gifts_settled
@@ -66,8 +66,15 @@ func _next_gift() -> void:
 	while not _gifts.is_empty():
 		var thing: Resource = _gifts.pop_front()
 		if thing is GearData:
-			_open_backpack("The %s. Who wears it?" % (thing as GearData).display_name, {"gear": thing})
-			return
+			# A Relic joins the run (a copy raises its level, DESIGN.md 8.17); a new or unworn one
+			# then asks who wears it.
+			var found := run.add_relic(thing as GearData)
+			_say(RunState.relic_find_text(found))
+			if not run.is_worn(thing as GearData):
+				_open_backpack("%s. Who wears it?" % RunState.relic_find_text(found), {"gear": thing})
+				return
+			Sfx.play("buff")
+			continue
 		var item := thing as ItemData
 		if item.kind == ItemData.Kind.UPGRADE:
 			run.add_item(item)

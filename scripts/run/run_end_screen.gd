@@ -1,6 +1,7 @@
 class_name RunEndScreen
 extends CanvasLayer
-## The end of a run (DESIGN.md 8): cleared or over, how far the party got, then the main menu.
+## The end of a run (DESIGN.md 8): cleared or over, how far the party got, the Relics it keeps
+## (8.17), then the main menu.
 
 signal done
 
@@ -28,6 +29,8 @@ func setup(run: RunState, input_guard_ms: int, unlocked_oath: int = 0, recap_lin
 				HudStyle.GOLD if won else HudStyle.LATE)
 		column.add_child(kept)
 	column.add_child(ListMenu.centred_label(summary(run), TEXT_SIZE))
+	# What the run found stays, won or lost (DESIGN.md 8.17).
+	column.add_child(ListMenu.centred_label(run.relic_gain_line(), RECAP_SIZE, HudStyle.GOLD))
 	for line: String in recap_lines:
 		column.add_child(ListMenu.centred_label(line, RECAP_SIZE))
 	if unlocked_oath > 0:

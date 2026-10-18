@@ -45,8 +45,8 @@ func _stop_in_row(run: RunState, row: int) -> int:
 
 # --- the data and the sums ------------------------------------------------------------------------
 
-func test_the_shipped_ladder_has_ten_oaths_in_order() -> void:
-	assert_eq(_data.oaths.size(), 10)
+func test_the_shipped_ladder_has_twelve_oaths_in_order() -> void:
+	assert_eq(_data.oaths.size(), 12)
 	var ids := {}
 	for oath: OathData in _data.oaths:
 		assert_not_null(oath)
@@ -56,6 +56,9 @@ func test_the_shipped_ladder_has_ten_oaths_in_order() -> void:
 		ids[oath.id] = true
 	assert_eq(_data.oaths[0].title, "Oath of Thorns")
 	assert_eq(_data.oaths[9].title, "Oath of Rot")
+	# Phase 17 (DESIGN.md 8.17): the top of the ladder bites into the Relics.
+	assert_eq(_data.oaths[10].relic_slots_add, -1, "Oath 11, the Empty Hand: one Relic slot fewer")
+	assert_eq(_data.oaths[11].echo_points_percent_add, -50, "Oath 12, Forgetting: half the Echo points")
 
 
 func test_modifiers_add_up_over_oaths_one_to_n() -> void:
@@ -92,7 +95,7 @@ func test_rule_lines_list_the_newest_first() -> void:
 func test_a_run_keeps_its_oath_inside_the_ladder() -> void:
 	assert_eq(_run(0).oath, 0)
 	assert_eq(_run(4).oath, 4)
-	assert_eq(_run(99).oath, 10, "capped at the ladder")
+	assert_eq(_run(99).oath, 12, "capped at the ladder")
 	assert_eq(_run(-3).oath, 0)
 
 
@@ -101,7 +104,9 @@ func test_fight_setup_at_oath_zero_is_the_plain_game() -> void:
 	var elite := plain.act_data().elites[0]
 	var setup := plain.fight_setup(elite, 1, CombatSetup.Opening.NORMAL)
 	assert_eq(setup.enemy_hp_percent, CombatMath.percent(plain.enemy_hp_percent(), _tuning.elite_hp_percent))
-	assert_eq(setup.enemy_power_percent, CombatMath.percent(plain.enemy_power_percent(), _tuning.elite_power_percent))
+	# Phase 17: the run's base enemy power (tuning enemy_power_base_percent) comes last.
+	assert_eq(setup.enemy_power_percent, CombatMath.percent(CombatMath.percent(plain.enemy_power_percent(),
+			_tuning.elite_power_percent), _tuning.enemy_power_base_percent))
 
 
 func test_oath_ten_makes_every_kind_of_fight_harder() -> void:
@@ -113,22 +118,24 @@ func test_oath_ten_makes_every_kind_of_fight_harder() -> void:
 	var boss := plain.final_encounter()
 	assert_true(guard.mini_boss and boss.boss and elite.elite)
 	# A plain enemy: only Rot's +10% power.
+	var base := _tuning.enemy_power_base_percent
 	var a := plain.fight_setup(normal, 1, CombatSetup.Opening.NORMAL)
 	var b := hard.fight_setup(normal, 1, CombatSetup.Opening.NORMAL)
 	assert_eq(b.enemy_hp_percent, a.enemy_hp_percent, "HP is untouched")
-	assert_eq(b.enemy_power_percent, CombatMath.percent(a.enemy_power_percent, 110))
+	assert_eq(b.enemy_power_percent, CombatMath.percent(CombatMath.percent(plain.enemy_power_percent(), 110), base))
 	# An elite: Thorns (+20 HP, +10 power points on the elite numbers) and Rot.
 	a = plain.fight_setup(elite, 1, CombatSetup.Opening.NORMAL)
 	b = hard.fight_setup(elite, 1, CombatSetup.Opening.NORMAL)
 	assert_eq(b.enemy_hp_percent, CombatMath.percent(plain.enemy_hp_percent(), _tuning.elite_hp_percent + 20))
-	assert_eq(b.enemy_power_percent, CombatMath.percent(
-			CombatMath.percent(plain.enemy_power_percent(), _tuning.elite_power_percent + 10), 110))
+	assert_eq(b.enemy_power_percent, CombatMath.percent(CombatMath.percent(
+			CombatMath.percent(plain.enemy_power_percent(), _tuning.elite_power_percent + 10), 110), base))
 	assert_gt(b.enemy_hp_percent, a.enemy_hp_percent)
 	# A guard counts as a boss: Crowns (+15% HP, +10% power) and Rot.
 	a = plain.fight_setup(guard, 1, CombatSetup.Opening.NORMAL)
 	b = hard.fight_setup(guard, 1, CombatSetup.Opening.NORMAL)
 	assert_eq(b.enemy_hp_percent, CombatMath.percent(a.enemy_hp_percent, 115))
-	assert_eq(b.enemy_power_percent, CombatMath.percent(CombatMath.percent(a.enemy_power_percent, 110), 110))
+	assert_eq(b.enemy_power_percent, CombatMath.percent(CombatMath.percent(CombatMath.percent(
+			plain.enemy_power_percent(), 110), 110), base))
 	# An act boss too.
 	a = plain.fight_setup(boss, 1, CombatSetup.Opening.NORMAL)
 	b = hard.fight_setup(boss, 1, CombatSetup.Opening.NORMAL)
@@ -247,7 +254,7 @@ func test_shops_charge_more_from_oath_two_but_pay_the_same_for_selling() -> void
 	want.gold = want.gear_price(gear) - 1
 	assert_false(want.can_buy_gear(gear))
 	want.gold = want.gear_price(gear)
-	assert_true(want.buy_gear(gear))
+	assert_false(want.buy_gear(gear).is_empty(), "a bought Relic joins the run")
 	assert_eq(want.gold, 0)
 	# The services cost more too.
 	want.gold = _tuning.shop_restock_price
@@ -283,7 +290,7 @@ func test_the_oath_survives_the_online_round_trip() -> void:
 
 func test_a_bad_oath_is_refused() -> void:
 	var good := _run(3).to_dict()
-	for bad: Variant in [-1, 11, "3", 2.5, null]:
+	for bad: Variant in [-1, 13, "3", 2.5, null]:
 		var d := good.duplicate(true)
 		d["oath"] = bad
 		assert_null(RunState.from_dict(_data, _tuning, d), "oath %s" % str(bad))
@@ -372,7 +379,7 @@ func test_a_waiting_client_shows_the_hosts_oath_but_cannot_change_it() -> void:
 	var lobby := LobbyScreen.new()
 	lobby.hero_portraits = _portraits()
 	lobby.oaths = _data.oaths
-	lobby.oath_unlocked = 10
+	lobby.oath_unlocked = 12
 	var roster := PlayerRoster.online(_names().size(), NetSession.HOST_PEER, 2)
 	lobby.setup_online(_names(), roster, false, [] as Array[String], 7777)
 	add_child_autofree(lobby)
@@ -381,4 +388,4 @@ func test_a_waiting_client_shows_the_hosts_oath_but_cannot_change_it() -> void:
 	lobby._step_oath(1, false)
 	assert_eq(lobby.oath(), 6, "only the host picks")
 	lobby.set_oath(99)
-	assert_eq(lobby.oath(), 10, "kept inside the ladder")
+	assert_eq(lobby.oath(), 12, "kept inside the ladder")

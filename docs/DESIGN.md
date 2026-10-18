@@ -1457,7 +1457,7 @@ re-renders it from the original canvas animation (the user's `dragonrot-intro/so
 browser at exactly 1920x1080, 60 fps, with its own WAV, Theora quality 10. The video and the logos
 are scaled smoothly (linear filter; the project's default is nearest, for pixel art).
 
-- **Main menu** (first screen, `MainMenu`): (Continue,) New Run, Online, Extras, Settings, Quit, with
+- **Main menu** (first screen, `MainMenu`): (Continue,) New Run, Online, Relics (8.17, phase 17), Extras, Settings, Quit, with
   no description line under the rows. Online and Extras open a second list in place (cancel or
   Back goes back): Online has Host Online and Join Online; Extras has Tutorial, Journal (7.11) and
   Credits. Practice (the tutorial card first, then the fight and zone list, full HP, nothing
@@ -1465,9 +1465,9 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   (`OS.is_debug_build()`: the editor and `run_game.bat`), never in the shared game. The cursor
   comes back on the last item picked (a row of Extras reopens that list). Card #150 (user,
   2026-10-15) kept it short; card #208 (user, 2026-10-17: "it feels a bit cluttery", "practice is
-  a dev thing") made it five rows.
+  a dev thing") made it five rows; phase 17 added Relics (six).
   In the corners, small and quiet like most games' title menus (card #210, user 2026-10-17):
-  bottom left the version, "v" and Project Settings' `application/config/version` (0.16.0, the
+  bottom left the version, "v" and Project Settings' `application/config/version` (0.17.0 since phase 17, the
   phase number; the same version the save check and the online handshake use, so raise it for a
   build friends play together); bottom right the studio's DragonRot wordmark
   (`assets/branding/dragonrot_logo.png`, cut from the studio intro by
@@ -1817,7 +1817,8 @@ area with visible roaming enemies and a forced fight at the end), rest, shop, bo
 Touching a roaming enemy starts a fight; striking it first gives an opening advantage.
 In zones the host moves the party and others follow (v1). In-run progression: levels and
 equipment with passive effects (like E33 Pictos). Loot goes to a shared pool; each item can be
-equipped by one character. No progression between runs in v1.
+equipped by one character. No progression between runs in v1 (phase 17 changes this: Relics and
+Echoes, 8.17).
 
 **Phase 4 decisions (user, 2026-10-12):**
 
@@ -1911,7 +1912,9 @@ counters for longer and mixed strings (2.5, card #52).
   `run_level_hp_percent` (8) to max HP and `run_level_power_percent` (8) to power, and heals what
   max HP grew. The fight's end screen shows "+N gold   +M XP   LEVEL UP!  Level L"; the status
   strip shows "Lv L".
-- **Gear** (#29, `GearData`, `data/gear/`): one passive per item, `run_gear_slots` (3) per
+- **Gear** (#29, `GearData`, `data/gear/`; since phase 17 these are Relics kept between runs, with
+  a stat line, levels and Echoes: 8.17, which replaces the buying, selling and loot rules here):
+  one passive per item, `run_gear_slots` (3) per
   character, one wearer per item, unworn gear in the shared bag. 13 items: Iron Charm (max HP
   +20%), Whetstone (power +15%), Quick Boots (speed +15), War Drum (+1 AP at fight start),
   Riposte Ring (counters +50%), Echo Charm (+1 AP after each counter), Leaping Heart (perfect jump
@@ -1939,6 +1942,17 @@ counters for longer and mixed strings (2.5, card #52).
   as the run's final fight.
 
 ### 8.1 Backpack and items (phase 11, plan agreed 2026-10-14)
+
+**Phase 17 change (card #240, user 2026-10-18): the charms are gone.** With Relics and Echoes (8.17)
+they were a third buff system. The backpack now holds supplies (Salve, Feast, Tonic, Bomb,
+Smelling Salts), keys, treasure and **curses**: the two rotten charms (Rotting Heart, Grave Moss)
+are now `ItemData.Kind.CURSE` items that only hurt (rot each turn in fights), given by events as a
+price and thrown away by a shop's Cleanse; nobody finds them. The nine other charms are "Faded"
+treasure (no effect, find weight 0) kept only so saves made before phase 17 still load. Their six
+best ideas became Relics (8.17). Shops sell no charms; they sell `run_shop_gear` (3) Relics instead
+of 2. The family boosts, the gold links on the grid and the charms line under the backpack are
+gone (the line now names the curses' rot). What follows is the phase 11 design; read "charm" there
+as history.
 
 User picks: the backpack holds things and charms (placement matters); shop potions go into the
 backpack; roaming monsters sometimes drop small things; gear never goes into the backpack; in
@@ -2734,6 +2748,8 @@ oath", and a run at Oath N is that oath kept.
   | 8 | Silence | only half of the team gauge carries into the next fight |
   | 9 | the Long Road | the heal between acts is 25 points of percent less (50% becomes 25%) |
   | 10 | Rot | every enemy +10% power |
+  | 11 | the Empty Hand | one Relic slot fewer per hero all run, never under one (phase 17, 8.17) |
+  | 12 | Forgetting | heroes get half the Echo points (phase 17, 8.17) |
 
   The run's start gold is 0 in `tuning.tres`, so "start with nothing" did nothing; Want cuts the gold
   coming in instead (`gold_percent_add`, in `RunState.gold_for`, after charms, gear and the elite
@@ -2832,6 +2848,125 @@ upgrade to take blindly.
   `max_hp_percent`, which is already in the run save.
 - Tests: `tests/unit/test_rot_gear.gd` (each new passive in the engine, each piece's numbers and
   drawback on the run side, spoils, shops, the bot, the Tonic fix, determinism, saving).
+
+### 8.17 Relics and Echoes (phase 17, cards #212 to #220, built 2026-10-18, waiting for playtest)
+
+The user's idea: make Rotsworn a roguelite and keep it hard. The run's gear became **Relics** the
+player keeps forever (Expedition 33's Pictos, renamed), and a Relic worn for a few won fights
+teaches its **Echo** (E33's Lumina, renamed) for the rest of that run only. Only the Relics and
+their levels carry over; every run learns its Echoes again from zero (user pick, 2026-10-18). This
+replaces "nothing carries over between runs" (#139, 2026-10-14). The rule behind every number:
+Relics give more choices, not just more power; the oaths keep the game hard. Every number is a
+first guess in `tuning.tres` (group "Relics and Echoes") or the Relic's own file; tune from play.
+In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the names from before).
+
+- **Relics** (`GearData`, `data/gear/`): the 25 gear pieces (8 Part B, 8.16) are the first Relics;
+  the 12 rot-touched ones keep their drawbacks. New fields (group "Relic"): `stat` (an attribute),
+  `stat_points` at level 1 and `stat_points_per_level` (1), and `echo_cost`. Common Relics give 2
+  points, rare 3, legendary 4; Echoes cost 1, 2 and 3 by rarity. The stat line counts on top of the
+  points a hero spent (`RunState.attribute_total`, `relic_stat`), so it reaches max HP, power,
+  speed, Defense and crits like spent points. The Echo Charm is now the **Rebound Charm** (its id
+  stays `echo_charm`). `tools/bootstrap_relics.gd` writes the stat lines, costs and drops.
+- **The collection** (`RelicCollection`, `scripts/relics/`, pure, tested): Relic id -> level, and
+  each hero's picks (the Relics they bring into the next run, in order). `RelicFile` keeps it in
+  `user://progress.json` (versioned, written to a temp file first, `.bak` kept, a load falls back to
+  it; a file of another version is left alone). Taking a run in (`merge`, `RelicFile.bank`) keeps
+  the higher level of each Relic, so banking twice changes nothing.
+- **A run** (`RunState`): `relics` (id -> level: the collection's at the start plus what the run
+  finds), `relic_picks`, `guards_beaten`, `mastery` (id -> points this run) and `echoes` (per hero,
+  the Echoes worn), all in `to_dict` (saved and sent online). A save from before phase 17 still
+  loads: what it wears joins at level 1 and its slots count one guard beaten. `RunState.begin`
+  takes the collection; online clients get the host's run state instead.
+- **Where Relics come from**: every monster lists `EnemyData.relic_drops` (2 or 3 Relics; the deep
+  monsters, guards and bosses the rare and legendary ones; every Relic is dropped by someone). A won
+  run fight gives each beaten enemy with drops a `relic_drop_percent` (10%) chance of one of them,
+  seeded by the stop, the fights won and the stops visited (`RunState.relic_drops`), so the end
+  screen (`win_relic_lines`), the run and every machine agree. Spoils (guards, elites, bosses) are
+  still "pick 1 of 3", now of Relics that are new or below their top level; shops sell 2 and chests
+  hold them the same way. A copy weighs `relic_copy_weight_percent` (50%) of a new Relic in those
+  picks, so new ones turn up more. The spoils screen tags each choice "New" or "Lv 1 > 2".
+- **Relic levels** (`RunState.add_relic`): a new Relic joins at level 1, a copy raises its level up
+  to `relic_max_level` (5), a copy past that pays `relic_spare_gold` (30) gold. Nothing is ever sold:
+  a Relic taken off, or one nobody wears, waits in the run's Relics.
+- **Slots open during a run** (`open_relic_slots`): `relic_slots_start` (1) at the start, one more
+  after the first guard, one more after act 1's boss (never past `run_gear_slots`, 3). As a slot
+  opens each hero puts on the next Relic they were set to bring (`relic_picks`). A shut slot shows
+  "(locked)" and says what opens it.
+- **Mastery, per run**: E33's "win 4 battles" kept inside the run. Every worn Relic gets points per
+  won fight: `mastery_fight` (1), `mastery_elite` (2), `mastery_guard` (3), `mastery_boss` (5); at
+  `mastery_needed` (4) its Echo is learned until the run ends. Lost or escaped fights teach nothing.
+  The fight's end screen says "Echo learned: X".
+- **Echoes**: a learned Relic's effect (and a rot-touched one's price) without its stat line, worn
+  by any hero (`set_echo`, `effect_sources`). Each hero has `echo_start_points` (0) plus
+  `echo_points_per_level` (1) per level up; an Echo costs its `echo_cost`. An Echo of a Relic the
+  hero also wears counts once (putting the Relic on takes its Echo off). Echoes, their bars and the
+  points start over every run; the backpack, skills, attributes and gold reset as before.
+- **Screens** (user, 2026-10-18: "it should look similar to Expedition 33" for Pictos and Lumina):
+  - **The Relics page** (`RelicsScreen`, `scripts/menu/`), like E33's Pictos page. Left: every Relic
+    as a slanted card in two columns (its diamond, name, "Lv" and level, and a small face of the hero
+    who has it; cards on the shown hero in purple), sorted by level, name or rarity (X / R, a button
+    chip in the header with "Found N of 25"). Right: the hero's face and name (LB / RB changes hero)
+    and their three slots as big cards (big diamond, name, stat line, level, and the Relic's text).
+    Under the grid: everything about the Relic under the cursor. Up / down picks a slot, Confirm
+    opens the grid for it, Confirm in the grid puts the Relic on (one another hero has moves over),
+    X / R takes it off, Back goes back to the slots. From the main menu's **Relics** row the slots
+    are what each hero brings into the next run (each slot says when it goes on; Relics not found
+    yet show as "???" with the monsters that drop them). From the **party screen** (Confirm on an
+    open Relic slot, or Y on the map, then a slot) the slots are what the hero wears now: locked ones
+    say what opens them and each card shows its Echo's progress ("Echo 2 / 4", "Echo learned").
+  - **The Echoes page** (`EchoesScreen`, the Echoes button on a hero card), like E33's Lumina page.
+    Left: tabs All, Offensive, Defensive, Support (LT / RT; `GearData.category()` from the effect),
+    the sort (X / R: name or cost), and the learned Echoes in three columns, each with its diamond and
+    cost (purple while this hero wears it, dim while they cannot); under them the Echo under the
+    cursor (what it does, who wears it, why it cannot go on) and what the worn Relics are still
+    learning. Right: the hero (LB / RB), their combat stats (Health, Attack Power, Speed, Critical
+    Rate, Defense), their attributes as a radar (`AttributeRadar`, with the Relics' stat lines), the
+    Echoes they wear and the big "Available Echo Points" box. Confirm puts an Echo on or takes it off.
+  - **The diamonds** (`RelicIcon`, `scripts/relics/`): a dark diamond edged in the Relic's rarity
+    colour (violet for rot-touched) with its picture (`GearData.icon_path`) or, until it has one, a
+    drawn sign for its category (a blade, a shield, a star); "?" for a Relic not found yet.
+  - On the party screen the info box also shows the worn Relic (stat line, Echo progress) or what
+    opens a locked slot, under the cursor; X / R still picks a worn Relic up to swap it.
+  The run's end screen says what the run keeps, won or lost ("Relics kept forever. New: ... Up a
+  level: ...", `RunState.relic_gain_line`, from `relics_at_start`, which the run save keeps).
+- **Reset progress** (Settings > Game, main menu only, asks twice): deletes the Relic file, sets the
+  unlocked oaths back to none (`PlayerSettings.reset_oath_unlocks`) and deletes a saved run.
+  Settings, controls and the Journal stay. A dev screen never wipes anything.
+- **Banking and Save & Quit**: Main banks the run's Relics when the map shows (the run saves), when a
+  stop settles something (`_save_stop_progress`), and when the run ends (won, lost or abandoned).
+  Quitting and continuing a stop replays it from its saved state, and the merge keeps the higher
+  level, so it can never farm a copy. Mastery and Echoes are run state, saved with the run.
+- **Online**: everyone plays with the host's collection (user pick: simpler); only the host banks,
+  so a client's own collection does not grow online. New ops (any player): `wear` (a Relic the run
+  has, into an open slot), `take_off`, `echo` (`slot`, `relic`, `on`).
+- **Harder runs**: every enemy in a run fight has `enemy_power_base_percent` (105) power (practice
+  fights keep their data), and two oaths top the ladder (8.15): **the Empty Hand** (Oath 11,
+  `OathData.relic_slots_add` -1: one Relic slot fewer all run, never under one) and **Forgetting**
+  (Oath 12, `echo_points_percent_add` -50: half the Echo points).
+- **Tutorial**: lesson 6, "Relics" and "Echoes", two cards to read at the end of the tutorial fight
+  (goal `read`, `TutorialGoals.READ`: the fight stays paused and closing the card moves on). The
+  interactive hit-type lessons of card #206 come later.
+- **Bots** never read or write the player's Relic file (like the oaths and the Journal): a bot run
+  starts with no Relics, `--relics=all` gives every Relic at its top level (balance runs),
+  `--relics-path=PATH` lets a bot use and bank into its own file. The bot wears the Echoes it can,
+  cheapest first, passing over prices GearBot refuses (`RunState.auto_echoes`). The
+  `AUTOPLAY_RESULT run_...` line ends with `relics=N echoes=M`. `--screen=relics`,
+  `--screen=echoes` and `--screen=party_relics` (the Relics page in a run) open those pages on
+  samples (for pictures).
+- **Relics from the old charms** (card #240, user 2026-10-18: the backpack's charms were a third
+  buff system, 8.1): six Relics with effects no Relic had (or a rot-touched price), 31 Relics in all,
+  each dropped by monsters like the others (`tools/bootstrap_relics.gd` writes them):
+
+  | Relic | Rarity | Effect | Stat line | Echo |
+  |---|---|---|---|---|
+  | Heartleaf | common | healing received +25% | Vitality +2 | 1 |
+  | Wake Root | rare | +1 AP per parry | Agility +3 | 2 |
+  | Ember Stone | common | critical hits +10% | Luck +2 | 1 |
+  | Rain Pouch | common | the campfire's Rest heals the wearer 50% more | Vitality +2 | 1 |
+  | Black Ichor | rare, rot-touched | power +25%, lose 3% max HP each turn | Might +3 | 2 |
+  | Gravebloom | rare, rot-touched | +2 AP at fight start, lose 2% max HP each turn | Agility +3 | 2 |
+- Tests: `tests/unit/test_relics.gd`.
+- **Later**: more Relics (E33 has close to 200; 31 is a start), so drops stay exciting.
 
 ---
 
@@ -3132,6 +3267,14 @@ upgrade to take blindly.
     hit-stop fix, pad-drop pause, rebinding (6), Flashes setting, defeat recap, resuming music, the
     Rot Journal, ground textures and event pictures (5.4), build fingerprint and release-build
     switches, voice pool and limiter.
+17. **Relics and Echoes** (built 2026-10-18, waiting for playtest; branch `worktree-phase17-Relics`,
+    cards #212 to #220): the run's gear became Relics kept forever (stat lines, levels from copies,
+    drops from every monster), wearing a Relic teaches its Echo for that run only (Echo points from
+    level ups), Relic slots that open during a run, the main menu's Relics screen and the Echoes
+    screen, Reset progress, +5% enemy power and Oaths 11 and 12, and a tutorial lesson (8.17).
+    After the first playtest (user loved it): the Relics and Echoes pages restyled like E33's
+    Pictos and Lumina pages, and the backpack's charms removed, six of their ideas becoming
+    Relics (card #240, 8.1).
 
 ### 11.1 To-do (from playtests)
 
@@ -3340,3 +3483,6 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
 | 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |
 | 2026-10-17 | A saved run is continued by any build that can read it (no content check); only the save format version and RunState's own checks decide | card #208 playtest: one data change (the menu logo) hid the run again; the game changes almost daily |
+| 2026-10-18 | Rotsworn becomes a roguelite: monsters drop Relics (E33's Pictos, renamed; the run's 25 gear pieces become the first ones) kept forever on the machine; a copy levels a Relic; wearing a Relic for about 4 won fights (bigger fights count more) teaches its Echo (E33's Lumina, renamed) for that run only, and Echoes, their bars and Echo points (from level ups) all start over every run; Relic slots open during a run (1, then after the first guard, then after act 1's boss); online uses the host's Relics; enemies +5% power and two Relic oaths (11 the Empty Hand, 12 Forgetting); Reset progress in Settings | user idea and picks (names Relics and Echoes, Echoes learned again every run, only Relics and their levels stay, host's Relics online); replaces "nothing carries over" (#139); more choices, not more power, so the oaths keep it hard (8.17) |
+| 2026-10-18 | The Relics and Echoes pages look like Expedition 33's Pictos and Lumina pages (card grid and big slot cards; tabs, costs, stats, attribute radar and points), with drawn diamond icons until real pictures | user playtest: "make the menuing bearable, similar to Expedition 33" (8.17) |
+| 2026-10-18 | The backpack's charms are removed: six of their ideas became Relics (31 in all), the rotten ones are curses that only hurt, the rest are faded treasure for older saves; shops sell 3 Relics | user pick (option A) after asking whether a backpack is too much with Relics and Echoes: charms were a third buff system; supplies, keys and curses still give real choices (card #240, 8.1) |

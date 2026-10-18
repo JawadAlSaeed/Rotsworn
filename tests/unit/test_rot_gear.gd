@@ -18,12 +18,14 @@ var _tuning: Tuning
 
 
 func before_all() -> void:
-	_data = load(RUN_PATH) as RunData
+	# Relics without their stat lines (phase 17), so each test sees only the piece's own numbers.
+	_data = Fx.without_relic_stats(load(RUN_PATH) as RunData)
 	_tuning = load("res://data/tuning/tuning.tres") as Tuning
 
 
+## A run with every Relic slot open (the slots have their own tests in test_relics.gd).
 func _run(seed_value: int = 7) -> RunState:
-	return RunState.begin(_data, _tuning.duplicate(true) as Tuning, seed_value)
+	return RunState.begin(_data, Fx.all_slots(_tuning), seed_value)
 
 
 func _piece(id: String) -> GearData:
@@ -382,22 +384,16 @@ func test_spoils_always_offer_a_rot_touched_piece_among_their_choices() -> void:
 			assert_eq(run.loot_choices(int(stop.id)), loot, "the same stop offers the same loot")
 
 
-func test_spoils_skip_rot_touched_gear_the_party_wears_and_run_out_gracefully() -> void:
+func test_spoils_skip_rot_touched_relics_at_their_top_level_and_run_out_gracefully() -> void:
 	var run := _run()
 	var stop := int(run.choices()[0])
+	# A copy of a Relic at its top level would only be gold (DESIGN.md 8.17): never offered.
 	for item: GearData in _rot_pieces():
-		var free := run.free_gear_slot(0)
-		if free < 0:
-			break
-		run.wear(0, free, item)
-	for slot: int in range(1, run.party_size()):
-		for item: GearData in _rot_pieces():
-			if not run.owns(item) and run.free_gear_slot(slot) >= 0:
-				run.wear(slot, run.free_gear_slot(slot), item)
+		run.relics[item.id] = run.tuning.relic_max_level
 	var loot := run.loot_choices(stop)
 	for item: GearData in loot:
-		assert_false(run.owns(item), "worn gear is not offered again")
-	assert_eq(loot.size(), _tuning.run_loot_choices, "ordinary gear fills the choices")
+		assert_false(item.rot_touched, "maxed rot-touched Relics are not offered again")
+	assert_eq(loot.size(), _tuning.run_loot_choices, "ordinary Relics fill the choices")
 
 
 func test_a_single_spoils_choice_is_never_forced_to_be_rot_touched() -> void:
@@ -467,19 +463,22 @@ func test_the_bot_takes_a_bearable_rot_touched_piece_and_refuses_a_costly_one() 
 	assert_eq(GearBot.pick(none), 0)
 
 
-func test_the_bot_sells_rot_touched_gear_it_refuses_instead_of_wearing_it() -> void:
+func test_the_bot_leaves_rot_touched_gear_it_refuses_unworn() -> void:
 	var run := _run()
+	run.add_relic(_piece("rotten_crown"))
+	var gold := run.gold
 	var screen := PartyScreen.new()
 	add_child_autofree(screen)
 	screen.setup(run, "", {"gear": _piece("rotten_crown")})
 	screen.auto_settle()
-	assert_false(run.owns(_piece("rotten_crown")), "refused: sold on the spot")
-	assert_gt(run.gold, 0)
+	assert_false(run.is_worn(_piece("rotten_crown")), "refused: not worn")
+	assert_true(run.owns(_piece("rotten_crown")), "a Relic is kept, never sold (DESIGN.md 8.17)")
+	assert_eq(run.gold, gold)
 	var other := PartyScreen.new()
 	add_child_autofree(other)
 	other.setup(run, "", {"gear": _piece("ash_veil")})
 	other.auto_settle()
-	assert_true(run.owns(_piece("ash_veil")), "bearable: worn")
+	assert_true(run.is_worn(_piece("ash_veil")), "bearable: worn")
 
 
 # --- the Tonic fix ------------------------------------------------------------------------------

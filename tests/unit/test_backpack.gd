@@ -3,11 +3,13 @@ extends GutTest
 ## free place is found with any turn; items move, go and come back the same as plain data; the
 ## run's ops (move, drop, use, gear swaps) work and refuse what no longer fits; finds and drops are
 ## seeded; the shipped items, icons and glinting spots are sound; the party screen settles what is
-## in hand. Uses the shipped run with Tuning.new() for the rules.
+## in hand. Uses the shipped run with Tuning.new() for the rules (every Relic slot open: the slots
+## have their own tests in test_relics.gd).
 
+const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 
-var _tuning := Tuning.new()
+var _tuning := Fx.all_slots()
 var _data: RunData
 
 
@@ -165,7 +167,12 @@ func test_shipped_items_are_sound() -> void:
 		if not item.rotten:
 			assert_gt(item.price, 0, "%s has a price" % item.id)
 	for item: ItemData in _data.found_items:
-		assert_gt(item.find_weight, 0, "%s can be found" % item.id)
+		# Curses come only from events, and the faded charms (phase 17) only from older saves.
+		var never_found := item.is_curse() or (item.kind == ItemData.Kind.TREASURE and item.display_name.begins_with("Faded "))
+		if never_found:
+			assert_eq(item.find_weight, 0, "%s is never found" % item.id)
+		else:
+			assert_gt(item.find_weight, 0, "%s can be found" % item.id)
 
 
 func test_zone_spots_stand_where_the_leader_can_reach() -> void:
@@ -187,7 +194,7 @@ func _check_spots(zone: ZoneData) -> void:
 
 # --- the party screen -------------------------------------------------------------------------
 
-func test_new_gear_in_hand_is_worn_or_sold() -> void:
+func test_a_new_relic_in_hand_is_worn_by_someone_with_room() -> void:
 	var run := _run()
 	var screen := PartyScreen.new()
 	add_child_autofree(screen)
@@ -195,7 +202,7 @@ func test_new_gear_in_hand_is_worn_or_sold() -> void:
 	assert_true(screen.holding_new())
 	screen.auto_settle()
 	assert_false(screen.holding_new())
-	assert_true(run.owns(run.data.gear[0]), "worn by someone with room")
+	assert_true(run.is_worn(run.data.gear[0]), "worn by someone with room")
 
 
 func test_a_find_with_no_room_is_left_behind() -> void:
@@ -261,7 +268,7 @@ func test_zones_have_reachable_chests() -> void:
 		assert_gt(most, 0, "%s has a locked chest on some visits" % layout.id)
 
 
-# --- step 3: charms, neighbours, rot, combining, a bigger backpack -----------------------------
+# --- step 3: curses, rot, combining, a bigger backpack (charms are gone since phase 17) ----------
 
 func _item_of(run: RunState, id: String) -> ItemData:
 	return run.items_by_id()[id] as ItemData
@@ -277,27 +284,32 @@ func test_items_touch_side_by_side_not_by_corners() -> void:
 	assert_false(pack.touching(a).has(corner), "corners do not touch")
 
 
-func test_charms_help_every_hero_and_boosters_make_touching_ones_stronger() -> void:
+func test_old_charms_are_faded_treasure_that_does_nothing_and_is_never_found() -> void:
 	var run := _run()
 	var power_before := run.power_percent(0)
-	var ember := run.place_item(_item_of(run, "ember_stone"), 0, 0, 0)
-	assert_eq(run.power_percent(0), power_before + 5)
-	assert_eq(run.power_percent(2), run.power_percent(0), "every hero")
-	run.place_item(_item_of(run, "lodestone"), 1, 0, 0)
-	assert_eq(run.charm_boost(ember), 50, "the lodestone touches it")
-	assert_eq(run.charm_value(ember), CombatMath.percent(5, 150))
-	run.place_item(_item_of(run, "heartleaf"), 3, 0, 0)
-	assert_eq(run.charm_boost(run.backpack.uid_at(Vector2i(3, 0))), 0, "a lodestone only boosts stones")
-	var gold_charm := run.place_item(_item_of(run, "knucklebone"), 0, 4, 0)
+	var max_before := run.max_hp(0)
 	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
-	assert_eq(run.gold_for(husk), CombatMath.percent(RunState.encounter_gold(husk), 100 + run.charm_value(gold_charm)),
-			"a gold charm counts once for the party")
+	var gold_before := run.gold_for(husk)
+	for id: String in ["ember_stone", "iron_stone", "lodestone", "knucklebone", "wolf_tooth", "bone_totem", "heartleaf",
+			"wake_root", "rain_pouch"]:
+		var item := _item_of(run, id)
+		assert_eq(item.kind, ItemData.Kind.TREASURE, "%s is treasure now (DESIGN.md 8.17)" % id)
+		assert_eq(item.find_weight, 0, "%s is never found again" % id)
+		assert_gt(item.price, 0, "%s still sells" % id)
+		run.add_item(item)
+	assert_eq(run.power_percent(0), power_before, "no buff from the backpack any more")
+	assert_eq(run.max_hp(0), max_before)
+	assert_eq(run.gold_for(husk), gold_before)
 
 
-func test_rotten_charms_drain_in_fights_and_never_sell() -> void:
+func test_curses_drain_in_fights_and_never_sell() -> void:
 	var run := _run()
-	var heart := run.place_item(_item_of(run, "rotting_heart"), 0, 0, 0)
+	var curse := _item_of(run, "rotting_heart")
+	assert_true(curse.is_curse() and curse.rotten)
+	var power_before := run.power_percent(0)
+	var heart := run.place_item(curse, 0, 0, 0)
 	assert_eq(run.rot_percent(), 3)
+	assert_eq(run.power_percent(0), power_before, "a curse only hurts")
 	var setup := run.fight_setup(load("res://data/encounters/husk_fight.tres") as EncounterData, 3,
 			CombatSetup.Opening.FIRST_STRIKE)
 	assert_eq(int(setup.party_passives[0].get(Passive.ROT, 0)), 3)
@@ -376,14 +388,15 @@ func test_a_bigger_pack_adds_a_row_up_to_the_max() -> void:
 	assert_eq(run.backpack.rows, _tuning.backpack_max_rows)
 
 
-func test_shops_sell_charms_but_never_rotten_ones() -> void:
+func test_shops_and_finds_never_offer_curses_or_faded_charms() -> void:
 	var run := _run()
 	for stop: int in 30:
-		var charms := run.shop_charms(stop)
-		assert_eq(charms.size(), _tuning.run_shop_charms)
-		for item: ItemData in charms:
-			assert_true(item.is_charm())
-			assert_false(item.rotten)
+		for item: ItemData in run.shop_stock(stop):
+			assert_false(item.is_curse(), "no curse on the shelves")
+			assert_ne(item.find_weight == 0 and item.kind == ItemData.Kind.TREASURE, true, "no faded charm on the shelves")
+	for item: ItemData in run.data.found_items:
+		if item.is_curse():
+			assert_eq(item.find_weight, 0, "%s: curses come only from events" % item.id)
 
 
 func test_every_backpack_art_size_exists() -> void:

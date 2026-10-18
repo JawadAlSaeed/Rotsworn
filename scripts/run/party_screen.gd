@@ -2,22 +2,25 @@ class_name PartyScreen
 extends CanvasLayer
 ## The party screen and the shared backpack (DESIGN.md 8.1), opened with Tab / Y from the map or a
 ## zone, after a guard's loot, and from a shop. Left: every hero, one card each (stats and the
-## gear they wear), and what the cursor is on. Right: the backpack. The cursor moves between the
-## gear slots and the grid. Confirm on gear picks it up to put on another slot or hero (swapping);
+## Relics they wear, DESIGN.md 8.17), and what the cursor is on. Right: the backpack. The cursor
+## moves between the Relic slots and the grid. Confirm on a Relic slot opens the Relics page
+## (RelicsScreen) to choose what to wear there; X / R on a worn Relic picks it up to put on another
+## slot or hero (swapping). Slots the run has not opened yet are locked and say what opens them.
 ## Confirm on an item opens Use / Move / Sell (in a shop) / Throw away; Use on one hero moves the
 ## cursor to the hero cards to pick who. X / R picks an item straight up to move it and puts it
 ## down again; LB / RB (Z / C) turn the item in hand. It goes down where it fits, or onto the same item to combine them into a
-## stronger one. Charms that boost each other show a gold link where they touch. Gear never goes
-## into the backpack.
-## The screen can open with something new in hand (loot, a find that did not fit): new gear must
-## be worn (a full slot sells what was there) or sold; a new item placed, swapped with the one item
-## it covers, or left behind. Online, a client's changes go to the host as RunState ops
-## (op_requested); the host's run state comes back and refresh() redraws.
-## Each hero card ends in two buttons after the gear slots (user request 2026-10-15): Attributes
-## (DESIGN.md 8.2) and Skills (8.4, heroes with a tree), each showing the points left to spend;
-## Confirm on one opens that screen for the hero (T / K still work as shortcuts). The info box
-## under the cards only shows while it has something to say: an item menu, picking who to use an
-## item on, something in hand, or the backpack item under the cursor.
+## stronger one. Relics never go into the backpack; since phase 17 it holds supplies (potions,
+## bombs), keys, treasure and curses (DESIGN.md 8.1, 8.17).
+## The screen can open with something new in hand (loot, a find that did not fit): a new Relic is
+## worn (what was in that slot goes back to the run's Relics) or left in the Relics; a new item
+## placed, swapped with the one item it covers, or left behind. Online, a client's changes go to the
+## host as RunState ops (op_requested); the host's run state comes back and refresh() redraws.
+## Each hero card ends in buttons after the Relic slots (user request 2026-10-15): Attributes
+## (DESIGN.md 8.2), Skills (8.4, heroes with a tree) and Echoes (8.17), each showing the points left
+## to spend; Confirm on one opens that screen for the hero (T / K still work as shortcuts). The info box
+## under the cards only shows while it has something to say: an item menu, picking who to
+## use an item on, something in hand, the backpack item under the cursor, or the worn Relic (stat
+## line, Echo progress) or locked slot (what opens it) under the cursor.
 
 signal done
 ## A new item in hand was left behind (it is not in the backpack).
@@ -48,7 +51,9 @@ const BUTTON_GAP: int = 18
 const SLOT_PAD_X: int = 6
 const EMPTY_TEXT := "(empty)"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
-const CHARM_LINE_WIDTH: float = 520.0
+const CURSE_LINE_WIDTH: float = 520.0
+## A locked Relic slot's text.
+const LOCKED_TEXT := "(locked)"
 
 ## Choosing who gets an item (the uid; -1: not choosing): the cursor is on the hero cards.
 var _use_uid: int = -1
@@ -74,8 +79,8 @@ var _info_panel: PanelContainer
 var _info_title: Label
 var _info: Label
 var _pack_label: Label
-## What the charms in the backpack add up to (and the rot), under the backpack's title.
-var _charm_label: Label
+## The curses' rot, under the backpack's title.
+var _curse_label: Label
 var _grid: BackpackGrid
 var _menu: ListMenu
 ## Choices of the open item menu: [kind, slot] pairs ("use", "move", "drop", "cancel").
@@ -86,6 +91,10 @@ var _hint: HintBar
 var _attrs: AttributesScreen
 ## The skills screen (heroes with a skill tree, DESIGN.md 8.4) while it is open over this one.
 var _skills: SkillsScreen
+## The Echoes screen (DESIGN.md 8.17) while it is open over this one.
+var _echoes: EchoesScreen
+## The Relics page (DESIGN.md 8.17) while it is open over this one.
+var _relics: RelicsScreen
 
 
 ## `note`: a line at the top (for example what was just found). `held`: something new in hand,
@@ -139,6 +148,10 @@ func refresh() -> void:
 		_attrs.refresh()
 	if _skills != null:
 		_skills.refresh()
+	if _echoes != null:
+		_echoes.refresh()
+	if _relics != null:
+		_relics.refresh()
 
 
 ## Something new is in hand (loot, a find, a swap).
@@ -147,8 +160,9 @@ func holding_new() -> bool:
 			or (_held.kind == "item" and int(_held.uid) < 0))
 
 
-## The bot (and tests): settles what is in hand the simple way. New gear goes on whoever has the
-## most free slots (or is sold when nobody has room); a new item goes wherever it fits (or is left).
+## The bot (and tests): settles what is in hand the simple way. A new Relic goes on whoever has the
+## most free open slots (or waits in the Relics when nobody has room); a new item goes wherever it
+## fits (or is left).
 func auto_settle() -> void:
 	if _held.is_empty():
 		return
@@ -156,15 +170,16 @@ func auto_settle() -> void:
 		var best := -1
 		var free := 0
 		for slot: int in _run.party_size():
-			var empty := _run.gear[slot].count(null)
+			var empty := 0
+			for g: int in _run.open_relic_slots():
+				if _run.gear[slot][g] == null:
+					empty += 1
 			if empty > free:
 				best = slot
 				free = empty
-		# The bot passes over rot-touched gear whose price it cannot bear (GearBot).
+		# The bot passes over rot-touched Relics whose price it cannot bear (GearBot).
 		if best >= 0 and GearBot.score(_held.item as GearData) >= 0:
 			_run.wear(best, _run.free_gear_slot(best), _held.item as GearData)
-		else:
-			_run.sell_new_gear(_held.item as GearData)
 	elif int(_held.uid) < 0 and _run.add_item(_held.item as ItemData) < 0:
 		left_behind.emit(_held.item as ItemData)
 	_held = {}
@@ -255,7 +270,7 @@ func _build_card(slot: int) -> Control:
 	gap.custom_minimum_size.x = BUTTON_GAP
 	slots_row.add_child(gap)
 	var buttons: Array[Label] = []
-	for i: int in (2 if _run.has_tree(slot) else 1):
+	for i: int in _button_kinds(slot).size():
 		var button := HudStyle.make_label("", CARD_TEXT_SIZE)
 		button.custom_minimum_size.x = BUTTON_WIDTH
 		button.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -265,14 +280,24 @@ func _build_card(slot: int) -> Control:
 	return panel
 
 
-## The card cursor's place of the Attributes button (the Skills button is the next one).
+## The buttons at the end of hero `hero`'s card, in order: "attributes", "skills" (with a tree),
+## "echoes".
+func _button_kinds(hero: int) -> Array[String]:
+	var kinds: Array[String] = ["attributes"]
+	if _run.has_tree(hero):
+		kinds.append("skills")
+	kinds.append("echoes")
+	return kinds
+
+
+## The card cursor's place of the first button (Attributes; the others follow).
 func _attributes_slot() -> int:
 	return _run.tuning.run_gear_slots
 
 
-## The last place on hero `hero`'s card: their Skills button, or Attributes without a tree.
+## The last place on hero `hero`'s card: their last button.
 func _last_slot(hero: int) -> int:
-	return _attributes_slot() + (1 if _run.has_tree(hero) else 0)
+	return _attributes_slot() + _button_kinds(hero).size() - 1
 
 
 func _on_button() -> bool:
@@ -285,10 +310,10 @@ func _build_pack_side() -> Control:
 	box.add_theme_constant_override("separation", 10)
 	_pack_label = HudStyle.make_label("", TEXT_SIZE, HudStyle.GOLD)
 	box.add_child(_pack_label)
-	_charm_label = HudStyle.make_label("", SMALL_SIZE, HudStyle.TEXT_DIM)
-	_charm_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_charm_label.custom_minimum_size.x = CHARM_LINE_WIDTH
-	box.add_child(_charm_label)
+	_curse_label = HudStyle.make_label("", SMALL_SIZE, HudStyle.TEXT_DIM)
+	_curse_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_curse_label.custom_minimum_size.x = CURSE_LINE_WIDTH
+	box.add_child(_curse_label)
 	_grid = BackpackGrid.new()
 	box.add_child(_grid)
 	_grid.setup(_run.backpack, _visuals())
@@ -303,7 +328,7 @@ func _visuals() -> CombatVisuals:
 # --- input ------------------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _prompt != null or _attrs != null or _skills != null:
+	if _prompt != null or _attrs != null or _skills != null or _echoes != null or _relics != null:
 		return
 	if _menu.visible:
 		_menu_input(event)
@@ -356,7 +381,7 @@ func _move(step: Vector2i) -> void:
 		if step.x > 0 and _slot >= last_slot:
 			if not _held.is_empty() and _held.kind == "gear":
 				Sfx.play("item_no_room")
-				_note_text = "Gear is worn, never carried in the backpack."
+				_note_text = "Relics are worn, never carried in the backpack."
 				_redraw()
 				return
 			_focus = Focus.GRID
@@ -419,7 +444,7 @@ func _turn_held(step: int) -> void:
 
 func _lift_here() -> void:
 	if _focus == Focus.GEAR:
-		_confirm_gear()
+		_lift_relic()
 		return
 	var uid := _run.backpack.uid_at(_grid.cursor)
 	if uid < 0:
@@ -443,29 +468,33 @@ func _confirm_gear() -> void:
 	if _on_button():
 		if not _held.is_empty():
 			Sfx.play("locked")
-		elif _slot == _attributes_slot():
-			open_attributes()
-		else:
-			open_skills()
+			return
+		match _button_kinds(_hero)[_slot - _attributes_slot()]:
+			"attributes":
+				open_attributes()
+			"skills":
+				open_skills()
+			_:
+				open_echoes()
+		return
+	if not _run.slot_open(_slot):
+		Sfx.play("locked")
+		_note_text = "That Relic slot is locked. " + _run.slot_lock_text(_slot)
+		_redraw()
 		return
 	var worn: Variant = _run.gear[_hero][_slot]
 	if _held.is_empty():
-		if worn == null:
-			Sfx.play("locked")
-			return
-		_held = {"kind": "gear", "item": worn, "from": [_hero, _slot]}
-		Sfx.play("item_lift")
+		open_relics(_hero, _slot)
+		return
 	elif _held.kind == "gear":
 		var from: Array = _held.from
 		if from.is_empty():
-			var sold := _run.wear(_hero, _slot, _held.item as GearData)
-			if sold < 0:
+			if _run.wear(_hero, _slot, _held.item as GearData) < 0:
 				Sfx.play("locked")
 				return
 			_note_text = "%s wears the %s." % [_run.data.party[_hero].display_name, (_held.item as GearData).display_name]
 			if worn != null:
-				_note_text += " Sold the %s for %d gold." % [(worn as GearData).display_name, sold]
-				Sfx.play("gold_gain")
+				_note_text += " The %s goes back to your Relics." % (worn as GearData).display_name
 			Sfx.play("buff")
 			_held = {}
 			_redraw()
@@ -589,15 +618,12 @@ func _cancel() -> void:
 		_redraw()
 		return
 	if _held.kind == "gear":
-		var gear := _held.item as GearData
-		_confirm_prompt("Sell the %s?" % gear.display_name, "Nobody wears it. It sells for %d gold." % _run.gear_sell_price(gear),
-				"Sell it", "Keep it in hand", func() -> void:
-					_run.sell_new_gear(gear)
-					Sfx.play("gold_gain")
-					_note_text = "Sold the %s." % gear.display_name
-					_held = {}
-					_redraw()
-					_settled())
+		# A new Relic is the run's already: nobody wearing it just leaves it in the Relics.
+		Sfx.play("menu_cancel")
+		_note_text = "The %s waits in your Relics." % (_held.item as GearData).display_name
+		_held = {}
+		_redraw()
+		_settled()
 	else:
 		var item := _held.item as ItemData
 		_confirm_prompt("Leave the %s behind?" % item.display_name, "It does not go in the backpack.",
@@ -626,6 +652,55 @@ func open_attributes() -> void:
 	_attrs.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
 	_attrs.done.connect(_close_attributes)
 	Sfx.play("menu_confirm")
+
+
+## The Echoes screen over this one (DESIGN.md 8.17), for the hero under the cursor.
+func open_echoes() -> void:
+	if not _held.is_empty():
+		Sfx.play("locked")
+		return
+	var hero := _hero if _focus == Focus.GEAR else _row_hero(_grid.cursor.y)
+	_echoes = EchoesScreen.new()
+	_echoes.name = "Echoes"
+	_echoes.layer = layer + 1
+	_echoes.remote = remote
+	add_child(_echoes)
+	_echoes.setup(_run, hero)
+	_echoes.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
+	_echoes.done.connect(func() -> void:
+		_echoes.queue_free()
+		_echoes = null
+		_redraw())
+	Sfx.play("menu_confirm")
+
+
+## X / R on a worn Relic: picks it up to put on another slot or hero (swapping).
+func _lift_relic() -> void:
+	if _on_button() or not _run.slot_open(_slot) or _run.gear[_hero][_slot] == null:
+		Sfx.play("locked")
+		return
+	_held = {"kind": "gear", "item": _run.gear[_hero][_slot], "from": [_hero, _slot]}
+	Sfx.play("item_lift")
+	_redraw()
+
+
+## The Relics page over this one (DESIGN.md 8.17), on hero `hero`; `gear_slot` >= 0 opens its
+## grid at once to choose a Relic for that slot.
+func open_relics(hero: int = -1, gear_slot: int = -1) -> void:
+	if not _held.is_empty():
+		Sfx.play("locked")
+		return
+	_relics = RelicsScreen.new()
+	_relics.name = "Relics"
+	_relics.layer = layer + 1
+	_relics.remote = remote
+	add_child(_relics)
+	_relics.setup_run(_run, _hero if hero < 0 else hero, gear_slot)
+	_relics.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
+	_relics.closed.connect(func() -> void:
+		_relics.queue_free()
+		_relics = null
+		_redraw())
 
 
 ## The skills screen over this one, for the hero under the cursor (or the next with a tree).
@@ -689,6 +764,7 @@ func _open_menu(uid: int) -> void:
 	_menu_choices.append(["cancel", -1])
 	items.append({"text": "Cancel"})
 	_menu.index = 0
+	_menu.window_rows = 0
 	_menu.set_items(items)
 	_menu.set_meta("uid", uid)
 	_menu.visible = true
@@ -842,10 +918,19 @@ func _redraw() -> void:
 		(card.stats as Label).text = "Lv %d   HP %d / %d   Power %d   Speed %d" % [_run.levels[slot], _run.hp[slot],
 				_run.max_hp(slot), _run.power(slot), _run.speed(slot)]
 		var buttons: Array = card.buttons
+		var kinds := _button_kinds(slot)
 		for b: int in buttons.size():
 			var button := buttons[b] as Label
-			var free := _run.free_points(slot) if b == 0 else _run.free_skill_points(slot)
-			button.text = ("Attributes" if b == 0 else "Skills") + ("  +%d" % free if free > 0 else "")
+			var free := 0
+			match kinds[b]:
+				"attributes":
+					free = _run.free_points(slot)
+				"skills":
+					free = _run.free_skill_points(slot)
+				_:
+					# Echo points only call for attention once there is an Echo to wear.
+					free = _run.free_echo_points(slot) if not _run.learned_echoes().is_empty() else 0
+			button.text = String(kinds[b]).capitalize() + ("  +%d" % free if free > 0 else "")
 			var on_it := chosen and _slot == _attributes_slot() + b and _use_uid < 0
 			# Framed like a button; gold when the cursor is on it.
 			var lit := on_it and not _menu.visible
@@ -858,17 +943,27 @@ func _redraw() -> void:
 			var selected := chosen and g == _slot
 			var label := labels[g] as Label
 			var lifted := not from.is_empty() and int(from[0]) == slot and int(from[1]) == g
-			label.text = "(in hand)" if lifted else ((item as GearData).display_name if item != null else EMPTY_TEXT)
+			var open := _run.slot_open(g)
+			if lifted:
+				label.text = "(in hand)"
+			elif not open:
+				label.text = LOCKED_TEXT
+			elif item != null:
+				var level := _run.relic_level(item as GearData)
+				label.text = (item as GearData).display_name + (" %d" % level if level > 1 else "")
+			else:
+				label.text = EMPTY_TEXT
 			label.add_theme_stylebox_override("normal", ListMenu.row_style(selected and not _menu.visible, SLOT_PAD_X))
 			var color := HudStyle.TEXT_DIM
 			if selected:
 				color = HudStyle.GOLD
 			elif item != null and not lifted:
-				color = BackpackGrid.rarity_color(BackpackGrid.gear_step(item as GearData))
+				color = GearData.ROT_TOUCHED_COLOR if (item as GearData).rot_touched \
+						else BackpackGrid.rarity_color(BackpackGrid.gear_step(item as GearData))
 			label.label_settings.font_color = color
+			label.modulate = Color(1.0, 1.0, 1.0, 1.0 if open else GREYED_ALPHA)
 	_pack_label.text = "Backpack   %d of %d cells free" % [_run.backpack.free_cells(), _run.backpack.cell_count()]
-	_charm_label.text = _charm_summary()
-	_grid.links = _boost_links()
+	_curse_label.text = _curse_summary()
 	_grid.combine_into = _combine_target()
 	_grid.show_cursor = _focus == Focus.GRID and not _menu.visible
 	if not _held.is_empty() and _held.kind == "item":
@@ -885,7 +980,10 @@ func _redraw() -> void:
 
 func _redraw_info() -> void:
 	_info_title.label_settings.font_color = HudStyle.GOLD
-	_info_panel.visible = _use_uid >= 0 or _menu.visible or not _held.is_empty() \
+	# A worn Relic (its stat line and Echo) or a locked slot (what opens it) has something to say too.
+	var relic_slot := _focus == Focus.GEAR and not _on_button() \
+			and (not _run.slot_open(_slot) or _run.gear[_hero][_slot] != null)
+	_info_panel.visible = _use_uid >= 0 or _menu.visible or not _held.is_empty() or relic_slot \
 			or (_focus == Focus.GRID and _run.backpack.uid_at(_grid.cursor) >= 0)
 	if _use_uid >= 0:
 		var e := _run.backpack.entry(_use_uid)
@@ -901,13 +999,14 @@ func _redraw_info() -> void:
 		var title := String(thing.get("display_name"))
 		var text := String(thing.get("description"))
 		if _held.kind == "gear":
-			_info_title.text = "In hand: %s (gear)" % title
+			_info_title.text = "In hand: %s (Relic)" % title
 			if (_held.item as GearData).rot_touched:
 				_info_title.label_settings.font_color = GearData.ROT_TOUCHED_COLOR
 			var worn: Variant = _run.gear[_hero][_slot] if not _on_button() else null
-			if _focus == Focus.GEAR and holding_new() and worn != null:
-				text += "\nPut on here: sells the %s for %d gold." % [(worn as GearData).display_name,
-						_run.gear_sell_price(worn as GearData)]
+			if _focus == Focus.GEAR and not _on_button() and not _run.slot_open(_slot):
+				text += "\nThis slot is locked. " + _run.slot_lock_text(_slot)
+			elif _focus == Focus.GEAR and holding_new() and worn != null:
+				text += "\nPut on here: the %s goes back to your Relics." % (worn as GearData).display_name
 			elif _focus == Focus.GEAR and worn != null and not holding_new():
 				text += "\nPut down here: swaps with the %s." % (worn as GearData).display_name
 		else:
@@ -924,12 +1023,19 @@ func _redraw_info() -> void:
 	if _focus == Focus.GEAR:
 		if _on_button():
 			return
+		if not _run.slot_open(_slot):
+			_info_title.text = "Locked Relic slot"
+			_info.text = _run.slot_lock_text(_slot)
+			return
 		var worn: Variant = _run.gear[_hero][_slot]
-		_info_title.text = (worn as GearData).display_name if worn != null else "Empty slot"
+		_info_title.text = (worn as GearData).display_name if worn != null else "Empty Relic slot"
 		if worn != null:
-			_info_title.text += "   (%s)" % BackpackGrid.rarity_name(BackpackGrid.gear_step(worn as GearData))
+			_info_title.text += "   (Lv %d, %s)" % [_run.relic_level(worn as GearData),
+					BackpackGrid.rarity_name(BackpackGrid.gear_step(worn as GearData))]
 			_info_title.label_settings.font_color = BackpackGrid.rarity_color(BackpackGrid.gear_step(worn as GearData))
-		_info.text = (worn as GearData).description if worn != null else "New gear can go here."
+			_info.text = _relic_info(worn as GearData)
+		else:
+			_info.text = "Confirm: pick one of your Relics to wear here."
 		return
 	var uid := _run.backpack.uid_at(_grid.cursor)
 	if uid < 0:
@@ -948,9 +1054,7 @@ func _redraw_info() -> void:
 	if item.usable_in_fight():
 		uses.append("in fights (%d AP)" % item.ap_cost)
 	var text := item.description
-	if item.is_charm():
-		text += "\n" + _charm_line(uid)
-	elif RunState.level_of(placed) > 0:
+	if RunState.level_of(placed) > 0:
 		text += "\nCombined: %d%% instead of %d%%." % [_run.entry_amount(placed), item.amount_percent]
 	if not uses.is_empty():
 		text += "\nUse it " + " and ".join(uses) + "."
@@ -963,54 +1067,25 @@ func _redraw_info() -> void:
 	_info.text = text
 
 
-## A charm's line in the info box: what it gives now, and what boosts it.
-func _charm_line(uid: int) -> String:
-	var item := _run.backpack.entry(uid).item as ItemData
-	var families: Array[String] = ["", "Stone", "Bone", "Herb"]
-	var line := ""
-	if item.family != ItemData.Family.NONE:
-		line = "%s charm. " % families[item.family]
-	if item.charm_amount > 0:
-		line += "Now: %s for every hero" % GearData.effect_text(item.charm_effect, _run.charm_value(uid))
-		var boost := _run.charm_boost(uid)
-		line += " (boosted %d%%)." % boost if boost > 0 else "."
-	if item.boost_family != ItemData.Family.NONE:
-		line += " Boosts touching %s charms by %d%%." % [families[item.boost_family].to_lower(), item.boost_percent]
-	return line.strip_edges()
+## A worn Relic in the info box: what it does, its stat line at its level, and its Echo this run.
+func _relic_info(item: GearData) -> String:
+	var lines := PackedStringArray([item.description])
+	var stat := item.stat_text(_run.relic_level(item))
+	if not stat.is_empty():
+		lines.append("Stat line: " + stat + ".")
+	if _run.echo_learned(item):
+		lines.append("Echo learned this run: any hero can wear it for %d Echo points." % item.echo_cost)
+	else:
+		lines.append("Echo: %d / %d. Win %d more fights wearing it to learn it this run." % [_run.mastery_of(item),
+				_run.tuning.mastery_needed, _run.fights_to_learn(item)])
+	return "\n".join(lines)
 
 
-## Everything the charms give, and the rot, in one line.
-func _charm_summary() -> String:
-	var totals := _run.charm_totals()
-	var parts := PackedStringArray()
-	for effect: int in totals:
-		if int(totals[effect]) > 0:
-			parts.append(GearData.effect_text(effect as GearData.Effect, int(totals[effect])))
-	var text := ("Charms: " + ", ".join(parts)) if not parts.is_empty() else "No charms working."
-	if _run.rot_percent() > 0:
-		text += "   Rot: -%d%% HP a turn" % _run.rot_percent()
-	return text
-
-
-## Where a booster charm touches a charm it boosts: pairs of cells side by side, for the grid's
-## gold links.
-func _boost_links() -> Array:
-	var links: Array = []
-	var pack := _run.backpack
-	for e: Dictionary in pack.entries:
-		var booster := e.item as ItemData
-		if not booster.is_charm() or booster.boost_family == ItemData.Family.NONE:
-			continue
-		var mine := Backpack.cells_at(booster, int(e.x), int(e.y), int(e.turn))
-		for other: int in pack.touching(int(e.uid)):
-			var o := pack.entry(other)
-			if not (o.item as ItemData).is_charm() or (o.item as ItemData).family != booster.boost_family:
-				continue
-			for c: Vector2i in Backpack.cells_at(o.item as ItemData, int(o.x), int(o.y), int(o.turn)):
-				for step: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-					if mine.has(c + step):
-						links.append([c, c + step])
-	return links
+## The curses' rot under the backpack's title (empty without curses).
+func _curse_summary() -> String:
+	if _run.rot_percent() <= 0:
+		return "No curses."
+	return "Curses: every hero loses %d%% HP each turn in fights. A shop's Cleanse removes one." % _run.rot_percent()
 
 
 func _redraw_hint() -> void:
@@ -1024,9 +1099,9 @@ func _redraw_hint() -> void:
 	if _held.is_empty():
 		var confirm := "Choose"
 		if _focus == Focus.GEAR:
-			confirm = "Open" if _on_button() else "Pick up"
+			confirm = "Open" if _on_button() else "Relics"
 		entries.append([&"menu_confirm", confirm])
-		if _focus == Focus.GRID:
+		if _focus == Focus.GRID or (not _on_button() and _run.slot_open(_slot) and _run.gear[_hero][_slot] != null):
 			entries.append([&"item_move", "Move"])
 	elif _held.kind == "item":
 		entries.append([&"item_move", "Put down"])

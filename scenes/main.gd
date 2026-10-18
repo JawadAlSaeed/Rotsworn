@@ -279,6 +279,12 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_attributes(false)
 		"skills":
 			_show_sample_skills()
+		"echoes":
+			_show_sample_echoes()
+		"party_relics":
+			_show_sample_echoes(false)
+		"relics":
+			_show_relics(_sample_collection())
 		"tutorial":
 			_start_tutorial()
 		"map":
@@ -317,7 +323,7 @@ func _show_sample_stop(kind: String) -> void:
 	_run.gold = 180
 	var items := _run.items_by_id()
 	_run.add_item(items["salve"])
-	_run.add_item(items["ember_stone"])
+	_run.add_item(items["feast"])
 	_run.add_item(items["rotting_heart"])
 	_run.hp[1] = CombatMath.percent(_run.max_hp(1), 50)
 	var want := {"shop": RunMap.StopType.SHOP, "campfire": RunMap.StopType.REST, "event": RunMap.StopType.EVENT,
@@ -344,17 +350,17 @@ func _show_sample_stop(kind: String) -> void:
 ## with a Golden Idol in hand (for pictures of the backpack).
 func _show_sample_backpack() -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
+	# A guard is beaten, so a second Relic slot is open (DESIGN.md 8.17).
+	_run.guards_beaten = 1
 	var items := _run.items_by_id()
 	_run.wear(0, 0, _run_data.gear[0])
 	_run.wear(0, 1, _run_data.gear[1])
-	_run.place_item(items["heartleaf"], 0, 0, 0)
-	_run.place_item(items["ember_stone"], 1, 0, 0)
-	_run.place_item(items["lodestone"], 2, 0, 0)
-	_run.place_item(items["iron_stone"], 2, 2, 0)
 	_run.place_item(items["salve"], 0, 1, 0, 1)
 	_run.place_item(items["rotting_heart"], 0, 4, 0)
 	_run.place_item(items["key"], 2, 4, 0)
 	_run.place_item(items["bomb"], 3, 2, 0)
+	for id: String in ["feast", "smelling_salts", "silver_ring", "rot_gem"]:
+		_run.add_item(items[id])
 	_run.wear(1, 0, _run_data.gear[3])
 	# Alder has levelled and has points to spend (the cards show "+N points", DESIGN.md 8.2).
 	_run.add_xp(0, 200)
@@ -373,6 +379,40 @@ func _show_sample_attributes(open: bool = true) -> void:
 	_show_party("", true)
 	if open:
 		(_screen as PartyScreen).open_attributes()
+
+
+## A pretend collection for pictures (--screen=relics): a few Relics at several levels, two heroes
+## with picks.
+func _sample_collection() -> RelicCollection:
+	var c := RelicCollection.new()
+	for i: int in mini(9, _run_data.gear.size()):
+		c.levels[_run_data.gear[i].id] = 1 + i % _tuning.relic_max_level
+	c.set_picks(_run_data.party[0].id, [_run_data.gear[0].id, _run_data.gear[3].id] as Array[String], _tuning.run_gear_slots)
+	c.set_picks(_run_data.party[1].id, [_run_data.gear[5].id] as Array[String], _tuning.run_gear_slots)
+	return c
+
+
+## --screen=echoes: a run past act 1 (every Relic slot open) where the worn Relics taught their
+## Echoes and Alder has levelled, the Echoes screen open over the party screen (for pictures).
+## --screen=party_relics: the same run with the Relics page open over the party screen instead.
+func _show_sample_echoes(echoes: bool = true) -> void:
+	_run = RunState.begin(_run_data, _tuning, 3)
+	_run.guards_beaten = 1
+	_run.act = 1
+	for i: int in range(9, mini(16, _run_data.gear.size())):
+		_run.add_relic(_run_data.gear[i])
+	for slot: int in _run.party_size():
+		for g: int in 2:
+			var item := _run_data.gear[slot * 3 + g]
+			_run.wear(slot, g, item)
+			_run.mastery[item.id] = _tuning.mastery_needed if g == 0 else 2
+	_run.add_xp(0, 400)
+	_run.set_echo(0, _run_data.gear[3], true)
+	_show_party("", true)
+	if echoes:
+		(_screen as PartyScreen).open_echoes()
+	else:
+		(_screen as PartyScreen).open_relics(0)
 
 
 ## --screen=skills: the skills screen on a run where each hero has a sample tree made of their
@@ -564,6 +604,8 @@ func _on_menu_chosen(item: StringName) -> void:
 			_show_lobby.call_deferred(_show_select.call_deferred)
 		MainMenu.JOURNAL:
 			_show_journal.call_deferred()
+		MainMenu.RELICS:
+			_show_relics.call_deferred()
 		MainMenu.SETTINGS:
 			_show_settings.call_deferred()
 		MainMenu.CREDITS:
@@ -645,9 +687,24 @@ func _hero_portraits() -> Array[String]:
 func _show_settings() -> void:
 	var settings := SettingsScreen.new()
 	settings.name = "Settings"
-	settings.setup(_tuning, _visuals)
+	settings.setup(_tuning, _visuals, true)
 	settings.closed.connect(_show_main_menu.call_deferred)
+	settings.progress_reset.connect(_reset_progress)
 	_show_screen(settings)
+
+
+## Settings > Reset progress (DESIGN.md 8.17): the Relics, the unlocked oaths and a saved run go;
+## settings, controls and the Journal stay. A dev screen (--screen=settings) never wipes anything.
+func _reset_progress() -> void:
+	if not _options.screen.is_empty():
+		return
+	if _relics_io_ok():
+		RelicFile.delete(_relics_path())
+	PlayerSettings.reset_oath_unlocks()
+	if _save_slot_ok():
+		RunSave.delete(_run_save_path())
+	_mismatch_told = false
+	print("Progress reset")
 
 
 ## The Rot Journal (card #200): what the player has met, read from the journal file when it opens.
@@ -655,6 +712,20 @@ func _show_journal() -> void:
 	var screen := JournalScreen.new()
 	screen.name = "Journal"
 	screen.setup(JournalFile.load_journal(_journal_path()).journal as RotJournal, JournalScreen.load_enemies())
+	screen.closed.connect(_show_main_menu.call_deferred)
+	_show_screen(screen)
+
+
+## The Relics (DESIGN.md 8.17): the collection on this machine, and what each hero brings into the
+## next run. `sample`: a dev screen's pretend collection, never saved.
+func _show_relics(sample: RelicCollection = null) -> void:
+	var collection := sample if sample != null else RelicFile.load_or_empty(_relics_path())
+	var screen := RelicsScreen.new()
+	screen.name = "Relics"
+	screen.setup(collection, _run_data.gear, _run_data.party, _tuning, JournalScreen.load_enemies())
+	screen.picks_changed.connect(func(changed: RelicCollection) -> void:
+		if sample == null and _relics_io_ok() and not RelicFile.save(changed, _relics_path()):
+			push_warning("Main: could not write the Relics to %s" % _relics_path()))
 	screen.closed.connect(_show_main_menu.call_deferred)
 	_show_screen(screen)
 
@@ -798,6 +869,7 @@ func _close_decided_run(result: String) -> void:
 		return
 	_decided_run = _run
 	_decided_unlock = _grant_win_unlock() if result == RunState.VICTORY else 0
+	_bank_relics()
 	_clear_run_save()
 
 
@@ -1076,10 +1148,47 @@ func _save_run(in_stop: bool) -> bool:
 
 
 ## A stop's screen just settled something that cannot be taken back (an event choice, a purchase,
-## an opened chest): the checkpoint is written again, still inside the stop (card #197).
+## an opened chest): the checkpoint is written again, still inside the stop (card #197), and the
+## run's Relics are banked with it.
 func _save_stop_progress() -> void:
 	if _run != null and _checkpoint_in_stop:
 		_save_run(true)
+	_bank_relics()
+
+
+# --- Relics (DESIGN.md 8.17) ------------------------------------------------------------------
+
+## The Relic collection's file: --relics-path=PATH (dev tool), else the player's.
+func _relics_path() -> String:
+	return _options.relics_path if not _options.relics_path.is_empty() else RelicFile.PATH
+
+
+## True if this session reads and writes the player's Relic collection: not an online client (the
+## host's Relics are everyone's), not the tutorial, never a dev screen's sample run, and a bot only
+## with --relics-path (it must never touch the player's file).
+func _relics_io_ok() -> bool:
+	return not Net.is_client() and _tutorial == null and _options.screen.is_empty() \
+			and (not _options.is_autoplay() or not _options.relics_path.is_empty())
+
+
+## The collection a new run starts from: the player's, or a bot's pretend one (--relics=all gives
+## every Relic at its top level; a bot otherwise starts with none, like a first run).
+func _run_collection() -> RelicCollection:
+	if _options.relics_mode == "all":
+		return RelicCollection.all_of(_run_data.gear, _tuning.relic_max_level)
+	if _relics_io_ok() and _options.relics_mode != "none":
+		return RelicFile.load_or_empty(_relics_path())
+	return RelicCollection.new()
+
+
+## Takes the run's Relics into the collection: when the run saves on the map, when a stop settles
+## something, and when the run ends (won, lost or abandoned). The collection keeps the higher level
+## of each, so banking twice, or after Continue replays a stop, never adds a copy.
+func _bank_relics() -> void:
+	if _run == null or not _relics_io_ok():
+		return
+	if RelicFile.bank(_run.relics, _relics_path()):
+		print("Relics banked: %d" % _run.relics.size())
 
 
 ## The fingerprint a save is checked against: data and version only, so a code-only update keeps a
@@ -1221,7 +1330,7 @@ func _new_run() -> void:
 	var run_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
 	if _options.oath >= 0:
 		_oath = _options.oath
-	_run = RunState.begin(_run_data, _tuning, run_seed, _oath)
+	_run = RunState.begin(_run_data, _tuning, run_seed, _oath, _run_collection())
 	_oath = _run.oath
 	if Net.is_host():
 		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict(), "oath": _run.oath})
@@ -1248,6 +1357,7 @@ func _show_map(unroll: bool = true) -> void:
 	_show_screen(map)
 	_send_screen({"name": "map"})
 	_save_run(false)
+	_bank_relics()
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_map.call_deferred(map)
 
@@ -1369,27 +1479,23 @@ func _show_rest(result: String = "") -> void:
 		_autoplay_rest.call_deferred(rest)
 
 
-func _show_shop(gear: Array[GearData] = [], charms: Array[ItemData] = []) -> void:
+func _show_shop(gear: Array[GearData] = []) -> void:
 	var shop := ShopScreen.new()
 	shop.name = "Shop"
 	if not Net.is_client():
 		gear = _run.shop_gear(_run.at)
-		charms = _run.shop_charms(_run.at)
-	shop.setup(_run, gear, charms)
+	shop.setup(_run, gear)
 	shop.done.connect(_fade_to.bind(_show_map))
-	shop.restocked.connect(func() -> void: _send_shop_wares(_run.shop_gear(_run.at), _run.shop_charms(_run.at)))
+	shop.restocked.connect(func() -> void: _send_shop_wares(_run.shop_gear(_run.at)))
 	shop.acted.connect(_save_stop_progress)
 	_show_screen(shop)
-	_send_shop_wares(gear, charms)
+	_send_shop_wares(gear)
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_shop.call_deferred(shop)
 
 
-func _send_shop_wares(gear: Array[GearData], charms: Array[ItemData]) -> void:
-	var charm_ids: Array = []
-	for item: ItemData in charms:
-		charm_ids.append(item.id)
-	_send_screen({"name": "shop", "gear": _gear_ids(gear), "charms": charm_ids})
+func _send_shop_wares(gear: Array[GearData]) -> void:
+	_send_screen({"name": "shop", "gear": _gear_ids(gear)})
 
 
 ## A "?" stop (DESIGN.md 8.7). `result`: online clients show what the host chose.
@@ -1443,7 +1549,7 @@ func _show_loot(gear: Array[GearData] = [], text: String = "") -> void:
 	loot.name = "Loot"
 	if not Net.is_client():
 		gear = _run.loot_choices(_run.at)
-	loot.setup(gear, text)
+	loot.setup(gear, text, _run)
 	loot.chosen.connect(_on_loot_chosen)
 	_show_screen(loot)
 	Sfx.play("loot_reveal")
@@ -1452,11 +1558,18 @@ func _show_loot(gear: Array[GearData] = [], text: String = "") -> void:
 		_autoplay_loot.call_deferred(loot)
 
 
+## A spoil was picked: it joins the run's Relics (a copy raises its level), then the party screen,
+## holding it if nobody wears it yet.
 func _on_loot_chosen(item: GearData) -> void:
-	if item != null and not _run.owns(item):
-		_show_party.call_deferred("Found: %s. Who wears it?" % item.display_name, false, {"gear": item})
-	else:
+	if item == null:
 		_fade_to(_show_map)
+		return
+	var found := _run.add_relic(item)
+	var line := RunState.relic_find_text(found)
+	if _run.is_worn(item):
+		_show_party.call_deferred(line + ".", false)
+	else:
+		_show_party.call_deferred(line + ". Who wears it?", false, {"gear": item})
 
 
 ## The party screen: gear, stats and the backpack. From the map it closes back to the map at once;
@@ -1495,6 +1608,7 @@ func _grant_win_unlock() -> int:
 
 
 func _show_run_end() -> void:
+	_bank_relics()
 	_clear_run_save()
 	var end := RunEndScreen.new()
 	end.name = "RunEnd"
@@ -1515,9 +1629,9 @@ func _show_run_end() -> void:
 	if _options.is_autoplay():
 		for line: String in recap_lines:
 			print("AUTOPLAY_RECAP ", line)
-		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d oath=%d" % [
+		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d oath=%d relics=%d echoes=%d" % [
 				_run.result, _run.act + 1, _run.visited, _run.fights_won, _run.top_level(), _worn_count(), _run.backpack.entries.size(),
-				_run.gold_earned, _run.run_seed, _run.oath])
+				_run.gold_earned, _run.run_seed, _run.oath, _run.relics.size(), _run.learned_echoes().size()])
 		_autoplay_quit()
 
 
@@ -1777,6 +1891,8 @@ func _on_abandon_answered(yes: bool) -> void:
 	if yes:
 		_free_pause()
 		if _run != null:
+			# An abandoned run keeps what it found, like a lost one (DESIGN.md 8.17).
+			_bank_relics()
 			_clear_run_save()
 		_fade_to(_show_main_menu)
 	elif _pause != null:
@@ -2053,13 +2169,7 @@ func _watched_screen_builder(p: Dictionary) -> Callable:
 		"treasure":
 			return _show_treasure.bind(bool(p.get("opened", false)))
 		"shop":
-			var charms: Array[ItemData] = []
-			if _run != null:
-				var by_id := _run.items_by_id()
-				for id: Variant in p.get("charms", []):
-					if by_id.has(str(id)):
-						charms.append(by_id[str(id)])
-			return _show_shop.bind(_gear_from_ids(p.get("gear", []) as Array), charms)
+			return _show_shop.bind(_gear_from_ids(p.get("gear", []) as Array))
 		"loot":
 			return _show_loot.bind(_gear_from_ids(p.get("gear", []) as Array), String(p.get("text", "")))
 		"party":
@@ -2172,11 +2282,17 @@ func _on_prize(prize: int) -> void:
 	_give_prize(found, "The champion's chest")
 
 
-## Gives a chest's prize: gear onto a hero (the backpack opens to pick who), an item into the
-## backpack (it opens with the item in hand when full). `from` names the chest in the line shown.
+## Gives a chest's prize: a Relic joins the run (a copy raises its level; the backpack opens to
+## pick who wears a new one), an item goes into the backpack (it opens with the item in hand when
+## full). `from` names the chest in the line shown.
 func _give_prize(prize: Resource, from: String) -> void:
 	if prize is GearData:
-		_open_zone_backpack("%s held the %s. Who wears it?" % [from, (prize as GearData).display_name], {"gear": prize})
+		var found := RunState.relic_find_text(_run.add_relic(prize as GearData))
+		if _run.is_worn(prize as GearData):
+			_zone.announce("%s held the %s. %s." % [from, (prize as GearData).display_name, found])
+		else:
+			_open_zone_backpack("%s held the %s. %s. Who wears it?" % [from, (prize as GearData).display_name, found],
+					{"gear": prize})
 	elif prize is ItemData:
 		var item := prize as ItemData
 		if item.kind == ItemData.Kind.UPGRADE:
@@ -2527,12 +2643,16 @@ func _autoplay_loot(loot: LootScreen) -> void:
 		loot.take(index)
 
 
-## Autoplay: every hero spends their new attribute points evenly (DESIGN.md 8.2) and learns the
-## skills it can (8.4).
+## Autoplay: every hero spends their new attribute points evenly (DESIGN.md 8.2), learns the
+## skills it can (8.4), and wears the Echoes it can (8.17).
 func _autoplay_spend_points() -> void:
 	if not _options.is_autoplay() or Net.is_client() or _run == null:
 		return
 	for slot: int in _run.party_size():
+		var echoes_before := (_run.echoes[slot] as Array).size()
+		_run.auto_echoes(slot)
+		if (_run.echoes[slot] as Array).size() != echoes_before:
+			print("Run echoes: %s %s" % [_run.data.party[slot].id, str(_run.echoes[slot])])
 		if _run.has_tree(slot) and _run.free_skill_points(slot) > 0:
 			_run.auto_skills(slot)
 			print("Run skills: %s %s" % [_run.data.party[slot].id, str(_run.loadout[slot])])

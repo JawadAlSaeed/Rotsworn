@@ -10,3 +10,5 @@ description = "Power +15%: every hit, skill and counter."
 price = 70
 effect = 1
 amount = 15
+stat = 1
+stat_points = 2
