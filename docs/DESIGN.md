@@ -1566,7 +1566,7 @@ across and on a capital letter's height up and down, so every key of a size shar
 
 Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://shots/<name>/`
 (`ScreenShooter`), `--screen=menu|settings|players|practice` opens that screen at once, and
-`--pad-prompts` starts with pad buttons shown. Used to check the look without a person.
+`--pad-prompts` starts with pad buttons shown. Used to check the look without a person. With the owner at the PC use `quiet_run.bat` (10.1), which opens the window without taking focus.
 
 ### 7.7 Phase 8: branding (cards #47, #48, #82, #83, #85, #86, #87, #90)
 
@@ -3068,6 +3068,44 @@ upgrade to take blindly.
   ability, every encounter starts. Autoplay picks skills and allies' targets and presses skill
   and follow-up prompts at window centre.
 
+### 10.1 Quiet picture runs (card #168)
+
+A windowed test run (`--shots`, `--screen`, an autoplay with pictures) used to grab keyboard and
+mouse focus, which broke whatever the owner was playing at the time. `quiet_run.bat` fixes that.
+
+- **Use**: `quiet_run.bat <the game's own switches>`, for example `quiet_run.bat --shots=2 --screen=menu`
+  or `quiet_run.bat --autoplay --shots=3 --quit-on-end`. No `--` needed. Launcher options go first:
+  `-Size 1280x720` (default 1920x1080, shrunk to fit the screen, always 16:9), `-Headless` (no
+  window, for checking the launcher), `-DryRun` (print the plan: screens, place, command),
+  `-PrepareOnly` (build the shadow project only), `-NoImport`. A switch that holds `|` needs quotes.
+- **Where the window goes**: the first screen that is not the main one, centred. With one screen
+  it opens on that screen and is pushed to the bottom of the window stack (no activation) for the
+  first 30 s, so it does not cover the owner's game. It starts with no sound (`--audio-driver Dummy`).
+- **How it never takes focus**: Godot's no-focus window flag (`display/window/size/no_focus`) must
+  be set before the window exists and has no command-line form. The launcher therefore builds a
+  shadow project in `%LOCALAPPDATA%\Rotsworn-quiet\<folder>-<hash>\`: its own `project.godot` (a
+  copy of the real one with `no_focus=true` and windowed mode), folder links (junctions) to every
+  real folder and copies of the root files. Godot runs with `--path` on the shadow. The real
+  project and its `project.godot` are never edited and no `override.cfg` is used (one next to the Godot
+  exe was not read in a test, and one in the project folder would be read by every normal start;
+  `project_settings_override` is a fixed path in `project.godot`), so a normal start, the
+  editor or the tests can not pick the flag up, even while a quiet run is going. Saves, settings
+  and the `shots/` folder are shared with normal runs (same game name).
+- **In the game**: `QuietWindow.active()` reads the same project setting. `PlayerSettings.apply_fullscreen`
+  then leaves the window alone, because fullscreen or maximised would activate it. A test checks
+  `project.godot` never contains `no_focus` and that a test run is not quiet.
+- **Checking it for real** (opens a window, only with the owner's OK; the owner keeps typing in
+  another window meanwhile): `powershell -NoProfile -ExecutionPolicy Bypass -File tools\quiet_focus_check.ps1 -Seconds 20 --shots=2 --screen=menu`.
+  It remembers the focused window (`GetForegroundWindow`), starts the quiet run hidden, samples
+  the focused window's process 10 times a second and prints where the game window sits (which
+  screen), then PASS, FAIL (game had focus) or INCONCLUSIVE (no window appeared). The launcher
+  itself was checked headless (settings differ between the shadow and the real project, a full
+  autoplay fight through the shadow ends with `AUTOPLAY_RESULT victory`); the live window test is
+  still to be done.
+- **Limits**: Windows only. A new window is shown without activation but may flash on top of other
+  windows for a moment on a one-screen PC before it is sent to the bottom. The window cannot be
+  typed into (that is the point); bots and `--menu-keys` do not need input.
+
 ---
 
 ## 11. Phase plan
@@ -3340,3 +3378,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
 | 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |
 | 2026-10-17 | A saved run is continued by any build that can read it (no content check); only the save format version and RunState's own checks decide | card #208 playtest: one data change (the menu logo) hid the run again; the game changes almost daily |
+| 2026-10-18 | Picture runs while the owner is at the PC go through `quiet_run.bat`: a shadow project (own project.godot with `display/window/size/no_focus=true`, folder links to the real folders) under `%LOCALAPPDATA%\Rotsworn-quiet`, window on the second screen (else behind the others), no sound; the game skips its fullscreen/maximise step when that flag is on (10.1) | a normal windowed run grabbed keyboard and mouse focus; the flag cannot be set after the window exists or from the command line, and an override file in the project folder or beside the exe would reach normal starts or is not read (card #168) |

@@ -187,6 +187,10 @@ static func set_fullscreen(value: bool) -> void:
 static func apply_fullscreen() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
+	# A quiet picture run (card #168) keeps the window where the launcher put it: fullscreen or
+	# maximised would activate it and steal the keyboard from whatever the owner is playing.
+	if QuietWindow.active():
+		return
 	var mode := DisplayServer.window_get_mode()
 	if fullscreen() and mode != DisplayServer.WINDOW_MODE_FULLSCREEN:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
