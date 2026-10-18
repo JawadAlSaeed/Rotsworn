@@ -274,6 +274,8 @@ func _open_dev_screen(screen_name: String) -> void:
 			_offer_calibration(false)
 		"credits":
 			_show_credits()
+		"glossary":
+			_show_glossary()
 		"journal":
 			_show_journal()
 		"party":
@@ -301,7 +303,10 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_settings()
 			(_screen as SettingsScreen).open_section(SettingsScreen.Section.CONTROLS)
 		_:
-			_show_main_menu()
+			if screen_name.begins_with("glossary_"):
+				_show_glossary(screen_name.trim_prefix("glossary_"))
+			else:
+				_show_main_menu()
 
 
 ## --screen=map: a new run two stops in; map_start: before the first stop; map_act2: one stop into
@@ -599,6 +604,8 @@ func _on_menu_chosen(item: StringName) -> void:
 			_fade_to.call_deferred(_start_tutorial)
 		MainMenu.PRACTICE:
 			_show_lobby.call_deferred(_show_select.call_deferred)
+		MainMenu.GLOSSARY:
+			_show_glossary.call_deferred()
 		MainMenu.JOURNAL:
 			_show_journal.call_deferred()
 		MainMenu.SETTINGS:
@@ -695,6 +702,16 @@ func _show_settings() -> void:
 	settings.setup(_tuning, _visuals)
 	settings.closed.connect(_show_main_menu.call_deferred)
 	_show_screen(settings)
+
+
+## The Glossary (card #207), from Extras: the book of the game's terms. Back returns to Extras.
+## `topic` (a topic id) opens it on that topic (the --screen=glossary_<topic> dev picture).
+func _show_glossary(topic: String = "") -> void:
+	var screen := GlossaryScreen.new()
+	screen.name = "Glossary"
+	screen.setup(GlossaryScreen.load_glossary(), topic)
+	screen.closed.connect(_show_main_menu.call_deferred)
+	_show_screen(screen)
 
 
 ## The Rot Journal (card #200): what the player has met, read from the journal file when it opens.
@@ -1799,6 +1816,7 @@ func _open_pause() -> void:
 		_pause.setup("Leave", "Back to the practice list.")
 	_pause.resumed.connect(_on_pause_resumed)
 	_pause.settings_requested.connect(_on_pause_settings)
+	_pause.glossary_requested.connect(_on_pause_glossary)
 	_pause.leave_requested.connect(_on_pause_leave)
 	add_child(_pause)
 
@@ -1823,6 +1841,26 @@ func _on_pause_settings() -> void:
 	settings.setup(_tuning, _visuals)
 	settings.closed.connect(_on_pause_settings_closed.bind(settings))
 	add_child(settings)
+
+
+## The Glossary over the pause menu (card #207). It only reads, so it needs nothing held: the game
+## is already held (or, online, goes on) exactly as under the pause menu.
+func _on_pause_glossary() -> void:
+	_pause.visible = false
+	_pause.process_mode = Node.PROCESS_MODE_DISABLED
+	var book := GlossaryScreen.new()
+	book.name = "PauseGlossary"
+	book.layer = _pause.layer + 1
+	book.setup(GlossaryScreen.load_glossary())
+	book.closed.connect(_on_pause_glossary_closed.bind(book))
+	add_child(book)
+
+
+func _on_pause_glossary_closed(book: GlossaryScreen) -> void:
+	book.queue_free()
+	if _pause != null:
+		_pause.visible = true
+		_pause.process_mode = Node.PROCESS_MODE_INHERIT
 
 
 func _on_pause_settings_closed(settings: SettingsScreen) -> void:
@@ -1891,7 +1929,7 @@ func _free_pause() -> void:
 		_pause.queue_free()
 		_pause = null
 	for child: Node in get_children():
-		if child is SettingsScreen and child != _screen:
+		if (child is SettingsScreen or child is GlossaryScreen) and child != _screen:
 			child.queue_free()
 
 

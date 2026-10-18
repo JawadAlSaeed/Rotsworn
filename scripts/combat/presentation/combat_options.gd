@@ -27,7 +27,8 @@ extends RefCounted
 ##   --leave-after=S                 (with --join) leave the game after S seconds and quit
 ##   --shots=S                       save a picture of the window every S seconds (dev tool)
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
-##                                   title, controller, calibration_offer, credits, journal, party, heroes, attributes, skills, calibration,
+##                                   title, controller, calibration_offer, credits, glossary (glossary_<topic> opens that
+##                                   topic: glossary_reading), journal, party, heroes, attributes, skills, calibration,
 ##                                   tutorial, map, map_start, map_act2, shop, campfire,
 ##                                   event, treasure
 ##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the

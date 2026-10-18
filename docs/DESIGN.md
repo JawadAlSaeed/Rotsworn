@@ -1570,8 +1570,8 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
 
 - **Main menu** (first screen, `MainMenu`): (Continue,) New Run, Online, Extras, Settings, Quit, with
   no description line under the rows. Online and Extras open a second list in place (cancel or
-  Back goes back): Online has Host Online and Join Online; Extras has Tutorial, Journal (7.11) and
-  Credits. Practice (the tutorial card first, then the fight and zone list, full HP, nothing
+  Back goes back): Online has Host Online and Join Online; Extras has Tutorial, Glossary (7.12), Journal (7.11)
+  and Credits. Practice (the tutorial card first, then the fight and zone list, full HP, nothing
   carries over) is a test tool: its row shows in Extras, after Tutorial, only in debug builds
   (`OS.is_debug_build()`: the editor and `run_game.bat`), never in the shared game. The cursor
   comes back on the last item picked (a row of Extras reopens that list). Card #150 (user,
@@ -1615,7 +1615,7 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions and the mouse
   (6.2).
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
-  run map (B on the map too). Continue, Settings, "Save & Quit" (a local run, 8.14), and "Abandon
+  run map (B on the map too). Continue, Settings, Glossary (7.12), "Save & Quit" (a local run, 8.14), and "Abandon
   run" (asks first, then the main menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
   under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
@@ -1952,6 +1952,46 @@ Spire's compendium). It is a reference and a record, not a reward: nothing in it
   change of shape. The journal is local: an online player's book is their own.
 - **Not in it (yet):** per-hero records, damage dealt, the loot an enemy drops, and sorting or
   filtering. Entries are never reset by a new run; delete `journal.json` to start the book again.
+
+### 7.12 The Glossary (card #207)
+
+A book that explains the game's terms and icons, so nobody has to guess what a purple wave, a
+bone-coloured claw, EXPOSED or a rot-touched piece means. A reference, not a reward: it changes
+nothing in a fight. It is reached two ways, and both open on the first topic:
+
+- **Extras on the main menu**, a row "Glossary" right after Tutorial (`MainMenu.GLOSSARY`); Back
+  returns to Extras with the cursor on that row.
+- **The pause menu**, a row "Glossary" after Settings (`PauseMenu.glossary_requested`). It opens
+  over the pause menu (layer above it, the pause menu hidden and disabled while it is open, like the
+  settings screen from the pause menu) and Back returns to the pause menu. It reads only, so a fight
+  stays paused (or, online, goes on) exactly as under the pause menu; it never touches the timing of a
+  fight. `Main._free_pause` also frees it if the pause menu goes.
+- **Screen** (`GlossaryScreen`, `scripts/menu/`): the menu backdrop, a worn-gold "Glossary" title, then
+  a topic strip ("< previous topic  TOPIC  next topic >", "Topic 3 of 14, 8 terms"), then two parts like
+  the Rot Journal. Left, a `ListMenu` of the topic's terms (10 rows at a time, scrolls). Right, the
+  chosen term in an ink plate: a square plate with the game's own icon (whole-number scaled so the
+  pixel art stays crisp, edged in the term's colour) or, with no icon, a swatch of its colour; the
+  term's name in worn gold; "Shown as  PARRY" in the term's colour when the game prints a word for
+  it; then two or three plain lines. Up/down chooses a term, left/right changes topic (wrapping round
+  the ends), Back closes (`HintBar` at the foot); keyboard and pad like every menu. Everything fits
+  1920x1080 (a test measures every page).
+- **Content is data**: `data/glossary/glossary.tres` (`GlossaryData`: `topic_ids`, `topic_names`,
+  `entries`; each `GlossaryEntry`: `id`, `topic`, `term`, `text`, `tag`, `icon_path`, `color`, where an
+  alpha of 0 means no colour). `tools/bootstrap_glossary.gd` wrote the first version (109 terms in 14
+  topics: The fight, Reading attacks, Defence, Skills and AP, Counters and team, Marks on enemies, Marks
+  on heroes, Dooms, Enemies, The map, In a zone, Gear and items, Shops and camps, The run); after that,
+  edit the `.tres` (or the tool's list and re-run it, not both). The tool takes the hit kinds'
+  colours and icons from `combat_visuals.tres` and the status words and colours from `HudStyle`, and a
+  test (`tests/unit/test_glossary.gd`) keeps the book equal to them, so the screen and the book cannot
+  drift apart. Every term needs an id, a known topic, a short name (26 characters at most), text (260
+  at most), and an icon file that exists; a list of the card's terms must all be present. Text names
+  buttons by what they do ("the Run button", "Confirm"), never by a key, because pad and keyboard
+  both play.
+- **Dev picture**: `--screen=glossary` opens it; `--screen=glossary_<topic id>` opens on that topic
+  (`glossary_reading`, `glossary_dooms`, `glossary_hero_marks` and so on).
+- **Not in it (yet):** the tutorial (the interactive tutorial is being extended in phase 17, so the
+  glossary does not link to it or change it), enemies and attacks (the Rot Journal, 7.11, has those),
+  and per-item or per-gear descriptions (the party screen and shops show those).
 
 ## 8. Run structure (phase 4)
 
@@ -3530,3 +3570,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-18 | Cass's spells (Reveal, Smite) shoot after the press: the bolt leaves the staff at the press (or at the end of the window if none came) and the strike, numbers and hit-stop wait for it to land; judge, windows and engine unchanged (2.10) | card #166, like Expedition 33 |
 | 2026-10-18 | Every menu works with the mouse: point to choose, left click confirms, right click or the back button goes back, the wheel scrolls; the pointer hides while keys or a pad are used and in fights and zones; the fight's own menus stay keys and pad | card #202 (review ui-input #4): PC players click "New Run" and nothing happened. One entry, `ListMenu.handle`, so every list screen got it; no Input Map action has a mouse event, so a click can never be a defence (6.2) |
 | 2026-10-18 | Settings > Game > Text size (Normal 100%, Large 115%, Larger 130%), applied through `HudStyle.scaled` to every body, title and number label; the percents live in `ui_fonts.tres` | card #203 (review ui-input #5): fixed 14 to 22 px text. Gentle steps because the HUD plates and menu lists are laid out for 1920 x 1080 and were checked without a window; titles, banners and popups keep their size (7.5) |
+| 2026-10-18 | The Glossary: a main-menu Extras row (after Tutorial) and a pause-menu row open a book of 109 terms in 14 topics (hit kinds and defences, skills, counters, marks, Dooms, enemies, the map, zones, gear, shops, the run), each with the game's own icon or colour and two or three plain lines, from `data/glossary/glossary.tres`; topic strip with left/right, terms in a `ListMenu`; colours and words are tested against `combat_visuals.tres` and `HudStyle` | card #207: the game has many icons and words and nowhere to look them up; the owner keeps the interactive tutorial for phase 17, so the book stands alone |
