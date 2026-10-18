@@ -5,11 +5,11 @@ extends Node
 ## PlayerSettings.x() without the autoload's global name (which `--check-only` does not know)
 ## and they also work when no autoload exists (unit tests). UserSettings.x() works too.
 ## Holds what belongs to this machine and player rather than to the game's balance: the measured
-## lag compensation (F2 calibration or the settings screen), the training ring toggle (F1 then R),
+## lag compensation, one per kind of input (keyboard, pad; F2 calibration or the settings screen, card #204), the training ring toggle (F1 then R),
 ## the volumes (overall, music, effects, voices), the display and graphics options, screen shake and
-## flashes (settings screen, cards #112 and #185), the highest oath unlocked (DESIGN.md 8.15), the
-## last host address joined online, the rebound keys and buttons (card #190, ControlBindings). Anything not
-## saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
+## flashes (settings screen, cards #112 and #185), the text size (card #203), the highest oath
+## unlocked (DESIGN.md 8.15), the last host address joined online, the rebound keys and buttons
+## (card #190, ControlBindings). Anything not saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
 ## The game was called "Rotten Lands" before (card #48), and Godot keeps user:// in a folder named
@@ -17,7 +17,15 @@ const PATH := "user://settings.cfg"
 const OLD_NAME_DIR := "Rotten Lands"
 const SECTION_TIMING := "timing"
 const SECTION_CUES := "cues"
+## The lag compensation saved before the two input kinds existed (card #204): still read, for both
+## kinds, until the player calibrates that kind itself.
 const KEY_LATENCY := "latency_compensation_ms"
+## Lag compensation per kind of input (card #204): a keyboard and a wireless pad lag differently.
+const INPUT_KEYBOARD := "keyboard"
+const INPUT_PAD := "pad"
+const INPUT_KINDS: Array[String] = [INPUT_KEYBOARD, INPUT_PAD]
+const KEY_LATENCY_KEYBOARD := "latency_keyboard_ms"
+const KEY_LATENCY_PAD := "latency_pad_ms"
 const KEY_RING := "show_timing_ring"
 const SECTION_AUDIO := "audio"
 const KEY_VOLUME := "volume_percent"
@@ -52,6 +60,10 @@ const GRAPHICS := {
 const SECTION_GAME := "game"
 const KEY_SHAKE := "screen_shake_percent"
 const KEY_FLASH := "flash_mode"
+const KEY_TEXT_SIZE := "text_size"
+## The Text size setting (card #203): names of the steps. The percents live in
+## data/presentation/ui_fonts.tres (UiFonts.text_size_percents), one per name.
+const TEXT_SIZE_NAMES: Array[String] = ["Normal", "Large", "Larger"]
 ## The Flashes setting (card #185): how strong screen flashes and white hit flashes are. The
 ## numbers for Reduced and Off live in data/presentation/combat_visuals.tres.
 const FLASH_FULL: int = 0
@@ -61,6 +73,7 @@ const FLASH_NAMES: Array[String] = ["Full", "Reduced", "Off"]
 ## The highest oath this machine has unlocked (DESIGN.md 8.15); 0 until a run is won.
 const KEY_OATH_UNLOCKED := "oath_unlocked"
 const KEY_TUTORIAL_OFFERED := "tutorial_offered"
+const KEY_CALIBRATION_OFFERED := "calibration_offered"
 const SHAKE_STEP_PERCENT: int = 25
 const SECTION_ONLINE := "online"
 const KEY_JOIN_ADDRESS := "join_address"
@@ -81,23 +94,44 @@ func _ready() -> void:
 	apply_volume()
 	apply_fullscreen()
 	apply_frame_options()
-	# Before any screen reads the Input Map: the rebound keys and buttons (card #190).
-	# A test run (godot -s) keeps the project's own keys, whatever this machine has saved.
+	# Before any screen reads the Input Map: the rebound keys and buttons (card #190), and before any
+	# text is built: the text size (card #203).
+	# A test run (godot -s) keeps the project's own keys and text size, whatever this machine has saved.
 	if not OS.get_cmdline_args().has("-s") and not OS.get_cmdline_args().has("--script"):
 		ControlBindings.install(control_overrides())
+		apply_text_size()
 
 
-## Lag compensation in ms: the calibrated value if there is one (kept within tuning's
-## calibration_min_ms .. calibration_max_ms, even if the file was edited), else the tuning default.
-static func latency_compensation_ms(tuning: Tuning) -> int:
-	if is_calibrated():
-		return clamp_latency(int(_settings().get_value(SECTION_TIMING, KEY_LATENCY, 0)), tuning)
+## Which kind of input a device code is (PlayerRoster: a pad's Godot id is 0 and up; KEYBOARD, ANY
+## and the autoplay bot's injected presses count as the keyboard).
+static func input_kind_of_device(device: int) -> String:
+	return INPUT_PAD if device >= 0 else INPUT_KEYBOARD
+
+
+## Lag compensation in ms for one kind of input (keyboard by default): the calibrated value if
+## there is one (kept within tuning's calibration_min_ms .. calibration_max_ms, even if the file was
+## edited), else the value saved before the kinds existed, else the tuning default.
+static func latency_compensation_ms(tuning: Tuning, kind: String = INPUT_KEYBOARD) -> int:
+	var key := _latency_key(kind)
+	var cfg := _settings()
+	if cfg.has_section_key(SECTION_TIMING, key):
+		return clamp_latency(int(cfg.get_value(SECTION_TIMING, key, 0)), tuning)
+	if cfg.has_section_key(SECTION_TIMING, KEY_LATENCY):
+		return clamp_latency(int(cfg.get_value(SECTION_TIMING, KEY_LATENCY, 0)), tuning)
 	return tuning.input_latency_compensation_ms if tuning != null else 0
 
 
-## Saves a calibrated lag compensation (overrides the tuning default from now on), clamped.
-static func set_latency_compensation_ms(value: int, tuning: Tuning) -> void:
-	_settings().set_value(SECTION_TIMING, KEY_LATENCY, clamp_latency(value, tuning))
+## The smallest lag compensation over both kinds of input. The sequence judges work from this base
+## and each press adds its own device's extra (DESIGN.md 3.2), so an attack never closes a window
+## before a laggier device can still press into it.
+static func base_latency_compensation_ms(tuning: Tuning) -> int:
+	return mini(latency_compensation_ms(tuning, INPUT_KEYBOARD), latency_compensation_ms(tuning, INPUT_PAD))
+
+
+## Saves a calibrated lag compensation for one kind of input (overrides the tuning default from now
+## on), clamped.
+static func set_latency_compensation_ms(value: int, tuning: Tuning, kind: String = INPUT_KEYBOARD) -> void:
+	_settings().set_value(SECTION_TIMING, _latency_key(kind), clamp_latency(value, tuning))
 	_save()
 
 
@@ -108,9 +142,20 @@ static func clamp_latency(value: int, tuning: Tuning) -> int:
 	return clampi(value, tuning.calibration_min_ms, tuning.calibration_max_ms)
 
 
-## True once the player has saved a calibration on this machine.
-static func is_calibrated() -> bool:
-	return _settings().has_section_key(SECTION_TIMING, KEY_LATENCY)
+## True once the player has saved a calibration on this machine: for this kind of input, or for
+## either of them when `kind` is empty.
+static func is_calibrated(kind: String = "") -> bool:
+	var cfg := _settings()
+	if cfg.has_section_key(SECTION_TIMING, KEY_LATENCY):
+		return true
+	if not kind.is_empty():
+		return cfg.has_section_key(SECTION_TIMING, _latency_key(kind))
+	return cfg.has_section_key(SECTION_TIMING, KEY_LATENCY_KEYBOARD) \
+			or cfg.has_section_key(SECTION_TIMING, KEY_LATENCY_PAD)
+
+
+static func _latency_key(kind: String) -> String:
+	return KEY_LATENCY_PAD if kind == INPUT_PAD else KEY_LATENCY_KEYBOARD
 
 
 ## Whether the training ring is shown: the saved choice, else the tuning default.
@@ -125,10 +170,12 @@ static func set_show_timing_ring(value: bool) -> void:
 	_save()
 
 
-## Forgets the calibrated lag compensation: the tuning default is used again.
+## Forgets every calibrated lag compensation: the tuning default is used again.
 static func reset_latency_compensation() -> void:
 	if is_calibrated():
-		_settings().erase_section_key(SECTION_TIMING, KEY_LATENCY)
+		for key: String in [KEY_LATENCY, KEY_LATENCY_KEYBOARD, KEY_LATENCY_PAD]:
+			if _settings().has_section_key(SECTION_TIMING, key):
+				_settings().erase_section_key(SECTION_TIMING, key)
 		_save()
 
 
@@ -186,6 +233,10 @@ static func set_fullscreen(value: bool) -> void:
 ## Fullscreen, or the normal maximised window. Nothing to do without a window (headless).
 static func apply_fullscreen() -> void:
 	if DisplayServer.get_name() == "headless":
+		return
+	# A quiet picture run (card #168) keeps the window where the launcher put it: fullscreen or
+	# maximised would activate it and steal the keyboard from whatever the owner is playing.
+	if QuietWindow.active():
 		return
 	var mode := DisplayServer.window_get_mode()
 	if fullscreen() and mode != DisplayServer.WINDOW_MODE_FULLSCREEN:
@@ -295,6 +346,22 @@ static func set_tutorial_offered(value: bool) -> void:
 	_save()
 
 
+## True once the lag calibration was offered on a New Run (DESIGN.md 3.2, card #204): asked once.
+static func calibration_offered() -> bool:
+	return bool(_settings().get_value(SECTION_GAME, KEY_CALIBRATION_OFFERED, false))
+
+
+static func set_calibration_offered(value: bool) -> void:
+	_settings().set_value(SECTION_GAME, KEY_CALIBRATION_OFFERED, value)
+	_save()
+
+
+## Whether a New Run should offer the lag calibration now: only once, and never to a player who
+## already calibrated (an older save, or Settings). Pure, so it is tested without any file.
+static func calibration_offer_due(offered: bool, calibrated: bool) -> bool:
+	return not offered and not calibrated
+
+
 ## How strong camera shakes are, in percent (0: no shaking).
 static func screen_shake_percent() -> int:
 	return clampi(int(_settings().get_value(SECTION_GAME, KEY_SHAKE, 100)), 0, 100)
@@ -315,6 +382,25 @@ static func flash_mode() -> int:
 static func set_flash_mode(value: int) -> void:
 	_settings().set_value(SECTION_GAME, KEY_FLASH, posmod(value, FLASH_NAMES.size()))
 	_save()
+
+
+## The text size step: 0 Normal (default), 1 Large, 2 Larger. A bad saved value reads as Normal.
+static func text_size_index() -> int:
+	var index := int(_settings().get_value(SECTION_GAME, KEY_TEXT_SIZE, 0))
+	return index if index >= 0 and index < TEXT_SIZE_NAMES.size() else 0
+
+
+## Sets the text size; the number wraps around (Right on Larger goes to Normal). Text built from
+## now on uses it (HudStyle.scaled).
+static func set_text_size_index(value: int) -> void:
+	_settings().set_value(SECTION_GAME, KEY_TEXT_SIZE, posmod(value, TEXT_SIZE_NAMES.size()))
+	_save()
+	apply_text_size()
+
+
+## Gives the saved text size to HudStyle (start-up, and whenever it changes).
+static func apply_text_size() -> void:
+	HudStyle.set_text_size_index(text_size_index())
 
 
 ## The host address typed last on the Join Online screen.

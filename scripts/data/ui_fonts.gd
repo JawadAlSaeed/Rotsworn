@@ -33,3 +33,16 @@ extends Resource
 ## The fight's floating words and damage numbers (PERFECT, PARRY, 128) lean like Persona 5's: how
 ## far the letters slant (a share of their height).
 @export_range(0.0, 0.5, 0.01) var popup_slant: float = 0.2
+
+@export_group("Text size")
+## Settings > Game > Text size (card #203): Normal, Large, Larger, each as a percent of the sizes the
+## screens are drawn with (HudStyle.scaled). Kept gentle: the fight HUD's plates and the menus' lists
+## are laid out for 1920 x 1080 and must still fit at the largest.
+@export var text_size_percents: PackedInt32Array = PackedInt32Array([100, 115, 130])
+
+
+## The percent for a text size index (an index out of range is limited; 100 if the list is empty).
+func text_percent(index: int) -> int:
+	if text_size_percents.is_empty():
+		return 100
+	return maxi(1, text_size_percents[clampi(index, 0, text_size_percents.size() - 1)])

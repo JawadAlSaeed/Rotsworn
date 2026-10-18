@@ -1,0 +1,61 @@
+{
+ "pick": 1,
+ "options": {
+  "1": {
+   "name": "Attack grunt 1 (hah)",
+   "desc": "A young man's short, clear 'hah!' of effort as he swings. The most ordinary of the four.",
+   "license": "CC BY 4.0",
+   "layers": [
+    {
+     "sound": "audio/search/brin_shout/fs-695378.mp3",
+     "highpass_hz": 60,
+     "credit": "\"Male Attack Grunt 1.wav\" by F.M.Audio, CC BY 4.0, https://freesound.org/people/F.M.Audio/sounds/695378/"
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 80
+  },
+  "2": {
+   "name": "Short kiai",
+   "desc": "A clean karate-style 'hyah!', a little longer and louder than the grunt.",
+   "license": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/brin_shout/fs-823246.mp3",
+     "highpass_hz": 60,
+     "credit": "\"Short male scream\" by ihitokage, CC0, https://freesound.org/people/ihitokage/sounds/823246/"
+    }
+   ],
+   "len_ms": 520,
+   "fade_ms": 120
+  },
+  "3": {
+   "name": "Male shout",
+   "desc": "A short, plain man's shout ('hey!' with effort), very dry.",
+   "license": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/brin_shout/fs-509885.mp3",
+     "highpass_hz": 60,
+     "credit": "\"male_shout_01.wav\" by slamaxu, CC0, https://freesound.org/people/slamaxu/sounds/509885/"
+    }
+   ],
+   "len_ms": 450,
+   "fade_ms": 100
+  },
+  "4": {
+   "name": "Attack grunt 2 (hya)",
+   "desc": "Another take from the same warrior grunt set: a quick, higher 'hya!'.",
+   "license": "CC BY 4.0",
+   "layers": [
+    {
+     "sound": "audio/search/brin_shout/fs-695379.mp3",
+     "highpass_hz": 60,
+     "credit": "\"Male Attack Grunt 2.wav\" by F.M.Audio, CC BY 4.0, https://freesound.org/people/F.M.Audio/sounds/695379/"
+    }
+   ],
+   "len_ms": 420,
+   "fade_ms": 80
+  }
+ }
+}

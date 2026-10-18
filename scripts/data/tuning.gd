@@ -78,6 +78,11 @@ extends Resource
 ## glows under them for a ground hit) until it lands. Off since phase 6 (user: the circle made the
 ## game easier); the floor warning then still shows. Toggle in a practice fight with F1 > H.
 @export var show_hit_markers: bool = true
+## Ranged-hit indicator (DESIGN.md 3.9, card #165): while a thrown projectile flies, brackets on
+## the hero it flies at close in and meet at the moment the defence is judged on, with a dashed
+## path from the projectile. It is the projectile's own flight made readable, so it stays on in
+## run fights (unlike the hit markers).
+@export var show_ranged_aim: bool = true
 ## Harder reading (phase 6): the attack's hits (how many, which kind) show on the intent sign and
 ## the attack banner until the first hit lands; from then on the banner's hit row and the hit
 ## markers are hidden, so the rest of the string must be remembered. The enemy's own motion
@@ -415,6 +420,14 @@ extends Resource
 @export_range(0, 30000, 1, "suffix:ms") var net_deadline_grace_ms: int = 1500
 ## Zones: the host sends the leader and roaming enemy positions this many times a second.
 @export_range(1, 60) var net_zone_send_hz: int = 20
+## Heartbeat (card #205): a connection that answers nothing (a pulled cable, a crash, Wi-Fi gone)
+## counts as lost after at least the first and at most the second of these. Both ends keep pinging
+## each other, so a silent drop never freezes a fight longer than this.
+@export_range(500, 60000, 1, "suffix:ms") var net_drop_min_ms: int = 3000
+@export_range(500, 60000, 1, "suffix:ms") var net_drop_max_ms: int = 6000
+## A client that dropped mid-run keeps its seat this long (the host plays its heroes meanwhile); it
+## can join again with the host's address and play on. After this the seat is given up (0: never kept).
+@export_range(0, 1800000, 1, "suffix:ms") var net_rejoin_grace_ms: int = 120000
 
 @export_group("Controls")
 ## Settings > Controls (card #190): after picking a key or button to change, the game waits this

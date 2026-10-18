@@ -1,11 +1,13 @@
 class_name PauseMenu
 extends CanvasLayer
-## The pause menu (DESIGN.md 7.5): over a fight, a zone or the run map. Continue, Settings, Save &
+## The pause menu (DESIGN.md 7.5): over a fight, a zone or the run map. Continue, Settings, Glossary (7.12), Save &
 ## Quit (a local run, DESIGN.md 8.14) and Abandon run (in a run) or Leave (practice). Pause (Esc /
 ## Menu) or Back also continues. Main stops whatever is under it while it is open.
 
 signal resumed
 signal settings_requested
+## The Glossary row: Main opens the book over this menu and comes back to it.
+signal glossary_requested
 signal leave_requested
 ## Save & Quit: keep the run in its slot and go to the main menu.
 signal save_quit_requested
@@ -16,7 +18,7 @@ const TITLE_SIZE: int = 72
 const DETAIL_SIZE: int = 26
 const DIM := Color(0.0, 0.0, 0.0, 0.7)
 
-enum Item { CONTINUE, SETTINGS, LEAVE, EXTRA, SAVE_QUIT }
+enum Item { CONTINUE, SETTINGS, LEAVE, EXTRA, SAVE_QUIT, GLOSSARY }
 
 var _menu: ListMenu
 ## What each row is (Item), in order.
@@ -53,6 +55,8 @@ func setup(leave_text: String, leave_detail: String, extra_text: String = "", ex
 		_rows.append(Item.EXTRA)
 	items.append({"text": "Settings", "detail": "Graphics, sound, controls and lag calibration."})
 	_rows.append(Item.SETTINGS)
+	items.append({"text": "Glossary", "detail": "What the game's terms and icons mean."})
+	_rows.append(Item.GLOSSARY)
 	if not save_text.is_empty():
 		items.append({"text": save_text, "detail": save_detail})
 		_rows.append(Item.SAVE_QUIT)
@@ -79,6 +83,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					resumed.emit()
 				Item.SETTINGS:
 					settings_requested.emit()
+				Item.GLOSSARY:
+					glossary_requested.emit()
 				Item.LEAVE:
 					leave_requested.emit()
 				Item.EXTRA:

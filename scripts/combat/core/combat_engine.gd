@@ -422,6 +422,49 @@ func preview_turn_order(count: int) -> Array[int]:
 	return order
 
 
+## The fight as it stands, as the events a machine that missed it plays to catch up (an online
+## player who rejoined mid-fight, DESIGN.md 9.2, card #205): combat_started with every fighter as
+## they are now (and "resume": true), the practice options, the team gauge, every enemy's intent,
+## the turn order, and the turn that waits for a choice (or the end). Only between sequences
+## (AWAITING_ACTION or ENDED; empty otherwise, never mid-attack). Changes nothing, so the engine's
+## own events and their order are the same with or without a rejoin.
+func resume_events() -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	if phase != Phase.AWAITING_ACTION and phase != Phase.ENDED:
+		return events
+	var fighters: Array[Dictionary] = []
+	for c: Combatant in combatants:
+		fighters.append(c.to_dict())
+	var item_list: Array = []
+	for uid: int in items_left:
+		item_list.append(item_info(uid))
+	events.append({
+		"type": "combat_started",
+		"seed": _setup.rng_seed,
+		"fighters": fighters,
+		"practice_allowed": _setup.allow_practice,
+		"opening": OPENING_NAMES[CombatSetup.Opening.NORMAL],
+		"items": item_list,
+		"resume": true,
+	})
+	var p := practice.duplicate(true)
+	p["type"] = "practice_changed"
+	events.append(p)
+	events.append({"type": "team_gauge", "value": team_gauge, "delta": 0, "max": tuning.team_gauge_max})
+	for enemy_id: int in living_enemy_ids():
+		if intents.has(enemy_id) and get_attack(String((intents[enemy_id] as Dictionary).attack)) != null:
+			events.append(_intent_event(enemy_id))
+	if phase == Phase.ENDED:
+		events.append({"type": "combat_ended", "result": result})
+		return events
+	events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
+	var actor := get_combatant(active_actor)
+	if actor != null:
+		events.append({"type": "turn_started", "turn": turn_number, "actor": actor.id, "team": actor.team,
+				"time": time_now})
+	return events
+
+
 ## Full state as plain data (deep copy), for determinism checks, restore and network sync.
 func snapshot() -> Dictionary:
 	var fighters: Array[Dictionary] = []

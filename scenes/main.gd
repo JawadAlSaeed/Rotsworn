@@ -49,6 +49,13 @@ const QUIT_AUDIO_RELEASE_S: float = 0.3
 ## Online client: the "host is choosing" line over watched run screens.
 const WATCH_TEXT_SIZE: int = 26
 const WATCH_MARGIN_PX: float = 24.0
+## The "P2 away" chip (card #205): above the pause menu, under the screen fades; its countdown
+## is redrawn this often (host).
+const AWAY_LAYER: int = 55
+const AWAY_REFRESH_S: float = 0.25
+## --drop-in-fight (dev): how often the bot looks for a fight, and how far into it it drops.
+const AUTOPLAY_DROP_POLL_S: float = 0.5
+const AUTOPLAY_DROP_INTO_FIGHT_S: float = 6.0
 ## The backpack over a zone draws above the zone's HUD and run bar.
 const ZONE_BACKPACK_LAYER: int = 20
 
@@ -126,6 +133,16 @@ var _flow_gen: int = 0
 var _combat_accepts: bool = false
 var _net_hold: bool = false
 var _client_done: bool = false
+## Host: the last place screen sent (map, zone, shop ...) and the fight going on (zone_fight or
+## final_fight message; empty between fights), so a player who joins again is shown where we are.
+var _net_place: Dictionary = {}
+var _net_fight: Dictionary = {}
+## Client: the next fight is one we joined again in the middle of (it waits for the host's resume).
+var _combat_resync: bool = false
+## "P2 away" while a player's connection is gone (card #205).
+var _away_layer: CanvasLayer
+var _away_label: Label
+var _away_refresh_s: float = 0.0
 ## The main menu has had a choice made on it (until then a saved run is the cursor's first stop).
 var _menu_used: bool = false
 ## The run as it was when the stop in progress was entered (the save holds it; Save & Quit inside a
@@ -184,9 +201,12 @@ func _ready() -> void:
 	else:
 		_transition.setup_tips(tips, _branding.logo_path)
 	_build_watch_layer()
+	_build_away_chip()
 	Net.message_received.connect(_on_net_message)
 	Net.peer_joined.connect(_on_net_peer_joined)
 	Net.peer_left.connect(_on_net_peer_left)
+	Net.peer_away.connect(_on_net_peer_away)
+	Net.peer_rejoined.connect(_on_net_peer_rejoined)
 	Net.host_lost.connect(_on_net_host_lost)
 	Net.refused.connect(_on_net_refused)
 	_options = CombatOptions.from_args(DevArgs.user_args(), _tuning)
@@ -210,6 +230,8 @@ func _ready() -> void:
 		_on_join_requested(_options.join_address)
 		if _options.leave_after_s > 0:
 			_autoplay_leave_later()
+		if _options.drop_after_s > 0:
+			_autoplay_drop_later()
 		return
 	if _options.run:
 		_new_run()
@@ -267,8 +289,15 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_select()
 		"title":
 			_show_title()
+		"controller":
+			_show_controller_notice(_show_title, true)
+		"calibration_offer":
+			_show_main_menu()
+			_offer_calibration(false)
 		"credits":
 			_show_credits()
+		"glossary":
+			_show_glossary()
 		"journal":
 			_show_journal()
 		"party":
@@ -296,7 +325,10 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_settings()
 			(_screen as SettingsScreen).open_section(SettingsScreen.Section.CONTROLS)
 		_:
-			_show_main_menu()
+			if screen_name.begins_with("glossary_"):
+				_show_glossary(screen_name.trim_prefix("glossary_"))
+			else:
+				_show_main_menu()
 
 
 ## --screen=map: a new run two stops in; map_start: before the first stop; map_act2: one stop into
@@ -407,20 +439,38 @@ func _show_sample_skills() -> void:
 	(_screen as PartyScreen).open_skills()
 
 
-## The studio intro when the game starts, then the title screen (no music until then).
+## The studio intro when the game starts, then the "Controller recommended" notice, then the title
+## screen (no music until then).
 func _show_intro() -> void:
 	var boot := load(BOOT_PATH) as BootData
 	if boot == null:
 		push_warning("Main: could not load %s, no intro" % BOOT_PATH)
-		_show_title()
+		_show_controller_notice(_show_title)
 		return
 	var intro := IntroScreen.new()
 	intro.name = "Intro"
 	intro.setup(boot)
 	intro.done.connect(func() -> void:
 		intro.queue_free()
-		_show_title())
+		_show_controller_notice(_show_title))
 	add_child(intro)
+
+
+## The "Controller recommended" notice (card #167), then `next`. Left out when BrandingData says so
+## (no hold time, or a pad is already plugged in and the data asks to skip it) and never in autoplay
+## (the bot never reaches the intro). `force`: the --screen=controller picture shows it whatever
+## the data says.
+func _show_controller_notice(next: Callable, force: bool = false) -> void:
+	if _options.is_autoplay() or not (force or ControllerNotice.is_due(_branding, not _connected_pads().is_empty())):
+		next.call()
+		return
+	var notice := ControllerNotice.new()
+	notice.name = "ControllerNotice"
+	notice.setup(_branding)
+	notice.done.connect(func() -> void:
+		notice.queue_free()
+		next.call())
+	add_child(notice)
 
 
 ## The title screen (card #82): any button fades to the main menu.
@@ -442,8 +492,13 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	if Net.is_host():
 		_net_host_tick(delta)
+		_away_refresh_s += delta
+		if _away_layer.visible and _away_refresh_s >= AWAY_REFRESH_S:
+			_away_refresh_s = 0.0
+			_update_away_chip()
 	if not _options.is_autoplay():
 		_watch_pads()
+		MouseCursor.set_menus_allowed(_mouse_wanted())
 	# Autoplay guard: a zone that never reaches a fight is stuck.
 	if not _options.is_autoplay() or _zone == null or not _zone.is_inside_tree() or _zone.is_frozen():
 		_zone_idle_s = 0.0
@@ -452,6 +507,19 @@ func _process(delta: float) -> void:
 	if _zone_idle_s > AUTOPLAY_ZONE_STUCK_S:
 		_zone_idle_s = 0.0
 		_autoplay_fail("zone_stuck")
+
+
+## True on every menu (the main menu, run screens, pause, settings, the backpack over a zone) and
+## false while a fight or a zone is being played: those are keyboard and pad games, so the mouse
+## pointer stays hidden there (card #202).
+func _mouse_wanted() -> bool:
+	if _pause != null or _prompt != null or _overlay != null:
+		return true
+	for child: Node in get_children():
+		if child is SettingsScreen:
+			return true
+	var playing := (_combat != null and _combat.is_inside_tree()) or (_zone != null and _zone.is_inside_tree())
+	return not playing
 
 
 # --- screens ----------------------------------------------------------------------------------
@@ -562,6 +630,8 @@ func _on_menu_chosen(item: StringName) -> void:
 			_fade_to.call_deferred(_start_tutorial)
 		MainMenu.PRACTICE:
 			_show_lobby.call_deferred(_show_select.call_deferred)
+		MainMenu.GLOSSARY:
+			_show_glossary.call_deferred()
 		MainMenu.JOURNAL:
 			_show_journal.call_deferred()
 		MainMenu.SETTINGS:
@@ -572,12 +642,22 @@ func _on_menu_chosen(item: StringName) -> void:
 			_quit_game()
 
 
-## New Run from the main menu: the tutorial offer (once), then the players screen, then the run.
+## New Run from the main menu: the tutorial offer (once), then the lag calibration offer (once),
+## then the players screen, then the run. Only one offer per press: a player who says yes to the
+## tutorial is asked about the calibration on their next New Run (DESIGN.md 3.2, 7.8).
 func _start_new_run() -> void:
 	if not PlayerSettings.tutorial_offered() and not _options.is_autoplay():
 		_offer_tutorial()
 	else:
-		_show_lobby(_fade_to.bind(_new_run), true)
+		_new_run_players()
+
+
+## After the offers: the players screen of a new run (or the calibration offer first, if it is due).
+func _new_run_players() -> void:
+	if _calibration_offer_wanted():
+		_offer_calibration()
+	else:
+		_new_run_players_after_offer()
 
 
 ## The players screen; Start keeps its roster and calls `next`. `with_oaths`: a run's screen, with
@@ -648,6 +728,16 @@ func _show_settings() -> void:
 	settings.setup(_tuning, _visuals)
 	settings.closed.connect(_show_main_menu.call_deferred)
 	_show_screen(settings)
+
+
+## The Glossary (card #207), from Extras: the book of the game's terms. Back returns to Extras.
+## `topic` (a topic id) opens it on that topic (the --screen=glossary_<topic> dev picture).
+func _show_glossary(topic: String = "") -> void:
+	var screen := GlossaryScreen.new()
+	screen.name = "Glossary"
+	screen.setup(GlossaryScreen.load_glossary(), topic)
+	screen.closed.connect(_show_main_menu.call_deferred)
+	_show_screen(screen)
 
 
 ## The Rot Journal (card #200): what the player has met, read from the journal file when it opens.
@@ -744,8 +834,13 @@ func _start_combat() -> void:
 	_combat.configure_players(_players)
 	if Net.is_host():
 		_combat.configure_online(CombatController.NetMode.HOST, _net_seed)
+		_combat.resume_ready.connect(_return_seat)
 	elif Net.is_client():
 		_combat.configure_online(CombatController.NetMode.CLIENT, _net_seed)
+		if _combat_resync:
+			# We joined again mid-fight: the host sends the fight as it stands.
+			_combat.expect_resume()
+			_combat_resync = false
 		# Only the host goes on after a fight; the next screen comes from it.
 		continue_to = Callable()
 	if continue_to.is_valid():
@@ -881,7 +976,8 @@ func _on_encounter_started(index: int, opening: CombatSetup.Opening) -> void:
 	_drop = _run.drop_for(_run.at, index) if _run != null and index != _zone.guard_index() else null
 	if Net.is_host():
 		_net_seed = randi_range(1, 2147483646)
-		Net.broadcast("screen", {"name": "zone_fight", "index": index, "opening": int(opening), "seed": _net_seed})
+		_net_fight = {"name": "zone_fight", "index": index, "opening": int(opening), "seed": _net_seed}
+		Net.broadcast("screen", _net_fight)
 	var gen := _flow_gen
 	Sfx.play("encounter_swirl")
 	await _transition.swirl_out()
@@ -966,10 +1062,23 @@ func _on_zone_cleared() -> void:
 
 # --- the tutorial (DESIGN.md 7.8, card #131) --------------------------------------------------
 
+## A question over the main menu hides the menu while it is open: the menu's gold letters showed
+## through the prompt's dark backdrop (card #204, seen in a picture run).
+func _hide_menu_behind(prompt: ConfirmPrompt) -> void:
+	if not _screen is MainMenu:
+		return
+	var menu := _screen as MainMenu
+	menu.visible = false
+	prompt.tree_exited.connect(func() -> void:
+		if is_instance_valid(menu):
+			menu.visible = true)
+
+
 ## The first New Run asks once whether to play the tutorial first.
 func _offer_tutorial() -> void:
 	PlayerSettings.set_tutorial_offered(true)
 	_prompt = ConfirmPrompt.new()
+	_hide_menu_behind(_prompt)
 	_prompt.name = "TutorialPrompt"
 	_prompt.setup("Play the tutorial first?", "Five short lessons: attacking, skills, defending and the team "
 			+ "ultimate. It is always in the main menu too.", "Play the tutorial", "Start the run")
@@ -979,8 +1088,54 @@ func _offer_tutorial() -> void:
 		if yes:
 			_fade_to(_start_tutorial)
 		else:
-			_show_lobby(_fade_to.bind(_new_run), true))
+			_new_run_players())
 	add_child(_prompt)
+
+
+## True if a New Run should ask about the lag calibration now: once (PlayerSettings), not for a
+## player who calibrated already, and never for the bot or an online game (an online client does not
+## come through the main menu's New Run at all).
+func _calibration_offer_wanted() -> bool:
+	return not _options.is_autoplay() and not Net.is_online() and PlayerSettings.calibration_offer_due(
+			PlayerSettings.calibration_offered(), PlayerSettings.is_calibrated())
+
+
+## Asks once whether to measure the player's lag now (DESIGN.md 3.2). Yes runs the calibration
+## screen, then goes on to the players screen; No goes straight on. `remember` false: a dev picture
+## (--screen=calibration_offer) that must not use up the real once-only offer.
+func _offer_calibration(remember: bool = true) -> void:
+	if remember:
+		PlayerSettings.set_calibration_offered(true)
+	_prompt = ConfirmPrompt.new()
+	_hide_menu_behind(_prompt)
+	_prompt.name = "CalibrationPrompt"
+	_prompt.setup("Calibrate your timing?", "Takes about 15 seconds. Recommended for wireless pads and TVs, "
+			+ "which add lag. It is always in Settings under Game.", "Calibrate now", "Not now")
+	_prompt.answered.connect(func(yes: bool) -> void:
+		_prompt.queue_free()
+		_prompt = null
+		if not remember:
+			_show_main_menu()
+		elif yes:
+			_show_calibration_screen.call_deferred(_new_run_players_after_offer)
+		else:
+			_new_run_players_after_offer())
+	add_child(_prompt)
+
+
+## The players screen once the calibration offer is over (it is never asked twice, so this cannot
+## loop back into the offer).
+func _new_run_players_after_offer() -> void:
+	_show_lobby(_fade_to.bind(_new_run), true)
+
+
+## The lag calibration on its own screen, then `next`.
+func _show_calibration_screen(next: Callable) -> void:
+	var screen := CalibrationScreen.new()
+	screen.name = "CalibrationScreen"
+	screen.setup(_visuals, _tuning)
+	screen.closed.connect(next, CONNECT_DEFERRED)
+	_show_screen(screen)
 
 
 ## Starts the tutorial: its practice fight, one player, the lessons over it.
@@ -1152,6 +1307,7 @@ func _save_in_the_way() -> bool:
 
 func _ask_overwrite_save() -> void:
 	_prompt = ConfirmPrompt.new()
+	_hide_menu_behind(_prompt)
 	_prompt.name = "OverwritePrompt"
 	_prompt.setup("Start a new run?", "Your saved run will be lost.", "Start a new run", "Keep the saved run")
 	_prompt.answered.connect(func(yes: bool) -> void:
@@ -1707,6 +1863,7 @@ func _open_pause() -> void:
 		_pause.setup("Leave", "Back to the practice list.")
 	_pause.resumed.connect(_on_pause_resumed)
 	_pause.settings_requested.connect(_on_pause_settings)
+	_pause.glossary_requested.connect(_on_pause_glossary)
 	_pause.leave_requested.connect(_on_pause_leave)
 	add_child(_pause)
 
@@ -1731,6 +1888,26 @@ func _on_pause_settings() -> void:
 	settings.setup(_tuning, _visuals)
 	settings.closed.connect(_on_pause_settings_closed.bind(settings))
 	add_child(settings)
+
+
+## The Glossary over the pause menu (card #207). It only reads, so it needs nothing held: the game
+## is already held (or, online, goes on) exactly as under the pause menu.
+func _on_pause_glossary() -> void:
+	_pause.visible = false
+	_pause.process_mode = Node.PROCESS_MODE_DISABLED
+	var book := GlossaryScreen.new()
+	book.name = "PauseGlossary"
+	book.layer = _pause.layer + 1
+	book.setup(GlossaryScreen.load_glossary())
+	book.closed.connect(_on_pause_glossary_closed.bind(book))
+	add_child(book)
+
+
+func _on_pause_glossary_closed(book: GlossaryScreen) -> void:
+	book.queue_free()
+	if _pause != null:
+		_pause.visible = true
+		_pause.process_mode = Node.PROCESS_MODE_INHERIT
 
 
 func _on_pause_settings_closed(settings: SettingsScreen) -> void:
@@ -1799,7 +1976,7 @@ func _free_pause() -> void:
 		_pause.queue_free()
 		_pause = null
 	for child: Node in get_children():
-		if child is SettingsScreen and child != _screen:
+		if (child is SettingsScreen or child is GlossaryScreen) and child != _screen:
 			child.queue_free()
 
 
@@ -1856,13 +2033,16 @@ func _on_online_started(players: PlayerRoster, oath: int) -> void:
 	_fade_to(_new_run)
 
 
-func _show_join() -> void:
+## `address` "" : the remembered one. `problem`: shown at once (why we are here again).
+func _show_join(address: String = "", problem: String = "") -> void:
 	var join := JoinScreen.new()
 	join.name = "Join"
-	join.setup(PlayerSettings.join_address())
+	join.setup(address if not address.is_empty() else PlayerSettings.join_address())
 	join.connect_requested.connect(_on_join_requested)
 	join.back.connect(_show_main_menu.call_deferred)
 	_show_screen(join)
+	if not problem.is_empty():
+		join.show_problem(problem)
 
 
 func _on_join_requested(address: String) -> void:
@@ -1878,6 +2058,14 @@ func _on_net_peer_joined(peer: int) -> void:
 		if not _screen is LobbyScreen or not (_screen as LobbyScreen).add_peer(peer):
 			Net.kick(peer)
 		return
+	if Net.rejoined:
+		# Our seat is back: the host sends the run and where it is now.
+		Sfx.play("net_connected")
+		print("Rejoined as peer %d" % peer)
+		_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, peer)
+		if _screen is JoinScreen:
+			(_screen as JoinScreen).show_status("Back in. Catching up with the host ...")
+		return
 	# Welcomed by the host: wait on the players screen for its roster and its Start.
 	Sfx.play("net_connected")
 	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, peer)
@@ -1891,8 +2079,8 @@ func _on_net_peer_joined(peer: int) -> void:
 	_show_screen(lobby)
 
 
-## Host: a client left. Before the run it just leaves the list; during the run its heroes go to
-## the host (and the others are told).
+## Host: a client left (or its seat's grace time ran out). Before the run it just leaves the list;
+## during the run its heroes go to the host for good (and the others are told).
 func _on_net_peer_left(peer: int) -> void:
 	if _run == null and _screen is LobbyScreen:
 		(_screen as LobbyScreen).remove_peer(peer)
@@ -1902,16 +2090,108 @@ func _on_net_peer_left(peer: int) -> void:
 		Sfx.play("player_leave")
 		Net.broadcast("roster", {"roster": _players.to_dict()})
 		if _combat != null:
+			_combat.cancel_resume(peer)
 			_combat.update_players(_players, peer)
 		if _zone != null:
 			_zone.configure_players(_players)
+	_update_away_chip()
+
+
+## Host: a client's connection went mid-run (card #205). Its seat is kept for the grace time; the
+## host plays its heroes meanwhile (their open defence prompts count as not defended), and everyone
+## sees "P2 away".
+@warning_ignore("integer_division")
+func _on_net_peer_away(peer: int) -> void:
+	if not _players.set_away(peer):
+		return
+	print("Player away: P%d (peer %d), seat kept %d s" % [_players.player_of_peer(peer) + 1, peer,
+			_tuning.net_rejoin_grace_ms / 1000])
+	Sfx.play("player_leave")
+	Net.broadcast("roster", {"roster": _players.to_dict()})
+	if _combat != null:
+		_combat.cancel_resume(peer)
+		_combat.update_players(_players, peer)
+	if _zone != null:
+		_zone.configure_players(_players)
+	_update_away_chip()
+
+
+## Host: the player who had `old_peer` joined again as `new_peer` with their seat's token. They get
+## the run and the screen we are on; in a fight, the fight as it stands at the next hero's turn,
+## and their heroes back at that moment (so no attack is half theirs).
+func _on_net_peer_rejoined(old_peer: int, new_peer: int) -> void:
+	var player := _players.rebind_peer(old_peer, new_peer)
+	if player < 0 or _run == null:
+		Net.kick(new_peer)
+		return
+	print("Player back: P%d (peer %d, was %d)" % [player + 1, new_peer, old_peer])
+	Sfx.play("net_connected")
+	if not _players.is_away(player):
+		# Their old connection had not been noticed as lost yet: it is gone now.
+		_players.set_away(new_peer)
+		if _combat != null:
+			_combat.update_players(_players, old_peer)
+	var mid_fight := not _net_fight.is_empty() and _combat != null
+	Net.send_to(new_peer, "run_start", {"seed": _run.run_seed, "roster": _players.to_dict(), "oath": _run.oath})
+	var run := _run.to_dict()
+	if not _net_place.is_empty():
+		var place := _net_place.duplicate()
+		place["run"] = run
+		Net.send_to(new_peer, "screen", place)
+	if not _net_fight.is_empty():
+		var fight := _net_fight.duplicate()
+		fight["run"] = run
+		fight["rejoin"] = mid_fight
+		Net.send_to(new_peer, "screen", fight)
+	if mid_fight:
+		_combat.queue_resume(new_peer)
+	else:
+		_return_seat(new_peer)
+	_update_away_chip()
+
+
+## Host: peer `peer` plays its own heroes again (everyone is told).
+func _return_seat(peer: int) -> void:
+	if not _players.set_back(peer):
+		return
+	print("Player plays again: P%d (peer %d)" % [_players.player_of_peer(peer) + 1, peer])
+	Net.broadcast("roster", {"roster": _players.to_dict()})
+	if _combat != null:
+		_combat.update_players(_players)
+	if _zone != null:
+		_zone.configure_players(_players)
+	_update_away_chip()
 
 
 func _on_net_host_lost() -> void:
+	if not _client_done and _run != null and Net.has_seat() \
+			and (not _options.is_autoplay() or _options.rejoin_after_s > 0):
+		_lost_host()
+		return
 	if not _client_done:
 		_autoplay_fail("host_lost")
 		Sfx.play("net_error")
 	_end_online("The run is over." if _client_done else "The host left the game.")
+
+
+## Client: the connection to the host went mid-run (card #205). The host keeps our seat for a while:
+## the Join screen opens with its address, ready to take the seat back.
+@warning_ignore("integer_division")
+func _lost_host() -> void:
+	var address := Net.seat_address()
+	print("Lost the host; seat kept at %s" % address)
+	Sfx.play("net_error")
+	_leave_online()
+	_free_pause()
+	_busy = false
+	_combat_resync = false
+	_run = null
+	var grace_s := _tuning.net_rejoin_grace_ms / 1000
+	var kept := "%d minutes" % (grace_s / 60) if grace_s >= 120 else "%d seconds" % grace_s
+	_show_join.call_deferred(address, "Lost the connection to the host. Press Enter (A on a pad) to take your seat back\n"
+			+ "(the host keeps it for %s)." % kept)
+	if _options.rejoin_after_s > 0:
+		_autoplay_rejoin_later(address)
 
 
 func _on_net_refused(reason: String) -> void:
@@ -1925,6 +2205,7 @@ func _on_net_refused(reason: String) -> void:
 
 ## This machine's online game is over: back to the main menu with a note.
 func _end_online(notice: String) -> void:
+	Net.forget_seat()
 	_leave_online()
 	_notice = notice
 	_free_pause()
@@ -1941,8 +2222,11 @@ func _leave_online() -> void:
 	_net_hold = false
 	_net_screen = {}
 	_sent_run = {}
+	_net_place = {}
+	_net_fight = {}
 	Net.leave()
 	_players = PlayerRoster.solo(_hero_names().size())
+	_update_away_chip()
 
 
 func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
@@ -1979,6 +2263,7 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				# Batches from here on belong to the next fight.
 				_combat_accepts = false
 				_combat_inbox.clear()
+				_combat_resync = bool(payload.get("rejoin", false))
 			_net_queue.append({"kind": kind, "payload": payload})
 			_pump_net()
 
@@ -2004,6 +2289,7 @@ func _client_message(kind: String, p: Dictionary) -> void:
 				_players = roster
 				if _combat != null:
 					_combat.update_players(_players)
+				_update_away_chip()
 		"run":
 			_apply_run(p)
 			_rebuild_watched_screen()
@@ -2285,6 +2571,15 @@ func _send_screen(p: Dictionary) -> void:
 		_sent_run = _run.to_dict()
 		message["run"] = _sent_run
 	Net.broadcast("screen", message)
+	# Kept for a player who joins again (without the run: theirs is sent fresh).
+	match String(p.get("name", "")):
+		"zone_fight", "final_fight":
+			_net_fight = p.duplicate()
+		"zone_back":
+			_net_fight = {}
+		_:
+			_net_place = p.duplicate()
+			_net_fight = {}
 
 
 ## Host, every frame: run changes (purchases, gear, levels) and zone positions go out.
@@ -2358,6 +2653,69 @@ func _build_watch_layer() -> void:
 	box.position = Vector2(WATCH_MARGIN_PX, WATCH_MARGIN_PX)
 	_watch_layer.add_child(box)
 	box.add_child(HudStyle.make_label("The host is choosing (P1)", WATCH_TEXT_SIZE, HudStyle.player_color(0)))
+
+
+## Autoplay client (--drop-after=S, card #205): drops off the network without a word mid-run, like
+## a pulled cable; the host notices through the heartbeat.
+func _autoplay_drop_later() -> void:
+	await get_tree().create_timer(float(_options.drop_after_s)).timeout
+	if _options.drop_in_fight:
+		while Net.is_client() and (_combat == null or not _combat.is_inside_tree()):
+			await get_tree().create_timer(AUTOPLAY_DROP_POLL_S).timeout
+		await get_tree().create_timer(AUTOPLAY_DROP_INTO_FIGHT_S).timeout
+	if not Net.is_client():
+		return
+	print("AUTOPLAY_DROPPED after %d s%s" % [_options.drop_after_s, " (in a fight)" if _combat != null else ""])
+	Net.drop_silently()
+
+
+## Autoplay client (--rejoin=S): joins the host again S seconds after losing it.
+func _autoplay_rejoin_later(address: String) -> void:
+	await get_tree().create_timer(float(_options.rejoin_after_s)).timeout
+	if _screen is JoinScreen and not Net.is_online():
+		print("AUTOPLAY_REJOIN %s" % address)
+		(_screen as JoinScreen).submit(address)
+
+
+## "P2 away" (with the seat's time left on the host) while a player's connection is gone.
+func _build_away_chip() -> void:
+	_away_layer = CanvasLayer.new()
+	_away_layer.name = "AwayChip"
+	_away_layer.layer = AWAY_LAYER
+	_away_layer.visible = false
+	add_child(_away_layer)
+	# Top-right: the watch note sits top-left, the run screens' titles in the middle.
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", HudStyle.panel())
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.anchor_left = 1.0
+	box.anchor_right = 1.0
+	box.offset_left = -WATCH_MARGIN_PX
+	box.offset_right = -WATCH_MARGIN_PX
+	box.offset_top = WATCH_MARGIN_PX
+	box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_away_layer.add_child(box)
+	_away_label = HudStyle.make_label("", WATCH_TEXT_SIZE, HudStyle.TEXT)
+	box.add_child(_away_label)
+
+
+@warning_ignore("integer_division")
+func _update_away_chip() -> void:
+	if _away_layer == null:
+		return
+	var lines: Array[String] = []
+	if Net.is_online() and _players != null:
+		for player: int in _players.away:
+			var line := "%s away" % HudStyle.player_tag(player)
+			if Net.is_host() and player < _players.peers.size():
+				var left_s := ceili(float(Net.seat_time_left(_players.peers[player])) / 1000.0)
+				line += ", seat kept %d:%02d" % [left_s / 60, left_s % 60]
+			lines.append(line)
+	_away_layer.visible = not lines.is_empty()
+	if lines.is_empty():
+		return
+	_away_label.text = "\n".join(lines)
+	_away_label.label_settings.font_color = HudStyle.player_color(_players.away[0])
 
 
 ## Autoplay client (--leave-after=S): leaves the game mid-run, as a player quitting would.

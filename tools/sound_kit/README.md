@@ -66,3 +66,10 @@ Slots are the cue names, `music:<song>` and `ambience:<loop>`. Only CC0, public 
 kept; CC BY sources also go on the credits screen (`data/branding/credits.tres`). A find from
 Freesound or OpenGameArt can be added by hand to `openverse_candidates.json` (file in
 `audio/openverse/dl/<id>.<filetype>`, `"locked": true`).
+
+## Brin's shout (card #171)
+
+`brin_shout_candidates.json` holds four young-man shouts (raw recordings in `audio/search/brin_shout/`,
+fetched with `freesound_fetch.py get` for CC0 or a CC BY preview by hand); `uv run brin_shout_build.py`
+renders them to `assets/audio/sfx/candidates/brin_shout_1..4.wav` and the one named by `pick` to
+`assets/audio/sfx/shout_brin.wav`, with credits (a CC BY pick also goes on the credits screen).
