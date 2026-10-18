@@ -408,6 +408,26 @@ power unless stated. AP is per character.
 
 Intended combo: Cass Reveals, Brin Rends; Alder Taunts, parries, then cashes in with Payback.
 
+**Cass's spells shoot after the press (card #166, 2026-10-18, like Expedition 33).** Her ranged
+skills (Reveal, Smite: every skill with a `projectile`) used to launch the bolt
+`projectile_flight_ms` before the ring closed, so it was already landing when she pressed. Now the
+bolt leaves her staff at the moment of the press and flies `projectile_flight_ms` (320), and the
+strike lands with it: sparks, the damage numbers, the target's hit and a perfect press's hit-stop
+wait for the landing. Her staff-thrust frames start with the release. The press feedback (the
+sound, GOOD or PERFECT and the timing readout) still shows at the press.
+- A press that missed is still a shot: an early press that used the ring up releases at that
+  press; a press that never came releases at the end of the press window (its moment plus the
+  late edge plus the lag compensation, `SpellShot.window_end_us`), so a skill never stalls. It
+  lands as a miss (50%).
+- Visual order only. The windows, the judge, the engine's damage and every event are unchanged;
+  the events are simply shown when the bolt lands (`SpellShot`, pure, unit-tested). The latest a
+  bolt can land (end of window plus flight, 520 ms after the ring's moment) is before the allies'
+  follow-up moment (`follow_up_delay_ms` 700), so the order read is: press, bolt, landing, allies
+  strike (a test checks it for the shipped spells).
+- Online: a remote player's good press launches the bolt when its result arrives here, and a
+  press that never came when the other machine reports the miss, so both screens show the same
+  order a network delay apart; the event batch waits for the landing like the local one.
+
 ### 2.11 Phase 2 enemies (approved 2026-10-12)
 
 Each enemy tests one defence skill. Starting numbers; tune in data. Times in ms at tempo 100%.
@@ -787,6 +807,24 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
   impact, with two faint copies behind it. Then: a parry knocks it back up toward the enemy, a
   dodge lets it fly on past, a hit bursts it in its colour. Party-wide: one projectile per hero.
   All of it is a pure function of attack time, so hit-stop freezes it.
+- **Ranged indicator (card #165, 2026-10-18):** a thrown hit shows which hero it flies at and when
+  it arrives. On each hero the projectile is aimed at, four corner brackets close in from
+  `ranged_aim_start_px` to `ranged_aim_end_px` (half size) and meet exactly at the hit's declared
+  impact, the time the defence is judged on (`RangedAim.progress`, 0 at the throw, 1 at impact; a
+  test checks every shipped ranged hit against its prompts), and a dashed path (the flight arc,
+  `ranged_aim_path_points` samples) runs from the projectile to the hero, shrinking as it flies.
+  It is brackets, not a circle, so it is never taken for a press ring. It shows
+  `ranged_aim_lead_ms` (300) before the throw, so the wind-up already says who gets it, fades in and
+  out over `ranged_aim_fade_ms`, takes the hit's kind colour like the melee markers (3.8: red-orange
+  normal, bone rend, green sweep; a rend or a sweep names its button under the brackets,
+  `ranged_aim_label`), and stays on the hero until the hit is decided (never gone before the
+  impact). When the brackets lock it fills faintly and brightens for `ranged_aim_pulse_ms`, scaled
+  by the Flashes setting (none with Flashes off; Reduced shows the Reduced share). Party-wide throws
+  get one per hero; a hero who goes down loses theirs. It is on in run fights too
+  (`tuning.show_ranged_aim`, default on, unlike the hit markers): it is the projectile's own flight
+  made readable, not extra pre-information, so `hide_intent_after_first_hit` does not hide it.
+  Pure function of attack time, so hit-stop freezes it with the projectile; nothing goes to the
+  engine. `RangedAimLayer` draws it in the HUD; the runner feeds it every frame.
 - Rule (test): a projectile flies at least 300 ms, never on a feint or a ground hit.
 - First projectiles (art kit `fx_attacks`, 20x20 cells, 4 frames): bile glob (green), thrown
   stone (grey, tumbling), shade bolt (violet). Launch sound: the lunge whoosh until real sounds are
@@ -2281,7 +2319,8 @@ middle row costs 1 point, the bottom row 2):
   +15% each perfect); Quick Cuts, Twin Fangs and All In alternate the daggers.
 - **Cass** (#81, user note): Reveal and Smite are spells (`projectile = light_bolt`, drawn by
   `tools/art_kit/assets/fx_attacks.py`): she stays where she stands, the ring sits on her, and a
-  bolt flies to the target for each press, arriving on the hit; her heals and buffs never moved. Her
+  bolt flies to the target for each press, leaving at the press and landing after its flight
+  (card #166, 2.10); her heals and buffs never moved. Her
   normal attack still walks up and strikes.
 - **Alder** (#56): his sprite was already shield-only (phase 12); his skills are shield blows.
 - **Art** (checked 2026-10-15): the phase 10 sheets already fit the reworks. Brin's clips are the
@@ -3340,3 +3379,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | Main menu: New Run, Online, Extras (Tutorial, Journal, Credits), Settings, Quit; Practice only in debug builds | user: the menu felt cluttered and Practice is a dev tool (card #208) |
 | 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |
 | 2026-10-17 | A saved run is continued by any build that can read it (no content check); only the save format version and RunState's own checks decide | card #208 playtest: one data change (the menu logo) hid the run again; the game changes almost daily |
+| 2026-10-18 | Ranged enemy hits get an indicator: corner brackets on the hero the projectile flies at that close exactly at the declared impact (the judged time), plus a dashed path from the projectile, in the hit kind colour; on in run fights, Flashes-aware (`show_ranged_aim`, 3.9) | card #165 (not circles: the user dislikes circles in reading, 3.8) |
+| 2026-10-18 | Cass's spells (Reveal, Smite) shoot after the press: the bolt leaves the staff at the press (or at the end of the window if none came) and the strike, numbers and hit-stop wait for it to land; judge, windows and engine unchanged (2.10) | card #166, like Expedition 33 |

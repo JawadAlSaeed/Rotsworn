@@ -64,8 +64,10 @@ var _ability: AbilityData
 ## A spell (AbilityData.projectile, card #81): the caster stays where they stand and a bolt flies
 ## to the target for each of their presses.
 var _ranged: bool = false
-## Press prompts whose bolt has left (its launch sound played).
-var _bolts_launched: Dictionary = {}
+## Card #166: press prompt idx -> skill time (us) its bolt left the staff (the press, or the end
+## of the press window when none came), and -> skill time it lands (the strike belongs to that).
+var _bolt_release: Dictionary = {}
+var _bolt_landing: Dictionary = {}
 var _clock := AttackClock.new()
 ## Who owns each perfect press's freeze on the shared clock (card #180, see FreezeLedger).
 var _freezes := FreezeLedger.new()
@@ -134,7 +136,8 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_targets.assign(event.targets)
 	_hits_enemies = ability != null and ability.targets_enemies()
 	_ranged = ability != null and ability.projectile != null
-	_bolts_launched.clear()
+	_bolt_release.clear()
+	_bolt_landing.clear()
 	_latency_ms = PlayerSettings.latency_compensation_ms(_tuning)
 	_judges = JudgeSet.new(_tuning.whiff_lockout_ms, _latency_ms, _tuning.press_reach_back_max_ms,
 			_tuning.late_press_report_ms)
@@ -228,19 +231,23 @@ func take_events(events: Array[Dictionary]) -> void:
 		if _judges.player_of_prompt(idx) >= 0:
 			# This machine's own press: its feedback already played; numbers show at its moment.
 			if outcome != Defense.Outcome.NONE:
-				show_at = maxi(show_at, at_us)
+				show_at = maxi(show_at, int(_bolt_landing.get(idx, at_us)) if _is_cast(idx) else at_us)
 			continue
 		if not is_prompt_open(idx):
 			continue
 		_sent[idx] = true
 		var list: Array[int] = [idx]
 		if outcome == Defense.Outcome.NONE:
-			_schedule(t, _expire_remote.bind(idx, t))
+			if _is_cast(idx):
+				# The bolt of a press that never came leaves now (its window closed on the other machine).
+				_expire_remote(idx, t)
+				show_at = maxi(show_at, int(_bolt_landing.get(idx, t)))
+			else:
+				_schedule(t, _expire_remote.bind(idx, t))
 		else:
-			show_at = maxi(show_at, at_us)
 			var contact_us := maxi(t, at_us)
-			_schedule(contact_us, _on_good_press.bind(list, int(ev.get("offset_us", 0)),
-					outcome == Defense.Outcome.PRESS_PERFECT, contact_us))
+			_on_good_result(list, int(ev.get("offset_us", 0)), outcome == Defense.Outcome.PRESS_PERFECT, t, contact_us)
+			show_at = maxi(show_at, int(_bolt_landing.get(idx, at_us)) if _is_cast(idx) else at_us)
 	_push_batch(events, show_at)
 
 
@@ -266,7 +273,7 @@ func _expire_remote(idx: int, contact_us: int) -> void:
 		_hud.popup("MISS", v.head_position(), HudStyle.MISS)
 	if String(prompt.role) != CombatEngine.ROLE_FOLLOW_UP:
 		var list: Array[int] = [idx]
-		_strike(list, false, contact_us)
+		_miss_strike(list, contact_us)
 	else:
 		_follow_up_off(idx)
 
@@ -364,8 +371,7 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 		DefenseJudge.Result.SUCCESS:
 			var impact_us := int((_hits[int(report.hit)] as Dictionary).at_ms) * 1000
 			var perfect := int(report.outcome) == Defense.Outcome.PRESS_PERFECT
-			var contact_us := maxi(t, impact_us)
-			_schedule(contact_us, _on_good_press.bind(answered, int(report.offset_us), perfect, contact_us))
+			_on_good_result(answered, int(report.offset_us), perfect, t, maxi(t, impact_us))
 		DefenseJudge.Result.WHIFF:
 			_on_whiff(report, player)
 		DefenseJudge.Result.LOCKED:
@@ -373,18 +379,35 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 	_release(t)
 
 
+## A good or perfect press was judged at skill time `now_us`; its strike belongs at `contact_us`
+## (the press, or the ring's moment if the press was early). A spell's bolt (card #166) instead
+## leaves the staff now and the strike waits for it to land.
+func _on_good_result(idxs: Array[int], offset_us: int, perfect: bool, now_us: int, contact_us: int) -> void:
+	var casts: Array[int] = []
+	var others: Array[int] = []
+	for idx: int in idxs:
+		if _is_cast(idx):
+			casts.append(idx)
+		else:
+			others.append(idx)
+	if not casts.is_empty():
+		_press_feedback(casts, offset_us, perfect)
+		_launch(casts, now_us, true, perfect)
+	if not others.is_empty():
+		_schedule(contact_us, _on_good_press.bind(others, offset_us, perfect, contact_us))
+
+
 ## A good or perfect press reaches its contact moment (`contact_us`, skill time).
 func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool, contact_us: int) -> void:
-	Sfx.play("skill_press", 0.0 if perfect else GOOD_PRESS_VOLUME_DB)
+	_press_feedback(idxs, offset_us, perfect)
 	if perfect:
-		var owners: Array[int] = []
-		for idx: int in idxs:
-			var player := int(_owners.get(int((_prompts[idx] as Dictionary).character), 0))
-			if not owners.has(player):
-				owners.append(player)
-		var now := Time.get_ticks_usec()
-		_clock.pause_for(now, _tuning.hitstop_press_ms * 1000)
-		_freezes.add(now, _tuning.hitstop_press_ms * 1000, owners)
+		_press_freeze(idxs)
+	_strike(idxs, true, contact_us, perfect)
+
+
+## The press sound and the PERFECT / GOOD readout over the pressing hero.
+func _press_feedback(idxs: Array[int], offset_us: int, perfect: bool) -> void:
+	Sfx.play("skill_press", 0.0 if perfect else GOOD_PRESS_VOLUME_DB)
 	var text := "PERFECT" if perfect else "GOOD"
 	if _options.timing_readout:
 		text += " " + HudStyle.signed_ms(roundi(float(offset_us) / 1000.0))
@@ -392,7 +415,75 @@ func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool, contact_us:
 	for idx: int in idxs:
 		who.append(int((_prompts[idx] as Dictionary).character))
 	_hud.popup(text, _focus_head(who), HudStyle.GOLD if perfect else HudStyle.TEXT)
-	_strike(idxs, true, contact_us, perfect)
+
+
+## The perfect press's hit-stop on the shared clock, owned by the presser (card #180).
+func _press_freeze(idxs: Array[int]) -> void:
+	var owners: Array[int] = []
+	for idx: int in idxs:
+		var player := int(_owners.get(int((_prompts[idx] as Dictionary).character), 0))
+		if not owners.has(player):
+			owners.append(player)
+	var now := Time.get_ticks_usec()
+	_clock.pause_for(now, _tuning.hitstop_press_ms * 1000)
+	_freezes.add(now, _tuning.hitstop_press_ms * 1000, owners)
+
+
+# --- spell bolts (card #166) ------------------------------------------------------------------
+
+## True for a press prompt of a spell: its bolt leaves the staff at the press (SpellShot).
+func _is_cast(idx: int) -> bool:
+	return _ranged and idx >= 0 and idx < _prompts.size() \
+			and String((_prompts[idx] as Dictionary).role) == CombatEngine.ROLE_PRESS
+
+
+func _flight_us() -> int:
+	return maxi(1, (_ability.projectile_flight_ms if _ability != null else 0) * 1000)
+
+
+## These press prompts' bolts leave the staff now (`now_us`: the press, or the moment the judge
+## found the window closed; never later than the window's end). The caster's strike frames start
+## with the release; the strike (damage numbers, sparks, the perfect press's hit-stop) belongs to
+## the landing. A press that never came is a miss whose bolt still goes, so the skill never stalls.
+func _launch(idxs: Array[int], now_us: int, good: bool, perfect: bool) -> void:
+	var landing := 0
+	var fresh: Array[int] = []
+	for idx: int in idxs:
+		if _bolt_release.has(idx):
+			continue
+		var release := SpellShot.release_us(now_us, SpellShot.window_end_us(_prompts[idx] as Dictionary, latency_us()))
+		_bolt_release[idx] = release
+		_bolt_landing[idx] = SpellShot.landing_us(release, _flight_us())
+		_contacts[idx] = release
+		landing = maxi(landing, int(_bolt_landing[idx]))
+		fresh.append(idx)
+	if fresh.is_empty():
+		return
+	if _ability != null and _ability.projectile != null and not _ability.projectile.launch_sfx.is_empty():
+		Sfx.play(_ability.projectile.launch_sfx)
+	_schedule(landing, _on_bolt_lands.bind(fresh, good, perfect, landing))
+
+
+## The bolt reached the target: the hit-stop of a perfect press, then the strike.
+func _on_bolt_lands(idxs: Array[int], good: bool, perfect: bool, landing_us: int) -> void:
+	if good and perfect:
+		_press_freeze(idxs)
+	_strike(idxs, good, landing_us, perfect)
+
+
+## A press that came in time did not happen: the hit lands as a miss. A spell's bolt leaves now.
+func _miss_strike(idxs: Array[int], now_us: int) -> void:
+	var casts: Array[int] = []
+	var others: Array[int] = []
+	for idx: int in idxs:
+		if _is_cast(idx):
+			casts.append(idx)
+		else:
+			others.append(idx)
+	if not casts.is_empty():
+		_launch(casts, now_us, false, false)
+	if not others.is_empty():
+		_strike(others, false, now_us)
 
 
 func _on_whiff(report: Dictionary, player: int) -> void:
@@ -430,7 +521,7 @@ func _expire(t: int) -> void:
 	if not expired.is_empty():
 		Sfx.play("skill_miss")
 	if not strikes.is_empty():
-		_strike(strikes, false, t)
+		_miss_strike(strikes, t)
 
 
 ## Sends the judge's released results to the engine. Its events are applied at the contact
@@ -449,7 +540,11 @@ func _release(t: int) -> void:
 			continue
 		_sent[idx] = true
 		results.append(CombatCommands.prompt_result(idx, int(r.outcome), int(r.offset_us)))
-		show_at = maxi(show_at, int((_prompts[idx] as Dictionary).at_ms) * 1000 if bool(r.pressed) else t)
+		if _is_cast(idx):
+			# A spell's numbers appear when its bolt lands (card #166).
+			show_at = maxi(show_at, int(_bolt_landing.get(idx, t)))
+		else:
+			show_at = maxi(show_at, int((_prompts[idx] as Dictionary).at_ms) * 1000 if bool(r.pressed) else t)
 	if results.is_empty():
 		return
 	var events: Array[Dictionary] = _submit.call(CombatCommands.resolve_prompts(_seq, results))
@@ -500,7 +595,9 @@ func _strike(idxs: Array[int], good: bool, contact_us: int, perfect: bool = fals
 		punch = _visuals.punch_strike_perfect
 		spark_percent = _visuals.spark_tier_medium_percent
 	for i: int in idxs.size():
-		_contacts[idxs[i]] = contact_us
+		# A spell's strike frames started when its bolt left the staff (_launch).
+		if not _is_cast(idxs[i]):
+			_contacts[idxs[i]] = contact_us
 		var prompt: Dictionary = _prompts[idxs[i]]
 		var id := int(prompt.character)
 		var v := _view.fighter(id)
@@ -805,6 +902,8 @@ func _check_finish(t: int) -> void:
 	for idx: int in _prompts.size():
 		if not _voided.has(idx):
 			last_us = maxi(last_us, int((_prompts[idx] as Dictionary).at_ms) * 1000)
+			# A spell's strike comes when its bolt lands, which can be after the press moment.
+			last_us = maxi(last_us, int(_bolt_landing.get(idx, 0)))
 	if t < last_us + _tuning.skill_recover_ms * 1000:
 		return
 	_hand_back()
@@ -832,30 +931,27 @@ func _hand_back() -> void:
 	finished.emit(tail)
 
 
-## A spell's bolts at skill time `t`: each of the caster's presses sends one from the caster to
-## the target, leaving projectile_flight_ms before the press's hit and arriving on it.
+## A spell's bolts at skill time `t` (card #166): each of the caster's presses sends one from the
+## staff to the target. It leaves at the press (or, when none came, at the end of the press
+## window) and flies projectile_flight_ms; the strike lands with it (SpellShot).
 func _update_bolts(t: int) -> void:
 	if not _ranged:
 		return
 	var data := _ability.projectile
 	var target := _view.fighter(_first_target())
 	var list: Array[Dictionary] = []
-	var flight_us := maxi(1, _ability.projectile_flight_ms * 1000)
-	for idx: int in _prompts.size():
+	var flight_us := _flight_us()
+	for idx: int in _bolt_release:
 		var prompt: Dictionary = _prompts[idx]
-		if String(prompt.role) != CombatEngine.ROLE_PRESS or _voided.has(idx) or target == null:
+		if _voided.has(idx) or target == null:
 			continue
 		var caster := _view.fighter(int(prompt.character))
 		if caster == null:
 			continue
-		var hit_us := int(prompt.at_ms) * 1000
-		var u := float(t - (hit_us - flight_us)) / float(flight_us)
-		if u < 0.0 or u > 1.0:
+		var release := int(_bolt_release[idx])
+		if not SpellShot.in_flight(t, release, flight_us):
 			continue
-		if not _bolts_launched.has(idx):
-			_bolts_launched[idx] = true
-			if not data.launch_sfx.is_empty():
-				Sfx.play(data.launch_sfx)
+		var u := SpellShot.progress(t, release, flight_us)
 		var from := caster.centre_position()
 		var to := target.centre_position()
 		var toward := to - from

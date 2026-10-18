@@ -130,6 +130,7 @@ var _practice_label: Label
 var _popup_layer: Control
 var _ring_layer: RingLayer
 var _marker_layer: HitMarkerLayer
+var _aim_layer: RangedAimLayer
 var _lock_icon: TextureRect
 ## More lock icons when several co-op players are locked out at once.
 var _extra_locks: Array[TextureRect] = []
@@ -222,6 +223,10 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_marker_layer = HitMarkerLayer.new()
 	_marker_layer.name = "HitMarkers"
 	_root.add_child(_marker_layer)
+
+	_aim_layer = RangedAimLayer.new()
+	_aim_layer.name = "RangedAims"
+	_root.add_child(_aim_layer)
 
 	_popup_layer = Control.new()
 	_popup_layer.name = "Popups"
@@ -487,6 +492,11 @@ static func target_text(mirror: CombatMirror, mode: int, targets: Array) -> Stri
 
 func set_hit_markers(markers: Array[Dictionary]) -> void:
 	_marker_layer.set_markers(markers)
+
+
+## Shows these ranged-hit indicators (see RangedAimLayer); empty hides them all.
+func set_ranged_aims(aims: Array[Dictionary]) -> void:
+	_aim_layer.set_aims(aims)
 
 
 ## A full-width ink band edged in worn gold, tilted a touch (behind the big words: TEAM COUNTER,

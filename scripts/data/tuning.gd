@@ -78,6 +78,11 @@ extends Resource
 ## glows under them for a ground hit) until it lands. Off since phase 6 (user: the circle made the
 ## game easier); the floor warning then still shows. Toggle in a practice fight with F1 > H.
 @export var show_hit_markers: bool = true
+## Ranged-hit indicator (DESIGN.md 3.9, card #165): while a thrown projectile flies, brackets on
+## the hero it flies at close in and meet at the moment the defence is judged on, with a dashed
+## path from the projectile. It is the projectile's own flight made readable, so it stays on in
+## run fights (unlike the hit markers).
+@export var show_ranged_aim: bool = true
 ## Harder reading (phase 6): the attack's hits (how many, which kind) show on the intent sign and
 ## the attack banner until the first hit lands; from then on the banner's hit row and the hit
 ## markers are hidden, so the rest of the string must be remembered. The enemy's own motion

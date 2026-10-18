@@ -143,8 +143,10 @@ func targets_party() -> bool:
 @export var strike_clips: PackedStringArray = PackedStringArray(["strike"])
 ## Length of this ability's wind-ups, in percent of combat_visuals skill_windup_ms.
 @export_range(10, 500, 1, "suffix:%") var windup_percent: int = 100
-## A spell (card #81): the user stays where they stand and this flies to the target for each hit,
-## arriving on the hit (presentation only). Null: the user walks up and strikes.
+## A spell (card #81): the user stays where they stand and this flies to the target for each
+## press (presentation only). It leaves the staff at the moment of the press, or at the end of the
+## press window if none came, and the strike lands when it arrives (card #166, DESIGN.md 2.10).
+## Null: the user walks up and strikes.
 @export var projectile: ProjectileData
-## How long it flies before each hit, in milliseconds.
+## How long it flies from the staff to the target, in milliseconds.
 @export_range(50, 2000, 10, "suffix:ms") var projectile_flight_ms: int = 320

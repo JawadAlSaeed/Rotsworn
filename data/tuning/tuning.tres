@@ -30,6 +30,7 @@ show_telegraph_flash = true
 show_timing_feedback = true
 play_motion_sounds = true
 show_hit_markers = false
+show_ranged_aim = true
 hide_intent_after_first_hit = true
 run_hold_ms = 500
 show_windup_crouch = true
