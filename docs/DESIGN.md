@@ -1079,8 +1079,13 @@ effects to their `cue_rules.json` limits like `build_sfx.py`, songs like `music_
 Freesound and OpenGameArt voice packs. User picks: 24 effects (among them parry, dodge, whiff,
 heavy strike, boss rage, enemy crumble, fight start, level up, enemy notice "Monster AAH!", Alder's
 "HAH!", Cass's attack shout), the credits song ("Peaceful Fantasy Music" by TheoJT), the defeat song
-and the Sunken Bog loop (swamp frogs); the rest stay as they were. Brin's shout stays as it was after
-seven rounds of finds (the user wants a normal 25-year-old man's shout; still open). The user picked
+and the Sunken Bog loop (swamp frogs); the rest stay as they were. Brin's shout stayed as it was
+after seven rounds of finds; card #171 (2026-10-18) is the eighth: four plain young-man battle
+shouts (`tools/sound_kit/brin_shout_candidates.json`, built by `brin_shout_build.py` into
+`assets/audio/sfx/candidates/brin_shout_1..4.wav`, levelled like the other hero shouts, credits in
+`candidates/CREDITS.md`), number 1 wired in as `shout_brin.wav` ("Male Attack Grunt 1" by F.M.Audio,
+CC BY 4.0, named on the credits screen); the user may pick another by changing `pick` and running the
+script. The user picked
 by ear, so a few picks peak later than `max_rise_ms`; they were kept on purpose. CC BY sources are
 named on the credits screen (`data/branding/credits.tres`, a test checks songs).
 
@@ -3379,3 +3384,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-17 | The main menu shows the version (v0.16.0, bottom left) and the DragonRot logo (bottom right); the version follows the phase number | user, with Hollow Knight's menu as the model; the user picked 0.16.0 over restarting at 0.1.0 (card #210) |
 | 2026-10-17 | A saved run is continued by any build that can read it (no content check); only the save format version and RunState's own checks decide | card #208 playtest: one data change (the menu logo) hid the run again; the game changes almost daily |
 | 2026-10-18 | Picture runs while the owner is at the PC go through `quiet_run.bat`: a shadow project (own project.godot with `display/window/size/no_focus=true`, folder links to the real folders) under `%LOCALAPPDATA%\Rotsworn-quiet`, window on the second screen (else behind the others), no sound; the game skips its fullscreen/maximise step when that flag is on (10.1) | a normal windowed run grabbed keyboard and mouse focus; the flag cannot be set after the window exists or from the command line, and an override file in the project folder or beside the exe would reach normal starts or is not read (card #168) |
+| 2026-10-18 | Brin's shout is a short, plain young man's battle shout (a clear "hah!", 0.4 s, dry), not the old rising yell: four candidates sit in `assets/audio/sfx/candidates/`, number 1 (F.M.Audio's "Male Attack Grunt 1", CC BY 4.0) is in the game; the pick is one number in `tools/sound_kit/brin_shout_candidates.json` | card #171; the user wants a normal 25-year-old man's shout after seven rounds of finds missed it. Chosen from measurements and spectrograms (clean harmonics, no reverb tail, 0.3 to 0.5 s like Alder's and Cass's), not by ear, so the user's ear decides (5.3) |
