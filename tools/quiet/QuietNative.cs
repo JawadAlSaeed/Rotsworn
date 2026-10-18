@@ -100,6 +100,12 @@ public static class QuietNative
         return list.ToArray();
     }
 
+    /// Moves a window to (x, y) without activating it, resizing it or changing its place in the stack.
+    public static bool MoveTo(long hwnd, int x, int y)
+    {
+        return SetWindowPos(new IntPtr(hwnd), IntPtr.Zero, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE | 0x0004);
+    }
+
     /// Moves a window to the bottom of the stack without activating it or moving it.
     public static bool SendBehind(long hwnd)
     {

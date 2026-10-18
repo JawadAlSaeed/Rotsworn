@@ -67,8 +67,11 @@ $posX = 0; $posY = 0
 if ($null -ne $target) {
 	$workW = $target[6] - $target[4]
 	$workH = $target[7] - $target[5]
-	# Keep the 16:9 shape; leave room for the title bar and the taskbar.
-	$scale = [Math]::Min(1.0, [Math]::Min($workW / $width, ($workH - 60) / $height))
+	# Keep the 16:9 shape; leave room for the title bar and the taskbar, and a margin all round:
+	# a window as wide as the screen pokes its border past the edge, and Windows then moves it
+	# back onto the main screen (seen on the owner's PC).
+	$margin = 64
+	$scale = [Math]::Min(1.0, [Math]::Min(($workW - 2 * $margin) / $width, ($workH - 2 * $margin - 60) / $height))
 	$width = [int]($width * $scale)
 	$height = [int]($height * $scale)
 	$posX = $target[4] + [int](($workW - $width) / 2)
@@ -112,6 +115,12 @@ function Get-QuietProjectText() {
 	$lines = $text -split "`r?`n"
 	$lines = Set-ConfigValue $lines "display" "window/size/no_focus" "true"
 	$lines = Set-ConfigValue $lines "display" "window/size/mode" "0"
+	# The place and size also go into the project itself: on the owner's PC the --position switch
+	# alone left the window on the main screen (Godot's default "centre of the primary screen").
+	$lines = Set-ConfigValue $lines "display" "window/size/initial_position_type" "0"
+	$lines = Set-ConfigValue $lines "display" "window/size/initial_position" "Vector2i($posX, $posY)"
+	$lines = Set-ConfigValue $lines "display" "window/size/window_width_override" "$width"
+	$lines = Set-ConfigValue $lines "display" "window/size/window_height_override" "$height"
 	return ($lines -join "`n")
 }
 
@@ -171,7 +180,23 @@ if ($PrepareOnly) { exit 0 }
 
 $proc = Start-Process -FilePath $godot -ArgumentList (Join-Args $engineArgs) -NoNewWindow -PassThru
 $null = $proc.Handle
-if ($Headless -or $onSecond) {
+if ($Headless) {
+	$proc.WaitForExit()
+	exit $proc.ExitCode
+}
+if ($onSecond) {
+	# Godot opens the window at the main screen's corner whatever --position says (seen on the
+	# owner's PC), so the launcher moves it to the second screen itself, without activating it,
+	# as soon as it shows and for the next few seconds (in case the game places it again).
+	$started = Get-Date
+	while (-not $proc.HasExited -and ((Get-Date) - $started).TotalSeconds -lt 15) {
+		$pids = @($proc.Id)
+		foreach ($child in Get-CimInstance Win32_Process -Filter "ParentProcessId=$($proc.Id)") { $pids += [uint32]$child.ProcessId }
+		foreach ($w in [QuietNative]::WindowsOf([uint32[]]$pids)) {
+			if ($w[1] -ne $posX -or $w[2] -ne $posY) { [void][QuietNative]::MoveTo($w[0], $posX, $posY) }
+		}
+		Start-Sleep -Milliseconds 250
+	}
 	$proc.WaitForExit()
 	exit $proc.ExitCode
 }
