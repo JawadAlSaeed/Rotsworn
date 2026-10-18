@@ -182,7 +182,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_source = int(event.source)
 	_prompts = event.prompts
 	_targets.assign(event.targets)
-	_latency_ms = PlayerSettings.latency_compensation_ms(_tuning)
+	_latency_ms = PlayerSettings.base_latency_compensation_ms(_tuning)
 	# Each hit carries its close time on this machine, so the enemy holds contact until then.
 	_hits = EnemyChoreography.with_close_times(event.hits, _prompts, _latency_ms)
 	_add_hit_anims(attack)
@@ -331,9 +331,15 @@ func is_clock_paused() -> bool:
 	return _clock.is_started() and _clock.is_paused(Time.get_ticks_usec())
 
 
-## The lag compensation the current judge uses.
+## The base lag compensation the current judges use (the smaller of the keyboard's and the pad's,
+## DESIGN.md 3.2). Window edges drawn for the player use it too.
 func latency_us() -> int:
 	return _latency_ms * 1000
+
+
+## How much more the device that made a press lags than the base (card #204).
+func _extra_latency_ms(device: int) -> int:
+	return PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.input_kind_of_device(device)) - _latency_ms
 
 
 ## Longest frame (ms) during the current attack, or the last one if none is running.
@@ -429,7 +435,7 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 		var e := _clock.attack_time_us(previous_pump_us)
 		if e >= 0:
 			earliest = e
-	var report := _judges.press(player, action, t, earliest)
+	var report := _judges.press(player, action, t, earliest, _extra_latency_ms(device))
 	if int(report.result) == DefenseJudge.Result.SUCCESS and not _any_pending(report.prompts):
 		report.result = DefenseJudge.Result.DONE
 	_press_times.append({"t": t, "player": player})

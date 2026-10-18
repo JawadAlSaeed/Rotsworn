@@ -104,7 +104,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   prints PASS or FAIL. DESIGN.md 10.
 - To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
   every S seconds in `%APPDATA%/Godot/app_userdata/Rotsworn/shots/<name>/`), combined with
-  `--screen=title|menu|settings|controls|players|practice|credits|party|heroes|attributes|skills|calibration|tutorial|map|map_start`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
+  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|calibration|tutorial|map|map_start`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
   skills list (or any state; `|` moves on to the next turn) for pictures; `--pad-prompts` shows pad
   buttons, `--key-prompts` keyboard keys. Look at the pictures before telling the user a visual change is done.
   (Use `quiet_run.bat` for this when the owner is at the PC, see above.)

@@ -4,7 +4,9 @@ extends Control
 ## beat; the player presses Parry on each beat. Presses are stamped by the same DefenseInput as in
 ## combat (the midpoint of the press interval). The median offset of the last presses becomes the
 ## player's lag compensation when they confirm (saved by UserSettings, clamped to tuning's
-## calibration bounds); cancel discards it. Presses that spread too widely (pressing by reaction
+## calibration bounds); cancel discards it. The first press decides which kind of input is being
+## measured (keyboard or pad, card #204): the result is saved for that kind only, and presses from
+## the other kind are ignored, because a pad and a keyboard lag differently. Presses that spread too widely (pressing by reaction
 ## instead of with the beat) cannot be saved. Laid out like the other pages (card #113): the title,
 ## the line under it, the circle in the middle, the numbers and buttons under it, all centred.
 
@@ -15,6 +17,7 @@ const TEXT_SIZE: int = 30
 const CIRCLE_RADIUS: float = 150.0
 const CIRCLE_RING_WIDTH: float = 8.0
 const SEGMENTS: int = 96
+const KIND_NAMES := {PlayerSettings.INPUT_KEYBOARD: "keyboard", PlayerSettings.INPUT_PAD: "controller"}
 const DIM := Color(0.0, 0.0, 0.0, 0.8)
 const CIRCLE_IDLE := Color(0.3, 0.32, 0.38)
 const CIRCLE_LIT := Color(1.0, 0.95, 0.7)
@@ -27,6 +30,9 @@ var _first_beat_us: int = 0
 var _next_beat: int = 0
 var _lit_until_us: int = 0
 var _offsets_us: Array[int] = []
+## The kind of input being measured (PlayerSettings.INPUT_KEYBOARD or INPUT_PAD); "" until the
+## first press.
+var _kind: String = ""
 var _title: Label
 var _text: Label
 ## The button hints (save, cancel) as button pictures.
@@ -86,6 +92,7 @@ func open() -> void:
 	_running = true
 	visible = true
 	_offsets_us.clear()
+	_kind = ""
 	_next_beat = 0
 	_lit_until_us = 0
 	_first_beat_us = Time.get_ticks_usec() + _visuals.calibration_lead_ms * 1000
@@ -100,7 +107,7 @@ func handle_input(event: InputEvent) -> bool:
 		return false
 	if event.is_action_pressed("menu_confirm", false, true):
 		if _can_save():
-			PlayerSettings.set_latency_compensation_ms(roundi(_median_us() / 1000.0), _tuning)
+			PlayerSettings.set_latency_compensation_ms(roundi(_median_us() / 1000.0), _tuning, _kind)
 			Sfx.play("menu_confirm")
 			_close()
 		else:
@@ -145,8 +152,14 @@ func _fill_screen() -> void:
 		set_deferred("size", get_viewport_rect().size)
 
 
-func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, _device: int) -> void:
+func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int) -> void:
 	if not _running or action != Defense.Outcome.PARRY:
+		return
+	var kind := PlayerSettings.input_kind_of_device(device)
+	if _kind.is_empty():
+		_kind = kind
+	elif kind != _kind:
+		Sfx.play("locked")
 		return
 	var mid := stamp_us
 	if previous_pump_us > 0 and previous_pump_us < stamp_us:
@@ -189,6 +202,10 @@ func _can_save() -> bool:
 func _update_text() -> void:
 	var lines := PackedStringArray()
 	lines.append("Beat %d / %d   presses counted: %d" % [_next_beat, _visuals.calibration_beats, _offsets_us.size()])
+	if _kind.is_empty():
+		lines.append("Press with the keyboard or the pad you will play with.")
+	else:
+		lines.append("Measuring: %s" % KIND_NAMES[_kind])
 	if _offsets_us.is_empty():
 		lines.append("Median offset: -")
 	else:
@@ -199,7 +216,7 @@ func _update_text() -> void:
 			line += "   (saves %+d, the limit)" % saved
 		lines.append(line)
 	if _can_save():
-		_hints.set_entries([[&"menu_confirm", "Save as lag compensation"], [&"menu_cancel", "Cancel"]])
+		_hints.set_entries([[&"menu_confirm", "Save for the %s" % KIND_NAMES[_kind]], [&"menu_cancel", "Cancel"]])
 	else:
 		if _offsets_us.size() >= _visuals.calibration_min_presses:
 			lines.append("Too uneven to save: press WITH the beat, not after the flash.")

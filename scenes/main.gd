@@ -267,6 +267,11 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_select()
 		"title":
 			_show_title()
+		"controller":
+			_show_controller_notice(_show_title, true)
+		"calibration_offer":
+			_show_main_menu()
+			_offer_calibration(false)
 		"credits":
 			_show_credits()
 		"journal":
@@ -407,20 +412,38 @@ func _show_sample_skills() -> void:
 	(_screen as PartyScreen).open_skills()
 
 
-## The studio intro when the game starts, then the title screen (no music until then).
+## The studio intro when the game starts, then the "Controller recommended" notice, then the title
+## screen (no music until then).
 func _show_intro() -> void:
 	var boot := load(BOOT_PATH) as BootData
 	if boot == null:
 		push_warning("Main: could not load %s, no intro" % BOOT_PATH)
-		_show_title()
+		_show_controller_notice(_show_title)
 		return
 	var intro := IntroScreen.new()
 	intro.name = "Intro"
 	intro.setup(boot)
 	intro.done.connect(func() -> void:
 		intro.queue_free()
-		_show_title())
+		_show_controller_notice(_show_title))
 	add_child(intro)
+
+
+## The "Controller recommended" notice (card #167), then `next`. Left out when BrandingData says so
+## (no hold time, or a pad is already plugged in and the data asks to skip it) and never in autoplay
+## (the bot never reaches the intro). `force`: the --screen=controller picture shows it whatever
+## the data says.
+func _show_controller_notice(next: Callable, force: bool = false) -> void:
+	if _options.is_autoplay() or not (force or ControllerNotice.is_due(_branding, not _connected_pads().is_empty())):
+		next.call()
+		return
+	var notice := ControllerNotice.new()
+	notice.name = "ControllerNotice"
+	notice.setup(_branding)
+	notice.done.connect(func() -> void:
+		notice.queue_free()
+		next.call())
+	add_child(notice)
 
 
 ## The title screen (card #82): any button fades to the main menu.
@@ -572,12 +595,22 @@ func _on_menu_chosen(item: StringName) -> void:
 			_quit_game()
 
 
-## New Run from the main menu: the tutorial offer (once), then the players screen, then the run.
+## New Run from the main menu: the tutorial offer (once), then the lag calibration offer (once),
+## then the players screen, then the run. Only one offer per press: a player who says yes to the
+## tutorial is asked about the calibration on their next New Run (DESIGN.md 3.2, 7.8).
 func _start_new_run() -> void:
 	if not PlayerSettings.tutorial_offered() and not _options.is_autoplay():
 		_offer_tutorial()
 	else:
-		_show_lobby(_fade_to.bind(_new_run), true)
+		_new_run_players()
+
+
+## After the offers: the players screen of a new run (or the calibration offer first, if it is due).
+func _new_run_players() -> void:
+	if _calibration_offer_wanted():
+		_offer_calibration()
+	else:
+		_new_run_players_after_offer()
 
 
 ## The players screen; Start keeps its roster and calls `next`. `with_oaths`: a run's screen, with
@@ -979,8 +1012,53 @@ func _offer_tutorial() -> void:
 		if yes:
 			_fade_to(_start_tutorial)
 		else:
-			_show_lobby(_fade_to.bind(_new_run), true))
+			_new_run_players())
 	add_child(_prompt)
+
+
+## True if a New Run should ask about the lag calibration now: once (PlayerSettings), not for a
+## player who calibrated already, and never for the bot or an online game (an online client does not
+## come through the main menu's New Run at all).
+func _calibration_offer_wanted() -> bool:
+	return not _options.is_autoplay() and not Net.is_online() and PlayerSettings.calibration_offer_due(
+			PlayerSettings.calibration_offered(), PlayerSettings.is_calibrated())
+
+
+## Asks once whether to measure the player's lag now (DESIGN.md 3.2). Yes runs the calibration
+## screen, then goes on to the players screen; No goes straight on. `remember` false: a dev picture
+## (--screen=calibration_offer) that must not use up the real once-only offer.
+func _offer_calibration(remember: bool = true) -> void:
+	if remember:
+		PlayerSettings.set_calibration_offered(true)
+	_prompt = ConfirmPrompt.new()
+	_prompt.name = "CalibrationPrompt"
+	_prompt.setup("Calibrate your timing?", "Takes about 15 seconds. Recommended for wireless pads and TVs, "
+			+ "which add lag. It is always in Settings under Game.", "Calibrate now", "Not now")
+	_prompt.answered.connect(func(yes: bool) -> void:
+		_prompt.queue_free()
+		_prompt = null
+		if not remember:
+			_show_main_menu()
+		elif yes:
+			_show_calibration_screen.call_deferred(_new_run_players_after_offer)
+		else:
+			_new_run_players_after_offer())
+	add_child(_prompt)
+
+
+## The players screen once the calibration offer is over (it is never asked twice, so this cannot
+## loop back into the offer).
+func _new_run_players_after_offer() -> void:
+	_show_lobby(_fade_to.bind(_new_run), true)
+
+
+## The lag calibration on its own screen, then `next`.
+func _show_calibration_screen(next: Callable) -> void:
+	var screen := CalibrationScreen.new()
+	screen.name = "CalibrationScreen"
+	screen.setup(_visuals, _tuning)
+	screen.closed.connect(next, CONNECT_DEFERRED)
+	_show_screen(screen)
 
 
 ## Starts the tutorial: its practice fight, one player, the lessons over it.

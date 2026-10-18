@@ -18,7 +18,8 @@ var _judges: Dictionary = {}
 var _player_of_prompt: Dictionary = {}
 
 
-## The same numbers as DefenseJudge._init (one lag compensation for every judge: one machine).
+## The same numbers as DefenseJudge._init. `latency_compensation_ms` is the base every judge works
+## from; a press from a laggier device adds its own extra in `press` (card #204).
 func _init(whiff_lockout_ms: int, latency_compensation_ms: int, reach_back_max_ms: int, late_press_report_ms: int) -> void:
 	_lockout_ms = whiff_lockout_ms
 	_latency_ms = latency_compensation_ms
@@ -61,13 +62,17 @@ func player_of_prompt(idx: int) -> int:
 
 
 ## Judges a press by player `player` (see DefenseJudge.press). A player with no prompt here gets
-## a DONE report and no lockout.
-func press(player: int, action: int, t_us: int, earliest_us: int = -1) -> Dictionary:
+## a DONE report and no lockout. `extra_latency_ms` is how much more the pressing device lags than
+## the base given to _init (a pad against a keyboard, card #204): the press is judged that much
+## earlier, exactly as if the judge had been built with that device's own compensation. Never
+## negative: the base is the smallest compensation, so no window is cut short.
+func press(player: int, action: int, t_us: int, earliest_us: int = -1, extra_latency_ms: int = 0) -> Dictionary:
 	var judge := _judges.get(player) as DefenseJudge
 	if judge == null:
 		return {"result": DefenseJudge.Result.DONE, "reason": DefenseJudge.Reason.NONE, "prompts": [] as Array[int],
 				"outcome": Defense.Outcome.NONE, "offset_us": 0, "hit": -1}
-	return judge.press(action, t_us, earliest_us)
+	var shift_us := maxi(0, extra_latency_ms) * 1000
+	return judge.press(action, t_us - shift_us, maxi(0, earliest_us - shift_us) if earliest_us >= 0 else earliest_us)
 
 
 ## Every judge's overdue prompts (see DefenseJudge.advance), in idx order.
