@@ -1795,12 +1795,12 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 	if hud.overlay.visible:
 		# G, T, L, H, C and V change what the player sees or hears of an attack: practice only. A
 		# run fight is the real game (card #179, DESIGN.md 3.7); F1 and F2 still work there.
-		if _run != null and key in [KEY_G, KEY_T, KEY_L, KEY_H, KEY_C, KEY_V]:
+		if _is_real_fight() and key in [KEY_G, KEY_T, KEY_L, KEY_H, KEY_C, KEY_V]:
 			return false
 		match key:
 			KEY_R:
 				# The training ring is a practice aid: a run fight is the real game.
-				if _run == null:
+				if not _is_real_fight():
 					PlayerSettings.set_show_timing_ring(not PlayerSettings.show_timing_ring(_tuning))
 				return true
 			KEY_G:
@@ -1831,20 +1831,20 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 				hud.calibration.open()
 			return true
 		KEY_I:
-			if engine.phase != CombatEngine.Phase.ENDED and _run == null:
+			if engine.phase != CombatEngine.Phase.ENDED and not _is_real_fight():
 				_enqueue(_submit(CombatCommands.practice({"invulnerable_party": not bool(mirror.practice.invulnerable_party)})))
 			return true
 		KEY_O:
-			if engine.phase != CombatEngine.Phase.ENDED and _run == null:
+			if engine.phase != CombatEngine.Phase.ENDED and not _is_real_fight():
 				_enqueue(_submit(CombatCommands.practice({"immortal_enemies": not bool(mirror.practice.immortal_enemies)})))
 			return true
 		KEY_R:
 			# A run fight cannot be started over: its HP and gold carry on.
-			if _run == null:
+			if not _is_real_fight():
 				restart_requested.emit()
 			return true
 	var index := PRACTICE_ATTACK_KEYS.find(key)
-	if index >= 0 and _run != null:
+	if index >= 0 and _is_real_fight():
 		# A run fight is the real game: no forcing attacks.
 		return false
 	if index >= 0:
@@ -1854,6 +1854,13 @@ func _handle_practice(event: InputEvent, key: Key) -> bool:
 			_enqueue(_submit(CombatCommands.practice({"force_attack": attacks[index].id})))
 		return true
 	return false
+
+
+## A run fight or the tutorial: the real game, so the practice keys are off (F1 and F2 still
+## work). The tutorial sets up its own fight (an unbeatable enemy, a party that cannot fall), and
+## I, O, R or 1-9 would break its lessons (card #248).
+func _is_real_fight() -> bool:
+	return _run != null or tutorial_mode
 
 
 ## The attacks of the first living enemy (what 1-9 force).
@@ -1870,7 +1877,7 @@ func _practice_attacks() -> Array[EnemyAttackData]:
 func _practice_text() -> String:
 	# Online the practice keys are off (they would change everyone's fight), and a run fight is the
 	# real game: no practice panel there (F1 and F2 still work).
-	if not _tuning.practice_tools_enabled or _net_mode != NetMode.LOCAL or _run != null or tutorial_mode:
+	if not _tuning.practice_tools_enabled or _net_mode != NetMode.LOCAL or _is_real_fight():
 		return ""
 	var forced := String(mirror.practice.get("force_attack", ""))
 	var attacks := _practice_attacks()

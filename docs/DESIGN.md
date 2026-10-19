@@ -1408,7 +1408,8 @@ next attack, I toggles "party cannot die", O toggles "enemy cannot die", R resta
 F1 opens the stats overlay (inside it: R training ring, G telegraph flash (F is the Skills key), T timing readout,
 L motion sounds, H hit markers, C wind-up crouch, V cinematic camera), F2 starts lag calibration (only while the action menu is open, never during an
 enemy attack). With `practice_tools_enabled` off, F1 and F2 are not available during a fight.
-In a run fight only F1 (stats) and F2 (calibration) work; G, T, L, H, C and V do nothing there.
+In a run fight and in the tutorial only F1 (stats) and F2 (calibration) work; G, T, L, H, C and V do nothing there
+(the tutorial too since card #248: it keeps its enemy up and its party standing itself, and I, O, R or 1 to 9 broke its lessons).
 On the victory/defeat screen F1 opens the stats, and Confirm or R fights again once
 `end_input_guard_ms` (800) has passed, so a late defence press never skips the screen.
 
@@ -1696,7 +1697,7 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   2026-10-15) kept it short; card #208 (user, 2026-10-17: "it feels a bit cluttery", "practice is
   a dev thing") made it five rows; phase 17 added Relics (six).
   In the corners, small and quiet like most games' title menus (card #210, user 2026-10-17):
-  bottom left the version, "v" and Project Settings' `application/config/version` (0.17.0 since phase 17, the
+  bottom left the version, "v" and Project Settings' `application/config/version` (0.18.0 since phase 18, the
   phase number; the same version the save check and the online handshake use, so raise it for a
   build friends play together); bottom right the studio's DragonRot wordmark
   (`assets/branding/dragonrot_logo.png`, cut from the studio intro by
@@ -3390,7 +3391,12 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   the others are told. A client that leaves on purpose (Leave in the pause menu, or quitting)
   says goodbye first and its line closes a moment later, so its seat is given up at once rather
   than kept for a rejoin. If the host leaves (or ends the game from the pause menu), everyone goes
-  back to the main menu with a note. Online, the pause menu opens over a game that goes on (it
+  back to the main menu with a note. Mid-run the host says so first (card #247): End the game, or
+  closing the window, sends a `menu` message that friends act on at once ("The host ended the
+  game.", no seat kept), and the line goes down only after the fade (closing the window waits
+  `BYE_LINGER_S`; quitting is held back only while hosting), since the other end handles a
+  disconnect before the messages that came with it. Without it friends took the lost line for a
+  dropped host and waited on the Join screen to take their seat back. Online, the pause menu opens over a game that goes on (it
   offers Leave / End the game).
 - **Dropping and rejoining** (card #205, 2026-10-18):
   - *Heartbeat*: both ends keep pinging (ENet), and a connection that answers nothing for
@@ -3452,7 +3458,9 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   the network S seconds after joining without a word (the host finds out through the heartbeat);
   `--drop-in-fight` makes that drop wait for the next fight and come a few seconds into it;
   `--rejoin[=S]` joins again S seconds (default 10) after losing the host. Without `--rejoin` an
-  autoplay client that loses the host still fails with `AUTOPLAY_ERROR host_lost`.
+  autoplay client that loses the host still fails with `AUTOPLAY_ERROR host_lost`. `--end-after=S`
+  makes the host end the game for everyone S seconds after starting (as End the game does, once
+  a run is on); host and client then both print `AUTOPLAY_RESULT host_ended`.
 
 ---
 

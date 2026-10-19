@@ -229,6 +229,8 @@ func _ready() -> void:
 				_players.player_count()])
 	if _options.host_players > 0:
 		_host_online()
+		if _options.end_after_s > 0:
+			_autoplay_end_later()
 		return
 	if not _options.join_address.is_empty():
 		_show_join()
@@ -1892,6 +1894,9 @@ func _refresh_roster_users() -> void:
 ## The window lost focus (alt-tab, the Steam overlay, a notification): a fight or zone pauses,
 ## alone or in local co-op. Never online, where the others play on.
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_on_close_requested()
+		return
 	if what != NOTIFICATION_APPLICATION_FOCUS_OUT and what != NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		return
 	if Net.is_online() or _options == null or _options.is_autoplay():
@@ -2071,14 +2076,41 @@ func _on_abandon_answered(yes: bool) -> void:
 	_prompt.queue_free()
 	_prompt = null
 	if yes:
-		_free_pause()
-		if _run != null:
-			# An abandoned run keeps what it found, like a lost one (DESIGN.md 8.17).
-			_bank_relics()
-			_clear_run_save()
-		_fade_to(_show_main_menu)
+		_abandon_run()
 	elif _pause != null:
 		_pause.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+## Abandon run, End the game (host) or Leave the game (client), once the player said yes.
+func _abandon_run() -> void:
+	_free_pause()
+	_tell_clients_game_ended()
+	if _run != null:
+		# An abandoned run keeps what it found, like a lost one (DESIGN.md 8.17).
+		_bank_relics()
+		_clear_run_save()
+	_fade_to(_show_main_menu)
+
+
+## Host mid-run: tells the friends the game is over before the line goes down (End the game, or
+## closing the window), so they go to the main menu with "The host ended the game." instead of
+## taking the lost connection for a dropped host and waiting to take their seat back (DESIGN.md
+## 9.2). The message goes out with the next frames; the line closes after the fade (or the wait
+## before quitting), never in the same moment, as the other end handles a disconnect before the
+## messages that came with it.
+func _tell_clients_game_ended() -> void:
+	if Net.is_host() and _run != null and not _run.is_over():
+		Net.broadcast("menu")
+
+
+## The window's close button. Only a host holds quitting back (auto_accept_quit is off while
+## hosting): it says goodbye first and quits a moment later, so the goodbye arrives.
+func _on_close_requested() -> void:
+	if get_tree().auto_accept_quit:
+		return
+	_tell_clients_game_ended()
+	await get_tree().create_timer(NetSession.BYE_LINGER_S, true, false, true).timeout
+	get_tree().quit()
 
 
 ## Stops (or restarts) the fight, zone or screen under an overlay: no movement, timers or input.
@@ -2111,6 +2143,8 @@ func _host_online() -> void:
 		_autoplay_fail("host_failed")
 		_show_main_menu()
 		return
+	# Closing the window waits for the goodbye to the friends (_on_close_requested).
+	get_tree().auto_accept_quit = false
 	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, NetSession.HOST_PEER)
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
@@ -2346,6 +2380,7 @@ func _leave_online() -> void:
 	_net_place = {}
 	_net_fight = {}
 	Net.leave()
+	get_tree().auto_accept_quit = true
 	_players = PlayerRoster.solo(_hero_names().size())
 	_update_away_chip()
 
@@ -2379,6 +2414,14 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				_players = roster
 				(_screen as LobbyScreen).set_roster(roster)
 				(_screen as LobbyScreen).set_oath(int(payload.get("oath", 0)))
+		"menu":
+			# The host ended the game. At once, not after the transition under way: the host's line
+			# goes down a moment later, and that must not count as a lost host (no seat to take back).
+			_client_done = true
+			_end_online("The host ended the game.")
+			if _options.is_autoplay():
+				print("AUTOPLAY_RESULT host_ended")
+				_autoplay_quit()
 		_:
 			if kind == "screen" and String(payload.get("name", "")) in ["zone_fight", "final_fight"]:
 				# Batches from here on belong to the next fight.
@@ -2399,6 +2442,8 @@ func _pump_net() -> void:
 func _client_message(kind: String, p: Dictionary) -> void:
 	match kind:
 		"run_start":
+			# A new game (an earlier one in this session may have ended).
+			_client_done = false
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
 			if roster != null:
 				_players = roster
@@ -2414,9 +2459,6 @@ func _client_message(kind: String, p: Dictionary) -> void:
 		"run":
 			_apply_run(p)
 			_rebuild_watched_screen()
-		"menu":
-			_client_done = true
-			_end_online("The host ended the game.")
 		"screen":
 			_apply_run(p)
 			_client_screen(p)
@@ -2846,6 +2888,19 @@ func _autoplay_leave_later() -> void:
 	_client_done = true
 	Net.leave()
 	_quit_game()
+
+
+## Autoplay host (--end-after=S): ends the game for everyone mid-run, as End the game would.
+func _autoplay_end_later() -> void:
+	await get_tree().create_timer(float(_options.end_after_s)).timeout
+	while Net.is_host() and _busy:
+		await get_tree().process_frame
+	if not Net.is_host() or _run == null or _run.is_over():
+		return
+	print("AUTOPLAY_ENDED after %d s" % _options.end_after_s)
+	_abandon_run()
+	print("AUTOPLAY_RESULT host_ended")
+	_autoplay_quit()
 
 
 ## Autoplay host (--host=N): everyone is in, start.

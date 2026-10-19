@@ -83,6 +83,9 @@ var host_players: int = 0
 var join_address: String = ""
 ## --leave-after=S (0: stay).
 var leave_after_s: int = 0
+## --end-after=S (0: never): an online host ends the game for everyone S seconds after starting,
+## as End the game in the pause menu does.
+var end_after_s: int = 0
 ## --drop-after=S (0: never): an online client drops off the network without a word after S
 ## seconds, like a pulled cable (card #205). --rejoin[=S]: after losing the host it joins again
 ## S seconds later (0: it does not). --drop-in-fight: the drop waits for the next fight after
@@ -169,6 +172,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.host_players = clampi(wanted.to_int(), 1, PlayerRoster.MAX_PLAYERS) if wanted.is_valid_int() else 2
 		elif arg.begins_with("--leave-after="):
 			options.leave_after_s = maxi(0, arg.substr("--leave-after=".length()).to_int())
+		elif arg.begins_with("--end-after="):
+			options.end_after_s = maxi(0, arg.substr("--end-after=".length()).to_int())
 		elif arg.begins_with("--drop-after="):
 			options.drop_after_s = maxi(0, arg.substr("--drop-after=".length()).to_int())
 		elif arg == "--drop-in-fight":

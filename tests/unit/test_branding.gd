@@ -6,6 +6,7 @@ const BRANDING_PATH := "res://data/branding/branding.tres"
 const CREDITS_PATH := "res://data/branding/credits.tres"
 const TIPS_PATH := "res://data/branding/tips.tres"
 const MUSIC_CREDITS := "res://assets/audio/music/CREDITS.md"
+const SOUND_CREDITS: Array[String] = ["res://assets/audio/sfx/CREDITS.md", "res://assets/audio/ambience/CREDITS.md"]
 ## A tip longer than this wraps onto a third line on the card.
 const TIP_MAX_CHARS: int = 110
 
@@ -58,6 +59,30 @@ func test_every_song_is_credited() -> void:
 		var credit := "\"%s\" by %s" % [m.get_string(1), m.get_string(2)]
 		assert_true(credits.text.contains(credit), "the credits name %s" % credit)
 	assert_gt(songs, 0, "the music credits list has songs")
+
+
+## Every author of a sound effect or ambience recording is on the credits screen (card #249): the
+## CC BY ones need it, the CC0 ones get it anyway. A deleted Freesound account is "an anonymous
+## Freesound user" there.
+func test_every_sound_author_is_credited() -> void:
+	var credits := load(CREDITS_PATH) as CreditsData
+	if credits == null:
+		return
+	var by_re := RegEx.create_from_string("\" by ([^,\"]+?), CC")
+	var authors := 0
+	for path: String in SOUND_CREDITS:
+		var file := FileAccess.open(path, FileAccess.READ)
+		assert_not_null(file, "the sound credits list exists: %s" % path)
+		if file == null:
+			continue
+		for m: RegExMatch in by_re.search_all(file.get_as_text()):
+			var author := m.get_string(1).strip_edges()
+			authors += 1
+			if author.begins_with("deleted_user"):
+				assert_true(credits.text.contains("an anonymous Freesound user"), "the credits thank %s" % author)
+			else:
+				assert_true(credits.text.contains(author), "the credits name %s (%s)" % [author, path.get_file()])
+	assert_gt(authors, 0, "the sound credits lists name authors")
 
 
 func test_tips_fit_on_a_card() -> void:

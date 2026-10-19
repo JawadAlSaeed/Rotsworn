@@ -183,3 +183,13 @@ func test_only_the_lesson_hero_acts() -> void:
 		assert_eq(engine.phase, CombatEngine.Phase.AWAITING_ACTION)
 		assert_eq(engine.active_actor, brin, "always Brin")
 		engine.submit(CombatCommands.practice({"pass_turn": true}))
+
+
+## The tutorial is the real game for the practice keys (card #248): 1 to 9, I, O and R would break
+## its lessons (it keeps the enemy up and the party standing itself), as in a run fight.
+func test_practice_keys_are_off_in_the_tutorial() -> void:
+	var fight := CombatController.new()
+	assert_false(fight._is_real_fight(), "a practice fight has the practice keys")
+	fight.set_tutorial(true)
+	assert_true(fight._is_real_fight(), "the tutorial has none")
+	fight.free()

@@ -131,7 +131,7 @@ func _add_corners(branding: BrandingData) -> void:
 	logo.offset_bottom = -margin
 
 
-## "v0.17.0": the project's version (Project Settings > Application > Config > Version), the same
+## "v0.18.0": the project's version (Project Settings > Application > Config > Version), the same
 ## one the online handshake and the save check use.
 static func version_text() -> String:
 	return "v" + str(ProjectSettings.get_setting("application/config/version", "0.0.0"))
