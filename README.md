@@ -1,5 +1,3 @@
-# Rotsworn
-
 ![Rotsworn](assets/branding/rotsworn_logo.png)
 
 The rot rose from the Hollow King's grave and swallowed the land: forests to husks, rivers to bog,
