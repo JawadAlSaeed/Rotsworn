@@ -81,7 +81,7 @@ func test_prop_gets_a_contact_shadow_sized_from_its_footprint() -> void:
 	assert_gt(feet, look.prop_shadow_min_footprint_px, "the trunk and roots are wider than the minimum")
 	var width := float(shadow.texture.get_width()) * shadow.pixel_size
 	assert_almost_eq(width, float(feet) * 0.05 * 2.0, 0.001, "width = footprint x pixel size x width share")
-	assert_almost_eq(shadow.position.y, StageBuilder.PROP_SHADOW_LIFT, 0.0001, "lies just over the floor")
+	assert_almost_eq(shadow.position.y, look.prop_shadow_lift, 0.0001, "lies just over the floor")
 	assert_eq(shadow.rotation_degrees, Vector3(-90.0, 0.0, 0.0), "lies flat")
 	sprite.free()
 
@@ -93,7 +93,7 @@ func test_shadow_lands_on_the_floor_when_the_prop_is_raised() -> void:
 	data.position = Vector3(0.0, 0.5, 0.0)
 	var sprite := StageBuilder.prop(data, look)
 	var shadow := sprite.get_node("ContactShadow") as Sprite3D
-	assert_almost_eq(shadow.position.y + data.position.y, StageBuilder.PROP_SHADOW_LIFT, 0.0001,
+	assert_almost_eq(shadow.position.y + data.position.y, look.prop_shadow_lift, 0.0001,
 			"local y cancels the prop's own height")
 	sprite.free()
 

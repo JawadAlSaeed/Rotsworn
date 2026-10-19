@@ -30,7 +30,6 @@ const PRIO_BIG: int = ClipPlayer.PRIO_BIG
 const PRIO_FINAL: int = ClipPlayer.PRIO_FINAL
 
 const SHADER := preload("res://scripts/combat/presentation/fighter_sprite.gdshader")
-const SHADOW_HEIGHT := 0.02
 ## The shadow shrinks to this scale when the body is this high (world units) or higher.
 const SHADOW_MIN_SCALE := 0.55
 const SHADOW_FADE_HEIGHT := 1.6
@@ -144,7 +143,7 @@ func setup(id: int, party: bool, sheet_path: String, hframes: int, frame_size: V
 	_shadow.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 	_shadow.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_shadow.position = Vector3(0.0, SHADOW_HEIGHT, 0.0)
+	_shadow.position = Vector3(0.0, _shadow_lift(), 0.0)
 	add_child(_shadow)
 	_build_floor_warning(visuals.floor_warning_size)
 	set_pose(0)
@@ -332,7 +331,7 @@ func _place_body() -> void:
 		return
 	var at := body_offset + stage_offset
 	_sprite.position = at
-	_shadow.position = Vector3(at.x, SHADOW_HEIGHT, at.z)
+	_shadow.position = Vector3(at.x, _shadow_lift(), at.z)
 	_warning.position = Vector3(at.x, WARNING_HEIGHT, at.z)
 	var lift := clampf(body_offset.y / SHADOW_FADE_HEIGHT, 0.0, 1.0)
 	_shadow.scale = Vector3.ONE * lerpf(1.0, SHADOW_MIN_SCALE, lift)
@@ -454,6 +453,11 @@ func head_position() -> Vector3:
 ## Middle of the visible body, for sparks, slashes and rings.
 func centre_position() -> Vector3:
 	return body_position() + Vector3(0.0, (_visible_top_px + _visible_bottom_px) * 0.5 * _pixel_size, 0.0)
+
+
+## How far over the floor the shadow blob lies (the CombatVisuals defaults without visuals).
+func _shadow_lift() -> float:
+	return _visuals.shadow_lift if _visuals != null else CombatVisuals.new().shadow_lift
 
 
 func _build_floor_warning(diameter: float) -> void:

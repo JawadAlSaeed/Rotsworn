@@ -2999,6 +2999,18 @@ scarce, and a "?" can turn into a fight.
   two layers of its texture, darkens toward the middle, keeps a muddy rim and sparkles; solid water
   is obstacles for walking (`ZoneMotion.ground_obstacles`: a box, or circles filling an ellipse,
   `SHORE` inside the drawn edge). Textures: art kit `env_ground.py`.
+  **No two overlapping pieces share a height** (card #269, `GroundStack`, pure and tested). Pieces
+  on the same `layer` used to lie at exactly the same height, and where they overlapped (a mud road
+  across a pond, two pools, a section's road running into the next one) they flickered through
+  each other as the camera moved (z-fighting). Now the pieces of a built place are taken in order
+  of layer, then list order, and each lies one `ground_step` over the highest earlier piece it
+  overlaps (its turned box), starting `ground_lift` over the floor: a higher layer always draws
+  over a lower one, and of two overlapping pieces on one layer the later one wins. Pieces that do
+  not touch share steps, so the stack stays low (up to about ten steps in the shipped zones). The
+  numbers are in the StageLook ("Ground pieces": 0.01 and 0.004); the props' shadow blobs
+  (`prop_shadow_lift`, 0.07) and the walkers' (`combat_visuals.tres` `shadow_lift`, 0.06) lie
+  above the whole stack, which a test checks for every zone on many visits. The 3D world pieces
+  have no upward face on the floor (checked), and the arenas have no ground pieces.
 - **Props** (art kit `env_life.py`): ruins (broken arch, knight statue, fallen column, rubble,
   brazier, torn banner, gravestone, dry fountain, low wall, bones), swamp (reeds, mangrove, mossy
   tree, giant mushroom, log, stilt hut, swamp lantern, fern), forest (bush, stump, thorns, fence,

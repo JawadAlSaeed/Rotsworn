@@ -431,3 +431,6 @@ phase_vignette_strength = 0.7
 phase_vignette_color = Color(0.14, 0, 0, 1)
 phase_lamp_percent = 160
 phase_burst = SubResource("Resource_burst")
+prop_shadow_lift = 0.07
+ground_lift = 0.01
+ground_step = 0.004
