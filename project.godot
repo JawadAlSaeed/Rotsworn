@@ -18,6 +18,8 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 run/max_fps=480
 config/icon="res://assets/branding/icon.png"
 config/windows_native_icon="res://assets/branding/icon.ico"
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0, 0, 0, 1)
 
 [autoload]
 

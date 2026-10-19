@@ -1676,7 +1676,9 @@ The game is a keyboard and pad game, but every menu also works with the mouse (a
 
 Studio intro (2026-10-12): when the game starts it plays the "Developed by DragonRot" video
 (`assets/video/dragonrot_intro.ogv`, 4 s, path in `data/presentation/boot.tres`, `BootData`) on
-black, then the "Controller recommended" notice and the title screen (7.7). Any key, button or click skips it (after `skip_guard_ms`). A missing
+black, then the "Controller recommended" notice and the title screen (7.7). Before it, Godot's
+own boot splash shows no logo, only black (`application/boot_splash/show_image=false`,
+`bg_color` black; user, 2026-10-19), so the game opens on black straight into the intro. Any key, button or click skips it (after `skip_guard_ms`). A missing
 video goes straight to the menu. Autoplay never shows it. Godot plays Ogg Theora only: the MP4 was
 converted with ffmpeg (`-c:v libtheora -q:v 8 -c:a libvorbis`). Phase 8 (user: it looked soft and
 stretched; the exported MP4 was only 1888x998 at a low bitrate): `tools/branding/render_intro.py`
@@ -3913,3 +3915,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-18 | Phase 18 "Blender world": solid things in 3D (Blender), soft things, people and creatures stay flat pixel art; plus more plants, ruins and living water | user, after the test; the mix is how HD-2D (Octopath) does it, and 3D grass would look busier and lose its sway (cards #221 to #237) |
 | 2026-10-18 | Trees stay flat sprites | card #228 try: a 3D trunk under the flat crown clashed with the pixel leaves; the user left the choice open and flat was the recommendation |
 | 2026-10-19 | Every push to main builds the Windows game on GitHub Actions and replaces `Rotsworn.zip` on the `latest-build` pre-release: one fixed download link for everyone (9.2) | owner asked if it was possible and costly: free for a public repo, no hand-sent zips, and one shared file keeps online fingerprints equal |
+| 2026-10-19 | No Godot logo at start: the boot splash is plain black, then the DragonRot intro as before (7.5) | user asked; the studio intro already opens the game and black runs straight into it |
