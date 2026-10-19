@@ -96,8 +96,7 @@ jobs:
             echo
             echo "**Download:** Rotsworn.zip below (Windows 10 or 11, 64-bit). How to play: see the README."
             echo
-            echo "This build is replaced after every change to the game. Online, everyone must play the same build:"
-            echo "when one of you downloads a new one, all of you do."
+            echo "This build is replaced after every change to the game. Online, everyone must play the same build: when one of you downloads a new one, all of you do."
             echo
             echo "Commit: $GITHUB_SHA"
             echo "Change: $subject"
