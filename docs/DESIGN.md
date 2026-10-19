@@ -3460,7 +3460,7 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   Tests: `tests/unit/test_more_relics.gd`.
 - **Later**: more Relics still (E33 has close to 200), and phase 21's rethink of levels and Echoes.
 
-### 8.18 The Y screen (phase 20, card #270, built 2026-10-19)
+### 8.18 The Y screen (phase 20, card #270, done 2026-10-19)
 
 The owner found the party screen "too cluttery" and hates text. Three concepts were drawn (tabs, one
 quiet page, one hero at a time); the owner picked **tabs**, plus the one-page concept's info strip and
@@ -3959,8 +3959,9 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     at most one per attack, in every fight but the first zone (was hard fights only, #253). Lifting
     marks: Cass's Purify (every mark off one ally, no new ones for 2 turns), Antidote and Holy Water
     items (#254), Relics against marks (#263), a tutorial lesson (#264, idea).
-20. **Relic balance and a clean Y screen** (built 2026-10-19, waiting for playtest; branch
-    `phase20-Relics`, 8.17, 8.18): 16 more Relics, 50 in all, eight with new effects (#242); drops
+20. **Relic balance and a clean Y screen** (done, approved 2026-10-19 after a playtest, v0.20.0;
+    8.17, 8.18; merged with three side fixes: #269 ground flicker, #241 stay in the zone after the
+    guard, #268 enemy HP panels fade during attacks): 16 more Relics, 50 in all, eight with new effects (#242); drops
     25% rarer, 8% (#243); the Relic bag of 10 the team brings into a run, picked on the main menu
     (#265; bag upgrades between runs later, #266 idea); the Y screen rebuilt as four icon tabs
     (Relics, Bag, Hero, Skills) with one info strip, toasts and fewer words (#270, the owner picked
@@ -4199,4 +4200,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-18 | Trees stay flat sprites | card #228 try: a 3D trunk under the flat crown clashed with the pixel leaves; the user left the choice open and flat was the recommendation |
 | 2026-10-19 | Every push to main builds the Windows game on GitHub Actions and replaces `Rotsworn.zip` on the `latest-build` pre-release: one fixed download link for everyone (9.2) | owner asked if it was possible and costly: free for a public repo, no hand-sent zips, and one shared file keeps online fingerprints equal |
 | 2026-10-19 | No Godot logo at start: the boot splash is plain black, then the DragonRot intro as before (7.5) | user asked; the studio intro already opens the game and black runs straight into it |
+| 2026-10-19 | Phase 20 "Relic balance and a clean Y screen" (11, 8.17, 8.18): 16 more Relics (8 new effects), drops 10% to 8%, a Relic bag of 10 picked on the main menu (new finds join it while there is room; a slot opening mid-run shows a note), the Y screen as four icon tabs with one info strip and toasts, Relic icons shaped by category | user picked every recommended option, approved the Relic list, and picked concept A (tabs) with concept B's info strip and shape icons; Relic levels and Echoes are for phase 21 and the remaining text clutter is phase 22 |
 | 2026-10-19 | Phase 19 "Monsters and effects" (11): six new monsters in two batches, five new hero marks, one mark hit per monster in every fight but the first zone, Purify plus Antidote and Holy Water to lift them, area skills for Brin and Cass, more 3-monster fights | user asked for small fries, ranged-only and large monsters, status effects, a way to cleanse them and up to 3 monsters a fight; user picked every recommended option |
