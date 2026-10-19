@@ -1290,6 +1290,8 @@ func _play_counter(ev: Dictionary) -> void:
 	actors.assign(ev.actors)
 	var team := bool(ev.team)
 	_counters += 1
+	# The enemy panels are at full for the counter's damage, not still fading in (card #268).
+	hud.show_enemy_panels()
 	view.camera.shot_counter(view.home_of(int(ev.target)))
 	var label := counter_label(team, int(ev.get("hits", 1)), bool(ev.get("mixed", false)))
 	if team:
