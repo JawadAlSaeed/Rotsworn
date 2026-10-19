@@ -5,9 +5,10 @@ extends Node
 ## open the gate. In a run it then picks up the glinting spots, tries each chest once, takes every
 ## shrine's and wanderer's deal (Main says yes when the party can pay), fights the champions and
 ## opens their prize chests, and at last heads for the guard at the exit (DESIGN.md 8); other
-## enemies are fought only if they catch it. It plays like a careful player (card #178): it goes for
-## a champion, or hunts a roamer for XP, only while the party is healthy, and uses its healing items
-## before it walks into the guard. In practice it fights every roaming enemy. In
+## enemies are fought only if they catch it. With the guard beaten it walks to the zone's exit and
+## leaves (card #241; Main does not ask the bot). It plays like a careful player (card #178): it
+## goes for a champion, or hunts a roamer for XP, only while the party is healthy, and uses its
+## healing items before it walks into the guard. In practice it fights every roaming enemy. In
 ## "perfect" mode it stops in reach, turns to an enemy and strikes (FIRST STRIKE); in "miss" and
 ## "mash" modes it walks into it (a normal start). The fights are played by the combat Autoplay.
 
@@ -46,6 +47,7 @@ const SEAL_KEY: int = 2000
 const OFFER_KEY: int = 3000
 const PRIZE_KEY: int = 4000
 const ENEMY_KEY: int = 5000
+const EXIT_KEY: int = 6000
 
 var _zone: ZoneController
 var _tuning: Tuning
@@ -109,7 +111,7 @@ func _process(delta: float) -> void:
 		_target = -1
 		return
 	var at: Vector2 = goals[_target]
-	if _target >= ENEMY_KEY:
+	if _target >= ENEMY_KEY and _target < EXIT_KEY:
 		if _strike_first and me.distance_to(at) <= _tuning.explore_strike_reach * STRIKE_SHARE:
 			_zone.bot_move = Vector2.ZERO
 			_zone.face(at - me)
@@ -118,6 +120,9 @@ func _process(delta: float) -> void:
 	elif me.distance_to(at) <= _use_reach():
 		_zone.bot_move = Vector2.ZERO
 		_zone.pickup()
+		if _target == EXIT_KEY:
+			# Leaving freezes the zone; until Main takes it, keep pressing.
+			return
 		# Try each thing once: a chest without a key stays shut, a deal the party cannot pay stays,
 		# a find that does not fit a full backpack is left behind.
 		_skipped.append(_target)
@@ -128,6 +133,10 @@ func _process(delta: float) -> void:
 ## Everything worth walking to now, key -> ground spot. Seals come first while the gate is shut.
 func _goals() -> Dictionary:
 	var goals := {}
+	if _zone.is_exit_open():
+		# The guard is beaten and everything worth having was taken before it: out.
+		goals[EXIT_KEY] = _zone.exit_ground()
+		return goals
 	if not _zone.is_gate_open():
 		_add(goals, SEAL_KEY, _zone.seal_positions())
 		if not goals.is_empty():
@@ -178,6 +187,8 @@ func _is_healthy() -> bool:
 
 ## How close it walks to use the target (not an enemy).
 func _use_reach() -> float:
+	if _target == EXIT_KEY:
+		return _tuning.zone_exit_reach * PICKUP_SHARE
 	var share := OFFER_SHARE if _target >= OFFER_KEY and _target < PRIZE_KEY else PICKUP_SHARE
 	return _tuning.explore_pickup_radius * share
 
@@ -204,7 +215,7 @@ func _walk_to(me: Vector2, at: Vector2, delta: float) -> void:
 	if _path.is_empty() or _repath_t <= 0.0:
 		_repath_t = REPATH_S
 		var near := _use_reach()
-		if _target >= ENEMY_KEY:
+		if _target >= ENEMY_KEY and _target < EXIT_KEY:
 			near = _tuning.explore_strike_reach * STRIKE_SHARE if _strike_first else _tuning.explore_touch_radius
 		_path = _grid.find(me, at, near)
 	while _path.size() > 1 and me.distance_to(_path[0]) <= WAYPOINT_REACHED:

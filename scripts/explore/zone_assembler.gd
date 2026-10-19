@@ -43,6 +43,8 @@ static func assemble(zone: ZoneData, seed_value: int) -> ZoneData:
 	out.enemies.append_array(zone.enemies)
 	out.item_spots.append_array(zone.item_spots)
 	out.chests.append_array(zone.chests)
+	out.has_exit = zone.has_exit
+	out.exit_spot = zone.exit_spot
 
 	var sections: Array[ZoneSectionData] = [zone.start_section]
 	sections.append_array(pick_middles(zone, rng))
@@ -103,6 +105,9 @@ static func assemble(zone: ZoneData, seed_value: int) -> ZoneData:
 			wanderer_spots.append(spot + at)
 		if section.gate != null:
 			out.gate = _moved_block(section.gate, at)
+		if section.has_exit:
+			out.has_exit = true
+			out.exit_spot = section.exit_spot + at
 		if section == zone.start_section:
 			out.player_start = section.player_start + at
 		x += section.width

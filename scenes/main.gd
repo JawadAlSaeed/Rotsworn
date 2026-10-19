@@ -333,6 +333,8 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_map(1, 1)
 		"shop", "campfire", "event", "treasure":
 			_show_sample_stop(screen_name)
+		"zone_exit", "zone_leave":
+			_show_sample_zone_exit(screen_name == "zone_leave")
 		"calibration":
 			_show_settings()
 			(_screen as SettingsScreen).open_calibration()
@@ -385,6 +387,19 @@ func _show_sample_stop(kind: String) -> void:
 			_show_event()
 		"treasure":
 			_show_treasure()
+
+
+## --screen=zone_exit: a run's first zone with its guard beaten and the leader at the open exit;
+## zone_leave: the same with "Leave the zone?" asked (pictures of card #241).
+func _show_sample_zone_exit(ask: bool) -> void:
+	_run = RunState.begin(_run_data, _tuning, 3)
+	_run.go(_run.choices()[0])
+	_start_zone(_run.zone_of(_run.current()))
+	await get_tree().process_frame
+	_zone.dev_cleared_near_exit()
+	if ask:
+		await get_tree().create_timer(float(_explore.zone_title_ms) / 1000.0).timeout
+		_on_zone_leave()
 
 
 ## --screen=party: a new run with some gear worn and a few items packed, the party screen open
@@ -1025,6 +1040,7 @@ func _start_zone(zone: ZoneData) -> void:
 	_zone.chest_requested.connect(_on_chest)
 	_zone.offer_requested.connect(_on_offer)
 	_zone.prize_requested.connect(_on_prize)
+	_zone.leave_requested.connect(_on_zone_leave)
 	add_child(_zone)
 	Sfx.play_music(_zone_song(), _music.volume_db)
 	_play_zone_ambience()
@@ -1130,7 +1146,7 @@ func _on_zone_return_requested(result: String) -> void:
 	await get_tree().process_frame
 	await _transition.fade_in()
 	_end_busy()
-	if found != null and _zone != null and not _zone.is_cleared():
+	if found != null and _zone != null and (not _zone.is_cleared() or _zone.keeps_zone_open()):
 		_open_zone_backpack("The enemy dropped a %s, but the backpack is full." % found.display_name, {"item": found})
 	if _run == null and result == "escaped" and _options.autoplay_mode == CombatOptions.AUTOPLAY_ESCAPE:
 		print("AUTOPLAY_RESULT zone_escaped fights=%d" % _zone.fights_started())
@@ -1138,10 +1154,48 @@ func _on_zone_return_requested(result: String) -> void:
 	elif _run == null and result == "defeat" and _options.is_autoplay():
 		print("AUTOPLAY_RESULT zone_defeat fights=%d first_strikes=%d" % [_zone.fights_started(), _zone.first_strikes()])
 		_autoplay_quit()
-	elif _run != null and _zone.is_cleared() and not Net.is_client():
-		# Let ZONE CLEAR read, then the guard's loot (online, the host sends it).
+	elif _run != null and _zone.is_cleared() and not _zone.keeps_zone_open() and not Net.is_client():
+		# A zone without an exit: let ZONE CLEAR read, then the guard's loot (online, the host sends
+		# it). A zone with one stays open until the party leaves by it (_on_zone_leave).
 		await get_tree().create_timer(float(_explore.zone_title_ms) / 1000.0).timeout
 		_fade_to(_show_loot)
+
+
+## The leader used the open exit (card #241): "Leave the zone?" so nobody leaves by accident. Only
+## the leader (player 1, the host online) walks and uses things, so the question is theirs, like a
+## shrine's; the others see the spoils screen the host sends next. The zone holds still meanwhile.
+## The bot always leaves.
+func _on_zone_leave() -> void:
+	if _run == null or _zone == null or _busy or _overlay != null or _prompt != null or Net.is_client():
+		return
+	if _options.is_autoplay():
+		_leave_zone()
+		return
+	_zone.set_paused(true)
+	_prompt = ConfirmPrompt.new()
+	_prompt.name = "LeavePrompt"
+	var left := _zone.enemies_left()
+	var detail := "On to the spoils and the map. There is no coming back."
+	if left > 0:
+		detail = "%d optional %s still here. %s" % [left, "enemy is" if left == 1 else "enemies are", detail]
+	_prompt.setup("Leave the zone?", detail, "Leave", "Stay")
+	_prompt.answered.connect(func(yes: bool) -> void:
+		_prompt.queue_free()
+		_prompt = null
+		if _zone != null:
+			_zone.set_paused(false)
+			if yes:
+				_leave_zone())
+	add_child(_prompt)
+
+
+## The party leaves the cleared zone: the guard's spoils, then the map.
+func _leave_zone() -> void:
+	if _busy or _zone == null or not _zone.is_exit_open():
+		return
+	_zone.leave()
+	print("Run zone left: %s (optional enemies left %d)" % [_zone_name, _zone.enemies_left()])
+	_fade_to(_show_loot)
 
 
 func _on_zone_cleared() -> void:

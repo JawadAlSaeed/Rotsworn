@@ -31,7 +31,8 @@ extends RefCounted
 ##                                   title, controller, calibration_offer, credits, glossary (glossary_<topic> opens that
 ##                                   topic: glossary_reading), journal, party, heroes, attributes, skills, calibration,
 ##                                   tutorial, map, map_start, map_act2, shop, campfire,
-##                                   event, treasure
+##                                   event, treasure, zone_exit (a zone's open exit), zone_leave (its
+##                                   "Leave the zone?" question)
 ##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the
 ##                                   action menu opens, press these input actions on it (for
 ##                                   example fight_skills,menu_down), then leave it waiting; "|"

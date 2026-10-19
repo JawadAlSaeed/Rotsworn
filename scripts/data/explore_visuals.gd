@@ -114,6 +114,22 @@ extends Resource
 @export var champion_color: Color = Color(0.85, 0.45, 1.0)
 ## Champion tags show this many notice radii away or closer.
 @export_range(0.5, 10.0, 0.1) var champion_tag_range: float = 2.0
+## The zone's exit (DESIGN.md 8.5): a signpost at the far end. Dark while the guard stands; once it
+## is beaten a light comes on beside it and an "EXIT" tag marks it on screen, in exit_color.
+@export_file_path("*.png") var exit_path: String = "res://assets/sprites/env/signpost.png"
+@export_range(0.005, 1.0, 0.001) var exit_pixel_size: float = 0.05
+## The exit as a 3D piece (DESIGN.md 5.6), shown instead of the sprite (null: the sprite).
+@export var exit_piece: WorldPieceData
+@export_range(0.1, 4.0, 0.01) var exit_scale: float = 1.2
+## The signpost blocks walking this far around its foot (0: walk through it).
+@export_range(0.0, 10.0, 0.05) var exit_solid_radius: float = 0.3
+## The signpost's arms point toward +x (the far end) at this turn.
+@export_range(-180.0, 180.0, 0.5) var exit_rotation_y_degrees: float = 0.0
+@export var exit_color: Color = Color(1.0, 0.82, 0.4)
+@export_range(0.0, 16.0, 0.05) var exit_light_energy: float = 3.0
+@export_range(0.1, 50.0, 0.1) var exit_light_reach: float = 6.0
+## The light stands this high over the exit spot (world units).
+@export_range(0.0, 10.0, 0.05) var exit_light_height: float = 1.6
 
 @export_group("Life")
 ## Critters (DESIGN.md 8.12): they get away when the leader comes this close, play their move

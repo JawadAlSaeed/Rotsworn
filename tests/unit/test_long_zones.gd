@@ -3,11 +3,13 @@ extends GutTest
 ## seed and differently for others; ZonePath finds ways round walls; every shipped zone, on many
 ## visits, lets the party reach every seal with the gate shut, and every spot, chest, shrine,
 ## wanderer, champion and prize, and the guard, once it opens; the gate really blocks the guard.
-## RunState pays for and gives the shrines' and wanderers' deals.
+## The exit (card #241) stands past the guard and can be reached from it; a cleared run zone with
+## an exit stays open. RunState pays for and gives the shrines' and wanderers' deals.
 
 const SEEDS: int = 12
 
 var _tuning := Tuning.new()
+var _explore := load("res://data/presentation/explore_visuals.tres") as ExploreVisuals
 var _run_data := load("res://data/runs/rotten_road.tres") as RunData
 
 
@@ -44,6 +46,12 @@ func test_every_shipped_zone_is_long_and_built_from_sections() -> void:
 				guards += 1
 				assert_gt(e.position.x, built.gate.position.x, "%s: the guard stands past the gate" % zone.id)
 		assert_eq(guards, 1, "%s: one guard" % zone.id)
+		assert_true(built.has_exit, "%s has an exit" % zone.id)
+		for e: ZoneEnemyData in built.enemies:
+			if e.guard:
+				assert_gt(built.exit_spot.x, e.position.x, "%s: the exit is past the guard" % zone.id)
+		assert_lt(built.exit_spot.x, built.bounds_max.x, "%s: the exit is inside the zone" % zone.id)
+		assert_gt(built.exit_spot.x, built.bounds_max.x - 5.0, "%s: the exit is at the far end" % zone.id)
 		assert_lt(built.player_start.x, built.gate.position.x, "%s: the party starts before the gate" % zone.id)
 		assert_eq(built.offers.size(), built.offer_spots.size(), "%s: every shrine has a spot" % zone.id)
 
@@ -84,6 +92,8 @@ func test_sections_are_laid_end_to_end() -> void:
 	var gate := ZoneBlockData.new()
 	gate.position = Vector3(3.0, 0.0, 0.0)
 	zone.end_section.gate = gate
+	zone.end_section.has_exit = true
+	zone.end_section.exit_spot = Vector3(13.0, 0.0, 0.5)
 	var built := ZoneAssembler.assemble(zone, 3)
 	assert_eq(built.bounds_min, Vector2(0.0, -10.0), "starts at x 0, keeps the depth")
 	assert_eq(built.bounds_max, Vector2(45.0, 10.0), "as long as its sections")
@@ -92,6 +102,15 @@ func test_sections_are_laid_end_to_end() -> void:
 	assert_eq(built.seal_spots, [Vector3(16.0, 0.0, -4.0)] as Array[Vector3])
 	assert_eq(built.gate.position, Vector3(33.0, 0.0, 0.0), "the end's gate moves by both widths before it")
 	assert_eq(gate.position, Vector3(3.0, 0.0, 0.0), "the section's own data is never changed")
+	assert_true(built.has_exit)
+	assert_eq(built.exit_spot, Vector3(43.0, 0.0, 0.5), "the end's exit moves like its gate")
+
+
+func test_a_zone_without_an_exit_section_has_none() -> void:
+	var zone := ZoneData.new()
+	zone.start_section = _section(10.0)
+	zone.end_section = _section(10.0)
+	assert_false(ZoneAssembler.assemble(zone, 2).has_exit)
 
 
 func test_a_zone_without_sections_is_used_as_it_is() -> void:
@@ -157,6 +176,8 @@ func test_every_visit_can_be_played_through() -> void:
 			var zone := ZoneAssembler.assemble(layout, seed_value)
 			var label := "%s seed %d" % [zone.id, seed_value]
 			var open := ZoneMotion.obstacles(zone)
+			var exit := Vector2(zone.exit_spot.x, zone.exit_spot.z)
+			open.append({"centre": exit, "radius": _explore.exit_solid_radius})
 			for i: int in zone.offers.size():
 				var spot := zone.offer_spots[i]
 				open.append({"centre": Vector2(spot.x, spot.z), "radius": zone.offers[i].solid_radius})
@@ -183,6 +204,9 @@ func test_every_visit_can_be_played_through() -> void:
 					assert_true(after.reachable(home, Vector2(e.prize_spot.x, e.prize_spot.z), pickup), label + ": prize")
 				if e.guard:
 					assert_false(before.reachable(start, home, _tuning.explore_strike_reach), label + ": the gate shuts the guard off")
+					assert_true(after.reachable(home, exit, _tuning.zone_exit_reach * ZoneAutoplay.PICKUP_SHARE),
+							label + ": from the guard to the exit")
+					assert_false(before.reachable(start, exit, _tuning.zone_exit_reach), label + ": the gate shuts the exit off")
 				assert_gt(home.distance_to(start), _tuning.explore_notice_radius, label + ": nobody waits at the start")
 
 
@@ -193,6 +217,26 @@ func test_every_zone_fight_exists() -> void:
 		assert_false(zone.roamer_pool.is_empty(), "%s has fights for its roaming spots" % zone.id)
 		assert_false(zone.shrines.is_empty(), "%s has shrines" % zone.id)
 		assert_false(zone.wanderers.is_empty(), "%s has wanderers" % zone.id)
+
+
+# --- the exit (card #241) ---------------------------------------------------------------------
+
+func test_a_cleared_run_zone_with_an_exit_stays_open() -> void:
+	assert_true(ZoneController.keeps_open(true, true), "a run zone with an exit: leave when you want")
+	assert_false(ZoneController.keeps_open(true, false), "no exit: on to the map at once")
+	assert_false(ZoneController.keeps_open(false, true), "practice ends when every enemy is beaten")
+
+
+func test_the_goal_names_the_way_out_once_the_guard_falls() -> void:
+	var before := ZoneController.goal_lines(1, 2, false, true, true, false, 5, true)
+	assert_eq(before, ["Rot seals: 1 / 2  (they open the gate)", "Beat the GUARD at the exit", "Optional enemies: 4"]
+			as Array[String])
+	var after := ZoneController.goal_lines(2, 2, true, true, true, true, 3, true)
+	assert_eq(after, ["The way out is open: leave by the EXIT at the far end", "Optional enemies: 3"] as Array[String])
+	var no_exit := ZoneController.goal_lines(2, 2, true, true, true, true, 3, false)
+	assert_eq(no_exit[0], "The way out is open")
+	var practice := ZoneController.goal_lines(0, 0, true, false, true, false, 0, true)
+	assert_eq(practice, ["All enemies beaten"] as Array[String])
 
 
 # --- shrines and wanderers --------------------------------------------------------------------

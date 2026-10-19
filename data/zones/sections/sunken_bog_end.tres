@@ -774,3 +774,5 @@ grounds = Array[ExtResource("5_nd7cu")]([SubResource("Resource_pqsvy"), SubResou
 critters = Array[ExtResource("2_0b4rv")]([SubResource("Resource_0b4rv")])
 enemies = Array[ExtResource("2_oqeu1")]([SubResource("Resource_nd7cu")])
 gate = SubResource("Resource_sfusw")
+has_exit = true
+exit_spot = Vector3(24, 0, 0)
