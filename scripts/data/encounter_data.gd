@@ -24,3 +24,6 @@ extends Resource
 ## Deeper in a run (map row tuning run_deep_row on) a zone holds this fight instead: the same kind
 ## of fight with variant monsters (DESIGN.md 2.16). Empty: always this fight.
 @export var deep: EncounterData
+## Every enemy's HP in percent of their data (card #245): a fight of three spreads its HP out so it
+## is no longer than a fight of two. Runs scale it further by depth (DESIGN.md 8.3).
+@export_range(10, 400, 5, "suffix:%") var enemy_hp_percent: int = 100

@@ -37,6 +37,11 @@ enum Effect {
 	REVIVE_ONE,
 	## The backpack gets one more row (up to tuning.backpack_max_rows).
 	ADD_ROW,
+	## In a fight: lifts `cleanse_count` marks from one hero (Antidote, card #254), then heals
+	## `amount_percent` of their max HP (0 = no heal).
+	CLEANSE_ONE,
+	## In a fight: the same for every standing hero (Holy Water).
+	CLEANSE_ALL,
 }
 
 @export var id: String = ""
@@ -50,9 +55,9 @@ enum Effect {
 @export var shape: Array[Vector2i] = [Vector2i.ZERO]
 @export var effect: Effect = Effect.NONE
 @export_range(0, 1000, 1, "suffix:%") var amount_percent: int = 0
-## In a fight, a healing item also removes this many hero debuffs from each hero it heals (card
-## #194; see AbilityData.cleanse_count). 3 clears all.
-@export_range(0, 3) var cleanse_count: int = 0
+## In a fight, a healing or cleansing item removes this many hero debuffs from each hero it reaches
+## (card #194; see AbilityData.cleanse_count). Status.CLEANSE_ALL (9) clears all.
+@export_range(0, 9) var cleanse_count: int = 0
 ## How often it turns up in glinting spots and monster drops, against the run's other found
 ## items (a weight, not a percent).
 @export_range(0, 1000) var find_weight: int = 10
@@ -71,7 +76,7 @@ enum Effect {
 
 ## True if using it asks who gets it.
 func needs_target() -> bool:
-	return effect == Effect.HEAL_ONE or effect == Effect.MAX_HP_ONE or effect == Effect.REVIVE_ONE
+	return effect == Effect.HEAL_ONE or effect == Effect.MAX_HP_ONE or effect == Effect.REVIVE_ONE 			or effect == Effect.CLEANSE_ONE
 
 
 ## True if it can be used on the map (fight-only effects never are).
@@ -93,7 +98,7 @@ func combinable() -> bool:
 ## True if it can be used in a fight.
 func usable_in_fight() -> bool:
 	return kind == Kind.CONSUMABLE and use_in_fight and effect in [Effect.HEAL_ONE, Effect.HEAL_ALL, Effect.DAMAGE_ALL,
-			Effect.REVIVE_ONE]
+			Effect.REVIVE_ONE, Effect.CLEANSE_ONE, Effect.CLEANSE_ALL]
 
 
 ## The width and height of its unturned shape in cells.

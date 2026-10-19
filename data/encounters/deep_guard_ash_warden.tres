@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="EncounterData" format=3]
 
+[ext_resource type="Resource" path="res://data/enemies/cinder_slinger.tres" id="p19_third"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="1_8i77d"]
 [ext_resource type="Resource" path="res://data/enemies/ash_warden.tres" id="2_xrn7p"]
 [ext_resource type="Resource" path="res://data/enemies/blood_gnats.tres" id="3_fsd6b"]
@@ -15,7 +16,8 @@ script = ExtResource("8_lpkcn")
 id = "deep_guard_ash_warden"
 display_name = "Ash Warden"
 party = Array[ExtResource("4_seep4")]([ExtResource("5_7mjx8"), ExtResource("6_m21gd"), ExtResource("7_rphep")])
-enemies = Array[ExtResource("1_8i77d")]([ExtResource("2_xrn7p"), ExtResource("3_fsd6b")])
+enemies = Array[ExtResource("1_8i77d")]([ExtResource("2_xrn7p"), ExtResource("3_fsd6b"), ExtResource("p19_third")])
 team_ultimate = ExtResource("9_y30od")
 can_run = false
 mini_boss = true
+enemy_hp_percent = 90

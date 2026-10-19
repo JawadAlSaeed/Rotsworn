@@ -17,6 +17,8 @@ impact_ms = 1500
 damage_percent = 45
 approach_ms = 420
 projectile = ExtResource("3_shade_bolt")
+on_hit_status = "slowed"
+on_hit_hard_only = true
 
 [resource]
 script = ExtResource("2_attack")

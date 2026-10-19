@@ -43,6 +43,8 @@ func _declared_attacks() -> Array[Dictionary]:
 		if not file.ends_with(".tres"):
 			continue
 		var attack := load(ATTACK_DIR.path_join(file)) as EnemyAttackData
+		if attack.is_support():
+			continue  # A support move (card #259) has no hits to play.
 		var declared := Fx.declared_attack(attack)
 		var hits := EnemyChoreography.with_close_times(declared.hits as Array, declared.prompts as Array, LATENCY_MS)
 		EnemyChoreography.add_hit_data(hits, attack)

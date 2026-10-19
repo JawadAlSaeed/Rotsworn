@@ -37,6 +37,8 @@ const STATUS_NAMES := {
 	"bleeding": "BLEEDING", "regen": "RENEW", "marked": "MARKED", "empowered": "EMPOWERED",
 	# Hero debuffs and the AP drain mark (card #194).
 	"rotting": "ROT", "blighted": "BLIGHT", "weakened": "WEAK", "ap_drain": "AP DRAIN",
+	# Phase 19 marks and wards (cards #252, #254, #259).
+	"burning": "BURN", "shocked": "SHOCK", "dazed": "DAZE", "hushed": "HUSH", "warded": "WARD", "shielded": "SHIELD",
 }
 const STATUS_COLORS := {
 	"exposed": Color(1.0, 0.55, 0.3), "guarded": Color(0.55, 0.8, 1.0), "taunted": Color(1.0, 0.4, 0.4),
@@ -45,6 +47,8 @@ const STATUS_COLORS := {
 	"empowered": Color(1.0, 0.75, 0.3),
 	"rotting": Color(0.68, 0.86, 0.22), "blighted": Color(0.82, 0.45, 0.88), "weakened": Color(0.72, 0.74, 0.84),
 	"ap_drain": Color(0.55, 0.88, 1.0),
+	"burning": Color(1.0, 0.5, 0.18), "shocked": Color(1.0, 0.95, 0.42), "dazed": Color(1.0, 0.68, 0.72),
+	"hushed": Color(0.52, 0.58, 0.95), "warded": Color(0.96, 0.94, 0.72), "shielded": Color(0.62, 0.86, 0.92),
 }
 
 ## The fight HUD's look (card #154): dark ink plates slanted like Persona 5's, edged in a calm
@@ -73,6 +77,9 @@ static var _number_font: Font
 static var _punch_font: Font
 static var _fonts: UiFonts
 static var _worn_material: ShaderMaterial
+## Mark icons by id (card #262), loaded once; null where a mark has no icon.
+static var _mark_icons: Dictionary = {}
+const MARK_ICON_PATH := "res://assets/sprites/ui/mark_%s.png"
 ## The player's text size (Settings > Game, card #203): an index into UiFonts.text_size_percents.
 ## Set by PlayerSettings when the game starts and when the player changes it; 0 (normal) until then,
 ## so unit tests never depend on this machine's settings.
@@ -535,11 +542,11 @@ static func wrong_action_text(kind: int) -> String:
 
 
 ## "GUARD  SLOWED 2" from a fighter's statuses (mirror format), in Status.ALL order. The hero
-## debuffs are left out when `skip_debuffs` (the party panel draws them in their own colours).
+## debuffs and the ward are left out when `skip_debuffs` (the party panel draws them as icons).
 static func status_text(statuses: Dictionary, skip_debuffs: bool = false) -> String:
 	var parts := PackedStringArray()
 	for id: String in Status.ALL:
-		if not statuses.has(id) or (skip_debuffs and Status.is_debuff(id)):
+		if not statuses.has(id) or (skip_debuffs and (Status.is_debuff(id) or id == Status.WARDED)):
 			continue
 		var text := String(STATUS_NAMES.get(id, id.to_upper()))
 		var turns := int((statuses[id] as Dictionary).get("turns", 0))
@@ -562,6 +569,26 @@ static func debuff_words(statuses: Dictionary) -> Array[Array]:
 			text += " %d" % turns
 		words.append([id, text])
 	return words
+
+
+## [[id, turns], ...] for the badges a hero panel draws as icons (card #262): the hero debuffs in
+## cleanse order, then the ward.
+static func mark_badges(statuses: Dictionary) -> Array[Array]:
+	var badges: Array[Array] = []
+	for id: String in Status.DEBUFFS + [Status.WARDED]:
+		if statuses.has(id):
+			badges.append([id, int((statuses[id] as Dictionary).get("turns", 0))])
+	return badges
+
+
+## The small icon of a mark, a ward or a shield (card #262), or null when it has none.
+static func mark_icon(id: String) -> Texture2D:
+	if _mark_icons.has(id):
+		return _mark_icons[id] as Texture2D
+	var path := MARK_ICON_PATH % id
+	var texture: Texture2D = load(path) as Texture2D if ResourceLoader.exists(path) else null
+	_mark_icons[id] = texture
+	return texture
 
 
 ## "  [ROT]" for the marks an attack's hits leave (a mark id per hit, "" for none), each word once; ""

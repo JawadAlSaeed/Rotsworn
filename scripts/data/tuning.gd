@@ -348,6 +348,13 @@ extends Resource
 @export_range(0, 100, 1, "suffix:%") var rotting_percent: int = 6
 @export_range(0, 100, 1, "suffix:%") var blighted_heal_cut_percent: int = 50
 @export_range(0, 100, 1, "suffix:%") var weakened_power_cut_percent: int = 25
+## Phase 19 marks (card #252). Burning: the hero loses this percent of max HP at the start of each
+## of their turns (never below 1 HP from fire alone); it burns hotter than rot for fewer turns.
+## Shocked: their timing windows (defence, skill presses, follow-ups) are this percent of normal.
+@export_range(0, 100, 1, "suffix:%") var burning_percent: int = 10
+@export_range(10, 100, 1, "suffix:%") var shocked_window_percent: int = 65
+## Shielded (a Rot Priest's ward on a monster, card #259): it takes this percent less damage.
+@export_range(0, 100, 1, "suffix:%") var shielded_damage_cut_percent: int = 40
 
 @export_group("Skill trees")
 ## Skill trees (DESIGN.md 8.4, card #136): each level up gives this many skill points; the

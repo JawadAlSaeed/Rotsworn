@@ -1,5 +1,8 @@
 [gd_resource type="Resource" script_class="ZoneData" format=3]
 
+[ext_resource type="Resource" path="res://data/encounters/rat_pack.tres" id="p19_rat_pack"]
+[ext_resource type="Resource" path="res://data/encounters/tick_and_husk.tres" id="p19_tick_and_husk"]
+[ext_resource type="Resource" path="res://data/encounters/husk_trio.tres" id="p19_husk_trio"]
 [ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="1_mwejp"]
 [ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_zone_b"]
 [ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_end.tres" id="2_7qkf5"]
@@ -73,7 +76,7 @@ ambient = Array[ExtResource("1_mwejp")]([SubResource("Resource_mwejp"), SubResou
 start_section = ExtResource("25_hycp2")
 middle_sections = Array[ExtResource("7_0y0bn")]([ExtResource("11_7i7ie"), ExtResource("12_cxwx8"), ExtResource("13_6jne5"), ExtResource("14_skf40"), ExtResource("15_tacki")])
 end_section = ExtResource("2_7qkf5")
-roamer_pool = Array[ExtResource("15_6jne5")]([ExtResource("4_husk_f"), ExtResource("6_gnat_p"), ExtResource("7_shade_"), ExtResource("8_bloat_")])
+roamer_pool = Array[ExtResource("15_6jne5")]([ExtResource("4_husk_f"), ExtResource("6_gnat_p"), ExtResource("7_shade_"), ExtResource("8_bloat_"), ExtResource("p19_rat_pack"), ExtResource("p19_tick_and_husk"), ExtResource("p19_husk_trio")])
 shrines = Array[ExtResource("13_cxwx8")]([ExtResource("21_skf40"), ExtResource("22_tacki"), ExtResource("23_jgeta"), ExtResource("24_5iekg")])
 wanderers = Array[ExtResource("13_cxwx8")]([ExtResource("26_p8rad"), ExtResource("27_b1m00"), ExtResource("28_rlip7")])
 edge_height = 4.5

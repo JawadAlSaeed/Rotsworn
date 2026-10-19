@@ -83,6 +83,8 @@ func test_every_shipped_ranged_hit_closes_its_bracket_on_the_judged_impact() -> 
 		if not file.ends_with(".tres"):
 			continue
 		var attack := load(ATTACK_DIR.path_join(file)) as EnemyAttackData
+		if attack.is_support():
+			continue  # A support move (card #259) has no hits to play.
 		var declared := Fx.declared_attack(attack)
 		var hits := EnemyChoreography.with_close_times(declared.hits as Array, declared.prompts as Array, 0)
 		EnemyChoreography.add_hit_data(hits, attack)

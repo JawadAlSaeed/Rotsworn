@@ -398,6 +398,56 @@ func _build_wave_band() -> void:
 	add_child(_wave_band)
 
 
+## Which stage spot (an index into `positions`) each enemy stands on, by fight slot: the tallest
+## monster on the spot farthest from the camera, the smallest on the nearest, so a big body never
+## hides a smaller one or its attack (user, phase 19). `heights`: each enemy's enemy_height, by
+## slot; all the same height keeps every monster on its own spot. Only the picture changes: ids, targets and
+## the rules never look at it.
+static func enemy_spots(heights: Array[float], positions: Array[Vector3]) -> Array[int]:
+	var count := heights.size()
+	var identity: Array[int] = []
+	for i: int in count:
+		identity.append(i)
+	if heights.all(func(h: float) -> bool: return is_equal_approx(h, heights[0])):
+		# All the same size: nobody hides anybody, every monster keeps its own spot.
+		return identity
+	var spots: Array[int] = []
+	for i: int in mini(count, positions.size()):
+		spots.append(i)
+	# Farthest from the camera first (the camera looks from +z).
+	spots.sort_custom(func(a: int, b: int) -> bool:
+		return positions[a].z < positions[b].z or (positions[a].z == positions[b].z and a < b))
+	var order: Array[int] = []
+	for i: int in count:
+		order.append(i)
+	order.sort_custom(func(a: int, b: int) -> bool:
+		return heights[a] > heights[b] or (heights[a] == heights[b] and a < b))
+	var result: Array[int] = []
+	result.resize(count)
+	for k: int in count:
+		# More enemies than spots: the extras keep their own slot (the line goes on, _home_for).
+		result[order[k]] = spots[k] if k < spots.size() else order[k]
+	return result
+
+
+## How tall a monster's body stands, in world units: from its feet to the highest opaque pixel of
+## its idle frame (the sheet's first cell), times its pixel size. A body only hides the monsters
+## behind it up to its own height, so the tallest stand at the back. A sheet that cannot be read
+## counts its whole cell.
+static func enemy_height(e: EnemyData) -> float:
+	var cell := e.sprite_clips.frame_size if e.sprite_clips != null else Vector2i(64, 64)
+	var rows := cell.y
+	var texture := load(e.sprite_path) as Texture2D if ResourceLoader.exists(e.sprite_path) else null
+	var image := texture.get_image() if texture != null else null
+	if image != null and image.get_width() >= cell.x and image.get_height() >= cell.y:
+		if image.is_compressed():
+			image.decompress()
+		var used := image.get_region(Rect2i(Vector2i.ZERO, cell)).get_used_rect()
+		if used.size.y > 0:
+			rows = cell.y - used.position.y
+	return float(rows) * e.sprite_pixel_size
+
+
 func _home_for(is_party: bool, slot: int) -> Vector3:
 	var list: Array[Vector3] = _visuals.party_positions if is_party else _visuals.enemy_positions
 	if list.is_empty():

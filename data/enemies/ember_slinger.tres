@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/ember_slinger.tres" id="3_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_pitch.tres" id="a_slinger_pitch"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_volley.tres" id="a_slinger_volley"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_firepot.tres" id="a_slinger_firepot"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_scatter.tres" id="a_slinger_scatter"]
+[ext_resource type="Resource" path="res://data/gear/ember_stone.tres" id="g_ember_stone"]
+[ext_resource type="Resource" path="res://data/gear/keen_eye.tres" id="g_keen_eye"]
+[ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="g_wardstone"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "ember_slinger"
+display_name = "Ember Slinger"
+color = Color(0.55, 0.5, 0.47, 1)
+sprite_path = "res://assets/sprites/enemies/ember_slinger.png"
+sprite_clips = ExtResource("3_clips")
+death_color = Color(0.75, 0.91, 0.37, 1)
+portrait_path = "res://assets/sprites/portraits/ember_slinger.png"
+sprite_pixel_size = 0.045
+hp_percent = 75
+power_percent = 95
+speed = 120
+attacks = Array[ExtResource("1_attack")]([ExtResource("a_slinger_pitch"), ExtResource("a_slinger_volley"), ExtResource("a_slinger_firepot"), ExtResource("a_slinger_scatter")])
+target_rule = 1
+target_bias_percent = 100
+gold = 14
+xp = 28
+voice_sfx = "voice_husk"
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_ember_stone"), ExtResource("g_keen_eye"), ExtResource("g_wardstone")])

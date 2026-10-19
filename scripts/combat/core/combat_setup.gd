@@ -53,6 +53,10 @@ var enemy_speed_percent: int = 100
 var attack_tempo_percent: int = 0
 ## Hits take their forced kinds (REND, SWEEP; card #187): elite, guard and boss fights.
 var forced_hits: bool = false
+## Ordinary enemy hits may leave their marks (card #253). Off in a run's first zone, so the first
+## fights teach the hits before the marks; hard fights mark anyway. (The tutorial's enemy only uses
+## each lesson's attack, so only the marks lesson shows one.)
+var allow_marks: bool = true
 ## Backpack items the party can use in this fight (DESIGN.md 8.1): {uid: int, item: ItemData,
 ## amount: int (its effect percent, stronger once combined), name: String}.
 ## Each can be used once; the run takes the used ones out of the backpack afterwards.
@@ -74,6 +78,8 @@ static func from_encounter(encounter: EncounterData, p_tuning: Tuning, p_seed: i
 	setup.rng_seed = p_seed
 	# Hard fights read the forced-choice hits (card #187): a data rule, like can_run above.
 	setup.forced_hits = encounter.elite or encounter.boss or encounter.mini_boss
+	# A fight of three shares its HP out (card #245): each monster has less, so it is not longer.
+	setup.enemy_hp_percent = encounter.enemy_hp_percent
 	return setup
 
 
@@ -185,7 +191,12 @@ func validate() -> PackedStringArray:
 			if a == null:
 				problems.append("enemy %s has an empty attack slot" % e.id)
 				continue
-			if a.hits.is_empty():
+			if a.is_support():
+				if not a.hits.is_empty() or a.target_mode != EnemyAttackData.TargetMode.ALLY:
+					problems.append("support move %s targets an ally and has no hits" % a.id)
+			elif a.target_mode == EnemyAttackData.TargetMode.ALLY:
+				problems.append("attack %s targets an ally but is no support move" % a.id)
+			elif a.hits.is_empty():
 				problems.append("attack %s has no hits" % a.id)
 			var last := -1
 			for h: AttackHitData in a.hits:

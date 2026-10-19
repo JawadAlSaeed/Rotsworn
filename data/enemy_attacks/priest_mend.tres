@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+
+
+
+[resource]
+script = ExtResource("2_attack")
+id = "priest_mend"
+display_name = "Mend Rot"
+target_mode = 3
+weight = 4
+support = 1
+support_percent = 25
+support_below_percent = 75
+max_in_a_row = 1
+cooldown_turns = 1
+hits = Array[ExtResource("1_hit")]([])

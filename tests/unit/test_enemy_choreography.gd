@@ -21,6 +21,8 @@ func _declared_attacks() -> Array[Dictionary]:
 		if not file.ends_with(".tres"):
 			continue
 		var attack := load(ATTACK_DIR.path_join(file)) as EnemyAttackData
+		if attack.is_support():
+			continue  # A support move (card #259) has no hits to play.
 		var declared := Fx.declared_attack(attack)
 		var prompts: Array = declared.prompts
 		var hits := EnemyChoreography.with_close_times(declared.hits as Array, prompts, LATENCY_MS)
@@ -36,7 +38,7 @@ func _declared_attacks() -> Array[Dictionary]:
 func test_shipped_attacks_are_found() -> void:
 	var files := 0
 	for file: String in DirAccess.get_files_at(ATTACK_DIR):
-		if file.ends_with(".tres"):
+		if file.ends_with(".tres") and not (load(ATTACK_DIR.path_join(file)) as EnemyAttackData).is_support():
 			files += 1
 	assert_gt(files, 5, "phase 2 adds attacks to the husk's five")
 	assert_eq(_declared_attacks().size(), files)
@@ -49,6 +51,9 @@ func test_close_times_are_late_edge_plus_latency() -> void:
 			var late_ms := float(tuning.window_edges_us(tuning.dodge_window_ms).y) / 1000.0
 			if int(hit.kind) == AttackHitData.Kind.GROUND:
 				late_ms = float(tuning.window_edges_us(tuning.jump_window_ms).y) / 1000.0
+			elif int(hit.kind) == AttackHitData.Kind.REND:
+				# A rend everywhere (the Barrow Brute's slam, card #257): only the parry's window.
+				late_ms = float(tuning.window_edges_us(tuning.parry_window_ms).y) / 1000.0
 			assert_almost_eq(float(hit.close_ms), late_ms + LATENCY_MS, EPS, a.name)
 
 

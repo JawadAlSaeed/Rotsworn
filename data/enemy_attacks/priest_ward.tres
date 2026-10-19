@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+
+
+
+[resource]
+script = ExtResource("2_attack")
+id = "priest_ward"
+display_name = "Bone Ward"
+target_mode = 3
+weight = 3
+support = 2
+support_turns = 2
+cooldown_turns = 2
+hits = Array[ExtResource("1_hit")]([])

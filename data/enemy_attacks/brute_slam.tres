@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+
+[sub_resource type="Resource" id="Hit_0"]
+script = ExtResource("1_hit")
+impact_ms = 2000
+kind = 3
+damage_percent = 150
+approach_ms = 300
+impact_sfx = "heavy_strike"
+on_hit_status = "dazed"
+on_hit_status_turns = 1
+
+[resource]
+script = ExtResource("2_attack")
+id = "brute_slam"
+display_name = "Barrow Slam"
+weight = 2
+cooldown_turns = 1
+hits = Array[ExtResource("1_hit")]([SubResource("Hit_0")])

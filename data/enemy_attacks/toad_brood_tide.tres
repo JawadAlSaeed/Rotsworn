@@ -24,6 +24,8 @@ impact_ms = 2300
 damage_percent = 30
 approach_ms = 550
 projectile = ExtResource("3_mud_glob")
+on_hit_status = "slowed"
+on_hit_hard_only = true
 
 [sub_resource type="Resource" id="Hit_3"]
 script = ExtResource("1_hit")

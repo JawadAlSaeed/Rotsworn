@@ -354,38 +354,99 @@ script = ExtResource("1_d4656")
 id = "status_slowed"
 topic = "foe_marks"
 term = "Slowed"
-text = "Hamstring slows an enemy: its turns come later, so your party gets more of them between its attacks."
+text = "Its turns come later. Hamstring slows an enemy, so your party acts more between its attacks; a toad's mud or a shade's cold slows a hero the same way."
 tag = "SLOWED"
+icon_path = "res://assets/sprites/ui/mark_slowed.png"
 color = Color(0.7, 0.6, 1, 1)
 
 [sub_resource type="Resource" id="Resource_jp5hm"]
 script = ExtResource("1_d4656")
+id = "status_shielded"
+topic = "foe_marks"
+term = "Shielded"
+text = "A Rot Priest's ward on a fellow monster: it takes much less damage for a few of its turns. Kill the priest first, or hit someone else."
+tag = "SHIELD"
+icon_path = "res://assets/sprites/ui/mark_shielded.png"
+color = Color(0.62, 0.86, 0.92, 1)
+
+[sub_resource type="Resource" id="Resource_e3swq"]
+script = ExtResource("1_d4656")
+id = "mark"
+topic = "hero_marks"
+term = "Marks"
+text = "A hit with a coloured dot leaves its mark if you fail to defend it. In a run they start after the first zone; elites, guards and bosses mark everywhere. Defend the dot!"
+
+[sub_resource type="Resource" id="Resource_g3g5a"]
+script = ExtResource("1_d4656")
 id = "status_rotting"
 topic = "hero_marks"
 term = "Rot"
-text = "A hard-fight mark. At the start of each of the hero's turns they lose a share of max HP, though never below 1 HP from rot alone. It counts down."
+text = "At the start of each of the hero's turns they lose a share of max HP, though never below 1 HP from rot alone. It counts down."
 tag = "ROT"
+icon_path = "res://assets/sprites/ui/mark_rotting.png"
 color = Color(0.68, 0.86, 0.22, 1)
 
-[sub_resource type="Resource" id="Resource_e3swq"]
+[sub_resource type="Resource" id="Resource_kg24a"]
+script = ExtResource("1_d4656")
+id = "status_burning"
+topic = "hero_marks"
+term = "Burn"
+text = "Fire: at the start of each of the hero's turns they lose a big share of max HP, for fewer turns than rot. Never below 1 HP from fire alone."
+tag = "BURN"
+icon_path = "res://assets/sprites/ui/mark_burning.png"
+color = Color(1, 0.5, 0.18, 1)
+
+[sub_resource type="Resource" id="Resource_l8ilw"]
+script = ExtResource("1_d4656")
+id = "status_shocked"
+topic = "hero_marks"
+term = "Shock"
+text = "The hero's timing windows shrink: parries, dodges, jumps, skill presses and follow-ups all need a sharper press while it lasts."
+tag = "SHOCK"
+icon_path = "res://assets/sprites/ui/mark_shocked.png"
+color = Color(1, 0.95, 0.42, 1)
+
+[sub_resource type="Resource" id="Resource_vd1pi"]
+script = ExtResource("1_d4656")
+id = "status_dazed"
+topic = "hero_marks"
+term = "Daze"
+text = "The hero loses their next turn. Only big must-parry slams daze, so a parry saves the turn."
+tag = "DAZE"
+icon_path = "res://assets/sprites/ui/mark_dazed.png"
+color = Color(1, 0.68, 0.72, 1)
+
+[sub_resource type="Resource" id="Resource_h4eme"]
+script = ExtResource("1_d4656")
+id = "status_hushed"
+topic = "hero_marks"
+term = "Hush"
+text = "The hero can use no skills, only Attack, items, Run and the team ultimate, until it wears off."
+tag = "HUSH"
+icon_path = "res://assets/sprites/ui/mark_hushed.png"
+color = Color(0.52, 0.58, 0.95, 1)
+
+[sub_resource type="Resource" id="Resource_1f42n"]
 script = ExtResource("1_d4656")
 id = "status_blighted"
 topic = "hero_marks"
 term = "Blight"
 text = "Healing the hero receives is cut in half for a few turns. Skills, Renew, items and gear all count."
 tag = "BLIGHT"
+icon_path = "res://assets/sprites/ui/mark_blighted.png"
 color = Color(0.82, 0.45, 0.88, 1)
 
-[sub_resource type="Resource" id="Resource_g3g5a"]
+[sub_resource type="Resource" id="Resource_vqib0"]
 script = ExtResource("1_d4656")
 id = "status_weakened"
 topic = "hero_marks"
 term = "Weakened"
 text = "The hero's power is cut by a quarter for a few turns: skills, follow-ups, counters and the bleed they cause."
 tag = "WEAK"
+icon_path = "res://assets/sprites/ui/mark_weakened.png"
 color = Color(0.72, 0.74, 0.84, 1)
 
-[sub_resource type="Resource" id="Resource_kg24a"]
+[sub_resource type="Resource" id="Resource_akq8o"]
 script = ExtResource("1_d4656")
 id = "ap_drain"
 topic = "hero_marks"
@@ -394,50 +455,60 @@ text = "A hit that drains takes AP from the hero when you fail to defend it. The
 tag = "AP DRAIN"
 color = Color(0.55, 0.88, 1, 1)
 
-[sub_resource type="Resource" id="Resource_l8ilw"]
+[sub_resource type="Resource" id="Resource_bgl7y"]
 script = ExtResource("1_d4656")
 id = "cleanse"
 topic = "hero_marks"
 term = "Cleanse"
-text = "Mend and Sanctuary lift one mark on a normal press and every mark on a PERFECT one. A Salve lifts one. All marks end when the fight ends."
+text = "Mend and Sanctuary lift one mark, every mark on a PERFECT press. Purify lifts them all. A Salve lifts one, an Antidote all of one hero's, Holy Water everyone's. Marks end with the fight."
 
-[sub_resource type="Resource" id="Resource_vd1pi"]
+[sub_resource type="Resource" id="Resource_e5dtf"]
+script = ExtResource("1_d4656")
+id = "status_warded"
+topic = "hero_help"
+term = "Ward"
+text = "Cass's Purify: no mark can land on the hero for a few of their turns. Some Relics ward a hero at the start of a fight."
+tag = "WARD"
+icon_path = "res://assets/sprites/ui/mark_warded.png"
+color = Color(0.96, 0.94, 0.72, 1)
+
+[sub_resource type="Resource" id="Resource_87ady"]
 script = ExtResource("1_d4656")
 id = "status_guarded"
-topic = "hero_marks"
+topic = "hero_help"
 term = "Guarded"
 text = "A guarded hero takes half damage until their next turn. Alder's Guard and Shield Wall give it."
 tag = "GUARD"
 color = Color(0.55, 0.8, 1, 1)
 
-[sub_resource type="Resource" id="Resource_h4eme"]
+[sub_resource type="Resource" id="Resource_f2ok5"]
 script = ExtResource("1_d4656")
 id = "status_riposte"
-topic = "hero_marks"
+topic = "hero_help"
 term = "Riposte"
 text = "Alder's Riposte Stance: until his next turn his counters hit twice as hard."
 tag = "RIPOSTE"
 color = Color(1, 0.85, 0.35, 1)
 
-[sub_resource type="Resource" id="Resource_1f42n"]
+[sub_resource type="Resource" id="Resource_q6jq4"]
 script = ExtResource("1_d4656")
 id = "status_regen"
-topic = "hero_marks"
+topic = "hero_help"
 term = "Renew"
 text = "Cass's Renew heals the hero a share of max HP at the start of each of their turns, for a few turns."
 tag = "RENEW"
 color = Color(0.45, 1, 0.5, 1)
 
-[sub_resource type="Resource" id="Resource_vqib0"]
+[sub_resource type="Resource" id="Resource_2nuks"]
 script = ExtResource("1_d4656")
 id = "status_empowered"
-topic = "hero_marks"
+topic = "hero_help"
 term = "Empowered"
 text = "The hero's next damaging skill on an enemy deals 30% more, then the bonus is gone."
 tag = "EMPOWERED"
 color = Color(1, 0.75, 0.3, 1)
 
-[sub_resource type="Resource" id="Resource_akq8o"]
+[sub_resource type="Resource" id="Resource_to4cp"]
 script = ExtResource("1_d4656")
 id = "doom"
 topic = "dooms"
@@ -446,7 +517,7 @@ text = "A huge party-wide string that a guard or boss announces ahead of time. I
 tag = "DOOM IN 2"
 color = Color(1, 0.3, 0.25, 1)
 
-[sub_resource type="Resource" id="Resource_bgl7y"]
+[sub_resource type="Resource" id="Resource_j1o2r"]
 script = ExtResource("1_d4656")
 id = "break"
 topic = "dooms"
@@ -455,7 +526,7 @@ text = "While a Doom gathers, all the damage the party deals fills its BREAK bar
 tag = "BREAK"
 color = Color(1, 0.82, 0.3, 1)
 
-[sub_resource type="Resource" id="Resource_e5dtf"]
+[sub_resource type="Resource" id="Resource_03k8o"]
 script = ExtResource("1_d4656")
 id = "broken"
 topic = "dooms"
@@ -464,7 +535,7 @@ text = "A broken Doom is cancelled and goes on cooldown. The enemy is staggered 
 tag = "BROKEN!"
 color = Color(1, 0.82, 0.3, 1)
 
-[sub_resource type="Resource" id="Resource_87ady"]
+[sub_resource type="Resource" id="Resource_ffvon"]
 script = ExtResource("1_d4656")
 id = "stagger"
 topic = "dooms"
@@ -473,21 +544,21 @@ text = "A staggered enemy loses its next turn and takes extra damage from everyt
 tag = "STAGGERED"
 color = Color(0.6, 0.85, 1, 1)
 
-[sub_resource type="Resource" id="Resource_f2ok5"]
+[sub_resource type="Resource" id="Resource_t2kkd"]
 script = ExtResource("1_d4656")
 id = "buying_turns"
 topic = "dooms"
 term = "Buying turns"
 text = "Slowing or pushing back a gathering enemy never cancels its Doom, but it gives your party more turns inside the window to break it."
 
-[sub_resource type="Resource" id="Resource_q6jq4"]
+[sub_resource type="Resource" id="Resource_esrfe"]
 script = ExtResource("1_d4656")
 id = "roaming"
 topic = "enemies"
 term = "Roaming enemy"
 text = "Seen walking in a zone. Touch one and the fight begins; strike it first for FIRST STRIKE. All but the guard are optional: more gold and XP, more risk."
 
-[sub_resource type="Resource" id="Resource_2nuks"]
+[sub_resource type="Resource" id="Resource_y6eba"]
 script = ExtResource("1_d4656")
 id = "elite"
 topic = "enemies"
@@ -496,7 +567,7 @@ text = "A tougher fight: more health, harder hits and better pay, with the hard-
 tag = "ELITE"
 color = Color(0.85, 0.45, 1, 1)
 
-[sub_resource type="Resource" id="Resource_to4cp"]
+[sub_resource type="Resource" id="Resource_p8moy"]
 script = ExtResource("1_d4656")
 id = "guard"
 topic = "enemies"
@@ -505,7 +576,7 @@ text = "Each zone's mini-boss at the far end, with a second phase at half health
 tag = "GUARD"
 color = Color(1, 0.82, 0.3, 1)
 
-[sub_resource type="Resource" id="Resource_j1o2r"]
+[sub_resource type="Resource" id="Resource_nw34n"]
 script = ExtResource("1_d4656")
 id = "champion"
 topic = "enemies"
@@ -514,49 +585,66 @@ text = "An elite that stands still beside a prize chest and never chases you. Be
 tag = "ELITE"
 color = Color(0.85, 0.45, 1, 1)
 
-[sub_resource type="Resource" id="Resource_03k8o"]
+[sub_resource type="Resource" id="Resource_1c0mm"]
 script = ExtResource("1_d4656")
 id = "boss"
 topic = "enemies"
 term = "Boss"
 text = "An act's last fight: The Husk Lord, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run."
 
-[sub_resource type="Resource" id="Resource_ffvon"]
+[sub_resource type="Resource" id="Resource_rjq6c"]
 script = ExtResource("1_d4656")
 id = "phase_two"
 topic = "enemies"
 term = "Phase two"
 text = "At half health a guard or boss rages: a banner, new attacks and faster strings. It picks a new move at once."
 
-[sub_resource type="Resource" id="Resource_t2kkd"]
+[sub_resource type="Resource" id="Resource_erspk"]
 script = ExtResource("1_d4656")
 id = "deep_variant"
 topic = "enemies"
 term = "Deep variant"
 text = "A tougher, recoloured kin met in the second half of a run (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere."
 
-[sub_resource type="Resource" id="Resource_esrfe"]
+[sub_resource type="Resource" id="Resource_d8cfa"]
 script = ExtResource("1_d4656")
 id = "hard_fight"
 topic = "enemies"
 term = "Hard fight"
 text = "Elites, guards, bosses and deep variants add forced hits (rends, sweeps and feints) and marks that ordinary early fights do not have."
 
-[sub_resource type="Resource" id="Resource_y6eba"]
+[sub_resource type="Resource" id="Resource_s1j28"]
 script = ExtResource("1_d4656")
 id = "depth"
 topic = "enemies"
 term = "Depth"
 text = "Every map row deeper, enemies gain health and power and their strings come faster. The sign still tells the truth about each one."
 
-[sub_resource type="Resource" id="Resource_p8moy"]
+[sub_resource type="Resource" id="Resource_p2qmn"]
+script = ExtResource("1_d4656")
+id = "support"
+topic = "enemies"
+term = "Helpers"
+text = "Some monsters help instead of striking: a Rot Priest heals a wounded fellow or shields one. Its sign names the monster it will help. Kill helpers first."
+color = Color(0.45, 1, 0.5, 1)
+
+[sub_resource type="Resource" id="Resource_3al64"]
+script = ExtResource("1_d4656")
+id = "burst"
+topic = "enemies"
+term = "Burst"
+text = "A Pus Tick announces its Burst like a Doom: a few turns later it bursts on the whole party and is gone. Kill it first, or jump the burst."
+tag = "DOOM IN 3"
+color = Color(1, 0.3, 0.25, 1)
+
+[sub_resource type="Resource" id="Resource_cu3qc"]
 script = ExtResource("1_d4656")
 id = "targeting"
 topic = "enemies"
 term = "Who they pick"
 text = "Hunters such as hyenas and shades favour wounded heroes, guards and bosses the weakest. Nobody is ever safe, and Taunt overrides it all."
 
-[sub_resource type="Resource" id="Resource_nw34n"]
+[sub_resource type="Resource" id="Resource_fbvxs"]
 script = ExtResource("1_d4656")
 id = "stop_zone"
 topic = "map"
@@ -564,7 +652,7 @@ term = "Zone stop"
 text = "A place to explore, left to right. Beat the guard at the far end to move on; everything else is optional. Each zone stop is a different place."
 icon_path = "res://assets/sprites/ui/map_zone_rotten_hollow.png"
 
-[sub_resource type="Resource" id="Resource_1c0mm"]
+[sub_resource type="Resource" id="Resource_s1dhs"]
 script = ExtResource("1_d4656")
 id = "stop_elite"
 topic = "map"
@@ -572,7 +660,7 @@ term = "Elite stop"
 text = "A skull over crossed blades: one hard fight, then spoils of rare gear or better. It cannot be run from."
 icon_path = "res://assets/sprites/ui/map_elite.png"
 
-[sub_resource type="Resource" id="Resource_rjq6c"]
+[sub_resource type="Resource" id="Resource_wmbx1"]
 script = ExtResource("1_d4656")
 id = "stop_event"
 topic = "map"
@@ -580,7 +668,7 @@ term = "Event stop"
 text = "A red question mark: a story with a choice. Every choice has a price, and some turn into a fight. Leave is always there."
 icon_path = "res://assets/sprites/ui/map_event.png"
 
-[sub_resource type="Resource" id="Resource_erspk"]
+[sub_resource type="Resource" id="Resource_0y7iv"]
 script = ExtResource("1_d4656")
 id = "stop_treasure"
 topic = "map"
@@ -588,7 +676,7 @@ term = "Treasure stop"
 text = "A gold-banded chest. Open it for some gold and a prize: a piece of gear or an item."
 icon_path = "res://assets/sprites/ui/map_treasure.png"
 
-[sub_resource type="Resource" id="Resource_d8cfa"]
+[sub_resource type="Resource" id="Resource_kghdt"]
 script = ExtResource("1_d4656")
 id = "stop_rest"
 topic = "map"
@@ -596,7 +684,7 @@ term = "Campfire stop"
 text = "A fire to gather round. Pick one thing: Rest, Train or Upgrade."
 icon_path = "res://assets/sprites/ui/map_rest.png"
 
-[sub_resource type="Resource" id="Resource_s1j28"]
+[sub_resource type="Resource" id="Resource_dyfhy"]
 script = ExtResource("1_d4656")
 id = "stop_shop"
 topic = "map"
@@ -604,7 +692,7 @@ term = "Shop stop"
 text = "The Rag Merchant sells items, charms and gear, and buys what your backpack holds."
 icon_path = "res://assets/sprites/ui/map_shop.png"
 
-[sub_resource type="Resource" id="Resource_p2qmn"]
+[sub_resource type="Resource" id="Resource_35qqt"]
 script = ExtResource("1_d4656")
 id = "stop_lair"
 topic = "map"
@@ -612,7 +700,7 @@ term = "Boss lair"
 text = "The last stop of an act. Beat the boss for spoils and a heal for everyone, then the next act's map opens."
 icon_path = "res://assets/sprites/ui/map_lair_husk_lord.png"
 
-[sub_resource type="Resource" id="Resource_3al64"]
+[sub_resource type="Resource" id="Resource_vc7d0"]
 script = ExtResource("1_d4656")
 id = "party_flag"
 topic = "map"
@@ -620,14 +708,14 @@ term = "Flag and circle"
 text = "The flag marks where your party is. A red pen circle marks the stop you have picked; left and right choose the next one."
 icon_path = "res://assets/sprites/ui/map_flag.png"
 
-[sub_resource type="Resource" id="Resource_cu3qc"]
+[sub_resource type="Resource" id="Resource_c00ge"]
 script = ExtResource("1_d4656")
 id = "planning"
 topic = "map"
 term = "Planning a road"
 text = "Once a next stop is picked, every stop and road it cannot lead to fades. Look up the map: a shop or a fire often matters more than one more fight."
 
-[sub_resource type="Resource" id="Resource_fbvxs"]
+[sub_resource type="Resource" id="Resource_lklpv"]
 script = ExtResource("1_d4656")
 id = "seal"
 topic = "zones"
@@ -635,7 +723,7 @@ term = "Rot seal"
 text = "A glowing standing stone, one in each middle part of a zone, often down a side path or past enemies. Walk up and use Confirm to take it."
 icon_path = "res://assets/sprites/env/seal_stone.png"
 
-[sub_resource type="Resource" id="Resource_s1dhs"]
+[sub_resource type="Resource" id="Resource_3r8ir"]
 script = ExtResource("1_d4656")
 id = "gate"
 topic = "zones"
@@ -643,7 +731,7 @@ term = "Rot gate"
 text = "A wall of rotten roots in front of the guard. It stays shut until the party has two of the zone's three seals."
 icon_path = "res://assets/sprites/env/rot_gate.png"
 
-[sub_resource type="Resource" id="Resource_wmbx1"]
+[sub_resource type="Resource" id="Resource_xigk7"]
 script = ExtResource("1_d4656")
 id = "shrine"
 topic = "zones"
@@ -651,7 +739,7 @@ term = "Shrine"
 text = "Walk up and pray: a yes or no with the price and the gift written out. Springs heal, altars take blood for a find, idols fill the gauge. Each works once."
 icon_path = "res://assets/sprites/env/shrine_altar.png"
 
-[sub_resource type="Resource" id="Resource_0y7iv"]
+[sub_resource type="Resource" id="Resource_3yeq3"]
 script = ExtResource("1_d4656")
 id = "wanderer"
 topic = "zones"
@@ -659,7 +747,7 @@ term = "Wanderer"
 text = "A traveller who turns up in some visits. Talk to them for a deal: the Key Peddler sells keys, the Grave Robber rare finds, the Old Pilgrim heals for free."
 icon_path = "res://assets/sprites/env/wanderer_peddler.png"
 
-[sub_resource type="Resource" id="Resource_kghdt"]
+[sub_resource type="Resource" id="Resource_8xwyj"]
 script = ExtResource("1_d4656")
 id = "glint"
 topic = "zones"
@@ -667,7 +755,7 @@ term = "Glinting spot"
 text = "A sparkle on the ground. Walk up and pick it up for an item or some treasure. With no room, the backpack opens so you can make some."
 icon_path = "res://assets/sprites/fx/glint.png"
 
-[sub_resource type="Resource" id="Resource_dyfhy"]
+[sub_resource type="Resource" id="Resource_nfl5o"]
 script = ExtResource("1_d4656")
 id = "chest"
 topic = "zones"
@@ -675,14 +763,14 @@ term = "Locked chest"
 text = "Holds a rare or better prize, and uses up one Key from the backpack. A champion's prize chest needs no key."
 icon_path = "res://assets/sprites/env/chest_closed.png"
 
-[sub_resource type="Resource" id="Resource_35qqt"]
+[sub_resource type="Resource" id="Resource_nokcs"]
 script = ExtResource("1_d4656")
 id = "shuffled"
 topic = "zones"
 term = "A new zone each time"
 text = "Every visit builds the zone from shuffled parts, so seals, shrines, wanderers and enemies stand somewhere new."
 
-[sub_resource type="Resource" id="Resource_vc7d0"]
+[sub_resource type="Resource" id="Resource_tnp1o"]
 script = ExtResource("1_d4656")
 id = "gear"
 topic = "gear"
@@ -690,7 +778,7 @@ term = "Gear"
 text = "Worn by one hero: three slots each, one effect per piece (power, a counter bonus, AP at the start). Gear never goes in the backpack."
 icon_path = "res://assets/sprites/ui/gear_icon.png"
 
-[sub_resource type="Resource" id="Resource_c00ge"]
+[sub_resource type="Resource" id="Resource_faexo"]
 script = ExtResource("1_d4656")
 id = "rarity"
 topic = "gear"
@@ -698,7 +786,7 @@ term = "Rarity"
 text = "Grey is common, blue is rare, gold is legendary. Rarer pieces are stronger and cost more, and deeper map rows turn them up more often."
 color = Color(1, 0.8, 0.3, 1)
 
-[sub_resource type="Resource" id="Resource_lklpv"]
+[sub_resource type="Resource" id="Resource_077nu"]
 script = ExtResource("1_d4656")
 id = "rot_touched"
 topic = "gear"
@@ -707,7 +795,7 @@ text = "Strong gear with a price: a clear gain and a clear loss, written in plai
 tag = "rot-touched"
 color = Color(0.78, 0.4, 0.95, 1)
 
-[sub_resource type="Resource" id="Resource_3r8ir"]
+[sub_resource type="Resource" id="Resource_osy5s"]
 script = ExtResource("1_d4656")
 id = "backpack"
 topic = "gear"
@@ -715,7 +803,7 @@ term = "Backpack"
 text = "A grid that holds consumables, charms, keys and treasure. Items have shapes you can turn, so where they sit matters. Open it from the party screen."
 icon_path = "res://assets/sprites/items/bigger_pack.png"
 
-[sub_resource type="Resource" id="Resource_xigk7"]
+[sub_resource type="Resource" id="Resource_m7iqa"]
 script = ExtResource("1_d4656")
 id = "charm"
 topic = "gear"
@@ -723,7 +811,7 @@ term = "Charm"
 text = "Works just by sitting in the backpack, for the whole party. Charms belong to a family (Stone, Bone, Herb), and booster charms strengthen the family charms touching them."
 icon_path = "res://assets/sprites/items/ember_stone.png"
 
-[sub_resource type="Resource" id="Resource_3yeq3"]
+[sub_resource type="Resource" id="Resource_ufadv"]
 script = ExtResource("1_d4656")
 id = "rotten_item"
 topic = "gear"
@@ -732,15 +820,15 @@ text = "A very strong charm with a price: every hero loses a little HP at the st
 icon_path = "res://assets/sprites/items/rotting_heart.png"
 color = Color(0.55, 0.85, 0.3, 1)
 
-[sub_resource type="Resource" id="Resource_8xwyj"]
+[sub_resource type="Resource" id="Resource_wuu7b"]
 script = ExtResource("1_d4656")
 id = "consumable"
 topic = "gear"
 term = "Consumable"
-text = "Used up. A Salve heals one hero, a Feast the party, a Bomb hurts every enemy, Smelling Salts lift a downed hero. In a fight they cost AP."
+text = "Used up. A Salve heals one hero, a Feast the party, a Bomb hurts every enemy, Smelling Salts lift a downed hero, an Antidote or Holy Water lifts marks. In a fight they cost AP."
 icon_path = "res://assets/sprites/items/salve.png"
 
-[sub_resource type="Resource" id="Resource_nfl5o"]
+[sub_resource type="Resource" id="Resource_nxshk"]
 script = ExtResource("1_d4656")
 id = "tonic"
 topic = "gear"
@@ -748,7 +836,7 @@ term = "Tonic"
 text = "Gives one hero more max HP for the rest of the run. A hero can drink only two, and Tonics cannot be combined or upgraded."
 icon_path = "res://assets/sprites/items/tonic.png"
 
-[sub_resource type="Resource" id="Resource_nokcs"]
+[sub_resource type="Resource" id="Resource_7dvlr"]
 script = ExtResource("1_d4656")
 id = "key_treasure"
 topic = "gear"
@@ -756,14 +844,14 @@ term = "Keys and treasure"
 text = "A Key opens one locked chest. Treasure (rings, gems, idols) does nothing but sell for gold, and it takes up room."
 icon_path = "res://assets/sprites/items/key.png"
 
-[sub_resource type="Resource" id="Resource_tnp1o"]
+[sub_resource type="Resource" id="Resource_1pxyj"]
 script = ExtResource("1_d4656")
 id = "combine"
 topic = "gear"
 term = "Combine"
 text = "Put an item onto the same item at the same level and it goes up a level (Salve+), with a stronger effect. Consumables and charms only."
 
-[sub_resource type="Resource" id="Resource_faexo"]
+[sub_resource type="Resource" id="Resource_iobjp"]
 script = ExtResource("1_d4656")
 id = "shop"
 topic = "shops"
@@ -771,28 +859,28 @@ term = "The Rag Merchant"
 text = "Sells items, charms and gear for gold, and buys backpack items for half their price. The shelves change at every shop."
 icon_path = "res://assets/sprites/env/shopkeeper.png"
 
-[sub_resource type="Resource" id="Resource_077nu"]
+[sub_resource type="Resource" id="Resource_7lplp"]
 script = ExtResource("1_d4656")
 id = "shop_cleanse"
 topic = "shops"
 term = "Cleanse"
 text = "A shop service: throw away one rotten item for good."
 
-[sub_resource type="Resource" id="Resource_osy5s"]
+[sub_resource type="Resource" id="Resource_05ddp"]
 script = ExtResource("1_d4656")
 id = "shop_upgrade"
 topic = "shops"
 term = "Upgrade"
 text = "Pay to raise one backpack item by a level. At a campfire the same upgrade is free, but it is your one choice there."
 
-[sub_resource type="Resource" id="Resource_m7iqa"]
+[sub_resource type="Resource" id="Resource_nl2ya"]
 script = ExtResource("1_d4656")
 id = "shop_restock"
 topic = "shops"
 term = "Restock"
 text = "Pay for fresh stock on the shelves. Each restock at the same shop costs more than the last."
 
-[sub_resource type="Resource" id="Resource_ufadv"]
+[sub_resource type="Resource" id="Resource_1vr0v"]
 script = ExtResource("1_d4656")
 id = "camp_rest"
 topic = "shops"
@@ -800,14 +888,14 @@ term = "Rest"
 text = "Everyone heals half of their max HP. It works once, and it is the one choice you make at that fire."
 icon_path = "res://assets/sprites/ui/map_rest.png"
 
-[sub_resource type="Resource" id="Resource_wuu7b"]
+[sub_resource type="Resource" id="Resource_42uva"]
 script = ExtResource("1_d4656")
 id = "camp_train"
 topic = "shops"
 term = "Train"
 text = "Every hero gets one attribute point to spend."
 
-[sub_resource type="Resource" id="Resource_nxshk"]
+[sub_resource type="Resource" id="Resource_j6wsn"]
 script = ExtResource("1_d4656")
 id = "event_choice"
 topic = "shops"
@@ -815,70 +903,70 @@ term = "Event choices"
 text = "A choice spells out its price and reward. Prices can be gold, max HP for good, a backpack item or a curse. Some carry a risk, and some start an ambush."
 icon_path = "res://assets/sprites/ui/map_event.png"
 
-[sub_resource type="Resource" id="Resource_7dvlr"]
+[sub_resource type="Resource" id="Resource_t2qvb"]
 script = ExtResource("1_d4656")
 id = "spoils"
 topic = "shops"
 term = "Spoils"
 text = "The prize after a guard, an elite or an act's boss: pick one of three pieces of gear, rare or better. One of the three is usually rot-touched."
 
-[sub_resource type="Resource" id="Resource_1pxyj"]
+[sub_resource type="Resource" id="Resource_2bmla"]
 script = ExtResource("1_d4656")
 id = "the_run"
 topic = "run"
 term = "The run"
 text = "A road through the map to the last boss, over two acts: The Rotten Road and The Ashen Deep. If the whole party falls it is over. Only your oaths and Journal carry on."
 
-[sub_resource type="Resource" id="Resource_iobjp"]
+[sub_resource type="Resource" id="Resource_oxqn7"]
 script = ExtResource("1_d4656")
 id = "oath"
 topic = "run"
 term = "Oath"
 text = "A difficulty you pick before a run. Each oath adds a hardship to those before it and nothing ever makes the run easier. Win at Oath N to unlock N + 1."
 
-[sub_resource type="Resource" id="Resource_7lplp"]
+[sub_resource type="Resource" id="Resource_voqww"]
 script = ExtResource("1_d4656")
 id = "oath_list"
 topic = "run"
 term = "The ten oaths"
 text = "Thorns, Want, Embers, the Deep, Crowns, Wounds, Scarcity, Silence, the Long Road, Rot. The players screen lists what each one does."
 
-[sub_resource type="Resource" id="Resource_05ddp"]
+[sub_resource type="Resource" id="Resource_ujnpq"]
 script = ExtResource("1_d4656")
 id = "gold"
 topic = "run"
 term = "Gold"
 text = "Earned from fights and chests, spent in shops and at some shrines. Elites pay more, and the Oath of Want pays less."
 
-[sub_resource type="Resource" id="Resource_nl2ya"]
+[sub_resource type="Resource" id="Resource_uw7h0"]
 script = ExtResource("1_d4656")
 id = "level"
 topic = "run"
 term = "Level and XP"
 text = "Each hero levels on their own from fights. A level gives attribute points, a skill point and a little HP and power."
 
-[sub_resource type="Resource" id="Resource_1vr0v"]
+[sub_resource type="Resource" id="Resource_d4ofk"]
 script = ExtResource("1_d4656")
 id = "attributes"
 topic = "run"
 term = "Attributes"
 text = "Vitality raises max HP, Might power, Agility speed, Defense cuts enemy hits and Luck critical chance. Points can be taken back and a reset is free."
 
-[sub_resource type="Resource" id="Resource_42uva"]
+[sub_resource type="Resource" id="Resource_wvly6"]
 script = ExtResource("1_d4656")
 id = "hp_carries"
 topic = "run"
 term = "HP carries over"
 text = "Health does not refill between fights. Campfires, shops and shrines are where you mend. Marks and AP start fresh each fight."
 
-[sub_resource type="Resource" id="Resource_j6wsn"]
+[sub_resource type="Resource" id="Resource_b30i1"]
 script = ExtResource("1_d4656")
 id = "save_quit"
 topic = "run"
 term = "Save and Quit"
 text = "In the pause menu: keeps the run for later and goes to the main menu. Abandon run loses it for good."
 
-[sub_resource type="Resource" id="Resource_t2qvb"]
+[sub_resource type="Resource" id="Resource_dkefa"]
 script = ExtResource("1_d4656")
 id = "journal"
 topic = "run"
@@ -887,6 +975,6 @@ text = "In Extras: a book of every enemy and attack you meet in a run, with your
 
 [resource]
 script = ExtResource("2_633y8")
-topic_ids = PackedStringArray("fight", "reading", "defence", "skills", "team", "foe_marks", "hero_marks", "dooms", "enemies", "map", "zones", "gear", "shops", "run")
-topic_names = PackedStringArray("The fight", "Reading attacks", "Defence", "Skills and AP", "Counters and team", "Marks on enemies", "Marks on heroes", "Dooms", "Enemies", "The map", "In a zone", "Gear and items", "Shops and camps", "The run")
-entries = Array[ExtResource("1_d4656")]([SubResource("Resource_4pvst"), SubResource("Resource_hd6qm"), SubResource("Resource_fpscn"), SubResource("Resource_tb6tb"), SubResource("Resource_03a7d"), SubResource("Resource_e1ac5"), SubResource("Resource_4h0w4"), SubResource("Resource_8w76o"), SubResource("Resource_gng8j"), SubResource("Resource_o85np"), SubResource("Resource_lgwoi"), SubResource("Resource_fckk8"), SubResource("Resource_0tpnu"), SubResource("Resource_7jpox"), SubResource("Resource_8pdof"), SubResource("Resource_vatr1"), SubResource("Resource_4ue4x"), SubResource("Resource_ney2o"), SubResource("Resource_rq2lu"), SubResource("Resource_0sw3m"), SubResource("Resource_ym7ni"), SubResource("Resource_hqq7o"), SubResource("Resource_0k6kt"), SubResource("Resource_b1y1j"), SubResource("Resource_yh8rg"), SubResource("Resource_tdm13"), SubResource("Resource_ygdo2"), SubResource("Resource_jrthy"), SubResource("Resource_p048w"), SubResource("Resource_wdupp"), SubResource("Resource_vvnsa"), SubResource("Resource_uf6lj"), SubResource("Resource_86rir"), SubResource("Resource_g3uas"), SubResource("Resource_1kck3"), SubResource("Resource_g886g"), SubResource("Resource_hl2di"), SubResource("Resource_fmp8d"), SubResource("Resource_qwexe"), SubResource("Resource_870e2"), SubResource("Resource_ifc33"), SubResource("Resource_ntj47"), SubResource("Resource_jp5hm"), SubResource("Resource_e3swq"), SubResource("Resource_g3g5a"), SubResource("Resource_kg24a"), SubResource("Resource_l8ilw"), SubResource("Resource_vd1pi"), SubResource("Resource_h4eme"), SubResource("Resource_1f42n"), SubResource("Resource_vqib0"), SubResource("Resource_akq8o"), SubResource("Resource_bgl7y"), SubResource("Resource_e5dtf"), SubResource("Resource_87ady"), SubResource("Resource_f2ok5"), SubResource("Resource_q6jq4"), SubResource("Resource_2nuks"), SubResource("Resource_to4cp"), SubResource("Resource_j1o2r"), SubResource("Resource_03k8o"), SubResource("Resource_ffvon"), SubResource("Resource_t2kkd"), SubResource("Resource_esrfe"), SubResource("Resource_y6eba"), SubResource("Resource_p8moy"), SubResource("Resource_nw34n"), SubResource("Resource_1c0mm"), SubResource("Resource_rjq6c"), SubResource("Resource_erspk"), SubResource("Resource_d8cfa"), SubResource("Resource_s1j28"), SubResource("Resource_p2qmn"), SubResource("Resource_3al64"), SubResource("Resource_cu3qc"), SubResource("Resource_fbvxs"), SubResource("Resource_s1dhs"), SubResource("Resource_wmbx1"), SubResource("Resource_0y7iv"), SubResource("Resource_kghdt"), SubResource("Resource_dyfhy"), SubResource("Resource_35qqt"), SubResource("Resource_vc7d0"), SubResource("Resource_c00ge"), SubResource("Resource_lklpv"), SubResource("Resource_3r8ir"), SubResource("Resource_xigk7"), SubResource("Resource_3yeq3"), SubResource("Resource_8xwyj"), SubResource("Resource_nfl5o"), SubResource("Resource_nokcs"), SubResource("Resource_tnp1o"), SubResource("Resource_faexo"), SubResource("Resource_077nu"), SubResource("Resource_osy5s"), SubResource("Resource_m7iqa"), SubResource("Resource_ufadv"), SubResource("Resource_wuu7b"), SubResource("Resource_nxshk"), SubResource("Resource_7dvlr"), SubResource("Resource_1pxyj"), SubResource("Resource_iobjp"), SubResource("Resource_7lplp"), SubResource("Resource_05ddp"), SubResource("Resource_nl2ya"), SubResource("Resource_1vr0v"), SubResource("Resource_42uva"), SubResource("Resource_j6wsn"), SubResource("Resource_t2qvb")])
+topic_ids = PackedStringArray("fight", "reading", "defence", "skills", "team", "foe_marks", "hero_marks", "hero_help", "dooms", "enemies", "map", "zones", "gear", "shops", "run")
+topic_names = PackedStringArray("The fight", "Reading attacks", "Defence", "Skills and AP", "Counters and team", "Marks on enemies", "Marks on heroes", "Help on heroes", "Dooms", "Enemies", "The map", "In a zone", "Gear and items", "Shops and camps", "The run")
+entries = Array[ExtResource("1_d4656")]([SubResource("Resource_4pvst"), SubResource("Resource_hd6qm"), SubResource("Resource_fpscn"), SubResource("Resource_tb6tb"), SubResource("Resource_03a7d"), SubResource("Resource_e1ac5"), SubResource("Resource_4h0w4"), SubResource("Resource_8w76o"), SubResource("Resource_gng8j"), SubResource("Resource_o85np"), SubResource("Resource_lgwoi"), SubResource("Resource_fckk8"), SubResource("Resource_0tpnu"), SubResource("Resource_7jpox"), SubResource("Resource_8pdof"), SubResource("Resource_vatr1"), SubResource("Resource_4ue4x"), SubResource("Resource_ney2o"), SubResource("Resource_rq2lu"), SubResource("Resource_0sw3m"), SubResource("Resource_ym7ni"), SubResource("Resource_hqq7o"), SubResource("Resource_0k6kt"), SubResource("Resource_b1y1j"), SubResource("Resource_yh8rg"), SubResource("Resource_tdm13"), SubResource("Resource_ygdo2"), SubResource("Resource_jrthy"), SubResource("Resource_p048w"), SubResource("Resource_wdupp"), SubResource("Resource_vvnsa"), SubResource("Resource_uf6lj"), SubResource("Resource_86rir"), SubResource("Resource_g3uas"), SubResource("Resource_1kck3"), SubResource("Resource_g886g"), SubResource("Resource_hl2di"), SubResource("Resource_fmp8d"), SubResource("Resource_qwexe"), SubResource("Resource_870e2"), SubResource("Resource_ifc33"), SubResource("Resource_ntj47"), SubResource("Resource_jp5hm"), SubResource("Resource_e3swq"), SubResource("Resource_g3g5a"), SubResource("Resource_kg24a"), SubResource("Resource_l8ilw"), SubResource("Resource_vd1pi"), SubResource("Resource_h4eme"), SubResource("Resource_1f42n"), SubResource("Resource_vqib0"), SubResource("Resource_akq8o"), SubResource("Resource_bgl7y"), SubResource("Resource_e5dtf"), SubResource("Resource_87ady"), SubResource("Resource_f2ok5"), SubResource("Resource_q6jq4"), SubResource("Resource_2nuks"), SubResource("Resource_to4cp"), SubResource("Resource_j1o2r"), SubResource("Resource_03k8o"), SubResource("Resource_ffvon"), SubResource("Resource_t2kkd"), SubResource("Resource_esrfe"), SubResource("Resource_y6eba"), SubResource("Resource_p8moy"), SubResource("Resource_nw34n"), SubResource("Resource_1c0mm"), SubResource("Resource_rjq6c"), SubResource("Resource_erspk"), SubResource("Resource_d8cfa"), SubResource("Resource_s1j28"), SubResource("Resource_p2qmn"), SubResource("Resource_3al64"), SubResource("Resource_cu3qc"), SubResource("Resource_fbvxs"), SubResource("Resource_s1dhs"), SubResource("Resource_wmbx1"), SubResource("Resource_0y7iv"), SubResource("Resource_kghdt"), SubResource("Resource_dyfhy"), SubResource("Resource_35qqt"), SubResource("Resource_vc7d0"), SubResource("Resource_c00ge"), SubResource("Resource_lklpv"), SubResource("Resource_3r8ir"), SubResource("Resource_xigk7"), SubResource("Resource_3yeq3"), SubResource("Resource_8xwyj"), SubResource("Resource_nfl5o"), SubResource("Resource_nokcs"), SubResource("Resource_tnp1o"), SubResource("Resource_faexo"), SubResource("Resource_077nu"), SubResource("Resource_osy5s"), SubResource("Resource_m7iqa"), SubResource("Resource_ufadv"), SubResource("Resource_wuu7b"), SubResource("Resource_nxshk"), SubResource("Resource_7dvlr"), SubResource("Resource_1pxyj"), SubResource("Resource_iobjp"), SubResource("Resource_7lplp"), SubResource("Resource_05ddp"), SubResource("Resource_nl2ya"), SubResource("Resource_1vr0v"), SubResource("Resource_42uva"), SubResource("Resource_j6wsn"), SubResource("Resource_t2qvb"), SubResource("Resource_2bmla"), SubResource("Resource_oxqn7"), SubResource("Resource_voqww"), SubResource("Resource_ujnpq"), SubResource("Resource_uw7h0"), SubResource("Resource_d4ofk"), SubResource("Resource_wvly6"), SubResource("Resource_b30i1"), SubResource("Resource_dkefa")])

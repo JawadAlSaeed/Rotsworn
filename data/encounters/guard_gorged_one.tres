@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="EncounterData" format=3]
 
 [ext_resource type="Resource" path="res://data/encounters/deep_guard_gorged_one.tres" id="1_xuffe"]
+[ext_resource type="Resource" path="res://data/enemies/rot_priest.tres" id="p19_third"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_t4ec8"]
 [ext_resource type="Resource" path="res://data/enemies/gorged_one.tres" id="3_6cnn0"]
 [ext_resource type="Resource" path="res://data/enemies/gnat_swarm.tres" id="4_x8yxj"]
@@ -16,8 +17,9 @@ script = ExtResource("9_8xqiw")
 id = "guard_gorged_one"
 display_name = "The Gorged One"
 party = Array[ExtResource("5_cve1a")]([ExtResource("6_yspa0"), ExtResource("7_lxq1u"), ExtResource("8_hj3dx")])
-enemies = Array[ExtResource("2_t4ec8")]([ExtResource("3_6cnn0"), ExtResource("4_x8yxj")])
+enemies = Array[ExtResource("2_t4ec8")]([ExtResource("3_6cnn0"), ExtResource("4_x8yxj"), ExtResource("p19_third")])
 team_ultimate = ExtResource("10_hvu0m")
 can_run = false
 mini_boss = true
 deep = ExtResource("1_xuffe")
+enemy_hp_percent = 90

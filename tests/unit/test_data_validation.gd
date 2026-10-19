@@ -230,6 +230,8 @@ func test_attack_timing_rules() -> void:
 	var attacks := _all_attacks()
 	assert_gt(attacks.size(), 0)
 	for attack: EnemyAttackData in attacks:
+		if attack.is_support():
+			continue  # A support move (card #259) has no hits to time.
 		assert_eq(_timing_problems(attack), PackedStringArray(), "timing rules for %s" % attack.id)
 
 

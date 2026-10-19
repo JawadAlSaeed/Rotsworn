@@ -85,6 +85,42 @@ VARIANTS: dict[str, tuple[str, list, str]] = {
         (band(270, 350, 0.05), shift(to_h=60.0, c=1.2)),
         (anything, shift(c=0.35, dl=-0.07, to_h=270.0, pull=0.4)),
     ], "black iron, gold rot"),
+    # Phase 19 (cards #255 to #260): the new monsters' deep twins.
+    # Grave Rats: bone-white fur gone pale in the barrows, red eyes.
+    "grave_rat": ("rot_rat", [
+        (glow(90, 160), shift(to_h=25.0, c=1.4)),
+        (band(0, 40, 0.03), shift(to_h=10.0, c=1.2)),
+        (anything, shift(c=0.4, dl=0.14, to_h=80.0, pull=0.4)),
+    ], "pale bone, red eyes"),
+    # Cinder Slinger: soot-black skin, white-hot embers.
+    "cinder_slinger": ("ember_slinger", [
+        (glow(20, 80), shift(to_h=70.0, c=0.8, dl=0.08)),
+        (anything, shift(c=0.5, dl=-0.12, to_h=20.0, pull=0.5)),
+    ], "soot black, white-hot embers"),
+    # Tomb Brute: blue-grey grave skin, a violet seam.
+    "tomb_brute": ("barrow_brute", [
+        (glow(90, 160), shift(to_h=300.0, c=1.2, dl=0.03)),
+        (band(60, 160, 0.01), shift(to_h=240.0, c=1.1, dl=-0.03)),
+        (anything, shift(to_h=250.0, pull=0.4, dl=-0.04)),
+    ], "grave blue, violet seam"),
+    # Storm Lantern: blackened iron, a violet-white storm light.
+    "storm_lantern": ("marsh_lantern", [
+        (glow(150, 230), shift(to_h=290.0, c=1.0)),
+        (lambda L, C, h: L > 0.8, shift(to_h=300.0, c=1.4)),
+        (anything, shift(dl=-0.08, c=0.6)),
+    ], "black iron, violet storm light"),
+    # Hollow Priest: black vestments, pale blue glow.
+    "hollow_priest": ("rot_priest", [
+        (glow(90, 160), shift(to_h=200.0, c=0.9, dl=0.05)),
+        (band(270, 345, 0.02), shift(to_h=250.0, c=0.6, dl=-0.12)),
+        (anything, shift(to_h=220.0, pull=0.3)),
+    ], "black robes, pale blue glow"),
+    # Bile Tick: a sac of bright bile yellow, orange glow.
+    "bile_tick": ("pus_tick", [
+        (glow(90, 160), shift(to_h=60.0, c=1.4)),
+        (band(80, 130, 0.05), shift(to_h=95.0, c=1.5, dl=0.03)),
+        (anything, shift(c=1.0)),
+    ], "bile yellow, orange glow"),
 }
 
 

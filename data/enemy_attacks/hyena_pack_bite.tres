@@ -23,7 +23,6 @@ damage_percent = 40
 approach_ms = 200
 forced_feint = true
 on_hit_status = "weakened"
-on_hit_hard_only = true
 
 [resource]
 script = ExtResource("2_attack")

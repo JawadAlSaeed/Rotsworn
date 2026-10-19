@@ -36,12 +36,30 @@ const ROTTING := "rotting"
 const BLIGHTED := "blighted"
 ## The holder's power is cut by weakened_power_cut_percent (skills, counters, follow-ups, bleed).
 const WEAKENED := "weakened"
+## Phase 19 marks (card #252). Burning: at the start of each of the holder's turns they lose
+## burning_percent of max HP (more than rot, for fewer turns), never below 1 HP from fire alone.
+const BURNING := "burning"
+## Shocked: the holder's timing windows (defence, skill presses, follow-ups) are
+## shocked_window_percent of their size.
+const SHOCKED := "shocked"
+## Dazed: the holder's next turn passes (a turn_lost event); it ends with that turn.
+const DAZED := "dazed"
+## Hushed: the holder can use no skills, only the basic attack, items, Run and the team ultimate.
+const HUSHED := "hushed"
+## On a party member (Purify, gear): no enemy hit can leave a mark (a debuff or an AP drain).
+const WARDED := "warded"
+## On an enemy (a Rot Priest's ward, card #259): it takes shielded_damage_cut_percent less damage.
+const SHIELDED := "shielded"
 
 const ALL: Array[String] = [EXPOSED, GUARDED, TAUNTED, SLOWED, RIPOSTE, BLEEDING, REGEN, MARKED, EMPOWERED,
-		ROTTING, BLIGHTED, WEAKENED]
+		ROTTING, BLIGHTED, WEAKENED, BURNING, SHOCKED, DAZED, HUSHED, WARDED, SHIELDED]
 
-## The debuffs, in the order a cleanse removes them (the one that hurts most first).
-const DEBUFFS: Array[String] = [ROTTING, BLIGHTED, WEAKENED]
+## The hero debuffs (marks an enemy hit can leave), in the order a cleanse removes them: the one that
+## costs most first, and rotting before blighted so lifting both frees the heal that lifts them.
+## Slowed is also Hamstring's slow on an enemy; on a hero it is a mark (a toad's mud, a shade's cold).
+const DEBUFFS: Array[String] = [DAZED, HUSHED, BURNING, ROTTING, BLIGHTED, SHOCKED, SLOWED, WEAKENED]
+## Enough to lift every debuff (AbilityData.cleanse_count, ItemData.cleanse_count).
+const CLEANSE_ALL: int = 9
 
 ## The mark an enemy hit shows when it only drains AP (not a status). Presentation and the intent
 ## event use it like a status id.
@@ -64,7 +82,7 @@ static func ends_at_own_turn(id: String) -> bool:
 
 ## True if the status counts down at the end of each of its holder's turns.
 static func counts_turns(id: String) -> bool:
-	return id == SLOWED or id == BLEEDING or id == REGEN or is_debuff(id)
+	return id == SLOWED or id == BLEEDING or id == REGEN or id == WARDED or id == SHIELDED or is_debuff(id)
 
 
 ## True if the status shows a number of uses or turns left.

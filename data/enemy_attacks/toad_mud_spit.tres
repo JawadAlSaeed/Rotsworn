@@ -10,6 +10,7 @@ impact_ms = 1300
 damage_percent = 100
 approach_ms = 550
 projectile = ExtResource("3_mud_glob")
+on_hit_status = "slowed"
 
 [resource]
 script = ExtResource("2_attack")

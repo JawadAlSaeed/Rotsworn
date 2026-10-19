@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+
+[sub_resource type="Resource" id="Hit_0"]
+script = ExtResource("1_hit")
+impact_ms = 1300
+kind = 1
+damage_percent = 130
+approach_ms = 550
+impact_sfx = "splat"
+on_hit_status = "blighted"
+
+[resource]
+script = ExtResource("2_attack")
+id = "tick_burst"
+display_name = "Burst"
+target_mode = 1
+weight = 20
+charge_turns = 3
+break_damage_percent = 50
+cooldown_turns = 1
+self_destruct = true
+hits = Array[ExtResource("1_hit")]([SubResource("Hit_0")])

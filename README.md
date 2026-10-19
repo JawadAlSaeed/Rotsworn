@@ -94,9 +94,15 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 - **Dooms.** Guards and bosses charge one huge attack and count it down (*"TIMBER FALL IN 3"*).
   Deal enough damage in time and it **BREAKS**: the enemy is staggered, loses a turn and takes more
   damage.
-- **Marks.** In hard fights a hit you fail to defend can leave **ROT** (lose HP each turn),
-  **BLIGHT** (healing halved) or **WEAK** (less power), or drain AP. Cass's Mend and Sanctuary and
-  the Salve lift marks, and they all end with the fight.
+- **Marks.** Every monster has one hit (a coloured dot on its icon) that leaves a mark if you
+  fail to defend it: **ROT** (lose HP each turn), **BURN** (lose more, for fewer turns),
+  **BLIGHT** (healing halved), **WEAK** (less power), **SHOCK** (smaller timing windows),
+  **SLOWED** (later turns), **DAZE** (skip a turn) or **HUSH** (no skills), or it drains AP. The
+  first zone of a run has none. Cass's Mend, Sanctuary and Purify, the Salve, the Antidote and Holy
+  Water lift marks, and they all end with the fight.
+- **Monsters.** Each one tests something: quick Rot Rats in packs of three, an Ember Slinger and a
+  Marsh Lantern that only throw, a huge slow Barrow Brute, a Rot Priest that heals and shields the
+  others (kill it first), a Pus Tick that counts down and bursts. Up to three fight at once.
 
 ### A run
 
@@ -129,7 +135,7 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 
 ### Kept between runs
 
-- **Relics** (31 of them) stay with you forever. Monsters drop them, and you also find them in
+- **Relics** (34 of them) stay with you forever. Monsters drop them, and you also find them in
   spoils, shops and chests. A copy of a Relic you already have raises its level, up to 5. Each
   hero wears up to 3: one slot from the start, a second after the first guard, a third after
   act 1's boss. On the main menu's **Relics** page you choose what each hero brings.

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "bitter_root"
+display_name = "Bitter Root"
+description = "Marks on the wearer last 1 turn less (never under 1 turn)."
+price = 55
+effect = 24
+amount = 1
+stat_points = 2
+echo_cost = 1

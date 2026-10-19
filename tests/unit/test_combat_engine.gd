@@ -46,15 +46,20 @@ const EVENT_KEYS: Dictionary = {
 	"practice_changed": ["invulnerable_party", "immortal_enemies", "force_attack"],
 	"combat_ended": ["result"],
 	"command_rejected": ["reason", "command"],
+	# Phase 19 (cards #252, #259, #260).
+	"turn_lost": ["actor", "status"],
+	"enemy_support": ["enemy", "attack", "name", "target", "support"],
+	"self_destructed": ["enemy", "attack"],
 }
 const HIT_KEYS: Array[String] = ["index", "at_ms", "kind", "approach_ms", "feint", "damage_percent", "impact_sfx"]
 const PROMPT_KEYS: Array[String] = ["idx", "hit", "character", "at_ms", "kind", "windows", "perfect", "damage",
 		"press_damage", "perfect_damage", "role", "requires", "crit"]
 const STRING_VALUES: Dictionary = {
 	"timed_sequence_declared.kind": ["enemy_attack", "skill"],
-	"damage.cause": ["ability", "follow_up", "counter", "team_counter", "item", "rot", "bleed", "rotting", "thorns"],
+	"damage.cause": ["ability", "follow_up", "counter", "team_counter", "item", "rot", "bleed", "rotting", "thorns", "burning"],
 	"ap_changed.reason": ["spend", "ability", "given", "gear", "drain"],
-	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte", "bleeding", "regen", "marked", "empowered", "rotting", "blighted", "weakened"],
+	"status_changed.status": ["exposed", "guarded", "taunted", "slowed", "riposte", "bleeding", "regen", "marked", "empowered", "rotting", "blighted", "weakened",
+			"burning", "shocked", "dazed", "hushed", "warded", "shielded"],
 	"prompts_voided.reason": ["downed", "attacker_down", "targets_down", "no_good_press"],
 	"sequence_resolved.reason": ["completed", "targets_down", "attacker_down"],
 	"combat_ended.result": ["victory", "defeat"],
@@ -980,6 +985,30 @@ func _item_events() -> Array[Dictionary]:
 	return events
 
 
+## Phase 19's events (cards #252, #259, #260): a dazed hero's lost turn, a monster healing a
+## fellow, a burst that spends its monster.
+func _phase19_events() -> Array[Dictionary]:
+	var engine := Fx.started([_swipe()], {"enemy_speed": 10})
+	var events: Array[Dictionary] = []
+	var next := engine.preview_turn_order(3)[1]
+	engine._add_status(engine.get_combatant(next), Status.DAZED, 1, -1, events)
+	events.append_array(engine.submit(Fx.use(engine, "basic_attack")))
+	assert_eq(Fx.of_type(events, "turn_lost").size(), 1, "a dazed turn passed")
+	var heal := Fx.attack("help", [])
+	heal.target_mode = EnemyAttackData.TargetMode.ALLY
+	heal.support = EnemyAttackData.Support.HEAL
+	heal.support_percent = 20
+	heal.support_below_percent = 100
+	var healer := Fx.enemy("healer", [heal], 500)
+	var brute := Fx.enemy("brute", [_swipe()], 10)
+	events.append_array(CombatEngine.new(Fx.kit_setup([[], [], []], [], {"enemies": [healer, brute]})).start())
+	var burst := Fx.attack("burst", [Fx.hit(900)])
+	burst.self_destruct = true
+	var bomb := Fx.started([burst])
+	events.append_array(bomb.submit(Fx.resolve_now(bomb, [[0, PARRY]])))
+	return events
+
+
 ## A boss that enters phase two on the first counter (DESIGN 8, card #31).
 func _phase_two_events() -> Array[Dictionary]:
 	var setup := Fx.setup([_swipe()])
@@ -1002,6 +1031,7 @@ func test_events_have_exactly_the_documented_fields() -> void:
 	events.append_array(Fx.started([_swipe()]).submit({"type": "dance"}))
 	events.append_array(_phase_two_events())
 	events.append_array(_item_events())
+	events.append_array(_phase19_events())
 	var seen := {}
 	for i: int in events.size():
 		var e: Dictionary = events[i]
@@ -1010,10 +1040,13 @@ func test_events_have_exactly_the_documented_fields() -> void:
 		if not EVENT_KEYS.has(type):
 			fail_test("undocumented event type '%s'" % type)
 			return
-		if type == "intent" and e.has("odds"):
-			# Practice fights add the odds behind the pick (checked in test_enemy_ai.gd).
+		if type == "intent" and (e.has("odds") or e.has("marks") or e.has("support")):
+			# Practice fights add the odds behind the pick (checked in test_enemy_ai.gd); a marking
+			# attack adds its marks (test_hit_marks.gd), a support move its kind (card #259).
 			e = e.duplicate()
 			e.erase("odds")
+			e.erase("marks")
+			e.erase("support")
 		if _sorted_keys(e) != _expected_keys(EVENT_KEYS[type], true):
 			fail_test("%s has fields %s, documented %s" % [type, str(_sorted_keys(e)), str(_expected_keys(EVENT_KEYS[type], true))])
 			return
@@ -1028,9 +1061,15 @@ func test_events_have_exactly_the_documented_fields() -> void:
 			assert_eq(next.cause, "team_counter" if bool(e.team) else "counter")
 		if type == "timed_sequence_declared":
 			for h: Dictionary in e.hits:
-				assert_eq(_sorted_keys(h), _expected_keys(HIT_KEYS, false), "hit fields")
+				# A marking hit (card #194) adds its mark; its defend prompts the mark's details.
+				var hit_keys := h.duplicate()
+				hit_keys.erase("mark")
+				assert_eq(_sorted_keys(hit_keys), _expected_keys(HIT_KEYS, false), "hit fields")
 			for p: Dictionary in e.prompts:
-				assert_eq(_sorted_keys(p), _expected_keys(PROMPT_KEYS, false), "prompt fields")
+				var prompt_keys := p.duplicate()
+				for mark_key: String in ["mark_status", "mark_turns", "mark_ap"]:
+					prompt_keys.erase(mark_key)
+				assert_eq(_sorted_keys(prompt_keys), _expected_keys(PROMPT_KEYS, false), "prompt fields")
 	for type: String in EVENT_KEYS:
 		assert_true(seen.has(type), "the fights produced a %s event" % type)
 

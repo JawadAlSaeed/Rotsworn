@@ -24,6 +24,13 @@ ENEMY_FRAME = {
     "carrion_fly": 72,
     "rot_hyena": 80,
     "mire_toad": 96,
+    # Phase 19 (cards #255 to #260).
+    "rot_rat": 48,
+    "ember_slinger": 72,
+    "barrow_brute": 120,
+    "marsh_lantern": 64,
+    "rot_priest": 76,
+    "pus_tick": 56,
 }
 FIGHTER_PIXEL_SIZE = 0.045
 
@@ -37,7 +44,7 @@ MAX_SHEET = 4096
 
 # Clips whose cells may leave the floor (no feet-on-the-floor rule), and fighters that float.
 AIRBORNE = {"jump_up", "jump_down", "leap"}
-FLOATERS = {"gnat_swarm", "shade", "carrion_fly"}
+FLOATERS = {"gnat_swarm", "shade", "carrion_fly", "marsh_lantern"}
 
 # Looping stances: every cell keeps its opaque top within 1 px of the clip's key (cell 0 for idle
 # and the stands, the ready key for ready), because the game measures head and popup anchors on
@@ -58,6 +65,12 @@ FIGHTERS = {
     "enemy_fly": "carrion_fly",
     "enemy_hyena": "rot_hyena",
     "enemy_toad": "mire_toad",
+    "enemy_rat": "rot_rat",
+    "enemy_slinger": "ember_slinger",
+    "enemy_brute": "barrow_brute",
+    "enemy_lantern": "marsh_lantern",
+    "enemy_priest": "rot_priest",
+    "enemy_tick": "pus_tick",
 }
 
 # Tier 1 clip names (plan 4.1, 4.2). check.py --require <module or id> asserts them.

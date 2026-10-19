@@ -24,14 +24,16 @@ extends RefCounted
 ##   use_item         {turn, actor, uid, targets}                phase AWAITING_ACTION
 ##   resolve_prompts  {seq, results:[{prompt, outcome, offset_us}]}  phase AWAITING_TIMING
 ##                    partial is fine; per character, prompts must resolve in order
-##   practice         {invulnerable_party?, immortal_enemies?, force_attack?}  if setup allows
+##   practice         {invulnerable_party?, immortal_enemies?, force_attack?, mark_hero?, mark_status?}
+##                    if setup allows
 ##
 ## Events (Dictionary with "type"):
 ##   combat_started          {seed, fighters:[Combatant.to_dict()], practice_allowed, opening,
 ##                           items:[item_info()]} (backpack items usable in this fight)
 ##                           opening: "normal" | "first_strike" (DESIGN.md 2.12)
 ##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms],
-##                           feints:[bool] (which hits are feints, card #129),
+##                           feints:[bool] (which hits are feints, card #129), marks? (card #194),
+##                           support? (EnemyAttackData.Support of a heal or shield move, card #259),
 ##                           odds? {attacks:[[id, weight]], targets:[[hero, weight]]} (practice only)}
 ##                           what this enemy will do on its next turn (DESIGN.md 2.8). Sent at
 ##                           fight start, after its turn, and whenever its targets change.
@@ -47,6 +49,7 @@ extends RefCounted
 ##   damage                  {source, target, amount, hp, max_hp, cause, crit (a critical hit)}
 ##                           cause: "ability" | "follow_up" | "counter" | "team_counter" | "bleed"
 ##                           | "item" | "rot" (gear) | "rotting" (the Rotting debuff) | "thorns" (gear)
+##                           | "burning" (the Burning debuff, card #252)
 ##   healed                  {source, target, amount, hp, max_hp}
 ##   revived                 {source, target, hp, max_hp}
 ##   downed                  {target}
@@ -99,6 +102,11 @@ extends RefCounted
 ##   practice_changed        {invulnerable_party, immortal_enemies, force_attack}
 ##                           also emitted (before timed_sequence_declared) when a forced
 ##                           attack is used and force_attack clears
+##   turn_lost               {actor, status}   a Dazed hero's turn passes (card #252)
+##   enemy_support           {enemy, attack, name, target, support}   a monster healed or shielded a fellow
+##                           monster instead of striking (card #259; healed / status_changed follow)
+##   self_destructed         {enemy, attack}   the attacker spent itself (a Pus Tick's Burst, card #260);
+##                           a downed event follows
 ##   escaped                 {character}     that hero ran from the fight (Run, DESIGN.md 2.13)
 ##   combat_ended            {result}        "victory" | "defeat" | "escaped" (every hero still
 ##                                           standing ran, DESIGN.md 2.13)
@@ -225,6 +233,12 @@ func start() -> Array[Dictionary]:
 	if _setup.start_team_gauge > 0:
 		# Carried over from the run's last fight (card #146).
 		_change_gauge(_setup.start_team_gauge, events)
+	for id: int in party_ids():
+		var hero := get_combatant(id)
+		var ward := Passive.amount(hero, Passive.WARD_START)
+		if ward > 0:
+			# Relics against marks (card #263): the fight opens with the hero Warded.
+			_add_status(hero, Status.WARDED, ward, hero.id, events)
 	for enemy_id: int in enemy_ids():
 		_pick_intent(get_combatant(enemy_id), events)
 	_advance_turn(events)
@@ -334,7 +348,22 @@ func can_use(actor_id: int, ability_id: String) -> bool:
 		return false
 	if ability.team_ultimate and team_gauge < tuning.team_gauge_max:
 		return false
+	if is_hushed_out(actor_id, ability_id):
+		return false
 	return not valid_targets(actor_id, ability_id).is_empty()
+
+
+## True if a Hushed hero may not use this ability now (card #252): every skill is out; the basic
+## attack, Run and the team ultimate stay.
+func is_hushed_out(actor_id: int, ability_id: String) -> bool:
+	var actor := get_combatant(actor_id)
+	var ability := get_ability(ability_id)
+	if actor == null or ability == null or not actor.is_party() or not actor.has_status(Status.HUSHED):
+		return false
+	if ability.escape or ability.team_ultimate:
+		return false
+	var data: CharacterData = _setup.party[actor.slot] if actor.slot < _setup.party.size() else null
+	return data == null or data.basic_attack == null or ability.id != data.basic_attack.id
 
 
 ## Ids this actor may pick as the target of this ability. For abilities without a target step
@@ -362,20 +391,20 @@ func valid_targets(actor_id: int, ability_id: String) -> Array[int]:
 	return list
 
 
-## A fight item as plain data: {uid, id, name, description, ap_cost, target} (target: ITEM_ALLY,
+## A fight item as plain data: {uid, id, name, description, ap_cost, target, cleanse} (target: ITEM_ALLY,
 ## ITEM_PARTY, ITEM_ENEMIES or ITEM_DOWNED). Empty if the uid is not one of the fight's items.
 func item_info(uid: int) -> Dictionary:
 	var item := _items.get(uid) as ItemData
 	if item == null:
 		return {}
 	return {"uid": uid, "id": item.id, "name": String(_item_names.get(uid, item.display_name)), "description": item.description,
-			"ap_cost": item.ap_cost, "target": item_target(item)}
+			"ap_cost": item.ap_cost, "target": item_target(item), "cleanse": item.cleanse_count}
 
 
 ## Who an item is used on.
 static func item_target(item: ItemData) -> String:
 	match item.effect:
-		ItemData.Effect.HEAL_ONE:
+		ItemData.Effect.HEAL_ONE, ItemData.Effect.CLEANSE_ONE:
 			return ITEM_ALLY
 		ItemData.Effect.REVIVE_ONE:
 			return ITEM_DOWNED
@@ -605,6 +634,10 @@ func _advance_turn(events: Array[Dictionary]) -> void:
 		var held := bool(stage.hold_enemies)
 		if actor.is_party():
 			held = bool(stage.hold_party) or (int(stage.hero) >= 0 and actor.id != int(stage.hero))
+		if actor.is_alive() and not held and actor.has_status(Status.DAZED):
+			# Dazed (card #252): this turn passes; its end takes the daze away.
+			events.append({"type": "turn_lost", "actor": actor.id, "status": Status.DAZED})
+			held = true
 		if not actor.is_alive() or held:
 			# Bled out at the start of its turn, or held by the tutorial: the turn passes.
 			_end_of_turn(actor, events)
@@ -640,6 +673,10 @@ func _start_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 		var rotted := mini(CombatMath.percent_min1(actor.max_hp, tuning.rotting_percent), actor.hp - 1)
 		if rotted > 0:
 			_deal_damage(actor, actor, rotted, "rotting", events)
+	if actor.has_status(Status.BURNING) and actor.is_alive():
+		var burned := mini(CombatMath.percent_min1(actor.max_hp, tuning.burning_percent), actor.hp - 1)
+		if burned > 0:
+			_deal_damage(actor, actor, burned, "burning", events)
 	if actor.has_status(Status.BLEEDING) and actor.is_alive():
 		var source := get_combatant(int((actor.statuses[Status.BLEEDING] as Dictionary).source))
 		var power := _power_of(source) if source != null else 1
@@ -714,11 +751,15 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 		_remove_status(actor, Status.TAUNTED, events)
 	actor.note_attack(attack.id, attack.cooldown_turns,
 			targets[0] if attack.target_mode == EnemyAttackData.TargetMode.SINGLE else -1)
+	if attack.is_support():
+		_use_support(actor, attack, get_combatant(targets[0]), events)
+		return false
 
 	var hits: Array[Dictionary] = []
 	var prompts: Array[Dictionary] = []
 	var tempo := _tempo_percent(actor)
 	var hard := _forced_hits(actor)
+	var allowed := _setup.allow_marks
 	for hit_index: int in attack.hits.size():
 		var hit: AttackHitData = attack.hits[hit_index]
 		var at_ms := CombatMath.percent(hit.impact_ms, tempo)
@@ -732,9 +773,9 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 			"damage_percent": hit.damage_percent,
 			"impact_sfx": hit.impact_sfx,
 		}
-		var marks := hit.marks_in(hard)
+		var marks := hit.marks_in(hard, allowed)
 		if marks:
-			declared["mark"] = hit.mark_id_in(hard)
+			declared["mark"] = hit.mark_id_in(hard, allowed)
 		hits.append(declared)
 		# Each hero in turn: hit i strikes only its own target (DESIGN.md 3.11).
 		var hit_targets: Array[int] = targets
@@ -742,8 +783,8 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 			hit_targets = [targets[hit_index % targets.size()]]
 		for target_id: int in hit_targets:
 			var defend := _prompt(prompts.size(), hit_index, target_id, at_ms, kind,
-					Defense.build_windows(kind, tuning), _enemy_hit_damage(actor, get_combatant(target_id), hit.damage_percent),
-					0, 0, ROLE_DEFEND, [])
+					_windows_for(get_combatant(target_id), Defense.build_windows(kind, tuning)),
+					_enemy_hit_damage(actor, get_combatant(target_id), hit.damage_percent), 0, 0, ROLE_DEFEND, [])
 			if marks:
 				# Only a marking hit carries these, so every other fight's events stay as they were.
 				defend["mark_status"] = hit.on_hit_status
@@ -798,7 +839,13 @@ func _choose_intent(enemy: Combatant) -> Dictionary:
 	var candidates: Array[EnemyAttackData] = []
 	for attack_id: String in enemy.attack_ids:
 		var candidate := get_attack(attack_id)
-		if candidate != null and not candidate.hits.is_empty() and candidate.weight > 0:
+		if candidate == null or candidate.weight <= 0:
+			continue
+		if candidate.is_support():
+			# A support move with nobody to help is never a choice, not even the fallback (card #259).
+			if _support_target(enemy, candidate) >= 0:
+				candidates.append(candidate)
+		elif not candidate.hits.is_empty():
 			candidates.append(candidate)
 	# Skip moves that are on cooldown or have been used max_in_a_row times running, unless that
 	# leaves nothing to pick from (an enemy with a single move keeps using it).
@@ -858,6 +905,11 @@ func _attack_weight(enemy: Combatant, attack: EnemyAttackData) -> int:
 func _pick_targets(enemy: Combatant, attack: EnemyAttackData) -> Array[int]:
 	var living := living_party_ids()
 	var targets: Array[int] = []
+	if attack != null and attack.target_mode == EnemyAttackData.TargetMode.ALLY:
+		var ally := _support_target(enemy, attack)
+		if ally >= 0:
+			targets.append(ally)
+		return targets
 	if living.is_empty() or attack == null:
 		return targets
 	if attack.target_mode == EnemyAttackData.TargetMode.PARTY:
@@ -933,6 +985,11 @@ func _taunter_of(enemy: Combatant) -> int:
 
 
 func _targets_still_valid(enemy: Combatant, attack: EnemyAttackData, targets: Array[int]) -> bool:
+	if attack.target_mode == EnemyAttackData.TargetMode.ALLY:
+		if targets.size() != 1:
+			return false
+		var ally := get_combatant(targets[0])
+		return ally != null and ally.is_alive() and not ally.is_party()
 	if attack.target_mode == EnemyAttackData.TargetMode.PARTY:
 		return targets == living_party_ids()
 	if attack.target_mode == EnemyAttackData.TargetMode.EACH:
@@ -976,12 +1033,13 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	var enemy := get_combatant(enemy_id)
 	var tempo := _tempo_percent(enemy)
 	var hard := _forced_hits(enemy)
+	var allowed := _setup.allow_marks
 	for hit: AttackHitData in attack.hits:
 		kinds.append(hit.kind_in(hard))
 		times.append(CombatMath.percent(hit.impact_ms, tempo))
 		feints.append(hit.feint_in(hard))
-		marks.append(hit.mark_id_in(hard))
-		any_mark = any_mark or hit.marks_in(hard)
+		marks.append(hit.mark_id_in(hard, allowed))
+		any_mark = any_mark or hit.marks_in(hard, allowed)
 	var targets: Array[int] = []
 	targets.assign(intent.targets)
 	var event := {
@@ -998,6 +1056,9 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	if any_mark:
 		# Honest intent (card #194): which hits leave a mark, "" for a plain one. Only when one does.
 		event["marks"] = marks
+	if attack.is_support():
+		# A heal or a shield for a fellow monster (card #259): targets holds that monster.
+		event["support"] = attack.support
 	if attack.is_doom():
 		var charging := enemy.charge_attack == attack.id
 		event["charge_left"] = enemy.charge_left if charging else attack.charge_turns
@@ -1033,6 +1094,9 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 		return
 	if actor.ap < ability.ap_cost:
 		events.append(_reject("not_enough_ap", command))
+		return
+	if is_hushed_out(actor.id, ability.id):
+		events.append(_reject("hushed", command))
 		return
 	var targets: Array[int] = []
 	var allowed := valid_targets(actor.id, ability.id)
@@ -1128,6 +1192,12 @@ func _cmd_use_item(command: Dictionary, events: Array[Dictionary]) -> void:
 				if target.is_alive():
 					_cleanse(target, item.cleanse_count, events)
 					_heal(actor, target, CombatMath.percent_min1(target.max_hp, pct), events)
+			ItemData.Effect.CLEANSE_ONE, ItemData.Effect.CLEANSE_ALL:
+				# Antidote, Holy Water (card #254): the marks go first, then the small heal if any.
+				if target.is_alive():
+					_cleanse(target, item.cleanse_count, events)
+					if pct > 0:
+						_heal(actor, target, CombatMath.percent_min1(target.max_hp, pct), events)
 			ItemData.Effect.REVIVE_ONE:
 				_revive(actor, target, pct, events)
 			ItemData.Effect.DAMAGE_ALL:
@@ -1227,6 +1297,10 @@ func _cmd_practice(command: Dictionary, events: Array[Dictionary]) -> void:
 	if bool(command.get("fill_gauge", false)):
 		# The tutorial's Team Ultimate lesson (DESIGN.md 7.8).
 		_change_gauge(tuning.team_gauge_max, events)
+	var marked := get_combatant(int(command.get("mark_hero", -1)))
+	if marked != null and marked.is_party() and marked.is_alive() and Status.is_debuff(String(command.get("mark_status", ""))):
+		# The tutorial's marks lesson (card #264): a mark for the healer to lift.
+		_add_status(marked, String(command.mark_status), 3, -1, events)
 	events.append(_practice_changed_event())
 	if command.has("force_attack"):
 		_show_forced_intent(events)
@@ -1360,7 +1434,7 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 					perfect = _crit_damage(perfect)
 			press_idxs.append(prompts.size())
 			var press := _prompt(prompts.size(), hit_index, striker_id, at_ms, AttackHitData.Kind.PRESS,
-					Defense.build_windows(AttackHitData.Kind.PRESS, tuning, ability.perfect_window_percent),
+					_windows_for(striker, Defense.build_windows(AttackHitData.Kind.PRESS, tuning, ability.perfect_window_percent)),
 					miss, good, perfect, ROLE_PRESS, [])
 			press["crit"] = crit
 			prompts.append(press)
@@ -1378,7 +1452,7 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			var perfect := _roll_damage(_power_of(ally), tuning.follow_up_perfect_percent)
 			var crit := _roll_crit(ally)
 			var follow := _prompt(prompts.size(), hit_index, ally_id, at_ms, AttackHitData.Kind.PRESS,
-					Defense.build_follow_up_windows(tuning), 0, _crit_damage(good) if crit else good,
+					_windows_for(ally, Defense.build_follow_up_windows(tuning)), 0, _crit_damage(good) if crit else good,
 					_crit_damage(perfect) if crit else perfect, ROLE_FOLLOW_UP, press_idxs)
 			follow["crit"] = crit
 			prompts.append(follow)
@@ -1458,9 +1532,13 @@ func _apply_effects(actor: Combatant, ability: AbilityData, targets: Array[int],
 		if target.is_party():
 			if give > 0:
 				_change_ap(target, give, "given", events)
+			# The cleanse comes first, so lifting Blighted frees this very heal (Purify cleanses alone).
+			var cleanse := ability.cleanse_count + (ability.press_cleanse_count if good else 0)
+			if cleanse > 0:
+				var was_slowed := target.has_status(Status.SLOWED)
+				_cleanse(target, cleanse, events)
+				timeline_changed = timeline_changed or (was_slowed and not target.has_status(Status.SLOWED))
 			if heal > 0:
-				# The cleanse comes first, so lifting Blighted frees this very heal.
-				_cleanse(target, ability.cleanse_count + (ability.press_cleanse_count if good else 0), events)
 				_heal(actor, target, CombatMath.percent_min1(target.max_hp, heal), events)
 			if hasten > 0:
 				var waiting := maxi(0, target.next_turn_at - time_now)
@@ -1679,6 +1757,10 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		_on_downed(target, events)
 	elif perfect and outcome == Defense.Outcome.JUMP and Passive.amount(target, Passive.HEAL_ON_JUMP) > 0:
 		_heal(target, target, CombatMath.percent_min1(target.max_hp, Passive.amount(target, Passive.HEAL_ON_JUMP)), events)
+	if not downed and outcome == Defense.Outcome.PARRY and Passive.amount(target, Passive.PARRY_CLEANSE) > 0:
+		# Relics against marks (card #263): a parry shakes marks off.
+		if _cleanse(target, Passive.amount(target, Passive.PARRY_CLEANSE), events) > 0:
+			events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
 	if not downed and outcome == Defense.Outcome.NONE:
 		_apply_hit_marks(target, prompt, events)
 
@@ -1708,9 +1790,16 @@ func _reflect_thorns(target: Combatant, damage: int, events: Array[Dictionary]) 
 ## debuff (refreshing its turns if the hero already has it) and/or an AP drain. A hero downed by the
 ## hit, or one who defended it, gets nothing.
 func _apply_hit_marks(target: Combatant, prompt: Dictionary, events: Array[Dictionary]) -> void:
+	if target.has_status(Status.WARDED):
+		# Purify's ward (card #254): no mark gets through while it lasts.
+		return
 	var id := String(prompt.get("mark_status", ""))
 	if Status.is_debuff(id):
-		_add_status(target, id, maxi(1, int(prompt.get("mark_turns", 1))), int(sequence.source), events)
+		# Relics against marks (card #263) shorten them, never under one turn.
+		var turns := maxi(1, int(prompt.get("mark_turns", 1)) - Passive.amount(target, Passive.MARK_SHORTEN))
+		if _add_status(target, id, turns, int(sequence.source), events):
+			# A Slow moved the hero's next turn.
+			events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
 	var drain := int(prompt.get("mark_ap", 0))
 	if drain > 0:
 		_change_ap(target, -drain, "drain", events)
@@ -1853,6 +1942,13 @@ func _finish_sequence_if_done(events: Array[Dictionary]) -> void:
 		if reason == "completed":
 			_resolve_counters(source, events)
 		_second_winds(events)
+		var used := get_attack(String(sequence.action))
+		if used != null and used.self_destruct and source.is_alive():
+			# A Pus Tick's Burst (card #260) spends the tick.
+			events.append({"type": "self_destructed", "enemy": source.id, "attack": used.id})
+			source.hp = 0
+			events.append({"type": "downed", "target": source.id})
+			_on_downed(source, events)
 	sequence = {}
 	_end_of_turn(source, events)
 	events.append({"type": "turn_ended", "turn": turn_number, "actor": source.id})
@@ -1971,6 +2067,55 @@ func _all_perfect(character_id: int) -> bool:
 
 # --- statuses, healing, revive, timeline ------------------------------------------------------
 
+## A prompt's windows for `c`: a Shocked hero's are shocked_window_percent of their size (card #252).
+func _windows_for(c: Combatant, windows: Dictionary) -> Dictionary:
+	if c == null or not c.has_status(Status.SHOCKED):
+		return windows
+	var shrunk: Dictionary = {}
+	for outcome: Variant in windows:
+		var edges: Array = windows[outcome]
+		shrunk[outcome] = [mini(-1, CombatMath.percent(int(edges[0]), tuning.shocked_window_percent)),
+				maxi(1, CombatMath.percent(int(edges[1]), tuning.shocked_window_percent))]
+	return shrunk
+
+
+## The fellow monster a support move would help (card #259), or -1 when nobody needs it: the most
+## wounded standing monster at or under support_below_percent for a heal, the most wounded one with
+## no shield for a shield (itself included). Ties go to the lower id.
+func _support_target(enemy: Combatant, attack: EnemyAttackData) -> int:
+	var best := -1
+	var best_missing := -1
+	for id: int in living_enemy_ids():
+		var c := get_combatant(id)
+		match attack.support:
+			EnemyAttackData.Support.HEAL:
+				if c.hp * 100 > c.max_hp * attack.support_below_percent:
+					continue
+			EnemyAttackData.Support.SHIELD:
+				if c.has_status(Status.SHIELDED):
+					continue
+			_:
+				continue
+		var missing := _missing_hp_percent(c)
+		if missing > best_missing:
+			best = id
+			best_missing = missing
+	return best
+
+
+## A monster helps a fellow monster instead of striking: a heal or a shield (card #259).
+func _use_support(actor: Combatant, attack: EnemyAttackData, target: Combatant, events: Array[Dictionary]) -> void:
+	if target == null or not target.is_alive():
+		return
+	events.append({"type": "enemy_support", "enemy": actor.id, "attack": attack.id, "name": attack.display_name,
+			"target": target.id, "support": attack.support})
+	match attack.support:
+		EnemyAttackData.Support.HEAL:
+			_heal(actor, target, CombatMath.percent_min1(target.max_hp, attack.support_percent), events)
+		EnemyAttackData.Support.SHIELD:
+			_add_status(target, Status.SHIELDED, maxi(1, attack.support_turns), actor.id, events)
+
+
 ## Adds or refreshes a status. Returns true if the timeline changed (a speed change).
 func _add_status(target: Combatant, id: String, turns: int, source: int, events: Array[Dictionary]) -> bool:
 	var timeline_changed := false
@@ -2084,6 +2229,8 @@ func _on_downed(target: Combatant, events: Array[Dictionary]) -> void:
 		intents.erase(target.id)
 		target.clear_charge()
 		target.staggered_turns = 0
+		# A fellow monster's heal or shield aimed at it looks for someone else (card #259).
+		_refresh_intents(events)
 		return
 	for enemy_id: int in living_enemy_ids():
 		var enemy := get_combatant(enemy_id)
@@ -2168,6 +2315,9 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 	var staggered := not target.is_party() and target.staggered_turns > 0
 	if staggered:
 		amount = CombatMath.percent_min1(amount, 100 + tuning.stagger_damage_taken_percent)
+	if not target.is_party() and target.has_status(Status.SHIELDED):
+		# A Rot Priest's ward (card #259).
+		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tuning.shielded_damage_cut_percent))
 	var lost := _lose_hp(target, amount)
 	var event := {
 		"type": "damage",

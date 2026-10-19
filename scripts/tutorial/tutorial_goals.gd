@@ -11,8 +11,12 @@ const DODGE := "dodge"
 const JUMP := "jump"
 const COUNTER := "counter"
 const ULTIMATE := "ultimate"
+## The marks lesson (card #264): defend a hit that would leave a mark; lift a mark with a skill.
+const MARK_DEFENDED := "mark_defended"
+const CLEANSE := "cleanse"
 
-const FIGHT_GOALS: Array[String] = [GOOD_PRESS, SKILL_USED, SKILL_FOLLOW_UP, PARRY, DODGE, JUMP, COUNTER, ULTIMATE]
+const FIGHT_GOALS: Array[String] = [GOOD_PRESS, SKILL_USED, SKILL_FOLLOW_UP, PARRY, DODGE, JUMP, COUNTER, ULTIMATE,
+		MARK_DEFENDED, CLEANSE]
 ## A card to read, no fight action (the Relics and Echoes lesson, DESIGN.md 8.17): closing it moves on.
 const READ := "read"
 
@@ -30,6 +34,9 @@ static func reached(goal: String, event: Dictionary, sequence: Dictionary, ultim
 			return type == "counter"
 		ULTIMATE:
 			return type == "ability_used" and String(event.get("ability", "")) == ultimate_id
+		CLEANSE:
+			# A skill lifted a hero's mark (not one that just wore off).
+			return type == "status_changed" and not bool(event.get("active", true)) 					and Status.is_debuff(String(event.get("status", ""))) 					and String(sequence.get("kind", "")) == CombatEngine.SEQUENCE_SKILL
 	if type != "prompt_resolved" or int(event.get("seq", -1)) != int(sequence.get("seq", -2)):
 		return false
 	var outcome := int(event.get("outcome", Defense.Outcome.NONE))
@@ -46,7 +53,17 @@ static func reached(goal: String, event: Dictionary, sequence: Dictionary, ultim
 			return outcome == Defense.Outcome.DODGE
 		JUMP:
 			return outcome == Defense.Outcome.JUMP
+		MARK_DEFENDED:
+			return outcome != Defense.Outcome.NONE and role == CombatEngine.ROLE_DEFEND 					and not _mark_of(sequence, int(event.get("hit", -1))).is_empty()
 	return false
+
+
+## The mark a declared hit leaves ("" for a plain hit).
+static func _mark_of(sequence: Dictionary, hit: int) -> String:
+	var hits: Array = sequence.get("hits", [])
+	if hit < 0 or hit >= hits.size():
+		return ""
+	return String((hits[hit] as Dictionary).get("mark", ""))
 
 
 static func _role_of(sequence: Dictionary, idx: int) -> String:

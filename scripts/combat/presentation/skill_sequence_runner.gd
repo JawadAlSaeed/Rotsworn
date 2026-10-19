@@ -944,12 +944,24 @@ func _update_bolts(t: int) -> void:
 	if not _ranged:
 		return
 	var data := _ability.projectile
-	var target := _view.fighter(_first_target())
+	# A spell on every enemy (Radiance, card #261) sends one bolt to each; others to the first target.
+	var aims: Array[FighterView] = []
+	var aim_ids: Array[int] = []
+	if _ability.target == AbilityData.Target.ALL_ENEMIES:
+		for id: int in _targets:
+			if _mirror.is_alive(id):
+				aim_ids.append(id)
+	else:
+		aim_ids.append(_first_target())
+	for id: int in aim_ids:
+		var view := _view.fighter(id)
+		if view != null:
+			aims.append(view)
 	var list: Array[Dictionary] = []
 	var flight_us := _flight_us()
 	for idx: int in _bolt_release:
 		var prompt: Dictionary = _prompts[idx]
-		if _voided.has(idx) or target == null:
+		if _voided.has(idx) or aims.is_empty():
 			continue
 		var caster := _view.fighter(int(prompt.character))
 		if caster == null:
@@ -958,18 +970,19 @@ func _update_bolts(t: int) -> void:
 		if not SpellShot.in_flight(t, release, flight_us):
 			continue
 		var u := SpellShot.progress(t, release, flight_us)
-		var from := caster.centre_position()
-		var to := target.centre_position()
-		var toward := to - from
-		toward.y = 0.0
-		from += (toward.normalized() if toward.length() > 0.0 else Vector3.RIGHT) * data.launch_offset.x \
-				+ Vector3.UP * data.launch_offset.y
 		var frame := int(floor(float(t) / 1000.0 / maxf(1.0, float(data.loop_ms)) * float(data.hframes)))
-		for k: int in range(data.trail_count, 0, -1):
-			var tu := u - float(k * data.trail_gap_ms * 1000) / float(flight_us)
-			if tu > 0.0:
-				list.append(_bolt_entry(data, frame, _arc(from, to, tu, data.arc_height), BOLT_TRAIL_ALPHA / float(k)))
-		list.append(_bolt_entry(data, frame, _arc(from, to, u, data.arc_height), 1.0))
+		for target: FighterView in aims:
+			var from := caster.centre_position()
+			var to := target.centre_position()
+			var toward := to - from
+			toward.y = 0.0
+			from += (toward.normalized() if toward.length() > 0.0 else Vector3.RIGHT) * data.launch_offset.x \
+					+ Vector3.UP * data.launch_offset.y
+			for k: int in range(data.trail_count, 0, -1):
+				var tu := u - float(k * data.trail_gap_ms * 1000) / float(flight_us)
+				if tu > 0.0:
+					list.append(_bolt_entry(data, frame, _arc(from, to, tu, data.arc_height), BOLT_TRAIL_ALPHA / float(k)))
+			list.append(_bolt_entry(data, frame, _arc(from, to, u, data.arc_height), 1.0))
 	_view.set_projectiles(list)
 
 

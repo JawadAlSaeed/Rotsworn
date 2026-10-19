@@ -17,7 +17,7 @@ extends Resource
 ## The card after a try that did not reach the goal.
 @export_multiline var retry: String = ""
 ## What the player must do (TutorialGoals): "good_press", "skill_used", "skill_follow_up",
-## "parry", "dodge", "jump", "counter", "ultimate".
+## "parry", "dodge", "jump", "counter", "ultimate", "mark_defended", "cleanse".
 @export var goal: String = ""
 ## Fight staging: whose turns pass ("enemies": the heroes act; "party": the enemy attacks).
 @export var hold: String = ""
@@ -34,3 +34,7 @@ extends Resource
 @export var full_ap: bool = false
 ## Fill the team gauge when the step starts (the Team Ultimate lesson).
 @export var fill_gauge: bool = false
+## The marks lesson (card #264): this hero (a character id) carries this mark (a hero debuff id)
+## when the step starts, for the healer to lift. Empty: no mark.
+@export var mark_hero: String = ""
+@export var mark_status: String = ""

@@ -1,5 +1,10 @@
 [gd_resource type="Resource" script_class="ZoneData" format=3]
 
+[ext_resource type="Resource" path="res://data/encounters/slinger_and_husk.tres" id="p19_slinger_and_husk"]
+[ext_resource type="Resource" path="res://data/encounters/slinger_trio.tres" id="p19_slinger_trio"]
+[ext_resource type="Resource" path="res://data/encounters/brute_fight.tres" id="p19_brute_fight"]
+[ext_resource type="Resource" path="res://data/encounters/brute_and_rat.tres" id="p19_brute_and_rat"]
+[ext_resource type="Resource" path="res://data/encounters/priest_and_hyenas.tres" id="p19_priest_and_hyenas"]
 [ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_1a06s"]
 [ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="1_887qj"]
 [ext_resource type="Resource" path="res://data/zones/sections/ashen_ruins_end.tres" id="2_jf7hi"]
@@ -73,7 +78,7 @@ ambient = Array[ExtResource("1_887qj")]([SubResource("Resource_887qj"), SubResou
 start_section = ExtResource("24_lov35")
 middle_sections = Array[ExtResource("7_5kjuw")]([ExtResource("11_v7ogd"), ExtResource("12_oxtig"), ExtResource("13_8wraq"), ExtResource("14_xg1w6"), ExtResource("15_reuem")])
 end_section = ExtResource("2_jf7hi")
-roamer_pool = Array[ExtResource("15_8wraq")]([ExtResource("3_dw12m"), ExtResource("4_nptyf"), ExtResource("5_37mmr")])
+roamer_pool = Array[ExtResource("15_8wraq")]([ExtResource("3_dw12m"), ExtResource("4_nptyf"), ExtResource("5_37mmr"), ExtResource("p19_slinger_and_husk"), ExtResource("p19_slinger_trio"), ExtResource("p19_brute_fight"), ExtResource("p19_brute_and_rat"), ExtResource("p19_priest_and_hyenas")])
 shrines = Array[ExtResource("13_oxtig")]([ExtResource("20_xg1w6"), ExtResource("21_reuem"), ExtResource("22_y4j5e"), ExtResource("23_5rlgp")])
 wanderers = Array[ExtResource("13_oxtig")]([ExtResource("25_lxcww"), ExtResource("26_7d4ys"), ExtResource("27_ff5ii")])
 edge_texture_path = "res://assets/sprites/env/ruin_wall.png"

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+[ext_resource type="Resource" path="res://data/projectiles/pitch_glob.tres" id="3_pitch_glob"]
+
+[sub_resource type="Resource" id="Hit_0"]
+script = ExtResource("1_hit")
+impact_ms = 1200
+damage_percent = 110
+approach_ms = 520
+projectile = ExtResource("3_pitch_glob")
+
+[resource]
+script = ExtResource("2_attack")
+id = "slinger_pitch"
+display_name = "Pitch Throw"
+weight = 3
+hits = Array[ExtResource("1_hit")]([SubResource("Hit_0")])

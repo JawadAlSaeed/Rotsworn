@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="EncounterData" format=3]
 
 [ext_resource type="Resource" path="res://data/encounters/deep_guard_mire_mother.tres" id="1_ufa1c"]
+[ext_resource type="Resource" path="res://data/enemies/marsh_lantern.tres" id="p19_third"]
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_j3eis"]
 [ext_resource type="Resource" path="res://data/enemies/mire_mother.tres" id="3_wiskt"]
 [ext_resource type="Resource" path="res://data/enemies/carrion_fly.tres" id="4_t5bwl"]
@@ -16,8 +17,9 @@ script = ExtResource("9_le7oe")
 id = "guard_mire_mother"
 display_name = "Mire Mother"
 party = Array[ExtResource("5_ndo3t")]([ExtResource("6_pjitf"), ExtResource("7_07gkr"), ExtResource("8_hmf72")])
-enemies = Array[ExtResource("2_j3eis")]([ExtResource("3_wiskt"), ExtResource("4_t5bwl")])
+enemies = Array[ExtResource("2_j3eis")]([ExtResource("3_wiskt"), ExtResource("4_t5bwl"), ExtResource("p19_third")])
 team_ultimate = ExtResource("10_gdj0h")
 can_run = false
 mini_boss = true
 deep = ExtResource("1_ufa1c")
+enemy_hp_percent = 90

@@ -17,16 +17,17 @@ func _resolved(prompt: int, outcome: int, seq: int = 4) -> Dictionary:
 	return {"type": "prompt_resolved", "seq": seq, "prompt": prompt, "outcome": outcome}
 
 
-func test_the_tutorial_has_five_fight_lessons_then_relics() -> void:
+func test_the_tutorial_has_six_fight_lessons_then_relics() -> void:
+	# Phase 19 (card #264) added the marks lesson (6) before Relics and Echoes (7).
 	var data := load(TUTORIAL_PATH) as TutorialData
 	assert_not_null(data)
 	assert_not_null(data.encounter)
-	assert_eq(data.lesson_count(), 6)
+	assert_eq(data.lesson_count(), 7)
 	var cards: Array[String] = []
 	for step: TutorialStepData in data.steps:
 		if step.goal == TutorialGoals.READ:
 			# The Relics and Echoes lesson (DESIGN.md 8.17): cards only, at the end.
-			assert_eq(step.lesson, 6, "%s is the last lesson" % step.title)
+			assert_eq(step.lesson, 7, "%s is the last lesson" % step.title)
 			assert_false(step.text.is_empty(), step.title)
 			cards.append(step.title)
 			continue
@@ -193,3 +194,44 @@ func test_practice_keys_are_off_in_the_tutorial() -> void:
 	fight.set_tutorial(true)
 	assert_true(fight._is_real_fight(), "the tutorial has none")
 	fight.free()
+
+
+# --- the marks lesson (card #264) ----------------------------------------------------------
+
+func test_defending_the_dotted_hit_finishes_the_marks_step() -> void:
+	var sequence := {"seq": 4, "hits": [{"index": 0}, {"index": 1, "mark": "rotting"}],
+			"prompts": [{"role": "defend"}, {"role": "defend"}]}
+	var plain := {"type": "prompt_resolved", "seq": 4, "prompt": 0, "hit": 0, "outcome": Defense.Outcome.PARRY}
+	var dotted := {"type": "prompt_resolved", "seq": 4, "prompt": 1, "hit": 1, "outcome": Defense.Outcome.PARRY}
+	var missed := {"type": "prompt_resolved", "seq": 4, "prompt": 1, "hit": 1, "outcome": Defense.Outcome.NONE}
+	assert_false(TutorialGoals.reached(TutorialGoals.MARK_DEFENDED, plain, sequence), "a plain hit")
+	assert_true(TutorialGoals.reached(TutorialGoals.MARK_DEFENDED, dotted, sequence), "the dotted hit")
+	assert_false(TutorialGoals.reached(TutorialGoals.MARK_DEFENDED, missed, sequence), "taken")
+
+
+func test_only_a_skill_lifting_a_mark_finishes_the_cleanse_step() -> void:
+	var lifted := {"type": "status_changed", "target": 0, "status": "rotting", "active": false}
+	assert_true(TutorialGoals.reached(TutorialGoals.CLEANSE, lifted, {"kind": CombatEngine.SEQUENCE_SKILL}))
+	assert_false(TutorialGoals.reached(TutorialGoals.CLEANSE, lifted, {}), "it just wore off")
+	var other := {"type": "status_changed", "target": 0, "status": "guarded", "active": false}
+	assert_false(TutorialGoals.reached(TutorialGoals.CLEANSE, other, {"kind": CombatEngine.SEQUENCE_SKILL}), "not a mark")
+
+
+func test_the_marks_lesson_puts_a_mark_on_its_hero() -> void:
+	var data := load(TUTORIAL_PATH) as TutorialData
+	var step: TutorialStepData = null
+	for s: TutorialStepData in data.steps:
+		if s.goal == TutorialGoals.CLEANSE:
+			step = s
+	assert_not_null(step, "a cleanse step")
+	assert_true(Status.is_debuff(step.mark_status), "it marks with a hero debuff")
+	var setup := CombatSetup.from_encounter(data.encounter, Tuning.new(), 3)
+	setup.allow_practice = true
+	var engine := CombatEngine.new(setup)
+	engine.start()
+	var hero := -1
+	for c: Combatant in engine.combatants:
+		if c.is_party() and c.data_id == step.mark_hero:
+			hero = c.id
+	engine.submit(CombatCommands.practice({"mark_hero": hero, "mark_status": step.mark_status}))
+	assert_true(engine.get_combatant(hero).has_status(step.mark_status))

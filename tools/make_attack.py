@@ -8,9 +8,12 @@ Hit spec: dict(at=ms, dmg=percent, kind="normal"|"ground"|"rend"|"sweep", approa
 projectile="<id in data/projectiles>", look="wave"|"rocks", sfx="<impact cue>", anim="<prefix>",
 forced="rend"|"sweep" (what a normal hit becomes in a hard fight, card #187),
 forced_feint=bool (a feint in a hard fight only),
-mark="rotting"|"blighted"|"weakened" (a debuff the hit leaves on a hero it lands on undefended),
+mark="rotting"|"blighted"|"weakened"|"burning"|"shocked"|"slowed"|"dazed"|"hushed" (a debuff the hit
+leaves on a hero it lands on undefended),
 mark_turns=int (its length, default 2), ap_drain=int (AP the hero loses to the hit),
 hard_only=bool (the mark only comes in a hard fight: elite, guard, boss or deep variant; card #194)).
+A support move (card #259) has mode "ally", no hits, and extra fields support (1 heal, 2 shield),
+support_percent, support_below_percent, support_turns.
 """
 from __future__ import annotations
 
@@ -19,7 +22,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "data", "enemy_attacks")
-MODES = {"single": 0, "party": 1, "each": 2}
+MODES = {"single": 0, "party": 1, "each": 2, "ally": 3}
 KINDS = {"normal": 0, "ground": 1, "rend": 3, "sweep": 4}
 LOOKS = {"wave": 0, "rocks": 1}
 
@@ -33,7 +36,7 @@ ATTACKS: dict[str, tuple] = {
         dict(at=1300, dmg=100, kind="ground", approach=650, look="rocks"),
     ], {}),
     "bloat_bile_spit": ("Bile Spit", "single", 2, [
-        dict(at=1400, dmg=120, approach=650, projectile="bile_glob", mark="blighted", hard_only=True),
+        dict(at=1400, dmg=120, approach=650, projectile="bile_glob", mark="blighted"),
     ], {}),
     "bloat_bile_rain": ("Bile Rain", "party", 1, [
         dict(at=1300, dmg=55, approach=750, projectile="bile_glob"),
@@ -50,7 +53,7 @@ ATTACKS: dict[str, tuple] = {
     "shade_bolts": ("Shadow Bolts", "single", 2, [
         dict(at=1000, dmg=40, approach=500, projectile="shade_bolt"),
         dict(at=1450, dmg=40, approach=420, projectile="shade_bolt"),
-        dict(at=1800, dmg=40, approach=320, projectile="shade_bolt", ap_drain=1, hard_only=True),
+        dict(at=1800, dmg=40, approach=320, projectile="shade_bolt", ap_drain=1),
     ], {}),
     "shade_grave_spikes": ("Grave Spikes", "single", 1, [
         dict(at=900, dmg=45, approach=200, forced_feint=True),
@@ -66,7 +69,7 @@ ATTACKS: dict[str, tuple] = {
         dict(at=1900, dmg=50, approach=130),
     ], {}),
     "fly_maggot_spit": ("Maggot Spit", "single", 2, [
-        dict(at=1200, dmg=90, approach=420, projectile="bile_glob"),
+        dict(at=1200, dmg=90, approach=420, projectile="bile_glob", mark="rotting"),
     ], {}),
     "fly_strafe": ("Strafe", "each", 1, [
         dict(at=900, dmg=45, approach=150, forced_feint=True),
@@ -76,7 +79,7 @@ ATTACKS: dict[str, tuple] = {
     "hyena_pack_bite": ("Pack Bite", "each", 3, [
         dict(at=900, dmg=40, approach=220),
         dict(at=1250, dmg=40, approach=200),
-        dict(at=1950, dmg=40, approach=200, forced="rend", forced_feint=True, mark="weakened", hard_only=True),
+        dict(at=1950, dmg=40, approach=200, forced="rend", forced_feint=True, mark="weakened"),
     ], {}),
     "hyena_snap": ("Snap", "single", 2, [
         dict(at=800, dmg=80, approach=200),
@@ -96,7 +99,7 @@ ATTACKS: dict[str, tuple] = {
         dict(at=1150, dmg=110, approach=170, forced="rend"),
     ], {}),
     "toad_mud_spit": ("Mud Spit", "single", 2, [
-        dict(at=1300, dmg=100, approach=550, projectile="mud_glob"),
+        dict(at=1300, dmg=100, approach=550, projectile="mud_glob", mark="slowed"),
     ], {}),
     "toad_belly_flop": ("Belly Flop", "party", 1, [
         dict(at=1500, dmg=100, kind="ground", approach=650, look="rocks"),
@@ -104,7 +107,7 @@ ATTACKS: dict[str, tuple] = {
     # Phase 12 step 3: each variant's own move (DESIGN.md 2.16).
     "ashen_cinder_hail": ("Cinder Hail", "party", 2, [
         dict(at=1200, dmg=50, approach=600, projectile="cinder"),
-        dict(at=1750, dmg=50, approach=500, projectile="cinder"),
+        dict(at=1750, dmg=50, approach=500, projectile="cinder", mark="burning", hard_only=True),
     ], {}),
     "blight_bile_flood": ("Bile Flood", "single", 2, [
         dict(at=950, dmg=45, approach=450, projectile="bile_glob"),
@@ -120,7 +123,7 @@ ATTACKS: dict[str, tuple] = {
     ], {}),
     "hollow_bolt_storm": ("Bolt Storm", "party", 2, [
         dict(at=1000, dmg=45, approach=520, projectile="shade_bolt"),
-        dict(at=1500, dmg=45, approach=420, projectile="shade_bolt"),
+        dict(at=1500, dmg=45, approach=420, projectile="shade_bolt", mark="slowed", hard_only=True),
     ], {}),
     "bone_frenzy": ("Frenzy", "each", 2, [
         dict(at=800, dmg=40, approach=180),
@@ -176,7 +179,7 @@ ATTACKS: dict[str, tuple] = {
     "toad_brood_tide": ("Brood Tide", "party", 7, [
         dict(at=1100, dmg=34, kind="ground", approach=500),
         dict(at=1600, dmg=34, kind="ground", approach=450),
-        dict(at=2300, dmg=30, approach=550, projectile="mud_glob"),
+        dict(at=2300, dmg=30, approach=550, projectile="mud_glob", mark="slowed", hard_only=True),
         dict(at=2650, dmg=30, approach=170, forced="rend"),
         dict(at=3500, dmg=36, kind="ground", approach=650, look="rocks"),
         dict(at=4100, dmg=30, approach=450, projectile="mud_glob"),
@@ -188,11 +191,127 @@ ATTACKS: dict[str, tuple] = {
         dict(at=1650, dmg=28, approach=480, projectile="cinder"),
         dict(at=2100, dmg=28, approach=220, forced="rend"),
         dict(at=2900, dmg=34, kind="ground", approach=600, look="rocks"),
-        dict(at=3500, dmg=28, approach=480, projectile="cinder"),
+        dict(at=3500, dmg=28, approach=480, projectile="cinder", mark="burning", hard_only=True),
         dict(at=3950, dmg=28, approach=220, forced="sweep"),
         dict(at=4850, dmg=34, kind="ground", approach=650),
         dict(at=5450, dmg=32, approach=220, forced="rend", forced_feint=True),
     ], {"charge_turns": 2, "break_damage_percent": 36, "cooldown_turns": 2, "start_cooldown_turns": 2}),
+    # Phase 19 (cards #255 to #260): the new monsters, each with one marking hit (card #253).
+    # Rot Rats: small fry, always in threes; quick nibbles and one gnawing string that rots.
+    "rat_nibble": ("Nibble", "single", 3, [
+        dict(at=750, dmg=90, approach=160),
+    ], {}),
+    "rat_gnaw": ("Gnaw", "single", 2, [
+        dict(at=700, dmg=30, approach=160, forced_feint=True),
+        dict(at=960, dmg=30, approach=150),
+        dict(at=1300, dmg=30, approach=150, forced="sweep"),
+        dict(at=1600, dmg=30, approach=150, mark="rotting"),
+    ], {}),
+    "rat_scurry": ("Scurry", "each", 2, [
+        dict(at=800, dmg=45, approach=170, forced_feint=True),
+        dict(at=1150, dmg=45, approach=170),
+        dict(at=1600, dmg=45, approach=170, forced="rend"),
+    ], {}),
+    "rat_tide": ("Rat Tide", "party", 1, [
+        dict(at=900, dmg=35, approach=180),
+        dict(at=1250, dmg=35, approach=180),
+        dict(at=1850, dmg=35, approach=180, forced_feint=True),
+    ], {}),
+    # Ember Slinger: ranged only, every hit thrown.
+    "slinger_pitch": ("Pitch Throw", "single", 3, [
+        dict(at=1200, dmg=110, approach=520, projectile="pitch_glob"),
+    ], {}),
+    "slinger_volley": ("Ember Volley", "single", 2, [
+        dict(at=950, dmg=40, approach=450, projectile="cinder"),
+        dict(at=1300, dmg=40, approach=400, projectile="cinder"),
+        dict(at=1700, dmg=40, approach=380, projectile="cinder"),
+    ], {}),
+    "slinger_firepot": ("Firepot", "party", 2, [
+        dict(at=1400, dmg=75, approach=650, projectile="pitch_glob", mark="burning"),
+    ], {}),
+    "slinger_scatter": ("Scatter Shot", "each", 1, [
+        dict(at=900, dmg=45, approach=420, projectile="cinder"),
+        dict(at=1250, dmg=45, approach=380, projectile="cinder"),
+        dict(at=1700, dmg=45, approach=350, projectile="cinder"),
+    ], {}),
+    # Barrow Brute: slow and huge; its Barrow Slam is a rend everywhere and dazes.
+    "brute_maul": ("Grave Maul", "single", 3, [
+        dict(at=1700, dmg=120, approach=320),
+    ], {}),
+    "brute_slam": ("Barrow Slam", "single", 2, [
+        dict(at=2000, dmg=150, approach=300, kind="rend", mark="dazed", mark_turns=1, sfx="heavy_strike"),
+    ], {"cooldown_turns": 1}),
+    "brute_quake": ("Earth Breaker", "party", 2, [
+        dict(at=1600, dmg=90, kind="ground", approach=700, look="rocks"),
+    ], {}),
+    "brute_sweep": ("Wide Swing", "party", 1, [
+        dict(at=1500, dmg=85, approach=400, kind="sweep"),
+    ], {}),
+    "brute_double": ("Two Blows", "single", 1, [
+        dict(at=1300, dmg=70, approach=280, forced_feint=True),
+        dict(at=2200, dmg=80, approach=320, forced="rend"),
+    ], {}),
+    # Marsh Lantern: a floating caster, every hit a spark.
+    "lantern_spark": ("Spark Bolt", "single", 3, [
+        dict(at=1000, dmg=100, approach=320, projectile="spark_bolt"),
+    ], {}),
+    "lantern_zigzag": ("Zig-Zag", "single", 2, [
+        dict(at=900, dmg=35, approach=440, projectile="spark_bolt"),
+        dict(at=1240, dmg=35, approach=400, projectile="spark_bolt"),
+        dict(at=1640, dmg=35, approach=380, projectile="spark_bolt", mark="shocked"),
+    ], {}),
+    "lantern_chain": ("Arc Chain", "each", 2, [
+        dict(at=900, dmg=45, approach=340, projectile="spark_bolt"),
+        dict(at=1200, dmg=45, approach=320, projectile="spark_bolt"),
+        dict(at=1650, dmg=45, approach=300, projectile="spark_bolt"),
+    ], {}),
+    "lantern_burst": ("Static Burst", "party", 1, [
+        dict(at=1300, dmg=60, approach=500, projectile="spark_bolt"),
+    ], {}),
+    # Rot Priest: a helper; weak strikes, a hushing word, and it heals or shields its fellows.
+    "priest_censer": ("Censer Swing", "single", 3, [
+        dict(at=1000, dmg=80, approach=240, forced_feint=True),
+        dict(at=1550, dmg=40, approach=240, forced="rend"),
+    ], {}),
+    "priest_hush": ("Hush Word", "single", 2, [
+        dict(at=1200, dmg=70, approach=500, projectile="shade_bolt", mark="hushed"),
+    ], {}),
+    "priest_mend": ("Mend Rot", "ally", 4, [], {"support": 1, "support_percent": 25, "support_below_percent": 75,
+                                                 "max_in_a_row": 1, "cooldown_turns": 1}),
+    "priest_ward": ("Bone Ward", "ally", 3, [], {"support": 2, "support_turns": 2, "cooldown_turns": 2}),
+    # Pus Tick: announces its Burst like a Doom; the burst is a ground hit and spends the tick.
+    "tick_latch": ("Latch", "single", 1, [
+        dict(at=900, dmg=70, approach=200),
+    ], {}),
+    "tick_burst": ("Burst", "party", 20, [
+        dict(at=1300, dmg=130, kind="ground", approach=550, mark="blighted", sfx="splat"),
+    ], {"charge_turns": 3, "break_damage_percent": 50, "cooldown_turns": 1, "self_destruct": "true"}),
+    # Their deep twins' own moves (DESIGN.md 2.16).
+    "grave_rat_frenzy": ("Rat Frenzy", "each", 2, [
+        dict(at=750, dmg=35, approach=150, forced_feint=True),
+        dict(at=1000, dmg=35, approach=150),
+        dict(at=1400, dmg=35, approach=150, forced="rend"),
+        dict(at=1650, dmg=35, approach=150),
+    ], {}),
+    "cinder_fire_rain": ("Fire Rain", "party", 2, [
+        dict(at=1200, dmg=50, approach=600, projectile="pitch_glob"),
+        dict(at=1800, dmg=50, approach=520, projectile="pitch_glob", mark="burning", hard_only=True),
+    ], {}),
+    "tomb_grave_quake": ("Grave Quake", "party", 2, [
+        dict(at=1500, dmg=70, kind="ground", approach=650, look="rocks"),
+        dict(at=2300, dmg=70, kind="ground", approach=600),
+    ], {}),
+    "storm_thunderhead": ("Thunderhead", "party", 2, [
+        dict(at=1000, dmg=45, approach=420, projectile="spark_bolt"),
+        dict(at=1450, dmg=45, approach=330, projectile="spark_bolt"),
+    ], {}),
+    "hollow_litany": ("Black Litany", "party", 2, [
+        dict(at=1100, dmg=40, approach=480, projectile="shade_bolt"),
+        dict(at=1700, dmg=40, approach=420, projectile="shade_bolt"),
+    ], {}),
+    "bile_tick_spit": ("Bile Spit", "single", 2, [
+        dict(at=1100, dmg=80, approach=450, projectile="bile_glob"),
+    ], {}),
 }
 
 

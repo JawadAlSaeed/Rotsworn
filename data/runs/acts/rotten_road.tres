@@ -1,5 +1,8 @@
 [gd_resource type="Resource" script_class="ActData" format=3]
 
+[ext_resource type="Resource" path="res://data/encounters/rat_pack.tres" id="p19_rat_pack"]
+[ext_resource type="Resource" path="res://data/encounters/husk_trio.tres" id="p19_husk_trio"]
+[ext_resource type="Resource" path="res://data/encounters/slinger_trio.tres" id="p19_slinger_trio"]
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="1_84adt"]
 [ext_resource type="Resource" path="res://data/encounters/elite_twin_husks.tres" id="2_mv7kw"]
 [ext_resource type="Resource" path="res://data/encounters/bloat_and_gnat.tres" id="2_qdufg"]
@@ -37,6 +40,6 @@ final_look = ExtResource("15_wbtnn")
 final_map_icon_path = "res://assets/sprites/ui/map_lair_husk_lord.png"
 elites = Array[ExtResource("1_84adt")]([ExtResource("2_mv7kw"), ExtResource("3_v7eke"), ExtResource("4_t5rtb")])
 events = Array[ExtResource("5_6fojk")]([ExtResource("6_w7487"), ExtResource("7_1ibg6"), ExtResource("8_qdufg"), ExtResource("9_k1jud"), ExtResource("10_2hew3"), ExtResource("12_qj51d"), ExtResource("13_84cmk"), ExtResource("18_84cmk"), ExtResource("19_2c0ni"), ExtResource("20_wbtnn")])
-ambushes = Array[ExtResource("1_84adt")]([ExtResource("2_qdufg"), ExtResource("3_k1jud"), ExtResource("4_2hew3"), ExtResource("5_ys0x4"), ExtResource("6_qj51d")])
+ambushes = Array[ExtResource("1_84adt")]([ExtResource("2_qdufg"), ExtResource("3_k1jud"), ExtResource("4_2hew3"), ExtResource("5_ys0x4"), ExtResource("6_qj51d"), ExtResource("p19_rat_pack"), ExtResource("p19_husk_trio"), ExtResource("p19_slinger_trio")])
 ambush_picture_path = "res://assets/sprites/events/ambush_rotten_road.png"
 ambush_text = "The mark on the map was bait. Something on the Rotten Road was waiting for you."

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ProjectileData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/projectile_data.gd" id="1_proj"]
+
+[resource]
+script = ExtResource("1_proj")
+id = "spark_bolt"
+texture_path = "res://assets/sprites/fx/spark_bolt.png"
+hframes = 4
+loop_ms = 120
+pixel_size = 0.045
+arc_height = 0.1
+trail_count = 2
+trail_gap_ms = 35
+color = Color(0.6, 0.95, 1, 1)
+launch_sfx = "bolt_cast"
+launch_offset = Vector2(0.4, 0.5)

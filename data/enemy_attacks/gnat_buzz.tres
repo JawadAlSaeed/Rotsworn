@@ -40,6 +40,7 @@ impact_ms = 2350
 damage_percent = 25
 approach_ms = 150
 forced_kind = 4
+on_hit_status = "shocked"
 
 [resource]
 script = ExtResource("2_hn8e7")

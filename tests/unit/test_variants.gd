@@ -14,6 +14,13 @@ const BASES: Dictionary = {
 	"bone_hyena": "rot_hyena",
 	"plague_fly": "carrion_fly",
 	"elder_toad": "mire_toad",
+	# Phase 19 (cards #255 to #260).
+	"grave_rat": "rot_rat",
+	"cinder_slinger": "ember_slinger",
+	"tomb_brute": "barrow_brute",
+	"storm_lantern": "marsh_lantern",
+	"hollow_priest": "rot_priest",
+	"bile_tick": "pus_tick",
 }
 
 var _data: RunData

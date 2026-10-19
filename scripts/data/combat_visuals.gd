@@ -43,8 +43,10 @@ extends Resource
 ## Where each party slot stands (feet). Keep them on one straight line: ground waves travel with
 ## a front parallel to that line so they reach everyone at the same moment.
 @export var party_positions: Array[Vector3] = [Vector3(-2.1, 0.0, -1.5), Vector3(-2.9, 0.0, 0.0), Vector3(-3.7, 0.0, 1.5)]
-## Where each enemy slot stands (feet).
-@export var enemy_positions: Array[Vector3] = [Vector3(2.6, 0.0, 0.0), Vector3(3.8, 0.0, 1.6), Vector3(3.8, 0.0, -1.6)]
+## Where each enemy slot stands (feet): a diagonal line, the heroes' mirror image (user, phase 19),
+## so no monster stands straight behind another. The middle spot first (a lone monster stands
+## there), then the front one, then the back one.
+@export var enemy_positions: Array[Vector3] = [Vector3(2.9, 0.0, 0.0), Vector3(3.7, 0.0, 1.5), Vector3(2.1, 0.0, -1.5)]
 ## True if the character sheets are drawn facing right (the party faces right, toward the enemy).
 @export var party_art_faces_right: bool = true
 ## True if the enemy sheets are drawn facing left (the enemy faces left, toward the party).
@@ -609,6 +611,11 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var doom_gather_shake: float = 0.35
 @export_range(0.0, 1.0, 0.01) var doom_gather_flash: float = 0.12
 @export_range(0, 3000, 1, "suffix:ms") var doom_gather_beat_ms: int = 450
+## Phase 19 (cards #252, #259). A Dazed hero's lost turn holds this long (the DAZED popup); a
+## monster's heal or shield on a fellow monster: its wind-up lasts support_cast_ms, then half that
+## again while the helped one glows.
+@export_range(0, 3000, 1, "suffix:ms") var turn_lost_beat_ms: int = 650
+@export_range(100, 3000, 1, "suffix:ms") var support_cast_ms: int = 700
 @export var doom_gather_sfx: String = "alert"
 ## The Doom unleashes (before its attack banner): trauma, punch-in, flash, a beat.
 @export_range(0, 5000, 1, "suffix:ms") var doom_unleash_banner_ms: int = 1000

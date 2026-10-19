@@ -236,6 +236,11 @@ func _pick_item() -> AbilityData:
 	for ability: AbilityData in _menu.abilities():
 		if not ability.id.begins_with(CombatController.ITEM_PREFIX) or not _menu.is_usable(ability.id):
 			continue
+		if ability.cleanse_count > 0 and ability.target != AbilityData.Target.ALL_ENEMIES:
+			# Antidote, Holy Water (card #254): only for a marked hero, and only when Cass cannot.
+			if _any_marked() and not _healer_can_cleanse():
+				return ability
+			continue
 		match ability.target:
 			AbilityData.Target.DOWNED_ALLY:
 				return ability
@@ -246,6 +251,14 @@ func _pick_item() -> AbilityData:
 				if _mirror.living_enemy_ids().size() >= 2:
 					return ability
 	return null
+
+
+## True if this hero has a cleansing skill they can use now (so a cleansing item can wait).
+func _healer_can_cleanse() -> bool:
+	for ability: AbilityData in _menu.abilities():
+		if ability.cleanse_count > 0 and not ability.id.begins_with(CombatController.ITEM_PREFIX) 				and _menu.is_usable(ability.id):
+			return true
+	return false
 
 
 ## True if a standing hero carries a hero debuff (card #194).

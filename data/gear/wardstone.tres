@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "wardstone"
+display_name = "Wardstone"
+description = "The wearer starts every fight Warded: no mark can land on them for their first 2 turns."
+price = 60
+effect = 26
+amount = 2
+stat_points = 2
+echo_cost = 1

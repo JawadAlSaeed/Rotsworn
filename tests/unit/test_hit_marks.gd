@@ -366,10 +366,11 @@ func _healer_fight(skill_id: String, hurt: Array = [10, 10, 10]) -> CombatEngine
 	return engine
 
 
-func _mark_all(engine: CombatEngine, id: int) -> void:
+func _mark_all(engine: CombatEngine, id: int, but: String = "") -> void:
 	var events: Array[Dictionary] = []
 	for status: String in Status.DEBUFFS:
-		engine._add_status(engine.get_combatant(id), status, 3, FOE, events)
+		if status != but:
+			engine._add_status(engine.get_combatant(id), status, 3, FOE, events)
 
 
 func _mend(engine: CombatEngine, target: int, outcome: int) -> Array[Dictionary]:
@@ -384,15 +385,26 @@ func test_mend_lifts_one_mark_in_order_and_a_perfect_press_lifts_all() -> void:
 	_mark_all(engine, target)
 	var events := _mend(engine, target, PRESS)
 	var hero := engine.get_combatant(target)
-	assert_false(hero.has_status(Status.ROTTING), "rotting goes first")
-	assert_true(hero.has_status(Status.BLIGHTED))
-	assert_true(hero.has_status(Status.WEAKENED))
-	assert_eq(_status_events(events, Status.ROTTING).size(), 1)
+	assert_false(hero.has_status(Status.DEBUFFS[0]), "the first in cleanse order goes first")
+	assert_eq(hero.statuses.size(), Status.DEBUFFS.size() - 1, "only one goes")
+	assert_eq(_status_events(events, Status.DEBUFFS[0]).size(), 1)
 	engine = _healer_fight("mend")
 	target = engine.party_ids()[0]
 	_mark_all(engine, target)
 	_mend(engine, target, PERFECT)
-	assert_true(engine.get_combatant(target).statuses.is_empty(), "a perfect press lifts all three")
+	assert_true(engine.get_combatant(target).statuses.is_empty(), "a perfect press lifts them all")
+
+
+func test_rot_is_lifted_before_blight() -> void:
+	var engine := _healer_fight("mend")
+	var target := engine.party_ids()[0]
+	var hero := engine.get_combatant(target)
+	var events: Array[Dictionary] = []
+	engine._add_status(hero, Status.BLIGHTED, 3, FOE, events)
+	engine._add_status(hero, Status.ROTTING, 3, FOE, events)
+	_mend(engine, target, PRESS)
+	assert_false(hero.has_status(Status.ROTTING), "rotting goes first")
+	assert_true(hero.has_status(Status.BLIGHTED))
 
 
 func test_the_cleanse_frees_the_heal_from_blight() -> void:
@@ -412,17 +424,18 @@ func test_a_skill_that_does_not_heal_does_not_cleanse() -> void:
 	_mark_all(engine, target)
 	engine.submit(Fx.use(engine, "inspire", target))
 	engine.submit(Fx.resolve_now(engine, [[0, PERFECT]]))
-	assert_eq(engine.get_combatant(target).statuses.size(), 3)
+	assert_eq(engine.get_combatant(target).statuses.size(), Status.DEBUFFS.size())
 
 
 func test_sanctuary_lifts_a_mark_from_everyone() -> void:
 	var engine := _healer_fight("sanctuary")
 	for id: int in engine.party_ids():
-		_mark_all(engine, id)
+		# A Hushed healer could not cast it (card #252), so nobody carries Hush here.
+		_mark_all(engine, id, Status.HUSHED)
 	engine.submit(Fx.use(engine, "sanctuary", FOE))
 	engine.submit(Fx.resolve_now(engine, [[0, PRESS]]))
 	for id: int in engine.party_ids():
-		assert_eq(engine.get_combatant(id).statuses.size(), 2, "one mark gone for hero %d" % id)
+		assert_eq(engine.get_combatant(id).statuses.size(), Status.DEBUFFS.size() - 2, "one mark gone for hero %d" % id)
 
 
 func test_a_healing_item_lifts_a_mark() -> void:
@@ -435,14 +448,14 @@ func test_a_healing_item_lifts_a_mark() -> void:
 	var target := engine.party_ids()[0]
 	_mark_all(engine, target)
 	engine.submit(CombatCommands.use_item(engine.turn_number, engine.active_actor, 1, [target] as Array[int]))
-	assert_eq(engine.get_combatant(target).statuses.size(), 2, "one mark lifted by the salve")
+	assert_eq(engine.get_combatant(target).statuses.size(), Status.DEBUFFS.size() - 1, "one mark lifted by the salve")
 
 
 func test_shipped_healing_skills_cleanse_and_others_do_not() -> void:
 	for id: String in ["mend", "sanctuary"]:
 		var a := load("res://data/abilities/%s.tres" % id) as AbilityData
 		assert_eq(a.cleanse_count, 1, id)
-		assert_eq(a.cleanse_count + a.press_cleanse_count, 3, "%s: a perfect press clears all three" % id)
+		assert_true(a.cleanse_count + a.press_cleanse_count >= Status.DEBUFFS.size(), "%s: a perfect press clears all" % id)
 	assert_eq((load("res://data/abilities/renew.tres") as AbilityData).cleanse_count, 0)
 
 
@@ -497,7 +510,7 @@ func test_same_seed_same_commands_same_events() -> void:
 	assert_ne(_play(11), [], "the fight produced events")
 
 
-func test_shipped_marking_hits_are_few_hard_only_and_honest() -> void:
+func test_shipped_marking_hits_are_honest_and_one_per_string() -> void:
 	var marking := 0
 	for path: String in DirAccess.get_files_at("res://data/enemy_attacks"):
 		if not path.ends_with(".tres"):
@@ -508,29 +521,51 @@ func test_shipped_marking_hits_are_few_hard_only_and_honest() -> void:
 			if h.on_hit_status.is_empty() and h.on_hit_ap_drain == 0:
 				continue
 			in_string += 1
-			assert_true(h.on_hit_hard_only, "%s: marks only in hard fights" % attack.id)
 			assert_true(h.on_hit_status.is_empty() or Status.is_debuff(h.on_hit_status), "%s: a hero debuff" % attack.id)
 			assert_true(h.on_hit_status.is_empty() or h.on_hit_ap_drain == 0, "%s: one mark per hit" % attack.id)
 		assert_lte(in_string, 1, "%s: at most one marking hit per string" % attack.id)
 		marking += in_string
 	assert_gt(marking, 0, "some attacks mark")
-	assert_lte(marking, 10, "marks stay sparing")
 
 
-func test_the_tutorial_and_ordinary_fights_never_mark() -> void:
-	var tuning := Tuning.new()
-	for path: String in DirAccess.get_files_at("res://data/encounters"):
+func test_each_monster_has_one_marking_move_in_an_ordinary_fight() -> void:
+	# Card #253: one move in each monster's set marks in an ordinary fight; hard fights may add more.
+	for path: String in DirAccess.get_files_at("res://data/enemies"):
 		if not path.ends_with(".tres"):
 			continue
-		var encounter := load("res://data/encounters/" + path) as EncounterData
-		var setup := CombatSetup.from_encounter(encounter.duplicate(true) as EncounterData, tuning, 1)
-		var hard := setup.forced_hits
-		for e: EnemyData in setup.enemies:
-			if hard or e.forced_hits:
-				continue
-			for a: EnemyAttackData in e.attacks:
-				for h: AttackHitData in a.hits:
-					assert_false(h.marks_in(false), "%s / %s: no mark outside a hard fight" % [path, a.id])
+		var enemy := load("res://data/enemies/" + path) as EnemyData
+		var moves := 0
+		for attack: EnemyAttackData in enemy.all_attacks():
+			for h: AttackHitData in attack.hits:
+				if h.marks_in(false):
+					moves += 1
+					break
+		assert_lte(moves, 1, "%s: one marking move at most" % enemy.id)
+
+
+func test_a_runs_first_zone_never_marks_and_later_fights_do() -> void:
+	var run := RunState.begin(load("res://data/runs/rotten_road.tres") as RunData, Tuning.new(), 5)
+	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
+	assert_false(run.fight_setup(husk, 1, CombatSetup.Opening.NORMAL).allow_marks, "the first zone teaches the hits")
+	run.act = 1
+	assert_true(run.fight_setup(husk, 1, CombatSetup.Opening.NORMAL).allow_marks, "deeper, the marks come")
+
+
+func test_marks_held_back_in_the_first_zone_still_come_in_a_hard_fight() -> void:
+	var h := _hit(Status.ROTTING)
+	assert_true(h.marks_in(false, true), "an ordinary fight")
+	assert_false(h.marks_in(false, false), "the first zone")
+	assert_true(h.marks_in(true, false), "a hard fight in the first zone")
+
+
+func test_the_tutorial_only_marks_in_its_marks_lesson() -> void:
+	var data := load("res://data/tutorial/tutorial.tres") as TutorialData
+	for step: TutorialStepData in data.steps:
+		if step.forced_attack.is_empty() or step.goal == TutorialGoals.MARK_DEFENDED:
+			continue
+		var attack := load("res://data/enemy_attacks/%s.tres" % step.forced_attack) as EnemyAttackData
+		for h: AttackHitData in attack.hits:
+			assert_false(h.marks_in(false), "%s: %s leaves no mark" % [step.title, attack.id])
 
 
 func test_setup_rejects_a_mark_that_is_not_a_hero_debuff() -> void:
@@ -540,11 +575,11 @@ func test_setup_rejects_a_mark_that_is_not_a_hero_debuff() -> void:
 	assert_true(" ".join(problems).contains("not a hero debuff"))
 
 
-func test_the_shipped_rot_combo_rots_every_hero_it_lands_on_in_a_hard_fight_only() -> void:
+func test_the_shipped_rot_combo_rots_every_hero_it_lands_on_but_not_in_the_first_zone() -> void:
 	var combo := load("res://data/enemy_attacks/husk_rot_combo.tres") as EnemyAttackData
 	for hard: bool in [false, true]:
 		var setup := Fx.setup([combo])
-		setup.forced_hits = hard
+		setup.allow_marks = hard
 		var engine := CombatEngine.new(setup)
 		engine.start()
 		assert_eq(String(engine.sequence.kind), "enemy_attack")

@@ -1,5 +1,10 @@
 [gd_resource type="Resource" script_class="ZoneData" format=3]
 
+[ext_resource type="Resource" path="res://data/encounters/priest_coven.tres" id="p19_priest_coven"]
+[ext_resource type="Resource" path="res://data/encounters/lantern_and_toad.tres" id="p19_lantern_and_toad"]
+[ext_resource type="Resource" path="res://data/encounters/lantern_trio.tres" id="p19_lantern_trio"]
+[ext_resource type="Resource" path="res://data/encounters/tick_nest.tres" id="p19_tick_nest"]
+[ext_resource type="Resource" path="res://data/encounters/rat_pack.tres" id="p19_rat_pack"]
 [ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="1_axtek"]
 [ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_n6mcy"]
 [ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="2_jypso"]
@@ -87,7 +92,7 @@ ambient = Array[ExtResource("1_axtek")]([SubResource("Resource_axtek"), SubResou
 start_section = ExtResource("24_urcme")
 middle_sections = Array[ExtResource("7_pp0bv")]([ExtResource("11_jgxke"), ExtResource("12_52r0a"), ExtResource("13_1w4uv"), ExtResource("14_a0tev"), ExtResource("15_ll1ct")])
 end_section = ExtResource("2_xopu5")
-roamer_pool = Array[ExtResource("15_1w4uv")]([ExtResource("3_d0j50"), ExtResource("4_crqsi"), ExtResource("5_0fs8u")])
+roamer_pool = Array[ExtResource("15_1w4uv")]([ExtResource("3_d0j50"), ExtResource("4_crqsi"), ExtResource("5_0fs8u"), ExtResource("p19_lantern_and_toad"), ExtResource("p19_lantern_trio"), ExtResource("p19_tick_nest"), ExtResource("p19_rat_pack"), ExtResource("p19_priest_coven")])
 shrines = Array[ExtResource("13_52r0a")]([ExtResource("20_a0tev"), ExtResource("21_ll1ct"), ExtResource("22_gtb43"), ExtResource("23_1tnml")])
 wanderers = Array[ExtResource("13_52r0a")]([ExtResource("25_d5b0x"), ExtResource("26_ihusw"), ExtResource("27_ytkuw")])
 edge_height = 4.5

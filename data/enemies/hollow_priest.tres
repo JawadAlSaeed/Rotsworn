@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/rot_priest.tres" id="3_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/priest_censer.tres" id="a_priest_censer"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/priest_hush.tres" id="a_priest_hush"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/priest_mend.tres" id="a_priest_mend"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/priest_ward.tres" id="a_priest_ward"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/hollow_litany.tres" id="a_hollow_litany"]
+[ext_resource type="Resource" path="res://data/gear/pale_tithe.tres" id="g_pale_tithe"]
+[ext_resource type="Resource" path="res://data/gear/cleansing_bell.tres" id="g_cleansing_bell"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "hollow_priest"
+display_name = "Hollow Priest"
+color = Color(0.2, 0.22, 0.3, 1)
+sprite_path = "res://assets/sprites/enemies/hollow_priest.png"
+sprite_clips = ExtResource("3_clips")
+death_color = Color(0.75, 0.91, 0.37, 1)
+idle_cycle_percent = 120
+portrait_path = "res://assets/sprites/portraits/hollow_priest.png"
+sprite_pixel_size = 0.045
+hp_percent = 115
+power_percent = 80
+speed = 120
+attacks = Array[ExtResource("1_attack")]([ExtResource("a_priest_censer"), ExtResource("a_priest_hush"), ExtResource("a_priest_mend"), ExtResource("a_priest_ward"), ExtResource("a_hollow_litany")])
+gold = 27
+xp = 54
+voice_sfx = "voice_shade"
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_pale_tithe"), ExtResource("g_cleansing_bell")])
+forced_hits = true

@@ -21,6 +21,9 @@ const TAG_SIZE: int = 18
 const HP_BAR_HEIGHT: float = 28.0
 const HP_TEXT_SIZE: int = 22
 const STATUS_SIZE: int = 18
+## A mark's icon on the card (card #262): its 12-pixel art at 2x, and the gap to its turns.
+const MARK_ICON_PX: float = 24.0
+const MARK_GAP: int = 1
 const LOW_HP_PERCENT: int = 30
 const ACTIVE_BORDER_PX: int = 4
 const IDLE_BORDER_PX: int = 2
@@ -146,24 +149,43 @@ func refresh(f: Dictionary, active: bool) -> void:
 		_pips[i].texture = _pip_full if i < ap else _pip_empty
 	var statuses := f.get("statuses", {}) as Dictionary
 	_status_label.text = HudStyle.status_text(statuses, true)
-	_show_debuffs(HudStyle.debuff_words(statuses))
+	_show_debuffs(HudStyle.mark_badges(statuses))
 	modulate = Color.WHITE if alive else DOWN_TINT
 	_active = active
 	_apply_border()
 
 
-## Rebuilds the debuff words ([[id, "ROT 2"], ...]) only when they changed.
-func _show_debuffs(words: Array[Array]) -> void:
-	var key := str(words)
+## Rebuilds the mark badges ([[id, turns], ...]: an icon and the turns left, card #262) only when
+## they changed. A mark with no icon falls back to its word.
+func _show_debuffs(badges: Array[Array]) -> void:
+	var key := str(badges)
 	if key == _debuff_key:
 		return
 	_debuff_key = key
 	for child: Node in _debuff_box.get_children():
 		_debuff_box.remove_child(child)
 		child.queue_free()
-	for word: Array in words:
-		_debuff_box.add_child(HudStyle.make_label(String(word[1]), STATUS_SIZE,
-				HudStyle.STATUS_COLORS.get(String(word[0]), HudStyle.TEXT) as Color))
+	for badge: Array in badges:
+		var id := String(badge[0])
+		var color := HudStyle.STATUS_COLORS.get(id, HudStyle.TEXT) as Color
+		var turns := int(badge[1])
+		var icon := HudStyle.mark_icon(id)
+		var pair := _box(HBoxContainer.new(), MARK_GAP)
+		if icon != null:
+			var rect := TextureRect.new()
+			rect.texture = icon
+			rect.custom_minimum_size = Vector2(MARK_ICON_PX, MARK_ICON_PX)
+			rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			pair.add_child(rect)
+			if turns > 0:
+				pair.add_child(HudStyle.make_number(str(turns), STATUS_SIZE, color))
+		else:
+			pair.add_child(HudStyle.make_label(String(HudStyle.STATUS_NAMES.get(id, id.to_upper()))
+					+ (" %d" % turns if turns > 0 else ""), STATUS_SIZE, color))
+		_debuff_box.add_child(pair)
 
 
 ## Shows which co-op player controls this character (player < 0 hides the tag).

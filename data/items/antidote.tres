@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = "antidote"
+display_name = "Antidote"
+description = "In a fight: lifts every mark (rot, burn, shock, daze...) from one hero."
+price = 20
+effect = 7
+cleanse_count = 9
+find_weight = 8
+use_on_map = false
+use_in_fight = true
+icon_path = "res://assets/sprites/items/antidote.png"

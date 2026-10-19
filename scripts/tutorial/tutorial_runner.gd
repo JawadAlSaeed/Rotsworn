@@ -171,6 +171,7 @@ func _stage(step: TutorialStepData) -> bool:
 	_fight.practice_command({"hold_party": defend, "hold_enemies": step.hold == "enemies", "gate": defend,
 			"hero": hero, "tempo_percent": step.tempo_percent, "stage_attack": step.forced_attack,
 			"full_ap": step.full_ap, "fill_gauge": step.fill_gauge,
+			"mark_hero": _hero_id(step.mark_hero), "mark_status": step.mark_status,
 			# A hero choosing goes on to the enemy's gate (or to the lesson's hero); an enemy at the
 			# gate lets the heroes act.
 			"pass_turn": defend or engine.phase == CombatEngine.Phase.AWAITING_GATE

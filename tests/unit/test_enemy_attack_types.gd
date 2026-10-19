@@ -156,7 +156,9 @@ func _shipped_attacks() -> Array[EnemyAttackData]:
 	var list: Array[EnemyAttackData] = []
 	for file: String in DirAccess.get_files_at(ATTACK_DIR):
 		if file.ends_with(".tres"):
-			list.append(load(ATTACK_DIR.path_join(file)) as EnemyAttackData)
+			var attack := load(ATTACK_DIR.path_join(file)) as EnemyAttackData
+			if not attack.is_support():
+				list.append(attack)
 	return list
 
 

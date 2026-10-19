@@ -50,7 +50,7 @@ enum GroundLook {
 @export var impact_sfx: String = "hurt"
 @export_group("Marks (card #194)")
 ## A mark this hit leaves on a hero who takes it undefended and survives it: a hero debuff
-## ("rotting", "blighted", "weakened"; see Status), "" for none. A successful dodge, parry or jump
+## (see Status.DEBUFFS: "rotting", "burning", "shocked", "dazed", ...), "" for none. A successful dodge, parry or jump
 ## prevents it. The intent shows which hits mark, so it is always honest.
 @export var on_hit_status: String = ""
 ## How many of the hero's turns the debuff lasts (a second hit refreshes it, it never stacks).
@@ -91,14 +91,18 @@ func feint_in(hard: bool) -> bool:
 
 
 ## True if this hit leaves a mark (a status or an AP drain) in a fight (hard: see on_hit_hard_only).
-func marks_in(hard: bool) -> bool:
+## `allowed`: the fight lets ordinary hits mark (card #253: not the tutorial, not a run's first zone);
+## a hard fight always does.
+func marks_in(hard: bool, allowed: bool = true) -> bool:
 	if on_hit_hard_only and not hard:
+		return false
+	if not allowed and not hard:
 		return false
 	return not on_hit_status.is_empty() or on_hit_ap_drain > 0
 
 
 ## What the intent shows for a marking hit: its status id, else Status.MARK_AP_DRAIN, else "".
-func mark_id_in(hard: bool) -> String:
-	if not marks_in(hard):
+func mark_id_in(hard: bool, allowed: bool = true) -> String:
+	if not marks_in(hard, allowed):
 		return ""
 	return on_hit_status if not on_hit_status.is_empty() else Status.MARK_AP_DRAIN

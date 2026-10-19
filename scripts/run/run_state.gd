@@ -986,8 +986,10 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 	if in_ambush():
 		# An ambush is sprung on the party: no running unless the tuning allows it.
 		setup.can_run = setup.can_run and tuning.ambush_can_run
+	# The marks wait for the second zone (card #253): the first teaches the hits alone.
+	setup.allow_marks = _depth() > 0
 	if not encounter.boss or tuning.run_enemy_scale_bosses:
-		setup.enemy_hp_percent = enemy_hp_percent()
+		setup.enemy_hp_percent = CombatMath.percent(enemy_hp_percent(), encounter.enemy_hp_percent)
 		setup.enemy_power_percent = enemy_power_percent()
 	if encounter.elite:
 		setup.enemy_hp_percent = CombatMath.percent(setup.enemy_hp_percent,

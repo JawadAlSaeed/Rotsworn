@@ -45,8 +45,17 @@ const THORNS := "thorns"
 ## The team gauge this character's skills and follow-ups fill is this percent bigger.
 const GAUGE := "gauge"
 
+## Relics against marks (card #263). Marks left on this character last this many fewer turns (never
+## under 1).
+const MARK_SHORTEN := "mark_shorten"
+## Each perfect parry lifts this many of this character's marks (Status.DEBUFFS order).
+const PARRY_CLEANSE := "parry_cleanse"
+## The fight starts with this character Warded (no marks) for this many of their turns.
+const WARD_START := "ward_start"
+
 const ALL: Array[String] = [START_AP, AP_ON_COUNTER, HEAL_ON_JUMP, COUNTER, SECOND_WIND, PERFECT_PRESS, EXPOSED,
-	TOUGH, HEAL, ROT, CRIT, HEAL_TAKEN, KILL_HEAL, LOW_HP_POWER, DODGE_AP, PARRY_AP, THORNS, GAUGE]
+	TOUGH, HEAL, ROT, CRIT, HEAL_TAKEN, KILL_HEAL, LOW_HP_POWER, DODGE_AP, PARRY_AP, THORNS, GAUGE, MARK_SHORTEN,
+	PARRY_CLEANSE, WARD_START]
 
 
 static func amount(c: Combatant, key: String) -> int:

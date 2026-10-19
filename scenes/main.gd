@@ -315,6 +315,8 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_attributes(false)
 		"skills":
 			_show_sample_skills()
+		"skills_tree":
+			_show_real_tree(2)
 		"echoes":
 			_show_sample_echoes()
 		"party_relics":
@@ -457,6 +459,17 @@ func _show_sample_echoes(echoes: bool = true) -> void:
 ## --screen=skills: the skills screen on a run where each hero has a sample tree made of their
 ## own skills, arranged as in the skill tree proposal (docs/proposals/skill_trees.html), with
 ## Alder at level 4 (for pictures; the shipped heroes have no tree yet).
+## Dev picture: hero `hero`'s real skill tree (phase 19 gave some branches a fourth skill), with
+## points to spend.
+func _show_real_tree(hero: int) -> void:
+	_run = RunState.begin(_run_data, _tuning, 3)
+	_run.add_xp(hero, 1200)
+	var skills := SkillsScreen.new()
+	skills.name = "Skills"
+	add_child(skills)
+	skills.setup(_run, hero)
+
+
 func _show_sample_skills() -> void:
 	var data := _run_data.duplicate() as RunData
 	var party: Array[CharacterData] = []

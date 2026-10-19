@@ -70,6 +70,10 @@ const RELICS := {
 	"rain_pouch": [Attributes.Kind.VITALITY, 2, 1],
 	"black_ichor": [Attributes.Kind.MIGHT, 3, 2],
 	"gravebloom": [Attributes.Kind.AGILITY, 3, 2],
+	# Phase 19: the Relics against marks (card #263), written by hand in data/gear/.
+	"wardstone": [Attributes.Kind.VITALITY, 2, 1],
+	"bitter_root": [Attributes.Kind.VITALITY, 2, 1],
+	"cleansing_bell": [Attributes.Kind.DEFENSE, 3, 2],
 }
 
 ## Gear ids whose player-facing name changes.
@@ -96,6 +100,19 @@ const DROPS := {
 	"ash_warden": ["ash_veil", "last_ember", "pale_tithe"],
 	"husk_lord": ["war_drum", "oathbreakers_band", "gravebound_ring"],
 	"hollow_king": ["rotten_crown", "oathbreakers_band", "second_wind"],
+	# Phase 19: the new monsters and their deep twins.
+	"rot_rat": ["lucky_coin", "quick_boots", "bitter_root"],
+	"grave_rat": ["bloodletters_fang", "bitter_root"],
+	"ember_slinger": ["ember_stone", "keen_eye", "wardstone"],
+	"cinder_slinger": ["last_ember", "ash_veil", "wardstone"],
+	"barrow_brute": ["thick_hide", "thorned_gauntlet", "cleansing_bell"],
+	"tomb_brute": ["hollow_mantle", "chain_of_silence", "cleansing_bell"],
+	"marsh_lantern": ["keen_eye", "echo_charm", "wardstone"],
+	"storm_lantern": ["plague_bell", "cleansing_bell"],
+	"rot_priest": ["menders_charm", "heartleaf", "bitter_root"],
+	"hollow_priest": ["pale_tithe", "cleansing_bell"],
+	"pus_tick": ["hunger_charm", "wardstone"],
+	"bile_tick": ["plague_bell", "black_ichor"],
 }
 
 

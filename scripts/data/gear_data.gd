@@ -60,6 +60,13 @@ enum Effect {
 	WIN_WOUND,
 	## Critical hit chance +amount percent points (DESIGN.md 8.2).
 	CRIT,
+	# --- Relics against marks (phase 19, card #263). Appended like the rest. ---
+	## Marks on this character last amount fewer turns (never under 1).
+	MARK_SHORTEN,
+	## Each parry lifts amount of this character's marks.
+	PARRY_CLEANSE,
+	## Every fight starts with this character Warded (no marks) for amount of their turns.
+	WARD_START,
 }
 
 ## Effect -> Passive key for the effects the fight engine runs ("" = folded into stats or the run).
@@ -72,6 +79,8 @@ const PASSIVE_KEYS := {
 	Effect.LOW_HP_POWER: Passive.LOW_HP_POWER, Effect.DODGE_AP: Passive.DODGE_AP,
 	Effect.PARRY_AP: Passive.PARRY_AP, Effect.THORNS: Passive.THORNS, Effect.GAUGE: Passive.GAUGE,
 	Effect.ROT: Passive.ROT, Effect.CRIT: Passive.CRIT,
+	Effect.MARK_SHORTEN: Passive.MARK_SHORTEN, Effect.PARRY_CLEANSE: Passive.PARRY_CLEANSE,
+	Effect.WARD_START: Passive.WARD_START,
 }
 
 ## What a Relic is for, as the Echoes screen's tabs group them (like Expedition 33's Lumina tabs).
@@ -84,6 +93,7 @@ const CATEGORIES := {
 	Effect.THORNS: Category.OFFENSIVE,
 	Effect.MAX_HP: Category.DEFENSIVE, Effect.TOUGH: Category.DEFENSIVE, Effect.SECOND_WIND: Category.DEFENSIVE,
 	Effect.HEAL_ON_JUMP: Category.DEFENSIVE, Effect.KILL_HEAL: Category.DEFENSIVE, Effect.SPEED: Category.DEFENSIVE,
+	Effect.MARK_SHORTEN: Category.DEFENSIVE, Effect.PARRY_CLEANSE: Category.DEFENSIVE, Effect.WARD_START: Category.DEFENSIVE,
 }
 
 ## Effects that only exist as a drawback: their amount is a loss, not a gain.
@@ -173,6 +183,12 @@ static func effect_text(effect: Effect, amount: int) -> String:
 			return "Lose %d%% max HP per win" % amount
 		Effect.CRIT:
 			return "Critical hits +%d%%" % amount
+		Effect.MARK_SHORTEN:
+			return "Marks last %d turn%s less" % [amount, "" if amount == 1 else "s"]
+		Effect.PARRY_CLEANSE:
+			return "Each parry lifts %d mark%s" % [amount, "" if amount == 1 else "s"]
+		Effect.WARD_START:
+			return "Warded for %d turn%s at fight start" % [amount, "" if amount == 1 else "s"]
 	return ""
 
 

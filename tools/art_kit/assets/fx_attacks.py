@@ -86,6 +86,11 @@ SHADE = M["shade_edge"]
 SHADE_GLOW = M["glow_violet"]
 LIGHT = Material.make("fx_light", "#fff2b8", below=2, above=1, emissive=True)
 LIGHT_HALO = M["glow_amber"]
+# Phase 19: the Marsh Lantern's spark (a crackling yellow-white heart in a cyan halo) and the Ember
+# Slinger's burning pitch (black tar with ember flames licking over it).
+SPARK = Material.make("fx_spark", "#fff6a8", below=2, above=1, emissive=True)
+SPARK_HALO = M["glow_cyan"]
+TAR = Material.make("fx_tar", "#2e2626", below=1, above=2, wrap=0.3, spec=0.5, spec_power=12.0)
 
 # Every projectile model is centred here (model units = pixels), in the middle of its cell, and
 # drawn K times the size of its first sketch (12 px cells were too small to read in a fight).
@@ -165,7 +170,40 @@ def _light(frame: int) -> np.ndarray:
     return finish(render(model, _cam()), contour_gap=0)
 
 
+def _spark(frame: int) -> np.ndarray:
+    """The Marsh Lantern's spark bolt (card #258): a jagged yellow-white heart that crackles (its
+    bumps change every frame) inside a cyan halo with a forked tail."""
+    phase = frame / PROJ_FRAMES * math.tau
+    halo = Ellipsoid(SPARK_HALO, CENTRE, (K * (3.3 + 0.5 * math.sin(phase)), K * 2.6, K * 2.4), group="halo",
+                     bumps=(0.9, 1.0, 31 + frame))
+    fork_a = Ellipsoid(SPARK_HALO, (CENTRE[0] + K * 3.2, CENTRE[1] + K * (1.0 + 0.6 * math.cos(phase)), 0.0),
+                       (K * 1.8, K * 0.7, K * 0.7), group="halo")
+    fork_b = Ellipsoid(SPARK_HALO, (CENTRE[0] + K * 3.0, CENTRE[1] - K * (1.1 + 0.6 * math.sin(phase)), 0.0),
+                       (K * 1.6, K * 0.6, K * 0.6), group="halo")
+    heart = Ellipsoid(SPARK, (CENTRE[0] - K * 0.4, CENTRE[1], K * 2.0), (K * 1.9, K * 1.5, K * 1.4), group="heart",
+                      bumps=(0.6, 0.9, 41 + frame))
+    model = Union(SmoothUnion(halo, fork_a, fork_b, k=K * 1.2), heart)
+    return finish(render(model, _cam()), contour_gap=0)
+
+
+def _pitch(frame: int) -> np.ndarray:
+    """The Ember Slinger's burning pitch (card #256): a glob of black tar with ember flames on its
+    top and a drip, wobbling as it flies."""
+    phase = frame / PROJ_FRAMES * math.tau
+    tar = Ellipsoid(TAR, CENTRE, (K * (3.6 + 0.4 * math.cos(phase)), K * (3.0 - 0.3 * math.cos(phase)), K * 3.0),
+                    group="tar", bumps=(0.5, 0.4, 51 + frame))
+    drip = Sphere(TAR, (CENTRE[0] + K * 2.8, CENTRE[1] - K * (1.4 + 0.3 * math.sin(phase)), 0.0), K * 1.1, group="tar")
+    flame_a = Ellipsoid(EMBER, (CENTRE[0] - K * 0.8, CENTRE[1] + K * (2.4 + 0.4 * math.sin(phase)), K * 1.2),
+                        (K * 1.6, K * (1.8 + 0.4 * math.cos(phase)), K * 1.4), group="flame")
+    flame_b = Ellipsoid(EMBER, (CENTRE[0] + K * 1.2, CENTRE[1] + K * (1.8 + 0.4 * math.cos(phase)), K * 1.0),
+                        (K * 1.2, K * (1.4 + 0.3 * math.sin(phase)), K * 1.1), group="flame")
+    model = Union(SmoothUnion(tar, drip, k=K * 1.2), flame_a, flame_b)
+    return finish(render(model, _cam()), contour_gap=0)
+
+
 PROJECTILES = {
+    "spark_bolt": _spark,
+    "pitch_glob": _pitch,
     "cinder": _cinder,
     "mud_glob": _mud,
     "bile_glob": _glob,

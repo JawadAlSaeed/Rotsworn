@@ -84,13 +84,13 @@ enum Target {
 ## Brings the target ally's next turn closer by this percent of the wait left.
 @export_range(0, 100, 1, "suffix:%") var turn_hasten_percent: int = 0
 @export_range(0, 100, 1, "suffix:%") var press_turn_hasten_percent: int = 0
-## Cleanse (card #194): removes this many hero debuffs (rotting, then blighted, then weakened) from
-## each ally it heals, before the heal lands; the press_ amount is added on an all-perfect press.
-## 3 or more clears all of them.
-@export_range(0, 3) var cleanse_count: int = 0
-@export_range(0, 3) var press_cleanse_count: int = 0
+## Cleanse (card #194): removes this many hero debuffs (Status.DEBUFFS order) from each ally it
+## reaches, before any heal lands; the press_ amount is added on an all-perfect press.
+## Status.CLEANSE_ALL (9) clears all of them.
+@export_range(0, 9) var cleanse_count: int = 0
+@export_range(0, 9) var press_cleanse_count: int = 0
 ## Status put on the target: "" (none), "exposed", "guarded", "taunted", "slowed", "riposte",
-## "bleeding", "regen", "marked", "empowered"
+## "bleeding", "regen", "marked", "empowered", "warded" (Purify)
 ## (see scripts/combat/core/status.gd).
 @export var status: String = ""
 ## How many of the holder's turns the status lasts ("slowed", "bleeding", "regen"), or how many

@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/rot_priest.tres" id="3_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/priest_censer.tres" id="a_priest_censer"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/priest_hush.tres" id="a_priest_hush"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/priest_mend.tres" id="a_priest_mend"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/priest_ward.tres" id="a_priest_ward"]
+[ext_resource type="Resource" path="res://data/gear/menders_charm.tres" id="g_menders_charm"]
+[ext_resource type="Resource" path="res://data/gear/heartleaf.tres" id="g_heartleaf"]
+[ext_resource type="Resource" path="res://data/gear/bitter_root.tres" id="g_bitter_root"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "rot_priest"
+display_name = "Rot Priest"
+color = Color(0.42, 0.35, 0.43, 1)
+sprite_path = "res://assets/sprites/enemies/rot_priest.png"
+sprite_clips = ExtResource("3_clips")
+death_color = Color(0.75, 0.91, 0.37, 1)
+idle_cycle_percent = 120
+portrait_path = "res://assets/sprites/portraits/rot_priest.png"
+sprite_pixel_size = 0.045
+hp_percent = 90
+power_percent = 70
+speed = 110
+attacks = Array[ExtResource("1_attack")]([ExtResource("a_priest_censer"), ExtResource("a_priest_hush"), ExtResource("a_priest_mend"), ExtResource("a_priest_ward")])
+gold = 18
+xp = 36
+voice_sfx = "voice_shade"
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_menders_charm"), ExtResource("g_heartleaf"), ExtResource("g_bitter_root")])

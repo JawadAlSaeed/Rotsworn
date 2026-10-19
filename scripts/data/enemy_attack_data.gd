@@ -10,6 +10,20 @@ enum TargetMode {
 	## Each hero in turn (Pack Bite, DESIGN.md 3.11): hit i strikes only the i-th target, the
 	## targets being every standing hero from a random one on, in party order. Normal hits only.
 	EACH,
+	## One fellow monster (a support move, card #259): no hits, no defence; see `support`.
+	ALLY,
+}
+
+## What a support move does to the fellow monster it picks (card #259). A support move has no hits.
+enum Support {
+	## An ordinary attack.
+	NONE,
+	## Heals the most wounded standing monster (itself included) by support_percent of its max HP.
+	## Only picked while one of them is at or under support_below_percent of its max HP.
+	HEAL,
+	## Shields a standing monster (Status.SHIELDED) for support_turns of its turns. Only picked while
+	## one of them has no shield.
+	SHIELD,
 }
 
 ## Unique id used in events and save data.
@@ -45,6 +59,15 @@ enum TargetMode {
 ## gathered, the Doom is cancelled and the enemy is staggered (tuning stagger_turns,
 ## stagger_damage_taken_percent).
 @export_range(0, 100, 1, "suffix:%") var break_damage_percent: int = 0
+@export_group("Support (card #259)")
+## A support move helps a fellow monster instead of striking (target_mode ALLY, no hits).
+@export var support: Support = Support.NONE
+@export_range(0, 100, 1, "suffix:%") var support_percent: int = 0
+@export_range(1, 100, 1, "suffix:%") var support_below_percent: int = 75
+@export_range(0, 10) var support_turns: int = 2
+@export_group("Self-destruct (card #260)")
+## The attacker falls when this attack is over (a Pus Tick's Burst): it is spent.
+@export var self_destruct: bool = false
 @export_group("")
 ## Play the alert sound when the attack starts.
 @export var alert_cue: bool = true
@@ -55,6 +78,11 @@ enum TargetMode {
 @export_range(20, 300, 1, "suffix:%") var ring_lead_percent: int = 100
 ## Hits in the order they land. Impact times must increase.
 @export var hits: Array[AttackHitData] = []
+
+
+## True for a support move (heals or shields a fellow monster, card #259).
+func is_support() -> bool:
+	return support != Support.NONE
 
 
 ## True for a Charged Doom (charge_turns above 0).

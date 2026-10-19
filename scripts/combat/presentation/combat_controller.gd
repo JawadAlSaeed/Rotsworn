@@ -798,6 +798,25 @@ func _play(ev: Dictionary) -> void:
 			mirror.apply(ev)
 			_show_feedback(ev)
 			await _wait_ms(_take_kill_freeze())
+		"turn_lost":
+			# A Dazed hero's turn passes (card #252).
+			mirror.apply(ev)
+			var dazed := view.fighter(int(ev.actor))
+			if dazed != null:
+				Sfx.play("status_expired")
+				dazed.play("hurt", _visuals.hurt_pose_ms, FighterView.PRIO_BIG)
+				hud.popup("DAZED", dazed.head_position(), HudStyle.STATUS_COLORS.get(String(ev.status), HudStyle.TEXT) as Color)
+			await _wait_ms(_visuals.turn_lost_beat_ms)
+		"enemy_support":
+			# A monster heals or shields a fellow monster (card #259): its name in the banner, a cast.
+			mirror.apply(ev)
+			await _play_enemy_support(ev)
+		"self_destructed":
+			mirror.apply(ev)
+			var spent := view.fighter(int(ev.enemy))
+			if spent != null:
+				spent.flash(_visuals.flash_ms * 3, HudStyle.LATE, 0.9)
+				view.camera.add_trauma(_visuals.phase_shake)
 		"timed_sequence_declared":
 			mirror.apply(ev)
 			hud.action_menu.close()
@@ -966,11 +985,27 @@ func _menu_entry(actor: int, ability: AbilityData) -> Dictionary:
 	var reason := ""
 	if ability.team_ultimate and mirror.team_gauge < _tuning.team_gauge_max:
 		reason = "Needs a full team gauge. Good follow-up presses fill it."
+	elif _hushed_out(actor, ability):
+		reason = "Hushed: only Attack and items until it wears off."
 	elif ap < ability.ap_cost:
 		reason = "Needs %d AP (you have %d). Parry hits to gain AP." % [ability.ap_cost, ap]
 	elif targets.is_empty():
 		reason = "Nobody is down." if ability.target == AbilityData.Target.DOWNED_ALLY else "No target."
 	return {"ability": ability, "usable": reason.is_empty(), "reason": reason, "targets": targets, "pick_target": pick}
+
+
+## True if a Hushed hero cannot use this skill (card #252; the engine's CombatEngine.is_hushed_out
+## from the mirror): every skill is out, the basic attack, items, Run and the team ultimate stay.
+func _hushed_out(actor: int, ability: AbilityData) -> bool:
+	var f := mirror.fighter(actor)
+	if not (f.get("statuses", {}) as Dictionary).has(Status.HUSHED):
+		return false
+	if ability.escape or ability.team_ultimate or ability.id.begins_with(ITEM_PREFIX):
+		return false
+	var slot := int(f.get("slot", -1))
+	if _setup == null or slot < 0 or slot >= _setup.party.size() or _setup.party[slot].basic_attack == null:
+		return true
+	return ability.id != _setup.party[slot].basic_attack.id
 
 
 ## The stand-in ability for a fight item (cached per uid).
@@ -983,6 +1018,8 @@ func _item_ability(info: Dictionary) -> AbilityData:
 	ability.display_name = String(info.name)
 	ability.description = String(info.description)
 	ability.ap_cost = int(info.ap_cost)
+	# Lets the bot see a cleansing item (Antidote, Holy Water, card #254).
+	ability.cleanse_count = int(info.get("cleanse", 0))
 	match String(info.target):
 		CombatEngine.ITEM_ALLY:
 			ability.target = AbilityData.Target.ALLY
@@ -1188,6 +1225,12 @@ func _check_mirror() -> void:
 # --- animations -------------------------------------------------------------------------------
 
 func _build_fighters() -> void:
+	# Tall monsters stand at the back so they hide nobody (CombatView.enemy_spots).
+	var heights: Array[float] = []
+	for id: int in mirror.enemy_ids:
+		var enemy := _find_data(String(mirror.fighter(id).data_id), false) as EnemyData
+		heights.append(CombatView.enemy_height(enemy) if enemy != null else 0.0)
+	var spots := CombatView.enemy_spots(heights, _visuals.enemy_positions)
 	for id: int in mirror.fighters:
 		var f := mirror.fighter(id)
 		var is_party := int(f.team) == Combatant.Team.PARTY
@@ -1196,7 +1239,10 @@ func _build_fighters() -> void:
 			push_error("CombatController: no data resource for '%s'" % String(f.data_id))
 			continue
 		_data_by_id[id] = data
-		view.add_fighter(id, is_party, int(f.slot), data)
+		var slot := int(f.slot)
+		if not is_party and slot < spots.size():
+			slot = spots[slot]
+		view.add_fighter(id, is_party, slot, data)
 	hud.build_fighters(mirror, _data_by_id)
 	_owners.clear()
 	for id: int in mirror.party_ids:
@@ -1396,6 +1442,29 @@ func _shout(actor: int, ability: AbilityData) -> void:
 		var data := _data_by_id.get(id) as CharacterData
 		if data != null and data.basic_attack != ability and not data.shout_sfx.is_empty():
 			Sfx.play(data.shout_sfx)
+
+
+## A support move on screen (card #259): the banner names it and the monster it helps, the helper
+## winds up and casts, and the helped monster glows (the healed / status_changed events that follow
+## show the numbers and the SHIELD word).
+func _play_enemy_support(ev: Dictionary) -> void:
+	var helper := view.fighter(int(ev.enemy))
+	var helped := view.fighter(int(ev.target))
+	var helped_name := String(mirror.fighter(int(ev.target)).get("display_name", ""))
+	hud.show_banner(String(ev.get("name", "?")), HudStyle.HEAL, "> " + helped_name.to_upper())
+	var voice := _voice_of(int(ev.enemy))
+	if not voice.is_empty():
+		Sfx.play(voice)
+	if helper != null:
+		helper.play("windup", _visuals.support_cast_ms, FighterView.PRIO_BIG)
+	await _wait_ms(_visuals.support_cast_ms)
+	Sfx.play("heal")
+	if helper != null:
+		helper.play("slam", _visuals.hurt_pose_ms, FighterView.PRIO_BIG)
+	if helped != null:
+		helped.flash(_visuals.flash_ms * 3, HudStyle.HEAL, 0.8)
+	await _wait_ms(_visuals.support_cast_ms / 2)
+	hud.hide_banner()
 
 
 ## An enemy's voice cue (empty for heroes and silent enemies).

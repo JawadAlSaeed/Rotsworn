@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+
+[sub_resource type="Resource" id="Hit_0"]
+script = ExtResource("1_hit")
+impact_ms = 700
+damage_percent = 30
+approach_ms = 160
+forced_feint = true
+
+[sub_resource type="Resource" id="Hit_1"]
+script = ExtResource("1_hit")
+impact_ms = 960
+damage_percent = 30
+approach_ms = 150
+
+[sub_resource type="Resource" id="Hit_2"]
+script = ExtResource("1_hit")
+impact_ms = 1300
+forced_kind = 4
+damage_percent = 30
+approach_ms = 150
+
+[sub_resource type="Resource" id="Hit_3"]
+script = ExtResource("1_hit")
+impact_ms = 1600
+damage_percent = 30
+approach_ms = 150
+on_hit_status = "rotting"
+
+[resource]
+script = ExtResource("2_attack")
+id = "rat_gnaw"
+display_name = "Gnaw"
+weight = 2
+hits = Array[ExtResource("1_hit")]([SubResource("Hit_0"), SubResource("Hit_1"), SubResource("Hit_2"), SubResource("Hit_3")])

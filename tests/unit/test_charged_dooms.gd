@@ -550,7 +550,9 @@ func test_no_normal_enemy_has_a_doom() -> void:
 			continue
 		var enemy := load("res://data/enemies/" + file) as EnemyData
 		if enemy != null and not bosses.has(enemy):
-			assert_eq(_dooms_of(enemy).size(), 0, enemy.id)
+			# A Pus Tick's Burst (card #260) is announced like a Doom but spends the tick.
+			for doom: EnemyAttackData in _dooms_of(enemy):
+				assert_true(doom.self_destruct, enemy.id + ": only a burst")
 
 
 func test_shipped_boss_fights_still_validate() -> void:

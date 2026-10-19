@@ -284,7 +284,7 @@ strike, return) takes about 0.55 s.
   the order rotting, blighted, weakened (so lifting Blight frees that very heal). Decision: Mend
   and Sanctuary lift **one** on a normal press and **all three** on a perfect one, so Cass's
   timing matters; Renew does not cleanse (it is a slow heal). Items: `ItemData.cleanse_count`;
-  the Salve lifts one in a fight (the Antidote of the item list is not built). The autoplay bot
+  the Salve lifts one in a fight (phase 19 added the Antidote and Holy Water, 2.17). The autoplay bot
   prefers a cleansing skill when a hero is marked, and aims it at a marked hero.
 
   Shipped marks (one marking hit per string at most): Bile Spit and Bile Flood's last bolt
@@ -292,6 +292,9 @@ strike, return) takes about 0.55 s.
   King), Pounce and Pack Bite's last hit (Weakened 2), Shadow Bolts' last bolt (1 AP drain).
   `tools/make_attack.py` writes these with the hit options `mark`, `mark_turns`, `ap_drain`,
   `hard_only`.
+
+  **Phase 19 changed the rule and added five marks: see 2.17.** Since then every monster has one
+  marking move in an ordinary fight (not only in hard fights), held back in a run's first zone.
 
 ### 2.8 Phase 2 features (planned, not built yet)
 
@@ -588,6 +591,98 @@ in data. Times in ms at tempo 100%.
   top.
 - Balance check (average-player bot at level 1 with no gear): 3 wins in 5 deep fights. A run
   reaches them leveled and geared.
+
+### 2.17 Monsters and effects (phase 19, cards #245, #246, #252 to #264, built 2026-10-19)
+
+The user asked for small fries, ranged-only and large monsters, status effects with one marking hit
+per monster, ways to cleanse them, and up to 3 monsters a fight; every recommended option was picked
+(decision log).
+
+**Five new hero marks** (`Status`, numbers in `tuning.tres` "Skill statuses"), next to Rot, Blight,
+Weak and the AP drain (2.7). They land like the others: an undefended hit on a hero who survives it.
+
+| Mark | Word | Effect | Who leaves it |
+|---|---|---|---|
+| Burning (`burning`) | BURN | at the start of each of the hero's turns they lose `burning_percent` (10) of max HP, never below 1 HP from fire alone (cause `burning`); 2 turns | Ember Slinger's Firepot; hard fights: Ashen Husk's Cinder Hail, the Ash Warden's Ashfall, the Cinder Slinger's Fire Rain |
+| Shocked (`shocked`) | SHOCK | every timing window of the hero (defence, skill presses, follow-ups) is `shocked_window_percent` (65) of its size (`CombatEngine._windows_for`; the judge reads the prompt's windows, so nothing else changes) | Marsh Lantern's Zig-Zag, the Gnat Swarm's Buzz |
+| Slowed (`slowed`) | SLOWED | the hero's speed is `slow_speed_percent` of normal (Hamstring's slow, now also a hero mark) | Mire Toad's Mud Spit; hard fights: Hollow Shade's Bolt Storm, Mire Mother's Brood Tide |
+| Dazed (`dazed`) | DAZE | the hero's next turn passes (`turn_lost {actor, status}`); it ends with that turn | the Barrow Brute's Barrow Slam, a rend in every fight, so a parry saves the turn (1 turn) |
+| Hushed (`hushed`) | HUSH | no skills: only the basic attack, items, Run and the team ultimate (`CombatEngine.is_hushed_out`; the menu says why) | Rot Priest's Hush Word |
+
+- Cleanse order (`Status.DEBUFFS`): Daze, Hush, Burn, Rot, Blight, Shock, Slow, Weak (the costliest
+  first; Rot still before Blight). `Status.CLEANSE_ALL` (9) lifts all; Mend and Sanctuary lift one,
+  and every one on a perfect press (`press_cleanse_count` 8).
+- **One marking move per monster** (card #253; a test keeps it): Husk Rot Combo (Rot), Bloat Bile
+  Spit (Blight), Gnat Swarm Buzz (Shock), Shade Shadow Bolts (AP drain), Carrion Fly Maggot Spit
+  (Rot), Rot Hyena Pack Bite (Weak), Mire Toad Mud Spit (Slow), and the new monsters below. Hard
+  fights may add more (`on_hit_hard_only` moves, as before). At most one marking hit per attack.
+- **Where:** every fight except a run's first zone (`CombatSetup.allow_marks`, set by
+  `RunState.fight_setup` from depth: off at depth 0), so the first zone teaches the hits alone. Hard
+  fights (elite, guard, boss, deep variants) mark everywhere. Practice fights mark; the tutorial's
+  enemy only uses each lesson's attack, so only its marks lesson shows one.
+- **Ward** (`warded`, WARD): no mark (debuff or AP drain) lands while it lasts. **Shielded**
+  (`shielded`, SHIELD) on a monster: it takes `shielded_damage_cut_percent` (40) less damage.
+
+**Lifting marks** (card #254): Cass's **Purify** (Mending branch, 2 AP: lifts every mark from one
+ally and wards them 2 turns, 3 on a perfect press; a cleanse no longer needs a heal), the
+**Antidote** (fight item, `ItemData.Effect.CLEANSE_ONE`: every mark off one hero; 20 gold, common)
+and **Holy Water** (`CLEANSE_ALL`: every mark off the whole party and a 10% heal; 50 gold, rare),
+both in the shop and found in zones. The bot uses a cleansing item only when no cleansing skill is
+ready. **Relics against marks** (card #263, `GearData.Effect` and `Passive`): Wardstone (Warded for
+the first 2 turns of every fight), Bitter Root (marks last 1 turn less, never under 1), Cleansing
+Bell (each parry lifts one mark); dropped by the new monsters.
+
+**Six new monsters** (cards #255 to #260; art by `tools/art_kit/assets/enemy_<name>.py` on the
+shared `kit/monster.py`, deep twins recoloured by `enemy_variants`, attacks in `tools/make_attack.py`;
+voices borrowed until real ones are recorded):
+
+| Monster | Role | Speed | HP | Power | Moves (mark) | Lives in | Deep twin (own move) |
+|---|---|---|---|---|---|---|---|
+| Rot Rat | small fry, always in threes | 230 | 35% | 45% | Nibble, Gnaw (4 bites, the last Rots), Scurry (each in turn), Rat Tide | Rotten Hollow, Sunken Bog, with the Slinger | Grave Rat (Rat Frenzy) |
+| Ember Slinger | ranged only: every hit is thrown | 120 | 75% | 95% | Pitch Throw, Ember Volley, Firepot (party, Burn), Scatter Shot | Ashen Ruins, the Ash Warden's guard | Cinder Slinger (Fire Rain) |
+| Barrow Brute | large, slow, hits hard | 55 | 300% | 190% | Grave Maul, Barrow Slam (a rend everywhere, Daze), Earth Breaker (rocks), Wide Swing (a sweep everywhere), Two Blows | Ashen Ruins, alone or with one Rot Rat | Tomb Brute (Grave Quake) |
+| Marsh Lantern | ranged caster, floats | 150 | 70% | 85% | Spark Bolt, Zig-Zag (Shock), Arc Chain (each in turn), Static Burst | Sunken Bog, the Mire Mother's guard | Storm Lantern (Thunderhead) |
+| Rot Priest | helper: heals and shields other monsters | 110 | 90% | 70% | Censer Swing, Hush Word (Hush), Mend Rot (heals 25%), Bone Ward (Shield 2 turns) | Rotten Hollow, Ashen Ruins, the Gorged One's guard | Hollow Priest (Black Litany) |
+| Pus Tick | bomb | 100 | 45% | 100% | Latch, Burst (announced like a Doom: 3 turns, a party-wide ground hit that Blights, then the tick is spent; break 50%) | Sunken Bog, Rotten Hollow | Bile Tick (Bile Spit) |
+
+- **Support moves** (card #259): `EnemyAttackData.support` HEAL or SHIELD, `target_mode` ALLY, no
+  hits. A heal is only a choice while a monster (itself included) is at or under
+  `support_below_percent` (75) of its max HP; a shield while one has none. The intent names the
+  monster it will help; on its turn the engine sends `enemy_support {enemy, attack, name, target,
+  support}`, then `healed` or `status_changed`, and the turn passes (no timed sequence). The screen
+  shows its name in the banner with the helped one ("> RAT A"), a wind-up and a glow.
+- **The burst** (card #260): a Doom (2.3) with `self_destruct`: after its attack (and any counter)
+  the attacker falls (`self_destructed {enemy, attack}`, then `downed`). Breaking it staggers the
+  tick as usual; killing it first is the clean answer.
+
+**Fights of three** (card #245): 3 stays the most. `EncounterData.enemy_hp_percent` spreads a fight's
+HP (80 for most trios, 90 when small fry or two ticks are in it; a run multiplies its depth scaling
+on top). New fights: Rot Rat Pack, Pus Tick and Rotten Husk, Rot Priest's Coven, Husk Gnats and
+Fly, Marsh Lantern and Mire Toad, Lantern Swarm, Pus Tick Nest, Ember Slinger and Rotten Husk,
+Slinger and Rats, Barrow Brute, Barrow Brute and Rot Rat, Rot Priest and Hyenas, each with its deep
+version; the zones' roamer pools and the acts' ambushes hold them. Each guard brings a third
+monster (the Gorged One a Rot Priest, the Mire Mother a Marsh Lantern, the Ash Warden an Ember
+Slinger; `enemy_hp_percent` 90). Brin's **Fang Storm** and Cass's **Radiance** hit every enemy
+(only Alder's Earthshaker did); a spell on every enemy sends one bolt to each.
+
+**Tall monsters stand at the back** (user, after testing: "keep the fat monsters at the back, if
+someone is behind he is unseeable"). The screen puts each monster on a stage spot by its height
+(`CombatView.enemy_height`: feet to the top of its idle frame's body): the tallest on the spot
+farthest from the camera, the smallest nearest, so a big body never hides a smaller one or its
+attack. Monsters of one height keep their own spots. Only the picture changes; ids and targets
+do not. The spots themselves are a diagonal line, the heroes' mirror image (user: "the same format as
+the heroes"; `combat_visuals.tres` `enemy_positions`: middle (2.9, 0, 0) first for a lone monster,
+then front (3.7, 0, 1.5), then back (2.1, 0, -1.5); it was a "<" with two spots in one line).
+
+**On screen** (card #262): the hero panels draw each mark (and the ward) as its 12-pixel icon with
+the turns left (`HudStyle.mark_badges`, `mark_icon`; icons by `tools/art_kit/assets/ui_marks.py`
+in `assets/sprites/ui/mark_<id>.png`), and the Glossary uses the same icons. Daze shows DAZED over
+the hero as the turn passes; the Tick's burst flashes and shakes.
+
+**Tutorial** (card #264): lesson 6 "Marks" (defend Rot Combo's dotted last hit; goal
+`mark_defended`), then "Lift a mark" (Alder starts with Rot, Cass Mends him; goal `cleanse`; the
+step fields `mark_hero`, `mark_status` stage the mark through a practice command). Relics and
+Echoes are lesson 7.
 
 ## 3. Defence timing
 
@@ -1892,6 +1987,9 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
 
 ### 7.8 Tutorial (phase 14, card #131, lessons approved 2026-10-15; rebuilt the same day)
 
+Phase 19 (card #264) added lesson 6, Marks (defend a dotted hit, then lift a mark with Mend); the
+Relics and Echoes cards became lesson 7 (2.17).
+
 First version (a lesson box over a free-running practice fight) was rejected by the user
 2026-10-15: "feels like a fight, not a tutorial"; the box covered the enemy intent; the text did
 not match the screen; no time to read before the enemy attacked. **Rebuilt (`TutorialRunner`,
@@ -2096,6 +2194,8 @@ nothing in a fight. It is reached two ways, and both open on the first topic:
   it; then two or three plain lines. Up/down chooses a term, left/right changes topic (wrapping round
   the ends), Back closes (`HintBar` at the foot); keyboard and pad like every menu. Everything fits
   1920x1080 (a test measures every page).
+- **Phase 19** (card #252): the five new marks, Ward, Shielded, Marks, Helpers and Burst, the mark
+  icons on status terms; "Help on heroes" split from "Marks on heroes" (118 terms in 15 topics).
 - **Content is data**: `data/glossary/glossary.tres` (`GlossaryData`: `topic_ids`, `topic_names`,
   `entries`; each `GlossaryEntry`: `id`, `topic`, `term`, `text`, `tag`, `icon_path`, `color`, where an
   alpha of 0 means no colour). `tools/bootstrap_glossary.gd` wrote the first version (109 terms in 14
@@ -2420,8 +2520,8 @@ and T only for things shaped that way).
 - **New items:** Bomb (1x1, fight only: every enemy takes 120% of base party damage, 30 gold),
   Smelling Salts (1x1 rare, fight only: a downed hero back at 40%, 60), Key (2x1, 30), treasure:
   Silver Ring (1x1, 40), Rot Gem (1x1 rare, 120), Golden Idol (1x2 legendary, 300). Shops sell
-  Salve, Feast, Tonic, Bomb, Smelling Salts and Key; zones can turn up all of them. The Antidote
-  waits until heroes can be poisoned (new monsters, phase 12).
+  Salve, Feast, Tonic, Bomb, Smelling Salts and Key; zones can turn up all of them. Phase 19 added
+  the Antidote and Holy Water (fight items that lift marks, 2.17) to the shop and the finds.
 - **Items in fights** (#91): Y (Items) opens a list of the backpack's fight items above the main
   options, like Skills (name, AP cost, greyed with the reason). Salve and Feast work in fights too.
   `CombatSetup.items` ({uid, item}) come from the backpack; the engine command `use_item` {turn,
@@ -2572,18 +2672,19 @@ User picks: 5 skills brought, 1 skill point per level, the trees of the proposal
 - `--screen=skills` shows it with sample trees made of today's skills, laid out as in the proposal.
 
 **The trees** (`data/skill_trees/<hero>.tres`; the top row is known at the start of a run, the
-middle row costs 1 point, the bottom row 2):
+middle row costs 1 point, the bottom row 2; phase 19 gave three branches a fourth skill, which costs
+2 like the third):
 
 | Hero | Branch | Start | 1 point | 2 points |
 |---|---|---|---|---|
 | Alder | Bulwark | Guard | Shield Wall (3 AP: whole party guarded; perfect +1 AP) | Unbreakable (4 AP: every enemy taunted, Alder guarded; perfect: riposte too) |
 | Alder | Bash | Shield Bash | Shield Throw (1 AP: 2 hits of 60%) | Earthshaker (4 AP: 140% to every enemy, their turns later) |
 | Alder | Retort | Taunt | Riposte Stance | Payback |
-| Brin | Flurry | Quick Cuts (now 4 x 40%) | Twin Fangs (2 AP: 2 x 90%; both perfect: Exposed) | All In (now 6 x 100%) |
+| Brin | Flurry | Quick Cuts (now 4 x 40%) | Twin Fangs (2 AP: 2 x 90%; both perfect: Exposed) | Fang Storm (phase 19: 3 AP, 2 x 55% to every enemy), then All In (now 6 x 100%) |
 | Brin | Cripple | Hamstring | Open Vein (2 AP: 100% and Bleeding 3 turns) | Rend |
 | Brin | Shadow | Feint Step | Shadowstep (1 AP: next turn much sooner, Empowered) | Death Mark (3 AP: Marked for 3 skills) |
-| Cass | Mending | Mend | Renew (2 AP: Renew 3 turns) | Sanctuary (4 AP: heals the party 30%, perfect 40%; lifts one debuff from each, all on a perfect press) |
-| Cass | Light | Reveal (now a bolt) | Smite (2 AP: 160% bolt, +100% on Exposed) | Revive |
+| Cass | Mending | Mend | Purify (phase 19: 2 AP, every mark off one ally, Warded 2 turns, perfect 3), then Renew (2 AP: Renew 3 turns) | Sanctuary (4 AP: heals the party 30%, perfect 40%; lifts one debuff from each, all on a perfect press) |
+| Cass | Light | Reveal (now a bolt) | Smite (2 AP: 160% bolt, +100% on Exposed) | Radiance (phase 19: 3 AP, an 80% bolt at every enemy), then Revive |
 | Cass | Grace | Pass the Torch | Hasten | Inspire (3 AP: everyone +1 AP, gauge +25) |
 
 - **New statuses** (`Status`, numbers in tuning "Skill statuses"): Bleeding (an enemy loses
@@ -3156,6 +3257,9 @@ upgrade to take blindly.
 
 ### 8.17 Relics and Echoes (phase 17, cards #212 to #220, built 2026-10-18, waiting for playtest)
 
+Phase 19 (card #263) added three Relics against marks (Wardstone, Bitter Root, Cleansing Bell;
+2.17), dropped by the new monsters, which also drop older Relics (34 Relics in the run).
+
 The user's idea: make Rotsworn a roguelite and keep it hard. The run's gear became **Relics** the
 player keeps forever (Expedition 33's Pictos, renamed), and a Relic worn for a few won fights
 teaches its **Echo** (E33's Lumina, renamed) for the rest of that run only. Only the Relics and
@@ -3697,6 +3801,20 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     ledges and cliff edges, looks only at first (#230), more plants from the art kit (#231), living
     water and a stream (#232). Step 4 fill the zones: Rotten Hollow (#233), Ashen Ruins (#234),
     Sunken Bog (#235), the fight arenas (#236). Step 5: performance (#237).
+19. **Monsters and effects** (built 2026-10-19, waiting for playtest; branch `phase19-Monsters`,
+    cards #245, #246, #252 to #264; as built in 2.17): more
+    3-monster fights (3 stays the most; each monster in a 3-fight gets less HP so fights do not get
+    longer, #245) with an area skill each for Brin and Cass (#261, only Alder had one). Six new
+    monsters in two batches, each with a job and one mark hit (#246): batch 1 Rot Rats (small fry,
+    always in 3s, Rot, #255), Ember Slinger (ranged only, Burn, #256), Barrow Brute (large, slow,
+    must-parry slam that Dazes, #257); batch 2 Marsh Lantern (ranged caster, Shock, #258), Rot Priest
+    (heals or shields other monsters, Hush, #259), Pus Tick (bursts after 3 turns, Blight, #260).
+    Five new hero marks next to Rot, Blight and Weak (2.7): Burn (big HP loss, 2 turns), Shock
+    (smaller timing windows), Slow (turns come later), Daze (skip the next turn), Hush (no skills),
+    in the Glossary (#252) and as icons on the hero panels (#262). Every monster gets one mark hit,
+    at most one per attack, in every fight but the first zone (was hard fights only, #253). Lifting
+    marks: Cass's Purify (every mark off one ally, no new ones for 2 turns), Antidote and Holy Water
+    items (#254), Relics against marks (#263), a tutorial lesson (#264, idea).
 
 ### 11.1 To-do (from playtests)
 
@@ -3924,3 +4042,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-18 | Trees stay flat sprites | card #228 try: a 3D trunk under the flat crown clashed with the pixel leaves; the user left the choice open and flat was the recommendation |
 | 2026-10-19 | Every push to main builds the Windows game on GitHub Actions and replaces `Rotsworn.zip` on the `latest-build` pre-release: one fixed download link for everyone (9.2) | owner asked if it was possible and costly: free for a public repo, no hand-sent zips, and one shared file keeps online fingerprints equal |
 | 2026-10-19 | No Godot logo at start: the boot splash is plain black, then the DragonRot intro as before (7.5) | user asked; the studio intro already opens the game and black runs straight into it |
+| 2026-10-19 | Phase 19 "Monsters and effects" (11): six new monsters in two batches, five new hero marks, one mark hit per monster in every fight but the first zone, Purify plus Antidote and Holy Water to lift them, area skills for Brin and Cass, more 3-monster fights | user asked for small fries, ranged-only and large monsters, status effects, a way to cleanse them and up to 3 monsters a fight; user picked every recommended option |

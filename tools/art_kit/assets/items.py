@@ -16,6 +16,8 @@ pixel grids (fully opaque or clear) with the kit's dark ink outline, lit from th
   lodestone (2x2, boosts touching stones). Bones: knucklebone, wolf_tooth (1x1), bone_totem (1x3,
   boosts touching bones). Herbs: heartleaf (1x1), wake_root (L), rain_pouch (1x1, boosts touching
   herbs). Rotten: rotting_heart (1x1), grave_moss (2x1), sickly green and violet.
+- antidote.png (1x1): a slim corked vial of teal antidote with a leaf at its neck (phase 19).
+- holy_water.png (1x1): a round flask of glowing pale holy water, gold stopper and band (phase 19).
 - bigger_pack.png (1x1): a small rolled-up backpack (adds a row the moment you get it).
 - env/chest_closed.png, env/chest_open.png: the locked chest in a zone (a lit prop).
 - fx/glint.png: a small gold four-point sparkle; the zone shows it glowing over a pickup spot.
@@ -29,6 +31,7 @@ from __future__ import annotations
 import numpy as np
 
 from kit.canvas import Canvas
+from kit.color import ramp
 from kit.palette import INK, M
 
 ITEM_CELL = 16
@@ -65,6 +68,9 @@ PURPLE = M["rot_purple"].colors
 DARKWOOD = M["wood_dark"].colors
 EMBER = M["glow_ember"].colors
 STONE_RAMP = M["stone"].colors
+# Phase 19: the Antidote's pale teal and Holy Water's glowing pale gold.
+TEAL = ramp("#5fb8a8", below=2, above=1, step_l=0.09)
+HOLY = ramp("#d8d09a", below=1, above=2, step_l=0.08)
 
 def _draw(w: int, h: int, rows: list[str], legend: dict[str, str]) -> np.ndarray:
     for r in rows:
@@ -99,6 +105,52 @@ def make_salve() -> np.ndarray:
         "................",
     ], {"L": WOOD[3], "l": WOOD[2], "d": WOOD[1], "J": CLAY[3], "j": CLAY[2], "k": CLAY[1],
         "g": HERB[3], "G": HERB[2], "H": HERB[4], "h": HERB[1]})
+
+
+def make_antidote() -> np.ndarray:
+    """A slim corked vial of pale teal antidote with a green leaf tied to its neck (phase 19)."""
+    return _draw(16, 16, [
+        "................",
+        "......CCc.......",
+        "......CCc.......",
+        "......NWn.......",
+        "......NWn.gG....",
+        ".....NWTTngGG...",
+        "....NWTTTTnGh...",
+        "....NWTTTTn.h...",
+        "....NWTTTtn.....",
+        "....NWTTTtn.....",
+        "....NTTTttn.....",
+        ".....nttttn.....",
+        "......nnnn......",
+        "................",
+        "................",
+        "................",
+    ], {"C": WOOD[3], "c": WOOD[1], "N": GLASS[3], "n": GLASS[1], "W": GLASS[4],
+        "T": TEAL[3], "t": TEAL[1], "g": HERB[3], "G": HERB[2], "h": HERB[1]})
+
+
+def make_holy_water() -> np.ndarray:
+    """A round flask of glowing pale holy water with a gold stopper and a gold band (phase 19)."""
+    return _draw(16, 16, [
+        "................",
+        "......KKk.......",
+        "......KKk.......",
+        "......NWn.......",
+        ".....NWWnn......",
+        "....NWLLLLn.....",
+        "...NWLHLLLLn....",
+        "...NLHHLLLLn....",
+        "...NKKKKKKkn....",
+        "...NLLLLLLln....",
+        "...NLLLLLlln....",
+        "....nLLllln.....",
+        ".....nnnnn......",
+        "................",
+        "................",
+        "................",
+    ], {"K": GOLD[3], "k": GOLD[1], "N": GLASS[3], "n": GLASS[1], "W": GLASS[4],
+        "L": HOLY[2], "l": HOLY[1], "H": HOLY[3]})
 
 
 def make_tonic() -> np.ndarray:
@@ -650,7 +702,8 @@ def build(ctx) -> None:
                       ("bone_totem", make_bone_totem()), ("heartleaf", make_heartleaf()),
                       ("wake_root", make_wake_root()), ("rain_pouch", make_rain_pouch()),
                       ("rotting_heart", make_rotting_heart()), ("grave_moss", make_grave_moss()),
-                      ("bigger_pack", make_bigger_pack())):
+                      ("bigger_pack", make_bigger_pack()), ("antidote", make_antidote()),
+                      ("holy_water", make_holy_water())):
         ctx.save("sprites/items/%s.png" % name, img, scale=8)
     ctx.save("sprites/env/chest_closed.png", make_chest(False), scale=8)
     ctx.save("sprites/env/chest_open.png", make_chest(True), scale=8)

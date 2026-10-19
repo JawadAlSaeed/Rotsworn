@@ -10,6 +10,7 @@ impact_ms = 1200
 damage_percent = 90
 approach_ms = 420
 projectile = ExtResource("3_bile_glob")
+on_hit_status = "rotting"
 
 [resource]
 script = ExtResource("2_attack")

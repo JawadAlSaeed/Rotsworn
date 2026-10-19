@@ -16,6 +16,6 @@ damage_percent = 0
 heal_percent = 30
 press_heal_percent = 10
 cleanse_count = 1
-press_cleanse_count = 2
+press_cleanse_count = 8
 windup_clips = PackedStringArray("cast_windup")
 strike_clips = PackedStringArray("cast")

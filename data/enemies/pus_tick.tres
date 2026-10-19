@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/pus_tick.tres" id="3_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/tick_latch.tres" id="a_tick_latch"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/tick_burst.tres" id="a_tick_burst"]
+[ext_resource type="Resource" path="res://data/gear/hunger_charm.tres" id="g_hunger_charm"]
+[ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="g_wardstone"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "pus_tick"
+display_name = "Pus Tick"
+color = Color(0.66, 0.69, 0.38, 1)
+sprite_path = "res://assets/sprites/enemies/pus_tick.png"
+sprite_clips = ExtResource("3_clips")
+death_style = 1
+death_color = Color(0.75, 0.91, 0.37, 1)
+idle_cycle_percent = 110
+portrait_path = "res://assets/sprites/portraits/pus_tick.png"
+sprite_pixel_size = 0.045
+hp_percent = 45
+power_percent = 100
+speed = 100
+attacks = Array[ExtResource("1_attack")]([ExtResource("a_tick_latch"), ExtResource("a_tick_burst")])
+gold = 10
+xp = 20
+voice_sfx = "voice_toad"
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_hunger_charm"), ExtResource("g_wardstone")])

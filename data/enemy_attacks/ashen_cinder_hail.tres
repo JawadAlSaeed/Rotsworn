@@ -17,6 +17,8 @@ impact_ms = 1750
 damage_percent = 50
 approach_ms = 500
 projectile = ExtResource("3_cinder")
+on_hit_status = "burning"
+on_hit_hard_only = true
 
 [resource]
 script = ExtResource("2_attack")

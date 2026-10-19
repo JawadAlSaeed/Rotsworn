@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/barrow_brute.tres" id="3_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/brute_maul.tres" id="a_brute_maul"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/brute_slam.tres" id="a_brute_slam"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/brute_quake.tres" id="a_brute_quake"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/brute_sweep.tres" id="a_brute_sweep"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/brute_double.tres" id="a_brute_double"]
+[ext_resource type="Resource" path="res://data/gear/thick_hide.tres" id="g_thick_hide"]
+[ext_resource type="Resource" path="res://data/gear/thorned_gauntlet.tres" id="g_thorned_gauntlet"]
+[ext_resource type="Resource" path="res://data/gear/cleansing_bell.tres" id="g_cleansing_bell"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "barrow_brute"
+display_name = "Barrow Brute"
+color = Color(0.42, 0.45, 0.38, 1)
+sprite_path = "res://assets/sprites/enemies/barrow_brute.png"
+sprite_clips = ExtResource("3_clips")
+death_color = Color(0.75, 0.91, 0.37, 1)
+idle_cycle_percent = 150
+portrait_path = "res://assets/sprites/portraits/barrow_brute.png"
+sprite_pixel_size = 0.045
+hp_percent = 260
+power_percent = 190
+speed = 55
+attacks = Array[ExtResource("1_attack")]([ExtResource("a_brute_maul"), ExtResource("a_brute_slam"), ExtResource("a_brute_quake"), ExtResource("a_brute_sweep"), ExtResource("a_brute_double")])
+target_rule = 2
+target_bias_percent = 150
+gold = 30
+xp = 60
+voice_sfx = "voice_bloat"
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_thick_hide"), ExtResource("g_thorned_gauntlet"), ExtResource("g_cleansing_bell")])

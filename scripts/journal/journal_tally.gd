@@ -22,6 +22,11 @@ func feed(ev: Dictionary, mirror: CombatMirror) -> void:
 				_on_attack(ev, mirror)
 		"prompt_resolved":
 			_on_prompt(ev, mirror)
+		"enemy_support":
+			# A heal or a shield on a fellow monster (card #259): seen, with no hits to answer.
+			var helped := _attack(mirror, int(ev.get("enemy", -1)), String(ev.get("attack", "")), String(ev.get("name", "")))
+			if not helped.is_empty():
+				helped["seen"] = int(helped["seen"]) + 1
 		"doom_broken":
 			var record := _attack(mirror, int(ev.get("enemy", -1)), String(ev.get("attack", "")), String(ev.get("name", "")))
 			if not record.is_empty():

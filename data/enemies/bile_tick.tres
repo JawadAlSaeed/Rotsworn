@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/pus_tick.tres" id="3_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/tick_latch.tres" id="a_tick_latch"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/tick_burst.tres" id="a_tick_burst"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/bile_tick_spit.tres" id="a_bile_tick_spit"]
+[ext_resource type="Resource" path="res://data/gear/plague_bell.tres" id="g_plague_bell"]
+[ext_resource type="Resource" path="res://data/gear/black_ichor.tres" id="g_black_ichor"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "bile_tick"
+display_name = "Bile Tick"
+color = Color(0.85, 0.75, 0.25, 1)
+sprite_path = "res://assets/sprites/enemies/bile_tick.png"
+sprite_clips = ExtResource("3_clips")
+death_style = 1
+death_color = Color(0.75, 0.91, 0.37, 1)
+idle_cycle_percent = 110
+portrait_path = "res://assets/sprites/portraits/bile_tick.png"
+sprite_pixel_size = 0.045
+hp_percent = 58
+power_percent = 115
+speed = 110
+attacks = Array[ExtResource("1_attack")]([ExtResource("a_tick_latch"), ExtResource("a_tick_burst"), ExtResource("a_bile_tick_spit")])
+gold = 15
+xp = 30
+voice_sfx = "voice_toad"
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_plague_bell"), ExtResource("g_black_ichor")])
+forced_hits = true

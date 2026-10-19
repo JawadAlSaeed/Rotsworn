@@ -60,7 +60,7 @@ func test_every_relic_has_a_stat_line_an_echo_cost_and_a_monster_that_drops_it()
 			if item != null:
 				assert_true(_data.gear.has(item), "%s's %s is one of the run's Relics" % [enemy.id, item.id])
 				dropped[item.id] = true
-	assert_eq(_data.gear.size(), 31, "the 25 gear pieces and 6 from the old charms' ideas")
+	assert_eq(_data.gear.size(), 34, "the 25 gear pieces, 6 from the old charms' ideas, 3 against marks (card #263)")
 	for id: String in ["heartleaf", "wake_root", "ember_stone", "rain_pouch", "black_ichor", "gravebloom"]:
 		assert_true(_relic(id).description.length() > 0, "%s: a Relic made from a charm idea" % id)
 	assert_true(_relic("black_ichor").rot_touched and _relic("gravebloom").rot_touched, "the rotten ones keep their price")

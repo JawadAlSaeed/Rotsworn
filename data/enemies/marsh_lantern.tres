@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/marsh_lantern.tres" id="3_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/lantern_spark.tres" id="a_lantern_spark"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/lantern_zigzag.tres" id="a_lantern_zigzag"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/lantern_chain.tres" id="a_lantern_chain"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/lantern_burst.tres" id="a_lantern_burst"]
+[ext_resource type="Resource" path="res://data/gear/keen_eye.tres" id="g_keen_eye"]
+[ext_resource type="Resource" path="res://data/gear/echo_charm.tres" id="g_echo_charm"]
+[ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="g_wardstone"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "marsh_lantern"
+display_name = "Marsh Lantern"
+color = Color(0.45, 0.9, 0.95, 1)
+sprite_path = "res://assets/sprites/enemies/marsh_lantern.png"
+sprite_clips = ExtResource("3_clips")
+death_style = 1
+death_color = Color(0.75, 0.91, 0.37, 1)
+idle_cycle_percent = 90
+portrait_path = "res://assets/sprites/portraits/marsh_lantern.png"
+sprite_pixel_size = 0.045
+hp_percent = 70
+power_percent = 85
+speed = 150
+attacks = Array[ExtResource("1_attack")]([ExtResource("a_lantern_spark"), ExtResource("a_lantern_zigzag"), ExtResource("a_lantern_chain"), ExtResource("a_lantern_burst")])
+target_rule = 1
+target_bias_percent = 200
+gold = 14
+xp = 28
+voice_sfx = "voice_shade"
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_keen_eye"), ExtResource("g_echo_charm"), ExtResource("g_wardstone")])

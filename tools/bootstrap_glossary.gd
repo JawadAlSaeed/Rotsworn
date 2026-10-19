@@ -21,10 +21,10 @@ func _init() -> void:
 	_visuals = load("res://data/presentation/combat_visuals.tres") as CombatVisuals
 	var data := GlossaryData.new()
 	data.topic_ids = PackedStringArray(["fight", "reading", "defence", "skills", "team", "foe_marks", "hero_marks",
-			"dooms", "enemies", "map", "zones", "gear", "shops", "run"])
+			"hero_help", "dooms", "enemies", "map", "zones", "gear", "shops", "run"])
 	data.topic_names = PackedStringArray(["The fight", "Reading attacks", "Defence", "Skills and AP", "Counters and team",
-			"Marks on enemies", "Marks on heroes", "Dooms", "Enemies", "The map", "In a zone", "Gear and items",
-			"Shops and camps", "The run"])
+			"Marks on enemies", "Marks on heroes", "Help on heroes", "Dooms", "Enemies", "The map", "In a zone",
+			"Gear and items", "Shops and camps", "The run"])
 	_fight()
 	_reading()
 	_defence()
@@ -58,9 +58,12 @@ func _e(topic: String, id: String, term: String, text: String, tag: String = "",
 	_entries.append(entry)
 
 
-## A status term: the word and colour are the HUD's own.
+## A status term: the word and colour are the HUD's own, and so is its icon when it has one (the
+## mark icons the hero panels draw, card #262).
 func _status(topic: String, status: String, term: String, text: String) -> void:
-	_e(topic, "status_" + status, term, text, String(HudStyle.STATUS_NAMES[status]), "", HudStyle.STATUS_COLORS[status] as Color)
+	var icon := HudStyle.MARK_ICON_PATH % status
+	_e(topic, "status_" + status, term, text, String(HudStyle.STATUS_NAMES[status]), icon if ResourceLoader.exists(icon) else "",
+			HudStyle.STATUS_COLORS[status] as Color)
 
 
 func _fight() -> void:
@@ -148,20 +151,27 @@ func _foe_marks() -> void:
 	_status("foe_marks", "exposed", "Exposed", "Cass's Reveal leaves it. The next damaging skill on that enemy removes it for 50% more damage (Rend: 150% more). It does not stack.")
 	_status("foe_marks", "marked", "Marked", "Brin's Death Mark. The next few damaging skills on that one enemy deal 40% more, and each skill that lands uses one up.")
 	_status("foe_marks", "bleeding", "Bleeding", "At the start of each of its turns the enemy loses a share of the hero's power, for a few turns. Weakened heroes make it bleed less.")
-	_status("foe_marks", "slowed", "Slowed", "Hamstring slows an enemy: its turns come later, so your party gets more of them between its attacks.")
+	_status("foe_marks", "slowed", "Slowed", "Its turns come later. Hamstring slows an enemy, so your party acts more between its attacks; a toad's mud or a shade's cold slows a hero the same way.")
+	_status("foe_marks", "shielded", "Shielded", "A Rot Priest's ward on a fellow monster: it takes much less damage for a few of its turns. Kill the priest first, or hit someone else.")
 
 
 func _hero_marks() -> void:
-	_status("hero_marks", "rotting", "Rot", "A hard-fight mark. At the start of each of the hero's turns they lose a share of max HP, though never below 1 HP from rot alone. It counts down.")
+	_e("hero_marks", "mark", "Marks", "A hit with a coloured dot leaves its mark if you fail to defend it. In a run they start after the first zone; elites, guards and bosses mark everywhere. Defend the dot!")
+	_status("hero_marks", "rotting", "Rot", "At the start of each of the hero's turns they lose a share of max HP, though never below 1 HP from rot alone. It counts down.")
+	_status("hero_marks", "burning", "Burn", "Fire: at the start of each of the hero's turns they lose a big share of max HP, for fewer turns than rot. Never below 1 HP from fire alone.")
+	_status("hero_marks", "shocked", "Shock", "The hero's timing windows shrink: parries, dodges, jumps, skill presses and follow-ups all need a sharper press while it lasts.")
+	_status("hero_marks", "dazed", "Daze", "The hero loses their next turn. Only big must-parry slams daze, so a parry saves the turn.")
+	_status("hero_marks", "hushed", "Hush", "The hero can use no skills, only Attack, items, Run and the team ultimate, until it wears off.")
 	_status("hero_marks", "blighted", "Blight", "Healing the hero receives is cut in half for a few turns. Skills, Renew, items and gear all count.")
 	_status("hero_marks", "weakened", "Weakened", "The hero's power is cut by a quarter for a few turns: skills, follow-ups, counters and the bleed they cause.")
 	_e("hero_marks", "ap_drain", "AP drain", "A hit that drains takes AP from the hero when you fail to defend it. They never go below 0, but a planned skill may become too dear.",
 			String(HudStyle.STATUS_NAMES["ap_drain"]), "", HudStyle.STATUS_COLORS["ap_drain"] as Color)
-	_e("hero_marks", "cleanse", "Cleanse", "Mend and Sanctuary lift one mark on a normal press and every mark on a PERFECT one. A Salve lifts one. All marks end when the fight ends.")
-	_status("hero_marks", "guarded", "Guarded", "A guarded hero takes half damage until their next turn. Alder's Guard and Shield Wall give it.")
-	_status("hero_marks", "riposte", "Riposte", "Alder's Riposte Stance: until his next turn his counters hit twice as hard.")
-	_status("hero_marks", "regen", "Renew", "Cass's Renew heals the hero a share of max HP at the start of each of their turns, for a few turns.")
-	_status("hero_marks", "empowered", "Empowered", "The hero's next damaging skill on an enemy deals 30% more, then the bonus is gone.")
+	_e("hero_marks", "cleanse", "Cleanse", "Mend and Sanctuary lift one mark, every mark on a PERFECT press. Purify lifts them all. A Salve lifts one, an Antidote all of one hero's, Holy Water everyone's. Marks end with the fight.")
+	_status("hero_help", "warded", "Ward", "Cass's Purify: no mark can land on the hero for a few of their turns. Some Relics ward a hero at the start of a fight.")
+	_status("hero_help", "guarded", "Guarded", "A guarded hero takes half damage until their next turn. Alder's Guard and Shield Wall give it.")
+	_status("hero_help", "riposte", "Riposte", "Alder's Riposte Stance: until his next turn his counters hit twice as hard.")
+	_status("hero_help", "regen", "Renew", "Cass's Renew heals the hero a share of max HP at the start of each of their turns, for a few turns.")
+	_status("hero_help", "empowered", "Empowered", "The hero's next damaging skill on an enemy deals 30% more, then the bonus is gone.")
 
 
 func _dooms() -> void:
@@ -189,6 +199,10 @@ func _enemies() -> void:
 	_e("enemies", "deep_variant", "Deep variant", "A tougher, recoloured kin met in the second half of a run (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere.")
 	_e("enemies", "hard_fight", "Hard fight", "Elites, guards, bosses and deep variants add forced hits (rends, sweeps and feints) and marks that ordinary early fights do not have.")
 	_e("enemies", "depth", "Depth", "Every map row deeper, enemies gain health and power and their strings come faster. The sign still tells the truth about each one.")
+	_e("enemies", "support", "Helpers", "Some monsters help instead of striking: a Rot Priest heals a wounded fellow or shields one. Its sign names the monster it will help. Kill helpers first.",
+			"", "", HudStyle.HEAL)
+	_e("enemies", "burst", "Burst", "A Pus Tick announces its Burst like a Doom: a few turns later it bursts on the whole party and is gone. Kill it first, or jump the burst.",
+			"DOOM IN 3", "", _visuals.doom_text_color)
 	_e("enemies", "targeting", "Who they pick", "Hunters such as hyenas and shades favour wounded heroes, guards and bosses the weakest. Nobody is ever safe, and Taunt overrides it all.")
 
 
@@ -241,7 +255,7 @@ func _gear() -> void:
 			"", ITEMS + "ember_stone.png")
 	_e("gear", "rotten_item", "Rotten item", "A very strong charm with a price: every hero loses a little HP at the start of each turn in a fight. It cannot be sold. Cleanse at a shop throws one away.",
 			"", ITEMS + "rotting_heart.png", Color(0.55, 0.85, 0.3))
-	_e("gear", "consumable", "Consumable", "Used up. A Salve heals one hero, a Feast the party, a Bomb hurts every enemy, Smelling Salts lift a downed hero. In a fight they cost AP.",
+	_e("gear", "consumable", "Consumable", "Used up. A Salve heals one hero, a Feast the party, a Bomb hurts every enemy, Smelling Salts lift a downed hero, an Antidote or Holy Water lifts marks. In a fight they cost AP.",
 			"", ITEMS + "salve.png")
 	_e("gear", "tonic", "Tonic", "Gives one hero more max HP for the rest of the run. A hero can drink only two, and Tonics cannot be combined or upgraded.",
 			"", ITEMS + "tonic.png")
