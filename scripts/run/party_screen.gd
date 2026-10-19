@@ -1,26 +1,16 @@
 class_name PartyScreen
 extends CanvasLayer
-## The party screen and the shared backpack (DESIGN.md 8.1), opened with Tab / Y from the map or a
-## zone, after a guard's loot, and from a shop. Left: every hero, one card each (stats and the
-## Relics they wear, DESIGN.md 8.17), and what the cursor is on. Right: the backpack. The cursor
-## moves between the Relic slots and the grid. Confirm on a Relic slot opens the Relics page
-## (RelicsScreen) to choose what to wear there; X / R on a worn Relic picks it up to put on another
-## slot or hero (swapping). Slots the run has not opened yet are locked and say what opens them.
-## Confirm on an item opens Use / Move / Sell (in a shop) / Throw away; Use on one hero moves the
-## cursor to the hero cards to pick who. X / R picks an item straight up to move it and puts it
-## down again; LB / RB (Z / C) turn the item in hand. It goes down where it fits, or onto the same item to combine them into a
-## stronger one. Relics never go into the backpack; since phase 17 it holds supplies (potions,
-## bombs), keys, treasure and curses (DESIGN.md 8.1, 8.17).
-## The screen can open with something new in hand (loot, a find that did not fit): a new Relic is
-## worn (what was in that slot goes back to the run's Relics) or left in the Relics; a new item
-## placed, swapped with the one item it covers, or left behind. Online, a client's changes go to the
-## host as RunState ops (op_requested); the host's run state comes back and refresh() redraws.
-## Each hero card ends in buttons after the Relic slots (user request 2026-10-15): Attributes
-## (DESIGN.md 8.2), Skills (8.4, heroes with a tree) and Echoes (8.17), each showing the points left
-## to spend; Confirm on one opens that screen for the hero (T / K still work as shortcuts). The info box
-## under the cards only shows while it has something to say: an item menu, picking who to
-## use an item on, something in hand, the backpack item under the cursor, or the worn Relic (stat
-## line, Echo progress) or locked slot (what opens it) under the cursor.
+## The Y screen (DESIGN.md 8.18, card #270), opened with Tab / Y from the map or a zone, after loot,
+## from a shop and from treasure and event stops. Four tabs, one job each, switched with LB / RB
+## (Z / C): Relics (every hero's Relic slots next to the team's shared Relic bag, RelicsTab), Bag
+## (the backpack, BagTab), Hero (attributes, stats and the Echoes, HeroTab) and Skills (the skill
+## tree, SkillsTab, when a hero has one). Around the tabs this screen draws the tab bar with a gold
+## badge for points waiting and the gold, one info strip along the bottom that never moves (the
+## thing under the cursor: its icon, name, a few chips and one line), toasts (an icon and a word or
+## two) instead of sentences, and at most four button hints.
+## The screen can open with something new in hand: a Relic (loot) opens the Relics tab, an item
+## (a find that did not fit) the Bag tab. Online, a client's changes go to the host as RunState ops
+## (op_requested); the host's run state comes back and refresh() redraws.
 
 signal done
 ## A new item in hand was left behind (it is not in the backpack).
@@ -30,730 +20,556 @@ signal sold
 ## Online client: a change for the host to make (RunState.apply_op data).
 signal op_requested(op: Dictionary)
 
-enum Focus { GEAR, GRID }
-
-const TITLE_SIZE: int = 52
-const TEXT_SIZE: int = 28
-const SMALL_SIZE: int = 24
-const NAME_SIZE: int = 40
-## Gear slot and button text on the hero cards (a little bigger than the rest of the screen).
-const CARD_TEXT_SIZE: int = 27
-const LEFT_WIDTH: float = 1060.0
-const PORTRAIT_PX: float = 112.0
-const PORTRAIT_GAP: int = 14
-const COLUMN_GAP: int = 48
-const SLOT_WIDTH: float = 200.0
-## A hero card that cannot take the item in hand is drawn this see-through.
-const GREYED_ALPHA: float = 0.5
-## The Attributes and Skills buttons at the end of a card.
-const BUTTON_WIDTH: float = 175.0
-const BUTTON_GAP: int = 18
-const SLOT_PAD_X: int = 6
-const EMPTY_TEXT := "(empty)"
+enum Tab { RELICS, BAG, HERO, SKILLS }
+const TAB_NAMES: Array[String] = ["Relics", "Bag", "Hero", "Skills"]
+const TAB_GLYPHS: Array[StringName] = [&"gem", &"bag", &"person", &"branch"]
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
-const CURSE_LINE_WIDTH: float = 520.0
-## A locked Relic slot's text.
-const LOCKED_TEXT := "(locked)"
 
-## Choosing who gets an item (the uid; -1: not choosing): the cursor is on the hero cards.
-var _use_uid: int = -1
+const TAB_SIZE: int = 30
+const TAB_GLYPH_PX: float = 30.0
+const TAB_TOP: float = 22.0
+const TAB_HEIGHT: float = 58.0
+const PAGE_TOP: float = 110.0
+const GOLD_SIZE: int = 32
+const STRIP_RECT := Rect2(70.0, 868.0, 1780.0, 124.0)
+const STRIP_ICON_PX: float = 92.0
+const STRIP_TITLE_SIZE: int = 32
+const STRIP_LINE_SIZE: int = 23
+const CHIP_SIZE: int = 22
+const BAR_SEGMENT := Vector2(34.0, 10.0)
+const TOAST_TOP: float = 92.0
+const TOAST_ICON_PX: float = 40.0
+const TOAST_SIZE: int = 28
+
+## The tab the screen opens on next time (the last one used), unless something in hand picks one.
+static var _last_tab: int = Tab.RELICS
+
 ## Online client: changes are asked of the host instead of made here.
 var remote: bool = false
 ## Close by itself once the new thing in hand is placed, worn or left (shop and zone finds).
 var close_when_settled: bool = false
-## Opened from a shop: items can be sold (DESIGN.md 8.1).
+## Opened from a shop: items can be sold (DESIGN.md 8.1); the Bag tab opens first.
 var shop_mode: bool = false
 var _run: RunState
-var _hero: int = 0
-var _focus: Focus = Focus.GEAR
-var _slot: int = 0
-## In hand: {} or {kind: "gear", item: GearData, from: [hero, gear slot] or [] (new)}
-## or {kind: "item", item: ItemData, uid: int (-1: new), turn: int, level: int}.
-var _held: Dictionary = {}
-var _note_text: String = ""
-var _level: Label
-var _note: Label
-## One card per hero: {panel: PanelContainer, stats: Label, slots: Array[Label]}.
-var _cards: Array[Dictionary] = []
-var _info_panel: PanelContainer
-var _info_title: Label
-var _info: Label
-var _pack_label: Label
-## The curses' rot, under the backpack's title.
-var _curse_label: Label
-var _grid: BackpackGrid
-var _menu: ListMenu
-## Choices of the open item menu: [kind, slot] pairs ("use", "move", "drop", "cancel").
-var _menu_choices: Array = []
-var _prompt: ConfirmPrompt
-var _hint: HintBar
-## The attributes screen while it is open over this one.
-var _attrs: AttributesScreen
-## The skills screen (heroes with a skill tree, DESIGN.md 8.4) while it is open over this one.
-var _skills: SkillsScreen
-## The Echoes screen (DESIGN.md 8.17) while it is open over this one.
+var _visuals: CombatVisuals
+## Tab -> PartyTab (Skills is missing when no hero has a skill tree).
+var _tabs: Dictionary = {}
+## The tabs in bar order.
+var _order: Array[int] = []
+var _tab: int = Tab.RELICS
+var _relics: RelicsTab
+var _bag: BagTab
+var _hero: HeroTab
+var _skills: SkillsTab
+## The Echoes page while it is open over this screen (DESIGN.md 8.17).
 var _echoes: EchoesScreen
-## The Relics page (DESIGN.md 8.17) while it is open over this one.
-var _relics: RelicsScreen
+## Everything placed on the 1920 x 1080 canvas, kept centred when the window is wider or taller
+## (aspect expand); the backdrop and the footer stay full width.
+var _frame: Control
+var _bar_box: HBoxContainer
+## Each tab's plate in the bar (for the mouse), by Tab.
+var _tab_plates: Dictionary = {}
+var _gold: Label
+var _strip: Panel
+var _strip_icon: Control
+var _strip_title: Label
+var _strip_chips: HBoxContainer
+var _strip_line: Label
+var _strip_bar: HBoxContainer
+var _toast: PanelContainer
+var _toast_tween: Tween
+var _hint: HintBar
 
 
-## `note`: a line at the top (for example what was just found). `held`: something new in hand,
+## `note`: a toast at the start (for example what was just found). `held`: something new in hand,
 ## {gear: GearData} or {item: ItemData}.
 func setup(run: RunState, note: String = "", held: Dictionary = {}) -> void:
 	_run = run
-	_note_text = note
-	var column := ListMenu.screen_column(self, "Party", TITLE_SIZE)
-	_level = ListMenu.centred_label("", TEXT_SIZE, HudStyle.GOLD)
-	column.add_child(_level)
-	_note = ListMenu.centred_label("", TEXT_SIZE)
-	column.add_child(_note)
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", COLUMN_GAP)
-	column.add_child(row)
-	row.add_child(_build_hero_side())
-	row.add_child(_build_pack_side())
+	_visuals = load(VISUALS_PATH) as CombatVisuals
+	if _visuals == null:
+		_visuals = CombatVisuals.new()
+	add_child(MenuBackdrop.new())
+	_frame = Control.new()
+	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_frame.set_anchors_preset(Control.PRESET_CENTER)
+	_frame.offset_left = -960.0
+	_frame.offset_top = -540.0
+	_frame.offset_right = 960.0
+	_frame.offset_bottom = 540.0
+	add_child(_frame)
+	_build_tabs()
+	_build_bar()
+	_build_strip()
+	_build_toast()
 	_hint = ListMenu.screen_footer(self, [])
+	var icon: Variant = held.get("icon")
 	if held.get("gear") is GearData:
-		_held = {"kind": "gear", "item": held.gear, "from": []}
+		_relics.hold_new(held.gear as GearData)
+		_tab = Tab.RELICS
+		icon = held.gear
 	elif held.get("item") is ItemData:
-		_held = {"kind": "item", "item": held.item, "uid": -1, "turn": 0, "level": 0}
-		_focus = Focus.GRID
-		_grid.cursor = Vector2i.ZERO
-		_clamp_cursor()
-	if not _held.is_empty() and _held.kind == "gear":
-		# New gear goes on whoever has room first.
-		for slot: int in run.party_size():
-			if run.free_gear_slot(slot) >= 0:
-				_hero = slot
-				_slot = run.free_gear_slot(slot)
-				break
-	_redraw()
+		_bag.hold_new(held.item as ItemData, bool(held.get("refund", false)))
+		_tab = Tab.BAG
+		icon = held.item
+	elif shop_mode:
+		_tab = Tab.BAG
+	else:
+		_tab = _last_tab if _tabs.has(_last_tab) else Tab.RELICS
+	_show_tab(_tab, false)
+	if not note.is_empty():
+		show_toast(note, icon)
 
 
-## The run changed (online, another player's change arrived): redraw. Something in hand that is
-## no longer where it was (someone else moved or used it) is let go.
+## The run changed (online, another player's change arrived): redraw every tab.
 func refresh() -> void:
-	if not _held.is_empty() and _held.kind == "item" and int(_held.uid) >= 0 and not _run.backpack.has_uid(int(_held.uid)):
-		_held = {}
-	if not _held.is_empty() and _held.kind == "gear" and not (_held.from as Array).is_empty():
-		var from: Array = _held.from
-		if _run.gear[int(from[0])][int(from[1])] != _held.item:
-			_held = {}
-	_grid.setup(_run.backpack, _visuals())
-	_clamp_cursor()
-	_redraw()
-	if _attrs != null:
-		_attrs.refresh()
-	if _skills != null:
-		_skills.refresh()
+	for tab: PartyTab in _tabs.values():
+		tab.refresh()
 	if _echoes != null:
 		_echoes.refresh()
-	if _relics != null:
-		_relics.refresh()
+	_redraw_chrome()
 
 
 ## Something new is in hand (loot, a find, a swap).
 func holding_new() -> bool:
-	return not _held.is_empty() and ((_held.kind == "gear" and (_held.from as Array).is_empty())
-			or (_held.kind == "item" and int(_held.uid) < 0))
+	return _relics.holding_new() or _bag.holding_new()
 
 
-## The bot (and tests): settles what is in hand the simple way. A new Relic goes on whoever has the
-## most free open slots (or waits in the Relics when nobody has room); a new item goes wherever it
-## fits (or is left).
+## The bot (and tests): settles what is in hand the simple way (RelicsTab / BagTab auto_settle).
 func auto_settle() -> void:
-	if _held.is_empty():
-		return
-	if _held.kind == "gear":
-		var best := -1
-		var free := 0
-		for slot: int in _run.party_size():
-			var empty := 0
-			for g: int in _run.open_relic_slots():
-				if _run.gear[slot][g] == null:
-					empty += 1
-			if empty > free:
-				best = slot
-				free = empty
-		# The bot passes over rot-touched Relics whose price it cannot bear (GearBot).
-		if best >= 0 and GearBot.score(_held.item as GearData) >= 0:
-			_run.wear(best, _run.free_gear_slot(best), _held.item as GearData)
-	elif int(_held.uid) < 0 and _run.add_item(_held.item as ItemData) < 0:
-		left_behind.emit(_held.item as ItemData)
-	_held = {}
-	_redraw()
-	_settled()
+	_relics.auto_settle()
+	_bag.auto_settle()
+	_redraw_chrome()
 
 
 func close() -> void:
 	done.emit()
 
 
-# --- building ---------------------------------------------------------------------------------
-
-func _build_hero_side() -> Control:
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.custom_minimum_size.x = LEFT_WIDTH
-	# Top-aligned, so the cards never move when the info box shows or hides under them.
-	box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	box.add_theme_constant_override("separation", 12)
-	for slot: int in _run.party_size():
-		box.add_child(_build_card(slot))
-	_info_panel = PanelContainer.new()
-	_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_info_panel.add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG, HudStyle.PANEL_BORDER, 2, 14))
-	box.add_child(_info_panel)
-	var info_box := VBoxContainer.new()
-	info_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	info_box.add_theme_constant_override("separation", 6)
-	_info_panel.add_child(info_box)
-	_info_title = HudStyle.make_label("", TEXT_SIZE, HudStyle.GOLD)
-	info_box.add_child(_info_title)
-	_info = HudStyle.make_label("", SMALL_SIZE, HudStyle.TEXT_DIM)
-	_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_info.custom_minimum_size = Vector2(LEFT_WIDTH - 40.0, SMALL_SIZE * 3)
-	info_box.add_child(_info)
-	_menu = ListMenu.new()
-	_menu.item_size = TEXT_SIZE
-	_menu.centred = false
-	_menu.row_width = LEFT_WIDTH - 40.0
-	_menu.visible = false
-	info_box.add_child(_menu)
-	return box
+## The tab on screen (a Tab).
+func current_tab() -> int:
+	return _tab
 
 
-## A hero's card: portrait, name and stats, then their gear slots side by side and the
-## Attributes and Skills buttons.
-func _build_card(slot: int) -> Control:
-	var c := _run.data.party[slot]
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", PORTRAIT_GAP)
-	panel.add_child(row)
-	var face := AssetLoader.texture(c.portrait_path, Vector2i(48, 48))
-	var portrait := HudStyle.portrait_frame(face, c.color, PORTRAIT_PX)
-	portrait.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(portrait)
-	var right := VBoxContainer.new()
-	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	right.alignment = BoxContainer.ALIGNMENT_CENTER
-	right.add_theme_constant_override("separation", 12)
-	row.add_child(right)
-	var head := HBoxContainer.new()
-	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	head.add_theme_constant_override("separation", 16)
-	right.add_child(head)
-	var name_label := HudStyle.make_title(c.display_name, NAME_SIZE, c.color.lightened(0.25))
-	head.add_child(name_label)
-	var stats := HudStyle.make_label("", SMALL_SIZE, HudStyle.TEXT_DIM)
-	stats.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(stats)
-	var slots_row := HBoxContainer.new()
-	slots_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slots_row.add_theme_constant_override("separation", 6)
-	right.add_child(slots_row)
-	var labels: Array[Label] = []
-	for g: int in _run.tuning.run_gear_slots:
-		var label := HudStyle.make_label("", CARD_TEXT_SIZE)
-		label.custom_minimum_size.x = SLOT_WIDTH
-		label.clip_text = true
-		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		slots_row.add_child(label)
-		labels.append(label)
-	var gap := Control.new()
-	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	gap.custom_minimum_size.x = BUTTON_GAP
-	slots_row.add_child(gap)
-	var buttons: Array[Label] = []
-	for i: int in _button_kinds(slot).size():
-		var button := HudStyle.make_label("", CARD_TEXT_SIZE)
-		button.custom_minimum_size.x = BUTTON_WIDTH
-		button.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		slots_row.add_child(button)
-		buttons.append(button)
-	_cards.append({"panel": panel, "stats": stats, "slots": labels, "buttons": buttons})
-	return panel
+## The footer's hint entries now (tests).
+func hint_entries() -> Array:
+	return _hint._entries if _hint != null else []
 
 
-## The buttons at the end of hero `hero`'s card, in order: "attributes", "skills" (with a tree),
-## "echoes".
-func _button_kinds(hero: int) -> Array[String]:
-	var kinds: Array[String] = ["attributes"]
-	if _run.has_tree(hero):
-		kinds.append("skills")
-	kinds.append("echoes")
-	return kinds
+## The tab object for `tab` (null if this run has none; tests and Main's dev screens).
+func tab_node(tab: int) -> PartyTab:
+	return _tabs.get(tab) as PartyTab
 
 
-## The card cursor's place of the first button (Attributes; the others follow).
-func _attributes_slot() -> int:
-	return _run.tuning.run_gear_slots
+## Shows tab `tab` (not while the current one is busy). False if it cannot.
+func select_tab(tab: int) -> bool:
+	if not _tabs.has(tab) or (tab != _tab and (_tabs[_tab] as PartyTab).busy()):
+		return false
+	_show_tab(tab)
+	return true
 
 
-## The last place on hero `hero`'s card: their last button.
-func _last_slot(hero: int) -> int:
-	return _attributes_slot() + _button_kinds(hero).size() - 1
-
-
-func _on_button() -> bool:
-	return _slot >= _attributes_slot()
-
-
-func _build_pack_side() -> Control:
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_constant_override("separation", 10)
-	_pack_label = HudStyle.make_label("", TEXT_SIZE, HudStyle.GOLD)
-	box.add_child(_pack_label)
-	_curse_label = HudStyle.make_label("", SMALL_SIZE, HudStyle.TEXT_DIM)
-	_curse_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_curse_label.custom_minimum_size.x = CURSE_LINE_WIDTH
-	box.add_child(_curse_label)
-	_grid = BackpackGrid.new()
-	box.add_child(_grid)
-	_grid.setup(_run.backpack, _visuals())
-	return box
-
-
-func _visuals() -> CombatVisuals:
-	var visuals := load(VISUALS_PATH) as CombatVisuals
-	return visuals if visuals != null else CombatVisuals.new()
-
-
-# --- input ------------------------------------------------------------------------------------
-
-func _unhandled_input(event: InputEvent) -> void:
-	if _prompt != null or _attrs != null or _skills != null or _echoes != null or _relics != null:
-		return
-	if _menu.visible:
-		_menu_input(event)
-		return
-	if _use_uid >= 0:
-		_target_input(event)
-		return
-	if event is InputEventMouse and _mouse_input(event):
-		return
-	var step := Vector2i.ZERO
-	if _pressed(event, &"menu_left"):
-		step.x = -1
-	elif _pressed(event, &"menu_right"):
-		step.x = 1
-	elif _pressed(event, &"menu_up"):
-		step.y = -1
-	elif _pressed(event, &"menu_down"):
-		step.y = 1
-	elif _pressed(event, &"item_move"):
-		_handled()
-		_move_button()
-		return
-	elif _pressed(event, &"item_turn_left") or _pressed(event, &"item_turn_right"):
-		_handled()
-		_turn_held(-1 if event.is_action(&"item_turn_left") else 1)
-		return
-	elif _pressed(event, &"party_attributes"):
-		_handled()
-		open_attributes()
-		return
-	elif _pressed(event, &"party_skills") and _any_tree():
-		_handled()
-		open_skills()
-		return
-	elif _pressed(event, &"menu_confirm"):
-		_handled()
-		_confirm()
-		return
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu") or MenuMouse.is_back(event):
-		_handled()
-		_cancel()
-		return
-	else:
-		return
-	_handled()
-	_move(step)
-
-
-## The mouse over the backpack grid (card #202): pointing at a cell puts the cursor there, a left
-## click is Confirm on it (picks the item or puts the one in hand down). The hero cards and the gear
-## slots still use the keys and the pad. True when the event was used.
-func _mouse_input(event: InputEvent) -> bool:
-	if not _held.is_empty() and _held.kind == "gear":
-		return false  # gear is worn, never carried in the backpack
-	if event is InputEventMouseMotion:
-		var hovered := _grid.cell_at((event as InputEventMouse).position)
-		if hovered.x >= 0:
-			var focus_before := _focus
-			var cursor_before := _grid.cursor
-			_focus = Focus.GRID
-			_grid.cursor = hovered
-			_clamp_cursor()
-			if focus_before != _focus or cursor_before != _grid.cursor:
-				Sfx.play("menu_move")
-				_redraw()
-				_handled()
-				return true
-	elif MenuMouse.is_click(event):
-		var clicked := _grid.cell_at((event as InputEventMouse).position)
-		if clicked.x >= 0:
-			_focus = Focus.GRID
-			_grid.cursor = clicked
-			_clamp_cursor()
-			_handled()
-			_confirm_grid()
-			return true
-	return false
-
-
-func _move(step: Vector2i) -> void:
-	var last_slot := _last_slot(_hero)
-	if _focus == Focus.GEAR:
-		if step.x > 0 and _slot >= last_slot:
-			if not _held.is_empty() and _held.kind == "gear":
-				Sfx.play("item_no_room")
-				_note_text = "Relics are worn, never carried in the backpack."
-				_redraw()
-				return
-			_focus = Focus.GRID
-			_grid.cursor = Vector2i(0, _hero_row(_hero))
-			_clamp_cursor()
-		elif step.x != 0:
-			if _slot + step.x < 0:
-				return
-			_slot += step.x
-		else:
-			_hero = wrapi(_hero + step.y, 0, _run.party_size())
-			_slot = mini(_slot, _last_slot(_hero))
-	else:
-		var to := _grid.cursor + step
-		if to.x < 0:
-			if not _held.is_empty():
-				return
-			_focus = Focus.GEAR
-			_hero = _row_hero(_grid.cursor.y)
-			_slot = _last_slot(_hero)
-		else:
-			_grid.cursor = to
-			_clamp_cursor()
-	Sfx.play("menu_move")
-	_redraw()
-
-
-## The grid row level with a hero's card, and the hero level with a grid row (moving across).
-func _hero_row(hero: int) -> int:
-	if _run.party_size() <= 1:
-		return 0
-	return roundi(float(hero) * float(_run.backpack.rows - 1) / float(_run.party_size() - 1))
-
-
-func _row_hero(row: int) -> int:
-	if _run.backpack.rows <= 1:
-		return 0
-	return clampi(roundi(float(row) * float(_run.party_size() - 1) / float(_run.backpack.rows - 1)), 0,
-			_run.party_size() - 1)
-
-
-## X / R: with nothing in hand it picks up the item (or gear) under the cursor to move it, no
-## menu; with something in hand it puts it down (like Confirm).
-func _move_button() -> void:
-	if _held.is_empty():
-		_lift_here()
-	else:
-		_confirm()
-
-
-## LB / RB (Z / C): turns the item in hand a quarter turn left or right.
-func _turn_held(step: int) -> void:
-	if _held.is_empty() or _held.kind != "item":
-		return
-	_held.turn = posmod(int(_held.turn) + step, 4)
-	_clamp_cursor()
-	Sfx.play("item_turn")
-	_redraw()
-
-
-func _lift_here() -> void:
-	if _focus == Focus.GEAR:
-		_lift_relic()
-		return
-	var uid := _run.backpack.uid_at(_grid.cursor)
-	if uid < 0:
-		Sfx.play("locked")
-		return
-	var e := _run.backpack.entry(uid)
-	_held = {"kind": "item", "item": e.item, "uid": uid, "turn": int(e.turn), "level": RunState.level_of(e)}
-	_grid.cursor = Vector2i(int(e.x), int(e.y))
-	Sfx.play("item_lift")
-	_redraw()
-
-
-func _confirm() -> void:
-	if _focus == Focus.GEAR:
-		_confirm_gear()
-	else:
-		_confirm_grid()
-
-
-func _confirm_gear() -> void:
-	if _on_button():
-		if not _held.is_empty():
-			Sfx.play("locked")
-			return
-		match _button_kinds(_hero)[_slot - _attributes_slot()]:
-			"attributes":
-				open_attributes()
-			"skills":
-				open_skills()
-			_:
-				open_echoes()
-		return
-	if not _run.slot_open(_slot):
-		Sfx.play("locked")
-		_note_text = "That Relic slot is locked. " + _run.slot_lock_text(_slot)
-		_redraw()
-		return
-	var worn: Variant = _run.gear[_hero][_slot]
-	if _held.is_empty():
-		open_relics(_hero, _slot)
-		return
-	elif _held.kind == "gear":
-		var from: Array = _held.from
-		if from.is_empty():
-			if _run.wear(_hero, _slot, _held.item as GearData) < 0:
-				Sfx.play("locked")
-				return
-			_note_text = "%s wears the %s." % [_run.data.party[_hero].display_name, (_held.item as GearData).display_name]
-			if worn != null:
-				_note_text += " The %s goes back to your Relics." % (worn as GearData).display_name
-			Sfx.play("buff")
-			_held = {}
-			_redraw()
-			_settled()
-			return
-		if int(from[0]) != _hero or int(from[1]) != _slot:
-			_ask({"op": "swap_gear", "from": [int(from[0]), int(from[1])], "to": [_hero, _slot]})
-		Sfx.play("item_place")
-		_held = {}
-	else:
-		Sfx.play("item_no_room")
-		return
-	_redraw()
-
-
-func _confirm_grid() -> void:
-	var pack := _run.backpack
-	var cell := _grid.cursor
-	if _held.is_empty():
-		var uid := pack.uid_at(cell)
-		if uid < 0:
-			Sfx.play("locked")
-			return
-		Sfx.play("menu_confirm")
-		_open_menu(uid)
-		return
-	if _held.kind != "item":
-		return
-	var item := _held.item as ItemData
-	var turn := int(_held.turn)
-	var uid := int(_held.uid)
-	var into := _combine_target()
-	if into >= 0:
-		var name := RunState.entry_name(pack.entry(into))
-		if uid >= 0:
-			_ask({"op": "combine", "uid": uid, "into": into})
-		else:
-			_run.combine_new(item, into)
-		_held = {}
-		_note_text = "Combined: %s+." % name
-		Sfx.play("item_combine")
-		_redraw()
-		if uid < 0:
-			_settled()
-		return
-	if uid >= 0:
-		var e := pack.entry(uid)
-		if int(e.x) == cell.x and int(e.y) == cell.y and int(e.turn) == turn:
-			_held = {}
-		elif pack.fits(item, cell.x, cell.y, turn, uid):
-			_ask({"op": "move", "uid": uid, "x": cell.x, "y": cell.y, "turn": turn})
-			_held = {}
-		else:
-			Sfx.play("item_no_room")
-			return
-		Sfx.play("item_place")
-		_redraw()
-		return
-	# Something new in hand (host only): place it, or swap it with the one item it covers.
-	if pack.fits(item, cell.x, cell.y, turn):
-		_run.place_item(item, cell.x, cell.y, turn, int(_held.get("level", 0)))
-		_note_text = "The %s is in the backpack." % item.display_name
-		_held = {}
-		Sfx.play("item_place")
-		_redraw()
-		_settled()
-		return
-	var covered := _covered(item, cell, turn)
-	if covered.size() == 1:
-		var other := pack.entry(covered[0])
-		if pack.fits(item, cell.x, cell.y, turn, covered[0]):
-			var other_level := RunState.level_of(other)
-			var other_item := pack.remove(covered[0])
-			_run.place_item(item, cell.x, cell.y, turn, int(_held.get("level", 0)))
-			_held = {"kind": "item", "item": other_item, "uid": -1, "turn": int(other.turn), "level": other_level}
-			_note_text = "Swapped: now the %s is in hand." % other_item.display_name
-			Sfx.play("item_lift")
-			_clamp_cursor()
-			_redraw()
-			return
-	Sfx.play("item_no_room")
-
-
-## The item the one in hand would combine into if put down now (-1: none): the item under the
-## cursor, the same item at the same level, that can still go up a level.
-func _combine_target() -> int:
-	if _held.is_empty() or _held.kind != "item":
-		return -1
-	var into := _run.backpack.uid_at(_grid.cursor)
-	if into < 0:
-		return -1
-	if int(_held.uid) >= 0:
-		return into if _run.can_combine(int(_held.uid), into) else -1
-	if int(_held.get("level", 0)) != RunState.level_of(_run.backpack.entry(into)):
-		return -1
-	var target := _run.backpack.entry(into)
-	var ok: bool = target.item == _held.item and (_held.item as ItemData).combinable() \
-			and RunState.entry_rarity(target) < ItemData.Rarity.LEGENDARY
-	return into if ok else -1
-
-
-## The uids of the items `item` would overlap at `cell` turned `turn` times.
-func _covered(item: ItemData, cell: Vector2i, turn: int) -> Array[int]:
-	var found: Array[int] = []
-	for c: Vector2i in Backpack.cells_at(item, cell.x, cell.y, turn):
-		var uid := _run.backpack.uid_at(c)
-		if uid >= 0 and not found.has(uid):
-			found.append(uid)
-	return found
-
-
-func _cancel() -> void:
-	if _held.is_empty():
-		Sfx.play("menu_cancel")
-		close()
-		return
-	if not holding_new():
-		# Put back where it was.
-		_held = {}
-		Sfx.play("menu_cancel")
-		_redraw()
-		return
-	if _held.kind == "gear":
-		# A new Relic is the run's already: nobody wearing it just leaves it in the Relics.
-		Sfx.play("menu_cancel")
-		_note_text = "The %s waits in your Relics." % (_held.item as GearData).display_name
-		_held = {}
-		_redraw()
-		_settled()
-	else:
-		var item := _held.item as ItemData
-		_confirm_prompt("Leave the %s behind?" % item.display_name, "It does not go in the backpack.",
-				"Leave it", "Keep it in hand", func() -> void:
-					Sfx.play("item_drop")
-					_note_text = "Left the %s behind." % item.display_name
-					_held = {}
-					_redraw()
-					left_behind.emit(item)
-					_settled())
-
-
-## The attributes screen over this one, for the hero under the cursor (not while holding
-## something).
+## The Hero tab (attributes) for the hero the cursor is on (T / LT in older builds).
 func open_attributes() -> void:
-	if not _held.is_empty():
+	var hero := (_tabs[_tab] as PartyTab).hero
+	if select_tab(Tab.HERO):
+		_hero.set_hero(hero)
+		_redraw_chrome()
+	else:
 		Sfx.play("locked")
-		return
-	var hero := _hero if _focus == Focus.GEAR else _row_hero(_grid.cursor.y)
-	_attrs = AttributesScreen.new()
-	_attrs.name = "Attributes"
-	_attrs.layer = layer + 1
-	_attrs.remote = remote
-	add_child(_attrs)
-	_attrs.setup(_run, hero)
-	_attrs.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
-	_attrs.done.connect(_close_attributes)
-	Sfx.play("menu_confirm")
 
 
-## The Echoes screen over this one (DESIGN.md 8.17), for the hero under the cursor.
-func open_echoes() -> void:
-	if not _held.is_empty():
+## The Skills tab for the hero the cursor is on.
+func open_skills() -> void:
+	var hero := (_tabs[_tab] as PartyTab).hero
+	if select_tab(Tab.SKILLS):
+		_skills.set_hero(hero)
+		_redraw_chrome()
+	else:
+		Sfx.play("locked")
+
+
+## The Echoes page over this screen (DESIGN.md 8.17), for hero `hero` (-1: the one in focus).
+func open_echoes(hero: int = -1) -> void:
+	if (_tabs[_tab] as PartyTab).busy() and _tab != Tab.HERO:
 		Sfx.play("locked")
 		return
-	var hero := _hero if _focus == Focus.GEAR else _row_hero(_grid.cursor.y)
+	var shown := (_tabs[_tab] as PartyTab).hero if hero < 0 else hero
 	_echoes = EchoesScreen.new()
 	_echoes.name = "Echoes"
 	_echoes.layer = layer + 1
 	_echoes.remote = remote
 	add_child(_echoes)
-	_echoes.setup(_run, hero)
+	_echoes.setup(_run, clampi(shown, 0, _run.party_size() - 1))
 	_echoes.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
 	_echoes.done.connect(func() -> void:
 		_echoes.queue_free()
 		_echoes = null
-		_redraw())
+		refresh())
 	Sfx.play("menu_confirm")
 
 
-## X / R on a worn Relic: picks it up to put on another slot or hero (swapping).
-func _lift_relic() -> void:
-	if _on_button() or not _run.slot_open(_slot) or _run.gear[_hero][_slot] == null:
-		Sfx.play("locked")
-		return
-	_held = {"kind": "gear", "item": _run.gear[_hero][_slot], "from": [_hero, _slot]}
-	Sfx.play("item_lift")
-	_redraw()
-
-
-## The Relics page over this one (DESIGN.md 8.17), on hero `hero`; `gear_slot` >= 0 opens its
-## grid at once to choose a Relic for that slot.
+## The Relics tab, on hero `hero` (-1: the one in focus); `gear_slot` >= 0 puts the cursor on that
+## slot and opens the bag to pick a Relic for it.
 func open_relics(hero: int = -1, gear_slot: int = -1) -> void:
-	if not _held.is_empty():
+	var focus := (_tabs[_tab] as PartyTab).hero if hero < 0 else hero
+	if not select_tab(Tab.RELICS):
 		Sfx.play("locked")
 		return
-	_relics = RelicsScreen.new()
-	_relics.name = "Relics"
-	_relics.layer = layer + 1
-	_relics.remote = remote
-	add_child(_relics)
-	_relics.setup_run(_run, _hero if hero < 0 else hero, gear_slot)
-	_relics.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
-	_relics.closed.connect(func() -> void:
-		_relics.queue_free()
-		_relics = null
-		_redraw())
+	_relics.focus_slot(focus, maxi(0, gear_slot), gear_slot >= 0)
+	_redraw_chrome()
 
 
-## The skills screen over this one, for the hero under the cursor (or the next with a tree).
-func open_skills() -> void:
-	if not _held.is_empty():
-		Sfx.play("locked")
+## A toast under the tab bar: `text` (a word or two) and an optional icon (GearData, ItemData,
+## Texture2D or a UiGlyph kind), shown for party_toast_s, then faded.
+func show_toast(text: String, icon: Variant = null) -> void:
+	_clear(_toast.get_child(0))
+	var line := _toast.get_child(0) as HBoxContainer
+	var picture := _icon_for(icon, TOAST_ICON_PX)
+	if picture != null:
+		line.add_child(picture)
+	line.add_child(HudStyle.make_title(text, TOAST_SIZE, HudStyle.TEXT))
+	_toast.visible = true
+	_toast.modulate.a = 1.0
+	if _toast_tween != null:
+		_toast_tween.kill()
+	if not is_inside_tree():
+		# Set up before it joins the tree (Main's party screen): the fade starts in _ready.
 		return
-	var hero := _hero if _focus == Focus.GEAR else _row_hero(_grid.cursor.y)
-	_skills = SkillsScreen.new()
-	_skills.name = "Skills"
-	_skills.layer = layer + 1
-	_skills.remote = remote
-	add_child(_skills)
-	_skills.setup(_run, hero)
-	_skills.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
-	_skills.done.connect(func() -> void:
-		_skills.queue_free()
-		_skills = null
-		_redraw())
-	Sfx.play("menu_confirm")
+	_fade_toast()
+
+
+func _ready() -> void:
+	if _toast != null and _toast.visible:
+		_fade_toast()
+
+
+func _fade_toast() -> void:
+	_toast_tween = create_tween()
+	_toast_tween.tween_interval(_visuals.party_toast_s)
+	_toast_tween.tween_property(_toast, "modulate:a", 0.0, _visuals.party_toast_fade_s)
+	_toast_tween.tween_callback(func() -> void: _toast.visible = false)
+
+
+# --- building -----------------------------------------------------------------------------------
+
+func _build_tabs() -> void:
+	var page := Control.new()
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.position = Vector2(0.0, PAGE_TOP)
+	page.size = PartyTab.PAGE_SIZE
+	_frame.add_child(page)
+	_relics = RelicsTab.new()
+	_bag = BagTab.new()
+	_bag.shop_mode = shop_mode
+	_hero = HeroTab.new()
+	_tabs = {Tab.RELICS: _relics, Tab.BAG: _bag, Tab.HERO: _hero}
+	_order = [Tab.RELICS, Tab.BAG, Tab.HERO]
+	if _any_tree():
+		_skills = SkillsTab.new()
+		_tabs[Tab.SKILLS] = _skills
+		_order.append(Tab.SKILLS)
+	for tab: int in _order:
+		var node := _tabs[tab] as PartyTab
+		node.name = TAB_NAMES[tab]
+		node.visible = false
+		page.add_child(node)
+		node.setup(_run, remote)
+		node.changed.connect(_redraw_chrome)
+		node.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
+		node.toast.connect(show_toast)
+	_relics.settled.connect(_settled)
+	_bag.settled.connect(_settled)
+	_bag.left_behind.connect(func(item: ItemData) -> void: left_behind.emit(item))
+	_bag.sold.connect(func() -> void: sold.emit())
+	_hero.echoes_requested.connect(open_echoes)
+
+
+func _build_bar() -> void:
+	# Full width and centred by the container itself, so it stays centred however it is built
+	# (the screen may be set up before it joins the tree, when nothing has a size yet).
+	_bar_box = HBoxContainer.new()
+	_bar_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_bar_box.add_theme_constant_override("separation", 14)
+	_bar_box.position = Vector2(0.0, TAB_TOP)
+	_bar_box.size = Vector2(1920.0, TAB_HEIGHT)
+	_frame.add_child(_bar_box)
+	var gold_line := HBoxContainer.new()
+	gold_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gold_line.add_theme_constant_override("separation", 10)
+	gold_line.position = Vector2(1680.0, TAB_TOP + 10.0)
+	_frame.add_child(gold_line)
+	gold_line.add_child(UiGlyph.make(&"coin", 32.0, HudStyle.GOLD))
+	_gold = HudStyle.make_number("", GOLD_SIZE, HudStyle.GOLD)
+	gold_line.add_child(_gold)
+
+
+func _build_strip() -> void:
+	_strip = Panel.new()
+	_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_strip.position = STRIP_RECT.position
+	_strip.size = STRIP_RECT.size
+	_strip.add_theme_stylebox_override("panel", HudStyle.slant(HudStyle.INK, HudStyle.EDGE_DIM, 2, 10, STRIP_RECT.size.y,
+			HudStyle.SLANT * 0.08))
+	_frame.add_child(_strip)
+	_strip_icon = Control.new()
+	_strip_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_strip_icon.position = Vector2(34.0, (STRIP_RECT.size.y - STRIP_ICON_PX) * 0.5)
+	_strip_icon.size = Vector2(STRIP_ICON_PX, STRIP_ICON_PX)
+	_strip.add_child(_strip_icon)
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_theme_constant_override("separation", 18)
+	head.position = Vector2(150.0, 14.0)
+	_strip.add_child(head)
+	_strip_title = HudStyle.make_title("", STRIP_TITLE_SIZE, HudStyle.TEXT)
+	head.add_child(_strip_title)
+	_strip_chips = HBoxContainer.new()
+	_strip_chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_strip_chips.add_theme_constant_override("separation", 10)
+	_strip_chips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(_strip_chips)
+	# Up to two lines, so a skill's whole text (perfect-press bonus included) fits.
+	_strip_line = HudStyle.make_label("", STRIP_LINE_SIZE, HudStyle.TEXT_DIM)
+	_strip_line.position = Vector2(150.0, 60.0)
+	_strip_line.size = Vector2(STRIP_RECT.size.x - 520.0, 58.0)
+	_strip_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_strip_line.max_lines_visible = 2
+	_strip_line.clip_text = true
+	_strip_line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_strip.add_child(_strip_line)
+	_strip_bar = HBoxContainer.new()
+	_strip_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_strip_bar.add_theme_constant_override("separation", 6)
+	_strip_bar.position = Vector2(STRIP_RECT.size.x - 330.0, 48.0)
+	_strip.add_child(_strip_bar)
+
+
+func _build_toast() -> void:
+	_toast = PanelContainer.new()
+	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast.add_theme_stylebox_override("panel", HudStyle.slant(HudStyle.INK_SOLID, HudStyle.GOLD, 2, 10, 60.0))
+	_toast.visible = false
+	var line := HBoxContainer.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_theme_constant_override("separation", 14)
+	_toast.add_child(line)
+	# A full-width row that centres the toast (works before the screen is in the tree).
+	var lane := HBoxContainer.new()
+	lane.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lane.alignment = BoxContainer.ALIGNMENT_CENTER
+	lane.position = Vector2(0.0, TOAST_TOP)
+	lane.size = Vector2(1920.0, 60.0)
+	lane.add_child(_toast)
+	_frame.add_child(lane)
+
+
+# --- input --------------------------------------------------------------------------------------
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _echoes != null:
+		return
+	var tab := _tabs[_tab] as PartyTab
+	if not tab.busy():
+		if _pressed(event, &"item_turn_left") or _pressed(event, &"item_turn_right"):
+			_handled()
+			_step_tab(-1 if event.is_action(&"item_turn_left") else 1)
+			return
+		if MenuMouse.is_click(event):
+			for t: int in _tab_plates:
+				var plate := _tab_plates[t] as Control
+				if Rect2(Vector2.ZERO, plate.size).has_point(MenuMouse.local_point(plate, (event as InputEventMouse).position)):
+					_handled()
+					if t != _tab:
+						Sfx.play("menu_move")
+						_show_tab(t)
+					return
+	if tab.handle_input(event):
+		_handled()
+		return
+	if not tab.busy() and (_pressed(event, &"menu_cancel") or _pressed(event, &"party_menu") or MenuMouse.is_back(event)):
+		_handled()
+		Sfx.play("menu_cancel")
+		close()
+
+
+func _step_tab(step: int) -> void:
+	var at := _order.find(_tab)
+	_show_tab(_order[wrapi(at + step, 0, _order.size())])
+	Sfx.play("menu_move")
+
+
+func _show_tab(tab: int, remember: bool = true) -> void:
+	var from := _tabs.get(_tab) as PartyTab
+	var to := _tabs[tab] as PartyTab
+	if from != null and from != to:
+		# The hero in focus follows from tab to tab.
+		to.hero = from.hero
+	_tab = tab
+	if remember:
+		_last_tab = tab
+	for t: int in _tabs:
+		(_tabs[t] as PartyTab).visible = t == tab
+	to.shown()
+	_redraw_chrome()
+
+
+## The new thing in hand is dealt with.
+func _settled() -> void:
+	_redraw_chrome()
+	if close_when_settled:
+		close()
+
+
+# --- drawing ------------------------------------------------------------------------------------
+
+## Redraws what is around the tab: the bar (badges), the gold, the strip and the hints.
+func _redraw_chrome() -> void:
+	if _bar_box == null:
+		return
+	_redraw_bar()
+	_gold.text = str(_run.gold)
+	_redraw_strip((_tabs[_tab] as PartyTab).info())
+	_redraw_hint()
+
+
+func _redraw_bar() -> void:
+	_clear(_bar_box)
+	_tab_plates.clear()
+	_bar_box.add_child(HintBar.entry_row(&"item_turn_left", "", TAB_SIZE - 4))
+	for tab: int in _order:
+		var on := tab == _tab
+		var plate := PanelContainer.new()
+		plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		plate.custom_minimum_size.y = TAB_HEIGHT
+		plate.add_theme_stylebox_override("panel", HudStyle.slant(Color(0.3, 0.24, 0.1, 0.9) if on else HudStyle.INK,
+				HudStyle.GOLD if on else HudStyle.EDGE_DIM, 3 if on else 2, 8, TAB_HEIGHT))
+		var line := HBoxContainer.new()
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_theme_constant_override("separation", 10)
+		plate.add_child(line)
+		var tint := HudStyle.GOLD if on else HudStyle.TEXT_DIM
+		var glyph := UiGlyph.make(TAB_GLYPHS[tab], TAB_GLYPH_PX, tint)
+		glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(glyph)
+		var name := HudStyle.make_title(TAB_NAMES[tab], TAB_SIZE, tint)
+		name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		line.add_child(name)
+		var badge := (_tabs[tab] as PartyTab).badge()
+		if badge > 0:
+			line.add_child(_badge(badge))
+		_bar_box.add_child(plate)
+		_tab_plates[tab] = plate
+	_bar_box.add_child(HintBar.entry_row(&"item_turn_right", "", TAB_SIZE - 4))
+
+
+## A gold round badge with a number (points waiting on that tab).
+func _badge(n: int) -> Control:
+	var box := PanelContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var style := StyleBoxFlat.new()
+	style.bg_color = HudStyle.GOLD
+	style.set_corner_radius_all(14)
+	style.content_margin_left = 9.0
+	style.content_margin_right = 9.0
+	box.add_theme_stylebox_override("panel", style)
+	box.add_child(HudStyle.make_number(str(n), CHIP_SIZE, Color(0.08, 0.06, 0.04)))
+	return box
+
+
+func _redraw_strip(data: Dictionary) -> void:
+	_clear(_strip_icon)
+	_clear(_strip_chips)
+	_clear(_strip_bar)
+	var picture := _icon_for(data.get("icon"), STRIP_ICON_PX)
+	if picture != null:
+		_strip_icon.add_child(picture)
+	_strip_title.text = String(data.get("title", ""))
+	_strip_title.label_settings.font_color = data.get("color", HudStyle.TEXT) as Color
+	for chip: Variant in data.get("chips", []):
+		var parts := chip as Array
+		_strip_chips.add_child(_chip(StringName(parts[0]) if parts.size() > 0 else &"", String(parts[1]) if parts.size() > 1 else "",
+				parts[2] as Color if parts.size() > 2 else HudStyle.TEXT))
+	_strip_line.text = String(data.get("line", ""))
+	var bar: Variant = data.get("bar")
+	var has_bar := bar is Array and (bar as Array).size() == 2 and int(bar[1]) > 0
+	# Without a bar the line takes the strip's whole width.
+	_strip_line.size.x = STRIP_RECT.size.x - (520.0 if has_bar else 190.0)
+	if has_bar:
+		_strip_bar.add_child(UiGlyph.make(&"echo", 26.0, HudStyle.TEXT_DIM))
+		for i: int in int(bar[1]):
+			var seg := ColorRect.new()
+			seg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			seg.custom_minimum_size = BAR_SEGMENT
+			seg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			seg.color = Color(0.62, 0.32, 0.72) if i < int(bar[0]) else Color(HudStyle.EDGE_DIM, 0.5)
+			_strip_bar.add_child(seg)
+		_strip_bar.add_child(HudStyle.make_number("%d / %d" % [int(bar[0]), int(bar[1])], CHIP_SIZE, HudStyle.TEXT_DIM))
+
+
+## A small box on the strip: an optional glyph and a short text.
+func _chip(glyph: StringName, text: String, color: Color) -> Control:
+	var box := PanelContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_stylebox_override("panel", HudStyle.slant(HudStyle.INK_SOLID, HudStyle.EDGE_DIM, 1, 4, 34.0, HudStyle.SLANT, false))
+	var line := HBoxContainer.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_theme_constant_override("separation", 6)
+	box.add_child(line)
+	if not String(glyph).is_empty():
+		var g := UiGlyph.make(glyph, 20.0, color)
+		g.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(g)
+	line.add_child(HudStyle.make_number(text, CHIP_SIZE, color))
+	return box
+
+
+func _redraw_hint() -> void:
+	var tab := _tabs[_tab] as PartyTab
+	var entries: Array = tab.hints()
+	if not tab.busy():
+		# A tab gives at most three hints when not busy (a chip pair with one label counts once).
+		entries.append([&"item_turn_left", ""])
+		entries.append([&"item_turn_right", "Tabs"])
+	_hint.set_entries(entries)
+
+
+## How many hints a footer list shows: an entry with no label joins the next one (LB / RB Tabs).
+static func visible_hints(entries: Array) -> int:
+	var count := 0
+	for entry: Variant in entries:
+		if not String((entry as Array)[1]).is_empty():
+			count += 1
+	return count
+
+
+## A picture for a strip or a toast: a Relic's icon, an item's sprite, a texture or a glyph.
+func _icon_for(icon: Variant, px: float) -> Control:
+	if icon is GearData:
+		var relic := RelicIcon.new()
+		relic.setup(icon as GearData, px, true, _run.relic_level(icon as GearData), _run.tuning.relic_max_level)
+		return relic
+	if icon is ItemData:
+		var item := icon as ItemData
+		return _texture_box(AssetLoader.texture(item.icon_path, item.size() * 16), px)
+	if icon is Texture2D:
+		return _texture_box(icon as Texture2D, px)
+	if icon is StringName and not String(icon).is_empty():
+		return UiGlyph.make(icon as StringName, px * 0.8, HudStyle.GOLD)
+	return null
+
+
+func _texture_box(texture: Texture2D, px: float) -> Control:
+	var rect := TextureRect.new()
+	rect.texture = texture
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.custom_minimum_size = Vector2(px, px)
+	rect.size = Vector2(px, px)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	return rect
 
 
 func _any_tree() -> bool:
@@ -763,390 +579,10 @@ func _any_tree() -> bool:
 	return false
 
 
-func _close_attributes() -> void:
-	if _attrs == null:
-		return
-	_attrs.queue_free()
-	_attrs = null
-	_redraw()
-
-
-## The new thing in hand is dealt with.
-func _settled() -> void:
-	if close_when_settled:
-		close()
-
-
-# --- the item menu ----------------------------------------------------------------------------
-
-func _open_menu(uid: int) -> void:
-	var placed := _run.backpack.entry(uid)
-	var item := placed.item as ItemData
-	_menu_choices.clear()
-	var items: Array[Dictionary] = []
-	if item.usable_on_map():
-		_menu_choices.append(["use", -1])
-		items.append({"text": "Use"})
-	if shop_mode and item.price > 0 and not item.rotten:
-		_menu_choices.append(["sell", -1])
-		items.append({"text": "Sell for %d gold" % _run.sell_price(_run.entry_price(placed))})
-	_menu_choices.append(["move", -1])
-	items.append({"text": "Move"})
-	_menu_choices.append(["drop", -1])
-	items.append({"text": "Throw away"})
-	_menu_choices.append(["cancel", -1])
-	items.append({"text": "Cancel"})
-	_menu.index = 0
-	_menu.window_rows = 0
-	_menu.set_items(items)
-	_menu.set_meta("uid", uid)
-	_menu.visible = true
-	_redraw_hint()
-
-
-func _menu_input(event: InputEvent) -> void:
-	match _menu.handle(event):
-		&"cancel":
-			Sfx.play("menu_cancel")
-			_close_menu()
-		&"confirm":
-			var uid := int(_menu.get_meta("uid"))
-			var choice: Array = _menu_choices[_menu.index]
-			var e := _run.backpack.entry(uid)
-			_close_menu()
-			if e.is_empty():
-				return
-			var item := e.item as ItemData
-			match String(choice[0]):
-				"use":
-					if item.needs_target():
-						# Pick the hero on their card (the cards are already on screen).
-						_use_uid = uid
-						_hero = _lowest_hero()
-						Sfx.play("menu_confirm")
-					else:
-						_use_on(uid, -1)
-				"sell":
-					var gold := _run.sell_price(_run.entry_price(e))
-					_ask({"op": "sell", "uid": uid})
-					Sfx.play("gold_gain")
-					_note_text = "Sold the %s for %d gold." % [item.display_name, gold]
-				"move":
-					_held = {"kind": "item", "item": item, "uid": uid, "turn": int(e.turn)}
-					_grid.cursor = Vector2i(int(e.x), int(e.y))
-					Sfx.play("item_lift")
-				"drop":
-					_confirm_prompt("Throw away the %s?" % item.display_name, "It is gone for good.", "Throw it away",
-							"Keep it", func() -> void:
-								_ask({"op": "drop", "uid": uid})
-								Sfx.play("item_drop")
-								_note_text = "Threw away the %s." % item.display_name
-								_redraw())
-				_:
-					Sfx.play("menu_cancel")
-			_redraw()
-
-
-## Choosing who gets an item: up/down (or left/right) picks a hero card, Confirm uses it on them,
-## Cancel goes back.
-func _target_input(event: InputEvent) -> void:
-	if _pressed(event, &"menu_up") or _pressed(event, &"menu_left"):
-		_hero = wrapi(_hero - 1, 0, _run.party_size())
-		Sfx.play("menu_move")
-	elif _pressed(event, &"menu_down") or _pressed(event, &"menu_right"):
-		_hero = wrapi(_hero + 1, 0, _run.party_size())
-		Sfx.play("menu_move")
-	elif _pressed(event, &"menu_confirm") or _pressed(event, &"item_move"):
-		if not remote and not _run.can_use_item(_use_uid, _hero):
-			# Stay on the hero cards: the info line says why this hero cannot (a capped Tonic).
-			Sfx.play("locked")
-		else:
-			var uid := _use_uid
-			_use_uid = -1
-			_use_on(uid, _hero)
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu") or MenuMouse.is_back(event):
-		_use_uid = -1
-		Sfx.play("menu_cancel")
-	else:
-		return
-	_handled()
-	_redraw()
-
-
-## Uses item `uid` on the map (on hero `slot` if it needs one).
-func _use_on(uid: int, slot: int) -> void:
-	var e := _run.backpack.entry(uid)
-	if e.is_empty():
-		return
-	if remote or _run.can_use_item(uid, slot):
-		var name := RunState.entry_name(e)
-		_ask({"op": "use", "uid": uid, "slot": slot})
-		Sfx.play("heal")
-		_note_text = "Used the %s%s." % [name, " on " + _run.data.party[slot].display_name if slot >= 0 else ""]
-	else:
-		Sfx.play("locked")
-		_note_text = _run.use_blocked_reason(uid, slot)
-	_redraw()
-
-
-## The hero with the least HP for their max (the likely one to heal).
-func _lowest_hero() -> int:
-	var low := 0
-	for slot: int in _run.party_size():
-		if _run.hp[slot] * _run.max_hp(low) < _run.hp[low] * _run.max_hp(slot):
-			low = slot
-	return low
-
-
-func _close_menu() -> void:
-	_menu.visible = false
-	_redraw()
-
-
-func _confirm_prompt(question: String, detail: String, yes: String, no: String, on_yes: Callable) -> void:
-	_prompt = ConfirmPrompt.new()
-	add_child(_prompt)
-	_prompt.setup(question, detail, yes, no)
-	_prompt.answered.connect(func(answer: bool) -> void:
-		# The answer's press must not also reach this screen.
-		_handled()
-		_prompt.queue_free()
-		_prompt = null
-		if answer:
-			on_yes.call())
-
-
-## Makes a change: here, or (online client) by asking the host.
-func _ask(op: Dictionary) -> void:
-	if remote:
-		op_requested.emit(op)
-	elif _run.apply_op(op) and String(op.get("op", "")) == "sell":
-		sold.emit()
-
-
-# --- drawing ----------------------------------------------------------------------------------
-
-func _clamp_cursor() -> void:
-	var pack := _run.backpack
-	var ext := Vector2i.ONE
-	if not _held.is_empty() and _held.kind == "item":
-		ext = Backpack.extent(Backpack.turned((_held.item as ItemData).shape, int(_held.turn)))
-	_grid.cursor = Vector2i(clampi(_grid.cursor.x, 0, maxi(0, pack.width - ext.x)),
-			clampi(_grid.cursor.y, 0, maxi(0, pack.rows - ext.y)))
-
-
-func _redraw() -> void:
-	_level.text = "Gold %d" % _run.gold
-	_note.text = _note_text
-	_note.visible = not _note_text.is_empty()
-	var from: Array = _held.from if not _held.is_empty() and _held.kind == "gear" else []
-	for slot: int in _cards.size():
-		var card: Dictionary = _cards[slot]
-		var chosen := (_focus == Focus.GEAR or _use_uid >= 0) and slot == _hero
-		# While choosing who gets an item, a hero who cannot have it (a full Tonic drinker) is greyed.
-		var greyed := _use_uid >= 0 and not _run.can_use_item(_use_uid, slot)
-		(card.panel as PanelContainer).modulate = Color(1.0, 1.0, 1.0, GREYED_ALPHA if greyed else 1.0)
-		(card.panel as PanelContainer).add_theme_stylebox_override("panel", HudStyle.panel(HudStyle.PANEL_BG,
-				HudStyle.GOLD if chosen else HudStyle.PANEL_BORDER, 3 if chosen else 2, 16))
-		(card.stats as Label).text = "Lv %d   HP %d / %d   Power %d   Speed %d" % [_run.levels[slot], _run.hp[slot],
-				_run.max_hp(slot), _run.power(slot), _run.speed(slot)]
-		var buttons: Array = card.buttons
-		var kinds := _button_kinds(slot)
-		for b: int in buttons.size():
-			var button := buttons[b] as Label
-			var free := 0
-			match kinds[b]:
-				"attributes":
-					free = _run.free_points(slot)
-				"skills":
-					free = _run.free_skill_points(slot)
-				_:
-					# Echo points only call for attention once there is an Echo to wear.
-					free = _run.free_echo_points(slot) if not _run.learned_echoes().is_empty() else 0
-			button.text = String(kinds[b]).capitalize() + ("  +%d" % free if free > 0 else "")
-			var on_it := chosen and _slot == _attributes_slot() + b and _use_uid < 0
-			# Framed like a button; gold when the cursor is on it.
-			var lit := on_it and not _menu.visible
-			button.add_theme_stylebox_override("normal", HudStyle.panel(Color(0.3, 0.25, 0.1, 0.5) if lit else HudStyle.PANEL_BG,
-					HudStyle.GOLD if lit else HudStyle.PANEL_BORDER, 2, 6))
-			button.label_settings.font_color = HudStyle.GOLD if on_it or free > 0 else HudStyle.TEXT
-		var labels: Array = card.slots
-		for g: int in labels.size():
-			var item: Variant = _run.gear[slot][g]
-			var selected := chosen and g == _slot
-			var label := labels[g] as Label
-			var lifted := not from.is_empty() and int(from[0]) == slot and int(from[1]) == g
-			var open := _run.slot_open(g)
-			if lifted:
-				label.text = "(in hand)"
-			elif not open:
-				label.text = LOCKED_TEXT
-			elif item != null:
-				var level := _run.relic_level(item as GearData)
-				label.text = (item as GearData).display_name + (" %d" % level if level > 1 else "")
-			else:
-				label.text = EMPTY_TEXT
-			label.add_theme_stylebox_override("normal", ListMenu.row_style(selected and not _menu.visible, SLOT_PAD_X))
-			var color := HudStyle.TEXT_DIM
-			if selected:
-				color = HudStyle.GOLD
-			elif item != null and not lifted:
-				color = GearData.ROT_TOUCHED_COLOR if (item as GearData).rot_touched \
-						else BackpackGrid.rarity_color(BackpackGrid.gear_step(item as GearData))
-			label.label_settings.font_color = color
-			label.modulate = Color(1.0, 1.0, 1.0, 1.0 if open else GREYED_ALPHA)
-	_pack_label.text = "Backpack   %d of %d cells free" % [_run.backpack.free_cells(), _run.backpack.cell_count()]
-	_curse_label.text = _curse_summary()
-	_grid.combine_into = _combine_target()
-	_grid.show_cursor = _focus == Focus.GRID and not _menu.visible
-	if not _held.is_empty() and _held.kind == "item":
-		_grid.held_item = _held.item
-		_grid.held_turn = int(_held.turn)
-		_grid.held_uid = int(_held.uid)
-	else:
-		_grid.held_item = null
-		_grid.held_uid = -1
-	_grid.queue_redraw()
-	_redraw_info()
-	_redraw_hint()
-
-
-func _redraw_info() -> void:
-	_info_title.label_settings.font_color = HudStyle.GOLD
-	# A worn Relic (its stat line and Echo) or a locked slot (what opens it) has something to say too.
-	var relic_slot := _focus == Focus.GEAR and not _on_button() \
-			and (not _run.slot_open(_slot) or _run.gear[_hero][_slot] != null)
-	_info_panel.visible = _use_uid >= 0 or _menu.visible or not _held.is_empty() or relic_slot \
-			or (_focus == Focus.GRID and _run.backpack.uid_at(_grid.cursor) >= 0)
-	if _use_uid >= 0:
-		var e := _run.backpack.entry(_use_uid)
-		_info_title.text = "Use the %s on whom?" % RunState.entry_name(e)
-		_info.text = "%s: HP %d / %d. Pick a hero card above." % [_run.data.party[_hero].display_name, _run.hp[_hero],
-				_run.max_hp(_hero)]
-		var blocked := _run.use_blocked_reason(_use_uid, _hero)
-		if not blocked.is_empty():
-			_info.text = blocked + " Pick another hero."
-		return
-	if not _held.is_empty():
-		var thing: Resource = _held.item
-		var title := String(thing.get("display_name"))
-		var text := String(thing.get("description"))
-		if _held.kind == "gear":
-			_info_title.text = "In hand: %s (Relic)" % title
-			if (_held.item as GearData).rot_touched:
-				_info_title.label_settings.font_color = GearData.ROT_TOUCHED_COLOR
-			var worn: Variant = _run.gear[_hero][_slot] if not _on_button() else null
-			if _focus == Focus.GEAR and not _on_button() and not _run.slot_open(_slot):
-				text += "\nThis slot is locked. " + _run.slot_lock_text(_slot)
-			elif _focus == Focus.GEAR and holding_new() and worn != null:
-				text += "\nPut on here: the %s goes back to your Relics." % (worn as GearData).display_name
-			elif _focus == Focus.GEAR and worn != null and not holding_new():
-				text += "\nPut down here: swaps with the %s." % (worn as GearData).display_name
-		else:
-			_info_title.text = "In hand: %s%s" % [title, "+".repeat(int(_held.get("level", 0)))]
-			var fits := _run.backpack.fits(thing as ItemData, _grid.cursor.x, _grid.cursor.y, int(_held.turn), int(_held.uid))
-			if _combine_target() >= 0:
-				text += "\nPut down here: combines into %s+." % RunState.entry_name(_run.backpack.entry(_combine_target()))
-			elif not fits and holding_new() and _covered(thing as ItemData, _grid.cursor, int(_held.turn)).size() == 1:
-				text += "\nPut down here: swaps with the item under it."
-			elif not fits:
-				text += "\nDoes not fit here."
-		_info.text = text
-		return
-	if _focus == Focus.GEAR:
-		if _on_button():
-			return
-		if not _run.slot_open(_slot):
-			_info_title.text = "Locked Relic slot"
-			_info.text = _run.slot_lock_text(_slot)
-			return
-		var worn: Variant = _run.gear[_hero][_slot]
-		_info_title.text = (worn as GearData).display_name if worn != null else "Empty Relic slot"
-		if worn != null:
-			_info_title.text += "   (Lv %d, %s)" % [_run.relic_level(worn as GearData),
-					BackpackGrid.rarity_name(BackpackGrid.gear_step(worn as GearData))]
-			_info_title.label_settings.font_color = BackpackGrid.rarity_color(BackpackGrid.gear_step(worn as GearData))
-			_info.text = _relic_info(worn as GearData)
-		else:
-			_info.text = "Confirm: pick one of your Relics to wear here."
-		return
-	var uid := _run.backpack.uid_at(_grid.cursor)
-	if uid < 0:
-		_info_title.text = "Empty"
-		_info.text = "Room for something."
-		return
-	var placed := _run.backpack.entry(uid)
-	var item := placed.item as ItemData
-	var rarity := RunState.entry_rarity(placed)
-	_info_title.text = "%s   (%s%s)" % [RunState.entry_name(placed), "rotten, " if item.rotten else "",
-			BackpackGrid.rarity_name(rarity)]
-	_info_title.label_settings.font_color = BackpackGrid.ROTTEN_COLOR if item.rotten else BackpackGrid.rarity_color(rarity)
-	var uses := PackedStringArray()
-	if item.usable_on_map():
-		uses.append("on the map")
-	if item.usable_in_fight():
-		uses.append("in fights (%d AP)" % item.ap_cost)
-	var text := item.description
-	if RunState.level_of(placed) > 0:
-		text += "\nCombined: %d%% instead of %d%%." % [_run.entry_amount(placed), item.amount_percent]
-	if not uses.is_empty():
-		text += "\nUse it " + " and ".join(uses) + "."
-	if item.combinable() and rarity < ItemData.Rarity.LEGENDARY:
-		text += "\nPut another %s on it to combine them." % RunState.entry_name(placed)
-	if item.rotten:
-		text += "\nNobody buys rot."
-	elif item.price > 0:
-		text += "\nSells for %d gold." % _run.sell_price(_run.entry_price(placed))
-	_info.text = text
-
-
-## A worn Relic in the info box: what it does, its stat line at its level, and its Echo this run.
-func _relic_info(item: GearData) -> String:
-	var lines := PackedStringArray([item.description])
-	var stat := item.stat_text(_run.relic_level(item))
-	if not stat.is_empty():
-		lines.append("Stat line: " + stat + ".")
-	if _run.echo_learned(item):
-		lines.append("Echo learned this run: any hero can wear it for %d Echo points." % item.echo_cost)
-	else:
-		lines.append("Echo: %d / %d. Win %d more fights wearing it to learn it this run." % [_run.mastery_of(item),
-				_run.tuning.mastery_needed, _run.fights_to_learn(item)])
-	return "\n".join(lines)
-
-
-## The curses' rot under the backpack's title (empty without curses).
-func _curse_summary() -> String:
-	if _run.rot_percent() <= 0:
-		return "No curses."
-	return "Curses: every hero loses %d%% HP each turn in fights. A shop's Cleanse removes one." % _run.rot_percent()
-
-
-func _redraw_hint() -> void:
-	if _use_uid >= 0:
-		_hint.set_entries([[&"@updown", "Hero"], [&"menu_confirm", "Use"], [&"menu_cancel", "Back"]])
-		return
-	if _menu.visible:
-		_hint.set_entries([[&"@updown", "Choose"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]])
-		return
-	var entries: Array = [[&"@arrows", "Move"]]
-	if _held.is_empty():
-		var confirm := "Choose"
-		if _focus == Focus.GEAR:
-			confirm = "Open" if _on_button() else "Relics"
-		entries.append([&"menu_confirm", confirm])
-		if _focus == Focus.GRID or (not _on_button() and _run.slot_open(_slot) and _run.gear[_hero][_slot] != null):
-			entries.append([&"item_move", "Move"])
-	elif _held.kind == "item":
-		entries.append([&"item_move", "Put down"])
-		entries.append([&"item_turn_left", "Turn"])
-		entries.append([&"item_turn_right", "Turn"])
-	else:
-		entries.append([&"menu_confirm", "Put on"])
-	if not _held.is_empty():
-		entries.append([&"menu_cancel", "Leave it" if holding_new() else "Put back"])
-	else:
-		entries.append([&"menu_cancel", "Done"])
-	_hint.set_entries(entries)
+static func _clear(node: Node) -> void:
+	for child: Node in node.get_children():
+		node.remove_child(child)
+		child.free()
 
 
 func _handled() -> void:
@@ -1156,6 +592,4 @@ func _handled() -> void:
 
 
 func _pressed(event: InputEvent, action: StringName) -> bool:
-	if not event.is_action_pressed(action, false, true):
-		return false
-	return not (event is InputEventJoypadMotion) or Input.is_action_just_pressed(action)
+	return PartyTab.pressed(event, action)

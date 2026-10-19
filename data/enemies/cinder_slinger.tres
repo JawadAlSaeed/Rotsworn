@@ -4,13 +4,14 @@
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
 [ext_resource type="Resource" path="res://data/clips/ember_slinger.tres" id="3_clips"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_pitch.tres" id="a_slinger_pitch"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_volley.tres" id="a_slinger_volley"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_firepot.tres" id="a_slinger_firepot"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_scatter.tres" id="a_slinger_scatter"]
+[ext_resource type="Resource" path="res://data/gear/hollow_drum.tres" id="11_x8aai"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/cinder_fire_rain.tres" id="a_cinder_fire_rain"]
-[ext_resource type="Resource" path="res://data/gear/last_ember.tres" id="g_last_ember"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_firepot.tres" id="a_slinger_firepot"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_pitch.tres" id="a_slinger_pitch"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_scatter.tres" id="a_slinger_scatter"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/slinger_volley.tres" id="a_slinger_volley"]
 [ext_resource type="Resource" path="res://data/gear/ash_veil.tres" id="g_ash_veil"]
+[ext_resource type="Resource" path="res://data/gear/last_ember.tres" id="g_last_ember"]
 [ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="g_wardstone"]
 
 [resource]
@@ -32,5 +33,5 @@ target_bias_percent = 150
 gold = 21
 xp = 42
 voice_sfx = "voice_husk"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_last_ember"), ExtResource("g_ash_veil"), ExtResource("g_wardstone")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_last_ember"), ExtResource("g_ash_veil"), ExtResource("g_wardstone"), ExtResource("11_x8aai")])
 forced_hits = true

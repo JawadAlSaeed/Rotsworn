@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_ast42"]
+
+[resource]
+script = ExtResource("1_ast42")
+id = "victors_wreath"
+display_name = "Victor's Wreath"
+description = "After each fight won, the wearer heals 10% of their max HP."
+effect = 29
+stat_points = 2

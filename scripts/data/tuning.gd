@@ -385,6 +385,9 @@ extends Resource
 ## Relic slots open during a run (DESIGN.md 8.17): this many at the start, one more after the first
 ## guard is beaten and one more after act 1's boss, never more than run_gear_slots.
 @export_range(1, 6) var relic_slots_start: int = 1
+## The Relic bag (card #265): how many Relics the team can bring into a run (picked on the main
+## menu's Relics page). Later, upgrades between runs may raise it (card #266).
+@export_range(1, 60) var relic_bag_size: int = 10
 ## A copy of a Relic raises its level, up to this one; a copy past it turns into relic_spare_gold.
 @export_range(1, 10) var relic_max_level: int = 5
 @export_range(0, 1000) var relic_spare_gold: int = 30

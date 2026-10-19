@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_14hsl"]
+
+[resource]
+script = ExtResource("1_14hsl")
+id = "fox_step"
+display_name = "Fox Step"
+description = "Each dodge gives the wearer 1 AP."
+effect = 16
+amount = 1
+stat = 2
+stat_points = 2

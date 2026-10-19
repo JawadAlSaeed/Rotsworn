@@ -1488,9 +1488,9 @@ player's heroes.
 | `field_strike` (zone) | Space, J | X |
 | `field_pickup` (zone, near a glinting spot) | E, Enter | A |
 | `item_move` (backpack: pick up the item under the cursor to move it, put it down) | R | X |
-| `item_turn_left` / `item_turn_right` (backpack: turn the item in hand) | Z / C | LB / RB |
-| `party_attributes` (party screen shortcut: the attributes screen, 8.2; the card button is the main way) | T | LT |
-| `party_skills` (party screen shortcut: the skills screen, 8.4; the card button is the main way) | K | RT |
+| `item_turn_left` / `item_turn_right` (Y screen: switch tabs, 8.18; with an item in hand in the Bag tab: turn it) | Z / C | LB / RB |
+| `party_attributes` (Y screen Hero and Skills tabs: previous hero, 8.18) | T | LT |
+| `party_skills` (Y screen Hero and Skills tabs: next hero, 8.18) | K | RT |
 
 Outside fights every screen (main menu, settings, practice list, map, shop, rest, party, loot)
 uses the `menu_*` actions: up/down pick, left/right change a setting or pick on the map, Confirm
@@ -3259,6 +3259,11 @@ upgrade to take blindly.
 
 Phase 19 (card #263) added three Relics against marks (Wardstone, Bitter Root, Cleansing Bell;
 2.17), dropped by the new monsters, which also drop older Relics (34 Relics in the run).
+Phase 20 (Relic balance, 2026-10-19, user picks): 16 more Relics (50 in all, #242, table below),
+drops 25% rarer (`relic_drop_percent` 10% to 8%, #243), and the **Relic bag** (#265, below), which
+replaces each hero's ordered picks. Bag upgrades between runs are a later idea (#266); until then the
+bag holds `relic_bag_size` (10). How Relic levels and Echoes should work in a roguelite is phase 21
+(#272).
 
 The user's idea: make Rotsworn a roguelite and keep it hard. The run's gear became **Relics** the
 player keeps forever (Expedition 33's Pictos, renamed), and a Relic worn for a few won fights
@@ -3277,18 +3282,24 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   speed, Defense and crits like spent points. The Echo Charm is now the **Rebound Charm** (its id
   stays `echo_charm`). `tools/bootstrap_relics.gd` writes the stat lines, costs and drops.
 - **The collection** (`RelicCollection`, `scripts/relics/`, pure, tested): Relic id -> level, and
-  each hero's picks (the Relics they bring into the next run, in order). `RelicFile` keeps it in
+  the **Relic bag** (card #265): up to `relic_bag_size` (10) Relic ids the team brings into the next
+  run, picked on the main menu's Relics page (Confirm puts a Relic in or takes it out; the right side
+  shows the bag as "4 / 10" and its cards). A Relic found for the first time goes into the bag by
+  itself while it has room (user pick 2026-10-19). A file from before the bag gets its heroes' old
+  picks as its bag. Relics left out of the bag stay home and cannot be used in that run. `RelicFile` keeps it in
   `user://progress.json` (versioned, written to a temp file first, `.bak` kept, a load falls back to
   it; a file of another version is left alone). Taking a run in (`merge`, `RelicFile.bank`) keeps
   the higher level of each Relic, so banking twice changes nothing.
-- **A run** (`RunState`): `relics` (id -> level: the collection's at the start plus what the run
-  finds), `relic_picks`, `guards_beaten`, `mastery` (id -> points this run) and `echoes` (per hero,
+- **A run** (`RunState`): `relics` (id -> level: the bag's at the start plus what the run finds;
+  the whole team shares them, any hero wears any of them), `relics_at_start` (the whole collection,
+  bag or not: the end screen's line, and a find of a Relic left at home counts as a copy of it:
+  `known_level`), `guards_beaten`, `mastery` (id -> points this run) and `echoes` (per hero,
   the Echoes worn), all in `to_dict` (saved and sent online). A save from before phase 17 still
   loads: what it wears joins at level 1 and its slots count one guard beaten. `RunState.begin`
   takes the collection; online clients get the host's run state instead.
 - **Where Relics come from**: every monster lists `EnemyData.relic_drops` (2 or 3 Relics; the deep
   monsters, guards and bosses the rare and legendary ones; every Relic is dropped by someone). A won
-  run fight gives each beaten enemy with drops a `relic_drop_percent` (10%) chance of one of them,
+  run fight gives each beaten enemy with drops a `relic_drop_percent` (8%, was 10% before #243) chance of one of them,
   seeded by the stop, the fights won and the stops visited (`RunState.relic_drops`), so the end
   screen (`win_relic_lines`), the run and every machine agree. Spoils (guards, elites, bosses) are
   still "pick 1 of 3", now of Relics that are new or below their top level; shops sell 2 and chests
@@ -3298,9 +3309,12 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   to `relic_max_level` (5), a copy past that pays `relic_spare_gold` (30) gold. Nothing is ever sold:
   a Relic taken off, or one nobody wears, waits in the run's Relics.
 - **Slots open during a run** (`open_relic_slots`): `relic_slots_start` (1) at the start, one more
-  after the first guard, one more after act 1's boss (never past `run_gear_slots`, 3). As a slot
-  opens each hero puts on the next Relic they were set to bring (`relic_picks`). A shut slot shows
-  "(locked)" and says what opens it.
+  after the first guard, one more after act 1's boss (never past `run_gear_slots`, 3). Nothing goes
+  on by itself (card #265): at the start of a run the party screen opens on the Relics tab so the
+  player equips before the first fight, and the fight's end screen says "A Relic slot opens: Y to put
+  a Relic on" when a guard or act 1's boss opens one (user pick: a note, not a screen). A shut slot
+  shows a lock and says what opens it. Bots fill their bag with their best Relics
+  (`RelicCollection.fill_bag`, GearBot's score) and their open slots the same way (`RunState.auto_wear`).
 - **Mastery, per run**: E33's "win 4 battles" kept inside the run. Every worn Relic gets points per
   won fight: `mastery_fight` (1), `mastery_elite` (2), `mastery_guard` (3), `mastery_boss` (5); at
   `mastery_needed` (4) its Echo is learned until the run ends. Lost or escaped fights teach nothing.
@@ -3318,12 +3332,11 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
     and their three slots as big cards (big diamond, name, stat line, level, and the Relic's text).
     Under the grid: everything about the Relic under the cursor. Up / down picks a slot, Confirm
     opens the grid for it, Confirm in the grid puts the Relic on (one another hero has moves over),
-    X / R takes it off, Back goes back to the slots. From the main menu's **Relics** row the slots
-    are what each hero brings into the next run (each slot says when it goes on; Relics not found
-    yet show as "???" with the monsters that drop them). From the **party screen** (Confirm on an
-    open Relic slot, or Y on the map, then a slot) the slots are what the hero wears now: locked ones
-    say what opens them and each card shows its Echo's progress ("Echo 2 / 4", "Echo learned").
-  - **The Echoes page** (`EchoesScreen`, the Echoes button on a hero card), like E33's Lumina page.
+    X / R takes it off, Back goes back to the slots. Since phase 20 this page is only the main
+    menu's **Relics** row, and its right side is the Relic bag (card #265): Confirm on a card puts it
+    in the bag or takes it out (Relics not found yet show as "???" with the monsters that drop them).
+    In a run, Relics are equipped on the Y screen's Relics tab (8.18).
+  - **The Echoes page** (`EchoesScreen`, from the Y screen's Hero tab Echo box, 8.18), like E33's Lumina page.
     Left: tabs All, Offensive, Defensive, Support (LT / RT; `GearData.category()` from the effect),
     the sort (X / R: name or cost), and the learned Echoes in three columns, each with its diamond and
     cost (purple while this hero wears it, dim while they cannot); under them the Echo under the
@@ -3331,11 +3344,14 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
     learning. Right: the hero (LB / RB), their combat stats (Health, Attack Power, Speed, Critical
     Rate, Defense), their attributes as a radar (`AttributeRadar`, with the Relics' stat lines), the
     Echoes they wear and the big "Available Echo Points" box. Confirm puts an Echo on or takes it off.
-  - **The diamonds** (`RelicIcon`, `scripts/relics/`): a dark diamond edged in the Relic's rarity
-    colour (violet for rot-touched) with its picture (`GearData.icon_path`) or, until it has one, a
-    drawn sign for its category (a blade, a shield, a star); "?" for a Relic not found yet.
-  - On the party screen the info box also shows the worn Relic (stat line, Echo progress) or what
-    opens a locked slot, under the cursor; X / R still picks a worn Relic up to swap it.
+  - **The icons** (`RelicIcon`, `scripts/relics/`; card #271, phase 20): the frame's shape says the
+    category, so it reads without colour and at 26 px: a spearhead with a blade for offensive (ember
+    orange), a heater shield with a boss for defensive (steel blue-grey), a round seal with a leaf
+    for support (moss green); none of them a hero colour. The edge is the rarity colour (violet with
+    a drip for rot-touched); a picture in `GearData.icon_path` replaces the glyph. Optional gold
+    level pips along the bottom, a hero's initial in a corner (who wears it), a gold glow for the
+    cursor, and neutral rounded-diamond frames for an empty slot (a plus), a locked one (a lock) and
+    a Relic not found yet ("?").
   The run's end screen says what the run keeps, won or lost ("Relics kept forever. New: ... Up a
   level: ...", `RunState.relic_gain_line`, from `relics_at_start`, which the run save keeps).
 - **Reset progress** (Settings > Game, main menu only, asks twice): deletes the Relic file, sets the
@@ -3375,7 +3391,94 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   | Black Ichor | rare, rot-touched | power +25%, lose 3% max HP each turn | Might +3 | 2 |
   | Gravebloom | rare, rot-touched | +2 AP at fight start, lose 2% max HP each turn | Agility +3 | 2 |
 - Tests: `tests/unit/test_relics.gd`.
-- **Later**: more Relics (E33 has close to 200; 31 is a start), so drops stay exciting.
+- **More Relics** (phase 20, card #242, user approved the list 2026-10-19): 16 more, 50 in all, each
+  dropped by one or two monsters (commons by early ones, rares by deep ones, legendaries by guards and
+  bosses; `tools/bootstrap_relics.gd` writes them). Eight have new effects (`GearData.Effect`
+  FULL_HP_POWER, KILL_AP, WIN_HEAL, START_EMPOWERED, START_REGEN, STAGGER_DAMAGE, CRIT_DAMAGE,
+  PARRY_HEAL; the fight ones are `Passive` keys, WIN_HEAL is a run effect after `_wound_winners`):
+
+  | Relic | Rarity | Effect | Stat line | Echo |
+  |---|---|---|---|---|
+  | Brimming Cup | rare | power +20% while at full HP | Might +3 | 2 |
+  | Reaper's Coin | rare | +1 AP for each enemy downed | Luck +3 | 2 |
+  | Victor's Wreath | common | heal 10% max HP after each won fight | Vitality +2 | 1 |
+  | First Light | common | every fight starts Empowered | Might +2 | 1 |
+  | Mossbed | common | every fight starts with Regen for 2 turns | Vitality +2 | 1 |
+  | Breaker's Maul | rare | +25% damage to Staggered enemies | Might +3 | 2 |
+  | Butcher's Edge | legendary | critical hits deal +50% | Luck +4 | 3 |
+  | Still Water | rare | each perfect parry heals 3% max HP | Defense +3 | 2 |
+  | Bramble Coat | common | attackers take 15% back | Vitality +2 | 1 |
+  | Fox Step | common | +1 AP per dodge | Agility +2 | 1 |
+  | Marrow Charm | common | healing received +15% | Defense +2 | 1 |
+  | Bone Whistle | common | Exposed bonus +25 | Might +2 | 1 |
+  | Tallow Candle | rare | Second Wind at 15% | Vitality +3 | 2 |
+  | Hollow Drum | rare | team gauge fills 25% more | Might +3 | 2 |
+  | Sour Milk | rare, rot-touched | speed +25, healing received -30% | Agility +3 | 2 |
+  | Crown of Thorns | legendary, rot-touched | attackers take 60% back, enemy hits +15% | Defense +4 | 3 |
+
+  Tests: `tests/unit/test_more_relics.gd`.
+- **Later**: more Relics still (E33 has close to 200), and phase 21's rethink of levels and Echoes.
+
+### 8.18 The Y screen (phase 20, card #270, built 2026-10-19)
+
+The owner found the party screen "too cluttery" and hates text. Three concepts were drawn (tabs, one
+quiet page, one hero at a time); the owner picked **tabs**, plus the one-page concept's info strip and
+shape-coded Relic icons (2026-10-19). `PartyScreen` (`scripts/run/party_screen.gd`) keeps its outside
+(setup with a note and something new in hand, refresh, auto_settle, open_relics / open_attributes /
+open_skills / open_echoes, shop_mode, close_when_settled, the signals) and hosts four tabs, each a
+`PartyTab` (`scripts/run/party_tab.gd`: setup, refresh, shown, handle_input, busy, hints, info,
+badge; signals changed, op_requested, toast):
+
+- **Tab bar** (top): LB, four slanted plates with a glyph and one word (Relics, Bag, Hero, Skills;
+  Skills only when a hero has a tree), RB, and the gold (coin + number) top right. LB / RB (Z / C,
+  actions item_turn_left / item_turn_right) switch tabs unless the tab is busy (an item or a Relic in
+  hand, a menu or a prompt open); a click on a plate does too. A gold round badge on a tab counts
+  what waits there (Relics: open empty slots while the bag has Relics nobody wears; Hero: attribute
+  points; Skills: skill points). The screen opens on the last tab used, on Relics with a new Relic
+  in hand, on Bag with a new item in hand or in a shop.
+- **Info strip** (bottom, `tab.info()`): never moves or hides. The thing under the cursor: a big icon
+  (a RelicIcon, an item's sprite or a glyph), its name in its colour, a few chips (glyph + short
+  text: level, stat line, wearer, AP cost, sell price, refund...), its text on at most two lines (a
+  skill's whole text, perfect-press bonus included), and for a Relic still teaching its Echo a small
+  segment bar. A refusal (a shut slot, a hero too wounded) shows there until the next press.
+- **Centred**: everything placed on the 1920 x 1080 canvas sits in one centred frame, so a wider or
+  taller window (aspect expand, a maximised window) keeps it centred; backdrop and footer stay full
+  width.
+- **Toasts** replace the old note line: an icon and a word or two under the tab bar
+  (`party_toast_s`, `party_toast_fade_s` in combat_visuals.tres), for example a Relic's icon and
+  "Alder" when it goes on, a coin and "+12" when something sells. Callers pass short words too:
+  loot, gifts and shop Relics "New", "Lv 3" or "+30" (`RunState.relic_find_short`) with the Relic,
+  a find that does not fit "No room" with the item (in a shop with a "Refund" chip, and the leave
+  question says the gold comes back), the shop's sell button "Sell" with a coin.
+- **Footer**: at most four labelled hints: the tab's own (`tab.hints()`, at most three when not busy)
+  plus LB / RB "Tabs" (a chip pair with one label counts once, `PartyScreen.visible_hints`).
+- **Relics tab** (`RelicsTab`): each hero as a slanted row (face, name, level, HP bar and numbers,
+  power and speed glyphs) with their three Relic slots as big icons with level pips and the name
+  under them; the team's shared Relic bag (8.17) on the right as a 6 x 4 grid of icons (scrolls),
+  each with level pips and the initial of the hero wearing it, worn ones dimmed and listed after the
+  free ones; filter chips All / offensive / defensive / support with counts (X / R in the bag).
+  Up / down a hero, left / right a slot, right past the last slot into the bag. Confirm on an open
+  slot jumps into the bag to pick for it; Confirm on a Relic there puts it on (swapping it from
+  another hero). X / R on a worn Relic lifts it to another slot or hero; carried into the bag and put
+  down it comes off. Back steps back; a new Relic from loot is put on a slot or left in the bag.
+- **Bag tab** (`BagTab`): the backpack (scaled to fit when 7 rows are taller than the page) with the
+  old rules (item menu Use / Sell / Move / Throw away, combine, turn, swap, leave behind), the heroes
+  as small faces with HP on the left (who an item is used on; greyed when they cannot take it), and
+  free cells and curses as glyph + number on the right.
+- **Hero tab** (`HeroTab`, replaces the Attributes page): a rail of faces (LT / RT change hero), the
+  hero's name, level and XP bar, points waiting, the five attributes as rows (glyph, points, the stat
+  now; right / Confirm adds, left takes back, X / R resets after asking, the too-wounded refusal on
+  the strip), combat stats as glyph + number, the radar, and a small self-contained Echo box (free /
+  total Echo points, worn Echoes) that opens the Echoes page (`EchoesScreen`, unchanged until
+  phase 21 decides about Echoes).
+- **Skills tab** (`SkillsTab`, replaces the Skills page): the hero (LT / RT), the loadout sockets,
+  and the tree as tiles whose frame says the state (gold brought, lit known, green plus can learn,
+  lock locked) with AP pips; Confirm learns, brings or leaves behind as before.
+- Helpers: `UiGlyph` (`scripts/menu/ui_glyph.gd`), small drawn icons (heart, sword, bolt, chevrons,
+  shield, star, leaf, coin, bag, pouch, lock, plus, skull, person, branch, gem, up, echo) and
+  `attribute_glyph()` so each attribute has the same picture on every page.
+- Tests: `tests/unit/test_party_screen.gd`, `test_hero_tab.gd`, `test_skills_tab.gd`,
+  `test_relic_icon.gd`.
 
 ---
 
@@ -3815,6 +3918,19 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     at most one per attack, in every fight but the first zone (was hard fights only, #253). Lifting
     marks: Cass's Purify (every mark off one ally, no new ones for 2 turns), Antidote and Holy Water
     items (#254), Relics against marks (#263), a tutorial lesson (#264, idea).
+20. **Relic balance and a clean Y screen** (built 2026-10-19, waiting for playtest; branch
+    `phase20-Relics`, 8.17, 8.18): 16 more Relics, 50 in all, eight with new effects (#242); drops
+    25% rarer, 8% (#243); the Relic bag of 10 the team brings into a run, picked on the main menu
+    (#265; bag upgrades between runs later, #266 idea); the Y screen rebuilt as four icon tabs
+    (Relics, Bag, Hero, Skills) with one info strip, toasts and fewer words (#270, the owner picked
+    concept A with concept B's strip and shape icons); Relic icons whose shape says the category
+    (#271).
+21. **Relic levels and Echoes for a roguelite** (to discuss, #272 and #267): whether a Relic worn for
+    a few fights should still teach its Echo, how copies and levels should work, and what a copy of a
+    Relic left at home does.
+22. **Fewer words, more icons** (planned, #273 to #276): finds and rewards show their icon (#273), a
+    clean fight end when a hero is down (#274), no practice text on the HUD in real fights (#275),
+    press and defence timing numbers only in practice (#276).
 
 ### 11.1 To-do (from playtests)
 

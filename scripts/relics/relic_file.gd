@@ -50,14 +50,15 @@ static func load_or_empty(path: String = PATH) -> RelicCollection:
 	return load_collection(path).collection as RelicCollection
 
 
-## Takes a run's Relics into the file: load, merge, save. False if nothing was written (nothing new,
-## the file belongs to another version, or it could not be saved).
-static func bank(run_levels: Dictionary, path: String = PATH) -> bool:
+## Takes a run's Relics into the file: load, merge, save; Relics found for the first time join the
+## bag while it holds fewer than `bag_size`. False if nothing was written (nothing new, the file
+## belongs to another version, or it could not be saved).
+static func bank(run_levels: Dictionary, path: String = PATH, bag_size: int = 0) -> bool:
 	var loaded := load_collection(path)
 	if loaded.status == REJECTED and bool(loaded.keep):
 		return false
 	var collection: RelicCollection = loaded.collection
-	if not collection.merge(run_levels):
+	if not collection.merge(run_levels, bag_size):
 		return false
 	return save(collection, path)
 

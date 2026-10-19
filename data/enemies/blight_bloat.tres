@@ -16,6 +16,7 @@
 [ext_resource type="Resource" path="res://data/gear/plague_bell.tres" id="12_io7l3"]
 [ext_resource type="Resource" path="res://data/gear/pale_tithe.tres" id="13_xus5x"]
 [ext_resource type="Resource" path="res://data/gear/black_ichor.tres" id="14_kwxuq"]
+[ext_resource type="Resource" path="res://data/gear/sour_milk.tres" id="15_io7l3"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -38,5 +39,5 @@ target_bias_percent = 100
 gold = 30
 xp = 60
 voice_sfx = "voice_bloat"
-relic_drops = Array[ExtResource("10_4mv7v")]([ExtResource("11_kwxuq"), ExtResource("12_io7l3"), ExtResource("13_xus5x"), ExtResource("14_kwxuq")])
+relic_drops = Array[ExtResource("10_4mv7v")]([ExtResource("11_kwxuq"), ExtResource("12_io7l3"), ExtResource("13_xus5x"), ExtResource("14_kwxuq"), ExtResource("15_io7l3")])
 forced_hits = true

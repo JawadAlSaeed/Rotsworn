@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_37e2m"]
+
+[resource]
+script = ExtResource("1_37e2m")
+id = "tallow_candle"
+display_name = "Tallow Candle"
+description = "Once per fight, downed during an enemy attack, the wearer gets back up with 15% HP."
+price = 110
+rarity = 1
+effect = 7
+amount = 15
+stat_points = 3
+echo_cost = 2

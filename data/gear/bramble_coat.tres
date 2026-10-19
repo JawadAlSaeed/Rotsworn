@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_vxel3"]
+
+[resource]
+script = ExtResource("1_vxel3")
+id = "bramble_coat"
+display_name = "Bramble Coat"
+description = "Enemies that hit the wearer take 15% of the damage back."
+effect = 18
+amount = 15
+stat_points = 2

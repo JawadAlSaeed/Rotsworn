@@ -40,8 +40,8 @@ const LABELS := {
 	&"field_strike": "Strike (zone)", &"field_pickup": "Pick up (zone)", &"party_menu": "Backpack",
 	&"menu_up": "Menu up", &"menu_down": "Menu down", &"menu_left": "Menu left",
 	&"menu_right": "Menu right", &"menu_confirm": "Confirm", &"menu_cancel": "Back / run",
-	&"pause": "Pause", &"party_attributes": "Attributes screen", &"party_skills": "Skills screen",
-	&"item_move": "Move item", &"item_turn_left": "Turn item left", &"item_turn_right": "Turn item right",
+	&"pause": "Pause", &"party_attributes": "Previous hero", &"party_skills": "Next hero",
+	&"item_move": "Move item", &"item_turn_left": "Tab left / turn item", &"item_turn_right": "Tab right / turn item",
 	&"debug_overlay": "Stats overlay",
 }
 
@@ -66,11 +66,11 @@ const DETAILS := {
 	&"menu_confirm": "In every menu: choose. Cannot be left without a key and a button.",
 	&"menu_cancel": "In every menu: go back. In a fight, hold it on your turn to run.",
 	&"pause": "In a fight, a zone and on the map: open the pause menu.",
-	&"party_attributes": "On the party screen: open the attributes screen.",
-	&"party_skills": "On the party screen: open the skills screen.",
+	&"party_attributes": "On the Y screen's Hero and Skills tabs: the previous hero. On the Echoes page: the tab before.",
+	&"party_skills": "On the Y screen's Hero and Skills tabs: the next hero. On the Echoes page: the next tab.",
 	&"item_move": "In the backpack: pick an item up and put it down.",
-	&"item_turn_left": "In the backpack: turn the item in hand. In settings: the section before.",
-	&"item_turn_right": "In the backpack: turn the item in hand. In settings: the next section.",
+	&"item_turn_left": "On the Y screen: the tab before. With an item in hand in the Bag: turn it. In settings: the section before.",
+	&"item_turn_right": "On the Y screen: the next tab. With an item in hand in the Bag: turn it. In settings: the next section.",
 	&"debug_overlay": "In a fight: the stats overlay.",
 }
 

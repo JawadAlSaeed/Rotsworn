@@ -12,6 +12,7 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/plague_spit.tres" id="8_atk"]
 [ext_resource type="Resource" path="res://data/gear/echo_charm.tres" id="9_3csgw"]
 [ext_resource type="Resource" path="res://data/gear/gravebloom.tres" id="10_5hr46"]
+[ext_resource type="Resource" path="res://data/gear/hollow_drum.tres" id="11_3csgw"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -34,5 +35,5 @@ target_bias_percent = 300
 gold = 18
 xp = 37
 voice_sfx = "voice_fly"
-relic_drops = Array[ExtResource("7_dut48")]([ExtResource("8_5hr46"), ExtResource("9_3csgw"), ExtResource("10_5hr46")])
+relic_drops = Array[ExtResource("7_dut48")]([ExtResource("8_5hr46"), ExtResource("9_3csgw"), ExtResource("10_5hr46"), ExtResource("11_3csgw")])
 forced_hits = true

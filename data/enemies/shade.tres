@@ -11,6 +11,7 @@
 [ext_resource type="Resource" path="res://data/gear/keen_eye.tres" id="9_ytdib"]
 [ext_resource type="Resource" path="res://data/gear/rot_hunter.tres" id="10_t3pfc"]
 [ext_resource type="Resource" path="res://data/gear/wake_root.tres" id="11_ytdib"]
+[ext_resource type="Resource" path="res://data/gear/marrow_charm.tres" id="12_t3pfc"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_bolts.tres" id="p12_shade_bolts"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_grave_spikes.tres" id="p12_shade_grave_spikes"]
 
@@ -33,4 +34,4 @@ target_bias_percent = 300
 gold = 20
 xp = 40
 voice_sfx = "voice_shade"
-relic_drops = Array[ExtResource("8_tm3to")]([ExtResource("9_ytdib"), ExtResource("10_t3pfc"), ExtResource("11_ytdib")])
+relic_drops = Array[ExtResource("8_tm3to")]([ExtResource("9_ytdib"), ExtResource("10_t3pfc"), ExtResource("11_ytdib"), ExtResource("12_t3pfc")])

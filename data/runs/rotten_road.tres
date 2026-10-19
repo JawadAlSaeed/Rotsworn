@@ -9,11 +9,6 @@
 [ext_resource type="Script" path="res://scripts/data/item_data.gd" id="3_pfciy"]
 [ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_qgnwx"]
 [ext_resource type="Resource" path="res://data/items/salve.tres" id="4_4r4bl"]
-[ext_resource type="Resource" path="res://data/items/antidote.tres" id="p19_antidote"]
-[ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="p19_wardstone"]
-[ext_resource type="Resource" path="res://data/gear/bitter_root.tres" id="p19_bitter_root"]
-[ext_resource type="Resource" path="res://data/gear/cleansing_bell.tres" id="p19_cleansing_bell"]
-[ext_resource type="Resource" path="res://data/items/holy_water.tres" id="p19_holy_water"]
 [ext_resource type="Resource" path="res://data/gear/iron_charm.tres" id="4_cnqeh"]
 [ext_resource type="Resource" path="res://data/characters/alder.tres" id="4_xh0st"]
 [ext_resource type="Resource" path="res://data/gear/whetstone.tres" id="5_5blr4"]
@@ -86,7 +81,28 @@
 [ext_resource type="Resource" path="res://data/gear/black_ichor.tres" id="58_dunnw"]
 [ext_resource type="Resource" path="res://data/gear/gravebloom.tres" id="59_bkc2p"]
 [ext_resource type="Resource" path="res://data/runs/oaths/empty_hand.tres" id="65_341yx"]
+[ext_resource type="Resource" path="res://data/gear/brimming_cup.tres" id="65_aeb0l"]
 [ext_resource type="Resource" path="res://data/runs/oaths/forgetting.tres" id="66_25vbo"]
+[ext_resource type="Resource" path="res://data/gear/reapers_coin.tres" id="66_68cyy"]
+[ext_resource type="Resource" path="res://data/gear/victors_wreath.tres" id="67_dr8qu"]
+[ext_resource type="Resource" path="res://data/gear/first_light.tres" id="68_g8m5b"]
+[ext_resource type="Resource" path="res://data/gear/mossbed.tres" id="69_fewvf"]
+[ext_resource type="Resource" path="res://data/gear/breakers_maul.tres" id="70_7fbdu"]
+[ext_resource type="Resource" path="res://data/gear/butchers_edge.tres" id="71_nc8fg"]
+[ext_resource type="Resource" path="res://data/gear/still_water.tres" id="72_ao1d7"]
+[ext_resource type="Resource" path="res://data/gear/bramble_coat.tres" id="73_e35kp"]
+[ext_resource type="Resource" path="res://data/gear/fox_step.tres" id="74_y4h7x"]
+[ext_resource type="Resource" path="res://data/gear/marrow_charm.tres" id="75_uomgq"]
+[ext_resource type="Resource" path="res://data/gear/bone_whistle.tres" id="76_15m2q"]
+[ext_resource type="Resource" path="res://data/gear/tallow_candle.tres" id="77_2og0u"]
+[ext_resource type="Resource" path="res://data/gear/hollow_drum.tres" id="78_0e7ir"]
+[ext_resource type="Resource" path="res://data/gear/sour_milk.tres" id="79_8iujy"]
+[ext_resource type="Resource" path="res://data/gear/crown_of_thorns.tres" id="80_sey24"]
+[ext_resource type="Resource" path="res://data/items/antidote.tres" id="p19_antidote"]
+[ext_resource type="Resource" path="res://data/gear/bitter_root.tres" id="p19_bitter_root"]
+[ext_resource type="Resource" path="res://data/gear/cleansing_bell.tres" id="p19_cleansing_bell"]
+[ext_resource type="Resource" path="res://data/items/holy_water.tres" id="p19_holy_water"]
+[ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="p19_wardstone"]
 
 [resource]
 script = ExtResource("7_hnbrd")
@@ -101,5 +117,5 @@ final_look = ExtResource("2_4r4bl")
 final_map_icon_path = "res://assets/sprites/ui/map_lair_hollow_king.png"
 shop_items = Array[ExtResource("3_pfciy")]([ExtResource("p19_antidote"), ExtResource("p19_holy_water"), ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("6_cnqeh"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("9_7h55f"), ExtResource("15_l3kfd")])
 found_items = Array[ExtResource("3_pfciy")]([ExtResource("p19_antidote"), ExtResource("p19_holy_water"), ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("6_cnqeh"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("9_7h55f"), ExtResource("10_r48q0"), ExtResource("11_7kshk"), ExtResource("12_jlagg"), ExtResource("13_lwxot"), ExtResource("14_qus8p"), ExtResource("15_l3kfd"), ExtResource("16_2sbiv"), ExtResource("17_jca6s"), ExtResource("18_7qxmh"), ExtResource("19_dl22l"), ExtResource("20_h1ots"), ExtResource("21_dy7w4"), ExtResource("22_81ydh"), ExtResource("23_m187n"), ExtResource("24_1i5p2")])
-gear = Array[ExtResource("3_dfnv4")]([ExtResource("4_cnqeh"), ExtResource("5_5blr4"), ExtResource("6_ic0fs"), ExtResource("7_igmpf"), ExtResource("8_5a6is"), ExtResource("9_v1mkt"), ExtResource("10_7h55f"), ExtResource("11_r48q0"), ExtResource("12_7kshk"), ExtResource("13_jlagg"), ExtResource("14_67ek5"), ExtResource("15_jtxfh"), ExtResource("16_o0k8w"), ExtResource("42_y3kuw"), ExtResource("43_yco0i"), ExtResource("44_341yx"), ExtResource("45_25vbo"), ExtResource("46_ofupd"), ExtResource("47_u6080"), ExtResource("48_vao3x"), ExtResource("49_232c1"), ExtResource("50_nj8y8"), ExtResource("51_mjcxu"), ExtResource("52_klwt4"), ExtResource("53_vo0gh"), ExtResource("54_nj8y8"), ExtResource("55_mjcxu"), ExtResource("56_klwt4"), ExtResource("57_vo0gh"), ExtResource("58_dunnw"), ExtResource("59_bkc2p"), ExtResource("p19_wardstone"), ExtResource("p19_bitter_root"), ExtResource("p19_cleansing_bell")])
+gear = Array[ExtResource("3_dfnv4")]([ExtResource("4_cnqeh"), ExtResource("5_5blr4"), ExtResource("6_ic0fs"), ExtResource("7_igmpf"), ExtResource("8_5a6is"), ExtResource("9_v1mkt"), ExtResource("10_7h55f"), ExtResource("11_r48q0"), ExtResource("12_7kshk"), ExtResource("13_jlagg"), ExtResource("14_67ek5"), ExtResource("15_jtxfh"), ExtResource("16_o0k8w"), ExtResource("42_y3kuw"), ExtResource("43_yco0i"), ExtResource("44_341yx"), ExtResource("45_25vbo"), ExtResource("46_ofupd"), ExtResource("47_u6080"), ExtResource("48_vao3x"), ExtResource("49_232c1"), ExtResource("50_nj8y8"), ExtResource("51_mjcxu"), ExtResource("52_klwt4"), ExtResource("53_vo0gh"), ExtResource("54_nj8y8"), ExtResource("55_mjcxu"), ExtResource("56_klwt4"), ExtResource("57_vo0gh"), ExtResource("58_dunnw"), ExtResource("59_bkc2p"), ExtResource("p19_wardstone"), ExtResource("p19_bitter_root"), ExtResource("p19_cleansing_bell"), ExtResource("65_aeb0l"), ExtResource("66_68cyy"), ExtResource("67_dr8qu"), ExtResource("68_g8m5b"), ExtResource("69_fewvf"), ExtResource("70_7fbdu"), ExtResource("71_nc8fg"), ExtResource("72_ao1d7"), ExtResource("73_e35kp"), ExtResource("74_y4h7x"), ExtResource("75_uomgq"), ExtResource("76_15m2q"), ExtResource("77_2og0u"), ExtResource("78_0e7ir"), ExtResource("79_8iujy"), ExtResource("80_sey24")])
 oaths = Array[ExtResource("42_jhtoh")]([ExtResource("43_lj346"), ExtResource("44_iwyxx"), ExtResource("45_jpepd"), ExtResource("46_lsmoe"), ExtResource("47_1svv3"), ExtResource("48_hbev2"), ExtResource("49_m7uq7"), ExtResource("50_iy2sh"), ExtResource("51_ax47g"), ExtResource("52_vhvxm"), ExtResource("65_341yx"), ExtResource("66_25vbo")])

@@ -4,19 +4,20 @@
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
 [ext_resource type="Resource" path="res://data/clips/marsh_lantern.tres" id="3_clips"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/gear/still_water.tres" id="10_mbfug"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/lantern_burst.tres" id="a_lantern_burst"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/lantern_chain.tres" id="a_lantern_chain"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/lantern_spark.tres" id="a_lantern_spark"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/lantern_zigzag.tres" id="a_lantern_zigzag"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/lantern_chain.tres" id="a_lantern_chain"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/lantern_burst.tres" id="a_lantern_burst"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/storm_thunderhead.tres" id="a_storm_thunderhead"]
-[ext_resource type="Resource" path="res://data/gear/plague_bell.tres" id="g_plague_bell"]
 [ext_resource type="Resource" path="res://data/gear/cleansing_bell.tres" id="g_cleansing_bell"]
+[ext_resource type="Resource" path="res://data/gear/plague_bell.tres" id="g_plague_bell"]
 
 [resource]
 script = ExtResource("2_enemy")
 id = "storm_lantern"
 display_name = "Storm Lantern"
-color = Color(0.75, 0.6, 1.0, 1)
+color = Color(0.75, 0.6, 1, 1)
 sprite_path = "res://assets/sprites/enemies/storm_lantern.png"
 sprite_clips = ExtResource("3_clips")
 death_style = 1
@@ -33,5 +34,5 @@ target_bias_percent = 250
 gold = 21
 xp = 42
 voice_sfx = "voice_shade"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_plague_bell"), ExtResource("g_cleansing_bell")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_plague_bell"), ExtResource("g_cleansing_bell"), ExtResource("10_mbfug")])
 forced_hits = true

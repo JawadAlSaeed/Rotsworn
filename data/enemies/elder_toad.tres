@@ -12,6 +12,7 @@
 [ext_resource type="Resource" path="res://data/gear/chain_of_silence.tres" id="8_gdd65"]
 [ext_resource type="Resource" path="res://data/gear/hollow_mantle.tres" id="9_4dj2e"]
 [ext_resource type="Resource" path="res://data/gear/rain_pouch.tres" id="10_gdd65"]
+[ext_resource type="Resource" path="res://data/gear/brimming_cup.tres" id="11_4dj2e"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -33,5 +34,5 @@ target_bias_percent = 150
 gold = 37
 xp = 75
 voice_sfx = "voice_toad"
-relic_drops = Array[ExtResource("7_0hyif")]([ExtResource("8_gdd65"), ExtResource("9_4dj2e"), ExtResource("10_gdd65")])
+relic_drops = Array[ExtResource("7_0hyif")]([ExtResource("8_gdd65"), ExtResource("9_4dj2e"), ExtResource("10_gdd65"), ExtResource("11_4dj2e")])
 forced_hits = true

@@ -239,6 +239,12 @@ func start() -> Array[Dictionary]:
 		if ward > 0:
 			# Relics against marks (card #263): the fight opens with the hero Warded.
 			_add_status(hero, Status.WARDED, ward, hero.id, events)
+		if Passive.amount(hero, Passive.START_EMPOWERED) > 0:
+			# Phase 20 Relics (card #242): the first damaging skill of the fight hits harder.
+			_add_status(hero, Status.EMPOWERED, 1, hero.id, events)
+		var regen := Passive.amount(hero, Passive.START_REGEN)
+		if regen > 0:
+			_add_status(hero, Status.REGEN, regen, hero.id, events)
 	for enemy_id: int in enemy_ids():
 		_pick_intent(get_combatant(enemy_id), events)
 	_advance_turn(events)
@@ -1133,7 +1139,7 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 				var bonus := _exposed_bonus(actor, ability, target_id == exposed) + _marked_bonus(ability, targets) \
 						+ _empowered_bonus(actor, ability)
 				var amount := _skill_damage(_power_of(actor), pct, bonus)
-				_deal_damage(actor, target, _crit_damage(amount) if crit else amount, "ability", events, crit)
+				_deal_damage(actor, target, _crit_damage(actor, amount) if crit else amount, "ability", events, crit)
 	_apply_effects(actor, ability, targets, false, exposed, events)
 	_end_of_turn(actor, events)
 	events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
@@ -1430,8 +1436,8 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 				# press never crits.
 				crit = _roll_crit(striker)
 				if crit:
-					good = _crit_damage(good)
-					perfect = _crit_damage(perfect)
+					good = _crit_damage(striker, good)
+					perfect = _crit_damage(striker, perfect)
 			press_idxs.append(prompts.size())
 			var press := _prompt(prompts.size(), hit_index, striker_id, at_ms, AttackHitData.Kind.PRESS,
 					_windows_for(striker, Defense.build_windows(AttackHitData.Kind.PRESS, tuning, ability.perfect_window_percent)),
@@ -1452,8 +1458,8 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			var perfect := _roll_damage(_power_of(ally), tuning.follow_up_perfect_percent)
 			var crit := _roll_crit(ally)
 			var follow := _prompt(prompts.size(), hit_index, ally_id, at_ms, AttackHitData.Kind.PRESS,
-					_windows_for(ally, Defense.build_follow_up_windows(tuning)), 0, _crit_damage(good) if crit else good,
-					_crit_damage(perfect) if crit else perfect, ROLE_FOLLOW_UP, press_idxs)
+					_windows_for(ally, Defense.build_follow_up_windows(tuning)), 0, _crit_damage(ally, good) if crit else good,
+					_crit_damage(ally, perfect) if crit else perfect, ROLE_FOLLOW_UP, press_idxs)
 			follow["crit"] = crit
 			prompts.append(follow)
 			order += 1
@@ -1757,6 +1763,8 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		_on_downed(target, events)
 	elif perfect and outcome == Defense.Outcome.JUMP and Passive.amount(target, Passive.HEAL_ON_JUMP) > 0:
 		_heal(target, target, CombatMath.percent_min1(target.max_hp, Passive.amount(target, Passive.HEAL_ON_JUMP)), events)
+	if not downed and perfect and outcome == Defense.Outcome.PARRY and Passive.amount(target, Passive.PARRY_HEAL) > 0:
+		_heal(target, target, CombatMath.percent_min1(target.max_hp, Passive.amount(target, Passive.PARRY_HEAL)), events)
 	if not downed and outcome == Defense.Outcome.PARRY and Passive.amount(target, Passive.PARRY_CLEANSE) > 0:
 		# Relics against marks (card #263): a parry shakes marks off.
 		if _cleanse(target, Passive.amount(target, Passive.PARRY_CLEANSE), events) > 0:
@@ -2000,7 +2008,7 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 				"hits": string.x, "mixed": string.y == 1})
 		var amount := _roll_damage(_power_of(actor), _counter_percent(actor, tuning.counter_percent, string))
 		var crit := _roll_crit(actor)
-		_deal_damage(actor, attacker, _crit_damage(amount) if crit else amount, "counter", events, crit)
+		_deal_damage(actor, attacker, _crit_damage(actor, amount) if crit else amount, "counter", events, crit)
 		_gear_ap_on_counter(actor, events)
 
 
@@ -2192,6 +2200,9 @@ func _power_of(c: Combatant) -> int:
 	var ember := Passive.amount(c, Passive.LOW_HP_POWER)
 	if ember > 0 and c.is_alive() and c.hp * 100 < c.max_hp * tuning.rot_low_hp_percent:
 		power = CombatMath.percent_min1(power, 100 + ember)
+	var brim := Passive.amount(c, Passive.FULL_HP_POWER)
+	if brim > 0 and c.is_alive() and c.hp >= c.max_hp:
+		power = CombatMath.percent_min1(power, 100 + brim)
 	if c.has_status(Status.WEAKENED):
 		return CombatMath.percent_min1(power, maxi(0, 100 - tuning.weakened_power_cut_percent))
 	return power
@@ -2273,8 +2284,9 @@ func _roll_crit(striker: Combatant) -> bool:
 	return rng.range_int(0, 99) < chance
 
 
-func _crit_damage(amount: int) -> int:
-	return CombatMath.percent_min1(amount, tuning.crit_damage_percent)
+## `striker`'s critical hit: the tuned crit damage, bigger with crit-damage Relics (card #242).
+func _crit_damage(striker: Combatant, amount: int) -> int:
+	return CombatMath.percent_min1(amount, maxi(100, tuning.crit_damage_percent + Passive.amount(striker, Passive.CRIT_DAMAGE)))
 
 
 ## An enemy hit on a party member: power x hit percent, then Guard, then variance.
@@ -2314,7 +2326,8 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 	# A staggered enemy takes extra damage from every source (card #195).
 	var staggered := not target.is_party() and target.staggered_turns > 0
 	if staggered:
-		amount = CombatMath.percent_min1(amount, 100 + tuning.stagger_damage_taken_percent)
+		var breaker := Passive.amount(source, Passive.STAGGER_DAMAGE) if source.is_party() else 0
+		amount = CombatMath.percent_min1(amount, 100 + tuning.stagger_damage_taken_percent + maxi(0, breaker))
 	if not target.is_party() and target.has_status(Status.SHIELDED):
 		# A Rot Priest's ward (card #259).
 		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tuning.shielded_damage_cut_percent))
@@ -2341,12 +2354,17 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 		_maybe_enter_phase_two(target, events)
 
 
-## Kill-heal gear (DESIGN.md 8.16): a hero whose hit downed an enemy heals a share of their max HP.
+## Kill-heal gear (DESIGN.md 8.16): a hero whose hit downed an enemy heals a share of their max HP,
+## and kill-AP Relics (card #242) give them AP.
 func _heal_on_kill(killer: Combatant, victim: Combatant, events: Array[Dictionary]) -> void:
-	var pct := Passive.amount(killer, Passive.KILL_HEAL)
-	if pct <= 0 or victim.is_party() or not killer.is_party() or not killer.is_alive():
+	if victim.is_party() or not killer.is_party() or not killer.is_alive():
 		return
-	_heal(killer, killer, CombatMath.percent_min1(killer.max_hp, pct), events)
+	var pct := Passive.amount(killer, Passive.KILL_HEAL)
+	if pct > 0:
+		_heal(killer, killer, CombatMath.percent_min1(killer.max_hp, pct), events)
+	var gain := Passive.amount(killer, Passive.KILL_AP)
+	if gain > 0:
+		_change_ap(killer, gain, "gear", events)
 
 
 # --- charged dooms (card #195) ----------------------------------------------------------------

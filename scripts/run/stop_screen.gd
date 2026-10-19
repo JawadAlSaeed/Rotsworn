@@ -71,7 +71,7 @@ func _next_gift() -> void:
 			var found := run.add_relic(thing as GearData)
 			_say(RunState.relic_find_text(found))
 			if not run.is_worn(thing as GearData):
-				_open_backpack("%s. Who wears it?" % RunState.relic_find_text(found), {"gear": thing})
+				_open_backpack(RunState.relic_find_short(found), {"gear": thing})
 				return
 			Sfx.play("buff")
 			continue
@@ -83,7 +83,7 @@ func _next_gift() -> void:
 		elif run.add_item(item) >= 0:
 			Sfx.play("item_place")
 		else:
-			_open_backpack("No room for the %s. Make room, or leave it behind." % item.display_name, {"item": item})
+			_open_backpack("No room", {"item": item})
 			return
 	_refresh_bar()
 	gifts_settled.emit()

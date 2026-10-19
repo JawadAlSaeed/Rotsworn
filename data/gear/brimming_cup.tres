@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_q7lpu"]
+
+[resource]
+script = ExtResource("1_q7lpu")
+id = "brimming_cup"
+display_name = "Brimming Cup"
+description = "Power +20% while the wearer is at full HP."
+price = 100
+rarity = 1
+effect = 27
+amount = 20
+stat = 1
+stat_points = 3
+echo_cost = 2

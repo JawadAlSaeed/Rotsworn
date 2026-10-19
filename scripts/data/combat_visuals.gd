@@ -699,3 +699,9 @@ func kind_color(kind: int, strike_color: Color) -> Color:
 ## fighters and never between the camera and the hit markers.
 @export_range(10, 100, 5, "suffix:%") var fight_air_depth_percent: int = 60
 @export var fight_air_offset: Vector3 = Vector3(0.0, 0.0, -2.0)
+
+@export_group("Party screen")
+## The Y screen's toasts (DESIGN.md 8.18): an icon and a word or two under the tab bar, shown for
+## this long, then faded out over party_toast_fade_s.
+@export_range(0.5, 10.0, 0.1, "suffix:s") var party_toast_s: float = 2.2
+@export_range(0.0, 2.0, 0.05, "suffix:s") var party_toast_fade_s: float = 0.35

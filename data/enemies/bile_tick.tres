@@ -4,11 +4,12 @@
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
 [ext_resource type="Resource" path="res://data/clips/pus_tick.tres" id="3_clips"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/tick_latch.tres" id="a_tick_latch"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/tick_burst.tres" id="a_tick_burst"]
+[ext_resource type="Resource" path="res://data/gear/sour_milk.tres" id="8_xwqml"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/bile_tick_spit.tres" id="a_bile_tick_spit"]
-[ext_resource type="Resource" path="res://data/gear/plague_bell.tres" id="g_plague_bell"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/tick_burst.tres" id="a_tick_burst"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/tick_latch.tres" id="a_tick_latch"]
 [ext_resource type="Resource" path="res://data/gear/black_ichor.tres" id="g_black_ichor"]
+[ext_resource type="Resource" path="res://data/gear/plague_bell.tres" id="g_plague_bell"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -29,5 +30,5 @@ attacks = Array[ExtResource("1_attack")]([ExtResource("a_tick_latch"), ExtResour
 gold = 15
 xp = 30
 voice_sfx = "voice_toad"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_plague_bell"), ExtResource("g_black_ichor")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_plague_bell"), ExtResource("g_black_ichor"), ExtResource("8_xwqml")])
 forced_hits = true

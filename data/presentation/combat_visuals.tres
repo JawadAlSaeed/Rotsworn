@@ -313,3 +313,5 @@ stagger_sfx = "guard_block"
 stagger_glow_color = Color(0.55, 0.8, 1, 1)
 stagger_glow = 0.5
 stagger_text_color = Color(0.6, 0.85, 1, 1)
+party_toast_s = 2.2
+party_toast_fade_s = 0.35

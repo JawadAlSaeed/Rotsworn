@@ -4,13 +4,14 @@
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
 [ext_resource type="Resource" path="res://data/clips/rot_priest.tres" id="3_clips"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/gear/tallow_candle.tres" id="10_ibjpf"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/hollow_litany.tres" id="a_hollow_litany"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/priest_censer.tres" id="a_priest_censer"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/priest_hush.tres" id="a_priest_hush"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/priest_mend.tres" id="a_priest_mend"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/priest_ward.tres" id="a_priest_ward"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/hollow_litany.tres" id="a_hollow_litany"]
-[ext_resource type="Resource" path="res://data/gear/pale_tithe.tres" id="g_pale_tithe"]
 [ext_resource type="Resource" path="res://data/gear/cleansing_bell.tres" id="g_cleansing_bell"]
+[ext_resource type="Resource" path="res://data/gear/pale_tithe.tres" id="g_pale_tithe"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -30,5 +31,5 @@ attacks = Array[ExtResource("1_attack")]([ExtResource("a_priest_censer"), ExtRes
 gold = 27
 xp = 54
 voice_sfx = "voice_shade"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_pale_tithe"), ExtResource("g_cleansing_bell")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_pale_tithe"), ExtResource("g_cleansing_bell"), ExtResource("10_ibjpf")])
 forced_hits = true

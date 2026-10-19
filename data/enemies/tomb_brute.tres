@@ -4,15 +4,16 @@
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
 [ext_resource type="Resource" path="res://data/clips/barrow_brute.tres" id="3_clips"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/brute_maul.tres" id="a_brute_maul"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/brute_slam.tres" id="a_brute_slam"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/brute_quake.tres" id="a_brute_quake"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/brute_sweep.tres" id="a_brute_sweep"]
+[ext_resource type="Resource" path="res://data/gear/breakers_maul.tres" id="12_cspiw"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/brute_double.tres" id="a_brute_double"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/brute_maul.tres" id="a_brute_maul"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/brute_quake.tres" id="a_brute_quake"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/brute_slam.tres" id="a_brute_slam"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/brute_sweep.tres" id="a_brute_sweep"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/tomb_grave_quake.tres" id="a_tomb_grave_quake"]
-[ext_resource type="Resource" path="res://data/gear/hollow_mantle.tres" id="g_hollow_mantle"]
 [ext_resource type="Resource" path="res://data/gear/chain_of_silence.tres" id="g_chain_of_silence"]
 [ext_resource type="Resource" path="res://data/gear/cleansing_bell.tres" id="g_cleansing_bell"]
+[ext_resource type="Resource" path="res://data/gear/hollow_mantle.tres" id="g_hollow_mantle"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -34,5 +35,5 @@ target_bias_percent = 200
 gold = 45
 xp = 90
 voice_sfx = "voice_bloat"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_hollow_mantle"), ExtResource("g_chain_of_silence"), ExtResource("g_cleansing_bell")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_hollow_mantle"), ExtResource("g_chain_of_silence"), ExtResource("g_cleansing_bell"), ExtResource("12_cspiw")])
 forced_hits = true

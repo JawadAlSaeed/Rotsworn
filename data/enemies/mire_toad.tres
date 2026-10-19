@@ -12,6 +12,7 @@
 [ext_resource type="Resource" path="res://data/gear/menders_charm.tres" id="8_037mo"]
 [ext_resource type="Resource" path="res://data/gear/thick_hide.tres" id="9_a67dc"]
 [ext_resource type="Resource" path="res://data/gear/heartleaf.tres" id="10_16pmt"]
+[ext_resource type="Resource" path="res://data/gear/mossbed.tres" id="11_037mo"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -33,4 +34,4 @@ target_bias_percent = 100
 gold = 25
 xp = 50
 voice_sfx = "voice_toad"
-relic_drops = Array[ExtResource("6_fot7b")]([ExtResource("7_16pmt"), ExtResource("8_037mo"), ExtResource("9_a67dc"), ExtResource("10_16pmt")])
+relic_drops = Array[ExtResource("6_fot7b")]([ExtResource("7_16pmt"), ExtResource("8_037mo"), ExtResource("9_a67dc"), ExtResource("10_16pmt"), ExtResource("11_037mo")])

@@ -8,15 +8,16 @@ extends CanvasLayer
 ## Up / down picks a slot; Confirm opens the grid to choose a Relic for it (a Relic another hero has
 ## moves over), X / R takes it off. In the grid Confirm puts the Relic on, Back goes back to the
 ## slots.
-## Two uses: the main menu (setup), where the slots are the Relics each hero brings into the next
-## run (RelicCollection picks; Relics not found yet show as "???" with the monsters that drop them),
-## and a run (setup_run, from the party screen's Relic slots), where the slots are the ones the hero
-## wears now (locked ones say what opens them) and each card shows its Echo's progress. In a run an
-## online client's changes go to the host as RunState ops (op_requested).
+## Two uses: the main menu (setup), where the right side is the Relic bag (card #265): the Relics
+## the team brings into the next run, Confirm on a card puts it in or takes it out (Relics not found
+## yet show as "???" with the monsters that drop them); and a run (setup_run, from the party
+## screen's Relic slots), where the slots are the ones the hero wears now (locked ones say what
+## opens them) and each card shows its Echo's progress. In a run an online client's changes go to
+## the host as RunState ops (op_requested).
 
 signal closed
-## Main menu: the picks changed (Main writes the collection to its file).
-signal picks_changed(collection: RelicCollection)
+## Main menu: the bag changed (Main writes the collection to its file).
+signal bag_changed(collection: RelicCollection)
 ## Online client in a run: a change for the host to make (RunState.apply_op data).
 signal op_requested(op: Dictionary)
 
@@ -51,9 +52,9 @@ const HERO_FACE_PX: float = 72.0
 const ON_HERO_BG := Color(0.32, 0.12, 0.36, 0.9)
 const CHOSEN_BG := Color(0.3, 0.24, 0.1, 0.9)
 const UNKNOWN := "???"
-## When each slot's Relic goes on in a run (main menu notes).
-const SLOT_WHEN: Array[String] = ["Goes on at the start of a run.", "Goes on after the first guard.",
-		"Goes on after act 1's boss."]
+## The bag's cards on the main menu: two columns.
+const BAG_COLUMNS: int = 2
+const BAG_CARD_SIZE := Vector2(342.0, 62.0)
 
 ## Online client (run use): changes are asked of the host instead of made here.
 var remote: bool = false
@@ -88,7 +89,7 @@ var _card_ids: Array[int] = []
 var _slot_nodes: Array = []
 
 
-## Main menu use: `collection` and its picks; `relics`: every Relic of the run (RunData.gear);
+## Main menu use: `collection` and its bag; `relics`: every Relic of the run (RunData.gear);
 ## `party`: the heroes; `enemies`: every monster (where a Relic not found yet drops).
 func setup(collection: RelicCollection, relics: Array[GearData], party: Array[CharacterData], tuning: Tuning,
 		enemies: Array[EnemyData]) -> void:
@@ -96,6 +97,8 @@ func setup(collection: RelicCollection, relics: Array[GearData], party: Array[Ch
 	_relics.assign(relics.filter(func(item: GearData) -> bool: return item != null))
 	_party = party
 	_tuning = tuning
+	# The bag page is the grid alone: Confirm puts a Relic in or takes it out.
+	_zone = Zone.GRID
 	for enemy: EnemyData in enemies:
 		for item: GearData in enemy.relic_drops:
 			if item != null:
@@ -144,8 +147,7 @@ func _slot_count() -> int:
 func slot_item(hero: int, slot: int) -> GearData:
 	if _run != null:
 		return _run.gear[hero][slot] as GearData if slot < (_run.gear[hero] as Array).size() else null
-	var ids := _collection.picks_for(_party[hero].id)
-	return _by_id(ids[slot]) if slot < ids.size() else null
+	return null
 
 
 func _slot_open(slot: int) -> bool:
@@ -160,15 +162,14 @@ func _level(item: GearData) -> int:
 	return _run.relic_level(item) if _run != null else _collection.level_of(item.id)
 
 
-## The hero who has the Relic (wears it in a run, brings it from the menu), or -1.
+## The hero who wears the Relic in a run, or -1 (always -1 on the main menu: the bag is the team's).
 func _holder(item: GearData) -> int:
-	if _run != null:
-		return _run.wearer_of(item)
-	var hero_id := _collection.picked_by(item.id)
-	for i: int in _party.size():
-		if _party[i].id == hero_id:
-			return i
-	return -1
+	return _run.wearer_of(item) if _run != null else -1
+
+
+## Main menu: true if the Relic is in the bag.
+func _bagged(item: GearData) -> bool:
+	return _run == null and item != null and _collection.in_bag(item.id)
 
 
 func _by_id(id: String) -> GearData:
@@ -235,9 +236,12 @@ func open_grid() -> bool:
 	return true
 
 
-## Puts `item` in the shown hero's chosen slot (moving it from another hero or slot). False if it
-## cannot be done (not found yet, the slot is locked).
+## Puts `item` in the shown hero's chosen slot (moving it from another hero or slot); on the main
+## menu, puts it in the bag or takes it out. False if it cannot be done (not found yet, the slot is
+## locked, the bag is full).
 func put(item: GearData) -> bool:
+	if _run == null:
+		return _toggle_bag(item)
 	if item == null or not _owns(item) or not _slot_open(_slot):
 		_warning = "Not found yet: defeat the monsters that drop it." if item != null and not _owns(item) else ""
 		Sfx.play("locked")
@@ -247,31 +251,13 @@ func put(item: GearData) -> bool:
 		_zone = Zone.SLOTS
 		_redraw()
 		return true
-	if _run != null:
-		# Worn elsewhere: the two slots swap. Else it goes on, and what was here goes back to the
-		# run's Relics (RunState.wear).
-		var holder := _run.wearer_of(item)
-		if holder >= 0:
-			_ask({"op": "swap_gear", "from": [holder, _run.wear_slot_of(item)], "to": [_hero, _slot]})
-		else:
-			_ask({"op": "wear", "slot": _hero, "gear_slot": _slot, "relic": item.id})
+	# Worn elsewhere: the two slots swap. Else it goes on, and what was here goes back to the run's
+	# Relics (RunState.wear).
+	var holder := _run.wearer_of(item)
+	if holder >= 0:
+		_ask({"op": "swap_gear", "from": [holder, _run.wear_slot_of(item)], "to": [_hero, _slot]})
 	else:
-		# The picks are a list in slot order: the Relic takes this slot's place (one of the hero's
-		# own picks swaps places; one another hero brings moves over: set_picks).
-		var ids := _collection.picks_for(_party[_hero].id)
-		var at := ids.find(item.id)
-		if at >= 0 and _slot < ids.size():
-			ids[at] = ids[_slot]
-			ids[_slot] = item.id
-		elif at >= 0:
-			ids.remove_at(at)
-			ids.append(item.id)
-		elif _slot < ids.size():
-			ids[_slot] = item.id
-		else:
-			ids.append(item.id)
-		_collection.set_picks(_party[_hero].id, ids, _slot_count())
-		picks_changed.emit(_collection)
+		_ask({"op": "wear", "slot": _hero, "gear_slot": _slot, "relic": item.id})
 	Sfx.play("buff")
 	_zone = Zone.SLOTS
 	_resort()
@@ -279,19 +265,32 @@ func put(item: GearData) -> bool:
 	return true
 
 
-## Takes the Relic off the chosen slot (it stays found).
+## Main menu: the Relic goes into the bag, or comes out if it is in.
+func _toggle_bag(item: GearData) -> bool:
+	if item == null or not _owns(item):
+		_warning = "Not found yet: defeat the monsters that drop it." if item != null else ""
+		Sfx.play("locked")
+		_redraw()
+		return false
+	var was_in := _collection.in_bag(item.id)
+	if not _collection.toggle_bag(item.id, _tuning.relic_bag_size):
+		_warning = "The bag is full. Take a Relic out first."
+		Sfx.play("locked")
+		_redraw()
+		return false
+	bag_changed.emit(_collection)
+	Sfx.play("menu_cancel" if was_in else "buff")
+	_redraw()
+	return true
+
+
+## Takes the Relic off the chosen slot (it stays the run's). Run use only.
 func take_off() -> bool:
 	var item := slot_item(_hero, _slot)
-	if item == null:
+	if item == null or _run == null:
 		Sfx.play("locked")
 		return false
-	if _run != null:
-		_ask({"op": "take_off", "slot": _hero, "gear_slot": _slot})
-	else:
-		var ids := _collection.picks_for(_party[_hero].id)
-		ids.erase(item.id)
-		_collection.set_picks(_party[_hero].id, ids, _slot_count())
-		picks_changed.emit(_collection)
+	_ask({"op": "take_off", "slot": _hero, "gear_slot": _slot})
 	Sfx.play("menu_cancel")
 	_redraw()
 	return true
@@ -319,7 +318,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_warning = ""
 	if _mouse_input(event):
 		return
-	if _pressed(event, &"item_turn_left") or _pressed(event, &"item_turn_right"):
+	if _run != null and (_pressed(event, &"item_turn_left") or _pressed(event, &"item_turn_right")):
 		_handled()
 		_hero = wrapi(_hero + (-1 if event.is_action(&"item_turn_left") else 1), 0, maxi(1, _party.size()))
 		Sfx.play("menu_move")
@@ -337,7 +336,7 @@ func _mouse_input(event: InputEvent) -> bool:
 	if MenuMouse.is_back(event):
 		_handled()
 		Sfx.play("menu_cancel")
-		if _zone == Zone.GRID:
+		if _zone == Zone.GRID and _run != null:
 			_zone = Zone.SLOTS
 			_redraw()
 		else:
@@ -383,8 +382,11 @@ func _mouse_input(event: InputEvent) -> bool:
 
 
 func _slots_input(event: InputEvent) -> void:
-	if _pressed(event, &"menu_up") or _pressed(event, &"menu_down"):
-		_slot = wrapi(_slot + (-1 if event.is_action(&"menu_up") else 1), 0, _slot_count())
+	if _pressed(event, &"menu_up"):
+		_slot = wrapi(_slot - 1, 0, _slot_count())
+		Sfx.play("menu_move")
+	elif _pressed(event, &"menu_down"):
+		_slot = wrapi(_slot + 1, 0, _slot_count())
 		Sfx.play("menu_move")
 	elif _pressed(event, &"menu_confirm"):
 		_handled()
@@ -429,6 +431,10 @@ func _grid_input(event: InputEvent) -> void:
 	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu"):
 		_handled()
 		Sfx.play("menu_cancel")
+		if _run == null:
+			# The bag page has no slots to go back to.
+			close()
+			return
 		_zone = Zone.SLOTS
 		_redraw()
 		return
@@ -559,7 +565,8 @@ func _redraw_grid() -> void:
 func _grid_card(item: GearData, chosen: bool) -> Control:
 	var known := _owns(item)
 	var holder := _holder(item) if known else -1
-	var bg := CHOSEN_BG if chosen else (ON_HERO_BG if holder == _hero and holder >= 0 else HudStyle.INK)
+	var marked := (holder == _hero and holder >= 0) or _bagged(item)
+	var bg := CHOSEN_BG if chosen else (ON_HERO_BG if marked else HudStyle.INK)
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.custom_minimum_size = CARD_SIZE
@@ -627,6 +634,9 @@ func _redraw_hero() -> void:
 		_slots_box.remove_child(child)
 		child.free()
 	_slot_nodes.clear()
+	if _run == null:
+		_redraw_bag()
+		return
 	if _party.is_empty():
 		return
 	var c := _party[_hero]
@@ -648,6 +658,55 @@ func _redraw_hero() -> void:
 		var card := _slot_card(slot)
 		_slots_box.add_child(card)
 		_slot_nodes.append(card)
+
+
+## Main menu: the Relic bag (card #265): its count and its Relics as small cards, two columns, the
+## free room as dim empty cards.
+func _redraw_bag() -> void:
+	var names := VBoxContainer.new()
+	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hero_box.add_child(names)
+	var ids := _collection.bag_ids()
+	names.add_child(HudStyle.make_worn_title("Relic bag", HERO_SIZE, HudStyle.GOLD))
+	names.add_child(HudStyle.make_number("%d / %d" % [ids.size(), _tuning.relic_bag_size], TEXT_SIZE, HudStyle.TEXT))
+	var grid := GridContainer.new()
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid.columns = BAG_COLUMNS
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 8)
+	_slots_box.add_child(grid)
+	for i: int in _tuning.relic_bag_size:
+		grid.add_child(_bag_card(_by_id(ids[i]) if i < ids.size() else null))
+
+
+func _bag_card(item: GearData) -> Control:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.custom_minimum_size = BAG_CARD_SIZE
+	panel.add_theme_stylebox_override("panel", HudStyle.slant(ON_HERO_BG if item != null else HudStyle.INK,
+			HudStyle.EDGE_DIM, 2, 6, BAG_CARD_SIZE.y, HudStyle.SLANT * 0.6))
+	panel.modulate = Color(1.0, 1.0, 1.0, 1.0 if item != null else 0.45)
+	var line := HBoxContainer.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_theme_constant_override("separation", 10)
+	panel.add_child(line)
+	var icon := RelicIcon.new()
+	if item != null:
+		icon.setup(item, CARD_ICON_PX, true)
+	else:
+		icon.setup_slot(RelicIcon.SlotState.EMPTY, CARD_ICON_PX)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(icon)
+	var name := HudStyle.make_title(item.display_name if item != null else "", NAME_SIZE - 2,
+			_name_color(item) if item != null else HudStyle.TEXT_DIM)
+	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	name.clip_text = true
+	line.add_child(name)
+	if item != null:
+		line.add_child(_level_box(_level(item), SMALL_SIZE - 2, LEVEL_SIZE - 6))
+	return panel
 
 
 ## A big card for slot `slot`: the diamond, name, stat line, level and what it does.
@@ -719,8 +778,6 @@ func _slot_text(item: GearData, slot: int) -> String:
 		return item.description
 	if not _slot_open(slot):
 		return _run.slot_lock_text(slot)
-	if _run == null:
-		return "Empty. " + SLOT_WHEN[mini(slot, SLOT_WHEN.size() - 1)]
 	return "Empty. Confirm to choose a Relic."
 
 
@@ -752,7 +809,9 @@ func _redraw_detail() -> void:
 	head.append("Echo %d pt%s" % [item.echo_cost, "" if item.echo_cost == 1 else "s"])
 	var holder := _holder(item)
 	if holder >= 0:
-		head.append(("%s wears it" if _run != null else "%s brings it") % _party[holder].display_name)
+		head.append("%s wears it" % _party[holder].display_name)
+	elif _bagged(item):
+		head.append("In the bag")
 	_detail.text = "    ".join(head)
 	var more := item.description
 	if _run != null:
@@ -764,6 +823,10 @@ func _redraw_detail() -> void:
 
 
 func _redraw_hint() -> void:
+	if _run == null:
+		_hint.set_entries([[&"@arrows", "Move"], [&"menu_confirm", "In / out of bag"], [&"item_move", "Sort"],
+				[&"menu_cancel", "Back"]])
+		return
 	if _zone == Zone.GRID:
 		_hint.set_entries([[&"@arrows", "Move"], [&"menu_confirm", "Put on"], [&"item_move", "Sort"],
 				[&"menu_cancel", "Back"]])

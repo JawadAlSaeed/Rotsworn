@@ -405,7 +405,7 @@ func _show_sample_backpack() -> void:
 	_run.wear(1, 0, _run_data.gear[3])
 	# Alder has levelled and has points to spend (the cards show "+N points", DESIGN.md 8.2).
 	_run.add_xp(0, 200)
-	_show_party("Found a Golden Idol. Where does it go?", true, {"item": items["golden_idol"]})
+	_show_party("No room", true, {"item": items["golden_idol"]})
 
 
 ## --screen=attributes: a run where Alder and Brin have levelled (Brin's points half spent), the
@@ -422,14 +422,14 @@ func _show_sample_attributes(open: bool = true) -> void:
 		(_screen as PartyScreen).open_attributes()
 
 
-## A pretend collection for pictures (--screen=relics): a few Relics at several levels, two heroes
-## with picks.
+## A pretend collection for pictures (--screen=relics): a few Relics at several levels, some of
+## them in the bag.
 func _sample_collection() -> RelicCollection:
 	var c := RelicCollection.new()
-	for i: int in mini(9, _run_data.gear.size()):
+	for i: int in mini(14, _run_data.gear.size()):
 		c.levels[_run_data.gear[i].id] = 1 + i % _tuning.relic_max_level
-	c.set_picks(_run_data.party[0].id, [_run_data.gear[0].id, _run_data.gear[3].id] as Array[String], _tuning.run_gear_slots)
-	c.set_picks(_run_data.party[1].id, [_run_data.gear[5].id] as Array[String], _tuning.run_gear_slots)
+	for i: int in [0, 3, 5, 8]:
+		c.toggle_bag(_run_data.gear[i].id, _tuning.relic_bag_size)
 	return c
 
 
@@ -464,10 +464,9 @@ func _show_sample_echoes(echoes: bool = true) -> void:
 func _show_real_tree(hero: int) -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
 	_run.add_xp(hero, 1200)
-	var skills := SkillsScreen.new()
-	skills.name = "Skills"
-	add_child(skills)
-	skills.setup(_run, hero)
+	_show_party("", true)
+	(_screen as PartyScreen).open_skills()
+	((_screen as PartyScreen).tab_node(PartyScreen.Tab.SKILLS) as SkillsTab).set_hero(hero)
 
 
 func _show_sample_skills() -> void:
@@ -826,14 +825,14 @@ func _show_journal() -> void:
 	_show_screen(screen)
 
 
-## The Relics (DESIGN.md 8.17): the collection on this machine, and what each hero brings into the
-## next run. `sample`: a dev screen's pretend collection, never saved.
+## The Relics (DESIGN.md 8.17): the collection on this machine, and the Relic bag the team brings
+## into the next run (card #265). `sample`: a dev screen's pretend collection, never saved.
 func _show_relics(sample: RelicCollection = null) -> void:
 	var collection := sample if sample != null else RelicFile.load_or_empty(_relics_path())
 	var screen := RelicsScreen.new()
 	screen.name = "Relics"
 	screen.setup(collection, _run_data.gear, _run_data.party, _tuning, JournalScreen.load_enemies())
-	screen.picks_changed.connect(func(changed: RelicCollection) -> void:
+	screen.bag_changed.connect(func(changed: RelicCollection) -> void:
 		if sample == null and _relics_io_ok() and not RelicFile.save(changed, _relics_path()):
 			push_warning("Main: could not write the Relics to %s" % _relics_path()))
 	screen.closed.connect(_show_main_menu.call_deferred)
@@ -1348,12 +1347,16 @@ func _relics_io_ok() -> bool:
 
 ## The collection a new run starts from: the player's, or a bot's pretend one (--relics=all gives
 ## every Relic at its top level; a bot otherwise starts with none, like a first run).
+## A bot fills its bag with the best Relics it has (GearBot), since nobody picks for it.
 func _run_collection() -> RelicCollection:
+	var collection := RelicCollection.new()
 	if _options.relics_mode == "all":
-		return RelicCollection.all_of(_run_data.gear, _tuning.relic_max_level)
-	if _relics_io_ok() and _options.relics_mode != "none":
-		return RelicFile.load_or_empty(_relics_path())
-	return RelicCollection.new()
+		collection = RelicCollection.all_of(_run_data.gear, _tuning.relic_max_level)
+	elif _relics_io_ok() and _options.relics_mode != "none":
+		collection = RelicFile.load_or_empty(_relics_path())
+	if _options.is_autoplay():
+		collection.fill_bag(_run_data.gear, _tuning.relic_bag_size, GearBot.score)
+	return collection
 
 
 ## Takes the run's Relics into the collection: when the run saves on the map, when a stop settles
@@ -1362,7 +1365,7 @@ func _run_collection() -> RelicCollection:
 func _bank_relics() -> void:
 	if _run == null or not _relics_io_ok():
 		return
-	if RelicFile.bank(_run.relics, _relics_path()):
+	if RelicFile.bank(_run.relics, _relics_path(), _tuning.relic_bag_size):
 		print("Relics banked: %d" % _run.relics.size())
 
 
@@ -1512,7 +1515,14 @@ func _new_run() -> void:
 		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict(), "oath": _run.oath})
 	print("Run seed: %d  oath: %d  stops: %d  acts: %d" % [run_seed, _run.oath, _run.map.row_count(), _run.acts().size()])
 	Sfx.play("run_begin")
-	_show_map()
+	if _run.owned_relics().is_empty():
+		_show_map()
+		return
+	# The Relic bag (card #265): nothing is worn yet, so the party screen opens on the Relics page
+	# first and the player equips before the first fight.
+	_show_party("Your Relic bag", true)
+	if not _options.is_autoplay() and _screen is PartyScreen:
+		(_screen as PartyScreen).open_relics(0, 0)
 
 
 ## `unroll` false shows the map already open (back from the party screen, or redrawn online).
@@ -1741,11 +1751,12 @@ func _on_loot_chosen(item: GearData) -> void:
 		_fade_to(_show_map)
 		return
 	var found := _run.add_relic(item)
-	var line := RunState.relic_find_text(found)
+	# The party screen shows it as a toast next to the Relic's icon (card #270): no sentence.
+	var line := RunState.relic_find_short(found)
 	if _run.is_worn(item):
-		_show_party.call_deferred(line + ".", false)
+		_show_party.call_deferred(line, false, {"icon": item})
 	else:
-		_show_party.call_deferred(line + ". Who wears it?", false, {"gear": item})
+		_show_party.call_deferred(line, false, {"gear": item})
 
 
 ## The party screen: gear, stats and the backpack. From the map it closes back to the map at once;
@@ -3079,6 +3090,7 @@ func _autoplay_loot(loot: LootScreen) -> void:
 func _autoplay_spend_points() -> void:
 	if not _options.is_autoplay() or Net.is_client() or _run == null:
 		return
+	_run.auto_wear()
 	for slot: int in _run.party_size():
 		var echoes_before := (_run.echoes[slot] as Array).size()
 		_run.auto_echoes(slot)
@@ -3116,6 +3128,8 @@ func _autoplay_settle(party: PartyScreen) -> void:
 	var worn := _worn_count()
 	var items := _run.backpack.entries.size()
 	party.auto_settle()
+	# Nothing goes on by itself any more (card #265): the bot fills its open Relic slots.
+	_run.auto_wear()
 	print("Run settle: worn %d -> %d, items %d -> %d, gold %d" % [worn, _worn_count(), items,
 			_run.backpack.entries.size(), _run.gold])
 

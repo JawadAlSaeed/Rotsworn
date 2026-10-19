@@ -4,13 +4,14 @@
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
 [ext_resource type="Resource" path="res://data/clips/rot_rat.tres" id="3_clips"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/rat_nibble.tres" id="a_rat_nibble"]
+[ext_resource type="Resource" path="res://data/gear/reapers_coin.tres" id="10_t5t0a"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/grave_rat_frenzy.tres" id="a_grave_rat_frenzy"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/rat_gnaw.tres" id="a_rat_gnaw"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/rat_nibble.tres" id="a_rat_nibble"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/rat_scurry.tres" id="a_rat_scurry"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/rat_tide.tres" id="a_rat_tide"]
-[ext_resource type="Resource" path="res://data/enemy_attacks/grave_rat_frenzy.tres" id="a_grave_rat_frenzy"]
-[ext_resource type="Resource" path="res://data/gear/bloodletters_fang.tres" id="g_bloodletters_fang"]
 [ext_resource type="Resource" path="res://data/gear/bitter_root.tres" id="g_bitter_root"]
+[ext_resource type="Resource" path="res://data/gear/bloodletters_fang.tres" id="g_bloodletters_fang"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -32,5 +33,5 @@ target_bias_percent = 200
 gold = 9
 xp = 18
 voice_sfx = "voice_hyena"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_bloodletters_fang"), ExtResource("g_bitter_root")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_bloodletters_fang"), ExtResource("g_bitter_root"), ExtResource("10_t5t0a")])
 forced_hits = true

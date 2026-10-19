@@ -13,6 +13,8 @@
 [ext_resource type="Resource" path="res://data/gear/chain_of_silence.tres" id="10_yn3ih"]
 [ext_resource type="Resource" path="res://data/gear/second_wind.tres" id="11_m0j7d"]
 [ext_resource type="Resource" path="res://data/gear/gravebloom.tres" id="12_oqc1p"]
+[ext_resource type="Resource" path="res://data/gear/still_water.tres" id="13_m0j7d"]
+[ext_resource type="Resource" path="res://data/gear/crown_of_thorns.tres" id="14_x8mrn"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/toad_brood_tide.tres" id="99_doom"]
 
 [resource]
@@ -35,7 +37,7 @@ target_bias_percent = 100
 gold = 60
 xp = 130
 voice_sfx = "voice_toad"
-relic_drops = Array[ExtResource("8_7aj0h")]([ExtResource("9_oqc1p"), ExtResource("10_yn3ih"), ExtResource("11_m0j7d"), ExtResource("12_oqc1p")])
+relic_drops = Array[ExtResource("8_7aj0h")]([ExtResource("9_oqc1p"), ExtResource("10_yn3ih"), ExtResource("11_m0j7d"), ExtResource("12_oqc1p"), ExtResource("13_m0j7d"), ExtResource("14_x8mrn")])
 phase_two_hp_percent = 50
 phase_two_attacks = Array[ExtResource("1_18q8n")]([ExtResource("2_t8inl"), ExtResource("3_cx7q1"), ExtResource("4_8idxc"), ExtResource("5_t2xw7"), ExtResource("6_7aj0h"), ExtResource("99_doom")])
 phase_two_speed = 145

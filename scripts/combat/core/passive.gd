@@ -53,9 +53,25 @@ const PARRY_CLEANSE := "parry_cleanse"
 ## The fight starts with this character Warded (no marks) for this many of their turns.
 const WARD_START := "ward_start"
 
+## More Relics (phase 20, card #242). Power +this percent while at full HP.
+const FULL_HP_POWER := "full_hp_power"
+## AP gained for each enemy this character downs.
+const KILL_AP := "kill_ap"
+## The fight starts with this character Empowered (any amount above 0).
+const START_EMPOWERED := "start_empowered"
+## The fight starts with this character under Regen for this many of their turns.
+const START_REGEN := "start_regen"
+## This character's damage to a Staggered enemy is this percent bigger.
+const STAGGER_DAMAGE := "stagger_damage"
+## This character's critical hits deal this percent more (on top of tuning.crit_damage_percent).
+const CRIT_DAMAGE := "crit_damage"
+## Each perfect parry heals this character this percent of their max HP.
+const PARRY_HEAL := "parry_heal"
+
 const ALL: Array[String] = [START_AP, AP_ON_COUNTER, HEAL_ON_JUMP, COUNTER, SECOND_WIND, PERFECT_PRESS, EXPOSED,
 	TOUGH, HEAL, ROT, CRIT, HEAL_TAKEN, KILL_HEAL, LOW_HP_POWER, DODGE_AP, PARRY_AP, THORNS, GAUGE, MARK_SHORTEN,
-	PARRY_CLEANSE, WARD_START]
+	PARRY_CLEANSE, WARD_START, FULL_HP_POWER, KILL_AP, START_EMPOWERED, START_REGEN, STAGGER_DAMAGE, CRIT_DAMAGE,
+	PARRY_HEAL]
 
 
 static func amount(c: Combatant, key: String) -> int:

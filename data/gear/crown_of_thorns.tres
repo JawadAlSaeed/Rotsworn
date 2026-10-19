@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_bcd2j"]
+
+[resource]
+script = ExtResource("1_bcd2j")
+id = "crown_of_thorns"
+display_name = "Crown of Thorns"
+description = "Enemies that hit the wearer take 60% of the damage back, but their hits deal 15% more."
+price = 150
+rarity = 2
+effect = 18
+amount = 60
+rot_touched = true
+drawback = 10
+drawback_amount = 15
+stat = 3
+stat_points = 4
+echo_cost = 3

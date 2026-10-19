@@ -14,6 +14,7 @@
 [ext_resource type="Resource" path="res://data/gear/ash_veil.tres" id="11_ofos0"]
 [ext_resource type="Resource" path="res://data/gear/last_ember.tres" id="12_75tdb"]
 [ext_resource type="Resource" path="res://data/gear/pale_tithe.tres" id="13_vbww8"]
+[ext_resource type="Resource" path="res://data/gear/crown_of_thorns.tres" id="14_ofos0"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/shade_ashfall.tres" id="99_doom"]
 
 [resource]
@@ -36,7 +37,7 @@ target_bias_percent = 150
 gold = 60
 xp = 130
 voice_sfx = "voice_shade"
-relic_drops = Array[ExtResource("10_lxa4g")]([ExtResource("11_ofos0"), ExtResource("12_75tdb"), ExtResource("13_vbww8")])
+relic_drops = Array[ExtResource("10_lxa4g")]([ExtResource("11_ofos0"), ExtResource("12_75tdb"), ExtResource("13_vbww8"), ExtResource("14_ofos0")])
 phase_two_hp_percent = 50
 phase_two_attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtResource("3_48cf8"), ExtResource("4_r4fvk"), ExtResource("5_nrkbm"), ExtResource("6_lxa4g"), ExtResource("7_ofos0"), ExtResource("8_75tdb"), ExtResource("99_doom")])
 phase_two_speed = 155

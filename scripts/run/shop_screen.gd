@@ -160,7 +160,7 @@ func _info(index: int) -> Array:
 		return [item.display_name, _run.item_price(item), item.description, int(item.rarity),
 				AssetLoader.texture(item.icon_path, item.size() * 16)]
 	var gear := _gear[index - items().size()]
-	var level := _run.relic_level(gear)
+	var level := _run.known_level(gear)
 	var owned := " (you have it at level %d: a copy raises it)" % level if level > 0 else " (new)"
 	return [gear.display_name, _run.gear_price(gear), "Relic%s: %s" % [owned, gear.description], BackpackGrid.gear_step(gear),
 			_gear_icon]
@@ -198,8 +198,7 @@ func buy(index: int) -> bool:
 			acted.emit()
 		else:
 			_pending = item
-			_open_backpack("No room for the %s. Make room, or leave it (your gold comes back)." % item.display_name,
-					{"item": item})
+			_open_backpack("No room", {"item": item, "refund": true})
 	else:
 		var gear := _gear[index - items().size()]
 		_run.mark_sold(index)
@@ -208,7 +207,7 @@ func buy(index: int) -> bool:
 		_say.text = "\"Wear it well.\""
 		acted.emit()
 		if not _run.is_worn(gear):
-			_open_backpack("%s. Who wears it?" % RunState.relic_find_text(found), {"gear": gear})
+			_open_backpack(RunState.relic_find_short(found), {"gear": gear})
 		else:
 			_say.text = "\"%s.\"" % RunState.relic_find_text(found)
 	_rebuild()
@@ -353,7 +352,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"party_menu", false, true):
 		get_viewport().set_input_as_handled()
 		Sfx.play("menu_confirm")
-		_open_backpack("Sell: pick an item, then Sell.", {})
+		_open_backpack("Sell", {"icon": &"coin"})
 		return
 	if event.is_action_pressed(&"menu_cancel", false, true):
 		get_viewport().set_input_as_handled()
@@ -451,7 +450,7 @@ func _use_selected() -> void:
 		"restock":
 			restock()
 		"sell":
-			_open_backpack("Sell: pick an item, then Sell.", {})
+			_open_backpack("Sell", {"icon": &"coin"})
 		"leave":
 			leave()
 		"cleanse", "upgrade":
@@ -515,14 +514,14 @@ func _pick_input(event: InputEvent) -> void:
 func _open_backpack(note: String, held: Dictionary) -> void:
 	_overlay = PartyScreen.new()
 	_overlay.layer = OVERLAY_LAYER
-	_overlay.close_when_settled = not held.is_empty()
+	_overlay.close_when_settled = held.has("item") or held.has("gear")
 	_overlay.shop_mode = true
 	add_child(_overlay)
 	_overlay.setup(_run, note, held)
 	_overlay.left_behind.connect(_on_left_behind)
 	_overlay.done.connect(_close_backpack)
 	# A sale is final at once, unless a purchase is still in hand (it is saved when the backpack closes).
-	_holding = not held.is_empty()
+	_holding = held.has("item") or held.has("gear")
 	_overlay.sold.connect(func() -> void:
 		if not _holding:
 			acted.emit())

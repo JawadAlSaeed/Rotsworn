@@ -10,6 +10,7 @@
 [ext_resource type="Resource" path="res://data/gear/quick_boots.tres" id="7_71j6l"]
 [ext_resource type="Resource" path="res://data/gear/lucky_coin.tres" id="8_epyn7"]
 [ext_resource type="Resource" path="res://data/gear/ember_stone.tres" id="9_71j6l"]
+[ext_resource type="Resource" path="res://data/gear/fox_step.tres" id="10_epyn7"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/gnat_swarm_round.tres" id="p12_gnat_swarm_round"]
 
 [resource]
@@ -33,4 +34,4 @@ target_bias_percent = 150
 gold = 8
 xp = 15
 voice_sfx = "voice_gnats"
-relic_drops = Array[ExtResource("6_rflmq")]([ExtResource("7_71j6l"), ExtResource("8_epyn7"), ExtResource("9_71j6l")])
+relic_drops = Array[ExtResource("6_rflmq")]([ExtResource("7_71j6l"), ExtResource("8_epyn7"), ExtResource("9_71j6l"), ExtResource("10_epyn7")])

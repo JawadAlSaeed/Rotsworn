@@ -60,7 +60,7 @@ func test_every_relic_has_a_stat_line_an_echo_cost_and_a_monster_that_drops_it()
 			if item != null:
 				assert_true(_data.gear.has(item), "%s's %s is one of the run's Relics" % [enemy.id, item.id])
 				dropped[item.id] = true
-	assert_eq(_data.gear.size(), 34, "the 25 gear pieces, 6 from the old charms' ideas, 3 against marks (card #263)")
+	assert_eq(_data.gear.size(), 50, "the 25 gear pieces, 6 from the old charms' ideas, 3 against marks (card #263), 16 more (card #242)")
 	for id: String in ["heartleaf", "wake_root", "ember_stone", "rain_pouch", "black_ichor", "gravebloom"]:
 		assert_true(_relic(id).description.length() > 0, "%s: a Relic made from a charm idea" % id)
 	assert_true(_relic("black_ichor").rot_touched and _relic("gravebloom").rot_touched, "the rotten ones keep their price")
@@ -99,28 +99,62 @@ func test_the_collection_keeps_the_higher_level_so_banking_twice_adds_nothing() 
 	assert_eq(c.count(), 2)
 
 
-func test_picks_are_found_relics_each_brought_by_one_hero() -> void:
+func test_the_bag_holds_found_relics_once_up_to_its_size() -> void:
 	var c := RelicCollection.new()
 	c.merge({"iron_charm": 1, "whetstone": 1, "war_drum": 1, "keen_eye": 1})
-	c.set_picks("alder", ["iron_charm", "nope", "iron_charm", "whetstone", "war_drum", "keen_eye"] as Array[String], 3)
-	assert_eq(c.picks_for("alder"), ["iron_charm", "whetstone", "war_drum"] as Array[String], "found ones, once, at most 3")
-	c.set_picks("brin", ["whetstone"] as Array[String], 3)
-	assert_eq(c.picks_for("brin"), ["whetstone"] as Array[String])
-	assert_eq(c.picks_for("alder"), ["iron_charm", "war_drum"] as Array[String], "moved from Alder to Brin")
-	assert_eq(c.picked_by("whetstone"), "brin")
-	assert_eq(c.picked_by("keen_eye"), "")
+	assert_true(c.toggle_bag("iron_charm", 3))
+	assert_false(c.toggle_bag("nope", 3), "not found: cannot go in")
+	assert_true(c.toggle_bag("whetstone", 3))
+	assert_true(c.toggle_bag("war_drum", 3))
+	assert_false(c.toggle_bag("keen_eye", 3), "the bag is full")
+	assert_eq(c.bag_ids(), ["iron_charm", "whetstone", "war_drum"] as Array[String])
+	assert_true(c.toggle_bag("whetstone", 3), "Confirm again takes it out")
+	assert_false(c.in_bag("whetstone"))
+	assert_true(c.toggle_bag("keen_eye", 3), "room again")
+	assert_eq(c.bag_ids(), ["iron_charm", "war_drum", "keen_eye"] as Array[String])
+
+
+func test_new_relics_join_the_bag_while_it_has_room() -> void:
+	var c := RelicCollection.new()
+	c.merge({"iron_charm": 1, "whetstone": 1}, 3)
+	assert_eq(c.bag_ids(), ["iron_charm", "whetstone"] as Array[String], "first finds go in (user pick)")
+	c.toggle_bag("whetstone", 3)
+	c.merge({"whetstone": 2, "war_drum": 1, "keen_eye": 1}, 3)
+	assert_eq(c.bag_ids(), ["iron_charm", "war_drum", "keen_eye"] as Array[String],
+			"a copy of a Relic taken out stays out; new ones fill the room")
+	c.merge({"rot_hunter": 1}, 3)
+	assert_false(c.in_bag("rot_hunter"), "a full bag takes no more")
+	c.merge({"lucky_coin": 1})
+	assert_false(c.in_bag("lucky_coin"), "no bag size: never")
+
+
+func test_a_bot_fills_its_bag_best_first() -> void:
+	var c := RelicCollection.all_of(_data.gear, 1)
+	c.fill_bag(_data.gear, 4, GearBot.score)
+	var ids := c.bag_ids()
+	assert_eq(ids.size(), 4)
+	for id: String in ids:
+		assert_gte(GearBot.score(_relic(id)), 0, id + " is a Relic the bot would wear")
+	var best := 0
+	for item: GearData in _data.gear:
+		best = maxi(best, GearBot.score(item))
+	assert_eq(GearBot.score(_relic(ids[0])), best, "the best first")
 
 
 func test_a_collection_survives_its_dictionary_and_skips_junk() -> void:
 	var c := RelicCollection.new()
 	c.merge({"iron_charm": 2})
-	c.set_picks("cass", ["iron_charm"] as Array[String], 3)
+	c.toggle_bag("iron_charm", 10)
 	var copy := RelicCollection.from_dict(c.to_dict())
 	assert_eq(copy.to_dict(), c.to_dict())
-	var junk := RelicCollection.from_dict({"levels": {"a": -1, 3: 2, "b": "x", "c": 2.0}, "picks": {"cass": ["a", "c", 5]}})
+	var junk := RelicCollection.from_dict({"levels": {"a": -1, 3: 2, "b": "x", "c": 2.0}, "bag": ["a", "c", 5, "c"]})
 	assert_eq(junk.levels, {"c": 2}, "only sound entries are kept")
-	assert_eq(junk.picks_for("cass"), ["c"] as Array[String])
+	assert_eq(junk.bag_ids(), ["c"] as Array[String])
 	assert_eq(RelicCollection.from_dict({}).count(), 0)
+	# A file from before the bag: each hero's picks go into it, heroes in order.
+	var old := RelicCollection.from_dict({"levels": {"a": 1, "b": 1, "c": 1},
+			"picks": {"alder": ["b", "x"], "brin": ["a"]}})
+	assert_eq(old.bag_ids(), ["b", "a"] as Array[String])
 
 
 func test_the_file_saves_loads_banks_and_deletes() -> void:
@@ -153,25 +187,53 @@ func test_a_file_of_another_version_is_kept_and_never_written_over() -> void:
 
 # --- a run with a collection ----------------------------------------------------------------------
 
-func test_a_run_takes_the_collection_and_puts_the_first_pick_on() -> void:
+func test_a_run_takes_only_the_bag_and_wears_nothing_yet() -> void:
 	var c := RelicCollection.new()
-	c.merge({"iron_charm": 3, "whetstone": 1, "war_drum": 2, "not_a_relic": 1})
-	c.set_picks("alder", ["whetstone", "iron_charm", "war_drum"] as Array[String], 3)
+	c.merge({"iron_charm": 3, "whetstone": 1, "war_drum": 2, "keen_eye": 1, "not_a_relic": 1})
+	for id: String in ["whetstone", "iron_charm", "not_a_relic"]:
+		c.toggle_bag(id, 10)
 	var run := _run(7, c)
-	assert_eq(run.relics, {"iron_charm": 3, "whetstone": 1, "war_drum": 2}, "only Relics this run knows")
+	assert_eq(run.relics, {"iron_charm": 3, "whetstone": 1}, "the bag's Relics this run knows")
+	assert_eq(run.relics_at_start, {"iron_charm": 3, "whetstone": 1, "war_drum": 2, "keen_eye": 1},
+			"the whole collection is remembered")
 	assert_eq(run.open_relic_slots(), 1, "one slot at the start")
-	assert_eq(run.gear[0][0], _relic("whetstone"), "the first pick goes on")
-	assert_null(run.gear[0][1], "the other slots are still shut")
-	assert_eq(run.hp[0], run.max_hp(0), "the run starts at full HP with the Relic's stat line counted")
+	for slot: int in run.party_size():
+		assert_null(run.gear[slot][0], "nothing goes on by itself (card #265)")
+	assert_eq(run.wear(2, 0, _relic("war_drum"), true), -1, "a Relic left at home cannot be worn")
+	assert_eq(run.wear(2, 0, _relic("whetstone"), true), 0, "any hero wears any Relic from the bag")
+	assert_eq(run.hp[0], run.max_hp(0))
 	assert_true(run.mastery.is_empty(), "no Echo carries over")
 	assert_eq(run.learned_echoes().size(), 0)
 
 
-func test_slots_open_after_the_first_guard_and_act_one_and_fill_from_the_picks() -> void:
+func test_a_copy_of_a_relic_left_at_home_raises_its_home_level() -> void:
 	var c := RelicCollection.new()
-	c.merge({"iron_charm": 1, "whetstone": 1, "war_drum": 1})
-	c.set_picks("brin", ["iron_charm", "whetstone", "war_drum"] as Array[String], 3)
+	c.merge({"iron_charm": 2, "whetstone": 1})
+	c.toggle_bag("whetstone", 10)
 	var run := _run(7, c)
+	assert_eq(run.known_level(_relic("iron_charm")), 2)
+	var info := run.add_relic(_relic("iron_charm"))
+	assert_false(bool(info.new), "not new: it waits at home")
+	assert_eq(int(info.level), 3)
+	assert_eq(run.relic_level(_relic("iron_charm")), 3, "it joins the run at its raised level")
+	assert_true(run.relic_gain_line().contains("Up a level"))
+	assert_false(run.relic_gain_line().contains("New:"))
+
+
+func test_the_bot_fills_open_slots() -> void:
+	var c := RelicCollection.new()
+	c.merge({"iron_charm": 1, "whetstone": 1, "war_drum": 1, "keen_eye": 1}, 10)
+	var run := _run(7, c)
+	assert_eq(run.auto_wear(), 3, "one open slot per hero")
+	assert_eq(run.auto_wear(), 0, "nothing left to fill")
+	assert_eq(run.unworn_relics().size(), 1)
+
+
+func test_slots_open_after_the_first_guard_and_act_one() -> void:
+	var c := RelicCollection.new()
+	c.merge({"iron_charm": 1, "whetstone": 1, "war_drum": 1}, 10)
+	var run := _run(7, c)
+	assert_eq(run.wear(1, 0, _relic("iron_charm")), 0)
 	assert_eq(run.gear[1][0], _relic("iron_charm"))
 	assert_eq(run.wear(1, 1, _relic("whetstone")), -1, "a shut slot takes nothing")
 	assert_eq(run.slot_lock_text(1), "Opens after the first guard.")
@@ -179,14 +241,17 @@ func test_slots_open_after_the_first_guard_and_act_one_and_fill_from_the_picks()
 	assert_eq(run.free_gear_slot(1), -1)
 	_win(run, _husk())
 	assert_eq(run.open_relic_slots(), 1, "an ordinary fight opens nothing")
+	assert_true(run.win_relic_lines(_guard()).has("A Relic slot opens: Y to put a Relic on"), "the end screen says so")
 	_win(run, _guard())
 	assert_eq(run.open_relic_slots(), 2, "the first guard opens the second slot")
-	assert_eq(run.gear[1][1], _relic("whetstone"), "and the next pick goes on")
+	assert_null(run.gear[1][1], "it stays empty until the player fills it")
+	assert_eq(run.wear(1, 1, _relic("whetstone")), 0)
+	assert_false(run.win_relic_lines(_guard()).has("A Relic slot opens: Y to put a Relic on"), "only the first guard")
 	_win(run, _guard())
 	assert_eq(run.open_relic_slots(), 2, "only the first guard counts")
 	run.next_act()
 	assert_eq(run.open_relic_slots(), 3, "act 1's boss opens the third")
-	assert_eq(run.gear[1][2], _relic("war_drum"))
+	assert_null(run.gear[1][2])
 	assert_eq(run.slot_lock_text(2), "")
 
 
@@ -373,20 +438,21 @@ func test_drops_are_seeded_and_what_the_end_screen_says_is_what_the_run_gets() -
 
 func test_the_first_guard_says_a_slot_opens() -> void:
 	var run := _run()
-	assert_has(run.win_relic_lines(_guard()), "A Relic slot opens")
+	assert_has(run.win_relic_lines(_guard()), "A Relic slot opens: Y to put a Relic on")
 	assert_eq(run.guards_beaten, 0, "the preview changes nothing")
 	_win(run, _guard())
-	assert_does_not_have(run.win_relic_lines(_guard()), "A Relic slot opens")
+	assert_does_not_have(run.win_relic_lines(_guard()), "A Relic slot opens: Y to put a Relic on")
 
 
 # --- saving and online ----------------------------------------------------------------------------
 
 func test_the_relic_state_survives_a_save_and_the_network() -> void:
 	var c := RelicCollection.new()
-	c.merge({"war_drum": 2, "iron_charm": 1})
-	c.set_picks("alder", ["war_drum", "iron_charm"] as Array[String], 3)
+	c.merge({"war_drum": 2, "iron_charm": 1}, 10)
 	var run := _run(7, c)
+	run.wear(0, 0, _relic("war_drum"))
 	_win(run, _guard())
+	run.wear(0, 1, _relic("iron_charm"))
 	run.mastery["war_drum"] = run.tuning.mastery_needed
 	run.add_xp(1, 400)
 	run.set_echo(1, _relic("war_drum"), true)
@@ -421,7 +487,7 @@ func test_bad_relic_state_is_refused() -> void:
 	var cases := [
 		["relics", {"whetstone": 0}], ["relics", {"nope": 1}], ["relics", {"whetstone": 99}], ["relics", {}],
 		["mastery", {"nope": 2}], ["mastery", {"whetstone": -1}], ["guards_beaten", -1], ["guards_beaten", "1"],
-		["echoes", [["nope"], [], []]], ["echoes", [[], []]], ["relic_picks", "x"],
+		["echoes", [["nope"], [], []]], ["echoes", [[], []]],
 	]
 	for pair: Array in cases:
 		var d := good.duplicate(true)
@@ -449,29 +515,25 @@ func test_relic_and_echo_ops_for_online_play() -> void:
 
 # --- the screens ----------------------------------------------------------------------------------
 
-func test_the_relics_page_fills_a_heros_slots_from_the_collection() -> void:
+func test_the_relics_page_fills_the_bag_from_the_collection() -> void:
 	var c := RelicCollection.new()
 	c.merge({"iron_charm": 2, "whetstone": 1, "war_drum": 1, "keen_eye": 1})
+	var tuning := _tuning.duplicate() as Tuning
+	tuning.relic_bag_size = 3
 	var screen := RelicsScreen.new()
 	add_child_autofree(screen)
-	screen.setup(c, _data.gear, _data.party, _tuning, [] as Array[EnemyData])
+	screen.setup(c, _data.gear, _data.party, tuning, [] as Array[EnemyData])
 	var changes: Array = []
-	screen.picks_changed.connect(func(changed: RelicCollection) -> void: changes.append(changed))
-	var alder := _data.party[0].id
-	for slot: int in 3:
-		screen.choose_slot(slot)
-		assert_true(screen.open_grid())
-		assert_true(screen.put(_relic(["iron_charm", "whetstone", "war_drum"][slot])))
-	assert_eq(c.picks_for(alder), ["iron_charm", "whetstone", "war_drum"] as Array[String])
+	screen.bag_changed.connect(func(changed: RelicCollection) -> void: changes.append(changed))
+	for id: String in ["iron_charm", "whetstone", "war_drum"]:
+		assert_true(screen.put(_relic(id)))
+	assert_eq(c.bag_ids(), ["iron_charm", "whetstone", "war_drum"] as Array[String])
 	assert_eq(changes.size(), 3, "each change is saved")
-	screen.choose_slot(1)
-	assert_true(screen.put(_relic("keen_eye")), "a full slot takes the new Relic")
-	assert_eq(c.picks_for(alder), ["iron_charm", "keen_eye", "war_drum"] as Array[String])
-	screen.choose_slot(0)
-	assert_true(screen.take_off())
-	assert_eq(c.picks_for(alder), ["keen_eye", "war_drum"] as Array[String], "left home")
+	assert_false(screen.put(_relic("keen_eye")), "the bag is full")
+	assert_true(screen.put(_relic("whetstone")), "Confirm on a bagged Relic takes it out")
+	assert_true(screen.put(_relic("keen_eye")))
+	assert_eq(c.bag_ids(), ["iron_charm", "war_drum", "keen_eye"] as Array[String])
 	assert_false(screen.put(_relic("rotten_crown")), "not found yet: cannot be brought")
-	assert_eq(screen.slot_item(0, 0), _relic("keen_eye"))
 
 
 func test_the_echoes_screen_puts_an_echo_on_and_off() -> void:
@@ -490,27 +552,29 @@ func test_the_echoes_screen_puts_an_echo_on_and_off() -> void:
 	assert_false(run.wears_echo(0, drum))
 
 
-func test_the_party_screen_opens_the_relics_page_for_a_slot() -> void:
+func test_the_relics_tab_puts_a_relic_from_the_bag_on_a_slot() -> void:
 	var run := _run()
 	run.add_relic(_relic("iron_charm"))
 	run.add_relic(_relic("whetstone"))
 	var screen := PartyScreen.new()
 	add_child_autofree(screen)
 	screen.setup(run)
-	screen._confirm_gear()
-	assert_not_null(screen._relics, "Confirm on an open slot opens the Relics page")
-	assert_true(screen._relics.put(_relic("whetstone")))
+	screen.open_relics(0, 0)
+	assert_eq(screen.current_tab(), PartyScreen.Tab.RELICS)
+	var tab := screen.tab_node(PartyScreen.Tab.RELICS) as RelicsTab
+	assert_true(tab.put(_relic("whetstone")))
 	assert_eq(run.gear[0][0], _relic("whetstone"))
-	assert_true(screen._relics.put(_relic("iron_charm")), "the same slot takes another")
+	tab.focus_slot(0, 0, true)
+	assert_true(tab.put(_relic("iron_charm")), "the same slot takes another")
 	assert_eq(run.gear[0][0], _relic("iron_charm"))
-	assert_false(run.is_worn(_relic("whetstone")), "the old one goes back to the run's Relics")
-	screen._relics.choose_slot(1)
-	assert_false(screen._relics.open_grid(), "a locked slot opens nothing")
-	screen._relics.close()
-	assert_null(screen._relics)
-	screen._slot = 1
-	screen._confirm_gear()
-	assert_null(screen._relics, "a locked slot on the party screen opens nothing either")
+	assert_false(run.is_worn(_relic("whetstone")), "the old one goes back to the bag")
+	tab.focus_slot(1, 0, true)
+	assert_true(tab.put(_relic("iron_charm")), "one another hero wears swaps over")
+	assert_eq(run.gear[1][0], _relic("iron_charm"))
+	assert_null(run.gear[0][0])
+	tab.focus_slot(0, 1)
+	assert_false(tab.open_bag(), "a locked slot opens nothing")
+	assert_eq(String(tab.info().title), "Locked")
 
 
 # --- harder runs ----------------------------------------------------------------------------------

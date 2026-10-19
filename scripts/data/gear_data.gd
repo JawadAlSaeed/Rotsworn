@@ -67,6 +67,23 @@ enum Effect {
 	PARRY_CLEANSE,
 	## Every fight starts with this character Warded (no marks) for amount of their turns.
 	WARD_START,
+	# --- More Relics (phase 20, card #242). Appended like the rest. ---
+	## Power +amount% while this character is at full HP.
+	FULL_HP_POWER,
+	## +amount AP for each enemy this character downs.
+	KILL_AP,
+	## After each fight won, this character heals amount% of their max HP (a run effect).
+	WIN_HEAL,
+	## Every fight starts with this character Empowered (their first damaging skill hits harder).
+	START_EMPOWERED,
+	## Every fight starts with this character under Regen for amount of their turns.
+	START_REGEN,
+	## This character's damage to a Staggered enemy is amount% bigger.
+	STAGGER_DAMAGE,
+	## This character's critical hits deal amount% more.
+	CRIT_DAMAGE,
+	## Each perfect parry heals this character amount% of their max HP.
+	PARRY_HEAL,
 }
 
 ## Effect -> Passive key for the effects the fight engine runs ("" = folded into stats or the run).
@@ -81,6 +98,10 @@ const PASSIVE_KEYS := {
 	Effect.ROT: Passive.ROT, Effect.CRIT: Passive.CRIT,
 	Effect.MARK_SHORTEN: Passive.MARK_SHORTEN, Effect.PARRY_CLEANSE: Passive.PARRY_CLEANSE,
 	Effect.WARD_START: Passive.WARD_START,
+	Effect.FULL_HP_POWER: Passive.FULL_HP_POWER, Effect.KILL_AP: Passive.KILL_AP,
+	Effect.START_EMPOWERED: Passive.START_EMPOWERED, Effect.START_REGEN: Passive.START_REGEN,
+	Effect.STAGGER_DAMAGE: Passive.STAGGER_DAMAGE, Effect.CRIT_DAMAGE: Passive.CRIT_DAMAGE,
+	Effect.PARRY_HEAL: Passive.PARRY_HEAL,
 }
 
 ## What a Relic is for, as the Echoes screen's tabs group them (like Expedition 33's Lumina tabs).
@@ -94,6 +115,9 @@ const CATEGORIES := {
 	Effect.MAX_HP: Category.DEFENSIVE, Effect.TOUGH: Category.DEFENSIVE, Effect.SECOND_WIND: Category.DEFENSIVE,
 	Effect.HEAL_ON_JUMP: Category.DEFENSIVE, Effect.KILL_HEAL: Category.DEFENSIVE, Effect.SPEED: Category.DEFENSIVE,
 	Effect.MARK_SHORTEN: Category.DEFENSIVE, Effect.PARRY_CLEANSE: Category.DEFENSIVE, Effect.WARD_START: Category.DEFENSIVE,
+	Effect.FULL_HP_POWER: Category.OFFENSIVE, Effect.START_EMPOWERED: Category.OFFENSIVE,
+	Effect.STAGGER_DAMAGE: Category.OFFENSIVE, Effect.CRIT_DAMAGE: Category.OFFENSIVE,
+	Effect.WIN_HEAL: Category.DEFENSIVE, Effect.START_REGEN: Category.DEFENSIVE, Effect.PARRY_HEAL: Category.DEFENSIVE,
 }
 
 ## Effects that only exist as a drawback: their amount is a loss, not a gain.
@@ -189,6 +213,22 @@ static func effect_text(effect: Effect, amount: int) -> String:
 			return "Each parry lifts %d mark%s" % [amount, "" if amount == 1 else "s"]
 		Effect.WARD_START:
 			return "Warded for %d turn%s at fight start" % [amount, "" if amount == 1 else "s"]
+		Effect.FULL_HP_POWER:
+			return "Power +%d%% at full HP" % amount
+		Effect.KILL_AP:
+			return "+%d AP per kill" % amount
+		Effect.WIN_HEAL:
+			return "Heal %d%% after each win" % amount
+		Effect.START_EMPOWERED:
+			return "Empowered at fight start"
+		Effect.START_REGEN:
+			return "Regen for %d turn%s at fight start" % [amount, "" if amount == 1 else "s"]
+		Effect.STAGGER_DAMAGE:
+			return "+%d%% damage to Staggered foes" % amount
+		Effect.CRIT_DAMAGE:
+			return "Critical hits deal +%d%%" % amount
+		Effect.PARRY_HEAL:
+			return "Perfect parries heal %d%%" % amount
 	return ""
 
 

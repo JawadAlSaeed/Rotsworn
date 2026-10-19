@@ -14,6 +14,7 @@
 [ext_resource type="Resource" path="res://data/gear/last_ember.tres" id="10_r3uml"]
 [ext_resource type="Resource" path="res://data/gear/keen_eye.tres" id="11_8t3pg"]
 [ext_resource type="Resource" path="res://data/gear/echo_charm.tres" id="12_oaee8"]
+[ext_resource type="Resource" path="res://data/gear/brimming_cup.tres" id="13_r3uml"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -35,5 +36,5 @@ target_bias_percent = 400
 gold = 30
 xp = 60
 voice_sfx = "voice_shade"
-relic_drops = Array[ExtResource("9_n3te2")]([ExtResource("10_r3uml"), ExtResource("11_8t3pg"), ExtResource("12_oaee8")])
+relic_drops = Array[ExtResource("9_n3te2")]([ExtResource("10_r3uml"), ExtResource("11_8t3pg"), ExtResource("12_oaee8"), ExtResource("13_r3uml")])
 forced_hits = true

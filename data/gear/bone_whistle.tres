@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_w7cia"]
+
+[resource]
+script = ExtResource("1_w7cia")
+id = "bone_whistle"
+display_name = "Bone Whistle"
+description = "The wearer's skills deal 25% more to Exposed enemies."
+effect = 9
+amount = 25
+stat = 1
+stat_points = 2

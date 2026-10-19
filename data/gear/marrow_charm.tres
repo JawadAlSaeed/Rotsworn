@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_adre1"]
+
+[resource]
+script = ExtResource("1_adre1")
+id = "marrow_charm"
+display_name = "Marrow Charm"
+description = "Healing the wearer receives is 15% stronger."
+price = 50
+effect = 13
+amount = 15
+stat = 3
+stat_points = 2
