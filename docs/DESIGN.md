@@ -2277,7 +2277,8 @@ Echoes, 8.17).
   map two stops in, `--screen=map_start` one before the first stop (for pictures).
 - **Zone stop:** the zone in run mode. Its **guard** (`ZoneEnemyData.guard`, one per zone, at the
   far end, barely wanders) is marked in gold ("GUARD", no name since card #127) wherever it is on screen; beating it
-  shows ZONE CLEAR and goes back to the map. Other roaming enemies are optional (more gold, more
+  shows ZONE CLEAR and goes back to the map (since card #241 the zone stays open and the party leaves by its exit
+  when it wants: 8.5). Other roaming enemies are optional (more gold, more
   risk). The top right says "Beat the GUARD at the exit / Optional enemies: N"; the run's gold and
   HP strip sits top left.
 - **HP carries over** between fights (`CombatSetup.party_start_hp` and `party_max_hp_percent`,
@@ -2738,6 +2739,26 @@ phase 14 was the tutorial).
   whole depth) stays shut until the party has `zone_seals_needed` (2) of the 3 seals (tuning; 0 =
   no gate). Picking one up: walk to it, Confirm. The top right says "Seals 1 / 2: open the gate",
   then "Beat the GUARD at the exit". Seals belong to this zone visit only (also in practice).
+- **Stay in the zone, leave when you want** (card #241, built 2026-10-19): beating the guard no
+  longer sends the party straight on. ZONE CLEAR shows and the zone stays open: the party can
+  still fight the optional enemies, open chests, pray at shrines and talk to wanderers. The way out
+  is the **exit**, a signpost at the far right end of the end section, in the lane
+  (`ZoneSectionData.has_exit` / `exit_spot`, (24, 0, 0) in all three end sections; the assembler
+  moves it like the gate; `bootstrap_zones.gd` writes it and keeps decoration off it). While the
+  guard stands the signpost is dark; once it falls a gold light comes on beside it, a gold "EXIT"
+  tag marks it on screen and the top right says "The way out is open: leave by the EXIT at the far
+  end". Within `zone_exit_reach` (tuning, 1.8) the hint "Leave the zone" shows; Confirm asks
+  "Leave the zone?" (the shared yes/no prompt, "Stay" picked first, it says how many optional
+  enemies are left and that there is no coming back). Leave: the guard's spoils, the party screen,
+  then the map, as before. Its look is data (`explore_visuals.tres`: `exit_piece` the signpost,
+  `exit_scale`, `exit_color`, the light's energy, reach and height, `exit_solid_radius`). A zone
+  without an exit (none ship) still moves on the moment the guard falls; practice zones are
+  unchanged (cleared when every enemy is beaten). Only the leader walks and uses things, so the
+  question is player 1's in local co-op and the host's online, like a shrine's; the clients' zones
+  light the exit when the guard falls (they replay the same fight result) and follow the host to
+  the spoils screen it sends. A defeat after the guard (by an optional enemy) still ends the run.
+  Save & Quit inside a zone still restarts that zone from its start. `--screen=zone_exit` (the
+  open exit) and `--screen=zone_leave` (the question) are for pictures.
 - **Shrines** (`ZoneOfferData`, kind SHRINE, `data/offers/`): stand at a section's `shrine_spots`;
   each visit picks them from the zone's `shrines` pool. Walk up, Confirm ("Pray") asks a yes/no
   question with the price and the gift. Each works once. First set:
@@ -2759,9 +2780,10 @@ phase 14 was the tutorial).
 - **Online**: the host's zone is the real one; its snapshot also carries the seals taken, the
   offers used and the prize chests opened. Only the host answers a shrine or a wanderer.
 - **The bot** walks with `ZonePath` (A* on a grid over the zone, pure, tested), picks up the
-  seals, uses free shrines and deals it can pay for, opens chests, then goes to the guard. Tests
-  assemble every zone with many seeds and check that every spot, seal, shrine and the guard can be
-  reached from the start (gate open).
+  seals, uses free shrines and deals it can pay for, opens chests, then goes to the guard, and with
+  the guard beaten walks to the exit and leaves (Main does not ask the bot). Tests assemble every
+  zone with many seeds and check that every spot, seal, shrine and the guard can be reached from
+  the start (gate open), that the exit can be reached from the guard and not past the shut gate.
 
 ### 8.6 Mini-boss guards and elite fights (phase 15 step 2, cards #156, #157)
 

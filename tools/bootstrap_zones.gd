@@ -990,11 +990,14 @@ func _end_hollow() -> ZoneSectionData:
 
 # --- shared pieces ----------------------------------------------------------------------------
 
-## The gate of rotten roots across the whole depth at x 4 (DESIGN.md 8.5).
+## The gate of rotten roots across the whole depth at x 4 (DESIGN.md 8.5), and the way out at the
+## far end, in the lane (card #241).
 func _gate(sec: ZoneSectionData) -> void:
 	var gate := _block(Vector3(4.0, 0.0, (Z_BACK + Z_FRONT) * 0.5), Vector3(1.2, 2.6, Z_FRONT - Z_BACK), "rot_gate")
 	gate.texture_world_size = 2.4
 	sec.gate = gate
+	sec.has_exit = true
+	sec.exit_spot = Vector3(sec.width - 2.0, 0.0, 0.0)
 
 
 func _guard(sec: ZoneSectionData, at: Vector2) -> void:
@@ -1122,6 +1125,8 @@ func _keep_spots(sec: ZoneSectionData) -> Array[Vector3]:
 	keep.append_array(sec.shrine_spots)
 	keep.append_array(sec.wanderer_spots)
 	keep.append(sec.player_start)
+	if sec.has_exit:
+		keep.append(sec.exit_spot)
 	for e: ZoneEnemyData in sec.enemies:
 		keep.append(e.position)
 		if e.champion:

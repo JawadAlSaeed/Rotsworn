@@ -9,7 +9,8 @@ extends Node
 ## enemies are optional. Outside a run (practice) every enemy must be beaten.
 ## A long zone (DESIGN.md 8.5, laid out by ZoneAssembler before it gets here) also has rot seals
 ## that open the gate to the guard, shrines and wanderers (deals Main asks about), and champions
-## that guard prize chests.
+## that guard prize chests. Its guard beaten, a run zone with an exit stays open (card #241): the
+## party roams on and leaves through the exit at the far end when it wants (Main asks first).
 ## In co-op only player 1 walks and strikes (DESIGN.md 9.1); the others watch.
 ## Online (DESIGN.md 9.2) the host's zone is the real one: it sends net_snapshot() several times a
 ## second. On the other machines the zone is `remote`: nothing moves by itself and no fight starts
@@ -20,6 +21,9 @@ extends Node
 signal encounter_started(index: int, opening: CombatSetup.Opening)
 ## The zone is cleared: the guard is beaten (run), or every roaming enemy (practice).
 signal cleared
+## In a run, the leader used the open exit (DESIGN.md 8.5). Main asks "Leave the zone?" and calls
+## leave() if the party goes.
+signal leave_requested
 ## In a run, the leader asked to pick up glinting spot `spot` (DESIGN.md 8.1). Main decides what it
 ## holds and calls take_spot() once the party has it.
 signal pickup_requested(spot: int)
@@ -51,6 +55,10 @@ const BLOCKED_SHARE: float = 0.1
 const SIDE_TURN: float = 0.1
 ## The floor reaches this far past the zone's bounds on every side (world units).
 const FLOOR_MARGIN: float = 30.0
+## The HUD mark key of the exit's "EXIT" tag (roaming enemies use their index, 0 and up).
+const EXIT_MARK: int = -1
+## The "EXIT" tag floats this high above the exit's light (world units).
+const EXIT_TAG_LIFT: float = 0.6
 ## Rot seals bob up and down this high, once per this long.
 const SEAL_BOB: float = 0.08
 const SEAL_BOB_MS: float = 2200.0
@@ -120,6 +128,11 @@ var _gate_obstacle: Dictionary = {}
 var _offers: Array[Dictionary] = []
 ## Champions' prize chests: {pos: Vector2, view: Sprite3D or a 3D piece, roamer: int, opened: bool}.
 var _prizes: Array[Dictionary] = []
+## The exit (DESIGN.md 8.5): its signpost and its light (null: the zone has no exit).
+var _exit_view: Node3D
+var _exit_light: OmniLight3D
+## The party chose to leave: nothing moves or starts any more.
+var _leaving: bool = false
 ## Drifting particles (DESIGN.md 8.12): {node: GPUParticles3D, height: float}; they follow the
 ## camera's spot.
 var _ambient: Array[Dictionary] = []
@@ -306,6 +319,57 @@ func is_gate_open() -> bool:
 	return _gate_obstacle.is_empty()
 
 
+## True if this zone stays open once cleared: a run zone with an exit (see keeps_open()).
+func keeps_zone_open() -> bool:
+	return keeps_open(_run_mode, _zone.has_exit)
+
+
+## True if a cleared zone stays open for the party to leave when it wants (card #241): a run zone
+## with an exit. Without one, a cleared run zone moves on at once (the old way).
+static func keeps_open(run_mode: bool, has_exit: bool) -> bool:
+	return run_mode and has_exit
+
+
+## The way out is open: the guard is beaten and the zone has an exit.
+func is_exit_open() -> bool:
+	return _cleared and keeps_zone_open() and not _leaving
+
+
+## Where the exit stands on the ground (autoplay).
+func exit_ground() -> Vector2:
+	return Vector2(_zone.exit_spot.x, _zone.exit_spot.z)
+
+
+## True if the leader can leave through the open exit from where it stands.
+func exit_in_reach() -> bool:
+	return is_exit_open() and exit_ground().distance_to(_leader_pos) <= _tuning.zone_exit_reach
+
+
+## Dev pictures (--screen=zone_exit): the seals taken, the gate gone, the guard beaten as if its
+## fight was just won, and the leader standing just before the open exit.
+func dev_cleared_near_exit() -> void:
+	for seal: Dictionary in _seals:
+		seal.taken = true
+	for i: int in _seals.size():
+		_hide_seal(i)
+	_obstacles.erase(_gate_obstacle)
+	_gate_obstacle = {}
+	if _gate_view != null:
+		_gate_view.hide()
+	_leader_pos = exit_ground() - Vector2(_tuning.zone_exit_reach * 0.8, 0.0)
+	_turn(Vector2.RIGHT)
+	_fight_index = guard_index()
+	resume("victory")
+
+
+## The party leaves (Main said yes): the zone holds still for good, nothing can start a fight.
+func leave() -> void:
+	_leaving = true
+	_frozen = true
+	_hud.set_tag(EXIT_MARK, "", false)
+	_hud.set_pickup_hint("")
+
+
 ## What blocks walking right now (the gate while it is shut), for ZonePath (autoplay).
 func obstacles() -> Array[Dictionary]:
 	return _obstacles
@@ -472,12 +536,15 @@ func _use_hint() -> String:
 	if offer >= 0:
 		var data := _offers[offer].data as ZoneOfferData
 		return ("Pray at " if data.kind == ZoneOfferData.Kind.SHRINE else "Talk to ") + data.display_name
+	if exit_in_reach():
+		return "Leave the zone"
 	return ""
 
 
 ## The leader uses what is in reach: picks up a spot, opens a chest (Main answers with take_spot()
 ## or open_chest()), takes a seal, opens a beaten champion's prize chest, or walks up to a shrine
-## or wanderer (Main asks and answers with use_offer()).
+## or wanderer (Main asks and answers with use_offer()), or leaves through the open exit (Main asks
+## and answers with leave()).
 func pickup() -> void:
 	if _frozen or _paused or _remote:
 		return
@@ -501,6 +568,9 @@ func pickup() -> void:
 	var offer := offer_in_reach()
 	if offer >= 0:
 		offer_requested.emit(offer)
+		return
+	if exit_in_reach():
+		leave_requested.emit()
 
 
 ## The party takes rot seal `seal`: it is gone; with enough seals the gate opens.
@@ -645,12 +715,16 @@ func resume(result: String) -> void:
 	_snap_camera()
 	if not _cleared and _goal_met():
 		_cleared = true
-		# A run moves on to the map now: nothing may start another fight on the way out.
-		_frozen = _run_mode
+		# A run zone without an exit moves on to the map now: nothing may start another fight on the
+		# way out. With an exit it stays open until the party leaves (card #241).
+		_frozen = _run_mode and not keeps_zone_open()
 		_hud.banner("ZONE CLEAR", HudStyle.GOLD, _explore.zone_title_ms)
 		Sfx.play("zone_clear")
 		if result == "victory":
 			play_pickup()
+		if keeps_zone_open():
+			_open_exit()
+		_update_goal()
 		cleared.emit()
 
 
@@ -663,17 +737,31 @@ func _goal_met() -> bool:
 
 
 func _update_goal() -> void:
-	var lines: Array[String] = []
-	if not is_gate_open():
-		lines.append("Rot seals: %d / %d  (they open the gate)" % [seals_held(), _seals_needed])
 	var guard := guard_index()
-	if _run_mode and guard >= 0:
-		var beaten := bool(_roamers[guard].defeated)
-		lines.append("The way out is open" if beaten else "Beat the GUARD at the exit")
-		lines.append("Optional enemies: %d" % (enemies_left() - (0 if beaten else 1)))
+	var beaten := guard >= 0 and bool(_roamers[guard].defeated)
+	_hud.set_goal("\n".join(goal_lines(seals_held(), _seals_needed, is_gate_open(), _run_mode, guard >= 0, beaten,
+			enemies_left(), keeps_zone_open())))
+
+
+## The goal in the top right corner: the seals while the gate is shut; in a run the guard to beat,
+## then the way out (with an exit: where it is) and the optional enemies; in practice the enemies
+## left. Pure (tested).
+static func goal_lines(held: int, needed: int, gate_open: bool, run_mode: bool, has_guard: bool,
+		guard_beaten: bool, left: int, has_exit: bool) -> Array[String]:
+	var lines: Array[String] = []
+	if not gate_open:
+		lines.append("Rot seals: %d / %d  (they open the gate)" % [held, needed])
+	if run_mode and has_guard:
+		if not guard_beaten:
+			lines.append("Beat the GUARD at the exit")
+		elif has_exit:
+			lines.append("The way out is open: leave by the EXIT at the far end")
+		else:
+			lines.append("The way out is open")
+		lines.append("Optional enemies: %d" % (left - (0 if guard_beaten else 1)))
 	else:
-		lines.append("Enemies left: %d" % enemies_left() if enemies_left() > 0 else "All enemies beaten")
-	_hud.set_goal("\n".join(lines))
+		lines.append("Enemies left: %d" % left if left > 0 else "All enemies beaten")
+	return lines
 
 
 # --- building ---------------------------------------------------------------------------------
@@ -771,6 +859,7 @@ func _build() -> void:
 			if _zone.offers[i] != null and i < _zone.offer_spots.size():
 				_add_offer(_zone.offers[i], _zone.offer_spots[i])
 	_build_seals_and_gate()
+	_build_exit()
 
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
@@ -825,6 +914,43 @@ func _build_seals_and_gate() -> void:
 	_gate_obstacle = {"centre": Vector2(g.position.x, g.position.z), "half": Vector2(g.size.x, g.size.z) * 0.5,
 			"angle": deg_to_rad(g.rotation_y_degrees)}
 	_obstacles.append(_gate_obstacle)
+
+
+## The exit (DESIGN.md 8.5): a solid signpost at the far end and a light beside it, dark until the
+## guard is beaten.
+func _build_exit() -> void:
+	if not _zone.has_exit:
+		return
+	var post := ZonePropData.new()
+	post.sprite_path = _explore.exit_path
+	post.pixel_size = _explore.exit_pixel_size
+	post.piece = _explore.exit_piece
+	post.scale = _explore.exit_scale
+	post.rotation_y_degrees = _explore.exit_rotation_y_degrees
+	post.position = _zone.exit_spot
+	_exit_view = StageBuilder.prop_view(post, _look)
+	_exit_view.name = "Exit"
+	_world.add_child(_exit_view)
+	var lamp := ZoneLightData.new()
+	lamp.position = _zone.exit_spot + Vector3(0.0, _explore.exit_light_height, 0.0)
+	lamp.color = _explore.exit_color
+	lamp.energy = _explore.exit_light_energy
+	lamp.reach = _explore.exit_light_reach
+	lamp.flicker_percent = 10
+	lamp.flicker_hz = 1.5
+	_exit_light = StageBuilder.light(lamp)
+	_exit_light.name = "ExitLight"
+	_exit_light.visible = false
+	_world.add_child(_exit_light)
+	if _explore.exit_solid_radius > 0.0:
+		_obstacles.append({"centre": exit_ground(), "radius": _explore.exit_solid_radius})
+
+
+## The way out opens: the exit's light comes up (the "EXIT" tag follows in _update_marks()).
+func _open_exit() -> void:
+	if _exit_light == null:
+		return
+	_exit_light.visible = true
 
 
 ## A shrine or a wanderer standing at `pos`, with a small light in its glow colour.
@@ -1309,6 +1435,10 @@ func _update_marks() -> void:
 			_hud.set_tag(i, "ELITE", on_screen and close, screen, _explore.champion_color)
 		else:
 			_hud.set_tag(i, encounter_of(i).display_name, on_screen and near and _explore.show_roamer_names, screen)
+	if is_exit_open():
+		var top := Vector3(_zone.exit_spot.x, _explore.exit_light_height + EXIT_TAG_LIFT, _zone.exit_spot.z)
+		_hud.set_tag(EXIT_MARK, "EXIT", not _camera.is_position_behind(top), _camera.unproject_position(top),
+				_explore.exit_color)
 
 
 func _spawn_slash(at: Vector3) -> void:

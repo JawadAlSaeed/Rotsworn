@@ -437,6 +437,9 @@ extends Resource
 ## The gate to a zone's guard opens once the party holds this many of the zone's rot seals
 ## (DESIGN.md 8.5; one per middle section; 0 = no gate).
 @export_range(0, 10) var zone_seals_needed: int = 2
+## The leader can leave through a zone's exit (once its guard is beaten) from this close (world
+## units, DESIGN.md 8.5).
+@export_range(0.1, 10.0, 0.05) var zone_exit_reach: float = 1.8
 
 @export_group("Online")
 ## The port a host listens on and a client connects to (DESIGN.md 9.2).

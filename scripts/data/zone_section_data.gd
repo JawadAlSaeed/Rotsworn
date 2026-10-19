@@ -29,5 +29,9 @@ extends Resource
 @export var wanderer_spots: Array[Vector3] = []
 ## The gate to the guard (the end section): solid until the party holds enough seals.
 @export var gate: ZoneBlockData
+## The way out (the end section, DESIGN.md 8.5): once the guard is beaten the party leaves here,
+## when it wants.
+@export var has_exit: bool = false
+@export var exit_spot: Vector3 = Vector3.ZERO
 ## Where the leader starts (the start section; feet).
 @export var player_start: Vector3 = Vector3.ZERO

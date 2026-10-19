@@ -37,6 +37,10 @@ extends Resource
 @export var seal_spots: Array[Vector3] = []
 ## The gate to the guard (null: none): solid until enough seals are held.
 @export var gate: ZoneBlockData
+## The way out (DESIGN.md 8.5): in a run, once the guard is beaten the zone stays open and the
+## party leaves from here when it wants. A zone without one moves on as soon as the guard falls.
+@export var has_exit: bool = false
+@export var exit_spot: Vector3 = Vector3.ZERO
 ## Shrines and wanderers standing here (DESIGN.md 8.5), each at the spot of the same index.
 @export var offers: Array[ZoneOfferData] = []
 @export var offer_spots: Array[Vector3] = []
