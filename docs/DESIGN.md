@@ -3423,10 +3423,22 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   - If the grace time runs out the seat is given up as above. Limits: the token lives in memory,
     so a player whose game crashed (restarted) cannot take the seat back; only a dropped
     connection can. The away chip reads "P2 away"; the host's player sees the countdown.
-- **Sharing the game**: `build_game.bat` exports `build/Rotsworn.zip` (one exe). It is a release
+- **Sharing the game**: one fixed download link,
+  `https://github.com/JawadAlSaeed/Rotsworn/releases/download/latest-build/Rotsworn.zip`. Every
+  push to `main` (except one that only changes Markdown or `docs/`) runs
+  `.github/workflows/build.yml` on GitHub Actions (free for a public repo): an Ubuntu runner
+  installs Godot 4.7.2 (standard) with its export templates (cached, about 1.2 GB), imports, runs
+  the GUT tests with run_tests.bat's checks, exports the "Windows" preset (release, embedded pck,
+  the icon set by Godot's own exe modifier, no code signing) with build_game.bat's checks, zips the
+  exe and puts it on the `latest-build` pre-release (the tag is moved to the commit; the zip is
+  replaced; the notes give the version and the commit). A failed test or export publishes
+  nothing, so the old zip stays. One build runs at a time; pushes during it wait and only the
+  newest is built. Everyone online, the host too, downloads from that link: every copy of one exe
+  has the same content fingerprint on every PC, while a local `build_game.bat` build or the editor
+  may not match it, and the link changes after each push, so the group downloads again together.
+  `build_game.bat` still exports `build/Rotsworn.zip` (one exe) locally, to test a build. It is a release
   export, and it deletes the old exe and zip first and fails loudly (log in `build/export.log`)
-  if the export fails, so a stale file is never handed out. Bump `config/version` in
-  `project.godot` for each build you share. The dev command-line switches (`--autoplay`,
+  if the export fails, so a stale file is never handed out. The dev command-line switches (`--autoplay`,
   `--tuning`, `--seed`, `--encounter`, `--first-strike`, `--host` ...) are read only in debug
   builds (`DevArgs`, `OS.is_debug_build()`): the editor and `run_game.bat` keep them, a release
   build ignores them. Online, a lost final-fight or zone-return fade (the host left during it)
@@ -3900,3 +3912,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-18 | Test: world pieces (wall, boulder, stump) built in Blender by code, shown as blocks with a model and the zone's own textures (5.6) | user asked if Blender helps: the world gains most (plain boxes until now), the sprites already work; user picked a small test (card #221) |
 | 2026-10-18 | Phase 18 "Blender world": solid things in 3D (Blender), soft things, people and creatures stay flat pixel art; plus more plants, ruins and living water | user, after the test; the mix is how HD-2D (Octopath) does it, and 3D grass would look busier and lose its sway (cards #221 to #237) |
 | 2026-10-18 | Trees stay flat sprites | card #228 try: a 3D trunk under the flat crown clashed with the pixel leaves; the user left the choice open and flat was the recommendation |
+| 2026-10-19 | Every push to main builds the Windows game on GitHub Actions and replaces `Rotsworn.zip` on the `latest-build` pre-release: one fixed download link for everyone (9.2) | owner asked if it was possible and costly: free for a public repo, no hand-sent zips, and one shared file keeps online fingerprints equal |

@@ -31,16 +31,19 @@ and made with Godot 4.7.2.
 
 You need Windows 10 or 11 (64-bit). A controller is recommended, but keyboard and mouse work too.
 
-1. Get `Rotsworn.zip`. There is no public download page yet: get it from the person you play with.
-   They make it with `build_game.bat` (see [For developers](#for-developers)).
+1. Download **[Rotsworn.zip](https://github.com/JawadAlSaeed/Rotsworn/releases/download/latest-build/Rotsworn.zip)**
+   (about 75 MB). This link always gives the newest build: GitHub rebuilds the game by itself
+   after every change. The [latest-build page](https://github.com/JawadAlSaeed/Rotsworn/releases/tag/latest-build)
+   says which version and change it is. If the browser warns that the file is not commonly
+   downloaded, keep it (in Edge: **...** > **Keep** > **Show more** > **Keep anyway**).
 2. Right-click the zip, pick **Extract All**, then open the new folder.
 3. Double-click `Rotsworn.exe`.
 4. If Windows says **"Windows protected your PC"**, click **More info**, then **Run anyway**. The
    game is not code-signed, so Windows does not know it yet. You may see this again after each
    update.
 
-To update, extract the new zip into the old game's folder and pick **Replace the file in the
-destination**. Your settings, Relics and saved run are kept: they live in
+To update, download the zip again from the same link, extract it into the old game's folder and
+pick **Replace the file in the destination**. Your settings, Relics and saved run are kept: they live in
 `%APPDATA%\Godot\app_userdata\Rotsworn\`, not next to the exe.
 
 The first time you choose **New Run**, the game offers a short tutorial. If you skip it, it offers
@@ -248,9 +251,11 @@ take over.
 
 One player per PC, up to 3 PCs: the host plus 2 friends.
 
-**Everyone must play the exact same build.** Use the same `Rotsworn.zip`, and do not play from the
-Godot editor. The version number shows in the bottom-left corner of the main menu, but even builds
-with the same number can differ, so the safest way is: the host sends the zip, everyone plays that.
+**Everyone must play the exact same build.** Everyone, the host too, downloads `Rotsworn.zip` from
+the one link in [Play it](#play-it). Do not play from the Godot editor or from a zip you built
+yourself with `build_game.bat`: those are different builds. The link gets a new build after every
+change to the game, so download it again together before you play. The version number shows in
+the bottom-left corner of the main menu, but even builds with the same number can differ.
 
 **The host:**
 
@@ -332,7 +337,7 @@ the host's public IP address. This fails on some internet connections (CGNAT). O
 
 | You see | What to do |
 |---|---|
-| *"Your game is a different version from the host's ..."* | You have different builds. Everyone plays the same `Rotsworn.zip`. |
+| *"Your game is a different version from the host's ..."* | You have different builds. All of you download `Rotsworn.zip` again from the link in [Play it](#play-it) and extract it over the old one. |
 | *"The host did not answer."* or *"Could not reach the host ..."* | Check the address. The host must be on the Host Online screen and must have allowed Rotsworn in the firewall question. With Tailscale, check it is running and logged in on both PCs. On the same Wi-Fi, see the note below the table. |
 | *"Could not start connecting ..."* | The address is not valid. Type only the numbers and dots, for example `100.101.102.103`, with no `:7777` and no spaces. |
 | *"The game is full."* | 3 players is the most. |
@@ -366,9 +371,16 @@ The full design is in [docs/DESIGN.md](docs/DESIGN.md). Project rules are in [CL
 | Script | What it does |
 |---|---|
 | `run_tests.bat` | Runs every unit test (GUT) without a window. Prints ALL TESTS PASSED or SOME TESTS FAILED. |
-| `build_game.bat` | Builds the shareable game into `build/Rotsworn.zip` (one exe). Needs Godot's 4.7.2 Windows export templates (editor: Editor > Manage Export Templates). Raise `config/version` in `project.godot` before sharing a new build. |
+| `build_game.bat` | Builds the game into `build/Rotsworn.zip` (one exe) on your PC, to test a build. Needs Godot's 4.7.2 Windows export templates (editor: Editor > Manage Export Templates). It is not the build friends download (see below), so do not play it online with them. |
 | `quiet_run.bat` | Runs the game in a window that never takes focus and makes no sound, for picture and bot runs. |
 | `open_editor.bat` | Opens the project in the Godot editor. |
+
+**The download link** builds itself. Every push to `main` that changes more than Markdown or
+`docs/` runs [.github/workflows/build.yml](.github/workflows/build.yml) on GitHub Actions: it
+imports the project, runs the tests, exports the Windows game the same way `build_game.bat` does
+and replaces `Rotsworn.zip` on the `latest-build` pre-release. If a test or the export fails,
+nothing is published and the old zip stays. Watch it under the repo's **Actions** tab; it can also
+be started by hand there (**Build game** > **Run workflow**).
 
 **Dev tools** (the Practice list and the switches below exist only in debug builds: the editor and
 `run_game.bat`, never the shared zip):

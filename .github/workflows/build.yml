@@ -1,0 +1,119 @@
+# Builds the Windows game on every push to main and puts it on one fixed download link
+# (DESIGN.md 9.2 "Sharing the game"):
+#   https://github.com/JawadAlSaeed/Rotsworn/releases/download/latest-build/Rotsworn.zip
+# Same steps as build_game.bat (release export, one exe, zipped), after the tests pass.
+# A push that only changes Markdown or docs/ does not change the game, so it builds nothing.
+name: Build game
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One build at a time. A push during a build waits for it; only the newest waiting push is built.
+concurrency:
+  group: build-game
+  cancel-in-progress: false
+
+env:
+  TAG: latest-build
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  build:
+    name: Test, build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Install Godot 4.7.2 and its export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+
+      - name: Import the project
+        run: |
+          godot --version
+          # A fresh clone has no .godot folder: the tests and the export need the import first.
+          timeout 900 godot --headless --path . --import > import.log 2>&1 || true
+          tail -n 30 import.log
+
+      # Same checks as run_tests.bat: GUT exits 0 even when a test file failed to load.
+      - name: Run the tests
+        run: |
+          set +e
+          timeout 1200 godot --headless --path . -s addons/gut/gut_cmdln.gd \
+            -gconfig=res://.gutconfig.json -gexit > tests.log 2>&1
+          result=$?
+          set -e
+          cat tests.log
+          if grep -q -e "SCRIPT ERROR" -e "Parse Error" -e "Ignoring script" -e "have not been imported" tests.log; then
+            result=1
+          fi
+          if [ "$result" -ne 0 ]; then
+            echo "::error::Some tests failed, so nothing was published."
+            exit 1
+          fi
+
+      # Same checks as build_game.bat: a failed export must never hand out a file.
+      - name: Export the Windows game
+        run: |
+          mkdir -p build/windows
+          set +e
+          timeout 900 godot --headless --path . --export-release "Windows" build/windows/Rotsworn.exe \
+            > build/export.log 2>&1
+          result=$?
+          set -e
+          cat build/export.log
+          if [ "$result" -ne 0 ] || [ ! -f build/windows/Rotsworn.exe ] \
+            || grep -q -e "SCRIPT ERROR" -e "Parse Error" -e "ERROR:" build/export.log; then
+            echo "::error::The export failed. See the log above."
+            exit 1
+          fi
+          (cd build/windows && zip -9 ../Rotsworn.zip Rotsworn.exe)
+          ls -l build/windows/Rotsworn.exe build/Rotsworn.zip
+
+      # A pre-release on a fixed tag, moved to this commit each time, so the link never changes.
+      - name: Publish to the latest-build release
+        run: |
+          version=$(sed -n 's/^config\/version="\(.*\)"$/\1/p' project.godot)
+          short=$(git rev-parse --short HEAD)
+          built=$(date -u +"%Y-%m-%d %H:%M UTC")
+          subject=$(git log -1 --format=%s)
+          {
+            echo "Rotsworn $version, built $built from commit $short."
+            echo
+            echo "**Download:** Rotsworn.zip below (Windows 10 or 11, 64-bit). How to play: see the README."
+            echo
+            echo "This build is replaced after every change to the game. Online, everyone must play the same build:"
+            echo "when one of you downloads a new one, all of you do."
+            echo
+            echo "Commit: $GITHUB_SHA"
+            echo "Change: $subject"
+          } > notes.md
+          title="Latest build ($version, $short)"
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$TAG"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" build/Rotsworn.zip --clobber
+            gh release edit "$TAG" --title "$title" --notes-file notes.md --prerelease
+          else
+            gh release create "$TAG" build/Rotsworn.zip --title "$title" --notes-file notes.md \
+              --prerelease --target "$GITHUB_SHA"
+          fi
+          {
+            echo "### $title"
+            echo
+            echo "https://github.com/$GH_REPO/releases/download/$TAG/Rotsworn.zip"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -70,7 +70,9 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `run_game.bat` runs the game, `quiet_run.bat` runs it without taking focus (picture runs), `open_editor.bat` opens the editor, `build_game.bat` builds the
   shareable Windows game (`build/Rotsworn.zip`, preset in `export_presets.cfg`; needs the 4.7.2
   export templates, installed). Online players must all run the same build (the content
-  fingerprint differs between a build and a run from the editor).
+  fingerprint differs between a build and a run from the editor). The build friends play is made
+  by GitHub Actions (`.github/workflows/build.yml`) on every push to `main`: tests, export, then
+  `Rotsworn.zip` on the `latest-build` pre-release (stable link in README "Play it", DESIGN.md 9.2).
 - Smoke test the whole fight without a human: run the game with `-- --autoplay` (bot defends
   and presses perfectly), `-- --autoplay=miss` (never presses), `-- --autoplay=mash` (mashes
   buttons), `-- --autoplay=escape` (presses perfectly and runs on its first turn) or
