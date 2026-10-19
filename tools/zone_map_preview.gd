@@ -36,9 +36,15 @@ func _draw(zone: ZoneData) -> Image:
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.1, 0.1, 0.12))
 	_rect(img, lo, zone.bounds_min, zone.bounds_max, Color(0.2, 0.2, 0.22))
-	var order := zone.grounds.duplicate()
-	order.sort_custom(func(a: ZoneGroundData, b: ZoneGroundData) -> bool: return a.layer < b.layer)
-	for g: ZoneGroundData in order:
+	# Bottom step first, as the game stacks them (GroundStack, card #269).
+	var levels := GroundStack.levels(zone.grounds)
+	var order: Array[int] = []
+	for i: int in zone.grounds.size():
+		if zone.grounds[i] != null:
+			order.append(i)
+	order.sort_custom(func(a: int, b: int) -> bool: return levels[a] < levels[b] or (levels[a] == levels[b] and a < b))
+	for i: int in order:
+		var g := zone.grounds[i]
 		var col := Color(0.15, 0.3, 0.45) if g.kind == ZoneGroundData.Kind.WATER else _avg(g.texture_path)
 		_shape(img, lo, g, col)
 	for b: ZoneBlockData in zone.blocks:

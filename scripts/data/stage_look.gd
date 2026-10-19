@@ -97,6 +97,16 @@ extends Resource
 ## The blob slides away from the sun by this share of its width, so it reads as the sun's shadow.
 @export_range(0, 100, 1, "suffix:%") var prop_shadow_shift_percent: int = 20
 @export_file_path("*.png") var prop_shadow_path: String = "res://assets/sprites/fx/shadow.png"
+## The blobs lie this far over the floor (world units): above every ground piece (see
+## ground_lift), so a road under a tree does not hide its shadow.
+@export_range(0.0, 0.5, 0.001) var prop_shadow_lift: float = 0.07
+
+@export_group("Ground pieces")
+## Roads, mud and water (DESIGN.md 8.12) lie this far over the floor (world units), and each piece
+## one more step over every piece under it that it overlaps (GroundStack, card #269), so two flat
+## pieces never share a height and flicker through each other.
+@export_range(0.0, 0.1, 0.001) var ground_lift: float = 0.01
+@export_range(0.001, 0.05, 0.001) var ground_step: float = 0.004
 
 @export_group("Combat arena")
 ## Decoration around a fight that happens in this place (kept clear of the fighters' spots).

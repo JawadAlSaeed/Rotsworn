@@ -26,6 +26,7 @@ camera_target = Vector3(0, 1, 0)
 camera_fov = 40.0
 fx_pixel_size = 0.045
 shadow_width_factor = 0.85
+shadow_lift = 0.06
 contact_gap = 1.6
 strike_gap = 1.5
 head_height_factor = 1.05

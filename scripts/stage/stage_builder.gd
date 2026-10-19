@@ -9,12 +9,6 @@ const PROP_SHADER := preload("res://scripts/combat/presentation/fighter_sprite.g
 const VIGNETTE_SHADER := preload("res://scripts/stage/vignette.gdshader")
 const GROUND_SHADER := preload("res://scripts/stage/ground_patch.gdshader")
 const FLOOR_SHADER := preload("res://scripts/stage/floor_ground.gdshader")
-## Ground pieces float this far over the floor, and this much more per layer (no z-fighting).
-const GROUND_LIFT: float = 0.012
-const GROUND_LAYER_LIFT: float = 0.006
-## Prop shadows sit this far over the floor: above every ground piece (up to layer 9), so a
-## road under a tree does not hide its shadow.
-const PROP_SHADOW_LIFT: float = 0.07
 ## The footprints measured so far (texture key -> width in art pixels).
 static var _footprints: Dictionary = {}
 ## The materials of 3D pieces made so far ("piece|surface index|glow share" -> material), shared
@@ -398,7 +392,7 @@ static func contact_shadow(data: ZonePropData, tex: Texture2D, look: StageLook) 
 	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	shadow.modulate = Color(1.0, 1.0, 1.0, look.prop_shadow_opacity)
 	var away := sun_direction_on_ground(look.light_rotation_degrees) * width * float(look.prop_shadow_shift_percent) / 100.0
-	shadow.position = Vector3(away.x, PROP_SHADOW_LIFT - data.position.y, away.y)
+	shadow.position = Vector3(away.x, look.prop_shadow_lift - data.position.y, away.y)
 	return shadow
 
 
@@ -446,8 +440,9 @@ static func footprint_of_image(image: Image, rows_percent: int) -> int:
 	return best
 
 
-## A piece of ground on the floor (DESIGN.md 8.12): a road, mud, planks or water.
-static func ground_patch(data: ZoneGroundData) -> MeshInstance3D:
+## A piece of ground on the floor (DESIGN.md 8.12): a road, mud, planks or water, lying `lift`
+## over the floor (GroundStack gives every overlapping piece its own height).
+static func ground_patch(data: ZoneGroundData, lift: float) -> MeshInstance3D:
 	var mesh := PlaneMesh.new()
 	mesh.size = data.size
 	var mat := ShaderMaterial.new()
@@ -469,7 +464,7 @@ static func ground_patch(data: ZoneGroundData) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
 	node.mesh = mesh
 	node.material_override = mat
-	node.position = Vector3(data.position.x, GROUND_LIFT + GROUND_LAYER_LIFT * float(data.layer), data.position.z)
+	node.position = Vector3(data.position.x, lift, data.position.z)
 	node.rotation_degrees = Vector3(0.0, data.rotation_y_degrees, 0.0)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return node
@@ -569,12 +564,14 @@ static func light(data: ZoneLightData) -> OmniLight3D:
 
 
 ## Adds every block, prop and light (and ground piece) under `parent`. With a `look`, props get
-## contact shadows.
+## contact shadows; ground pieces take their heights from it (the StageLook defaults without one).
 static func add_contents(parent: Node3D, blocks: Array[ZoneBlockData], props: Array[ZonePropData],
 		lights: Array[ZoneLightData], grounds: Array[ZoneGroundData] = [], look: StageLook = null) -> void:
-	for data: ZoneGroundData in grounds:
-		if data != null:
-			parent.add_child(ground_patch(data))
+	var levels := GroundStack.levels(grounds)
+	var heights := look if look != null else StageLook.new()
+	for i: int in grounds.size():
+		if grounds[i] != null:
+			parent.add_child(ground_patch(grounds[i], GroundStack.lift(heights, levels[i])))
 	for data: ZoneBlockData in blocks:
 		if data != null:
 			parent.add_child(block(data))
