@@ -180,6 +180,8 @@ var _time_s: float = 0.0
 var _intent_signs: Dictionary = {}
 ## AttackHitData.Kind -> Texture2D.
 var _hit_icons: Dictionary = {}
+## The enemy panels' see-through: back during enemy attacks, full at once on a parry or counter.
+var _enemy_fade := EnemyPanelsFade.new()
 
 
 ## Builds the parts that do not depend on the fighters.
@@ -188,6 +190,8 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_visuals = visuals
 	_tuning = tuning
 	layer = 10
+	_enemy_fade.configure(visuals.enemy_panels_attack_alpha, visuals.enemy_panels_fade_ms,
+			visuals.enemy_panels_parry_hold_ms)
 
 	_root = Control.new()
 	_root.name = "Root"
@@ -554,9 +558,18 @@ func hide_banner() -> void:
 
 ## Shows the defence controls (bottom left) while an enemy attack plays, fading them in or out
 ## over controls_fade_ms. The corner is empty otherwise: the action menu uses it on the party's
-## turn.
+## turn. The enemy panels step back meanwhile (card #268).
 func set_defending(on: bool) -> void:
 	_controls_tween = _fade_corner(_controls, on, _controls_tween)
+	_enemy_fade.set_attacking(on)
+
+
+## A parry or a counter: the enemy panels come back to full at once (no fade), so its effect shows
+## on the HP bar straight away. `to_end` keeps them full until the attack is over (a parried last
+## hit, before the counter).
+func show_enemy_panels(to_end: bool = false) -> void:
+	_enemy_fade.show_now(to_end)
+	_enemy_box.modulate.a = _enemy_fade.alpha()
 
 
 ## Shows the skill press button (bottom left) while a skill's presses play, like set_defending.
@@ -622,6 +635,7 @@ func _process(delta: float) -> void:
 	var busy := _controls.visible or _skill_hint.visible
 	var wanted := TIMELINE_BUSY_ALPHA if busy else 1.0
 	_timeline.modulate.a = move_toward(_timeline.modulate.a, wanted, delta / TIMELINE_FADE_S)
+	_enemy_box.modulate.a = _enemy_fade.step(delta)
 	if action_menu.visible:
 		action_menu.follow(_fighter_rect(action_menu.actor_id), _menu_area(), _menu_avoid(), delta)
 	if _reticle.visible:

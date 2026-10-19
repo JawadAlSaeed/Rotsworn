@@ -524,6 +524,9 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 			var enemy := _view.fighter(_source)
 			if enemy != null:
 				enemy.flash(_visuals.flash_ms, Color.WHITE, _visuals.parry_enemy_flash_strength)
+			# The enemy panels come back at once (card #268); a parried last hit keeps them up for
+			# the counter.
+			_hud.show_enemy_panels(final)
 		Defense.Outcome.DODGE:
 			text = "DODGE"
 			color = HudStyle.DODGE

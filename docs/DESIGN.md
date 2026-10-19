@@ -2088,6 +2088,13 @@ Built while the user was away, reworked with them, approved 2026-10-16.
 - **Enemy panels:** short (name and HP numbers on one line, a slim bar), all the same width, and
   each holds the enemy's next move: "NEXT  Sting String  >  CASS" with its hit icons. The
   floating intent signs under the enemies are gone (`intent_sign_gap_px` is unused now).
+  While an enemy attack plays they step back to 30% see-through (user, card #268, like the turn
+  track) so they do not cover its hits. A parry brings them back to full at once, with no fade,
+  and keeps them there a moment; then they step back again while more hits are coming. A parried
+  last hit keeps them full to the end of the attack, and a counter shows them at full too, so its
+  damage reads on the bar straight away (`enemy_panels_attack_alpha`, `enemy_panels_fade_ms`,
+  `enemy_panels_parry_hold_ms` in combat_visuals.tres; `EnemyPanelsFade`). Each machine fades its
+  own HUD from its own playback (co-op and online send nothing for it).
 - **Attack banner:** the move's name big (worn title letters), a small line over it saying who
   uses it on whom ("GNAT SWARM  >  CASS > ALDER"), the hit icons under it; it punches in.
 - **Defend corner:** a red DEFEND tag over three slanted plates, PARRY, DODGE and JUMP, each in its

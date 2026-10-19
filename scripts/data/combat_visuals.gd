@@ -438,6 +438,14 @@ extends Resource
 ## The defence controls (bottom left) show only while an enemy attack plays; they fade in and out
 ## over this long.
 @export_range(0, 2000, 1, "suffix:ms") var controls_fade_ms: int = 140
+## The enemy panels (top right, their HP bars) step back to this see-through while an enemy
+## attack plays, so they do not cover its hits (card #268) ...
+@export_range(0.0, 1.0, 0.05) var enemy_panels_attack_alpha: float = 0.3
+## ... and fade there and back over this long (a parry or a counter skips the fade).
+@export_range(0, 2000, 1, "suffix:ms") var enemy_panels_fade_ms: int = 200
+## A parry brings them back to full at once and keeps them there this long; then they step back
+## again while hits are still coming. A parried last hit keeps them full to the counter.
+@export_range(0, 5000, 1, "suffix:ms") var enemy_panels_parry_hold_ms: int = 600
 
 @export_group("Feedback")
 ## HP bars: the part a hit took stays lit in this colour, then drains away (card #38).
