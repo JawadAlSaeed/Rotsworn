@@ -682,7 +682,7 @@ the hero as the turn passes; the Tick's burst flashes and shakes.
 **Tutorial** (card #264): lesson 6 "Marks" (defend Rot Combo's dotted last hit; goal
 `mark_defended`), then "Lift a mark" (Alder starts with Rot, Cass Mends him; goal `cleanse`; the
 step fields `mark_hero`, `mark_status` stage the mark through a practice command). Relics and
-Echoes are lesson 7.
+Echoes are lesson 8 (phase 22 put a First Strike card in as lesson 7, card #291).
 
 ## 3. Defence timing
 
@@ -852,7 +852,8 @@ One judge per local player, holding the prompts of the characters that player an
 - **Training ring** (`show_timing_ring`, **off by default**, toggle with F1 then R): shrinks onto
   the target and closes at impact, at the attack's own speed (`ring_lead_percent`). Never shown on attacks with `allow_timing_ring = false`. The
   toggle is saved per machine in `user://settings.cfg` and overrides the tuning default.
-- Timing readout after each press (`show_timing_feedback`, F1 then T).
+- Timing readout after each press (`show_timing_feedback`, F1 then T). Practice fights only since
+  phase 22 (7.13): the real game shows the word alone.
 - Wind-up crouch (`show_windup_crouch`, F1 then C): the enemy crouches as its wind-up glow
   builds (`windup_squash_percent` at full glow) and springs out of it as the lunge or slam starts.
 - Hit markers (`show_hit_markers`, off since phase 6, F1 then H in practice), see 3.8. The floor
@@ -1621,8 +1622,8 @@ The game is a keyboard and pad game, but every menu also works with the mouse (a
 - Fixed 3/4 camera with shake and punch-in on hits, parries and counters.
 - HUD: timeline row (top left), attack banner (top centre), party panels with HP and AP pips
   (bottom, in the same left-to-right order as the fighters), enemy HP bar, action menu, damage
-  numbers, defence result popups and timing readout, controls hint (with "Ground wave: Jump only"
-  and "Parry every hit: counterattack"), practice status, victory/defeat screen with a one-line
+  numbers, defence result popups and timing readout, controls hint, practice status (phase 22 took the rules
+  hint off and moved the practice keys into the F1 panel, 7.13), victory/defeat screen with a one-line
   summary: enemy hits, successful parries, dodges and jumps (one press that answers several
   characters counts once) and counters (Confirm or R to fight again).
 - F1 overlay (right column, clear of the fighters): per-action success rates, mean and spread of
@@ -1988,7 +1989,8 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
 ### 7.8 Tutorial (phase 14, card #131, lessons approved 2026-10-15; rebuilt the same day)
 
 Phase 19 (card #264) added lesson 6, Marks (defend a dotted hit, then lift a mark with Mend); the
-Relics and Echoes cards became lesson 7 (2.17).
+Relics and Echoes cards became lesson 7 (2.17). Phase 22 (card #291) added a First Strike card as
+lesson 7 (the zone no longer spells it out), so Relics and Echoes are lesson 8 of 8.
 
 First version (a lesson box over a free-running practice fight) was rejected by the user
 2026-10-15: "feels like a fight, not a tutorial"; the box covered the enemy intent; the text did
@@ -2075,7 +2077,8 @@ Built while the user was away, reworked with them, approved 2026-10-16.
   the plates slide out after them; a pressed plate flashes. Skills and Items open beside the hero
   as a list of slanted rows (6 in view, the list scrolls; the chosen row is lit in the hero's
   colour with a gold edge), the hero's AP in its header, the description and button hints under
-  it. The target step shows CHOOSE A TARGET with the target's name between arrows.
+  it. The target step shows the skill's name and AP cost over the target's name between arrows (phase
+  22: no title, no description; a skill that cannot be used shows a lock, 7.13).
 - **Numbers and floating words (user: "the numbers and some words font" felt cheap):** the body
   font's default digits were old-style (uneven heights). Every number now uses lining, tabular
   digits; HP, AP and the gauge use a bold number font (`UiFonts.number_font_path`, Alegreya Sans
@@ -2098,8 +2101,9 @@ Built while the user was away, reworked with them, approved 2026-10-16.
 - **Attack banner:** the move's name big (worn title letters), a small line over it saying who
   uses it on whom ("GNAT SWARM  >  CASS > ALDER"), the hit icons under it; it punches in.
 - **Defend corner:** a red DEFEND tag over three slanted plates, PARRY, DODGE and JUMP, each in its
-  defence colour with its button, and the two rules in small print. The skill press corner is the
-  same with a gold PRESS ON THE BEAT tag.
+  defence colour with its button and the hit icons it answers (parry: normal and rend; dodge: normal
+  and sweep; jump: ground; `defend_hit_icon_px`). No rules text since phase 22 (7.13). The skill
+  press corner is one gold plate: the button and PRESS.
 - Dev tools: `--menu-keys=ACTION,...` presses those input actions on the action menu the first time
   it opens ("|" moves on to the next turn's menu; for pictures of the skills list, the target step
   or a later hero's turn); `--key-prompts` keeps keyboard keys shown even with a pad plugged in.
@@ -2117,8 +2121,8 @@ only the mirror (`charge_left`, `charge_damage`, `break_hp`, `staggered` on the 
   left). `CombatController._update_doom_look` drives it every frame from the mirror;
   `CombatView.sync_alive` keeps the crouch after other enemies' attacks.
 - **Enemy panel.** The NEXT word turns into DOOM; a block over the intent line reads
-  "DOOM IN 2    BREAK 120 / 840" with a gold bar that fills as the party deals damage.
-  A staggered enemy wears a STAGGERED badge.
+  "DOOM 2" (turns left) over a gold bar that fills as the party deals damage (no break numbers
+  since phase 22). A staggered enemy shows the dizzy-stars icon among its status icons.
 - **Turn order.** An enemy's gathering turns carry a tag with the turns until the Doom (3, 2),
   its unleash turn reads DOOM, a staggered enemy's next turn reads STAGGER (`TimelineRow.doom_tag`,
   pure and static).
@@ -2221,6 +2225,101 @@ nothing in a fight. It is reached two ways, and both open on the first topic:
   glossary does not link to it or change it), enemies and attacks (the Rot Journal, 7.11, has those),
   and per-item or per-gear descriptions (the party screen and shops show those).
 
+### 7.13 Fewer words, more icons (phase 22, cards #273 to #279 and #288 to #291, 2026-10-20)
+
+Owner rule (2026-10-20): never text only, and never a bare icon either. Every choice, reward and
+info line is an icon WITH a short word ("Gold 120", "Act 1/2", "Parry 3", "Curse 30%", "-10% max HP
+all"): a picture and a number alone meant nothing to a new player (owner, the same day). Two or
+three choices sit side by side as cards, never in a column, pick lists too ("Who pays?" is hero
+cards; longer lists may stay a column); Back is the cancel button, never a row. A card's title stays
+on one line: cards grow to fit it, sharing the row, and a title still too long gets a smaller font.
+Rules text lives in the tutorial and the Glossary, not on screens.
+
+- **Practice-only helpers (#275, #276, #290).** `CombatController.is_practice_fight()`: a local
+  fight that is not a run, not the tutorial and not online (the Practice menu's fights and the dev
+  switches). Only there do these show: the press timing in ms after the word ("PARRY -34", "LATE
+  +343"; the runners' `timing_numbers_allowed`, F1 > T still toggles it), the F1 stats panel and
+  its "F1 Stats" chip on the end screen, and the practice keys (1-9 next attack, I, O, R). Those
+  keys used to sit in gold under the enemy panels (the owner's "yellow text"); they are now the last
+  lines of the F1 panel. The real game shows the word alone (PARRY, LATE, PERFECT).
+- **Enemy panels (#279).** Nothing on an enemy panel may be wider than its HP bar
+  (`ENEMY_BAR_WIDTH` 380 px), so every bar keeps one length: the name and the NEXT line end in
+  "...", status icons wrap (an HFlowContainer), the intent's hit row is capped
+  (`INTENT_ROW_MAX_WIDTH` 210 px, `HitRowView.max_width_px`). Before, a long attack line, a long
+  Doom line, many badges or a long hit row widened the panel, and since every panel matches the
+  widest, every bar grew. Statuses are icons with their word and turns ("SLOWED 2";
+  `HudStyle.status_chip`,
+  `status_icon_px`; every status has `assets/sprites/ui/mark_<id>.png`, drawn by
+  `tools/art_kit/assets/ui_marks.py`; a staggered enemy shows dizzy stars). A Doom reads "DOOM 2"
+  over its break bar. A hit that leaves a mark wears the mark's icon on its corner, on the intent
+  sign and in the banner (no [BURN/DAZE] words). Hero cards use the same status icons.
+- **Fight corners and menu.** Defend corner: DEFEND over the PARRY, DODGE and JUMP plates, each
+  with its button and the hit icons it answers; no rules sentence. Skill press corner: one plate,
+  the button and PRESS. The target step: the skill's name and AP cost over the target's name. A
+  skill that cannot be used shows a lock on its row (the cost and lock red when short of AP; a red
+  lock and the Hush icon when Hushed; grey otherwise; `ActionMenu.LOCK_*`), never a sentence.
+  Sizes and colours: `combat_visuals.tres`, group "Fight HUD icons".
+- **Ranged hits (#278).** A thrown normal hit shows `hit_ranged.png` (a steel ball with gold speed
+  lines, `CombatVisuals.hit_icon_ranged_path`, drawn by `fx_ui.py`) on the intent sign, the banner
+  and the hit marker. The intent event carries `ranged` (one bool per hit, sent only when a hit is
+  thrown, like `marks`; `AttackHitData.ranged_in(hard)`). It is still a normal hit for the rules.
+  The Glossary's "thrown" term uses the same icon.
+- **Fight end (#273, #274).** A won run fight ends with two icon rows instead of lines of text:
+  what was won (coin "+gold", the item found, "FLAWLESS +1 spoils", each Relic line with the Relic's
+  icon) and the heroes (portrait, "+N XP", a gold "Lv N" on a level up, greyed when down). No
+  defence tally (the run end shows defence, #283) and no "New attribute points" sentence. Practice
+  fights keep the old lines of numbers. Art and sizes: `combat_visuals.tres` group "End screen"
+  (`gold_icon_path` = `ui/gold_coin.png`, drawn by `map_art.py`).
+- **Choice cards (#288).** `ListMenu.horizontal = true` draws each item as a card in one row: a
+  picture, the word, a small tag, icon chips. Left and right move; the mouse points and clicks; a
+  chosen card keeps its font size (gold frame and colour show it), so its words never re-wrap and
+  jump; a greyed card does nothing when chosen. Chips are {icon or glyph, text, color, newline};
+  `RunState.offer_chips` / `choice_chips` give a deal's price (red), gift (green) and risk (a die
+  with its %). Who pays a max-HP price: "all", "1" (you pick) or "1?" (random). Used by yes/no
+  questions (No left, Yes right; shrines and wanderers add their chips under the question), Spoils
+  (Relic icon, name, New / Home / "Lv a > b", effect, drawback and stat chips), the campfire (Rest
+  "+N%", Train "+N", Upgrade "+1 Lv"; before the boss Rest, Keep watch, Sharpen), treasure (Plain and
+  Rotten chests), "?" events and the starting pact, and the main menu's Online page (Host, Join).
+  Leave and Back are the cancel button with a footer hint, never a card. Pick lists of three or
+  fewer (who pays: the heroes' faces and HP; what goes; which item to upgrade) are cards too. Art: `tools/art_kit/assets/ui_choices.py` (choice_*, chip_*); paths and
+  chip colours in `stop_visuals.tres`.
+- **Zone (#289, #291).** The goal top right is icon chips (`ZoneController.goal_chips`): a seal
+  stone "0 / 2" while the gate is shut, a horned skull GUARD, then a flag EXIT (or OPEN), and a
+  plain skull with the other enemies left (`goal_foe.png`; paths in `explore_visuals.tres`, group
+  "Goal"). Bottom left shows only the buttons: First Strike is taught by the tutorial's lesson 7
+  card. The party strip in a zone has no gold (nothing to buy there). "Leave the zone?" says "No way
+  back." with a skull chip for the enemies still here. A find still shows as a gold banner.
+- **Menus.** Pause: a picture and a word per row, no line under it. A yes/no question has at most
+  one short line. Main menu notices are one short line (the technical reason goes to the log).
+  Settings: the title and section tabs are pinned at the top; lines under rows are four words at
+  most; Controls has a Keyboard page and a Controller page (#277: opens on the device in use, LT/RT
+  or left/right switch, each page its own Reset; bindings drawn as button pictures, `ButtonChip`);
+  the lag row says Keys / Pad / Default, never ms; the Training ring row only in debug builds. Lag
+  calibration: beat pips, the device picture, a steadiness meter that turns green when it can save,
+  a "Too uneven" chip; ms only with F1 open; the offer says "About N seconds" from the data. Join
+  Online: a footer hint bar (Connect / Back, Rejoin after a lost connection), no networking
+  sentence. Players screen: the hero cards centred, one Oath picker with effect chips beside a big
+  Start; Back is the cancel button; the first open seat shows the buttons that can join now. A lost
+  pad shows a crossed-out pad, the player's tag and two chips. The Controller recommended notice
+  is skipped when a pad is plugged in. In release builds the F1 Stats action is hidden and never
+  clashes with a usable action (`ControlBindings.list_debug`).
+- **Run screens.** Map: under the map, the picked stop's picture, name and 2 or 3 chips
+  (`MapScreen.detail_chips`; the campfire before the boss shows Keep watch and Sharpen). Shop:
+  service cards with pictures (skull Cleanse, anvil Upgrade, arrows Restock, coin Sell, door
+  Leave), prices as the coin and a number, Sell once. Run end: one row of chips ("Act 1/2" with the act's boss
+  lair, "Stops N", "Wins N", "Gold N", each hero's face with "Lv N"), the defence rows ("Parry 3",
+  "Dodge 0", "Jump 0", "Hit 4", a star with "Best"), "Kept" and the Relics kept as icons with their
+  names (up to 8, then "+N"; nothing when none), and on a defeat one row: "Killed by", the enemy's
+  portrait and name, the attack's name and hit icons, "N damage". Echoes page: a pips bar per Relic being learned; the rules are in the
+  Glossary's "echo" term. Rot Journal: hit kinds and marks as icons, the record as glyphs with
+  counts, no legend. Y screen: a tab's count is a gold circle with a plain dark number; the Skills
+  tab's slots sit centred over the tree. New art: `tools/art_kit/assets/ui_runinfo.py` (upgrade,
+  restock, door; the map and shop use the campfire's `choice_upgrade.png` for Upgrade).
+- **Still words, for later (phase 22 cards in Todo):** skill descriptions in the fight's skill list
+  (#292: a chip row per skill needs a short field in every ability), tutorial cards (#293: a picture
+  per lesson), the map's legend (#294), shop item descriptions (#295), the Journal's "Met in N
+  fights" line.
+
 ## 8. Run structure (phase 4)
 
 Slay-the-Spire style branching node map (host picks path). Node types: zone (small explorable
@@ -2286,8 +2385,8 @@ Echoes, 8.17).
   far end, barely wanders) is marked in gold ("GUARD", no name since card #127) wherever it is on screen; beating it
   shows ZONE CLEAR and goes back to the map (since card #241 the zone stays open and the party leaves by its exit
   when it wants: 8.5). Other roaming enemies are optional (more gold, more
-  risk). The top right says "Beat the GUARD at the exit / Optional enemies: N"; the run's gold and
-  HP strip sits top left.
+  risk). The top right shows the goal as icon chips (phase 22, 7.13: horned skull GUARD, then a
+  flag EXIT, and a skull with the other enemies left); the run's HP strip (no gold in a zone) sits top left.
 - **HP carries over** between fights (`CombatSetup.party_start_hp` and `party_max_hp_percent`,
   used by the engine). After a victory a downed character gets back up at `run_downed_revive_hp`
   (1). A defeat ends the run. AP and statuses reset every fight; the team gauge carries over (8.3, card #146).
@@ -2864,7 +2963,8 @@ scarce, and a "?" can turn into a fight.
   - A **risk may cost any of these too**, not only HP. A risk is never refused: it takes what there is
     (a hero or an item picked by the seed, a curse that finds no room rots away).
   - Choices that need a hero or an item first (`ZoneOfferData.pick_kind`) open a short list on the
-    event screen ("Who pays?", "What goes?") with Back. A deal asks for at most one pick.
+    event screen ("Who pays?" hero cards, "What goes?" item cards, a column past three; cancel goes
+    back, phase 22). A deal asks for at most one pick.
 - **The screen writes the deal out** (`RunState.choice_summary`): "Price: ... Reward: ... 40% risk:
   ...", with the depth scaling already applied, then the choice's flavour line. Numbers are never
   typed into the choice text. After a choice that sprang an ambush, Continue reads "Fight".
@@ -3553,8 +3653,8 @@ carries between runs gives **choices, not stats**; the oaths keep the game hard.
   (30). Spoils, shops and chests offer any Relic below level 3 in this run, so they never run dry. A
   Relic found before but left at home that turns up joins at level 1, tagged **Home** (not "New"); it
   levels nothing at home (`RunState.is_home`).
-- **The end screen** says what the run keeps: "New Relics: ...   Echoes learned: ..." or "Nothing new
-  to keep." (`relic_gain_line`). A fight's end screen says "Echo learned for good: X".
+- **The end screen** shows what the run keeps as Relic icons tagged New and/or with the Echo mark,
+  and nothing when there is nothing (phase 22, 7.13; `relic_gain_line` is the same rule in words). A fight's end screen says "Echo learned for good: X".
 - **Banking** (`Main._bank_relics`, `RelicFile.bank(found, pips, path, tuning)`): the run's Relics
   are found, each Relic's pips become the higher of home and run, so banking twice or after Continue
   replays a stop adds nothing.
@@ -4145,9 +4245,14 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     bag from 3 to 6 (#266), friends keep their finds online (#281), Alder's pack with pockets instead
     of the grid (#282), defence counts and pays (#283), one more run together (#284), a pact at the
     start (#285), a map with a dare (#286), no free stops (#287).
-22. **Fewer words, more icons** (planned, #273 to #276): finds and rewards show their icon (#273), a
-    clean fight end when a hero is down (#274), no practice text on the HUD in real fights (#275),
-    press and defence timing numbers only in practice (#276).
+22. **Fewer words, more icons** (done, approved 2026-10-20 after a playtest, v0.22.0; 7.13): the
+    practice key list off the fight screen (#275), press and defence timing numbers only in practice
+    (#276), F1 Stats only in practice (#290), a won fight's end as icon rows (#273, #274), enemy HP
+    bars that never stretch (#279), Keyboard and Controller settings pages (#277), a ranged hit icon
+    (#278), two or three choices as side-by-side cards with icon chips (#288), the zone's goal as
+    icons with no First Strike sentence and no gold (#289) and a First Strike tutorial card (#291),
+    plus an owner-asked sweep of menus and run screens (pause, settings, calibration, players, join,
+    map, shop, run end, Echoes, Journal).
 
 ### 11.1 To-do (from playtests)
 
@@ -4378,3 +4483,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-19 | Phase 20 "Relic balance and a clean Y screen" (11, 8.17, 8.18): 16 more Relics (8 new effects), drops 10% to 8%, a Relic bag of 10 picked on the main menu (new finds join it while there is room; a slot opening mid-run shows a note), the Y screen as four icon tabs with one info strip and toasts, Relic icons shaped by category | user picked every recommended option, approved the Relic list, and picked concept A (tabs) with concept B's info strip and shape icons; Relic levels and Echoes are for phase 21 and the remaining text clutter is phase 22 |
 | 2026-10-19 | Phase 21 "The roguelite pass" (8.19): Echoes are learned for good by filling a Relic's pips across runs and can then be worn in any run for Echo points, no Relic needed, one hero per Echo; Relic levels last one run; the bag starts at 3 and grows to 6 with Echoes learned; the grid backpack becomes Alder's pack with pockets; plus friends banking online, defence counts, Again, a starting pact, a crowned elite and priced stops | owner: levels kept forever made the game easier the more you played and relearning Echoes every run was busywork (#272); "learned is usable" was the owner's own reading (option A); the grid lost its job when the charms went. Dropped: new heroes, endless mode, a between-runs currency, a daily leaderboard (#267) |
 | 2026-10-19 | Phase 19 "Monsters and effects" (11): six new monsters in two batches, five new hero marks, one mark hit per monster in every fight but the first zone, Purify plus Antidote and Holy Water to lift them, area skills for Brin and Cass, more 3-monster fights | user asked for small fries, ranged-only and large monsters, status effects, a way to cleanse them and up to 3 monsters a fight; user picked every recommended option |
+| 2026-10-20 | Phase 22 "Fewer words, more icons" (7.13): practice-only numbers and keys, icon end screens, enemy panels capped at the HP bar's width, status and ranged-hit icons, 2-3 choices as side-by-side cards with icon chips, zone goal as icons, Keyboard / Controller settings pages, a clutter sweep of every menu and run screen | owner, 2026-10-20: "i hate text only show me icons with text and if its 2 or 3 choices list them horizontally"; cards #273 to #279 and #288 to #291 |

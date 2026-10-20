@@ -533,6 +533,29 @@ def make_hit_sweep() -> np.ndarray:
     ], {"T": SWEEP[4], "L": SWEEP[3], "M": SWEEP[2], "m": SWEEP[1], "d": SWEEP[0]})
 
 
+def make_hit_ranged() -> np.ndarray:
+    """A thrown orb flying left, toward the party (card #278): a round ball in the sword's blade
+    steel, lit from the upper left, with three gold speed lines streaming off its back (the
+    middle one longest, touching the ball). Still a normal hit (parry or dodge), so it keeps the
+    sword's steel and gold; its round shape and level lines read apart from the sword's diagonal
+    and the rend's slanted gashes at 18 px."""
+    return _icon(12, [
+        "............",
+        "............",
+        "..LWLM......",
+        ".LWWLMs.TTg.",
+        ".LWWLMs.....",
+        ".LWLMMsTTTg.",
+        ".LLMMss.....",
+        ".MMMsss.TTg.",
+        "..Mssd......",
+        "............",
+        "............",
+        "............",
+    ], {"W": BLADE[4], "L": BLADE[3], "M": BLADE[2], "s": BLADE[1], "d": BLADE[0], "T": HILT[3],
+        "g": HILT[2]})
+
+
 def make_lock() -> np.ndarray:
     """A padlock: iron shackle over a bevelled worn-gold body (light top and left, dark right and
     bottom) with a keyhole: a dark slot whose shaded top reads as the round head."""
@@ -729,6 +752,7 @@ def review_sheet(parts: dict[str, np.ndarray]) -> np.ndarray:
     _paste(sheet, _scale_nearest(parts["hit_ground"], 30), 108, y + 22)
     _paste(sheet, _scale_nearest(parts["hit_rend"], 18), 44, y + 44)
     _paste(sheet, _scale_nearest(parts["hit_sweep"], 18), 64, y + 44)
+    _paste(sheet, _scale_nearest(parts["hit_ranged"], 18), 128, y)  # the 18 px row has no room left
     _paste(sheet, _scale_nearest(parts["lock"], 56), 152, y + 2)
     # Hit markers: the icon on a dark disc with the normal (red-orange) or ground (purple) ring.
     _disc(sheet, 150, 168, 25, (230, 110, 60), 3)
@@ -868,12 +892,14 @@ def build(ctx) -> None:
         "hit_ground": make_hit_ground(),
         "hit_rend": make_hit_rend(),
         "hit_sweep": make_hit_sweep(),
+        "hit_ranged": make_hit_ranged(),
         "lock": make_lock(),
         "controller": make_controller(),
     }
     for name in ("shadow", "slash", "spark", "shockwave"):
         ctx.save("sprites/fx/%s.png" % name, parts[name])
-    for name in ("ap_pip", "ap_pip_empty", "hit_normal", "hit_ground", "hit_rend", "hit_sweep", "lock", "controller"):
+    for name in ("ap_pip", "ap_pip_empty", "hit_normal", "hit_ground", "hit_rend", "hit_sweep", "hit_ranged",
+                 "lock", "controller"):
         ctx.save("sprites/ui/%s.png" % name, parts[name])
     sheet = review_sheet(parts)
     _save_sheet(ctx, "review_1x.png", sheet, 1)

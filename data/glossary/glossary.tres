@@ -106,8 +106,8 @@ script = ExtResource("1_d4656")
 id = "thrown"
 topic = "reading"
 term = "Thrown hit"
-text = "Spit, stones and bolts. The enemy throws from where it stands and the shot flies to you. It is still a normal hit: parry or dodge it as it arrives."
-icon_path = "res://assets/sprites/ui/hit_normal.png"
+text = "Spit, stones and bolts, drawn as a steel ball with speed lines. The enemy throws from where it stands. It is still a normal hit: parry or dodge it as it arrives."
+icon_path = "res://assets/sprites/ui/hit_ranged.png"
 color = Color(1, 0.3, 0.2, 1)
 
 [sub_resource type="Resource" id="Resource_7jpox"]
@@ -514,7 +514,7 @@ id = "doom"
 topic = "dooms"
 term = "Doom"
 text = "A huge party-wide string that a guard or boss announces ahead of time. It gathers for a few of its turns, then unleashes. The sign counts the turns down."
-tag = "DOOM IN 2"
+tag = "DOOM 2"
 color = Color(1, 0.3, 0.25, 1)
 
 [sub_resource type="Resource" id="Resource_j1o2r"]
@@ -541,7 +541,7 @@ id = "stagger"
 topic = "dooms"
 term = "Stagger"
 text = "A staggered enemy loses its next turn and takes extra damage from everything until then. TURN LOST shows when the stagger ends."
-tag = "STAGGERED"
+icon_path = "res://assets/sprites/ui/mark_staggered.png"
 color = Color(0.6, 0.85, 1, 1)
 
 [sub_resource type="Resource" id="Resource_t2kkd"]
@@ -634,7 +634,7 @@ id = "burst"
 topic = "enemies"
 term = "Burst"
 text = "A Pus Tick announces its Burst like a Doom: a few turns later it bursts on the whole party and is gone. Kill it first, or jump the burst."
-tag = "DOOM IN 3"
+tag = "DOOM 3"
 color = Color(1, 0.3, 0.25, 1)
 
 [sub_resource type="Resource" id="Resource_cu3qc"]
@@ -649,7 +649,7 @@ script = ExtResource("1_d4656")
 id = "stop_zone"
 topic = "map"
 term = "Zone stop"
-text = "A place to explore, left to right. Beat the guard at the far end to move on; everything else is optional. Each zone stop is a different place."
+text = "A place to explore, left to right. Beat the guard at the far end to move on. Every other enemy is optional and pays more gold. Each zone stop is a different place."
 icon_path = "res://assets/sprites/ui/map_zone_rotten_hollow.png"
 
 [sub_resource type="Resource" id="Resource_s1dhs"]
@@ -657,7 +657,7 @@ script = ExtResource("1_d4656")
 id = "stop_elite"
 topic = "map"
 term = "Elite stop"
-text = "A skull over crossed blades: one hard fight, then spoils of rare gear or better. It cannot be run from."
+text = "A skull over crossed blades: one hard fight, then spoils of rare Relics or better, and more gold. The crowned elite's spoils hold a legendary. It cannot be run from."
 icon_path = "res://assets/sprites/ui/map_elite.png"
 
 [sub_resource type="Resource" id="Resource_wmbx1"]
@@ -777,6 +777,24 @@ topic = "gear"
 term = "Relic"
 text = "Kept forever. Worn by one hero in a Relic slot (one at the start of a run, three by act 2): an effect and a small stat. Wear it in won fights to fill its pips and learn its Echo for good."
 icon_path = "res://assets/sprites/ui/gear_icon.png"
+
+[sub_resource type="Resource" id="Resource_echo1"]
+script = ExtResource("1_d4656")
+id = "echo"
+topic = "gear"
+term = "Echo"
+text = "Wear a Relic in won fights to fill its pips, run after run; elites, guards and bosses fill more. Full pips teach its Echo for good: its effect without the stat. One hero wears each Echo, for Echo points from level ups."
+tag = "Echo 7/12"
+color = Color(0.62, 0.32, 0.72, 1)
+
+[sub_resource type="Resource" id="Resource_rlvl1"]
+script = ExtResource("1_d4656")
+id = "relic_level"
+topic = "gear"
+term = "Relic level"
+text = "A Relic joins a run at level 1 (Home: found before but left out of the bag). A copy found in the same run raises it, up to level 3, and its stat grows. Levels last one run; a copy past 3 pays gold."
+tag = "Lv 2 > 3"
+color = Color(1, 0.82, 0.3, 1)
 
 [sub_resource type="Resource" id="Resource_faexo"]
 script = ExtResource("1_d4656")
@@ -977,4 +995,4 @@ text = "In Extras: a book of every enemy and attack you meet in a run, with your
 script = ExtResource("2_633y8")
 topic_ids = PackedStringArray("fight", "reading", "defence", "skills", "team", "foe_marks", "hero_marks", "hero_help", "dooms", "enemies", "map", "zones", "gear", "shops", "run")
 topic_names = PackedStringArray("The fight", "Reading attacks", "Defence", "Skills and AP", "Counters and team", "Marks on enemies", "Marks on heroes", "Help on heroes", "Dooms", "Enemies", "The map", "In a zone", "Gear and items", "Shops and camps", "The run")
-entries = Array[ExtResource("1_d4656")]([SubResource("Resource_4pvst"), SubResource("Resource_hd6qm"), SubResource("Resource_fpscn"), SubResource("Resource_tb6tb"), SubResource("Resource_03a7d"), SubResource("Resource_e1ac5"), SubResource("Resource_4h0w4"), SubResource("Resource_8w76o"), SubResource("Resource_gng8j"), SubResource("Resource_o85np"), SubResource("Resource_lgwoi"), SubResource("Resource_fckk8"), SubResource("Resource_0tpnu"), SubResource("Resource_7jpox"), SubResource("Resource_8pdof"), SubResource("Resource_vatr1"), SubResource("Resource_4ue4x"), SubResource("Resource_ney2o"), SubResource("Resource_rq2lu"), SubResource("Resource_0sw3m"), SubResource("Resource_ym7ni"), SubResource("Resource_hqq7o"), SubResource("Resource_0k6kt"), SubResource("Resource_b1y1j"), SubResource("Resource_yh8rg"), SubResource("Resource_tdm13"), SubResource("Resource_ygdo2"), SubResource("Resource_jrthy"), SubResource("Resource_p048w"), SubResource("Resource_wdupp"), SubResource("Resource_vvnsa"), SubResource("Resource_uf6lj"), SubResource("Resource_86rir"), SubResource("Resource_g3uas"), SubResource("Resource_1kck3"), SubResource("Resource_g886g"), SubResource("Resource_hl2di"), SubResource("Resource_fmp8d"), SubResource("Resource_qwexe"), SubResource("Resource_870e2"), SubResource("Resource_ifc33"), SubResource("Resource_ntj47"), SubResource("Resource_jp5hm"), SubResource("Resource_e3swq"), SubResource("Resource_g3g5a"), SubResource("Resource_kg24a"), SubResource("Resource_l8ilw"), SubResource("Resource_vd1pi"), SubResource("Resource_h4eme"), SubResource("Resource_1f42n"), SubResource("Resource_vqib0"), SubResource("Resource_akq8o"), SubResource("Resource_bgl7y"), SubResource("Resource_e5dtf"), SubResource("Resource_87ady"), SubResource("Resource_f2ok5"), SubResource("Resource_q6jq4"), SubResource("Resource_2nuks"), SubResource("Resource_to4cp"), SubResource("Resource_j1o2r"), SubResource("Resource_03k8o"), SubResource("Resource_ffvon"), SubResource("Resource_t2kkd"), SubResource("Resource_esrfe"), SubResource("Resource_y6eba"), SubResource("Resource_p8moy"), SubResource("Resource_nw34n"), SubResource("Resource_1c0mm"), SubResource("Resource_rjq6c"), SubResource("Resource_erspk"), SubResource("Resource_d8cfa"), SubResource("Resource_s1j28"), SubResource("Resource_p2qmn"), SubResource("Resource_3al64"), SubResource("Resource_cu3qc"), SubResource("Resource_fbvxs"), SubResource("Resource_s1dhs"), SubResource("Resource_wmbx1"), SubResource("Resource_0y7iv"), SubResource("Resource_kghdt"), SubResource("Resource_dyfhy"), SubResource("Resource_35qqt"), SubResource("Resource_vc7d0"), SubResource("Resource_c00ge"), SubResource("Resource_lklpv"), SubResource("Resource_3r8ir"), SubResource("Resource_xigk7"), SubResource("Resource_3yeq3"), SubResource("Resource_8xwyj"), SubResource("Resource_nfl5o"), SubResource("Resource_nokcs"), SubResource("Resource_tnp1o"), SubResource("Resource_faexo"), SubResource("Resource_077nu"), SubResource("Resource_osy5s"), SubResource("Resource_m7iqa"), SubResource("Resource_ufadv"), SubResource("Resource_wuu7b"), SubResource("Resource_nxshk"), SubResource("Resource_7dvlr"), SubResource("Resource_1pxyj"), SubResource("Resource_iobjp"), SubResource("Resource_7lplp"), SubResource("Resource_05ddp"), SubResource("Resource_nl2ya"), SubResource("Resource_1vr0v"), SubResource("Resource_42uva"), SubResource("Resource_j6wsn"), SubResource("Resource_t2qvb"), SubResource("Resource_2bmla"), SubResource("Resource_oxqn7"), SubResource("Resource_voqww"), SubResource("Resource_ujnpq"), SubResource("Resource_uw7h0"), SubResource("Resource_d4ofk"), SubResource("Resource_wvly6"), SubResource("Resource_b30i1"), SubResource("Resource_dkefa")])
+entries = Array[ExtResource("1_d4656")]([SubResource("Resource_4pvst"), SubResource("Resource_hd6qm"), SubResource("Resource_fpscn"), SubResource("Resource_tb6tb"), SubResource("Resource_03a7d"), SubResource("Resource_e1ac5"), SubResource("Resource_4h0w4"), SubResource("Resource_8w76o"), SubResource("Resource_gng8j"), SubResource("Resource_o85np"), SubResource("Resource_lgwoi"), SubResource("Resource_fckk8"), SubResource("Resource_0tpnu"), SubResource("Resource_7jpox"), SubResource("Resource_8pdof"), SubResource("Resource_vatr1"), SubResource("Resource_4ue4x"), SubResource("Resource_ney2o"), SubResource("Resource_rq2lu"), SubResource("Resource_0sw3m"), SubResource("Resource_ym7ni"), SubResource("Resource_hqq7o"), SubResource("Resource_0k6kt"), SubResource("Resource_b1y1j"), SubResource("Resource_yh8rg"), SubResource("Resource_tdm13"), SubResource("Resource_ygdo2"), SubResource("Resource_jrthy"), SubResource("Resource_p048w"), SubResource("Resource_wdupp"), SubResource("Resource_vvnsa"), SubResource("Resource_uf6lj"), SubResource("Resource_86rir"), SubResource("Resource_g3uas"), SubResource("Resource_1kck3"), SubResource("Resource_g886g"), SubResource("Resource_hl2di"), SubResource("Resource_fmp8d"), SubResource("Resource_qwexe"), SubResource("Resource_870e2"), SubResource("Resource_ifc33"), SubResource("Resource_ntj47"), SubResource("Resource_jp5hm"), SubResource("Resource_e3swq"), SubResource("Resource_g3g5a"), SubResource("Resource_kg24a"), SubResource("Resource_l8ilw"), SubResource("Resource_vd1pi"), SubResource("Resource_h4eme"), SubResource("Resource_1f42n"), SubResource("Resource_vqib0"), SubResource("Resource_akq8o"), SubResource("Resource_bgl7y"), SubResource("Resource_e5dtf"), SubResource("Resource_87ady"), SubResource("Resource_f2ok5"), SubResource("Resource_q6jq4"), SubResource("Resource_2nuks"), SubResource("Resource_to4cp"), SubResource("Resource_j1o2r"), SubResource("Resource_03k8o"), SubResource("Resource_ffvon"), SubResource("Resource_t2kkd"), SubResource("Resource_esrfe"), SubResource("Resource_y6eba"), SubResource("Resource_p8moy"), SubResource("Resource_nw34n"), SubResource("Resource_1c0mm"), SubResource("Resource_rjq6c"), SubResource("Resource_erspk"), SubResource("Resource_d8cfa"), SubResource("Resource_s1j28"), SubResource("Resource_p2qmn"), SubResource("Resource_3al64"), SubResource("Resource_cu3qc"), SubResource("Resource_fbvxs"), SubResource("Resource_s1dhs"), SubResource("Resource_wmbx1"), SubResource("Resource_0y7iv"), SubResource("Resource_kghdt"), SubResource("Resource_dyfhy"), SubResource("Resource_35qqt"), SubResource("Resource_vc7d0"), SubResource("Resource_c00ge"), SubResource("Resource_lklpv"), SubResource("Resource_3r8ir"), SubResource("Resource_xigk7"), SubResource("Resource_3yeq3"), SubResource("Resource_8xwyj"), SubResource("Resource_nfl5o"), SubResource("Resource_nokcs"), SubResource("Resource_tnp1o"), SubResource("Resource_echo1"), SubResource("Resource_rlvl1"), SubResource("Resource_faexo"), SubResource("Resource_077nu"), SubResource("Resource_osy5s"), SubResource("Resource_m7iqa"), SubResource("Resource_ufadv"), SubResource("Resource_wuu7b"), SubResource("Resource_nxshk"), SubResource("Resource_7dvlr"), SubResource("Resource_1pxyj"), SubResource("Resource_iobjp"), SubResource("Resource_7lplp"), SubResource("Resource_05ddp"), SubResource("Resource_nl2ya"), SubResource("Resource_1vr0v"), SubResource("Resource_42uva"), SubResource("Resource_j6wsn"), SubResource("Resource_t2qvb"), SubResource("Resource_2bmla"), SubResource("Resource_oxqn7"), SubResource("Resource_voqww"), SubResource("Resource_ujnpq"), SubResource("Resource_uw7h0"), SubResource("Resource_d4ofk"), SubResource("Resource_wvly6"), SubResource("Resource_b30i1"), SubResource("Resource_dkefa")])

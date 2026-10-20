@@ -17,17 +17,18 @@ func _resolved(prompt: int, outcome: int, seq: int = 4) -> Dictionary:
 	return {"type": "prompt_resolved", "seq": seq, "prompt": prompt, "outcome": outcome}
 
 
-func test_the_tutorial_has_six_fight_lessons_then_relics() -> void:
-	# Phase 19 (card #264) added the marks lesson (6) before Relics and Echoes (7).
+func test_the_tutorial_has_six_fight_lessons_then_first_strike_then_relics() -> void:
+	# Phase 19 (card #264) added the marks lesson (6); phase 22 (card #291) the First Strike card (7)
+	# before Relics and Echoes (8).
 	var data := load(TUTORIAL_PATH) as TutorialData
 	assert_not_null(data)
 	assert_not_null(data.encounter)
-	assert_eq(data.lesson_count(), 7)
+	assert_eq(data.lesson_count(), 8)
 	var cards: Array[String] = []
 	for step: TutorialStepData in data.steps:
 		if step.goal == TutorialGoals.READ:
-			# The Relics and Echoes lesson (DESIGN.md 8.17): cards only, at the end.
-			assert_eq(step.lesson, 7, "%s is the last lesson" % step.title)
+			# First Strike (7), then the Relics and Echoes lesson (8, DESIGN.md 8.17): cards only, at the end.
+			assert_eq(step.lesson, 7 if step.title == "First Strike" else 8, "%s comes after the fight lessons" % step.title)
 			assert_false(step.text.is_empty(), step.title)
 			cards.append(step.title)
 			continue
@@ -37,7 +38,35 @@ func test_the_tutorial_has_six_fight_lessons_then_relics() -> void:
 		assert_false(step.reminder.is_empty(), "%s has a reminder line" % step.title)
 		assert_false(step.retry.is_empty(), "%s says what to fix" % step.title)
 		assert_true(step.hold in ["enemies", "party"], "%s stages who acts" % step.title)
-	assert_eq(cards, ["Relics", "Echoes"] as Array[String], "the last lesson explains Relics, then Echoes")
+	assert_eq(cards, ["First Strike", "Relics", "Echoes"] as Array[String],
+			"the cards explain First Strike, then Relics, then Echoes")
+
+
+## Card #291: the zone no longer spells out First Strike, so the tutorial does, with the strike
+## button's own picture and in one short sentence.
+func test_a_first_strike_card_shows_the_strike_button() -> void:
+	var data := load(TUTORIAL_PATH) as TutorialData
+	var card: TutorialStepData = null
+	for step: TutorialStepData in data.steps:
+		if step.title == "First Strike":
+			card = step
+	assert_not_null(card, "a First Strike card")
+	if card == null:
+		return
+	assert_eq(card.goal, TutorialGoals.READ, "a card to read, no fight action")
+	assert_string_contains(card.text, "{field_strike}", "the strike button's picture is in the line")
+	assert_lte(card.text.split(".", false).size(), 1, "one short sentence")
+	assert_lte(card.text.length(), 120, "short")
+	assert_true(InputMap.has_action(&"field_strike"), "the button it shows is a real action")
+	var overlay := TutorialOverlay.new()
+	add_child_autofree(overlay)
+	overlay.show_card("Lesson 7 of 8", card.title, card.text, card.tip)
+	var chips := 0
+	for row: Node in overlay._lines.get_children():
+		for piece: Node in row.get_children():
+			if piece is HintBar:
+				chips += 1
+	assert_eq(chips, 1, "the card draws the strike button as a chip")
 
 
 func test_the_skills_lesson_comes_before_follow_ups_and_has_none() -> void:

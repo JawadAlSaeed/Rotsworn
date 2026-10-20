@@ -62,6 +62,11 @@ const EXIT_TAG_LIFT: float = 0.6
 ## Rot seals bob up and down this high, once per this long.
 const SEAL_BOB: float = 0.08
 const SEAL_BOB_MS: float = 2200.0
+## The goal chips' icons (goal_chips; ZoneHud draws them from ExploreVisuals).
+const GOAL_SEAL := "seal"
+const GOAL_GUARD := "guard"
+const GOAL_EXIT := "exit"
+const GOAL_FOE := "foe"
 
 ## Online, the pause menu opens over a zone that goes on: the leader stands still meanwhile.
 var input_held: bool = false
@@ -739,29 +744,29 @@ func _goal_met() -> bool:
 func _update_goal() -> void:
 	var guard := guard_index()
 	var beaten := guard >= 0 and bool(_roamers[guard].defeated)
-	_hud.set_goal("\n".join(goal_lines(seals_held(), _seals_needed, is_gate_open(), _run_mode, guard >= 0, beaten,
-			enemies_left(), keeps_zone_open())))
+	_hud.set_goal(goal_chips(seals_held(), _seals_needed, is_gate_open(), _run_mode, guard >= 0, beaten,
+			enemies_left(), keeps_zone_open()))
 
 
-## The goal in the top right corner: the seals while the gate is shut; in a run the guard to beat,
-## then the way out (with an exit: where it is) and the optional enemies; in practice the enemies
-## left. Pure (tested).
-static func goal_lines(held: int, needed: int, gate_open: bool, run_mode: bool, has_guard: bool,
-		guard_beaten: bool, left: int, has_exit: bool) -> Array[String]:
-	var lines: Array[String] = []
+## The goal in the top right corner as icon chips ({icon: GOAL_*, text}; phase 22, no sentences):
+## the seals held while the gate is shut; in a run the guard to beat, then the way out, and the
+## other enemies left (none once they are all beaten); in practice the enemies left. Pure (tested).
+static func goal_chips(held: int, needed: int, gate_open: bool, run_mode: bool, has_guard: bool,
+		guard_beaten: bool, left: int, has_exit: bool) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = []
 	if not gate_open:
-		lines.append("Rot seals: %d / %d  (they open the gate)" % [held, needed])
+		chips.append({"icon": GOAL_SEAL, "text": "Seals %d/%d" % [held, needed]})
 	if run_mode and has_guard:
 		if not guard_beaten:
-			lines.append("Beat the GUARD at the exit")
-		elif has_exit:
-			lines.append("The way out is open: leave by the EXIT at the far end")
+			chips.append({"icon": GOAL_GUARD, "text": "GUARD"})
 		else:
-			lines.append("The way out is open")
-		lines.append("Optional enemies: %d" % (left - (0 if guard_beaten else 1)))
+			chips.append({"icon": GOAL_EXIT, "text": "EXIT" if has_exit else "OPEN"})
+		var others := left - (0 if guard_beaten else 1)
+		if others > 0:
+			chips.append({"icon": GOAL_FOE, "text": "%d left" % others})
 	else:
-		lines.append("Enemies left: %d" % left if left > 0 else "All enemies beaten")
-	return lines
+		chips.append({"icon": GOAL_FOE, "text": "%d left" % left})
+	return chips
 
 
 # --- building ---------------------------------------------------------------------------------

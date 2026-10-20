@@ -227,16 +227,21 @@ func test_a_cleared_run_zone_with_an_exit_stays_open() -> void:
 	assert_false(ZoneController.keeps_open(false, true), "practice ends when every enemy is beaten")
 
 
+## The goal is icon chips, not sentences (phase 22).
 func test_the_goal_names_the_way_out_once_the_guard_falls() -> void:
-	var before := ZoneController.goal_lines(1, 2, false, true, true, false, 5, true)
-	assert_eq(before, ["Rot seals: 1 / 2  (they open the gate)", "Beat the GUARD at the exit", "Optional enemies: 4"]
-			as Array[String])
-	var after := ZoneController.goal_lines(2, 2, true, true, true, true, 3, true)
-	assert_eq(after, ["The way out is open: leave by the EXIT at the far end", "Optional enemies: 3"] as Array[String])
-	var no_exit := ZoneController.goal_lines(2, 2, true, true, true, true, 3, false)
-	assert_eq(no_exit[0], "The way out is open")
-	var practice := ZoneController.goal_lines(0, 0, true, false, true, false, 0, true)
-	assert_eq(practice, ["All enemies beaten"] as Array[String])
+	var before := ZoneController.goal_chips(1, 2, false, true, true, false, 5, true)
+	assert_eq(before, [{"icon": ZoneController.GOAL_SEAL, "text": "Seals 1/2"},
+			{"icon": ZoneController.GOAL_GUARD, "text": "GUARD"}, {"icon": ZoneController.GOAL_FOE, "text": "4 left"}]
+			as Array[Dictionary])
+	var after := ZoneController.goal_chips(2, 2, true, true, true, true, 3, true)
+	assert_eq(after, [{"icon": ZoneController.GOAL_EXIT, "text": "EXIT"},
+			{"icon": ZoneController.GOAL_FOE, "text": "3 left"}] as Array[Dictionary])
+	var no_exit := ZoneController.goal_chips(2, 2, true, true, true, true, 3, false)
+	assert_eq(no_exit[0], {"icon": ZoneController.GOAL_EXIT, "text": "OPEN"})
+	var all_beaten := ZoneController.goal_chips(2, 2, true, true, true, true, 0, true)
+	assert_eq(all_beaten.size(), 1, "no enemy chip once they are all beaten")
+	var practice := ZoneController.goal_chips(0, 0, true, false, true, false, 0, true)
+	assert_eq(practice, [{"icon": ZoneController.GOAL_FOE, "text": "0 left"}] as Array[Dictionary])
 
 
 # --- shrines and wanderers --------------------------------------------------------------------

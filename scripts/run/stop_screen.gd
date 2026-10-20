@@ -89,6 +89,30 @@ func _next_gift() -> void:
 	gifts_settled.emit()
 
 
+## RunState.offer_chips or choice_chips as ListMenu.chip() entries (card #288): each kind's icon from
+## `look`, its text coloured as a price, a gift or what a risk may do. Main's shrine question uses
+## it too.
+static func chip_entries(chips: Array[Dictionary], look: StopVisuals) -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	for chip: Dictionary in chips:
+		var path := look.chip_icon_path(String(chip.get("kind", "")))
+		var color := look.chip_gift_color
+		if bool(chip.get("risk", false)):
+			color = look.chip_risk_color
+		elif bool(chip.get("cost", false)):
+			color = look.chip_cost_color
+		entries.append({"icon": AssetLoader.texture(path, Vector2i(12, 12)) if not path.is_empty() else null,
+				"text": String(chip.get("text", "")), "color": color, "kind": String(chip.get("kind", "")),
+				"newline": bool(chip.get("newline", false))})
+	return entries
+
+
+## One chip of kind `kind` (StopVisuals.chip_icon_path) with `text` in `color`.
+static func chip_entry(look: StopVisuals, kind: String, text: String, color: Color) -> Dictionary:
+	return {"icon": AssetLoader.texture(look.chip_icon_path(kind), Vector2i(12, 12)), "text": text, "color": color,
+			"kind": kind}
+
+
 func _say(text: String) -> void:
 	if _note != null:
 		_note.text = (_note.text + "\n" + text).strip_edges()

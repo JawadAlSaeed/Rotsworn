@@ -8,6 +8,8 @@ extends CanvasLayer
 ## tutorial, the Glossary (7.12), the Rot Journal (7.11), credits), cancel or Back goes back. Practice (any fight or zone
 ## on its own) is a test tool: its row shows in Extras only in debug builds. The version sits in the
 ## bottom-left corner and the studio's logo in the bottom-right.
+## Online's Host and Join are two cards side by side, each with a picture (card #288); Back is the
+## cancel button there, with the only button bar of this screen.
 
 ## One of ITEMS (not the rows that open a list), or a row of a second list.
 signal chosen(item: StringName)
@@ -43,6 +45,8 @@ const NOTICE_WIDTH: float = 1100.0
 ## Room between the logo and the list (pixels, on top of the column's spacing; small since phase 17
 ## added the Relics row, so Quit keeps clear of the bottom edge with Continue shown).
 const LOGO_GAP: float = 4.0
+## Host and Join's pictures (StopVisuals holds their paths).
+const ONLINE_ICON_SIZE := Vector2i(24, 24)
 
 var _menu: ListMenu
 ## The main row whose second list is showing (ONLINE or EXTRAS), or empty for the main list.
@@ -51,6 +55,8 @@ var _sub: StringName = &""
 var _items: Array[StringName] = []
 ## The Extras list's rows (Practice after the tutorial in debug builds).
 var _extras: Array[StringName] = []
+## The button bar under Online's cards (hidden elsewhere).
+var _online_footer: Control
 
 
 ## `start_item` is selected first (the last thing picked when coming back: a row of Extras reopens
@@ -85,6 +91,14 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 	_menu = ListMenu.new()
 	column.add_child(_menu)
 	# No description line under the list (user, 2026-10-17): the rows speak for themselves.
+	# Online's button bar, under the corners so the version and the logo stay on top of its strip.
+	_online_footer = Control.new()
+	_online_footer.name = "OnlineFooter"
+	_online_footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_online_footer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_online_footer.visible = false
+	add_child(_online_footer)
+	ListMenu.screen_footer(_online_footer, [[&"@leftright", "Choose"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]])
 	_add_corners(branding)
 	if _extras.has(start_item):
 		_show_sub(EXTRAS, start_item)
@@ -139,18 +153,35 @@ static func version_text() -> String:
 
 func _show_main(item: StringName) -> void:
 	_sub = &""
+	_menu.horizontal = false
+	_online_footer.visible = false
 	_menu.index = maxi(0, _items.find(item))
 	_menu.set_items(_rows(_items))
 
 
-## A second list in place of the main one, with Back last.
+## A second list in place of the main one, with Back last; Online's two are cards side by side with
+## a picture each, and Back on the cancel button.
 func _show_sub(parent: StringName, item: StringName = &"") -> void:
 	_sub = parent
 	var list := _sub_items()
 	var rows := _rows(list)
-	rows.append({"text": "Back"})
+	var cards := parent == ONLINE
+	if cards:
+		# Under Online, a word each is enough.
+		var look := StopVisuals.load_default()
+		rows[0] = {"text": "Host", "icon": AssetLoader.texture(look.host_icon_path, ONLINE_ICON_SIZE)}
+		rows[1] = {"text": "Join", "icon": AssetLoader.texture(look.join_icon_path, ONLINE_ICON_SIZE)}
+	else:
+		rows.append({"text": "Back"})
+	_menu.horizontal = cards
+	_online_footer.visible = cards
 	_menu.index = maxi(0, list.find(item))
 	_menu.set_items(rows)
+
+
+## True while Online's cards show (tests).
+func is_showing_cards() -> bool:
+	return _menu.horizontal and _online_footer.visible
 
 
 func _sub_items() -> Array[StringName]:

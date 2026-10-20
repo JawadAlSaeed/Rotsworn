@@ -80,6 +80,8 @@ static var _worn_material: ShaderMaterial
 ## Mark icons by id (card #262), loaded once; null where a mark has no icon.
 static var _mark_icons: Dictionary = {}
 const MARK_ICON_PATH := "res://assets/sprites/ui/mark_%s.png"
+## Between a status icon and its turns.
+const STATUS_CHIP_GAP: int = 1
 ## The player's text size (Settings > Game, card #203): an index into UiFonts.text_size_percents.
 ## Set by PlayerSettings when the game starts and when the player changes it; 0 (normal) until then,
 ## so unit tests never depend on this machine's settings.
@@ -581,12 +583,67 @@ static func mark_badges(statuses: Dictionary) -> Array[Array]:
 	return badges
 
 
-## The small icon of a mark, a ward or a shield (card #262), or null when it has none.
+## [[id, turns], ...] for every status a fighter has (mirror format), as the party and enemy panels
+## draw them (phase 22, icons with the turns left): the hero debuffs in cleanse order, the ward,
+## then the rest in Status.ALL order. `turns` is 0 for a status that shows no count.
+static func status_badges(statuses: Dictionary) -> Array[Array]:
+	var badges: Array[Array] = []
+	var order: Array[String] = Status.DEBUFFS.duplicate()
+	order.append(Status.WARDED)
+	for id: String in Status.ALL:
+		if not order.has(id):
+			order.append(id)
+	for id: String in order:
+		if not statuses.has(id):
+			continue
+		var turns := int((statuses[id] as Dictionary).get("turns", 0))
+		badges.append([id, turns if Status.shows_count(id) and turns > 0 else 0])
+	return badges
+
+
+## One status as its icon and its word with the turns left ("SLOWED 2"; `turns` 0: the word alone),
+## the way the party and enemy panels show them (card #262, phase 22). The word stays: an icon alone
+## meant nothing to a new player (owner, 2026-10-20). A status with no icon is its word alone.
+## `color` (default: the status's) colours the word.
+static func status_chip(id: String, turns: int, icon_px: float, text_size: int,
+		color: Color = Color(0.0, 0.0, 0.0, 0.0)) -> HBoxContainer:
+	if color.a <= 0.0:
+		color = STATUS_COLORS.get(id, TEXT) as Color
+	var chip := HBoxContainer.new()
+	chip.name = "Status_" + id
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_theme_constant_override("separation", STATUS_CHIP_GAP)
+	var texture := mark_icon(id)
+	if texture != null:
+		chip.add_child(icon(texture, icon_px))
+	var word := make_label(String(STATUS_NAMES.get(id, id.to_upper())) + (" %d" % turns if turns > 0 else ""),
+			text_size, color)
+	word.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chip.add_child(word)
+	return chip
+
+
+## A pixel-art picture `px` square (nearest filtering, aspect kept), ignoring the mouse.
+static func icon(texture: Texture2D, px: float) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.texture = texture
+	rect.custom_minimum_size = Vector2(px, px)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return rect
+
+
+## The small icon of a status, a mark, a ward or a shield (card #262; every status and a staggered
+## enemy since phase 22), or null when it has none. A drawn icon that has not been imported yet is
+## read from its file (AssetLoader).
 static func mark_icon(id: String) -> Texture2D:
 	if _mark_icons.has(id):
 		return _mark_icons[id] as Texture2D
 	var path := MARK_ICON_PATH % id
-	var texture: Texture2D = load(path) as Texture2D if ResourceLoader.exists(path) else null
+	var texture: Texture2D = AssetLoader.texture(path) if AssetLoader.has_art(path) else null
 	_mark_icons[id] = texture
 	return texture
 

@@ -2,7 +2,8 @@ class_name RunPartyBar
 extends HBoxContainer
 ## The run's status strip (DESIGN.md 8): gold, then every character's level and HP, with a gold
 ## "+N" while they have attribute points to spend (DESIGN.md 8.2).
-## Shown on the map, in shops, at rests and in zones. refresh() after anything changes.
+## Shown on the map, in shops, at rests and in zones (there without the gold, phase 22). refresh()
+## after anything changes.
 
 const NAME_SIZE: int = 26
 const HP_SIZE: int = 22
@@ -23,10 +24,12 @@ func _init() -> void:
 	add_theme_constant_override("separation", 18)
 
 
-func setup(run: RunState) -> void:
-	var gold_panel := _panel()
-	_gold = HudStyle.make_label("", GOLD_SIZE, HudStyle.GOLD)
-	gold_panel.add_child(_gold)
+## `show_gold`: false leaves the gold out (a zone has nothing to buy).
+func setup(run: RunState, show_gold: bool = true) -> void:
+	if show_gold:
+		var gold_panel := _panel()
+		_gold = HudStyle.make_label("", GOLD_SIZE, HudStyle.GOLD)
+		gold_panel.add_child(_gold)
 	for slot: int in run.party_size():
 		var c := run.data.party[slot]
 		var panel := _panel()
@@ -53,7 +56,8 @@ func setup(run: RunState) -> void:
 
 
 func refresh(run: RunState) -> void:
-	_gold.text = GOLD_TEXT % run.gold
+	if _gold != null:
+		_gold.text = GOLD_TEXT % run.gold
 	for slot: int in mini(_slots.size(), run.party_size()):
 		var max_hp := run.max_hp(slot)
 		var bar := _slots[slot].bar as ProgressBar

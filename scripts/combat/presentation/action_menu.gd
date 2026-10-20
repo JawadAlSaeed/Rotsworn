@@ -12,13 +12,16 @@ extends Control
 ##   under the hero and their lit card already say whose turn it is (user, 2026-10-15). Run must be HELD (run_hold_ms) so a tap never runs; a ring fills around its button while
 ##   held (DESIGN.md 2.13).
 ## - Skills and Items layers: the class skills, or the backpack items usable in fights (DESIGN.md
-##   8.1), open beside the hero as a list of slanted rows (name and AP cost, greyed with the reason
-##   when they cannot be used now; at most VISIBLE_ROWS at once, the list scrolls). Up/down
+##   8.1), open beside the hero as a list of slanted rows (name and AP cost; one that cannot be used
+##   now is greyed with a lock, its cost red when the hero is short of AP and the Hush icon when
+##   Hushed, phase 22: the rules are in the tutorial and the Glossary, not on the row; at most
+##   VISIBLE_ROWS at once, the list scrolls). Up/down
 ##   choose, confirm uses, cancel (or the same button) goes back. An item entry is flagged "item"
 ##   and its ability is a stand-in made by the controller.
 ## - Target step: if the ability needs a choice of target (an enemy, an ally, a downed ally) and
 ##   there is more than one, left/right or up/down cycles, confirm picks, cancel goes back to the
-##   layer the ability came from.
+##   layer the ability came from. Its panel shows the skill's name and AP cost and the target's
+##   name (phase 22: no title, no description; the lock-on frame shows the target too).
 ## Driven only by input actions (no focus-driven buttons, so the parry key can never click it).
 ## - Tutorial guide: with `guide` set (an ability id) only that choice can be made; its plate or
 ##   row (and the Skills plate that leads to it) glows, everything else is locked (DESIGN.md 7.8).
@@ -47,7 +50,12 @@ const OPTION_NAMES: Array[String] = ["ATTACK", "SKILLS", "ITEMS", "RUN", ""]
 const SOON_TAG := "SOON"
 const SKILLS_TEXT := "Your class skills. They cost AP: attack and parry hits to gain it."
 const ITEMS_TEXT := "Backpack items. Using one is your turn."
-const TARGET_TITLE := "CHOOSE A TARGET"
+## Why an entry cannot be used now (its `reason`, set by the controller): short of AP, Hushed, the
+## team gauge not full, nobody to target. Any other reason (the tutorial's) is a plain lock.
+const LOCK_AP := "ap"
+const LOCK_HUSHED := "hushed"
+const LOCK_GAUGE := "gauge"
+const LOCK_TARGET := "target"
 
 ## The diamond cluster (name tag, ring, sockets, plates), in its own coordinates.
 const CLUSTER := Vector2(640.0, 370.0)
@@ -67,7 +75,6 @@ const BACK_PLATE := Vector2(7.0, 6.0)
 const PLATE_SIZE: int = 30
 const TAG_SIZE: int = 19
 const CHIP_SIZE: int = 32
-const TARGET_TITLE_SIZE: int = 20
 ## The diamond's centre sits this far right of the hero's box (room for the Skills plate).
 const BESIDE_PX: float = 320.0
 ## Lists (skills, items) and the target panel open this far right of the hero.
@@ -118,6 +125,9 @@ const PRESS_FLASH_S: float = 0.16
 var guide: String = ""
 ## How long Back must be held to run (ms; the controller sets it from tuning run_hold_ms).
 var run_hold_ms: int = 500
+## The look numbers (the lock's size and colour, status icon size); CombatHud sets them. Unset:
+## the CombatVisuals defaults.
+var visuals: CombatVisuals = null
 ## The acting hero, their AP and the most they can have (the controller sets them before open).
 var actor_id: int = -1
 var actor_ap: int = 0
@@ -148,10 +158,14 @@ var _row_panels: Array[PanelContainer] = []
 var _row_names: Array[Label] = []
 var _row_costs: Array[Label] = []
 var _row_marks: Array[Label] = []
-## The target layer.
+## Each row's lock (it cannot be used now) and Hush icon (the hero is Hushed).
+var _row_locks: Array[UiGlyph] = []
+var _row_hush: Array[TextureRect] = []
+## The target layer: the skill's name and AP cost over the target's name.
 var _target: PanelContainer
+var _target_skill: Label
+var _target_cost: Label
 var _target_name: Label
-var _target_detail: Label
 var _target_hint: HintBar
 ## Where the hero is on screen, the area the menu must stay in, and whether the cluster has been
 ## placed since it opened (the first placement snaps, later ones glide).
@@ -161,8 +175,8 @@ var _avoid: Array[Rect2] = []
 ## The cluster's drawn parts (plates, sockets, ring, name tag) in its own coordinates.
 var _content: Rect2 = Rect2(Vector2.ZERO, CLUSTER)
 var _placed: bool = false
-## Each: {ability: AbilityData, usable: bool, reason: String, targets: Array[int],
-## pick_target: bool}.
+## Each: {ability: AbilityData, usable: bool, reason: String (a LOCK_* code, "" when usable),
+## targets: Array[int], pick_target: bool}.
 var _entries: Array[Dictionary] = []
 var _names: Dictionary = {}
 ## Indexes into _entries (-1: not offered).
@@ -767,14 +781,19 @@ func _build_target() -> void:
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override("separation", 6)
 	_target.add_child(column)
-	column.add_child(HudStyle.make_title(TARGET_TITLE, TARGET_TITLE_SIZE, HudStyle.GOLD))
+	var header := HBoxContainer.new()
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(header)
+	_target_skill = HudStyle.make_title("", LIST_TITLE_SIZE, HudStyle.GOLD)
+	_target_skill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_target_skill.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	header.add_child(_target_skill)
+	_target_cost = HudStyle.make_title("", LIST_TITLE_SIZE - 6, HudStyle.AP_TEXT)
+	_target_cost.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	header.add_child(_target_cost)
 	_target_name = HudStyle.make_title("", TARGET_NAME_SIZE)
 	_target_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_target_name)
-	_target_detail = HudStyle.make_label("", DESCRIPTION_SIZE)
-	_target_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_target_detail.custom_minimum_size = Vector2(LIST_WIDTH - 48.0, 0.0)
-	column.add_child(_target_detail)
 	_target_hint = HintBar.new([[&"@leftright", "Target"], [&"menu_confirm", "Go"], [&"menu_cancel", "Back"]], HINT_SIZE)
 	_target_hint.alignment = BoxContainer.ALIGNMENT_END
 	column.add_child(_target_hint)
@@ -788,6 +807,9 @@ func _build_rows() -> void:
 	_row_names.clear()
 	_row_costs.clear()
 	_row_marks.clear()
+	_row_locks.clear()
+	_row_hush.clear()
+	var look := _look()
 	for i: int in mini(VISIBLE_ROWS, _skill_entries.size()):
 		var row := PanelContainer.new()
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -803,6 +825,13 @@ func _build_rows() -> void:
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		line.add_child(label)
+		var hush := HudStyle.icon(HudStyle.mark_icon(Status.HUSHED), look.status_icon_px)
+		hush.visible = false
+		line.add_child(hush)
+		var lock := UiGlyph.make(&"lock", look.menu_lock_px, HudStyle.TEXT_DIM)
+		lock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		lock.visible = false
+		line.add_child(lock)
 		var cost := HudStyle.make_title("", ROW_SIZE - 4)
 		cost.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		line.add_child(cost)
@@ -811,6 +840,8 @@ func _build_rows() -> void:
 		_row_names.append(label)
 		_row_costs.append(cost)
 		_row_marks.append(mark)
+		_row_locks.append(lock)
+		_row_hush.append(hush)
 
 
 # --- placing ------------------------------------------------------------------------------------
@@ -995,7 +1026,18 @@ func _redraw_list() -> void:
 		if lit and usable:
 			color = Color.WHITE
 		_row_names[i].label_settings.font_color = color
-		_row_costs[i].label_settings.font_color = HudStyle.AP_TEXT if usable else HudStyle.TEXT_DIM
+		# A row that cannot be used: a lock, red (with its cost) when AP or Hush is the reason, and
+		# the Hush icon when Hushed. Why and how to fix it is the tutorial's and the Glossary's job.
+		var lock := "" if usable else String(entry.get("reason", ""))
+		var red := _look().locked_cost_color
+		var cost_color := HudStyle.AP_TEXT
+		if not usable:
+			cost_color = red if lock == LOCK_AP else HudStyle.TEXT_DIM
+		_row_costs[i].label_settings.font_color = cost_color
+		_row_locks[i].visible = not usable
+		_row_locks[i].color = red if lock == LOCK_AP or lock == LOCK_HUSHED else HudStyle.TEXT_DIM
+		_row_locks[i].queue_redraw()
+		_row_hush[i].visible = lock == LOCK_HUSHED
 		_row_marks[i].modulate.a = 1.0 if lit else 0.0
 		var style: StyleBoxFlat
 		if lit:
@@ -1007,11 +1049,7 @@ func _redraw_list() -> void:
 		row.add_theme_stylebox_override("panel", style)
 	var focus := _skill_entries[_skill_cursor] if not _skill_entries.is_empty() else -1
 	if focus >= 0:
-		var entry: Dictionary = _entries[focus]
-		var text := (entry.ability as AbilityData).description
-		if not bool(entry.usable):
-			text += "\n" + String(entry.reason)
-		_description.text = text
+		_description.text = (_entries[focus].ability as AbilityData).description
 	else:
 		_description.text = ITEMS_TEXT if _listing == Option.ITEMS else SKILLS_TEXT
 
@@ -1023,7 +1061,17 @@ func _redraw_target() -> void:
 	var target := int(targets[_target_index])
 	var arrows := targets.size() > 1
 	_target_name.text = ("◀   %s   ▶" if arrows else "%s") % String(_names.get(target, "?")).to_upper()
-	_target_detail.text = "%s: %s" % [(entry.ability as AbilityData).display_name, (entry.ability as AbilityData).description]
+	var ability := entry.ability as AbilityData
+	_target_skill.text = ability.display_name
+	_target_cost.text = _cost_text(ability)
+	_target_cost.visible = not _target_cost.text.is_empty()
+
+
+## The look numbers: `visuals`, or the CombatVisuals defaults when the HUD has not set them.
+func _look() -> CombatVisuals:
+	if visuals == null:
+		visuals = CombatVisuals.new()
+	return visuals
 
 
 ## The list and target panels: black, gold edge, the hero's colour showing under them.

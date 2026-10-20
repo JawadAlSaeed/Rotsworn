@@ -1,12 +1,16 @@
-"""Mark icons (phase 19, cards #252, #262): one small badge per hero mark and ward, drawn on the
-hero panels next to the turns left and in the Glossary.
+"""Mark icons (phase 19, cards #252, #262; every status since phase 22): one small badge per
+status, drawn on the hero panels and the enemy panels next to the turns left, on a marking hit in
+an attack's hit row, and in the Glossary.
 
-Each icon is a 10x10 hand-drawn shape in three shades of the mark's HUD colour (HudStyle.STATUS_COLORS,
-so the badge and the word always agree), inside a 12x12 cell with a 1-pixel ink outline. Shapes are
-picked to read at 1x on the dark panel: a drop for rot, a split heart for blight, a down arrow for
-weakness, a flame, a lightning bolt, an hourglass for slow, a spiral for daze, a sealed speech bubble
-for hush, a crossed shield for the ward, a round buckler for a monster's shield, a gem with an arrow
-for the AP drain.
+Each icon is a 10x10 hand-drawn shape in three shades of the status's HUD colour
+(HudStyle.STATUS_COLORS, so the badge and the word always agree), inside a 12x12 cell with a
+1-pixel ink outline. Shapes are picked to read at 1x on the dark panel: a drop for rot, a split
+heart for blight, a down arrow for weakness, a flame, a lightning bolt, an hourglass for slow, a
+spiral for daze, a sealed speech bubble for hush, a crossed shield for the ward, a round buckler
+for a monster's shield, a gem with an arrow for the AP drain; and (phase 22) a cracked shield for
+exposed, a helmet for guard, a "!" for taunted, crossed swords for riposte, two drops for bleeding,
+a plus for renew, a crosshair for Death Mark, an up arrow for empowered and dizzy stars for a
+staggered enemy (not a status: CombatVisuals.stagger_text_color).
 """
 from __future__ import annotations
 
@@ -31,6 +35,17 @@ COLORS = {
     "warded": (0.96, 0.94, 0.72),
     "shielded": (0.62, 0.86, 0.92),
     "ap_drain": (0.55, 0.88, 1.0),
+    # Phase 22: the other statuses, so every badge on a panel is an icon.
+    "exposed": (1.0, 0.55, 0.3),
+    "guarded": (0.55, 0.8, 1.0),
+    "taunted": (1.0, 0.4, 0.4),
+    "riposte": (1.0, 0.85, 0.35),
+    "bleeding": (0.9, 0.2, 0.25),
+    "regen": (0.45, 1.0, 0.5),
+    "marked": (1.0, 0.3, 0.7),
+    "empowered": (1.0, 0.75, 0.3),
+    # Mirrors CombatVisuals.stagger_text_color.
+    "staggered": (0.6, 0.85, 1.0),
 }
 
 SHAPES = {
@@ -165,6 +180,121 @@ SHAPES = {
         "....DD....",
         "..DDDDDD..",
         "...DDDD...",
+    ],
+    # A shield with a crack down it (the crack fills with the ink outline).
+    "exposed": [
+        "MMMMMMMMD.",
+        "MLLLL.LMD.",
+        "MLLL.LLMD.",
+        "MLLLL.LMD.",
+        "MLLL.LLMD.",
+        "MLLLL.LMD.",
+        ".MLL.LMD..",
+        "..MLL.D...",
+        "...MDD....",
+        "....D.....",
+    ],
+    # A helmet with a T-shaped visor.
+    "guarded": [
+        "..MMMMM...",
+        ".MLLLLLM..",
+        "MLLLLLLLM.",
+        "ML.....LD.",
+        "MLLL.LLLD.",
+        "MLLL.LLLD.",
+        "MLL...LLD.",
+        ".ML...LD..",
+        "..........",
+        "..........",
+    ],
+    "taunted": [
+        "...MMMM...",
+        "...MLLM...",
+        "...MLLM...",
+        "...MLLD...",
+        "....MD....",
+        "....MD....",
+        "..........",
+        "....MM....",
+        "...MLLD...",
+        "....DD....",
+    ],
+    # Two blades crossed, their guards and pommels at the bottom.
+    "riposte": [
+        "L........L",
+        ".L......L.",
+        "..M....M..",
+        "...M..M...",
+        "....MM....",
+        "..D.MM.D..",
+        "...M..M...",
+        "..D.DD.D..",
+        ".D......D.",
+        "M........M",
+    ],
+    # A big drop and a small one (rot is a single drop).
+    "bleeding": [
+        "..M.......",
+        "..M....M..",
+        ".MLM...M..",
+        ".MLM..MLM.",
+        "MLLLM.MLD.",
+        "MLLMM..D..",
+        "MLMMMD....",
+        "MMMMMD....",
+        ".MMMD.....",
+        "..DD......",
+    ],
+    "regen": [
+        "...MMMM...",
+        "...MLLM...",
+        "...MLLM...",
+        "MMMMLLMMMM",
+        "MLLLLLLLLD",
+        "MLLLLLLLLD",
+        "MMMMLLMDDD",
+        "...MLLD...",
+        "...MLLD...",
+        "...MDDD...",
+    ],
+    # A crosshair: the next skills on it hit harder.
+    "marked": [
+        "...MLM....",
+        ".MM.L.MM..",
+        ".M..L..M..",
+        "M.......M.",
+        "LLL.M.LLL.",
+        "M.......M.",
+        ".M..L..M..",
+        ".MM.L.MM..",
+        "...MLM....",
+        "..........",
+    ],
+    # Weakness's arrow turned up.
+    "empowered": [
+        "....ML....",
+        "...MLLM...",
+        "..MLLLLM..",
+        ".MMMLLMMM.",
+        "...MLLM...",
+        "...MLLM...",
+        "...MLLD...",
+        "...MDDD...",
+        "..........",
+        "..........",
+    ],
+    # Dizzy stars: a big sparkle, a small one and a speck.
+    "staggered": [
+        "...L......",
+        "...L......",
+        "..MLM.....",
+        "LLLLLLL...",
+        "..MLM.....",
+        "...L....M.",
+        "...L...MLM",
+        "........M.",
+        ".M........",
+        "..........",
     ],
 }
 

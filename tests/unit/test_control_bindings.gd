@@ -1,7 +1,8 @@
 extends GutTest
 ## Rebinding keys and buttons (card #190, DESIGN.md 6 and 7.5): the binding model (what is bound,
-## conflicts, swap, saving), how it reaches the Input Map and the button hints, and the Controls
-## list in the settings screen. Nothing here reads or writes the real user://settings.cfg.
+## conflicts, swap, saving) and how it reaches the Input Map and the button hints. The settings
+## screen's Controls pages and a page's own reset (card #277) are in test_settings_pages.gd.
+## Nothing here reads or writes the real user://settings.cfg.
 
 var _project: ControlBindings
 var _settings_before: ConfigFile
@@ -359,134 +360,15 @@ func test_a_list_with_a_window_scrolls_with_the_cursor() -> void:
 	assert_eq(menu.top_row(), 5)
 
 
-# --- the Controls list in the settings screen ----------------------------------------------
-
-func _settings_screen() -> SettingsScreen:
-	var screen := SettingsScreen.new()
-	var tuning := load("res://data/tuning/tuning.tres") as Tuning
-	var visuals := load("res://data/presentation/combat_visuals.tres") as CombatVisuals
-	add_child_autofree(screen)
-	screen.setup(tuning, visuals)
-	screen.open_section(SettingsScreen.Section.CONTROLS)
-	return screen
-
+# --- the Controls pages in the settings screen ---------------------------------------------
+# Rebinding on the settings screen (its Keyboard and Controller pages, card #277) is tested in
+# test_settings_pages.gd.
 
 static func _key_press(code: int) -> InputEventKey:
 	var ev := InputEventKey.new()
 	ev.physical_keycode = code as Key
 	ev.pressed = true
 	return ev
-
-
-func test_screen_rebinds_a_key_and_saves_it() -> void:
-	var screen := _settings_screen()
-	screen._controls_answer(&"defend_parry", &"confirm")
-	assert_eq(screen._capture_kind, ControlBindings.KEY)
-	screen._input(_key_press(KEY_K))
-	assert_eq(screen._capture_kind, "", "done waiting")
-	assert_true(ControlBindings.same(ControlBindings.current().primary(&"defend_parry", ControlBindings.KEY), _key(KEY_K)))
-	assert_eq(HudStyle.binding_parts(&"defend_parry")[0], "K", "the hints follow")
-	var saved: Dictionary = PlayerSettings.control_overrides()
-	assert_true(saved.has("defend_parry"))
-	assert_eq(saved.size(), 1)
-
-
-func test_screen_pad_column_takes_a_button_and_ignores_keys() -> void:
-	var screen := _settings_screen()
-	screen._controls_answer(&"defend_parry", &"right")
-	assert_eq(screen._column, ControlBindings.PAD)
-	screen._controls_answer(&"defend_parry", &"confirm")
-	screen._input(_key_press(KEY_K))
-	assert_eq(screen._capture_kind, ControlBindings.PAD, "a key does not answer a button question")
-	var press := InputEventJoypadButton.new()
-	press.button_index = JOY_BUTTON_Y
-	press.pressed = true
-	press.device = 1
-	screen._input(press)
-	assert_eq(screen._capture_kind, "")
-	assert_eq(HudStyle.binding_parts(&"defend_parry")[1], "Y")
-
-
-func test_screen_escape_and_menu_button_cancel_and_nothing_changes() -> void:
-	var screen := _settings_screen()
-	screen._controls_answer(&"defend_parry", &"confirm")
-	screen._input(_key_press(KEY_ESCAPE))
-	assert_eq(screen._capture_kind, "")
-	screen._controls_answer(&"defend_parry", &"right")
-	screen._controls_answer(&"defend_parry", &"confirm")
-	var start := InputEventJoypadButton.new()
-	start.button_index = JOY_BUTTON_START
-	start.pressed = true
-	screen._input(start)
-	assert_eq(screen._capture_kind, "")
-	assert_true(ControlBindings.current().is_default())
-	assert_eq(PlayerSettings.control_overrides(), {})
-
-
-func test_screen_waiting_too_long_cancels() -> void:
-	var screen := _settings_screen()
-	screen._controls_answer(&"defend_parry", &"confirm")
-	screen._capture_until_ms = Time.get_ticks_msec() - 1
-	screen._process(0.0)
-	assert_eq(screen._capture_kind, "")
-	assert_true(ControlBindings.current().is_default())
-
-
-func test_screen_conflict_asks_to_swap_and_confirm_swaps() -> void:
-	var screen := _settings_screen()
-	screen._controls_answer(&"defend_dodge", &"confirm")
-	screen._input(_key_press(KEY_SPACE))
-	assert_false(screen._swap.is_empty(), "Space is Parry's: asks first")
-	assert_true(ControlBindings.current().is_default(), "nothing changed yet")
-	var confirm := InputEventKey.new()
-	confirm.physical_keycode = KEY_ENTER
-	confirm.pressed = true
-	screen._unhandled_input(confirm)
-	assert_true(screen._swap.is_empty())
-	assert_eq(HudStyle.binding_parts(&"defend_dodge")[0], "Space")
-	assert_eq(HudStyle.binding_parts(&"defend_parry")[0], "Shift")
-
-
-func test_screen_conflict_back_leaves_it() -> void:
-	var screen := _settings_screen()
-	screen._controls_answer(&"defend_dodge", &"confirm")
-	screen._input(_key_press(KEY_SPACE))
-	var back := InputEventKey.new()
-	back.physical_keycode = KEY_BACKSPACE
-	back.pressed = true
-	screen._unhandled_input(back)
-	assert_true(screen._swap.is_empty())
-	assert_true(ControlBindings.current().is_default())
-
-
-func test_screen_reserved_key_keeps_waiting() -> void:
-	var screen := _settings_screen()
-	screen._controls_answer(&"defend_dodge", &"confirm")
-	screen._input(_key_press(KEY_F2))
-	assert_eq(screen._capture_kind, ControlBindings.KEY, "still waiting for a usable key")
-	screen._input(_key_press(KEY_L))
-	assert_eq(HudStyle.binding_parts(&"defend_dodge")[0], "L")
-
-
-func test_screen_reset_asks_twice() -> void:
-	var screen := _settings_screen()
-	screen._controls_answer(&"defend_parry", &"confirm")
-	screen._input(_key_press(KEY_K))
-	assert_false(ControlBindings.current().is_default())
-	screen._reset_controls()
-	assert_false(ControlBindings.current().is_default(), "the first Confirm only asks")
-	screen._reset_controls()
-	assert_true(ControlBindings.current().is_default())
-	assert_eq(HudStyle.binding_parts(&"defend_parry")[0], "Space")
-	assert_eq(PlayerSettings.control_overrides(), {})
-
-
-func test_screen_reset_row_and_back_row_are_last_in_the_list() -> void:
-	var screen := _settings_screen()
-	var rows := screen._rows_of(SettingsScreen.Section.CONTROLS)
-	assert_eq(rows.size(), ControlBindings.ACTIONS.size() + 2)
-	assert_eq(rows[rows.size() - 2], "reset")
-	assert_eq(rows[rows.size() - 1], "back")
 
 
 # --- the timing path and start-up -----------------------------------------------------------

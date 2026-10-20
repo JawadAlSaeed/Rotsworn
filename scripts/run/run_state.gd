@@ -957,6 +957,68 @@ func offer_lines(offer: ZoneOfferData, scale: int = 100) -> Dictionary:
 	return {"price": price, "gift": gift}
 
 
+## A deal as icon chips for the choice cards and the shrine's question (card #288), the same numbers
+## as offer_lines: [{kind: String, text: String, cost: bool}], the price first. Kinds (StopVisuals
+## draws each): gold, hp, max_hp, item, curse, fight (the price); heal, gold, xp, gauge, item, find,
+## relic (the gift).
+func offer_chips(offer: ZoneOfferData, scale: int = 100) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = []
+	if offer == null:
+		return chips
+	if offer.cost_gold > 0:
+		chips.append({"kind": "gold", "text": "-%d gold" % CombatMath.percent(offer.cost_gold, scale), "cost": true})
+	if offer.cost_hp_percent > 0:
+		chips.append({"kind": "hp", "text": "-%d%% HP" % offer.cost_hp_percent, "cost": true})
+	if offer.cost_max_hp_percent > 0:
+		# Who pays, as offer_lines says it: everyone ("all"), a hero you pick ("1") or a random
+		# hero ("1?"). Everyone paying costs about three times more, so the chips must differ.
+		var who := ["all", "1", "1?"][clampi(int(offer.cost_max_hp_target), 0, 2)] as String
+		chips.append({"kind": "max_hp", "text": "-%d%% max HP %s" % [offer.cost_max_hp_percent, who], "cost": true})
+	if offer.cost_item != ZoneOfferData.ItemCost.NONE:
+		chips.append({"kind": "item", "text": "-1 item?" if offer.cost_item == ZoneOfferData.ItemCost.RANDOM else "-1 item",
+				"cost": true})
+	if offer.cost_rotten != null:
+		chips.append({"kind": "curse", "text": "Curse", "cost": true})
+	if offer.ambush != null:
+		chips.append({"kind": "fight", "text": "Fight", "cost": true})
+	if offer.heal_percent > 0:
+		chips.append({"kind": "heal", "text": "+%d%% HP" % offer.heal_percent, "cost": false})
+	if offer.gold > 0:
+		chips.append({"kind": "gold", "text": "+%d gold" % CombatMath.percent(offer.gold, scale), "cost": false})
+	if offer.xp > 0:
+		chips.append({"kind": "xp", "text": "+%d XP" % CombatMath.percent(offer.xp, scale), "cost": false})
+	if offer.team_gauge > 0:
+		chips.append({"kind": "gauge", "text": "+%d gauge" % offer.team_gauge, "cost": false})
+	if offer.item != null:
+		chips.append({"kind": "item", "text": offer.item.display_name, "cost": false})
+	elif offer.find_rarity >= 0:
+		chips.append({"kind": "find", "text": ["Item", "Rare item", "Legendary item"][clampi(offer.find_rarity, 0, 2)] as String,
+				"cost": false})
+	if offer.relic_rarity >= 0:
+		chips.append({"kind": "relic", "text": ["Relic", "Rare Relic", "Legendary Relic"][clampi(offer.relic_rarity, 0, 2)] as String,
+				"cost": false})
+	if offer.ambush != null and offer.ambush_spoils:
+		chips.append({"kind": "relic", "text": "Spoils", "cost": false})
+	return chips
+
+
+## An event choice as icon chips at stop `stop_id` (default: the current one), the numbers that
+## will be paid: its deal's (offer_chips), then with a risk a die with its chance and the risk
+## deal's chips, those marked {risk: true}. The die starts a new line.
+func choice_chips(choice: EventChoiceData, stop_id: int = -2) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = []
+	if choice == null:
+		return chips
+	var scale := event_scale(at if stop_id == -2 else stop_id)
+	chips.append_array(offer_chips(choice.deal, scale))
+	if choice.risk_percent > 0 and choice.risk_deal != null:
+		chips.append({"kind": "risk", "text": "Risk %d%%" % choice.risk_percent, "cost": true, "risk": true, "newline": true})
+		for chip: Dictionary in offer_chips(choice.risk_deal, scale):
+			chip["risk"] = true
+			chips.append(chip)
+	return chips
+
+
 ## The starting pact (card #285): an event with tuning.run_pact_choices of RunData.pacts, picked by
 ## the run's seed (the same on every machine), shown before the first stop. Null if there are none.
 func pact_event() -> EventData:

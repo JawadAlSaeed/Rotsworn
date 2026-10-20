@@ -3,9 +3,11 @@ extends CanvasLayer
 ## The combat HUD on the 1920x1080 canvas (DESIGN.md 7.1, restyled in card #154: slanted ink
 ## plates edged in worn gold). The turn order as a turn track down the left edge,
 ## the attack or skill banner at the top centre, a slanted panel per enemy with its HP, status
-## badges and the attack it will use next (top right), practice status (top right), party cards
+## badges and the attack it will use next (top right; the practice keys are in the F1 panel, card
+## #275), party cards
 ## and the team gauge (with the ultimate's UNLEASH button) bottom left, the defence buttons while
-## an enemy attack plays and the skill press while a skill plays (bottom right); the action menu
+## an enemy attack plays (each with the hits it answers) and the skill press while a skill plays
+## (bottom right); the action menu
 ## floats beside the acting hero. Also popups and damage numbers, training and press rings, hit
 ## markers, lock icon, the target lock-on, F1 overlay, calibration and the end screen. It shows
 ## what the CombatMirror says; world positions are projected through the CombatView camera.
@@ -31,7 +33,6 @@ const CORNER_TITLE_SIZE: int = 22
 const CORNER_BG := Color(0.02, 0.02, 0.04, 0.6)
 const CORNER_PAD: int = 12
 const CORNER_GAP: int = 6
-const PRACTICE_SIZE: int = 17
 ## Enemy panels (top right).
 const ENEMY_NAME_SIZE: int = 26
 const ENEMY_HP_SIZE: int = 21
@@ -46,19 +47,14 @@ const ENEMY_PANEL_BORDER := Color(0.55, 0.18, 0.16, 0.9)
 const ENEMY_NAME_LIGHTEN: float = 0.3
 ## A beaten enemy's panel fades back to this.
 const DEFEATED_TINT := Color(0.75, 0.75, 0.78, 0.55)
-## Status badges under an enemy's bar.
-const BADGE_PAD_X: int = 7
-const BADGE_PAD_Y: int = 1
-const BADGE_RADIUS: int = 5
-const BADGE_BORDER_PX: int = 2
+## Status icons under an enemy's bar (phase 22: icons with the turns left, HudStyle.status_chip).
 const BADGE_GAP: int = 6
-const BADGE_BG_DARKEN: float = 0.72
-const BADGE_BG_ALPHA: float = 0.92
 const PANEL_GAP: int = 14
 ## The defence and skill press buttons (bottom right): one slanted plate per button.
 const PRESS_PLATE_SIZE: int = 24
 const PRESS_CHIP_SIZE: int = 28
-const PRESS_NOTE_SIZE: int = 17
+## The skill press plate's word (the button chip says which button).
+const SKILL_PRESS_TEXT := "PRESS"
 
 const END_TITLE_SIZE: int = 150
 const END_HINT_SIZE: int = 40
@@ -68,6 +64,10 @@ const TARGET_MARKER_SIZE: int = 40
 ## The arrow over a chosen or attacked fighter.
 const TARGET_ARROW := "▼"
 const END_SUMMARY_SIZE: int = 30
+## The end screen's icon rows (phase 22): word size under an icon, gaps between chips and rows.
+const END_CHIP_SIZE: int = 28
+const END_CHIP_GAP: int = 22
+const END_ROW_GAP: int = 18
 ## Team gauge panel (bottom right).
 const GAUGE_WIDTH: float = 300.0
 const UNLEASH_TEXT := "UNLEASH"
@@ -87,10 +87,15 @@ const GAUGE_GLOW_MIN_SHARE: float = 0.35
 const GAUGE_GLOW_ALPHA: float = 0.75
 const ENEMY_STATUS_SIZE: int = 18
 const INTENT_SIZE: int = 22
+## The intent sign's hit row is never wider than this, so a long attack fits beside its name on the
+## panel instead of stretching the panel and its HP bar (card #279).
+const INTENT_ROW_MAX_WIDTH: float = 210.0
 ## The break bar under a gathering enemy's HP (card #195).
 const DOOM_BAR_HEIGHT: float = 10.0
-## The extra badge word of a staggered enemy.
+## The extra badge of a staggered enemy (its icon is mark_staggered.png, HudStyle.mark_icon).
 const STAGGER_BADGE_ID := "staggered"
+## A gathering Doom's line over its break bar: the turns left (card #195, phase 22).
+const DOOM_TEXT := "DOOM %d"
 ## The turn order column's see-through while an attack or a skill plays, and how fast it fades.
 const TIMELINE_BUSY_ALPHA: float = 0.3
 const TIMELINE_FADE_S: float = 0.2
@@ -121,12 +126,11 @@ var _banner_from: Label
 var _banner_row: HitRowView
 var _center_banner: Label
 var _enemy_box: VBoxContainer
-## Enemy id -> {panel: PanelContainer, bar: TrailBar, hp: Label, badges: HBoxContainer,
-## badge_key: String (what the badges show now)}.
+## Enemy id -> {panel: PanelContainer, bar: TrailBar, hp: Label, badges: HFlowContainer (status
+## icons), badge_key: String (what the badges show now)}.
 var _enemy_rows: Dictionary = {}
 var _party_box: HBoxContainer
 var _party_panels: Dictionary = {}
-var _practice_label: Label
 var _popup_layer: Control
 var _ring_layer: RingLayer
 var _marker_layer: HitMarkerLayer
@@ -144,6 +148,8 @@ var _end_title: Label
 var _end_summary: Label
 var _end_hint: HintBar
 var _end_note: Label
+## A won run fight's rewards and heroes as icon rows (show_end's `rewards`).
+var _end_rewards: VBoxContainer
 var _portraits: Dictionary = {}
 var _colors: Dictionary = {}
 ## Popups on screen, oldest first: [{label: Label, base: Vector2 (spawn centre), born_us: int}].
@@ -178,7 +184,7 @@ var _time_s: float = 0.0
 ## shown: Array (kinds and times on the row), next: the NEXT / DOOM word, doom: the Doom block,
 ## doom_label: Label, doom_bar: TrailBar}.
 var _intent_signs: Dictionary = {}
-## AttackHitData.Kind -> Texture2D.
+## HitRowView.icon_key -> Texture2D.
 var _hit_icons: Dictionary = {}
 ## The enemy panels' see-through: back during enemy attacks, full at once on a parry or counter.
 var _enemy_fade := EnemyPanelsFade.new()
@@ -257,12 +263,7 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_reticle.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(_reticle)
 
-	_hit_icons = {
-		AttackHitData.Kind.NORMAL: AssetLoader.texture(visuals.hit_icon_normal_path, Vector2i(12, 12)),
-		AttackHitData.Kind.GROUND: AssetLoader.texture(visuals.hit_icon_ground_path, Vector2i(12, 12)),
-		AttackHitData.Kind.REND: AssetLoader.texture(visuals.hit_icon_rend_path, Vector2i(12, 12)),
-		AttackHitData.Kind.SWEEP: AssetLoader.texture(visuals.hit_icon_sweep_path, Vector2i(12, 12)),
-	}
+	_hit_icons = HitRowView.load_icons(visuals)
 	_timeline = TimelineRow.new()
 	_timeline.name = "Timeline"
 	_timeline.position = Vector2(MARGIN, MARGIN)
@@ -304,7 +305,7 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_center_banner.visible = false
 	_root.add_child(_center_banner)
 
-	# Top right: a framed panel per enemy (HP, statuses), then the practice status under them.
+	# Top right: a framed panel per enemy (HP, statuses) and nothing under them (card #275).
 	var right_column := VBoxContainer.new()
 	right_column.name = "RightColumn"
 	right_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -325,12 +326,6 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_enemy_box.add_theme_constant_override("separation", ENEMY_STACK_GAP)
 	_enemy_box.size_flags_horizontal = Control.SIZE_SHRINK_END
 	right_column.add_child(_enemy_box)
-	_practice_label = HudStyle.make_label("", PRACTICE_SIZE, HudStyle.GOLD)
-	_practice_label.name = "PracticeStatus"
-	_practice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_practice_label.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_practice_label.visible = tuning.practice_tools_enabled
-	right_column.add_child(_practice_label)
 
 	_party_box = HBoxContainer.new()
 	_party_box.name = "Party"
@@ -346,13 +341,15 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_build_gauge()
 
 	# Bottom right, hidden until needed (the action menu uses this corner on the party's turn).
-	_controls = _make_corner("ControlsHint", "DEFEND", HudStyle.LATE, _defend_row(),
-			"Ground wave: Jump only    Parry every hit: counterattack")
-	_skill_hint = _make_corner("SkillPressHint", "PRESS ON THE BEAT", HudStyle.GOLD,
-			_press_row([[&"skill_press", "SKILL PRESS"]], HudStyle.GOLD))
+	# The rules (a ground wave wants Jump, parrying every hit counters) are taught by the hit icons
+	# on the plates and in the tutorial and Glossary, not written here (phase 22).
+	_controls = _make_corner("ControlsHint", "DEFEND", HudStyle.LATE, _defend_row())
+	_skill_hint = _make_corner("SkillPressHint", "", HudStyle.GOLD,
+			_press_row([[&"skill_press", SKILL_PRESS_TEXT]], HudStyle.GOLD))
 
 	action_menu = ActionMenu.new()
 	action_menu.name = "ActionMenu"
+	action_menu.visuals = visuals
 	_root.add_child(action_menu)
 	action_menu.ultimate_pressed.connect(_on_ultimate_pressed)
 
@@ -394,7 +391,8 @@ func build_fighters(mirror: CombatMirror, data_by_id: Dictionary) -> void:
 		_enemy_rows[id] = _make_enemy_panel(id, String(mirror.fighter(id).display_name))
 
 
-## Updates every bar, panel and the timeline from the mirror.
+## Updates every bar, panel and the timeline from the mirror. `practice_text` (the practice keys,
+## "" outside practice) goes to the F1 panel, never on the fight screen itself (card #275).
 func refresh(mirror: CombatMirror, practice_text: String) -> void:
 	var order: Array[int] = []
 	if mirror.result.is_empty():
@@ -415,7 +413,7 @@ func refresh(mirror: CombatMirror, practice_text: String) -> void:
 		(row.panel as Control).modulate = Color.WHITE if alive else DEFEATED_TINT
 		_show_badges(row, (f.get("statuses", {}) as Dictionary) if alive else {}, int(f.get("staggered", 0)) if alive else 0)
 		_refresh_intent_sign(id, mirror)
-	_practice_label.text = practice_text
+	overlay.practice_text = practice_text
 	_refresh_gauge(mirror.team_gauge)
 	_in_danger = false
 	if mirror.result.is_empty():
@@ -455,9 +453,9 @@ func show_banner(text: String, accent: Color = HudStyle.LATE, from: String = "")
 
 
 ## Shows the attack's hits under the banner text, spaced by time (`kinds` AttackHitData.Kind,
-## `times` impacts in ms), all upcoming.
-func set_banner_hits(kinds: Array, times: Array, feints: Array = [], marks: Array = []) -> void:
-	_banner_row.set_hits(kinds, times, _hit_icons, feints, marks)
+## `times` impacts in ms, `ranged` which are thrown), all upcoming.
+func set_banner_hits(kinds: Array, times: Array, feints: Array = [], marks: Array = [], ranged: Array = []) -> void:
+	_banner_row.set_hits(kinds, times, _hit_icons, feints, marks, ranged)
 	_banner_row.set_states([])
 	_banner_row.modulate.a = 1.0
 	_banner_row.visible = not kinds.is_empty()
@@ -475,9 +473,9 @@ func show_banner_hits(shown: bool) -> void:
 	_banner_row.modulate.a = 1.0 if shown else 0.0
 
 
-## The intent icon texture of an AttackHitData.Kind.
-func hit_icon(kind: int) -> Texture2D:
-	return _hit_icons.get(kind) as Texture2D
+## The intent icon texture of an AttackHitData.Kind (`ranged`: the hit is thrown, card #278).
+func hit_icon(kind: int, ranged: bool = false) -> Texture2D:
+	return _hit_icons.get(HitRowView.icon_key(kind, ranged)) as Texture2D
 
 
 ## Shows these hit markers (see HitMarkerLayer); empty hides them all.
@@ -657,14 +655,11 @@ func _menu_area() -> Rect2:
 	return Rect2(Vector2(left, top), Vector2(_root.size.x - MARGIN - left, maxf(0.0, bottom - top)))
 
 
-## What the action menu should not cover: each standing enemy, the enemy panels and the practice
-## lines.
+## What the action menu should not cover: each standing enemy and the enemy panels.
 func _menu_avoid() -> Array[Rect2]:
 	var boxes: Array[Rect2] = [_enemy_box.get_global_rect()]
 	if _banner.visible:
 		boxes.append(_banner.get_global_rect())
-	if _practice_label.visible and not _practice_label.text.is_empty():
-		boxes.append(_practice_label.get_global_rect())
 	for id: int in _enemy_rows:
 		var v := _view.fighter(id)
 		if v != null and v.visible and not v.is_dissolving():
@@ -805,10 +800,11 @@ func set_target_marker(world_pos: Vector3, shown: bool) -> void:
 		_target_marker.position = _view.screen_position(world_pos) - Vector2(_target_marker.size.x * 0.5, _target_marker.size.y)
 
 
-## The victory or defeat screen, with a short summary of the fight; `hints` ([[action, text], ...])
-## say what the buttons do (the controller knows whether this is a test fight, a zone fight or a
-## run fight) and `note` adds a line above them.
-func show_end(result: String, summary: String, hints: Array, note: String = "") -> void:
+## The victory or defeat screen, with a short summary of the fight (practice only; "" hides it);
+## `hints` ([[action, text], ...]) say what the buttons do (the controller knows whether this is a
+## test fight, a zone fight or a run fight) and `note` adds a line above them. `rewards` (a won run
+## fight, CombatController._end_rewards) shows as icon rows: what was won, then each hero's XP.
+func show_end(result: String, summary: String, hints: Array, note: String = "", rewards: Dictionary = {}) -> void:
 	match result:
 		"victory":
 			_end_title.text = "VICTORY"
@@ -820,6 +816,8 @@ func show_end(result: String, summary: String, hints: Array, note: String = "") 
 			_end_title.text = "DEFEAT"
 			_end_title.label_settings.font_color = DEFEAT_COLOR
 	_end_summary.text = summary
+	_end_summary.visible = not summary.is_empty()
+	_fill_end_rewards(rewards)
 	_end_hint.set_entries(hints)
 	_end_note.text = note
 	_end_note.visible = not note.is_empty()
@@ -833,6 +831,92 @@ func show_end(result: String, summary: String, hints: Array, note: String = "") 
 	_end_screen.create_tween().tween_property(_end_screen, "modulate:a", 1.0, float(_visuals.end_fade_ms) / 1000.0)
 	# The F1 stats can be read on the end screen: draw them above its dim.
 	_root.move_child(overlay, -1)
+
+
+## Rebuilds the end screen's icon rows: a row of chips (icon + word) and a row of heroes (portrait,
+## "+N XP", a gold "Lv N" when they level; a downed hero greyed). Hidden when `rewards` is empty.
+func _fill_end_rewards(rewards: Dictionary) -> void:
+	for child: Node in _end_rewards.get_children():
+		_end_rewards.remove_child(child)
+		child.queue_free()
+	_end_rewards.visible = not rewards.is_empty()
+	var chips := HBoxContainer.new()
+	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chips.alignment = BoxContainer.ALIGNMENT_CENTER
+	chips.add_theme_constant_override("separation", END_CHIP_GAP)
+	for chip: Dictionary in rewards.get("chips", []):
+		chips.add_child(_end_chip(chip.get("icon") as Texture2D, String(chip.get("text", "")),
+				chip.get("color", HudStyle.TEXT) as Color))
+	if chips.get_child_count() > 0:
+		_end_rewards.add_child(chips)
+	else:
+		chips.free()
+	var heroes := HBoxContainer.new()
+	heroes.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heroes.alignment = BoxContainer.ALIGNMENT_CENTER
+	heroes.add_theme_constant_override("separation", END_CHIP_GAP * 2)
+	for hero: Dictionary in rewards.get("heroes", []):
+		heroes.add_child(_end_hero(hero))
+	if heroes.get_child_count() > 0:
+		_end_rewards.add_child(heroes)
+	else:
+		heroes.free()
+
+
+## One reward chip: its icon (none: the word alone) and its word on a dark plate.
+func _end_chip(icon: Texture2D, text: String, color: Color) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", HudStyle.panel())
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	if icon != null:
+		row.add_child(_end_icon(icon, _visuals.end_icon_px))
+	var label := HudStyle.make_label(text, END_CHIP_SIZE, color)
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(label)
+	return panel
+
+
+## One hero on the end screen: the portrait, "+N XP" under it, and a gold "Lv N" when they level up.
+## A downed hero's portrait is greyed out.
+func _end_hero(hero: Dictionary) -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_constant_override("separation", 4)
+	var picture := _end_icon(hero.get("portrait") as Texture2D, _visuals.end_portrait_px)
+	picture.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var down := bool(hero.get("down", false))
+	if down:
+		picture.modulate = _visuals.end_down_tint
+	box.add_child(picture)
+	var xp := HudStyle.make_label(String(hero.get("text", "")), END_CHIP_SIZE, HudStyle.TEXT_DIM if down else HudStyle.TEXT)
+	xp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(xp)
+	var level := int(hero.get("level", 0))
+	if level > 0:
+		var up := HudStyle.make_title("Lv %d" % level, END_CHIP_SIZE, HudStyle.GOLD)
+		up.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(up)
+	return box
+
+
+func _end_icon(texture: Texture2D, px: int) -> TextureRect:
+	var picture := TextureRect.new()
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	picture.texture = texture
+	picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.custom_minimum_size = Vector2(px, px)
+	return picture
+
+
+## How many icon rows the end screen shows (tests).
+func end_reward_rows() -> int:
+	return _end_rewards.get_child_count() if _end_rewards.visible else 0
 
 
 func is_end_shown() -> bool:
@@ -858,26 +942,23 @@ func _banner_top(wanted: float) -> float:
 
 
 ## The bottom-right corner (where the action menu sits on the party's turn): a slanted title tag
-## in `title_color`, `content` (button plates) under it and an optional `note`, right-aligned.
-## Hidden until _fade_corner shows it.
-func _make_corner(node_name: String, title: String, title_color: Color, content: Control, note: String = "") -> VBoxContainer:
+## in `title_color` ("" for none) and `content` (button plates) under it, right-aligned. Hidden
+## until _fade_corner shows it.
+func _make_corner(node_name: String, title: String, title_color: Color, content: Control) -> VBoxContainer:
 	var corner := VBoxContainer.new()
 	corner.name = node_name
 	corner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	corner.alignment = BoxContainer.ALIGNMENT_END
 	corner.add_theme_constant_override("separation", 10)
-	var tag := PanelContainer.new()
-	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tag.size_flags_horizontal = Control.SIZE_SHRINK_END
-	tag.add_theme_stylebox_override("panel", HudStyle.slant(Color(title_color.darkened(0.7), 0.94), title_color, 3, 6, 44.0))
-	tag.add_child(HudStyle.make_title(title, CORNER_TITLE_SIZE + 8, title_color.lightened(0.2)))
-	corner.add_child(tag)
+	if not title.is_empty():
+		var tag := PanelContainer.new()
+		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tag.size_flags_horizontal = Control.SIZE_SHRINK_END
+		tag.add_theme_stylebox_override("panel", HudStyle.slant(Color(title_color.darkened(0.7), 0.94), title_color, 3, 6, 44.0))
+		tag.add_child(HudStyle.make_title(title, CORNER_TITLE_SIZE + 8, title_color.lightened(0.2)))
+		corner.add_child(tag)
 	content.size_flags_horizontal = Control.SIZE_SHRINK_END
 	corner.add_child(content)
-	if not note.is_empty():
-		var label := HudStyle.make_label(note, PRESS_NOTE_SIZE, HudStyle.TEXT_DIM.lightened(0.25))
-		label.size_flags_horizontal = Control.SIZE_SHRINK_END
-		corner.add_child(label)
 	corner.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	corner.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	corner.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -889,17 +970,24 @@ func _make_corner(node_name: String, title: String, title_color: Color, content:
 	return corner
 
 
-## The three defence buttons as plates side by side, each in its defence colour.
-func _defend_row() -> HBoxContainer:
-	return _press_row([[&"defend_parry", "PARRY", HudStyle.PARRY], [&"defend_dodge", "DODGE", HudStyle.DODGE],
-			[&"defend_jump", "JUMP", HudStyle.JUMP]], HudStyle.EDGE)
+## The three defence buttons as plates stacked in the corner, each in its defence colour, with the
+## hit icons it answers (DESIGN.md 3.8): Parry a normal hit or a rend, Dodge a normal hit or a
+## sweep, Jump a ground wave. Stacked, not side by side: with their icons, three plates in a row
+## reached over the team gauge card (owner's picture, phase 22).
+func _defend_row() -> BoxContainer:
+	var normal := AttackHitData.Kind.NORMAL
+	return _press_row([[&"defend_parry", "PARRY", HudStyle.PARRY, [normal, AttackHitData.Kind.REND]],
+			[&"defend_dodge", "DODGE", HudStyle.DODGE, [normal, AttackHitData.Kind.SWEEP]],
+			[&"defend_jump", "JUMP", HudStyle.JUMP, [AttackHitData.Kind.GROUND]]], HudStyle.EDGE, true)
 
 
-## A row of button plates: [[action, word, colour?], ...] (colour: the word's and the edge's).
-func _press_row(entries: Array, edge: Color) -> HBoxContainer:
-	var row := HBoxContainer.new()
+## A row of button plates: [[action, word, colour?, hit kinds?], ...] (colour: the word's and the
+## edge's; hit kinds: the HitRowView icons drawn after the word). `stacked`: one plate under the
+## other, all as wide as the widest, their icons lined up on the right.
+func _press_row(entries: Array, edge: Color, stacked: bool = false) -> BoxContainer:
+	var row: BoxContainer = VBoxContainer.new() if stacked else HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 8 if stacked else 12)
 	for entry: Array in entries:
 		var color: Color = entry[2] if entry.size() > 2 else edge
 		var plate := PanelContainer.new()
@@ -914,7 +1002,14 @@ func _press_row(entries: Array, edge: Color) -> HBoxContainer:
 		line.add_child(HintBar.new([[StringName(entry[0]), ""]], PRESS_CHIP_SIZE, HudStyle.TEXT))
 		var word := HudStyle.make_title(String(entry[1]), PRESS_PLATE_SIZE, color)
 		word.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		if stacked:
+			word.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(word)
+		var kinds: Array = entry[3] if entry.size() > 3 else []
+		for kind: Variant in kinds:
+			var picture := HudStyle.icon(_hit_icons.get(int(kind)) as Texture2D, _visuals.defend_hit_icon_px)
+			picture.name = "Hit%d" % int(kind)
+			line.add_child(picture)
 		row.add_child(plate)
 	return row
 
@@ -1000,7 +1095,9 @@ func _refresh_gauge(value: int) -> void:
 
 
 ## One enemy's framed panel (top right): name in the title font, HP bar with the numbers on it,
-## status badges under it (hidden while there are none).
+## status icons with their turns under it (hidden while there are none). Nothing on it may be wider
+## than the HP bar (card #279): long words end in "...", the icons wrap onto a second line and the
+## intent's hit row is capped, so every bar keeps ENEMY_BAR_WIDTH.
 func _make_enemy_panel(id: int, display_name: String) -> Dictionary:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1025,18 +1122,20 @@ func _make_enemy_panel(id: int, display_name: String) -> Dictionary:
 	var name_label := HudStyle.make_title(display_name.to_upper(), ENEMY_NAME_SIZE, color_of(id).lightened(ENEMY_NAME_LIGHTEN))
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	header.add_child(name_label)
 	var bar := TrailBar.new(HudStyle.ENEMY_HP_FILL, ENEMY_BAR_HEIGHT, _visuals.hp_trail_color,
 			_visuals.hp_trail_hold_ms, _visuals.hp_trail_drain_ms, _visuals.heal_fill_ms)
 	bar.custom_minimum_size.x = ENEMY_BAR_WIDTH
 	column.add_child(bar)
-	var badges := HBoxContainer.new()
+	var badges := HFlowContainer.new()
 	badges.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badges.alignment = BoxContainer.ALIGNMENT_END
-	badges.add_theme_constant_override("separation", BADGE_GAP)
+	badges.alignment = FlowContainer.ALIGNMENT_END
+	badges.add_theme_constant_override("h_separation", BADGE_GAP)
+	badges.add_theme_constant_override("v_separation", BADGE_GAP)
 	badges.visible = false
 	column.add_child(badges)
-	# A Doom being gathered (card #195): "DOOM IN 2" and a bar filling toward the break.
+	# A Doom being gathered (card #195): "DOOM 2" (turns left) over a bar filling toward the break.
 	var doom := VBoxContainer.new()
 	doom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	doom.add_theme_constant_override("separation", 2)
@@ -1045,12 +1144,14 @@ func _make_enemy_panel(id: int, display_name: String) -> Dictionary:
 	var doom_label := HudStyle.make_title("", INTENT_SIZE, _visuals.doom_text_color)
 	doom_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	doom_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	doom_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	doom.add_child(doom_label)
 	var doom_bar := TrailBar.new(_visuals.break_bar_color, DOOM_BAR_HEIGHT, _visuals.hp_trail_color,
 			_visuals.hp_trail_hold_ms, _visuals.hp_trail_drain_ms, _visuals.heal_fill_ms)
 	doom_bar.custom_minimum_size.x = ENEMY_BAR_WIDTH
 	doom.add_child(doom_bar)
-	# What it will do next: "NEXT  Sting String > CASS" and one icon per hit, spaced by time.
+	# What it will do next: "NEXT  Sting String > CASS" and one icon per hit, spaced by time (a
+	# marking hit wears its mark's icon).
 	var intent := HBoxContainer.new()
 	intent.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	intent.alignment = BoxContainer.ALIGNMENT_END
@@ -1062,8 +1163,12 @@ func _make_enemy_panel(id: int, display_name: String) -> Dictionary:
 	intent.add_child(next)
 	var intent_label := HudStyle.make_label("", INTENT_SIZE)
 	intent_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	intent_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	intent_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	intent_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	intent.add_child(intent_label)
 	var hits := HitRowView.new()
+	hits.max_width_px = INTENT_ROW_MAX_WIDTH
 	hits.setup(_visuals.intent_icon_px, _visuals)
 	hits.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	intent.add_child(hits)
@@ -1073,62 +1178,36 @@ func _make_enemy_panel(id: int, display_name: String) -> Dictionary:
 	return {"panel": panel, "bar": bar, "hp": hp_label, "badges": badges, "badge_key": ""}
 
 
-## Rebuilds an enemy panel's status badges, only when what they say changed.
+## Rebuilds an enemy panel's status icons, only when what they say changed.
 func _show_badges(row: Dictionary, statuses: Dictionary, staggered: int = 0) -> void:
-	var badges := _status_badges(statuses)
-	if staggered > 0:
-		badges.append([STAGGER_BADGE_ID, "STAGGERED"])
+	var badges := enemy_badges(statuses, staggered)
 	var key := str(badges)
 	if key == String(row.badge_key):
 		return
 	row["badge_key"] = key
-	var box := row.badges as HBoxContainer
+	var box := row.badges as HFlowContainer
 	for child: Node in box.get_children():
 		box.remove_child(child)
-		child.queue_free()
+		child.free()
 	for badge: Array in badges:
-		box.add_child(_make_badge(String(badge[0]), String(badge[1])))
+		var id := String(badge[0])
+		var color := _visuals.stagger_text_color if id == STAGGER_BADGE_ID else Color(0.0, 0.0, 0.0, 0.0)
+		box.add_child(HudStyle.status_chip(id, int(badge[1]), _visuals.status_icon_px, ENEMY_STATUS_SIZE, color))
 	box.visible = not badges.is_empty()
 
 
-## [[status id, "SLOWED 2"], ...] from a fighter's statuses (mirror format) in Status.ALL order:
-## HudStyle.status_text's words, one badge each.
-static func _status_badges(statuses: Dictionary) -> Array[Array]:
-	var badges: Array[Array] = []
-	for id: String in Status.ALL:
-		if not statuses.has(id):
-			continue
-		var text := String(HudStyle.STATUS_NAMES.get(id, id.to_upper()))
-		var turns := int((statuses[id] as Dictionary).get("turns", 0))
-		if Status.shows_count(id) and turns > 0:
-			text += " %d" % turns
-		badges.append([id, text])
+## [[status id, turns], ...] an enemy panel draws as icons (phase 22): its statuses
+## (HudStyle.status_badges; turns 0 when the status shows no count), then the stagger with its turns.
+static func enemy_badges(statuses: Dictionary, staggered: int = 0) -> Array[Array]:
+	var badges := HudStyle.status_badges(statuses)
+	if staggered > 0:
+		badges.append([STAGGER_BADGE_ID, staggered])
 	return badges
 
 
-## A small rounded badge in the status's colour (HudStyle.STATUS_COLORS).
-func _make_badge(status: String, text: String) -> PanelContainer:
-	var color := HudStyle.STATUS_COLORS.get(status, HudStyle.TEXT) as Color
-	if status == STAGGER_BADGE_ID:
-		color = _visuals.stagger_text_color
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(color.darkened(BADGE_BG_DARKEN), BADGE_BG_ALPHA)
-	style.border_color = color
-	style.set_border_width_all(BADGE_BORDER_PX)
-	style.set_corner_radius_all(BADGE_RADIUS)
-	style.content_margin_left = BADGE_PAD_X
-	style.content_margin_right = BADGE_PAD_X
-	style.content_margin_top = BADGE_PAD_Y
-	style.content_margin_bottom = BADGE_PAD_Y
-	var badge := PanelContainer.new()
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.add_theme_stylebox_override("panel", style)
-	badge.add_child(HudStyle.make_label(text, ENEMY_STATUS_SIZE, color))
-	return badge
-
-
 ## "Flurry  >  BRIN" (or "WHOLE PARTY") and one icon per hit spaced by time (the attack's
-## rhythm), from the enemy's intent, on the enemy's panel.
+## rhythm), from the enemy's intent, on the enemy's panel. The marks its hits leave are icons on
+## those hits (HitRowView), not words (phase 22).
 func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 	var entry: Dictionary = _intent_signs.get(id, {})
 	if entry.is_empty():
@@ -1141,20 +1220,26 @@ func _refresh_intent_sign(id: int, mirror: CombatMirror) -> void:
 		return
 	var who := target_text(mirror, int(intent.get("mode", 0)), intent.get("targets", []) as Array)
 	var marks: Array = intent.get("marks", [])
-	(entry.label as Label).text = "%s  >  %s%s" % [String(intent.get("name", "?")), who, HudStyle.mark_text(marks)]
+	(entry.label as Label).text = intent_text(String(intent.get("name", "?")), who)
 	var kinds: Array = intent.get("kinds", [])
 	var times: Array = intent.get("times", [])
 	var feints: Array = intent.get("feints", [])
-	var shown := [kinds, times, feints, marks]
+	var ranged: Array = intent.get("ranged", [])
+	var shown := [kinds, times, feints, marks, ranged]
 	if shown != entry.shown:
 		entry.shown = shown
-		(entry.row as HitRowView).set_hits(kinds, times, _hit_icons, feints, marks)
+		(entry.row as HitRowView).set_hits(kinds, times, _hit_icons, feints, marks, ranged)
 	panel.visible = true
 
 
-## The Doom block of an enemy's panel (card #195): "DOOM IN 2   BREAK 120 / 840" over a bar that
-## fills as the party deals damage; hidden unless the enemy is gathering a Doom. The NEXT word
-## turns into DOOM.
+## The intent sign's words: the attack's name and who it is aimed at ("Sting String  >  CASS").
+static func intent_text(attack_name: String, who: String) -> String:
+	return "%s  >  %s" % [attack_name, who]
+
+
+## The Doom block of an enemy's panel (card #195): "DOOM 2" (its turns left) over a bar that fills
+## as the party deals damage toward the break (phase 22: no break numbers); hidden unless the enemy
+## is gathering a Doom. The NEXT word turns into DOOM.
 func _refresh_doom_sign(entry: Dictionary, id: int, mirror: CombatMirror) -> void:
 	var next := entry.next as Label
 	var charging := mirror.result.is_empty() and mirror.is_charging(id)
@@ -1165,7 +1250,7 @@ func _refresh_doom_sign(entry: Dictionary, id: int, mirror: CombatMirror) -> voi
 		return
 	var f := mirror.fighter(id)
 	var left := int(f.charge_left)
-	(entry.doom_label as Label).text = "DOOM IN %d    BREAK %d / %d" % [left, int(f.charge_damage), int(f.break_hp)]
+	(entry.doom_label as Label).text = DOOM_TEXT % left
 	(entry.doom_bar as TrailBar).set_values(int(f.charge_damage), int(f.break_hp))
 
 
@@ -1240,6 +1325,11 @@ func _build_end_screen() -> void:
 	_end_summary = HudStyle.make_label("", END_SUMMARY_SIZE)
 	_end_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_end_summary)
+	_end_rewards = VBoxContainer.new()
+	_end_rewards.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_end_rewards.add_theme_constant_override("separation", END_ROW_GAP)
+	_end_rewards.visible = false
+	column.add_child(_end_rewards)
 	_end_note = HudStyle.make_label("", END_SUMMARY_SIZE, HudStyle.TEXT_DIM)
 	_end_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_end_note)

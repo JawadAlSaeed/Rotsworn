@@ -3,21 +3,29 @@ extends CanvasLayer
 ## The players screen before a run or practice (DESIGN.md 9.1). The device that opened it is P1.
 ## Another keyboard or pad presses Confirm to join (up to three players) and Back to leave. The
 ## heroes are dealt out in turn (P1 gets the extra one); left/right on a hero hands it to another
-## player, as long as every player keeps a hero. Start begins with this roster; Back (or P1's
-## Cancel) returns to the main menu and leaves the old roster alone.
+## player, as long as every player keeps a hero. Confirm starts with this roster; Back (P1's Cancel)
+## returns to the main menu and leaves the old roster alone.
 ##
-## The heroes stand side by side as big painted portraits (cards #140, #141), like an arcade
-## select screen: the one the cursor is on gets a gold frame, a name plate under each says who
-## plays it.
+## Phase 22 layout, top to bottom, all centred: the players line (each player's tag and device; the
+## first open seat shows the buttons that can join right now, the pad's and the keyboard's Confirm),
+## the heroes as big painted portraits side by side (cards #140, #141; the one the cursor is on gets
+## a gold frame, a name plate under each says who plays it), then the Oath picker and the big Start
+## button side by side. The footer: Choose, Change, Start, Back.
 ##
-## A run's screen (not practice) also has an Oath row (DESIGN.md 8.15): left/right picks how hard the
-## run is, from none up to the highest oath this machine unlocked; the rules of the picked oath and
-## those below it are listed beside the cards. Online only the host picks; the clients see its pick.
+## A run's screen (not practice) has the Oath picker (DESIGN.md 8.15): left/right picks how hard the
+## run is, from none up to the highest oath this machine unlocked; what the picked oath and those
+## below it change is shown in the picker as icon chips (oath_chips). Online only the host picks;
+## the clients see its pick.
+##
+## The cursor (a ListMenu whose rows are all drawn by this screen instead) stops on each hero card,
+## the Oath picker and Start. Confirm starts from any of them. The mouse points at a card, the picker
+## or Start to choose it; a click on a card's or the picker's left or right half steps it that way,
+## a click on Start starts, a right click goes back.
 ##
 ## Online (DESIGN.md 9.2) one player is one machine. The host's screen shows the address friends
 ## type in; players join over the network (Main calls add_peer / remove_peer) and the host hands
-## heroes out and starts. A client's screen only shows the roster the host sends (set_roster) and
-## waits; its Back leaves the game.
+## heroes out and starts. A client's screen only shows the roster and oath the host sends
+## (set_roster, set_oath) and waits, with no Start; its Back leaves the game.
 
 ## Confirmed: play with `players` at oath `oath` (0: none; always 0 in practice).
 signal started(players: PlayerRoster, oath: int)
@@ -29,24 +37,35 @@ signal oath_changed(oath: int)
 
 const TITLE_SIZE: int = 64
 const PLAYER_SIZE: int = 34
-const DETAIL_SIZE: int = 26
+## The host's address line.
+const NOTE_SIZE: int = 26
+const PLAYERS_GAP: int = 56
+const DEVICE_GLYPH_PX: float = 34.0
 ## Hero cards: the big portrait's top CARD_ROWS rows (the face and shoulders), CARD_SCALE times
 ## its pixels, in a frame CARD_BORDER wide; the name plate under it.
 const CARD_SCALE: float = 2.0
-## With an oath row the cards are smaller, to make room for the oath's rules beside them.
+## With an Oath picker the cards are smaller, to make room for it under them. Bigger text (the
+## Text size setting) makes the cards smaller still, so the screen always fits.
 const CARD_SCALE_OATH: float = 1.5
-const RULES_WIDTH: float = 640.0
-const RULES_SIZE: int = 22
 const CARD_ROWS: int = 240
 const CARD_BORDER: int = 4
 const CARD_GAP: int = 28
 const PLATE_SIZE: int = 34
 const CARD_FRAME := Color(0.36, 0.33, 0.3)
 const CARD_DIM := Color(0.55, 0.55, 0.55)
+## The Oath picker and the Start button under the cards: their widths, text sizes and the gap.
+const PICKER_WIDTH: float = 960.0
+const PICKER_SIZE: int = 36
+const EFFECT_SIZE: int = 22
+const START_WIDTH: float = 320.0
+const START_SIZE: int = 52
+const BUTTONS_GAP: int = 40
+## The picker's line when no oath is picked.
+const NO_CHANGE := "Normal road"
 
 ## The heroes' big portraits, in hero order (set before setup).
 var hero_portraits: Array[String] = []
-## The oath ladder (set before setup; empty: no Oath row, as in practice), the highest oath this
+## The oath ladder (set before setup; empty: no Oath picker, as in practice), the highest oath this
 ## machine may pick, and the oath to start on.
 var oaths: Array[OathData] = []
 var oath_unlocked: int = 0
@@ -54,18 +73,25 @@ var start_oath: int = 0
 
 var _roster: PlayerRoster
 var _hero_names: Array[String] = []
+## The cursor: one hidden row per hero, the Oath picker (if any) and Start.
 var _menu: ListMenu
-var _player_labels: Array[Label] = []
-## Per player line: "press [Confirm button] to join" with the button as a picture (empty slots).
-var _join_hints: Array[HintBar] = []
-## Per hero: its card's frame and its name plate's owner tag.
+## Per player seat: its line (tag, device or join buttons).
+var _slots: Array[HBoxContainer] = []
+## Per hero: its card (portrait and name plate), the card's frame and its name plate's owner tag.
+var _card_boxes: Array[Control] = []
 var _cards: Array[PanelContainer] = []
 var _card_tags: Array[Label] = []
 var _online: bool = false
 var _is_host: bool = true
 var _oath: int = 0
-var _rules_title: Label
-var _rules: Label
+## The Oath picker: its frame, its "<  Oath 2  >" line and the effect chips under it.
+var _picker: PanelContainer
+var _picker_body: VBoxContainer
+var _picker_title: Label
+var _picker_chips: Control
+## The Start button and its word.
+var _start_button: PanelContainer
+var _start_label: Label
 
 
 ## `previous` is the last roster (its hero split is kept when the same players come back);
@@ -78,8 +104,7 @@ func setup(hero_names: Array[String], previous: PlayerRoster, first_device: int)
 		# Someone else opened it: they are P1 now, alone.
 		_roster = PlayerRoster.solo(hero_names.size(), first_device)
 	_oath = clampi(start_oath, 0, mini(oath_unlocked, oaths.size()))
-	_build("Players", "", [[&"@updown", "Choose"], [&"@leftright", "Give a hero / pick the oath"],
-			[&"menu_confirm", "Join (another pad or keyboard)"], [&"menu_cancel", "Leave"]])
+	_build("Players", "", hints(false, true))
 
 
 ## The online players screen. `roster` is the host's (online) roster; `is_host` false makes this
@@ -91,11 +116,65 @@ func setup_online(hero_names: Array[String], roster: PlayerRoster, is_host: bool
 	_is_host = is_host
 	_oath = clampi(start_oath, 0, mini(oath_unlocked, oaths.size())) if is_host else 0
 	if is_host:
-		var shown := ", ".join(addresses) if not addresses.is_empty() else "(no network found)"
-		_build("Host Online", "Friends join with this address:  %s   (port %d)" % [shown, port],
-				[[&"@updown", "Choose"], [&"@leftright", "Give a hero / pick the oath"], [&"menu_cancel", "Stop hosting"]])
+		var shown := ", ".join(addresses) if not addresses.is_empty() else "no network"
+		_build("Host Online", "Address  %s     Port  %d" % [shown, port], hints(true, true))
 	else:
-		_build("Online Players", "Waiting for the host to start.", [[&"menu_cancel", "Leave"]])
+		_build("Online Players", "Waiting for the host", hints(true, false))
+
+
+## The footer's button hints (phase 22: a word each). A local screen or the host: Choose, Change (a
+## hero's player or the oath), Start, Back; joining is shown on the first open seat instead. A
+## waiting online client can only leave. Pure.
+static func hints(online: bool, is_host: bool) -> Array:
+	if online and not is_host:
+		return [[&"menu_cancel", "Leave"]]
+	return [[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", "Start"], [&"menu_cancel", "Back"]]
+
+
+## Which inputs can join right now: a pad that is plugged in and not playing yet ("pad"), the
+## keyboard while it is not playing ("keys"). `devices`: the roster's; `pads`: the connected pads.
+## Pure.
+static func join_inputs(devices: Array[int], pads: Array[int]) -> Dictionary:
+	var pad := false
+	for device: int in pads:
+		pad = pad or not devices.has(device)
+	return {"pad": pad, "keys": not devices.has(PlayerRoster.KEYBOARD)}
+
+
+## What oaths 1..`oath` change, as icon chips for the picker ({glyph, text}, see ListMenu.chip): a
+## picture and a few words each, the numbers from the oath data. Empty for no oath. Pure.
+static func oath_chips(ladder: Array[OathData], oath: int) -> Array:
+	var chips: Array = []
+	if oath <= 0 or ladder.is_empty():
+		return chips
+	_add_chip(chips, ladder, oath, &"enemy_power_percent_add", &"sword", "Foes hit %s%%")
+	if OathData.total(ladder, oath, &"enemy_hp_row_add") != 0 or OathData.total(ladder, oath, &"enemy_power_row_add") != 0:
+		chips.append({"glyph": &"up", "text": "Foes grow faster"})
+	_add_chip(chips, ladder, oath, &"elite_hp_percent_add", &"skull", "Elite HP %s%%")
+	_add_chip(chips, ladder, oath, &"elite_power_percent_add", &"skull", "Elite hit %s%%")
+	_add_chip(chips, ladder, oath, &"boss_hp_percent_add", &"skull", "Boss HP %s%%")
+	_add_chip(chips, ladder, oath, &"boss_power_percent_add", &"skull", "Boss hit %s%%")
+	var start_hp := OathData.start_hp_for(ladder, oath)
+	if start_hp < 100:
+		chips.append({"glyph": &"heart", "text": "Start HP %d%%" % start_hp})
+	_add_chip(chips, ladder, oath, &"rest_heal_percent_add", &"heart", "Rest heal %s%%")
+	_add_chip(chips, ladder, oath, &"act_heal_percent_add", &"heart", "Act heal %s%%")
+	_add_chip(chips, ladder, oath, &"start_gold_add", &"coin", "Start gold %s")
+	_add_chip(chips, ladder, oath, &"shop_price_percent_add", &"coin", "Shops %s%%")
+	_add_chip(chips, ladder, oath, &"gold_percent_add", &"coin", "Fight gold %s%%")
+	_add_chip(chips, ladder, oath, &"loot_choices_add", &"bag", "Spoils %s")
+	_add_chip(chips, ladder, oath, &"team_gauge_carry_percent_add", &"bolt", "Gauge kept %s%%")
+	_add_chip(chips, ladder, oath, &"relic_slots_add", &"gem", "Relic slots %s")
+	_add_chip(chips, ladder, oath, &"echo_points_percent_add", &"echo", "Echoes %s%%")
+	return chips
+
+
+## One chip for a field's total over oaths 1..`oath`, when it is not 0: `text` gets the signed number.
+static func _add_chip(chips: Array, ladder: Array[OathData], oath: int, field: StringName, glyph: StringName,
+		text: String) -> void:
+	var sum := OathData.total(ladder, oath, field)
+	if sum != 0:
+		chips.append({"glyph": glyph, "text": text % ("+%d" % sum if sum > 0 else str(sum))})
 
 
 ## The roster as it is now (a copy).
@@ -139,46 +218,42 @@ func remove_peer(peer: int) -> void:
 		roster_changed.emit(_roster.copy())
 
 
-func _build(title: String, note: String, hints: Array) -> void:
+func _build(title: String, note: String, footer: Array) -> void:
 	var column := ListMenu.screen_column(self, title, TITLE_SIZE)
 	if not note.is_empty():
-		column.add_child(ListMenu.centred_label(note, DETAIL_SIZE, HudStyle.GOLD))
+		column.add_child(ListMenu.centred_label(note, NOTE_SIZE, HudStyle.GOLD))
 	# The players on one line, side by side.
 	var players := HBoxContainer.new()
 	players.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	players.alignment = BoxContainer.ALIGNMENT_CENTER
-	players.add_theme_constant_override("separation", 56)
+	players.add_theme_constant_override("separation", PLAYERS_GAP)
 	column.add_child(players)
 	for i: int in PlayerRoster.MAX_PLAYERS:
 		var line := HBoxContainer.new()
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		line.add_theme_constant_override("separation", 10)
 		players.add_child(line)
-		var label := ListMenu.centred_label("", PLAYER_SIZE)
-		line.add_child(label)
-		_player_labels.append(label)
-		var join := HintBar.new([[&"menu_confirm", "to join"]], PLAYER_SIZE, HudStyle.TEXT_DIM)
-		join.visible = false
-		line.add_child(join)
-		_join_hints.append(join)
-	if oaths.is_empty():
-		column.add_child(_build_cards())
-	else:
-		column.add_child(_build_cards_and_rules())
+		_slots.append(line)
+	column.add_child(_build_cards())
+	column.add_child(_build_buttons())
+	# The cursor's list draws nothing (every row is drawn above), so it stays out of the column.
 	_menu = ListMenu.new()
-	column.add_child(_menu)
-	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
-	column.add_child(detail)
-	ListMenu.screen_footer(self, hints)
+	add_child(_menu)
+	ListMenu.screen_footer(self, footer)
 	var blank: Array[Dictionary] = []
-	for i: int in _start_row() + 2:
+	for i: int in _start_row() + 1:
 		blank.append({})
+		# Every row is drawn by this screen (cards, picker, Start); the list is only the cursor.
+		_menu.set_row_shown(i, false)
 	_menu.index = _start_row()
-	for slot: int in _hero_names.size():
-		_menu.set_row_shown(slot, false)
-	_menu.set_items(blank, detail)
+	_menu.set_items(blank)
 	_refresh()
 	ButtonPrompts.listen(_refresh)
+	Input.joy_connection_changed.connect(_on_joy_connection_changed)
+
+
+func _on_joy_connection_changed(_device: int, _connected: bool) -> void:
+	_refresh()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -188,7 +263,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	var device := PlayerRoster.device_of(event)
 	if device == PlayerRoster.ANY or event.is_echo():
 		return
-	var player := _roster.devices.find(device)
+	# The mouse works for P1 (it has no Confirm of its own to join with).
+	var player := 0 if event is InputEventMouse else _roster.devices.find(device)
 	if player < 0:
 		# A device not in the game can only join.
 		if event.is_action_pressed(&"menu_confirm", false, true):
@@ -197,65 +273,95 @@ func _unhandled_input(event: InputEvent) -> void:
 				Sfx.play("menu_confirm")
 				_refresh()
 		return
-	var answer := _menu.handle(event)
-	_update_cards()
+	_act(_answer(event), player)
+
+
+func _online_input(event: InputEvent) -> void:
+	if event.is_echo():
+		return
+	if not _is_host:
+		# A waiting client can only leave.
+		if event.is_action_pressed(&"menu_cancel", false, true) or MenuMouse.is_back(event):
+			get_viewport().set_input_as_handled()
+			Sfx.play("menu_cancel")
+			back.emit()
+		return
+	_act(_answer(event), 0)
+
+
+## The menu answer for an event: the mouse on this screen's own cards, picker and Start first, then
+## the cursor's list (keys, pad, the wheel and a right click).
+func _answer(event: InputEvent) -> StringName:
+	var answer := _mouse_answer(event)
+	if answer == &"":
+		answer = _menu.handle(event)
+	_update_focus()
+	return answer
+
+
+## Pointing at a card, the picker or Start puts the cursor there; a click on Start is &"confirm", a
+## click on a card or the picker is &"left" or &"right" by the half it lands on. &"" otherwise.
+func _mouse_answer(event: InputEvent) -> StringName:
+	if not event is InputEventMouse:
+		return &""
+	var point := (event as InputEventMouse).position
+	var targets := _targets()
+	for row: int in targets:
+		var share := MenuMouse.share_across(targets[row] as Control, point)
+		if share < 0.0:
+			continue
+		if row != _menu.index and (event is InputEventMouseMotion or MenuMouse.is_click(event)):
+			_menu.index = row
+			Sfx.play("menu_move")
+			_menu.redraw()
+		if not MenuMouse.is_click(event):
+			return &""
+		if is_inside_tree():
+			get_viewport().set_input_as_handled()
+		if row == _start_row():
+			return &"confirm"
+		return &"left" if MenuMouse.side_of(share) < 0 else &"right"
+	return &""
+
+
+## The cursor's rows and what is drawn for each: {row: Control}.
+func _targets() -> Dictionary:
+	var out := {}
+	for slot: int in _card_boxes.size():
+		out[slot] = _card_boxes[slot]
+	if _picker != null and _oath_row() >= 0:
+		out[_oath_row()] = _picker
+	if _start_button != null and _start_button.visible:
+		out[_start_row()] = _start_button
+	return out
+
+
+## Acts on a menu answer from `player` (local) or the host.
+func _act(answer: StringName, player: int) -> void:
 	if answer == &"":
 		return
-	var hero := _menu.index if _menu.index < _hero_names.size() else -1
-	if _menu.index == _oath_row() and answer in [&"left", &"right", &"confirm"]:
-		_step_oath(-1 if answer == &"left" else 1, answer == &"confirm")
-		return
+	var row := _menu.index
 	match answer:
 		&"cancel":
 			Sfx.play("menu_cancel")
-			if player > 0:
+			if player > 0 and not _online:
 				_roster.leave(player)
 				_refresh()
 			else:
 				back.emit()
-		&"left", &"right":
-			if hero >= 0 and _roster.move_hero(hero, -1 if answer == &"left" else 1):
-				Sfx.play("menu_move")
-				_refresh()
 		&"confirm":
-			if _menu.index == _start_row():
-				Sfx.play("menu_confirm")
-				started.emit(_roster.copy(), _oath)
-			elif _menu.index == _back_row():
-				Sfx.play("menu_cancel")
-				back.emit()
-			elif hero >= 0 and _roster.move_hero(hero, 1):
-				Sfx.play("menu_move")
-				_refresh()
-
-
-func _online_input(event: InputEvent) -> void:
-	var answer := _menu.handle(event)
-	_update_cards()
-	if answer == &"cancel" or (answer == &"confirm" and _menu.index == _back_row()):
-		Sfx.play("menu_cancel")
-		back.emit()
-		return
-	if not _is_host:
-		return
-	var hero := _menu.index if _menu.index < _hero_names.size() else -1
-	if _menu.index == _oath_row() and answer in [&"left", &"right", &"confirm"]:
-		_step_oath(-1 if answer == &"left" else 1, answer == &"confirm")
-		return
-	match answer:
+			# Confirm starts from anywhere: Start is the one main button.
+			Sfx.play("menu_confirm")
+			started.emit(_roster.copy(), _oath)
 		&"left", &"right":
-			if hero >= 0 and _roster.move_hero(hero, -1 if answer == &"left" else 1):
+			var step := -1 if answer == &"left" else 1
+			if row == _oath_row():
+				_step_oath(step, false)
+			elif row < _hero_names.size() and _roster.move_hero(row, step):
 				Sfx.play("menu_move")
 				_refresh()
-				roster_changed.emit(_roster.copy())
-		&"confirm":
-			if _menu.index == _start_row():
-				Sfx.play("menu_confirm")
-				started.emit(_roster.copy(), _oath)
-			elif hero >= 0 and _roster.move_hero(hero, 1):
-				Sfx.play("menu_move")
-				_refresh()
-				roster_changed.emit(_roster.copy())
+				if _online:
+					roster_changed.emit(_roster.copy())
 
 
 ## How a player is shown: their device in a local game; host / online, and "(you)", online.
@@ -269,55 +375,79 @@ func _player_name(player: int) -> String:
 
 
 func _refresh() -> void:
-	for i: int in _player_labels.size():
-		var label := _player_labels[i]
-		_join_hints[i].visible = false
-		if i < _roster.player_count():
-			var names := PackedStringArray()
-			for slot: int in _roster.heroes_of(i):
-				names.append(_hero_names[slot])
-			label.text = "%s   %s" % [HudStyle.player_tag(i), _player_name(i)]
-			label.label_settings.font_color = HudStyle.player_color(i)
-		elif _online:
-			label.text = "%s   waiting for a friend" % HudStyle.player_tag(i)
-			label.label_settings.font_color = HudStyle.TEXT_DIM
-		else:
-			label.text = "%s   press" % HudStyle.player_tag(i)
-			label.label_settings.font_color = HudStyle.TEXT_DIM
-			_join_hints[i].visible = true
+	_refresh_players()
 	var coop := _roster.is_coop()
 	for slot: int in _hero_names.size():
 		var owner := _roster.owner_of(slot)
-		var text := "%s   %s" % [_hero_names[slot], HudStyle.player_tag(owner)]
-		if coop:
-			text = "%s   < %s >" % [_hero_names[slot], HudStyle.player_tag(owner)]
-		var detail := "Left/Right: give %s to another player." % _hero_names[slot] if coop \
-				else "Join with a second pad or the keyboard to share the heroes."
-		if _online:
-			detail = "The host hands out the heroes." if not _is_host else (detail if coop else "Friends who join share the heroes.")
-		_menu.set_item(slot, text, true, detail)
+		var tag := HudStyle.player_tag(owner)
+		_menu.set_item(slot, "%s   %s" % [_hero_names[slot], tag])
 		if slot < _card_tags.size():
-			var tag := HudStyle.player_tag(owner)
 			_card_tags[slot].text = "<  %s  >" % tag if coop else tag
 			_card_tags[slot].label_settings.font_color = HudStyle.player_color(owner)
-	var players := "alone" if not coop else "with %d players" % _roster.player_count()
-	var start := _start_row()
-	if _online and not _is_host:
-		_menu.set_item(start, "Start", false, "Only the host can start.")
-		_menu.set_item(start + 1, "Leave", true, "Leave the game.")
-	elif _online:
-		_menu.set_item(start, "Start", true, "Start a run %s." % players)
-		_menu.set_item(start + 1, "Back", true, "Stop hosting.")
-	else:
-		_menu.set_item(start, "Start", true, "Play %s." % players)
-		_menu.set_item(start + 1, "Back", true, "Back to the main menu.")
+	_menu.set_item(_start_row(), "Start", not _online or _is_host)
+	if _start_button != null:
+		_start_button.visible = not _online or _is_host
 	_refresh_oath()
-	_update_cards()
+	_update_focus()
 
 
-# --- the oath row (DESIGN.md 8.15) ---------------------------------------------------------------
+## The players line: each seat's tag; a player's device picture and name (online: host / online);
+## the first open seat shows the buttons that can join now, the later ones only their dim tag.
+func _refresh_players() -> void:
+	var open_seat := _roster.player_count()
+	for i: int in _slots.size():
+		var line := _slots[i]
+		for child: Node in line.get_children():
+			line.remove_child(child)
+			child.queue_free()
+		var playing := i < _roster.player_count()
+		var tag := HudStyle.make_title(HudStyle.player_tag(i), PLAYER_SIZE,
+				HudStyle.player_color(i) if playing else HudStyle.TEXT_DIM)
+		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(tag)
+		if playing:
+			if not _online:
+				var device := _roster.device_of_player(i)
+				var glyph := UiGlyph.make(&"keyboard" if device == PlayerRoster.KEYBOARD else &"pad",
+						float(HudStyle.scaled(roundi(DEVICE_GLYPH_PX))), HudStyle.player_color(i))
+				glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+				line.add_child(glyph)
+			line.add_child(_slot_label(_player_name(i), HudStyle.player_color(i)))
+		elif _online:
+			line.add_child(_slot_label("waiting", HudStyle.TEXT_DIM))
+		elif i == open_seat:
+			_add_join_chips(line, join_inputs(_roster.devices, Input.get_connected_joypads()))
 
-## The menu row of the Oath pick (-1: this screen has none), then Start, then Back.
+
+## The Confirm button of each input that can join (the pad's, the keyboard's), then "join".
+func _add_join_chips(line: HBoxContainer, ways: Dictionary) -> void:
+	var parts := HudStyle.binding_parts(&"menu_confirm")
+	var chips := 0
+	for pad: bool in [true, false]:
+		if not bool(ways.get("pad" if pad else "keys", false)):
+			continue
+		var button := parts[1] if pad else parts[0]
+		if button.is_empty():
+			continue
+		if chips > 0:
+			line.add_child(_slot_label(HintBar.OR_TEXT, HudStyle.TEXT_DIM))
+		var chip := HudStyle.button_chip(button, pad, PLAYER_SIZE)
+		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(chip)
+		chips += 1
+	if chips > 0:
+		line.add_child(_slot_label("join", HudStyle.TEXT_DIM))
+
+
+static func _slot_label(text: String, color: Color) -> Label:
+	var label := HudStyle.make_label(text, PLAYER_SIZE, color)
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return label
+
+
+# --- the cursor's rows: the heroes, the Oath picker (DESIGN.md 8.15), Start -----------------------
+
+## The cursor row of the Oath picker (-1: this screen has none), then Start.
 func _oath_row() -> int:
 	return _hero_names.size() if not oaths.is_empty() else -1
 
@@ -326,16 +456,12 @@ func _start_row() -> int:
 	return _hero_names.size() + (0 if oaths.is_empty() else 1)
 
 
-func _back_row() -> int:
-	return _start_row() + 1
-
-
 ## The highest oath that can be picked on this screen.
 func _oath_top() -> int:
 	return mini(oath_unlocked, oaths.size())
 
 
-## Moves the oath pick one step. `wrap`: from the top it goes back to none (the Confirm button).
+## Moves the oath pick one step. `wrap`: from the top it goes back to none.
 func _step_oath(step: int, wrap: bool) -> void:
 	if oaths.is_empty() or (_online and not _is_host):
 		Sfx.play("locked")
@@ -354,29 +480,27 @@ func _step_oath(step: int, wrap: bool) -> void:
 		oath_changed.emit(_oath)
 
 
-## The Oath row and the rules beside the cards.
+## The picker's line ("<  Oath 2  >", arrows only where it can still go and only for whoever picks)
+## and its effect chips.
 func _refresh_oath() -> void:
-	if oaths.is_empty():
+	if oaths.is_empty() or _picker == null:
 		return
-	var chosen: OathData = oaths[_oath - 1] if _oath > 0 else null
 	var mine := not _online or _is_host
-	var text := "Oath   %s%s%s" % ["<  " if mine and _oath > 0 else "", str(_oath) if _oath > 0 else "none",
+	var text := "%s%s%s" % ["<  " if mine and _oath > 0 else "", OathData.label(_oath),
 			"  >" if mine and _oath < _oath_top() else ""]
-	var detail := "No oath: the road as it is."
-	if chosen != null:
-		detail = "%s: %s" % [chosen.title, chosen.description]
-	if not mine:
-		detail += "  The host picks the oath."
-	elif _oath == _oath_top() and _oath < oaths.size():
-		detail += "  Win a run at this oath to unlock the next."
-	_menu.set_item(_oath_row(), text, true, detail)
-	if _rules_title != null:
-		_rules_title.text = OathData.label(_oath) if _oath > 0 else "No oath"
-		var lines := OathData.rule_lines(oaths, _oath)
-		_rules.text = "\n".join(lines) if not lines.is_empty() else "The road as it is."
+	_picker_title.text = text
+	_menu.set_item(_oath_row(), text)
+	if _picker_chips != null:
+		_picker_body.remove_child(_picker_chips)
+		_picker_chips.queue_free()
+	var chips := oath_chips(oaths, _oath)
+	if chips.is_empty():
+		chips = [{"text": NO_CHANGE, "color": HudStyle.TEXT_DIM}]
+	_picker_chips = ListMenu.chip_lines(chips, PICKER_WIDTH - float(ListMenu.CARD_PAD * 2), EFFECT_SIZE)
+	_picker_body.add_child(_picker_chips)
 
 
-## The hero cards in a row: each the hero's big portrait in a frame, a name plate under it.
+## The hero cards in a row, centred: each the hero's big portrait in a frame, a name plate under it.
 func _build_cards() -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -387,6 +511,7 @@ func _build_cards() -> HBoxContainer:
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_theme_constant_override("separation", 6)
 		row.add_child(card)
+		_card_boxes.append(card)
 		var frame := PanelContainer.new()
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(frame)
@@ -397,7 +522,7 @@ func _build_cards() -> HBoxContainer:
 		face.region = Rect2(0.0, 0.0, full.get_width(), mini(CARD_ROWS, full.get_height()))
 		var picture := TextureRect.new()
 		picture.texture = face
-		picture.custom_minimum_size = face.region.size * (CARD_SCALE if oaths.is_empty() else CARD_SCALE_OATH)
+		picture.custom_minimum_size = (face.region.size * _card_scale()).round()
 		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		picture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -416,30 +541,56 @@ func _build_cards() -> HBoxContainer:
 	return row
 
 
-## The hero cards with the oath's rules panel on their right.
-func _build_cards_and_rules() -> HBoxContainer:
+## How many times its pixels a portrait is drawn: smaller with an Oath picker and with bigger text.
+func _card_scale() -> float:
+	var scale := CARD_SCALE if oaths.is_empty() else CARD_SCALE_OATH
+	return scale * 100.0 / float(maxi(100, HudStyle.text_scale_percent()))
+
+
+## The Oath picker (a run's screen only) and the Start button, side by side under the cards.
+func _build_buttons() -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 56)
-	row.add_child(_build_cards())
-	var panel := VBoxContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.custom_minimum_size.x = RULES_WIDTH
-	panel.add_theme_constant_override("separation", 10)
-	_rules_title = HudStyle.make_title("", PLATE_SIZE, HudStyle.GOLD)
-	panel.add_child(_rules_title)
-	_rules = HudStyle.make_label("", RULES_SIZE, HudStyle.TEXT)
-	_rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_rules.custom_minimum_size.x = RULES_WIDTH
-	panel.add_child(_rules)
-	row.add_child(panel)
+	row.add_theme_constant_override("separation", BUTTONS_GAP)
+	if not oaths.is_empty():
+		_picker = PanelContainer.new()
+		_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_picker.custom_minimum_size.x = PICKER_WIDTH
+		_picker.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(_picker)
+		_picker_body = VBoxContainer.new()
+		_picker_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_picker_body.add_theme_constant_override("separation", 10)
+		_picker.add_child(_picker_body)
+		_picker_title = HudStyle.make_title("", PICKER_SIZE)
+		_picker_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_picker_body.add_child(_picker_title)
+	_start_button = PanelContainer.new()
+	_start_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_start_button.custom_minimum_size.x = START_WIDTH
+	_start_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_start_button)
+	var line := HBoxContainer.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.alignment = BoxContainer.ALIGNMENT_CENTER
+	line.add_theme_constant_override("separation", 16)
+	_start_button.add_child(line)
+	var chip := HintBar.new([[&"menu_confirm", ""]], PLAYER_SIZE, HudStyle.TEXT)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(chip)
+	_start_label = HudStyle.make_title("Start", START_SIZE)
+	_start_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.add_child(_start_label)
 	return row
 
 
-## The card the cursor is on gets a gold frame; while the cursor is on a hero the others dim.
-func _update_cards() -> void:
-	var on_hero := _menu != null and _menu.index < _cards.size()
+## Lights what the cursor is on: a hero card's gold frame (the others dim), the picker's or Start's
+## gold edge and word.
+func _update_focus() -> void:
+	if _menu == null:
+		return
+	var on_hero := _menu.index < _cards.size()
 	for slot: int in _cards.size():
 		var chosen := on_hero and _menu.index == slot
 		var style := StyleBoxFlat.new()
@@ -448,4 +599,19 @@ func _update_cards() -> void:
 		style.set_border_width_all(CARD_BORDER)
 		style.set_content_margin_all(CARD_BORDER)
 		_cards[slot].add_theme_stylebox_override("panel", style)
-		_cards[slot].get_parent().modulate = CARD_DIM if on_hero and not chosen else Color.WHITE
+		_card_boxes[slot].modulate = CARD_DIM if on_hero and not chosen else Color.WHITE
+	# A waiting client's cursor never lights anything: it has nothing to pick.
+	var mine := not _online or _is_host
+	if _picker != null:
+		var on_oath := mine and _menu.index == _oath_row()
+		_picker.add_theme_stylebox_override("panel", ListMenu.card_style(on_oath))
+		_picker_title.label_settings.font_color = HudStyle.GOLD if on_oath else HudStyle.TEXT
+	if _start_button != null:
+		var on_start := mine and _menu.index == _start_row()
+		_start_button.add_theme_stylebox_override("panel", ListMenu.card_style(on_start))
+		_start_label.label_settings.font_color = HudStyle.GOLD if on_start else HudStyle.TEXT
+
+
+## True while the cursor's row `row` is lit (for tests): a hero card, the picker or Start.
+func is_lit(row: int) -> bool:
+	return _menu != null and _menu.index == row and (not _online or _is_host)

@@ -53,6 +53,13 @@ static func shows_keys() -> bool:
 	return mode() != Mode.PAD
 
 
+## True when a pad was the last thing used (or was just plugged in), even while local co-op shows
+## both kinds of buttons: the device in the player's hands. Settings > Controls opens its
+## Controller page then, else its Keyboard page (card #277).
+static func pad_in_use() -> bool:
+	return _pad
+
+
 ## Local co-op with the keyboard and at least one pad playing: show both kinds of buttons.
 static func set_both(on: bool) -> void:
 	if on == _both:

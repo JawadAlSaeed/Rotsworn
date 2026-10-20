@@ -16,6 +16,10 @@ extends RefCounted
 ## so Confirm, Back and Pause always stay reachable. Two actions that can be needed at the same
 ## moment (a GROUP) never share an input; Parry, Dodge and Jump, for example. Pads are not told
 ## apart: a rebinding applies to every pad (per-device rebinding is out of scope).
+##
+## Settings > Controls has a Keyboard page and a Controller page (card #277): listed_actions() says
+## which actions a page shows, reset_kind() puts only one kind back. Keys and pad inputs never clash
+## with each other (conflicts compare one kind), so resetting one kind can never lock a player out.
 
 const KEY := "key"
 const PAD := "pad"
@@ -32,6 +36,11 @@ const ACTIONS: Array[StringName] = [
 	&"debug_overlay",
 ]
 
+## Actions the Controls pages only list in a debug build (the editor, tests): the F1 stats overlay
+## is a practice-fight tool (phase 22). It keeps its buttons and its place in the fight GROUPS
+## either way.
+const DEBUG_ONLY: Array[StringName] = [&"debug_overlay"]
+
 const LABELS := {
 	&"fight_attack": "Attack", &"fight_skills": "Skills (fight)", &"fight_items": "Items (fight)",
 	&"fight_ultimate": "Ultimate", &"defend_parry": "Parry", &"defend_dodge": "Dodge",
@@ -45,49 +54,52 @@ const LABELS := {
 	&"debug_overlay": "Stats overlay",
 }
 
-## One line for the list's footer: where the button is used.
+## Where the button is used, in a few words (the Controls list's line under it; phase 22: four
+## words at most, the rules themselves are in the Glossary).
 const DETAILS := {
-	&"fight_attack": "On your turn in a fight: a basic attack.",
-	&"fight_skills": "On your turn in a fight: open the skills.",
-	&"fight_items": "On your turn in a fight: open the backpack items.",
-	&"fight_ultimate": "On your turn in a fight: the ultimate, when it is ready.",
-	&"defend_parry": "While an enemy attacks: parry the hit.",
-	&"defend_dodge": "While an enemy attacks: dodge the hit.",
-	&"defend_jump": "While an enemy attacks: jump over a low hit.",
-	&"skill_press": "During your own skills: the timed presses.",
-	&"move_up": "In a zone: walk up.", &"move_down": "In a zone: walk down.",
-	&"move_left": "In a zone: walk left.", &"move_right": "In a zone: walk right.",
-	&"field_strike": "In a zone: strike a roaming enemy to start the fight with the advantage.",
-	&"field_pickup": "In a zone: pick up what glints nearby.",
-	&"party_menu": "On the map, in a zone and in a shop: open the party and the backpack.",
-	&"menu_up": "In every menu: move up.", &"menu_down": "In every menu: move down.",
-	&"menu_left": "In every menu: left, or change a setting.",
-	&"menu_right": "In every menu: right, or change a setting.",
-	&"menu_confirm": "In every menu: choose. Cannot be left without a key and a button.",
-	&"menu_cancel": "In every menu: go back. In a fight, hold it on your turn to run.",
-	&"pause": "In a fight, a zone and on the map: open the pause menu.",
-	&"party_attributes": "On the Y screen's Hero and Skills tabs: the previous hero. On the Echoes page: the tab before.",
-	&"party_skills": "On the Y screen's Hero and Skills tabs: the next hero. On the Echoes page: the next tab.",
-	&"item_move": "In the backpack: pick an item up and put it down.",
-	&"item_turn_left": "On the Y screen: the tab before. With an item in hand in the Bag: turn it. In settings: the section before.",
-	&"item_turn_right": "On the Y screen: the next tab. With an item in hand in the Bag: turn it. In settings: the next section.",
-	&"debug_overlay": "In a fight: the stats overlay.",
+	&"fight_attack": "Fights, your turn",
+	&"fight_skills": "Fights, your turn",
+	&"fight_items": "Fights, your turn",
+	&"fight_ultimate": "Fights, when ready",
+	&"defend_parry": "Enemy attacks",
+	&"defend_dodge": "Enemy attacks",
+	&"defend_jump": "Low enemy hits",
+	&"skill_press": "Your skills' timed presses",
+	&"move_up": "Zones", &"move_down": "Zones", &"move_left": "Zones", &"move_right": "Zones",
+	&"field_strike": "Zones: hit first",
+	&"field_pickup": "Zones: pick up",
+	&"party_menu": "Map, zones, shops",
+	&"menu_up": "Every menu", &"menu_down": "Every menu",
+	&"menu_left": "Menus, change settings",
+	&"menu_right": "Menus, change settings",
+	&"menu_confirm": "Every menu",
+	&"menu_cancel": "Menus; hold to run",
+	&"pause": "Fights, zones, map",
+	&"party_attributes": "Y screen, Controls page",
+	&"party_skills": "Y screen, Controls page",
+	&"item_move": "Backpack",
+	&"item_turn_left": "Tabs, turn items",
+	&"item_turn_right": "Tabs, turn items",
+	&"debug_overlay": "Practice fights",
 }
 
 ## Actions needed at the same moment. An input given to one of them is refused (or swapped) when
 ## another in the same group already has it. Menus, defence and skill presses never run together,
 ## so the same button may do different things in different groups (W jumps in a fight and walks
-## up a menu). Pause and the stats overlay are live almost everywhere, so they are in every group.
+## up a menu). Pause is live almost everywhere, so it is in every group. The stats overlay only
+## works in a practice fight (phase 22), so it is only in the fight groups (defence, skill presses,
+## the action menu): the walking and menu groups leave it out, and a player who never sees it
+## listed is never offered a swap with it there.
 const GROUPS: Array = [
 	[&"defend_parry", &"defend_dodge", &"defend_jump", &"pause", &"debug_overlay"],
 	[&"skill_press", &"pause", &"debug_overlay"],
 	[&"fight_attack", &"fight_skills", &"fight_items", &"fight_ultimate", &"menu_up", &"menu_down",
 			&"menu_left", &"menu_right", &"menu_confirm", &"menu_cancel", &"pause", &"debug_overlay"],
 	[&"move_up", &"move_down", &"move_left", &"move_right", &"field_strike", &"field_pickup",
-			&"party_menu", &"pause", &"debug_overlay"],
+			&"party_menu", &"pause"],
 	[&"menu_up", &"menu_down", &"menu_left", &"menu_right", &"menu_confirm", &"menu_cancel",
 			&"pause", &"party_menu", &"party_attributes", &"party_skills", &"item_move",
-			&"item_turn_left", &"item_turn_right", &"debug_overlay"],
+			&"item_turn_left", &"item_turn_right"],
 ]
 
 ## Pairs that are meant to share a button: Confirm is also Attack on the action menu, and Escape
@@ -109,6 +121,10 @@ const TRIGGER_CAPTURE_VALUE: float = 0.6
 
 ## The model in use by the game (set by install()).
 static var shared: ControlBindings
+
+## False in the real game (SettingsScreen sets OS.is_debug_build()): the DEBUG_ONLY actions are
+## hidden there and do nothing, so they never block or swap with a listed action (phase 22).
+var list_debug: bool = true
 
 var _defaults: Dictionary = {}
 var _current: Dictionary = {}
@@ -257,16 +273,47 @@ func is_action_default(action: StringName) -> bool:
 	return _same_entry(_current.get(String(action), {}), _defaults.get(String(action), {}))
 
 
+## True while no action's inputs of one kind (KEY or PAD) are changed from the defaults.
+func is_kind_default(kind: String) -> bool:
+	for action: StringName in ACTIONS:
+		var now: Array = (_current.get(String(action), {}) as Dictionary).get(kind, [])
+		var first: Array = (_defaults.get(String(action), {}) as Dictionary).get(kind, [])
+		if now.size() != first.size():
+			return false
+		for i: int in now.size():
+			if not same(now[i], first[i]):
+				return false
+	return true
+
+
+## The actions a Controls page of one kind lists, in ACTIONS order: those the game gives an input
+## of that kind, without DEBUG_ONLY ones unless `debug` (OS.is_debug_build() in the game).
+func listed_actions(kind: String, debug: bool) -> Array[StringName]:
+	var out: Array[StringName] = []
+	for action: StringName in ACTIONS:
+		if DEBUG_ONLY.has(action) and not debug:
+			continue
+		var entry: Dictionary = _defaults.get(String(action), {})
+		if not (entry.get(kind, []) as Array).is_empty():
+			out.append(action)
+	return out
+
+
 ## The actions (other than `action`) in a group with it that already hold `input` in this kind of
-## list. Pairs meant to share a button (SHARED) are left out.
+## list. Pairs meant to share a button (SHARED) are left out, and so are the DEBUG_ONLY actions
+## unless `list_debug`.
 func conflicts(action: StringName, input: Dictionary) -> Array[StringName]:
 	var kind := kind_of(input)
 	var out: Array[StringName] = []
+	if not list_debug and DEBUG_ONLY.has(action):
+		return out
 	for group: Array in GROUPS:
 		if not group.has(action):
 			continue
 		for other: StringName in group:
 			if other == action or out.has(other) or _may_share(action, other):
+				continue
+			if not list_debug and DEBUG_ONLY.has(other):
 				continue
 			for held: Dictionary in inputs(other, kind):
 				if same(held, input):
@@ -333,6 +380,7 @@ func assign(action: StringName, input: Dictionary, swap: bool = false) -> Dictio
 func can_swap(action: StringName, input: Dictionary) -> bool:
 	var copy := ControlBindings.new(_defaults)
 	copy._current = _copy(_current)
+	copy.list_debug = list_debug
 	return bool(copy.assign(action, input, true).ok)
 
 
@@ -343,6 +391,17 @@ func reset_action(action: StringName) -> void:
 
 func reset_all() -> void:
 	_current = _copy(_defaults)
+
+
+## Puts every action's inputs of one kind (KEY or PAD) back as the game came; the other kind keeps
+## its changes (a Controls page's own "Reset to defaults", card #277). Safe: the defaults of a kind
+## never clash, and clashes are only ever within one kind.
+func reset_kind(kind: String) -> void:
+	for action: Variant in _defaults:
+		var first: Array[Dictionary] = []
+		for input: Dictionary in (_defaults[action] as Dictionary).get(kind, []):
+			first.append(input)
+		_set_inputs(StringName(action), kind, first)
 
 
 ## The changes from the defaults only, for the settings file: {action: {"key": [...], "pad": [...]}}.
@@ -376,7 +435,14 @@ func load_overrides(saved: Dictionary) -> void:
 						list.append(_clean(item as Dictionary))
 			if not list.is_empty():
 				_set_inputs(action, kind, list)
-	if not conflict_pairs().is_empty() or not reachable():
+	# The real game may give a hidden DEBUG_ONLY action's button to a listed one (see list_debug),
+	# and the editor reads the same file at start-up (before SettingsScreen sets the flag), so only
+	# clashes between live actions throw the changes away.
+	var keep_debug := list_debug
+	list_debug = false
+	var clash := not conflict_pairs().is_empty()
+	list_debug = keep_debug
+	if clash or not reachable():
 		push_warning("ControlBindings: saved controls clash or lose Confirm, Back or Pause; using the defaults")
 		reset_all()
 

@@ -4,7 +4,9 @@ extends PanelContainer
 ## successful timing offsets, rolling median of recent parries, lag compensation, fps, vsync mode,
 ## audio latency and the longest frame of the last enemy attack, plus the cue toggles
 ## (R training ring, saved; F telegraph flash, T timing readout, L motion sounds, H hit markers
-## C wind-up crouch and V cinematic camera, this session only). It sits in the right column, under the practice status, clear of the fighters.
+## C wind-up crouch and V cinematic camera, this session only) and, in a practice fight, the
+## practice keys (1-9 next attack, I, O, R; card #275: no longer on the fight screen). It sits in
+## the right column under the enemy panels, clear of the fighters.
 
 const TEXT_SIZE: int = 16
 const TITLE_SIZE: int = 20
@@ -13,6 +15,8 @@ const TOP: float = 345.0
 const MARGIN: float = 24.0
 const ACTIONS: Array[int] = [Defense.Outcome.PARRY, Defense.Outcome.DODGE, Defense.Outcome.JUMP]
 
+## The practice keys and what they set ("" outside practice fights), from CombatController.
+var practice_text: String = ""
 var _body: Label
 
 
@@ -81,6 +85,9 @@ func update_text(stats: DefenseStats, tuning: Tuning, options: CombatOptions, lo
 	lines.append("[H] Hit markers: %s" % _on_off(options.hit_markers))
 	lines.append("[C] Wind-up crouch: %s" % _on_off(options.windup_crouch))
 	lines.append("[V] Cinematic camera: %s" % _on_off(options.cinematic_camera))
+	if not practice_text.is_empty():
+		lines.append("")
+		lines.append(practice_text)
 	_body.text = "\n".join(lines)
 
 

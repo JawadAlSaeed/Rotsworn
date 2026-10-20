@@ -42,6 +42,9 @@ const LEAP_CLIP: String = "leap"
 ## A bolt's trail copies: the first one this bright, each next one fainter.
 const BOLT_TRAIL_ALPHA: float = 0.45
 
+## The press timing in ms after PERFECT, GOOD... ("PERFECT -34") is a practice aid: the controller
+## turns it off outside practice fights (card #276).
+var timing_numbers_allowed: bool = true
 var _submit: Callable
 var _apply_now: Callable
 var _mirror: CombatMirror
@@ -414,9 +417,7 @@ func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool, contact_us:
 ## The press sound and the PERFECT / GOOD readout over the pressing hero.
 func _press_feedback(idxs: Array[int], offset_us: int, perfect: bool) -> void:
 	Sfx.play("skill_press", 0.0 if perfect else GOOD_PRESS_VOLUME_DB)
-	var text := "PERFECT" if perfect else "GOOD"
-	if _options.timing_readout:
-		text += " " + HudStyle.signed_ms(roundi(float(offset_us) / 1000.0))
+	var text := with_timing("PERFECT" if perfect else "GOOD", offset_us)
 	var who: Array[int] = []
 	for idx: int in idxs:
 		who.append(int((_prompts[idx] as Dictionary).character))
@@ -492,12 +493,20 @@ func _miss_strike(idxs: Array[int], now_us: int) -> void:
 		_strike(others, false, now_us)
 
 
+## `text` with the press timing after it ("PERFECT -34"): only in a practice fight with the readout
+## on (F1 > T). In the real game the word alone (card #276).
+func with_timing(text: String, offset_us: int) -> String:
+	if not timing_numbers_allowed or _options == null or not _options.timing_readout:
+		return text
+	return text + " " + HudStyle.signed_ms(roundi(float(offset_us) / 1000.0))
+
+
 func _on_whiff(report: Dictionary, player: int) -> void:
 	Sfx.play("whiff")
 	var text := "EARLY" if int(report.reason) == DefenseJudge.Reason.EARLY else "LATE"
 	var color := HudStyle.EARLY if text == "EARLY" else HudStyle.LATE
-	if _options.timing_readout and int(report.hit) >= 0:
-		text += " " + HudStyle.signed_ms(roundi(float(report.offset_us) / 1000.0))
+	if int(report.hit) >= 0:
+		text = with_timing(text, int(report.offset_us))
 	var who: Array[int] = []
 	var hit := int(report.hit)
 	for p: Dictionary in _prompts:

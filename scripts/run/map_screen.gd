@@ -7,6 +7,10 @@ extends CanvasLayer
 ## it), up/down or the mouse wheel scroll, confirm goes there, cancel opens the pause menu,
 ## party_menu the party screen. Confirm, cancel or party_menu pressed while the map opens only
 ## finishes the opening.
+## Phase 22: under the map, the picked stop's picture and name and 2 or 3 icon chips (detail_chips:
+## a zone's guard, optional foes and gold; a campfire's heal, train and upgrade, or keep watch and
+## sharpen in the row before the boss; ...), never a rules
+## sentence (the Glossary's "The map" topic has them). icon_chip() is shared by the run's info screens.
 
 signal stop_chosen(id: int)
 ## Back (B): Main opens the pause menu (Esc / Menu reach Main directly).
@@ -14,7 +18,16 @@ signal quit_requested
 signal party_requested
 
 const TITLE_SIZE: int = 48
-const DETAIL_SIZE: int = 28
+const DETAIL_SIZE: int = 30
+## The detail row under the map (phase 22): the picked stop's picture and name, then its chips.
+const DETAIL_ICON_PX: float = 48.0
+const DETAIL_GAP: int = 18
+## A chip on the run's info screens (icon_chip): picture size, text size, and the gap inside.
+const CHIP_ICON_PX: float = 36.0
+const CHIP_TEXT_SIZE: int = 26
+const CHIP_GAP: int = 8
+## The gold coin and the hit icons (combat_visuals.tres).
+const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
 ## How far (art pixels) an ink path stays clear of a stop's centre, so the dots end at the picture.
 const STOP_CLEAR: float = 14.0
 const START_CLEAR: float = 6.0
@@ -30,7 +43,8 @@ var _look: MapVisuals
 var _view: Control
 var _canvas: Control
 var _frame: Control
-var _detail: Label
+## Under the map: the picked stop's picture and name, then a few icon chips (detail_chips).
+var _detail: HBoxContainer
 var _bar: RunPartyBar
 var _choices: Array[int] = []
 var _sel: int = 0
@@ -115,7 +129,11 @@ func setup(run: RunState, look: MapVisuals = null, unroll: bool = true) -> void:
 	bottom.offset_bottom = -ListMenu.FOOTER_STRIP_PX - 12.0
 	bottom.add_theme_constant_override("separation", 8)
 	add_child(bottom)
-	_detail = ListMenu.centred_label("", DETAIL_SIZE)
+	_detail = HBoxContainer.new()
+	_detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_detail.alignment = BoxContainer.ALIGNMENT_CENTER
+	_detail.custom_minimum_size.y = DETAIL_ICON_PX
+	_detail.add_theme_constant_override("separation", DETAIL_GAP)
 	bottom.add_child(_detail)
 	ListMenu.screen_footer(self, [[&"@leftright", "Choose"], [&"@updown", "Scroll"], [&"menu_confirm", "Go"],
 			[&"party_menu", "Party"], [&"pause", "Pause"]])
@@ -277,28 +295,135 @@ func _choice_at(point: Vector2) -> int:
 	return MenuMouse.nearest_within(centres, point, radius + float(STOP_POINT_SLACK))
 
 
-## What the chosen stop is, in words.
-static func describe(run: RunState, stop: Dictionary) -> String:
+## What the chosen stop holds, as 2 or 3 icon chips for the line under the map (phase 22: no rules
+## sentences; the Glossary's "The map" topic explains each stop): [{icon, text, color}], where icon
+## is a texture path (String) or a UiGlyph kind (StringName). `look`: the map's art (MapVisuals);
+## `gold_icon`: the coin's path (combat_visuals.tres gold_icon_path).
+static func detail_chips(run: RunState, stop: Dictionary, look: MapVisuals, gold_icon: String) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = []
 	match int(stop.get("type", -1)):
 		RunMap.StopType.ZONE:
-			var zone := run.zone_of(stop)
-			return "Zone: %s. Explore, then beat the guard at the exit. Other enemies are optional (more gold)." % (
-					zone.display_name if zone != null else "?")
+			chips.append(_chip_data(look.guard_icon_path, "Guard", HudStyle.GOLD))
+			chips.append(_chip_data(look.foe_icon_path, "Optional", HudStyle.TEXT_DIM))
+			chips.append(_chip_data(gold_icon, "Gold", HudStyle.GOLD))
 		RunMap.StopType.REST:
-			return "Campfire: pick one: rest (heal %d%%), train (attribute points) or upgrade an item." % run.rest_heal_percent()
+			chips.append(_chip_data(&"heart", "Heal %d%%" % run.rest_heal_percent(), HudStyle.HEAL))
+			if is_watch_row(run, stop):
+				chips.append(_chip_data(look.gauge_icon_path, "Gauge full", HudStyle.TEXT))
+				chips.append(_chip_data(look.ap_icon_path, "+%d AP" % run.tuning.sharpen_ap, HudStyle.TEXT))
+			else:
+				chips.append(_chip_data(&"up", "Train", HudStyle.TEXT))
+				chips.append(_chip_data(look.upgrade_icon_path, "Upgrade", HudStyle.TEXT))
 		RunMap.StopType.SHOP:
-			return "Shop: items, charms and gear; healing, upgrades; sell what you do not need."
+			chips.append(_chip_data(&"gem", "Relics", HudStyle.TEXT))
+			chips.append(_chip_data(&"bag", "Items", HudStyle.TEXT))
+			chips.append(_chip_data(gold_icon, "Sell", HudStyle.GOLD))
 		RunMap.StopType.FINAL:
-			if not run.is_last_act():
-				return "The boss of this act. Win to go on to the next act."
-			return "The final fight. Win it to clear the run."
+			if run.is_last_act():
+				chips.append(_chip_data(&"sword", "Last fight", HudStyle.HP_LOW))
+				chips.append(_chip_data(&"star", "Run won", HudStyle.GOLD))
+			else:
+				chips.append(_chip_data(&"gem", "Spoils", HudStyle.TEXT))
+				chips.append(_chip_data(&"heart", "Heal", HudStyle.HEAL))
+				chips.append(_chip_data(look.flag_path, "Next act", HudStyle.TEXT))
 		RunMap.StopType.ELITE:
-			return "Elite fight: a much tougher fight. Better spoils: rare gear and more gold."
+			if bool(stop.get("crown", false)):
+				chips.append(_chip_data(&"gem", "Legendary", HudStyle.GOLD))
+			else:
+				chips.append(_chip_data(&"gem", "Rare", HudStyle.TEXT))
+			chips.append(_chip_data(gold_icon, "More gold", HudStyle.GOLD))
 		RunMap.StopType.EVENT:
-			return "Something strange: a choice to make, a risk or a reward."
+			chips.append(_chip_data(&"skull", "Risk", HudStyle.HP_LOW))
+			chips.append(_chip_data(&"gem", "Reward", HudStyle.GOLD))
 		RunMap.StopType.TREASURE:
-			return "Treasure: a chest with something rare inside, and gold."
-	return ""
+			chips.append(_chip_data(&"gem", "Rare", HudStyle.TEXT))
+			chips.append(_chip_data(gold_icon, "Gold", HudStyle.GOLD))
+	return chips
+
+
+## True when `stop` is in the campfire row before the act's boss (card #287): the top all-campfire
+## row, as RunState.is_watch_fire() finds it for the stop the party stands on. Those campfires offer
+## Rest, Keep watch and Sharpen, not Train and Upgrade.
+static func is_watch_row(run: RunState, stop: Dictionary) -> bool:
+	if int(stop.get("type", -1)) != RunMap.StopType.REST:
+		return false
+	var map := run.map
+	for r: int in range(map.row_count() - 2, 0, -1):
+		var all_rest := true
+		for id: int in map.rows[r]:
+			all_rest = all_rest and int(map.stop(id).type) == RunMap.StopType.REST
+		if all_rest:
+			return int(stop.get("row", -1)) == r
+	return false
+
+
+static func _chip_data(icon: Variant, text: String, color: Color) -> Dictionary:
+	return {"icon": icon, "text": text, "color": color}
+
+
+## The stop's name in the detail row: as on the map, but a "?" stop says Event there.
+static func detail_name(run: RunState, stop: Dictionary) -> String:
+	if int(stop.get("type", -1)) == RunMap.StopType.EVENT:
+		return "Event"
+	return stop_name(run, stop)
+
+
+## An icon chip for the run's info screens (phase 22: a picture and a word or two, never a
+## sentence): the map's detail row, the shop and the run's end use it. `icon` is a Texture2D, a
+## texture path (String), a UiGlyph kind (StringName), a GearData (its RelicIcon) or null (the
+## word alone); an empty `text` leaves the picture alone. With `plate` it sits on a dark plate.
+static func icon_chip(icon: Variant, text: String, color: Color = HudStyle.TEXT, icon_px: float = CHIP_ICON_PX,
+		text_size: int = CHIP_TEXT_SIZE, plate: bool = true) -> Control:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", CHIP_GAP)
+	var picture := icon_picture(icon, icon_px, color)
+	if picture != null:
+		picture.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(picture)
+	if not text.is_empty():
+		var label := HudStyle.make_label(text, text_size, color)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(label)
+	if not plate:
+		return row
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	panel.add_theme_stylebox_override("panel", HudStyle.slant(HudStyle.INK_SOLID, HudStyle.EDGE_DIM, 1, 6,
+			icon_px + 12.0, HudStyle.SLANT * 0.5, false))
+	panel.add_child(row)
+	return panel
+
+
+## A picture for icon_chip (null when `icon` is none): textures are scaled by whole numbers where they
+## fit, so pixel art stays crisp; `whole` false fits them in a `px` square instead (shop shelves).
+static func icon_picture(icon: Variant, px: float, color: Color = HudStyle.TEXT, whole: bool = true) -> Control:
+	if icon is GearData:
+		return RelicIcon.make(icon as GearData, px)
+	if icon is StringName:
+		return UiGlyph.make(icon as StringName, px * 0.8, color) if not String(icon).is_empty() else null
+	var texture: Texture2D = null
+	if icon is Texture2D:
+		texture = icon as Texture2D
+	elif icon is String and not String(icon).is_empty():
+		texture = AssetLoader.texture(String(icon), Vector2i(24, 24))
+	if texture == null:
+		return null
+	var art := TextureRect.new()
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.texture = texture
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if not whole:
+		art.custom_minimum_size = Vector2(px, px)
+		return art
+	var side := maxf(1.0, maxf(texture.get_size().x, texture.get_size().y))
+	var factor := floorf(px / side) if px >= side else px / side
+	art.custom_minimum_size = (texture.get_size() * factor).round()
+	return art
 
 
 static func stop_name(run: RunState, stop: Dictionary) -> String:
@@ -322,8 +447,19 @@ static func stop_name(run: RunState, stop: Dictionary) -> String:
 
 
 func _update_detail() -> void:
-	_detail.text = describe(_run, _run.map.stop(_choices[_sel])) if not _choices.is_empty() else ""
+	for child: Node in _detail.get_children():
+		_detail.remove_child(child)
+		child.queue_free()
 	_ahead = reachable_from(_run.map, _choices[_sel]) if not _choices.is_empty() else {}
+	if _choices.is_empty():
+		return
+	var stop := _run.map.stop(_choices[_sel])
+	var head := icon_chip(_icons[int(stop.id)], detail_name(_run, stop), HudStyle.GOLD, DETAIL_ICON_PX, DETAIL_SIZE, false)
+	_detail.add_child(head)
+	var visuals := load(VISUALS_PATH) as CombatVisuals
+	var gold := visuals.gold_icon_path if visuals != null else ""
+	for chip: Dictionary in detail_chips(_run, stop, _look, gold):
+		_detail.add_child(icon_chip(chip.icon, String(chip.text), chip.color as Color))
 
 
 ## Every stop `from_id` can lead to, itself included (id -> true).

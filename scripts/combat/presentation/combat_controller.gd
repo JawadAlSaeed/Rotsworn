@@ -383,6 +383,7 @@ func _ready() -> void:
 	setup.enemy_speed_percent = enemy_speed_percent
 	# A run is the real game: no training ring there (practice fights may still use it, F1 > R).
 	runner.training_ring_allowed = _run == null
+	_allow_timing_numbers()
 	print("Combat seed: %d  encounter: %s  opening: %s" % [setup.rng_seed, _encounter.id,
 			CombatEngine.OPENING_NAMES[setup.opening]])
 	for data: CharacterData in setup.party:
@@ -430,7 +431,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key := _pressed_key(event)
 	if _ended:
-		if event.is_action_pressed("debug_overlay", false, true):
+		if event.is_action_pressed("debug_overlay", false, true) and is_practice_fight():
 			hud.overlay.toggle()
 			get_viewport().set_input_as_handled()
 			return
@@ -646,6 +647,15 @@ func set_tutorial(on: bool) -> void:
 	tutorial_mode = on
 	if runner != null:
 		runner.force_ring = on
+	_allow_timing_numbers()
+
+
+## The press timing numbers ("PARRY -34", "LATE +343") show only in practice fights (card #276).
+func _allow_timing_numbers() -> void:
+	if runner != null:
+		runner.timing_numbers_allowed = is_practice_fight()
+	if skill_runner != null:
+		skill_runner.timing_numbers_allowed = is_practice_fight()
 
 
 ## The tutorial allows only this menu choice (an ability id; "" = any). An open menu is redrawn.
@@ -984,15 +994,17 @@ func _menu_entry(actor: int, ability: AbilityData) -> Dictionary:
 		AbilityData.Target.ALL_ALLIES:
 			targets = mirror.living_party_ids()
 			pick = false
+	# Why it is locked, as a code the menu draws (a lock, a red cost, the Hush icon; phase 22). The
+	# rules behind it (how to gain AP, what Hush does) are taught in the tutorial and the Glossary.
 	var reason := ""
 	if ability.team_ultimate and mirror.team_gauge < _tuning.team_gauge_max:
-		reason = "Needs a full team gauge. Good follow-up presses fill it."
+		reason = ActionMenu.LOCK_GAUGE
 	elif _hushed_out(actor, ability):
-		reason = "Hushed: only Attack and items until it wears off."
+		reason = ActionMenu.LOCK_HUSHED
 	elif ap < ability.ap_cost:
-		reason = "Needs %d AP (you have %d). Parry hits to gain AP." % [ability.ap_cost, ap]
+		reason = ActionMenu.LOCK_AP
 	elif targets.is_empty():
-		reason = "Nobody is down." if ability.target == AbilityData.Target.DOWNED_ALLY else "No target."
+		reason = ActionMenu.LOCK_TARGET
 	return {"ability": ability, "usable": reason.is_empty(), "reason": reason, "targets": targets, "pick_target": pick}
 
 
@@ -1085,7 +1097,10 @@ func _on_combat_ended(result: String) -> void:
 			_play_end_song(defeat_music_path)
 	view.camera.shot_end(view.arena_centre())
 	var hints := _end_hints()
-	hud.show_end(result, _summary_text(), hints, "The host goes on for everyone." if _net_mode == NetMode.CLIENT else "")
+	# The real game shows icons (phase 22); the lines of numbers stay for practice.
+	var summary := _summary_text() if is_practice_fight() else ""
+	hud.show_end(result, summary, hints, "The host goes on for everyone." if _net_mode == NetMode.CLIENT else "",
+			_end_rewards())
 	if _options.is_autoplay():
 		_check_mirror()
 		if _net_mode != NetMode.LOCAL:
@@ -1147,18 +1162,53 @@ func _on_press_judged(action: int, report: Dictionary) -> void:
 
 
 ## What the end screen's buttons do ([[action, text], ...] for the HUD's hint bar). R (fight
-## again) is a keyboard extra and is not listed.
+## again) is a keyboard extra and is not listed. F1 Stats only in a practice fight (phase 22).
 func _end_hints() -> Array:
-	var stats := [&"debug_overlay", "Stats"]
+	var hints: Array = [[&"menu_confirm", "Fight again"], [&"menu_cancel", "Choose a fight"]]
 	if _net_mode == NetMode.CLIENT:
-		return [stats]
-	if _run != null:
-		if _result == "defeat":
-			return [[&"menu_confirm", "See how the run went"], stats]
-		return [[&"menu_confirm", "Back to the zone" if _from_zone else "On with the run"], stats]
-	if _from_zone:
-		return [[&"menu_confirm", "Back to the zone"], stats]
-	return [[&"menu_confirm", "Fight again"], [&"menu_cancel", "Choose a fight"], stats]
+		hints = []
+	elif _run != null and _result == "defeat":
+		hints = [[&"menu_confirm", "See how the run went"]]
+	elif _run != null:
+		hints = [[&"menu_confirm", "Back to the zone" if _from_zone else "On with the run"]]
+	elif _from_zone:
+		hints = [[&"menu_confirm", "Back to the zone"]]
+	if is_practice_fight():
+		hints.append([&"debug_overlay", "Stats"])
+	return hints
+
+
+## A won run fight's end screen as icons (phase 22, cards #273 and #274), instead of the lines of
+## _summary_text: {chips: [{icon, text, color}] (gold, the find, each Relic line), heroes: [{portrait,
+## text, level (new level, 0: none), down}]}. Empty outside a won run fight.
+func _end_rewards() -> Dictionary:
+	if _run == null or _result != "victory":
+		return {}
+	var chips: Array[Dictionary] = [{"icon": AssetLoader.texture(_visuals.gold_icon_path, Vector2i(12, 12)),
+			"text": "+%d" % _run.gold_for(_encounter), "color": HudStyle.GOLD}]
+	if _drop != null:
+		chips.append({"icon": AssetLoader.texture(_drop.icon_path, Vector2i(16, 16)), "text": _drop.display_name,
+				"color": HudStyle.TEXT})
+	# A flawless win earns one more spoils choice (card #283).
+	if RunState.is_flawless(_encounter, recap()):
+		chips.append({"icon": null, "text": "FLAWLESS  +1 spoils", "color": HudStyle.GOLD})
+	# Each Relic line keeps its words (new, level, Echo) with the dropped Relic's icon in front.
+	var drops := _run.relic_drops(_encounter)
+	var lines := _run.win_relic_lines(_encounter)
+	for i: int in lines.size():
+		var icon: Texture2D = AssetLoader.texture(drops[i].icon_path, Vector2i(16, 16)) if i < drops.size() else null
+		chips.append({"icon": icon, "text": lines[i], "color": HudStyle.GOLD})
+	var heroes: Array[Dictionary] = []
+	var xp := _run.fight_xp(_encounter, party_hp())
+	var hp := party_hp()
+	for id: int in mirror.party_ids:
+		var slot := int(mirror.fighter(id).slot)
+		if slot < 0 or slot >= _run.party_size():
+			continue
+		var up := _run.levels_from(slot, xp[slot])
+		heroes.append({"portrait": hud.portrait(id), "text": "+%d XP" % xp[slot],
+				"level": _run.levels[slot] + up if up > 0 else 0, "down": slot < hp.size() and hp[slot] <= 0})
+	return {"chips": chips, "heroes": heroes}
 
 
 ## The fight so far as plain numbers (FightRecap.to_dict), read from the mirror (rule 7).
@@ -1872,7 +1922,8 @@ func _refresh() -> void:
 # --- practice tools ---------------------------------------------------------------------------
 
 func _handle_practice(event: InputEvent, key: Key) -> bool:
-	if event.is_action_pressed("debug_overlay", false, true):
+	# The F1 stats panel is a practice tool: the real game has none (phase 22).
+	if event.is_action_pressed("debug_overlay", false, true) and is_practice_fight():
 		hud.overlay.toggle()
 		return true
 	if key == KEY_NONE:
@@ -1948,6 +1999,12 @@ func _is_real_fight() -> bool:
 	return _run != null or tutorial_mode
 
 
+## A practice fight: the main menu's Practice fights and the dev switches' (--encounter, --zone
+## without --run), played on this machine. Not a run, the tutorial or an online game.
+func is_practice_fight() -> bool:
+	return not _is_real_fight() and _net_mode == NetMode.LOCAL
+
+
 ## The attacks of the first living enemy (what 1-9 force).
 func _practice_attacks() -> Array[EnemyAttackData]:
 	var list: Array[EnemyAttackData] = []
@@ -1978,7 +2035,8 @@ func _practice_text() -> String:
 		lines.append("   ".join(keys))
 	lines.append("I party invulnerable: " + _on_off(bool(mirror.practice.get("invulnerable_party", false))))
 	lines.append("O enemy immortal: " + _on_off(bool(mirror.practice.get("immortal_enemies", false))))
-	lines.append("F1 stats   F2 calibrate" if _run != null else "R restart   F1 stats   F2 calibrate")
+	# Shown in the F1 panel (card #275), where R is the ring: R restarts once F1 is closed.
+	lines.append("F1 closed: R restart   F2 calibrate")
 	return "\n".join(lines)
 
 
@@ -2043,7 +2101,7 @@ func _warm_up_assets(setup: CombatSetup) -> void:
 	for path: String in [_visuals.spark_path, _visuals.shockwave_path, _visuals.shadow_path,
 			_visuals.slash_path,
 			_visuals.lock_icon_path, _visuals.ap_pip_path, _visuals.ap_pip_empty_path,
-			_visuals.hit_icon_normal_path, _visuals.hit_icon_ground_path]:
+			_visuals.hit_icon_normal_path, _visuals.hit_icon_ground_path, _visuals.hit_icon_ranged_path]:
 		AssetLoader.texture(path)
 
 

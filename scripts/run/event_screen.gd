@@ -1,9 +1,12 @@
 class_name EventScreen
 extends StopScreen
-## A "?" stop (DESIGN.md 8.7): the event's picture, its story and its choices (each with its price,
-## reward and risk written out; ones the party cannot pay are greyed), plus Leave. A choice that
-## asks for a hero or a backpack item opens a short pick list first. Taking a choice tells what
-## happened (RunState.choose_event: a risk may strike), hands out any items, then Continue goes
+## A "?" stop (DESIGN.md 8.7): the event's picture, its story and its choices as side-by-side cards
+## (card #288), each with its price, reward and risk as icon chips (coin -40, heart +30%, a skull for
+## a curse, crossed swords for a fight, a die with the risk's chance); ones the party cannot pay are
+## greyed. Leave is the cancel button (a hint in the footer), not a card. The starting pact (card
+## #285) is shown the same way. A choice that asks for a hero or a backpack item opens a short pick
+## first: cards when PICK_CARDS_MAX or fewer, else a column; cancel returns to the cards. Taking a choice tells what happened
+## (RunState.choose_event: a risk may strike), hands out any items, then Continue goes
 ## back to the map, or into the fight when the choice sprang an ambush. A "?" stop that turned into
 ## an ambush shows its own page ("An Ambush!") with one choice, Fight. The bot calls choose() and
 ## leave().
@@ -11,6 +14,9 @@ extends StopScreen
 signal done
 ## Host: a choice was taken (Main tells the clients, who show the same result).
 signal chosen(index: int, text: String)
+
+## A pick list of this many or fewer (who pays, what goes) shows as cards side by side.
+const PICK_CARDS_MAX: int = 3
 
 const TEXT_WIDTH: float = 1400.0
 
@@ -20,6 +26,9 @@ var _menu: ListMenu
 var _text: Label
 var _result: Label
 var _detail: Label
+var _footer: HintBar
+## The footer's hints now (tests read them).
+var _footer_now: Array = []
 var _decided: bool = false
 ## The "?" stop is an ambush: its page shows instead of an event.
 var _ambush_page: bool = false
@@ -49,13 +58,16 @@ func setup(p_run: RunState, event: EventData, result: String = "") -> void:
 	column.add_child(_text)
 	_result = ListMenu.centred_label("", TEXT_SIZE, HudStyle.GOLD)
 	_wrap(_result)
+	_result.visible = false
 	column.add_child(_result)
 	_menu = ListMenu.new()
 	column.add_child(_menu)
+	# Only the pick list says more about the chosen row (a hero's HP, an item).
 	_detail = ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	_wrap(_detail)
+	_detail.visible = false
 	column.add_child(_detail)
-	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Select"]])
+	_footer = ListMenu.screen_footer(self, [])
 	_menu.set_items([], _detail)
 	if not result.is_empty():
 		_show_result(result)
@@ -110,9 +122,25 @@ func _story() -> String:
 	return _event.text if _event != null else "Nothing here."
 
 
-## The rows of the menu as drawn now: {text, enabled, detail}; the last one is Leave while choosing.
+## The rows of the menu as drawn now: {text, enabled, chips, ...}; while choosing, one card per
+## choice (Leave is the cancel button, not a row).
 func rows() -> Array[Dictionary]:
 	return _menu.items
+
+
+## The menu (tests).
+func menu() -> ListMenu:
+	return _menu
+
+
+## The footer's hints now (tests): [[action, text], ...].
+func footer_entries() -> Array:
+	return _footer_now
+
+
+func _set_footer(entries: Array) -> void:
+	_footer_now = entries
+	_footer.set_entries(entries)
 
 
 ## The event shown (null on an ambush page).
@@ -162,61 +190,79 @@ func leave() -> void:
 
 
 func _show_ambush() -> void:
-	var list: Array[Dictionary] = [{"text": "Fight", "enabled": not remote, "detail": "There is no way around it."}]
-	_menu.set_items(list)
+	var list: Array[Dictionary] = [{"text": "Fight", "enabled": not remote}]
+	_show_list(list, false)
+	_set_footer([[&"menu_confirm", "Fight"]])
 
 
 func _show_choices() -> void:
 	_picking = -1
-	_result.text = ""
+	_say_result("")
 	var list: Array[Dictionary] = []
 	for i: int in choice_count():
 		var c := _event.choices[i]
-		var detail := run.choice_summary(c, run.at)
-		if not c.detail.is_empty():
-			detail += "\n" + c.detail
-		list.append({"text": c.text, "enabled": not remote and run.can_choose(c, run.at), "detail": detail.strip_edges()})
-	list.append({"text": "Leave", "enabled": not remote, "detail": "Walk on without touching anything."})
+		list.append({"text": c.text, "enabled": not remote and run.can_choose(c, run.at),
+				"chips": StopScreen.chip_entries(run.choice_chips(c, run.at), _look)})
+	_show_list(list, true)
+	_set_footer([[&"@leftright", "Choose"], [&"menu_confirm", "Select"], [&"menu_cancel", "Leave"]])
+
+
+## Shows `list` as cards side by side, or as a column (a pick list, one row to go on).
+func _show_list(list: Array[Dictionary], cards: bool) -> void:
+	_menu.horizontal = cards
+	_detail.visible = not cards and _picking >= 0
 	_menu.set_items(list)
 
 
-## The list for a choice that asks for a hero or an item: one row each, then Back.
+## The list for a choice that asks for a hero or an item: a card each (the hero's face and HP, the
+## item's picture) side by side when there are PICK_CARDS_MAX or fewer, else a column. Back is the
+## cancel button, never a row (owner, phase 22).
 func _show_pick(index: int) -> void:
 	_picking = index
 	_pick_ids.clear()
 	var list: Array[Dictionary] = []
 	if pick_kind(index) == ZoneOfferData.Pick.HERO:
-		_result.text = "Who pays?"
+		_say_result("Who pays?")
 		for slot: int in run.party_size():
 			_pick_ids.append(slot)
-			var able := run.hero_can_lose_max_hp(slot)
-			list.append({"text": run.data.party[slot].display_name, "enabled": able,
-					"detail": "HP %d of %d%s" % [run.hp[slot], run.max_hp(slot), "" if able else "  (nothing left to take)"]})
+			var hero := run.data.party[slot]
+			list.append({"text": hero.display_name, "enabled": run.hero_can_lose_max_hp(slot),
+					"icon": AssetLoader.texture(hero.portrait_path, Vector2i(48, 48)),
+					"detail": "HP %d of %d" % [run.hp[slot], run.max_hp(slot)],
+					"chips": [{"glyph": &"heart", "text": "%d / %d" % [run.hp[slot], run.max_hp(slot)], "color": HudStyle.TEXT}]})
 	else:
-		_result.text = "What goes?"
+		_say_result("What goes?")
 		for uid: int in run.losable_uids():
 			_pick_ids.append(uid)
 			var e := run.backpack.entry(uid)
-			list.append({"text": RunState.entry_name(e), "enabled": true, "detail": (e.item as ItemData).description})
-	list.append({"text": "Back", "enabled": true, "detail": "Think again."})
+			list.append({"text": RunState.entry_name(e), "enabled": true,
+					"icon": AssetLoader.texture((e.item as ItemData).icon_path, Vector2i(16, 16)),
+					"detail": (e.item as ItemData).description})
 	_menu.index = 0
-	_menu.set_items(list)
+	var cards := list.size() <= PICK_CARDS_MAX
+	_show_list(list, cards)
+	_set_footer([[&"@leftright" if cards else &"@updown", "Choose"], [&"menu_confirm", "Select"],
+			[&"menu_cancel", "Back"]])
 
 
 func _show_result(text: String) -> void:
 	_decided = true
-	_result.text = text if not text.is_empty() else "You walk on."
-	var detail := "There is no way around it." if run.in_ambush() else "Back to the map."
-	var list: Array[Dictionary] = [{"text": "Fight" if run.in_ambush() else "Continue", "enabled": not remote,
-			"detail": detail}]
-	_menu.set_items(list)
+	_say_result(text if not text.is_empty() else "You walk on.")
+	var go := "Fight" if run.in_ambush() else "Continue"
+	var list: Array[Dictionary] = [{"text": go, "enabled": not remote}]
+	_show_list(list, false)
+	_set_footer([[&"menu_confirm", go]])
 	_refresh_bar()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if remote or _overlay != null:
 		return
-	if _menu.handle(event) != &"confirm":
+	var answer := _menu.handle(event)
+	if answer == &"cancel":
+		_cancel()
+		return
+	if answer != &"confirm":
 		return
 	if _decided or _ambush_page:
 		if is_settling():
@@ -225,19 +271,37 @@ func _unhandled_input(event: InputEvent) -> void:
 		leave()
 	elif _picking >= 0:
 		if _menu.index >= _pick_ids.size():
-			Sfx.play("menu_cancel")
-			var back := _picking
-			_show_choices()
-			_menu.index = back
-			_menu.redraw()
+			_back_from_pick()
 		else:
 			choose(_picking, _pick_ids[_menu.index])
-	elif _menu.index >= choice_count():
-		Sfx.play("menu_cancel")
-		_show_result("")
-		chosen.emit(-1, "")
-	elif pick_kind(_menu.index) != ZoneOfferData.Pick.NONE:
+	elif pick_kind(_menu.index) != ZoneOfferData.Pick.NONE and can_choose(_menu.index):
 		Sfx.play("menu_confirm")
 		_show_pick(_menu.index)
 	else:
 		choose(_menu.index)
+
+
+## Cancel: back from a pick list, or Leave while choosing (walk on, taking nothing). Nothing once
+## the choice is made or on an ambush page.
+func _cancel() -> void:
+	if _picking >= 0:
+		_back_from_pick()
+	elif not _decided and not _ambush_page:
+		Sfx.play("menu_cancel")
+		_show_result("")
+		chosen.emit(-1, "")
+
+
+## The gold line over the menu; hidden while empty, so the cards keep the room.
+func _say_result(text: String) -> void:
+	_result.text = text
+	_result.visible = not text.is_empty()
+
+
+## Back from a pick list to the cards, the cursor on the choice that asked.
+func _back_from_pick() -> void:
+	Sfx.play("menu_cancel")
+	var back := _picking
+	_picking = -1
+	_menu.index = back
+	_show_choices()

@@ -3,6 +3,8 @@ extends CanvasLayer
 ## Join Online (DESIGN.md 9.2): type the host's address (it is remembered) and press Enter. While
 ## connecting the screen says so; a refusal or failure is shown here. Esc (or the pad's Back)
 ## goes back. Main listens to Net for the welcome.
+## Phase 22: the buttons are a hint bar along the bottom (Confirm: Connect, or Rejoin after a lost
+## connection; Back), not key names written in the text.
 
 ## The player asked to connect to `address`.
 signal connect_requested(address: String)
@@ -11,15 +13,19 @@ signal back
 const TITLE_SIZE: int = 64
 const FIELD_SIZE: int = 40
 const TEXT_SIZE: int = 28
-const HINT_SIZE: int = 24
 const FIELD_WIDTH: float = 520.0
 
 var _field: LineEdit
 var _status: Label
+var _footer: HintBar
 var _busy: bool = false
+## After a lost connection: the Confirm hint says Rejoin (the address is the seat's).
+var _rejoin: bool = false
 
 
-func setup(address: String) -> void:
+## `rejoin`: the screen opened because the connection to the host was lost mid-run.
+func setup(address: String, rejoin: bool = false) -> void:
+	_rejoin = rejoin
 	var column := ListMenu.screen_column(self, "Join Online", TITLE_SIZE)
 	column.add_child(ListMenu.centred_label("Host address", TEXT_SIZE, HudStyle.TEXT_DIM))
 	var row := HBoxContainer.new()
@@ -37,12 +43,21 @@ func setup(address: String) -> void:
 	row.add_child(_field)
 	_status = ListMenu.centred_label("", TEXT_SIZE, HudStyle.TEXT)
 	column.add_child(_status)
-	column.add_child(ListMenu.centred_label(
-			"Type the address the host's screen shows, then Enter (A on a pad).   Esc (B): back\n"
-			+ "Same Wi-Fi: it just works. Over the internet: both use Tailscale (or the host opens the port).",
-			HINT_SIZE, HudStyle.TEXT_DIM))
+	_footer = ListMenu.screen_footer(self, footer_entries(_rejoin, ButtonPrompts.shows_pad(), ButtonPrompts.shows_keys()))
+	ButtonPrompts.listen(_refresh_footer)
 	_field.call_deferred("grab_focus")
 	_field.call_deferred("select_all")
+
+
+## The hint bar: Confirm (Connect, or Rejoin) and Back. The text field takes Backspace, so on the
+## keyboard Back is Escape, the Pause key; a pad's Back is its usual button. Pure.
+static func footer_entries(rejoin: bool, shows_pad: bool, shows_keys: bool) -> Array:
+	var back_action := &"menu_cancel" if shows_pad and not shows_keys else &"pause"
+	return [[&"menu_confirm", "Rejoin" if rejoin else "Connect"], [back_action, "Back"]]
+
+
+func _refresh_footer() -> void:
+	_footer.set_entries(footer_entries(_rejoin, ButtonPrompts.shows_pad(), ButtonPrompts.shows_keys()))
 
 
 ## Shows a message (a refusal, a failure) and lets the player try again.
@@ -78,10 +93,14 @@ func _on_submitted(text: String) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# The text field takes most keys, so Back is read here: Esc, or the pad's Back button.
+	# The text field takes most keys, so Back is read here: Escape (the Pause key), or the pad's Back
+	# or Menu button.
 	var key := event as InputEventKey
-	var pad_back := event is InputEventJoypadButton and event.is_action_pressed(&"menu_cancel", false, true)
-	if (key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE) or pad_back or MenuMouse.is_back(event):
+	var escape := key != null and key.pressed and not key.echo and key.keycode == KEY_ESCAPE
+	# On a pad, Back and Menu (Pause) both leave; a key other than Escape types into the field.
+	var pad_back := event is InputEventJoypadButton and (event.is_action_pressed(&"menu_cancel", false, true)
+			or event.is_action_pressed(&"pause", false, true))
+	if escape or pad_back or MenuMouse.is_back(event):
 		get_viewport().set_input_as_handled()
 		Sfx.play("menu_cancel")
 		back.emit()

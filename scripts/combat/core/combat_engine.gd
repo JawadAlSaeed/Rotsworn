@@ -33,6 +33,7 @@ extends RefCounted
 ##                           opening: "normal" | "first_strike" (DESIGN.md 2.12)
 ##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms],
 ##                           feints:[bool] (which hits are feints, card #129), marks? (card #194),
+##                           ranged?:[bool] (which hits are thrown, only when one is, card #278),
 ##                           support? (EnemyAttackData.Support of a heal or shield move, card #259),
 ##                           odds? {attacks:[[id, weight]], targets:[[hero, weight]]} (practice only)}
 ##                           what this enemy will do on its next turn (DESIGN.md 2.8). Sent at
@@ -1036,6 +1037,8 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	var feints: Array[bool] = []
 	var marks: Array[String] = []
 	var any_mark := false
+	var ranged: Array[bool] = []
+	var any_ranged := false
 	var enemy := get_combatant(enemy_id)
 	var tempo := _tempo_percent(enemy)
 	var hard := _forced_hits(enemy)
@@ -1046,6 +1049,9 @@ func _intent_event(enemy_id: int) -> Dictionary:
 		feints.append(hit.feint_in(hard))
 		marks.append(hit.mark_id_in(hard, allowed))
 		any_mark = any_mark or hit.marks_in(hard, allowed)
+		var thrown := hit.ranged_in(hard)
+		ranged.append(thrown)
+		any_ranged = any_ranged or thrown
 	var targets: Array[int] = []
 	targets.assign(intent.targets)
 	var event := {
@@ -1062,6 +1068,9 @@ func _intent_event(enemy_id: int) -> Dictionary:
 	if any_mark:
 		# Honest intent (card #194): which hits leave a mark, "" for a plain one. Only when one does.
 		event["marks"] = marks
+	if any_ranged:
+		# Which hits are thrown (card #278), so the intent shows their own icon. Only when one is.
+		event["ranged"] = ranged
 	if attack.is_support():
 		# A heal or a shield for a fellow monster (card #259): targets holds that monster.
 		event["support"] = attack.support

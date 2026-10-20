@@ -259,3 +259,30 @@ func test_campfire_train_gives_points() -> void:
 	assert_eq(run.free_points(0), before + _tuning.rest_train_points)
 	var client := RunState.from_dict(_data, _tuning, run.to_dict())
 	assert_eq(client.free_points(0), run.free_points(0), "the points travel online")
+
+
+func test_the_campfire_before_the_boss_offers_its_three_choices_as_cards() -> void:
+	var run := _run()
+	var fire := -1
+	for r: int in range(run.map.row_count() - 2, 0, -1):
+		var all_rest := true
+		for id: int in run.map.rows[r]:
+			all_rest = all_rest and int(run.map.stop(id).type) == RunMap.StopType.REST
+		if all_rest:
+			fire = int(run.map.rows[r][0])
+			break
+	assert_gte(fire, 0, "the act has a campfire row under the boss")
+	run.at = fire
+	assert_true(run.is_watch_fire())
+	var rest := RestScreen.new()
+	add_child_autofree(rest)
+	rest.setup(run)
+	var menu := rest.menu()
+	assert_true(menu.horizontal, "side by side (card #288)")
+	assert_eq(menu.items.map(func(row: Dictionary) -> String: return String(row.text)), ["Rest", "Keep watch", "Sharpen"])
+	for row: Dictionary in menu.items:
+		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
+	assert_eq(String((menu.items[2].chips as Array)[0].text), "+%d AP" % _tuning.sharpen_ap)
+	rest.sharpen_now()
+	assert_true(run.sharpened, "the bot's sharpen_now() still works")
+	assert_false(menu.horizontal, "then one way on")

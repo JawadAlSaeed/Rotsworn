@@ -407,6 +407,44 @@ def make_elite() -> np.ndarray:
     return c.a
 
 
+def make_foe() -> np.ndarray:
+    """A roaming enemy, for the zone's goal chips (phase 22): the elite's skull alone, a touch
+    bigger, without the horns and blades that mark the guard. Shaded on its right side."""
+    c = Canvas(ICON, ICON)
+    c.ellipse(11.5, 10.0, 7.0, 6.5, BONE[3])
+    c.rect(7, 13, 16, 18, BONE[3])
+    c.rect(13, 8, 17, 18, BONE[2])
+    c.ellipse(11.5, 10.0, 5.0, 5.0, BONE[3])
+    c.rect(8, 18, 15, 20, BONE[2])
+    c.ellipse(8.8, 12.0, 2.0, 2.2, SEPIA[0])
+    c.ellipse(14.2, 12.0, 2.0, 2.2, SEPIA[0])
+    c.px(9, 12, RED[3])
+    c.px(14, 12, RED[3])
+    c.px(11, 16, SEPIA[0])
+    c.px(12, 16, SEPIA[0])
+    for tx in (9, 11, 13):
+        c.px(tx, 19, SEPIA[1])
+        c.px(tx, 20, SEPIA[1])
+    c.line(7, 7, 10, 5, BONE[-1])
+    c.outline(INK_OUT)
+    return c.a
+
+
+def make_coin() -> np.ndarray:
+    """Gold, for the fight's end screen (phase 22: an icon, not the word): a round worn-gold coin
+    lit from the upper left, a darker rim and a stamped rot mark in the middle."""
+    c = Canvas(ICON, ICON)
+    c.ellipse(11.5, 11.5, 9.0, 9.0, GOLD[1])
+    c.ellipse(11.0, 11.0, 8.0, 8.0, GOLD[2])
+    c.ellipse(10.5, 10.5, 6.0, 6.0, GOLD[3])
+    c.ellipse(11.5, 11.5, 3.0, 3.5, GOLD[1])
+    c.ellipse(11.0, 11.0, 2.0, 2.5, GOLD[2])
+    c.line(6, 8, 8, 5, GOLD[-1])
+    c.px(9, 5, GOLD[-1])
+    c.outline(INK_OUT)
+    return c.a
+
+
 def make_event() -> np.ndarray:
     """A "?" stop (DESIGN.md 8.7): a big question mark in red ink over a curl of mist."""
     c = Canvas(ICON, ICON)
@@ -553,6 +591,8 @@ def build(ctx) -> None:
     ctx.save("sprites/ui/map_lair_hollow_king.png", icons["lair"], scale=8)
     ctx.save("sprites/ui/map_lair_husk_lord.png", make_lair_husk_lord(), scale=8)
     ctx.save("sprites/ui/map_elite.png", make_elite(), scale=8)
+    ctx.save("sprites/ui/goal_foe.png", make_foe(), scale=8)
+    ctx.save("sprites/ui/gold_coin.png", make_coin(), scale=8)
     ctx.save("sprites/ui/map_event.png", make_event(), scale=8)
     ctx.save("sprites/ui/map_treasure.png", make_treasure(), scale=8)
     ctx.save("sprites/ui/map_flag.png", icons["flag"], scale=8)

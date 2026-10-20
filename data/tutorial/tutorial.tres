@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="TutorialData" load_steps=16 format=3]
+[gd_resource type="Resource" script_class="TutorialData" load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/tutorial_data.gd" id="1_tut"]
 [ext_resource type="Script" path="res://scripts/data/tutorial_step_data.gd" id="2_step"]
@@ -140,9 +140,17 @@ full_ap = true
 mark_hero = "alder"
 mark_status = "rotting"
 
-[sub_resource type="Resource" id="s8"]
+[sub_resource type="Resource" id="s7f"]
 script = ExtResource("2_step")
 lesson = 7
+title = "First Strike"
+text = "In a zone, hit a roaming enemy with {field_strike} before it touches you: your party acts first."
+tip = "FIRST STRIKE! flashes when it works."
+goal = "read"
+
+[sub_resource type="Resource" id="s8"]
+script = ExtResource("2_step")
+lesson = 8
 title = "Relics"
 text = "Monsters, guards, shops and chests give Relics, and you keep them forever, even when a run is lost. Each one gives a small stat and an effect. Find a copy in the same run and it gets one level stronger, up to level 3, for that run."
 tip = "Pick the Relics the team brings in the bag on the main menu's Relics screen. The bag grows as you learn Echoes. A run opens one Relic slot at the start, the second after the first guard, the third after act 1's boss."
@@ -150,7 +158,7 @@ goal = "read"
 
 [sub_resource type="Resource" id="s9"]
 script = ExtResource("2_step")
-lesson = 7
+lesson = 8
 title = "Echoes"
 text = "Wear a Relic in won fights to fill its pips, run after run. Full pips teach its Echo for good: its effect without the stat. One hero can wear each Echo for Echo points, which level ups give. Open Echoes on the party screen ({party_menu} on the map)."
 tip = "A learned Echo can be worn in any run, even without its Relic. Every run starts with 0 Echo points."
@@ -160,6 +168,6 @@ goal = "read"
 script = ExtResource("1_tut")
 encounter = ExtResource("3_fight")
 enemy_speed_percent = 50
-steps = Array[ExtResource("2_step")]([SubResource("s0"), SubResource("s1"), SubResource("s2"), SubResource("s3"), SubResource("s4"), SubResource("s5"), SubResource("s6"), SubResource("s7"), SubResource("s7m"), SubResource("s7n"), SubResource("s8"), SubResource("s9")])
+steps = Array[ExtResource("2_step")]([SubResource("s0"), SubResource("s1"), SubResource("s2"), SubResource("s3"), SubResource("s4"), SubResource("s5"), SubResource("s6"), SubResource("s7"), SubResource("s7m"), SubResource("s7n"), SubResource("s7f"), SubResource("s8"), SubResource("s9")])
 done_title = "Tutorial complete"
 done_text = "That's everything you need. Start a New Run from the main menu whenever you're ready."

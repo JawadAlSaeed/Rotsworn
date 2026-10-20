@@ -13,6 +13,8 @@ const REQUIRED := [
 	"ap_drain", "doom", "break", "stagger", "status_bleeding", "status_slowed", "elite", "guard", "champion",
 	"oath", "seal", "shrine", "wanderer", "gear", "charm", "rot_touched", "backpack", "rotten_item",
 	"camp_rest", "camp_train", "stop_zone", "stop_elite", "stop_event", "stop_treasure", "stop_rest", "stop_shop",
+	# Phase 22: the rules the Echoes page and the shop no longer spell out.
+	"echo", "relic_level",
 ]
 
 var _data: GlossaryData
@@ -91,6 +93,9 @@ func test_colours_and_words_follow_the_game() -> void:
 	assert_eq(_data.find("hit_ground").icon_path, _visuals.hit_icon_ground_path)
 	assert_eq(_data.find("hit_rend").icon_path, _visuals.hit_icon_rend_path)
 	assert_eq(_data.find("hit_sweep").icon_path, _visuals.hit_icon_sweep_path)
+	# A thrown hit has its own icon on the sign since card #278: the book draws the same one.
+	assert_eq(_data.find("thrown").icon_path, _visuals.hit_icon_ranged_path)
+	assert_eq(_data.find("thrown").color, _visuals.normal_hit_color, "still a normal hit")
 	for status: String in HudStyle.STATUS_NAMES:
 		var entry := _data.find("status_" + status)
 		if entry == null:

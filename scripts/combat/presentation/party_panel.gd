@@ -2,7 +2,8 @@ class_name PartyPanel
 extends PanelContainer
 ## One party member's card at the bottom left of the screen (restyled in card #154 as a slanted
 ## ink plate): portrait, name (title font, in the hero's accent colour), HP bar with the numbers
-## drawn on it (damage trail, red when low), AP gems (up to max_ap), status line, DOWN state, co-op
+## drawn on it (damage trail, red when low), AP gems (up to max_ap), its statuses as icons with the
+## turns left (phase 22), DOWN state, co-op
 ## player tag, the active-turn highlight (gold edge and glow, the card steps up a little) and the
 ## "being attacked" highlight (red). Values come from the mirror. The three cards leave the bottom
 ## right corner to the action menu and the defence buttons.
@@ -21,9 +22,6 @@ const TAG_SIZE: int = 18
 const HP_BAR_HEIGHT: float = 28.0
 const HP_TEXT_SIZE: int = 22
 const STATUS_SIZE: int = 18
-## A mark's icon on the card (card #262): its 12-pixel art at 2x, and the gap to its turns.
-const MARK_ICON_PX: float = 24.0
-const MARK_GAP: int = 1
 const LOW_HP_PERCENT: int = 30
 const ACTIVE_BORDER_PX: int = 4
 const IDLE_BORDER_PX: int = 2
@@ -44,10 +42,11 @@ var _name_label: Label
 var _player_label: Label
 var _hp_bar: TrailBar
 var _hp_text: Label
-var _status_label: Label
-## The hero debuffs (rot, blight, weakness) with their turns left, each in its own colour (card #194).
-var _debuff_box: BoxContainer
-var _debuff_key: String = ""
+## Every status as its icon and turns left (marks since card #262, the rest since phase 22); it wraps
+## onto a second line rather than widen the card.
+var _status_box: HFlowContainer
+var _status_key: String = ""
+var _status_px: float = 24.0
 var _pips: Array[TextureRect] = []
 var _pip_full: Texture2D
 var _pip_empty: Texture2D
@@ -61,6 +60,7 @@ var _lifted: bool = false
 func setup(id: int, display_name: String, accent: Color, portrait: Texture2D, max_ap: int,
 		visuals: CombatVisuals) -> void:
 	fighter_id = id
+	_status_px = visuals.status_icon_px
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(PANEL_WIDTH, 0.0)
 	_style = HudStyle.slant(HudStyle.INK, HudStyle.EDGE_DIM, IDLE_BORDER_PX, PADDING, CARD_HEIGHT, 0.12)
@@ -108,16 +108,15 @@ func setup(id: int, display_name: String, accent: Color, portrait: Texture2D, ma
 		gems.add_child(pip)
 		_pips.append(pip)
 
-	# Full panel width, so a few statuses fit; an empty label keeps its line, so the panel does
-	# not change height when a status comes or goes.
-	var status_row := _box(HBoxContainer.new(), COLUMN_GAP)
-	column.add_child(status_row)
-	_debuff_box = _box(HBoxContainer.new(), COLUMN_GAP)
-	status_row.add_child(_debuff_box)
-	_status_label = HudStyle.make_label("", STATUS_SIZE, HudStyle.GOLD)
-	_status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status_row.add_child(_status_label)
+	# Full panel width, so a few statuses fit; the line keeps an icon's height while empty, so the
+	# panel does not change height when a status comes or goes.
+	_status_box = HFlowContainer.new()
+	_status_box.name = "Statuses"
+	_status_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_box.add_theme_constant_override("h_separation", COLUMN_GAP)
+	_status_box.add_theme_constant_override("v_separation", ROW_GAP)
+	_status_box.custom_minimum_size = Vector2(0.0, _status_px)
+	column.add_child(_status_box)
 
 
 ## `bar` with `text` drawn centred on top of it (HP and gauge numbers on their bars); add the
@@ -147,45 +146,29 @@ func refresh(f: Dictionary, active: bool) -> void:
 	_hp_text.label_settings.font_color = HudStyle.TEXT if alive else (HudStyle.JUMP if escaped else HudStyle.HP_LOW)
 	for i: int in _pips.size():
 		_pips[i].texture = _pip_full if i < ap else _pip_empty
-	var statuses := f.get("statuses", {}) as Dictionary
-	_status_label.text = HudStyle.status_text(statuses, true)
-	_show_debuffs(HudStyle.mark_badges(statuses))
+	_show_statuses(HudStyle.status_badges(f.get("statuses", {}) as Dictionary))
 	modulate = Color.WHITE if alive else DOWN_TINT
 	_active = active
 	_apply_border()
 
 
-## Rebuilds the mark badges ([[id, turns], ...]: an icon and the turns left, card #262) only when
-## they changed. A mark with no icon falls back to its word.
-func _show_debuffs(badges: Array[Array]) -> void:
+## Rebuilds the status icons ([[id, turns], ...] from HudStyle.status_badges: an icon and the turns
+## left) only when they changed. A status with no icon falls back to its word.
+func _show_statuses(badges: Array[Array]) -> void:
 	var key := str(badges)
-	if key == _debuff_key:
+	if key == _status_key:
 		return
-	_debuff_key = key
-	for child: Node in _debuff_box.get_children():
-		_debuff_box.remove_child(child)
-		child.queue_free()
+	_status_key = key
+	for child: Node in _status_box.get_children():
+		_status_box.remove_child(child)
+		child.free()
 	for badge: Array in badges:
-		var id := String(badge[0])
-		var color := HudStyle.STATUS_COLORS.get(id, HudStyle.TEXT) as Color
-		var turns := int(badge[1])
-		var icon := HudStyle.mark_icon(id)
-		var pair := _box(HBoxContainer.new(), MARK_GAP)
-		if icon != null:
-			var rect := TextureRect.new()
-			rect.texture = icon
-			rect.custom_minimum_size = Vector2(MARK_ICON_PX, MARK_ICON_PX)
-			rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			pair.add_child(rect)
-			if turns > 0:
-				pair.add_child(HudStyle.make_number(str(turns), STATUS_SIZE, color))
-		else:
-			pair.add_child(HudStyle.make_label(String(HudStyle.STATUS_NAMES.get(id, id.to_upper()))
-					+ (" %d" % turns if turns > 0 else ""), STATUS_SIZE, color))
-		_debuff_box.add_child(pair)
+		_status_box.add_child(HudStyle.status_chip(String(badge[0]), int(badge[1]), _status_px, STATUS_SIZE))
+
+
+## How many status icons the card shows (tests).
+func status_count() -> int:
+	return _status_box.get_child_count()
 
 
 ## Shows which co-op player controls this character (player < 0 hides the tag).

@@ -146,3 +146,14 @@ extends Resource
 @export_range(0.0, 3.0, 0.01) var frog_hop_height: float = 0.35
 ## A rat scurries off this fast.
 @export_range(0.1, 20.0, 0.1) var rat_speed: float = 4.5
+
+@export_group("Goal")
+## The zone's goal in the top right corner as icon chips (phase 22, no lines of text): the Rot seals
+## held, the guard to beat, the way out once it falls and the enemies left. Missing files fall
+## back to a placeholder.
+@export var goal_seal_icon_path: String = "res://assets/sprites/env/seal_stone.png"
+@export var goal_guard_icon_path: String = "res://assets/sprites/ui/map_elite.png"
+@export var goal_exit_icon_path: String = "res://assets/sprites/ui/map_flag.png"
+@export var goal_foe_icon_path: String = "res://assets/sprites/ui/goal_foe.png"
+## How tall a goal icon is drawn (pixels on the 1920x1080 canvas).
+@export_range(8, 200, 1) var goal_icon_px: int = 44

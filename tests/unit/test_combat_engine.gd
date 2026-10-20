@@ -1040,13 +1040,15 @@ func test_events_have_exactly_the_documented_fields() -> void:
 		if not EVENT_KEYS.has(type):
 			fail_test("undocumented event type '%s'" % type)
 			return
-		if type == "intent" and (e.has("odds") or e.has("marks") or e.has("support")):
+		if type == "intent" and (e.has("odds") or e.has("marks") or e.has("support") or e.has("ranged")):
 			# Practice fights add the odds behind the pick (checked in test_enemy_ai.gd); a marking
-			# attack adds its marks (test_hit_marks.gd), a support move its kind (card #259).
+			# attack adds its marks (test_hit_marks.gd), a support move its kind (card #259), a
+			# throwing attack which hits are thrown (test_ranged_hit_icon.gd, card #278).
 			e = e.duplicate()
 			e.erase("odds")
 			e.erase("marks")
 			e.erase("support")
+			e.erase("ranged")
 		if _sorted_keys(e) != _expected_keys(EVENT_KEYS[type], true):
 			fail_test("%s has fields %s, documented %s" % [type, str(_sorted_keys(e)), str(_expected_keys(EVENT_KEYS[type], true))])
 			return

@@ -27,7 +27,9 @@ const NAME_SIZE: int = 38
 const BADGE_SIZE: int = 28
 const BADGE_GLYPH_PX: float = 24.0
 const CHIP_SIZE: int = 22
-const SOCKET_LEFT: float = 660.0
+## The worn-skill sockets are centred over the tree (owner, phase 22), never left of this, so they
+## stay clear of the hero's name and face in the top left.
+const SOCKET_MIN_LEFT: float = 380.0
 const SOCKET_TOP: float = 24.0
 const SOCKET_SIZE := Vector2(220.0, 68.0)
 const SOCKET_GAP: float = 18.0
@@ -477,11 +479,13 @@ func _build() -> void:
 	_built_for = hero
 	_build_face()
 	var slots := maxi(1, run.tuning.skill_slots)
-	var room := PAGE_SIZE.x - MARGIN - SOCKET_LEFT
+	var room := PAGE_SIZE.x - MARGIN - SOCKET_MIN_LEFT
 	var socket_w := minf(SOCKET_SIZE.x, (room - SOCKET_GAP * float(slots - 1)) / float(slots))
+	var row_w := socket_w * float(slots) + SOCKET_GAP * float(slots - 1)
+	var socket_left := maxf(SOCKET_MIN_LEFT, (PAGE_SIZE.x - row_w) * 0.5)
 	for i: int in slots:
 		var socket := SkillTile.new(true)
-		socket.position = Vector2(SOCKET_LEFT + float(i) * (socket_w + SOCKET_GAP), SOCKET_TOP)
+		socket.position = Vector2(socket_left + float(i) * (socket_w + SOCKET_GAP), SOCKET_TOP)
 		socket.size = Vector2(socket_w, SOCKET_SIZE.y)
 		add_child(socket)
 		_sockets.append(socket)

@@ -43,7 +43,7 @@ var _grid: BackpackGrid
 var _faces_box: Control
 var _side_box: Control
 var _menu: ListMenu
-## Choices of the open item menu: "use", "combine", "sell", "drop", "cancel".
+## Choices of the open item menu: "use", "combine", "sell", "drop" (cancel closes it: no Cancel row).
 var _menu_choices: Array[String] = []
 var _prompt: ConfirmPrompt
 ## The frame a prompt was answered in: a second press in that frame (another pad) is dropped.
@@ -361,8 +361,6 @@ func _open_menu(uid: int) -> void:
 		items.append({"text": "Sell", "value": "+%d" % run.sell_price(run.entry_price(placed))})
 	_menu_choices.append("drop")
 	items.append({"text": "Throw away"})
-	_menu_choices.append("cancel")
-	items.append({"text": "Cancel"})
 	_menu.index = 0
 	_menu.window_rows = 0
 	_menu.set_items(items)

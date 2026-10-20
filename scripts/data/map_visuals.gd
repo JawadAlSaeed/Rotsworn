@@ -23,6 +23,24 @@ extends Resource
 ## Screen pixels per art pixel for everything on the map (paper, pictures, ink dots).
 @export_range(1, 8, 1) var pixel_scale: int = 3
 
+@export_group("Run info icons (phase 22)")
+## The run's info screens show an icon and a word instead of a sentence: the line under the map,
+## the shop and the run's end. The gold coin and the hit icons come from combat_visuals.tres.
+## A zone's guard at the exit and its optional roaming enemies (the zone's own goal chips use the
+## same pictures, explore_visuals.tres).
+@export_file("*.png") var guard_icon_path: String = "res://assets/sprites/ui/map_elite.png"
+@export_file("*.png") var foe_icon_path: String = "res://assets/sprites/ui/goal_foe.png"
+## An item up a level (the shop's Upgrade, the campfire's), new wares (Restock), back to the map
+## (the shop's Leave). Drawn by tools/art_kit/assets/ui_runinfo.py.
+@export_file("*.png") var upgrade_icon_path: String = "res://assets/sprites/ui/upgrade.png"
+@export_file("*.png") var restock_icon_path: String = "res://assets/sprites/ui/restock.png"
+@export_file("*.png") var leave_icon_path: String = "res://assets/sprites/ui/door.png"
+## The campfire before the boss (card #287) offers Keep watch and Sharpen instead of Train and
+## Upgrade: the team gauge filled and the boss fight's extra AP (the same chips as its stop screen,
+## stop_visuals.tres).
+@export_file("*.png") var gauge_icon_path: String = "res://assets/sprites/ui/chip_gauge.png"
+@export_file("*.png") var ap_icon_path: String = "res://assets/sprites/ui/ap_pip.png"
+
 @export_group("Layout")
 ## Space between the gold and HP strip and the top of the paper (screen pixels).
 @export_range(0, 200, 1, "suffix:px") var paper_top_gap: int = 32

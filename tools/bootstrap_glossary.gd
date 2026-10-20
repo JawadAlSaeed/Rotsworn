@@ -89,8 +89,9 @@ func _reading() -> void:
 			"MUST DODGE", UI + "hit_sweep.png", _visuals.sweep_hit_color)
 	_e("reading", "feint", "Feint", "A hit wearing a dashed orange ring. The enemy lunges, stops, holds, then really strikes. Wait for the real lunge.",
 			"", "", _visuals.rhythm_feint_color)
-	_e("reading", "thrown", "Thrown hit", "Spit, stones and bolts. The enemy throws from where it stands and the shot flies to you. It is still a normal hit: parry or dodge it as it arrives.",
-			"", UI + "hit_normal.png", _visuals.normal_hit_color)
+	# Its own icon since card #278 (a steel ball with speed lines), the one the intent sign draws.
+	_e("reading", "thrown", "Thrown hit", "Spit, stones and bolts, drawn as a steel ball with speed lines. The enemy throws from where it stands. It is still a normal hit: parry or dodge it as it arrives.",
+			"", _visuals.hit_icon_ranged_path, _visuals.normal_hit_color)
 	_e("reading", "intent_sign", "The sign", "The sign under an enemy shows its next attack: name, who it targets and one icon per hit, spaced like the real rhythm. After the first hit lands, the icons hide.")
 	_e("reading", "each_in_turn", "Each in turn", "Some attacks strike one hero per hit, in the order the sign shows (SWARM ROUND -> CASS > ALDER > BRIN). In co-op each player defends their own hits.")
 	_e("reading", "marking_hit", "Marking hit", "A hit with a small coloured dot carries a mark. The sign adds [ROT], [BLIGHT], [WEAK] or [AP DRAIN]. It lands only if you fail to defend that hit and survive it.",
@@ -176,13 +177,13 @@ func _hero_marks() -> void:
 
 func _dooms() -> void:
 	_e("dooms", "doom", "Doom", "A huge party-wide string that a guard or boss announces ahead of time. It gathers for a few of its turns, then unleashes. The sign counts the turns down.",
-			"DOOM IN 2", "", _visuals.doom_text_color)
+			"DOOM 2", "", _visuals.doom_text_color)
 	_e("dooms", "break", "Break", "While a Doom gathers, all the damage the party deals fills its BREAK bar. Fill it and the Doom is cancelled. Skills, counters and bleed all count.",
 			"BREAK", "", _visuals.break_bar_color)
 	_e("dooms", "broken", "Broken", "A broken Doom is cancelled and goes on cooldown. The enemy is staggered and announces a new move at once.",
 			"BROKEN!", "", _visuals.break_bar_color)
 	_e("dooms", "stagger", "Stagger", "A staggered enemy loses its next turn and takes extra damage from everything until then. TURN LOST shows when the stagger ends.",
-			"STAGGERED", "", _visuals.stagger_text_color)
+			"", "res://assets/sprites/ui/mark_staggered.png", _visuals.stagger_text_color)
 	_e("dooms", "buying_turns", "Buying turns", "Slowing or pushing back a gathering enemy never cancels its Doom, but it gives your party more turns inside the window to break it.")
 
 
@@ -202,14 +203,14 @@ func _enemies() -> void:
 	_e("enemies", "support", "Helpers", "Some monsters help instead of striking: a Rot Priest heals a wounded fellow or shields one. Its sign names the monster it will help. Kill helpers first.",
 			"", "", HudStyle.HEAL)
 	_e("enemies", "burst", "Burst", "A Pus Tick announces its Burst like a Doom: a few turns later it bursts on the whole party and is gone. Kill it first, or jump the burst.",
-			"DOOM IN 3", "", _visuals.doom_text_color)
+			"DOOM 3", "", _visuals.doom_text_color)
 	_e("enemies", "targeting", "Who they pick", "Hunters such as hyenas and shades favour wounded heroes, guards and bosses the weakest. Nobody is ever safe, and Taunt overrides it all.")
 
 
 func _map() -> void:
-	_e("map", "stop_zone", "Zone stop", "A place to explore, left to right. Beat the guard at the far end to move on; everything else is optional. Each zone stop is a different place.",
+	_e("map", "stop_zone", "Zone stop", "A place to explore, left to right. Beat the guard at the far end to move on. Every other enemy is optional and pays more gold. Each zone stop is a different place.",
 			"", UI + "map_zone_rotten_hollow.png")
-	_e("map", "stop_elite", "Elite stop", "A skull over crossed blades: one hard fight, then spoils of rare gear or better. It cannot be run from.",
+	_e("map", "stop_elite", "Elite stop", "A skull over crossed blades: one hard fight, then spoils of rare Relics or better, and more gold. The crowned elite's spoils hold a legendary. It cannot be run from.",
 			"", UI + "map_elite.png")
 	_e("map", "stop_event", "Event stop", "A red question mark: a story with a choice. Every choice has a price, and some turn into a fight. Leave is always there.",
 			"", UI + "map_event.png")
@@ -245,6 +246,12 @@ func _zones() -> void:
 func _gear() -> void:
 	_e("gear", "gear", "Gear", "Worn by one hero: three slots each, one effect per piece (power, a counter bonus, AP at the start). Gear never goes in the backpack.",
 			"", UI + "gear_icon.png")
+	# Phase 22: the Echoes page and the shop show these rules as pips and a "Lv 2 > 3" chip, so the
+	# words live here.
+	_e("gear", "echo", "Echo", "Wear a Relic in won fights to fill its pips, run after run; elites, guards and bosses fill more. Full pips teach its Echo for good: its effect without the stat. One hero wears each Echo, for Echo points from level ups.",
+			"Echo 7/12", "", Color(0.62, 0.32, 0.72))
+	_e("gear", "relic_level", "Relic level", "A Relic joins a run at level 1 (Home: found before but left out of the bag). A copy found in the same run raises it, up to level 3, and its stat grows. Levels last one run; a copy past 3 pays gold.",
+			"Lv 2 > 3", "", HudStyle.GOLD)
 	_e("gear", "rarity", "Rarity", "Grey is common, blue is rare, gold is legendary. Rarer pieces are stronger and cost more, and deeper map rows turn them up more often.",
 			"", "", Color(1.0, 0.8, 0.3))
 	_e("gear", "rot_touched", "Rot-touched gear", "Strong gear with a price: a clear gain and a clear loss, written in plain words. Spoils from elites and bosses offer one. Take it with open eyes.",

@@ -42,7 +42,8 @@ enum GroundLook {
 ## and bosses fake out where an ordinary fight does not (review combat-feel #4).
 @export var forced_feint: bool = false
 ## Normal hits: what the enemy throws instead of lunging (null = a lunge). It flies for
-## approach_ms and arrives at impact (DESIGN.md 3.9). Presentation only.
+## approach_ms and arrives at impact (DESIGN.md 3.9). Presentation only, except that the intent
+## says which hits are thrown, so they show their own icon (see ranged_in, card #278).
 @export var projectile: ProjectileData
 ## Ground hits: how the attack travels along the floor.
 @export var ground_look: GroundLook = GroundLook.WAVE
@@ -88,6 +89,12 @@ func kind_in(hard: bool) -> int:
 ## enemy).
 func feint_in(hard: bool) -> bool:
 	return feint or (hard and forced_feint)
+
+
+## True if this hit is thrown in a fight (hard: see kind_in): a strike with a projectile. The intent
+## shows it with the ranged icon (card #278); for the rules it stays the hit its kind says.
+func ranged_in(hard: bool) -> bool:
+	return projectile != null and is_strike(kind_in(hard))
 
 
 ## True if this hit leaves a mark (a status or an AP drain) in a fight (hard: see on_hit_hard_only).

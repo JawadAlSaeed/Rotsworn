@@ -69,6 +69,9 @@ const FINAL_ROW_SPREAD: float = 4.0
 var training_ring_allowed: bool = true
 ## The training ring shows whatever the player's setting (the tutorial's defend lessons).
 var force_ring: bool = false
+## The press timing in ms after PARRY, LATE... ("LATE +343") is a practice aid: the controller
+## turns it off outside practice fights (card #276).
+var timing_numbers_allowed: bool = true
 var _submit: Callable
 var _apply_now: Callable
 var _mirror: CombatMirror
@@ -257,12 +260,15 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	var times: Array = []
 	var feints: Array = []
 	var marks: Array = []
+	# A thrown hit shows its own icon on the banner too (card #278).
+	var ranged: Array = []
 	for hit: Dictionary in _hits:
 		kinds.append(int(hit.kind))
 		times.append(int(hit.at_ms))
 		feints.append(bool(hit.get("feint", false)))
 		marks.append(String(hit.get("mark", "")))
-	_hud.set_banner_hits(kinds, times, feints, marks)
+		ranged.append(EnemyChoreography.is_ranged(hit))
+	_hud.set_banner_hits(kinds, times, feints, marks, ranged)
 	_hud.set_targeted(_targets)
 	var enemy := _view.fighter(_source)
 	if enemy != null:
@@ -477,7 +483,6 @@ func _on_whiff(action: int, report: Dictionary, t: int, player: int) -> void:
 	var reason := int(report.reason)
 	Sfx.play("wrong_button" if reason == DefenseJudge.Reason.WRONG_ACTION else "whiff")
 	_parry_streak = 0
-	var offset_ms := roundi(float(report.offset_us) / 1000.0)
 	var text := "LATE"
 	var color := HudStyle.LATE
 	match reason:
@@ -487,8 +492,8 @@ func _on_whiff(action: int, report: Dictionary, t: int, player: int) -> void:
 		DefenseJudge.Reason.WRONG_ACTION:
 			color = HudStyle.WRONG
 			text = HudStyle.wrong_action_text(_kind_of(int(report.hit)))
-	if reason != DefenseJudge.Reason.WRONG_ACTION and _options.timing_readout and int(report.hit) >= 0:
-		text += " " + HudStyle.signed_ms(offset_ms)
+	if reason != DefenseJudge.Reason.WRONG_ACTION and int(report.hit) >= 0:
+		text = with_timing(text, int(report.offset_us))
 	if int(report.hit) >= 0:
 		_whiffed_hits["%d:%d" % [int(report.hit), player]] = true
 	var defenders := _living_targets_of(player)
@@ -537,8 +542,7 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 			color = HudStyle.JUMP
 			Sfx.play("jump")
 			_freeze(now, _tuning.hitstop_jump_ms, characters)
-	if _options.timing_readout:
-		text += " " + HudStyle.signed_ms(roundi(float(offset_us) / 1000.0))
+	text = with_timing(text, offset_us)
 	var shown: Array[int] = []
 	var enemy_view := _view.fighter(_source)
 	for id: int in characters:
@@ -562,6 +566,14 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 	# One readout per press, even when it answered several characters at once.
 	if not shown.is_empty():
 		_hud.popup(text, _focus_head(shown), color)
+
+
+## `text` with the press timing after it ("LATE +343"): only in a practice fight with the readout
+## on (F1 > T). In the real game the word alone (card #276).
+func with_timing(text: String, offset_us: int) -> String:
+	if not timing_numbers_allowed or _options == null or not _options.timing_readout:
+		return text
+	return text + " " + HudStyle.signed_ms(roundi(float(offset_us) / 1000.0))
 
 
 ## Freezes the shared attack clock for `ms` from `now`, owned by the players behind `characters`
@@ -973,7 +985,7 @@ func _update_reading(t: int) -> void:
 			markers.append({
 				"pos": centre + Vector2(_visuals.hit_marker_offset_px.x * side, _visuals.hit_marker_offset_px.y),
 				"size": px,
-				"texture": _hud.hit_icon(kind),
+				"texture": _hud.hit_icon(kind, EnemyChoreography.is_ranged(hit)),
 				"color": _visuals.kind_color(kind, _visuals.normal_hit_color),
 				"label": HudStyle.kind_label(kind),
 			})
@@ -1273,14 +1285,12 @@ func _last_impact_us() -> int:
 	return int((_hits[_hits.size() - 1] as Dictionary).at_ms) * 1000
 
 
-## The banner's small line: who attacks whom ("GNAT SWARM  >  CASS > ALDER").
+## The banner's small line: who attacks whom ("GNAT SWARM  >  CASS > ALDER"). The marks a hit leaves
+## show as icons on the banner's hits, not as words here (phase 22).
 func _banner_text() -> String:
 	var enemy_name := String(_mirror.fighter(_source).get("display_name", "?"))
 	var target_text := CombatHud.target_text(_mirror, int(_event.get("mode", 0)), _targets)
-	var marks: Array = []
-	for hit: Dictionary in _hits:
-		marks.append(String(hit.get("mark", "")))
-	return "%s  >  %s%s" % [enemy_name.to_upper(), target_text, HudStyle.mark_text(marks)]
+	return "%s  >  %s" % [enemy_name.to_upper(), target_text]
 
 
 func _each_in_turn() -> bool:

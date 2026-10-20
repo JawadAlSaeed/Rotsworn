@@ -36,6 +36,9 @@ const STRIP_ICON_PX: float = 92.0
 const STRIP_TITLE_SIZE: int = 32
 const STRIP_LINE_SIZE: int = 23
 const CHIP_SIZE: int = 22
+## The tab's count badge: its size (a circle for one digit) and its ink (ring and number).
+const BADGE_PX: int = 32
+const BADGE_INK := Color(0.08, 0.06, 0.04)
 const BAR_SEGMENT := Vector2(34.0, 10.0)
 const TOAST_TOP: float = 92.0
 const TOAST_ICON_PX: float = 40.0
@@ -463,18 +466,34 @@ func _redraw_bar() -> void:
 	_bar_box.add_child(HintBar.entry_row(&"item_turn_right", "", TAB_SIZE - 4))
 
 
-## A gold round badge with a number (points waiting on that tab).
+## A gold round badge with a number (points waiting on that tab): a true circle with a thin dark
+## ring, the number dark and centred in it. No outline or shadow on the number: on gold they
+## smudged it (owner, phase 22).
 func _badge(n: int) -> Control:
+	var d := float(HudStyle.scaled(BADGE_PX))
 	var box := PanelContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	box.custom_minimum_size = Vector2(d, d)
 	var style := StyleBoxFlat.new()
 	style.bg_color = HudStyle.GOLD
-	style.set_corner_radius_all(14)
-	style.content_margin_left = 9.0
-	style.content_margin_right = 9.0
+	style.border_color = BADGE_INK
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(ceili(d))
+	# Two digits widen it into a pill; one digit stays a circle.
+	style.content_margin_left = 6.0
+	style.content_margin_right = 6.0
 	box.add_theme_stylebox_override("panel", style)
-	box.add_child(HudStyle.make_number(str(n), CHIP_SIZE, Color(0.08, 0.06, 0.04)))
+	var settings := HudStyle.number_settings(CHIP_SIZE, BADGE_INK)
+	settings.outline_size = 0
+	settings.shadow_color = Color(0.0, 0.0, 0.0, 0.0)
+	var label := Label.new()
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.label_settings = settings
+	label.text = str(n)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	box.add_child(label)
 	return box
 
 

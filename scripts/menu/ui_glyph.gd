@@ -6,10 +6,11 @@ extends Control
 ## Kinds: heart (HP, Vitality), sword (Might, Power, offensive), bolt (Speed), chevrons (Agility),
 ## shield (Defense, defensive), star (Luck, crit), leaf (support), coin (gold), bag (backpack),
 ## pouch (the Relic bag), lock, plus, skull (curses, downed), person (a hero), branch (skills),
-## gem (a Relic), up (points to spend), echo (an Echo).
+## gem (a Relic), up (points to spend), echo (an Echo), keyboard and pad (the Controls pages).
 
 const KINDS: Array[StringName] = [&"heart", &"sword", &"bolt", &"chevrons", &"shield", &"star", &"leaf",
-	&"coin", &"bag", &"pouch", &"lock", &"plus", &"skull", &"person", &"branch", &"gem", &"up", &"echo"]
+	&"coin", &"bag", &"pouch", &"lock", &"plus", &"skull", &"person", &"branch", &"gem", &"up", &"echo",
+	&"keyboard", &"pad"]
 
 var kind: StringName = &"star"
 var color: Color = HudStyle.TEXT
@@ -138,6 +139,27 @@ static func draw_glyph(canvas: CanvasItem, glyph: StringName, c: Vector2, s: flo
 			canvas.draw_arc(c, h * 0.62, 0.0, TAU, 24, col, w, true)
 			canvas.draw_arc(c, h * 0.92, -0.9, 0.9, 10, col, w, true)
 			canvas.draw_arc(c, h * 0.92, PI - 0.9, PI + 0.9, 10, col, w, true)
+		&"keyboard":
+			# A wide keyboard with two rows of keys and a space bar cut out of it.
+			canvas.draw_rect(Rect2(c + Vector2(-h * 0.95, -h * 0.55), Vector2(h * 1.9, h * 1.1)), col)
+			var hole := Color(0.03, 0.025, 0.04, 0.95)
+			for row: int in 2:
+				for key: int in 5:
+					canvas.draw_rect(Rect2(c + Vector2(-h * 0.83 + float(key) * h * 0.35, -h * 0.43 + float(row) * h * 0.3),
+							Vector2(h * 0.26, h * 0.22)), hole)
+			canvas.draw_rect(Rect2(c + Vector2(-h * 0.45, h * 0.17), Vector2(h * 0.9, h * 0.22)), hole)
+		&"pad":
+			# A game pad: the body and two grips, with the D-pad and four face buttons cut out.
+			var o := c + Vector2(0, -h * 0.12)
+			canvas.draw_rect(Rect2(o + Vector2(-h * 0.5, -h * 0.4), Vector2(h * 1.0, h * 0.7)), col)
+			for side: float in [-1.0, 1.0]:
+				canvas.draw_circle(o + Vector2(side * h * 0.5, h * 0.05), h * 0.45, col)
+				canvas.draw_circle(o + Vector2(side * h * 0.62, h * 0.35), h * 0.32, col)
+			var cut := Color(0.03, 0.025, 0.04, 0.95)
+			canvas.draw_rect(Rect2(o + Vector2(-h * 0.68, -h * 0.06), Vector2(h * 0.36, h * 0.12)), cut)
+			canvas.draw_rect(Rect2(o + Vector2(-h * 0.56, -h * 0.18), Vector2(h * 0.12, h * 0.36)), cut)
+			for dot: Vector2 in [Vector2(0.35, 0.0), Vector2(0.65, 0.0), Vector2(0.5, -0.15), Vector2(0.5, 0.15)]:
+				canvas.draw_circle(o + dot * h, h * 0.075, cut)
 		_:
 			canvas.draw_circle(c, h * 0.5, col)
 

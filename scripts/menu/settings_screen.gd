@@ -14,11 +14,22 @@ extends CanvasLayer
 ## that Left / Right change, the left half of the row steps down and the right half up), a right
 ## click or the back button goes back.
 ##
-## Controls: one row per action with its key and its pad button. Left/Right pick the Key or the Pad
-## column, Confirm waits for the new key or button (Escape or the pad's Menu button cancels, and so
-## does waiting too long). A button an action in the same group already has asks to swap them;
-## ControlBindings holds the rules. "Reset to defaults" is a row of the list (asks twice). A change
-## applies to every pad: there are no per-pad bindings.
+## Controls (card #277) has two pages, side by side under the section names: Keyboard and
+## Controller, each a picture and its word. A page lists only its own device's buttons, one row per
+## action with the button drawn as its picture (ButtonChip: a key cap, a pad's A/B/X/Y ring, an LB or
+## RT pill, the D-pad cross, all on the same dark fill), then its own options (none yet: room for stick sensitivity or vibration on the
+## Controller page) and its own "Reset to defaults" (asks twice; it puts back only that device's
+## buttons). The section opens on the page of the device in the player's hands
+## (ButtonPrompts.pad_in_use). LT / RT (T / K) open the Keyboard / Controller page from any row,
+## Left / Right do it from a button's row, and a click on a page's name opens it. Confirm waits for
+## the new key or button (Escape or the pad's Menu button cancels, and so does waiting too long). A
+## button an action in the same group already has asks to swap them; ControlBindings holds the rules.
+## A change applies to every pad: there are no per-pad bindings. The F1 stats overlay is a
+## practice-fight tool and is only listed in a debug build (phase 22), and so is the Game section's
+## Training ring (it only shows in practice fights, and Practice is a debug-build menu).
+## Phase 22: the line under a row is four words at most (or none), and the footers keep only the
+## buttons that matter (the page keys LT / RT sit beside the Controls page tabs). The title, its gold
+## line and the section names are pinned at the top; only the list under them changes.
 
 signal closed
 ## The player confirmed Reset progress twice (Main wipes the files).
@@ -32,20 +43,44 @@ const DETAIL_SIZE: int = 26
 const ROW_WIDTH: float = 760.0
 ## Smaller rows than other menus: the graphics section has ten.
 const ITEM_SIZE: int = 32
-## The Controls list is wider (a key and a button per row) and scrolls: this many rows show.
-const CONTROLS_ROW_WIDTH: float = 1180.0
+## The Controls list is a little wider (a long action name and its button) and scrolls: this many
+## rows show, less one for the page tabs above it.
+const CONTROLS_ROW_WIDTH: float = 900.0
 const CONTROLS_WINDOW: int = 10
-const COLUMN_GAP := "      "
+## The page's top edge: the title sits this far down, the same on every section.
+const HEADER_TOP_PX: float = 40.0
+## The size of a Controls row's button picture (a hint's font size; ButtonChip scales from it).
+const BINDING_CHIP_SIZE: int = 26
 
 enum Section { GRAPHICS, SOUND, CONTROLS, GAME }
 const SECTION_NAMES: Array[String] = ["Graphics", "Sound", "Controls", "Game"]
+
+## The Controls section's two pages (card #277), left to right: their names, pictures (UiGlyph) and
+## the kind of input each lists (ControlBindings.KEY / PAD).
+enum ControlsPage { KEYBOARD, CONTROLLER }
+const PAGE_NAMES: Array[String] = ["Keyboard", "Controller"]
+const PAGE_GLYPHS: Array[StringName] = [&"keyboard", &"pad"]
+const PAGE_KINDS: Array[String] = [ControlBindings.KEY, ControlBindings.PAD]
+## A page's own options, listed under its buttons and above its reset (row ids handled like the other
+## sections' rows). None yet: room for stick sensitivity or vibration on the Controller page.
+const PAGE_OPTION_ROWS := {
+	ControlsPage.KEYBOARD: [],
+	ControlsPage.CONTROLLER: [],
+}
+## The page tabs: word size, picture size, gap between the tabs and their inside padding.
+const PAGE_TAB_SIZE: int = 28
+const PAGE_GLYPH_PX: int = 34
+const PAGE_TAB_GAP: int = 22
+const PAGE_TAB_PAD: int = 8
+const PAGE_TAB_WIDTH: float = 250.0
+const PAGE_TAB_ON_BG := Color(0.16, 0.12, 0.05, 0.92)
 
 ## The rows of each section, by id (Back closes the screen from any section).
 const SECTION_ROWS := {
 	Section.GRAPHICS: ["fullscreen", "window_size", "vsync", "fps_limit", "fog", "bloom", "shadows",
 		"ambient_occlusion", "depth_of_field", "back"],
 	Section.SOUND: ["master", "music", "effects", "voice", "back"],
-	Section.CONTROLS: [],  # built by _rows_of: one row per action, then reset and back
+	Section.CONTROLS: [],  # built by controls_rows: the page's actions, its options, reset and back
 	Section.GAME: ["text_size", "screen_shake", "flashes", "timing_ring", "calibrate", "reset_lag", "reset_progress",
 		"back"],
 }
@@ -55,22 +90,28 @@ const SIDED_ROWS: Array[String] = ["master", "music", "effects", "voice", "windo
 ## How many rows of a list fit on screen at the normal text size; bigger text shows fewer (the list
 ## scrolls with the cursor).
 const ROWS_AT_NORMAL_SIZE: int = 10
-const SECTION_HINTS: Array = [[&"item_turn_left", "Section"], [&"item_turn_right", "Section"],
+## LB and RB share one word ("[LB] [RB] Section").
+const SECTION_HINTS: Array = [[&"item_turn_left", ""], [&"item_turn_right", "Section"],
 		[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]]
-const CONTROLS_HINTS: Array = [[&"item_turn_left", "Section"], [&"item_turn_right", "Section"],
-		[&"@updown", "Choose"], [&"@leftright", "Key or pad"], [&"menu_confirm", "Change"], [&"menu_cancel", "Back"]]
+## The Controls pages: Section, Change, Back. LT / RT are drawn by the page tabs themselves.
+const CONTROLS_HINTS: Array = [[&"item_turn_left", ""], [&"item_turn_right", "Section"],
+		[&"menu_confirm", "Change"], [&"menu_cancel", "Back"]]
+## Rows only a debug build shows (the Training ring works in practice fights only).
+const DEBUG_ROWS: Array[String] = ["timing_ring"]
+## The line under a row: four words at most (phase 22).
+const DETAIL_MAX_WORDS: int = 4
 const GRAPHICS_DETAIL := {
-	"fog": "Mist over the zones and fights. Off is faster on slow PCs.",
-	"bloom": "The soft glow around lights and bright things.",
-	"shadows": "Shadows cast by the sun.",
-	"ambient_occlusion": "Soft shading where things meet the ground.",
-	"depth_of_field": "Blurs what is far from the action.",
+	"fog": "Off is faster",
+	"bloom": "Glow around lights",
+	"shadows": "Sun shadows",
+	"ambient_occlusion": "Shade where things meet",
+	"depth_of_field": "Blur far things",
 }
 const VOLUME_DETAIL := {
-	"master": ["Volume", "Everything louder or quieter."],
-	"music": ["Music", "The songs only."],
-	"effects": ["Effects", "Hits, parries, steps and menu sounds."],
-	"voice": ["Voices", "Heroes and enemies shouting and growling."],
+	"master": ["Volume", "Everything"],
+	"music": ["Music", "Songs only"],
+	"effects": ["Effects", "Hits, steps, menus"],
+	"voice": ["Voices", "Shouts and growls"],
 }
 
 var _tuning: Tuning
@@ -86,8 +127,13 @@ var _footer: HintBar
 ## What _build_page added to this screen (freed and rebuilt when the text size changes).
 var _built: Array[Node] = []
 var _bindings: ControlBindings
-## The column Left/Right chose in the Controls list: ControlBindings.KEY or PAD.
-var _column: String = ControlBindings.KEY
+## The Controls page shown (its kind of input is the one the rows show and rebind).
+var _device_page: ControlsPage = ControlsPage.KEYBOARD
+## The page tabs above the Controls list (shown only on that section), and their words and pictures.
+var _device_strip: HBoxContainer
+var _device_tabs: Array[PanelContainer] = []
+var _device_words: Array[Label] = []
+var _device_glyphs: Array[UiGlyph] = []
 ## Waiting for the new input of this action and kind ("" kind: not waiting).
 var _capture_action: StringName = &""
 var _capture_kind: String = ""
@@ -124,6 +170,10 @@ func _build_page() -> void:
 	var before := get_child_count()
 	_tabs.clear()
 	var column := ListMenu.screen_column(self, "Settings", TITLE_SIZE)
+	# The title, its line and the section names stay put at the top: only the list under them
+	# changes from section to section (a centred column made them jump).
+	column.alignment = BoxContainer.ALIGNMENT_BEGIN
+	column.offset_top = HEADER_TOP_PX
 	_page = column
 	var tabs := HBoxContainer.new()
 	tabs.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -134,6 +184,7 @@ func _build_page() -> void:
 		var tab := HudStyle.make_title(name, TAB_SIZE, HudStyle.TEXT_DIM)
 		tabs.add_child(tab)
 		_tabs.append(tab)
+	_build_device_strip(column)
 	_menu = ListMenu.new()
 	_menu.centred = false
 	_menu.row_width = ROW_WIDTH
@@ -141,7 +192,9 @@ func _build_page() -> void:
 	_menu.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(_menu)
 	_bindings = ControlBindings.current()
-	_detail = ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
+	# The real game hides the stats overlay, so its button never blocks or swaps there.
+	_bindings.list_debug = OS.is_debug_build()
+	_detail =ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
 	column.add_child(_detail)
 	_footer = ListMenu.screen_footer(self, [])
 	_built.clear()
@@ -154,12 +207,15 @@ func _build_page() -> void:
 ## same section and row.
 func _rebuild_page() -> void:
 	var section := _section
+	var page := _device_page
 	var row := _menu.index
 	for node: Node in _built:
 		remove_child(node)
 		node.queue_free()
 	_build_page()
-	_show_section(section)
+	_section = section
+	_device_page = page
+	_fill_section()
 	_menu.index = clampi(row, 0, maxi(0, _menu.items.size() - 1))
 	_refresh()
 
@@ -183,6 +239,8 @@ func _input(event: InputEvent) -> void:
 			_end_capture("Cancelled: the old button stays.", false)
 		elif _capture_kind == ControlBindings.KEY:
 			_try_assign(ControlBindings.input_from_event(key))
+		else:
+			_wrong_device_note()
 	elif event is InputEventJoypadButton:
 		var button := event as InputEventJoypadButton
 		if not button.pressed:
@@ -192,6 +250,8 @@ func _input(event: InputEvent) -> void:
 			_end_capture("Cancelled: the old button stays.", false)
 		elif _capture_kind == ControlBindings.PAD:
 			_try_assign(ControlBindings.input_from_event(button))
+		else:
+			_wrong_device_note()
 	elif event is InputEventJoypadMotion and _capture_kind == ControlBindings.PAD:
 		var motion := event as InputEventJoypadMotion
 		if ControlBindings.TRIGGER_AXES.has(motion.axis) and motion.axis_value >= ControlBindings.TRIGGER_CAPTURE_VALUE:
@@ -239,6 +299,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				Sfx.play("menu_move")
 				_show_section(tab as Section)
 			return
+	if _section == Section.CONTROLS and _device_page_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	var cursor_before := _menu.index
 	var answer := _menu.handle(event)
 	if answer == &"":
@@ -253,16 +316,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		closed.emit()
 		return
 	var row := String(_rows_of(_section)[_menu.index])
-	if answer == &"confirm" and _menu.clicked_share >= 0.0:
-		# A mouse click: on a value that Left / Right change it steps by the side that was clicked;
-		# on a control it picks the Key or the Pad column.
-		if SIDED_ROWS.has(row):
-			answer = &"left" if MenuMouse.side_of(_menu.clicked_share) < 0 else &"right"
-		elif row.begins_with("ctl:") and _menu.clicked_value_share >= 0.0:
-			_column = ControlBindings.PAD if MenuMouse.side_of(_menu.clicked_value_share) > 0 else ControlBindings.KEY
+	if answer == &"confirm" and _menu.clicked_share >= 0.0 and SIDED_ROWS.has(row):
+		# A mouse click on a value that Left / Right change steps it by the side that was clicked (on
+		# a button's row it waits for the new button, like Confirm).
+		answer = &"left" if MenuMouse.side_of(_menu.clicked_share) < 0 else &"right"
 	var step := -1 if answer == &"left" else 1
 	if row.begins_with("ctl:"):
 		_controls_answer(StringName(row.substr(4)), answer)
+		return
+	if _section == Section.CONTROLS and answer != &"confirm" and not (PAGE_OPTION_ROWS[_device_page] as Array).has(row):
+		# Left / Right turn the page from the reset and Back rows too (a page's own options use them).
+		_controls_answer(&"", answer)
 		return
 	match row:
 		"master", "music", "effects", "voice":
@@ -371,16 +435,27 @@ func open_calibration() -> void:
 	_calibration.open()
 
 
+## Shows a section from its first row. Controls opens on the page of the device in use.
 func _show_section(section: Section) -> void:
+	if section == Section.CONTROLS:
+		_device_page = page_for_device(ButtonPrompts.pad_in_use())
 	_section = section
+	_fill_section()
+
+
+## Lays out the section (and, on Controls, the page) in _section from its first row.
+func _fill_section() -> void:
 	for i: int in _tabs.size():
-		_tabs[i].label_settings.font_color = HudStyle.GOLD if i == section else HudStyle.TEXT_DIM
-	var rows := _rows_of(section)
-	var controls := section == Section.CONTROLS
+		_tabs[i].label_settings.font_color = HudStyle.GOLD if i == _section else HudStyle.TEXT_DIM
+	var rows := _rows_of(_section)
+	var controls := _section == Section.CONTROLS
+	_device_strip.visible = controls
+	_redraw_device_strip()
 	_menu.row_width = CONTROLS_ROW_WIDTH if controls else ROW_WIDTH
-	# Bigger text shows fewer rows at once (the list scrolls with the cursor).
+	# Bigger text shows fewer rows at once (the list scrolls with the cursor). On Controls the page
+	# tabs take one row's room.
 	var fit := fitting_rows(HudStyle.text_scale_percent())
-	_menu.window_rows = mini(CONTROLS_WINDOW, fit) if controls else (fit if rows.size() > fit else 0)
+	_menu.window_rows = mini(CONTROLS_WINDOW, fit) - 1 if controls else (fit if rows.size() > fit else 0)
 	var blank: Array[Dictionary] = []
 	for i: int in rows.size():
 		blank.append({})
@@ -410,64 +485,63 @@ func _refresh() -> void:
 	for i: int in rows.size():
 		var row := String(rows[i])
 		if row.begins_with("ctl:"):
-			_refresh_control(i, StringName(row.substr(4)), rows.size())
+			_refresh_control(i, StringName(row.substr(4)))
 			continue
 		match row:
 			"master", "music", "effects", "voice":
 				_menu.set_item(i, String(VOLUME_DETAIL[row][0]), true, String(VOLUME_DETAIL[row][1]), _percent(row))
 			"fullscreen":
-				_menu.set_item(i, "Fullscreen", true, "Fill the whole screen, or a window.",
-						_on_off(PlayerSettings.fullscreen()))
+				_menu.set_item(i, "Fullscreen", true, "", _on_off(PlayerSettings.fullscreen()))
 			"window_size":
 				_menu.set_item(i, "Window size", not PlayerSettings.fullscreen(),
-						"The window's size when not fullscreen.", "<  %s  >" % _window_text())
+						"When not fullscreen", "<  %s  >" % _window_text())
 			"vsync":
-				_menu.set_item(i, "VSync", true, "Matches the screen's refresh: no tearing. Off can feel a little quicker.",
-						_on_off(PlayerSettings.vsync()))
+				_menu.set_item(i, "VSync", true, "No tearing", _on_off(PlayerSettings.vsync()))
 			"fps_limit":
 				var limit := PlayerSettings.fps_limit()
-				_menu.set_item(i, "Frame limit", true, "The most frames a second the game draws.",
+				_menu.set_item(i, "Frame limit", true, "Most frames a second",
 						"<  %s  >" % ("No limit" if limit <= 0 else str(limit)))
 			"fog", "bloom", "shadows", "ambient_occlusion", "depth_of_field":
 				_menu.set_item(i, String(PlayerSettings.GRAPHICS[row]), true, String(GRAPHICS_DETAIL[row]),
 						_on_off(PlayerSettings.graphics(row)))
 			"text_size":
-				_menu.set_item(i, "Text size", true,
-						"How big the text is. Menus change at once; a fight's HUD changes from the next fight.",
+				_menu.set_item(i, "Text size", true, "HUD: from next fight",
 						"<  %s  >" % String(PlayerSettings.TEXT_SIZE_NAMES[PlayerSettings.text_size_index()]))
 			"screen_shake":
-				_menu.set_item(i, "Screen shake", true, "How much the camera shakes on hits and parries.",
+				_menu.set_item(i, "Screen shake", true, "On hits and parries",
 						"<  %d%%  >" % PlayerSettings.screen_shake_percent())
 			"flashes":
-				_menu.set_item(i, "Flashes", true,
-						"How bright the screen and hit flashes are. Reduced or Off helps if flashing bothers you.",
+				_menu.set_item(i, "Flashes", true, "Lower if flashing bothers",
 						"<  %s  >" % String(PlayerSettings.FLASH_NAMES[PlayerSettings.flash_mode()]))
 			"timing_ring":
-				_menu.set_item(i, "Training ring", true,
-						"A shrinking ring shows when each enemy hit lands. Practice fights only; off by default.",
+				_menu.set_item(i, "Training ring", true, "Practice fights only",
 						_on_off(PlayerSettings.show_timing_ring(_tuning)))
 			"calibrate":
-				var lag_note := "" if PlayerSettings.is_calibrated() else " These are the defaults until you calibrate."
-				_menu.set_item(i, "Lag calibration", true,
-						"Press Parry with a beat to measure your screen and input lag. Keys and pad are measured "
-						+ "separately: press with the one you play with." + lag_note,
-						"Keys %s  Pad %s ms" % [
-						HudStyle.signed_ms(PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.INPUT_KEYBOARD)),
-						HudStyle.signed_ms(PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.INPUT_PAD))])
+				# Which kinds of input are measured, never the milliseconds (phase 22).
+				_menu.set_item(i, "Lag calibration", true, "Parry with the beat", calibrated_text(
+						PlayerSettings.is_calibrated(PlayerSettings.INPUT_KEYBOARD),
+						PlayerSettings.is_calibrated(PlayerSettings.INPUT_PAD)))
 			"reset_lag":
-				_menu.set_item(i, "Reset lag to default", PlayerSettings.is_calibrated(),
-						"Forget the measured lag and use the default (%d ms) again." % _tuning.input_latency_compensation_ms)
+				_menu.set_item(i, "Reset lag to default", PlayerSettings.is_calibrated(), "Forget the measured lag")
 			"reset_progress":
-				_menu.set_item(i, "Reset progress", _allow_reset,
-						"Wipe your Relics, unlocked oaths and saved run for a fresh start. Asks twice."
-						if _allow_reset else "Only from the main menu's settings, not during a run.")
+				_menu.set_item(i, "Reset progress", _allow_reset, "Asks twice" if _allow_reset else "Main menu only")
 			"reset":
-				_menu.set_item(i, "Reset to defaults", true,
-						"Put every key and button back as the game came. Press Confirm twice.",
-						"" if _bindings.is_default() else "changed")
+				_menu.set_item(i, "Reset to defaults", true, "This page only",
+						"" if _bindings.is_kind_default(_kind()) else "changed")
 			"back":
 				_menu.set_item(i, "Back", true, "")
 	_show_note()
+
+
+## The Lag calibration row's value: which kinds of input are measured ("Keys", "Pad", "Keys, Pad"),
+## or "Default" for neither. Pure.
+static func calibrated_text(keys: bool, pad: bool) -> String:
+	var kinds := PackedStringArray()
+	if keys:
+		kinds.append("Keys")
+	if pad:
+		kinds.append("Pad")
+	return ", ".join(kinds) if not kinds.is_empty() else "Default"
 
 
 static func _window_text() -> String:
@@ -483,18 +557,41 @@ static func _on_off(value: bool) -> String:
 	return "ON" if value else "OFF"
 
 
-# --- controls (card #190) -------------------------------------------------------------------
+# --- controls (cards #190 and #277) ---------------------------------------------------------
 
-## The rows of a section by id. Controls: "ctl:<action>" for each rebindable action, then reset and back.
+## The rows of a section by id (Controls: see controls_rows, for the page shown).
 func _rows_of(section: Section) -> Array:
 	if section != Section.CONTROLS:
-		return SECTION_ROWS[section]
+		return section_rows(section, OS.is_debug_build())
+	return controls_rows(_device_page, _bindings, OS.is_debug_build())
+
+
+## The rows of a section other than Controls by id; DEBUG_ROWS only when `debug`
+## (OS.is_debug_build() in the game). Pure.
+static func section_rows(section: Section, debug: bool) -> Array:
 	var rows: Array = []
-	for action: StringName in ControlBindings.ACTIONS:
+	for row: String in SECTION_ROWS[section]:
+		if debug or not DEBUG_ROWS.has(row):
+			rows.append(row)
+	return rows
+
+
+## The rows of a Controls page by id: "ctl:<action>" for each action the page lists (only the
+## device's own buttons; the stats overlay only when `debug`), then the page's own options, then
+## its reset and Back. Pure.
+static func controls_rows(page: ControlsPage, bindings: ControlBindings, debug: bool) -> Array:
+	var rows: Array = []
+	for action: StringName in bindings.listed_actions(PAGE_KINDS[page], debug):
 		rows.append("ctl:" + String(action))
+	rows.append_array(PAGE_OPTION_ROWS[page])
 	rows.append("reset")
 	rows.append("back")
 	return rows
+
+
+## The page Settings > Controls opens on for the device in the player's hands. Pure.
+static func page_for_device(pad_in_use: bool) -> ControlsPage:
+	return ControlsPage.CONTROLLER if pad_in_use else ControlsPage.KEYBOARD
 
 
 ## Opens the screen on a section (for pictures and tests).
@@ -502,36 +599,174 @@ func open_section(section: Section) -> void:
 	_show_section(section)
 
 
-func _refresh_control(i: int, action: StringName, total: int) -> void:
-	var chosen := i == _menu.index
-	var waiting := chosen and _capture_kind != "" and _capture_action == action
-	var key_text := _column_text(action, ControlBindings.KEY, chosen, waiting)
-	var pad_text := _column_text(action, ControlBindings.PAD, chosen, waiting)
+## Shows a Controls page (for pictures and tests; the section opens too if it was not shown).
+func open_page(page: ControlsPage) -> void:
+	if _section != Section.CONTROLS:
+		_section = Section.CONTROLS
+		_device_page = page
+		_fill_section()
+		return
+	_set_device_page(page)
+
+
+## The kind of input the shown page lists and rebinds: ControlBindings.KEY or PAD.
+func _kind() -> String:
+	return PAGE_KINDS[_device_page]
+
+
+## Turns to another Controls page, keeping the cursor on the same row (the same action) when the
+## new page has it.
+func _set_device_page(page: ControlsPage) -> void:
+	if page == _device_page:
+		return
+	var rows := _rows_of(Section.CONTROLS)
+	var row: String = String(rows[_menu.index]) if _menu.index < rows.size() else ""
+	var index := _menu.index
+	_device_page = page
+	_fill_section()
+	var fresh := _rows_of(Section.CONTROLS)
+	var at := fresh.find(row)
+	_menu.index = at if at >= 0 else clampi(index, 0, fresh.size() - 1)
+	_refresh()
+
+
+## The page keys and clicks on the Controls section: LT / RT (T / K) open the Keyboard /
+## Controller page, so does a click on a page's tab. True when the event was used.
+func _device_page_input(event: InputEvent) -> bool:
+	var page := -1
+	if _page_pressed(event, &"party_attributes"):
+		page = ControlsPage.KEYBOARD
+	elif _page_pressed(event, &"party_skills"):
+		page = ControlsPage.CONTROLLER
+	elif MenuMouse.is_click(event):
+		page = MenuMouse.control_at(_device_tabs, (event as InputEventMouse).position)
+	if page < 0:
+		return false
+	if page != _device_page:
+		Sfx.play("menu_move")
+		_set_device_page(page as ControlsPage)
+	return true
+
+
+## A page key going down. A trigger sends many motion events while held: only the first counts.
+static func _page_pressed(event: InputEvent, action: StringName) -> bool:
+	if not event.is_action_pressed(action, false, true):
+		return false
+	return not (event is InputEventJoypadMotion) or Input.is_action_just_pressed(action)
+
+
+## The two page tabs, side by side: [LT] (keyboard picture) Keyboard  (pad picture) Controller [RT].
+func _build_device_strip(column: VBoxContainer) -> void:
+	_device_tabs.clear()
+	_device_words.clear()
+	_device_glyphs.clear()
+	_device_strip = HBoxContainer.new()
+	_device_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_device_strip.alignment = BoxContainer.ALIGNMENT_CENTER
+	_device_strip.add_theme_constant_override("separation", PAGE_TAB_GAP)
+	column.add_child(_device_strip)
+	_device_strip.add_child(_page_key_hint(&"party_attributes"))
+	for page: int in PAGE_NAMES.size():
+		var tab := PanelContainer.new()
+		tab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tab.custom_minimum_size.x = PAGE_TAB_WIDTH
+		var line := HBoxContainer.new()
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.alignment = BoxContainer.ALIGNMENT_CENTER
+		line.add_theme_constant_override("separation", PAGE_TAB_PAD + 4)
+		tab.add_child(line)
+		var glyph := UiGlyph.make(PAGE_GLYPHS[page], float(HudStyle.scaled(PAGE_GLYPH_PX)), HudStyle.TEXT_DIM)
+		glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		line.add_child(glyph)
+		var word := HudStyle.make_title(PAGE_NAMES[page], PAGE_TAB_SIZE, HudStyle.TEXT_DIM)
+		word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		line.add_child(word)
+		_device_strip.add_child(tab)
+		_device_tabs.append(tab)
+		_device_words.append(word)
+		_device_glyphs.append(glyph)
+	_device_strip.add_child(_page_key_hint(&"party_skills"))
+
+
+## The chip of a page key next to the tabs; it follows the keyboard / pad hints (HintBar listens).
+static func _page_key_hint(action: StringName) -> HintBar:
+	var hint := HintBar.new([[action, ""]], PAGE_TAB_SIZE)
+	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return hint
+
+
+## Lights the shown page's tab in gold.
+func _redraw_device_strip() -> void:
+	for page: int in _device_tabs.size():
+		var on := page == _device_page
+		_device_tabs[page].add_theme_stylebox_override("panel", HudStyle.slant(PAGE_TAB_ON_BG if on else HudStyle.INK,
+				HudStyle.GOLD if on else HudStyle.EDGE_DIM, 2, PAGE_TAB_PAD, float(HudStyle.scaled(PAGE_GLYPH_PX)), HudStyle.SLANT, false))
+		_device_words[page].label_settings.font_color = HudStyle.GOLD if on else HudStyle.TEXT_DIM
+		_device_glyphs[page].color = HudStyle.GOLD if on else HudStyle.TEXT_DIM
+		_device_glyphs[page].queue_redraw()
+
+
+func _refresh_control(i: int, action: StringName) -> void:
+	var kind := _kind()
+	var waiting := i == _menu.index and _capture_kind != "" and _capture_action == action
+	# The binding is drawn as its button picture (a key cap, a pad's ring, pill or D-pad, like the
+	# hints); only "press a key ..." while waiting is written out.
+	var value := "press a %s ..." % ("key" if kind == ControlBindings.KEY else "button") if waiting else ""
 	var also := _aliases(action)
 	var detail := String(ControlBindings.DETAILS.get(action, ""))
 	if not also.is_empty():
-		detail += "  Also: " + also + "."
-	detail += "   (%d of %d)" % [i + 1, total]
-	_menu.set_item(i, String(ControlBindings.LABELS.get(action, String(action))), true, detail,
-			"Key  %s%sPad  %s" % [key_text, COLUMN_GAP, pad_text])
+		detail += "   (also %s)" % also
+	_menu.set_item(i, String(ControlBindings.LABELS.get(action, String(action))), true, detail, value)
+	_set_binding_chip(i, "" if waiting else HudStyle.input_name(_bindings.primary(action, kind)),
+			kind == ControlBindings.PAD)
 
 
-## One column's text: the button's name, with arrows on the column Left/Right chose, or a prompt
-## while the game waits for the new one.
-func _column_text(action: StringName, kind: String, chosen: bool, waiting: bool) -> String:
-	var text := HudStyle.input_name(_bindings.primary(action, kind))
-	var picked := chosen and kind == _column
-	if waiting and picked:
-		return "press a %s ..." % ("key" if kind == ControlBindings.KEY else "button")
-	if picked:
-		return "<  %s  >" % text
-	return text
+## Puts the button picture `button` (a key on the Keyboard page, a pad button on the Controller
+## page) at the end of row `i`, in place of the one there; "" takes it away.
+func _set_binding_chip(i: int, button: String, pad: bool) -> void:
+	var line := _menu.row_box(i)
+	if line == null:
+		return
+	var old := binding_chip(i)
+	if old != null and String(old.get_meta(&"button", "")) == button and bool(old.get_meta(&"pad", false)) == pad:
+		return
+	if old != null:
+		line.remove_child(old)
+		old.queue_free()
+	if button.is_empty():
+		return
+	var chip := HudStyle.button_chip(button, pad, BINDING_CHIP_SIZE)
+	chip.set_meta(&"button", button)
+	chip.set_meta(&"pad", pad)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(chip)
 
 
-## The other keys and buttons that still do the action's job ("E, Enter"; a stick is just "stick").
+## The button picture on row `i` of a Controls page (null for none: another section, or waiting).
+func binding_chip(i: int) -> ButtonChip:
+	var line := _menu.row_box(i)
+	if line == null:
+		return null
+	for child: Node in line.get_children():
+		if child is ButtonChip and not child.is_queued_for_deletion():
+			return child as ButtonChip
+	return null
+
+
+## What row `i` shows on its right: the button's name under its picture, else the row's value text
+## (for tests).
+func shown_value(i: int) -> String:
+	var chip := binding_chip(i)
+	if chip != null:
+		return String(chip.get_meta(&"button", ""))
+	return String(_menu.items[i].get("value", "")) if i >= 0 and i < _menu.items.size() else ""
+
+
+## The other keys or buttons of the shown page that still do the action's job ("E, Enter"; a stick
+## is just "stick").
 func _aliases(action: StringName) -> String:
 	var names := PackedStringArray()
-	var inputs := _bindings.inputs(action, _column)
+	var inputs := _bindings.inputs(action, _kind())
 	for i: int in range(1, inputs.size()):
 		var label := HudStyle.input_name(inputs[i])
 		if inputs[i].get("k", "") == "axis" and not ControlBindings.TRIGGER_AXES.has(int(inputs[i].get("code", -1))):
@@ -541,20 +776,33 @@ func _aliases(action: StringName) -> String:
 	return ", ".join(names)
 
 
-## Confirm on a control row starts waiting for the new input; Left/Right pick the column.
+## Confirm on a button's row starts waiting for the page's new key or pad button; Left / Right open
+## the Keyboard / Controller page (the cursor stays on the action).
 func _controls_answer(action: StringName, answer: StringName) -> void:
 	if answer == &"left" or answer == &"right":
-		_column = ControlBindings.PAD if answer == &"right" else ControlBindings.KEY
-		Sfx.play("menu_move")
-		_note = ""
-		_refresh()
+		var page := ControlsPage.CONTROLLER if answer == &"right" else ControlsPage.KEYBOARD
+		if page != _device_page:
+			Sfx.play("menu_move")
+			_set_device_page(page)
 		return
+	var keyboard := _kind() == ControlBindings.KEY
 	_capture_action = action
-	_capture_kind = _column
+	_capture_kind = _kind()
 	_capture_until_ms = Time.get_ticks_msec() + _tuning.rebind_capture_ms
-	_set_note("Press the new %s for %s.   Escape or the pad's Menu button: cancel."
-			% ["key" if _column == ControlBindings.KEY else "pad button", ControlBindings.LABELS.get(action, String(action))], false)
+	_set_note("Press the new %s for %s.   %s: cancel." % ["key" if keyboard else "pad button",
+			ControlBindings.LABELS.get(action, String(action)), "Escape" if keyboard else "The pad's Menu button"], false)
 	Sfx.play("menu_confirm")
+	_refresh()
+
+
+## A pad button on the Keyboard page (or a key on the Controller page) while waiting: says which
+## device this page takes and keeps waiting.
+func _wrong_device_note() -> void:
+	Sfx.play("locked")
+	if _capture_kind == ControlBindings.KEY:
+		_set_note("This is the Keyboard page: press a key (Escape: cancel).", true)
+	else:
+		_set_note("This is the Controller page: press a pad button (the pad's Menu button: cancel).", true)
 	_refresh()
 
 
@@ -620,21 +868,24 @@ func _commit() -> void:
 	ButtonPrompts.refresh()
 
 
-## "Reset to defaults": the first Confirm asks, a second one soon after does it.
+## The page's "Reset to defaults": the first Confirm asks, a second one soon after puts back only
+## this page's keys or pad buttons (the other device keeps its changes).
 func _reset_controls() -> void:
 	var now := Time.get_ticks_msec()
-	if _bindings.is_default():
-		_set_note("Everything is already as the game came.", false)
+	var kind := _kind()
+	var what := "key" if kind == ControlBindings.KEY else "pad button"
+	if _bindings.is_kind_default(kind):
+		_set_note("Every %s is already as the game came." % what, false)
 		Sfx.play("locked")
 	elif now <= _reset_until_ms:
-		_bindings.reset_all()
+		_bindings.reset_kind(kind)
 		_commit()
 		_reset_until_ms = 0
-		_set_note("Every key and button is back to the default.", false)
+		_set_note("Every %s is back to the default." % what, false)
 		Sfx.play("menu_confirm")
 	else:
 		_reset_until_ms = now + _tuning.rebind_reset_confirm_ms
-		_set_note("Press Confirm again to put every key and button back to the default.", true)
+		_set_note("Press Confirm again to put every %s back to the default." % what, true)
 		Sfx.play("menu_move")
 	_refresh()
 

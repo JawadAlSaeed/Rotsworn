@@ -5,11 +5,16 @@ extends StopScreen
 ## Train (every hero gets tuning.rest_train_points attribute points) or Upgrade (one item in the
 ## backpack goes up a level). Then back to the map. The bot calls rest_now() (or train_now() /
 ## upgrade_now()) and leave().
+## The choices are side-by-side cards with a picture and chips (card #288): Rest a heart and how
+## much it heals, Train an arrow and the points, Upgrade an anvil (Keep watch and Sharpen at the
+## campfire before the boss). Back shows (and works) only while picking the item to upgrade.
 
 signal done
 ## Host: the choice was made (Main tells the clients what happened).
 signal acted(text: String)
 
+## An upgrade list of this many items or fewer shows as cards side by side.
+const UPGRADE_CARDS_MAX: int = 3
 ## Screen pixels per art pixel for the fire and the heroes.
 const SCENE_SCALE: int = 4
 const SCENE_SIZE := Vector2(900.0, 300.0)
@@ -22,6 +27,10 @@ const GLOW_COLOR := Color(1.0, 0.55, 0.2, 0.35)
 
 var _text: Label
 var _menu: ListMenu
+var _look: StopVisuals
+var _footer: HintBar
+## The footer's hints now (tests read them).
+var _footer_now: Array = []
 var _fire: TextureRect
 var _glow: TextureRect
 var _done_once: bool = false
@@ -33,20 +42,20 @@ var _time: float = 0.0
 ## `result`: online clients show what the host did (empty: still choosing).
 func setup(p_run: RunState, fire_path: String = FIRE_PATH, result: String = "") -> void:
 	run = p_run
+	_look = StopVisuals.load_default()
 	var column := ListMenu.screen_column(self, "Campfire", TITLE_SIZE)
 	_add_bar(column)
 	column.add_child(_scene(fire_path))
-	_text = ListMenu.centred_label("A fire away from the rot. There is time for one thing before the road.", TEXT_SIZE)
+	# Empty while choosing: what was done shows here afterwards.
+	_text = ListMenu.centred_label("", TEXT_SIZE)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.custom_minimum_size = Vector2(1000.0, 0.0)
 	_text.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_text.visible = false
 	column.add_child(_text)
 	_menu = ListMenu.new()
 	column.add_child(_menu)
-	var detail := ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
-	column.add_child(detail)
-	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]])
-	_menu.set_items([], detail)
+	_footer = ListMenu.screen_footer(self, [])
 	if result.is_empty():
 		_show_choices()
 	else:
@@ -202,40 +211,68 @@ func _finish(text: String) -> void:
 	_done_once = true
 	_picking.clear()
 	_text.text = text
+	_text.visible = true
 	var list: Array[Dictionary] = [{"text": "Back to the map", "enabled": not remote}]
+	_menu.horizontal = false
 	_menu.set_items(list)
+	_set_footer([[&"menu_confirm", "Continue"]])
 	_refresh_bar()
+
+
+## The menu (tests).
+func menu() -> ListMenu:
+	return _menu
+
+
+## The footer's hints now (tests): [[action, text], ...].
+func footer_entries() -> Array:
+	return _footer_now
+
+
+func _set_footer(entries: Array) -> void:
+	_footer_now = entries
+	_footer.set_entries(entries)
 
 
 func _show_choices() -> void:
 	_picking.clear()
+	_menu.horizontal = true
+	_set_footer([[&"@leftright", "Choose"], [&"menu_confirm", "Select"]])
+	var gift := _look.chip_gift_color
+	var rest := {"text": "Rest", "enabled": not remote, "icon": _icon(_look.rest_icon_path), "chips": _rest_chips()}
 	if run.is_watch_fire():
-		_menu.set_items([
-			{"text": "Rest", "enabled": not remote, "detail": _rest_detail()},
-			{"text": "Keep watch", "enabled": not remote, "detail": "The team gauge is full for the boss."},
-			{"text": "Sharpen", "enabled": not remote,
-					"detail": "Every hero starts the boss fight with +%d AP." % run.tuning.sharpen_ap},
+		_menu.set_items([rest,
+			{"text": "Keep watch", "enabled": not remote, "icon": _icon(_look.watch_icon_path),
+					"chips": [StopScreen.chip_entry(_look, "gauge", "Gauge full", gift)]},
+			{"text": "Sharpen", "enabled": not remote, "icon": _icon(_look.sharpen_icon_path),
+					"chips": [StopScreen.chip_entry(_look, "ap", "+%d AP" % run.tuning.sharpen_ap, gift)]},
 		])
 		return
 	var up := upgradable()
-	var list: Array[Dictionary] = [
-		{"text": "Rest", "enabled": not remote, "detail": _rest_detail()},
-		{"text": "Train", "enabled": not remote, "detail": "Every hero gets %d attribute point%s." % [
-				run.tuning.rest_train_points, "" if run.tuning.rest_train_points == 1 else "s"]},
-		{"text": "Upgrade an item", "enabled": not remote and not up.is_empty(),
-				"detail": "One item in the backpack goes up a level (stronger, rarer)." if not up.is_empty()
-				else "Nothing in the backpack can be upgraded."},
+	var list: Array[Dictionary] = [rest,
+		{"text": "Train", "enabled": not remote, "icon": _icon(_look.train_icon_path),
+				"chips": [StopScreen.chip_entry(_look, "up", "+%d points" % run.tuning.rest_train_points, gift)]},
+		{"text": "Upgrade", "enabled": not remote and not up.is_empty(), "icon": _icon(_look.upgrade_icon_path),
+				"chips": [StopScreen.chip_entry(_look, "item", "+1 Lv" if not up.is_empty() else "None",
+						gift if not up.is_empty() else HudStyle.TEXT_DIM)]},
 	]
 	_menu.set_items(list)
 
 
-## What Rest does, naming any hero whose gear changes it (Hunger Charm, DESIGN.md 8.16).
-func _rest_detail() -> String:
-	var text := "Everyone heals %d%% of their max HP." % run.rest_heal_percent()
+func _icon(path: String) -> Texture2D:
+	return AssetLoader.texture(path, Vector2i(24, 24))
+
+
+## What Rest heals: everyone's percent, and any hero whose gear changes it (Hunger Charm, DESIGN.md
+## 8.16) by name.
+func _rest_chips() -> Array[Dictionary]:
+	var chips: Array[Dictionary] = [StopScreen.chip_entry(_look, "heal", "+%d%% HP" % run.rest_heal_percent(),
+			_look.chip_gift_color)]
 	for slot: int in run.party_size():
 		if run.rest_heal_percent_of(slot) != run.rest_heal_percent():
-			text += " %s heals %d%%." % [run.data.party[slot].display_name, run.rest_heal_percent_of(slot)]
-	return text
+			chips.append(StopScreen.chip_entry(_look, "heal", "%s +%d%%" % [run.data.party[slot].display_name,
+					run.rest_heal_percent_of(slot)], HudStyle.TEXT_DIM))
+	return chips
 
 
 func _show_upgrades() -> void:
@@ -244,10 +281,17 @@ func _show_upgrades() -> void:
 	for uid: int in _picking:
 		var e := run.backpack.entry(uid)
 		var after := RunState.entry_name(e) + "+"
-		list.append({"text": RunState.entry_name(e), "detail": "Becomes %s (%s)." % [after,
-				BackpackGrid.rarity_name(mini(RunState.entry_rarity(e) + 1, ItemData.Rarity.LEGENDARY))],
-				"color": BackpackGrid.rarity_color(RunState.entry_rarity(e))})
+		list.append({"text": RunState.entry_name(e), "value": "> %s" % after,
+				"color": BackpackGrid.rarity_color(RunState.entry_rarity(e)),
+				"icon": AssetLoader.texture((e.item as ItemData).icon_path, Vector2i(16, 16))})
+	# Three items or fewer sit side by side as cards (owner, phase 22); more make a column. Back is
+	# the cancel button either way.
+	var cards := list.size() <= UPGRADE_CARDS_MAX
+	_menu.horizontal = cards
+	_menu.index = 0
 	_menu.set_items(list)
+	_set_footer([[&"@leftright" if cards else &"@updown", "Choose"], [&"menu_confirm", "Upgrade"],
+			[&"menu_cancel", "Back"]])
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -256,9 +300,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	var answer := _menu.handle(event)
 	if answer == &"cancel" and not _picking.is_empty():
 		Sfx.play("menu_cancel")
+		# Back on the Upgrade card.
+		_menu.index = 2
 		_show_choices()
 		return
 	if answer != &"confirm":
+		return
+	# A greyed card (Upgrade with nothing to upgrade) answers confirm too: refuse it here, or an
+	# empty pick list would open and the next confirm would Rest.
+	if not _menu.is_enabled(_menu.index):
+		Sfx.play("locked")
 		return
 	Sfx.play("menu_confirm")
 	if _done_once:

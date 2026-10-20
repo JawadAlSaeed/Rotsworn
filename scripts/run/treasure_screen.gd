@@ -5,6 +5,9 @@ extends StopScreen
 ## (RunState.open_treasure). Older words: a big old chest. Open it: its prize (RunState.treasure_contents,
 ## always rare or better: gear goes on a hero, an item into the backpack) and some gold. Then back
 ## to the map. The bot calls open_chest() and leave().
+## The two chests are side-by-side cards (card #288): the chest's picture, a word, and chips for what
+## it holds (gold and a rare item; a rare Relic) and what the rotten one may bring (a curse, a fight,
+## each with its chance). Once one is open, the two chests stand above the result as they were left.
 
 signal done
 ## Host: the chest was opened (Main tells the clients).
@@ -20,8 +23,11 @@ const CHEST_GAP: int = 120
 var _chest: TextureRect
 var _rotten: TextureRect
 var _text: Label
-var _detail: Label
+var _footer: HintBar
 var _menu: ListMenu
+var _look: StopVisuals
+## The two big chests above the result (shown once one is open).
+var _chests: HBoxContainer
 ## Which chest was opened (1: the rotten one), for the pictures.
 var _opened_rotten: bool = false
 var _open: bool = false
@@ -32,34 +38,35 @@ var _open_path: String = ""
 ## `already_open`: online clients show the chest as the host left it.
 func setup(p_run: RunState, explore: ExploreVisuals, already_open: bool = false, text: String = "") -> void:
 	run = p_run
+	_look = StopVisuals.load_default()
 	_closed_path = explore.chest_closed_path
 	_open_path = explore.chest_open_path
 	var column := ListMenu.screen_column(self, "Treasure", TITLE_SIZE)
 	_add_bar(column)
-	var chests := HBoxContainer.new()
-	chests.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chests.alignment = BoxContainer.ALIGNMENT_CENTER
-	chests.add_theme_constant_override("separation", CHEST_GAP)
-	column.add_child(chests)
+	_chests = HBoxContainer.new()
+	_chests.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_chests.alignment = BoxContainer.ALIGNMENT_CENTER
+	_chests.add_theme_constant_override("separation", CHEST_GAP)
+	column.add_child(_chests)
 	_chest = _chest_picture()
-	chests.add_child(_chest)
+	_chests.add_child(_chest)
 	_rotten = _chest_picture()
 	_rotten.self_modulate = ROTTEN_TINT
-	chests.add_child(_rotten)
-	_text = ListMenu.centred_label("Two chests, half sunk in the mud. One is plain. One weeps black rot.", TEXT_SIZE)
+	_chests.add_child(_rotten)
+	# Empty while choosing (the cards say it all); what was inside shows here once opened.
+	_text = ListMenu.centred_label("", TEXT_SIZE)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.custom_minimum_size = Vector2(1000.0, 0.0)
 	_text.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(_text)
 	_menu = ListMenu.new()
 	column.add_child(_menu)
-	_detail = ListMenu.centred_label("", TEXT_SIZE, HudStyle.TEXT_DIM)
-	column.add_child(_detail)
-	ListMenu.screen_footer(self, [[&"@updown", "Choose"], [&"menu_confirm", "Select"]])
+	_footer = ListMenu.screen_footer(self, [])
 	_opened_rotten = already_open and run.stop_rotten
 	_show(already_open)
 	if already_open and not text.is_empty():
 		_text.text = text
+	_text.visible = not _text.text.is_empty()
 
 
 func _chest_picture() -> TextureRect:
@@ -89,6 +96,7 @@ func open_chest(rotten: bool = false) -> void:
 	Sfx.play("chest_open")
 	Sfx.play("hurt" if got.curse != null or bool(got.ambush) else "gold_gain")
 	_text.text = String(got.text)
+	_text.visible = true
 	_show(true)
 	# The chest stays open for a continued run (Main saves once the prize is settled).
 	opened.emit()
@@ -110,16 +118,45 @@ func _show(is_open: bool) -> void:
 		picture.texture = AssetLoader.texture(_open_path if this_one else _closed_path, Vector2i(28, 24))
 		picture.custom_minimum_size = picture.texture.get_size() * CHEST_SCALE
 		picture.modulate.a = UNCHOSEN_ALPHA if is_open and not this_one else 1.0
+	# While choosing, the chests are on the cards; the big ones show how they were left.
+	_chests.visible = is_open
 	var list: Array[Dictionary] = [{"text": "Back to the map", "enabled": not remote}]
+	_menu.horizontal = not is_open
 	if not is_open:
-		list = [{"text": "Open the plain chest", "enabled": not remote,
-				"detail": "%d gold and a rare item." % run.tuning.run_treasure_gold},
-				{"text": "Open the rotten chest", "enabled": not remote,
-				"detail": "A rare or better Relic. It may bring a curse, or a fight."}]
-	elif run.in_ambush():
-		list = [{"text": "Fight", "enabled": not remote}]
-	_menu.set_items(list, _detail)
+		list = chest_cards()
+		_footer.set_entries([[&"@leftright", "Choose"], [&"menu_confirm", "Open"]])
+	else:
+		if run.in_ambush():
+			list = [{"text": "Fight", "enabled": not remote}]
+		_footer.set_entries([[&"menu_confirm", "Fight" if run.in_ambush() else "Continue"]])
+	_menu.set_items(list)
 	_refresh_bar()
+
+
+## The two chest cards: the plain one (gold and a rare item) and the rotten one (a rare Relic, and
+## the chance of a curse and of a fight), each with its chest's picture.
+func chest_cards() -> Array[Dictionary]:
+	var closed := AssetLoader.texture(_closed_path, Vector2i(28, 24))
+	var gift := _look.chip_gift_color
+	var risk := _look.chip_risk_color
+	var rotten_chips: Array[Dictionary] = [StopScreen.chip_entry(_look, "relic", "Rare Relic", gift)]
+	if run.tuning.rotten_chest_curse_percent > 0:
+		rotten_chips.append(StopScreen.chip_entry(_look, "curse", "Curse %d%%" % run.tuning.rotten_chest_curse_percent, risk))
+	if run.tuning.rotten_chest_fight_percent > 0:
+		rotten_chips.append(StopScreen.chip_entry(_look, "fight", "Fight %d%%" % run.tuning.rotten_chest_fight_percent, risk))
+	var cards: Array[Dictionary] = [
+		{"text": "Plain", "enabled": not remote, "icon": closed, "icon_scale": _look.chest_card_scale,
+				"chips": [StopScreen.chip_entry(_look, "gold", "+%d gold" % run.tuning.run_treasure_gold, gift),
+						StopScreen.chip_entry(_look, "find", "Rare item", gift)]},
+		{"text": "Rotten", "enabled": not remote, "icon": closed, "icon_scale": _look.chest_card_scale,
+				"icon_color": ROTTEN_TINT, "chips": rotten_chips},
+	]
+	return cards
+
+
+## The menu (tests).
+func menu() -> ListMenu:
+	return _menu
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -9,6 +9,10 @@ extends CanvasLayer
 ## Back leaves. A bought item goes into the backpack where it fits first; with no room the backpack
 ## opens with it in hand (leaving it gives the gold back). A bought Relic joins the run (a copy
 ## raises its level, DESIGN.md 8.17) and, if nobody wears it, the backpack opens to put it on a hero.
+## Phase 22: pictures and a word, not sentences: each service has its picture (a skull Cleanse, an
+## anvil Upgrade, arrows Restock, the coin Sell with its button, a door Leave), prices are the coin and
+## a number, and the line under the shelves shows a Relic as its icon, a "Lv 2 > 3" chip and its stat
+## and effect chips (detail()). The rules are in the Glossary.
 ## The bot uses count(), can_buy(), buy(), overlay() and leave().
 
 signal done
@@ -18,6 +22,8 @@ signal restocked
 ## saves the run now, so Continue does not take it back (card #197).
 signal acted
 
+## The Upgrade / Cleanse pick list of this many items or fewer shows as cards side by side.
+const PICK_CARDS_MAX: int = 3
 const TITLE_SIZE: int = 64
 const TEXT_SIZE: int = 28
 const DETAIL_SIZE: int = 26
@@ -32,6 +38,15 @@ const SERVICES: Array[String] = ["cleanse", "upgrade", "restock", "sell", "leave
 const SHELF_BG := Color(0.16, 0.11, 0.08, 0.92)
 const SHELF_EDGE := Color(0.42, 0.3, 0.18)
 const SOLD_DIM := Color(1.0, 1.0, 1.0, 0.35)
+## A service card's picture, a price's coin and the Relic detail's icon (phase 22: icons, not words).
+const SERVICE_ICON_PX: float = 48.0
+const COIN_PX: float = 24.0
+const DETAIL_ICON_PX: float = 44.0
+const DETAIL_HEIGHT: float = 52.0
+## The widest an item's line under the shelves gets before it wraps.
+const DETAIL_LINE_MAX: float = 900.0
+const MAP_VISUALS_PATH := "res://data/presentation/map_visuals.tres"
+const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
 
 var _run: RunState
 var _gear: Array[GearData] = []
@@ -39,7 +54,11 @@ var _gear: Array[GearData] = []
 var _items: Array[ItemData] = []
 var _bar: RunPartyBar
 var _say: Label
-var _detail: Label
+## Under the shelves: what the thing picked is (detail()): an item's line, or a Relic's icon, name
+## and chips, or a service's word.
+var _detail: HBoxContainer
+var _look: MapVisuals
+var _coin: String = ""
 var _shelf: GridContainer
 var _services: HBoxContainer
 var _cards: Array[PanelContainer] = []
@@ -57,7 +76,6 @@ var _pick_menu: ListMenu
 var _pick_panel: PanelContainer
 var _pick_uids: Array[int] = []
 var _pick_kind: String = ""
-var _gear_icon: Texture2D
 
 
 ## `gear`: the Relics this shop sells (RunState.shop_gear for the stop).
@@ -70,7 +88,11 @@ func setup(run: RunState, gear: Array[GearData],
 	for index: int in run.shop_sold:
 		if index < count():
 			_bought[index] = true
-	_gear_icon = AssetLoader.texture("res://assets/sprites/ui/gear_icon.png", Vector2i(16, 16))
+	_look = load(MAP_VISUALS_PATH) as MapVisuals
+	if _look == null:
+		_look = MapVisuals.new()
+	var visuals := load(VISUALS_PATH) as CombatVisuals
+	_coin = visuals.gold_icon_path if visuals != null else ""
 	var column := ListMenu.screen_column(self, "The Rag Merchant", TITLE_SIZE)
 	var centre := CenterContainer.new()
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -105,13 +127,15 @@ func setup(run: RunState, gear: Array[GearData],
 	_services.add_theme_constant_override("separation", 10)
 	right.add_child(_services)
 
-	_detail = ListMenu.centred_label("", DETAIL_SIZE, HudStyle.TEXT_DIM)
-	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail.custom_minimum_size = Vector2(1200.0, 0.0)
+	_detail = HBoxContainer.new()
+	_detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_detail.alignment = BoxContainer.ALIGNMENT_CENTER
+	_detail.custom_minimum_size = Vector2(1200.0, DETAIL_HEIGHT)
 	_detail.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_detail.add_theme_constant_override("separation", 14)
 	column.add_child(_detail)
-	ListMenu.screen_footer(self, [[&"@move", "Choose"], [&"menu_confirm", "Buy"], [&"party_menu", "Sell"],
-			[&"menu_cancel", "Leave"]])
+	# Sell is a service card (with its button on it), so the footer does not say it again.
+	ListMenu.screen_footer(self, [[&"@move", "Choose"], [&"menu_confirm", "Buy"], [&"menu_cancel", "Leave"]])
 	_rebuild()
 
 
@@ -153,21 +177,56 @@ func overlay() -> PartyScreen:
 	return _overlay
 
 
-## The name, price, description, rarity and picture of thing `index`.
+## The name, price, description, rarity and picture of thing `index` (a Relic's picture is the
+## Relic itself: its RelicIcon).
 func _info(index: int) -> Array:
 	if index < items().size():
 		var item := items()[index]
 		return [item.display_name, _run.item_price(item), item.description, int(item.rarity),
 				AssetLoader.texture(item.icon_path, item.size() * 16)]
 	var gear := _gear[index - items().size()]
-	var level := _run.relic_level(gear)
-	var owned := " (new)"
+	return [gear.display_name, _run.gear_price(gear), gear.description, BackpackGrid.gear_step(gear), gear]
+
+
+## What the line under the shelves shows for thing `index` or a service (phase 22: icons and a word
+## or two, never a rules sentence): {icon, title, color, chips: [[icon, text, color]], line}. A
+## Relic shows its icon, name, a "Lv 2 > 3" (or New, Home) chip and its stat and effect chips; an
+## item its picture, name and what it does; a service its picture, name and a few words.
+func detail(index: int) -> Dictionary:
+	if index >= count():
+		var kind := SERVICES[clampi(index - count(), 0, SERVICES.size() - 1)]
+		var service := _service_info(kind)
+		return {"icon": service[4], "title": String(service[0]), "color": HudStyle.TEXT, "chips": [],
+				"line": String(service[2])}
+	var info := _info(index)
+	if index < items().size():
+		return {"icon": info[4], "title": String(info[0]), "color": BackpackGrid.rarity_color(int(info[3])), "chips": [],
+				"line": String(info[2])}
+	return {"icon": info[4], "title": String(info[0]), "color": BackpackGrid.rarity_color(int(info[3])),
+			"chips": relic_chips(_run, info[4] as GearData), "line": ""}
+
+
+## A shop Relic's chips: what buying it does to the run's level ("Lv 2 > 3"; "New"; "Home" for one
+## left at home), the stat line at that level, its effect and any drawback.
+static func relic_chips(run: RunState, gear: GearData) -> Array:
+	var level := run.relic_level(gear)
+	var next := mini(level + 1, run.tuning.relic_max_level)
+	var chips: Array = []
 	if level > 0:
-		owned = " (level %d this run: a copy raises it)" % level
-	elif _run.is_home(gear):
-		owned = " (left at home: joins at level 1)"
-	return [gear.display_name, _run.gear_price(gear), "Relic%s: %s" % [owned, gear.description], BackpackGrid.gear_step(gear),
-			_gear_icon]
+		chips.append([&"up", "Lv %d > %d" % [level, next], HudStyle.GOLD])
+	elif run.is_home(gear):
+		chips.append([&"", "Home", HudStyle.TEXT])
+	else:
+		chips.append([&"star", "New", HudStyle.GOLD])
+	var stat := gear.stat_text(next)
+	if not stat.is_empty():
+		chips.append([UiGlyph.attribute_glyph(gear.stat), stat, HudStyle.TEXT])
+	var effect := GearData.effect_text(gear.effect, gear.amount)
+	if not effect.is_empty():
+		chips.append([&"", effect, HudStyle.TEXT])
+	if gear.has_drawback():
+		chips.append([&"", GearData.drawback_text(gear.drawback, gear.drawback_amount), GearData.ROT_TOUCHED_COLOR])
+	return chips
 
 
 ## True if thing `index` is still for sale and affordable.
@@ -243,25 +302,39 @@ func leave() -> void:
 	done.emit()
 
 
+## A service: [name, price (0: free), a few words, usable now, picture (a texture path or a UiGlyph
+## kind)]. The words say what it does, or why it cannot be used now; the rules are in the Glossary.
 func _service_info(kind: String) -> Array:
 	var t := _run.tuning
 	match kind:
 		"cleanse":
 			var rotten := not _run.rotten_uids().is_empty()
-			return ["Cleanse", "%d gold" % _run.cleanse_price(), "Throw away one rotten item from the backpack." if rotten
-					else "Nothing rotten in the backpack.", rotten and _run.gold >= _run.cleanse_price()]
+			var cleanse := _run.cleanse_price()
+			return ["Cleanse", cleanse, _service_words("Throw away a curse", "No curse", rotten, cleanse),
+					rotten and _run.gold >= cleanse, &"skull"]
 		"upgrade":
 			var any := false
 			for e: Dictionary in _run.backpack.entries:
 				any = any or _run.can_upgrade(int(e.uid))
-			return ["Upgrade", "%d gold" % _run.upgrade_price(), "One item in the backpack goes up a level." if any
-					else "Nothing in the backpack can be upgraded.", any and _run.gold >= _run.upgrade_price()]
+			var upgrade := _run.upgrade_price()
+			return ["Upgrade", upgrade, _service_words("An item +1 level", "Nothing to upgrade", any, upgrade),
+					any and _run.gold >= upgrade, _look.upgrade_icon_path]
 		"restock":
-			return ["Restock", "%d gold" % _run.restock_price(), "New items and Relics on the shelves. Costs more each time.",
-					_run.gold >= _run.restock_price()]
+			var restock := _run.restock_price()
+			return ["Restock", restock, _service_words("New wares", "", true, restock), _run.gold >= restock,
+					_look.restock_icon_path]
 		"sell":
-			return ["Sell", "", "Open the backpack: items sell for %d%% of their price." % t.item_sell_percent, true]
-	return ["Leave", "", "Back to the map.", true]
+			return ["Sell", 0, "Pack items for %d%%" % t.item_sell_percent, true, _coin]
+	return ["Leave", 0, "Back to the map", true, _look.leave_icon_path]
+
+
+## A service's few words: what it does, `none` when there is nothing to use it on, or the gold short.
+func _service_words(does: String, none: String, has_target: bool, price: int) -> String:
+	if not has_target:
+		return none
+	if _run.gold < price:
+		return "Need %d more gold" % (price - _run.gold)
+	return does
 
 
 # --- drawing ----------------------------------------------------------------------------------
@@ -274,13 +347,17 @@ func _rebuild() -> void:
 	for i: int in count():
 		var info := _info(i)
 		var sold := _bought.has(i)
-		var price := "SOLD" if sold else "%d gold" % int(info[1])
-		var card := _card(info[4], String(info[0]), price, BackpackGrid.rarity_color(int(info[3])), can_buy(i), sold)
+		var card := _card(info[4], String(info[0]), int(info[1]), BackpackGrid.rarity_color(int(info[3])), can_buy(i), sold)
 		_shelf.add_child(card)
 		_cards.append(card)
 	for kind: String in SERVICES:
 		var info := _service_info(kind)
-		var card := _card(null, String(info[0]), String(info[1]), HudStyle.TEXT, bool(info[3]), false, true)
+		var card := _card(info[4], String(info[0]), int(info[1]), HudStyle.TEXT, bool(info[3]), false, true)
+		if kind == "sell":
+			# Its button (Tab / Y) opens the backpack to sell from anywhere in the shop.
+			var chip := HintBar.entry_row(&"party_menu", "", CARD_TEXT - 4)
+			chip.alignment = BoxContainer.ALIGNMENT_CENTER
+			(card.get_child(0) as VBoxContainer).add_child(chip)
 		_services.add_child(card)
 		_service_cards.append(card)
 	_sel = clampi(_sel, 0, count() + SERVICES.size() - 1)
@@ -288,7 +365,9 @@ func _rebuild() -> void:
 	_show_selection()
 
 
-func _card(icon: Texture2D, title: String, price: String, color: Color, enabled: bool, sold: bool,
+## A shelf card (or a `small` service card): its picture (MapScreen.icon_picture), name and price as
+## the coin and a number (`price` 0: none); SOLD once bought.
+func _card(icon: Variant, title: String, price: int, color: Color, enabled: bool, sold: bool,
 		small: bool = false) -> PanelContainer:
 	var card := PanelContainer.new()
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -298,23 +377,24 @@ func _card(icon: Texture2D, title: String, price: String, color: Color, enabled:
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override("separation", 4)
 	card.add_child(column)
-	if icon != null:
-		var art := TextureRect.new()
-		art.texture = icon
-		art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		art.custom_minimum_size = Vector2(16, 16) * ICON_SCALE
+	var art := MapScreen.icon_picture(icon, SERVICE_ICON_PX if small else 16.0 * ICON_SCALE, HudStyle.TEXT,
+			small or not icon is Texture2D)
+	if art != null:
 		art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		column.add_child(art)
 	var name := HudStyle.make_label(title, CARD_TEXT, color)
 	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(name)
-	if not price.is_empty():
-		var tag := HudStyle.make_label(price, CARD_TEXT, HudStyle.GOLD if enabled else HudStyle.TEXT_DIM)
+	if sold:
+		var tag := HudStyle.make_label("SOLD", CARD_TEXT, HudStyle.TEXT_DIM)
 		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(tag)
+	elif price > 0:
+		var tag := MapScreen.icon_chip(_coin, str(price), HudStyle.GOLD if enabled else HudStyle.TEXT_DIM, COIN_PX,
+				CARD_TEXT, false)
+		(tag as BoxContainer).alignment = BoxContainer.ALIGNMENT_CENTER
+		tag.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		column.add_child(tag)
 	card.modulate = SOLD_DIM if sold else (Color.WHITE if enabled else Color(1, 1, 1, 0.6))
 	return card
@@ -336,11 +416,29 @@ func _show_selection() -> void:
 		var on := i == _sel
 		all[i].add_theme_stylebox_override("panel", _box(ListMenu.SELECTED_BG if on else Color(0.05, 0.04, 0.04, 0.7),
 				HudStyle.GOLD if on else Color(0.3, 0.24, 0.18), 3 if on else 1, 8))
-	if _sel < count():
-		var info := _info(_sel)
-		_detail.text = "%s (%s)" % [info[2], BackpackGrid.rarity_name(int(info[3]))]
-	else:
-		_detail.text = String(_service_info(SERVICES[_sel - count()])[2])
+	_show_detail(detail(_sel))
+
+
+## Fills the line under the shelves from detail().
+func _show_detail(data: Dictionary) -> void:
+	for child: Node in _detail.get_children():
+		_detail.remove_child(child)
+		child.queue_free()
+	_detail.add_child(MapScreen.icon_chip(data.get("icon"), String(data.get("title", "")),
+			data.get("color", HudStyle.TEXT) as Color, DETAIL_ICON_PX, DETAIL_SIZE, false))
+	for chip: Variant in data.get("chips", []):
+		var parts := chip as Array
+		_detail.add_child(MapScreen.icon_chip(parts[0], String(parts[1]), parts[2] as Color))
+	var line := String(data.get("line", ""))
+	if not line.is_empty():
+		var label := HudStyle.make_label(line, DETAIL_SIZE, HudStyle.TEXT_DIM)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		if label.get_minimum_size().x > DETAIL_LINE_MAX:
+			# A long item line wraps instead of pushing the row off the screen.
+			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			label.custom_minimum_size.x = DETAIL_LINE_MAX
+		_detail.add_child(label)
 
 
 # --- input ------------------------------------------------------------------------------------
@@ -484,8 +582,18 @@ func _open_pick(kind: String) -> void:
 	var list: Array[Dictionary] = []
 	for uid: int in _pick_uids:
 		var e := _run.backpack.entry(uid)
-		list.append({"text": RunState.entry_name(e), "color": BackpackGrid.rarity_color(RunState.entry_rarity(e))})
+		var entry := {"text": RunState.entry_name(e), "color": BackpackGrid.rarity_color(RunState.entry_rarity(e)),
+				"icon": AssetLoader.texture((e.item as ItemData).icon_path, Vector2i(16, 16))}
+		if kind == "upgrade":
+			entry["value"] = "> %s+" % RunState.entry_name(e)
+		list.append(entry)
+	# Three items or fewer sit side by side as cards (owner, phase 22); Back is the cancel button.
+	var cards := list.size() <= PICK_CARDS_MAX
+	_pick_menu.horizontal = cards
 	_pick_menu.set_items(list)
+	column.add_child(HintBar.new([[&"@leftright" if cards else &"@updown", "Choose"],
+			[&"menu_confirm", "Upgrade" if kind == "upgrade" else "Throw away"], [&"menu_cancel", "Back"]],
+			ListMenu.FOOTER_SIZE))
 
 
 func _close_pick() -> void:

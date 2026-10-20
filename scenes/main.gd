@@ -1107,7 +1107,8 @@ func _start_zone(zone: ZoneData) -> void:
 		_run_bar = RunPartyBar.new()
 		_run_bar.position = Vector2(24.0, 24.0)
 		layer.add_child(_run_bar)
-		_run_bar.setup(_run)
+		# No gold while walking a zone: nothing to buy there (phase 22).
+		_run_bar.setup(_run, false)
 	if _options.is_autoplay() and not Net.is_client():
 		var bot := ZoneAutoplay.new()
 		bot.name = "ZoneAutoplay"
@@ -1229,11 +1230,12 @@ func _on_zone_leave() -> void:
 	_zone.set_paused(true)
 	_prompt = ConfirmPrompt.new()
 	_prompt.name = "LeavePrompt"
+	# A few words and a chip, not sentences (phase 22): the enemies still here as a skull and a count.
 	var left := _zone.enemies_left()
-	var detail := "On to the spoils and the map. There is no coming back."
+	var chips: Array = []
 	if left > 0:
-		detail = "%d optional %s still here. %s" % [left, "enemy is" if left == 1 else "enemies are", detail]
-	_prompt.setup("Leave the zone?", detail, "Leave", "Stay")
+		chips.append({"glyph": &"skull", "text": "%d left" % left, "color": HudStyle.TEXT})
+	_prompt.setup("Leave the zone?", "No way back.", "Leave", "Stay", chips)
 	_prompt.answered.connect(func(yes: bool) -> void:
 		_prompt.queue_free()
 		_prompt = null
@@ -1280,8 +1282,7 @@ func _offer_tutorial() -> void:
 	_prompt = ConfirmPrompt.new()
 	_hide_menu_behind(_prompt)
 	_prompt.name = "TutorialPrompt"
-	_prompt.setup("Play the tutorial first?", "Five short lessons: attacking, skills, defending and the team "
-			+ "ultimate. It is always in the main menu too.", "Play the tutorial", "Start the run")
+	_prompt.setup("Play the tutorial first?", "", "Tutorial", "Start the run")
 	_prompt.answered.connect(func(yes: bool) -> void:
 		_prompt.queue_free()
 		_prompt = null
@@ -1309,8 +1310,7 @@ func _offer_calibration(remember: bool = true) -> void:
 	_prompt = ConfirmPrompt.new()
 	_hide_menu_behind(_prompt)
 	_prompt.name = "CalibrationPrompt"
-	_prompt.setup("Calibrate your timing?", "Takes about 15 seconds. Recommended for wireless pads and TVs, "
-			+ "which add lag. It is always in Settings under Game.", "Calibrate now", "Not now")
+	_prompt.setup("Calibrate your timing?", "About %d seconds" % _calibration_seconds(), "Calibrate now", "Not now")
 	_prompt.answered.connect(func(yes: bool) -> void:
 		_prompt.queue_free()
 		_prompt = null
@@ -1321,6 +1321,13 @@ func _offer_calibration(remember: bool = true) -> void:
 		else:
 			_new_run_players_after_offer())
 	add_child(_prompt)
+
+
+## How long the lag calibration takes, in whole seconds (rounded up): the lead-in and every beat.
+func _calibration_seconds() -> int:
+	var ms := _visuals.calibration_lead_ms + _visuals.calibration_beats * _visuals.calibration_interval_ms
+	@warning_ignore("integer_division")
+	return (ms + 999) / 1000
 
 
 ## The players screen once the calibration offer is over (it is never asked twice, so this cannot
@@ -1572,12 +1579,13 @@ func _valid_save() -> Dictionary:
 			if bool(loaded.get("keep", false)):
 				if not _mismatch_told and _notice.is_empty():
 					_mismatch_told = true
-					_notice = "The saved run was made by another build of the game (%s), so it cannot be continued here. " \
-							% reason + "It is kept: open that build to carry on, or start a new run to replace it."
+					print("Saved run kept, from another build: %s" % reason)
+					_notice = "Saved run: another version (kept)"
 				return {}
 	RunSave.delete(_run_save_path())
+	print("Saved run deleted: %s" % reason)
 	if _notice.is_empty():
-		_notice = "The saved run could not be continued (%s). It was deleted." % reason
+		_notice = "Saved run was broken (deleted)"
 	return {}
 
 
@@ -1590,7 +1598,7 @@ func _ask_overwrite_save() -> void:
 	_prompt = ConfirmPrompt.new()
 	_hide_menu_behind(_prompt)
 	_prompt.name = "OverwritePrompt"
-	_prompt.setup("Start a new run?", "Your saved run will be lost.", "Start a new run", "Keep the saved run")
+	_prompt.setup("Start a new run?", "The saved run is lost.", "New run", "Keep saved run")
 	_prompt.answered.connect(func(yes: bool) -> void:
 		_prompt.queue_free()
 		_prompt = null
@@ -1645,7 +1653,7 @@ func _on_pause_save_quit() -> void:
 		saved = _write_checkpoint()
 	else:
 		saved = _save_run(false)
-	_notice = "" if saved else "The run could not be saved."
+	_notice = "" if saved else "Could not save the run"
 	_menu_item = MainMenu.CONTINUE
 	_menu_used = true
 	_free_pause()
@@ -2004,7 +2012,9 @@ func _show_run_end() -> void:
 	if _run.result != RunState.VICTORY:
 		var where := "Stop %d, act %d%s" % [_run.visited, _run.act + 1, ", " + OathData.label(_run.oath) if _run.oath > 0 else ""]
 		recap_lines = FightRecap.lines(_last_recap, _last_recap_name, where)
-	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now, recap_lines, _keep_line(), _hero_players())
+	# Phase 22: the killer's row (a defeat) and what an online friend keeps, as icons.
+	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now, recap_lines, _keep_line(), _hero_players(),
+			_last_recap if _run.result != RunState.VICTORY else {}, _own_start if Net.is_client() else null)
 	end.done.connect(_fade_to.bind(_show_main_menu))
 	end.again.connect(_fade_to.bind(_play_again))
 	_show_screen(end)
@@ -2274,11 +2284,9 @@ func _on_pause_leave() -> void:
 		_prompt = ConfirmPrompt.new()
 		_prompt.name = "LeavePrompt"
 		if Net.is_host():
-			_prompt.setup("End the game for everyone?", "The run is lost. Everyone goes back to the main menu.",
-					"End the game", "Keep playing")
+			_prompt.setup("End the game for everyone?", "The run is lost.", "End the game", "Keep playing")
 		else:
-			_prompt.setup("Leave the game?", "You go back to the main menu. Your heroes go to the host.",
-					"Leave", "Keep playing")
+			_prompt.setup("Leave the game?", "Your heroes go to the host.", "Leave", "Keep playing")
 		_prompt.answered.connect(_on_abandon_answered)
 		add_child(_prompt)
 		return
@@ -2289,7 +2297,7 @@ func _on_pause_leave() -> void:
 	_pause.process_mode = Node.PROCESS_MODE_DISABLED
 	_prompt = ConfirmPrompt.new()
 	_prompt.name = "AbandonPrompt"
-	_prompt.setup("Abandon this run?", "The run is lost. You go back to the main menu.", "Abandon run", "Keep playing")
+	_prompt.setup("Abandon this run?", "The run is lost.", "Abandon run", "Keep playing")
 	_prompt.answered.connect(_on_abandon_answered)
 	add_child(_prompt)
 
@@ -2361,7 +2369,8 @@ func _free_pause() -> void:
 func _host_online() -> void:
 	var err := Net.host()
 	if err != OK:
-		_notice = "Could not host (error %d). Is another game already hosting on this PC?" % err
+		print("Could not host: error %d" % err)
+		_notice = "Could not host (another game hosting?)"
 		_autoplay_fail("host_failed")
 		_show_main_menu()
 		return
@@ -2415,11 +2424,12 @@ func _on_online_started(players: PlayerRoster, oath: int) -> void:
 	_fade_to(_new_run)
 
 
-## `address` "" : the remembered one. `problem`: shown at once (why we are here again).
-func _show_join(address: String = "", problem: String = "") -> void:
+## `address` "" : the remembered one. `problem`: shown at once (why we are here again). `rejoin`:
+## the connection was lost mid-run (the Confirm hint says Rejoin).
+func _show_join(address: String = "", problem: String = "", rejoin: bool = false) -> void:
 	var join := JoinScreen.new()
 	join.name = "Join"
-	join.setup(address if not address.is_empty() else PlayerSettings.join_address())
+	join.setup(address if not address.is_empty() else PlayerSettings.join_address(), rejoin)
 	join.connect_requested.connect(_on_join_requested)
 	join.back.connect(_show_main_menu.call_deferred)
 	_show_screen(join)
@@ -2446,7 +2456,7 @@ func _on_net_peer_joined(peer: int) -> void:
 		print("Rejoined as peer %d" % peer)
 		_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, peer)
 		if _screen is JoinScreen:
-			(_screen as JoinScreen).show_status("Back in. Catching up with the host ...")
+			(_screen as JoinScreen).show_status("Back in, catching up ...")
 		return
 	# Welcomed by the host: wait on the players screen for its roster and its Start.
 	Sfx.play("net_connected")
@@ -2575,9 +2585,8 @@ func _lost_host() -> void:
 	_combat_resync = false
 	_run = null
 	var grace_s := _tuning.net_rejoin_grace_ms / 1000
-	var kept := "%d minutes" % (grace_s / 60) if grace_s >= 120 else "%d seconds" % grace_s
-	_show_join.call_deferred(address, "Lost the connection to the host. Press Enter (A on a pad) to take your seat back\n"
-			+ "(the host keeps it for %s)." % kept)
+	var kept := "%d min" % (grace_s / 60) if grace_s >= 120 else "%d s" % grace_s
+	_show_join.call_deferred(address, "Connection lost\nSeat kept %s" % kept, true)
 	if _options.rejoin_after_s > 0:
 		_autoplay_rejoin_later(address)
 
@@ -2907,11 +2916,12 @@ func _on_offer(offer: int) -> void:
 	_zone.set_paused(true)
 	_prompt = ConfirmPrompt.new()
 	_prompt.name = "OfferPrompt"
-	var detail := data.detail
+	# The price and the gift as icon chips under the question (card #288), not the detail sentence.
+	var chips := StopScreen.chip_entries(_run.offer_chips(data), StopVisuals.load_default())
+	var detail := data.detail if chips.is_empty() else ""
 	if not _run.can_take_offer(data):
-		detail += "
-You have %d gold." % _run.gold
-	_prompt.setup(data.question, detail, data.yes_text, data.no_text)
+		detail = ("%s  You have %d gold." % [detail, _run.gold]).strip_edges()
+	_prompt.setup(data.question, detail, data.yes_text, data.no_text, chips)
 	_prompt.answered.connect(func(yes: bool) -> void:
 		_prompt.queue_free()
 		_prompt = null

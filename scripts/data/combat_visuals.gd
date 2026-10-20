@@ -38,6 +38,9 @@ extends Resource
 @export_file_path("*.png") var hit_icon_rend_path: String = "res://assets/sprites/ui/hit_rend.png"
 ## Enemy intent icon for a sweep: dodge it, nothing else works (12x12, card #187).
 @export_file_path("*.png") var hit_icon_sweep_path: String = "res://assets/sprites/ui/hit_sweep.png"
+## Enemy intent icon for a thrown normal hit: still parry or dodge it, but it flies in (12x12,
+## card #278).
+@export_file_path("*.png") var hit_icon_ranged_path: String = "res://assets/sprites/ui/hit_ranged.png"
 
 @export_group("Stage layout")
 ## Where each party slot stands (feet). Keep them on one straight line: ground waves travel with
@@ -719,3 +722,25 @@ func kind_color(kind: int, strike_color: Color) -> Color:
 ## this long, then faded out over party_toast_fade_s.
 @export_range(0.5, 10.0, 0.1, "suffix:s") var party_toast_s: float = 2.2
 @export_range(0.0, 2.0, 0.05, "suffix:s") var party_toast_fade_s: float = 0.35
+
+@export_group("End screen")
+## A won run fight's end screen as icon rows (phase 22, cards #273 and #274): the gold icon, how
+## big the reward icons and the heroes' portraits are drawn, and how dim a downed hero's portrait is.
+@export var gold_icon_path: String = "res://assets/sprites/ui/gold_coin.png"
+@export_range(16, 200, 1) var end_icon_px: int = 48
+@export_range(16, 300, 1) var end_portrait_px: int = 88
+@export var end_down_tint: Color = Color(0.45, 0.45, 0.5, 0.8)
+
+@export_group("Fight HUD icons")
+## Phase 22 (fewer words, more icons): every status on an enemy or a hero panel is its icon
+## (HudStyle.mark_icon) with the turns left, drawn this big.
+@export_range(8.0, 96.0, 1.0) var status_icon_px: float = 24.0
+## A hit that leaves a mark shows that mark's icon on its corner in a hit row (the intent sign, the
+## attack banner), this share of the hit icon's size.
+@export_range(0.2, 1.0, 0.01) var hit_mark_icon_share: float = 0.6
+## The hit icons on the defence buttons (which hits each button answers), this big.
+@export_range(8.0, 96.0, 1.0) var defend_hit_icon_px: float = 26.0
+## A skill or item that cannot be used now: a lock this big on its row; its AP cost turns
+## locked_cost_color when the hero is short of AP.
+@export_range(8.0, 96.0, 1.0) var menu_lock_px: float = 22.0
+@export var locked_cost_color: Color = Color(1.0, 0.36, 0.3)

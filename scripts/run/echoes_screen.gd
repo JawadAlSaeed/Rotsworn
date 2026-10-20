@@ -6,6 +6,8 @@ extends CanvasLayer
 ## purple). Under them: the Echo under the cursor, and the worn Relics still being learned. Right:
 ## the hero (LB / RB changes hero), their combat stats, their attributes as a radar, the Echoes they
 ## wear and their free Echo points. Confirm puts the Echo under the cursor on or takes it off.
+## Phase 22: the worn Relics still being learned show as their icons with a small bar of Echo pips
+## under each; the rules (pips, Echo points) are in the Glossary, not on this page.
 ## Each Echo goes on one hero at a time. The worn Echoes and the points start over every run; the
 ## learned Echoes stay. Opened from the party screen (the
 ## Echoes button on a hero card). Online, a client's changes go to the host as RunState ops.
@@ -38,6 +40,13 @@ const ROW_SIZE := Vector2(370.0, 46.0)
 const ICON_PX: float = 30.0
 const HERO_FACE_PX: float = 72.0
 const RADAR_PX: float = 250.0
+## The worn Relics being learned: icon size, and each Echo pip of the bar under it.
+const LEARN_ICON_PX: float = 44.0
+const PIP_SIZE := Vector2(5.0, 8.0)
+const PIP_GAP: int = 2
+## Echo pips: filled (the Relics tab's colour) and still to fill.
+const PIP_FULL := Color(0.62, 0.32, 0.72)
+const PIP_EMPTY := Color(0.42, 0.37, 0.3, 0.5)
 const ON_HERO_BG := Color(0.32, 0.12, 0.36, 0.9)
 const CHOSEN_BG := Color(0.3, 0.24, 0.1, 0.9)
 
@@ -58,7 +67,8 @@ var _sort_box: PanelContainer
 var _grid: GridContainer
 var _detail: Label
 var _detail_more: Label
-var _learning: Label
+## The worn Relics whose Echo is still being learned: icon and pips bar each (learning()).
+var _learning: HBoxContainer
 var _right: VBoxContainer
 var _hint: HintBar
 ## The Echo rows on screen and the list index of each (for the mouse).
@@ -272,9 +282,9 @@ func _build() -> void:
 	_detail_more.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_more.custom_minimum_size.x = LEFT_WIDTH - 40.0
 	detail_col.add_child(_detail_more)
-	_learning = HudStyle.make_label("", SMALL_SIZE, HudStyle.TEXT_DIM)
-	_learning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_learning.custom_minimum_size.x = LEFT_WIDTH - 40.0
+	_learning = HBoxContainer.new()
+	_learning.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_learning.add_theme_constant_override("separation", 16)
 	detail_col.add_child(_learning)
 	_right = VBoxContainer.new()
 	_right.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -366,7 +376,7 @@ func _row_card(item: GearData, on_cursor: bool) -> Control:
 
 
 func _redraw_detail() -> void:
-	_learning.text = _learning_text()
+	_redraw_learning()
 	var item := chosen()
 	if not _warning.is_empty():
 		_detail.text = _warning
@@ -374,8 +384,7 @@ func _redraw_detail() -> void:
 		return
 	if item == null:
 		_detail.text = "No Echoes learned yet" if _run.learned_echoes().is_empty() else "Nothing in this tab"
-		_detail_more.text = "Wear a Relic in won fights to fill its %d pips. Then its Echo is learned for good: " \
-				% _run.tuning.mastery_needed + "its effect without the stat line, for one hero to wear with Echo points."
+		_detail_more.text = ""
 		return
 	var head := PackedStringArray([item.display_name, "%d pt%s" % [item.echo_cost, "" if item.echo_cost == 1 else "s"],
 			GearData.CATEGORY_NAMES[item.category()]])
@@ -392,17 +401,49 @@ func _redraw_detail() -> void:
 		_detail_more.text += "\n" + reason
 
 
-## The worn Relics whose Echo is still being learned, and how far along.
-func _learning_text() -> String:
-	var parts := PackedStringArray()
+## The worn Relics whose Echo is still being learned, and how far along: [[GearData, pips, needed]].
+func learning() -> Array[Array]:
+	var list: Array[Array] = []
 	for slots: Array in _run.gear:
 		for item: Variant in slots:
 			if item != null and not _run.echo_learned(item as GearData):
-				parts.append("%s %d / %d" % [(item as GearData).display_name, _run.mastery_of(item as GearData),
-						_run.tuning.mastery_needed])
-	if parts.is_empty():
-		return "Learned Echoes are kept for good. Level ups give Echo points."
-	return "Learning: " + ", ".join(parts) + ".   Learned Echoes are kept for good."
+				list.append([item as GearData, _run.mastery_of(item as GearData), _run.tuning.mastery_needed])
+	return list
+
+
+## The learning row: the Echo mark, then each Relic being learned as its icon over its pips bar.
+func _redraw_learning() -> void:
+	_clear(_learning)
+	var list := learning()
+	if list.is_empty():
+		return
+	var mark := UiGlyph.make(&"echo", LEARN_ICON_PX * 0.6, HudStyle.TEXT_DIM)
+	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_learning.add_child(mark)
+	for entry: Array in list:
+		var box := VBoxContainer.new()
+		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_theme_constant_override("separation", 4)
+		var icon := RelicIcon.make(entry[0] as GearData, LEARN_ICON_PX)
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		box.add_child(icon)
+		box.add_child(pips_bar(int(entry[1]), int(entry[2])))
+		_learning.add_child(box)
+
+
+## A small bar of Echo pips: `pips` of `needed` filled.
+static func pips_bar(pips: int, needed: int) -> HBoxContainer:
+	var bar := HBoxContainer.new()
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	bar.add_theme_constant_override("separation", PIP_GAP)
+	for i: int in needed:
+		var pip := ColorRect.new()
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pip.custom_minimum_size = PIP_SIZE
+		pip.color = PIP_FULL if i < pips else PIP_EMPTY
+		bar.add_child(pip)
+	return bar
 
 
 ## The right side: the hero, their stats, attributes, worn Echoes and free Echo points.
