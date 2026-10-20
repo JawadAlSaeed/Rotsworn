@@ -176,7 +176,7 @@ func test_a_random_item_is_lost_the_same_way_on_every_machine() -> void:
 		var a := _run(s)
 		var b := _run(s)
 		for run: RunState in [a, b]:
-			for id: String in ["salve", "key", "ember_stone", "heartleaf"]:
+			for id: String in ["salve", "key", "bomb", "antidote"]:
 				run.add_item(_item(run, id))
 			run.take_offer(offer, 2, 1)
 		assert_eq(a.backpack.entries.size(), 3)

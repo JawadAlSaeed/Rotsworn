@@ -45,6 +45,8 @@ extends Resource
 @export_group("Ink")
 ## Names and the next routes.
 @export var ink_color: Color = Color(0.25, 0.16, 0.11)
+## The rot crown over the act's crowned elite (card #286).
+@export var crown_color: Color = Color(0.86, 0.66, 0.2)
 ## Planning (card #162): stops and routes the picked stop cannot lead to are drawn this much
 ## weaker, so the roads ahead of the pick stand out.
 @export_range(0.0, 1.0, 0.05) var unreachable_alpha: float = 0.35

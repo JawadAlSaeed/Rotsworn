@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventChoiceData" format=3]
+
+[ext_resource type="Resource" path="res://data/items/rotting_heart.tres" id="1_8lhvy"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_41oju"]
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="3_nbeq1"]
+
+[sub_resource type="Resource" id="Resource_6tii4"]
+script = ExtResource("2_41oju")
+id = "pact_hungry_relic"
+display_name = "Feed the hungry Relic"
+cost_rotten = ExtResource("1_8lhvy")
+relic_rarity = 1
+
+[resource]
+script = ExtResource("3_nbeq1")
+text = "Feed the hungry Relic"
+deal = SubResource("Resource_6tii4")
+done_text = "Something old wakes in your pack."

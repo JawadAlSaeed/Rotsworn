@@ -26,6 +26,7 @@ column_gap = 110
 flag_offset = Vector2i(-16, -21)
 flag_start_offset = Vector2i(-2, -20)
 ink_color = Color(0.25, 0.16, 0.11, 1)
+crown_color = Color(0.86, 0.66, 0.2, 1)
 walked_color = Color(0.56, 0.17, 0.13, 1)
 route_alpha = 0.6
 faded_alpha = 0.35

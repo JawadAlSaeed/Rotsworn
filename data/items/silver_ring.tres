@@ -6,7 +6,7 @@
 script = ExtResource("1_4l68t")
 id = "silver_ring"
 display_name = "Silver Ring"
-description = "Treasure. Sell it at a shop."
+description = "Treasure. It turns into gold the moment you find it."
 kind = 3
 price = 40
 find_weight = 6

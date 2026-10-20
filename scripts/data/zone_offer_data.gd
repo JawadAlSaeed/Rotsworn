@@ -92,6 +92,9 @@ enum Kind {
 @export var item: ItemData
 ## A found item of at least this rarity, picked by the run's seed (-1: none).
 @export_range(-1, 2) var find_rarity: int = -1
+## A Relic of at least this rarity, one the run lacks or can still level, picked by the run's seed
+## (-1: none). The starting pacts give these (card #285).
+@export_range(-1, 2) var relic_rarity: int = -1
 
 
 ## What the player must pick before this deal can be taken (nothing, a hero or a backpack item).

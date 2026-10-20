@@ -6,7 +6,7 @@
 script = ExtResource("1_uv5ws")
 id = "rot_gem"
 display_name = "Rot Gem"
-description = "Treasure. Sell it at a shop."
+description = "Treasure. It turns into gold the moment you find it."
 kind = 3
 rarity = 1
 price = 120

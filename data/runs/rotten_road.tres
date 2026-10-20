@@ -40,17 +40,8 @@
 [ext_resource type="Resource" path="res://data/gear/menders_charm.tres" id="15_jtxfh"]
 [ext_resource type="Resource" path="res://data/items/bigger_pack.tres" id="15_l3kfd"]
 [ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="15_pfciy"]
-[ext_resource type="Resource" path="res://data/items/ember_stone.tres" id="16_2sbiv"]
 [ext_resource type="Resource" path="res://data/zones/ashen_ruins.tres" id="16_4r4bl"]
 [ext_resource type="Resource" path="res://data/gear/lucky_coin.tres" id="16_o0k8w"]
-[ext_resource type="Resource" path="res://data/items/iron_stone.tres" id="17_jca6s"]
-[ext_resource type="Resource" path="res://data/items/lodestone.tres" id="18_7qxmh"]
-[ext_resource type="Resource" path="res://data/items/knucklebone.tres" id="19_dl22l"]
-[ext_resource type="Resource" path="res://data/items/wolf_tooth.tres" id="20_h1ots"]
-[ext_resource type="Resource" path="res://data/items/bone_totem.tres" id="21_dy7w4"]
-[ext_resource type="Resource" path="res://data/items/heartleaf.tres" id="22_81ydh"]
-[ext_resource type="Resource" path="res://data/items/wake_root.tres" id="23_m187n"]
-[ext_resource type="Resource" path="res://data/items/rain_pouch.tres" id="24_1i5p2"]
 [ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="42_jhtoh"]
 [ext_resource type="Resource" path="res://data/gear/rotten_crown.tres" id="42_y3kuw"]
 [ext_resource type="Resource" path="res://data/runs/oaths/thorns.tres" id="43_lj346"]
@@ -98,6 +89,13 @@
 [ext_resource type="Resource" path="res://data/gear/hollow_drum.tres" id="78_0e7ir"]
 [ext_resource type="Resource" path="res://data/gear/sour_milk.tres" id="79_8iujy"]
 [ext_resource type="Resource" path="res://data/gear/crown_of_thorns.tres" id="80_sey24"]
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="85_emd2t"]
+[ext_resource type="Resource" path="res://data/runs/pacts/blood_gold.tres" id="86_od8ih"]
+[ext_resource type="Resource" path="res://data/runs/pacts/hungry_relic.tres" id="87_aeb0l"]
+[ext_resource type="Resource" path="res://data/runs/pacts/borrowed_years.tres" id="88_68cyy"]
+[ext_resource type="Resource" path="res://data/runs/pacts/crown_of_ash.tres" id="89_dr8qu"]
+[ext_resource type="Resource" path="res://data/runs/pacts/storm_gauge.tres" id="90_g8m5b"]
+[ext_resource type="Resource" path="res://data/runs/pacts/rot_purse.tres" id="91_fewvf"]
 [ext_resource type="Resource" path="res://data/items/antidote.tres" id="p19_antidote"]
 [ext_resource type="Resource" path="res://data/gear/bitter_root.tres" id="p19_bitter_root"]
 [ext_resource type="Resource" path="res://data/gear/cleansing_bell.tres" id="p19_cleansing_bell"]
@@ -116,6 +114,9 @@ final_encounter = ExtResource("1_pfciy")
 final_look = ExtResource("2_4r4bl")
 final_map_icon_path = "res://assets/sprites/ui/map_lair_hollow_king.png"
 shop_items = Array[ExtResource("3_pfciy")]([ExtResource("p19_antidote"), ExtResource("p19_holy_water"), ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("6_cnqeh"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("9_7h55f"), ExtResource("15_l3kfd")])
-found_items = Array[ExtResource("3_pfciy")]([ExtResource("p19_antidote"), ExtResource("p19_holy_water"), ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("6_cnqeh"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("9_7h55f"), ExtResource("10_r48q0"), ExtResource("11_7kshk"), ExtResource("12_jlagg"), ExtResource("13_lwxot"), ExtResource("14_qus8p"), ExtResource("15_l3kfd"), ExtResource("16_2sbiv"), ExtResource("17_jca6s"), ExtResource("18_7qxmh"), ExtResource("19_dl22l"), ExtResource("20_h1ots"), ExtResource("21_dy7w4"), ExtResource("22_81ydh"), ExtResource("23_m187n"), ExtResource("24_1i5p2")])
+found_items = Array[ExtResource("3_pfciy")]([ExtResource("p19_antidote"), ExtResource("p19_holy_water"), ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("6_cnqeh"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("9_7h55f"), ExtResource("10_r48q0"), ExtResource("11_7kshk"), ExtResource("12_jlagg"), ExtResource("13_lwxot"), ExtResource("14_qus8p"), ExtResource("15_l3kfd")])
 gear = Array[ExtResource("3_dfnv4")]([ExtResource("4_cnqeh"), ExtResource("5_5blr4"), ExtResource("6_ic0fs"), ExtResource("7_igmpf"), ExtResource("8_5a6is"), ExtResource("9_v1mkt"), ExtResource("10_7h55f"), ExtResource("11_r48q0"), ExtResource("12_7kshk"), ExtResource("13_jlagg"), ExtResource("14_67ek5"), ExtResource("15_jtxfh"), ExtResource("16_o0k8w"), ExtResource("42_y3kuw"), ExtResource("43_yco0i"), ExtResource("44_341yx"), ExtResource("45_25vbo"), ExtResource("46_ofupd"), ExtResource("47_u6080"), ExtResource("48_vao3x"), ExtResource("49_232c1"), ExtResource("50_nj8y8"), ExtResource("51_mjcxu"), ExtResource("52_klwt4"), ExtResource("53_vo0gh"), ExtResource("54_nj8y8"), ExtResource("55_mjcxu"), ExtResource("56_klwt4"), ExtResource("57_vo0gh"), ExtResource("58_dunnw"), ExtResource("59_bkc2p"), ExtResource("p19_wardstone"), ExtResource("p19_bitter_root"), ExtResource("p19_cleansing_bell"), ExtResource("65_aeb0l"), ExtResource("66_68cyy"), ExtResource("67_dr8qu"), ExtResource("68_g8m5b"), ExtResource("69_fewvf"), ExtResource("70_7fbdu"), ExtResource("71_nc8fg"), ExtResource("72_ao1d7"), ExtResource("73_e35kp"), ExtResource("74_y4h7x"), ExtResource("75_uomgq"), ExtResource("76_15m2q"), ExtResource("77_2og0u"), ExtResource("78_0e7ir"), ExtResource("79_8iujy"), ExtResource("80_sey24")])
 oaths = Array[ExtResource("42_jhtoh")]([ExtResource("43_lj346"), ExtResource("44_iwyxx"), ExtResource("45_jpepd"), ExtResource("46_lsmoe"), ExtResource("47_1svv3"), ExtResource("48_hbev2"), ExtResource("49_m7uq7"), ExtResource("50_iy2sh"), ExtResource("51_ax47g"), ExtResource("52_vhvxm"), ExtResource("65_341yx"), ExtResource("66_25vbo")])
+pacts = Array[ExtResource("85_emd2t")]([ExtResource("86_od8ih"), ExtResource("87_aeb0l"), ExtResource("88_68cyy"), ExtResource("89_dr8qu"), ExtResource("90_g8m5b"), ExtResource("91_fewvf")])
+pact_text = "A masked figure waits where the road splits. It offers a gift for the road ahead, and names its price."
+pact_picture_path = "res://assets/sprites/events/whispering_mask.png"

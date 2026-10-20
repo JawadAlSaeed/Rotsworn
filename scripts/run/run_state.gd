@@ -2,7 +2,7 @@ class_name RunState
 extends RefCounted
 ## One run in progress (DESIGN.md 8): the map, where the party is on it, the party's HP (carried
 ## from fight to fight), max HP boosts, gold, each hero's level, XP and attribute points (DESIGN.md
-## 8.2), the Relics the run has and each hero wears, the Echoes learned and worn (8.17), and the
+## 8.2), the Relics the run has and each hero wears, the Echoes learned and worn (8.17, 8.19), and the
 ## shared backpack (DESIGN.md 8.1). The run's rules live here as plain integer maths so they
 ## are unit-tested; screens only call these functions and show the result.
 
@@ -36,6 +36,10 @@ const GEAR_WEIGHT: int = 100
 const ROT_GEAR_SALT: int = 253645133
 ## Seeds the Relics a won fight's enemies drop (DESIGN.md 8.17).
 const RELIC_SALT: int = 275604541
+## Seeds which starting pacts a run offers (card #285).
+const PACT_SALT: int = 295075153
+## The mastery an Echo needed before phase 21 (#280): an older save's mastery is scaled from it.
+const LEGACY_MASTERY_NEEDED: int = 4
 ## Which gear a pick draws from (see _pick_gear).
 enum GearPool { ANY, NORMAL, ROT_TOUCHED }
 
@@ -96,17 +100,23 @@ var loadout: Array[Array] = []
 ## Per party slot, tuning.run_gear_slots entries: GearData (a Relic) or null. Slots past
 ## open_relic_slots() are locked and always empty.
 var gear: Array[Array] = []
-## The run's Relics (DESIGN.md 8.17): id -> level. The Relic bag's at the start (card #265), and
-## what the run finds; Main banks them into the collection (RelicFile.bank) when the run saves and
-## when it ends. The whole team shares them: any hero can wear any of them.
+## The run's Relics (DESIGN.md 8.17, 8.19): id -> level in this run (1 to tuning.relic_max_level;
+## levels last one run, #280). The Relic bag's at the start (card #265, at level 1), and what the run
+## finds; Main banks them into the collection (RelicFile.bank) when the run saves and when it ends.
+## The whole team shares them: any hero can wear any of them.
 var relics: Dictionary = {}
-## The whole collection (id -> level) when the run started, bag or not: the end screen's "what you
-## keep" line, and a find of a Relic left at home counts as a copy of it.
+## Every Relic found before this run (id -> 1), bag or not: the end screen's "what you keep" line,
+## and a find of one left at home joins the run at level 1 marked "home" rather than "new".
 var relics_at_start: Dictionary = {}
+## The Echo pips each found Relic had when the run started (id -> pips, from the collection; the
+## host's online). Its pips now are these plus `mastery`.
+var pips_at_start: Dictionary = {}
 ## Guards (mini-bosses) beaten this run: the first one opens a Relic slot.
 var guards_beaten: int = 0
-## Relic id -> mastery points earned this run; at tuning.mastery_needed its Echo is learned for the
-## rest of the run. Starts empty every run.
+## Relic id -> Echo pips earned this run (on top of pips_at_start; their sum counts up to
+## tuning.mastery_needed, when its Echo is learned for good). Kept whole (up to mastery_needed) even
+## past what the host still needs, so an online friend banks them on top of their own (#281).
+## Starts empty every run.
 var mastery: Dictionary = {}
 ## Per party slot: the Echoes (Relic ids) the hero wears.
 var echoes: Array[Array] = []
@@ -116,6 +126,23 @@ var team_gauge: int = 0
 var backpack: Backpack
 var fights_won: int = 0
 var gold_earned: int = 0
+## Per party slot: [parried, dodged, jumped, hits taken] over the whole run (card #283), from each
+## fight's FightRecap.
+var defence: Array[Array] = []
+## The last fight was a guard or an elite won without a hit taken (card #283): its spoils offer one
+## more choice.
+var flawless: bool = false
+## The starting pact (card #285) is still to be offered: before the first stop of a run that is not
+## the player's first.
+var pact_pending: bool = false
+## Sharpened at the campfire before the boss (card #287): every hero starts the boss fight with
+## tuning.sharpen_ap more AP.
+var sharpened: bool = false
+## The treasure stop's rotten chest was the one opened (card #287): the screen shows it open.
+var stop_rotten: bool = false
+## The map rules the run was made with: 2 since phase 21 (rows that move, the crowned elite, card
+## #286); a run saved before keeps 1 so it continues on the map it had.
+var map_rules: int = 2
 ## "" while the run goes on, then VICTORY or DEFEAT.
 var result: String = ""
 
@@ -132,7 +159,7 @@ static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int, p_oath: int 
 	run.oath = OathData.clamp_oath(run_data.oaths, p_oath)
 	run.map = run._make_map(0)
 	run.gold = maxi(0, p_tuning.run_start_gold + run.oath_total(&"start_gold_add"))
-	run.backpack = Backpack.new(p_tuning.backpack_width, p_tuning.backpack_rows)
+	run.backpack = Backpack.new(p_tuning.backpack_pockets)
 	for c: CharacterData in run_data.party:
 		run.bonus_points.append(0)
 		run.max_hp_percent.append(100)
@@ -150,8 +177,11 @@ static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int, p_oath: int 
 		slots.resize(p_tuning.run_gear_slots)
 		run.gear.append(slots)
 		run.echoes.append([])
+		run.defence.append([0, 0, 0, 0])
 	if collection != null:
 		run._take_collection(collection)
+	run.pact_pending = not run.relics_at_start.is_empty() and not run_data.pacts.is_empty() \
+			and p_tuning.run_pact_choices > 0
 	var start_hp := OathData.start_hp_for(run_data.oaths, run.oath)
 	for slot: int in run_data.party.size():
 		run.hp.append(maxi(1, CombatMath.percent(run.max_hp(slot), start_hp)))
@@ -179,7 +209,9 @@ func to_dict() -> Dictionary:
 		"restocks": restocks, "oath": oath, "shop_sold": Array(shop_sold), "stop_done": stop_done, "stop_text": stop_text,
 		"ambush_streak": ambush_streak, "ambush_id": ambush_id, "ambush_spoils": ambush_spoils,
 		"relics": relics.duplicate(), "relics_start": relics_at_start.duplicate(),
-		"guards_beaten": guards_beaten,
+		"pips_start": pips_at_start.duplicate(), "guards_beaten": guards_beaten,
+		"defence": defence.duplicate(true), "flawless": flawless, "pact_pending": pact_pending, "sharpened": sharpened,
+		"stop_rotten": stop_rotten, "map_rules": map_rules,
 		"mastery": mastery.duplicate(), "echoes": echoes.duplicate(true),
 	}
 
@@ -235,7 +267,7 @@ func apply_dict(d: Dictionary) -> bool:
 				return false
 			slots.append(by_id[String(id)] if String(id) != "" else null)
 		new_gear.append(slots)
-	var new_pack := Backpack.from_array(d.backpack, items_by_id())
+	var new_pack := Backpack.from_array(d.backpack, items_by_id(), tuning.backpack_pockets)
 	if new_pack == null:
 		return false
 	for key: String in ["path", "hp", "max_hp_percent", "tonics_used", "levels", "xps", "bonus_points"]:
@@ -260,14 +292,24 @@ func apply_dict(d: Dictionary) -> bool:
 			sold.append(int(v))
 	if (d.has("stop_done") and typeof(d.stop_done) != TYPE_BOOL) or (d.has("stop_text") and typeof(d.stop_text) != TYPE_STRING):
 		return false
-	var act_map := map if int(d.act) == act else _make_map(int(d.act))
+	# A run saved before phase 21 keeps its map rules (card #286): its map does not change under it.
+	var rules := int(d.map_rules) if typeof(d.get("map_rules")) == TYPE_INT else 1
+	var act_map := map if int(d.act) == act and rules == map_rules else _make_map(int(d.act), rules)
 	if int(d.at) != -1 and act_map.stop(int(d.at)).is_empty():
 		return false
 	var relic_state := _relic_state_of(d, new_gear, by_id)
 	if relic_state.is_empty():
 		return false
+	# Optional (saves from before card #283 lack them): the run's defence and a flawless spoils.
+	var new_defence := _defence_of(d.get("defence"))
+	if (d.has("defence") and new_defence.is_empty()) or (d.has("flawless") and typeof(d.flawless) != TYPE_BOOL):
+		return false
+	if (d.has("pact_pending") and typeof(d.pact_pending) != TYPE_BOOL) or (d.has("sharpened") and typeof(d.sharpened) != TYPE_BOOL) \
+			or (d.has("stop_rotten") and typeof(d.stop_rotten) != TYPE_BOOL):
+		return false
 	oath = int(d.oath)
 	act = int(d.act)
+	map_rules = rules
 	map = act_map
 	visited = int(d.visited)
 	restocks = int(d.restocks)
@@ -299,24 +341,34 @@ func apply_dict(d: Dictionary) -> bool:
 	gear = new_gear
 	relics = relic_state.relics
 	relics_at_start = relic_state.start
+	pips_at_start = relic_state.pips
 	guards_beaten = int(relic_state.guards)
 	mastery = relic_state.mastery
 	echoes.assign(relic_state.echoes)
+	if not new_defence.is_empty():
+		defence = new_defence
+	flawless = bool(d.get("flawless", false))
+	pact_pending = bool(d.get("pact_pending", false))
+	sharpened = bool(d.get("sharpened", false))
+	stop_rotten = bool(d.get("stop_rotten", false))
 	_lock_closed_slots()
 	backpack = new_pack
+	# A save from before phase 21 may hold Relics above the new top level: HP fits the new max.
+	_clamp_hp()
 	fights_won = int(d.fights_won)
 	gold_earned = int(d.gold_earned)
 	result = String(d.result)
 	return true
 
 
-## The Relic state in to_dict() data, checked: {relics, start, guards, mastery, echoes}, or {} if
-## it does not fit. A save from before phase 17 has none of it: it gets the Relics it wears, at
+## The Relic state in to_dict() data, checked: {relics, start, pips, guards, mastery, echoes}, or {}
+## if it does not fit. A save from before phase 17 has none of it: it gets the Relics it wears, at
 ## level 1, no mastery and no Echoes. A save from before the bag (card #265) may still hold
-## "relic_picks": it is ignored.
+## "relic_picks": it is ignored. A save from before phase 21 (#280) has no "pips_start": its levels
+## are cut to the new top level and its mastery (out of the old 4) is scaled to the new pips.
 func _relic_state_of(d: Dictionary, worn: Array[Array], by_id: Dictionary) -> Dictionary:
 	var size := party_size()
-	var state := {"relics": {}, "start": {}, "guards": 0, "mastery": {}, "echoes": []}
+	var state := {"relics": {}, "start": {}, "pips": {}, "guards": 0, "mastery": {}, "echoes": []}
 	for slot: int in size:
 		(state.echoes as Array).append([])
 	if not d.has("relics"):
@@ -332,9 +384,9 @@ func _relic_state_of(d: Dictionary, worn: Array[Array], by_id: Dictionary) -> Di
 		return {}
 	for id: Variant in d.relics:
 		var level: Variant = d.relics[id]
-		if typeof(id) != TYPE_STRING or not by_id.has(String(id)) or typeof(level) != TYPE_INT 				or int(level) < 1 or int(level) > tuning.relic_max_level:
+		if typeof(id) != TYPE_STRING or not by_id.has(String(id)) or typeof(level) != TYPE_INT or int(level) < 1:
 			return {}
-		state.relics[String(id)] = int(level)
+		state.relics[String(id)] = mini(int(level), tuning.relic_max_level)
 	for slots: Array in worn:
 		for item: Variant in slots:
 			if item != null and not state.relics.has((item as GearData).id):
@@ -346,11 +398,23 @@ func _relic_state_of(d: Dictionary, worn: Array[Array], by_id: Dictionary) -> Di
 	for id: Variant in start:
 		if typeof(id) != TYPE_STRING or not by_id.has(String(id)) or typeof(start[id]) != TYPE_INT or int(start[id]) < 1:
 			return {}
-		state.start[String(id)] = int(start[id])
+		state.start[String(id)] = 1
+	var legacy := not d.has("pips_start")
+	if not legacy:
+		if not d.pips_start is Dictionary:
+			return {}
+		for id: Variant in d.pips_start:
+			var value: Variant = d.pips_start[id]
+			if typeof(id) != TYPE_STRING or not by_id.has(String(id)) or typeof(value) != TYPE_INT or int(value) < 0:
+				return {}
+			state.pips[String(id)] = mini(int(value), tuning.mastery_needed)
 	for id: Variant in d.mastery:
 		if typeof(id) != TYPE_STRING or not by_id.has(String(id)) or typeof(d.mastery[id]) != TYPE_INT or int(d.mastery[id]) < 0:
 			return {}
-		state.mastery[String(id)] = int(d.mastery[id])
+		var earned := int(d.mastery[id])
+		if legacy:
+			earned = earned * tuning.mastery_needed / LEGACY_MASTERY_NEEDED
+		state.mastery[String(id)] = clampi(earned, 0, tuning.mastery_needed)
 	var lists: Array = d.echoes
 	if lists.size() != size:
 		return {}
@@ -369,6 +433,61 @@ func _relic_state_of(d: Dictionary, worn: Array[Array], by_id: Dictionary) -> Di
 
 func party_size() -> int:
 	return data.party.size()
+
+
+## The run's defence in to_dict() data, checked: one [parried, dodged, jumped, taken] per hero, or
+## [] if it is missing or does not fit.
+func _defence_of(value: Variant) -> Array[Array]:
+	var out: Array[Array] = []
+	if not value is Array or (value as Array).size() != party_size():
+		return out
+	for row: Variant in value:
+		if not row is Array or (row as Array).size() != 4:
+			out.clear()
+			return out
+		for n: Variant in row:
+			if typeof(n) != TYPE_INT or int(n) < 0:
+				out.clear()
+				return out
+		out.append((row as Array).duplicate())
+	return out
+
+
+## Adds a fight's defence (FightRecap.to_dict()'s "heroes": per party slot [parried, dodged,
+## jumped, taken]) to the run's.
+func add_defence(heroes: Variant) -> void:
+	if not heroes is Array:
+		return
+	for slot: int in mini((heroes as Array).size(), defence.size()):
+		var row: Variant = heroes[slot]
+		if row is Array and (row as Array).size() == 4:
+			for i: int in 4:
+				defence[slot][i] = int(defence[slot][i]) + maxi(0, int(row[i]))
+
+
+## A guard or an elite won without a hit taken (`recap`: FightRecap.to_dict()), card #283.
+static func is_flawless(encounter: EncounterData, recap: Dictionary) -> bool:
+	return encounter != null and (encounter.mini_boss or encounter.elite) and not recap.is_empty() \
+			and int(recap.get("hits_taken", 1)) == 0
+
+
+## The hero who defended best this run: the most hits parried, dodged or jumped, then the fewest
+## taken (-1: nobody defended anything).
+func best_defender() -> int:
+	var best := -1
+	for slot: int in defence.size():
+		var row: Array = defence[slot]
+		var saved := int(row[0]) + int(row[1]) + int(row[2])
+		if saved <= 0:
+			continue
+		if best < 0:
+			best = slot
+			continue
+		var top: Array = defence[best]
+		var top_saved := int(top[0]) + int(top[1]) + int(top[2])
+		if saved > top_saved or (saved == top_saved and int(row[3]) < int(top[3])):
+			best = slot
+	return best
 
 
 # --- stats ------------------------------------------------------------------------------------
@@ -487,6 +606,7 @@ func go(id: int) -> bool:
 	# may turn into an ambush instead (DESIGN.md 8.7); that one is no event, so none is used up.
 	ambush_id = ""
 	ambush_spoils = false
+	flawless = false
 	var event: EventData = null
 	if int(map.stop(id).type) == RunMap.StopType.EVENT and not _roll_ambush(id):
 		event = event_of(id)
@@ -504,6 +624,7 @@ func go(id: int) -> bool:
 func _start_stop() -> void:
 	shop_sold.clear()
 	stop_done = false
+	stop_rotten = false
 	stop_text = ""
 
 
@@ -569,11 +690,12 @@ func next_act() -> bool:
 
 
 ## Act `index`'s map. The first act's comes from the run's seed alone (as before acts existed).
-func _make_map(index: int) -> RunMap:
+## The map of act `index` by `rules` (map_rules when -1).
+func _make_map(index: int, rules: int = -1) -> RunMap:
 	var rng := CombatRng.new(run_seed if index == 0 else absi(run_seed * 31 + index * ACT_SALT) % 2147483647 + 1)
 	var act_info := act_data(index)
 	return RunMap.generate(rng, tuning, act_info.zones.size(), not act_info.elites.is_empty(),
-			not act_info.events.is_empty())
+			not act_info.events.is_empty(), (map_rules if rules < 0 else rules) >= 2)
 
 
 # --- elite, event and treasure stops (DESIGN.md 8.6 to 8.8) -------------------------------------
@@ -830,13 +952,103 @@ func offer_lines(offer: ZoneOfferData, scale: int = 100) -> Dictionary:
 		gift.append(offer.item.display_name)
 	elif offer.find_rarity >= 0:
 		gift.append(["an item", "a rare item", "a legendary item"][clampi(offer.find_rarity, 0, 2)] as String)
+	if offer.relic_rarity >= 0:
+		gift.append(["a Relic", "a rare Relic", "a legendary Relic"][clampi(offer.relic_rarity, 0, 2)] as String)
 	return {"price": price, "gift": gift}
+
+
+## The starting pact (card #285): an event with tuning.run_pact_choices of RunData.pacts, picked by
+## the run's seed (the same on every machine), shown before the first stop. Null if there are none.
+func pact_event() -> EventData:
+	if data.pacts.is_empty():
+		return null
+	var left: Array[EventChoiceData] = []
+	for pact: EventChoiceData in data.pacts:
+		if pact != null:
+			left.append(pact)
+	var rng := CombatRng.new(absi(run_seed * 31 + PACT_SALT) % 2147483647 + 1)
+	var event := EventData.new()
+	event.id = "pact"
+	event.title = data.pact_title
+	event.text = data.pact_text
+	event.picture_path = data.pact_picture_path
+	while event.choices.size() < tuning.run_pact_choices and not left.is_empty():
+		event.choices.append(left.pop_at(rng.range_int(0, left.size() - 1)))
+	return event
 
 
 ## What the chest of treasure stop `stop_id` holds: a prize like a locked chest's, picked as if the
 ## stop were a few rows deeper (rarer things).
 func treasure_contents(stop_id: int) -> Resource:
 	return _rare_prize(CombatRng.new(_salted(stop_id * TREASURE_SALT + act * 41)), _row_of(stop_id) + 4)
+
+
+## The treasure stop's two chests (card #287): the plain one holds tuning.run_treasure_gold and a
+## rare or better item; the rotten one a rare or better Relic (one a copy still helps), but
+## tuning.rotten_chest_curse_percent of the time a curse comes with it and
+## rotten_chest_fight_percent of the time (on top) an ambush from the act's pool. Applies the gold,
+## the curse and the ambush; the prize comes back for the screen to hand out. Seeded per stop, so a
+## continued run gets the same. Returns {prize: Resource or null, gold: int, curse: ItemData or null,
+## ambush: bool, text: String}.
+func open_treasure(stop_id: int, rotten: bool) -> Dictionary:
+	var row := _row_of(stop_id) + 4
+	var rng := CombatRng.new(_salted(stop_id * TREASURE_SALT + act * 41 + (7 if rotten else 0)))
+	var got := {"prize": null, "gold": 0, "curse": null, "ambush": false, "text": ""}
+	var parts: Array[String] = []
+	if not rotten:
+		var item := _pick_found(rng, row, ItemData.Rarity.RARE)
+		got.prize = item if item != null else _pick_found(rng, row)
+		got.gold = take_treasure_gold()
+		parts.append("+%d gold" % int(got.gold))
+	else:
+		var relics := _pick_gear(stop_id * TREASURE_SALT + act * 41 + 13, 1, row, ItemData.Rarity.RARE, GearPool.ANY)
+		got.prize = relics[0] if not relics.is_empty() else null
+		var roll := rng.range_int(0, 99)
+		var curses: Array[ItemData] = []
+		for item: ItemData in data.found_items:
+			if item != null and item.is_curse():
+				curses.append(item)
+		if roll < tuning.rotten_chest_curse_percent and not curses.is_empty():
+			var curse := curses[rng.range_int(0, curses.size() - 1)]
+			if add_item(curse) >= 0:
+				got.curse = curse
+				parts.append("The %s settles in your pack" % curse.display_name)
+		elif roll < tuning.rotten_chest_curse_percent + tuning.rotten_chest_fight_percent \
+				and not act_data().ambushes.is_empty() and not in_ambush():
+			var foe := act_data().ambushes[rng.range_int(0, act_data().ambushes.size() - 1)]
+			if foe != null:
+				_set_ambush(foe, false)
+				got.ambush = true
+				parts.append("Something was waiting inside!")
+	if got.prize is GearData:
+		parts.push_front("Inside: %s" % (got.prize as GearData).display_name)
+	elif got.prize is ItemData:
+		parts.push_front("Inside: %s" % (got.prize as ItemData).display_name)
+	got.text = ". ".join(parts) + "."
+	stop_done = true
+	stop_rotten = rotten
+	stop_text = String(got.text)
+	return got
+
+
+## True at the campfire before the boss (card #287): the act's campfire row, the top all-campfire
+## row under the boss. Its choices are Rest, Keep Watch and Sharpen.
+func is_watch_fire() -> bool:
+	var here := current()
+	if int(here.get("type", -1)) != RunMap.StopType.REST:
+		return false
+	for r: int in range(map.row_count() - 2, 0, -1):
+		var all_rest := true
+		for id: int in map.rows[r]:
+			all_rest = all_rest and int(map.stop(id).type) == RunMap.StopType.REST
+		if all_rest:
+			return int(here.get("row", -1)) == r
+	return false
+
+
+## Keep Watch at the campfire before the boss: the team gauge is full (card #287).
+func keep_watch() -> void:
+	team_gauge = tuning.team_gauge_max
 
 
 ## Opening the treasure also gives tuning.run_treasure_gold. Returns it.
@@ -970,7 +1182,10 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 		setup.party_max_hp_percent.append(total_max_hp_percent(slot))
 		setup.party_power_percent.append(power_percent(slot))
 		setup.party_speed_bonus.append(speed_bonus(slot))
-		setup.party_passives.append(passives(slot))
+		var mine := passives(slot)
+		if sharpened and encounter.boss and tuning.sharpen_ap > 0:
+			mine[Passive.START_AP] = int(mine.get(Passive.START_AP, 0)) + tuning.sharpen_ap
+		setup.party_passives.append(mine)
 		setup.party_skills.append(loadout[slot].duplicate() if has_tree(slot) else [])
 	for e: Dictionary in backpack.entries:
 		if (e.item as ItemData).usable_in_fight():
@@ -989,6 +1204,10 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 				maxi(1, tuning.elite_hp_percent + oath_total(&"elite_hp_percent_add")))
 		setup.enemy_power_percent = CombatMath.percent(setup.enemy_power_percent,
 				maxi(1, tuning.elite_power_percent + oath_total(&"elite_power_percent_add")))
+		if is_crowned():
+			# The act's crowned elite (card #286): harder still.
+			setup.enemy_hp_percent = CombatMath.percent(setup.enemy_hp_percent, tuning.crown_elite_hp_percent)
+			setup.enemy_power_percent = CombatMath.percent(setup.enemy_power_percent, tuning.crown_elite_power_percent)
 	# Oaths (DESIGN.md 8.15): guards count as bosses; every enemy's power goes up on top.
 	if encounter.boss or encounter.mini_boss:
 		setup.enemy_hp_percent = CombatMath.percent(setup.enemy_hp_percent, 100 + oath_total(&"boss_hp_percent_add"))
@@ -1043,9 +1262,14 @@ func spend_items(uids: Array[int]) -> void:
 ## slot opens) and gets the downed back up at tuning.run_downed_revive_hp; a defeat ends the run.
 ## Returns {gold, xp: per slot, levels: per slot (levels gained), relics: the finds (add_relic
 ## infos), echoes: the Relics whose Echo was learned}.
-func finish_fight(fight_result: String, party_hp: Array[int], encounter: EncounterData) -> Dictionary:
+func finish_fight(fight_result: String, party_hp: Array[int], encounter: EncounterData,
+		recap: Dictionary = {}) -> Dictionary:
 	var none := {"gold": 0, "xp": _zeros(), "levels": _zeros(), "relics": [], "echoes": []}
 	end_ambush()
+	add_defence(recap.get("heroes", []))
+	if encounter != null and encounter.boss:
+		sharpened = false
+	flawless = fight_result == VICTORY and RunState.is_flawless(encounter, recap)
 	if fight_result == ESCAPED:
 		# Ran away (DESIGN.md 2.13): the HP carries on (a downed hero stands up at the floor),
 		# no gold, no XP, the run goes on.
@@ -1469,13 +1693,36 @@ func pay_for(item: ItemData) -> bool:
 	return true
 
 
-## Puts `item` wherever it fits first. Returns its uid, or -1 if there is no room. An upgrade (a
-## bigger backpack) is used at once instead and returns 0.
+## Puts `item` in the first free pocket. Returns its uid, or -1 if the pack is full. An upgrade (a
+## bigger pack) is used at once instead and returns 0; treasure turns into gold at once (its
+## treasure_gold) and returns 0 too (card #282: it takes no pocket).
 func add_item(item: ItemData) -> int:
 	if item != null and item.kind == ItemData.Kind.UPGRADE:
 		take_upgrade(item)
 		return 0
+	if item != null and item.kind == ItemData.Kind.TREASURE:
+		var won := treasure_gold(item)
+		gold += won
+		gold_earned += won
+		return 0
 	return backpack.add_anywhere(item)
+
+
+## The gold a treasure turns into the moment it is found: what selling it paid (card #282).
+func treasure_gold(item: ItemData) -> int:
+	return sell_price(item.price) if item != null else 0
+
+
+## A find in a few words for a zone or a stop: "Found: Salve", "Silver Ring: +20 gold", "Bigger
+## Pack: 7 pockets". Call it after add_item.
+func find_text(item: ItemData) -> String:
+	if item == null:
+		return ""
+	if item.kind == ItemData.Kind.TREASURE:
+		return "%s: +%d gold" % [item.display_name, treasure_gold(item)]
+	if item.kind == ItemData.Kind.UPGRADE:
+		return "%s: %d pockets" % [item.display_name, backpack.width]
+	return "Found: %s" % item.display_name
 
 
 ## True if `item` would do something if the party got it now (an upgrade with room left to grow).
@@ -1483,7 +1730,7 @@ func wants(item: ItemData) -> bool:
 	if item == null:
 		return false
 	if item.kind == ItemData.Kind.UPGRADE:
-		return item.effect == ItemData.Effect.ADD_ROW and backpack.rows < tuning.backpack_max_rows
+		return item.effect == ItemData.Effect.ADD_ROW and backpack.width < tuning.backpack_max_pockets
 	if item.effect == ItemData.Effect.MAX_HP_ONE:
 		for slot: int in party_size():
 			if tonics_left(slot) > 0:
@@ -1510,9 +1757,9 @@ func shop_stock(stop_id: int) -> Array[ItemData]:
 	return ordered
 
 
-## Puts `item` (at `level`) at (x, y) turned `turn` times. Returns its uid, or -1 if it does not
-## fit there.
-func place_item(item: ItemData, x: int, y: int, turn: int, level: int = 0) -> int:
+## Puts `item` (at `level`) in pocket x (`y` and `turn` are from the old grid: 0). Returns its uid,
+## or -1 if that pocket is taken.
+func place_item(item: ItemData, x: int, y: int = 0, turn: int = 0, level: int = 0) -> int:
 	return backpack.add(item, x, y, turn, level)
 
 
@@ -1663,13 +1910,13 @@ func combine_new(item: ItemData, into: int) -> bool:
 	return true
 
 
-## Applies an upgrade the moment the party gets it (a bigger backpack). False if it does nothing
-## (not an upgrade, or the backpack is already as big as it gets).
+## Applies an upgrade the moment the party gets it (a Bigger Pack: one more pocket). False if it
+## does nothing (not an upgrade, or the pack is already as big as it gets).
 func take_upgrade(item: ItemData) -> bool:
 	if item == null or item.kind != ItemData.Kind.UPGRADE:
 		return false
-	if item.effect == ItemData.Effect.ADD_ROW and backpack.rows < tuning.backpack_max_rows:
-		backpack.rows += 1
+	if item.effect == ItemData.Effect.ADD_ROW and backpack.width < tuning.backpack_max_pockets:
+		backpack.width += 1
 		return true
 	return false
 
@@ -1862,6 +2109,11 @@ func take_offer(offer: ZoneOfferData, stop_id: int, index: int, scale: int = 100
 	if offer.team_gauge > 0:
 		team_gauge = mini(tuning.team_gauge_max, team_gauge + offer.team_gauge)
 		parts.append("Team gauge +%d" % offer.team_gauge)
+	if offer.relic_rarity >= 0:
+		var relic_rng_salt := stop_id * OFFER_SALT + index * 19 + 7
+		var gifts := _pick_gear(relic_rng_salt, 1, _row_of(stop_id), offer.relic_rarity, GearPool.NORMAL)
+		if not gifts.is_empty():
+			parts.append(relic_find_text(add_relic(gifts[0])))
 	var item: ItemData = offer.item
 	if item == null and offer.find_rarity >= 0:
 		var find_rng := CombatRng.new(_salted(stop_id * OFFER_SALT + index * 19))
@@ -2007,12 +2259,10 @@ func relic_level(item: GearData) -> int:
 	return int(relics.get(item.id, 0)) if item != null else 0
 
 
-## The Relic's level counting the collection at home (card #265): the run's, or the home level of
-## one left out of the bag (0: never found). Finds, spoils and shops go by this one.
-func known_level(item: GearData) -> int:
-	if item == null:
-		return 0
-	return maxi(relic_level(item), int(relics_at_start.get(item.id, 0)))
+## True if the Relic was found before this run but left at home (not in the bag, card #265) and has
+## not turned up in this run yet: a find of it joins the run at level 1, marked "home".
+func is_home(item: GearData) -> bool:
+	return item != null and relics_at_start.has(item.id) and relic_level(item) <= 0
 
 
 ## True if someone in the party wears this Relic.
@@ -2034,9 +2284,10 @@ func wear_slot_of(item: GearData) -> int:
 	return (gear[slot] as Array).find(item) if slot >= 0 else -1
 
 
-## True if another copy of the Relic still does something: it is new, or below the top level.
+## True if another copy of the Relic still does something in this run: it is not in the run yet, or
+## below the top level. Levels last one run (#280), so spoils never run dry.
 func can_gain(item: GearData) -> bool:
-	return item != null and known_level(item) < tuning.relic_max_level
+	return item != null and relic_level(item) < tuning.relic_max_level
 
 
 ## Every Relic the run has, in the run's order.
@@ -2048,21 +2299,19 @@ func owned_relics() -> Array[GearData]:
 	return found
 
 
-## A Relic found (a drop, spoils, a shop, a chest): new ones join the run at level 1, a copy raises
-## the level, a copy past the top level turns into tuning.relic_spare_gold. A copy of one left at
-## home (not in the bag, card #265) raises its home level and joins the run at it. Returns {item,
-## new, level, gold} (gold: what a spare copy paid).
+## A Relic found (a drop, spoils, a shop, a chest): one not in the run joins it at level 1 ("new" if
+## it was never found, "home" if it was left at home), a copy raises the run's level, a copy past the
+## top level turns into tuning.relic_spare_gold. Levels last one run (#280). Returns {item, new, home,
+## level, gold} (gold: what a spare copy paid).
 func add_relic(item: GearData) -> Dictionary:
-	var info := {"item": item, "new": false, "level": 0, "gold": 0}
+	var info := {"item": item, "new": false, "home": false, "level": 0, "gold": 0}
 	if item == null:
 		return info
-	var level := known_level(item)
-	if level > 0 and relic_level(item) <= 0:
-		# Left at home: it joins the run at its home level, then the copy counts as below.
-		relics[item.id] = level
+	var level := relic_level(item)
 	if level <= 0:
+		info.home = is_home(item)
+		info.new = not info.home
 		relics[item.id] = 1
-		info.new = true
 	elif level < tuning.relic_max_level:
 		relics[item.id] = level + 1
 		_clamp_hp()
@@ -2074,45 +2323,56 @@ func add_relic(item: GearData) -> Dictionary:
 	return info
 
 
-## What the run found, for its end screen: the Relics new since the start and the ones that went up
-## a level ("No new Relics this run." if nothing). They are kept forever, won or lost.
+## What the run keeps forever, won or lost, for its end screen: the Relics found for the first time
+## and the Echoes learned for good ("Nothing new to keep." if neither).
 func relic_gain_line() -> String:
+	return relic_gain_line_since(relics_at_start, pips_at_start)
+
+
+## The same line measured from another collection (an online friend's own: `found_before` id -> any,
+## `pips_before` id -> pips, card #281).
+func relic_gain_line_since(found_before: Dictionary, pips_before: Dictionary) -> String:
 	var found := PackedStringArray()
-	var raised := PackedStringArray()
 	for item: GearData in owned_relics():
-		var before := int(relics_at_start.get(item.id, 0))
-		if before <= 0:
+		if not found_before.has(item.id):
 			found.append(item.display_name)
-		elif relic_level(item) > before:
-			raised.append("%s (Lv %d)" % [item.display_name, relic_level(item)])
-	if found.is_empty() and raised.is_empty():
-		return "No new Relics this run."
+	var learned := PackedStringArray()
+	for item: GearData in data.gear:
+		if item != null and int(pips_before.get(item.id, 0)) < tuning.mastery_needed \
+				and int(pips_totals_from(pips_before).get(item.id, 0)) >= tuning.mastery_needed:
+			learned.append(item.display_name)
+	if found.is_empty() and learned.is_empty():
+		return "Nothing new to keep."
 	var parts := PackedStringArray()
 	if not found.is_empty():
-		parts.append("New: " + ", ".join(found))
-	if not raised.is_empty():
-		parts.append("Up a level: " + ", ".join(raised))
-	return "Relics kept forever.  " + "   ".join(parts)
+		parts.append("New Relics: " + ", ".join(found))
+	if not learned.is_empty():
+		parts.append("Echoes learned: " + ", ".join(learned))
+	return "   ".join(parts)
 
 
-## A find from add_relic() in a word or two, for a toast next to the Relic's icon: "New", "Lv 2",
-## "+30" (a spare copy's gold).
+## A find from add_relic() in a word or two, for a toast next to the Relic's icon: "New", "Home"
+## (one left at home), "Lv 2", "+30" (a spare copy's gold).
 static func relic_find_short(info: Dictionary) -> String:
 	if bool(info.get("new", false)):
 		return "New"
+	if bool(info.get("home", false)):
+		return "Home"
 	if int(info.get("gold", 0)) > 0:
 		return "+%d" % int(info.gold)
 	return "Lv %d" % int(info.get("level", 0))
 
 
-## One line for a find from add_relic(): "New Relic: Iron Charm", "Iron Charm is now level 2",
-## "Iron Charm is at its top level: +30 gold".
+## One line for a find from add_relic(): "New Relic: Iron Charm", "Found: Iron Charm" (one left at
+## home), "Iron Charm is now level 2", "Iron Charm is at its top level: +30 gold".
 static func relic_find_text(info: Dictionary) -> String:
 	var item := info.get("item") as GearData
 	if item == null:
 		return ""
 	if bool(info.new):
 		return "New Relic: %s" % item.display_name
+	if bool(info.get("home", false)):
+		return "Found: %s" % item.display_name
 	if int(info.gold) > 0:
 		return "%s is at its top level: +%d gold" % [item.display_name, int(info.gold)]
 	return "%s is now level %d" % [item.display_name, int(info.level)]
@@ -2215,17 +2475,22 @@ func unworn_relics() -> Array[GearData]:
 	return found
 
 
-## Takes in the collection at the start of a run (card #265): the Relics in its bag join the run
-## (only ones this run knows, at most tuning.relic_bag_size); nobody wears them yet, the player puts
-## them on from the party screen. The whole collection is remembered as the start levels.
+## Takes in the collection at the start of a run (cards #265, #266, #280): the Relics in its bag
+## join the run at level 1 (only ones this run knows, at most the bag's size); nobody wears them yet,
+## the player puts them on from the party screen. What was found and each Relic's Echo pips are
+## remembered (the learned Echoes can be worn all run, any Relic or none).
 func _take_collection(collection: RelicCollection) -> void:
 	for item: GearData in data.gear:
 		if item != null and collection.owns(item.id):
-			relics_at_start[item.id] = clampi(collection.level_of(item.id), 1, tuning.relic_max_level)
+			relics_at_start[item.id] = 1
+			var filled := mini(collection.pips_of(item.id), tuning.mastery_needed)
+			if filled > 0:
+				pips_at_start[item.id] = filled
+	var size := collection.bag_size(tuning)
 	for id: String in collection.bag_ids():
 		var item := relic_by_id(id)
-		if item != null and relics.size() < tuning.relic_bag_size:
-			relics[id] = int(relics_at_start[id])
+		if item != null and relics.size() < size:
+			relics[id] = 1
 
 
 ## The bot (and tests): every open, empty Relic slot gets the best Relic the run has that nobody
@@ -2253,7 +2518,7 @@ func _lock_closed_slots() -> void:
 			gear[slot][g] = null
 
 
-# --- drops and mastery (DESIGN.md 8.17) ---------------------------------------------------------
+# --- drops and Echo pips (DESIGN.md 8.17, 8.19) ------------------------------------------------
 
 ## The Relics a win over `encounter` here would drop (seeded by the stop and the fights won, so the
 ## end screen, the run and every machine agree): each enemy with drops gives one of them by
@@ -2275,7 +2540,7 @@ func relic_drops(encounter: EncounterData) -> Array[GearData]:
 	return found
 
 
-## Mastery points a worn Relic gets for winning `encounter`.
+## Echo pips a worn Relic gets for winning `encounter`.
 func mastery_gain(encounter: EncounterData) -> int:
 	if encounter == null:
 		return 0
@@ -2288,23 +2553,54 @@ func mastery_gain(encounter: EncounterData) -> int:
 	return tuning.mastery_fight
 
 
-## This run's mastery points of a Relic.
+## A Relic's Echo pips now: the ones it had at the start of the run plus this run's (never past
+## tuning.mastery_needed).
 func mastery_of(item: GearData) -> int:
-	return int(mastery.get(item.id, 0)) if item != null else 0
+	if item == null:
+		return 0
+	return mini(tuning.mastery_needed, int(pips_at_start.get(item.id, 0)) + int(mastery.get(item.id, 0)))
 
 
-## True if the Relic's Echo is learned in this run.
+## True if the Relic's Echo is learned for good (before this run or during it).
 func echo_learned(item: GearData) -> bool:
 	return mastery_of(item) >= tuning.mastery_needed
 
 
-## The Echoes learned in this run, in the run's order.
+## Every learned Echo, in the run's order: any hero can wear one for its Echo points, whether the run
+## has its Relic or not (#280, option A).
 func learned_echoes() -> Array[GearData]:
 	var found: Array[GearData] = []
 	for item: GearData in data.gear:
 		if item != null and echo_learned(item):
 			found.append(item)
 	return found
+
+
+## The Echoes learned for good during this run (the end screen's "what you keep").
+func echoes_learned_this_run() -> Array[GearData]:
+	var found: Array[GearData] = []
+	for item: GearData in learned_echoes():
+		if int(pips_at_start.get(item.id, 0)) < tuning.mastery_needed:
+			found.append(item)
+	return found
+
+
+## Every Relic's pips now (id -> pips, the ones above 0): what Main banks into the collection.
+func pips_totals() -> Dictionary:
+	return pips_totals_from(pips_at_start)
+
+
+## This run's pips on top of `start` (id -> pips: the host's, or an online friend's own collection,
+## card #281), each never past tuning.mastery_needed; only the ones above 0.
+func pips_totals_from(start: Dictionary) -> Dictionary:
+	var totals := {}
+	for item: GearData in data.gear:
+		if item == null:
+			continue
+		var total := mini(tuning.mastery_needed, int(start.get(item.id, 0)) + int(mastery.get(item.id, 0)))
+		if total > 0:
+			totals[item.id] = total
+	return totals
 
 
 ## The worn Relics whose Echo a win over `encounter` would teach (for the end screen).
@@ -2324,16 +2620,16 @@ func echoes_from_win(encounter: EncounterData) -> Array[GearData]:
 func win_relic_lines(encounter: EncounterData) -> Array[String]:
 	var lines: Array[String] = []
 	var levels := relics.duplicate()
-	for id: Variant in relics_at_start:
-		levels[id] = maxi(int(levels.get(id, 0)), int(relics_at_start[id]))
 	for item: GearData in relic_drops(encounter):
 		var level := int(levels.get(item.id, 0))
-		var info := {"item": item, "new": level <= 0, "level": mini(level + 1, tuning.relic_max_level),
+		var home := level <= 0 and relics_at_start.has(item.id)
+		var info := {"item": item, "new": level <= 0 and not home, "home": home,
+				"level": mini(level + 1, tuning.relic_max_level),
 				"gold": tuning.relic_spare_gold if level >= tuning.relic_max_level else 0}
 		levels[item.id] = info.level
 		lines.append(relic_find_text(info))
 	for item: GearData in echoes_from_win(encounter):
-		lines.append("Echo learned: %s" % item.display_name)
+		lines.append("Echo learned for good: %s" % item.display_name)
 	var before := open_relic_slots()
 	var real_guards := guards_beaten
 	var real_act := act
@@ -2351,7 +2647,7 @@ func win_relic_lines(encounter: EncounterData) -> Array[String]:
 	return lines
 
 
-## A won fight: every worn Relic gets its mastery points. Returns the Echoes this taught.
+## A won fight: every worn Relic gets its Echo pips. Returns the Echoes this taught for good.
 func _master_worn(encounter: EncounterData) -> Array[GearData]:
 	var learned := echoes_from_win(encounter)
 	var gain := mastery_gain(encounter)
@@ -2359,7 +2655,7 @@ func _master_worn(encounter: EncounterData) -> Array[GearData]:
 		for item: Variant in slots:
 			if item != null:
 				var id := (item as GearData).id
-				mastery[id] = mini(tuning.mastery_needed, int(mastery.get(id, 0)) + gain)
+				mastery[id] = clampi(int(mastery.get(id, 0)) + gain, 0, tuning.mastery_needed)
 	return learned
 
 
@@ -2391,6 +2687,14 @@ func wears_echo(slot: int, item: GearData) -> bool:
 	return item != null and slot >= 0 and slot < echoes.size() and (echoes[slot] as Array).has(item.id)
 
 
+## The hero wearing the Echo of `item` (-1: nobody). One hero per Echo (#280).
+func echo_wearer(item: GearData) -> int:
+	for slot: int in echoes.size():
+		if wears_echo(slot, item):
+			return slot
+	return -1
+
+
 ## Won fights still needed to learn the Echo of `item` (counting normal fights).
 func fights_to_learn(item: GearData) -> int:
 	var left := maxi(0, tuning.mastery_needed - mastery_of(item))
@@ -2407,6 +2711,10 @@ func echo_blocked_reason(slot: int, item: GearData) -> String:
 		return ""
 	if (gear[slot] as Array).has(item):
 		return "%s already wears the %s itself." % [data.party[slot].display_name, item.display_name]
+	# One hero per Echo (#280): it cannot sit on the whole party.
+	var other := echo_wearer(item)
+	if other >= 0 and other != slot:
+		return "%s wears this Echo." % data.party[other].display_name
 	if free_echo_points(slot) < item.echo_cost:
 		return "Needs %d Echo points; %s has %d free." % [item.echo_cost, data.party[slot].display_name, free_echo_points(slot)]
 	return ""
@@ -2445,25 +2753,45 @@ func auto_echoes(slot: int) -> void:
 ## How many Relics the spoils offer: tuning.run_loot_choices, fewer with the oaths (never fewer
 ## than one).
 func loot_choice_count() -> int:
-	return maxi(1, tuning.run_loot_choices + oath_total(&"loot_choices_add"))
+	return maxi(1, tuning.run_loot_choices + oath_total(&"loot_choices_add")) + (1 if flawless else 0)
+
+
+## True if stop `stop_id` (the current one by default) is the act's crowned elite (card #286).
+func is_crowned(stop_id: int = -2) -> bool:
+	var s := map.stop(at if stop_id == -2 else stop_id)
+	return int(s.get("type", -1)) == RunMap.StopType.ELITE and bool(s.get("crown", false))
 
 
 ## The Relics a stop's spoils offer: up to loot_choice_count() Relics the run lacks or can still
-## level up (seeded).
+## level up (seeded). The crowned elite's spoils always hold a legendary one, listed first (card
+## #286), while the run has one left to gain.
 func loot_choices(stop_id: int) -> Array[GearData]:
 	var salt := stop_id * LOOT_SALT + act * 43
 	var row := _row_of(stop_id)
 	var count := loot_choice_count()
+	if is_crowned(stop_id) and not in_ambush():
+		var crown := _pick_gear(salt + 3, 1, row, ItemData.Rarity.LEGENDARY, GearPool.NORMAL)
+		if not crown.is_empty() and int(crown[0].rarity) == ItemData.Rarity.LEGENDARY:
+			var rest := _loot_picks(salt, row, count - 1, crown)
+			crown.append_array(rest)
+			return crown
+	return _loot_picks(salt, row, count)
+
+
+## Up to `count` spoils picks, none of `skip` (see loot_choices).
+func _loot_picks(salt: int, row: int, count: int, skip: Array[GearData] = []) -> Array[GearData]:
 	# Rot-touched gear (DESIGN.md 8.16): spoils offer some among their choices (listed last), but
 	# never as the only choice.
 	var rot_count := mini(tuning.rot_gear_spoils_count, count - 1)
 	var rot: Array[GearData] = []
 	if rot_count > 0:
-		rot = _pick_gear(salt + ROT_GEAR_SALT, rot_count, row, tuning.run_spoils_min_rarity, GearPool.ROT_TOUCHED)
-	var picked := _pick_gear(salt, count - rot.size(), row, tuning.run_spoils_min_rarity, GearPool.NORMAL)
+		rot = _pick_gear(salt + ROT_GEAR_SALT, rot_count, row, tuning.run_spoils_min_rarity, GearPool.ROT_TOUCHED, skip)
+	var picked := _pick_gear(salt, count - rot.size(), row, tuning.run_spoils_min_rarity, GearPool.NORMAL, skip)
 	picked.append_array(rot)
 	if picked.size() < count:
-		picked.append_array(_pick_gear(salt + 1, count - picked.size(), row, 0, GearPool.ANY, picked))
+		var taken := picked.duplicate()
+		taken.append_array(skip)
+		picked.append_array(_pick_gear(salt + 1, count - picked.size(), row, 0, GearPool.ANY, taken))
 	return picked
 
 
@@ -2511,7 +2839,7 @@ func _pick_gear(salt: int, count: int, row: int, min_rarity: int = 0, pool: Gear
 ## of a new one; a rot-touched piece on the shelves (`rare_rot`) tuning.rot_gear_weight_percent.
 func _relic_weight(item: GearData, row: int, rare_rot: bool = false) -> int:
 	var weight := rarity_weight(GEAR_WEIGHT, item.rarity, row)
-	if known_level(item) > 0:
+	if relic_level(item) > 0:
 		weight = CombatMath.percent(weight, tuning.relic_copy_weight_percent)
 	if rare_rot and item.rot_touched:
 		weight = CombatMath.percent(weight, tuning.rot_gear_weight_percent)

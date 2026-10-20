@@ -144,16 +144,16 @@ mark_status = "rotting"
 script = ExtResource("2_step")
 lesson = 7
 title = "Relics"
-text = "Monsters, guards, shops and chests give Relics, and you keep them forever, even when a run is lost. Each one gives a small stat and an effect. Find a Relic you already have and it gets one level stronger."
-tip = "Pick what each hero brings on the main menu's Relics screen. A run opens one Relic slot at the start, the second after the first guard, the third after act 1's boss."
+text = "Monsters, guards, shops and chests give Relics, and you keep them forever, even when a run is lost. Each one gives a small stat and an effect. Find a copy in the same run and it gets one level stronger, up to level 3, for that run."
+tip = "Pick the Relics the team brings in the bag on the main menu's Relics screen. The bag grows as you learn Echoes. A run opens one Relic slot at the start, the second after the first guard, the third after act 1's boss."
 goal = "read"
 
 [sub_resource type="Resource" id="s9"]
 script = ExtResource("2_step")
 lesson = 7
 title = "Echoes"
-text = "Wear a Relic for about 4 won fights and you learn its Echo: its effect without the stat. Any hero can wear an Echo for Echo points, which level ups give. Open Echoes on the party screen ({party_menu} on the map)."
-tip = "Echoes are learned again in every run: each run builds from zero. Only Relics and their levels stay."
+text = "Wear a Relic in won fights to fill its pips, run after run. Full pips teach its Echo for good: its effect without the stat. One hero can wear each Echo for Echo points, which level ups give. Open Echoes on the party screen ({party_menu} on the map)."
+tip = "A learned Echo can be worn in any run, even without its Relic. Every run starts with 0 Echo points."
 goal = "read"
 
 [resource]

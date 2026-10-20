@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="EventChoiceData" format=3]
+
+[ext_resource type="Resource" path="res://data/items/bomb.tres" id="1_dvrtl"]
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="2_nb8yf"]
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="3_iydqt"]
+
+[sub_resource type="Resource" id="Resource_andgo"]
+script = ExtResource("2_nb8yf")
+id = "pact_storm_gauge"
+display_name = "Drink the storm"
+cost_hp_percent = 20
+team_gauge = 100
+item = ExtResource("1_dvrtl")
+
+[resource]
+script = ExtResource("3_iydqt")
+text = "Drink the storm"
+deal = SubResource("Resource_andgo")
+done_text = "Your blood hums."

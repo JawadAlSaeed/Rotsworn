@@ -133,6 +133,12 @@ var _flow_gen: int = 0
 var _combat_accepts: bool = false
 var _net_hold: bool = false
 var _client_done: bool = false
+## Online friend: their own Relic collection when the host's run started (card #281). The run plays
+## with the host's bag and Echoes; what it finds and the pips it fills are banked on top of this.
+var _own_start: RelicCollection = null
+## The run seed _own_start was taken for: a seat taken back mid-run (the host sends run_start again)
+## keeps it, so the run's pips are never banked twice.
+var _own_start_seed: int = -1
 ## Host: the last place screen sent (map, zone, shop ...) and the fight going on (zone_fight or
 ## final_fight message; empty between fights), so a player who joins again is shown where we are.
 var _net_place: Dictionary = {}
@@ -333,6 +339,17 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_map(1, 1)
 		"shop", "campfire", "event", "treasure":
 			_show_sample_stop(screen_name)
+		"pact":
+			# The starting pact of a run that is not the first (card #285), for pictures.
+			_run = RunState.begin(_run_data, _tuning, 3, 0, _sample_collection())
+			_show_event("", true)
+		"run_end":
+			# A lost run's end with each hero's defence and a co-op tag (cards #283, #284), for pictures.
+			_run = RunState.begin(_run_data, _tuning, 3, 0, _sample_collection())
+			_run.add_defence([[14, 3, 2, 5], [6, 9, 1, 3], [4, 2, 6, 8]])
+			_run.add_relic(_run_data.gear[20])
+			_run.result = RunState.DEFEAT
+			_show_run_end()
 		"zone_exit", "zone_leave":
 			_show_sample_zone_exit(screen_name == "zone_leave")
 		"calibration":
@@ -403,7 +420,7 @@ func _show_sample_zone_exit(ask: bool) -> void:
 
 
 ## --screen=party: a new run with some gear worn and a few items packed, the party screen open
-## with a Golden Idol in hand (for pictures of the backpack).
+## with a Holy Water in hand (for pictures of the pack).
 func _show_sample_backpack() -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
 	# A guard is beaten, so a second Relic slot is open (DESIGN.md 8.17).
@@ -411,16 +428,16 @@ func _show_sample_backpack() -> void:
 	var items := _run.items_by_id()
 	_run.wear(0, 0, _run_data.gear[0])
 	_run.wear(0, 1, _run_data.gear[1])
-	_run.place_item(items["salve"], 0, 1, 0, 1)
-	_run.place_item(items["rotting_heart"], 0, 4, 0)
-	_run.place_item(items["key"], 2, 4, 0)
-	_run.place_item(items["bomb"], 3, 2, 0)
+	_run.place_item(items["salve"], 0, 0, 0, 1)
+	_run.place_item(items["rotting_heart"], 1)
+	_run.place_item(items["key"], 2)
+	_run.place_item(items["bomb"], 3)
 	for id: String in ["feast", "smelling_salts", "silver_ring", "rot_gem"]:
 		_run.add_item(items[id])
 	_run.wear(1, 0, _run_data.gear[3])
 	# Alder has levelled and has points to spend (the cards show "+N points", DESIGN.md 8.2).
 	_run.add_xp(0, 200)
-	_show_party("No room", true, {"item": items["golden_idol"]})
+	_show_party("No room", true, {"item": items["holy_water"]})
 
 
 ## --screen=attributes: a run where Alder and Brin have levelled (Brin's points half spent), the
@@ -437,14 +454,15 @@ func _show_sample_attributes(open: bool = true) -> void:
 		(_screen as PartyScreen).open_attributes()
 
 
-## A pretend collection for pictures (--screen=relics): a few Relics at several levels, some of
-## them in the bag.
+## A pretend collection for pictures (--screen=relics): a few Relics with their Echo pips at several
+## stages (some learned), some of them in the bag.
 func _sample_collection() -> RelicCollection:
 	var c := RelicCollection.new()
 	for i: int in mini(14, _run_data.gear.size()):
-		c.levels[_run_data.gear[i].id] = 1 + i % _tuning.relic_max_level
-	for i: int in [0, 3, 5, 8]:
-		c.toggle_bag(_run_data.gear[i].id, _tuning.relic_bag_size)
+		c.found[_run_data.gear[i].id] = true
+		c.pips[_run_data.gear[i].id] = (i * 5) % (_tuning.mastery_needed + 1)
+	for i: int in [0, 3, 5]:
+		c.toggle_bag(_run_data.gear[i].id, c.bag_size(_tuning))
 	return c
 
 
@@ -780,6 +798,40 @@ func _on_lobby_started(players: PlayerRoster, oath: int, next: Callable) -> void
 	next.call()
 
 
+## Again at the run end (card #284): the players screen once more with the same seats, bag and oath.
+## Online the host keeps the friends connected and sends them to their players screen to wait for
+## its Start; a friend who presses it first waits there.
+func _play_again() -> void:
+	_run = null
+	_checkpoint = {}
+	_checkpoint_in_stop = false
+	_forget_own_start()
+	if Net.is_client():
+		_client_done = false
+		_show_client_lobby()
+		return
+	if Net.is_online():
+		# A friend still away mid-run is let go: Again starts over with the ones here.
+		for peer: int in Net.seats.away_peers():
+			Net.seats.remove(peer)
+			_players.drop_peer(peer)
+		_update_away_chip()
+		Net.closed = false
+		_show_host_lobby()
+		Net.broadcast("again", {"roster": _players.to_dict(), "oath": _oath})
+		return
+	# Whoever pressed Again, the players screen opens as player 1's, so nobody's seat is dropped.
+	if _players.player_count() > 1 and _players.devices.has(_last_device):
+		_last_device = _players.device_of_player(0)
+	_new_run_players_after_offer()
+
+
+## A friend's start collection is for one run only (card #281).
+func _forget_own_start() -> void:
+	_own_start = null
+	_own_start_seed = -1
+
+
 ## The run's heroes in slot order (a roster covers these slots).
 func _hero_names() -> Array[String]:
 	var names: Array[String] = []
@@ -844,6 +896,9 @@ func _show_journal() -> void:
 ## into the next run (card #265). `sample`: a dev screen's pretend collection, never saved.
 func _show_relics(sample: RelicCollection = null) -> void:
 	var collection := sample if sample != null else RelicFile.load_or_empty(_relics_path())
+	# A bag from before it shrank (card #266) keeps its first Relics.
+	if collection.trim_bag(collection.bag_size(_tuning)) and sample == null and _relics_io_ok():
+		RelicFile.save(collection, _relics_path())
 	var screen := RelicsScreen.new()
 	screen.name = "Relics"
 	screen.setup(collection, _run_data.gear, _run_data.party, _tuning, JournalScreen.load_enemies())
@@ -1109,7 +1164,7 @@ func _on_zone_return_requested(result: String) -> void:
 	var found: ItemData = null
 	if _run != null and not Net.is_client():
 		_run.spend_items(_combat.used_items())
-		_run.finish_fight(result, _combat.party_hp(), _encounter)
+		_run.finish_fight(result, _combat.party_hp(), _encounter, _combat.recap())
 		_run.carry_team_gauge(_combat.team_gauge())
 		_autoplay_spend_points()
 		if result == RunState.VICTORY and _drop != null and _run.add_item(_drop) < 0:
@@ -1147,7 +1202,7 @@ func _on_zone_return_requested(result: String) -> void:
 	await _transition.fade_in()
 	_end_busy()
 	if found != null and _zone != null and (not _zone.is_cleared() or _zone.keeps_zone_open()):
-		_open_zone_backpack("The enemy dropped a %s, but the backpack is full." % found.display_name, {"item": found})
+		_open_zone_backpack("The enemy dropped a %s, but the pack is full." % found.display_name, {"item": found})
 	if _run == null and result == "escaped" and _options.autoplay_mode == CombatOptions.AUTOPLAY_ESCAPE:
 		print("AUTOPLAY_RESULT zone_escaped fights=%d" % _zone.fights_started())
 		_autoplay_quit()
@@ -1392,35 +1447,75 @@ func _relics_path() -> String:
 
 
 ## True if this session reads and writes the player's Relic collection: not an online client (the
-## host's Relics are everyone's), not the tutorial, never a dev screen's sample run, and a bot only
-## with --relics-path (it must never touch the player's file).
+## host's Relics are everyone's; a client banks its own share, _client_relics_ok), not the tutorial,
+## never a dev screen's sample run, and a bot only with --relics-path (it must never touch the
+## player's file).
 func _relics_io_ok() -> bool:
-	return not Net.is_client() and _tutorial == null and _options.screen.is_empty() \
+	return not Net.is_client() and _own_relics_ok()
+
+
+## True if an online friend banks what the host's run finds into their own collection (card #281):
+## the same rules as the host, on a client.
+func _client_relics_ok() -> bool:
+	return Net.is_client() and _own_relics_ok()
+
+
+func _own_relics_ok() -> bool:
+	return _tutorial == null and _options.screen.is_empty() \
 			and (not _options.is_autoplay() or not _options.relics_path.is_empty())
 
 
 ## The collection a new run starts from: the player's, or a bot's pretend one (--relics=all gives
-## every Relic at its top level; a bot otherwise starts with none, like a first run).
+## every Relic found with its Echo learned; a bot otherwise starts with none, like a first run).
 ## A bot fills its bag with the best Relics it has (GearBot), since nobody picks for it.
 func _run_collection() -> RelicCollection:
 	var collection := RelicCollection.new()
 	if _options.relics_mode == "all":
-		collection = RelicCollection.all_of(_run_data.gear, _tuning.relic_max_level)
+		collection = RelicCollection.all_of(_run_data.gear, _tuning.mastery_needed)
 	elif _relics_io_ok() and _options.relics_mode != "none":
 		collection = RelicFile.load_or_empty(_relics_path())
 	if _options.is_autoplay():
-		collection.fill_bag(_run_data.gear, _tuning.relic_bag_size, GearBot.score)
+		collection.fill_bag(_run_data.gear, collection.bag_size(_tuning), GearBot.score)
 	return collection
 
 
-## Takes the run's Relics into the collection: when the run saves on the map, when a stop settles
-## something, and when the run ends (won, lost or abandoned). The collection keeps the higher level
-## of each, so banking twice, or after Continue replays a stop, never adds a copy.
+## Takes the run into the collection: when the run saves on the map, when a stop settles something,
+## and when the run ends (won, lost or abandoned). The Relics found and each one's Echo pips; the
+## collection keeps the higher pips of each, so banking twice, or after Continue replays a stop,
+## never adds any (DESIGN.md 8.19).
+## An online friend banks too, into their own file (card #281): the Relics the run found and this
+## run's pips on top of their own collection at the start.
 func _bank_relics() -> void:
-	if _run == null or not _relics_io_ok():
+	if _run == null:
 		return
-	if RelicFile.bank(_run.relics, _relics_path(), _tuning.relic_bag_size):
+	if Net.is_client():
+		if _own_start != null and _client_relics_ok() \
+				and RelicFile.bank(_run.relics.keys(), _run.pips_totals_from(_own_start.pips), _relics_path(), _tuning):
+			print("Relics banked (own): %d" % _run.relics.size())
+		return
+	if not _relics_io_ok():
+		return
+	if RelicFile.bank(_run.relics.keys(), _run.pips_totals(), _relics_path(), _tuning):
 		print("Relics banked: %d" % _run.relics.size())
+
+
+## The player number (1, 2, 3) who plays each hero, for the run end's defence rows; empty when one
+## player plays them all (card #283).
+func _hero_players() -> Array[int]:
+	var out: Array[int] = []
+	if _players == null or _players.player_count() <= 1:
+		return out
+	for slot: int in _run.party_size():
+		out.append(_players.owner_of(slot) + 1)
+	return out
+
+
+## What this machine keeps from the run, for its end screen: the run's line, or an online friend's
+## own (from their collection at the start, card #281).
+func _keep_line() -> String:
+	if Net.is_client() and _own_start != null:
+		return _run.relic_gain_line_since(_own_start.found, _own_start.pips)
+	return ""
 
 
 ## The fingerprint a save is checked against: data and version only, so a code-only update keeps a
@@ -1524,11 +1619,19 @@ func _continue_run() -> void:
 	_run = saved.state as RunState
 	_checkpoint = saved.run as Dictionary
 	_checkpoint_in_stop = bool(saved.in_stop)
+	if not _checkpoint.has("pips_start") and _relics_io_ok():
+		# A run saved before phase 21 (#280): its Echo pips at the start come from home.
+		var home := RelicFile.load_or_empty(_relics_path())
+		for item: GearData in _run.data.gear:
+			if item != null and home.pips_of(item.id) > 0:
+				_run.pips_at_start[item.id] = mini(home.pips_of(item.id), _tuning.mastery_needed)
 	print("Run continued: seed %d  act %d  stop %d%s" % [_run.run_seed, _run.act + 1, _run.visited,
 			" (in progress)" if _checkpoint_in_stop else ""])
 	Sfx.play("run_begin")
 	if _checkpoint_in_stop and not _run.current().is_empty():
 		_enter_stop()
+	elif _run.pact_pending and _run.at < 0:
+		_fade_to(_show_event.bind("", true))
 	else:
 		_fade_to(_show_map)
 
@@ -1569,11 +1672,20 @@ func _new_run() -> void:
 		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict(), "oath": _run.oath})
 	print("Run seed: %d  oath: %d  stops: %d  acts: %d" % [run_seed, _run.oath, _run.map.row_count(), _run.acts().size()])
 	Sfx.play("run_begin")
+	if _run.pact_pending:
+		# The starting pact first (card #285): it may give a Relic to equip.
+		_show_event("", true)
+		return
+	_after_pact()
+
+
+## The run's start after the pact (or with none): the party screen on the Relics page when the
+## bag brought Relics (card #265: nothing is worn yet, the player equips before the first fight),
+## else the map.
+func _after_pact() -> void:
 	if _run.owned_relics().is_empty():
 		_show_map()
 		return
-	# The Relic bag (card #265): nothing is worn yet, so the party screen opens on the Relics page
-	# first and the player equips before the first fight.
 	_show_party("Your Relic bag", true)
 	if not _options.is_autoplay() and _screen is PartyScreen:
 		(_screen as PartyScreen).open_relics(0, 0)
@@ -1690,7 +1802,7 @@ func _on_run_fight_over(result: String) -> void:
 	_run.spend_items(_combat.used_items())
 	var ambushed := _run.in_ambush()
 	var ambush_spoils := _run.ambush_spoils
-	_run.finish_fight(result, _combat.party_hp(), _encounter)
+	_run.finish_fight(result, _combat.party_hp(), _encounter, _combat.recap())
 	_run.carry_team_gauge(_combat.team_gauge())
 	_autoplay_spend_points()
 	if _run.is_over():
@@ -1739,26 +1851,56 @@ func _send_shop_wares(gear: Array[GearData]) -> void:
 
 
 ## A "?" stop (DESIGN.md 8.7). `result`: online clients show what the host chose.
-func _show_event(result: String = "") -> void:
+## `pact`: the starting pact before the first stop (card #285) instead of a "?" stop's event.
+func _show_event(result: String = "", pact: bool = false) -> void:
 	var screen := EventScreen.new()
 	screen.name = "Event"
 	screen.remote = Net.is_client()
-	screen.setup(_run, null if _run.in_ambush() and result.is_empty() else _run.event_of(_run.at), result)
-	screen.done.connect(_on_event_done)
-	screen.chosen.connect(func(index: int, text: String) -> void:
-		_send_screen({"name": "event", "result": text if not text.is_empty() else "You walk on."})
-		# The risk is rolled: lock the result in (a Leave, index -1, took nothing).
-		if index >= 0:
-			_save_stop_progress())
-	screen.gifts_settled.connect(_save_stop_progress)
+	var event := _run.pact_event() if pact else (null if _run.in_ambush() and result.is_empty() else _run.event_of(_run.at))
+	screen.setup(_run, event, result)
+	if pact:
+		screen.done.connect(_on_pact_done)
+		screen.chosen.connect(func(_index: int, text: String) -> void:
+			_run.pact_pending = false
+			_send_screen({"name": "event", "pact": true, "result": text if not text.is_empty() else "You walk on."})
+			_save_run(false))
+		screen.gifts_settled.connect(_save_run.bind(false))
+	else:
+		screen.done.connect(_on_event_done)
+		screen.chosen.connect(func(index: int, text: String) -> void:
+			_send_screen({"name": "event", "result": text if not text.is_empty() else "You walk on."})
+			# The risk is rolled: lock the result in (a Leave, index -1, took nothing).
+			if index >= 0:
+				_save_stop_progress())
+		screen.gifts_settled.connect(_save_stop_progress)
 	_show_screen(screen)
-	_send_screen({"name": "event", "result": result})
+	_send_screen({"name": "event", "pact": pact, "result": result})
 	if _options.is_autoplay() and not Net.is_client():
 		_autoplay_event.call_deferred(screen)
 
 
+## The starting pact was taken or passed by (card #285): on to the run's start.
+func _on_pact_done() -> void:
+	if _busy or Net.is_client():
+		return
+	_run.pact_pending = false
+	_run.stop_done = false
+	_run.stop_text = ""
+	_fade_to(_after_pact)
+
+
 ## An event (or an ambush page) was left: into the fight if it sprang an ambush, else the map.
 func _on_event_done() -> void:
+	if _busy:
+		return
+	if _run.in_ambush():
+		_start_final_fight()
+	else:
+		_fade_to(_show_map)
+
+
+## The treasure stop was left: into the fight if the rotten chest sprang one (card #287), else the map.
+func _on_treasure_done() -> void:
 	if _busy:
 		return
 	if _run.in_ambush():
@@ -1772,8 +1914,8 @@ func _show_treasure(opened: bool = false, text: String = "") -> void:
 	var screen := TreasureScreen.new()
 	screen.name = "Treasure"
 	screen.remote = Net.is_client()
-	screen.setup(_run, _explore, opened, text)
-	screen.done.connect(_fade_to.bind(_show_map))
+	screen.setup(_run, _explore, opened, text if not text.is_empty() else _run.stop_text)
+	screen.done.connect(_on_treasure_done)
 	screen.opened.connect(func() -> void: _send_screen({"name": "treasure", "opened": true}))
 	screen.gifts_settled.connect(_save_stop_progress)
 	_show_screen(screen)
@@ -1862,8 +2004,9 @@ func _show_run_end() -> void:
 	if _run.result != RunState.VICTORY:
 		var where := "Stop %d, act %d%s" % [_run.visited, _run.act + 1, ", " + OathData.label(_run.oath) if _run.oath > 0 else ""]
 		recap_lines = FightRecap.lines(_last_recap, _last_recap_name, where)
-	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now, recap_lines)
+	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now, recap_lines, _keep_line(), _hero_players())
 	end.done.connect(_fade_to.bind(_show_main_menu))
+	end.again.connect(_fade_to.bind(_play_again))
 	_show_screen(end)
 	_send_screen({"name": "run_end"})
 	_client_done = Net.is_client()
@@ -2000,7 +2143,8 @@ func _input(event: InputEvent) -> void:
 		return
 	# Online client on a run screen: the host chooses; only pause (to leave) works here. The
 	# backpack is everyone's: the party screen takes input, and Tab / Y on the map opens it.
-	var own := _screen is PartyScreen or (_screen is MapScreen and event.is_action(&"party_menu"))
+	var own := _screen is PartyScreen or _screen is RunEndScreen \
+			or (_screen is MapScreen and event.is_action(&"party_menu"))
 	if Net.is_client() and _is_run_screen(_screen) and _pause == null and _prompt == null and not pause and not own:
 		if not event is InputEventMouseMotion:
 			get_viewport().set_input_as_handled()
@@ -2224,6 +2368,12 @@ func _host_online() -> void:
 	# Closing the window waits for the goodbye to the friends (_on_close_requested).
 	get_tree().auto_accept_quit = false
 	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, NetSession.HOST_PEER)
+	_show_host_lobby()
+	print("Hosting on port %d: %s" % [_tuning.net_port, ", ".join(NetSession.local_addresses())])
+
+
+## The host's players screen with the roster as it is (a new game, or Again after a run, card #284).
+func _show_host_lobby() -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
 	lobby.hero_portraits = _hero_portraits()
@@ -2234,7 +2384,6 @@ func _host_online() -> void:
 	lobby.started.connect(_on_online_started)
 	lobby.back.connect(_show_main_menu.call_deferred)
 	_show_screen(lobby)
-	print("Hosting on port %d: %s" % [_tuning.net_port, ", ".join(NetSession.local_addresses())])
 
 
 func _on_online_roster_changed(players: PlayerRoster) -> void:
@@ -2302,6 +2451,12 @@ func _on_net_peer_joined(peer: int) -> void:
 	# Welcomed by the host: wait on the players screen for its roster and its Start.
 	Sfx.play("net_connected")
 	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, peer)
+	_show_client_lobby()
+
+
+## An online friend's players screen: the host's roster, waiting for its Start (a new game, or Again
+## after a run, card #284).
+func _show_client_lobby() -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
 	lobby.hero_portraits = _hero_portraits()
@@ -2438,6 +2593,7 @@ func _on_net_refused(reason: String) -> void:
 
 ## This machine's online game is over: back to the main menu with a note.
 func _end_online(notice: String) -> void:
+	_forget_own_start()
 	Net.forget_seat()
 	_leave_online()
 	_notice = notice
@@ -2519,6 +2675,22 @@ func _pump_net() -> void:
 
 func _client_message(kind: String, p: Dictionary) -> void:
 	match kind:
+		"again":
+			# The host pressed Again after a run (card #284): wait on the players screen for its Start.
+			var again_roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
+			if again_roster != null:
+				_players = again_roster
+			_forget_own_start()
+			if not _screen is LobbyScreen:
+				_run = null
+				_client_done = false
+				var oath := int(p.get("oath", 0))
+				_fade_to(func() -> void:
+					_show_client_lobby()
+					(_screen as LobbyScreen).set_oath(oath))
+			elif again_roster != null:
+				(_screen as LobbyScreen).set_roster(again_roster)
+				(_screen as LobbyScreen).set_oath(int(p.get("oath", 0)))
 		"run_start":
 			# A new game (an earlier one in this session may have ended).
 			_client_done = false
@@ -2526,6 +2698,10 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			if roster != null:
 				_players = roster
 			_run = RunState.begin(_run_data, _tuning, int(p.get("seed", 1)), int(p.get("oath", 0)))
+			var start_seed := int(p.get("seed", 1))
+			if _own_start == null or _own_start_seed != start_seed:
+				_own_start = RelicFile.load_or_empty(_relics_path()) if _client_relics_ok() else null
+				_own_start_seed = start_seed
 			Sfx.play("run_begin")
 		"roster":
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
@@ -2576,7 +2752,7 @@ func _watched_screen_builder(p: Dictionary) -> Callable:
 		"rest":
 			return _show_rest.bind(String(p.get("result", "")))
 		"event":
-			return _show_event.bind(String(p.get("result", "")))
+			return _show_event.bind(String(p.get("result", "")), bool(p.get("pact", false)))
 		"treasure":
 			return _show_treasure.bind(bool(p.get("opened", false)))
 		"shop":
@@ -2706,13 +2882,13 @@ func _give_prize(prize: Resource, from: String) -> void:
 					{"gear": prize})
 	elif prize is ItemData:
 		var item := prize as ItemData
-		if item.kind == ItemData.Kind.UPGRADE:
+		if item.kind == ItemData.Kind.UPGRADE or item.kind == ItemData.Kind.TREASURE:
 			_run.add_item(item)
-			_zone.announce("%s held a %s. The backpack has %d rows." % [from, item.display_name, _run.backpack.rows])
+			_zone.announce("%s held: %s" % [from, _run.find_text(item)])
 		elif _run.add_item(item) >= 0:
 			_zone.announce("%s held: %s" % [from, item.display_name])
 		else:
-			_open_zone_backpack("%s held a %s, but the backpack is full." % [from, item.display_name], {"item": item})
+			_open_zone_backpack("%s held a %s, but the pack is full." % [from, item.display_name], {"item": item})
 	else:
 		_zone.announce("%s is empty." % from)
 
@@ -2767,7 +2943,7 @@ func _take_offer(offer: int, yes: bool) -> void:
 			_run.add_item(item)
 		_zone.announce(String(result.text))
 	else:
-		_open_zone_backpack("%s, but the backpack is full." % String(result.text), {"item": item})
+		_open_zone_backpack("%s, but the pack is full." % String(result.text), {"item": item})
 
 
 ## The leader picks up glinting spot `spot`: into the backpack, or the backpack opens with it in hand.
@@ -2778,21 +2954,15 @@ func _on_spot_pickup(spot: int) -> void:
 	if item == null:
 		_zone.take_spot(spot)
 		return
-	if item.kind == ItemData.Kind.UPGRADE:
-		_run.add_item(item)
-		_zone.take_spot(spot)
-		_zone.announce("Found: %s. The backpack has %d rows." % [item.display_name, _run.backpack.rows])
-		Sfx.play("item_found")
-		return
 	if _run.add_item(item) >= 0:
 		_zone.take_spot(spot)
-		_zone.announce("Found: %s" % item.display_name)
+		_zone.announce(_run.find_text(item))
 		Sfx.play("item_found")
 		print("Run find: %s" % item.id)
 		return
 	_spot_pending = spot
 	Sfx.play("item_found")
-	_open_zone_backpack("Found a %s, but the backpack is full." % item.display_name, {"item": item})
+	_open_zone_backpack("Found a %s, but the pack is full." % item.display_name, {"item": item})
 
 
 func _apply_run(p: Dictionary) -> void:
@@ -3036,6 +3206,8 @@ func _autoplay_rest(rest: RestScreen) -> void:
 		return
 	if _autoplay_hurt():
 		rest.rest_now()
+	elif _run.is_watch_fire():
+		rest.watch_now()
 	elif not rest.upgradable().is_empty():
 		rest.upgrade_now(rest.upgradable()[0])
 	else:
@@ -3096,7 +3268,7 @@ func _autoplay_event(screen: EventScreen) -> void:
 	if not is_instance_valid(screen):
 		return
 	if screen.choice_count() > 0 and not _run.stop_done:
-		var event := _run.event_of(_run.at)
+		var event := screen.event()
 		var decision := EventAutoplay.decide(_run, event, _autoplay_health())
 		print("AUTOPLAY_EVENT %s -> %s" % [event.id, "choice %d" % int(decision.index) if int(decision.index) >= 0 else "leave"])
 		if int(decision.index) >= 0:
@@ -3111,7 +3283,8 @@ func _autoplay_treasure(screen: TreasureScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(screen):
 		return
-	screen.open_chest()
+	# The rotten chest only while healthy (a curse or a fight may come with it).
+	screen.open_chest(not _autoplay_hurt())
 	await _autoplay_stop_gifts(screen)
 	if is_instance_valid(screen):
 		screen.leave()

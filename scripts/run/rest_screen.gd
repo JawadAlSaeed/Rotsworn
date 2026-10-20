@@ -160,6 +160,24 @@ func train_now() -> void:
 			"" if run.tuning.rest_train_points == 1 else "s"])
 
 
+## Keep Watch (the campfire before the boss, card #287): the team gauge is full.
+func watch_now() -> void:
+	if _done_once:
+		return
+	run.keep_watch()
+	Sfx.play("level_up")
+	_act("You keep watch. The team gauge is full.")
+
+
+## Sharpen (the campfire before the boss, card #287): every hero starts the boss fight with more AP.
+func sharpen_now() -> void:
+	if _done_once:
+		return
+	run.sharpened = true
+	Sfx.play("buff")
+	_act("Blades sharpened. Every hero starts the boss fight with +%d AP." % run.tuning.sharpen_ap)
+
+
 ## Upgrade: item `uid` goes up a level.
 func upgrade_now(uid: int) -> bool:
 	if _done_once or not run.upgrade_item(uid):
@@ -191,6 +209,14 @@ func _finish(text: String) -> void:
 
 func _show_choices() -> void:
 	_picking.clear()
+	if run.is_watch_fire():
+		_menu.set_items([
+			{"text": "Rest", "enabled": not remote, "detail": _rest_detail()},
+			{"text": "Keep watch", "enabled": not remote, "detail": "The team gauge is full for the boss."},
+			{"text": "Sharpen", "enabled": not remote,
+					"detail": "Every hero starts the boss fight with +%d AP." % run.tuning.sharpen_ap},
+		])
+		return
 	var up := upgradable()
 	var list: Array[Dictionary] = [
 		{"text": "Rest", "enabled": not remote, "detail": _rest_detail()},
@@ -244,6 +270,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			0:
 				rest_now()
 			1:
-				train_now()
+				if run.is_watch_fire():
+					watch_now()
+				else:
+					train_now()
 			2:
-				_show_upgrades()
+				if run.is_watch_fire():
+					sharpen_now()
+				else:
+					_show_upgrades()

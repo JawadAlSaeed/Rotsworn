@@ -160,8 +160,12 @@ func _info(index: int) -> Array:
 		return [item.display_name, _run.item_price(item), item.description, int(item.rarity),
 				AssetLoader.texture(item.icon_path, item.size() * 16)]
 	var gear := _gear[index - items().size()]
-	var level := _run.known_level(gear)
-	var owned := " (you have it at level %d: a copy raises it)" % level if level > 0 else " (new)"
+	var level := _run.relic_level(gear)
+	var owned := " (new)"
+	if level > 0:
+		owned = " (level %d this run: a copy raises it)" % level
+	elif _run.is_home(gear):
+		owned = " (left at home: joins at level 1)"
 	return [gear.display_name, _run.gear_price(gear), "Relic%s: %s" % [owned, gear.description], BackpackGrid.gear_step(gear),
 			_gear_icon]
 
@@ -190,7 +194,7 @@ func buy(index: int) -> bool:
 		if item.kind == ItemData.Kind.UPGRADE:
 			_run.add_item(item)
 			Sfx.play("level_up")
-			_say.text = "\"A bigger pack. %d rows now.\"" % _run.backpack.rows
+			_say.text = "\"A bigger pack. %d pockets now.\"" % _run.backpack.width
 			acted.emit()
 		elif _run.add_item(item) >= 0:
 			Sfx.play("item_place")

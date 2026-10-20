@@ -313,7 +313,7 @@ static func stop_name(run: RunState, stop: Dictionary) -> String:
 		RunMap.StopType.FINAL:
 			return "Boss" if not run.is_last_act() else "Final fight"
 		RunMap.StopType.ELITE:
-			return "Elite"
+			return "Crowned elite" if bool(stop.get("crown", false)) else "Elite"
 		RunMap.StopType.EVENT:
 			return "?"
 		RunMap.StopType.TREASURE:
@@ -585,6 +585,8 @@ func _draw_stops(origin: Vector2) -> void:
 		var size := icon.get_size()
 		_canvas.draw_texture_rect(icon, Rect2(_at(origin, centre - (size * 0.5).floor()), size * px), false,
 				Color(1.0, 1.0, 1.0, alpha))
+		if bool(s.get("crown", false)):
+			_draw_crown(_at(origin, centre - Vector2(0.0, floorf(size.y * 0.5) + 3.0)), px, alpha)
 		if choice and id == _choices[_sel]:
 			var ring := _ring_big if int(s.type) == RunMap.StopType.FINAL else _ring
 			var ring_size := ring.get_size()
@@ -595,6 +597,22 @@ func _draw_stops(origin: Vector2) -> void:
 		var at := _at(origin, centre + Vector2(floorf(size.x * 0.5) + float(_look.label_gap), 0.0))
 		at.y += float(_look.label_size) * 0.35
 		_canvas.draw_string(_font, at, stop_name(_run, s), HORIZONTAL_ALIGNMENT_LEFT, -1, _look.label_size, label)
+
+
+## The rot crown over the crowned elite (card #286): a small gold crown, three points, in ink.
+func _draw_crown(bottom_centre: Vector2, px: float, alpha: float) -> void:
+	var w := 9.0 * px
+	var h := 5.0 * px
+	var left := bottom_centre.x - w * 0.5
+	var points := PackedVector2Array([
+		Vector2(left, bottom_centre.y), Vector2(left, bottom_centre.y - h),
+		Vector2(left + w * 0.25, bottom_centre.y - h * 0.45), Vector2(left + w * 0.5, bottom_centre.y - h),
+		Vector2(left + w * 0.75, bottom_centre.y - h * 0.45), Vector2(left + w, bottom_centre.y - h),
+		Vector2(left + w, bottom_centre.y)])
+	_canvas.draw_colored_polygon(points, Color(_look.crown_color, alpha))
+	var outline := points.duplicate()
+	outline.append(points[0])
+	_canvas.draw_polyline(outline, Color(_look.ink_color, alpha), maxf(1.0, px * 0.5))
 
 
 ## The party's flag, dropping onto its spot once the ink is in (and the map has panned down).

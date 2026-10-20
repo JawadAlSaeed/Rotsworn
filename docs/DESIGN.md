@@ -2355,6 +2355,9 @@ counters for longer and mixed strings (2.5, card #52).
 
 ### 8.1 Backpack and items (phase 11, plan agreed 2026-10-14)
 
+**Phase 21 change (card #282): the grid is now Alder's pack with pockets** (one item each, no shapes
+or turning, treasure turns into gold at once; see 8.19). The grid rules below are history.
+
 **Phase 17 change (card #240, user 2026-10-18): the charms are gone.** With Relics and Echoes (8.17)
 they were a third buff system. The backpack now holds supplies (Salve, Feast, Tonic, Bomb,
 Smelling Salts), keys, treasure and **curses**: the two rotten charms (Rotting Heart, Grave Moss)
@@ -3302,9 +3305,9 @@ Phase 19 (card #263) added three Relics against marks (Wardstone, Bitter Root, C
 2.17), dropped by the new monsters, which also drop older Relics (34 Relics in the run).
 Phase 20 (Relic balance, 2026-10-19, user picks): 16 more Relics (50 in all, #242, table below),
 drops 25% rarer (`relic_drop_percent` 10% to 8%, #243), and the **Relic bag** (#265, below), which
-replaces each hero's ordered picks. Bag upgrades between runs are a later idea (#266); until then the
-bag holds `relic_bag_size` (10). How Relic levels and Echoes should work in a roguelite is phase 21
-(#272).
+replaces each hero's ordered picks. **Phase 21 changed the levels, the Echoes and the bag: see 8.19**
+(Echoes learned for good across runs, levels last one run, the bag from 3 to 6). What follows is the
+phase 17 to 20 design where 8.19 does not say otherwise.
 
 The user's idea: make Rotsworn a roguelite and keep it hard. The run's gear became **Relics** the
 player keeps forever (Expedition 33's Pictos, renamed), and a Relic worn for a few won fights
@@ -3520,6 +3523,176 @@ badge; signals changed, op_requested, toast):
   `attribute_glyph()` so each attribute has the same picture on every page.
 - Tests: `tests/unit/test_party_screen.gd`, `test_hero_tab.gd`, `test_skills_tab.gd`,
   `test_relic_icon.gd`.
+
+### 8.19 The roguelite pass (phase 21, talked through 2026-10-19 in #267 and #272)
+
+The owner's worry (#272): Relic levels kept forever made the game easier the more you played, and
+relearning every Echo every run was busywork. A design panel (four studies, four designers, three
+judges) proposed the cards below; the owner picked them on 2026-10-19. The rule behind them: what
+carries between runs gives **choices, not stats**; the oaths keep the game hard.
+
+**Echoes learned for good (#280, built).**
+
+- **Between runs** a Relic keeps two things: found, and its **Echo pips** (`RelicCollection.found`,
+  `pips`). Its level is not kept any more.
+- **Pips**: every worn Relic gets `mastery_fight` (1), `mastery_elite` (2), `mastery_guard` (3) or
+  `mastery_boss` (5) pips per won fight, run after run (`RunState.pips_at_start` from the collection +
+  `mastery`, this run's; `mastery_of` is the sum, never past `mastery_needed`, 12, about one act).
+  Lost or escaped fights teach nothing. Full pips: its **Echo is learned for good**.
+- **Wearing an Echo** (owner's pick A): any learned Echo can be worn in any run, whether the run has
+  its Relic or not (`learned_echoes` is every learned one), paid with Echo points as before (0 at the
+  start of every run, +1 per level up, half under the Oath of Forgetting). **One hero per Echo**
+  (`echo_wearer`; "Alder wears this Echo."); another hero may still wear the Relic itself. An Echo
+  of a Relic the hero wears counts once, as before.
+- **Echo prices by strength, not rarity** (`tools/bootstrap_relics.gd`): extra AP on every dodge or
+  parry (Fox Step, Wake Root) 3, +2 AP at fight start (Oathbreaker's Band) 4 and Gravebloom 3, big
+  all-round effects (Iron Charm, Whetstone, Thick Hide, Quick Boots, War Drum) 2, small or narrow ones
+  1. First guesses; tune from play.
+- **Relic levels last one run**: a Relic joins a run at level 1 (from the bag or found), a copy found
+  in the same run raises it up to `relic_max_level` (3), a copy past that pays `relic_spare_gold`
+  (30). Spoils, shops and chests offer any Relic below level 3 in this run, so they never run dry. A
+  Relic found before but left at home that turns up joins at level 1, tagged **Home** (not "New"); it
+  levels nothing at home (`RunState.is_home`).
+- **The end screen** says what the run keeps: "New Relics: ...   Echoes learned: ..." or "Nothing new
+  to keep." (`relic_gain_line`). A fight's end screen says "Echo learned for good: X".
+- **Banking** (`Main._bank_relics`, `RelicFile.bank(found, pips, path, tuning)`): the run's Relics
+  are found, each Relic's pips become the higher of home and run, so banking twice or after Continue
+  replays a stop adds nothing.
+- **Old files and saves**: `RelicCollection.FORMAT_VERSION` 2; a format 1 file (phases 17 to 20)
+  loads, every Relic in it is found and each old level above 1 is 3 pips (level 5 = learned), and it
+  is written back as format 2. A run saved before phase 21 (no `pips_start`) loads with its levels cut
+  to 3 and its mastery scaled from the old 4 to 12, so an Echo it had learned stays learned.
+- **Screens**: the main menu's Relics page shows each card's "Echo 7/12" (gold when learned) instead of
+  a level and sorts by it; the detail says how to learn it. In a run the cards keep "Lv"; the Relics
+  tab's info strip shows the pips bar; the Echoes page lists every learned Echo. The tutorial's Relics
+  and Echoes cards say the new rules.
+- **Bots**: `--relics=all` finds every Relic with its Echo learned (`RelicCollection.all_of(gear,
+  needed)`).
+
+**The Relic bag starts at 3 and grows to 6 (#266, built).** `RelicCollection.bag_size(tuning)`:
+`relic_bag_start` (3) + one for every `relic_bag_echoes_per_slot` (5) Echoes learned, never past
+`relic_bag_max` (6). A run takes at most that many from the bag; a bag from before it shrank keeps its
+first Relics (`trim_bag`, when the Relics page opens). The page shows "2 / 3" and "+1 for every 5
+Echoes learned" while it can still grow. New finds still join the bag while it has room.
+
+**Friends keep their finds online (#281, built).** Replaces 8.17's "only the host banks". The run
+still plays with the host's bag and the host's learned Echoes (the host's `pips_at_start` goes to
+every machine in `to_dict`). Each online friend's game loads its own collection when the host's
+`run_start` arrives (`Main._own_start`) and banks into its own file whenever the host's map or run
+end shows on it: the Relics the run has, and this run's pips (`RunState.mastery`, kept whole up to
+`mastery_needed` even past what the host still needed) on top of their own
+(`RunState.pips_totals_from`). Their end screen says what they keep, measured from their own
+collection (`relic_gain_line_since`). Same rules as the host: never in the tutorial or a dev screen,
+a bot only with `--relics-path`.
+
+**Alder's pack with pockets (#282, built).** The grid backpack (8.1) lost its job when the charms
+went: its shapes, turning and moving were busywork for seven kinds of supplies. Now:
+
+- **Pockets** (`Backpack`, pure): `tuning.backpack_pockets` (6) pockets in a row, one item each,
+  whatever its shape; a Bigger Pack adds one, up to `backpack_max_pockets` (8). Ops and saves keep
+  their old shape (cells are `Vector2i(pocket, 0)`). An older save's grid becomes pockets, its items
+  in reading order, 6 pockets plus one per Bigger Pack row, never fewer than it holds.
+- **Treasure** turns into gold the moment it is found (`RunState.add_item`: what selling it paid,
+  `treasure_gold`; "Silver Ring: +20 gold", `find_text`). Curses still go in a pocket, so a curse now
+  costs a pocket too; a shop's Cleanse or throwing it away gets rid of it, as before.
+- **The Bag tab** (`BagTab`, `BackpackGrid`): Alder's pack art (`ui/backpack_5.png`) with its pockets
+  sewn on the lining, two to a row (`combat_visuals.tres` `backpack_pocket_columns`,
+  `backpack_lining_art_px`, `backpack_pocket_gap_art_px`), the pockets a Bigger Pack would still add
+  sewn shut. Arrows move between pockets; Confirm on an item opens Use / Combine (with another of the
+  same at the same level) / Sell (in a shop) / Throw away. A new find with no free pocket opens the tab
+  with it in hand: Confirm puts it in a free pocket, combines it with the same item, or swaps it for
+  the item in that pocket (asked first; the old one is thrown away); Back leaves it behind (asked).
+- **Gone**: the nine faded charm files (phase 17 kept them only for older saves) and the Glossary's
+  grid words; the Glossary's gear topic now says Relic, Pack and Curse.
+
+**Defence counts, and pays (#283, built).**
+
+- `FightRecap` also counts each hero's own defence (`heroes`: per party slot [parried, dodged,
+  jumped, hits taken]); `RunState.finish_fight(..., recap)` adds it to the run's `defence` (won, lost
+  or escaped), saved and sent online.
+- **Flawless**: a guard or an elite won without a hit taken (`RunState.is_flawless`) sets
+  `RunState.flawless`, and the spoils right after it offer one more Relic (`loot_choice_count` + 1).
+  The fight's end screen says "Flawless! One more spoils choice." Any other fight, or the next stop,
+  clears it.
+- **The run end** shows a row per hero: face, the player number in co-op ("P2"), shield (parried),
+  chevrons (dodged), up (jumped) and a red sword (hits taken), and a gold star on the best defender
+  (the most hits answered, then the fewest taken; `RunState.best_defender`).
+- **The Rot Journal** counts only this machine's own heroes' answers online
+  (`JournalTally.local_slots`, set by the fight from the roster); one machine (solo or local co-op)
+  counts every hero as before.
+
+**One more run, together (#284, built).** The run end's footer is Confirm "Again" and Back "Main
+menu" (`RunEndScreen.again` / `done`). Again (`Main._play_again`) goes to the players screen with
+the same seats, the same bag and the last oath pick. Online the host stays hosting (the game reopens
+to joins) and sends "again": every friend still on the run end goes to their players screen and waits
+for the host's Start (`_show_host_lobby`, `_show_client_lobby`); a friend who presses Again first
+waits there. Main menu leaves as before (online, it ends the game for everyone when the host does).
+
+**A pact at the start (#285, built).** Before the first stop of a run that is not the player's first
+(the bag's collection had found something; `RunState.pact_pending`, saved and sent online), "The
+Crossroads" shows on the "?" event screen (its picture, story, and each choice's price and reward
+written out): `tuning.run_pact_choices` (3) of `RunData.pacts`, picked by the run's seed
+(`RunState.pact_event`), or Leave. The host picks for the whole party; online friends watch. Taking
+or leaving it goes on to the party screen's Relics page (or the map). The six pacts
+(`data/runs/pacts/`, written by `tools/bootstrap_pacts.gd`; first numbers):
+
+| Pact | Gift | Price |
+|---|---|---|
+| Blood for gold | +120 gold | everyone -10% max HP for good |
+| Feed the hungry Relic | a rare Relic | the Rotting Heart curse |
+| Borrow years | +60 XP each | everyone loses 40% HP |
+| Take the crown of ash | a legendary Relic | a hero you pick -25% max HP for good |
+| Drink the storm | full team gauge and a Bomb | everyone loses 20% HP |
+| Take the rotten purse | +200 gold | the Grave Moss curse |
+
+A deal can now give a Relic (`ZoneOfferData.relic_rarity`: one of at least that rarity the run
+lacks or can still level, seeded). The bot reads the shown event (`EventScreen.event`).
+
+**A map with a dare (#286, built).** After the map's types and zones are set (so a seed's paths stay
+as they were; `RunMap._vary_rows`, `_crown_elite`, `_fix_zones`):
+
+- The campfire row is one row earlier `run_rest_row_shift_percent` (50%) of the time (then one stop
+  sits between the campfires and the boss), and the treasure row moves up to `run_treasure_row_spread`
+  (1) rows either way. Rows that give up their campfires or chests get middle stops under the old
+  rules (never the same shop, campfire or elite twice in a row, no campfire right before the campfire
+  row, a shop somewhere, no zone twice in a row). This replaces 8's "the row before the final fight is
+  all rests" and 8.9's fixed treasure row.
+- Every act with elites has at least one elite stop, and one of them wears the **rot crown**
+  (`stop.crown`): its enemies get `crown_elite_hp_percent` (130%) HP and `crown_elite_power_percent`
+  (115%) power on top of the elite numbers, and its spoils always list an ordinary legendary Relic
+  first while the run has one to gain (`RunState.is_crowned`, `loot_choices`). The map draws a small
+  gold crown over it (`map_visuals.tres` `crown_color`) and names it "Crowned elite".
+
+**No free stops (#287, built).**
+
+- **Treasure**: two chests, one to open (`RunState.open_treasure`, seeded per stop). The plain one
+  holds `run_treasure_gold` and a rare or better item; the rotten one a rare or better Relic, but
+  `rotten_chest_curse_percent` (30%) of the time a curse comes with it and `rotten_chest_fight_percent`
+  (20%) of the time an ambush from the act's pool (no spoils; Fight goes into it,
+  `Main._on_treasure_done`). The bot opens the rotten one only while healthy.
+- **Shrines**: the three free offers got a price: Healing Spring 30 gold, War Idol everyone loses 10%
+  HP, Old Pilgrim 20 gold (`data/offers/`).
+- **The campfire before the boss** (the act's campfire row, `RunState.is_watch_fire`) offers Rest,
+  Keep watch (the team gauge is full, `keep_watch`) or Sharpen (every hero starts the boss fight with
+  `sharpen_ap` (1) more AP, `sharpened`, saved; used up by the boss fight). Other campfires keep Rest,
+  Train and Upgrade. The bot keeps watch when it does not need to rest.
+
+**After the build** (2026-10-19, a review by three reviewers, each finding checked by a skeptic): an
+online friend who drops and takes their seat back keeps the collection taken at the run's start
+(`Main._own_start_seed`), so the run's pips are never banked twice; a friend can press Again or Main
+menu on the run end; Again in local co-op keeps every seat whoever presses it, and online it lets go
+of a seat still away; a friend's players screen after Again shows the host's oath; the treasure screen
+shows the chest that was opened (`RunState.stop_rotten`, saved and sent); a run saved before phase 21
+keeps its map (`RunState.map_rules` 1, `RunMap.generate(..., moving_rows)`), gets its pips at the
+start from home on Continue, and fits its HP to the new max; Continue during the pact shows the pact
+again; `tools/bootstrap_items.gd` no longer brings the faded charms back. Not fixed (small): an old
+save may keep two heroes on one Echo until they change it; closing the game during the final boss's
+victory before the run end shows can lose that fight's pips.
+
+Dev screens for pictures: `--screen=pact` (the Crossroads on a sample run) and `--screen=run_end` (a
+lost run's end with defence rows).
+
+Tests: `tests/unit/test_relics.gd`, `test_backpack.gd`, `test_roguelite.gd`, `test_fight_recap.gd`.
 
 ---
 
@@ -3967,9 +4140,11 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     (Relics, Bag, Hero, Skills) with one info strip, toasts and fewer words (#270, the owner picked
     concept A with concept B's strip and shape icons); Relic icons whose shape says the category
     (#271).
-21. **Relic levels and Echoes for a roguelite** (to discuss, #272 and #267): whether a Relic worn for
-    a few fights should still teach its Echo, how copies and levels should work, and what a copy of a
-    Relic left at home does.
+21. **The roguelite pass** (done, approved 2026-10-20 after a playtest, v0.21.0; talked through
+    2026-10-19 in #267 and #272, built overnight on branch `phase21-Roguelite`; 8.19): Echoes learned for good, Relic levels per run (#280), the Relic
+    bag from 3 to 6 (#266), friends keep their finds online (#281), Alder's pack with pockets instead
+    of the grid (#282), defence counts and pays (#283), one more run together (#284), a pact at the
+    start (#285), a map with a dare (#286), no free stops (#287).
 22. **Fewer words, more icons** (planned, #273 to #276): finds and rewards show their icon (#273), a
     clean fight end when a hero is down (#274), no practice text on the HUD in real fights (#275),
     press and defence timing numbers only in practice (#276).
@@ -4201,4 +4376,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-19 | Every push to main builds the Windows game on GitHub Actions and replaces `Rotsworn.zip` on the `latest-build` pre-release: one fixed download link for everyone (9.2) | owner asked if it was possible and costly: free for a public repo, no hand-sent zips, and one shared file keeps online fingerprints equal |
 | 2026-10-19 | No Godot logo at start: the boot splash is plain black, then the DragonRot intro as before (7.5) | user asked; the studio intro already opens the game and black runs straight into it |
 | 2026-10-19 | Phase 20 "Relic balance and a clean Y screen" (11, 8.17, 8.18): 16 more Relics (8 new effects), drops 10% to 8%, a Relic bag of 10 picked on the main menu (new finds join it while there is room; a slot opening mid-run shows a note), the Y screen as four icon tabs with one info strip and toasts, Relic icons shaped by category | user picked every recommended option, approved the Relic list, and picked concept A (tabs) with concept B's info strip and shape icons; Relic levels and Echoes are for phase 21 and the remaining text clutter is phase 22 |
+| 2026-10-19 | Phase 21 "The roguelite pass" (8.19): Echoes are learned for good by filling a Relic's pips across runs and can then be worn in any run for Echo points, no Relic needed, one hero per Echo; Relic levels last one run; the bag starts at 3 and grows to 6 with Echoes learned; the grid backpack becomes Alder's pack with pockets; plus friends banking online, defence counts, Again, a starting pact, a crowned elite and priced stops | owner: levels kept forever made the game easier the more you played and relearning Echoes every run was busywork (#272); "learned is usable" was the owner's own reading (option A); the grid lost its job when the charms went. Dropped: new heroes, endless mode, a between-runs currency, a daily leaderboard (#267) |
 | 2026-10-19 | Phase 19 "Monsters and effects" (11): six new monsters in two batches, five new hero marks, one mark hit per monster in every fight but the first zone, Purify plus Antidote and Holy Water to lift them, area skills for Brin and Cass, more 3-monster fights | user asked for small fries, ranged-only and large monsters, status effects, a way to cleanse them and up to 3 monsters a fight; user picked every recommended option |

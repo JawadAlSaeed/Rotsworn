@@ -6,7 +6,7 @@
 script = ExtResource("1_s3ev6")
 id = "golden_idol"
 display_name = "Golden Idol"
-description = "Treasure. Sell it at a shop."
+description = "Treasure. It turns into gold the moment you find it."
 kind = 3
 rarity = 2
 price = 300

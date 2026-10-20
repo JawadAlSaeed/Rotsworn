@@ -67,7 +67,7 @@ func test_the_new_relics_say_what_they_do_and_have_a_stat_line() -> void:
 		assert_false(item.description.is_empty(), item.id)
 		assert_false(GearData.effect_text(item.effect, item.amount).is_empty(), item.id + " has an effect line")
 		assert_gt(item.stat_points, 0, item.id + " has a stat line")
-		assert_eq(item.echo_cost, int(item.rarity) + 1, item.id + ": Echo cost by rarity")
+		assert_between(item.echo_cost, 1, 4, item.id + ": an Echo cost (by strength since phase 21)")
 		var runs_in_fight := GearData.PASSIVE_KEYS.has(item.effect)
 		assert_true(runs_in_fight or item.effect == GearData.Effect.WIN_HEAL or item.effect == GearData.Effect.SPEED,
 				item.id + " does something")

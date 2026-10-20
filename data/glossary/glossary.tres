@@ -673,7 +673,7 @@ script = ExtResource("1_d4656")
 id = "stop_treasure"
 topic = "map"
 term = "Treasure stop"
-text = "A gold-banded chest. Open it for some gold and a prize: a piece of gear or an item."
+text = "Two chests, open one. The plain one holds gold and a rare item. The rotten one holds a Relic, but a curse or a fight may come with it."
 icon_path = "res://assets/sprites/ui/map_treasure.png"
 
 [sub_resource type="Resource" id="Resource_kghdt"]
@@ -681,7 +681,7 @@ script = ExtResource("1_d4656")
 id = "stop_rest"
 topic = "map"
 term = "Campfire stop"
-text = "A fire to gather round. Pick one thing: Rest, Train or Upgrade."
+text = "A fire to gather round. Pick one thing: Rest, Train or Upgrade. The campfire before the boss offers Rest, Keep watch (a full team gauge) or Sharpen (+1 AP for the boss fight)."
 icon_path = "res://assets/sprites/ui/map_rest.png"
 
 [sub_resource type="Resource" id="Resource_dyfhy"]
@@ -689,7 +689,7 @@ script = ExtResource("1_d4656")
 id = "stop_shop"
 topic = "map"
 term = "Shop stop"
-text = "The Rag Merchant sells items, charms and gear, and buys what your backpack holds."
+text = "The Rag Merchant sells items and Relics, and buys what your pack holds."
 icon_path = "res://assets/sprites/ui/map_shop.png"
 
 [sub_resource type="Resource" id="Resource_35qqt"]
@@ -744,7 +744,7 @@ script = ExtResource("1_d4656")
 id = "wanderer"
 topic = "zones"
 term = "Wanderer"
-text = "A traveller who turns up in some visits. Talk to them for a deal: the Key Peddler sells keys, the Grave Robber rare finds, the Old Pilgrim heals for free."
+text = "A traveller who turns up in some visits. Talk to them for a deal: the Key Peddler sells keys, the Grave Robber rare finds, the Old Pilgrim heals you for 20 gold."
 icon_path = "res://assets/sprites/env/wanderer_peddler.png"
 
 [sub_resource type="Resource" id="Resource_8xwyj"]
@@ -752,7 +752,7 @@ script = ExtResource("1_d4656")
 id = "glint"
 topic = "zones"
 term = "Glinting spot"
-text = "A sparkle on the ground. Walk up and pick it up for an item or some treasure. With no room, the backpack opens so you can make some."
+text = "A sparkle on the ground. Walk up and pick it up for an item or some gold. With no free pocket, the pack opens so you can swap or leave it."
 icon_path = "res://assets/sprites/fx/glint.png"
 
 [sub_resource type="Resource" id="Resource_nfl5o"]
@@ -774,8 +774,8 @@ text = "Every visit builds the zone from shuffled parts, so seals, shrines, wand
 script = ExtResource("1_d4656")
 id = "gear"
 topic = "gear"
-term = "Gear"
-text = "Worn by one hero: three slots each, one effect per piece (power, a counter bonus, AP at the start). Gear never goes in the backpack."
+term = "Relic"
+text = "Kept forever. Worn by one hero in a Relic slot (one at the start of a run, three by act 2): an effect and a small stat. Wear it in won fights to fill its pips and learn its Echo for good."
 icon_path = "res://assets/sprites/ui/gear_icon.png"
 
 [sub_resource type="Resource" id="Resource_faexo"]
@@ -790,8 +790,8 @@ color = Color(1, 0.8, 0.3, 1)
 script = ExtResource("1_d4656")
 id = "rot_touched"
 topic = "gear"
-term = "Rot-touched gear"
-text = "Strong gear with a price: a clear gain and a clear loss, written in plain words. Spoils from elites and bosses offer one. Take it with open eyes."
+term = "Rot-touched Relic"
+text = "A strong Relic with a price: a clear gain and a clear loss, written in plain words. Spoils from elites and bosses offer one. Take it with open eyes."
 tag = "rot-touched"
 color = Color(0.78, 0.4, 0.95, 1)
 
@@ -799,24 +799,24 @@ color = Color(0.78, 0.4, 0.95, 1)
 script = ExtResource("1_d4656")
 id = "backpack"
 topic = "gear"
-term = "Backpack"
-text = "A grid that holds consumables, charms, keys and treasure. Items have shapes you can turn, so where they sit matters. Open it from the party screen."
+term = "Pack"
+text = "Alder's pack: six pockets, one item each, whatever its shape. A Bigger Pack adds a pocket, up to eight. Open it from the party screen's Bag tab."
 icon_path = "res://assets/sprites/items/bigger_pack.png"
 
 [sub_resource type="Resource" id="Resource_m7iqa"]
 script = ExtResource("1_d4656")
 id = "charm"
 topic = "gear"
-term = "Charm"
-text = "Works just by sitting in the backpack, for the whole party. Charms belong to a family (Stone, Bone, Herb), and booster charms strengthen the family charms touching them."
+term = "Charm (gone)"
+text = "The old charms are gone since the Relics came: their best ideas became Relics, and the rotten ones became curses."
 icon_path = "res://assets/sprites/items/ember_stone.png"
 
 [sub_resource type="Resource" id="Resource_ufadv"]
 script = ExtResource("1_d4656")
 id = "rotten_item"
 topic = "gear"
-term = "Rotten item"
-text = "A very strong charm with a price: every hero loses a little HP at the start of each turn in a fight. It cannot be sold. Cleanse at a shop throws one away."
+term = "Curse"
+text = "Only hurts: every hero loses a little HP at the start of each of their turns in a fight. It takes a pocket and cannot be sold. A shop's Cleanse, or throwing it away, gets rid of it."
 icon_path = "res://assets/sprites/items/rotting_heart.png"
 color = Color(0.55, 0.85, 0.3, 1)
 
@@ -841,7 +841,7 @@ script = ExtResource("1_d4656")
 id = "key_treasure"
 topic = "gear"
 term = "Keys and treasure"
-text = "A Key opens one locked chest. Treasure (rings, gems, idols) does nothing but sell for gold, and it takes up room."
+text = "A Key opens one locked chest. Treasure (rings, gems, idols) turns into gold the moment you find it."
 icon_path = "res://assets/sprites/items/key.png"
 
 [sub_resource type="Resource" id="Resource_1pxyj"]
@@ -856,7 +856,7 @@ script = ExtResource("1_d4656")
 id = "shop"
 topic = "shops"
 term = "The Rag Merchant"
-text = "Sells items, charms and gear for gold, and buys backpack items for half their price. The shelves change at every shop."
+text = "Sells items and Relics for gold, and buys pack items for half their price. The shelves change at every shop."
 icon_path = "res://assets/sprites/env/shopkeeper.png"
 
 [sub_resource type="Resource" id="Resource_7lplp"]

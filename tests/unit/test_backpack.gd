@@ -1,9 +1,9 @@
 extends GutTest
-## The backpack (DESIGN.md 8.1): shapes turn and stay in the grid; items never overlap; the first
-## free place is found with any turn; items move, go and come back the same as plain data; the
-## run's ops (move, drop, use, gear swaps) work and refuse what no longer fits; finds and drops are
-## seeded; the shipped items, icons and glinting spots are sound; the party screen settles what is
-## in hand. Uses the shipped run with Tuning.new() for the rules (every Relic slot open: the slots
+## The pack (DESIGN.md 8.1, 8.19, card #282): Alder's pack with pockets, one item each whatever
+## its shape; the first free pocket; items go and come back the same as plain data, and an old grid
+## save turns into pockets; the run's ops (move, drop, use, gear swaps) work and refuse what no
+## longer fits; treasure turns into gold; finds and drops are seeded; the shipped items, icons and
+## glinting spots are sound; the party screen settles what is in hand. Uses the shipped run with Tuning.new() for the rules (every Relic slot open: the slots
 ## have their own tests in test_relics.gd).
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
@@ -35,69 +35,95 @@ func _by_id(items: Array) -> Dictionary:
 	return d
 
 
-# --- the grid ---------------------------------------------------------------------------------
+# --- the pockets ------------------------------------------------------------------------------
 
-func test_shapes_turn_clockwise_and_start_at_the_corner() -> void:
-	var l: Array[Vector2i] = [Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]
-	var once := Backpack.turned(l, 1)
-	once.sort()
-	assert_eq(once, [Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 0)] as Array[Vector2i])
-	var tall: Array[Vector2i] = [Vector2i(0, 0), Vector2i(0, 1)]
-	assert_eq(Backpack.extent(Backpack.turned(tall, 1)), Vector2i(2, 1), "a tall item lies down")
-	var back := Backpack.turned(l, 4)
-	back.sort()
-	assert_eq(back, l, "four turns are no turn")
-
-
-func test_items_stay_in_the_grid_and_never_overlap() -> void:
-	var pack := Backpack.new(4, 5)
-	var tall := _shape([Vector2i(0, 0), Vector2i(0, 1)])
-	assert_false(pack.fits(tall, 0, 4, 0), "sticks out of the bottom")
-	assert_false(pack.fits(tall, 3, 0, 1), "lying down, it sticks out of the side")
-	var uid := pack.add(tall, 0, 0, 0)
-	assert_gte(uid, 0)
-	assert_eq(pack.add(tall, 0, 1, 0), -1, "overlaps")
-	assert_eq(pack.uid_at(Vector2i(0, 1)), uid)
-	assert_eq(pack.uid_at(Vector2i(1, 1)), -1)
-	assert_eq(pack.free_cells(), 18)
-	assert_true(pack.move(uid, 0, 3, 0))
-	assert_true(pack.move(uid, 0, 2, 0), "it may move onto its own cells")
-	assert_eq(pack.remove(uid), tall)
-	assert_eq(pack.free_cells(), 20)
+func test_every_item_takes_one_pocket_whatever_its_shape() -> void:
+	var pack := Backpack.new(6)
+	var loaf := _shape([Vector2i(0, 0), Vector2i(1, 0)])
+	var ell := _shape([Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)])
+	assert_eq(pack.cell_count(), 6, "six pockets")
+	var a := pack.add(loaf, 0)
+	var b := pack.add(ell, 1)
+	assert_gte(a, 0)
+	assert_gte(b, 0)
+	assert_eq(pack.free_cells(), 4, "one pocket each")
+	assert_eq(pack.uid_at(Vector2i(1, 0)), b)
+	assert_eq(pack.uid_at(Vector2i(2, 0)), -1)
+	assert_eq(pack.add(loaf, 1), -1, "one item per pocket")
+	assert_false(pack.fits(loaf, 6), "no seventh pocket")
+	assert_false(pack.fits(loaf, 2, 1), "pockets are one row")
+	assert_true(pack.move(a, 5))
+	assert_true(pack.move(a, 5), "it may stay in its own pocket")
+	assert_false(pack.move(a, 1), "a taken pocket")
+	assert_eq(pack.remove(a), loaf)
+	assert_eq(pack.free_cells(), 5)
 
 
-func test_find_spot_turns_items_to_fit() -> void:
-	var pack := Backpack.new(2, 1)
-	var tall := _shape([Vector2i(0, 0), Vector2i(0, 1)])
-	assert_eq(pack.find_spot(tall), {"x": 0, "y": 0, "turn": 1}, "only fits lying down")
-	assert_gte(pack.add_anywhere(tall), 0)
-	assert_eq(pack.add_anywhere(_shape([Vector2i(0, 0)])), -1, "full")
+func test_find_spot_is_the_first_free_pocket() -> void:
+	var pack := Backpack.new(2)
+	var one := _shape([Vector2i(0, 0), Vector2i(0, 1)])
+	assert_eq(pack.find_spot(one), {"x": 0, "y": 0, "turn": 0})
+	assert_gte(pack.add_anywhere(one), 0)
+	assert_eq(pack.find_spot(one), {"x": 1, "y": 0, "turn": 0})
+	assert_gte(pack.add_anywhere(one), 0)
+	assert_eq(pack.add_anywhere(one), -1, "full")
 
 
 func test_backpack_round_trips_as_plain_data() -> void:
 	var a := _shape([Vector2i(0, 0)])
 	var b := _shape([Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)])
 	b.id = "ell"
-	var pack := Backpack.new(4, 5)
-	pack.add(a, 3, 4, 0)
-	pack.add(b, 0, 0, 2)
+	var pack := Backpack.new(6)
+	pack.add(a, 5)
+	pack.add(b, 0, 0, 0, 2)
 	var data := pack.to_array()
 	var copy := Backpack.from_array(data, _by_id([a, b]))
 	assert_not_null(copy)
 	assert_eq(copy.to_array(), data)
+	assert_eq(RunState.level_of(copy.entries[1]), 2)
 	assert_null(Backpack.from_array(data, _by_id([a])), "unknown item")
 	var bad := data.duplicate(true)
-	(bad[3] as Array).append([9, "test_1", 0, 0, 0])
-	assert_null(Backpack.from_array(bad, _by_id([a, b])), "overlapping items")
+	(bad[3] as Array).append([9, "test_1", 5, 0, 0])
+	assert_null(Backpack.from_array(bad, _by_id([a, b])), "two items in one pocket")
 	assert_null(Backpack.from_array("junk", {}), "malformed")
+
+
+func test_an_old_grid_save_turns_into_pockets() -> void:
+	var salve := _shape([Vector2i(0, 0)])
+	salve.id = "salve"
+	var feast := _shape([Vector2i(0, 0), Vector2i(1, 0)])
+	feast.id = "feast"
+	var key := _shape([Vector2i(0, 0), Vector2i(1, 0)])
+	key.id = "key"
+	var by_id := _by_id([salve, feast, key])
+	# Phase 11 to 20: a 4 x 5 grid; items anywhere, turned.
+	var old := [4, 5, 9, [[1, "salve", 2, 3, 0, 1], [2, "feast", 0, 0, 0, 0], [3, "key", 1, 4, 1]]]
+	var pack := Backpack.from_array(old, by_id, 6)
+	assert_not_null(pack, "an old save still loads")
+	assert_eq(pack.width, 6)
+	assert_eq(pack.rows, 1)
+	assert_eq(pack.uid_at(Vector2i(0, 0)), 2, "top row first")
+	assert_eq(pack.uid_at(Vector2i(1, 0)), 1)
+	assert_eq(pack.uid_at(Vector2i(2, 0)), 3)
+	assert_eq(RunState.level_of(pack.entry(1)), 1, "a combined item stays combined")
+	assert_eq(pack.next_uid, 9)
+	var bigger := Backpack.from_array([4, 7, 2, []], by_id, 6)
+	assert_eq(bigger.width, 8, "each Bigger Pack row became a pocket")
+	var crowded: Array = []
+	for i: int in 9:
+		crowded.append([i + 1, "salve", i % 4, i / 4, 0, 0])
+	var full := Backpack.from_array([4, 5, 10, crowded], by_id, 6)
+	assert_eq(full.width, 9, "nothing is lost: a crowded old pack gets a pocket for each item")
+	assert_eq(full.free_cells(), 0)
 
 
 # --- the run ----------------------------------------------------------------------------------
 
 func test_a_run_starts_with_an_empty_backpack_of_the_tuned_size() -> void:
 	var run := _run()
-	assert_eq(run.backpack.width, _tuning.backpack_width)
-	assert_eq(run.backpack.rows, _tuning.backpack_rows)
+	assert_eq(_tuning.backpack_pockets, 6)
+	assert_eq(run.backpack.width, _tuning.backpack_pockets)
+	assert_eq(run.backpack.rows, 1)
 	assert_eq(run.backpack.entries.size(), 0)
 
 
@@ -105,11 +131,11 @@ func test_ops_change_the_backpack_and_refuse_what_no_longer_fits() -> void:
 	var run := _run()
 	var salve := run.items_by_id()["salve"] as ItemData
 	var feast := run.items_by_id()["feast"] as ItemData
-	var a := run.place_item(salve, 0, 0, 0)
-	var b := run.place_item(feast, 2, 2, 0)
-	assert_true(run.apply_op({"op": "move", "uid": a, "x": 3, "y": 4, "turn": 0}))
-	assert_eq(run.backpack.uid_at(Vector2i(3, 4)), a)
-	assert_false(run.apply_op({"op": "move", "uid": a, "x": 3, "y": 2, "turn": 0}), "onto the feast")
+	var a := run.place_item(salve, 0)
+	var b := run.place_item(feast, 2)
+	assert_true(run.apply_op({"op": "move", "uid": a, "x": 5, "y": 0, "turn": 0}))
+	assert_eq(run.backpack.uid_at(Vector2i(5, 0)), a)
+	assert_false(run.apply_op({"op": "move", "uid": a, "x": 2, "y": 0, "turn": 0}), "onto the feast")
 	assert_false(run.apply_op({"op": "move", "uid": a, "x": "far"}), "malformed")
 	run.hp[0] = 1
 	assert_true(run.apply_op({"op": "use", "uid": a, "slot": 0}))
@@ -127,7 +153,7 @@ func test_ops_change_the_backpack_and_refuse_what_no_longer_fits() -> void:
 
 func test_the_backpack_goes_over_the_network() -> void:
 	var run := _run()
-	run.place_item(run.data.shop_items[1], 1, 1, 3)
+	run.place_item(run.data.shop_items[1], 1)
 	var copy := RunState.from_dict(run.data, _tuning, run.to_dict())
 	assert_not_null(copy)
 	assert_eq(copy.backpack.to_array(), run.backpack.to_array())
@@ -245,11 +271,11 @@ func test_keys_open_chests_once_and_chests_hold_rare_things() -> void:
 
 func test_selling_pays_and_removes() -> void:
 	var run := _run()
-	var gem := run.items_by_id()["rot_gem"] as ItemData
-	var uid := run.add_item(gem)
+	var bomb := run.items_by_id()["bomb"] as ItemData
+	var uid := run.add_item(bomb)
 	run.gold = 0
 	assert_true(run.apply_op({"op": "sell", "uid": uid}))
-	assert_eq(run.gold, CombatMath.percent(gem.price, _tuning.item_sell_percent))
+	assert_eq(run.gold, CombatMath.percent(bomb.price, _tuning.item_sell_percent))
 	assert_false(run.backpack.has_uid(uid))
 	assert_false(run.apply_op({"op": "sell", "uid": uid}), "already sold")
 
@@ -274,32 +300,24 @@ func _item_of(run: RunState, id: String) -> ItemData:
 	return run.items_by_id()[id] as ItemData
 
 
-func test_items_touch_side_by_side_not_by_corners() -> void:
-	var pack := Backpack.new(4, 5)
-	var one := _shape([Vector2i(0, 0)])
-	var a := pack.add(one, 1, 1, 0)
-	var right := pack.add(one, 2, 1, 0)
-	var corner := pack.add(one, 2, 2, 0)
-	assert_eq(pack.touching(a), [right] as Array[int])
-	assert_false(pack.touching(a).has(corner), "corners do not touch")
-
-
-func test_old_charms_are_faded_treasure_that_does_nothing_and_is_never_found() -> void:
+func test_treasure_turns_into_gold_at_once_and_takes_no_pocket() -> void:
 	var run := _run()
-	var power_before := run.power_percent(0)
-	var max_before := run.max_hp(0)
-	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
-	var gold_before := run.gold_for(husk)
+	run.gold = 0
+	var ring := _item_of(run, "silver_ring")
+	assert_eq(ring.kind, ItemData.Kind.TREASURE)
+	assert_eq(run.add_item(ring), 0, "taken, not packed")
+	assert_eq(run.gold, CombatMath.percent(ring.price, _tuning.item_sell_percent), "what selling it paid")
+	assert_eq(run.backpack.entries.size(), 0)
+	assert_eq(run.find_text(ring), "Silver Ring: +%d gold" % run.treasure_gold(ring))
+	assert_eq(run.find_text(_item_of(run, "salve")), "Found: Salve")
+
+
+func test_the_old_charms_are_gone() -> void:
+	# Phase 17 faded them to treasure; phase 21 (card #282) deleted them.
 	for id: String in ["ember_stone", "iron_stone", "lodestone", "knucklebone", "wolf_tooth", "bone_totem", "heartleaf",
 			"wake_root", "rain_pouch"]:
-		var item := _item_of(run, id)
-		assert_eq(item.kind, ItemData.Kind.TREASURE, "%s is treasure now (DESIGN.md 8.17)" % id)
-		assert_eq(item.find_weight, 0, "%s is never found again" % id)
-		assert_gt(item.price, 0, "%s still sells" % id)
-		run.add_item(item)
-	assert_eq(run.power_percent(0), power_before, "no buff from the backpack any more")
-	assert_eq(run.max_hp(0), max_before)
-	assert_eq(run.gold_for(husk), gold_before)
+		assert_false(ResourceLoader.exists("res://data/items/%s.tres" % id), "%s is gone" % id)
+		assert_false(_run().items_by_id().has(id))
 
 
 func test_curses_drain_in_fights_and_never_sell() -> void:
@@ -335,9 +353,9 @@ func test_rot_never_downs_a_hero() -> void:
 func test_two_of_the_same_combine_into_a_stronger_one() -> void:
 	var run := _run()
 	var salve := _item_of(run, "salve")
-	var a := run.place_item(salve, 0, 0, 0)
-	var b := run.place_item(salve, 1, 0, 0)
-	var tonic := run.place_item(_item_of(run, "tonic"), 3, 0, 0)
+	var a := run.place_item(salve, 0)
+	var b := run.place_item(salve, 1)
+	var tonic := run.place_item(_item_of(run, "tonic"), 3)
 	assert_false(run.can_combine(a, tonic), "different items")
 	assert_true(run.apply_op({"op": "combine", "uid": a, "into": b}))
 	assert_false(run.backpack.has_uid(a))
@@ -346,7 +364,7 @@ func test_two_of_the_same_combine_into_a_stronger_one() -> void:
 	assert_eq(RunState.entry_name(e), "Salve+")
 	assert_eq(RunState.entry_rarity(e), ItemData.Rarity.RARE)
 	assert_eq(run.entry_amount(e), CombatMath.percent(salve.amount_percent, 100 + _tuning.combine_bonus_percent))
-	var c := run.place_item(salve, 0, 0, 0)
+	var c := run.place_item(salve, 0)
 	assert_false(run.can_combine(c, b), "only the same level")
 	run.hp[0] = 1
 	run.use_item(b, 0)
@@ -358,34 +376,35 @@ func test_combining_stops_at_legendary_and_keys_never_combine() -> void:
 	var gem := _item_of(run, "rot_gem")
 	assert_false(gem.combinable(), "treasure does not combine")
 	var key := _item_of(run, "key")
-	var a := run.place_item(key, 0, 0, 0)
-	var b := run.place_item(key, 0, 1, 0)
+	var a := run.place_item(key, 0)
+	var b := run.place_item(key, 1)
 	assert_false(run.can_combine(a, b))
 	var salts := _item_of(run, "smelling_salts")
-	var s1 := run.place_item(salts, 0, 3, 0, 1)
-	var s2 := run.place_item(salts, 1, 3, 0, 1)
+	var s1 := run.place_item(salts, 2, 0, 0, 1)
+	var s2 := run.place_item(salts, 3, 0, 0, 1)
 	assert_false(run.can_combine(s1, s2), "rare + 1 level is legendary already")
 
 
 func test_levels_go_over_the_network() -> void:
 	var run := _run()
-	run.place_item(_item_of(run, "salve"), 2, 2, 0, 2)
+	run.place_item(_item_of(run, "salve"), 2, 0, 0, 2)
 	var copy := RunState.from_dict(run.data, _tuning, run.to_dict())
 	assert_eq(RunState.level_of(copy.backpack.entries[0]), 2)
 
 
-func test_a_bigger_pack_adds_a_row_up_to_the_max() -> void:
+func test_a_bigger_pack_adds_a_pocket_up_to_the_max() -> void:
 	var run := _run()
 	var pack := _item_of(run, "bigger_pack")
 	assert_true(run.wants(pack))
 	assert_gte(run.add_item(pack), 0, "used at once")
-	assert_eq(run.backpack.rows, _tuning.backpack_rows + 1)
+	assert_eq(run.backpack.width, _tuning.backpack_pockets + 1)
 	assert_eq(run.backpack.entries.size(), 0, "it is not kept")
-	while run.backpack.rows < _tuning.backpack_max_rows:
+	assert_eq(run.find_text(pack), "Bigger Pack: %d pockets" % (_tuning.backpack_pockets + 1))
+	while run.backpack.width < _tuning.backpack_max_pockets:
 		run.add_item(pack)
 	assert_false(run.wants(pack), "no use any more")
 	assert_false(run.take_upgrade(pack))
-	assert_eq(run.backpack.rows, _tuning.backpack_max_rows)
+	assert_eq(run.backpack.width, _tuning.backpack_max_pockets)
 
 
 func test_shops_and_finds_never_offer_curses_or_faded_charms() -> void:
@@ -399,6 +418,31 @@ func test_shops_and_finds_never_offer_curses_or_faded_charms() -> void:
 			assert_eq(item.find_weight, 0, "%s: curses come only from events" % item.id)
 
 
-func test_every_backpack_art_size_exists() -> void:
-	for rows: int in range(_tuning.backpack_rows, _tuning.backpack_max_rows + 1):
-		assert_true(ResourceLoader.exists("res://assets/sprites/ui/backpack_%d.png" % rows), "%d rows" % rows)
+func test_the_pack_art_exists() -> void:
+	var visuals := load("res://data/presentation/combat_visuals.tres") as CombatVisuals
+	assert_true(ResourceLoader.exists(visuals.backpack_art_path), "Alder's open pack")
+
+
+func test_the_bag_tab_puts_a_new_find_in_a_free_pocket_or_swaps_it() -> void:
+	var run := _run()
+	var salve := _item_of(run, "salve")
+	var bomb := _item_of(run, "bomb")
+	for i: int in run.backpack.width:
+		run.add_item(bomb)
+	var screen := PartyScreen.new()
+	add_child_autofree(screen)
+	screen.setup(run, "", {"item": salve})
+	var tab := screen.tab_node(PartyScreen.Tab.BAG) as BagTab
+	assert_true(tab.holding_new())
+	assert_eq(tab.info().chips.size() >= 2, true)
+	assert_true(String(tab.info().chips[1][1]).begins_with("Swap"), "a full pack offers a swap")
+	tab.handle_input(_press(&"menu_confirm"))
+	assert_true(tab.busy(), "asked first")
+	assert_true(tab.holding_new())
+
+
+func _press(action: StringName) -> InputEventAction:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = true
+	return event

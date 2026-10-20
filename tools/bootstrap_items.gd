@@ -2,9 +2,10 @@ extends SceneTree
 ## Creates the phase 11 backpack data (DESIGN.md 8.1): the items (Salve, Feast, Tonic, which used
 ## to be used the moment they were bought; Bomb, Smelling Salts, Key; treasure), the run's shop and
 ## found lists, the curses (Rotting Heart, Grave Moss: events' prices) and the Bigger Pack, and the
-## glinting spots and chests in the run's zones. Phase 17 took the charms out (DESIGN.md 8.17): their
-## files are written as faded treasure nobody finds any more, kept so older saves still load (the
-## best charm ideas became Relics: tools/bootstrap_relics.gd). Only writes item files that do not exist yet, and only gives a zone
+## glinting spots and chests in the run's zones. Phase 17 took the charms out (DESIGN.md 8.17; the
+## best charm ideas became Relics: tools/bootstrap_relics.gd) and phase 21 deleted their faded files
+## (card #282). Only adds items missing from the run's lists (later phases added their own). Only
+## writes item files that do not exist yet, and only gives a zone
 ## spots or chests if it has none, so edits made in the editor are never overwritten. Every spot and
 ## chest is checked against the zone's walls and props (one the leader cannot reach is an error).
 ## Run headless:
@@ -65,25 +66,18 @@ func _init() -> void:
 
 	var run := load(RUN_PATH) as RunData
 	# New typed arrays: a run saved before phase 11 holds a list typed for the old shop items.
-	var square: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]
-	var pole: Array[Vector2i] = [Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2)]
-	var bend: Array[Vector2i] = [Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1)]
-	var faded: Array[ItemData] = [
-		_faded("ember_stone", "Ember Stone", 50, one), _faded("iron_stone", "Iron Stone", 50, one),
-		_faded("lodestone", "Lodestone", 90, square), _faded("knucklebone", "Lucky Knucklebone", 45, one),
-		_faded("wolf_tooth", "Wolf Tooth", 50, one), _faded("bone_totem", "Bone Totem", 90, pole),
-		_faded("heartleaf", "Heartleaf", 50, one), _faded("wake_root", "Wake Root", 80, bend),
-		_faded("rain_pouch", "Rain Pouch", 80, one),
-	]
 	var heart := _curse("rotting_heart", "Rotting Heart", 3, one)
 	var moss := _curse("grave_moss", "Grave Moss", 2, wide)
 	var pack := _item("bigger_pack", "Bigger Pack", "The backpack gets one more row, at once.", 100, E.ADD_ROW, 0, one, 1,
 			K.UPGRADE, R.RARE, false, false)
 	var shop: Array[ItemData] = [salve, feast, tonic, bomb, salts, key, pack]
 	var found: Array[ItemData] = [salve, feast, tonic, bomb, salts, key, ring, gem, idol, heart, moss, pack]
-	found.append_array(faded)
-	run.shop_items = shop
-	run.found_items = found
+	for item: ItemData in shop:
+		if not run.shop_items.has(item):
+			run.shop_items.append(item)
+	for item: ItemData in found:
+		if not run.found_items.has(item):
+			run.found_items.append(item)
 	_check(ResourceSaver.save(run, RUN_PATH), RUN_PATH)
 	for zone: ZoneData in run.zones:
 		_add_spots(zone)
@@ -117,12 +111,6 @@ func _item(id: String, title: String, desc: String, price: int, effect: ItemData
 
 ## A charm from before phase 17, now faded treasure (DESIGN.md 8.17): no effect, never found again
 ## (find weight 0), only worth gold; kept so older saves that carry one still load.
-func _faded(id: String, title: String, price: int, shape: Array[Vector2i]) -> ItemData:
-	var item := _item(id, "Faded " + title, "An old charm. Its power faded when the Relics woke. Worth gold at a shop.",
-			price, E.NONE, 0, shape, 0, K.TREASURE, R.COMMON, false, false)
-	return item
-
-
 ## A curse (DESIGN.md 8.1, 8.7): rotten, every hero loses `rot` percent HP each turn in fights while
 ## it is carried; events give it as a price and a shop's Cleanse throws it away. Never found.
 func _curse(id: String, title: String, rot: int, shape: Array[Vector2i]) -> ItemData:

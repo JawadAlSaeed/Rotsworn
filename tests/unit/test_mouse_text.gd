@@ -363,15 +363,23 @@ func test_clicking_a_section_name_opens_it() -> void:
 	assert_eq(screen._section, SettingsScreen.Section.SOUND)
 
 
-# --- the backpack grid ----------------------------------------------------------------------
+# --- the pack's pockets ---------------------------------------------------------------------
 
-func test_a_point_finds_its_backpack_cell() -> void:
-	# 5 x 3 cells of 90 px, 10 px apart, the first at (20, 30).
-	var origin := Vector2(20, 30)
-	assert_eq(BackpackGrid.cell_index(Vector2(25, 35), origin, 90.0, 10.0, 5, 3), Vector2i(0, 0))
-	assert_eq(BackpackGrid.cell_index(Vector2(20 + 100 * 2 + 50, 30 + 100 + 5), origin, 90.0, 10.0, 5, 3), Vector2i(2, 1))
-	assert_eq(BackpackGrid.cell_index(Vector2(20 + 100 * 4 + 89, 30 + 100 * 2 + 89), origin, 90.0, 10.0, 5, 3), Vector2i(4, 2))
-	assert_eq(BackpackGrid.cell_index(Vector2(10, 35), origin, 90.0, 10.0, 5, 3), Vector2i(-1, -1), "left of the grid")
-	assert_eq(BackpackGrid.cell_index(Vector2(25, 20), origin, 90.0, 10.0, 5, 3), Vector2i(-1, -1), "above it")
-	assert_eq(BackpackGrid.cell_index(Vector2(20 + 100 * 5 + 5, 35), origin, 90.0, 10.0, 5, 3), Vector2i(-1, -1), "right of it")
-	assert_eq(BackpackGrid.cell_index(Vector2(25, 30 + 100 * 3 + 5), origin, 90.0, 10.0, 5, 3), Vector2i(-1, -1), "below it")
+func test_pockets_sit_in_rows_and_a_point_finds_its_pocket() -> void:
+	var visuals := load("res://data/presentation/combat_visuals.tres") as CombatVisuals
+	var grid := BackpackGrid.new()
+	add_child_autofree(grid)
+	grid.setup(Backpack.new(6), visuals, 8)
+	assert_eq(grid.columns(), visuals.backpack_pocket_columns)
+	var first := grid.pocket_rect(0)
+	var second := grid.pocket_rect(1)
+	var below := grid.pocket_rect(grid.columns())
+	assert_gt(second.position.x, first.end.x, "side by side with a gap")
+	assert_almost_eq(below.position.x, first.position.x, 0.01, "the next row starts under the first")
+	assert_gt(below.position.y, first.end.y)
+	assert_false(first.intersects(second))
+	var lining := Rect2(Vector2(visuals.backpack_grid_origin), Vector2(visuals.backpack_lining_art_px)) 			.grow(0.5)
+	var scale := float(visuals.backpack_art_scale)
+	for i: int in 8:
+		var art := Rect2(grid.pocket_rect(i).position / scale, grid.pocket_rect(i).size / scale)
+		assert_true(lining.encloses(art), "pocket %d is on the lining" % i)

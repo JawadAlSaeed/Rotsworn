@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EventChoiceData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="1_t5kss"]
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="2_on3ho"]
+
+[sub_resource type="Resource" id="Resource_o1gwe"]
+script = ExtResource("1_t5kss")
+id = "pact_borrowed_years"
+display_name = "Borrow years"
+cost_hp_percent = 40
+xp = 60
+
+[resource]
+script = ExtResource("2_on3ho")
+text = "Borrow years"
+deal = SubResource("Resource_o1gwe")
+done_text = "You feel older, and wiser."

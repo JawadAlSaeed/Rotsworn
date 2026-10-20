@@ -3,9 +3,10 @@ extends Resource
 ## One Relic (DESIGN.md 8.17; "gear" in the code, from before phase 17), like a Picto in Clair
 ## Obscur: a passive effect and a small stat line for the hero who wears it. Monsters drop them,
 ## spoils, shops and chests offer them, and the player keeps them forever (RelicCollection); a copy
-## raises a Relic's level, which grows its stat line. Each Relic is worn by one hero at a time.
-## Worn for a few won fights in a run it teaches its Echo: the effect without the stat line, worn
-## by any hero for `echo_cost` Echo points until the run ends.
+## found in a run raises its level for that run, which grows its stat line. Each Relic is worn by
+## one hero at a time. Worn in won fights, run after run, it fills its Echo pips and then teaches
+## its Echo for good (DESIGN.md 8.19): the effect without the stat line, worn by one hero for
+## `echo_cost` Echo points in any run.
 ## Rot-touched pieces (DESIGN.md 8.16) are strong but come with a price: a drawback, which is
 ## another effect worn as a loss (`drawback` / `drawback_amount`). Their Echo keeps the price.
 

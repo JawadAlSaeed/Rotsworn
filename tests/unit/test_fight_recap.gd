@@ -49,6 +49,19 @@ func test_defence_counts_only_enemy_attacks() -> void:
 	assert_eq([r.parried, r.dodged, r.jumped], [1, 1, 1])
 	assert_eq(r.hits_taken, 1)
 	assert_eq(r.hits_defended, 3)
+	assert_eq(r.heroes, [[1, 1, 0, 1], [0, 0, 1, 0]], "each hero's own: parried, dodged, jumped, taken (card #283)")
+	assert_eq(r.to_dict().heroes, r.heroes)
+
+
+func test_the_journal_counts_only_this_machines_heroes_online() -> void:
+	_mirror.journal.local_slots = [1] as Array[int]
+	_declare(1, 10, "Maul")
+	_resolve(1, 0, 1, Defense.Outcome.PARRY, 0)
+	_resolve(1, 1, 2, Defense.Outcome.DODGE, 0)
+	var maul: Dictionary = _mirror.journal.to_dict().enemies["husk"].attacks["maul"]
+	assert_eq(int(maul.parried), 0, "the Hero is another player's (card #283)")
+	assert_eq(int(maul.dodged), 1, "the Mage is ours")
+	assert_eq(int(maul.seen), 1, "the attack itself is still seen")
 
 
 func test_top_attack_adds_up_all_hits_of_one_attack() -> void:

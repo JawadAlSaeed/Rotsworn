@@ -41,8 +41,14 @@ func test_rows_and_stop_types() -> void:
 				assert_ne(type, RunMap.StopType.FINAL, "only the top is the final fight")
 				if r == 0:
 					assert_eq(type, RunMap.StopType.ZONE, "the run starts in zones")
-				if r == last - 1:
-					assert_eq(type, RunMap.StopType.REST, "a rest before the final fight")
+		# The campfire row is right before the final fight, or one row earlier (card #286).
+		var rest_rows := 0
+		for r: int in [last - 1, last - 2]:
+			var all_rest := true
+			for id: int in map.rows[r]:
+				all_rest = all_rest and int(map.stop(id).type) == RunMap.StopType.REST
+			rest_rows += 1 if all_rest else 0
+		assert_eq(rest_rows, 1, "seed %d: one campfire row before the final fight" % s)
 		assert_gt(map.count_type(RunMap.StopType.SHOP), 0, "seed %d has a shop" % s)
 		if is_failing():
 			return

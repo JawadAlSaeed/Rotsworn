@@ -55,14 +55,15 @@ const FADED := {
 ## The rotten charms, now curses: item id -> HP lost each turn, in percent.
 const CURSES := {"rotting_heart": 3, "grave_moss": 2}
 
-## Relic id -> [attribute (Attributes.Kind), stat points at level 1, Echo cost].
+## Relic id -> [attribute (Attributes.Kind), stat points at level 1, Echo cost]. Echo costs go by
+## strength, not rarity (phase 21, #280): extra AP and the big stat effects cost more.
 const RELICS := {
-	"iron_charm": [Attributes.Kind.VITALITY, 2, 1],
+	"iron_charm": [Attributes.Kind.VITALITY, 2, 2],
 	"lucky_coin": [Attributes.Kind.LUCK, 2, 1],
 	"menders_charm": [Attributes.Kind.VITALITY, 2, 1],
-	"quick_boots": [Attributes.Kind.AGILITY, 2, 1],
-	"thick_hide": [Attributes.Kind.DEFENSE, 2, 1],
-	"whetstone": [Attributes.Kind.MIGHT, 2, 1],
+	"quick_boots": [Attributes.Kind.AGILITY, 2, 2],
+	"thick_hide": [Attributes.Kind.DEFENSE, 2, 2],
+	"whetstone": [Attributes.Kind.MIGHT, 2, 2],
 	"echo_charm": [Attributes.Kind.AGILITY, 3, 2],
 	"keen_eye": [Attributes.Kind.LUCK, 3, 2],
 	"leaping_heart": [Attributes.Kind.VITALITY, 3, 2],
@@ -80,14 +81,14 @@ const RELICS := {
 	"plague_bell": [Attributes.Kind.LUCK, 3, 2],
 	"thorned_gauntlet": [Attributes.Kind.DEFENSE, 3, 2],
 	"second_wind": [Attributes.Kind.VITALITY, 4, 3],
-	"oathbreakers_band": [Attributes.Kind.AGILITY, 4, 3],
+	"oathbreakers_band": [Attributes.Kind.AGILITY, 4, 4],
 	"rotten_crown": [Attributes.Kind.MIGHT, 4, 3],
 	"heartleaf": [Attributes.Kind.VITALITY, 2, 1],
-	"wake_root": [Attributes.Kind.AGILITY, 3, 2],
+	"wake_root": [Attributes.Kind.AGILITY, 3, 3],
 	"ember_stone": [Attributes.Kind.LUCK, 2, 1],
 	"rain_pouch": [Attributes.Kind.VITALITY, 2, 1],
 	"black_ichor": [Attributes.Kind.MIGHT, 3, 2],
-	"gravebloom": [Attributes.Kind.AGILITY, 3, 2],
+	"gravebloom": [Attributes.Kind.AGILITY, 3, 3],
 	# Phase 19: the Relics against marks (card #263), written by hand in data/gear/.
 	"wardstone": [Attributes.Kind.VITALITY, 2, 1],
 	"bitter_root": [Attributes.Kind.VITALITY, 2, 1],
@@ -102,7 +103,7 @@ const RELICS := {
 	"butchers_edge": [Attributes.Kind.LUCK, 4, 3],
 	"still_water": [Attributes.Kind.DEFENSE, 3, 2],
 	"bramble_coat": [Attributes.Kind.VITALITY, 2, 1],
-	"fox_step": [Attributes.Kind.AGILITY, 2, 1],
+	"fox_step": [Attributes.Kind.AGILITY, 2, 3],
 	"marrow_charm": [Attributes.Kind.DEFENSE, 2, 1],
 	"bone_whistle": [Attributes.Kind.MIGHT, 2, 1],
 	"tallow_candle": [Attributes.Kind.VITALITY, 3, 2],
@@ -217,9 +218,12 @@ func _write_new_relics() -> void:
 
 
 ## The old charms become faded treasure nobody finds any more; the rotten ones become curses.
+## Phase 21 (card #282) deleted the faded files, so they are skipped now.
 func _fade_charms() -> void:
 	for id: String in FADED:
 		var path := ITEM_DIR + id + ".tres"
+		if not ResourceLoader.exists(path):
+			continue
 		var item := load(path) as ItemData
 		if item == null:
 			continue

@@ -4,7 +4,9 @@ extends RefCounted
 ## from the run save and the Journal. Written like them: the new file goes to a temp file first, the
 ## old one is kept as a backup until the new one is in place, and a load falls back to the backup if
 ## the main file is gone or broken. Every function takes the path so tests never touch the player's
-## real file. A file of another FORMAT_VERSION is refused and left alone (never written over).
+## real file. A file of format 1 (phase 17 to 20: levels kept forever) loads and is written back as
+## the current format (RelicCollection.from_dict converts it); a file of any other format is refused
+## and left alone (never written over).
 
 const PATH := "user://progress.json"
 const TEMP_SUFFIX := ".tmp"
@@ -50,15 +52,16 @@ static func load_or_empty(path: String = PATH) -> RelicCollection:
 	return load_collection(path).collection as RelicCollection
 
 
-## Takes a run's Relics into the file: load, merge, save; Relics found for the first time join the
-## bag while it holds fewer than `bag_size`. False if nothing was written (nothing new, the file
-## belongs to another version, or it could not be saved).
-static func bank(run_levels: Dictionary, path: String = PATH, bag_size: int = 0) -> bool:
+## Takes a run into the file: load, merge, save (RelicCollection.merge: the Relics found and each
+## one's Echo pips); Relics found for the first time join the bag while it has room by `tuning`
+## (null: never). False if nothing was written (nothing new, the file belongs to another version,
+## or it could not be saved).
+static func bank(found_ids: Array, run_pips: Dictionary, path: String = PATH, tuning: Tuning = null) -> bool:
 	var loaded := load_collection(path)
 	if loaded.status == REJECTED and bool(loaded.keep):
 		return false
 	var collection: RelicCollection = loaded.collection
-	if not collection.merge(run_levels, bag_size):
+	if not collection.merge(found_ids, run_pips, tuning):
 		return false
 	return save(collection, path)
 
@@ -85,7 +88,7 @@ static func _read(path: String) -> Dictionary:
 	var format: Variant = body.get("format")
 	if typeof(format) != TYPE_FLOAT and typeof(format) != TYPE_INT:
 		return _rejected("the file is damaged", false)
-	if int(format) != RelicCollection.FORMAT_VERSION:
+	if int(format) != RelicCollection.FORMAT_VERSION and int(format) != RelicCollection.LEGACY_FORMAT:
 		return _rejected("it was saved by another version of the game", true)
 	if not body.get("relics") is Dictionary:
 		return _rejected("the file is damaged", false)

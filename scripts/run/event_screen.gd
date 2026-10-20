@@ -115,6 +115,11 @@ func rows() -> Array[Dictionary]:
 	return _menu.items
 
 
+## The event shown (null on an ambush page).
+func event() -> EventData:
+	return _event
+
+
 ## How many choices the event has (not counting Leave).
 func choice_count() -> int:
 	return _event.choices.size() if _event != null and not _ambush_page else 0

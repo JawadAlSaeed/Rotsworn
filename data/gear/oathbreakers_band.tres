@@ -16,4 +16,4 @@ drawback = 22
 drawback_amount = 5
 stat = 2
 stat_points = 4
-echo_cost = 3
+echo_cost = 4

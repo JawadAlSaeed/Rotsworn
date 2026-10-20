@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventChoiceData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="1_bgwus"]
+[ext_resource type="Script" path="res://scripts/data/event_choice_data.gd" id="2_hywmc"]
+
+[sub_resource type="Resource" id="Resource_pq3fu"]
+script = ExtResource("1_bgwus")
+id = "pact_crown_of_ash"
+display_name = "Take the crown of ash"
+cost_max_hp_percent = 25
+cost_max_hp_target = 1
+relic_rarity = 2
+
+[resource]
+script = ExtResource("2_hywmc")
+text = "Take the crown of ash"
+deal = SubResource("Resource_pq3fu")
+done_text = "It fits too well."

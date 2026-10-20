@@ -6,7 +6,7 @@
 script = ExtResource("1_24dmd")
 id = "bigger_pack"
 display_name = "Bigger Pack"
-description = "The backpack gets one more row, at once."
+description = "The pack gets one more pocket, at once."
 kind = 4
 rarity = 1
 price = 100

@@ -1,12 +1,13 @@
 class_name EchoesScreen
 extends CanvasLayer
 ## A hero's Echoes (DESIGN.md 8.17), laid out like Expedition 33's Lumina page. Left: tabs (All,
-## Offensive, Defensive, Support; LT / RT), the sort (X / R: name or cost), and the Echoes this run
-## has learned in three columns, each with its cost in Echo points (the ones this hero wears in
+## Offensive, Defensive, Support; LT / RT), the sort (X / R: name or cost), and every Echo learned
+## for good (DESIGN.md 8.19: any of them can be worn, Relic or none) in three columns, each with its cost in Echo points (the ones this hero wears in
 ## purple). Under them: the Echo under the cursor, and the worn Relics still being learned. Right:
 ## the hero (LB / RB changes hero), their combat stats, their attributes as a radar, the Echoes they
 ## wear and their free Echo points. Confirm puts the Echo under the cursor on or takes it off.
-## Echoes, their mastery and the points start over every run. Opened from the party screen (the
+## Each Echo goes on one hero at a time. The worn Echoes and the points start over every run; the
+## learned Echoes stay. Opened from the party screen (the
 ## Echoes button on a hero card). Online, a client's changes go to the host as RunState ops.
 
 signal done
@@ -373,8 +374,8 @@ func _redraw_detail() -> void:
 		return
 	if item == null:
 		_detail.text = "No Echoes learned yet" if _run.learned_echoes().is_empty() else "Nothing in this tab"
-		_detail_more.text = "Wear a Relic for %d won fights to learn its Echo: its effect without the stat line, " \
-				% _run.tuning.mastery_needed + "for any hero to wear with Echo points. Echoes are learned again every run."
+		_detail_more.text = "Wear a Relic in won fights to fill its %d pips. Then its Echo is learned for good: " \
+				% _run.tuning.mastery_needed + "its effect without the stat line, for one hero to wear with Echo points."
 		return
 	var head := PackedStringArray([item.display_name, "%d pt%s" % [item.echo_cost, "" if item.echo_cost == 1 else "s"],
 			GearData.CATEGORY_NAMES[item.category()]])
@@ -400,8 +401,8 @@ func _learning_text() -> String:
 				parts.append("%s %d / %d" % [(item as GearData).display_name, _run.mastery_of(item as GearData),
 						_run.tuning.mastery_needed])
 	if parts.is_empty():
-		return "Echoes are learned again every run. Level ups give Echo points."
-	return "Learning: " + ", ".join(parts) + ".   Echoes are learned again every run."
+		return "Learned Echoes are kept for good. Level ups give Echo points."
+	return "Learning: " + ", ".join(parts) + ".   Learned Echoes are kept for good."
 
 
 ## The right side: the hero, their stats, attributes, worn Echoes and free Echo points.

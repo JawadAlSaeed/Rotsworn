@@ -1,13 +1,13 @@
 class_name BagTab
 extends PartyTab
-## The Y screen's Bag tab (DESIGN.md 8.1, 8.18): the shared backpack in the middle, the heroes as
-## small faces with their HP on the left (who an item is used on), and on the right how full the
-## pack is, the curses, and the item menu. The rules are the old party screen's: Confirm on an item
-## opens Use / Sell (in a shop) / Move / Throw away; Use on one hero moves the cursor to the faces
-## to pick who. X / R picks an item straight up to move it and puts it down again; LB / RB (Z / C)
-## turn the item in hand. It goes down where it fits, or onto the same item to combine them into a
-## stronger one. The screen can open with a new item in hand (a find that did not fit): it is
-## placed, swapped with the one item it covers, or left behind (asked first).
+## The Y screen's Bag tab (DESIGN.md 8.1, 8.18, 8.19): Alder's pack in the middle, its pockets
+## sewn on the lining (one item each, card #282), the heroes as small faces with their HP on the
+## left (who an item is used on), and on the right how many pockets are free, the curses, and the
+## item menu. Confirm on an item opens Use / Combine (with another of the same) / Sell (in a shop)
+## / Throw away; Use on one hero moves the cursor to the faces to pick who. The screen can open
+## with a new item in hand (a find with no free pocket): Confirm puts it in a free pocket, combines
+## it with the same item, or swaps it for the item in that pocket (asked first: the old one is
+## thrown away); Back leaves it behind (asked first).
 ## What used to be sentences in a note line are now toasts: an icon and a word or two.
 
 ## A new item in hand was left behind (it is not in the backpack).
@@ -36,14 +36,14 @@ const GREYED_ALPHA: float = 0.45
 var shop_mode: bool = false
 ## Choosing who gets an item (its uid; -1: not choosing): the cursor is on the faces.
 var _use_uid: int = -1
-## In hand: {} or {item: ItemData, uid: int (-1: new), turn: int, level: int}.
+## A new item in hand: {} or {item: ItemData, uid: -1, level: int}.
 var _held: Dictionary = {}
 var _warning: String = ""
 var _grid: BackpackGrid
 var _faces_box: Control
 var _side_box: Control
 var _menu: ListMenu
-## Choices of the open item menu: "use", "sell", "move", "drop", "cancel".
+## Choices of the open item menu: "use", "combine", "sell", "drop", "cancel".
 var _menu_choices: Array[String] = []
 var _prompt: ConfirmPrompt
 ## The frame a prompt was answered in: a second press in that frame (another pad) is dropped.
@@ -61,7 +61,7 @@ func setup(p_run: RunState, p_remote: bool) -> void:
 	add_child(_faces_box)
 	_grid = BackpackGrid.new()
 	add_child(_grid)
-	_grid.setup(run.backpack, _visuals())
+	_grid.setup(run.backpack, _visuals(), run.tuning.backpack_max_pockets)
 	_place_grid()
 	_side_box = Control.new()
 	_side_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -78,14 +78,11 @@ func setup(p_run: RunState, p_remote: bool) -> void:
 
 
 func refresh() -> void:
-	if not _held.is_empty() and int(_held.uid) >= 0 and not run.backpack.has_uid(int(_held.uid)):
-		# Someone else (online) moved or used it meanwhile: let go.
-		_held = {}
 	if _use_uid >= 0 and not run.backpack.has_uid(_use_uid):
 		_use_uid = -1
 	if _menu.visible and not run.backpack.has_uid(int(_menu.get_meta("uid", -1))):
 		_menu.visible = false
-	_grid.setup(run.backpack, _visuals())
+	_grid.setup(run.backpack, _visuals(), run.tuning.backpack_max_pockets)
 	_place_grid()
 	_clamp_cursor()
 	_redraw()
@@ -98,9 +95,9 @@ func shown() -> void:
 ## A new item is in hand (a find that did not fit, a swap, loot). `refund`: a shop purchase,
 ## whose gold comes back if it is left.
 func hold_new(item: ItemData, refund: bool = false) -> void:
-	_held = {"item": item, "uid": -1, "turn": 0, "level": 0}
+	_held = {"item": item, "uid": -1, "level": 0}
 	_refund_item = item if refund else null
-	_grid.cursor = Vector2i.ZERO
+	_grid.cursor = 0
 	_clamp_cursor()
 	_redraw()
 
@@ -144,30 +141,15 @@ func handle_input(event: InputEvent) -> bool:
 		return _target_input(event)
 	if event is InputEventMouse and _mouse_input(event):
 		return true
-	var step := Vector2i.ZERO
+	var step := 0
 	if pressed(event, &"menu_left"):
-		step.x = -1
+		step = -1
 	elif pressed(event, &"menu_right"):
-		step.x = 1
+		step = 1
 	elif pressed(event, &"menu_up"):
-		step.y = -1
+		step = -_grid.columns()
 	elif pressed(event, &"menu_down"):
-		step.y = 1
-	elif pressed(event, &"item_move"):
-		if _held.is_empty():
-			_lift_here()
-		else:
-			_confirm_grid()
-		return true
-	elif pressed(event, &"item_turn_left") or pressed(event, &"item_turn_right"):
-		if _held.is_empty():
-			return false
-		_held.turn = posmod(int(_held.turn) + (-1 if event.is_action(&"item_turn_left") else 1), 4)
-		_clamp_cursor()
-		Sfx.play("item_turn")
-		_redraw()
-		changed.emit()
-		return true
+		step = _grid.columns()
 	elif pressed(event, &"menu_confirm"):
 		_confirm_grid()
 		return true
@@ -178,8 +160,10 @@ func handle_input(event: InputEvent) -> bool:
 		return true
 	else:
 		return false
-	_grid.cursor += step
-	_clamp_cursor()
+	var to := _grid.cursor + step
+	if to < 0 or to >= run.backpack.width:
+		return true
+	_grid.cursor = to
 	Sfx.play("menu_move")
 	_redraw()
 	changed.emit()
@@ -192,12 +176,9 @@ func hints() -> Array:
 	if _menu.visible:
 		return [[&"@updown", ""], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]]
 	if not _held.is_empty():
-		return [[&"item_move", "Put down"], [&"item_turn_left", ""], [&"item_turn_right", "Turn"],
-				[&"menu_cancel", "Leave it" if holding_new() else "Put back"]]
-	var entries: Array = [[&"@arrows", ""], [&"menu_confirm", "Choose"]]
-	if run.backpack.uid_at(_grid.cursor) >= 0:
-		entries.append([&"item_move", "Move"])
-	return entries
+		var put := "Combine" if _combine_target() >= 0 else ("Put in" if _pocket_uid() < 0 else "Swap")
+		return [[&"@arrows", ""], [&"menu_confirm", put], [&"menu_cancel", "Leave it"]]
+	return [[&"@arrows", ""], [&"menu_confirm", "Choose"]]
 
 
 func info() -> Dictionary:
@@ -212,23 +193,22 @@ func info() -> Dictionary:
 		var chips: Array = [[&"", "In hand", HudStyle.GOLD]]
 		if item == _refund_item:
 			chips.append([&"coin", "Refund", HudStyle.GOLD])
-		var fits := run.backpack.fits(item, _grid.cursor.x, _grid.cursor.y, int(_held.turn), int(_held.uid))
 		if _combine_target() >= 0:
 			chips.append([&"up", "Combine", HudStyle.GOLD])
-		elif not fits and holding_new() and _covered(item, _grid.cursor, int(_held.turn)).size() == 1:
-			chips.append([&"", "Swap", HudStyle.TEXT])
-		elif not fits:
-			chips.append([&"", "No room", HudStyle.HP_LOW])
+		elif _pocket_uid() >= 0:
+			chips.append([&"", "Swap: " + RunState.entry_name(run.backpack.entry(_pocket_uid())), HudStyle.HP_LOW])
+		else:
+			chips.append([&"bag", "Free", HudStyle.TEXT])
 		return {"icon": item, "title": item.display_name + "+".repeat(int(_held.get("level", 0))),
 				"color": _item_color(item, int(item.rarity)), "chips": chips, "line": item.description}
-	var uid := run.backpack.uid_at(_grid.cursor)
+	var uid := _pocket_uid()
 	if uid < 0:
 		var chips: Array = [[&"bag", "%d / %d" % [run.backpack.free_cells(), run.backpack.cell_count()], HudStyle.TEXT]]
 		var line := ""
 		if run.rot_percent() > 0:
 			chips.append([&"skull", "-%d%% HP" % run.rot_percent(), BackpackGrid.ROTTEN_COLOR])
 			line = "Curses hurt every hero each turn in fights. A shop's Cleanse throws one away."
-		return {"icon": &"bag", "title": "Backpack", "color": HudStyle.GOLD, "chips": chips, "line": line}
+		return {"icon": &"bag", "title": "Pocket", "color": HudStyle.GOLD, "chips": chips, "line": line}
 	var placed := run.backpack.entry(uid)
 	var it := placed.item as ItemData
 	var rarity := RunState.entry_rarity(placed)
@@ -253,48 +233,35 @@ func _item_color(item: ItemData, rarity: int) -> Color:
 
 # --- input --------------------------------------------------------------------------------------
 
-## The mouse over the backpack grid (card #202) and, while choosing who, over the faces.
+## The mouse over the pockets (card #202) and, while choosing who, over the faces.
 func _mouse_input(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion:
 		var hovered := _grid.cell_at((event as InputEventMouse).position)
-		if hovered.x >= 0:
-			var before := _grid.cursor
+		if hovered >= 0 and hovered != _grid.cursor:
 			_grid.cursor = hovered
-			_clamp_cursor()
-			if _grid.cursor == before:
-				return false
 			Sfx.play("menu_move")
 			_redraw()
 			changed.emit()
 			return true
 	elif MenuMouse.is_click(event):
 		var clicked := _grid.cell_at((event as InputEventMouse).position)
-		if clicked.x >= 0:
+		if clicked >= 0:
 			_grid.cursor = clicked
-			_clamp_cursor()
 			_confirm_grid()
 			return true
 	return false
 
 
-func _lift_here() -> void:
-	var uid := run.backpack.uid_at(_grid.cursor)
-	if uid < 0:
-		Sfx.play("locked")
-		return
-	var e := run.backpack.entry(uid)
-	_held = {"item": e.item, "uid": uid, "turn": int(e.turn), "level": RunState.level_of(e)}
-	_grid.cursor = Vector2i(int(e.x), int(e.y))
-	Sfx.play("item_lift")
-	_redraw()
-	changed.emit()
+## The uid of the item in the pocket under the cursor (-1: empty).
+func _pocket_uid() -> int:
+	return run.backpack.uid_at(Vector2i(_grid.cursor, 0))
 
 
+## Confirm on a pocket: its item's menu; with a new item in hand, put it in, combine it, or swap
+## it for the item there (asked first: that one is thrown away).
 func _confirm_grid() -> void:
-	var pack := run.backpack
-	var cell := _grid.cursor
+	var at := _pocket_uid()
 	if _held.is_empty():
-		var at := pack.uid_at(cell)
 		if at < 0:
 			Sfx.play("locked")
 			return
@@ -302,73 +269,48 @@ func _confirm_grid() -> void:
 		_open_menu(at)
 		return
 	var item := _held.item as ItemData
-	var turn := int(_held.turn)
-	var uid := int(_held.uid)
+	var level := int(_held.get("level", 0))
 	var into := _combine_target()
 	if into >= 0:
-		var name := RunState.entry_name(pack.entry(into))
-		if uid >= 0:
-			ask({"op": "combine", "uid": uid, "into": into})
-		else:
-			run.combine_new(item, into)
-		_held = {}
-		toast.emit(name + "+", item)
-		Sfx.play("item_combine")
-		_redraw()
-		changed.emit()
-		if uid < 0:
-			settled.emit()
+		var name := RunState.entry_name(run.backpack.entry(into))
+		run.combine_new(item, into)
+		_settle(name + "+", "item_combine")
 		return
-	if uid >= 0:
-		var e := pack.entry(uid)
-		if int(e.x) == cell.x and int(e.y) == cell.y and int(e.turn) == turn:
-			_held = {}
-		elif pack.fits(item, cell.x, cell.y, turn, uid):
-			ask({"op": "move", "uid": uid, "x": cell.x, "y": cell.y, "turn": turn})
-			_held = {}
-		else:
-			Sfx.play("item_no_room")
-			return
-		Sfx.play("item_place")
-		_redraw()
-		changed.emit()
+	if at < 0:
+		run.place_item(item, _grid.cursor, 0, 0, level)
+		_settle("Packed", "item_place")
 		return
-	# Something new in hand (host only): place it, or swap it with the one item it covers.
-	if pack.fits(item, cell.x, cell.y, turn):
-		run.place_item(item, cell.x, cell.y, turn, int(_held.get("level", 0)))
-		toast.emit("Packed", item)
-		_held = {}
-		Sfx.play("item_place")
-		_redraw()
-		changed.emit()
-		settled.emit()
-		return
-	var covered := _covered(item, cell, turn)
-	if covered.size() == 1 and pack.fits(item, cell.x, cell.y, turn, covered[0]):
-		var other := pack.entry(covered[0])
-		var other_level := RunState.level_of(other)
-		var other_item := pack.remove(covered[0])
-		run.place_item(item, cell.x, cell.y, turn, int(_held.get("level", 0)))
-		_held = {"item": other_item, "uid": -1, "turn": int(other.turn), "level": other_level}
-		toast.emit("Swapped", other_item)
-		Sfx.play("item_lift")
-		_clamp_cursor()
-		_redraw()
-		changed.emit()
-		return
-	Sfx.play("item_no_room")
+	var old := run.backpack.entry(at)
+	var old_name := RunState.entry_name(old)
+	var pocket := _grid.cursor
+	_confirm_prompt("Swap the %s for the %s?" % [old_name, item.display_name], "The %s is thrown away." % old_name,
+			"Swap", "Keep it", func() -> void:
+				if not run.backpack.has_uid(at):
+					return
+				run.drop_item(at)
+				run.place_item(item, pocket, 0, 0, level)
+				_settle("Swapped", "item_place"))
 
 
-## The item the one in hand would combine into if put down now (-1: none): the item under the
-## cursor, the same item at the same level, that can still go up a level.
+## The new item in hand went into the pack.
+func _settle(word: String, sound: String) -> void:
+	var item := _held.item as ItemData
+	_held = {}
+	toast.emit(word, item)
+	Sfx.play(sound)
+	_redraw()
+	changed.emit()
+	settled.emit()
+
+
+## The item the new one in hand would combine into if put down now (-1: none): the item in the
+## pocket under the cursor, the same item at the same level, that can still go up a level.
 func _combine_target() -> int:
 	if _held.is_empty():
 		return -1
-	var into := run.backpack.uid_at(_grid.cursor)
+	var into := _pocket_uid()
 	if into < 0:
 		return -1
-	if int(_held.uid) >= 0:
-		return into if run.can_combine(int(_held.uid), into) else -1
 	if int(_held.get("level", 0)) != RunState.level_of(run.backpack.entry(into)):
 		return -1
 	var target := run.backpack.entry(into)
@@ -377,24 +319,17 @@ func _combine_target() -> int:
 	return into if ok else -1
 
 
-## The uids of the items `item` would overlap at `cell` turned `turn` times.
-func _covered(item: ItemData, cell: Vector2i, turn: int) -> Array[int]:
-	var found: Array[int] = []
-	for c: Vector2i in Backpack.cells_at(item, cell.x, cell.y, turn):
-		var uid := run.backpack.uid_at(c)
-		if uid >= 0 and not found.has(uid):
-			found.append(uid)
-	return found
+## Another item in the pack that item `uid` can be combined with (-1: none): the same item at the
+## same level.
+func _combine_partner(uid: int) -> int:
+	for e: Dictionary in run.backpack.entries:
+		if int(e.uid) != uid and run.can_combine(int(e.uid), uid):
+			return int(e.uid)
+	return -1
 
 
-## Back with an item in hand: a moved one goes back; a new one is left behind (asked first).
+## Back with a new item in hand: it is left behind (asked first).
 func _cancel_held() -> void:
-	if not holding_new():
-		_held = {}
-		Sfx.play("menu_cancel")
-		_redraw()
-		changed.emit()
-		return
 	var item := _held.item as ItemData
 	var detail := "Your gold comes back." if item == _refund_item else "It does not go in the backpack."
 	_confirm_prompt("Leave the %s behind?" % item.display_name, detail,
@@ -418,11 +353,12 @@ func _open_menu(uid: int) -> void:
 	if item.usable_on_map():
 		_menu_choices.append("use")
 		items.append({"text": "Use"})
+	if _combine_partner(uid) >= 0:
+		_menu_choices.append("combine")
+		items.append({"text": "Combine", "value": RunState.entry_name(placed) + "+"})
 	if shop_mode and item.price > 0 and not item.rotten:
 		_menu_choices.append("sell")
 		items.append({"text": "Sell", "value": "+%d" % run.sell_price(run.entry_price(placed))})
-	_menu_choices.append("move")
-	items.append({"text": "Move"})
 	_menu_choices.append("drop")
 	items.append({"text": "Throw away"})
 	_menu_choices.append("cancel")
@@ -464,10 +400,12 @@ func _menu_input(event: InputEvent) -> void:
 						sold.emit()
 					Sfx.play("gold_gain")
 					toast.emit("+%d" % gold, &"coin")
-				"move":
-					_held = {"item": item, "uid": uid, "turn": int(e.turn), "level": RunState.level_of(e)}
-					_grid.cursor = Vector2i(int(e.x), int(e.y))
-					Sfx.play("item_lift")
+				"combine":
+					var other := _combine_partner(uid)
+					if other >= 0:
+						ask({"op": "combine", "uid": other, "into": uid})
+						Sfx.play("item_combine")
+						toast.emit(RunState.entry_name(e) + "+", item)
 				"drop":
 					_confirm_prompt("Throw away the %s?" % item.display_name, "It is gone for good.", "Throw it away",
 							"Keep it", func() -> void:
@@ -584,7 +522,7 @@ func _visuals() -> CombatVisuals:
 	return visuals if visuals != null else CombatVisuals.new()
 
 
-## Centres the backpack on the page, shrunk to fit its height (a 7-row pack is taller than it).
+## Centres the pack on the page, shrunk to fit its height.
 func _place_grid() -> void:
 	var art := _grid.custom_minimum_size
 	var fit := minf(1.0, (PAGE_SIZE.y - 10.0) / maxf(1.0, art.y))
@@ -594,12 +532,7 @@ func _place_grid() -> void:
 
 
 func _clamp_cursor() -> void:
-	var pack := run.backpack
-	var ext := Vector2i.ONE
-	if not _held.is_empty():
-		ext = Backpack.extent(Backpack.turned((_held.item as ItemData).shape, int(_held.turn)))
-	_grid.cursor = Vector2i(clampi(_grid.cursor.x, 0, maxi(0, pack.width - ext.x)),
-			clampi(_grid.cursor.y, 0, maxi(0, pack.rows - ext.y)))
+	_grid.cursor = clampi(_grid.cursor, 0, maxi(0, run.backpack.width - 1))
 
 
 func _redraw() -> void:
@@ -607,13 +540,7 @@ func _redraw() -> void:
 		return
 	_grid.combine_into = _combine_target()
 	_grid.show_cursor = not _menu.visible and _use_uid < 0
-	if not _held.is_empty():
-		_grid.held_item = _held.item
-		_grid.held_turn = int(_held.turn)
-		_grid.held_uid = int(_held.uid)
-	else:
-		_grid.held_item = null
-		_grid.held_uid = -1
+	_grid.held_item = _held.item if not _held.is_empty() else null
 	_grid.queue_redraw()
 	_draw_faces()
 	_draw_side()
@@ -670,7 +597,7 @@ func _draw_side() -> void:
 		y += 56.0
 
 
-## The side column: free cells, and the curses' rot when there are any.
+## The side column: free pockets, and the curses' rot when there are any.
 func _side_rows() -> Array:
 	var rows: Array = [[&"bag", "%d / %d" % [run.backpack.free_cells(), run.backpack.cell_count()], HudStyle.TEXT]]
 	if run.rot_percent() > 0:

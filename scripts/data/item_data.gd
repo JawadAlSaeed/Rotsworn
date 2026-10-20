@@ -35,7 +35,8 @@ enum Effect {
 	DAMAGE_ALL,
 	## In a fight: brings a downed ally back with `amount_percent` of their max HP.
 	REVIVE_ONE,
-	## The backpack gets one more row (up to tuning.backpack_max_rows).
+	## The pack gets one more pocket (up to tuning.backpack_max_pockets; the name is from the old
+	## grid's rows).
 	ADD_ROW,
 	## In a fight: lifts `cleanse_count` marks from one hero (Antidote, card #254), then heals
 	## `amount_percent` of their max HP (0 = no heal).
@@ -101,6 +102,10 @@ func usable_in_fight() -> bool:
 			Effect.REVIVE_ONE, Effect.CLEANSE_ONE, Effect.CLEANSE_ALL]
 
 
-## The width and height of its unturned shape in cells.
+## The width and height of its shape in 16 px icon cells (its picture's size; since phase 21 every
+## item takes one pocket whatever its shape, card #282).
 func size() -> Vector2i:
-	return Backpack.extent(shape)
+	var extent := Vector2i.ONE
+	for c: Vector2i in shape:
+		extent = Vector2i(maxi(extent.x, c.x + 1), maxi(extent.y, c.y + 1))
+	return extent

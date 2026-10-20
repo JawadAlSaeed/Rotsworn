@@ -1,16 +1,17 @@
 class_name RelicsScreen
 extends CanvasLayer
 ## The Relics page (DESIGN.md 8.17), laid out like Expedition 33's Pictos page. Left: every Relic as
-## a slanted card in a two-column grid (its diamond, name, level, and the face of the hero who has
-## it), sorted by level, name or rarity (X / R). Right: the hero shown (LB / RB changes hero) and
+## a slanted card in a two-column grid (its diamond, name, level in a run or Echo pips on the main
+## menu, and the face of the hero who has it), sorted by level (pips), name or rarity (X / R). Right: the hero shown (LB / RB changes hero) and
 ## their three Relic slots as big cards (diamond, name, stat line, level, what it does). Under the
 ## grid: everything about the Relic under the cursor.
 ## Up / down picks a slot; Confirm opens the grid to choose a Relic for it (a Relic another hero has
 ## moves over), X / R takes it off. In the grid Confirm puts the Relic on, Back goes back to the
 ## slots.
 ## Two uses: the main menu (setup), where the right side is the Relic bag (card #265): the Relics
-## the team brings into the next run, Confirm on a card puts it in or takes it out (Relics not found
-## yet show as "???" with the monsters that drop them); and a run (setup_run, from the party
+## the team brings into the next run (its size grows with the Echoes learned, card #266), Confirm on
+## a card puts it in or takes it out (Relics not found yet show as "???" with the monsters that drop
+## them), and each card shows its Echo pips (DESIGN.md 8.19); and a run (setup_run, from the party
 ## screen's Relic slots), where the slots are the ones the hero wears now (locked ones say what
 ## opens them) and each card shows its Echo's progress. In a run an online client's changes go to
 ## the host as RunState ops (op_requested).
@@ -158,8 +159,19 @@ func _owns(item: GearData) -> bool:
 	return _run.owns(item) if _run != null else _collection.owns(item.id)
 
 
+## In a run the Relic's level; on the main menu its Echo pips (levels last one run, #280).
 func _level(item: GearData) -> int:
-	return _run.relic_level(item) if _run != null else _collection.level_of(item.id)
+	return _run.relic_level(item) if _run != null else _collection.pips_of(item.id)
+
+
+## Main menu: how many Relics the bag holds now (card #266).
+func _bag_size() -> int:
+	return _collection.bag_size(_tuning) if _collection != null else 0
+
+
+## Main menu: true if the Relic's Echo is learned for good.
+func _learned(item: GearData) -> bool:
+	return _collection != null and _collection.is_learned(item.id, _tuning.mastery_needed)
 
 
 ## The hero who wears the Relic in a run, or -1 (always -1 on the main menu: the bag is the team's).
@@ -273,8 +285,8 @@ func _toggle_bag(item: GearData) -> bool:
 		_redraw()
 		return false
 	var was_in := _collection.in_bag(item.id)
-	if not _collection.toggle_bag(item.id, _tuning.relic_bag_size):
-		_warning = "The bag is full. Take a Relic out first."
+	if not _collection.toggle_bag(item.id, _bag_size()):
+		_warning = "The bag is full. Take a Relic out first. It grows as you learn Echoes."
 		Sfx.play("locked")
 		_redraw()
 		return false
@@ -535,7 +547,8 @@ func _redraw() -> void:
 	for child: Node in _sort_box.get_children():
 		_sort_box.remove_child(child)
 		child.free()
-	_sort_box.add_child(HintBar.entry_row(&"item_move", "Sort: %s" % SORT_NAMES[_sort], TEXT_SIZE, HudStyle.TEXT))
+	var sort_name := SORT_NAMES[_sort] if _run != null or _sort != Sort.LEVEL else "Echo"
+	_sort_box.add_child(HintBar.entry_row(&"item_move", "Sort: %s" % sort_name, TEXT_SIZE, HudStyle.TEXT))
 	_found.text = "Found %d of %d" % [_found_count(), _relics.size()]
 	_redraw_grid()
 	_redraw_hero()
@@ -592,7 +605,7 @@ func _grid_card(item: GearData, chosen: bool) -> Control:
 	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(fill)
 	if known:
-		line.add_child(_level_box(_level(item), SMALL_SIZE, LEVEL_SIZE))
+		line.add_child(_level_box(item, SMALL_SIZE, LEVEL_SIZE))
 	if holder >= 0:
 		var c := _party[holder]
 		line.add_child(HudStyle.portrait_frame(AssetLoader.texture(c.portrait_path, Vector2i(48, 48)), c.color, FACE_PX, 1))
@@ -611,16 +624,20 @@ func _name_color(item: GearData) -> Color:
 	return BackpackGrid.rarity_color(BackpackGrid.gear_step(item)).lightened(0.15)
 
 
-## "Lv" over the level, right-aligned.
-func _level_box(level: int, small: int, big: int) -> Control:
+## "Lv" over the Relic's level in a run, right-aligned; on the main menu "Echo" over its pips
+## ("7/12"), gold once the Echo is learned for good.
+func _level_box(item: GearData, small: int, big: int) -> Control:
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_theme_constant_override("separation", -6)
-	var lv := HudStyle.make_label("Lv", small, HudStyle.TEXT_DIM)
+	var at_home := _run == null
+	var lv := HudStyle.make_label("Echo" if at_home else "Lv", small, HudStyle.TEXT_DIM)
 	lv.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(lv)
-	var number := HudStyle.make_number(str(level), big, HudStyle.TEXT)
+	var text := "%d/%d" % [_level(item), _tuning.mastery_needed] if at_home else str(_level(item))
+	var number := HudStyle.make_number(text, big if not at_home else big - 8,
+			HudStyle.GOLD if at_home and _learned(item) else HudStyle.TEXT)
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(number)
 	return box
@@ -668,14 +685,17 @@ func _redraw_bag() -> void:
 	_hero_box.add_child(names)
 	var ids := _collection.bag_ids()
 	names.add_child(HudStyle.make_worn_title("Relic bag", HERO_SIZE, HudStyle.GOLD))
-	names.add_child(HudStyle.make_number("%d / %d" % [ids.size(), _tuning.relic_bag_size], TEXT_SIZE, HudStyle.TEXT))
+	names.add_child(HudStyle.make_number("%d / %d" % [ids.size(), _bag_size()], TEXT_SIZE, HudStyle.TEXT))
+	if _bag_size() < _tuning.relic_bag_max:
+		names.add_child(HudStyle.make_label("+1 for every %d Echoes learned" % _tuning.relic_bag_echoes_per_slot,
+				SMALL_SIZE, HudStyle.TEXT_DIM))
 	var grid := GridContainer.new()
 	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	grid.columns = BAG_COLUMNS
 	grid.add_theme_constant_override("h_separation", 16)
 	grid.add_theme_constant_override("v_separation", 8)
 	_slots_box.add_child(grid)
-	for i: int in _tuning.relic_bag_size:
+	for i: int in _bag_size():
 		grid.add_child(_bag_card(_by_id(ids[i]) if i < ids.size() else null))
 
 
@@ -705,7 +725,7 @@ func _bag_card(item: GearData) -> Control:
 	name.clip_text = true
 	line.add_child(name)
 	if item != null:
-		line.add_child(_level_box(_level(item), SMALL_SIZE - 2, LEVEL_SIZE - 6))
+		line.add_child(_level_box(item, SMALL_SIZE - 2, LEVEL_SIZE - 6))
 	return panel
 
 
@@ -747,7 +767,7 @@ func _slot_card(slot: int) -> Control:
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(name)
 	if item != null:
-		top.add_child(_level_box(_level(item), SMALL_SIZE, SLOT_LEVEL_SIZE))
+		top.add_child(_level_box(item, SMALL_SIZE, SLOT_LEVEL_SIZE))
 	var stat := HudStyle.make_label(_slot_stats(item), TEXT_SIZE - 2, HudStyle.TEXT)
 	col.add_child(stat)
 	var text := HudStyle.make_label(_slot_text(item, slot), SMALL_SIZE + 2, HudStyle.TEXT_DIM)
@@ -762,7 +782,7 @@ func _slot_stats(item: GearData) -> String:
 	if item == null:
 		return ""
 	var parts := PackedStringArray()
-	var stat := item.stat_text(_level(item))
+	var stat := item.stat_text(_level(item) if _run != null else 1)
 	if not stat.is_empty():
 		parts.append(stat)
 	if _run != null:
@@ -803,9 +823,14 @@ func _redraw_detail() -> void:
 		_detail.text = "%s  (not found yet)" % UNKNOWN
 		_detail_more.text = "Dropped by: %s." % ", ".join(PackedStringArray(_droppers.get(item.id, ["no one yet"])))
 		return
-	var head := PackedStringArray([item.display_name, "Lv %d" % _level(item)])
-	if not item.stat_text(_level(item)).is_empty():
-		head.append(item.stat_text(_level(item)))
+	var level := _level(item) if _run != null else 1
+	var head := PackedStringArray([item.display_name])
+	if _run != null:
+		head.append("Lv %d" % level)
+	else:
+		head.append("Echo learned" if _learned(item) else "Echo %d/%d" % [_level(item), _tuning.mastery_needed])
+	if not item.stat_text(level).is_empty():
+		head.append(item.stat_text(level))
 	head.append("Echo %d pt%s" % [item.echo_cost, "" if item.echo_cost == 1 else "s"])
 	var holder := _holder(item)
 	if holder >= 0:
@@ -815,10 +840,12 @@ func _redraw_detail() -> void:
 	_detail.text = "    ".join(head)
 	var more := item.description
 	if _run != null:
-		more += "\n" + ("Its Echo is learned this run: any hero can wear it." if _run.echo_learned(item)
-				else "Wear it for %d more won fights to learn its Echo this run." % _run.fights_to_learn(item))
-	elif _level(item) < _tuning.relic_max_level:
-		more += "\nA copy raises it to level %d." % (_level(item) + 1)
+		more += "\n" + ("Its Echo is learned: any hero can wear it for Echo points." if _run.echo_learned(item)
+				else "Wear it for %d more won fights to learn its Echo for good." % _run.fights_to_learn(item))
+	elif _learned(item):
+		more += "\nIts Echo is learned for good: in a run, any hero can wear it for Echo points."
+	else:
+		more += "\nWear it in won fights, run after run, to learn its Echo for good."
 	_detail_more.text = more
 
 

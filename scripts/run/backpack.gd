@@ -1,150 +1,88 @@
 class_name Backpack
 extends RefCounted
-## The party's shared backpack (DESIGN.md 8.1): a grid `width` cells wide and `rows` tall. Each
-## item covers the cells of its shape, turned in 90 degree steps, and no two items overlap. Pure
-## and unit-tested; the backpack screen only calls these functions and draws the result.
-## Every placed item has a uid that stays the same while it is moved, so online players can name
-## it in a request even after other items moved.
+## The party's shared pack (DESIGN.md 8.1, 8.19, card #282): Alder's pack with `width` pockets in a
+## row, one item per pocket whatever its shape (no shapes, no turning since phase 21). Pure and
+## unit-tested; the Bag tab only calls these functions and draws the result.
+## Every item has a uid that stays the same while it is in the pack, so online players can name it
+## in a request even after other items moved. Cells are kept as Vector2i(pocket, 0) so the ops and
+## saves of the old grid keep their shape.
 
-var width: int = 4
-var rows: int = 5
-## Every placed item: {uid: int, item: ItemData, x: int, y: int, turn: int (0 to 3), level: int
-## (0, or higher once combined: DESIGN.md 8.1)}.
+## Pockets (the old grid's width). `rows` is always 1 now; an older save's grid is turned into
+## pockets by from_array.
+var width: int = 6
+var rows: int = 1
+## Every item: {uid: int, item: ItemData, x: int (its pocket), y: 0, turn: 0, level: int (0, or
+## higher once combined: DESIGN.md 8.1)}.
 var entries: Array[Dictionary] = []
 var next_uid: int = 1
 
 
-func _init(p_width: int = 4, p_rows: int = 5) -> void:
-	width = p_width
-	rows = p_rows
+func _init(p_pockets: int = 6) -> void:
+	width = maxi(1, p_pockets)
+	rows = 1
 
 
-## `cells` turned clockwise `turn` times (on screen, y down), moved so the top-left is (0, 0).
-static func turned(cells: Array[Vector2i], turn: int) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	for c: Vector2i in cells:
-		var p := c
-		for i: int in posmod(turn, 4):
-			p = Vector2i(-p.y, p.x)
-		out.append(p)
-	if out.is_empty():
-		return out
-	var low := out[0]
-	for p: Vector2i in out:
-		low = Vector2i(mini(low.x, p.x), mini(low.y, p.y))
-	for i: int in out.size():
-		out[i] -= low
-	return out
-
-
-## Width and height of a set of cells (from (0, 0)).
-static func extent(cells: Array[Vector2i]) -> Vector2i:
-	var size := Vector2i.ZERO
-	for c: Vector2i in cells:
-		size = Vector2i(maxi(size.x, c.x + 1), maxi(size.y, c.y + 1))
-	return size
-
-
-## The grid cells `item` would cover with its top-left at (x, y), turned `turn` times.
-static func cells_at(item: ItemData, x: int, y: int, turn: int) -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	for c: Vector2i in turned(item.shape, turn):
-		out.append(c + Vector2i(x, y))
-	return out
+## The pocket `item` would sit in with its pocket at x: one pocket, whatever its shape.
+static func cells_at(_item: ItemData, x: int, y: int, _turn: int = 0) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = [Vector2i(x, y)]
+	return cells
 
 
 func cell_count() -> int:
-	return width * rows
+	return width
 
 
-## The uid of the item covering `cell` (-1: empty or off the grid).
+## The uid of the item in pocket `cell` (-1: empty or no such pocket).
 func uid_at(cell: Vector2i) -> int:
 	for e: Dictionary in entries:
-		if cells_at(e.item as ItemData, int(e.x), int(e.y), int(e.turn)).has(cell):
+		if int(e.x) == cell.x and cell.y == 0:
 			return int(e.uid)
 	return -1
 
 
-## True if `item` fits with its top-left at (x, y), turned `turn` times: inside the grid and over
-## no other item (the item `ignore_uid` does not count, so an item can move onto its own cells).
-func fits(item: ItemData, x: int, y: int, turn: int, ignore_uid: int = -1) -> bool:
-	if item == null or item.shape.is_empty():
+## True if `item` fits in pocket x (y must be 0): a pocket of the pack that holds nothing (the
+## item `ignore_uid` does not count, so an item can stay in its own pocket).
+func fits(item: ItemData, x: int, y: int = 0, _turn: int = 0, ignore_uid: int = -1) -> bool:
+	if item == null or x < 0 or x >= width or y != 0:
 		return false
-	var taken := {}
-	for e: Dictionary in entries:
-		if int(e.uid) == ignore_uid:
-			continue
-		for c: Vector2i in cells_at(e.item as ItemData, int(e.x), int(e.y), int(e.turn)):
-			taken[c] = true
-	for c: Vector2i in cells_at(item, x, y, turn):
-		if c.x < 0 or c.y < 0 or c.x >= width or c.y >= rows or taken.has(c):
-			return false
-	return true
+	var at := uid_at(Vector2i(x, 0))
+	return at < 0 or at == ignore_uid
 
 
-## The first place `item` fits, row by row from the top-left, trying each turn: {x, y, turn},
-## or {} if it fits nowhere.
+## The first free pocket for `item`: {x, y: 0, turn: 0}, or {} if the pack is full.
 func find_spot(item: ItemData) -> Dictionary:
 	if item == null:
 		return {}
-	var tried: Array = []
-	for turn: int in 4:
-		var shape := turned(item.shape, turn)
-		shape.sort()
-		if tried.has(shape):
-			continue
-		tried.append(shape)
-		for y: int in rows:
-			for x: int in width:
-				if fits(item, x, y, turn):
-					return {"x": x, "y": y, "turn": turn}
+	for x: int in width:
+		if fits(item, x):
+			return {"x": x, "y": 0, "turn": 0}
 	return {}
 
 
-## Places `item` at (x, y) turned `turn` times. Returns its uid, or -1 if it does not fit.
-func add(item: ItemData, x: int, y: int, turn: int, level: int = 0) -> int:
-	if not fits(item, x, y, turn):
+## Puts `item` in pocket x. Returns its uid, or -1 if that pocket is taken or not there.
+func add(item: ItemData, x: int, y: int = 0, _turn: int = 0, level: int = 0) -> int:
+	if not fits(item, x, y):
 		return -1
 	var uid := next_uid
 	next_uid += 1
-	entries.append({"uid": uid, "item": item, "x": x, "y": y, "turn": posmod(turn, 4), "level": maxi(0, level)})
+	entries.append({"uid": uid, "item": item, "x": x, "y": 0, "turn": 0, "level": maxi(0, level)})
 	return uid
 
 
-## Places `item` wherever it fits first (find_spot). Returns its uid, or -1 if there is no room.
+## Puts `item` in the first free pocket. Returns its uid, or -1 if the pack is full.
 func add_anywhere(item: ItemData, level: int = 0) -> int:
 	var spot := find_spot(item)
 	if spot.is_empty():
 		return -1
-	return add(item, int(spot.x), int(spot.y), int(spot.turn), level)
+	return add(item, int(spot.x), 0, 0, level)
 
 
-## The uids of the items whose cells touch item `uid`'s cells side by side (not corner to corner).
-func touching(uid: int) -> Array[int]:
+## Moves item `uid` to pocket x. False (and nothing moves) if that pocket is taken.
+func move(uid: int, x: int, y: int = 0, _turn: int = 0) -> bool:
 	var e := entry(uid)
-	var found: Array[int] = []
-	if e.is_empty():
-		return found
-	var mine := cells_at(e.item as ItemData, int(e.x), int(e.y), int(e.turn))
-	for other: Dictionary in entries:
-		if int(other.uid) == uid:
-			continue
-		for c: Vector2i in cells_at(other.item as ItemData, int(other.x), int(other.y), int(other.turn)):
-			if mine.has(c + Vector2i.UP) or mine.has(c + Vector2i.DOWN) or mine.has(c + Vector2i.LEFT) \
-					or mine.has(c + Vector2i.RIGHT):
-				found.append(int(other.uid))
-				break
-	return found
-
-
-## Moves item `uid` to (x, y) turned `turn` times. False (and nothing moves) if it does not fit.
-func move(uid: int, x: int, y: int, turn: int) -> bool:
-	var e := entry(uid)
-	if e.is_empty() or not fits(e.item as ItemData, x, y, turn, uid):
+	if e.is_empty() or not fits(e.item as ItemData, x, y, 0, uid):
 		return false
 	e.x = x
-	e.y = y
-	e.turn = posmod(turn, 4)
 	return true
 
 
@@ -158,7 +96,7 @@ func remove(uid: int) -> ItemData:
 	return null
 
 
-## The entry of item `uid` ({} if there is none). Changing it changes the backpack.
+## The entry of item `uid` ({} if there is none). Changing it changes the pack.
 func entry(uid: int) -> Dictionary:
 	for e: Dictionary in entries:
 		if int(e.uid) == uid:
@@ -170,26 +108,24 @@ func has_uid(uid: int) -> bool:
 	return not entry(uid).is_empty()
 
 
-## How many of the grid's cells are free.
+## How many pockets are free.
 func free_cells() -> int:
-	var used := 0
-	for e: Dictionary in entries:
-		used += (e.item as ItemData).shape.size()
-	return cell_count() - used
+	return maxi(0, width - entries.size())
 
 
-## Plain data for online play and saving: [width, rows, next_uid,
-## [[uid, id, x, y, turn, level], ...]].
+## Plain data for online play and saving: [pockets, 1, next_uid, [[uid, id, x, 0, 0, level], ...]].
 func to_array() -> Array:
 	var list: Array = []
 	for e: Dictionary in entries:
-		list.append([int(e.uid), (e.item as ItemData).id, int(e.x), int(e.y), int(e.turn), int(e.get("level", 0))])
-	return [width, rows, next_uid, list]
+		list.append([int(e.uid), (e.item as ItemData).id, int(e.x), 0, 0, int(e.get("level", 0))])
+	return [width, 1, next_uid, list]
 
 
-## A backpack from to_array() data; `by_id` maps item ids to ItemData. Null if the data is
-## malformed, names an unknown item, or has items that overlap or stick out.
-static func from_array(d: Variant, by_id: Dictionary) -> Backpack:
+## A pack from to_array() data; `by_id` maps item ids to ItemData. Null if the data is malformed,
+## names an unknown item, or puts two items in one pocket. Data from before phase 21 (a grid with
+## more than one row) becomes `legacy_pockets` pockets, one more for each row its Bigger Packs
+## added past `legacy_rows`, and never fewer than it has items: they go in, top row first.
+static func from_array(d: Variant, by_id: Dictionary, legacy_pockets: int = 6, legacy_rows: int = 5) -> Backpack:
 	if not d is Array or (d as Array).size() != 4:
 		return null
 	var a := d as Array
@@ -198,7 +134,8 @@ static func from_array(d: Variant, by_id: Dictionary) -> Backpack:
 			return null
 	if not a[3] is Array:
 		return null
-	var pack := Backpack.new(int(a[0]), int(a[1]))
+	var rows_saved := int(a[1])
+	var list: Array = []
 	for row: Variant in a[3]:
 		if not row is Array or (row as Array).size() < 5 or (row as Array).size() > 6:
 			return null
@@ -210,11 +147,25 @@ static func from_array(d: Variant, by_id: Dictionary) -> Backpack:
 		for i: int in [0, 2, 3, 4, 5]:
 			if typeof(r[i]) != TYPE_INT:
 				return null
-		var item := by_id[String(r[1])] as ItemData
-		if pack.has_uid(int(r[0])) or not pack.fits(item, int(r[2]), int(r[3]), int(r[4])):
-			return null
-		pack.entries.append({"uid": int(r[0]), "item": item, "x": int(r[2]), "y": int(r[3]), "turn": posmod(int(r[4]), 4),
-				"level": maxi(0, int(r[5]))})
+		list.append(r)
+	var pack: Backpack
+	if rows_saved == 1:
+		pack = Backpack.new(int(a[0]))
+		for r: Array in list:
+			var item := by_id[String(r[1])] as ItemData
+			if pack.has_uid(int(r[0])) or not pack.fits(item, int(r[2]), int(r[3])):
+				return null
+			pack.entries.append({"uid": int(r[0]), "item": item, "x": int(r[2]), "y": 0, "turn": 0, "level": maxi(0, int(r[5]))})
+	else:
+		# The old grid: its items in reading order, one pocket each.
+		list.sort_custom(func(p: Array, q: Array) -> bool:
+			return int(p[3]) < int(q[3]) or (int(p[3]) == int(q[3]) and int(p[2]) < int(q[2])))
+		pack = Backpack.new(maxi(legacy_pockets + maxi(0, rows_saved - legacy_rows), list.size()))
+		for r: Array in list:
+			if pack.has_uid(int(r[0])):
+				return null
+			pack.entries.append({"uid": int(r[0]), "item": by_id[String(r[1])] as ItemData, "x": pack.entries.size(),
+					"y": 0, "turn": 0, "level": maxi(0, int(r[5]))})
 	pack.next_uid = int(a[2])
 	for e: Dictionary in pack.entries:
 		pack.next_uid = maxi(pack.next_uid, int(e.uid) + 1)

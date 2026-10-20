@@ -12,3 +12,4 @@ effect = 10
 amount = 15
 stat = 3
 stat_points = 2
+echo_cost = 2

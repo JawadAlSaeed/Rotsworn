@@ -28,3 +28,11 @@ extends Resource
 ## The difficulty ladder (DESIGN.md 8.15), in order: Oath 1 is index 0. A run at Oath N has the
 ## rules of oaths 1 to N. Empty: no ladder.
 @export var oaths: Array[OathData] = []
+
+@export_group("Starting pact (card #285, DESIGN.md 8.19)")
+## Before the first stop of a run (not a first-ever run) the host may take one of
+## tuning.run_pact_choices of these, picked by the run's seed, or none. Each is good for a real price.
+@export var pacts: Array[EventChoiceData] = []
+@export var pact_title: String = "The Crossroads"
+@export_multiline var pact_text: String = ""
+@export_file("*.png") var pact_picture_path: String = ""

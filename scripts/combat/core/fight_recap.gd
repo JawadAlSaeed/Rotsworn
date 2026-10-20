@@ -19,6 +19,8 @@ var jumped: int = 0
 ## Enemy hits the party defended / took, in hits (not attacks).
 var hits_defended: int = 0
 var hits_taken: int = 0
+## Per party slot (the mirror's party order): [parried, dodged, jumped, hits taken] (card #283).
+var heroes: Array = []
 
 ## Sequence number -> {name, source, amount}: damage dealt so far by that attack.
 var _attacks: Dictionary = {}
@@ -33,6 +35,8 @@ func feed(ev: Dictionary, mirror: CombatMirror) -> void:
 			_reset()
 			for id: int in mirror.enemy_ids:
 				enemies.append(String(mirror.fighter(id).get("display_name", "")))
+			for id: int in mirror.party_ids:
+				heroes.append([0, 0, 0, 0])
 		"prompt_resolved":
 			_on_prompt(ev, mirror)
 		"damage":
@@ -55,17 +59,23 @@ func _on_prompt(ev: Dictionary, mirror: CombatMirror) -> void:
 		return
 	var target := int(ev.character)
 	var amount := int(ev.get("damage", 0))
+	var slot := mirror.party_ids.find(target)
+	var mine: Array = heroes[slot] if slot >= 0 and slot < heroes.size() else [0, 0, 0, 0]
 	match int(ev.outcome):
 		Defense.Outcome.PARRY:
 			parried += 1
+			mine[0] = int(mine[0]) + 1
 		Defense.Outcome.DODGE:
 			dodged += 1
+			mine[1] = int(mine[1]) + 1
 		Defense.Outcome.JUMP:
 			jumped += 1
+			mine[2] = int(mine[2]) + 1
 	if int(ev.outcome) != Defense.Outcome.NONE:
 		hits_defended += 1
 	if amount > 0:
 		hits_taken += 1
+		mine[3] = int(mine[3]) + 1
 		_hit(target, {"name": String(seq.get("name", "")), "source": _name(mirror, int(seq.get("source", -1))),
 				"target": _name(mirror, target), "amount": amount}, int(ev.seq))
 
@@ -97,6 +107,7 @@ func _reset() -> void:
 	jumped = 0
 	hits_defended = 0
 	hits_taken = 0
+	heroes.clear()
 	_attacks.clear()
 	_last_hit.clear()
 
@@ -105,7 +116,7 @@ func _reset() -> void:
 func to_dict() -> Dictionary:
 	return {"enemies": enemies.duplicate(), "top_attack": top_attack.duplicate(), "last_blow": last_blow.duplicate(),
 			"parried": parried, "dodged": dodged, "jumped": jumped,
-			"hits_defended": hits_defended, "hits_taken": hits_taken}
+			"hits_defended": hits_defended, "hits_taken": hits_taken, "heroes": heroes.duplicate(true)}
 
 
 ## "Husk x2, Gnat" for a list of names (equal names grouped, first-seen order).

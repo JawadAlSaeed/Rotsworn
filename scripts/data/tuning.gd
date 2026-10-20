@@ -368,6 +368,22 @@ extends Resource
 ## Relics: a guard's loot offers this many to pick one from; a shop sells this many (phase 17:
 ## the shelves' charms are gone, DESIGN.md 8.17).
 @export_range(1, 6) var run_loot_choices: int = 3
+## The map's campfire row is one row earlier this often, and its treasure row moves up to this many
+## rows either way (card #286).
+@export_range(0, 100, 1, "suffix:%") var run_rest_row_shift_percent: int = 50
+@export_range(0, 4) var run_treasure_row_spread: int = 1
+## The crowned elite (card #286): its enemies' HP and power on top of the elite numbers, in percent.
+@export_range(100, 400, 1, "suffix:%") var crown_elite_hp_percent: int = 130
+@export_range(100, 400, 1, "suffix:%") var crown_elite_power_percent: int = 115
+## The rotten chest of a treasure stop (card #287): a better Relic, but this often a curse, and this
+## often (on top) an ambush from the act's pool.
+@export_range(0, 100, 1, "suffix:%") var rotten_chest_curse_percent: int = 30
+@export_range(0, 100, 1, "suffix:%") var rotten_chest_fight_percent: int = 20
+## The campfire before the boss (card #287): Sharpen gives every hero this much more AP at the start
+## of the boss fight.
+@export_range(0, 5) var sharpen_ap: int = 1
+## How many starting pacts a run offers (card #285; RunData.pacts).
+@export_range(0, 6) var run_pact_choices: int = 3
 @export_range(0, 6) var run_shop_gear: int = 3
 ## Gear slots per character.
 @export_range(1, 6) var run_gear_slots: int = 3
@@ -385,19 +401,23 @@ extends Resource
 ## Relic slots open during a run (DESIGN.md 8.17): this many at the start, one more after the first
 ## guard is beaten and one more after act 1's boss, never more than run_gear_slots.
 @export_range(1, 6) var relic_slots_start: int = 1
-## The Relic bag (card #265): how many Relics the team can bring into a run (picked on the main
-## menu's Relics page). Later, upgrades between runs may raise it (card #266).
-@export_range(1, 60) var relic_bag_size: int = 10
-## A copy of a Relic raises its level, up to this one; a copy past it turns into relic_spare_gold.
-@export_range(1, 10) var relic_max_level: int = 5
+## The Relic bag (cards #265, #266): how many Relics the team can bring into a run (picked on the
+## main menu's Relics page). It holds this many at first, one more for every
+## relic_bag_echoes_per_slot Echoes learned for good, never more than relic_bag_max (DESIGN.md 8.19).
+@export_range(1, 60) var relic_bag_start: int = 3
+@export_range(1, 60) var relic_bag_echoes_per_slot: int = 5
+@export_range(1, 60) var relic_bag_max: int = 6
+## Relic levels last one run (phase 21, #280): a Relic joins a run at level 1 and a copy found in the
+## run raises it, up to this one; a copy past it turns into relic_spare_gold.
+@export_range(1, 10) var relic_max_level: int = 3
 @export_range(0, 1000) var relic_spare_gold: int = 30
 ## Chance, per enemy beaten in a won run fight, that it drops one of its Relics.
 @export_range(0, 100, 1, "suffix:%") var relic_drop_percent: int = 10
 ## In spoils, shops and chests a Relic the player already has (a copy) weighs this percent of a
 ## new one, so new Relics turn up more.
 @export_range(0, 100, 1, "suffix:%") var relic_copy_weight_percent: int = 50
-## Mastery (DESIGN.md 8.17): a worn Relic gets this many points per won fight (by the fight's kind);
-## at mastery_needed its Echo is learned for the rest of the run.
+## Echo pips (DESIGN.md 8.19, #280): a worn Relic gets this many per won fight (by the fight's kind),
+## kept from run to run; at mastery_needed its Echo is learned for good.
 @export_range(0, 20) var mastery_fight: int = 1
 @export_range(0, 20) var mastery_elite: int = 2
 @export_range(0, 20) var mastery_guard: int = 3
@@ -411,11 +431,10 @@ extends Resource
 @export_range(50, 300, 1, "suffix:%") var enemy_power_base_percent: int = 105
 
 @export_group("Backpack")
-## The party's shared backpack grid (DESIGN.md 8.1): this many cells wide and this many rows tall
-## at the start of a run; upgrades add rows up to the max.
-@export_range(1, 10) var backpack_width: int = 4
-@export_range(1, 20) var backpack_rows: int = 5
-@export_range(1, 20) var backpack_max_rows: int = 7
+## Alder's pack (DESIGN.md 8.1, 8.19, card #282): this many pockets at the start of a run, one
+## item each; a Bigger Pack adds one, up to the max.
+@export_range(1, 20) var backpack_pockets: int = 6
+@export_range(1, 20) var backpack_max_pockets: int = 8
 ## A beaten roaming enemy (not the guard) drops a small item this often.
 @export_range(0, 100, 1, "suffix:%") var item_drop_percent: int = 35
 ## Selling (an item at the shop, or gear swapped out for new gear) pays this share of its price.

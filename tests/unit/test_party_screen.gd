@@ -98,7 +98,7 @@ func test_the_bag_tab_menu_keeps_the_screen_on_it() -> void:
 	var screen := _screen(run)
 	screen.select_tab(PartyScreen.Tab.BAG)
 	var bag := screen.tab_node(PartyScreen.Tab.BAG) as BagTab
-	bag._grid.cursor = Vector2i.ZERO
+	bag._grid.cursor = 0
 	bag._confirm_grid()
 	assert_true(bag.busy(), "the item menu is open")
 	assert_false(screen.select_tab(PartyScreen.Tab.RELICS))

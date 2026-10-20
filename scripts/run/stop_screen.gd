@@ -76,10 +76,10 @@ func _next_gift() -> void:
 			Sfx.play("buff")
 			continue
 		var item := thing as ItemData
-		if item.kind == ItemData.Kind.UPGRADE:
+		if item.kind == ItemData.Kind.UPGRADE or item.kind == ItemData.Kind.TREASURE:
 			run.add_item(item)
-			Sfx.play("level_up")
-			_say("The backpack has %d rows now." % run.backpack.rows)
+			Sfx.play("level_up" if item.kind == ItemData.Kind.UPGRADE else "gold_gain")
+			_say(run.find_text(item))
 		elif run.add_item(item) >= 0:
 			Sfx.play("item_place")
 		else:

@@ -593,15 +593,18 @@ extends Resource
 ## A hero using a fight item: the item's name shows and the hero holds still this long before
 ## its effect plays.
 @export_range(0, 3000, 1, "suffix:ms") var item_use_ms: int = 600
-## The backpack art behind the grid (DESIGN.md 8.1), one file per row count: "%d" is the rows.
-## Drawn by tools/art_kit/assets/items.py; these numbers must match it.
-@export var backpack_art_path: String = "res://assets/sprites/ui/backpack_%d.png"
+## Alder's open pack behind the pockets (DESIGN.md 8.1, 8.19). Drawn by
+## tools/art_kit/assets/items.py; these numbers must match it.
+@export var backpack_art_path: String = "res://assets/sprites/ui/backpack_5.png"
 ## Screen pixels per art pixel.
 @export_range(1, 8) var backpack_art_scale: int = 4
-## The first cell's top-left in the art, a cell's size and the gap between cells (art pixels).
+## The lining's top-left in the art and its size (art pixels): the pockets fill it.
 @export var backpack_grid_origin: Vector2i = Vector2i(14, 23)
-@export_range(4, 64) var backpack_cell_art_px: int = 23
-@export_range(0, 8) var backpack_gap_art_px: int = 1
+@export var backpack_lining_art_px: Vector2i = Vector2i(95, 119)
+## Pockets per row (the rows follow from tuning.backpack_max_pockets) and the gap between pockets
+## (art pixels).
+@export_range(1, 8) var backpack_pocket_columns: int = 2
+@export_range(0, 16) var backpack_pocket_gap_art_px: int = 3
 
 @export_group("Charged Dooms")
 ## An enemy gathering a Doom (card #195, DESIGN.md 2.3): its body holds the wind-up crouch

@@ -181,6 +181,7 @@ func configure_drop(item: ItemData) -> void:
 ## The players and their heroes. Call before adding the node to the tree (default: solo).
 func configure_players(players: PlayerRoster) -> void:
 	_players = players
+	_journal_local_slots()
 
 
 ## Online play (DESIGN.md 9.2): HOST runs the engine and talks to the clients, CLIENT plays what
@@ -194,6 +195,7 @@ func configure_online(mode: NetMode, fight_seed: int) -> void:
 ## to the new owner from now on; their open prompts are resolved by the arbiter at once.
 func update_players(players: PlayerRoster, gone_peer: int = -1) -> void:
 	_players = players
+	_journal_local_slots()
 	_owners.clear()
 	for id: int in mirror.party_ids:
 		_owners[id] = _players.owner_of(_owner_slot(id))
@@ -1169,6 +1171,16 @@ func journal_fight() -> Dictionary:
 	return mirror.journal.to_dict()
 
 
+## Online, this machine's Journal counts only its own players' defence (card #283).
+func _journal_local_slots() -> void:
+	var slots: Array[int] = []
+	if _players != null and _players.is_online():
+		for slot: int in _players.hero_count():
+			if _players.is_local(_players.owner_of(slot)):
+				slots.append(slot)
+	mirror.journal.local_slots = slots
+
+
 func _summary_text() -> String:
 	var text := "%d enemy hits   parried %d, dodged %d, jumped %d   counters %d\nskill presses: perfect %d, good %d" % [
 			_enemy_hits.size(), int(_defended.get(Defense.Outcome.PARRY, 0)),
@@ -1179,6 +1191,8 @@ func _summary_text() -> String:
 		if _drop != null:
 			text += "   Found: %s" % _drop.display_name
 		var relic_lines := _run.win_relic_lines(_encounter)
+		if RunState.is_flawless(_encounter, recap()):
+			relic_lines.push_front("Flawless! One more spoils choice.")
 		if not relic_lines.is_empty():
 			text += "\n" + "    ".join(relic_lines)
 		var xp := _run.fight_xp(_encounter, party_hp())

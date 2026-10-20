@@ -25,11 +25,20 @@ func test_new_stops_follow_their_rules() -> void:
 	var seen := {}
 	for s: int in range(1, SEEDS):
 		var map := RunMap.generate(CombatRng.new(s), _tuning, 3)
+		# The treasure row is all treasure, within run_treasure_row_spread of run_treasure_row (card #286).
+		var treasure_rows: Array[int] = []
+		for r: int in map.row_count():
+			var all_treasure := true
+			for id: int in map.rows[r]:
+				all_treasure = all_treasure and int(map.stop(id).type) == RunMap.StopType.TREASURE
+			if all_treasure:
+				treasure_rows.append(r)
+		assert_eq(treasure_rows.size(), 1, "seed %d: one treasure row" % s)
+		if treasure_rows.size() == 1:
+			assert_lte(absi(treasure_rows[0] - _tuning.run_treasure_row), _tuning.run_treasure_row_spread)
 		for st: Dictionary in map.stops:
 			var type := int(st.type)
 			seen[type] = true
-			if int(st.row) == _tuning.run_treasure_row:
-				assert_eq(type, RunMap.StopType.TREASURE, "seed %d: the treasure row is all treasure" % s)
 			if type == RunMap.StopType.ELITE:
 				assert_gte(int(st.row), _tuning.run_elite_min_row, "seed %d: no elite too early" % s)
 				for p: int in st.prev:

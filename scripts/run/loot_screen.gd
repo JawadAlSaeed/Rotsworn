@@ -1,8 +1,9 @@
 class_name LootScreen
 extends CanvasLayer
 ## Spoils after a zone's guard, an elite or an act's boss (DESIGN.md 8, 8.6): pick one of a few
-## Relics (8.17) that are new or that a copy would still level up (rare or better while the run has
-## them). It joins the Relics for good; the party screen comes next to put it on someone.
+## Relics (8.17) that are not in the run yet or that a copy would still level up this run (rare or
+## better while the run has them; levels last one run, 8.19). A Relic never found before is kept for
+## good; the party screen comes next to put it on someone.
 
 ## The item picked (null: the party took nothing).
 signal chosen(item: GearData)
@@ -30,8 +31,9 @@ func setup(items: Array[GearData], text: String = "", run: RunState = null) -> v
 	var list: Array[Dictionary] = []
 	for item: GearData in items:
 		var step := BackpackGrid.gear_step(item)
-		var level := run.known_level(item) if run != null else 0
-		var tag := "New" if level <= 0 else "Lv %d > %d" % [level, level + 1]
+		var level := run.relic_level(item) if run != null else 0
+		var home := run != null and run.is_home(item)
+		var tag := ("Home" if home else "New") if level <= 0 else "Lv %d > %d" % [level, level + 1]
 		list.append({"text": item.display_name, "value": tag,
 				"detail": "%s (%s)  %s" % [item.description, BackpackGrid.rarity_name(step), item.stat_text(maxi(1, level + 1))],
 				"color": GearData.ROT_TOUCHED_COLOR if item.rot_touched else BackpackGrid.rarity_color(step)})

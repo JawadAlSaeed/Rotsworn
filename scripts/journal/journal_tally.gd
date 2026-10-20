@@ -8,6 +8,9 @@ extends RefCounted
 
 ## Enemy data id -> entry ({name, met, beaten, attacks}, see RotJournal).
 var _enemies: Dictionary = {}
+## The party slots this machine's players play (card #283: each player's defence counts for them
+## alone). Empty: every hero counts (one machine, solo or local co-op).
+var local_slots: Array[int] = []
 
 
 ## Takes one event; `mirror` has already applied it.
@@ -63,6 +66,8 @@ func _on_prompt(ev: Dictionary, mirror: CombatMirror) -> void:
 		return
 	var record := _attack(mirror, int(seq.get("source", -1)), String(seq.get("action", "")), String(seq.get("name", "")))
 	if record.is_empty():
+		return
+	if not local_slots.is_empty() and not local_slots.has(mirror.party_ids.find(int(ev.get("character", -1)))):
 		return
 	match int(ev.get("outcome", Defense.Outcome.NONE)):
 		Defense.Outcome.PARRY:
