@@ -7,6 +7,7 @@ script = ExtResource("1_hfo6g")
 id = "smelling_salts"
 display_name = "Smelling Salts"
 description = "In a fight: wakes a downed hero with 40% of their HP."
+short_text = "Wake a downed hero"
 rarity = 1
 price = 60
 effect = 5

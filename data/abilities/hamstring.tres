@@ -7,6 +7,7 @@ script = ExtResource("1_n8pi5")
 id = "hamstring"
 display_name = "Hamstring"
 description = "150% hit. The enemy is slower for 2 of its turns. Perfect press: 3 turns."
+short_text = "Heavy hit that slows the foe"
 ap_cost = 2
 press_times_ms = Array[int]([800])
 ring_lead_percent = 85

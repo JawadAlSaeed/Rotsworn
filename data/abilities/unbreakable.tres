@@ -7,6 +7,7 @@ script = ExtResource("1_ability")
 id = "unbreakable"
 display_name = "Unbreakable"
 description = "Every enemy's next attack on one hero must hit Alder, and he takes half damage until his next turn. Perfect press: his counters hit twice as hard too."
+short_text = "All foes must hit Alder"
 target = 1
 ap_cost = 4
 impact_sfx = "buff"

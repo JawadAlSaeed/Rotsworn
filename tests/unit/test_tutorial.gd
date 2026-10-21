@@ -60,13 +60,16 @@ func test_a_first_strike_card_shows_the_strike_button() -> void:
 	assert_true(InputMap.has_action(&"field_strike"), "the button it shows is a real action")
 	var overlay := TutorialOverlay.new()
 	add_child_autofree(overlay)
-	overlay.show_card("Lesson 7 of 8", card.title, card.text, card.tip)
+	overlay.show_card("Lesson 7 of 8", card.title, card.text, card.tip, "Go", false, card.icon_path)
 	var chips := 0
 	for row: Node in overlay._lines.get_children():
 		for piece: Node in row.get_children():
 			if piece is HintBar:
 				chips += 1
 	assert_eq(chips, 1, "the card draws the strike button as a chip")
+	# Card #293: beside the zone's foe skull, the picture of an enemy to strike.
+	assert_eq(card.icon_path, "res://assets/sprites/ui/goal_foe.png")
+	assert_true(overlay._plate.visible, "the card shows its picture")
 
 
 func test_the_skills_lesson_comes_before_follow_ups_and_has_none() -> void:

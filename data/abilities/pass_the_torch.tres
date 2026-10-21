@@ -7,6 +7,7 @@ script = ExtResource("1_k7jry")
 id = "pass_the_torch"
 display_name = "Pass the Torch"
 description = "Gives one ally 2 AP. Perfect press: 3 AP."
+short_text = "Give one ally 2 AP"
 target = 4
 ap_cost = 2
 impact_sfx = "buff"

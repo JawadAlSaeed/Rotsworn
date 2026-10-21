@@ -7,6 +7,7 @@ script = ExtResource("1_0qh6y")
 id = "riposte_stance"
 display_name = "Riposte Stance"
 description = "Until Alder's next turn, his counters hit twice as hard. Perfect press: +1 AP."
+short_text = "Your counters hit twice as hard"
 target = 2
 ap_cost = 2
 impact_sfx = "buff"

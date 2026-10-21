@@ -41,6 +41,35 @@ extends Resource
 @export_file("*.png") var gauge_icon_path: String = "res://assets/sprites/ui/chip_gauge.png"
 @export_file("*.png") var ap_icon_path: String = "res://assets/sprites/ui/ap_pip.png"
 
+@export_group("Shop item chips (card #295)")
+## What a shop item does, as icon chips on the line under the shelves instead of its sentence
+## (ShopScreen.item_chips). A heal, damage, a revive or a cleanse shows the fight's Items-list chips
+## (ActionMenu.item_chips: drawn glyphs, its AP with ap_icon_path); more max HP uses the same heart
+## and person glyphs, treasure the gold coin (combat_visuals.tres). Only the kinds a fight never
+## shows have pictures here: a curse, a key, a bigger pack.
+@export_file("*.png") var item_curse_icon_path: String = "res://assets/sprites/ui/chip_skull.png"
+@export_file("*.png") var item_key_icon_path: String = "res://assets/sprites/ui/lock.png"
+@export_file("*.png") var item_pocket_icon_path: String = "res://assets/sprites/ui/chip_bag.png"
+## The line stays short: at most this many chips, and this many words in all of them (a chip that
+## would go over is left out; the Glossary has the rules).
+@export_range(1, 6, 1) var item_chips_max: int = 3
+@export_range(1, 12, 1) var item_words_max: int = 6
+
+@export_group("Legend (card #294)")
+## The legend of stop pictures down the left of the map, kept small and dim so the map stands out:
+## its text size (the player's text size applies), screen pixels per art pixel for its pictures,
+## the width (art pixels) each picture is centred in so the words line up, the gap between rows
+## and its distance from the screen's left edge.
+@export_range(8, 64, 1) var legend_size: int = 18
+@export_range(1, 4, 1) var legend_icon_scale: int = 1
+@export_range(8, 64, 1) var legend_icon_box: int = 32
+@export_range(0, 40, 1, "suffix:px") var legend_gap: int = 4
+@export_range(0, 400, 1, "suffix:px") var legend_left: int = 32
+## How strongly the legend is drawn, and its row for the picked stop's kind (lit, so the legend
+## names the ringed stop).
+@export_range(0.0, 1.0, 0.05) var legend_alpha: float = 0.45
+@export_range(0.0, 1.0, 0.05) var legend_lit_alpha: float = 0.95
+
 @export_group("Layout")
 ## Space between the gold and HP strip and the top of the paper (screen pixels).
 @export_range(0, 200, 1, "suffix:px") var paper_top_gap: int = 32
@@ -68,9 +97,6 @@ extends Resource
 ## Planning (card #162): stops and routes the picked stop cannot lead to are drawn this much
 ## weaker, so the roads ahead of the pick stand out.
 @export_range(0.0, 1.0, 0.05) var unreachable_alpha: float = 0.35
-## The legend of stop pictures beside the map: picture size (art pixels times pixel_scale) and
-## its text size.
-@export_range(8, 64, 1) var legend_size: int = 24
 ## The path the party has walked.
 @export var walked_color: Color = Color(0.56, 0.17, 0.13)
 ## Routes further up the map (not open yet) are drawn this strong.

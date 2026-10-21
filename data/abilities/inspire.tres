@@ -7,6 +7,7 @@ script = ExtResource("1_ability")
 id = "inspire"
 display_name = "Inspire"
 description = "Every ally gets 1 AP and the team gauge fills by 25. Perfect press: 1 more AP each."
+short_text = "Party gains AP and gauge"
 target = 6
 ap_cost = 3
 impact_sfx = "gauge_full"

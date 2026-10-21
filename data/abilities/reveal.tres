@@ -8,6 +8,7 @@ script = ExtResource("1_ability")
 id = "reveal"
 display_name = "Reveal"
 description = "A 60% light bolt. The enemy becomes Exposed (the next skill on it removes it for +50%). Perfect press: +1 AP."
+short_text = "Light bolt that Exposes"
 ap_cost = 1
 impact_sfx = "debuff"
 press_times_ms = Array[int]([800])

@@ -527,14 +527,15 @@ def make_lair_husk_lord() -> np.ndarray:
 
 
 def make_flag() -> np.ndarray:
-    """The party's banner: three stripes for the three heroes, a swallowtail end."""
+    """The party's banner: one red cloth (owner, 2026-10-21: the three coloured stripes read as a
+    pride flag), lit along the top and shaded along the bottom, with a swallowtail end."""
     c = Canvas(14, 22)
     c.rect(2, 2, 2, 20, DARKWOOD[1])
     c.rect(2, 2, 2, 6, WOOD[3])
     c.ellipse(2.5, 1.5, 1.4, 1.4, GOLD[3])
-    stripes = (BLUE[3], RED[3], GOLD[3])
-    for i, col in enumerate(stripes):
-        c.rect(3, 3 + i * 3, 11, 5 + i * 3, col)
+    c.rect(3, 3, 11, 11, RED[3])
+    c.rect(3, 3, 11, 3, RED[4])
+    c.rect(3, 10, 11, 11, RED[2])
     c.clear(11, 7)
     c.clear(10, 7)
     c.clear(11, 6)

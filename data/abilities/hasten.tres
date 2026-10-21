@@ -7,6 +7,7 @@ script = ExtResource("1_l6atq")
 id = "hasten"
 display_name = "Hasten"
 description = "One ally's next turn comes sooner. Perfect press: even sooner."
+short_text = "Ally's next turn comes sooner"
 target = 4
 ap_cost = 2
 impact_sfx = "buff"

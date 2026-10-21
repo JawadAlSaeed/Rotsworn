@@ -28,6 +28,10 @@ enum Target {
 @export var id: String = ""
 @export var display_name: String = ""
 @export_multiline var description: String = ""
+## The fight list's one line, 3 to 6 plain words (card #292): the list shows it over icon chips
+## worked out from the fields below. Empty: the list shows `description` instead. The Y screen's
+## Skills tab and the Glossary keep showing `description`.
+@export var short_text: String = ""
 @export var target: Target = Target.SINGLE_ENEMY
 ## AP spent to use it.
 @export_range(0, 99) var ap_cost: int = 0

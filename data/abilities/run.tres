@@ -7,6 +7,7 @@ script = ExtResource("1_run")
 id = "run"
 display_name = "Run"
 description = "Hit the circle PERFECTLY to leave the fight. Anything else and the turn is lost."
+short_text = "Perfect press to flee"
 target = 2
 press_times_ms = Array[int]([1300])
 ring_lead_percent = 160

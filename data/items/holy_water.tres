@@ -7,6 +7,7 @@ script = ExtResource("1_item")
 id = "holy_water"
 display_name = "Holy Water"
 description = "In a fight: lifts every mark from the whole party and heals everyone 10% of their max HP."
+short_text = "Clear marks, heal the party"
 rarity = 1
 price = 50
 effect = 8

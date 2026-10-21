@@ -8,6 +8,7 @@ script = ExtResource("1_ability")
 id = "smite"
 display_name = "Smite"
 description = "A holy bolt for 160%. On an Exposed enemy: +100% (and the Exposed is used up). Perfect press: +30%."
+short_text = "Holy bolt, bigger on Exposed"
 ap_cost = 2
 impact_sfx = "heavy_strike"
 press_times_ms = Array[int]([850])

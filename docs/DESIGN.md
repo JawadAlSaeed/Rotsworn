@@ -2315,10 +2315,17 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   counts, no legend. Y screen: a tab's count is a gold circle with a plain dark number; the Skills
   tab's slots sit centred over the tree. New art: `tools/art_kit/assets/ui_runinfo.py` (upgrade,
   restock, door; the map and shop use the campfire's `choice_upgrade.png` for Upgrade).
-- **Still words, for later (phase 22 cards in Todo):** skill descriptions in the fight's skill list
-  (#292: a chip row per skill needs a short field in every ability), tutorial cards (#293: a picture
-  per lesson), the map's legend (#294), shop item descriptions (#295), the Journal's "Met in N
-  fights" line.
+- **Skills, tutorial, map legend, shop items (#292 to #295, 2026-10-21).** The fight's skill and item
+  lists show the chosen row as its `short_text` (3 to 6 words, AbilityData / ItemData; the
+  description when empty) over labelled chips worked out from its data (`ActionMenu.ability_chips` /
+  `item_chips`: AP cost, who it reaches, hits, damage %, heal, revive, cleanse, the mark it leaves,
+  turn later / sooner, gauge), packed into lines that never widen the panel; the full sentence stays
+  on the Skills tab and in the Glossary. Every tutorial card has a picture (`TutorialStepData.icon_path`;
+  the game's own icons, plus `tools/art_kit/assets/ui_tutorial.py` for the ring, follow-up,
+  cleanse and Echo) and one or two short lines. The map's legend is small and dim, its icon + word
+  for the stop under the cursor lit. A shop item shows its picture, name and the same chips as the
+  fight (`ShopScreen.item_chips`, at most `item_chips_max` 4 chips / `item_words_max` 8 words,
+  map_visuals.tres). Still words: the Journal's "Met in N fights" line.
 
 ## 8. Run structure (phase 4)
 
@@ -4252,7 +4259,8 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     (#278), two or three choices as side-by-side cards with icon chips (#288), the zone's goal as
     icons with no First Strike sentence and no gold (#289) and a First Strike tutorial card (#291),
     plus an owner-asked sweep of menus and run screens (pause, settings, calibration, players, join,
-    map, shop, run end, Echoes, Journal).
+    map, shop, run end, Echoes, Journal). Then on 2026-10-21: skill chips in fights (#292), tutorial cards
+    with pictures (#293), a quieter map legend (#294), shop item chips (#295) and a plain red party flag.
 
 ### 11.1 To-do (from playtests)
 

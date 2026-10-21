@@ -7,6 +7,7 @@ script = ExtResource("1_00egm")
 id = "shield_bash"
 display_name = "Shield Bash"
 description = "180% hit. The enemy's next turn comes later. Perfect press: much later."
+short_text = "Heavy hit, delays the foe"
 ap_cost = 2
 impact_sfx = "heavy_strike"
 press_times_ms = Array[int]([800])

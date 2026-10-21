@@ -7,6 +7,7 @@ script = ExtResource("1_ability")
 id = "quick_cuts"
 display_name = "Quick Cuts"
 description = "4 hits of 40%, the daggers taking turns, one press each. Each perfect press: +20% on that hit."
+short_text = "Four fast dagger cuts"
 ap_cost = 1
 impact_sfx = "strike"
 press_times_ms = Array[int]([800, 1050, 1300, 1550])

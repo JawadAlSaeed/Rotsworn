@@ -7,6 +7,7 @@ script = ExtResource("1_item")
 id = "antidote"
 display_name = "Antidote"
 description = "In a fight: lifts every mark (rot, burn, shock, daze...) from one hero."
+short_text = "Clear one hero's marks"
 price = 20
 effect = 7
 cleanse_count = 9

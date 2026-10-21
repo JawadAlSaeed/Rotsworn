@@ -7,6 +7,7 @@ script = ExtResource("1_57i8h")
 id = "feint_step"
 display_name = "Feint Step"
 description = "80% hit. +1 AP. Perfect press: +2 AP instead."
+short_text = "Light hit that builds AP"
 press_times_ms = Array[int]([800])
 ring_lead_percent = 85
 damage_percent = 80

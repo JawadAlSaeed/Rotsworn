@@ -7,6 +7,7 @@ script = ExtResource("1_52dys")
 id = "guard"
 display_name = "Guard"
 description = "One ally takes half damage until their next turn. Perfect press: Alder is guarded too."
+short_text = "An ally takes half damage"
 target = 4
 ap_cost = 1
 impact_sfx = "buff"

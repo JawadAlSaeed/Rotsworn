@@ -195,7 +195,8 @@ func _show_step_card() -> void:
 		return
 	_card = "step"
 	_auto_confirm()
-	_overlay.show_card("Lesson %d of %d" % [step.lesson, _data.lesson_count()], step.title, step.text, step.tip)
+	_overlay.show_card("Lesson %d of %d" % [step.lesson, _data.lesson_count()], step.title, step.text, step.tip,
+			"Go", false, step.icon_path)
 
 
 func _show_good_card() -> void:
@@ -204,13 +205,13 @@ func _show_good_card() -> void:
 	_auto_confirm()
 	Sfx.play("level_up")
 	_overlay.show_card(current().title, PRAISE, "Next: %s." % next.title if next != null else "That was the last one.",
-			"", "Next", true)
+			"", "Next", true, next.icon_path if next != null else "")
 
 
 func _show_retry_card() -> void:
 	_card = "retry"
 	_auto_confirm()
-	_overlay.show_card(current().title, RETRY, current().retry, "", "Try again")
+	_overlay.show_card(current().title, RETRY, current().retry, "", "Try again", false, current().icon_path)
 
 
 ## The bot's way through a card: it closes by itself after auto_confirm_s.

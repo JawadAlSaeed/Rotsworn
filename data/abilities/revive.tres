@@ -7,6 +7,7 @@ script = ExtResource("1_qp8du")
 id = "revive"
 display_name = "Revive"
 description = "Brings a downed ally back at 25% HP. Perfect press: 50% HP."
+short_text = "Bring a downed ally back"
 target = 5
 ap_cost = 3
 impact_sfx = "revive"

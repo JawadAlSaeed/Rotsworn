@@ -933,6 +933,11 @@ func _maybe_open_menu() -> void:
 	for uid: int in uids:
 		var entry := _menu_entry(actor, _item_ability(mirror.items[uid] as Dictionary))
 		entry["item"] = true
+		# The list's short line and chips come from the item itself (card #292).
+		for e: Dictionary in _setup.items:
+			if int(e.uid) == uid:
+				entry["item_data"] = e.item
+				entry["amount"] = int(e.get("amount", (e.item as ItemData).amount_percent))
 		entries.append(entry)
 	if not tutorial_guide.is_empty():
 		for entry: Dictionary in entries:

@@ -12,7 +12,9 @@ extends CanvasLayer
 ## Phase 22: pictures and a word, not sentences: each service has its picture (a skull Cleanse, an
 ## anvil Upgrade, arrows Restock, the coin Sell with its button, a door Leave), prices are the coin and
 ## a number, and the line under the shelves shows a Relic as its icon, a "Lv 2 > 3" chip and its stat
-## and effect chips (detail()). The rules are in the Glossary.
+## and effect chips (detail()). Card #295: an item there is its picture, its name and a few icon chips
+## for what it does, the same chips as the fight's Items list (item_chips: "1 AP", "All foes",
+## "120% dmg"), never its sentence. The rules are in the Glossary.
 ## The bot uses count(), can_buy(), buy(), overlay() and leave().
 
 signal done
@@ -43,7 +45,7 @@ const SERVICE_ICON_PX: float = 48.0
 const COIN_PX: float = 24.0
 const DETAIL_ICON_PX: float = 44.0
 const DETAIL_HEIGHT: float = 52.0
-## The widest an item's line under the shelves gets before it wraps.
+## The widest a service's few words under the shelves get before they wrap.
 const DETAIL_LINE_MAX: float = 900.0
 const MAP_VISUALS_PATH := "res://data/presentation/map_visuals.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
@@ -191,7 +193,8 @@ func _info(index: int) -> Array:
 ## What the line under the shelves shows for thing `index` or a service (phase 22: icons and a word
 ## or two, never a rules sentence): {icon, title, color, chips: [[icon, text, color]], line}. A
 ## Relic shows its icon, name, a "Lv 2 > 3" (or New, Home) chip and its stat and effect chips; an
-## item its picture, name and what it does; a service its picture, name and a few words.
+## item its picture, name and what it does as chips (item_chips); a service its picture, name and a
+## few words.
 func detail(index: int) -> Dictionary:
 	if index >= count():
 		var kind := SERVICES[clampi(index - count(), 0, SERVICES.size() - 1)]
@@ -200,10 +203,61 @@ func detail(index: int) -> Dictionary:
 				"line": String(service[2])}
 	var info := _info(index)
 	if index < items().size():
-		return {"icon": info[4], "title": String(info[0]), "color": BackpackGrid.rarity_color(int(info[3])), "chips": [],
-				"line": String(info[2])}
+		return {"icon": info[4], "title": String(info[0]), "color": BackpackGrid.rarity_color(int(info[3])),
+				"chips": item_chips(items()[index], _look, _coin), "line": ""}
 	return {"icon": info[4], "title": String(info[0]), "color": BackpackGrid.rarity_color(int(info[3])),
 			"chips": relic_chips(_run, info[4] as GearData), "line": ""}
+
+
+## What an item does, as icon chips for the line under the shelves (card #295: never its sentence):
+## [[icon, text, color]]. One mapping for the shop and the fight: a heal, damage, a revive or a
+## cleanse gets the fight's Items-list chips (ActionMenu.item_chips: its AP, who it reaches, what it
+## does, with the same words, pictures, colours and order), less the AP chip when it cannot be used
+## in a fight. Only the kinds a fight never shows get chips of their own here: more max HP (who it
+## reaches in the fight's words, then how much), a curse, a key, treasure, a bigger pack. At most
+## look.item_chips_max chips and look.item_words_max words in all; a chip that would go over is left
+## out. `coin`: the gold coin's path (treasure).
+static func item_chips(item: ItemData, look: MapVisuals, coin: String) -> Array:
+	var chips: Array = []
+	if item.is_curse() or item.rotten:
+		chips.append([look.item_curse_icon_path, "Curse", HudStyle.HP_LOW])
+		if item.rot_percent > 0:
+			chips.append([&"heart", "-%d%% a turn" % item.rot_percent, HudStyle.HP_LOW])
+		return _cap_chips(chips, look)
+	match item.kind:
+		ItemData.Kind.KEY:
+			chips.append([look.item_key_icon_path, "Opens chest", HudStyle.TEXT])
+		ItemData.Kind.TREASURE:
+			chips.append([coin, "To gold", HudStyle.GOLD])
+	match item.effect:
+		ItemData.Effect.NONE:
+			pass
+		ItemData.Effect.MAX_HP_ONE:
+			chips.append([&"person", String(ActionMenu.ITEM_TARGET_WORDS[CombatEngine.ITEM_ALLY]), HudStyle.TEXT])
+			chips.append([&"heart", "+%d%% max HP" % item.amount_percent, HudStyle.HEAL])
+		ItemData.Effect.ADD_ROW:
+			chips.append([look.item_pocket_icon_path, "+1 pocket", HudStyle.TEXT])
+		_:
+			var in_fight := item.usable_in_fight()
+			for chip: Dictionary in ActionMenu.item_chips(item, item.amount_percent, look.ap_icon_path):
+				# The AP chip is the only one drawn with the AP picture passed in.
+				if not in_fight and typeof(chip.icon) == TYPE_STRING and String(chip.icon) == look.ap_icon_path:
+					continue
+				chips.append([chip.icon, String(chip.text), chip.color as Color])
+	return _cap_chips(chips, look)
+
+
+## The first chips that keep within look.item_chips_max chips and look.item_words_max words.
+static func _cap_chips(chips: Array, look: MapVisuals) -> Array:
+	var kept: Array = []
+	var words := 0
+	for chip: Array in chips:
+		var chip_words := String(chip[1]).split(" ", false).size()
+		if kept.size() >= look.item_chips_max or words + chip_words > look.item_words_max:
+			continue
+		kept.append(chip)
+		words += chip_words
+	return kept
 
 
 ## A shop Relic's chips: what buying it does to the run's level ("Lv 2 > 3"; "New"; "Home" for one

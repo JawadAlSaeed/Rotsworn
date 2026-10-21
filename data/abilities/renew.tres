@@ -7,6 +7,7 @@ script = ExtResource("1_ability")
 id = "renew"
 display_name = "Renew"
 description = "One ally heals 12% of their max HP at the start of each of their next 3 turns. Perfect press: 4 turns."
+short_text = "Ally heals every turn"
 target = 3
 ap_cost = 2
 impact_sfx = "heal"

@@ -7,6 +7,7 @@ script = ExtResource("1_t0a38")
 id = "salve"
 display_name = "Salve"
 description = "Heals one character by half of their max HP, and lifts one mark in a fight."
+short_text = "Heal one, lift a mark"
 price = 25
 effect = 1
 amount_percent = 50

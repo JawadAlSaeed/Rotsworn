@@ -7,6 +7,7 @@ script = ExtResource("1_ability")
 id = "earthshaker"
 display_name = "Earthshaker"
 description = "Slams the shield down: 140% to every enemy, and all their turns come later. Perfect press: +30% and later still."
+short_text = "Slam every foe, delay them"
 target = 1
 ap_cost = 4
 impact_sfx = "heavy_strike"

@@ -7,6 +7,7 @@ script = ExtResource("1_17x12")
 id = "bomb"
 display_name = "Bomb"
 description = "In a fight: hits every enemy hard."
+short_text = "Blast every foe"
 effect = 4
 amount_percent = 120
 find_weight = 6

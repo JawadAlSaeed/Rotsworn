@@ -7,6 +7,7 @@ script = ExtResource("1_ability")
 id = "purify"
 display_name = "Purify"
 description = "Lifts every mark from one ally, and no new mark can land on them for 2 of their turns. Perfect press: 3 turns."
+short_text = "Clear all marks, then ward"
 target = 3
 ap_cost = 2
 impact_sfx = "heal"

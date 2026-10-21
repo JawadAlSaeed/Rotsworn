@@ -7,6 +7,7 @@ script = ExtResource("1_xy2xp")
 id = "mend"
 display_name = "Mend"
 description = "Heals one ally for 30% of their max HP. Perfect press: 45%. Lifts one mark; a perfect press lifts them all."
+short_text = "Heal one ally, lift a mark"
 target = 3
 ap_cost = 1
 impact_sfx = "heal"

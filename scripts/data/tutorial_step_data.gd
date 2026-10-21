@@ -7,10 +7,15 @@ extends Resource
 ## Which lesson this step belongs to (1, 2, ...), shown as "Lesson N of M".
 @export_range(1, 20) var lesson: int = 1
 @export var title: String = ""
-## The card's explanation. Each {action} (an input action name, or @move / @leftright) is drawn as
-## that button's picture.
+## The card's picture beside its line (card #293): the game's own icon for the lesson where one
+## fits (a hit kind, the AP gem, a mark), else one drawn by tools/art_kit/assets/ui_tutorial.py.
+## Empty: a card without a picture.
+@export_file("*.png") var icon_path: String = ""
+## The card's explanation, one or two short lines (phase 22: a picture and a few words, never a
+## wall of text). Each {action} (an input action name, or @move / @leftright) is drawn as that
+## button's picture.
 @export_multiline var text: String = ""
-## A second, dimmer line on the card (why it matters), or empty.
+## A second, dimmer line on the card (why it matters), one short line, or empty.
 @export_multiline var tip: String = ""
 ## The one line shown at the bottom while the player tries.
 @export var reminder: String = ""

@@ -11,6 +11,8 @@ extends CanvasLayer
 ## a zone's guard, optional foes and gold; a campfire's heal, train and upgrade, or keep watch and
 ## sharpen in the row before the boss; ...), never a rules
 ## sentence (the Glossary's "The map" topic has them). icon_chip() is shared by the run's info screens.
+## Card #294: the legend down the left is small and dim (each kind's picture with its word), so the
+## map stands out; the row for the picked stop's kind is lit.
 
 signal stop_chosen(id: int)
 ## Back (B): Main opens the pause menu (Esc / Menu reach Main directly).
@@ -74,6 +76,9 @@ var _window_h: int = 0
 var _window_top: float = 0.0
 ## Stops the picked choice can lead to (planning, card #162): id -> true.
 var _ahead: Dictionary = {}
+## The legend down the left (card #294): stop type -> its row (dim, the picked kind's row lit).
+var _legend_box: Control
+var _legend_rows: Dictionary = {}
 
 
 ## `unroll` false shows the map already open (back from the party screen, or redrawn online).
@@ -138,7 +143,8 @@ func setup(run: RunState, look: MapVisuals = null, unroll: bool = true) -> void:
 	ListMenu.screen_footer(self, [[&"@leftright", "Choose"], [&"@updown", "Scroll"], [&"menu_confirm", "Go"],
 			[&"party_menu", "Party"], [&"pause", "Pause"]])
 
-	add_child(_legend())
+	_legend_box = _legend()
+	add_child(_legend_box)
 	_choices = run.choices()
 	_choices.sort_custom(func(a: int, b: int) -> bool: return int(run.map.stop(a).col) < int(run.map.stop(b).col))
 	_sel = 0
@@ -452,8 +458,10 @@ func _update_detail() -> void:
 		child.queue_free()
 	_ahead = reachable_from(_run.map, _choices[_sel]) if not _choices.is_empty() else {}
 	if _choices.is_empty():
+		_light_legend(-1)
 		return
 	var stop := _run.map.stop(_choices[_sel])
+	_light_legend(int(stop.type))
 	var head := icon_chip(_icons[int(stop.id)], detail_name(_run, stop), HudStyle.GOLD, DETAIL_ICON_PX, DETAIL_SIZE, false)
 	_detail.add_child(head)
 	var visuals := load(VISUALS_PATH) as CombatVisuals
@@ -475,36 +483,60 @@ static func reachable_from(map: RunMap, from_id: int) -> Dictionary:
 	return found
 
 
-## The legend: every kind of stop's picture and name, down the left side.
+## The legend's rows, top to bottom: [stop type, picture path, word]. Every row is a picture with
+## its word (never a bare picture). Zones show the act's first zone's picture.
+static func legend_entries(run: RunState, look: MapVisuals) -> Array:
+	var zone_icon := ""
+	if not run.act_data().zones.is_empty():
+		zone_icon = run.act_data().zones[0].map_icon_path
+	return [[RunMap.StopType.ZONE, zone_icon, "Zone"], [RunMap.StopType.ELITE, look.elite_icon_path, "Elite"],
+			[RunMap.StopType.EVENT, look.event_icon_path, "Event"],
+			[RunMap.StopType.TREASURE, look.treasure_icon_path, "Treasure"],
+			[RunMap.StopType.SHOP, look.shop_icon_path, "Shop"], [RunMap.StopType.REST, look.rest_icon_path, "Campfire"],
+			[RunMap.StopType.FINAL, run.act_data().final_map_icon_path, "Boss"]]
+
+
+## The legend down the left side (card #294): every kind of stop's picture and name, small and dim
+## so the map stands out; the row of the picked stop's kind is lit (_light_legend).
 func _legend() -> Control:
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-	box.offset_left = 40.0
+	box.offset_left = float(_look.legend_left)
 	box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	box.add_theme_constant_override("separation", 8)
-	var zone_icon := ""
-	if not _run.act_data().zones.is_empty():
-		zone_icon = _run.act_data().zones[0].map_icon_path
-	for entry: Array in [[zone_icon, "Zone"], [_look.elite_icon_path, "Elite"], [_look.event_icon_path, "Event"],
-			[_look.treasure_icon_path, "Treasure"], [_look.shop_icon_path, "Shop"], [_look.rest_icon_path, "Campfire"],
-			[_run.act_data().final_map_icon_path, "Boss"]]:
+	box.add_theme_constant_override("separation", _look.legend_gap)
+	var icon_scale := maxi(1, _look.legend_icon_scale)
+	for entry: Array in legend_entries(_run, _look):
 		var row := HBoxContainer.new()
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_theme_constant_override("separation", 10)
+		row.add_theme_constant_override("separation", CHIP_GAP)
+		# Each picture sits in the same width, so the words line up.
+		var slot := CenterContainer.new()
+		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.custom_minimum_size.x = float(_look.legend_icon_box * icon_scale)
+		row.add_child(slot)
 		var icon := TextureRect.new()
-		icon.texture = AssetLoader.texture(String(entry[0]), Vector2i(24, 24))
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.texture = AssetLoader.texture(String(entry[1]), Vector2i(24, 24))
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.custom_minimum_size = Vector2(48.0, 48.0)
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(icon)
-		var label := HudStyle.make_label(String(entry[1]), _look.legend_size, HudStyle.TEXT)
+		icon.custom_minimum_size = icon.texture.get_size() * float(icon_scale)
+		slot.add_child(icon)
+		var label := HudStyle.make_label(String(entry[2]), _look.legend_size, HudStyle.TEXT)
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(label)
+		row.modulate.a = _look.legend_alpha
 		box.add_child(row)
+		_legend_rows[int(entry[0])] = row
 	return box
+
+
+## Lights the legend's row for the picked stop's kind (`type`; -1: none) and dims the others.
+func _light_legend(type: int) -> void:
+	for kind: int in _legend_rows:
+		(_legend_rows[kind] as Control).modulate.a = _look.legend_lit_alpha if kind == type else _look.legend_alpha
 
 
 # --- timing -----------------------------------------------------------------------------------

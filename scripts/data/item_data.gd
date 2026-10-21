@@ -48,6 +48,9 @@ enum Effect {
 @export var id: String = ""
 @export var display_name: String = ""
 @export_multiline var description: String = ""
+## A fight item's line in the fight's Items list, 3 to 6 plain words (card #292), shown over icon
+## chips worked out from its effect. Empty: the list shows `description` instead.
+@export var short_text: String = ""
 @export var kind: Kind = Kind.CONSUMABLE
 @export var rarity: Rarity = Rarity.COMMON
 ## Shop price (gold). Selling pays tuning.item_sell_percent of it.

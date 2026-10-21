@@ -18,6 +18,10 @@ extends Control
 ##   VISIBLE_ROWS at once, the list scrolls). Up/down
 ##   choose, confirm uses, cancel (or the same button) goes back. An item entry is flagged "item"
 ##   and its ability is a stand-in made by the controller.
+##   Under the list, the chosen row in a few words (card #292): its short_text (the description
+##   when it has none) over labelled icon chips worked out from its data (AP, who it reaches, hits,
+##   damage, heal, cleanse, the mark it leaves...; ability_chips(), item_chips()). The full
+##   description stays on the Y screen's Skills tab and in the Glossary.
 ## - Target step: if the ability needs a choice of target (an enemy, an ally, a downed ally) and
 ##   there is more than one, left/right or up/down cycles, confirm picks, cancel goes back to the
 ##   layer the ability came from. Its panel shows the skill's name and AP cost and the target's
@@ -85,6 +89,17 @@ const ROW_SIZE: int = 26
 const ROW_HEIGHT: float = 40.0
 const VISIBLE_ROWS: int = 6
 const DESCRIPTION_SIZE: int = 21
+## The chosen row's chips (card #292): their words' size, the gap between them, and how wide a
+## line of them (and the short line over them) may grow inside the list panel before wrapping.
+## Their pictures are visuals status_icon_px.
+const DETAIL_CHIP_SIZE: int = 19
+const DETAIL_CHIP_GAP: int = 6
+const DETAIL_WIDTH: float = LIST_WIDTH - 60.0
+## Who a skill reaches, by AbilityData.Target, and who a fight item reaches, by
+## CombatEngine.item_target().
+const TARGET_WORDS: Array[String] = ["One foe", "All foes", "Self", "One ally", "Other ally", "Downed ally",
+		"Party"]
+const ITEM_TARGET_WORDS := {"ally": "One ally", "party": "Party", "enemies": "All foes", "downed": "Downed ally"}
 const HINT_SIZE: int = 19
 const TARGET_NAME_SIZE: int = 40
 ## Spots tried beside the hero, in order (the first that covers no enemy wins): as planned, lower
@@ -152,7 +167,9 @@ var _list_ap: Label
 var _rows_box: VBoxContainer
 var _more_above: Label
 var _more_below: Label
+## The chosen row's short line and its chips (lines of chips, card #292).
 var _description: Label
+var _chip_box: VBoxContainer
 var _hint: HintBar
 var _row_panels: Array[PanelContainer] = []
 var _row_names: Array[Label] = []
@@ -764,9 +781,14 @@ func _build_list() -> void:
 	column.add_child(ListMenu.divider(LIST_WIDTH - 60.0))
 	_description = HudStyle.make_label("", DESCRIPTION_SIZE)
 	_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_description.custom_minimum_size = Vector2(LIST_WIDTH - 48.0, 0.0)
+	_description.custom_minimum_size = Vector2(DETAIL_WIDTH, 0.0)
 	column.add_child(_description)
-	_hint = HintBar.new([[&"@updown", "Choose"], [&"menu_confirm", "Use"], [&"menu_cancel", "Back"]], HINT_SIZE)
+	_chip_box = VBoxContainer.new()
+	_chip_box.name = "SkillChips"
+	_chip_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_chip_box.add_theme_constant_override("separation", DETAIL_CHIP_GAP)
+	column.add_child(_chip_box)
+	_hint =HintBar.new([[&"@updown", "Choose"], [&"menu_confirm", "Use"], [&"menu_cancel", "Back"]], HINT_SIZE)
 	_hint.alignment = BoxContainer.ALIGNMENT_END
 	column.add_child(_hint)
 
@@ -1049,9 +1071,173 @@ func _redraw_list() -> void:
 		row.add_theme_stylebox_override("panel", style)
 	var focus := _skill_entries[_skill_cursor] if not _skill_entries.is_empty() else -1
 	if focus >= 0:
-		_description.text = (_entries[focus].ability as AbilityData).description
+		_description.text = short_line(_entries[focus])
+		_show_chips(entry_chips(_entries[focus], _look().ap_pip_path))
 	else:
 		_description.text = ITEMS_TEXT if _listing == Option.ITEMS else SKILLS_TEXT
+		_show_chips([])
+
+
+## Lays `chips` out under the short line: each an icon with its word, packed in lines at most
+## DETAIL_WIDTH wide (a bigger text size makes more lines, never a wider panel).
+func _show_chips(chips: Array[Dictionary]) -> void:
+	for line: Node in _chip_box.get_children():
+		_chip_box.remove_child(line)
+		line.queue_free()
+	var icon_px := _look().status_icon_px
+	var line: HBoxContainer = null
+	for i: int in chips.size():
+		var chip := chips[i]
+		var node := MapScreen.icon_chip(chip.icon, String(chip.text), chip.color as Color, icon_px, DETAIL_CHIP_SIZE)
+		node.name = "Chip%d" % i
+		if line == null:
+			line = _chip_line()
+		# Measured on the line, in the tree: a chip's plate margins and the gaps only count once
+		# their theme overrides apply, so a chip measured on its own comes out too narrow.
+		line.add_child(node)
+		if line.get_child_count() > 1 and line.get_combined_minimum_size().x > DETAIL_WIDTH:
+			line.remove_child(node)
+			line = _chip_line()
+			line.add_child(node)
+	_chip_box.visible = not chips.is_empty()
+
+
+## A new, empty line of chips at the bottom of the chip box.
+func _chip_line() -> HBoxContainer:
+	var line := HBoxContainer.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_theme_constant_override("separation", DETAIL_CHIP_GAP)
+	_chip_box.add_child(line)
+	return line
+
+
+## The chosen row's line: the item's or the skill's short_text, or its description when it has
+## none (so the line is never blank).
+static func short_line(entry: Dictionary) -> String:
+	var item := entry.get("item_data") as ItemData
+	if item != null and not item.short_text.is_empty():
+		return item.short_text
+	var ability := entry.ability as AbilityData
+	if not ability.short_text.is_empty():
+		return ability.short_text
+	if item != null and not item.description.is_empty():
+		return item.description
+	return ability.description
+
+
+## The chips of a menu entry: a fight item's from the item itself when the controller gave it
+## ("item_data", "amount"), else from its ability (a stand-in item's: who it reaches and its cost).
+static func entry_chips(entry: Dictionary, ap_icon: Variant) -> Array[Dictionary]:
+	var item := entry.get("item_data") as ItemData
+	if item != null:
+		return item_chips(item, int(entry.get("amount", item.amount_percent)), ap_icon)
+	return ability_chips(entry.ability as AbilityData, ap_icon, bool(entry.get("item", false)))
+
+
+## One chip: {icon (a Texture2D, a UiGlyph kind or a picture path; see MapScreen.icon_picture), text,
+## color}.
+static func _chip_data(icon: Variant, text: String, color: Color = HudStyle.TEXT) -> Dictionary:
+	return {"icon": icon, "text": text, "color": color}
+
+
+## A status's chip: its icon and its word ("SLOWED 2"), "if perfect" when only an all-perfect press
+## puts it on.
+static func _status_chip_data(id: String, turns: int, needs_perfect: bool = false) -> Dictionary:
+	var word := String(HudStyle.STATUS_NAMES.get(id, id.to_upper()))
+	if turns > 0:
+		word += " %d" % turns
+	if needs_perfect:
+		word += " if perfect"
+	var texture := HudStyle.mark_icon(id)
+	return _chip_data(texture if texture != null else &"star", word, HudStyle.STATUS_COLORS.get(id, HudStyle.TEXT) as Color)
+
+
+## "Cleanse 1", or "Cleanse all" for Status.CLEANSE_ALL.
+static func _cleanse_chip_data(count: int) -> Dictionary:
+	var text := "Cleanse all" if count >= Status.CLEANSE_ALL else "Cleanse %d" % count
+	return _chip_data(&"leaf", text, HudStyle.HEAL)
+
+
+## A skill's chips, in reading order, from its data (card #292): its AP cost or gain, who it
+## reaches, its hits and damage, what it heals or lifts, the marks it leaves, what it does to turns
+## and AP. The perfect-press bonuses stay in the description. `as_item`: a fight item's stand-in
+## (it reaches the party when it targets SELF, and its damage is not the user's).
+static func ability_chips(ability: AbilityData, ap_icon: Variant, as_item: bool = false) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = []
+	if ability.ap_cost > 0:
+		chips.append(_chip_data(ap_icon, "%d AP" % ability.ap_cost, HudStyle.AP_TEXT))
+	if ability.ap_gain > 0:
+		chips.append(_chip_data(ap_icon, "+%d AP" % ability.ap_gain, HudStyle.AP_TEXT))
+	if ability.team_ultimate:
+		chips.append(_chip_data(&"person", "All heroes", HudStyle.GOLD))
+	var reach := TARGET_WORDS[clampi(ability.target, 0, TARGET_WORDS.size() - 1)]
+	if as_item and ability.target == AbilityData.Target.SELF:
+		reach = TARGET_WORDS[AbilityData.Target.ALL_ALLIES]
+	chips.append(_chip_data(&"skull" if ability.targets_enemies() else &"person", reach))
+	if as_item:
+		if ability.cleanse_count > 0:
+			chips.append(_cleanse_chip_data(ability.cleanse_count))
+		return chips
+	var hits := ability.press_times_ms.size()
+	if ability.damage_percent > 0 and ability.targets_enemies():
+		if hits > 1:
+			chips.append(_chip_data(&"chevrons", "Hits %d" % hits))
+		chips.append(_chip_data(&"sword", "%d%% dmg" % ability.damage_percent, HudStyle.DAMAGE_DEALT))
+	if ability.per_perfect_defense_percent > 0:
+		chips.append(_chip_data(&"shield", "+%d%% per parry" % ability.per_perfect_defense_percent, HudStyle.PARRY))
+	if ability.exposed_bonus_percent > 0:
+		var exposed := _status_chip_data(Status.EXPOSED, 0)
+		exposed.text = "+%d%% vs %s" % [ability.exposed_bonus_percent, exposed.text]
+		chips.append(exposed)
+	if ability.heal_percent > 0:
+		chips.append(_chip_data(&"heart", "Heal %d%%" % ability.heal_percent, HudStyle.HEAL))
+	if ability.revive_percent > 0:
+		chips.append(_chip_data(&"heart", "Revive %d%%" % ability.revive_percent, HudStyle.HEAL))
+	if ability.team_ultimate:
+		chips.append(_chip_data(&"heart", "Revive all", HudStyle.HEAL))
+	if ability.cleanse_count > 0:
+		chips.append(_cleanse_chip_data(ability.cleanse_count))
+	if not ability.status.is_empty():
+		chips.append(_status_chip_data(ability.status, ability.status_turns, ability.status_needs_perfect))
+	if not ability.self_status.is_empty() and ability.self_status != ability.status:
+		chips.append(_status_chip_data(ability.self_status, ability.self_status_turns))
+	if ability.turn_delay_percent > 0:
+		chips.append(_chip_data(&"bolt", "Turn later", HudStyle.STATUS_COLORS.get(Status.SLOWED, HudStyle.TEXT) as Color))
+	if ability.turn_hasten_percent > 0:
+		chips.append(_chip_data(&"bolt", "Turn sooner", HudStyle.JUMP))
+	if ability.give_ap > 0:
+		chips.append(_chip_data(ap_icon, "Give %d AP" % ability.give_ap, HudStyle.AP_TEXT))
+	if ability.gauge_gain > 0:
+		chips.append(_chip_data(&"up", "Gauge +%d" % ability.gauge_gain, HudStyle.GAUGE_FILL))
+	if ability.escape:
+		chips.append(_chip_data(&"star", "Perfect only", HudStyle.GOLD))
+	return chips
+
+
+## A fight item's chips (card #292): its AP cost, who it reaches, and what it does with `amount`
+## (its percent at the item's level).
+static func item_chips(item: ItemData, amount: int, ap_icon: Variant) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = []
+	if item.ap_cost > 0:
+		chips.append(_chip_data(ap_icon, "%d AP" % item.ap_cost, HudStyle.AP_TEXT))
+	var reach := CombatEngine.item_target(item)
+	chips.append(_chip_data(&"skull" if reach == CombatEngine.ITEM_ENEMIES else &"person",
+			String(ITEM_TARGET_WORDS.get(reach, TARGET_WORDS[AbilityData.Target.ALL_ALLIES]))))
+	match item.effect:
+		ItemData.Effect.DAMAGE_ALL:
+			chips.append(_chip_data(&"sword", "%d%% dmg" % amount, HudStyle.DAMAGE_DEALT))
+		ItemData.Effect.HEAL_ONE, ItemData.Effect.HEAL_ALL:
+			chips.append(_chip_data(&"heart", "Heal %d%%" % amount, HudStyle.HEAL))
+		ItemData.Effect.REVIVE_ONE:
+			chips.append(_chip_data(&"heart", "Revive %d%%" % amount, HudStyle.HEAL))
+		ItemData.Effect.CLEANSE_ONE, ItemData.Effect.CLEANSE_ALL:
+			if item.cleanse_count > 0:
+				chips.append(_cleanse_chip_data(item.cleanse_count))
+			if amount > 0:
+				chips.append(_chip_data(&"heart", "Heal %d%%" % amount, HudStyle.HEAL))
+	if item.cleanse_count > 0 and item.effect in [ItemData.Effect.HEAL_ONE, ItemData.Effect.HEAL_ALL]:
+		chips.append(_cleanse_chip_data(item.cleanse_count))
+	return chips
 
 
 func _redraw_target() -> void:
