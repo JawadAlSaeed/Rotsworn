@@ -20,6 +20,10 @@ extends Node
 ## Online (DESIGN.md 9.2) this machine judges only its own player's prompts; the engine's answers
 ## to everyone's results arrive through take_events(), where other players' presses get their
 ## feedback. Event batches are applied in arrival order (never out of engine order).
+##
+## Phase 23 (DESIGN.md 3.12): a hero who runs up (FighterView.runs_up) runs all the way to a step
+## short of the strike point over hero_run_up_ms with the run loop, steps in on each hit and back
+## to that spot, and hops home at the end; anyone else steps skill_approach_share of the way.
 
 ## Everything from sequence_resolved on, to be played by the controller.
 signal finished(tail: Array[Dictionary])
@@ -39,6 +43,8 @@ const FOLLOW_UP_WINDUPS: PackedStringArray = ["follow_up_windup"]
 const FOLLOW_UP_STRIKES: PackedStringArray = ["follow_up"]
 ## A follow-up ally hops in and out of their spot with this clip.
 const LEAP_CLIP: String = "leap"
+## A hero who runs up runs with this clip (it falls back to walk_side, then the stance).
+const RUN_CLIP: String = "run"
 ## A bolt's trail copies: the first one this bright, each next one fainter.
 const BOLT_TRAIL_ALPHA: float = 0.45
 
@@ -205,7 +211,16 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 		v.clear_timed_pose(FighterView.PRIO_BIG)
 		v.set_pose(FighterView.CharPose.READY)
 		if _hits_enemies and not _targets.is_empty() and not _ranged:
-			v.move_body(_approach_offset(id), float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD, Tween.EASE_OUT)
+			if _runs_up(v):
+				# The run ends before the earliest wind-up frames (tuning hero_run_up_ms), so the loop
+				# never hides them.
+				v.move_body(_approach_offset(id), float(_tuning.hero_run_up_ms) / 1000.0, Tween.TRANS_SINE,
+						Tween.EASE_IN_OUT)
+				v.play(RUN_CLIP, _tuning.hero_run_up_ms, FighterView.PRIO_REACT, FighterView.CharPose.READY, 0,
+						false, _visuals.hero_run_cycle_ms)
+			else:
+				v.move_body(_approach_offset(id), float(_tuning.action_dash_ms) / 1000.0, Tween.TRANS_QUAD,
+						Tween.EASE_OUT)
 	sequence_started.emit(_seq)
 
 
@@ -940,7 +955,14 @@ func _hand_back() -> void:
 			# A hero who just ran keeps running off (DESIGN.md 2.13).
 			continue
 		v.set_pose(FighterView.CharPose.IDLE if _mirror.is_alive(id) else FighterView.CharPose.DOWN)
-		v.move_body(Vector3.ZERO, return_s, Tween.TRANS_QUAD, Tween.EASE_OUT)
+		# A follow-up ally hops home on their own (_hop_home); only the strikers who ran up hop here.
+		if _runs_up(v) and _strikers().has(id) and _mirror.is_alive(id) 				and v.body_offset.length() > _visuals.hero_swing_step:
+			# From up close it is a long way home: a hop back, easing out so it has landed before the
+			# next attack can start (an attack's start freezes everyone where they are).
+			v.hop_body(Vector3.ZERO, return_s, _visuals.follow_up_hop_height, Tween.TRANS_QUAD, Tween.EASE_OUT)
+			v.play(LEAP_CLIP, _tuning.action_return_ms, FighterView.PRIO_REACT)
+		else:
+			v.move_body(Vector3.ZERO, return_s, Tween.TRANS_QUAD, Tween.EASE_OUT)
 	var tail: Array[Dictionary] = _tail.duplicate()
 	_tail.clear()
 	finished.emit(tail)
@@ -1078,14 +1100,35 @@ func _follow_up_offset(id: int) -> Vector3:
 	return _approach_offset(id) * FOLLOW_UP_STEP_SHARE
 
 
-## Where a striker waits between hits: part of the way to the strike point.
+## Where a striker waits between hits: a step short of the strike point for a hero who runs up
+## (DESIGN.md 3.12), else part of the way there.
 func _approach_offset(id: int) -> Vector3:
 	var target := _first_target()
 	var v := _view.fighter(id)
 	# A spell is cast from where the caster stands (their rings sit on them too).
 	if target < 0 or v == null or _ranged:
 		return Vector3.ZERO
-	return (_view.strike_point(target) - v.position) * _visuals.skill_approach_share
+	var to := _view.strike_point(target) - v.position
+	if not _runs_up(v):
+		return to * _visuals.skill_approach_share
+	if _ability != null and _ability.team_ultimate:
+		# Each runner keeps their part of the formation, like the lunge (card #65), or they would stop
+		# on nearly the same spot and one would hide the other.
+		to += _view.team_spread_offset(id, _strikers())
+	return to * near_share(to.length(), _visuals.hero_swing_step)
+
+
+## True when this hero runs all the way up for this skill: a melee skill on enemies.
+func _runs_up(v: FighterView) -> bool:
+	return v != null and v.runs_up and _hits_enemies and not _ranged
+
+
+## Share of the way to a strike point `reach` away that a hero who runs up stops at: `step` short
+## of it (0 when the strike point is no further than the step).
+static func near_share(reach: float, step: float) -> float:
+	if reach <= 0.0:
+		return 0.0
+	return clampf((reach - step) / reach, 0.0, 1.0)
 
 
 func _focus_head(ids: Array[int]) -> Vector3:

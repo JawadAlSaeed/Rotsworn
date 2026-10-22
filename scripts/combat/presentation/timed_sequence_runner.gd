@@ -32,6 +32,10 @@ extends Node
 ## a rock ground hit bursts rows of rocks along a lane to each target, the last row under them at
 ## impact; a wave's front lies on the floor as a glowing band; an each-in-turn attack lunges at
 ## each hit's own target. All of it is a pure function of attack time, like the rest.
+##
+## Phase 23 (DESIGN.md 3.12): an attacker that runs up runs from home to a step short of its first
+## target during the last run_up_ms of a longer lead-in (real time, before anything is judged),
+## then plays the attack from there (EnemyChoreography `near`).
 
 ## Everything from sequence_resolved on, to be played by the controller.
 signal finished(tail: Array[Dictionary])
@@ -97,6 +101,11 @@ var _roster: PlayerRoster = PlayerRoster.solo(0)
 var _owners: Dictionary = {}
 var _latency_ms: int = 0
 var _lead_in_end_us: int = 0
+## This attack opens with a run to the target (DESIGN.md 3.12): it starts at _run_from_us (real
+## time) and ends where the clock starts, `_near` of the way from home to the first contact point.
+var _run_up: bool = false
+var _run_from_us: int = 0
+var _near: float = 0.0
 var _cues: Array[Dictionary] = []
 var _next_cue: int = 0
 ## Contact effects waiting for their attack time: [{at_us, call: Callable}], in order.
@@ -214,7 +223,9 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_inbox.clear()
 	_inbox_at_us = 0
 	_started_us = Time.get_ticks_usec()
-	_lead_in_end_us = _started_us + _tuning.attack_lead_in_ms * 1000
+	_run_up = EnemyChoreography.runs_up(attack, enemy_data, _hits)
+	_run_from_us = _started_us + _tuning.attack_lead_in_ms * 1000
+	_lead_in_end_us = _started_us + EnemyChoreography.lead_in_ms(_tuning, _run_up) * 1000
 	_set_idle_loop(enemy_data)
 	_cues = EnemyChoreography.cues(_hits, _visuals)
 	_ring_lead_us = maxi(1, (attack.ring_lead_ms(_tuning) if attack != null else _tuning.ring_lead_ms) * 1000)
@@ -242,6 +253,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	for i: int in _hits.size():
 		var own: Array[int] = _hit_targets[i]
 		_hit_contacts.append(_view.contact_point(own) if _each_in_turn() and not own.is_empty() else _contact)
+	_near = _near_share()
 	_view.camera.shot_attack(_view.home_of(_source), _contact)
 	# The runner moves the party every frame from here on: stop any leftover tweened movement, and
 	# any leftover short reaction (a weapon draw, a hurt) that would hide a defence frame. Bigger
@@ -364,6 +376,7 @@ func _process(_delta: float) -> void:
 		if now < _lead_in_end_us:
 			_update_party(0)
 			_update_target_arrows(0)
+			_update_run_in(now)
 			return
 		_clock.start(_lead_in_end_us)
 		# The camera glided to the attack shot during the lead-in: hold it still from here.
@@ -767,7 +780,7 @@ func _update_enemy(t: int) -> void:
 	if enemy == null:
 		return
 	var t_ms := float(t) / 1000.0
-	var s := EnemyChoreography.sample(_hits, t_ms, _visuals)
+	var s := EnemyChoreography.sample(_hits, t_ms, _visuals, _near)
 	# The beat's clip cell on attack time (cards #60, #63, #69); a missing clip shows the pose.
 	# A beaten enemy keeps the look its downing gave it while it still walks home.
 	if _mirror.is_alive(_source) and int(s.get("beat", -1)) == EnemyChoreography.Beat.AFTER:
@@ -788,8 +801,35 @@ func _update_enemy(t: int) -> void:
 	enemy.body_offset = _enemy_travel(s, enemy.position) * float(s.approach)
 
 
+## How far from home (share of the way to the first contact point) an attacker that runs up stops:
+## swing_step short of the contact point (0 when it does not run up).
+func _near_share() -> float:
+	var enemy := _view.fighter(_source)
+	if not _run_up or enemy == null or _hit_contacts.is_empty():
+		return 0.0
+	var reach := _hit_contacts[0] - enemy.position
+	reach.y = 0.0
+	if reach.length() <= 0.0:
+		return 0.0
+	return clampf(1.0 - _visuals.swing_step / reach.length(), 0.0, 1.0)
+
+
+## Before the clock: the run up to the first target over run_up_ms at the end of the lead-in, in
+## real time (nothing is judged yet), easing in and out, playing the chase loop.
+func _update_run_in(now: int) -> void:
+	var enemy := _view.fighter(_source)
+	if not _run_up or enemy == null or not _mirror.is_alive(_source) or now < _run_from_us:
+		return
+	var ms := float(now - _run_from_us) / 1000.0
+	var u := clampf(ms / float(maxi(1, _tuning.run_up_ms)), 0.0, 1.0)
+	var s := {"hit": 0, "beat": EnemyChoreography.Beat.BEFORE}
+	enemy.body_offset = _enemy_travel(s, enemy.position) * _near * u * u * (3.0 - 2.0 * u)
+	var frame := EnemyAnim.run(enemy.clip_count, ms, _visuals)
+	enemy.show_clip(String(frame.clip), int(frame.index), EnemyChoreography.Pose.IDLE)
+
+
 func _enemy_settled(t: int) -> bool:
-	var s := EnemyChoreography.sample(_hits, float(t) / 1000.0, _visuals)
+	var s := EnemyChoreography.sample(_hits, float(t) / 1000.0, _visuals, _near)
 	if float(s.approach) > 0.0 or int(s.pose) != EnemyChoreography.Pose.IDLE:
 		return false
 	if t < _last_impact_us():

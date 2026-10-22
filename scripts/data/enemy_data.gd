@@ -71,6 +71,10 @@ enum TargetRule {
 ## Its hits always take their forced kinds (AttackHitData.forced_kind, card #187), even in an
 ## ordinary fight: the deep variants. Elite, guard and boss fights use them anyway.
 @export var forced_hits: bool = false
+## It runs up to its target before an attack that opens with a melee hit (claw, bite or blade),
+## winds up and swings next to the hero, stays close through the string and runs home after it
+## (DESIGN.md 3.12). An attack that opens with a throw or a slam still plays from home.
+@export var runs_up: bool = false
 
 @export_group("Phase two (bosses)")
 ## When its HP drops to this percent of max HP or lower, it enters phase two: it attacks with

@@ -30,11 +30,31 @@ Pose keys on top of kit.rig.pose_skeleton's (pelvis, lean, head, hand_*, foot_*,
     brow, socket   size of the brow ridges / eye sockets (1 = sprite size; the portrait scowls more)
     eye_cap, eye_y largest pupil radius and pupil height in the socket (small hot pupils, portrait)
 
-Phase 10 clips (CLIPS at the end: every clip of plan 4.2 plus rage and the `_b` chop, rendered in
-worker processes) add keys that are absent from the row-0 keys, so those render as in phase 9:
+Phase 10 clips (CLIPS at the end: every clip of plan 4.2 plus rage, rendered in worker processes)
+add keys that are absent from the row-0 keys, so those render as in phase 9:
     eyes        0 = the sockets go dark (death)
     crown_at    model point the fallen crown's band is centred on (death); crown_rot its turn
     debris_fly  how high and far the slam's rubble has flown (1 = the slam key)
+    seam        the blade's rot seam whatever the glow (the sword swing): 1 = lit along the whole
+                blade; below 1 = only that share of it from the guard, in the seam's darker green
+                (it kindles up the blade as the swing starts and dies back to the guard after it),
+                drawn as a steady stepped line on the blade's own pixels; absent = lit when
+                glow >= 0.9
+    grip_f      where the far hand holds the grip with two_hand: share of GRIP_LEN from the near
+                hand toward the pommel (default GRIP_F; below 0 = toward the guard)
+    grip_at     how far (model units) the near hand sits from the grip's middle toward the pommel
+                (default 0): with grip_f < 0 the sword swing holds the far fist above the near one
+                on the blade's side, so the two arms reach the grip without crossing
+    fist, cuff  the bone fists' size (1 = as drawn) and where the forearm plate stops (share of the
+                forearm back from the fist, default 0.3): the swing bares bigger fists so both
+                hands on the grip read
+    smear, smear_from   the swing smear: the area the blade swept since the cell before (see
+                SMEAR_BANDS)
+
+The sword swing (windup, windup_hold, lunge, contact, recoil) is the overhead chop of the COIL_*,
+SWING_* and CLEAVE_* keys (one swing for every hit: the sheet has no lunge_b / contact_b, so odd
+hits fall back to it); row 0 keeps the phase 9 windup / lunge / contact keys, which other clips'
+poses are built from.
 """
 from __future__ import annotations
 
@@ -87,6 +107,7 @@ KING = Build(ankle_h=3.0, shin=21.0, thigh=21.0, spine=23.0, neck=5.6, head_r=7.
 HIP_Y = KING.stand_hip()
 BLADE_LEN = 44.0
 GRIP_LEN = 9.0
+GRIP_F = 0.42  # the far hand's place on the grip (share of GRIP_LEN behind the near hand)
 # By default the king is turned this many degrees toward the viewer on top of the shared camera,
 # so more of his front shows than a hero's: the open chest, both pauldrons, the skull face. Poses
 # change it with the `turn` key (attacks turn him toward the heroes, to the left).
@@ -621,8 +642,9 @@ def arm(sk, side: str, pose: dict[str, Any]) -> list[Node]:
     out: list[Node] = [
         RoundCone(SINEW, sh, el, 2.2, 1.7, group=g),
         Sphere(ARMOR, el, 2.6, group=g),
-        RoundCone(ARMOR, el + (ha - el) * 0.12, ha - (ha - el) * 0.3, 2.3, 3.0, group=g),
-        Sphere(BONE, ha, 2.5, group=g + "hand"),
+        RoundCone(ARMOR, el + (ha - el) * 0.12, ha - (ha - el) * float(pose.get("cuff", 0.3)), 2.3, 3.0,
+                  group=g),
+        Sphere(BONE, ha, 2.5 * float(pose.get("fist", 1.0)), group=g + "hand"),
     ]
     if side == "f":
         out += hand_claw(sk, side, float(pose["claw_f"]) * (1.0 - float(pose["two_hand"])))
@@ -666,9 +688,14 @@ BLADE_POLY = EDGE_PTS + SPINE_PTS
 BODY_POLY = [(x, y - 2.3) for x, y in EDGE_PTS[:-1]] + [(_BL - 1.0, 3.2)] + SPINE_PTS
 
 
+def grip_mid(sk, pose: dict[str, Any], d: np.ndarray) -> np.ndarray:
+    """The middle of the grip (the near hand's place unless the pose sets `grip_at`)."""
+    return sk["hand_n"] + d * float(pose.get("grip_at", 0.0))
+
+
 def sword(sk, pose: dict[str, Any]) -> Node:
     d, R = sword_frame(pose)
-    hand = sk["hand_n"]
+    hand = grip_mid(sk, pose, d)
     guard = hand + d * (GRIP_LEN * 0.5 + 0.6)
     b0 = guard + d * 0.8
     parts: list[Node] = [
@@ -750,7 +777,7 @@ def skeleton(pose: dict[str, Any]):
     k = float(pose.get("two_hand", 0.0))
     if k > 0.01:
         d, _ = sword_frame(pose)
-        grip = sk["hand_n"] - d * (GRIP_LEN * 0.42)
+        grip = sk["hand_n"] - d * (GRIP_LEN * float(pose.get("grip_f", GRIP_F)))
         p2 = dict(pose)
         hf = _v(pose.get("hand_f", sk["hand_f"]))
         p2["hand_f"] = tuple(hf + (grip - hf) * k)
@@ -788,7 +815,7 @@ def model(pose: dict[str, Any]) -> Node:
 def ground_point(sk, pose: dict[str, Any]) -> np.ndarray:
     """Where the blade meets the ground (or its tip, if it does not reach)."""
     d, _ = sword_frame(pose)
-    guard = sk["hand_n"] + d * (GRIP_LEN * 0.5 + 0.6)
+    guard = grip_mid(sk, pose, d) + d * (GRIP_LEN * 0.5 + 0.6)
     tip = guard + d * (BLADE_LEN + 0.8)
     if tip[1] < 0.0 < guard[1]:
         tip = guard + (tip - guard) * (guard[1] / (guard[1] - tip[1]))
@@ -796,6 +823,13 @@ def ground_point(sk, pose: dict[str, Any]) -> np.ndarray:
 
 
 # --- Rendering ----------------------------------------------------------------------------------
+
+
+def _seam(pose: dict[str, Any]) -> float:
+    """How much of the blade's rot seam shows (0 = none, 1 = all of it, lit). It shows in the tell
+    (glow >= 0.9); the swing keys set `seam` to keep it steady through the whole chop while the
+    core dims, and to kindle it up the blade and let it die back (see the module doc)."""
+    return float(pose.get("seam", 1.0 if float(pose["glow"]) >= 0.9 else 0.0))
 
 
 def _overlays(frame: Frame, cam: Camera, pose: dict[str, Any], portrait: bool = False) -> None:
@@ -807,13 +841,48 @@ def _overlays(frame: Frame, cam: Camera, pose: dict[str, Any], portrait: bool = 
             line3d(frame, cam, [world(p, pose) for p in pts], HOLLOW, 0, group="teeth", depth_bias=0.9)
         skull_crack(frame, cam, pose)
         nose_hole(frame, cam, pose)
-    if float(pose["glow"]) >= 0.9 and not portrait:
+    lit = _seam(pose)
+    if lit > 0.05 and not portrait:
         sk = skeleton(pose)
         d, R = sword_frame(pose)
-        guard = sk["hand_n"] + d * (GRIP_LEN * 0.5 + 0.6)
-        side = R @ _v((0.0, 0.0, 1.6))
+        guard = grip_mid(sk, pose, d) + d * (GRIP_LEN * 0.5 + 0.6)
+        # Along whichever flat faces the viewer: a blade rolled over (sword_roll 180, the notched
+        # edge leading a chop) shows its back flat, and the seam must not wink out there.
+        face = 1.0 if float(np.dot(R[:, 2], screen_axes(pose)[0])) >= 0.0 else -1.0
+        side = R @ _v((0.0, 0.0, 1.6 * face))
         pts = [guard + d * 3.0 + side + R @ _v((0, 1.0, 0)), guard + d * (BLADE_LEN - 6.0) + side + R @ _v((0, 3.0, 0))]
-        line3d(frame, cam, [world(p, pose) for p in pts], GLOW, SEAM_IDX, group="glow", depth_bias=2.0)
+        if "seam" in pose:
+            pts[1] = pts[0] + (pts[1] - pts[0]) * min(lit, 1.0)
+            seam_line(frame, cam, [world(p, pose) for p in pts], SEAM_IDX if lit >= 0.99 else 0)
+        else:
+            line3d(frame, cam, [world(p, pose) for p in pts], GLOW, SEAM_IDX, group="glow", depth_bias=2.0)
+
+
+def seam_line(frame: Frame, cam: Camera, pts: list[np.ndarray], idx: int = SEAM_IDX) -> None:
+    """The sword swing's seam (poses with the `seam` key): a 4-connected stepped line (a pixel
+    at every corner step, so a steep diagonal never breaks into dots), drawn only on the blade's
+    own pixels (a buried or hidden part of the blade shows no seam floating in the air)."""
+    (x0, y0, d0), (x1, y1, d1) = cam.project(pts[0]), cam.project(pts[1])
+    part = frame.add_part(GLOW, "glow")
+    n = int(max(abs(x1 - x0), abs(y1 - y0)) * 4) + 1
+    cells: list[tuple[int, int, float]] = []
+    for k in range(n + 1):
+        u = k / n
+        c = (int(math.floor(x0 + (x1 - x0) * u)), int(math.floor(y0 + (y1 - y0) * u)), d0 + (d1 - d0) * u)
+        if cells and cells[-1][:2] == c[:2]:
+            continue
+        if cells and cells[-1][0] != c[0] and cells[-1][1] != c[1]:
+            # A corner step: fill the corner on the side the true line passes closer to.
+            px, py, pd = cells[-1]
+            a, b = (c[0], py), (px, c[1])
+            dist = [abs((y1 - y0) * (q[0] + 0.5 - x0) - (x1 - x0) * (q[1] + 0.5 - y0)) for q in (a, b)]
+            q = a if dist[0] <= dist[1] else b
+            cells.append((q[0], q[1], (pd + c[2]) * 0.5))
+        cells.append(c)
+    for x, y, dd in cells:
+        if 0 <= x < frame.W and 0 <= y < frame.H and frame.part[y, x] >= 0 \
+                and frame.groups[frame.part[y, x]] == "sword":
+            frame.put(x, y, part, idx, dd - 2.0)
 
 
 def finish_frame(frame: Frame) -> np.ndarray:
@@ -821,6 +890,105 @@ def finish_frame(frame: Frame) -> np.ndarray:
     cleanup(frame)
     outline(frame)
     return frame.rgba()
+
+
+# The swing smear (the chop's hit cell): the area the cleaver swept since the cell before, from
+# where it was (`smear_from`: sword_ang, sword_out and the near hand x, y, z of that cell) to where
+# it is, filled in its edge colours: a wedge along the outer part of the blade, widest against it
+# and tapering back toward where the swing came from, with a bright rim along the tip's path,
+# pale next to the blade and darker further back, so it reads as one heavy sweep of the blade.
+# SMEAR_BANDS[smear] = per band, lightest first: (share of the blade it covers from the tip, share
+# of the sweep it leaves out from its start, EDGE colour index; a pixel takes the first band that
+# covers it). Each band starts SMEAR_TAPER[smear] as deep as it ends against the blade. Only the
+# strike has one (1): the swing's other cells read by their spacing, without trails.
+SMEAR_BANDS: dict[int, list[tuple[float, float, int]]] = {
+    # A thin arc off the tip: deeper bands filled in an opaque slab that read as an axe head.
+    1: [(0.10, 0.0, -1), (0.30, 0.5, -3)],
+}
+SMEAR_TAPER = {1: 0.25}
+SMEAR_CURVE = 1.6  # > 1: the bands stay thin along the arc and swell near the blade (a crescent)
+SMEAR_STEPS = 48  # in-between blades rasterised per smear
+SMEAR_MARGIN = 3  # clear pixels the smear keeps from the frame's left and right edges
+
+
+def _smear_quad(pose: dict[str, Any], hand: np.ndarray, cam: Camera, x0: float,
+                scale: float = 1.0) -> list[tuple[float, float]]:
+    """The blade's outline from `x0` (blade space, guard to tip) out to the tip, in pixels, with
+    the near hand at `hand` and the blade's length times `scale` (the notches left out: a smear
+    is a soft shape)."""
+    d, R = sword_frame(pose)
+    b0 = hand + d * (float(pose.get("grip_at", 0.0)) + GRIP_LEN * 0.5 + 1.4)
+    e0 = 3.6 + (8.6 - 3.6) * x0 / BLADE_LEN
+    pts = [(x0, -3.2), (BLADE_LEN - 9.0, -3.8), (BLADE_LEN - 0.6, -0.6), (BLADE_LEN, 5.8),
+           (BLADE_LEN - 2.5, 8.6), (x0, e0)]
+    out = []
+    for x, y in pts:
+        px, py, _ = cam.project(world(b0 + R @ _v((max(x, x0) * scale, y, 0.0)), pose))
+        out.append((px, py))
+    return out
+
+
+def swing_smear(rgba: np.ndarray, cam: Camera, pose: dict[str, Any]) -> np.ndarray:
+    """Draws the swing smear (see SMEAR_BANDS) into the empty pixels only, so the king, his blade
+    and their outline stay on top, and never into the frame's clear border."""
+    k = int(pose.get("smear", 0))
+    if k <= 0 or "smear_from" not in pose:
+        return rgba
+    from PIL import Image, ImageDraw
+
+    ang0, out0, *hand0 = (float(v) for v in pose["smear_from"])
+    ang1, out1 = float(pose["sword_ang"]), float(pose["sword_out"])
+    sweep = (ang1 - ang0 + 180.0) % 360.0 - 180.0  # the short way round
+    h0, h1 = _v(hand0), skeleton(pose)["hand_n"]
+
+    def blade_at(t: float) -> tuple[dict[str, Any], np.ndarray]:
+        return dict(pose, sword_ang=ang0 + sweep * t, sword_out=out0 + (out1 - out0) * t), h0 + (h1 - h0) * t
+
+    # Where the swept arc would leave the frame (a swing past the frame's edge), the in-between
+    # blades are drawn shorter by a smooth dip (none at either end, so the smear still meets both
+    # blades): its outer edge stays a rounded arc instead of being cut flat by the border.
+    lo, hi = SMEAR_MARGIN + 0.5, S - SMEAR_MARGIN - 0.5
+    dip = 0.0
+    for i in range(1, 16):
+        t = i / 16.0
+        p, hand = blade_at(t)
+        g = np.array(_smear_quad(p, hand, cam, 0.0, 0.0)[0])
+        fit = 1.0
+        for c in _smear_quad(p, hand, cam, 0.0):
+            for ax, (cl, ch) in enumerate(((lo, hi), (2.5, S - 3.0))):
+                dv = c[ax] - g[ax]
+                if g[ax] + dv < cl and dv < 0:
+                    fit = min(fit, (cl - g[ax]) / dv)
+                elif g[ax] + dv > ch and dv > 0:
+                    fit = min(fit, (ch - g[ax]) / dv)
+        dip = max(dip, (1.0 - fit) / math.sin(math.pi * t))
+    dip = min(dip, 0.4)
+    out = rgba.copy()
+    free = rgba[..., 3] == 0
+    free[:2, :] = False
+    free[S - 2:, :] = False
+    free[:, :SMEAR_MARGIN] = False
+    free[:, S - SMEAR_MARGIN:] = False
+    taken = np.zeros(free.shape, dtype=bool)
+    taper = SMEAR_TAPER[k]
+    for share, skip, ci in SMEAR_BANDS[k]:
+        img = Image.new("L", (S * 4, S * 4), 0)
+        draw = ImageDraw.Draw(img)
+        for i in range(SMEAR_STEPS + 1):
+            u = i / SMEAR_STEPS
+            t = skip + (1.0 - skip) * u
+            x0 = BLADE_LEN * (1.0 - share * (taper + (1.0 - taper) * u ** SMEAR_CURVE))
+            p, hand = blade_at(t)
+            quad = _smear_quad(p, hand, cam, x0, 1.0 - dip * math.sin(math.pi * t))
+            draw.polygon([(x * 4.0, y * 4.0) for x, y in quad], fill=255)
+        # A pixel joins the band when most of it is covered (4x4 samples), so edges stay clean.
+        cover = np.asarray(img, dtype=np.float32).reshape(S, 4, S, 4).mean(axis=(1, 3)) / 255.0
+        m = (cover >= 0.5) & free & ~taken
+        c = EDGE.colors[ci]
+        out[m, :3] = [int(c[j:j + 2], 16) for j in (1, 3, 5)]
+        out[m, 3] = 255
+        taken |= m
+    return out
 
 
 def ground_contacts(pose: dict[str, Any]) -> list[np.ndarray]:
@@ -985,7 +1153,9 @@ def render_pose(pose: dict[str, Any], cam: Camera | None = None, portrait: bool 
         # (At portrait size the rust patches turn into big brown blots on the shoulders.)
         rust(frame, cam, pose, node.leaves())
     _overlays(frame, cam, pose, portrait)
-    return finish_frame(frame)
+    rgba = finish_frame(frame)
+    # After the outline: a smear is motion, not a solid thing, so it gets no dark edge.
+    return rgba if portrait else swing_smear(rgba, cam, pose)
 
 
 # Portrait framing: model units per pixel, and the pixel (column, row) the skull centre lands on.
@@ -1068,65 +1238,112 @@ H = HIP_Y
 # cloak stirs and the rot core swells and brightens like a slow heartbeat.
 BREATH = _k("idle", lean=5.5, head=(10.0, -12.0, 0.0), glow=0.75, cloak_sway=1.5, cloak_flare=1.64)
 
-# The coil: pulls the cleaver out of the ground, swings it down and back, then hoists it high
-# behind as the far hand claws out. The blade's angle runs -90 -> -96 -> -160 -> -188 (172).
-COIL_1 = _k("idle", pelvis=(-1.0, H - 0.8, 0.0), lean=2.0, head=(14.0, -12.0, 0.0),
-            hand_n=(11.0, 61.0, 8.0), hand_f=(11.0, 63.0, 4.0), sword_ang=-96.0, sword_out=4.0,
-            bury=0.0, two_hand=1.0, glow=0.7, cloak_sway=-2.0, cloak_flare=1.45, turn=26.0)
-COIL_2 = _k("windup", pelvis=(-3.0, H - 2.2, 0.0), lean=-2.0, twist=-10.0, head=(-4.0, -4.0, 0.0),
-            hand_n=(-14.0, 70.0, 15.0), hand_f=(18.0, 62.0, 0.0), elbow_n=(0.0, -0.4, 1.0),
-            foot_n=(-6.0, 3.0, 10.5), foot_f=(12.0, 3.0, -8.0), sword_ang=-160.0, sword_out=-4.0,
-            two_hand=0.3, claw_f=0.7, glow=1.0, jaw=12.0, turn=22.0, cloak_sway=-4.0,
-            cloak_flare=1.25, cloak_lift=0.15)
-# Held high: the blade trembles, the claw flexes, the jaw works.
-SHIVER = _k("windup", hand_n=(-16.5, 87.0, 16.5), sword_ang=175.0, jaw=26.0, hand_f=(27.0, 67.0, -2.0),
-            head=(-14.0, 1.0, 2.0), cloak_sway=-6.5, pelvis=(-4.0, H - 2.8, 0.0))
+# The sword swing, an overhead chop (windup, windup_hold, lunge, contact, recoil), every hit of a
+# string. Screen angles of the blade (0 = toward the heroes, 90 = up, 180 = behind him):
+# 232 (down and back) -> 156 -> 110 held high -> 90 -> 61 -> 22 -> -40 on the hit -> -50 -> -42,
+# then -58 -> 234 back toward the coil. The steps into the hit grow (20, 29, 39, 62 degrees), so
+# the chop speeds up all the way into the hit. Throughout: one blade length on screen (the blade
+# keeps a 25 degree tilt toward the viewer, so it never pumps); the skull stays turned to the
+# viewer as in idle and no hand, guard or arm crosses the face; both fists hold the grip, the far
+# one above the near one on the blade's side (two_hand, grip_at, grip_f), bared and a size bigger
+# so both read (fist, cuff); the rot seam kindles up the blade in the first coil cell, stays lit to
+# the recoil and dies back in its last cell (`seam`); the blade never rests point-down on the floor
+# (it reads as a leg there). He steps in with the far foot (the one toward the heroes on screen),
+# both feet at the same depth from the viewer so they stand on the same floor row.
+# windup[0]: wrenches the cleaver out of the floor and swings it down and back across the cloak;
+# the seam starts to kindle from the guard (seam < 1: part of the blade, darker green).
+COIL_1 = _pose(pelvis=(-1.0, H - 1.2, 0.0), lean=3.0, head=(12.0, -12.0, 0.0), hand_n=(6.9, 54.1, 8.0),
+               elbow_n=(0.2, -1.0, 0.6), elbow_f=(0.2, -1.0, -0.6), foot_n=(-3.9, 3.0, 10.5),
+               foot_f=(9.4, 3.0, -7.8), sword_ang=-80.2, sword_out=50.3, two_hand=1.0, grip_at=2.0,
+               grip_f=-0.44, fist=1.2, cuff=0.42, glow=0.85, seam=0.45, jaw=6.0, turn=26.0,
+               cloak_sway=-2.0, cloak_flare=1.45)
+# windup[1]: cocks it back at shoulder height, the seam lit along the whole blade.
+COIL_2 = _pose(pelvis=(-3.0, H - 3.0, 0.0), lean=-3.0, twist=-10.0, head=(-6.0, -4.0, 0.0),
+               hand_n=(-19.6, 70.0, 8.0), elbow_n=(-0.6, -0.6, 0.8), elbow_f=(0.2, -0.6, -1.0),
+               foot_n=(-9.6, 3.0, 10.6), foot_f=(10.3, 3.0, -11.5), sword_ang=123.8, sword_out=58.3,
+               two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2, cuff=0.42, glow=1.0, seam=1.0,
+               jaw=12.0, turn=20.0, cloak_sway=-4.0, cloak_flare=1.25, cloak_lift=0.15)
+# windup[2] and windup_hold[0], the tell: crouched to spring, both fists on the grip just
+# beside the crown (a clear gap between hilt and crown), the blade high above his head.
+CLEAVE_UP = _pose(pelvis=(-4.0, H - 6.0, 0.0), lean=-6.0, twist=-6.0, head=(-12.0, -2.0, 0.0),
+                  hand_n=(-30.2, 76.1, 4.0), elbow_n=(-1.0, -1.2, 0.6), elbow_f=(0.6, -0.4, -0.8),
+                  foot_n=(-11.5, 3.0, 10.5), foot_f=(10.8, 3.0, -12.6), sword_ang=91.4, sword_out=24.2,
+                  two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2, cuff=0.42, glow=1.0, seam=1.0,
+                  jaw=20.0, turn=18.0, cloak_sway=-6.0, cloak_flare=1.1, cloak_lift=0.3)
+# windup_hold[1]: the blade trembles a hair higher, the jaw works, the cloak stirs.
+CLEAVE_SHIVER = _pose(pelvis=(-4.0, H - 6.4, 0.0), lean=-6.0, twist=-6.0, head=(-14.0, -1.0, 2.0),
+                      hand_n=(-30.2, 76.7, 4.0), elbow_n=(-1.0, -1.2, 0.6), elbow_f=(0.6, -0.4, -0.8),
+                      foot_n=(-11.5, 3.0, 10.5), foot_f=(10.8, 3.0, -12.6), sword_ang=92.6,
+                      sword_out=25.6, two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2, cuff=0.42,
+                      glow=1.0, seam=1.0, jaw=27.0, turn=18.0, cloak_sway=-6.5, cloak_flare=1.12,
+                      cloak_lift=0.32)
+# lunge[0]: the far foot lifts to step in as the blade comes upright over his shoulder.
+SWING_1 = _pose(pelvis=(-3.0, H - 4.0, -0.7), lean=-4.0, twist=-6.0, head=(-12.0, -2.0, 0.0),
+                hand_n=(-24.4, 74.3, 3.0), elbow_n=(-1.0, -1.2, 0.6), elbow_f=(0.6, -0.4, -0.8),
+                foot_n=(-10.7, 3.0, 9.6), foot_f=(12.5, 6.0, -14.4), knee_f=(1.0, 0.2, -0.2),
+                toe_f=10.0, sword_ang=79.1, sword_out=10.4, two_hand=1.0, grip_at=2.0, grip_f=-0.44,
+                fist=1.2, cuff=0.42, glow=0.95, seam=1.0, jaw=18.0, turn=18.0, cloak_sway=-8.0,
+                cloak_flare=1.1, cloak_lift=0.35, cloak_open=10.0)
+# lunge[1]: the body leans in ahead of the arms, the blade tipping forward past the crown's
+# back (the face stays clear).
+SWING_2 = _pose(pelvis=(-0.93, H - 4.1, -0.77), lean=4.0, twist=-4.0, head=(-14.0, -4.0, 2.0),
+                hand_n=(-24.5, 71.0, 2.0), elbow_n=(-1.0, -1.0, 0.4), elbow_f=(0.6, -0.4, -0.6),
+                foot_n=(-9.6, 3.0, 10.6), foot_f=(13.5, 3.0, -15.0), sword_ang=59.6, sword_out=-8.1,
+                two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2, cuff=0.42, glow=0.85, seam=1.0,
+                jaw=16.0, turn=20.0, cloak_sway=-12.0, cloak_flare=1.15, cloak_hem=4.0, cloak_lift=0.4,
+                cloak_open=25.0)
+# lunge[2], just before impact: the fists swing down in front of him, below and left of the
+# face, the blade out toward the hero.
+SWING_3 = _pose(pelvis=(-1.82, H - 5.6, 1.55), lean=2.0, side_lean=-4.0, twist=2.0,
+                head=(-12.0, -8.0, 4.0), hand_n=(15.3, 60.0, 2.0), elbow_n=(0.3, -0.8, 0.8),
+                elbow_f=(0.0, -1.0, -0.4), foot_n=(-7.7, 3.0, 10.7), foot_f=(13.7, 3.0, -14.8),
+                sword_ang=26.6, sword_out=-24.5, two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2,
+                cuff=0.42, glow=0.75, seam=1.0, jaw=14.0, turn=22.0, cloak_sway=-14.0, cloak_flare=1.2,
+                cloak_hem=3.0, cloak_lift=0.5)
+# contact[0], the hit: both feet planted wide, both arms reaching out toward the hero (the
+# face well above and behind the fists), the strike's heavy smear of the whole sweep.
+CLEAVE_HIT = _pose(pelvis=(-5.12, H - 6.0, 5.67), lean=10.0, side_lean=-12.0, twist=4.0,
+                   head=(-8.0, -14.0, 6.0), hand_n=(22.1, 63.1, 0.0), elbow_n=(0.3, -1.0, 0.5),
+                   elbow_f=(0.0, -1.0, -0.4), foot_n=(-7.7, 3.0, 10.7), foot_f=(13.7, 3.0, -14.8),
+                   sword_ang=-30.7, sword_out=-11.5, two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2,
+                   cuff=0.42, glow=0.65, seam=1.0, jaw=12.0, turn=22.0, cloak_sway=-14.0,
+                   cloak_flare=1.2, cloak_hem=3.0, cloak_lift=0.5, smear=1,
+                   smear_from=(26.6, -24.5, 15.3, 60.0, 2.0))
+# contact[1]: the blade drives on down through the hero, the body sinking low over the
+# bent front leg (the tip kept off the floor).
+CLEAVE_PRESS = _pose(pelvis=(-3.48, H - 10.2, 3.72), lean=10.0, side_lean=-12.0, twist=4.0,
+                     head=(-2.0, -16.0, 8.0), hand_n=(24.0, 59.1, 0.0), elbow_n=(0.3, -1.0, 0.5),
+                     elbow_f=(0.0, -1.0, -0.4), foot_n=(-7.7, 3.0, 10.7), foot_f=(13.7, 3.0, -14.8),
+                     sword_ang=-37.8, sword_out=-5.8, two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2,
+                     cuff=0.42, glow=0.55, seam=1.0, jaw=8.0, turn=22.0, cloak_sway=-11.0,
+                     cloak_flare=1.2, cloak_hem=3.0, cloak_lift=0.35)
+# contact[2]: rising out of it, the blade held out toward the hero, angled, off the floor.
+CLEAVE_REST = _pose(pelvis=(-2.95, H - 4.8, 3.09), lean=2.0, side_lean=-4.0, twist=4.0,
+                    head=(-4.0, -12.0, 6.0), hand_n=(17.5, 60.7, 0.0), elbow_n=(0.3, -1.0, 0.5),
+                    elbow_f=(0.0, -1.0, -0.4), foot_n=(-7.7, 3.0, 10.7), foot_f=(13.7, 3.0, -14.8),
+                    sword_ang=-32.2, sword_out=-10.4, two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2,
+                    cuff=0.42, glow=0.5, seam=1.0, jaw=4.0, turn=22.0, cloak_sway=-7.0, cloak_flare=1.2,
+                    cloak_hem=2.0, cloak_lift=0.2)
+# recoil[0] (between hits): pulling the blade back in, still angled toward the hero.
+CLEAVE_RECOIL = _pose(pelvis=(-0.63, H - 2.8, 1.49), lean=6.0, side_lean=-4.0, head=(4.0, -12.0, 3.0),
+                      hand_n=(23.7, 61.1, 6.0), elbow_n=(0.2, -1.0, 0.6), elbow_f=(0.2, -1.0, -0.6),
+                      foot_n=(-5.6, 3.0, 10.7), foot_f=(12.3, 3.0, -13.0), sword_ang=-43.2,
+                      sword_out=-3.0, two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2, cuff=0.42,
+                      glow=0.45, seam=1.0, jaw=2.0, turn=25.0, cloak_sway=-3.0, cloak_flare=1.4,
+                      cloak_hem=1.5)
+# recoil[1]: the blade swung back under to the coil's place (down and back across the cloak,
+# never point-down on the floor), the seam dying back toward the guard.
+CLEAVE_SETTLE = _pose(pelvis=(-0.5, H - 1.6, 0.0), lean=4.0, head=(10.0, -12.0, 0.0),
+                      hand_n=(6.9, 57.7, 8.0), elbow_n=(0.2, -1.0, 0.6), elbow_f=(0.2, -1.0, -0.6),
+                      foot_n=(-3.9, 3.0, 10.5), foot_f=(10.1, 3.0, -8.8), sword_ang=-79.0,
+                      sword_out=48.6, two_hand=1.0, grip_at=2.0, grip_f=-0.44, fist=1.2, cuff=0.42,
+                      glow=0.6, seam=0.45, jaw=3.0, turn=26.0, cloak_sway=-2.5, cloak_flare=1.45)
 
-# The lunge: strides in, the cleaver coming down behind him to trail low (arriving, not yet
-# swung). Angles 172 -> 180 -> 190 -> 195 (-165).
-LUNGE_1 = _k("windup", pelvis=(0.0, H - 3.0, 0.0), lean=8.0, twist=-8.0, head=(-14.0, -8.0, 0.0),
-             hand_n=(-14.0, 72.0, 16.0), hand_f=(30.0, 62.0, 0.0), elbow_n=(-0.2, 0.0, 1.0),
-             foot_n=(6.0, 10.0, 9.0), foot_f=(12.0, 3.0, -7.0), knee_n=(1.0, 0.2, 0.2),
-             sword_ang=180.0, sword_out=0.0, glow=0.95, jaw=16.0, turn=18.0,
-             cloak_sway=-9.0, cloak_flare=1.12, cloak_lift=0.35, cloak_open=15.0)
-LUNGE_2 = _k("lunge", pelvis=(4.0, H - 5.0, 0.0), lean=16.0, head=(-16.0, -12.0, 0.0),
-             hand_n=(-8.0, 46.0, 16.0), hand_f=(34.0, 52.0, 2.0), elbow_n=(-0.3, 0.2, 1.0),
-             foot_n=(19.0, 5.0, 7.0), foot_f=(0.0, 3.0, -6.0), toe_f=20.0,
-             sword_ang=190.0, sword_out=4.0, glow=0.7, cloak_sway=-13.0, cloak_hem=3.0,
-             cloak_lift=0.4, cloak_open=30.0)
-
-# Follow-through: the cleaver carries on down until its point bites the floor, then rests there.
-FOLLOW_1 = _k("contact", pelvis=(12.0, H - 9.0, 0.0), lean=30.0, twist=-12.0, head=(-4.0, -14.0, 0.0),
-              hand_n=(31.0, 40.0, 0.0), hand_f=(27.0, 42.0, -4.0), sword_ang=-50.0, sword_out=26.0,
-              bury=1.0, glow=0.5, jaw=8.0, cloak_sway=-10.0, cloak_lift=0.35)
+# The walk home starts from this settled follow-through (the old sweep's).
 FOLLOW_2 = _k("contact", pelvis=(10.0, H - 7.0, 0.0), lean=22.0, twist=-4.0, head=(2.0, -14.0, 0.0),
               hand_n=(25.0, 41.0, 2.0), hand_f=(22.0, 43.0, -2.0), sword_ang=-68.0, sword_out=20.0,
               bury=1.0, glow=0.45, jaw=4.0, cloak_sway=-6.0, cloak_lift=0.2, cloak_hem=2.0)
 
-# Tier 2, the other swing (`lunge_b`, `contact_b`, e.g. every second hit of a string): an
-# overhead chop. He strides in with the cleaver two-handed above his head, cocked down behind
-# it (arriving), it lands chopping down, and its point bites the floor into the same FOLLOW_2 as
-# the sweep. Angles 172 -> 165 -> 188 -> 205, then -48 on the chop.
-LUNGE_B1 = _k("windup", pelvis=(0.0, H - 3.0, 0.0), lean=6.0, twist=-6.0, head=(-12.0, -8.0, 0.0),
-              hand_n=(-8.0, 84.0, 14.0), elbow_n=(-0.2, 0.2, 1.0), two_hand=1.0,
-              foot_n=(6.0, 10.0, 9.0), foot_f=(12.0, 3.0, -7.0), knee_n=(1.0, 0.2, 0.2),
-              sword_ang=165.0, sword_out=-4.0, glow=0.95, jaw=16.0, turn=18.0,
-              cloak_sway=-9.0, cloak_flare=1.12, cloak_lift=0.35, cloak_open=15.0)
-LUNGE_B2 = _k("lunge", pelvis=(4.0, H - 5.0, 0.0), lean=10.0, head=(-14.0, -12.0, 0.0),
-              hand_n=(2.0, 86.0, 10.0), elbow_n=(-0.2, 0.0, 1.0), two_hand=1.0, claw_f=0.0,
-              foot_n=(19.0, 5.0, 7.0), foot_f=(0.0, 3.0, -6.0), toe_f=20.0,
-              sword_ang=188.0, sword_out=-2.0, glow=0.75, cloak_sway=-13.0, cloak_hem=3.0,
-              cloak_lift=0.4, cloak_open=30.0)
-LUNGE_B3 = _k("lunge", lean=14.0, head=(-14.0, -14.0, 0.0), hand_n=(10.0, 84.0, 8.0),
-              elbow_n=(-0.2, 0.0, 1.0), two_hand=1.0, claw_f=0.0, sword_ang=205.0, sword_out=-2.0,
-              glow=0.6)
-CONTACT_B = _k("contact", lean=26.0, hand_n=(33.0, 58.0, -3.0), hand_f=(30.0, 60.0, -6.0),
-               sword_ang=-48.0, sword_out=16.0, head=(-10.0, -14.0, 0.0))
-FOLLOW_B1 = _k("contact", pelvis=(12.0, H - 9.0, 0.0), lean=32.0, twist=-8.0, head=(-2.0, -14.0, 0.0),
-               hand_n=(30.0, 42.0, 0.0), hand_f=(27.0, 44.0, -4.0), sword_ang=-62.0, sword_out=12.0,
-               bury=1.0, glow=0.5, jaw=8.0, cloak_sway=-10.0, cloak_lift=0.35)
-
-RECOIL_1 = _mix(FOLLOW_2, IDLE, 0.5, bury=1.0)
 # Walking back home, the cleaver's point dragging: the front foot steps back, then the other.
 RETURN_1 = _mix(FOLLOW_2, IDLE, 0.4, foot_n=(14.0, 8.0, 9.0), bury=1.0, glow=0.45)
 RETURN_2 = _mix(FOLLOW_2, IDLE, 0.8, foot_f=(4.0, 6.0, -8.0), bury=1.0, glow=0.5)
@@ -1217,11 +1434,13 @@ CHASE = [_gait(22.0, -18.0, 0.0, 2.0, -1.5, -1.0, run=True), _gait(2.0, -6.0, 0.
 # Clip name -> cells in play order (int = a row-0 key, dict = a pose). The game sets the timing.
 CLIPS: dict[str, list[Any]] = {
     "idle": [K["idle"], _mix(IDLE, BREATH, 0.5), BREATH, _mix(IDLE, BREATH, 0.5)],
-    "windup": [COIL_1, COIL_2, K["windup"]],
-    "windup_hold": [K["windup"], SHIVER],
-    "lunge": [LUNGE_1, LUNGE_2, K["lunge"]],
-    "contact": [K["contact"], FOLLOW_1, FOLLOW_2],
-    "recoil": [RECOIL_1, K["idle"]],
+    # The sword swing, every hit of a string (odd hits ask for lunge_b / contact_b and fall back
+    # to these: the King has one swing).
+    "windup": [COIL_1, COIL_2, CLEAVE_UP],
+    "windup_hold": [CLEAVE_UP, CLEAVE_SHIVER],
+    "lunge": [SWING_1, SWING_2, SWING_3],
+    "contact": [CLEAVE_HIT, CLEAVE_PRESS, CLEAVE_REST],
+    "recoil": [CLEAVE_RECOIL, CLEAVE_SETTLE],
     "return": [RETURN_1, RETURN_2, K["idle"]],
     "slam": [K["slam"], SLAM_DUST, SLAM_RISE],
     "slam_recover": [SLAM_UP, K["idle"]],
@@ -1231,8 +1450,6 @@ CLIPS: dict[str, list[Any]] = {
     "walk": WALK,
     "chase": CHASE,
     "rage": [RAGE_1, RAGE_2, RAGE_3, RAGE_4, RAGE_5],
-    "lunge_b": [LUNGE_B1, LUNGE_B2, LUNGE_B3],
-    "contact_b": [CONTACT_B, FOLLOW_B1, FOLLOW_2],
 }
 
 

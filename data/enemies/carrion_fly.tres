@@ -35,3 +35,4 @@ gold = 12
 xp = 25
 voice_sfx = "voice_fly"
 relic_drops = Array[ExtResource("6_or2uk")]([ExtResource("7_jhxbd"), ExtResource("8_0gl4p"), ExtResource("9_jhxbd"), ExtResource("10_0gl4p")])
+runs_up = true

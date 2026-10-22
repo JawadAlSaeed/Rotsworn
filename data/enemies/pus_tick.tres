@@ -26,3 +26,4 @@ hp_percent = 45
 attacks = Array[ExtResource("1_attack")]([ExtResource("a_tick_latch"), ExtResource("a_tick_burst")])
 voice_sfx = "voice_toad"
 relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_hunger_charm"), ExtResource("g_wardstone"), ExtResource("7_wt64g")])
+runs_up = true

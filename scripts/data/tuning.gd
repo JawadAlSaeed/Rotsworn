@@ -38,6 +38,10 @@ extends Resource
 @export_group("Enemy attack pacing")
 ## Pause between the attack banner appearing and the attack starting.
 @export_range(0, 3000, 1, "suffix:ms") var attack_lead_in_ms: int = 700
+## An attacker that runs up (EnemyData.runs_up) runs to its target over this long before an attack
+## that opens with a melee hit. It is added to the lead-in, so the wind-up and every window stay as
+## authored (DESIGN.md 3.12).
+@export_range(0, 2000, 1, "suffix:ms") var run_up_ms: int = 450
 ## Speed of every enemy attack, in percent of its authored timing. 120 = 20% slower.
 @export_range(25, 300, 1, "suffix:%") var attack_tempo_percent: int = 100
 ## Enemy attacks never play faster than this percent of their authored timing, whatever depth,
@@ -185,6 +189,10 @@ extends Resource
 @export_range(0, 2000, 1, "suffix:ms") var action_hold_ms: int = 150
 ## A character returning to their spot.
 @export_range(0, 2000, 1, "suffix:ms") var action_return_ms: int = 220
+## A hero who runs up (CharacterData.runs_up, DESIGN.md 3.12) runs to the enemy over this long at
+## the start of a melee skill. Keep it under the earliest press minus the wind-up (about 460 ms
+## today), so the hero arrives before the wind-up frames start.
+@export_range(0, 2000, 1, "suffix:ms") var hero_run_up_ms: int = 380
 ## Short pause between turns.
 @export_range(0, 2000, 1, "suffix:ms") var turn_gap_ms: int = 200
 ## How long damage numbers and result popups stay up.

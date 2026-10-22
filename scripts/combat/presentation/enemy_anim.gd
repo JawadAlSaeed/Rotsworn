@@ -28,6 +28,7 @@ const SLAM := "slam"
 const SLAM_RECOVER := "slam_recover"
 const WINDUP_SHOOT := "windup_shoot"
 const SHOOT := "shoot"
+const CHASE := "chase"
 ## A hit's alternate limb (husk and king alternate claws): odd hits of a string try `<clip>_b`.
 const ALT_SUFFIX := "_b"
 
@@ -82,6 +83,12 @@ static func pick(s: Dictionary, hits: Array, count: Callable, v: CombatVisuals, 
 				return idle
 			return _at(name_for(RETURN, prefix, alt), count, beat_u, idle)
 	return idle
+
+
+## The run up to the target before the clock starts (DESIGN.md 3.12): the chase loop, `ms` into the
+## run; the legacy pose when the sheet has no chase clip.
+static func run(count: Callable, ms: float, v: CombatVisuals) -> Dictionary:
+	return _loop(CHASE, count, ms, float(v.run_up_cycle_ms), {})
 
 
 ## The clip name a hit asks for: `<prefix>_<clip>`, with `_b` on an alternate hit. The fallbacks

@@ -35,3 +35,4 @@ xp = 45
 voice_sfx = "voice_hyena"
 relic_drops = Array[ExtResource("7_isb6f")]([ExtResource("8_y2krw"), ExtResource("9_p1cjn"), ExtResource("10_y2krw")])
 forced_hits = true
+runs_up = true

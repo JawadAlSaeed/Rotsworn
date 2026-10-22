@@ -981,6 +981,48 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
 - Counters: every target who parried all of their hits counters; if all of them did, it is one
   team counter (like a party-wide attack).
 
+### 3.12 Run up and swing (phase 23, card #244)
+
+- An enemy with `EnemyData.runs_up` runs to its target before an attack that opens with a melee
+  hit (a normal hit, rend or sweep that throws nothing; `EnemyChoreography.runs_up`). An attack
+  that opens with a slam or a throw plays from home as before. First the Rotten Husk and the
+  Hollow King (the owner played the Husk: "good", 2026-10-21), then every claw, bite and blade
+  enemy: husks (Ashen Husk, Husk Lord), hyenas, rats, shades (Hollow Shade, Ash Warden), barrow
+  and tomb brutes, gnats, flies, bloats (Blight Bloat, Gorged One), ticks and priests (censer).
+  Slingers and lanterns only throw; toads stay home (the tongue reaches from there).
+- The run is added to the lead-in: banner and camera as before (`attack_lead_in_ms`), then the run
+  over tuning `run_up_ms` (450), then the attack clock starts. Nothing is judged during it, so the
+  wind-up and every window stay exactly as authored. The online host's arbiter waits the same
+  longer lead-in (`EnemyChoreography.lead_in_ms`; every machine decides the same from the same
+  data).
+- It runs with its `chase` loop (`run_up_cycle_ms`) and stops `swing_step` world units (1.0) short
+  of the contact point (`near`, a share of the way). Each hit winds up there and steps the rest of
+  the way in as it swings, reaching contact exactly at impact as before. Through a string it stays
+  close: the recoil never takes it further back than `near`; slams and throws in the string play
+  where it stands. After the last hit it goes home over `return_ms` like any attacker (a longer run
+  home outlasted the hand-back, so a counter dashed into an enemy still on its way; code review).
+- The swing uses the enemy's `lunge` and `contact` cells. The Hollow King, the one sword fighter,
+  got a real swing (owner: "enemies who have swords ... need to be close and to have a swing
+  animation"; picked option A of three drafts, 2026-10-22): an overhead chop. The wind-up hoists
+  the cleaver high with both fists, the swing arcs it over the top, the hit (contact[0]) chops down
+  at the hero's chest with both feet planted and a thin smear arc off the tip, then the blade drives
+  on down. His skull face and the blade's green seam stay in every cell. Odd hits of a string use
+  the same chop (his `lunge_b` / `contact_b` are gone). Other monsters keep their cells for now.
+- **Heroes** (owner: "make Brin and Alder run all the way up for their attacks", 2026-10-22): a
+  hero with `CharacterData.runs_up` (Brin, Alder; not Cass, who casts from her spot) runs all the
+  way to `hero_swing_step` (1.0) short of the strike point at the start of a melee skill on
+  enemies, over tuning `hero_run_up_ms` (380) with the `run` clip looping every
+  `hero_run_cycle_ms` (it falls back to `walk_side`, then the stance). Both have their own 8-cell
+  `run` (art kit): a longer stride and twice the walk's lean, Brin in his reverse-grip high and low,
+  Alder with the shield on his forearm and the far arm pumping. The skill clock starts at
+  once as before; the run ends before the earliest wind-up frames of any skill (a test checks it),
+  so it never hides them. Each hit steps in from there and back as before (`skill_lunge_ms`). In the
+  Team Ultimate each runner aims at their own spread spot (card #65), so nobody hides another. At
+  the end the strikers who ran up hop home (`follow_up_hop_height`, over `action_return_ms`, easing
+  out so they have landed before an enemy attack can start); a follow-up ally hops home on their own.
+  Anyone else, and spells, keep `skill_approach_share` (0.55) or stay put. Counters and the plain
+  party action keep their quick dash.
+
 ---
 
 ## 4. Architecture
@@ -1298,7 +1340,23 @@ blending poses into more frames.
   rot); the heroes carry the strong colours (Alder blue, Brin red, Cass gold); worn gold accents;
   glows (rot green, cyan, amber, violet) only where they mean something.
 - Alder carries a big shield and a backpack and no sword (user, 2026-10-14; the shield-only
-  rework is card #56). Brin has twin daggers and a red headband; Cass a cyan-crystal staff, a
+  rework is card #56). In his idle the shield rides on his near forearm at his side, its point
+  tipped back and down (card #297, owner's pick 2026-10-21; it hung low in front of him before).
+  Brin has twin daggers and a red headband. His idle is "high and low" in a reverse grip (card
+  #296, owner's pick 2026-10-21): the near fist low and forward with its blade pointing back, the
+  far fist raised before the chest with its blade pointing down. Every dagger shows its grip and a
+  gold pommel out of the fist, because blades hanging straight out of the fists in line with the
+  forearms read as Wolverine's claws (owner). Every other frame uses the reverse grip too (owner,
+  2026-10-21: "change his whole attack and outside movement"): ready is the high and low standing,
+  leaning in a little more with the fists further forward (he crouched low before; owner: "can we
+  stop the ducking as a whole"; the old crouch stays as the base of his strike and cast wind-ups,
+  leap, jump landing, get-up and victory wind); parry takes the blow on both blades lying down the raised forearms in an X; strike is a
+  stab hammered down from a fist cocked over the shoulder; strike_alt a backhand with the far blade
+  trailing the fist; strike_big both fists raised overhead, then a double stab; cast the forearms
+  crossed before the face; in the zones he walks and stands in the high and low from every side
+  (owner's pick "walk A" for the front and back views); victory ends with the far
+  fist thrust up, its blade jutting forward over his head. The old loose stance stays as the base
+  of his draw, jump push-off, victory and pickup frames. Cass a cyan-crystal staff, a
   wide pointed hat and a gold robe.
 - Each enemy has its own body (before phase 9 all five were one recoloured placeholder):
   the Rotten Husk a bark-skinned hunched husk with hooked claws; the Bloat a huge swollen belly
@@ -4261,6 +4319,20 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     plus an owner-asked sweep of menus and run screens (pause, settings, calibration, players, join,
     map, shop, run end, Echoes, Journal). Then on 2026-10-21: skill chips in fights (#292), tutorial cards
     with pictures (#293), a quieter map legend (#294), shop item chips (#295) and a plain red party flag.
+23. **Run up and swing** (done, approved 2026-10-22 after a playtest, v0.23.0; talked through
+    2026-10-21; cards #244, #296, #297; 3.12 and 5.4): melee looks
+    like a real attack. Today a lunge is the whole trip in about 0.2 s, so it reads as a slide from
+    the enemy's spot. Now an attack of claw, bite or blade hits starts with a run to its target,
+    added before the attack clock starts (about 0.5 s, presentation only), so press timing and the
+    wind-up's length do not change. The enemy winds up next to the hero and swings: a claw or weapon
+    arc whose hit frame lands at impact (`approach_ms` becomes the swing). Through a string it stays
+    close and swings again (stepping over when the next hit has another target), then runs home
+    after the last hit. Throws and ground slams stay home as now. First the Rotten Husk (claws) and
+    the Hollow King (cleaver), playtested, then every other melee enemy. Brin and Alder also run all
+    the way up for their attacks (today half way, `skill_approach_share` 0.55, then a lunge); Cass
+    casts from her spot and keeps her look. Brin's idle holds the daggers in a reverse grip, high
+    and low (#296), and Alder's idle carries the shield on his forearm at his side (#297); both
+    picked by the owner from drawn options on 2026-10-21 and in the sprites (5.4).
 
 ### 11.1 To-do (from playtests)
 
@@ -4492,3 +4564,9 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-19 | Phase 21 "The roguelite pass" (8.19): Echoes are learned for good by filling a Relic's pips across runs and can then be worn in any run for Echo points, no Relic needed, one hero per Echo; Relic levels last one run; the bag starts at 3 and grows to 6 with Echoes learned; the grid backpack becomes Alder's pack with pockets; plus friends banking online, defence counts, Again, a starting pact, a crowned elite and priced stops | owner: levels kept forever made the game easier the more you played and relearning Echoes every run was busywork (#272); "learned is usable" was the owner's own reading (option A); the grid lost its job when the charms went. Dropped: new heroes, endless mode, a between-runs currency, a daily leaderboard (#267) |
 | 2026-10-19 | Phase 19 "Monsters and effects" (11): six new monsters in two batches, five new hero marks, one mark hit per monster in every fight but the first zone, Purify plus Antidote and Holy Water to lift them, area skills for Brin and Cass, more 3-monster fights | user asked for small fries, ranged-only and large monsters, status effects, a way to cleanse them and up to 3 monsters a fight; user picked every recommended option |
 | 2026-10-20 | Phase 22 "Fewer words, more icons" (7.13): practice-only numbers and keys, icon end screens, enemy panels capped at the HP bar's width, status and ranged-hit icons, 2-3 choices as side-by-side cards with icon chips, zone goal as icons, Keyboard / Controller settings pages, a clutter sweep of every menu and run screen | owner, 2026-10-20: "i hate text only show me icons with text and if its 2 or 3 choices list them horizontally"; cards #273 to #279 and #288 to #291 |
+| 2026-10-21 | Phase 23 "Run up and swing" (11): claw, bite and blade enemies run to their target before the attack clock starts, wind up next to the hero and swing, stay close through a string and run home after it; throws and slams stay home; Husk and Hollow King first | owner: "first we need the monster to come up to the person he is hitting, second he would swing his attack"; picks: add the run's time (not cut into the wind-up), stay close between hits, two enemies first (card #244) |
+| 2026-10-21 | Brin and Alder run all the way up for their attacks; Brin's look and Alder's idle (shield resting at his side) are redrawn from options the owner picks; Cass unchanged | owner: "its mainly brin, he looks weird in general", "cass looks good in idle and attack" (cards #244, #296, #297) |
+| 2026-10-21 | Brin keeps his hair and body; his idle holds both daggers in a reverse grip, "high and low", and every dagger shows its grip and pommel; Alder's idle carries the shield on his forearm at his side (5.4) | owner: "hair and body was ok, my issue is the way he is holding his daggers", he looked "like the wolverine"; picks from drawn options: grip A, stance D, Alder C |
+| 2026-10-21 | All of Brin's frames use the reverse grip: ready, parry, dodge, every strike, cast, leap, hurt, fall, victory, and his zone walk, stand and pickup (5.4) | owner, after seeing the new idle in a fight: "his idle is good and breathing but now we need to change his whole attack and outside movement as well" |
+| 2026-10-21 | Brin's ready no longer drops into a low crouch: he stands on guard like his idle when it is his turn or an enemy attacks (5.4) | owner: "can we stop the ducking as a whole" (picked Brin's crouch, not the enemies' wind-up crouch) |
+| 2026-10-22 | Phase 23 "Run up and swing" done (3.12, 5.4): every claw, bite and blade monster runs up and swings up close, the Hollow King with a new overhead chop; Brin and Alder run all the way up for melee skills and hop home; Brin's reverse-grip look and moves, Alder's shield on his arm | owner played the Husk, the hyenas and the King: "good", "The King's chop and the heroes' run-up look good"; approved, v0.23.0 |

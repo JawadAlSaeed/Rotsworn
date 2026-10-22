@@ -154,6 +154,7 @@ func _hollow_king() -> EnemyData:
 	e.phase_two_attacks.assign([cleave, cascade, kingsfall, false_crown, wave])
 	e.phase_two_speed = 210
 	e.phase_two_text = "THE HOLLOW KING RAGES!"
+	e.runs_up = true
 	return _save(e, path) as EnemyData
 
 

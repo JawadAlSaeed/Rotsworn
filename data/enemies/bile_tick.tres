@@ -32,3 +32,4 @@ xp = 30
 voice_sfx = "voice_toad"
 relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_plague_bell"), ExtResource("g_black_ichor"), ExtResource("8_xwqml")])
 forced_hits = true
+runs_up = true

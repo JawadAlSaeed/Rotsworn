@@ -508,13 +508,14 @@ def _overlays(fr, cam: Camera, pose: dict[str, Any], info: dict[str, Any]) -> No
 
 POSES: dict[str, dict[str, Any]] = {
     "idle": {
-        # Relaxed, the shield resting low at the near side (top at the belt, tip by the ankle),
-        # turned toward the enemy so the breastplate, belt and buckle show above it.
+        # Relaxed, the shield carried on the near forearm at his side (owner's pick, 2026-10-21,
+        # card #297): its face to us, its edge toward the enemy, tipped so the point aims back and
+        # down. Until then it hung low in front of him.
         "pelvis": (0.0, HIP - 0.3, 0.0),
         "foot_n": (2.5, AH, 3.6), "foot_f": (-2.5, AH, -3.2),
-        "hand_n": (5.3, CH - 12.2, 7.4), "elbow_n": (-1.0, 0.0, 0.6),
+        "hand_n": (4.6, HIP + 1.4, 7.0), "elbow_n": (-0.6, -1.0, 0.4),
         "hand_f": (0.4, CH - 12.0, -7.6),
-        "shield_n": (0.98, 0.0, 0.2), "shield_up": (-0.1, 1.0, 0.0), "shield_off": (1.0, -3.8),
+        "shield_n": (0.12, 0.0, 1.0), "shield_up": (0.45, 0.9, 0.0), "shield_off": (-2.4, -1.6),
         "head": (2.0, 0.0, 0.0),
     },
     "ready": {
@@ -637,6 +638,7 @@ def render_pose(pose: dict[str, Any], cam: Camera | None = None) -> np.ndarray:
 # Idle, the head turned a touch toward the viewer and the shield lifted and tipped so its top
 # corner (gold rim, blue field) pokes up at the bottom edge.
 PORTRAIT_POSE: dict[str, Any] = dict(POSES["idle"], head=(-2.0, -6.0, 0.0), hand_n=(7.5, 19.8, 5.0),
+                                     elbow_n=(-1.0, 0.0, 0.6),
                                      shield_n=(0.6, 0.0, 0.8), shield_up=(0.55, 1.0, 0.0),
                                      shield_off=(0.0, 0.0))
 PORTRAIT_SCALE = 0.375
@@ -768,14 +770,14 @@ IDLE, READY, PARRY, DODGE, JUMP, HURT, STRIKE, DOWN = (POSES[n] for n in specs.H
 
 # Breathing: the out-breath end of each stance loop. The body sinks a little and the shield dips;
 # the head moves at most 1 px, because the game measures its anchors on the key cell only.
-IDLE_OUT = P(IDLE, pelvis=(0.0, HIP - 0.9, 0.0), lean=1.5, hand_n=(5.3, CH - 12.8, 7.4),
+IDLE_OUT = P(IDLE, pelvis=(0.0, HIP - 0.9, 0.0), lean=1.5, hand_n=(4.6, HIP + 0.8, 7.0),
              hand_f=(0.3, CH - 12.6, -7.6), head=(3.0, 0.0, 0.0))
 READY_OUT = P(READY, pelvis=(0.5, HIP - 3.9, 0.0), lean=11.5, hand_n=(6.6, CH - 7.9, 4.4),
               hand_f=(4.0, CH - 9.4, -3.8), head=(7.0, 0.0, 0.0))
 
 # Draw (fight start): a hitch of the shoulders, the shield swung up and knocked across the
 # chest, then let down to the idle key.
-DRAW_1 = P(IDLE, pelvis=(-0.3, HIP - 1.6, 0.0), lean=5.0, hand_n=(3.2, CH - 10.8, 7.6),
+DRAW_1 = P(IDLE, pelvis=(-0.3, HIP - 1.6, 0.0), lean=5.0, hand_n=(3.2, CH - 10.8, 7.6), elbow_n=(-1.0, 0.0, 0.6),
            shield_n=(0.8, 0.0, 0.6), shield_up=(0.15, 1.0, 0.0), shield_off=(0.5, -3.0),
            hand_f=(-0.6, CH - 11.6, -7.4), head=(6.0, 0.0, 0.0))
 DRAW_2 = P(IDLE, pelvis=(0.4, HIP - 1.2, 0.0), lean=7.0, foot_n=(3.6, AH, 3.4), foot_f=(-3.4, AH, -3.0),
@@ -926,6 +928,45 @@ VIC_4 = P(IDLE, pelvis=(0.0, HIP - 0.5, 0.0), lean=-5.0, hip_lean=-1.5,
 VIC_3 = mix(VIC_2, VIC_4, 0.5)
 VIC_4B = P(VIC_4, pelvis=(0.0, HIP - 1.1, 0.0), lean=-3.5, head=(-8.0, 0.0, 0.0))
 
+# Run (combat): the dash up to an enemy before a strike (about 0.4 s across the stage). A heavy
+# run: leaning in, the shield carried on the near forearm at his side as in the idle (face to us,
+# tipped so its point aims back), bobbing with him; the far arm pumps. The near foot strikes on
+# cell 0, the far foot on cell 4; both feet are off the floor on cells 3 and 7.
+RUN_CELLS = 8
+# One leg's ankle (x from the pelvis, height) and toe pitch per cell, the near leg; the far leg is
+# four cells later. Strike, weight taken, push-off, leaving the floor, heel kicked up behind, knee
+# driving through, reaching, coming down for the next strike.
+RUN_LEG = ((6.2, AH, 6.0), (1.8, AH, 0.0), (-5.0, AH + 0.6, -38.0), (-8.6, 4.8, -52.0),
+           (-7.0, 10.2, -66.0), (0.4, 9.8, -36.0), (6.4, 6.4, -8.0), (7.8, 2.8, 6.0))
+# Pelvis height per half cycle: sinking onto the strike, lowest as it takes the weight, rising
+# off the push into the flight (the head moves about a pixel and a half).
+RUN_HIP = (HIP - 2.2, HIP - 2.8, HIP - 1.9, HIP - 1.3)
+RUN_PELVIS_X = -1.0
+RUN_LEAN = 22.0
+
+
+def run_pose(k: int) -> dict[str, Any]:
+    """Cell k of the 8-cell side run."""
+    phi = k / RUN_CELLS
+    sw = math.cos(2.0 * math.pi * phi)            # +1: near leg forward, far arm forward
+    py = RUN_HIP[k % 4]
+    px = RUN_PELVIS_X
+    nx, ny, nt = RUN_LEG[k % RUN_CELLS]
+    fx, fy, ft = RUN_LEG[(k + RUN_CELLS // 2) % RUN_CELLS]
+    pose = P(IDLE, pelvis=(px, py, 0.0), lean=RUN_LEAN, hip_lean=RUN_LEAN / 3.0, twist=-4.0 * sw,
+             hip_yaw=4.0 * sw, head=(-13.0, 0.0, 0.0),
+             foot_n=(px + nx, ny, 3.0), toe_n=nt, knee_n=(1.0, 0.0, 0.15), toe_yaw_n=0.0,
+             foot_f=(px + fx, fy, -2.8), toe_f=ft, knee_f=(1.0, 0.0, -0.15), toe_yaw_f=0.0,
+             elbow_f=(-1.0, -0.3, -0.5),
+             shield_up=(0.5 + 0.06 * sw, 0.87, 0.0))
+    # The hands are placed from the shoulders: the shield hand where the idle carries it (a touch
+    # of swing), the far fist pumping from behind the hip to forward of the chest.
+    sk = skeleton(pose)
+    sn, sf = sk["shoulder_n"], sk["shoulder_f"]
+    pose["hand_n"] = (float(sn[0]) + 3.6 - 0.6 * sw, float(sn[1]) - 8.6, float(sn[2]) + 1.0)
+    pose["hand_f"] = (float(sf[0]) + 1.4 + 5.0 * sw, float(sf[1]) - 8.6 + 2.2 * sw, float(sf[2]) + 1.4)
+    return pose
+
 # Clip name -> cells in play order (int = a row-0 key, dict = a pose). The game sets the timing.
 CLIPS: dict[str, list[Any]] = {
     "idle": [K["idle"], mix(IDLE, IDLE_OUT, 0.5), IDLE_OUT, mix(IDLE, IDLE_OUT, 0.5)],
@@ -951,6 +992,7 @@ CLIPS: dict[str, list[Any]] = {
     "get_up": [K["down"], GETUP_1, GETUP_2, K["idle"]],
     "victory": [VIC_1, VIC_2, VIC_3, VIC_4],
     "victory_hold": [VIC_4, VIC_4B],
+    "run": [run_pose(k) for k in range(RUN_CELLS)],
 }
 
 _CAM: list[Camera] = []

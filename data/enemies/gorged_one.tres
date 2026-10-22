@@ -46,3 +46,4 @@ phase_two_attacks = Array[ExtResource("1_0lfg4")]([ExtResource("2_os6rj"), ExtRe
 phase_two_speed = 125
 phase_two_tempo_percent = 94
 phase_two_text = "THE GORGED ONE SPLITS ITS SKIN!"
+runs_up = true

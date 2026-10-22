@@ -42,3 +42,4 @@ phase_two_attacks = Array[ExtResource("1_8x5qf")]([ExtResource("2_bb311"), ExtRe
 phase_two_speed = 210
 phase_two_tempo_percent = 90
 phase_two_text = "THE HOLLOW KING RAGES!"
+runs_up = true

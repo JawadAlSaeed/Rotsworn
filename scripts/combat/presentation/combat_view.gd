@@ -131,6 +131,7 @@ func add_fighter(id: int, is_party: bool, slot: int, data: Resource) -> FighterV
 		var c := data as CharacterData
 		view.setup(id, true, c.sprite_path, c.sprite_hframes, Vector2i(32, 48), c.sprite_pixel_size,
 				not _visuals.party_art_faces_right, _visuals, c.sprite_clips)
+		view.runs_up = c.runs_up
 	else:
 		var e := data as EnemyData
 		view.setup(id, false, e.sprite_path, e.sprite_hframes, Vector2i(64, 64), e.sprite_pixel_size,

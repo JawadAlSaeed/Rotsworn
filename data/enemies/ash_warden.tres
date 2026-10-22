@@ -43,3 +43,4 @@ phase_two_attacks = Array[ExtResource("1_5qwyb")]([ExtResource("2_2gfb1"), ExtRe
 phase_two_speed = 155
 phase_two_tempo_percent = 94
 phase_two_text = "THE ASH WARDEN BURNS!"
+runs_up = true

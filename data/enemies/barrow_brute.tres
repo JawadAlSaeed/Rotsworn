@@ -35,3 +35,4 @@ gold = 30
 xp = 60
 voice_sfx = "voice_bloat"
 relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_thick_hide"), ExtResource("g_thorned_gauntlet"), ExtResource("g_cleansing_bell"), ExtResource("11_7xofv")])
+runs_up = true

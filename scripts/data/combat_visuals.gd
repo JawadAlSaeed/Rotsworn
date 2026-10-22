@@ -135,6 +135,11 @@ extends Resource
 @export_range(0, 100, 1, "suffix:%") var recoil_percent: int = 35
 ## After the last hit the enemy walks home over this long.
 @export_range(0, 2000, 1, "suffix:ms") var return_ms: int = 260
+## An attacker that ran up (DESIGN.md 3.12) stops this far short of the contact point (world units)
+## and steps the rest of the way in as it swings.
+@export_range(0.0, 6.0, 0.05) var swing_step: float = 1.0
+## One cycle of its chase loop while it runs up.
+@export_range(50, 2000, 1, "suffix:ms") var run_up_cycle_ms: int = 400
 ## The slam pose is held this long when a ground wave is launched.
 @export_range(0, 2000, 1, "suffix:ms") var slam_hold_ms: int = 260
 ## The throw pose is held this long when a ranged hit leaves (DESIGN.md 3.9).
@@ -503,6 +508,11 @@ extends Resource
 @export_range(0.0, 1.0, 0.05) var skill_approach_share: float = 0.55
 ## How long the lunge into a skill hit and the step back take.
 @export_range(10, 1000, 1, "suffix:ms") var skill_lunge_ms: int = 90
+## A hero who runs up (DESIGN.md 3.12) stops this far short of the strike point (world units) and
+## steps the rest of the way in on each hit.
+@export_range(0.0, 6.0, 0.05) var hero_swing_step: float = 1.0
+## One cycle of the hero's run loop while running up.
+@export_range(50, 2000, 1, "suffix:ms") var hero_run_cycle_ms: int = 360
 ## The skill press ring (osu-style): radius when it appears and when it reaches the target circle
 ## (pixels at 1080p). It reaches the target circle at the perfect moment; the GOOD and PERFECT
 ## bands around the target show the press windows at this scale, so a bigger shrink makes the

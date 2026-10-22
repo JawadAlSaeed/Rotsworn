@@ -140,6 +140,8 @@ var _enemy_hits: Dictionary = {}
 var _counters: int = 0
 ## Combatant id -> CharacterData or EnemyData.
 var _data_by_id: Dictionary = {}
+## Fighter id -> its data id, from combat_started (host: known before the fighters are built).
+var _data_ids: Dictionary = {}
 ## The freeze (ms) of the large-tier kill just shown by _show_downed (card #179), or of a BROKEN
 ## Doom (card #195): whatever plays it waits it out once, so the body holds before the next shot.
 ## 0: none.
@@ -523,6 +525,7 @@ func _host_sent(events: Array[Dictionary], kind: String, seq: int) -> void:
 			"combat_started":
 				# The first attack can come in this same batch, before the fighters are built.
 				for f: Dictionary in ev.fighters:
+					_data_ids[int(f.id)] = String(f.get("data_id", ""))
 					if int(f.team) == Combatant.Team.PARTY:
 						_owners[int(f.id)] = _players.owner_of(int(f.slot))
 			"timed_sequence_declared":
@@ -531,7 +534,12 @@ func _host_sent(events: Array[Dictionary], kind: String, seq: int) -> void:
 					var player := int(_owners.get(int(p.character), 0))
 					if not _players.is_local(player) and player < _players.peers.size():
 						owners[int(p.idx)] = _players.peers[player]
-				var lead := _tuning.attack_lead_in_ms if String(ev.kind) == CombatEngine.SEQUENCE_ENEMY_ATTACK else 0
+				var lead := 0
+				if String(ev.kind) == CombatEngine.SEQUENCE_ENEMY_ATTACK:
+					# The same lead-in the runner plays, run-up included (DESIGN.md 3.12).
+					lead = EnemyChoreography.lead_in_ms(_tuning, EnemyChoreography.runs_up(
+							_attacks.get(String(ev.action)) as EnemyAttackData, _enemy_data_of(int(ev.source)),
+							ev.hits as Array))
 				_arbiter.declare(int(ev.seq), ev.prompts as Array, owners, lead, Time.get_ticks_usec())
 			"prompt_resolved":
 				_arbiter.mark_resolved([int(ev.prompt)])
@@ -2080,6 +2088,15 @@ func _pick_seed() -> int:
 	if _tuning.fixed_seed != 0:
 		return _tuning.fixed_seed
 	return randi_range(1, 2147483646)
+
+
+## An enemy's data by fighter id, also before the fighters are built (the first attack can come
+## in the same batch as combat_started).
+func _enemy_data_of(id: int) -> EnemyData:
+	if _data_by_id.has(id):
+		return _data_by_id[id] as EnemyData
+	var data_id := String(_data_ids.get(id, ""))
+	return _find_data(data_id, false) as EnemyData if not data_id.is_empty() else null
 
 
 func _find_data(data_id: String, is_party: bool) -> Resource:

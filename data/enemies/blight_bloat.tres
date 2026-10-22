@@ -41,3 +41,4 @@ xp = 60
 voice_sfx = "voice_bloat"
 relic_drops = Array[ExtResource("10_4mv7v")]([ExtResource("11_kwxuq"), ExtResource("12_io7l3"), ExtResource("13_xus5x"), ExtResource("14_kwxuq"), ExtResource("15_io7l3")])
 forced_hits = true
+runs_up = true

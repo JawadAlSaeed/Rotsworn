@@ -1,7 +1,7 @@
 """Brin, the Reaver: the hero sheet (a grid of 48x56 cells, facing right: row 0 the 8 key poses,
 then one row per animation clip) and the 48x48 portrait.
 
-Lean and quick: twin daggers, a red headband whose two tails trail behind the head, spiky dark
+Lean and quick: twin daggers (held in a reverse grip in the idle), a red headband whose two tails trail behind the head, spiky dark
 hair, a red tunic under a leather vest, wrapped forearms, charcoal trousers, dark boots and a
 belt with a pouch.
 
@@ -115,33 +115,38 @@ def _v(*a: float) -> np.ndarray:
 # --- Poses (keyframes) ----------------------------------------------------------------------------
 
 POSES: dict[str, dict[str, Any]] = {
-    # Loose stance, daggers low: blades hang out to both sides like an upturned V.
+    # High and low, both daggers in a reverse grip (owner's pick, 2026-10-21, card #296): side on,
+    # the near fist low and forward with its blade pointing back, the far fist raised before the
+    # chest with its blade pointing down, ready to stab. Blades never hang straight out of the
+    # fists along the forearms (that read as claws).
     "idle": {
-        "pelvis": (0.0, HIP_Y + 0.2, 0.0), "lean": 3.0, "twist": -14.0, "head": (2.0, 6.0, 0.0),
-        "foot_n": (4.0, 1.5, 0.8), "knee_n": (1.0, 0.0, 0.4),
-        "foot_f": (-3.6, 1.5, -0.6), "knee_f": (0.2, 0.0, 1.0), "toe_yaw_f": -45.0,
-        "hand_n": (-2.4, 15.2, 5.4), "elbow_n": (-1.0, 0.0, 0.6),
-        "hand_f": (4.4, 15.4, -4.6), "elbow_f": (-1.0, 0.0, -0.5),
-        "dag_n": (-0.45, -1.0, 0.25), "dag_f": (0.5, -1.0, -0.15),
+        "pelvis": (0.0, HIP_Y - 0.6, 0.0), "lean": 8.0, "twist": 4.0, "head": (-4.0, 0.0, 0.0),
+        "foot_n": (5.2, 1.5, 2.6), "knee_n": (1.0, 0.1, 0.3),
+        "foot_f": (-4.8, 1.5, -2.0), "knee_f": (0.2, 0.0, 1.0), "toe_f": 12.0, "toe_yaw_f": 0.0,
+        "hand_n": (6.8, 17.0, 4.6), "elbow_n": (-1.0, -0.5, 0.6),
+        "hand_f": (6.6, 27.6, -3.0), "elbow_f": (-0.6, 0.2, -0.8),
+        "dag_n": (-0.8, -0.5, 0.25), "dag_f": (0.3, -0.95, 0.05),
         "wind": (-1.0, -0.4, -0.2), "ground": 1.0, "eyes": "open",
     },
-    # Wide low crouch leaning in, both blades up and forward as two diagonals.
+    # On guard, standing (owner, 2026-10-21: no ducking into a crouch): the idle's high and low
+    # leaning in a little more, both fists further forward.
     "ready": {
-        "pelvis": (-1.0, HIP_Y - 5.6, 0.0), "lean": 32.0, "twist": -10.0, "head": (-22.0, -6.0, 0.0),
-        "foot_n": (7.4, 1.5, 2.8), "foot_f": (-8.4, 1.5, -2.2), "toe_f": 15.0,
-        "hand_n": (8.5, 15.5, 4.0), "elbow_n": (-1.0, -0.8, 0.6),
-        "hand_f": (7.5, 19.5, -2.5), "elbow_f": (-0.6, -1.0, -0.6),
-        "dag_n": (0.832, 0.255, -0.493), "dag_f": (0.624, 0.633, -0.458),
-        "root_pos": (-3.0, 0.0, 0.0),
-        "wind": (-1.0, -0.1, -0.2), "ground": 1.0, "eyes": "open",
+        "pelvis": (0.0, HIP_Y - 1.0, 0.0), "lean": 12.0, "twist": 2.0, "head": (-6.0, 0.0, 0.0),
+        "foot_n": (5.6, 1.5, 2.7), "knee_n": (1.0, 0.1, 0.3),
+        "foot_f": (-5.2, 1.5, -2.0), "knee_f": (0.2, 0.0, 1.0), "toe_f": 12.0, "toe_yaw_f": 0.0,
+        "hand_n": (7.4, 17.4, 4.4), "elbow_n": (-1.0, -0.5, 0.6),
+        "hand_f": (7.2, 27.0, -2.8), "elbow_f": (-0.6, 0.2, -0.8),
+        "dag_n": (-0.8, -0.5, 0.25), "dag_f": (0.3, -0.95, 0.05),
+        "wind": (-1.0, -0.2, -0.2), "ground": 1.0, "eyes": "open",
     },
-    # Braced on a straight back leg, hands pushed forward, blades crossed in an X off the face.
+    # Braced on a straight back leg, both fists up before the face, the blades lying down the
+    # forearms and crossed in an X: he takes the blow on them.
     "parry": {
         "pelvis": (-3.0, HIP_Y - 2.0, 0.0), "lean": -12.0, "head": (14.0, 0.0, 0.0),
         "foot_n": (3.2, 1.5, 2.6), "foot_f": (-9.0, 1.5, -2.2), "toe_f": 15.0,
-        "hand_n": (5.6, 25.4, 3.4), "elbow_n": (-0.2, -1.0, 1.0),
-        "hand_f": (7.4, 25.6, -4.0), "elbow_f": (0.0, -1.0, -1.0),
-        "dag_n": (0.567, 0.696, -0.44), "dag_f": (-0.486, 0.87, 0.085), "dag_front": 1.0,
+        "hand_n": (5.8, 27.0, 3.4), "elbow_n": (-0.2, -1.0, 1.0),
+        "hand_f": (7.2, 28.0, -3.0), "elbow_f": (0.0, -1.0, -1.0),
+        "dag_n": (-0.45, -0.85, 0.25), "dag_f": (0.4, -0.9, -0.15), "dag_front": 1.0,
         "root_pos": (1.2, 0.0, 0.0),
         "wind": (-1.0, 0.0, -0.2), "tail_len": 0.85, "ground": 1.0, "eyes": "wince",
     },
@@ -151,8 +156,8 @@ POSES: dict[str, dict[str, Any]] = {
         "pelvis": (-5.0, HIP_Y - 3.2, 0.0), "lean": -34.0, "head": (-4.0, 0.0, 0.0),
         "foot_n": (6.0, 1.5, 2.6), "toe_n": 40.0, "knee_n": (1.0, 0.6, 0.2),
         "foot_f": (-6.0, 1.5, -2.0), "toe_f": 5.0,
-        "hand_n": (2.0, 23.0, 5.0), "elbow_n": (-1.0, -0.8, 0.6), "dag_n": (0.85, 0.55, 0.0),
-        "hand_f": (-14.0, 15.0, -3.0), "elbow_f": (0.0, 1.0, -0.3), "dag_f": (-0.15, -0.951, 0.27),
+        "hand_n": (2.0, 23.0, 5.0), "elbow_n": (-1.0, -0.8, 0.6), "dag_n": (-0.45, -0.88, 0.2),
+        "hand_f": (-14.0, 15.0, -3.0), "elbow_f": (0.0, 1.0, -0.3), "dag_f": (0.5, 0.85, 0.1),
         "root_pos": (6.6, 0.0, 0.0),
         "wind": (1.0, 0.55, 0.1), "ground": 1.0, "eyes": "open",
     },
@@ -171,19 +176,20 @@ POSES: dict[str, dict[str, Any]] = {
         "pelvis": (-0.6, HIP_Y - 1.2, 0.0), "lean": -30.0, "head": (-4.0, 0.0, 6.0),
         "foot_n": (2.8, 1.5, 2.5), "toe_n": 25.0,
         "foot_f": (-4.0, 9.0, -2.0), "knee_f": (1.0, 0.4, -0.1), "toe_f": -20.0,
-        "hand_n": (-7.0, 18.0, 5.0), "elbow_n": (-0.6, 0.8, 1.0), "dag_n": (-0.6, -0.8, 0.2),
-        "hand_f": (6.0, 24.0, -3.4), "elbow_f": (0.0, -1.0, -0.5), "dag_f": (0.3, 0.95, 0.0),
+        "hand_n": (-7.0, 18.0, 5.0), "elbow_n": (-0.6, 0.8, 1.0), "dag_n": (0.55, -0.8, 0.2),
+        "hand_f": (6.0, 24.0, -3.4), "elbow_f": (0.0, -1.0, -0.5), "dag_f": (-0.7, -0.7, 0.0),
         "root_pos": (2.8, 0.0, 0.0),
         "wind": (0.8, 0.9, 0.0), "ground": 1.0, "eyes": "wince",
     },
     # Deep lunge: front knee over the toes, rear leg long behind, body pitched in over the
-    # front knee, the front blade thrust level, the back blade swept down behind.
+    # front knee, the near fist hammered down in front with its blade plunging forward and down
+    # (a reverse-grip stab), the far fist thrown back.
     "strike": {
         "pelvis": (-4.4, HIP_Y - 3.4, 0.0), "lean": 42.0, "twist": -12.0, "head": (-26.0, 0.0, 0.0),
         "foot_n": (4.6, 1.5, 2.8), "knee_n": (1.0, 0.2, 0.2),
         "foot_f": (-14.2, 1.5, -2.0), "toe_f": 35.0,
-        "hand_n": (5.3, 20.6, 2.0), "elbow_n": (0.0, -1.0, 0.4), "dag_n": (0.883, 0.000, -0.469),
-        "hand_f": (-8.6, 17.0, -3.4), "dag_f": (-0.4, -0.9, 0.0),
+        "hand_n": (7.4, 21.6, 2.2), "elbow_n": (-0.6, 0.4, 0.6), "dag_n": (0.5, -0.86, -0.1),
+        "hand_f": (-8.6, 17.0, -3.4), "dag_f": (0.35, 0.92, 0.0),
         "root_pos": (-0.6, 0.0, 0.0),
         "wind": (-1.0, 0.2, -0.1), "ground": 1.0, "eyes": "open",
     },
@@ -232,10 +238,34 @@ def complete(pose: dict[str, Any]) -> dict[str, Any]:
 
 POSES = {name: complete(p) for name, p in POSES.items()}
 
+# The loose stance that was the idle until 2026-10-21 (daggers hanging low in an upturned V). The
+# portrait, the fight-start draw, the jump push-off, victory and pickup are still built on it.
+LOOSE: dict[str, Any] = complete({
+    "pelvis": (0.0, HIP_Y + 0.2, 0.0), "lean": 3.0, "twist": -14.0, "head": (2.0, 6.0, 0.0),
+    "foot_n": (4.0, 1.5, 0.8), "knee_n": (1.0, 0.0, 0.4),
+    "foot_f": (-3.6, 1.5, -0.6), "knee_f": (0.2, 0.0, 1.0), "toe_yaw_f": -45.0,
+    "hand_n": (-2.4, 15.2, 5.4), "elbow_n": (-1.0, 0.0, 0.6),
+    "hand_f": (4.4, 15.4, -4.6), "elbow_f": (-1.0, 0.0, -0.5),
+    "dag_n": (-0.45, -1.0, 0.25), "dag_f": (0.5, -1.0, -0.15),
+    "wind": (-1.0, -0.4, -0.2), "ground": 1.0, "eyes": "open",
+})
+
+# The wide low crouch that was the ready until 2026-10-21. The strikes' and casts' wind-ups, the
+# leap, the jump landing, the get-up and the victory wind are still built on it.
+CROUCH: dict[str, Any] = complete({
+    "pelvis": (-1.0, HIP_Y - 5.6, 0.0), "lean": 32.0, "twist": -10.0, "head": (-22.0, -6.0, 0.0),
+    "foot_n": (7.4, 1.5, 2.8), "foot_f": (-8.4, 1.5, -2.2), "toe_f": 15.0,
+    "hand_n": (8.5, 15.5, 4.0), "elbow_n": (-1.0, -0.8, 0.6),
+    "hand_f": (7.0, 22.0, -2.4), "elbow_f": (-0.6, -1.0, -0.6),
+    "dag_n": (-0.75, -0.6, 0.25), "dag_f": (0.25, -0.95, 0.05),
+    "root_pos": (-3.0, 0.0, 0.0),
+    "wind": (-1.0, -0.1, -0.2), "ground": 1.0, "eyes": "open",
+})
+
 # The portrait: chest turned toward the viewer so the shoulders frame the face, head turned on
 # toward us, headband tails hanging down behind the head.
 PORTRAIT_POSE: dict[str, Any] = dict(
-    POSES["idle"], hip_yaw=-20.0, twist=0.0, head=(4.0, -12.0, 0.0), lean=0.0,
+    LOOSE, hip_yaw=-20.0, twist=0.0, head=(4.0, -12.0, 0.0), lean=0.0,
     hand_n=(-1.0, 14.0, 6.5), hand_f=(1.0, 14.0, -6.5),
     wind=(-0.7, -0.6, 0.25), tail_len=0.9,
 )
@@ -458,20 +488,24 @@ def model(pose: dict[str, Any], sk: Skeleton | None = None, portrait: bool = Fal
 
 # --- Overlays: daggers and face -------------------------------------------------------------------
 
-BLADE_TIP = 10.0  # hand -> blade tip, model units (grip 1.6 behind the hand, guard at 1.3)
+BLADE_TIP = 10.5  # hand -> blade tip, model units (guard at 1.5)
+GRIP_OUT = 2.6    # the grip shows this far out of the fist, ending in a gold pommel
 
 
 def _dagger(frame: Frame, cam: Camera, h: np.ndarray, d: np.ndarray, g: str, front: bool,
             lift) -> None:
-    """One dagger held at `h` pointing along `d`: leather grip, gold guard, steel blade."""
+    """One dagger held at `h` pointing along `d`: leather grip and gold pommel out of the far
+    side of the fist (so it reads as a held knife, not a claw), gold guard, steel blade."""
     side = np.cross(d, _v(0.0, 0.0, 1.0))
     if np.linalg.norm(side) < 0.3:
         side = np.cross(d, _v(0.0, 1.0, 0.0))
     side = _unit(side)
-    base = h + d * 1.3
+    base = h + d * 1.5
     tip = h + d * BLADE_TIP
-    line3d(frame, cam, lift([h - d * 1.6, base - d * 0.3]), MAT["grip"], 1, group=g, always=front)
-    line3d(frame, cam, lift([base - side * 1.1, base + side * 1.1]), MAT["guard"], 2, group=g, always=front)
+    line3d(frame, cam, lift([h - d * GRIP_OUT, base - d * 0.3]), MAT["grip"], 1, group=g, always=front)
+    line3d(frame, cam, lift([h - d * (GRIP_OUT + 0.2), h - d * (GRIP_OUT - 0.2)]), MAT["guard"], 3, group=g,
+           always=front)
+    line3d(frame, cam, lift([base - side * 1.4, base + side * 1.4]), MAT["guard"], 2, group=g, always=front)
     line3d(frame, cam, lift([base + d * 0.4, tip]), MAT["blade"], [3], group=g, always=front)
 
 
@@ -853,11 +887,11 @@ def _old_vs_new(old_path: str, new: np.ndarray) -> np.ndarray | None:
 # most 1 px from the key, because the game measures its head and popup anchors on cell 0 only.
 BREATH_OUT: dict[str, dict[str, Any]] = {
     "idle": complete(dict(
-        POSES["idle"], pelvis=(0.0, HIP_Y + 0.2 - 0.8, 0.0), lean=3.5, head=(2.5, 6.0, 0.0),
-        hand_n=(-2.5, 14.6, 5.4), hand_f=(4.35, 14.8, -4.6), wind=(-1.0, -0.6, -0.1))),
+        POSES["idle"], pelvis=(0.0, HIP_Y - 0.6 - 0.8, 0.0), lean=8.5, head=(-3.5, 0.0, 0.0),
+        hand_n=(6.75, 16.4, 4.6), hand_f=(6.55, 27.0, -3.0), wind=(-1.0, -0.6, -0.1))),
     "ready": complete(dict(
-        POSES["ready"], pelvis=(-1.0, HIP_Y - 5.6 - 0.9, 0.0), lean=33.0, head=(-22.0, -6.0, 0.0),
-        hand_n=(8.5, 14.7, 4.0), hand_f=(7.5, 18.7, -2.5), wind=(-1.0, -0.3, -0.1))),
+        POSES["ready"], pelvis=(0.0, HIP_Y - 1.0 - 0.8, 0.0), lean=12.5, head=(-5.5, 0.0, 0.0),
+        hand_n=(7.35, 16.8, 4.4), hand_f=(7.15, 26.4, -2.8), wind=(-1.0, -0.4, -0.1))),
 }
 
 
@@ -901,8 +935,10 @@ def _walk_leg(phi: float, half: float, lift: float, z: float) -> tuple[tuple[flo
 
 def walk_pose(view: str, k: int) -> dict[str, Any]:
     """Cell k of the 8-cell walk seen from `view`: the near foot strikes on cell 0, the far foot on
-    cell 4 (the footstep moments). Brin walks on guard (user, 2026-10-14): knees soft, leaning in,
-    both daggers held up in front at chest height, blades forward as in his ready stance, the arms only bobbing a little with the steps."""
+    cell 4 (the footstep moments). Brin walks on guard (user, 2026-10-14) in his reverse grip
+    (2026-10-21): knees soft, leaning in, from every side the idle's high and low (near fist low
+    with its blade back, far fist at the chest with its blade down; owner's pick for the front and
+    back views, "walk A"). The arms only bob a little with the steps."""
     phi = k / WALK_CELLS
     side = view == "side"
     half, lift = WALK_HALF_STRIDE[view], WALK_LIFT[view]
@@ -911,9 +947,16 @@ def walk_pose(view: str, k: int) -> dict[str, Any]:
     foot_f, toe_f = _walk_leg(phi + 0.5, half, lift, -1.8 if side else -2.1)
     # Weight shifts over the planted foot (seen from the front and back).
     sway = 0.0 if side else -1.0 * sw
-    arm = 1.2 if side else 0.8
     bob = 0.5 * abs(sw)
     twist = (-12.0 if side else 0.0) - 3.0 * sw
+    if side:
+        arms = {"hand_n": (6.4 - 1.2 * sw, 16.6 - bob, 4.0), "elbow_n": (-1.0, -0.8, 0.6),
+                "hand_f": (5.6 + 1.2 * sw, 23.4 - bob, -2.6), "elbow_f": (-0.6, -1.0, -0.6),
+                "dag_n": (-0.8, -0.5, 0.25), "dag_f": (0.3, -0.95, 0.05)}
+    else:
+        arms = {"hand_n": (3.0 - 0.6 * sw, 16.4 - bob, 4.8), "elbow_n": (-1.0, -0.6, 0.6),
+                "hand_f": (5.2 + 0.4 * sw, 24.6 - bob, -2.6), "elbow_f": (-0.6, -1.0, -0.8),
+                "dag_n": (-0.7, -0.55, 0.45), "dag_f": (0.25, -0.95, 0.15)}
     return complete({
         "view": view,
         "pelvis": (-0.4, WALK_HIP[k % 4] - 1.4, sway), "lean": 14.0, "twist": twist, "hip_yaw": 3.0 * sw,
@@ -921,28 +964,23 @@ def walk_pose(view: str, k: int) -> dict[str, Any]:
         "head": (-4.0, (8.0 if side else 0.0) + 6.0 * sw, 0.0),
         "foot_n": foot_n, "toe_n": toe_n, "knee_n": (1.0, 0.0, 0.15), "toe_yaw_n": 0.0,
         "foot_f": foot_f, "toe_f": toe_f, "knee_f": (1.0, 0.0, -0.15), "toe_yaw_f": 0.0,
-        "hand_n": (6.2 - arm * sw, 17.2 - bob, 3.6 if side else 4.2),
-        "elbow_n": (-1.0, -0.8, 0.6),
-        "hand_f": (5.0 + arm * sw, 19.0 - bob, -2.4 if side else -4.2),
-        "elbow_f": (-0.6, -1.0, -0.6),
-        # Blades up and forward, like his fight-ready stance (user, 2026-10-14).
-        "dag_n": (0.832, 0.255, -0.493) if side else (0.35, 0.85, 0.40),
-        "dag_f": (0.624, 0.633, -0.458) if side else (0.35, 0.85, -0.40),
+        **arms,
         "wind": tuple(float(v) for v in WALK_WIND[view] + _v(0.0, 0.18 * math.sin(4.0 * math.pi * phi), 0.0)),
         "ground": 1.0, "eyes": "open",
     })
 
 
 def stand_pose(view: str, out: float) -> dict[str, Any]:
-    """Standing at ease facing the viewer (front) or away (back); `out` 0..1 = the out-breath."""
+    """Standing facing the viewer (front) or away (back), the arms in the front walk's high and low;
+    `out` 0..1 = the out-breath."""
     return complete({
         "view": view,
         "pelvis": (0.0, HIP_Y + 0.7 - 0.5 * out, 0.0), "lean": 2.0 + 0.5 * out, "head": (-2.0 + 0.5 * out, 0.0, 0.0),
         "foot_n": (0.2, 1.5, 2.6), "foot_f": (-0.2, 1.5, -2.6), "toe_yaw_n": 10.0, "toe_yaw_f": -10.0,
         "knee_n": (1.0, 0.0, 0.3), "knee_f": (1.0, 0.0, -0.3),
-        "hand_n": (0.6, 14.4 - 0.5 * out, 5.6), "elbow_n": (-1.0, -0.2, 0.6),
-        "hand_f": (0.6, 14.4 - 0.5 * out, -5.6), "elbow_f": (-1.0, -0.2, -0.6),
-        "dag_n": (0.1, -1.0, 0.45), "dag_f": (0.1, -1.0, -0.45),
+        "hand_n": (3.0, 16.4 - 0.5 * out, 4.8), "elbow_n": (-1.0, -0.6, 0.6),
+        "hand_f": (5.2, 24.6 - 0.5 * out, -2.6), "elbow_f": (-0.6, -1.0, -0.8),
+        "dag_n": (-0.7, -0.55, 0.45), "dag_f": (0.25, -0.95, 0.15),
         "wind": tuple(float(v) for v in WALK_WIND[view] + _v(0.0, -0.15 * out, 0.0)), "ground": 1.0, "eyes": "open",
     })
 
@@ -958,17 +996,15 @@ def P(base: dict[str, Any], **kw: Any) -> dict[str, Any]:
 IDLE, READY, PARRY, DODGE = POSES["idle"], POSES["ready"], POSES["parry"], POSES["dodge"]
 JUMP, HURT, STRIKE, DOWN = POSES["jump"], POSES["hurt"], POSES["strike"], POSES["down"]
 
-# Fight start: daggers held low and back at the hips, whipped up crossed past the chest, flung out
-# to the sides, settling into the idle V.
-DRAW_1 = P(IDLE, pelvis=(0.0, HIP_Y - 0.4, 0.0), lean=6.0, head=(10.0, 6.0, 0.0),
+# Fight start: daggers held low and back at the hips, whipped up crossed past the chest, then
+# settling into the high-and-low idle.
+DRAW_1 = P(LOOSE, pelvis=(0.0, HIP_Y - 0.4, 0.0), lean=6.0, head=(10.0, 6.0, 0.0),
            hand_n=(-3.4, 14.4, 4.8), hand_f=(-2.6, 15.0, -4.4), elbow_n=(-1.0, 0.2, 0.6), elbow_f=(-1.0, 0.2, -0.6),
-           dag_n=(-0.6, -0.8, 0.1), dag_f=(-0.6, -0.8, -0.1), wind=(-1.0, -0.7, -0.1))
-DRAW_2 = P(IDLE, pelvis=(0.0, HIP_Y - 1.4, 0.0), lean=4.0, head=(0.0, 6.0, 0.0),
+           dag_n=(0.5, -0.85, 0.1), dag_f=(0.5, -0.85, -0.1), wind=(-1.0, -0.7, -0.1))
+DRAW_2 = P(LOOSE, pelvis=(0.0, HIP_Y - 1.4, 0.0), lean=4.0, head=(0.0, 6.0, 0.0),
            hand_n=(4.6, 22.6, 2.4), hand_f=(4.0, 23.4, -1.2), elbow_n=(-0.4, -1.0, 0.8), elbow_f=(-0.4, -1.0, -0.8),
-           dag_n=(0.35, 0.9, -0.45), dag_f=(0.55, 0.85, 0.4), dag_front=1.0, wind=(-1.0, 0.1, -0.2))
-DRAW_3 = P(IDLE, pelvis=(0.0, HIP_Y - 0.6, 0.0), lean=3.0, head=(0.0, 6.0, 0.0),
-           hand_n=(2.4, 17.4, 6.4), hand_f=(6.6, 18.0, -5.2),
-           dag_n=(0.7, -0.45, 0.45), dag_f=(0.85, -0.3, -0.35), wind=(-1.0, -0.1, -0.2))
+           dag_n=(-0.35, -0.9, 0.3), dag_f=(0.45, -0.88, -0.2), dag_front=1.0, wind=(-1.0, 0.1, -0.2))
+DRAW_3 = P(blend(DRAW_2, IDLE, 0.65), dag_front=0.0, wind=(-1.0, -0.1, -0.2))
 
 # Parry: the snap up into the guard; after the blow lands, pushed back on the back foot, then braced.
 PARRY_SNAP = P(blend(READY, PARRY, 0.55), eyes="open")
@@ -983,122 +1019,125 @@ DODGE_OUT = P(blend(DODGE, READY, 0.7))
 
 # Jump (a back flip over a ground wave): push off with the arms flung up, tuck, the key (lying
 # back, tucked), upside down opening out, landing in a crouch.
-JUMP_PUSH = P(IDLE, pelvis=(0.0, HIP_Y - 0.5, 0.0), lean=-6.0, twist=-10.0, head=(-12.0, 0.0, 0.0),
+JUMP_PUSH = P(LOOSE, pelvis=(0.0, HIP_Y - 0.5, 0.0), lean=-6.0, twist=-10.0, head=(-12.0, 0.0, 0.0),
               foot_n=(1.6, 1.2, 2.2), toe_n=-55.0, foot_f=(-1.4, 1.6, -2.0), toe_f=-55.0, toe_yaw_f=0.0,
               knee_n=(1.0, 0.0, 0.2), knee_f=(1.0, 0.0, -0.2),
               hand_n=(2.8, 37.4, 4.4), hand_f=(1.6, 37.8, -3.6), elbow_n=(-1.0, 0.0, 0.6), elbow_f=(-1.0, 0.0, -0.6),
-              dag_n=(-0.7, 0.7, 0.1), dag_f=(-0.75, 0.6, -0.1), root_rot=(0.0, 0.0, 12.0),
+              dag_n=(-0.85, -0.45, 0.1), dag_f=(-0.85, -0.45, -0.1), root_rot=(0.0, 0.0, 12.0),
               root_pos=(0.0, 1.5, 0.0), wind=(-0.4, -1.0, -0.1), ground=0.0)
 JUMP_TUCK = P(blend(JUMP_PUSH, JUMP, 0.55), ground=0.0)
 JUMP_OPEN = P(JUMP, root_rot=(0.0, 0.0, 215.0), root_pos=(1.0, 9.0, 0.0),
               foot_n=(4.0, HIP_Y - 9.0, 2.3), foot_f=(3.0, HIP_Y - 10.0, -2.3), toe_n=-40.0, toe_f=-40.0,
               hand_n=(5.0, HIP_Y + 6.0, 5.0), hand_f=(-4.0, HIP_Y + 7.0, -4.0),
               wind=(0.3, 1.0, -0.2), ground=0.0)
-JUMP_LAND = P(READY, pelvis=(-1.0, HIP_Y - 6.6, 0.0), lean=26.0, head=(-18.0, -6.0, 0.0),
+JUMP_LAND = P(CROUCH, pelvis=(-1.0, HIP_Y - 6.6, 0.0), lean=26.0, head=(-18.0, -6.0, 0.0),
               foot_n=(6.2, 1.5, 2.8), foot_f=(-7.2, 1.5, -2.2),
               hand_n=(6.0, 12.4, 6.0), hand_f=(-4.0, 16.0, -4.4), elbow_f=(0.0, 1.0, -0.4),
-              dag_n=(0.8, -0.4, 0.3), dag_f=(-0.5, -0.8, -0.2), root_pos=(-1.0, 0.0, 0.0),
+              dag_n=(-0.8, -0.5, 0.3), dag_f=(0.45, 0.88, -0.2), root_pos=(-1.0, 0.0, 0.0),
               wind=(-0.6, 0.8, -0.1))
 
 # Hurt: the hit key, sagging forward out of the arch, back toward the guard. Stagger (a big hit):
 # thrown further back, a stumbling step back, doubled over, then the same recovery.
 HURT_RECOIL = P(HURT, pelvis=(-1.0, HIP_Y - 2.2, 0.0), lean=-12.0, head=(14.0, 0.0, 4.0),
                 foot_f=(-5.0, 1.5, -2.0), toe_f=0.0, knee_f=(1.0, 0.0, -0.1),
-                hand_n=(-4.4, 16.0, 5.0), hand_f=(5.0, 19.0, -3.4), dag_n=(-0.3, -0.95, 0.2),
-                dag_f=(0.55, 0.8, 0.0), root_pos=(1.6, 0.0, 0.0), wind=(-0.2, -1.0, 0.0))
+                hand_n=(-4.4, 16.0, 5.0), hand_f=(5.0, 19.0, -3.4), dag_n=(0.6, -0.78, 0.2),
+                dag_f=(-0.7, -0.7, 0.0), root_pos=(1.6, 0.0, 0.0), wind=(-0.2, -1.0, 0.0))
 HURT_RECOVER = P(blend(HURT_RECOIL, READY, 0.55), eyes="open")
 STAGGER_1 = P(HURT, pelvis=(-2.4, HIP_Y - 1.2, 0.0), lean=-38.0, head=(-12.0, 0.0, 8.0),
               foot_f=(-4.4, 11.0, -2.0), toe_f=-30.0, hand_n=(-9.0, 23.0, 5.4), hand_f=(2.0, 29.0, -3.4),
-              elbow_n=(0.0, 1.0, 0.6), dag_n=(-0.8, 0.5, 0.2), dag_f=(-0.2, 0.98, 0.0),
+              elbow_n=(0.0, 1.0, 0.6), dag_n=(0.2, -0.95, 0.2), dag_f=(-0.9, -0.35, 0.0),
               root_pos=(4.6, 0.0, 0.0), wind=(1.0, 1.0, 0.0), eyes="shut")
 STAGGER_2 = P(HURT, pelvis=(-4.0, HIP_Y - 2.6, 0.0), lean=-14.0, head=(6.0, 0.0, 4.0),
               foot_n=(1.6, 4.2, 2.5), toe_n=10.0, foot_f=(-9.4, 1.5, -2.0), toe_f=10.0, knee_f=(1.0, 0.2, -0.1),
               hand_n=(-6.0, 20.0, 6.0), hand_f=(6.0, 22.0, -4.0),
-              dag_n=(-0.7, 0.2, 0.3), dag_f=(0.7, 0.6, -0.2), root_pos=(4.4, 0.0, 0.0),
+              dag_n=(0.2, -0.95, 0.3), dag_f=(-0.65, -0.75, -0.1), root_pos=(4.4, 0.0, 0.0),
               wind=(0.6, -0.6, 0.0), eyes="wince")
 STAGGER_3 = P(HURT, pelvis=(-2.6, HIP_Y - 4.0, 0.0), lean=34.0, head=(18.0, 0.0, 0.0),
               foot_n=(4.2, 1.5, 2.8), toe_n=0.0, knee_n=(1.0, 0.0, 0.3),
               foot_f=(-7.6, 1.5, -2.0), toe_f=15.0, knee_f=(1.0, 0.0, -0.2),
               hand_n=(4.0, 12.6, 4.6), hand_f=(2.8, 13.2, -3.2), elbow_n=(-1.0, 0.0, 0.6), elbow_f=(-1.0, 0.0, -0.6),
-              dag_n=(0.5, -0.85, 0.2), dag_f=(0.3, -0.9, -0.2), root_pos=(1.6, 0.0, 0.0),
+              dag_n=(-0.85, -0.4, 0.2), dag_f=(-0.85, -0.4, -0.15), root_pos=(1.6, 0.0, 0.0),
               wind=(-1.0, -0.8, 0.0), eyes="wince")
 
-# Strike (front thrust): weight back with the near blade cocked at the hip, the front foot
-# lifting into the step; the lunge key; over-reach; back toward the guard.
-STRIKE_W1 = P(READY, pelvis=(-3.0, HIP_Y - 5.0, 0.0), lean=20.0, twist=-26.0, head=(-12.0, 4.0, 0.0),
+# Strike (reverse-grip stab): weight back with the near fist cocked up over the shoulder, its
+# blade pointing back, the front foot lifting into the step; the lunge key (the fist hammered down
+# in front, the blade plunging); the fist driven on down; back toward the guard.
+STRIKE_W1 = P(CROUCH, pelvis=(-3.0, HIP_Y - 5.0, 0.0), lean=20.0, twist=-26.0, head=(-12.0, 4.0, 0.0),
               foot_n=(6.4, 1.5, 2.8), foot_f=(-8.0, 1.5, -2.2),
-              hand_n=(-4.0, 16.6, 4.6), elbow_n=(-1.0, 0.4, 0.6), dag_n=(1.0, 0.15, -0.15),
-              hand_f=(7.6, 21.0, -2.6), dag_f=(0.6, 0.65, -0.45), root_pos=(-1.6, 0.0, 0.0),
+              hand_n=(-1.6, 32.6, 4.6), elbow_n=(-1.0, -0.2, 0.6), dag_n=(-0.75, 0.55, 0.2),
+              hand_f=(7.6, 21.0, -2.6), dag_f=(0.25, -0.95, 0.05), root_pos=(-1.6, 0.0, 0.0),
               wind=(-1.0, -0.2, -0.2))
 STRIKE_W2 = P(STRIKE_W1, pelvis=(-3.6, HIP_Y - 5.6, 0.0), lean=24.0, twist=-30.0,
-              foot_n=(5.0, 3.6, 2.8), toe_n=20.0, hand_n=(-5.2, 16.2, 4.4), hand_f=(7.0, 20.4, -2.6))
+              foot_n=(5.0, 3.6, 2.8), toe_n=20.0, hand_n=(-3.6, 33.4, 4.4), dag_n=(-0.88, 0.4, 0.2),
+              hand_f=(7.0, 20.4, -2.6))
 STRIKE_FOLLOW = P(STRIKE, pelvis=(-3.6, HIP_Y - 3.8, 0.0), lean=46.0, head=(-28.0, 0.0, 0.0),
-                  hand_n=(7.2, 19.6, 1.8), dag_n=(0.93, -0.12, -0.35), hand_f=(-9.4, 16.0, -3.4),
+                  hand_n=(8.4, 15.6, 2.0), dag_n=(0.3, -0.95, -0.1), hand_f=(-9.4, 16.0, -3.4),
                   root_pos=(-1.2, 0.0, 0.0), wind=(-1.0, 0.35, -0.1))
 STRIKE_RECOVER = P(blend(STRIKE, READY, 0.55))
 
 # Strike alt (backhand with the far blade): the far arm cocked across the chest, the backhand
 # sweep out in front, the follow-through flung wide, back toward the guard.
-ALT_W1 = P(READY, pelvis=(-2.0, HIP_Y - 5.0, 0.0), lean=22.0, twist=-34.0, head=(-14.0, 18.0, 0.0),
+ALT_W1 = P(CROUCH, pelvis=(-2.0, HIP_Y - 5.0, 0.0), lean=22.0, twist=-34.0, head=(-14.0, 18.0, 0.0),
            hand_f=(2.2, 21.4, 4.6), elbow_f=(1.0, -0.6, -0.4), dag_f=(-0.85, 0.3, 0.3),
            hand_n=(-3.0, 16.0, 5.2), elbow_n=(-1.0, 0.2, 0.6), dag_n=(-0.55, -0.8, 0.2),
            wind=(-1.0, -0.2, -0.3))
 ALT_W2 = P(ALT_W1, pelvis=(-2.6, HIP_Y - 5.8, 0.0), lean=26.0, twist=-40.0, head=(-16.0, 22.0, 0.0),
            hand_f=(1.0, 20.4, 5.2), dag_f=(-0.9, 0.2, 0.25))
-ALT_1 = P(READY, pelvis=(-1.6, HIP_Y - 5.4, 0.0), lean=30.0, twist=-6.0, head=(-20.0, -2.0, 0.0),
+ALT_1 = P(CROUCH, pelvis=(-1.6, HIP_Y - 5.4, 0.0), lean=30.0, twist=-6.0, head=(-20.0, -2.0, 0.0),
           foot_n=(8.4, 1.5, 2.8), foot_f=(-8.6, 1.5, -2.2),
-          hand_f=(10.2, 22.4, -0.6), elbow_f=(0.0, -1.0, -0.6), dag_f=(0.75, 0.25, -0.62),
+          hand_f=(10.2, 22.4, -0.6), elbow_f=(0.0, -1.0, -0.6), dag_f=(-0.55, -0.55, 0.62),
           hand_n=(-4.0, 16.4, 5.0), elbow_n=(-1.0, 0.2, 0.6), dag_n=(-0.6, -0.75, 0.2),
           root_pos=(-3.4, 0.0, 0.0), wind=(-1.0, 0.0, -0.1))
 ALT_2 = P(ALT_1, lean=32.0, twist=14.0, head=(-22.0, -14.0, 0.0),
-          hand_f=(7.6, 22.8, -7.0), elbow_f=(-0.4, -0.6, -1.0), dag_f=(0.35, 0.3, -0.9),
+          hand_f=(7.6, 22.8, -7.0), elbow_f=(-0.4, -0.6, -1.0), dag_f=(-0.7, -0.6, 0.4),
           wind=(-1.0, 0.25, 0.1))
 ALT_RECOVER = P(blend(ALT_2, READY, 0.55))
 
-# Strike big (overhead double rip): both blades raised overhead, arched back; the rip down in
-# front; the impact low with both blades buried; back toward the guard.
-BIG_W1 = P(READY, pelvis=(-2.0, HIP_Y - 1.6, 0.0), lean=-4.0, twist=-14.0, head=(-12.0, 0.0, 0.0),
+# Strike big (double plunge): both fists raised overhead with the blades pointing forward, arched
+# back; hammered down in front, both blades plunging; the impact low with both blades buried; back
+# toward the guard.
+BIG_W1 = P(CROUCH, pelvis=(-2.0, HIP_Y - 1.6, 0.0), lean=-4.0, twist=-14.0, head=(-12.0, 0.0, 0.0),
            foot_n=(5.6, 1.5, 2.8), foot_f=(-7.0, 1.5, -2.2),
            hand_n=(1.8, 36.6, 3.6), hand_f=(0.8, 37.0, -2.8), elbow_n=(0.0, 0.2, 1.0), elbow_f=(0.0, 0.2, -1.0),
-           dag_n=(-0.45, 0.88, 0.1), dag_f=(-0.55, 0.82, -0.1), wind=(-1.0, -0.5, -0.2))
+           dag_n=(0.92, -0.3, 0.1), dag_f=(0.92, -0.3, -0.1), wind=(-1.0, -0.5, -0.2))
 BIG_W2 = P(BIG_W1, pelvis=(-3.0, HIP_Y - 1.4, 0.0), lean=-14.0, head=(-16.0, 0.0, 0.0),
            foot_f=(-7.6, 1.5, -2.2), toe_f=10.0,
-           hand_n=(-3.0, 35.6, 3.6), hand_f=(-4.0, 36.0, -2.8), dag_n=(-0.95, 0.2, 0.1), dag_f=(-0.97, 0.1, -0.1))
-BIG_1 = P(READY, pelvis=(-0.4, HIP_Y - 4.4, 0.0), lean=22.0, twist=-12.0, head=(-16.0, 0.0, 0.0),
+           hand_n=(-3.0, 35.6, 3.6), hand_f=(-4.0, 36.0, -2.8), dag_n=(0.55, 0.82, 0.1), dag_f=(0.6, 0.78, -0.1))
+BIG_1 = P(CROUCH, pelvis=(-0.4, HIP_Y - 4.4, 0.0), lean=22.0, twist=-12.0, head=(-16.0, 0.0, 0.0),
           foot_n=(7.6, 1.5, 2.8), foot_f=(-8.6, 1.5, -2.2), toe_f=15.0,
           hand_n=(9.4, 27.4, 3.2), hand_f=(8.6, 28.2, -2.8), elbow_n=(-0.6, -1.0, 0.8), elbow_f=(-0.6, -1.0, -0.8),
-          dag_n=(0.85, 0.45, 0.0), dag_f=(0.8, 0.55, -0.05), root_pos=(-3.0, 0.0, 0.0), wind=(-1.0, 0.1, -0.1))
-BIG_2 = P(READY, pelvis=(-1.4, HIP_Y - 7.6, 0.0), lean=44.0, twist=-10.0, head=(-26.0, 0.0, 0.0),
+          dag_n=(0.5, -0.86, 0.0), dag_f=(0.45, -0.88, -0.05), root_pos=(-3.0, 0.0, 0.0), wind=(-1.0, 0.1, -0.1))
+BIG_2 = P(CROUCH, pelvis=(-1.4, HIP_Y - 7.6, 0.0), lean=44.0, twist=-10.0, head=(-26.0, 0.0, 0.0),
           foot_n=(7.6, 1.5, 2.8), foot_f=(-10.2, 1.5, -2.2), toe_f=30.0,
           hand_n=(10.2, 11.0, 3.2), hand_f=(9.0, 11.8, -2.6), elbow_n=(-1.0, 0.0, 0.8), elbow_f=(-1.0, 0.0, -0.8),
           dag_n=(0.55, -0.83, 0.0), dag_f=(0.45, -0.88, -0.05), root_pos=(-3.6, 0.0, 0.0), wind=(-1.0, 0.6, -0.1))
 BIG_RECOVER = P(blend(BIG_2, READY, 0.5))
 
-# Cast (support skills): the blades drawn in, crossed before the face in a square guard; the
-# guard raised as the skill fires; braced; back toward the guard.
-CAST_W1 = P(READY, pelvis=(-1.0, HIP_Y - 3.6, 0.0), lean=8.0, twist=-16.0, head=(-2.0, 0.0, 0.0),
+# Cast (support skills): the fists drawn in and crossed before the face, the blades lying down
+# the forearms in an X; the guard raised as the skill fires; braced; back toward the guard.
+CAST_W1 = P(CROUCH, pelvis=(-1.0, HIP_Y - 3.6, 0.0), lean=8.0, twist=-16.0, head=(-2.0, 0.0, 0.0),
             foot_n=(5.6, 1.5, 2.8), foot_f=(-6.4, 1.5, -2.2),
             hand_n=(3.6, 21.0, 3.0), hand_f=(3.4, 21.6, -1.6), elbow_n=(-0.4, -1.0, 0.8), elbow_f=(-0.4, -1.0, -0.8),
-            dag_n=(0.15, 0.95, -0.3), dag_f=(0.25, 0.95, 0.2), wind=(-1.0, -0.4, -0.2))
+            dag_n=(-0.4, -0.88, 0.25), dag_f=(0.4, -0.88, -0.2), wind=(-1.0, -0.4, -0.2))
 CAST_W2 = P(CAST_W1, pelvis=(-1.0, HIP_Y - 4.2, 0.0), head=(4.0, 0.0, 0.0),
-            hand_n=(5.4, 25.2, 1.8), hand_f=(5.6, 25.8, -0.8), dag_n=(-0.45, 0.85, -0.3), dag_f=(0.6, 0.8, 0.1),
+            hand_n=(5.4, 25.2, 1.8), hand_f=(5.6, 25.8, -0.8), dag_n=(-0.5, -0.85, 0.2), dag_f=(0.5, -0.85, -0.1),
             dag_front=1.0, eyes="shut")
 CAST_1 = P(CAST_W2, pelvis=(-1.0, HIP_Y - 2.6, 0.0), lean=2.0, head=(-6.0, 0.0, 0.0),
-           hand_n=(5.0, 27.6, 1.8), hand_f=(5.2, 28.2, -0.8), dag_n=(-0.6, 0.78, -0.2), dag_f=(0.72, 0.68, 0.1),
+           hand_n=(5.0, 27.6, 1.8), hand_f=(5.2, 28.2, -0.8), dag_n=(-0.6, -0.78, 0.2), dag_f=(0.6, -0.78, -0.1),
            wind=(-1.0, 0.4, -0.2), eyes="open")
 CAST_2 = P(CAST_W2, pelvis=(-1.4, HIP_Y - 4.6, 0.0), lean=6.0, eyes="open", wind=(-1.0, 0.0, -0.2))
 CAST_RECOVER = P(blend(CAST_2, READY, 0.55), dag_front=0.0)
 
 # Leap (a follow-up hopping in or out): crouch and push, tucked in the air, landing.
-LEAP_1 = P(READY, pelvis=(-1.0, HIP_Y - 6.6, 0.0), lean=34.0, head=(-24.0, -6.0, 0.0),
+LEAP_1 = P(CROUCH, pelvis=(-1.0, HIP_Y - 6.6, 0.0), lean=34.0, head=(-24.0, -6.0, 0.0),
            foot_n=(5.6, 1.5, 2.8), foot_f=(-6.6, 1.5, -2.2), toe_f=40.0,
            hand_n=(-5.0, 14.0, 5.0), hand_f=(-6.0, 15.0, -4.2), elbow_n=(0.0, 1.0, 0.5), elbow_f=(0.0, 1.0, -0.5),
-           dag_n=(-0.7, -0.6, 0.2), dag_f=(-0.75, -0.55, -0.2), root_pos=(-1.0, 0.0, 0.0),
+           dag_n=(0.35, 0.92, 0.2), dag_f=(0.35, 0.92, -0.2), root_pos=(-1.0, 0.0, 0.0),
            wind=(-1.0, -0.2, -0.2))
-LEAP_2 = P(READY, pelvis=(0.0, HIP_Y, 0.0), lean=20.0, head=(-14.0, -6.0, 0.0),
+LEAP_2 = P(CROUCH, pelvis=(0.0, HIP_Y, 0.0), lean=20.0, head=(-14.0, -6.0, 0.0),
            foot_n=(4.6, HIP_Y - 9.0, 2.4), toe_n=-30.0, knee_n=(1.0, 0.6, 0.2),
            foot_f=(-4.6, HIP_Y - 13.0, -2.2), toe_f=-50.0, knee_f=(1.0, 0.0, -0.2),
-           hand_n=(7.0, 26.0, 4.0), hand_f=(6.0, 28.0, -3.0), dag_n=(0.8, 0.5, -0.3), dag_f=(0.7, 0.6, -0.3),
+           hand_n=(7.0, 26.0, 4.0), hand_f=(6.0, 28.0, -3.0), dag_n=(-0.4, -0.88, 0.2), dag_f=(0.3, -0.95, -0.1),
            root_pos=(-2.0, 2.0, 0.0), wind=(-1.0, -0.6, -0.2), ground=0.0)
 LEAP_3 = P(JUMP_LAND, root_pos=(-1.0, 0.0, 0.0))
 
@@ -1108,7 +1147,7 @@ FALL_1 = P(HURT, pelvis=(-1.0, HIP_Y - 6.2, 0.0), lean=8.0, head=(26.0, 0.0, 6.0
            foot_n=(3.6, 1.5, 2.6), toe_n=0.0, knee_n=(1.0, 0.0, 0.3),
            foot_f=(-3.4, 1.5, -2.2), toe_f=0.0, knee_f=(1.0, 0.0, -0.2),
            hand_n=(1.2, 10.4, 5.4), hand_f=(-0.4, 11.0, -4.4), elbow_n=(-1.0, 0.0, 0.6), elbow_f=(-1.0, 0.0, -0.6),
-           dag_n=(0.3, -0.95, 0.1), dag_f=(0.2, -0.97, -0.1), root_pos=(1.0, 0.0, 0.0),
+           dag_n=(-0.9, -0.35, 0.1), dag_f=(-0.9, -0.35, -0.1), root_pos=(1.0, 0.0, 0.0),
            wind=(-0.3, -1.0, 0.0), eyes="shut")
 FALL_2 = P(HURT, pelvis=(-3.0, 4.6, 0.0), lean=-48.0, head=(-6.0, 0.0, 10.0),
            foot_n=(6.4, 1.5, 2.8), toe_n=20.0, knee_n=(1.0, 0.6, 0.3),
@@ -1119,49 +1158,112 @@ FALL_2 = P(HURT, pelvis=(-3.0, 4.6, 0.0), lean=-48.0, head=(-6.0, 0.0, 10.0),
 
 # Get up (revived): the lying key, up on one knee gathering the daggers, rising into a crouch,
 # the idle key.
-GETUP_1 = P(READY, pelvis=(-1.4, 9.8, 0.0), lean=22.0, twist=-10.0, head=(-6.0, 0.0, 0.0),
+GETUP_1 = P(CROUCH, pelvis=(-1.4, 9.8, 0.0), lean=22.0, twist=-10.0, head=(-6.0, 0.0, 0.0),
             foot_n=(4.4, 1.5, 2.8), toe_n=0.0, knee_n=(1.0, 0.2, 0.3),
             foot_f=(-7.8, 1.6, -2.0), toe_f=60.0, knee_f=(1.0, -1.0, -0.1),
             hand_n=(5.6, 9.4, 4.8), hand_f=(2.0, 6.6, -3.6), elbow_n=(-1.0, 0.0, 0.6), elbow_f=(-1.0, 0.0, -0.6),
-            dag_n=(0.9, -0.3, 0.1), dag_f=(0.6, -0.8, -0.2), root_pos=(-1.0, 0.0, 0.0),
+            dag_n=(-0.9, -0.3, 0.1), dag_f=(-0.9, -0.3, -0.1), root_pos=(-1.0, 0.0, 0.0),
             wind=(-0.6, -1.0, 0.0), eyes="wince")
 GETUP_2 = P(blend(READY, IDLE, 0.4), pelvis=(-0.6, HIP_Y - 3.6, 0.0), eyes="open")
 
-# Victory: a crouched wind, a spin with the blades flung wide (seen from behind), out of the
-# spin rising, then the hold: the near blade high, the far one low behind, chin up.
-VIC_1 = P(READY, pelvis=(-0.4, HIP_Y - 4.6, 0.0), lean=18.0, twist=-34.0, head=(-6.0, 20.0, 0.0),
+# Victory: a crouched wind, a spin with the arms flung wide (seen from behind), out of the spin
+# rising, then the hold: the far fist thrust up with its blade jutting forward over the head (the
+# near arm raised would hide his face), the near one low behind, chin up.
+VIC_1 = P(CROUCH, pelvis=(-0.4, HIP_Y - 4.6, 0.0), lean=18.0, twist=-34.0, head=(-6.0, 20.0, 0.0),
           foot_n=(4.6, 1.5, 2.8), foot_f=(-5.6, 1.5, -2.2),
           hand_n=(4.4, 19.0, -1.0), hand_f=(3.6, 18.4, 3.2), elbow_n=(-0.4, -1.0, 0.8), elbow_f=(-0.4, -1.0, -0.8),
           dag_n=(-0.5, -0.8, 0.3), dag_f=(-0.5, -0.8, -0.3), root_pos=(-1.0, 0.0, 0.0), wind=(-1.0, -0.4, -0.2))
-VIC_2 = P(IDLE, pelvis=(0.0, HIP_Y - 1.8, 0.0), lean=4.0, twist=0.0, head=(-2.0, 0.0, 0.0),
+VIC_2 = P(LOOSE, pelvis=(0.0, HIP_Y - 1.8, 0.0), lean=4.0, twist=0.0, head=(-2.0, 0.0, 0.0),
           foot_n=(1.2, 1.5, 3.0), foot_f=(-1.2, 1.5, -3.0), toe_yaw_f=0.0,
           hand_n=(0.6, 24.0, 11.0), hand_f=(0.6, 24.0, -11.0), elbow_n=(0.0, -1.0, 0.2), elbow_f=(0.0, -1.0, -0.2),
-          dag_n=(0.2, 0.3, 1.0), dag_f=(-0.2, -0.3, -1.0), root_rot=(0.0, 150.0, 0.0),
+          dag_n=(-0.9, -0.4, 0.1), dag_f=(-0.9, -0.4, -0.1), root_rot=(0.0, 150.0, 0.0),
           wind=(0.8, -0.2, -0.6))
-VIC_3 = P(IDLE, pelvis=(0.0, HIP_Y - 0.8, 0.0), lean=-2.0, twist=-36.0, head=(-6.0, 20.0, 0.0),
+VIC_3 = P(LOOSE, pelvis=(0.0, HIP_Y - 0.8, 0.0), lean=-2.0, twist=-36.0, head=(-6.0, 20.0, 0.0),
           foot_n=(3.8, 1.5, 2.6), foot_f=(-3.6, 1.5, -2.0),
-          hand_n=(6.0, 29.4, 5.6), elbow_n=(0.0, -1.0, 0.8), dag_n=(0.45, 0.9, 0.0),
-          hand_f=(-2.0, 17.0, -6.0), dag_f=(-0.5, -0.6, -0.6), wind=(-1.0, 0.3, 0.2))
-VIC_4 = P(IDLE, pelvis=(0.0, HIP_Y + 0.2, 0.0), lean=-4.0, twist=-28.0, head=(-10.0, 18.0, 0.0),
+          hand_n=(-2.0, 17.0, 6.0), elbow_n=(-1.0, -0.2, 0.6), dag_n=(0.6, -0.7, 0.3),
+          hand_f=(6.0, 29.4, -4.4), elbow_f=(0.0, -1.0, -0.8), dag_f=(0.9, 0.3, 0.0), wind=(-1.0, 0.3, 0.2))
+VIC_4 = P(LOOSE, pelvis=(0.0, HIP_Y + 0.2, 0.0), lean=-4.0, twist=-28.0, head=(-10.0, 18.0, 0.0),
           foot_n=(4.2, 1.5, 2.8), foot_f=(-4.0, 1.5, -2.0),
-          hand_n=(6.4, 34.4, 5.4), elbow_n=(0.0, -1.0, 0.8), dag_n=(0.25, 1.0, 0.05),
-          hand_f=(-3.4, 16.6, -5.4), elbow_f=(-1.0, -0.2, -0.6), dag_f=(-0.55, -0.85, -0.1),
+          hand_n=(-2.4, 16.6, 5.6), elbow_n=(-1.0, -0.2, 0.6), dag_n=(0.6, -0.75, 0.15),
+          hand_f=(6.4, 37.6, -3.0), elbow_f=(-0.4, -1.0, -0.8), dag_f=(0.95, 0.15, 0.0),
           wind=(-1.0, -0.2, -0.1))
-VIC_4B = P(VIC_4, pelvis=(0.0, HIP_Y - 0.5, 0.0), lean=-3.5, hand_n=(6.4, 33.8, 5.4),
-           hand_f=(-3.4, 16.2, -5.4), wind=(-1.0, -0.45, -0.1))
+VIC_4B = P(VIC_4, pelvis=(0.0, HIP_Y - 0.5, 0.0), lean=-3.5, hand_n=(-2.4, 16.0, 5.6),
+           hand_f=(6.4, 37.0, -3.0), wind=(-1.0, -0.45, -0.1))
 
 # Pickup (zone, after the guard falls): bend down reaching for the floor, grab, stand up looking
 # at the find in the near hand (blade turned back along the forearm).
-PICK_1 = P(IDLE, pelvis=(-0.6, HIP_Y - 6.0, 0.0), lean=30.0, twist=-10.0, head=(10.0, 0.0, 0.0),
+PICK_1 = P(LOOSE, pelvis=(-0.6, HIP_Y - 6.0, 0.0), lean=30.0, twist=-10.0, head=(10.0, 0.0, 0.0),
            foot_n=(5.0, 1.5, 2.8), knee_n=(1.0, 0.0, 0.3), foot_f=(-4.4, 1.5, -2.0), knee_f=(1.0, 0.0, -0.2),
            hand_n=(9.0, 6.6, 4.6), elbow_n=(-1.0, 0.2, 0.6), dag_n=(-0.4, 0.9, 0.1),
-           hand_f=(4.0, 12.4, -3.4), dag_f=(0.2, -1.0, -0.1), wind=(-1.0, -0.5, -0.1))
+           hand_f=(4.0, 12.4, -3.4), dag_f=(-0.85, -0.4, -0.1), wind=(-1.0, -0.5, -0.1))
 PICK_2 = P(PICK_1, pelvis=(-0.6, HIP_Y - 8.2, 0.0), lean=34.0, head=(16.0, 0.0, 0.0),
            foot_f=(-4.8, 1.5, -2.0), toe_f=40.0,
            hand_n=(9.6, 3.0, 4.6), hand_f=(4.2, 10.0, -3.4))
-PICK_3 = P(IDLE, pelvis=(0.0, HIP_Y - 0.2, 0.0), lean=2.0, twist=-18.0, head=(16.0, 10.0, 0.0),
+PICK_3 = P(LOOSE, pelvis=(0.0, HIP_Y - 0.2, 0.0), lean=2.0, twist=-18.0, head=(16.0, 10.0, 0.0),
            hand_n=(6.2, 24.6, 4.0), elbow_n=(0.0, -1.0, 0.8), dag_n=(-0.6, -0.75, 0.1),
-           wind=(-1.0, -0.4, -0.1))
+           dag_f=(-0.85, -0.42, -0.1), wind=(-1.0, -0.4, -0.1))
+
+
+# Run (combat): the dash up to an enemy before a strike (about 0.4 s across the stage).
+# The walk_side idea at a sprint: a longer stride, the back heel kicked up high, a stronger lean and
+# a flight on cells 3 and 7 (both feet off the floor); the near foot strikes on cell 0, the far
+# foot on cell 4. The fists pump in the idle's high and low, each blade turning with its fist so it
+# never lines up with the forearm (a claw).
+RUN_CELLS = 8
+# One leg's ankle (x from the pelvis, height) and toe pitch per cell, the near leg; the far leg is
+# four cells later. Strike, weight taken, push-off, leaving the floor, heel kicked up behind, knee
+# driving through, reaching, coming down for the next strike.
+RUN_LEG = ((6.8, 1.5, 6.0), (2.0, 1.5, 0.0), (-5.6, 2.0, -40.0), (-9.6, 5.2, -56.0),
+           (-7.6, 11.8, -72.0), (0.6, 11.0, -40.0), (7.2, 7.0, -10.0), (8.6, 3.0, 6.0))
+# Pelvis height per half cycle: sinking onto the strike, lowest as it takes the weight, rising
+# off the push into the flight. The head follows, so it moves about a pixel and a half.
+RUN_HIP = (HIP_Y - 2.2, HIP_Y - 2.8, HIP_Y - 1.9, HIP_Y - 1.3)
+RUN_PELVIS_X = -1.0
+RUN_LEAN = 28.0
+
+
+def _turn_xy(v: tuple[float, float, float], deg: float) -> tuple[float, float, float]:
+    """`v` turned by `deg` about the z axis (in the side view's plane)."""
+    a = math.radians(deg)
+    c, s = math.cos(a), math.sin(a)
+    return (v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2])
+
+
+def _forearm_deg(sk: Skeleton, side: str) -> float:
+    f = sk["hand_" + side] - sk["elbow_" + side]
+    return math.degrees(math.atan2(float(f[1]), float(f[0])))
+
+
+def run_pose(k: int) -> dict[str, Any]:
+    """Cell k of the 8-cell side run (the near foot strikes on cell 0, the far foot on cell 4)."""
+    phi = k / RUN_CELLS
+    sw = math.cos(2.0 * math.pi * phi)            # +1: near leg forward, near arm back
+    py = RUN_HIP[k % 4]
+    px = RUN_PELVIS_X
+    nx, ny, nt = RUN_LEG[k % RUN_CELLS]
+    fx, fy, ft = RUN_LEG[(k + RUN_CELLS // 2) % RUN_CELLS]
+    pose = complete({
+        "pelvis": (px, py, 0.0), "lean": RUN_LEAN, "twist": -12.0 - 6.0 * sw, "hip_yaw": 5.0 * sw,
+        "head": (-18.0, 8.0 + 6.0 * sw, 0.0),
+        "foot_n": (px + nx, ny, 1.9), "toe_n": nt, "knee_n": (1.0, 0.0, 0.15), "toe_yaw_n": 0.0,
+        "foot_f": (px + fx, fy, -1.9), "toe_f": ft, "knee_f": (1.0, 0.0, -0.15), "toe_yaw_f": 0.0,
+        "elbow_n": IDLE["elbow_n"], "elbow_f": IDLE["elbow_f"],
+        "dag_n": IDLE["dag_n"], "dag_f": IDLE["dag_f"],
+        "wind": (-1.5, 0.05 + 0.15 * math.sin(4.0 * math.pi * phi), -0.15),
+        "ground": 1.0, "eyes": "open",
+    })
+    # The fists are placed from the shoulders as in the idle: the near one low, pumping from by
+    # the hip to well forward, the far one before the chest, pumping the other way.
+    sk = skeleton(pose)
+    sn, sf = sk["shoulder_n"], sk["shoulder_f"]
+    pose["hand_n"] = (float(sn[0]) + 4.4 - 3.8 * sw, float(sn[1]) - 9.0 + 1.0 * -sw, 4.4)
+    pose["hand_f"] = (float(sf[0]) + 4.6 + 1.8 * sw, float(sf[1]) + 0.6 + 0.8 * sw, -3.0)
+    # The near blade turns with its forearm (half the forearm's turn from the idle's; the wrist
+    # takes the rest), so the grip stays the idle's reverse grip through the pump.
+    sk, sk_idle = skeleton(pose), skeleton(IDLE)
+    turn = 0.5 * (_forearm_deg(sk, "n") - _forearm_deg(sk_idle, "n"))
+    pose["dag_n"] = _turn_xy(IDLE["dag_n"], turn)
+    return pose
 
 
 # Clip name -> cells in play order (int = a row-0 key, dict = a pose). The game sets the timing.
@@ -1196,6 +1298,7 @@ CLIPS: dict[str, list[Any]] = {
     "get_up": [K["down"], GETUP_1, GETUP_2, K["idle"]],
     "victory": [VIC_1, VIC_2, VIC_3, VIC_4],
     "victory_hold": [VIC_4, VIC_4B],
+    "run": [run_pose(k) for k in range(RUN_CELLS)],
 }
 
 

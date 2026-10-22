@@ -37,3 +37,4 @@ xp = 90
 voice_sfx = "voice_bloat"
 relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_hollow_mantle"), ExtResource("g_chain_of_silence"), ExtResource("g_cleansing_bell"), ExtResource("12_cspiw")])
 forced_hits = true
+runs_up = true

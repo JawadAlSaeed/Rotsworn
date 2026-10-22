@@ -7,6 +7,8 @@ extends SceneTree
 
 ## Each enemy's voice cue (data/audio/sfx_library.tres).
 const VOICES := {"rotten_husk": "voice_husk", "bloat": "voice_bloat", "gnat_swarm": "voice_gnats", "shade": "voice_shade"}
+## Enemies that run up to their target before a melee attack (DESIGN.md 3.12).
+const RUNS_UP := ["rotten_husk", "bloat", "gnat_swarm", "shade"]
 const NORMAL := AttackHitData.Kind.NORMAL
 const GROUND := AttackHitData.Kind.GROUND
 const SINGLE := EnemyAttackData.TargetMode.SINGLE
@@ -283,6 +285,8 @@ func _character(id: String, title: String, color: Color, hp_pct: int, power_pct:
 	c.basic_attack = basic
 	c.skills.assign(skills)
 	c.shout_sfx = "shout_" + id
+	# The melee heroes run all the way up to attack (DESIGN.md 3.12); Cass casts from her spot.
+	c.runs_up = id in ["brin", "alder"]
 	return _save(c, "res://data/characters/%s.tres" % id) as CharacterData
 
 
@@ -300,6 +304,7 @@ func _enemy(id: String, title: String, color: Color, pixel_size: float, hp_pct: 
 	e.speed = speed
 	e.attacks.assign(attacks)
 	e.voice_sfx = VOICES.get(id, "")
+	e.runs_up = RUNS_UP.has(id)
 	return _save(e, "res://data/enemies/%s.tres" % id) as EnemyData
 
 

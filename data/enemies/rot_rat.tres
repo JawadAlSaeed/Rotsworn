@@ -34,3 +34,4 @@ gold = 6
 xp = 12
 voice_sfx = "voice_hyena"
 relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_lucky_coin"), ExtResource("g_quick_boots"), ExtResource("g_bitter_root"), ExtResource("10_xvn5x")])
+runs_up = true

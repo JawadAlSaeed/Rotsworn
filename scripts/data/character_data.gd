@@ -38,6 +38,10 @@ extends Resource
 @export var skill_tree: SkillTreeData
 ## Sound cue for a short shout when this hero uses a skill or joins the Team Ultimate (card #102).
 @export var shout_sfx: String = ""
+## Runs all the way up to the enemy before a melee skill (a step short of the strike point), steps
+## in on each hit and hops home after it (DESIGN.md 3.12). Otherwise the hero steps part of the way
+## (CombatVisuals.skill_approach_share).
+@export var runs_up: bool = false
 
 
 ## The basic attack, then every skill (the list, then any tree skill not in it).

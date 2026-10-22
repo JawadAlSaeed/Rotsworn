@@ -6,7 +6,7 @@
 script = ExtResource("1_clips")
 frame_size = Vector2i(48, 56)
 hframes = 8
-vframes = 24
+vframes = 25
 body_width_px = 32
 clips = {
 "cast": PackedInt32Array(144, 145, 146),
@@ -23,6 +23,7 @@ clips = {
 "parry": PackedInt32Array(32, 2),
 "parry_hit": PackedInt32Array(40, 41, 2),
 "ready": PackedInt32Array(1, 16, 17, 16),
+"run": PackedInt32Array(192, 193, 194, 195, 196, 197, 198, 199),
 "stagger": PackedInt32Array(5, 80, 80, 81, 82, 73),
 "strike": PackedInt32Array(6, 96, 97),
 "strike_alt": PackedInt32Array(112, 113, 114),

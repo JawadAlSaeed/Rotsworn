@@ -35,3 +35,4 @@ xp = 22
 voice_sfx = "voice_gnats"
 relic_drops = Array[ExtResource("7_6ytf2")]([ExtResource("8_48ly8"), ExtResource("9_0t4fd")])
 forced_hits = true
+runs_up = true

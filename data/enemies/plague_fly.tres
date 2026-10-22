@@ -37,3 +37,4 @@ xp = 37
 voice_sfx = "voice_fly"
 relic_drops = Array[ExtResource("7_dut48")]([ExtResource("8_5hr46"), ExtResource("9_3csgw"), ExtResource("10_5hr46"), ExtResource("11_3csgw")])
 forced_hits = true
+runs_up = true

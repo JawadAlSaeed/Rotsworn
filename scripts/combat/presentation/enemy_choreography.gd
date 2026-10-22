@@ -21,6 +21,12 @@ extends RefCounted
 ## AttackHitData.projectile) never lunges. The enemy winds up, throws at the launch moment
 ## (impact - approach_ms, beat SHOOT, pose CONTACT) and waits where it is while the projectile
 ## flies (beat FLIGHT); the projectile arrives at impact.
+##
+## Phase 23 (DESIGN.md 3.12): an attacker that ran up before the clock started (runs_up) samples
+## with `near`, the approach share where it stopped, a step short of the contact point. Every hit
+## starts from there: the lunge is a short step in as it swings, the recoil never takes it further
+## back than `near`, slams and throws play where it stands, and after the last hit it goes home over
+## return_ms like everyone else (longer, it would still be on its way when a counter dashes in).
 
 ## Frames of an enemy sheet (DESIGN.md 5.3).
 enum Pose {
@@ -72,11 +78,13 @@ const CUE_SHOOT := "shoot"
 ## beat_ms: float, beat_len_ms: float, beat_u: float} at attack time `t_ms`.
 ## `hit` is the hit this pose belongs to (its wind-up, motion, contact, recoil or the walk home
 ## after the last hit), -1 before the clock starts. The beat keys only describe the spans the
-## pose already follows; they never change pose, approach or glow.
-static func sample(hits: Array, t_ms: float, v: CombatVisuals) -> Dictionary:
+## pose already follows; they never change pose, approach or glow. `near` (0 = home) is where an
+## attacker that ran up stands when the clock starts (see the class notes).
+static func sample(hits: Array, t_ms: float, v: CombatVisuals, near: float = 0.0) -> Dictionary:
 	if hits.is_empty() or t_ms < 0.0:
-		return _open(_pose(Pose.IDLE, 0.0, 0.0), Beat.BEFORE, 0.0)
-	var rest := 0.0
+		return _open(_pose(Pose.IDLE, near, 0.0), Beat.BEFORE, 0.0)
+	var rest := near
+	var back_ms := float(v.return_ms)
 	var hold_from := 0.0
 	for i: int in hits.size():
 		var hit: Dictionary = hits[i]
@@ -100,7 +108,7 @@ static func sample(hits: Array, t_ms: float, v: CombatVisuals) -> Dictionary:
 				var back_from := maxf(slam_end, impact)
 				if t_ms < back_from:
 					return _beat(_pose(Pose.IDLE, rest, 0.0, i), Beat.GROUND_WAIT, t_ms, slam_end, back_from)
-				var home_at := back_from + float(v.return_ms)
+				var home_at := back_from + back_ms
 				var walked := _pose(Pose.IDLE, lerpf(rest, 0.0, _smooth(_ramp(t_ms, back_from, home_at))), 0.0, i)
 				if t_ms < home_at:
 					return _beat(walked, Beat.RETURN, t_ms, back_from, home_at)
@@ -119,7 +127,7 @@ static func sample(hits: Array, t_ms: float, v: CombatVisuals) -> Dictionary:
 				var landed_at := maxf(shoot_end, impact)
 				if t_ms < landed_at:
 					return _beat(_pose(Pose.IDLE, rest, 0.0, i), Beat.FLIGHT, t_ms, shoot_end, landed_at)
-				var home_at := landed_at + (float(v.return_ms) if rest > 0.0 else 0.0)
+				var home_at := landed_at + (back_ms if rest > 0.0 else 0.0)
 				var walked := _pose(Pose.IDLE, lerpf(rest, 0.0, _smooth(_ramp(t_ms, landed_at, home_at))), 0.0, i)
 				if t_ms < home_at:
 					return _beat(walked, Beat.RETURN, t_ms, landed_at, home_at)
@@ -153,7 +161,7 @@ static func sample(hits: Array, t_ms: float, v: CombatVisuals) -> Dictionary:
 			var hold_end := impact + maxf(float(v.contact_hold_ms), close + float(v.contact_after_close_ms))
 			if t_ms < hold_end:
 				return _beat(_pose(Pose.CONTACT, 1.0, 0.0, i), Beat.CONTACT, t_ms, impact, hold_end)
-			var home_at := hold_end + float(v.return_ms)
+			var home_at := hold_end + back_ms
 			var back := _smooth(_ramp(t_ms, hold_end, home_at))
 			if t_ms < home_at:
 				return _beat(_pose(Pose.IDLE, 1.0 - back, 0.0, i), Beat.RETURN, t_ms, hold_end, home_at)
@@ -162,7 +170,7 @@ static func sample(hits: Array, t_ms: float, v: CombatVisuals) -> Dictionary:
 		var available := maxf(0.0, motion_start(hits, i + 1, v) - impact)
 		var hold := minf(maxf(float(v.contact_hold_ms), close), maxf(0.0, available - float(v.recoil_min_ms)))
 		var recoil := minf(float(v.recoil_ms), available - hold)
-		var recoiled := 1.0 - float(v.recoil_percent) / 100.0
+		var recoiled := maxf(1.0 - float(v.recoil_percent) / 100.0, near)
 		if t_ms < impact + hold:
 			return _beat(_pose(Pose.CONTACT, 1.0, 0.0, i), Beat.CONTACT, t_ms, impact, impact + hold)
 		if t_ms < impact + hold + recoil:
@@ -239,6 +247,27 @@ static func motion_start(hits: Array, i: int, v: CombatVisuals) -> float:
 	if i > 0:
 		start = maxf(start, float((hits[i - 1] as Dictionary).at_ms))
 	return maxf(start, 0.0)
+
+
+## True when `enemy` runs up to its target before this attack (DESIGN.md 3.12): it is an attacker
+## that runs up and the attack opens with a melee strike (a normal hit, rend or sweep that throws
+## nothing). `hits` are the engine's declared hits in play order (each with its `index` into
+## attack.hits). Every machine decides the same, so the longer lead-in matches online.
+static func runs_up(attack: EnemyAttackData, enemy: EnemyData, hits: Array) -> bool:
+	if attack == null or enemy == null or not enemy.runs_up or hits.is_empty():
+		return false
+	var first: Dictionary = hits[0]
+	if not AttackHitData.is_strike(int(first.kind)):
+		return false
+	var index := int(first.get("index", -1))
+	if index >= 0 and index < attack.hits.size() and attack.hits[index] != null:
+		return attack.hits[index].projectile == null
+	return true
+
+
+## Time from the attack banner to the attack clock: the lead-in, plus the run when it runs up.
+static func lead_in_ms(tuning: Tuning, runs: bool) -> int:
+	return tuning.attack_lead_in_ms + (tuning.run_up_ms if runs else 0)
 
 
 ## True for a strike (normal, rend or sweep) that throws a projectile instead of lunging.

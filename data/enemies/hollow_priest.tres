@@ -33,3 +33,4 @@ xp = 54
 voice_sfx = "voice_shade"
 relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_pale_tithe"), ExtResource("g_cleansing_bell"), ExtResource("10_ibjpf")])
 forced_hits = true
+runs_up = true

@@ -40,3 +40,4 @@ xp = 45
 voice_sfx = "voice_husk"
 relic_drops = Array[ExtResource("10_p8obk")]([ExtResource("11_28dpe"), ExtResource("12_rovri"), ExtResource("13_b1ueo"), ExtResource("14_28dpe"), ExtResource("15_rovri")])
 forced_hits = true
+runs_up = true

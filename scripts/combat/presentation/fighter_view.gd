@@ -43,6 +43,8 @@ const WARNING_RIM_ALPHA := 1.0
 ## Combatant id this view shows.
 var fighter_id: int = -1
 var is_party: bool = true
+## A hero who runs all the way up to attack (CharacterData.runs_up, DESIGN.md 3.12).
+var runs_up: bool = false
 ## Body position relative to home (the node's position). Animate it only through move_body().
 var body_offset: Vector3 = Vector3.ZERO:
 	set = set_body_offset
@@ -300,7 +302,8 @@ func recoil(offset: Vector3, out_s: float, back_s: float) -> void:
 
 ## Hops the body to `to` over `seconds` along an arc `height` high (world units), replacing any
 ## movement still in progress, like move_body. 0 seconds snaps.
-func hop_body(to: Vector3, seconds: float, height: float) -> void:
+func hop_body(to: Vector3, seconds: float, height: float, trans: Tween.TransitionType = Tween.TRANS_LINEAR,
+		ease: Tween.EaseType = Tween.EASE_IN_OUT) -> void:
 	if _move_tween != null and _move_tween.is_valid():
 		_move_tween.kill()
 	_move_tween = null
@@ -308,7 +311,7 @@ func hop_body(to: Vector3, seconds: float, height: float) -> void:
 		body_offset = to
 		return
 	_move_tween = create_tween()
-	_move_tween.tween_method(_hop_step.bind(body_offset, to, height), 0.0, 1.0, seconds)
+	_move_tween.tween_method(_hop_step.bind(body_offset, to, height), 0.0, 1.0, seconds).set_trans(trans) 			.set_ease(ease)
 
 
 ## Where a hop from `from` to `to`, `height` high, is at progress `u` (0..1).
