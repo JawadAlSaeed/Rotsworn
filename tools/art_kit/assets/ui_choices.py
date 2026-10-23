@@ -10,6 +10,9 @@ Card pictures, 24x24, drawn at 4x on a card (96 px), outlined in the game's ink:
 - ui/choice_sharpen.png: a blade drawn across a whetstone, sparks off the edge (Sharpen: more AP).
 - ui/choice_host.png: a stone beacon with a fire on top, calls going out both ways (Host Online).
 - ui/choice_join.png: an open doorway with a gold arrow going in (Join Online).
+- ui/choice_heal.png: a round red flask, corked, a white heart glinting in it (Fight Rush: Heal).
+- ui/choice_fight.png: two swords crossed, points up (Fight Rush: the next fight).
+- ui/choice_party.png: three small heads side by side (Fight Rush: the party screen).
 
 Chip icons, 12x12, drawn at 3x in a chip (36 px):
 - ui/chip_coin.png: gold (a price or a reward).
@@ -48,6 +51,15 @@ ROT = M["glow_rot"].colors
 VIOLET = M["glow_violet"].colors
 # The heart's red, darkest first (the HP bar's low red, a little deeper).
 HEART = ramp("#d8343c", below=2, above=2, step_l=0.085)
+# The flask's empty glass, darkest first.
+GLASS = M["steel"].colors
+SKIN = M["skin"].colors
+HAIR_AUBURN = M["hair_auburn"].colors
+HAIR_BLACK = M["hair_black"].colors
+HAIR_BROWN = M["hair_brown"].colors
+CLOTH_BLUE = M["cloth_blue"].colors
+CLOTH_RED = M["cloth_red"].colors
+CLOTH_PURPLE = M["cloth_purple"].colors
 # A heart lost for good: the same heart, bruised and dull.
 BRUISE = ramp("#8e2e48", below=2, above=2, step_l=0.08)
 VIOLET_DEEP = ramp(VIOLET[0], below=1, above=0)[0]
@@ -279,6 +291,101 @@ def make_join() -> np.ndarray:
     ], {"W": WOOD[3], "w": WOOD[1], "d": DARKWOOD[0], "L": GOLD[4], "M": GOLD[2]})
 
 
+def make_heal() -> np.ndarray:
+    """A round flask of red draught, corked: the liquid lit from the upper left, an empty band of
+    glass over it, and a small white heart glinting in the red (the Heal card)."""
+    c = Canvas(CARD, CARD)
+    cx, cy, r = 12.0, 15.0, 7.6
+    for y in range(CARD):
+        for x in range(CARD):
+            dx = x + 0.5 - cx
+            dy = y + 0.5 - cy
+            if dx * dx + dy * dy > r * r:
+                continue
+            if y < 11:
+                c.px(x, y, GLASS[3] if dx < -3.0 else GLASS[1])
+                continue
+            d = (dx + 3.2) ** 2 + (dy + 2.0) ** 2
+            idx = 3 if d < 12.0 else 2 if d < 40.0 else 1 if d < 75.0 else 0
+            c.px(x, y, HEART[idx])
+    # The surface of the draught, a brighter line.
+    for x in range(6, 18):
+        if c.a[11, x, 3] > 0:
+            c.px(x, 11, HEART[4])
+    # The neck, its rim and the cork.
+    c.rect(10, 4, 13, 8, GLASS[2])
+    c.px(10, 5, GLASS[4])
+    c.px(10, 6, GLASS[4])
+    c.rect(9, 3, 14, 3, GLASS[4])
+    c.rect(10, 1, 13, 2, WOOD[3])
+    c.px(13, 1, WOOD[1])
+    c.px(13, 2, WOOD[1])
+    # A streak of light down the left of the glass.
+    c.px(6, 10, GLASS[4])
+    c.px(5, 12, HEART[4])
+    c.px(5, 13, HEART[4])
+    # The heart glint.
+    for x, y in ((8, 13), (10, 13), (7, 14), (8, 14), (9, 14), (10, 14), (11, 14), (8, 15), (9, 15),
+                 (10, 15), (9, 16)):
+        c.px(x, y, BONE[4])
+    c.outline(INK)
+    return c.a
+
+
+def make_fight_card() -> np.ndarray:
+    """Two swords crossed, points up, steel blades with a bright edge, gold guards and leather
+    grips: the next fight."""
+    c = Canvas(CARD, CARD)
+    for mirror in (False, True):
+        def X(x: int) -> int:
+            return CARD - 1 - x if mirror else x
+        c.line(X(2), 1, X(15), 14, BLADE[4])
+        c.line(X(1), 2, X(14), 15, BLADE[2])
+        c.line(X(2), 2, X(14), 14, BLADE[3])
+        c.line(X(13), 17, X(17), 13, GOLD[3])
+        c.line(X(14), 17, X(17), 14, GOLD[1])
+        c.line(X(16), 16, X(19), 19, LEATHER[3])
+        c.line(X(16), 17, X(18), 19, LEATHER[1])
+        c.px(X(20), 20, GOLD[3])
+        c.px(X(21), 21, GOLD[2])
+        c.px(X(20), 21, GOLD[1])
+        c.px(X(21), 20, GOLD[2])
+    c.outline(INK)
+    return c.a
+
+
+def make_party() -> np.ndarray:
+    """Three small heads side by side, each with their shoulders: auburn hair in blue, black hair
+    in red (in front, a little higher), brown hair in purple (the party screen)."""
+    head = [
+        ".HHHH.",
+        "HHHHHh",
+        "HhSSSh",
+        "SeSSeS",
+        "SSSSSs",
+        ".ssss.",
+        "..ss..",
+        ".CCCc.",
+        "CCCCCc",
+        "CCCCCc",
+        "CCCCcc",
+        "cccccc",
+    ]
+    c = Canvas(CARD, CARD)
+    # The one in front stands higher, its shoulders reaching as low as the others'.
+    figures = (
+        (2, 7, HAIR_AUBURN, CLOTH_BLUE, 0),
+        (16, 7, HAIR_BROWN, CLOTH_PURPLE, 0),
+        (9, 5, HAIR_BLACK, CLOTH_RED, 2),
+    )
+    for x, y, hair, cloth, taller in figures:
+        rows = head[:-1] + ["CCCCCc"] * taller + head[-1:]
+        c.ascii(rows, {"H": hair[3], "h": hair[1], "S": SKIN[3], "s": SKIN[1], "e": INK,
+                       "C": cloth[3], "c": cloth[1]}, x, y)
+    c.outline(INK)
+    return c.a
+
+
 # --- chip icons ------------------------------------------------------------------------------
 
 def make_coin() -> np.ndarray:
@@ -452,7 +559,8 @@ def make_relic() -> np.ndarray:
 CARDS = {
     "choice_rest": make_rest, "choice_train": make_train, "choice_upgrade": make_upgrade,
     "choice_watch": make_watch, "choice_sharpen": make_sharpen, "choice_host": make_host,
-    "choice_join": make_join,
+    "choice_join": make_join, "choice_heal": make_heal, "choice_fight": make_fight_card,
+    "choice_party": make_party,
 }
 CHIPS = {
     "chip_coin": make_coin, "chip_heart": make_heart, "chip_heart_cracked": make_heart_cracked,

@@ -28,7 +28,8 @@ const PATH := "res://data/presentation/stop_visuals.tres"
 
 @export_group("Choice cards")
 ## The pictures on the side-by-side choice cards (card #288, tools/art_kit/assets/ui_choices.py):
-## the campfire's choices, and Host and Join on the main menu's Online page.
+## the campfire's choices, Host and Join on the main menu's Online page, and the Fight Rush screen's
+## Heal, Fight and Party (DESIGN.md 8.21).
 @export_file("*.png") var rest_icon_path: String = "res://assets/sprites/ui/choice_rest.png"
 @export_file("*.png") var train_icon_path: String = "res://assets/sprites/ui/choice_train.png"
 @export_file("*.png") var upgrade_icon_path: String = "res://assets/sprites/ui/choice_upgrade.png"
@@ -36,6 +37,9 @@ const PATH := "res://data/presentation/stop_visuals.tres"
 @export_file("*.png") var sharpen_icon_path: String = "res://assets/sprites/ui/choice_sharpen.png"
 @export_file("*.png") var host_icon_path: String = "res://assets/sprites/ui/choice_host.png"
 @export_file("*.png") var join_icon_path: String = "res://assets/sprites/ui/choice_join.png"
+@export_file("*.png") var heal_icon_path: String = "res://assets/sprites/ui/choice_heal.png"
+@export_file("*.png") var fight_icon_path: String = "res://assets/sprites/ui/choice_fight.png"
+@export_file("*.png") var party_icon_path: String = "res://assets/sprites/ui/choice_party.png"
 ## Screen pixels per art pixel for a treasure chest on its card (the chests are 28x24).
 @export_range(1, 8, 1) var chest_card_scale: int = 4
 
@@ -60,7 +64,8 @@ const PATH := "res://data/presentation/stop_visuals.tres"
 
 
 ## The icon path for a chip of `kind` (RunState.offer_chips: gold, hp, heal, max_hp, item, find,
-## curse, fight, risk, xp, up, gauge, relic, ap), "" for an unknown kind.
+## curse, fight, risk, xp, up, gauge, relic, ap; boss: the Fight Rush's next fight is a boss), "" for
+## an unknown kind.
 func chip_icon_path(kind: String) -> String:
 	match kind:
 		"gold":
@@ -71,7 +76,7 @@ func chip_icon_path(kind: String) -> String:
 			return chip_max_hp_path
 		"item", "find":
 			return chip_item_path
-		"curse":
+		"curse", "boss":
 			return chip_curse_path
 		"fight":
 			return chip_fight_path

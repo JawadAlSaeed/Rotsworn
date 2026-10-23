@@ -584,6 +584,18 @@ func take_card(i: int) -> Dictionary:
 	return {"kind": String(card.kind), "give": give, "healed": healed, "points": points}
 
 
+## The item or Relic card `i` offers (null: a Heal or Train card, or no such card). Changes nothing.
+func card_thing(i: int) -> Resource:
+	if i < 0 or i >= offer.size():
+		return null
+	match String(offer[i].get("kind", "")):
+		CARD_ITEM:
+			return _rush_item(String(offer[i].get("id", "")))
+		CARD_RELIC:
+			return relic_by_id(String(offer[i].get("id", "")))
+	return null
+
+
 func _rush_item(id: String) -> ItemData:
 	if rush != null:
 		for item: ItemData in rush.items:

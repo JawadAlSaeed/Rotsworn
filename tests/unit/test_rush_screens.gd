@@ -1,0 +1,316 @@
+extends GutTest
+## The Fight Rush screens (DESIGN.md 8.21, card #305). The Rush screen between fights: after a win
+## its reward cards side by side (Heal, Train, an item; Relics after elites and bosses), Heal greyed
+## when nobody would gain HP and naming a hero whose Relics change it, the hand-out of an item or Relic
+## over it, the next pick, then the ready phase (Fight and Party) that asks for the fight once; a
+## watching client takes nothing; it fits the screen at the largest text size. Uses the shipped Rush
+## data. Nothing here touches user://.
+
+const RUSH_PATH := "res://data/rush/fight_rush.tres"
+const TUNING_PATH := "res://data/tuning/tuning.tres"
+const SCREEN_SIZE := Vector2(1920.0, 1080.0)
+
+var _rush: RushData
+var _tuning: Tuning
+var _size_index: int = 0
+
+
+func before_all() -> void:
+	_rush = load(RUSH_PATH) as RushData
+
+
+func before_each() -> void:
+	_tuning = (load(TUNING_PATH) as Tuning).duplicate() as Tuning
+	_size_index = HudStyle.text_size_index()
+
+
+func after_each() -> void:
+	HudStyle.set_text_size_index(_size_index)
+
+
+## A Rush that has just won fight `n` (the fights before it replayed by the dev head start), its
+## cards on show. `hurt`: everyone ends the fight at half HP (else full).
+func _won(n: int, hurt: bool = true) -> RushState:
+	var r := RushState.begin_rush(_rush, _tuning, 7, null, n)
+	r.next_fight()
+	assert_eq(r.fight, n)
+	var hp: Array[int] = []
+	for slot: int in r.party_size():
+		@warning_ignore("integer_division")
+		hp.append(r.max_hp(slot) / 2 if hurt else r.max_hp(slot))
+	r.finish_fight(RunState.VICTORY, hp, r.encounter_now(), {})
+	return r
+
+
+func _screen(r: RushState, best: int = 0, remote: bool = false) -> RushRewardScreen:
+	var screen := RushRewardScreen.new()
+	screen.remote = remote
+	add_child_autofree(screen)
+	screen.setup(r, best)
+	return screen
+
+
+func _press_on(node: Node, action: StringName) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = true
+	node._unhandled_input(event)
+
+
+func _texts(menu: ListMenu) -> Array:
+	return menu.items.map(func(row: Dictionary) -> String: return String(row.get("text", "")))
+
+
+func _kinds(r: RushState) -> Array:
+	return r.offer.map(func(card: Dictionary) -> String: return String(card.kind))
+
+
+func _chip_texts(row: Dictionary) -> Array:
+	return (row.get("chips", []) as Array).map(func(chip: Dictionary) -> String: return String(chip.get("text", "")))
+
+
+func _card_of(r: RushState, kind: String) -> int:
+	for i: int in r.offer.size():
+		if String(r.offer[i].kind) == kind:
+			return i
+	return -1
+
+
+func _gear(r: RushState, id: String) -> GearData:
+	return r.data.gear.filter(func(g: GearData) -> bool: return g != null and g.id == id)[0] as GearData
+
+
+# --- the pick phase -----------------------------------------------------------------------------
+
+func test_a_normal_win_shows_heal_train_and_an_item_side_by_side() -> void:
+	var r := _won(3)
+	assert_eq(_kinds(r), ["heal", "point", "item"])
+	var screen := _screen(r)
+	var menu := screen.menu()
+	assert_true(screen.is_picking())
+	assert_eq(screen.title_text(), "REWARD")
+	assert_true(menu.horizontal, "the cards sit side by side")
+	var item := r.card_thing(2) as ItemData
+	assert_eq(_texts(menu), ["Heal", "Train", item.display_name])
+	for row: Dictionary in menu.items:
+		assert_true(row.get("icon") is Texture2D, "%s has a picture" % row.text)
+		assert_false((row.get("chips", []) as Array).is_empty(), "%s says what it gives" % row.text)
+	assert_eq(_chip_texts(menu.items[0])[0], "+%d%% HP" % _tuning.rush_heal_card_percent)
+	assert_eq(_chip_texts(menu.items[1]), [RushRewardScreen.points_text(_tuning.rush_point_card_points)])
+	assert_eq(_chip_texts(menu.items[2])[0], RushRewardScreen.rarity_word(int(item.rarity)), "the item's rarity first")
+	assert_eq(menu.items[2].color, BackpackGrid.rarity_color(int(item.rarity)))
+	assert_eq(screen.chip_texts(), ["Fight 3"] as Array[String], "no best yet, one pick")
+	assert_has(screen.footer_entries(), [&"@leftright", "Choose"])
+	assert_has(screen.footer_entries(), [&"menu_confirm", "Take"])
+	assert_has(screen.footer_entries(), [&"party_menu", "Party"])
+	for label: Node in screen.find_children("*", "Label", true, false):
+		assert_false((label as Label).text.contains("gold") or (label as Label).text.contains("Gold"), "no gold on a Rush")
+
+
+func test_the_best_and_extra_picks_show_as_chips() -> void:
+	var r := _won(3)
+	r.picks_left = 2
+	var screen := _screen(r, 16)
+	assert_eq(screen.chip_texts(), ["Fight 3", "Best 16", "+1 pick"] as Array[String])
+
+
+func test_a_card_that_cannot_be_filled_is_left_out() -> void:
+	var r := _won(3)
+	var screen := _screen(r)
+	assert_eq(screen.menu().items.size(), 3)
+	# No item the party wants: the item card is not rolled.
+	r.offer.remove_at(2)
+	screen.refresh()
+	assert_eq(_texts(screen.menu()), ["Heal", "Train"])
+	assert_eq(_screen(r).menu().items.size(), 2, "a fresh screen too")
+
+
+func test_heal_is_greyed_at_full_hp_and_refused() -> void:
+	var r := _won(3, false)
+	assert_false(r.card_enabled(0))
+	var screen := _screen(r)
+	assert_false(bool(screen.menu().items[0].enabled), "nobody would gain HP")
+	assert_eq(screen.menu().index, 1, "the cursor starts on the first card that can be taken")
+	watch_signals(screen)
+	var picks := r.pick_no
+	screen.menu().index = 0
+	_press_on(screen, &"menu_confirm")
+	assert_true(r.picking(), "nothing was taken")
+	assert_eq(r.pick_no, picks)
+	assert_false(screen.take(0), "nor by the bot's take()")
+	assert_signal_not_emitted(screen, "acted")
+
+
+func test_heal_names_a_hunger_charm_wearer() -> void:
+	var r := _won(3)
+	assert_eq(r.wear(0, 0, _gear(r, "hunger_charm")), 0)
+	var chips := _chip_texts(_screen(r).menu().items[0])
+	assert_eq(chips.size(), 2, "everyone's heal, then the hero it differs for")
+	assert_eq(chips[1], "%s +0%%" % r.data.party[0].display_name)
+	var dim: Dictionary = _screen(r).menu().items[0].chips[1]
+	assert_eq(dim.color, HudStyle.TEXT_DIM)
+
+
+func test_taking_train_gives_points_and_moves_to_the_ready_phase() -> void:
+	var r := _won(3)
+	var before := r.bonus_points.duplicate()
+	var screen := _screen(r)
+	watch_signals(screen)
+	screen.menu().index = 1
+	_press_on(screen, &"menu_confirm")
+	for slot: int in r.party_size():
+		assert_eq(r.bonus_points[slot], before[slot] + _tuning.rush_point_card_points)
+	assert_signal_emit_count(screen, "acted", 1)
+	assert_false(screen.is_picking())
+	assert_eq(screen.title_text(), "FIGHT 4", "the next fight's number")
+	assert_eq(_texts(screen.menu()), ["Fight", "Party"])
+	assert_eq(screen.menu().index, 0, "the cursor starts on Fight")
+	for row: Dictionary in screen.menu().items:
+		assert_true(row.get("icon") is Texture2D, "%s has a picture" % row.text)
+	assert_has(screen.footer_entries(), [&"menu_confirm", "Select"])
+	assert_has(screen.footer_entries(), [&"party_menu", "Party"])
+	assert_gt(r.unspent_points(), 0)
+	assert_eq(_chip_texts(screen.menu().items[1]), [RushRewardScreen.points_text(r.unspent_points())],
+			"Party shows the points to spend")
+	assert_eq(_chip_texts(screen.menu().items[0]), [], "fight 4 is a normal fight")
+	assert_eq(screen.chip_texts(), [] as Array[String], "the fight won is no longer shown")
+
+
+func test_the_fight_card_says_elite_or_boss() -> void:
+	var elite := _won(4)
+	var screen := _screen(elite)
+	assert_true(screen.take(_card_of(elite, "point")))
+	assert_eq(screen.title_text(), "FIGHT 5")
+	assert_eq(_chip_texts(screen.menu().items[0]), ["Elite"])
+	var boss := _won(9)
+	var other := _screen(boss, 12)
+	assert_true(other.take(_card_of(boss, "point")))
+	assert_eq(_chip_texts(other.menu().items[0]), ["Boss"])
+	assert_eq(other.chip_texts(), ["Best 12"] as Array[String], "the best stays on show")
+
+
+func test_taking_a_relic_hands_it_out_and_then_rolls_the_next_pick() -> void:
+	var r := _won(5)
+	assert_eq(_kinds(r), ["heal", "point", "relic"], "an elite offers a Relic")
+	var relic_index := _card_of(r, "relic")
+	var gear := r.card_thing(relic_index) as GearData
+	var screen := _screen(r)
+	assert_true(screen.menu().items[relic_index].get("icon_make") is Callable, "the Relic's own icon")
+	assert_eq(String(screen.menu().items[relic_index].value), "Lv 1")
+	# An extra pick waits after this one (XP past the top level, D1).
+	r.picks_left = 2
+	screen.refresh()
+	watch_signals(screen)
+	assert_true(screen.take(relic_index))
+	assert_not_null(screen.overlay(), "a Relic nobody wears opens the party screen with it in hand")
+	assert_eq(r.relic_level(gear), 1, "the Relic is in")
+	assert_false(screen.take(0), "nothing more while it is being handed out")
+	screen.party_now()
+	assert_signal_not_emitted(screen, "party_requested")
+	screen.overlay().close()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_null(screen.overlay())
+	assert_true(screen.is_picking(), "the extra pick")
+	assert_eq(_kinds(r), ["heal", "point", "item"], "an extra pick is the normal set")
+	assert_eq(screen.menu().items.size(), 3)
+	assert_eq(screen.title_text(), "REWARD")
+
+
+func test_an_item_that_fits_goes_straight_into_the_pack() -> void:
+	var r := _won(3)
+	var item := r.card_thing(2) as ItemData
+	var screen := _screen(r)
+	assert_true(screen.take(2))
+	assert_null(screen.overlay(), "room in the pack: no party screen")
+	if item.kind != ItemData.Kind.UPGRADE:
+		var held := r.backpack.entries.filter(func(e: Dictionary) -> bool: return (e.item as ItemData) == item)
+		assert_eq(held.size(), 1, "the item is in")
+	assert_false(screen.is_picking())
+	assert_eq(_texts(screen.menu()), ["Fight", "Party"])
+
+
+func test_a_boss_offers_train_and_two_relics() -> void:
+	var r := _won(10)
+	assert_eq(_kinds(r), ["point", "relic", "relic"])
+	var screen := _screen(r)
+	assert_ne(screen.menu().items[1].text, screen.menu().items[2].text, "two different Relics")
+
+
+# --- the ready phase ----------------------------------------------------------------------------
+
+func test_the_ready_phase_asks_for_the_fight_once() -> void:
+	var r := _won(3)
+	var screen := _screen(r)
+	watch_signals(screen)
+	screen.fight_now()
+	assert_signal_not_emitted(screen, "fight_requested", "not while picking")
+	assert_true(screen.take(_card_of(r, "point")))
+	screen.menu().index = RushRewardScreen.READY_FIGHT
+	_press_on(screen, &"menu_confirm")
+	screen.fight_now()
+	_press_on(screen, &"menu_confirm")
+	assert_signal_emit_count(screen, "fight_requested", 1)
+
+
+func test_party_opens_from_the_card_and_the_button() -> void:
+	var r := _won(3)
+	var screen := _screen(r)
+	watch_signals(screen)
+	_press_on(screen, &"party_menu")
+	assert_signal_emit_count(screen, "party_requested", 1, "the button works while picking")
+	assert_true(screen.take(_card_of(r, "point")))
+	screen.menu().index = RushRewardScreen.READY_PARTY
+	_press_on(screen, &"menu_confirm")
+	assert_signal_emit_count(screen, "party_requested", 2)
+	assert_signal_not_emitted(screen, "fight_requested")
+
+
+func test_a_new_rush_opens_on_the_ready_phase() -> void:
+	var r := RushState.begin_rush(_rush, _tuning, 7)
+	var screen := _screen(r)
+	assert_false(screen.is_picking())
+	assert_eq(screen.title_text(), "FIGHT 1")
+	assert_eq(_texts(screen.menu()), ["Fight", "Party"])
+
+
+func test_a_watching_client_takes_nothing() -> void:
+	var r := _won(3)
+	var screen := _screen(r, 0, true)
+	assert_eq(screen.footer_entries(), [], "no footer")
+	for row: Dictionary in screen.menu().items:
+		assert_false(bool(row.enabled), "%s is the host's to take" % row.text)
+	watch_signals(screen)
+	screen.menu().index = 1
+	_press_on(screen, &"menu_confirm")
+	assert_false(screen.take(1))
+	assert_true(r.picking(), "nothing was taken")
+	assert_signal_not_emitted(screen, "acted")
+	_press_on(screen, &"party_menu")
+	assert_signal_emit_count(screen, "party_requested", 1, "a friend may still look at the party")
+
+
+# --- layout ---------------------------------------------------------------------------------------
+
+func _fits(screen: RushRewardScreen, what: String) -> void:
+	var column := screen.menu().get_parent() as Control
+	var need := column.get_combined_minimum_size()
+	assert_lte(need.y, SCREEN_SIZE.y - ListMenu.FOOTER_STRIP_PX, "%s fits the height (it is %d tall)" % [what, int(need.y)])
+	assert_lte(need.x, SCREEN_SIZE.x, "%s fits the width (it is %d wide)" % [what, int(need.x)])
+
+
+func test_the_screen_fits_1920x1080_at_the_largest_text_size() -> void:
+	HudStyle.set_text_size_index(HudStyle.fonts().text_size_percents.size() - 1)
+	var normal := _won(3)
+	assert_eq(normal.wear(0, 0, _gear(normal, "hunger_charm")), 0)
+	assert_eq(normal.wear(1, 0, _gear(normal, "rain_pouch")), 0)
+	normal.picks_left = 2
+	var samples: Array[Array] = [[normal, "a normal pick"], [_won(5), "an elite pick"], [_won(10), "a boss pick"]]
+	var ready := _won(9)
+	ready.take_card(_card_of(ready, "point"))
+	samples.append([ready, "the ready phase"])
+	for sample: Array in samples:
+		var screen := _screen(sample[0] as RushState, 16)
+		await get_tree().process_frame
+		_fits(screen, String(sample[1]))
+		screen.visible = false
