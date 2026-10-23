@@ -29,6 +29,7 @@ const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
 const EXPLORE_VISUALS_PATH := "res://data/presentation/explore_visuals.tres"
 const MAP_VISUALS_PATH := "res://data/presentation/map_visuals.tres"
 const RUN_PATH := "res://data/runs/rotten_road.tres"
+const RUSH_PATH := "res://data/rush/fight_rush.tres"
 const MUSIC_PATH := "res://data/audio/music.tres"
 const BOOT_PATH := "res://data/presentation/boot.tres"
 const BRANDING_PATH := "res://data/branding/branding.tres"
@@ -67,6 +68,9 @@ var _visuals: CombatVisuals
 var _explore: ExploreVisuals
 var _map_look: MapVisuals
 var _run_data: RunData
+## The Fight Rush (DESIGN.md 8.21); null when its file is missing or broken (the Fight Rush card is
+## then greyed).
+var _rush_data: RushData
 var _music: MusicSet
 ## The last fight's recap for the RUN OVER screen (card #191): FightRecap.to_dict() and the
 ## encounter's name. Online, every machine keeps its own copy of the same events.
@@ -214,6 +218,7 @@ func _ready() -> void:
 		return
 	if _run_data == null:
 		push_error("Main: could not load the run %s" % RUN_PATH)
+	_rush_data = _load_rush()
 	if _visuals == null:
 		push_warning("Main: could not load %s, using built-in presentation defaults" % VISUALS_PATH)
 		_visuals = CombatVisuals.new()
@@ -326,6 +331,22 @@ static func _tuning_path() -> String:
 		if arg.begins_with("--tuning="):
 			return arg.substr("--tuning=".length())
 	return TUNING_PATH
+
+
+## The Fight Rush data (DESIGN.md 8.21), or null with an error when the file is missing or fails
+## RushData.validate(): the game still starts, only the Fight Rush stays shut.
+static func _load_rush() -> RushData:
+	var rush: RushData = null
+	if ResourceLoader.exists(RUSH_PATH):
+		rush = load(RUSH_PATH) as RushData
+	if rush == null:
+		push_error("Main: could not load the Fight Rush %s" % RUSH_PATH)
+		return null
+	var problems := rush.validate()
+	if not problems.is_empty():
+		push_error("Main: the Fight Rush %s is broken: %s" % [RUSH_PATH, "; ".join(problems)])
+		return null
+	return rush
 
 
 ## --screen=NAME (dev tool, for pictures of a screen).
