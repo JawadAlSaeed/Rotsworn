@@ -512,6 +512,52 @@ func test_an_online_friend_banks_this_runs_pips_on_top_of_their_own() -> void:
 	assert_eq(friend.pips_of("iron_charm"), 3, "what the friend had stays")
 
 
+func test_a_late_joiner_keeps_only_what_came_after() -> void:
+	# Card #304: a friend who dropped in mid-run banks only the Relics and pips found after they joined.
+	var run := _run()
+	run.tuning.relic_drop_percent = 0
+	var drum := _relic("war_drum")
+	run.add_relic(drum)
+	run.wear(0, 0, drum)
+	for i: int in 2:
+		_win(run, _husk())
+	var relics_before := run.relics.duplicate()
+	var mastery_before := run.mastery.duplicate()
+	run.add_relic(_relic("iron_charm"))
+	for i: int in 2:
+		_win(run, _husk())
+	assert_eq(run.relic_ids_since(relics_before), ["iron_charm"], "only the Relic found after the join")
+	var every := run.relic_ids_since({})
+	every.sort()
+	var keys := run.relics.keys()
+	keys.sort()
+	assert_eq(every, keys, "empty: every Relic the run has")
+	assert_eq(int(run.pips_totals_since({}, mastery_before)["war_drum"]), 2, "only the later pips")
+	assert_eq(int(run.pips_totals_since({"war_drum": 5}, mastery_before)["war_drum"]), 7, "on top of their own")
+	for start: Dictionary in [{}, {"war_drum": 5}, {"iron_charm": 3}]:
+		assert_eq(run.pips_totals_since(start, {}), run.pips_totals_from(start), "empty: the whole run's")
+	var friend := _collection(["ash_veil"], {"ash_veil": 3})
+	var since := {"relics": relics_before, "mastery": mastery_before}
+	var shown: Array = []
+	for entry: Dictionary in RunEndScreen.own_kept(run, friend, since):
+		shown.append((entry.item as GearData).id)
+	assert_eq(shown, ["iron_charm"], "the late find is theirs, the earlier one is not (the Kept row)")
+	var near := _collection(["war_drum", "iron_charm"], {"war_drum": _tuning.mastery_needed - 3})
+	var echoes := func(kept: Array[Dictionary]) -> Array:
+		var ids: Array = []
+		for entry: Dictionary in kept:
+			if bool(entry.echo):
+				ids.append((entry.item as GearData).id)
+		return ids
+	assert_eq(echoes.call(RunEndScreen.own_kept(run, near)), ["war_drum"], "there from the start, 4 pips fill it")
+	assert_eq(echoes.call(RunEndScreen.own_kept(run, near, since)), [], "joined late, the 2 pips since do not")
+	assert_true(friend.merge(run.relic_ids_since(relics_before), run.pips_totals_since(friend.pips, mastery_before), _tuning))
+	assert_true(friend.owns("iron_charm"))
+	assert_false(friend.owns("war_drum"), "nothing found before they joined is banked")
+	assert_eq(friend.pips_of("war_drum"), 0)
+	assert_eq(friend.pips_of("ash_veil"), 3, "what the friend had stays")
+
+
 func test_one_hero_per_echo() -> void:
 	var run := _run()
 	var drum := _relic("war_drum")

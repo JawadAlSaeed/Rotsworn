@@ -2392,16 +2392,17 @@ func relic_gain_line() -> String:
 
 
 ## The same line measured from another collection (an online friend's own: `found_before` id -> any,
-## `pips_before` id -> pips, card #281).
+## `pips_before` id -> pips, card #281). A late joiner's run end shows RunEndScreen.own_kept instead.
 func relic_gain_line_since(found_before: Dictionary, pips_before: Dictionary) -> String:
 	var found := PackedStringArray()
 	for item: GearData in owned_relics():
 		if not found_before.has(item.id):
 			found.append(item.display_name)
+	var totals := pips_totals_from(pips_before)
 	var learned := PackedStringArray()
 	for item: GearData in data.gear:
 		if item != null and int(pips_before.get(item.id, 0)) < tuning.mastery_needed \
-				and int(pips_totals_from(pips_before).get(item.id, 0)) >= tuning.mastery_needed:
+				and int(totals.get(item.id, 0)) >= tuning.mastery_needed:
 			learned.append(item.display_name)
 	if found.is_empty() and learned.is_empty():
 		return "Nothing new to keep."
@@ -2655,14 +2656,32 @@ func pips_totals() -> Dictionary:
 ## This run's pips on top of `start` (id -> pips: the host's, or an online friend's own collection,
 ## card #281), each never past tuning.mastery_needed; only the ones above 0.
 func pips_totals_from(start: Dictionary) -> Dictionary:
+	return pips_totals_since(start, {})
+
+
+## This run's pips earned since `mastery_before` (the run's `mastery` when an online friend joined
+## late, card #304; empty: the whole run) on top of `start`, each never past mastery_needed; only the
+## ones above 0.
+func pips_totals_since(start: Dictionary, mastery_before: Dictionary) -> Dictionary:
 	var totals := {}
 	for item: GearData in data.gear:
 		if item == null:
 			continue
-		var total := mini(tuning.mastery_needed, int(start.get(item.id, 0)) + int(mastery.get(item.id, 0)))
+		var gained := maxi(0, int(mastery.get(item.id, 0)) - int(mastery_before.get(item.id, 0)))
+		var total := mini(tuning.mastery_needed, int(start.get(item.id, 0)) + gained)
 		if total > 0:
 			totals[item.id] = total
 	return totals
+
+
+## The run's Relic ids that were not in `relics_before` (id -> level when a friend joined late, card
+## #304; empty: every one), in the run's Relic order: what a late joiner banks as found.
+func relic_ids_since(relics_before: Dictionary) -> Array:
+	var ids: Array = []
+	for item: GearData in owned_relics():
+		if not relics_before.has(item.id):
+			ids.append(item.id)
+	return ids
 
 
 ## The worn Relics whose Echo a win over `encounter` would teach (for the end screen).

@@ -248,6 +248,9 @@ keyboard and 1 or 2 pads, or with 2 or 3 pads. Two people cannot share the keybo
 2. Player 2 (and 3): press **A** on your own pad (or **Enter** if you have the keyboard).
 3. Choose **Start**.
 
+During the run a friend can join, leave or swap heroes: pause, then **Players**. A new player
+presses **A** (or **Enter**) there.
+
 If a pad comes unplugged, the game waits. Plug it back in, or press a button on another pad to
 take over.
 
@@ -271,7 +274,8 @@ the bottom-left corner of the main menu, but even builds with the same number ca
    - Same home network (same Wi-Fi): the one that starts with `192.168.` (or `10.`).
    - Over the internet with Tailscale (below): the one that starts with `100.`.
 4. Wait until your friends show up on the list (`P2 Online`), hand out the heroes, pick the oath
-   if you like, then choose **Start**. Nobody new can join after Start.
+   if you like, then choose **Start**. A friend who comes later can still join the run while it
+   is going: they join the same way and take one of your heroes.
 
 **A friend:**
 
@@ -279,7 +283,8 @@ the bottom-left corner of the main menu, but even builds with the same number ca
 2. Type the host's address, only the numbers, for example `100.101.102.103`. Do **not** add a port
    (`:7777`); the game always uses port 7777.
 3. Press **Enter** (or **A**). The game remembers the address for next time.
-4. Wait for the host to start.
+4. Wait for the host to start. If the run is already going, you join it and see where the host is;
+   one of the host's heroes becomes yours a moment later.
 
 **During an online run:**
 
@@ -342,11 +347,11 @@ the host's public IP address. This fails on some internet connections (CGNAT). O
 | You see | What to do |
 |---|---|
 | *"Your game is a different version from the host's ..."* | You have different builds. All of you download `Rotsworn.zip` again from the link in [Play it](#play-it) and extract it over the old one. |
-| *"The host did not answer."* or *"Could not reach the host ..."* | Check the address. The host must be on the Host Online screen and must have allowed Rotsworn in the firewall question. With Tailscale, check it is running and logged in on both PCs. On the same Wi-Fi, see the note below the table. |
+| *"The host did not answer."* or *"Host not found"* | Check the address. The host must be on the Host Online screen and must have allowed Rotsworn in the firewall question. With Tailscale, check it is running and logged in on both PCs. On the same Wi-Fi, see the note below the table. |
 | *"Could not start connecting ..."* | The address is not valid. Type only the numbers and dots, for example `100.101.102.103`, with no `:7777` and no spaces. |
-| *"The game is full."* | 3 players is the most. |
-| *"The game has already started."* | The host pressed Start already. The host must go back to the main menu and host again. |
-| *"Could not host ... Is another game already hosting on this PC?"* | Close the other copy of Rotsworn. |
+| *"Game full"* | 3 players is the most. In a run, a seat may still be kept for a friend who dropped out (for up to 2 minutes), or nobody has a spare hero to give you. Try again later. |
+| *"Run busy, try again"* | The run is starting or ending right now. Wait a moment and join again. You can join a run that is already going. |
+| *"Could not host (another game hosting?)"* | Close the other copy of Rotsworn. |
 
 If the host clicked Cancel on the firewall question: Windows Security > Firewall & network
 protection > Allow an app through firewall > Change settings > tick **Private** for Rotsworn >

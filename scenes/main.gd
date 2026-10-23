@@ -102,12 +102,24 @@ var _last_device: int = PlayerRoster.KEYBOARD
 ## for it as soon as the current move ends.
 var _pad_overlay: PadLostOverlay
 var _pad_pause_wanted: bool = false
+## Local co-op mid-run (cards #304, #311): a roster change waiting for the fight's next quiet
+## moment (the bot's; the Players overlay is already paused), why it happens, and whether the pause
+## that fight reaches was asked for it.
+var _pending_roster: PlayerRoster = null
+var _pending_why: String = ""
+var _roster_pause_wanted: bool = false
+## A pause menu (or focus loss) asked the fight to pause (so a roster pause landing at the same
+## moment still opens the menu; presses meanwhile do not count as play).
+var _menu_pause_wanted: bool = false
+## The device that last pressed while the game itself was played (not a menu over it, not a pause
+## or Back press): P1's real device when a friend joins a solo run.
+var _play_device: int = PlayerRoster.ANY
 ## Online: the seed of the next fight (the host picks it), client messages waiting for the current
-## transition, combat batches that arrived before their fight was built, the last screen the host
-## sent (rebuilt when the run changes), and the run state the host sent last.
+## transition, combat batches that arrived before their fight was built (kept per fight), the last
+## screen the host sent (rebuilt when the run changes), and the run state the host sent last.
 var _net_seed: int = -1
 var _net_queue: Array[Dictionary] = []
-var _combat_inbox: Array[Dictionary] = []
+var _combat_inbox := FightInbox.new()
 var _net_screen: Dictionary = {}
 var _sent_run: Dictionary = {}
 var _zone_send_s: float = 0.0
@@ -128,17 +140,31 @@ var _fight_air: Array[ZoneAmbientData] = []
 var _notice: String = ""
 ## Bumped when an online game ends, so a transition that was under way stops after its fade.
 var _flow_gen: int = 0
-## Client: combat batches go straight to the fight (else they wait in _combat_inbox); the message
-## pump holds while a zone plays a fight's opening; the run's end arrived (the host may go now).
-var _combat_accepts: bool = false
+## Client: the host's seed of the fight in the tree (0: none); its batches go straight to it,
+## every other batch waits in _combat_inbox for its own fight (cards #205, #304).
+var _combat_fight: int = 0
+## Client: the message pump holds while a zone plays a fight's opening; the run's end arrived (the
+## host may go now).
 var _net_hold: bool = false
 var _client_done: bool = false
+## Client: we got in mid-run (dropped in, or back with a token) and our heroes are not ours yet; the
+## catch-up point we last told the host about ("f<seed>" or "p<screens>"), and how many screens
+## we have shown (so each place screen is told once).
+var _seat_wait: bool = false
+var _seat_sent_key: String = ""
+var _screens_seen: int = 0
 ## Online friend: their own Relic collection when the host's run started (card #281). The run plays
 ## with the host's bag and Echoes; what it finds and the pips it fills are banked on top of this.
 var _own_start: RelicCollection = null
 ## The run seed _own_start was taken for: a seat taken back mid-run (the host sends run_start again)
 ## keeps it, so the run's pips are never banked twice.
 var _own_start_seed: int = -1
+## Online friend who joined mid-run (card #304): the run's Relics (id -> level) and Echo pips
+## (RunState.mastery) when they joined; only what comes after is theirs to keep. Empty: there from
+## the start. `_join_pending`: the baseline is taken from the first run state that arrives.
+var _join_relics: Dictionary = {}
+var _join_mastery: Dictionary = {}
+var _join_pending: bool = false
 ## Host: the last place screen sent (map, zone, shop ...) and the fight going on (zone_fight or
 ## final_fight message; empty between fights), so a player who joins again is shown where we are.
 var _net_place: Dictionary = {}
@@ -213,8 +239,10 @@ func _ready() -> void:
 	Net.peer_left.connect(_on_net_peer_left)
 	Net.peer_away.connect(_on_net_peer_away)
 	Net.peer_rejoined.connect(_on_net_peer_rejoined)
+	Net.peer_dropped_in.connect(_on_net_peer_dropped_in)
 	Net.host_lost.connect(_on_net_host_lost)
 	Net.refused.connect(_on_net_refused)
+	Net.drop_in_check = _drop_in_refusal
 	_options = CombatOptions.from_args(DevArgs.user_args(), _tuning)
 	if _options.shots_every_s > 0.0:
 		var shooter := ScreenShooter.new()
@@ -226,13 +254,19 @@ func _ready() -> void:
 		perf.name = "PerfLog"
 		add_child(perf)
 		perf.setup(_options.perf_every_s)
-	# --players=N: pretend pads 0 to N-1 (only the bot presses them).
-	_players = PlayerRoster.solo(_hero_names().size(), 0 if _options.players > 1 else PlayerRoster.KEYBOARD)
+	# --players=N: pretend pads 0 to N-1 (only the bot presses them). With --pad-join-after P1 is pad 0
+	# too, so the pad that joins later is the next one.
+	var p1_pad := _options.players > 1 or _options.pad_join_after_s > 0
+	_players = PlayerRoster.solo(_hero_names().size(), 0 if p1_pad else PlayerRoster.KEYBOARD)
 	for pad: int in range(1, _options.players):
 		_players.join(pad)
 	if _options.is_autoplay():
 		print("Autoplay: %s%s players: %d" % [_options.autoplay_mode, " (quit on end)" if _options.quit_on_end else "",
 				_players.player_count()])
+		if _options.pad_join_after_s > 0:
+			_autoplay_pad_roster_later(true)
+		if _options.pad_leave_after_s > 0:
+			_autoplay_pad_roster_later(false)
 	if _options.host_players > 0:
 		_host_online()
 		if _options.end_after_s > 0:
@@ -240,11 +274,16 @@ func _ready() -> void:
 		return
 	if not _options.join_address.is_empty():
 		_show_join()
-		_on_join_requested(_options.join_address)
+		if _options.join_after_s > 0:
+			_autoplay_join_later(_options.join_address)
+		else:
+			_on_join_requested(_options.join_address)
 		if _options.leave_after_s > 0:
 			_autoplay_leave_later()
 		if _options.drop_after_s > 0:
 			_autoplay_drop_later()
+		if _options.crash_after_s > 0:
+			_autoplay_crash_later()
 		return
 	if _options.run:
 		_new_run()
@@ -352,6 +391,17 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_run_end()
 		"zone_exit", "zone_leave":
 			_show_sample_zone_exit(screen_name == "zone_leave")
+		"players_in_run":
+			# The Players overlay over the pause menu, a keyboard P1 and a pad P2 (cards #304, #311).
+			_show_sample_map(2)
+			_players = PlayerRoster.solo(_hero_names().size(), PlayerRoster.KEYBOARD)
+			_players.join_midrun(0)
+			_open_pause()
+			_on_pause_players()
+		"pause_players":
+			# The pause menu with its Players row (card #304).
+			_show_sample_map(2)
+			_open_pause()
 		"calibration":
 			_show_settings()
 			(_screen as SettingsScreen).open_calibration()
@@ -792,12 +842,11 @@ func _on_lobby_started(players: PlayerRoster, oath: int, next: Callable) -> void
 	_players = players
 	if not _options.is_autoplay():
 		_players.drop_missing(_connected_pads())
+	_reset_play_device()
 	# Practice has no Oath row: the pick for the next run stays as it was.
 	if _screen is LobbyScreen and not (_screen as LobbyScreen).oaths.is_empty():
 		_oath = oath
-	# Keyboard and pad players together: hints show both kinds of buttons (card #45).
-	ButtonPrompts.set_both(not Net.is_online() and _players.devices.has(PlayerRoster.KEYBOARD)
-			and _players.devices.any(func(device: int) -> bool: return device >= 0))
+	_refresh_prompt_mix()
 	var names := PackedStringArray()
 	for device: int in _players.devices:
 		names.append(PlayerRoster.device_name(device))
@@ -815,13 +864,22 @@ func _play_again() -> void:
 	_forget_own_start()
 	if Net.is_client():
 		_client_done = false
+		# A friend who dropped into the last run is there from this one's start (card #304).
+		Net.joined_mid_run = false
+		_seat_wait = false
+		_seat_sent_key = ""
+		_combat_inbox.clear()
 		_show_client_lobby()
 		return
 	if Net.is_online():
+		_set_drop_in(false)
 		# A friend still away mid-run is let go: Again starts over with the ones here.
 		for peer: int in Net.seats.away_peers():
 			Net.seats.remove(peer)
 			_players.drop_peer(peer)
+		# Only players still catching up can be marked away now: they play their seats from the start.
+		for player: int in _players.away.duplicate():
+			_players.set_back(_players.peers[player])
 		_update_away_chip()
 		Net.closed = false
 		_show_host_lobby()
@@ -833,10 +891,14 @@ func _play_again() -> void:
 	_new_run_players_after_offer()
 
 
-## A friend's start collection is for one run only (card #281).
+## A friend's start collection is for one run only (card #281), and so is a late joiner's baseline
+## (card #304).
 func _forget_own_start() -> void:
 	_own_start = null
 	_own_start_seed = -1
+	_join_relics = {}
+	_join_mastery = {}
+	_join_pending = false
 
 
 ## The run's heroes in slot order (a roster covers these slots).
@@ -1001,11 +1063,13 @@ func _start_combat() -> void:
 	_combat.configure_players(_players)
 	if Net.is_host():
 		_combat.configure_online(CombatController.NetMode.HOST, _net_seed)
-		_combat.resume_ready.connect(_return_seat)
+		_combat.seat_ready.connect(_return_seat)
 	elif Net.is_client():
 		_combat.configure_online(CombatController.NetMode.CLIENT, _net_seed)
+		_combat_fight = _net_seed
+		_combat.caught_up.connect(_send_seated_ready)
 		if _combat_resync:
-			# We joined again mid-fight: the host sends the fight as it stands.
+			# We got in mid-fight: the host sends the fight as it stands.
 			_combat.expect_resume()
 			_combat_resync = false
 		# Only the host goes on after a fight; the next screen comes from it.
@@ -1039,10 +1103,7 @@ func _start_combat() -> void:
 	if boss:
 		_combat.rage_music_path = _music.boss_rage_path
 	if Net.is_client():
-		_combat_accepts = true
-		var waiting := _combat_inbox.duplicate()
-		_combat_inbox.clear()
-		for batch: Dictionary in waiting:
+		for batch: Dictionary in _combat_inbox.take(_net_seed):
 			_combat.receive_batch(batch)
 
 
@@ -1064,6 +1125,7 @@ func _close_decided_run(result: String) -> void:
 		return
 	_decided_run = _run
 	_decided_unlock = _grant_win_unlock() if result == RunState.VICTORY else 0
+	_set_drop_in(false)
 	_bank_relics()
 	_clear_run_save()
 
@@ -1078,6 +1140,17 @@ func _free_combat() -> void:
 			remove_child(_combat)
 		_combat.queue_free()
 		_combat = null
+	_combat_fight = 0
+	# A pause asked for that never came goes with the fight; a roster change waiting for it applies
+	# now (a change is never lost).
+	_menu_pause_wanted = false
+	if _roster_pause_wanted:
+		_roster_pause_wanted = false
+		var roster := _pending_roster
+		_pending_roster = null
+		if roster != null and not _same_players(_players, roster):
+			_apply_local_roster(roster, _pending_why)
+		_pending_why = ""
 
 
 # --- zones ------------------------------------------------------------------------------------
@@ -1414,16 +1487,33 @@ func _end_tutorial() -> void:
 		_tutorial = null
 
 
-## A fight paused: for the tutorial's card, or the pause menu.
+## A fight paused: for a local roster change (cards #304, #311), the lost-pad card, the tutorial's
+## card, or the pause menu.
 func _on_combat_pause_reached() -> void:
+	if _roster_pause_wanted:
+		_roster_pause_wanted = false
+		var roster := _pending_roster
+		_pending_roster = null
+		if roster != null and not _same_players(_players, roster):
+			_apply_local_roster(roster, _pending_why)
+		_pending_why = ""
+		var someone_else := _pad_pause_wanted or _menu_pause_wanted or (_tutorial != null and _tutorial.pause_wanted())
+		if not someone_else:
+			# Deferred: this can come from inside the fight's event loop, which only plays the rest of
+			# its queue once it has unwound (a resume from here would leave it stuck).
+			_resume_quiet_pause.call_deferred()
+			return
+	# A menu asked for elsewhere is answered below or dropped (the lost-pad card, the tutorial).
+	_menu_pause_wanted = false
 	if _pad_pause_wanted:
 		_pad_pause_wanted = false
 		if _pause == null and _prompt == null:
 			if not _lost_pad_players().is_empty():
 				_show_pad_overlay()
 			elif _combat != null:
-				# The pad came back before the pause landed: no menu, the fight just goes on.
-				_combat.resume_after_pause()
+				# The pad came back before the pause landed: no menu, the fight just goes on (deferred,
+				# as for a roster change above).
+				_resume_quiet_pause.call_deferred()
 			return
 	if _tutorial != null and _tutorial.pause_wanted():
 		_tutorial.on_paused()
@@ -1526,14 +1616,17 @@ func _run_collection() -> RelicCollection:
 ## collection keeps the higher pips of each, so banking twice, or after Continue replays a stop,
 ## never adds any (DESIGN.md 8.19).
 ## An online friend banks too, into their own file (card #281): the Relics the run found and this
-## run's pips on top of their own collection at the start.
+## run's pips on top of their own collection at the start. A friend who joined mid-run banks only
+## what came after they joined (card #304), and nothing before that baseline is known.
 func _bank_relics() -> void:
 	if _run == null:
 		return
 	if Net.is_client():
-		if _own_start != null and _client_relics_ok() \
-				and RelicFile.bank(_run.relics.keys(), _run.pips_totals_from(_own_start.pips), _relics_path(), _tuning):
-			print("Relics banked (own): %d" % _run.relics.size())
+		if _own_start == null or _join_pending or not _client_relics_ok():
+			return
+		var found := _run.relic_ids_since(_join_relics)
+		if RelicFile.bank(found, _run.pips_totals_since(_own_start.pips, _join_mastery), _relics_path(), _tuning):
+			print("Relics banked (own): %d" % found.size())
 		return
 	if not _relics_io_ok():
 		return
@@ -1550,14 +1643,6 @@ func _hero_players() -> Array[int]:
 	for slot: int in _run.party_size():
 		out.append(_players.owner_of(slot) + 1)
 	return out
-
-
-## What this machine keeps from the run, for its end screen: the run's line, or an online friend's
-## own (from their collection at the start, card #281).
-func _keep_line() -> String:
-	if Net.is_client() and _own_start != null:
-		return _run.relic_gain_line_since(_own_start.found, _own_start.pips)
-	return ""
 
 
 ## The fingerprint a save is checked against: data and version only, so a code-only update keeps a
@@ -1662,6 +1747,7 @@ func _continue_run() -> void:
 	_run = saved.state as RunState
 	_checkpoint = saved.run as Dictionary
 	_checkpoint_in_stop = bool(saved.in_stop)
+	_reset_play_device()
 	if not _checkpoint.has("pips_start") and _relics_io_ok():
 		# A run saved before phase 21 (#280): its Echo pips at the start come from home.
 		var home := RelicFile.load_or_empty(_relics_path())
@@ -1706,6 +1792,7 @@ func _new_run() -> void:
 	# A save in the way (asked about already) goes now: also one kept from another build.
 	if _save_slot_ok():
 		RunSave.delete(_run_save_path())
+	_reset_play_device()
 	var run_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
 	if _options.oath >= 0:
 		_oath = _options.oath
@@ -1714,6 +1801,8 @@ func _new_run() -> void:
 	if Net.is_host():
 		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict(), "oath": _run.oath})
 	print("Run seed: %d  oath: %d  stops: %d  acts: %d" % [run_seed, _run.oath, _run.map.row_count(), _run.acts().size()])
+	# Friends may drop in from now on (the first screen goes out in this same frame, card #304).
+	_set_drop_in(true)
 	Sfx.play("run_begin")
 	if _run.pact_pending:
 		# The starting pact first (card #285): it may give a Relic to equip.
@@ -2021,7 +2110,7 @@ func _show_party(note: String, from_map: bool, held: Dictionary = {}) -> void:
 
 ## A win at oath N opens oath N+1 on this machine (never lowering what is open). Returns the oath
 ## that was newly opened (0: none), worked out from the value before the unlock, for the end screen.
-## Bot runs only show it.
+## Bot runs only show it. An online friend who joined late unlocks too (owner, 2026-10-23).
 func _grant_win_unlock() -> int:
 	var ladder := _run.data.oaths.size()
 	var before := PlayerSettings.highest_oath_unlocked()
@@ -2034,6 +2123,7 @@ func _grant_win_unlock() -> int:
 
 
 func _show_run_end() -> void:
+	_set_drop_in(false)
 	_bank_relics()
 	_clear_run_save()
 	var end := RunEndScreen.new()
@@ -2047,9 +2137,11 @@ func _show_run_end() -> void:
 	if _run.result != RunState.VICTORY:
 		var where := "Stop %d, act %d%s" % [_run.visited, _run.act + 1, ", " + OathData.label(_run.oath) if _run.oath > 0 else ""]
 		recap_lines = FightRecap.lines(_last_recap, _last_recap_name, where)
-	# Phase 22: the killer's row (a defeat) and what an online friend keeps, as icons.
-	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now, recap_lines, _keep_line(), _hero_players(),
-			_last_recap if _run.result != RunState.VICTORY else {}, _own_start if Net.is_client() else null)
+	# Phase 22: the killer's row (a defeat) and what an online friend keeps, as icons (the Kept row,
+	# RunEndScreen.own_kept: no words line).
+	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now, recap_lines, "", _hero_players(),
+			_last_recap if _run.result != RunState.VICTORY else {}, _own_start if Net.is_client() else null,
+			{"relics": _join_relics, "mastery": _join_mastery} if Net.is_client() else {})
 	end.done.connect(_fade_to.bind(_show_main_menu))
 	end.again.connect(_fade_to.bind(_play_again))
 	_show_screen(end)
@@ -2058,6 +2150,8 @@ func _show_run_end() -> void:
 	if _options.is_autoplay():
 		for line: String in recap_lines:
 			print("AUTOPLAY_RECAP ", line)
+		# Who plays at the end (cards #304, #311): the same on every machine of an online game.
+		print("AUTOPLAY_PLAYERS n=%d owners=%s" % [_players.player_count(), _players.owners_text()])
 		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d oath=%d relics=%d echoes=%d" % [
 				_run.result, _run.act + 1, _run.visited, _run.fights_won, _run.top_level(), _worn_count(), _run.backpack.entries.size(),
 				_run.gold_earned, _run.run_seed, _run.oath, _run.relics.size(), _run.learned_echoes().size()])
@@ -2135,17 +2229,21 @@ func _on_pad_claimed(device: int) -> void:
 	var lost := _lost_pad_players()
 	if not lost.is_empty() and _players.replace_device(lost[0], device):
 		Sfx.play("menu_confirm")
-		ButtonPrompts.set_both(_players.devices.has(PlayerRoster.KEYBOARD)
-				and _players.devices.any(func(d: int) -> bool: return d >= 0))
+		_refresh_prompt_mix()
 		_refresh_roster_users()
 		_watch_pads()
 
 
+## Give heroes on the lost-pad card: that player leaves, their heroes go to P1 (P2 when P1's pad was
+## lost) and nobody else's change (DESIGN.md 9.3, #311).
 func _on_pad_dropped() -> void:
 	var lost := _lost_pad_players()
-	if not lost.is_empty() and _players.leave(lost[0]):
+	if not lost.is_empty() and _players.leave_midrun(lost[0]):
 		Sfx.play("menu_cancel")
+		_reset_play_device()
 		_refresh_roster_users()
+		_refresh_prompt_mix()
+		_resave_players()
 		_watch_pads()
 
 
@@ -2177,9 +2275,10 @@ func _notification(what: int) -> void:
 ## Pause (Esc / Menu, DESIGN.md 7.5) over a fight, a zone or the run map. Main reads it before the
 ## fight's own input, so Esc never reaches the action menu as "back".
 func _input(event: InputEvent) -> void:
+	var pause := event.is_action_pressed(&"pause", false, true)
 	if (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed():
 		_last_device = PlayerRoster.device_of(event)
-	var pause := event.is_action_pressed(&"pause", false, true)
+	_note_play_device(event, pause)
 	# The backpack over a zone (anyone, any time: DESIGN.md 8.1).
 	if _overlay == null and _pause == null and _prompt == null and not _busy and _run != null and _zone != null 			and _zone.is_inside_tree() and not _zone.is_frozen() and event.is_action_pressed(&"party_menu", false, true):
 		get_viewport().set_input_as_handled()
@@ -2211,13 +2310,51 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## Remembers P1's real device while solo (#304): a button press, or a stick push that walks, made
+## while the game itself is being played. The press that opens the pause menu (Pause, or Back on the
+## map) never counts: it may be a friend's pad. Nor does any press in co-op (_reset_play_device
+## takes the roster's P1 whenever the roster changes).
+func _note_play_device(event: InputEvent, pause: bool) -> void:
+	var pressed := (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed() and not event.is_echo()
+	var walked := event is InputEventJoypadMotion and (event.is_action_pressed(&"move_left")
+			or event.is_action_pressed(&"move_right") or event.is_action_pressed(&"move_up")
+			or event.is_action_pressed(&"move_down"))
+	if not pressed and not walked:
+		return
+	var in_play := (_pause == null and _prompt == null and _overlay == null and _pad_overlay == null
+			and not _menu_pause_wanted and not _busy and _game_in_play())
+	_play_device = PlayerRoster.play_device_after(_play_device, PlayerRoster.device_of(event),
+			pause or event.is_action(&"menu_cancel"), in_play, _players != null and _players.is_coop())
+
+
+## A new roster (a run started, someone joined or left, the lost-pad card): P1's real device is the
+## roster's P1 again until a solo press says otherwise. Without this, a press a friend made before
+## the game went back to solo could make their pad P1 on the next Players overlay.
+func _reset_play_device() -> void:
+	_play_device = _players.device_of_player(0) if _players != null else PlayerRoster.ANY
+
+
+## True while the game itself is on screen: a fight, a zone that is not held, or a run screen.
+func _game_in_play() -> bool:
+	if _combat != null and _combat.is_inside_tree():
+		return true
+	if _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
+		return true
+	return _is_run_screen(_screen)
+
+
 ## Pauses the fight (after the current move), the zone or the run map. True if it started one.
 func _pause_game() -> bool:
 	if _pause != null or _prompt != null or _busy or _pad_overlay != null:
 		return false
 	if _combat != null and _combat.is_inside_tree():
-		# A fight pauses between moves; it calls back with pause_reached.
-		return _combat.request_pause()
+		# A fight pauses between moves; it calls back with pause_reached. The flag goes up first: an
+		# idle fight pauses inside request_pause.
+		_menu_pause_wanted = true
+		if _combat.request_pause():
+			return true
+		_menu_pause_wanted = false
+		return false
 	if _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
 		_open_pause()
 		return true
@@ -2236,6 +2373,11 @@ func _open_pause() -> void:
 		_zone.input_held = true
 	_pause = PauseMenu.new()
 	_pause.name = "Pause"
+	# Local friends join, leave and swap heroes here (cards #304, #311); online the host seats them,
+	# and the address a friend types to drop in is shown.
+	_pause.players_row = not Net.is_online() and _tutorial == null
+	if Net.is_online():
+		_pause.note = _online_address_line()
 	if _tutorial != null:
 		_pause.setup("Leave tutorial", "Back to the main menu.", "Skip this lesson", "Go on to the next one.")
 		_pause.extra_requested.connect(_on_tutorial_skip)
@@ -2255,6 +2397,7 @@ func _open_pause() -> void:
 	_pause.resumed.connect(_on_pause_resumed)
 	_pause.settings_requested.connect(_on_pause_settings)
 	_pause.glossary_requested.connect(_on_pause_glossary)
+	_pause.players_requested.connect(_on_pause_players)
 	_pause.leave_requested.connect(_on_pause_leave)
 	add_child(_pause)
 
@@ -2299,6 +2442,145 @@ func _on_pause_glossary_closed(book: GlossaryScreen) -> void:
 	if _pause != null:
 		_pause.visible = true
 		_pause.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+## The Players row (DESIGN.md 9.3): the players screen in its in-run mode over the pause menu. The
+## game under it is held at a quiet moment already (the pause), so the roster it returns is applied
+## at once when it closes.
+func _on_pause_players() -> void:
+	_pause.visible = false
+	_pause.process_mode = Node.PROCESS_MODE_DISABLED
+	# P1's real device while solo; ANY, or a pad that is no longer plugged in, falls back to the
+	# roster's, then to the device that pressed last, then the keyboard: never a dead pad (so the
+	# device P1 holds is never left out, where its Enter would join them as P2 by mistake).
+	var p1 := PlayerRoster.overlay_p1_device(_play_device, _players.device_of_player(0), _last_device,
+			_connected_pads())
+	var lobby := LobbyScreen.new()
+	lobby.name = "PausePlayers"
+	lobby.layer = _pause.layer + 1
+	lobby.hero_portraits = _hero_portraits()
+	lobby.setup_in_run(_hero_names(), _players, p1)
+	lobby.started.connect(_on_pause_players_play.bind(lobby))
+	lobby.back.connect(_on_pause_players_back.bind(lobby))
+	add_child(lobby)
+
+
+## Play: apply and go back to the game.
+func _on_pause_players_play(players: PlayerRoster, _oath_pick: int, lobby: LobbyScreen) -> void:
+	lobby.queue_free()
+	_change_local_roster(players, "menu")
+	_on_pause_resumed()
+
+
+## Back (P1) or Pause: apply and go back to the pause menu.
+func _on_pause_players_back(lobby: LobbyScreen) -> void:
+	var roster := lobby.roster()
+	lobby.queue_free()
+	_change_local_roster(roster, "menu")
+	if _pause != null:
+		_pause.visible = true
+		_pause.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+## Local co-op: the roster changes mid-run (someone joined, left or traded, cards #304, #311).
+## Only at a quiet moment: at once outside a fight, while it is paused or over; in a fight that is
+## playing, after the current move (request_pause, quiet), like pausing. Nothing happens when
+## nothing changed (both solo counts as no change). Online: never (the host seats friends itself).
+func _change_local_roster(roster: PlayerRoster, why: String) -> void:
+	# A change already waiting for the quiet moment is what this one is measured against.
+	var base := _pending_roster if _pending_roster != null else _players
+	if roster == null or Net.is_online() or not roster.validate().is_empty() or _same_players(base, roster):
+		return
+	var live := _combat != null and _combat.is_inside_tree() and not _combat.is_paused()
+	if not live:
+		# Nothing waits any more (a waiting one would otherwise land later over this one).
+		_pending_roster = null
+		_pending_why = ""
+		_apply_local_roster(roster, why)
+		return
+	_pending_roster = roster
+	_pending_why = why
+	if _roster_pause_wanted:
+		return
+	# The flag goes up first: an idle fight pauses (and emits pause_reached) inside request_pause.
+	_roster_pause_wanted = true
+	if not _combat.request_pause(true):
+		# The fight is over (or calibrating): nothing is moving, so the change can come now.
+		_roster_pause_wanted = false
+		_pending_roster = null
+		_pending_why = ""
+		_apply_local_roster(roster, why)
+
+
+## Applies a local roster now and tells everything that reads it.
+func _apply_local_roster(roster: PlayerRoster, why: String) -> void:
+	var before := _players
+	_players = roster
+	_reset_play_device()
+	_refresh_roster_users()
+	_refresh_prompt_mix()
+	_resave_players()
+	var names := PackedStringArray()
+	for device: int in roster.devices:
+		names.append(PlayerRoster.device_name(device))
+	print("Players now: %d (%s) heroes %s [%s]" % [roster.player_count(), ", ".join(names), roster.owners_text(), why])
+	if _options == null or not _options.is_autoplay():
+		return
+	var count := roster.player_count()
+	var old := before.player_count() if before != null else count
+	if count > old:
+		print("AUTOPLAY_ROSTER join p=%d device=%d at=%s owners=%s" % [count, roster.device_of_player(count - 1),
+				_place_word(), roster.owners_text()])
+	elif count < old:
+		print("AUTOPLAY_ROSTER leave p=%d at=%s owners=%s" % [old, _place_word(), roster.owners_text()])
+	else:
+		print("AUTOPLAY_ROSTER trade at=%s owners=%s" % [_place_word(), roster.owners_text()])
+
+
+## True when `next` changes nothing that matters against `now`: the same roster, or solo both
+## times (a solo device swap changes nothing in solo, where every device controls everything).
+static func _same_players(now: PlayerRoster, next: PlayerRoster) -> bool:
+	return next.same_as(now) or (not next.is_coop() and not now.is_coop())
+
+
+## The fight goes on after a pause nobody stays in (a roster change, or a lost pad that came back
+## before the pause landed), unless a menu, card or another pause came over it meanwhile. A pad lost
+## again meanwhile gets its card instead. Always deferred by the callers: pause_reached can come from
+## inside the fight's event loop, which only plays the rest of its queue once it has unwound.
+func _resume_quiet_pause() -> void:
+	if _combat == null or not _combat.is_paused() or _pause != null or _prompt != null or _pad_overlay != null \
+			or _roster_pause_wanted or _pad_pause_wanted or _menu_pause_wanted \
+			or (_tutorial != null and _tutorial.pause_wanted()):
+		return
+	# (The bot's pretend pads are never plugged in: it has no lost-pad card, as in _process.)
+	if not _options.is_autoplay() and not _lost_pad_players().is_empty():
+		_show_pad_overlay()
+		return
+	_combat.resume_after_pause()
+
+
+## Keyboard and pad players together: hints show both kinds of buttons (card #45).
+func _refresh_prompt_mix() -> void:
+	ButtonPrompts.set_both(not Net.is_online() and _players.devices.has(PlayerRoster.KEYBOARD)
+			and _players.devices.any(func(device: int) -> bool: return device >= 0))
+
+
+## The save keeps how many players share the pads; a roster change rewrites the last checkpoint
+## with the new count, nothing else (DESIGN.md 8.14).
+func _resave_players() -> void:
+	if _save_allowed() and not _checkpoint.is_empty():
+		_write_checkpoint()
+
+
+## "fight", "zone", "map" or the screen's name in lower case (logs, AUTOPLAY lines).
+func _place_word() -> String:
+	if _combat != null and _combat.is_inside_tree():
+		return "fight"
+	if _zone != null and _zone.is_inside_tree():
+		return "zone"
+	if _screen is MapScreen:
+		return "map"
+	return String(_screen.name).to_lower() if _screen != null else "none"
 
 
 func _on_pause_settings_closed(settings: SettingsScreen) -> void:
@@ -2349,6 +2631,7 @@ func _on_abandon_answered(yes: bool) -> void:
 ## Abandon run, End the game (host) or Leave the game (client), once the player said yes.
 func _abandon_run() -> void:
 	_free_pause()
+	_set_drop_in(false)
 	_tell_clients_game_ended()
 	if _run != null:
 		# An abandoned run keeps what it found, like a lost one (DESIGN.md 8.17).
@@ -2394,7 +2677,7 @@ func _free_pause() -> void:
 		_pause.queue_free()
 		_pause = null
 	for child: Node in get_children():
-		if (child is SettingsScreen or child is GlossaryScreen) and child != _screen:
+		if (child is SettingsScreen or child is GlossaryScreen or child is LobbyScreen) and child != _screen:
 			child.queue_free()
 
 
@@ -2414,6 +2697,9 @@ func _host_online() -> void:
 	_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, NetSession.HOST_PEER)
 	_show_host_lobby()
 	print("Hosting on port %d: %s" % [_tuning.net_port, ", ".join(NetSession.local_addresses())])
+	# --host=1: the bot starts alone; friends drop in later (card #304).
+	if _options.host_players > 0 and _players.player_count() >= _options.host_players:
+		_autoplay_start_online()
 
 
 ## The host's players screen with the roster as it is (a new game, or Again after a run, card #284).
@@ -2435,6 +2721,15 @@ func _on_online_roster_changed(players: PlayerRoster) -> void:
 	Net.broadcast("lobby", {"roster": players.to_dict(), "oath": _lobby_oath()})
 	if _options.host_players > 0 and players.player_count() >= _options.host_players:
 		_autoplay_start_online()
+
+
+## The address a friend types to drop in, for the online pause menu (card #304): the host's own
+## addresses, or the one this friend joined.
+func _online_address_line() -> String:
+	if Net.is_host():
+		return LobbyScreen.address_line(NetSession.local_addresses(), _tuning.net_port)
+	var joined: Array[String] = [Net.joined_address()]
+	return LobbyScreen.address_line(joined, _tuning.net_port)
 
 
 ## The oath picked on the players screen now (0 without one).
@@ -2486,12 +2781,27 @@ func _on_net_peer_joined(peer: int) -> void:
 			Net.kick(peer)
 		return
 	if Net.rejoined:
-		# Our seat is back: the host sends the run and where it is now.
+		# Our seat is back: the host sends the run and where it is now; our heroes come once this
+		# machine has caught up (_send_seated_ready).
 		Sfx.play("net_connected")
 		print("Rejoined as peer %d" % peer)
 		_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, peer)
+		_seat_wait = true
+		_seat_sent_key = ""
 		if _screen is JoinScreen:
 			(_screen as JoinScreen).show_status("Back in, catching up ...")
+		return
+	if Net.joined_mid_run:
+		# Dropped into a run already going (card #304): the same catch-up, then a hero of our own.
+		Sfx.play("net_connected")
+		print("Joined mid-run as peer %d" % peer)
+		if _options.is_autoplay():
+			print("AUTOPLAY_DROPIN joined peer=%d" % peer)
+		_players = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, peer)
+		_seat_wait = true
+		_seat_sent_key = ""
+		if _screen is JoinScreen:
+			(_screen as JoinScreen).show_status("Joining the run ...")
 		return
 	# Welcomed by the host: wait on the players screen for its roster and its Start.
 	Sfx.play("net_connected")
@@ -2535,6 +2845,23 @@ func _on_net_peer_left(peer: int) -> void:
 ## sees "P2 away".
 @warning_ignore("integer_division")
 func _on_net_peer_away(peer: int) -> void:
+	var player := _players.player_of_peer(peer)
+	if player < 0:
+		# Welcomed but never seated (the --seat-in-fight wait): nothing to keep.
+		Net.seats.remove(peer)
+		return
+	if player > 0 and _players.is_joining(player):
+		# Gone before their seat was theirs: no seat is kept; they can drop in again.
+		Net.seats.remove(peer)
+		_on_net_peer_left(peer)
+		return
+	if player > 0 and _players.is_away(player):
+		# Gone again while catching up (card #205): the seat stays away; the hand-over waits for
+		# their next return.
+		if _combat != null:
+			_combat.cancel_resume(peer)
+		_update_away_chip()
+		return
 	if not _players.set_away(peer):
 		return
 	print("Player away: P%d (peer %d), seat kept %d s" % [_players.player_of_peer(peer) + 1, peer,
@@ -2550,8 +2877,9 @@ func _on_net_peer_away(peer: int) -> void:
 
 
 ## Host: the player who had `old_peer` joined again as `new_peer` with their seat's token. They get
-## the run and the screen we are on; in a fight, the fight as it stands at the next hero's turn,
-## and their heroes back at that moment (so no attack is half theirs).
+## the run and the screen we are on (in a fight, the fight as it stands at the next hero's turn);
+## their heroes come back once their machine has caught up, at a quiet moment (so no attack is
+## half theirs).
 func _on_net_peer_rejoined(old_peer: int, new_peer: int) -> void:
 	var player := _players.rebind_peer(old_peer, new_peer)
 	if player < 0 or _run == null:
@@ -2564,23 +2892,114 @@ func _on_net_peer_rejoined(old_peer: int, new_peer: int) -> void:
 		_players.set_away(new_peer)
 		if _combat != null:
 			_combat.update_players(_players, old_peer)
+	_catch_up(new_peer, false)
+	_update_away_chip()
+
+
+## Host: sends a player who got in mid-run (back with a token, card #205, or dropping in, #304) the
+## run and where it is now: run_start (`late`: a drop-in, whose Relics count from now), the place
+## screen, the fight going on (rejoin flag) and in a fight its resume at the next quiet moment.
+## Their heroes come later, when their machine says it caught up (_on_seated_ready).
+func _catch_up(peer: int, late: bool) -> void:
 	var mid_fight := not _net_fight.is_empty() and _combat != null
-	Net.send_to(new_peer, "run_start", {"seed": _run.run_seed, "roster": _players.to_dict(), "oath": _run.oath})
+	Net.send_to(peer, "run_start", {"seed": _run.run_seed, "roster": _players.to_dict(), "oath": _run.oath,
+			"late": late})
 	var run := _run.to_dict()
 	if not _net_place.is_empty():
 		var place := _net_place.duplicate()
 		place["run"] = run
-		Net.send_to(new_peer, "screen", place)
+		Net.send_to(peer, "screen", place)
+	# A fight that is over is still sent: the zone_back that follows needs it built there.
 	if not _net_fight.is_empty():
 		var fight := _net_fight.duplicate()
 		fight["run"] = run
 		fight["rejoin"] = mid_fight
-		Net.send_to(new_peer, "screen", fight)
+		Net.send_to(peer, "screen", fight)
 	if mid_fight:
-		_combat.queue_resume(new_peer)
-	else:
-		_return_seat(new_peer)
+		_combat.queue_resume(peer)
+
+
+## Host, before Net welcomes a newcomer into the run (card #304): "" to let them in, else why not.
+func _drop_in_refusal(old_peer: int) -> String:
+	if _run == null or _decided_run == _run or _run.is_over():
+		return JoinGate.REASON_CLOSED
+	if old_peer > 0 and _players.player_of_peer(old_peer) > 0:
+		return ""
+	return "" if _players.can_join_midrun() else JoinGate.REASON_FULL
+
+
+## Host: opens or shuts drop-in seats (card #304).
+func _set_drop_in(open: bool) -> void:
+	if Net.is_host():
+		Net.drop_in_open = open
+
+
+## Host: a friend got in during the run (DESIGN.md 9.3, card #304): a new seat (`old_peer` 0) or
+## the seat of the player away longest (a friend whose game crashed comes back this way).
+func _on_net_peer_dropped_in(peer: int, old_peer: int) -> void:
+	# Net asked _drop_in_refusal before the welcome, so this is only a fallback.
+	if _run == null or _decided_run == _run or _run.is_over():
+		Net.refuse(peer, JoinGate.REASON_CLOSED)
+		if old_peer > 0 and _players.player_of_peer(old_peer) > 0:
+			# Net gave that seat away already: its old player goes for good.
+			_on_net_peer_left(old_peer)
+		return
+	if _options.is_autoplay() and _options.seat_in_fight:
+		_autoplay_seat_in_fight(peer, old_peer)
+		return
+	_seat_newcomer(peer, old_peer)
+
+
+## Host: seats the newcomer: the roster (joining: the host keeps playing the hero), everyone told,
+## then the catch-up.
+func _seat_newcomer(peer: int, old_peer: int) -> void:
+	var player := -1
+	if old_peer > 0:
+		player = _players.rebind_peer(old_peer, peer)
+		if player > 0:
+			if _combat != null:
+				_combat.cancel_resume(old_peer)
+		elif _players.player_of_peer(old_peer) > 0:
+			# Net gave that seat away already: its old player goes for good.
+			_on_net_peer_left(old_peer)
+	if player < 0:
+		player = _players.join_peer_midrun(peer)
+	if player < 0 or not _players.set_joining(peer):
+		Net.refuse(peer, JoinGate.REASON_FULL)
+		_update_away_chip()
+		return
+	var mid_fight := not _net_fight.is_empty() and _combat != null
+	var place := String(_net_place.get("name", "?"))
+	print("Player dropped in: P%d (peer %d%s) at %s%s" % [player + 1, peer,
+			", seat of peer %d" % old_peer if old_peer > 0 else "", place, " (fight)" if mid_fight else ""])
+	if _options.is_autoplay():
+		print("AUTOPLAY_DROPIN P%d peer=%d took=%d place=%s fight=%d" % [player + 1, peer, old_peer, place, int(mid_fight)])
+	Sfx.play("player_join")
+	Net.broadcast("roster", {"roster": _players.to_dict()})
+	if _combat != null:
+		_combat.update_players(_players)
+	if _zone != null:
+		_zone.configure_players(_players)
+	_catch_up(peer, true)
 	_update_away_chip()
+
+
+## Host: a client that got in mid-run caught up (`client_fight`: the fight it shows, 0: a place
+## screen): its heroes come back now, at the fight's next quiet moment, or not yet (JoinGate.ready_action).
+func _on_seated_ready(peer: int, client_fight: int) -> void:
+	var player := _players.player_of_peer(peer)
+	if player <= 0 or not _players.is_away(player):
+		return
+	# A fight counts from the moment it was announced (its swirl, nothing built yet): a "caught up on
+	# the place screen" that lands then is ignored, and the client says so again once it shows the fight.
+	var built := _combat.fight_seed() if _combat != null and _combat.is_inside_tree() else 0
+	var host_fight := JoinGate.host_fight(int(_net_fight.get("seed", 0)), built)
+	match JoinGate.ready_action(client_fight, host_fight):
+		JoinGate.Ready.SEAT_NOW:
+			_return_seat(peer)
+		JoinGate.Ready.AT_QUIET:
+			if _combat != null and _combat.fight_seed() == client_fight:
+				_combat.queue_seat(peer)
 
 
 ## Host: peer `peer` plays its own heroes again (everyone is told).
@@ -2588,6 +3007,8 @@ func _return_seat(peer: int) -> void:
 	if not _players.set_back(peer):
 		return
 	print("Player plays again: P%d (peer %d)" % [_players.player_of_peer(peer) + 1, peer])
+	if _options.is_autoplay():
+		print("AUTOPLAY_SEATED P%d peer=%d" % [_players.player_of_peer(peer) + 1, peer])
 	Net.broadcast("roster", {"roster": _players.to_dict()})
 	if _combat != null:
 		_combat.update_players(_players)
@@ -2597,6 +3018,13 @@ func _return_seat(peer: int) -> void:
 
 
 func _on_net_host_lost() -> void:
+	# Still joining (card #304): the host keeps no seat for us, so there is none to take back. The
+	# newest roster the host sent: a hand-over may still wait in the queue behind a transition. The
+	# roster's own peer, not Net.my_peer(): the connection is already down here.
+	var newest := _newest_roster(_net_queue, _players)
+	var mine: Array[int] = newest.local_players() if newest != null else [] as Array[int]
+	if not mine.is_empty() and newest.is_joining(mine[0]):
+		Net.forget_seat()
 	if not _client_done and _run != null and Net.has_seat() \
 			and (not _options.is_autoplay() or _options.rejoin_after_s > 0):
 		_lost_host()
@@ -2605,6 +3033,21 @@ func _on_net_host_lost() -> void:
 		_autoplay_fail("host_lost")
 		Sfx.play("net_error")
 	_end_online("The run is over." if _client_done else "The host left the game.")
+
+
+## Client: the newest roster the host sent: the last one still waiting in `queue` (the host's
+## messages held behind a transition; roster, run_start and again carry one), else `current`.
+static func _newest_roster(queue: Array[Dictionary], current: PlayerRoster) -> PlayerRoster:
+	var local_peer := current.local_peer if current != null else 0
+	for i: int in range(queue.size() - 1, -1, -1):
+		if not String(queue[i].get("kind", "")) in ["roster", "run_start", "again"]:
+			continue
+		var payload: Variant = queue[i].get("payload")
+		if payload is Dictionary and (payload as Dictionary).get("roster") is Dictionary:
+			var roster := PlayerRoster.from_dict((payload as Dictionary).roster as Dictionary, local_peer)
+			if roster != null:
+				return roster
+	return current
 
 
 ## Client: the connection to the host went mid-run (card #205). The host keeps our seat for a while:
@@ -2651,7 +3094,10 @@ func _leave_online() -> void:
 	_flow_gen += 1
 	_net_queue.clear()
 	_combat_inbox.clear()
-	_combat_accepts = false
+	_combat_fight = 0
+	_seat_wait = false
+	_seat_sent_key = ""
+	_screens_seen = 0
 	_net_hold = false
 	_net_screen = {}
 	_sent_run = {}
@@ -2676,13 +3122,16 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				# A player changed the shared backpack (DESIGN.md 8.1): first come, first served.
 				if _run != null and payload.get("op") is Dictionary and _run.apply_op(payload.op as Dictionary):
 					_refresh_party_views()
+			"seated_ready":
+				_on_seated_ready(from_peer, int(payload.get("fight", 0)))
 		return
 	match kind:
 		"combat":
-			if _combat_accepts and _combat != null:
+			# Batches of the fight shown here go to it; any other fight's wait for that fight.
+			if _combat != null and _combat_fight != 0 and int(payload.get("fight", 0)) == _combat_fight:
 				_combat.receive_batch(payload)
 			else:
-				_combat_inbox.append(payload)
+				_combat_inbox.add(payload)
 		"zone":
 			if _zone != null and _zone.is_inside_tree():
 				_zone.apply_snapshot(payload)
@@ -2701,11 +3150,6 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				print("AUTOPLAY_RESULT host_ended")
 				_autoplay_quit()
 		_:
-			if kind == "screen" and String(payload.get("name", "")) in ["zone_fight", "final_fight"]:
-				# Batches from here on belong to the next fight.
-				_combat_accepts = false
-				_combat_inbox.clear()
-				_combat_resync = bool(payload.get("rejoin", false))
 			_net_queue.append({"kind": kind, "payload": payload})
 			_pump_net()
 
@@ -2715,6 +3159,27 @@ func _pump_net() -> void:
 	while not _busy and not _net_hold and not _net_queue.is_empty() and Net.is_client():
 		var m: Dictionary = _net_queue.pop_front()
 		_client_message(String(m.kind), m.payload as Dictionary)
+	_send_seated_ready()
+
+
+## Client still catching up (card #304, and #205 rejoins): once this machine shows what the host
+## has (a place screen built, or a fight that applied its first batch or the host's resume), tells
+## the host so; it hands our heroes over then (now, or at the fight's next quiet moment). Each
+## catch-up point is told once; a point the host ignores (we were behind) is followed by the next.
+func _send_seated_ready() -> void:
+	if not Net.is_client() or not _seat_wait or _run == null or _screens_seen <= 0 or _busy or _net_hold \
+			or not _net_queue.is_empty():
+		return
+	var fight := 0
+	if _combat != null and _combat.is_inside_tree():
+		if not _combat.has_caught_up():
+			return
+		fight = _combat_fight
+	var key := ("f%d" % fight) if fight != 0 else ("p%d" % _screens_seen)
+	if key == _seat_sent_key:
+		return
+	_seat_sent_key = key
+	Net.send_to_host("seated_ready", {"fight": fight})
 
 
 func _client_message(kind: String, p: Dictionary) -> void:
@@ -2725,6 +3190,11 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			if again_roster != null:
 				_players = again_roster
 			_forget_own_start()
+			# A friend who dropped into the last run is there from the next one's start (card #304).
+			Net.joined_mid_run = false
+			_seat_wait = false
+			_seat_sent_key = ""
+			_combat_inbox.clear()
 			if not _screen is LobbyScreen:
 				_run = null
 				_client_done = false
@@ -2746,6 +3216,11 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			if _own_start == null or _own_start_seed != start_seed:
 				_own_start = RelicFile.load_or_empty(_relics_path()) if _client_relics_ok() else null
 				_own_start_seed = start_seed
+				# Only a drop-in's catch-up says late (card #304); a start or a token rejoin never
+				# does. Not Net.joined_mid_run: it would still be up in the run after Again.
+				_join_relics = {}
+				_join_mastery = {}
+				_join_pending = bool(p.get("late", false))
 			Sfx.play("run_begin")
 		"roster":
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
@@ -2754,6 +3229,13 @@ func _client_message(kind: String, p: Dictionary) -> void:
 				if _combat != null:
 					_combat.update_players(_players)
 				_update_away_chip()
+				var mine := _players.local_players()
+				if _seat_wait and not mine.is_empty() and not _players.is_away(mine[0]):
+					# The host handed our heroes over: they answer to this machine from now on.
+					_seat_wait = false
+					print("Playing now: P%d heroes %s" % [mine[0] + 1, str(_players.heroes_of(mine[0]))])
+					if _options.is_autoplay():
+						print("AUTOPLAY_SEATED P%d heroes=%d" % [mine[0] + 1, _players.heroes_of(mine[0]).size()])
 		"run":
 			_apply_run(p)
 			_rebuild_watched_screen()
@@ -2767,6 +3249,7 @@ func _client_screen(p: Dictionary) -> void:
 	var name := String(p.get("name", ""))
 	if _run == null and name != "menu":
 		return
+	_screens_seen += 1
 	match name:
 		"map", "rest", "shop", "loot", "party", "run_end", "event", "treasure":
 			_net_screen = p
@@ -2777,12 +3260,15 @@ func _client_screen(p: Dictionary) -> void:
 				_fade_to(_start_zone.bind(zone), zone.display_name)
 		"zone_fight":
 			_net_seed = int(p.get("seed", 1))
+			# Read here, not when it arrived: a fight announced later must not change this one.
+			_combat_resync = bool(p.get("rejoin", false))
 			if _zone != null and _zone.is_inside_tree():
 				# The pump waits until the fight starts (the zone plays its short opening first).
 				_net_hold = true
 				_zone.begin_remote(int(p.get("index", -1)), int(p.get("opening", 0)) as CombatSetup.Opening)
 		"final_fight":
 			_net_seed = int(p.get("seed", 1))
+			_combat_resync = bool(p.get("rejoin", false))
 			_start_final_fight(int(_run.current().get("type", -1)) == RunMap.StopType.ELITE)
 		"zone_back":
 			# After a lost run the host sends the run's end next instead.
@@ -3016,6 +3502,16 @@ func _apply_run(p: Dictionary) -> void:
 	if not _run.apply_dict(p.run as Dictionary):
 		push_error("Main: the host's run state does not fit this run")
 		_autoplay_fail("run_state_mismatch")
+		return
+	if _join_pending:
+		# The first run state after a late run_start: what the run had found when we joined (#304).
+		_join_relics = _run.relics.duplicate()
+		_join_mastery = _run.mastery.duplicate()
+		_join_pending = false
+		var pips := 0
+		for id: Variant in _join_mastery:
+			pips += int(_join_mastery[id])
+		print("Joined late: %d Relics, %d Echo pips already found" % [_join_relics.size(), pips])
 
 
 ## Host: tells the clients which screen to show now, with the run's state.
@@ -3133,6 +3629,66 @@ func _autoplay_drop_later() -> void:
 	Net.drop_silently()
 
 
+## Autoplay client (--crash-after=S, card #304): quits without a goodbye, like a crash; the host
+## notices through the heartbeat and keeps the seat away.
+func _autoplay_crash_later() -> void:
+	await get_tree().create_timer(float(_options.crash_after_s)).timeout
+	if not Net.is_client():
+		return
+	print("AUTOPLAY_CRASHED after %d s" % _options.crash_after_s)
+	_client_done = true
+	Net.drop_silently()
+	get_tree().quit()
+
+
+## Autoplay host (--seat-in-fight, card #304): seats a newcomer a few seconds into the next fight
+## (they wait on "Joining the run ..." meanwhile; one who leaves first has no seat, _on_net_peer_away).
+func _autoplay_seat_in_fight(peer: int, old_peer: int) -> void:
+	while Net.is_host() and _run != null and not _run.is_over() and (_combat == null or not _combat.is_inside_tree()):
+		await get_tree().create_timer(AUTOPLAY_DROP_POLL_S).timeout
+	await get_tree().create_timer(AUTOPLAY_DROP_INTO_FIGHT_S).timeout
+	if not Net.is_host() or not Net.clients().has(peer):
+		return
+	if _run != null and _decided_run != _run and not _run.is_over():
+		_seat_newcomer(peer, old_peer)
+	else:
+		Net.refuse(peer, JoinGate.REASON_CLOSED)
+
+
+## Autoplay, local (--pad-join-after / --pad-leave-after, cards #304, #311): S seconds after launch
+## (with --roster-in-fight: a few seconds into the next fight) a pretend pad joins, or the last
+## player leaves, through _change_local_roster (the next quiet moment).
+func _autoplay_pad_roster_later(join: bool) -> void:
+	var why := "join" if join else "leave"
+	await get_tree().create_timer(float(_options.pad_join_after_s if join else _options.pad_leave_after_s)).timeout
+	if _options.roster_in_fight:
+		while _run != null and not _run.is_over() and (_combat == null or not _combat.is_inside_tree()):
+			await get_tree().create_timer(AUTOPLAY_DROP_POLL_S).timeout
+		await get_tree().create_timer(AUTOPLAY_DROP_INTO_FIGHT_S).timeout
+	while _busy:
+		await get_tree().process_frame
+	if _run == null or _run.is_over():
+		print("AUTOPLAY_ROSTER skipped")
+		return
+	var next := _players.copy()
+	var changed := false
+	if join:
+		changed = next.join_midrun(PlayerRoster.free_pad(next)) >= 0
+	else:
+		changed = next.leave_midrun(next.player_count() - 1)
+	if not changed:
+		print("AUTOPLAY_ROSTER refused %s" % why)
+		return
+	_change_local_roster(next, why)
+
+
+## Autoplay client (--join-after=S): connects S seconds after launch, into a run already going.
+func _autoplay_join_later(address: String) -> void:
+	await get_tree().create_timer(float(_options.join_after_s)).timeout
+	print("AUTOPLAY_JOIN after %d s" % _options.join_after_s)
+	_on_join_requested(address)
+
+
 ## Autoplay client (--rejoin=S): joins the host again S seconds after losing it.
 func _autoplay_rejoin_later(address: String) -> void:
 	await get_tree().create_timer(float(_options.rejoin_after_s)).timeout
@@ -3170,6 +3726,10 @@ func _update_away_chip() -> void:
 	var lines: Array[String] = []
 	if Net.is_online() and _players != null:
 		for player: int in _players.away:
+			if _players.is_joining(player):
+				# Getting in (card #304): no seat time runs for them.
+				lines.append("%s joining" % HudStyle.player_tag(player))
+				continue
 			var line := "%s away" % HudStyle.player_tag(player)
 			if Net.is_host() and player < _players.peers.size():
 				var left_s := ceili(float(Net.seat_time_left(_players.peers[player])) / 1000.0)

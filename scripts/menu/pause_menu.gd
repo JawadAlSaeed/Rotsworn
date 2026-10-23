@@ -1,8 +1,10 @@
 class_name PauseMenu
 extends CanvasLayer
-## The pause menu (DESIGN.md 7.5): over a fight, a zone or the run map. Continue, Settings, Glossary (7.12), Save &
-## Quit (a local run, DESIGN.md 8.14) and Abandon run (in a run) or Leave (practice). Pause (Esc /
-## Menu) or Back also continues. Main stops whatever is under it while it is open.
+## The pause menu (DESIGN.md 7.5): over a fight, a zone or the run map. Continue, Players (a local
+## game outside the tutorial: friends join, leave and swap heroes, DESIGN.md 9.3), Settings, Glossary
+## (7.12), Save & Quit (a local run, DESIGN.md 8.14) and Abandon run (in a run) or Leave (practice).
+## Pause (Esc / Menu) or Back also continues. Main stops whatever is under it while it is open.
+## Online a gold line under the title can show the address friends type to drop in (`note`).
 ## Phase 22: each row is a small drawn picture and its word, with no sentence under it (what a row
 ## does is plain from the word; a leave that loses the run still asks first).
 
@@ -15,18 +17,28 @@ signal leave_requested
 signal save_quit_requested
 ## The extra item (the tutorial's "Skip this lesson").
 signal extra_requested
+## The Players row: Main opens the in-run players overlay over this menu, DESIGN.md 9.3.
+signal players_requested
 
 const TITLE_SIZE: int = 72
+## The gold line under the title (`note`).
+const NOTE_SIZE: int = 26
 const DIM := Color(0.0, 0.0, 0.0, 0.7)
 ## The picture before each row's word (pixels on the 1920x1080 canvas, before the text size).
 const GLYPH_PX: int = 34
 
-enum Item { CONTINUE, SETTINGS, LEAVE, EXTRA, SAVE_QUIT, GLOSSARY }
+enum Item { CONTINUE, SETTINGS, LEAVE, EXTRA, SAVE_QUIT, GLOSSARY, PLAYERS }
 ## The picture of each kind of row (RowGlyph kinds).
 const ITEM_GLYPHS := {
 	Item.CONTINUE: &"play", Item.SETTINGS: &"gear", Item.GLOSSARY: &"book", Item.SAVE_QUIT: &"save",
-	Item.LEAVE: &"door", Item.EXTRA: &"skip",
+	Item.LEAVE: &"door", Item.EXTRA: &"skip", Item.PLAYERS: &"players",
 }
+
+## Show the Players row (a local game outside the tutorial, cards #304, #311). Set before setup.
+var players_row: bool = false
+## A gold line under the title (online: the address friends type to drop in); empty: none. Set
+## before setup.
+var note: String = ""
 
 var _menu: ListMenu
 ## What each row is (Item), in order.
@@ -53,6 +65,8 @@ func setup(leave_text: String, _leave_detail: String = "", extra_text: String = 
 	column.add_theme_constant_override("separation", 18)
 	add_child(column)
 	column.add_child(ListMenu.centred_title("PAUSED", TITLE_SIZE))
+	if not note.is_empty():
+		column.add_child(ListMenu.centred_label(note, NOTE_SIZE, HudStyle.GOLD))
 	column.add_child(ListMenu.divider())
 	_menu = ListMenu.new()
 	column.add_child(_menu)
@@ -61,6 +75,9 @@ func setup(leave_text: String, _leave_detail: String = "", extra_text: String = 
 	if not extra_text.is_empty():
 		items.append({"text": extra_text})
 		_rows.append(Item.EXTRA)
+	if players_row:
+		items.append({"text": "Players"})
+		_rows.append(Item.PLAYERS)
 	items.append({"text": "Settings"})
 	_rows.append(Item.SETTINGS)
 	items.append({"text": "Glossary"})
@@ -139,11 +156,13 @@ func _unhandled_input(event: InputEvent) -> void:
 					extra_requested.emit()
 				Item.SAVE_QUIT:
 					save_quit_requested.emit()
+				Item.PLAYERS:
+					players_requested.emit()
 
 
-## A pause row's small picture, drawn from simple shapes in one colour: play (Continue), gear
-## (Settings), book (Glossary), save (Save & Quit), door (Abandon / Leave) and skip (the tutorial's
-## skip).
+## A pause row's small picture, drawn from simple shapes in one colour: play (Continue), players
+## (two heads, the Players row), gear (Settings), book (Glossary), save (Save & Quit), door (Abandon /
+## Leave) and skip (the tutorial's skip).
 class RowGlyph:
 	extends Control
 
@@ -162,6 +181,13 @@ class RowGlyph:
 			&"play":
 				draw_colored_polygon(PackedVector2Array([c + Vector2(-h * 0.55, -h * 0.8), c + Vector2(h * 0.8, 0.0),
 						c + Vector2(-h * 0.55, h * 0.8)]), color)
+			&"players":
+				# Two heads and shoulders side by side.
+				for dx: float in [-0.42, 0.42]:
+					draw_circle(c + Vector2(h * dx, -h * 0.38), h * 0.26, color)
+					draw_colored_polygon(PackedVector2Array([c + Vector2(h * (dx - 0.4), h * 0.85),
+							c + Vector2(h * (dx - 0.32), h * 0.1), c + Vector2(h * (dx + 0.32), h * 0.1),
+							c + Vector2(h * (dx + 0.4), h * 0.85)]), color)
 			&"skip":
 				for dx: float in [-0.75, 0.05]:
 					draw_colored_polygon(PackedVector2Array([c + Vector2(h * dx, -h * 0.7), c + Vector2(h * (dx + 0.7), 0.0),

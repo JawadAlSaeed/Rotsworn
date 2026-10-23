@@ -331,6 +331,46 @@ func test_the_relics_kept_are_icons_tagged_new_or_echo() -> void:
 	assert_eq(echo_marks, 1, "and the Echo mark")
 
 
+func test_kept_row_counts_only_after_a_late_join() -> void:
+	# Card #304: a friend who dropped in mid-run keeps only what the run found after they joined.
+	var run := _run()
+	var needed := run.tuning.mastery_needed
+	var drum := _relic("war_drum")
+	var charm := _relic("iron_charm")
+	run.add_relic(drum)
+	run.mastery[drum.id] = 4
+	var relics_before := run.relics.duplicate()
+	var mastery_before := run.mastery.duplicate()
+	run.add_relic(charm)
+	run.mastery[drum.id] = needed
+	assert_eq(RunEndScreen.kept_relics(run, {}, {}).size(), 2, "there from the start: both Relics")
+	var kept := RunEndScreen.kept_relics(run, relics_before, {}, mastery_before)
+	assert_eq(kept.size(), 1, "joined late: only the later find")
+	assert_eq(kept[0].item, charm)
+	assert_true(bool(kept[0].new))
+	assert_false(bool(kept[0].echo))
+	var drum_kept := RunEndScreen.kept_relics(run, relics_before, {drum.id: 4}, mastery_before)
+	assert_eq(drum_kept.size(), 2, "the 8 pips since fill their own 4 to an Echo")
+	for entry: Dictionary in drum_kept:
+		if entry.item == drum:
+			assert_true(bool(entry.echo) and not bool(entry.new), "the drum: an Echo, not new")
+	# own_kept: their collection plus the run's Relics when they joined.
+	var stranger := RelicCollection.new()
+	var since := {"relics": relics_before, "mastery": {}}
+	var shown := RunEndScreen.own_kept(run, stranger, since)
+	assert_eq(shown.size(), 1, "a Relic they never found shows no Echo: their file keeps no pips for it")
+	assert_eq(shown[0].item, charm)
+	var owner := RelicCollection.new()
+	owner.merge([drum.id], {})
+	assert_eq(RunEndScreen.own_kept(run, owner, since).size(), 2, "their own drum's Echo is kept")
+	assert_eq(RunEndScreen.own_kept(run, stranger).size(), 2, "no join: everything, as before")
+	run.result = RunState.VICTORY
+	var end := RunEndScreen.new()
+	add_child_autofree(end)
+	end.setup(run, 0, 0, [], "", [], {}, stranger, {"relics": relics_before, "mastery": mastery_before})
+	assert_eq(_count_of(end, "RelicIcon"), 1, "the end screen shows the later find only")
+
+
 func test_a_defeat_shows_the_killer_with_the_attack_and_its_hit_icon() -> void:
 	var toss := load(ROCK_TOSS_PATH) as EnemyAttackData
 	var recap := {"enemies": ["Rotten Husk"], "last_blow": {"name": toss.display_name, "source": "Rotten Husk",

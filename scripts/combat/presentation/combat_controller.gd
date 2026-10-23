@@ -31,9 +31,14 @@ signal combat_finished(result: String)
 ## A pause asked for with request_pause() can start now: nothing is being timed. Main stops this
 ## node (process disabled) and shows the pause menu; resume_after_pause() goes on.
 signal pause_reached
-## Online host: the fight is between moves and client `peer`, who joined again, gets the fight as it
-## stands now (Main gives the player their seat back first, so the roster arrives before it).
-signal resume_ready(peer: int)
+## Online host: client `peer` caught up with this fight (it said so) and the fight is between moves:
+## Main hands its heroes back now, never in the middle of an attack (cards #205, #304).
+signal seat_ready(peer: int)
+## Online client: this fight now shows what the host has: it played everything the host sent since
+## its first batch (or the host's resume after joining mid-fight), so no sequence the host already
+## played with someone else judging is still waiting here; Main tells the host it may hand our heroes
+## over.
+signal caught_up
 
 enum NetMode { LOCAL, HOST, CLIENT }
 
@@ -109,10 +114,16 @@ var _net_mode: int = NetMode.LOCAL
 var _fight_seed: int = -1
 ## Host: the referee for clients' prompts.
 var _arbiter: DefenseArbiter
-## Host: clients who joined again mid-fight and wait for the next quiet moment to get the fight.
+## Host: clients who got in mid-fight and wait for the next quiet moment to get the fight, and
+## clients that caught up with it and wait for the next quiet moment to get their heroes.
 var _resume_peers: Array[int] = []
-## Client (rejoined mid-fight): batches are skipped until the host's "resume" batch arrives.
+var _seat_peers: Array[int] = []
+## Client (got in mid-fight): batches are skipped until the host's "resume" batch arrives.
 var _resume_pending: bool = false
+## Client: the host's batches for this fight started coming (the first one, or the resume after
+## getting in mid-fight), and this fight has played all of them since (see caught_up).
+var _host_batches: bool = false
+var _caught_up: bool = false
 ## Online: timing batches for a sequence this machine has not started yet: [{seq, events}].
 var _timing_inbox: Array[Dictionary] = []
 ## Client: the turn a party member waits for a choice in (-1: none), and the turn a choice was
@@ -193,14 +204,23 @@ func configure_online(mode: NetMode, fight_seed: int) -> void:
 	_fight_seed = fight_seed
 
 
-## Online host: someone left or the roster changed mid-fight. Their heroes' menus and presses go
-## to the new owner from now on; their open prompts are resolved by the arbiter at once.
+## The roster changed mid-fight (online: someone came, went or got their seat back; local: the
+## Players overlay). Heroes' menus and presses go to their new owners from now on; a gone peer's open
+## prompts are resolved by the arbiter at once. The turn's open menu stays where it was when its
+## hero keeps the same player on the same machine (keeps_menu).
 func update_players(players: PlayerRoster, gone_peer: int = -1) -> void:
+	var actor := mirror.active_actor if mirror.party_ids.has(mirror.active_actor) else -1
+	# The owner as this fight last knew it: the host changes its roster in place before calling.
+	var before := int(_owners.get(actor, -1)) if actor >= 0 else -1
+	var was_local := before >= 0 and _players.is_local(before)
 	_players = players
 	_journal_local_slots()
-	_owners.clear()
+	# A new map, not the old one changed in place: a runner in the middle of a sequence still holds
+	# the old one until it hands back.
+	var owners: Dictionary = {}
 	for id: int in mirror.party_ids:
-		_owners[id] = _players.owner_of(_owner_slot(id))
+		owners[id] = _players.owner_of(_owner_slot(id))
+	_owners = owners
 	runner.set_players(_players, _owners)
 	skill_runner.set_players(_players, _owners)
 	PadRumble.set_party(_players, _owners)
@@ -209,9 +229,20 @@ func update_players(players: PlayerRoster, gone_peer: int = -1) -> void:
 	hud.set_player_tags(_owners if _players.is_coop() else {})
 	if _arbiter != null and gone_peer > 0:
 		_arbiter.drop_peer(gone_peer)
+	var after := _players.owner_of(_owner_slot(actor)) if actor >= 0 else -1
+	var now_local := after >= 0 and _players.is_local(after)
+	if keeps_menu(before, after, was_local, now_local, gone_peer):
+		return
 	_menu_turn = -1
 	if not _playing and _queue.is_empty() and not _waiting_runner:
 		_maybe_open_menu()
+
+
+## A roster change leaves the turn's open menu alone (where its player was: Skills, target step,
+## the hold ring) when the acting hero keeps the same player on the same machine and nobody left.
+## Every drop-in sends at least two rosters to everyone, and a local overlay applies one. Pure.
+static func keeps_menu(before: int, after: int, was_local: bool, now_local: bool, gone_peer: int) -> bool:
+	return gone_peer <= 0 and before >= 0 and before == after and was_local == now_local
 
 
 ## Online client that joined again mid-fight (card #205): this machine missed the fight so far.
@@ -220,8 +251,14 @@ func expect_resume() -> void:
 	_resume_pending = true
 
 
-## Online host: client `peer` joined again mid-fight; it gets the fight at the next moment nothing
-## is being timed (a hero's turn, or the end), never in the middle of an attack.
+## The host's seed for this fight (online), -1 offline.
+func fight_seed() -> int:
+	return _fight_seed
+
+
+## Online host: client `peer` got in mid-fight (joined again, or dropped in); it gets the fight at
+## the next moment nothing is being timed (a hero's turn, or the end), never in the middle of an
+## attack. Its heroes come later (queue_seat).
 func queue_resume(peer: int) -> void:
 	if _net_mode != NetMode.HOST or _resume_peers.has(peer):
 		return
@@ -229,26 +266,46 @@ func queue_resume(peer: int) -> void:
 	_try_resume.call_deferred()
 
 
-## Online host: client `peer` went away again before it got the fight.
+## Online host: client `peer` caught up with this fight; its heroes come back at the next moment
+## nothing is being timed (seat_ready).
+func queue_seat(peer: int) -> void:
+	if _net_mode != NetMode.HOST or _seat_peers.has(peer):
+		return
+	_seat_peers.append(peer)
+	_try_resume.call_deferred()
+
+
+## Online client: true once this fight shows the host's fight (see caught_up).
+func has_caught_up() -> bool:
+	return _caught_up
+
+
+## Online host: client `peer` went away again before it got the fight or its seat.
 func cancel_resume(peer: int) -> void:
 	_resume_peers.erase(peer)
+	_seat_peers.erase(peer)
 
 
+## Host, at a quiet moment (a hero's turn, or the end): the fight as it stands goes to the clients
+## waiting for it, and the ones that caught up get their heroes (seat_ready).
 func _try_resume() -> void:
-	if _net_mode != NetMode.HOST or engine == null or _resume_peers.is_empty():
+	if _net_mode != NetMode.HOST or engine == null or (_resume_peers.is_empty() and _seat_peers.is_empty()):
 		return
 	var events := engine.resume_events()
 	if events.is_empty():
 		return
 	var peers := _resume_peers.duplicate()
+	var seats := _seat_peers.duplicate()
 	_resume_peers.clear()
+	_seat_peers.clear()
 	for peer: int in peers:
-		resume_ready.emit(peer)
-		Net.send_to(peer, "combat", {"kind": "resume", "seq": -1, "events": events})
+		Net.send_to(peer, "combat", {"kind": "resume", "seq": -1, "events": events, "fight": _fight_seed})
 		print("Fight resumed for peer %d at turn %d" % [peer, engine.turn_number])
+	for peer: int in seats:
+		seat_ready.emit(peer)
 
 
-## Online: a batch of events from the host ({kind, seq, events}).
+## Online: a batch of events from the host ({kind, seq, events, fight}).
 func receive_batch(payload: Dictionary) -> void:
 	if _net_mode != NetMode.CLIENT or not payload.get("events") is Array:
 		return
@@ -258,16 +315,36 @@ func receive_batch(payload: Dictionary) -> void:
 			events.append(ev as Dictionary)
 	var kind := String(payload.get("kind", ""))
 	if _resume_pending or kind == "resume":
-		# Joined again mid-fight: what came before the fight as it stands is already in it.
+		# Got in mid-fight: what came before the fight as it stands is already in it.
 		if kind == "resume" and _resume_pending:
 			_resume_pending = false
 			_timing_inbox.clear()
+			_host_batches = true
 			_enqueue(events)
+			_note_caught_up()
 		return
+	_host_batches = true
 	if kind == "timing":
 		_route_timing(int(payload.get("seq", -1)), events)
 	else:
 		_enqueue(events)
+	_note_caught_up()
+
+
+## Client: tells Main once (caught_up), the first time this fight has played everything the host
+## sent since its first batch (skipped ones do not count): nothing queued, nothing playing.
+func _note_caught_up() -> void:
+	if _caught_up or not drained(_host_batches, _queue.is_empty(), _playing or _waiting_runner or _runner_active()):
+		return
+	_caught_up = true
+	caught_up.emit()
+
+
+## True when a client fight has caught up with the host: the host's batches started (`started`),
+## and none is waiting (`queue_empty`) or playing (`busy`: an event, or an attack or skill still
+## running). Pure.
+static func drained(started: bool, queue_empty: bool, busy: bool) -> bool:
+	return started and queue_empty and not busy
 
 
 ## Online host: a command from client `peer`. Only its own heroes' choices and prompt results are
@@ -528,8 +605,9 @@ func _force_listed_attack(events: Array[Dictionary]) -> void:
 func _host_sent(events: Array[Dictionary], kind: String, seq: int) -> void:
 	if events.is_empty():
 		return
-	Net.broadcast("combat", {"kind": kind, "seq": seq, "events": events})
-	if not _resume_peers.is_empty():
+	# Tagged with the fight, so a client still building an earlier one keeps it for this one.
+	Net.broadcast("combat", {"kind": kind, "seq": seq, "events": events, "fight": _fight_seed})
+	if not _resume_peers.is_empty() or not _seat_peers.is_empty():
 		_try_resume.call_deferred()
 	for ev: Dictionary in events:
 		match String(ev.get("type", "")):
@@ -657,6 +735,8 @@ func _pump() -> void:
 	_playing = false
 	if _queue.is_empty() and not _waiting_runner and not _paused:
 		_maybe_open_menu()
+		if _net_mode == NetMode.CLIENT:
+			_note_caught_up()
 		if _pause_pending:
 			_enter_pause()
 
@@ -766,7 +846,10 @@ func _play(ev: Dictionary) -> void:
 			mirror.apply(ev)
 			await _build_fighters()
 			_play_draw()
-			if String(ev.get("opening", "")) == "first_strike":
+			if bool(ev.get("resume", false)):
+				# Got in mid-fight (#205, #304): no intro, and a boss already raging rages here too.
+				_resume_mood(ev)
+			elif String(ev.get("opening", "")) == "first_strike":
 				Sfx.play("gauge_full")
 				hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
 			elif _encounter.boss or _encounter.mini_boss:
@@ -895,6 +978,28 @@ func _on_runner_finished(tail: Array[Dictionary]) -> void:
 	_queue = tail.duplicate()
 	_queue.append_array(later)
 	_pump()
+
+
+## True when a resume's combat_started (`ev`) has an enemy past its phase change (a boss or guard
+## that already raged before this machine got in, #205, #304). Pure.
+static func raging_on_resume(ev: Dictionary) -> bool:
+	if not bool(ev.get("resume", false)):
+		return false
+	for d: Variant in ev.get("fighters", []):
+		var fighter: Dictionary = d if d is Dictionary else {}
+		if int(fighter.get("team", -1)) == Combatant.Team.ENEMY and int(fighter.get("phase", 1)) >= 2:
+			return true
+	return false
+
+
+## A resume into a fight whose boss already raged: the arena's phase-two look at once and the rage
+## song, with none of the live phase change's flash, shake or banner.
+func _resume_mood(ev: Dictionary) -> void:
+	if not raging_on_resume(ev):
+		return
+	view.shift_to_phase_two(true)
+	if not rage_music_path.is_empty():
+		Sfx.play_music(rage_music_path, rage_music_volume_db)
 
 
 ## True when the fight waits for a party member's choice (a client reads it from the events).

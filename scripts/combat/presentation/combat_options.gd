@@ -24,9 +24,19 @@ extends RefCounted
 ##   --continue                      continue the run save at once (with --save-path for the bot)
 ##   --players=N                     co-op with N players (1 to 3), one pretend pad each, heroes
 ##                                   split evenly (DESIGN.md 9.1; for the autoplay bot)
-##   --host=N                        host online; start a run once N players (2 or 3) are in
+##   --pad-join-after=S              (with --autoplay) a pretend pad joins the local run S seconds
+##                                   after launch, at the next quiet moment (DESIGN.md 9.3)
+##   --pad-leave-after=S             (with --autoplay) the last local player leaves after S seconds
+##   --roster-in-fight               those two wait for the next fight and come a few seconds into it
+##   --host=N                        host online; start a run once N players (1 to 3) are in; 1
+##                                   starts at once, friends drop in later (DESIGN.md 9.3)
+##   --seat-in-fight                 (online host) seat a friend who drops in only a few seconds
+##                                   into the next fight
 ##   --join=ADDRESS                  join the online game at ADDRESS (DESIGN.md 9.2)
+##   --join-after=S                  (with --join) connect S seconds after launch, into a run going
 ##   --leave-after=S                 (with --join) leave the game after S seconds and quit
+##   --crash-after=S                 (with --join) quit S seconds after launch without a goodbye,
+##                                   like a crash
 ##   --shots=S                       save a picture of the window every S seconds (dev tool)
 ##   --perf-log=S                    print frames a second and draw calls every S seconds (dev tool)
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
@@ -35,7 +45,9 @@ extends RefCounted
 ##                                   tutorial, map, map_start, map_act2, shop, campfire,
 ##                                   event, treasure, controls_vibration (the Controller page on
 ##                                   its Vibration row), zone_exit (a zone's open exit), zone_leave (its
-##                                   "Leave the zone?" question)
+##                                   "Leave the zone?" question), players_in_run (the Players overlay
+##                                   over the pause menu, two players), pause_players (the pause menu
+##                                   with its Players row)
 ##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the
 ##                                   action menu opens, press these input actions on it (for
 ##                                   example fight_skills,menu_down), then leave it waiting; "|"
@@ -87,6 +99,9 @@ var players: int = 1
 ## --host=N (0: not hosting) and --join=ADDRESS ("" : not joining).
 var host_players: int = 0
 var join_address: String = ""
+## --join-after=S (with --join): wait S seconds after launch before connecting (a friend dropping in
+## mid-run, card #304; 0: at once).
+var join_after_s: int = 0
 ## --leave-after=S (0: stay).
 var leave_after_s: int = 0
 ## --end-after=S (0: never): an online host ends the game for everyone S seconds after starting,
@@ -99,6 +114,19 @@ var end_after_s: int = 0
 var drop_after_s: int = 0
 var rejoin_after_s: int = 0
 var drop_in_fight: bool = false
+## --pad-join-after=S (0: never): a pretend pad joins the local run S seconds after launch, at the next
+## quiet moment, through the same roster change as the Players overlay (card #304).
+var pad_join_after_s: int = 0
+## --pad-leave-after=S (0: never): the last local player leaves S seconds after launch (card #311).
+var pad_leave_after_s: int = 0
+## --roster-in-fight: those local changes wait for the next fight and come a few seconds into it.
+var roster_in_fight: bool = false
+## --seat-in-fight (online host): a friend who drops in is seated only once a fight has been on for a
+## few seconds (tests seating mid-fight; they wait on "Joining the run ..." meanwhile).
+var seat_in_fight: bool = false
+## --crash-after=S (online client): the game quits S seconds after launch without a goodbye, like a
+## crash (its seat goes away on the host; a new client can take it after net_takeover_after_ms, card #304).
+var crash_after_s: int = 0
 ## --bot-skill=N for --autoplay=average (0 to 100).
 var bot_skill: int = DEFAULT_BOT_SKILL
 ## --shots=S (0: no pictures) and --screen=NAME ("" : the normal start).
@@ -178,6 +206,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 		elif arg.begins_with("--host="):
 			var wanted := arg.substr("--host=".length())
 			options.host_players = clampi(wanted.to_int(), 1, PlayerRoster.MAX_PLAYERS) if wanted.is_valid_int() else 2
+		elif arg.begins_with("--join-after="):
+			options.join_after_s = maxi(0, arg.substr("--join-after=".length()).to_int())
 		elif arg.begins_with("--leave-after="):
 			options.leave_after_s = maxi(0, arg.substr("--leave-after=".length()).to_int())
 		elif arg.begins_with("--end-after="):
@@ -186,6 +216,16 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.drop_after_s = maxi(0, arg.substr("--drop-after=".length()).to_int())
 		elif arg == "--drop-in-fight":
 			options.drop_in_fight = true
+		elif arg.begins_with("--pad-join-after="):
+			options.pad_join_after_s = maxi(0, arg.substr("--pad-join-after=".length()).to_int())
+		elif arg.begins_with("--pad-leave-after="):
+			options.pad_leave_after_s = maxi(0, arg.substr("--pad-leave-after=".length()).to_int())
+		elif arg == "--roster-in-fight":
+			options.roster_in_fight = true
+		elif arg == "--seat-in-fight":
+			options.seat_in_fight = true
+		elif arg.begins_with("--crash-after="):
+			options.crash_after_s = maxi(0, arg.substr("--crash-after=".length()).to_int())
 		elif arg == "--rejoin":
 			options.rejoin_after_s = DEFAULT_REJOIN_S
 		elif arg.begins_with("--rejoin="):

@@ -109,13 +109,14 @@ func _add_air(look: StageLook, air: Array[ZoneAmbientData]) -> void:
 
 
 ## The room shifts toward its phase-two look (a boss or guard rages). Does nothing if the look has
-## none or it already shifted. Takes longer under the Reduced and Off Flashes settings.
-func shift_to_phase_two() -> void:
+## none or it already shifted. Takes longer under the Reduced and Off Flashes settings. `instant`: at
+## once and without the burst (a friend who got in after the boss raged, #205, #304).
+func shift_to_phase_two(instant: bool = false) -> void:
 	if _mood == null or not PhaseShift.has_shift(_look) or _mood.shifted():
 		return
-	_mood.begin(PhaseShift.duration_ms(_visuals.phase_look_ms, _visuals.phase_look_calm_percent,
+	_mood.begin(0 if instant else PhaseShift.duration_ms(_visuals.phase_look_ms, _visuals.phase_look_calm_percent,
 			PlayerSettings.flash_mode()))
-	if _look.phase_burst != null:
+	if _look.phase_burst != null and not instant:
 		var burst := StageBuilder.burst(_look.phase_burst)
 		burst.position = _visuals.fight_air_offset + Vector3(0.0, _look.phase_burst.height, 0.0)
 		add_child(burst)

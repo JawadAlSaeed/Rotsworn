@@ -1,6 +1,7 @@
 class_name LobbyScreen
 extends CanvasLayer
-## The players screen before a run or practice (DESIGN.md 9.1). The device that opened it is P1.
+## The players screen before a run or practice (DESIGN.md 9.1), and the Players overlay in a run
+## (9.3, see below). The device that opened it is P1.
 ## Another keyboard or pad presses Confirm to join (up to three players) and Back to leave. The
 ## heroes are dealt out in turn (P1 gets the extra one); left/right on a hero hands it to another
 ## player, as long as every player keeps a hero. Confirm starts with this roster; Back (P1's Cancel)
@@ -26,6 +27,13 @@ extends CanvasLayer
 ## type in; players join over the network (Main calls add_peer / remove_peer) and the host hands
 ## heroes out and starts. A client's screen only shows the roster and oath the host sends
 ## (set_roster, set_oath) and waits, with no Start; its Back leaves the game.
+##
+## In a run (setup_in_run, DESIGN.md 9.3, cards #304, #311) the same screen is the Players overlay
+## over the pause menu: no Oath picker, Start reads Play, the roster is the run's own (never dealt
+## out again). A newcomer takes one hero at once (the usual deal's, nobody else's change); a joined
+## P2 / P3 leaves with their own Back (their heroes go to P1) and shows its button and "leave";
+## left/right hands a hero on, and an only hero trades places. It is modal: a device that has not
+## joined can only join, and no press reaches what is under it.
 
 ## Confirmed: play with `players` at oath `oath` (0: none; always 0 in practice).
 signal started(players: PlayerRoster, oath: int)
@@ -62,6 +70,9 @@ const START_SIZE: int = 52
 const BUTTONS_GAP: int = 40
 ## The picker's line when no oath is picked.
 const NO_CHANGE := "Normal road"
+## The big button's word before a run, and in a run (the Players overlay).
+const START_WORD := "Start"
+const PLAY_WORD := "Play"
 
 ## The heroes' big portraits, in hero order (set before setup).
 var hero_portraits: Array[String] = []
@@ -83,6 +94,8 @@ var _cards: Array[PanelContainer] = []
 var _card_tags: Array[Label] = []
 var _online: bool = false
 var _is_host: bool = true
+## The Players overlay in a run (setup_in_run).
+var _in_run: bool = false
 var _oath: int = 0
 ## The Oath picker: its frame, its "<  Oath 2  >" line and the effect chips under it.
 var _picker: PanelContainer
@@ -116,10 +129,27 @@ func setup_online(hero_names: Array[String], roster: PlayerRoster, is_host: bool
 	_is_host = is_host
 	_oath = clampi(start_oath, 0, mini(oath_unlocked, oaths.size())) if is_host else 0
 	if is_host:
-		var shown := ", ".join(addresses) if not addresses.is_empty() else "no network"
-		_build("Host Online", "Address  %s     Port  %d" % [shown, port], hints(true, true))
+		_build("Host Online", address_line(addresses, port), hints(true, true))
 	else:
 		_build("Online Players", "Waiting for the host", hints(true, false))
+
+
+## The Players overlay over the pause menu, mid-run (cards #304, #311). `roster` is the local
+## roster (copied, never reset); `p1_device` is the device P1 really plays with: while solo it
+## becomes P1's device (every device worked so far), in co-op it changes nothing. No Oath picker;
+## Start reads Play. Modal: a free device can only join (Confirm, join_midrun); P2/P3 leave with
+## their Back (leave_midrun; Esc counts, it is also Pause); left/right trades heroes; Confirm plays
+## (started); P1's Back or anyone's Pause closes (back). Both keep the changes: Main reads
+## roster() either way.
+func setup_in_run(hero_names: Array[String], roster: PlayerRoster, p1_device: int) -> void:
+	_hero_names = hero_names
+	_roster = roster.copy()
+	_in_run = true
+	oaths = [] as Array[OathData]
+	if not _roster.is_coop() and p1_device != PlayerRoster.ANY:
+		# replace_device refuses the device P1 already has.
+		_roster.replace_device(0, p1_device)
+	_build("Players", "", hints_in_run())
 
 
 ## The footer's button hints (phase 22: a word each). A local screen or the host: Choose, Change (a
@@ -128,7 +158,19 @@ func setup_online(hero_names: Array[String], roster: PlayerRoster, is_host: bool
 static func hints(online: bool, is_host: bool) -> Array:
 	if online and not is_host:
 		return [[&"menu_cancel", "Leave"]]
-	return [[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", "Start"], [&"menu_cancel", "Back"]]
+	return [[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", START_WORD], [&"menu_cancel", "Back"]]
+
+
+## The in-run overlay's footer (DESIGN.md 9.3): Choose, Change, Play, Back. Pure.
+static func hints_in_run() -> Array:
+	return [[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", PLAY_WORD], [&"menu_cancel", "Back"]]
+
+
+## "Address  1.2.3.4     Port  7777" (the host's players screen and the online pause menu); the
+## address reads "no network" when there is none. Pure.
+static func address_line(addresses: Array[String], port: int) -> String:
+	var shown := ", ".join(addresses) if not addresses.is_empty() else "no network"
+	return "Address  %s     Port  %d" % [shown, port]
 
 
 ## Which inputs can join right now: a pad that is plugged in and not playing yet ("pad"), the
@@ -185,6 +227,11 @@ func roster() -> PlayerRoster:
 ## The oath picked (0: none).
 func oath() -> int:
 	return _oath
+
+
+## True for the Players overlay in a run (setup_in_run; for tests).
+func is_in_run() -> bool:
+	return _in_run
 
 
 ## Online client: the host picked oath `oath`.
@@ -261,10 +308,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		_online_input(event)
 		return
 	var device := PlayerRoster.device_of(event)
+	if _in_run and is_inside_tree() and not event is InputEventMouseMotion:
+		# Modal (cards #304, #311): nothing under the overlay (the zone backpack, a party screen)
+		# sees a press, not even from a friend who has not joined.
+		get_viewport().set_input_as_handled()
 	if device == PlayerRoster.ANY or event.is_echo():
 		return
 	# The mouse works for P1 (it has no Confirm of its own to join with).
 	var player := 0 if event is InputEventMouse else _roster.devices.find(device)
+	if _in_run:
+		_in_run_input(event, device, player)
+		return
 	if player < 0:
 		# A device not in the game can only join.
 		if event.is_action_pressed(&"menu_confirm", false, true):
@@ -272,6 +326,32 @@ func _unhandled_input(event: InputEvent) -> void:
 			if _roster.join(device) >= 0:
 				Sfx.play("menu_confirm")
 				_refresh()
+		return
+	_act(_answer(event), player)
+
+
+## The Players overlay in a run (cards #304, #311): `player` is the press's player (-1: a device
+## not in the game).
+func _in_run_input(event: InputEvent, device: int, player: int) -> void:
+	if player < 0:
+		# A device not in the game can only join; it takes one hero at once.
+		if event.is_action_pressed(&"menu_confirm", false, true):
+			if _roster.join_midrun(device) >= 0:
+				Sfx.play("player_join")
+				_refresh()
+			else:
+				Sfx.play("locked")
+		return
+	# Before Pause: Esc is both, and a joined keyboard P2 / P3 leaves with it as with Backspace.
+	if player > 0 and event.is_action_pressed(&"menu_cancel", false, true):
+		if _roster.leave_midrun(player):
+			Sfx.play("player_leave")
+			_refresh()
+		return
+	if event.is_action_pressed(&"pause", false, true):
+		# P1's Esc lands here too: it closes, as Back does.
+		Sfx.play("menu_cancel")
+		back.emit()
 		return
 	_act(_answer(event), player)
 
@@ -343,11 +423,17 @@ func _act(answer: StringName, player: int) -> void:
 	var row := _menu.index
 	match answer:
 		&"cancel":
-			Sfx.play("menu_cancel")
 			if player > 0 and not _online:
-				_roster.leave(player)
+				# In a run only the mouse gets here (it is P1's), so this is a guard.
+				if _in_run:
+					if _roster.leave_midrun(player):
+						Sfx.play("player_leave")
+				else:
+					Sfx.play("menu_cancel")
+					_roster.leave(player)
 				_refresh()
 			else:
+				Sfx.play("menu_cancel")
 				back.emit()
 		&"confirm":
 			# Confirm starts from anywhere: Start is the one main button.
@@ -357,11 +443,17 @@ func _act(answer: StringName, player: int) -> void:
 			var step := -1 if answer == &"left" else 1
 			if row == _oath_row():
 				_step_oath(step, false)
-			elif row < _hero_names.size() and _roster.move_hero(row, step):
+			elif row < _hero_names.size() and _hand_on(row, step):
 				Sfx.play("menu_move")
 				_refresh()
 				if _online:
 					roster_changed.emit(_roster.copy())
+
+
+## Hands hero `slot` to the next (`step` +1) or previous player. In a run an only hero trades places
+## (#311); before a run it cannot move (the approved behaviour, DESIGN.md 9.1).
+func _hand_on(slot: int, step: int) -> bool:
+	return _roster.trade_hero(slot, step) if _in_run else _roster.move_hero(slot, step)
 
 
 ## How a player is shown: their device in a local game; host / online, and "(you)", online.
@@ -384,15 +476,16 @@ func _refresh() -> void:
 		if slot < _card_tags.size():
 			_card_tags[slot].text = "<  %s  >" % tag if coop else tag
 			_card_tags[slot].label_settings.font_color = HudStyle.player_color(owner)
-	_menu.set_item(_start_row(), "Start", not _online or _is_host)
+	_menu.set_item(_start_row(), PLAY_WORD if _in_run else START_WORD, not _online or _is_host)
 	if _start_button != null:
 		_start_button.visible = not _online or _is_host
 	_refresh_oath()
 	_update_focus()
 
 
-## The players line: each seat's tag; a player's device picture and name (online: host / online);
-## the first open seat shows the buttons that can join now, the later ones only their dim tag.
+## The players line: each seat's tag; a player's device picture and name (online: host / online),
+## in a run a joined P2 / P3's own Back button and "leave"; the first open seat shows the buttons
+## that can join now, the later ones only their dim tag.
 func _refresh_players() -> void:
 	var open_seat := _roster.player_count()
 	for i: int in _slots.size():
@@ -413,6 +506,8 @@ func _refresh_players() -> void:
 				glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 				line.add_child(glyph)
 			line.add_child(_slot_label(_player_name(i), HudStyle.player_color(i)))
+			if _in_run and i > 0:
+				_add_leave_chip(line, _roster.device_of_player(i))
 		elif _online:
 			line.add_child(_slot_label("waiting", HudStyle.TEXT_DIM))
 		elif i == open_seat:
@@ -437,6 +532,21 @@ func _add_join_chips(line: HBoxContainer, ways: Dictionary) -> void:
 		chips += 1
 	if chips > 0:
 		line.add_child(_slot_label("join", HudStyle.TEXT_DIM))
+
+
+## A joined P2 / P3's own Back button (their pad's, or the keyboard's key), then a dim "leave"
+## (the Players overlay in a run, #311).
+func _add_leave_chip(line: HBoxContainer, device: int) -> void:
+	var parts := HudStyle.binding_parts(&"menu_cancel")
+	var pad := device != PlayerRoster.KEYBOARD
+	var button := parts[1] if pad else parts[0]
+	if button.is_empty():
+		return
+	var chip := HudStyle.button_chip(button, pad, PLAYER_SIZE)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chip.modulate = CARD_DIM
+	line.add_child(chip)
+	line.add_child(_slot_label("leave", HudStyle.TEXT_DIM))
 
 
 static func _slot_label(text: String, color: Color) -> Label:
@@ -579,7 +689,7 @@ func _build_buttons() -> HBoxContainer:
 	var chip := HintBar.new([[&"menu_confirm", ""]], PLAYER_SIZE, HudStyle.TEXT)
 	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.add_child(chip)
-	_start_label = HudStyle.make_title("Start", START_SIZE)
+	_start_label = HudStyle.make_title(PLAY_WORD if _in_run else START_WORD, START_SIZE)
 	_start_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	line.add_child(_start_label)
 	return row

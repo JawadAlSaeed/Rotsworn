@@ -9,7 +9,8 @@ extends Node
 ## example Steam's) can replace ENet without touching the game.
 ##
 ## Handshake: a client sends its content fingerprint (DataHash) first. The host answers welcome or
-## refuse; a refused client is dropped. Until welcomed, a client's messages are ignored.
+## refuse (JoinGate decides who gets in, and how); a refused client is dropped. Until welcomed, a
+## client's messages are ignored.
 ##
 ## Rejoining (card #205): the welcome carries a secret seat token (SeatBook), kept in memory on both
 ## sides. A client whose connection goes during a run keeps its seat "away" for
@@ -17,6 +18,13 @@ extends Node
 ## gets that seat back (the build fingerprint is checked first, as always). Both ends ping each
 ## other, and a connection that stays silent for `net_drop_min_ms` .. `net_drop_max_ms` counts as
 ## lost, so a pulled cable never freezes a fight for long.
+##
+## Dropping in (card #304): while the host has `drop_in_open`, a newcomer is welcomed into the run
+## going on (a free seat, or a seat away at least `net_takeover_after_ms`: a friend whose game
+## crashed comes back this way), once Main's `drop_in_check` lets them in. A player who got in
+## mid-run (dropped in, or back with a token) gets their heroes in two steps: their machine catches
+## up with the host (the place screen built, or the fight showing the host's resume) and sends
+## "seated_ready"; the host hands the heroes over then, or at the fight's next quiet moment.
 ##
 ## Messages are (kind: String, payload: Dictionary) pairs of plain data. Reliable ones keep their
 ## order on one channel (game flow and combat must never overtake each other); position updates go
@@ -34,6 +42,8 @@ signal peer_left(peer: int)
 signal peer_away(peer: int)
 ## Host: the client that had `old_peer` joined again as `new_peer` (its seat token matched).
 signal peer_rejoined(old_peer: int, new_peer: int)
+## Host: a newcomer got in during a run (card #304): a new seat (old_peer 0) or the away seat of old_peer.
+signal peer_dropped_in(peer: int, old_peer: int)
 ## Client: the host is gone.
 signal host_lost
 ## A message from `from_peer` (1 = the host).
@@ -44,7 +54,11 @@ enum State { OFFLINE, HOSTING, CONNECTING, CONNECTED }
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const HOST_PEER: int = 1
 ## Bumped when the handshake or the message format changes in a way the fingerprint cannot show.
-const PROTOCOL: int = 2
+## 3: the welcome says whether it seats us mid-run, combat batches carry their fight's seed, and a
+## client that got in mid-run sends "seated_ready" (card #304).
+const PROTOCOL: int = 3
+## Client: the host could not be reached (short: it can end as a main menu notice).
+const REASON_UNREACHABLE := "Host not found"
 ## Channel for reliable messages (flow and combat) and for unreliable position updates.
 const RELIABLE_CHANNEL: int = 0
 const FAST_CHANNEL: int = 1
@@ -68,8 +82,16 @@ var _pending_since_ms: Dictionary = {}
 ## Host: clients that said goodbye (they left on purpose: no seat is kept for them).
 var _leaving: Dictionary = {}
 var _connect_started_ms: int = 0
-## When on, the host refuses new clients (a run started); only a seat's token gets back in.
+## When on, a run started: the host refuses new clients unless drop_in_open; a seat's token always
+## gets back into its own seat.
 var closed: bool = false
+## Host: newcomers are seated in the running run (Main opens it once the run is on and shuts it when
+## the run is decided, card #304). Off: only a seat's token gets into a started game.
+var drop_in_open: bool = false
+## Host: asked before a newcomer is welcomed into the run (card #304) with the away seat it would
+## take (0: a new seat); returns "" to let them in, else the refusal text. Main sets it, so a
+## refusal never comes after a welcome.
+var drop_in_check: Callable = Callable()
 ## Host: the seats and their tokens.
 var seats := SeatBook.new()
 ## Client: our seat token and the address we joined (kept after leave(), so a dropped player can
@@ -77,6 +99,8 @@ var seats := SeatBook.new()
 var _seat_token: String = ""
 var _seat_address: String = ""
 var rejoined: bool = false
+## Client: the last welcome seated us in a run already going (card #304).
+var joined_mid_run: bool = false
 ## Dev (--drop-after): the connection we dropped without a word, kept but never serviced again, so
 ## the host only notices through the heartbeat, as with a pulled cable.
 var _silent_peer: MultiplayerPeer
@@ -137,6 +161,7 @@ func join(address: String, port: int = 0) -> Error:
 	multiplayer.multiplayer_peer = peer
 	_connect_started_ms = Time.get_ticks_msec()
 	rejoined = false
+	joined_mid_run = false
 	if _seat_address != address.strip_edges():
 		# A seat token is only worth showing to the host that gave it.
 		_seat_token = ""
@@ -168,6 +193,7 @@ func leave(goodbye: bool = true) -> void:
 	_leaving.clear()
 	seats.clear()
 	closed = false
+	drop_in_open = false
 	_set_state(State.OFFLINE)
 
 
@@ -189,6 +215,11 @@ func seat_address() -> String:
 ## Client: forgets our seat (the run is over, or the host ended the game).
 func forget_seat() -> void:
 	_seat_token = ""
+
+
+## Client: the address we joined (the pause menu shows it so a friend can drop in too).
+func joined_address() -> String:
+	return _seat_address
 
 
 ## Dev (--drop-after): the client drops off the network without telling the host, like a pulled
@@ -237,6 +268,16 @@ func clients() -> Array[int]:
 ## Host: removes a client.
 func kick(peer: int) -> void:
 	_kick(peer)
+
+
+## Host: turns away a peer that was already welcomed (a seat that could not be given after all):
+## the reason reaches it first, its seat is forgotten, and no away or left signal follows.
+func refuse(peer: int, reason: String) -> void:
+	if state != State.HOSTING:
+		return
+	_welcomed.erase(peer)
+	seats.remove(peer)
+	_refuse_peer(peer, reason)
 
 
 ## The content fingerprint (computed once).
@@ -300,34 +341,56 @@ func _hello(their_fingerprint: Variant, their_protocol: Variant, their_token: Va
 		var theirs := DataHash.short_id(String(their_fingerprint)) if typeof(their_fingerprint) == TYPE_STRING else "?"
 		_refuse_peer(peer, "Your game is a different version from the host's (yours %s, the host's %s). Both need the same build." \
 				% [theirs, DataHash.short_id(fingerprint())])
-	elif closed and seats.peer_of(token) > 0:
-		# Our player is back: a seat's token is the only way into a started game, and only into
-		# that seat.
-		var old := seats.claim(token, peer)
-		if _welcomed.erase(old):
-			# The host had not noticed the old connection die yet: it is let go.
-			_kick(old)
-		_welcomed[peer] = true
-		_welcome.rpc_id(peer, token, true)
-		peer_rejoined.emit(old, peer)
-	elif closed:
-		_refuse_peer(peer, "The game has already started.")
-	elif _welcomed.size() >= MAX_CLIENTS:
-		_refuse_peer(peer, "The game is full.")
-	else:
-		var fresh := _new_token()
-		seats.add(peer, fresh)
-		_welcomed[peer] = true
-		_welcome.rpc_id(peer, fresh, false)
-		peer_joined.emit(peer)
+		return
+	var gate := JoinGate.decide(closed, drop_in_open, seats.peer_of(token), seats.size(),
+			seats.longest_away(Time.get_ticks_msec(), _tuning.net_takeover_after_ms), MAX_CLIENTS)
+	match int(gate.verdict):
+		JoinGate.Verdict.REJOIN:
+			# Our player is back: a seat's token gets into a started game, and only into that seat.
+			var old := seats.claim(token, peer)
+			if _welcomed.erase(old):
+				# The host had not noticed the old connection die yet: it is let go.
+				_kick(old)
+			_welcomed[peer] = true
+			_welcome.rpc_id(peer, token, true, false)
+			peer_rejoined.emit(old, peer)
+		JoinGate.Verdict.LOBBY:
+			var fresh := _new_token()
+			seats.add(peer, fresh)
+			_welcomed[peer] = true
+			_welcome.rpc_id(peer, fresh, false, false)
+			peer_joined.emit(peer)
+		JoinGate.Verdict.NEW_SEAT, JoinGate.Verdict.TAKE_AWAY:
+			_drop_in(peer, int(gate.old_peer))
+		_:
+			_refuse_peer(peer, String(gate.reason))
+
+
+## Host: a newcomer comes into the running run (card #304): a new seat (`old_peer` 0) or the away
+## seat of `old_peer`, whose token stops working. Main is asked first, so it never has to turn away
+## a peer that was already welcomed.
+func _drop_in(peer: int, old_peer: int) -> void:
+	var answer: Variant = drop_in_check.call(old_peer) if drop_in_check.is_valid() else JoinGate.REASON_CLOSED
+	var why := String(answer) if typeof(answer) == TYPE_STRING else JoinGate.REASON_CLOSED
+	if not why.is_empty():
+		_refuse_peer(peer, why)
+		return
+	if old_peer > 0:
+		seats.remove(old_peer)
+	var fresh := _new_token()
+	seats.add(peer, fresh)
+	_welcomed[peer] = true
+	_welcome.rpc_id(peer, fresh, false, true)
+	peer_dropped_in.emit(peer, old_peer)
 
 
 @rpc("authority", "call_remote", "reliable", RELIABLE_CHANNEL)
-func _welcome(token: Variant, was_rejoin: Variant) -> void:
+func _welcome(token: Variant, was_rejoin: Variant, mid_run: Variant) -> void:
 	if state != State.CONNECTING:
 		return
 	_seat_token = String(token) if typeof(token) == TYPE_STRING else ""
 	rejoined = typeof(was_rejoin) == TYPE_BOOL and bool(was_rejoin)
+	joined_mid_run = typeof(mid_run) == TYPE_BOOL and bool(mid_run)
 	_set_state(State.CONNECTED)
 	peer_joined.emit(multiplayer.get_unique_id())
 
@@ -409,7 +472,7 @@ func _new_token() -> String:
 
 
 func _on_connection_failed() -> void:
-	_fail("Could not reach the host. Check the address, and that the host is on the players screen.")
+	_fail(REASON_UNREACHABLE)
 
 
 func _on_server_disconnected() -> void:
@@ -428,7 +491,9 @@ func _refuse_peer(peer: int, reason: String) -> void:
 
 
 func _kick(peer: int) -> void:
-	if state == State.HOSTING:
+	# A refused client usually hangs up itself before the linger is over: nothing left to cut (ENet
+	# would print an error).
+	if state == State.HOSTING and multiplayer.get_peers().has(peer):
 		multiplayer.multiplayer_peer.disconnect_peer(peer)
 
 

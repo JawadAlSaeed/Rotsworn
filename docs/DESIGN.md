@@ -1926,7 +1926,7 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions and the mouse
   (6.2).
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
-  run map (B on the map too). Continue, Settings, Glossary (7.12), "Save & Quit" (a local run, 8.14), and "Abandon
+  run map (B on the map too). Continue, Players (a local game outside the tutorial, 9.3), Settings, Glossary (7.12), "Save & Quit" (a local run, 8.14), and "Abandon
   run" (asks first, then the main menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
   under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
@@ -3394,7 +3394,9 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
   It holds `RunState.to_dict()` exactly as it is (the save never reads its keys, so new run fields
   are saved without changing it), a format version, the content fingerprint (`DataHash.of_content`, only to tell which
   build wrote it: it is not checked, see below), whether the party is inside a stop, and how many
-  players share the pads.
+  players share the pads. A mid-run roster change (a friend joins or leaves from the pause menu's
+  Players row, or a lost pad's seat is given up, 9.3) rewrites the last checkpoint with the new
+  count and nothing else (`Main._resave_players`).
 - **Safe writes:** the new save goes to `run_save.json.tmp` first; the old save is kept as
   `run_save.json.bak` until the new file is in place; a load falls back to the backup if the main
   file is gone or broken. A write that fails leaves the old save as it was.
@@ -3484,7 +3486,8 @@ oath", and a run at Oath N is that oath kept.
   messages carry it too.
 - **Unlock**: per machine, in `user://settings.cfg` (`PlayerSettings.highest_oath_unlocked`, starts
   at 0). Winning a run at Oath N unlocks N+1; it never lowers and stops at the ladder's end
-  (`PlayerSettings.oath_after_win`, pure and tested). Online clients unlock on a win too. Bot runs
+  (`PlayerSettings.oath_after_win`, pure and tested). Online clients unlock on a win too, also a
+  friend who dropped into the run late (owner, 2026-10-23, 9.3). Bot runs
   (`--autoplay`) never write the file.
 - **Picking**: the players screen of a run (New Run and Host Online, not Practice) has an Oath row
   under the heroes: Left / Right (or Confirm to go round) picks none up to the highest unlocked, and
@@ -3851,7 +3854,8 @@ end shows on it: the Relics the run has, and this run's pips (`RunState.mastery`
 `mastery_needed` even past what the host still needed) on top of their own
 (`RunState.pips_totals_from`). Their end screen says what they keep, measured from their own
 collection (`relic_gain_line_since`). Same rules as the host: never in the tutorial or a dev screen,
-a bot only with `--relics-path`.
+a bot only with `--relics-path`. A friend who dropped in mid-run (phase 25, #304) keeps only the
+Relics and pips the run found after they joined (9.3).
 
 **Alder's pack with pockets (#282, built).** The grid backpack (8.1) lost its job when the charms
 went: its shapes, turning and moving were busywork for seven kinds of supplies. Now:
@@ -4022,7 +4026,8 @@ Tests: `tests/unit/test_weather.gd`.
   players) and Back to leave. Heroes are dealt out in turn (P1 gets the extra one: with 2 players
   P1 has Alder and Cass, P2 has Brin); left/right on a hero hands it to another player, as long as
   every player keeps one. Start (selected first) plays; P1's Back returns to the main menu. The
-  roster is kept for the session (same P1 = same split next time).
+  roster is kept for the session (same P1 = same split next time). Phase 25 leaves this screen as
+  it is; mid-run, friends join, leave and trade heroes from the pause menu's Players row (9.3).
 - **Hero cards** (cards #140, #141, user 2026-10-15): the players screen shows the heroes side by
   side as big painted portraits, like an arcade select screen (Metal Slug was the reference, but
   serious faces, not goofy): the players on one line at the top, then a framed card per hero (the
@@ -4056,7 +4061,9 @@ Tests: `tests/unit/test_weather.gd`.
   (after the current move) or a zone, the game is held under a "P2: controller disconnected" card
   (`PadLostOverlay`). The pad coming back under the same id carries on by itself; a button on
   another pad (or Confirm on a free keyboard) takes the seat over (`replace_device`); Pause gives
-  the seat up and the heroes are dealt out again. The players screen drops pads that are gone
+  the seat up: since phase 25 its heroes go to P1 (to P2 when P1's pad was lost; the old P2 then
+  becomes P1) and nobody else's heroes change (`leave_midrun`, 9.3; before, every hero was dealt
+  out again). The players screen drops pads that are gone
   (`drop_missing`) so a run never starts with a ghost player.
 - **Window focus** (card #181): alt-tab, the Steam overlay or a notification pauses a fight (after
   the current move) or a zone, solo and local co-op. Never online, where the others play on. The
@@ -4079,8 +4086,10 @@ Tests: `tests/unit/test_weather.gd`.
 - **Handshake**: a client first sends its content fingerprint (`DataHash`: SHA-256 of every file
   under `data/`, `scripts/` and `scenes/`, line endings ignored, plus the project version in
   `project.godot`; card #182, so a code-only change also splits the builds) and a protocol number.
-  A refusal names both short build ids ("yours a1b2c3d4, the host's e5f6a7b8"). A mismatch, a full game (3
-  players) or a started run is refused with a reason shown on the Join screen. Until welcomed, a
+  A refusal names both short build ids ("yours a1b2c3d4, the host's e5f6a7b8"). A mismatch or a
+  full game (3 players, "Game full") is refused with a reason shown on the Join screen. A started
+  run seats newcomers while drop-in is open (9.3), else "Run busy, try again". A host that cannot
+  be reached says "Host not found". The protocol number is 3 since phase 25. Until welcomed, a
   client's messages are ignored. A client that never says hello is dropped after
   `net_connect_timeout_ms`.
 - **Messages** are (kind, Dictionary of plain data). Reliable ones share one ordered channel (game
@@ -4088,7 +4097,7 @@ Tests: `tests/unit/test_weather.gd`.
   idea); zone positions go unreliable on channel 1. Only the host may send to clients
   (`@rpc("authority")`); clients' messages to the host are checked against the sender's peer id.
 - **Players screen online**: the host's lobby lists who joined, hands heroes out (left/right) and
-  starts; clients watch it. Starting closes the game to new joiners.
+  starts; clients watch it. Starting closes the players screen; friends drop in from then on (9.3).
 - **Run flow**: the host's machine runs the run exactly as offline. Each screen it shows is sent
   as a "screen" message with the whole `RunState.to_dict()` (gear by id; the map comes from the
   seed); any later change of the run (a purchase, gear, a level) is sent as "run". Clients only
@@ -4135,7 +4144,8 @@ Tests: `tests/unit/test_weather.gd`.
   `BYE_LINGER_S`; quitting is held back only while hosting), since the other end handles a
   disconnect before the messages that came with it. Without it friends took the lost line for a
   dropped host and waited on the Join screen to take their seat back. Online, the pause menu opens over a game that goes on (it
-  offers Leave / End the game).
+  offers Leave / End the game, and shows the host's address in gold under PAUSED so another friend
+  can drop in, 9.3).
 - **Dropping and rejoining** (card #205, 2026-10-18):
   - *Heartbeat*: both ends keep pinging (ENet), and a connection that answers nothing for
     `net_drop_min_ms` .. `net_drop_max_ms` (3 to 6 s) counts as lost, so a pulled cable, a crash or
@@ -4152,9 +4162,10 @@ Tests: `tests/unit/test_weather.gd`.
     at their turn: nobody sits frozen for two minutes, and it is what leaving already did.
   - *Coming back*: the dropped player's game opens the Join screen with the host's address and a
     note ("Press Enter (A on a pad) to take your seat back"; the Join screen now takes a pad's
-    confirm too). The hello carries the token after the build fingerprint check; a started
-    game lets in only a token's own seat (no token, a wrong one or an
-    expired one: "The game has already started"). A token wins its seat even if the host has not
+    confirm too). The hello carries the token after the build fingerprint check; a token gets its
+    own seat back in a started game, even while drop-in is shut. A hello with no token, a wrong one
+    or an expired one is a newcomer (9.3: a free seat, a seat away 15 s or more, or "Game full" /
+    "Run busy, try again"). A token wins its seat even if the host has not
     noticed the old connection die yet (the old one is let go), and a peer that already has a seat
     cannot take another. The host then sends `run_start`, the place screen it is on (map, zone,
     shop ...) with the whole run, and the fight message if a fight is on.
@@ -4162,13 +4173,18 @@ Tests: `tests/unit/test_weather.gd`.
     (`CombatEngine.resume_events()`: combat_started with every fighter as they are now, the
     practice options, the team gauge, every intent, the turn order and the waiting turn, or the
     end). The host sends it at the next moment nothing is timed (a hero's turn, or the end), never
-    mid-attack, and gives the seat back at that same moment (the roster goes first), so no attack
-    is half theirs. The mirror rebuilt from it equals the engine (a test), and normal event flow
-    continues; `AUTOPLAY_MIRROR` still matches on every machine. Outside a fight the seat comes
-    back at once.
-  - If the grace time runs out the seat is given up as above. Limits: the token lives in memory,
-    so a player whose game crashed (restarted) cannot take the seat back; only a dropped
-    connection can. The away chip reads "P2 away"; the host's player sees the countdown.
+    mid-attack. The mirror rebuilt from it equals the engine (a test), and normal event flow
+    continues; `AUTOPLAY_MIRROR` still matches on every machine.
+  - *The seat comes back in two steps* (phase 25, 9.3): once the rejoiner's machine shows what the
+    host has (its place screen is built, or its fight applied the resume) it says so
+    (`seated_ready`), and the host gives the seat back at once outside a fight, or at the fight's
+    next quiet moment. So no attack is half theirs, and the seat is never theirs before their own
+    screen shows the game. (Until phase 25 the seat came back with the resume.)
+  - If the grace time runs out the seat is given up as above. The token lives in memory, so a
+    player whose game crashed (restarted) has none. Since phase 25 they come back as a newcomer and
+    take the away seat once it has been away `net_takeover_after_ms` (15 s, 9.3); a fresher one is
+    held for its own token. The away chip reads "P2 away"; the host's player sees the countdown. A
+    newcomer still catching up shows "P2 joining" (no countdown).
 - **Sharing the game**: one fixed download link,
   `https://github.com/JawadAlSaeed/Rotsworn/releases/download/latest-build/Rotsworn.zip`. Every
   push to `main` (except one that only changes Markdown or `docs/`) runs
@@ -4191,14 +4207,243 @@ Tests: `tests/unit/test_weather.gd`.
   now uncovers the screen instead of leaving a black card that eats input. Everyone online
   plays that same build: a run from the editor has a different content fingerprint (the export
   stores resources differently) and is refused.
-- Bot: `--host=N` hosts and starts a run once N players are in; `--join=ADDRESS` joins. Both play
+- Bot: `--host=N` hosts and starts a run once N players (1 to 3) are in (`--host=1` starts at once
+  alone, friends drop in later, 9.3); `--join=ADDRESS` joins. Both play
   with `--autoplay`; each presses only for its own player. `--drop-after=S` makes a client drop off
   the network S seconds after joining without a word (the host finds out through the heartbeat);
   `--drop-in-fight` makes that drop wait for the next fight and come a few seconds into it;
   `--rejoin[=S]` joins again S seconds (default 10) after losing the host. Without `--rejoin` an
   autoplay client that loses the host still fails with `AUTOPLAY_ERROR host_lost`. `--end-after=S`
   makes the host end the game for everyone S seconds after starting (as End the game does, once
-  a run is on); host and client then both print `AUTOPLAY_RESULT host_ended`.
+  a run is on); host and client then both print `AUTOPLAY_RESULT host_ended`. Phase 25 (9.3):
+  `--join-after=S` makes a client connect S seconds after launch, into a run going;
+  `--seat-in-fight` makes the host seat a friend who drops in only a few seconds into the next
+  fight; `--crash-after=S` makes a client quit S seconds after launch without a goodbye, like a
+  crash. An online pair now plays for 25 to 30 minutes, so give each side `timeout 2700`.
+
+### 9.3 Drop-in co-op (phase 25, cards #304, #311, built 2026-10-23, waiting for playtest)
+
+A friend can join a run that is already going, on a local pad or online, and local friends can
+leave or swap heroes mid-run. Branch `phase25-Together`.
+
+Owner decisions (2026-10-23):
+1. No computer teammate. A newcomer takes a hero P1 (local) or the host (online) was playing.
+2. A local friend joins any time from a Players row in the pause menu. In a fight the change waits
+   for a quiet moment, like pausing.
+3. Online, a late joiner keeps only the Relics and Echo pips found after they joined. A win still
+   unlocks their next Oath.
+
+Defaults chosen while building (not asked; the owner may overrule them, section 12):
+- Online drop-in is open whenever a seat is free. It shuts once the run is decided and during Again.
+- The host's address shows in the online pause menu.
+- A newcomer may take an away seat (this is how a friend whose game crashed comes back), but only
+  one away for `net_takeover_after_ms` (15 s in tuning), so a quick token rejoin always wins its
+  own seat.
+- A crashed friend who comes back with a fresh game counts as late from their return.
+- A local leaver's heroes go to P1. At most 3 players, as before.
+- No Players row in the tutorial. The pre-run players screen keeps its approved left/right (no
+  trade there).
+
+**Local: the Players overlay.**
+
+- **The row**: the pause menu has a **Players** row second, after Continue, with a two-heads
+  picture (`PauseMenu.players_row`, `Item.PLAYERS`). It shows in a local game outside the tutorial
+  (a fight, a zone, the map; practice too, where nothing is saved). Anyone may open the pause menu,
+  even a pad that is not playing yet. In a fight it opens after the current move, as any pause.
+- **The overlay**: Confirm on the row opens the players screen in its in-run mode over the pause
+  menu (`LobbyScreen.setup_in_run`): the same hero cards and seats, an opaque backdrop, no Oath
+  row, and the big button reads **Play**. Footer: Choose, Change, Play, Back.
+- **Join**: the first open seat shows the Confirm buttons that can join now (a free pad's, the free
+  keyboard's) and "join". A free device's Confirm joins as the next player (`join_midrun`, sound
+  `player_join`) and takes one hero at once by the donor rule (below). Nobody else's heroes change.
+  With three players there is no open seat, and another device's Confirm plays `locked`.
+- **The donor rule** (`PlayerRoster.donor_hero`, local and online): the player holding the most
+  heroes gives one (ties: the lower player, so P1 or the host). They give the usual deal's hero for
+  the new seat (P2 Brin, P3 Cass) when they hold it, else their last one. An away (or joining)
+  online player never gives, even when only they hold two: their seat and heroes stay theirs until
+  they are back or the seat goes (the newcomer gets "Game full" meanwhile).
+- **Leave** (#311): each joined player but P1 shows a dim "[B] leave" chip with their own device's
+  Back button. Their Back leaves at once (`leave_midrun`, sound `player_leave`): their heroes go to
+  P1, and a P3 who stays moves up to P2 with their heroes. On the keyboard Back is Backspace, Q or
+  Esc. Esc is also Pause; for a joined keyboard P2 or P3 it means leave (checked before Pause). When
+  the last friend leaves the game is solo again (every device controls everything).
+- P1 cannot leave a run: P1's Back (or Esc) closes the overlay. Save & Quit or Abandon run end it.
+- **Swap**: left/right on a hero card hands it to the next or previous player (`trade_hero`). If it
+  is that player's only hero, the two players trade instead (the other player's first hero comes
+  back), so three players can still swap. Only on this overlay; the pre-run screen keeps its rule
+  (an only hero cannot move).
+- **Modal**: a device that has not joined can only join. Every other press over the overlay is
+  swallowed, so nothing under it (the zone's backpack) moves. The mouse always acts for P1.
+- **Closing keeps the changes**: Play (Confirm from any joined player) applies the roster and goes
+  back to the game. Back from P1, or anyone's Pause, applies it and goes back to the pause menu.
+  Nothing is thrown away after a friend joined. Closing with nothing changed changes nothing
+  (`same_as`, or solo before and after): no save rewrite, and the fight's action menu stays where
+  it was (Skills list, target step).
+- **After a change**: menus, defence and skill presses answer each player's own device (9.1), the
+  party panels show P1/P2/P3 tags, hints show keys and pad buttons when both are in use, and each
+  pad buzzes for its own heroes. In zones only P1 walks, as before. Every real change rewrites the
+  run save with the new player count (8.14).
+- **P1's real device**: while solo every device controls everything, so the game does not know P1's
+  pad. When the overlay opens solo, P1 becomes the device that last pressed a button (or pushed a
+  stick to walk) while the game itself was played (`PlayerRoster.play_device_after`,
+  `Main._note_play_device`). The press that opened the pause (Pause, or Back on the map) never
+  counts, nor a press while a menu, the lost-pad card or a pending fight pause was up, nor any
+  press in co-op (it may be a friend's). Every roster change (a run start or Continue, a join, leave
+  or trade, the lost-pad card) resets it to the roster's P1 (`Main._reset_play_device`), so a pad a
+  friend pressed before leaving never becomes P1. So a friend who paused on their own pad does not
+  take P1's seat; they press Confirm on the overlay to join. A pad that is no longer plugged in is
+  never P1's: the overlay takes the first of that device, the roster's P1 and the device that
+  pressed last that is the keyboard or a plugged pad, else the keyboard
+  (`PlayerRoster.overlay_p1_device`).
+- **The lost-pad card** (9.1): Give heroes follows the leave rule: the heroes go to P1 (to P2 when
+  P1's pad was lost; the old P2 becomes P1) and nobody else's change.
+- **Quiet moments**: the overlay opens from the pause menu, so the game is already held when it
+  applies. A change from the bot (`--pad-join-after`) during a fight waits the same way:
+  `Main._change_local_roster` asks the fight to pause after the current move, applies the roster
+  when it gets there and lets the fight go on by itself. A waiting change is never lost: if the
+  fight ends first it applies then. The fight goes on by a deferred resume
+  (`Main._resume_quiet_pause`), as it does after a lost pad that came back before its pause landed:
+  the pause can land inside the fight's event loop, which would stall if resumed from there.
+- Local joining needs the map, a zone or a fight. The shop, campfire, event, treasure, loot and
+  party screens have no pause menu, and the next map is never more than a stop away.
+
+**Online: a friend drops in.**
+
+- Nothing to press on the host. The online pause menu (host and friends) shows the address in gold
+  under PAUSED: `Address  192.168.1.20     Port  7777`. The friend opens Join Online and connects.
+- **Who gets in** (`JoinGate.decide`, pure; `Net._hello` asks it after the build check):
+
+  | Case | Result |
+  |---|---|
+  | the players screen is open (before Start, or after Again) | the lobby as before; "Game full" at 3 |
+  | a started run, the hello has a seat's token | that seat back (#205), even with drop-in shut |
+  | drop-in shut (Start to the first screen, the run end, Again's fade) | "Run busy, try again" |
+  | a seat away at least `net_takeover_after_ms` (15 s) | that seat (the one away longest) |
+  | a free seat | a new seat |
+  | none of these | "Game full" |
+
+  An old enough away seat goes before a free one: it is most likely the crashed friend. Before the
+  welcome Net asks Main (`Net.drop_in_check`, `Main._drop_in_refusal`), so a refusal never comes
+  after a welcome (`Net.refuse` is only a fallback). Drop-in opens at the end of `_new_run`, after
+  the first screen is sent, and shuts in `_close_decided_run`, `_show_run_end`, `_play_again` and
+  `_abandon_run` (`Main._set_drop_in`). The drop-in refusal texts and the not-found text ("Game
+  full", "Run busy, try again", "Host not found") are at most 4 words, so they also fit the main
+  menu notice (a test). The older connect texts (no answer, a different build) are not covered.
+- **Which hero**: the donor rule, automatic. With the usual deals it is always a hero the host was
+  playing. The newcomer's player is **joining** (`PlayerRoster.joining`, always also away): the host
+  keeps playing that hero, no seat time runs, and a chip on every machine reads "P3 joining" (no
+  countdown). The host plays `player_join`.
+- **Catching up**: the newcomer's Join screen says "Joining the run ...". The host sends
+  `run_start` (with `late`), the place screen with the whole run, and the fight if one is on, even
+  one that just ended (`Main._catch_up`). The friend then sees where the host is: a watched run
+  screen ("The host is choosing (P1)"), the zone (its loading card first; only the host walks), or
+  the fight as it stands at the next hero's turn (the #205 resume).
+- **The two-step hand-over**: the hero becomes theirs only once their own screen shows the game.
+  1. In a fight the host sends the resume at the next quiet moment (a hero's turn or the end),
+     never mid-attack.
+  2. The newcomer's machine has built the place screen, or its fight has played everything the
+     host sent since its first batch or the resume: nothing queued, no attack or skill still
+     running (`CombatController.caught_up`, `drained`). So no sequence the host already played with
+     itself judging that hero still waits there. It sends `seated_ready` with the fight it shows
+     (each catch-up point once).
+  3. The host hands the hero over at once outside a fight, or at the fight's next quiet moment
+     (`queue_seat`, `seat_ready`). `JoinGate.ready_action`: the same fight, at the quiet moment;
+     neither in a fight, now; else not yet (the client is behind or ahead and says so again at its
+     next screen or fight). A fight counts from the moment the host announces it, during its swirl
+     before anything is built (`JoinGate.host_fight`, from `Main._net_fight`), so a "caught up on
+     the place screen" that lands then never hands the hero over before the newcomer's fight
+     starts (it would start on the old roster).
+
+  Then the chip goes and the friend's game prints "Playing now". The same two steps now bring back
+  a #205 rejoiner's seat too (9.2).
+- **Batches per fight**: every combat batch (and the resume) carries its fight's seed. A client
+  keeps early batches per fight (`FightInbox`, pure). So a host that finishes a fight during a long
+  catch-up and starts the next one never throws away the batches of the fight still waiting to be
+  built. The newcomer builds the old fight from its resume, follows the zone return, then builds the
+  next fight from its first batch. Whether a fight is a rejoin is read when its screen is built,
+  not when the message arrives. A resume into a boss or guard fight that already raged shows the
+  phase-two arena at once and plays the rage song, with no intro banner
+  (`CombatController.raging_on_resume`).
+- **Rosters through a sequence**: both runners hold a roster change that comes during a sequence
+  until it hands back (`_held_roster`). A lower player leaving mid-attack moves everyone up, so
+  presses and freezes must keep the player numbers the judges were built with.
+  `CombatController.keeps_menu` leaves the open action menu alone when a roster arrives and the
+  acting hero keeps its player on the same machine (every drop-in sends at least two rosters).
+- **Joining versus away**: a newcomer who loses the connection while joining keeps no seat. The host
+  drops them for good and their game forgets the token (no "Seat kept", no Rejoin), and they can
+  drop in again. Their game decides this from the newest roster the host sent, even one still
+  waiting behind a screen change (`Main._newest_roster`), so a friend already seated keeps the token. A #205 rejoiner who drops again while catching up stays away and keeps their
+  token. A welcomed friend never seated (the `--seat-in-fight` wait) leaves no seat behind.
+- **Two newcomers at once**: the host handles hellos one after another, so the second gets the next
+  seat or "Game full". Both catch up and are seated on their own.
+- **Again**: drop-in shuts, the players screen reopens to joins as before, and seats still marked
+  away by friends catching up are given back first. A friend who dropped into run 1 and stays
+  through Again is there from the start of run 2.
+- Online has no Players row: hand-outs are automatic only (the online pause menu does not stop the
+  game).
+
+**Online: a crashed friend comes back.** The #205 token lives in memory, so a friend whose game
+crashed or was closed had no way back. Now they restart, open Join Online and connect with no
+token. They get the seat of the player away longest, if it has been away at least
+`net_takeover_after_ms` (15 s): their old seat number and heroes. "P2 away, seat kept 1:12" becomes
+"P2 joining", then goes. A fresher away seat is held for its own token (a Wi-Fi blip): the newcomer
+gets a free seat if there is one and someone who is not away holds two heroes, else "Game full". A token that is still good gets its own seat
+back first, as before. Once a seat is taken over its old token stops working.
+
+**Online: what a late joiner keeps (#281 with #304).**
+
+- The run plays with the host's Relic bag and Echoes, as with any friend (8.19).
+- A friend who dropped in banks into their own Relic file only the Relics the run found after they
+  joined, and only the Echo pips earned after they joined (on top of their own). The host sends
+  `late` only in a drop-in's `run_start`. Their game takes the run's Relics and pips from the first
+  run state it gets (`Main._join_relics`, `_join_mastery`; `RunState.relic_ids_since`,
+  `pips_totals_since`) and banks nothing before that.
+- Their run end's Kept row shows only those finds (`RunEndScreen.own_kept`), measured from their own
+  collection plus what the run had when they arrived. A Relic the run had before they came shows
+  there only if their own collection has it, so it never wears an Echo tag their file would not
+  keep (their file keeps pips only for Relics it has).
+- A win still unlocks their next Oath (8.15).
+- A friend there from the start keeps everything. A #205 token rejoiner keeps their original start.
+- A crashed friend who comes back with a fresh game counts as late from their return: what they
+  banked before the crash (at each map) stays theirs, the finds from their last map to their return
+  do not.
+
+**Dev and bot switches** (debug builds; the `AUTOPLAY_` lines only with `--autoplay`):
+- `--pad-join-after=S`: a pretend pad joins the local run S seconds after launch, at the next quiet
+  moment, through the same roster change as the overlay (`AUTOPLAY_ROSTER join p=2 device=1
+  at=fight owners=0,1,0`).
+- `--pad-leave-after=S`: the last local player leaves (`AUTOPLAY_ROSTER leave p=2 at=... owners=...`).
+- `--roster-in-fight`: those two wait for the next fight and come a few seconds into it.
+- `--host=1`: host and start at once alone; friends drop in later.
+- `--join-after=S` (with `--join`): connect S seconds after launch, into a run going
+  (`AUTOPLAY_JOIN after S s`, then `Joined mid-run as peer N` and `AUTOPLAY_DROPIN joined peer=N`).
+- `--seat-in-fight` (online host): seat a friend who drops in only a few seconds into the next fight
+  (they wait on "Joining the run ..." meanwhile).
+- `--crash-after=S` (with `--join`): quit S seconds after launch without a goodbye, like a crash
+  (`AUTOPLAY_CRASHED after S s`). Its log has no result line, and it ends with the engine's report
+  of resources still in use at exit (not a game error).
+- Host lines: `Player dropped in: P2 (peer N) at zone (fight)`, `AUTOPLAY_DROPIN P2 peer=N took=0
+  place=zone fight=1` (`took` is the old peer of a taken away seat), `Fight resumed for peer N at
+  turn T`, `Player plays again: P2 (peer N)`, `AUTOPLAY_SEATED P2 peer=N`. Friend lines: `Playing
+  now: P2 heroes [1]`, `AUTOPLAY_SEATED P2 heroes=1`, `Joined late: N Relics, M Echo pips already found`.
+- Every run end prints `AUTOPLAY_PLAYERS n=2 owners=0,1,0` before `AUTOPLAY_RESULT`, the same on
+  every machine.
+- Dev screens: `--screen=players_in_run` (the overlay over the pause menu, two players) and
+  `--screen=pause_players` (the pause menu with its Players row).
+
+**Known limits** (not bugs):
+- A newcomer can take the seat of a friend away 15 s or more; that friend then needs a free seat.
+- A crashed friend who returns with a fresh game loses what the run found between their last map
+  and their return.
+- Local joining waits for the map, a zone or a fight.
+- A late joiner banks nothing found before they arrived, even Relics new to them.
+- The run end's defence rows follow the heroes' players at the end of the run.
+- A client far behind the host still risks its first attack timing out after its seat comes back
+  (as for any lagging friend).
+
+Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`, the pause tests in
+`test_menus_clean.gd`, and the late joiner tests in `test_relics.gd` and `test_run_info_clean.gd`
+(10).
 
 ---
 
@@ -4292,8 +4537,27 @@ Tests: `tests/unit/test_weather.gd`.
   back as ints, unknown keys survive, other content or format and damaged files are refused, a
   failed write keeps the old save, the backup covers a broken main file, delete clears all.
 - Online smoke test: start `--autoplay --host=2 --seed=N --quit-on-end` and then
-  `--autoplay --join=127.0.0.1 --quit-on-end` (both headless, about 15 minutes). Both print the
+  `--autoplay --join=127.0.0.1 --quit-on-end` (both headless, about 25 to 30 minutes, so
+  `timeout 2700` each). Both print the
   same `AUTOPLAY_RESULT run_...` line and the same `AUTOPLAY_MIRROR` hashes, and no ERROR lines.
+  Every host uses the tuning port, so only one online game can run from the repo at a time.
+- Drop-in co-op (`test_dropin.gd`, phase 25, 9.3): the roster's mid-run join (the donor rule, the
+  refusals), leave and trade, `joining` travels as data and follows a drop, `same_as`, P1's play
+  device; the join gate (lobby, token, shut, new seat, away seat), `ready_action`, `SeatBook.size`
+  and `longest_away`, the short refusal texts, the takeover wait in tuning, `FightInbox`,
+  `keeps_menu`, runners holding their roster through a sequence, the `late` flag's source, the dev
+  switches. `test_coop.gd` checks the in-run overlay (never resets the roster, P1's real device,
+  join, P2's Back and a keyboard P2's Esc leave, P1's close, Play, no Oath, trades, the pre-run
+  left/right unchanged, the leave chip, modal, no change is the same roster); `test_menus_clean.gd`
+  the pause row and the address note; `test_relics.gd` and `test_run_info_clean.gd` a late joiner
+  keeping only later finds. Autoplay checks (headless): local `--run --players=1
+  --pad-join-after=30 --pad-leave-after=240`, `--players=2 --pad-join-after=20 --roster-in-fight`
+  and `--players=3 --pad-leave-after=20 --roster-in-fight` print their `AUTOPLAY_ROSTER` lines and
+  the matching `AUTOPLAY_PLAYERS`. Online, `--host=1` with a `--join-after=45` friend (and with
+  `--seat-in-fight` and `--join-after=20`), a third player into `--host=2` at 60 s, a
+  `--crash-after=40` friend replaced by a `--join-after=75` one, and two newcomers at once all end
+  with the same `AUTOPLAY_PLAYERS` and `AUTOPLAY_RESULT` lines on every machine still there, and a
+  late joiner's `AUTOPLAY_MIRROR` lines equal the host's last ones.
 - Save & Quit smoke test: `--autoplay --run --seed=N --save-path=FILE`, stop it part way with a
   timeout, then `--autoplay --continue --quit-on-end --save-path=FILE`: the second run prints
   `Run continued: ...` and plays on from that stop. A finished run deletes FILE.
@@ -4491,6 +4755,15 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     rats' own voice (#298, 5.3). New sounds picked by ear on 2026-10-22: rat voice, thunder, streak
     swell, rain and wind loops. Added on 2026-10-23 from an idea search: skill presses climb with a
     finish for a perfect skill (#307), and the killing blow goes quiet (#308) (7.15).
+25. **Playing together** (started 2026-10-23, branch `phase25-Together`): drop-in co-op (#304) and
+    leaving or swapping heroes mid-run (#311) are built, waiting for playtest (9.3). A friend joins
+    a run already going, on a local pad from a Players row in the pause menu or online with nothing
+    for the host to press, and takes a hero P1 or the host was playing; a friend whose game crashed
+    drops back into their seat; a late online joiner keeps only later finds. Local friends leave or
+    swap heroes from the same overlay. Not built yet: Fight Rush, fight after fight for the best
+    round, no map, zones, shops or campfires (#305; it brings back the endless mode dropped in
+    #267), and Fight Rush online (#312); details to agree with the owner before building. Ideas:
+    Save & Quit for online runs (#313), online friends take turns choosing (#314).
 
 ### 11.1 To-do (from playtests)
 
@@ -4735,3 +5008,9 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-23 | The weather is not written under the zone's name | owner: "do we really need to state the weather?"; it shows itself and changes nothing in play (like Octopath Traveler); a label can come back if weather ever changes the rules |
 | 2026-10-23 | Phase 24 also gets the skill press ladder with a perfect finish (#307) and the quiet killing blow (#308) (7.15) | owner picked the top two of a ranked idea search: small, no text, no new sounds, felt in every fight |
 | 2026-10-23 | Phase 24 "Feel and atmosphere" done: controller vibration, the defence streak, weather and time of day, the rats' voice, the skill press ladder with a perfect finish, the quiet killing blow (2.18, 7.14, 7.15, 8.20) | owner playtested it: "already tested well done"; approved, v0.24.0 |
+| 2026-10-23 | Drop-in takes a hero P1 (local) or the host (online) was playing; no computer teammate. The player holding the most heroes gives one: the usual deal's hero for the new seat (P2 Brin, P3 Cass) if they hold it, else their last (9.3) | owner (#304); the newcomer plays at once and nobody else loses a hero |
+| 2026-10-23 | Local friends join and leave from a Players row in the pause menu; in a fight the change waits for a quiet moment, like pausing; left/right on that overlay trades heroes (9.3) | owner (#304, #311); timed attacks cannot be frozen fairly, so the roster never changes mid-move |
+| 2026-10-23 | A late online joiner keeps only the Relics and Echo pips found after they joined; a win still unlocks their next Oath (9.3, 8.19) | owner (#304) |
+| 2026-10-23 | Defaults (owner may overrule): online drop-in is open while a seat is free and shut once the run is decided and during Again; the host's address shows in the online pause menu; a local leaver's heroes go to P1; at most 3 players; no Players row in the tutorial; the pre-run players screen keeps its left/right (no trade there) (9.3) | not asked; chosen while building phase 25, keeping the approved screens as they are |
+| 2026-10-23 | Default (owner may overrule): a newcomer may take an away seat only once it has been away 15 s (`net_takeover_after_ms`); this is how a friend whose game crashed comes back (9.3) | a Wi-Fi blip comes back with its token within seconds and must not lose its seat to a newcomer; a crashed game has no token |
+| 2026-10-23 | Default (owner may overrule): a crashed friend who comes back with a fresh game banks only what the run finds from their return; what they banked at earlier maps stays (9.3) | their token and their start lived in the crashed game's memory, so the host cannot tell them from a newcomer |

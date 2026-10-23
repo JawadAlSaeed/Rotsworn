@@ -117,6 +117,43 @@ func test_tutorial_pause_has_a_skip_picture() -> void:
 	assert_eq(pause.glyph_kind(4), &"door")
 
 
+func test_pause_players_row_has_a_picture() -> void:
+	var pause := PauseMenu.new()
+	pause.players_row = true
+	add_child_autofree(pause)
+	pause.setup("Abandon run", "", "", "", "Save & Quit")
+	var kinds: Array[StringName] = []
+	for i: int in 6:
+		kinds.append(pause.glyph_kind(i))
+	assert_eq(kinds, [&"play", &"players", &"gear", &"book", &"save", &"door"] as Array[StringName],
+			"Players comes second, after Continue (DESIGN.md 9.3)")
+	assert_true(_shown_texts(pause).has("Players"))
+	watch_signals(pause)
+	pause._unhandled_input(_action(&"menu_down"))
+	pause._unhandled_input(_action(&"menu_confirm"))
+	assert_signal_emitted(pause, "players_requested")
+	assert_signal_not_emitted(pause, "resumed")
+
+
+func test_pause_note_is_one_gold_line() -> void:
+	var plain := PauseMenu.new()
+	add_child_autofree(plain)
+	plain.setup("End the game")
+	var line := LobbyScreen.address_line(["192.168.1.20"] as Array[String], 7777)
+	assert_eq(line, "Address  192.168.1.20     Port  7777")
+	assert_eq(LobbyScreen.address_line([] as Array[String], 7777), "Address  no network     Port  7777")
+	var noted := PauseMenu.new()
+	noted.note = line
+	add_child_autofree(noted)
+	noted.setup("End the game")
+	assert_true(_shown_texts(noted).has(line), "the address is shown under PAUSED")
+	assert_false(_shown_texts(plain).has(line))
+	assert_eq(_texts(noted).size(), _texts(plain).size() + 1, "one extra line, nothing else")
+	for label: Node in noted.find_children("*", "Label", true, false):
+		if (label as Label).text == line:
+			assert_eq((label as Label).label_settings.font_color, HudStyle.GOLD, "in gold")
+
+
 # --- Main's prompts and notices --------------------------------------------------------------
 
 func test_main_still_compiles() -> void:

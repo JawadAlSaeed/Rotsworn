@@ -497,6 +497,9 @@ extends Resource
 ## A client that dropped mid-run keeps its seat this long (the host plays its heroes meanwhile); it
 ## can join again with the host's address and play on. After this the seat is given up (0: never kept).
 @export_range(0, 1800000, 1, "suffix:ms") var net_rejoin_grace_ms: int = 120000
+## A newcomer may take the seat of a player away at least this long (a friend whose game crashed
+## comes back this way, card #304); a fresher away seat is held for its own token (a quick rejoin).
+@export_range(0, 1800000, 1, "suffix:ms") var net_takeover_after_ms: int = 15000
 
 @export_group("Controls")
 ## Settings > Controls (card #190): after picking a key or button to change, the game waits this

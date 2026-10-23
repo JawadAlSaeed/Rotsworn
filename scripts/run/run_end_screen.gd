@@ -52,9 +52,11 @@ var _guard_s: float = 0.0
 ## `recap`: the last fight (FightRecap.to_dict) on a defeat: the killer's row; empty: none.
 ## `own_start`: an online friend's own collection at the start (card #281): what they keep is
 ## measured from it; null: the run's own start.
+## `own_since`: {relics, mastery} when the friend joined mid-run (card #304): only later finds are
+## theirs; empty: from the start.
 func setup(run: RunState, input_guard_ms: int, unlocked_oath: int = 0, recap_lines: Array[String] = [],
 		keep_line: String = "", players: Array[int] = [], recap: Dictionary = {},
-		own_start: RelicCollection = null) -> void:
+		own_start: RelicCollection = null, own_since: Dictionary = {}) -> void:
 	_guard_s = float(input_guard_ms) / 1000.0
 	var won := run.result == RunState.VICTORY
 	Sfx.play("run_cleared" if won else "run_over")
@@ -76,7 +78,7 @@ func setup(run: RunState, input_guard_ms: int, unlocked_oath: int = 0, recap_lin
 	column.add_child(_defence_rows(run, players))
 	# What the run found stays, won or lost (DESIGN.md 8.17, 8.19).
 	if own_start != null:
-		column.add_child(_kept_row(kept_relics(run, own_start.found, own_start.pips)))
+		column.add_child(_kept_row(own_kept(run, own_start, own_since)))
 	elif not keep_line.is_empty():
 		column.add_child(ListMenu.centred_label(keep_line, RECAP_SIZE, HudStyle.GOLD))
 	else:
@@ -127,10 +129,14 @@ func _stat_row(run: RunState) -> Control:
 
 ## The Relics a run keeps, measured from `found_before` (id -> any) and `pips_before` (id -> pips):
 ## [{item, new (found for the first time), echo (its Echo learned for good in this run)}], in the
-## run's Relic order. The same rule as RunState.relic_gain_line_since.
-static func kept_relics(run: RunState, found_before: Dictionary, pips_before: Dictionary) -> Array[Dictionary]:
+## run's Relic order. The same rule as RunState.relic_gain_line_since (which has no late join; a late
+## joiner's end screen shows this row, own_kept, never words). `mastery_before`: the run's
+## pips when an online friend joined late (card #304), so only the pips earned after count; empty:
+## the whole run's.
+static func kept_relics(run: RunState, found_before: Dictionary, pips_before: Dictionary,
+		mastery_before: Dictionary = {}) -> Array[Dictionary]:
 	var kept: Array[Dictionary] = []
-	var totals := run.pips_totals_from(pips_before)
+	var totals := run.pips_totals_since(pips_before, mastery_before)
 	var needed := run.tuning.mastery_needed
 	for item: GearData in run.data.gear:
 		if item == null:
@@ -139,6 +145,21 @@ static func kept_relics(run: RunState, found_before: Dictionary, pips_before: Di
 		var learned := int(pips_before.get(item.id, 0)) < needed and int(totals.get(item.id, 0)) >= needed
 		if found or learned:
 			kept.append({"item": item, "new": found, "echo": learned})
+	return kept
+
+
+## What an online friend keeps (card #281), measured from their own collection at the start.
+## `own_since` {relics, mastery}: the run's Relics and pips when they joined mid-run (card #304), so
+## only later finds and pips count; empty: from the start. A Relic the run had before they joined is
+## never New, and is not kept for its Echo either unless their own collection has it (their file
+## keeps pips for its own Relics only, RelicCollection.merge).
+static func own_kept(run: RunState, own_start: RelicCollection, own_since: Dictionary = {}) -> Array[Dictionary]:
+	var found := own_start.found.duplicate()
+	found.merge(own_since.get("relics", {}) as Dictionary)
+	var kept: Array[Dictionary] = []
+	for entry: Dictionary in kept_relics(run, found, own_start.pips, own_since.get("mastery", {}) as Dictionary):
+		if bool(entry.new) or own_start.owns((entry.item as GearData).id):
+			kept.append(entry)
 	return kept
 
 

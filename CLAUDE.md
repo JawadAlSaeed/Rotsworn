@@ -91,8 +91,20 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   `--players=3` to any of these for co-op (pretend pads; each bot player presses for their own heroes).
   Online: start `--autoplay --host=2 --seed=7 --quit-on-end` in the background, then
   `--autoplay --join=127.0.0.1 --quit-on-end`; both must print the same `AUTOPLAY_RESULT` and
-  `AUTOPLAY_MIRROR` lines (use `timeout 1500`). Works with `--headless`. A good run prints
+  `AUTOPLAY_MIRROR` lines (an online pair takes 25 to 30 minutes: use `timeout 2700`; every host uses
+  the tuning port, so run one online game at a time). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
+  Drop-in co-op (DESIGN.md 9.3): `--pad-join-after=S` (a pretend pad joins the local run S seconds
+  after launch, at the next quiet moment), `--pad-leave-after=S` (the last local player leaves),
+  `--roster-in-fight` (those two come a few seconds into the next fight); online `--host=1` starts
+  alone at once, `--join-after=S` (with `--join`) connects S seconds after launch into the run
+  going, `--seat-in-fight` (host) seats a friend who drops in only a few seconds into the next
+  fight, `--crash-after=S` (with `--join`) quits without a goodbye like a crash (that log has no
+  result line and ends with the engine's resources-in-use report, expected). They print
+  `AUTOPLAY_ROSTER join|leave p= ... owners=`, host `AUTOPLAY_DROPIN P2 peer=N took=0 place= fight=`
+  and `AUTOPLAY_SEATED P2 peer=N`, friend `AUTOPLAY_DROPIN joined peer=N` and `AUTOPLAY_SEATED P2
+  heroes=1`; every run end prints `AUTOPLAY_PLAYERS n= owners=` before `AUTOPLAY_RESULT`, the same
+  on every machine.
 - `-- --perf-log=S` (windowed) prints frames a second and draw calls every S seconds (vsync off).
 - **While the owner is at the PC, take pictures with `quiet_run.bat`, never `run_game.bat`** (card
   #168). A normal windowed run grabs keyboard and mouse focus and breaks whatever they are
@@ -110,7 +122,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   prints PASS or FAIL. DESIGN.md 10.
 - To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
   every S seconds in `%APPDATA%/Godot/app_userdata/Rotsworn/shots/<name>/`), combined with
-  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|echoes|relics|party_relics|calibration|tutorial|map|map_start|shop|campfire|event|treasure|pact|run_end`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
+  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|echoes|relics|party_relics|calibration|tutorial|map|map_start|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
   skills list (or any state; `|` moves on to the next turn) for pictures; `--pad-prompts` shows pad
   buttons, `--key-prompts` keyboard keys. Look at the pictures before telling the user a visual change is done.
   (Use `quiet_run.bat` for this when the owner is at the PC, see above.)
@@ -199,7 +211,9 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested) and `DeviceInput`
   (reading one device)
 - `scripts/net/` online: `DefenseArbiter` (host referee, pure, tested), `DataHash` (content
-  fingerprint for the handshake)
+  fingerprint for the handshake), `SeatBook` (seat tokens), `JoinGate` (who may come in and when a
+  newcomer's hero is handed over, pure, tested) and `FightInbox` (a client's early combat batches,
+  kept per fight, pure, tested)
 - `scripts/autoload/` global singletons (`Audio`, `Rumble` = `PadRumble`, the controller buzz,
   DESIGN.md 7.14, `UserSettings` = `PlayerSettings`, saved per
   machine in `user://settings.cfg`, `Net` = `NetSession`, the online connection, `Prompts` =

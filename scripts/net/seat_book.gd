@@ -7,7 +7,7 @@ extends RefCounted
 ## connection goes during a run its seat is kept "away" for the grace time. A new connection that
 ## shows the token gets that seat (and only that one) back under its new peer id. A token proves the
 ## seat: if the old connection still looks alive (the host has not noticed the drop yet), the
-## claim wins and the old one is let go.
+## claim wins and the old one is let go. A seat away long enough may go to a newcomer (card #304).
 
 ## peer -> token.
 var _tokens: Dictionary = {}
@@ -62,6 +62,24 @@ func away_peers() -> Array[int]:
 	list.assign(_away_since.keys())
 	list.sort()
 	return list
+
+
+## How many seats there are (welcomed and away).
+func size() -> int:
+	return _tokens.size()
+
+
+## The away peer whose seat has waited longest, if it has waited at least `min_age_ms` by `now_ms`
+## (0: none). A newcomer may take that seat (#304); a fresher one is held for its token.
+func longest_away(now_ms: int, min_age_ms: int) -> int:
+	var oldest := 0
+	for peer: int in away_peers():
+		# Id order: of two seats that went at the same moment, the lower peer is chosen.
+		if oldest == 0 or int(_away_since[peer]) < int(_away_since[oldest]):
+			oldest = peer
+	if oldest == 0 or now_ms - int(_away_since[oldest]) < min_age_ms:
+		return 0
+	return oldest
 
 
 ## How long peer `peer`'s seat is still kept (ms, 0 when it is not away or the time is up).

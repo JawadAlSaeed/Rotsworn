@@ -99,6 +99,10 @@ var _judges: JudgeSet
 var _roster: PlayerRoster = PlayerRoster.solo(0)
 ## Party member id -> player index (empty: everyone is player 0).
 var _owners: Dictionary = {}
+## A roster change that came during a sequence: it applies when the sequence hands back, so presses
+## and freezes keep the player indexes the judges were made with (cards #205, #304).
+var _held_roster: PlayerRoster = null
+var _held_owners: Dictionary = {}
 var _latency_ms: int = 0
 var _lead_in_end_us: int = 0
 ## This attack opens with a run to the target (DESIGN.md 3.12): it starts at _run_from_us (real
@@ -178,10 +182,25 @@ func setup(submit: Callable, apply_now: Callable, mirror: CombatMirror, view: Co
 	_input.pressed.connect(_on_pressed)
 
 
-## Who plays which hero (co-op). `owners` maps a party member id to its player.
+## Who plays which hero (co-op). `owners` maps a party member id to its player. During a sequence
+## the change waits until it hands back (the judges were made with the old player indexes).
 func set_players(roster: PlayerRoster, owners: Dictionary) -> void:
+	if _active:
+		_held_roster = roster
+		_held_owners = owners
+		return
 	_roster = roster
 	_owners = owners
+
+
+## Applies a roster change that waited for the sequence to end, if there is one.
+func _take_held_players() -> void:
+	if _held_roster == null:
+		return
+	_roster = _held_roster
+	_owners = _held_owners
+	_held_roster = null
+	_held_owners = {}
 
 
 ## Starts playing a timed_sequence_declared event (already applied to the mirror). `attack` is the
@@ -189,6 +208,7 @@ func set_players(roster: PlayerRoster, owners: Dictionary) -> void:
 ## default and plain clips). `enemy_data` is the attacker's data (its idle breathing speed; null =
 ## 100%).
 func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyData = null) -> void:
+	_take_held_players()
 	_event = event
 	_seq = int(event.seq)
 	_source = int(event.source)
@@ -1137,6 +1157,7 @@ func _check_finish(now: int, t: int) -> void:
 
 func _hand_back() -> void:
 	_active = false
+	_take_held_players()
 	_last_attack_longest_us = _longest_frame_us
 	_input.disarm()
 	_hud.hide_banner()

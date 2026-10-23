@@ -288,6 +288,176 @@ func test_lobby_keeps_the_last_split_for_the_same_p1() -> void:
 	assert_false(_lobby(other).roster().is_coop(), "someone else opened it: they start alone")
 
 
+# --- in-run players (cards #304, #311) ------------------------------------------------------------
+
+## A roster of `devices` (P1 first), the heroes dealt out as the players screen does.
+func _roster_of(devices: Array[int]) -> PlayerRoster:
+	var roster := PlayerRoster.solo(3, devices[0])
+	for i: int in range(1, devices.size()):
+		roster.join(devices[i])
+	return roster
+
+
+## The Players overlay over the pause menu, mid-run (DESIGN.md 9.3).
+func _in_run(roster: PlayerRoster, p1: int) -> LobbyScreen:
+	var lobby := LobbyScreen.new()
+	lobby.setup_in_run(["Alder", "Brin", "Cass"] as Array[String], roster, p1)
+	add_child_autofree(lobby)
+	return lobby
+
+
+## Every Label under `node` (its text), deep.
+static func _texts(node: Node) -> Array[String]:
+	var out: Array[String] = []
+	for label: Node in node.find_children("*", "Label", true, false):
+		out.append((label as Label).text)
+	return out
+
+
+func test_in_run_never_resets_the_roster() -> void:
+	var roster := _roster_of([KEYBOARD, 0] as Array[int])
+	roster.move_hero(2, 1)
+	var lobby := _in_run(roster, 0)
+	assert_true(lobby.is_in_run())
+	assert_eq(lobby.roster().devices, [KEYBOARD, 0] as Array[int], "co-op: P1's device stays")
+	assert_eq(lobby.roster().owners, [0, 1, 1] as Array[int], "the run's split is kept, not dealt again")
+	assert_eq(roster.devices, [KEYBOARD, 0] as Array[int], "the overlay works on a copy")
+
+
+func test_in_run_solo_takes_p1s_real_device() -> void:
+	var lobby := _in_run(PlayerRoster.solo(3, KEYBOARD), 0)
+	assert_eq(lobby.roster().devices, [0] as Array[int], "solo: P1 is the pad they really play with")
+	var any := _in_run(PlayerRoster.solo(3, KEYBOARD), PlayerRoster.ANY)
+	assert_eq(any.roster().devices, [KEYBOARD] as Array[int], "no known device: the roster's stays")
+
+
+func test_in_run_join_takes_brin_and_does_not_start() -> void:
+	var lobby := _in_run(PlayerRoster.solo(3, KEYBOARD), KEYBOARD)
+	watch_signals(lobby)
+	lobby._unhandled_input(_press(&"menu_down", 0))
+	assert_eq(lobby.roster().player_count(), 1, "a pad that has not joined can only join")
+	lobby._unhandled_input(_press(&"menu_confirm", 0))
+	assert_eq(lobby.roster().devices, [KEYBOARD, 0] as Array[int], "pad 1 joins as P2")
+	assert_eq(lobby.roster().owners, [0, 1, 0] as Array[int], "P2 takes Brin, P1 keeps the others")
+	assert_signal_not_emitted(lobby, "started", "joining never starts")
+	assert_signal_not_emitted(lobby, "back")
+
+
+func test_in_run_p2_back_leaves_and_p1_back_closes() -> void:
+	var lobby := _in_run(_roster_of([KEYBOARD, 0, 1] as Array[int]), KEYBOARD)
+	assert_eq(lobby.roster().owners, [0, 1, 2] as Array[int])
+	watch_signals(lobby)
+	lobby._unhandled_input(_press(&"menu_cancel", 0))
+	assert_eq(lobby.roster().devices, [KEYBOARD, 1] as Array[int], "P2 leaves, P3 moves up")
+	assert_eq(lobby.roster().owners, [0, 0, 1] as Array[int], "Brin goes to P1, Cass stays with her player")
+	assert_signal_not_emitted(lobby, "back")
+	lobby._unhandled_input(_press(&"menu_cancel", KEYBOARD))
+	assert_signal_emitted(lobby, "back", "P1's Back closes the overlay")
+	assert_eq(lobby.roster().devices, [KEYBOARD, 1] as Array[int], "P1 never leaves")
+
+
+func test_in_run_keyboard_p2_esc_leaves_and_p1_esc_closes() -> void:
+	var lobby := _in_run(_roster_of([0, KEYBOARD] as Array[int]), 0)
+	watch_signals(lobby)
+	lobby._unhandled_input(_press(&"pause", KEYBOARD))
+	assert_eq(lobby.roster().devices, [0] as Array[int], "a keyboard P2's Esc leaves, like Backspace")
+	assert_eq(lobby.roster().owners, [0, 0, 0] as Array[int])
+	assert_signal_not_emitted(lobby, "back")
+	var keys_p1 := _in_run(_roster_of([KEYBOARD, 0] as Array[int]), KEYBOARD)
+	watch_signals(keys_p1)
+	keys_p1._unhandled_input(_press(&"pause", KEYBOARD))
+	assert_signal_emitted(keys_p1, "back", "a keyboard P1's Esc closes")
+	assert_eq(keys_p1.roster().devices, [KEYBOARD, 0] as Array[int])
+
+
+func test_in_run_confirm_plays_and_pause_closes() -> void:
+	var lobby := _in_run(_roster_of([KEYBOARD, 0] as Array[int]), KEYBOARD)
+	watch_signals(lobby)
+	lobby._unhandled_input(_press(&"menu_confirm", KEYBOARD))
+	assert_signal_emitted(lobby, "started", "Confirm plays")
+	var fresh := _in_run(_roster_of([KEYBOARD, 0] as Array[int]), KEYBOARD)
+	watch_signals(fresh)
+	fresh._unhandled_input(_press(&"pause", 0))
+	assert_signal_emitted(fresh, "back", "P2's Menu closes the overlay")
+	assert_signal_not_emitted(fresh, "started")
+	assert_eq(fresh.roster().player_count(), 2, "Pause is not a leave")
+
+
+func test_in_run_has_no_oath_and_says_play() -> void:
+	var lobby := _in_run(PlayerRoster.solo(3, KEYBOARD), KEYBOARD)
+	assert_null(lobby._picker, "no Oath picker in a run")
+	assert_eq(lobby._start_label.text, "Play")
+	assert_eq(LobbyScreen.hints_in_run(), [[&"@updown", "Choose"], [&"@leftright", "Change"],
+			[&"menu_confirm", "Play"], [&"menu_cancel", "Back"]])
+	assert_eq(_lobby()._start_label.text, "Start", "the players screen before a run keeps Start")
+
+
+func test_three_players_trade_heroes() -> void:
+	var lobby := _in_run(_roster_of([KEYBOARD, 0, 1] as Array[int]), KEYBOARD)
+	# The cursor starts on Play: go up to Alder.
+	for i: int in 3:
+		lobby._unhandled_input(_press(&"menu_up", KEYBOARD))
+	assert_true(lobby.is_lit(0), "on Alder")
+	lobby._unhandled_input(_press(&"menu_right", KEYBOARD))
+	assert_eq(lobby.roster().owners, [1, 0, 2] as Array[int], "P1 and P2 trade their only heroes")
+
+
+func test_pre_run_keeps_its_left_right() -> void:
+	var lobby := _lobby(_roster_of([KEYBOARD, 0] as Array[int]))
+	assert_false(lobby.is_in_run())
+	for i: int in 2:
+		lobby._unhandled_input(_press(&"menu_up", KEYBOARD))
+	assert_true(lobby.is_lit(1), "on Brin")
+	lobby._unhandled_input(_press(&"menu_right", KEYBOARD))
+	assert_eq(lobby.roster().owners, [0, 1, 0] as Array[int], "before a run an only hero cannot move (9.1)")
+
+
+func test_in_run_shows_a_leave_chip_for_p2() -> void:
+	var lobby := _in_run(_roster_of([KEYBOARD, 0] as Array[int]), KEYBOARD)
+	assert_true(_texts(lobby).has("leave"), "P2's own Back button and leave")
+	var solo := _in_run(PlayerRoster.solo(3, KEYBOARD), KEYBOARD)
+	assert_false(_texts(solo).has("leave"), "P1 never shows it")
+	assert_false(_texts(_lobby(_roster_of([KEYBOARD, 0] as Array[int]))).has("leave"),
+			"not on the players screen before a run")
+
+
+func test_in_run_overlay_is_modal() -> void:
+	# A pushed press must not leave the button hints on the pad for later tests.
+	var pad_before := ButtonPrompts._pad
+	var probe := InputProbe.new()
+	add_child_autofree(probe)
+	get_viewport().push_input(_press(&"menu_down", 1))
+	assert_eq(probe.count, 1, "control: with nothing over it the probe sees the press")
+	var lobby := _in_run(PlayerRoster.solo(3, KEYBOARD), KEYBOARD)
+	get_viewport().push_input(_press(&"menu_down", 1))
+	assert_eq(probe.count, 1, "an unjoined pad's press stops at the overlay")
+	get_viewport().push_input(_press(&"menu_down", KEYBOARD))
+	assert_eq(probe.count, 1, "so does P1's")
+	assert_eq(lobby.roster().player_count(), 1)
+	ButtonPrompts._pad = pad_before
+
+
+func test_closing_with_no_change_is_the_same_roster() -> void:
+	var original := _roster_of([KEYBOARD, 0] as Array[int])
+	var lobby := _in_run(original, KEYBOARD)
+	watch_signals(lobby)
+	lobby._unhandled_input(_press(&"menu_down", KEYBOARD))
+	lobby._unhandled_input(_press(&"pause", KEYBOARD))
+	assert_signal_emitted(lobby, "back")
+	assert_true(lobby.roster().same_as(original), "a look and close changes nothing")
+
+
+## Counts the presses that reach it (an overlay over it should leave it none).
+class InputProbe:
+	extends Node
+
+	var count: int = 0
+
+	func _unhandled_input(event: InputEvent) -> void:
+		if event.is_pressed():
+			count += 1
+
+
 # --- a pad drops (card #181) --------------------------------------------------------------------
 
 func _pair() -> PlayerRoster:
