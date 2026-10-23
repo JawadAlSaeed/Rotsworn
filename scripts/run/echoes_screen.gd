@@ -404,6 +404,9 @@ func _redraw_detail() -> void:
 ## The worn Relics whose Echo is still being learned, and how far along: [[GearData, pips, needed]].
 func learning() -> Array[Array]:
 	var list: Array[Array] = []
+	# Nothing is learned where Relics earn no pips (a Fight Rush, DESIGN.md 8.21).
+	if not _run.teaches_echoes():
+		return list
 	for slots: Array in _run.gear:
 		for item: Variant in slots:
 			if item != null and not _run.echo_learned(item as GearData):

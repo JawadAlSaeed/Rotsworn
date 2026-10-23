@@ -552,7 +552,7 @@ func _relic_info(item: GearData) -> Dictionary:
 	var data := {"icon": item, "title": item.display_name, "color": color, "chips": chips, "line": item.description}
 	if run.echo_learned(item):
 		chips.append([&"echo", "Learned", HudStyle.GOLD])
-	else:
+	elif run.teaches_echoes():
 		data.bar = [run.mastery_of(item), run.tuning.mastery_needed]
 	return data
 

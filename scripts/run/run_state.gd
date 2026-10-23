@@ -153,39 +153,51 @@ var result: String = ""
 static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int, p_oath: int = 0,
 		collection: RelicCollection = null) -> RunState:
 	var run := RunState.new()
-	run.data = run_data
-	run.tuning = p_tuning
-	run.run_seed = p_seed
-	run.oath = OathData.clamp_oath(run_data.oaths, p_oath)
-	run.map = run._make_map(0)
-	run.gold = maxi(0, p_tuning.run_start_gold + run.oath_total(&"start_gold_add"))
-	run.backpack = Backpack.new(p_tuning.backpack_pockets)
+	run._start(run_data, p_tuning, p_seed, p_oath, collection)
+	return run
+
+
+## Sets up a new game of `run_data` on this object (begin's body; a Fight Rush starts the same way,
+## DESIGN.md 8.21). The map comes from _make_map, which a mode without a map overrides.
+func _start(run_data: RunData, p_tuning: Tuning, p_seed: int, p_oath: int, collection: RelicCollection) -> void:
+	data = run_data
+	tuning = p_tuning
+	run_seed = p_seed
+	oath = OathData.clamp_oath(run_data.oaths, p_oath)
+	map = _make_map(0)
+	gold = maxi(0, p_tuning.run_start_gold + oath_total(&"start_gold_add"))
+	backpack = Backpack.new(p_tuning.backpack_pockets)
 	for c: CharacterData in run_data.party:
-		run.bonus_points.append(0)
-		run.max_hp_percent.append(100)
-		run.tonics_used.append(0)
-		run.levels.append(1)
-		run.xps.append(0)
-		run.attributes.append(Attributes.empty())
+		bonus_points.append(0)
+		max_hp_percent.append(100)
+		tonics_used.append(0)
+		levels.append(1)
+		xps.append(0)
+		attributes.append(Attributes.empty())
 		var known: Array = []
 		if c.skill_tree != null:
 			for skill: AbilityData in c.skill_tree.starters():
 				known.append(skill.id)
-		run.unlocked.append(known.duplicate())
-		run.loadout.append(known.slice(0, p_tuning.skill_slots))
+		unlocked.append(known.duplicate())
+		loadout.append(known.slice(0, p_tuning.skill_slots))
 		var slots: Array = []
 		slots.resize(p_tuning.run_gear_slots)
-		run.gear.append(slots)
-		run.echoes.append([])
-		run.defence.append([0, 0, 0, 0])
+		gear.append(slots)
+		echoes.append([])
+		defence.append([0, 0, 0, 0])
 	if collection != null:
-		run._take_collection(collection)
-	run.pact_pending = not run.relics_at_start.is_empty() and not run_data.pacts.is_empty() \
+		_take_collection(collection)
+	pact_pending = not relics_at_start.is_empty() and not run_data.pacts.is_empty() \
 			and p_tuning.run_pact_choices > 0
-	var start_hp := OathData.start_hp_for(run_data.oaths, run.oath)
+	var start_hp := OathData.start_hp_for(run_data.oaths, oath)
 	for slot: int in run_data.party.size():
-		run.hp.append(maxi(1, CombatMath.percent(run.max_hp(slot), start_hp)))
-	return run
+		hp.append(maxi(1, CombatMath.percent(max_hp(slot), start_hp)))
+
+
+## Which game this is: "run" (a Fight Rush says "rush", DESIGN.md 8.21). In to_dict, so a dict of
+## one mode is never applied to the other.
+func mode() -> String:
+	return "run"
 
 
 ## Everything that changes during the run as plain data (gear and items by id), for online play:
@@ -199,7 +211,7 @@ func to_dict() -> Dictionary:
 			ids.append((item as GearData).id if item != null else "")
 		worn.append(ids)
 	return {
-		"seed": run_seed, "at": at, "path": Array(path), "gold": gold, "hp": Array(hp),
+		"mode": mode(), "seed": run_seed, "at": at, "path": Array(path), "gold": gold, "hp": Array(hp),
 		"max_hp_percent": Array(max_hp_percent), "tonics_used": Array(tonics_used), "levels": Array(levels), "xps": Array(xps),
 		"attributes": attributes.duplicate(true), "team_gauge": team_gauge, "gear": worn,
 		"unlocked": unlocked.duplicate(true), "loadout": loadout.duplicate(true),
@@ -227,6 +239,9 @@ static func from_dict(run_data: RunData, p_tuning: Tuning, d: Dictionary) -> Run
 
 ## Sets this run (same seed) to to_dict() data. False (and nothing changed) if it does not fit.
 func apply_dict(d: Dictionary) -> bool:
+	# A dict without a mode is a run's (saves from before the Fight Rush).
+	if typeof(d.get("mode", "run")) != TYPE_STRING or String(d.get("mode", "run")) != mode():
+		return false
 	for key: String in ["seed", "at", "gold", "team_gauge", "fights_won", "gold_earned", "act", "visited", "restocks",
 			"oath", "ambush_streak"]:
 		if typeof(d.get(key)) != TYPE_INT:
@@ -1258,9 +1273,9 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 		setup.can_run = setup.can_run and tuning.ambush_can_run
 	# The marks wait for the second zone (card #253): the first teaches the hits alone.
 	setup.allow_marks = _depth() > 0
-	if not encounter.boss or tuning.run_enemy_scale_bosses:
-		setup.enemy_hp_percent = CombatMath.percent(enemy_hp_percent(), encounter.enemy_hp_percent)
-		setup.enemy_power_percent = enemy_power_percent()
+	if _scales(encounter):
+		setup.enemy_hp_percent = CombatMath.percent(enemy_hp_percent(encounter), encounter.enemy_hp_percent)
+		setup.enemy_power_percent = enemy_power_percent(encounter)
 	if encounter.elite:
 		setup.enemy_hp_percent = CombatMath.percent(setup.enemy_hp_percent,
 				maxi(1, tuning.elite_hp_percent + oath_total(&"elite_hp_percent_add")))
@@ -1287,7 +1302,7 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 ## timing (card #188; lower = faster): tuning attack_tempo_percent less run_enemy_tempo_row_percent
 ## per row of depth, then the elite, guard or boss percent, never under the floor.
 func enemy_tempo_percent(encounter: EncounterData) -> int:
-	var tempo := tuning.attack_tempo_percent - _depth() * maxi(0, tuning.run_enemy_tempo_row_percent)
+	var tempo := tuning.attack_tempo_percent - _fight_depth(encounter) * maxi(0, tuning.run_enemy_tempo_row_percent)
 	if encounter.boss:
 		tempo = CombatMath.percent(tempo, tuning.boss_tempo_percent)
 	elif encounter.mini_boss:
@@ -1297,19 +1312,42 @@ func enemy_tempo_percent(encounter: EncounterData) -> int:
 	return maxi(tempo, CombatSetup.tempo_floor(tuning))
 
 
-## Enemy HP at the current stop's depth, in percent of their data (DESIGN.md 8.3).
-func enemy_hp_percent() -> int:
-	return 100 + _depth() * maxi(0, tuning.run_enemy_hp_row_percent + oath_total(&"enemy_hp_row_add"))
+## Enemy HP at the current stop's depth, in percent of their data (DESIGN.md 8.3). `encounter`: the
+## fight it is for (null: any; a run grows every fight by the same depth).
+func enemy_hp_percent(encounter: EncounterData = null) -> int:
+	return 100 + _fight_depth(encounter) * maxi(0, tuning.run_enemy_hp_row_percent + oath_total(&"enemy_hp_row_add"))
 
 
 ## Enemy power at the current stop's depth, in percent of their data.
-func enemy_power_percent() -> int:
-	return 100 + _depth() * maxi(0, tuning.run_enemy_power_row_percent + oath_total(&"enemy_power_row_add"))
+func enemy_power_percent(encounter: EncounterData = null) -> int:
+	return 100 + _fight_depth(encounter) * maxi(0, tuning.run_enemy_power_row_percent + oath_total(&"enemy_power_row_add"))
 
 
 ## Map rows walked so far: the rows of the acts before this one, then this act's row.
 func _depth() -> int:
 	return act * (tuning.run_map_rows + 1) + maxi(0, int(current().get("row", 0)))
+
+
+## The depth `_encounter` grows by (a run: _depth() for every fight; a Fight Rush counts a boss only
+## from where a run meets it, DESIGN.md 8.21).
+func _fight_depth(_encounter: EncounterData) -> int:
+	return _depth()
+
+
+## True if `encounter` grows with depth at all (a run's bosses only with run_enemy_scale_bosses).
+func _scales(encounter: EncounterData) -> bool:
+	return not encounter.boss or tuning.run_enemy_scale_bosses
+
+
+## True if this game shows gold (the strip, the party screen, sell prices, the win's gold chip and
+## sound). A Fight Rush has none (DESIGN.md 8.21).
+func shows_gold() -> bool:
+	return true
+
+
+## True if worn Relics earn Echo pips here (the pips bars and the Echoes learning row show).
+func teaches_echoes() -> bool:
+	return true
 
 
 ## Takes the items used in a fight out of the backpack (uids that are already gone are skipped).
@@ -1402,12 +1440,17 @@ func carry_team_gauge(value: int) -> void:
 ## The XP each hero gets for winning `encounter` with these HPs left: the encounter's XP for those
 ## standing, tuning.run_xp_downed_percent of it for the downed.
 func fight_xp(encounter: EncounterData, party_hp: Array[int]) -> Array[int]:
-	var full := encounter_xp(encounter)
+	var full := xp_full(encounter)
 	var shares: Array[int] = []
 	for slot: int in party_size():
 		var standing := slot >= party_hp.size() or party_hp[slot] > 0
 		shares.append(full if standing else CombatMath.percent(full, tuning.run_xp_downed_percent))
 	return shares
+
+
+## The XP a standing hero gets for winning `encounter` here (its enemies' XP in a run).
+func xp_full(encounter: EncounterData) -> int:
+	return encounter_xp(encounter)
 
 
 func _zeros() -> Array[int]:

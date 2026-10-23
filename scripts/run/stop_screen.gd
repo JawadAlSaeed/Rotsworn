@@ -41,7 +41,7 @@ func _add_bar(column: Control) -> void:
 	column.add_child(centre)
 	_bar = RunPartyBar.new()
 	centre.add_child(_bar)
-	_bar.setup(run)
+	_bar.setup(run, run.shows_gold())
 
 
 func _refresh_bar() -> void:

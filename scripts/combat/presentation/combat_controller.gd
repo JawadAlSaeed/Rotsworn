@@ -1248,7 +1248,8 @@ func _on_combat_ended(result: String) -> void:
 func _play_reward_sounds() -> void:
 	var risen := _levelling_heroes()
 	await _wait_ms(_visuals.reward_sound_delay_ms)
-	Sfx.play("gold_gain")
+	if _run.shows_gold():
+		Sfx.play("gold_gain")
 	if risen.is_empty():
 		return
 	await _wait_ms(_visuals.level_up_sound_gap_ms)
@@ -1319,8 +1320,10 @@ func _end_hints() -> Array:
 func _end_rewards() -> Dictionary:
 	if _run == null or _result != "victory":
 		return {}
-	var chips: Array[Dictionary] = [{"icon": AssetLoader.texture(_visuals.gold_icon_path, Vector2i(12, 12)),
-			"text": "+%d" % _run.gold_for(_encounter), "color": HudStyle.GOLD}]
+	var chips: Array[Dictionary] = []
+	if _run.shows_gold():
+		chips.append({"icon": AssetLoader.texture(_visuals.gold_icon_path, Vector2i(12, 12)),
+				"text": "+%d" % _run.gold_for(_encounter), "color": HudStyle.GOLD})
 	if _drop != null:
 		chips.append({"icon": AssetLoader.texture(_drop.icon_path, Vector2i(16, 16)), "text": _drop.display_name,
 				"color": HudStyle.TEXT})
@@ -1376,7 +1379,8 @@ func _summary_text() -> String:
 			int(_defended.get(Defense.Outcome.DODGE, 0)), int(_defended.get(Defense.Outcome.JUMP, 0)), _counters,
 			int(_defended.get(Defense.Outcome.PRESS_PERFECT, 0)), int(_defended.get(Defense.Outcome.PRESS, 0))]
 	if _run != null and _result == "victory":
-		text += "\n+%d gold" % _run.gold_for(_encounter)
+		if _run.shows_gold():
+			text += "\n+%d gold" % _run.gold_for(_encounter)
 		if _drop != null:
 			text += "   Found: %s" % _drop.display_name
 		var relic_lines := _run.win_relic_lines(_encounter)
