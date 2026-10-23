@@ -85,6 +85,12 @@ const GAUGE_READY_BRIGHT := Color(1.6, 1.4, 1.0)
 ## The ready glow never fades below this share of its size and strength, so it always reads as lit.
 const GAUGE_GLOW_MIN_SHARE: float = 0.35
 const GAUGE_GLOW_ALPHA: float = 0.75
+## The defence streak chip over the team gauge (card #300): word and shield sizes, and its gap above
+## the gauge card.
+const STREAK_SIZE: int = 24
+const STREAK_GLYPH_PX: float = 26.0
+const STREAK_GAP_PX: float = 6.0
+const STREAK_TEXT := "STREAK %d"
 const ENEMY_STATUS_SIZE: int = 18
 const INTENT_SIZE: int = 22
 ## The intent sign's hit row is never wider than this, so a long attack fits beside its name on the
@@ -167,6 +173,12 @@ var _gauge_panel: PanelContainer
 ## The ultimate's button on the gauge card, and its word.
 var _unleash: HBoxContainer
 var _unleash_label: Label
+## The defence streak chip (card #300), floating over the gauge card: its shield and word, and the
+## pop or fade playing on it.
+var _streak_panel: PanelContainer
+var _streak_glyph: UiGlyph
+var _streak_label: Label
+var _streak_tween: Tween
 ## Bottom left: the defence controls while an enemy attack plays (set_defending) and the skill
 ## press hint during a skill (set_skill_pressing); empty otherwise, for the action menu.
 var _controls: Control
@@ -177,6 +189,9 @@ var _skill_hint_tween: Tween
 ## hero is low on HP (card #38).
 var _flash_rect: ColorRect
 var _flash_tween: Tween
+## The killing blow's impact frame (card #308): a dark hold over the scene, under the HUD.
+var _impact_rect: ColorRect
+var _impact_tween: Tween
 var _danger: TextureRect
 var _in_danger: bool = false
 var _time_s: float = 0.0
@@ -225,6 +240,13 @@ func setup(view: CombatView, visuals: CombatVisuals, tuning: Tuning) -> void:
 	_flash_rect.color = Color(0, 0, 0, 0)
 	_flash_rect.visible = false
 	_root.add_child(_flash_rect)
+
+	_impact_rect = ColorRect.new()
+	_impact_rect.name = "ImpactFrame"
+	_impact_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_impact_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_impact_rect.visible = false
+	_root.add_child(_impact_rect)
 
 	_ring_layer = RingLayer.new()
 	_ring_layer.name = "Rings"
@@ -610,6 +632,7 @@ func _process(delta: float) -> void:
 	_time_s += delta
 	if not _popups.is_empty():
 		_layout_popups()
+	_place_streak()
 	# The ready ultimate breathes (bar brightens, gold glow around its frame); the screen edges
 	# pulse red while a hero is in danger.
 	var glow := 0.5 + 0.5 * sin(_time_s * TAU * _visuals.gauge_ready_pulse_hz)
@@ -698,6 +721,25 @@ func screen_flash(color: Color, strength: float) -> void:
 	_flash_tween = _flash_rect.create_tween()
 	_flash_tween.tween_property(_flash_rect, "color:a", 0.0, float(_visuals.screen_flash_ms) / 1000.0) 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	_flash_tween.tween_callback(_flash_rect.hide)
+
+
+## The killing blow's impact frame (card #308): the scene held under `color` for `ms` (the HUD
+## stays on top), then the screen flash of `flash_color` at `flash_strength`. The Flashes setting
+## scales the dark frame like a flash; Off skips it (the flash follows the setting on its own).
+func impact_frame(color: Color, ms: int, flash_color: Color, flash_strength: float) -> void:
+	var alpha := color.a * _visuals.screen_flash_scale(PlayerSettings.flash_mode())
+	if _impact_tween != null:
+		_impact_tween.kill()
+	if alpha <= 0.0 or ms <= 0:
+		_impact_rect.visible = false
+		screen_flash(flash_color, flash_strength)
+		return
+	_impact_rect.color = Color(color.r, color.g, color.b, alpha)
+	_impact_rect.visible = true
+	_impact_tween = _impact_rect.create_tween()
+	_impact_tween.tween_interval(float(ms) / 1000.0)
+	_impact_tween.tween_callback(_impact_rect.hide)
+	_impact_tween.tween_callback(screen_flash.bind(flash_color, flash_strength))
 
 
 ## A soft frame of `color` around the screen edges (clear in the middle).
@@ -1067,6 +1109,80 @@ func _build_gauge() -> void:
 	_unleash_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_unleash.add_child(_unleash_label)
 	_unleash.modulate = UNLEASH_LOCKED
+	_build_streak()
+
+
+## The defence streak chip (card #300): a shield and "STREAK n" on a small plate over the gauge card,
+## hidden until the party has streak_show_from perfect defences in a row.
+func _build_streak() -> void:
+	_streak_panel = PanelContainer.new()
+	_streak_panel.name = "DefenceStreak"
+	_streak_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_streak_panel.add_theme_stylebox_override("panel", HudStyle.slant(HudStyle.INK, HudStyle.GOLD, GAUGE_BORDER_PX, 6, 40.0, 0.12))
+	_streak_panel.visible = false
+	_root.add_child(_streak_panel)
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 8)
+	_streak_panel.add_child(row)
+	_streak_glyph = UiGlyph.make(&"shield", STREAK_GLYPH_PX, HudStyle.GOLD)
+	_streak_glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_streak_glyph)
+	_streak_label = HudStyle.make_title("", STREAK_SIZE, HudStyle.GOLD)
+	_streak_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_streak_label)
+
+
+## The streak changed (a defence_streak event): `value` perfect defences in a row now, `milestone`
+## when it just reached a step (the gauge filled), `lost` the streak a hit just ended (else 0).
+func show_streak(value: int, milestone: bool, lost: int) -> void:
+	if _streak_tween != null:
+		_streak_tween.kill()
+	if value <= 0:
+		if lost < _visuals.streak_show_from or not _streak_panel.visible:
+			_streak_panel.visible = false
+			return
+		# A broken streak turns red, sags and fades.
+		_set_streak_color(HudStyle.DAMAGE_TAKEN)
+		_streak_panel.scale = Vector2.ONE
+		_streak_panel.modulate = Color.WHITE
+		_streak_tween = _streak_panel.create_tween()
+		_streak_tween.tween_property(_streak_panel, "modulate:a", 0.0, float(_visuals.streak_lost_ms) / 1000.0) \
+				.set_ease(Tween.EASE_IN)
+		_streak_tween.tween_callback(_streak_panel.hide)
+		return
+	if value < _visuals.streak_show_from:
+		_streak_panel.visible = false
+		return
+	_streak_label.text = STREAK_TEXT % value
+	_set_streak_color(HudStyle.GOLD)
+	_streak_panel.visible = true
+	# In place before it is first drawn (this runs after the HUD's own _process this frame).
+	_place_streak()
+	_streak_panel.modulate = Color(1.8, 1.6, 1.1) if milestone else Color.WHITE
+	_streak_panel.scale = Vector2.ONE * (_visuals.streak_milestone_scale if milestone else _visuals.streak_pop_scale)
+	var pop_s := float(_visuals.streak_pop_ms) / 1000.0
+	_streak_tween = _streak_panel.create_tween().set_parallel()
+	_streak_tween.tween_property(_streak_panel, "scale", Vector2.ONE, pop_s).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_streak_tween.tween_property(_streak_panel, "modulate", Color.WHITE, pop_s * 2.0)
+
+
+func _set_streak_color(color: Color) -> void:
+	_streak_label.label_settings.font_color = color
+	_streak_glyph.color = color
+	_streak_glyph.queue_redraw()
+	(_streak_panel.get_theme_stylebox("panel") as StyleBoxFlat).border_color = color
+
+
+## Keeps the streak chip centred just over the gauge card (the card moves with the party row).
+func _place_streak() -> void:
+	if not _streak_panel.visible:
+		return
+	var card := _gauge_panel.get_global_rect()
+	var chip := _streak_panel.get_combined_minimum_size()
+	_streak_panel.size = chip
+	_streak_panel.pivot_offset = chip * 0.5
+	_streak_panel.global_position = Vector2(card.get_center().x - chip.x * 0.5, card.position.y - chip.y - STREAK_GAP_PX)
 
 
 ## The ultimate's button was pressed: the gauge card flashes.

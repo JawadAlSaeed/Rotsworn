@@ -75,6 +75,9 @@ const KEY_OATH_UNLOCKED := "oath_unlocked"
 const KEY_TUTORIAL_OFFERED := "tutorial_offered"
 const KEY_CALIBRATION_OFFERED := "calibration_offered"
 const SHAKE_STEP_PERCENT: int = 25
+## Controller vibration (card #299): how strong the buzz is, in steps of RUMBLE_STEP_PERCENT; 0 is off.
+const KEY_RUMBLE := "rumble_percent"
+const RUMBLE_STEP_PERCENT: int = 25
 const SECTION_ONLINE := "online"
 const KEY_JOIN_ADDRESS := "join_address"
 const DEFAULT_JOIN_ADDRESS := "127.0.0.1"
@@ -375,6 +378,16 @@ static func screen_shake_percent() -> int:
 
 static func set_screen_shake_percent(value: int) -> void:
 	_settings().set_value(SECTION_GAME, KEY_SHAKE, clampi(value, 0, 100))
+	_save()
+
+
+## How strong the controller buzzes, in percent (0: no buzz).
+static func rumble_percent() -> int:
+	return clampi(int(_settings().get_value(SECTION_GAME, KEY_RUMBLE, 100)), 0, 100)
+
+
+static func set_rumble_percent(value: int) -> void:
+	_settings().set_value(SECTION_GAME, KEY_RUMBLE, clampi(value, 0, 100))
 	_save()
 
 

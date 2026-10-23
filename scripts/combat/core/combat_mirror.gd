@@ -21,6 +21,9 @@ var sequence: Dictionary = {}
 var result: String = ""
 ## Shared team gauge (its size is tuning team_gauge_max).
 var team_gauge: int = 0
+## The party's perfect defences in a row and the best run this fight (card #300).
+var defence_streak: int = 0
+var best_defence_streak: int = 0
 ## Enemy id -> its last intent event (what it does next). Removed when the attack starts or the
 ## enemy goes down.
 var intents: Dictionary = {}
@@ -49,6 +52,8 @@ func _apply(event: Dictionary) -> void:
 			fighters.clear()
 			party_ids.clear()
 			enemy_ids.clear()
+			defence_streak = 0
+			best_defence_streak = 0
 			seed_value = int(event.seed)
 			practice_allowed = bool(event.practice_allowed)
 			items.clear()
@@ -106,6 +111,9 @@ func _apply(event: Dictionary) -> void:
 				statuses.erase(String(event.status))
 		"team_gauge":
 			team_gauge = int(event.value)
+		"defence_streak":
+			defence_streak = int(event.value)
+			best_defence_streak = int(event.best)
 		"intent":
 			intents[int(event.enemy)] = event.duplicate(true)
 			_note_doom_intent(event)
@@ -259,7 +267,8 @@ func projection() -> Dictionary:
 	var left: Array = items.keys()
 	left.sort()
 	return {"hp": hp, "ap": ap, "statuses": statuses, "team_gauge": team_gauge, "result": result,
-			"practice": practice.duplicate(), "items_left": left, "dooms": dooms}
+			"practice": practice.duplicate(), "items_left": left, "dooms": dooms,
+			"streak": [defence_streak, best_defence_streak]}
 
 
 ## The same projection taken from CombatEngine.snapshot(), for tests.
@@ -277,7 +286,7 @@ static func project_snapshot(snap: Dictionary) -> Dictionary:
 	left.sort()
 	return {"hp": hp, "ap": ap, "statuses": statuses, "team_gauge": int(snap.team_gauge),
 			"result": String(snap.result), "practice": (snap.practice as Dictionary).duplicate(), "items_left": left,
-			"dooms": dooms}
+			"dooms": dooms, "streak": [int(snap.get("defence_streak", 0)), int(snap.get("best_defence_streak", 0))]}
 
 
 func _set_hp(id: int, hp: int) -> void:

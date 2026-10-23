@@ -73,5 +73,55 @@
    "author": "SamuelGremaud",
    "page": "https://freesound.org/people/SamuelGremaud/sounds/459391/"
   }
+ },
+ "ambience_rain": {
+  "title": "Rain",
+  "plays": "loops over the zone's own background when it rains in a zone (and quieter in its fights)",
+  "a": {
+   "name": "Forest rain",
+   "desc": "Rain on leaves in a dark forest.",
+   "id": 577975,
+   "author": "szegvari",
+   "page": "https://freesound.org/people/szegvari/sounds/577975/"
+  },
+  "b": {
+   "name": "Heavy rain",
+   "desc": "Steady, heavy rain in the country.",
+   "id": 200272,
+   "author": "jmbphilmes",
+   "page": "https://freesound.org/people/jmbphilmes/sounds/200272/"
+  },
+  "c": {
+   "name": "Slow rain",
+   "desc": "A soft, slow rain.",
+   "id": 177479,
+   "author": "unfa",
+   "page": "https://freesound.org/people/unfa/sounds/177479/"
+  }
+ },
+ "ambience_wind": {
+  "title": "Wind",
+  "plays": "loops over the zone's own background on a windy visit (and quieter in its fights)",
+  "a": {
+   "name": "Howling wind",
+   "desc": "A cold wind howling.",
+   "id": 327772,
+   "author": "Jeffreys2",
+   "page": "https://freesound.org/people/Jeffreys2/sounds/327772/"
+  },
+  "b": {
+   "name": "Wind gusts",
+   "desc": "Strong gusts of wind outside.",
+   "id": 390740,
+   "author": "FunWithSound",
+   "page": "https://freesound.org/people/FunWithSound/sounds/390740/"
+  },
+  "c": {
+   "name": "Wind in trees",
+   "desc": "Wind through trees, with gusts.",
+   "id": 573175,
+   "author": "TRP",
+   "page": "https://freesound.org/people/TRP/sounds/573175/"
+  }
  }
 }

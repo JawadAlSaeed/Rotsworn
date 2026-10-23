@@ -358,6 +358,12 @@ func _open_dev_screen(screen_name: String) -> void:
 		"controls":
 			_show_settings()
 			(_screen as SettingsScreen).open_section(SettingsScreen.Section.CONTROLS)
+		"controls_vibration":
+			# The Controller page with its Vibration row chosen (card #299).
+			_show_settings()
+			var settings := _screen as SettingsScreen
+			settings.open_page(SettingsScreen.ControlsPage.CONTROLLER)
+			settings.select_row("vibration")
 		_:
 			if screen_name.begins_with("glossary_"):
 				_show_glossary(screen_name.trim_prefix("glossary_"))
@@ -627,6 +633,7 @@ func _show_screen(screen: Node) -> void:
 		_screen = screen
 		add_child(screen)
 		Sfx.play_ambience("")
+		Sfx.play_weather("")
 		var song := _music.run_path if _is_run_screen(screen) and not _music.run_path.is_empty() else _music.menu_path
 		if screen is CreditsScreen and not _music.credits_path.is_empty():
 			song = _music.credits_path
@@ -1013,6 +1020,10 @@ func _start_combat() -> void:
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
 	Sfx.play_ambience("")
+	if _zone_fight.is_empty():
+		Sfx.play_weather("")
+	else:
+		_play_zone_weather(true)
 	var boss := _encounter != null and _encounter.boss
 	var elite := _encounter != null and _encounter.elite
 	var song := _music.fight_path
@@ -1071,6 +1082,27 @@ func _free_combat() -> void:
 
 # --- zones ------------------------------------------------------------------------------------
 
+## The zone with only the --weather=ID weather left (dev tool, card #303; "clear": none), or as it is.
+func _with_forced_weather(zone: ZoneData) -> ZoneData:
+	if _options.weather_id.is_empty():
+		return zone
+	var forced := zone.duplicate() as ZoneData
+	var only: Array[WeatherData] = []
+	var path := "res://data/weather/%s.tres" % _options.weather_id
+	if _options.weather_id != "clear":
+		var data := load(path) as WeatherData if ResourceLoader.exists(path) else null
+		if data == null:
+			# A typo must not quietly test clear weather.
+			push_error("Main: no weather '%s' (data/weather/); the visit is clear" % _options.weather_id)
+			_autoplay_fail("unknown weather %s" % _options.weather_id)
+		else:
+			only.append(data)
+	forced.weathers = only
+	forced.weather_weights = [1] as Array[int]
+	forced.clear_weight = 0 if not only.is_empty() else 1
+	return forced
+
+
 func _start_zone(zone: ZoneData) -> void:
 	_show_screen(null)
 	_zone_fight = {}
@@ -1083,8 +1115,11 @@ func _start_zone(zone: ZoneData) -> void:
 		layout_seed = _run.zone_seed(_run.at)
 	elif _options.seed_override >= 0:
 		layout_seed = _options.seed_override + 1
-	_zone.configure(ZoneAssembler.assemble(zone, layout_seed), _tuning, _visuals, _explore, _run != null,
-			_run != null and _run.is_deep())
+	_zone.configure(ZoneAssembler.assemble(_with_forced_weather(zone), layout_seed), _tuning, _visuals, _explore,
+			_run != null, _run != null and _run.is_deep())
+	if _options.is_autoplay():
+		var weather := _zone.weather()
+		print("AUTOPLAY_WEATHER %s %s" % [zone.id, weather.id if weather != null else "clear"])
 	_zone.configure_players(_players)
 	if Net.is_client():
 		_zone.configure_remote()
@@ -3022,6 +3057,14 @@ func _net_host_tick(delta: float) -> void:
 func _play_zone_ambience(resume: bool = false) -> void:
 	var amb := _zone.ambience() if _zone != null else ["", 0.0]
 	Sfx.play_ambience(String(amb[0]), float(amb[1]), resume)
+	_play_zone_weather(false, resume)
+
+
+## The visit's weather loop (rain, wind; card #303) over the zone's own: quieter in its fights; none
+## outside the zone.
+func _play_zone_weather(in_fight: bool, resume: bool = false) -> void:
+	var sound := _zone.weather_sound(in_fight) if _zone != null else ["", 0.0]
+	Sfx.play_weather(String(sound[0]), float(sound[1]), resume)
 
 
 ## The current zone's own song, else the shared zone song.

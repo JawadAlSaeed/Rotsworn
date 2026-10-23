@@ -26,3 +26,8 @@ extends Resource
 @export var soft: bool = false
 ## Leaves turn as they fall.
 @export var spin: bool = false
+## Rain (card #303): above 1, each particle is a streak this many times taller than wide, stood along
+## its fall (it still faces the camera). 0: a square.
+@export_range(0.0, 40.0, 0.5) var stretch: float = 0.0
+## Splashes and other short-lived bits: they appear at once and fade out (no slow fade in).
+@export var quick_fade: bool = false

@@ -108,6 +108,12 @@ extends Resource
 @export_range(0.0, 0.1, 0.001) var ground_lift: float = 0.01
 @export_range(0.001, 0.05, 0.001) var ground_step: float = 0.004
 
+@export_group("Wind")
+## How far and how fast swaying plants and banners move, in percent of their own sway (DESIGN.md
+## 8.12). A windy visit's weather raises it on its copy of the look (WeatherData, card #303).
+@export_range(0, 500, 1, "suffix:%") var sway_percent: int = 100
+@export_range(0, 500, 1, "suffix:%") var sway_speed_percent: int = 100
+
 @export_group("Combat arena")
 ## Decoration around a fight that happens in this place (kept clear of the fighters' spots).
 @export var arena_blocks: Array[ZoneBlockData] = []

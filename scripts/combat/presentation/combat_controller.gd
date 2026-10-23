@@ -203,6 +203,7 @@ func update_players(players: PlayerRoster, gone_peer: int = -1) -> void:
 		_owners[id] = _players.owner_of(_owner_slot(id))
 	runner.set_players(_players, _owners)
 	skill_runner.set_players(_players, _owners)
+	PadRumble.set_party(_players, _owners)
 	if autoplay != null:
 		autoplay.set_players(_players, _owners)
 	hud.set_player_tags(_owners if _players.is_coop() else {})
@@ -326,6 +327,16 @@ func party_hp() -> Array[int]:
 		if slot >= 0 and slot < list.size():
 			list[slot] = int(f.hp)
 	return list
+
+
+func _exit_tree() -> void:
+	# Out of the fight a buzz goes to the pad in use again (card #299).
+	PadRumble.clear_party()
+	# The streak's swell and the attack dip belong to this fight: a restart keeps the same song,
+	# which Audio.play_music leaves playing as it is (lift and dip included). The killing blow's
+	# hush is left to the next song (play_music clears it), so a hushed song fades out silent.
+	Sfx.lift_music(0.0, 0)
+	Sfx.duck_music(0.0, 0)
 
 
 func _ready() -> void:
@@ -797,7 +808,8 @@ func _play(ev: Dictionary) -> void:
 			_show_downed(int(ev.target))
 			# The large-tier kill holds for its freeze before the next event (the end shot).
 			await _wait_ms(_take_kill_freeze())
-		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge", "enemy_phase", "escaped":
+		"ap_changed", "healed", "revived", "status_changed", "turn_shifted", "team_gauge", "enemy_phase", "escaped", \
+				"defence_streak":
 			mirror.apply(ev)
 			_show_feedback(ev)
 		"intent":
@@ -1105,6 +1117,8 @@ func _on_combat_ended(result: String) -> void:
 			_play_end_song(victory_music_path)
 		"escaped":
 			Sfx.play("dodge")
+			# No end song: the fight song comes back after the jingle's beat if it was hushed.
+			_play_end_song("")
 		_:
 			Sfx.play("defeat")
 			_play_end_song(defeat_music_path)
@@ -1153,11 +1167,14 @@ func _levelling_heroes() -> Array[int]:
 
 ## The end screen's song, after the jingle (nothing if this place has none).
 func _play_end_song(path: String) -> void:
-	if path.is_empty():
-		return
 	await _wait_ms(end_music_delay_ms)
-	if _ended and is_inside_tree() and not _quitting:
-		Sfx.play_music(path, rage_music_volume_db)
+	if not _ended or not is_inside_tree() or _quitting:
+		return
+	if path.is_empty():
+		# No end song (MusicSet: the fight song goes on): back from the killing blow's silence.
+		Sfx.hush_music(false, _visuals.kill_silence_fade_ms)
+		return
+	Sfx.play_music(path, rage_music_volume_db)
 
 
 func _quit() -> void:
@@ -1205,6 +1222,10 @@ func _end_rewards() -> Dictionary:
 	# A flawless win earns one more spoils choice (card #283).
 	if RunState.is_flawless(_encounter, recap()):
 		chips.append({"icon": null, "text": "FLAWLESS  +1 spoils", "color": HudStyle.GOLD})
+	# The fight's best defence streak, once it was long enough to show (card #300).
+	if mirror.best_defence_streak >= _visuals.streak_show_from:
+		chips.append({"icon": AssetLoader.texture(_visuals.streak_chip_icon_path, Vector2i(16, 16)),
+				"text": "Streak %d" % mirror.best_defence_streak, "color": HudStyle.GOLD})
 	# Each Relic line keeps its words (new, level, Echo) with the dropped Relic's icon in front.
 	var drops := _run.relic_drops(_encounter)
 	var lines := _run.win_relic_lines(_encounter)
@@ -1326,6 +1347,7 @@ func _build_fighters() -> void:
 		_owners[id] = _players.owner_of(_owner_slot(id))
 	runner.set_players(_players, _owners)
 	skill_runner.set_players(_players, _owners)
+	PadRumble.set_party(_players, _owners)
 	if autoplay != null:
 		autoplay.set_players(_players, _owners)
 	if _players.is_coop():
@@ -1598,6 +1620,7 @@ func _show_feedback(ev: Dictionary) -> void:
 			view.shift_to_phase_two()
 			view.camera.add_trauma(_visuals.phase_shake)
 			view.camera.punch(_visuals.phase_punch, _visuals.phase_punch_ms)
+			PadRumble.everyone("boss_rage")
 			var text := String(ev.get("text", ""))
 			hud.show_center_banner(text if not text.is_empty() else "IT GROWS FURIOUS!", HudStyle.LATE,
 					_visuals.first_strike_banner_ms)
@@ -1614,6 +1637,10 @@ func _show_feedback(ev: Dictionary) -> void:
 				hud.damage_number(int(ev.amount), head, HudStyle.HEAL)
 				v.flash(_visuals.flash_ms * 2, HudStyle.HEAL, 0.7)
 		"revived":
+			if not _ended:
+				# A Second Wind got the last hero back up after the killing blow's silence (card #308):
+				# the fight goes on, and so does its song.
+				Sfx.hush_music(false, _visuals.kill_silence_fade_ms)
 			if v != null:
 				Sfx.play("revive")
 				v.set_grey(0.0)
@@ -1639,6 +1666,29 @@ func _show_feedback(ev: Dictionary) -> void:
 			# The gauge label itself turns gold and says READY (the banner slot may hold a skill name).
 			if int(ev.delta) > 0 and int(ev.value) >= _tuning.team_gauge_max:
 				Sfx.play("gauge_full")
+		"defence_streak":
+			_show_streak(ev)
+
+
+## The defence streak (card #300): the chip over the gauge pops; a step reached (the gauge fills)
+## plays its swell, buzzes every pad and lifts the music a little more; a hit that ends a long
+## streak lets the music settle back.
+func _show_streak(ev: Dictionary) -> void:
+	var value := int(ev.value)
+	var milestone := bool(ev.get("milestone", false))
+	var lost := int(ev.get("lost", 0))
+	hud.show_streak(value, milestone, lost)
+	var step := maxi(1, _tuning.defence_streak_step)
+	if milestone:
+		Sfx.play(_visuals.streak_milestone_sfx)
+		PadRumble.everyone("streak")
+	# The song's lift follows the steps the streak has reached, so a rejoin's resume event (no
+	# milestone) gets it back too; a hit that ends a streak of a step or more takes it off.
+	@warning_ignore("integer_division")
+	var steps_reached := value / step
+	if steps_reached > 0 or lost >= step:
+		Sfx.lift_music(minf(_visuals.streak_music_lift_max_db, _visuals.streak_music_lift_db * float(steps_reached)),
+				_visuals.streak_music_fade_ms)
 
 
 # --- charged dooms (card #195, DESIGN.md 2.3) -------------------------------------------------
@@ -1673,6 +1723,7 @@ func _show_doom_unleashed(ev: Dictionary) -> void:
 	hud.screen_flash(_visuals.doom_glow_color, _visuals.doom_unleash_flash)
 	view.camera.add_trauma(_visuals.doom_unleash_shake)
 	view.camera.punch(_visuals.doom_unleash_punch, _visuals.punch_ms)
+	PadRumble.everyone("doom")
 	if boss != null:
 		boss.flash(_visuals.flash_ms * 4, _visuals.doom_glow_color, 1.0)
 
@@ -1768,8 +1819,13 @@ func _show_downed(id: int) -> void:
 		v.set_pose(FighterView.CharPose.DOWN)
 		# Falls over onto the down pose (card #66); its first cell is the flinch.
 		v.play("fall", _visuals.fall_ms, FighterView.PRIO_BIG)
-		hud.screen_flash(HudStyle.DAMAGE_TAKEN, _visuals.screen_flash_downed)
 		view.camera.add_trauma(_visuals.downed_shake)
+		PadRumble.hero("downed", id)
+		if mirror.living_party_ids().is_empty():
+			# The last hero down (card #308): the same silence and held frame as a killing blow.
+			_killing_blow(HudStyle.DAMAGE_TAKEN, _visuals.screen_flash_downed)
+		else:
+			hud.screen_flash(HudStyle.DAMAGE_TAKEN, _visuals.screen_flash_downed)
 		return
 	# The large tier (card #179): the last enemy and a boss or guard fall with a held freeze,
 	# shake, punch-in and flash. Whatever plays this kill waits out _kill_freeze_ms.
@@ -1805,9 +1861,22 @@ func _big_kill(id: int) -> int:
 	var hold_ms := _visuals.boss_kill_hitstop_ms if boss else _visuals.kill_hitstop_ms
 	view.camera.add_trauma(_visuals.boss_kill_shake if boss else _visuals.kill_shake)
 	view.camera.punch(_visuals.boss_kill_punch if boss else _visuals.kill_punch, _visuals.punch_ms)
-	hud.screen_flash(Color.WHITE, _visuals.boss_kill_flash if boss else _visuals.kill_flash)
+	var flash := _visuals.boss_kill_flash if boss else _visuals.kill_flash
+	if mirror.living_enemy_ids().is_empty():
+		# The blow that ends the fight (card #308): silence and a held frame, then the flash.
+		_killing_blow(Color.WHITE, flash)
+	else:
+		hud.screen_flash(Color.WHITE, flash)
 	_kill_freeze_ms = maxi(_kill_freeze_ms, hold_ms)
 	return hold_ms
+
+
+## The blow that ends the fight (card #308): the song cuts to silence until the end song, so only
+## the hit and the crumble are heard, and the scene holds a dark impact frame before the flash.
+func _killing_blow(flash_color: Color, flash_strength: float) -> void:
+	if _visuals.kill_silence:
+		Sfx.hush_music(true, _visuals.kill_silence_fade_ms)
+	hud.impact_frame(_visuals.impact_frame_color, _visuals.impact_frame_ms, flash_color, flash_strength)
 
 
 ## True for the boss of a boss or guard fight: the enemy with the most HP (the first of equals).

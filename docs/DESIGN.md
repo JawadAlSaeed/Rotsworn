@@ -684,6 +684,36 @@ the hero as the turn passes; the Tick's burst flashes and shakes.
 step fields `mark_hero`, `mark_status` stage the mark through a practice command). Relics and
 Echoes are lesson 8 (phase 22 put a First Strike card in as lesson 7, card #291).
 
+### 2.18 Defence streak (phase 24, card #300)
+
+The party's **perfect defences in a row across a whole fight**: a perfect parry (a normal or rend
+hit) or a perfect jump (a ground hit) adds one; a dodge keeps the streak but adds nothing (a dodge is
+never perfect, and a sweep has no perfect answer); a hit taken ends it. Every
+`tuning.defence_streak_step` (5) in a row fills the team gauge by `tuning.defence_streak_gauge` (10;
+0 turns the reward off). Gauge, not gold or XP: it pays inside the fight, feeds the Team Ultimate and
+carries over in a run like the rest of the gauge, and it does not overlap #283's rewards (Flawless
+is a guard or elite with no hit taken: one more spoils choice; the run end's defence rows only count).
+
+- **Counted in the engine** (`CombatEngine._count_streak`, from each resolved defend prompt in
+  prompt order), so every machine online counts the same streak and pays the same gauge. Event
+  `defence_streak {value, best, milestone, lost}` (a step's `team_gauge` event follows it); the
+  engine's `defence_streak` and `best_defence_streak` are in snapshots (an older snapshot reads 0)
+  and the resume events; the mirror follows them (and they are in its projection).
+- **On screen**: a gold chip over the team gauge card, a shield and "STREAK n", from
+  `combat_visuals.streak_show_from` (3) in a row. Each new one pops it a little, a step pops it more,
+  flashes it, plays `streak_swell` (a rising film-score swell, picked by ear) and buzzes every pad
+  (7.14). A hit that ends a shown streak turns the chip red and fades it (`streak_lost_ms`).
+- **The music swells**: each step reached lifts the song `streak_music_lift_db` (1.5 dB, at most
+  `streak_music_lift_max_db` 4.5) on top of the attack dip (`Audio.lift_music`), until a hit ends a
+  streak of a step or more; a new song starts without it.
+- The lift follows the steps reached on every streak event, so a friend who rejoins mid-streak hears
+  the same swell; a fight's swell and attack dip end with it (a restart keeps the same song).
+- A won run fight's end screen shows the best streak ("Streak n", the gauge icon) once it reached
+  `streak_show_from`.
+- The old per-attack `_parry_streak` (the parry ring's climbing pitch, card #93) is unchanged.
+
+Tests: `tests/unit/test_defence_streak.gd`.
+
 ## 3. Defence timing
 
 ### 3.1 The clock
@@ -1267,6 +1297,14 @@ squawk, no long buzz), `voice_hyena`, `voice_toad` (variants use their base's vo
 glob hits (`ProjectileData.hit_sfx`, instead of the hit's own impact sound); `rock_rumble` with the
 slam of a rock ground hit. User picks (2026-10-14): hyena laugh, monster croak, scarab clicks
 (fly), monster spit, mud splat, rising whoosh (throw), dark swell (bolt), rock crumble.
+
+Phase 24 sounds (2026-10-22, `candidates/phase24.json` and `ambience_candidates.json`, picker
+https://claude.ai/artifact/Xktz3S4EN2WygSpLdq3XCE, built by `make_picker.py --group=phase24
+--with-ambience=ambience_rain,ambience_wind`): the Rot Rat and Grave Rat barked with the hyena's
+voice, so they got `voice_rat` (card #298); `thunder` for storms and `streak_swell` for the defence
+streak (8.20, 2.18); the rain and wind loops (`ambience_kit.py final --only=...` builds just those and
+changes only their credit lines). User picks: a real rat squeak, a thunder crack, a film-score swell,
+forest rain, wind gusts (all CC0).
 
 Hero shouts (2026-10-13, card #102): `CharacterData.shout_sfx` (a voice cue) plays when that hero
 uses a skill (not the basic attack, not Run); on the Team Ultimate every standing hero shouts.
@@ -2385,7 +2423,72 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   fight (`ShopScreen.item_chips`, at most `item_chips_max` 4 chips / `item_words_max` 8 words,
   map_visuals.tres). Still words: the Journal's "Met in N fights" line.
 
-## 8. Run structure (phase 4)
+### 7.14 Controller vibration (phase 24, card #299)
+
+The pad buzzes with the fight. Patterns are data (`data/presentation/rumble.tres`, `RumbleSet` of
+`RumblePattern`s: steps of the weak motor %, the strong motor %, ms), played by the `Rumble` autoload
+(`PadRumble`) through the pure `RumbleMixer` (several buzzes on one pad mix by the stronger motor at
+each moment; a pad is told only when its levels change, with a length so it stops by itself).
+
+| Moment | Pattern | Who feels it |
+|---|---|---|
+| a parry (the last hit of a string: stronger) | `parry`, `parry_final` (sharp, short) | the defender's player |
+| a dodge / a jump | `dodge` (light) / `jump` | the defender's player |
+| a perfect / good skill press | `press_perfect` / `press_good` (softer) | the presser |
+| a hit taken (heavy: at least `big_hit_percent` of max HP) | `hurt` / `hurt_heavy` | the hit hero's player |
+| a hero downed | `downed` | that hero's player |
+| the Team Ultimate | `ultimate` (long, rolling) | every pad here |
+| a boss's rage, a Doom unleashed | `boss_rage`, `doom` | every pad here |
+| a defence streak step (2.18) | `streak` | every pad here |
+| thunder in a storm (8.20) | `thunder` | the pad in use |
+
+- **Whose pad** (`RumbleMixer.pads_of_player`): local co-op, each player's own pad (a keyboard player
+  feels nothing); one person on this machine (solo, or this machine's player online), the pad that was
+  used last, while a pad (not a key) was the last thing pressed; another machine's player online,
+  nothing here. The fight hands the roster and hero owners over (`PadRumble.set_party`); out of a fight
+  a buzz goes to the pad in use. A buzz is sent to the pad the moment it is asked for (a 35 ms buzz
+  must not wait for the next frame).
+- **Settings > Controls > Controller**: Vibration, `< 100% >` in steps of 25, 0 shows OFF (saved per
+  machine, `PlayerSettings.rumble_percent`); a change buzzes the pad once at the new strength
+  (`RumbleSet.test_pattern`). `RumbleSet.strength_percent` scales everything again (above 100
+  stronger, each motor capped at full).
+- Bot and picture runs (`--autoplay`, `--shots`, `--screen`, headless) never buzz: the owner may be
+  playing something else with that pad. Out of focus (the app's or the window's) the pad stops and
+  stays still until the game is in front again; focus is not read at start (Windows sends the first
+  focus late), so a fresh start buzzes. `--no-rumble` keeps the pad still.
+
+Tests: `tests/unit/test_rumble.gd`.
+
+### 7.15 Skill presses climb, and the killing blow goes quiet (phase 24, cards #307, #308)
+
+Two additions the owner picked from an idea search for phase 24 (2026-10-23).
+
+**Skill presses climb (#307).** The skill press sound rings `press_ladder_step_semitones` (1.5)
+higher for each perfect press in a row in one skill (up to `press_ladder_max_steps`, 5), like the
+parry ladder (#93); several players' perfect presses on one hit share a step; a good press, a miss
+or a stray (early or late) press starts it over (`SkillSequenceRunner.ladder_pitch`). A skill or the Team Ultimate of at least
+`press_finish_min_presses` (2) presses, every one perfect (a press voided because its target fell
+does not count against it, `all_perfect_done`; checked again when a kill voids the rest, which an
+online client hears of a moment later), ends with a **finish** on its target at the last strike (a
+spell's when its bolt lands): a burst of `press_finish_sparks` (30) gold sparks, a gold
+flash on the target, a punch-in (`press_finish_punch`), a little shake and the `press_finish` pad
+buzz for everyone who pressed. `press_finish_sfx` can add a sound (none: no new recording).
+Presentation only; every machine online plays it for the presses it sees.
+
+**The killing blow goes quiet (#308).** The blow that ends a fight (the last enemy falling, by any
+cause) or the last hero going down: the fight song cuts to silence over `kill_silence_fade_ms` (60)
+and stays silent (`Audio.hush_music`), so only the hit and the crumble are heard; the victory or
+defeat jingle and then the end song come in on the silence. A new song always starts unhushed, and
+so does the same song asked for again (a restart); with no end song (an empty one, or Run) the
+fight song fades back after the jingle's beat; a Second Wind that gets the last hero back up brings
+the song back; a song still fading out (a boss's rage swap a moment before) is cut too. The scene also holds a dark impact frame
+(`impact_frame_color` at 55%) for `impact_frame_ms` (70) under the HUD, then the usual kill flash
+(`CombatHud.impact_frame`); the Flashes setting scales the dark frame like a flash and Off skips it.
+`kill_silence` turns the silence off. Numbers in `combat_visuals.tres` ("Press ladder", "Killing
+blow").
+
+Tests: `tests/unit/test_press_ladder.gd`.
+
 
 Slay-the-Spire style branching node map (host picks path). Node types: zone (small explorable
 area with visible roaming enemies and a forced fight at the end), rest, shop, boss (final).
@@ -3861,6 +3964,55 @@ Tests: `tests/unit/test_relics.gd`, `test_backpack.gd`, `test_roguelite.gd`, `te
 
 ---
 
+### 8.20 Weather and time of day (phase 24, card #303)
+
+Each zone visit has a weather, or none, picked from the visit's seed (`WeatherData.pick` on its own
+stream, `ZoneAssembler.WEATHER_SALT`, so the layout never moves), the same on every machine online.
+Weather is presentation only: no rule changes (a rule touch may come later).
+
+- **Data**: `data/weather/` (`WeatherData`): rain, storm, fog, wind, dusk. A zone lists the ones it
+  can have with weights and a clear weight (`ZoneData.weathers`, `weather_weights`, `clear_weight`):
+
+  | Zone | Weathers (weight) | Clear |
+  |---|---|---|
+  | Rotten Hollow | rain 3, storm 1, fog 2, wind 2, dusk 3 | 4 |
+  | Sunken Bog | rain 3, storm 1, fog 4, dusk 2 | 4 |
+  | Ashen Ruins | wind 3, fog 2, dusk 3, storm 1 | 4 |
+
+- **Look**: a weather changes a copy of the zone's `StageLook` (`WeatherData.apply_to`, the
+  phase-two values too, so a guard's rage shifts from the weathered room to a weathered rage): sun and
+  ambient colour and strength, the sun's height (dusk: a low sun, long shadows), shadow strength, fog
+  colour and thickness, the sky colour, brightness, saturation, contrast and the vignette, and how far
+  and fast plants sway (`StageLook.sway_percent`, `sway_speed_percent`; wind 280% / 200%). The zone's
+  fights use the same copy, so a fight looks like the zone it started in.
+- **Air**: extra particles on top of the zone's own, which a weather can thin (`zone_air_percent`):
+  rain streaks (`ZoneAmbientData.stretch`: a tall quad turned along its fall, art kit `rain_drop`)
+  with splashes on the ground (`splash`, `quick_fade`; both drawn soft, blended), fog banks,
+  wind-blown dust streaks (straight, stretched along the gust) and leaves; dusk thickens the zone's own air by 30% (more fireflies in the Hollow
+  and the Bog, more ash and embers in the Ruins). Air that drifts straight (no wobble) is born
+  upwind by half its drift (`StageBuilder.ambient`), so it spreads evenly over the view; wobbling air
+  turns within a fraction of a second and stays round the camera. Rain streaks are born no closer than
+  about 4 m from the zone camera (`area.z` 7, a half-depth), out of its near blur. The fights play them thinner like
+  the rest of the zone air (8.12).
+- **Sound**: a loop over the zone's own (`Audio.play_weather`): rain (rain and storm, "Forest rain
+  Atmo Fantasy" by szegvari) or wind ("Wind 2" by FunWithSound), CC0, seamless 60 s loops picked by
+  ear; quieter in the zone's fights (`fight_volume_offset_db`), gone outside the zone.
+- **Lightning** (storm): every 6 to 16 s the sky lights up with a second flicker (`WeatherFx`:
+  ambient light and sky colour), then thunder (`thunder`, picked by ear) 0.3 to 1.5 s later and a low
+  buzz. Not in fights (it would hide an attack), and not while the zone is held behind the pause menu
+  or the backpack or a yes/no prompt (a flash then ends at once, and the next strike is a whole gap
+  after the hold). The Flashes setting scales it like every screen flash
+  (`combat_visuals.screen_flash_scale`: Reduced `flash_reduced_screen_percent`, Off none; the thunder
+  still comes).
+- **Never named on screen**: the weather shows itself (rain falls, fog hides, wind blows dust,
+  dusk turns the light orange), and it changes nothing in play, so a word would only repeat it.
+  The first build wrote it under the zone's name; the owner had it taken out (2026-10-23).
+- Particles: at most 1500 extra per weather (a test checks), 1170 for a storm.
+- Dev switch: `--weather=ID` (or `clear`) gives every zone visit that weather; the bot prints
+  `AUTOPLAY_WEATHER <zone> <weather>`.
+
+Tests: `tests/unit/test_weather.gd`.
+
 ## 9. Multiplayer (phase 5)
 
 ### 9.1 Local co-op (phase 5 Part A, done)
@@ -4333,6 +4485,12 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     casts from her spot and keeps her look. Brin's idle holds the daggers in a reverse grip, high
     and low (#296), and Alder's idle carries the shield on his forearm at his side (#297); both
     picked by the owner from drawn options on 2026-10-21 and in the sprites (5.4).
+24. **Feel and atmosphere** (done, approved 2026-10-23 after a playtest, v0.24.0; built 2026-10-22
+    on branch `phase24-Feel`; cards #298, #299, #300, #303, #307, #308): controller vibration with a Vibration setting (7.14), the defence streak
+    with a gauge reward and a music swell (2.18), weather and time of day in zones (8.20), and the
+    rats' own voice (#298, 5.3). New sounds picked by ear on 2026-10-22: rat voice, thunder, streak
+    swell, rain and wind loops. Added on 2026-10-23 from an idea search: skill presses climb with a
+    finish for a perfect skill (#307), and the killing blow goes quiet (#308) (7.15).
 
 ### 11.1 To-do (from playtests)
 
@@ -4570,3 +4728,10 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-21 | All of Brin's frames use the reverse grip: ready, parry, dodge, every strike, cast, leap, hurt, fall, victory, and his zone walk, stand and pickup (5.4) | owner, after seeing the new idle in a fight: "his idle is good and breathing but now we need to change his whole attack and outside movement as well" |
 | 2026-10-21 | Brin's ready no longer drops into a low crouch: he stands on guard like his idle when it is his turn or an enemy attacks (5.4) | owner: "can we stop the ducking as a whole" (picked Brin's crouch, not the enemies' wind-up crouch) |
 | 2026-10-22 | Phase 23 "Run up and swing" done (3.12, 5.4): every claw, bite and blade monster runs up and swings up close, the Hollow King with a new overhead chop; Brin and Alder run all the way up for melee skills and hop home; Brin's reverse-grip look and moves, Alder's shield on his arm | owner played the Husk, the hyenas and the King: "good", "The King's chop and the heroes' run-up look good"; approved, v0.23.0 |
+| 2026-10-22 | Defence streak (2.18): perfect parries and jumps in a row across a fight, a dodge keeps it, a hit ends it; every 5 fill the team gauge by 10; counted in the engine | card #300 left the reward open (gold, gauge or XP); gauge pays inside the fight and cannot overlap #283's Flawless spoils; an engine count is the same on every machine online |
+| 2026-10-22 | Controller vibration (7.14): patterns in data, each pad buzzes for its own player's heroes, the whole party's moments buzz every pad here; Vibration 0-100% on the Controller page; bots and picture runs never buzz | card #299; the owner plays other games with the same pad while picture runs happen |
+| 2026-10-22 | Weather (8.20): rain, storm, fog, wind and dusk per zone visit from the seed, presentation only; lightning only outside fights | card #303; a flash during an attack would hide the enemy's motion |
+| 2026-10-22 | Phase 24 sounds: rat voice a (a real rat squeak), thunder c (thunder crack), streak swell a (film-score swell), rain a (forest rain), wind b (wind gusts) | owner's picks on the listening page |
+| 2026-10-23 | The weather is not written under the zone's name | owner: "do we really need to state the weather?"; it shows itself and changes nothing in play (like Octopath Traveler); a label can come back if weather ever changes the rules |
+| 2026-10-23 | Phase 24 also gets the skill press ladder with a perfect finish (#307) and the quiet killing blow (#308) (7.15) | owner picked the top two of a ranked idea search: small, no text, no new sounds, felt in every fight |
+| 2026-10-23 | Phase 24 "Feel and atmosphere" done: controller vibration, the defence streak, weather and time of day, the rats' voice, the skill press ladder with a perfect finish, the quiet killing blow (2.18, 7.14, 7.15, 8.20) | owner playtested it: "already tested well done"; approved, v0.24.0 |

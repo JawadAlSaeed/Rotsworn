@@ -1,0 +1,137 @@
+{
+ "voice_rat": {
+  "a": {
+   "name": "Rat squeak",
+   "desc": "A real rat: sharp, angry squeaks.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/rat/fs-288941.mp3",
+     "credit": "\"rat-squeak.wav\" by toefur, CC0, https://freesound.org/people/toefur/sounds/288941/"
+    }
+   ],
+   "len_ms": 1200,
+   "fade_ms": 200
+  },
+  "b": {
+   "name": "Squeak and hiss",
+   "desc": "A quick squeak, then a hiss with teeth in it.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/rat/fs-536753.mp3",
+     "credit": "\"Rat.ogg\" by egomassive, CC0, https://freesound.org/people/egomassive/sounds/536753/",
+     "len_ms": 800
+    },
+    {
+     "sound": "audio/search/rat/fs-826834.mp3",
+     "credit": "\"Cat hissing #2\" by rickismyname, CC0, https://freesound.org/people/rickismyname/sounds/826834/",
+     "at_ms": 380,
+     "pitch": 3,
+     "gain_db": -3
+    }
+   ],
+   "len_ms": 1100,
+   "fade_ms": 200
+  },
+  "c": {
+   "name": "Rat pack chatter",
+   "desc": "Several rats squealing at once.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/rat/fs-134791.mp3",
+     "credit": "\"Rats.mp3\" by Sycoraxi, CC0, https://freesound.org/people/Sycoraxi/sounds/134791/",
+     "start_ms": 3350,
+     "fade_in_ms": 12
+    }
+   ],
+   "len_ms": 1100,
+   "fade_ms": 250
+  }
+ },
+ "thunder": {
+  "a": {
+   "name": "Rolling thunder",
+   "desc": "A long, deep roll far away.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase24/fs-795412.mp3",
+     "credit": "\"Thunder 12\" by LukaCafuka, CC0, https://freesound.org/people/LukaCafuka/sounds/795412/",
+     "start_ms": 1200
+    }
+   ],
+   "len_ms": 5500,
+   "fade_ms": 1500
+  },
+  "b": {
+   "name": "Deep thunder",
+   "desc": "A short, deep boom that rumbles off.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase24/fs-683420.mp3",
+     "credit": "\"Short_Thunder_Deep.wav\" by SholeColtis, CC0, https://freesound.org/people/SholeColtis/sounds/683420/"
+    }
+   ],
+   "len_ms": 5000,
+   "fade_ms": 1200
+  },
+  "c": {
+   "name": "Thunder crack",
+   "desc": "A sharp crack, then a rumble.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase24/fs-696550.mp3",
+     "credit": "\"thunder11\" by saha213131, CC0, https://freesound.org/people/saha213131/sounds/696550/",
+     "start_ms": 2150
+    }
+   ],
+   "len_ms": 4000,
+   "fade_ms": 1200
+  }
+ },
+ "streak_swell": {
+  "a": {
+   "name": "Movie swell",
+   "desc": "Strings rise like a film score.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase24/fs-218524.mp3",
+     "credit": "\"Movie Swell 2\" by jordivburgel, CC0, https://freesound.org/people/jordivburgel/sounds/218524/"
+    }
+   ],
+   "len_ms": 2600,
+   "fade_ms": 900
+  },
+  "b": {
+   "name": "Choir swell",
+   "desc": "Voices rise in a soft, holy swell.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "audio/search/phase24/fs-819349.mp3",
+     "credit": "\"Mystical female choir swell 03\" by Johnmode, CC0, https://freesound.org/people/Johnmode/sounds/819349/",
+     "start_ms": 1700
+    }
+   ],
+   "len_ms": 2600,
+   "fade_ms": 900
+  },
+  "c": {
+   "name": "Uplift",
+   "desc": "A quick bright 'ahh' that lifts up.",
+   "note": "CC0",
+   "layers": [
+    {
+     "sound": "riser/fs-237373-ahhhhhhhh-uplift-wav-1"
+    }
+   ],
+   "len_ms": 2100,
+   "fade_ms": 500
+  }
+ }
+}

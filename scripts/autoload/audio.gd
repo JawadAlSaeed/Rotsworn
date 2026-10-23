@@ -32,13 +32,21 @@ var _fade_in_s: float = 0.0
 var _fade_out_s: float = 0.0
 var _fade_in_tween: Tween
 var _fade_out_tweens: Dictionary = {}
-## The song's own volume and the dip on top of it (duck_music).
+## The song's own volume, the dip on top of it (duck_music) and the swell (lift_music).
 var _music_base_db: float = 0.0
 var _music_duck_db: float = 0.0
 var _duck_tween: Tween
+var _music_lift_db: float = 0.0
+var _lift_tween: Tween
+## 0 normally, SILENT_DB while hushed (hush_music: the killing blow, card #308).
+var _music_hush_db: float = 0.0
+var _hush_tween: Tween
 ## The place's background loop (zone ambience), on the Effects bus.
 var _ambience: AudioStreamPlayer
 var _ambience_path: String = ""
+## The weather's loop over it (rain, wind; card #303), also on the Effects bus.
+var _weather: AudioStreamPlayer
+var _weather_path: String = ""
 ## Song or ambience path -> seconds into it when it was replaced (used by `resume`, then forgotten).
 var _positions: Dictionary = {}
 
@@ -77,6 +85,11 @@ func _ready() -> void:
 	_ambience.bus = String(PlayerSettings.CHANNELS.effects.bus)
 	add_child(_ambience)
 	_ambience.finished.connect(_ambience.play)
+	_weather = AudioStreamPlayer.new()
+	_weather.name = "Weather"
+	_weather.bus = String(PlayerSettings.CHANNELS.effects.bus)
+	add_child(_weather)
+	_weather.finished.connect(_weather.play)
 
 
 ## Where a remembered position should restart a stream of `length` seconds: the position itself,
@@ -92,12 +105,22 @@ static func resume_position(saved: float, length: float) -> float:
 func play_music(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
 	_music_base_db = volume_db
 	if path == _music_path and _music.playing:
+		# The same song asked for again (a fight restarted): it goes on, but never left hushed.
+		if _hush_tween != null:
+			_hush_tween.kill()
+		_music_hush_db = 0.0
 		_update_music_volume()
 		return
-	# A new song starts without any dip left over from the last place.
+	# A new song starts without any dip or swell left over from the last place.
 	if _duck_tween != null:
 		_duck_tween.kill()
 	_music_duck_db = 0.0
+	if _lift_tween != null:
+		_lift_tween.kill()
+	_music_lift_db = 0.0
+	if _hush_tween != null:
+		_hush_tween.kill()
+	_music_hush_db = 0.0
 	if not _music_path.is_empty() and _music.playing:
 		_positions[_music_path] = _music.get_playback_position()
 	_fade_out(_music)
@@ -147,7 +170,8 @@ func _set_music_fade(fade: float) -> void:
 
 
 func _update_music_volume() -> void:
-	_music.volume_db = maxf(SILENT_DB, _music_base_db + _music_duck_db + linear_to_db(maxf(_music_fade, 0.001)))
+	_music.volume_db = maxf(SILENT_DB, _music_base_db + _music_duck_db + _music_lift_db + _music_hush_db
+			+ linear_to_db(maxf(_music_fade, 0.001)))
 
 
 ## Dips the music by `db` (0: back to full) over `ms`, for example while an enemy attacks.
@@ -163,6 +187,51 @@ func duck_music(db: float, ms: int) -> void:
 
 func _apply_music_volume(duck_db: float) -> void:
 	_music_duck_db = duck_db
+	_update_music_volume()
+
+
+## Swells the music `db` louder (0: back to its own volume) over `ms`, on top of any dip: a long
+## defence streak (card #300). A new song starts without it.
+func lift_music(db: float, ms: int) -> void:
+	if _lift_tween != null:
+		_lift_tween.kill()
+	if ms <= 0:
+		_apply_music_lift(db)
+		return
+	_lift_tween = create_tween()
+	_lift_tween.tween_method(_apply_music_lift, _music_lift_db, db, float(ms) / 1000.0)
+
+
+func _apply_music_lift(lift_db: float) -> void:
+	_music_lift_db = lift_db
+	_update_music_volume()
+
+
+## Cuts the song to silence over `ms` (`on`), or brings it back over `ms`: the killing blow (card
+## #308) hushes the fight song so only the hit is heard; the next song starts without the hush. A
+## song still fading out (a boss's rage swap a moment ago) is cut too.
+func hush_music(on: bool, ms: int = 0) -> void:
+	if _hush_tween != null:
+		_hush_tween.kill()
+	if on:
+		for player: AudioStreamPlayer in _fade_out_tweens.keys():
+			if player == _music:
+				continue
+			var fading := _fade_out_tweens[player] as Tween
+			if fading != null and fading.is_valid():
+				fading.kill()
+			player.stop()
+		_fade_out_tweens.clear()
+	var target := SILENT_DB if on else 0.0
+	if ms <= 0:
+		_apply_music_hush(target)
+		return
+	_hush_tween = create_tween()
+	_hush_tween.tween_method(_apply_music_hush, _music_hush_db, target, float(ms) / 1000.0)
+
+
+func _apply_music_hush(hush_db: float) -> void:
+	_music_hush_db = hush_db
 	_update_music_volume()
 
 
@@ -185,6 +254,29 @@ func play_ambience(path: String, volume_db: float = 0.0, resume: bool = false) -
 		return
 	_ambience.stream = stream
 	_ambience.play(resume_position(float(_positions.get(path, 0.0)), stream.get_length()) if resume else 0.0)
+	_positions.erase(path)
+
+
+## Loops the weather's sound at `path` over the zone's background (empty path: silence). The loop
+## already playing goes on and only takes the new volume (quieter in a fight). `resume`: start from
+## where it was left off.
+func play_weather(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
+	_weather.volume_db = volume_db
+	if path == _weather_path and _weather.playing:
+		return
+	if not _weather_path.is_empty() and _weather.playing:
+		_positions[_weather_path] = _weather.get_playback_position()
+	_weather_path = path
+	_weather.stop()
+	_weather.stream = null
+	if path.is_empty():
+		return
+	var stream: AudioStream = load(path) as AudioStream if ResourceLoader.exists(path) else null
+	if stream == null:
+		_warn_once(path, "Audio: no playable weather loop at '%s'" % path)
+		return
+	_weather.stream = stream
+	_weather.play(resume_position(float(_positions.get(path, 0.0)), stream.get_length()) if resume else 0.0)
 	_positions.erase(path)
 
 
@@ -321,6 +413,10 @@ func stop_all() -> void:
 		_ambience_path = ""
 		_ambience.stop()
 		_ambience.stream = null
+	if _weather != null:
+		_weather_path = ""
+		_weather.stop()
+		_weather.stream = null
 
 
 func _exit_tree() -> void:

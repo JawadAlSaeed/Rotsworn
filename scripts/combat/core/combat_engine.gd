@@ -60,6 +60,10 @@ extends RefCounted
 ##   turn_shifted            {target, delta}   a fighter's next turn moved (delta in timeline
 ##                           ticks: negative = sooner); a turn_order event follows
 ##   team_gauge              {value, delta, max}
+##   defence_streak          {value, best, milestone, lost}   the party's perfect defences in a row
+##                           (card #300): value after this defence (0: a hit ended it), best this
+##                           fight, milestone (every tuning defence_streak_step: the gauge fills, a
+##                           team_gauge event follows), lost (the streak a hit just ended, else 0)
 ##   timed_sequence_declared {seq, kind, source, action, name, mode, targets:[id],
 ##                            alert_cue, allow_timing_ring, hits:[hit], prompts:[prompt]}
 ##       hit    = {index, at_ms, kind, approach_ms, feint, damage_percent, impact_sfx,
@@ -166,6 +170,9 @@ var sequence_counter: int = 0
 var sequence: Dictionary = {}
 ## Shared team gauge (0 .. tuning team_gauge_max).
 var team_gauge: int = 0
+## The party's perfect parries and jumps in a row across the fight (card #300), and the best run.
+var defence_streak: int = 0
+var best_defence_streak: int = 0
 ## Enemy id -> {attack: String, targets: Array[int]}: what it does on its next turn.
 var intents: Dictionary = {}
 ## "victory", "defeat" or "escaped" once the fight is over.
@@ -282,6 +289,8 @@ static func restore(setup: CombatSetup, snap: Dictionary) -> CombatEngine:
 	engine.sequence_counter = int(snap.sequence_counter)
 	engine.sequence = (snap.sequence as Dictionary).duplicate(true)
 	engine.team_gauge = int(snap.team_gauge)
+	engine.defence_streak = int(snap.get("defence_streak", 0))
+	engine.best_defence_streak = int(snap.get("best_defence_streak", 0))
 	engine.intents = (snap.intents as Dictionary).duplicate(true)
 	engine.result = String(snap.result)
 	engine.practice = (snap.practice as Dictionary).duplicate(true)
@@ -487,6 +496,8 @@ func resume_events() -> Array[Dictionary]:
 	p["type"] = "practice_changed"
 	events.append(p)
 	events.append({"type": "team_gauge", "value": team_gauge, "delta": 0, "max": tuning.team_gauge_max})
+	events.append({"type": "defence_streak", "value": defence_streak, "best": best_defence_streak,
+			"milestone": false, "lost": 0})
 	for enemy_id: int in living_enemy_ids():
 		if intents.has(enemy_id) and get_attack(String((intents[enemy_id] as Dictionary).attack)) != null:
 			events.append(_intent_event(enemy_id))
@@ -515,6 +526,8 @@ func snapshot() -> Dictionary:
 		"sequence_counter": sequence_counter,
 		"sequence": sequence.duplicate(true),
 		"team_gauge": team_gauge,
+		"defence_streak": defence_streak,
+		"best_defence_streak": best_defence_streak,
 		"intents": intents.duplicate(true),
 		"result": result,
 		"practice": practice.duplicate(true),
@@ -1767,6 +1780,7 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 	}
 	events.append(resolved)
 	events.append_array(thorn_events)
+	_count_streak(outcome, perfect, events)
 	if downed:
 		events.append({"type": "downed", "target": target.id})
 		_on_downed(target, events)
@@ -1780,6 +1794,25 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 			events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
 	if not downed and outcome == Defense.Outcome.NONE:
 		_apply_hit_marks(target, prompt, events)
+
+
+## The defence streak (card #300): a perfect parry or jump adds one, a dodge keeps it, a hit taken
+## ends it. Every tuning defence_streak_step in a row fills the team gauge. Counted here, from the
+## resolved outcomes, so every machine online counts the same streak and pays the same gauge.
+func _count_streak(outcome: int, perfect: bool, events: Array[Dictionary]) -> void:
+	if perfect:
+		defence_streak += 1
+		best_defence_streak = maxi(best_defence_streak, defence_streak)
+		var milestone := defence_streak % maxi(1, tuning.defence_streak_step) == 0
+		events.append({"type": "defence_streak", "value": defence_streak, "best": best_defence_streak,
+				"milestone": milestone, "lost": 0})
+		if milestone and tuning.defence_streak_gauge > 0:
+			_change_gauge(tuning.defence_streak_gauge, events)
+	elif outcome == Defense.Outcome.NONE and defence_streak > 0:
+		var lost := defence_streak
+		defence_streak = 0
+		events.append({"type": "defence_streak", "value": 0, "best": best_defence_streak,
+				"milestone": false, "lost": lost})
 
 
 ## AP a successful defence earns: the tuned reward plus rot-touched gear (DESIGN.md 8.16), never below 0.

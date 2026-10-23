@@ -110,6 +110,17 @@ var _escaped_seen: bool = false
 var _notes: Array[Dictionary] = []
 var _note_anchor: Vector3 = Vector3.ZERO
 var _press_lead_us: int = 1
+## The press ladder (card #307): perfect presses in a row in this skill (each rings a step higher),
+## whether every press so far was perfect, the prompts pressed perfectly, and whether the finish
+## has played.
+var _press_ladder: int = 0
+## The hit the ladder last climbed on and the pitch it rang: several players' perfect presses on one
+## hit share a step (two cues in one frame would be one sound anyway).
+var _ladder_hit: int = -1
+var _ladder_pitch: float = 1.0
+var _all_perfect: bool = true
+var _perfect_prompts: Dictionary = {}
+var _finish_played: bool = false
 var _ring_color: Color = HudStyle.TEXT
 
 
@@ -179,6 +190,11 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_no_strike.clear()
 	_anim_prompts = _prompts_by_hero()
 	_escaped_seen = false
+	_press_ladder = 0
+	_ladder_hit = -1
+	_all_perfect = true
+	_perfect_prompts.clear()
+	_finish_played = false
 	_notes = PressNotes.notes(_prompts)
 	_ring_color = ability.ring_color if ability != null else HudStyle.TEXT
 	_note_anchor = _strikers_stand_point()
@@ -198,6 +214,7 @@ func start(event: Dictionary, ability: AbilityData) -> void:
 	_hud.show_banner(String(event.get("name", "?")), HudStyle.GOLD, actor_name)
 	if ability != null and ability.team_ultimate:
 		Sfx.play("ultimate_start")
+		PadRumble.everyone("ultimate")
 	_hud.set_skill_pressing(true)
 	# A leftover draw or hurt must never hide the driven skill frames (cancel rule, DESIGN.md 5.5).
 	for id: int in _follow_up_allies():
@@ -285,6 +302,7 @@ func _drain(t: int) -> void:
 ## Another player missed a press: MISS, and the strike without the bonus (a follow-up ally hops
 ## home instead).
 func _expire_remote(idx: int, contact_us: int) -> void:
+	_spoil_ladder()
 	var prompt: Dictionary = _prompts[idx]
 	var v := _view.fighter(int(prompt.character))
 	if v != null:
@@ -415,8 +433,9 @@ func _on_good_result(idxs: Array[int], offset_us: int, perfect: bool, now_us: in
 		else:
 			others.append(idx)
 	if not casts.is_empty():
-		_press_feedback(casts, offset_us, perfect)
+		# The bolt first: the finish (card #307) waits for its landing, which _launch works out.
 		_launch(casts, now_us, true, perfect)
+		_press_feedback(casts, offset_us, perfect)
 	if not others.is_empty():
 		_schedule(contact_us, _on_good_press.bind(others, offset_us, perfect, contact_us))
 
@@ -429,14 +448,95 @@ func _on_good_press(idxs: Array[int], offset_us: int, perfect: bool, contact_us:
 	_strike(idxs, true, contact_us, perfect)
 
 
-## The press sound and the PERFECT / GOOD readout over the pressing hero.
+## The press sound and the PERFECT / GOOD readout over the pressing hero. A perfect press climbs
+## the ladder (card #307); a good one starts it over.
 func _press_feedback(idxs: Array[int], offset_us: int, perfect: bool) -> void:
-	Sfx.play("skill_press", 0.0 if perfect else GOOD_PRESS_VOLUME_DB)
+	var pitch := 1.0
+	if perfect:
+		var hit := int((_prompts[idxs[0]] as Dictionary).hit)
+		if hit != _ladder_hit:
+			_ladder_hit = hit
+			_ladder_pitch = ladder_pitch(_press_ladder, _visuals.press_ladder_step_semitones, _visuals.press_ladder_max_steps)
+			_press_ladder += 1
+		pitch = _ladder_pitch
+		for idx: int in idxs:
+			_perfect_prompts[idx] = true
+	else:
+		_spoil_ladder()
+	Sfx.play("skill_press", 0.0 if perfect else GOOD_PRESS_VOLUME_DB, pitch)
 	var text := with_timing("PERFECT" if perfect else "GOOD", offset_us)
 	var who: Array[int] = []
 	for idx: int in idxs:
 		who.append(int((_prompts[idx] as Dictionary).character))
 	_hud.popup(text, _focus_head(who), HudStyle.GOLD if perfect else HudStyle.TEXT)
+	PadRumble.heroes("press_perfect" if perfect else "press_good", who)
+	if perfect:
+		_maybe_finish(idxs)
+
+
+## The press sound's pitch for the `step`-th perfect press in a row (0: the first), climbing
+## `semitones` a step up to `max_steps`. Pure.
+static func ladder_pitch(step: int, semitones: float, max_steps: int) -> float:
+	return pow(2.0, float(clampi(step, 0, maxi(0, max_steps))) * semitones / 12.0)
+
+
+## True when a skill of `prompt_count` prompts has every one not `voided` in `perfect` (idx ->
+## true), no press spoiled it (`all_perfect`), and at least `min_presses` were perfect. Pure.
+static func all_perfect_done(prompt_count: int, voided: Dictionary, perfect: Dictionary, all_perfect: bool,
+		min_presses: int) -> bool:
+	if not all_perfect or perfect.size() < min_presses:
+		return false
+	for idx: int in prompt_count:
+		if not voided.has(idx) and not perfect.has(idx):
+			return false
+	return true
+
+
+## A good press, a miss or a stray press: the ladder starts over and the finish is lost.
+func _spoil_ladder() -> void:
+	_press_ladder = 0
+	_ladder_hit = -1
+	_all_perfect = false
+
+
+## Every press of the skill was perfect (at least press_finish_min_presses of them): the finish
+## plays on the target once, at the strike of these last presses (a spell's when its bolt lands).
+func _maybe_finish(idxs: Array[int]) -> void:
+	if _finish_played or not all_perfect_done(_prompts.size(), _voided, _perfect_prompts, _all_perfect,
+			_visuals.press_finish_min_presses):
+		return
+	_finish_played = true
+	# At the latest strike among them: a spell's when its bolt lands.
+	var landing_us := 0
+	for idx: int in idxs:
+		if _is_cast(idx):
+			landing_us = maxi(landing_us, int(_bolt_landing.get(idx, 0)))
+	if landing_us > attack_time_us():
+		_schedule(landing_us, _perfect_finish)
+	else:
+		_perfect_finish()
+
+
+## The finish (card #307): a gold burst and a flash on the target, a punch-in, a little shake and a
+## strong buzz for everyone who pressed.
+func _perfect_finish() -> void:
+	var target := _first_target()
+	if target < 0 and not _targets.is_empty():
+		target = _targets[0]
+	var view := _view.fighter(target) if target >= 0 else null
+	var at := view.centre_position() if view != null else _note_anchor
+	_view.spawn_sparks(at, _visuals.press_finish_sparks, 1.0, _visuals.press_finish_color)
+	if view != null:
+		view.flash(_visuals.flash_ms * 2, _visuals.press_finish_color, 0.8)
+	_view.camera.punch(_visuals.press_finish_punch, _visuals.punch_ms)
+	_view.camera.add_trauma(_visuals.press_finish_shake)
+	if not _visuals.press_finish_sfx.is_empty():
+		Sfx.play(_visuals.press_finish_sfx)
+	var who: Array[int] = []
+	for prompt: Dictionary in _prompts:
+		if not who.has(int(prompt.character)):
+			who.append(int(prompt.character))
+	PadRumble.heroes("press_finish", who)
 
 
 ## The perfect press's hit-stop on the shared clock, owned by the presser (card #180).
@@ -518,6 +618,7 @@ func with_timing(text: String, offset_us: int) -> String:
 
 func _on_whiff(report: Dictionary, player: int) -> void:
 	Sfx.play("whiff")
+	_spoil_ladder()
 	var text := "EARLY" if int(report.reason) == DefenseJudge.Reason.EARLY else "LATE"
 	var color := HudStyle.EARLY if text == "EARLY" else HudStyle.LATE
 	if int(report.hit) >= 0:
@@ -550,6 +651,7 @@ func _expire(t: int) -> void:
 			_follow_up_off(idx)
 	if not expired.is_empty():
 		Sfx.play("skill_miss")
+		_spoil_ladder()
 	if not strikes.is_empty():
 		_miss_strike(strikes, t)
 
@@ -697,6 +799,13 @@ func _void(idxs: Array) -> void:
 		_voided[int(idx)] = true
 		_follow_up_off(int(idx))
 	_judges.void_prompts(idxs)
+	# A kill can void the presses still to come after the last perfect one already played (online a
+	# client hears of its own void a round trip later): the finish is checked again (card #307).
+	if not _finish_played and _all_perfect:
+		var pressed: Array[int] = []
+		for idx: Variant in _perfect_prompts:
+			pressed.append(int(idx))
+		_maybe_finish(pressed)
 
 
 ## Follow-up prompt `idx` will never strike (missed or voided): its ally stops winding up and, if

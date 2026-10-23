@@ -45,10 +45,13 @@ ui click key tick tap pop thump paper chime shimmer zap.
 - `find_music.py` searches OpenGameArt (CC0 / CC-BY only); `music_candidates.json` +
   `music_selection.json` + `music_kit.py final` write `assets/audio/music/` (-16 LUFS, credits).
 - `ambience_candidates.json` + `ambience_selection.json` + `ambience_kit.py final` write seamless
-  CC0 loops to `assets/audio/ambience/`.
+  CC0 loops to `assets/audio/ambience/`, changing only their own lines in its CREDITS.md and leaving
+  loops picked through the Openverse pass alone; `final --only=ambience_rain,ambience_wind` builds
+  just those.
 - `freesound_fetch.py search|get` finds and downloads CC0 Freesound recordings (used for the enemy
   voices in `candidates/voices.json`).
-- `make_picker.py --music`, `--ambience` or `--group=voices` makes a listening page.
+- `make_picker.py --music`, `--ambience` or `--group=voices` makes a listening page;
+  `--group=phase24 --with-ambience=ambience_rain,ambience_wind` adds those loops to an effects page.
 
 
 ## Openverse pass (every sound against free finds)

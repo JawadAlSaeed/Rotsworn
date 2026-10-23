@@ -72,3 +72,15 @@ extends Resource
 ## Background sound that loops while exploring here (wind, drips, flies; card #99). Empty: none.
 @export_file("*.wav", "*.ogg", "*.mp3") var ambience_path: String = ""
 @export_range(-40.0, 12.0, 0.5, "suffix:dB") var ambience_volume_db: float = 0.0
+
+@export_group("Weather")
+## The weather a visit here can have (DESIGN.md 8.20, card #303), each with its weight in
+## weather_weights (missing: 1), and the weight of a clear visit. Picked from the visit's seed by
+## ZoneAssembler, so every machine online gets the same.
+@export var weathers: Array[WeatherData] = []
+@export var weather_weights: Array[int] = []
+@export_range(0, 100) var clear_weight: int = 2
+@export_group("")
+
+## This visit's weather (null: clear). Set by ZoneAssembler on the visit's copy, never saved.
+var weather: WeatherData

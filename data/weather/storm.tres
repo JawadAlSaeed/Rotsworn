@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="WeatherData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/weather_data.gd" id="1_weather"]
+[ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="2_air"]
+
+[sub_resource type="Resource" id="Air_rain"]
+script = ExtResource("2_air")
+id = "rain"
+texture_path = "res://assets/sprites/fx/rain_drop.png"
+color = Color(0.75, 0.82, 0.95, 0.65)
+amount = 1000
+lifetime = 0.7
+size = 0.025
+area = Vector3(14, 4, 7)
+height = 5.0
+velocity = Vector3(-3, -15, 0.6)
+spread = 3.0
+stretch = 14.0
+soft = true
+
+[sub_resource type="Resource" id="Air_splash"]
+script = ExtResource("2_air")
+id = "splash"
+texture_path = "res://assets/sprites/fx/splash.png"
+color = Color(0.82, 0.88, 0.97, 0.75)
+amount = 170
+lifetime = 0.3
+size = 0.12
+area = Vector3(14, 0.02, 9)
+height = 0.06
+velocity = Vector3(0, 0.2, 0)
+spread = 20.0
+quick_fade = true
+soft = true
+
+[resource]
+script = ExtResource("1_weather")
+id = "storm"
+display_name = "Storm"
+light_color = Color(0.62, 0.7, 0.88, 1)
+light_color_mix = 0.5
+light_energy_percent = 55
+ambient_color = Color(0.36, 0.4, 0.52, 1)
+ambient_color_mix = 0.4
+ambient_energy_percent = 75
+sun_shadow_percent = 35
+fog_color = Color(0.24, 0.27, 0.34, 1)
+fog_color_mix = 0.45
+fog_density_add = 0.018
+fog_height_density_add = 0.15
+background_color = Color(0.06, 0.07, 0.1, 1)
+background_color_mix = 0.6
+brightness_percent = 90
+saturation_percent = 72
+contrast_percent = 106
+vignette_add = 0.1
+zone_air_percent = 25
+sway_percent = 220
+sway_speed_percent = 170
+ambience_path = "res://assets/audio/ambience/ambience_rain.ogg"
+ambience_volume_db = 2.0
+fight_volume_offset_db = -8.0
+lightning_min_ms = 6000
+lightning_max_ms = 16000
+lightning_energy = 1.6
+lightning_color = Color(0.8, 0.85, 1.0, 1)
+lightning_flash_ms = 240
+thunder_sfx = "thunder"
+thunder_min_delay_ms = 300
+thunder_max_delay_ms = 1500
+air = Array[ExtResource("2_air")]([SubResource("Air_rain"), SubResource("Air_splash")])

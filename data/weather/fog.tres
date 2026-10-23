@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="WeatherData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/weather_data.gd" id="1_weather"]
+[ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="2_air"]
+
+[sub_resource type="Resource" id="Air_fog_bank"]
+script = ExtResource("2_air")
+id = "fog_bank"
+texture_path = "res://assets/sprites/fx/mist.png"
+color = Color(0.85, 0.88, 0.9, 0.3)
+amount = 40
+lifetime = 14.0
+size = 2.4
+area = Vector3(14, 1.2, 9)
+height = 1.0
+velocity = Vector3(0.15, 0, 0)
+spread = 10.0
+soft = true
+
+[resource]
+script = ExtResource("1_weather")
+id = "fog"
+display_name = "Fog"
+light_energy_percent = 75
+ambient_energy_percent = 110
+sun_shadow_percent = 35
+fog_color = Color(0.55, 0.58, 0.62, 1)
+fog_color_mix = 0.35
+fog_density_add = 0.02
+fog_height_density_add = 0.3
+background_color = Color(0.2, 0.21, 0.23, 1)
+background_color_mix = 0.4
+saturation_percent = 75
+contrast_percent = 92
+vignette_add = 0.04
+zone_air_percent = 70
+air = Array[ExtResource("2_air")]([SubResource("Air_fog_bank")])

@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="WeatherData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/weather_data.gd" id="1_weather"]
+[ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="2_air"]
+
+[sub_resource type="Resource" id="Air_rain"]
+script = ExtResource("2_air")
+id = "rain"
+texture_path = "res://assets/sprites/fx/rain_drop.png"
+color = Color(0.75, 0.82, 0.95, 0.65)
+amount = 700
+lifetime = 0.7
+size = 0.025
+area = Vector3(14, 4, 7)
+height = 5.0
+velocity = Vector3(-1.2, -13, 0.4)
+spread = 3.0
+stretch = 14.0
+soft = true
+
+[sub_resource type="Resource" id="Air_splash"]
+script = ExtResource("2_air")
+id = "splash"
+texture_path = "res://assets/sprites/fx/splash.png"
+color = Color(0.82, 0.88, 0.97, 0.75)
+amount = 120
+lifetime = 0.3
+size = 0.12
+area = Vector3(14, 0.02, 9)
+height = 0.06
+velocity = Vector3(0, 0.2, 0)
+spread = 20.0
+quick_fade = true
+soft = true
+
+[resource]
+script = ExtResource("1_weather")
+id = "rain"
+display_name = "Rain"
+light_color = Color(0.7, 0.78, 0.9, 1)
+light_color_mix = 0.4
+light_energy_percent = 70
+ambient_color = Color(0.4, 0.45, 0.55, 1)
+ambient_color_mix = 0.3
+ambient_energy_percent = 85
+sun_shadow_percent = 50
+fog_color = Color(0.3, 0.33, 0.4, 1)
+fog_color_mix = 0.35
+fog_density_add = 0.012
+fog_height_density_add = 0.1
+background_color = Color(0.09, 0.1, 0.13, 1)
+background_color_mix = 0.5
+brightness_percent = 95
+saturation_percent = 80
+vignette_add = 0.05
+zone_air_percent = 40
+sway_percent = 130
+sway_speed_percent = 120
+ambience_path = "res://assets/audio/ambience/ambience_rain.ogg"
+ambience_volume_db = 0.0
+fight_volume_offset_db = -8.0
+air = Array[ExtResource("2_air")]([SubResource("Air_rain"), SubResource("Air_splash")])

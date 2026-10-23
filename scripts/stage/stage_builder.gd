@@ -16,6 +16,8 @@ static var _footprints: Dictionary = {}
 static var _piece_materials: Dictionary = {}
 ## A built 3D piece remembers its WorldPieceData here (dim_glow needs it).
 const META_PIECE := &"world_piece"
+## The prop shader's own sway speed (fighter_sprite.gdshader sway_speed), which a windy look scales.
+const SWAY_SPEED: float = 1.1
 ## The vignette draws above the 3D view and below every HUD (layer 10 and up).
 const VIGNETTE_LAYER: int = 5
 ## Shadows reach this far from the camera (world units).
@@ -363,7 +365,9 @@ static func prop(data: ZonePropData, look: StageLook = null) -> Sprite3D:
 	mat.set_shader_parameter("sprite_texture", tex)
 	mat.set_shader_parameter("self_glow", data.glow)
 	mat.set_shader_parameter("self_glow_color", data.glow_color)
-	mat.set_shader_parameter("sway", data.sway)
+	mat.set_shader_parameter("sway", data.sway * (float(look.sway_percent) / 100.0 if look != null else 1.0))
+	if look != null and look.sway_speed_percent != 100:
+		mat.set_shader_parameter("sway_speed", SWAY_SPEED * float(look.sway_speed_percent) / 100.0)
 	sprite.material_override = mat
 	if look != null and data.contact_shadow and data.glow <= 0.0:
 		var shadow := contact_shadow(data, tex, look)
@@ -483,6 +487,13 @@ static func ambient(data: ZoneAmbientData) -> GPUParticles3D:
 	var process := ParticleProcessMaterial.new()
 	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	process.emission_box_extents = data.area
+	# Air that drifts straight is born upwind by half its drift, so it spreads evenly over the view
+	# instead of thinning on the upwind side (card #303). Falling (y) is left alone, and so is air
+	# that wobbles: its turbulence turns it within a fraction of a second, so it hardly drifts.
+	var upwind := Vector3.ZERO
+	if data.wobble <= 0.0:
+		upwind = -Vector3(data.velocity.x, 0.0, data.velocity.z) * data.lifetime * 0.5
+	process.emission_shape_offset = upwind
 	var speed := data.velocity.length()
 	process.direction = data.velocity.normalized() if speed > 0.0001 else Vector3.UP
 	process.spread = data.spread
@@ -505,18 +516,20 @@ static func ambient(data: ZoneAmbientData) -> GPUParticles3D:
 	var fade := Gradient.new()
 	fade.set_color(0, Color(1, 1, 1, 0))
 	fade.set_color(1, Color(1, 1, 1, 0))
-	fade.add_point(0.2, Color(1, 1, 1, 1))
-	fade.add_point(0.8, Color(1, 1, 1, 1))
+	fade.add_point(0.02 if data.quick_fade else 0.2, Color(1, 1, 1, 1))
+	fade.add_point(0.35 if data.quick_fade else 0.8, Color(1, 1, 1, 1))
 	var ramp := GradientTexture1D.new()
 	ramp.gradient = fade
 	process.color_ramp = ramp
 	process.color = data.color
+	var streak := data.stretch > 1.0
 	var quad := QuadMesh.new()
-	quad.size = Vector2(data.size, data.size)
+	quad.size = Vector2(data.size, data.size * data.stretch) if streak else Vector2(data.size, data.size)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = AssetLoader.texture(data.texture_path, Vector2i(4, 4))
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	# A streak is turned by the particles themselves (along its fall, facing the camera).
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED if streak else BaseMaterial3D.BILLBOARD_PARTICLES
 	mat.vertex_color_use_as_albedo = true
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED if data.glow > 0.0 else BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if data.soft else BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
@@ -534,7 +547,10 @@ static func ambient(data: ZoneAmbientData) -> GPUParticles3D:
 	particles.lifetime = data.lifetime
 	particles.preprocess = data.lifetime
 	particles.local_coords = false
-	particles.visibility_aabb = AABB(-data.area - Vector3(20, 10, 20), (data.area + Vector3(20, 10, 20)) * 2.0)
+	if streak:
+		particles.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
+	var reach := data.area + upwind.abs() + Vector3(20, 10, 20)
+	particles.visibility_aabb = AABB(-reach, reach * 2.0)
 	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return particles
 

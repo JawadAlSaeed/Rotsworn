@@ -12,6 +12,8 @@ extends RefCounted
 ##   --seed=N                        fixed fight seed (else tuning fixed_seed, else random)
 ##   --encounter=ID                  start this encounter (data/encounters) instead of the list
 ##   --zone=ID                       start in this zone (data/zones) instead of the list
+##   --weather=ID                    every zone visit has this weather (data/weather: rain, storm,
+##                                   fog, wind, dusk) or none ("clear"), for tests and pictures
 ##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
 ##   --run                           start a new run at once (DESIGN.md 8)
 ##   --save-path=PATH                (dev tool) keep the run save at PATH (a user:// path); the bot
@@ -31,7 +33,8 @@ extends RefCounted
 ##                                   title, controller, calibration_offer, credits, glossary (glossary_<topic> opens that
 ##                                   topic: glossary_reading), journal, party, heroes, attributes, skills, calibration,
 ##                                   tutorial, map, map_start, map_act2, shop, campfire,
-##                                   event, treasure, zone_exit (a zone's open exit), zone_leave (its
+##                                   event, treasure, controls_vibration (the Controller page on
+##                                   its Vibration row), zone_exit (a zone's open exit), zone_leave (its
 ##                                   "Leave the zone?" question)
 ##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the
 ##                                   action menu opens, press these input actions on it (for
@@ -62,6 +65,8 @@ var seed_override: int = -1
 var encounter_id: String = ""
 ## "" when no --zone was given.
 var zone_id: String = ""
+## --weather=ID: every zone visit has this weather ("clear": none); "" : the seed picks (card #303).
+var weather_id: String = ""
 var first_strike: bool = false
 var run: bool = false
 ## --continue: pick up the saved run at once.
@@ -144,6 +149,8 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.encounter_id = arg.substr("--encounter=".length())
 		elif arg.begins_with("--zone="):
 			options.zone_id = arg.substr("--zone=".length())
+		elif arg.begins_with("--weather="):
+			options.weather_id = arg.substr("--weather=".length())
 		elif arg == "--first-strike":
 			options.first_strike = true
 		elif arg == "--run":

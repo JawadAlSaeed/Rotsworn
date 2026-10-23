@@ -239,6 +239,19 @@ func ambience() -> Array:
 	return [_zone.ambience_path, _zone.ambience_volume_db] if _zone != null else ["", 0.0]
 
 
+## This visit's weather (card #303; null: clear).
+func weather() -> WeatherData:
+	return _zone.weather if _zone != null else null
+
+
+## The weather's loop and its volume over the zone's own (quieter `in_fight`); empty path: none.
+func weather_sound(in_fight: bool = false) -> Array:
+	var w := weather()
+	if w == null or w.ambience_path.is_empty():
+		return ["", 0.0]
+	return [w.ambience_path, w.ambience_volume_db + (w.fight_volume_offset_db if in_fight else 0.0)]
+
+
 ## This zone's song (empty: none of its own).
 func music_path() -> String:
 	return _zone.music_path if _zone != null else ""
@@ -776,8 +789,12 @@ func _build() -> void:
 	_world = Node3D.new()
 	_world.name = "World"
 	add_child(_world)
-	_world.add_child(StageBuilder.environment(look))
+	var world_env := StageBuilder.environment(look)
+	_world.add_child(world_env)
 	_world.add_child(StageBuilder.sun(look))
+	# A stormy visit's lightning (card #303).
+	if _zone.weather != null and _zone.weather.has_lightning():
+		add_child(WeatherFx.new().setup(_zone.weather, world_env, _visuals, is_paused))
 	var centre := (_zone.bounds_min + _zone.bounds_max) * 0.5
 	var cover := _zone.bounds_max - _zone.bounds_min + Vector2(FLOOR_MARGIN, FLOOR_MARGIN) * 2.0
 	_world.add_child(StageBuilder.ground(look, Vector3(centre.x, 0.0, centre.y), cover))

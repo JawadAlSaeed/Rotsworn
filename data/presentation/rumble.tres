@@ -1,0 +1,83 @@
+[gd_resource type="Resource" script_class="RumbleSet" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/rumble_pattern.gd" id="1_pat"]
+[ext_resource type="Script" path="res://scripts/data/rumble_set.gd" id="2_set"]
+
+[sub_resource type="Resource" id="Rumble_parry"]
+script = ExtResource("1_pat")
+name = "parry"
+steps = Array[Vector3i]([Vector3i(90, 40, 45)])
+
+[sub_resource type="Resource" id="Rumble_parry_final"]
+script = ExtResource("1_pat")
+name = "parry_final"
+steps = Array[Vector3i]([Vector3i(100, 70, 70), Vector3i(0, 30, 40)])
+
+[sub_resource type="Resource" id="Rumble_jump"]
+script = ExtResource("1_pat")
+name = "jump"
+steps = Array[Vector3i]([Vector3i(40, 55, 60)])
+
+[sub_resource type="Resource" id="Rumble_dodge"]
+script = ExtResource("1_pat")
+name = "dodge"
+steps = Array[Vector3i]([Vector3i(35, 0, 40)])
+
+[sub_resource type="Resource" id="Rumble_press_perfect"]
+script = ExtResource("1_pat")
+name = "press_perfect"
+steps = Array[Vector3i]([Vector3i(80, 30, 45)])
+
+[sub_resource type="Resource" id="Rumble_press_good"]
+script = ExtResource("1_pat")
+name = "press_good"
+steps = Array[Vector3i]([Vector3i(35, 0, 35)])
+
+[sub_resource type="Resource" id="Rumble_hurt"]
+script = ExtResource("1_pat")
+name = "hurt"
+steps = Array[Vector3i]([Vector3i(20, 60, 110)])
+
+[sub_resource type="Resource" id="Rumble_hurt_heavy"]
+script = ExtResource("1_pat")
+name = "hurt_heavy"
+steps = Array[Vector3i]([Vector3i(40, 100, 160), Vector3i(10, 50, 120)])
+
+[sub_resource type="Resource" id="Rumble_downed"]
+script = ExtResource("1_pat")
+name = "downed"
+steps = Array[Vector3i]([Vector3i(30, 90, 250), Vector3i(0, 40, 300)])
+
+[sub_resource type="Resource" id="Rumble_ultimate"]
+script = ExtResource("1_pat")
+name = "ultimate"
+steps = Array[Vector3i]([Vector3i(20, 40, 200), Vector3i(30, 60, 200), Vector3i(40, 80, 200), Vector3i(50, 100, 300), Vector3i(30, 70, 250), Vector3i(15, 40, 250)])
+
+[sub_resource type="Resource" id="Rumble_boss_rage"]
+script = ExtResource("1_pat")
+name = "boss_rage"
+steps = Array[Vector3i]([Vector3i(40, 90, 300), Vector3i(20, 70, 300), Vector3i(10, 45, 400)])
+
+[sub_resource type="Resource" id="Rumble_doom"]
+script = ExtResource("1_pat")
+name = "doom"
+steps = Array[Vector3i]([Vector3i(60, 100, 220), Vector3i(20, 60, 300)])
+
+[sub_resource type="Resource" id="Rumble_streak"]
+script = ExtResource("1_pat")
+name = "streak"
+steps = Array[Vector3i]([Vector3i(60, 20, 60), Vector3i(0, 0, 60), Vector3i(80, 30, 80)])
+
+[sub_resource type="Resource" id="Rumble_thunder"]
+script = ExtResource("1_pat")
+name = "thunder"
+steps = Array[Vector3i]([Vector3i(0, 40, 150), Vector3i(0, 25, 400)])
+
+[sub_resource type="Resource" id="Rumble_press_finish"]
+script = ExtResource("1_pat")
+name = "press_finish"
+steps = Array[Vector3i]([Vector3i(70, 100, 140), Vector3i(20, 50, 160)])
+
+[resource]
+script = ExtResource("2_set")
+patterns = Array[ExtResource("1_pat")]([SubResource("Rumble_parry"), SubResource("Rumble_parry_final"), SubResource("Rumble_jump"), SubResource("Rumble_dodge"), SubResource("Rumble_press_perfect"), SubResource("Rumble_press_good"), SubResource("Rumble_hurt"), SubResource("Rumble_hurt_heavy"), SubResource("Rumble_downed"), SubResource("Rumble_ultimate"), SubResource("Rumble_boss_rage"), SubResource("Rumble_doom"), SubResource("Rumble_streak"), SubResource("Rumble_thunder"), SubResource("Rumble_press_finish")])

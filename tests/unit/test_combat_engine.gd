@@ -34,6 +34,7 @@ const EVENT_KEYS: Dictionary = {
 	"status_changed": ["target", "status", "active", "turns", "source"],
 	"turn_shifted": ["target", "delta"],
 	"team_gauge": ["value", "delta", "max"],
+	"defence_streak": ["value", "best", "milestone", "lost"],
 	"timed_sequence_declared": ["seq", "kind", "source", "action", "name", "mode", "targets", "alert_cue",
 			"allow_timing_ring", "hits", "prompts"],
 	"prompt_resolved": ["seq", "prompt", "hit", "character", "outcome", "perfect", "offset_us", "damage", "hp",
@@ -85,6 +86,12 @@ func _party_first(options: Dictionary = {}) -> CombatEngine:
 	var opts := options.duplicate()
 	opts["enemy_speed"] = SLOW_ENEMY
 	return Fx.started([_swipe()], opts)
+
+
+## `events` without the defence streak's (card #300, test_defence_streak.gd), for tests about the
+## order of the other events.
+func _no_streak(events: Array[Dictionary]) -> Array[Dictionary]:
+	return events.filter(func(e: Dictionary) -> bool: return String(e.type) != "defence_streak")
 
 
 func _prompts(engine: CombatEngine) -> Array:
@@ -462,11 +469,11 @@ func test_unknown_outcome_value_is_none() -> void:
 
 func test_partial_results_keep_awaiting_timing() -> void:
 	var engine := Fx.started([_flurry()])
-	var events := engine.submit(Fx.resolve_now(engine, [[0, PARRY]]))
+	var events := _no_streak(engine.submit(Fx.resolve_now(engine, [[0, PARRY]])))
 	assert_eq(Fx.types(events), ["prompt_resolved"])
 	assert_eq(engine.phase, CombatEngine.Phase.AWAITING_TIMING)
 	assert_eq(engine.pending_prompts(), [1, 2])
-	events = engine.submit(Fx.resolve_now(engine, [[2, PARRY], [1, PARRY]]))
+	events = _no_streak(engine.submit(Fx.resolve_now(engine, [[2, PARRY], [1, PARRY]])))
 	assert_eq(Fx.types(events).slice(0, 3), ["prompt_resolved", "prompt_resolved", "sequence_resolved"])
 	assert_eq(events[0].prompt, 1, "a batch is applied in prompt order, whatever the list order")
 	assert_eq(events[1].prompt, 2)
@@ -589,7 +596,7 @@ func test_downed_mid_attack_voids_prompts_and_blocks_team_counter() -> void:
 	# c0 has 10 HP; each hit deals 14, so c0 drops on the first hit it takes.
 	var attack := Fx.attack("triple", [Fx.hit(900, Fx.NORMAL, 50), Fx.hit(1200, Fx.NORMAL, 50), Fx.hit(1500, Fx.NORMAL, 50)], Fx.PARTY)
 	var engine := Fx.started([attack], {"hp_percents": [10, 100, 100]})
-	var events := engine.submit(Fx.resolve_now(engine, [[0, NONE], [1, PARRY], [2, PARRY]]))
+	var events := _no_streak(engine.submit(Fx.resolve_now(engine, [[0, NONE], [1, PARRY], [2, PARRY]])))
 	assert_eq(Fx.types(events), ["prompt_resolved", "downed", "prompts_voided", "prompt_resolved", "prompt_resolved"])
 	assert_eq(events[0].downed, true)
 	assert_eq(events[0].hp, 0)

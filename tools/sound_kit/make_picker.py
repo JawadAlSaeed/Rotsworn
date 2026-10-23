@@ -23,6 +23,7 @@ GROUPS = [
     ("coop", "Co-op", "Friends joining, leaving and getting ready."),
     ("voices", "Enemy voices", "Each enemy's voice: it plays when the enemy starts an attack, and quieter and higher when it is hit."),
     ("monsters", "New monsters and attacks", "Phase 12: the Carrion Fly, Rot Hyena and Mire Toad voices, spits, throws, shadow bolts, globs splatting and rock waves."),
+    ("phase24", "Feel and atmosphere", "Phase 24: a voice of their own for the rats (they barked like a dog), thunder for storms, and the swell when your party keeps up a defence streak."),
     ("backpack", "Backpack and finds", "Picking up, putting down, turning and combining items in the backpack; finding things in zones; opening chests."),
 ]
 
@@ -39,14 +40,27 @@ PAGES = {
 
 def music(kind="--music"):
     """A listening page for songs or ambience loops: one row per slot, previews from audio/options_music."""
-    import subprocess, sys
+    import sys
     cfg = PAGES[kind]
-    c = json.load(open(os.path.join(t.HERE, cfg["cands"]), encoding="utf-8"))
     out = os.path.join(t.HERE, "audio", cfg["out"])
     shutil.rmtree(out, ignore_errors=True)
     os.makedirs(os.path.join(out, "s"))
     # --slots=victory,defeat: only those slots (a page for new songs only).
     slots = next((a.split("=", 1)[1].split(",") for a in sys.argv if a.startswith("--slots=")), [])
+    cues = loop_cues(kind, out, slots)
+    data = dict(heading=cfg["heading"], lede=cfg["lede"], groups=[dict(title=cfg["group"], about=cfg["about"], cues=cues)])
+    page = open(os.path.join(t.HERE, "picker_template.html"), encoding="utf-8").read()
+    page = page.replace("<title>Rotsworn Sound Picks</title>", f"<title>{cfg['heading']}</title>")
+    open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(
+        page.replace("/*DATA*/", json.dumps(data, ensure_ascii=False).replace("</", "<\\/")))
+    print(f"{out}/index.html: {len(cues)} slots")
+
+
+def loop_cues(kind, out, slots):
+    """The picker rows for songs or loops (`slots` only; all when empty), previews copied to out/s."""
+    import subprocess
+    cfg = PAGES[kind]
+    c = json.load(open(os.path.join(t.HERE, cfg["cands"]), encoding="utf-8"))
     cues = []
     for slot, d in c.items():
         if slots and slot not in slots:
@@ -63,12 +77,7 @@ def music(kind="--music"):
             opts.append(dict(key=key, name=o["name"], desc=f"{o['desc']} By {o['author']} ({o.get('license', 'CC0')}).",
                              ms=int(float(err.strip() or 0) * 1000), src=f"s/{slot}_{key}.mp3"))
         cues.append(dict(id=slot, title=d["title"], plays=d["plays"], new=False, sharp=False, options=opts))
-    data = dict(heading=cfg["heading"], lede=cfg["lede"], groups=[dict(title=cfg["group"], about=cfg["about"], cues=cues)])
-    page = open(os.path.join(t.HERE, "picker_template.html"), encoding="utf-8").read()
-    page = page.replace("<title>Rotsworn Sound Picks</title>", f"<title>{cfg['heading']}</title>")
-    open(os.path.join(out, "index.html"), "w", encoding="utf-8").write(
-        page.replace("/*DATA*/", json.dumps(data, ensure_ascii=False).replace("</", "<\\/")))
-    print(f"{out}/index.html: {len(cues)} slots")
+    return cues
 
 
 LICENSE_NAMES = {"cc0": "CC0", "pdm": "public domain", "by": "CC BY"}
@@ -175,6 +184,11 @@ def main():
                              sharp=r["max_rise_ms"] <= 20, options=opts))
         if cues:
             groups.append(dict(title=title, about=about, cues=cues))
+    # --with-ambience=ambience_rain,ambience_wind: those loops as one more group on the same page.
+    loops = next((a.split("=", 1)[1].split(",") for a in sys.argv if a.startswith("--with-ambience=")), [])
+    if loops:
+        cfg = PAGES["--ambience"]
+        groups.append(dict(title=cfg["group"], about=cfg["about"], cues=loop_cues("--ambience", out, loops)))
     page = open(os.path.join(t.HERE, "picker_template.html"), encoding="utf-8").read()
     extra = {}
     if only:

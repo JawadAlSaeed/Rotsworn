@@ -86,5 +86,8 @@
  "throw": "c",
  "bolt_cast": "a",
  "rock_rumble": "a",
- "critical": "a"
+ "critical": "a",
+ "voice_rat": "a",
+ "thunder": "c",
+ "streak_swell": "a"
 }

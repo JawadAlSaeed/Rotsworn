@@ -933,5 +933,36 @@
   "max_ms": 1000,
   "target_lu": -11.0,
   "new": true
+ },
+ "voice_rat": {
+  "group": "phase24",
+  "title": "Rat voice",
+  "plays": "a Rot Rat or Grave Rat starts an attack (they barked like a dog before); quieter and higher when it is hit",
+  "max_rise_ms": 900,
+  "min_ms": 300,
+  "max_ms": 2500,
+  "target_lu": -14.0,
+  "new": true,
+  "voice": true
+ },
+ "thunder": {
+  "group": "phase24",
+  "title": "Thunder",
+  "plays": "a storm in a zone: lightning lights the sky, then thunder rolls in the distance",
+  "max_rise_ms": 1500,
+  "min_ms": 1500,
+  "max_ms": 6000,
+  "target_lu": -17.0,
+  "new": true
+ },
+ "streak_swell": {
+  "group": "phase24",
+  "title": "Defence streak",
+  "plays": "your party lands 5 perfect parries or jumps in a row (and every 5 after); the music swells with it",
+  "max_rise_ms": 2200,
+  "min_ms": 1000,
+  "max_ms": 3000,
+  "target_lu": -15.0,
+  "new": true
  }
 }

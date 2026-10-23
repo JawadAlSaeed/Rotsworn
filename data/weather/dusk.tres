@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="WeatherData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/weather_data.gd" id="1_weather"]
+
+[resource]
+script = ExtResource("1_weather")
+id = "dusk"
+display_name = "Dusk"
+light_color = Color(1.0, 0.55, 0.32, 1)
+light_color_mix = 0.7
+light_energy_percent = 85
+sun_pitch_degrees = -18.0
+ambient_color = Color(0.45, 0.32, 0.45, 1)
+ambient_color_mix = 0.45
+ambient_energy_percent = 80
+fog_color = Color(0.42, 0.26, 0.3, 1)
+fog_color_mix = 0.45
+background_color = Color(0.16, 0.08, 0.1, 1)
+background_color_mix = 0.6
+saturation_percent = 110
+vignette_add = 0.08
+zone_air_percent = 130

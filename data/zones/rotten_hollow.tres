@@ -34,6 +34,12 @@
 [ext_resource type="Resource" path="res://data/offers/key_peddler.tres" id="26_p8rad"]
 [ext_resource type="Resource" path="res://data/offers/grave_robber.tres" id="27_b1m00"]
 [ext_resource type="Resource" path="res://data/offers/old_pilgrim.tres" id="28_rlip7"]
+[ext_resource type="Resource" path="res://data/weather/rain.tres" id="p24_w_rain"]
+[ext_resource type="Resource" path="res://data/weather/storm.tres" id="p24_w_storm"]
+[ext_resource type="Resource" path="res://data/weather/fog.tres" id="p24_w_fog"]
+[ext_resource type="Resource" path="res://data/weather/wind.tres" id="p24_w_wind"]
+[ext_resource type="Resource" path="res://data/weather/dusk.tres" id="p24_w_dusk"]
+[ext_resource type="Script" path="res://scripts/data/weather_data.gd" id="p24_weather"]
 
 [sub_resource type="Resource" id="Resource_mwejp"]
 script = ExtResource("1_mwejp")
@@ -82,3 +88,6 @@ wanderers = Array[ExtResource("13_cxwx8")]([ExtResource("26_p8rad"), ExtResource
 edge_height = 4.5
 music_path = "res://assets/audio/music/zone_hollow.ogg"
 ambience_path = "res://assets/audio/ambience/ambience_hollow.ogg"
+weathers = Array[ExtResource("p24_weather")]([ExtResource("p24_w_rain"), ExtResource("p24_w_storm"), ExtResource("p24_w_fog"), ExtResource("p24_w_wind"), ExtResource("p24_w_dusk")])
+weather_weights = Array[int]([3, 1, 2, 2, 3])
+clear_weight = 4

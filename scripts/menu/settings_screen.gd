@@ -17,8 +17,8 @@ extends CanvasLayer
 ## Controls (card #277) has two pages, side by side under the section names: Keyboard and
 ## Controller, each a picture and its word. A page lists only its own device's buttons, one row per
 ## action with the button drawn as its picture (ButtonChip: a key cap, a pad's A/B/X/Y ring, an LB or
-## RT pill, the D-pad cross, all on the same dark fill), then its own options (none yet: room for stick sensitivity or vibration on the
-## Controller page) and its own "Reset to defaults" (asks twice; it puts back only that device's
+## RT pill, the D-pad cross, all on the same dark fill), then its own options (the Controller page:
+## Vibration, card #299) and its own "Reset to defaults" (asks twice; it puts back only that device's
 ## buttons). The section opens on the page of the device in the player's hands
 ## (ButtonPrompts.pad_in_use). LT / RT (T / K) open the Keyboard / Controller page from any row,
 ## Left / Right do it from a button's row, and a click on a page's name opens it. Confirm waits for
@@ -62,10 +62,10 @@ const PAGE_NAMES: Array[String] = ["Keyboard", "Controller"]
 const PAGE_GLYPHS: Array[StringName] = [&"keyboard", &"pad"]
 const PAGE_KINDS: Array[String] = [ControlBindings.KEY, ControlBindings.PAD]
 ## A page's own options, listed under its buttons and above its reset (row ids handled like the other
-## sections' rows). None yet: room for stick sensitivity or vibration on the Controller page.
+## sections' rows). The Controller page has Vibration (card #299).
 const PAGE_OPTION_ROWS := {
 	ControlsPage.KEYBOARD: [],
-	ControlsPage.CONTROLLER: [],
+	ControlsPage.CONTROLLER: ["vibration"],
 }
 ## The page tabs: word size, picture size, gap between the tabs and their inside padding.
 const PAGE_TAB_SIZE: int = 28
@@ -86,7 +86,7 @@ const SECTION_ROWS := {
 }
 ## Rows whose value Left / Right change: a mouse click steps it by the side of the row it lands on.
 const SIDED_ROWS: Array[String] = ["master", "music", "effects", "voice", "window_size", "fps_limit",
-		"screen_shake", "flashes", "text_size"]
+		"screen_shake", "flashes", "text_size", "vibration"]
 ## How many rows of a list fit on screen at the normal text size; bigger text shows fewer (the list
 ## scrolls with the cursor).
 const ROWS_AT_NORMAL_SIZE: int = 10
@@ -367,6 +367,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		"flashes":
 			PlayerSettings.set_flash_mode(PlayerSettings.flash_mode() + (1 if answer == &"confirm" else step))
 			Sfx.play("menu_move")
+		"vibration":
+			if answer == &"confirm":
+				step = 1 if PlayerSettings.rumble_percent() < 100 else -4
+			PlayerSettings.set_rumble_percent(PlayerSettings.rumble_percent() + step * PlayerSettings.RUMBLE_STEP_PERCENT)
+			Sfx.play("menu_move")
+			PadRumble.test()
 		"timing_ring":
 			PlayerSettings.set_show_timing_ring(not PlayerSettings.show_timing_ring(_tuning))
 			Sfx.play("menu_confirm")
@@ -513,6 +519,10 @@ func _refresh() -> void:
 			"flashes":
 				_menu.set_item(i, "Flashes", true, "Lower if flashing bothers",
 						"<  %s  >" % String(PlayerSettings.FLASH_NAMES[PlayerSettings.flash_mode()]))
+			"vibration":
+				var rumble := PlayerSettings.rumble_percent()
+				_menu.set_item(i, "Vibration", true, "Pad buzz on hits",
+						"<  %s  >" % ("OFF" if rumble <= 0 else "%d%%" % rumble))
 			"timing_ring":
 				_menu.set_item(i, "Training ring", true, "Practice fights only",
 						_on_off(PlayerSettings.show_timing_ring(_tuning)))
@@ -597,6 +607,18 @@ static func page_for_device(pad_in_use: bool) -> ControlsPage:
 ## Opens the screen on a section (for pictures and tests).
 func open_section(section: Section) -> void:
 	_show_section(section)
+
+
+## Puts the cursor on row `row_id` of the section shown, scrolling to it (for pictures and tests).
+## False if the section has no such row.
+func select_row(row_id: String) -> bool:
+	var at := _rows_of(_section).find(row_id)
+	if at < 0:
+		return false
+	_menu.index = at
+	_menu.redraw()
+	_refresh()
+	return true
 
 
 ## Shows a Controls page (for pictures and tests; the section opens too if it was not shown).

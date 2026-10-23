@@ -754,3 +754,47 @@ func kind_color(kind: int, strike_color: Color) -> Color:
 ## locked_cost_color when the hero is short of AP.
 @export_range(8.0, 96.0, 1.0) var menu_lock_px: float = 22.0
 @export var locked_cost_color: Color = Color(1.0, 0.36, 0.3)
+
+@export_group("Defence streak")
+## The streak chip over the team gauge (card #300): a shield and "STREAK n", shown from this many
+## perfect defences in a row. Each new one pops it to streak_pop_scale; every tuning
+## defence_streak_step in a row (the gauge fills) pops it to streak_milestone_scale, plays
+## streak_milestone_sfx and swells the music streak_music_lift_db louder per step reached (at most
+## streak_music_lift_max_db) until a hit ends the streak. A broken streak turns red and fades.
+@export_range(1, 50) var streak_show_from: int = 3
+@export_range(1.0, 3.0, 0.05) var streak_pop_scale: float = 1.2
+@export_range(1.0, 3.0, 0.05) var streak_milestone_scale: float = 1.6
+@export_range(50, 2000, 10, "suffix:ms") var streak_pop_ms: int = 260
+@export_range(100, 3000, 10, "suffix:ms") var streak_lost_ms: int = 900
+@export var streak_milestone_sfx: String = "streak_swell"
+## The best streak on a won run fight's end screen: this icon and "Streak n" (it filled the gauge).
+@export var streak_chip_icon_path: String = "res://assets/sprites/ui/chip_gauge.png"
+@export_range(0.0, 12.0, 0.1, "suffix:dB") var streak_music_lift_db: float = 1.5
+@export_range(0.0, 12.0, 0.1, "suffix:dB") var streak_music_lift_max_db: float = 4.5
+@export_range(0, 5000, 10, "suffix:ms") var streak_music_fade_ms: int = 800
+
+@export_group("Press ladder")
+## Skill presses climb (card #307): each perfect press in a row in one skill plays the press sound
+## press_ladder_step_semitones higher (up to press_ladder_max_steps); a good press or a miss starts
+## it over. A skill (or the Team Ultimate) of at least press_finish_min_presses presses, every one
+## perfect, ends with a finish on its target: a burst of press_finish_sparks in press_finish_color,
+## a punch-in, a little shake, a flash on the target, press_finish_sfx (empty: none) and the
+## "press_finish" pad buzz.
+@export_range(0.0, 12.0, 0.5) var press_ladder_step_semitones: float = 1.5
+@export_range(0, 24, 1) var press_ladder_max_steps: int = 5
+@export_range(1, 20, 1) var press_finish_min_presses: int = 2
+@export_range(0, 200, 1) var press_finish_sparks: int = 30
+@export var press_finish_color: Color = Color(1.0, 0.82, 0.3)
+@export_range(0.0, 5.0, 0.05) var press_finish_punch: float = 0.55
+@export_range(0.0, 1.0, 0.01) var press_finish_shake: float = 0.35
+@export var press_finish_sfx: String = ""
+
+@export_group("Killing blow")
+## The blow that ends a fight (card #308): the last enemy falling (or the boss), or the last hero
+## down. The music cuts to silence over kill_silence_fade_ms and stays silent until the end song
+## (so only the hit and the crumble are heard), and the screen holds a dark impact frame for
+## impact_frame_ms (impact_frame_color; the Flashes setting scales it like a screen flash).
+@export var kill_silence: bool = true
+@export_range(0, 2000, 10, "suffix:ms") var kill_silence_fade_ms: int = 60
+@export_range(0, 500, 5, "suffix:ms") var impact_frame_ms: int = 70
+@export var impact_frame_color: Color = Color(0.0, 0.0, 0.0, 0.55)

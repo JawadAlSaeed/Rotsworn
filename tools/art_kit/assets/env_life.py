@@ -6,7 +6,8 @@ gravestones, a dry fountain, a low broken wall, bones. Sunken Bog (swamp and jun
 mangrove, a tree hung with moss, a giant mushroom, a fallen log, a hut on stilts, a swamp lantern,
 ferns. Rotten Hollow (rotting forest): bushes, a stump, thorns, a broken fence, a broken cart, a
 well, a signpost, a grave cross, a dead pine. Critters: a crow, a frog, a rat (four frames each:
-idle, idle, move, move). Particles: a mote, an ash flake, a leaf, a spore, a mist puff.
+idle, idle, move, move). Particles: a mote, an ash flake, a leaf, a spore, a mist puff, a rain streak
+and a splash (weather, card #303).
 
 Same rules as env_props: small 3D models in the camera-aligned frame (x = screen right, y = up,
 z = toward the viewer), cut flat on the ground, outlined; tiny or flat things (reeds, ferns, the
@@ -821,8 +822,28 @@ def make_mist() -> np.ndarray:
     return out
 
 
+def make_rain_drop() -> np.ndarray:
+    """A rain streak (weather, card #303): one pixel wide, brightest in row 0 and fading to row 5.
+    The game stretches it and turns the quad's top edge (row 0) along the fall, so on screen the
+    drop is bright at its falling foot and fades up its tail."""
+    a = np.zeros((6, 1, 4), dtype=np.uint8)
+    for y, alpha in enumerate((240, 200, 150, 110, 70, 40)):
+        a[y, 0] = (220, 230, 245, alpha)
+    return a
+
+
+def make_splash() -> np.ndarray:
+    """A raindrop landing: a tiny crown thrown up on both sides of a bright middle."""
+    a = np.zeros((3, 5, 4), dtype=np.uint8)
+    a[2, 1] = a[2, 2] = a[2, 3] = (230, 238, 250, 230)
+    a[1, 0] = a[1, 4] = (200, 214, 235, 170)
+    a[0, 2] = (215, 225, 245, 150)
+    return a
+
+
 CRITTERS = {"crow": make_crow, "frog": make_frog, "rat": make_rat}
-PARTICLES = {"mote": make_mote, "ash_flake": make_ash, "leaf": make_leaf, "spore": make_spore, "mist": make_mist}
+PARTICLES = {"mote": make_mote, "ash_flake": make_ash, "leaf": make_leaf, "spore": make_spore, "mist": make_mist,
+             "rain_drop": make_rain_drop, "splash": make_splash}
 
 
 def build(ctx) -> None:

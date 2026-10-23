@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="WeatherData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/weather_data.gd" id="1_weather"]
+[ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="2_air"]
+
+[sub_resource type="Resource" id="Air_gust_dust"]
+script = ExtResource("2_air")
+id = "gust_dust"
+texture_path = "res://assets/sprites/fx/rain_drop.png"
+color = Color(0.82, 0.8, 0.74, 0.5)
+amount = 220
+lifetime = 3.0
+size = 0.035
+area = Vector3(14, 2.5, 7)
+height = 2.0
+velocity = Vector3(6, 0.2, 0.3)
+spread = 6.0
+stretch = 6.0
+soft = true
+
+[sub_resource type="Resource" id="Air_gust_leaves"]
+script = ExtResource("2_air")
+id = "gust_leaves"
+texture_path = "res://assets/sprites/fx/leaf.png"
+amount = 60
+lifetime = 4.0
+size = 0.14
+area = Vector3(14, 3, 6)
+height = 3.0
+velocity = Vector3(4.5, -0.3, 0.2)
+spread = 20.0
+wobble = 1.0
+spin = true
+
+[resource]
+script = ExtResource("1_weather")
+id = "wind"
+display_name = "Wind"
+light_color = Color(0.85, 0.9, 1.0, 1)
+light_color_mix = 0.15
+contrast_percent = 105
+zone_air_percent = 100
+sway_percent = 280
+sway_speed_percent = 200
+ambience_path = "res://assets/audio/ambience/ambience_wind.ogg"
+ambience_volume_db = 0.0
+fight_volume_offset_db = -8.0
+air = Array[ExtResource("2_air")]([SubResource("Air_gust_dust"), SubResource("Air_gust_leaves")])

@@ -32,6 +32,6 @@ target_rule = 1
 target_bias_percent = 150
 gold = 6
 xp = 12
-voice_sfx = "voice_hyena"
+voice_sfx = "voice_rat"
 relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_lucky_coin"), ExtResource("g_quick_boots"), ExtResource("g_bitter_root"), ExtResource("10_xvn5x")])
 runs_up = true

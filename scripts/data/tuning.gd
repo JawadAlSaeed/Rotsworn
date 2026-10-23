@@ -155,6 +155,11 @@ extends Resource
 @export_range(1, 1000) var team_gauge_max: int = 100
 ## Team gauge gained for each good follow-up press.
 @export_range(0, 1000) var team_gauge_per_follow_up: int = 10
+## The defence streak (card #300): perfect parries and jumps in a row across a fight (a dodge keeps
+## it, a hit taken ends it). Every defence_streak_step in a row fills the team gauge by
+## defence_streak_gauge (0: no gauge).
+@export_range(1, 50) var defence_streak_step: int = 5
+@export_range(0, 1000) var defence_streak_gauge: int = 10
 ## The team ultimate revives every downed ally with this percent of their max HP.
 @export_range(1, 100, 1, "suffix:%") var team_ultimate_revive_percent: int = 25
 ## Extra damage of a skill that removes Exposed, in percent (a skill can set its own).

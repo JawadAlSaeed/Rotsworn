@@ -533,6 +533,7 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 		Defense.Outcome.PARRY:
 			text = "PARRY"
 			Sfx.play("parry_final" if final else "parry")
+			PadRumble.heroes("parry_final" if final else "parry", characters)
 			var step := mini(_parry_streak, _visuals.parry_ring_max_steps)
 			Sfx.play("parry_ring", 0.0, pow(2.0, step * _visuals.parry_ring_step_semitones / 12.0))
 			_parry_streak += 1
@@ -549,11 +550,13 @@ func _on_contact(action: int, hit_index: int, characters: Array[int], offset_us:
 			text = "DODGE"
 			color = HudStyle.DODGE
 			Sfx.play("dodge")
+			PadRumble.heroes("dodge", characters)
 			_view.camera.add_trauma(_visuals.shake_dodge)
 		Defense.Outcome.JUMP:
 			text = "JUMP"
 			color = HudStyle.JUMP
 			Sfx.play("jump")
+			PadRumble.heroes("jump", characters)
 			_freeze(now, _tuning.hitstop_jump_ms, characters)
 	text = with_timing(text, offset_us)
 	var shown: Array[int] = []
@@ -660,6 +663,8 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 			_view.camera.punch(_visuals.punch_hurt_heavy, _visuals.punch_ms)
 	var view := _view.fighter(id)
 	view.flash(_visuals.flash_ms, HudStyle.DAMAGE_TAKEN, _visuals.hurt_flash_strength)
+	# Only the pad of the player whose hero took it (card #299).
+	PadRumble.hero("hurt_heavy" if heavy else "hurt", id)
 	# A projectile bursts on the hero it hit.
 	var key := _projectile_key(hit_index, id)
 	if _projectile_of.has(hit_index) and not _projectile_ends.has(key):

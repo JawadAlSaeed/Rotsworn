@@ -12,6 +12,8 @@ extends RefCounted
 const LANE: float = 3.0
 ## Thickness of the walls along the back and at the ends.
 const WALL: float = 2.0
+## Mixed into the visit's seed for the weather pick (its own stream, card #303).
+const WEATHER_SALT: int = 7919
 
 
 ## True if the zone is built from sections (otherwise it is used as it is).
@@ -19,7 +21,8 @@ static func is_sectioned(zone: ZoneData) -> bool:
 	return zone != null and zone.start_section != null and zone.end_section != null
 
 
-## The zone for one visit. A zone without sections comes back unchanged.
+## The zone for one visit, with its weather (DESIGN.md 8.20). A zone without sections comes back
+## unchanged.
 static func assemble(zone: ZoneData, seed_value: int) -> ZoneData:
 	if not is_sectioned(zone):
 		return zone
@@ -120,7 +123,20 @@ static func assemble(zone: ZoneData, seed_value: int) -> ZoneData:
 	out.bounds_min = Vector2(0.0, zone.bounds_min.y)
 	out.bounds_max = Vector2(x, zone.bounds_max.y)
 	_add_walls(out, zone)
+	_add_weather(out, zone, seed_value)
 	return out
+
+
+## The visit's weather (card #303), from its own stream of the seed so it never shifts the layout:
+## the look and the air of the visit's copy change with it (a fight here uses both).
+static func _add_weather(out: ZoneData, zone: ZoneData, seed_value: int) -> void:
+	var weather := WeatherData.pick(zone.weathers, zone.weather_weights, zone.clear_weight,
+			seed_value * WEATHER_SALT + 1)
+	out.weather = weather
+	if weather == null:
+		return
+	out.look = weather.apply_to(zone.look)
+	out.ambient = weather.air_with(out.ambient)
 
 
 ## Every fight a zone can hold on any visit: its own enemies', its roamer pool and its sections'.

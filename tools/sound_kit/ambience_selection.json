@@ -1,5 +1,7 @@
 {
  "ambience_hollow": "a",
  "ambience_bog": "a",
- "ambience_ruins": "a"
+ "ambience_ruins": "a",
+ "ambience_rain": "a",
+ "ambience_wind": "b"
 }
