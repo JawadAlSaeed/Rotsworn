@@ -4864,20 +4864,35 @@ in the order of the story line "forests to husks, rivers to bog, cities to ash":
     when it comes from the owner's machine for the screen up now (the key) and the screen can take
     it (`Main._make_choice`), exactly as if pressed there, during a transition after it ends.
     Everything else is dropped. What came of it goes out as usual (a new screen, the whole state).
-  - Everyone else watches: the cards are greyed and only pause works, as a friend's screen always
-    did (the host's too now). A chip top-left shows whose turn it is: a person sign and the
-    player's tag (P2) in their colour, no sentence, on every machine while two or more play.
+    Leave is taken only once the screen shows its way on (`Main._can_leave`: a campfire used, a
+    chest opened, an event decided or on its ambush page); an undecided event's way out is
+    `walk_on` ("You walk on").
+  - Everyone else watches: the cards are greyed (the spoils too, their footer empty) and only pause
+    works, as a friend's screen always did (the host's too now). A chip top-left shows whose turn it
+    is: a person sign and the player's tag (P2) in their colour, no sentence, on every machine while
+    two or more play.
   - The party screen stays everyone's, as before: anyone opens it from the map or the Rush screen at
     any time. The host's own look at the party on a friend's turn is no longer sent to the friends
-    (the owner keeps choosing); a friend's choice made meanwhile closes it first.
+    (the owner keeps choosing); a friend's choice made meanwhile closes it first. A friend's own
+    party screen stays up when the host shows the place it was opened over again (the Rush's next
+    pick and its owner, the map drawn again; `Main._waits_under_party`); closing it shows that place
+    as it is now. A party screen the host sent follows the host, as before.
   - A find with no room in the pack on a friend's turn (an event's prize, a chest, a purchase, a
     Rush item) is handed to them (`gift`): their backpack opens over their screen with it in hand,
     and where they put it comes back as a `hand_out` bag op (pocket, combine, swap, fit, leave; a
     shop purchase left behind gives its gold back). A new Relic nobody wears waits in the bag on a
     friend's turn (any party screen puts it on). The spoils' party screen after a pick stays the
-    host's, as before.
+    host's, as before. Each hand-out has a number (`gift`, and the `hand_out` op carries it back):
+    the host places only the find it handed out last, from the machine holding it. A find that comes
+    while the friend's own party screen, the shop's Sell backpack or a transition is up waits on
+    their machine and opens once a stop screen or the shop with nothing over it is up again; one that
+    is no longer theirs (the turn or the screen moved on, or a copy of one placed) is let go. A choice
+    from the owner while their find is still owed brings it to them again first.
   - The owner drops (away) or leaves: the turn passes to the next seated player at once (`turn`
-    message), the screen stays and lights up there; a find in their hands follows the turn.
+    message), the screen stays and lights up there; a find in their hands follows the turn (handed
+    again only to a new owner: a seat moving up keeps it). A friend back with their seat's token
+    before the host noticed the old connection go (Net lets the old one go with no away signal)
+    passes the turn on the same way, before their catch-up.
   - **Take turns** (Settings, Game, default ON; `PlayerSettings.take_turns`, saved per machine):
     only the host's counts, read at each new choice screen. OFF, the host makes every choice (the
     old way; the chip shows P1).
@@ -5378,11 +5393,13 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
 - Taking turns online (`test_take_turns.gd`, card #314, 9.2): the seat order, a skipped away or
   joining seat, the same screen keeping its owner, a drop or a leave passing the turn, Take turns
   off, each screen's key (a Rush pick each, Fight with the last), the host making a friend's choice
-  only for the owner on the screen up now, a refused choice, a friend's screen asking and changing
-  nothing, a find handed to the friend and placed through the host. Bot pair (headless, `timeout
-  2700` each): host `--autoplay --run --host=2 --seed=7 --quit-on-end`, friend `--autoplay --run
-  --join=127.0.0.1 --quit-on-end`; the same `AUTOPLAY_RESULT` and `AUTOPLAY_MIRROR` lines, and the
-  host's `AUTOPLAY_CHOICE P2 ...` lines for the friend's own turns.
+  only for the owner on the screen up now, a refused choice (Leave before the way on), the spoils
+  greyed, a find waiting for a screen that can take it and placed only under its number, a rejoin
+  passing the turn, a friend's own party screen kept over the next Rush pick, a friend's screen
+  asking and changing nothing, a find handed to the friend and placed through the host. Bot pair
+  (headless, `timeout 2700` each): host `--autoplay --run --host=2 --seed=7 --quit-on-end`, friend
+  `--autoplay --run --join=127.0.0.1 --quit-on-end`; the same `AUTOPLAY_RESULT` and
+  `AUTOPLAY_MIRROR` lines, and the host's `AUTOPLAY_CHOICE P2 ...` lines for the friend's own turns.
 - Fight Rush online (`test_rush_online.gd`, card #312, 8.21): the mode in `lobby`, `again` and
   `run_start`, protocol 4, a friend building the host's Rush, fights and watched screens, the host's
   Give up and End the game, the records verdict and the late rule, catch-up mid-fight and on the Rush
