@@ -4604,8 +4604,9 @@ Rush keeps its normal openings.
 - **Tools**: `tools/zone_map_preview.gd` and `tools/bootstrap_zones.gd` went; `tools/dress_zones.gd`
   became `tools/dress_arenas.gd` (the arenas only, `-- --dry-run`); `bootstrap_run.gd`,
   `bootstrap_items.gd`, `bootstrap_phase15.gd` and `gen_placeholders.gd` no longer write zones. The
-  glossary, events and acts were edited by hand: `bootstrap_glossary.gd` and `bootstrap_phase15.gd`
-  are older than the data, so do not re-run them as they are.
+  glossary is edited by hand and the guards' Dooms were added by hand (8.6), so
+  `bootstrap_glossary.gd` and `bootstrap_phase15.gd` are older than the data: do not re-run them as
+  they are.
 - **Text**: the glossary's In a zone topic went and The map gained Fight stop and Guard stop; the
   loading tips, the main menu and practice screens and the Journal no longer speak of zones.
 - **Bot runs** (headless, after #319): `--run --seed=7` run_victory (act 2, 14 stops, 8 fights),
