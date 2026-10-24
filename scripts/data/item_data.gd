@@ -11,7 +11,8 @@ enum Kind {
 	## Only hurts: rotten, every hero loses rot_percent HP each turn in fights while it is carried.
 	## Events give them as a price; a shop's Cleanse throws one away. (Was CHARM before phase 17.)
 	CURSE,
-	## Opens one chest (phase 11 step 2).
+	## Opens one chest (phase 11 step 2). Phase 26 took it out of the shop, finds and drops (it goes
+	## with the chests, DESIGN.md 8.22 G3); the slot keeps its number so item files stay valid.
 	KEY,
 	## Only worth gold at the shop.
 	TREASURE,

@@ -8,6 +8,8 @@ extends GutTest
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 const RUN_PATH := "res://data/runs/rotten_road.tres"
+## The Key's file stays (item files and the chests still know it), but no run hands one out.
+const KEY_PATH := "res://data/items/key.tres"
 
 var _tuning := Fx.all_slots()
 var _data: RunData
@@ -258,7 +260,8 @@ func test_keys_open_chests_once_and_chests_hold_rare_things() -> void:
 	var run := _run()
 	assert_false(run.has_key())
 	assert_false(run.use_key(), "no key, no chest")
-	run.add_item(run.items_by_id()["key"])
+	# No run hands a Key out any more (DESIGN.md 8.22, G3), but its file and the chests stay.
+	run.add_item(load(KEY_PATH) as ItemData)
 	assert_true(run.has_key())
 	assert_true(run.use_key())
 	assert_false(run.has_key(), "the key is used up")
@@ -375,7 +378,7 @@ func test_combining_stops_at_legendary_and_keys_never_combine() -> void:
 	var run := _run()
 	var gem := _item_of(run, "rot_gem")
 	assert_false(gem.combinable(), "treasure does not combine")
-	var key := _item_of(run, "key")
+	var key := load(KEY_PATH) as ItemData
 	var a := run.place_item(key, 0)
 	var b := run.place_item(key, 1)
 	assert_false(run.can_combine(a, b))
@@ -416,6 +419,28 @@ func test_shops_and_finds_never_offer_curses_or_faded_charms() -> void:
 	for item: ItemData in run.data.found_items:
 		if item.is_curse():
 			assert_eq(item.find_weight, 0, "%s: curses come only from events" % item.id)
+
+
+func test_no_run_list_hands_out_a_key() -> void:
+	# Phase 26 (DESIGN.md 8.22, G3): the Key left the shop, the finds and the drops (it went with the
+	# chests). Finds, drops and treasure all draw from found_items, so the lists are the whole story.
+	var run := _run()
+	for list: Array[ItemData] in [_data.shop_items, _data.found_items]:
+		for item: ItemData in list:
+			assert_ne(item.kind, ItemData.Kind.KEY, "%s is no key" % item.id)
+	assert_false(run.items_by_id().has("key"))
+	for stop: int in 30:
+		for item: ItemData in run.shop_stock(stop):
+			assert_ne(item.kind, ItemData.Kind.KEY, "no key on the shelves")
+	for act: ActData in run.acts():
+		for event: EventData in act.events:
+			for c: EventChoiceData in event.choices:
+				for deal: ZoneOfferData in [c.deal, c.risk_deal]:
+					if deal != null and deal.item != null:
+						assert_ne(deal.item.kind, ItemData.Kind.KEY, "%s gives no key" % event.id)
+	for pact: EventChoiceData in _data.pacts:
+		if pact != null and pact.deal != null and pact.deal.item != null:
+			assert_ne(pact.deal.item.kind, ItemData.Kind.KEY, "a pact gives no key")
 
 
 func test_the_pack_art_exists() -> void:

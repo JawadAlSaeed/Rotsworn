@@ -728,6 +728,8 @@ func test_rush_salts_differ_from_every_run_salt() -> void:
 
 func test_cards_never_offer_keys_treasure_curses_or_gold() -> void:
 	var loose := _build_rush(true)
+	# No run list holds the Key any more (DESIGN.md 8.22, G3): add it so the filter is still tried.
+	loose.items.append(load("res://data/items/key.tres") as ItemData)
 	var kinds := {}
 	for item: ItemData in loose.items:
 		kinds[item.kind] = true

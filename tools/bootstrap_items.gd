@@ -1,10 +1,12 @@
 extends SceneTree
 ## Creates the phase 11 backpack data (DESIGN.md 8.1): the items (Salve, Feast, Tonic, which used
-## to be used the moment they were bought; Bomb, Smelling Salts, Key; treasure), the run's shop and
+## to be used the moment they were bought; Bomb, Smelling Salts; treasure), the run's shop and
 ## found lists, the curses (Rotting Heart, Grave Moss: events' prices) and the Bigger Pack, and the
 ## glinting spots and chests in the run's zones. Phase 17 took the charms out (DESIGN.md 8.17; the
 ## best charm ideas became Relics: tools/bootstrap_relics.gd) and phase 21 deleted their faded files
-## (card #282). Only adds items missing from the run's lists (later phases added their own). Only
+## (card #282). Phase 26 took the Key out of the run (DESIGN.md 8.22, G3): it no longer writes or
+## lists it (data/items/key.tres stays so old files load). Only adds items missing from the run's
+## lists (later phases added their own). Only
 ## writes item files that do not exist yet, and only gives a zone
 ## spots or chests if it has none, so edits made in the editor are never overwritten. Every spot and
 ## chest is checked against the zone's walls and props (one the leader cannot reach is an error).
@@ -55,8 +57,6 @@ func _init() -> void:
 			K.CONSUMABLE, R.COMMON, false, true)
 	var salts := _item("smelling_salts", "Smelling Salts", "In a fight: wakes a downed hero with 40% of their HP.", 60,
 			E.REVIVE_ONE, 40, one, 4, K.CONSUMABLE, R.RARE, false, true)
-	var key := _item("key", "Key", "Opens one locked chest. It takes room while you carry it.", 30, E.NONE, 0, wide, 8,
-			K.KEY, R.COMMON, false, false)
 	var ring := _item("silver_ring", "Silver Ring", "Treasure. Sell it at a shop.", 40, E.NONE, 0, one, 6,
 			K.TREASURE, R.COMMON, false, false)
 	var gem := _item("rot_gem", "Rot Gem", "Treasure. Sell it at a shop.", 120, E.NONE, 0, one, 4,
@@ -70,8 +70,8 @@ func _init() -> void:
 	var moss := _curse("grave_moss", "Grave Moss", 2, wide)
 	var pack := _item("bigger_pack", "Bigger Pack", "The backpack gets one more row, at once.", 100, E.ADD_ROW, 0, one, 1,
 			K.UPGRADE, R.RARE, false, false)
-	var shop: Array[ItemData] = [salve, feast, tonic, bomb, salts, key, pack]
-	var found: Array[ItemData] = [salve, feast, tonic, bomb, salts, key, ring, gem, idol, heart, moss, pack]
+	var shop: Array[ItemData] = [salve, feast, tonic, bomb, salts, pack]
+	var found: Array[ItemData] = [salve, feast, tonic, bomb, salts, ring, gem, idol, heart, moss, pack]
 	for item: ItemData in shop:
 		if not run.shop_items.has(item):
 			run.shop_items.append(item)

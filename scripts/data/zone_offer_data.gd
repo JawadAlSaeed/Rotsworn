@@ -88,7 +88,7 @@ enum Kind {
 @export_range(0, 10000) var xp: int = 0
 ## Added to the team gauge (up to its max).
 @export_range(0, 1000) var team_gauge: int = 0
-## A fixed item (for example a Key).
+## A fixed item (for example a Salve).
 @export var item: ItemData
 ## A found item of at least this rarity, picked by the run's seed (-1: none).
 @export_range(-1, 2) var find_rarity: int = -1
