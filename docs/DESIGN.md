@@ -860,13 +860,25 @@ One judge per local player, holding the prompts of the characters that player an
   slides out and back over `dodge_pose_min_ms`, a parry raises the guard over half of
   `whiff_pose_ms` and holds it (never its clang frames). It is only a pose on that machine:
   judging, the whiff lockout, the results sent to the engine and other machines never see it (a
-  lead-in press is still not judged at all).
+  lead-in press is still not judged at all). In an each-in-turn attack (3.11) it moves only the
+  hero its hit strikes, the way a good press does: the hit the judge measured it against, or for a
+  press with no hit (locked out, nothing left, the lead-in) the hit aimed at that player's heroes
+  then (the first still open, else the last); flash and readout go on the same hero (code review).
 - A press never cuts short a defence, a flinch or an earlier press's move that is still playing (a
   double tap keeps the jumper in the air); it still flashes, sounds and shows its readout. A
   defended press does replace a missed move, and a hit that lands always replaces whatever plays:
   the hit reaction wins. Either way the new pose starts from where the body is: a jump carries on
   up from that height, a dodge slides on out from where it was, and anything else (a flinch, a
   parry) comes down and back from there, so nothing snaps to the floor.
+- A press made during a hit-stop is judged at the time it would have had without the freeze (3.3,
+  card #180), but its move starts at the attack time on screen, frozen with everything else, so a
+  press in a friend's parry freeze never cuts short a flinch that is still showing (code review).
+- A hero with nothing left to defend in the attack gets no move that would still be playing when
+  the attack hands back (its end plus `attack_recover_ms`, or the last impact plus
+  `counter_delay_ms` before a counter; the sooner of the two until the engine has answered):
+  nothing would finish it, so mashing at the end would leave the hero snapping to idle in mid-air
+  or mid-slide, or the counter dashing from there (code review). A hero whose hit is still to come
+  always gets it: the hit or a defence replaces it.
 - The lock icon sits under the defenders' feet, clear of the readouts.
 - Feedback comes from the local judge at press time, never from engine events (so it stays
   instant online): "PARRY" / "DODGE" / "JUMP" plus the offset ("+12"), whiffs as "EARLY -130"
@@ -1045,13 +1057,16 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
   home outlasted the hand-back, so a counter dashed into an enemy still on its way; code review).
 - **Wind-up attacks charge in** (card #310, owner playtest 2026-10-23: the Bloat walked right up to
   the hero and only then wound up its slam; the wind-up already warns the player). When the first
-  hit winds up at least combat_visuals `charge_windup_min_ms` (850) as authored (its `impact_ms`
-  minus `approach_ms`, so the attack tempo and a hard fight's feint never change the choice), the
+  hit winds up at least tuning `charge_windup_min_ms` (850) as authored (its `impact_ms` minus
+  `approach_ms`, so the attack tempo and a hard fight's feint never change the choice), the
   attacker does not run up (`EnemyChoreography.charges`; `runs_up` is false, so the lead-in is the
-  plain `attack_lead_in_ms` and the online arbiter waits the same). It winds up near home, stepping
-  out `charge_windup_share` (0.15) of the way to the contact point during the coil, and its first
-  lunge is the charge: from there all the way in over the hit's own `approach_ms`, reaching contact
-  exactly at impact. The attack clock, every impact time and every window are unchanged; a test
+  plain `attack_lead_in_ms` and the online arbiter waits the same). The line lives in tuning, not
+  combat_visuals: it decides whether `run_up_ms` is added to the lead-in, a pacing number (code
+  review). It winds up where it stands, at home (combat_visuals `charge_windup_share`, 0; above 0
+  it would step out that share of the way to the contact point during the coil, gliding while its
+  coil cells play, so the review set it to 0 as the owner asked), and its first lunge is the
+  charge: from there all the way in over the hit's own `approach_ms`, reaching contact exactly at
+  impact. The attack clock, every impact time and every window are unchanged; a test
   checks every beat of every shipped charge against the run-up version (only where the enemy stands
   differs). After the first charge it stays close through the string as above and goes home after
   the last hit. Charging today: the bloats' Belly Slam and Crush, the brutes' Maul, Slam, Sweep and
@@ -5459,3 +5474,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Defaults (owner may overrule, 8.21 D7, D9, D20): online only the host gives up, and once a lost fight decided the Rush its row is End the game; Rush records stay on the machines there from the start (a friend who dropped in, or came back after a crash, writes none; a token rejoin keeps its start); the host sends its own records verdict in `run_start`, so a bot or dev Rush on the host keeps friends' records out too; a friend who drops in gets their hero at the fight's next quiet moment, as in a run | not asked; chosen while building #312: a loss must never turn into a Rush given up, a late friend did not play the whole Rush, and a friend's machine cannot see the host's switches |
 | 2026-10-24 | Every defence press shows its move, even one that defends nothing (early, late, wrong button, locked out, in the lead-in): a missed jump jumps, a missed dodge slides, a missed parry raises the guard; judging and the lockout are unchanged, and a hit that lands always replaces the move (3.6) | owner playtest (#309): an early jump left the hero standing there |
 | 2026-10-24 | Wind-up attacks charge in: an attack whose first hit winds up 850 ms or more (as authored) skips the run-up, winds up near home and charges in on its first lunge, reaching contact exactly at impact; quicker openers keep the phase 23 run-up; the attack clock, impact times and windows are unchanged, only the run before the clock goes (3.12) | owner playtest (#310): the Bloat should wind up from where it stands and charge in on the strike, for every wind-up attack; the 850 ms line keeps the approved run-ups (the Husk's swipe, the King's chop) as they are |
+| 2026-10-24 | Review of #309 and #310: a missed press's move starts at the time on screen during a hit-stop, is not started for a hero with nothing left to defend when the hand-back would cut it off, and in an each-in-turn attack moves only the hero its hit strikes (3.6); a charging attacker winds up at home (`charge_windup_share` 0, no glide in its coil) and the 850 ms line moved to tuning as a pacing number (3.12) | code review; the owner's words were "wind up from where it stands" (asleep, not asked: a step out can come back by raising the share, with chase cells for the glide) |

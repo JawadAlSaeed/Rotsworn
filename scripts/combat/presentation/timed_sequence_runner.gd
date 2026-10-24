@@ -36,7 +36,7 @@ extends Node
 ## Phase 23 (DESIGN.md 3.12): an attacker that runs up runs from home to a step short of its first
 ## target during the last run_up_ms of a longer lead-in (real time, before anything is judged),
 ## then plays the attack from there (EnemyChoreography `near`). A wind-up attack (card #310) skips
-## the run: it winds up near home once the clock starts and its first lunge charges all the way in
+## the run: it winds up at home once the clock starts and its first lunge charges all the way in
 ## (EnemyChoreography `charge`), then stays close as above.
 
 ## Everything from sequence_resolved on, to be played by the controller.
@@ -112,7 +112,7 @@ var _lead_in_end_us: int = 0
 var _run_up: bool = false
 var _run_from_us: int = 0
 var _near: float = 0.0
-## This attack winds up near home and charges in on its first lunge instead (card #310), then stays
+## This attack winds up at home and charges in on its first lunge instead (card #310), then stays
 ## `_near` close through the string.
 var _charge: bool = false
 var _cues: Array[Dictionary] = []
@@ -248,8 +248,8 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_inbox.clear()
 	_inbox_at_us = 0
 	_started_us = Time.get_ticks_usec()
-	_run_up = EnemyChoreography.runs_up(attack, enemy_data, _hits, _visuals)
-	_charge = EnemyChoreography.charges(attack, enemy_data, _hits, _visuals)
+	_run_up = EnemyChoreography.runs_up(attack, enemy_data, _hits, _tuning)
+	_charge = EnemyChoreography.charges(attack, enemy_data, _hits, _tuning)
 	_run_from_us = _started_us + _tuning.attack_lead_in_ms * 1000
 	_lead_in_end_us = _started_us + EnemyChoreography.lead_in_ms(_tuning, _run_up) * 1000
 	_set_idle_loop(enemy_data)
@@ -472,6 +472,9 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 		_show_press_pose(action, stamp_us - _lead_in_end_us, player)
 		return
 	var t := _clock.attack_time_us(stamp_us)
+	# The attack time on screen at the press. A press's move starts there, frozen with everything
+	# else during a hit-stop; only the judge gets the shifted time below.
+	var shown_t := t
 	var earliest := -1
 	if _clock.is_paused(stamp_us):
 		# A press by the owner of a success freeze is a double tap: ignored, no judgement, no
@@ -499,12 +502,12 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 		DefenseJudge.Result.SUCCESS:
 			_on_success(action, report, t)
 		DefenseJudge.Result.WHIFF:
-			_on_whiff(action, report, t, player)
+			_on_whiff(action, report, shown_t, player)
 		DefenseJudge.Result.LOCKED:
 			Sfx.play("locked", _visuals.locked_click_volume_db)
-			_show_press_pose(action, t, player)
+			_show_press_pose(action, shown_t, player)
 		DefenseJudge.Result.DONE:
-			_show_press_pose(action, t, player)
+			_show_press_pose(action, shown_t, player)
 	_release(t)
 
 
@@ -527,7 +530,9 @@ func _on_success(action: int, report: Dictionary, t: int) -> void:
 	_schedule(contact_us, _on_contact.bind(action, hit_index, characters, int(report.offset_us)))
 
 
-func _on_whiff(action: int, report: Dictionary, t: int, player: int) -> void:
+## A press that matched no window: sound, readout, flash and its move. `shown_t` is the attack time
+## on screen at the press, not the (freeze-shifted) time it was judged at.
+func _on_whiff(action: int, report: Dictionary, shown_t: int, player: int) -> void:
 	var reason := int(report.reason)
 	Sfx.play("wrong_button" if reason == DefenseJudge.Reason.WRONG_ACTION else "whiff")
 	_parry_streak = 0
@@ -544,36 +549,104 @@ func _on_whiff(action: int, report: Dictionary, t: int, player: int) -> void:
 		text = with_timing(text, int(report.offset_us))
 	if int(report.hit) >= 0:
 		_whiffed_hits["%d:%d" % [int(report.hit), player]] = true
-	var defenders := _living_targets_of(player)
-	# The pressed move plays even though it defends nothing (card #309); flash, sound and readout
-	# show either way.
-	_show_press_pose(action, t, player)
+	# The pressed move plays even though it defends nothing (card #309) on the heroes the press was
+	# aimed at; flash, sound and readout show either way, on the same heroes.
+	var defenders := _show_press_pose(action, shown_t, player, int(report.hit))
+	if defenders.is_empty():
+		defenders = _living_targets_of(player)
 	for id: int in defenders:
 		_view.fighter(id).flash(_visuals.flash_ms, color, _visuals.whiff_flash_strength)
 	_hud.popup(text, _focus_head(defenders), color)
 
 
 ## A defence press that defended nothing (early, late, wrong button, locked out, nothing left to
-## defend, or in the lead-in) still plays its move on the pressing player's living targeted heroes
-## at attack time `t`, so the player sees it registered (card #309). Only a pose on this machine:
-## judging, the lockout and the results sent to the engine never see it.
-func _show_press_pose(action: int, t: int, player: int) -> void:
-	for id: int in _living_targets_of(player):
+## defend, or in the lead-in) still plays its move at attack time `t` (the time on screen) on the
+## pressing player's living heroes it was aimed at (_press_pose_heroes), so the player sees it
+## registered (card #309). `hit` is the hit the judge measured it against (-1: none). Only a pose
+## on this machine: judging, the lockout and the results sent to the engine never see it. Returns
+## the heroes it was aimed at (whether or not each one's move could start).
+func _show_press_pose(action: int, t: int, player: int, hit: int = -1) -> Array[int]:
+	var heroes := _press_pose_heroes(player, hit, t)
+	for id: int in heroes:
 		_start_press_anim(id, action, t)
+	return heroes
+
+
+## The heroes a press by `player` that defended nothing moves: that player's living targeted heroes.
+## In an each-in-turn attack only those struck by hit `hit`, or with no hit (locked out, nothing
+## left, the lead-in) by the hit aimed at them at attack time `t` (_hit_aimed_at), the way a good
+## press moves only the hero its hit strikes: one mistimed press never moves the whole party.
+func _press_pose_heroes(player: int, hit: int, t: int) -> Array[int]:
+	var mine := _living_targets_of(player)
+	if not _each_in_turn() or _hit_targets.is_empty():
+		return mine
+	var index := hit if hit >= 0 and hit < _hit_targets.size() else _hit_aimed_at(mine, t)
+	var list: Array[int] = []
+	if index < 0:
+		return list
+	for id: int in (_hit_targets[index] as Array[int]):
+		if mine.has(id):
+			list.append(id)
+	return list
+
+
+## The hit aimed at one of `heroes` at attack time `t`: the first that strikes one of them and can
+## still be defended (its close time is not past), else the last that strikes one of them (-1 if
+## none does).
+func _hit_aimed_at(heroes: Array[int], t: int) -> int:
+	var last := -1
+	for i: int in mini(_hits.size(), _hit_targets.size()):
+		var strikes := false
+		for id: int in (_hit_targets[i] as Array[int]):
+			if heroes.has(id):
+				strikes = true
+		if not strikes:
+			continue
+		var hit: Dictionary = _hits[i]
+		if t <= int(hit.at_ms) * 1000 + roundi(float(hit.get("close_ms", 0.0)) * 1000.0):
+			return i
+		last = i
+	return last
 
 
 ## Starts hero `id`'s move for a press that defended nothing (PartyAnim.missed), unless something
 ## still plays: a defence, a flinch or an earlier press's move is never cut short (a double tap
 ## must not drop a jumper to the ground, and the hit is what happened). A hit that lands later
-## replaces the move (_land_hit). True if it started.
+## replaces the move (_land_hit). A hero with nothing left to defend gets no move that would still
+## play when the attack hands back (_hand_back_floor_us): nothing would finish it, so the hero
+## would snap to idle mid-air or mid-slide (mashing at the end of an attack). True if it started.
 func _start_press_anim(id: int, action: int, t: int) -> bool:
 	if PartyAnim.is_playing(_anims.get(id, {}), t):
 		return false
 	var entry := PartyAnim.missed(action, t, _visuals)
 	if entry.is_empty():
 		return false
+	if not _has_pending_prompt(id) and int(entry.until_us) > _hand_back_floor_us():
+		return false
 	_anims[id] = entry
 	return true
+
+
+## True while hero `id` still has a prompt in this attack that the engine waits for: a hit or a
+## defence will still replace whatever the hero plays.
+func _has_pending_prompt(id: int) -> bool:
+	for idx: int in _prompts.size():
+		if int((_prompts[idx] as Dictionary).character) == id and _is_pending(idx):
+			return true
+	return false
+
+
+## The earliest attack time this attack can hand back (_check_finish): its end plus
+## attack_recover_ms, or the last impact plus counter_delay_ms when a counter follows. Before the
+## engine's answer (the tail) says which, the sooner of the two.
+func _hand_back_floor_us() -> int:
+	var recover := _tuning.attack_recover_ms
+	if not _tail_received:
+		return _last_impact_us() + mini(recover, _tuning.counter_delay_ms) * 1000
+	if _has_counter:
+		return _last_impact_us() + _tuning.counter_delay_ms * 1000
+	var end_at := _last_impact_us() if _end_reason == "completed" else _tail_t_us
+	return end_at + recover * 1000
 
 
 ## Contact moment of a successful defence: sound, flash, sparks, hit-stop, popup.

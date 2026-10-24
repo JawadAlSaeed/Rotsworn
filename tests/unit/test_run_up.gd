@@ -8,6 +8,7 @@ const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 const NEAR: float = 0.8
 
 var _visuals := CombatVisuals.new()
+var _tuning := Tuning.new()
 
 
 func _hit(at_ms: float, kind: int = AttackHitData.Kind.NORMAL, feint: bool = false) -> Dictionary:
@@ -69,18 +70,18 @@ func test_slams_and_throws_play_where_it_stands() -> void:
 func test_only_runners_opening_with_a_melee_hit_run_up() -> void:
 	var husk := load("res://data/enemies/rotten_husk.tres") as EnemyData
 	var swipe := load("res://data/enemy_attacks/husk_swipe.tres") as EnemyAttackData
-	assert_true(EnemyChoreography.runs_up(swipe, husk, _declared("husk_swipe"), _visuals), "a claw swipe")
+	assert_true(EnemyChoreography.runs_up(swipe, husk, _declared("husk_swipe"), _tuning), "a claw swipe")
 	assert_true(EnemyChoreography.runs_up(load("res://data/enemy_attacks/husk_rot_combo.tres"), husk,
-			_declared("husk_rot_combo"), _visuals), "a string that opens with claws, a slam in the middle")
+			_declared("husk_rot_combo"), _tuning), "a string that opens with claws, a slam in the middle")
 	assert_false(EnemyChoreography.runs_up(load("res://data/enemy_attacks/husk_ground_slam.tres"), husk,
-			_declared("husk_ground_slam"), _visuals), "a slam opens it: stays home")
+			_declared("husk_ground_slam"), _tuning), "a slam opens it: stays home")
 	assert_false(EnemyChoreography.runs_up(load("res://data/enemy_attacks/husk_rock_toss.tres"), husk,
-			_declared("husk_rock_toss"), _visuals), "a throw opens it: stays home")
+			_declared("husk_rock_toss"), _tuning), "a throw opens it: stays home")
 	var walker := husk.duplicate() as EnemyData
 	walker.runs_up = false
-	assert_false(EnemyChoreography.runs_up(swipe, walker, _declared("husk_swipe"), _visuals), "not a runner")
-	assert_false(EnemyChoreography.runs_up(swipe, null, _declared("husk_swipe"), _visuals))
-	assert_false(EnemyChoreography.runs_up(null, husk, _declared("husk_swipe"), _visuals))
+	assert_false(EnemyChoreography.runs_up(swipe, walker, _declared("husk_swipe"), _tuning), "not a runner")
+	assert_false(EnemyChoreography.runs_up(swipe, null, _declared("husk_swipe"), _tuning))
+	assert_false(EnemyChoreography.runs_up(null, husk, _declared("husk_swipe"), _tuning))
 
 
 func test_the_run_lengthens_the_lead_in() -> void:

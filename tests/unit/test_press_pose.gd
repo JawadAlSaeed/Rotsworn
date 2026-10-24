@@ -3,7 +3,10 @@ extends GutTest
 ## wrong button, locked out, nothing left to defend, or still in the lead-in) plays the jump, dodge
 ## or parry on the pressing player's targeted heroes anyway, without touching judging. A move still
 ## playing is never cut short, a hit that lands always replaces it (from where the body was), and a
-## jump that starts in the air carries on from that height.
+## jump that starts in the air carries on from that height. Code review: a press during a hit-stop
+## poses at the time on screen (judged at the shifted time), a hero with nothing left to defend gets
+## no move the hand-back would cut off, and in an each-in-turn attack only the hero the hit strikes
+## moves.
 
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
@@ -18,6 +21,9 @@ const IMPACT_US: int = IMPACT_MS * 1000
 const OPEN_US: int = -150_000
 const CLOSE_US: int = 100_000
 const DEVICE: int = PlayerRoster.KEYBOARD
+## The second hero (another player's in the co-op tests) and the pad its player presses on.
+const OTHER: int = 11
+const PAD: int = 0
 
 var _visuals: CombatVisuals
 var _tuning: Tuning
@@ -173,23 +179,38 @@ func test_a_pose_that_takes_over_starts_from_where_the_body_is() -> void:
 ## hero HERO targeted and alive. `pending`: the engine still waits for the hit's prompt, so the hit
 ## lands when it expires.
 func _runner(clock_us: int, pending: bool = false) -> TimedSequenceRunner:
+	var prompts: Array = [{"idx": 0, "hit": 0, "character": HERO, "at_ms": IMPACT_MS, "damage": 5,
+			"windows": {Defense.Outcome.JUMP: [OPEN_US, CLOSE_US]}}]
+	var hits: Array = [{"at_ms": IMPACT_MS, "kind": AttackHitData.Kind.GROUND, "close_ms": float(CLOSE_US) / 1000.0}]
+	var heroes: Array[int] = [HERO]
+	return _runner_for(clock_us, heroes, prompts, hits, {}, pending)
+
+
+## A runner like _runner() with these heroes (all targeted and alive), prompts and hits. `owners`
+## maps a hero to its player (empty: all player 0); with two players player 0 presses on PAD and
+## player 1 on DEVICE (the keyboard). `pending`: the engine still waits for every prompt.
+func _runner_for(clock_us: int, heroes: Array[int], prompts: Array, hits: Array, owners: Dictionary = {},
+		pending: bool = false) -> TimedSequenceRunner:
 	var view := CombatView.new()
 	add_child_autofree(view)
 	view._visuals = _visuals
 	view.camera = CombatCamera.new()
 	view.camera.setup(_visuals)
 	view.add_child(view.camera)
-	view.add_fighter(HERO, true, 0, load(HERO_PATH) as CharacterData)
+	for slot: int in heroes.size():
+		view.add_fighter(heroes[slot], true, slot, load(HERO_PATH) as CharacterData)
 	var hud := CombatHud.new()
 	add_child_autofree(hud)
 	hud.setup(view, _visuals, _tuning)
 	var mirror := CombatMirror.new()
-	mirror.fighters = {HERO: {"alive": true, "max_hp": 100, "hp": 100}}
-	mirror.party_ids.assign([HERO])
+	for id: int in heroes:
+		mirror.fighters[id] = {"alive": true, "max_hp": 100, "hp": 100}
+	mirror.party_ids.assign(heroes)
 	if pending:
-		mirror.sequence = {"seq": 0, "states": [CombatEngine.PromptState.PENDING]}
-	var prompts: Array = [{"idx": 0, "hit": 0, "character": HERO, "at_ms": IMPACT_MS, "damage": 5,
-			"windows": {Defense.Outcome.JUMP: [OPEN_US, CLOSE_US]}}]
+		var states: Array = []
+		for _prompt: Dictionary in prompts:
+			states.append(CombatEngine.PromptState.PENDING)
+		mirror.sequence = {"seq": 0, "states": states}
 	var runner: TimedSequenceRunner = autofree(TimedSequenceRunner.new())
 	runner._submit = func(_command: Dictionary) -> Array[Dictionary]: return [] as Array[Dictionary]
 	runner._apply_now = func(_event: Dictionary) -> void: pass
@@ -201,22 +222,37 @@ func _runner(clock_us: int, pending: bool = false) -> TimedSequenceRunner:
 	runner._options = CombatOptions.new()
 	runner._seq = 0
 	runner._prompts = prompts
-	runner._hits = [{"at_ms": IMPACT_MS, "kind": AttackHitData.Kind.GROUND}]
-	runner._targets.assign([HERO])
+	runner._hits = hits
+	runner._targets.assign(heroes)
+	runner._owners = owners
+	var players: Array[int] = []
+	for id: int in owners:
+		if not players.has(int(owners[id])):
+			players.append(int(owners[id]))
+	if players.size() > 1:
+		var roster := PlayerRoster.solo(heroes.size(), PAD)
+		roster.devices = [PAD, DEVICE]
+		runner._roster = roster
+	# Who each hit strikes, as start() lays it out.
+	for i: int in hits.size():
+		runner._hit_targets.append([] as Array[int])
+	for prompt: Dictionary in prompts:
+		(runner._hit_targets[int(prompt.hit)] as Array[int]).append(int(prompt.character))
 	# The judge works with no lag compensation and the press device adds none, so attack times
 	# here are exactly the judged times whatever this machine's calibration.
 	runner._latency_ms = PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.input_kind_of_device(DEVICE))
 	runner._judges = JudgeSet.new(_tuning.whiff_lockout_ms, 0, _tuning.press_reach_back_max_ms, _tuning.late_press_report_ms)
-	runner._judges.set_prompts(prompts, {})
+	runner._judges.set_prompts(prompts, owners)
 	runner._clock.start(clock_us)
 	runner._active = true
 	return runner
 
 
 ## A clock start well in the past, so every press stamp is before the real-time hit-stop a landed
-## hit starts (the freeze never covers a test press).
+## hit starts (the freeze never covers a test press). Never negative, as real timestamps never are
+## (the freeze ledger relies on that), even when the test runs in the first seconds after start-up.
 func _clock_start() -> int:
-	return Time.get_ticks_usec() - 10_000_000
+	return maxi(0, Time.get_ticks_usec() - 10_000_000)
 
 
 ## Presses `action` at attack time `t_us` the way DefenseInput delivers it.
@@ -303,7 +339,8 @@ func test_a_press_with_nothing_left_to_defend_still_moves() -> void:
 	var clock := _clock_start()
 	var runner := _runner(clock)
 	runner._judges.resolve_all_remaining()
-	var report := _press(runner, clock, Defense.Outcome.DODGE, 2_000_000)
+	# Well before the attack can hand back, so the dodge is over long before.
+	var report := _press(runner, clock, Defense.Outcome.DODGE, 300_000)
 	assert_eq(int(report.result), DefenseJudge.Result.DONE)
 	assert_eq(int((runner._anims.get(HERO, {}) as Dictionary).get("kind", -1)), TimedSequenceRunner.Anim.DODGE)
 
@@ -329,6 +366,8 @@ func test_a_press_during_the_lead_in_moves_but_is_not_judged() -> void:
 func test_only_the_pressing_players_living_targets_move() -> void:
 	var runner: TimedSequenceRunner = autofree(TimedSequenceRunner.new())
 	runner._visuals = _visuals
+	runner._tuning = _tuning
+	runner._hits = [{"at_ms": IMPACT_MS, "kind": AttackHitData.Kind.NORMAL}]
 	var mirror := CombatMirror.new()
 	mirror.fighters = {10: {"alive": true}, 11: {"alive": true}, 12: {"alive": false}, 13: {"alive": true}}
 	runner._mirror = mirror
@@ -342,8 +381,7 @@ func test_only_the_pressing_players_living_targets_move() -> void:
 
 
 func test_a_successful_jump_from_a_missed_one_carries_on_in_the_air() -> void:
-	var runner: TimedSequenceRunner = autofree(TimedSequenceRunner.new())
-	runner._visuals = _visuals
+	var runner := _runner(_clock_start(), true)
 	assert_true(runner._start_press_anim(HERO, Defense.Outcome.JUMP, 0))
 	var missed: Dictionary = runner._anims[HERO]
 	var t := _visuals.jump_airtime_ms * 600
@@ -358,8 +396,7 @@ func test_a_successful_jump_from_a_missed_one_carries_on_in_the_air() -> void:
 
 
 func test_a_defence_after_a_missed_dodge_takes_over_mid_slide() -> void:
-	var runner: TimedSequenceRunner = autofree(TimedSequenceRunner.new())
-	runner._visuals = _visuals
+	var runner := _runner(_clock_start(), true)
 	assert_true(runner._start_press_anim(HERO, Defense.Outcome.DODGE, 0))
 	var missed: Dictionary = runner._anims[HERO]
 	var t := _visuals.dodge_pose_min_ms * 500
@@ -369,3 +406,137 @@ func test_a_defence_after_a_missed_dodge_takes_over_mid_slide() -> void:
 	var parry: Dictionary = runner._anims[HERO]
 	assert_eq(int(parry.kind), TimedSequenceRunner.Anim.PARRY)
 	assert_almost_eq(PartyAnim.slide(parry, t, OUT_SHARE, BACK_SHARE), out, 0.0001, "no snap back to the spot")
+
+
+# --- code review: presses in a hit-stop, the hand-back, each in turn ------------------------------
+
+func test_a_press_in_another_players_freeze_never_cuts_their_flinch_short() -> void:
+	# Local co-op: HERO is player 1's (the keyboard), OTHER player 0's (a pad). Hit 0 lands on HERO;
+	# while HERO still flinches, OTHER's parry freezes the shared clock for player 0, and player 1
+	# mashes inside that freeze with nothing left to defend.
+	var clock := _clock_start()
+	var heroes: Array[int] = [HERO, OTHER]
+	var prompts: Array = [
+		{"idx": 0, "hit": 0, "character": HERO, "at_ms": IMPACT_MS, "damage": 5,
+				"windows": {Defense.Outcome.JUMP: [OPEN_US, CLOSE_US]}},
+		{"idx": 1, "hit": 1, "character": OTHER, "at_ms": IMPACT_MS * 3, "damage": 5,
+				"windows": {Defense.Outcome.PARRY: [-100_000, CLOSE_US]}},
+	]
+	var hits: Array = [{"at_ms": IMPACT_MS, "kind": AttackHitData.Kind.GROUND, "close_ms": 100.0},
+			{"at_ms": IMPACT_MS * 3, "kind": AttackHitData.Kind.NORMAL, "close_ms": 100.0}]
+	var runner := _runner_for(clock, heroes, prompts, hits, {HERO: 1, OTHER: 0}, true)
+	# No late-press report: the press is a plain DONE whatever the tuning says.
+	runner._judges = JudgeSet.new(_tuning.whiff_lockout_ms, 0, _tuning.press_reach_back_max_ms, 0)
+	runner._judges.set_prompts(prompts, runner._owners)
+	runner._expire(IMPACT_US + CLOSE_US + 1000)
+	var flinch: Dictionary = runner._anims[HERO]
+	assert_eq(int(flinch.kind), TimedSequenceRunner.Anim.HURT, "hit 0 landed on HERO")
+	# The freeze starts with 60 ms of flinch left (attack time) and lasts 110 ms; the press comes
+	# 90 ms into it, so its freeze-shifted time is past the flinch while the screen still shows it.
+	var freeze_t := int(flinch.until_us) - 60_000
+	var others: Array[int] = [OTHER]
+	runner._freeze(clock + freeze_t, 110, others)
+	var judged: Array[Dictionary] = []
+	var catch := func(_action: int, report: Dictionary) -> void: judged.append(report)
+	runner.press_judged.connect(catch)
+	runner._on_pressed(Defense.Outcome.JUMP, clock + freeze_t + 90_000, 0, DEVICE)
+	runner.press_judged.disconnect(catch)
+	assert_eq(judged.size(), 1, "player 1's press is judged, not dropped (card #180)")
+	assert_eq(int(judged[0].result), DefenseJudge.Result.DONE)
+	assert_eq(int((runner._press_times.back() as Dictionary).t), freeze_t + 90_000,
+			"judged at the time it would have had without the freeze")
+	assert_eq(runner._anims[HERO], flinch, "the flinch on screen is not cut short (the hit wins)")
+
+
+func test_a_press_in_a_freeze_starts_its_move_frozen() -> void:
+	# Solo: the hurt freeze after a last hit (nobody's) covers a press with nothing left to defend.
+	var clock := _clock_start()
+	var runner := _runner(clock)
+	runner._judges.resolve_all_remaining()
+	var freeze_t := 400_000
+	var nobody: Array[int] = []
+	runner._freeze(clock + freeze_t, 50, nobody)
+	var report := _press(runner, clock, Defense.Outcome.DODGE, freeze_t + 30_000)
+	assert_eq(int(report.result), DefenseJudge.Result.DONE)
+	assert_eq(int((runner._press_times.back() as Dictionary).t), freeze_t + 30_000, "judged as if unfrozen")
+	var dodge: Dictionary = runner._anims.get(HERO, {})
+	assert_eq(int(dodge.get("kind", -1)), TimedSequenceRunner.Anim.DODGE)
+	assert_eq(int(dodge.from_us), freeze_t, "starts at the frozen time on screen, frozen with everything else")
+
+
+func test_a_hero_with_nothing_left_gets_no_move_the_hand_back_would_cut() -> void:
+	var clock := _clock_start()
+	var runner := _runner(clock)
+	runner._judges.resolve_all_remaining()
+	runner._tail_received = true
+	runner._end_reason = "completed"
+	var hand_back := IMPACT_US + _tuning.attack_recover_ms * 1000
+	var jump_us := _visuals.jump_airtime_ms * 1000
+	var dodge_us := _visuals.dodge_pose_min_ms * 1000
+	assert_false(runner._start_press_anim(HERO, Defense.Outcome.JUMP, hand_back - jump_us + 10_000),
+			"a jump still in the air at the hand-back never starts")
+	assert_false(runner._anims.has(HERO))
+	assert_true(runner._start_press_anim(HERO, Defense.Outcome.DODGE, hand_back - dodge_us - 10_000),
+			"a dodge back on the spot before the hand-back plays")
+	# A counter hands back sooner: counter_delay_ms after the last impact.
+	var countered := _runner(clock)
+	countered._judges.resolve_all_remaining()
+	countered._tail_received = true
+	countered._end_reason = "completed"
+	countered._has_counter = true
+	var dash := IMPACT_US + _tuning.counter_delay_ms * 1000
+	assert_false(countered._start_press_anim(HERO, Defense.Outcome.DODGE, dash - dodge_us + 10_000),
+			"never mid-slide when the counter dashes")
+	assert_true(countered._start_press_anim(HERO, Defense.Outcome.DODGE, dash - dodge_us - 10_000))
+	# A hero whose hit is still to come gets the move: the hit or a defence replaces it anyway.
+	var waiting := _runner(clock, true)
+	assert_true(waiting._start_press_anim(HERO, Defense.Outcome.JUMP, IMPACT_US + 50_000), "still pending")
+
+
+func test_mashing_after_a_good_last_jump_starts_no_jump_the_hand_back_cuts() -> void:
+	var clock := _clock_start()
+	var runner := _runner(clock, true)
+	var good := _press(runner, clock, Defense.Outcome.JUMP, IMPACT_US - 100_000)
+	assert_eq(int(good.result), DefenseJudge.Result.SUCCESS)
+	var jump: Dictionary = runner._anims[HERO]
+	# The engine answered (the helper's submit answers nothing): the prompt is resolved and the
+	# attack is over, so it hands back attack_recover_ms after the impact.
+	var states: Array = runner._mirror.sequence.states
+	states[0] = CombatEngine.PromptState.RESOLVED
+	runner._tail_received = true
+	runner._end_reason = "completed"
+	var mash := int(jump.until_us) + 10_000
+	assert_lt(mash, IMPACT_US + _tuning.attack_recover_ms * 1000, "mashed before the hand-back")
+	var report := _press(runner, clock, Defense.Outcome.JUMP, mash)
+	assert_eq(int(report.result), DefenseJudge.Result.DONE)
+	assert_eq(runner._anims[HERO], jump, "no new jump that the hand-back would leave floating")
+
+
+func test_each_in_turn_a_missed_press_moves_only_the_hero_its_hit_strikes() -> void:
+	var clock := _clock_start()
+	var heroes: Array[int] = [10, 11, 12]
+	var prompts: Array = []
+	var hits: Array = []
+	for i: int in heroes.size():
+		var at_ms := IMPACT_MS + 500 * i
+		prompts.append({"idx": i, "hit": i, "character": heroes[i], "at_ms": at_ms, "damage": 5,
+				"windows": {Defense.Outcome.DODGE: [OPEN_US, CLOSE_US], Defense.Outcome.PARRY: [OPEN_US, CLOSE_US]}})
+		hits.append({"at_ms": at_ms, "kind": AttackHitData.Kind.NORMAL, "close_ms": 100.0})
+	var runner := _runner_for(clock, heroes, prompts, hits, {}, true)
+	runner._event = {"mode": EnemyAttackData.TargetMode.EACH}
+	# An early dodge against hit 0 (it strikes hero 10): only hero 10 slides, as a good one would.
+	var report := _press(runner, clock, Defense.Outcome.DODGE, IMPACT_US - 400_000)
+	assert_eq(int(report.result), DefenseJudge.Result.WHIFF)
+	assert_eq(int(report.reason), DefenseJudge.Reason.EARLY)
+	assert_eq(int(report.hit), 0)
+	assert_true(runner._anims.has(10), "the hero hit 0 is aimed at")
+	assert_false(runner._anims.has(11), "not the hero hit 1 strikes later")
+	assert_false(runner._anims.has(12), "not the hero hit 2 strikes later")
+	# With no hit (locked out, nothing left, the lead-in): the hit aimed at them at that moment.
+	assert_eq(runner._press_pose_heroes(0, -1, -200_000), [10] as Array[int], "in the lead-in: the first hit")
+	assert_eq(runner._press_pose_heroes(0, -1, IMPACT_US + 300_000), [11] as Array[int], "hit 0 closed: hit 1")
+	assert_eq(runner._press_pose_heroes(0, -1, 9_000_000), [12] as Array[int], "after the last hit: its hero")
+	assert_eq(runner._press_pose_heroes(0, 2, 0), [12] as Array[int], "a whiff measured against hit 2")
+	# Every other attack moves all of the player's living targets, as before.
+	runner._event = {"mode": EnemyAttackData.TargetMode.PARTY}
+	assert_eq(runner._press_pose_heroes(0, 0, 0), heroes)

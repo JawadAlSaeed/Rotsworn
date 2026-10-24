@@ -16,6 +16,7 @@ press_reach_back_max_ms = 100
 late_press_report_ms = 400
 attack_lead_in_ms = 700
 run_up_ms = 450
+charge_windup_min_ms = 850
 attack_tempo_percent = 100
 attack_tempo_floor_percent = 70
 attack_recover_ms = 450

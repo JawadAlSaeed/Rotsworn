@@ -29,10 +29,11 @@ extends RefCounted
 ## return_ms like everyone else (longer, it would still be on its way when a counter dashes in).
 ##
 ## Card #310 (DESIGN.md 3.12): a wind-up attack (see charges) does not run up. It samples with
-## `charge`: home before the clock, a step out to charge_windup_share during the first wind-up's coil,
-## and its first lunge charges from there all the way to the contact point, still reaching it
-## exactly at impact. Every beat keeps its times; only where the enemy stands differs. From then on
-## it stays close as above (`near`).
+## `charge`: home before the clock, winding up where it stands (or, with a combat_visuals
+## charge_windup_share above 0, a step out that far during the first wind-up's coil), and its first
+## lunge charges from there all the way to the contact point, still reaching it exactly at impact.
+## Every beat keeps its times; only where the enemy stands differs. From then on it stays close as
+## above (`near`).
 
 ## Frames of an enemy sheet (DESIGN.md 5.3).
 enum Pose {
@@ -86,7 +87,7 @@ const CUE_SHOOT := "shoot"
 ## after the last hit), -1 before the clock starts. The beat keys only describe the spans the
 ## pose already follows; they never change pose, approach or glow. `near` (0 = home) is where an
 ## attacker that ran up stands when the clock starts, and the closest it stays through a string
-## (see the class notes). `charge`: a wind-up attack that charges in from near home instead.
+## (see the class notes). `charge`: a wind-up attack that charges in from home instead.
 static func sample(hits: Array, t_ms: float, v: CombatVisuals, near: float = 0.0,
 		charge: bool = false) -> Dictionary:
 	if hits.is_empty() or t_ms < 0.0:
@@ -265,17 +266,17 @@ static func motion_start(hits: Array, i: int, v: CombatVisuals) -> float:
 ## is an attacker that runs up, the attack opens with a melee strike (a normal hit, rend or sweep
 ## that throws nothing) and it is not a wind-up attack (see charges). `hits` are the engine's
 ## declared hits in play order (each with its `index` into attack.hits). Every machine decides the
-## same from the same data, so the longer lead-in matches online.
-static func runs_up(attack: EnemyAttackData, enemy: EnemyData, hits: Array, v: CombatVisuals) -> bool:
-	return _opens_close(attack, enemy, hits) and windup_ms(attack, hits) < v.charge_windup_min_ms
+## same from the same data (`tuning` holds the wind-up line), so the longer lead-in matches online.
+static func runs_up(attack: EnemyAttackData, enemy: EnemyData, hits: Array, tuning: Tuning) -> bool:
+	return _opens_close(attack, enemy, hits) and windup_ms(attack, hits) < tuning.charge_windup_min_ms
 
 
 ## True when `enemy` charges in on this attack instead of running up first (card #310, DESIGN.md
-## 3.12): it would run up, but the first hit winds up at least charge_windup_min_ms, which warns
-## the player already. It winds up near home and its first lunge charges all the way in. Nothing
-## runs before the clock, so the lead-in is the plain one.
-static func charges(attack: EnemyAttackData, enemy: EnemyData, hits: Array, v: CombatVisuals) -> bool:
-	return _opens_close(attack, enemy, hits) and windup_ms(attack, hits) >= v.charge_windup_min_ms
+## 3.12): it would run up, but the first hit winds up at least tuning charge_windup_min_ms, which
+## warns the player already. It winds up at home and its first lunge charges all the way in.
+## Nothing runs before the clock, so the lead-in is the plain one.
+static func charges(attack: EnemyAttackData, enemy: EnemyData, hits: Array, tuning: Tuning) -> bool:
+	return _opens_close(attack, enemy, hits) and windup_ms(attack, hits) >= tuning.charge_windup_min_ms
 
 
 ## How long the attack's first hit winds up as authored: its impact_ms minus approach_ms in the

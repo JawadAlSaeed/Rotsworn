@@ -1,10 +1,12 @@
 extends GutTest
 ## Wind-up attacks charge in (DESIGN.md 3.12, card #310): an attacker that runs up skips the run when
-## its attack's first hit winds up long enough. It winds up near home, its first lunge charges all
-## the way to the contact point and still reaches it exactly at impact, and it stays close through
-## the rest of the string. The attack clock, the impact times and every beat's timing stay exactly
-## as they were: only where the enemy stands changes. Quick openers keep the phase 23 run-up.
-## Uses the default CombatVisuals and Tuning so edits to the .tres files never break it.
+## its attack's first hit winds up long enough (tuning charge_windup_min_ms: it decides the lead-in,
+## so it is pacing, not looks). It winds up at home, its first lunge charges all the way to the
+## contact point and still reaches it exactly at impact, and it stays close through the rest of the
+## string. The attack clock, the impact times and every beat's timing stay exactly as they were:
+## only where the enemy stands changes. Quick openers keep the phase 23 run-up.
+## Uses the default CombatVisuals and Tuning so edits to the .tres files never break it, except
+## where a test checks what ships.
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 const NEAR: float = 0.8
@@ -12,10 +14,12 @@ const LATENCY_MS: int = 30
 const EPS: float = 0.0001
 
 var _visuals := CombatVisuals.new()
+var _tuning := Tuning.new()
 
 
 func before_each() -> void:
 	_visuals = CombatVisuals.new()
+	_tuning = Tuning.new()
 
 
 func _hit(at_ms: float, approach_ms: float = 400.0, kind: int = AttackHitData.Kind.NORMAL) -> Dictionary:
@@ -44,25 +48,25 @@ func test_wind_up_attacks_charge_and_quick_openers_run_up() -> void:
 	for enemy_id: String in charging:
 		var attack := _attack(charging[enemy_id])
 		var hits: Array = _declared(attack).hits
-		assert_true(EnemyChoreography.charges(attack, _enemy(enemy_id), hits, _visuals), attack.id)
-		assert_false(EnemyChoreography.runs_up(attack, _enemy(enemy_id), hits, _visuals), attack.id + ": no run first")
+		assert_true(EnemyChoreography.charges(attack, _enemy(enemy_id), hits, _tuning), attack.id)
+		assert_false(EnemyChoreography.runs_up(attack, _enemy(enemy_id), hits, _tuning), attack.id + ": no run first")
 	# The approved run-ups stay: the Husk's swipe and the King's chop.
 	var running := {"rotten_husk": "husk_swipe", "hollow_king": "king_cleave"}
 	for enemy_id: String in running:
 		var attack := _attack(running[enemy_id])
 		var hits: Array = _declared(attack).hits
-		assert_true(EnemyChoreography.runs_up(attack, _enemy(enemy_id), hits, _visuals), attack.id)
-		assert_false(EnemyChoreography.charges(attack, _enemy(enemy_id), hits, _visuals), attack.id + ": no charge")
+		assert_true(EnemyChoreography.runs_up(attack, _enemy(enemy_id), hits, _tuning), attack.id)
+		assert_false(EnemyChoreography.charges(attack, _enemy(enemy_id), hits, _tuning), attack.id + ": no charge")
 	# Slams, throws and enemies that never run stay home.
 	var bloat := _enemy("bloat")
 	for id: String in ["bloat_quake", "bloat_bile_spit"]:
 		var hits: Array = _declared(_attack(id)).hits
-		assert_false(EnemyChoreography.charges(_attack(id), bloat, hits, _visuals), id)
-		assert_false(EnemyChoreography.runs_up(_attack(id), bloat, hits, _visuals), id)
+		assert_false(EnemyChoreography.charges(_attack(id), bloat, hits, _tuning), id)
+		assert_false(EnemyChoreography.runs_up(_attack(id), bloat, hits, _tuning), id)
 	var walker := bloat.duplicate() as EnemyData
 	walker.runs_up = false
 	var slam := _attack("bloat_belly_slam")
-	assert_false(EnemyChoreography.charges(slam, walker, _declared(slam).hits as Array, _visuals), "not a runner")
+	assert_false(EnemyChoreography.charges(slam, walker, _declared(slam).hits as Array, _tuning), "not a runner")
 
 
 func test_the_choice_follows_the_authored_wind_up_only() -> void:
@@ -73,8 +77,8 @@ func test_the_choice_follows_the_authored_wind_up_only() -> void:
 	fast.attack_tempo_percent = 70
 	var quick: Array = _declared(slam, fast).hits
 	assert_lt(float((quick[0] as Dictionary).at_ms), 1600.0, "the tempo applies")
-	assert_true(EnemyChoreography.charges(slam, _enemy("bloat"), quick, _visuals), "still a charge")
-	var v := CombatVisuals.new()
+	assert_true(EnemyChoreography.charges(slam, _enemy("bloat"), quick, _tuning), "still a charge")
+	var v := Tuning.new()
 	v.charge_windup_min_ms = 1300
 	assert_false(EnemyChoreography.charges(slam, _enemy("bloat"), quick, v), "under the threshold: runs up")
 	assert_true(EnemyChoreography.runs_up(slam, _enemy("bloat"), quick, v))
@@ -85,14 +89,14 @@ func test_a_charge_keeps_the_plain_lead_in() -> void:
 	tuning.attack_lead_in_ms = 700
 	tuning.run_up_ms = 450
 	var slam := _attack("bloat_belly_slam")
-	var runs := EnemyChoreography.runs_up(slam, _enemy("bloat"), _declared(slam).hits as Array, _visuals)
+	var runs := EnemyChoreography.runs_up(slam, _enemy("bloat"), _declared(slam).hits as Array, _tuning)
 	assert_eq(EnemyChoreography.lead_in_ms(tuning, runs), 700, "nothing runs before the clock")
 	var swipe := _attack("husk_swipe")
-	runs = EnemyChoreography.runs_up(swipe, _enemy("rotten_husk"), _declared(swipe).hits as Array, _visuals)
+	runs = EnemyChoreography.runs_up(swipe, _enemy("rotten_husk"), _declared(swipe).hits as Array, _tuning)
 	assert_eq(EnemyChoreography.lead_in_ms(tuning, runs), 1150, "a run-up still adds its run")
 
 
-func test_a_charge_winds_up_near_home_and_arrives_at_impact() -> void:
+func test_a_charge_with_a_step_out_winds_up_near_home_and_arrives_at_impact() -> void:
 	_visuals.charge_windup_share = 0.15
 	_visuals.enemy_windup_coil_ms = 240
 	var hits := [_hit(1600.0)]
@@ -154,7 +158,7 @@ func test_shipped_wind_up_attacks_keep_their_clock_and_arrive_at_impact() -> voi
 				continue
 			var declared := _declared(attack)
 			var hits: Array = declared.hits
-			if not EnemyChoreography.charges(attack, enemy, hits, _visuals):
+			if not EnemyChoreography.charges(attack, enemy, hits, _tuning):
 				continue
 			seen[attack.id] = true
 			_check_clock(attack, hits, declared.prompts as Array)
@@ -204,3 +208,37 @@ func _check_beats(id: String, hits: Array) -> void:
 		assert_almost_eq(float(contact.approach), 1.0, EPS, id)
 	var opening := EnemyChoreography.sample(hits, 0.0, _visuals, NEAR, true)
 	assert_almost_eq(float(opening.approach), 0.0, EPS, "%s: winds up from home" % id)
+
+
+func test_the_wind_up_line_is_a_pacing_number_in_tuning() -> void:
+	# It decides whether the run (and run_up_ms of lead-in) happens, and so what the online host's
+	# arbiter waits: a tuning number, never a look in combat_visuals (CLAUDE.md rule 5).
+	assert_false("charge_windup_min_ms" in CombatVisuals.new(), "not in the presentation file")
+	var shipped := load("res://data/tuning/tuning.tres") as Tuning
+	var slam := _attack("bloat_belly_slam")
+	var hits: Array = _declared(slam).hits
+	assert_true(EnemyChoreography.charges(slam, _enemy("bloat"), hits, shipped), "the shipped line: the Belly Slam charges")
+	assert_eq(EnemyChoreography.lead_in_ms(shipped, EnemyChoreography.runs_up(slam, _enemy("bloat"), hits, shipped)),
+			shipped.attack_lead_in_ms, "and keeps the plain lead-in")
+
+
+func test_the_shipped_look_winds_up_where_it_stands() -> void:
+	# The owner (card #310): the Bloat winds up from where it stands, then charges in on the strike.
+	# No step out, so no glide while the coil cells play (code review).
+	var shipped := load("res://data/presentation/combat_visuals.tres") as CombatVisuals
+	var slam := _attack("bloat_belly_slam")
+	var hits: Array = _declared(slam).hits
+	var start := EnemyChoreography.motion_start(hits, 0, shipped)
+	assert_gt(start, 0.0)
+	var moved := 0
+	var winding := 0
+	for t: int in range(0, int(start)):
+		var s := EnemyChoreography.sample(hits, float(t), shipped, NEAR, true)
+		if int(s.beat) == EnemyChoreography.Beat.WINDUP:
+			winding += 1
+		if float(s.approach) > EPS:
+			moved += 1
+	assert_eq(winding, int(start), "the whole wind-up")
+	assert_eq(moved, 0, "winds up at home, never sliding forward in its coil")
+	var contact := EnemyChoreography.sample(hits, float((hits[0] as Dictionary).at_ms), shipped, NEAR, true)
+	assert_almost_eq(float(contact.approach), 1.0, EPS, "and still reaches the hero exactly at impact")

@@ -140,13 +140,10 @@ extends Resource
 @export_range(0.0, 6.0, 0.05) var swing_step: float = 1.0
 ## One cycle of its chase loop while it runs up.
 @export_range(50, 2000, 1, "suffix:ms") var run_up_cycle_ms: int = 400
-## Wind-up attacks charge in (card #310, DESIGN.md 3.12): an attacker that runs up skips the run
-## when its attack's first hit winds up at least this long (that hit's impact_ms minus approach_ms
-## as authored). It winds up near home instead and its lunge charges all the way in.
-@export_range(0, 5000, 1, "suffix:ms") var charge_windup_min_ms: int = 850
-## Where a charging attacker winds up: this share of the way from home to its first contact point
-## (0 = at home; never past where a run-up would stop). It steps there during the wind-up's coil,
-## so its charge covers the rest of the way.
+## Where a charging attacker winds up (card #310, DESIGN.md 3.12; which attacks charge is tuning
+## charge_windup_min_ms): this share of the way from home to its first contact point (0 = where it
+## stands, as the owner asked; never past where a run-up would stop). Above 0 it steps there during
+## the wind-up's coil, gliding while its coil cells play, so its charge covers the rest of the way.
 @export_range(0.0, 1.0, 0.01) var charge_windup_share: float = 0.15
 ## The slam pose is held this long when a ground wave is launched.
 @export_range(0, 2000, 1, "suffix:ms") var slam_hold_ms: int = 260
