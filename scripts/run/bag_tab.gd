@@ -19,8 +19,8 @@ signal settled
 
 ## Online (card #314): the op a friend's backpack sends for a new item the host handed them (a find
 ## with no room, made on their turn): {"op": HAND_OUT, "to": "pocket" | "combine" | "swap" | "fit" |
-## "leave", "pocket": x, "uid": the item combined into or swapped out}. The host applies it with
-## place_new().
+## "leave", "pocket": x, "uid": the item combined into or swapped out}; Main adds the find's number
+## ("gift") on the way out. The host applies it with place_new().
 const HAND_OUT := "hand_out"
 ## What place_new() did.
 const PLACED := "placed"

@@ -61,8 +61,8 @@ const HOST_PEER: int = 1
 ## the friend builds from the run state; the zone messages ("zone", "zone_fight", "zone_back") and
 ## the unreliable zone positions are gone.
 ## 6: the run's choices go in turns (card #314): choice screens carry "turn", a friend sends "choice"
-## on their turn, the host sends "turn" when it passes on and "gift" (a find to place), and the
-## friend's backpack answers with a "hand_out" bag op.
+## on their turn, the host sends "turn" when it passes on and "gift" (a find to place, numbered), and
+## the friend's backpack answers with a "hand_out" bag op carrying that number.
 const PROTOCOL: int = 6
 ## Client: the host could not be reached (short: it can end as a main menu notice).
 const REASON_UNREACHABLE := "Host not found"

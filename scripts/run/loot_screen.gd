@@ -7,6 +7,8 @@ extends CanvasLayer
 ## The Relics sit side by side as cards (card #288): each Relic's own icon, its name in its rarity's
 ## colour, New (or Home, or "Lv 1 > 2" for a copy) and a few chips: what it does, its drawback and
 ## its stat line. No sentence: what a Relic means is in the Glossary.
+## Online the pick goes in turns (card #314, DESIGN.md 9.2): on another player's turn the cards are
+## greyed and the footer offers nothing to press (`watching`).
 
 ## The item picked (null: the party took nothing).
 signal chosen(item: GearData)
@@ -20,8 +22,12 @@ const CATEGORY_GLYPHS: Array[StringName] = [&"sword", &"shield", &"leaf"]
 const DRAWBACK_COLOR := Color(1.0, 0.45, 0.4)
 
 var _items: Array[GearData] = []
+var _run: RunState
 var _menu: ListMenu
-## Online (card #314): another player's turn: no input here.
+var _footer: HintBar
+## The footer's hints now (tests read them).
+var _footer_now: Array = []
+## Online (card #314): another player's turn: the cards are greyed and take no input.
 var watching: bool = false
 ## Online friend whose turn it is (card #314): the pick goes to the host as a request,
 ## asks.call({"do": "take", "index": i}).
@@ -33,25 +39,38 @@ var _taken: bool = false
 ## which Relics are new and which a copy would level up.
 func setup(items: Array[GearData], _text: String = "", run: RunState = null) -> void:
 	_items = items
+	_run = run
 	var column := ListMenu.screen_column(self, "Spoils", TITLE_SIZE)
 	_menu = ListMenu.new()
 	_menu.horizontal = not items.is_empty()
 	column.add_child(_menu)
-	ListMenu.screen_footer(self, [[&"@leftright", "Choose"], [&"menu_confirm", "Take"]] if not items.is_empty()
-			else [[&"menu_confirm", "Continue"]])
+	_footer = ListMenu.screen_footer(self, [])
+	_fill()
+
+
+## The cards and the footer, lit on this machine's turn, greyed on another player's.
+func _fill() -> void:
 	var list: Array[Dictionary] = []
-	for item: GearData in items:
-		var level := run.relic_level(item) if run != null else 0
-		var home := run != null and run.is_home(item)
+	for item: GearData in _items:
+		var level := _run.relic_level(item) if _run != null else 0
+		var home := _run != null and _run.is_home(item)
 		var tag := ("Home" if home else "New") if level <= 0 else "Lv %d > %d" % [level, level + 1]
-		var top := run.tuning.relic_max_level if run != null else 0
+		var top := _run.tuning.relic_max_level if _run != null else 0
 		# Its pips show the level it would have once taken.
 		var make := func() -> Control: return RelicIcon.make(item, ICON_PX, true, level + 1, top)
 		list.append({"text": item.display_name, "value": tag, "chips": relic_chips(item, level + 1), "icon_make": make,
+				"enabled": not watching,
 				"color": GearData.ROT_TOUCHED_COLOR if item.rot_touched else BackpackGrid.rarity_color(BackpackGrid.gear_step(item))})
-	if items.is_empty():
-		list.append({"text": "Nothing left to find"})
+	if _items.is_empty():
+		list.append({"text": "Nothing left to find", "enabled": not watching})
+	# The cursor stays where it was (set_items keeps it in range).
 	_menu.set_items(list)
+	var entries: Array = []
+	if not watching:
+		entries = [[&"@leftright", "Choose"], [&"menu_confirm", "Take"]] if not _items.is_empty() \
+				else [[&"menu_confirm", "Continue"]]
+	_footer_now = entries
+	_footer.set_entries(entries)
 
 
 ## A Relic's chips at `level`: its effect (with its category's sign), its drawback, its stat line.
@@ -80,6 +99,11 @@ func menu() -> ListMenu:
 	return _menu
 
 
+## The footer's hints now (tests): [[action, text], ...].
+func footer_entries() -> Array:
+	return _footer_now
+
+
 ## Takes item `index` (the bot calls this; the player uses confirm), once.
 func take(index: int) -> void:
 	if _taken:
@@ -97,10 +121,12 @@ func is_taken() -> bool:
 	return _taken
 
 
-## Online (card #314): whose turn it is changed.
+## Online (card #314): whose turn it is changed: the cards redraw, lit or greyed.
 func set_turn(p_watching: bool, p_asks: Callable = Callable()) -> void:
 	watching = p_watching
 	asks = p_asks
+	if _menu != null:
+		_fill()
 
 
 func _unhandled_input(event: InputEvent) -> void:

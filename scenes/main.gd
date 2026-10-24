@@ -96,6 +96,11 @@ const WATCHED_SCREENS: Array[String] = ["map", "rest", "shop", "loot", "party", 
 const CHOICE_SCREENS: Array[String] = ["map", "rest", "shop", "loot", "event", "treasure", "rush_reward"]
 ## The whose-turn chip: the person sign's size.
 const TURN_ICON_PX: float = 30.0
+## Online friend (card #314): what becomes of a find the host handed us to place (_gift_step): open
+## the backpack with it now, keep it until a screen that can take it is up, or let it go.
+enum GiftStep { HOLD, WAIT, DROP }
+## Host (card #314): what becomes of a find owed to a friend when the turn changes (_owed_step).
+enum OwedStep { KEEP, HAND, TAKE_BACK }
 
 var _encounters: Array[EncounterData] = []
 var _encounter: EncounterData
@@ -167,6 +172,18 @@ var _choice_queue: Array[Dictionary] = []
 ## Host: the last choice screen sent (the map, a stop, the spoils, the Rush screen), with its turn:
 ## a friend's choice made while the host has its party screen open over it goes back there first.
 var _net_choice: Dictionary = {}
+## Host: each find handed to a friend gets the next number (_gift_no), so a placing meant for an
+## earlier one is never applied to it; _gift_peer is the machine it is with now (0: none).
+var _gift_no: int = 0
+var _gift_peer: int = 0
+## Online friend: a find the host handed us that waits for a screen that can take it (the party
+## screen, the shop's Sell backpack or a transition was up when it came); {} when none. _gift_held is
+## the number of the find in hand now (in _gift_overlay, the backpack opened with it), _gift_done the
+## newest one placed or left (a copy sent again is let go).
+var _pending_gift: Dictionary = {}
+var _gift_held: int = 0
+var _gift_done: int = 0
+var _gift_overlay: PartyScreen
 ## The tutorial while it runs (DESIGN.md 7.8), else null.
 var _tutorial: TutorialRunner
 ## What the Fight stop's enemy drops (null: nothing; DESIGN.md 8.22).
@@ -804,6 +821,8 @@ func _process(delta: float) -> void:
 		if _away_layer.visible and _away_refresh_s >= AWAY_REFRESH_S:
 			_away_refresh_s = 0.0
 			_update_away_chip()
+	elif Net.is_client() and not _pending_gift.is_empty():
+		_offer_pending_gift()
 	if not _options.is_autoplay():
 		_watch_pads()
 		MouseCursor.set_menus_allowed(_mouse_wanted())
@@ -3510,6 +3529,9 @@ func _on_net_peer_rejoined(old_peer: int, new_peer: int) -> void:
 		_players.set_away(new_peer)
 		if _combat != null:
 			_combat.update_players(_players, old_peer)
+	# Net let the old connection go without an away or left signal (card #314): a turn it had passes
+	# on now, before the catch-up, so the screen they get carries it.
+	_pass_turn()
 	_catch_up(new_peer, false)
 	_update_away_chip()
 
@@ -3607,6 +3629,8 @@ func _seat_newcomer(peer: int, old_peer: int) -> void:
 	Net.broadcast("roster", {"roster": _players.to_dict()})
 	if _combat != null:
 		_combat.update_players(_players)
+	# A seat taken over is the newcomer's now (card #314): a turn the old peer still had passes on.
+	_pass_turn()
 	_catch_up(peer, true)
 	_update_away_chip()
 
@@ -3861,6 +3885,7 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			# #312). The host's next screen brings its whole state.
 			_client_done = false
 			_turn = {}
+			_forget_gifts()
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
 			if roster != null:
 				_players = roster
@@ -3932,6 +3957,12 @@ func _client_screen(p: Dictionary) -> void:
 	if p.get("turn") is Dictionary:
 		_turn = (p.turn as Dictionary).duplicate()
 	if WATCHED_SCREENS.has(name):
+		if not _busy and _waits_under_party(name, _net_screen, _screen is PartyScreen):
+			# Our own party screen is open over that place (card #314): the Fight Rush's next pick (and
+			# whose it is) or the map drawn again waits under it; closing it shows that place as it is now.
+			_net_screen = p
+			_refresh_party_views()
+			return
 		_net_screen = p
 		if name == "rush_reward" and _screen is RushRewardScreen and not _busy:
 			# The next pick on the Rush screen (card #314): it redraws in place, for its turn.
@@ -4066,8 +4097,21 @@ func _refresh_party_views() -> bool:
 
 ## Online client: asks the host to make a backpack change.
 func _send_bag_op(op: Dictionary) -> void:
-	if Net.is_client():
-		Net.send_to_host("bag", {"op": op})
+	if not Net.is_client():
+		return
+	if String(op.get("op", "")) == BagTab.HAND_OUT:
+		# Where the find the host handed us goes (card #314), under its number: the host places only the
+		# find it handed out last, and a copy of this one sent again is let go here.
+		op = _numbered_placing(op, _gift_held)
+		_gift_done = maxi(_gift_done, _gift_held)
+	Net.send_to_host("bag", {"op": op})
+
+
+## A HAND_OUT op for the find numbered `number` the host handed us. Pure.
+static func _numbered_placing(op: Dictionary, number: int) -> Dictionary:
+	var numbered := op.duplicate()
+	numbered["gift"] = number
+	return numbered
 
 
 func _apply_run(p: Dictionary) -> void:
@@ -4128,6 +4172,7 @@ func _reset_turns() -> void:
 	_turn = {}
 	_choice_queue.clear()
 	_net_choice = {}
+	_gift_peer = 0
 
 
 ## Host, online: choice screen `screen_name` is about to be built. A new one belongs to the next
@@ -4258,11 +4303,13 @@ func _apply_turn_to_screen() -> void:
 		(screen as LootScreen).set_turn(watching, asker)
 	elif screen is MapScreen:
 		(screen as MapScreen).asks = asker
-	if Net.is_host() and screen.has_method("owed") and not (screen.call("owed") as Dictionary).is_empty():
-		if watching:
-			_hand_gift(screen)
-		else:
-			screen.call("take_back_owed")
+	if Net.is_host() and _owes(screen):
+		match _owed_step(_gift_peer, int(_turn.get("peer", ChoiceTurns.HOST_PEER))):
+			OwedStep.HAND:
+				_hand_gift(screen)
+			OwedStep.TAKE_BACK:
+				_gift_peer = 0
+				screen.call("take_back_owed")
 	_autoplay_choice(screen)
 
 
@@ -4323,6 +4370,12 @@ func _on_friend_choice(from_peer: int, payload: Dictionary) -> void:
 		_choice_queue.append({"peer": from_peer, "payload": payload})
 		return
 	_back_to_choice_screen()
+	if from_peer == _gift_peer and _owes(_screen):
+		# Their find with no room is still waiting to be placed (their copy may not have it in hand):
+		# it goes to them again, and that comes first.
+		print("Choice refused: %s %s key=%s (a find to place first)" % [who, _choice_word(choice as Dictionary), key])
+		_send_gift(_screen)
+		return
 	var done := _make_choice(_screen, choice as Dictionary)
 	if done.is_empty():
 		print("Choice refused: %s %s key=%s" % [who, _choice_word(choice as Dictionary), key])
@@ -4393,7 +4446,10 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 	if not screen is StopScreen or (screen as StopScreen).is_settling():
 		return ""
 	if what == "leave":
-		# As the screens' own leave(): Back to the map, Continue, or Fight after an ambush.
+		# As the screens' own leave(): Back to the map, Continue, or Fight after an ambush, only once
+		# the screen shows that way on (an undecided event's way out is walk_on).
+		if not _can_leave(screen):
+			return ""
 		screen.call("leave")
 		return what
 	if screen is RestScreen:
@@ -4413,6 +4469,19 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 		chest.open_chest(rotten)
 		return "open rotten" if rotten else "open plain"
 	return ""
+
+
+## True when stop screen `screen` shows its way on (Back to the map, Continue, or Fight): a campfire
+## once used, a chest once opened, an event once decided or on its ambush page. Pure.
+static func _can_leave(screen: Node) -> bool:
+	if screen is RestScreen:
+		return (screen as RestScreen).has_acted()
+	if screen is TreasureScreen:
+		return (screen as TreasureScreen).is_open()
+	if screen is EventScreen:
+		var event := screen as EventScreen
+		return event.is_decided() or event.is_ambush_page() or event.event() == null
+	return false
 
 
 ## A friend's campfire choice: Rest, then Train or Upgrade at a normal fire, Keep watch or Sharpen at
@@ -4441,54 +4510,142 @@ static func _make_rest_choice(rest: RestScreen, what: String, uid: int) -> Strin
 ## place: their backpack opens with it in hand, and what they do there comes back as a HAND_OUT op.
 ## Back on this machine's turn, it opens here instead.
 func _hand_gift(screen: Node) -> void:
-	if not is_instance_valid(screen) or not screen.has_method("owed") or _run == null:
-		return
-	var owed: Dictionary = screen.call("owed")
-	var item := owed.get("item") as ItemData
-	if item == null:
+	if not _owes(screen) or _run == null:
 		return
 	var peer := int(_turn.get("peer", ChoiceTurns.HOST_PEER))
 	if peer == ChoiceTurns.HOST_PEER:
+		_gift_peer = 0
 		screen.call("take_back_owed")
 		return
-	print("Gift handed: %s %s" % [HudStyle.player_tag(int(_turn.get("player", 0))), item.id])
-	Net.send_to(peer, "gift", {"key": String(_turn.get("key", "")), "note": String(owed.get("note", "")),
-			"item": item.id, "refund": screen is ShopScreen, "run": _run.to_dict()})
+	# A new hand-out: a placing sent for an earlier one no longer counts.
+	_gift_no += 1
+	_gift_peer = peer
+	_send_gift(screen)
+
+
+## Host: sends the friend holding it (_gift_peer) the find owed on `screen`, under its number. Sent
+## again, it is the same find: their copy never holds it twice.
+func _send_gift(screen: Node) -> void:
+	if not _owes(screen) or _run == null or _gift_peer <= 0:
+		return
+	var owed: Dictionary = screen.call("owed")
+	var item := owed.get("item") as ItemData
+	print("Gift handed: %s %s (%d)" % [HudStyle.player_tag(maxi(0, _players.player_of_peer(_gift_peer))), item.id, _gift_no])
+	Net.send_to(_gift_peer, "gift", {"key": String(_turn.get("key", "")), "gift": _gift_no,
+			"note": String(owed.get("note", "")), "item": item.id, "refund": screen is ShopScreen, "run": _run.to_dict()})
+
+
+## Host: true when `screen` owes a friend a find to place (handed to them, not placed yet).
+static func _owes(screen: Node) -> bool:
+	if not is_instance_valid(screen) or not screen.has_method("owed"):
+		return false
+	return (screen.call("owed") as Dictionary).get("item") is ItemData
+
+
+## Host: what becomes of a find owed to a friend (`with_peer`, the machine it was handed to) when the
+## turn changes to `turn_peer`'s machine: back into the host's own backpack on the host's turn, handed
+## to the new owner, or kept where it is (the same machine still owns the turn: their seat moved up).
+## Pure.
+static func _owed_step(with_peer: int, turn_peer: int) -> int:
+	if turn_peer == ChoiceTurns.HOST_PEER:
+		return OwedStep.TAKE_BACK
+	return OwedStep.KEEP if with_peer == turn_peer else OwedStep.HAND
 
 
 ## Host: the friend whose turn it is put the find we handed them somewhere (card #314): it goes where
-## they chose. If that no longer fits (the backpack changed meanwhile), it is handed to them again.
+## they chose. A placing for an earlier hand-out (the find went to them again, or to someone else
+## since) is let go. If it no longer fits (the backpack changed meanwhile), it is handed to them again.
 func _on_hand_out(from_peer: int, op: Dictionary) -> void:
 	var screen := _screen
-	if not is_instance_valid(screen) or not screen.has_method("settle_owed") or from_peer != _turns.peer:
+	if not _owes(screen) or not screen.has_method("settle_owed"):
 		return
-	if (screen.call("owed") as Dictionary).is_empty():
+	if not _placing_counts(from_peer, op, _gift_peer, _gift_no, _turns.peer):
+		print("Gift placing let go: peer %d (%d) for %d" % [from_peer, int(op.get("gift", 0)), _gift_no])
 		return
 	if screen.call("settle_owed", op):
+		_gift_peer = 0
 		print("Choice: %s placed %s" % [HudStyle.player_tag(maxi(0, _players.player_of_peer(from_peer))),
 				String(op.get("to", ""))])
 	else:
 		_hand_gift(screen)
 
 
+## Host: true when HAND_OUT op `op` from machine `from_peer` places the find handed out now: number
+## `gift_no`, with `gift_peer`, whose turn it still is (`turn_peer`). Pure.
+static func _placing_counts(from_peer: int, op: Dictionary, gift_peer: int, gift_no: int, turn_peer: int) -> bool:
+	return gift_peer > 0 and from_peer == gift_peer and from_peer == turn_peer and int(op.get("gift", 0)) == gift_no
+
+
 ## Online friend (card #314): the host handed us a find to place (our turn, no room for it): the
-## backpack opens over the screen with it in hand.
+## backpack opens over the screen with it in hand, now or once a screen that can take it is up (it
+## waits under our own party screen, the shop's Sell backpack or a transition).
 func _client_gift(p: Dictionary) -> void:
-	if _run == null:
+	if _run == null or not _run.items_by_id().get(String(p.get("item", ""))) is ItemData:
 		return
-	var item := _run.items_by_id().get(String(p.get("item", ""))) as ItemData
-	if item == null:
+	_pending_gift = p.duplicate()
+	_offer_pending_gift()
+
+
+## Online friend: opens the find the host handed us (_pending_gift) once the screen up can take it,
+## or lets it go when it is no longer ours to place (GiftStep).
+func _offer_pending_gift() -> void:
+	if _pending_gift.is_empty() or _run == null:
 		return
-	var held := {"item": item, "refund": bool(p.get("refund", false))}
-	var note := String(p.get("note", ""))
-	if _screen is StopScreen:
-		(_screen as StopScreen).hold_gift(note, held)
-	elif _screen is ShopScreen:
-		(_screen as ShopScreen).hold_gift(note, held)
-	else:
-		return
-	if _options.is_autoplay():
-		_autoplay_settle_over.call_deferred(_screen)
+	var holding := is_instance_valid(_gift_overlay) and _overlay_of(_screen) == _gift_overlay
+	match _gift_step(_pending_gift, String(_turn.get("key", "")), _my_turn(), _gift_held, holding, _gift_done,
+			_screen, _busy):
+		GiftStep.DROP:
+			_pending_gift = {}
+		GiftStep.HOLD:
+			var p := _pending_gift
+			_pending_gift = {}
+			var item := _run.items_by_id().get(String(p.get("item", ""))) as ItemData
+			if item == null:
+				return
+			var held := {"item": item, "refund": bool(p.get("refund", false))}
+			var note := String(p.get("note", ""))
+			if _screen is StopScreen:
+				(_screen as StopScreen).hold_gift(note, held)
+			else:
+				(_screen as ShopScreen).hold_gift(note, held)
+			_gift_held = int(p.get("gift", 0))
+			_gift_overlay = _overlay_of(_screen)
+			print("Gift in hand: %s (%d)" % [item.id, _gift_held])
+			if _options.is_autoplay():
+				_autoplay_settle_over.call_deferred(_screen)
+
+
+## Online friend: what becomes of find `gift` the host handed us ({"key", "gift", "item", ...}) with
+## the turn now (`turn_key`, `my_turn`) and the screen up (`screen`, `busy`: a transition): DROP it
+## when it is no longer ours to place (the turn moved on, or it was placed already: number at or
+## under `done`), or when that very find is in hand already (number `held`, `holding`: its backpack is
+## open); HOLD it now on a stop screen or the shop with no backpack open; else WAIT. Pure.
+static func _gift_step(gift: Dictionary, turn_key: String, my_turn: bool, held: int, holding: bool, done: int,
+		screen: Node, busy: bool) -> int:
+	var number := int(gift.get("gift", 0))
+	if number <= done or not my_turn or String(gift.get("key", "")) != turn_key:
+		return GiftStep.DROP
+	if holding and number == held:
+		return GiftStep.DROP
+	if busy or not is_instance_valid(screen) or not (screen is StopScreen or screen is ShopScreen):
+		return GiftStep.WAIT
+	return GiftStep.WAIT if _overlay_of(screen) != null else GiftStep.HOLD
+
+
+## Online friend: a new game (or the same one caught up again): no find from the host waits.
+func _forget_gifts() -> void:
+	_pending_gift = {}
+	_gift_held = 0
+	_gift_done = 0
+	_gift_overlay = null
+
+
+## Online friend: true when the host's screen message `name` is the place our own party screen was
+## opened over (`last`: the host's screen message before it; `on_party`: a party screen is up), so it
+## waits under the party screen instead of replacing it: the Fight Rush's next pick or the map drawn
+## again (card #314). A party screen the host sent ("party") follows the host as before. Pure.
+static func _waits_under_party(name: String, last: Dictionary, on_party: bool) -> bool:
+	return on_party and (name == "map" or name == "rush_reward") and String(last.get("name", "")) == name
 
 
 ## The backpack open over a stop screen or the shop (null: none).
@@ -4914,10 +5071,19 @@ func _autoplay_event(screen: EventScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not _autoplay_turn_ok(screen):
 		return
-	if screen.choice_count() > 0 and not _run.stop_done:
+	if screen.choice_count() > 0 and not _run.stop_done and not screen.is_decided():
 		var event := screen.event()
 		var decision := EventAutoplay.decide(_run, event, _autoplay_health())
 		print("AUTOPLAY_EVENT %s -> %s" % [event.id, "choice %d" % int(decision.index) if int(decision.index) >= 0 else "leave"])
+		if Net.is_client():
+			# A friend's bot (card #314) chooses, or walks on (also when nothing came of its choice), as
+			# a player would; the host leaves only a decided event, and its result screen (with that
+			# screen's bot) comes next.
+			if int(decision.index) >= 0:
+				await _autoplay_act(screen, screen.choose.bind(int(decision.index), int(decision.pick)))
+			if _autoplay_turn_ok(screen) and _run != null and not _run.stop_done:
+				_autoplay_act(screen, screen.walk_on)
+			return
 		if int(decision.index) >= 0:
 			screen.choose(int(decision.index), int(decision.pick))
 	await _autoplay_stop_gifts(screen)

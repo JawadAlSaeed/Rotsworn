@@ -153,6 +153,25 @@ func test_a_seat_moving_up_keeps_the_turn() -> void:
 	assert_eq(turns.player, 0)
 
 
+func test_a_rejoin_before_the_drop_was_noticed_passes_the_turn() -> void:
+	var roster := _roster(2)
+	var turns := ChoiceTurns.new()
+	turns.turn_for("map:0:0", roster)
+	turns.turn_for("stop:0:1", roster)
+	assert_eq(turns.peer, PEER_A)
+	# P2 is back with a new connection before the host saw the old one go: no away or left signal.
+	assert_eq(roster.rebind_peer(PEER_A, 2001), 1)
+	assert_true(roster.set_away(2001), "away until caught up")
+	assert_true(turns.pass_if_gone(roster), "the old peer is gone: the turn passes")
+	assert_eq(turns.player, 2)
+	assert_eq(turns.peer, PEER_B)
+	var rejoined := _body("func _on_net_peer_rejoined(")
+	assert_true(rejoined.contains("_pass_turn()"))
+	assert_lt(rejoined.find("_pass_turn()"), rejoined.find("_catch_up("), "the screen they get carries it")
+	var newcomer := _body("func _seat_newcomer(")
+	assert_lt(newcomer.find("_pass_turn()"), newcomer.find("_catch_up("), "a seat taken over too")
+
+
 func test_the_last_seat_dropping_wraps_to_p1() -> void:
 	var roster := _roster(1)
 	var turns := ChoiceTurns.new()
@@ -293,6 +312,63 @@ func test_a_choice_the_screen_cannot_take_is_refused() -> void:
 	map.setup(run, null, false)
 	assert_eq(_main.call("_make_choice", map, {"do": "stop", "id": -5}), "", "not a next stop")
 	assert_eq(_main.call("_make_choice", map, {"do": "buy", "index": 0}), "", "not a map choice")
+
+
+func test_leave_waits_until_the_screen_shows_the_way_on() -> void:
+	var run := _run()
+	var rest := RestScreen.new()
+	add_child_autofree(rest)
+	rest.setup(run)
+	var left := [0]
+	rest.done.connect(func() -> void: left[0] += 1)
+	assert_eq(_main.call("_make_choice", rest, {"do": "leave"}), "", "nothing taken at the fire yet")
+	assert_eq(left[0], 0)
+	assert_eq(_main.call("_make_choice", rest, {"do": "rest"}), "rest")
+	assert_eq(_main.call("_make_choice", rest, {"do": "leave"}), "leave", "Back to the map is up now")
+	assert_eq(left[0], 1)
+	var chest_run := _run()
+	chest_run.go(chest_run.choices()[0])
+	var chest := TreasureScreen.new()
+	add_child_autofree(chest)
+	chest.setup(chest_run)
+	assert_eq(_main.call("_make_choice", chest, {"do": "leave"}), "", "the chest is still shut")
+	chest.open_chest(false)
+	assert_true(_main.call("_can_leave", chest), "opened: Continue is up")
+	var event := _event_screen(_run(), "gamblers_bones")
+	assert_eq(_main.call("_make_choice", event, {"do": "leave"}), "", "undecided: its way out is walk_on")
+	assert_eq(_main.call("_make_choice", event, {"do": "walk_on"}), "walk_on")
+	assert_true(_main.call("_can_leave", event), "You walk on: Continue is up")
+	assert_true(_body("func _autoplay_event(").contains("screen.walk_on"), "a friend's bot walks on, as a player")
+
+
+func test_the_spoils_are_greyed_on_another_players_turn() -> void:
+	var run := _run()
+	var loot := LootScreen.new()
+	loot.watching = true
+	add_child_autofree(loot)
+	loot.setup(run.loot_choices(run.at), "", run)
+	assert_gt(loot.menu().items.size(), 0)
+	for row: Dictionary in loot.menu().items:
+		assert_false(bool(row.enabled), "another player's pick")
+	assert_true(loot.footer_entries().is_empty(), "nothing to press")
+	loot.set_turn(false)
+	for row: Dictionary in loot.menu().items:
+		assert_true(bool(row.enabled), "the turn passed here")
+	assert_true(str(loot.footer_entries()).contains("Take") or str(loot.footer_entries()).contains("Continue"))
+	loot.set_turn(true)
+	assert_false(bool(loot.menu().items[0].enabled), "and greyed again")
+
+
+func test_a_friends_own_party_screen_stays_over_the_next_rush_pick() -> void:
+	assert_true(_main.call("_waits_under_party", "rush_reward", {"name": "rush_reward"}, true),
+			"the next pick waits under their party screen")
+	assert_true(_main.call("_waits_under_party", "map", {"name": "map"}, true), "the map drawn again too")
+	assert_false(_main.call("_waits_under_party", "rush_reward", {"name": "party"}, true),
+			"a party screen the host sent follows the host")
+	assert_false(_main.call("_waits_under_party", "rush_reward", {"name": "rush_reward"}, false), "no party screen up")
+	assert_false(_main.call("_waits_under_party", "shop", {"name": "map"}, true), "the party went on to a stop")
+	var client := _body("func _client_screen(")
+	assert_lt(client.find("_waits_under_party("), client.find("_fade_to("), "checked before the screen is replaced")
 
 
 func test_the_host_opens_a_chest_and_takes_a_spoil_for_a_friend() -> void:
@@ -451,6 +527,81 @@ func test_the_friend_places_the_handed_find_through_the_host() -> void:
 	assert_eq(BagTab.place_new(run, salve, {"to": "fit"}), BagTab.PLACED)
 	assert_eq(BagTab.place_new(run, salve, {"to": "leave"}), BagTab.LEFT)
 	assert_eq(BagTab.place_new(run, salve, {"to": "nowhere"}), "")
+
+
+func _steps(name: String) -> Dictionary:
+	return _main.get_script_constant_map()[name] as Dictionary
+
+
+func test_a_handed_find_waits_for_a_screen_that_can_take_it() -> void:
+	var steps := _steps("GiftStep")
+	var run := _run()
+	run.go(run.choices()[0])
+	var shop := ShopScreen.new()
+	shop.remote = true
+	add_child_autofree(shop)
+	shop.setup(run, run.shop_gear(run.at))
+	var party := PartyScreen.new()
+	party.remote = true
+	add_child_autofree(party)
+	party.setup(run, "")
+	var gift := {"key": "stop:0:1", "gift": 3, "item": "salve"}
+	var step := func(turn_key: String, mine: bool, held: int, holding: bool, done: int, screen: Node, busy: bool) -> int:
+		return int(_main.call("_gift_step", gift, turn_key, mine, held, holding, done, screen, busy))
+	assert_eq(step.call("stop:0:1", true, 0, false, 0, shop, false), steps.HOLD, "the shop is up, nothing open over it")
+	assert_eq(step.call("stop:0:1", true, 0, false, 0, party, false), steps.WAIT, "our own party screen: it waits")
+	assert_eq(step.call("stop:0:1", true, 0, false, 0, shop, true), steps.WAIT, "a transition: it waits")
+	assert_eq(step.call("stop:0:1", false, 0, false, 0, shop, false), steps.DROP, "the turn passed on")
+	assert_eq(step.call("map:0:1", true, 0, false, 0, shop, false), steps.DROP, "the party moved on")
+	assert_eq(step.call("stop:0:1", true, 0, false, 3, shop, false), steps.DROP, "placed already: a copy")
+	shop.hold_gift("Sell", {"icon": &"coin"})
+	assert_not_null(shop.overlay())
+	assert_eq(step.call("stop:0:1", true, 2, false, 2, shop, false), steps.WAIT, "the Sell backpack is open: it waits")
+	assert_eq(step.call("stop:0:1", true, 3, true, 2, shop, false), steps.DROP, "that very find is in hand")
+
+
+func test_the_host_hands_a_find_again_only_to_a_new_owner() -> void:
+	var steps := _steps("OwedStep")
+	assert_eq(_main.call("_owed_step", PEER_A, PEER_A), steps.KEEP, "their seat moved up: it stays with them")
+	assert_eq(_main.call("_owed_step", PEER_A, PEER_B), steps.HAND, "P2 dropped: P3 places it")
+	assert_eq(_main.call("_owed_step", 0, PEER_B), steps.HAND)
+	assert_eq(_main.call("_owed_step", PEER_A, HOST), steps.TAKE_BACK, "the host's turn: its own backpack")
+
+
+func test_a_placing_counts_only_for_the_find_handed_out_now() -> void:
+	var run := _run()
+	_fill(run, "salve")
+	var screen := _event_screen(run, "gamblers_bones")
+	screen.hand_off = func(_from: Node) -> void: pass
+	screen.give([_item(run, "salve")])
+	var main := _host_on(screen, run, "stop:0:1")
+	main.set("_gift_no", 2)
+	main.set("_gift_peer", PEER_A)
+	var leave := {"op": BagTab.HAND_OUT, "to": "leave"}
+	main.call("_on_hand_out", PEER_A, _main.call("_numbered_placing", leave, 1))
+	assert_true(screen.is_settling(), "meant for an earlier hand-out")
+	main.call("_on_hand_out", PEER_B, _main.call("_numbered_placing", leave, 2))
+	assert_true(screen.is_settling(), "not the machine holding it")
+	main.call("_on_hand_out", PEER_A, leave)
+	assert_true(screen.is_settling(), "no number")
+	main.call("_on_hand_out", PEER_A, _main.call("_numbered_placing", leave, 2))
+	assert_false(screen.is_settling(), "placed (left behind)")
+	assert_eq(main.get("_gift_peer"), 0, "nobody holds it now")
+	assert_eq(_main.call("_numbered_placing", leave, 4), {"op": BagTab.HAND_OUT, "to": "leave", "gift": 4})
+	assert_false(_main.call("_placing_counts", PEER_A, {"gift": 2}, PEER_A, 2, PEER_B), "the turn moved on")
+
+
+func test_a_handed_find_is_kept_until_it_can_be_placed_and_sent_again_on_a_choice() -> void:
+	var friend := _body("func _client_gift(")
+	assert_true(friend.contains("_pending_gift = "), "kept, never thrown away")
+	assert_false(friend.contains("hold_gift("), "opened only once a screen can take it")
+	assert_true(_body("func _process(").contains("_offer_pending_gift()"), "tried again while it waits")
+	assert_true(_body("func _offer_pending_gift(").contains("hold_gift("))
+	assert_true(_body("func _send_bag_op(").contains("_numbered_placing("), "a placing carries the find's number")
+	var host := _body("func _on_friend_choice(")
+	assert_lt(host.find("_send_gift("), host.find("_make_choice("), "their find comes first, sent again")
+	var turn := _body("func _apply_turn_to_screen(")
+	assert_true(turn.contains("_owed_step("), "handed again only to a new owner")
 
 
 func test_a_friends_backpack_asks_the_host_to_place_a_handed_find() -> void:
