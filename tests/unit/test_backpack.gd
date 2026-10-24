@@ -8,7 +8,8 @@ extends GutTest
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 const RUN_PATH := "res://data/runs/rotten_road.tres"
-## The Key's file stays (item files and the chests still know it), but no run hands one out.
+## The Key's file stays (the run's retired_items keep it known for saved packs), but no run hands
+## one out.
 const KEY_PATH := "res://data/items/key.tres"
 
 var _tuning := Fx.all_slots()
@@ -428,7 +429,7 @@ func test_no_run_list_hands_out_a_key() -> void:
 	for list: Array[ItemData] in [_data.shop_items, _data.found_items]:
 		for item: ItemData in list:
 			assert_ne(item.kind, ItemData.Kind.KEY, "%s is no key" % item.id)
-	assert_false(run.items_by_id().has("key"))
+			assert_false(_data.retired_items.has(item), "%s: a retired item is never sold or found" % item.id)
 	for stop: int in 30:
 		for item: ItemData in run.shop_stock(stop):
 			assert_ne(item.kind, ItemData.Kind.KEY, "no key on the shelves")
@@ -441,6 +442,40 @@ func test_no_run_list_hands_out_a_key() -> void:
 	for pact: EventChoiceData in _data.pacts:
 		if pact != null and pact.deal != null and pact.deal.item != null:
 			assert_ne(pact.deal.item.kind, ItemData.Kind.KEY, "a pact gives no key")
+
+
+func test_a_pack_holding_a_retired_key_still_loads() -> void:
+	# A v0.25 save (the Key was sold and found then) or a Key from a zone's Key Peddler: the save and
+	# a host's run sent online must still load, or the menu would delete the save as broken.
+	var key := load(KEY_PATH) as ItemData
+	assert_true(_data.retired_items.has(key), "the Key is a retired item")
+	var run := _run()
+	assert_eq(run.items_by_id().get("key"), key, "the Key's id still resolves")
+	run.add_item(key)
+	run.add_item(run.items_by_id()["salve"] as ItemData)
+	var copy := RunState.from_dict(run.data, _tuning, run.to_dict())
+	assert_not_null(copy, "a run holding a Key round-trips")
+	if copy != null:
+		assert_eq(copy.backpack.to_array(), run.backpack.to_array())
+		assert_true(copy.has_key(), "and the Key is still in the pack")
+	var client := _run()
+	assert_true(client.apply_dict(run.to_dict()), "a client takes the host's run with a Key in it")
+	assert_true(client.has_key())
+
+
+func test_a_key_from_the_peddler_survives_a_save() -> void:
+	# The zones' wanderers still meet the Key Peddler until zones leave the run (DESIGN.md 8.22).
+	const PEDDLER := "res://data/offers/key_peddler.tres"
+	if not ResourceLoader.exists(PEDDLER):
+		pass_test("the Key Peddler is gone")
+		return
+	var run := _run()
+	run.gold = 500
+	var got := run.take_offer(load(PEDDLER) as ZoneOfferData, 3, 0)
+	assert_true(bool(got.ok))
+	assert_not_null(got.item)
+	run.add_item(got.item as ItemData)
+	assert_not_null(RunState.from_dict(run.data, _tuning, run.to_dict()), "the bought Key does not break the save")
 
 
 func test_the_pack_art_exists() -> void:

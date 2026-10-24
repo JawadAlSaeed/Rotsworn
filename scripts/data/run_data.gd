@@ -23,6 +23,10 @@ extends Resource
 @export var shop_items: Array[ItemData] = []
 ## What a zone's glinting spots hold and its roaming enemies drop (picked by find weight).
 @export var found_items: Array[ItemData] = []
+## Items nothing hands out any more: no shop, find, drop, event or pact reads this list. They stay
+## known (RunState.items_by_id) so a saved run, or a host's run sent online, that holds one still
+## loads. Phase 26 put the Key here (DESIGN.md 8.22, G3).
+@export var retired_items: Array[ItemData] = []
 ## Every piece of gear a run can find (as loot after a guard) or buy (in shops).
 @export var gear: Array[GearData] = []
 ## The difficulty ladder (DESIGN.md 8.15), in order: Oath 1 is index 0. A run at Oath N has the

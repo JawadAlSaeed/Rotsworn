@@ -4,17 +4,21 @@ extends SceneTree
 ## found lists, the curses (Rotting Heart, Grave Moss: events' prices) and the Bigger Pack, and the
 ## glinting spots and chests in the run's zones. Phase 17 took the charms out (DESIGN.md 8.17; the
 ## best charm ideas became Relics: tools/bootstrap_relics.gd) and phase 21 deleted their faded files
-## (card #282). Phase 26 took the Key out of the run (DESIGN.md 8.22, G3): it no longer writes or
-## lists it (data/items/key.tres stays so old files load). Only adds items missing from the run's
-## lists (later phases added their own). Only
-## writes item files that do not exist yet, and only gives a zone
-## spots or chests if it has none, so edits made in the editor are never overwritten. Every spot and
-## chest is checked against the zone's walls and props (one the leader cannot reach is an error).
+## (card #282). Phase 26 took the Key out of the run (DESIGN.md 8.22, G3): it no longer writes it
+## or lists it to sell or find; data/items/key.tres stays in the run's retired_items, so a saved
+## run (or a host's run sent online) whose pack holds a Key still loads. Only adds items missing
+## from the run's lists (later phases added their own). Only writes item files that do not exist
+## yet, and only gives a zone spots or chests if it has none, so edits made in the editor are never
+## overwritten.
+## Every spot and chest is checked against the zone's walls and props (one the leader cannot reach
+## is an error).
 ## Run headless:
 ##   godot --headless --path . -s tools/bootstrap_items.gd
 ## Add "-- --force" after the script to overwrite the item files (careful: loses edits).
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
+## Items no longer handed out but still known to saved packs (RunData.retired_items).
+const RETIRED: Array[String] = ["res://data/items/key.tres"]
 const ICONS := "res://assets/sprites/items/"
 ## Spots stand at least this far from walls and props (the leader's own radius and a little).
 const SPOT_CLEARANCE: float = 0.6
@@ -78,6 +82,12 @@ func _init() -> void:
 	for item: ItemData in found:
 		if not run.found_items.has(item):
 			run.found_items.append(item)
+	for path: String in RETIRED:
+		if not ResourceLoader.exists(path):
+			continue
+		var item := load(path) as ItemData
+		if item != null and not run.retired_items.has(item):
+			run.retired_items.append(item)
 	_check(ResourceSaver.save(run, RUN_PATH), RUN_PATH)
 	for zone: ZoneData in run.zones:
 		_add_spots(zone)
