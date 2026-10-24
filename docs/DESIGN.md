@@ -497,10 +497,9 @@ press (#320) is built. `--first-strike` and the opening rule below stay. How a f
   card #175, otherwise a player could read an elite's moves for free and leave) or where
   `EncounterData.can_run` is false: the Run row reads CAN'T RUN. The first three are a rule in
   `CombatSetup.from_encounter`, so a new one made in data cannot be left runnable by a forgotten flag.
-- After an escape: in a zone, the enemy goes home and the leader stays where they are (with the
-  usual return grace); in a run, the HP carries on (a downed hero stands at
-  `run_downed_revive_hp`), with no gold and no XP; a practice fight shows ESCAPED with "fight
-  again".
+- After an escape: in a run, the HP carries on (a downed hero stands at
+  `run_downed_revive_hp`), with no gold and no XP, and the stop is passed (until phase 26 a zone's
+  enemy also went home, 8.22); a practice fight shows ESCAPED with "fight again".
 - The autoplay bot never runs, except in `--autoplay=escape` (runs on its first turn, presses
   perfectly; checks the escape ending).
 
@@ -586,10 +585,10 @@ in data. Times in ms at tempo 100%.
 - Every variant has `forced_hits` on (card #187, 2.4): its rends and sweeps and forced feints show in
   every fight it is in, so the second half of a run reads harder.
 - Deep fights: `EncounterData.deep` names a fight's deep version (`deep_<id>`, the same fight made of
-  variants). In a run, from map row `tuning.run_deep_row` (4, the second half of the 7 rows) on, a
-  zone's roaming enemies hold their deep fights (`RunState.is_deep()`, `ZoneController.configure(...,
-  deep)`): the roamer shows the variant and the fight is the deep one. Practice fights list them
-  too. Every fight a zone holds has one (test). Phase 13 (card #105) adds stat scaling by depth on
+  variants). In a run, from map row `tuning.run_deep_row` (4, the second half of the 7 rows) on, or
+  in a deep act, a Fight or Guard stop fights the deep one (`RunState.is_deep()`, `fight_of`,
+  `guard_of`, 8.22; until phase 26 a zone's roaming enemies showed the variant). Practice fights list
+  them too. Every fight a place holds has one (test). Phase 13 (card #105) adds stat scaling by depth on
   top.
 - Balance check (average-player bot at level 1 with no gear): 3 wins in 5 deep fights. A run
   reaches them leveled and geared.
@@ -1244,8 +1243,8 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | `CombatVisuals` | `data/presentation/combat_visuals.tres` | presentation only: FX/UI art paths, the fight list's stage look, stage layout, camera and depth of field, cinematic shots, enemy choreography feel (feint lead, contact hold, recoil), pose lengths, jump shape, flash/shake strengths, popup and banner feel, calibration procedure |
 | `ExploreVisuals` | (removed in phase 26, 8.22) | presentation only for zones; the fight transition moved to `combat_visuals.tres` ("Screen transitions") |
 | `StageLook` | `data/looks/` | how a place looks: ground and backdrop art, sun, ambient, fog, bloom, colour grading, vignette, combat arena decoration |
-| `ZoneData` | `data/zones/` | id, name, look, leader, walkable bounds, start, blocks, props, lights, roaming enemies |
-| `ZoneBlockData` / `ZonePropData` / `ZoneLightData` / `ZoneEnemyData` | inside zones and looks | a textured box; a lit sprite (solid radius, glow); a point light (flicker); a roaming enemy (encounter, spot, wander radius, guard flag) |
+| `ZoneData` | `data/zones/` | a place (since phase 26, 8.22; the walkable zone's fields went): id, name, map picture, look, air (`ambient`), the fights of its Fight stops (`roamer_pool`), guard, song and background loop (unplayed, 8.22 G6), weathers and their weights |
+| `ZoneBlockData` / `ZonePropData` / `ZoneLightData` | inside looks (arena decoration) | a textured box or a stretched 3D piece; a lit sprite (glow) or a 3D piece; a point light (flicker). `ZoneEnemyData` (a roaming enemy) and the walking-only `solid` fields went with the zones in phase 26 (8.22) |
 | `CharacterData` | `data/characters/` | id, name, colour, sprite paths, hp/power %, speed, abilities |
 | `AbilityData` | `data/abilities/` | id, name, targeting, AP cost, press times, follow-ups, damage % and press bonus, Payback and Exposed bonuses, landing effects (AP gain/give, heal, revive, turn delay/hasten, status) each with a press bonus, team ultimate flag, sound |
 | `EnemyData` | `data/enemies/` | id, name, sprite paths, hp/power %, speed, attacks, gold and xp (paid in a run), phase two (HP %, attacks, speed, banner text: bosses) |
@@ -1254,7 +1253,7 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | `AttackHitData` | inside attacks | impact ms, kind (normal/ground), damage %, approach ms, feint, projectile (ranged), ground look (wave/rocks) |
 | `ProjectileData` | `data/projectiles/` | what a ranged hit throws (3.9): sprite sheet, loop speed, size, arc, trail, colour, launch sound and spot |
 | `EncounterData` | `data/encounters/` | enemy list, party list and team ultimate (practice fights; a run uses its own party and ultimate), boss flag |
-| `RunData` | `data/runs/` | a kind of run: party, team ultimate, the zones a zone stop picks from, the final fight and its look, the shop's items, the gear pool |
+| `RunData` | `data/runs/` | a kind of run: party, team ultimate, acts (each with the places its Fight, Guard and elite stops are in, 8.22), the final fight and its look, the shop's items, the found items, the gear pool |
 | `ItemData` | `data/items/` | backpack item (8.1): id, name, description, kind, rarity, price, shape, effect and amount, find weight, icon |
 | `SfxLibrary` / `SfxCue` | `data/audio/sfx_library.tres` | sound cue name -> file path, volume, pitch jitter |
 | `BrandingData` | `data/branding/branding.tres` | logo path, title screen feel (logo size and fade, glow, fog, prompt), main menu logo and tagline, story blurb |
@@ -1301,8 +1300,7 @@ clamped by tuning's calibration bounds.
   stays silent with one warning.
 
 Music (2026-10-13, cards #84, #95, #97, #98): `data/audio/music.tres` (`MusicSet`) names the songs:
-`menu_path` (title theme and menus), `run_path` (map, shop, rest, loot, party, run end), `zone_path`
-(zones without their own song; each `ZoneData.music_path` names its own), `fight_path`, `boss_path`
+`menu_path` (title theme and menus), `run_path` (map, shop, rest, loot, party, run end), `fight_path`, `boss_path`
 `elite_path` (elite fights, card #192; empty today, so elites use the fight song until a song is
 dropped in and named there) and `boss_rage_path` (the boss fight switches to it on the boss's phase change), `victory_path` and
 `defeat_path` (cards #109, #126: a won or lost fight's end screen, `end_song_delay_ms` after the
@@ -1312,19 +1310,22 @@ by tyops; empty keeps the old songs). The run map song is
 "Treasure Hunter" by TAD (card #110, user pick 2026-10-15, was "Mystical Theme"). The `Audio`
 autoload loops the song on its own player (OGG imports loop, `oggvorbisstr` default in
 project.godot); a place naming the song already playing lets it go on. A new song crossfades in: it fades in over `fade_in_ms` while the old one fades
-out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). The `Audio` autoload
-remembers how far into a song (and into a zone ambience loop) it was when something replaced it;
-coming back from a fight, the zone asks to `resume` and the song and the ambience go on from there
-with the usual crossfade instead of restarting at 0:00 (card #192). While an enemy attack plays
+out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). Until phase 26 the zones
+had songs of their own (`MusicSet.zone_path` for a zone without one) and the `Audio` autoload
+resumed a zone's song and ambience where they were after a fight (card #192); both went with the
+zones (8.22). Each place still names its old song in `ZoneData.music_path` (Rotten Hollow
+`zone_hollow.ogg`, Sunken Bog `zone_bog.ogg`, Ashen Ruins `zone_ruins.ogg`), unplayed until the
+talk decides (8.22 G6). While an enemy attack plays
 the music dips by `music_duck_db` over `music_duck_ms` (combat_visuals.tres) so defence sounds stand
 out. Songs are free OpenGameArt tracks picked by the user from three options per place
 (`tools/sound_kit/music_candidates.json`, `music_selection.json`, `music_kit.py final`), all levelled
 to -16 LUFS, credited in `assets/audio/music/CREDITS.md` (CC-BY tracks need that credit). The user
 may later replace them with music composed for the game.
 
-Zone ambience (2026-10-13, card #99): `ZoneData.ambience_path` / `ambience_volume_db` loop a quiet
-background (wind, frogs, creaking wood) on its own player while exploring; fights and screens stop
-it. Loops are CC0 Freesound recordings cut into seamless 60 s loops by
+Zone ambience (2026-10-13, card #99): `ZoneData.ambience_path` / `ambience_volume_db` looped a quiet
+background (wind, frogs, creaking wood) on its own player while exploring; fights and screens stopped
+it. Since phase 26 nothing plays it: the fields stay on each place, unread (8.22 G6). Loops are CC0
+Freesound recordings cut into seamless 60 s loops by
 `tools/sound_kit/ambience_kit.py` (the end crossfades into the start), levelled to -30 LUFS.
 
 Enemy voices (2026-10-13, card #101): `EnemyData.voice_sfx` names a voice cue (`SfxCue.voice`, Voice
@@ -1396,8 +1397,9 @@ skill press, EXPOSED combo, ultimate start, follow-up ready, enemy wind-up (star
 before each hit so it peaks on the impact, skipped where it would overlap the previous hit; off
 with the motion sounds, card #94), enemy crumble, boss rage, status wears off, turn order shift,
 fight start (normal fights), fight transition swirl, run away fails, gold and level up after a run
-win (`reward_sound_delay_ms`, `level_up_sound_gap_ms`), footsteps per zone ground (`ZoneData.
-footstep_sfx`, one per bob step), enemy spots you and gives up, zone arrival and zone clear, run
+win (`reward_sound_delay_ms`, `level_up_sound_gap_ms`), footsteps per zone ground (one per bob
+step; `ZoneData.footstep_sfx` went with the zones in phase 26, 8.22), enemy spots you and gives up,
+zone arrival and zone clear (the zone cues are unused since then, 8.22 G6), run
 begins, loot reveal, run cleared and run over, player joins and leaves, connected, connection
 problem, critical hit (phase 13, 8.2). Skipped by the user: low HP warning, pause opens, status sticks. Not made (need other recordings
 or features): voices, zone ambience loops, backpack sounds.
@@ -1469,7 +1471,8 @@ blending poses into more frames.
   `CharacterData` / `EnemyData.sprite_clips` point at it; null, or a texture of another size, falls
   back to the one-row layout (placeholders keep working).
 - **Timing is the game's, not the art's.** Clips hold only frame order. Lengths, periods and delays
-  live in `combat_visuals.tres` / `explore_visuals.tres` (group "Animation"). A caller plays a clip
+  live in `combat_visuals.tres` (group "Animation"; `explore_visuals.tres` held the zones' until
+  phase 26, 8.22). A caller plays a clip
   as a loop (real time plus a per-fighter phase, so nobody breathes in step), a one-shot spread
   evenly over a length, or drives it by index from the attack or skill clock.
 - **Sync rule.** Anything that must line up with judged timing is driven by the attack clock or
@@ -1511,11 +1514,11 @@ reeds, bushes) stay with the art kit (5.4).
   model in another zone's stone is just another piece file. `texture_sharpness` keeps each slanted
   face to one clean projection. Copies of a piece share their materials.
 - **Placing a piece.** A `ZonePropData` with `piece` stands it at its own size times `scale`,
-  turned by `rotation_y_degrees`, mirrored by `flip`, solid as a circle of `solid_radius` (0: walk
-  through); it casts a real shadow, so no contact blob, and sprite fields, `glow` and `sway` are
-  unused. A `ZoneBlockData` with `piece` stretches it to the block's `size`, solid as its box (for
-  long walls). `StageBuilder.prop_view` and `block` build both; arena props (`StageLook`) work the
-  same way.
+  turned by `rotation_y_degrees`, mirrored by `flip`; it casts a real shadow, so no contact blob,
+  and sprite fields, `glow` and `sway` are unused. A `ZoneBlockData` with `piece` stretches it to
+  the block's `size` (for long walls). `StageBuilder.prop_view` and `block` build both, for the
+  arena props and blocks of a `StageLook`. (Until phase 26 a zone's pieces were also solid to
+  walk into, `solid_radius` or the box; that went with the zones, 8.22.)
 - **Shape only, the zone's own pixels.** Textures are laid in world space (triplanar), so they never
   stretch. The model's vertex colours tint them: patchy moss on faces that look up, a darker
   foot, dark faces (a hollow).
@@ -1625,7 +1628,7 @@ player's heroes.
 | `pause` | Escape | Menu |
 | `party_menu` (run map, shop: the backpack) | Tab | Y |
 | `debug_overlay` | F1 | View |
-| `move_up/down/left/right` (the shop's moves; a pad's stick push marks it P1's; walking a zone until phase 26, 8.22) | WASD, arrow keys | D-pad, left stick |
+| `move_up/down/left/right` (since phase 26 no screen reads them: a pad's stick push on them marks that pad P1's, #304, and their keys do nothing; walking a zone until then, 8.22) | WASD, arrow keys | D-pad, left stick |
 | `item_move` (backpack: pick up the item under the cursor to move it, put it down) | R | X |
 | `item_turn_left` / `item_turn_right` (Y screen: switch tabs, 8.18; with an item in hand in the Bag tab: turn it) | Z / C | LB / RB |
 | `party_attributes` (Y screen Hero and Skills tabs: previous hero, 8.18) | T | LT |
@@ -1656,7 +1659,7 @@ the device in use (card #45, `ButtonPrompts`, autoload `Prompts`): pad buttons (
 coloured A/B/X/Y chips) while a pad is plugged in and was used last or was just plugged in;
 keyboard keys (key caps) once a key is pressed or the last pad is unplugged. Local co-op with the
 keyboard and a pad both playing shows both ("Space / RB"). Hints are `HintBar` rows of button
-chips (bottom of every menu screen, the fight and zone corners, the end screen) or `PromptLabel`
+chips (bottom of every menu screen, the fight's corners, the end screen) or `PromptLabel`
 text with `{action}` tokens; both redraw when the device changes. A practice key with no pad
 button still shows its key.
 
@@ -1670,9 +1673,10 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
 
 ### 6.1 Rebinding keys and buttons (card #190)
 
-Settings > Controls lists every player action (28: the fight menu, Parry / Dodge / Jump / Skill
-press, walking, Strike and Pick up, the menu directions, Confirm, Back / run, Pause, the backpack
-and party shortcuts, the stats overlay) with its key and its pad button side by side. Up / Down pick
+Settings > Controls lists every player action (26 since phase 26: the fight menu, Parry / Dodge /
+Jump / Skill press, the four move directions, the menu directions, Confirm, Back / run, Pause, the
+backpack and party shortcuts, the stats overlay; Strike and Pick up went with the zones, 8.22) with
+its key and its pad button side by side. Up / Down pick
 a row (the list scrolls, ten rows show), Left / Right pick the Key or the Pad column, Confirm waits
 for the new input ("press a key ..."). Escape (or the pad's Menu button) cancels, and so does
 waiting `rebind_capture_ms` (tuning, 6 s). Everything works from the keyboard or a pad; the mouse also
@@ -1686,11 +1690,12 @@ an action already has keeps working.
   ("Also: Up"). "Skill press" is its own row, so changing Parry does not change it.
 - **Conflicts.** `ControlBindings.GROUPS` are the sets of actions needed at the same time: Parry /
   Dodge / Jump (with Pause and the stats overlay), Skill press (with the same two), the fight menu,
-  walking and the zone, and the menus. An input already held by another action of a shared group is
+  the four move directions with the backpack and Pause (walking and the zone until phase 26, 8.22),
+  and the menus. An input already held by another action of a shared group is
   refused or swapped, never doubled. If exactly one action holds it and the trade is possible, the
   game asks ("Space is already Parry. Confirm: swap them. Back: leave it."); the other action takes
   the old input, wherever the new one was in its list. Otherwise it says so and keeps waiting.
-  Groups that never run together may share a button (W jumps in a fight and walks up a menu; Parry
+  Groups that never run together may share a button (W jumps in a fight and moves up a menu; Parry
   and Skill press both default to Space). Attack and Confirm may share (the action menu does), and
   so may Back and Pause (Escape; Main reads Pause first).
 - **No lock-out.** Rebinding only replaces, so every action keeps a key and a pad input, and
@@ -1838,10 +1843,11 @@ The game is a keyboard and pad game, but every menu also works with the mouse (a
   ground it stands on). Flashes and glows are emission, so bloom catches them. Props can glow on
   their own (`ZonePropData.glow`: fungus, lanterns). Point lights can flicker like flames.
 - **Places are data:** blocks (`ZoneBlockData`: textured boxes, cliffs and walls, world-space
-  tiling), props (`ZonePropData`: lit sprites, optional solid radius and glow) and lights
-  (`ZoneLightData`). Placeholder art for them is drawn by `tools/gen_placeholders.gd` by file name.
-- **Depth of field** per camera (blur far and near, the miniature look): combat in
-  `combat_visuals.tres`, zones in `explore_visuals.tres`.
+  tiling), props (`ZonePropData`: lit sprites with optional glow, or 3D pieces) and lights
+  (`ZoneLightData`), placed in a look's arena (`StageLook`; since phase 26 no zone stands them on a
+  walkable ground, 8.22). Placeholder art for them is drawn by `tools/gen_placeholders.gd` by file name.
+- **Depth of field** (blur far and near, the miniature look): the fight camera's, in
+  `combat_visuals.tres` (the zones' own, in `explore_visuals.tres`, went in phase 26, 8.22).
 - **Cinematic combat camera** (`CombatCamera` with pure `CameraShots`, F1 then V toggles,
   `cinematic_camera` in tuning): it glides (`shot_glide_ms`) to a shot for each moment: a party
   turn drifts toward that character; a skill or basic attack without follow-ups frames the striker
@@ -2440,14 +2446,15 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   jump; a greyed card does nothing when chosen. Chips are {icon or glyph, text, color, newline};
   `RunState.offer_chips` / `choice_chips` give a deal's price (red), gift (green) and risk (a die
   with its %). Who pays a max-HP price: "all", "1" (you pick) or "1?" (random). Used by yes/no
-  questions (No left, Yes right; shrines and wanderers add their chips under the question), Spoils
+  questions (No left, Yes right; until phase 26 a zone's shrines and wanderers added their chips
+  under the question, a `ConfirmPrompt` feature that went with them, 8.22), Spoils
   (Relic icon, name, New / Home / "Lv a > b", effect, drawback and stat chips), the campfire (Rest
   "+N%", Train "+N", Upgrade "+1 Lv"; before the boss Rest, Keep watch, Sharpen), treasure (Plain and
   Rotten chests), "?" events and the starting pact, and the main menu's Online page (Host, Join).
   Leave and Back are the cancel button with a footer hint, never a card. Pick lists of three or
   fewer (who pays: the heroes' faces and HP; what goes; which item to upgrade) are cards too. Art: `tools/art_kit/assets/ui_choices.py` (choice_*, chip_*); paths and
   chip colours in `stop_visuals.tres`.
-- **Zone (#289, #291).** The goal top right is icon chips (`ZoneController.goal_chips`): a seal
+- **Zone (#289, #291; gone in phase 26 with `ZoneController`, 8.22, history).** The goal top right was icon chips (`ZoneController.goal_chips`): a seal
   stone "0 / 2" while the gate is shut, a horned skull GUARD, then a flag EXIT (or OPEN), and a
   plain skull with the other enemies left (`goal_foe.png`; paths in `explore_visuals.tres`, group
   "Goal"). Bottom left shows only the buttons: First Strike is taught by the tutorial's lesson 7
@@ -2701,8 +2708,10 @@ zones' locked chests are gone, and so is the Key (`data/items/key.tres`, its ico
 `ItemData.Kind.KEY` keeps its number (2) so item files stay valid; no item is one. Items now come
 from a won Fight stop (`RunState.fight_drop`: the seeded `item_drop_percent` (35) roll a zone's first
 roaming enemy had, `drop_for`), treasure stops, "?" events, pacts and shops. A drop that does not fit
-opens the party screen with it in hand. Every run saved before is refused (`RunSave.FORMAT_VERSION`
-2), so no saved pack can hold a Key. The rows below about keys, spots and chests are history.
+opens the party screen with it in hand. Every run saved before is kept on disk but refused
+(`RunSave.FORMAT_VERSION` 3: format 2, the first phase 26 builds, could still give a Key from the
+Hanging Cage), so no pack that loads can hold a Key. The rows below about keys, spots and chests
+are history.
 
 **Phase 21 change (card #282): the grid is now Alder's pack with pockets** (one item each, no shapes
 or turning, treasure turns into gold at once; see 8.19). The grid rules below are history.
@@ -4517,7 +4526,7 @@ now), and a run gets much shorter (the talks #321 and #322 come next). Branch `p
   so item files stay valid), seals and the gate, the exit, champions and their prize chests, ZONE
   CLEAR, the zone HUD, critters, the practice list's zones and the `--zone=` bot. Practice fights stay.
 - **Saves and online**: a run saved before this change is kept on disk but not offered (G4:
-  `RunSave.FORMAT_VERSION` 2, "Saved run: another version (kept)"). New maps use map rules 3 (old
+  `RunSave.FORMAT_VERSION` 2 at #316, 3 at #319, "Saved run: another version (kept)"). New maps use map rules 3 (old
   rules stay in the code). Online needs the same build on every machine; `Net.PROTOCOL` 5. The client
   builds a Fight or Guard stop's fight, weather and drop from the run state alone, as for an Elite stop.
 - **Save & Quit at a Fight or Guard stop** restarts that fight at the HP the party had on entering it
@@ -4578,9 +4587,8 @@ Rush keeps its normal openings.
 - **What went** (#319): `scripts/explore/` (ZoneController, ZoneHud, ZoneMotion, RoamerBrain,
   ZoneAssembler, ZonePath, WalkFacing, ZoneAutoplay; the bots' fitness check is `RunAutoplay` in
   `scripts/run/`), `DeviceInput`, Main's zone path, the practice list's zone cards and `--zone=`;
-  `data/zones/sections/`, `data/offers/`, the Key (`data/items/key.tres`, its icon and art; `RunData`
-  keeps no retired list, since `RunSave.FORMAT_VERSION` 2 and the content fingerprint refuse every
-  older save), `ExploreVisuals` and `explore_visuals.tres` (the screen transition numbers moved to
+  `data/zones/sections/`, `data/offers/`, the Key (`data/items/key.tres`, its icon and art, and
+  `RunData.retired_items`, which kept it known for saved packs), `ExploreVisuals` and `explore_visuals.tres` (the screen transition numbers moved to
   `combat_visuals.tres`, group "Screen transitions"), `ZoneSectionData`, `ZoneEnemyData`,
   `ZoneCritterData`, the zone-only `ZoneData` fields, the props' and blocks' walking-only `solid`
   fields, the zone chests (the treasure stop keeps its 2D chests in `StopVisuals`, and
@@ -4588,18 +4596,25 @@ Rush keeps its normal openings.
   (`explore_*`, `zone_seals_needed`, `zone_exit_reach`), `chest_gear_percent` and
   `net_zone_send_hz`, the `field_strike` and `field_pickup` actions, the zone messages and the
   unreliable channel online, the place background loop and the song resume rule (#192) in the
-  Audio autoload, the zone song in `MusicSet`, and the yes/no prompt's chips (a shrine's). The 3D
+  Audio autoload, the zone song in `MusicSet` (`zone_path`, the song of a zone without its own),
+  each place's footstep cue, and the yes/no prompt's chips (a shrine's). The 3D
   pieces of removed things went with their models and Blender code (seal stone, rot gate, exit
   signpost, the zone chests, the four shrine pieces; the fountain stays), and so did the art kit's
   seal, gate, shrine, wanderer, critter, glint and Key sprites. Tests: `test_zone.gd`,
   `test_long_zones.gd`, `test_walk_facing.gd` and the zone parts of others.
 - **What stays**: `ZoneData` as a place (id, name, map picture, look, air, roamer pool, guard,
-  weathers), `ZoneOfferData` (every event deal and pact), `ZonePropData`, `ZoneBlockData`,
-  `ZoneGroundData`, `ZoneLightData`, `ZoneAmbientData`, `GroundStack`, `ground_patch` and the
-  decoration pieces (G7). The zone songs, ambience loops and zone sound cues stay in `assets/`,
-  the sound library and the credits, unused (G6); `WeatherFx` and the `thunder` cue too. The hero
+  song and background loop, weathers), `ZoneOfferData` (every event deal and pact), `ZonePropData`,
+  `ZoneBlockData`, `ZoneGroundData`, `ZoneLightData`, `ZoneAmbientData`, `GroundStack`,
+  `ground_patch` and the decoration pieces (G7). Each place keeps naming its song and loop
+  (`music_path`, `ambience_path`, `ambience_volume_db`: Rotten Hollow `zone_hollow.ogg` and
+  `ambience_hollow.ogg`, Sunken Bog `zone_bog.ogg` and `ambience_bog.ogg`, Ashen Ruins
+  `zone_ruins.ogg` and `ambience_ruins.ogg`), but nothing reads them; the songs, loops and zone
+  sound cues stay in `assets/`, the sound library and the credits, unused (G6); `WeatherFx` and the
+  `thunder` cue too. The hero
   sheets keep their walk and pickup clips (the run-up uses `walk_side`). The move actions stay for
-  menus and P1's pad (G8). The tutorial's First Strike card keeps its text (it no longer names a
+  P1's pad (G8): a stick push on them marks it P1's, but no screen reads them (the menus and the
+  shop move with `menu_*`, and the shop's footer chip shows those), so their keys do nothing and
+  the Controls page says so ("Stick marks P1's pad"). The tutorial's First Strike card keeps its text (it no longer names a
   button) until #320 rewrites it.
 - **Tools**: `tools/zone_map_preview.gd` and `tools/bootstrap_zones.gd` went; `tools/dress_zones.gd`
   became `tools/dress_arenas.gd` (the arenas only, `-- --dry-run`); `bootstrap_run.gd`,
@@ -4670,7 +4685,8 @@ Rush keeps its normal openings.
   pause is opened on the next idle moment, never inside the focus event (card #208: focus lost
   while a zone was being built made the pause menu fail to appear, holding the game still).
 - **Walking** (card #184, gone in phase 26, 8.22): the move actions keep their stick deadzone of
-  0.2 (menus and buttons keep 0.5); they now only move through menus and mark which pad is P1's.
+  0.2 (menus and buttons keep 0.5); they now only mark which pad is P1's (a stick push, #304). The
+  menus, the shop too, move with the `menu_*` actions, so the shop's footer shows those.
 
 ### 9.2 Online co-op (phase 5 Part B, done)
 
@@ -5690,4 +5706,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Keep the Run next to Fight Rush but cut its walkable zones: fights go straight from the map (8.22, #315 closed) | owner: the zones do not look good enough; fights are the star, co-op friends only watched P1 walk |
 | 2026-10-24 | Phase 26 renamed from Story to Game direction; the story moves to phase 27, the tutorial chapter #206 to phase 28 | owner request; the story is simpler without zones and can wait |
 | 2026-10-24 | Zone stops become Fight stops (one seeded fight from the place's monsters), guards get a Guard row (row 1) per act, shrines and wanderers become priced "?" events, chests and the Key go (8.22, defaults G1 to G8) | built while the owner slept; each default may be overruled in the talks #321 and #322 |
-| 2026-10-24 | The walkable zones are removed for good (#319): their code, data, tools, tests, 3D pieces and art go; a place keeps its look, air, weathers, Fight stop monsters and guard; the zone songs, ambience and sound cues stay unused (8.22 As built) | 8.22 G3, G6 to G8; no dead zone code or data left behind |
+| 2026-10-24 | The walkable zones are removed for good (#319): their code, data, tools, tests, 3D pieces and art go; a place keeps its look, air, weathers, Fight stop monsters and guard, and still names its song and loop; the zone songs, ambience and sound cues stay unused (8.22 As built); saves of format 2 are kept but refused too (`RunSave.FORMAT_VERSION` 3), since their packs could hold the Key | 8.22 G3, G6 to G8; no dead zone code or data left behind |
