@@ -31,6 +31,9 @@
 [ext_resource type="Resource" path="res://data/events/sealed_door.tres" id="19_ujpjj"]
 [ext_resource type="Resource" path="res://data/events/widows_wager.tres" id="20_dysjy"]
 [ext_resource type="Resource" path="res://data/zones/rotten_hollow.tres" id="20_ohqey"]
+[ext_resource type="Resource" path="res://data/events/healing_spring.tres" id="p26_healing_spring"]
+[ext_resource type="Resource" path="res://data/events/blood_altar.tres" id="p26_blood_altar"]
+[ext_resource type="Resource" path="res://data/events/grave_robber.tres" id="p26_grave_robber"]
 
 [resource]
 script = ExtResource("16_ujpjj")
@@ -41,7 +44,7 @@ final_encounter = ExtResource("14_o8x47")
 final_look = ExtResource("15_4lg5q")
 final_map_icon_path = "res://assets/sprites/ui/map_lair_hollow_king.png"
 elites = Array[ExtResource("1_rmucm")]([ExtResource("2_ascct"), ExtResource("3_1j7iu"), ExtResource("4_qj73g")])
-events = Array[ExtResource("5_gyjvm")]([ExtResource("6_ipc13"), ExtResource("7_elhsp"), ExtResource("13_qi0j6"), ExtResource("12_qhplm"), ExtResource("11_vi8el"), ExtResource("16_qi0j6"), ExtResource("17_o8x47"), ExtResource("18_4lg5q"), ExtResource("19_ujpjj"), ExtResource("20_dysjy")])
+events = Array[ExtResource("5_gyjvm")]([ExtResource("6_ipc13"), ExtResource("7_elhsp"), ExtResource("13_qi0j6"), ExtResource("12_qhplm"), ExtResource("11_vi8el"), ExtResource("16_qi0j6"), ExtResource("17_o8x47"), ExtResource("18_4lg5q"), ExtResource("19_ujpjj"), ExtResource("20_dysjy"), ExtResource("p26_healing_spring"), ExtResource("p26_blood_altar"), ExtResource("p26_grave_robber")])
 deep = true
 ambushes = Array[ExtResource("1_rmucm")]([ExtResource("2_vspi0"), ExtResource("3_0hhef"), ExtResource("4_01usj"), ExtResource("5_vi8el"), ExtResource("6_qhplm"), ExtResource("p19_priest_and_hyenas"), ExtResource("p19_lantern_trio"), ExtResource("p19_brute_and_rat"), ExtResource("p19_tick_nest")])
 ambush_picture_path = "res://assets/sprites/events/ambush_ashen_deep.png"

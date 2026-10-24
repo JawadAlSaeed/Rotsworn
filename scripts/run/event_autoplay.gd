@@ -3,14 +3,16 @@ extends RefCounted
 ## What the test bot does at a "?" stop (`-- --autoplay --run`, card #193). It plays like a careful
 ## player, not like the rules: it takes a choice only if the reward is worth the price, never
 ## pays permanent max HP while any hero is hurt, walks into a possible ambush only while the party is
-## fit for an elite fight (ZoneAutoplay.is_ready), and takes a curse only for a big reward. Pure, so
-## a test can check its habits. These numbers are the bot's, not game rules.
+## fit for an elite fight (ZoneAutoplay.is_ready), takes a curse only for a big reward and values a
+## heal only as far as the party is hurt (a spring is not worth gold at full HP). Pure, so a test can
+## check its habits. These numbers are the bot's, not game rules.
 
 ## No permanent max-HP price while the weakest hero is under this percent of their HP.
 const MAX_HP_MIN_LOWEST_PERCENT: int = 70
 ## A curse (a rotten item) is worth taking only for a reward worth at least this much (gold).
 const CURSE_MIN_REWARD: int = 120
-## Gold worth of one XP each, per hero, and of each healed percent, gauge point and found rarity step.
+## Gold worth of one XP each, per hero, and of each healed percent (only up to what the party is
+## missing on average), gauge point and found rarity step.
 const XP_VALUE: int = 1
 const HEAL_PERCENT_VALUE: int = 2
 const GAUGE_VALUE: int = 1
@@ -50,7 +52,7 @@ static func decide(run: RunState, event: EventData, health: Vector3i) -> Diction
 ## The reward minus the price of a choice in gold, or -1 if the bot's habits forbid it.
 static func net_worth(run: RunState, choice: EventChoiceData, health: Vector3i) -> int:
 	var scale := run.event_scale(run.at)
-	var reward := _reward_value(run, choice.deal, scale)
+	var reward := _reward_value(run, choice.deal, scale, health)
 	var price := _price_value(choice.deal, scale, run.party_size())
 	if not _habits_allow(choice.deal, reward, health, 100):
 		return -1
@@ -98,10 +100,13 @@ static func _habits_allow(offer: ZoneOfferData, reward: int, health: Vector3i, c
 	return true
 
 
-static func _reward_value(run: RunState, offer: ZoneOfferData, scale: int) -> int:
+## What a deal's reward is worth in gold. A heal counts only the percent the party is missing on
+## average (health.y), so a full party does not pay for one.
+static func _reward_value(run: RunState, offer: ZoneOfferData, scale: int, health: Vector3i) -> int:
 	var total := CombatMath.percent(offer.gold, scale)
 	total += CombatMath.percent(offer.xp, scale) * run.party_size() * XP_VALUE
-	total += offer.heal_percent * HEAL_PERCENT_VALUE + offer.team_gauge * GAUGE_VALUE
+	var missing := clampi(100 - health.y, 0, 100)
+	total += mini(offer.heal_percent, missing) * HEAL_PERCENT_VALUE + offer.team_gauge * GAUGE_VALUE
 	if offer.item != null:
 		total += maxi(ITEM_VALUE, CombatMath.percent(offer.item.price, run.tuning.item_sell_percent))
 	elif offer.find_rarity >= 0:

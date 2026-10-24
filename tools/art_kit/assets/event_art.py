@@ -16,7 +16,8 @@ two layers so they match the rest of the game:
 Everything is deterministic (seeded noise, no wall clock). The last step snaps every pixel to the
 colours the scene was made of, so a picture holds a few dozen colours, no more.
 
-- sprites/events/<event id>.png: one per event in data/events/ (16).
+- sprites/events/<event id>.png: one per event in data/events/ (20: phase 26 added the shrines and
+  wanderers as events, DESIGN.md 8.22).
 - sprites/events/ambush_<act id>.png: the page a "?" that turned into a fight shows (one per act).
 """
 from __future__ import annotations
@@ -921,6 +922,258 @@ def scene_bone_collector() -> np.ndarray:
     return p.rgba()
 
 
+# --- The Healing Spring (phase 26: the zones' shrines and wanderers became "?" events) -----------
+# A moss-grown stone basin brimming with glowing water, under what is left of an arch.
+
+SPRING_WATER = Material("ev_spring", M["glow_cyan"].colors, emissive=True, glow_index=2,
+                        outline=ink_outline("#2f6f73", 0.22))
+
+
+def scene_healing_spring() -> np.ndarray:
+    hz = 30
+    p = backdrop(191, NIGHT, hz, DEAD_GRASS[:4], ground_tone=0.3, far_tone=0.4,
+                 trees=((6, 22), (20, 13), (110, 24), (123, 14)), moon=(100, 11, 4), stars=12, ridge_amp=7.0)
+    p.tufts(30, 38, 62, "#3f5a2c", seed=8)
+    p.pebbles(12, 40, 62, "#7b7570", "#403b3c", seed=5)
+    # The arch behind: a tall pillar on the left still carrying half its arc, a broken stump on the right.
+    az = -9.0
+    pillars = [Box(SAND_STONE, (-16.5, 14.0, az), (3.2, 14.0, 2.8), round=0.6, group="arch", bumps=(0.4, 0.6, 3)),
+               Box(SAND_STONE, (16.5, 7.5, az), (3.2, 7.5, 2.8), round=0.6, group="arch", bumps=(0.4, 0.6, 4))]
+    stump = [Box(SAND_STONE, (15.8 + 1.6 * k, 15.6 + 1.0 * (k % 2), az), (1.6, 1.3, 2.4), R=rot(0.0, 0.0, 18.0 - 34.0 * k),
+                 round=0.4, group="arch", bumps=(0.3, 0.7, 5 + k)) for k in range(2)]
+    ring = Subtract(Cylinder(SAND_STONE, (0.0, 28.0, az), 19.7, 2.8, R=rot(90.0, 0.0, 0.0), round=0.6, group="arch",
+                             bumps=(0.4, 0.6, 7)),
+                    Cylinder(SAND_STONE, (0.0, 28.0, az), 13.3, 4.5, R=rot(90.0, 0.0, 0.0)))
+    arc = Intersect(ring, Box(SAND_STONE, (-8.0, 38.0, az), (12.5, 10.0, 4.0)))
+    fallen = [Box(SAND_STONE, (24.0, 1.8, 5.0), (2.6, 1.8, 2.2), R=rot(0.0, 30.0, 12.0), round=0.5, group="arch",
+                  bumps=(0.3, 0.7, 9)),
+              Box(SAND_STONE, (20.0, 1.2, 10.0), (1.8, 1.2, 1.6), R=rot(0.0, -25.0, -10.0), round=0.5, group="arch",
+                  bumps=(0.3, 0.7, 10))]
+    arch_moss = [Ellipsoid(MOSS, (-16.5, 28.4, az + 1.0), (3.8, 1.6, 3.0), group="moss", bumps=(0.5, 0.7, 11)),
+                 Ellipsoid(MOSS, (-6.0, 46.6, az + 1.0), (4.6, 1.4, 2.8), R=rot(0.0, 0.0, -12.0), group="moss",
+                           bumps=(0.5, 0.7, 12)),
+                 Ellipsoid(MOSS, (16.5, 15.6, az + 1.0), (3.6, 1.4, 2.8), group="moss", bumps=(0.5, 0.7, 13))]
+    vines = [Capsule(MOSS, (x, y, az + 3.0), (x + 0.6, y - length, az + 3.2), 0.45, group="vine", thin=True)
+             for x, y, length in ((-12.8, 40.0, 8.0), (-8.0, 44.0, 6.0), (1.0, 46.5, 10.0))]
+    # The basin on its foot, the water brimming over the front lip into a pool on the ground.
+    bz = 2.0
+    foot = Cylinder(STONE, (0.0, 1.8, bz), 7.5, 1.8, round=0.6, group="stone", bumps=(0.3, 0.6, 14))
+    bowl = Subtract(Cylinder(STONE, (0.0, 7.4, bz), 13.0, 4.0, round=1.6, group="stone", bumps=(0.35, 0.6, 15)),
+                    Cylinder(STONE, (0.0, 10.4, bz), 10.4, 3.0))
+    water = Ellipsoid(SPRING_WATER, (0.0, 10.9, bz), (10.8, 1.4, 10.8), group="water")
+    spill = [Box(SPRING_WATER, (x, 6.4, bz + 12.6), (w, 4.4, 0.4), round=0.3, group="water") for x, w in ((3.0, 1.5), (-6.5, 0.6))]
+    pool = Ellipsoid(SPRING_WATER, (2.0, 0.3, bz + 15.0), (6.0, 0.4, 2.2), group="water")
+    rim_moss = [Ellipsoid(MOSS, (-9.0, 11.2, bz + 7.0), (4.6, 1.5, 2.8), group="moss", bumps=(0.5, 0.7, 16)),
+                Ellipsoid(MOSS, (10.0, 10.8, bz + 5.0), (3.4, 1.3, 2.4), group="moss", bumps=(0.5, 0.7, 17)),
+                Ellipsoid(MOSS, (-5.5, 1.6, bz + 6.5), (4.6, 1.5, 2.6), group="moss", bumps=(0.5, 0.7, 18)),
+                Ellipsoid(MOSS, (8.0, 1.2, bz + 7.0), (3.2, 1.1, 2.0), group="moss", bumps=(0.5, 0.7, 19))]
+    model = Union(*pillars, *stump, arc, *fallen, *arch_moss, *vines, foot, bowl, water, *spill, pool, *rim_moss)
+    sprite = prop(model, 70, 62, "spring", skip=("water",), centre="bbox", scale=1.15)
+    p.glow(64, 47, 30, 10, CYAN_GLOW, strength=0.3, levels=3)
+    p.shadow(64, 57, 26, 3.5)
+    p.paste(sprite, 64, 59)
+    p.glow(64, 44, 15, 5, CYAN_GLOW, strength=0.3, levels=2)
+    p.motes(10, 44, 86, 22, 44, "#9af0e8", seed=4, halo=False)
+    p.mist(57, 4, "#3f5a5a", strength=0.3)
+    p.vignette(0.55)
+    return p.rgba()
+
+
+# --- The Blood Altar -----------------------------------------------------------------------------
+# A stained stone altar with a bowl that is never dry, red candles burning round it.
+
+ALTAR_STONE = lch_mat("ev_altar_stone", [(0.2, 0.014, 20.0), (0.25, 0.016, 15.0), (0.3, 0.018, 10.0),
+                                         (0.36, 0.018, 20.0), (0.42, 0.02, 60.0)], wrap=0.25, ao=0.35,
+                      outline_L=0.15)
+CANDLE_RED = mat("ev_candle_red", "#7e2a26", below=2, above=1, wrap=0.4, outline=INK)
+ALTAR_BLOOD = Material("ev_altar_blood", ["#4a1016", "#6e1a1f", "#9a2a26", "#c4473a"], emissive=True, glow_index=2,
+                       outline=ink_outline("#4a1016", 0.18))
+
+
+def scene_blood_altar() -> np.ndarray:
+    hz = 29
+    p = backdrop(201, NIGHT, hz, DEAD_GRASS[:4], ground_tone=0.26, far_tone=0.38,
+                 trees=((7, 24), (21, 14), (108, 22), (122, 13)), moon=(30, 11, 4), stars=10, ridge_amp=8.0)
+    p.glow(64, 44, 36, 16, "#a8302a", strength=0.25, levels=3)
+    p.tufts(18, 38, 62, "#4a4a30", seed=4)
+    # Blood has run off the altar into the grass in front of it.
+    pool = np.hypot((XX + 0.5 - 76.0) / 12.0, (YY + 0.5 - 60.5) / 2.2)
+    p.paint(pool < 1.0, BLOOD_RAMP, 0.25 + 0.4 * (1.0 - pool), d=0.3)
+    block = Box(ALTAR_STONE, (0.0, 7.0, 0.0), (12.0, 6.4, 6.0), round=0.8, group="stone", bumps=(0.35, 0.6, 3))
+    slab = Box(ALTAR_STONE, (0.0, 14.4, 0.0), (14.5, 1.5, 7.4), round=0.6, group="stone", bumps=(0.3, 0.6, 4))
+    step = Box(ALTAR_STONE, (0.0, 0.8, 1.0), (15.5, 0.8, 8.4), round=0.4, group="stone", bumps=(0.3, 0.6, 5))
+    stains = [Box(BLOOD_DARK, (x, 13.0 - length / 2.0, 6.2), (0.55 + 0.25 * (k % 2), length / 2.0, 0.3), group="stain")
+              for k, (x, length) in enumerate(((-7.5, 6.0), (-2.0, 9.5), (3.5, 4.5), (8.0, 8.0)))]
+    stains.append(Ellipsoid(BLOOD_DARK, (1.0, 15.7, 4.0), (8.0, 0.4, 3.2), group="stain"))
+    bowl = Subtract(Cylinder(GOLD_DULL, (0.0, 18.2, 0.0), 4.8, 1.9, round=0.8, group="bowl"),
+                    Cylinder(GOLD_DULL, (0.0, 19.8, 0.0), 3.8, 1.2))
+    stem = Cylinder(GOLD_DULL, (0.0, 16.6, 0.0), 2.2, 0.8, round=0.3, group="bowl")
+    blood = Ellipsoid(ALTAR_BLOOD, (0.0, 19.4, 0.0), (3.8, 0.5, 3.8), group="blood")
+    candles = []
+    for k, (x, y, z, h) in enumerate(((-11.5, 15.9, 4.0, 3.0), (-9.0, 15.9, -4.5, 2.0), (11.0, 15.9, 4.5, 2.4),
+                                      (9.5, 15.9, -4.0, 3.4), (-20.0, 0.0, 7.0, 3.6), (-24.0, 0.0, 2.0, 2.4),
+                                      (20.5, 0.0, 8.0, 2.8), (24.5, 0.0, 3.0, 4.0))):
+        candles.append(Cylinder(CANDLE_RED, (x, y + h, z), 0.95, h, round=0.25, group="candle"))
+        candles.append(Ellipsoid(CANDLE_RED, (x + 0.4, y + 0.5, z + 0.6), (1.6, 0.5, 1.4), group="candle"))
+        candles.append(Sphere(AMBER, (x, y + 2.0 * h + 0.9, z), 0.8, group="flame"))
+    skull = [Sphere(BONE, (-7.0, 3.6, 10.0), 2.1, group="bone", bumps=(0.15, 0.7, 6)),
+             Sphere(HOLE, (-6.2, 3.9, 11.8), 0.6, group="eye"), Sphere(HOLE, (-7.8, 3.9, 11.8), 0.6, group="eye"),
+             Capsule(BONE, (5.0, 2.0, 10.5), (10.0, 2.2, 9.0), 0.6, group="bone", thin=True)]
+    model = Union(step, block, slab, *stains, stem, bowl, blood, *candles, *skull)
+    sprite = prop(model, 72, 34, "altar", skip=("flame", "blood"), centre="bbox", scale=1.3)
+    p.shadow(64, 57, 34, 4)
+    p.paste(sprite, 64, 59)
+    p.glow(64, 33, 12, 6, "#c4473a", strength=0.3, levels=2)
+    p.motes(8, 40, 90, 12, 40, "#e06a48", seed=6, halo=False)
+    p.mist(58, 4, "#5a3a4a", strength=0.25)
+    p.vignette(0.6)
+    return p.rgba()
+
+
+# --- The War Idol --------------------------------------------------------------------------------
+# A squat horned idol of black stone, old weapons, coin and bones heaped at its feet.
+
+IDOL_STONE = lch_mat("ev_idol_stone", [(0.19, 0.01, 300.0), (0.24, 0.012, 320.0), (0.29, 0.014, 30.0),
+                                       (0.35, 0.016, 55.0), (0.42, 0.018, 75.0)], wrap=0.25, ao=0.4,
+                     outline_L=0.15)
+HORN = mat("ev_horn", "#8a7d62", below=2, above=1, wrap=0.35)
+BLADE = mat("ev_blade", "#7c818c", below=2, above=1, spec=0.6, spec_power=10.0, wrap=0.2, outline=INK)
+
+
+def sword(x: float, z: float, lean: float, turn: float = 0.0, length: float = 10.0) -> Moved:
+    """An old sword stuck point first in the ground, leaning `lean` degrees."""
+    parts = [Box(BLADE, (0.0, length / 2.0, 0.0), (0.75, length / 2.0, 0.25), group="blade"),
+             Box(IRON, (0.0, length + 0.4, 0.0), (2.4, 0.45, 0.55), round=0.2, group="hilt"),
+             Capsule(LEATHER, (0.0, length + 0.8, 0.0), (0.0, length + 3.4, 0.0), 0.5, group="grip"),
+             Sphere(GOLD_DULL, (0.0, length + 4.0, 0.0), 0.75, group="hilt")]
+    return Moved(Union(*parts), pos=(x, -1.5, z), R=rot(0.0, turn, lean))
+
+
+def scene_war_idol() -> np.ndarray:
+    hz = 30
+    p = backdrop(211, ASH_SKY, hz, DIRT[:4], ground_tone=0.3, far_tone=0.45,
+                 trees=((8, 20), (22, 12), (112, 22), (100, 10)), moon=(98, 12, 5), ridge_amp=6.0)
+    p.glow(64, 36, 30, 24, EMBER_GLOW, strength=0.2, levels=3)
+    p.pebbles(14, 38, 62, "#7b7570", "#403b3c", seed=3)
+    p.tufts(14, 38, 62, "#4a4a30", seed=5)
+    # The idol: a squat figure of black stone sitting on a plinth, fists on its knees, a bull's head
+    # with long horns and ember eyes.
+    plinth = Box(IDOL_STONE, (0.0, 2.0, 0.0), (10.5, 2.0, 7.0), round=0.7, group="stone", bumps=(0.35, 0.6, 3))
+    thighs = [Ellipsoid(IDOL_STONE, (sx * 4.4, 6.4, 3.0), (5.0, 2.6, 4.6), R=rot(0.0, sx * 20.0, 0.0), group="stone",
+                        bumps=(0.3, 0.6, 4)) for sx in (-1, 1)]
+    torso = Ellipsoid(IDOL_STONE, (0.0, 13.0, 0.0), (6.6, 7.4, 4.8), group="stone", bumps=(0.35, 0.6, 5))
+    chest = Ellipsoid(IDOL_STONE, (0.0, 18.4, 0.2), (8.2, 3.0, 4.4), group="stone", bumps=(0.3, 0.6, 6))
+    band = Torus(GOLD_DULL, (0.0, 10.5, 0.4), 6.2, 0.55, R=np.diag([1.0, 1.0, 0.78]), group="band", thin=True)
+    arms = []
+    for sx in (-1, 1):
+        arms.append(RoundCone(IDOL_STONE, (sx * 7.6, 18.2, 0.4), (sx * 8.6, 11.0, 2.6), 2.5, 2.1, group="stone",
+                              bumps=(0.3, 0.6, 7)))
+        arms.append(RoundCone(IDOL_STONE, (sx * 8.6, 11.0, 2.6), (sx * 6.0, 7.8, 6.6), 2.1, 1.8, group="stone",
+                              bumps=(0.3, 0.6, 8)))
+        arms.append(Sphere(IDOL_STONE, (sx * 5.6, 7.6, 7.6), 2.0, group="stone", bumps=(0.2, 0.7, 9)))
+    head = Ellipsoid(IDOL_STONE, (0.0, 24.2, 1.0), (5.0, 4.6, 4.4), group="head", bumps=(0.25, 0.6, 10))
+    muzzle = Ellipsoid(IDOL_STONE, (0.0, 22.2, 4.4), (3.0, 2.3, 2.0), group="head", bumps=(0.2, 0.7, 11))
+    brow = Capsule(IDOL_STONE, (-4.2, 26.4, 3.8), (4.2, 26.4, 3.8), 1.2, group="head")
+    eyes = [Sphere(EMBER, (sx * 2.2, 25.0, 4.6), 0.85, group="eye") for sx in (-1, 1)]
+    nostrils = [Sphere(HOLE, (sx * 1.1, 22.0, 6.2), 0.55, group="mouth") for sx in (-1, 1)]
+    horns = []
+    for sx in (-1, 1):
+        horns += branch(HORN, [(sx * 4.0, 26.6, 0.5), (sx * 8.6, 28.6, 1.0), (sx * 12.2, 33.4, 0.5),
+                               (sx * 11.6, 39.0, -0.5), (sx * 9.2, 41.6, -1.0)],
+                        [1.9, 1.6, 1.2, 0.8, 0.45], group="horn", ridged=False)
+    idol = prop(Union(plinth, *thighs, torso, chest, band, *arms, head, muzzle, brow, *eyes, *nostrils, *horns),
+                34, 48, "idol", skip=("eye",), centre="bbox")
+    # The offerings at its feet: swords and a spear stuck in the ground, a shield, coin, skulls, a bowl
+    # between two candles.
+    blades = [sword(-15.0, 2.0, 16.0, 20.0), sword(-9.5, 6.0, -9.0, -30.0, 9.0), sword(14.0, 3.0, -18.0, 35.0)]
+    spear = [Capsule(WOOD, (20.0, -1.0, -1.0), (22.5, 21.0, -2.0), 0.5, group="spear", thin=True),
+             RoundCone(BLADE, (22.5, 21.0, -2.0), (23.0, 25.0, -2.1), 1.0, 0.2, group="blade")]
+    shield = [Cylinder(WOOD_ROT, (-21.0, 4.0, 4.0), 4.2, 0.55, R=rot(70.0, 0.0, -20.0), round=0.3, group="shield",
+                       bumps=(0.2, 0.8, 4)),
+              Sphere(IRON, (-20.4, 4.4, 4.8), 1.1, group="hilt")]
+    hoard = [Ellipsoid(GOLD, (3.0, 0.6, 5.0), (4.4, 1.6, 3.0), group="coin", bumps=(0.3, 0.9, 5))]
+    hoard += [Cylinder(GOLD, (x, 0.3, z), 1.4, 0.28, R=rot(8.0 * k, 0.0, 10.0 * k), group="coin")
+              for k, (x, z) in enumerate(((8.6, 7.5), (-2.5, 8.0), (10.5, 3.0)))]
+    skulls = []
+    for x, z, r in ((-5.0, 6.0, 2.2), (8.5, 0.5, 1.9)):
+        skulls += [Sphere(BONE, (x, r, z), r, group="bone", bumps=(0.15, 0.7, 5)),
+                   Sphere(HOLE, (x - 0.8, r + 0.2, z + r * 0.85), 0.6, group="hole"),
+                   Sphere(HOLE, (x + 0.8, r + 0.2, z + r * 0.85), 0.6, group="hole")]
+    bowl = Subtract(Cylinder(GOLD_DULL, (0.0, 1.6, 0.0), 3.0, 1.2, round=0.6, group="bowl"),
+                    Cylinder(GOLD_DULL, (0.0, 2.8, 0.0), 2.2, 0.8))
+    candles = []
+    for x, z in ((-4.0, -1.0), (4.0, -1.5)):
+        candles += [Cylinder(BONE, (x, 1.8, z), 0.7, 1.8, group="candle"), Sphere(AMBER, (x, 4.2, z), 0.6, group="flame")]
+    offerings = prop(Union(*blades, *spear, *shield, *hoard, *skulls, bowl, *candles), 64, 30, "offerings",
+                     skip=("flame",), centre="bbox")
+    p.shadow(64, 52, 16, 3)
+    p.paste(idol, 64, 51)
+    p.glow(64, 28, 8, 3, EMBER_GLOW, strength=0.45, levels=2, power=1.0)
+    p.shadow(64, 59, 30, 3)
+    p.paste(offerings, 64, 60)
+    p.motes(10, 30, 98, 10, 50, "#c88a58", seed=4, halo=False)
+    p.mist(58, 4, "#6a5048", strength=0.22)
+    p.vignette(0.55)
+    return p.rgba()
+
+
+# --- The Grave Robber ----------------------------------------------------------------------------
+# A hooded man with a lantern, leaning on his spade by a grave he has just opened.
+
+
+def scene_grave_robber() -> np.ndarray:
+    hz = 30
+    p = backdrop(221, NIGHT, hz, DEAD_GRASS[:4], ground_tone=0.28, far_tone=0.4,
+                 trees=((6, 22), (114, 20), (124, 12)), moon=(22, 11, 4), stars=12, ridge_amp=7.0)
+    # Older headstones and a leaning cross further up the slope, dark against the grass.
+    for x, base, w, h in ((30, 36, 2, 5), (40, 35, 3, 6), (55, 34, 2, 4), (104, 35, 3, 6), (114, 37, 2, 5)):
+        p.paint((np.abs(XX + 0.5 - x) <= w) & (YY > base - h) & (YY <= base), SILHOUETTE[1:4],
+                0.25 + 0.5 * (XX < x) + 0.0 * YY, d=0.0)
+        p.pixels([(x - w + 1 + k, base - h) for k in range(2 * w - 1)], SILHOUETTE[2])
+    p.line(70, 36, 71, 29, rgb(SILHOUETTE[1]))
+    p.line(68, 31, 73, 32, rgb(SILHOUETTE[1]))
+    p.tufts(22, 38, 62, "#4a4a30", seed=2)
+    p.pebbles(10, 40, 62, "#7b7570", "#403b3c", seed=6)
+    p.glow(46, 46, 22, 14, AMBER_GLOW, strength=0.28, levels=3)
+    # The open grave: a dark pit in the grass, thrown earth on its rim.
+    d = np.hypot((XX + 0.5 - 84.0) / 15.0, (YY + 0.5 - 53.0) / 4.2)
+    p.paint((d < 1.3) & (d >= 1.0), SOIL_FRESH.colors, 0.6 - 0.4 * (YY - 49.0) / 8.0, d=0.3)
+    p.paint(d < 1.0, VOID, 0.2 + 0.0 * XX, d=0.2)
+    # The headstone at the grave's head and the heap of earth beside it, a broken lid on the heap.
+    stone = Union(Box(STONE, (0.0, 8.0, -2.0), (4.6, 8.0, 1.4), round=0.5, group="headstone", bumps=(0.3, 0.6, 3)),
+                  Cylinder(STONE, (0.0, 16.0, -2.0), 4.6, 1.4, R=rot(90.0, 0.0, 0.0), round=0.5, group="headstone",
+                           bumps=(0.3, 0.6, 4)))
+    stone = Moved(stone, R=rot(0.0, 0.0, -8.0))
+    heap = Ellipsoid(SOIL_FRESH, (12.0, 3.6, -1.0), (11.0, 4.8, 5.6), group="soil", bumps=(0.8, 0.6, 5))
+    clods = [Ellipsoid(SOIL_FRESH, (x, 1.0, z), (2.0, 1.2, 1.6), group="soil", bumps=(0.5, 0.8, 6 + k))
+             for k, (x, z) in enumerate(((3.0, 4.5), (21.0, 4.0)))]
+    lid = Box(WOOD_ROT, (13.0, 8.4, 0.5), (7.0, 0.7, 3.2), R=rot(0.0, 15.0, 14.0), round=0.3, group="lid",
+              bumps=(0.25, 0.7, 7))
+    grave = prop(Union(stone, heap, *clods, lid), 46, 32, "grave", centre="bbox")
+    # The robber: a ragged dark cloak, the lantern hung low from one hand, the other on his spade.
+    cloak = mat("ev_robber_cloak", "#3a3646", below=1, above=2, wrap=0.45, outline=INK)
+    parts = _hooded(cloak, hood_y=29.0, belt=LEATHER)
+    handle = Capsule(WOOD, (-6.0, 2.5, 3.5), (-3.2, 30.0, 4.6), 0.6, group="spade", thin=True)
+    grip = Capsule(WOOD, (-4.6, 30.4, 4.6), (-1.8, 30.0, 4.6), 0.6, group="spade")
+    blade = Box(IRON, (-6.2, 2.4, 3.4), (1.9, 2.4, 0.45), R=rot(0.0, 0.0, -6.0), round=0.3, group="spade")
+    lantern = [Capsule(CAGE_IRON, (1.6, 14.6, 5.6), (2.2, 10.6, 6.6), 0.35, group="chain", thin=True),
+               Box(CAGE_IRON, (2.2, 10.2, 6.6), (1.7, 0.4, 1.7), group="lamp"),
+               Box(AMBER, (2.2, 8.0, 6.6), (1.3, 1.9, 1.3), group="flame"),
+               Box(CAGE_IRON, (2.2, 5.8, 6.6), (1.8, 0.4, 1.8), group="lamp")]
+    sack = [Ellipsoid(CANVAS, (8.5, 3.6, 2.0), (3.6, 3.6, 3.0), group="sack", bumps=(0.4, 0.6, 7)),
+            Torus(LEATHER, (8.5, 7.0, 2.0), 1.3, 0.4, group="sack", thin=True)]
+    robber = prop(Union(*parts, handle, grip, blade, *lantern, *sack), 34, 50, "robber", skip=("flame",), centre="bbox",
+                  scale=1.15)
+    p.shadow(88, 50, 18, 2.5)
+    p.paste(grave, 88, 50)
+    p.shadow(44, 58, 13, 3)
+    p.paste(robber, 44, 59)
+    p.glow(47, 48, 6, 6, AMBER_GLOW, strength=0.55, levels=3, power=1.0)
+    p.mist(56, 5, "#4f4a62", strength=0.3)
+    p.vignette(0.55)
+    return p.rgba()
+
+
 # --- Ambushes ------------------------------------------------------------------------------------
 
 
@@ -1031,6 +1284,10 @@ SCENES = {
     "whispering_mask": scene_whispering_mask,
     "widows_wager": scene_widows_wager,
     "wounded_pilgrim": scene_wounded_pilgrim,
+    "healing_spring": scene_healing_spring,
+    "blood_altar": scene_blood_altar,
+    "war_idol": scene_war_idol,
+    "grave_robber": scene_grave_robber,
     "ambush_rotten_road": scene_ambush_rotten_road,
     "ambush_ashen_deep": scene_ambush_ashen_deep,
 }
