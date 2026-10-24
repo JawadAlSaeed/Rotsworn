@@ -20,7 +20,8 @@ GAP = 0.9
 # Pieces per row fill about this many metres; rows stand ROW_GAP apart, going away.
 ROW_WIDTH = 13.0
 ROW_GAP = 3.6
-# The zone camera's offset (data/presentation/explore_visuals.tres camera_offset).
+# The pitch the walkable zones' follow camera had (offset 0, 7, 11; the zones went in phase 26,
+# DESIGN.md 8.22): a high view that shows every piece's top and front.
 CAMERA_PITCH = math.atan2(7.0, 11.0)
 
 

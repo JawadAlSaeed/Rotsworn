@@ -26,26 +26,18 @@ static func stop_all() -> void:
 		audio.call(&"stop_all")
 
 
-## Loops a song (see MusicSet); the song already playing goes on. `resume`: pick it up where it
-## was left off.
-static func play_music(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
+## Loops a song (see MusicSet); the song already playing goes on.
+static func play_music(path: String, volume_db: float = 0.0) -> void:
 	var audio := _audio()
 	if audio != null:
-		audio.call(&"play_music", path, volume_db, resume)
+		audio.call(&"play_music", path, volume_db)
 
 
-## Loops a place's background sound (empty path: silence).
-static func play_ambience(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
+## Loops the weather's sound (empty path: silence; card #303).
+static func play_weather(path: String, volume_db: float = 0.0) -> void:
 	var audio := _audio()
 	if audio != null:
-		audio.call(&"play_ambience", path, volume_db, resume)
-
-
-## Loops the weather's sound over the place's background (empty path: silence; card #303).
-static func play_weather(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
-	var audio := _audio()
-	if audio != null:
-		audio.call(&"play_weather", path, volume_db, resume)
+		audio.call(&"play_weather", path, volume_db)
 
 
 ## Dips the music by `db` (0: back to full) over `ms`.

@@ -1,17 +1,17 @@
-"""Props that make each zone its own place (DESIGN.md 8.12), the critters that live there, and the
-particles that drift through it.
+"""Props that made each zone its own place (DESIGN.md 8.12) and the particles that drift through a
+fight's air. (Phase 26 took the walkable zones and their critters away, 8.22; the props wait for
+the arenas.)
 
 Ashen Ruins: a broken arch, a headless statue, a fallen column, rubble, a brazier, a torn banner,
 gravestones, a dry fountain, a low broken wall, bones. Sunken Bog (swamp and jungle): reeds, a
 mangrove, a tree hung with moss, a giant mushroom, a fallen log, a hut on stilts, a swamp lantern,
 ferns. Rotten Hollow (rotting forest): bushes, a stump, thorns, a broken fence, a broken cart, a
-well, a signpost, a grave cross, a dead pine. Critters: a crow, a frog, a rat (four frames each:
-idle, idle, move, move). Particles: a mote, an ash flake, a leaf, a spore, a mist puff, a rain streak
-and a splash (weather, card #303).
+well, a signpost, a grave cross, a dead pine. Particles: a mote, an ash flake, a leaf, a spore, a
+mist puff, a rain streak and a splash (weather, card #303).
 
 Same rules as env_props: small 3D models in the camera-aligned frame (x = screen right, y = up,
 z = toward the viewer), cut flat on the ground, outlined; tiny or flat things (reeds, ferns, the
-critters, the particles) are drawn in 2D. Anything that glows keeps its body dark (the game's
+particles) are drawn in 2D. Anything that glows keeps its body dark (the game's
 self_glow lights the whole sprite).
 """
 from __future__ import annotations
@@ -689,94 +689,6 @@ def make_pine_dead() -> np.ndarray:
     return finish_prop(frame)
 
 
-# --- Critters (four frames: idle, idle, move, move) ------------------------------------------------
-
-def _sheet(frames: list[np.ndarray]) -> np.ndarray:
-    return np.concatenate(frames, 1)
-
-
-def make_crow() -> np.ndarray:
-    """A crow: perched, perched with its head turned, wings up, wings down."""
-    W, H = 16, 14
-    k = ["#141218", "#24222c", "#3a3846"]
-    beak = "#8a7a52"
-    out = []
-    for f in range(4):
-        c = Canvas(W, H)
-        if f < 2:
-            c.ellipse(7.0, 9.0, 3.6, 2.6, k[1])
-            c.ellipse(10.5 if f == 0 else 9.5, 6.0, 2.0, 1.8, k[1])
-            c.px(12 if f == 0 else 8, 6, beak)
-            c.px(11 if f == 0 else 9, 5, "#c0b070")
-            c.line(3, 10, 1, 12, k[0])
-            c.line(6, 12, 6, 13, beak)
-            c.line(8, 12, 8, 13, beak)
-            c.line(5, 8, 9, 8, k[2])
-        else:
-            c.ellipse(8.0, 8.0, 3.2, 2.0, k[1])
-            c.ellipse(11.5, 7.0, 1.7, 1.5, k[1])
-            c.px(13, 7, beak)
-            up = f == 2
-            c.poly([(5.0, 7.5), (2.0, 2.0 if up else 12.0), (9.0, 7.5)], k[0])
-            c.poly([(7.0, 7.5), (11.0, 1.5 if up else 12.5), (10.0, 7.5)], k[2])
-            c.line(4, 9, 1, 10, k[0])
-        c.outline(INK)
-        out.append(c.a)
-    return _sheet(out)
-
-
-def make_frog() -> np.ndarray:
-    """A frog: sitting, throat puffed, mid-hop, landing."""
-    W, H = 14, 12
-    g = SWAMP_LEAF.colors
-    belly = "#b8b07a"
-    out = []
-    for f in range(4):
-        c = Canvas(W, H)
-        if f < 2:
-            c.ellipse(7.0, 8.0, 4.6, 2.8, g[1])
-            c.ellipse(9.5, 6.0, 2.4, 2.0, g[2])
-            c.px(10, 5, "#e8d048")
-            c.px(11, 5, INK)
-            if f == 1:
-                c.ellipse(10.0, 8.4, 1.6, 1.2, belly)
-            c.line(3, 10, 5, 10, g[0])
-            c.line(9, 10, 11, 10, g[0])
-        else:
-            c.ellipse(7.0, 6.0, 4.4, 2.2, g[1])
-            c.ellipse(10.5, 5.0, 2.0, 1.6, g[2])
-            c.px(11, 4, "#e8d048")
-            c.line(3, 7, 0, 10 if f == 2 else 9, g[0])
-            c.line(5, 7, 2, 11 if f == 2 else 9, g[0])
-            c.line(10, 7, 12, 9, g[0])
-        c.outline(INK)
-        out.append(c.a)
-    return _sheet(out)
-
-
-def make_rat() -> np.ndarray:
-    """A rat: sniffing, sniffing with its nose up, running (legs out, legs in)."""
-    W, H = 16, 9
-    f_ = ["#2c2628", "#4a3e3c", "#6a5a54"]
-    pink = "#b88a88"
-    out = []
-    for f in range(4):
-        c = Canvas(W, H)
-        c.ellipse(7.0, 5.5, 4.0, 2.2, f_[1])
-        c.ellipse(11.5, 5.0 if f != 1 else 4.0, 2.2, 1.6, f_[1])
-        c.px(13, 5 if f != 1 else 4, pink)
-        c.px(11, 4 if f != 1 else 3, INK)
-        c.px(10, 3 if f != 1 else 2, f_[2])
-        c.line(3, 6, 0, 4 if f % 2 == 0 else 6, pink)
-        legs = ((5, 8), (9, 8)) if f != 2 else ((3, 8), (11, 8))
-        for x, y in legs:
-            c.px(x, y, f_[0])
-        c.line(5, 4, 9, 4, f_[2])
-        c.outline(INK)
-        out.append(c.a)
-    return _sheet(out)
-
-
 # --- Particles ----------------------------------------------------------------------------------
 
 def make_mote() -> np.ndarray:
@@ -841,7 +753,6 @@ def make_splash() -> np.ndarray:
     return a
 
 
-CRITTERS = {"crow": make_crow, "frog": make_frog, "rat": make_rat}
 PARTICLES = {"mote": make_mote, "ash_flake": make_ash, "leaf": make_leaf, "spore": make_spore, "mist": make_mist,
              "rain_drop": make_rain_drop, "splash": make_splash}
 
@@ -851,7 +762,5 @@ def build(ctx) -> None:
         rgba = fn()
         check(name, rgba)
         ctx.save("sprites/env/%s.png" % name, rgba)
-    for name, fn in CRITTERS.items():
-        ctx.save("sprites/env/critter_%s.png" % name, fn(), scale=6)
     for name, fn in PARTICLES.items():
         ctx.save("sprites/fx/%s.png" % name, fn(), scale=8)

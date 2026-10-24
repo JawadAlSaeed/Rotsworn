@@ -75,7 +75,8 @@ heroes are no longer shown (enemies still use theirs).
   scattered by a seeded generator. Keep floors low contrast (luma spread under 10) and the three
   variants at one tone; `check.py` enforces it. The floor shader mixes them in game.
 - `assets/<module>.py` one module per asset group, each with `build(ctx)`. `env_zone` draws the
-  long zones' things (phase 15): the rot seal, the gate tile, four shrines, three wanderers. `fx_attacks` draws
+  run stops' campfire, Rag Merchant and gear icon (its long-zone things went in phase 26, DESIGN.md
+  8.22). `fx_attacks` draws
   the enemy attack effects of phase 12 (rock spikes, projectiles).
 - `assets/event_art.py` (card #199) the "?" stops' pictures: one 128x64 painted scene per event in
   `data/events/` and one per act's ambush page, saved to `sprites/events/` (also a contact sheet in

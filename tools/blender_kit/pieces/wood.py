@@ -1,5 +1,6 @@
-"""Wood and village pieces: stumps, logs, fences, a cart, a well, a stilt hut, chests (card #225).
-Each is built near the size of the flat sprite it replaces (one sprite pixel = 0.05 m)."""
+"""Wood and village pieces: stumps, logs, fences, a cart, a well, a stilt hut (card #225). Each is
+built near the size of the flat sprite it replaces (one sprite pixel = 0.05 m). The zones' exit
+signpost and their chests went with the walkable zones in phase 26 (DESIGN.md 8.22, G7)."""
 from __future__ import annotations
 
 import math
@@ -16,7 +17,6 @@ WOOD, EARTH = 0, 1
 CART_STONE = 1
 WELL_STONE, WELL_WOOD, WELL_THATCH = 0, 1, 2
 HUT_WOOD, HUT_THATCH, HUT_GLASS = 0, 1, 2
-CHEST_WOOD, CHEST_IRON, CHEST_GOLD = 0, 1, 2
 FRONT = Vector((0.0, -1.0, 0.0))  # boards face the camera
 
 
@@ -91,16 +91,6 @@ def fence(bm, rng: random.Random) -> set:
     plank(bm, Vector((-0.86, -0.07, 0.62)), Vector((0.86, -0.07, 0.64)), 0.1, 0.04, up=FRONT)
     plank(bm, Vector((-0.86, -0.07, 0.32)), Vector((0.06, -0.07, 0.3)), 0.1, 0.04, up=FRONT)
     plank(bm, Vector((0.1, -0.09, 0.27)), Vector((0.88, -0.2, 0.03)), 0.1, 0.04, up=FRONT)
-    return set()
-
-
-def signpost(bm, rng: random.Random) -> set:
-    """A crooked signpost with two arrow boards pointing opposite ways."""
-    box(bm, -0.06, 0.06, -0.06, 0.06, 0.0, 1.45, _turn(0.0, 2.0, -2.0))
-    right = [(0.0, 1.12), (0.5, 1.12), (0.64, 1.21), (0.5, 1.3), (0.0, 1.3)]
-    left = [(0.0, 0.84), (-0.46, 0.84), (-0.6, 0.925), (-0.46, 1.01), (0.0, 1.01)]
-    prism(bm, right, -0.1, -0.06, matrix=_turn(0.0, 0.0, -4.0))
-    prism(bm, left, -0.1, -0.06, matrix=_turn(0.0, 0.0, 5.0))
     return set()
 
 
@@ -194,63 +184,14 @@ def stilt_hut(bm, rng: random.Random) -> set:
     return set()
 
 
-def _chest_body(bm) -> set:
-    """The chest's box and its iron bands; returns the top of the box (the inside, when open)."""
-    faces = box(bm, -0.52, 0.52, -0.32, 0.32, 0.0, 0.46, mat=CHEST_WOOD)
-    inside = set()
-    for f in faces:
-        f.normal_update()
-        if f.normal.z > 0.9:
-            inside.add(f)
-    for x in (-0.34, 0.34):
-        box(bm, x - 0.04, x + 0.04, -0.335, 0.335, 0.0, 0.47, mat=CHEST_IRON)
-    box(bm, -0.535, 0.535, -0.335, 0.335, 0.0, 0.06, mat=CHEST_IRON)
-    return inside
-
-
-def _chest_lid(bm) -> list:
-    """The lid (closed, on top of the body) with its bands and lock plate; returns its verts."""
-    made = set()
-    made |= box(bm, -0.54, 0.54, -0.34, 0.34, 0.46, 0.68, mat=CHEST_WOOD)
-    for x in (-0.34, 0.34):
-        made |= box(bm, x - 0.04, x + 0.04, -0.355, 0.355, 0.46, 0.7, mat=CHEST_IRON)
-    made |= box(bm, -0.08, 0.08, -0.37, -0.33, 0.36, 0.56, mat=CHEST_GOLD)
-    return list({v for f in made for v in f.verts})
-
-
-def chest_closed(bm, rng: random.Random) -> set:
-    """A locked wooden chest with iron bands and a gold lock plate (the lock catches the light)."""
-    _chest_body(bm)
-    _chest_lid(bm)
-    return set()
-
-
-def chest_open(bm, rng: random.Random) -> set:
-    """The same chest, its lid thrown back on its hinge, gold glinting inside the dark box."""
-    inside = _chest_body(bm)
-    hinge = Vector((0.0, 0.34, 0.46))
-    swing = Matrix.Translation(hinge) @ Matrix.Rotation(math.radians(-110.0), 4, "X") @ Matrix.Translation(-hinge)
-    bmesh.ops.transform(bm, matrix=swing, verts=_chest_lid(bm))
-    for (x, y, r) in ((-0.2, -0.05, 0.16), (0.12, 0.06, 0.2), (0.3, -0.1, 0.12)):
-        part = lump(Vector((x, y, 0.42)), Vector((r, r * 0.8, r * 0.45)), 59, 2, rng, mat=CHEST_GOLD)
-        merge(bm, part)
-        part.free()
-    return inside
-
-
 PIECES = [
     Piece("stump_rotten", stump_rotten, 223, [Surface("bark", "bark.png"), Surface("rot", "hollow_floor.png")]),
     Piece("grave_cross", grave_cross, 233, [Surface("wood", "planks.png"), Surface("earth", "dirt_trail.png")], moss=0.5),
     Piece("fence", fence, 234, [Surface("wood", "planks.png")], moss=0.6),
-    Piece("signpost", signpost, 235, [Surface("wood", "planks.png")], moss=0.4),
     Piece("cart", cart, 236, [Surface("wood", "planks.png"), Surface("stone", "cliff.png")], moss=0.6),
     Piece("log", log, 237, [Surface("bark", "bark.png"), Surface("rot", "hollow_floor.png")]),
     Piece("well", well, 238, [Surface("stone", "ruin_wall.png"), Surface("wood", "planks.png"),
                               Surface("thatch", "thatch.png")], moss=0.6),
     Piece("stilt_hut", stilt_hut, 239, [Surface("wood", "planks.png"), Surface("thatch", "thatch.png"),
                                         Surface("glass", "glass.png")], moss=0.5),
-    Piece("chest_closed", chest_closed, 240, [Surface("wood", "planks.png"), Surface("iron", "iron.png"),
-                                              Surface("gold", "gold.png")], moss=0.0),
-    Piece("chest_open", chest_open, 241, [Surface("wood", "planks.png"), Surface("iron", "iron.png"),
-                                          Surface("gold", "gold.png")], moss=0.0),
 ]

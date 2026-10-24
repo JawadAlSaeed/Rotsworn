@@ -1,4 +1,4 @@
-"""Backpack items (DESIGN.md 8.1) and the glint that marks a pickup spot in a zone.
+"""Backpack items (DESIGN.md 8.1) and the treasure stop's chest.
 
 An item's icon covers its whole shape on the backpack grid, unturned: ITEM_CELL pixels per grid
 cell, so a 1x2 item is 16x32. Cells outside an L-shaped item stay clear. The game draws the icon
@@ -10,7 +10,6 @@ pixel grids (fully opaque or clear) with the kit's dark ink outline, lit from th
 - feast.png (2x1): a long loaf of bread with a roast leg lying on it.
 - bomb.png (1x1): a round iron bomb with a lit fuse.
 - smelling_salts.png (1x1): a small stoppered vial of glowing green salts.
-- key.png (2x1): a long iron key lying on its side.
 - silver_ring.png (1x1), rot_gem.png (1x1), golden_idol.png (1x2): treasure, only worth gold.
 - Charms (they help just by being in the backpack). Stones: ember_stone, iron_stone (1x1),
   lodestone (2x2, boosts touching stones). Bones: knucklebone, wolf_tooth (1x1), bone_totem (1x3,
@@ -19,8 +18,8 @@ pixel grids (fully opaque or clear) with the kit's dark ink outline, lit from th
 - antidote.png (1x1): a slim corked vial of teal antidote with a leaf at its neck (phase 19).
 - holy_water.png (1x1): a round flask of glowing pale holy water, gold stopper and band (phase 19).
 - bigger_pack.png (1x1): a small rolled-up backpack (adds a row the moment you get it).
-- env/chest_closed.png, env/chest_open.png: the locked chest in a zone (a lit prop).
-- fx/glint.png: a small gold four-point sparkle; the zone shows it glowing over a pickup spot.
+- env/chest_closed.png, env/chest_open.png: the treasure stop's chest (DESIGN.md 8.8; it was the
+  locked chest in a zone until phase 26, 8.22, which also took the Key and the glinting spot away).
 - ui/backpack_<rows>.png (5 to 7 rows): the party's open backpack seen from the front, drawn
   behind the backpack grid at BACKPACK_SCALE. The grid's cells sit on the dark lining: each cell
   is CELL art pixels with GAP between cells, the first cell's top-left at backpack_origin().
@@ -240,28 +239,6 @@ def make_smelling_salts() -> np.ndarray:
         "................",
     ], {"C": WOOD[3], "c": WOOD[1], "N": GLASS[3], "n": GLASS[1], "W": GLASS[4], "G": ROT[2], "g": ROT[1],
         "H": ROT[3]})
-
-
-def make_key() -> np.ndarray:
-    """A long iron key lying on its side: a ring bow on the left, the bit on the right."""
-    return _draw(32, 16, [
-        "................................",
-        "................................",
-        "................................",
-        "................................",
-        "...LLLL.........................",
-        "..LllllL........................",
-        ".Ll....lL.......................",
-        ".Ll....lLLLLLLLLLLLLLLLLLLLLL...",
-        ".Ll....ldddddddddddddddddddddL..",
-        ".Ll....lL.............dd..dd....",
-        "..LllllL..............dd..dd....",
-        "...dddd...............dd........",
-        "................................",
-        "................................",
-        "................................",
-        "................................",
-    ], {"L": IRON[4], "l": IRON[3], "d": IRON[1]})
 
 
 def make_silver_ring() -> np.ndarray:
@@ -574,28 +551,6 @@ def make_bigger_pack() -> np.ndarray:
     return c.a
 
 
-def make_glint() -> np.ndarray:
-    """A four-point gold sparkle with a near-white core."""
-    return _draw(16, 16, [
-        "................",
-        ".......g........",
-        ".......g........",
-        ".......G........",
-        "......gGg.......",
-        "......GWG.......",
-        ".gGGGGWWWGGGGg..",
-        "......GWG.......",
-        "......gGg.......",
-        ".......G........",
-        ".......g........",
-        ".......g........",
-        "................",
-        "................",
-        "................",
-        "................",
-    ], {"g": GOLD[2], "G": GOLD[4], "W": "#fff4d6"})
-
-
 def backpack_origin() -> tuple[int, int]:
     """The first grid cell's top-left in the backpack art (art pixels)."""
     return STRAP + WALL + PAD, ROLL + RIM + PAD
@@ -694,7 +649,7 @@ def make_backpack(rows: int) -> np.ndarray:
 
 def build(ctx) -> None:
     for name, img in (("salve", make_salve()), ("tonic", make_tonic()), ("feast", make_feast()),
-                      ("bomb", make_bomb()), ("smelling_salts", make_smelling_salts()), ("key", make_key()),
+                      ("bomb", make_bomb()), ("smelling_salts", make_smelling_salts()),
                       ("silver_ring", make_silver_ring()), ("rot_gem", make_rot_gem()),
                       ("golden_idol", make_golden_idol()), ("ember_stone", make_ember_stone()),
                       ("iron_stone", make_iron_stone()), ("lodestone", make_lodestone()),
@@ -707,6 +662,5 @@ def build(ctx) -> None:
         ctx.save("sprites/items/%s.png" % name, img, scale=8)
     ctx.save("sprites/env/chest_closed.png", make_chest(False), scale=8)
     ctx.save("sprites/env/chest_open.png", make_chest(True), scale=8)
-    ctx.save("sprites/fx/glint.png", make_glint(), scale=8)
     for rows in (5, 6, 7):
         ctx.save("sprites/ui/backpack_%d.png" % rows, make_backpack(rows), scale=4)

@@ -2,9 +2,9 @@
 
     python tools/blender_kit/swap_props.py SPRITE=PIECE[:TURN[:SCALE]] ... [--dry-run]
 
-Every ZonePropData in data/ (zone sections, zones, arena looks) whose sprite is
-assets/sprites/env/SPRITE.png gets `piece` set to data/pieces/PIECE.tres. Its position, flip and
-solid radius stay; a sprite drawn at another pixel size than 0.05 gets the matching `scale`;
+Every ZonePropData in data/ (the arena looks) whose sprite is
+assets/sprites/env/SPRITE.png gets `piece` set to data/pieces/PIECE.tres. Its position and flip
+stay; a sprite drawn at another pixel size than 0.05 gets the matching `scale`;
 TURN (degrees) gives each copy a turn of up to that much either way, picked from the file and the
 prop's id, so a row of the same piece does not look stamped (0 or none: no turn); SCALE sizes
 every copy (for a piece bigger than the sprite it replaces). The sprite path

@@ -1,6 +1,7 @@
 extends GutTest
 ## The RUN OVER recap (card #191): FightRecap, fed through CombatMirror.apply with hand-made events,
-## and the music resume rule (card #192). No scenes, no settings, no saves.
+## and the music set (card #192; its resume rule, for a zone's song after a fight, went with the
+## zones in phase 26). No scenes, no settings, no saves.
 
 var _mirror: CombatMirror
 
@@ -129,16 +130,6 @@ func test_lines_read_in_order_and_skip_what_is_missing() -> void:
 	assert_string_contains(lines[3], "hits taken 1 of 2")
 	var quiet := FightRecap.lines({"enemies": ["Gnat"], "top_attack": {}, "last_blow": {}}, "", "")
 	assert_eq(quiet.size(), 2, "a fight with no hit taken: who and the defence line")
-
-
-func test_resume_position_rule() -> void:
-	var audio: Script = load("res://scripts/autoload/audio.gd")
-	assert_eq(audio.resume_position(12.5, 60.0), 12.5)
-	assert_eq(audio.resume_position(0.0, 60.0), 0.0)
-	assert_eq(audio.resume_position(-3.0, 60.0), 0.0)
-	assert_eq(audio.resume_position(60.0, 60.0), 0.0, "past the end: from the start")
-	assert_eq(audio.resume_position(75.0, 60.0), 0.0)
-	assert_eq(audio.resume_position(5.0, 0.0), 5.0, "unknown length: trust the position")
 
 
 func test_the_shipped_music_set_has_an_elite_field_that_may_be_empty() -> void:

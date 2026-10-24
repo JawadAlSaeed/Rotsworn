@@ -779,7 +779,6 @@ func _show_screen(screen: Node) -> void:
 	if screen != null:
 		_screen = screen
 		add_child(screen)
-		Sfx.play_ambience("")
 		Sfx.play_weather("")
 		var song := _music.run_path if _is_run_screen(screen) and not _music.run_path.is_empty() else _music.menu_path
 		if screen is CreditsScreen and not _music.credits_path.is_empty():
@@ -1210,7 +1209,6 @@ func _start_combat() -> void:
 	_combat.restart_requested.connect(_on_restart_requested)
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
-	Sfx.play_ambience("")
 	if _run != null and _fight_weather != null:
 		# A run or Rush fight's weather loop, quieter than its own volume (DESIGN.md 8.21 D13, 8.22).
 		Sfx.play_weather(_fight_weather.ambience_path,
