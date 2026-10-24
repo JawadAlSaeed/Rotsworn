@@ -4732,6 +4732,14 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
 - A Fight stop is never announced while a transition is under way (`_fade_to` would not build its
   fight, and the friends would wait for a fight that never comes).
 
+**Guards merged into Elite stops (owner, 2026-10-24 night, "to lower confusions"; being built).** With no
+zones the guard lost its job (the zone's exit), and two stop kinds that both mean "a hard fight with
+spoils" confused. So the Guard stop and the guard row go: an **Elite stop** now holds either one of its
+act's elite groups or its place's guard (the mini-boss with its phase two, Doom, boss song), picked by
+the run's seed. The map is Fight, Elite, "?", Shop, Campfire, Treasure and the boss, like Slay the
+Spire. The Relic slot that opened after the first guard opens after the first Elite stop won. Pips stay
+per kind (guard 3, elite 2). This replaces G1 and card #317's Guard stop.
+
 ### 8.23 Three acts and the Leech Queen (phase 26, card #323, decided 2026-10-24)
 
 The owner: three acts, "the standard in roguelites", then the balance talk (#321). One place per act,
@@ -5832,3 +5840,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | The walkable zones are removed for good (#319): their code, data, tools, tests, 3D pieces and art go; a place keeps its look, air, weathers, Fight stop monsters and guard, and still names its song and loop; the zone songs, ambience and sound cues stay unused (8.22 As built); saves of format 2 are kept but refused too (`RunSave.FORMAT_VERSION` 3), since their packs could hold the Key | 8.22 G3, G6 to G8; no dead zone code or data left behind |
 | 2026-10-24 | First Strike is a press (#320): a Fight stop's fight opens with one skill press ring on the place's name card; GOOD or PERFECT gives First Strike, anything else a normal start; any local player may press, online only the host's press decides and the friends watch; guards, elites, ambushes, bosses and the Rush open normally (8.22, defaults F1 to F10) | 8.22 "The First Strike press"; built while the owner slept, judged from input stamps outside the core like every press; `Net.PROTOCOL` stays 5 |
 | 2026-10-24 | Three acts, one place each (Hollow, Bog, Ruins); a new act 2 boss, the Leech Queen (8.23, #323); boss pools (#324) and boss gimmicks (#325) are ideas for later | owner: three acts are the roguelite standard; few female enemies so far |
+| 2026-10-24 | Guards merged into Elite stops: an Elite stop holds an elite group or its place's guard; no Guard stop or guard row (8.22) | owner: lower confusion; guards had no job without zones |
