@@ -604,12 +604,19 @@ def make_lair_leech_queen() -> np.ndarray:
     c.line(19, 6, 20, 16, SEPIA[0])
     c.line(14, 5, 13, 14, SEPIA[1])
     c.line(18, 5, 19, 14, SEPIA[1])
-    # The crown of roots, a worn-gold band under it.
-    c.rect(14, 5, 18, 5, GOLD[2])
-    for rx, top in ((13, 2), (15, 1), (17, 1), (19, 2)):
-        c.line(rx, 4, rx, top, DEAD[2])
-    c.px(16, 2, DEAD[3])
-    c.px(16, 5, VIOLET[2])
+    # Her crown, as bold as the other lairs' (the boss stop's mark): a worn-gold band with three
+    # points, a violet gem, and two dead roots twisting out past its ends.
+    c.rect(12, 4, 20, 5, GOLD[2])
+    c.rect(12, 4, 20, 4, GOLD[3])
+    for sx in (12, 16, 20):
+        c.rect(sx, 1, sx, 3, GOLD[3])
+    for sx in (14, 18):
+        c.px(sx, 3, GOLD[2])
+    c.px(16, 5, VIOLET[3])
+    for x0, y0, x1, y1 in ((11, 4, 9, 1), (21, 4, 23, 1)):
+        c.line(x0, y0, x1, y1, DEAD[2])
+    c.px(9, 1, DEAD[3])
+    c.px(23, 1, DEAD[3])
     c.outline(INK_OUT)
     return c.a
 

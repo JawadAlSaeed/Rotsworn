@@ -3314,8 +3314,9 @@ scarce, and a "?" can turn into a fight.
   the backpack (it opens when full); online the host chooses and the clients see the result.
 - **The pictures (card #199, 2026-10-17).** Each event has its own painted scene,
   `assets/sprites/events/<event id>.png`, and each act its own for the ambush page
-  (`events/ambush_rotten_road.png`, `events/ambush_ashen_deep.png`, `ActData.ambush_picture_path`);
-  20 + 2, all drawn by `tools/art_kit/assets/event_art.py` (art bible: 5.4; the kit README). They are
+  (`events/ambush_rotten_road.png`, `events/ambush_drowned_mire.png`,
+  `events/ambush_ashen_deep.png`, `ActData.ambush_picture_path`); 20 + 3, all drawn by
+  `tools/art_kit/assets/event_art.py` (art bible: 5.4; the kit README). They are
   128x64 art pixels, fully opaque, at most 96 colours, and what each shows is the event's own story:
   the Well a stone well with a rotting roof, weeping cyan and a glint on the black water; Gambler's
   Bones a skeleton in a gambler's hat at a rotten table, dice and a candle; the Pilgrim a robed man
@@ -4482,15 +4483,15 @@ Tuning (`tuning.tres`, group "Fight Rush"; the first values, not yet tuned with 
   loss), `AUTOPLAY_PLAYERS` and `AUTOPLAY_RESULT rush_<over|gave_up|capped> fight= wins= record= new=
   players= level= relics= echoes= items= seed= start=` (`wins` leaves out the head start's; bots
   read and write no records, so `record=0 new=0`).
-- Times (headless): 3 capped fights about 90 s, one head-start fight about 1 to 2 min (fight 50 the
-  longest); later fights take longer. Balance runs start at fight 1:
+- Times (headless): 3 capped fights about 90 s, one head-start fight about 1 to 2 min (fight 60, the
+  Hollow King, the longest); later fights take longer. Balance runs start at fight 1:
   `--autoplay=average --bot-skill=60 --rush --rush-fights=15 --seed=1|2|3`, about 12 to 15 min each.
 - Dev screens: `--screen=rush_cards` (the New Run cards with Best 16), `rush_players`, `rush_reward`
   (the picks after fight 7), `rush_reward_elite` (after fight 5), `rush_ready`, `rush_end` (a NEW
   RECORD sample), `rush_pause`. None reads or writes a record.
 
 Tests: `tests/unit/test_rush.gd` (RushState, records, switches, dev screens), `test_rush_data.gd` (the
-data file: tiers, bosses, items, stale data, a 70-fight walk), `test_rush_screens.gd` (the Rush
+data file: tiers, bosses, items, stale data, an 80-fight walk), `test_rush_screens.gd` (the Rush
 screen, the end screen, hints, the lobby title), and the New Run cards in `test_choice_cards.gd`,
 `test_save_menus.gd`, `test_branding.gd` and `test_menus_clean.gd` (10). Online:
 `test_rush_online.gd` (the mode in each message, protocol 4, a friend building the host's Rush and
@@ -4535,10 +4536,10 @@ now), and a run gets much shorter (the talks #321 and #322 come next). Branch `p
   does not fit opens the party screen with it in hand). Then the map. Running away works as before:
   HP carries on, no gold, no XP, the stop is passed. A loss ends the run.
 - **A Guard stop**: the place's guard (`ZoneData.guard`: The Gorged One, Mire Mother, Ash Warden;
-  their deep versions in act 2), with its phase two and banner, the boss song (and its rage), the
-  place's look, air and a rolled weather. No running. After a win its spoils (pick 1 of 3, as after a
-  zone's guard), Relic pips (`mastery_guard`), Flawless and `guards_beaten` (the Relic slot that opens
-  after the first guard) work as before.
+  their deep versions in act 3, the Ashen Deep, 8.23), with its phase two and banner, the boss song
+  (and its rage), the place's look, air and a rolled weather. No running. After a win its spoils
+  (pick 1 of 3, as after a zone's guard), Relic pips (`mastery_guard`), Flawless and `guards_beaten`
+  (the Relic slot that opens after the first guard) work as before.
 - **Where guards stand** (default G1): map row `run_guard_row` (1) is all Guard stops, like the
   treasure row, so every road meets one guard early in each act (the second Relic slot opens about
   where it did). Each guard stop takes its place like a Fight stop does. Row 0 stays all Fight stops.
@@ -4795,7 +4796,8 @@ the owner to check):
   Bite** (three hits, drinks 90%), **Tail Lash** (three sweeps), **Black Flood** (three waves),
   **Blight Volley** (three globs; only the last marks, and only in a hard fight, so she has one
   marking move in an ordinary fight), the new move **Feeding Frenzy** (bites every hero in turn,
-  drinks 60%, then rests a turn) and the Doom again. All her moves come from `tools/make_attack.py`
+  drinks 60%; she cannot pick it again on her next turn, `cooldown_turns` 1, but she does not rest:
+  her next turn is another move) and the Doom again. All her moves come from `tools/make_attack.py`
   (the tail moves' hits carry `anim = "tail"`, so she plays her tail clips; the choreography golden
   test took the 12 new files, 96 attacks, every older hash unchanged).
 - **The drinking bite** (a core rule, `EnemyAttackData.drain_percent`, 0 to 100): every hit of such
@@ -4806,12 +4808,18 @@ the owner to check):
   prompts and sends a `healed` event with `cause: "drain"` right after the hit's `prompt_resolved`
   (the only heal that names a cause); the screen shows **DRAIN** and the heal number over her. Tests:
   `test_leech_queen.gd` (and the event fields in `test_combat_engine.gd`).
-- **Art** (art kit): `enemy_leech_queen.py` (108x108 cells, about 85 px tall: a pale crowned queen
-  whose body ends in a giant ringed leech tail coiled in black water, violet glow on her tell; the
-  usual clips plus rage, a tail wind-up and lunge for the sweeps and a spit) and
-  `enemy_leechling.py` (48x48), their portraits and clip layouts (`data/clips/`); `fx_attacks.py`
-  the black bile glob (`data/projectiles/black_bile.tres`); `map_art.py` her lair picture for act 2's
-  boss stop (`map_lair_leech_queen.png`); `event_art.py` act 2's ambush page
+- **Art** (art kit): `enemy_leech_queen.py` (108x108 cells; about 71 px tall at idle and up to 88
+  when she rears, between the Husk Lord's 51 and the Hollow King's 80, and wider than both with her
+  coil: a pale crowned queen whose body ends in a giant ringed leech tail coiled in black water,
+  violet glow on her tell; the usual clips plus rage, a tail wind-up and lunge for the sweeps and a
+  spit. In the tail clips her arms stay low and the tail's swollen end swings out past her claws at
+  a hero's waist height, so a sweep reads apart from her bite. Her 48 px portrait is a close-up of
+  the face, turned a little more toward the viewer, with dark sockets round the violet eyes and the
+  crown's roots cut short so the crown fits the frame) and `enemy_leechling.py` (48x48), their
+  portraits and clip layouts (`data/clips/`); `fx_attacks.py` the black bile glob
+  (`data/projectiles/black_bile.tres`); `map_art.py` her lair picture for act 2's boss stop
+  (`map_lair_leech_queen.png`: the coil in a black pool, her pale head under a bold worn-gold crown
+  like the other two lairs', dead roots twisting out past it); `event_art.py` act 2's ambush page
   (`ambush_drowned_mire.png`); `env_floor.py` a new floor, `mire_tile` (black silt, pools of black
   water, violet glints). **Her lair** (`data/looks/leech_lair.tres`): the Sunken Bog's look made
   darker and violet, with the mire floor, violet lights and shrooms, drifting motes, a blood-violet
@@ -5410,7 +5418,7 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
   or rot-touched Relic), Heal with Rest Relics, the boss heal, spare XP and extra picks, Relic slots,
   the head start, the dict round trip and its refusals, the salts, `RushRecords` (buckets, better,
   `allowed`), the switches and dev screens; the shipped data file (validate, the tier table, stale
-  data, a 70-fight walk); the Rush screen, the end screen, the end hints and the lobby title; the New
+  data, an 80-fight walk); the Rush screen, the end screen, the end hints and the lobby title; the New
   Run cards in `test_choice_cards.gd`, `test_save_menus.gd`, `test_branding.gd` and
   `test_menus_clean.gd`. Bot checks (headless, `--quit-on-end`, at most 3 Godots at once, each capped
   with `--rush-fights`; a good one prints `AUTOPLAY_RESULT rush_...` and no ERROR lines):

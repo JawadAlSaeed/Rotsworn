@@ -7,8 +7,8 @@ the water and coils behind her, long dark hair falling down her back, a crown of
 thin arms with clawed fingers. Colour areas: pale violet-grey skin, near-black hair, the tail's wet
 dark olive rings (the tail's skin grows up over her chest like a gown's bodice), a worn-gold band in
 the root crown, the black pool, and a violet glow (eyes, crown, the glands along the coil) that
-flares on her tell. About 85 px tall (heroes are about 45 px), the Husk Lord's and Hollow King's size
-class.
+flares on her tell. About 71 px tall at idle and up to 88 when she rears (heroes are about 45 px):
+between the Husk Lord (51) and the Hollow King (80), and wider than both with her coil.
 
 Built straight from a pose dict (kit.monster). Model units are pixels before SIZE; x forward (she
 faces right in the model, the camera mirrors her), y up, z toward the viewer.
@@ -27,6 +27,7 @@ Pose keys:
     glow     0..1 eyes, crown and glands (1 = the tell)
     eyes     1 = open, 0 = shut
     crown    degrees the crown is knocked askew
+    roots    length of the crown's roots (1 = full; the portrait's are cut short to fit the frame)
     dead     1 = the glow has gone out
 """
 from __future__ import annotations
@@ -36,7 +37,7 @@ from typing import Any
 
 import numpy as np
 
-from kit.beast import build_enemy, cone, decal, dir2, finish, framed, lift_off_last_row, mix, pose_with, unit, v
+from kit.beast import build_enemy, cone, decal, dir2, finish, lift_off_last_row, mix, pose_with, unit, v
 from kit.monster import Scaled, limb, standard_clips
 from kit.palette import M, Material
 from kit.render import Camera, Frame, render
@@ -62,6 +63,7 @@ GOLD = M["gold_worn"]
 GLOW = M["glow_violet"]
 GLOW_DEAD = Material.make("queen_glow_dead", "#4a3f55", below=1, above=1, wrap=0.3)
 MOUTH = Material.make("queen_mouth", "#3a2232", below=1, above=1)
+SOCKET = Material.make("queen_socket", "#5a4a5a", below=1, above=1)
 TEETH = M["bone"]
 
 SPINE, NECK = 16.5, 3.5
@@ -137,15 +139,22 @@ def spline(pts: list[np.ndarray], step: float) -> list[tuple[np.ndarray, np.ndar
 
 # Tail radius along its length (share of the length -> radius).
 TAIL_R = ((0.0, 6.2), (0.12, 7.6), (0.3, 8.6), (0.5, 8.0), (0.68, 6.6), (0.85, 4.2), (1.0, 1.6))
+# How much a sweep swells the tail's end (radius, model units at tail 1).
+TAIL_SWELL = 2.4
 # Everything of the tail below this height is under the black water.
 WATERLINE = 1.6
 
 
-def _radius(f: float) -> float:
+def _radius(f: float, sweep: float = 0.0) -> float:
+    """The tail's radius at share `f` of its length; a sweep (`sweep` = the pose's tail) swells
+    the end so the club that swings through the front reads at fight scale."""
+    r = TAIL_R[-1][1]
     for (f0, r0), (f1, r1) in zip(TAIL_R, TAIL_R[1:]):
         if f <= f1:
-            return r0 + (r1 - r0) * (f - f0) / max(f1 - f0, 1e-6)
-    return TAIL_R[-1][1]
+            r = r0 + (r1 - r0) * (f - f0) / max(f1 - f0, 1e-6)
+            break
+    swell = min(max((f - 0.55) / 0.3, 0.0), 1.0) * (1.0 - 0.5 * min(max((f - 0.9) / 0.1, 0.0), 1.0))
+    return r + TAIL_SWELL * sweep * swell
 
 
 def tail_points(p: dict[str, Any]) -> list[np.ndarray]:
@@ -162,7 +171,7 @@ def tail_points(p: dict[str, Any]) -> list[np.ndarray]:
            v((base - 19.0, 8.0 + 4.0 * hump, 0.0)), v((base - 24.5, 12.0 + 9.0 * hump, -1.0)),
            v((base - 30.0, 8.0 + 4.0 * hump, -2.0)), v((base - 33.5, 0.0, -2.0))]
     rest = [v((base - 38.0, -1.0, -1.0)), v((base - 41.5, 5.0, 0.0)), v((base - 42.5, 10.0, 1.0))]
-    swept = [v((base - 30.0, 4.0, 14.0)), v((bx - 4.0, 6.0, 19.0)), v((bx + 21.0, 6.5, 12.0))]
+    swept = [v((base - 24.0, 12.0, 13.0)), v((bx + 4.0, 22.0, 16.0)), v((bx + 44.0, 19.0, 8.0))]
     pts += [a * (1 - t) + b * t for a, b in zip(rest, swept)]
     return pts
 
@@ -172,8 +181,9 @@ def _tail(p: dict[str, Any], dead: bool) -> tuple[Node, list[np.ndarray]]:
     parts: list[Node] = []
     tops: list[np.ndarray] = []
     n = len(segs)
+    sweep = float(p.get("tail", 0.0))
     for i, (c, d) in enumerate(segs):
-        r = _radius(i / max(n - 1, 1))
+        r = _radius(i / max(n - 1, 1), sweep)
         if c[1] + r < WATERLINE - 0.5:
             continue
         mat = RING if i % 2 else LEECH
@@ -205,8 +215,9 @@ def _arm(sk: dict[str, Any], a: float, b: float, z: float, claw: float, group: s
     return parts
 
 
-def _crown(sk: dict[str, Any], tilt: float, dead: bool) -> list[Node]:
-    """A crown of roots: a worn-gold band round the brow, twisted roots rising out of it."""
+def _crown(sk: dict[str, Any], tilt: float, dead: bool, roots: float = 1.0) -> list[Node]:
+    """A crown of roots: a worn-gold band round the brow, twisted roots rising out of it (`roots`
+    scales their length)."""
     hd, hf, head = sk["hd"], sk["hf"], sk["head"]
     R = basis(hd, hf) @ rot(0.0, 0.0, 0.0)
     tilt_R = rot(0.0, 0.0, tilt)
@@ -221,6 +232,7 @@ def _crown(sk: dict[str, Any], tilt: float, dead: bool) -> list[Node]:
     for i, (ang, h) in enumerate(((10.0, 7.5), (55.0, 6.0), (100.0, 8.5), (145.0, 6.5), (190.0, 7.0),
                                   (235.0, 5.5), (280.0, 8.0), (325.0, 6.0))):
         a = math.radians(ang)
+        h *= roots
         out = tilt_R @ (hf * math.cos(a) + v((0.0, 0.0, 1.0)) * math.sin(a))
         root = base + out * 3.6
         mid = root + tilt_R @ (hd * h * 0.55) + out * 1.4
@@ -281,7 +293,7 @@ def model(p: dict[str, Any]) -> Node:
     parts.append(Ellipsoid(SKIN, head, (3.4, 4.4, 3.4), R=basis(hf, hd), group="head"))
     parts.append(Ellipsoid(SKIN, head + hf * 1.6 - hd * (2.6 + 1.6 * jaw), (2.2, 1.6, 2.4), R=basis(hf, hd), group="head"))
     parts += _hair(sk, float(p.get("hair", 0.0)))
-    parts += _crown(sk, float(p.get("crown", 0.0)), dead)
+    parts += _crown(sk, float(p.get("crown", 0.0)), dead, float(p.get("roots", 1.0)))
     claw = float(p.get("claw", 0.0))
     parts += _arm(sk, float(p["af"]), float(p["bf"]), -SHOULDER_Z, claw, "arm_f")
     parts += _arm(sk, float(p["an"]), float(p["bn"]), SHOULDER_Z, claw, "arm_n")
@@ -300,10 +312,15 @@ def _face(fr: Frame, cam: Camera, p: dict[str, Any], big: bool = False) -> None:
     eye_mat = GLOW_DEAD if dead else GLOW
     if float(p.get("eyes", 1.0)) >= 0.5:
         rows = (["aa", "ab"] if big else ["aa"]) if hot else (["ab"] if big else ["b"])
+        legend = {"a": (eye_mat, 3 if not dead else 1), "b": (eye_mat, 2 if not dead else 1)}
+        if big:
+            # The portrait's close-up face: deep, shadowed sockets over the glow, so the gaunt face
+            # reads at 48 px (the sheet's eyes stay bare dots).
+            rows = ["sss"] + ["s" + r for r in rows]
+            legend["s"] = (SOCKET, 0)
         for z in (1.5, -1.5):
             pt = (sk["head"] + sk["hf"] * 3.0 + sk["hd"] * 0.6 + v((0.0, 0.0, z))) * SIZE
-            decal(fr, cam, pt, rows, {"a": (eye_mat, 3 if not dead else 1), "b": (eye_mat, 2 if not dead else 1)},
-                  ("head",), tol=4.0, group="eye")
+            decal(fr, cam, pt, rows, legend, ("head",), tol=4.0, group="eye")
     jaw = float(p.get("jaw", 0.0))
     if jaw >= 0.3:
         rows = ["tmt", "mmm", "tmt"] if jaw >= 0.7 else ["mm"]
@@ -334,12 +351,22 @@ def render_cell(p: dict[str, Any]) -> np.ndarray:
     return finish_frame(render_frame(p))
 
 
-PORTRAIT_POSE = pose_with(POSES["idle"], head=4.0, glow=0.8, jaw=0.35)
+# The portrait is a close-up of the face (card #323 review): the eyes hot in their sockets, the
+# crown's roots cut short so the whole crown fits in the frame, the face turned a little more
+# toward the viewer than the sheet's 3/4 view and centred, her hair trailing off the right edge.
+PORTRAIT_POSE = pose_with(POSES["idle"], head=4.0, glow=1.0, jaw=0.35, roots=0.6)
+PORTRAIT_SCALE = 0.33
+PORTRAIT_YAW = -40.0
+PORTRAIT_AT = (30.0, 30.0)
 
 
 def render_portrait(p: dict[str, Any]) -> np.ndarray:
     sk = skeleton(p)
-    cam = framed(PORTRAIT, 0.5, (sk["head"] + sk["hd"] * 1.5) * SIZE, (24.0, 22.0))
+    point = (sk["head"] + sk["hd"] * 1.5 + sk["hf"] * 2.0) * SIZE
+    vv = Camera(PORTRAIT, PORTRAIT, scale=PORTRAIT_SCALE, yaw=PORTRAIT_YAW, face="left").view(point)
+    cam = Camera(PORTRAIT, PORTRAIT, scale=PORTRAIT_SCALE, yaw=PORTRAIT_YAW, face="left",
+                 cx=float(vv[0]) - (PORTRAIT_AT[0] - PORTRAIT / 2.0) * PORTRAIT_SCALE,
+                 cy=float(vv[1]) - (PORTRAIT - 0.5 - PORTRAIT_AT[1]) * PORTRAIT_SCALE)
     fr = render(model(p), cam)
     _face(fr, cam, p, big=True)
     return finish_frame(fr)
@@ -372,12 +399,13 @@ RAGE = [mix(IDLE, POSES["windup"], 0.5),
         pose_with(POSES["windup"], body=(-1.0, 39.0), head=22.0, jaw=0.8, an=74.0, af=62.0, glow=1.0),
         mix(POSES["windup"], IDLE, 0.6)]
 # The tail sweep (hits tagged anim "tail", DESIGN.md 5.5): she leans away while the tail's end
-# swings round the near side and through the front.
+# swings round the near side and through the front, a swollen club at a hero's waist height that
+# reaches past her claws (the arms stay low, so the tail is what reaches).
 TAIL_COIL = pose_with(IDLE, body=(1.0, 33.0), lean=-8.0, head=6.0, an=-20.0, bn=60.0, af=30.0, bf=40.0, tail=0.15,
                       claw=0.8, glow=1.0, hair=-3.0)
-TAIL_LUNGE = pose_with(IDLE, body=(3.0, 31.0), lean=10.0, head=-4.0, an=-50.0, bn=20.0, af=-10.0, bf=30.0, tail=0.7,
+TAIL_LUNGE = pose_with(IDLE, body=(2.0, 31.0), lean=2.0, head=-2.0, an=-86.0, bn=36.0, af=-96.0, bf=30.0, tail=0.7,
                        claw=0.6, glow=0.8, hair=-5.0)
-TAIL_CONTACT = pose_with(IDLE, body=(5.0, 30.0), lean=16.0, head=-8.0, an=-60.0, bn=10.0, af=-30.0, bf=20.0, tail=1.0,
+TAIL_CONTACT = pose_with(IDLE, body=(3.0, 30.0), lean=6.0, head=-8.0, an=-100.0, bn=40.0, af=-110.0, bf=30.0, tail=1.0,
                          claw=0.6, glow=0.8, hair=-6.0, wave=0.3)
 # The spit: drawing back, the head thrown forward.
 SPIT_COIL = pose_with(IDLE, body=(1.0, 34.0), lean=-10.0, head=18.0, jaw=0.5, glow=1.0, hair=-4.0)
