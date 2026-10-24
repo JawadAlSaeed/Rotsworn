@@ -368,7 +368,8 @@ func test_only_fight_stops_ring() -> void:
 		assert_eq(_main.call("_rings_first_strike", type), type == RunMap.StopType.FIGHT,
 				"%s rings: %s" % [RunMap.TYPE_NAMES[type], type == RunMap.StopType.FIGHT])
 	var enter := _body("func _enter_stop(")
-	assert_string_contains(enter, "if _rings_first_strike(int(stop.type)):")
+	assert_string_contains(enter, "if _rings_first_strike(int(stop.type)) and not _busy:",
+			"never announced while a transition would drop its fight")
 	assert_string_contains(enter, "_new_first_strike_ring(FirstStrikeRing.Mode.PRESS)")
 	for header: String in ["func _start_final_fight(", "func _begin_rush_fight(", "func _start_rush_fight("]:
 		assert_false(_body(header).contains("FirstStrikeRing"), header + " opens normally")

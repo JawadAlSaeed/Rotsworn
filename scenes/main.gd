@@ -1849,10 +1849,11 @@ func _enter_stop() -> void:
 		RunMap.StopType.FIGHT, RunMap.StopType.GUARD:
 			# The map swirls away, the place's name card with a tip shows (card #86), then its fight
 			# (DESIGN.md 8.22). A Fight stop's card carries the First Strike ring (card #320); its fight
-			# is announced first, so the friends watch the ring while the host presses it.
+			# is announced first, so the friends watch the ring while the host presses it (never while
+			# a transition is under way: _fade_to would not build that fight).
 			var zone := _run.zone_of(stop)
 			var ring: FirstStrikeRing = null
-			if _rings_first_strike(int(stop.type)):
+			if _rings_first_strike(int(stop.type)) and not _busy:
 				_announce_stop_fight(true)
 				ring = _new_first_strike_ring(FirstStrikeRing.Mode.PRESS)
 			_fade_to(_start_stop_fight, zone.display_name if zone != null else "", true, ring)

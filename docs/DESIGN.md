@@ -4698,6 +4698,14 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   player; the bots' habits; the ring on the card, a friend's watched ring and its time-out, the
   picture ring; only Fight stops ring; the opening reaching `CombatSetup` and the engine; online the
   host's result reaching the friends and late joiners; the tutorial and glossary words).
+- **Bot runs** (headless, after #320): `--autoplay --run --seed=7` run_victory (act 2, 14 stops, 8
+  fights) with `AUTOPLAY_OPENING first_strike` on all four Fight stops (1, 5, 8, 10) and normal
+  openings for the two guards and both bosses; `--autoplay=miss --run --seed=7` `normal` on stop 1
+  and run_defeat there; one online pair (`--run --host=2 --seed=7` and a `--join=127.0.0.1` friend):
+  first_strike on the same four stops on both machines and the same `AUTOPLAY_RESULT` and
+  `AUTOPLAY_MIRROR` lines on both.
+- A Fight stop is never announced while a transition is under way (`_fade_to` would not build its
+  fight, and the friends would wait for a fight that never comes).
 
 ## 9. Multiplayer (phase 5)
 
