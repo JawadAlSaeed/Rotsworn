@@ -10,6 +10,7 @@ const TUNING_PATH := "res://data/tuning/tuning.tres"
 const ENCOUNTER_PATH := "res://data/encounters/%s.tres"
 const ZONE_PATH := "res://data/zones/%s.tres"
 const GEAR_PATH := "res://data/gear/%s.tres"
+const MAIN_PATH := "res://scenes/main.gd"
 const NORMAL := RushState.Kind.NORMAL
 const ELITE := RushState.Kind.ELITE
 const BOSS := RushState.Kind.BOSS
@@ -556,12 +557,38 @@ func test_tampered_dicts_are_refused() -> void:
 		assert_false(copy.apply_dict(d))
 		assert_null(RushState.from_rush_dict(_rush, _tuning, d))
 	assert_eq(copy.to_dict(), before, "a refusal changes nothing")
-	# A refused run part puts the slot counts back.
-	var bad_gold := good.duplicate(true)
-	bad_gold.gold = "lots"
-	assert_false(copy.apply_dict(bad_gold))
-	assert_eq(copy.elites_beaten, 0)
+	# A refused run part puts the slot counts back. The Rush block is read first, so a dict whose
+	# run part fails must not leave its elite and boss counts behind (they open Relic slots 2 and 3).
+	var won := _rush_state()
+	won.next_fight()
+	_win(won, 5, _enc("elite_hyena_pack"))
+	_win(won, 10, _enc("guard_gorged_one"))
+	won.encounter_id = "guard_gorged_one"
+	assert_true(won.elites_beaten > 0 and won.bosses_beaten > 0, "the forged dict carries both counts")
+	var forged := won.to_dict()
+	forged.gold = "lots"
+	assert_false(copy.apply_dict(forged))
+	assert_eq(copy.elites_beaten, 0, "the forged elite count is not kept")
+	assert_eq(copy.bosses_beaten, 0, "the forged boss count is not kept")
+	assert_eq(copy.open_relic_slots(), 1)
 	assert_eq(copy.to_dict(), before)
+	# And the other way: a refused dict with no wins never shuts a slot that was open, nor takes
+	# the Relic worn in it.
+	var worn := _rush_state()
+	worn.next_fight()
+	_win(worn, 5, _enc("elite_hyena_pack"))
+	worn.encounter_id = "elite_hyena_pack"
+	var charm := _gear("iron_charm")
+	assert_eq(worn.wear(0, 1, charm), 0, "slot 2 is open after the elite")
+	var worn_before := worn.to_dict()
+	var no_wins := _rush_state().to_dict()
+	no_wins.gold = "lots"
+	assert_false(worn.apply_dict(no_wins))
+	assert_eq(worn.elites_beaten, 1, "the elite count is put back")
+	assert_eq(worn.bosses_beaten, 0)
+	assert_true(worn.slot_open(1), "slot 2 stays open")
+	assert_eq(worn.gear[0][1], charm, "the slot-2 Relic is still worn")
+	assert_eq(worn.to_dict(), worn_before)
 
 
 func test_head_start_replays_the_fights_before() -> void:
@@ -609,10 +636,12 @@ func test_records() -> void:
 	assert_eq(RushRecords.best_of([e, RushRecords.entry(9, "a"), {"fight": 99}, null]), 16, "a bad entry is ignored")
 	assert_eq(RushRecords.best_of([]), 0)
 	var clean := {"autoplay": false, "screen": "", "start_fight": 1, "rush_fights": 0, "relics_mode": "",
-			"relics_path": "", "seed_override": -1, "fixed_seed": 0, "tuning_default": true, "late": false}
+			"relics_path": "", "seed_override": -1, "fixed_seed": 0, "tuning_default": true, "late": false,
+			"players": 1, "pad_join_after_s": 0, "pad_leave_after_s": 0}
 	assert_true(RushRecords.allowed(clean))
 	var dirty := {"autoplay": true, "screen": "rush_end", "start_fight": 5, "rush_fights": 3, "relics_mode": "all",
-			"relics_path": "x.json", "seed_override": 7, "fixed_seed": 9, "tuning_default": false, "late": true}
+			"relics_path": "x.json", "seed_override": 7, "fixed_seed": 9, "tuning_default": false, "late": true,
+			"players": 3, "pad_join_after_s": 50, "pad_leave_after_s": 50}
 	for key: String in dirty:
 		var f := clean.duplicate()
 		f[key] = dirty[key]
@@ -620,6 +649,43 @@ func test_records() -> void:
 		var missing := clean.duplicate()
 		missing.erase(key)
 		assert_false(RushRecords.allowed(missing), "a missing %s counts as a switch in use" % key)
+
+
+## Main hands RushRecords every switch that makes a dev or bot Rush (D9), the pretend pads too: a
+## person who starts `--rush --players=3` with no friends keeps no Trio record.
+func test_main_keeps_dev_rushes_out_of_the_records() -> void:
+	var main_script := load(MAIN_PATH) as GDScript
+	var flags := func(args: Array, tuning_default: bool) -> Dictionary:
+		return main_script.call("_rush_records_flags", CombatOptions.from_args(PackedStringArray(args), _tuning), _tuning,
+				tuning_default)
+	var plain: Dictionary = flags.call(["--rush"], true)
+	for key: String in RushRecords.CLEAN_FLAGS:
+		assert_true(plain.has(key), "Main fills %s" % key)
+	assert_true(RushRecords.allowed(plain), "a plain Rush keeps records")
+	assert_true(RushRecords.allowed(flags.call(["--rush", "--players=1"], true)), "one player is no switch")
+	for args: Array in [["--rush", "--players=3"], ["--rush", "--players=2"], ["--rush", "--pad-join-after=50"],
+			["--rush", "--pad-leave-after=50"], ["--rush", "--autoplay"], ["--rush", "--screen=rush_end"],
+			["--rush-start=5"], ["--rush-fights=3"], ["--rush", "--relics=all"], ["--rush", "--relics-path=x.json"],
+			["--rush", "--seed=7"]]:
+		assert_false(RushRecords.allowed(flags.call(args, true)), "%s keeps no record" % str(args))
+	assert_false(RushRecords.allowed(flags.call(["--rush"], false)), "another tuning file keeps no record")
+	_tuning.fixed_seed = 9
+	assert_false(RushRecords.allowed(flags.call(["--rush"], true)), "a fixed seed in tuning keeps no record")
+
+
+## No "Fight 0": before the first fight is entered the pause note and the Rush end leave the fight out.
+func test_reached_text_waits_for_the_first_fight() -> void:
+	var r := _rush_state()
+	assert_eq(r.reached(), 0)
+	assert_eq(r.reached_text(), "", "no fight entered yet")
+	r.next_fight()
+	assert_eq(r.reached_text(), "Fight 1")
+	assert_eq(RushState.begin_rush(_rush, _tuning, 7, null, 5).reached_text(), "Fight 4", "a head start's fights count")
+	var source := FileAccess.get_file_as_string(MAIN_PATH)
+	var start := source.find("func _open_pause(")
+	var body := source.substr(start, source.find("\nfunc ", start + 1) - start)
+	assert_string_contains(body, "_pause.note = (_run as RushState).reached_text()")
+	assert_false(body.contains("maxi(1"), "the pause note never says Fight 1 before it")
 
 
 func test_records_in_settings() -> void:
@@ -732,7 +798,7 @@ func test_rush_switches_parse() -> void:
 
 ## Every Fight Rush dev screen (--screen=rush_*) is wired in Main's dev screen list.
 func test_rush_dev_screens_are_wired() -> void:
-	var source := FileAccess.get_file_as_string("res://scenes/main.gd")
+	var source := FileAccess.get_file_as_string(MAIN_PATH)
 	var start := source.find("func _open_dev_screen(")
 	var body := source.substr(start, source.find("\nfunc ", start + 1) - start)
 	for screen: String in ["rush_cards", "rush_players", "rush_reward", "rush_reward_elite", "rush_ready", "rush_end",

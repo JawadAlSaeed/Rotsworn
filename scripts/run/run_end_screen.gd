@@ -115,11 +115,14 @@ func setup_rush(run: RushState, input_guard_ms: int, best: Dictionary, new_recor
 	ListMenu.screen_footer(self, [[&"menu_confirm", "Again"], [&"menu_cancel", "Main menu"]])
 
 
-## The Rush's stat chips: [{icon, text, color, detail}] for the fight reached (a sword), the record
-## (a star; `detail` is its day, drawn dim after it; left out when `best` is not an entry) and the
-## party size the record counts for (a person: Solo, Duo, Trio).
+## The Rush's stat chips: [{icon, text, color, detail}] for the fight reached (a sword; left out when
+## the Rush was given up before its first fight), the record (a star; `detail` is its day, drawn dim
+## after it; left out when `best` is not an entry) and the party size the record counts for (a
+## person: Solo, Duo, Trio).
 static func rush_chips(run: RushState, best: Dictionary) -> Array[Dictionary]:
-	var chips: Array[Dictionary] = [{"icon": &"sword", "text": "Fight %d" % run.reached(), "color": HudStyle.TEXT}]
+	var chips: Array[Dictionary] = []
+	if not run.reached_text().is_empty():
+		chips.append({"icon": &"sword", "text": run.reached_text(), "color": HudStyle.TEXT})
 	if RushRecords.is_valid(best):
 		chips.append({"icon": &"star", "text": "Best %d" % int(best.fight), "color": HudStyle.GOLD,
 				"detail": String(best.date)})

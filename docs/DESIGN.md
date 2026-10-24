@@ -4071,7 +4071,9 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
 - **D8 (default)**: Settings > Reset progress also clears the Rush records (8.17).
 - **D9 (default)**: bot and dev Rushes never write records, and read none (they compare against none):
   `--autoplay`, `--screen=`, `--rush-start` above 1, `--rush-fights`, `--relics=`, `--relics-path=`,
-  `--seed=`, a `fixed_seed` in tuning or a `--tuning=` file (`RushRecords.allowed`, pure, tested).
+  `--seed=`, the pretend pads of `--players` above 1, `--pad-join-after` and `--pad-leave-after` (they
+  seat friends nobody holds, with or without the bot), a `fixed_seed` in tuning or a `--tuning=` file
+  (`RushRecords.allowed`, pure, tested; Main builds its switches in `_rush_records_flags`).
 - **D10 (default)**: Rush fights count in the Rot Journal (7.11), as run fights do.
 - **D11 (default)**: a flawless win shows a plain "FLAWLESS" chip with no reward. A Rush has no spoils.
 - **D12 (default)**: no pact (crossroads, 8.19) at the start of a Rush.
@@ -4128,11 +4130,13 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
   starts on the first card that can be taken. After the last pick the screen turns to the ready
   phase.
 - **Pause** (in a fight or on the Rush screen, not while a gift's party screen is open): the note under
-  PAUSED reads "Fight 7"; rows Continue, Players, Settings, Glossary, **Give up**. Give up asks
+  PAUSED reads "Fight 7" (the fight reached; no note on the first ready screen, before Fight 1 was
+  pressed); rows Continue, Players, Settings, Glossary, **Give up**. Give up asks
   **Give up?** (no detail), yes **Give up**, no **Keep going**.
 - **The end** (a loss or Give up; `RunEndScreen.setup_rush`): **RUSH OVER** in red, a gold **NEW RECORD**
-  under it when this Rush beat its party size's record, then chips: a sword "Fight 16", a star "Best
-  16" with the record's date dim beside it, a person "Solo" / "Duo" / "Trio", and the heroes' faces
+  under it when this Rush beat its party size's record, then chips: a sword "Fight 16" (left out when
+  the Rush was given up before its first fight: never "Fight 0"), a star "Best 16" with the record's
+  date dim beside it, a person "Solo" / "Duo" / "Trio", and the heroes' faces
   and levels. The killer row after a loss (not after Give up) and the defence rows; no Kept row
   (nothing is kept). Footer **Again** (the Fight Rush players screen, same seats) / **Main menu**.
   Music: the victory song on a new record, otherwise the defeat song.
@@ -4253,7 +4257,8 @@ Tuning (`tuning.tres`, group "Fight Rush"; the first values, not yet tuned with 
 **Dev and bot switches** (`AUTOPLAY_` lines only with `--autoplay`):
 - `--rush`: start a Fight Rush at once. With `--autoplay` the bot plays it: Heal when someone is hurt,
   else the first Relic, else Train, else the item; on the ready phase it spends points, wears Relics
-  and presses Fight. `--players`, `--pad-join-after` and `--pad-leave-after` work as with `--run`.
+  and presses Fight. `--players`, `--pad-join-after` and `--pad-leave-after` work as with `--run` (and,
+  like every dev switch, keep the records out, D9).
 - `--rush-fights=N`: end the Rush after N fights (after the last fight's picks; `rush_capped`). Always
   cap a bot Rush: a perfect bot may never lose.
 - `--rush-start=N`: a head start to fight N. It replays fights 1 to N-1 as perfect wins with the bot's

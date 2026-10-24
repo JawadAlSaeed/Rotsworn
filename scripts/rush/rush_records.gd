@@ -10,9 +10,12 @@ const SIZES: Array[int] = [1, 2, 3]
 const LABELS: Array[String] = ["Solo", "Duo", "Trio"]
 ## The keys `allowed` reads, with the value each must have for a record to count: any dev or bot
 ## switch (DESIGN.md 8.21, default D9) and a late online join (D20) keep the records out of it.
+## `players`, `pad_join_after_s` and `pad_leave_after_s` are the pretend pads of --players and
+## --pad-join-after / --pad-leave-after: they seat friends nobody is holding, so they count too.
 const CLEAN_FLAGS := {
 	"autoplay": false, "screen": "", "start_fight": 1, "rush_fights": 0, "relics_mode": "",
 	"relics_path": "", "fixed_seed": 0, "tuning_default": true, "late": false,
+	"players": 1, "pad_join_after_s": 0, "pad_leave_after_s": 0,
 }
 
 

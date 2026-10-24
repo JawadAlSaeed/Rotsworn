@@ -2545,12 +2545,19 @@ func _show_rush_end() -> void:
 
 
 ## True if this Rush may read and write the Fight Rush records: no bot, dev screen, head start, cap,
-## pretend Relics, fixed seed or other tuning (default D9). Online late joiners come with card #312.
+## pretend Relics or pads, fixed seed or other tuning (default D9). Online late joiners come with card #312.
 func _rush_records_ok() -> bool:
-	return RushRecords.allowed({"autoplay": _options.is_autoplay(), "screen": _options.screen,
-			"start_fight": _options.rush_start, "rush_fights": _options.rush_fights, "relics_mode": _options.relics_mode,
-			"relics_path": _options.relics_path, "seed_override": _options.seed_override,
-			"fixed_seed": _tuning.fixed_seed, "tuning_default": _tuning_path() == TUNING_PATH, "late": false})
+	return RushRecords.allowed(_rush_records_flags(_options, _tuning, _tuning_path() == TUNING_PATH))
+
+
+## The switches `RushRecords.allowed` judges, as these command-line options and tuning set them
+## (`tuning_default`: the shipped tuning file is in use, no --tuning=).
+static func _rush_records_flags(options: CombatOptions, tuning: Tuning, tuning_default: bool) -> Dictionary:
+	return {"autoplay": options.is_autoplay(), "screen": options.screen, "start_fight": options.rush_start,
+			"rush_fights": options.rush_fights, "relics_mode": options.relics_mode, "relics_path": options.relics_path,
+			"seed_override": options.seed_override, "fixed_seed": tuning.fixed_seed, "tuning_default": tuning_default,
+			"players": options.players, "pad_join_after_s": options.pad_join_after_s,
+			"pad_leave_after_s": options.pad_leave_after_s, "late": false}
 
 
 ## Counts the players in now, then writes the fight reached as the record of the most players seen,
@@ -2828,8 +2835,9 @@ func _open_pause() -> void:
 	elif Net.is_client():
 		_pause.setup("Leave the game", "You leave; the others play on.")
 	elif _run is RushState:
-		# A Rush is never saved: Give up ends it on its end screen (DESIGN.md 8.21).
-		_pause.note = "Fight %d" % maxi(1, (_run as RushState).reached())
+		# A Rush is never saved: Give up ends it on its end screen (DESIGN.md 8.21). No note before the
+		# first fight, as the end screen then shows no fight either.
+		_pause.note = (_run as RushState).reached_text()
 		_pause.setup("Give up", "")
 	elif _run != null and _save_allowed():
 		var where := "The stop starts over when you continue (what you already did there stays done)." if _checkpoint_in_stop else "You continue from this map."

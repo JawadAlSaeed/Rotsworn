@@ -370,6 +370,21 @@ func test_a_rush_given_up_has_no_killer_and_no_record_line() -> void:
 	assert_true(plain.has("RUSH OVER"), "builds without a recap too")
 
 
+func test_a_rush_given_up_before_its_first_fight_shows_no_fight_0() -> void:
+	var r := RushState.begin_rush(_rush, _tuning, 7)
+	r.give_up()
+	assert_eq(r.reached(), 0, "Fight was never pressed")
+	var chips := RunEndScreen.rush_chips(r, RushRecords.entry(16, "2026-10-20")).map(
+			func(chip: Dictionary) -> String: return String(chip.text))
+	assert_eq(chips, ["Best 16", "Solo"], "no sword chip without a fight")
+	var texts := _labels_of(_end(r, RushRecords.entry(16, "2026-10-20"), false, {}))
+	assert_true(texts.has("RUSH OVER"))
+	assert_true(texts.has("Best 16") and texts.has("Solo"), "the record and the party size still show")
+	assert_false(texts.any(func(t: String) -> bool: return t.begins_with("Fight ")), "no Fight 0 (nor any fight) chip")
+	assert_eq(RunEndScreen.rush_chips(r, {}).map(func(chip: Dictionary) -> String: return String(chip.text)),
+			["Solo"], "no fight and no record: the party size alone")
+
+
 func test_the_rush_end_chips_read_fight_best_and_party_size() -> void:
 	var r := _won(16)
 	r.note_players(2)

@@ -650,6 +650,12 @@ func reached() -> int:
 	return fight
 
 
+## The fight reached in words, as the pause menu and the Rush end show it ("Fight 7"), or "" while
+## no fight was entered yet (Give up on the first ready screen), so no "Fight 0" is ever shown.
+func reached_text() -> String:
+	return "Fight %d" % reached() if reached() > 0 else ""
+
+
 ## XP hero `slot` still needs to reach the top level (0 at it).
 func xp_to_cap(slot: int) -> int:
 	var need := 0
