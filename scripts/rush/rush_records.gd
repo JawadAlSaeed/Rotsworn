@@ -12,10 +12,11 @@ const LABELS: Array[String] = ["Solo", "Duo", "Trio"]
 ## switch (DESIGN.md 8.21, default D9) and a late online join (D20) keep the records out of it.
 ## `players`, `pad_join_after_s` and `pad_leave_after_s` are the pretend pads of --players and
 ## --pad-join-after / --pad-leave-after: they seat friends nobody is holding, so they count too.
+## `host_clean`: online, the host's own verdict on its switches (a friend's machine cannot see them).
 const CLEAN_FLAGS := {
 	"autoplay": false, "screen": "", "start_fight": 1, "rush_fights": 0, "relics_mode": "",
 	"relics_path": "", "fixed_seed": 0, "tuning_default": true, "late": false,
-	"players": 1, "pad_join_after_s": 0, "pad_leave_after_s": 0,
+	"players": 1, "pad_join_after_s": 0, "pad_leave_after_s": 0, "host_clean": true,
 }
 
 

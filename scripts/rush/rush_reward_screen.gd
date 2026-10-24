@@ -20,6 +20,8 @@ signal party_requested
 ## The ready phase's cards, in order.
 const READY_FIGHT: int = 0
 const READY_PARTY: int = 1
+## A watching friend's footer (online, `remote`): the party button, the one thing they can do here.
+const REMOTE_FOOTER: Array = [[&"party_menu", "Party"]]
 ## The chips under the title: icon size, text size and the gap between chips.
 const CHIP_ICON_PX: float = 36.0
 const CHIP_TEXT_SIZE: int = 28
@@ -94,7 +96,8 @@ func refresh() -> void:
 	var entries: Array = [[&"menu_confirm", confirm], [&"party_menu", "Party"]]
 	if _menu.items.size() > 1:
 		entries.push_front([&"@leftright", "Choose"])
-	_set_footer([] if remote else entries)
+	# A watching friend takes no card, but the party is everyone's: its button is all they can press.
+	_set_footer(REMOTE_FOOTER if remote else entries)
 
 
 ## The list of cards (tests and the bot).
@@ -213,9 +216,10 @@ func ready_cards() -> Array[Dictionary]:
 	var unspent := r.unspent_points()
 	if unspent > 0:
 		party_chips.append(StopScreen.chip_entry(_look, "up", points_text(unspent), _look.chip_gift_color))
+	# Party stays lit for a watching friend (the cursor starts on it): the party is everyone's.
 	var cards: Array[Dictionary] = [
 		{"text": "Fight", "enabled": not remote, "icon": _icon(_look.fight_icon_path), "chips": fight_chips},
-		{"text": "Party", "enabled": not remote, "icon": _icon(_look.party_icon_path), "chips": party_chips},
+		{"text": "Party", "enabled": true, "icon": _icon(_look.party_icon_path), "chips": party_chips},
 	]
 	return cards
 
@@ -370,6 +374,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		party_now()
 		return
 	if remote:
+		# A watching friend: Confirm on the ready phase's Party card (the cursor's only lit card) opens
+		# the party screen; the cursor does not move and nothing is taken.
+		if event.is_action_pressed(&"menu_confirm", false, true) and not rush().picking() \
+				and _menu.index == READY_PARTY:
+			if is_inside_tree():
+				get_viewport().set_input_as_handled()
+			Sfx.play("menu_confirm")
+			party_now()
 		return
 	if _menu.handle(event) != &"confirm" or is_settling():
 		return

@@ -4067,13 +4067,22 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
 - **D6 (default)**: New Run opens two picture cards side by side, **Run** and **Fight Rush** (7.5). The
   Fight Rush card shows the best fight across all party sizes.
 - **D7 (default)**: the pause menu shows Give up in place of Abandon run. Giving up goes to the Rush end
-  screen.
+  screen. Online (#312) only the host has Give up ("The Rush ends for everyone.", RUSH OVER on every
+  machine). Online the pause also opens over a fight that has ended; once a lost fight has decided the
+  Rush (its end screen still up), or the Rush is over, the host's row is **End the game** ("Back to the
+  main menu for everyone.", asked with no detail: nothing is lost), so a loss never turns into a Rush
+  given up. A Give up asked just before the loss takes the fight's own end (`Main._gives_up_rush_now`,
+  pure, tested). When the host leaves after RUSH OVER, a friend's main menu notice reads "The Rush is over."
 - **D8 (default)**: Settings > Reset progress also clears the Rush records (8.17).
 - **D9 (default)**: bot and dev Rushes never write records, and read none (they compare against none):
   `--autoplay`, `--screen=`, `--rush-start` above 1, `--rush-fights`, `--relics=`, `--relics-path=`,
   `--seed=`, the pretend pads of `--players` above 1, `--pad-join-after` and `--pad-leave-after` (they
   seat friends nobody holds, with or without the bot), a `fixed_seed` in tuning or a `--tuning=` file
-  (`RushRecords.allowed`, pure, tested; Main builds its switches in `_rush_records_flags`).
+  (`RushRecords.allowed`, pure, tested; Main builds its switches in `_rush_records_flags`). Online
+  (#312) a friend's machine cannot see the host's switches: the host sends its own verdict in
+  `run_start` (`records`, also in every catch-up) and a friend keeps no record when it says no; a head
+  start in the host's Rush state keeps the record out there too (`host_clean` and `start_fight`).
+  The host is not told when a friend plays as a bot (only that friend's own machine then keeps no record).
 - **D10 (default)**: Rush fights count in the Rot Journal (7.11), as run fights do.
 - **D11 (default)**: a flawless win shows a plain "FLAWLESS" chip with no reward. A Rush has no spoils.
 - **D12 (default)**: no pact (crossroads, 8.19) at the start of a Rush.
@@ -4109,7 +4118,9 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
   **Party** (three heads; a chip "+2 points" while attribute or skill points are unspent). Footer
   Choose / Select / Party. A Rush opens here on FIGHT 1; a Relic bag holding Relics opens the party
   screen on its Relics page first, as a run does (card #265). Y (`party_menu`) opens the party screen
-  in both phases.
+  in both phases. Online (#312) friends watch it: every card greyed but Party in the ready phase (the
+  cursor starts there, Confirm opens it), footer Party only; a friend's change to the party redraws the
+  host's screen too (`Main._apply_bag_op`).
 - **A fight**: the swirl, then the fight in its zone's look and air under its weather (D13). The start
   banner reads **FIGHT 7** in gold, or **NEW BEST 17** once the fight passes the record this party
   size held when the Rush began (when that record is above 0); a boss or guard keeps its name banner.
@@ -4605,7 +4616,7 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
   playing. The newcomer's player is **joining** (`PlayerRoster.joining`, always also away): the host
   keeps playing that hero, no seat time runs, and a chip on every machine reads "P3 joining" (no
   countdown). The host plays `player_join`.
-- **Catching up**: the newcomer's Join screen says "Joining the run ...". The host sends
+- **Catching up**: the newcomer's Join screen says "Joining the game ...". The host sends
   `run_start` (with `late`), the place screen with the whole run, and the fight if one is on, even
   one that just ended (`Main._catch_up`). The friend then sees where the host is: a watched run
   screen ("The host is choosing (P1)"), the zone (its loading card first; only the host walks), or
@@ -4697,7 +4708,7 @@ the Rush is decided. Online Rushes, and dropping into one, come with card #312.
 - `--join-after=S` (with `--join`): connect S seconds after launch, into a run going
   (`AUTOPLAY_JOIN after S s`, then `Joined mid-run as peer N` and `AUTOPLAY_DROPIN joined peer=N`).
 - `--seat-in-fight` (online host): seat a friend who drops in only a few seconds into the next fight
-  (they wait on "Joining the run ..." meanwhile).
+  (they wait on "Joining the game ..." meanwhile).
 - `--crash-after=S` (with `--join`): quit S seconds after launch without a goodbye, like a crash
   (`AUTOPLAY_CRASHED after S s`). Its log has no result line, and it ends with the engine's report
   of resources still in use at exit (not a game error).

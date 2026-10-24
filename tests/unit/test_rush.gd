@@ -637,11 +637,11 @@ func test_records() -> void:
 	assert_eq(RushRecords.best_of([]), 0)
 	var clean := {"autoplay": false, "screen": "", "start_fight": 1, "rush_fights": 0, "relics_mode": "",
 			"relics_path": "", "seed_override": -1, "fixed_seed": 0, "tuning_default": true, "late": false,
-			"players": 1, "pad_join_after_s": 0, "pad_leave_after_s": 0}
+			"players": 1, "pad_join_after_s": 0, "pad_leave_after_s": 0, "host_clean": true}
 	assert_true(RushRecords.allowed(clean))
 	var dirty := {"autoplay": true, "screen": "rush_end", "start_fight": 5, "rush_fights": 3, "relics_mode": "all",
 			"relics_path": "x.json", "seed_override": 7, "fixed_seed": 9, "tuning_default": false, "late": true,
-			"players": 3, "pad_join_after_s": 50, "pad_leave_after_s": 50}
+			"players": 3, "pad_join_after_s": 50, "pad_leave_after_s": 50, "host_clean": false}
 	for key: String in dirty:
 		var f := clean.duplicate()
 		f[key] = dirty[key]

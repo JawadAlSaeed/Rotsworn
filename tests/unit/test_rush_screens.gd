@@ -278,7 +278,7 @@ func test_a_new_rush_opens_on_the_ready_phase() -> void:
 func test_a_watching_client_takes_nothing() -> void:
 	var r := _won(3)
 	var screen := _screen(r, 0, true)
-	assert_eq(screen.footer_entries(), [], "no footer")
+	assert_eq(screen.footer_entries(), [[&"party_menu", "Party"]], "only the party button: no card to take")
 	for row: Dictionary in screen.menu().items:
 		assert_false(bool(row.enabled), "%s is the host's to take" % row.text)
 	watch_signals(screen)
@@ -289,6 +289,34 @@ func test_a_watching_client_takes_nothing() -> void:
 	assert_signal_not_emitted(screen, "acted")
 	_press_on(screen, &"party_menu")
 	assert_signal_emit_count(screen, "party_requested", 1, "a friend may still look at the party")
+
+
+## While the host gets ready, a watching friend sees Fight greyed and Party lit, the cursor on it:
+## Confirm there (or the party button the footer shows) opens the party screen; Fight stays the host's.
+func test_a_watching_client_can_open_the_party_from_the_ready_phase() -> void:
+	var r := _won(3)
+	assert_true(r.take_card(_card_of(r, "point")).has("kind"))
+	r.next_offer()
+	assert_false(r.picking())
+	var screen := _screen(r, 0, true)
+	assert_eq(screen.title_text(), "FIGHT 4")
+	var rows := screen.menu().items
+	assert_false(bool(rows[RushRewardScreen.READY_FIGHT].enabled), "Fight is the host's")
+	assert_true(bool(rows[RushRewardScreen.READY_PARTY].enabled), "the party is everyone's")
+	assert_eq(screen.menu().index, RushRewardScreen.READY_PARTY, "the cursor starts on Party")
+	assert_eq(screen.footer_entries(), [[&"party_menu", "Party"]])
+	watch_signals(screen)
+	_press_on(screen, &"menu_confirm")
+	assert_signal_emit_count(screen, "party_requested", 1, "Confirm on Party opens it")
+	_press_on(screen, &"menu_right")
+	assert_eq(screen.menu().index, RushRewardScreen.READY_PARTY, "a friend's cursor does not move")
+	screen.menu().index = RushRewardScreen.READY_FIGHT
+	_press_on(screen, &"menu_confirm")
+	screen.fight_now()
+	assert_signal_not_emitted(screen, "fight_requested", "never from a friend")
+	assert_signal_emit_count(screen, "party_requested", 1)
+	var host := _screen(r)
+	assert_eq(host.menu().index, RushRewardScreen.READY_FIGHT, "the host's cursor starts on Fight, as before")
 
 
 # --- layout ---------------------------------------------------------------------------------------

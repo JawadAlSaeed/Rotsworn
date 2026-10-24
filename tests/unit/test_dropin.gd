@@ -544,11 +544,12 @@ func test_late_flag_only_from_a_drop_in_catch_up() -> void:
 	# through the catch-up's message list.
 	assert_true(_body(source, "func _catch_up(").contains("_catch_up_messages(_run, _players, late,"),
 			"run_start says late only from _catch_up")
-	assert_true(_body(source, "static func _catch_up_messages(").contains("_run_start_message(run, roster, late)"))
+	assert_true(_body(source, "static func _catch_up_messages(").contains("_run_start_message(run, roster, late, records)"))
 	assert_true(_body(source, "static func _run_start_message(").contains("\"late\": late"))
-	for header: String in ["func _new_run(", "func _new_rush("]:
-		assert_true(_body(source, header).contains("_run_start_message(") and _body(source, header).contains(", false)"),
-				"%s starts everyone on time" % header)
+	assert_true(_body(source, "func _new_run(").contains("_run_start_message(_run, _players, false)"),
+			"func _new_run( starts everyone on time")
+	assert_true(_body(source, "func _new_rush(").contains("_run_start_message(rush, _players, false, _rush_records_ok())"),
+			"func _new_rush( starts everyone on time (with the host's records verdict)")
 	assert_false(source.contains("_join_pending = Net.joined_mid_run"),
 			"the baseline never comes from joined_mid_run (it outlives Again)")
 	assert_true(source.contains("_join_pending = bool(p.get(\"late\", false))"), "it comes from run_start's flag")

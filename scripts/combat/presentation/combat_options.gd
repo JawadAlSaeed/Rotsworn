@@ -134,7 +134,7 @@ var pad_leave_after_s: int = 0
 ## --roster-in-fight: those local changes wait for the next fight and come a few seconds into it.
 var roster_in_fight: bool = false
 ## --seat-in-fight (online host): a friend who drops in is seated only once a fight has been on for a
-## few seconds (tests seating mid-fight; they wait on "Joining the run ..." meanwhile).
+## few seconds (tests seating mid-fight; they wait on "Joining the game ..." meanwhile).
 var seat_in_fight: bool = false
 ## --crash-after=S (online client): the game quits S seconds after launch without a goodbye, like a
 ## crash (its seat goes away on the host; a new client can take it after net_takeover_after_ms, card #304).
