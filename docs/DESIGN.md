@@ -4081,7 +4081,7 @@ Weather is presentation only: no rule changes (a rule touch may come later).
 
 Tests: `tests/unit/test_weather.gd`.
 
-### 8.21 Fight Rush (phase 25, cards #305, #312, built 2026-10-24, waiting for playtest)
+### 8.21 Fight Rush (phase 25, cards #305, #312, built and approved 2026-10-24)
 
 Fight after fight for the furthest fight, with no map, zones, shops or campfires: the endless mode
 dropped in #267, back as its own mode next to the run. Main menu, New Run, **Fight Rush**; online,
@@ -4278,7 +4278,8 @@ best of the three. Only Reset progress clears them (D8).
 writes nothing to `user://progress.json`, is never saved (`_save_allowed`) and never deletes a saved
 run (`_clear_run_save` is guarded). Oath unlocks never come from a Rush (it has no victory).
 
-**Online** (card #312, built 2026-10-24, waiting for playtest). The host's machine plays the Rush
+**Online** (card #312, built 2026-10-24, approved the same day on the tests and bot games, not yet
+played online by hand). The host's machine plays the Rush
 exactly as alone and makes its choices; friends play their own heroes in the fights and watch the
 rest, as in an online run (9.2). Nothing goes back on any machine (decision 3).
 
@@ -4624,7 +4625,7 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
   fight; `--crash-after=S` makes a client quit S seconds after launch without a goodbye, like a
   crash. An online pair now plays for 25 to 30 minutes, so give each side `timeout 2700`.
 
-### 9.3 Drop-in co-op (phase 25, cards #304, #311, built 2026-10-23, waiting for playtest)
+### 9.3 Drop-in co-op (phase 25, cards #304, #311, built 2026-10-23, approved 2026-10-24 on the tests and bot games)
 
 A friend can join a run that is already going, on a local pad or online, and local friends can
 leave or swap heroes mid-run. Branch `phase25-Together`.
@@ -5198,22 +5199,24 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     rats' own voice (#298, 5.3). New sounds picked by ear on 2026-10-22: rat voice, thunder, streak
     swell, rain and wind loops. Added on 2026-10-23 from an idea search: skill presses climb with a
     finish for a perfect skill (#307), and the killing blow goes quiet (#308) (7.15).
-25. **Playing together** (started 2026-10-23, branch `phase25-Together`): drop-in co-op (#304) and
-    leaving or swapping heroes mid-run (#311) are built, waiting for playtest (9.3). A friend joins
+25. **Playing together** (done, approved 2026-10-24, v0.25.0; built 2026-10-23 to 24 on branch
+    `phase25-Together`: Fight Rush approved after a playtest, the rest on the tests and bot games;
+    cards #304, #305, #309, #310, #311, #312 closed): drop-in co-op (#304) and leaving or swapping heroes mid-run (#311) (9.3). A friend joins
     a run already going, on a local pad from a Players row in the pause menu or online with nothing
     for the host to press, and takes a hero P1 or the host was playing; a friend whose game crashed
     drops back into their seat; a late online joiner keeps only later finds. Local friends leave or
-    swap heroes from the same overlay. Fight Rush (#305) is built too, waiting for playtest (8.21,
+    swap heroes from the same overlay. Fight Rush (#305) (8.21,
     owner decisions and defaults agreed 2026-10-24): New Run opens Run / Fight Rush cards; fight
     after fight for the furthest fight, no map, zones, shops or campfires, harder every fight, an
     elite every 5th and a boss every 10th; after each win pick 1 of 3 cards (Heal, Train, an item;
     Relics after elites and bosses); one record per party size; nothing goes back. It brings back
-    the endless mode dropped in #267. Fight Rush online (#312) is built too, waiting for playtest
-    (8.21 "Online"): Host Online asks Run or Fight Rush, the host plays the Rush and picks the cards
+    the endless mode dropped in #267. Fight Rush online (#312) (8.21 "Online"): Host Online asks Run or Fight Rush, the host plays the Rush and picks the cards
     while friends play their heroes and watch the Rush screen with Party open to them, only the host
     gives up, friends drop in, rejoin or come back after a crash as in a run, and records stay on the
-    machines there from the start (protocol 4). Ideas: Save & Quit for online runs (#313), online
-    friends take turns choosing (#314).
+    machines there from the start (protocol 4). Also the playtest bugs #309 (every defence press
+    shows its move, 3.6) and #310 (wind-up attacks charge in, 3.12). Ideas: Save & Quit for online
+    runs (#313), online friends take turns choosing (#314), and dropping the normal Run for Fight
+    Rush (#315, phase 26: after playing it the owner said Rush might replace the Run).
 
 ### 11.1 To-do (from playtests)
 
@@ -5475,3 +5478,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Every defence press shows its move, even one that defends nothing (early, late, wrong button, locked out, in the lead-in): a missed jump jumps, a missed dodge slides, a missed parry raises the guard; judging and the lockout are unchanged, and a hit that lands always replaces the move (3.6) | owner playtest (#309): an early jump left the hero standing there |
 | 2026-10-24 | Wind-up attacks charge in: an attack whose first hit winds up 850 ms or more (as authored) skips the run-up, winds up near home and charges in on its first lunge, reaching contact exactly at impact; quicker openers keep the phase 23 run-up; the attack clock, impact times and windows are unchanged, only the run before the clock goes (3.12) | owner playtest (#310): the Bloat should wind up from where it stands and charge in on the strike, for every wind-up attack; the 850 ms line keeps the approved run-ups (the Husk's swipe, the King's chop) as they are |
 | 2026-10-24 | Review of #309 and #310: a missed press's move starts at the time on screen during a hit-stop, is not started for a hero with nothing left to defend when the hand-back would cut it off, and in an each-in-turn attack moves only the hero its hit strikes (3.6); a charging attacker winds up at home (`charge_windup_share` 0, no glide in its coil) and the 850 ms line moved to tuning as a pacing number (3.12) | code review; the owner's words were "wind up from where it stands" (asleep, not asked: a step out can come back by raising the share, with chase cells for the glide) |
+| 2026-10-24 | Phase 25 approved and its cards closed (#304, #305, #309, #310, #311, #312): Fight Rush after a playtest, drop-in co-op, leaving or swapping heroes, Fight Rush online and the two bug fixes on the tests and bot games without a hand test; an idea card asks whether Fight Rush should replace the normal Run (#315, phase 26) | owner after playing a Rush: "this game mode is so good, i might scrap the original mode for it"; online could not be tested ("i can trust your word for it"); v0.25.0 |
