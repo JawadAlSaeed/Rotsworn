@@ -3192,13 +3192,15 @@ Since phase 26 (8.22) each place's guard is fought at a Guard stop and the champ
   | Mire Mother | Brood Tide (waves and mud) | 2 | 21% | 8 | 7 |
   | Ash Warden | Ashfall (cinders and rocks) | 2 | 36% | 8 | 9 |
   | The Husk Lord (act 1 boss) | Timber Fall | 3 | 22% | 8 | 14 |
-  | The Hollow King (act 2 boss) | Crown of Rot | 3 | 13% | 10 | 8 |
+  | The Leech Queen (act 2 boss, 8.23) | Drowning Tide (waves, tail sweeps, spit) | 3 | 17% | 9 | 9 |
+  | The Hollow King (act 3 boss) | Crown of Rot | 3 | 13% | 10 | 8 |
 
   The break shares were set from bot runs (2.3): a focused, perfectly defending bot breaks about
   7 in 10 (the King about 6 in 10); they are meant to be re-tuned from play. All five files are
   written by `tools/make_attack.py`; the enemy files list the Doom by hand (the one-shot
   `bootstrap_phase15.gd` does not know it). The choreography golden test took the five new files
-  (55 attacks, every older hash unchanged).
+  (55 attacks, every older hash unchanged). The Leech Queen's Doom came with card #323 (8.23), its
+  break share a first guess between the Lord's and the King's.
 - **Better reward**: spoils (after a guard, an elite or an act's boss) are gear of at least
   `run_spoils_min_rarity` (rare) while the run has enough of it, and one of the choices is a
   rot-touched piece (8.16).
@@ -3252,7 +3254,7 @@ scarce, and a "?" can turn into a fight.
 - **Depth**: gold and XP in an event (prices and rewards alike, so the trade keeps its shape) grow by
   `tuning.event_reward_row_percent` (6) for every map row of depth, acts counting the rows before them
   (`RunState.event_scale`): 100% on row 0 of act 1, about 130% on its row 5, about 166% on row 4
-  of act 2.
+  of act 2 (about 208% on row 4 of act 3).
 - **A "?" stop can be an ambush instead of an event.** On entering a "?" stop (`RunState.go`) the run
   rolls once, seeded by the stop (`AMBUSH_SALT`), against `unknown_fight_percent_base` (15) plus
   `unknown_fight_percent_step` (15) for every "?" stop passed without a fight since the last one.
@@ -3260,7 +3262,7 @@ scarce, and a "?" can turn into a fight.
   (`RunState.ambush_streak`, 15%, 30%, 45%, ...). The stop then shows its own page, "An Ambush!"
   (`ActData.ambush_title` and `ambush_text`, and the fight's name), with one choice, Fight; no event
   is used up. The fight is one of the act's `ActData.ambushes` (ordinary 2 to 3 enemy fights, in
-  their deep version in act 2) in the look and air of one of the act's places, under a rolled
+  their deep version in a deep act or row: act 3, or row 4 on) in the look and air of one of the act's places, under a rolled
   weather (8.22); it pays gold and XP and gives no spoils.
 - **Online and Save & Quit**: the host chooses, the clients see the result. The run dict carries the
   new state (`ambush_streak`, `ambush_id`, `ambush_spoils`; `apply_dict` refuses a negative or
@@ -3269,40 +3271,45 @@ scarce, and a "?" can turn into a fight.
   was saved on entering the stop (8.14) comes back to the same ambush page.
 - **The events.** An act's "?" stops pick from its `events`, never one met before in the run
   (`RunState.events_seen`, synced online). Twenty, written by `tools/bootstrap_events.gd` (which
-  also fills both acts' event lists and ambush pools; every event has its own picture, see "The pictures" below):
+  also fills the three acts' event lists and ambush pools; every event has its own picture, see "The pictures" below):
 
   | Event | Act | Choices (every one has a price) |
   |---|---|---|
-  | The Weeping Well | 1, 2 | Drink: heal 35%, everyone -4% max HP, 30% risk -15% HP; coin: team gauge +50, 25% risk an ambush |
-  | Gambler's Bones | 1, 2 | Stake 25 gold for 80, 55% to lose 100; or the purse: 60 gold, 55% -10% HP and a Grave Moss curse |
-  | A Wounded Pilgrim | 1 | Give an item of your pick: XP and a 20% heal; or the satchel: gold and a Salve, 55% an ambush |
-  | Rot Blossom | 1 | One hero eats the fruit (-6% max HP): heal 35%, 30% risk; or the seed pod: a rare find and a curse |
+  | The Weeping Well | 2, 3 | Drink: heal 35%, everyone -4% max HP, 30% risk -15% HP; coin: team gauge +50, 25% risk an ambush |
+  | Gambler's Bones | 1, 2, 3 | Stake 25 gold for 80, 55% to lose 100; or the purse: 60 gold, 55% -10% HP and a Grave Moss curse |
+  | A Wounded Pilgrim | 1, 2 | Give an item of your pick: XP and a 20% heal; or the satchel: gold and a Salve, 55% an ambush |
+  | Rot Blossom | 1, 2 | One hero eats the fruit (-6% max HP): heal 35%, 30% risk; or the seed pod: a rare find and a curse |
   | The Hanging Cage | 1 | Climb: a find from the dead man's pack, 45% risk of -6% max HP (random hero) and -15% HP; or fell the tree: a find and 60 gold, certain ambush (Bloat and Gnat Swarm) |
-  | Merchant's Wreck | 1, 2 | Search the crates: a rare find, 45% an ambush (the hyenas); or pry the strongbox: 70 gold for a random pack item |
-  | The Whispering Mask | 1, 2 | A chosen hero wears it (-8% max HP): 90 XP each, 40% risk; or sell it: a Golden Idol and a curse |
-  | The Bone Collector | 1 | Trade a chosen item and gold for a rare find; or sell a rib (a chosen hero -7% max HP) for gold |
+  | Merchant's Wreck | 1, 2, 3 | Search the crates: a rare find, 45% an ambush (the hyenas); or pry the strongbox: 70 gold for a random pack item |
+  | The Whispering Mask | 1, 2, 3 | A chosen hero wears it (-8% max HP): 90 XP each, 40% risk; or sell it: a Golden Idol and a curse |
+  | The Bone Collector | 1, 3 | Trade a chosen item and gold for a rare find; or sell a rib (a chosen hero -7% max HP) for gold |
   | The Hungry Scarecrow | 1 | Feed it a random item: heal 40% and XP; or cut the stitches: gold, XP and a certain ambush |
   | The Tithe Collector | 1 | Pay coin: heal 30% and gauge; or pay blood (everyone -6% max HP): gold and XP |
-  | Shrine of Old Kings | 2 | Kneel (a chosen hero -8% max HP): gauge +70 and XP; or pry the gold: 100 gold, 55% an elite ambush with spoils |
-  | The Black Mirror | 2 | Touch it (-5% max HP all): 100 XP, 40% an ambush; or smash it: 90 gold and a Rotting Heart curse |
+  | Shrine of Old Kings | 3 | Kneel (a chosen hero -8% max HP): gauge +70 and XP; or pry the gold: 100 gold, 55% an elite ambush with spoils |
+  | The Black Mirror | 2, 3 | Touch it (-5% max HP all): 100 XP, 40% an ambush; or smash it: 90 gold and a Rotting Heart curse |
   | The Drowned Chapel | 2 | Ring the bell (-5% max HP all): heal 45%, 50% an ambush; or take the silver: 120 gold and a curse |
-  | The Buried Cairn | 2 | Dig: gold and a rare find, certain ambush; or say the name (lose a chosen item): gauge and XP |
-  | The Sealed Door | 2 | Break the seal: gold, an elite ambush with spoils; or pick the lock (lose a chosen item): gold and a rare find |
-  | The Widow's Wager | 2 | Buy in (40 gold): XP, 50% a random hero -8% max HP; or stake a hero (-10% max HP): a legendary find, 40% a curse |
-  | The Healing Spring | 1, 2 | Leave a coin (35 gold): heal 30%; or fish out the coins: 60 gold, 50% risk of a random hero -5% max HP and -10% HP |
-  | The Blood Altar | 2 | Bleed (everyone -4% max HP): a rare find; or drink: a Rotting Heart curse, heal 50% and team gauge +30 |
+  | The Buried Cairn | 3 | Dig: gold and a rare find, certain ambush; or say the name (lose a chosen item): gauge and XP |
+  | The Sealed Door | 3 | Break the seal: gold, an elite ambush with spoils; or pick the lock (lose a chosen item): gold and a rare find |
+  | The Widow's Wager | 2, 3 | Buy in (40 gold): XP, 50% a random hero -8% max HP; or stake a hero (-10% max HP): a legendary find, 40% a curse |
+  | The Healing Spring | 1, 2, 3 | Leave a coin (35 gold): heal 30%; or fish out the coins: 60 gold, 50% risk of a random hero -5% max HP and -10% HP |
+  | The Blood Altar | 3 | Bleed (everyone -4% max HP): a rare find; or drink: a Rotting Heart curse, heal 50% and team gauge +30 |
   | The War Idol | 1 | An offering (40 gold): 50 XP each; or bleed on its horns (a chosen hero -5% max HP): gauge +60 |
-  | The Grave Robber | 1, 2 | Buy (50 gold): a rare find; or help him dig: 45 gold and a find, 40% an ambush (Husk, Gnats and Fly) |
+  | The Grave Robber | 1, 3 | Buy (50 gold): a rare find; or help him dig: 45 gold and a find, 40% an ambush (Husk, Gnats and Fly) |
 
   The last four came from the zones' shrines and wanderers (phase 26, 8.22 G2; the War Idol takes in
-  the Shrine of Plenty). Each act draws from thirteen and six are in both: the Weeping Well,
-  Gambler's Bones, Merchant's Wreck, the Whispering Mask, the Healing Spring and the Grave Robber; the
-  War Idol is act 1 only, the Blood Altar act 2 only. The act's ambush pools: act 1 Bloat and Gnat
-  Swarm, Rot Hyena and Carrion Fly, Mire Toad and Carrion Fly, Shade and Gnat Swarm, Two Carrion
-  Flies, Rot Rat Pack, Husk, Gnats and Fly, Slinger and Rats; act 2 Rot Hyena Pack, Rot Hyena and
-  Carrion Fly, Shade and Gnat Swarm, Mire Toad and Carrion Fly, Bloat and Gnat Swarm, Rot Priest and
-  Hyenas, Lantern Swarm, Barrow Brute and Rot Rat, Pus Tick Nest (deep versions). The phase-19 fights
-  in them are kept by `bootstrap_events.gd`.
+  the Shrine of Plenty). Since card #323 (8.23) there are three acts, one place each, and each act's
+  list fits its place where it can: act 1 (Rotten Hollow) twelve, act 2 (Sunken Bog) ten, act 3
+  (Ashen Ruins) thirteen. Gambler's Bones, Merchant's Wreck, the Whispering Mask and the Healing
+  Spring are in all three; the Hanging Cage, the Hungry Scarecrow, the Tithe Collector and the War
+  Idol are act 1 only, the Drowned Chapel act 2 only, the Shrine of Old Kings, the Buried Cairn, the
+  Sealed Door and the Blood Altar act 3 only; every event is in at least one act (a test checks it).
+  The act's ambush pools: act 1 Bloat and Gnat Swarm, Shade and Gnat Swarm, Two Carrion Flies, Rot
+  Rat Pack, Husk, Gnats and Fly, Pus Tick Nest; act 2 Mire Toad and Carrion Fly, Lantern Swarm, Two
+  Carrion Flies, Pus Tick Nest, Rot Rat Pack, Husk, Gnats and Fly; act 3 Rot Hyena Pack, Rot Hyena
+  and Carrion Fly, Rot Priest and Hyenas, Barrow Brute and Rot Rat, Slinger and Rats, Shade and Gnat
+  Swarm (deep versions). An event's own ambush (the Grave Robber's Husk, Gnats and Fly in act 3, the
+  Merchant's Wreck's hyenas in act 2) is any act's ambush fight, so it is fought where the event is.
+  The phase-19 fights in them are kept by `bootstrap_events.gd`.
 - `EventScreen`: the picture, the story, the choices, then what happened and Continue (or Fight). Items go into
   the backpack (it opens when full); online the host chooses and the clients see the result.
 - **The pictures (card #199, 2026-10-17).** Each event has its own painted scene,
@@ -3328,7 +3335,9 @@ scarce, and a "?" can turn into a fight.
   idol of black stone with ember eyes, swords, a shield, coin and skulls at its feet; the Grave
   Robber a hooded man with a low lantern and a spade by a freshly opened grave. The act 1
   ambush is a road closing in with eyes in the trees and a dropped purse as bait; the act 2 ambush
-  pale hands and ember eyes in the ash round a half-buried coffer.
+  (card #323) a bog at night, black water to the horizon, a purse on a mud bank and violet eyes in
+  the reeds and the water; the act 3 ambush pale hands and ember eyes in the ash round a half-buried
+  coffer.
   Made like the rest of the world: a flat painted back (sky, two ridges, bare trees, ground, mist,
   glow and vignette from the shared colour ramps, bands cut by a light ordered dither) with the
   subject in front built as a small 3D model and rendered by the same camera and light as the props
@@ -3358,18 +3367,20 @@ scarce, and a "?" can turn into a fight.
   since phase 26 (8.22) the prize rules live in `RunState.open_treasure` alone and the chest
   pictures in `StopVisuals` (`chest_closed_path`, `chest_open_path`).
 
-### 8.9 Two acts (card #163) and the map (card #162)
+### 8.9 Three acts (cards #163, #323) and the map (card #162)
 
 - `RunData.acts` (`ActData`, `data/runs/acts/`): each act has its places (`ActData.zones`, each a
   `ZoneData`: since phase 26 a place, 8.22), elite fights, events, a boss with its lair look and map
   picture, and `deep` (every Fight and Guard stop's fight is its variant version).
-  **Act 1, The Rotten Road**: Rotten Hollow and Sunken Bog, boss **The Husk Lord** (an iron-black
-  husk kin with a rotten husk at its side, phase two at half HP). **Act 2, The Ashen Deep**: Ashen
-  Ruins, Sunken Bog and Rotten Hollow, all deep, boss The Hollow King. A run without acts is one act
-  made of its own fields.
+  Since card #323 (8.23) three acts, one place each. **Act 1, The Rotten Road**: Rotten Hollow,
+  boss **The Husk Lord** (an iron-black husk kin with a rotten husk at its side, phase two at half
+  HP). **Act 2, The Drowned Mire**: Sunken Bog, boss **The Leech Queen** (8.23). **Act 3, The Ashen
+  Deep**: Ashen Ruins, deep, boss The Hollow King. (Before #323 there were two acts: the Rotten Road
+  had the Hollow and the Bog, the Ashen Deep all three places.) A run without acts is one act made of
+  its own fields.
 - Each act has its own map (`run_map_rows` 6 rows, then the boss; act 1 from the run's seed, later
   acts from a seed of their own). Beating an act's boss gives spoils, everyone heals
-  `run_act_heal_percent` (50%), and the next act's map opens (its title says "Act 2: ..."). Only the
+  `run_act_heal_percent` (50%), and the next act's map opens (its title says "Act 2: ...", then "Act 3: ..."). Only the
   last boss ends the run. Depth (enemy growth, rarity) counts the rows of the acts before. Seeds of
   finds, drops and chests take the act into account (each act numbers its stops from 0); a zone's
   locked chest also took its index in the zone into the seed (card #176, gone with the zones).
@@ -3378,7 +3389,7 @@ scarce, and a "?" can turn into a fight.
   shop 12, rest 12; row 0 Fight stops, row 1 Guard stops (`run_guard_row`, 8.22), row 3 treasure,
   the row before the boss campfires, at least one shop. New painted pictures (art kit `map_art.py`):
   a horned skull over crossed blades (elite), a red "?" (event), a gold-banded chest (treasure),
-  the Husk Lord's crowned hollow tree (act 1's lair). A **legend** down the left side names every
+  the Husk Lord's crowned hollow tree (act 1's lair), the Leech Queen's crowned pool (act 2's, 8.23). A **legend** down the left side names every
   picture (since phase 26 it starts with Fight and Guard). **Planning**: while a next stop is picked, every stop and road it cannot lead to is
   drawn faint (`unreachable_alpha`), so its roads ahead stand out.
 - An act with no elite fights or no events never gets those stops: `RunMap.generate` takes
@@ -4300,14 +4311,16 @@ never the same fight twice in a row while there is a choice) and takes one of th
 
 | Tier | From fight | Places | Normal fights | Elites | Deep |
 |---|---|---|---|---|---|
-| Hollow | 1 | Rotten Hollow | its roamers (7) | act 1's elites (3) | no |
-| Bog | 11 | Sunken Bog | its roamers and act 1's ambushes (14) | act 1's elites (3) | no |
-| Ruins | 21 | Ashen Ruins | its roamers and act 2's ambushes (13) | act 2's elites (3) | yes |
-| Everything | 31 | all three | all of the above (23) | both acts' elites (4) | yes |
+| Hollow | 1 | Rotten Hollow | its roamers (7) | act 1's elites (2) | no |
+| Bog | 11 | Sunken Bog | its roamers and act 2's ambushes (10) | act 2's elites (2) | no |
+| Ruins | 21 | Ashen Ruins | its roamers and act 3's ambushes (9) | act 3's elites (2) | yes |
+| Everything | 31 | all three | all of the above (23) | every act's elites (4) | yes |
 
-The boss cycle: fights 10, 20, 30, 40 and 50, then again from 60. Each tier ends on its own place's
-guard, the guards come before the Husk Lord, and the Hollow King (the hardest fight, #177) closes
-each cycle. In a deep tier a guard is fought as its deep version.
+(Since card #323 each tier takes its own act's ambushes and elites, one act per place, 8.23.)
+
+The boss cycle: fights 10, 20, 30, 40, 50 and 60, then again from 70. Each tier ends on its own
+place's guard, the guards come before the Husk Lord, the Leech Queen follows him (since card #323,
+8.23), and the Hollow King (the hardest fight, #177) closes each cycle. In a deep tier a guard is fought as its deep version.
 
 | Boss | Fight | Encounter | Place | Home depth |
 |---|---|---|---|---|
@@ -4315,7 +4328,8 @@ each cycle. In a deep tier a guard is fought as its deep version.
 | 2 | 20 | Mire Mother (`guard_mire_mother`) | Sunken Bog | 3 |
 | 3 | 30 | Ash Warden (deep, `deep_guard_ash_warden`) | Ashen Ruins | 9 |
 | 4 | 40 | The Husk Lord (`husk_lord_fight`) | Rotten Hollow, act 1's final look | 6 |
-| 5 | 50 | The Hollow King (`hollow_king`) | the Hollow Throne (act 2's final look), no weather | 13 |
+| 5 | 50 | The Leech Queen (`leech_queen_fight`) | Sunken Bog, act 2's final look (her lair) | 13 |
+| 6 | 60 | The Hollow King (`hollow_king`) | the Hollow Throne (act 3's final look), no weather | 20 |
 
 A boss fight pays at least `rush_boss_min_xp` (260; the Hollow King's own data pays 60), and every
 Rush XP gain is scaled by `rush_xp_percent`.
@@ -4415,7 +4429,7 @@ offer, spare XP, the Rush counters for Relic slots, and its own "rush" block in 
 refuses a Rush dict and the other way round: `RunState.mode()`). `RunState` gained small seams that
 change nothing for runs (`_start`, `mode`, `_fight_depth`, `_scales`, `shows_gold`, `teaches_echoes`,
 `xp_full`). Data: `RushData`, `RushTier`, `RushBoss` (`scripts/data/`) and `data/rush/fight_rush.tres`,
-written by `tools/bootstrap_rush.gd` from the run, its two acts and the three places. Re-run the tool
+written by `tools/bootstrap_rush.gd` from the run, its three acts and the three places. Re-run the tool
 after a place's roamer pool, an act's elites or ambushes, or the run's items change: `test_rush_data.gd`
 fails on stale data until then. Missing or broken data greys the Fight Rush card ("locked" on
 Confirm) and logs an error, never a crash. Main's flow is its "the Fight Rush" section (`_start_rush`
@@ -4748,6 +4762,82 @@ in the order of the story line "forests to husks, rivers to bog, cities to ash":
   cycle takes the Leech Queen in too (8.21).
 - Later ideas, not built: a boss pool per act that rotates between runs like Slay the Spire (#324,
   first extra idea the Mire Saint), and one special rule ("gimmick") for each act boss (#325).
+
+**As built** (card #323, 2026-10-25; not yet seen in a game window, the pictures and the feel are for
+the owner to check):
+
+- **The acts** (`data/runs/acts/`, `RunData.acts` in `data/runs/rotten_road.tres`): `rotten_road`
+  (The Rotten Road: Rotten Hollow, the Husk Lord, elites Twin Husks and Shade Coven), the new
+  `drowned_mire` (**The Drowned Mire**: Sunken Bog, the Leech Queen in her lair, elites Toad Court and
+  Twin Husks, its own ambush page and picture) and `ashen_deep` (The Ashen Deep: Ashen Ruins, deep,
+  the Hollow King, elites The Laughing Pack and Shade Coven). Two elites per act; Twin Husks and
+  Shade Coven are in two acts each so every act has a choice. Each act draws ten to thirteen events
+  and six ambush fights that fit its place (the lists are in 8.7); every event is in at least one
+  act. `tools/bootstrap_events.gd` writes the three lists; `tools/bootstrap_phase15.gd` writes the
+  three acts too (still not to be re-run as it is, see CLAUDE.md).
+- **Depth.** Every act is 7 rows (6 and the boss), so the run is now 21 rows deep: act 2 is rows 7
+  to 13, act 3 rows 14 to 20. Enemies, events and drops grow with that depth as before (8.3), so
+  act 3's monsters are tougher than the old act 2's; bosses still do not grow. The first act's
+  guard is the Gorged One, the second's Mire Mother, the third's the deep Ash Warden. Only act 3 is
+  `deep` (rows 4 on are deep in every act, 2.16). Beating act 1's or act 2's boss heals 50% and opens
+  the next map; only the Hollow King ends the run. A Relic slot still opens after act 1's boss only
+  (8.17); act 2's boss opens none (a default, for the balance talk).
+- **The Leech Queen** (`data/enemies/leech_queen.tres`, `data/encounters/leech_queen_fight.tres`,
+  "The Leech Queen", a boss fight: no running, team ultimate): HP 530%, power 150%, speed 135 (185 in
+  phase two), between the Husk Lord (420%, 140%) and the Hollow King (650%, 165%); 150 gold, 320 XP;
+  she goes for wounded heroes (`target_rule` WOUNDED, bias 220%). Two **Leechlings** at her side
+  (`leechling.tres`: 40% HP, 45% power, speed 190; Leech Bite marks Weakened, Wriggle feints then
+  rends). Phase one: **Draining Bite** (a feint, then a rend; drinks 75%), **Tail Sweep** (two
+  party-wide sweeps, dodge only, the second a forced feint), **Black Water** (two party-wide ground
+  waves, jump), **Blight Spit** (a thrown glob of black bile that Blights for 3 turns) and her
+  Signature Doom **Drowning Tide** (3 turns to gather, 9 hits: waves, tail sweeps, spit and rends,
+  break 17%). At half HP the banner **THE LEECH QUEEN HUNGERS!**, phase two at 91% tempo: **Gorging
+  Bite** (three hits, drinks 90%), **Tail Lash** (three sweeps), **Black Flood** (three waves),
+  **Blight Volley** (three globs; only the last marks, and only in a hard fight, so she has one
+  marking move in an ordinary fight), the new move **Feeding Frenzy** (bites every hero in turn,
+  drinks 60%, then rests a turn) and the Doom again. All her moves come from `tools/make_attack.py`
+  (the tail moves' hits carry `anim = "tail"`, so she plays her tail clips; the choreography golden
+  test took the 12 new files, 96 attacks, every older hash unchanged).
+- **The drinking bite** (a core rule, `EnemyAttackData.drain_percent`, 0 to 100): every hit of such
+  a move that lands undefended heals the attacker that percent of the HP the hero lost (at least 1,
+  never above her max HP). A defended hit drinks nothing; a hero who had less HP than the hit drinks
+  only what was left; a Blighted attacker drinks less (Blighted cuts every heal, 2.7); an attacker
+  already dead (thorns) or at full HP drinks nothing. The engine puts `drain` on the move's defend
+  prompts and sends a `healed` event with `cause: "drain"` right after the hit's `prompt_resolved`
+  (the only heal that names a cause); the screen shows **DRAIN** and the heal number over her. Tests:
+  `test_leech_queen.gd` (and the event fields in `test_combat_engine.gd`).
+- **Art** (art kit): `enemy_leech_queen.py` (108x108 cells, about 85 px tall: a pale crowned queen
+  whose body ends in a giant ringed leech tail coiled in black water, violet glow on her tell; the
+  usual clips plus rage, a tail wind-up and lunge for the sweeps and a spit) and
+  `enemy_leechling.py` (48x48), their portraits and clip layouts (`data/clips/`); `fx_attacks.py`
+  the black bile glob (`data/projectiles/black_bile.tres`); `map_art.py` her lair picture for act 2's
+  boss stop (`map_lair_leech_queen.png`); `event_art.py` act 2's ambush page
+  (`ambush_drowned_mire.png`); `env_floor.py` a new floor, `mire_tile` (black silt, pools of black
+  water, violet glints). **Her lair** (`data/looks/leech_lair.tres`): the Sunken Bog's look made
+  darker and violet, with the mire floor, violet lights and shrooms, drifting motes, a blood-violet
+  light in her phase two; `tools/dress_arenas.gd` dresses it as a drowned bog court (a stilt hut, a
+  broken arch, a log, bones, two swamp lanterns). Her name banner, the boss song and the rage come
+  from the shared boss rules; she is in the Rot Journal and the practice list like every enemy and
+  fight (they read the folders).
+- **Her voice is a pick for the owner**: she reuses `voice_shade` (the Shade's whisper), the
+  Leechlings `voice_bloat`, until the owner picks or the sound kit makes her own.
+- **Relics**: she drops Hunger Charm, Bloodletter's Fang, Black Ichor, Still Water and Second Wind;
+  the Leechlings Heartleaf, Mossbed and Bitter Root (`tools/bootstrap_relics.gd` lists them).
+- **Fight Rush** (8.21): the boss cycle is now six bosses, the Leech Queen at fight 50 in her lair
+  (a Sunken Bog weather), the Hollow King at fight 60; the tiers take the act matching their place.
+  Her home depth is 13 (where a run meets her), the King's 20; the guards keep 1, 3 and 9 (where the
+  Rush's own tiers meet them). `data/rush/fight_rush.tres` was rewritten by `tools/bootstrap_rush.gd`.
+- **Saves**: `RunSave.FORMAT_VERSION` 4. A format 3 save (two acts) is kept on disk but never offered,
+  since its act 2 would now carry on in the bog instead of the ruins.
+- **Glossary and README**: the Boss and The run entries name three acts and three bosses.
+- **Bot runs** (headless, after #323): `--autoplay --run --seed=7` run_victory (act 3, 21 stops, 14
+  fights; the Queen in 17 turns), `--seed=3` run_victory (act 3, 21 stops, 13 fights; the Queen in
+  13 turns); `--encounter=leech_queen_fight` victory (32 turns, two Dooms announced, one broken;
+  seeds 5 and 11 victory too), `--autoplay=miss` defeat in 15 turns; `--rush --rush-start=50
+  --rush-fights=1` rush_capped (the Queen at fight 50, victory). No `ERROR` lines.
+- **Known limits**: the balance of the longer run is not tuned (the balance talk, #321); her
+  numbers are first guesses between the Lord and the King; the Drowning Tide's break share is a
+  guess; the black bile's launch point is set by eye from the sheet, not seen in game.
 
 ## 9. Multiplayer (phase 5)
 

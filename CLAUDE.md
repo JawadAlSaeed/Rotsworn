@@ -135,7 +135,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   prints PASS or FAIL. DESIGN.md 10.
 - To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
   every S seconds in `%APPDATA%/Godot/app_userdata/Rotsworn/shots/<name>/`), combined with
-  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|echoes|relics|party_relics|calibration|tutorial|map|map_start|first_strike|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players|rush_cards|rush_players|rush_reward|rush_reward_elite|rush_ready|rush_end|rush_pause`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
+  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|echoes|relics|party_relics|calibration|tutorial|map|map_start|map_act2|map_act3|first_strike|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players|rush_cards|rush_players|rush_reward|rush_reward_elite|rush_ready|rush_end|rush_pause`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
   skills list (or any state; `|` moves on to the next turn) for pictures; `--pad-prompts` shows pad
   buttons, `--key-prompts` keyboard keys. Look at the pictures before telling the user a visual change is done.
   (Use `quiet_run.bat` for this when the owner is at the PC, see above.)
@@ -237,7 +237,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `tests/unit/` GUT tests
 - `tools/` headless helper scripts (placeholder generation, data bootstrap, `bootstrap_run.gd`
   for the run, shop, gear, boss and the places' looks; `bootstrap_phase15.gd` for the mini-boss
-  guards, elite fights and the run's two acts, 8.6 to 8.9 (older than the hand-edited data: do not
+  guards, elite fights and the run's three acts, 8.6 to 8.9 and 8.23 (older than the hand-edited data: do not
   re-run it as it is); `bootstrap_events.gd` for the "?"
   events and the acts' ambush pools, 8.7, run after bootstrap_phase15.gd; `bootstrap_relics.gd` for
   the Relics' stat lines, Echo costs and the monsters' drops, 8.17; `bootstrap_rush.gd` for
