@@ -278,6 +278,31 @@ func test_the_shop_shows_an_item_as_its_picture_name_and_chips() -> void:
 	await get_tree().process_frame
 
 
+func test_the_shop_footer_names_the_directions_the_shop_moves_with() -> void:
+	# The cursor reads the menu directions. The move actions only mark P1's pad since phase 26
+	# (DESIGN.md 8.22 G8), so a chip naming them would follow a rebinding that does nothing here.
+	var run := _shop_run()
+	var shop := ShopScreen.new()
+	add_child_autofree(shop)
+	shop.setup(run, run.shop_gear(run.at))
+	var bars := shop.find_children("*", "HintBar", true, false)
+	assert_eq(bars.size(), 1, "the shop has one footer")
+	var token: StringName = ((bars[0] as HintBar)._entries[0] as Array)[0]
+	assert_true(HudStyle.NAV_TOKENS.has(token), "its first chip is the directions")
+	var actions: Array = HudStyle.NAV_TOKENS.get(token, [])
+	assert_eq(actions.size(), 4, "all four of them")
+	for action: StringName in actions:
+		assert_true(String(action).begins_with("menu_"), "%s is a menu direction" % action)
+	assert_gt(shop.count(), 1, "something to move to")
+	shop._sel = 0
+	var press := InputEventAction.new()
+	press.action = &"menu_right"
+	press.pressed = true
+	shop._unhandled_input(press)
+	assert_eq(shop._sel, 1, "and a menu direction moves the cursor")
+	await get_tree().process_frame
+
+
 func test_a_relic_in_the_shop_keeps_its_chips() -> void:
 	var run := _shop_run()
 	var shop := ShopScreen.new()

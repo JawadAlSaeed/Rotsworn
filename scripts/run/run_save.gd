@@ -10,7 +10,9 @@ extends RefCounted
 
 ## Bump when the file's shape changes (an older or newer file is then refused). 2: phase 26, a run
 ## without zones (DESIGN.md 8.22); a run saved inside a zone is kept on disk but never offered.
-const FORMAT_VERSION: int = 2
+## 3: the Key's file went (card #319), and the first phase 26 builds (format 2) could still give a
+## Key; such a pack would no longer load and the menu would delete the run, so format 2 is kept too.
+const FORMAT_VERSION: int = 3
 const PATH := "user://run_save.json"
 const TEMP_SUFFIX := ".tmp"
 const BACKUP_SUFFIX := ".bak"

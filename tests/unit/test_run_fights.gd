@@ -408,19 +408,41 @@ func test_every_place_has_its_guard() -> void:
 			assert_eq(zone.guard.deep.id, "deep_" + zone.guard.id, "with its deep version")
 
 
+func test_every_place_still_names_its_song_and_loop() -> void:
+	# Unplayed since the zones went (DESIGN.md 8.22 G6, G7), but kept so the talk can bring them back.
+	var songs := {"rotten_hollow": "hollow", "sunken_bog": "bog", "ashen_ruins": "ruins"}
+	for zone: ZoneData in _data.zones:
+		var short := String(songs.get(zone.id, "?"))
+		assert_eq(zone.music_path, "res://assets/audio/music/zone_%s.ogg" % short, "%s: its song" % zone.id)
+		assert_eq(zone.ambience_path, "res://assets/audio/ambience/ambience_%s.ogg" % short, "%s: its loop" % zone.id)
+		assert_true(ResourceLoader.exists(zone.music_path), "%s: the song is still in assets/" % zone.id)
+		assert_true(ResourceLoader.exists(zone.ambience_path), "%s: the loop is still in assets/" % zone.id)
+
+
 # --- saves and online --------------------------------------------------------------------------------
 
 func test_a_save_from_before_is_kept_but_not_offered() -> void:
-	assert_eq(RunSave.FORMAT_VERSION, 2)
+	assert_eq(RunSave.FORMAT_VERSION, 3)
 	_save_path = OS.get_temp_dir().path_join("rotsworn_test_run_fights_%d.json" % Time.get_ticks_usec())
-	var old := {"format": 1, "fingerprint": "x", "in_stop": false, "players": 1, "run": _run().to_dict()}
-	var file := FileAccess.open(_save_path, FileAccess.WRITE)
-	file.store_string(JSON.stringify(old))
-	file.close()
-	var loaded := RunSave.load_save("", _save_path)
-	assert_eq(loaded.status, RunSave.REJECTED, "a run saved before phase 26 is not offered")
-	assert_true(bool(loaded.keep), "but stays on disk")
-	assert_true(RunSave.exists(_save_path))
+	# Format 1: saved inside a zone. Format 2: the first phase 26 builds, whose Hanging Cage still
+	# gave a Key. The Key's file is gone (card #319), so such a pack no longer loads: the main menu
+	# would delete the run as broken (it never checks the fingerprint, card #208) if the format let it in.
+	var run := _run()
+	run.add_item(run.items_by_id()["salve"] as ItemData)
+	var with_key := run.to_dict()
+	assert_not_null(RunState.from_dict(_data, _tuning, with_key), "the same pack with a Salve fits")
+	var rows: Array = (with_key.backpack as Array)[3]
+	(rows[0] as Array)[1] = "key"
+	assert_null(RunState.from_dict(_data, _tuning, with_key), "a pack holding a Key no longer fits")
+	for format: int in [1, 2]:
+		var old := {"format": format, "fingerprint": "x", "in_stop": false, "players": 1, "run": with_key}
+		var file := FileAccess.open(_save_path, FileAccess.WRITE)
+		file.store_string(JSON.stringify(old))
+		file.close()
+		var loaded := RunSave.load_save("", _save_path)
+		assert_eq(loaded.status, RunSave.REJECTED, "a format %d run is not offered" % format)
+		assert_true(bool(loaded.keep), "but stays on disk (format %d)" % format)
+		assert_true(RunSave.exists(_save_path))
 	assert_true(RunSave.save(_run().to_dict(), "x", true, 1, _save_path))
 	assert_eq(RunSave.load_save("", _save_path).status, RunSave.LOADED, "a new save reads")
 

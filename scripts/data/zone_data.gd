@@ -20,6 +20,12 @@ extends Resource
 ## The place's guard (a mini-boss): a run's Guard stop here fights it, in its deep version in a deep
 ## act or row (DESIGN.md 8.22).
 @export var guard: EncounterData
+## This place's song and its quiet background loop (wind, frogs, creaking wood; card #99). Nothing
+## plays them since the walkable zones went (DESIGN.md 8.22 G6): they stay named here so a talk
+## that brings them back into the place's fights still knows which belong where.
+@export_file("*.wav", "*.ogg", "*.mp3") var music_path: String = ""
+@export_file("*.wav", "*.ogg", "*.mp3") var ambience_path: String = ""
+@export_range(-40.0, 12.0, 0.5, "suffix:dB") var ambience_volume_db: float = 0.0
 
 @export_group("Weather")
 ## The weather a fight here can have (DESIGN.md 8.20, card #303), each with its weight in

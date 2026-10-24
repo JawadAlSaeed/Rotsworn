@@ -136,8 +136,9 @@ func setup(run: RunState, gear: Array[GearData],
 	_detail.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_detail.add_theme_constant_override("separation", 14)
 	column.add_child(_detail)
-	# Sell is a service card (with its button on it), so the footer does not say it again.
-	ListMenu.screen_footer(self, [[&"@move", "Choose"], [&"menu_confirm", "Buy"], [&"menu_cancel", "Leave"]])
+	# Sell is a service card (with its button on it), so the footer does not say it again. The
+	# cursor moves with the menu directions (_unhandled_input), so the chip shows those.
+	ListMenu.screen_footer(self, [[&"@arrows", "Choose"], [&"menu_confirm", "Buy"], [&"menu_cancel", "Leave"]])
 	_rebuild()
 
 

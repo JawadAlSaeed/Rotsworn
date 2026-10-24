@@ -395,9 +395,10 @@ func test_no_run_list_hands_out_a_key() -> void:
 
 
 func test_the_key_is_gone_but_its_kind_keeps_its_number() -> void:
-	# Phase 26 (DESIGN.md 8.22, G3): the Key's file went with the chests; a save from before is
-	# refused by RunSave.FORMAT_VERSION, so no pack can hold one. The kind keeps its slot so the
-	# item files after it keep their numbers.
+	# Phase 26 (DESIGN.md 8.22, G3): the Key's file went with the chests; every save from before
+	# (RunSave formats 1 and 2: the first phase 26 builds could still give a Key) is kept but refused
+	# by RunSave.FORMAT_VERSION 3, so no pack that loads can hold one (test_run_fights.gd). The kind
+	# keeps its slot so the item files after it keep their numbers.
 	assert_false(ResourceLoader.exists("res://data/items/key.tres"), "no Key file")
 	assert_false(_run().items_by_id().has("key"), "no item answers to the Key's id")
 	assert_eq(ItemData.Kind.KEY, 2, "the retired kind keeps its number")

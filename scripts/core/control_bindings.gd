@@ -64,7 +64,10 @@ const DETAILS := {
 	&"defend_dodge": "Enemy attacks",
 	&"defend_jump": "Low enemy hits",
 	&"skill_press": "Your skills' timed presses",
-	&"move_up": "Shop", &"move_down": "Shop", &"move_left": "Shop", &"move_right": "Shop",
+	# Since phase 26 (DESIGN.md 8.22 G8) no screen reads the moves: only a pad's stick push on them
+	# counts, marking that pad P1's (Main._note_play_device, #304).
+	&"move_up": "Stick marks P1's pad", &"move_down": "Stick marks P1's pad",
+	&"move_left": "Stick marks P1's pad", &"move_right": "Stick marks P1's pad",
 	&"party_menu": "Map, shops, stops",
 	&"menu_up": "Every menu", &"menu_down": "Every menu",
 	&"menu_left": "Menus, change settings",
