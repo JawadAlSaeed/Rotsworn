@@ -226,7 +226,7 @@ extends Resource
 @export_group("Run")
 ## Rows of stops on the run map before the final fight (the final fight is one more stop).
 @export_range(2, 30) var run_map_rows: int = 7
-## From this map row on (0 = the first), Fight and Guard stops hold their fights' deep versions:
+## From this map row on (0 = the first), Fight and Elite stops hold their fights' deep versions:
 ## variant monsters (EncounterData.deep, DESIGN.md 2.16).
 @export_range(0, 30) var run_deep_row: int = 4
 ## Each row has this many stops side by side, picked at random between the two numbers.
@@ -272,12 +272,16 @@ extends Resource
 @export_range(0, 30) var run_elite_min_row: int = 2
 ## Every stop of this row of an act's map is a treasure chest (DESIGN.md 8.8; -1: none).
 @export_range(-1, 30) var run_treasure_row: int = 3
-## Every stop of this row of an act's map is a Guard stop: the guard of that stop's place, fought
-## before the run goes deeper (DESIGN.md 8.22; 0: none, row 0 always stays all Fight stops). It
-## never moves, and it is never the campfire row before the final fight (a row that high: none).
-## On run_treasure_row it keeps the row, and the chests stand on the row before it (after it when
-## that is row 0).
+## Map rules 3 only (runs made before the guards joined the Elite stops, DESIGN.md 8.22): every
+## stop of this row of an act's map is a Guard stop, the guard of that stop's place (0: none, row 0
+## always stays all Fight stops). It never moves, and it is never the campfire row before the final
+## fight (a row that high: none). On run_treasure_row it keeps the row, and the chests stand on the
+## row before it (after it when that is row 0). New maps (rules 4) have no guard row.
 @export_range(0, 30) var run_guard_row: int = 1
+## The chance an Elite stop holds its place's guard (the mini-boss) instead of one of its act's elite
+## groups (map rules 4, DESIGN.md 8.22), rolled by the run's seed for that stop. An Elite stop
+## right after a guard on any road never holds one.
+@export_range(0, 100, 1, "suffix:%") var run_elite_guard_percent: int = 40
 ## Elite fights (elite map stops): enemies get these percents of their HP,
 ## power and gold.
 @export_range(10, 1000, 1, "suffix:%") var elite_hp_percent: int = 140

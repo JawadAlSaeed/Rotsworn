@@ -107,15 +107,15 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 ### A run
 
 - **Three acts.** Each act is a branching map (6 rows of stops, then the boss) that is new every run,
-  in one place of its own. You pick your path one stop at a time, and every road meets a guard early
-  in each act. Act 1 is *The Rotten Road* (Rotten Hollow); act 2, *The Drowned Mire* (Sunken Bog);
+  in one place of its own. You pick your path one stop at a time. Act 1 is *The Rotten Road*
+  (Rotten Hollow); act 2, *The Drowned Mire* (Sunken Bog);
   act 3, *The Ashen Deep* (Ashen Ruins), uses tougher versions of every monster.
 - **Stops on the map:**
   - **Fight**: one fight in a place (Rotten Hollow, Sunken Bog or Ashen Ruins), in its own light
     and weather. Win for gold, XP and sometimes an item. You may run away, but then you get nothing.
-  - **Guard**: the place's **guard**, a mini-boss that rages at half health. You cannot run. Beat
-    it and pick one of three Relics.
-  - **Elite**: a much tougher fight with better spoils.
+  - **Elite**: a much tougher fight with better spoils, and no running. It holds either an elite
+    group or the place's **guard**, a mini-boss that rages at half health (never two guards in a
+    row on one road). Beat it and pick one of three Relics.
   - **?**: an event. Every choice has a price (gold, max HP for the rest of the run, an item, a
     curse, a fight) or a risk, and some "?" stops are ambushes. 20 events in all.
   - **Treasure**: a chest with something rare and some gold.
@@ -139,8 +139,8 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 
 - **Relics** (34 of them) stay with you forever. Monsters drop them, and you also find them in
   spoils, shops and chests. A copy of a Relic you already have raises its level, up to 5. Each
-  hero wears up to 3: one slot from the start, a second after the first guard, a third after
-  act 1's boss. On the main menu's **Relics** page you choose what each hero brings.
+  hero wears up to 3: one slot from the start, a second after the first Elite stop won, a third
+  after act 1's boss. On the main menu's **Relics** page you choose what each hero brings.
   **Rot-touched** Relics are very strong, but each one comes with a price.
 - **Echoes** are learned again in every run. Wear a Relic through won fights to learn its Echo for
   the rest of that run. Any other hero can then wear that Echo with Echo points.

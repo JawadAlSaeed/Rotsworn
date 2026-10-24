@@ -37,8 +37,10 @@ const PACT_SALT: int = 295075153
 ## Phase 26 (DESIGN.md 8.22): a Fight stop's fight, and the weather of every run fight but the boss's.
 const FIGHT_SALT: int = 405000041
 const FIGHT_WEATHER_SALT: int = 426000017
+## Phase 26 (DESIGN.md 8.22, map rules 4): whether an Elite stop holds its place's guard.
+const ELITE_GUARD_SALT: int = 447000011
 ## The map rules a new run is made with (see map_rules).
-const MAP_RULES: int = 3
+const MAP_RULES: int = 4
 ## The mastery an Echo needed before phase 21 (#280): an older save's mastery is scaled from it.
 const LEGACY_MASTERY_NEEDED: int = 4
 ## Which gear a pick draws from (see _pick_gear).
@@ -112,8 +114,10 @@ var relics_at_start: Dictionary = {}
 ## The Echo pips each found Relic had when the run started (id -> pips, from the collection; the
 ## host's online). Its pips now are these plus `mastery`.
 var pips_at_start: Dictionary = {}
-## Guards (mini-bosses) beaten this run: the first one opens a Relic slot.
-var guards_beaten: int = 0
+## Elite stops won this run, either kind (an elite group or its place's guard; a guard beaten
+## anywhere counts too, as on a Guard stop of map rules 3): the first one opens a Relic slot
+## (DESIGN.md 8.17, 8.22). Saved as "guards_beaten", its name from when only guards opened it.
+var elite_stops_won: int = 0
 ## Relic id -> Echo pips earned this run (on top of pips_at_start; their sum counts up to
 ## tuning.mastery_needed, when its Echo is learned for good). Kept whole (up to mastery_needed) even
 ## past what the host still needs, so an online friend banks them on top of their own (#281).
@@ -141,9 +145,10 @@ var pact_pending: bool = false
 var sharpened: bool = false
 ## The treasure stop's rotten chest was the one opened (card #287): the screen shows it open.
 var stop_rotten: bool = false
-## The map rules the run was made with: 3 since phase 26 (a row of Guard stops, DESIGN.md 8.22), 2
-## since phase 21 (rows that move, the crowned elite, card #286), 1 before; a run keeps the rules it
-## was made with, so it continues on the map it had.
+## The map rules the run was made with: 4 since the guards joined the Elite stops (no Guard stops,
+## an Elite stop may hold its place's guard, DESIGN.md 8.22), 3 in early phase 26 (a row of Guard
+## stops), 2 since phase 21 (rows that move, the crowned elite, card #286), 1 before; a run keeps the
+## rules it was made with, so it continues on the map it had.
 var map_rules: int = MAP_RULES
 ## "" while the run goes on, then VICTORY or DEFEAT.
 var result: String = ""
@@ -223,7 +228,7 @@ func to_dict() -> Dictionary:
 		"restocks": restocks, "oath": oath, "shop_sold": Array(shop_sold), "stop_done": stop_done, "stop_text": stop_text,
 		"ambush_streak": ambush_streak, "ambush_id": ambush_id, "ambush_spoils": ambush_spoils,
 		"relics": relics.duplicate(), "relics_start": relics_at_start.duplicate(),
-		"pips_start": pips_at_start.duplicate(), "guards_beaten": guards_beaten,
+		"pips_start": pips_at_start.duplicate(), "guards_beaten": elite_stops_won,
 		"defence": defence.duplicate(true), "flawless": flawless, "pact_pending": pact_pending, "sharpened": sharpened,
 		"stop_rotten": stop_rotten, "map_rules": map_rules,
 		"mastery": mastery.duplicate(), "echoes": echoes.duplicate(true),
@@ -361,7 +366,7 @@ func apply_dict(d: Dictionary) -> bool:
 	relics = relic_state.relics
 	relics_at_start = relic_state.start
 	pips_at_start = relic_state.pips
-	guards_beaten = int(relic_state.guards)
+	elite_stops_won = int(relic_state.guards)
 	mastery = relic_state.mastery
 	echoes.assign(relic_state.echoes)
 	if not new_defence.is_empty():
@@ -709,19 +714,80 @@ func next_act() -> bool:
 
 
 ## Act `index`'s map. The first act's comes from the run's seed alone (as before acts existed).
-## The map of act `index` by `rules` (map_rules when -1): 2 and up move rows, 3 and up have a row of
-## Guard stops.
+## The map of act `index` by `rules` (map_rules when -1): 2 and up move rows, 3 has a row of Guard
+## stops, 4 has none (its Elite stops may hold the place's guard, DESIGN.md 8.22, so an act with no
+## elite groups still gets Elite stops when every one of its places has a guard).
 func _make_map(index: int, rules: int = -1) -> RunMap:
 	var rng := CombatRng.new(run_seed if index == 0 else absi(run_seed * 31 + index * ACT_SALT) % 2147483647 + 1)
 	var act_info := act_data(index)
 	var made_by := map_rules if rules < 0 else rules
-	return RunMap.generate(rng, tuning, act_info.zones.size(), not act_info.elites.is_empty(),
-			not act_info.events.is_empty(), made_by >= 2, made_by >= 3)
+	var has_elites := not act_info.elites.is_empty() or (made_by >= 4 and _act_all_guarded(act_info))
+	return RunMap.generate(rng, tuning, act_info.zones.size(), has_elites,
+			not act_info.events.is_empty(), made_by >= 2, made_by == 3)
+
+
+## True if the act has places and every one has a guard. The map gives an Elite stop any of the act's
+## places, so an act with no elite groups needs a guard in each or some Elite stop would hold nothing.
+static func _act_all_guarded(act_info: ActData) -> bool:
+	if act_info.zones.is_empty():
+		return false
+	for zone: ZoneData in act_info.zones:
+		if zone == null or zone.guard == null:
+			return false
+	return true
 
 
 # --- elite, event and treasure stops (DESIGN.md 8.6 to 8.8) -------------------------------------
 
-## The elite fight at stop `stop_id` (seeded; deep acts and rows bring the deep version).
+## The fight at Elite stop `stop_id`: its place's guard when the stop holds it (elite_holds_guard),
+## else one of the act's elite groups (elite_of). Null when neither is there.
+func elite_stop_fight(stop_id: int) -> EncounterData:
+	return guard_of(stop_id) if elite_holds_guard(stop_id) else elite_of(stop_id)
+
+
+## True if Elite stop `stop_id` holds its place's guard rather than one of the act's elite groups
+## (map rules 4, DESIGN.md 8.22): a roll of its own (ELITE_GUARD_SALT, by the run's seed and the
+## stop, the same on every machine) under tuning.run_elite_guard_percent, never when the nearest
+## Elite stop on a road leading to it holds the guard, so no road meets the guard at two Elite stops
+## in a row. The act's crowned elite rolls too (a crowned guard keeps the crown's legendary spoils).
+## An act with no elite groups always holds its guard there; a place with no guard never does.
+## False for every other stop and older map rules.
+func elite_holds_guard(stop_id: int) -> bool:
+	var stop := map.stop(stop_id)
+	if map_rules < 4 or int(stop.get("type", -1)) != RunMap.StopType.ELITE:
+		return false
+	var zone := zone_of(stop)
+	if zone == null or zone.guard == null:
+		return false
+	if act_data().elites.is_empty():
+		return true
+	if _guard_elite_before(stop_id):
+		return false
+	var rng := CombatRng.new(_salted((stop_id + 1) * ELITE_GUARD_SALT))
+	return rng.range_int(0, 99) < tuning.run_elite_guard_percent
+
+
+## True if the nearest Elite stop on any road leading to stop `stop_id` holds the guard (the stops
+## between that are not Elite stops are passed through).
+func _guard_elite_before(stop_id: int) -> bool:
+	var seen := {}
+	var todo: Array[int] = []
+	todo.assign(map.stop(stop_id).get("prev", []))
+	while not todo.is_empty():
+		var p: int = todo.pop_back()
+		if seen.has(p):
+			continue
+		seen[p] = true
+		if int(map.stop(p).get("type", -1)) == RunMap.StopType.ELITE:
+			if elite_holds_guard(p):
+				return true
+		else:
+			todo.append_array(map.stop(p).get("prev", []))
+	return false
+
+
+## The elite group at stop `stop_id` (seeded; deep acts and rows bring the deep version). An Elite
+## stop that holds its place's guard fights that instead (elite_stop_fight).
 func elite_of(stop_id: int) -> EncounterData:
 	var pool := act_data().elites
 	if pool.is_empty():
@@ -1230,18 +1296,19 @@ func fight_of(stop_id: int) -> EncounterData:
 	return _deep_version(_fight_base(stop_id), stop_id)
 
 
-## The guard at Guard stop `stop_id`: its place's (ZoneData.guard), in its deep version in a deep
-## act or row. Null for another stop or a place with no guard.
+## The guard at stop `stop_id`, an Elite stop that holds it (elite_holds_guard) or a Guard stop of
+## map rules 3: its place's (ZoneData.guard), in its deep version in a deep act or row. Null for
+## another stop or a place with no guard.
 func guard_of(stop_id: int) -> EncounterData:
 	var stop := map.stop(stop_id)
-	if int(stop.get("type", -1)) != RunMap.StopType.GUARD:
+	if int(stop.get("type", -1)) != RunMap.StopType.GUARD and not elite_holds_guard(stop_id):
 		return null
 	var zone := zone_of(stop)
 	return _deep_version(zone.guard if zone != null else null, stop_id)
 
 
-## The fight at the current stop: an ambush sprung there, else the Fight, Guard or elite stop's, or
-## the act's boss (null: a stop with no fight).
+## The fight at the current stop: an ambush sprung there, else the Fight, Elite (an elite group or
+## its place's guard) or Guard stop's, or the act's boss (null: a stop with no fight).
 func encounter_now() -> EncounterData:
 	if in_ambush():
 		return ambush_encounter()
@@ -1251,7 +1318,7 @@ func encounter_now() -> EncounterData:
 		RunMap.StopType.GUARD:
 			return guard_of(at)
 		RunMap.StopType.ELITE:
-			return elite_of(at)
+			return elite_stop_fight(at)
 		RunMap.StopType.FINAL:
 			return final_encounter()
 	return null
@@ -1490,13 +1557,14 @@ func spend_items(uids: Array[int]) -> void:
 
 
 ## A fight ended with these party HPs (per slot). A victory pays gold and XP (each hero their own,
-## less for the downed), drops Relics, gives the worn Relics their mastery, counts a guard (a Relic
-## slot opens) and gets the downed back up at tuning.run_downed_revive_hp; a defeat ends the run.
-## Returns {gold, xp: per slot, levels: per slot (levels gained), relics: the finds (add_relic
-## infos), echoes: the Relics whose Echo was learned}.
+## less for the downed), drops Relics, gives the worn Relics their mastery, counts a won Elite stop
+## (the first opens a Relic slot) and gets the downed back up at tuning.run_downed_revive_hp; a
+## defeat ends the run. Returns {gold, xp: per slot, levels: per slot (levels gained), relics: the
+## finds (add_relic infos), echoes: the Relics whose Echo was learned}.
 func finish_fight(fight_result: String, party_hp: Array[int], encounter: EncounterData,
 		recap: Dictionary = {}) -> Dictionary:
 	var none := {"gold": 0, "xp": _zeros(), "levels": _zeros(), "relics": [], "echoes": []}
+	var ambushed := in_ambush()
 	end_ambush()
 	add_defence(recap.get("heroes", []))
 	if encounter != null and encounter.boss:
@@ -1532,11 +1600,20 @@ func finish_fight(fight_result: String, party_hp: Array[int], encounter: Encount
 	var finds: Array = []
 	for item: GearData in drops:
 		finds.append(add_relic(item))
-	if encounter != null and encounter.mini_boss:
-		guards_beaten += 1
+	if _counts_as_elite_stop(encounter, ambushed):
+		elite_stops_won += 1
 	if int(current().get("type", -1)) == RunMap.StopType.FINAL and is_last_act():
 		result = VICTORY
 	return {"gold": won, "xp": gained, "levels": up, "relics": finds, "echoes": learned}
+
+
+## True if winning `encounter` here counts as a won Elite stop for its Relic slot (DESIGN.md 8.17,
+## 8.22): the current Elite stop's fight, an elite group or its guard (`ambushed`: never an ambush's
+## fight), or a guard anywhere (a Guard stop of map rules 3, or a Fight Rush's guard, as before).
+func _counts_as_elite_stop(encounter: EncounterData, ambushed: bool) -> bool:
+	if encounter == null:
+		return false
+	return encounter.mini_boss or (not ambushed and int(current().get("type", -1)) == RunMap.StopType.ELITE)
 
 
 ## Gear that wounds its wearer (Oathbreaker's Band, DESIGN.md 8.16): after each fight won they lose
@@ -2558,9 +2635,10 @@ static func relic_find_text(info: Dictionary) -> String:
 
 
 ## How many Relic slots each hero has open now: tuning.relic_slots_start, one more after the first
-## guard, one more after act 1's boss, with the oaths (never under one, never past run_gear_slots).
+## Elite stop won (an elite group or its guard, DESIGN.md 8.22), one more after act 1's boss, with
+## the oaths (never under one, never past run_gear_slots).
 func open_relic_slots() -> int:
-	var open := tuning.relic_slots_start + (1 if guards_beaten > 0 else 0) + (1 if act > 0 else 0)
+	var open := tuning.relic_slots_start + (1 if elite_stops_won > 0 else 0) + (1 if act > 0 else 0)
 	return clampi(open + oath_total(&"relic_slots_add"), 1, tuning.run_gear_slots)
 
 
@@ -2570,22 +2648,22 @@ func slot_open(gear_slot: int) -> bool:
 
 
 ## Why Relic slot `gear_slot` is still shut, in a few words ("" if it is open): the first thing still
-## to come (the first guard, then act 1's boss) after which it would be open, oaths counted.
+## to come (the first Elite stop won, then act 1's boss) after which it would be open, oaths counted.
 func slot_lock_text(gear_slot: int) -> String:
 	if slot_open(gear_slot):
 		return ""
-	var real_guards := guards_beaten
+	var real_elites := elite_stops_won
 	var real_act := act
 	var text := ""
-	if guards_beaten <= 0:
-		guards_beaten = 1
+	if elite_stops_won <= 0:
+		elite_stops_won = 1
 		if slot_open(gear_slot):
-			text = "Opens after the first guard."
+			text = "Opens after the first Elite stop."
 	if text.is_empty() and act <= 0:
 		act = 1
 		if slot_open(gear_slot):
 			text = "Opens after act 1's boss."
-	guards_beaten = real_guards
+	elite_stops_won = real_elites
 	act = real_act
 	if text.is_empty():
 		text = "Shut by your oath." if oath_total(&"relic_slots_add") < 0 else "Shut."
@@ -2828,15 +2906,15 @@ func win_relic_lines(encounter: EncounterData) -> Array[String]:
 	for item: GearData in echoes_from_win(encounter):
 		lines.append("Echo learned for good: %s" % item.display_name)
 	var before := open_relic_slots()
-	var real_guards := guards_beaten
+	var real_elites := elite_stops_won
 	var real_act := act
-	if encounter != null and encounter.mini_boss:
-		guards_beaten += 1
+	if _counts_as_elite_stop(encounter, in_ambush()):
+		elite_stops_won += 1
 	elif int(current().get("type", -1)) == RunMap.StopType.FINAL and not is_last_act():
 		# An act's boss: the next act opens (next_act), and with it act 1's slot.
 		act += 1
 	var after := open_relic_slots()
-	guards_beaten = real_guards
+	elite_stops_won = real_elites
 	act = real_act
 	if after > before:
 		# Nothing goes on by itself (card #265): the player puts a Relic on from the party screen.

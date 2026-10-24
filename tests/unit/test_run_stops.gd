@@ -36,10 +36,8 @@ func test_new_stops_follow_their_rules() -> void:
 		assert_eq(treasure_rows.size(), 1, "seed %d: one treasure row" % s)
 		if treasure_rows.size() == 1:
 			assert_lte(absi(treasure_rows[0] - _tuning.run_treasure_row), _tuning.run_treasure_row_spread)
-		# Row run_guard_row is all guards and only it (DESIGN.md 8.22).
-		for st: Dictionary in map.stops:
-			assert_eq(int(st.type) == RunMap.StopType.GUARD, int(st.row) == _tuning.run_guard_row,
-					"seed %d: stop %d is a guard only in the guard row" % [s, st.id])
+		# No Guard stops: since map rules 4 a place's guard waits at an Elite stop (DESIGN.md 8.22).
+		assert_eq(map.count_type(RunMap.StopType.GUARD), 0, "seed %d: no Guard stops" % s)
 		for st: Dictionary in map.stops:
 			var type := int(st.type)
 			seen[type] = true
@@ -50,7 +48,7 @@ func test_new_stops_follow_their_rules() -> void:
 		if is_failing():
 			return
 	for type: int in [RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE, RunMap.StopType.SHOP,
-			RunMap.StopType.REST, RunMap.StopType.FIGHT, RunMap.StopType.GUARD, RunMap.StopType.FINAL]:
+			RunMap.StopType.REST, RunMap.StopType.FIGHT, RunMap.StopType.FINAL]:
 		assert_true(seen.has(type), "%s stops turn up" % RunMap.TYPE_NAMES[type])
 
 
@@ -144,7 +142,7 @@ func test_elites_are_tougher_and_pay_more() -> void:
 
 
 func test_guards_are_mini_bosses_with_a_phase_two() -> void:
-	# A Guard stop in a place fights its guard (DESIGN.md 8.22).
+	# Some Elite stops in a place fight its guard (DESIGN.md 8.22).
 	for zone: ZoneData in _data.zones:
 		var guard := zone.guard
 		assert_not_null(guard, "%s has a guard" % zone.id)

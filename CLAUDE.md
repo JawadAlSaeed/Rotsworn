@@ -87,7 +87,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   fight that weather (DESIGN.md 8.20, 8.22),
   `--no-rumble` to keep the pad still (bot and picture runs never buzz anyway, DESIGN.md 7.14),
   or `--run` to have the bot play a whole run
-  (map, Fight and Guard stops, shops, rests, events, final fight; DESIGN.md 8.22: there are no
+  (map, Fight and Elite stops, shops, rests, events, final fight; DESIGN.md 8.22: there are no
   walkable zones; ends with `AUTOPLAY_RESULT run_victory` or
   `run_defeat`, about 10 to 20 minutes, so use `timeout 1500`; add `--oath=N` to play it at difficulty
   oath N, DESIGN.md 8.15; a bot run starts with no Relics, `--relics=all` gives it every Relic at
@@ -197,7 +197,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   screen, credits, loading tips),
   `presentation/combat_visuals.tres`, `presentation/rumble.tres`
   (the controller buzz patterns), `looks/`, `zones/` (the run's places: look, air, weathers, the
-  Fight stops' monsters and the Guard stop's guard; the class is still `ZoneData`, DESIGN.md 8.22),
+  Fight stops' monsters and the guard some Elite stops hold; the class is still `ZoneData`, DESIGN.md 8.22),
   `runs/` (the run; `runs/acts/` its acts, `runs/oaths/` its difficulty ladder), `rush/` (the Fight
   Rush: its tiers, boss cycle and reward items, DESIGN.md 8.21), `weather/` (a
   fight's weather, DESIGN.md 8.20), `events/`, `glossary/` (the Glossary's topics and terms, DESIGN.md 7.12), `items/` (backpack items), `gear/` and `clips/` (each fighter's animation
@@ -213,7 +213,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `scripts/stage/` building a place from data (environment, blocks, props, lights, vignette,
   `WeatherFx`: a storm's lightning, unused since the zones went) and
   screen transitions
-- `scripts/run/` the run: `RunMap` and `RunState` (pure, tested; the map's Fight and Guard stops,
+- `scripts/run/` the run: `RunMap` and `RunState` (pure, tested; the map's Fight and Elite stops,
   DESIGN.md 8.22), map, shop, campfire (rest), event, treasure, loot, party, Echoes and run-end
   screens (`StopScreen` hands out gifts), the gold and HP strip, `RunAutoplay` (the bots' fitness
   check)

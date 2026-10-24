@@ -5,9 +5,10 @@ extends RefCounted
 ## row, paths never cross, every stop can be reached and every stop reaches the final fight.
 ## Pure and seeded (CombatRng), so the same seed always makes the same map.
 
-## ELITE, EVENT and TREASURE came in phase 15 (DESIGN.md 8.6 to 8.8), GUARD in phase 26 (8.22); new
-## types go at the end so saved numbers keep their meaning. FIGHT (one fight from its place's
-## monsters, 8.22) took the number of the walkable zone stop it replaced.
+## ELITE, EVENT and TREASURE came in phase 15 (DESIGN.md 8.6 to 8.8), GUARD in phase 26 (8.22: only
+## map rules 3 have Guard stops; since rules 4 a place's guard waits at an Elite stop); new types go
+## at the end so saved numbers keep their meaning. FIGHT (one fight from its place's monsters, 8.22)
+## took the number of the walkable zone stop it replaced.
 enum StopType { FIGHT, REST, SHOP, FINAL, ELITE, EVENT, TREASURE, GUARD }
 
 const TYPE_NAMES: Array[String] = ["fight", "rest", "shop", "final", "elite", "event", "treasure", "guard"]
@@ -26,10 +27,10 @@ var rows: Array[Array] = []
 ## An act with no elite fights or no events (`has_elites`, `has_events` false) never gets those
 ## stops, so a stop can never be left with nothing to play.
 ## `moving_rows` false: the map rules before phase 21 (no moved rows, no crowned elite), for a run
-## saved before it. `guard_rows` (phase 26, DESIGN.md 8.22): row tuning.run_guard_row is all Guard
-## stops; false: the map rules before it, every row and roll exactly as it was.
+## saved before it. `guard_rows` (map rules 3, phase 26, DESIGN.md 8.22): row tuning.run_guard_row is
+## all Guard stops; false (the rules before and after it): every row and roll as without it.
 static func generate(rng: CombatRng, tuning: Tuning, zone_count: int, has_elites: bool = true,
-		has_events: bool = true, moving_rows: bool = true, guard_rows: bool = true) -> RunMap:
+		has_events: bool = true, moving_rows: bool = true, guard_rows: bool = false) -> RunMap:
 	var map := RunMap.new()
 	var row_total := maxi(2, tuning.run_map_rows)
 	var lo := clampi(mini(tuning.run_map_min_width, tuning.run_map_max_width), 1, 6)
@@ -86,7 +87,7 @@ func count_type(type: StopType) -> int:
 
 
 ## True for the stops fought in one of the act's places that the map picks so it does not repeat:
-## Fight and Guard (DESIGN.md 8.22).
+## Fight and (map rules 3) Guard (DESIGN.md 8.22).
 static func is_fight_place(type: int) -> bool:
 	return type == StopType.FIGHT or type == StopType.GUARD
 
@@ -168,8 +169,8 @@ static func _can_add(pairs: Array[Vector2i], i: int, j: int) -> bool:
 	return true
 
 
-## The row of Guard stops (DESIGN.md 8.22): tuning.run_guard_row while it is above row 0 (always all
-## Fight stops) and below the campfire row before the final fight, else -1 (none).
+## The row of Guard stops (map rules 3, DESIGN.md 8.22): tuning.run_guard_row while it is above row 0
+## (always all Fight stops) and below the campfire row before the final fight, else -1 (none).
 func _guard_row(tuning: Tuning) -> int:
 	var row := tuning.run_guard_row
 	return row if row >= 1 and row < rows.size() - 2 else -1

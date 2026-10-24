@@ -4,8 +4,8 @@ extends SceneTree
 ## ambushes: tools/bootstrap_events.gd, run it after this one; the second act and its boss, the Leech
 ## Queen, came with card #323, DESIGN.md 8.23, hand-made, so this writes only the act's file). The mini-bosses and the boss are
 ## recoloured kin of the monsters (tools/art_kit/assets/enemy_variants.py draws their sheets) with a
-## phase two. Rewrites every file it owns. Each place's `guard` (data/zones, a run's Guard stops,
-## DESIGN.md 8.22) points at a guard written here; the place files themselves are never written.
+## phase two. Rewrites every file it owns. Each place's `guard` (data/zones, met at some of a run's
+## Elite stops, DESIGN.md 8.22) points at a guard written here; the place files are never written.
 ## Run: Godot --headless --path . -s tools/bootstrap_phase15.gd
 
 const EN := "res://data/enemies/"

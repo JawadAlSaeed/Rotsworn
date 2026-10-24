@@ -464,8 +464,8 @@ Hamstring matter. Phase 2 test build: a fight-select screen lists the test encou
 
 Since phase 26 (8.22) there is no field strike. Since card #320 a Fight stop's fight opens with the
 **First Strike press**: one press ring on the place's name card, and a GOOD or PERFECT skill press on
-it gives First Strike (8.22 "The First Strike press"). Every other fight (Guard stops, elites,
-ambushes, bosses, the Rush, practice) opens normally. `--first-strike` and the opening rule below
+it gives First Strike (8.22 "The First Strike press"). Every other fight (Elite stops, with an
+elite group or the place's guard, ambushes, bosses, the Rush, practice) opens normally. `--first-strike` and the opening rule below
 stay. How a fight started in a zone (7.4, history):
 
 - **First Strike:** the leader's field strike hit the roaming enemy (or it walked into a swing
@@ -588,8 +588,8 @@ in data. Times in ms at tempo 100%.
   every fight it is in, so the second half of a run reads harder.
 - Deep fights: `EncounterData.deep` names a fight's deep version (`deep_<id>`, the same fight made of
   variants). In a run, from map row `tuning.run_deep_row` (4, the second half of the 7 rows) on, or
-  in a deep act, a Fight or Guard stop fights the deep one (`RunState.is_deep()`, `fight_of`,
-  `guard_of`, 8.22; until phase 26 a zone's roaming enemies showed the variant). Practice fights list
+  in a deep act, a Fight stop, an elite group or a guard fights the deep one (`RunState.is_deep()`,
+  `fight_of`, `elite_of`, `guard_of`, 8.22; until phase 26 a zone's roaming enemies showed the variant). Practice fights list
   them too. Every fight a place holds has one (test). Phase 13 (card #105) adds stat scaling by depth on
   top.
 - Balance check (average-player bot at level 1 with no gear): 3 wins in 5 deep fights. A run
@@ -1255,7 +1255,7 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | `AttackHitData` | inside attacks | impact ms, kind (normal/ground), damage %, approach ms, feint, projectile (ranged), ground look (wave/rocks) |
 | `ProjectileData` | `data/projectiles/` | what a ranged hit throws (3.9): sprite sheet, loop speed, size, arc, trail, colour, launch sound and spot |
 | `EncounterData` | `data/encounters/` | enemy list, party list and team ultimate (practice fights; a run uses its own party and ultimate), boss flag |
-| `RunData` | `data/runs/` | a kind of run: party, team ultimate, acts (each with the places its Fight, Guard and elite stops are in, 8.22), the final fight and its look, the shop's items, the found items, the gear pool |
+| `RunData` | `data/runs/` | a kind of run: party, team ultimate, acts (each with the places its Fight and Elite stops are in, 8.22), the final fight and its look, the shop's items, the found items, the gear pool |
 | `ItemData` | `data/items/` | backpack item (8.1): id, name, description, kind, rarity, price, shape, effect and amount, find weight, icon |
 | `SfxLibrary` / `SfxCue` | `data/audio/sfx_library.tres` | sound cue name -> file path, volume, pitch jitter |
 | `BrandingData` | `data/branding/branding.tres` | logo path, title screen feel (logo size and fade, glow, fog, prompt), main menu logo and tagline, story blurb |
@@ -2123,7 +2123,7 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
   Godot's licence notice (with FreeType, ENet and Mbed TLS), rolling up to their own song
   (`MusicSet.credits_path`: "Heroic Minority" by Alexandr Zhelanov, CC-BY 3.0). Down rolls faster,
   Up rolls back, Back closes; they start again from the bottom after the end.
-- **Loading tips** (card #86): entering a Fight or Guard stop (8.22; a zone until phase 26, from
+- **Loading tips** (card #86): entering a Fight stop (8.22; a zone until phase 26, from
   the run map or online as a client) shows a card over the black: the place's name, a random tip (never the same twice in a
   row) and the logo in the corner, over the menu background (or `TipSet.background_path` art). It
   stays `hold_ms` (2.6 s) and the fight is built at its end, so the fight starts when it is seen.
@@ -2136,7 +2136,8 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
   1.3 s after an early press, and up to about 8.4 s on a friend's card whose host result never
   comes); the host tells the clients at its swirl, not after the card; and the ring's own
   `DefenseInput` takes the skill press on the card (it is on the card, so it gets the press before
-  the card's input block). A Guard stop's card is still the plain one.
+  the card's input block). An Elite stop (an elite group or the guard), an ambush and a boss get
+  no card, only the swirl (a map rules 3 Guard stop still gets the plain card).
 - **Hero portraits** (card #85): waiting for painted art (the 24 px placeholders stay).
 - **Story** (card #90): at the top of this file, in `BrandingData.story`, the credits and the
   README.
@@ -2392,7 +2393,8 @@ nothing in a fight. It is reached two ways, and both open on the first topic:
   topics: The fight, Reading attacks, Defence, Skills and AP, Counters and team, Marks on enemies, Marks
   on heroes, Dooms, Enemies, The map, In a zone, Gear and items, Shops and camps, The run); after that,
   edit the `.tres` (or the tool's list and re-run it, not both). Phase 26 (8.22) dropped the In a zone
-  topic and its terms and gave The map a Fight stop and a Guard stop term, by hand in the `.tres`: the
+  topic and its terms and gave The map a Fight stop and a Guard stop term (the Guard stop term went
+  again when the guards joined the Elite stops, 8.22), by hand in the `.tres`: the
   tool is older than the file, so do not re-run it. The tool takes the hit kinds'
   colours and icons from `combat_visuals.tres` and the status words and colours from `HudStyle`, and a
   test (`tests/unit/test_glossary.gd`) keeps the book equal to them, so the screen and the book cannot
@@ -2582,7 +2584,7 @@ Tests: `tests/unit/test_press_ladder.gd`.
 
 ## 8. Run structure (phase 4)
 
-Since phase 26 (8.22) a run has no walkable zones: the map's Fight and Guard stops go straight into a
+Since phase 26 (8.22) a run has no walkable zones: the map's Fight and Elite stops go straight into a
 fight. The phase 4 text below is history where it speaks of zones.
 
 Slay-the-Spire style branching node map (host picks path). Node types: zone (small explorable
@@ -3097,7 +3099,7 @@ middle row costs 1 point, the bottom row 2; phase 19 gave three branches a fourt
 
 **Removed in phase 26 (8.22):** the sections, seals, gate, exit, champions, shrines, wanderers, glinting spots,
 chests and the zone bot are gone; this section is history. Four shrines and wanderers live on as
-"?" events (8.7) and each place's guard is a Guard stop.
+"?" events (8.7) and each place's guard waits at some of its act's Elite stops (8.22).
 
 The user's problem: in a zone you could walk straight to the guard and leave. Picks: zones run
 left to right like a side-scroller (guard at the far right), 3 to 5 times longer, built from
@@ -3173,7 +3175,8 @@ phase 14 was the tutorial).
 
 ### 8.6 Mini-boss guards and elite fights (phase 15 step 2, cards #156, #157)
 
-Since phase 26 (8.22) each place's guard is fought at a Guard stop and the champions are gone.
+Since phase 26 (8.22) the champions are gone and each place's guard waits at some of its act's Elite
+stops (it had a Guard stop of its own until the guards joined the Elite stops).
 
 - **Guards are mini-bosses** (`EncounterData.mini_boss`): each zone's guard is a named kin of its
   monster, recoloured by the art kit (`enemy_variants.py`), with a **phase two** at half HP (its
@@ -3207,10 +3210,11 @@ Since phase 26 (8.22) each place's guard is fought at a Guard stop and the champ
   rot-touched piece (8.16).
 - **Elite fights** (`EncounterData.elite`): enemies get `elite_hp_percent` (140), `elite_power_percent`
   (115) and `elite_gold_percent` (150) on top of depth. Four: Twin Husks, The Laughing Pack (two
-  hyenas and a fly), Toad Court, Shade Coven, each with a deep version. They are met two ways:
-  an **Elite stop** on the map (a fight in one of the act's zones' look, then spoils), and the
-  zones' **champions** (8.5), now elite fights marked "ELITE" in their own colour (they no longer
-  force the deep version). Elite fights cannot be run from (2.13).
+  hyenas and a fly), Toad Court, Shade Coven, each with a deep version. They are met at an
+  **Elite stop** on the map (a fight in one of the act's places' look, then spoils; since 8.22 an
+  Elite stop may hold the place's guard instead), and until phase 26 were also the zones'
+  **champions** (8.5), elite fights marked "ELITE" in their own colour (they no longer forced the
+  deep version). Elite fights cannot be run from (2.13).
 
 ### 8.7 Event stops "?" (card #158, rebuilt as real trade-offs in card #193, 2026-10-17)
 
@@ -3373,7 +3377,7 @@ scarce, and a "?" can turn into a fight.
 
 - `RunData.acts` (`ActData`, `data/runs/acts/`): each act has its places (`ActData.zones`, each a
   `ZoneData`: since phase 26 a place, 8.22), elite fights, events, a boss with its lair look and map
-  picture, and `deep` (every Fight and Guard stop's fight is its variant version).
+  picture, and `deep` (every Fight stop's fight, elite group and guard is its variant version).
   Since card #323 (8.23) three acts, one place each. **Act 1, The Rotten Road**: Rotten Hollow,
   boss **The Husk Lord** (an iron-black husk kin with a rotten husk at its side, phase two at half
   HP). **Act 2, The Drowned Mire**: Sunken Bog, boss **The Leech Queen** (8.23). **Act 3, The Ashen
@@ -3388,15 +3392,20 @@ scarce, and a "?" can turn into a fight.
   locked chest also took its index in the zone into the seed (card #176, gone with the zones).
 - **The map** (card #162): stop kinds and weights: Fight 45 (`run_weight_fight`; a zone until
   phase 26, 8.22), event 25, elite 12 (not before row `run_elite_min_row` 2, never two in a row),
-  shop 12, rest 12; row 0 Fight stops, row 1 Guard stops (`run_guard_row`, 8.22), row 3 treasure,
+  shop 12, rest 12; row 0 Fight stops (map rules 3 had row 1 all Guard stops, `run_guard_row`,
+  8.22; new maps have none), row 3 treasure,
   the row before the boss campfires, at least one shop. New painted pictures (art kit `map_art.py`):
   a horned skull over crossed blades (elite), a red "?" (event), a gold-banded chest (treasure),
   the Husk Lord's crowned hollow tree (act 1's lair), the Leech Queen's crowned pool (act 2's, 8.23). A **legend** down the left side names every
-  picture (since phase 26 it starts with Fight and Guard). **Planning**: while a next stop is picked, every stop and road it cannot lead to is
+  picture (since phase 26 it starts with Fight; its Guard line went when the guards joined the
+  Elite stops, 8.22). **Planning**: while a next stop is picked, every stop and road it cannot lead to is
   drawn faint (`unreachable_alpha`), so its roads ahead stand out.
 - An act with no elite fights or no events never gets those stops: `RunMap.generate` takes
   `has_elites` and `has_events` (filled from the act's lists) and zeroes their weights, and Main
   leaves an Elite stop with no fight as an empty stop with an error instead of crashing (card #176).
+  Since map rules 4 (8.22) an act with no elite groups still gets Elite stops when every one of its
+  places has a guard (each such stop holds its place's guard); one place without a guard and it gets
+  none, since the map may give an Elite stop any of the act's places.
 - Online: `RunState.to_dict` carries the act (the client rebuilds that act's map), the stops
   visited, the campfire points, the events met, the shop's restocks, the Tonics drunk and the "?"
   ambush state (8.7).
@@ -3522,7 +3531,11 @@ here makes a run easier.
   keeps it so (`test_run_balance.gd`: more HP than the Husk Lord fight and every guard at the
   deepest row, at least their power, faster and enraging faster). The attacks themselves are
   unchanged, so a player who defends well takes the same hits as before, only more of them and for
-  longer.
+  longer. Since the guards joined the Elite stops (8.22) this no longer holds everywhere: act 3's
+  guard (the deep Ash Warden, 8.23) can wait at an Elite stop in its deep rows, and from
+  `run_deep_row` on (rows 4 and 5) it brings more HP in all than the King's fight (7063 and 7249
+  against 6885). The test checks act 3's guard only on the rows before `run_deep_row` and prints the
+  deeper ones; that is a known limit for the balance talk (#321, 8.22 "Known limits").
 - **An honest balance bot** (#178). The bot used to fight every champion and roamer at any HP, so
   its runs died early and said little. It now plays like a careful player (named consts in
   `ZoneAutoplay` and `Main`, not game rules): a champion or optional roamer is fought only while
@@ -3557,7 +3570,7 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
   Run fields hold what the stop already did: `stop_done` and `stop_text` (the event's result or
   the chest's text) and `shop_sold` (the shelf items bought).
 - **Continue in a stop starts that stop again from its start**, with the run as it was at the last
-  save and the same seed (same fight, event, shop, treasure; a Fight or Guard stop restarts its fight at the HP the party came in with, 8.22). Never the map: quitting
+  save and the same seed (same fight, event, shop, treasure; a Fight or Elite stop restarts its fight at the HP the party came in with, 8.22). Never the map: quitting
   never dodges a hard stop. What a stop's screen already settled stays settled, so a random result
   can never be seen and then undone by closing the window: an event comes back on its result page
   (Continue, or Fight if the choice sprang an ambush), a treasure stop on its open chest, a shop
@@ -3757,9 +3770,10 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
 - **A run** (`RunState`): `relics` (id -> level: the bag's at the start plus what the run finds;
   the whole team shares them, any hero wears any of them), `relics_at_start` (the whole collection,
   bag or not: the end screen's line, and a find of a Relic left at home counts as a copy of it:
-  `known_level`), `guards_beaten`, `mastery` (id -> points this run) and `echoes` (per hero,
-  the Echoes worn), all in `to_dict` (saved and sent online). A save from before phase 17 still
-  loads: what it wears joins at level 1 and its slots count one guard beaten. `RunState.begin`
+  `known_level`), `elite_stops_won` (saved and sent as `guards_beaten`, its name until 8.22),
+  `mastery` (id -> points this run) and `echoes` (per hero, the Echoes worn), all in `to_dict`
+  (saved and sent online). A save from before phase 17 still loads: what it wears joins at level 1
+  and its slots count one won. `RunState.begin`
   takes the collection; online clients get the host's run state instead.
 - **Where Relics come from**: every monster lists `EnemyData.relic_drops` (2 or 3 Relics; the deep
   monsters, guards and bosses the rare and legendary ones; every Relic is dropped by someone). A won
@@ -3773,10 +3787,12 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   to `relic_max_level` (5), a copy past that pays `relic_spare_gold` (30) gold. Nothing is ever sold:
   a Relic taken off, or one nobody wears, waits in the run's Relics.
 - **Slots open during a run** (`open_relic_slots`): `relic_slots_start` (1) at the start, one more
-  after the first guard, one more after act 1's boss (never past `run_gear_slots`, 3). Nothing goes
+  after the first Elite stop won (an elite group or the guard, 8.22; it was the first guard until
+  then), one more after act 1's boss (never past `run_gear_slots`, 3). Nothing goes
   on by itself (card #265): at the start of a run the party screen opens on the Relics tab so the
   player equips before the first fight, and the fight's end screen says "A Relic slot opens: Y to put
-  a Relic on" when a guard or act 1's boss opens one (user pick: a note, not a screen). A shut slot
+  a Relic on" when the first Elite stop won or act 1's boss opens one (user pick: a note, not a
+  screen). A shut slot
   shows a lock and says what opens it. Bots fill their bag with their best Relics
   (`RelicCollection.fill_bag`, GearBot's score) and their open slots the same way (`RunState.auto_wear`).
 - **Mastery, per run**: E33's "win 4 battles" kept inside the run. Every worn Relic gets points per
@@ -4526,9 +4542,10 @@ places live on as fight arenas: 3D pieces, looks, weather, air), First Strike fr
 now), and a run gets much shorter (the talks #321 and #322 come next). Branch `phase26-Direction`.
 
 **What the player sees.**
-- **Map stops**: Fight, Guard, Elite, "?", Shop, Campfire, Treasure and the act's boss. A **Fight**
-  stop (was Zone, the same `StopType` value 0) keeps its place's painted picture and name on the map.
-  A **Guard** stop has its own painted picture (art kit `map_art.py`) and a legend line "Guard".
+- **Map stops**: Fight, Elite, "?", Shop, Campfire, Treasure and the act's boss. A **Fight** stop
+  (was Zone, the same `StopType` value 0) keeps its place's painted picture and name on the map.
+  (Card #317's Guard stop, with its own picture and legend line, went into the Elite stop: "Guards
+  merged into Elite stops" below.)
 - **A Fight stop**: the place's name card with a loading tip (card #86, as a zone entry showed), then
   one fight from that place's monsters (`ZoneData.roamer_pool`, picked by the run's seed for that
   stop, never the same fight as the last Fight stop on the road while the pool has another; its deep
@@ -4537,14 +4554,13 @@ now), and a run gets much shorter (the talks #321 and #322 come next). Branch `p
   Relic drops and Echo pips as a roaming fight paid, and the item drop roll a roamer had (a drop that
   does not fit opens the party screen with it in hand). Then the map. Running away works as before:
   HP carries on, no gold, no XP, the stop is passed. A loss ends the run.
-- **A Guard stop**: the place's guard (`ZoneData.guard`: The Gorged One, Mire Mother, Ash Warden;
-  their deep versions in act 3, the Ashen Deep, 8.23), with its phase two and banner, the boss song
-  (and its rage), the place's look, air and a rolled weather. No running. After a win its spoils
-  (pick 1 of 3, as after a zone's guard), Relic pips (`mastery_guard`), Flawless and `guards_beaten`
-  (the Relic slot that opens after the first guard) work as before.
-- **Where guards stand** (default G1): map row `run_guard_row` (1) is all Guard stops, like the
-  treasure row, so every road meets one guard early in each act (the second Relic slot opens about
-  where it did). Each guard stop takes its place like a Fight stop does. Row 0 stays all Fight stops.
+- **The guard** (`ZoneData.guard`: The Gorged One, Mire Mother, Ash Warden; their deep versions in
+  act 3, the Ashen Deep, 8.23, or in a deep row) waits at some **Elite stops** (below), with its
+  phase two and banner, the boss song (and its rage), the place's look, air and a rolled weather.
+  No running. After a win its spoils (pick 1 of 3, as after a zone's guard), Relic pips
+  (`mastery_guard`) and Flawless work as before. (From #317 until the guards joined the Elite stops
+  it had a Guard stop of its own: map row `run_guard_row`, 1, all Guard stops, map rules 3, G1.)
+  Row 0 stays all Fight stops.
 - **Elites and "?" ambushes** also roll a weather for their fight (seeded); they keep their spoils
   rules and roll no item drop. Act bosses stay in their lairs with no weather.
 - **Shrines and wanderers become "?" events** (default G2), priced like every "?" (8.7: never a
@@ -4556,16 +4572,18 @@ now), and a run gets much shorter (the talks #321 and #322 come next). Branch `p
   so item files stay valid), seals and the gate, the exit, champions and their prize chests, ZONE
   CLEAR, the zone HUD, critters, the practice list's zones and the `--zone=` bot. Practice fights stay.
 - **Saves and online**: a run saved before this change is kept on disk but not offered (G4:
-  `RunSave.FORMAT_VERSION` 2 at #316, 3 at #319, "Saved run: another version (kept)"). New maps use map rules 3 (old
-  rules stay in the code). Online needs the same build on every machine; `Net.PROTOCOL` 5. The client
-  builds a Fight or Guard stop's fight, weather and drop from the run state alone, as for an Elite stop.
-- **Save & Quit at a Fight or Guard stop** restarts that fight at the HP the party had on entering it
+  `RunSave.FORMAT_VERSION` 2 at #316, 3 at #319, 5 when the guards joined the Elite stops, "Saved
+  run: another version (kept)"). New maps use map rules 4 (3 had the guard row; old rules stay in
+  the code). Online needs the same build on every machine; `Net.PROTOCOL` 5. The client builds a
+  Fight stop's fight, weather and drop from the run state alone, as for an Elite stop (whose group
+  or guard comes from the same seeded pick on every machine).
+- **Save & Quit at a Fight or Elite stop** restarts that fight at the HP the party had on entering it
   (a zone restarted from its start).
 - `--weather=ID` now forces the weather of every run fight but the boss's, and of every Rush fight.
 
 **Defaults chosen while the owner slept** (the owner may overrule each one):
-- **G1**: one Guard row per act (row 1). Weighted guard stops in the middle rows are for the balance
-  talk (#321).
+- **G1** (replaced by "Guards merged into Elite stops" below): one Guard row per act (row 1).
+  Weighted guard stops in the middle rows are for the balance talk (#321).
 - **G2**: the four events above, with first-guess prices.
 - **G3**: the Key goes with the chests.
 - **G4**: old saves are refused (kept), not migrated: they were made inside zones.
@@ -4598,11 +4616,13 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   means no guard row, a row within 2 rows of the boss is dropped, the guard row never moves and
   nothing moves onto it. A guard row on `run_treasure_row` keeps its row; the chests stand on the
   row before it (after it when that would be row 0). Map rules 1 and 2 still give the maps they
-  gave.
+  gave. (Since the guards joined the Elite stops new maps are rules 4, with no guard row; rules 3
+  maps and the guard row's tuning stay for them.)
 - **Picking the fight**: `RunState.fight_of` (one of the place's `roamer_pool`, seeded with
   `FIGHT_SALT`; never the fight of the last Fight stop on the road while the pool has another,
   compared before the deep version; Guard, elite and ambush fights do not count), `guard_of` (the
-  place's `guard`, its deep version in a deep act or row), and for every run fight
+  place's `guard` at a rules 3 Guard stop or an Elite stop that holds it, its deep version in a deep
+  act or row), and for every run fight
   `encounter_now`, `zone_now`, `look_now`, `air_now` and `weather_now` (`FIGHT_WEATHER_SALT`). A
   won Fight stop's drop is `fight_drop` (`drop_for(stop)`: the seeded `item_drop_percent` roll a
   zone's first roaming enemy had). Elites and ambushes now get their place's air too.
@@ -4611,7 +4631,8 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   The watch line is hidden over every fight. After a Fight stop's win the drop goes into the
   pack, or the party screen opens holding it. Guards (`mini_boss`) get the boss song and rage in
   every fight, practice too; their spoils read "The guard fell. Take one."
-- **The Rot Journal's "met at"** is the place's name for Fight, Guard, elite and ambush fights; the
+- **The Rot Journal's "met at"** is the place's name for Fight, Elite (group or guard) and ambush
+  fights (a rules 3 Guard stop's too); the
   boss and Rush fights keep the encounter's name.
 - **Events** (#318, G2 and G3): the four new events are in 8.7. The Key left every list, the
   Hanging Cage gives a find, the event bot values a heal only as far as the party is hurt.
@@ -4653,7 +4674,8 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   glossary is edited by hand and the guards' Dooms were added by hand (8.6), so
   `bootstrap_glossary.gd` and `bootstrap_phase15.gd` are older than the data: do not re-run them as
   they are.
-- **Text**: the glossary's In a zone topic went and The map gained Fight stop and Guard stop; the
+- **Text**: the glossary's In a zone topic went and The map gained Fight stop and Guard stop (the
+  Guard stop term went when the guards joined the Elite stops); the
   loading tips, the main menu and practice screens and the Journal no longer speak of zones.
 - **Bot runs** (headless, after #319): `--run --seed=7` run_victory (act 2, 14 stops, 8 fights),
   `--run --seed=3` run_victory (14 stops, 10 fights), `--rush --rush-fights=3` rush_capped, a plain
@@ -4661,7 +4683,8 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   the same `AUTOPLAY_RESULT` and `AUTOPLAY_MIRROR` lines on both). The build notes of #316 and #317 saw an
   average bot (skill 60) die to the first guard on seeds 1 to 4, and the guard row takes a mixed
   row, so maps hold fewer events and elites (seed 7 had no "?"): both are for the balance talk
-  (#321), with fewer fights meaning less XP, gold and drops (G5).
+  (#321), with fewer fights meaning less XP, gold and drops (G5). (The guard row went since: the
+  guards joined the Elite stops, below.)
 
 **As built (#320, the First Strike press).**
 
@@ -4696,13 +4719,14 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   ended, so a friend sees the host's LATE too. Main keeps the result in
   `_run_opening`, `_start_combat` passes it to `CombatController.configure`, and the run's
   `fight_setup` puts it in `CombatSetup.opening` (`combat_started` says `opening`).
-- **Which fights**: `Main._rings_first_strike` is true for `RunMap.StopType.FIGHT` only. Guard stops,
-  elites, ambushes, the boss, Rush fights and practice fights get no ring; `--first-strike` still
+- **Which fights**: `Main._rings_first_strike` is true for `RunMap.StopType.FIGHT` only. Elite
+  stops (an elite group or the guard; a rules 3 Guard stop too), ambushes, the boss, Rush fights and
+  practice fights get no ring; `--first-strike` still
   opens a practice or test fight with the advantage.
 - **Local co-op**: every local player has their own try on the one ring; any player's GOOD or PERFECT
   press counts.
-- **Online**: the host sends a Fight stop's `stop_fight` at its swirl with `"ring": true` (a Guard
-  stop's still goes when its fight is built). A friend's card shows the ring dimmed
+- **Online**: the host sends a Fight stop's `stop_fight` at its swirl with `"ring": true` (a rules 3
+  Guard stop's still goes when its fight is built; an Elite stop's fight goes as a `final_fight`). A friend's card shows the ring dimmed
   (`first_strike_watch_alpha`) with a P1 tag in place of the button, takes no press, and waits for
   the host's `opening` message (`{fight, opening, word}`; taken at once, not queued behind the card).
   It shows the host's word and sound, and the friend's fight starts with the host's opening. If no
@@ -4729,7 +4753,8 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   friend waits up to 6000 ms after the ring closes for the host's result; F4 the result stays 800 ms;
   F5 the ring is 0.8 of a skill ring, between the name and the tip; F6 a friend's ring is dimmed to
   0.45 with a P1 tag; F7 each local player gets their own try and the bot presses for each; F8 a
-  Guard stop keeps its old announcement time; F9 a loading tip about the ring; F10 a hit buzzes the
+  Guard stop (map rules 3 only since the guards joined the Elite stops) keeps its old announcement
+  time; F9 a loading tip about the ring; F10 a hit buzzes the
   presser's pad only, as a skill press does.
 - **Tests**: `test_first_strike.gd` (judging good, perfect, early, late, none, mash, lag, and a late
   press a frame after the window passed; any local player; the bots' habits; the ring's presses,
@@ -4749,13 +4774,99 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
 - A Fight stop is never announced while a transition is under way (`_fade_to` would not build its
   fight, and the friends would wait for a fight that never comes).
 
-**Guards merged into Elite stops (owner, 2026-10-24 night, "to lower confusions"; being built).** With no
-zones the guard lost its job (the zone's exit), and two stop kinds that both mean "a hard fight with
-spoils" confused. So the Guard stop and the guard row go: an **Elite stop** now holds either one of its
-act's elite groups or its place's guard (the mini-boss with its phase two, Doom, boss song), picked by
-the run's seed. The map is Fight, Elite, "?", Shop, Campfire, Treasure and the boss, like Slay the
-Spire. The Relic slot that opened after the first guard opens after the first Elite stop won. Pips stay
-per kind (guard 3, elite 2). This replaces G1 and card #317's Guard stop.
+**Guards merged into Elite stops (owner, 2026-10-24 night, "to lower confusions"; built
+2026-10-25).** With no zones the guard lost its job (the zone's exit), and two stop kinds that both
+mean "a hard fight with spoils" confused. So the Guard stop and the guard row went: an **Elite stop**
+now holds either one of its act's elite groups or its place's guard (the mini-boss with its phase two,
+Doom, boss song), picked by the run's seed. The map is Fight, Elite, "?", Shop, Campfire, Treasure and
+the boss, like Slay the Spire. The Relic slot that opened after the first guard opens after the first
+Elite stop won. Pips stay per kind (guard 3, elite 2). This replaces G1 and card #317's Guard stop.
+
+- **The map** (map rules 4, `RunState.MAP_RULES`; `apply_dict` takes rules 1 to 4): no Guard stop
+  and no guard row. `RunMap.generate` takes `guard_rows` (true for rules 3 only), so a rules 4 map is
+  the map rules 2 made: the guards' old row gets ordinary stops, and Elite stops stand where they
+  did (not before row `run_elite_min_row`, never two in a row, the act's crowned elite).
+  `run_guard_row` stays in the tuning for rules 3 maps, and `StopType.GUARD` keeps its number (7).
+  An act with no elite groups still gets Elite stops when every one of its places has a guard
+  (`RunState._act_all_guarded`); the map may give an Elite stop any of the act's places, so with one
+  place unguarded it gets none, and no Elite stop is left with nothing to fight.
+- **The pick** (`RunState.elite_holds_guard(stop_id)`, `elite_stop_fight`): a roll of its own by the
+  run's seed, the act and the stop (`ELITE_GUARD_SALT`, in the `(stop_id + 1) * SALT` pattern, so
+  it is the same on every machine and after Continue) under tuning `run_elite_guard_percent` (40):
+  under it the stop holds the guard, else one of the act's elite groups (`elite_of`, as before).
+- **Never the guard twice in a row** (the rule picked): an Elite stop never holds the guard when the
+  nearest Elite stop on any road leading to it holds the guard (the stops between that are not
+  Elite stops are passed over). It reads the map, not the road walked, so every machine, a save and
+  the map agree before anyone gets there, and no road meets the guard at two Elite stops in a row.
+  It holds while the act has elite groups: an act without any holds its guard at every Elite stop;
+  a place without a guard never holds one.
+- **The crowned elite** rolls like any Elite stop. A crowned guard keeps the crown's spoils (a
+  legendary Relic first) but not the crown's extra HP and power, which stay an elite group's
+  (`fight_setup` gives them to `encounter.elite` only).
+- **The fight**: `encounter_now` at an Elite stop is `elite_stop_fight`. A guard comes as the Guard
+  stop's did (`guard_of`: its deep version in a deep act or from row `run_deep_row`), with its phase
+  two, banner, boss song and rage, the place's look and air; every Elite stop rolls its weather as
+  before. No running, no First Strike ring and no name card: the Elite stop's swirl, as before.
+- **Pay**: a guard pays its spoils (pick 1 of 3, "The guard fell. Take one.") and `mastery_guard` (3)
+  pips; a group pays as before (`mastery_elite`, 2, its own spoils line); Flawless as before.
+- **The Relic slot** that opened after the first guard opens after the first Elite stop won, of
+  either kind (`RunState.elite_stops_won`, saved and sent under its old key `guards_beaten`, so the
+  saved counter still reads; a guard won anywhere also counts, as a rules 3 Guard stop does; an
+  ambush never does). A shut slot says "Opens after the first Elite stop.".
+- **What the player sees**: one Elite picture on the map for both kinds, the chips and name "Elite"
+  or "Crowned elite" (a rules 3 Guard stop draws as an Elite stop too); what an Elite stop holds
+  shows when the fight starts. The legend lost its Guard line, `map_guard.png` and its art kit
+  drawing went (`map_art.py`, `check.py`), and so did `MapVisuals.guard_stop_icon_path`. The
+  glossary lost its Guard stop term; its Guard term says "met at some Elite stops (never two in a row
+  on a road)" and its Elite stop term "one hard fight, an elite group or the place's guard ... the
+  first win opens a Relic slot". A loading tip says an Elite stop may hold the guard. The dev
+  screens' second slot comes from a won Elite stop. The guard enemies, their data and the Fight Rush
+  did not change.
+- **Bots**: the map bot weighs the Elite stop by its fitness check alone (`_autoplay_map`: treasure,
+  shop, rest, elite, event, fight; no guard), and every Elite stop prints `AUTOPLAY_ELITE stop=N
+  kind=guard|group enc=ID` with autoplay.
+- **Saves and online**: `RunSave.FORMAT_VERSION` 5: a format 4 run's map still has its row of Guard
+  stops, so it is kept on disk but not offered. A rules 3 run that loads (the code keeps the rules)
+  still fights its Guard stops as before. `Net.PROTOCOL` stays 5: no message or field changed (an
+  Elite stop still goes as a `final_fight`, and the friend builds its fight from the run state
+  alone); the content fingerprint keeps different builds apart.
+- **Tests**: `test_run_fights.gd` (no Guard stops on rules 4, which is the rules 2 map; the pick
+  seeded and stable; the guard share within 6 points of the tuning over 240 seeds, and 0% and 100%;
+  no road meets the guard twice in a row; a crowned guard's spoils and no crown HP or power; an act
+  without elite groups; a guard Elite stop pays guard pips and spoils; the Relic slot opens after the
+  first Elite stop won of either kind, never after an ambush; rules 3 maps keep their Guard row and
+  fights; formats 1 to 4 refused and kept; the friend builds the host's Elite fight from the state
+  alone; the bot's choices), `test_relics.gd` (the slot), `test_run_info_clean.gd` (a guard Elite
+  stop looks like any Elite stop), `test_map_shop_chips.gd` (no Guard legend line), `test_run.gd`,
+  `test_run_stops.gd`, `test_glossary.gd`, `test_run_balance.gd`.
+- **Bot runs** (headless): `--autoplay --run --seed=7` run_victory (act 3, 21 stops, 11 fights) with
+  no `AUTOPLAY_ELITE` line: seed 7's three Elite stops (one per act, each crowned; act 2's holds
+  the deep Mire Mother) are all off the bot's road. `--autoplay --run --seed=71` run_victory (act 3,
+  21 stops, 13 fights): `AUTOPLAY_ELITE stop=3 kind=guard enc=guard_gorged_one` (act 1; the second
+  Relic slot opened after it and the bot wore a second Relic), `stop=6 kind=group
+  enc=deep_elite_twin_husks` (act 1's crowned elite, next on that road) and `stop=20 kind=group
+  enc=deep_elite_hyena_pack` (act 3's crowned elite). `--autoplay=average --bot-skill=70 --run
+  --seed=3` run_defeat at stop 2 (act 1's second Fight stop, on the row that was the guards', after
+  the first fight left the party at 21%). Online pairs (`--run --host=2` and a `--join=127.0.0.1`
+  friend): seed 7 the same `AUTOPLAY_RESULT run_victory` and `AUTOPLAY_MIRROR` lines on both (no
+  Elite stop on the road); seed 71 the same `AUTOPLAY_RESULT run_victory`, the same three
+  `AUTOPLAY_ELITE` lines as the solo run (the guard at stop 3 built by the friend from the run
+  state) and the same `AUTOPLAY_MIRROR` lines on both. No `ERROR` lines.
+- **Defaults chosen while building** (the owner may overrule each one): E1 the guard share 40%; E2
+  the never-twice rule reads the map (the nearest Elite stop on any road before), not the road
+  walked; E3 the crowned elite may hold the guard, with the crown's legendary spoils and without its
+  HP and power; E4 an act with no elite groups holds its guard at every Elite stop (and gets Elite
+  stops only when every place has a guard); E5 a guard won anywhere still counts for the slot; E6
+  a guard's Elite stop keeps the Elite stop's swirl with no name card.
+- **Known limits** (for the balance talk, #321): guards are met far less often. A map holds about
+  1.1 Elite stops per act (816 in 720 acts over 240 seeds; every act has its crowned one) and 40% of
+  them hold the guard (327), so about 0.45 guards per act, and only on the roads through them, where
+  the guard row met one on every road in every act; fewer guards also means fewer guard pips and
+  spoils. With so few Elite stops about 9 in 10 are the act's crowned one, so a guard met usually
+  pays the crown's legendary spoils (291 of the 327). A guard can now stand in an act's deep rows:
+  act 3's deep Ash Warden at rows 4 and 5 brings more HP in all (7063 and 7249) than the Hollow
+  King's fight (6885), so `test_run_balance.gd` checks the rows before `run_deep_row` and prints the
+  deeper ones. Not yet seen in a game window.
 
 ### 8.23 Three acts and the Leech Queen (phase 26, card #323, decided 2026-10-24)
 
@@ -4789,7 +4900,8 @@ the owner to check):
 - **Depth.** Every act is 7 rows (6 and the boss), so the run is now 21 rows deep: act 2 is rows 7
   to 13, act 3 rows 14 to 20. Enemies, events and drops grow with that depth as before (8.3), so
   act 3's monsters are tougher than the old act 2's; bosses still do not grow. The first act's
-  guard is the Gorged One, the second's Mire Mother, the third's the deep Ash Warden. Only act 3 is
+  guard is the Gorged One, the second's Mire Mother, the third's the deep Ash Warden (met at some of
+  the act's Elite stops, 8.22). Only act 3 is
   `deep` (rows 4 on are deep in every act, 2.16). Beating act 1's or act 2's boss heals 50% and opens
   the next map; only the Hollow King ends the run. A Relic slot still opens after act 1's boss only
   (8.17); act 2's boss opens none (a default, for the balance talk).
@@ -4998,9 +5110,10 @@ the owner to check):
     while the host cannot take it yet. The host prints `Turn: P2 <key>` for each new turn,
     `Choice: P2 <what> key=<key>` (and `AUTOPLAY_CHOICE`) for each friend's choice it made, and
     `Choice refused: ...`; the friend prints `Choice asked: P2 <what> key=<key>`.
-- **Fight and Guard stops** (phase 26, 8.22; `Net.PROTOCOL` 5): the host sends a `stop_fight`
-  screen with the fight's seed, and each client builds the fight, its weather and its drop from the
-  run state alone, as for an Elite stop; it is a fight screen (`NET_FIGHT_SCREENS`), so a friend who
+- **Fight stops** (phase 26, 8.22; `Net.PROTOCOL` 5; a map rules 3 Guard stop the same): the host
+  sends a `stop_fight` screen with the fight's seed, and each client builds the fight, its weather
+  and its drop from the run state alone, as for an Elite stop (whose group or guard is the same
+  seeded pick on every machine); it is a fight screen (`NET_FIGHT_SCREENS`), so a friend who
   rejoins or drops in catches up. A Fight stop's `stop_fight` goes at the host's swirl with `"ring": true`;
   the friends watch its First Strike ring and get the host's result in an `opening` message, which
   the fight's message keeps for late joiners (#320, 8.22). (Until phase 26 the host's zone was real and sent `net_snapshot()`
@@ -5515,8 +5628,8 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
 - Run smoke test: `--autoplay --run --quit-on-end` (add `--seed=N` for a fixed map). The bot
   picks a shop when it has gold, a rest when someone is at or under 60% HP (or the party averages
   under 75%), an elite stop only while the party is healthy (`RunAutoplay.is_ready`), then an
-  event, a Guard stop, else a Fight stop (the order: treasure, shop, rest, elite, event, guard,
-  fight); it uses its healing items at every map visit; in shops it buys what it can for whoever is lowest; it takes the first
+  event, else a Fight stop (the order: treasure, shop, rest, elite, event, fight; each Elite stop
+  prints `AUTOPLAY_ELITE stop=N kind=guard|group enc=ID`, 8.22); it uses its healing items at every map visit; in shops it buys what it can for whoever is lowest; it takes the first
   loot and puts every bag item on whoever has the most free slots. Ends with
   `AUTOPLAY_RESULT run_victory|run_defeat stops=N fights=N level=N gear=N gold=N seed=N oath=N`
   (add `--oath=N` to play at an oath, 8.15).
@@ -5727,7 +5840,8 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     Rush (#315, phase 26: after playing it the owner said Rush might replace the Run).
 26. **Game direction** (decided 2026-10-24, building on branch `phase26-Direction`; was "Story",
     which moved to phase 27, and the tutorial chapter #206 to phase 28): the Run keeps its map, stops,
-    acts and ending but loses its walkable zones (8.22): Fight stops (#316), Guard stops (#317),
+    acts and ending but loses its walkable zones (8.22): Fight stops (#316), Guard stops (#317,
+    then merged into the Elite stops: an Elite stop holds an elite group or the place's guard),
     shrines and wanderers as "?" events with no more keys (#318), the zone code and data removed
     (#319), First Strike as a press (#320). Then two talks with the owner for the shorter run:
     balance, levels, Relics and Echoes (#321) and three acts with a boss each (#322).
@@ -5999,5 +6113,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | The walkable zones are removed for good (#319): their code, data, tools, tests, 3D pieces and art go; a place keeps its look, air, weathers, Fight stop monsters and guard, and still names its song and loop; the zone songs, ambience and sound cues stay unused (8.22 As built); saves of format 2 are kept but refused too (`RunSave.FORMAT_VERSION` 3), since their packs could hold the Key | 8.22 G3, G6 to G8; no dead zone code or data left behind |
 | 2026-10-24 | First Strike is a press (#320): a Fight stop's fight opens with one skill press ring on the place's name card; GOOD or PERFECT gives First Strike, anything else a normal start; any local player may press, online only the host's press decides and the friends watch; guards, elites, ambushes, bosses and the Rush open normally (8.22, defaults F1 to F10) | 8.22 "The First Strike press"; built while the owner slept, judged from input stamps outside the core like every press; `Net.PROTOCOL` stays 5 |
 | 2026-10-24 | Three acts, one place each (Hollow, Bog, Ruins); a new act 2 boss, the Leech Queen (8.23, #323); boss pools (#324) and boss gimmicks (#325) are ideas for later | owner: three acts are the roguelite standard; few female enemies so far |
-| 2026-10-24 | Guards merged into Elite stops: an Elite stop holds an elite group or its place's guard; no Guard stop or guard row (8.22) | owner: lower confusion; guards had no job without zones |
+| 2026-10-24 | Guards merged into Elite stops: an Elite stop holds an elite group or its place's guard; no Guard stop or guard row (8.22); built 2026-10-25: a seeded 40% (`run_elite_guard_percent`) holds the guard, never when the nearest Elite stop on a road before holds it, the first Elite stop won opens the Relic slot | owner: lower confusion; guards had no job without zones |
 | 2026-10-25 | Online the run's choices go in turns (9.2 "Taking turns", card #314): each new choice screen (a map step, a stop, a spoils pick, a Rush pick) is the next seated player's, skipping away and joining seats; the host referees (a friend's choice is a request checked against the turn and the screen); a whose-turn chip (person sign and tag); a drop passes the turn; a find with no room is handed to the owner; the Rush's Fight is the last picker's; Settings, Game, Take turns (default on, the host's) keeps the old way; `Net.PROTOCOL` 6 | card #314; the party screen stays everyone's as before; a new Relic on a friend's turn waits in the bag and the spoils' party screen stays the host's (defaults) |
