@@ -42,7 +42,7 @@ var _look: StageLook
 
 
 ## Builds the stage in `look` (null: the fight list's look from the visuals). Call once before
-## adding fighters. `air` is the zone's drifting particles (DESIGN.md 8.12), played thinner in
+## adding fighters. `air` is the place's drifting particles (DESIGN.md 8.12), played thinner in
 ## the fight; empty: the look's own arena_air.
 func build(visuals: CombatVisuals, look: StageLook = null, air: Array[ZoneAmbientData] = []) -> void:
 	_visuals = visuals
@@ -96,7 +96,7 @@ func build(visuals: CombatVisuals, look: StageLook = null, air: Array[ZoneAmbien
 	_build_wave_band()
 
 
-## The zone's air in the arena: thinned copies of its particles, in a fixed box behind and around
+## The place's air in the arena: thinned copies of its particles, in a fixed box behind and around
 ## the fighters (the combat camera glides, so the box does not follow it).
 func _add_air(look: StageLook, air: Array[ZoneAmbientData]) -> void:
 	var list := air if not air.is_empty() else look.arena_air

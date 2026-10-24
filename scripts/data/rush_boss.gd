@@ -7,7 +7,7 @@ extends Resource
 @export var encounter: EncounterData
 ## The look, air and weather of the fight. May be empty when `look` is set (no weather then).
 @export var zone: ZoneData
-## The look of the fight in place of the zone's (the Hollow King's throne).
+## The look of the fight in place of the place's (the Hollow King's throne).
 @export var look: StageLook
 ## The depth (map rows) this boss is built for: where a run meets it. A boss grows only by the depth past it.
 @export_range(0, 100) var home_depth: int = 0

@@ -1293,8 +1293,8 @@ func weather_now() -> WeatherData:
 	return WeatherData.pick(zone.weathers, zone.weather_weights, zone.clear_weight, _salted((at + 1) * FIGHT_WEATHER_SALT))
 
 
-## What the current Fight stop's fight drops when won: a roaming enemy's seeded
-## tuning.item_drop_percent roll (drop_for). Null at every other stop and in an ambush.
+## What the current Fight stop's fight drops when won: its seeded tuning.item_drop_percent roll
+## (drop_for, the roll a zone's first roaming enemy had). Null at every other stop and in an ambush.
 func fight_drop() -> ItemData:
 	if in_ambush() or int(current().get("type", -1)) != RunMap.StopType.FIGHT:
 		return null

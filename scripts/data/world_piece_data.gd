@@ -1,8 +1,8 @@
 class_name WorldPieceData
 extends Resource
 ## A 3D world piece made in Blender (DESIGN.md 5.6): its model and what each of its surfaces
-## wears. One file per look in data/pieces/; zones place it with a ZonePropData or a ZoneBlockData.
-## The same model in another zone's stone is just another piece file.
+## wears. One file per look in data/pieces/; an arena places it with a ZonePropData or a
+## ZoneBlockData. The same model in another place's stone is just another piece file.
 
 @export var id: String = ""
 ## The shape (tools/blender_kit/build.py): one mesh, its foot on the ground at the origin.

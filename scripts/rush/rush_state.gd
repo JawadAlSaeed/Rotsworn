@@ -395,7 +395,7 @@ func encounter_now() -> EncounterData:
 	return base
 
 
-## The zone whose look, air and weather `fight` has: one of its tier's (seeded), or the boss's own
+## The place whose look, air and weather `fight` has: one of its tier's (seeded), or the boss's own
 ## (null: a boss fought in its own look only).
 func zone_now() -> ZoneData:
 	if kind_of(fight) == Kind.BOSS:
@@ -408,7 +408,7 @@ func zone_now() -> ZoneData:
 	return tier.zones[rng.range_int(0, tier.zones.size() - 1)]
 
 
-## The look of `fight` before weather: the boss's own, else its zone's.
+## The look of `fight` before weather: the boss's own, else its place's.
 func look_now() -> StageLook:
 	var boss := boss_entry(fight)
 	if boss != null and boss.look != null:
@@ -417,7 +417,7 @@ func look_now() -> StageLook:
 	return zone.look if zone != null else null
 
 
-## The air (drifting motes and the like) of `fight`'s zone (none without a zone).
+## The air (drifting motes and the like) of `fight`'s place (none without a place).
 func air_now() -> Array[ZoneAmbientData]:
 	var air: Array[ZoneAmbientData] = []
 	var zone := zone_now()
@@ -426,7 +426,7 @@ func air_now() -> Array[ZoneAmbientData]:
 	return air
 
 
-## The weather of `fight`, rolled from its zone's (seeded; null: clear, or no zone).
+## The weather of `fight`, rolled from its place's (seeded; null: clear, or no place).
 func weather_now() -> WeatherData:
 	var zone := zone_now()
 	if zone == null:

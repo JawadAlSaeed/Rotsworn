@@ -14,7 +14,7 @@ extends RefCounted
 ## a strictly higher priority one refuses the new one, an equal or lower one is replaced.
 
 const PRIO_NONE: int = 0
-## Hurt, legacy play_pose, weapon draw, counter strike, zone strike, follow-up leap.
+## Hurt, legacy play_pose, weapon draw, counter strike, follow-up leap.
 const PRIO_REACT: int = 1
 ## Stagger, fall, get-up, escape run-off, pickup, boss rage.
 const PRIO_BIG: int = 2

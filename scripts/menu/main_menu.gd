@@ -5,7 +5,7 @@ extends CanvasLayer
 ## settings, quit.
 ## Up/down picks, confirm opens it. No button bar here (card #130: the user found it clutter). Kept
 ## short (cards #150 and #208): Online and Extras open a second list in place (Host / Join; the
-## tutorial, the Glossary (7.12), the Rot Journal (7.11), credits), cancel or Back goes back. Practice (any fight or zone
+## tutorial, the Glossary (7.12), the Rot Journal (7.11), credits), cancel or Back goes back. Practice (any fight
 ## on its own) is a test tool: its row shows in Extras only in debug builds. The version sits in the
 ## bottom-left corner and the studio's logo in the bottom-right.
 ## Online's Host and Join are two cards side by side, each with a picture (card #288); Back is the

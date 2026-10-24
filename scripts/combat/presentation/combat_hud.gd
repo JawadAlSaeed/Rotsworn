@@ -844,7 +844,7 @@ func set_target_marker(world_pos: Vector3, shown: bool) -> void:
 
 ## The victory or defeat screen, with a short summary of the fight (practice only; "" hides it);
 ## `hints` ([[action, text], ...]) say what the buttons do (the controller knows whether this is a
-## test fight, a zone fight or a run fight) and `note` adds a line above them. `rewards` (a won run
+## test fight or a run fight) and `note` adds a line above them. `rewards` (a won run
 ## fight, CombatController._end_rewards) shows as icon rows: what was won, then each hero's XP.
 func show_end(result: String, summary: String, hints: Array, note: String = "", rewards: Dictionary = {}) -> void:
 	match result:

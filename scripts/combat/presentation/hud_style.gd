@@ -407,7 +407,7 @@ static func set_bar_color(b: ProgressBar, fill: Color) -> void:
 
 ## The first keyboard key and the first pad button of an input action: [key, pad] ("" when
 ## that kind is not bound), read from the Input Map so hints follow remaps made in Project
-## Settings > Input Map. Also takes the NAV_TOKENS (moving in menus and zones).
+## Settings > Input Map. Also takes the NAV_TOKENS (moving in menus).
 static func binding_parts(action: StringName) -> Array[String]:
 	if NAV_TOKENS.has(action):
 		return nav_parts(action)

@@ -90,8 +90,7 @@ func _next_gift() -> void:
 
 
 ## RunState.offer_chips or choice_chips as ListMenu.chip() entries (card #288): each kind's icon from
-## `look`, its text coloured as a price, a gift or what a risk may do. Main's shrine question uses
-## it too.
+## `look`, its text coloured as a price, a gift or what a risk may do.
 static func chip_entries(chips: Array[Dictionary], look: StopVisuals) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for chip: Dictionary in chips:

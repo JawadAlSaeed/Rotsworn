@@ -1274,7 +1274,7 @@ def _gait(near_x: float, far_x: float, near_up: float, far_up: float, bob: float
 
 
 # Two steps per cycle; a foot is planted on cells 0 and 2 (the footstep moments). A step is 18
-# design units (about 20 px = explore_visuals roam_stride 0.9 at 0.045 per px), so the planted
+# design units (about 20 px = the zones' roam stride of 0.9 at 0.045 per px, until phase 26), so the planted
 # foot keeps pace with the ground.
 WALK = [_gait(6.0, -12.0, 0.0, 0.0, -0.4, -1.0), _gait(-3.0, -4.5, 0.0, 6.0, 0.9, 0.0),
         _gait(-12.0, 6.0, 0.0, 0.0, -0.4, 1.0), _gait(-4.5, -3.0, 6.0, 0.0, 0.9, 0.0)]

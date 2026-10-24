@@ -316,7 +316,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var device := PlayerRoster.device_of(event)
 	if _in_run and is_inside_tree() and not event is InputEventMouseMotion:
-		# Modal (cards #304, #311): nothing under the overlay (the zone backpack, a party screen)
+		# Modal (cards #304, #311): nothing under the overlay (a party screen, the map)
 		# sees a press, not even from a friend who has not joined.
 		get_viewport().set_input_as_handled()
 	if device == PlayerRoster.ANY or event.is_echo():

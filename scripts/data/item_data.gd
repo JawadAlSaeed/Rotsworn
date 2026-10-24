@@ -63,7 +63,7 @@ enum Effect {
 ## In a fight, a healing or cleansing item removes this many hero debuffs from each hero it reaches
 ## (card #194; see AbilityData.cleanse_count). Status.CLEANSE_ALL (9) clears all.
 @export_range(0, 9) var cleanse_count: int = 0
-## How often it turns up in glinting spots and monster drops, against the run's other found
+## How often it turns up as a Fight stop's drop, a treasure or an event's find, against the run's other found
 ## items (a weight, not a percent).
 @export_range(0, 1000) var find_weight: int = 10
 ## Can it be used on the map (from the backpack screen)?

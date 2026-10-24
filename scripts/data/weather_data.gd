@@ -1,12 +1,13 @@
 class_name WeatherData
 extends Resource
-## One kind of weather or time of day in a zone (DESIGN.md 8.20, card #303): rain, fog, wind, dusk,
-## a storm. A zone lists the ones it can have (ZoneData.weathers); each visit picks one or clear
-## weather from its seed (ZoneAssembler), so the same zone feels different from visit to visit and
-## every machine online sees the same sky. It changes only how the place looks and sounds: the light
-## and fog (a copy of the zone's StageLook, so the zone's fights match), extra air (rain, mist,
-## blowing leaves), how hard the plants sway, a loop over the zone's own background sound, and for a
-## storm, lightning and thunder. Files live in data/weather/.
+## One kind of weather or time of day in a place (DESIGN.md 8.20, card #303): rain, fog, wind, dusk,
+## a storm. A place lists the ones it can have (ZoneData.weathers); each run or Rush fight there rolls
+## one or clear weather from the run's seed (RunState.weather_now, RushState.weather_now, DESIGN.md
+## 8.21 and 8.22), so the same place feels different from fight to fight and every machine online
+## sees the same sky. It changes only how the place looks and sounds: the light and fog (a copy of the
+## place's StageLook), extra air (rain, mist, blowing leaves), how hard the plants sway and a sound
+## loop. Its storm lightning lit the walkable zones only (WeatherFx, unused since phase 26, G6).
+## Files live in data/weather/.
 
 @export var id: String = ""
 ## Its name in the data ("Rain"). Never written on screen: the weather shows itself (owner,
@@ -21,16 +22,16 @@ extends Resource
 @export var ambient_color: Color = Color(1.0, 1.0, 1.0)
 @export_range(0.0, 1.0, 0.01) var ambient_color_mix: float = 0.0
 @export_range(0, 300, 1, "suffix:%") var ambient_energy_percent: int = 100
-## The sun's height (its rotation's pitch, degrees; -90 straight down). 0: the zone's own. Dusk
+## The sun's height (its rotation's pitch, degrees; -90 straight down). 0: the place's own. Dusk
 ## lowers it, so shadows grow long.
 @export_range(-90.0, 0.0, 0.5) var sun_pitch_degrees: float = 0.0
-## How dark the sun's shadows are, in percent of the zone's (a grey sky: fainter).
+## How dark the sun's shadows are, in percent of the place's (a grey sky: fainter).
 @export_range(0, 200, 1, "suffix:%") var sun_shadow_percent: int = 100
 
 @export_group("Fog and sky")
 @export var fog_color: Color = Color(1.0, 1.0, 1.0)
 @export_range(0.0, 1.0, 0.01) var fog_color_mix: float = 0.0
-## Added to the zone's fog and its ground fog.
+## Added to the place's fog and its ground fog.
 @export_range(0.0, 0.3, 0.001) var fog_density_add: float = 0.0
 @export_range(0.0, 2.0, 0.01) var fog_height_density_add: float = 0.0
 @export var background_color: Color = Color(0.0, 0.0, 0.0)
@@ -40,28 +41,28 @@ extends Resource
 @export_range(0, 300, 1, "suffix:%") var brightness_percent: int = 100
 @export_range(0, 300, 1, "suffix:%") var saturation_percent: int = 100
 @export_range(0, 300, 1, "suffix:%") var contrast_percent: int = 100
-## Added to the zone's dark screen edges.
+## Added to the place's dark screen edges.
 @export_range(-1.0, 1.0, 0.01) var vignette_add: float = 0.0
 
 @export_group("Air and wind")
-## Drifting extras (rain streaks, splashes, mist banks, blowing leaves), on top of the zone's own air.
+## Drifting extras (rain streaks, splashes, mist banks, blowing leaves), on top of the place's own air.
 @export var air: Array[ZoneAmbientData] = []
-## The zone's own air at this share (rain puts most fireflies out).
+## The place's own air at this share (rain puts most fireflies out).
 @export_range(0, 300, 1, "suffix:%") var zone_air_percent: int = 100
-## How far and how fast the plants sway, in percent of the zone's (wind: more).
+## How far and how fast the plants sway, in percent of the place's (wind: more).
 @export_range(0, 500, 1, "suffix:%") var sway_percent: int = 100
 @export_range(0, 500, 1, "suffix:%") var sway_speed_percent: int = 100
 
 @export_group("Sound")
-## A loop over the zone's own background sound (rain, wind). Empty: none.
+## A sound loop (rain, wind). Empty: none.
 @export_file("*.wav", "*.ogg", "*.mp3") var ambience_path: String = ""
 @export_range(-40.0, 12.0, 0.5, "suffix:dB") var ambience_volume_db: float = 0.0
-## The loop goes on in the zone's fights, this much quieter (the fight's own sounds come first).
+## In a fight the loop plays this much quieter (the fight's own sounds come first).
 @export_range(-40.0, 0.0, 0.5, "suffix:dB") var fight_volume_offset_db: float = -6.0
 
 @export_group("Lightning")
-## A storm: lightning lights the zone now and then (never in a fight, where it would hide an
-## attack), and thunder follows. 0: no lightning.
+## A storm: lightning lit the walkable zones now and then (never a fight, where it would hide an
+## attack), and thunder followed (WeatherFx, unused since phase 26). 0: no lightning.
 @export_range(0, 120000, 100, "suffix:ms") var lightning_min_ms: int = 0
 @export_range(0, 120000, 100, "suffix:ms") var lightning_max_ms: int = 0
 ## A flash adds this much ambient light and lifts the sky this far toward lightning_color (the
@@ -81,7 +82,7 @@ func has_lightning() -> bool:
 	return lightning_min_ms > 0 and lightning_max_ms >= lightning_min_ms
 
 
-## A copy of `look` under this weather (the zone's own look is shared and never changed).
+## A copy of `look` under this weather (the place's own look is shared and never changed).
 func apply_to(look: StageLook) -> StageLook:
 	var out := (look.duplicate() as StageLook) if look != null else StageLook.new()
 	out.light_color = out.light_color.lerp(light_color, light_color_mix)

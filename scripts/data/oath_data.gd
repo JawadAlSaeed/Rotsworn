@@ -13,7 +13,7 @@ extends Resource
 ## Elite fights: added to tuning elite_hp_percent / elite_power_percent (points of percent).
 @export var elite_hp_percent_add: int = 0
 @export var elite_power_percent_add: int = 0
-## Act bosses and zone guards (mini-bosses): their HP and power, in percent over their data.
+## Act bosses and the places' guards (mini-bosses): their HP and power, in percent over their data.
 @export var boss_hp_percent_add: int = 0
 @export var boss_power_percent_add: int = 0
 ## Every enemy's power, in percent over what it would be.

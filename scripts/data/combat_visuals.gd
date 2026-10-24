@@ -19,8 +19,8 @@ extends Resource
 @export_file_path("*.png") var slash_path: String = "res://assets/sprites/fx/slash.png"
 
 @export_group("Stage")
-## How the fight list's fights look (ground, light, fog, bloom, arena decoration). A fight that
-## starts in a zone uses the zone's look instead.
+## How the fight list's fights look (ground, light, fog, bloom, arena decoration). A run or Rush
+## fight uses its place's look instead.
 @export var stage_look: StageLook
 
 @export_group("UI art")
@@ -62,8 +62,8 @@ extends Resource
 @export_range(0.001, 0.2, 0.001) var fx_pixel_size: float = 0.045
 ## Width of the shadow blob under each fighter, as a fraction of the sprite frame width.
 @export_range(0.05, 3.0, 0.05) var shadow_width_factor: float = 0.85
-## How far over the floor the shadow blob lies (world units): over every ground piece of a zone
-## (StageLook ground_lift and ground_step, card #269), so a walker on a road keeps its shadow.
+## How far over the floor the shadow blob lies (world units): over every stacked ground piece
+## (StageLook ground_lift and ground_step, card #269), so a fighter on a road keeps its shadow.
 @export_range(0.0, 0.5, 0.001) var shadow_lift: float = 0.06
 ## How far in front of the target an enemy lunge connects (world units).
 @export_range(0.1, 6.0, 0.05) var contact_gap: float = 1.6
@@ -723,10 +723,10 @@ func kind_color(kind: int, strike_color: Color) -> Color:
 ## With the Flashes setting on Reduced or Off the shift takes this share of that time (slower,
 ## so the change of light is gentler).
 @export_range(100, 400, 10, "suffix:%") var phase_look_calm_percent: int = 200
-## The zone's drifting particles also play in its fights: this share of each one's amount (a fight
+## The place's drifting particles play in its fights at this share of each one's amount (a fight
 ## is a busy picture; 0 = none).
 @export_range(0, 100, 5, "suffix:%") var fight_air_percent: int = 50
-## The fight's air box is this deep as a share of the zone's, and sits this far from the arena's
+## The fight's air box is this deep as a share of the place's, and sits this far from the arena's
 ## middle (world units; negative z is away from the camera), so it hangs behind and around the
 ## fighters and never between the camera and the hit markers.
 @export_range(10, 100, 5, "suffix:%") var fight_air_depth_percent: int = 60

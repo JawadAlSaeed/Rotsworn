@@ -2,7 +2,7 @@ class_name MouseCursor
 extends Node
 ## Shows the mouse pointer only when it is useful (DESIGN.md 6.2, card #202). Registered as the
 ## autoload "Pointer". It hides while a key or a pad is being used and shows again the moment the
-## mouse moves or clicks; it stays hidden in fights and zones, which are keyboard and pad games
+## mouse moves or clicks; it stays hidden in fights, which are keyboard and pad games
 ## (Main tells it with set_menus_allowed()). The state is static (like ButtonPrompts) so tests can
 ## read it without the autoload; nothing is done without a window (headless).
 
@@ -24,7 +24,7 @@ func _exit_tree() -> void:
 
 
 ## Main: true on the menu screens, the pause menu, the backpack and the map; false while a fight
-## or a zone is being played.
+## is being played.
 static func set_menus_allowed(allowed: bool) -> void:
 	if allowed == _menus_allowed:
 		return

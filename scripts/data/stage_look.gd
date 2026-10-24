@@ -85,7 +85,7 @@ extends Resource
 @export var vignette_color: Color = Color(0.0, 0.0, 0.02)
 
 @export_group("Contact shadows")
-## Props, trees, shrines and walkers-by get a soft dark blob on the ground under them (the same
+## Props and trees get a soft dark blob on the ground under them (the same
 ## blob the fighters stand on). How dark it is (0 = none).
 @export_range(0.0, 1.0, 0.05) var prop_shadow_opacity: float = 1.0
 ## Blob width as a share of the prop's footprint (the opaque width of its lowest rows).

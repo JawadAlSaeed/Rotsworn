@@ -15,13 +15,13 @@ extends Resource
 ## The party may try to run from this fight (DESIGN.md 2.13). Bosses, guards and elite fights never
 ## allow it, whatever this says (CombatSetup).
 @export var can_run: bool = true
-## A zone's guard (DESIGN.md 8.6): its name is announced like a boss's, but it grows with depth
-## like any fight.
+## A place's guard (DESIGN.md 8.6, a run's Guard stop since 8.22): its name is announced like a
+## boss's, but it grows with depth like any fight.
 @export var mini_boss: bool = false
 ## An elite fight (DESIGN.md 8.6): tougher (tuning elite_hp_percent, elite_power_percent), more
-## gold, rarer spoils. Elite map stops and zone champions hold these.
+## gold, rarer spoils. Elite map stops hold these.
 @export var elite: bool = false
-## Deeper in a run (map row tuning run_deep_row on) a zone holds this fight instead: the same kind
+## Deeper in a run (map row tuning run_deep_row on) a stop fights this instead: the same kind
 ## of fight with variant monsters (DESIGN.md 2.16). Empty: always this fight.
 @export var deep: EncounterData
 ## Every enemy's HP in percent of their data (card #245): a fight of three spreads its HP out so it

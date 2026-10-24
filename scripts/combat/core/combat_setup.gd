@@ -6,7 +6,8 @@ extends RefCounted
 enum Opening {
 	## Everyone's first turn comes from their speed.
 	NORMAL,
-	## The party struck a roaming enemy first: every party member acts before any enemy.
+	## First Strike (DESIGN.md 2.12): every party member acts before any enemy. (A zone's field
+	## swing gave it until phase 26; card #320 brings it back as a press, 8.22.)
 	FIRST_STRIKE,
 }
 
@@ -53,7 +54,7 @@ var enemy_speed_percent: int = 100
 var attack_tempo_percent: int = 0
 ## Hits take their forced kinds (REND, SWEEP; card #187): elite, guard and boss fights.
 var forced_hits: bool = false
-## Ordinary enemy hits may leave their marks (card #253). Off in a run's first zone, so the first
+## Ordinary enemy hits may leave their marks (card #253). Off on a run's first map row, so the first
 ## fights teach the hits before the marks; hard fights mark anyway. (The tutorial's enemy only uses
 ## each lesson's attack, so only the marks lesson shows one.)
 var allow_marks: bool = true

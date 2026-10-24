@@ -56,14 +56,13 @@ static func pose_name(pose: int, party: bool) -> String:
 	return names[pose] if pose >= 0 and pose < names.size() else ""
 
 
-## The clip the sheet has for `clip`, trying in order: clip + suffix (a facing, zone only), clip,
-## its fallbacks one after another, then strike_windup for any wind-up and strike for any other
-## name outside the catalogue (a per-skill strike). "" when none fits.
-static func resolve(clips: SpriteClips, clip: String, suffix: String = "") -> String:
+## The clip the sheet has for `clip`, trying in order: clip, its fallbacks one after another, then
+## strike_windup for any wind-up and strike for any other name outside the catalogue (a per-skill
+## strike). "" when none fits. (A facing suffix tried first went with the zones' walkers in phase
+## 26, DESIGN.md 8.22.)
+static func resolve(clips: SpriteClips, clip: String) -> String:
 	if clips == null or clip.is_empty():
 		return ""
-	if not suffix.is_empty() and clips.count(clip + suffix) > 0:
-		return clip + suffix
 	var name := clip
 	for i: int in MAX_STEPS:
 		if name.is_empty():
@@ -78,9 +77,9 @@ static func resolve(clips: SpriteClips, clip: String, suffix: String = "") -> St
 	return ""
 
 
-## The cells of resolve(clips, clip, suffix); empty when none fits.
-static func cells(clips: SpriteClips, clip: String, suffix: String = "") -> PackedInt32Array:
-	var found := resolve(clips, clip, suffix)
+## The cells of resolve(clips, clip); empty when none fits.
+static func cells(clips: SpriteClips, clip: String) -> PackedInt32Array:
+	var found := resolve(clips, clip)
 	return clips.frames(found) if not found.is_empty() else PackedInt32Array()
 
 

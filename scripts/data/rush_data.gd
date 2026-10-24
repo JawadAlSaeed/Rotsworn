@@ -14,8 +14,8 @@ extends Resource
 @export var tiers: Array[RushTier] = []
 ## The boss cycle, one per tuning rush_boss_every fights, then round again.
 @export var bosses: Array[RushBoss] = []
-## Items the item card can offer: CONSUMABLE or UPGRADE only, never rotten (no keys, treasure or
-## curses: a Rush has no chests and no gold).
+## Items the item card can offer: CONSUMABLE or UPGRADE only, never rotten (no treasure or
+## curses: a Rush has no treasure stops and no gold).
 @export var items: Array[ItemData] = []
 
 
@@ -41,7 +41,7 @@ func validate() -> PackedStringArray:
 			problems.append("tier %d starts at fight %d, not after %d" % [i, tier.from_fight, last_from])
 		last_from = tier.from_fight
 		if tier.zones.is_empty() or tier.zones.has(null):
-			problems.append("tier %d needs zones" % i)
+			problems.append("tier %d needs places" % i)
 		if tier.fights.size() < 2:
 			problems.append("tier %d needs at least 2 fights" % i)
 		if tier.elites.is_empty():
@@ -69,7 +69,7 @@ func validate() -> PackedStringArray:
 			problems.append("boss %d has no fight" % i)
 			continue
 		if boss.zone == null and boss.look == null:
-			problems.append("boss %d has no zone or look" % i)
+			problems.append("boss %d has no place or look" % i)
 		if tier_ids.has(boss.encounter.id):
 			problems.append("boss fight %s is also a tier fight" % boss.encounter.id)
 		elif ids.has(boss.encounter.id) and ids[boss.encounter.id] != boss.encounter:

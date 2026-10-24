@@ -11,12 +11,10 @@ and made with Godot 4.7.2.
 
 ![A fight: the Elder Toad's ground waves roll at the party, and only a jump beats them](docs/images/fight_jump.png)
 
-| | |
-|---|---|
-| ![Brin walks through the Sunken Bog](docs/images/zone_sunken_bog.png) | ![The map of act 1](docs/images/run_map.png) |
-| Walk the zones and hit enemies first. | Pick your road. It is never the same twice. |
-| ![The Team Ultimate](docs/images/team_ultimate.png) | ![The party screen and the backpack](docs/images/party_backpack.png) |
-| Fill the team gauge, then strike together. | Level up, wear Relics, pack the backpack. |
+| | | |
+|---|---|---|
+| ![The map of act 1](docs/images/run_map.png) | ![The Team Ultimate](docs/images/team_ultimate.png) | ![The party screen and the backpack](docs/images/party_backpack.png) |
+| Pick your road. It is never the same twice. | Fill the team gauge, then strike together. | Level up, wear Relics, pack the backpack. |
 
 - [Play it](#play-it)
 - [What's in the game](#whats-in-the-game)
@@ -89,8 +87,8 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 
 - **Counters.** Defend every hit of an attack perfectly (parry, or jump the ground hits) and the
   hero strikes back. If the whole party does it, they strike back together as a **TEAM COUNTER**.
-- **First strike.** In a zone, hit a roaming enemy before it touches you: the fight starts with
-  **FIRST STRIKE!** and every hero acts before any enemy.
+- **First strike.** A fight that starts with **FIRST STRIKE!** lets every hero act before any
+  enemy. Soon a well-timed press as a fight opens will earn it.
 - **Dooms.** Guards and bosses charge one huge attack and count it down (*"TIMBER FALL IN 3"*).
   Deal enough damage in time and it **BREAKS**: the enemy is staggered, loses a turn and takes more
   damage.
@@ -98,7 +96,7 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
   fail to defend it: **ROT** (lose HP each turn), **BURN** (lose more, for fewer turns),
   **BLIGHT** (healing halved), **WEAK** (less power), **SHOCK** (smaller timing windows),
   **SLOWED** (later turns), **DAZE** (skip a turn) or **HUSH** (no skills), or it drains AP. The
-  first zone of a run has none. Cass's Mend, Sanctuary and Purify, the Salve, the Antidote and Holy
+  first row of a run's map has none. Cass's Mend, Sanctuary and Purify, the Salve, the Antidote and Holy
   Water lift marks, and they all end with the fight.
 - **Monsters.** Each one tests something: quick Rot Rats in packs of three, an Ember Slinger and a
   Marsh Lantern that only throw, a huge slow Barrow Brute, a Rot Priest that heals and shields the
@@ -107,16 +105,16 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 ### A run
 
 - **Two acts.** Each act is a branching map (6 rows of stops, then the boss) that is new every run.
-  You pick your path one stop at a time. Act 1 is *The Rotten Road*; act 2, *The Ashen Deep*, uses
-  tougher versions of every monster.
+  You pick your path one stop at a time, and every road meets a guard early in each act. Act 1 is
+  *The Rotten Road*; act 2, *The Ashen Deep*, uses tougher versions of every monster.
 - **Stops on the map:**
-  - **Zone**: walk through a long place built fresh each visit (Rotten Hollow, Sunken Bog or
-    Ashen Ruins). Take 2 of the 3 rot seals to open the gate, then beat the **guard** (a
-    mini-boss) at the exit. Other enemies are optional, for more gold, XP and loot. Shrines,
-    wanderers, locked chests (you need a Key) and champion elites may wait along the way.
+  - **Fight**: one fight in a place (Rotten Hollow, Sunken Bog or Ashen Ruins), in its own light
+    and weather. Win for gold, XP and sometimes an item. You may run away, but then you get nothing.
+  - **Guard**: the place's **guard**, a mini-boss that rages at half health. You cannot run. Beat
+    it and pick one of three Relics.
   - **Elite**: a much tougher fight with better spoils.
   - **?**: an event. Every choice has a price (gold, max HP for the rest of the run, an item, a
-    curse, a fight) or a risk, and some "?" stops are ambushes. 16 events in all.
+    curse, a fight) or a risk, and some "?" stops are ambushes. 20 events in all.
   - **Treasure**: a chest with something rare and some gold.
   - **Shop**: *The Rag Merchant* sells items and Relics. He also buys your items for half price,
     takes a curse off your hands, upgrades an item and restocks his shelves, all for gold.
@@ -179,16 +177,6 @@ such as the arrow keys next to WASD).
 | Press on the beat (your own moves) | Space or E | A or RB |
 | Pause | Esc | Menu (Start) |
 
-**In a zone**
-
-| What | Keyboard | Pad (Xbox) |
-|---|---|---|
-| Walk | WASD or arrow keys | left stick or D-pad |
-| Strike (hit an enemy first for FIRST STRIKE) | Space or J | X |
-| Use (pick up, open, pray, talk) | E or Enter | A |
-| Backpack and party | Tab | Y |
-| Pause | Esc | Menu (Start) |
-
 **In menus**
 
 | What | Keyboard | Pad (Xbox) |
@@ -200,7 +188,7 @@ such as the arrow keys next to WASD).
 
 The mouse works in most menus: point to choose, left click to confirm, right click to go back. The
 party screen's hero cards, the Attributes and Skills screens, and turning an item still need the
-keyboard or a pad. The mouse does nothing in fights and zones, so a click can never be a parry.
+keyboard or a pad. The mouse does nothing in fights, so a click can never be a parry.
 
 <details>
 <summary>More controls: the party screen, the backpack, the map, F1 and F2</summary>
@@ -237,7 +225,7 @@ Up to 3 players. There are always three heroes, so the players share them:
 On the players screen, put the cursor on a hero card and press Left or Right to give that hero to
 someone else. Every player keeps at least one hero.
 
-Each player picks the turns of their own heroes and defends them. In zones, P1 walks for everyone.
+Each player picks the turns of their own heroes and defends them.
 
 ### On one PC
 
@@ -394,14 +382,14 @@ be started by hand there (**Build game** > **Run workflow**).
 **Dev tools** (the Practice list and the switches below exist only in debug builds: the editor and
 `run_game.bat`, never the shared zip):
 
-- **Practice** under Extras: any fight or zone on its own. Keys: 1 to 9 pick the enemy's next
+- **Practice** under Extras: any fight on its own. Keys: 1 to 9 pick the enemy's next
   attack, I party can't die, O enemy can't die, R restart, F1 stats (inside: R training ring,
   G telegraph flash, T timing readout, L motion sounds, H hit markers, C wind-up crouch,
   V cinematic camera).
 - **A bot that plays for you**: `run_game.bat -- --autoplay --run --quit-on-end` plays a whole run.
   Put `--headless` before the `--` for no window (`run_game.bat --headless -- --autoplay ...`).
-  Add `--players=2` for co-op, or `--encounter=ID` / `--zone=ID` for one fight or zone (ID is a
-  file name in `data/encounters/` or `data/zones/`, for example `husk_fight` or `rotten_hollow`).
+  Add `--players=2` for co-op, or `--encounter=ID` for one fight (ID is a file name in
+  `data/encounters/`, for example `husk_fight`).
   The main switches are explained in [CLAUDE.md](CLAUDE.md); the full list is at the top of
   `scripts/combat/presentation/combat_options.gd`.
 
@@ -409,7 +397,7 @@ be started by hand there (**Build game** > **Run workflow**).
 
 - Rules and timing numbers: `data/tuning/tuning.tres`. How things look and feel:
   `data/presentation/`. How each place looks: `data/looks/`. Change them in the editor's Inspector.
-- Characters, enemies, attacks, skills, items, Relics, events and zones are all data files in
+- Characters, enemies, attacks, skills, items, Relics, events and places are all data files in
   `data/`.
 - Pixel art: `python tools/art_kit/build.py`. 3D world pieces: `tools/blender_kit/` (Blender, no
   window). Sound effects: `tools/sound_kit/`. Each has its own README.
