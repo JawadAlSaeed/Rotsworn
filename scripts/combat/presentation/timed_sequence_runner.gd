@@ -394,7 +394,8 @@ func _process(_delta: float) -> void:
 		_last_frame_us = now
 	if not _clock.is_started():
 		if now < _lead_in_end_us:
-			_update_party(0)
+			# Lead-in attack time (negative): a move pressed during the banner plays on it.
+			_update_party(now - _lead_in_end_us)
 			_update_target_arrows(0)
 			_update_run_in(now)
 			return
@@ -450,7 +451,7 @@ func _land_remote_hit(idx: int) -> void:
 # --- presses ----------------------------------------------------------------------------------
 
 func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int) -> void:
-	if not _active or not _clock.is_started():
+	if not _active:
 		return
 	# Only players whose heroes this attack targets defend (another player's press does nothing).
 	var player := _roster.player_of_device(device)
@@ -458,6 +459,11 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 		return
 	# Every target went down: what is left of the attack is only animation.
 	if _tail_received and _end_reason != "completed":
+		return
+	if not _clock.is_started():
+		# The banner is up and nothing is judged yet, but the press still shows its move (card
+		# #309), on the lead-in's attack time: negative, running on into the clock's.
+		_show_press_pose(action, stamp_us - _lead_in_end_us, player)
 		return
 	var t := _clock.attack_time_us(stamp_us)
 	var earliest := -1
@@ -490,6 +496,9 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 			_on_whiff(action, report, t, player)
 		DefenseJudge.Result.LOCKED:
 			Sfx.play("locked", _visuals.locked_click_volume_db)
+			_show_press_pose(action, t, player)
+		DefenseJudge.Result.DONE:
+			_show_press_pose(action, t, player)
 	_release(t)
 
 
@@ -530,17 +539,35 @@ func _on_whiff(action: int, report: Dictionary, t: int, player: int) -> void:
 	if int(report.hit) >= 0:
 		_whiffed_hits["%d:%d" % [int(report.hit), player]] = true
 	var defenders := _living_targets_of(player)
+	# The pressed move plays even though it defends nothing (card #309); flash, sound and readout
+	# show either way.
+	_show_press_pose(action, t, player)
 	for id: int in defenders:
-		var current: Dictionary = _anims.get(id, {})
-		# Keep a flinch (the hit is what happened) and a successful defence still playing (a
-		# double tap must not drop a jumper to the ground); flash, sound and readout still show.
-		if not current.is_empty() and int(current.kind) != Anim.WHIFF and t < int(current.until_us):
-			_view.fighter(id).flash(_visuals.flash_ms, color, _visuals.whiff_flash_strength)
-			continue
-		_anims[id] = {"kind": Anim.WHIFF, "frame": _pose_for_action(action), "from_us": t,
-				"until_us": t + _visuals.whiff_pose_ms * 1000}
 		_view.fighter(id).flash(_visuals.flash_ms, color, _visuals.whiff_flash_strength)
 	_hud.popup(text, _focus_head(defenders), color)
+
+
+## A defence press that defended nothing (early, late, wrong button, locked out, nothing left to
+## defend, or in the lead-in) still plays its move on the pressing player's living targeted heroes
+## at attack time `t`, so the player sees it registered (card #309). Only a pose on this machine:
+## judging, the lockout and the results sent to the engine never see it.
+func _show_press_pose(action: int, t: int, player: int) -> void:
+	for id: int in _living_targets_of(player):
+		_start_press_anim(id, action, t)
+
+
+## Starts hero `id`'s move for a press that defended nothing (PartyAnim.missed), unless something
+## still plays: a defence, a flinch or an earlier press's move is never cut short (a double tap
+## must not drop a jumper to the ground, and the hit is what happened). A hit that lands later
+## replaces the move (_land_hit). True if it started.
+func _start_press_anim(id: int, action: int, t: int) -> bool:
+	if PartyAnim.is_playing(_anims.get(id, {}), t):
+		return false
+	var entry := PartyAnim.missed(action, t, _visuals)
+	if entry.is_empty():
+		return false
+	_anims[id] = entry
+	return true
 
 
 ## Contact moment of a successful defence: sound, flash, sparks, hit-stop, popup.
@@ -692,8 +719,13 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 		var projectile: ProjectileData = _projectile_of[hit_index]
 		_view.spawn_sparks(_standing_centre(id), _visuals.projectile_burst_sparks, 1.0, projectile.color)
 	var pose_ms := _visuals.stagger_pose_ms if heavy else _visuals.hurt_pose_ms
+	# The flinch replaces whatever move was playing (the hit wins, card #309), from where the body
+	# was: a hero caught in the air falls through it, one caught mid-slide is knocked on from there
+	# (PartyAnim.lift and slide).
+	var current: Dictionary = _anims.get(id, {})
 	_anims[id] = {"kind": Anim.HURT, "frame": FighterView.CharPose.HURT, "from_us": t,
-			"until_us": t + pose_ms * 1000, "heavy": heavy}
+			"until_us": t + pose_ms * 1000, "heavy": heavy, "lift": PartyAnim.lift(current, t),
+			"slide": PartyAnim.slide(current, t, DODGE_OUT_SHARE, DODGE_BACK_SHARE)}
 	# MISS first: popups in a column stack oldest on top, so the damage number (newest) stays
 	# at the head and MISS sits just above it.
 	var player := _judges.player_of_prompt(idx)
@@ -913,36 +945,18 @@ func _away_from_contact(id: int) -> Vector3:
 	return away.normalized() if away.length() > 0.0 else Vector3.LEFT
 
 
+## The body's offset from its spot: a dodge's slide, a jump's lift, a flinch's knockback, and the
+## height and slide any pose took over from (PartyAnim.lift and slide).
 func _anim_offset(id: int, anim: Dictionary, t: int) -> Vector3:
-	var from := float(anim.from_us)
-	var until := float(anim.until_us)
 	var away := _away_from_contact(id)
-	match int(anim.kind):
-		Anim.DODGE:
-			var length := maxf(1.0, until - from)
-			var s := (float(t) - from) / length
-			var k := 1.0
-			if s < DODGE_OUT_SHARE:
-				k = 1.0 - pow(1.0 - s / DODGE_OUT_SHARE, 2.0)
-			elif s > 1.0 - DODGE_BACK_SHARE:
-				k = 1.0 - (s - (1.0 - DODGE_BACK_SHARE)) / DODGE_BACK_SHARE
-			return away * _visuals.dodge_slide_distance * clampf(k, 0.0, 1.0)
-		Anim.JUMP:
-			var apex := float(anim.apex_us)
-			var land := float(anim.land_us)
-			var y := 0.0
-			if float(t) < apex:
-				var u := clampf((float(t) - from) / maxf(1.0, apex - from), 0.0, 1.0)
-				y = 1.0 - (1.0 - u) * (1.0 - u)
-			else:
-				var u := clampf((float(t) - apex) / maxf(1.0, land - apex), 0.0, 1.0)
-				y = 1.0 - u * u
-			return Vector3(0.0, _visuals.jump_height * y, 0.0)
-		Anim.HURT:
-			var s := clampf((float(t) - from) / maxf(1.0, until - from), 0.0, 1.0)
-			var knockback := _visuals.stagger_knockback if bool(anim.get("heavy", false)) else _visuals.hurt_knockback
-			return away * knockback * (1.0 - s) * (1.0 - s)
-	return Vector3.ZERO
+	var offset := away * _visuals.dodge_slide_distance * PartyAnim.slide(anim, t, DODGE_OUT_SHARE, DODGE_BACK_SHARE)
+	offset.y += _visuals.jump_height * PartyAnim.lift(anim, t)
+	if int(anim.kind) == Anim.HURT:
+		var from := float(anim.from_us)
+		var s := clampf((float(t) - from) / maxf(1.0, float(anim.until_us) - from), 0.0, 1.0)
+		var knockback := _visuals.stagger_knockback if bool(anim.get("heavy", false)) else _visuals.hurt_knockback
+		offset += away * knockback * (1.0 - s) * (1.0 - s)
+	return offset
 
 
 ## Places the ground-wave crests: a front parallel to the party line that reaches it at impact.
@@ -1211,34 +1225,19 @@ func _set_idle_loop(enemy: EnemyData) -> void:
 	_idle_phase_ms = ClipMath.phase_for(_source, _idle_period_ms) + float(_lead_in_end_us) / 1000.0
 
 
-## Starts the defence pose and returns the attack time of its contact moment (sound, popup,
-## hit-stop): the impact, or the press if later; for a jump also not before the body is clear
-## of the wave, so the freeze never shows a successful jump standing in it.
+## Starts the defence pose (PartyAnim.defence) and returns the attack time of its contact moment
+## (sound, popup, hit-stop): the impact, or the press if later; for a jump also not before the body
+## is clear of the wave, so the freeze never shows a successful jump standing in it. A defence that
+## takes over from a move still playing (a missed jump or dodge) starts from where the body is: a
+## jump carries on up from that height, anything else comes down and back from there (card #309).
 func _start_defence_anim(id: int, action: int, t: int, impact_us: int, late_us: int) -> int:
-	var hold_until := impact_us + late_us
-	var contact := maxi(t, impact_us)
-	match action:
-		Defense.Outcome.PARRY:
-			_anims[id] = {"kind": Anim.PARRY, "frame": FighterView.CharPose.PARRY, "from_us": t,
-					"until_us": maxi(hold_until, t + _visuals.parry_pose_min_ms * 1000)}
-		Defense.Outcome.DODGE:
-			_anims[id] = {"kind": Anim.DODGE, "frame": FighterView.CharPose.DODGE, "from_us": t,
-					"until_us": maxi(hold_until, t + _visuals.dodge_pose_min_ms * 1000)}
-		Defense.Outcome.JUMP:
-			# Apex at impact when the press leaves time for it (up to half the airtime), else the
-			# fastest rise; the whole jump lasts about jump_airtime_ms.
-			var fast := _visuals.jump_rise_fast_ms * 1000
-			var rise := clampi(impact_us - t, fast, maxi(fast, _visuals.jump_airtime_ms * 500))
-			var apex := t + rise
-			var fall := maxi(_visuals.jump_airtime_ms * 1000 - rise, fast)
-			_anims[id] = {"kind": Anim.JUMP, "frame": FighterView.CharPose.JUMP, "from_us": t,
-					"until_us": apex + fall, "apex_us": apex, "land_us": apex + fall}
-			# The rise y = 1 - (1 - u)^2 reaches JUMP_CLEAR_HEIGHT at u = 1 - sqrt(1 - JUMP_CLEAR_HEIGHT).
-			contact = maxi(contact, t + roundi(float(rise) * (1.0 - sqrt(1.0 - JUMP_CLEAR_HEIGHT))))
-	# The parry clip turns into its hit frames at this moment (PartyAnim).
-	if _anims.has(id):
-		(_anims[id] as Dictionary)["contact_us"] = contact
-	return contact
+	var current: Dictionary = _anims.get(id, {})
+	var entry := PartyAnim.defence(action, t, impact_us, late_us, _visuals, PartyAnim.lift(current, t),
+			PartyAnim.slide(current, t, DODGE_OUT_SHARE, DODGE_BACK_SHARE))
+	if entry.is_empty():
+		return maxi(t, impact_us)
+	_anims[id] = entry
+	return int(entry.contact_us)
 
 
 ## Arrows over the targets from the banner until the enemy starts moving.
@@ -1248,17 +1247,6 @@ func _update_target_arrows(t: int) -> void:
 		for id: int in _living_targets():
 			heads.append(_view.fighter(id).head_position())
 	_hud.set_target_arrows(heads)
-
-
-func _pose_for_action(action: int) -> int:
-	match action:
-		Defense.Outcome.PARRY:
-			return FighterView.CharPose.PARRY
-		Defense.Outcome.DODGE:
-			return FighterView.CharPose.DODGE
-		Defense.Outcome.JUMP:
-			return FighterView.CharPose.JUMP
-	return FighterView.CharPose.READY
 
 
 ## True if `player` pressed between the earliest window edge of this prompt and now (press times

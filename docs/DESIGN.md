@@ -853,8 +853,20 @@ One judge per local player, holding the prompts of the characters that player an
   pushed up against the attack banner or timeline stops there and fades out quickly instead of
   being hidden under it. "MISS"
   shows only when no press was made for that hit (an EARLY or wrong-button whiff on it counts).
-- A whiff never cuts short a successful defence or a flinch that is still playing (a double tap
-  keeps the jumper in the air); it still flashes, sounds and shows its readout.
+- **Every defence press shows its move** (card #309), so the player always sees it registered. A
+  press that defends nothing (EARLY, LATE, the wrong button, locked out, nothing left to defend,
+  or pressed while the banner is still up in the lead-in) plays the move anyway on that player's
+  living targeted heroes: a jump rises for half of `jump_airtime_ms` and comes back down, a dodge
+  slides out and back over `dodge_pose_min_ms`, a parry raises the guard over half of
+  `whiff_pose_ms` and holds it (never its clang frames). It is only a pose on that machine:
+  judging, the whiff lockout, the results sent to the engine and other machines never see it (a
+  lead-in press is still not judged at all).
+- A press never cuts short a defence, a flinch or an earlier press's move that is still playing (a
+  double tap keeps the jumper in the air); it still flashes, sounds and shows its readout. A
+  defended press does replace a missed move, and a hit that lands always replaces whatever plays:
+  the hit reaction wins. Either way the new pose starts from where the body is: a jump carries on
+  up from that height, a dodge slides on out from where it was, and anything else (a flinch, a
+  parry) comes down and back from there, so nothing snaps to the floor.
 - The lock icon sits under the defenders' feet, clear of the readouts.
 - Feedback comes from the local judge at press time, never from engine events (so it stays
   instant online): "PARRY" / "DODGE" / "JUMP" plus the offset ("+12"), whiffs as "EARLY -130"
@@ -5431,3 +5443,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Defaults (owner may overrule, 8.21 D1 to D21): level cap 10, XP past it earns extra picks; no Oaths; one record per party size with its date, the size being the most players seen; one sitting, no save, the record written at each fight start; no running away; New Run's Run / Fight Rush cards with the best on the card; Give up in the pause menu; Reset progress clears the records; bots and dev switches never read or write records; Rush fights count in the Journal; FLAWLESS is a plain chip; no pact; zone weather, never lightning in fights; card sets per fight kind (boss: Train, Relic, Relic) and extra picks on the normal set; deep monsters from fight 21; attack speed stops rising at fight 31 (the 70% floor); Heal follows the Rest Relics; no keys, treasure or gold Relics on cards; online late joiners write no record (#312); no gold on any Rush screen | not asked; chosen while writing the build spec and checked against the code, keeping every approved screen and rule of the run as it is |
 | 2026-10-24 | Fight Rush online (8.21 "Online"): Online, Host opens Run / Fight Rush cards; the game's `mode` travels in `lobby`, `again` and `run_start` (protocol 4); the host plays the Rush and picks the cards, friends play their heroes in fights and watch the Rush screen with only Party open to them; drop-in, rejoin and a crashed friend's seat go through the run's paths | card #312; it reuses the run's online rules (host-authoritative, P1 makes the choices, approved 2026-10-12) and the drop-in code (9.3), so the Rush needed no new net paths beyond the mode |
 | 2026-10-24 | Defaults (owner may overrule, 8.21 D7, D9, D20): online only the host gives up, and once a lost fight decided the Rush its row is End the game; Rush records stay on the machines there from the start (a friend who dropped in, or came back after a crash, writes none; a token rejoin keeps its start); the host sends its own records verdict in `run_start`, so a bot or dev Rush on the host keeps friends' records out too; a friend who drops in gets their hero at the fight's next quiet moment, as in a run | not asked; chosen while building #312: a loss must never turn into a Rush given up, a late friend did not play the whole Rush, and a friend's machine cannot see the host's switches |
+| 2026-10-24 | Every defence press shows its move, even one that defends nothing (early, late, wrong button, locked out, in the lead-in): a missed jump jumps, a missed dodge slides, a missed parry raises the guard; judging and the lockout are unchanged, and a hit that lands always replaces the move (3.6) | owner playtest (#309): an early jump left the hero standing there |
