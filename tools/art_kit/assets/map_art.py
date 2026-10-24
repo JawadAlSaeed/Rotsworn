@@ -411,22 +411,24 @@ def make_elite() -> np.ndarray:
 
 def make_guard() -> np.ndarray:
     """A Guard stop (DESIGN.md 8.22): a place's guard, in the elite's style: a tall horned shield
-    with the rot's eye on it, a spear standing behind it, shaded on its right side."""
+    with the rot's eye on it, a spear standing behind it, shaded on its right side. Mirrored about
+    x = 12 (the line between columns 11 and 12) and kept inside a clear 1-pixel border, outline
+    included, as the elite's and the event's pictures are."""
     c = Canvas(ICON, ICON)
-    c.ellipse(11.5, 22.0, 8.5, 1.6, SEPIA[1])
+    c.ellipse(12.0, 20.5, 7.0, 1.2, SEPIA[1])
     # The spear behind, its head above the shield and its butt below the point.
-    c.rect(11, 2, 11, 23, DARKWOOD[2])
-    c.rect(12, 2, 12, 23, DARKWOOD[1])
-    c.poly([(9.5, 4.5), (11.5, -0.5), (13.5, 4.5)], STONE[3])
-    c.line(12, 1, 12, 4, STONE[1])
+    c.rect(11, 3, 11, 21, DARKWOOD[2])
+    c.rect(12, 3, 12, 21, DARKWOOD[1])
+    c.poly([(9.5, 6.5), (12.0, 1.0), (14.5, 6.5)], STONE[3])
+    c.poly([(12.0, 1.0), (14.5, 6.5), (12.0, 6.5)], STONE[2])
     # Horns on the shield's top corners, as the elite's skull wears them.
-    c.poly([(5.0, 7.0), (1.0, 3.5), (1.0, 0.5), (3.0, 3.5), (7.5, 6.0)], BONE[3])
-    c.poly([(18.0, 7.0), (22.0, 3.5), (22.0, 0.5), (20.0, 3.5), (15.5, 6.0)], BONE[2])
+    c.poly([(5.5, 7.5), (2.0, 4.5), (2.0, 2.0), (3.5, 4.5), (8.0, 7.0)], BONE[3])
+    c.poly([(18.5, 7.5), (22.0, 4.5), (22.0, 2.0), (20.5, 4.5), (16.0, 7.0)], BONE[2])
     # The shield: a stone rim, a red face darker on its right half, its point at the bottom.
-    c.poly([(3.5, 6.5), (19.5, 6.5), (19.5, 13.5), (11.5, 22.0), (3.5, 13.5)], STONE[2])
-    c.poly([(3.5, 6.5), (11.5, 6.5), (11.5, 22.0), (3.5, 13.5)], STONE[3])
-    c.poly([(5.0, 8.0), (18.0, 8.0), (18.0, 13.0), (11.5, 20.0), (5.0, 13.0)], RED[2])
-    c.poly([(11.5, 8.0), (18.0, 8.0), (18.0, 13.0), (11.5, 20.0)], RED[1])
+    c.poly([(4.0, 7.0), (20.0, 7.0), (20.0, 13.0), (12.0, 20.0), (4.0, 13.0)], STONE[2])
+    c.poly([(4.0, 7.0), (12.0, 7.0), (12.0, 20.0), (4.0, 13.0)], STONE[3])
+    c.poly([(5.0, 8.0), (19.0, 8.0), (19.0, 12.5), (12.0, 18.5), (5.0, 12.5)], RED[2])
+    c.poly([(12.0, 8.0), (19.0, 8.0), (19.0, 12.5), (12.0, 18.5)], RED[1])
     c.line(5, 8, 11, 8, RED[3])
     # The rot's eye in the middle of the shield: an almond of bone, a beast's slit with a rot glint.
     c.rect(10, 10, 13, 10, BONE[3])
@@ -438,7 +440,7 @@ def make_guard() -> np.ndarray:
     c.px(11, 12, ROT[3])
     c.px(12, 11, PURPLE[2])
     # Gold studs on the rim.
-    for sx, sy in ((4, 7), (19, 7), (4, 13), (19, 13)):
+    for sx, sy in ((4, 7), (19, 7), (4, 12), (19, 12)):
         c.px(sx, sy, GOLD[2])
     c.outline(INK_OUT)
     return c.a

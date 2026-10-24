@@ -289,9 +289,11 @@ extends Resource
 ## Every stop of this row of an act's map is a treasure chest (DESIGN.md 8.8; -1: none).
 @export_range(-1, 30) var run_treasure_row: int = 3
 ## Every stop of this row of an act's map is a Guard stop: the guard of that stop's place, fought
-## before the run goes deeper (DESIGN.md 8.22; -1: none). It never moves, and it is never the
-## campfire row before the final fight.
-@export_range(-1, 30) var run_guard_row: int = 1
+## before the run goes deeper (DESIGN.md 8.22; 0: none, row 0 always stays all Fight stops). It
+## never moves, and it is never the campfire row before the final fight (a row that high: none).
+## On run_treasure_row it keeps the row, and the chests stand on the row before it (after it when
+## that is row 0).
+@export_range(0, 30) var run_guard_row: int = 1
 ## Elite fights (elite map stops and zone champions): enemies get these percents of their HP,
 ## power and gold.
 @export_range(10, 1000, 1, "suffix:%") var elite_hp_percent: int = 140

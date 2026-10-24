@@ -40,12 +40,13 @@ static func generate(rng: CombatRng, tuning: Tuning, zone_count: int, has_elites
 	for r: int in row_total:
 		map._connect(r, rng, tuning.run_map_extra_path_percent)
 	var guard_row := map._guard_row(tuning) if guard_rows else -1
-	map._assign_types(rng, tuning, has_elites, has_events, guard_row)
+	var treasure_row := map._treasure_row(tuning, guard_row)
+	map._assign_types(rng, tuning, has_elites, has_events, guard_row, treasure_row)
 	map._assign_zones(rng, zone_count)
 	# Phase 21 (card #286), after the rest so a seed's paths stay as they were: the campfire and
 	# treasure rows move, and one elite wears the rot crown.
 	if moving_rows:
-		map._vary_rows(rng, tuning, has_elites, has_events, guard_row)
+		map._vary_rows(rng, tuning, has_elites, has_events, guard_row, treasure_row)
 		map._crown_elite(rng, tuning, has_elites)
 		map._fix_zones(rng, zone_count)
 	return map
@@ -167,18 +168,29 @@ static func _can_add(pairs: Array[Vector2i], i: int, j: int) -> bool:
 	return true
 
 
-## The row of Guard stops (DESIGN.md 8.22): tuning.run_guard_row while it is below the campfire row
-## before the final fight, else -1 (none).
+## The row of Guard stops (DESIGN.md 8.22): tuning.run_guard_row while it is above row 0 (always all
+## Fight stops) and below the campfire row before the final fight, else -1 (none).
 func _guard_row(tuning: Tuning) -> int:
 	var row := tuning.run_guard_row
-	return row if row >= 0 and row < rows.size() - 2 else -1
+	return row if row >= 1 and row < rows.size() - 2 else -1
+
+
+## The treasure row before it moves (DESIGN.md 8.8): tuning.run_treasure_row, or, when that is the
+## Guard row, the row before the guards (after them when that is row 0), so a map keeps both.
+func _treasure_row(tuning: Tuning, guard_row: int) -> int:
+	var row := tuning.run_treasure_row
+	if row < 0 or row != guard_row:
+		return row
+	if guard_row - 1 >= 1:
+		return guard_row - 1
+	return guard_row + 1 if guard_row + 1 < rows.size() - 2 else -1
 
 
 ## Row 0 is fights, the row before the final fight rests, `guard_row` (-1: none) guards,
-## run_treasure_row treasure; the others are picked by weight: fights, shops, rests, elites (not
-## before run_elite_min_row) and events.
-func _assign_types(rng: CombatRng, tuning: Tuning, has_elites: bool = true, has_events: bool = true,
-		guard_row: int = -1) -> void:
+## `treasure_row` (from _treasure_row) treasure; the others are picked by weight: fights, shops,
+## rests, elites (not before run_elite_min_row) and events.
+func _assign_types(rng: CombatRng, tuning: Tuning, has_elites: bool, has_events: bool, guard_row: int,
+		treasure_row: int) -> void:
 	var last := rows.size() - 1
 	var weights: Array[int] = [tuning.run_weight_fight, tuning.run_weight_rest, tuning.run_weight_shop,
 			tuning.run_weight_elite, tuning.run_weight_event]
@@ -195,7 +207,7 @@ func _assign_types(rng: CombatRng, tuning: Tuning, has_elites: bool = true, has_
 				s.type = StopType.FIGHT
 			elif r == last - 1:
 				s.type = StopType.REST
-			elif r == tuning.run_treasure_row:
+			elif r == treasure_row:
 				s.type = StopType.TREASURE
 			else:
 				middle.append(id)
@@ -226,11 +238,13 @@ func _middle_weights(tuning: Tuning, r: int, has_elites: bool, has_events: bool)
 ## with the old rules kept: never the same shop, campfire or elite twice in a row, no campfire right
 ## before the campfire row, and a shop somewhere on the map. The Guard row (`guard_row`, -1: none)
 ## never moves and nothing moves onto it; with no guard row (-1) those checks never change a roll,
-## so a map without guards comes out exactly as it always did.
-func _vary_rows(rng: CombatRng, tuning: Tuning, has_elites: bool, has_events: bool, guard_row: int = -1) -> void:
+## so a map without guards comes out exactly as it always did. `treasure_row` is where the chests
+## stand before they move (_treasure_row).
+func _vary_rows(rng: CombatRng, tuning: Tuning, has_elites: bool, has_events: bool, guard_row: int,
+		treasure_row: int) -> void:
 	var last := rows.size() - 1
 	var rest_row := last - 1
-	if rest_row - 1 > tuning.run_treasure_row and rest_row - 1 >= 1 and rest_row - 1 != guard_row \
+	if rest_row - 1 > treasure_row and rest_row - 1 >= 1 and rest_row - 1 != guard_row \
 			and rng.range_int(0, 99) < tuning.run_rest_row_shift_percent:
 		for id: int in rows[rest_row - 1]:
 			stops[id].type = StopType.REST
@@ -240,7 +254,7 @@ func _vary_rows(rng: CombatRng, tuning: Tuning, has_elites: bool, has_events: bo
 		for id: int in rows[rest_row - 1]:
 			if int(stops[id].type) == StopType.REST:
 				_retype(stops[id], rng, _middle_weights(tuning, rest_row - 1, has_elites, has_events), true)
-	var treasure := tuning.run_treasure_row
+	var treasure := treasure_row
 	if treasure >= 1 and treasure < rest_row and treasure != guard_row:
 		var spread := maxi(0, tuning.run_treasure_row_spread)
 		var moved := clampi(treasure + rng.range_int(-spread, spread), 1, rest_row - 1)

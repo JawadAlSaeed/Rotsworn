@@ -53,6 +53,9 @@ UI = {"ap_pip": (10, 10), "ap_pip_empty": (10, 10), "hit_normal": (12, 12), "hit
       "map_rest": (24, 24), "map_zone_rotten_hollow": (24, 24), "map_zone_sunken_bog": (24, 24),
       "map_zone_ashen_ruins": (24, 24), "map_lair_hollow_king": (32, 32), "map_flag": (14, 22),
       "map_ring": (30, 30), "map_ring_big": (40, 40), "map_guard": (24, 24)}
+# Map pictures that float on the paper (no ground under them): a clear 1-pixel border all round, so
+# their outline is never cut off at the frame's edge.
+UI_CLEAR_BORDER = ["map_elite", "map_event", "map_guard", "map_ring", "map_ring_big"]
 
 # The "?" pictures (card #199): one per event file in data/events/, and one per act's ambush page.
 EVENT_PICTURE = (128, 64)
@@ -357,6 +360,13 @@ def main() -> int:
         a = load(rel)
         if a is not None and size_is(rel, a, w, h):
             hard_alpha(rel, a)
+    for u in UI_CLEAR_BORDER:
+        rel = "ui/%s.png" % u
+        a = load(rel)
+        if a is not None:
+            solid = a[..., 3] > 0
+            if solid[0, :].any() or solid[-1, :].any() or solid[:, 0].any() or solid[:, -1].any():
+                errors.append("%s: touches a frame edge (clipped or no outline room)" % rel)
     events_dir = os.path.join(ROOT, "data", "events")
     event_ids = sorted(f[:-5] for f in os.listdir(events_dir) if f.endswith(".tres")) if os.path.isdir(events_dir) else []
     for e in event_ids + AMBUSH_PICTURES:

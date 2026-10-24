@@ -92,6 +92,12 @@ func _friend_after(messages: Array[Dictionary]) -> RunState:
 	return game
 
 
+## Main.AfterFight's value `key` (-1: none).
+func _after_fight(key: String) -> int:
+	var values: Variant = _main.get_script_constant_map().get("AfterFight", {})
+	return int((values as Dictionary).get(key, -1)) if values is Dictionary else -1
+
+
 ## The text of function `header` in main.gd, up to the next top-level function.
 func _body(header: String) -> String:
 	var source := FileAccess.get_file_as_string(MAIN_PATH)
@@ -148,6 +154,56 @@ func test_a_guard_row_too_close_to_the_boss_is_left_out() -> void:
 	assert_eq(map.count_type(RunMap.StopType.GUARD), 0, "never the campfire row before the boss")
 	_tuning.run_guard_row = -1
 	assert_eq(RunMap.generate(CombatRng.new(3), _tuning, 3).count_type(RunMap.StopType.GUARD), 0, "-1: none")
+
+
+## Row 0 stays all Fight stops: a guard row of 0 means none, so the act never opens on a guard.
+func test_a_guard_row_of_0_is_none() -> void:
+	_tuning.run_guard_row = 0
+	for s: int in range(1, SEEDS):
+		var map := RunMap.generate(CombatRng.new(s), _tuning, 3)
+		assert_eq(map.count_type(RunMap.StopType.GUARD), 0, "seed %d: no guards" % s)
+		for id: int in map.rows[0]:
+			assert_eq(int(map.stop(id).type), RunMap.StopType.FIGHT, "seed %d: row 0 stays all Fight stops" % s)
+		assert_gt(map.count_type(RunMap.StopType.TREASURE), 0, "seed %d: the treasure row is kept" % s)
+		if is_failing():
+			return
+
+
+## A guard row on the treasure row keeps both: the guards hold the row and the chests stand on the
+## row before it (after it when that is row 0), then move as treasure rows do. Every guard row the
+## map can have, with and without the moving rows (map rules 1).
+func test_a_guard_row_on_the_treasure_row_keeps_the_treasure() -> void:
+	var last_guard := _tuning.run_map_rows - 2
+	for guard_row: int in range(1, last_guard + 1):
+		_tuning.run_guard_row = guard_row
+		_tuning.run_treasure_row = guard_row
+		var home := guard_row - 1 if guard_row > 1 else guard_row + 1
+		for s: int in range(1, SEEDS):
+			for moving: bool in [true, false]:
+				var map := RunMap.generate(CombatRng.new(s), _tuning, 3, true, true, moving)
+				var what := "guard row %d seed %d%s" % [guard_row, s, "" if moving else " (rules 1)"]
+				assert_eq(map.count_type(RunMap.StopType.GUARD), map.rows[guard_row].size(), what + ": the row is all guards")
+				var treasure_rows: Array[int] = []
+				for r: int in map.row_count():
+					var all_treasure := true
+					for id: int in map.rows[r]:
+						all_treasure = all_treasure and int(map.stop(id).type) == RunMap.StopType.TREASURE
+					if all_treasure:
+						treasure_rows.append(r)
+				assert_eq(treasure_rows.size(), 1, what + ": one treasure row")
+				assert_eq(map.count_type(RunMap.StopType.TREASURE),
+						map.rows[treasure_rows[0]].size() if treasure_rows.size() == 1 else -1, what + ": chests only there")
+				if treasure_rows.size() == 1:
+					assert_ne(treasure_rows[0], guard_row, what)
+					assert_gte(treasure_rows[0], 1, what + ": never row 0")
+					if moving:
+						assert_lte(absi(treasure_rows[0] - home), _tuning.run_treasure_row_spread, what)
+					else:
+						assert_eq(treasure_rows[0], home, what + ": the row before the guards")
+				for id: int in map.rows[0]:
+					assert_eq(int(map.stop(id).type), RunMap.StopType.FIGHT, what + ": row 0 stays all Fight stops")
+				if is_failing():
+					return
 
 
 func test_runs_made_by_older_rules_keep_their_maps() -> void:
@@ -411,10 +467,113 @@ func test_main_builds_stop_fights_from_the_run_state() -> void:
 	assert_string_contains(client, "\"stop_fight\":")
 	assert_string_contains(client, "_fade_to(_start_stop_fight, ")
 	var over := _body("func _on_run_fight_over(")
-	assert_string_contains(over, "The guard fell. Take one.")
-	assert_string_contains(over, "but the pack is full.")
+	assert_string_contains(over, "_takes_fight_drop(result, type, ambushed, _drop != null)")
+	assert_string_contains(over, "_after_run_fight(result, type, ambushed, ambush_spoils, _run.is_over(), found != null)")
 	assert_string_contains(_body("func _begin_rush_fight("), "_weather_or_forced(rush.weather_now())")
 	assert_string_contains(_body("func _autoplay_map("), "RunMap.StopType.GUARD, RunMap.StopType.FIGHT]")
+
+
+# --- what follows a run fight (Main's pure rules) ------------------------------------------------------
+
+## A run fight's end screen leads on by its result, its stop and whether it was an ambush: a Fight
+## stop's drop goes in the pack only after its win (the party screen holds one that did not fit); a
+## guard, an elite or a boss gives spoils; an ambush only with its event's spoils; an escape or a loss
+## that leaves the run going goes to the map; the run's end whenever it is over (DESIGN.md 2.13, 8.22).
+func test_what_follows_a_run_fight() -> void:
+	var win := RunState.VICTORY
+	var ran := RunState.ESCAPED
+	var lost := RunState.DEFEAT
+	var fight := RunMap.StopType.FIGHT
+	var guard := RunMap.StopType.GUARD
+	var elite := RunMap.StopType.ELITE
+	var boss := RunMap.StopType.FINAL
+	var event := RunMap.StopType.EVENT
+	var end := _after_fight("END")
+	var map := _after_fight("MAP")
+	var party := _after_fight("PARTY")
+	var spoils := _after_fight("SPOILS")
+	var cases := [
+		# [result, stop, ambushed, ambush spoils, over, drop left, takes the drop (with one), next, what]
+		[win, fight, false, false, false, false, true, map, "a Fight stop's win: the drop fits, the map"],
+		[win, fight, false, false, false, true, true, party, "a Fight stop's win: the pack is full"],
+		[ran, fight, false, false, false, false, false, map, "running from a Fight stop passes it"],
+		[lost, fight, false, false, true, false, false, end, "a lost Fight stop ends the run"],
+		[win, guard, false, false, false, false, false, spoils, "a guard gives spoils, no drop"],
+		[ran, guard, false, false, false, false, false, map, "no running from a guard, but never spoils"],
+		[lost, guard, false, false, true, false, false, end, "a lost guard ends the run"],
+		[win, elite, false, false, false, false, false, spoils, "an elite gives spoils, no drop"],
+		[ran, elite, false, false, false, false, false, map, "running from an elite passes it"],
+		[lost, elite, false, false, true, false, false, end, "a lost elite ends the run"],
+		[win, boss, false, false, false, false, false, spoils, "an act's boss gives spoils"],
+		[win, boss, false, false, true, false, false, end, "the last boss ends the run"],
+		[win, event, true, false, false, false, false, map, "an ambush without spoils: the map"],
+		[win, event, true, true, false, false, false, spoils, "an ambush with spoils"],
+		[win, fight, true, false, false, false, false, map, "an ambush never drops, even at a Fight stop"],
+		[ran, event, true, true, false, false, false, map, "running from an ambush: the map"],
+		[lost, event, true, false, true, false, false, end, "a lost ambush ends the run"],
+	]
+	for c: Array in cases:
+		var what := String(c[8])
+		assert_eq(_main.call("_takes_fight_drop", c[0], c[1], c[2], true), c[6], what + ": the drop")
+		assert_false(_main.call("_takes_fight_drop", c[0], c[1], c[2], false), what + ": no drop rolled")
+		assert_eq(_main.call("_after_run_fight", c[0], c[1], c[2], c[3], c[4], c[5]), c[7], what)
+	assert_eq(_main.call("_spoils_line", guard, false), "The guard fell. Take one.")
+	assert_eq(_main.call("_spoils_line", boss, false), "The boss fell. Take one.")
+	assert_eq(_main.call("_spoils_line", elite, false), "The elite fell. Take one.")
+	assert_eq(_main.call("_spoils_line", event, true), "The elite fell. Take one.", "an ambush's spoils read as an elite's")
+	var item := ItemData.new()
+	item.display_name = "Tonic"
+	assert_eq(_main.call("_pack_full_note", item), "The enemy dropped a Tonic, but the pack is full.")
+
+
+## The Journal says where a fight was met: the zone, else a run fight's place, else its own name.
+func test_the_journal_names_a_run_fights_place() -> void:
+	assert_eq(_main.call("_journal_place", "Rot Rats", "", "Sunken Bog"), "Sunken Bog", "a run's Fight, Guard, elite or ambush")
+	assert_eq(_main.call("_journal_place", "Rot Rats", "", ""), "Rot Rats", "a boss, a Rush or a practice fight")
+	assert_eq(_main.call("_journal_place", "Rot Rats", "Rotten Hollow", "Sunken Bog"), "Rotten Hollow", "a zone's fight")
+	var record := _body("func _record_journal(")
+	assert_string_contains(record, "_fight_place if _run != null and not (_run is RushState) else \"\"",
+			"a Rush fight never names a run place")
+
+
+## --weather=ID forces every run and Rush fight's weather (dev tool, DESIGN.md 8.22): none given keeps
+## the rolled one, "clear" clears it, a known id gives that weather, and a typo is an error (clear).
+func test_weather_forces_run_and_rush_fights() -> void:
+	var main: Node = _main.new()
+	autofree(main)
+	var options := CombatOptions.new()
+	main.set("_options", options)
+	var rolled := load("res://data/weather/fog.tres") as WeatherData
+	var rain := load("res://data/weather/rain.tres") as WeatherData
+	assert_not_null(rolled)
+	assert_not_null(rain)
+	options.weather_id = ""
+	assert_eq(main.call("_weather_or_forced", rolled), rolled, "no --weather: the rolled weather")
+	assert_null(main.call("_weather_or_forced", null), "no --weather: a clear roll stays clear")
+	options.weather_id = "clear"
+	assert_null(main.call("_weather_or_forced", rolled), "clear: no weather")
+	options.weather_id = "rain"
+	assert_eq(main.call("_weather_or_forced", rolled), rain, "rain over the rolled fog")
+	assert_eq(main.call("_weather_or_forced", null), rain, "rain over a clear roll")
+	options.weather_id = "rainn"
+	assert_null(main.call("_weather_or_forced", rolled), "a typo never keeps the rolled weather")
+	assert_push_error("no weather 'rainn'", "a typo is an error, never a quiet test of clear weather")
+
+
+## A friend's "The host is choosing" line is never left over a fight (it draws above the fight's HUD):
+## every fight is built through _start_combat, which hides it. A Fight or Guard stop's fight swirls in
+## from the map as every other run fight does (with its sound), then shows the place's name card.
+func test_a_fight_hides_the_watch_line_and_stop_fights_swirl_in() -> void:
+	assert_string_contains(_body("func _start_combat("), "_watch_layer.visible = false")
+	for header: String in ["func _start_stop_fight(", "func _start_final_fight(", "func _begin_rush_fight("]:
+		assert_string_contains(_body(header), "_start_combat()", header + " builds through _start_combat")
+	assert_string_contains(_body("func _enter_stop("),
+			"_fade_to(_start_stop_fight, zone.display_name if zone != null else \"\", true)")
+	assert_string_contains(_body("func _client_screen("),
+			"_fade_to(_start_stop_fight, zone.display_name if zone != null else \"\", true)")
+	var fade := _body("func _fade_to(")
+	assert_string_contains(fade, "Sfx.play(\"encounter_swirl\")")
+	assert_string_contains(fade, "await _transition.swirl_out()")
 
 
 # --- the bots' habit -----------------------------------------------------------------------------------

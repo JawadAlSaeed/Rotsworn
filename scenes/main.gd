@@ -24,6 +24,10 @@ extends Node
 ## screen), --rush (start a Fight Rush at once, DESIGN.md 8.21; --rush-start=N and --rush-fights=N
 ## are its dev head start and cap; with --host=N it hosts one, card #312).
 
+## Where a run fight's end screen leads (_after_run_fight): the run's end, the map, the party screen
+## holding a Fight stop's drop that did not fit, or the spoils.
+enum AfterFight { END, MAP, PARTY, SPOILS }
+
 const DEFAULT_ENCOUNTER_ID := "husk_fight"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
@@ -869,13 +873,18 @@ func _free_screen() -> void:
 ## Fades to black, runs `build` (which shows the next thing), and fades back in. With a
 ## `tip_title` a loading card (that title and a tip, card #86) shows over the black for at least
 ## the tips' hold_ms, and `build` runs at its end, so a zone starts when it is seen. Online clients
-## and the bot do not hold the card (the host already held it before sending the screen).
-func _fade_to(build: Callable, tip_title: String = "") -> void:
+## and the bot do not hold the card (the host already held it before sending the screen). `swirl`:
+## into a fight, the screen swirls into the black (with its sound) instead of fading.
+func _fade_to(build: Callable, tip_title: String = "", swirl: bool = false) -> void:
 	if _busy:
 		return
 	_busy = true
 	var gen := _flow_gen
-	await _transition.fade_out()
+	if swirl:
+		Sfx.play("encounter_swirl")
+		await _transition.swirl_out()
+	else:
+		await _transition.fade_out()
 	if gen != _flow_gen:
 		_transition.fade_in()
 		_end_busy()
@@ -1172,14 +1181,20 @@ func _record_journal(fight: Dictionary) -> void:
 	if not RotJournal.counts_fight(_run != null, _options.is_autoplay(), _tutorial != null,
 			not _options.journal_path.is_empty()):
 		return
-	var where := _encounter.display_name if _encounter != null else ""
-	if not _zone_fight.is_empty():
-		where = _zone_name
-	elif _run != null and not (_run is RushState) and not _fight_place.is_empty():
-		# A run's Fight, Guard, elite or ambush fight was met in its place (DESIGN.md 8.22).
-		where = _fight_place
+	var where := _journal_place(_encounter.display_name if _encounter != null else "",
+			_zone_name if not _zone_fight.is_empty() else "",
+			_fight_place if _run != null and not (_run is RushState) else "")
 	if not JournalFile.record(fight, where, _journal_path()):
 		push_warning("Main: the Rot Journal could not be written")
+
+
+## Where the Rot Journal says a fight was met, pure: the zone it was fought in (`zone_name`), else
+## the place of a run's Fight, Guard, elite or ambush fight (`run_place`, DESIGN.md 8.22; none for a
+## boss in its lair, a Rush or a practice fight), else the fight's own name.
+static func _journal_place(fight_name: String, zone_name: String, run_place: String) -> String:
+	if not zone_name.is_empty():
+		return zone_name
+	return run_place if not run_place.is_empty() else fight_name
 
 
 ## The credits (card #87), to their own song; Back returns to the main menu.
@@ -1228,6 +1243,10 @@ func _on_zone_chosen(zone: ZoneData) -> void:
 func _start_combat() -> void:
 	_free_combat()
 	_free_screen()
+	# A friend's "The host is choosing" line belongs to the watched run screens, never over a fight
+	# (it draws above the fight's HUD); the next run screen shows it again.
+	if _watch_layer != null:
+		_watch_layer.visible = false
 	_combat = COMBAT_SCENE.instantiate() as CombatController
 	var continue_to := Callable()
 	if not _zone_fight.is_empty():
@@ -2085,9 +2104,10 @@ func _enter_stop() -> void:
 		print("Run ambush: %s (chance was %d%%)" % [_run.ambush_id, _run.unknown_fight_percent()])
 	match int(stop.type):
 		RunMap.StopType.FIGHT, RunMap.StopType.GUARD:
-			# The place's name card with a tip first (card #86), then its fight (DESIGN.md 8.22).
+			# The map swirls away, the place's name card with a tip shows (card #86), then its fight
+			# (DESIGN.md 8.22).
 			var zone := _run.zone_of(stop)
-			_fade_to(_start_stop_fight, zone.display_name if zone != null else "")
+			_fade_to(_start_stop_fight, zone.display_name if zone != null else "", true)
 		RunMap.StopType.REST:
 			_fade_to(_show_rest)
 		RunMap.StopType.SHOP:
@@ -2103,10 +2123,10 @@ func _enter_stop() -> void:
 			_fade_to(_show_treasure.bind(_run.stop_done, _run.stop_text if _run.stop_done else ""))
 
 
-## A Fight or Guard stop's fight (DESIGN.md 8.22), run inside the fade after the place's name card:
-## the fight the run state names for the stop (the same on every machine, the friend builds it from
-## the host's state), in the place's look and air under its rolled weather, with a Fight stop's drop.
-## No swirl: the fade from the name card is the way in.
+## A Fight or Guard stop's fight (DESIGN.md 8.22), built under the place's name card: the fight the
+## run state names for the stop (the same on every machine, the friend builds it from the host's
+## state), in the place's look and air under its rolled weather, with a Fight stop's drop. The way in
+## is _fade_to's swirl (the map swirls into black, as into every other run fight), then the card.
 func _start_stop_fight() -> void:
 	if _run == null:
 		return
@@ -2209,33 +2229,60 @@ func _on_run_fight_over(result: String) -> void:
 	_run.carry_team_gauge(_combat.team_gauge())
 	_autoplay_spend_points()
 	var found: ItemData = null
-	if result == RunState.VICTORY and not ambushed and type == RunMap.StopType.FIGHT and _drop != null:
+	if _takes_fight_drop(result, type, ambushed, _drop != null):
 		print("Run drop: %s" % _drop.id)
 		if _run.add_item(_drop) < 0:
 			found = _drop
 	_drop = null
-	if _run.is_over():
-		_clear_run_save()
-		_fade_to(_show_run_end)
-	elif result == RunState.VICTORY and ambushed and not ambush_spoils:
-		# An ambush pays gold and XP like any fight; spoils only when the event's data says so.
-		_fade_to(_show_map)
-	elif result == RunState.VICTORY and not ambushed and type == RunMap.StopType.FIGHT:
-		if found != null:
-			_fade_to(_show_party.bind("The enemy dropped a %s, but the pack is full." % found.display_name, false,
-					{"item": found}))
-		else:
+	match _after_run_fight(result, type, ambushed, ambush_spoils, _run.is_over(), found != null):
+		AfterFight.END:
+			_clear_run_save()
+			_fade_to(_show_run_end)
+		AfterFight.PARTY:
+			_fade_to(_show_party.bind(_pack_full_note(found), false, {"item": found}))
+		AfterFight.SPOILS:
+			_fade_to(_show_loot.bind([] as Array[GearData], _spoils_line(type, ambushed)))
+		_:
 			_fade_to(_show_map)
-	elif result == RunState.VICTORY:
-		# An ambush with spoils reads as an elite's, as before.
-		var text := "The elite fell. Take one."
-		if not ambushed and type == RunMap.StopType.FINAL:
-			text = "The boss fell. Take one."
-		elif not ambushed and type == RunMap.StopType.GUARD:
-			text = "The guard fell. Take one."
-		_fade_to(_show_loot.bind([] as Array[GearData], text))
-	else:
-		_fade_to(_show_map)
+
+
+## True when a run fight's item drop (`has_drop`) goes in the pack: only a won Fight stop's fight,
+## never an ambush's, an escape or a loss (DESIGN.md 8.22). Pure.
+static func _takes_fight_drop(result: String, stop_type: int, ambushed: bool, has_drop: bool) -> bool:
+	return has_drop and result == RunState.VICTORY and not ambushed and stop_type == RunMap.StopType.FIGHT
+
+
+## Where a run fight's end screen leads (DESIGN.md 2.13, 8.22), pure: the run's end once it is
+## `over`; after a win the party screen when a Fight stop's drop did not fit (`drop_left`), the spoils
+## after a guard, an elite or a boss (after an ambush only when its event's data says so,
+## `ambush_spoils`; an ambush pays gold and XP like any fight), else the map. An escape passes the
+## stop: the map.
+static func _after_run_fight(result: String, stop_type: int, ambushed: bool, ambush_spoils: bool, over: bool,
+		drop_left: bool) -> AfterFight:
+	if over:
+		return AfterFight.END
+	if result != RunState.VICTORY:
+		return AfterFight.MAP
+	if ambushed:
+		return AfterFight.SPOILS if ambush_spoils else AfterFight.MAP
+	if stop_type == RunMap.StopType.FIGHT:
+		return AfterFight.PARTY if drop_left else AfterFight.MAP
+	return AfterFight.SPOILS
+
+
+## The line over a run fight's spoils: the boss's, a guard's, else an elite's (an ambush with spoils
+## reads as an elite's, as before). Pure.
+static func _spoils_line(stop_type: int, ambushed: bool) -> String:
+	if not ambushed and stop_type == RunMap.StopType.FINAL:
+		return "The boss fell. Take one."
+	if not ambushed and stop_type == RunMap.StopType.GUARD:
+		return "The guard fell. Take one."
+	return "The elite fell. Take one."
+
+
+## The party screen's line when a Fight stop's drop did not fit the pack (it opens holding it). Pure.
+static func _pack_full_note(item: ItemData) -> String:
+	return "The enemy dropped a %s, but the pack is full." % item.display_name
 
 
 func _show_rest(result: String = "") -> void:
@@ -4035,7 +4082,7 @@ func _client_screen(p: Dictionary) -> void:
 			_net_seed = int(p.get("seed", 1))
 			_combat_resync = bool(p.get("rejoin", false))
 			var zone := _run.zone_now()
-			_fade_to(_start_stop_fight, zone.display_name if zone != null else "")
+			_fade_to(_start_stop_fight, zone.display_name if zone != null else "", true)
 		"rush_fight":
 			# The Rush's state came with it (fight, encounter): build that fight, never roll a new one
 			# (card #312). Its batches wait in the inbox until it is built, as a final fight's do.
