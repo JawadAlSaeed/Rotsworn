@@ -27,6 +27,14 @@ const ARENA_LAYOUTS := {
 		["ledge_rock_tall_bog", -8.8, -8.5, 6.0, 1.0], ["stilt_hut", 8.4, -7.6, -10.0, 1.0],
 		["rock_mossy", -9.8, -4.8, 20.0, 1.1], ["log", 4.6, -6.0, 15.0, 1.0],
 		["stump_rotten", -3.4, -8.3, 0.0, 0.55], ["swamp_lantern", 6.3, -4.8, 0.0, 1.0]]},
+	# The Leech Queen's lair (phase 26, card #323): a drowned bog court, sunken huts, a broken
+	# arch half under the black water, bones on the bank, two swamp lanterns.
+	"leech_lair": {"cliff": "cliff_wall_bog", "pieces": [
+		["stilt_hut", -8.8, -8.0, 12.0, 1.0], ["ledge_rock_tall_bog", 9.2, -8.4, -6.0, 1.0],
+		["arch_broken", 3.8, -9.2, 4.0, 1.0], ["log", 4.6, -6.0, 15.0, 1.0],
+		["rock_mossy", -9.8, -4.8, 20.0, 1.1], ["bones", 1.0, -5.2, 25.0, 1.0],
+		["stump_rotten", -3.4, -8.3, 0.0, 0.55], ["swamp_lantern", 6.3, -4.8, 0.0, 1.0],
+		["swamp_lantern", -7.4, -5.4, 0.0, 1.0]]},
 	"hollow_throne": {"cliff": "cliff_wall_ash", "pieces": [
 		["stairs_broken", 0.4, -8.9, 0.0, 1.3], ["statue_headless", -8.2, -7.6, 10.0, 1.2],
 		["statue_headless", 7.4, -7.4, -12.0, 1.2], ["pillar", 4.3, -8.4, 30.0, 1.0],

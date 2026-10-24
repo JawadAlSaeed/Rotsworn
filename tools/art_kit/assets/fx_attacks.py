@@ -91,6 +91,10 @@ LIGHT_HALO = M["glow_amber"]
 SPARK = Material.make("fx_spark", "#fff6a8", below=2, above=1, emissive=True)
 SPARK_HALO = M["glow_cyan"]
 TAR = Material.make("fx_tar", "#2e2626", below=1, above=2, wrap=0.3, spec=0.5, spec_power=12.0)
+# Phase 26 (card #323): the Leech Queen's black bile, a gout of the black water with a sickly
+# violet glint inside (her blight).
+BLACK_BILE = Material.make("fx_black_bile", "#2c2a33", below=1, above=2, wrap=0.25, spec=0.9, spec_power=9.0)
+BLACK_BILE_GLOW = M["glow_violet"]
 
 # Every projectile model is centred here (model units = pixels), in the middle of its cell, and
 # drawn K times the size of its first sketch (12 px cells were too small to read in a fight).
@@ -201,6 +205,20 @@ def _pitch(frame: int) -> np.ndarray:
     return finish(render(model, _cam()), contour_gap=0)
 
 
+def _black_bile(frame: int) -> np.ndarray:
+    """The Leech Queen's black bile (card #323): a wet gout of the black water with two trailing
+    drops and a violet glint at its heart, wobbling as it flies."""
+    phase = frame / PROJ_FRAMES * math.tau
+    gout = Ellipsoid(BLACK_BILE, CENTRE, (K * (3.7 + 0.5 * math.sin(phase)), K * (3.0 - 0.4 * math.sin(phase)), K * 3.0),
+                     group="bile")
+    drop_a = Sphere(BLACK_BILE, (CENTRE[0] + K * 3.3, CENTRE[1] + K * 0.8 * math.cos(phase), 0.0), K * 1.3, group="bile")
+    drop_b = Sphere(BLACK_BILE, (CENTRE[0] + K * 5.0, CENTRE[1] - K * (0.6 + 0.4 * math.sin(phase)), 0.0), K * 0.8,
+                    group="drop")
+    glint = Sphere(BLACK_BILE_GLOW, (CENTRE[0] - K * 0.7, CENTRE[1] + K * 0.5, K * 2.3),
+                   K * (1.2 + 0.25 * math.cos(phase)), group="glint")
+    model = Union(SmoothUnion(gout, drop_a, k=K * 1.4), drop_b, glint)
+    return finish(render(model, _cam()), contour_gap=0)
+
 PROJECTILES = {
     "spark_bolt": _spark,
     "pitch_glob": _pitch,
@@ -210,6 +228,7 @@ PROJECTILES = {
     "thrown_stone": _stone,
     "shade_bolt": _bolt,
     "light_bolt": _light,
+    "black_bile": _black_bile,
 }
 
 

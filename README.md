@@ -106,9 +106,10 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 
 ### A run
 
-- **Two acts.** Each act is a branching map (6 rows of stops, then the boss) that is new every run.
-  You pick your path one stop at a time, and every road meets a guard early in each act. Act 1 is
-  *The Rotten Road*; act 2, *The Ashen Deep*, uses tougher versions of every monster.
+- **Three acts.** Each act is a branching map (6 rows of stops, then the boss) that is new every run,
+  in one place of its own. You pick your path one stop at a time, and every road meets a guard early
+  in each act. Act 1 is *The Rotten Road* (Rotten Hollow); act 2, *The Drowned Mire* (Sunken Bog);
+  act 3, *The Ashen Deep* (Ashen Ruins), uses tougher versions of every monster.
 - **Stops on the map:**
   - **Fight**: one fight in a place (Rotten Hollow, Sunken Bog or Ashen Ruins), in its own light
     and weather. Win for gold, XP and sometimes an item. You may run away, but then you get nothing.
@@ -122,7 +123,8 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
     takes a curse off your hands, upgrades an item and restocks his shelves, all for gold.
   - **Campfire**: pick one: rest (heal 50%), train (an attribute point for every hero) or upgrade
     an item.
-  - **Boss**: *The Husk Lord* ends act 1. *The Hollow King* is the final fight.
+  - **Boss**: *The Husk Lord* ends act 1, *The Leech Queen* act 2 (her bites drink: a bite you
+    do not stop heals her). *The Hollow King* is the final fight.
 - **Getting stronger.** Each hero levels up on their own, up to level 10. Every level gives
   attribute points (Vitality, Might, Agility, Defense, Luck), a skill point and an Echo point.
   Luck raises the chance of a critical hit.

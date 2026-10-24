@@ -49,7 +49,7 @@ extends RefCounted
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
 ##                                   title, controller, calibration_offer, credits, glossary (glossary_<topic> opens that
 ##                                   topic: glossary_reading), journal, party, heroes, attributes, skills, calibration,
-##                                   tutorial, map, map_start, map_act2, first_strike (a Fight
+##                                   tutorial, map, map_start, map_act2, map_act3, first_strike (a Fight
 ##                                   stop's name card with its First Strike ring, starting over),
 ##                                   shop, campfire,
 ##                                   event, treasure, controls_vibration (the Controller page on

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ProjectileData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/projectile_data.gd" id="1_proj"]
+
+[resource]
+script = ExtResource("1_proj")
+id = "black_bile"
+texture_path = "res://assets/sprites/fx/black_bile.png"
+hframes = 4
+loop_ms = 280
+pixel_size = 0.045
+arc_height = 1.2
+trail_count = 2
+trail_gap_ms = 35
+color = Color(0.5, 0.36, 0.6, 1)
+launch_sfx = "spit"
+launch_offset = Vector2(1.0, 1.2)
+hit_sfx = "splat"

@@ -13,7 +13,8 @@ leaves on a hero it lands on undefended),
 mark_turns=int (its length, default 2), ap_drain=int (AP the hero loses to the hit),
 hard_only=bool (the mark only comes in a hard fight: elite, guard, boss or deep variant; card #194)).
 A support move (card #259) has mode "ally", no hits, and extra fields support (1 heal, 2 shield),
-support_percent, support_below_percent, support_turns.
+support_percent, support_below_percent, support_turns. A drinking move (card #323) has the extra
+field drain_percent (the attacker heals that share of the HP each hit takes).
 """
 from __future__ import annotations
 
@@ -311,6 +312,70 @@ ATTACKS: dict[str, tuple] = {
     ], {}),
     "bile_tick_spit": ("Bile Spit", "single", 2, [
         dict(at=1100, dmg=80, approach=450, projectile="bile_glob"),
+    ], {}),
+    # Phase 26 (card #323, DESIGN.md 8.23): the Leech Queen, act 2's boss, and her Leechlings. Her
+    # bites drink (drain_percent: she heals that share of the HP each hit takes), her tail sweeps
+    # must be dodged everywhere (kind sweep), her black water is jumped (ground waves), her spit
+    # blights. Phase two: faster, harder versions and one new move, Feeding Frenzy.
+    "leech_draining_bite": ("Draining Bite", "single", 3, [
+        dict(at=1000, dmg=60, approach=220, forced_feint=True),
+        dict(at=1500, dmg=70, approach=200, forced="rend"),
+    ], {"drain_percent": 75}),
+    "leech_tail_sweep": ("Tail Sweep", "party", 2, [
+        dict(at=1200, dmg=55, kind="sweep", anim="tail", approach=380),
+        dict(at=1950, dmg=60, kind="sweep", anim="tail", approach=360, forced_feint=True),
+    ], {}),
+    "leech_black_water": ("Black Water", "party", 2, [
+        dict(at=1100, dmg=50, kind="ground", approach=500),
+        dict(at=1800, dmg=55, kind="ground", approach=450),
+    ], {}),
+    "leech_blight_spit": ("Blight Spit", "single", 2, [
+        dict(at=1300, dmg=100, approach=600, projectile="black_bile", mark="blighted", mark_turns=3),
+    ], {}),
+    "leech_gorging_bite": ("Gorging Bite", "single", 3, [
+        dict(at=800, dmg=50, approach=200, forced_feint=True),
+        dict(at=1150, dmg=55, approach=180),
+        dict(at=1650, dmg=65, approach=200, forced="rend"),
+    ], {"drain_percent": 90}),
+    "leech_tail_lash": ("Tail Lash", "party", 2, [
+        dict(at=950, dmg=50, kind="sweep", anim="tail", approach=300),
+        dict(at=1400, dmg=50, kind="sweep", anim="tail", approach=280),
+        dict(at=2050, dmg=55, kind="sweep", anim="tail", approach=300, forced_feint=True),
+    ], {}),
+    "leech_black_flood": ("Black Flood", "party", 2, [
+        dict(at=900, dmg=45, kind="ground", approach=450),
+        dict(at=1400, dmg=45, kind="ground", approach=420),
+        dict(at=1950, dmg=50, kind="ground", approach=450),
+    ], {}),
+    "leech_blight_volley": ("Blight Volley", "single", 2, [
+        dict(at=950, dmg=45, approach=500, projectile="black_bile"),
+        dict(at=1350, dmg=45, approach=440, projectile="black_bile"),
+        dict(at=1800, dmg=50, approach=400, projectile="black_bile", mark="blighted", mark_turns=3, hard_only=True),
+    ], {}),
+    "leech_feeding_frenzy": ("Feeding Frenzy", "each", 2, [
+        dict(at=850, dmg=45, approach=200),
+        dict(at=1200, dmg=45, approach=180, forced="rend"),
+        dict(at=1800, dmg=50, approach=200, forced_feint=True),
+    ], {"drain_percent": 60, "cooldown_turns": 1}),
+    # Her Signature Doom (8.6): waves, tail sweeps, spit and bites, uneven gaps, a forced feint.
+    "leech_drowning_tide": ("Drowning Tide", "party", 9, [
+        dict(at=1000, dmg=30, kind="ground", approach=500),
+        dict(at=1600, dmg=30, kind="ground", approach=450),
+        dict(at=2200, dmg=30, approach=360, forced="sweep", anim="tail"),
+        dict(at=2900, dmg=30, approach=550, projectile="black_bile"),
+        dict(at=3300, dmg=32, approach=220, forced="rend"),
+        dict(at=4100, dmg=36, kind="ground", approach=650),
+        dict(at=4700, dmg=30, approach=200, forced="sweep", anim="tail", forced_feint=True),
+        dict(at=5400, dmg=34, approach=480, projectile="black_bile"),
+        dict(at=6000, dmg=38, approach=220, forced="rend"),
+    ], {"charge_turns": 3, "break_damage_percent": 17, "cooldown_turns": 2, "start_cooldown_turns": 2}),
+    # The Leechlings: small fry at her side (like the Rot Rats), one bite that marks.
+    "leechling_bite": ("Leech Bite", "single", 3, [
+        dict(at=850, dmg=85, approach=170, mark="weakened"),
+    ], {}),
+    "leechling_wriggle": ("Wriggle", "single", 2, [
+        dict(at=700, dmg=35, approach=160, forced_feint=True),
+        dict(at=1050, dmg=40, approach=150, forced="rend"),
     ], {}),
 }
 

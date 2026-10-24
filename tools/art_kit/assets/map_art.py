@@ -18,6 +18,7 @@ camp; the paths between them are ink dots the game draws itself.
   hollow, Sunken Bog a murky pool with reeds and a toadstool, Ashen Ruins broken columns.
 - ui/map_lair_hollow_king.png (bigger): the boss's lair, a crag with a cave mouth, red eyes inside
   and a crown on the peak.
+- ui/map_lair_leech_queen.png (bigger): act 2's lair, a crowned leech coiled in a black pool.
 - ui/map_flag.png: the party's banner (Alder blue, Brin red, Cass gold) planted where the party
   is.
 - ui/map_guard.png: a Guard stop (DESIGN.md 8.22), in the elite's style: a tall horned shield with
@@ -565,6 +566,60 @@ def make_lair_husk_lord() -> np.ndarray:
     return c.a
 
 
+# The Leech Queen's lair (phase 26, card #323): the black water, the leech's wet rings, her pale
+# skin and violet glow (the same colours as her sprite in enemy_leech_queen.py).
+BLACK_WATER = ramp("#262a31", below=1, above=2)
+LEECH = ramp("#3f3a30", below=2, above=2)
+PALE = ramp("#b3a7b0", below=2, above=2)
+VIOLET = M["glow_violet"].colors
+
+
+def make_lair_leech_queen() -> np.ndarray:
+    """The second act's boss lair (DESIGN.md 8.23): a crowned leech coiled in a black pool, her pale
+    head and long dark hair rising out of the coil."""
+    c = Canvas(LAIR, LAIR)
+    # The black pool, a wet sheen across it.
+    c.ellipse(16.0, 27.0, 14.5, 3.8, BLACK_WATER[0])
+    c.ellipse(16.0, 26.6, 12.5, 2.8, BLACK_WATER[1])
+    c.line(7, 26, 12, 26, BLACK_WATER[3])
+    c.line(20, 28, 24, 28, BLACK_WATER[2])
+    # The coil: three stacked rings, each a step smaller and lighter, ringed with dark grooves.
+    for cy, rx, ry, k in ((24.0, 10.5, 3.6, 1), (21.0, 8.4, 3.0, 2), (18.4, 6.2, 2.5, 3)):
+        c.ellipse(16.0, cy, rx, ry, LEECH[k])
+        c.line(int(16 - rx + 2), int(cy), int(16 + rx - 2), int(cy), LEECH[k + 1])
+        for gx in range(int(16 - rx + 2), int(16 + rx - 1), 3):
+            c.px(gx, int(cy + ry - 1), LEECH[0])
+    # The tail's end flicking up out of the water on the right.
+    c.line(27, 25, 29, 21, LEECH[2])
+    c.line(28, 25, 30, 21, LEECH[1])
+    c.px(29, 20, LEECH[2])
+    # Her body rising out of the coil: a thin dark bodice, pale shoulders and a pale gaunt face.
+    c.poly([(13.0, 18.0), (13.5, 12.0), (18.5, 12.0), (19.0, 18.0)], LEECH[2])
+    c.rect(14, 11, 18, 11, PALE[2])
+    c.ellipse(16.0, 8.0, 2.2, 2.8, PALE[3])
+    c.px(15, 8, VIOLET[3])
+    c.px(17, 8, VIOLET[3])
+    # Long dark hair down both sides of the face to the coil.
+    c.line(13, 6, 12, 16, SEPIA[0])
+    c.line(19, 6, 20, 16, SEPIA[0])
+    c.line(14, 5, 13, 14, SEPIA[1])
+    c.line(18, 5, 19, 14, SEPIA[1])
+    # Her crown, as bold as the other lairs' (the boss stop's mark): a worn-gold band with three
+    # points, a violet gem, and two dead roots twisting out past its ends.
+    c.rect(12, 4, 20, 5, GOLD[2])
+    c.rect(12, 4, 20, 4, GOLD[3])
+    for sx in (12, 16, 20):
+        c.rect(sx, 1, sx, 3, GOLD[3])
+    for sx in (14, 18):
+        c.px(sx, 3, GOLD[2])
+    c.px(16, 5, VIOLET[3])
+    for x0, y0, x1, y1 in ((11, 4, 9, 1), (21, 4, 23, 1)):
+        c.line(x0, y0, x1, y1, DEAD[2])
+    c.px(9, 1, DEAD[3])
+    c.px(23, 1, DEAD[3])
+    c.outline(INK_OUT)
+    return c.a
+
 def make_flag() -> np.ndarray:
     """The party's banner: one red cloth (owner, 2026-10-21: the three coloured stripes read as a
     pride flag), lit along the top and shaded along the bottom, with a swallowtail end."""
@@ -630,6 +685,7 @@ def build(ctx) -> None:
         ctx.save("sprites/ui/map_zone_%s.png" % zone_id, icons[zone_id], scale=8)
     ctx.save("sprites/ui/map_lair_hollow_king.png", icons["lair"], scale=8)
     ctx.save("sprites/ui/map_lair_husk_lord.png", make_lair_husk_lord(), scale=8)
+    ctx.save("sprites/ui/map_lair_leech_queen.png", make_lair_leech_queen(), scale=8)
     ctx.save("sprites/ui/map_elite.png", make_elite(), scale=8)
     ctx.save("sprites/ui/map_guard.png", make_guard(), scale=8)
     ctx.save("sprites/ui/goal_foe.png", make_foe(), scale=8)

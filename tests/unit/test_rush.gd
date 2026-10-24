@@ -52,21 +52,23 @@ func _build_rush(all_items: bool) -> RushData:
 	var ruins := load(ZONE_PATH % "ashen_ruins") as ZoneData
 	var first := _data.acts[0]
 	var second := _data.acts[1]
+	var third := _data.acts[2]
 	var r := RushData.new()
 	r.run = _data
 	r.tiers.assign([
 		_tier(1, [hollow], [hollow.roamer_pool], [first.elites], false),
-		_tier(11, [bog], [bog.roamer_pool, first.ambushes], [first.elites], false),
-		_tier(21, [ruins], [ruins.roamer_pool, second.ambushes], [second.elites], true),
-		_tier(31, [hollow, bog, ruins], [hollow.roamer_pool, bog.roamer_pool, first.ambushes, ruins.roamer_pool,
-				second.ambushes], [first.elites, second.elites], true),
+		_tier(11, [bog], [bog.roamer_pool, second.ambushes], [second.elites], false),
+		_tier(21, [ruins], [ruins.roamer_pool, third.ambushes], [third.elites], true),
+		_tier(31, [hollow, bog, ruins], [hollow.roamer_pool, bog.roamer_pool, ruins.roamer_pool, first.ambushes,
+				second.ambushes, third.ambushes], [first.elites, second.elites, third.elites], true),
 	])
 	r.bosses.assign([
 		_boss("guard_gorged_one", hollow, null, 1),
 		_boss("guard_mire_mother", bog, null, 3),
 		_boss("guard_ash_warden", ruins, null, 9),
 		_boss("husk_lord_fight", hollow, first.final_look, 6),
-		_boss("hollow_king", null, second.final_look, 13),
+		_boss("leech_queen_fight", bog, second.final_look, 13),
+		_boss("hollow_king", null, third.final_look, 20),
 	])
 	for list: Array[ItemData] in [_data.shop_items, _data.found_items]:
 		for item: ItemData in list:
@@ -210,10 +212,10 @@ func test_schedule_and_boss_cycle() -> void:
 	for n: int in range(0, 21):
 		assert_eq(r.kind_of(n), want.get(n, NORMAL), "fight %d" % n)
 	var cycle: Array[String] = []
-	for n: int in range(10, 61, 10):
+	for n: int in range(10, 71, 10):
 		cycle.append(r.boss_entry(n).encounter.id)
-	assert_eq(cycle, ["guard_gorged_one", "guard_mire_mother", "guard_ash_warden", "husk_lord_fight", "hollow_king",
-			"guard_gorged_one"] as Array[String])
+	assert_eq(cycle, ["guard_gorged_one", "guard_mire_mother", "guard_ash_warden", "husk_lord_fight",
+			"leech_queen_fight", "hollow_king", "guard_gorged_one"] as Array[String])
 	assert_null(r.boss_entry(5), "no boss on an elite fight")
 
 
@@ -228,7 +230,7 @@ func test_tiers_and_deep_versions() -> void:
 	assert_true(r.is_deep(), "deep from fight 21")
 	r.encounter_id = "slinger_trio"
 	assert_eq(r.encounter_now().id, "deep_slinger_trio", "a deep tier fights the deep version")
-	r.fight = 50
+	r.fight = 60
 	r.encounter_id = "hollow_king"
 	assert_eq(r.encounter_now().id, "hollow_king", "the base one when there is no deep version")
 	r.fight = 5
@@ -261,11 +263,14 @@ func test_seeds_repeat_and_never_twice_in_a_row() -> void:
 		differs = differs or a.encounter_id != other.encounter_id
 		prev = a.encounter_id
 	assert_true(differs, "another seed fights other fights")
-	a.fight = 50
+	a.fight = 60
 	assert_null(a.zone_now(), "the Hollow King's throne has no zone")
 	assert_null(a.weather_now(), "and so no weather")
 	assert_true(a.air_now().is_empty())
-	assert_eq(a.look_now(), _data.acts[1].final_look)
+	assert_eq(a.look_now(), _data.acts[2].final_look)
+	a.fight = 50
+	assert_eq(a.boss_entry(50).encounter.id, "leech_queen_fight", "the Leech Queen at fight 50 (card #323)")
+	assert_eq(a.look_now(), _data.acts[1].final_look, "in her own lair")
 
 
 func test_bosses_grow_from_their_home_depth() -> void:
@@ -305,7 +310,7 @@ func test_fight_setup_has_no_running_and_the_flat_multipliers() -> void:
 
 func test_xp_gold_drops_and_echoes() -> void:
 	var r := _rush_state()
-	r.fight = 50
+	r.fight = 60
 	var king := _enc("hollow_king")
 	assert_lt(RunState.encounter_xp(king), _tuning.rush_boss_min_xp, "the King's own data pays little")
 	assert_eq(r.xp_full(king), _tuning.rush_boss_min_xp)
@@ -314,7 +319,7 @@ func test_xp_gold_drops_and_echoes() -> void:
 	_tuning.rush_xp_percent = 100
 	r.fight = 3
 	assert_eq(r.xp_full(_enc("husk_fight")), RunState.encounter_xp(_enc("husk_fight")), "a normal fight pays its own")
-	r.fight = 50
+	r.fight = 60
 	var hp := _full_hp(r)
 	hp[1] = 0
 	var xp := r.fight_xp(king, hp)

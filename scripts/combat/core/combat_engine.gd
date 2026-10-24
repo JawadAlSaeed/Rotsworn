@@ -51,7 +51,8 @@ extends RefCounted
 ##                           cause: "ability" | "follow_up" | "counter" | "team_counter" | "bleed"
 ##                           | "item" | "rot" (gear) | "rotting" (the Rotting debuff) | "thorns" (gear)
 ##                           | "burning" (the Burning debuff, card #252)
-##   healed                  {source, target, amount, hp, max_hp}
+##   healed                  {source, target, amount, hp, max_hp, cause? ("drain": a drinking hit healed
+##                           its attacker, EnemyAttackData.drain_percent, card #323; only then)}
 ##   revived                 {source, target, hp, max_hp}
 ##   downed                  {target}
 ##   ap_changed              {character, delta, ap, reason}  reason: "spend" | "ability" | "given"
@@ -151,6 +152,8 @@ const ITEM_ALLY := "ally"
 const ITEM_PARTY := "party"
 const ITEM_ENEMIES := "enemies"
 const ITEM_DOWNED := "downed"
+## A healed event's cause when a drinking hit healed its attacker (card #323).
+const CAUSE_DRAIN := "drain"
 
 var phase: Phase = Phase.NOT_STARTED
 var tuning: Tuning
@@ -810,6 +813,9 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 				defend["mark_status"] = hit.on_hit_status
 				defend["mark_turns"] = hit.on_hit_status_turns
 				defend["mark_ap"] = hit.on_hit_ap_drain
+			if attack.drains():
+				# A drinking bite (card #323); only its prompts carry it, like a mark.
+				defend["drain"] = attack.drain_percent
 			prompts.append(defend)
 	_declare(SEQUENCE_ENEMY_ATTACK, actor.id, attack.id, attack.display_name, attack.target_mode, targets,
 			attack.alert_cue, attack.allow_timing_ring, hits, prompts, events)
@@ -1749,6 +1755,7 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 	sequence.states[idx] = PromptState.RESOLVED
 	sequence.outcomes[idx] = outcome
 	var damage := 0
+	var lost := 0
 	var ap_delta := 0
 	var perfect := (prompt.perfect as Array).has(outcome)
 	if outcome != Defense.Outcome.NONE:
@@ -1757,7 +1764,7 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 			target.perfect_defenses += 1
 	else:
 		damage = int(prompt.damage)
-		_lose_hp(target, damage)
+		lost = _lose_hp(target, damage)
 	var downed := not target.is_alive()
 	var thorn_events: Array[Dictionary] = []
 	if damage > 0:
@@ -1780,6 +1787,7 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 	}
 	events.append(resolved)
 	events.append_array(thorn_events)
+	_drink(prompt, lost, events)
 	_count_streak(outcome, perfect, events)
 	if downed:
 		events.append({"type": "downed", "target": target.id})
@@ -1834,6 +1842,19 @@ func _reflect_thorns(target: Combatant, damage: int, events: Array[Dictionary]) 
 	if attacker == null or attacker.is_party() or not attacker.is_alive():
 		return
 	_deal_damage(target, attacker, CombatMath.percent_min1(damage, pct), "thorns", events)
+
+
+## A drinking hit (EnemyAttackData.drain_percent, card #323): the attacker heals that percent of the
+## HP the hit took from the hero (at least 1). Nothing when the hit was defended, when the attacker
+## is down (thorns may have killed it a moment ago) or already at full HP.
+func _drink(prompt: Dictionary, lost: int, events: Array[Dictionary]) -> void:
+	var pct := int(prompt.get("drain", 0))
+	if pct <= 0 or lost <= 0 or sequence.is_empty():
+		return
+	var attacker := get_combatant(int(sequence.source))
+	if attacker == null or attacker.is_party() or not attacker.is_alive() or attacker.hp >= attacker.max_hp:
+		return
+	_heal(attacker, attacker, CombatMath.percent_min1(lost, pct), events, CAUSE_DRAIN)
 
 
 ## The mark a hit leaves on a hero who took it undefended and is still standing (card #194): a
@@ -2225,15 +2246,19 @@ func _shift_turn(c: Combatant, delta: int, events: Array[Dictionary]) -> void:
 	events.append({"type": "turn_shifted", "target": c.id, "delta": c.next_turn_at - before})
 
 
-func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary]) -> void:
+## `cause`: "" for an ordinary heal; CAUSE_DRAIN for a drinking hit (only then the event says so).
+func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary], cause: String = "") -> void:
 	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(source, Passive.HEAL)))
 	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(target, Passive.HEAL_TAKEN)))
 	if target.has_status(Status.BLIGHTED) and amount > 0:
 		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tuning.blighted_heal_cut_percent))
 	var before := target.hp
 	target.hp = mini(target.max_hp, target.hp + amount)
-	events.append({"type": "healed", "source": source.id, "target": target.id, "amount": target.hp - before,
-			"hp": target.hp, "max_hp": target.max_hp})
+	var event := {"type": "healed", "source": source.id, "target": target.id, "amount": target.hp - before,
+			"hp": target.hp, "max_hp": target.max_hp}
+	if not cause.is_empty():
+		event["cause"] = cause
+	events.append(event)
 
 
 ## A fighter's power with Weakened applied (card #194).

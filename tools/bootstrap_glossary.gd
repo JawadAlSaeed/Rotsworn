@@ -192,7 +192,7 @@ func _enemies() -> void:
 			"ELITE", "", Color(0.85, 0.45, 1.0))
 	_e("enemies", "guard", "Guard", "Each place's mini-boss, met on a Guard stop, with a second phase at half health and a Doom of its own. Beating it gives spoils.",
 			"GUARD", "", HudStyle.GOLD)
-	_e("enemies", "boss", "Boss", "An act's last fight: The Husk Lord, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run.")
+	_e("enemies", "boss", "Boss", "An act's last fight: The Husk Lord, The Leech Queen, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run.")
 	_e("enemies", "phase_two", "Phase two", "At half health a guard or boss rages: a banner, new attacks and faster strings. It picks a new move at once.")
 	_e("enemies", "deep_variant", "Deep variant", "A tougher, recoloured kin met in the second half of a run (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere.")
 	_e("enemies", "hard_fight", "Hard fight", "Elites, guards, bosses and deep variants add forced hits (rends, sweeps and feints) and marks that ordinary early fights do not have.")
@@ -268,7 +268,7 @@ func _shops() -> void:
 
 
 func _run() -> void:
-	_e("run", "the_run", "The run", "A road through the map to the last boss, over two acts: The Rotten Road and The Ashen Deep. If the whole party falls it is over. Only your oaths and Journal carry on.")
+	_e("run", "the_run", "The run", "A road through the map to the last boss, over three acts: The Rotten Road, The Drowned Mire and The Ashen Deep. If the whole party falls it is over. Only your oaths and Journal carry on.")
 	_e("run", "oath", "Oath", "A difficulty you pick before a run. Each oath adds a hardship to those before it and nothing ever makes the run easier. Win at Oath N to unlock N + 1.")
 	_e("run", "oath_list", "The ten oaths", "Thorns, Want, Embers, the Deep, Crowns, Wounds, Scarcity, Silence, the Long Road, Rot. The players screen lists what each one does.")
 	_e("run", "gold", "Gold", "Earned from fights, events and treasure chests, spent in shops and at some events. Elites pay more, and the Oath of Want pays less.")

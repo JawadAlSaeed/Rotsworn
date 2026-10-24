@@ -429,6 +429,8 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_map(0)
 		"map_act2":
 			_show_sample_map(1, 1)
+		"map_act3":
+			_show_sample_map(1, 2)
 		"shop", "campfire", "event", "treasure":
 			_show_sample_stop(screen_name)
 		"pact":
@@ -565,8 +567,8 @@ func _show_sample_rush_end() -> void:
 	_show_screen(end)
 
 
-## --screen=map: a new run two stops in; map_start: before the first stop; map_act2: one stop into
-## the second act (pictures of the map).
+## --screen=map: a new run two stops in; map_start: before the first stop; map_act2 and map_act3: one
+## stop into the second or third act (pictures of the map).
 func _show_sample_map(stops: int, act: int = 0) -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
 	for i: int in act:

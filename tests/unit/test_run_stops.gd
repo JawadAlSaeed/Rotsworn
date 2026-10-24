@@ -67,12 +67,25 @@ func test_planning_sees_every_stop_a_choice_leads_to() -> void:
 
 # --- acts -------------------------------------------------------------------------------------
 
-func test_the_run_has_two_acts_with_their_own_bosses() -> void:
+func test_the_run_has_three_acts_with_their_own_places_and_bosses() -> void:
 	var run := _run()
-	assert_eq(run.acts().size(), 2)
-	assert_ne(run.act_data(0).final_encounter, run.act_data(1).final_encounter, "each act has its own boss")
-	assert_true(run.act_data(0).final_encounter.boss)
-	assert_true(run.act_data(1).deep, "the second act holds the variants")
+	assert_eq(run.acts().size(), 3, "three acts (card #323, DESIGN.md 8.23)")
+	# One place per act, in the story's order: forests to husks, rivers to bog, cities to ash.
+	var places := ["rotten_hollow", "sunken_bog", "ashen_ruins"]
+	var bosses := ["husk_lord_fight", "leech_queen_fight", "hollow_king"]
+	var seen_bosses := {}
+	for i: int in run.acts().size():
+		var act := run.act_data(i)
+		assert_eq(act.zones.size(), 1, "%s is one place" % act.id)
+		assert_eq(act.zones[0].id, places[i], "%s is in its place" % act.id)
+		assert_eq(act.final_encounter.id, bosses[i], "%s's boss" % act.id)
+		assert_true(act.final_encounter.boss, "%s ends on a boss" % act.id)
+		assert_false(seen_bosses.has(act.final_encounter.id), "each act has its own boss")
+		seen_bosses[act.final_encounter.id] = true
+		assert_eq(act.deep, i == 2, "only the last act holds the variants")
+		assert_not_null(act.final_look, "%s has its boss's lair" % act.id)
+	assert_eq(run.act_data(2).final_encounter, _data.final_encounter, "the Hollow King ends the run")
+	assert_eq(run.act_data(1).final_look.resource_path, "res://data/looks/leech_lair.tres", "the Queen's own lair")
 	for act: ActData in run.acts():
 		assert_false(act.zones.is_empty(), "%s has places" % act.id)
 		assert_false(act.elites.is_empty(), "%s has elite fights" % act.id)
@@ -89,9 +102,17 @@ func test_next_act_brings_a_new_map_heals_and_goes_deeper() -> void:
 	assert_eq(run.act, 1)
 	assert_ne(var_to_str(run.map.stops), first_map, "a new map")
 	assert_eq(run.hp[0], 1 + CombatMath.percent(run.max_hp(0), _tuning.run_act_heal_percent))
-	assert_true(run.is_deep())
+	assert_false(run.is_deep(), "the second act (the Drowned Mire) starts plain")
 	run.go(run.choices()[0])
 	assert_gt(run.enemy_hp_percent(), hp_before, "enemies keep growing in the next act")
+	var second_hp := run.enemy_hp_percent()
+	assert_false(run.is_last_act())
+	assert_true(run.next_act())
+	assert_eq(run.act, 2)
+	assert_true(run.is_deep(), "the third act holds the variants")
+	assert_true(run.is_last_act())
+	run.go(run.choices()[0])
+	assert_gt(run.enemy_hp_percent(), second_hp, "and again in the third")
 	assert_false(run.next_act(), "no act after the last")
 
 

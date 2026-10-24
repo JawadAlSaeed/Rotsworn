@@ -266,3 +266,25 @@ func test_the_hollow_king_is_the_hardest_fight_of_the_run() -> void:
 	var lord := lord_fight.enemies[0]
 	assert_gt(king.power_percent, lord.power_percent)
 	assert_gt(king.phase_two_speed, lord.phase_two_speed)
+	# Since card #323 the third act's guard is the deep Ash Warden at its act's Guard row: two whole
+	# acts behind it plus the row.
+	var third_guard_hp := 100 + (2 * (_tuning.run_map_rows + 1) + _tuning.run_guard_row) * _tuning.run_enemy_hp_row_percent
+	if _tuning.run_enemy_scale_bosses:
+		third_guard_hp = 100
+	var warden := load("res://data/encounters/deep_guard_ash_warden.tres") as EncounterData
+	assert_gt(_hp_of(king_fight, 100), _hp_of(warden, third_guard_hp), "more HP than the third act's guard")
+
+
+func test_the_leech_queen_sits_between_the_husk_lord_and_the_hollow_king() -> void:
+	# Act 2's boss (card #323, DESIGN.md 8.23): tougher than act 1's, gentler than the run's end.
+	var lord_fight := load("res://data/encounters/husk_lord_fight.tres") as EncounterData
+	var queen_fight := load("res://data/encounters/leech_queen_fight.tres") as EncounterData
+	var king_fight := load("res://data/encounters/hollow_king.tres") as EncounterData
+	assert_gt(_hp_of(queen_fight, 100), _hp_of(lord_fight, 100), "more HP than the Husk Lord's fight")
+	assert_lt(_hp_of(queen_fight, 100), _hp_of(king_fight, 100), "less than the Hollow King's")
+	var lord := lord_fight.enemies[0]
+	var queen := queen_fight.enemies[0]
+	var king := king_fight.enemies[0]
+	for key: String in ["hp_percent", "power_percent", "speed", "phase_two_speed"]:
+		assert_gt(int(queen.get(key)), int(lord.get(key)), "the Queen's %s above the Lord's" % key)
+		assert_lt(int(queen.get(key)), int(king.get(key)), "and below the King's")

@@ -4,6 +4,7 @@
 [ext_resource type="Resource" path="res://data/encounters/hollow_king.tres" id="1_pfciy"]
 [ext_resource type="Resource" path="res://data/looks/hollow_throne.tres" id="2_4r4bl"]
 [ext_resource type="Resource" path="res://data/runs/acts/rotten_road.tres" id="2_jca6s"]
+[ext_resource type="Resource" path="res://data/runs/acts/drowned_mire.tres" id="p26_drowned_mire"]
 [ext_resource type="Resource" path="res://data/runs/acts/ashen_deep.tres" id="3_7qxmh"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="3_dfnv4"]
 [ext_resource type="Script" path="res://scripts/data/item_data.gd" id="3_pfciy"]
@@ -107,7 +108,7 @@ id = "rotten_road"
 display_name = "The Rotten Road"
 party = Array[ExtResource("3_qgnwx")]([ExtResource("4_xh0st"), ExtResource("5_5lhx2"), ExtResource("6_biicf")])
 team_ultimate = ExtResource("12_dsxv5")
-acts = Array[ExtResource("1_2sbiv")]([ExtResource("2_jca6s"), ExtResource("3_7qxmh")])
+acts = Array[ExtResource("1_2sbiv")]([ExtResource("2_jca6s"), ExtResource("p26_drowned_mire"), ExtResource("3_7qxmh")])
 zones = Array[ExtResource("13_goumg")]([ExtResource("14_cisu8"), ExtResource("15_pfciy"), ExtResource("16_4r4bl")])
 final_encounter = ExtResource("1_pfciy")
 final_look = ExtResource("2_4r4bl")

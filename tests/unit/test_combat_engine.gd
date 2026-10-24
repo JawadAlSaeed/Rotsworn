@@ -65,6 +65,7 @@ const STRING_VALUES: Dictionary = {
 	"sequence_resolved.reason": ["completed", "targets_down", "attacker_down"],
 	"combat_ended.result": ["victory", "defeat"],
 	"combat_started.opening": ["normal", "first_strike"],
+	"healed.cause": ["drain"],
 }
 
 
@@ -1016,6 +1017,21 @@ func _phase19_events() -> Array[Dictionary]:
 	return events
 
 
+## A drinking bite (card #323) that lands on a hero while its attacker is hurt: its prompts carry
+## the drain and the heal names its cause.
+func _drain_events() -> Array[Dictionary]:
+	var bite := Fx.attack("bite", [Fx.hit(900)])
+	bite.drain_percent = 50
+	var engine := CombatEngine.new(Fx.setup([bite]))
+	var events: Array[Dictionary] = engine.start()
+	var foe := engine.get_combatant(Fx.ENEMY_ID)
+	foe.hp = foe.max_hp / 2
+	events.append_array(engine.submit(Fx.resolve_now(engine, [[0, NONE]])))
+	assert_eq(Fx.of_type(events, "healed").filter(func(e: Dictionary) -> bool: return e.has("cause")).size(), 1,
+			"the bite drank")
+	return events
+
+
 ## A boss that enters phase two on the first counter (DESIGN 8, card #31).
 func _phase_two_events() -> Array[Dictionary]:
 	var setup := Fx.setup([_swipe()])
@@ -1039,6 +1055,7 @@ func test_events_have_exactly_the_documented_fields() -> void:
 	events.append_array(_phase_two_events())
 	events.append_array(_item_events())
 	events.append_array(_phase19_events())
+	events.append_array(_drain_events())
 	var seen := {}
 	for i: int in events.size():
 		var e: Dictionary = events[i]
@@ -1056,6 +1073,14 @@ func test_events_have_exactly_the_documented_fields() -> void:
 			e.erase("marks")
 			e.erase("support")
 			e.erase("ranged")
+		if type == "healed" and e.has("cause"):
+			# A drinking bite's heal names its cause (card #323, test_leech_queen.gd).
+			var causes: Array = STRING_VALUES["healed.cause"]
+			if not causes.has(e.cause):
+				fail_test("healed.cause = '%s' is not one of %s" % [str(e.cause), str(causes)])
+				return
+			e = e.duplicate()
+			e.erase("cause")
 		if _sorted_keys(e) != _expected_keys(EVENT_KEYS[type], true):
 			fail_test("%s has fields %s, documented %s" % [type, str(_sorted_keys(e)), str(_expected_keys(EVENT_KEYS[type], true))])
 			return
@@ -1076,7 +1101,7 @@ func test_events_have_exactly_the_documented_fields() -> void:
 				assert_eq(_sorted_keys(hit_keys), _expected_keys(HIT_KEYS, false), "hit fields")
 			for p: Dictionary in e.prompts:
 				var prompt_keys := p.duplicate()
-				for mark_key: String in ["mark_status", "mark_turns", "mark_ap"]:
+				for mark_key: String in ["mark_status", "mark_turns", "mark_ap", "drain"]:
 					prompt_keys.erase(mark_key)
 				assert_eq(_sorted_keys(prompt_keys), _expected_keys(PROMPT_KEYS, false), "prompt fields")
 	for type: String in EVENT_KEYS:

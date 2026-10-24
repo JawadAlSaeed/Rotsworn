@@ -290,11 +290,20 @@ func test_deep_rows_and_acts_bring_deep_versions() -> void:
 	assert_eq(run.fight_of(deep_row), base.deep if has_deep else base, "a deep row fights the deep version")
 	var shallow := int(run.map.rows[0][0])
 	assert_eq(run.fight_of(shallow), run._fight_base(shallow), "row 0 fights the plain one")
+	# Three acts since card #323: the second (the Drowned Mire) keeps its guard plain, the third (the
+	# Ashen Deep) brings the deep one.
 	run.act = 1
 	run.map = run._make_map(1)
 	var guard_stop := _first(run, RunMap.StopType.GUARD)
 	var place := run.zone_of(run.map.stop(guard_stop))
-	assert_eq(run.guard_of(guard_stop), place.guard.deep, "the second act's guards are deep")
+	assert_eq(place.id, "sunken_bog", "the second act is the bog")
+	assert_eq(run.guard_of(guard_stop), place.guard, "the second act's guard is plain")
+	run.act = 2
+	run.map = run._make_map(2)
+	guard_stop = _first(run, RunMap.StopType.GUARD)
+	place = run.zone_of(run.map.stop(guard_stop))
+	assert_eq(place.id, "ashen_ruins", "the third act is the ruins")
+	assert_eq(run.guard_of(guard_stop), place.guard.deep, "the third act's guards are deep")
 
 
 func test_a_fight_stop_rolls_a_drop_and_other_stops_none() -> void:
@@ -422,11 +431,13 @@ func test_every_place_still_names_its_song_and_loop() -> void:
 # --- saves and online --------------------------------------------------------------------------------
 
 func test_a_save_from_before_is_kept_but_not_offered() -> void:
-	assert_eq(RunSave.FORMAT_VERSION, 3)
+	assert_eq(RunSave.FORMAT_VERSION, 4)
 	_save_path = OS.get_temp_dir().path_join("rotsworn_test_run_fights_%d.json" % Time.get_ticks_usec())
 	# Format 1: saved inside a zone. Format 2: the first phase 26 builds, whose Hanging Cage still
 	# gave a Key. The Key's file is gone (card #319), so such a pack no longer loads: the main menu
 	# would delete the run as broken (it never checks the fingerprint, card #208) if the format let it in.
+	# Format 3: two acts; its act 2 (the Ashen Deep) is act 3 now (card #323), so it would carry on
+	# in the wrong place.
 	var run := _run()
 	run.add_item(run.items_by_id()["salve"] as ItemData)
 	var with_key := run.to_dict()
@@ -434,7 +445,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 	var rows: Array = (with_key.backpack as Array)[3]
 	(rows[0] as Array)[1] = "key"
 	assert_null(RunState.from_dict(_data, _tuning, with_key), "a pack holding a Key no longer fits")
-	for format: int in [1, 2]:
+	for format: int in [1, 2, 3]:
 		var old := {"format": format, "fingerprint": "x", "in_stop": false, "players": 1, "run": with_key}
 		var file := FileAccess.open(_save_path, FileAccess.WRITE)
 		file.store_string(JSON.stringify(old))

@@ -583,7 +583,7 @@ script = ExtResource("1_d4656")
 id = "boss"
 topic = "enemies"
 term = "Boss"
-text = "An act's last fight: The Husk Lord, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run."
+text = "An act's last fight: The Husk Lord, The Leech Queen, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run."
 
 [sub_resource type="Resource" id="Resource_rjq6c"]
 script = ExtResource("1_d4656")
@@ -895,7 +895,7 @@ script = ExtResource("1_d4656")
 id = "the_run"
 topic = "run"
 term = "The run"
-text = "A road through the map to the last boss, over two acts: The Rotten Road and The Ashen Deep. If the whole party falls it is over. Only your oaths and Journal carry on."
+text = "A road through the map to the last boss, over three acts: The Rotten Road, The Drowned Mire and The Ashen Deep. If the whole party falls it is over. Only your oaths and Journal carry on."
 
 [sub_resource type="Resource" id="Resource_oxqn7"]
 script = ExtResource("1_d4656")

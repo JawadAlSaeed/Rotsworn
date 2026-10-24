@@ -12,7 +12,9 @@ extends RefCounted
 ## without zones (DESIGN.md 8.22); a run saved inside a zone is kept on disk but never offered.
 ## 3: the Key's file went (card #319), and the first phase 26 builds (format 2) could still give a
 ## Key; such a pack would no longer load and the menu would delete the run, so format 2 is kept too.
-const FORMAT_VERSION: int = 3
+## 4: three acts (card #323, DESIGN.md 8.23): an old save's act 2 was the Ashen Deep, now it is the
+## Drowned Mire, so a format 3 run would carry on in the wrong place; it is kept but not offered.
+const FORMAT_VERSION: int = 4
 const PATH := "user://run_save.json"
 const TEMP_SUFFIX := ".tmp"
 const BACKUP_SUFFIX := ".bak"
