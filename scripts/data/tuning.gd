@@ -32,7 +32,8 @@ extends Resource
 ## parry). This caps how far back that reaches, in milliseconds.
 @export_range(0, 250, 1, "suffix:ms") var press_reach_back_max_ms: int = 100
 ## A press this long after a hit already landed is shown as LATE for that hit (when it is nearer
-## than the next hit) instead of being ignored.
+## than the next hit) instead of being ignored. The First Strike ring listens this long after its
+## moment too (DESIGN.md 8.22).
 @export_range(0, 1000, 1, "suffix:ms") var late_press_report_ms: int = 400
 
 @export_group("Enemy attack pacing")

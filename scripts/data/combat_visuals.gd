@@ -819,8 +819,8 @@ func kind_color(kind: int, strike_color: Color) -> Color:
 ## The First Strike ring on a Fight stop's name card (DESIGN.md 8.22, card #320), drawn like a skill
 ## press ring (the Skills group's radii, bands and colours) at this share of its size, with the
 ## skill press button and "First Strike" under it (first_strike_chip_size) and the press's word
-## over it (first_strike_word_size: PERFECT, GOOD, EARLY, MISS). The card holds the result this
-## long before the fight. An online friend watches the host's ring this dim (they cannot press it).
+## over it (first_strike_word_size: PERFECT, GOOD, EARLY, LATE, MISS). The card holds the result
+## this long before the fight (and never before a late press could still say LATE). An online friend watches the host's ring this dim (they cannot press it).
 @export_range(0.2, 2.0, 0.05) var first_strike_ring_scale: float = 0.8
 @export_range(12, 96, 1) var first_strike_chip_size: int = 30
 @export_range(12, 120, 1) var first_strike_word_size: int = 44

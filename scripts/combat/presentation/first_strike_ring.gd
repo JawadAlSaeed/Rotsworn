@@ -4,20 +4,25 @@ extends VBoxContainer
 ## drawn like a skill press ring (RingLayer: the faint target, the GOOD band and the gold PERFECT
 ## band, the ring closing onto the target at the perfect moment and turning gold inside the PERFECT
 ## band), the skill press button with "First Strike" under it and the press's word over it
-## (PERFECT, GOOD, EARLY, LATE, MISS), with the skill press sounds and buzz. Main puts it on the card
-## (ScreenTransition.show_tip), holds the card until is_finished() and builds the fight with
-## opening(). Real time, from the moment it is added: the ring shows tuning.first_strike_ring_delay_ms
-## later. The look is combat_visuals.tres (Skills and First Strike press groups).
+## (PERFECT, GOOD, EARLY, LATE, MISS), with the skill press sounds and the presser's buzz. Main puts
+## it on the card (ScreenTransition.show_tip), holds the card until is_finished() and builds the
+## fight with opening(). Real time, from the moment it is added: the ring shows
+## tuning.first_strike_ring_delay_ms later. The look is combat_visuals.tres (Skills and First Strike
+## press groups).
 ## - PRESS: this machine decides (a local game, any player's press; online, the host's). Presses
 ##   are stamped by its own DefenseInput the moment they arrive (rule 3) and judged on the ring's
 ##   clock by a pure FirstStrikeJudge; the autoplay bots press through the same path
-##   (FirstStrikeBot). decided() fires once, as soon as the opening is known.
+##   (FirstStrikeBot). A window that passes unpressed says MISS at once, as a skill ring does, and
+##   the button stays armed until FirstStrikeJudge.late_until_us: a press by then turns it into
+##   LATE (the opening stays NORMAL). decided() fires once, when the press's word is final.
 ## - WATCH: an online friend's: the ring dimmed and no button to press (it takes no press). The result
 ##   is the host's (show_host_result); a normal start if none came within tuning.net_opening_wait_ms
 ##   after the ring closed (the host's fight decides the opening either way).
 ## - LOOP: the --screen=first_strike picture: pressable, starts over after each result, never done.
 
-## The opening is known (PRESS and LOOP): `word` is the press's readout (WORD_*), sent to friends.
+## The press's result is final (PRESS and LOOP): the opening, and `word` its readout (WORD_*), sent
+## to friends. At once after a GOOD, PERFECT or EARLY press that decides it; after a window that
+## passed unpressed, once a LATE press came or the time for one is over.
 signal decided(opening: CombatSetup.Opening, word: String)
 
 enum Mode { PRESS, WATCH, LOOP }
@@ -51,6 +56,8 @@ var _judge: FirstStrikeJudge
 var _clock := AttackClock.new()
 var _rng := RandomNumberGenerator.new()
 var _latency_ms: int = 0
+## The laggiest device's lag compensation here: a late press is listened for until its LATE span ends.
+var _late_latency_ms: int = 0
 ## Real time (Time.get_ticks_usec()) the ring shows; whether it has.
 var _shows_at_us: int = 0
 var _started: bool = false
@@ -59,9 +66,14 @@ var _moment_us: int = 0
 var _windows: Dictionary = {}
 var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 var _word: String = ""
-## Real time the result showed (0: not yet), and whether the card may go.
+## Real time the result showed (0: not yet); whether its word is final (no press can change it any
+## more, decided() was sent); and whether the card may go.
 var _result_at_us: int = 0
+var _final: bool = false
 var _finished: bool = false
+## Ring time until which a late press can still say LATE, after a window that passed unpressed
+## (-1: no such span, the result is final when it shows).
+var _late_until_us: int = -1
 ## WATCH: the host's result once it came ({opening, word}).
 var _host_result: Dictionary = {}
 ## The bots: each local player's planned press (player -> ring time, us; pressed ones removed), and
@@ -118,6 +130,8 @@ func _ready() -> void:
 		add_child(_input)
 		_input.pressed.connect(_on_pressed)
 	_latency_ms = PlayerSettings.base_latency_compensation_ms(_tuning)
+	_late_latency_ms = maxi(PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.INPUT_KEYBOARD),
+			PlayerSettings.latency_compensation_ms(_tuning, PlayerSettings.INPUT_PAD))
 	if _bot_seed >= 0:
 		_rng.seed = _bot_seed
 	else:
@@ -125,7 +139,7 @@ func _ready() -> void:
 	_begin(Time.get_ticks_usec())
 
 
-## True once the card may go: the result has been shown its while (never in LOOP).
+## True once the card may go: the result is final and has been shown its while (never in LOOP).
 func is_finished() -> bool:
 	return _finished
 
@@ -156,6 +170,8 @@ func show_host_result(opening_name: String, press_word: String) -> void:
 func _begin(now_us: int) -> void:
 	_started = false
 	_result_at_us = 0
+	_final = false
+	_late_until_us = -1
 	_opening = CombatSetup.Opening.NORMAL
 	_word = ""
 	_word_label.text = ""
@@ -188,18 +204,23 @@ func _process(_delta: float) -> void:
 			return
 		_start(now)
 	var t := _clock.attack_time_us(now)
-	if _result_at_us == 0:
-		if _mode == Mode.WATCH:
+	if _mode == Mode.WATCH:
+		if _result_at_us == 0:
 			_watch(t, now)
-		else:
-			_press_bots(t)
+	elif not _final:
+		_press_bots(t)
+		if _result_at_us == 0:
 			if _judge.advance(t) > 0:
+				# MISS at once, as on a skill ring; a press in the next moment still says LATE.
 				_say(WORD_MISS, HudStyle.MISS)
 				Sfx.play("skill_miss")
+				_late_until_us = _judge.late_until_us(_late_latency_ms)
 			if _judge.is_decided():
 				_on_decided(now)
+		if _result_at_us > 0 and not _final and t > _late_until_us:
+			_finalize()
 	_draw_ring(t)
-	if _result_at_us > 0 and now - _result_at_us >= maxi(0, _visuals.first_strike_result_ms) * 1000:
+	if _final and now - _result_at_us >= maxi(0, _visuals.first_strike_result_ms) * 1000:
 		if _mode == Mode.LOOP:
 			_begin(now)
 		else:
@@ -209,7 +230,7 @@ func _process(_delta: float) -> void:
 # --- presses ----------------------------------------------------------------------------------
 
 func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int) -> void:
-	if action != Defense.Outcome.PRESS or not _started or _judge == null or _judge.is_decided():
+	if action != Defense.Outcome.PRESS or not _started or _judge == null or _final:
 		return
 	var player := _roster.player_of_device(device)
 	var t := _clock.attack_time_us(stamp_us)
@@ -225,15 +246,20 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 			var perfect := int(report.outcome) == Defense.Outcome.PRESS_PERFECT
 			_say(WORD_PERFECT if perfect else WORD_GOOD, HudStyle.GOLD if perfect else HudStyle.TEXT)
 			Sfx.play("skill_press", 0.0 if perfect else GOOD_PRESS_VOLUME_DB)
-			PadRumble.everyone("press_perfect" if perfect else "press_good")
+			# Only the presser's pad, as a skill press (no fight party is set on the card).
+			PadRumble.for_player("press_perfect" if perfect else "press_good", _roster, player)
 		DefenseJudge.Result.WHIFF:
 			var early := int(report.reason) == DefenseJudge.Reason.EARLY
 			_say(WORD_EARLY if early else WORD_LATE, HudStyle.EARLY if early else HudStyle.LATE)
 			Sfx.play("whiff")
 		DefenseJudge.Result.LOCKED:
 			Sfx.play("locked", _visuals.locked_click_volume_db)
-	if _judge.is_decided() and _result_at_us == 0:
-		_on_decided(Time.get_ticks_usec())
+	if _result_at_us == 0:
+		if _judge.is_decided():
+			_on_decided(Time.get_ticks_usec())
+	elif int(report.result) == DefenseJudge.Result.WHIFF:
+		# A late press after the MISS: LATE is the press's word.
+		_finalize()
 
 
 func _on_decided(now_us: int) -> void:
@@ -243,16 +269,24 @@ func _on_decided(now_us: int) -> void:
 	if _word.is_empty():
 		_say(WORD_MISS, HudStyle.MISS)
 	_show_result(now_us)
-	decided.emit(_opening, _word)
+	if _late_until_us < 0:
+		_finalize()
 
 
-## The result is on the card: the button goes back to the menus, the chip lights gold for First
-## Strike (or dims), and the card holds it first_strike_result_ms.
+## The result is on the card: the chip lights gold for First Strike (or dims), and the card holds it
+## first_strike_result_ms (once its word is final).
 func _show_result(now_us: int) -> void:
 	_result_at_us = maxi(1, now_us)
+	_set_chip(HudStyle.GOLD if _opening == CombatSetup.Opening.FIRST_STRIKE else HudStyle.TEXT_DIM)
+
+
+## The word is final: the button goes back to the menus and the result is told (PRESS and LOOP).
+func _finalize() -> void:
+	_final = true
 	if _input != null:
 		_input.disarm()
-	_set_chip(HudStyle.GOLD if _opening == CombatSetup.Opening.FIRST_STRIKE else HudStyle.TEXT_DIM)
+	if _mode != Mode.WATCH:
+		decided.emit(_opening, _word)
 
 
 ## WATCH: the host's result, or a normal start once the wait ran out.
@@ -262,11 +296,13 @@ func _watch(t: int, now_us: int) -> void:
 		_opening = CombatSetup.Opening.FIRST_STRIKE if first else CombatSetup.Opening.NORMAL
 		_watch_word(String(_host_result.word), first)
 		_show_result(now_us)
+		_finalize()
 		return
 	var good: Array = _windows.get(Defense.Outcome.PRESS, [0, 0])
 	if t > _moment_us + int(good[1]) + maxi(0, _tuning.net_opening_wait_ms) * 1000:
 		_opening = CombatSetup.Opening.NORMAL
 		_show_result(now_us)
+		_finalize()
 
 
 ## The host's word, with its sound (an unknown word: just the result).

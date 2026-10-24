@@ -15,6 +15,9 @@ extends RefCounted
 ## - A press before the window is EARLY and spends that player's try (one press per ring, as a
 ##   skill ring); a press while locked out is ignored and restarts the lockout (mashing never pays).
 ## - Once every player's try is spent (early, or the window passed) it is NORMAL.
+## - After a NORMAL start whose window passed unpressed, a press up to tuning.late_press_report_ms
+##   after the moment (late_until_us) is still judged: a LATE whiff, as on a skill ring (DefenseJudge
+##   reports it). It never changes the opening.
 
 ## Every press the judge is given came while the ring was on screen (the presenter arms the button
 ## when it appears), so each prompt's ring counts as shown this much before its moment: an early
@@ -25,6 +28,7 @@ var _judges: JudgeSet
 var _moment_us: int = 0
 var _windows: Dictionary = {}
 var _players: Array[int] = []
+var _late_report_ms: int = 0
 var _decided: bool = false
 var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 var _outcome: int = Defense.Outcome.NONE
@@ -38,6 +42,7 @@ func _init(tuning: Tuning, players: Array[int], latency_compensation_ms: int) ->
 	_moment_us = maxi(0, tuning.first_strike_ring_lead_ms) * 1000
 	_windows = Defense.build_windows(AttackHitData.Kind.PRESS, tuning)
 	_players = players.duplicate()
+	_late_report_ms = maxi(0, tuning.late_press_report_ms)
 	_judges = JudgeSet.new(tuning.whiff_lockout_ms, latency_compensation_ms, tuning.press_reach_back_max_ms,
 			tuning.late_press_report_ms)
 	var prompts: Array = []
@@ -92,16 +97,24 @@ func winner() -> int:
 	return _winner
 
 
+## The last ring time at which a press from a device with lag compensation `latency_ms` can still
+## be reported LATE once the window passed unpressed: tuning.late_press_report_ms after the moment,
+## as on a skill ring. The ring listens until then.
+func late_until_us(latency_ms: int) -> int:
+	return _moment_us + (_late_report_ms + maxi(0, latency_ms)) * 1000
+
+
 ## Judges a skill press by player `player` at ring time `t_us` (`earliest_us`: the previous input
 ## pump, or -1; `extra_latency_ms`: how much more the pressing device lags than the base). Returns a
 ## DefenseJudge report ({result, reason, outcome, offset_us, ...}); a player who may not press, or
-## any press once it is decided, gets DONE.
+## any press once First Strike is won, gets DONE. Once it is NORMAL a press is still judged (a late
+## one is a LATE whiff, a spent try's DONE) but changes nothing.
 func press(player: int, t_us: int, earliest_us: int = -1, extra_latency_ms: int = 0) -> Dictionary:
-	if _decided:
+	if _decided and _opening == CombatSetup.Opening.FIRST_STRIKE:
 		return {"result": DefenseJudge.Result.DONE, "reason": DefenseJudge.Reason.NONE, "prompts": [] as Array[int],
 				"outcome": Defense.Outcome.NONE, "offset_us": 0, "hit": -1}
 	var report := _judges.press(player, Defense.Outcome.PRESS, t_us, earliest_us, extra_latency_ms)
-	if int(report.result) == DefenseJudge.Result.SUCCESS:
+	if int(report.result) == DefenseJudge.Result.SUCCESS and not _decided:
 		_decide(CombatSetup.Opening.FIRST_STRIKE, int(report.outcome), player)
 	_settle()
 	return report

@@ -830,12 +830,14 @@ func _free_screen() -> void:
 
 
 ## Fades to black, runs `build` (which shows the next thing), and fades back in. With a
-## `tip_title` a loading card (that title and a tip, card #86) shows over the black for at least
-## the tips' hold_ms, and `build` runs at its end, so a fight starts when it is seen. Online clients
-## and the bot do not hold the card (the host already held it before sending the screen). `swirl`:
-## into a fight, the screen swirls into the black (with its sound) instead of fading. `ring`: a Fight
-## stop's First Strike ring (DESIGN.md 8.22) goes on the card, and the card stays until it is done
-## (its press and result; a friend's waits for the host's), on every machine, the bot's too.
+## `tip_title` a loading card (that title and a tip, card #86) shows over the black and `build` runs
+## at its end, so a fight starts when it is seen. `swirl`: into a fight, the screen swirls into the
+## black (with its sound) instead of fading. How long the card stays (DESIGN.md 7.7):
+## - with `ring`, a Fight stop's First Strike ring (8.22) on the card: until the ring is done (its
+##   press and result; a friend's waits for the host's), on every machine, the bot's too, and the
+##   tips' hold_ms does not apply;
+## - otherwise the tips' hold_ms, on the host or a local game only: online clients and the bot do
+##   not hold it (the host already held it before sending the screen).
 func _fade_to(build: Callable, tip_title: String = "", swirl: bool = false, ring: FirstStrikeRing = null) -> void:
 	if _busy:
 		_drop_first_strike_ring(ring)

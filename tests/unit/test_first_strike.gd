@@ -14,6 +14,7 @@ const RUN_PATH := "res://data/runs/rotten_road.tres"
 const MAIN_PATH := "res://scenes/main.gd"
 const TUTORIAL_PATH := "res://data/tutorial/tutorial.tres"
 const HUSKS_PATH := "res://data/encounters/husk_fight.tres"
+const TIPS_PATH := "res://data/branding/tips.tres"
 const SEEDS: int = 1000
 
 var _tuning: Tuning
@@ -98,6 +99,36 @@ func test_a_late_press_starts_normally() -> void:
 	assert_eq(int(report.reason), DefenseJudge.Reason.LATE)
 	assert_true(judge.is_decided())
 	assert_eq(judge.opening(), CombatSetup.Opening.NORMAL)
+
+
+func test_a_press_a_frame_after_the_window_passed_is_still_late() -> void:
+	# The game advances the ring every frame, so the window has usually passed before a late press.
+	var judge := _judge()
+	assert_eq(judge.advance(judge.moment_us() + int(_good()[1]) + 16000), 1, "the window passed: MISS")
+	assert_true(judge.is_decided())
+	var report := judge.press(0, judge.moment_us() + int(_good()[1]) + 50000)
+	assert_eq(int(report.result), DefenseJudge.Result.WHIFF, "still judged, as on a skill ring")
+	assert_eq(int(report.reason), DefenseJudge.Reason.LATE)
+	assert_eq(judge.opening(), CombatSetup.Opening.NORMAL, "it changes nothing")
+	# Until late_press_report_ms after the moment (the lag compensation taken off first), then nothing.
+	for latency: int in [0, 30]:
+		var edge := _judge([0], latency)
+		edge.advance(edge.moment_us() + int(_good()[1]) + 16000 + latency * 1000)
+		assert_eq(edge.late_until_us(latency), edge.moment_us() + (_tuning.late_press_report_ms + latency) * 1000)
+		assert_eq(int(edge.press(0, edge.late_until_us(latency)).result), DefenseJudge.Result.WHIFF,
+				"lag %d: the last moment still says LATE" % latency)
+		var after := _judge([0], latency)
+		after.advance(after.moment_us() + int(_good()[1]) + 16000 + latency * 1000)
+		assert_eq(int(after.press(0, after.late_until_us(latency) + 1).result), DefenseJudge.Result.DONE,
+				"lag %d: after it, nothing" % latency)
+	# A laggier device's extra counts too.
+	var pad := _judge([0], 0)
+	pad.advance(pad.moment_us() + int(_good()[1]) + 16000)
+	assert_eq(int(pad.press(0, pad.late_until_us(40), -1, 40).result), DefenseJudge.Result.WHIFF)
+	# An early press that spent the try never turns LATE.
+	var early := _judge()
+	early.press(0, early.moment_us() - 400000)
+	assert_eq(int(early.press(0, early.moment_us() + int(_good()[1]) + 50000).result), DefenseJudge.Result.DONE)
 
 
 func test_no_press_starts_normally_once_the_window_has_passed() -> void:
@@ -292,6 +323,63 @@ func test_an_early_press_on_the_ring_is_a_normal_start() -> void:
 	assert_eq(ring.word(), FirstStrikeRing.WORD_EARLY)
 
 
+## Moves the ring's clock so that now is `rel_us` after the end of its GOOD window (the base lag
+## compensation added, as the judge takes it off) and runs one frame. Returns the clock's start.
+func _frame_after_window(ring: FirstStrikeRing, rel_us: int) -> int:
+	var origin := Time.get_ticks_usec() - (ring._moment_us + int(_good()[1]) + rel_us + ring._latency_ms * 1000)
+	ring._clock.start(origin)
+	ring._process(0.016)
+	return origin
+
+
+func test_a_late_press_after_the_rings_miss_says_late() -> void:
+	var ring := _ring(PlayerRoster.solo(3), FirstStrikeRing.Mode.PRESS)
+	var said: Array = []
+	ring.decided.connect(func(opening: CombatSetup.Opening, word: String) -> void: said.append([opening, word]))
+	ring._start(Time.get_ticks_usec())
+	# A frame 30 ms after the window: MISS at once, as on a skill ring, and still listening.
+	var origin := _frame_after_window(ring, 30000)
+	assert_eq(ring.word(), FirstStrikeRing.WORD_MISS)
+	assert_eq(ring.opening(), CombatSetup.Opening.NORMAL)
+	assert_true(ring._input.is_armed(), "the button still takes a late press")
+	assert_eq(said, [], "not told yet: a late press may still come")
+	# A press 60 ms after the window: LATE, the word a skill ring gives it.
+	ring._on_pressed(Defense.Outcome.PRESS, _stamp(ring, origin, int(_good()[1]) + 60000, PlayerRoster.KEYBOARD), 0,
+			PlayerRoster.KEYBOARD)
+	assert_eq(ring.word(), FirstStrikeRing.WORD_LATE)
+	assert_eq(ring.opening(), CombatSetup.Opening.NORMAL, "still a normal start")
+	assert_eq(said, [[CombatSetup.Opening.NORMAL, FirstStrikeRing.WORD_LATE]], "told once, with its word")
+	assert_false(ring._input.is_armed(), "the button goes back to the menus")
+	ring._on_pressed(Defense.Outcome.PRESS, _stamp(ring, origin, int(_good()[1]) + 90000, PlayerRoster.KEYBOARD), 0,
+			PlayerRoster.KEYBOARD)
+	assert_eq(said.size(), 1, "one word per ring")
+	assert_false(ring.is_finished(), "the card holds the result a moment")
+	ring._result_at_us = Time.get_ticks_usec() - (_visuals.first_strike_result_ms + 1) * 1000
+	ring._process(0.0)
+	assert_true(ring.is_finished(), "then the fight")
+
+
+func test_with_no_late_press_the_rings_miss_stands() -> void:
+	var ring := _ring(PlayerRoster.solo(3), FirstStrikeRing.Mode.PRESS)
+	var said: Array = []
+	ring.decided.connect(func(opening: CombatSetup.Opening, word: String) -> void: said.append([opening, word]))
+	ring._start(Time.get_ticks_usec())
+	_frame_after_window(ring, 30000)
+	assert_eq(said, [])
+	# Once the time for a late press is over (for the laggiest device here): MISS is the word.
+	var late_end := ring._judge.late_until_us(ring._late_latency_ms)
+	ring._clock.start(Time.get_ticks_usec() - late_end - 1000)
+	ring._process(0.016)
+	assert_eq(said, [[CombatSetup.Opening.NORMAL, FirstStrikeRing.WORD_MISS]], "told once the wait is over")
+	assert_false(ring._input.is_armed())
+	ring._on_pressed(Defense.Outcome.PRESS, Time.get_ticks_usec(), 0, PlayerRoster.KEYBOARD)
+	assert_eq(ring.word(), FirstStrikeRing.WORD_MISS, "a press after it changes nothing")
+	assert_eq(said.size(), 1)
+	ring._result_at_us = Time.get_ticks_usec() - (_visuals.first_strike_result_ms + 1) * 1000
+	ring._process(0.0)
+	assert_true(ring.is_finished())
+
+
 func test_the_ring_takes_any_local_players_press() -> void:
 	var roster := PlayerRoster.solo(3, 0)
 	assert_eq(roster.join(1), 1)
@@ -312,7 +400,10 @@ func test_the_bot_presses_the_ring_through_its_input() -> void:
 	ring._start(Time.get_ticks_usec())
 	assert_eq(ring._bot_presses.size(), 1, "one planned press")
 	var at := int(ring._bot_presses[0])
-	ring._press_bots(at - 100000)
+	# The bot presses half a frame early: well before that (whatever this frame took), not yet.
+	@warning_ignore("integer_division")
+	var lead := int(ring.get_process_delta_time() * 1000000.0) / 2
+	ring._press_bots(at - lead - 100000)
 	assert_eq(ring._result_at_us, 0, "not yet")
 	# The bot presses through DefenseInput, stamped now: the ring's clock is moved back so that now is
 	# the planned moment (plus the lag compensation the judge takes off).
@@ -359,6 +450,122 @@ func test_the_picture_ring_starts_over() -> void:
 	ring._process(0.0)
 	assert_false(ring.is_finished(), "never done")
 	assert_false(ring._started, "it starts over")
+
+
+# --- the name card: the ring on it, and the fight waiting for it ------------------------------------
+
+## Main without its own start-up (no menus, music, network or input): the card tests give it only
+## what _fade_to needs.
+class FadeHarness extends "res://scenes/main.gd":
+	func _ready() -> void:
+		pass
+
+	func _process(_delta: float) -> void:
+		pass
+
+	func _input(_event: InputEvent) -> void:
+		pass
+
+
+## A Main whose transitions are instant and whose cards have no tips (so only a ring brings one).
+func _fade_main() -> FadeHarness:
+	var main := FadeHarness.new()
+	var look := _visuals.duplicate() as CombatVisuals
+	look.transition_out_ms = 0
+	look.transition_in_ms = 0
+	var tips := TipSet.new()
+	tips.fade_ms = 0
+	main._options = CombatOptions.new()
+	main._transition = ScreenTransition.new()
+	add_child_autofree(main)
+	main.add_child(main._transition)
+	main._transition.setup(look)
+	main._transition.setup_tips(tips, "")
+	return main
+
+
+## A ring that shows at once and whose result goes at once (the card tests wait in real time).
+func _quick_ring(roster: PlayerRoster, mode: FirstStrikeRing.Mode) -> FirstStrikeRing:
+	_tuning.first_strike_ring_delay_ms = 0
+	var look := _visuals.duplicate() as CombatVisuals
+	look.first_strike_result_ms = 0
+	var ring := FirstStrikeRing.new()
+	ring.setup(_tuning, look, CombatOptions.new(), roster, mode, 7)
+	return ring
+
+
+func test_the_name_card_carries_the_ring_with_or_without_tips() -> void:
+	var shipped := load(TIPS_PATH) as TipSet
+	assert_false(shipped.tips.is_empty())
+	for tips: TipSet in [shipped, TipSet.new()]:
+		var transition := ScreenTransition.new()
+		add_child_autofree(transition)
+		transition.setup(_visuals)
+		transition.setup_tips(tips, "")
+		var ring := _quick_ring(PlayerRoster.solo(3), FirstStrikeRing.Mode.PRESS)
+		await transition.show_tip("Rotten Hollow", ring)
+		var tipped := "%d tips" % tips.tips.size()
+		assert_not_null(transition._card, tipped + ": a card")
+		if transition._card == null:
+			ring.free()
+			continue
+		assert_true(transition._card.is_ancestor_of(ring), tipped + ": the ring is on it")
+		assert_not_null(ring._input, tipped + ": its _ready ran (its own DefenseInput)")
+		assert_true(ring._input.is_inside_tree())
+		assert_true(transition.is_covering())
+		await transition.hide_tip()
+	var bare := ScreenTransition.new()
+	add_child_autofree(bare)
+	bare.setup(_visuals)
+	bare.setup_tips(TipSet.new(), "")
+	await bare.show_tip("Rotten Hollow")
+	assert_null(bare._card, "no tips and no ring: no card")
+
+
+func test_the_card_holds_the_fight_until_the_ring_is_done() -> void:
+	var main := _fade_main()
+	var ring := _quick_ring(PlayerRoster.solo(3), FirstStrikeRing.Mode.PRESS)
+	var built: Array = []
+	main._fade_to(func() -> void: built.append(ring.opening()), "Rotten Hollow", false, ring)
+	assert_true(await wait_until(func() -> bool: return is_instance_valid(ring) and ring._started, 5.0),
+			"the ring shows on the card")
+	assert_true(main._transition._card != null and main._transition._card.is_ancestor_of(ring), "on the name card")
+	await wait_seconds(0.3)
+	assert_false(ring.is_finished())
+	assert_eq(built, [], "no fight while the ring is undecided")
+	ring._input.inject_press(Defense.Outcome.PRESS, PlayerRoster.KEYBOARD)
+	assert_eq(ring.word(), FirstStrikeRing.WORD_EARLY, "pressed long before its moment")
+	assert_true(await wait_until(func() -> bool: return not built.is_empty(), 5.0), "then the fight")
+	assert_eq(built, [CombatSetup.Opening.NORMAL], "built once, with the ring's opening")
+	assert_true(await wait_until(func() -> bool: return not main._busy, 5.0), "and the card goes")
+
+
+func test_a_friends_card_waits_for_the_hosts_result() -> void:
+	var main := _fade_main()
+	var ring := _quick_ring(PlayerRoster.online(3, 1, 1001), FirstStrikeRing.Mode.WATCH)
+	var built: Array = []
+	main._fade_to(func() -> void: built.append(ring.opening()), "Rotten Hollow", false, ring)
+	assert_true(await wait_until(func() -> bool: return is_instance_valid(ring) and ring._started, 5.0))
+	await wait_seconds(0.3)
+	assert_eq(built, [], "the friend's card waits for the host")
+	ring.show_host_result("first_strike", FirstStrikeRing.WORD_PERFECT)
+	assert_true(await wait_until(func() -> bool: return not built.is_empty(), 5.0))
+	assert_eq(built, [CombatSetup.Opening.FIRST_STRIKE], "the host's opening")
+	assert_true(await wait_until(func() -> bool: return not main._busy, 5.0))
+
+
+func test_a_card_left_behind_never_builds_its_fight() -> void:
+	var main := _fade_main()
+	var ring := _quick_ring(PlayerRoster.solo(3), FirstStrikeRing.Mode.PRESS)
+	var built: Array = []
+	main._first_strike_ring = ring
+	main._fade_to(func() -> void: built.append(ring.opening()), "Rotten Hollow", false, ring)
+	assert_true(await wait_until(func() -> bool: return is_instance_valid(ring) and ring._started, 5.0))
+	main._flow_gen += 1
+	assert_true(await wait_until(func() -> bool: return not main._busy and not main._transition.is_covering(), 5.0),
+			"the card goes")
+	assert_eq(built, [], "the flow moved on: no fight")
+	assert_null(main._first_strike_ring)
 
 
 # --- Main: which fights ring, and where the opening goes ---------------------------------------------
