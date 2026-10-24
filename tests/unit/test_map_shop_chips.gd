@@ -91,8 +91,8 @@ func test_every_legend_row_is_a_picture_with_its_word() -> void:
 	var map := _map(run)
 	var entries := MapScreen.legend_entries(run, _look)
 	assert_eq(map._legend_rows.size(), entries.size(), "a row for every kind of stop")
-	for type: int in [RunMap.StopType.ZONE, RunMap.StopType.REST, RunMap.StopType.SHOP, RunMap.StopType.FINAL,
-			RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE]:
+	for type: int in [RunMap.StopType.FIGHT, RunMap.StopType.GUARD, RunMap.StopType.REST, RunMap.StopType.SHOP,
+			RunMap.StopType.FINAL, RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE]:
 		assert_true(map._legend_rows.has(type), "%s has a legend row" % RunMap.TYPE_NAMES[type])
 	for entry: Array in entries:
 		var row: Control = map._legend_rows[int(entry[0])]

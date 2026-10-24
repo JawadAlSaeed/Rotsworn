@@ -144,6 +144,8 @@ func _zone(id: String, offers: Dictionary, guard_path: String, edge: String, sec
 	zone.bounds_max = Vector2(1.0, Z_FRONT)
 	zone.player_start = Vector3.ZERO
 	zone.roamer_pool.assign(pool)
+	# The run's Guard stops in this place fight the same guard (DESIGN.md 8.22).
+	zone.guard = guard
 	zone.shrines.assign([offers.spring, offers.altar, offers.idol, offers.plenty])
 	zone.wanderers.assign([offers.peddler, offers.robber, offers.pilgrim])
 	zone.wanderer_percent = 60

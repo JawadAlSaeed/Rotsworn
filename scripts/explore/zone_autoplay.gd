@@ -30,15 +30,8 @@ const PATH_MARGIN: float = 0.1
 const STUCK_DISTANCE: float = 0.15
 const STUCK_CHECK_S: float = 0.5
 const NUDGE_S: float = 0.4
-## A careful player takes an optional fight (a champion) only while the weakest hero has at least
-## CHAMPION_MIN_LOWEST_PERCENT of their HP, the party averages CHAMPION_MIN_AVERAGE_PERCENT and
-## every hero is at least level CHAMPION_MIN_LEVEL (an elite is 40% tougher than a normal fight, so a
-## fresh party leaves it alone). These are the bot's habits, not game rules.
-const CHAMPION_MIN_LOWEST_PERCENT: int = 60
-const CHAMPION_MIN_AVERAGE_PERCENT: int = 80
-const CHAMPION_MIN_LEVEL: int = 3
 ## Optional roamers (not the guard, not champions) within OPTIONAL_HUNT_RANGE are fought for their
-## XP and gold, with the same health rule as a champion.
+## XP and gold, with the same health rule as a champion (RunAutoplay.is_ready).
 const OPTIONAL_HUNT_RANGE: float = 6.0
 ## Keys of the things it walks to, by kind (index added).
 const SPOT_KEY: int = 0
@@ -171,18 +164,13 @@ func _goals() -> Dictionary:
 	return goals
 
 
-## True if the party (lowest HP percent, average HP percent, lowest level) is fit for an optional
-## fight.
-static func is_ready(health: Vector3i) -> bool:
-	return health.x >= CHAMPION_MIN_LOWEST_PERCENT and health.y >= CHAMPION_MIN_AVERAGE_PERCENT 			and health.z >= CHAMPION_MIN_LEVEL
-
-
-## True if the party is fit for an optional fight (always, without a health reader).
+## True if the party is fit for an optional fight (always, without a health reader): a careful
+## player's habit, RunAutoplay.is_ready.
 func _is_healthy() -> bool:
 	if not _party_health.is_valid():
 		return true
 	var health: Vector3i = _party_health.call()
-	return is_ready(health)
+	return RunAutoplay.is_ready(health)
 
 
 ## How close it walks to use the target (not an enemy).

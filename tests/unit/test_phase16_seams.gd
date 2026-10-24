@@ -176,10 +176,10 @@ func test_bad_stop_progress_data_is_refused() -> void:
 
 func test_a_defeat_decides_the_run_and_an_escape_never_does() -> void:
 	var run := _run()
-	_go_to(run, RunMap.StopType.ZONE)
+	_go_to(run, RunMap.StopType.FIGHT)
 	assert_true(run.decides_run(RunState.DEFEAT))
 	assert_false(run.decides_run(RunState.ESCAPED))
-	assert_false(run.decides_run(RunState.VICTORY), "a zone fight is not the last one")
+	assert_false(run.decides_run(RunState.VICTORY), "a Fight stop's fight is not the last one")
 
 
 func test_only_the_last_acts_boss_decides_a_win() -> void:

@@ -80,7 +80,7 @@ static func _labels_of(node: Node) -> Array[String]:
 # --- the messages --------------------------------------------------------------------------------
 
 func test_the_protocol_moved_on() -> void:
-	assert_eq(NetSession.PROTOCOL, 4, "lobby, again and run_start carry the mode: an older build must not join")
+	assert_eq(NetSession.PROTOCOL, 5, "a run without zones (stop_fight, DESIGN.md 8.22): an older build must not join")
 
 
 func test_modes_are_what_the_states_say() -> void:

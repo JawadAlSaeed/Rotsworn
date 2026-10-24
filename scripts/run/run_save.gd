@@ -8,8 +8,9 @@ extends RefCounted
 ## until the new one is in place, and a load falls back to the backup if the main file is gone or
 ## broken. Every function takes the path so tests never touch the player's real save.
 
-## Bump when the file's shape changes (an older or newer file is then refused).
-const FORMAT_VERSION: int = 1
+## Bump when the file's shape changes (an older or newer file is then refused). 2: phase 26, a run
+## without zones (DESIGN.md 8.22); a run saved inside a zone is kept on disk but never offered.
+const FORMAT_VERSION: int = 2
 const PATH := "user://run_save.json"
 const TEMP_SUFFIX := ".tmp"
 const BACKUP_SUFFIX := ".bak"

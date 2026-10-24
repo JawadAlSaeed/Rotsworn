@@ -13,7 +13,8 @@ const DEFEAT := "defeat"
 ## Salts for the seeded picks of each stop (loot and shop gear differ at the same stop).
 const LOOT_SALT: int = 7919
 const SHOP_SALT: int = 104729
-## Salts for what a zone's glinting spots hold and what its roaming enemies drop.
+## Salts for what a zone's glinting spots hold and what its roaming enemies (and a run's Fight
+## stops, DESIGN.md 8.22) drop.
 const SPOT_SALT: int = 15485863
 const DROP_SALT: int = 32452843
 const CHEST_SALT: int = 49979687
@@ -38,6 +39,11 @@ const ROT_GEAR_SALT: int = 253645133
 const RELIC_SALT: int = 275604541
 ## Seeds which starting pacts a run offers (card #285).
 const PACT_SALT: int = 295075153
+## Phase 26 (DESIGN.md 8.22): a Fight stop's fight, and the weather of every run fight but the boss's.
+const FIGHT_SALT: int = 405000041
+const FIGHT_WEATHER_SALT: int = 426000017
+## The map rules a new run is made with (see map_rules).
+const MAP_RULES: int = 3
 ## The mastery an Echo needed before phase 21 (#280): an older save's mastery is scaled from it.
 const LEGACY_MASTERY_NEEDED: int = 4
 ## Which gear a pick draws from (see _pick_gear).
@@ -140,9 +146,10 @@ var pact_pending: bool = false
 var sharpened: bool = false
 ## The treasure stop's rotten chest was the one opened (card #287): the screen shows it open.
 var stop_rotten: bool = false
-## The map rules the run was made with: 2 since phase 21 (rows that move, the crowned elite, card
-## #286); a run saved before keeps 1 so it continues on the map it had.
-var map_rules: int = 2
+## The map rules the run was made with: 3 since phase 26 (a row of Guard stops, DESIGN.md 8.22), 2
+## since phase 21 (rows that move, the crowned elite, card #286), 1 before; a run keeps the rules it
+## was made with, so it continues on the map it had.
+var map_rules: int = MAP_RULES
 ## "" while the run goes on, then VICTORY or DEFEAT.
 var result: String = ""
 
@@ -309,6 +316,8 @@ func apply_dict(d: Dictionary) -> bool:
 		return false
 	# A run saved before phase 21 keeps its map rules (card #286): its map does not change under it.
 	var rules := int(d.map_rules) if typeof(d.get("map_rules")) == TYPE_INT else 1
+	if rules < 1 or rules > MAP_RULES:
+		return false
 	var act_map := map if int(d.act) == act and rules == map_rules else _make_map(int(d.act), rules)
 	if int(d.at) != -1 and act_map.stop(int(d.at)).is_empty():
 		return false
@@ -705,12 +714,14 @@ func next_act() -> bool:
 
 
 ## Act `index`'s map. The first act's comes from the run's seed alone (as before acts existed).
-## The map of act `index` by `rules` (map_rules when -1).
+## The map of act `index` by `rules` (map_rules when -1): 2 and up move rows, 3 and up have a row of
+## Guard stops.
 func _make_map(index: int, rules: int = -1) -> RunMap:
 	var rng := CombatRng.new(run_seed if index == 0 else absi(run_seed * 31 + index * ACT_SALT) % 2147483647 + 1)
 	var act_info := act_data(index)
+	var made_by := map_rules if rules < 0 else rules
 	return RunMap.generate(rng, tuning, act_info.zones.size(), not act_info.elites.is_empty(),
-			not act_info.events.is_empty(), (map_rules if rules < 0 else rules) >= 2)
+			not act_info.events.is_empty(), made_by >= 2, made_by >= 3)
 
 
 # --- elite, event and treasure stops (DESIGN.md 8.6 to 8.8) -------------------------------------
@@ -798,13 +809,16 @@ func end_ambush() -> void:
 	ambush_spoils = false
 
 
-## The look of an ambush fight: one of the act's zones' (picked by the stop).
+## The look of an ambush fight: one of the act's places' (picked by the stop).
 func ambush_look() -> StageLook:
-	var zones := act_data().zones
-	if zones.is_empty():
-		return final_look()
-	var zone := zones[absi(at) % zones.size()]
+	var zone := _ambush_zone()
 	return zone.look if zone != null and zone.look != null else final_look()
+
+
+## The place an ambush at the current stop is fought in: one of the act's (picked by the stop).
+func _ambush_zone() -> ZoneData:
+	var zones := act_data().zones
+	return zones[absi(at) % zones.size()] if not zones.is_empty() else null
 
 
 ## An ambush encounter by id: the act pools' and every event choice's.
@@ -1210,11 +1224,139 @@ func is_deep() -> bool:
 	return act_data().deep or int(current().get("row", 0)) >= tuning.run_deep_row
 
 
-## The zone of a zone stop (null for other stops).
+## The place of a Fight, Guard or elite stop (one of the act's zones; null for other stops).
 func zone_of(stop: Dictionary) -> ZoneData:
 	var index := int(stop.get("zone", -1))
 	var zones := act_data().zones
 	return zones[index] if index >= 0 and index < zones.size() else null
+
+
+# --- Fight and Guard stops, and where every run fight is fought (DESIGN.md 8.22) ---------------
+
+## The fight at Fight stop `stop_id`: one of its place's monsters (ZoneData.roamer_pool, seeded by
+## the stop), never the fight of the last Fight stop on the road to it while the pool has another;
+## in its deep version in a deep act or row. Null for another stop or a place with no monsters.
+func fight_of(stop_id: int) -> EncounterData:
+	return _deep_version(_fight_base(stop_id), stop_id)
+
+
+## The guard at Guard stop `stop_id`: its place's (ZoneData.guard), in its deep version in a deep
+## act or row. Null for another stop or a place with no guard.
+func guard_of(stop_id: int) -> EncounterData:
+	var stop := map.stop(stop_id)
+	if int(stop.get("type", -1)) != RunMap.StopType.GUARD:
+		return null
+	var zone := zone_of(stop)
+	return _deep_version(zone.guard if zone != null else null, stop_id)
+
+
+## The fight at the current stop: an ambush sprung there, else the Fight, Guard or elite stop's, or
+## the act's boss (null: a stop with no fight).
+func encounter_now() -> EncounterData:
+	if in_ambush():
+		return ambush_encounter()
+	match int(current().get("type", -1)):
+		RunMap.StopType.FIGHT:
+			return fight_of(at)
+		RunMap.StopType.GUARD:
+			return guard_of(at)
+		RunMap.StopType.ELITE:
+			return elite_of(at)
+		RunMap.StopType.FINAL:
+			return final_encounter()
+	return null
+
+
+## The place the current stop's fight is fought in: an ambush's (one of the act's, by the stop), or
+## the Fight, Guard or elite stop's. Null for the act's boss (fought in its lair) and the stops with
+## no fight.
+func zone_now() -> ZoneData:
+	if in_ambush():
+		return _ambush_zone()
+	match int(current().get("type", -1)):
+		RunMap.StopType.FIGHT, RunMap.StopType.GUARD, RunMap.StopType.ELITE:
+			return zone_of(current())
+	return null
+
+
+## The look of the current stop's fight before its weather: its place's, else the act's boss lair.
+func look_now() -> StageLook:
+	var zone := zone_now()
+	return zone.look if zone != null and zone.look != null else final_look()
+
+
+## The air (drifting motes and the like) of the current stop's fight: its place's (none in the lair).
+func air_now() -> Array[ZoneAmbientData]:
+	var air: Array[ZoneAmbientData] = []
+	var zone := zone_now()
+	if zone != null:
+		air.assign(zone.ambient)
+	return air
+
+
+## The weather of the current stop's fight: rolled from its place's weathers on a stream of its own,
+## seeded by the stop (the same on every machine). Null: clear weather, or the act's boss.
+func weather_now() -> WeatherData:
+	var zone := zone_now()
+	if zone == null:
+		return null
+	return WeatherData.pick(zone.weathers, zone.weather_weights, zone.clear_weight, _salted((at + 1) * FIGHT_WEATHER_SALT))
+
+
+## What the current Fight stop's fight drops when won: a roaming enemy's seeded
+## tuning.item_drop_percent roll (drop_for). Null at every other stop and in an ambush.
+func fight_drop() -> ItemData:
+	if in_ambush() or int(current().get("type", -1)) != RunMap.StopType.FIGHT:
+		return null
+	return drop_for(at, 0)
+
+
+## The fight Fight stop `stop_id` picks, before its deep version (see fight_of).
+func _fight_base(stop_id: int) -> EncounterData:
+	var stop := map.stop(stop_id)
+	var zone := zone_of(stop) if int(stop.get("type", -1)) == RunMap.StopType.FIGHT else null
+	if zone == null:
+		return null
+	var pool: Array[EncounterData] = []
+	for encounter: EncounterData in zone.roamer_pool:
+		if encounter != null and not encounter.enemies.is_empty():
+			pool.append(encounter)
+	var last := _last_fight_before(stop_id)
+	if last != null:
+		var others: Array[EncounterData] = []
+		for encounter: EncounterData in pool:
+			if encounter.id != last.id:
+				others.append(encounter)
+		if not others.is_empty():
+			pool = others
+	if pool.is_empty():
+		return null
+	var rng := CombatRng.new(_salted((stop_id + 1) * FIGHT_SALT))
+	return pool[rng.range_int(0, pool.size() - 1)]
+
+
+## The fight (before its deep version) of the last Fight stop on the road to stop `stop_id`: the
+## stops walked before it (the whole path while it is not on it yet). Null: none.
+func _last_fight_before(stop_id: int) -> EncounterData:
+	var end := path.find(stop_id)
+	if end < 0:
+		end = path.size()
+	for i: int in range(end - 1, -1, -1):
+		if int(map.stop(path[i]).get("type", -1)) == RunMap.StopType.FIGHT:
+			return _fight_base(path[i])
+	return null
+
+
+## `encounter`'s deep version (variant monsters, DESIGN.md 2.16) when stop `stop_id` is in a deep act
+## or row and that version has enemies, else `encounter` itself (null stays null).
+func _deep_version(encounter: EncounterData, stop_id: int) -> EncounterData:
+	if encounter == null:
+		return null
+	var row := int(map.stop(stop_id).get("row", 0))
+	if (act_data().deep or row >= tuning.run_deep_row) and encounter.deep != null \
+			and not encounter.deep.enemies.is_empty():
+		return encounter.deep
+	return encounter
 
 
 # --- fights -----------------------------------------------------------------------------------
@@ -1271,7 +1413,7 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 	if in_ambush():
 		# An ambush is sprung on the party: no running unless the tuning allows it.
 		setup.can_run = setup.can_run and tuning.ambush_can_run
-	# The marks wait for the second zone (card #253): the first teaches the hits alone.
+	# The marks wait for the second map row (card #253): the first teaches the hits alone.
 	setup.allow_marks = _depth() > 0
 	if _scales(encounter):
 		setup.enemy_hp_percent = CombatMath.percent(enemy_hp_percent(encounter), encounter.enemy_hp_percent)

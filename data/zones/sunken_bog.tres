@@ -40,6 +40,7 @@
 [ext_resource type="Resource" path="res://data/weather/fog.tres" id="p24_w_fog"]
 [ext_resource type="Resource" path="res://data/weather/dusk.tres" id="p24_w_dusk"]
 [ext_resource type="Script" path="res://scripts/data/weather_data.gd" id="p24_weather"]
+[ext_resource type="Resource" path="res://data/encounters/guard_mire_mother.tres" id="p26_guard"]
 
 [sub_resource type="Resource" id="Resource_axtek"]
 script = ExtResource("1_axtek")
@@ -98,6 +99,7 @@ start_section = ExtResource("24_urcme")
 middle_sections = Array[ExtResource("7_pp0bv")]([ExtResource("11_jgxke"), ExtResource("12_52r0a"), ExtResource("13_1w4uv"), ExtResource("14_a0tev"), ExtResource("15_ll1ct")])
 end_section = ExtResource("2_xopu5")
 roamer_pool = Array[ExtResource("15_1w4uv")]([ExtResource("3_d0j50"), ExtResource("4_crqsi"), ExtResource("5_0fs8u"), ExtResource("p19_lantern_and_toad"), ExtResource("p19_lantern_trio"), ExtResource("p19_tick_nest"), ExtResource("p19_rat_pack"), ExtResource("p19_priest_coven")])
+guard = ExtResource("p26_guard")
 shrines = Array[ExtResource("13_52r0a")]([ExtResource("20_a0tev"), ExtResource("21_ll1ct"), ExtResource("22_gtb43"), ExtResource("23_1tnml")])
 wanderers = Array[ExtResource("13_52r0a")]([ExtResource("25_d5b0x"), ExtResource("26_ihusw"), ExtResource("27_ytkuw")])
 edge_height = 4.5

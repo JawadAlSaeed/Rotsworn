@@ -36,6 +36,10 @@ func test_new_stops_follow_their_rules() -> void:
 		assert_eq(treasure_rows.size(), 1, "seed %d: one treasure row" % s)
 		if treasure_rows.size() == 1:
 			assert_lte(absi(treasure_rows[0] - _tuning.run_treasure_row), _tuning.run_treasure_row_spread)
+		# Row run_guard_row is all guards and only it (DESIGN.md 8.22).
+		for st: Dictionary in map.stops:
+			assert_eq(int(st.type) == RunMap.StopType.GUARD, int(st.row) == _tuning.run_guard_row,
+					"seed %d: stop %d is a guard only in the guard row" % [s, st.id])
 		for st: Dictionary in map.stops:
 			var type := int(st.type)
 			seen[type] = true
@@ -46,7 +50,7 @@ func test_new_stops_follow_their_rules() -> void:
 		if is_failing():
 			return
 	for type: int in [RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE, RunMap.StopType.SHOP,
-			RunMap.StopType.REST, RunMap.StopType.ZONE, RunMap.StopType.FINAL]:
+			RunMap.StopType.REST, RunMap.StopType.FIGHT, RunMap.StopType.GUARD, RunMap.StopType.FINAL]:
 		assert_true(seen.has(type), "%s stops turn up" % RunMap.TYPE_NAMES[type])
 
 
@@ -128,6 +132,17 @@ func test_guards_are_mini_bosses_and_champions_elites() -> void:
 				assert_gt(e.encounter.enemies[0].phase_two_hp_percent, 0, "%s: the guard has a phase two" % zone.id)
 			if e.champion:
 				assert_true(e.encounter.elite, "%s: a champion is an elite fight" % zone.id)
+		# A Guard stop in this place fights the same guard (DESIGN.md 8.22).
+		var guard := zone.guard
+		assert_not_null(guard, "%s has a guard" % zone.id)
+		if guard == null:
+			continue
+		assert_true(guard.mini_boss and not guard.can_run, "%s: its guard is a mini-boss, no running" % zone.id)
+		assert_not_null(guard.deep, "%s: its guard has a deep version" % zone.id)
+		var at_end := false
+		for e: ZoneEnemyData in zone.end_section.enemies:
+			at_end = at_end or (e.guard and e.encounter == guard)
+		assert_true(at_end, "%s: ZoneData.guard is its end section's guard" % zone.id)
 
 
 func test_spoils_are_rare_while_the_run_has_rare_gear() -> void:

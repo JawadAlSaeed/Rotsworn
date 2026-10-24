@@ -58,7 +58,9 @@ const HOST_PEER: int = 1
 ## client that got in mid-run sends "seated_ready" (card #304).
 ## 4: "lobby", "again" and "run_start" say which game it is (a run or a Fight Rush), and the Rush
 ## screens go out (card #312).
-const PROTOCOL: int = 4
+## 5: a run without zones (DESIGN.md 8.22): "stop_fight" starts a Fight or Guard stop's fight, which
+## the friend builds from the run state.
+const PROTOCOL: int = 5
 ## Client: the host could not be reached (short: it can end as a main menu notice).
 const REASON_UNREACHABLE := "Host not found"
 ## Channel for reliable messages (flow and combat) and for unreliable position updates.

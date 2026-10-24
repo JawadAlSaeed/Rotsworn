@@ -327,11 +327,11 @@ func test_a_run_saved_before_phase_21_keeps_its_map() -> void:
 	assert_not_null(copy)
 	assert_eq(copy.map_rules, 1, "the old rules")
 	var plain := RunMap.generate(CombatRng.new(9), run.tuning, run.act_data().zones.size(),
-			not run.act_data().elites.is_empty(), not run.act_data().events.is_empty(), false)
+			not run.act_data().elites.is_empty(), not run.act_data().events.is_empty(), false, false)
 	for s: Dictionary in copy.map.stops:
 		assert_eq(int(s.type), int(plain.stop(int(s.id)).type), "stop %d as it was" % int(s.id))
 	assert_eq(RunState.from_dict(_data, run.tuning, copy.to_dict()).map_rules, 1, "and keeps them when saved again")
-	assert_eq(RunState.from_dict(_data, run.tuning, run.to_dict()).map_rules, 2)
+	assert_eq(RunState.from_dict(_data, run.tuning, run.to_dict()).map_rules, RunState.MAP_RULES)
 
 
 func test_the_rotten_chest_stays_the_one_shown_open() -> void:

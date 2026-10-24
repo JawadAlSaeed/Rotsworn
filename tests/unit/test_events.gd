@@ -434,8 +434,15 @@ func test_event_gold_and_xp_grow_with_depth() -> void:
 
 
 func test_choice_summaries_show_the_numbers_that_will_be_paid() -> void:
+	# The first seed whose map has a "?" stop past row 0 (the Guard row, 8.22, leaves some maps without).
 	var run := _run()
 	var stop := _event_stop(run)
+	var seed_value := 8
+	while stop.is_empty() and seed_value < 100:
+		run = _run(seed_value)
+		stop = _event_stop(run)
+		seed_value += 1
+	assert_false(stop.is_empty(), "some seed has a \"?\" stop")
 	var scale := run.event_scale(int(stop.id))
 	var choice := _event("gamblers_bones").choices[0]
 	var text := run.choice_summary(choice, int(stop.id))

@@ -80,23 +80,32 @@ func test_every_kind_of_stop_shows_two_or_three_icon_chips_not_a_sentence() -> v
 			seen[type] = true
 		if is_failing():
 			return
-	for type: int in [RunMap.StopType.ZONE, RunMap.StopType.REST, RunMap.StopType.SHOP, RunMap.StopType.ELITE,
-			RunMap.StopType.EVENT, RunMap.StopType.TREASURE, RunMap.StopType.FINAL]:
+	for type: int in [RunMap.StopType.FIGHT, RunMap.StopType.GUARD, RunMap.StopType.REST, RunMap.StopType.SHOP,
+			RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE, RunMap.StopType.FINAL]:
 		assert_true(seen.has(type), "%s stops were checked" % RunMap.TYPE_NAMES[type])
 
 
-func test_a_zone_shows_the_guard_the_optional_foes_and_gold() -> void:
+func test_a_fight_shows_its_foes_and_gold_and_a_guard_its_place_and_spoils() -> void:
 	var run := _run()
-	var zone: Dictionary = {}
+	var fight: Dictionary = {}
+	var guard: Dictionary = {}
 	for stop: Dictionary in run.map.stops:
-		if int(stop.type) == RunMap.StopType.ZONE:
-			zone = stop
-			break
-	var chips := MapScreen.detail_chips(run, zone, _look, _visuals.gold_icon_path)
+		if int(stop.type) == RunMap.StopType.FIGHT and fight.is_empty():
+			fight = stop
+		elif int(stop.type) == RunMap.StopType.GUARD and guard.is_empty():
+			guard = stop
+	var chips := MapScreen.detail_chips(run, fight, _look, _visuals.gold_icon_path)
+	assert_eq(chips.size(), 2)
+	assert_eq(String(chips[0].icon), _look.foe_icon_path, "a fight")
+	assert_eq(String(chips[1].icon), _visuals.gold_icon_path, "it pays gold")
+	assert_eq(MapScreen.stop_name(run, fight), run.zone_of(fight).display_name, "a Fight stop keeps its place's name")
+	chips = MapScreen.detail_chips(run, guard, _look, _visuals.gold_icon_path)
 	assert_eq(chips.size(), 3)
-	assert_eq(String(chips[0].icon), _look.guard_icon_path, "the guard at the exit")
-	assert_eq(String(chips[1].icon), _look.foe_icon_path, "the roaming enemies, optional")
-	assert_eq(String(chips[2].icon), _visuals.gold_icon_path, "they pay gold")
+	assert_eq(String(chips[0].icon), run.zone_of(guard).map_icon_path, "where the guard stands")
+	assert_eq(String(chips[0].text), run.zone_of(guard).display_name)
+	assert_eq(String(chips[1].text), "Spoils", "a guard pays spoils")
+	assert_eq(String(chips[2].icon), _visuals.gold_icon_path, "and gold")
+	assert_eq(MapScreen.stop_name(run, guard), "Guard")
 
 
 func test_a_campfire_shows_rest_train_and_upgrade() -> void:

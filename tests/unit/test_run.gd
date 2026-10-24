@@ -39,8 +39,12 @@ func test_rows_and_stop_types() -> void:
 			for id: int in map.rows[r]:
 				var type := int(map.stop(id).type)
 				assert_ne(type, RunMap.StopType.FINAL, "only the top is the final fight")
-				if r == 0:
-					assert_eq(type, RunMap.StopType.ZONE, "the run starts in zones")
+				if r == _tuning.run_guard_row:
+					assert_eq(type, RunMap.StopType.GUARD, "the guard row is all guards (DESIGN.md 8.22)")
+				elif r == 0:
+					assert_eq(type, RunMap.StopType.FIGHT, "the run starts with fights")
+				else:
+					assert_ne(type, RunMap.StopType.GUARD, "guards stand only in their row")
 		# The campfire row is right before the final fight, or one row earlier (card #286).
 		var rest_rows := 0
 		for r: int in [last - 1, last - 2]:
@@ -90,17 +94,17 @@ func test_no_shop_or_rest_twice_in_a_row() -> void:
 			return
 
 
-func test_zone_stops_get_a_zone_not_met_last_on_the_way_there() -> void:
+func test_fight_and_guard_stops_get_a_place_not_met_last_on_the_way_there() -> void:
 	for s: int in range(1, SEEDS):
 		var map := _map(s)
 		for st: Dictionary in map.stops:
 			if int(st.type) == RunMap.StopType.ELITE:
 				assert_between(int(st.zone), 0, 2, "an elite fight takes place in a zone")
 				continue
-			if int(st.type) != RunMap.StopType.ZONE:
+			if not RunMap.is_fight_place(int(st.type)):
 				assert_eq(int(st.zone), -1)
 				continue
-			assert_between(int(st.zone), 0, 2, "a zone stop has a zone")
+			assert_between(int(st.zone), 0, 2, "a Fight or Guard stop has a place")
 			# Only when the paths leading here already met every zone last can one repeat.
 			var before := map.last_zones_before(int(st.id))
 			if before.size() < 3:

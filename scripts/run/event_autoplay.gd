@@ -3,7 +3,7 @@ extends RefCounted
 ## What the test bot does at a "?" stop (`-- --autoplay --run`, card #193). It plays like a careful
 ## player, not like the rules: it takes a choice only if the reward is worth the price, never
 ## pays permanent max HP while any hero is hurt, walks into a possible ambush only while the party is
-## fit for an elite fight (ZoneAutoplay.is_ready), and takes a curse only for a big reward. Pure, so
+## fit for an elite fight (RunAutoplay.is_ready), and takes a curse only for a big reward. Pure, so
 ## a test can check its habits. These numbers are the bot's, not game rules.
 
 ## No permanent max-HP price while the weakest hero is under this percent of their HP.
@@ -93,7 +93,7 @@ static func _habits_allow(offer: ZoneOfferData, reward: int, health: Vector3i, c
 		return false
 	if offer.cost_max_hp_percent > 0 and chance >= 30 and health.x < MAX_HP_MIN_LOWEST_PERCENT:
 		return false
-	if offer.ambush != null and chance >= 30 and not ZoneAutoplay.is_ready(health):
+	if offer.ambush != null and chance >= 30 and not RunAutoplay.is_ready(health):
 		return false
 	return true
 

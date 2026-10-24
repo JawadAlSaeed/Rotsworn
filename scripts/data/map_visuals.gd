@@ -15,6 +15,8 @@ extends Resource
 @export_file("*.png") var elite_icon_path: String = "res://assets/sprites/ui/map_elite.png"
 @export_file("*.png") var event_icon_path: String = "res://assets/sprites/ui/map_event.png"
 @export_file("*.png") var treasure_icon_path: String = "res://assets/sprites/ui/map_treasure.png"
+## A Guard stop (DESIGN.md 8.22): its place's guard.
+@export_file("*.png") var guard_stop_icon_path: String = "res://assets/sprites/ui/map_guard.png"
 ## The party's banner, planted where the party is.
 @export_file("*.png") var flag_path: String = "res://assets/sprites/ui/map_flag.png"
 ## The red ink circle around the stop picked (the big one for the final fight's lair).
@@ -26,8 +28,8 @@ extends Resource
 @export_group("Run info icons (phase 22)")
 ## The run's info screens show an icon and a word instead of a sentence: the line under the map,
 ## the shop and the run's end. The gold coin and the hit icons come from combat_visuals.tres.
-## A zone's guard at the exit and its optional roaming enemies (the zone's own goal chips use the
-## same pictures, explore_visuals.tres).
+## A guard (a zone's at the exit) and the enemies of a fight (the zone's own goal chips use the same
+## pictures, explore_visuals.tres).
 @export_file("*.png") var guard_icon_path: String = "res://assets/sprites/ui/map_elite.png"
 @export_file("*.png") var foe_icon_path: String = "res://assets/sprites/ui/goal_foe.png"
 ## An item up a level (the shop's Upgrade, the campfire's), new wares (Restock), back to the map

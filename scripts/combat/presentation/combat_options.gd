@@ -12,7 +12,8 @@ extends RefCounted
 ##   --seed=N                        fixed fight seed (else tuning fixed_seed, else random)
 ##   --encounter=ID                  start this encounter (data/encounters) instead of the list
 ##   --zone=ID                       start in this zone (data/zones) instead of the list
-##   --weather=ID                    every zone visit has this weather (data/weather: rain, storm,
+##   --weather=ID                    every run fight but the boss's, every Rush fight and every zone
+##                                   visit has this weather (data/weather: rain, storm,
 ##                                   fog, wind, dusk) or none ("clear"), for tests and pictures
 ##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
 ##   --run                           start a new run at once (DESIGN.md 8)
@@ -83,7 +84,8 @@ var seed_override: int = -1
 var encounter_id: String = ""
 ## "" when no --zone was given.
 var zone_id: String = ""
-## --weather=ID: every zone visit has this weather ("clear": none); "" : the seed picks (card #303).
+## --weather=ID: every run fight but the boss's, every Rush fight and every zone visit has this
+## weather ("clear": none); "" : the seed picks (card #303, DESIGN.md 8.22).
 var weather_id: String = ""
 var first_strike: bool = false
 var run: bool = false

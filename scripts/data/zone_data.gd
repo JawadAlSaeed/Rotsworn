@@ -53,8 +53,12 @@ extends Resource
 @export var middle_sections: Array[ZoneSectionData] = []
 @export_range(0, 10) var middle_count: int = 3
 @export var end_section: ZoneSectionData
-## Fights for a section's roaming spots that name none.
+## Fights for a section's roaming spots that name none, and a run's Fight stops in this place
+## (DESIGN.md 8.22).
 @export var roamer_pool: Array[EncounterData] = []
+## The place's guard (a mini-boss, its end section's): a run's Guard stop here fights it, in its
+## deep version in a deep act or row (DESIGN.md 8.22).
+@export var guard: EncounterData
 ## Shrines a section's shrine spots pick from.
 @export var shrines: Array[ZoneOfferData] = []
 ## Wanderers; wanderer_percent of visits meet one.

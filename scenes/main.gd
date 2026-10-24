@@ -80,7 +80,7 @@ const RUSH_OVER_NOTICE := "The Rush is over."
 const JOINING_STATUS := "Joining the game ..."
 ## Online: the host's screens that are a fight going on (kept as _net_fight, so a friend who gets in
 ## mid-fight is shown it), and the run screens a friend watches (_watched_screen_builder builds them).
-const NET_FIGHT_SCREENS: Array[String] = ["zone_fight", "final_fight", "rush_fight"]
+const NET_FIGHT_SCREENS: Array[String] = ["zone_fight", "final_fight", "rush_fight", "stop_fight"]
 const WATCHED_SCREENS: Array[String] = ["map", "rest", "shop", "loot", "party", "run_end", "event", "treasure",
 		"rush_reward", "rush_end"]
 
@@ -221,6 +221,9 @@ var _decided_unlock: int = 0
 var _rush_best_start: Dictionary = {}
 var _rush_new_record: bool = false
 var _fight_weather: WeatherData = null
+## The place the run fight going on is fought in (its name; "" for the act's boss): the Rot
+## Journal's "met at" (DESIGN.md 8.22).
+var _fight_place: String = ""
 ## Online (card #312): the game the host's players screen is for, MODE_RUN or MODE_RUSH (the host
 ## picks it before hosting; friends read it from the host's messages).
 var _mode: String = MODE_RUN
@@ -1169,7 +1172,12 @@ func _record_journal(fight: Dictionary) -> void:
 	if not RotJournal.counts_fight(_run != null, _options.is_autoplay(), _tutorial != null,
 			not _options.journal_path.is_empty()):
 		return
-	var where := _zone_name if not _zone_fight.is_empty() else (_encounter.display_name if _encounter != null else "")
+	var where := _encounter.display_name if _encounter != null else ""
+	if not _zone_fight.is_empty():
+		where = _zone_name
+	elif _run != null and not (_run is RushState) and not _fight_place.is_empty():
+		# A run's Fight, Guard, elite or ambush fight was met in its place (DESIGN.md 8.22).
+		where = _fight_place
 	if not JournalFile.record(fight, where, _journal_path()):
 		push_warning("Main: the Rot Journal could not be written")
 
@@ -1215,8 +1223,8 @@ func _on_zone_chosen(zone: ZoneData) -> void:
 
 # --- fights -----------------------------------------------------------------------------------
 
-## Builds a fight: a practice fight, a zone's fight (the zone waits outside the tree), the run's
-## final fight, or a Fight Rush fight.
+## Builds a fight: a practice fight, a zone's fight (the zone waits outside the tree), a run fight
+## (a Fight, Guard, elite, ambush or boss fight, DESIGN.md 8.22), or a Fight Rush fight.
 func _start_combat() -> void:
 	_free_combat()
 	_free_screen()
@@ -1239,7 +1247,7 @@ func _start_combat() -> void:
 			_combat.enemy_speed_percent = (load(TUTORIAL_PATH) as TutorialData).enemy_speed_percent
 	if _run != null:
 		_combat.configure_run(_run)
-		_combat.configure_drop(_drop if not _zone_fight.is_empty() else null)
+		_combat.configure_drop(_drop)
 		if _run is RushState:
 			_combat.configure_rush_best(_rush_best_now())
 	_combat.configure_players(_players)
@@ -1266,15 +1274,16 @@ func _start_combat() -> void:
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
 	Sfx.play_ambience("")
-	if _run is RushState and _fight_weather != null:
-		# A Rush fight's weather loop, quieter as in a zone's fights (DESIGN.md 8.21, D13).
+	if not _zone_fight.is_empty():
+		_play_zone_weather(true)
+	elif _run != null and _fight_weather != null:
+		# A run or Rush fight's weather loop, quieter as in a zone's fights (DESIGN.md 8.21 D13, 8.22).
 		Sfx.play_weather(_fight_weather.ambience_path,
 				_fight_weather.ambience_volume_db + _fight_weather.fight_volume_offset_db)
-	elif _zone_fight.is_empty():
-		Sfx.play_weather("")
 	else:
-		_play_zone_weather(true)
-	var boss := _encounter != null and _encounter.boss
+		Sfx.play_weather("")
+	# A guard (a run's Guard stop, DESIGN.md 8.22) gets the boss song and its rage, as a boss does.
+	var boss := _encounter != null and (_encounter.boss or _encounter.mini_boss)
 	# A Rush's boss fight gets the boss song, a guard fought there too.
 	if _run is RushState and (_run as RushState).kind_of((_run as RushState).fight) == RushState.Kind.BOSS:
 		boss = true
@@ -1354,19 +1363,32 @@ func _with_forced_weather(zone: ZoneData) -> ZoneData:
 		return zone
 	var forced := zone.duplicate() as ZoneData
 	var only: Array[WeatherData] = []
-	var path := "res://data/weather/%s.tres" % _options.weather_id
-	if _options.weather_id != "clear":
-		var data := load(path) as WeatherData if ResourceLoader.exists(path) else null
-		if data == null:
-			# A typo must not quietly test clear weather.
-			push_error("Main: no weather '%s' (data/weather/); the visit is clear" % _options.weather_id)
-			_autoplay_fail("unknown weather %s" % _options.weather_id)
-		else:
-			only.append(data)
+	var data := _forced_weather()
+	if data != null:
+		only.append(data)
 	forced.weathers = only
 	forced.weather_weights = [1] as Array[int]
 	forced.clear_weight = 0 if not only.is_empty() else 1
 	return forced
+
+
+## The weather of a run or Rush fight: `rolled`, or the --weather=ID weather when that is given (dev
+## tool; DESIGN.md 8.22: every run fight but the boss's, and every Rush fight).
+func _weather_or_forced(rolled: WeatherData) -> WeatherData:
+	return rolled if _options.weather_id.is_empty() else _forced_weather()
+
+
+## The --weather=ID weather (null: "clear", or an id with no file, which fails a bot run).
+func _forced_weather() -> WeatherData:
+	if _options.weather_id.is_empty() or _options.weather_id == "clear":
+		return null
+	var path := "res://data/weather/%s.tres" % _options.weather_id
+	var data := load(path) as WeatherData if ResourceLoader.exists(path) else null
+	if data == null:
+		# A typo must not quietly test clear weather.
+		push_error("Main: no weather '%s' (data/weather/); the weather is clear" % _options.weather_id)
+		_autoplay_fail("unknown weather %s" % _options.weather_id)
+	return data
 
 
 func _start_zone(zone: ZoneData) -> void:
@@ -2062,9 +2084,10 @@ func _enter_stop() -> void:
 	if _run.in_ambush():
 		print("Run ambush: %s (chance was %d%%)" % [_run.ambush_id, _run.unknown_fight_percent()])
 	match int(stop.type):
-		RunMap.StopType.ZONE:
+		RunMap.StopType.FIGHT, RunMap.StopType.GUARD:
+			# The place's name card with a tip first (card #86), then its fight (DESIGN.md 8.22).
 			var zone := _run.zone_of(stop)
-			_fade_to(_start_zone.bind(zone), zone.display_name if zone != null else "")
+			_fade_to(_start_stop_fight, zone.display_name if zone != null else "")
 		RunMap.StopType.REST:
 			_fade_to(_show_rest)
 		RunMap.StopType.SHOP:
@@ -2080,18 +2103,61 @@ func _enter_stop() -> void:
 			_fade_to(_show_treasure.bind(_run.stop_done, _run.stop_text if _run.stop_done else ""))
 
 
-## A run fight that is a stop of its own: the act's boss, an elite fight (`elite`) in the look of
-## one of the act's zones, or an ambush (a "?" stop that turned into a fight, or an event choice
-## that ended in one; DESIGN.md 8.7).
+## A Fight or Guard stop's fight (DESIGN.md 8.22), run inside the fade after the place's name card:
+## the fight the run state names for the stop (the same on every machine, the friend builds it from
+## the host's state), in the place's look and air under its rolled weather, with a Fight stop's drop.
+## No swirl: the fade from the name card is the way in.
+func _start_stop_fight() -> void:
+	if _run == null:
+		return
+	_encounter = _run.encounter_now()
+	if _encounter == null:
+		# Only bad data gets here (a place with no monsters or no guard): the stop is passed.
+		push_error("Main: %s stop %d has no fight in act %d" % [RunMap.TYPE_NAMES[int(_run.current().get("type", 0))],
+				_run.at, _run.act])
+		_autoplay_fail("stop has no fight")
+		if not Net.is_client():
+			_show_map()
+		return
+	_set_run_fight_place(false)
+	_drop = _run.fight_drop()
+	_zone_fight = {}
+	print("Run fight: %s at %s weather %s%s" % [_encounter.id, _fight_place,
+			_fight_weather.id if _fight_weather != null else "clear", " (drop %s)" % _drop.id if _drop != null else ""])
+	if _options.is_autoplay():
+		print("AUTOPLAY_WEATHER %s %s" % [_run.zone_now().id if _run.zone_now() != null else "none",
+				_fight_weather.id if _fight_weather != null else "clear"])
+	if Net.is_host():
+		_net_seed = randi_range(1, 2147483646)
+		_send_screen({"name": "stop_fight", "seed": _net_seed})
+	_start_combat()
+
+
+## The run fight at the current stop is fought in its place (DESIGN.md 8.22): the look and air of
+## the stop's place under its rolled weather (with --weather on top), or the act's boss lair with no
+## weather (`boss`). Sets _fight_look, _fight_air, _fight_weather and _fight_place.
+func _set_run_fight_place(boss: bool) -> void:
+	var zone := _run.zone_now()
+	_fight_place = zone.display_name if zone != null and not boss else ""
+	_fight_weather = null if boss else _weather_or_forced(_run.weather_now())
+	var look := _run.final_look() if boss else _run.look_now()
+	var air: Array[ZoneAmbientData] = []
+	if not boss:
+		air = _run.air_now()
+	_fight_look = _fight_weather.apply_to(look) if _fight_weather != null else look
+	_fight_air = _fight_weather.air_with(air) if _fight_weather != null else air
+
+
+## A run fight that is a stop of its own: the act's boss, an elite fight (`elite`) in one of the
+## act's places, or an ambush (a "?" stop that turned into a fight, or an event choice that ended in
+## one; DESIGN.md 8.7). Elites and ambushes roll a weather like a Fight stop (8.22); the boss has none.
 func _start_final_fight(elite: bool = false) -> void:
 	_busy = true
-	_fight_weather = null
 	_encounter = _run.final_encounter()
-	_fight_look = _run.final_look()
-	_fight_air = []
+	_drop = null
+	var boss := not _run.in_ambush() and not elite
 	if _run.in_ambush():
 		_encounter = _run.ambush_encounter()
-		_fight_look = _run.ambush_look()
 		print("Run ambush fight: %s" % [_encounter.id if _encounter != null else "none"])
 		if _encounter == null:
 			push_error("Ambush %s has no encounter" % _run.ambush_id)
@@ -2108,10 +2174,9 @@ func _start_final_fight(elite: bool = false) -> void:
 			_end_busy()
 			_fade_to(_show_map)
 			return
-		var zone := _run.zone_of(_run.current())
-		_fight_look = zone.look if zone != null else _run.final_look()
-		if zone != null:
-			_fight_air = zone.ambient
+	_set_run_fight_place(boss)
+	if not boss:
+		print("Run fight weather: %s" % [_fight_weather.id if _fight_weather != null else "clear"])
 	_zone_fight = {}
 	if Net.is_host():
 		_net_seed = randi_range(1, 2147483646)
@@ -2129,26 +2194,46 @@ func _start_final_fight(elite: bool = false) -> void:
 	_end_busy()
 
 
-## A boss or elite fight's end screen was left. A defeat (or the last boss) ends the run; an
-## elite or an act's boss gives spoils, then the map (the next act's, after a boss).
+## A run fight's end screen was left. A defeat (or the last boss) ends the run. A Fight stop's win
+## puts its drop in the backpack (one that does not fit opens the party screen holding it), then the
+## map; a guard, an elite or an act's boss gives spoils, then the map (the next act's, after a boss).
+## Running away passes the stop (DESIGN.md 2.13, 8.22).
 func _on_run_fight_over(result: String) -> void:
 	if _busy or _run == null:
 		return
 	_run.spend_items(_combat.used_items())
 	var ambushed := _run.in_ambush()
 	var ambush_spoils := _run.ambush_spoils
+	var type := int(_run.current().get("type", -1))
 	_run.finish_fight(result, _combat.party_hp(), _encounter, _combat.recap())
 	_run.carry_team_gauge(_combat.team_gauge())
 	_autoplay_spend_points()
+	var found: ItemData = null
+	if result == RunState.VICTORY and not ambushed and type == RunMap.StopType.FIGHT and _drop != null:
+		print("Run drop: %s" % _drop.id)
+		if _run.add_item(_drop) < 0:
+			found = _drop
+	_drop = null
 	if _run.is_over():
 		_clear_run_save()
 		_fade_to(_show_run_end)
 	elif result == RunState.VICTORY and ambushed and not ambush_spoils:
 		# An ambush pays gold and XP like any fight; spoils only when the event's data says so.
 		_fade_to(_show_map)
+	elif result == RunState.VICTORY and not ambushed and type == RunMap.StopType.FIGHT:
+		if found != null:
+			_fade_to(_show_party.bind("The enemy dropped a %s, but the pack is full." % found.display_name, false,
+					{"item": found}))
+		else:
+			_fade_to(_show_map)
 	elif result == RunState.VICTORY:
-		var boss := int(_run.current().type) == RunMap.StopType.FINAL
-		_fade_to(_show_loot.bind([] as Array[GearData], "The boss fell. Take one." if boss else "The elite fell. Take one."))
+		# An ambush with spoils reads as an elite's, as before.
+		var text := "The elite fell. Take one."
+		if not ambushed and type == RunMap.StopType.FINAL:
+			text = "The boss fell. Take one."
+		elif not ambushed and type == RunMap.StopType.GUARD:
+			text = "The guard fell. Take one."
+		_fade_to(_show_loot.bind([] as Array[GearData], text))
 	else:
 		_fade_to(_show_map)
 
@@ -2487,12 +2572,13 @@ func _begin_rush_fight() -> void:
 		_close_decided_rush()
 		_fade_to(_show_rush_end)
 		return
-	_fight_weather = rush.weather_now()
+	_fight_weather = _weather_or_forced(rush.weather_now())
 	var look := rush.look_now()
 	_fight_look = _fight_weather.apply_to(look) if _fight_weather != null else look
 	_fight_air = _fight_weather.air_with(rush.air_now()) if _fight_weather != null else rush.air_now()
 	_zone_fight = {}
 	_drop = null
+	_fight_place = ""
 	_note_rush_record()
 	print("Rush fight %d: %s %s weather %s" % [rush.fight, _rush_kind_word(rush.kind_of(rush.fight)), _encounter.id,
 			_fight_weather.id if _fight_weather != null else "clear"])
@@ -3942,6 +4028,14 @@ func _client_screen(p: Dictionary) -> void:
 			_net_seed = int(p.get("seed", 1))
 			_combat_resync = bool(p.get("rejoin", false))
 			_start_final_fight(int(_run.current().get("type", -1)) == RunMap.StopType.ELITE)
+		"stop_fight":
+			# A Fight or Guard stop's fight (DESIGN.md 8.22): built from the host's run state that came
+			# with it (fight, place, weather and drop), never rolled here. Its batches wait in the inbox
+			# until it is built, as a final fight's do.
+			_net_seed = int(p.get("seed", 1))
+			_combat_resync = bool(p.get("rejoin", false))
+			var zone := _run.zone_now()
+			_fade_to(_start_stop_fight, zone.display_name if zone != null else "")
 		"rush_fight":
 			# The Rush's state came with it (fight, encounter): build that fight, never roll a new one
 			# (card #312). Its batches wait in the inbox until it is built, as a final fight's do.
@@ -4490,7 +4584,8 @@ func _autoplay_continue(result: String, continue_to: Callable) -> void:
 
 
 ## Autoplay on the map: a shop when there is gold to spend, a rest when someone is hurt, else a
-## zone (so a run tries every kind of stop).
+## fight (so a run tries every kind of stop). Healing items go on whoever is low first, at every map
+## visit, so also before every Guard stop (the zone bot healed before its guard the same way).
 func _autoplay_map(map: MapScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(map) or not map.is_inside_tree() or _run == null:
@@ -4501,11 +4596,11 @@ func _autoplay_map(map: MapScreen) -> void:
 	for item: ItemData in _run_data.shop_items:
 		cheapest = mini(cheapest, item.price)
 	var hurt := _autoplay_hurt()
-	# Treasure first, a shop with gold, a campfire when hurt, then zones, events, and elites when
-	# healthy (each kind gets played).
+	# Treasure first, a shop with gold, a campfire when hurt, elites when healthy, then events,
+	# guards (a row of their own) and fights (each kind gets played).
 	for wanted: int in [RunMap.StopType.TREASURE, RunMap.StopType.SHOP if _run.gold >= cheapest else -1,
 			RunMap.StopType.REST if hurt else -1, RunMap.StopType.ELITE if _autoplay_elite_ready() else -1,
-			RunMap.StopType.EVENT, RunMap.StopType.ZONE]:
+			RunMap.StopType.EVENT, RunMap.StopType.GUARD, RunMap.StopType.FIGHT]:
 		for id: int in map.choices():
 			if pick < 0 and int(_run.map.stop(id).type) == wanted:
 				pick = id
@@ -4517,9 +4612,9 @@ func _autoplay_map(map: MapScreen) -> void:
 	map.choose(pick)
 
 
-## True if the party is fit for an elite fight (the same habit as a zone champion).
+## True if the party is fit for an elite fight (RunAutoplay's habit).
 func _autoplay_elite_ready() -> bool:
-	return ZoneAutoplay.is_ready(_autoplay_health())
+	return RunAutoplay.is_ready(_autoplay_health())
 
 
 ## Autoplay at a campfire: rests when someone is hurt, else upgrades an item or trains.
@@ -4567,7 +4662,7 @@ func _autoplay_hurt() -> bool:
 
 
 ## The party's state: x the weakest hero's HP percent of max, y the party's average HP percent, z the
-## lowest hero level (ZoneAutoplay reads it).
+## lowest hero level (RunAutoplay and the zone bot read it).
 @warning_ignore("integer_division")
 func _autoplay_health() -> Vector3i:
 	if _run == null:
