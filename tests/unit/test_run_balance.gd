@@ -280,8 +280,8 @@ func test_the_hollow_king_is_the_hardest_fight_of_the_run() -> void:
 		if row < _tuning.run_deep_row:
 			assert_gt(_hp_of(king_fight, 100), _hp_of(warden, row_hp), "more HP than the third act's guard at row %d" % row)
 		else:
-			gut.p("The third act's guard at row %d: %d HP, the King's fight %d" % [row, _hp_of(warden, row_hp),
-					_hp_of(king_fight, 100)])
+			gut.p("Known limit (DESIGN.md 8.22, #321): the third act's guard at row %d: %d HP, the King's fight %d"
+					% [row, _hp_of(warden, row_hp), _hp_of(king_fight, 100)])
 
 
 func test_the_leech_queen_sits_between_the_husk_lord_and_the_hollow_king() -> void:

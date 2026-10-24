@@ -336,7 +336,7 @@ func test_a_crowned_elite_stop_may_hold_the_guard_with_the_crowns_spoils() -> vo
 	assert_gt(crowned_guards, 0, "a crowned stop held the guard")
 
 
-## An act with no elite groups but a place with a guard still gets Elite stops, and every one holds
+## An act with no elite groups whose place has a guard still gets Elite stops, and every one holds
 ## the guard (there is nothing else to hold).
 func test_an_act_without_elite_groups_holds_its_guard_at_every_elite_stop() -> void:
 	var met := 0
@@ -353,6 +353,39 @@ func test_an_act_without_elite_groups_holds_its_guard_at_every_elite_stop() -> v
 				assert_true(run.elite_holds_guard(int(stop.id)), "seed %d: the guard" % s)
 				assert_true(run.elite_stop_fight(int(stop.id)).mini_boss)
 	assert_gt(met, 0, "such an act still has Elite stops")
+
+
+## The map gives an Elite stop any of its act's places, so an act with no elite groups gets Elite
+## stops only when every place has a guard: two guarded places, every Elite stop holds its own
+## place's guard; one place without a guard, no Elite stops at all (none is left with nothing).
+func test_an_act_without_elite_groups_needs_a_guard_in_every_place() -> void:
+	var met := 0
+	for guarded_both: bool in [true, false]:
+		for s: int in range(1, SEEDS):
+			var run := _run(s)
+			var act := run.act_data(0).duplicate() as ActData
+			var none: Array[EncounterData] = []
+			act.elites = none
+			var other := act.zones[0].duplicate() as ZoneData
+			if not guarded_both:
+				other.guard = null
+			var places: Array[ZoneData] = [act.zones[0], other]
+			act.zones = places
+			run._acts[0] = act
+			run.map = run._make_map(0)
+			for stop: Dictionary in run.map.stops:
+				if int(stop.type) != RunMap.StopType.ELITE:
+					continue
+				assert_true(guarded_both, "seed %d: no Elite stop when a place has no guard" % s)
+				met += 1
+				var fight := run.elite_stop_fight(int(stop.id))
+				assert_not_null(fight, "seed %d: never an Elite stop with nothing" % s)
+				var guard := run.zone_of(stop).guard
+				if fight != null:
+					assert_true(fight == guard or fight == guard.deep, "seed %d: its own place's guard" % s)
+			if is_failing():
+				return
+	assert_gt(met, 0, "two guarded places still give Elite stops")
 
 
 ## A guard at an Elite stop pays as a guard did: its Echo pips (mastery_guard), its spoils (pick 1 of

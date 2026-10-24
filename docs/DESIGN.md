@@ -3402,6 +3402,9 @@ scarce, and a "?" can turn into a fight.
 - An act with no elite fights or no events never gets those stops: `RunMap.generate` takes
   `has_elites` and `has_events` (filled from the act's lists) and zeroes their weights, and Main
   leaves an Elite stop with no fight as an empty stop with an error instead of crashing (card #176).
+  Since map rules 4 (8.22) an act with no elite groups still gets Elite stops when every one of its
+  places has a guard (each such stop holds its place's guard); one place without a guard and it gets
+  none, since the map may give an Elite stop any of the act's places.
 - Online: `RunState.to_dict` carries the act (the client rebuilds that act's map), the stops
   visited, the campfire points, the events met, the shop's restocks, the Tonics drunk and the "?"
   ambush state (8.7).
@@ -3527,7 +3530,11 @@ here makes a run easier.
   keeps it so (`test_run_balance.gd`: more HP than the Husk Lord fight and every guard at the
   deepest row, at least their power, faster and enraging faster). The attacks themselves are
   unchanged, so a player who defends well takes the same hits as before, only more of them and for
-  longer.
+  longer. Since the guards joined the Elite stops (8.22) this no longer holds everywhere: act 3's
+  guard (the deep Ash Warden, 8.23) can wait at an Elite stop in its deep rows, and from
+  `run_deep_row` on (rows 4 and 5) it brings more HP in all than the King's fight (7063 and 7249
+  against 6885). The test checks act 3's guard only on the rows before `run_deep_row` and prints the
+  deeper ones; that is a known limit for the balance talk (#321, 8.22 "Known limits").
 - **An honest balance bot** (#178). The bot used to fight every champion and roamer at any HP, so
   its runs died early and said little. It now plays like a careful player (named consts in
   `ZoneAutoplay` and `Main`, not game rules): a champion or optional roamer is fought only while
@@ -4778,7 +4785,9 @@ Elite stop won. Pips stay per kind (guard 3, elite 2). This replaces G1 and card
   the map rules 2 made: the guards' old row gets ordinary stops, and Elite stops stand where they
   did (not before row `run_elite_min_row`, never two in a row, the act's crowned elite).
   `run_guard_row` stays in the tuning for rules 3 maps, and `StopType.GUARD` keeps its number (7).
-  An act with no elite groups but a place with a guard still gets Elite stops.
+  An act with no elite groups still gets Elite stops when every one of its places has a guard
+  (`RunState._act_all_guarded`); the map may give an Elite stop any of the act's places, so with one
+  place unguarded it gets none, and no Elite stop is left with nothing to fight.
 - **The pick** (`RunState.elite_holds_guard(stop_id)`, `elite_stop_fight`): a roll of its own by the
   run's seed, the act and the stop (`ELITE_GUARD_SALT`, in the `(stop_id + 1) * SALT` pattern, so
   it is the same on every machine and after Continue) under tuning `run_elite_guard_percent` (40):
@@ -4844,9 +4853,9 @@ Elite stop won. Pips stay per kind (guard 3, elite 2). This replaces G1 and card
 - **Defaults chosen while building** (the owner may overrule each one): E1 the guard share 40%; E2
   the never-twice rule reads the map (the nearest Elite stop on any road before), not the road
   walked; E3 the crowned elite may hold the guard, with the crown's legendary spoils and without its
-  HP and power; E4 an act with no elite groups holds its guard at every Elite stop; E5 a guard won
-  anywhere still counts for the slot; E6 a guard's Elite stop keeps the Elite stop's swirl with no
-  name card.
+  HP and power; E4 an act with no elite groups holds its guard at every Elite stop (and gets Elite
+  stops only when every place has a guard); E5 a guard won anywhere still counts for the slot; E6
+  a guard's Elite stop keeps the Elite stop's swirl with no name card.
 - **Known limits** (for the balance talk, #321): guards are met far less often. A map holds about
   1.1 Elite stops per act (816 in 720 acts over 240 seeds; every act has its crowned one) and 40% of
   them hold the guard (327), so about 0.45 guards per act, and only on the roads through them, where

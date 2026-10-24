@@ -715,23 +715,26 @@ func next_act() -> bool:
 
 ## Act `index`'s map. The first act's comes from the run's seed alone (as before acts existed).
 ## The map of act `index` by `rules` (map_rules when -1): 2 and up move rows, 3 has a row of Guard
-## stops, 4 has none (its Elite stops may hold the place's guard, DESIGN.md 8.22, so an act with a
-## guard but no elite groups still gets Elite stops).
+## stops, 4 has none (its Elite stops may hold the place's guard, DESIGN.md 8.22, so an act with no
+## elite groups still gets Elite stops when every one of its places has a guard).
 func _make_map(index: int, rules: int = -1) -> RunMap:
 	var rng := CombatRng.new(run_seed if index == 0 else absi(run_seed * 31 + index * ACT_SALT) % 2147483647 + 1)
 	var act_info := act_data(index)
 	var made_by := map_rules if rules < 0 else rules
-	var has_elites := not act_info.elites.is_empty() or (made_by >= 4 and _act_has_guard(act_info))
+	var has_elites := not act_info.elites.is_empty() or (made_by >= 4 and _act_all_guarded(act_info))
 	return RunMap.generate(rng, tuning, act_info.zones.size(), has_elites,
 			not act_info.events.is_empty(), made_by >= 2, made_by == 3)
 
 
-## True if one of the act's places has a guard.
-static func _act_has_guard(act_info: ActData) -> bool:
+## True if the act has places and every one has a guard. The map gives an Elite stop any of the act's
+## places, so an act with no elite groups needs a guard in each or some Elite stop would hold nothing.
+static func _act_all_guarded(act_info: ActData) -> bool:
+	if act_info.zones.is_empty():
+		return false
 	for zone: ZoneData in act_info.zones:
-		if zone != null and zone.guard != null:
-			return true
-	return false
+		if zone == null or zone.guard == null:
+			return false
+	return true
 
 
 # --- elite, event and treasure stops (DESIGN.md 8.6 to 8.8) -------------------------------------

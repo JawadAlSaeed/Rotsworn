@@ -2037,8 +2037,8 @@ func _start_final_fight(elite: bool = false) -> void:
 	elif elite:
 		_encounter = _run.encounter_now()
 		if _encounter == null:
-			# The map never rolls an elite stop for an act without elites; if one slips through,
-			# leave it as an empty stop instead of crashing the fight.
+			# The map rolls Elite stops only for an act with elite groups or a guard in every place
+			# (RunState._make_map); if one slips through, leave it empty instead of crashing.
 			push_error("Elite stop %d has no elite fight in act %d" % [_run.at, _run.act])
 			_end_busy()
 			_fade_to(_show_map)
