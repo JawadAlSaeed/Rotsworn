@@ -1,14 +1,16 @@
 extends SceneTree
 ## Writes the Fight Rush (DESIGN.md 8.21, card #305): data/rush/fight_rush.tres. Its four tiers come
-## from the run's zones and acts (roamers, ambushes, elites), its boss cycle is the three guards, the
-## Husk Lord and the Hollow King, and its item card offers the run's usable items. Rewrites the file
+## from the run's zones and acts (roamers, ambushes, elites), its boss cycle is the three guards and
+## the three act bosses (the Husk Lord, the Leech Queen since card #323, the Hollow King), and its item
+## card offers the run's usable items. Rewrites the file
 ## (run it again after a zone's roamers, an act's elites or ambushes, or the run's items change).
 ## Saves nothing if the result does not pass RushData.validate().
 ## Run: Godot --headless --path . --import, then Godot --headless --path . -s tools/bootstrap_rush.gd
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 const FIRST_ACT_PATH := "res://data/runs/acts/rotten_road.tres"
-const SECOND_ACT_PATH := "res://data/runs/acts/ashen_deep.tres"
+const SECOND_ACT_PATH := "res://data/runs/acts/drowned_mire.tres"
+const THIRD_ACT_PATH := "res://data/runs/acts/ashen_deep.tres"
 const ZONE_PATH := "res://data/zones/%s.tres"
 const ENCOUNTER_PATH := "res://data/encounters/%s.tres"
 const OUT_DIR := "res://data/rush"
@@ -19,10 +21,11 @@ func _init() -> void:
 	var run := load(RUN_PATH) as RunData
 	var first := load(FIRST_ACT_PATH) as ActData
 	var second := load(SECOND_ACT_PATH) as ActData
+	var third := load(THIRD_ACT_PATH) as ActData
 	var hollow := load(ZONE_PATH % "rotten_hollow") as ZoneData
 	var bog := load(ZONE_PATH % "sunken_bog") as ZoneData
 	var ruins := load(ZONE_PATH % "ashen_ruins") as ZoneData
-	if run == null or first == null or second == null or hollow == null or bog == null or ruins == null:
+	if run == null or first == null or second == null or third == null or hollow == null or bog == null or ruins == null:
 		push_error("bootstrap_rush: could not load the run, its acts or its zones")
 		quit(1)
 		return
@@ -30,23 +33,25 @@ func _init() -> void:
 	rush.id = "fight_rush"
 	rush.display_name = "Fight Rush"
 	rush.run = run
-	# Each tier teaches its own zone's monsters before the next; the last one mixes them all. Fights
-	# 1 to 20 stay on the plain monsters, deep versions from the Ruins on.
+	# Each tier teaches its own zone's monsters before the next (each act is one place since card
+	# #323, so a tier takes its act's ambushes and elites); the last one mixes them all. Fights 1 to 20
+	# stay on the plain monsters, deep versions from the Ruins on.
 	rush.tiers.assign([
 		_tier(1, [hollow], [hollow.roamer_pool], [first.elites], false),
-		_tier(11, [bog], [bog.roamer_pool, first.ambushes], [first.elites], false),
-		_tier(21, [ruins], [ruins.roamer_pool, second.ambushes], [second.elites], true),
-		_tier(31, [hollow, bog, ruins], [hollow.roamer_pool, bog.roamer_pool, first.ambushes,
-				ruins.roamer_pool, second.ambushes], [first.elites, second.elites], true),
+		_tier(11, [bog], [bog.roamer_pool, second.ambushes], [second.elites], false),
+		_tier(21, [ruins], [ruins.roamer_pool, third.ambushes], [third.elites], true),
+		_tier(31, [hollow, bog, ruins], [hollow.roamer_pool, bog.roamer_pool, ruins.roamer_pool,
+				first.ambushes, second.ambushes, third.ambushes], [first.elites, second.elites, third.elites], true),
 	])
-	# Each tier ends on its zone's guard, then the two act bosses; the Hollow King closes the cycle.
-	# home_depth is the map row a run meets each one at.
+	# Each tier ends on its zone's guard, then the three act bosses; the Hollow King closes the cycle.
+	# home_depth is the map row a run meets each act boss at (act * 7 + 6); the guards keep theirs.
 	rush.bosses.assign([
 		_boss("guard_gorged_one", hollow, null, 1),
 		_boss("guard_mire_mother", bog, null, 3),
 		_boss("guard_ash_warden", ruins, null, 9),
 		_boss("husk_lord_fight", hollow, first.final_look, 6),
-		_boss("hollow_king", null, second.final_look, 13),
+		_boss("leech_queen_fight", bog, second.final_look, 13),
+		_boss("hollow_king", null, third.final_look, 20),
 	])
 	# No chests and no gold in a Rush: keys, treasure and curses never reach the item card.
 	for list: Array[ItemData] in [run.shop_items, run.found_items]:

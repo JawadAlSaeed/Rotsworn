@@ -31,6 +31,9 @@ ENEMY_FRAME = {
     "marsh_lantern": 64,
     "rot_priest": 76,
     "pus_tick": 56,
+    # Phase 26 (card #323): act 2's boss and her small fry.
+    "leech_queen": 108,
+    "leechling": 48,
 }
 FIGHTER_PIXEL_SIZE = 0.045
 
@@ -71,6 +74,8 @@ FIGHTERS = {
     "enemy_lantern": "marsh_lantern",
     "enemy_priest": "rot_priest",
     "enemy_tick": "pus_tick",
+    "enemy_leech_queen": "leech_queen",
+    "enemy_leechling": "leechling",
 }
 
 # Tier 1 clip names (plan 4.1, 4.2). check.py --require <module or id> asserts them.

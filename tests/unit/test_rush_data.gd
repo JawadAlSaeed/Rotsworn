@@ -8,7 +8,8 @@ const RUSH_PATH := "res://data/rush/fight_rush.tres"
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const FIRST_ACT_PATH := "res://data/runs/acts/rotten_road.tres"
-const SECOND_ACT_PATH := "res://data/runs/acts/ashen_deep.tres"
+const SECOND_ACT_PATH := "res://data/runs/acts/drowned_mire.tres"
+const THIRD_ACT_PATH := "res://data/runs/acts/ashen_deep.tres"
 const ZONE_PATH := "res://data/zones/%s.tres"
 const RERUN := " (run tools/bootstrap_rush.gd again)"
 ## The boss cycle in order: encounter id and home depth (the map row a run meets it at).
@@ -17,10 +18,11 @@ const BOSS_CYCLE: Array[Array] = [
 	["guard_mire_mother", 3],
 	["guard_ash_warden", 9],
 	["husk_lord_fight", 6],
-	["hollow_king", 13],
+	["leech_queen_fight", 13],
+	["hollow_king", 20],
 ]
 ## How many fights a Rush walk covers: every tier and every boss of the cycle, then the cycle again.
-const WALK_FIGHTS: int = 70
+const WALK_FIGHTS: int = 80
 
 var _rush: RushData
 var _run: RunData
@@ -97,13 +99,14 @@ func test_tier_fights_match_the_zones_and_acts() -> void:
 	var ruins := load(ZONE_PATH % "ashen_ruins") as ZoneData
 	var first := load(FIRST_ACT_PATH) as ActData
 	var second := load(SECOND_ACT_PATH) as ActData
+	var third := load(THIRD_ACT_PATH) as ActData
 	var fights: Array = [
 		[hollow.roamer_pool],
-		[bog.roamer_pool, first.ambushes],
-		[ruins.roamer_pool, second.ambushes],
-		[hollow.roamer_pool, bog.roamer_pool, first.ambushes, ruins.roamer_pool, second.ambushes],
+		[bog.roamer_pool, second.ambushes],
+		[ruins.roamer_pool, third.ambushes],
+		[hollow.roamer_pool, bog.roamer_pool, ruins.roamer_pool, first.ambushes, second.ambushes, third.ambushes],
 	]
-	var elites: Array = [[first.elites], [first.elites], [second.elites], [first.elites, second.elites]]
+	var elites: Array = [[first.elites], [second.elites], [third.elites], [first.elites, second.elites, third.elites]]
 	for i: int in mini(_rush.tiers.size(), fights.size()):
 		assert_eq(_ids(_rush.tiers[i].fights), _ids(_union(fights[i])), "tier %d fights%s" % [i, RERUN])
 		assert_eq(_ids(_rush.tiers[i].elites), _ids(_union(elites[i])), "tier %d elites%s" % [i, RERUN])
@@ -112,7 +115,7 @@ func test_tier_fights_match_the_zones_and_acts() -> void:
 func test_boss_cycle_follows_the_design() -> void:
 	if _rush == null:
 		return
-	assert_eq(_rush.bosses.size(), BOSS_CYCLE.size(), "five bosses")
+	assert_eq(_rush.bosses.size(), BOSS_CYCLE.size(), "six bosses")
 	for i: int in mini(_rush.bosses.size(), BOSS_CYCLE.size()):
 		var boss := _rush.bosses[i]
 		assert_not_null(boss.encounter, "boss %d has a fight" % i)
@@ -207,9 +210,9 @@ func test_a_rush_walk_always_has_a_fight_and_a_look() -> void:
 			var base := r._encounter_by_id(r.encounter_id)
 			if base.deep != null:
 				assert_eq(e, base.deep, "fight %d plays the deep version" % n)
-	# Fight 50 is the Hollow King on his throne: no zone, so no weather.
+	# Fight 60 is the Hollow King on his throne: no zone, so no weather.
 	var king := RushState.begin_rush(_rush, _tuning, 11)
-	king.fight = 5 * _tuning.rush_boss_every
+	king.fight = 6 * _tuning.rush_boss_every
 	assert_null(king.zone_now(), "the Hollow King's throne has no zone")
 	assert_null(king.weather_now(), "and so no weather")
 

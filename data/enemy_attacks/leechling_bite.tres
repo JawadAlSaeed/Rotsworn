@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+
+[sub_resource type="Resource" id="Hit_0"]
+script = ExtResource("1_hit")
+impact_ms = 850
+damage_percent = 85
+approach_ms = 170
+on_hit_status = "weakened"
+
+[resource]
+script = ExtResource("2_attack")
+id = "leechling_bite"
+display_name = "Leech Bite"
+weight = 3
+hits = Array[ExtResource("1_hit")]([SubResource("Hit_0")])

@@ -28,14 +28,15 @@ const CUE_TIME_SCALE: float = 1000.0
 ## Separates the sample stream from the cue stream in the hashed integers.
 const SECTION_MARK: int = -2147483647
 ## Shipped enemy attacks when this golden was recorded (a guard against files silently skipped).
-const EXPECTED_ATTACKS: int = 84
+const EXPECTED_ATTACKS: int = 96
 
 ## Recorded 2026-10-14 on the phase 9 tree, before any phase 10 lane; phase 12 added its attacks
 ## (every older hash unchanged); phase 16 (card #195) added the five Charged Dooms, again with
-## every older hash unchanged; phase 19 (cards #255 to #260) added the new monsters' attacks, the same. Some attacks share a hash
+## every older hash unchanged; phase 19 (cards #255 to #260) added the new monsters' attacks, the same; phase 26 (card #323)
+## added the Leech Queen's and the Leechling's, the same. Some attacks share a hash
 ## because their hits are timed the same (for example husk_flurry, gnat_swarm_sweep and
 ## king_crown_sweep).
-const EXPECTED_HASH := "68fa4a93059e2f6bf06e16e3a156adea46b5f3597e3f61c42a7e52032a123615"
+const EXPECTED_HASH := "aeaec2f1ba74b75b5a7e7eefc6966191ad2c538460b765e4a51ab031bc5b2034"
 const EXPECTED_BY_ATTACK: Dictionary = {
 	"ashen_cinder_hail": "097a20436142decf6db61d60b9ef529c05f0cec1b9754c8987b09927f4037a5c",
 	"bile_tick_spit": "c524d334549459ed7c6fd831be709d04c67e99f78700ad12b009f1372230249e",
@@ -92,6 +93,18 @@ const EXPECTED_BY_ATTACK: Dictionary = {
 	"lantern_chain": "1348b80f2ed849fded79a9700d9a2ebec43525192caa04e3192e32bdfc7847e1",
 	"lantern_spark": "a1bed318f2196449d6e002736aceb7eceb7e4fc2cdd4c773aa74114d6fa7f7b9",
 	"lantern_zigzag": "f8090cc8d0a7a6ffa8e0a86f5d1af2510ca043da0a2f2cc7d6e6f8fe7f05abb6",
+	"leech_black_flood": "0438edaac29880f7a83047530818af39af38b6df4f3ddfc81d0eb51afce25456",
+	"leech_black_water": "1b4a566bf3a86b1eb45e0ed45f85e541aa46d6c83c24c96365b3c520fed8c6f2",
+	"leech_blight_spit": "ee7a61b0a41e314c9e8e935daa4b115992b8321f22f8b8909ae1a85d59791531",
+	"leech_blight_volley": "f012c5b00e33f757373eb30c546e1d0af96e576ad19f7d176faf080dfd604a63",
+	"leech_draining_bite": "6287dcecbf692b45d0ec0ace041f5d42cda3e923b8da4217f1b98827f6fd023b",
+	"leech_drowning_tide": "0d2f2b07e416589375b3a7e6bdb0dbbbc1ce31c0a2c75524db7f54838584e85d",
+	"leech_feeding_frenzy": "d5201eaf2c1319d9589e5dd061292a31586a5569250ac304c5183ede5f180c5e",
+	"leech_gorging_bite": "fc4508e0d7ae2289e7284b9e11152d5899320acf7b58a47498065fa4138a7c7c",
+	"leech_tail_lash": "69cab300639169ad43fe301a6ae9bcc4577624378b7d1f61ce1a5ffc6b3ff16f",
+	"leech_tail_sweep": "8db57945b6e9cbfd01a04458de7128a82d38164602c28ff4d93c2e8dc12cc315",
+	"leechling_bite": "56b18e99da491ba8a5738019a68e6d0d839ba1a2fda81ba32c038886cb0adcb2",
+	"leechling_wriggle": "92f461ff07d8e8ebd90d26aad7a6da7f4cbdba5bb4cd453291ea45452887c518",
 	"plague_spit": "b8518ed292a2d6b50b1b5f8f43211b8ad1a9c5f222eaedc4f26354297fb99745",
 	"priest_censer": "c3169ed59a46287083a936e723829ef45480ae75ead81660f9d62a04fe61cc6c",
 	"priest_hush": "b8518ed292a2d6b50b1b5f8f43211b8ad1a9c5f222eaedc4f26354297fb99745",

@@ -246,8 +246,8 @@ func test_an_ambush_cost_sets_up_the_fight() -> void:
 	assert_true(run.ambush_spoils)
 	assert_eq(run.ambush_encounter(), pack, "act 1's early rows fight the plain version")
 	assert_eq(run.ambush_streak, 0, "any ambush starts the count over")
-	run.act = 1
-	assert_eq(run.ambush_encounter(), pack.deep, "a deep act fights the deep version")
+	run.act = 2
+	assert_eq(run.ambush_encounter(), pack.deep, "a deep act (the third, card #323) fights the deep version")
 	run.act = 0
 	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), pack)
 	assert_false(run.in_ambush(), "the fight ends the ambush")
@@ -593,28 +593,25 @@ func test_every_event_file_loads_and_makes_every_choice_cost_something() -> void
 
 func test_the_acts_have_their_own_event_lists_and_ambushes() -> void:
 	var run := _run()
-	var first := run.act_data(0)
-	var second := run.act_data(1)
-	var in_first := {}
-	var shared := 0
-	for event: EventData in first.events:
-		assert_false(in_first.has(event.id), "%s listed twice" % event.id)
-		in_first[event.id] = true
-	var in_second := {}
-	for event: EventData in second.events:
-		assert_false(in_second.has(event.id), "%s listed twice" % event.id)
-		in_second[event.id] = true
-		if in_first.has(event.id):
-			shared += 1
-	assert_gte(first.events.size(), 8)
-	assert_gte(second.events.size(), 8)
-	assert_gt(shared, 0, "some events are shared")
-	assert_lt(shared, second.events.size(), "act 2 has events of its own")
+	assert_eq(run.acts().size(), 3, "three acts (card #323)")
+	# Every act lists each event once, has enough of them, shares some with the act before it and has
+	# some of its own (DESIGN.md 8.23: each act's events come from its own place where they can).
 	var used := {}
-	for id: String in in_first:
-		used[id] = true
-	for id: String in in_second:
-		used[id] = true
+	var before := {}
+	for act: ActData in run.acts():
+		var here := {}
+		var shared := 0
+		for event: EventData in act.events:
+			assert_false(here.has(event.id), "%s listed twice in %s" % [event.id, act.id])
+			here[event.id] = true
+			used[event.id] = true
+			if before.has(event.id):
+				shared += 1
+		assert_gte(act.events.size(), 8, "%s has enough events" % act.id)
+		if not before.is_empty():
+			assert_gt(shared, 0, "%s shares some events with the act before it" % act.id)
+			assert_lt(shared, act.events.size(), "%s has events of its own" % act.id)
+		before = here
 	for file: String in DirAccess.get_files_at(EVENTS_DIR):
 		if file.ends_with(".tres"):
 			assert_true(used.has(file.get_basename()), "%s is in an act's list" % file)
@@ -638,18 +635,18 @@ func test_ambush_encounters_are_picked_and_fought_in_the_deep_version_late() -> 
 	var pool := run.act_data(0).ambushes
 	run.ambush_id = pool[0].id
 	assert_eq(run.ambush_encounter(), pool[0])
-	run.act = 1
-	assert_eq(run.ambush_encounter(), pool[0].deep)
+	run.act = 2
+	assert_eq(run.ambush_encounter(), pool[0].deep, "the third act is deep (card #323)")
 
 
 # --- the shrines and wanderers, now "?" events (phase 26, DESIGN.md 8.22 G2 and G3) ---------------------------
 
-## Which acts each of the four new events is drawn in.
+## Which acts each of the four new events is drawn in (three acts since card #323).
 const SHRINE_EVENTS := {
-	"healing_spring": [0, 1],
-	"blood_altar": [1],
+	"healing_spring": [0, 1, 2],
+	"blood_altar": [2],
 	"war_idol": [0],
-	"grave_robber": [0, 1],
+	"grave_robber": [0, 2],
 }
 
 
@@ -667,7 +664,7 @@ func test_the_shrines_and_wanderers_are_priced_events_in_their_acts() -> void:
 			assert_true(_has_scarce_price(c.deal) or (c.risk_percent >= 25 and _has_scarce_price(c.risk_deal)),
 					"%s / %s: never a gift" % [id, c.text])
 			assert_true(c.deal.heal_percent == 0 or _has_scarce_price(c.deal), "%s / %s: a heal is paid for" % [id, c.text])
-		for act: int in 2:
+		for act: int in run.acts().size():
 			var listed := run.act_data(act).events.has(event)
 			assert_eq(listed, (SHRINE_EVENTS[id] as Array).has(act), "%s in act %d: %s" % [id, act + 1, listed])
 

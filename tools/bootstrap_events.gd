@@ -1,6 +1,6 @@
 extends SceneTree
-## Writes the "?" events (DESIGN.md 8.7, card #193) and fills the two acts' event lists and ambush
-## pools. Every choice costs something scarce (max HP for good, a backpack item, a curse, gold, an
+## Writes the "?" events (DESIGN.md 8.7, card #193) and fills the three acts' event lists and ambush
+## pools (three acts since card #323, DESIGN.md 8.23: each act's events and ambushes fit its place). Every choice costs something scarce (max HP for good, a backpack item, a curse, gold, an
 ## ambush fight); gold and XP rewards grow with depth by tuning.event_reward_row_percent (RunState).
 ## Rewrites every event file; run it after tools/bootstrap_phase15.gd (it edits the act files that
 ## one writes). Phase 26 (DESIGN.md 8.22, G2 and G3) added the shrines and wanderers as events (the
@@ -22,28 +22,40 @@ func _init() -> void:
 	for event: EventData in _all_events():
 		events[event.id] = _save(event, EVENTS + event.id + ".tres")
 
-	# Act 1 and act 2 share six events; the rest are their own. Every ambush fight has a deep
-	# version, which a deep act or row fights instead (RunState.ambush_encounter).
+	# Each act shares a few events with the act before it; the rest fit its own place (the forest's
+	# scarecrow and cage, the bog's chapel and well, the ruins' shrines and doors). Every event is in at
+	# least one act. Every ambush fight has a deep version, which a deep act or row fights instead
+	# (RunState.ambush_encounter).
 	var act1 := load("res://data/runs/acts/rotten_road.tres") as ActData
-	act1.events.assign(_pick(events, ["weeping_well", "gamblers_bones", "wounded_pilgrim", "rot_blossom",
-			"hanging_cage", "merchant_wreck", "whispering_mask", "bone_collector", "hungry_scarecrow",
-			"tithe_collector", "healing_spring", "war_idol", "grave_robber"]))
-	act1.ambushes.assign(_encs(["bloat_and_gnat", "hyena_and_fly", "toad_and_fly", "shade_and_gnat", "fly_pair",
-			"rat_pack", "husk_trio", "slinger_trio"]))
+	act1.events.assign(_pick(events, ["gamblers_bones", "wounded_pilgrim", "rot_blossom", "hanging_cage",
+			"merchant_wreck", "whispering_mask", "bone_collector", "hungry_scarecrow", "tithe_collector",
+			"healing_spring", "war_idol", "grave_robber"]))
+	act1.ambushes.assign(_encs(["bloat_and_gnat", "shade_and_gnat", "fly_pair", "rat_pack", "husk_trio",
+			"tick_nest"]))
 	act1.ambush_title = "An Ambush!"
 	act1.ambush_text = "The mark on the map was bait. Something on the Rotten Road was waiting for you."
 	act1.ambush_picture_path = PICTURE_DIR + "ambush_rotten_road.png"
-	var act2 := load("res://data/runs/acts/ashen_deep.tres") as ActData
-	act2.events.assign(_pick(events, ["weeping_well", "gamblers_bones", "whispering_mask", "merchant_wreck",
-			"shrine_of_kings", "black_mirror", "drowned_chapel", "buried_cairn", "sealed_door", "widows_wager",
-			"healing_spring", "blood_altar", "grave_robber"]))
-	act2.ambushes.assign(_encs(["hyena_pack", "hyena_and_fly", "shade_and_gnat", "toad_and_fly", "bloat_and_gnat",
-			"priest_and_hyenas", "lantern_trio", "brute_and_rat", "tick_nest"]))
+	var act2 := load("res://data/runs/acts/drowned_mire.tres") as ActData
+	act2.events.assign(_pick(events, ["weeping_well", "drowned_chapel", "black_mirror", "widows_wager",
+			"healing_spring", "rot_blossom", "wounded_pilgrim", "merchant_wreck", "whispering_mask",
+			"gamblers_bones"]))
+	act2.ambushes.assign(_encs(["toad_and_fly", "lantern_trio", "fly_pair", "tick_nest", "rat_pack", "husk_trio"]))
 	act2.ambush_title = "An Ambush!"
-	act2.ambush_text = "The ashes shifted. What was lying in them was only waiting for you."
-	act2.ambush_picture_path = PICTURE_DIR + "ambush_ashen_deep.png"
+	act2.ambush_text = ("The black water lay still around the mark on the map. It was not empty. Something "
+			+ "in the Mire was waiting for you.")
+	act2.ambush_picture_path = PICTURE_DIR + "ambush_drowned_mire.png"
+	var act3 := load("res://data/runs/acts/ashen_deep.tres") as ActData
+	act3.events.assign(_pick(events, ["shrine_of_kings", "buried_cairn", "sealed_door", "blood_altar",
+			"black_mirror", "widows_wager", "weeping_well", "grave_robber", "healing_spring", "whispering_mask",
+			"merchant_wreck", "gamblers_bones", "bone_collector"]))
+	act3.ambushes.assign(_encs(["hyena_pack", "hyena_and_fly", "priest_and_hyenas", "brute_and_rat",
+			"slinger_trio", "shade_and_gnat"]))
+	act3.ambush_title = "An Ambush!"
+	act3.ambush_text = "The ashes shifted. What was lying in them was only waiting for you."
+	act3.ambush_picture_path = PICTURE_DIR + "ambush_ashen_deep.png"
 	_save(act1, "res://data/runs/acts/rotten_road.tres")
-	_save(act2, "res://data/runs/acts/ashen_deep.tres")
+	_save(act2, "res://data/runs/acts/drowned_mire.tres")
+	_save(act3, "res://data/runs/acts/ashen_deep.tres")
 	print("bootstrap_events: wrote %d files" % _written)
 	quit()
 

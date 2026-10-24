@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="ActData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/act_data.gd" id="1_act"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="2_enc"]
+[ext_resource type="Script" path="res://scripts/data/event_data.gd" id="3_event"]
+[ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="4_zone"]
+[ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="5_bog"]
+[ext_resource type="Resource" path="res://data/encounters/leech_queen_fight.tres" id="6_queen"]
+[ext_resource type="Resource" path="res://data/looks/leech_lair.tres" id="7_lair"]
+[ext_resource type="Resource" path="res://data/encounters/elite_toad_court.tres" id="e_toad_court"]
+[ext_resource type="Resource" path="res://data/encounters/elite_twin_husks.tres" id="e_twin_husks"]
+[ext_resource type="Resource" path="res://data/events/weeping_well.tres" id="v_weeping_well"]
+[ext_resource type="Resource" path="res://data/events/drowned_chapel.tres" id="v_drowned_chapel"]
+[ext_resource type="Resource" path="res://data/events/black_mirror.tres" id="v_black_mirror"]
+[ext_resource type="Resource" path="res://data/events/widows_wager.tres" id="v_widows_wager"]
+[ext_resource type="Resource" path="res://data/events/healing_spring.tres" id="v_healing_spring"]
+[ext_resource type="Resource" path="res://data/events/rot_blossom.tres" id="v_rot_blossom"]
+[ext_resource type="Resource" path="res://data/events/wounded_pilgrim.tres" id="v_wounded_pilgrim"]
+[ext_resource type="Resource" path="res://data/events/merchant_wreck.tres" id="v_merchant_wreck"]
+[ext_resource type="Resource" path="res://data/events/whispering_mask.tres" id="v_whispering_mask"]
+[ext_resource type="Resource" path="res://data/events/gamblers_bones.tres" id="v_gamblers_bones"]
+[ext_resource type="Resource" path="res://data/encounters/toad_and_fly.tres" id="a_toad_and_fly"]
+[ext_resource type="Resource" path="res://data/encounters/lantern_trio.tres" id="a_lantern_trio"]
+[ext_resource type="Resource" path="res://data/encounters/fly_pair.tres" id="a_fly_pair"]
+[ext_resource type="Resource" path="res://data/encounters/tick_nest.tres" id="a_tick_nest"]
+[ext_resource type="Resource" path="res://data/encounters/rat_pack.tres" id="a_rat_pack"]
+[ext_resource type="Resource" path="res://data/encounters/husk_trio.tres" id="a_husk_trio"]
+
+[resource]
+script = ExtResource("1_act")
+id = "drowned_mire"
+display_name = "The Drowned Mire"
+zones = Array[ExtResource("4_zone")]([ExtResource("5_bog")])
+final_encounter = ExtResource("6_queen")
+final_look = ExtResource("7_lair")
+final_map_icon_path = "res://assets/sprites/ui/map_lair_leech_queen.png"
+elites = Array[ExtResource("2_enc")]([ExtResource("e_toad_court"), ExtResource("e_twin_husks")])
+events = Array[ExtResource("3_event")]([ExtResource("v_weeping_well"), ExtResource("v_drowned_chapel"), ExtResource("v_black_mirror"), ExtResource("v_widows_wager"), ExtResource("v_healing_spring"), ExtResource("v_rot_blossom"), ExtResource("v_wounded_pilgrim"), ExtResource("v_merchant_wreck"), ExtResource("v_whispering_mask"), ExtResource("v_gamblers_bones")])
+ambushes = Array[ExtResource("2_enc")]([ExtResource("a_toad_and_fly"), ExtResource("a_lantern_trio"), ExtResource("a_fly_pair"), ExtResource("a_tick_nest"), ExtResource("a_rat_pack"), ExtResource("a_husk_trio")])
+ambush_picture_path = "res://assets/sprites/events/ambush_drowned_mire.png"
+ambush_text = "The black water lay still around the mark on the map. It was not empty. Something in the Mire was waiting for you."

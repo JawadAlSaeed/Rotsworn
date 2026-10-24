@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/leech_queen.tres" id="3_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_draining_bite.tres" id="a_bite"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_tail_sweep.tres" id="a_sweep"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_black_water.tres" id="a_water"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_blight_spit.tres" id="a_spit"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_gorging_bite.tres" id="a2_bite"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_tail_lash.tres" id="a2_lash"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_black_flood.tres" id="a2_flood"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_blight_volley.tres" id="a2_volley"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_feeding_frenzy.tres" id="a2_frenzy"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leech_drowning_tide.tres" id="99_doom"]
+[ext_resource type="Resource" path="res://data/gear/hunger_charm.tres" id="g_hunger_charm"]
+[ext_resource type="Resource" path="res://data/gear/bloodletters_fang.tres" id="g_bloodletters_fang"]
+[ext_resource type="Resource" path="res://data/gear/black_ichor.tres" id="g_black_ichor"]
+[ext_resource type="Resource" path="res://data/gear/still_water.tres" id="g_still_water"]
+[ext_resource type="Resource" path="res://data/gear/second_wind.tres" id="g_second_wind"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "leech_queen"
+display_name = "The Leech Queen"
+color = Color(0.66, 0.68, 0.74, 1)
+sprite_path = "res://assets/sprites/enemies/leech_queen.png"
+sprite_clips = ExtResource("3_clips")
+death_color = Color(0.55, 0.3, 0.62, 1)
+idle_cycle_percent = 125
+portrait_path = "res://assets/sprites/portraits/leech_queen.png"
+sprite_pixel_size = 0.045
+hp_percent = 530
+power_percent = 150
+speed = 135
+attacks = Array[ExtResource("1_attack")]([ExtResource("a_bite"), ExtResource("a_sweep"), ExtResource("a_water"), ExtResource("a_spit"), ExtResource("99_doom")])
+target_rule = 1
+target_bias_percent = 220
+gold = 150
+xp = 320
+voice_sfx = "voice_shade"
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_hunger_charm"), ExtResource("g_bloodletters_fang"), ExtResource("g_black_ichor"), ExtResource("g_still_water"), ExtResource("g_second_wind")])
+phase_two_hp_percent = 50
+phase_two_attacks = Array[ExtResource("1_attack")]([ExtResource("a2_bite"), ExtResource("a2_lash"), ExtResource("a2_flood"), ExtResource("a2_volley"), ExtResource("a2_frenzy"), ExtResource("99_doom")])
+phase_two_speed = 185
+phase_two_tempo_percent = 91
+phase_two_text = "THE LEECH QUEEN HUNGERS!"
+runs_up = true

@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="1_attack"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://data/clips/leechling.tres" id="3_clips"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leechling_bite.tres" id="a_bite"]
+[ext_resource type="Resource" path="res://data/enemy_attacks/leechling_wriggle.tres" id="a_wriggle"]
+[ext_resource type="Resource" path="res://data/gear/heartleaf.tres" id="g_heartleaf"]
+[ext_resource type="Resource" path="res://data/gear/mossbed.tres" id="g_mossbed"]
+[ext_resource type="Resource" path="res://data/gear/bitter_root.tres" id="g_bitter_root"]
+
+[resource]
+script = ExtResource("2_enemy")
+id = "leechling"
+display_name = "Leechling"
+color = Color(0.3, 0.26, 0.32, 1)
+sprite_path = "res://assets/sprites/enemies/leechling.png"
+sprite_clips = ExtResource("3_clips")
+death_color = Color(0.55, 0.3, 0.62, 1)
+idle_cycle_percent = 80
+portrait_path = "res://assets/sprites/portraits/leechling.png"
+sprite_pixel_size = 0.045
+hp_percent = 40
+power_percent = 45
+speed = 190
+attacks = Array[ExtResource("1_attack")]([ExtResource("a_bite"), ExtResource("a_wriggle")])
+target_rule = 1
+target_bias_percent = 150
+gold = 6
+xp = 12
+voice_sfx = "voice_bloat"
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_heartleaf"), ExtResource("g_mossbed"), ExtResource("g_bitter_root")])
+runs_up = true

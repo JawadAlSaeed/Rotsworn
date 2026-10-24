@@ -1223,6 +1223,42 @@ def scene_ambush_rotten_road() -> np.ndarray:
     return p.rgba()
 
 
+def scene_ambush_drowned_mire() -> np.ndarray:
+    """Act 2's ambush page (phase 26, card #323): a bog at night, black water to the horizon, a
+    purse of coins on a mud bank in the middle, and violet eyes in the reeds and the water."""
+    hz = 30
+    p = backdrop(191, NIGHT, hz, DEAD_GRASS[:4], ground_tone=0.28, far_tone=0.42,
+                 trees=((10, 18), (116, 22), (100, 10)), moon=(24, 12, 4), stars=10, ridge_amp=7.0)
+    p.water(WATER_DARK.colors, hz + 3, tone=0.45, seed=9)
+    p.mist(hz + 4, 6, "#4e5a7a", strength=0.45)
+    # Reeds along both banks.
+    p.tufts(30, hz + 6, 62, "#3f4a2c", seed=5, x0=0, x1=34)
+    p.tufts(30, hz + 6, 62, "#3f4a2c", seed=6, x0=94, x1=SW)
+    # The mud bank the bait lies on.
+    bank = np.hypot((XX + 0.5 - 64.0) / 22.0, (YY + 0.5 - 56.0) / 4.5) < 1.0
+    p.img[bank] = rgb(MUD[1])
+    p.img[bank & (YY < 55)] = rgb(MUD[2])
+    p.palette.extend([MUD[1], MUD[2]])
+    # Rings on the water where something under it keeps still.
+    for cx, cy, r in ((30.0, 47.0, 9.0), (98.0, 45.0, 11.0), (64.0, 40.0, 7.0)):
+        ring = np.abs(np.hypot((XX + 0.5 - cx) / r, (YY + 0.5 - cy) / (r * 0.18)) - 1.0)
+        p.tint(np.where(ring < 0.06, 0.8, 0.0), "#7a6aa8", levels=2, strength=0.5)
+    for x, y, s, f in ((14, 52, 1.3, 1), (40, 44, 0.8, 1), (108, 54, 1.4, -1), (88, 42, 0.8, -1)):
+        lurker(p, x, y, s, PURPLE_GLOW, f, crouch=0.8)
+    for x, y in ((6, 40), (24, 36), (50, 37), (78, 36), (104, 38), (122, 44), (60, 46)):
+        p.eyes(x, y, PURPLE_GLOW, gap=2 if x % 2 else 3)
+    pouch = [Ellipsoid(LEATHER, (0.0, 2.8, 0.0), (4.2, 3.2, 3.4), group="pouch", bumps=(0.3, 0.6, 7)),
+             Torus(LEATHER, (0.0, 5.4, 0.0), 1.8, 0.7, group="pouch"),
+             Capsule(LEATHER, (-1.5, 6.0, 0.0), (-4.5, 5.5, 1.0), 0.4, group="tie", thin=True)]
+    pouch += [Cylinder(GOLD, (4.0 + 2.2 * k, 0.4 + 0.2 * k, 3.0 + (k % 2) * 2.0), 1.4, 0.25, R=rot(80.0, 0.0, 12.0 * k),
+                       group="coin") for k in range(4)]
+    sprite = prop(Union(*pouch), 28, 14, "pouch", centre="bbox")
+    p.glow(64, 54, 14, 5, AMBER_GLOW, strength=0.45, levels=3)
+    p.paste(sprite, 64, 56)
+    p.mist(58, 4, "#4a5272", strength=0.25, seed=3)
+    p.vignette(0.65)
+    return p.rgba()
+
 def scene_ambush_ashen_deep() -> np.ndarray:
     hz = 28
     p = new_painter(181)
@@ -1289,6 +1325,7 @@ SCENES = {
     "war_idol": scene_war_idol,
     "grave_robber": scene_grave_robber,
     "ambush_rotten_road": scene_ambush_rotten_road,
+    "ambush_drowned_mire": scene_ambush_drowned_mire,
     "ambush_ashen_deep": scene_ambush_ashen_deep,
 }
 

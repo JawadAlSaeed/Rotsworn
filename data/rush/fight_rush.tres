@@ -1,121 +1,130 @@
 [gd_resource type="Resource" script_class="RushData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/rush_boss.gd" id="1_aslad"]
-[ext_resource type="Resource" path="res://data/encounters/guard_gorged_one.tres" id="2_atpgq"]
-[ext_resource type="Resource" path="res://data/zones/rotten_hollow.tres" id="3_7haow"]
-[ext_resource type="Resource" path="res://data/encounters/guard_mire_mother.tres" id="4_f0f88"]
-[ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="5_fglw2"]
-[ext_resource type="Resource" path="res://data/encounters/guard_ash_warden.tres" id="6_0516d"]
-[ext_resource type="Resource" path="res://data/zones/ashen_ruins.tres" id="7_hpsam"]
-[ext_resource type="Resource" path="res://data/encounters/husk_lord_fight.tres" id="8_4tlmv"]
-[ext_resource type="Resource" path="res://data/looks/rotten_hollow.tres" id="9_ocbgq"]
-[ext_resource type="Resource" path="res://data/encounters/hollow_king.tres" id="10_gxk58"]
-[ext_resource type="Resource" path="res://data/looks/hollow_throne.tres" id="11_t83dt"]
-[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="12_sjqv3"]
-[ext_resource type="Resource" path="res://data/items/antidote.tres" id="13_kllte"]
-[ext_resource type="Resource" path="res://data/items/holy_water.tres" id="14_jsx0p"]
-[ext_resource type="Resource" path="res://data/items/salve.tres" id="15_jqiso"]
-[ext_resource type="Resource" path="res://data/items/feast.tres" id="16_y7bbw"]
-[ext_resource type="Resource" path="res://data/items/tonic.tres" id="17_yecjc"]
-[ext_resource type="Resource" path="res://data/items/bomb.tres" id="18_j82uh"]
-[ext_resource type="Resource" path="res://data/items/smelling_salts.tres" id="19_vj5l7"]
-[ext_resource type="Resource" path="res://data/items/bigger_pack.tres" id="20_6jkot"]
-[ext_resource type="Resource" path="res://data/runs/rotten_road.tres" id="21_emv53"]
-[ext_resource type="Script" path="res://scripts/data/rush_data.gd" id="22_vtd5n"]
-[ext_resource type="Script" path="res://scripts/data/rush_tier.gd" id="23_q3s0j"]
-[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="24_u6mis"]
-[ext_resource type="Resource" path="res://data/encounters/elite_twin_husks.tres" id="25_dua40"]
-[ext_resource type="Resource" path="res://data/encounters/elite_toad_court.tres" id="26_qh3jp"]
-[ext_resource type="Resource" path="res://data/encounters/elite_hyena_pack.tres" id="27_bws17"]
-[ext_resource type="Resource" path="res://data/encounters/husk_fight.tres" id="28_we7y7"]
-[ext_resource type="Resource" path="res://data/encounters/fly_fight.tres" id="29_13b78"]
-[ext_resource type="Resource" path="res://data/encounters/shade_fight.tres" id="30_8o4k8"]
-[ext_resource type="Resource" path="res://data/encounters/bloat_fight.tres" id="31_j6ase"]
-[ext_resource type="Resource" path="res://data/encounters/rat_pack.tres" id="32_5cpv0"]
-[ext_resource type="Resource" path="res://data/encounters/tick_and_husk.tres" id="33_edg1w"]
-[ext_resource type="Resource" path="res://data/encounters/husk_trio.tres" id="34_lsp6g"]
-[ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="35_snq1q"]
-[ext_resource type="Resource" path="res://data/encounters/fly_pair.tres" id="36_tksi8"]
-[ext_resource type="Resource" path="res://data/encounters/toad_fight.tres" id="37_0wmvq"]
-[ext_resource type="Resource" path="res://data/encounters/lantern_and_toad.tres" id="38_f7wob"]
-[ext_resource type="Resource" path="res://data/encounters/lantern_trio.tres" id="39_0wsbe"]
-[ext_resource type="Resource" path="res://data/encounters/tick_nest.tres" id="40_0jogr"]
-[ext_resource type="Resource" path="res://data/encounters/priest_coven.tres" id="41_wpu8e"]
-[ext_resource type="Resource" path="res://data/encounters/bloat_and_gnat.tres" id="42_p80hy"]
-[ext_resource type="Resource" path="res://data/encounters/hyena_and_fly.tres" id="43_ct880"]
-[ext_resource type="Resource" path="res://data/encounters/toad_and_fly.tres" id="44_o107h"]
-[ext_resource type="Resource" path="res://data/encounters/shade_and_gnat.tres" id="45_b2tlr"]
-[ext_resource type="Resource" path="res://data/encounters/slinger_trio.tres" id="46_f11im"]
-[ext_resource type="Resource" path="res://data/encounters/elite_shade_coven.tres" id="47_n35pf"]
-[ext_resource type="Resource" path="res://data/encounters/hyena_pack.tres" id="48_j4dan"]
-[ext_resource type="Resource" path="res://data/encounters/slinger_and_husk.tres" id="49_3371r"]
-[ext_resource type="Resource" path="res://data/encounters/brute_fight.tres" id="50_i5q25"]
-[ext_resource type="Resource" path="res://data/encounters/brute_and_rat.tres" id="51_7wljl"]
-[ext_resource type="Resource" path="res://data/encounters/priest_and_hyenas.tres" id="52_018da"]
-
-[sub_resource type="Resource" id="Resource_51hpk"]
-script = ExtResource("1_aslad")
-encounter = ExtResource("2_atpgq")
-zone = ExtResource("3_7haow")
-home_depth = 1
-
-[sub_resource type="Resource" id="Resource_dt1m6"]
-script = ExtResource("1_aslad")
-encounter = ExtResource("4_f0f88")
-zone = ExtResource("5_fglw2")
-home_depth = 3
-
-[sub_resource type="Resource" id="Resource_ngnkv"]
-script = ExtResource("1_aslad")
-encounter = ExtResource("6_0516d")
-zone = ExtResource("7_hpsam")
-home_depth = 9
-
-[sub_resource type="Resource" id="Resource_c30vs"]
-script = ExtResource("1_aslad")
-encounter = ExtResource("8_4tlmv")
-zone = ExtResource("3_7haow")
-look = ExtResource("9_ocbgq")
-home_depth = 6
+[ext_resource type="Script" path="res://scripts/data/rush_boss.gd" id="1_7haow"]
+[ext_resource type="Resource" path="res://data/encounters/guard_gorged_one.tres" id="2_f0f88"]
+[ext_resource type="Resource" path="res://data/zones/rotten_hollow.tres" id="3_fglw2"]
+[ext_resource type="Resource" path="res://data/encounters/guard_mire_mother.tres" id="4_0516d"]
+[ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="5_hpsam"]
+[ext_resource type="Resource" path="res://data/encounters/guard_ash_warden.tres" id="6_4tlmv"]
+[ext_resource type="Resource" path="res://data/zones/ashen_ruins.tres" id="7_ocbgq"]
+[ext_resource type="Resource" path="res://data/encounters/husk_lord_fight.tres" id="8_gxk58"]
+[ext_resource type="Resource" path="res://data/looks/rotten_hollow.tres" id="9_t83dt"]
+[ext_resource type="Resource" path="res://data/encounters/leech_queen_fight.tres" id="10_sjqv3"]
+[ext_resource type="Resource" path="res://data/looks/leech_lair.tres" id="11_kllte"]
+[ext_resource type="Resource" path="res://data/encounters/hollow_king.tres" id="12_jsx0p"]
+[ext_resource type="Resource" path="res://data/looks/hollow_throne.tres" id="13_jqiso"]
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="14_y7bbw"]
+[ext_resource type="Resource" path="res://data/items/antidote.tres" id="15_yecjc"]
+[ext_resource type="Resource" path="res://data/items/holy_water.tres" id="16_j82uh"]
+[ext_resource type="Resource" path="res://data/items/salve.tres" id="17_vj5l7"]
+[ext_resource type="Resource" path="res://data/items/feast.tres" id="18_6jkot"]
+[ext_resource type="Resource" path="res://data/items/tonic.tres" id="19_emv53"]
+[ext_resource type="Resource" path="res://data/items/bomb.tres" id="20_vtd5n"]
+[ext_resource type="Resource" path="res://data/items/smelling_salts.tres" id="21_q3s0j"]
+[ext_resource type="Resource" path="res://data/items/bigger_pack.tres" id="22_u6mis"]
+[ext_resource type="Resource" path="res://data/runs/rotten_road.tres" id="23_dua40"]
+[ext_resource type="Script" path="res://scripts/data/rush_data.gd" id="24_qh3jp"]
+[ext_resource type="Script" path="res://scripts/data/rush_tier.gd" id="25_bws17"]
+[ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="26_we7y7"]
+[ext_resource type="Resource" path="res://data/encounters/elite_twin_husks.tres" id="27_13b78"]
+[ext_resource type="Resource" path="res://data/encounters/elite_shade_coven.tres" id="28_8o4k8"]
+[ext_resource type="Resource" path="res://data/encounters/husk_fight.tres" id="29_j6ase"]
+[ext_resource type="Resource" path="res://data/encounters/fly_fight.tres" id="30_5cpv0"]
+[ext_resource type="Resource" path="res://data/encounters/shade_fight.tres" id="31_edg1w"]
+[ext_resource type="Resource" path="res://data/encounters/bloat_fight.tres" id="32_lsp6g"]
+[ext_resource type="Resource" path="res://data/encounters/rat_pack.tres" id="33_snq1q"]
+[ext_resource type="Resource" path="res://data/encounters/tick_and_husk.tres" id="34_tksi8"]
+[ext_resource type="Resource" path="res://data/encounters/husk_trio.tres" id="35_0wmvq"]
+[ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="36_f7wob"]
+[ext_resource type="Resource" path="res://data/encounters/elite_toad_court.tres" id="37_0wsbe"]
+[ext_resource type="Resource" path="res://data/encounters/fly_pair.tres" id="38_0jogr"]
+[ext_resource type="Resource" path="res://data/encounters/toad_fight.tres" id="39_wpu8e"]
+[ext_resource type="Resource" path="res://data/encounters/lantern_and_toad.tres" id="40_p80hy"]
+[ext_resource type="Resource" path="res://data/encounters/lantern_trio.tres" id="41_ct880"]
+[ext_resource type="Resource" path="res://data/encounters/tick_nest.tres" id="42_o107h"]
+[ext_resource type="Resource" path="res://data/encounters/priest_coven.tres" id="43_b2tlr"]
+[ext_resource type="Resource" path="res://data/encounters/toad_and_fly.tres" id="44_f11im"]
+[ext_resource type="Resource" path="res://data/encounters/elite_hyena_pack.tres" id="45_n35pf"]
+[ext_resource type="Resource" path="res://data/encounters/hyena_pack.tres" id="46_j4dan"]
+[ext_resource type="Resource" path="res://data/encounters/hyena_and_fly.tres" id="47_3371r"]
+[ext_resource type="Resource" path="res://data/encounters/slinger_and_husk.tres" id="48_i5q25"]
+[ext_resource type="Resource" path="res://data/encounters/slinger_trio.tres" id="49_7wljl"]
+[ext_resource type="Resource" path="res://data/encounters/brute_fight.tres" id="50_018da"]
+[ext_resource type="Resource" path="res://data/encounters/brute_and_rat.tres" id="51_51hpk"]
+[ext_resource type="Resource" path="res://data/encounters/priest_and_hyenas.tres" id="52_dt1m6"]
+[ext_resource type="Resource" path="res://data/encounters/shade_and_gnat.tres" id="53_ngnkv"]
+[ext_resource type="Resource" path="res://data/encounters/bloat_and_gnat.tres" id="54_c30vs"]
 
 [sub_resource type="Resource" id="Resource_4mj7h"]
-script = ExtResource("1_aslad")
-encounter = ExtResource("10_gxk58")
-look = ExtResource("11_t83dt")
-home_depth = 13
+script = ExtResource("1_7haow")
+encounter = ExtResource("2_f0f88")
+zone = ExtResource("3_fglw2")
+home_depth = 1
 
 [sub_resource type="Resource" id="Resource_fa8uf"]
-script = ExtResource("23_q3s0j")
-zones = Array[ExtResource("35_snq1q")]([ExtResource("3_7haow")])
-fights = Array[ExtResource("24_u6mis")]([ExtResource("28_we7y7"), ExtResource("29_13b78"), ExtResource("30_8o4k8"), ExtResource("31_j6ase"), ExtResource("32_5cpv0"), ExtResource("33_edg1w"), ExtResource("34_lsp6g")])
-elites = Array[ExtResource("24_u6mis")]([ExtResource("25_dua40"), ExtResource("26_qh3jp"), ExtResource("27_bws17")])
+script = ExtResource("1_7haow")
+encounter = ExtResource("4_0516d")
+zone = ExtResource("5_hpsam")
+home_depth = 3
 
 [sub_resource type="Resource" id="Resource_k788w"]
-script = ExtResource("23_q3s0j")
-from_fight = 11
-zones = Array[ExtResource("35_snq1q")]([ExtResource("5_fglw2")])
-fights = Array[ExtResource("24_u6mis")]([ExtResource("36_tksi8"), ExtResource("28_we7y7"), ExtResource("37_0wmvq"), ExtResource("38_f7wob"), ExtResource("39_0wsbe"), ExtResource("40_0jogr"), ExtResource("32_5cpv0"), ExtResource("41_wpu8e"), ExtResource("42_p80hy"), ExtResource("43_ct880"), ExtResource("44_o107h"), ExtResource("45_b2tlr"), ExtResource("34_lsp6g"), ExtResource("46_f11im")])
-elites = Array[ExtResource("24_u6mis")]([ExtResource("25_dua40"), ExtResource("26_qh3jp"), ExtResource("27_bws17")])
+script = ExtResource("1_7haow")
+encounter = ExtResource("6_4tlmv")
+zone = ExtResource("7_ocbgq")
+home_depth = 9
 
 [sub_resource type="Resource" id="Resource_8hf50"]
-script = ExtResource("23_q3s0j")
-from_fight = 21
-zones = Array[ExtResource("35_snq1q")]([ExtResource("7_hpsam")])
-fights = Array[ExtResource("24_u6mis")]([ExtResource("30_8o4k8"), ExtResource("48_j4dan"), ExtResource("43_ct880"), ExtResource("49_3371r"), ExtResource("46_f11im"), ExtResource("50_i5q25"), ExtResource("51_7wljl"), ExtResource("52_018da"), ExtResource("45_b2tlr"), ExtResource("44_o107h"), ExtResource("42_p80hy"), ExtResource("39_0wsbe"), ExtResource("40_0jogr")])
-elites = Array[ExtResource("24_u6mis")]([ExtResource("47_n35pf"), ExtResource("27_bws17"), ExtResource("25_dua40")])
-deep = true
+script = ExtResource("1_7haow")
+encounter = ExtResource("8_gxk58")
+zone = ExtResource("3_fglw2")
+look = ExtResource("9_t83dt")
+home_depth = 6
 
 [sub_resource type="Resource" id="Resource_k7sgb"]
-script = ExtResource("23_q3s0j")
+script = ExtResource("1_7haow")
+encounter = ExtResource("10_sjqv3")
+zone = ExtResource("5_hpsam")
+look = ExtResource("11_kllte")
+home_depth = 13
+
+[sub_resource type="Resource" id="Resource_ljd6h"]
+script = ExtResource("1_7haow")
+encounter = ExtResource("12_jsx0p")
+look = ExtResource("13_jqiso")
+home_depth = 20
+
+[sub_resource type="Resource" id="Resource_j6jt3"]
+script = ExtResource("25_bws17")
+zones = Array[ExtResource("36_f7wob")]([ExtResource("3_fglw2")])
+fights = Array[ExtResource("26_we7y7")]([ExtResource("29_j6ase"), ExtResource("30_5cpv0"), ExtResource("31_edg1w"), ExtResource("32_lsp6g"), ExtResource("33_snq1q"), ExtResource("34_tksi8"), ExtResource("35_0wmvq")])
+elites = Array[ExtResource("26_we7y7")]([ExtResource("27_13b78"), ExtResource("28_8o4k8")])
+
+[sub_resource type="Resource" id="Resource_y7xsj"]
+script = ExtResource("25_bws17")
+from_fight = 11
+zones = Array[ExtResource("36_f7wob")]([ExtResource("5_hpsam")])
+fights = Array[ExtResource("26_we7y7")]([ExtResource("38_0jogr"), ExtResource("29_j6ase"), ExtResource("39_wpu8e"), ExtResource("40_p80hy"), ExtResource("41_ct880"), ExtResource("42_o107h"), ExtResource("33_snq1q"), ExtResource("43_b2tlr"), ExtResource("44_f11im"), ExtResource("35_0wmvq")])
+elites = Array[ExtResource("26_we7y7")]([ExtResource("37_0wsbe"), ExtResource("27_13b78")])
+
+[sub_resource type="Resource" id="Resource_04rvu"]
+script = ExtResource("25_bws17")
+from_fight = 21
+zones = Array[ExtResource("36_f7wob")]([ExtResource("7_ocbgq")])
+fights = Array[ExtResource("26_we7y7")]([ExtResource("31_edg1w"), ExtResource("46_j4dan"), ExtResource("47_3371r"), ExtResource("48_i5q25"), ExtResource("49_7wljl"), ExtResource("50_018da"), ExtResource("51_51hpk"), ExtResource("52_dt1m6"), ExtResource("53_ngnkv")])
+elites = Array[ExtResource("26_we7y7")]([ExtResource("45_n35pf"), ExtResource("28_8o4k8")])
+deep = true
+
+[sub_resource type="Resource" id="Resource_i2m1n"]
+script = ExtResource("25_bws17")
 from_fight = 31
-zones = Array[ExtResource("35_snq1q")]([ExtResource("3_7haow"), ExtResource("5_fglw2"), ExtResource("7_hpsam")])
-fights = Array[ExtResource("24_u6mis")]([ExtResource("28_we7y7"), ExtResource("29_13b78"), ExtResource("30_8o4k8"), ExtResource("31_j6ase"), ExtResource("32_5cpv0"), ExtResource("33_edg1w"), ExtResource("34_lsp6g"), ExtResource("36_tksi8"), ExtResource("37_0wmvq"), ExtResource("38_f7wob"), ExtResource("39_0wsbe"), ExtResource("40_0jogr"), ExtResource("41_wpu8e"), ExtResource("42_p80hy"), ExtResource("43_ct880"), ExtResource("44_o107h"), ExtResource("45_b2tlr"), ExtResource("46_f11im"), ExtResource("48_j4dan"), ExtResource("49_3371r"), ExtResource("50_i5q25"), ExtResource("51_7wljl"), ExtResource("52_018da")])
-elites = Array[ExtResource("24_u6mis")]([ExtResource("25_dua40"), ExtResource("26_qh3jp"), ExtResource("27_bws17"), ExtResource("47_n35pf")])
+zones = Array[ExtResource("36_f7wob")]([ExtResource("3_fglw2"), ExtResource("5_hpsam"), ExtResource("7_ocbgq")])
+fights = Array[ExtResource("26_we7y7")]([ExtResource("29_j6ase"), ExtResource("30_5cpv0"), ExtResource("31_edg1w"), ExtResource("32_lsp6g"), ExtResource("33_snq1q"), ExtResource("34_tksi8"), ExtResource("35_0wmvq"), ExtResource("38_0jogr"), ExtResource("39_wpu8e"), ExtResource("40_p80hy"), ExtResource("41_ct880"), ExtResource("42_o107h"), ExtResource("43_b2tlr"), ExtResource("46_j4dan"), ExtResource("47_3371r"), ExtResource("48_i5q25"), ExtResource("49_7wljl"), ExtResource("50_018da"), ExtResource("51_51hpk"), ExtResource("52_dt1m6"), ExtResource("54_c30vs"), ExtResource("53_ngnkv"), ExtResource("44_f11im")])
+elites = Array[ExtResource("26_we7y7")]([ExtResource("27_13b78"), ExtResource("28_8o4k8"), ExtResource("37_0wsbe"), ExtResource("45_n35pf")])
 deep = true
 
 [resource]
-script = ExtResource("22_vtd5n")
-run = ExtResource("21_emv53")
-tiers = Array[ExtResource("23_q3s0j")]([SubResource("Resource_fa8uf"), SubResource("Resource_k788w"), SubResource("Resource_8hf50"), SubResource("Resource_k7sgb")])
-bosses = Array[ExtResource("1_aslad")]([SubResource("Resource_51hpk"), SubResource("Resource_dt1m6"), SubResource("Resource_ngnkv"), SubResource("Resource_c30vs"), SubResource("Resource_4mj7h")])
-items = Array[ExtResource("12_sjqv3")]([ExtResource("13_kllte"), ExtResource("14_jsx0p"), ExtResource("15_jqiso"), ExtResource("16_y7bbw"), ExtResource("17_yecjc"), ExtResource("18_j82uh"), ExtResource("19_vj5l7"), ExtResource("20_6jkot")])
+script = ExtResource("24_qh3jp")
+run = ExtResource("23_dua40")
+tiers = Array[ExtResource("25_bws17")]([SubResource("Resource_j6jt3"), SubResource("Resource_y7xsj"), SubResource("Resource_04rvu"), SubResource("Resource_i2m1n")])
+bosses = Array[ExtResource("1_7haow")]([SubResource("Resource_4mj7h"), SubResource("Resource_fa8uf"), SubResource("Resource_k788w"), SubResource("Resource_8hf50"), SubResource("Resource_k7sgb"), SubResource("Resource_ljd6h")])
+items = Array[ExtResource("14_y7bbw")]([ExtResource("15_yecjc"), ExtResource("16_j82uh"), ExtResource("17_vj5l7"), ExtResource("18_6jkot"), ExtResource("19_emv53"), ExtResource("20_vtd5n"), ExtResource("21_q3s0j"), ExtResource("22_u6mis")])

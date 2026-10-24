@@ -149,6 +149,9 @@ const DROPS := {
 	"hollow_priest": ["pale_tithe", "cleansing_bell", "tallow_candle"],
 	"pus_tick": ["hunger_charm", "wardstone", "marrow_charm"],
 	"bile_tick": ["plague_bell", "black_ichor", "sour_milk"],
+	# Phase 26 (card #323, DESIGN.md 8.23): the second act's boss and her brood.
+	"leech_queen": ["hunger_charm", "bloodletters_fang", "black_ichor", "still_water", "second_wind"],
+	"leechling": ["heartleaf", "mossbed", "bitter_root"],
 }
 
 

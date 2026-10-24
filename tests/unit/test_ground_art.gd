@@ -144,7 +144,7 @@ func test_floor_uses_the_look_s_variants_and_numbers() -> void:
 
 func test_every_look_ships_three_floor_tiles_and_regions_on() -> void:
 	var looks := _looks()
-	assert_eq(looks.size(), 4, "four places")
+	assert_eq(looks.size(), 5, "five places: the three zones and two lairs (the throne, the Leech Queen's)")
 	for look: StageLook in looks:
 		assert_eq(look.floor_variant_paths.size(), 2, "%s: two variants beside the base tile" % look.floor_tile_path)
 		assert_gt(look.floor_region_world_size, 0.0, "%s: regions on" % look.floor_tile_path)
@@ -154,7 +154,7 @@ func test_every_look_ships_three_floor_tiles_and_regions_on() -> void:
 	var bases := {}
 	for look: StageLook in looks:
 		bases[look.floor_tile_path] = true
-	assert_eq(bases.size(), 4, "every place has its own floor (the boss hall no longer reuses the ash)")
+	assert_eq(bases.size(), 5, "every place has its own floor (the boss halls reuse no zone's)")
 
 
 # --- pixel density -----------------------------------------------------------------------------

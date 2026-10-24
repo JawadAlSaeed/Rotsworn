@@ -514,7 +514,7 @@ func _bosses() -> Array[EnemyData]:
 
 func test_each_guard_and_boss_has_exactly_one_doom() -> void:
 	var bosses := _bosses()
-	assert_gte(bosses.size(), 5, "three zone guards and two act bosses")
+	assert_gte(bosses.size(), 6, "three zone guards and three act bosses")
 	var names: Array[String] = []
 	for boss: EnemyData in bosses:
 		names.append(boss.id)
@@ -523,7 +523,7 @@ func test_each_guard_and_boss_has_exactly_one_doom() -> void:
 		var doom := _dooms_of(boss)[0]
 		assert_true(boss.attacks.has(doom), "%s: the Doom is a phase one move" % boss.id)
 		assert_true(boss.phase_two_attacks.has(doom), "%s: and a phase two move" % boss.id)
-	for id: String in ["husk_lord", "hollow_king", "gorged_one", "mire_mother", "ash_warden"]:
+	for id: String in ["husk_lord", "leech_queen", "hollow_king", "gorged_one", "mire_mother", "ash_warden"]:
 		assert_true(names.has(id), id + " is a guard or boss fight")
 
 
