@@ -196,6 +196,13 @@ func _show_sub(parent: StringName, item: StringName = &"") -> void:
 	_menu.set_items(rows)
 
 
+## Opens Online's or New Run's cards with `item` chosen, as Confirm on that row does (the
+## --screen=rush_cards dev screen). Any other `parent` is ignored.
+func open_cards(parent: StringName, item: StringName = &"") -> void:
+	if parent == ONLINE or parent == NEW_RUN:
+		_show_sub(parent, item)
+
+
 ## True while Online's or New Run's cards show (tests).
 func is_showing_cards() -> bool:
 	return _menu.horizontal and _cards_footer.visible

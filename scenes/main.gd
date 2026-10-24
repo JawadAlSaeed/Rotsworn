@@ -60,6 +60,9 @@ const AUTOPLAY_DROP_POLL_S: float = 0.5
 const AUTOPLAY_DROP_INTO_FIGHT_S: float = 6.0
 ## The backpack over a zone draws above the zone's HUD and run bar.
 const ZONE_BACKPACK_LAYER: int = 20
+## --screen=rush_*: the sample record the Fight Rush dev screens show ("Best 16"), and the fight their
+## NEW RECORD end sample reaches. Never written to the stored records (DESIGN.md 8.21, D9).
+const DEV_RUSH_BEST: int = 16
 
 var _encounters: Array[EncounterData] = []
 var _zones: Array[ZoneData] = []
@@ -445,11 +448,104 @@ func _open_dev_screen(screen_name: String) -> void:
 			var settings := _screen as SettingsScreen
 			settings.open_page(SettingsScreen.ControlsPage.CONTROLLER)
 			settings.select_row("vibration")
+		"rush_cards", "rush_players", "rush_reward", "rush_reward_elite", "rush_ready", "rush_end", "rush_pause":
+			_show_sample_rush(screen_name)
 		_:
 			if screen_name.begins_with("glossary_"):
 				_show_glossary(screen_name.trim_prefix("glossary_"))
 			else:
 				_show_main_menu()
+
+
+## --screen=rush_*: the Fight Rush screens (DESIGN.md 8.21) on a sample Rush, for pictures. rush_cards:
+## the main menu on New Run's cards with a best of 16; rush_players: the Fight Rush players screen;
+## rush_reward / rush_reward_elite: the picks after fight 7 (normal) / fight 5 (elite); rush_ready:
+## the ready phase before fight 8; rush_end: RUSH OVER at fight 16 with NEW RECORD and a killer;
+## rush_pause: the Rush screen with the pause menu open. Nothing reads or writes the records (D9).
+func _show_sample_rush(screen_name: String) -> void:
+	if _rush_data == null:
+		push_error("Main: no Fight Rush data, no %s screen" % screen_name)
+		_show_main_menu()
+		return
+	match screen_name:
+		"rush_cards":
+			_show_main_menu(DEV_RUSH_BEST)
+			(_screen as MainMenu).open_cards(MainMenu.NEW_RUN, MainMenu.PLAY_RUSH)
+		"rush_players":
+			_show_rush_lobby()
+		"rush_reward":
+			_sample_rush_won(7)
+			_show_rush_reward()
+		"rush_reward_elite":
+			_sample_rush_won(5)
+			_show_rush_reward()
+		"rush_ready":
+			var rush := _sample_rush_won(7)
+			while rush.picking():
+				var train := -1
+				for i: int in rush.offer.size():
+					if String(rush.offer[i].get("kind", "")) == RushState.CARD_POINT:
+						train = i
+				if rush.take_card(maxi(0, train)).is_empty():
+					break
+				rush.next_offer()
+			_show_rush_reward()
+		"rush_end":
+			_show_sample_rush_end()
+		"rush_pause":
+			_sample_rush_won(7)
+			_show_rush_reward()
+			_open_pause()
+
+
+## A sample Rush (seed 7, the sample Relic bag) that has just won fight `fight` with the party hurt,
+## its reward picks up: the fights before it replayed by the dev head start, their points spent as
+## the bot spends them. The Rush screen's Best chip shows DEV_RUSH_BEST (a solo record), set here
+## without touching the stored records.
+func _sample_rush_won(fight: int) -> RushState:
+	var rush := RushState.begin_rush(_rush_data, _tuning, 7, _sample_collection(), fight)
+	for slot: int in rush.party_size():
+		if rush.has_tree(slot) and rush.free_skill_points(slot) > 0:
+			rush.auto_skills(slot)
+		if rush.free_points(slot) > 0:
+			rush.auto_spend(slot)
+	rush.next_fight()
+	var hurt: Array[int] = []
+	for slot: int in rush.party_size():
+		hurt.append(CombatMath.percent(rush.max_hp(slot), 55 + 15 * slot))
+	rush.finish_fight(RunState.VICTORY, hurt, rush.encounter_now())
+	_run = rush
+	_decided_run = null
+	_fight_weather = null
+	_rush_new_record = false
+	_rush_best_start = {1: DEV_RUSH_BEST, 2: 0, 3: 0}
+	return rush
+
+
+## --screen=rush_end: a Rush lost at fight 16 that set a new solo record, with each hero's defence
+## and the blow that ended it (the fight's first enemy and its first attack).
+func _show_sample_rush_end() -> void:
+	var rush := RushState.begin_rush(_rush_data, _tuning, 7, _sample_collection(), DEV_RUSH_BEST)
+	rush.next_fight()
+	var encounter := rush.encounter_now()
+	rush.finish_fight(RunState.DEFEAT, [0, 0, 0] as Array[int], encounter)
+	rush.add_defence([[14, 3, 2, 5], [6, 9, 1, 3], [4, 2, 6, 8]])
+	var recap := {}
+	if encounter != null and not encounter.enemies.is_empty():
+		var foe: EnemyData = encounter.enemies[0]
+		var attacks := foe.all_attacks()
+		recap = {"enemies": [foe.display_name], "last_blow": {"source": foe.display_name, "amount": 23,
+				"name": attacks[0].display_name if not attacks.is_empty() else ""}}
+	_run = rush
+	_decided_run = rush
+	_rush_new_record = true
+	var end := RunEndScreen.new()
+	end.name = "RunEnd"
+	end.setup_rush(rush, _visuals.end_input_guard_ms, RushRecords.entry(rush.reached(), Time.get_date_string_from_system()),
+			true, _hero_players(), recap)
+	end.done.connect(_fade_to.bind(_show_main_menu))
+	end.again.connect(_fade_to.bind(_play_again))
+	_show_screen(end)
 
 
 ## --screen=map: a new run two stops in; map_start: before the first stop; map_act2: one stop into
@@ -773,7 +869,9 @@ func _end_busy() -> void:
 	_pump_net.call_deferred()
 
 
-func _show_main_menu() -> void:
+## The main menu. `rush_best` above -1 replaces the stored best Rush on the Fight Rush card (the
+## rush_cards dev screen's sample; nothing is read or written then).
+func _show_main_menu(rush_best: int = -1) -> void:
 	_end_tutorial()
 	_run = null
 	_fight_weather = null
@@ -789,8 +887,8 @@ func _show_main_menu() -> void:
 	var start := MainMenu.CONTINUE if not saved.is_empty() and not _menu_used else _menu_item
 	# Practice (any fight or zone on its own) is a test tool: only debug builds list it (card #208).
 	# New Run's Fight Rush card shows the best Rush record and is greyed without the Rush data.
-	menu.setup(_branding, start, _notice, not saved.is_empty(), OS.is_debug_build(), PlayerSettings.rush_best_any(),
-			_rush_data != null)
+	menu.setup(_branding, start, _notice, not saved.is_empty(), OS.is_debug_build(),
+			PlayerSettings.rush_best_any() if rush_best < 0 else rush_best, _rush_data != null)
 	_notice = ""
 	menu.chosen.connect(_on_menu_chosen)
 	_show_screen(menu)

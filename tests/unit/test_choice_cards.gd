@@ -519,6 +519,20 @@ func test_new_run_cards_without_a_record_or_rush_data() -> void:
 	assert_eq(_picked, [MainMenu.PLAY_RUN] as Array[StringName])
 
 
+## The rush_cards dev screen opens New Run's cards straight away, the Fight Rush card chosen.
+func test_open_cards_shows_new_runs_cards_on_the_rush_card() -> void:
+	var menu := _main_menu(MainMenu.NEW_RUN, 16)
+	var list := _list_in(menu)
+	menu.open_cards(MainMenu.NEW_RUN, MainMenu.PLAY_RUSH)
+	assert_true(menu.is_showing_cards())
+	assert_eq(_texts(list), ["Run", "Fight Rush"])
+	assert_eq(list.index, 1, "the Fight Rush card is chosen")
+	menu.open_cards(MainMenu.EXTRAS)
+	assert_true(menu.is_showing_cards(), "only Online and New Run open cards")
+	_press_on(menu, &"menu_confirm")
+	assert_eq(_picked, [MainMenu.PLAY_RUSH] as Array[StringName])
+
+
 func test_coming_back_from_a_run_or_a_rush_rests_on_new_run() -> void:
 	for start: StringName in MainMenu.MODE_ITEMS:
 		var menu := _main_menu(start)

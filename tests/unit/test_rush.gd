@@ -711,6 +711,35 @@ func test_built_data_validates_and_bad_data_does_not() -> void:
 	assert_false(guard.validate().is_empty(), "a guard is no tier fight")
 
 
+## The Rush's dev and bot switches (DESIGN.md 8.21): --rush-start and --rush-fights imply --rush,
+## and stay in range.
+func test_rush_switches_parse() -> void:
+	var plain := CombatOptions.from_args(PackedStringArray([]), null)
+	assert_false(plain.rush, "no Rush by default")
+	assert_eq(plain.rush_start, 1)
+	assert_eq(plain.rush_fights, 0, "no cap by default")
+	assert_true(CombatOptions.from_args(PackedStringArray(["--rush"]), null).rush)
+	var start := CombatOptions.from_args(PackedStringArray(["--rush-start=0"]), null)
+	assert_true(start.rush, "--rush-start implies --rush")
+	assert_eq(start.rush_start, 1, "the first fight is at least 1")
+	assert_eq(CombatOptions.from_args(PackedStringArray(["--rush-start=21"]), null).rush_start, 21)
+	var capped := CombatOptions.from_args(PackedStringArray(["--rush-fights=5"]), null)
+	assert_true(capped.rush, "--rush-fights implies --rush")
+	assert_eq(capped.rush_fights, 5)
+	assert_eq(capped.rush_start, 1)
+	assert_eq(CombatOptions.from_args(PackedStringArray(["--rush-fights=-3"]), null).rush_fights, 0, "never below 0")
+
+
+## Every Fight Rush dev screen (--screen=rush_*) is wired in Main's dev screen list.
+func test_rush_dev_screens_are_wired() -> void:
+	var source := FileAccess.get_file_as_string("res://scenes/main.gd")
+	var start := source.find("func _open_dev_screen(")
+	var body := source.substr(start, source.find("\nfunc ", start + 1) - start)
+	for screen: String in ["rush_cards", "rush_players", "rush_reward", "rush_reward_elite", "rush_ready", "rush_end",
+			"rush_pause"]:
+		assert_string_contains(body, "\"%s\"" % screen)
+
+
 func test_unspent_points_and_players() -> void:
 	var r := _rush_state()
 	assert_eq(r.unspent_points(), 0)
