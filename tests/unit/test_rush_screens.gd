@@ -3,8 +3,9 @@ extends GutTest
 ## its reward cards side by side (Heal, Train, an item; Relics after elites and bosses), Heal greyed
 ## when nobody would gain HP and naming a hero whose Relics change it, the hand-out of an item or Relic
 ## over it, the next pick, then the ready phase (Fight and Party) that asks for the fight once; a
-## watching client takes nothing; it fits the screen at the largest text size. Uses the shipped Rush
-## data. Nothing here touches user://.
+## watching client takes nothing; it fits the screen at the largest text size. The Rush's end screen
+## (RUSH OVER, the record, no Kept row), the Fight Rush players screen's title and the fight end's
+## Rewards / Results hints. Uses the shipped Rush data. Nothing here touches user://.
 
 const RUSH_PATH := "res://data/rush/fight_rush.tres"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
@@ -314,3 +315,108 @@ func test_the_screen_fits_1920x1080_at_the_largest_text_size() -> void:
 		await get_tree().process_frame
 		_fits(screen, String(sample[1]))
 		screen.visible = false
+
+
+# --- step (d): the Rush end, the players screen title, the fight end hints ------------------------
+
+## Every Label text under `node`.
+static func _labels_of(node: Node) -> Array[String]:
+	var texts: Array[String] = []
+	for label: Node in node.find_children("*", "Label", true, false):
+		texts.append((label as Label).text)
+	return texts
+
+
+func _end(r: RushState, best: Dictionary, new_record: bool, recap: Dictionary) -> RunEndScreen:
+	var end := RunEndScreen.new()
+	add_child_autofree(end)
+	end.setup_rush(r, 0, best, new_record, [] as Array[int], recap)
+	return end
+
+
+func test_the_rush_end_shows_the_fight_the_record_and_no_kept_row() -> void:
+	var r := _won(3)
+	r.picks_left = 0
+	r.next_fight()
+	r.finish_fight(RunState.DEFEAT, [0, 0, 0] as Array[int], r.encounter_now(), {})
+	assert_eq(r.result, RunState.DEFEAT)
+	var recap := {"enemies": ["Rotten Husk"], "last_blow": {"name": "Swipe", "source": "Rotten Husk", "amount": 23}}
+	var end := _end(r, RushRecords.entry(4, "2026-10-24"), true, recap)
+	var texts := _labels_of(end)
+	assert_true(texts.has("RUSH OVER"), "the title")
+	assert_true(texts.has("NEW RECORD"), "a new record says so")
+	assert_true(texts.has("Fight 4"), "the fight reached")
+	assert_true(texts.has("Best 4") and texts.has("2026-10-24"), "the record and its day")
+	assert_true(texts.has("Solo"), "the party size")
+	assert_true(texts.has("Killed by"), "a loss shows the killer")
+	assert_false(texts.has("Kept"), "nothing from a Rush is kept")
+	assert_eq(end.find_children("*", "RelicIcon", true, false).size(), 0, "no Kept row of Relics")
+	for text: String in texts:
+		assert_false(text.contains("Gold") or text.contains("RUN OVER"), "'%s' is not a run's word" % text)
+
+
+func test_a_rush_given_up_has_no_killer_and_no_record_line() -> void:
+	var r := _won(3)
+	r.give_up()
+	var recap := {"enemies": ["Rotten Husk"], "last_blow": {"name": "Swipe", "source": "Rotten Husk", "amount": 23}}
+	var texts := _labels_of(_end(r, {}, false, recap))
+	assert_true(texts.has("RUSH OVER"))
+	assert_false(texts.has("Killed by"), "Give up is not a loss: no killer")
+	assert_false(texts.has("NEW RECORD"))
+	# (The defence rows' star reads "Best" alone; the record chip reads "Best 16".)
+	assert_false(texts.any(func(t: String) -> bool: return t.begins_with("Best ")), "no record kept: no Best chip")
+	assert_true(texts.has("Fight 3"), "the fight won last is the fight reached")
+	var plain := _labels_of(_end(_won(2), {}, false, {}))
+	assert_true(plain.has("RUSH OVER"), "builds without a recap too")
+
+
+func test_the_rush_end_chips_read_fight_best_and_party_size() -> void:
+	var r := _won(16)
+	r.note_players(2)
+	var texts := RunEndScreen.rush_chips(r, RushRecords.entry(16, "2026-10-24")).map(
+			func(chip: Dictionary) -> String: return String(chip.text))
+	assert_eq(texts, ["Fight 16", "Best 16", "Duo"])
+	var icons := RunEndScreen.rush_chips(r, RushRecords.entry(16, "2026-10-24")).map(
+			func(chip: Dictionary) -> Variant: return chip.icon)
+	assert_eq(icons, [&"sword", &"star", &"person"], "each word has its icon")
+	assert_eq(String(RunEndScreen.rush_chips(r, RushRecords.entry(16, "2026-10-24"))[1].detail), "2026-10-24")
+	var none := RunEndScreen.rush_chips(r, {}).map(func(chip: Dictionary) -> String: return String(chip.text))
+	assert_eq(none, ["Fight 16", "Duo"], "no record: no Best chip")
+	r.note_players(3)
+	assert_eq(String(RunEndScreen.rush_chips(r, {})[1].text), "Trio")
+
+
+func test_the_players_screen_takes_its_title() -> void:
+	var data := _rush.run
+	var names: Array[String] = []
+	var portraits: Array[String] = []
+	for c: CharacterData in data.party:
+		names.append(c.display_name)
+		portraits.append(c.big_portrait_path)
+	var rush_lobby := LobbyScreen.new()
+	rush_lobby.hero_portraits = portraits
+	rush_lobby.title_text = "Fight Rush"
+	rush_lobby.setup(names, null, PlayerRoster.KEYBOARD)
+	add_child_autofree(rush_lobby)
+	assert_true(_labels_of(rush_lobby).has("Fight Rush"), "the Fight Rush players screen")
+	assert_false(_labels_of(rush_lobby).has("Players"))
+	var run_lobby := LobbyScreen.new()
+	run_lobby.hero_portraits = portraits
+	run_lobby.setup(names, null, PlayerRoster.KEYBOARD)
+	add_child_autofree(run_lobby)
+	assert_true(_labels_of(run_lobby).has("Players"), "a run's keeps its title")
+
+
+func test_a_rush_fight_end_says_rewards_or_results() -> void:
+	var fight := CombatController.new()
+	fight.configure_run(_won(3))
+	fight._result = "victory"
+	assert_eq(fight._end_hints(), [[&"menu_confirm", "Rewards"]], "a win goes on to the cards")
+	fight._result = "defeat"
+	assert_eq(fight._end_hints(), [[&"menu_confirm", "Results"]], "a loss goes on to the end")
+	fight.free()
+	var run_fight := CombatController.new()
+	run_fight.configure_run(RunState.new())
+	run_fight._result = "victory"
+	assert_eq(run_fight._end_hints(), [[&"menu_confirm", "On with the run"]], "a run's words stay")
+	run_fight.free()

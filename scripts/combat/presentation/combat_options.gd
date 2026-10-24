@@ -16,6 +16,10 @@ extends RefCounted
 ##                                   fog, wind, dusk) or none ("clear"), for tests and pictures
 ##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
 ##   --run                           start a new run at once (DESIGN.md 8)
+##   --rush                          start a Fight Rush at once (DESIGN.md 8.21)
+##   --rush-start=N                  (dev tool) the Rush starts at fight N, the fights before it
+##                                   replayed as perfect wins (at least 1; implies --rush)
+##   --rush-fights=N                 (dev tool) the Rush ends after N fights (0: no cap; implies --rush)
 ##   --save-path=PATH                (dev tool) keep the run save at PATH (a user:// path); the bot
 ##                                   never touches the player's real save, so it saves only with this
 ##   --journal-path=PATH             (dev tool) keep the Rot Journal at PATH (a user:// path); with it
@@ -81,6 +85,12 @@ var zone_id: String = ""
 var weather_id: String = ""
 var first_strike: bool = false
 var run: bool = false
+## --rush: start a Fight Rush at once; --rush-start=N: its first fight (above 1 replays the ones
+## before, RushState.head_start); --rush-fights=N: it stops after N fights (0: never). The last two
+## imply --rush and keep the Rush out of the records (DESIGN.md 8.21).
+var rush: bool = false
+var rush_start: int = 1
+var rush_fights: int = 0
 ## --continue: pick up the saved run at once.
 var continue_run: bool = false
 ## --save-path=PATH ("" : the real save, and no saving for the bot).
@@ -183,6 +193,14 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.first_strike = true
 		elif arg == "--run":
 			options.run = true
+		elif arg == "--rush":
+			options.rush = true
+		elif arg.begins_with("--rush-start="):
+			options.rush = true
+			options.rush_start = maxi(1, arg.substr("--rush-start=".length()).to_int())
+		elif arg.begins_with("--rush-fights="):
+			options.rush = true
+			options.rush_fights = maxi(0, arg.substr("--rush-fights=".length()).to_int())
 		elif arg == "--continue":
 			options.continue_run = true
 		elif arg.begins_with("--save-path="):

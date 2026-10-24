@@ -81,6 +81,8 @@ var hero_portraits: Array[String] = []
 var oaths: Array[OathData] = []
 var oath_unlocked: int = 0
 var start_oath: int = 0
+## The local screen's title (set before setup): "Players", or "Fight Rush" before a Rush (DESIGN.md 8.21).
+var title_text: String = "Players"
 
 var _roster: PlayerRoster
 var _hero_names: Array[String] = []
@@ -117,7 +119,7 @@ func setup(hero_names: Array[String], previous: PlayerRoster, first_device: int)
 		# Someone else opened it: they are P1 now, alone.
 		_roster = PlayerRoster.solo(hero_names.size(), first_device)
 	_oath = clampi(start_oath, 0, mini(oath_unlocked, oaths.size()))
-	_build("Players", "", hints(false, true))
+	_build(title_text, "", hints(false, true))
 
 
 ## The online players screen. `roster` is the host's (online) roster; `is_host` false makes this

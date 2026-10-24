@@ -21,7 +21,8 @@ extends Node
 ## pads, for the bot), --host=N (host online and start a run once N players are in), --join=ADDRESS
 ## (join that host), --continue (pick up the saved run), --save-path=PATH (keep that save elsewhere;
 ## the bot saves only with it), --oath=N (play the run at oath N; also unlocks it on the players
-## screen).
+## screen), --rush (start a Fight Rush at once, DESIGN.md 8.21; --rush-start=N and --rush-fights=N
+## are its dev head start and cap).
 
 const DEFAULT_ENCOUNTER_ID := "husk_fight"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
@@ -191,6 +192,12 @@ var _content_fingerprint: String = ""
 ## its win opened (shown by the run end screen; the unlock is granted when the fight is decided).
 var _decided_run: RunState = null
 var _decided_unlock: int = 0
+## The Fight Rush (DESIGN.md 8.21): each party size's best fight when this Rush began (RushRecords
+## bucket -> fight; all 0 when records are off for this session), whether this Rush set its party
+## size's record, and the weather of the Rush fight being built (null: clear, or not a Rush fight).
+var _rush_best_start: Dictionary = {}
+var _rush_new_record: bool = false
+var _fight_weather: WeatherData = null
 ## The "saved by another build" notice was shown once this session (the file stays, so it must not
 ## nag on every visit to the main menu).
 var _mismatch_told: bool = false
@@ -292,6 +299,9 @@ func _ready() -> void:
 		return
 	if _options.run:
 		_new_run()
+		return
+	if _options.rush:
+		_new_rush()
 		return
 	if _options.continue_run:
 		_continue_run()
@@ -709,7 +719,9 @@ func _show_screen(screen: Node) -> void:
 		if screen is CreditsScreen and not _music.credits_path.is_empty():
 			song = _music.credits_path
 		if screen is RunEndScreen and _run != null:
-			var end := _music.victory_path if _run.result == RunState.VICTORY else _music.defeat_path
+			# A Rush never wins: its end plays the victory song only for a new record (DESIGN.md 8.21).
+			var won := _rush_new_record if _run is RushState else _run.result == RunState.VICTORY
+			var end := _music.victory_path if won else _music.defeat_path
 			if not end.is_empty():
 				song = end
 		Sfx.play_music(song, _music.volume_db)
@@ -764,6 +776,7 @@ func _end_busy() -> void:
 func _show_main_menu() -> void:
 	_end_tutorial()
 	_run = null
+	_fight_weather = null
 	_checkpoint = {}
 	_checkpoint_in_stop = false
 	ButtonPrompts.set_both(false)
@@ -833,10 +846,11 @@ func _new_run_players() -> void:
 
 
 ## The players screen; Start keeps its roster and calls `next`. `with_oaths`: a run's screen, with
-## the Oath row (DESIGN.md 8.15).
-func _show_lobby(next: Callable, with_oaths: bool = false) -> void:
+## the Oath row (DESIGN.md 8.15). `title`: "Fight Rush" before a Rush (8.21).
+func _show_lobby(next: Callable, with_oaths: bool = false, title: String = "Players") -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
+	lobby.title_text = title
 	lobby.hero_portraits = _hero_portraits()
 	if with_oaths:
 		_give_oaths(lobby)
@@ -879,6 +893,7 @@ func _on_lobby_started(players: PlayerRoster, oath: int, next: Callable) -> void
 ## Online the host keeps the friends connected and sends them to their players screen to wait for
 ## its Start; a friend who presses it first waits there.
 func _play_again() -> void:
+	var was_rush := _run is RushState
 	_run = null
 	_checkpoint = {}
 	_checkpoint_in_stop = false
@@ -909,7 +924,10 @@ func _play_again() -> void:
 	# Whoever pressed Again, the players screen opens as player 1's, so nobody's seat is dropped.
 	if _players.player_count() > 1 and _players.devices.has(_last_device):
 		_last_device = _players.device_of_player(0)
-	_new_run_players_after_offer()
+	if was_rush:
+		_show_rush_lobby()
+	else:
+		_new_run_players_after_offer()
 
 
 ## A friend's start collection is for one run only (card #281), and so is a late joiner's baseline
@@ -949,14 +967,16 @@ func _show_settings() -> void:
 	_show_screen(settings)
 
 
-## Settings > Reset progress (DESIGN.md 8.17): the Relics, the unlocked oaths and a saved run go;
-## settings, controls and the Journal stay. A dev screen (--screen=settings) never wipes anything.
+## Settings > Reset progress (DESIGN.md 8.17): the Relics, the unlocked oaths, the Fight Rush records
+## (8.21) and a saved run go; settings, controls and the Journal stay. A dev screen (--screen=settings)
+## never wipes anything.
 func _reset_progress() -> void:
 	if not _options.screen.is_empty():
 		return
 	if _relics_io_ok():
 		RelicFile.delete(_relics_path())
 	PlayerSettings.reset_oath_unlocks()
+	PlayerSettings.reset_rush_records()
 	if _save_slot_ok():
 		RunSave.delete(_run_save_path())
 	_mismatch_told = false
@@ -1056,8 +1076,8 @@ func _on_zone_chosen(zone: ZoneData) -> void:
 
 # --- fights -----------------------------------------------------------------------------------
 
-## Builds a fight: a practice fight, a zone's fight (the zone waits outside the tree), or the
-## run's final fight.
+## Builds a fight: a practice fight, a zone's fight (the zone waits outside the tree), the run's
+## final fight, or a Fight Rush fight.
 func _start_combat() -> void:
 	_free_combat()
 	_free_screen()
@@ -1070,7 +1090,7 @@ func _start_combat() -> void:
 	elif _run != null:
 		_combat.configure(_encounter, _tuning, _visuals, _options, _fight_look,
 				CombatSetup.Opening.NORMAL, false, _fight_air)
-		continue_to = _on_run_fight_over
+		continue_to = _on_rush_fight_over if _run is RushState else _on_run_fight_over
 	else:
 		# The tutorial starts with the heroes' turns (first strike) against a slower enemy.
 		var first := _options.first_strike or _tutorial != null
@@ -1081,6 +1101,8 @@ func _start_combat() -> void:
 	if _run != null:
 		_combat.configure_run(_run)
 		_combat.configure_drop(_drop if not _zone_fight.is_empty() else null)
+		if _run is RushState:
+			_combat.configure_rush_best(_rush_best_now())
 	_combat.configure_players(_players)
 	if Net.is_host():
 		_combat.configure_online(CombatController.NetMode.HOST, _net_seed)
@@ -1105,11 +1127,18 @@ func _start_combat() -> void:
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
 	Sfx.play_ambience("")
-	if _zone_fight.is_empty():
+	if _run is RushState and _fight_weather != null:
+		# A Rush fight's weather loop, quieter as in a zone's fights (DESIGN.md 8.21, D13).
+		Sfx.play_weather(_fight_weather.ambience_path,
+				_fight_weather.ambience_volume_db + _fight_weather.fight_volume_offset_db)
+	elif _zone_fight.is_empty():
 		Sfx.play_weather("")
 	else:
 		_play_zone_weather(true)
 	var boss := _encounter != null and _encounter.boss
+	# A Rush's boss fight gets the boss song, a guard fought there too.
+	if _run is RushState and (_run as RushState).kind_of((_run as RushState).fight) == RushState.Kind.BOSS:
+		boss = true
 	var elite := _encounter != null and _encounter.elite
 	var song := _music.fight_path
 	if boss and not _music.boss_path.is_empty():
@@ -1142,6 +1171,10 @@ func _on_combat_finished(result: String) -> void:
 ## game on the end screen must not leave a save that replays the decided fight), and a win opens its
 ## oath at once. The end screen shows what was opened. Clients leave it to their end screen.
 func _close_decided_run(result: String) -> void:
+	if _run is RushState:
+		if not Net.is_client() and _run.decides_run(result):
+			_close_decided_rush()
+		return
 	if _run == null or Net.is_client() or _decided_run == _run or not _run.decides_run(result):
 		return
 	_decided_run = _run
@@ -1432,10 +1465,12 @@ func _calibration_offer_wanted() -> bool:
 
 ## Asks once whether to measure the player's lag now (DESIGN.md 3.2). Yes runs the calibration
 ## screen, then goes on to the players screen; No goes straight on. `remember` false: a dev picture
-## (--screen=calibration_offer) that must not use up the real once-only offer.
-func _offer_calibration(remember: bool = true) -> void:
+## (--screen=calibration_offer) that must not use up the real once-only offer. `next`: where to go
+## on (the Fight Rush players screen, 8.21); none: the run's players screen.
+func _offer_calibration(remember: bool = true, next: Callable = Callable()) -> void:
 	if remember:
 		PlayerSettings.set_calibration_offered(true)
+	var after := next if next.is_valid() else _new_run_players_after_offer
 	_prompt = ConfirmPrompt.new()
 	_hide_menu_behind(_prompt)
 	_prompt.name = "CalibrationPrompt"
@@ -1446,9 +1481,9 @@ func _offer_calibration(remember: bool = true) -> void:
 		if not remember:
 			_show_main_menu()
 		elif yes:
-			_show_calibration_screen.call_deferred(_new_run_players_after_offer)
+			_show_calibration_screen.call_deferred(after)
 		else:
-			_new_run_players_after_offer())
+			after.call())
 	add_child(_prompt)
 
 
@@ -1566,9 +1601,10 @@ func _save_slot_ok() -> bool:
 	return _options.screen.is_empty() and _save_io_ok()
 
 
-## True if the run in progress is saved as it goes (not a dev sample run, not one already decided).
+## True if the run in progress is saved as it goes (not a dev sample run, not one already decided,
+## never a Fight Rush: it is played in one sitting, DESIGN.md 8.21).
 func _save_allowed() -> bool:
-	return _run != null and _decided_run != _run and _save_slot_ok()
+	return _run != null and _decided_run != _run and _save_slot_ok() and not (_run is RushState)
 
 
 ## Saves the run now. `in_stop` is true right after a stop was chosen: continuing re-enters that
@@ -1639,8 +1675,9 @@ func _run_collection() -> RelicCollection:
 ## An online friend banks too, into their own file (card #281): the Relics the run found and this
 ## run's pips on top of their own collection at the start. A friend who joined mid-run banks only
 ## what came after they joined (card #304), and nothing before that baseline is known.
+## A Fight Rush banks nothing (DESIGN.md 8.21).
 func _bank_relics() -> void:
-	if _run == null:
+	if _run == null or _run is RushState:
 		return
 	if Net.is_client():
 		if _own_start == null or _join_pending or not _client_relics_ok():
@@ -1684,8 +1721,11 @@ func _write_checkpoint() -> bool:
 
 
 ## The run ended or was abandoned: its save goes. Only on the real save slot: a dev screen's sample
-## run (--screen=map and so on) has no save of its own and must never delete the player's.
+## run (--screen=map and so on) has no save of its own and must never delete the player's. A Fight
+## Rush never touches the save (a run saved before it still continues, DESIGN.md 8.21).
 func _clear_run_save() -> void:
+	if _run is RushState:
+		return
 	_checkpoint = {}
 	_checkpoint_in_stop = false
 	if _save_slot_ok():
@@ -1814,6 +1854,7 @@ func _new_run() -> void:
 	if _save_slot_ok():
 		RunSave.delete(_run_save_path())
 	_reset_play_device()
+	_fight_weather = null
 	var run_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
 	if _options.oath >= 0:
 		_oath = _options.oath
@@ -1904,6 +1945,7 @@ func _enter_stop() -> void:
 ## that ended in one; DESIGN.md 8.7).
 func _start_final_fight(elite: bool = false) -> void:
 	_busy = true
+	_fight_weather = null
 	_encounter = _run.final_encounter()
 	_fight_look = _run.final_look()
 	_fight_air = []
@@ -2109,14 +2151,17 @@ func _on_loot_chosen(item: GearData) -> void:
 
 
 ## The party screen: gear, stats and the backpack. From the map it closes back to the map at once;
-## after loot it fades on to the map. Online clients change things through the host.
-func _show_party(note: String, from_map: bool, held: Dictionary = {}) -> void:
+## after loot it fades on to the map. Online clients change things through the host. `back`: where
+## it closes to instead (the Fight Rush screen, DESIGN.md 8.21).
+func _show_party(note: String, from_map: bool, held: Dictionary = {}, back: Callable = Callable()) -> void:
 	var party := PartyScreen.new()
 	party.name = "Party"
 	party.remote = Net.is_client()
 	party.setup(_run, note, held)
 	party.op_requested.connect(_send_bag_op)
-	if from_map:
+	if back.is_valid():
+		party.done.connect(back.call_deferred)
+	elif from_map:
 		party.done.connect(_show_map.bind(false).call_deferred)
 	else:
 		party.done.connect(_fade_to.bind(_show_map))
@@ -2177,6 +2222,276 @@ func _show_run_end() -> void:
 				_run.result, _run.act + 1, _run.visited, _run.fights_won, _run.top_level(), _worn_count(), _run.backpack.entries.size(),
 				_run.gold_earned, _run.run_seed, _run.oath, _run.relics.size(), _run.learned_echoes().size()])
 		_autoplay_quit()
+
+
+# --- the Fight Rush (DESIGN.md 8.21) ----------------------------------------------------------
+
+## Main menu, Fight Rush: the lag calibration offer when it is due (never the tutorial offer), then
+## the Fight Rush players screen. A saved run is never touched.
+func _start_rush() -> void:
+	if _rush_data == null:
+		push_error("Main: no Fight Rush data, cannot start a Rush")
+		_autoplay_fail("no rush data")
+		_show_main_menu()
+		return
+	if _calibration_offer_wanted():
+		_offer_calibration(true, _show_rush_lobby)
+	else:
+		_show_rush_lobby()
+
+
+## The players screen titled Fight Rush, with no Oath row (no Oaths in a Rush); Start begins it.
+func _show_rush_lobby() -> void:
+	_show_lobby(_fade_to.bind(_new_rush), false, "Fight Rush")
+
+
+## Starts a Fight Rush with the players screen's roster, or at once for --rush. It never deletes a
+## saved run (Continue still shows afterwards) and is never saved itself. It opens on the Rush
+## screen's ready phase (FIGHT 1); a Relic bag that brought Relics opens the party screen on its
+## Relics page first, as a run does (card #265).
+func _new_rush() -> void:
+	if _rush_data == null:
+		push_error("Main: no Fight Rush data, cannot start a Rush")
+		_autoplay_fail("no rush data")
+		_show_main_menu()
+		return
+	_reset_play_device()
+	var rush_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
+	var rush := RushState.begin_rush(_rush_data, _tuning, rush_seed, _run_collection(), _options.rush_start)
+	_run = rush
+	_decided_run = null
+	_fight_weather = null
+	_rush_new_record = false
+	# The records as they were when the Rush began: the banner's NEW BEST and the end screen's NEW
+	# RECORD measure against these. Bots and dev switches read none (default D9).
+	var records := _rush_records_ok()
+	_rush_best_start = {}
+	for players: int in RushRecords.SIZES:
+		_rush_best_start[players] = int(PlayerSettings.rush_best(players).get("fight", 0)) if records else 0
+	rush.note_players(_players.player_count())
+	print("Rush seed: %d start: %d" % [rush_seed, rush.start_fight])
+	# Local friends may join from the Players row; online seats come with card #312.
+	_set_drop_in(true)
+	Sfx.play("run_begin")
+	if rush.owned_relics().is_empty() or _options.is_autoplay():
+		_show_rush_reward()
+		return
+	_show_party("Your Relic bag", true, {}, _show_rush_reward)
+	if _screen is PartyScreen:
+		(_screen as PartyScreen).open_relics(0, 0)
+
+
+## The Rush screen: the reward picks after a win, else the ready phase (Fight or Party).
+func _show_rush_reward() -> void:
+	var rush := _run as RushState
+	if rush == null:
+		return
+	var screen := RushRewardScreen.new()
+	screen.name = "RushReward"
+	screen.remote = Net.is_client()
+	screen.setup(rush, _rush_best_now())
+	screen.fight_requested.connect(_start_rush_fight)
+	screen.party_requested.connect(_show_party.bind("", true, {}, _show_rush_reward))
+	screen.acted.connect(func(text: String) -> void: print("Rush pick: %s" % text))
+	_show_screen(screen)
+	_send_screen({"name": "rush_reward"})
+	if _options.is_autoplay() and not Net.is_client():
+		_autoplay_rush_reward.call_deferred(screen)
+
+
+## Fight on the Rush screen (local play and the host): on to the next fight, unless the dev cap
+## (--rush-fights) is reached, which ends the Rush there, after the last fight's picks.
+func _start_rush_fight() -> void:
+	var rush := _run as RushState
+	if _busy or rush == null or rush.picking() or rush.is_over() or Net.is_client():
+		return
+	if _options.rush_fights > 0 and rush.fight >= rush.start_fight - 1 + _options.rush_fights:
+		rush.cap()
+		_close_decided_rush()
+		_fade_to(_show_rush_end)
+		return
+	rush.next_fight()
+	_begin_rush_fight()
+
+
+## Builds the fight the Rush is on from its state: its encounter, its zone's look and air under the
+## fight's weather (a boss in its own place; never lightning in a fight, D13), the record written as
+## it starts (so closing the game keeps it, D4), then the swirl into it.
+func _begin_rush_fight() -> void:
+	var rush := _run as RushState
+	if rush == null:
+		return
+	_busy = true
+	_encounter = rush.encounter_now()
+	if _encounter == null:
+		# Only bad data gets here: the Rush ends instead of a fight with nobody in it.
+		push_error("Main: Fight Rush fight %d has no encounter" % rush.fight)
+		_autoplay_fail("rush has no fight")
+		_end_busy()
+		rush.give_up()
+		_close_decided_rush()
+		_fade_to(_show_rush_end)
+		return
+	_fight_weather = rush.weather_now()
+	var look := rush.look_now()
+	_fight_look = _fight_weather.apply_to(look) if _fight_weather != null else look
+	_fight_air = _fight_weather.air_with(rush.air_now()) if _fight_weather != null else rush.air_now()
+	_zone_fight = {}
+	_drop = null
+	_note_rush_record()
+	print("Rush fight %d: %s %s weather %s" % [rush.fight, _rush_kind_word(rush.kind_of(rush.fight)), _encounter.id,
+			_fight_weather.id if _fight_weather != null else "clear"])
+	if Net.is_host():
+		_net_seed = randi_range(1, 2147483646)
+		_send_screen({"name": "rush_fight", "seed": _net_seed})
+	var gen := _flow_gen
+	Sfx.play("encounter_swirl")
+	await _transition.swirl_out()
+	if gen != _flow_gen or _run == null:
+		_transition.fade_in()
+		_end_busy()
+		return
+	_start_combat()
+	await get_tree().process_frame
+	await _transition.fade_in()
+	_end_busy()
+
+
+## A Rush fight's end screen was left (Rewards or Results): its XP, levels and counts go in (a win
+## rolls the reward cards, a boss heals everyone), then the Rush screen, or the Rush's end after a loss.
+func _on_rush_fight_over(result: String) -> void:
+	var rush := _run as RushState
+	if _busy or rush == null or _combat == null:
+		return
+	rush.spend_items(_combat.used_items())
+	# Read before the fight's end changes anything: the numbers it was fought at and how it ended.
+	var numbers := rush.fight_numbers(_encounter)
+	var party_hp := _combat.party_hp()
+	var hp_percent := _rush_hp_percent(rush, party_hp)
+	var out := rush.finish_fight(result, party_hp, _encounter, _combat.recap())
+	rush.carry_team_gauge(_combat.team_gauge())
+	_autoplay_spend_points()
+	if _options.is_autoplay():
+		var top_xp := 0
+		for gained: Variant in out.get("xp", []):
+			top_xp = maxi(top_xp, int(gained))
+		print("AUTOPLAY_RUSH fight=%d kind=%s enc=%s depth=%d enemy_hp=%d enemy_power=%d tempo=%d result=%s party_hp=%d level=%d xp=%d picks=%d spare=%d" % [
+				rush.fight, _rush_kind_word(rush.kind_of(rush.fight)), _encounter.id if _encounter != null else "none",
+				int(numbers.depth), int(numbers.hp), int(numbers.power), int(numbers.tempo), result, hp_percent,
+				rush.top_level(), top_xp, rush.picks_left, rush.spare_xp])
+	if rush.is_over():
+		_close_decided_rush()
+		_fade_to(_show_rush_end)
+	else:
+		_fade_to(_show_rush_reward)
+
+
+## Pause menu, Give up (asked first): the Rush ends where it is, on its end screen.
+func _give_up_rush() -> void:
+	var rush := _run as RushState
+	if rush == null:
+		return
+	_free_pause()
+	rush.give_up()
+	_close_decided_rush()
+	_fade_to(_show_rush_end)
+
+
+## The Rush is decided (lost, given up or capped), once per Rush: its record is written with the
+## most players seen, and drop-in shuts. Nothing is banked and nothing is saved.
+func _close_decided_rush() -> void:
+	if not _run is RushState or _decided_run == _run:
+		return
+	_decided_run = _run
+	_note_rush_record()
+	_set_drop_in(false)
+
+
+## RUSH OVER: the fight reached, the record, the killer after a loss. Again opens the Fight Rush
+## players screen with the same seats.
+func _show_rush_end() -> void:
+	var rush := _run as RushState
+	if rush == null:
+		_show_main_menu()
+		return
+	_close_decided_rush()
+	# Again here: a pad that joined since the Rush was decided counts toward the record shown.
+	_note_rush_record()
+	var records := _rush_records_ok()
+	var best := PlayerSettings.rush_best(rush.most_players) if records else {}
+	var end := RunEndScreen.new()
+	end.name = "RunEnd"
+	end.setup_rush(rush, _visuals.end_input_guard_ms, best, _rush_new_record, _hero_players(),
+			_last_recap if rush.result == RunState.DEFEAT else {})
+	end.done.connect(_fade_to.bind(_show_main_menu))
+	end.again.connect(_fade_to.bind(_play_again))
+	_show_screen(end)
+	_send_screen({"name": "rush_end"})
+	_client_done = Net.is_client()
+	if not _options.is_autoplay():
+		return
+	if rush.result == RunState.DEFEAT:
+		for line: String in FightRecap.lines(_last_recap, _last_recap_name, "Fight %d" % rush.reached()):
+			print("AUTOPLAY_RECAP ", line)
+	print("AUTOPLAY_PLAYERS n=%d owners=%s" % [_players.player_count(), _players.owners_text()])
+	var word := "over" if rush.result == RunState.DEFEAT else rush.result
+	print("AUTOPLAY_RESULT rush_%s fight=%d wins=%d record=%d new=%d players=%d level=%d relics=%d echoes=%d items=%d seed=%d start=%d" % [
+			word, rush.reached(), rush.fights_won - (rush.start_fight - 1), int(best.get("fight", 0)), int(_rush_new_record),
+			rush.most_players, rush.top_level(), rush.relics.size(), rush.learned_echoes().size(),
+			rush.backpack.entries.size(), rush.run_seed, rush.start_fight])
+	_autoplay_quit()
+
+
+## True if this Rush may read and write the Fight Rush records: no bot, dev screen, head start, cap,
+## pretend Relics, fixed seed or other tuning (default D9). Online late joiners come with card #312.
+func _rush_records_ok() -> bool:
+	return RushRecords.allowed({"autoplay": _options.is_autoplay(), "screen": _options.screen,
+			"start_fight": _options.rush_start, "rush_fights": _options.rush_fights, "relics_mode": _options.relics_mode,
+			"relics_path": _options.relics_path, "seed_override": _options.seed_override,
+			"fixed_seed": _tuning.fixed_seed, "tuning_default": _tuning_path() == TUNING_PATH, "late": false})
+
+
+## Counts the players in now, then writes the fight reached as the record of the most players seen,
+## if it beats the one kept (each fight start, and when the Rush is decided). NEW RECORD is shown
+## when the fight reached passes that party size's record from when the Rush began.
+func _note_rush_record() -> void:
+	var rush := _run as RushState
+	if rush == null:
+		return
+	rush.note_players(_players.player_count())
+	if rush.reached() < 1 or not _rush_records_ok():
+		return
+	PlayerSettings.set_rush_best(rush.most_players, RushRecords.entry(rush.reached(), Time.get_date_string_from_system()))
+	_rush_new_record = rush.reached() > _rush_best_now()
+
+
+## The best fight of this Rush's party size (the most players seen) when the Rush began (0: none).
+func _rush_best_now() -> int:
+	var rush := _run as RushState
+	if rush == null:
+		return 0
+	return int(_rush_best_start.get(RushRecords.bucket(rush.most_players), 0))
+
+
+## The party's HP at a fight's end as a percent of its max HP (the AUTOPLAY_RUSH line).
+@warning_ignore("integer_division")
+func _rush_hp_percent(rush: RushState, party_hp: Array[int]) -> int:
+	var hp_sum := 0
+	var max_sum := 0
+	for slot: int in rush.party_size():
+		hp_sum += maxi(0, party_hp[slot]) if slot < party_hp.size() else 0
+		max_sum += rush.max_hp(slot)
+	return hp_sum * 100 / maxi(1, max_sum)
+
+
+## "normal", "elite" or "boss" (logs and AUTOPLAY lines).
+static func _rush_kind_word(kind: RushState.Kind) -> String:
+	match kind:
+		RushState.Kind.ELITE:
+			return "elite"
+		RushState.Kind.BOSS:
+			return "boss"
+	return "normal"
 
 
 # --- pad drop and window focus (DESIGN.md 9.1) ------------------------------------------------
@@ -2382,6 +2697,10 @@ func _pause_game() -> bool:
 	if _screen is MapScreen:
 		_open_pause()
 		return true
+	# The Rush screen, but not while a gift's party screen is open over it (DESIGN.md 8.21).
+	if _screen is RushRewardScreen and not (_screen as RushRewardScreen).is_settling():
+		_open_pause()
+		return true
 	return false
 
 
@@ -2406,6 +2725,10 @@ func _open_pause() -> void:
 		_pause.setup("End the game", "The run ends for everyone.")
 	elif Net.is_client():
 		_pause.setup("Leave the game", "You leave; the others play on.")
+	elif _run is RushState:
+		# A Rush is never saved: Give up ends it on its end screen (DESIGN.md 8.21).
+		_pause.note = "Fight %d" % maxi(1, (_run as RushState).reached())
+		_pause.setup("Give up", "")
 	elif _run != null and _save_allowed():
 		var where := "The stop starts over when you continue (what you already did there stays done)." if _checkpoint_in_stop else "You continue from this map."
 		_pause.setup("Abandon run", "The run and its save are lost. Back to the main menu.", "", "",
@@ -2537,6 +2860,9 @@ func _change_local_roster(roster: PlayerRoster, why: String) -> void:
 func _apply_local_roster(roster: PlayerRoster, why: String) -> void:
 	var before := _players
 	_players = roster
+	if _run is RushState:
+		# The record goes to the most players seen in the Rush (DESIGN.md 8.21).
+		(_run as RushState).note_players(roster.player_count())
 	_reset_play_device()
 	_refresh_roster_users()
 	_refresh_prompt_mix()
@@ -2628,6 +2954,14 @@ func _on_pause_leave() -> void:
 		_prompt.answered.connect(_on_abandon_answered)
 		add_child(_prompt)
 		return
+	if _run is RushState:
+		_pause.process_mode = Node.PROCESS_MODE_DISABLED
+		_prompt = ConfirmPrompt.new()
+		_prompt.name = "GiveUpPrompt"
+		_prompt.setup("Give up?", "", "Give up", "Keep going")
+		_prompt.answered.connect(_on_give_up_answered)
+		add_child(_prompt)
+		return
 	if _run == null:
 		_free_pause()
 		_show_select.call_deferred()
@@ -2645,6 +2979,16 @@ func _on_abandon_answered(yes: bool) -> void:
 	_prompt = null
 	if yes:
 		_abandon_run()
+	elif _pause != null:
+		_pause.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+## Give up? (a Fight Rush): yes ends the Rush on its end screen, no goes back to the pause menu.
+func _on_give_up_answered(yes: bool) -> void:
+	_prompt.queue_free()
+	_prompt = null
+	if yes:
+		_give_up_rush()
 	elif _pause != null:
 		_pause.process_mode = Node.PROCESS_MODE_INHERIT
 
@@ -3592,7 +3936,8 @@ func _zone_song() -> String:
 
 func _is_run_screen(node: Node) -> bool:
 	return node is MapScreen or node is ShopScreen or node is RestScreen or node is LootScreen \
-			or node is PartyScreen or node is RunEndScreen or node is EventScreen or node is TreasureScreen
+			or node is PartyScreen or node is RunEndScreen or node is EventScreen or node is TreasureScreen \
+			or node is RushRewardScreen
 
 
 func _gear_ids(gear: Array[GearData]) -> Array:
@@ -3944,6 +4289,55 @@ func _autoplay_loot(loot: LootScreen) -> void:
 		if index < loot.choices().size():
 			print("Run loot: took %s" % loot.choices()[index].id)
 		loot.take(index)
+
+
+## Autoplay on the Fight Rush screen (DESIGN.md 8.21): each reward pick takes Heal while the party is
+## hurt, else a Relic, else Train, else the item; then, in the ready phase (also a Rush's first
+## screen), it uses its items, spends its points, wears its Relics and presses Fight.
+func _autoplay_rush_reward(screen: RushRewardScreen) -> void:
+	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+	while is_instance_valid(screen) and screen.is_inside_tree() and screen.is_picking():
+		var rush := screen.rush()
+		var words := PackedStringArray()
+		for i: int in rush.offer.size():
+			words.append(_rush_card_word(rush, i, ":"))
+		print("Rush offer: %s fight=%d" % [" ".join(words), rush.fight])
+		var pick := _autoplay_rush_card(rush)
+		if pick < 0:
+			_autoplay_fail("rush_no_card")
+			return
+		print("Rush card: %s fight=%d" % [_rush_card_word(rush, pick, " "), rush.fight])
+		if not screen.take(pick):
+			_autoplay_fail("rush_card_refused")
+			return
+		await _autoplay_stop_gifts(screen)
+	if not is_instance_valid(screen) or not screen.is_inside_tree() or _run == null or _run.is_over():
+		return
+	_autoplay_use_items()
+	_autoplay_spend_points()
+	screen.fight_now()
+
+
+## The bot's reward card: Heal when hurt, else the first Relic, Train, then item card that can be taken.
+func _autoplay_rush_card(rush: RushState) -> int:
+	var order: Array[String] = [RushState.CARD_RELIC, RushState.CARD_POINT, RushState.CARD_ITEM]
+	if _autoplay_hurt():
+		order.push_front(RushState.CARD_HEAL)
+	for kind: String in order:
+		for i: int in rush.offer.size():
+			if String(rush.offer[i].get("kind", "")) == kind and rush.card_enabled(i):
+				return i
+	for i: int in rush.offer.size():
+		if rush.card_enabled(i):
+			return i
+	return -1
+
+
+## Card `i` for the bot's log: its kind and its id or amount ("relic:war_drum", "heal 40").
+static func _rush_card_word(rush: RushState, i: int, between: String) -> String:
+	var card: Dictionary = rush.offer[i]
+	var what: Variant = card.get("id", card.get("amount", ""))
+	return "%s%s%s" % [String(card.get("kind", "?")), between, str(what)]
 
 
 ## Autoplay: every hero spends their new attribute points evenly (DESIGN.md 8.2), learns the

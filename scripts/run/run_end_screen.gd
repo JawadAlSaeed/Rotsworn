@@ -7,6 +7,8 @@ extends CanvasLayer
 ## the fights won, the coin and the gold, each hero's face with their level), each hero's defence
 ## row (card #283), the Relics kept as their icons tagged New or Echo, and on a defeat the killer's
 ## portrait with the attack's name and its hit icons.
+## A Fight Rush ends here too (setup_rush, DESIGN.md 8.21): RUSH OVER, the fight reached and the
+## record, no Kept row.
 
 ## Back to the main menu.
 signal done
@@ -24,6 +26,8 @@ const DEFENCE_GLYPH_PX: float = 30.0
 const STAT_ICON_PX: float = 48.0
 const STAT_FACE_PX: float = 56.0
 const ROW_GAP: int = 22
+## A Rush record's day sits this close after its Best chip.
+const RUSH_DETAIL_GAP: int = 10
 ## The Relics kept: their icons and the tag under each.
 const KEPT_ICON_PX: float = 64.0
 const KEPT_TAG_SIZE: int = 24
@@ -88,6 +92,66 @@ func setup(run: RunState, input_guard_ms: int, unlocked_oath: int = 0, recap_lin
 	ListMenu.screen_footer(self, [[&"menu_confirm", "Again"], [&"menu_cancel", "Main menu"]])
 
 
+## The end of a Fight Rush (DESIGN.md 8.21): RUSH OVER, NEW RECORD when this Rush beat its party
+## size's record, the fight reached, the record with its day, the party size and the heroes' levels,
+## the killer after a loss (not after Give up) and each hero's defence. Nothing from a Rush is kept,
+## so there is no Kept row. Again opens the Fight Rush players screen.
+## `best`: the party size's record after this Rush (RushRecords.entry; {} leaves the Best chip out).
+## `players` and `recap` as in setup.
+func setup_rush(run: RushState, input_guard_ms: int, best: Dictionary, new_record: bool, players: Array[int],
+		recap: Dictionary) -> void:
+	_guard_s = float(input_guard_ms) / 1000.0
+	Sfx.play("run_over")
+	var column := ListMenu.screen_column(self, "RUSH OVER", TITLE_SIZE)
+	(column.get_child(0) as Label).label_settings.font_color = HudStyle.LATE
+	if new_record:
+		column.add_child(ListMenu.centred_title("NEW RECORD", OATH_SIZE, HudStyle.GOLD))
+	column.add_child(_rush_stat_row(run, best))
+	if run.result == RunState.DEFEAT:
+		var killer := killer_of(recap)
+		if not killer.is_empty():
+			column.add_child(_killer_row(killer))
+	column.add_child(_defence_rows(run, players))
+	ListMenu.screen_footer(self, [[&"menu_confirm", "Again"], [&"menu_cancel", "Main menu"]])
+
+
+## The Rush's stat chips: [{icon, text, color, detail}] for the fight reached (a sword), the record
+## (a star; `detail` is its day, drawn dim after it; left out when `best` is not an entry) and the
+## party size the record counts for (a person: Solo, Duo, Trio).
+static func rush_chips(run: RushState, best: Dictionary) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = [{"icon": &"sword", "text": "Fight %d" % run.reached(), "color": HudStyle.TEXT}]
+	if RushRecords.is_valid(best):
+		chips.append({"icon": &"star", "text": "Best %d" % int(best.fight), "color": HudStyle.GOLD,
+				"detail": String(best.date)})
+	chips.append({"icon": &"person", "text": RushRecords.label(run.most_players), "color": HudStyle.TEXT})
+	return chips
+
+
+func _rush_stat_row(run: RushState, best: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", ROW_GAP)
+	for chip: Dictionary in rush_chips(run, best):
+		var chip_row := MapScreen.icon_chip(chip.icon, String(chip.text), chip.color as Color, STAT_ICON_PX, TEXT_SIZE)
+		var detail := String(chip.get("detail", ""))
+		if detail.is_empty():
+			row.add_child(chip_row)
+			continue
+		# The record's day sits right after its chip, dim, so the two read as one.
+		var pair := HBoxContainer.new()
+		pair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pair.add_theme_constant_override("separation", RUSH_DETAIL_GAP)
+		pair.add_child(chip_row)
+		var day := HudStyle.make_label(detail, RECAP_SIZE, HudStyle.TEXT_DIM)
+		day.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		day.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		pair.add_child(day)
+		row.add_child(pair)
+	_add_hero_levels(row, run)
+	return row
+
+
 ## The stat chips: [{icon, text, color}] for the act reached (its boss's lair, "1/2"), the stops
 ## (the map's flag), the fights won (a sword) and the gold earned (the coin). The heroes' faces and
 ## levels follow them in the row.
@@ -113,6 +177,12 @@ func _stat_row(run: RunState) -> Control:
 	row.add_theme_constant_override("separation", ROW_GAP)
 	for chip: Dictionary in stat_chips(run, look, visuals.gold_icon_path if visuals != null else ""):
 		row.add_child(MapScreen.icon_chip(chip.icon, String(chip.text), chip.color as Color, STAT_ICON_PX, TEXT_SIZE))
+	_add_hero_levels(row, run)
+	return row
+
+
+## Each hero's face and level, at the end of the stat row.
+static func _add_hero_levels(row: HBoxContainer, run: RunState) -> void:
 	for slot: int in mini(run.party_size(), run.levels.size()):
 		var c := run.data.party[slot]
 		var hero := HBoxContainer.new()
@@ -124,7 +194,6 @@ func _stat_row(run: RunState) -> Control:
 		level.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		hero.add_child(level)
 		row.add_child(hero)
-	return row
 
 
 ## The Relics a run keeps, measured from `found_before` (id -> any) and `pips_before` (id -> pips):
