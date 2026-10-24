@@ -27,6 +27,12 @@ extends RefCounted
 ## starts from there: the lunge is a short step in as it swings, the recoil never takes it further
 ## back than `near`, slams and throws play where it stands, and after the last hit it goes home over
 ## return_ms like everyone else (longer, it would still be on its way when a counter dashes in).
+##
+## Card #310 (DESIGN.md 3.12): a wind-up attack (see charges) does not run up. It samples with
+## `charge`: home before the clock, a step out to charge_windup_share during the first wind-up's coil,
+## and its first lunge charges from there all the way to the contact point, still reaching it
+## exactly at impact. Every beat keeps its times; only where the enemy stands differs. From then on
+## it stays close as above (`near`).
 
 ## Frames of an enemy sheet (DESIGN.md 5.3).
 enum Pose {
@@ -79,11 +85,13 @@ const CUE_SHOOT := "shoot"
 ## `hit` is the hit this pose belongs to (its wind-up, motion, contact, recoil or the walk home
 ## after the last hit), -1 before the clock starts. The beat keys only describe the spans the
 ## pose already follows; they never change pose, approach or glow. `near` (0 = home) is where an
-## attacker that ran up stands when the clock starts (see the class notes).
-static func sample(hits: Array, t_ms: float, v: CombatVisuals, near: float = 0.0) -> Dictionary:
+## attacker that ran up stands when the clock starts, and the closest it stays through a string
+## (see the class notes). `charge`: a wind-up attack that charges in from near home instead.
+static func sample(hits: Array, t_ms: float, v: CombatVisuals, near: float = 0.0,
+		charge: bool = false) -> Dictionary:
 	if hits.is_empty() or t_ms < 0.0:
-		return _open(_pose(Pose.IDLE, near, 0.0), Beat.BEFORE, 0.0)
-	var rest := near
+		return _open(_pose(Pose.IDLE, 0.0 if charge else near, 0.0), Beat.BEFORE, 0.0)
+	var rest := minf(v.charge_windup_share, near) if charge else near
 	var back_ms := float(v.return_ms)
 	var hold_from := 0.0
 	for i: int in hits.size():
@@ -94,7 +102,11 @@ static func sample(hits: Array, t_ms: float, v: CombatVisuals, near: float = 0.0
 		var lunge_start := maxf(impact - approach_ms, hold_from)
 		var is_last := i == hits.size() - 1
 		if t_ms < start:
-			return _beat(_pose(Pose.WINDUP, rest, _ramp(t_ms, hold_from, start), i), Beat.WINDUP, t_ms,
+			var at := rest
+			if charge and i == 0:
+				# It steps out from home to where it winds up during the coil (card #310).
+				at = rest * _smooth(_ramp(t_ms, 0.0, minf(start, float(v.enemy_windup_coil_ms))))
+			return _beat(_pose(Pose.WINDUP, at, _ramp(t_ms, hold_from, start), i), Beat.WINDUP, t_ms,
 					hold_from, start)
 
 		if int(hit.kind) == AttackHitData.Kind.GROUND:
@@ -249,20 +261,34 @@ static func motion_start(hits: Array, i: int, v: CombatVisuals) -> float:
 	return maxf(start, 0.0)
 
 
-## True when `enemy` runs up to its target before this attack (DESIGN.md 3.12): it is an attacker
-## that runs up and the attack opens with a melee strike (a normal hit, rend or sweep that throws
-## nothing). `hits` are the engine's declared hits in play order (each with its `index` into
-## attack.hits). Every machine decides the same, so the longer lead-in matches online.
-static func runs_up(attack: EnemyAttackData, enemy: EnemyData, hits: Array) -> bool:
-	if attack == null or enemy == null or not enemy.runs_up or hits.is_empty():
-		return false
+## True when `enemy` runs up to its target before this attack's clock starts (DESIGN.md 3.12): it
+## is an attacker that runs up, the attack opens with a melee strike (a normal hit, rend or sweep
+## that throws nothing) and it is not a wind-up attack (see charges). `hits` are the engine's
+## declared hits in play order (each with its `index` into attack.hits). Every machine decides the
+## same from the same data, so the longer lead-in matches online.
+static func runs_up(attack: EnemyAttackData, enemy: EnemyData, hits: Array, v: CombatVisuals) -> bool:
+	return _opens_close(attack, enemy, hits) and windup_ms(attack, hits) < v.charge_windup_min_ms
+
+
+## True when `enemy` charges in on this attack instead of running up first (card #310, DESIGN.md
+## 3.12): it would run up, but the first hit winds up at least charge_windup_min_ms, which warns
+## the player already. It winds up near home and its first lunge charges all the way in. Nothing
+## runs before the clock, so the lead-in is the plain one.
+static func charges(attack: EnemyAttackData, enemy: EnemyData, hits: Array, v: CombatVisuals) -> bool:
+	return _opens_close(attack, enemy, hits) and windup_ms(attack, hits) >= v.charge_windup_min_ms
+
+
+## How long the attack's first hit winds up as authored: its impact_ms minus approach_ms in the
+## attack's data (the declared hit's own numbers when the data has no such hit). The attack tempo
+## and a hard fight's feint never change it, so an attack always plays the same way.
+static func windup_ms(attack: EnemyAttackData, hits: Array) -> int:
+	if hits.is_empty():
+		return 0
 	var first: Dictionary = hits[0]
-	if not AttackHitData.is_strike(int(first.kind)):
-		return false
 	var index := int(first.get("index", -1))
-	if index >= 0 and index < attack.hits.size() and attack.hits[index] != null:
-		return attack.hits[index].projectile == null
-	return true
+	if attack != null and index >= 0 and index < attack.hits.size() and attack.hits[index] != null:
+		return maxi(0, attack.hits[index].impact_ms - attack.hits[index].approach_ms)
+	return maxi(0, int(first.at_ms) - int(first.approach_ms))
 
 
 ## Time from the attack banner to the attack clock: the lead-in, plus the run when it runs up.
@@ -273,6 +299,20 @@ static func lead_in_ms(tuning: Tuning, runs: bool) -> int:
 ## True for a strike (normal, rend or sweep) that throws a projectile instead of lunging.
 static func is_ranged(hit: Dictionary) -> bool:
 	return bool(hit.get("ranged", false)) and AttackHitData.is_strike(int(hit.kind))
+
+
+## True when an attacker that runs up goes to its target for this attack: the attack opens with a
+## melee strike (a normal hit, rend or sweep that throws nothing).
+static func _opens_close(attack: EnemyAttackData, enemy: EnemyData, hits: Array) -> bool:
+	if attack == null or enemy == null or not enemy.runs_up or hits.is_empty():
+		return false
+	var first: Dictionary = hits[0]
+	if not AttackHitData.is_strike(int(first.kind)):
+		return false
+	var index := int(first.get("index", -1))
+	if index >= 0 and index < attack.hits.size() and attack.hits[index] != null:
+		return attack.hits[index].projectile == null
+	return true
 
 
 static func _ramp(t: float, from: float, to: float) -> float:

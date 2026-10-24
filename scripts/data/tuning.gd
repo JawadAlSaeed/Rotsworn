@@ -40,7 +40,8 @@ extends Resource
 @export_range(0, 3000, 1, "suffix:ms") var attack_lead_in_ms: int = 700
 ## An attacker that runs up (EnemyData.runs_up) runs to its target over this long before an attack
 ## that opens with a melee hit. It is added to the lead-in, so the wind-up and every window stay as
-## authored (DESIGN.md 3.12).
+## authored (DESIGN.md 3.12). A wind-up attack charges in from near home instead (card #310,
+## combat_visuals charge_windup_min_ms) and keeps the plain lead-in.
 @export_range(0, 2000, 1, "suffix:ms") var run_up_ms: int = 450
 ## Speed of every enemy attack, in percent of its authored timing. 120 = 20% slower.
 @export_range(25, 300, 1, "suffix:%") var attack_tempo_percent: int = 100

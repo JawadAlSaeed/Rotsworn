@@ -1043,6 +1043,20 @@ gives a beat to press on: the press is still timed from the enemy's motion (the 
   close: the recoil never takes it further back than `near`; slams and throws in the string play
   where it stands. After the last hit it goes home over `return_ms` like any attacker (a longer run
   home outlasted the hand-back, so a counter dashed into an enemy still on its way; code review).
+- **Wind-up attacks charge in** (card #310, owner playtest 2026-10-23: the Bloat walked right up to
+  the hero and only then wound up its slam; the wind-up already warns the player). When the first
+  hit winds up at least combat_visuals `charge_windup_min_ms` (850) as authored (its `impact_ms`
+  minus `approach_ms`, so the attack tempo and a hard fight's feint never change the choice), the
+  attacker does not run up (`EnemyChoreography.charges`; `runs_up` is false, so the lead-in is the
+  plain `attack_lead_in_ms` and the online arbiter waits the same). It winds up near home, stepping
+  out `charge_windup_share` (0.15) of the way to the contact point during the coil, and its first
+  lunge is the charge: from there all the way in over the hit's own `approach_ms`, reaching contact
+  exactly at impact. The attack clock, every impact time and every window are unchanged; a test
+  checks every beat of every shipped charge against the run-up version (only where the enemy stands
+  differs). After the first charge it stays close through the string as above and goes home after
+  the last hit. Charging today: the bloats' Belly Slam and Crush, the brutes' Maul, Slam, Sweep and
+  Double, the hyenas' Pounce and Cackle, the flies' Dive, the husks' Lingering Claw and the shades'
+  Delayed Rake. Quicker openers (claw swipes, bites, strings, the King's chop) keep the run-up.
 - The swing uses the enemy's `lunge` and `contact` cells. The Hollow King, the one sword fighter,
   got a real swing (owner: "enemies who have swords ... need to be close and to have a swing
   animation"; picked option A of three drafts, 2026-10-22): an overhead chop. The wind-up hoists
@@ -5444,3 +5458,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Fight Rush online (8.21 "Online"): Online, Host opens Run / Fight Rush cards; the game's `mode` travels in `lobby`, `again` and `run_start` (protocol 4); the host plays the Rush and picks the cards, friends play their heroes in fights and watch the Rush screen with only Party open to them; drop-in, rejoin and a crashed friend's seat go through the run's paths | card #312; it reuses the run's online rules (host-authoritative, P1 makes the choices, approved 2026-10-12) and the drop-in code (9.3), so the Rush needed no new net paths beyond the mode |
 | 2026-10-24 | Defaults (owner may overrule, 8.21 D7, D9, D20): online only the host gives up, and once a lost fight decided the Rush its row is End the game; Rush records stay on the machines there from the start (a friend who dropped in, or came back after a crash, writes none; a token rejoin keeps its start); the host sends its own records verdict in `run_start`, so a bot or dev Rush on the host keeps friends' records out too; a friend who drops in gets their hero at the fight's next quiet moment, as in a run | not asked; chosen while building #312: a loss must never turn into a Rush given up, a late friend did not play the whole Rush, and a friend's machine cannot see the host's switches |
 | 2026-10-24 | Every defence press shows its move, even one that defends nothing (early, late, wrong button, locked out, in the lead-in): a missed jump jumps, a missed dodge slides, a missed parry raises the guard; judging and the lockout are unchanged, and a hit that lands always replaces the move (3.6) | owner playtest (#309): an early jump left the hero standing there |
+| 2026-10-24 | Wind-up attacks charge in: an attack whose first hit winds up 850 ms or more (as authored) skips the run-up, winds up near home and charges in on its first lunge, reaching contact exactly at impact; quicker openers keep the phase 23 run-up; the attack clock, impact times and windows are unchanged, only the run before the clock goes (3.12) | owner playtest (#310): the Bloat should wind up from where it stands and charge in on the strike, for every wind-up attack; the 850 ms line keeps the approved run-ups (the Husk's swipe, the King's chop) as they are |

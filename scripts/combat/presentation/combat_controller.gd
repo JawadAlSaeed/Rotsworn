@@ -637,7 +637,7 @@ func _host_sent(events: Array[Dictionary], kind: String, seq: int) -> void:
 					# The same lead-in the runner plays, run-up included (DESIGN.md 3.12).
 					lead = EnemyChoreography.lead_in_ms(_tuning, EnemyChoreography.runs_up(
 							_attacks.get(String(ev.action)) as EnemyAttackData, _enemy_data_of(int(ev.source)),
-							ev.hits as Array))
+							ev.hits as Array, _visuals))
 				_arbiter.declare(int(ev.seq), ev.prompts as Array, owners, lead, Time.get_ticks_usec())
 			"prompt_resolved":
 				_arbiter.mark_resolved([int(ev.prompt)])

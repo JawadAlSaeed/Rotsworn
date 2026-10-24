@@ -35,7 +35,9 @@ extends Node
 ##
 ## Phase 23 (DESIGN.md 3.12): an attacker that runs up runs from home to a step short of its first
 ## target during the last run_up_ms of a longer lead-in (real time, before anything is judged),
-## then plays the attack from there (EnemyChoreography `near`).
+## then plays the attack from there (EnemyChoreography `near`). A wind-up attack (card #310) skips
+## the run: it winds up near home once the clock starts and its first lunge charges all the way in
+## (EnemyChoreography `charge`), then stays close as above.
 
 ## Everything from sequence_resolved on, to be played by the controller.
 signal finished(tail: Array[Dictionary])
@@ -110,6 +112,9 @@ var _lead_in_end_us: int = 0
 var _run_up: bool = false
 var _run_from_us: int = 0
 var _near: float = 0.0
+## This attack winds up near home and charges in on its first lunge instead (card #310), then stays
+## `_near` close through the string.
+var _charge: bool = false
 var _cues: Array[Dictionary] = []
 var _next_cue: int = 0
 ## Contact effects waiting for their attack time: [{at_us, call: Callable}], in order.
@@ -243,7 +248,8 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_inbox.clear()
 	_inbox_at_us = 0
 	_started_us = Time.get_ticks_usec()
-	_run_up = EnemyChoreography.runs_up(attack, enemy_data, _hits)
+	_run_up = EnemyChoreography.runs_up(attack, enemy_data, _hits, _visuals)
+	_charge = EnemyChoreography.charges(attack, enemy_data, _hits, _visuals)
 	_run_from_us = _started_us + _tuning.attack_lead_in_ms * 1000
 	_lead_in_end_us = _started_us + EnemyChoreography.lead_in_ms(_tuning, _run_up) * 1000
 	_set_idle_loop(enemy_data)
@@ -837,7 +843,7 @@ func _update_enemy(t: int) -> void:
 	if enemy == null:
 		return
 	var t_ms := float(t) / 1000.0
-	var s := EnemyChoreography.sample(_hits, t_ms, _visuals, _near)
+	var s := EnemyChoreography.sample(_hits, t_ms, _visuals, _near, _charge)
 	# The beat's clip cell on attack time (cards #60, #63, #69); a missing clip shows the pose.
 	# A beaten enemy keeps the look its downing gave it while it still walks home.
 	if _mirror.is_alive(_source) and int(s.get("beat", -1)) == EnemyChoreography.Beat.AFTER:
@@ -858,11 +864,12 @@ func _update_enemy(t: int) -> void:
 	enemy.body_offset = _enemy_travel(s, enemy.position) * float(s.approach)
 
 
-## How far from home (share of the way to the first contact point) an attacker that runs up stops:
-## swing_step short of the contact point (0 when it does not run up).
+## How far from home (share of the way to the first contact point) an attacker that runs up stops,
+## and the closest a charging one stays after its first charge: swing_step short of the contact
+## point (0 when it does neither).
 func _near_share() -> float:
 	var enemy := _view.fighter(_source)
-	if not _run_up or enemy == null or _hit_contacts.is_empty():
+	if not (_run_up or _charge) or enemy == null or _hit_contacts.is_empty():
 		return 0.0
 	var reach := _hit_contacts[0] - enemy.position
 	reach.y = 0.0
@@ -886,7 +893,7 @@ func _update_run_in(now: int) -> void:
 
 
 func _enemy_settled(t: int) -> bool:
-	var s := EnemyChoreography.sample(_hits, float(t) / 1000.0, _visuals, _near)
+	var s := EnemyChoreography.sample(_hits, float(t) / 1000.0, _visuals, _near, _charge)
 	if float(s.approach) > 0.0 or int(s.pose) != EnemyChoreography.Pose.IDLE:
 		return false
 	if t < _last_impact_us():
