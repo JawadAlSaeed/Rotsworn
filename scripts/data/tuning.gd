@@ -188,6 +188,14 @@ extends Resource
 @export_range(1, 4) var stagger_turns: int = 1
 @export_range(0, 500, 5, "suffix:%") var stagger_damage_taken_percent: int = 50
 
+@export_group("First Strike press")
+## A Fight stop's fight opens with one press ring on the place's name card (DESIGN.md 8.22, card
+## #320). It shows this long after the card does, then closes onto its moment over
+## first_strike_ring_lead_ms. A GOOD or PERFECT press there (the skill press windows above) gives
+## First Strike; a miss, an early press or no press a normal start.
+@export_range(0, 5000, 10, "suffix:ms") var first_strike_ring_delay_ms: int = 500
+@export_range(200, 5000, 10, "suffix:ms") var first_strike_ring_lead_ms: int = 1000
+
 @export_group("Timeline")
 ## One turn costs timeline_base / speed. Only the ratio between speeds matters.
 @export_range(100, 1000000) var timeline_base: int = 10000
@@ -509,6 +517,9 @@ extends Resource
 ## A newcomer may take the seat of a player away at least this long (a friend whose game crashed
 ## comes back this way, card #304); a fresher away seat is held for its own token (a quick rejoin).
 @export_range(0, 1800000, 1, "suffix:ms") var net_takeover_after_ms: int = 15000
+## A friend's First Strike ring (DESIGN.md 8.22) waits this long after it closes for the host's
+## result, then the fight starts anyway (the host's fight decides the opening either way).
+@export_range(0, 60000, 1, "suffix:ms") var net_opening_wait_ms: int = 6000
 
 @export_group("Controls")
 ## Settings > Controls (card #190): after picking a key or button to change, the game waits this

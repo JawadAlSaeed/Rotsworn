@@ -155,8 +155,8 @@ script = ExtResource("2_step")
 lesson = 7
 title = "First Strike"
 icon_path = "res://assets/sprites/ui/goal_foe.png"
-text = "In a zone, hit an enemy before it touches you."
-tip = "Your party then acts first."
+text = "A Fight stop opens on a ring: press {skill_press} as it closes."
+tip = "GOOD or PERFECT: your party acts first."
 goal = "read"
 
 [sub_resource type="Resource" id="s8"]

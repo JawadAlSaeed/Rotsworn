@@ -478,13 +478,18 @@ func test_main_builds_stop_fights_from_the_run_state() -> void:
 	var start := _body("func _start_stop_fight(")
 	assert_string_contains(start, "_run.encounter_now()")
 	assert_string_contains(start, "_run.fight_drop()")
-	assert_string_contains(start, "\"stop_fight\"")
+	# The host's fight seed and its message (card #320: a Fight stop's at its swirl, a Guard stop's here).
+	var announce := _body("func _announce_stop_fight(")
+	assert_string_contains(announce, "\"stop_fight\"")
+	assert_string_contains(start, "_announce_stop_fight(false)")
+	assert_string_contains(enter, "_announce_stop_fight(true)")
 	var place := _body("func _set_run_fight_place(")
 	assert_string_contains(place, "_run.weather_now()")
 	assert_string_contains(place, "_weather_or_forced(")
-	for body: String in [start, place]:
+	for body: String in [start, place, announce]:
 		assert_false(body.contains("randi()") or body.contains("randf"), "nothing rolled outside the run state")
-	assert_eq(start.count("randi_range"), 1, "only the host's fight seed")
+	assert_eq(start.count("randi_range"), 0, "the seed is the announcement's")
+	assert_eq(announce.count("randi_range"), 1, "only the host's fight seed")
 	var client := _body("func _client_screen(")
 	assert_string_contains(client, "\"stop_fight\":")
 	assert_string_contains(client, "_fade_to(_start_stop_fight, ")
@@ -588,10 +593,11 @@ func test_a_fight_hides_the_watch_line_and_stop_fights_swirl_in() -> void:
 	assert_string_contains(_body("func _start_combat("), "_watch_layer.visible = false")
 	for header: String in ["func _start_stop_fight(", "func _start_final_fight(", "func _begin_rush_fight("]:
 		assert_string_contains(_body(header), "_start_combat()", header + " builds through _start_combat")
+	# Card #320: a Fight stop's card carries its First Strike ring (none on a Guard stop's).
 	assert_string_contains(_body("func _enter_stop("),
-			"_fade_to(_start_stop_fight, zone.display_name if zone != null else \"\", true)")
+			"_fade_to(_start_stop_fight, zone.display_name if zone != null else \"\", true, ring)")
 	assert_string_contains(_body("func _client_screen("),
-			"_fade_to(_start_stop_fight, zone.display_name if zone != null else \"\", true)")
+			"_fade_to(_start_stop_fight, zone.display_name if zone != null else \"\", true, ring)")
 	var fade := _body("func _fade_to(")
 	assert_string_contains(fade, "Sfx.play(\"encounter_swirl\")")
 	assert_string_contains(fade, "await _transition.swirl_out()")

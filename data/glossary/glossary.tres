@@ -22,7 +22,7 @@ script = ExtResource("1_d4656")
 id = "first_strike"
 topic = "fight"
 term = "First strike"
-text = "In a zone, hit a roaming enemy before it touches you. Your whole party then acts before any enemy in that fight."
+text = "A Fight stop's name card shows one ring. Press the skill button as it closes: GOOD or PERFECT and your whole party acts before any enemy. Guards, elites and bosses open normally."
 tag = "FIRST STRIKE!"
 color = Color(1, 0.82, 0.3, 1)
 

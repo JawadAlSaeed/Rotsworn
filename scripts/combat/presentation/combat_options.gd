@@ -14,7 +14,8 @@ extends RefCounted
 ##   --weather=ID                    every run fight but the boss's and every Rush fight has this
 ##                                   weather (data/weather: rain, storm, fog, wind, dusk) or none
 ##                                   ("clear"), for tests and pictures
-##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
+##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12; a run's
+##                                   Fight stops open with the First Strike ring instead, 8.22)
 ##   --run                           start a new run at once (DESIGN.md 8)
 ##   --rush                          start a Fight Rush at once (DESIGN.md 8.21); with --host=N host
 ##                                   one online (card #312)
@@ -48,7 +49,9 @@ extends RefCounted
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
 ##                                   title, controller, calibration_offer, credits, glossary (glossary_<topic> opens that
 ##                                   topic: glossary_reading), journal, party, heroes, attributes, skills, calibration,
-##                                   tutorial, map, map_start, map_act2, shop, campfire,
+##                                   tutorial, map, map_start, map_act2, first_strike (a Fight
+##                                   stop's name card with its First Strike ring, starting over),
+##                                   shop, campfire,
 ##                                   event, treasure, controls_vibration (the Controller page on
 ##                                   its Vibration row), players_in_run (the Players overlay
 ##                                   over the pause menu, two players), pause_players (the pause menu
