@@ -16,6 +16,9 @@ signal acted(text: String)
 signal fight_requested
 ## Party was chosen (the card or the party button).
 signal party_requested
+## Host: a pick is done (its gift settled) and the next pick's cards or the ready phase are up:
+## online, the next pick is the next player's turn (card #314).
+signal pick_done
 
 ## The ready phase's cards, in order.
 const READY_FIGHT: int = 0
@@ -97,7 +100,7 @@ func refresh() -> void:
 	if _menu.items.size() > 1:
 		entries.push_front([&"@leftright", "Choose"])
 	# A watching friend takes no card, but the party is everyone's: its button is all they can press.
-	_set_footer(REMOTE_FOOTER if remote else entries)
+	_set_footer(REMOTE_FOOTER if is_greyed() else entries)
 
 
 ## The list of cards (tests and the bot).
@@ -136,11 +139,14 @@ func is_picking() -> bool:
 ## was taken.
 func take(i: int) -> bool:
 	var r := rush()
-	if remote or _waiting_gift or is_settling() or not r.picking() or r.is_over():
+	if (remote and not asks.is_valid()) or _waiting_gift or is_settling() or not r.picking() or r.is_over():
 		return false
-	if not r.card_enabled(i) or not _menu.is_enabled(i):
+	# On a friend's turn the host's cards are greyed: the Rush's state says what can be taken.
+	if not r.card_enabled(i) or (not is_greyed() and not _menu.is_enabled(i)):
 		Sfx.play("locked")
 		return false
+	if _ask({"do": "take", "index": i}):
+		return true
 	var got := r.take_card(i)
 	if got.is_empty():
 		Sfx.play("locked")
@@ -162,7 +168,9 @@ func take(i: int) -> bool:
 
 ## Fight (the ready phase only): asks Main for the next fight, once.
 func fight_now() -> void:
-	if remote or _fight_sent or is_settling() or rush().picking() or run.is_over():
+	if (remote and not asks.is_valid()) or _fight_sent or is_settling() or rush().picking() or run.is_over():
+		return
+	if _ask({"do": "fight"}):
 		return
 	_fight_sent = true
 	fight_requested.emit()
@@ -183,7 +191,7 @@ func pick_cards() -> Array[Dictionary]:
 	var cards: Array[Dictionary] = []
 	for i: int in r.offer.size():
 		var card: Dictionary = r.offer[i]
-		var enabled := not remote and r.card_enabled(i)
+		var enabled := not is_greyed() and r.card_enabled(i)
 		match String(card.get("kind", "")):
 			RushState.CARD_HEAL:
 				cards.append({"text": "Heal", "enabled": enabled, "icon": _icon(_look.heal_icon_path),
@@ -218,7 +226,7 @@ func ready_cards() -> Array[Dictionary]:
 		party_chips.append(StopScreen.chip_entry(_look, "up", points_text(unspent), _look.chip_gift_color))
 	# Party stays lit for a watching friend (the cursor starts on it): the party is everyone's.
 	var cards: Array[Dictionary] = [
-		{"text": "Fight", "enabled": not remote, "icon": _icon(_look.fight_icon_path), "chips": fight_chips},
+		{"text": "Fight", "enabled": not is_greyed(), "icon": _icon(_look.fight_icon_path), "chips": fight_chips},
 		{"text": "Party", "enabled": true, "icon": _icon(_look.party_icon_path), "chips": party_chips},
 	]
 	return cards
@@ -345,6 +353,12 @@ func _on_gifts_settled() -> void:
 func _after_pick() -> void:
 	rush().next_offer()
 	refresh()
+	pick_done.emit()
+
+
+## Online (card #314): the turn changed: the cards redraw, lit or greyed.
+func _turn_changed() -> void:
+	refresh()
 
 
 ## What a taken card did, in a few words (Main logs it).
@@ -373,7 +387,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		Sfx.play("menu_confirm")
 		party_now()
 		return
-	if remote:
+	if is_greyed():
 		# A watching friend: Confirm on the ready phase's Party card (the cursor's only lit card) opens
 		# the party screen; the cursor does not move and nothing is taken.
 		if event.is_action_pressed(&"menu_confirm", false, true) and not rush().picking() \

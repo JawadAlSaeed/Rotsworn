@@ -459,7 +459,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 
 
 func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 5)
+	assert_eq(NetSession.PROTOCOL, 6)
 	assert_has(_main.get_script_constant_map().get("NET_FIGHT_SCREENS") as Array, "stop_fight")
 	for s: int in [3, 7, 21]:
 		var host := _run(s)

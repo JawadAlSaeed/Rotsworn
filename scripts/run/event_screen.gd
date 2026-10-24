@@ -170,6 +170,9 @@ func choose(index: int, pick: int = -1) -> bool:
 	if not can_choose(index):
 		Sfx.play("locked")
 		return false
+	if _ask({"do": "choose", "index": index, "pick": pick}):
+		Sfx.play("menu_confirm")
+		return true
 	var got := run.choose_event(_event.choices[index], run.at, index, pick)
 	if not bool(got.ok):
 		Sfx.play("locked")
@@ -185,12 +188,50 @@ func choose(index: int, pick: int = -1) -> bool:
 	return true
 
 
+## Continue (or Fight) once the choice is made, or on an ambush page.
 func leave() -> void:
+	if _ask({"do": "leave"}):
+		return
 	done.emit()
 
 
+## Leave while choosing: walk on, taking nothing. False once the choice is made or on an ambush page.
+func walk_on() -> bool:
+	if _decided or _ambush_page or _event == null:
+		return false
+	Sfx.play("menu_cancel")
+	if _ask({"do": "walk_on"}):
+		return true
+	_show_result("")
+	chosen.emit(-1, "")
+	return true
+
+
+## True once a choice is made (or Leave walked on).
+func is_decided() -> bool:
+	return _decided
+
+
+## True on an ambush page (its one choice is Fight).
+func is_ambush_page() -> bool:
+	return _ambush_page
+
+
+## Online (card #314): the turn changed: the cards (or Continue) redraw, lit or greyed. A pick list
+## open goes back to the cards.
+func _turn_changed() -> void:
+	if _decided:
+		_show_result(_result.text)
+	elif _ambush_page:
+		_show_ambush()
+	else:
+		var keep := _picking if _picking >= 0 else _menu.index
+		_menu.index = clampi(keep, 0, maxi(0, choice_count() - 1))
+		_show_choices()
+
+
 func _show_ambush() -> void:
-	var list: Array[Dictionary] = [{"text": "Fight", "enabled": not remote}]
+	var list: Array[Dictionary] = [{"text": "Fight", "enabled": not is_greyed()}]
 	_show_list(list, false)
 	_set_footer([[&"menu_confirm", "Fight"]])
 
@@ -201,7 +242,7 @@ func _show_choices() -> void:
 	var list: Array[Dictionary] = []
 	for i: int in choice_count():
 		var c := _event.choices[i]
-		list.append({"text": c.text, "enabled": not remote and run.can_choose(c, run.at),
+		list.append({"text": c.text, "enabled": not is_greyed() and run.can_choose(c, run.at),
 				"chips": StopScreen.chip_entries(run.choice_chips(c, run.at), _look)})
 	_show_list(list, true)
 	_set_footer([[&"@leftright", "Choose"], [&"menu_confirm", "Select"], [&"menu_cancel", "Leave"]])
@@ -249,14 +290,14 @@ func _show_result(text: String) -> void:
 	_decided = true
 	_say_result(text if not text.is_empty() else "You walk on.")
 	var go := "Fight" if run.in_ambush() else "Continue"
-	var list: Array[Dictionary] = [{"text": go, "enabled": not remote}]
+	var list: Array[Dictionary] = [{"text": go, "enabled": not is_greyed()}]
 	_show_list(list, false)
 	_set_footer([[&"menu_confirm", go]])
 	_refresh_bar()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if remote or _overlay != null:
+	if is_greyed() or _overlay != null:
 		return
 	var answer := _menu.handle(event)
 	if answer == &"cancel":
@@ -286,10 +327,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _cancel() -> void:
 	if _picking >= 0:
 		_back_from_pick()
-	elif not _decided and not _ambush_page:
-		Sfx.play("menu_cancel")
-		_show_result("")
-		chosen.emit(-1, "")
+	else:
+		walk_on()
 
 
 ## The gold line over the menu; hidden while empty, so the cards keep the room.

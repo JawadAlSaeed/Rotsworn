@@ -16,6 +16,10 @@ extends CanvasLayer
 ## for what it does, the same chips as the fight's Items list (item_chips: "1 AP", "All foes",
 ## "120% dmg"), never its sentence. The rules are in the Glossary.
 ## The bot uses count(), can_buy(), buy(), overlay() and leave().
+## Online the choices go in turns (card #314, DESIGN.md 9.2), as on the StopScreen screens: on another
+## player's turn the shop takes no input (`watching`); on a friend's own turn their copy `asks` the
+## host for each purchase and service, and the host hands a purchase with no room to them (hand_off,
+## settle_owed). Their Sell backpack asks the host too (`remote`).
 
 signal done
 ## Host: the shelves changed (a restock): Main tells the clients the new wares.
@@ -23,6 +27,8 @@ signal restocked
 ## Something irreversible happened (a purchase, a restock, a sale, a cleanse or an upgrade): Main
 ## saves the run now, so Continue does not take it back (card #197).
 signal acted
+## Online friend: a change made in the backpack open over the shop (Main sends it to the host).
+signal op_requested(op: Dictionary)
 
 ## The Upgrade / Cleanse pick list of this many items or fewer shows as cards side by side.
 const PICK_CARDS_MAX: int = 3
@@ -78,6 +84,16 @@ var _pick_menu: ListMenu
 var _pick_panel: PanelContainer
 var _pick_uids: Array[int] = []
 var _pick_kind: String = ""
+## Online client: its backpack asks the host for every change.
+var remote: bool = false
+## Online (card #314): another player's turn: no input here.
+var watching: bool = false
+## Online friend whose turn it is (card #314): each purchase or service goes to the host as a request.
+var asks: Callable = Callable()
+## Host, a friend's turn (card #314): hand_off.call(self) sends them the purchase owed() (no room).
+var hand_off: Callable = Callable()
+## Host: the purchase handed to a friend to place: {"note", "item"}; {} when none.
+var _owed: Dictionary = {}
 
 
 ## `gear`: the Relics this shop sells (RunState.shop_gear for the stop).
@@ -281,6 +297,16 @@ static func relic_chips(run: RunState, gear: GearData) -> Array:
 	return chips
 
 
+## What is selected (a shelf card or a service), kept when the shop is drawn again online.
+func selection() -> int:
+	return _sel
+
+
+func set_selection(index: int) -> void:
+	_sel = clampi(index, 0, count() + SERVICES.size() - 1)
+	_show_selection()
+
+
 ## True if thing `index` is still for sale and affordable.
 func can_buy(index: int) -> bool:
 	if index < 0 or index >= count() or _bought.has(index):
@@ -296,6 +322,8 @@ func buy(index: int) -> bool:
 		Sfx.play("locked")
 		_say.text = "\"Not for that purse.\"" if index < count() and not _bought.has(index) else "\"Sold already.\""
 		return false
+	if _ask({"do": "buy", "index": index}):
+		return true
 	_bought[index] = true
 	if index < items().size():
 		_run.mark_sold(index)
@@ -311,6 +339,11 @@ func buy(index: int) -> bool:
 			Sfx.play("item_place")
 			_say.text = "\"The %s. Good choice.\"" % item.display_name
 			acted.emit()
+		elif hand_off.is_valid():
+			# A friend's turn: they put it in their backpack (its gold comes back if they leave it).
+			_pending = item
+			_owed = {"note": "No room", "item": item}
+			hand_off.call(self)
 		else:
 			_pending = item
 			_open_backpack("No room", {"item": item, "refund": true})
@@ -321,7 +354,7 @@ func buy(index: int) -> bool:
 		Sfx.play("gold_gain")
 		_say.text = "\"Wear it well.\""
 		acted.emit()
-		if not _run.is_worn(gear):
+		if not _run.is_worn(gear) and not hand_off.is_valid():
 			_open_backpack(RunState.relic_find_short(found), {"gear": gear})
 		else:
 			_say.text = "\"%s.\"" % RunState.relic_find_text(found)
@@ -331,6 +364,8 @@ func buy(index: int) -> bool:
 
 ## Restock service: new items and Relics (Main gives the new wares with set_wares()).
 func restock() -> bool:
+	if _ask({"do": "restock"}):
+		return true
 	if not _run.restock():
 		Sfx.play("locked")
 		return false
@@ -351,7 +386,101 @@ func set_wares(gear: Array[GearData]) -> void:
 
 
 func leave() -> void:
+	if _ask({"do": "leave"}):
+		return
 	done.emit()
+
+
+## Cleanse (`kind` "cleanse": item `uid` is thrown away) or Upgrade ("upgrade": it goes up a level),
+## paid from the run's gold. False if it cannot be done.
+func service_pick(kind: String, uid: int) -> bool:
+	if kind != "cleanse" and kind != "upgrade":
+		return false
+	if _ask({"do": kind, "uid": uid}):
+		return true
+	if not _run.backpack.has_uid(uid):
+		Sfx.play("locked")
+		return false
+	var name := RunState.entry_name(_run.backpack.entry(uid))
+	var ok := _run.cleanse(uid) if kind == "cleanse" else _run.upgrade_item(uid, _run.upgrade_price())
+	if ok:
+		Sfx.play("item_drop" if kind == "cleanse" else "item_combine")
+		_say.text = "\"Gone. Good riddance.\"" if kind == "cleanse" else "\"Your %s, better than new.\"" % name
+		acted.emit()
+	else:
+		Sfx.play("locked")
+	_rebuild()
+	return ok
+
+
+## True while a purchase waits on a backpack (open here, or handed to a friend).
+func is_settling() -> bool:
+	return _overlay != null or not _owed.is_empty()
+
+
+## Online (card #314): whose turn it is changed; the shelves redraw.
+func set_turn(p_watching: bool, p_asks: Callable = Callable()) -> void:
+	watching = p_watching
+	asks = p_asks
+	_rebuild()
+
+
+## True when nothing can be bought here: another player's turn, or a client that only shows.
+func is_greyed() -> bool:
+	return watching or (remote and not asks.is_valid())
+
+
+## Host: the purchase a friend was handed to place ({"note", "item"}; {} when none).
+func owed() -> Dictionary:
+	return _owed
+
+
+## Host: the friend put the owed purchase where their HAND_OUT op says (BagTab.place_new); left
+## behind, its gold comes back. False if that does not fit the backpack now (still owed).
+func settle_owed(op: Dictionary) -> bool:
+	if _owed.is_empty():
+		return false
+	var item := _owed.item as ItemData
+	var placed := BagTab.place_new(_run, item, op)
+	if placed.is_empty():
+		return false
+	_owed = {}
+	if placed == BagTab.LEFT:
+		Sfx.play("item_drop")
+		_on_left_behind(item)
+	else:
+		Sfx.play("item_place")
+		_say.text = "\"The %s. Good choice.\"" % item.display_name
+	_pending = null
+	_rebuild()
+	acted.emit()
+	return true
+
+
+## Host: the turn came back to this machine while a purchase was owed: its backpack opens with it.
+func take_back_owed() -> void:
+	if _owed.is_empty() or _overlay != null:
+		return
+	var owed_now := _owed
+	_owed = {}
+	_pending = owed_now.item as ItemData
+	_open_backpack(String(owed_now.get("note", "")), {"item": owed_now.item, "refund": true})
+
+
+## Online friend (card #314): the host handed us a purchase to place: the backpack opens with it in
+## hand (its changes go to the host). `held`: {"item", "refund"}.
+func hold_gift(note: String, held: Dictionary) -> void:
+	if _overlay != null:
+		return
+	_open_backpack(note, held)
+
+
+## Online friend whose turn it is: sends `choice` to the host and returns true.
+func _ask(choice: Dictionary) -> bool:
+	if not asks.is_valid():
+		return false
+	asks.call(choice)
+	return true
 
 
 ## A service: [name, price (0: free), a few words, usable now, picture (a texture path or a UiGlyph
@@ -496,7 +625,7 @@ func _show_detail(data: Dictionary) -> void:
 # --- input ------------------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _overlay != null:
+	if _overlay != null or is_greyed():
 		return
 	if _pick_menu != null:
 		_pick_input(event)
@@ -663,16 +792,9 @@ func _pick_input(event: InputEvent) -> void:
 		_close_pick()
 	elif answer == &"confirm" and not _pick_uids.is_empty():
 		var uid := _pick_uids[_pick_menu.index]
-		var name := RunState.entry_name(_run.backpack.entry(uid))
-		var ok := _run.cleanse(uid) if _pick_kind == "cleanse" else _run.upgrade_item(uid, _run.upgrade_price())
-		if ok:
-			Sfx.play("item_drop" if _pick_kind == "cleanse" else "item_combine")
-			_say.text = "\"Gone. Good riddance.\"" if _pick_kind == "cleanse" else "\"Your %s, better than new.\"" % name
-			acted.emit()
-		else:
-			Sfx.play("locked")
+		var kind := _pick_kind
 		_close_pick()
-		_rebuild()
+		service_pick(kind, uid)
 
 
 func _open_backpack(note: String, held: Dictionary) -> void:
@@ -680,8 +802,11 @@ func _open_backpack(note: String, held: Dictionary) -> void:
 	_overlay.layer = OVERLAY_LAYER
 	_overlay.close_when_settled = held.has("item") or held.has("gear")
 	_overlay.shop_mode = true
+	# A friend's copy (card #314): what they do there is asked of the host.
+	_overlay.remote = remote
 	add_child(_overlay)
 	_overlay.setup(_run, note, held)
+	_overlay.op_requested.connect(op_requested.emit)
 	_overlay.left_behind.connect(_on_left_behind)
 	_overlay.done.connect(_close_backpack)
 	# A sale is final at once, unless a purchase is still in hand (it is saved when the backpack closes).
