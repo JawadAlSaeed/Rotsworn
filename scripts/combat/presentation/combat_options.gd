@@ -16,8 +16,9 @@ extends RefCounted
 ##                                   fog, wind, dusk) or none ("clear"), for tests and pictures
 ##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
 ##   --run                           start a new run at once (DESIGN.md 8)
-##   --rush                          start a Fight Rush at once (DESIGN.md 8.21)
-##   --rush-start=N                  (dev tool) the Rush starts at fight N, the fights before it
+##   --rush                          start a Fight Rush at once (DESIGN.md 8.21); with --host=N host
+##                                   one online (card #312)
+##   --rush-start=N                 (dev tool) the Rush starts at fight N, the fights before it
 ##                                   replayed as perfect wins (at least 1; implies --rush)
 ##   --rush-fights=N                 (dev tool) the Rush ends after N fights (0: no cap; implies --rush)
 ##   --save-path=PATH                (dev tool) keep the run save at PATH (a user:// path); the bot
@@ -32,8 +33,9 @@ extends RefCounted
 ##                                   after launch, at the next quiet moment (DESIGN.md 9.3)
 ##   --pad-leave-after=S             (with --autoplay) the last local player leaves after S seconds
 ##   --roster-in-fight               those two wait for the next fight and come a few seconds into it
-##   --host=N                        host online; start a run once N players (1 to 3) are in; 1
-##                                   starts at once, friends drop in later (DESIGN.md 9.3)
+##   --host=N                        host online; start a run (a Fight Rush with --rush) once N
+##                                   players (1 to 3) are in; 1 starts at once, friends drop in later
+##                                   (DESIGN.md 9.3)
 ##   --seat-in-fight                 (online host) seat a friend who drops in only a few seconds
 ##                                   into the next fight
 ##   --join=ADDRESS                  join the online game at ADDRESS (DESIGN.md 9.2)

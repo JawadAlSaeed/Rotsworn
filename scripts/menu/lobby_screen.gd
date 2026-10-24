@@ -73,6 +73,8 @@ const NO_CHANGE := "Normal road"
 ## The big button's word before a run, and in a run (the Players overlay).
 const START_WORD := "Start"
 const PLAY_WORD := "Play"
+## The players screen's usual title (title_text).
+const DEFAULT_TITLE := "Players"
 
 ## The heroes' big portraits, in hero order (set before setup).
 var hero_portraits: Array[String] = []
@@ -81,8 +83,10 @@ var hero_portraits: Array[String] = []
 var oaths: Array[OathData] = []
 var oath_unlocked: int = 0
 var start_oath: int = 0
-## The local screen's title (set before setup): "Players", or "Fight Rush" before a Rush (DESIGN.md 8.21).
-var title_text: String = "Players"
+## The screen's title (set before setup): "Players", or "Fight Rush" before a Rush (DESIGN.md 8.21).
+## Online the default gives way to "Host Online" / "Online Players"; any other title stays (an online
+## Fight Rush, card #312).
+var title_text: String = DEFAULT_TITLE
 
 var _roster: PlayerRoster
 var _hero_names: Array[String] = []
@@ -130,10 +134,11 @@ func setup_online(hero_names: Array[String], roster: PlayerRoster, is_host: bool
 	_online = true
 	_is_host = is_host
 	_oath = clampi(start_oath, 0, mini(oath_unlocked, oaths.size())) if is_host else 0
+	var own_title := title_text != DEFAULT_TITLE
 	if is_host:
-		_build("Host Online", address_line(addresses, port), hints(true, true))
+		_build(title_text if own_title else "Host Online", address_line(addresses, port), hints(true, true))
 	else:
-		_build("Online Players", "Waiting for the host", hints(true, false))
+		_build(title_text if own_title else "Online Players", "Waiting for the host", hints(true, false))
 
 
 ## The Players overlay over the pause menu, mid-run (cards #304, #311). `roster` is the local

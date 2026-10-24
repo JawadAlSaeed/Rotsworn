@@ -544,7 +544,12 @@ func test_late_flag_only_from_a_drop_in_catch_up() -> void:
 	assert_gt(start, -1, "main.gd has _catch_up")
 	var end := source.find("\nfunc ", start + 1)
 	var body := source.substr(start, end - start if end > start else -1)
-	assert_true(body.contains("\"late\": late"), "run_start says late only from _catch_up")
+	# The message is built in one place (card #312 added the mode); only _catch_up passes a real late.
+	assert_true(body.contains("_run_start_message(_run, _players, late)"), "run_start says late only from _catch_up")
+	assert_true(_body(source, "static func _run_start_message(").contains("\"late\": late"))
+	for header: String in ["func _new_run(", "func _new_rush("]:
+		assert_true(_body(source, header).contains("_run_start_message(") and _body(source, header).contains(", false)"),
+				"%s starts everyone on time" % header)
 	assert_false(source.contains("_join_pending = Net.joined_mid_run"),
 			"the baseline never comes from joined_mid_run (it outlives Again)")
 	assert_true(source.contains("_join_pending = bool(p.get(\"late\", false))"), "it comes from run_start's flag")

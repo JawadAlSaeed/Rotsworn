@@ -56,7 +56,9 @@ const HOST_PEER: int = 1
 ## Bumped when the handshake or the message format changes in a way the fingerprint cannot show.
 ## 3: the welcome says whether it seats us mid-run, combat batches carry their fight's seed, and a
 ## client that got in mid-run sends "seated_ready" (card #304).
-const PROTOCOL: int = 3
+## 4: "lobby", "again" and "run_start" say which game it is (a run or a Fight Rush), and the Rush
+## screens go out (card #312).
+const PROTOCOL: int = 4
 ## Client: the host could not be reached (short: it can end as a main menu notice).
 const REASON_UNREACHABLE := "Host not found"
 ## Channel for reliable messages (flow and combat) and for unreliable position updates.

@@ -22,7 +22,7 @@ extends Node
 ## (join that host), --continue (pick up the saved run), --save-path=PATH (keep that save elsewhere;
 ## the bot saves only with it), --oath=N (play the run at oath N; also unlocks it on the players
 ## screen), --rush (start a Fight Rush at once, DESIGN.md 8.21; --rush-start=N and --rush-fights=N
-## are its dev head start and cap).
+## are its dev head start and cap; with --host=N it hosts one, card #312).
 
 const DEFAULT_ENCOUNTER_ID := "husk_fight"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
@@ -63,6 +63,19 @@ const ZONE_BACKPACK_LAYER: int = 20
 ## --screen=rush_*: the sample record the Fight Rush dev screens show ("Best 16"), and the fight their
 ## NEW RECORD end sample reaches. Never written to the stored records (DESIGN.md 8.21, D9).
 const DEV_RUSH_BEST: int = 16
+## Which game is played, as RunState.mode() and RushState.mode() say it; online it travels in the
+## "lobby", "again" and "run_start" messages (card #312).
+const MODE_RUN := "run"
+const MODE_RUSH := "rush"
+## The players screen's title before a Fight Rush (local, host and friends).
+const RUSH_TITLE := "Fight Rush"
+## Online host: the Give up row's line and question detail in a Fight Rush (card #312).
+const RUSH_GIVE_UP_ONLINE := "The Rush ends for everyone."
+## Online: the host's screens that are a fight going on (kept as _net_fight, so a friend who gets in
+## mid-fight is shown it), and the run screens a friend watches (_watched_screen_builder builds them).
+const NET_FIGHT_SCREENS: Array[String] = ["zone_fight", "final_fight", "rush_fight"]
+const WATCHED_SCREENS: Array[String] = ["map", "rest", "shop", "loot", "party", "run_end", "event", "treasure",
+		"rush_reward", "rush_end"]
 
 var _encounters: Array[EncounterData] = []
 var _zones: Array[ZoneData] = []
@@ -201,6 +214,12 @@ var _decided_unlock: int = 0
 var _rush_best_start: Dictionary = {}
 var _rush_new_record: bool = false
 var _fight_weather: WeatherData = null
+## Online (card #312): the game the host's players screen is for, MODE_RUN or MODE_RUSH (the host
+## picks it before hosting; friends read it from the host's messages).
+var _mode: String = MODE_RUN
+## Online friend: they got into this Fight Rush after it started (a drop-in's catch-up said "late"),
+## so it writes no record here (DESIGN.md 8.21, D20).
+var _rush_late: bool = false
 ## The "saved by another build" notice was shown once this session (the file stays, so it must not
 ## nag on every visit to the main menu).
 var _mismatch_told: bool = false
@@ -283,6 +302,8 @@ func _ready() -> void:
 		if _options.pad_leave_after_s > 0:
 			_autoplay_pad_roster_later(false)
 	if _options.host_players > 0:
+		# --rush --host=N hosts a Fight Rush (card #312).
+		_mode = MODE_RUSH if _options.rush else MODE_RUN
 		_host_online()
 		if _options.end_after_s > 0:
 			_autoplay_end_later()
@@ -907,7 +928,9 @@ func _on_menu_chosen(item: StringName) -> void:
 				_start_new_run.call_deferred()
 		MainMenu.PLAY_RUSH:
 			_start_rush.call_deferred()
-		MainMenu.HOST_ONLINE:
+		MainMenu.HOST_RUN, MainMenu.HOST_RUSH:
+			# Online > Host > Run or Fight Rush: the friends play what the host picked (card #312).
+			_mode = MODE_RUSH if item == MainMenu.HOST_RUSH else MODE_RUN
 			_host_online.call_deferred()
 		MainMenu.JOIN_ONLINE:
 			_show_join.call_deferred()
@@ -996,6 +1019,8 @@ func _on_lobby_started(players: PlayerRoster, oath: int, next: Callable) -> void
 ## its Start; a friend who presses it first waits there.
 func _play_again() -> void:
 	var was_rush := _run is RushState
+	# Online the players screen is for the same game again (card #312).
+	_mode = MODE_RUSH if was_rush else MODE_RUN
 	_run = null
 	_checkpoint = {}
 	_checkpoint_in_stop = false
@@ -1021,7 +1046,7 @@ func _play_again() -> void:
 		_update_away_chip()
 		Net.closed = false
 		_show_host_lobby()
-		Net.broadcast("again", {"roster": _players.to_dict(), "oath": _oath})
+		Net.broadcast("again", _lobby_message(_players, _oath, _mode))
 		return
 	# Whoever pressed Again, the players screen opens as player 1's, so nobody's seat is dropped.
 	if _players.player_count() > 1 and _players.devices.has(_last_device):
@@ -1033,13 +1058,14 @@ func _play_again() -> void:
 
 
 ## A friend's start collection is for one run only (card #281), and so is a late joiner's baseline
-## (card #304).
+## (card #304) and their Fight Rush without a record (#312).
 func _forget_own_start() -> void:
 	_own_start = null
 	_own_start_seed = -1
 	_join_relics = {}
 	_join_mastery = {}
 	_join_pending = false
+	_rush_late = false
 
 
 ## The run's heroes in slot order (a roster covers these slots).
@@ -1957,13 +1983,14 @@ func _new_run() -> void:
 		RunSave.delete(_run_save_path())
 	_reset_play_device()
 	_fight_weather = null
+	_mode = MODE_RUN
 	var run_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
 	if _options.oath >= 0:
 		_oath = _options.oath
 	_run = RunState.begin(_run_data, _tuning, run_seed, _oath, _run_collection())
 	_oath = _run.oath
 	if Net.is_host():
-		Net.broadcast("run_start", {"seed": run_seed, "roster": _players.to_dict(), "oath": _run.oath})
+		Net.broadcast("run_start", _run_start_message(_run, _players, false))
 	print("Run seed: %d  oath: %d  stops: %d  acts: %d" % [run_seed, _run.oath, _run.map.row_count(), _run.acts().size()])
 	# Friends may drop in from now on (the first screen goes out in this same frame, card #304).
 	_set_drop_in(true)
@@ -2344,13 +2371,14 @@ func _start_rush() -> void:
 
 ## The players screen titled Fight Rush, with no Oath row (no Oaths in a Rush); Start begins it.
 func _show_rush_lobby() -> void:
-	_show_lobby(_fade_to.bind(_new_rush), false, "Fight Rush")
+	_show_lobby(_fade_to.bind(_new_rush), false, RUSH_TITLE)
 
 
 ## Starts a Fight Rush with the players screen's roster, or at once for --rush. It never deletes a
 ## saved run (Continue still shows afterwards) and is never saved itself. It opens on the Rush
 ## screen's ready phase (FIGHT 1); a Relic bag that brought Relics opens the party screen on its
-## Relics page first, as a run does (card #265).
+## Relics page first, as a run does (card #265). Online the host plays it exactly so and its friends
+## follow (card #312): run_start says it is a Rush, every screen carries the whole state.
 func _new_rush() -> void:
 	if _rush_data == null:
 		push_error("Main: no Fight Rush data, cannot start a Rush")
@@ -2358,21 +2386,16 @@ func _new_rush() -> void:
 		_show_main_menu()
 		return
 	_reset_play_device()
+	_mode = MODE_RUSH
 	var rush_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
 	var rush := RushState.begin_rush(_rush_data, _tuning, rush_seed, _run_collection(), _options.rush_start)
 	_run = rush
-	_decided_run = null
-	_fight_weather = null
-	_rush_new_record = false
-	# The records as they were when the Rush began: the banner's NEW BEST and the end screen's NEW
-	# RECORD measure against these. Bots and dev switches read none (default D9).
-	var records := _rush_records_ok()
-	_rush_best_start = {}
-	for players: int in RushRecords.SIZES:
-		_rush_best_start[players] = int(PlayerSettings.rush_best(players).get("fight", 0)) if records else 0
+	_begin_rush_records()
 	rush.note_players(_players.player_count())
+	if Net.is_host():
+		Net.broadcast("run_start", _run_start_message(rush, _players, false))
 	print("Rush seed: %d start: %d" % [rush_seed, rush.start_fight])
-	# Local friends may join from the Players row; online seats come with card #312.
+	# Friends may join from now on: local ones from the Players row, online ones drop in (card #312).
 	_set_drop_in(true)
 	Sfx.play("run_begin")
 	if rush.owned_relics().is_empty() or _options.is_autoplay():
@@ -2383,7 +2406,22 @@ func _new_rush() -> void:
 		(_screen as PartyScreen).open_relics(0, 0)
 
 
-## The Rush screen: the reward picks after a win, else the ready phase (Fight or Party).
+## A Fight Rush begins on this machine (alone, as host, or as a host's friend): nothing decided or
+## built yet, and the records as they were, each party size's best fight. The banner's NEW BEST and
+## the end screen's NEW RECORD measure against these. Bots, dev switches and a friend who got in late
+## read none (defaults D9, D20).
+func _begin_rush_records() -> void:
+	_decided_run = null
+	_fight_weather = null
+	_rush_new_record = false
+	var records := _rush_records_ok()
+	_rush_best_start = {}
+	for players: int in RushRecords.SIZES:
+		_rush_best_start[players] = int(PlayerSettings.rush_best(players).get("fight", 0)) if records else 0
+
+
+## The Rush screen: the reward picks after a win, else the ready phase (Fight or Party). Online
+## friends watch it (remote): they can open the party screen, the host takes the cards.
 func _show_rush_reward() -> void:
 	var rush := _run as RushState
 	if rush == null:
@@ -2418,7 +2456,8 @@ func _start_rush_fight() -> void:
 
 ## Builds the fight the Rush is on from its state: its encounter, its zone's look and air under the
 ## fight's weather (a boss in its own place; never lightning in a fight, D13), the record written as
-## it starts (so closing the game keeps it, D4), then the swirl into it.
+## it starts (so closing the game keeps it, D4), then the swirl into it. Online friends build it too,
+## from the host's state ("rush_fight", card #312), and write their own record.
 func _begin_rush_fight() -> void:
 	var rush := _run as RushState
 	if rush == null:
@@ -2430,6 +2469,9 @@ func _begin_rush_fight() -> void:
 		push_error("Main: Fight Rush fight %d has no encounter" % rush.fight)
 		_autoplay_fail("rush has no fight")
 		_end_busy()
+		if Net.is_client():
+			# The host decides the end; its next screen comes as usual.
+			return
 		rush.give_up()
 		_close_decided_rush()
 		_fade_to(_show_rush_end)
@@ -2488,7 +2530,8 @@ func _on_rush_fight_over(result: String) -> void:
 		_fade_to(_show_rush_reward)
 
 
-## Pause menu, Give up (asked first): the Rush ends where it is, on its end screen.
+## Pause menu, Give up (asked first): the Rush ends where it is, on its end screen. Online only the
+## host gives up, and RUSH OVER shows on every machine (card #312).
 func _give_up_rush() -> void:
 	var rush := _run as RushState
 	if rush == null:
@@ -2500,7 +2543,8 @@ func _give_up_rush() -> void:
 
 
 ## The Rush is decided (lost, given up or capped), once per Rush: its record is written with the
-## most players seen, and drop-in shuts. Nothing is banked and nothing is saved.
+## most players seen, and drop-in shuts. Nothing is banked and nothing is saved. Online friends get
+## here from their Rush end screen (the host's state says how it ended).
 func _close_decided_rush() -> void:
 	if not _run is RushState or _decided_run == _run:
 		return
@@ -2545,29 +2589,35 @@ func _show_rush_end() -> void:
 
 
 ## True if this Rush may read and write the Fight Rush records: no bot, dev screen, head start, cap,
-## pretend Relics or pads, fixed seed or other tuning (default D9). Online late joiners come with card #312.
+## pretend Relics or pads, fixed seed or other tuning (default D9), and not an online friend who got
+## in after it started (D20, card #312).
 func _rush_records_ok() -> bool:
-	return RushRecords.allowed(_rush_records_flags(_options, _tuning, _tuning_path() == TUNING_PATH))
+	var late := Net.is_client() and (_rush_late or Net.joined_mid_run)
+	return RushRecords.allowed(_rush_records_flags(_options, _tuning, _tuning_path() == TUNING_PATH, late))
 
 
 ## The switches `RushRecords.allowed` judges, as these command-line options and tuning set them
-## (`tuning_default`: the shipped tuning file is in use, no --tuning=).
-static func _rush_records_flags(options: CombatOptions, tuning: Tuning, tuning_default: bool) -> Dictionary:
+## (`tuning_default`: the shipped tuning file is in use, no --tuning=; `late`: an online friend who
+## got into the Rush after it started).
+static func _rush_records_flags(options: CombatOptions, tuning: Tuning, tuning_default: bool,
+		late: bool = false) -> Dictionary:
 	return {"autoplay": options.is_autoplay(), "screen": options.screen, "start_fight": options.rush_start,
 			"rush_fights": options.rush_fights, "relics_mode": options.relics_mode, "relics_path": options.relics_path,
 			"seed_override": options.seed_override, "fixed_seed": tuning.fixed_seed, "tuning_default": tuning_default,
 			"players": options.players, "pad_join_after_s": options.pad_join_after_s,
-			"pad_leave_after_s": options.pad_leave_after_s, "late": false}
+			"pad_leave_after_s": options.pad_leave_after_s, "late": late}
 
 
 ## Counts the players in now, then writes the fight reached as the record of the most players seen,
 ## if it beats the one kept (each fight start, and when the Rush is decided). NEW RECORD is shown
-## when the fight reached passes that party size's record from when the Rush began.
+## when the fight reached passes that party size's record from when the Rush began. Online friends
+## count nothing themselves: the most players seen comes in the host's state.
 func _note_rush_record() -> void:
 	var rush := _run as RushState
 	if rush == null:
 		return
-	rush.note_players(_players.player_count())
+	if not Net.is_client():
+		rush.note_players(_players.player_count())
 	if rush.reached() < 1 or not _rush_records_ok():
 		return
 	PlayerSettings.set_rush_best(rush.most_players, RushRecords.entry(rush.reached(), Time.get_date_string_from_system()))
@@ -2731,9 +2781,11 @@ func _input(event: InputEvent) -> void:
 		_open_zone_backpack("", {})
 		return
 	# Online client on a run screen: the host chooses; only pause (to leave) works here. The
-	# backpack is everyone's: the party screen takes input, and Tab / Y on the map opens it.
+	# backpack is everyone's: the party screen takes input, and Tab / Y on the map or the Fight Rush
+	# screen opens it (card #312).
 	var own := _screen is PartyScreen or _screen is RunEndScreen \
-			or (_screen is MapScreen and event.is_action(&"party_menu"))
+			or (_screen is MapScreen and event.is_action(&"party_menu")) \
+			or (_screen is RushRewardScreen and event.is_action(&"party_menu"))
 	if Net.is_client() and _is_run_screen(_screen) and _pause == null and _prompt == null and not pause and not own:
 		if not event is InputEventMouseMotion:
 			get_viewport().set_input_as_handled()
@@ -2830,6 +2882,9 @@ func _open_pause() -> void:
 	if _tutorial != null:
 		_pause.setup("Leave tutorial", "Back to the main menu.", "Skip this lesson", "Go on to the next one.")
 		_pause.extra_requested.connect(_on_tutorial_skip)
+	elif Net.is_host() and _gives_up_rush():
+		# Online the host gives the Rush up for everyone: RUSH OVER on every machine (card #312).
+		_pause.setup("Give up", RUSH_GIVE_UP_ONLINE)
 	elif Net.is_host():
 		_pause.setup("End the game", "The run ends for everyone.")
 	elif Net.is_client():
@@ -3047,11 +3102,20 @@ func _on_pause_settings_closed(settings: SettingsScreen) -> void:
 		_pause.process_mode = Node.PROCESS_MODE_INHERIT
 
 
-## Abandon the run (asks first) or, in practice, leave for the practice list.
+## Abandon the run (asks first) or, in practice, leave for the practice list. A Fight Rush asks
+## Give up? instead (alone, or the host for everyone).
 func _on_pause_leave() -> void:
 	if _tutorial != null:
 		_free_pause()
 		_fade_to.call_deferred(_show_main_menu)
+		return
+	if _gives_up_rush():
+		_pause.process_mode = Node.PROCESS_MODE_DISABLED
+		_prompt = ConfirmPrompt.new()
+		_prompt.name = "GiveUpPrompt"
+		_prompt.setup("Give up?", RUSH_GIVE_UP_ONLINE if Net.is_host() else "", "Give up", "Keep going")
+		_prompt.answered.connect(_on_give_up_answered)
+		add_child(_prompt)
 		return
 	if Net.is_online():
 		_pause.process_mode = Node.PROCESS_MODE_DISABLED
@@ -3062,14 +3126,6 @@ func _on_pause_leave() -> void:
 		else:
 			_prompt.setup("Leave the game?", "Your heroes go to the host.", "Leave", "Keep playing")
 		_prompt.answered.connect(_on_abandon_answered)
-		add_child(_prompt)
-		return
-	if _run is RushState:
-		_pause.process_mode = Node.PROCESS_MODE_DISABLED
-		_prompt = ConfirmPrompt.new()
-		_prompt.name = "GiveUpPrompt"
-		_prompt.setup("Give up?", "", "Give up", "Keep going")
-		_prompt.answered.connect(_on_give_up_answered)
 		add_child(_prompt)
 		return
 	if _run == null:
@@ -3101,6 +3157,15 @@ func _on_give_up_answered(yes: bool) -> void:
 		_give_up_rush()
 	elif _pause != null:
 		_pause.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+## True when the pause menu's leave row gives the Fight Rush up: alone, or online the host while the
+## Rush goes on (card #312; once it is over the host's row ends the game, as after a run). A friend
+## only leaves.
+func _gives_up_rush() -> bool:
+	if not _run is RushState:
+		return false
+	return not Net.is_online() or (Net.is_host() and not _run.is_over())
 
 
 ## Abandon run, End the game (host) or Leave the game (client), once the player said yes.
@@ -3178,11 +3243,15 @@ func _host_online() -> void:
 
 
 ## The host's players screen with the roster as it is (a new game, or Again after a run, card #284).
+## A Fight Rush's is titled so and has no Oath row (card #312).
 func _show_host_lobby() -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
 	lobby.hero_portraits = _hero_portraits()
-	_give_oaths(lobby)
+	if _mode == MODE_RUSH:
+		lobby.title_text = RUSH_TITLE
+	else:
+		_give_oaths(lobby)
 	lobby.setup_online(_hero_names(), _players, true, NetSession.local_addresses(), _tuning.net_port)
 	lobby.roster_changed.connect(_on_online_roster_changed)
 	lobby.oath_changed.connect(_on_online_oath_changed)
@@ -3193,7 +3262,7 @@ func _show_host_lobby() -> void:
 
 func _on_online_roster_changed(players: PlayerRoster) -> void:
 	_players = players
-	Net.broadcast("lobby", {"roster": players.to_dict(), "oath": _lobby_oath()})
+	Net.broadcast("lobby", _lobby_message(players, _lobby_oath(), _mode))
 	if _options.host_players > 0 and players.player_count() >= _options.host_players:
 		_autoplay_start_online()
 
@@ -3215,18 +3284,48 @@ func _lobby_oath() -> int:
 ## Online host: the oath pick changed; the clients show it.
 func _on_online_oath_changed(oath: int) -> void:
 	_oath = oath
-	Net.broadcast("lobby", {"roster": _players.to_dict(), "oath": oath})
+	Net.broadcast("lobby", _lobby_message(_players, oath, _mode))
 
 
-## The host pressed Start: nobody else can join now; the run begins (the clients follow).
+## The host pressed Start: the players screen closes (friends drop in from now on); the run or the
+## Fight Rush begins (the clients follow).
 func _on_online_started(players: PlayerRoster, oath: int) -> void:
 	if _busy or not _screen is LobbyScreen:
 		return
 	_players = players
 	_oath = oath
 	Net.closed = true
-	print("Players: %d online" % players.player_count())
-	_fade_to(_new_run)
+	print("Players: %d online%s" % [players.player_count(), " (Fight Rush)" if _mode == MODE_RUSH else ""])
+	_fade_to(_new_rush if _mode == MODE_RUSH else _new_run)
+
+
+## The "lobby" and "again" messages: the host's roster, its oath pick and which game the players
+## screen is for, MODE_RUN or MODE_RUSH (card #312).
+static func _lobby_message(roster: PlayerRoster, oath: int, mode: String) -> Dictionary:
+	return {"roster": roster.to_dict(), "oath": oath, "mode": mode}
+
+
+## The "run_start" message: which game starts (MODE_RUN or MODE_RUSH), its seed, the roster and the
+## oath, and `late`: a drop-in's catch-up (card #304), whose friend keeps only what comes after and
+## writes no Fight Rush record. The host's next screen brings the whole state.
+static func _run_start_message(run: RunState, roster: PlayerRoster, late: bool) -> Dictionary:
+	return {"mode": run.mode(), "seed": run.run_seed, "roster": roster.to_dict(), "oath": run.oath, "late": late}
+
+
+## The game a host's message is about: MODE_RUSH only when it says so, else MODE_RUN (a message from
+## before the Fight Rush has no mode).
+static func _message_mode(p: Dictionary) -> String:
+	return MODE_RUSH if typeof(p.get("mode")) == TYPE_STRING and String(p.mode) == MODE_RUSH else MODE_RUN
+
+
+## Client: the game a "run_start" begins here, from the host's seed: a Fight Rush for MODE_RUSH, else
+## a run at `oath`. Null when this machine lacks its data. The host's next screen brings the whole
+## state (a Rush's fight, picks and Relics come with it: no head start here).
+static func _client_game(mode: String, run_data: RunData, rush_data: RushData, tuning: Tuning, game_seed: int,
+		oath: int) -> RunState:
+	if mode == MODE_RUSH:
+		return RushState.begin_rush(rush_data, tuning, game_seed) if rush_data != null else null
+	return RunState.begin(run_data, tuning, game_seed, oath) if run_data != null else null
 
 
 ## `address` "" : the remembered one. `problem`: shown at once (why we are here again). `rejoin`:
@@ -3285,12 +3384,14 @@ func _on_net_peer_joined(peer: int) -> void:
 
 
 ## An online friend's players screen: the host's roster, waiting for its Start (a new game, or Again
-## after a run, card #284).
+## after a run, card #284). For a Fight Rush it is titled so and has no Oath row (card #312).
 func _show_client_lobby() -> void:
 	var lobby := LobbyScreen.new()
 	lobby.name = "Lobby"
 	lobby.hero_portraits = _hero_portraits()
-	if _run_data != null:
+	if _mode == MODE_RUSH:
+		lobby.title_text = RUSH_TITLE
+	elif _run_data != null:
 		lobby.oaths = _run_data.oaths
 	lobby.setup_online(_hero_names(), _players, false, [] as Array[String], _tuning.net_port)
 	lobby.back.connect(_show_main_menu.call_deferred)
@@ -3377,8 +3478,8 @@ func _on_net_peer_rejoined(old_peer: int, new_peer: int) -> void:
 ## Their heroes come later, when their machine says it caught up (_on_seated_ready).
 func _catch_up(peer: int, late: bool) -> void:
 	var mid_fight := not _net_fight.is_empty() and _combat != null
-	Net.send_to(peer, "run_start", {"seed": _run.run_seed, "roster": _players.to_dict(), "oath": _run.oath,
-			"late": late})
+	# The mode travels too: a friend who gets into a Fight Rush builds one (card #312).
+	Net.send_to(peer, "run_start", _run_start_message(_run, _players, late))
 	var run := _run.to_dict()
 	if not _net_place.is_empty():
 		var place := _net_place.duplicate()
@@ -3578,6 +3679,7 @@ func _leave_online() -> void:
 	_sent_run = {}
 	_net_place = {}
 	_net_fight = {}
+	_mode = MODE_RUN
 	Net.leave()
 	get_tree().auto_accept_quit = true
 	_players = PlayerRoster.solo(_hero_names().size())
@@ -3614,6 +3716,11 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 			var roster := PlayerRoster.from_dict(payload.get("roster", {}) as Dictionary, Net.my_peer())
 			if roster != null and _screen is LobbyScreen:
 				_players = roster
+				var mode := _message_mode(payload)
+				if mode != _mode:
+					# The host's players screen is for the other game (card #312): its title and Oath row.
+					_mode = mode
+					_show_client_lobby()
 				(_screen as LobbyScreen).set_roster(roster)
 				(_screen as LobbyScreen).set_oath(int(payload.get("oath", 0)))
 		"menu":
@@ -3670,25 +3777,43 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			_seat_wait = false
 			_seat_sent_key = ""
 			_combat_inbox.clear()
+			# The same game again, a run or a Fight Rush (card #312).
+			var again_mode := _message_mode(p)
 			if not _screen is LobbyScreen:
 				_run = null
 				_client_done = false
+				_mode = again_mode
 				var oath := int(p.get("oath", 0))
 				_fade_to(func() -> void:
 					_show_client_lobby()
 					(_screen as LobbyScreen).set_oath(oath))
 			elif again_roster != null:
+				if again_mode != _mode:
+					_mode = again_mode
+					_show_client_lobby()
 				(_screen as LobbyScreen).set_roster(again_roster)
 				(_screen as LobbyScreen).set_oath(int(p.get("oath", 0)))
 		"run_start":
-			# A new game (an earlier one in this session may have ended).
+			# A new game (an earlier one in this session may have ended): a run, or a Fight Rush (card
+			# #312). The host's next screen brings its whole state.
 			_client_done = false
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
 			if roster != null:
 				_players = roster
-			_run = RunState.begin(_run_data, _tuning, int(p.get("seed", 1)), int(p.get("oath", 0)))
+			_mode = _message_mode(p)
 			var start_seed := int(p.get("seed", 1))
-			if _own_start == null or _own_start_seed != start_seed:
+			var game := _client_game(_mode, _run_data, _rush_data, _tuning, start_seed, int(p.get("oath", 0)))
+			if game == null:
+				push_error("Main: the host started a game this machine has no data for (%s)" % _mode)
+				_autoplay_fail("run_state_mismatch")
+				_end_online("Could not start the game")
+				return
+			_run = game
+			# The same game again: our seat taken back mid-game (card #205).
+			var same_game := _own_start_seed == start_seed
+			# A friend who dropped into this Rush stays late through a rejoin of the same Rush (D20).
+			_rush_late = bool(p.get("late", false)) or (_rush_late and same_game)
+			if _own_start == null or not same_game:
 				_own_start = RelicFile.load_or_empty(_relics_path()) if _client_relics_ok() else null
 				_own_start_seed = start_seed
 				# Only a drop-in's catch-up says late (card #304); a start or a token rejoin never
@@ -3696,6 +3821,10 @@ func _client_message(kind: String, p: Dictionary) -> void:
 				_join_relics = {}
 				_join_mastery = {}
 				_join_pending = bool(p.get("late", false))
+			if _run is RushState and not same_game:
+				# The records as they were before this Rush (a seat taken back keeps them: the record
+				# this Rush already wrote here must not count as the one to beat).
+				_begin_rush_records()
 			Sfx.play("run_begin")
 		"roster":
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
@@ -3725,10 +3854,11 @@ func _client_screen(p: Dictionary) -> void:
 	if _run == null and name != "menu":
 		return
 	_screens_seen += 1
+	if WATCHED_SCREENS.has(name):
+		_net_screen = p
+		_fade_to(_watched_screen_builder(p))
+		return
 	match name:
-		"map", "rest", "shop", "loot", "party", "run_end", "event", "treasure":
-			_net_screen = p
-			_fade_to(_watched_screen_builder(p))
 		"zone":
 			var zone := _zone_by_id(String(p.get("zone", "")))
 			if zone != null:
@@ -3745,6 +3875,12 @@ func _client_screen(p: Dictionary) -> void:
 			_net_seed = int(p.get("seed", 1))
 			_combat_resync = bool(p.get("rejoin", false))
 			_start_final_fight(int(_run.current().get("type", -1)) == RunMap.StopType.ELITE)
+		"rush_fight":
+			# The Rush's state came with it (fight, encounter): build that fight, never roll a new one
+			# (card #312). Its batches wait in the inbox until it is built, as a final fight's do.
+			_net_seed = int(p.get("seed", 1))
+			_combat_resync = bool(p.get("rejoin", false))
+			_begin_rush_fight()
 		"zone_back":
 			# After a lost run the host sends the run's end next instead.
 			if not _run.is_over():
@@ -3765,14 +3901,21 @@ func _watched_screen_builder(p: Dictionary) -> Callable:
 		"loot":
 			return _show_loot.bind(_gear_from_ids(p.get("gear", []) as Array), String(p.get("text", "")))
 		"party":
-			return _show_party.bind(String(p.get("note", "")), true)
+			# In a Fight Rush the party screen closes back to the Rush screen, not a map (card #312).
+			var back := _show_rush_reward if _run is RushState else Callable()
+			return _show_party.bind(String(p.get("note", "")), true, {}, back)
 		"run_end":
 			return _show_run_end
+		"rush_reward":
+			return _show_rush_reward
+		"rush_end":
+			return _show_rush_end
 	return _show_map
 
 
 ## Client: the run changed on the host (a purchase, gear): show the watched screen again. A party
-## screen (this player may be busy in it) and the backpack over a zone only redraw.
+## screen (this player may be busy in it) and the backpack over a zone only redraw, and so does the
+## Fight Rush screen (a card taken, card #312).
 func _rebuild_watched_screen() -> void:
 	if _refresh_party_views():
 		return
@@ -3780,6 +3923,9 @@ func _rebuild_watched_screen() -> void:
 		return
 	if _screen is MapScreen:
 		_show_map(false)
+		return
+	if _screen is RushRewardScreen:
+		(_screen as RushRewardScreen).refresh()
 		return
 	_watched_screen_builder(_net_screen).call()
 
@@ -3998,15 +4144,16 @@ func _send_screen(p: Dictionary) -> void:
 		_sent_run = _run.to_dict()
 		message["run"] = _sent_run
 	Net.broadcast("screen", message)
-	# Kept for a player who joins again (without the run: theirs is sent fresh).
-	match String(p.get("name", "")):
-		"zone_fight", "final_fight":
-			_net_fight = p.duplicate()
-		"zone_back":
-			_net_fight = {}
-		_:
-			_net_place = p.duplicate()
-			_net_fight = {}
+	# Kept for a player who joins again (without the run: theirs is sent fresh): a fight going on (a
+	# Fight Rush's too, card #312) apart from the place it started from.
+	var screen_name := String(p.get("name", ""))
+	if NET_FIGHT_SCREENS.has(screen_name):
+		_net_fight = p.duplicate()
+	elif screen_name == "zone_back":
+		_net_fight = {}
+	else:
+		_net_place = p.duplicate()
+		_net_fight = {}
 
 
 ## Host, every frame: run changes (purchases, gear, levels) and zone positions go out.

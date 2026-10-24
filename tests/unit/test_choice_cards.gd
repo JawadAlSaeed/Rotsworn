@@ -473,6 +473,44 @@ func test_online_is_host_and_join_side_by_side() -> void:
 	assert_eq(String(list.items[list.index].text), "Online", "cancel goes back to the Online row")
 
 
+## Online > Host (card #312): what to host, Run or Fight Rush, as two cards like New Run's. Cancel goes
+## back to Host, then to the Online row; coming back from hosting rests on Online.
+func test_host_asks_run_or_fight_rush() -> void:
+	var menu := _main_menu(MainMenu.ONLINE, 16)
+	var list := _list_in(menu)
+	_press_on(menu, &"menu_confirm")
+	_press_on(menu, &"menu_confirm")
+	assert_eq(_picked.size(), 0, "Host opens its cards, it does not host yet")
+	assert_true(menu.is_showing_cards())
+	assert_eq(_texts(list), ["Run", "Fight Rush"], "no Back card: Back is the cancel button")
+	for row: Dictionary in list.items:
+		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
+	assert_eq(String(list.card_chips(1)[0].text), "Best 16", "the same Fight Rush card as New Run's")
+	_press_on(menu, &"menu_cancel")
+	assert_eq(_texts(list), ["Host", "Join"], "cancel goes back to Host and Join")
+	assert_eq(list.index, 0, "on Host")
+	_press_on(menu, &"menu_confirm")
+	_press_on(menu, &"menu_right")
+	_press_on(menu, &"menu_confirm")
+	assert_eq(_picked, [MainMenu.HOST_RUSH] as Array[StringName])
+	_press_on(menu, &"menu_left")
+	_press_on(menu, &"menu_confirm")
+	assert_eq(_picked, [MainMenu.HOST_RUSH, MainMenu.HOST_RUN] as Array[StringName])
+	_press_on(menu, &"menu_cancel")
+	_press_on(menu, &"menu_cancel")
+	assert_false(menu.is_showing_cards())
+	assert_eq(String(list.items[list.index].text), "Online")
+	var greyed := _main_menu(MainMenu.ONLINE, 0, false)
+	var greyed_list := _list_in(greyed)
+	_press_on(greyed, &"menu_confirm")
+	_press_on(greyed, &"menu_confirm")
+	assert_false(greyed_list.is_enabled(1), "no Rush data: nothing to host as a Fight Rush")
+	for start: StringName in MainMenu.HOST_MODE_ITEMS:
+		var back := _main_menu(start)
+		assert_false(back.is_showing_cards())
+		assert_eq(String(_list_in(back).items[_list_in(back).index].text), "Online", "back from hosting: on Online")
+
+
 ## New Run (DESIGN.md 8.21): Run and Fight Rush side by side, each with its picture; the Rush card
 ## carries the best record as a gold Best chip.
 func test_new_run_is_run_and_fight_rush_side_by_side() -> void:
