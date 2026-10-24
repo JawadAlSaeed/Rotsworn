@@ -88,7 +88,9 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 - **Counters.** Defend every hit of an attack perfectly (parry, or jump the ground hits) and the
   hero strikes back. If the whole party does it, they strike back together as a **TEAM COUNTER**.
 - **First strike.** A fight that starts with **FIRST STRIKE!** lets every hero act before any
-  enemy. Soon a well-timed press as a fight opens will earn it.
+  enemy. A Fight stop's name card shows one ring: press on the beat (**Space** or **E**, pad **A**
+  or **RB**) as it closes. GOOD or PERFECT earns First Strike; early, late or no press starts the
+  fight normally. Guards, elites, ambushes and bosses always start normally.
 - **Dooms.** Guards and bosses charge one huge attack and count it down (*"TIMBER FALL IN 3"*).
   Deal enough damage in time and it **BREAKS**: the enemy is staggered, loses a turn and takes more
   damage.

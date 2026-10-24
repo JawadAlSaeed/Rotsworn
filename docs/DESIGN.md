@@ -2130,6 +2130,13 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
   Clients and the bot do not hold it (the host already held it before telling the clients).
   While the black, the swirl or a loading card covers the screen, no input (mouse, keyboard, pad)
   reaches anything behind it (`ScreenTransition._input`, card #132).
+  **A Fight stop's card** (since #320, 8.22) carries the First Strike ring and works differently:
+  the ring's hold replaces `hold_ms` on every machine, clients and the bot too (the card stays
+  until the ring's press and result are done: about 2.3 s after a hit, 2.4 s with no press, from
+  1.3 s after an early press, and up to about 8.4 s on a friend's card whose host result never
+  comes); the host tells the clients at its swirl, not after the card; and the ring's own
+  `DefenseInput` takes the skill press on the card (it is on the card, so it gets the press before
+  the card's input block). A Guard stop's card is still the plain one.
 - **Hero portraits** (card #85): waiting for painted art (the 24 px placeholders stay).
 - **Story** (card #90): at the top of this file, in `BrandingData.story`, the credits and the
   README.
@@ -2514,6 +2521,7 @@ each moment; a pad is told only when its levels change, with a length so it stop
 | a parry (the last hit of a string: stronger) | `parry`, `parry_final` (sharp, short) | the defender's player |
 | a dodge / a jump | `dodge` (light) / `jump` | the defender's player |
 | a perfect / good skill press | `press_perfect` / `press_good` (softer) | the presser |
+| a perfect / good press on the First Strike ring (8.22) | `press_perfect` / `press_good` | the presser (`PadRumble.for_player` with the card's roster: no fight party is set on the card) |
 | a hit taken (heavy: at least `big_hit_percent` of max HP) | `hurt` / `hurt_heavy` | the hit hero's player |
 | a hero downed | `downed` | that hero's player |
 | the Team Ultimate | `ultimate` (long, rolling) | every pad here |
@@ -2525,7 +2533,8 @@ each moment; a pad is told only when its levels change, with a length so it stop
   feels nothing); one person on this machine (solo, or this machine's player online), the pad that was
   used last, while a pad (not a key) was the last thing pressed; another machine's player online,
   nothing here. The fight hands the roster and hero owners over (`PadRumble.set_party`); out of a fight
-  a buzz goes to the pad in use. A buzz is sent to the pad the moment it is asked for (a 35 ms buzz
+  a buzz goes to the pad in use, except the First Strike ring's, which names its presser
+  (`PadRumble.for_player`). A buzz is sent to the pad the moment it is asked for (a 35 ms buzz
   must not wait for the next frame).
 - **Settings > Controls > Controller**: Vibration, `< 100% >` in steps of 25, 0 shows OFF (saved per
   machine, `PlayerSettings.rumble_percent`); a change buzzes the pad once at the new strength
@@ -4646,9 +4655,15 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   faint target, the GOOD band and the gold PERFECT band, the ring gold inside PERFECT), at
   `first_strike_ring_scale` (0.8) of a skill ring. Under it the chip [A] First Strike (`HintBar`),
   over it the press's word (PERFECT, GOOD, EARLY, LATE, MISS). Sounds and buzz as a skill press:
-  `skill_press` (quieter for GOOD), `whiff`, `skill_miss`, `locked`, `press_perfect` /
-  `press_good` on every pad. The result stays `first_strike_result_ms` (800): a won ring stays gold
-  on its target and the chip turns gold; otherwise the ring goes and the chip dims. Then the fight.
+  `skill_press` (quieter for GOOD), `whiff`, `skill_miss`, `locked`, and `press_perfect` /
+  `press_good` on the presser's pad only (`PadRumble.for_player`, 7.14: no fight party is set on
+  the card; a keyboard player in local co-op feels nothing, as in a fight). A window that passes
+  unpressed says MISS at once (with `skill_miss`), as a skill ring does, but the button stays armed
+  until `late_press_report_ms` (400) after the moment (plus the laggiest device's lag compensation,
+  `FirstStrikeJudge.late_until_us`): a press by then turns the word into LATE (with `whiff`), and
+  the opening stays normal. The result stays `first_strike_result_ms` (800), and never ends before
+  that late span: a won ring stays gold on its target and the chip turns gold; otherwise the ring
+  goes and the chip dims. Then the fight.
   Tuning group "First Strike press"; visuals group "First Strike press" (`first_strike_chip_size`,
   `first_strike_word_size`, `first_strike_watch_alpha` too).
 - **Judging** (`FirstStrikeJudge`, `scripts/combat/timing/`, pure, tested): the skill press windows
@@ -4656,7 +4671,12 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   same lag compensation, reach-back and whiff lockout, from `DefenseInput` stamps (rule 3; the ring's
   own `DefenseInput` takes the press before the card's input block). One try per player: an early
   press spends that player's try (as on a skill ring), so mashing never pays. The first GOOD or
-  PERFECT press decides FIRST_STRIKE; once every try is spent it is NORMAL. Main keeps the result in
+  PERFECT press decides FIRST_STRIKE; once every try is spent it is NORMAL. After a NORMAL whose
+  window passed unpressed the judge still judges a press (`DefenseJudge` reports it LATE within
+  `late_press_report_ms`, DONE after), but nothing changes the opening. The ring's `decided` signal
+  (which the host sends on to the friends) fires once the press's word is final: at once after a
+  GOOD, PERFECT or deciding EARLY press, and after a MISS once a LATE press came or the late span
+  ended, so a friend sees the host's LATE too. Main keeps the result in
   `_run_opening`, `_start_combat` passes it to `CombatController.configure`, and the run's
   `fight_setup` puts it in `CombatSetup.opening` (`combat_started` says `opening`).
 - **Which fights**: `Main._rings_first_strike` is true for `RunMap.StopType.FIGHT` only. Guard stops,
@@ -4692,12 +4712,17 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
   friend waits up to 6000 ms after the ring closes for the host's result; F4 the result stays 800 ms;
   F5 the ring is 0.8 of a skill ring, between the name and the tip; F6 a friend's ring is dimmed to
   0.45 with a P1 tag; F7 each local player gets their own try and the bot presses for each; F8 a
-  Guard stop keeps its old announcement time; F9 a loading tip about the ring; F10 a hit buzzes every
-  pad, as a skill press does.
-- **Tests**: `test_first_strike.gd` (judging good, perfect, early, late, none, mash, lag; any local
-  player; the bots' habits; the ring on the card, a friend's watched ring and its time-out, the
-  picture ring; only Fight stops ring; the opening reaching `CombatSetup` and the engine; online the
-  host's result reaching the friends and late joiners; the tutorial and glossary words).
+  Guard stop keeps its old announcement time; F9 a loading tip about the ring; F10 a hit buzzes the
+  presser's pad only, as a skill press does.
+- **Tests**: `test_first_strike.gd` (judging good, perfect, early, late, none, mash, lag, and a late
+  press a frame after the window passed; any local player; the bots' habits; the ring's presses,
+  its MISS turning LATE on a late press or standing once the late span ends, a friend's watched ring
+  and its time-out, the picture ring; `ScreenTransition.show_tip` putting the ring on the card with
+  and without tips; `Main._fade_to`, run on a Main without its start-up, holding the card until the
+  ring is done before it builds the fight, a friend's card waiting for the host's result, and a card
+  left behind building nothing; only Fight stops ring; the opening reaching `CombatSetup` and the
+  engine; online the host's result reaching the friends and late joiners; the tutorial and glossary
+  words).
 - **Bot runs** (headless, after #320): `--autoplay --run --seed=7` run_victory (act 2, 14 stops, 8
   fights) with `AUTOPLAY_OPENING first_strike` on all four Fight stops (1, 5, 8, 10) and normal
   openings for the two guards and both bosses; `--autoplay=miss --run --seed=7` `normal` on stop 1
