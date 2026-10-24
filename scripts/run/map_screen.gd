@@ -311,13 +311,6 @@ static func detail_chips(run: RunState, stop: Dictionary, look: MapVisuals, gold
 		RunMap.StopType.FIGHT:
 			chips.append(_chip_data(look.foe_icon_path, "Fight", HudStyle.TEXT))
 			chips.append(_chip_data(gold_icon, "Gold", HudStyle.GOLD))
-		RunMap.StopType.GUARD:
-			# Where it stands (its place's picture and name), then what it pays (DESIGN.md 8.22).
-			var place := run.zone_of(stop)
-			if place != null:
-				chips.append(_chip_data(place.map_icon_path, place.display_name, HudStyle.TEXT))
-			chips.append(_chip_data(&"gem", "Spoils", HudStyle.GOLD))
-			chips.append(_chip_data(gold_icon, "Gold", HudStyle.GOLD))
 		RunMap.StopType.REST:
 			chips.append(_chip_data(&"heart", "Heal %d%%" % run.rest_heal_percent(), HudStyle.HEAL))
 			if is_watch_row(run, stop):
@@ -338,7 +331,9 @@ static func detail_chips(run: RunState, stop: Dictionary, look: MapVisuals, gold
 				chips.append(_chip_data(&"gem", "Spoils", HudStyle.TEXT))
 				chips.append(_chip_data(&"heart", "Heal", HudStyle.HEAL))
 				chips.append(_chip_data(look.flag_path, "Next act", HudStyle.TEXT))
-		RunMap.StopType.ELITE:
+		RunMap.StopType.ELITE, RunMap.StopType.GUARD:
+			# An elite group or its place's guard, the same chips for both (DESIGN.md 8.22; a Guard
+			# stop is map rules 3's and reads as an Elite stop).
 			if bool(stop.get("crown", false)):
 				chips.append(_chip_data(&"gem", "Legendary", HudStyle.GOLD))
 			else:
@@ -443,15 +438,13 @@ static func stop_name(run: RunState, stop: Dictionary) -> String:
 		RunMap.StopType.FIGHT:
 			var zone := run.zone_of(stop)
 			return zone.display_name if zone != null else "Fight"
-		RunMap.StopType.GUARD:
-			return "Guard"
 		RunMap.StopType.REST:
 			return "Campfire"
 		RunMap.StopType.SHOP:
 			return "Shop"
 		RunMap.StopType.FINAL:
 			return "Boss" if not run.is_last_act() else "Final fight"
-		RunMap.StopType.ELITE:
+		RunMap.StopType.ELITE, RunMap.StopType.GUARD:
 			return "Crowned elite" if bool(stop.get("crown", false)) else "Elite"
 		RunMap.StopType.EVENT:
 			return "?"
@@ -492,13 +485,13 @@ static func reachable_from(map: RunMap, from_id: int) -> Dictionary:
 
 
 ## The legend's rows, top to bottom: [stop type, picture path, word]. Every row is a picture with
-## its word (never a bare picture). Fights show the act's first place's picture.
+## its word (never a bare picture). Fights show the act's first place's picture. No Guard row: a
+## place's guard waits at an Elite stop (DESIGN.md 8.22).
 static func legend_entries(run: RunState, look: MapVisuals) -> Array:
 	var zone_icon := ""
 	if not run.act_data().zones.is_empty():
 		zone_icon = run.act_data().zones[0].map_icon_path
-	return [[RunMap.StopType.FIGHT, zone_icon, "Fight"], [RunMap.StopType.GUARD, look.guard_stop_icon_path, "Guard"],
-			[RunMap.StopType.ELITE, look.elite_icon_path, "Elite"],
+	return [[RunMap.StopType.FIGHT, zone_icon, "Fight"], [RunMap.StopType.ELITE, look.elite_icon_path, "Elite"],
 			[RunMap.StopType.EVENT, look.event_icon_path, "Event"],
 			[RunMap.StopType.TREASURE, look.treasure_icon_path, "Treasure"],
 			[RunMap.StopType.SHOP, look.shop_icon_path, "Shop"], [RunMap.StopType.REST, look.rest_icon_path, "Campfire"],
@@ -595,15 +588,13 @@ func _icon_for(stop: Dictionary) -> Texture2D:
 		RunMap.StopType.FIGHT:
 			var zone := _run.zone_of(stop)
 			path = zone.map_icon_path if zone != null else ""
-		RunMap.StopType.GUARD:
-			path = _look.guard_stop_icon_path
 		RunMap.StopType.REST:
 			path = _look.rest_icon_path
 		RunMap.StopType.SHOP:
 			path = _look.shop_icon_path
 		RunMap.StopType.FINAL:
 			path = _run.act_data().final_map_icon_path
-		RunMap.StopType.ELITE:
+		RunMap.StopType.ELITE, RunMap.StopType.GUARD:
 			path = _look.elite_icon_path
 		RunMap.StopType.EVENT:
 			path = _look.event_icon_path

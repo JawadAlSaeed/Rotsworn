@@ -1,10 +1,13 @@
 extends GutTest
-## A run without zones (DESIGN.md 8.22, cards #316 and #317): map rules 3 put a row of Guard stops
-## in every act (rules 1 and 2 stay as they were); a Fight stop's fight, every run fight's weather
-## and a Fight stop's drop are seeded picks from the run state alone (the same on every machine, an
-## online friend builds the same fight); a Fight stop never repeats the last Fight stop's fight while
-## its place has another; a Guard stop fights its place's guard (deep in a deep act) and pays like a
-## guard did; old saves are kept but not offered; the bots' readiness habit lives in RunAutoplay.
+## A run without zones (DESIGN.md 8.22, cards #316 and #317, and the guards joining the Elite stops):
+## new maps (rules 4) have no Guard stops, and an Elite stop holds one of its act's elite groups or
+## its place's guard, a seeded pick (run_elite_guard_percent) that never gives a road the guard at
+## two Elite stops in a row; the guard pays its pips and spoils (a crowned one the crown's legendary),
+## and the first Elite stop won opens a Relic slot. Map rules 3 (a row of Guard stops) and 1 and 2 stay as
+## they were for older runs. A Fight stop's fight, every run fight's weather and a Fight stop's drop
+## are seeded picks from the run state alone (the same on every machine, an online friend builds the
+## same fight); a Fight stop never repeats the last Fight stop's fight while its place has another;
+## old saves are kept but not offered; the bots' readiness habit lives in RunAutoplay.
 ## Uses the shipped run data; files go to the system temp folder, never user://.
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
@@ -72,6 +75,57 @@ func _leads_to(map: RunMap, from_id: int, type: int) -> bool:
 	return false
 
 
+## Walks `run` from where it is to stop `target` along the map's roads. False if it cannot get there.
+func _walk_to_stop(run: RunState, target: int) -> bool:
+	while not run.is_over() and run.at != target:
+		var picked := -1
+		for id: int in run.choices():
+			if picked < 0 and MapScreen.reachable_from(run.map, id).has(target):
+				picked = id
+		if picked < 0:
+			return false
+		run.go(picked)
+		run.end_ambush()
+	return run.at == target
+
+
+## A run of map rules 3 (a row of Guard stops), as a run saved before the guards joined the Elite
+## stops would load.
+func _rules_3_run(seed_value: int = 7) -> RunState:
+	var old := _run(seed_value).to_dict()
+	old["map_rules"] = 3
+	return RunState.from_dict(_data, _tuning, old)
+
+
+## The nearest Elite stops on the roads leading to stop `id` (the stops between are passed through).
+func _elites_before(map: RunMap, id: int) -> Array[int]:
+	var found: Array[int] = []
+	var seen := {}
+	var todo: Array[int] = []
+	todo.assign(map.stop(id).prev)
+	while not todo.is_empty():
+		var p: int = todo.pop_back()
+		if seen.has(p):
+			continue
+		seen[p] = true
+		if int(map.stop(p).type) == RunMap.StopType.ELITE:
+			found.append(p)
+		else:
+			todo.append_array(map.stop(p).prev)
+	return found
+
+
+## The first seed (from 1) whose first act has an Elite stop that holds the guard (`guard`) or an
+## elite group, and that stop: [seed, stop id], or [-1, -1].
+func _elite_stop_holding(guard: bool) -> Array[int]:
+	for s: int in range(1, SEEDS * 4):
+		var run := _run(s)
+		for stop: Dictionary in run.map.stops:
+			if int(stop.type) == RunMap.StopType.ELITE and run.elite_holds_guard(int(stop.id)) == guard:
+				return [s, int(stop.id)] as Array[int]
+	return [-1, -1] as Array[int]
+
+
 ## The host and one friend online, a share of the heroes each.
 func _online_two() -> PlayerRoster:
 	var roster := PlayerRoster.online(_data.party.size(), HOST, HOST)
@@ -112,14 +166,274 @@ func _body(header: String) -> String:
 	return source.substr(start, end - start if end > start else -1)
 
 
-# --- map rules 3: a row of Guard stops -----------------------------------------------------------
+# --- map rules 4: no Guard stops ---------------------------------------------------------------------
 
-func test_new_runs_have_a_guard_row_with_a_place_for_every_guard() -> void:
+## New maps have no Guard stop and no guard row: the row that was the guards' gets ordinary stops by
+## the rules that made it before the guard row came (a rules 4 map is a rules 2 map), so the elite
+## stops keep their rows and counts.
+func test_new_maps_have_no_guard_stops_and_the_guard_row_is_ordinary_again() -> void:
+	assert_eq(RunState.MAP_RULES, 4)
+	var row_one := {}
 	for s: int in range(1, SEEDS):
 		var run := _run(s)
-		assert_eq(run.map_rules, RunState.MAP_RULES)
+		assert_eq(run.map_rules, 4)
 		for act: int in run.acts().size():
 			var map := run._make_map(act)
+			assert_eq(map.count_type(RunMap.StopType.GUARD), 0, "seed %d act %d: no Guard stops" % [s, act + 1])
+			assert_eq(map.stops, run._make_map(act, 2).stops, "seed %d act %d: the rules 2 map" % [s, act + 1])
+			for id: int in map.rows[0]:
+				assert_eq(int(map.stop(id).type), RunMap.StopType.FIGHT, "row 0 stays all Fight stops")
+			for id: int in map.rows[1]:
+				row_one[int(map.stop(id).type)] = true
+		if is_failing():
+			return
+	assert_gt(row_one.size(), 2, "row 1 holds ordinary stops of several kinds: %s" % str(row_one.keys()))
+
+
+# --- Elite stops: an elite group or the place's guard ------------------------------------------------
+
+## The pick is the run's: the same from the same state, on every machine, wherever the party walked,
+## and the stop fights what it holds (the guard is its place's, deep in a deep act or row; a group is
+## one of the act's elites).
+func test_an_elite_stops_pick_is_seeded_and_stable() -> void:
+	var kinds := {}
+	for s: int in range(1, SEEDS):
+		var run := _run(s)
+		var copy := RunState.from_dict(_data, _tuning, run.to_dict())
+		for act: int in run.acts().size():
+			if act > 0:
+				run.next_act()
+				copy.next_act()
+			for stop: Dictionary in run.map.stops:
+				var id := int(stop.id)
+				var held := run.elite_holds_guard(id)
+				if int(stop.type) != RunMap.StopType.ELITE:
+					assert_false(held, "only Elite stops hold a guard")
+					assert_null(run.guard_of(id), "no guard at a %s stop" % RunMap.TYPE_NAMES[int(stop.type)])
+					continue
+				assert_eq(copy.elite_holds_guard(id), held, "seed %d: the same pick from the same state" % s)
+				assert_eq(run.elite_holds_guard(id), held, "asked again: the same")
+				kinds[held] = true
+				var fight := run.elite_stop_fight(id)
+				var place := run.zone_of(stop)
+				assert_not_null(fight, "seed %d: an Elite stop always has a fight" % s)
+				if fight == null:
+					continue
+				if held:
+					assert_true(fight == place.guard or fight == place.guard.deep, "its place's guard")
+					assert_true(fight.mini_boss and not fight.can_run, "a guard, no running")
+					var deep := run.act_data().deep or int(stop.row) >= _tuning.run_deep_row
+					assert_eq(fight, place.guard.deep if deep else place.guard, "deep in a deep act or row")
+				else:
+					assert_eq(fight, run.elite_of(id), "an elite group")
+					assert_true(fight.elite and not fight.mini_boss)
+				# Walking there changes nothing: the pick needs no path.
+				if s > 20:
+					continue
+				var walker := RunState.from_dict(_data, _tuning, run.to_dict())
+				if _walk_to_stop(walker, id):
+					assert_eq(walker.elite_holds_guard(id), held, "seed %d: the same once the party stands there" % s)
+					assert_eq(walker.encounter_now(), fight, "and it fights the same")
+		if is_failing():
+			return
+	assert_eq(kinds.size(), 2, "some Elite stops hold the guard, others a group")
+
+
+## The guard's share of the Elite stops that may hold it matches tuning.run_elite_guard_percent, over
+## many seeds (each such stop rolls on its own); 0 never gives a guard, 100 gives one wherever the
+## rules allow it.
+func test_the_guard_share_follows_the_tuning() -> void:
+	var allowed := 0
+	var guards := 0
+	var all_elites := 0
+	for s: int in range(1, 241):
+		var run := _run(s)
+		for act: int in run.acts().size():
+			if act > 0:
+				run.next_act()
+			for stop: Dictionary in run.map.stops:
+				if int(stop.type) != RunMap.StopType.ELITE:
+					continue
+				all_elites += 1
+				var id := int(stop.id)
+				if run._guard_elite_before(id):
+					continue
+				allowed += 1
+				guards += 1 if run.elite_holds_guard(id) else 0
+	var share := roundi(100.0 * float(guards) / float(maxi(1, allowed)))
+	gut.p("Elite stops: %d, could hold the guard: %d, held it: %d (%d%%)" % [all_elites, allowed, guards, share])
+	assert_gt(allowed, 300, "enough Elite stops to tell")
+	assert_between(share, _tuning.run_elite_guard_percent - 6, _tuning.run_elite_guard_percent + 6,
+			"about run_elite_guard_percent of them")
+	for percent: int in [0, 100]:
+		_tuning.run_elite_guard_percent = percent
+		var held := 0
+		var could := 0
+		for s: int in range(1, SEEDS):
+			var run := _run(s)
+			for stop: Dictionary in run.map.stops:
+				var id := int(stop.id)
+				if int(stop.type) != RunMap.StopType.ELITE or run._guard_elite_before(id):
+					continue
+				could += 1
+				held += 1 if run.elite_holds_guard(id) else 0
+		assert_eq(held, 0 if percent == 0 else could, "%d%%" % percent)
+
+
+## No road meets the guard at two Elite stops in a row (while the act has elite groups). With every
+## roll a guard (100%) the rule is what keeps the second Elite stop on a road a group.
+func test_no_road_meets_the_guard_twice_in_a_row() -> void:
+	var blocked := 0
+	for percent: int in [_tuning.run_elite_guard_percent, 100]:
+		_tuning.run_elite_guard_percent = percent
+		for s: int in range(1, SEEDS * 2):
+			var run := _run(s)
+			for act: int in run.acts().size():
+				if act > 0:
+					run.next_act()
+				for stop: Dictionary in run.map.stops:
+					if int(stop.type) != RunMap.StopType.ELITE:
+						continue
+					var id := int(stop.id)
+					var before := _elites_before(run.map, id)
+					var guard_before := false
+					for p: int in before:
+						guard_before = guard_before or run.elite_holds_guard(p)
+					if run.elite_holds_guard(id):
+						assert_false(guard_before, "seed %d act %d: never the guard twice in a row on a road" % [s, act + 1])
+					elif guard_before:
+						blocked += 1
+			if is_failing():
+				return
+	assert_gt(blocked, 0, "the rule turned some guards into groups")
+
+
+## The act's crowned elite rolls like any Elite stop. A crowned guard keeps the crown's spoils (a
+## legendary Relic first) but fights as every guard does: the crown's extra HP and power are an elite
+## group's.
+func test_a_crowned_elite_stop_may_hold_the_guard_with_the_crowns_spoils() -> void:
+	_tuning.run_elite_guard_percent = 100
+	var crowned_guards := 0
+	for s: int in range(1, SEEDS):
+		var run := _run(s)
+		for stop: Dictionary in run.map.stops:
+			var id := int(stop.id)
+			if not bool(stop.get("crown", false)) or not run.elite_holds_guard(id):
+				continue
+			crowned_guards += 1
+			assert_true(_walk_to_stop(run, id))
+			assert_true(run.is_crowned())
+			var guard := run.encounter_now()
+			assert_true(guard.mini_boss, "seed %d: the crowned stop holds the guard" % s)
+			var spoils := run.loot_choices(id)
+			assert_eq(int(spoils[0].rarity), ItemData.Rarity.LEGENDARY, "the crown's legendary comes first")
+			var setup := run.fight_setup(guard, 1, CombatSetup.Opening.NORMAL)
+			run.map.stops[id].crown = false
+			var plain := run.fight_setup(guard, 1, CombatSetup.Opening.NORMAL)
+			assert_eq(setup.enemy_hp_percent, plain.enemy_hp_percent, "no crown HP on a guard")
+			assert_eq(setup.enemy_power_percent, plain.enemy_power_percent, "no crown power on a guard")
+			break
+	assert_gt(crowned_guards, 0, "a crowned stop held the guard")
+
+
+## An act with no elite groups but a place with a guard still gets Elite stops, and every one holds
+## the guard (there is nothing else to hold).
+func test_an_act_without_elite_groups_holds_its_guard_at_every_elite_stop() -> void:
+	var met := 0
+	for s: int in range(1, SEEDS):
+		var run := _run(s)
+		var act := run.act_data(0).duplicate() as ActData
+		var none: Array[EncounterData] = []
+		act.elites = none
+		run._acts[0] = act
+		run.map = run._make_map(0)
+		for stop: Dictionary in run.map.stops:
+			if int(stop.type) == RunMap.StopType.ELITE:
+				met += 1
+				assert_true(run.elite_holds_guard(int(stop.id)), "seed %d: the guard" % s)
+				assert_true(run.elite_stop_fight(int(stop.id)).mini_boss)
+	assert_gt(met, 0, "such an act still has Elite stops")
+
+
+## A guard at an Elite stop pays as a guard did: its Echo pips (mastery_guard), its spoils (pick 1 of
+## 3, one more when flawless, the line "The guard fell."), no item drop, and as the first Elite stop
+## won it opens the second Relic slot.
+func test_a_guard_elite_stop_pays_guard_pips_and_spoils() -> void:
+	var found := _elite_stop_holding(true)
+	assert_gt(found[0], 0, "some seed puts the guard at an Elite stop")
+	if found[0] < 0:
+		return
+	var run := _run(found[0])
+	assert_true(_walk_to_stop(run, found[1]), "a road reaches it")
+	var place := run.zone_of(run.current())
+	var guard := run.encounter_now()
+	assert_true(guard == place.guard or guard == place.guard.deep, "its place's guard")
+	assert_eq(run.mastery_gain(guard), _tuning.mastery_guard, "a guard's Echo pips")
+	assert_eq(_tuning.mastery_guard, 3)
+	var relic := _data.gear[0]
+	run.add_relic(relic)
+	assert_eq(run.wear(0, 0, relic), 0)
+	assert_null(run.fight_drop(), "spoils, no item drop")
+	var slots_before := run.open_relic_slots()
+	var plain_count := run.loot_choice_count()
+	assert_eq(plain_count, 3, "pick 1 of 3")
+	assert_has(run.win_relic_lines(guard), "A Relic slot opens: Y to put a Relic on")
+	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), guard, {"hits_taken": 0})
+	assert_eq(int(run.mastery.get(relic.id, 0)), _tuning.mastery_guard, "the worn Relic got 3 pips")
+	assert_eq(run.elite_stops_won, 1)
+	assert_eq(run.open_relic_slots(), slots_before + 1, "the first Elite stop won opens a Relic slot")
+	assert_true(run.flawless, "no hit taken: flawless")
+	assert_eq(run.loot_choice_count(), plain_count + 1, "one more spoils choice")
+	assert_eq(run.loot_choices(run.at).size(), run.loot_choice_count())
+	assert_eq(_main.call("_after_run_fight", RunState.VICTORY, RunMap.StopType.ELITE, false, false, false, false),
+			_after_fight("SPOILS"))
+	assert_eq(_main.call("_spoils_line", RunMap.StopType.ELITE, false, true), "The guard fell. Take one.")
+	var copy := RunState.from_dict(_data, _tuning, run.to_dict())
+	assert_eq(copy.elite_stops_won, 1, "kept and sent online")
+	assert_eq(int(run.to_dict().guards_beaten), 1, "under the name a save has always used")
+
+
+## An elite group pays as before (mastery_elite, spoils), and as the first Elite stop won it opens
+## the Relic slot too; an ordinary fight or an ambush does not.
+func test_the_relic_slot_opens_after_the_first_elite_stop_won_of_either_kind() -> void:
+	var found := _elite_stop_holding(false)
+	assert_gt(found[0], 0)
+	if found[0] < 0:
+		return
+	var run := _run(found[0])
+	for id: int in run.choices():
+		if run.at < 0 and MapScreen.reachable_from(run.map, id).has(found[1]):
+			run.go(id)
+	run.end_ambush()
+	assert_eq(int(run.current().type), RunMap.StopType.FIGHT, "row 0 is Fight stops")
+	var fight := run.encounter_now()
+	assert_eq(run.slot_lock_text(1), "Opens after the first Elite stop.")
+	assert_does_not_have(run.win_relic_lines(fight), "A Relic slot opens: Y to put a Relic on")
+	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), fight)
+	assert_eq(run.open_relic_slots(), 1, "a Fight stop opens nothing")
+	assert_true(_walk_to_stop(run, found[1]))
+	var group := run.encounter_now()
+	assert_true(group.elite and not group.mini_boss, "an elite group")
+	assert_eq(run.mastery_gain(group), _tuning.mastery_elite, "an elite's Echo pips")
+	run._set_ambush(group, true)
+	assert_does_not_have(run.win_relic_lines(group), "A Relic slot opens: Y to put a Relic on")
+	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), group)
+	assert_eq(run.open_relic_slots(), 1, "an ambush is no Elite stop, even an elite one")
+	assert_has(run.win_relic_lines(group), "A Relic slot opens: Y to put a Relic on")
+	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), group)
+	assert_eq(run.elite_stops_won, 1)
+	assert_eq(run.open_relic_slots(), 2, "the first Elite stop won opens the second slot")
+	assert_eq(run.slot_lock_text(1), "")
+	assert_eq(_main.call("_spoils_line", RunMap.StopType.ELITE, false, false), "The elite fell. Take one.")
+
+
+# --- map rules 3 (runs made before the guards joined the Elite stops) ------------------------------
+
+func test_rules_3_maps_have_a_guard_row_with_a_place_for_every_guard() -> void:
+	for s: int in range(1, SEEDS):
+		var run := _run(s)
+		for act: int in run.acts().size():
+			var map := run._make_map(act, 3)
 			assert_eq(map.rows[_tuning.run_guard_row].size(), map.count_type(RunMap.StopType.GUARD),
 					"seed %d act %d: the guard row is all guards and only it" % [s, act + 1])
 			for id: int in map.rows[_tuning.run_guard_row]:
@@ -138,7 +452,7 @@ func test_new_runs_have_a_guard_row_with_a_place_for_every_guard() -> void:
 
 func test_the_guard_row_keeps_every_road_and_never_moves() -> void:
 	for s: int in range(1, SEEDS):
-		var with_guards := RunMap.generate(CombatRng.new(s), _tuning, 3)
+		var with_guards := RunMap.generate(CombatRng.new(s), _tuning, 3, true, true, true, true)
 		var without := RunMap.generate(CombatRng.new(s), _tuning, 3, true, true, true, false)
 		assert_eq(with_guards.stops.size(), without.stops.size(), "seed %d: the same stops" % s)
 		for i: int in with_guards.stops.size():
@@ -150,17 +464,18 @@ func test_the_guard_row_keeps_every_road_and_never_moves() -> void:
 
 func test_a_guard_row_too_close_to_the_boss_is_left_out() -> void:
 	_tuning.run_guard_row = _tuning.run_map_rows - 1
-	var map := RunMap.generate(CombatRng.new(3), _tuning, 3)
+	var map := RunMap.generate(CombatRng.new(3), _tuning, 3, true, true, true, true)
 	assert_eq(map.count_type(RunMap.StopType.GUARD), 0, "never the campfire row before the boss")
 	_tuning.run_guard_row = -1
-	assert_eq(RunMap.generate(CombatRng.new(3), _tuning, 3).count_type(RunMap.StopType.GUARD), 0, "-1: none")
+	assert_eq(RunMap.generate(CombatRng.new(3), _tuning, 3, true, true, true, true).count_type(RunMap.StopType.GUARD),
+			0, "-1: none")
 
 
 ## Row 0 stays all Fight stops: a guard row of 0 means none, so the act never opens on a guard.
 func test_a_guard_row_of_0_is_none() -> void:
 	_tuning.run_guard_row = 0
 	for s: int in range(1, SEEDS):
-		var map := RunMap.generate(CombatRng.new(s), _tuning, 3)
+		var map := RunMap.generate(CombatRng.new(s), _tuning, 3, true, true, true, true)
 		assert_eq(map.count_type(RunMap.StopType.GUARD), 0, "seed %d: no guards" % s)
 		for id: int in map.rows[0]:
 			assert_eq(int(map.stop(id).type), RunMap.StopType.FIGHT, "seed %d: row 0 stays all Fight stops" % s)
@@ -180,7 +495,7 @@ func test_a_guard_row_on_the_treasure_row_keeps_the_treasure() -> void:
 		var home := guard_row - 1 if guard_row > 1 else guard_row + 1
 		for s: int in range(1, SEEDS):
 			for moving: bool in [true, false]:
-				var map := RunMap.generate(CombatRng.new(s), _tuning, 3, true, true, moving)
+				var map := RunMap.generate(CombatRng.new(s), _tuning, 3, true, true, moving, true)
 				var what := "guard row %d seed %d%s" % [guard_row, s, "" if moving else " (rules 1)"]
 				assert_eq(map.count_type(RunMap.StopType.GUARD), map.rows[guard_row].size(), what + ": the row is all guards")
 				var treasure_rows: Array[int] = []
@@ -209,7 +524,7 @@ func test_a_guard_row_on_the_treasure_row_keeps_the_treasure() -> void:
 func test_runs_made_by_older_rules_keep_their_maps() -> void:
 	var run := _run(9)
 	var act := run.act_data()
-	for rules: int in [1, 2]:
+	for rules: int in [1, 2, 3]:
 		var old := run.to_dict()
 		old["map_rules"] = rules
 		var copy := RunState.from_dict(_data, _tuning, old)
@@ -218,9 +533,12 @@ func test_runs_made_by_older_rules_keep_their_maps() -> void:
 			continue
 		assert_eq(copy.map_rules, rules)
 		var plain := RunMap.generate(CombatRng.new(9), _tuning, act.zones.size(), not act.elites.is_empty(),
-				not act.events.is_empty(), rules >= 2, false)
+				not act.events.is_empty(), rules >= 2, rules == 3)
 		assert_eq(copy.map.stops, plain.stops, "rules %d: the map it was made with" % rules)
-		assert_eq(copy.map.count_type(RunMap.StopType.GUARD), 0)
+		assert_eq(copy.map.count_type(RunMap.StopType.GUARD), copy.map.rows[_tuning.run_guard_row].size() if rules == 3 else 0,
+				"rules %d: a guard row only in rules 3" % rules)
+		for stop: Dictionary in copy.map.stops:
+			assert_false(copy.elite_holds_guard(int(stop.id)), "rules %d: an Elite stop holds a group, as it did" % rules)
 	for rules: int in [0, RunState.MAP_RULES + 1]:
 		var bad := run.to_dict()
 		bad["map_rules"] = rules
@@ -261,6 +579,8 @@ func test_a_fight_stop_never_repeats_the_last_fight_stops_fight() -> void:
 		var run := _run(s)
 		var a := int(run.map.rows[0][0])
 		var b := int(run.map.rows[2][0])
+		# The stop between is no Fight stop (a shop), so `a` is the last Fight stop on the road to `b`.
+		run.map.stops[int(run.map.rows[1][0])].type = RunMap.StopType.SHOP
 		run.map.stops[b].type = RunMap.StopType.FIGHT
 		run.map.stops[b].zone = run.map.stops[a].zone
 		var unseen := run.fight_of(b)
@@ -290,20 +610,30 @@ func test_deep_rows_and_acts_bring_deep_versions() -> void:
 	assert_eq(run.fight_of(deep_row), base.deep if has_deep else base, "a deep row fights the deep version")
 	var shallow := int(run.map.rows[0][0])
 	assert_eq(run.fight_of(shallow), run._fight_base(shallow), "row 0 fights the plain one")
-	# Three acts since card #323: the second (the Drowned Mire) keeps its guard plain, the third (the
-	# Ashen Deep) brings the deep one.
-	run.act = 1
-	run.map = run._make_map(1)
-	var guard_stop := _first(run, RunMap.StopType.GUARD)
-	var place := run.zone_of(run.map.stop(guard_stop))
-	assert_eq(place.id, "sunken_bog", "the second act is the bog")
-	assert_eq(run.guard_of(guard_stop), place.guard, "the second act's guard is plain")
-	run.act = 2
-	run.map = run._make_map(2)
-	guard_stop = _first(run, RunMap.StopType.GUARD)
-	place = run.zone_of(run.map.stop(guard_stop))
-	assert_eq(place.id, "ashen_ruins", "the third act is the ruins")
-	assert_eq(run.guard_of(guard_stop), place.guard.deep, "the third act's guards are deep")
+	# Three acts since card #323: the second (the Drowned Mire) keeps its guard plain before the deep
+	# rows, the third (the Ashen Deep) always brings the deep one. Every Elite stop the rules allow
+	# holds the guard here (100%).
+	_tuning.run_elite_guard_percent = 100
+	var places := {1: "sunken_bog", 2: "ashen_ruins"}
+	var seen := {}
+	for s: int in range(1, SEEDS):
+		var each := _run(s)
+		for act: int in [1, 2]:
+			each.act = act
+			each.map = each._make_map(act)
+			for stop: Dictionary in each.map.stops:
+				if not each.elite_holds_guard(int(stop.id)):
+					continue
+				var place := each.zone_of(stop)
+				assert_eq(place.id, String(places[act]), "act %d's place" % (act + 1))
+				var deep := act == 2 or int(stop.row) >= _tuning.run_deep_row
+				assert_eq(each.guard_of(int(stop.id)), place.guard.deep if deep else place.guard,
+						"act %d row %d" % [act + 1, int(stop.row)])
+				seen["%d %s" % [act, deep]] = true
+	assert_true(seen.has("1 false"), "the second act's guard is plain in its early rows")
+	assert_true(seen.has("1 true"), "and deep in its deep rows")
+	assert_true(seen.has("2 true"), "the third act's guards are deep")
+	assert_false(seen.has("2 false"))
 
 
 func test_a_fight_stop_rolls_a_drop_and_other_stops_none() -> void:
@@ -314,11 +644,10 @@ func test_a_fight_stop_rolls_a_drop_and_other_stops_none() -> void:
 		assert_eq(int(run.current().type), RunMap.StopType.FIGHT)
 		assert_eq(run.fight_drop(), run.drop_for(run.at), "the stop's own drop roll")
 		drops += 1 if run.fight_drop() != null else 0
-		run.at = _first(run, RunMap.StopType.GUARD)
-		assert_null(run.fight_drop(), "a guard pays spoils, no drop")
-		run.at = _first(run, RunMap.StopType.ELITE)
-		if run.at >= 0:
-			assert_null(run.fight_drop(), "an elite rolls no drop")
+		for stop: Dictionary in run.map.stops:
+			if int(stop.type) == RunMap.StopType.ELITE:
+				run.at = int(stop.id)
+				assert_null(run.fight_drop(), "an Elite stop (a group or the guard) pays spoils, no drop")
 	assert_gt(drops, 0, "some fights drop something")
 	assert_lt(drops, SEEDS - 1, "not every fight does")
 
@@ -378,17 +707,21 @@ func test_the_fight_weather_stream_is_its_own() -> void:
 	for key: String in consts:
 		if key.ends_with("_SALT"):
 			salts.append(int(consts[key]))
-	for salt: int in [RunState.FIGHT_SALT, RunState.FIGHT_WEATHER_SALT]:
+	for salt: int in [RunState.FIGHT_SALT, RunState.FIGHT_WEATHER_SALT, RunState.ELITE_GUARD_SALT]:
 		assert_eq(salts.count(salt), 1, "%d is used once" % salt)
 		for rush_salt: int in [RushState.RUSH_FIGHT_SALT, RushState.RUSH_LOOK_SALT, RushState.RUSH_OFFER_SALT,
 				RushState.RUSH_WEATHER_SALT]:
 			assert_ne(salt, rush_salt)
 
 
-# --- Guard stops -------------------------------------------------------------------------------------
+# --- Guard stops (map rules 3) -----------------------------------------------------------------------
 
-func test_a_guard_stop_fights_its_places_guard_and_pays_like_a_guard() -> void:
-	var run := _run(7)
+## A rules 3 run (one that loaded) still fights its Guard stops' guards and pays as before.
+func test_a_rules_3_guard_stop_fights_its_places_guard_and_pays_like_a_guard() -> void:
+	var run := _rules_3_run(7)
+	assert_not_null(run)
+	if run == null:
+		return
 	assert_true(_walk_to(run, RunMap.StopType.GUARD), "a road reaches the guard row")
 	var place := run.zone_of(run.current())
 	var guard := run.encounter_now()
@@ -398,13 +731,14 @@ func test_a_guard_stop_fights_its_places_guard_and_pays_like_a_guard() -> void:
 	var slots_before := run.open_relic_slots()
 	var plain_count := run.loot_choice_count()
 	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), guard, {"hits_taken": 0})
-	assert_eq(run.guards_beaten, 1)
+	assert_eq(run.elite_stops_won, 1)
 	assert_eq(run.open_relic_slots(), slots_before + 1, "the first guard opens a Relic slot")
 	assert_true(run.flawless, "no hit taken: flawless")
 	assert_eq(run.loot_choice_count(), plain_count + 1, "one more spoils choice")
 	assert_eq(run.loot_choices(run.at).size(), run.loot_choice_count())
 	var copy := RunState.from_dict(_data, _tuning, run.to_dict())
-	assert_eq(copy.guards_beaten, 1, "kept and sent online")
+	assert_eq(copy.elite_stops_won, 1, "kept and sent online")
+	assert_eq(copy.map_rules, 3)
 
 
 func test_every_place_has_its_guard() -> void:
@@ -431,13 +765,14 @@ func test_every_place_still_names_its_song_and_loop() -> void:
 # --- saves and online --------------------------------------------------------------------------------
 
 func test_a_save_from_before_is_kept_but_not_offered() -> void:
-	assert_eq(RunSave.FORMAT_VERSION, 4)
+	assert_eq(RunSave.FORMAT_VERSION, 5)
 	_save_path = OS.get_temp_dir().path_join("rotsworn_test_run_fights_%d.json" % Time.get_ticks_usec())
 	# Format 1: saved inside a zone. Format 2: the first phase 26 builds, whose Hanging Cage still
 	# gave a Key. The Key's file is gone (card #319), so such a pack no longer loads: the main menu
 	# would delete the run as broken (it never checks the fingerprint, card #208) if the format let it in.
 	# Format 3: two acts; its act 2 (the Ashen Deep) is act 3 now (card #323), so it would carry on
-	# in the wrong place.
+	# in the wrong place. Format 4: a row of Guard stops (map rules 3), from before the guards joined
+	# the Elite stops (DESIGN.md 8.22).
 	var run := _run()
 	run.add_item(run.items_by_id()["salve"] as ItemData)
 	var with_key := run.to_dict()
@@ -445,7 +780,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 	var rows: Array = (with_key.backpack as Array)[3]
 	(rows[0] as Array)[1] = "key"
 	assert_null(RunState.from_dict(_data, _tuning, with_key), "a pack holding a Key no longer fits")
-	for format: int in [1, 2, 3]:
+	for format: int in [1, 2, 3, 4]:
 		var old := {"format": format, "fingerprint": "x", "in_stop": false, "players": 1, "run": with_key}
 		var file := FileAccess.open(_save_path, FileAccess.WRITE)
 		file.store_string(JSON.stringify(old))
@@ -463,7 +798,7 @@ func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
 	assert_has(_main.get_script_constant_map().get("NET_FIGHT_SCREENS") as Array, "stop_fight")
 	for s: int in [3, 7, 21]:
 		var host := _run(s)
-		for type: int in [RunMap.StopType.FIGHT, RunMap.StopType.GUARD]:
+		for type: int in [RunMap.StopType.FIGHT]:
 			assert_true(_walk_to(host, type))
 			var messages: Array[Dictionary] = _main.call("_catch_up_messages", host, _online_two(), true,
 					{"name": "map"}, {"name": "stop_fight", "seed": 321}, true)
@@ -480,6 +815,35 @@ func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
 			assert_eq(friend.fight_drop(), host.fight_drop(), "the same drop")
 			assert_eq(friend.zone_now(), host.zone_now(), "the same place")
 			assert_eq(friend.look_now(), host.look_now())
+
+
+## An Elite stop's fight (the host's "final_fight" message): the friend builds the same pick, guard
+## or group, the same fight and weather from the run state alone. Net.PROTOCOL stays 5: no message
+## or field changed.
+func test_a_friend_builds_the_hosts_elite_stop_from_the_state_alone() -> void:
+	assert_eq(NetSession.PROTOCOL, 5)
+	for guard: bool in [true, false]:
+		var found := _elite_stop_holding(guard)
+		assert_gt(found[0], 0)
+		if found[0] < 0:
+			continue
+		var host := _run(found[0])
+		assert_true(_walk_to_stop(host, found[1]))
+		var messages: Array[Dictionary] = _main.call("_catch_up_messages", host, _online_two(), true,
+				{"name": "map"}, {"name": "final_fight", "seed": 321}, true)
+		var friend := _friend_after(messages)
+		assert_not_null(friend)
+		if friend == null:
+			return
+		assert_eq(friend.at, host.at)
+		assert_eq(friend.elite_holds_guard(friend.at), guard, "the same pick")
+		assert_eq(friend.encounter_now(), host.encounter_now(), "the same fight")
+		assert_eq(friend.encounter_now().mini_boss, guard)
+		assert_eq(friend.weather_now(), host.weather_now(), "the same weather")
+		assert_eq(friend.zone_now(), host.zone_now(), "the same place")
+	var final := _body("func _start_final_fight(")
+	assert_string_contains(final, "_encounter = _run.encounter_now()", "an Elite stop's fight is the run state's")
+	assert_string_contains(final, "AUTOPLAY_ELITE stop=%d kind=%s enc=%s")
 
 
 func test_main_builds_stop_fights_from_the_run_state() -> void:
@@ -508,7 +872,11 @@ func test_main_builds_stop_fights_from_the_run_state() -> void:
 	assert_string_contains(over, "_takes_fight_drop(result, type, ambushed, _drop != null)")
 	assert_string_contains(over, "_after_run_fight(result, type, ambushed, ambush_spoils, _run.is_over(), found != null)")
 	assert_string_contains(_body("func _begin_rush_fight("), "_weather_or_forced(rush.weather_now())")
-	assert_string_contains(_body("func _autoplay_map("), "RunMap.StopType.GUARD, RunMap.StopType.FIGHT]")
+	# The map bot takes Elite stops by its fitness check alone; there are no Guard stops to weigh.
+	var bot := _body("func _autoplay_map(")
+	assert_string_contains(bot, "RunMap.StopType.ELITE if _autoplay_elite_ready() else -1")
+	assert_string_contains(bot, "RunMap.StopType.EVENT, RunMap.StopType.FIGHT]")
+	assert_false(bot.contains("StopType.GUARD"), "no Guard stops in the bot's choices")
 
 
 # --- what follows a run fight (Main's pure rules) ------------------------------------------------------
@@ -556,6 +924,8 @@ func test_what_follows_a_run_fight() -> void:
 		assert_false(_main.call("_takes_fight_drop", c[0], c[1], c[2], false), what + ": no drop rolled")
 		assert_eq(_main.call("_after_run_fight", c[0], c[1], c[2], c[3], c[4], c[5]), c[7], what)
 	assert_eq(_main.call("_spoils_line", guard, false), "The guard fell. Take one.")
+	assert_eq(_main.call("_spoils_line", elite, false, true), "The guard fell. Take one.", "a guard at an Elite stop")
+	assert_eq(_main.call("_spoils_line", event, true, true), "The elite fell. Take one.", "an ambush reads as an elite's")
 	assert_eq(_main.call("_spoils_line", boss, false), "The boss fell. Take one.")
 	assert_eq(_main.call("_spoils_line", elite, false), "The elite fell. Take one.")
 	assert_eq(_main.call("_spoils_line", event, true), "The elite fell. Take one.", "an ambush's spoils read as an elite's")

@@ -39,12 +39,10 @@ func test_rows_and_stop_types() -> void:
 			for id: int in map.rows[r]:
 				var type := int(map.stop(id).type)
 				assert_ne(type, RunMap.StopType.FINAL, "only the top is the final fight")
-				if r == _tuning.run_guard_row:
-					assert_eq(type, RunMap.StopType.GUARD, "the guard row is all guards (DESIGN.md 8.22)")
-				elif r == 0:
+				# No Guard stops on new maps: guards wait at Elite stops (map rules 4, DESIGN.md 8.22).
+				assert_ne(type, RunMap.StopType.GUARD, "no Guard stops")
+				if r == 0:
 					assert_eq(type, RunMap.StopType.FIGHT, "the run starts with fights")
-				else:
-					assert_ne(type, RunMap.StopType.GUARD, "guards stand only in their row")
 		# The campfire row is right before the final fight, or one row earlier (card #286).
 		var rest_rows := 0
 		for r: int in [last - 1, last - 2]:
@@ -94,7 +92,7 @@ func test_no_shop_or_rest_twice_in_a_row() -> void:
 			return
 
 
-func test_fight_and_guard_stops_get_a_place_not_met_last_on_the_way_there() -> void:
+func test_fight_stops_get_a_place_not_met_last_on_the_way_there() -> void:
 	for s: int in range(1, SEEDS):
 		var map := _map(s)
 		for st: Dictionary in map.stops:
@@ -104,7 +102,7 @@ func test_fight_and_guard_stops_get_a_place_not_met_last_on_the_way_there() -> v
 			if not RunMap.is_fight_place(int(st.type)):
 				assert_eq(int(st.zone), -1)
 				continue
-			assert_between(int(st.zone), 0, 2, "a Fight or Guard stop has a place")
+			assert_between(int(st.zone), 0, 2, "a Fight stop has a place")
 			# Only when the paths leading here already met every place last can one repeat.
 			var before := map.last_zones_before(int(st.id))
 			if before.size() < 3:
@@ -273,7 +271,7 @@ func test_shipped_run_is_complete() -> void:
 		assert_gt(item.price, 0, "%s costs something" % item.id)
 	for place: ZoneData in _data.zones:
 		assert_false(place.roamer_pool.is_empty(), "%s has fights for its Fight stops" % place.id)
-		assert_not_null(place.guard, "%s has a guard for its Guard stops" % place.id)
+		assert_not_null(place.guard, "%s has a guard for its Elite stops" % place.id)
 		if place.guard != null:
 			assert_false(place.guard.can_run, "%s: no running from its guard" % place.id)
 	var setup := _run().fight_setup(_data.final_encounter, 1, CombatSetup.Opening.NORMAL)

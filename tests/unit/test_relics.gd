@@ -322,14 +322,16 @@ func test_the_bot_fills_open_slots() -> void:
 	assert_eq(run.unworn_relics().size(), 1)
 
 
-func test_slots_open_after_the_first_guard_and_act_one() -> void:
+## The second slot opens after the first Elite stop won (DESIGN.md 8.22); a guard won anywhere still
+## counts (a map rules 3 Guard stop, the Rush), so these wins over the Gorged One open it too.
+func test_slots_open_after_the_first_elite_stop_and_act_one() -> void:
 	var c := RelicCollection.new()
 	c.merge(["iron_charm", "whetstone", "war_drum"], {}, _tuning)
 	var run := _run(7, c)
 	assert_eq(run.wear(1, 0, _relic("iron_charm")), 0)
 	assert_eq(run.gear[1][0], _relic("iron_charm"))
 	assert_eq(run.wear(1, 1, _relic("whetstone")), -1, "a shut slot takes nothing")
-	assert_eq(run.slot_lock_text(1), "Opens after the first guard.")
+	assert_eq(run.slot_lock_text(1), "Opens after the first Elite stop.")
 	assert_eq(run.slot_lock_text(2), "Opens after act 1's boss.")
 	assert_eq(run.free_gear_slot(1), -1)
 	_win(run, _husk())
@@ -352,9 +354,9 @@ func test_the_empty_hand_oath_shuts_a_slot_but_never_the_last_one() -> void:
 	var run := _run(7, null, 11)
 	assert_eq(run.oath_total(&"relic_slots_add"), -1)
 	assert_eq(run.open_relic_slots(), 1, "never under one")
-	assert_eq(run.slot_lock_text(1), "Opens after act 1's boss.", "the first guard opens nothing under this oath")
+	assert_eq(run.slot_lock_text(1), "Opens after act 1's boss.", "the first Elite stop opens nothing under this oath")
 	assert_eq(run.slot_lock_text(2), "Shut by your oath.")
-	run.guards_beaten = 1
+	run.elite_stops_won = 1
 	assert_eq(run.open_relic_slots(), 1)
 	run.act = 1
 	assert_eq(run.open_relic_slots(), 2)
@@ -665,7 +667,7 @@ func test_drops_are_seeded_and_what_the_end_screen_says_is_what_the_run_gets() -
 func test_the_first_guard_says_a_slot_opens() -> void:
 	var run := _run()
 	assert_has(run.win_relic_lines(_guard()), "A Relic slot opens: Y to put a Relic on")
-	assert_eq(run.guards_beaten, 0, "the preview changes nothing")
+	assert_eq(run.elite_stops_won, 0, "the preview changes nothing")
 	_win(run, _guard())
 	assert_does_not_have(run.win_relic_lines(_guard()), "A Relic slot opens: Y to put a Relic on")
 

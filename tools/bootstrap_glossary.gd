@@ -5,7 +5,8 @@ extends SceneTree
 ## book can never disagree with the screen; tests/unit/test_glossary.gd keeps it so.
 ## Rewrites the whole file: after the first run, edit the .tres (or this list) by hand, not both.
 ## Since phase 21 the .tres is edited by hand (Relics, the pack, the Fight Rush topic and phase 26's
-## Fight and Guard stops are only there), so this list is older than the book: do not re-run it.
+## Fight stop and the guard at Elite stops are only there), so this list is older than the book: do
+## not re-run it.
 ## Run: Godot --headless --path . -s tools/bootstrap_glossary.gd
 
 const PATH := "res://data/glossary/glossary.tres"
@@ -190,7 +191,7 @@ func _dooms() -> void:
 func _enemies() -> void:
 	_e("enemies", "elite", "Elite", "A tougher fight: more health, harder hits and better pay, with the hard-fight rends and sweeps. Met on skull stops. You cannot run.",
 			"ELITE", "", Color(0.85, 0.45, 1.0))
-	_e("enemies", "guard", "Guard", "Each place's mini-boss, met on a Guard stop, with a second phase at half health and a Doom of its own. Beating it gives spoils.",
+	_e("enemies", "guard", "Guard", "Each place's mini-boss, met at some Elite stops (never two in a row on a road), with a second phase at half health and a Doom of its own. Beating it gives spoils.",
 			"GUARD", "", HudStyle.GOLD)
 	_e("enemies", "boss", "Boss", "An act's last fight: The Husk Lord, The Leech Queen, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run.")
 	_e("enemies", "phase_two", "Phase two", "At half health a guard or boss rages: a banner, new attacks and faster strings. It picks a new move at once.")
@@ -207,9 +208,7 @@ func _enemies() -> void:
 func _map() -> void:
 	_e("map", "stop_fight", "Fight stop", "A place's painted picture and name: one fight from that place's monsters, in its look and weather. Win for gold, XP and now and then an item. Running away passes the stop with no pay.",
 			"", UI + "map_zone_rotten_hollow.png")
-	_e("map", "stop_guard", "Guard stop", "A whole map row of them, early in each act: the place's guard, a mini-boss with a second phase. You cannot run. Beat it for spoils: pick one of three Relics.",
-			"", UI + "map_guard.png")
-	_e("map", "stop_elite", "Elite stop", "A skull over crossed blades: one hard fight, then spoils of rare Relics or better, and more gold. The crowned elite's spoils hold a legendary. It cannot be run from.",
+	_e("map", "stop_elite", "Elite stop", "A skull over crossed blades: one hard fight, an elite group or the place's guard. Win for spoils of rare Relics or better and more gold; the first win opens a Relic slot. The crowned elite's spoils hold a legendary. It cannot be run from.",
 			"", UI + "map_elite.png")
 	_e("map", "stop_event", "Event stop", "A red question mark: a story with a choice. Every choice has a price, and some turn into a fight. Leave is always there.",
 			"", UI + "map_event.png")

@@ -15,7 +15,7 @@ extends Resource
 @export var elites: Array[EncounterData] = []
 ## "?" stops pick one of these, never the same one twice in a run (DESIGN.md 8.7).
 @export var events: Array[EventData] = []
-## Every Fight and Guard stop's fight here is its deep (variant) version (DESIGN.md 2.16).
+## Every Fight and Elite stop's fight here is its deep (variant) version (DESIGN.md 2.16).
 @export var deep: bool = false
 ## A "?" stop can turn into an ambush instead of an event (tuning unknown_fight_percent_base and
 ## unknown_fight_percent_step; DESIGN.md 8.7): it fights one of these. A deep act fights their deep

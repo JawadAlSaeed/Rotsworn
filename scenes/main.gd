@@ -2,8 +2,8 @@ extends Node
 ## Entry point (run/main_scene). Shows the main menu (DESIGN.md 7.5): a new run (DESIGN.md 8),
 ## practice (the fight list), settings, quit. New Run and Practice open the players screen
 ## first (co-op, DESIGN.md 9.1); its roster goes to every fight. In a run the map screen leads to
-## the stops: Fight and Guard stops, elites, events, rests, shops, treasure and the act's boss
-## (DESIGN.md 8.22); RunState carries HP and gold from stop to stop. A Fight stop's fight opens with
+## the stops: Fight stops, Elite stops (an elite group or the place's guard), events, rests, shops,
+## treasure and the act's boss (DESIGN.md 8.22); RunState carries HP and gold from stop to stop. A Fight stop's fight opens with
 ## the First Strike ring on the place's name card (card #320): a GOOD or PERFECT press there starts
 ## it with First Strike.
 ## Online (DESIGN.md 9.2) the host's machine runs the run exactly as offline and tells the others
@@ -625,8 +625,8 @@ func _show_sample_stop(kind: String) -> void:
 ## with a Holy Water in hand (for pictures of the pack).
 func _show_sample_backpack() -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
-	# A guard is beaten, so a second Relic slot is open (DESIGN.md 8.17).
-	_run.guards_beaten = 1
+	# An Elite stop is won, so a second Relic slot is open (DESIGN.md 8.17).
+	_run.elite_stops_won = 1
 	var items := _run.items_by_id()
 	_run.wear(0, 0, _run_data.gear[0])
 	_run.wear(0, 1, _run_data.gear[1])
@@ -673,7 +673,7 @@ func _sample_collection() -> RelicCollection:
 ## --screen=party_relics: the same run with the Relics page open over the party screen instead.
 func _show_sample_echoes(echoes: bool = true) -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
-	_run.guards_beaten = 1
+	_run.elite_stops_won = 1
 	_run.act = 1
 	for i: int in range(9, mini(16, _run_data.gear.size())):
 		_run.add_relic(_run_data.gear[i])
@@ -1258,7 +1258,7 @@ func _start_combat() -> void:
 				_fight_weather.ambience_volume_db + _fight_weather.fight_volume_offset_db)
 	else:
 		Sfx.play_weather("")
-	# A guard (a run's Guard stop, DESIGN.md 8.22) gets the boss song and its rage, as a boss does.
+	# A guard (at a run's Elite stop, DESIGN.md 8.22) gets the boss song and its rage, as a boss does.
 	var boss := _encounter != null and (_encounter.boss or _encounter.mini_boss)
 	# A Rush's boss fight gets the boss song, a guard fought there too.
 	if _run is RushState and (_run as RushState).kind_of((_run as RushState).fight) == RushState.Kind.BOSS:
@@ -1852,7 +1852,8 @@ func _enter_stop() -> void:
 	match int(stop.type):
 		RunMap.StopType.FIGHT, RunMap.StopType.GUARD:
 			# The map swirls away, the place's name card with a tip shows (card #86), then its fight
-			# (DESIGN.md 8.22). A Fight stop's card carries the First Strike ring (card #320); its fight
+			# (DESIGN.md 8.22; Guard stops are map rules 3's only, new maps put the guard at an Elite
+			# stop). A Fight stop's card carries the First Strike ring (card #320); its fight
 			# is announced first, so the friends watch the ring while the host presses it (never while
 			# a transition is under way: _fade_to would not build that fight).
 			var zone := _run.zone_of(stop)
@@ -2015,7 +2016,8 @@ func _set_run_fight_place(boss: bool) -> void:
 	_fight_air = _fight_weather.air_with(air) if _fight_weather != null else air
 
 
-## A run fight that is a stop of its own: the act's boss, an elite fight (`elite`) in one of the
+## A run fight that is a stop of its own: the act's boss, an Elite stop's fight (`elite`: one of the
+## act's elite groups or its place's guard, as the run state names it, DESIGN.md 8.22) in one of the
 ## act's places, or an ambush (a "?" stop that turned into a fight, or an event choice that ended in
 ## one; DESIGN.md 8.7). Elites and ambushes roll a weather like a Fight stop (8.22); the boss has none.
 func _start_final_fight(elite: bool = false) -> void:
@@ -2033,7 +2035,7 @@ func _start_final_fight(elite: bool = false) -> void:
 			_fade_to(_show_map)
 			return
 	elif elite:
-		_encounter = _run.elite_of(_run.at)
+		_encounter = _run.encounter_now()
 		if _encounter == null:
 			# The map never rolls an elite stop for an act without elites; if one slips through,
 			# leave it as an empty stop instead of crashing the fight.
@@ -2041,6 +2043,9 @@ func _start_final_fight(elite: bool = false) -> void:
 			_end_busy()
 			_fade_to(_show_map)
 			return
+		if _options.is_autoplay():
+			print("AUTOPLAY_ELITE stop=%d kind=%s enc=%s" % [_run.visited,
+					"guard" if _run.elite_holds_guard(_run.at) else "group", _encounter.id])
 	_set_run_fight_place(boss)
 	if not boss:
 		print("Run fight weather: %s" % [_fight_weather.id if _fight_weather != null else "clear"])
@@ -2087,7 +2092,8 @@ func _on_run_fight_over(result: String) -> void:
 		AfterFight.PARTY:
 			_fade_to(_show_party.bind(_pack_full_note(found), false, {"item": found}))
 		AfterFight.SPOILS:
-			_fade_to(_show_loot.bind([] as Array[GearData], _spoils_line(type, ambushed)))
+			var guard := _encounter != null and _encounter.mini_boss
+			_fade_to(_show_loot.bind([] as Array[GearData], _spoils_line(type, ambushed, guard)))
 		_:
 			_fade_to(_show_map)
 
@@ -2116,12 +2122,13 @@ static func _after_run_fight(result: String, stop_type: int, ambushed: bool, amb
 	return AfterFight.SPOILS
 
 
-## The line over a run fight's spoils: the boss's, a guard's, else an elite's (an ambush with spoils
-## reads as an elite's, as before). Pure.
-static func _spoils_line(stop_type: int, ambushed: bool) -> String:
+## The line over a run fight's spoils: the boss's, a guard's (`guard`: the fight was a guard's, at an
+## Elite stop since DESIGN.md 8.22, or a map rules 3 Guard stop), else an elite's (an ambush with
+## spoils reads as an elite's, as before). Pure.
+static func _spoils_line(stop_type: int, ambushed: bool, guard: bool = false) -> String:
 	if not ambushed and stop_type == RunMap.StopType.FINAL:
 		return "The boss fell. Take one."
-	if not ambushed and stop_type == RunMap.StopType.GUARD:
+	if not ambushed and (stop_type == RunMap.StopType.GUARD or guard):
 		return "The guard fell. Take one."
 	return "The elite fell. Take one."
 
@@ -4240,7 +4247,7 @@ func _autoplay_continue(result: String, continue_to: Callable) -> void:
 
 ## Autoplay on the map: a shop when there is gold to spend, a rest when someone is hurt, else a
 ## fight (so a run tries every kind of stop). Healing items go on whoever is low first, at every map
-## visit, so also before every Guard stop.
+## visit, so also before every Elite stop.
 func _autoplay_map(map: MapScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(map) or not map.is_inside_tree() or _run == null:
@@ -4251,11 +4258,11 @@ func _autoplay_map(map: MapScreen) -> void:
 	for item: ItemData in _run_data.shop_items:
 		cheapest = mini(cheapest, item.price)
 	var hurt := _autoplay_hurt()
-	# Treasure first, a shop with gold, a campfire when hurt, elites when healthy, then events,
-	# guards (a row of their own) and fights (each kind gets played).
+	# Treasure first, a shop with gold, a campfire when hurt, Elite stops (an elite group or the
+	# place's guard) when healthy, then events and fights (each kind gets played).
 	for wanted: int in [RunMap.StopType.TREASURE, RunMap.StopType.SHOP if _run.gold >= cheapest else -1,
 			RunMap.StopType.REST if hurt else -1, RunMap.StopType.ELITE if _autoplay_elite_ready() else -1,
-			RunMap.StopType.EVENT, RunMap.StopType.GUARD, RunMap.StopType.FIGHT]:
+			RunMap.StopType.EVENT, RunMap.StopType.FIGHT]:
 		for id: int in map.choices():
 			if pick < 0 and int(_run.map.stop(id).type) == wanted:
 				pick = id

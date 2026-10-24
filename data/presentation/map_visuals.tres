@@ -11,7 +11,6 @@ rest_icon_path = "res://assets/sprites/ui/map_rest.png"
 elite_icon_path = "res://assets/sprites/ui/map_elite.png"
 event_icon_path = "res://assets/sprites/ui/map_event.png"
 treasure_icon_path = "res://assets/sprites/ui/map_treasure.png"
-guard_stop_icon_path = "res://assets/sprites/ui/map_guard.png"
 unreachable_alpha = 0.35
 flag_path = "res://assets/sprites/ui/map_flag.png"
 ring_path = "res://assets/sprites/ui/map_ring.png"

@@ -14,7 +14,9 @@ extends RefCounted
 ## Key; such a pack would no longer load and the menu would delete the run, so format 2 is kept too.
 ## 4: three acts (card #323, DESIGN.md 8.23): an old save's act 2 was the Ashen Deep, now it is the
 ## Drowned Mire, so a format 3 run would carry on in the wrong place; it is kept but not offered.
-const FORMAT_VERSION: int = 4
+## 5: the guards joined the Elite stops (map rules 4, DESIGN.md 8.22): a format 4 run's map still has
+## its row of Guard stops, so it is kept but not offered either.
+const FORMAT_VERSION: int = 5
 const PATH := "user://run_save.json"
 const TEMP_SUFFIX := ".tmp"
 const BACKUP_SUFFIX := ".bak"

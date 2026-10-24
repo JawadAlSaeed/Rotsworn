@@ -21,8 +21,6 @@ camp; the paths between them are ink dots the game draws itself.
 - ui/map_lair_leech_queen.png (bigger): act 2's lair, a crowned leech coiled in a black pool.
 - ui/map_flag.png: the party's banner (Alder blue, Brin red, Cass gold) planted where the party
   is.
-- ui/map_guard.png: a Guard stop (DESIGN.md 8.22), in the elite's style: a tall horned shield with
-  the rot's eye on it and a spear standing behind it.
 - ui/map_ring.png, ui/map_ring_big.png: a quick red ink circle around the stop picked (the big
   one for the lair).
 """
@@ -410,43 +408,6 @@ def make_elite() -> np.ndarray:
     return c.a
 
 
-def make_guard() -> np.ndarray:
-    """A Guard stop (DESIGN.md 8.22): a place's guard, in the elite's style: a tall horned shield
-    with the rot's eye on it, a spear standing behind it, shaded on its right side. Mirrored about
-    x = 12 (the line between columns 11 and 12) and kept inside a clear 1-pixel border, outline
-    included, as the elite's and the event's pictures are."""
-    c = Canvas(ICON, ICON)
-    c.ellipse(12.0, 20.5, 7.0, 1.2, SEPIA[1])
-    # The spear behind, its head above the shield and its butt below the point.
-    c.rect(11, 3, 11, 21, DARKWOOD[2])
-    c.rect(12, 3, 12, 21, DARKWOOD[1])
-    c.poly([(9.5, 6.5), (12.0, 1.0), (14.5, 6.5)], STONE[3])
-    c.poly([(12.0, 1.0), (14.5, 6.5), (12.0, 6.5)], STONE[2])
-    # Horns on the shield's top corners, as the elite's skull wears them.
-    c.poly([(5.5, 7.5), (2.0, 4.5), (2.0, 2.0), (3.5, 4.5), (8.0, 7.0)], BONE[3])
-    c.poly([(18.5, 7.5), (22.0, 4.5), (22.0, 2.0), (20.5, 4.5), (16.0, 7.0)], BONE[2])
-    # The shield: a stone rim, a red face darker on its right half, its point at the bottom.
-    c.poly([(4.0, 7.0), (20.0, 7.0), (20.0, 13.0), (12.0, 20.0), (4.0, 13.0)], STONE[2])
-    c.poly([(4.0, 7.0), (12.0, 7.0), (12.0, 20.0), (4.0, 13.0)], STONE[3])
-    c.poly([(5.0, 8.0), (19.0, 8.0), (19.0, 12.5), (12.0, 18.5), (5.0, 12.5)], RED[2])
-    c.poly([(12.0, 8.0), (19.0, 8.0), (19.0, 12.5), (12.0, 18.5)], RED[1])
-    c.line(5, 8, 11, 8, RED[3])
-    # The rot's eye in the middle of the shield: an almond of bone, a beast's slit with a rot glint.
-    c.rect(10, 10, 13, 10, BONE[3])
-    c.rect(9, 11, 14, 11, BONE[3])
-    c.rect(8, 12, 15, 12, BONE[3])
-    c.rect(9, 13, 14, 13, BONE[2])
-    c.rect(10, 14, 13, 14, BONE[2])
-    c.rect(11, 10, 12, 14, SEPIA[0])
-    c.px(11, 12, ROT[3])
-    c.px(12, 11, PURPLE[2])
-    # Gold studs on the rim.
-    for sx, sy in ((4, 7), (19, 7), (4, 12), (19, 12)):
-        c.px(sx, sy, GOLD[2])
-    c.outline(INK_OUT)
-    return c.a
-
-
 def make_foe() -> np.ndarray:
     """A roaming enemy, for the zone's goal chips (phase 22): the elite's skull alone, a touch
     bigger, without the horns and blades that mark the guard. Shaded on its right side."""
@@ -687,7 +648,6 @@ def build(ctx) -> None:
     ctx.save("sprites/ui/map_lair_husk_lord.png", make_lair_husk_lord(), scale=8)
     ctx.save("sprites/ui/map_lair_leech_queen.png", make_lair_leech_queen(), scale=8)
     ctx.save("sprites/ui/map_elite.png", make_elite(), scale=8)
-    ctx.save("sprites/ui/map_guard.png", make_guard(), scale=8)
     ctx.save("sprites/ui/goal_foe.png", make_foe(), scale=8)
     ctx.save("sprites/ui/gold_coin.png", make_coin(), scale=8)
     ctx.save("sprites/ui/map_event.png", make_event(), scale=8)

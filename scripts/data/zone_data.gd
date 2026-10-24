@@ -17,8 +17,8 @@ extends Resource
 ## The fights of a run's Fight stops in this place (DESIGN.md 8.22), and of a Fight Rush tier that
 ## names the place (8.21).
 @export var roamer_pool: Array[EncounterData] = []
-## The place's guard (a mini-boss): a run's Guard stop here fights it, in its deep version in a deep
-## act or row (DESIGN.md 8.22).
+## The place's guard (a mini-boss): some of a run's Elite stops here fight it, in its deep version
+## in a deep act or row (DESIGN.md 8.22).
 @export var guard: EncounterData
 ## This place's song and its quiet background loop (wind, frogs, creaking wood; card #99). Nothing
 ## plays them since the walkable zones went (DESIGN.md 8.22 G6): they stay named here so a talk

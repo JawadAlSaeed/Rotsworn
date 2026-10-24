@@ -80,32 +80,46 @@ func test_every_kind_of_stop_shows_two_or_three_icon_chips_not_a_sentence() -> v
 			seen[type] = true
 		if is_failing():
 			return
-	for type: int in [RunMap.StopType.FIGHT, RunMap.StopType.GUARD, RunMap.StopType.REST, RunMap.StopType.SHOP,
+	for type: int in [RunMap.StopType.FIGHT, RunMap.StopType.REST, RunMap.StopType.SHOP,
 			RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE, RunMap.StopType.FINAL]:
 		assert_true(seen.has(type), "%s stops were checked" % RunMap.TYPE_NAMES[type])
+	assert_false(seen.has(RunMap.StopType.GUARD), "no Guard stops on new maps (DESIGN.md 8.22)")
 
 
-func test_a_fight_shows_its_foes_and_gold_and_a_guard_its_place_and_spoils() -> void:
+## A Fight stop shows its foes and gold. An Elite stop that holds its place's guard looks exactly
+## like one that holds an elite group (DESIGN.md 8.22): the same picture, name and chips, so the map
+## never tells which until the stop is entered. A map rules 3 Guard stop reads as an Elite stop too.
+func test_a_fight_shows_its_foes_and_gold_and_a_guard_elite_looks_like_any_elite() -> void:
 	var run := _run()
 	var fight: Dictionary = {}
-	var guard: Dictionary = {}
 	for stop: Dictionary in run.map.stops:
 		if int(stop.type) == RunMap.StopType.FIGHT and fight.is_empty():
 			fight = stop
-		elif int(stop.type) == RunMap.StopType.GUARD and guard.is_empty():
-			guard = stop
 	var chips := MapScreen.detail_chips(run, fight, _look, _visuals.gold_icon_path)
 	assert_eq(chips.size(), 2)
 	assert_eq(String(chips[0].icon), _look.foe_icon_path, "a fight")
 	assert_eq(String(chips[1].icon), _visuals.gold_icon_path, "it pays gold")
 	assert_eq(MapScreen.stop_name(run, fight), run.zone_of(fight).display_name, "a Fight stop keeps its place's name")
-	chips = MapScreen.detail_chips(run, guard, _look, _visuals.gold_icon_path)
-	assert_eq(chips.size(), 3)
-	assert_eq(String(chips[0].icon), run.zone_of(guard).map_icon_path, "where the guard stands")
-	assert_eq(String(chips[0].text), run.zone_of(guard).display_name)
-	assert_eq(String(chips[1].text), "Spoils", "a guard pays spoils")
-	assert_eq(String(chips[2].icon), _visuals.gold_icon_path, "and gold")
-	assert_eq(MapScreen.stop_name(run, guard), "Guard")
+	var guards := 0
+	var groups := 0
+	for s: int in range(1, SEEDS * 3):
+		var each := _run(s)
+		for stop: Dictionary in each.map.stops:
+			if int(stop.type) != RunMap.StopType.ELITE or bool(stop.get("crown", false)):
+				continue
+			var held := each.elite_holds_guard(int(stop.id))
+			guards += 1 if held else 0
+			groups += 0 if held else 1
+			var seen := MapScreen.detail_chips(each, stop, _look, _visuals.gold_icon_path)
+			assert_eq(seen.size(), 2)
+			assert_eq(String(seen[0].text), "Rare", "rare spoils, whoever waits there")
+			assert_eq(String(seen[1].icon), _visuals.gold_icon_path, "and more gold")
+			assert_eq(MapScreen.stop_name(each, stop), "Elite", "never the guard's name")
+	assert_gt(guards, 0, "some Elite stops hold the guard")
+	assert_gt(groups, 0, "others an elite group")
+	var old := {"id": 0, "row": 1, "col": 0, "type": RunMap.StopType.GUARD, "zone": 0, "next": [], "prev": []}
+	assert_eq(MapScreen.stop_name(run, old), "Elite", "a rules 3 Guard stop reads as an Elite stop")
+	assert_eq(MapScreen.detail_chips(run, old, _look, _visuals.gold_icon_path).size(), 2)
 
 
 func test_a_campfire_shows_rest_train_and_upgrade() -> void:
