@@ -1897,6 +1897,10 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   calibration offer when it is due, then the players screen titled Fight Rush, and never touches a
   saved run. Without the Rush data the card is greyed and Confirm plays "locked". Coming back from a
   run or a Rush, the cursor rests on New Run (`MainMenu.PLAY_RUN`, `PLAY_RUSH`, `MODE_ITEMS`).
+  **Host** (Online's first card; card #312, 8.21) opens the same two cards in place of Host / Join:
+  **Run** hosts a run as before, **Fight Rush** hosts a Rush (the same Best chip, from the host's
+  records; greyed and "locked" without the Rush data). Back goes back to Host / Join. The host's
+  players screen then opens for that game (`MainMenu.HOST_RUN`, `HOST_RUSH`, `HOST_MODE_ITEMS`).
   In the corners, small and quiet like most games' title menus (card #210, user 2026-10-17):
   bottom left the version, "v" and Project Settings' `application/config/version` (0.18.0 since phase 18, the
   phase number; the same version the save check and the online handshake use, so raise it for a
@@ -1938,7 +1942,8 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   run map (B on the map too). Continue, Players (a local game outside the tutorial, 9.3), Settings, Glossary (7.12), "Save & Quit" (a local run, 8.14), and "Abandon
   run" (asks first, then the main menu) or in practice "Leave" (the practice list). In a Fight Rush
   (8.21; in a fight or on the Rush screen) the note reads "Fight 7", there is no Save & Quit, and
-  "Give up" takes Abandon run's place (asks "Give up?", Give up / Keep going, then the Rush end). Pause, Back or Continue resumes. Everything
+  "Give up" takes Abandon run's place (asks "Give up?", Give up / Keep going, then the Rush end;
+  online only the host's, 8.21). Pause, Back or Continue resumes. Everything
   under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
   presses) and cannot stop, so a pause asked for mid-move shows "PAUSING AFTER THIS MOVE" and
@@ -4035,11 +4040,11 @@ Weather is presentation only: no rule changes (a rule touch may come later).
 
 Tests: `tests/unit/test_weather.gd`.
 
-### 8.21 Fight Rush (phase 25, card #305, built 2026-10-24, waiting for playtest)
+### 8.21 Fight Rush (phase 25, cards #305, #312, built 2026-10-24, waiting for playtest)
 
 Fight after fight for the furthest fight, with no map, zones, shops or campfires: the endless mode
-dropped in #267, back as its own mode next to the run. Main menu, New Run, **Fight Rush**. Local
-only for now; Fight Rush online is card #312, the next step. Branch `phase25-Together`.
+dropped in #267, back as its own mode next to the run. Main menu, New Run, **Fight Rush**; online,
+Online, Host, **Fight Rush** (card #312, "Online" below). Branch `phase25-Together`.
 
 Owner decisions (2026-10-24):
 1. After every won fight the party picks 1 of 3 cards, shown side by side: Heal, Train (attribute
@@ -4155,7 +4160,7 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
   not learned yet reads "Runs only" (Echoes are learned in runs); no pips bar on the Relics, no Echo
   learning row, no gold line.
 - **Local drop-in** works as in a run (9.3): the pause menu's Players row; in a fight the change waits
-  for a quiet moment, on the Rush screen it applies at once.
+  for a quiet moment, on the Rush screen it applies at once. Online drop-in: "Online" below.
 
 **Fights.** Fight 1 is the first. A fight's depth is `(fight - 1) x rush_depth_per_fight_percent / 100`
 map rows (one per fight at 100), and its enemies grow with it as in a run (8.3): HP
@@ -4232,6 +4237,54 @@ best of the three. Only Reset progress clears them (D8).
 writes nothing to `user://progress.json`, is never saved (`_save_allowed`) and never deletes a saved
 run (`_clear_run_save` is guarded). Oath unlocks never come from a Rush (it has no victory).
 
+**Online** (card #312, built 2026-10-24, waiting for playtest). The host's machine plays the Rush
+exactly as alone and makes its choices; friends play their own heroes in the fights and watch the
+rest, as in an online run (9.2). Nothing goes back on any machine (decision 3).
+
+- **Hosting**: Online, Host opens two cards side by side, **Run** and **Fight Rush** (7.5): the same
+  pictures as New Run's, the Fight Rush card with the host's own Best chip, greyed without the Rush
+  data. Back goes back to Host / Join. The players screen then knows the game: a Rush's is titled
+  **Fight Rush** with no Oath row on every machine (D2). Start begins the Rush for everyone.
+- **The mode travels**: the `lobby`, `again` and `run_start` messages carry `mode` ("run" or "rush";
+  anything else, or none, means a run). `run_start` also carries the seed, the roster, `oath`,
+  `late` and `records` (below). The protocol number went to 4 for it (9.2), so an older build is
+  refused at the handshake.
+- **Friends follow the host's state**: each Rush screen goes out with the whole `RushState.to_dict()`,
+  as a run's screens do. A friend's game builds the Rush from the host's seed, then takes the host's
+  state with every screen: the Rush fight (`rush_fight`, a fight screen: the same encounter, look and
+  weather) and the Rush screen and the end (`rush_reward`, `rush_end`, watched screens). Picks,
+  Relics, the fight counter and any head start come from the host. A friend whose game lacks the
+  Rush data leaves with "Could not start the game".
+- **The Rush screen**: the host picks the cards and presses Fight (P1 makes the choices, 9.2).
+  Friends see "The host is choosing (P1)" and every card greyed but Party in the ready phase (the
+  cursor starts on it; Confirm opens the party screen, which closes back to the Rush screen), footer
+  Party only. A friend's change to the party (points, Relics) redraws the host's Rush screen
+  (`Main._apply_bag_op`).
+- **Give up is the host's** (D7): the host's pause row reads **Give up** ("The Rush ends for
+  everyone.") while the Rush goes on, and RUSH OVER shows on every machine. Friends only have Leave.
+  Once a lost fight decided the Rush, or it is over, the host's row is **End the game** ("Back to the
+  main menu for everyone."). When the host leaves after RUSH OVER, a friend's notice reads "The Rush
+  is over."
+- **The end and Again**: RUSH OVER shows on every machine with the host's fight reached and party
+  size. The host's Again opens the Fight Rush players screen for everyone with the same seats (the
+  `again` message carries the mode); a friend who dropped in keeps their hero and is there from the
+  start of the next Rush.
+- **Drop-in, rejoin and a crashed friend** work as in a run (9.3), through the same code: drop-in
+  opens when the Rush starts and shuts when it is decided and during Again. A newcomer gets
+  `run_start` with `late`, the place screen (`rush_reward`, `party` or `rush_end`) and the Rush fight,
+  each with the whole state (`Main._catch_up_messages`, pure). In a fight they get their hero at the
+  fight's next quiet moment, as in a run (not at the next fight); on the Rush screen at once. A token
+  rejoin (#205) gets its own seat back. A friend whose game crashed comes back as a newcomer and takes
+  their away seat after `net_takeover_after_ms` (15 s).
+- **Records online** (D9, D20): each machine writes its own records (its own `settings.cfg`), and only
+  a machine there from the start of that Rush. A friend who dropped in, or a crashed friend who came
+  back (a newcomer to the host), writes none for that Rush (what a crashed game wrote at earlier fight
+  starts stays); a token rejoin keeps what it was (`Main._late_after_start`, pure, tested). A friend's
+  machine cannot see the host's switches, so the host sends its own verdict (`records` in
+  `run_start` and in every catch-up: no for a bot, dev or head-start Rush there) and a friend writes
+  none when it says no. The party size is the host's most players seen, from its state: friends count
+  nothing themselves.
+
 **Built as.** `RushState` (`scripts/rush/rush_state.gd`) extends `RunState` (pure, no Node): the fight
 counter (the last fight entered, 0 before the first), fight kinds, tiers and the boss cycle, the
 offer, spare XP, the Rush counters for Relic slots, and its own "rush" block in `to_dict` (a run state
@@ -4275,6 +4328,14 @@ Tuning (`tuning.tres`, group "Fight Rush"; the first values, not yet tuned with 
 - `--rush-start=N`: a head start to fight N. It replays fights 1 to N-1 as perfect wins with the bot's
   picks (XP, Train points, elite and boss Relics; no Heal or items), so it checks mechanics and
   deep-play feel, never balance. Both switches imply `--rush`.
+- Online (#312): `--rush` with `--host=N` hosts a Fight Rush and starts it once N players are in
+  (`--host=1` at once, friends drop in later). Friends use the plain `--join=ADDRESS` and take the
+  mode from the host; `--join-after`, `--drop-after` with `--rejoin` and `--crash-after` work as in a
+  run (9.2, 9.3). Pair: host `--autoplay --rush --host=2 --rush-fights=4 --seed=7 --quit-on-end` in
+  the background, then `--autoplay --join=127.0.0.1 --quit-on-end`: both print the same
+  `AUTOPLAY_MIRROR` lines, `AUTOPLAY_PLAYERS` and `AUTOPLAY_RESULT rush_capped ...` line, about 140 s
+  for 4 fights (`timeout 400`). A drop-in pair uses `--host=1` (with `--host=2` a `--join-after`
+  friend only fills the lobby).
 - Lines: `Rush seed: S start: N`, `Rush fight N: <kind> <encounter> weather <id|clear>` and
   `Rush pick: ...` (every Rush); the bot's `Rush offer: heal:40 point:1 item:salve fight=N` and
   `Rush card: ...`; per fight `AUTOPLAY_RUSH fight= kind= enc= depth= enemy_hp= enemy_power= tempo=
@@ -4293,12 +4354,24 @@ Tuning (`tuning.tres`, group "Fight Rush"; the first values, not yet tuned with 
 Tests: `tests/unit/test_rush.gd` (RushState, records, switches, dev screens), `test_rush_data.gd` (the
 data file: tiers, bosses, items, stale data, a 70-fight walk), `test_rush_screens.gd` (the Rush
 screen, the end screen, hints, the lobby title), and the New Run cards in `test_choice_cards.gd`,
-`test_save_menus.gd`, `test_branding.gd` and `test_menus_clean.gd` (10).
+`test_save_menus.gd`, `test_branding.gd` and `test_menus_clean.gd` (10). Online:
+`test_rush_online.gd` (the mode in each message, protocol 4, a friend building the host's Rush and
+its screens, Give up and End the game, the records verdict and the late rule, catch-up mid-fight and
+on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test_choice_cards.gd`.
 
 **Known limits** (not bugs):
-- Local only until #312: Host Online still starts a run.
-- A Rush cannot be saved or continued (D4).
+- A Rush cannot be saved or continued (D4), online neither.
 - The numbers are the first values above; the balance runs have not been done yet.
+- Online, a drop-in refused because the Rush is decided reads "Run busy, try again" (the Join check
+  runs before the game is known).
+- Online, the host's End the game over a lost fight's end screen reads "The host ended the game." on
+  friends' screens, as after a run's lost fight.
+- The host is not told when a friend plays as a bot: only that friend's own machine keeps no record.
+- A crashed friend who comes back writes no more records for that Rush.
+- The host's gift party screen (an item or Relic in hand) is not redrawn when a friend changes the
+  party (runs too).
+- Again online is checked by unit tests only (bots quit on the end screen), and no bot switch lands a
+  drop-in exactly on the Rush screen (its window is about 2 s a fight; unit tests cover it).
 
 ## 9. Multiplayer (phase 5)
 
@@ -4358,8 +4431,9 @@ screen, the end screen, hints, the lobby title), and the New Run cards in `test_
 
 ### 9.2 Online co-op (phase 5 Part B, done)
 
-- **Host-authoritative, the host is the server.** Main menu: **Host Online** listens (port
-  `net_port`, 7777) and shows the PC's addresses to share; **Join Online** takes an address
+- **Host-authoritative, the host is the server.** Main menu: **Host Online** (since card #312 it
+  first asks Run or Fight Rush, two cards, 7.5) listens (port `net_port`, 7777) and shows the PC's
+  addresses to share; **Join Online** takes an address
   (remembered per machine). One player per machine (P1 = host). Same Wi-Fi works as is; over the
   internet both use Tailscale (or the host forwards the port). Approved 2026-10-12: IP first.
 - `Net` autoload (`NetSession`, `scripts/autoload/net.gd`) wraps Godot's high-level multiplayer.
@@ -4372,7 +4446,8 @@ screen, the end screen, hints, the lobby title), and the New Run cards in `test_
   A refusal names both short build ids ("yours a1b2c3d4, the host's e5f6a7b8"). A mismatch or a
   full game (3 players, "Game full") is refused with a reason shown on the Join screen. A started
   run seats newcomers while drop-in is open (9.3), else "Run busy, try again". A host that cannot
-  be reached says "Host not found". The protocol number is 3 since phase 25. Until welcomed, a
+  be reached says "Host not found". The protocol number is 4 since card #312 (phase 25: the game's
+  `mode` in `lobby`, `again` and `run_start`, and the Rush screens, 8.21). Until welcomed, a
   client's messages are ignored. A client that never says hello is dropped after
   `net_connect_timeout_ms`.
 - **Messages** are (kind, Dictionary of plain data). Reliable ones share one ordered channel (game
@@ -4386,7 +4461,10 @@ screen, the end screen, hints, the lobby title), and the New Run cards in `test_
   seed); any later change of the run (a purchase, gear, a level) is sent as "run". Clients only
   show: their map, shop, rest, loot, party and end screens are the same screens fed with the
   host's state, input off, with "The host is choosing (P1)" on top. Messages that arrive during a
-  client's transition wait for it. Approved 2026-10-12: P1 (the host) makes the run choices.
+  client's transition wait for it. Approved 2026-10-12: P1 (the host) makes the run choices. A
+  Fight Rush (card #312, 8.21) goes the same way: `run_start` says `mode` "rush", the Rush fight is
+  a fight screen (`rush_fight`), the Rush screen and its end are watched screens, each with the whole
+  `RushState`.
 - **Zones**: the host's zone is real and sends `net_snapshot()` (leader, facing, walking, strike
   count, every roaming enemy's spot, state and defeat) `net_zone_send_hz` times a second; a
   client's zone is `remote`: walkers glide there (`net_follow_ms` in `explore_visuals.tres`). A
@@ -4491,7 +4569,8 @@ screen, the end screen, hints, the lobby title), and the New Run cards in `test_
   plays that same build: a run from the editor has a different content fingerprint (the export
   stores resources differently) and is refused.
 - Bot: `--host=N` hosts and starts a run once N players (1 to 3) are in (`--host=1` starts at once
-  alone, friends drop in later, 9.3); `--join=ADDRESS` joins. Both play
+  alone, friends drop in later, 9.3; with `--rush` it hosts a Fight Rush, 8.21); `--join=ADDRESS`
+  joins (whatever the host plays). Both play
   with `--autoplay`; each presses only for its own player. `--drop-after=S` makes a client drop off
   the network S seconds after joining without a word (the host finds out through the heartbeat);
   `--drop-in-fight` makes that drop wait for the next fight and come a few seconds into it;
@@ -4608,8 +4687,9 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
   An old enough away seat goes before a free one: it is most likely the crashed friend. Before the
   welcome Net asks Main (`Net.drop_in_check`, `Main._drop_in_refusal`), so a refusal never comes
   after a welcome (`Net.refuse` is only a fallback). Drop-in opens at the end of `_new_run`, after
-  the first screen is sent, and shuts in `_close_decided_run`, `_show_run_end`, `_play_again` and
-  `_abandon_run` (`Main._set_drop_in`). The drop-in refusal texts and the not-found text ("Game
+  the first screen is sent (a Rush's in `_new_rush`, after its `run_start`, 8.21), and shuts in
+  `_close_decided_run`, `_close_decided_rush`, `_show_run_end`, `_play_again` and `_abandon_run`
+  (`Main._set_drop_in`). The drop-in refusal texts and the not-found text ("Game
   full", "Run busy, try again", "Host not found") are at most 4 words, so they also fit the main
   menu notice (a test). The older connect texts (no answer, a different build) are not covered.
 - **Which hero**: the donor rule, automatic. With the usual deals it is always a hero the host was
@@ -4696,7 +4776,11 @@ the Rush screen) has the Players row; in a fight the change waits for a quiet mo
 screen it applies at once. The Rush's record goes to the most players seen during it
 (`RushState.most_players`, counted at each fight start, at each roster change and when the Rush is
 decided), so a solo Rush a friend joins at fight 10 writes Duo from fight 10 on. Drop-in shuts when
-the Rush is decided. Online Rushes, and dropping into one, come with card #312.
+the Rush is decided. Online (card #312, 8.21 "Online") a friend drops into a Rush, rejoins with a
+token or comes back after a crash exactly as in a run: `run_start` says `mode` "rush" (with `late`),
+the catch-up sends the Rush screen or the Rush fight with the whole state, and the hero becomes theirs
+at the fight's next quiet moment, or at once on the Rush screen. A friend who got in after the Rush
+started writes no record for it (D20).
 
 **Dev and bot switches** (debug builds; the `AUTOPLAY_` lines only with `--autoplay`):
 - `--pad-join-after=S`: a pretend pad joins the local run S seconds after launch, at the next quiet
@@ -4865,6 +4949,17 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
   `--rush-start=21 --rush-fights=3` (deep versions, tempo 80, 79, 78), `--players=2`,
   `--pad-join-after=50 --rush-fights=4` (`players=2`) and `--autoplay=escape --rush --rush-fights=1`
   (no Run button, no hang). Never an uncapped Rush bot: a perfect bot may never lose.
+- Fight Rush online (`test_rush_online.gd`, card #312, 8.21): the mode in `lobby`, `again` and
+  `run_start`, protocol 4, a friend building the host's Rush, fights and watched screens, the host's
+  Give up and End the game, the records verdict and the late rule, catch-up mid-fight and on the Rush
+  screen, drop-in opened and shut with the Rush, Again with the same seats; the Host cards in
+  `test_choice_cards.gd`. Bot pairs (headless, one online game at a time, `timeout 400` each): host
+  `--autoplay --rush --host=2 --rush-fights=4 --seed=7 --quit-on-end` with a `--join=127.0.0.1`
+  friend (about 140 s), with a `--drop-after=50 --rejoin=5` friend (rejoin), and with a
+  `--crash-after=40` friend replaced by a `--join-after=75` one; and the same host with `--host=1`
+  and a `--join-after=60` friend (drop-in). Every machine still there prints the same `AUTOPLAY_PLAYERS`
+  and `AUTOPLAY_RESULT rush_capped fight=4 ...` lines, and a late friend's `AUTOPLAY_MIRROR` lines
+  equal the host's last ones.
 - Save & Quit smoke test: `--autoplay --run --seed=N --save-path=FILE`, stop it part way with a
   timeout, then `--autoplay --continue --quit-on-end --save-path=FILE`: the second run prints
   `Run continued: ...` and plays on from that stop. A finished run deletes FILE.
@@ -5072,8 +5167,12 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     after fight for the furthest fight, no map, zones, shops or campfires, harder every fight, an
     elite every 5th and a boss every 10th; after each win pick 1 of 3 cards (Heal, Train, an item;
     Relics after elites and bosses); one record per party size; nothing goes back. It brings back
-    the endless mode dropped in #267. Next: Fight Rush online (#312). Ideas: Save & Quit for online
-    runs (#313), online friends take turns choosing (#314).
+    the endless mode dropped in #267. Fight Rush online (#312) is built too, waiting for playtest
+    (8.21 "Online"): Host Online asks Run or Fight Rush, the host plays the Rush and picks the cards
+    while friends play their heroes and watch the Rush screen with Party open to them, only the host
+    gives up, friends drop in, rejoin or come back after a crash as in a run, and records stay on the
+    machines there from the start (protocol 4). Ideas: Save & Quit for online runs (#313), online
+    friends take turns choosing (#314).
 
 ### 11.1 To-do (from playtests)
 
@@ -5330,3 +5429,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | A Rush brings the Relic bag and the learned Echoes; nothing goes back: no Relic banking, no Echo pips, no writes to `user://progress.json`; a Relic card lasts for that Rush only (8.21) | owner decision 3 (#305) |
 | 2026-10-24 | Rush fights get harder every fight with the run's depth growth per map row (one row per fight); every 5th fight an elite, every 10th a boss, the bosses cycle (three guards, the Husk Lord, the Hollow King); every number in `tuning.tres`, tuned with bots (8.21) | owner decision 4 (#305) |
 | 2026-10-24 | Defaults (owner may overrule, 8.21 D1 to D21): level cap 10, XP past it earns extra picks; no Oaths; one record per party size with its date, the size being the most players seen; one sitting, no save, the record written at each fight start; no running away; New Run's Run / Fight Rush cards with the best on the card; Give up in the pause menu; Reset progress clears the records; bots and dev switches never read or write records; Rush fights count in the Journal; FLAWLESS is a plain chip; no pact; zone weather, never lightning in fights; card sets per fight kind (boss: Train, Relic, Relic) and extra picks on the normal set; deep monsters from fight 21; attack speed stops rising at fight 31 (the 70% floor); Heal follows the Rest Relics; no keys, treasure or gold Relics on cards; online late joiners write no record (#312); no gold on any Rush screen | not asked; chosen while writing the build spec and checked against the code, keeping every approved screen and rule of the run as it is |
+| 2026-10-24 | Fight Rush online (8.21 "Online"): Online, Host opens Run / Fight Rush cards; the game's `mode` travels in `lobby`, `again` and `run_start` (protocol 4); the host plays the Rush and picks the cards, friends play their heroes in fights and watch the Rush screen with only Party open to them; drop-in, rejoin and a crashed friend's seat go through the run's paths | card #312; it reuses the run's online rules (host-authoritative, P1 makes the choices, approved 2026-10-12) and the drop-in code (9.3), so the Rush needed no new net paths beyond the mode |
+| 2026-10-24 | Defaults (owner may overrule, 8.21 D7, D9, D20): online only the host gives up, and once a lost fight decided the Rush its row is End the game; Rush records stay on the machines there from the start (a friend who dropped in, or came back after a crash, writes none; a token rejoin keeps its start); the host sends its own records verdict in `run_start`, so a bot or dev Rush on the host keeps friends' records out too; a friend who drops in gets their hero at the fight's next quiet moment, as in a run | not asked; chosen while building #312: a loss must never turn into a Rush given up, a late friend did not play the whole Rush, and a friend's machine cannot see the host's switches |

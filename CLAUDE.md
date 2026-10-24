@@ -97,7 +97,11 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   Online: start `--autoplay --host=2 --seed=7 --quit-on-end` in the background, then
   `--autoplay --join=127.0.0.1 --quit-on-end`; both must print the same `AUTOPLAY_RESULT` and
   `AUTOPLAY_MIRROR` lines (an online pair takes 25 to 30 minutes: use `timeout 2700`; every host uses
-  the tuning port, so run one online game at a time). Works with `--headless`. A good run prints
+  the tuning port, so run one online game at a time). A Fight Rush online: `--rush` with `--host=N`
+  hosts one (`--autoplay --rush --host=2 --rush-fights=4 --seed=7 --quit-on-end`), and the friend's
+  plain `--join=127.0.0.1` follows the host's mode; both print the same `AUTOPLAY_RESULT rush_capped`
+  and `AUTOPLAY_MIRROR` lines in about 140 s (`timeout 400`; a drop-in pair needs `--host=1`, DESIGN.md
+  8.21). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
   Drop-in co-op (DESIGN.md 9.3): `--pad-join-after=S` (a pretend pad joins the local run S seconds
   after launch, at the next quiet moment), `--pad-leave-after=S` (the last local player leaves),
