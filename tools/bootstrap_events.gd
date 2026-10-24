@@ -226,7 +226,7 @@ func _all_events() -> Array[EventData]:
 				{"cost": 35, "heal": 30}, 0, {},
 				"The water is cold and clean. Your wounds close."),
 		_choice("Fish out the coins", "Others paid the spring. It may want them back.",
-				{"gold": 60}, 50, {"maxhp": 5, "maxhp_to": "random"},
+				{"gold": 60}, 50, {"maxhp": 5, "maxhp_to": "random", "hp": 10},
 				"A fistful of old coins, cold as ice.", "The glow dims, and one of you feels it go out inside."),
 	]))
 	list.append(_event("blood_altar", "The Blood Altar",

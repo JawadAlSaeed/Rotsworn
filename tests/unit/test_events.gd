@@ -522,6 +522,12 @@ func _has_scarce_price(deal: ZoneOfferData) -> bool:
 			or deal.cost_item != ZoneOfferData.ItemCost.NONE or deal.cost_rotten != null or deal.ambush != null)
 
 
+## A price that still bites when every hero is at the max HP floor: anything but max HP.
+func _has_price_past_the_floor(deal: ZoneOfferData) -> bool:
+	return deal != null and (deal.cost_gold > 0 or deal.cost_hp_percent > 0
+			or deal.cost_item != ZoneOfferData.ItemCost.NONE or deal.cost_rotten != null or deal.ambush != null)
+
+
 func test_every_event_file_loads_and_makes_every_choice_cost_something() -> void:
 	var count := 0
 	var run := _run()
@@ -555,6 +561,11 @@ func test_every_event_file_loads_and_makes_every_choice_cost_something() -> void
 			# Healing must not be free: a heal comes with a price that is not just HP.
 			if c.deal.heal_percent > 0:
 				assert_true(_has_scarce_price(c.deal), "%s: a heal is paid for" % where)
+			# A risk that is the only price is forced, so it takes what there is: once every hero is at
+			# the max HP floor a max HP risk alone would take nothing, and the choice would be a gift.
+			if not _has_scarce_price(c.deal) and c.risk_deal != null:
+				assert_true(_has_price_past_the_floor(c.risk_deal),
+						"%s: its risk still costs something when nobody can lose max HP" % where)
 			for deal: ZoneOfferData in [c.deal, c.risk_deal]:
 				if deal == null:
 					continue
@@ -690,6 +701,32 @@ func test_taking_the_new_events_pays_and_gives() -> void:
 	assert_eq(run.gold, 200 - coin - CombatMath.percent(50, run.event_scale(stop)))
 	assert_eq((got.items as Array).size(), 1, "a find to put in the pack")
 	assert_gte(int((got.items[0] as ItemData).rarity), ItemData.Rarity.RARE, "a rare or better find")
+
+
+func test_fishing_the_spring_still_costs_something_at_the_max_hp_floor() -> void:
+	# The coins' only price is the risk. With every hero at the floor its max HP part takes nothing,
+	# so it costs HP too (never a gift, DESIGN.md 8.22 G2).
+	var fish := _event("healing_spring").choices[1]
+	assert_eq(fish.deal.cost_gold + fish.deal.cost_max_hp_percent, 0, "fishing has no price of its own")
+	var hits := 0
+	for stop: int in 40:
+		var run := _run()
+		for slot: int in run.party_size():
+			run.max_hp_percent[slot] = _tuning.event_max_hp_floor_percent
+			run.hp[slot] = run.max_hp(slot)
+		var before := run.hp.duplicate()
+		assert_true(run.can_choose(fish, stop), "it can be chosen at the floor")
+		var got := run.choose_event(fish, stop, 1)
+		assert_true(bool(got.ok))
+		if not bool(got.risk):
+			continue
+		hits += 1
+		var lost := 0
+		for slot: int in run.party_size():
+			lost += int(before[slot]) - run.hp[slot]
+			assert_eq(run.max_hp_percent[slot], _tuning.event_max_hp_floor_percent, "never under the floor")
+		assert_gt(lost, 0, "stop %d: the risk took HP" % stop)
+	assert_gt(hits, 0, "the risk came up")
 
 
 # --- the bot ------------------------------------------------------------------------------------------------------------
