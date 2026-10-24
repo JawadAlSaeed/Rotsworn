@@ -84,8 +84,8 @@ const SECTION_ROWS := {
 		"ambient_occlusion", "depth_of_field", "back"],
 	Section.SOUND: ["master", "music", "effects", "voice", "back"],
 	Section.CONTROLS: [],  # built by controls_rows: the page's actions, its options, reset and back
-	Section.GAME: ["text_size", "screen_shake", "flashes", "timing_ring", "calibrate", "reset_lag", "reset_progress",
-		"back"],
+	Section.GAME: ["text_size", "screen_shake", "flashes", "timing_ring", "take_turns", "calibrate", "reset_lag",
+		"reset_progress", "back"],
 }
 ## Rows whose value Left / Right change: a mouse click steps it by the side of the row it lands on.
 const SIDED_ROWS: Array[String] = ["master", "music", "effects", "voice", "window_size", "fps_limit",
@@ -379,6 +379,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		"timing_ring":
 			PlayerSettings.set_show_timing_ring(not PlayerSettings.show_timing_ring(_tuning))
 			Sfx.play("menu_confirm")
+		"take_turns":
+			# Online, as host (card #314): from the next choice screen on.
+			PlayerSettings.set_take_turns(not PlayerSettings.take_turns())
+			Sfx.play("menu_confirm")
 		"calibrate":
 			if answer == &"confirm":
 				Sfx.play("menu_confirm")
@@ -529,6 +533,8 @@ func _refresh() -> void:
 			"timing_ring":
 				_menu.set_item(i, "Training ring", true, "Practice fights only",
 						_on_off(PlayerSettings.show_timing_ring(_tuning)))
+			"take_turns":
+				_menu.set_item(i, "Take turns", true, "Online: friends choose too", _on_off(PlayerSettings.take_turns()))
 			"calibrate":
 				# Which kinds of input are measured, never the milliseconds (phase 22).
 				_menu.set_item(i, "Lag calibration", true, "Parry with the beat", calibrated_text(

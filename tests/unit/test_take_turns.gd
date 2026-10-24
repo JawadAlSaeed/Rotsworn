@@ -1,0 +1,500 @@
+extends GutTest
+## Online run choices in turns (card #314, DESIGN.md 9.2 "Taking turns"): each new choice screen
+## belongs to the next seated player in seat order, skipping a seat that is away or joining; the same
+## screen again keeps its owner; a drop or a leave passes the turn on; with Take turns off the host
+## makes every choice. The host makes a friend's choice only on their turn, on the screen up now, and
+## only one the screen can take. A find with no room on a friend's turn is handed to them to place.
+## Nothing touches user:// (the settings run in memory).
+
+const MAIN_PATH := "res://scenes/main.gd"
+const RUN_PATH := "res://data/runs/rotten_road.tres"
+const RUSH_PATH := "res://data/rush/fight_rush.tres"
+const TUNING_PATH := "res://data/tuning/tuning.tres"
+const EVENTS_DIR := "res://data/events"
+const HOST: int = 1
+const PEER_A: int = 1001
+const PEER_B: int = 1002
+
+var _data: RunData
+var _rush: RushData
+var _tuning: Tuning
+var _main: GDScript
+var _settings_before: ConfigFile
+
+
+func before_all() -> void:
+	_data = load(RUN_PATH) as RunData
+	_rush = load(RUSH_PATH) as RushData
+	_main = load(MAIN_PATH) as GDScript
+
+
+func before_each() -> void:
+	_tuning = (load(TUNING_PATH) as Tuning).duplicate() as Tuning
+	_settings_before = PlayerSettings._config
+	PlayerSettings._config = ConfigFile.new()
+	PlayerSettings.set_persistence(false)
+
+
+func after_each() -> void:
+	PlayerSettings._config = _settings_before
+	PlayerSettings.set_persistence(true)
+
+
+## The host and `friends` friends online (peers PEER_A, PEER_B).
+func _roster(friends: int) -> PlayerRoster:
+	var roster := PlayerRoster.online(_data.party.size(), HOST, HOST)
+	for peer: int in [PEER_A, PEER_B].slice(0, friends):
+		roster.join_peer(peer)
+	return roster
+
+
+func _run() -> RunState:
+	return RunState.begin(_data, _tuning, 7)
+
+
+func _item(run: RunState, id: String) -> ItemData:
+	return run.items_by_id()[id] as ItemData
+
+
+## Fills every free pocket of the backpack with `id`.
+func _fill(run: RunState, id: String) -> void:
+	var item := _item(run, id)
+	for i: int in run.backpack.width:
+		run.add_item(item)
+
+
+## The text of function `header` in main.gd, up to the next top-level function.
+func _body(header: String) -> String:
+	var source := FileAccess.get_file_as_string(MAIN_PATH)
+	var start := source.find(header)
+	assert_gt(start, -1, "found: %s" % header)
+	if start < 0:
+		return ""
+	var end := source.find("\nfunc ", start + 1)
+	var static_end := source.find("\nstatic func ", start + 1)
+	if static_end > 0 and (end < 0 or static_end < end):
+		end = static_end
+	return source.substr(start, end - start if end > start else -1)
+
+
+# --- the order ----------------------------------------------------------------------------------
+
+func test_each_new_choice_goes_to_the_next_player_in_seat_order() -> void:
+	var roster := _roster(2)
+	var turns := ChoiceTurns.new()
+	var owners: Array[int] = []
+	for key: String in ["map:0:0", "stop:0:1", "map:0:1", "stop:0:2", "map:0:2"]:
+		turns.turn_for(key, roster)
+		owners.append(turns.player)
+	assert_eq(owners, [0, 1, 2, 0, 1], "P1, P2, P3, then round again")
+	assert_eq(turns.peer, PEER_A, "P2's machine")
+
+
+func test_the_same_screen_again_keeps_its_owner() -> void:
+	var roster := _roster(2)
+	var turns := ChoiceTurns.new()
+	turns.turn_for("map:0:0", roster)
+	turns.turn_for("stop:0:1", roster)
+	assert_false(turns.turn_for("stop:0:1", roster), "a result or a redraw is the same choice")
+	assert_eq(turns.player, 1)
+
+
+func test_an_away_or_joining_seat_is_skipped() -> void:
+	var roster := _roster(2)
+	roster.set_away(PEER_A)
+	var turns := ChoiceTurns.new()
+	turns.turn_for("map:0:0", roster)
+	turns.turn_for("stop:0:1", roster)
+	assert_eq(turns.player, 2, "P2 is away: P3 next")
+	roster.set_back(PEER_A)
+	roster.set_joining(PEER_B)
+	turns.turn_for("map:0:1", roster)
+	assert_eq(turns.player, 0, "P3 is joining: round to P1")
+	assert_eq(ChoiceTurns.seated(roster), [0, 1] as Array[int])
+
+
+func test_a_drop_passes_the_turn_on() -> void:
+	var roster := _roster(2)
+	var turns := ChoiceTurns.new()
+	turns.turn_for("map:0:0", roster)
+	turns.turn_for("stop:0:1", roster)
+	assert_eq(turns.player, 1)
+	roster.set_away(PEER_A)
+	assert_true(turns.pass_if_gone(roster), "P2 dropped: the turn passes")
+	assert_eq(turns.player, 2)
+	assert_eq(turns.peer, PEER_B)
+	assert_eq(turns.key, "stop:0:1", "the same screen, a new owner")
+	assert_false(turns.pass_if_gone(roster), "P3 is still here")
+
+
+func test_a_leave_passes_the_turn_to_who_moves_up() -> void:
+	var roster := _roster(2)
+	var turns := ChoiceTurns.new()
+	turns.turn_for("map:0:0", roster)
+	turns.turn_for("stop:0:1", roster)
+	roster.drop_peer(PEER_A)
+	assert_true(turns.pass_if_gone(roster))
+	assert_eq(turns.peer, PEER_B, "P3 moved up into P2's seat: theirs now")
+	assert_eq(turns.player, 1)
+	turns.turn_for("map:0:1", roster)
+	assert_eq(turns.player, 0, "then round to P1")
+
+
+func test_a_seat_moving_up_keeps_the_turn() -> void:
+	var roster := _roster(2)
+	var turns := ChoiceTurns.new()
+	for key: String in ["map:0:0", "stop:0:1", "map:0:1"]:
+		turns.turn_for(key, roster)
+	assert_eq(turns.peer, PEER_B)
+	roster.drop_peer(PEER_A)
+	assert_false(turns.pass_if_gone(roster), "P3's own turn goes on")
+	assert_eq(turns.player, 1, "now in seat 2")
+	turns.turn_for("stop:0:2", roster)
+	assert_eq(turns.player, 0)
+
+
+func test_the_last_seat_dropping_wraps_to_p1() -> void:
+	var roster := _roster(1)
+	var turns := ChoiceTurns.new()
+	turns.turn_for("map:0:0", roster)
+	turns.turn_for("stop:0:1", roster)
+	roster.set_away(PEER_A)
+	assert_true(turns.pass_if_gone(roster))
+	assert_eq(turns.player, 0)
+	assert_eq(turns.peer, HOST)
+
+
+func test_take_turns_off_leaves_every_choice_to_the_host() -> void:
+	var roster := _roster(2)
+	var turns := ChoiceTurns.new()
+	turns.enabled = false
+	for key: String in ["map:0:0", "stop:0:1", "map:0:1"]:
+		turns.turn_for(key, roster)
+		assert_eq(turns.player, 0)
+		assert_eq(turns.peer, HOST)
+
+
+func test_alone_every_choice_is_p1s() -> void:
+	var roster := _roster(0)
+	var turns := ChoiceTurns.new()
+	turns.turn_for("map:0:0", roster)
+	turns.turn_for("stop:0:1", roster)
+	assert_eq(turns.player, 0)
+
+
+func test_only_the_owner_for_the_screen_up_now_may_choose() -> void:
+	var roster := _roster(2)
+	var turns := ChoiceTurns.new()
+	assert_false(turns.allows(HOST, ""), "no turn yet")
+	turns.turn_for("map:0:0", roster)
+	turns.turn_for("stop:0:1", roster)
+	assert_true(turns.allows(PEER_A, "stop:0:1"))
+	assert_false(turns.allows(PEER_B, "stop:0:1"), "not P3's turn")
+	assert_false(turns.allows(PEER_A, "map:0:0"), "a stale choice for the last screen")
+	assert_eq(turns.to_dict(), {"key": "stop:0:1", "peer": PEER_A, "player": 1})
+	turns.reset()
+	assert_eq(turns.key, "")
+	assert_eq(turns.player, -1)
+
+
+# --- the keys -----------------------------------------------------------------------------------
+
+func test_each_choice_screen_has_its_own_key() -> void:
+	var run := _run()
+	assert_eq(_main.call("_choice_key_of", "map", run, ""), "map:0:0")
+	assert_eq(_main.call("_choice_key_of", "pact", run, ""), "pact")
+	assert_eq(_main.call("_choice_key_of", "party", run, ""), "", "the party screen has no turn")
+	run.go(run.choices()[0])
+	assert_eq(_main.call("_choice_key_of", "event", run, ""), "stop:0:1")
+	assert_eq(_main.call("_choice_key_of", "shop", run, ""), "stop:0:1", "one stop, one screen")
+	assert_eq(_main.call("_choice_key_of", "loot", run, ""), "loot:0:1", "spoils after its fight: a new turn")
+	assert_eq(_main.call("_choice_key_of", "map", run, ""), "map:0:1")
+
+
+func test_each_rush_pick_is_a_turn_and_fight_stays_with_the_last() -> void:
+	var r := RushState.begin_rush(_rush, _tuning, 7, null, 1)
+	assert_false(r.picking())
+	assert_eq(_main.call("_choice_key_of", "rush_reward", r, ""), "rush:0:ready", "the first screen")
+	r.next_fight()
+	var hp: Array[int] = []
+	for slot: int in r.party_size():
+		hp.append(r.max_hp(slot))
+	r.finish_fight(RunState.VICTORY, hp, r.encounter_now(), {})
+	assert_true(r.picking())
+	var pick: String = _main.call("_choice_key_of", "rush_reward", r, "rush:0:ready")
+	assert_eq(pick, "rush:%d:pick:%d" % [r.fight, r.pick_no])
+	while r.picking():
+		r.next_offer()
+		if r.picking():
+			r.picks_left = 0
+	assert_eq(_main.call("_choice_key_of", "rush_reward", r, pick), pick, "Fight is the last picker's")
+
+
+# --- the host checks a friend's request ---------------------------------------------------------
+
+## A host Main (not in the tree) on `screen`, its turn given to P2 for `key`.
+func _host_on(screen: Node, run: RunState, key: String) -> Node:
+	var main: Node = autofree(_main.new())
+	var roster := _roster(2)
+	main.set("_players", roster)
+	main.set("_run", run)
+	main.set("_screen", screen)
+	var turns: ChoiceTurns = main.get("_turns")
+	turns.turn_for("first", roster)
+	turns.turn_for(key, roster)
+	assert_eq(turns.peer, PEER_A)
+	return main
+
+
+func _event_screen(run: RunState, id: String) -> EventScreen:
+	var screen := EventScreen.new()
+	add_child_autofree(screen)
+	screen.setup(run, load("%s/%s.tres" % [EVENTS_DIR, id]) as EventData)
+	return screen
+
+
+func test_the_host_makes_a_friends_choice_on_their_turn() -> void:
+	var run := _run()
+	run.gold = 500
+	var screen := _event_screen(run, "gamblers_bones")
+	screen.watching = true
+	var main := _host_on(screen, run, "stop:0:1")
+	main.call("_on_friend_choice", PEER_A, {"key": "stop:0:1", "choice": {"do": "walk_on"}})
+	assert_true(screen.is_decided(), "P2 walked on")
+
+
+func test_the_host_drops_a_choice_from_the_wrong_player_or_screen() -> void:
+	var run := _run()
+	run.gold = 500
+	var screen := _event_screen(run, "gamblers_bones")
+	var main := _host_on(screen, run, "stop:0:1")
+	main.call("_on_friend_choice", PEER_B, {"key": "stop:0:1", "choice": {"do": "walk_on"}})
+	assert_false(screen.is_decided(), "not P3's turn")
+	main.call("_on_friend_choice", PEER_A, {"key": "map:0:0", "choice": {"do": "walk_on"}})
+	assert_false(screen.is_decided(), "a stale choice for another screen")
+	main.call("_on_friend_choice", PEER_A, {"key": "stop:0:1", "choice": "walk_on"})
+	assert_false(screen.is_decided(), "not a choice")
+	main.call("_on_friend_choice", PEER_A, {"key": "stop:0:1", "choice": {"do": "open"}})
+	assert_false(screen.is_decided(), "not one this screen has")
+
+
+func test_a_choice_the_screen_cannot_take_is_refused() -> void:
+	var run := _run()
+	var rest := RestScreen.new()
+	add_child_autofree(rest)
+	rest.setup(run)
+	assert_eq(_main.call("_make_choice", rest, {"do": "watch"}), "", "Keep watch is the boss fire's")
+	assert_eq(_main.call("_make_choice", rest, {"do": "upgrade", "uid": 999}), "", "no such item")
+	assert_eq(_main.call("_make_choice", rest, {"do": "rest"}), "rest")
+	assert_true(rest.has_acted())
+	assert_eq(_main.call("_make_choice", rest, {"do": "train"}), "", "once per campfire")
+	var map := MapScreen.new()
+	add_child_autofree(map)
+	map.setup(run, null, false)
+	assert_eq(_main.call("_make_choice", map, {"do": "stop", "id": -5}), "", "not a next stop")
+	assert_eq(_main.call("_make_choice", map, {"do": "buy", "index": 0}), "", "not a map choice")
+
+
+func test_the_host_opens_a_chest_and_takes_a_spoil_for_a_friend() -> void:
+	var run := _run()
+	run.go(run.choices()[0])
+	var chest := TreasureScreen.new()
+	add_child_autofree(chest)
+	chest.setup(run)
+	assert_eq(_main.call("_make_choice", chest, {"do": "open", "rotten": false}), "open plain")
+	assert_true(chest.is_open())
+	assert_eq(_main.call("_make_choice", chest, {"do": "open", "rotten": true}), "", "one chest only")
+	var loot := LootScreen.new()
+	add_child_autofree(loot)
+	loot.setup(run.loot_choices(run.at), "", run)
+	var taken: Array = []
+	loot.chosen.connect(func(item: GearData) -> void: taken.append(item))
+	assert_eq(_main.call("_make_choice", loot, {"do": "take", "index": 0}), "take 0")
+	assert_eq(_main.call("_make_choice", loot, {"do": "take", "index": 0}), "", "one spoil")
+	assert_eq(taken.size(), 1)
+
+
+func test_a_rush_card_is_taken_for_a_friend_on_a_greyed_screen() -> void:
+	var r := RushState.begin_rush(_rush, _tuning, 7, null, 1)
+	r.next_fight()
+	var hp: Array[int] = []
+	for slot: int in r.party_size():
+		@warning_ignore("integer_division")
+		hp.append(r.max_hp(slot) / 2)
+	r.finish_fight(RunState.VICTORY, hp, r.encounter_now(), {})
+	var screen := RushRewardScreen.new()
+	screen.watching = true
+	add_child_autofree(screen)
+	screen.setup(r)
+	var heal := -1
+	for i: int in r.offer.size():
+		if String(r.offer[i].get("kind", "")) == RushState.CARD_HEAL:
+			heal = i
+	if heal < 0:
+		pass_test("no Heal card on offer with this seed")
+		return
+	assert_false(bool(screen.menu().items[heal].enabled), "greyed: another player's turn")
+	var done := [0]
+	screen.pick_done.connect(func() -> void: done[0] += 1)
+	assert_eq(_main.call("_make_choice", screen, {"do": "take", "index": heal}), "take %d" % heal)
+	assert_eq(done[0], 1, "the next pick is the next player's")
+
+
+# --- a friend's own screen asks the host --------------------------------------------------------
+
+func test_a_friends_screen_on_their_turn_asks_and_changes_nothing() -> void:
+	var run := _run()
+	run.gold = 500
+	var asked: Array[Dictionary] = []
+	var screen := EventScreen.new()
+	screen.remote = true
+	screen.asks = func(choice: Dictionary) -> void: asked.append(choice)
+	add_child_autofree(screen)
+	screen.setup(run, load("%s/gamblers_bones.tres" % EVENTS_DIR) as EventData)
+	assert_true(bool(screen.rows()[0].enabled), "their turn: the cards are lit")
+	var gold := run.gold
+	assert_true(screen.choose(0))
+	assert_eq(asked, [{"do": "choose", "index": 0, "pick": -1}] as Array[Dictionary])
+	assert_eq(run.gold, gold, "the host makes it")
+	assert_false(screen.is_decided())
+
+
+func test_a_watching_screen_is_greyed_until_its_turn_comes() -> void:
+	var run := _run()
+	var rest := RestScreen.new()
+	rest.watching = true
+	add_child_autofree(rest)
+	rest.setup(run)
+	for row: Dictionary in rest.menu().items:
+		assert_false(bool(row.enabled), "another player's turn")
+	rest.set_turn(false)
+	assert_true(bool(rest.menu().items[0].enabled), "the turn passed here")
+	var remote := RestScreen.new()
+	remote.remote = true
+	add_child_autofree(remote)
+	remote.setup(run)
+	assert_true(remote.is_greyed(), "a friend watching")
+	remote.set_turn(false, func(_c: Dictionary) -> void: pass)
+	assert_false(remote.is_greyed(), "a friend whose turn it is")
+
+
+func test_a_friends_map_and_shop_ask_the_host() -> void:
+	var run := _run()
+	var asked: Array[Dictionary] = []
+	var map := MapScreen.new()
+	map.asks = func(choice: Dictionary) -> void: asked.append(choice)
+	add_child_autofree(map)
+	map.setup(run, null, false)
+	var stops: Array[int] = []
+	map.stop_chosen.connect(func(id: int) -> void: stops.append(id))
+	map.choose(map.choices()[0])
+	assert_eq(asked, [{"do": "stop", "id": map.choices()[0]}] as Array[Dictionary])
+	assert_true(stops.is_empty(), "the host goes there")
+	var shop_run := _run()
+	shop_run.go(shop_run.choices()[0])
+	shop_run.gold = 999
+	var shop := ShopScreen.new()
+	shop.remote = true
+	shop.asks = func(choice: Dictionary) -> void: asked.append(choice)
+	add_child_autofree(shop)
+	shop.setup(shop_run, shop_run.shop_gear(shop_run.at))
+	var gold := shop_run.gold
+	assert_true(shop.buy(0))
+	assert_eq(asked.back(), {"do": "buy", "index": 0})
+	assert_eq(shop_run.gold, gold)
+	shop.leave()
+	assert_eq(asked.back(), {"do": "leave"})
+
+
+# --- a find with no room on a friend's turn ------------------------------------------------------
+
+func test_a_find_with_no_room_is_handed_to_the_friend_whose_turn_it_is() -> void:
+	var run := _run()
+	_fill(run, "salve")
+	var screen := _event_screen(run, "gamblers_bones")
+	var handed: Array[Node] = []
+	screen.hand_off = func(from: Node) -> void: handed.append(from)
+	screen.give([_item(run, "salve")])
+	assert_eq(handed, [screen] as Array[Node])
+	assert_null(screen.overlay(), "no backpack opens on the host")
+	assert_true(screen.is_settling(), "it waits for them")
+	assert_eq(String(screen.owed().get("note", "")), "No room")
+	assert_false(screen.settle_owed({"op": BagTab.HAND_OUT, "to": "pocket", "pocket": 0}), "that pocket is full")
+	assert_true(screen.is_settling())
+	var count := run.backpack.entries.size()
+	assert_true(screen.settle_owed({"op": BagTab.HAND_OUT, "to": "leave"}))
+	assert_false(screen.is_settling())
+	assert_eq(run.backpack.entries.size(), count, "left behind")
+
+
+func test_the_turn_back_home_opens_the_owed_find_here() -> void:
+	var run := _run()
+	_fill(run, "salve")
+	var screen := _event_screen(run, "gamblers_bones")
+	screen.hand_off = func(_from: Node) -> void: pass
+	screen.give([_item(run, "salve")])
+	screen.hand_off = Callable()
+	screen.take_back_owed()
+	assert_not_null(screen.overlay(), "the host's own backpack holds it")
+	assert_true(screen.owed().is_empty())
+
+
+func test_the_friend_places_the_handed_find_through_the_host() -> void:
+	var run := _run()
+	var salve := _item(run, "salve")
+	assert_eq(BagTab.place_new(run, salve, {"to": "pocket", "pocket": 0}), BagTab.PLACED)
+	assert_eq(BagTab.place_new(run, salve, {"to": "pocket", "pocket": 0}), "", "taken now")
+	var uid := run.backpack.uid_at(Vector2i(0, 0))
+	var other := _item(run, "bandage") if run.items_by_id().has("bandage") else salve
+	assert_eq(BagTab.place_new(run, other, {"to": "swap", "uid": uid, "pocket": 0}), BagTab.PLACED)
+	assert_eq(run.backpack.entry(run.backpack.uid_at(Vector2i(0, 0))).item, other)
+	assert_eq(BagTab.place_new(run, salve, {"to": "fit"}), BagTab.PLACED)
+	assert_eq(BagTab.place_new(run, salve, {"to": "leave"}), BagTab.LEFT)
+	assert_eq(BagTab.place_new(run, salve, {"to": "nowhere"}), "")
+
+
+func test_a_friends_backpack_asks_the_host_to_place_a_handed_find() -> void:
+	var run := _run()
+	_fill(run, "salve")
+	var count := run.backpack.entries.size()
+	var party := PartyScreen.new()
+	party.remote = true
+	add_child_autofree(party)
+	party.setup(run, "No room", {"item": _item(run, "salve")})
+	var ops: Array[Dictionary] = []
+	party.op_requested.connect(func(op: Dictionary) -> void: ops.append(op))
+	party.auto_settle()
+	assert_eq(ops, [{"op": BagTab.HAND_OUT, "to": "fit"}] as Array[Dictionary])
+	assert_eq(run.backpack.entries.size(), count, "the host's state comes back")
+
+
+# --- the switch and the wiring ------------------------------------------------------------------
+
+func test_take_turns_is_on_unless_turned_off() -> void:
+	assert_true(PlayerSettings.take_turns())
+	PlayerSettings.set_take_turns(false)
+	assert_false(PlayerSettings.take_turns())
+	assert_true(SettingsScreen.section_rows(SettingsScreen.Section.GAME, false).has("take_turns"))
+	assert_true(_body("func _begin_choice(").contains("PlayerSettings.take_turns()"), "read for each new choice")
+
+
+func test_every_choice_screen_takes_its_turn_before_it_is_built() -> void:
+	for header: String in ["func _show_map(", "func _show_rest(", "func _show_shop(", "func _show_event(",
+			"func _show_treasure(", "func _show_loot(", "func _show_rush_reward("]:
+		var body := _body(header)
+		assert_true(body.contains("_begin_choice("), header)
+		assert_true(body.find("_wire_turn(") < body.find(".setup("), "%s: wired before setup" % header)
+		assert_true(body.contains("_autoplay_choice("), "%s: its bot plays only its turn" % header)
+
+
+func test_input_is_the_turns_owners_and_drops_pass_the_turn() -> void:
+	assert_true(_body("func _input(").contains("not _my_turn()"))
+	assert_true(_body("func _on_net_peer_away(").contains("_pass_turn()"))
+	assert_true(_body("func _on_net_peer_left(").contains("_pass_turn()"))
+	var host := _body("func _on_net_message(")
+	assert_true(host.contains("\"choice\""))
+	assert_true(host.contains("BagTab.HAND_OUT"))
+	assert_true(_body("func _client_message(").contains("\"turn\""))
+	assert_true(_body("func _send_screen(").contains("\"turn\""), "choice screens carry the turn")
+	assert_true(_body("func _build_watch_layer(").contains("&\"person\""), "the chip: an icon and a tag")
+	assert_eq(_main.call("_choice_word", {"do": "stop", "id": 4}), "stop id=4")

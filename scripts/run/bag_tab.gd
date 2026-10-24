@@ -17,6 +17,15 @@ signal sold
 ## A new item in hand was placed, swapped or left.
 signal settled
 
+## Online (card #314): the op a friend's backpack sends for a new item the host handed them (a find
+## with no room, made on their turn): {"op": HAND_OUT, "to": "pocket" | "combine" | "swap" | "fit" |
+## "leave", "pocket": x, "uid": the item combined into or swapped out}. The host applies it with
+## place_new().
+const HAND_OUT := "hand_out"
+## What place_new() did.
+const PLACED := "placed"
+const LEFT := "left"
+
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
 const FACES_LEFT: float = 60.0
 const FACE_ROW_WIDTH: float = 440.0
@@ -107,11 +116,14 @@ func holding_new() -> bool:
 	return not _held.is_empty() and int(_held.uid) < 0
 
 
-## The bot (and tests): a new item goes wherever it fits, or is left behind.
+## The bot (and tests): a new item goes wherever it fits, or is left behind. Online, a friend's bot
+## asks the host to do so (an item the host handed them, card #314).
 func auto_settle() -> void:
 	if _held.is_empty():
 		return
-	if int(_held.uid) < 0 and run.add_item(_held.item as ItemData) < 0:
+	if remote and holding_new():
+		ask({"op": HAND_OUT, "to": "fit"})
+	elif int(_held.uid) < 0 and run.add_item(_held.item as ItemData) < 0:
 		left_behind.emit(_held.item as ItemData)
 	var was_new := holding_new()
 	_held = {}
@@ -270,14 +282,22 @@ func _confirm_grid() -> void:
 		return
 	var item := _held.item as ItemData
 	var level := int(_held.get("level", 0))
+	# Online, a find the host handed us (card #314): the host puts it where we chose.
+	var hand_out := remote and holding_new()
 	var into := _combine_target()
 	if into >= 0:
 		var name := RunState.entry_name(run.backpack.entry(into))
-		run.combine_new(item, into)
+		if hand_out:
+			ask({"op": HAND_OUT, "to": "combine", "uid": into})
+		else:
+			run.combine_new(item, into)
 		_settle(name + "+", "item_combine")
 		return
 	if at < 0:
-		run.place_item(item, _grid.cursor, 0, 0, level)
+		if hand_out:
+			ask({"op": HAND_OUT, "to": "pocket", "pocket": _grid.cursor})
+		else:
+			run.place_item(item, _grid.cursor, 0, 0, level)
 		_settle("Packed", "item_place")
 		return
 	var old := run.backpack.entry(at)
@@ -287,9 +307,41 @@ func _confirm_grid() -> void:
 			"Swap", "Keep it", func() -> void:
 				if not run.backpack.has_uid(at):
 					return
-				run.drop_item(at)
-				run.place_item(item, pocket, 0, 0, level)
+				if hand_out:
+					ask({"op": HAND_OUT, "to": "swap", "uid": at, "pocket": pocket})
+				else:
+					run.drop_item(at)
+					run.place_item(item, pocket, 0, 0, level)
 				_settle("Swapped", "item_place"))
+
+
+## Host (card #314): puts new item `item`, handed to a friend, where their HAND_OUT op `op` says.
+## Returns PLACED, LEFT (left behind: not in the backpack) or "" (the op does not fit the backpack
+## now; the item is still owed). Changes only `run`.
+static func place_new(run: RunState, item: ItemData, op: Dictionary) -> String:
+	if run == null or item == null:
+		return ""
+	var uid := int(op.get("uid", -1))
+	var pocket := int(op.get("pocket", -1))
+	match String(op.get("to", "")):
+		"combine":
+			if run.backpack.has_uid(uid) and run.combine_new(item, uid):
+				return PLACED
+		"pocket":
+			if pocket >= 0 and pocket < run.backpack.width and run.backpack.uid_at(Vector2i(pocket, 0)) < 0 \
+					and run.place_item(item, pocket, 0, 0, 0) >= 0:
+				return PLACED
+		"swap":
+			if run.backpack.has_uid(uid) and run.backpack.uid_at(Vector2i(pocket, 0)) == uid:
+				run.drop_item(uid)
+				if run.place_item(item, pocket, 0, 0, 0) >= 0:
+					return PLACED
+				return PLACED if run.add_item(item) >= 0 else LEFT
+		"fit":
+			return PLACED if run.add_item(item) >= 0 else LEFT
+		"leave":
+			return LEFT
+	return ""
 
 
 ## The new item in hand went into the pack.
@@ -336,6 +388,8 @@ func _cancel_held() -> void:
 			"Leave it", "Keep it in hand", func() -> void:
 				Sfx.play("item_drop")
 				toast.emit("Left behind", item)
+				if remote and holding_new():
+					ask({"op": HAND_OUT, "to": "leave"})
 				_held = {}
 				_redraw()
 				changed.emit()

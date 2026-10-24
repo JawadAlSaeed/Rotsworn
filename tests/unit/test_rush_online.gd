@@ -80,7 +80,7 @@ static func _labels_of(node: Node) -> Array[String]:
 # --- the messages --------------------------------------------------------------------------------
 
 func test_the_protocol_moved_on() -> void:
-	assert_eq(NetSession.PROTOCOL, 5, "a run without zones (stop_fight, DESIGN.md 8.22): an older build must not join")
+	assert_eq(NetSession.PROTOCOL, 6, "choices in turns (card #314): an older build must not join")
 
 
 func test_modes_are_what_the_states_say() -> void:
@@ -344,7 +344,7 @@ func test_a_friends_change_redraws_the_hosts_rush_screen() -> void:
 			"a change that cannot be made is refused")
 	var on_message := _body("func _on_net_message(")
 	var bag := on_message.substr(on_message.find("\"bag\":"), on_message.find("\"seated_ready\":") - on_message.find("\"bag\":"))
-	assert_string_contains(bag, "_apply_bag_op(payload.op as Dictionary)")
+	assert_string_contains(bag, "_apply_bag_op(op)", "every other bag op is a party change (a hand_out is a find in hand, card #314)")
 	assert_string_contains(_body("func _refresh_rush_screen("), ".is_settling()")
 
 

@@ -5,9 +5,16 @@ extends CanvasLayer
 ## where it fits first; a bigger backpack is used at once; an item with no room, or a new Relic
 ## nobody wears (DESIGN.md 8.17), opens the backpack over the screen with it in hand. Several gifts
 ## go one after the other. Online, only the host hands things out (clients watch).
+## Online the choices go in turns (card #314, DESIGN.md 9.2): on another player's turn the screen is
+## `watching` (greyed, no input); on a friend's own turn their copy `asks` the host for each choice,
+## and the host's copy hands an item with no room to that friend (hand_off): their backpack opens
+## over their screen with it in hand, and settle_owed() puts it where they chose. A new Relic nobody
+## wears waits in the bag on a friend's turn (any party screen puts it on).
 
 ## Every gift is settled (the backpack closed again).
 signal gifts_settled
+## Online friend: a change made in the backpack open over this screen (Main sends it to the host).
+signal op_requested(op: Dictionary)
 
 const TITLE_SIZE: int = 72
 const TEXT_SIZE: int = 30
@@ -18,11 +25,20 @@ const OVERLAY_LAYER: int = 20
 var run: RunState
 ## Online client: shows only (the host's choices come back as a new screen).
 var remote: bool = false
+## Online (card #314): another player's turn: the choices are greyed and take no input.
+var watching: bool = false
+## Online friend whose turn it is (card #314): each choice goes to the host as a request,
+## asks.call({"do": ...}); the host's next screen shows what came of it.
+var asks: Callable = Callable()
+## Host, a friend's turn (card #314): hand_off.call(self) sends them the item owed() (no room).
+var hand_off: Callable = Callable()
 
 var _bar: RunPartyBar
 var _overlay: PartyScreen
 var _gifts: Array[Resource] = []
 var _note: Label
+## Host: the item handed to a friend to place (card #314): {"note", "item"}; {} when none.
+var _owed: Dictionary = {}
 
 
 ## The backpack open over the screen (null: none). The bot settles it.
@@ -31,7 +47,77 @@ func overlay() -> PartyScreen:
 
 
 func is_settling() -> bool:
-	return _overlay != null or not _gifts.is_empty()
+	return _overlay != null or not _gifts.is_empty() or not _owed.is_empty()
+
+
+## Online (card #314): whose turn it is changed. `p_watching` greys the choices; `p_asks` sends
+## them to the host (a friend's own turn). The screen redraws.
+func set_turn(p_watching: bool, p_asks: Callable = Callable()) -> void:
+	watching = p_watching
+	asks = p_asks
+	_turn_changed()
+
+
+## True when the choices cannot be made here: another player's turn, or a client that only shows.
+func is_greyed() -> bool:
+	return watching or (remote and not asks.is_valid())
+
+
+## Redraws the choices after set_turn (each screen its own way).
+func _turn_changed() -> void:
+	_refresh_bar()
+
+
+## Online friend whose turn it is: sends `choice` to the host and returns true; false when this
+## machine makes its choices itself.
+func _ask(choice: Dictionary) -> bool:
+	if not asks.is_valid():
+		return false
+	asks.call(choice)
+	return true
+
+
+## Host: the item a friend was handed to place ({"note", "item"}; {} when none).
+func owed() -> Dictionary:
+	return _owed
+
+
+## Host: the friend put the owed item where their HAND_OUT op says (BagTab.place_new). False if
+## that does not fit the backpack now (it is still owed: Main hands it out again).
+func settle_owed(op: Dictionary) -> bool:
+	if _owed.is_empty():
+		return false
+	var item := _owed.item as ItemData
+	var placed := BagTab.place_new(run, item, op)
+	if placed.is_empty():
+		return false
+	_owed = {}
+	Sfx.play("item_drop" if placed == BagTab.LEFT else "item_place")
+	_on_owed_settled(item, placed == BagTab.LEFT)
+	_next_gift()
+	return true
+
+
+## Host: the turn came back to this machine while an item was owed: its backpack opens with it.
+func take_back_owed() -> void:
+	if _owed.is_empty() or _overlay != null:
+		return
+	var owed_now := _owed
+	_owed = {}
+	_open_backpack(String(owed_now.get("note", "")), {"item": owed_now.item})
+
+
+## Online friend (card #314): the host handed us an item to place: the backpack opens over the
+## screen with it in hand (its changes go to the host). `held`: {"item", "refund"}.
+func hold_gift(note: String, held: Dictionary) -> void:
+	if _overlay != null:
+		return
+	_open_backpack(note, held)
+
+
+## An owed item was placed (or left behind: `left`). The shop gives a purchase's gold back.
+func _on_owed_settled(_item: ItemData, _left: bool) -> void:
+	pass
 
 
 ## The gold and HP strip, centred, added to `column`.
@@ -70,7 +156,7 @@ func _next_gift() -> void:
 			# then asks who wears it.
 			var found := run.add_relic(thing as GearData)
 			_say(RunState.relic_find_text(found))
-			if not run.is_worn(thing as GearData):
+			if not run.is_worn(thing as GearData) and not hand_off.is_valid():
 				_open_backpack(RunState.relic_find_short(found), {"gear": thing})
 				return
 			Sfx.play("buff")
@@ -82,6 +168,10 @@ func _next_gift() -> void:
 			_say(run.find_text(item))
 		elif run.add_item(item) >= 0:
 			Sfx.play("item_place")
+		elif hand_off.is_valid():
+			_owed = {"note": "No room", "item": item}
+			hand_off.call(self)
+			return
 		else:
 			_open_backpack("No room", {"item": item})
 			return
@@ -121,8 +211,11 @@ func _open_backpack(note: String, held: Dictionary) -> void:
 	_overlay = PartyScreen.new()
 	_overlay.layer = OVERLAY_LAYER
 	_overlay.close_when_settled = true
+	# A friend's copy (card #314): what they do there is asked of the host.
+	_overlay.remote = remote
 	add_child(_overlay)
 	_overlay.setup(run, note, held)
+	_overlay.op_requested.connect(op_requested.emit)
 	_overlay.done.connect(_close_backpack)
 
 

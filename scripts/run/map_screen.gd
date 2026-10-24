@@ -50,6 +50,9 @@ var _detail: HBoxContainer
 var _bar: RunPartyBar
 var _choices: Array[int] = []
 var _sel: int = 0
+## Online friend whose turn it is (card #314): the stop chosen goes to the host as a request,
+## asks.call({"do": "stop", "id": id}); the host's next screen shows where the party went.
+var asks: Callable = Callable()
 ## Milliseconds since the map opened; it is opening while this is below _intro_ms().
 var _time_ms: float = 0.0
 var _paper: Texture2D
@@ -167,7 +170,22 @@ func choices() -> Array[int]:
 func choose(id: int) -> void:
 	if _choices.has(id):
 		Sfx.play("menu_confirm")
+		if asks.is_valid():
+			asks.call({"do": "stop", "id": id})
+			return
 		stop_chosen.emit(id)
+
+
+## The next stop under the cursor (an index into choices()), kept when the map is drawn again online.
+func selection() -> int:
+	return _sel
+
+
+func set_selection(index: int) -> void:
+	if _choices.is_empty():
+		return
+	_sel = clampi(index, 0, _choices.size() - 1)
+	_update_detail()
 
 
 ## True while the paper unrolls, the ink soaks in and (at a run's start) the map pans down.

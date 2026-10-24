@@ -85,7 +85,7 @@ func is_open() -> bool:
 ## Opens one chest: the plain one (gold and an item) or the rotten one (a better Relic, maybe a curse
 ## or a fight). The bot calls this; the player uses the menu.
 func open_chest(rotten: bool = false) -> void:
-	if _open:
+	if _open or _ask({"do": "open", "rotten": rotten}):
 		return
 	_opened_rotten = rotten
 	var got := run.open_treasure(run.at, rotten)
@@ -107,7 +107,14 @@ func open_chest(rotten: bool = false) -> void:
 
 
 func leave() -> void:
+	if _ask({"do": "leave"}):
+		return
 	done.emit()
+
+
+## Online (card #314): the turn changed: the chest cards (or Continue) redraw, lit or greyed.
+func _turn_changed() -> void:
+	_show(_open)
 
 
 func _show(is_open: bool) -> void:
@@ -120,14 +127,14 @@ func _show(is_open: bool) -> void:
 		picture.modulate.a = UNCHOSEN_ALPHA if is_open and not this_one else 1.0
 	# While choosing, the chests are on the cards; the big ones show how they were left.
 	_chests.visible = is_open
-	var list: Array[Dictionary] = [{"text": "Back to the map", "enabled": not remote}]
+	var list: Array[Dictionary] = [{"text": "Back to the map", "enabled": not is_greyed()}]
 	_menu.horizontal = not is_open
 	if not is_open:
 		list = chest_cards()
 		_footer.set_entries([[&"@leftright", "Choose"], [&"menu_confirm", "Open"]])
 	else:
 		if run.in_ambush():
-			list = [{"text": "Fight", "enabled": not remote}]
+			list = [{"text": "Fight", "enabled": not is_greyed()}]
 		_footer.set_entries([[&"menu_confirm", "Fight" if run.in_ambush() else "Continue"]])
 	_menu.set_items(list)
 	_refresh_bar()
@@ -145,10 +152,10 @@ func chest_cards() -> Array[Dictionary]:
 	if run.tuning.rotten_chest_fight_percent > 0:
 		rotten_chips.append(StopScreen.chip_entry(_look, "fight", "Fight %d%%" % run.tuning.rotten_chest_fight_percent, risk))
 	var cards: Array[Dictionary] = [
-		{"text": "Plain", "enabled": not remote, "icon": closed, "icon_scale": _look.chest_card_scale,
+		{"text": "Plain", "enabled": not is_greyed(), "icon": closed, "icon_scale": _look.chest_card_scale,
 				"chips": [StopScreen.chip_entry(_look, "gold", "+%d gold" % run.tuning.run_treasure_gold, gift),
 						StopScreen.chip_entry(_look, "find", "Rare item", gift)]},
-		{"text": "Rotten", "enabled": not remote, "icon": closed, "icon_scale": _look.chest_card_scale,
+		{"text": "Rotten", "enabled": not is_greyed(), "icon": closed, "icon_scale": _look.chest_card_scale,
 				"icon_color": ROTTEN_TINT, "chips": rotten_chips},
 	]
 	return cards
@@ -160,7 +167,7 @@ func menu() -> ListMenu:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if remote or _overlay != null:
+	if is_greyed() or _overlay != null:
 		return
 	if _menu.handle(event) != &"confirm" or is_settling():
 		return

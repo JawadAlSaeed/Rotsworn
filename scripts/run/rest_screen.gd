@@ -149,7 +149,7 @@ func has_acted() -> bool:
 
 ## Rest: everyone heals. The bot calls this; the player uses the menu.
 func rest_now() -> void:
-	if _done_once:
+	if _done_once or _ask({"do": "rest"}):
 		return
 	var healed := run.rest()
 	var parts := PackedStringArray()
@@ -161,7 +161,7 @@ func rest_now() -> void:
 
 ## Train: every hero gets attribute points to spend (the party screen, or the attributes screen).
 func train_now() -> void:
-	if _done_once:
+	if _done_once or _ask({"do": "train"}):
 		return
 	run.train()
 	Sfx.play("level_up")
@@ -171,7 +171,7 @@ func train_now() -> void:
 
 ## Keep Watch (the campfire before the boss, card #287): the team gauge is full.
 func watch_now() -> void:
-	if _done_once:
+	if _done_once or _ask({"do": "watch"}):
 		return
 	run.keep_watch()
 	Sfx.play("level_up")
@@ -180,7 +180,7 @@ func watch_now() -> void:
 
 ## Sharpen (the campfire before the boss, card #287): every hero starts the boss fight with more AP.
 func sharpen_now() -> void:
-	if _done_once:
+	if _done_once or _ask({"do": "sharpen"}):
 		return
 	run.sharpened = true
 	Sfx.play("buff")
@@ -189,6 +189,8 @@ func sharpen_now() -> void:
 
 ## Upgrade: item `uid` goes up a level.
 func upgrade_now(uid: int) -> bool:
+	if not _done_once and _ask({"do": "upgrade", "uid": uid}):
+		return true
 	if _done_once or not run.upgrade_item(uid):
 		Sfx.play("locked")
 		return false
@@ -197,8 +199,21 @@ func upgrade_now(uid: int) -> bool:
 	return true
 
 
+## Back to the map (once something was done here).
 func leave() -> void:
+	if _ask({"do": "leave"}):
+		return
 	done.emit()
+
+
+## Online (card #314): the turn changed: the cards (or Back to the map) redraw, lit or greyed.
+func _turn_changed() -> void:
+	if _done_once:
+		_finish(_text.text)
+	elif _picking.is_empty():
+		_show_choices()
+	else:
+		_show_upgrades()
 
 
 func _act(text: String) -> void:
@@ -212,7 +227,7 @@ func _finish(text: String) -> void:
 	_picking.clear()
 	_text.text = text
 	_text.visible = true
-	var list: Array[Dictionary] = [{"text": "Back to the map", "enabled": not remote}]
+	var list: Array[Dictionary] = [{"text": "Back to the map", "enabled": not is_greyed()}]
 	_menu.horizontal = false
 	_menu.set_items(list)
 	_set_footer([[&"menu_confirm", "Continue"]])
@@ -239,20 +254,20 @@ func _show_choices() -> void:
 	_menu.horizontal = true
 	_set_footer([[&"@leftright", "Choose"], [&"menu_confirm", "Select"]])
 	var gift := _look.chip_gift_color
-	var rest := {"text": "Rest", "enabled": not remote, "icon": _icon(_look.rest_icon_path), "chips": _rest_chips()}
+	var rest := {"text": "Rest", "enabled": not is_greyed(), "icon": _icon(_look.rest_icon_path), "chips": _rest_chips()}
 	if run.is_watch_fire():
 		_menu.set_items([rest,
-			{"text": "Keep watch", "enabled": not remote, "icon": _icon(_look.watch_icon_path),
+			{"text": "Keep watch", "enabled": not is_greyed(), "icon": _icon(_look.watch_icon_path),
 					"chips": [StopScreen.chip_entry(_look, "gauge", "Gauge full", gift)]},
-			{"text": "Sharpen", "enabled": not remote, "icon": _icon(_look.sharpen_icon_path),
+			{"text": "Sharpen", "enabled": not is_greyed(), "icon": _icon(_look.sharpen_icon_path),
 					"chips": [StopScreen.chip_entry(_look, "ap", "+%d AP" % run.tuning.sharpen_ap, gift)]},
 		])
 		return
 	var up := upgradable()
 	var list: Array[Dictionary] = [rest,
-		{"text": "Train", "enabled": not remote, "icon": _icon(_look.train_icon_path),
+		{"text": "Train", "enabled": not is_greyed(), "icon": _icon(_look.train_icon_path),
 				"chips": [StopScreen.chip_entry(_look, "up", "+%d points" % run.tuning.rest_train_points, gift)]},
-		{"text": "Upgrade", "enabled": not remote and not up.is_empty(), "icon": _icon(_look.upgrade_icon_path),
+		{"text": "Upgrade", "enabled": not is_greyed() and not up.is_empty(), "icon": _icon(_look.upgrade_icon_path),
 				"chips": [StopScreen.chip_entry(_look, "item", "+1 Lv" if not up.is_empty() else "None",
 						gift if not up.is_empty() else HudStyle.TEXT_DIM)]},
 	]
@@ -295,7 +310,7 @@ func _show_upgrades() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if remote:
+	if is_greyed():
 		return
 	var answer := _menu.handle(event)
 	if answer == &"cancel" and not _picking.is_empty():

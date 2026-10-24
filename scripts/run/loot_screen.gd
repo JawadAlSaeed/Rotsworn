@@ -21,6 +21,12 @@ const DRAWBACK_COLOR := Color(1.0, 0.45, 0.4)
 
 var _items: Array[GearData] = []
 var _menu: ListMenu
+## Online (card #314): another player's turn: no input here.
+var watching: bool = false
+## Online friend whose turn it is (card #314): the pick goes to the host as a request,
+## asks.call({"do": "take", "index": i}).
+var asks: Callable = Callable()
+var _taken: bool = false
 
 
 ## `text`: kept for the callers (online sends it); the screen shows the cards alone. `run`: to say
@@ -74,12 +80,31 @@ func menu() -> ListMenu:
 	return _menu
 
 
-## Takes item `index` (the bot calls this; the player uses confirm).
+## Takes item `index` (the bot calls this; the player uses confirm), once.
 func take(index: int) -> void:
+	if _taken:
+		return
 	Sfx.play("buff")
+	if asks.is_valid():
+		asks.call({"do": "take", "index": index})
+		return
+	_taken = true
 	chosen.emit(_items[index] if index >= 0 and index < _items.size() else null)
 
 
+## True once a pick was taken here.
+func is_taken() -> bool:
+	return _taken
+
+
+## Online (card #314): whose turn it is changed.
+func set_turn(p_watching: bool, p_asks: Callable = Callable()) -> void:
+	watching = p_watching
+	asks = p_asks
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if watching:
+		return
 	if _menu.handle(event) == &"confirm":
 		take(_menu.index)

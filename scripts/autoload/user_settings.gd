@@ -83,6 +83,9 @@ const SECTION_RUSH := "rush"
 const KEY_RUSH_BEST := "best_%d"
 const SECTION_ONLINE := "online"
 const KEY_JOIN_ADDRESS := "join_address"
+## Online run choices pass from player to player (card #314, DESIGN.md 9.2): on by default; off, the
+## host makes every choice (the old way). Only the host's own setting counts.
+const KEY_TAKE_TURNS := "take_turns"
 const DEFAULT_JOIN_ADDRESS := "127.0.0.1"
 ## Rebound keys and buttons (card #190): one entry per changed action, see ControlBindings.
 const SECTION_CONTROLS := "controls"
@@ -468,6 +471,16 @@ static func join_address() -> String:
 
 static func set_join_address(value: String) -> void:
 	_settings().set_value(SECTION_ONLINE, KEY_JOIN_ADDRESS, value.strip_edges())
+	_save()
+
+
+## Online, as host: friends take turns making the run's choices (card #314). On unless turned off.
+static func take_turns() -> bool:
+	return bool(_settings().get_value(SECTION_ONLINE, KEY_TAKE_TURNS, true))
+
+
+static func set_take_turns(value: bool) -> void:
+	_settings().set_value(SECTION_ONLINE, KEY_TAKE_TURNS, value)
 	_save()
 
 
