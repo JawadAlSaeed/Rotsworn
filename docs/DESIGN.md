@@ -462,9 +462,11 @@ Hamstring matter. Phase 2 test build: a fight-select screen lists the test encou
 
 ### 2.12 Opening advantage (phase 3, card #25)
 
-Since phase 26 (8.22) there is no field strike: every fight opens normally until the First Strike
-press (#320) is built. `--first-strike` and the opening rule below stay. How a fight started in a zone
-(7.4, history):
+Since phase 26 (8.22) there is no field strike. Since card #320 a Fight stop's fight opens with the
+**First Strike press**: one press ring on the place's name card, and a GOOD or PERFECT skill press on
+it gives First Strike (8.22 "The First Strike press"). Every other fight (Guard stops, elites,
+ambushes, bosses, the Rush, practice) opens normally. `--first-strike` and the opening rule below
+stay. How a fight started in a zone (7.4, history):
 
 - **First Strike:** the leader's field strike hit the roaming enemy (or it walked into a swing
   still in progress). Every party member acts before any enemy: no enemy's first turn comes before
@@ -1883,7 +1885,7 @@ The game is a keyboard and pad game, but every menu also works with the mouse (a
 
 **Removed in phase 26 (8.22):** the walkable zones, walking, roaming enemies, the field strike and the zone
 cards of the practice list are gone; this section is history. The practice list holds the tutorial
-and the fights; First Strike comes back as a press (#320, 2.12).
+and the fights; First Strike came back as a press on a Fight stop's name card (#320, 2.12, 8.22).
 
 - **Practice list** (main menu > Practice): "Explore: ..." for every zone in `data/zones/` first,
   then the test fights, the deep fights (variants, 2.16) last. `--zone=ID` starts in a zone.
@@ -2155,7 +2157,9 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
 
 Phase 19 (card #264) added lesson 6, Marks (defend a dotted hit, then lift a mark with Mend); the
 Relics and Echoes cards became lesson 7 (2.17). Phase 22 (card #291) added a First Strike card as
-lesson 7 (the zone no longer spells it out), so Relics and Echoes are lesson 8 of 8.
+lesson 7 (the zone no longer spells it out), so Relics and Echoes are lesson 8 of 8. Since card #320
+that card teaches the press: "A Fight stop opens on a ring: press [A] as it closes." with the tip
+"GOOD or PERFECT: your party acts first." (the tutorial fight still opens with First Strike).
 
 First version (a lesson box over a free-running practice fight) was rejected by the user
 2026-10-15: "feels like a fight, not a tutorial"; the box covered the enemy intent; the text did
@@ -4492,7 +4496,7 @@ Hollow King ending, gold, Oaths, Relic banking, Save & Quit) and **cut the walka
 map the party goes straight into a fight. Why: fights are the star (pillar 1); in co-op only P1
 walked while the friends watched; a run gets faster. What it costs: the walk through the world (the
 places live on as fight arenas: 3D pieces, looks, weather, air), First Strike from a field swing
-(#320 brings it back as a press), the calm time between fights (shops, events and campfires do that
+(#320 brought it back as a press), the calm time between fights (shops, events and campfires do that
 now), and a run gets much shorter (the talks #321 and #322 come next). Branch `phase26-Direction`.
 
 **What the player sees.**
@@ -4549,17 +4553,18 @@ now), and a run gets much shorter (the talks #321 and #322 come next). Branch `p
   (`GroundStack`, `ground_patch`) and the decoration pieces stay for the arenas; only the pieces of
   removed things go (seal stone, gate, exit signpost, zone chests, shrine pieces).
 - **G8**: the move actions stay (menus and the stick that marks P1's pad); `field_strike` and
-  `field_pickup` go. The tutorial keeps its First Strike lesson until #320 rewrites it.
+  `field_pickup` go. The tutorial keeps its First Strike lesson; #320 rewrote its words for the press.
 
-**The First Strike press** (#320, built last): with no field swing, a Fight stop's fight opens with
-one press ring (the skill press, A / Space) while the fight swirls in. A good or perfect press gives
-First Strike (2.12: every hero acts before any enemy), a miss or no press a normal start. Judged like
-every timed press, from input timestamps outside the core (rule 3); the opening goes into
-`CombatSetup` before the fight starts. Local co-op: any player's press counts. Online: the host's
-press decides and the friends watch the ring. Elites, guards, ambushes and bosses open normally; the
-Rush keeps its normal openings.
+**The First Strike press** (#320, built 2026-10-24): with no field swing, a Fight stop's fight opens
+with one press ring (the skill press, A / Space) on the place's name card: the swirl, then the card
+with its ring, then the fight. A GOOD or PERFECT press gives First Strike (2.12: every hero acts
+before any enemy, the gold FIRST STRIKE banner); an early press, a late one, a miss or no press a
+normal start. Judged like every timed press, from input timestamps outside the core (rule 3); the
+opening goes into `CombatSetup` before the fight is built. Local co-op: any player's press counts.
+Online: the host's press decides and the friends watch the ring. Elites, guards, ambushes and bosses
+open normally; the Rush keeps its normal openings. How it is built: "As built (#320)" below.
 
-**As built (cards #316 to #319, 2026-10-24; #320 is next).**
+**As built (cards #316 to #320, 2026-10-24).**
 
 - **The stops** (#316, #317): `RunMap.StopType.FIGHT` (value 0, was ZONE) and `GUARD` (7), type names
   "fight" and "guard"; map rules 3 (`RunState.MAP_RULES`; `apply_dict` refuses rules under 1 or over
@@ -4576,8 +4581,8 @@ Rush keeps its normal openings.
   won Fight stop's drop is `fight_drop` (`drop_for(stop)`: the seeded `item_drop_percent` roll a
   zone's first roaming enemy had). Elites and ambushes now get their place's air too.
 - **The way in**: the map swirls into black with the swirl sound, then the place's name card with a
-  tip, then the fight fades in (#320 decides whether its ring shows during the swirl or after the
-  card). The watch line is hidden over every fight. After a Fight stop's win the drop goes into the
+  tip, then the fight fades in (a Fight stop's card also carries its First Strike ring, #320 below).
+  The watch line is hidden over every fight. After a Fight stop's win the drop goes into the
   pack, or the party screen opens holding it. Guards (`mini_boss`) get the boss song and rage in
   every fight, practice too; their spoils read "The guard fell. Take one."
 - **The Rot Journal's "met at"** is the place's name for Fight, Guard, elite and ambush fights; the
@@ -4614,8 +4619,8 @@ Rush keeps its normal openings.
   sheets keep their walk and pickup clips (the run-up uses `walk_side`). The move actions stay for
   P1's pad (G8): a stick push on them marks it P1's, but no screen reads them (the menus and the
   shop move with `menu_*`, and the shop's footer chip shows those), so their keys do nothing and
-  the Controls page says so ("Stick marks P1's pad"). The tutorial's First Strike card keeps its text (it no longer names a
-  button) until #320 rewrites it.
+  the Controls page says so ("Stick marks P1's pad"). The tutorial's First Strike card no longer
+  names a lost button; #320 rewrote it to teach the press.
 - **Tools**: `tools/zone_map_preview.gd` and `tools/bootstrap_zones.gd` went; `tools/dress_zones.gd`
   became `tools/dress_arenas.gd` (the arenas only, `-- --dry-run`); `bootstrap_run.gd`,
   `bootstrap_items.gd`, `bootstrap_phase15.gd` and `gen_placeholders.gd` no longer write zones. The
@@ -4631,6 +4636,68 @@ Rush keeps its normal openings.
   average bot (skill 60) die to the first guard on seeds 1 to 4, and the guard row takes a mixed
   row, so maps hold fewer events and elites (seed 7 had no "?"): both are for the balance talk
   (#321), with fewer fights meaning less XP, gold and drops (G5).
+
+**As built (#320, the First Strike press).**
+
+- **The ring** (`FirstStrikeRing`, `scripts/combat/presentation/`): `ScreenTransition.show_tip(title,
+  extra)` puts it on the place's name card, between the name and the loading tip, and Main holds the
+  card until it is done. It shows `first_strike_ring_delay_ms` (500) after the card and closes onto its
+  moment over `first_strike_ring_lead_ms` (1000), drawn like a skill press ring (`RingLayer`: the
+  faint target, the GOOD band and the gold PERFECT band, the ring gold inside PERFECT), at
+  `first_strike_ring_scale` (0.8) of a skill ring. Under it the chip [A] First Strike (`HintBar`),
+  over it the press's word (PERFECT, GOOD, EARLY, LATE, MISS). Sounds and buzz as a skill press:
+  `skill_press` (quieter for GOOD), `whiff`, `skill_miss`, `locked`, `press_perfect` /
+  `press_good` on every pad. The result stays `first_strike_result_ms` (800): a won ring stays gold
+  on its target and the chip turns gold; otherwise the ring goes and the chip dims. Then the fight.
+  Tuning group "First Strike press"; visuals group "First Strike press" (`first_strike_chip_size`,
+  `first_strike_word_size`, `first_strike_watch_alpha` too).
+- **Judging** (`FirstStrikeJudge`, `scripts/combat/timing/`, pure, tested): the skill press windows
+  (`skill_press_window_ms` 200, `skill_perfect_window_ms` 70, split by `window_late_percent`), the
+  same lag compensation, reach-back and whiff lockout, from `DefenseInput` stamps (rule 3; the ring's
+  own `DefenseInput` takes the press before the card's input block). One try per player: an early
+  press spends that player's try (as on a skill ring), so mashing never pays. The first GOOD or
+  PERFECT press decides FIRST_STRIKE; once every try is spent it is NORMAL. Main keeps the result in
+  `_run_opening`, `_start_combat` passes it to `CombatController.configure`, and the run's
+  `fight_setup` puts it in `CombatSetup.opening` (`combat_started` says `opening`).
+- **Which fights**: `Main._rings_first_strike` is true for `RunMap.StopType.FIGHT` only. Guard stops,
+  elites, ambushes, the boss, Rush fights and practice fights get no ring; `--first-strike` still
+  opens a practice or test fight with the advantage.
+- **Local co-op**: every local player has their own try on the one ring; any player's GOOD or PERFECT
+  press counts.
+- **Online**: the host sends a Fight stop's `stop_fight` at its swirl with `"ring": true` (a Guard
+  stop's still goes when its fight is built). A friend's card shows the ring dimmed
+  (`first_strike_watch_alpha`) with a P1 tag in place of the button, takes no press, and waits for
+  the host's `opening` message (`{fight, opening, word}`; taken at once, not queued behind the card).
+  It shows the host's word and sound, and the friend's fight starts with the host's opening. If no
+  result came `net_opening_wait_ms` (6000) after the ring closed, the card goes on (the host's fight
+  decides the opening anyway, the friend only mirrors it). The host also writes the result into the
+  fight's message, so a friend who drops in or rejoins during the card gets it: during the ring they
+  watch it, once it is decided or mid-fight they go straight on. The card's wait ends when the
+  online game ends, so it never hangs. `Net.PROTOCOL` stays 5: the new message and field are only
+  additions, the content fingerprint already keeps differing builds apart, and 5 has not left phase
+  26.
+- **Bots** (`FirstStrikeBot`, pure, tested; they press through the ring's `DefenseInput` like a
+  person): `--autoplay` (and `=escape`) presses in the middle of PERFECT: First Strike; `=miss` never
+  presses: a normal start; `=mash` mashes random buttons on its usual beat, judged like anyone's (only
+  the skill press counts, and its first one is nearly always EARLY); `=average --bot-skill=N` lands it
+  N% of the time, half PERFECT and half GOOD, with seeded luck (`--seed`: seed x 1000003 + stops
+  visited). Every Fight stop prints `First Strike press: <opening> (<word>)` on the deciding machine
+  and, with autoplay, `AUTOPLAY_OPENING first_strike|normal stop=N` on every machine.
+- **Pictures**: `--screen=first_strike` shows a sample run's name card with a ring that can be pressed
+  and starts over after each result.
+- **Words**: the tutorial's lesson 7 card (7.8), the glossary's First Strike term ("A Fight stop's name
+  card shows one ring. Press the skill button as it closes: ...") and a loading tip teach the press.
+- **Defaults chosen while building #320** (the owner may overrule each one): F1 the ring shows 500 ms
+  after the card and closes over 1000 ms; F2 the skill press windows, no windows of its own; F3 a
+  friend waits up to 6000 ms after the ring closes for the host's result; F4 the result stays 800 ms;
+  F5 the ring is 0.8 of a skill ring, between the name and the tip; F6 a friend's ring is dimmed to
+  0.45 with a P1 tag; F7 each local player gets their own try and the bot presses for each; F8 a
+  Guard stop keeps its old announcement time; F9 a loading tip about the ring; F10 a hit buzzes every
+  pad, as a skill press does.
+- **Tests**: `test_first_strike.gd` (judging good, perfect, early, late, none, mash, lag; any local
+  player; the bots' habits; the ring on the card, a friend's watched ring and its time-out, the
+  picture ring; only Fight stops ring; the opening reaching `CombatSetup` and the engine; online the
+  host's result reaching the friends and late joiners; the tutorial and glossary words).
 
 ## 9. Multiplayer (phase 5)
 
@@ -4727,7 +4794,9 @@ Rush keeps its normal openings.
 - **Fight and Guard stops** (phase 26, 8.22; `Net.PROTOCOL` 5): the host sends a `stop_fight`
   screen with the fight's seed, and each client builds the fight, its weather and its drop from the
   run state alone, as for an Elite stop; it is a fight screen (`NET_FIGHT_SCREENS`), so a friend who
-  rejoins or drops in catches up. (Until phase 26 the host's zone was real and sent `net_snapshot()`
+  rejoins or drops in catches up. A Fight stop's `stop_fight` goes at the host's swirl with `"ring": true`;
+  the friends watch its First Strike ring and get the host's result in an `opening` message, which
+  the fight's message keeps for late joiners (#320, 8.22). (Until phase 26 the host's zone was real and sent `net_snapshot()`
   `net_zone_send_hz` times a second; a fight started on `zone_fight`. The zone messages are gone.)
 - **Fights**: `CombatController` runs in HOST mode (the only `CombatEngine`) or CLIENT mode (no
   engine). Both build the same `CombatSetup` from the host's seed (for the data). Every batch of
@@ -5100,6 +5169,10 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
   (a rejected command, or the mirror not matching the engine). Run it with `--quit-after 60000` as
   a hard cap and a `timeout`, and fail if the result line is missing (a hang) or the log has an
   ERROR or AUTOPLAY_ERROR line.
+- First Strike press (#320, 8.22): on a Fight stop's ring `--autoplay` presses perfectly (First
+  Strike), `=miss` never presses, `=mash` mashes (judged honestly) and `=average` lands it at its
+  skill percent with seeded luck; every Fight stop prints `AUTOPLAY_OPENING first_strike|normal
+  stop=N`. `--screen=first_strike` shows the ring on a sample name card (pressable, starts over).
 - Also covered: attack clock with timestamps past 2^31 us (36 minutes of uptime), late presses
   reported as LATE on a landed hit, prompts expired inside a capped press, enemy choreography
   (every lunge reaches contact exactly at impact, contact holds until the hit closes, cue times),
@@ -5707,3 +5780,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Phase 26 renamed from Story to Game direction; the story moves to phase 27, the tutorial chapter #206 to phase 28 | owner request; the story is simpler without zones and can wait |
 | 2026-10-24 | Zone stops become Fight stops (one seeded fight from the place's monsters), guards get a Guard row (row 1) per act, shrines and wanderers become priced "?" events, chests and the Key go (8.22, defaults G1 to G8) | built while the owner slept; each default may be overruled in the talks #321 and #322 |
 | 2026-10-24 | The walkable zones are removed for good (#319): their code, data, tools, tests, 3D pieces and art go; a place keeps its look, air, weathers, Fight stop monsters and guard, and still names its song and loop; the zone songs, ambience and sound cues stay unused (8.22 As built); saves of format 2 are kept but refused too (`RunSave.FORMAT_VERSION` 3), since their packs could hold the Key | 8.22 G3, G6 to G8; no dead zone code or data left behind |
+| 2026-10-24 | First Strike is a press (#320): a Fight stop's fight opens with one skill press ring on the place's name card; GOOD or PERFECT gives First Strike, anything else a normal start; any local player may press, online only the host's press decides and the friends watch; guards, elites, ambushes, bosses and the Rush open normally (8.22, defaults F1 to F10) | 8.22 "The First Strike press"; built while the owner slept, judged from input stamps outside the core like every press; `Net.PROTOCOL` stays 5 |

@@ -79,7 +79,10 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   `-- --autoplay=average --bot-skill=60` (plays like an average player for balance checks: lands
   that percent of its presses; prints an `AUTOPLAY_BALANCE turns= seconds= party_hp_percent=`
   line; with `--seed=N` its luck repeats too, else every run differs, so compare many runs). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
-  from `data/encounters/` (default `husk_fight`), `--first-strike` to start it with the advantage,
+  from `data/encounters/` (default `husk_fight`), `--first-strike` to start it with the advantage
+  (a run's Fight stop opens with the First Strike ring instead, DESIGN.md 8.22: `--autoplay` presses
+  it perfectly, `=miss` never, `=mash` mashes, `=average` at its skill; every Fight stop prints
+  `AUTOPLAY_OPENING first_strike|normal stop=N`),
   `--weather=rain|storm|fog|wind|dusk|clear` to give every run fight but the boss's and every Rush
   fight that weather (DESIGN.md 8.20, 8.22),
   `--no-rumble` to keep the pad still (bot and picture runs never buzz anyway, DESIGN.md 7.14),
@@ -132,7 +135,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   prints PASS or FAIL. DESIGN.md 10.
 - To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
   every S seconds in `%APPDATA%/Godot/app_userdata/Rotsworn/shots/<name>/`), combined with
-  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|echoes|relics|party_relics|calibration|tutorial|map|map_start|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players|rush_cards|rush_players|rush_reward|rush_reward_elite|rush_ready|rush_end|rush_pause`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
+  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|echoes|relics|party_relics|calibration|tutorial|map|map_start|first_strike|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players|rush_cards|rush_players|rush_reward|rush_reward_elite|rush_ready|rush_end|rush_pause`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
   skills list (or any state; `|` moves on to the next turn) for pictures; `--pad-prompts` shows pad
   buttons, `--key-prompts` keyboard keys. Look at the pictures before telling the user a visual change is done.
   (Use `quiet_run.bat` for this when the owner is at the PC, see above.)
