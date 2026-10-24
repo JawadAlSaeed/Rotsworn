@@ -3,9 +3,9 @@ extends Node
 ## practice (the fight list), settings, quit. New Run and Practice open the players screen
 ## first (co-op, DESIGN.md 9.1); its roster goes to every fight. In a run the map screen leads to
 ## the stops: Fight stops, Elite stops (an elite group or the place's guard), events, rests, shops,
-## treasure and the act's boss (DESIGN.md 8.22); RunState carries HP and gold from stop to stop. A Fight stop's fight opens with
-## the First Strike ring on the place's name card (card #320): a GOOD or PERFECT press there starts
-## it with First Strike.
+## treasure and the act's boss (DESIGN.md 8.22); RunState carries HP and gold from stop to stop.
+## A Fight stop's fight opens with the First Strike ring on the place's name card (card #320): a
+## GOOD or PERFECT press there starts it with First Strike.
 ## Online (DESIGN.md 9.2) the host's machine runs the run exactly as offline and tells the others
 ## what to show: every screen ("screen" messages with the run's state) and the fights' event
 ## batches. The others (clients) only show what arrives, never decide anything about
