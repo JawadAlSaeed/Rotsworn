@@ -9,7 +9,8 @@ extends CanvasLayer
 ## on its own) is a test tool: its row shows in Extras only in debug builds. The version sits in the
 ## bottom-left corner and the studio's logo in the bottom-right.
 ## Online's Host and Join are two cards side by side, each with a picture (card #288); Back is the
-## cancel button there, with the only button bar of this screen.
+## cancel button there, with the only button bar of this screen. New Run opens two such cards too:
+## Run and Fight Rush (DESIGN.md 8.21), the Rush card with the best fight reached as a gold chip.
 
 ## One of ITEMS (not the rows that open a list), or a row of a second list.
 signal chosen(item: StringName)
@@ -28,15 +29,20 @@ const GLOSSARY := &"glossary"
 const SETTINGS := &"settings"
 const CREDITS := &"credits"
 const QUIT := &"quit"
+const PLAY_RUN := &"play_run"
+const PLAY_RUSH := &"play_rush"
 const ITEMS: Array[StringName] = [NEW_RUN, ONLINE, RELICS, EXTRAS, SETTINGS, QUIT]
 ## The Online list; Back follows it.
 const ONLINE_ITEMS: Array[StringName] = [HOST_ONLINE, JOIN_ONLINE]
 ## The Extras list for players (user 2026-10-17: the menu felt cluttered); Back follows it.
 const EXTRAS_ITEMS: Array[StringName] = [TUTORIAL, GLOSSARY, JOURNAL, CREDITS]
+## New Run's two cards: a run, or a Fight Rush (DESIGN.md 8.21). Cancel goes back.
+const MODE_ITEMS: Array[StringName] = [PLAY_RUN, PLAY_RUSH]
 const LABELS: Dictionary = {
 	CONTINUE: "Continue", NEW_RUN: "New Run", ONLINE: "Online", EXTRAS: "Extras", SETTINGS: "Settings",
 	QUIT: "Quit", HOST_ONLINE: "Host Online", JOIN_ONLINE: "Join Online", TUTORIAL: "Tutorial",
 	PRACTICE: "Practice", GLOSSARY: "Glossary", JOURNAL: "Journal", CREDITS: "Credits", RELICS: "Relics",
+	PLAY_RUN: "Run", PLAY_RUSH: "Fight Rush",
 }
 const SUBTITLE_SIZE: int = 30
 const DETAIL_SIZE: int = 26
@@ -45,25 +51,32 @@ const NOTICE_WIDTH: float = 1100.0
 ## Room between the logo and the list (pixels, on top of the column's spacing; small since phase 17
 ## added the Relics row, so Quit keeps clear of the bottom edge with Continue shown).
 const LOGO_GAP: float = 4.0
-## Host and Join's pictures (StopVisuals holds their paths).
-const ONLINE_ICON_SIZE := Vector2i(24, 24)
+## The cards' pictures (Host, Join, Run, Fight Rush; StopVisuals holds their paths).
+const CARD_ICON_SIZE := Vector2i(24, 24)
 
 var _menu: ListMenu
-## The main row whose second list is showing (ONLINE or EXTRAS), or empty for the main list.
+## The main row whose second list is showing (ONLINE, NEW_RUN or EXTRAS), or empty for the main list.
 var _sub: StringName = &""
 ## The main list's rows in order (Continue is first when a run is saved).
 var _items: Array[StringName] = []
 ## The Extras list's rows (Practice after the tutorial in debug builds).
 var _extras: Array[StringName] = []
-## The button bar under Online's cards (hidden elsewhere).
-var _online_footer: Control
+## The button bar under Online's and New Run's cards (hidden elsewhere).
+var _cards_footer: Control
+## The best Fight Rush fight reached, any party size (0: none yet, no chip).
+var _rush_best: int = 0
+## False when the Fight Rush data is missing: its card is greyed and plays "locked".
+var _rush_ok: bool = true
 
 
 ## `start_item` is selected first (the last thing picked when coming back: a row of Extras reopens
 ## that list). `notice` says why the player is back here (an online game ended), if anything.
 ## `can_continue` adds the Continue row; `show_practice` adds Practice to Extras (debug builds).
+## `rush_best` is the best Fight Rush record (the Rush card's Best chip); `rush_ok` false greys that card.
 func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: String = "",
-		can_continue: bool = false, show_practice: bool = false) -> void:
+		can_continue: bool = false, show_practice: bool = false, rush_best: int = 0, rush_ok: bool = true) -> void:
+	_rush_best = rush_best
+	_rush_ok = rush_ok
 	_items = ITEMS.duplicate()
 	if can_continue:
 		_items.push_front(CONTINUE)
@@ -91,20 +104,21 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 	_menu = ListMenu.new()
 	column.add_child(_menu)
 	# No description line under the list (user, 2026-10-17): the rows speak for themselves.
-	# Online's button bar, under the corners so the version and the logo stay on top of its strip.
-	_online_footer = Control.new()
-	_online_footer.name = "OnlineFooter"
-	_online_footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_online_footer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_online_footer.visible = false
-	add_child(_online_footer)
-	ListMenu.screen_footer(_online_footer, [[&"@leftright", "Choose"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]])
+	# The cards' button bar, under the corners so the version and the logo stay on top of its strip.
+	_cards_footer = Control.new()
+	_cards_footer.name = "CardsFooter"
+	_cards_footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cards_footer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_cards_footer.visible = false
+	add_child(_cards_footer)
+	ListMenu.screen_footer(_cards_footer, [[&"@leftright", "Choose"], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]])
 	_add_corners(branding)
 	if _extras.has(start_item):
 		_show_sub(EXTRAS, start_item)
 	else:
-		# Coming back from hosting or joining: the cursor rests on Online.
-		_show_main(ONLINE if ONLINE_ITEMS.has(start_item) else start_item)
+		# Coming back from hosting, joining, a run or a Rush: the cursor rests on the row that opened
+		# those cards.
+		_show_main(ONLINE if ONLINE_ITEMS.has(start_item) else NEW_RUN if MODE_ITEMS.has(start_item) else start_item)
 
 
 ## The game's version (bottom left) and the studio's logo (bottom right), small and quiet, like
@@ -154,38 +168,56 @@ static func version_text() -> String:
 func _show_main(item: StringName) -> void:
 	_sub = &""
 	_menu.horizontal = false
-	_online_footer.visible = false
+	_cards_footer.visible = false
 	_menu.index = maxi(0, _items.find(item))
 	_menu.set_items(_rows(_items))
 
 
-## A second list in place of the main one, with Back last; Online's two are cards side by side with
-## a picture each, and Back on the cancel button.
+## A second list in place of the main one, with Back last; Online's and New Run's two are cards side
+## by side with a picture each, and Back on the cancel button.
 func _show_sub(parent: StringName, item: StringName = &"") -> void:
 	_sub = parent
 	var list := _sub_items()
 	var rows := _rows(list)
-	var cards := parent == ONLINE
-	if cards:
+	var cards := parent == ONLINE or parent == NEW_RUN
+	var look: StopVisuals = StopVisuals.load_default() if cards else null
+	if parent == ONLINE:
 		# Under Online, a word each is enough.
-		var look := StopVisuals.load_default()
-		rows[0] = {"text": "Host", "icon": AssetLoader.texture(look.host_icon_path, ONLINE_ICON_SIZE)}
-		rows[1] = {"text": "Join", "icon": AssetLoader.texture(look.join_icon_path, ONLINE_ICON_SIZE)}
+		rows[0] = {"text": "Host", "icon": AssetLoader.texture(look.host_icon_path, CARD_ICON_SIZE)}
+		rows[1] = {"text": "Join", "icon": AssetLoader.texture(look.join_icon_path, CARD_ICON_SIZE)}
+	elif parent == NEW_RUN:
+		rows[0] = {"text": String(LABELS[PLAY_RUN]), "icon": AssetLoader.texture(look.run_icon_path, CARD_ICON_SIZE)}
+		rows[1] = rush_card(look, _rush_best, _rush_ok)
 	else:
 		rows.append({"text": "Back"})
 	_menu.horizontal = cards
-	_online_footer.visible = cards
+	_cards_footer.visible = cards
 	_menu.index = maxi(0, list.find(item))
 	_menu.set_items(rows)
 
 
-## True while Online's cards show (tests).
+## True while Online's or New Run's cards show (tests).
 func is_showing_cards() -> bool:
-	return _menu.horizontal and _online_footer.visible
+	return _menu.horizontal and _cards_footer.visible
+
+
+## New Run's Fight Rush card: its picture, the gold Best chip when a record exists (`best` above 0),
+## greyed when the Rush data is missing (`ok` false).
+static func rush_card(look: StopVisuals, best: int, ok: bool) -> Dictionary:
+	var card := {"text": String(LABELS[PLAY_RUSH]), "icon": AssetLoader.texture(look.rush_icon_path, CARD_ICON_SIZE),
+			"enabled": ok}
+	if best > 0:
+		card["chips"] = [{"glyph": &"star", "text": "Best %d" % best, "color": HudStyle.GOLD}]
+	return card
 
 
 func _sub_items() -> Array[StringName]:
-	return ONLINE_ITEMS if _sub == ONLINE else _extras
+	match _sub:
+		ONLINE:
+			return ONLINE_ITEMS
+		NEW_RUN:
+			return MODE_ITEMS
+	return _extras
 
 
 static func _rows(ids: Array[StringName]) -> Array[Dictionary]:
@@ -201,13 +233,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			if _sub.is_empty():
 				var item := _items[_menu.index]
 				Sfx.play("menu_confirm")
-				if item == ONLINE or item == EXTRAS:
+				if item == ONLINE or item == EXTRAS or item == NEW_RUN:
 					_show_sub(item)
 				else:
 					chosen.emit(item)
 				return
 			var list := _sub_items()
 			if _menu.index < list.size():
+				# ListMenu reports confirm on a greyed card too (the Fight Rush card without its data).
+				if not _menu.is_enabled(_menu.index):
+					Sfx.play("locked")
+					return
 				Sfx.play("menu_confirm")
 				chosen.emit(list[_menu.index])
 			else:

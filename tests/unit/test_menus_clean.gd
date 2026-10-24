@@ -509,6 +509,27 @@ func test_every_section_fits_under_the_pinned_title() -> void:
 	HudStyle.set_text_size_index(0)
 
 
+## Reset progress names the Fight Rush records too (DESIGN.md 8.21), and its two lines stay on the
+## screen at every text size.
+func test_reset_progress_question_lists_the_rush_records_and_fits() -> void:
+	assert_true(SettingsScreen.RESET_DETAIL.contains("Rush records"))
+	for size: int in PlayerSettings.TEXT_SIZE_NAMES.size():
+		HudStyle.set_text_size_index(size)
+		var screen := _settings_screen(true)
+		screen._ask_reset_progress()
+		var prompt := screen._prompt
+		assert_not_null(prompt, "the question opens")
+		if prompt == null:
+			continue
+		var width := 0.0
+		for child: Node in prompt.get_children():
+			if child is VBoxContainer:
+				width = (child as VBoxContainer).get_combined_minimum_size().x
+		assert_between(width, 1.0, 1920.0, "text %d: the question fits the screen's width (%d)" % [size, int(width)])
+		screen.visible = false
+	HudStyle.set_text_size_index(0)
+
+
 # --- the stats overlay's clash groups ---------------------------------------------------------
 
 func test_stats_overlay_is_only_in_the_fight_groups() -> void:

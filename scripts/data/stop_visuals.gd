@@ -28,8 +28,8 @@ const PATH := "res://data/presentation/stop_visuals.tres"
 
 @export_group("Choice cards")
 ## The pictures on the side-by-side choice cards (card #288, tools/art_kit/assets/ui_choices.py):
-## the campfire's choices, Host and Join on the main menu's Online page, and the Fight Rush screen's
-## Heal, Fight and Party (DESIGN.md 8.21).
+## the campfire's choices, Host and Join on the main menu's Online page, Run and Fight Rush on its
+## New Run page, and the Fight Rush screen's Heal, Fight and Party (DESIGN.md 8.21).
 @export_file("*.png") var rest_icon_path: String = "res://assets/sprites/ui/choice_rest.png"
 @export_file("*.png") var train_icon_path: String = "res://assets/sprites/ui/choice_train.png"
 @export_file("*.png") var upgrade_icon_path: String = "res://assets/sprites/ui/choice_upgrade.png"
@@ -40,6 +40,8 @@ const PATH := "res://data/presentation/stop_visuals.tres"
 @export_file("*.png") var heal_icon_path: String = "res://assets/sprites/ui/choice_heal.png"
 @export_file("*.png") var fight_icon_path: String = "res://assets/sprites/ui/choice_fight.png"
 @export_file("*.png") var party_icon_path: String = "res://assets/sprites/ui/choice_party.png"
+@export_file("*.png") var run_icon_path: String = "res://assets/sprites/ui/choice_run.png"
+@export_file("*.png") var rush_icon_path: String = "res://assets/sprites/ui/choice_rush.png"
 ## Screen pixels per art pixel for a treasure chest on its card (the chests are 28x24).
 @export_range(1, 8, 1) var chest_card_scale: int = 4
 

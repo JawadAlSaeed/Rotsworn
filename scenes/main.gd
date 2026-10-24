@@ -788,7 +788,9 @@ func _show_main_menu() -> void:
 	# A saved run is where the cursor rests until the player picks something else.
 	var start := MainMenu.CONTINUE if not saved.is_empty() and not _menu_used else _menu_item
 	# Practice (any fight or zone on its own) is a test tool: only debug builds list it (card #208).
-	menu.setup(_branding, start, _notice, not saved.is_empty(), OS.is_debug_build())
+	# New Run's Fight Rush card shows the best Rush record and is greyed without the Rush data.
+	menu.setup(_branding, start, _notice, not saved.is_empty(), OS.is_debug_build(), PlayerSettings.rush_best_any(),
+			_rush_data != null)
 	_notice = ""
 	menu.chosen.connect(_on_menu_chosen)
 	_show_screen(menu)
@@ -800,11 +802,13 @@ func _on_menu_chosen(item: StringName) -> void:
 	match item:
 		MainMenu.CONTINUE:
 			_continue_with_players.call_deferred()
-		MainMenu.NEW_RUN:
+		MainMenu.PLAY_RUN:
 			if _save_in_the_way():
 				_ask_overwrite_save.call_deferred()
 			else:
 				_start_new_run.call_deferred()
+		MainMenu.PLAY_RUSH:
+			_start_rush.call_deferred()
 		MainMenu.HOST_ONLINE:
 			_host_online.call_deferred()
 		MainMenu.JOIN_ONLINE:
@@ -827,7 +831,7 @@ func _on_menu_chosen(item: StringName) -> void:
 			_quit_game()
 
 
-## New Run from the main menu: the tutorial offer (once), then the lag calibration offer (once),
+## Main menu, New Run, then Run: the tutorial offer (once), then the lag calibration offer (once),
 ## then the players screen, then the run. Only one offer per press: a player who says yes to the
 ## tutorial is asked about the calibration on their next New Run (DESIGN.md 3.2, 7.8).
 func _start_new_run() -> void:

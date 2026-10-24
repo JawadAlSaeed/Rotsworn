@@ -44,7 +44,9 @@ func test_main_menu_without_a_save_has_no_continue() -> void:
 	assert_eq(list.items.size(), MainMenu.ITEMS.size())
 	assert_eq(String(list.items[0].text), "New Run")
 	_press(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.NEW_RUN] as Array[StringName])
+	assert_eq(_picked.size(), 0, "New Run opens its Run / Fight Rush cards")
+	_press(menu, &"menu_confirm")
+	assert_eq(_picked, [MainMenu.PLAY_RUN] as Array[StringName], "the Run card is chosen first")
 
 
 func test_main_menu_with_a_save_starts_on_continue() -> void:

@@ -110,6 +110,9 @@ func test_main_menu_is_short() -> void:
 	assert_eq(MainMenu.EXTRAS_ITEMS, [MainMenu.TUTORIAL, MainMenu.GLOSSARY, MainMenu.JOURNAL, MainMenu.CREDITS])
 	assert_does_not_have(MainMenu.EXTRAS_ITEMS, MainMenu.PRACTICE)
 	assert_eq(MainMenu.ONLINE_ITEMS, [MainMenu.HOST_ONLINE, MainMenu.JOIN_ONLINE])
+	# Fight Rush (DESIGN.md 8.21) hides under New Run as a second card, not a row of its own.
+	assert_eq(MainMenu.MODE_ITEMS, [MainMenu.PLAY_RUN, MainMenu.PLAY_RUSH])
+	assert_does_not_have(MainMenu.ITEMS, MainMenu.PLAY_RUSH)
 
 
 func test_main_menu_shows_the_version_and_the_studio_logo() -> void:
