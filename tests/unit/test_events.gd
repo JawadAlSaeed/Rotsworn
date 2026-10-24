@@ -176,7 +176,7 @@ func test_a_random_item_is_lost_the_same_way_on_every_machine() -> void:
 		var a := _run(s)
 		var b := _run(s)
 		for run: RunState in [a, b]:
-			for id: String in ["salve", "key", "bomb", "antidote"]:
+			for id: String in ["salve", "feast", "bomb", "antidote"]:
 				run.add_item(_item(run, id))
 			run.take_offer(offer, 2, 1)
 		assert_eq(a.backpack.entries.size(), 3)
@@ -189,14 +189,14 @@ func test_a_random_item_is_lost_the_same_way_on_every_machine() -> void:
 func test_a_chosen_item_is_the_one_lost() -> void:
 	var run := _run()
 	var salve := run.add_item(_item(run, "salve"))
-	var key := run.add_item(_item(run, "key"))
+	var bomb := run.add_item(_item(run, "bomb"))
 	var offer := _offer({"cost_item": ZoneOfferData.ItemCost.CHOSEN})
 	assert_eq(offer.pick_kind(), ZoneOfferData.Pick.ITEM)
 	assert_false(bool(run.take_offer(offer, 1, 0).ok), "asks for an item first")
 	assert_false(bool(run.take_offer(offer, 1, 0, 100, 999).ok), "no such item")
-	assert_true(bool(run.take_offer(offer, 1, 0, 100, key).ok))
+	assert_true(bool(run.take_offer(offer, 1, 0, 100, bomb).ok))
 	assert_true(run.backpack.has_uid(salve))
-	assert_false(run.backpack.has_uid(key))
+	assert_false(run.backpack.has_uid(bomb))
 
 
 # --- a curse -------------------------------------------------------------------------------------------
@@ -529,6 +529,12 @@ func _has_scarce_price(deal: ZoneOfferData) -> bool:
 			or deal.cost_item != ZoneOfferData.ItemCost.NONE or deal.cost_rotten != null or deal.ambush != null)
 
 
+## A price that still bites when every hero is at the max HP floor: anything but max HP.
+func _has_price_past_the_floor(deal: ZoneOfferData) -> bool:
+	return deal != null and (deal.cost_gold > 0 or deal.cost_hp_percent > 0
+			or deal.cost_item != ZoneOfferData.ItemCost.NONE or deal.cost_rotten != null or deal.ambush != null)
+
+
 func test_every_event_file_loads_and_makes_every_choice_cost_something() -> void:
 	var count := 0
 	var run := _run()
@@ -562,6 +568,11 @@ func test_every_event_file_loads_and_makes_every_choice_cost_something() -> void
 			# Healing must not be free: a heal comes with a price that is not just HP.
 			if c.deal.heal_percent > 0:
 				assert_true(_has_scarce_price(c.deal), "%s: a heal is paid for" % where)
+			# A risk that is the only price is forced, so it takes what there is: once every hero is at
+			# the max HP floor a max HP risk alone would take nothing, and the choice would be a gift.
+			if not _has_scarce_price(c.deal) and c.risk_deal != null:
+				assert_true(_has_price_past_the_floor(c.risk_deal),
+						"%s: its risk still costs something when nobody can lose max HP" % where)
 			for deal: ZoneOfferData in [c.deal, c.risk_deal]:
 				if deal == null:
 					continue
@@ -577,7 +588,7 @@ func test_every_event_file_loads_and_makes_every_choice_cost_something() -> void
 					assert_false(deal.ambush.enemies.is_empty())
 			if c.risk_deal != null:
 				assert_eq(c.risk_deal.pick_kind(), ZoneOfferData.Pick.NONE, "%s: a risk asks nobody" % where)
-	assert_gte(count, 16, "the eight old events and eight new ones")
+	assert_gte(count, 20, "the eight old events, eight new ones and the four shrines and wanderers")
 
 
 func test_the_acts_have_their_own_event_lists_and_ambushes() -> void:
@@ -629,6 +640,100 @@ func test_ambush_encounters_are_picked_and_fought_in_the_deep_version_late() -> 
 	assert_eq(run.ambush_encounter(), pool[0])
 	run.act = 1
 	assert_eq(run.ambush_encounter(), pool[0].deep)
+
+
+# --- the shrines and wanderers, now "?" events (phase 26, DESIGN.md 8.22 G2 and G3) ---------------------------
+
+## Which acts each of the four new events is drawn in.
+const SHRINE_EVENTS := {
+	"healing_spring": [0, 1],
+	"blood_altar": [1],
+	"war_idol": [0],
+	"grave_robber": [0, 1],
+}
+
+
+func test_the_shrines_and_wanderers_are_priced_events_in_their_acts() -> void:
+	var run := _run()
+	for id: String in SHRINE_EVENTS:
+		var event := _event(id)
+		assert_not_null(event, "%s is an event file" % id)
+		if event == null:
+			continue
+		assert_between(event.choices.size(), 1, 2, id)
+		assert_eq(event.picture_path, "res://assets/sprites/events/%s.png" % id)
+		assert_true(AssetLoader.has_art(event.picture_path), "%s has its painted picture" % id)
+		for c: EventChoiceData in event.choices:
+			assert_true(_has_scarce_price(c.deal) or (c.risk_percent >= 25 and _has_scarce_price(c.risk_deal)),
+					"%s / %s: never a gift" % [id, c.text])
+			assert_true(c.deal.heal_percent == 0 or _has_scarce_price(c.deal), "%s / %s: a heal is paid for" % [id, c.text])
+		for act: int in 2:
+			var listed := run.act_data(act).events.has(event)
+			assert_eq(listed, (SHRINE_EVENTS[id] as Array).has(act), "%s in act %d: %s" % [id, act + 1, listed])
+
+
+func test_no_event_hands_out_a_key_and_the_cage_gives_the_dead_mans_pack() -> void:
+	for file: String in DirAccess.get_files_at(EVENTS_DIR):
+		if not file.ends_with(".tres"):
+			continue
+		var event := load(EVENTS_DIR.path_join(file)) as EventData
+		for c: EventChoiceData in event.choices:
+			for deal: ZoneOfferData in [c.deal, c.risk_deal]:
+				if deal != null and deal.item != null:
+					assert_ne(deal.item.kind, ItemData.Kind.KEY, "%s / %s gives no key" % [event.id, c.text])
+	var cage := _event("hanging_cage")
+	assert_eq(cage.choices.size(), 2, "the cage keeps its two choices")
+	for c: EventChoiceData in cage.choices:
+		assert_null(c.deal.item, "%s: no fixed item" % c.text)
+		assert_gte(c.deal.find_rarity, 0, "%s: a find from the pack instead" % c.text)
+	assert_eq(cage.choices[0].risk_percent, 45, "climbing keeps its risk")
+	assert_not_null(cage.choices[1].deal.ambush, "felling the tree still calls a fight")
+	assert_gt(cage.choices[1].deal.gold, 0)
+
+
+func test_taking_the_new_events_pays_and_gives() -> void:
+	var run := _run()
+	run.gold = 200
+	var stop := 1
+	var coin := CombatMath.percent(35, run.event_scale(stop))
+	var spring := _event("healing_spring")
+	run.hp[0] = 1
+	var got := run.choose_event(spring.choices[0], stop, 0)
+	assert_true(bool(got.ok))
+	assert_eq(run.gold, 200 - coin, "the coin is paid")
+	assert_gt(run.hp[0], 1, "and the water heals")
+	var robber := _event("grave_robber")
+	got = run.choose_event(robber.choices[0], stop, 0)
+	assert_true(bool(got.ok))
+	assert_eq(run.gold, 200 - coin - CombatMath.percent(50, run.event_scale(stop)))
+	assert_eq((got.items as Array).size(), 1, "a find to put in the pack")
+	assert_gte(int((got.items[0] as ItemData).rarity), ItemData.Rarity.RARE, "a rare or better find")
+
+
+func test_fishing_the_spring_still_costs_something_at_the_max_hp_floor() -> void:
+	# The coins' only price is the risk. With every hero at the floor its max HP part takes nothing,
+	# so it costs HP too (never a gift, DESIGN.md 8.22 G2).
+	var fish := _event("healing_spring").choices[1]
+	assert_eq(fish.deal.cost_gold + fish.deal.cost_max_hp_percent, 0, "fishing has no price of its own")
+	var hits := 0
+	for stop: int in 40:
+		var run := _run()
+		for slot: int in run.party_size():
+			run.max_hp_percent[slot] = _tuning.event_max_hp_floor_percent
+			run.hp[slot] = run.max_hp(slot)
+		var before := run.hp.duplicate()
+		assert_true(run.can_choose(fish, stop), "it can be chosen at the floor")
+		var got := run.choose_event(fish, stop, 1)
+		assert_true(bool(got.ok))
+		if not bool(got.risk):
+			continue
+		hits += 1
+		var lost := 0
+		for slot: int in run.party_size():
+			lost += int(before[slot]) - run.hp[slot]
+			assert_eq(run.max_hp_percent[slot], _tuning.event_max_hp_floor_percent, "never under the floor")
+		assert_gt(lost, 0, "stop %d: the risk took HP" % stop)
+	assert_gt(hits, 0, "the risk came up")
 
 
 # --- the bot ------------------------------------------------------------------------------------------------------------
@@ -686,9 +791,31 @@ func test_the_bot_pays_max_hp_from_the_healthiest_hero_and_leaves_what_it_cannot
 
 func test_the_bot_hands_over_the_cheapest_item() -> void:
 	var run := _run()
-	var key := run.add_item(_item(run, "key"))
-	var idol := run.add_item(_item(run, "golden_idol"))
+	var salts := run.add_item(_item(run, "smelling_salts"))
+	var salve := run.add_item(_item(run, "salve"))
 	var pick := EventAutoplay.pick_for(run, _event("bone_collector").choices[0].deal)
 	assert_true(run.losable_uids().has(pick))
-	assert_eq(pick, key, "the key is worth less than the idol")
-	assert_ne(pick, idol)
+	assert_eq(pick, salve, "the salve is worth less than the salts")
+	assert_ne(pick, salts)
+
+
+func test_the_bot_judges_the_shrines_and_wanderers() -> void:
+	var run := _run()
+	run.gold = 200
+	var spring := _event("healing_spring")
+	assert_eq(EventAutoplay.net_worth(run, spring.choices[0], FIT), -1, "no paying for a heal at full health")
+	assert_gte(EventAutoplay.net_worth(run, spring.choices[0], HURT), 0, "hurt, the water is worth the coin")
+	assert_eq(EventAutoplay.decide(run, spring, FIT).index, 1, "fit: fish out the coins")
+	assert_eq(EventAutoplay.decide(run, spring, HURT).index, 0, "hurt: drink, and risk no max HP")
+	var altar := _event("blood_altar")
+	assert_gte(EventAutoplay.net_worth(run, altar.choices[0], FIT), 0, "healthy, a little blood for a rare find")
+	assert_eq(EventAutoplay.net_worth(run, altar.choices[0], HURT), -1)
+	assert_eq(EventAutoplay.net_worth(run, altar.choices[1], FIT), -1, "a curse for nothing it needs")
+	assert_gte(EventAutoplay.net_worth(run, altar.choices[1], HURT), 0, "a curse for a big heal when it is needed")
+	var idol := _event("war_idol")
+	assert_gte(EventAutoplay.net_worth(run, idol.choices[0], FIT), 0)
+	assert_eq(EventAutoplay.net_worth(run, idol.choices[1], HURT), -1)
+	var robber := _event("grave_robber")
+	assert_eq(EventAutoplay.net_worth(run, robber.choices[1], HURT), -1, "no digging while unfit for a fight")
+	assert_gte(EventAutoplay.net_worth(run, robber.choices[1], FIT), 0)
+	assert_eq(EventAutoplay.decide(run, robber, HURT).index, 0, "hurt: buy instead")

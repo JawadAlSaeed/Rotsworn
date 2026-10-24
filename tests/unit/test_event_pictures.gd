@@ -50,7 +50,7 @@ func _events() -> Array[EventData]:
 func test_every_event_has_its_own_picture_file_of_the_agreed_size() -> void:
 	var seen := {}
 	var events := _events()
-	assert_gte(events.size(), 16)
+	assert_gte(events.size(), 20)
 	for event: EventData in events:
 		assert_eq(event.picture_path, "%s%s.png" % [PICTURE_DIR, event.id], "%s points at its own picture" % event.id)
 		assert_true(AssetLoader.has_art(event.picture_path), "%s: the file exists" % event.id)

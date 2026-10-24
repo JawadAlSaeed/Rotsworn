@@ -1912,10 +1912,10 @@ func heal(slot: int, amount: int, scaled: bool = true) -> int:
 
 # --- the backpack (DESIGN.md 8.1) ---------------------------------------------------------------
 
-## Every item this run knows (shop and finds), by id.
+## Every item this run knows (shop, finds and the retired ones a saved pack may still hold), by id.
 func items_by_id() -> Dictionary:
 	var by_id := {}
-	for list: Array[ItemData] in [data.shop_items, data.found_items]:
+	for list: Array[ItemData] in [data.retired_items, data.shop_items, data.found_items]:
 		for item: ItemData in list:
 			if item != null:
 				by_id[item.id] = item

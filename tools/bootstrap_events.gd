@@ -3,7 +3,9 @@ extends SceneTree
 ## pools. Every choice costs something scarce (max HP for good, a backpack item, a curse, gold, an
 ## ambush fight); gold and XP rewards grow with depth by tuning.event_reward_row_percent (RunState).
 ## Rewrites every event file; run it after tools/bootstrap_phase15.gd (it edits the act files that
-## one writes).
+## one writes). Phase 26 (DESIGN.md 8.22, G2 and G3) added the shrines and wanderers as events (the
+## Healing Spring, the Blood Altar, the War Idol, the Grave Robber) and took the Key out of the
+## Hanging Cage; the ambush pools below include the phase 19 fights, so a re-run keeps them.
 ## Run: Godot --headless --path . -s tools/bootstrap_events.gd
 
 const ENC := "res://data/encounters/"
@@ -20,20 +22,23 @@ func _init() -> void:
 	for event: EventData in _all_events():
 		events[event.id] = _save(event, EVENTS + event.id + ".tres")
 
-	# Act 1 and act 2 share four events; the rest are their own. Every ambush fight has a deep
+	# Act 1 and act 2 share six events; the rest are their own. Every ambush fight has a deep
 	# version, which a deep act or row fights instead (RunState.ambush_encounter).
 	var act1 := load("res://data/runs/acts/rotten_road.tres") as ActData
 	act1.events.assign(_pick(events, ["weeping_well", "gamblers_bones", "wounded_pilgrim", "rot_blossom",
 			"hanging_cage", "merchant_wreck", "whispering_mask", "bone_collector", "hungry_scarecrow",
-			"tithe_collector"]))
-	act1.ambushes.assign(_encs(["bloat_and_gnat", "hyena_and_fly", "toad_and_fly", "shade_and_gnat", "fly_pair"]))
+			"tithe_collector", "healing_spring", "war_idol", "grave_robber"]))
+	act1.ambushes.assign(_encs(["bloat_and_gnat", "hyena_and_fly", "toad_and_fly", "shade_and_gnat", "fly_pair",
+			"rat_pack", "husk_trio", "slinger_trio"]))
 	act1.ambush_title = "An Ambush!"
 	act1.ambush_text = "The mark on the map was bait. Something on the Rotten Road was waiting for you."
 	act1.ambush_picture_path = PICTURE_DIR + "ambush_rotten_road.png"
 	var act2 := load("res://data/runs/acts/ashen_deep.tres") as ActData
 	act2.events.assign(_pick(events, ["weeping_well", "gamblers_bones", "whispering_mask", "merchant_wreck",
-			"shrine_of_kings", "black_mirror", "drowned_chapel", "buried_cairn", "sealed_door", "widows_wager"]))
-	act2.ambushes.assign(_encs(["hyena_pack", "hyena_and_fly", "shade_and_gnat", "toad_and_fly", "bloat_and_gnat"]))
+			"shrine_of_kings", "black_mirror", "drowned_chapel", "buried_cairn", "sealed_door", "widows_wager",
+			"healing_spring", "blood_altar", "grave_robber"]))
+	act2.ambushes.assign(_encs(["hyena_pack", "hyena_and_fly", "shade_and_gnat", "toad_and_fly", "bloat_and_gnat",
+			"priest_and_hyenas", "lantern_trio", "brute_and_rat", "tick_nest"]))
 	act2.ambush_title = "An Ambush!"
 	act2.ambush_text = "The ashes shifted. What was lying in them was only waiting for you."
 	act2.ambush_picture_path = PICTURE_DIR + "ambush_ashen_deep.png"
@@ -102,13 +107,14 @@ func _all_events() -> Array[EventData]:
 				{"find": 1, "curse": "grave_moss"}, 0, {},
 				"The pod splits open, and the spores settle in your pack."),
 	]))
+	# Phase 26: the Key left the run (G3), so the cage gives the dead man's pack instead.
 	list.append(_event("hanging_cage", "The Hanging Cage",
-			"An iron cage hangs from a dead tree. The body inside still holds a key.", [
+			"An iron cage hangs from a dead tree. The body inside still holds the key to it.", [
 		_choice("Climb up", "The branch is old.",
-				{"item": "key"}, 45, {"maxhp": 6, "maxhp_to": "random", "hp": 15},
-				"You pry the key from cold fingers.", "The branch snaps."),
-		_choice("Fell the tree", "The key and what hangs with it. The noise carries.",
-				{"item": "key", "gold": 60, "ambush": "bloat_and_gnat"}, 0, {},
+				{"find": 0}, 45, {"maxhp": 6, "maxhp_to": "random", "hp": 15},
+				"You open the cage with its own key. His pack is still inside.", "The branch snaps."),
+		_choice("Fell the tree", "His pack, his purse and what hangs with him. The noise carries.",
+				{"find": 0, "gold": 60, "ambush": "bloat_and_gnat"}, 0, {},
 				"The cage splits open on the ground."),
 	]))
 	list.append(_event("shrine_of_kings", "Shrine of Old Kings",
@@ -211,6 +217,44 @@ func _all_events() -> Array[EventData]:
 		_choice("Stake a hero's strength", "A rare prize, if the hand is good.",
 				{"maxhp": 10, "maxhp_to": "pick", "find": 2}, 40, {"hp": 25, "curse": "rotting_heart"},
 				"The hand is good. Her smile is gone.", "The hand is hers. Something is dealt back into your pack."),
+	]))
+
+	# --- the shrines and wanderers, now "?" events (phase 26, DESIGN.md 8.22 G2) ------------------
+	list.append(_event("healing_spring", "The Healing Spring",
+			"Under a broken arch, a stone basin brims with water that glows like moonlight. Old coins shine on the bottom.", [
+		_choice("Leave a coin and drink", "Pay the spring, and it mends you.",
+				{"cost": 35, "heal": 30}, 0, {},
+				"The water is cold and clean. Your wounds close."),
+		_choice("Fish out the coins", "Others paid the spring. It may want them back.",
+				{"gold": 60}, 50, {"maxhp": 5, "maxhp_to": "random", "hp": 10},
+				"A fistful of old coins, cold as ice.", "The glow dims, and one of you feels it go out inside."),
+	]))
+	list.append(_event("blood_altar", "The Blood Altar",
+			"A stone altar, black with old blood. Red candles burn around a bowl that is never quite dry.", [
+		_choice("Bleed into the bowl", "All of you give a little, for good. The altar gives back.",
+				{"maxhp": 4, "find": 1}, 0, {},
+				"The blood sinks into the stone. Something rises from the bowl."),
+		_choice("Drink from the bowl", "It closes any wound. What it leaves behind stays.",
+				{"curse": "rotting_heart", "heal": 50, "gauge": 30}, 0, {},
+				"It is hot and thick. Your wounds close, and something takes root."),
+	]))
+	list.append(_event("war_idol", "The War Idol",
+			"A horned idol squats over a heap of rusted swords and skulls. Warriors once paid it for victory.", [
+		_choice("Lay down an offering", "Gold at its feet. It shares what the fallen knew.",
+				{"cost": 40, "xp": 50}, 0, {},
+				"Its eyes flare. Old battles fill your heads."),
+		_choice("Bleed on its horns", "One of you feeds it. It feeds the fury of all.",
+				{"maxhp": 5, "maxhp_to": "pick", "gauge": 60}, 0, {},
+				"Blood runs down the horns. The air hums with war."),
+	]))
+	list.append(_event("grave_robber", "The Grave Robber",
+			"A hooded man digs by lantern light, a sack at his feet. \"Fresh from the ground, friend. Buy, or keep walking.\"", [
+		_choice("Buy what he dug up", "He swears it is rare.",
+				{"cost": 50, "find": 1}, 0, {},
+				"He hands it over, still wet with grave dirt."),
+		_choice("Help him dig", "Half of what you find is yours. The dead may mind.",
+				{"gold": 45, "find": 0}, 40, {"ambush": "husk_trio"},
+				"You split the take by lantern light.", "The earth heaves. The dead climb out to stop you."),
 	]))
 	return list
 

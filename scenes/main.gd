@@ -651,9 +651,9 @@ func _show_sample_backpack() -> void:
 	_run.wear(0, 1, _run_data.gear[1])
 	_run.place_item(items["salve"], 0, 0, 0, 1)
 	_run.place_item(items["rotting_heart"], 1)
-	_run.place_item(items["key"], 2)
+	_run.place_item(items["feast"], 2)
 	_run.place_item(items["bomb"], 3)
-	for id: String in ["feast", "smelling_salts", "silver_ring", "rot_gem"]:
+	for id: String in ["antidote", "smelling_salts", "silver_ring", "rot_gem"]:
 		_run.add_item(items[id])
 	_run.wear(1, 0, _run_data.gear[3])
 	# Alder has levelled and has points to spend (the cards show "+N points", DESIGN.md 8.2).
