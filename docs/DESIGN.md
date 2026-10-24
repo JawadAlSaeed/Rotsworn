@@ -4415,6 +4415,81 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
 - Again online is checked by unit tests only (bots quit on the end screen), and no bot switch lands a
   drop-in exactly on the Rush screen (its window is about 2 s a fight; unit tests cover it).
 
+### 8.22 A Run without zones (phase 26, cards #316 to #320, decided 2026-10-24)
+
+The owner, after playing Fight Rush: "the zones themselves don't look good enough". Decision
+(2026-10-24, card #315 closed): keep the Run (map, shops, "?" events, campfires, treasure, acts, the
+Hollow King ending, gold, Oaths, Relic banking, Save & Quit) and **cut the walkable zones**. From the
+map the party goes straight into a fight. Why: fights are the star (pillar 1); in co-op only P1
+walked while the friends watched; a run gets faster. What it costs: the walk through the world (the
+places live on as fight arenas: 3D pieces, looks, weather, air), First Strike from a field swing
+(#320 brings it back as a press), the calm time between fights (shops, events and campfires do that
+now), and a run gets much shorter (the talks #321 and #322 come next). Branch `phase26-Direction`.
+
+**What the player sees.**
+- **Map stops**: Fight, Guard, Elite, "?", Shop, Campfire, Treasure and the act's boss. A **Fight**
+  stop (was Zone, the same `StopType` value 0) keeps its place's painted picture and name on the map.
+  A **Guard** stop has its own painted picture (art kit `map_art.py`) and a legend line "Guard".
+- **A Fight stop**: the place's name card with a loading tip (card #86, as a zone entry showed), then
+  one fight from that place's monsters (`ZoneData.roamer_pool`, picked by the run's seed for that
+  stop, never the same fight as the last Fight stop on the road while the pool has another; its deep
+  version in a deep act or row, as roamers were), in the place's look and air, under a weather rolled
+  for that fight from the place's weathers (seeded, the same on every machine). After a win: gold, XP,
+  Relic drops and Echo pips as a roaming fight paid, and the item drop roll a roamer had (a drop that
+  does not fit opens the party screen with it in hand). Then the map. Running away works as before:
+  HP carries on, no gold, no XP, the stop is passed. A loss ends the run.
+- **A Guard stop**: the place's guard (`ZoneData.guard`: The Gorged One, Mire Mother, Ash Warden;
+  their deep versions in act 2), with its phase two and banner, the boss song (and its rage), the
+  place's look, air and a rolled weather. No running. After a win its spoils (pick 1 of 3, as after a
+  zone's guard), Relic pips (`mastery_guard`), Flawless and `guards_beaten` (the Relic slot that opens
+  after the first guard) work as before.
+- **Where guards stand** (default G1): map row `run_guard_row` (1) is all Guard stops, like the
+  treasure row, so every road meets one guard early in each act (the second Relic slot opens about
+  where it did). Each guard stop takes its place like a Fight stop does. Row 0 stays all Fight stops.
+- **Elites and "?" ambushes** also roll a weather for their fight (seeded); they keep their spoils
+  rules and roll no item drop. Act bosses stay in their lairs with no weather.
+- **Shrines and wanderers become "?" events** (default G2), priced like every "?" (8.7: never a
+  gift), each with its own painted picture: The Healing Spring, The Blood Altar, The War Idol (it takes
+  in the Shrine of Plenty) and The Grave Robber. The Key Peddler and the Old Pilgrim (the Wounded
+  Pilgrim does its job) go.
+- **Gone**: walking, roaming monsters, glinting spots, chests and the Key (G3: the item leaves the
+  shop, finds and drops; The Hanging Cage gives something else; `ItemData.Kind.KEY` keeps its number
+  so item files stay valid), seals and the gate, the exit, champions and their prize chests, ZONE
+  CLEAR, the zone HUD, critters, the practice list's zones and the `--zone=` bot. Practice fights stay.
+- **Saves and online**: a run saved before this change is kept on disk but not offered (G4:
+  `RunSave.FORMAT_VERSION` 2, "Saved run: another version (kept)"). New maps use map rules 3 (old
+  rules stay in the code). Online needs the same build on every machine; `Net.PROTOCOL` 5. The client
+  builds a Fight or Guard stop's fight, weather and drop from the run state alone, as for an Elite stop.
+- **Save & Quit at a Fight or Guard stop** restarts that fight at the HP the party had on entering it
+  (a zone restarted from its start).
+- `--weather=ID` now forces the weather of every run fight but the boss's, and of every Rush fight.
+
+**Defaults chosen while the owner slept** (the owner may overrule each one):
+- **G1**: one Guard row per act (row 1). Weighted guard stops in the middle rows are for the balance
+  talk (#321).
+- **G2**: the four events above, with first-guess prices.
+- **G3**: the Key goes with the chests.
+- **G4**: old saves are refused (kept), not migrated: they were made inside zones.
+- **G5**: no run numbers change yet: a run has fewer fights, so less XP, gold, pips and drops. The
+  bot numbers before and after are for the talk (#321); three acts are #322.
+- **G6**: the zone songs and zone ambience loops stay in `assets/` and the credits but no longer play
+  (the talk decides: reuse or delete). Storms in fights keep no lightning (as the Rush, D13);
+  `WeatherFx` and the thunder cue stay unused for now.
+- **G7**: the class names stay (`ZoneData`, `ZoneOfferData`, ...): a `ZoneData` is now a place (name,
+  picture, look, air, music, weathers, roamer pool, guard); its zone-only fields go. The ground pieces
+  (`GroundStack`, `ground_patch`) and the decoration pieces stay for the arenas; only the pieces of
+  removed things go (seal stone, gate, exit signpost, zone chests, shrine pieces).
+- **G8**: the move actions stay (menus and the stick that marks P1's pad); `field_strike` and
+  `field_pickup` go. The tutorial keeps its First Strike lesson until #320 rewrites it.
+
+**The First Strike press** (#320, built last): with no field swing, a Fight stop's fight opens with
+one press ring (the skill press, A / Space) while the fight swirls in. A good or perfect press gives
+First Strike (2.12: every hero acts before any enemy), a miss or no press a normal start. Judged like
+every timed press, from input timestamps outside the core (rule 3); the opening goes into
+`CombatSetup` before the fight starts. Local co-op: any player's press counts. Online: the host's
+press decides and the friends watch the ring. Elites, guards, ambushes and bosses open normally; the
+Rush keeps its normal openings.
+
 ## 9. Multiplayer (phase 5)
 
 ### 9.1 Local co-op (phase 5 Part A, done)
@@ -5217,6 +5292,12 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     shows its move, 3.6) and #310 (wind-up attacks charge in, 3.12). Ideas: Save & Quit for online
     runs (#313), online friends take turns choosing (#314), and dropping the normal Run for Fight
     Rush (#315, phase 26: after playing it the owner said Rush might replace the Run).
+26. **Game direction** (decided 2026-10-24, building on branch `phase26-Direction`; was "Story",
+    which moved to phase 27, and the tutorial chapter #206 to phase 28): the Run keeps its map, stops,
+    acts and ending but loses its walkable zones (8.22): Fight stops (#316), Guard stops (#317),
+    shrines and wanderers as "?" events with no more keys (#318), the zone code and data removed
+    (#319), First Strike as a press (#320). Then two talks with the owner for the shorter run:
+    balance, levels, Relics and Echoes (#321) and three acts with a boss each (#322).
 
 ### 11.1 To-do (from playtests)
 
@@ -5479,3 +5560,6 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Wind-up attacks charge in: an attack whose first hit winds up 850 ms or more (as authored) skips the run-up, winds up near home and charges in on its first lunge, reaching contact exactly at impact; quicker openers keep the phase 23 run-up; the attack clock, impact times and windows are unchanged, only the run before the clock goes (3.12) | owner playtest (#310): the Bloat should wind up from where it stands and charge in on the strike, for every wind-up attack; the 850 ms line keeps the approved run-ups (the Husk's swipe, the King's chop) as they are |
 | 2026-10-24 | Review of #309 and #310: a missed press's move starts at the time on screen during a hit-stop, is not started for a hero with nothing left to defend when the hand-back would cut it off, and in an each-in-turn attack moves only the hero its hit strikes (3.6); a charging attacker winds up at home (`charge_windup_share` 0, no glide in its coil) and the 850 ms line moved to tuning as a pacing number (3.12) | code review; the owner's words were "wind up from where it stands" (asleep, not asked: a step out can come back by raising the share, with chase cells for the glide) |
 | 2026-10-24 | Phase 25 approved and its cards closed (#304, #305, #309, #310, #311, #312): Fight Rush after a playtest, drop-in co-op, leaving or swapping heroes, Fight Rush online and the two bug fixes on the tests and bot games without a hand test; an idea card asks whether Fight Rush should replace the normal Run (#315, phase 26) | owner after playing a Rush: "this game mode is so good, i might scrap the original mode for it"; online could not be tested ("i can trust your word for it"); v0.25.0 |
+| 2026-10-24 | Keep the Run next to Fight Rush but cut its walkable zones: fights go straight from the map (8.22, #315 closed) | owner: the zones do not look good enough; fights are the star, co-op friends only watched P1 walk |
+| 2026-10-24 | Phase 26 renamed from Story to Game direction; the story moves to phase 27, the tutorial chapter #206 to phase 28 | owner request; the story is simpler without zones and can wait |
+| 2026-10-24 | Zone stops become Fight stops (one seeded fight from the place's monsters), guards get a Guard row (row 1) per act, shrines and wanderers become priced "?" events, chests and the Key go (8.22, defaults G1 to G8) | built while the owner slept; each default may be overruled in the talks #321 and #322 |
