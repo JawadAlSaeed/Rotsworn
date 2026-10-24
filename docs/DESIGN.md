@@ -1888,6 +1888,15 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   comes back on the last item picked (a row of Extras reopens that list). Card #150 (user,
   2026-10-15) kept it short; card #208 (user, 2026-10-17: "it feels a bit cluttery", "practice is
   a dev thing") made it five rows; phase 17 added Relics (six).
+  **New Run** (phase 25, card #305, 8.21) opens two picture cards side by side in place, like the
+  Online cards: **Run** (a green hill with a pale road winding up to a red flag) and **Fight Rush**
+  (four bone tally marks crossed by a sword). The Fight Rush card carries a gold star chip "Best 16"
+  once any Rush record exists (the best of the three party sizes). Left/Right chooses, Confirm
+  selects, Back goes back; footer Choose / Select / Back. Run is the old New Run (overwrite check,
+  tutorial and calibration offers, the players screen with Oaths); Fight Rush shows only the
+  calibration offer when it is due, then the players screen titled Fight Rush, and never touches a
+  saved run. Without the Rush data the card is greyed and Confirm plays "locked". Coming back from a
+  run or a Rush, the cursor rests on New Run (`MainMenu.PLAY_RUN`, `PLAY_RUSH`, `MODE_ITEMS`).
   In the corners, small and quiet like most games' title menus (card #210, user 2026-10-17):
   bottom left the version, "v" and Project Settings' `application/config/version` (0.18.0 since phase 18, the
   phase number; the same version the save check and the online handshake use, so raise it for a
@@ -1927,7 +1936,9 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   (6.2).
 - **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
   run map (B on the map too). Continue, Players (a local game outside the tutorial, 9.3), Settings, Glossary (7.12), "Save & Quit" (a local run, 8.14), and "Abandon
-  run" (asks first, then the main menu) or in practice "Leave" (the practice list). Pause, Back or Continue resumes. Everything
+  run" (asks first, then the main menu) or in practice "Leave" (the practice list). In a Fight Rush
+  (8.21; in a fight or on the Rush screen) the note reads "Fight 7", there is no Save & Quit, and
+  "Give up" takes Abandon run's place (asks "Give up?", Give up / Keep going, then the Rush end). Pause, Back or Continue resumes. Everything
   under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
   presses) and cannot stop, so a pause asked for mid-move shows "PAUSING AFTER THIS MOVE" and
@@ -2303,6 +2314,9 @@ nothing in a fight. It is reached two ways, and both open on the first topic:
   1920x1080 (a test measures every page).
 - **Phase 19** (card #252): the five new marks, Ward, Shielded, Marks, Helpers and Burst, the mark
   icons on status terms; "Help on heroes" split from "Marks on heroes" (118 terms in 15 topics).
+- **Phase 25** (card #305, 8.21): a last topic, "Fight Rush", with three terms: Fight Rush (the New Run
+  card's picture), Reward cards (the Heal card's picture) and Records (gold, "NEW RECORD"); 124 terms
+  in 16 topics. Added to the `.tres` only, like the phase 24 streak term.
 - **Content is data**: `data/glossary/glossary.tres` (`GlossaryData`: `topic_ids`, `topic_names`,
   `entries`; each `GlossaryEntry`: `id`, `topic`, `term`, `text`, `tag`, `icon_path`, `color`, where an
   alpha of 0 means no colour). `tools/bootstrap_glossary.gd` wrote the first version (109 terms in 14
@@ -3670,8 +3684,12 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   The run's end screen says what the run keeps, won or lost ("Relics kept forever. New: ... Up a
   level: ...", `RunState.relic_gain_line`, from `relics_at_start`, which the run save keeps).
 - **Reset progress** (Settings > Game, main menu only, asks twice): deletes the Relic file, sets the
-  unlocked oaths back to none (`PlayerSettings.reset_oath_unlocks`) and deletes a saved run.
-  Settings, controls and the Journal stay. A dev screen never wipes anything.
+  unlocked oaths back to none (`PlayerSettings.reset_oath_unlocks`), clears the Fight Rush records
+  (`PlayerSettings.reset_rush_records`, phase 25, 8.21) and deletes a saved run. Settings, controls
+  and the Journal stay. A dev screen never wipes anything. The first question's detail is two lines
+  (`SettingsScreen.RESET_DETAIL`): "Relics and their levels, unlocked oaths, Rush records and a saved
+  run are wiped." / "Settings, controls and the Journal stay." (one line with the Rush records ran
+  past the screen at the larger text sizes; a test checks it fits at every size).
 - **Banking and Save & Quit**: Main banks the run's Relics when the map shows (the run saves), when a
   stop settles something (`_save_stop_progress`), and when the run ends (won, lost or abandoned).
   Quitting and continuing a stop replays it from its saved state, and the merge keeps the higher
@@ -4016,6 +4034,255 @@ Weather is presentation only: no rule changes (a rule touch may come later).
   `AUTOPLAY_WEATHER <zone> <weather>`.
 
 Tests: `tests/unit/test_weather.gd`.
+
+### 8.21 Fight Rush (phase 25, card #305, built 2026-10-24, waiting for playtest)
+
+Fight after fight for the furthest fight, with no map, zones, shops or campfires: the endless mode
+dropped in #267, back as its own mode next to the run. Main menu, New Run, **Fight Rush**. Local
+only for now; Fight Rush online is card #312, the next step. Branch `phase25-Together`.
+
+Owner decisions (2026-10-24):
+1. After every won fight the party picks 1 of 3 cards, shown side by side: Heal, Train (attribute
+   points) or an item. Relic cards come only after elite and boss fights.
+2. There is no free heal: Heal is a card. After every boss fight the whole party is fully healed. A
+   hero who went down in a won fight gets up at 1 HP (`run_downed_revive_hp`, as in a run).
+3. The party brings the Relic bag and the Echoes it has learned. Nothing from a Rush goes back: no
+   Relic banking, no Echo pips, no writes to `user://progress.json`. A Relic card lasts for that
+   Rush only.
+4. Fights get harder with every fight, with the depth growth a run uses per map row (one row per
+   fight). Every 5th fight is an elite and every 10th a boss; the bosses cycle (below). All numbers
+   live in `tuning.tres` and get tuned with bots.
+
+Defaults chosen while building (not asked; the owner may overrule each one, section 12):
+- **D1 (default)**: the level cap stays at 10. XP a hero earns past level 10 builds toward extra
+  reward picks, one per `rush_spare_pick_xp` (300); each fight counts the most any one hero earned
+  past the cap.
+- **D2 (default)**: no Oaths in a Rush. The players screen has no Oath row and a Rush plays at oath 0.
+- **D3 (default)**: one record per party size (Solo, Duo, Trio), each with its date. The record is the
+  highest fight the party *entered*; the size is the most players seen during that Rush.
+- **D4 (default)**: a Rush is played in one sitting: no Save & Quit, and it never touches the run save.
+  Giving up or closing the game still keeps the fight reached (the record is written as each fight
+  starts, and again when the Rush ends).
+- **D5 (default)**: no running away: `can_run` is off, so the Run button is hidden.
+- **D6 (default)**: New Run opens two picture cards side by side, **Run** and **Fight Rush** (7.5). The
+  Fight Rush card shows the best fight across all party sizes.
+- **D7 (default)**: the pause menu shows Give up in place of Abandon run. Giving up goes to the Rush end
+  screen.
+- **D8 (default)**: Settings > Reset progress also clears the Rush records (8.17).
+- **D9 (default)**: bot and dev Rushes never write records, and read none (they compare against none):
+  `--autoplay`, `--screen=`, `--rush-start` above 1, `--rush-fights`, `--relics=`, `--relics-path=`,
+  `--seed=`, a `fixed_seed` in tuning or a `--tuning=` file (`RushRecords.allowed`, pure, tested).
+- **D10 (default)**: Rush fights count in the Rot Journal (7.11), as run fights do.
+- **D11 (default)**: a flawless win shows a plain "FLAWLESS" chip with no reward. A Rush has no spoils.
+- **D12 (default)**: no pact (crossroads, 8.19) at the start of a Rush.
+- **D13 (default)**: weather (8.20): a normal or elite fight rolls its zone's weather (`WeatherData.pick`);
+  a boss fight rolls its own zone's. The Hollow King's throne has none. Fights never show lightning.
+- **D14 (default)**: card sets per fight kind: normal Heal, Train, Item; elite Heal, Train, Relic; boss
+  Train, Relic, Relic (no Heal: the boss heal already filled everyone; no item).
+- **D15 (default)**: extra picks (D1) always use the normal set (Heal, Train, Item), so Relics stay tied
+  to elites and bosses.
+- **D16 (default)**: monster variants (deep versions, 2.16) start at fight 21 (the Ruins tier). A run
+  uses them from map row 4; the Rush keeps fights 1 to 20 on the plain monsters so the first two
+  tiers teach them.
+- **D17 (default)**: enemy attack speed stops rising at fight 31: the game's speed floor (70%) keeps
+  every hit fair to press. After that only HP and power grow (tuning can raise their growth).
+- **D18 (default)**: Heal follows the campfire's Rest rules: Relics that change Rest change the Heal
+  card too (Rain Pouch more, Hunger Charm nothing). The boss heal is a full heal for everyone.
+- **D19 (default)**: the item card never offers keys or treasure (a Rush has no chests and no gold),
+  and Relic cards never offer gold Relics (Lucky Coin).
+- **D20 (default, for #312)**: online, a friend who joined after the Rush started writes no record for
+  that Rush.
+- **D21 (default)**: the Rush shows no gold anywhere (the strip, the party screen, the backpack's sell
+  chips, the win sound).
+
+**What the player sees.**
+
+- **New Run** opens the two cards (7.5). Run starts the old New Run flow unchanged (overwrite check,
+  tutorial and calibration offers, the players screen with Oaths). Fight Rush carries a gold star
+  chip "Best 16" once any record exists. It shows the calibration offer if it is due (never the
+  tutorial offer), then the players screen titled **Fight Rush** with no Oath row. A saved run is
+  never touched, and Continue still shows afterwards.
+- **The Rush screen** (`RushRewardScreen`, a `StopScreen`), ready phase: the title **FIGHT 8** and two
+  cards, **Fight** (crossed swords; a chip "Elite", or a skull "Boss", when the next fight is one) and
+  **Party** (three heads; a chip "+2 points" while attribute or skill points are unspent). Footer
+  Choose / Select / Party. A Rush opens here on FIGHT 1; a Relic bag holding Relics opens the party
+  screen on its Relics page first, as a run does (card #265). Y (`party_menu`) opens the party screen
+  in both phases.
+- **A fight**: the swirl, then the fight in its zone's look and air under its weather (D13). The start
+  banner reads **FIGHT 7** in gold, or **NEW BEST 17** once the fight passes the record this party
+  size held when the Rush began (when that record is above 0); a boss or guard keeps its name banner.
+  No Run button. Music: the fight, elite or boss song (a guard fought as the boss fight gets the boss
+  song).
+- **The fight's end** is the run's without gold: the XP and level-up rows, the streak chip, a
+  "FLAWLESS" chip, and the Relic slot line when a slot opens. The button hint reads **Rewards** after
+  a win and **Results** after a loss.
+- **Picks** (after a win): the title **REWARD**, a chip row (a sword "Fight 7" for the fight just won, a
+  star "Best 16" when a record exists, "+1 pick" while more than one pick is left), the party strip
+  (HP and levels, no gold), then the cards side by side (the table below). Heal: a heart "+40% HP"
+  and a dim chip per hero whose Relics change it ("Alder +0%"); greyed when no hero would gain HP.
+  Train: "+1 point" ("+N points" above 1). Item: its name and icon, a rarity chip and what it does
+  (as the shop's chips). Relic: its name and Relic icon, the tag "Lv 1" or "Lv 1 > 2", a rarity chip
+  and its effect. Footer Choose / Take / Party. An item or Relic goes through the usual hand-out
+  (`StopScreen.give`): a full pack, or a Relic nobody wears yet, opens the party screen over the Rush
+  screen with it in hand (leaving a full pack without room loses the item, as in a run). The cursor
+  starts on the first card that can be taken. After the last pick the screen turns to the ready
+  phase.
+- **Pause** (in a fight or on the Rush screen, not while a gift's party screen is open): the note under
+  PAUSED reads "Fight 7"; rows Continue, Players, Settings, Glossary, **Give up**. Give up asks
+  **Give up?** (no detail), yes **Give up**, no **Keep going**.
+- **The end** (a loss or Give up; `RunEndScreen.setup_rush`): **RUSH OVER** in red, a gold **NEW RECORD**
+  under it when this Rush beat its party size's record, then chips: a sword "Fight 16", a star "Best
+  16" with the record's date dim beside it, a person "Solo" / "Duo" / "Trio", and the heroes' faces
+  and levels. The killer row after a loss (not after Give up) and the defence rows; no Kept row
+  (nothing is kept). Footer **Again** (the Fight Rush players screen, same seats) / **Main menu**.
+  Music: the victory song on a new record, otherwise the defeat song.
+- **The party screen** in a Rush: the Relic slots' locks read "First elite" and "First boss"; an Echo
+  not learned yet reads "Runs only" (Echoes are learned in runs); no pips bar on the Relics, no Echo
+  learning row, no gold line.
+- **Local drop-in** works as in a run (9.3): the pause menu's Players row; in a fight the change waits
+  for a quiet moment, on the Rush screen it applies at once.
+
+**Fights.** Fight 1 is the first. A fight's depth is `(fight - 1) x rush_depth_per_fight_percent / 100`
+map rows (one per fight at 100), and its enemies grow with it as in a run (8.3): HP
+`100 + depth x (run_enemy_hp_row_percent 5 + rush_enemy_hp_step_add 0)` percent, power
+`100 + depth x (run_enemy_power_row_percent 3 + rush_enemy_power_step_add 0)`, attacks 1% faster per
+row (`run_enemy_tempo_row_percent`) down to `attack_tempo_floor_percent` (70), reached at fight 31
+(D17; the engine clamps every fight to that floor again, so a Rush cannot go under it). Then
+`rush_enemy_hp_percent` and `rush_enemy_power_percent` on top. Elite, guard and boss marks keep their
+usual extra HP, power and speed. Fight 1 has no mark hits (like a run's first zone). A boss fight
+grows only by the depth past its boss's `home_depth` (where a run meets it), and only while
+`rush_scale_bosses` is on. Each normal or elite fight is drawn from the tier it falls in (seeded,
+never the same fight twice in a row while there is a choice) and takes one of the tier's zones
+(seeded) for its look, air and weather:
+
+| Tier | From fight | Zones | Normal fights | Elites | Deep |
+|---|---|---|---|---|---|
+| Hollow | 1 | Rotten Hollow | its roamers (7) | act 1's elites (3) | no |
+| Bog | 11 | Sunken Bog | its roamers and act 1's ambushes (14) | act 1's elites (3) | no |
+| Ruins | 21 | Ashen Ruins | its roamers and act 2's ambushes (13) | act 2's elites (3) | yes |
+| Everything | 31 | all three | all of the above (23) | both acts' elites (4) | yes |
+
+The boss cycle: fights 10, 20, 30, 40 and 50, then again from 60. Each tier ends on its own zone's
+guard, the guards come before the Husk Lord, and the Hollow King (the hardest fight, #177) closes
+each cycle. In a deep tier a guard is fought as its deep version.
+
+| Boss | Fight | Encounter | Place | Home depth |
+|---|---|---|---|---|
+| 1 | 10 | The Gorged One (`guard_gorged_one`) | Rotten Hollow | 1 |
+| 2 | 20 | Mire Mother (`guard_mire_mother`) | Sunken Bog | 3 |
+| 3 | 30 | Ash Warden (deep, `deep_guard_ash_warden`) | Ashen Ruins | 9 |
+| 4 | 40 | The Husk Lord (`husk_lord_fight`) | Rotten Hollow, act 1's final look | 6 |
+| 5 | 50 | The Hollow King (`hollow_king`) | the Hollow Throne (act 2's final look), no weather | 13 |
+
+A boss fight pays at least `rush_boss_min_xp` (260; the Hollow King's own data pays 60), and every
+Rush XP gain is scaled by `rush_xp_percent`.
+
+**Rewards** (`RushState.roll_offer`, seeded by the fight and the pick number):
+
+| Fight just won | Cards, left to right |
+|---|---|
+| normal | Heal, Train, Item |
+| elite | Heal, Train, Relic |
+| boss (first pick) | Train, Relic, Relic (two different Relics) |
+| any extra pick (D1, D15) | Heal, Train, Item |
+
+- **Heal**: each hero heals `rush_heal_card_percent` (40) of max HP, changed by their Rest Relics (D18)
+  and the healing they receive, up to what they are missing.
+- **Train**: `rush_point_card_points` (1) attribute point for each hero.
+- **Item**: from the Rush's item list, only what the party still wants, weighted by rarity for the
+  depth. The list is the run's shop and found items that are supplies or upgrades and not rotten
+  (Antidote, Holy Water, Salve, Feast, Tonic, Bomb, Smelling Salts, Bigger Pack; no Key, no
+  treasure, no curse).
+- **Relic**: from the run's Relics the Rush can still gain (not at the top level), at least
+  `rush_relic_min_rarity` (1, rare) while there are such, never a gold Relic (D19) and never a
+  rot-touched one (a rot-touched Relic can still come from the bag). A copy raises its level for this
+  Rush.
+- A card that cannot be filled is left out. With every Relic at its top level an elite offers Heal and
+  Train, and a boss Train alone: one card is a plain confirm (the side-by-side rule is for two or
+  three choices).
+- After a boss everyone heals `rush_boss_heal_percent` (100: full); a downed hero first gets up at 1 HP.
+- Relic slots: `relic_slots_start` (1), a second after the first elite or boss win, and the third after
+  the first boss win (`run_gear_slots`, 3, at most).
+
+**Records** (`RushRecords`, pure, tested; `PlayerSettings`): in `user://settings.cfg`, section `[rush]`,
+keys `best_1`, `best_2`, `best_3`, each `{fight, date}`. The fight reached is written as each fight
+starts and again when the Rush is decided (lost or given up), under the most players seen
+(`RushState.most_players` only rises: a solo Rush that becomes a duo at fight 10 has written Solo up
+to 9 and Duo from 10 on; a duo that drops to solo stays Duo; a pad that joins during the last fight
+still counts). A record is kept only when it beats the old one. NEW RECORD and the NEW BEST banner
+measure against that party size's record as it was when the Rush began. The menu card shows the
+best of the three. Only Reset progress clears them (D8).
+
+**Nothing goes back** (decision 3): a Rush banks no Relics, fills no Echo pips (no drops, no mastery),
+writes nothing to `user://progress.json`, is never saved (`_save_allowed`) and never deletes a saved
+run (`_clear_run_save` is guarded). Oath unlocks never come from a Rush (it has no victory).
+
+**Built as.** `RushState` (`scripts/rush/rush_state.gd`) extends `RunState` (pure, no Node): the fight
+counter (the last fight entered, 0 before the first), fight kinds, tiers and the boss cycle, the
+offer, spare XP, the Rush counters for Relic slots, and its own "rush" block in `to_dict` (a run state
+refuses a Rush dict and the other way round: `RunState.mode()`). `RunState` gained small seams that
+change nothing for runs (`_start`, `mode`, `_fight_depth`, `_scales`, `shows_gold`, `teaches_echoes`,
+`xp_full`). Data: `RushData`, `RushTier`, `RushBoss` (`scripts/data/`) and `data/rush/fight_rush.tres`,
+written by `tools/bootstrap_rush.gd` from the run, its two acts and the three zones. Re-run the tool
+after a zone's roamers, an act's elites or ambushes, or the run's items change: `test_rush_data.gd`
+fails on stale data until then. Missing or broken data greys the Fight Rush card ("locked" on
+Confirm) and logs an error, never a crash. Main's flow is its "the Fight Rush" section (`_start_rush`
+to `_show_rush_end`). The card pictures (`choice_run`, `choice_rush`, `choice_heal`, `choice_fight`,
+`choice_party`) come from the art kit's `ui_choices.py`.
+
+Tuning (`tuning.tres`, group "Fight Rush"; the first values, not yet tuned with bots):
+
+| Field | Value | Meaning |
+|---|---|---|
+| `rush_depth_per_fight_percent` | 100 | map rows of depth each fight adds, in percent |
+| `rush_enemy_hp_step_add` | 0 | extra enemy HP points per depth step, on top of the run's 5 |
+| `rush_enemy_power_step_add` | 0 | the same for power, on top of the run's 3 |
+| `rush_enemy_hp_percent` | 100 | every Rush enemy's HP, after the depth growth |
+| `rush_enemy_power_percent` | 100 | every Rush enemy's power, after the depth growth |
+| `rush_scale_bosses` | true | boss fights (guards too) grow with the depth past their home depth |
+| `rush_elite_every` | 5 | every Nth fight is an elite (unless it is a boss fight) |
+| `rush_boss_every` | 10 | every Nth fight is the next boss of the cycle |
+| `rush_heal_card_percent` | 40 | the Heal card's share of max HP, before Rest Relics |
+| `rush_point_card_points` | 1 | attribute points the Train card gives each hero |
+| `rush_relic_min_rarity` | 1 | the lowest rarity a Relic card offers while the pool has such |
+| `rush_boss_min_xp` | 260 | a boss fight pays at least this XP |
+| `rush_xp_percent` | 100 | every Rush XP gain |
+| `rush_spare_pick_xp` | 300 | XP past the level cap for one extra pick (D1) |
+| `rush_boss_heal_percent` | 100 | the heal after a boss fight (100 = full) |
+
+**Dev and bot switches** (`AUTOPLAY_` lines only with `--autoplay`):
+- `--rush`: start a Fight Rush at once. With `--autoplay` the bot plays it: Heal when someone is hurt,
+  else the first Relic, else Train, else the item; on the ready phase it spends points, wears Relics
+  and presses Fight. `--players`, `--pad-join-after` and `--pad-leave-after` work as with `--run`.
+- `--rush-fights=N`: end the Rush after N fights (after the last fight's picks; `rush_capped`). Always
+  cap a bot Rush: a perfect bot may never lose.
+- `--rush-start=N`: a head start to fight N. It replays fights 1 to N-1 as perfect wins with the bot's
+  picks (XP, Train points, elite and boss Relics; no Heal or items), so it checks mechanics and
+  deep-play feel, never balance. Both switches imply `--rush`.
+- Lines: `Rush seed: S start: N`, `Rush fight N: <kind> <encounter> weather <id|clear>` and
+  `Rush pick: ...` (every Rush); the bot's `Rush offer: heal:40 point:1 item:salve fight=N` and
+  `Rush card: ...`; per fight `AUTOPLAY_RUSH fight= kind= enc= depth= enemy_hp= enemy_power= tempo=
+  result= party_hp= level= xp= picks= spare=` (`depth` is the depth the fight grew by: for a boss, the
+  depth past its home depth, so fight 50 prints 36); at the end the `AUTOPLAY_RECAP` lines (after a
+  loss), `AUTOPLAY_PLAYERS` and `AUTOPLAY_RESULT rush_<over|gave_up|capped> fight= wins= record= new=
+  players= level= relics= echoes= items= seed= start=` (`wins` leaves out the head start's; bots
+  read and write no records, so `record=0 new=0`).
+- Times (headless): 3 capped fights about 90 s, one head-start fight about 1 to 2 min (fight 50 the
+  longest); later fights take longer. Balance runs start at fight 1:
+  `--autoplay=average --bot-skill=60 --rush --rush-fights=15 --seed=1|2|3`, about 12 to 15 min each.
+- Dev screens: `--screen=rush_cards` (the New Run cards with Best 16), `rush_players`, `rush_reward`
+  (the picks after fight 7), `rush_reward_elite` (after fight 5), `rush_ready`, `rush_end` (a NEW
+  RECORD sample), `rush_pause`. None reads or writes a record.
+
+Tests: `tests/unit/test_rush.gd` (RushState, records, switches, dev screens), `test_rush_data.gd` (the
+data file: tiers, bosses, items, stale data, a 70-fight walk), `test_rush_screens.gd` (the Rush
+screen, the end screen, hints, the lobby title), and the New Run cards in `test_choice_cards.gd`,
+`test_save_menus.gd`, `test_branding.gd` and `test_menus_clean.gd` (10).
+
+**Known limits** (not bugs):
+- Local only until #312: Host Online still starts a run.
+- A Rush cannot be saved or continued (D4).
+- The numbers are the first values above; the balance runs have not been done yet.
 
 ## 9. Multiplayer (phase 5)
 
@@ -4408,6 +4675,13 @@ back first, as before. Once a seat is taken over its old token stops working.
   banked before the crash (at each map) stays theirs, the finds from their last map to their return
   do not.
 
+**In a Fight Rush** (phase 25, 8.21): local drop-in works as in a run. The pause menu (in a fight or on
+the Rush screen) has the Players row; in a fight the change waits for a quiet moment, on the Rush
+screen it applies at once. The Rush's record goes to the most players seen during it
+(`RushState.most_players`, counted at each fight start, at each roster change and when the Rush is
+decided), so a solo Rush a friend joins at fight 10 writes Duo from fight 10 on. Drop-in shuts when
+the Rush is decided. Online Rushes, and dropping into one, come with card #312.
+
 **Dev and bot switches** (debug builds; the `AUTOPLAY_` lines only with `--autoplay`):
 - `--pad-join-after=S`: a pretend pad joins the local run S seconds after launch, at the next quiet
   moment, through the same roster change as the overlay (`AUTOPLAY_ROSTER join p=2 device=1
@@ -4558,6 +4832,23 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
   `--crash-after=40` friend replaced by a `--join-after=75` one, and two newcomers at once all end
   with the same `AUTOPLAY_PLAYERS` and `AUTOPLAY_RESULT` lines on every machine still there, and a
   late joiner's `AUTOPLAY_MIRROR` lines equal the host's last ones.
+- Fight Rush (`test_rush.gd`, `test_rush_data.gd`, `test_rush_screens.gd`, phase 25, 8.21): the fight
+  counter, kinds, tiers and boss cycle, depth, HP, power and tempo per fight, deep versions from the
+  Ruins tier, boss growth past the home depth, the card sets and their fills (no Key, treasure, gold
+  or rot-touched Relic), Heal with Rest Relics, the boss heal, spare XP and extra picks, Relic slots,
+  the head start, the dict round trip and its refusals, the salts, `RushRecords` (buckets, better,
+  `allowed`), the switches and dev screens; the shipped data file (validate, the tier table, stale
+  data, a 70-fight walk); the Rush screen, the end screen, the end hints and the lobby title; the New
+  Run cards in `test_choice_cards.gd`, `test_save_menus.gd`, `test_branding.gd` and
+  `test_menus_clean.gd`. Bot checks (headless, `--quit-on-end`, at most 3 Godots at once, each capped
+  with `--rush-fights`; a good one prints `AUTOPLAY_RESULT rush_...` and no ERROR lines):
+  `--autoplay --rush --rush-fights=3 --seed=7` (`rush_capped fight=3 wins=3 record=0 new=0`, depth
+  0, 1, 2), `--autoplay=miss --rush --seed=7` (`rush_over fight=1`), `--rush-start=5 --rush-fights=1`
+  (an elite and a Relic card), `--rush-start=10 --rush-fights=1` (the Gorged One; Train, Relic,
+  Relic), `--rush-start=50 --rush-fights=1` (the Hollow King, `enemy_hp=280`, extra picks),
+  `--rush-start=21 --rush-fights=3` (deep versions, tempo 80, 79, 78), `--players=2`,
+  `--pad-join-after=50 --rush-fights=4` (`players=2`) and `--autoplay=escape --rush --rush-fights=1`
+  (no Run button, no hang). Never an uncapped Rush bot: a perfect bot may never lose.
 - Save & Quit smoke test: `--autoplay --run --seed=N --save-path=FILE`, stop it part way with a
   timeout, then `--autoplay --continue --quit-on-end --save-path=FILE`: the second run prints
   `Run continued: ...` and plays on from that stop. A finished run deletes FILE.
@@ -4760,10 +5051,13 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     a run already going, on a local pad from a Players row in the pause menu or online with nothing
     for the host to press, and takes a hero P1 or the host was playing; a friend whose game crashed
     drops back into their seat; a late online joiner keeps only later finds. Local friends leave or
-    swap heroes from the same overlay. Not built yet: Fight Rush, fight after fight for the best
-    round, no map, zones, shops or campfires (#305; it brings back the endless mode dropped in
-    #267), and Fight Rush online (#312); details to agree with the owner before building. Ideas:
-    Save & Quit for online runs (#313), online friends take turns choosing (#314).
+    swap heroes from the same overlay. Fight Rush (#305) is built too, waiting for playtest (8.21,
+    owner decisions and defaults agreed 2026-10-24): New Run opens Run / Fight Rush cards; fight
+    after fight for the furthest fight, no map, zones, shops or campfires, harder every fight, an
+    elite every 5th and a boss every 10th; after each win pick 1 of 3 cards (Heal, Train, an item;
+    Relics after elites and bosses); one record per party size; nothing goes back. It brings back
+    the endless mode dropped in #267. Next: Fight Rush online (#312). Ideas: Save & Quit for online
+    runs (#313), online friends take turns choosing (#314).
 
 ### 11.1 To-do (from playtests)
 
@@ -5014,3 +5308,9 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-23 | Defaults (owner may overrule): online drop-in is open while a seat is free and shut once the run is decided and during Again; the host's address shows in the online pause menu; a local leaver's heroes go to P1; at most 3 players; no Players row in the tutorial; the pre-run players screen keeps its left/right (no trade there) (9.3) | not asked; chosen while building phase 25, keeping the approved screens as they are |
 | 2026-10-23 | Default (owner may overrule): a newcomer may take an away seat only once it has been away 15 s (`net_takeover_after_ms`); this is how a friend whose game crashed comes back (9.3) | a Wi-Fi blip comes back with its token within seconds and must not lose its seat to a newcomer; a crashed game has no token |
 | 2026-10-23 | Default (owner may overrule): a crashed friend who comes back with a fresh game banks only what the run finds from their return; what they banked at earlier maps stays (9.3) | their token and their start lived in the crashed game's memory, so the host cannot tell them from a newcomer |
+| 2026-10-24 | Fight Rush (8.21): a mode next to the run, picked from New Run's two cards (Run / Fight Rush): fight after fight for the furthest fight, no map, zones, shops or campfires. Fight Rush brings back the endless mode dropped in #267 | owner (#305); it reuses the run's fights, party and Relics, so it needs no new monsters or places; online is its own card (#312) |
+| 2026-10-24 | After every won fight the party picks 1 of 3 cards side by side: Heal, Train (attribute points) or an item; Relic cards only after elite and boss fights (8.21) | owner decision 1 (#305) |
+| 2026-10-24 | No free heal in a Rush: Heal is a card; every boss fight ends with the whole party fully healed; a hero downed in a won fight gets up at 1 HP, as in a run (8.21) | owner decision 2 (#305) |
+| 2026-10-24 | A Rush brings the Relic bag and the learned Echoes; nothing goes back: no Relic banking, no Echo pips, no writes to `user://progress.json`; a Relic card lasts for that Rush only (8.21) | owner decision 3 (#305) |
+| 2026-10-24 | Rush fights get harder every fight with the run's depth growth per map row (one row per fight); every 5th fight an elite, every 10th a boss, the bosses cycle (three guards, the Husk Lord, the Hollow King); every number in `tuning.tres`, tuned with bots (8.21) | owner decision 4 (#305) |
+| 2026-10-24 | Defaults (owner may overrule, 8.21 D1 to D21): level cap 10, XP past it earns extra picks; no Oaths; one record per party size with its date, the size being the most players seen; one sitting, no save, the record written at each fight start; no running away; New Run's Run / Fight Rush cards with the best on the card; Give up in the pause menu; Reset progress clears the records; bots and dev switches never read or write records; Rush fights count in the Journal; FLAWLESS is a plain chip; no pact; zone weather, never lightning in fights; card sets per fight kind (boss: Train, Relic, Relic) and extra picks on the normal set; deep monsters from fight 21; attack speed stops rising at fight 31 (the 70% floor); Heal follows the Rest Relics; no keys, treasure or gold Relics on cards; online late joiners write no record (#312); no gold on any Rush screen | not asked; chosen while writing the build spec and checked against the code, keeping every approved screen and rule of the run as it is |

@@ -468,7 +468,7 @@ extends Resource
 @export_range(1, 5) var rush_point_card_points: int = 1
 ## The lowest rarity (0 common, 1 rare, 2 legendary) a Relic card offers while the pool still has some.
 @export_range(0, 2) var rush_relic_min_rarity: int = 1
-## A boss fight pays at least this much XP (the Hollow King's own data pays none).
+## A boss fight pays at least this much XP (the Hollow King's own data pays only 60).
 @export_range(0, 2000) var rush_boss_min_xp: int = 260
 ## Every Fight Rush XP gain, in percent.
 @export_range(1, 400, 1, "suffix:%") var rush_xp_percent: int = 100
