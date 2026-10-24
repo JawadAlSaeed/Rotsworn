@@ -3312,6 +3312,14 @@ static func _run_start_message(run: RunState, roster: PlayerRoster, late: bool) 
 	return {"mode": run.mode(), "seed": run.run_seed, "roster": roster.to_dict(), "oath": run.oath, "late": late}
 
 
+## Client, at a run_start: whether this friend got into the game after it started (default D20: no
+## Fight Rush record for it). A drop-in's catch-up says so (`said_late`; a friend whose game crashed
+## comes back this way, as a newcomer); a token rejoin of the same game (`same_game`, card #205) keeps
+## what it was (`was_late`); any other start is a new game, joined on time. Pure.
+static func _late_after_start(said_late: bool, was_late: bool, same_game: bool) -> bool:
+	return said_late or (was_late and same_game)
+
+
 ## The game a host's message is about: MODE_RUSH only when it says so, else MODE_RUN (a message from
 ## before the Fight Rush has no mode).
 static func _message_mode(p: Dictionary) -> String:
@@ -3473,26 +3481,36 @@ func _on_net_peer_rejoined(old_peer: int, new_peer: int) -> void:
 
 
 ## Host: sends a player who got in mid-run (back with a token, card #205, or dropping in, #304) the
-## run and where it is now: run_start (`late`: a drop-in, whose Relics count from now), the place
-## screen, the fight going on (rejoin flag) and in a fight its resume at the next quiet moment.
+## run and where it is now (_catch_up_messages), and in a fight its resume at the next quiet moment.
 ## Their heroes come later, when their machine says it caught up (_on_seated_ready).
 func _catch_up(peer: int, late: bool) -> void:
 	var mid_fight := not _net_fight.is_empty() and _combat != null
-	# The mode travels too: a friend who gets into a Fight Rush builds one (card #312).
-	Net.send_to(peer, "run_start", _run_start_message(_run, _players, late))
-	var run := _run.to_dict()
-	if not _net_place.is_empty():
-		var place := _net_place.duplicate()
-		place["run"] = run
-		Net.send_to(peer, "screen", place)
-	# A fight that is over is still sent: the zone_back that follows needs it built there.
-	if not _net_fight.is_empty():
-		var fight := _net_fight.duplicate()
-		fight["run"] = run
-		fight["rejoin"] = mid_fight
-		Net.send_to(peer, "screen", fight)
+	for message: Dictionary in _catch_up_messages(_run, _players, late, _net_place, _net_fight, mid_fight):
+		Net.send_to(peer, String(message.kind), message.payload as Dictionary)
 	if mid_fight:
 		_combat.queue_resume(peer)
+
+
+## The messages that catch a player up, in order, each {kind, payload}: run_start (which game, so a
+## friend who gets into a Fight Rush builds one, card #312; `late`: a drop-in, whose Relics count from
+## now and who writes no Rush record), the place screen last sent (`place`: a map, a stop, the Rush
+## screen) and the fight that followed it (`fight`; `mid_fight`: it is built here, so a resume
+## follows). Each screen carries the whole state. Pure.
+static func _catch_up_messages(run: RunState, roster: PlayerRoster, late: bool, place: Dictionary,
+		fight: Dictionary, mid_fight: bool) -> Array[Dictionary]:
+	var messages: Array[Dictionary] = [{"kind": "run_start", "payload": _run_start_message(run, roster, late)}]
+	var state := run.to_dict()
+	if not place.is_empty():
+		var screen := place.duplicate()
+		screen["run"] = state
+		messages.append({"kind": "screen", "payload": screen})
+	# A fight that is over is still sent: the zone_back that follows needs it built there.
+	if not fight.is_empty():
+		var screen := fight.duplicate()
+		screen["run"] = state
+		screen["rejoin"] = mid_fight
+		messages.append({"kind": "screen", "payload": screen})
+	return messages
 
 
 ## Host, before Net welcomes a newcomer into the run (card #304): "" to let them in, else why not.
@@ -3812,7 +3830,7 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			# The same game again: our seat taken back mid-game (card #205).
 			var same_game := _own_start_seed == start_seed
 			# A friend who dropped into this Rush stays late through a rejoin of the same Rush (D20).
-			_rush_late = bool(p.get("late", false)) or (_rush_late and same_game)
+			_rush_late = _late_after_start(bool(p.get("late", false)), _rush_late, same_game)
 			if _own_start == null or not same_game:
 				_own_start = RelicFile.load_or_empty(_relics_path()) if _client_relics_ok() else null
 				_own_start_seed = start_seed

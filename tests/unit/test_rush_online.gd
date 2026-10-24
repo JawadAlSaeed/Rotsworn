@@ -247,10 +247,188 @@ func test_a_late_friend_keeps_no_record() -> void:
 	assert_true(late.late)
 	assert_string_contains(_body("func _rush_records_ok("), "Net.is_client() and (_rush_late or Net.joined_mid_run)")
 	var start := _body("func _client_message(")
-	assert_true(start.contains("_rush_late = bool(p.get(\"late\", false)) or (_rush_late and same_game)"),
+	assert_true(start.contains("_rush_late = _late_after_start(bool(p.get(\"late\", false)), _rush_late, same_game)"),
 			"late from the catch-up, kept through a rejoin of the same Rush")
 	assert_string_contains(_body("func _forget_own_start("), "_rush_late = false")
 	assert_true(_body("func _note_rush_record(").contains("if not Net.is_client():"), "the host counts the players")
+
+
+# --- getting in mid-Rush: drop-in, rejoin, a crashed friend's seat (h2) --------------------------
+
+## The host's Rush `r` after its picks, on to the next fight (the state the fight's screen carries).
+static func _picked_and_on(r: RushState) -> RushState:
+	while r.picking():
+		var got := r.take_card(r._bot_card())
+		if got.give is GearData:
+			r.add_relic(got.give as GearData)
+		elif got.give is ItemData:
+			r.add_item(got.give as ItemData)
+		r.next_offer()
+	r.next_fight()
+	return r
+
+
+## What a friend's machine makes of the catch-up messages: the game run_start builds, then each
+## screen's state applied in order (as the client's pump does). Null when run_start builds nothing.
+func _friend_after(messages: Array[Dictionary]) -> RunState:
+	var start := _sent(messages[0].payload as Dictionary)
+	var game: RunState = _main.call("_client_game", _main.call("_message_mode", start), _rush.run, _rush, _tuning,
+			int(start.seed), int(start.oath))
+	if game == null:
+		return null
+	for message: Dictionary in messages.slice(1):
+		var screen := _sent(message.payload as Dictionary)
+		assert_true(game.apply_dict(screen.run as Dictionary), "%s fits the friend's game" % screen.name)
+	return game
+
+
+## A friend who drops into a Rush fight (or comes back to it with their seat's token) gets run_start
+## for a Rush, the Rush screen the fight began from, then the fight itself as a resume, every screen
+## with the whole state: their machine builds the host's fight, never the next one.
+func test_a_friend_who_gets_in_mid_fight_gets_the_hosts_rush_fight() -> void:
+	var host := _picked_and_on(_won(5))
+	host.note_players(2)
+	var place := {"name": "rush_reward"}
+	var fight := {"name": "rush_fight", "seed": 321}
+	var messages: Array[Dictionary] = _main.call("_catch_up_messages", host, _online_two(), true, place, fight, true)
+	var kinds: Array[String] = []
+	for message: Dictionary in messages:
+		kinds.append(String(message.kind))
+	assert_eq(kinds, ["run_start", "screen", "screen"] as Array[String])
+	var start := messages[0].payload as Dictionary
+	assert_eq(start.mode, "rush", "the friend builds a Rush")
+	assert_true(bool(start.late), "a drop-in's catch-up: no record for this Rush (D20)")
+	var shown := messages[1].payload as Dictionary
+	assert_eq(shown.name, "rush_reward")
+	assert_has(_const("WATCHED_SCREENS") as Array, shown.name)
+	var in_fight := _sent(messages[2].payload as Dictionary)
+	assert_eq(in_fight.name, "rush_fight")
+	assert_has(_const("NET_FIGHT_SCREENS") as Array, in_fight.name)
+	assert_eq(int(in_fight.seed), 321, "the host's fight seed")
+	assert_true(bool(in_fight.rejoin), "built on the host: the fight comes as it stands (a resume)")
+	assert_false(place.has("run") or fight.has("run"), "the kept screens are not changed")
+	var friend := _friend_after(messages) as RushState
+	assert_not_null(friend, "a Rush on the friend's machine")
+	if friend == null:
+		return
+	assert_eq(friend.to_dict(), host.to_dict(), "the same Rush as the host's")
+	assert_eq(friend.fight, 6)
+	assert_eq(friend.encounter_now(), host.encounter_now(), "the same fight")
+	assert_eq(friend.weather_now(), host.weather_now())
+	assert_eq(friend.most_players, 2, "the most players seen comes from the host")
+	var rejoin: Array[Dictionary] = _main.call("_catch_up_messages", host, _online_two(), false, place, fight, false)
+	assert_false(bool((rejoin[0].payload as Dictionary).late), "a token rejoin is on time")
+	assert_false(bool((rejoin[2].payload as Dictionary).rejoin), "a fight announced, not built yet: it starts there")
+
+
+## On the Rush screen there is no fight to send: the friend watches the host's picks, same cards.
+func test_a_friend_who_gets_in_on_the_rush_screen_watches_the_picks() -> void:
+	var host := _won(3)
+	assert_true(host.picking(), "the host is choosing")
+	var messages: Array[Dictionary] = _main.call("_catch_up_messages", host, _online_two(), true,
+			{"name": "rush_reward"}, {}, false)
+	assert_eq(messages.size(), 2, "run_start and the Rush screen")
+	assert_eq((messages[1].payload as Dictionary).name, "rush_reward")
+	var friend := _friend_after(messages) as RushState
+	assert_not_null(friend)
+	if friend == null:
+		return
+	assert_true(friend.picking())
+	assert_eq(friend.offer, host.offer, "the same cards")
+	assert_eq(friend.picks_left, host.picks_left)
+	# The Rush is over (given up or lost) while a seat comes back: RUSH OVER shows there.
+	host.give_up()
+	var over: Array[Dictionary] = _main.call("_catch_up_messages", host, _online_two(), false, {"name": "rush_end"}, {}, false)
+	var ended := _friend_after(over) as RushState
+	assert_not_null(ended)
+	if ended != null:
+		assert_true(ended.is_over())
+		assert_eq(ended.result, host.result)
+		assert_eq(ended.reached(), host.reached(), "the same fight reached")
+
+
+## Who gets in late (default D20, no record): a drop-in's catch-up says so, a friend whose game
+## crashed comes back that way too (a newcomer), a token rejoin keeps what it was, a new Rush clears it.
+func test_late_follows_the_friend_through_a_rejoin_of_the_same_rush() -> void:
+	var cases := [
+		# [said late, was late, same game, late now, what]
+		[false, false, false, false, "there from the start"],
+		[true, false, false, true, "dropped in"],
+		[true, false, true, true, "a crashed friend's machine starting over in its old seat"],
+		[false, true, true, true, "dropped in, then back with the seat's token"],
+		[false, false, true, false, "there from the start, back with the token"],
+		[false, true, false, false, "late last Rush, on time in this one"],
+	]
+	for c: Array in cases:
+		assert_eq(_main.call("_late_after_start", c[0], c[1], c[2]), c[3], String(c[4]))
+	assert_string_contains(_body("func _client_message("),
+			"_rush_late = _late_after_start(bool(p.get(\"late\", false)), _rush_late, same_game)")
+	assert_string_contains(_body("func _on_net_peer_rejoined("), "_catch_up(new_peer, false)")
+	assert_string_contains(_body("func _seat_newcomer("), "_catch_up(peer, true)")
+	assert_string_contains(_body("func _catch_up("), "_catch_up_messages(_run, _players, late, _net_place, _net_fight, mid_fight)")
+	# The record baseline is read once per Rush: a seat taken back keeps it (the record written before
+	# the drop must not become the one to beat).
+	assert_string_contains(_body("func _client_message("), "if _run is RushState and not same_game:")
+
+
+## The host lets friends into a Rush that goes on, up to a free seat (an away seat is always its
+## player's), and shuts the door once the Rush is decided.
+func test_drop_in_follows_the_rush() -> void:
+	var main: Node = _main.new()
+	autofree(main)
+	var rush := _picked_and_on(_won(2))
+	main.set("_run", rush)
+	var alone := PlayerRoster.online(_rush.run.party.size(), HOST, HOST)
+	main.set("_players", alone)
+	assert_eq(main.call("_drop_in_refusal", 0), "", "a Rush going on takes a newcomer")
+	var full := PlayerRoster.online(_rush.run.party.size(), HOST, HOST)
+	full.join_peer(PEER_A)
+	full.join_peer(PEER_A + 1)
+	main.set("_players", full)
+	assert_eq(main.call("_drop_in_refusal", 0), JoinGate.REASON_FULL, "every hero has a player")
+	assert_eq(main.call("_drop_in_refusal", PEER_A), "", "an away seat goes to the friend coming back for it")
+	main.set("_decided_run", rush)
+	assert_eq(main.call("_drop_in_refusal", PEER_A), JoinGate.REASON_CLOSED, "decided: nobody gets in")
+	main.set("_decided_run", null)
+	rush.give_up()
+	assert_eq(main.call("_drop_in_refusal", 0), JoinGate.REASON_CLOSED, "over: nobody gets in")
+	assert_string_contains(_body("func _new_rush("), "_set_drop_in(true)")
+	assert_string_contains(_body("func _close_decided_rush("), "_set_drop_in(false)")
+
+
+# --- Again (h2) ----------------------------------------------------------------------------------
+
+## Again after an online Rush: the host's players screen is the Fight Rush one again, with the same
+## seats (a friend who dropped in keeps theirs; one still away is let go), and every friend's machine
+## follows it there, on time for the next Rush.
+func test_again_goes_back_to_the_rush_players_screen_with_the_same_seats() -> void:
+	var roster := _online_two()
+	var late := roster.join_peer_midrun(PEER_A + 1)
+	assert_gt(late, 0, "a friend dropped in")
+	roster.set_joining(PEER_A + 1)
+	roster.set_back(PEER_A + 1)
+	var again := _sent(_main.call("_lobby_message", roster, 0, _const("MODE_RUSH")) as Dictionary)
+	assert_eq(_main.call("_message_mode", again), "rush", "the Fight Rush players screen")
+	var friend := PlayerRoster.from_dict(again.roster as Dictionary, PEER_A + 1)
+	assert_not_null(friend)
+	if friend == null:
+		return
+	assert_true(friend.same_as(roster), "the same seats")
+	assert_eq(friend.player_count(), 3)
+	assert_eq(friend.heroes_of(late), roster.heroes_of(late), "the friend who dropped in keeps their hero")
+	var play_again := _body("func _play_again(")
+	var mode_at := play_again.find("_mode = MODE_RUSH if was_rush else MODE_RUN")
+	assert_gt(mode_at, -1, "Again is for the same game")
+	assert_lt(mode_at, play_again.find("if Net.is_client():"), "on every machine")
+	assert_lt(play_again.find("Net.seats.remove(peer)"), play_again.find("_show_host_lobby()"), "a friend still away is let go")
+	assert_lt(play_again.find("_show_host_lobby()"), play_again.find("Net.broadcast(\"again\""))
+	assert_string_contains(play_again, "_forget_own_start()")
+	assert_string_contains(play_again, "_show_rush_lobby()")
+	var message := _body("func _client_message(")
+	var again_branch := message.substr(message.find("\"again\":"), message.find("\"run_start\":") - message.find("\"again\":"))
+	for line: String in ["_forget_own_start()", "Net.joined_mid_run = false", "_mode = again_mode"]:
+		assert_string_contains(again_branch, line)
+	assert_string_contains(_body("func _forget_own_start("), "_rush_late = false")
 
 
 # --- the players screens -------------------------------------------------------------------------

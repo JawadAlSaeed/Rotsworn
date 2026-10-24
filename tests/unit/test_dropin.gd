@@ -540,12 +540,11 @@ func test_join_after_switch() -> void:
 
 func test_late_flag_only_from_a_drop_in_catch_up() -> void:
 	var source := FileAccess.get_file_as_string(MAIN_PATH)
-	var start := source.find("func _catch_up(")
-	assert_gt(start, -1, "main.gd has _catch_up")
-	var end := source.find("\nfunc ", start + 1)
-	var body := source.substr(start, end - start if end > start else -1)
-	# The message is built in one place (card #312 added the mode); only _catch_up passes a real late.
-	assert_true(body.contains("_run_start_message(_run, _players, late)"), "run_start says late only from _catch_up")
+	# The message is built in one place (card #312 added the mode); only _catch_up passes a real late,
+	# through the catch-up's message list.
+	assert_true(_body(source, "func _catch_up(").contains("_catch_up_messages(_run, _players, late,"),
+			"run_start says late only from _catch_up")
+	assert_true(_body(source, "static func _catch_up_messages(").contains("_run_start_message(run, roster, late)"))
 	assert_true(_body(source, "static func _run_start_message(").contains("\"late\": late"))
 	for header: String in ["func _new_run(", "func _new_rush("]:
 		assert_true(_body(source, header).contains("_run_start_message(") and _body(source, header).contains(", false)"),
