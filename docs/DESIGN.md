@@ -4732,6 +4732,23 @@ open normally; the Rush keeps its normal openings. How it is built: "As built (#
 - A Fight stop is never announced while a transition is under way (`_fade_to` would not build its
   fight, and the friends would wait for a fight that never comes).
 
+### 8.23 Three acts and the Leech Queen (phase 26, card #323, decided 2026-10-24)
+
+The owner: three acts, "the standard in roguelites", then the balance talk (#321). One place per act,
+in the order of the story line "forests to husks, rivers to bog, cities to ash":
+- **Act 1, The Rotten Road**: Rotten Hollow only. Boss: The Husk Lord (as now).
+- **Act 2 (new), in the Sunken Bog**: boss **The Leech Queen** (new; the owner picked her over the
+  Mire Saint, partly because the game has few female enemies). A pale, crowned queen whose body ends
+  in a giant leech, coiled in black water. Her bites drink HP (she heals by part of the damage they
+  deal), her tail sweeps must be dodged, black-water waves must be jumped, and she fights with small
+  leeches at her side. Phase two at half HP, a Signature Doom (8.6), her own lair look, her own map
+  picture for the act's boss stop, the boss song and rage.
+- **Act 3, The Ashen Deep**: Ashen Ruins only, deep (2.16). Boss: The Hollow King (the run's end).
+- Each act's elites, events and ambushes come from its own place where they can; the Rush's boss
+  cycle takes the Leech Queen in too (8.21).
+- Later ideas, not built: a boss pool per act that rotates between runs like Slay the Spire (#324,
+  first extra idea the Mire Saint), and one special rule ("gimmick") for each act boss (#325).
+
 ## 9. Multiplayer (phase 5)
 
 ### 9.1 Local co-op (phase 5 Part A, done)
@@ -5814,3 +5831,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Zone stops become Fight stops (one seeded fight from the place's monsters), guards get a Guard row (row 1) per act, shrines and wanderers become priced "?" events, chests and the Key go (8.22, defaults G1 to G8) | built while the owner slept; each default may be overruled in the talks #321 and #322 |
 | 2026-10-24 | The walkable zones are removed for good (#319): their code, data, tools, tests, 3D pieces and art go; a place keeps its look, air, weathers, Fight stop monsters and guard, and still names its song and loop; the zone songs, ambience and sound cues stay unused (8.22 As built); saves of format 2 are kept but refused too (`RunSave.FORMAT_VERSION` 3), since their packs could hold the Key | 8.22 G3, G6 to G8; no dead zone code or data left behind |
 | 2026-10-24 | First Strike is a press (#320): a Fight stop's fight opens with one skill press ring on the place's name card; GOOD or PERFECT gives First Strike, anything else a normal start; any local player may press, online only the host's press decides and the friends watch; guards, elites, ambushes, bosses and the Rush open normally (8.22, defaults F1 to F10) | 8.22 "The First Strike press"; built while the owner slept, judged from input stamps outside the core like every press; `Net.PROTOCOL` stays 5 |
+| 2026-10-24 | Three acts, one place each (Hollow, Bog, Ruins); a new act 2 boss, the Leech Queen (8.23, #323); boss pools (#324) and boss gimmicks (#325) are ideas for later | owner: three acts are the roguelite standard; few female enemies so far |
