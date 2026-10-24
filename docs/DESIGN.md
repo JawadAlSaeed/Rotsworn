@@ -2476,7 +2476,8 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   Settings: the title and section tabs are pinned at the top; lines under rows are four words at
   most; Controls has a Keyboard page and a Controller page (#277: opens on the device in use, LT/RT
   or left/right switch, each page its own Reset; bindings drawn as button pictures, `ButtonChip`);
-  the lag row says Keys / Pad / Default, never ms; the Training ring row only in debug builds. Lag
+  the lag row says Keys / Pad / Default, never ms; the Training ring row only in debug builds; Take
+  turns (online, the host's: friends choose too, card #314) is ON / OFF. Lag
   calibration: beat pips, the device picture, a steadiness meter that turns green when it can save,
   a "Too uneven" chip; ms only with F1 open; the offer says "About N seconds" from the data. Join
   Online: a footer hint bar (Connect / Back, Rejoin after a lost connection), no networking
@@ -4379,10 +4380,11 @@ rest, as in an online run (9.2). Nothing goes back on any machine (decision 3).
   weather) and the Rush screen and the end (`rush_reward`, `rush_end`, watched screens). Picks,
   Relics, the fight counter and any head start come from the host. A friend whose game lacks the
   Rush data leaves with "Could not start the game".
-- **The Rush screen**: the host picks the cards and presses Fight (P1 makes the choices, 9.2).
-  Friends see "The host is choosing (P1)" and every card greyed but Party in the ready phase (the
+- **The Rush screen**: each reward pick is a turn (9.2 "Taking turns", card #314): the player whose
+  turn it is takes the card; the ready phase's Fight is pressed by whoever took the last pick.
+  Everyone else sees the whose-turn chip and every card greyed but Party in the ready phase (the
   cursor starts on it; Confirm opens the party screen, which closes back to the Rush screen), footer
-  Party only. A friend's change to the party (points, Relics) redraws the host's Rush screen
+  Party only. With Take turns off, the host picks every card and presses Fight, as before. A friend's change to the party (points, Relics) redraws the host's Rush screen
   (`Main._apply_bag_op`).
 - **Give up is the host's** (D7): the host's pause row reads **Give up** ("The Rush ends for
   everyone.") while the Rush goes on, and RUSH OVER shows on every machine. Friends only have Leave.
@@ -4844,11 +4846,45 @@ in the order of the story line "forests to husks, rivers to bog, cities to ash":
   as a "screen" message with the whole `RunState.to_dict()` (gear by id; the map comes from the
   seed); any later change of the run (a purchase, gear, a level) is sent as "run". Clients only
   show: their map, shop, rest, loot, party and end screens are the same screens fed with the
-  host's state, input off, with "The host is choosing (P1)" on top. Messages that arrive during a
-  client's transition wait for it. Approved 2026-10-12: P1 (the host) makes the run choices. A
+  host's state, with a whose-turn chip on top; the run's choices go in turns (below, card #314;
+  until then P1, the host, made every choice, approved 2026-10-12). Messages that arrive during a
+  client's transition wait for it. A
   Fight Rush (card #312, 8.21) goes the same way: `run_start` says `mode` "rush", the Rush fight is
   a fight screen (`rush_fight`), the Rush screen and its end are watched screens, each with the whole
   `RushState`.
+- **Taking turns** (card #314, built 2026-10-25; `Net.PROTOCOL` 6). Online, the run's choices pass
+  from player to player. Each new choice screen (one map step, one stop's screen, one spoils pick, one
+  Fight Rush pick) belongs to the next seated player in seat order (P1, P2, P3, then P1 again),
+  skipping a seat that is away or still joining. The first one (the pact, else the first map) is
+  P1's. The same screen shown again (a result, a restock, a redraw after a party change) keeps its
+  owner. A Fight Rush's ready phase stays with whoever took the last pick: they press Fight.
+  - The host stays the referee (`ChoiceTurns`, `scripts/net/`, pure, tested). Each choice screen's
+    message carries `turn` `{key, peer, player}`. On the owner's machine the screen takes their pad
+    and each choice goes to the host as a `choice` `{key, choice: {do: ...}}`; the host makes it only
+    when it comes from the owner's machine for the screen up now (the key) and the screen can take
+    it (`Main._make_choice`), exactly as if pressed there, during a transition after it ends.
+    Everything else is dropped. What came of it goes out as usual (a new screen, the whole state).
+  - Everyone else watches: the cards are greyed and only pause works, as a friend's screen always
+    did (the host's too now). A chip top-left shows whose turn it is: a person sign and the
+    player's tag (P2) in their colour, no sentence, on every machine while two or more play.
+  - The party screen stays everyone's, as before: anyone opens it from the map or the Rush screen at
+    any time. The host's own look at the party on a friend's turn is no longer sent to the friends
+    (the owner keeps choosing); a friend's choice made meanwhile closes it first.
+  - A find with no room in the pack on a friend's turn (an event's prize, a chest, a purchase, a
+    Rush item) is handed to them (`gift`): their backpack opens over their screen with it in hand,
+    and where they put it comes back as a `hand_out` bag op (pocket, combine, swap, fit, leave; a
+    shop purchase left behind gives its gold back). A new Relic nobody wears waits in the bag on a
+    friend's turn (any party screen puts it on). The spoils' party screen after a pick stays the
+    host's, as before.
+  - The owner drops (away) or leaves: the turn passes to the next seated player at once (`turn`
+    message), the screen stays and lights up there; a find in their hands follows the turn.
+  - **Take turns** (Settings, Game, default ON; `PlayerSettings.take_turns`, saved per machine):
+    only the host's counts, read at each new choice screen. OFF, the host makes every choice (the
+    old way; the chip shows P1).
+  - The bot plays only its own turns. A friend's bot asks the host like a player and asks again
+    while the host cannot take it yet. The host prints `Turn: P2 <key>` for each new turn,
+    `Choice: P2 <what> key=<key>` (and `AUTOPLAY_CHOICE`) for each friend's choice it made, and
+    `Choice refused: ...`; the friend prints `Choice asked: P2 <what> key=<key>`.
 - **Fight and Guard stops** (phase 26, 8.22; `Net.PROTOCOL` 5): the host sends a `stop_fight`
   screen with the fight's seed, and each client builds the fight, its weather and its drop from the
   run state alone, as for an Elite stop; it is a fight screen (`NET_FIGHT_SCREENS`), so a friend who
@@ -5085,7 +5121,7 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
 - **Catching up**: the newcomer's Join screen says "Joining the game ...". The host sends
   `run_start` (with `late`), the place screen with the whole run, and the fight if one is on, even
   one that just ended (`Main._catch_up`). The friend then sees where the host is: a watched run
-  screen ("The host is choosing (P1)") or the fight as it stands at the next hero's turn (the #205 resume).
+  screen (with the whose-turn chip; the turn rides on the place screen, 9.2) or the fight as it stands at the next hero's turn (the #205 resume).
 - **The two-step hand-over**: the hero becomes theirs only once their own screen shows the game.
   1. In a fight the host sends the resume at the next quiet moment (a hero's turn or the end),
      never mid-attack.
@@ -5339,6 +5375,14 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
   `--rush-start=21 --rush-fights=3` (deep versions, tempo 80, 79, 78), `--players=2`,
   `--pad-join-after=50 --rush-fights=4` (`players=2`) and `--autoplay=escape --rush --rush-fights=1`
   (no Run button, no hang). Never an uncapped Rush bot: a perfect bot may never lose.
+- Taking turns online (`test_take_turns.gd`, card #314, 9.2): the seat order, a skipped away or
+  joining seat, the same screen keeping its owner, a drop or a leave passing the turn, Take turns
+  off, each screen's key (a Rush pick each, Fight with the last), the host making a friend's choice
+  only for the owner on the screen up now, a refused choice, a friend's screen asking and changing
+  nothing, a find handed to the friend and placed through the host. Bot pair (headless, `timeout
+  2700` each): host `--autoplay --run --host=2 --seed=7 --quit-on-end`, friend `--autoplay --run
+  --join=127.0.0.1 --quit-on-end`; the same `AUTOPLAY_RESULT` and `AUTOPLAY_MIRROR` lines, and the
+  host's `AUTOPLAY_CHOICE P2 ...` lines for the friend's own turns.
 - Fight Rush online (`test_rush_online.gd`, card #312, 8.21): the mode in `lobby`, `again` and
   `run_start`, protocol 4, a friend building the host's Rush, fights and watched screens, the host's
   Give up and End the game, the records verdict and the late rule, catch-up mid-fight and on the Rush
@@ -5841,3 +5885,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | First Strike is a press (#320): a Fight stop's fight opens with one skill press ring on the place's name card; GOOD or PERFECT gives First Strike, anything else a normal start; any local player may press, online only the host's press decides and the friends watch; guards, elites, ambushes, bosses and the Rush open normally (8.22, defaults F1 to F10) | 8.22 "The First Strike press"; built while the owner slept, judged from input stamps outside the core like every press; `Net.PROTOCOL` stays 5 |
 | 2026-10-24 | Three acts, one place each (Hollow, Bog, Ruins); a new act 2 boss, the Leech Queen (8.23, #323); boss pools (#324) and boss gimmicks (#325) are ideas for later | owner: three acts are the roguelite standard; few female enemies so far |
 | 2026-10-24 | Guards merged into Elite stops: an Elite stop holds an elite group or its place's guard; no Guard stop or guard row (8.22) | owner: lower confusion; guards had no job without zones |
+| 2026-10-25 | Online the run's choices go in turns (9.2 "Taking turns", card #314): each new choice screen (a map step, a stop, a spoils pick, a Rush pick) is the next seated player's, skipping away and joining seats; the host referees (a friend's choice is a request checked against the turn and the screen); a whose-turn chip (person sign and tag); a drop passes the turn; a find with no room is handed to the owner; the Rush's Fight is the last picker's; Settings, Game, Take turns (default on, the host's) keeps the old way; `Net.PROTOCOL` 6 | card #314; the party screen stays everyone's as before; a new Relic on a friend's turn waits in the bag and the spoils' party screen stays the host's (defaults) |
