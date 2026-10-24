@@ -121,26 +121,22 @@ reach = 3.5
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(-8, 0, -3)
-solid_radius = 0.6
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_4"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rotten_tree.png"
 position = Vector3(8.8, 0, -4)
 flip = true
-solid_radius = 0.6
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_5"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/dead_tree.png"
 position = Vector3(-5.5, 0, -6.5)
-solid_radius = 0.4
 
 [sub_resource type="Resource" id="Resource_zone_prop_data_6"]
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/pillar.png"
 position = Vector3(1.5, 0, -6.5)
-solid_radius = 0.45
 piece = ExtResource("pc_pillar")
 rotation_y_degrees = -130.1
 
@@ -148,7 +144,6 @@ rotation_y_degrees = -130.1
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/pillar.png"
 position = Vector3(-1.8, 0, -7.8)
-solid_radius = 0.45
 piece = ExtResource("pc_pillar")
 rotation_y_degrees = -61.1
 
@@ -156,7 +151,6 @@ rotation_y_degrees = -61.1
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rock.png"
 position = Vector3(7, 0, -0.5)
-solid_radius = 0.7
 piece = ExtResource("pc_rock")
 rotation_y_degrees = 95.9
 
@@ -165,7 +159,6 @@ script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/rock.png"
 position = Vector3(-7.5, 0, 1.5)
 flip = true
-solid_radius = 0.7
 piece = ExtResource("pc_rock")
 rotation_y_degrees = 72.1
 
@@ -173,7 +166,6 @@ rotation_y_degrees = 72.1
 script = ExtResource("2_zone_p")
 sprite_path = "res://assets/sprites/env/lamp.png"
 position = Vector3(-4.2, 0, -4.6)
-solid_radius = 0.25
 glow = 1.6
 glow_color = Color(1, 0.75, 0.4, 1)
 piece = ExtResource("pc_lamp")

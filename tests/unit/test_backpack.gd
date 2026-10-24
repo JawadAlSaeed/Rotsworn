@@ -2,15 +2,13 @@ extends GutTest
 ## The pack (DESIGN.md 8.1, 8.19, card #282): Alder's pack with pockets, one item each whatever
 ## its shape; the first free pocket; items go and come back the same as plain data, and an old grid
 ## save turns into pockets; the run's ops (move, drop, use, gear swaps) work and refuse what no
-## longer fits; treasure turns into gold; finds and drops are seeded; the shipped items, icons and
-## glinting spots are sound; the party screen settles what is in hand. Uses the shipped run with Tuning.new() for the rules (every Relic slot open: the slots
-## have their own tests in test_relics.gd).
+## longer fits; treasure turns into gold; drops are seeded; the shipped items and icons are sound,
+## and no list hands out the retired Key; the party screen settles what is in hand. Uses the shipped
+## run with Tuning.new() for the rules (every Relic slot open: the slots have their own tests in
+## test_relics.gd).
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 const RUN_PATH := "res://data/runs/rotten_road.tres"
-## The Key's file stays (the run's retired_items keep it known for saved packs), but no run hands
-## one out.
-const KEY_PATH := "res://data/items/key.tres"
 
 var _tuning := Fx.all_slots()
 var _data: RunData
@@ -162,22 +160,25 @@ func test_the_backpack_goes_over_the_network() -> void:
 	assert_eq(copy.backpack.to_array(), run.backpack.to_array())
 
 
-func test_finds_and_drops_are_seeded() -> void:
+## A won Fight stop's drop (DESIGN.md 8.22): seeded per stop, from the run's found items.
+func test_drops_are_seeded() -> void:
 	var run := _run(11)
-	assert_eq(run.spot_item(3, 1), _run(11).spot_item(3, 1), "same seed, same find")
-	assert_true(run.data.found_items.has(run.spot_item(3, 1)))
-	var picks := {}
-	for stop: int in 40:
-		picks[run.spot_item(stop, 0)] = true
-	assert_gt(picks.size(), 1, "spots hold different things")
 	run.tuning = Tuning.new()
 	run.tuning.item_drop_percent = 0
-	for roamer: int in 10:
-		assert_null(run.drop_for(2, roamer), "0%: never")
+	for stop: int in run.map.stops.size():
+		assert_null(run.drop_for(stop), "0%: never")
 	run.tuning.item_drop_percent = 100
-	for roamer: int in 10:
-		assert_not_null(run.drop_for(2, roamer), "100%: always")
-	assert_eq(run.drop_for(2, 3), run.drop_for(2, 3))
+	var picks := {}
+	for stop: int in run.map.stops.size():
+		var drop := run.drop_for(stop)
+		assert_not_null(drop, "100%: always")
+		assert_true(run.data.found_items.has(drop), "a drop is one of the found items")
+		assert_eq(run.drop_for(stop), drop, "the same stop, the same drop")
+		picks[drop] = true
+	assert_gt(picks.size(), 1, "stops drop different things")
+	var again := _run(11)
+	again.tuning = run.tuning
+	assert_eq(again.drop_for(3), run.drop_for(3), "same seed, same drop")
 
 
 # --- shipped data -----------------------------------------------------------------------------
@@ -202,23 +203,6 @@ func test_shipped_items_are_sound() -> void:
 			assert_eq(item.find_weight, 0, "%s is never found" % item.id)
 		else:
 			assert_gt(item.find_weight, 0, "%s can be found" % item.id)
-
-
-func test_zone_spots_stand_where_the_leader_can_reach() -> void:
-	for layout: ZoneData in _data.zones:
-		# A long zone is laid out anew each visit (DESIGN.md 8.5): check a few visits.
-		for seed_value: int in [1, 2, 3]:
-			_check_spots(ZoneAssembler.assemble(layout, seed_value))
-
-
-func _check_spots(zone: ZoneData) -> void:
-	assert_gte(zone.item_spots.size(), 2, "%s has glinting spots" % zone.id)
-	var obstacles := ZoneMotion.obstacles(zone)
-	for spot: Vector3 in zone.item_spots:
-		var at := Vector2(spot.x, spot.z)
-		var free := ZoneMotion.move(at, Vector2.ZERO, ZoneController.LEADER_RADIUS, obstacles, zone.bounds_min,
-				zone.bounds_max)
-		assert_almost_eq(free.distance_to(at), 0.0, 0.01, "%s spot %s is free" % [zone.id, at])
 
 
 # --- the party screen -------------------------------------------------------------------------
@@ -248,29 +232,13 @@ func test_a_find_with_no_room_is_left_behind() -> void:
 	assert_eq(run.backpack.free_cells(), 0)
 
 
-# --- step 2: rarity, keys, chests, selling ----------------------------------------------------
+# --- step 2: rarity, selling --------------------------------------------------------------------
 
 func test_deeper_rows_turn_up_rarer_things() -> void:
 	var run := _run()
 	assert_eq(run.rarity_weight(100, ItemData.Rarity.COMMON, 6), 100)
 	assert_gt(run.rarity_weight(100, ItemData.Rarity.RARE, 6), run.rarity_weight(100, ItemData.Rarity.RARE, 0))
 	assert_gt(run.rarity_weight(100, ItemData.Rarity.LEGENDARY, 6), run.rarity_weight(100, ItemData.Rarity.LEGENDARY, 0))
-
-
-func test_keys_open_chests_once_and_chests_hold_rare_things() -> void:
-	var run := _run()
-	assert_false(run.has_key())
-	assert_false(run.use_key(), "no key, no chest")
-	# No run hands a Key out any more (DESIGN.md 8.22, G3), but its file and the chests stay.
-	run.add_item(load(KEY_PATH) as ItemData)
-	assert_true(run.has_key())
-	assert_true(run.use_key())
-	assert_false(run.has_key(), "the key is used up")
-	for stop: int in 30:
-		var prize := run.chest_contents(stop)
-		assert_not_null(prize)
-		assert_gte(int(prize.get("rarity")), ItemData.Rarity.RARE, "chests hold rare or better")
-		assert_eq(run.chest_contents(stop), prize, "seeded")
 
 
 func test_selling_pays_and_removes() -> void:
@@ -283,22 +251,6 @@ func test_selling_pays_and_removes() -> void:
 	assert_false(run.backpack.has_uid(uid))
 	assert_false(run.apply_op({"op": "sell", "uid": uid}), "already sold")
 
-
-func test_zones_have_reachable_chests() -> void:
-	for layout: ZoneData in _data.zones:
-		var most := 0
-		for seed_value: int in range(1, 9):
-			var zone := ZoneAssembler.assemble(layout, seed_value)
-			most = maxi(most, zone.chests.size())
-			for chest: Vector3 in zone.chests:
-				var at := Vector2(chest.x, chest.z)
-				var free := ZoneMotion.move(at, Vector2.ZERO, ZoneController.LEADER_RADIUS, ZoneMotion.obstacles(zone),
-						zone.bounds_min, zone.bounds_max)
-				assert_almost_eq(free.distance_to(at), 0.0, 0.01, "%s chest is free" % zone.id)
-		assert_gt(most, 0, "%s has a locked chest on some visits" % layout.id)
-
-
-# --- step 3: curses, rot, combining, a bigger backpack (charms are gone since phase 17) ----------
 
 func _item_of(run: RunState, id: String) -> ItemData:
 	return run.items_by_id()[id] as ItemData
@@ -375,13 +327,12 @@ func test_two_of_the_same_combine_into_a_stronger_one() -> void:
 	assert_eq(run.hp[0], 1 + CombatMath.percent(run.max_hp(0), run.entry_amount(e)), "a combined salve heals more")
 
 
-func test_combining_stops_at_legendary_and_keys_never_combine() -> void:
+func test_combining_stops_at_legendary_and_treasure_never_combines() -> void:
 	var run := _run()
 	var gem := _item_of(run, "rot_gem")
 	assert_false(gem.combinable(), "treasure does not combine")
-	var key := load(KEY_PATH) as ItemData
-	var a := run.place_item(key, 0)
-	var b := run.place_item(key, 1)
+	var a := run.place_item(gem, 0)
+	var b := run.place_item(gem, 1)
 	assert_false(run.can_combine(a, b))
 	var salts := _item_of(run, "smelling_salts")
 	var s1 := run.place_item(salts, 2, 0, 0, 1)
@@ -429,7 +380,6 @@ func test_no_run_list_hands_out_a_key() -> void:
 	for list: Array[ItemData] in [_data.shop_items, _data.found_items]:
 		for item: ItemData in list:
 			assert_ne(item.kind, ItemData.Kind.KEY, "%s is no key" % item.id)
-			assert_false(_data.retired_items.has(item), "%s: a retired item is never sold or found" % item.id)
 	for stop: int in 30:
 		for item: ItemData in run.shop_stock(stop):
 			assert_ne(item.kind, ItemData.Kind.KEY, "no key on the shelves")
@@ -444,38 +394,14 @@ func test_no_run_list_hands_out_a_key() -> void:
 			assert_ne(pact.deal.item.kind, ItemData.Kind.KEY, "a pact gives no key")
 
 
-func test_a_pack_holding_a_retired_key_still_loads() -> void:
-	# A v0.25 save (the Key was sold and found then) or a Key from a zone's Key Peddler: the save and
-	# a host's run sent online must still load, or the menu would delete the save as broken.
-	var key := load(KEY_PATH) as ItemData
-	assert_true(_data.retired_items.has(key), "the Key is a retired item")
-	var run := _run()
-	assert_eq(run.items_by_id().get("key"), key, "the Key's id still resolves")
-	run.add_item(key)
-	run.add_item(run.items_by_id()["salve"] as ItemData)
-	var copy := RunState.from_dict(run.data, _tuning, run.to_dict())
-	assert_not_null(copy, "a run holding a Key round-trips")
-	if copy != null:
-		assert_eq(copy.backpack.to_array(), run.backpack.to_array())
-		assert_true(copy.has_key(), "and the Key is still in the pack")
-	var client := _run()
-	assert_true(client.apply_dict(run.to_dict()), "a client takes the host's run with a Key in it")
-	assert_true(client.has_key())
-
-
-func test_a_key_from_the_peddler_survives_a_save() -> void:
-	# The zones' wanderers still meet the Key Peddler until zones leave the run (DESIGN.md 8.22).
-	const PEDDLER := "res://data/offers/key_peddler.tres"
-	if not ResourceLoader.exists(PEDDLER):
-		pass_test("the Key Peddler is gone")
-		return
-	var run := _run()
-	run.gold = 500
-	var got := run.take_offer(load(PEDDLER) as ZoneOfferData, 3, 0)
-	assert_true(bool(got.ok))
-	assert_not_null(got.item)
-	run.add_item(got.item as ItemData)
-	assert_not_null(RunState.from_dict(run.data, _tuning, run.to_dict()), "the bought Key does not break the save")
+func test_the_key_is_gone_but_its_kind_keeps_its_number() -> void:
+	# Phase 26 (DESIGN.md 8.22, G3): the Key's file went with the chests; a save from before is
+	# refused by RunSave.FORMAT_VERSION, so no pack can hold one. The kind keeps its slot so the
+	# item files after it keep their numbers.
+	assert_false(ResourceLoader.exists("res://data/items/key.tres"), "no Key file")
+	assert_false(_run().items_by_id().has("key"), "no item answers to the Key's id")
+	assert_eq(ItemData.Kind.KEY, 2, "the retired kind keeps its number")
+	assert_eq(ItemData.Kind.TREASURE, 3)
 
 
 func test_the_pack_art_exists() -> void:

@@ -303,7 +303,7 @@ func test_a_fight_stop_rolls_a_drop_and_other_stops_none() -> void:
 		var run := _run(s)
 		run.go(run.choices()[0])
 		assert_eq(int(run.current().type), RunMap.StopType.FIGHT)
-		assert_eq(run.fight_drop(), run.drop_for(run.at, 0), "a roaming enemy's drop roll")
+		assert_eq(run.fight_drop(), run.drop_for(run.at), "the stop's own drop roll")
 		drops += 1 if run.fight_drop() != null else 0
 		run.at = _first(run, RunMap.StopType.GUARD)
 		assert_null(run.fight_drop(), "a guard pays spoils, no drop")
@@ -404,7 +404,7 @@ func test_every_place_has_its_guard() -> void:
 	for zone: ZoneData in _data.zones:
 		assert_not_null(zone.guard, "%s has a guard" % zone.id)
 		if zone.guard != null:
-			assert_eq(zone.guard.id, String(guards.get(zone.id, "")), "%s: its end section's guard" % zone.id)
+			assert_eq(zone.guard.id, String(guards.get(zone.id, "")), "%s: its own guard" % zone.id)
 			assert_eq(zone.guard.deep.id, "deep_" + zone.guard.id, "with its deep version")
 
 
@@ -418,7 +418,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 	file.store_string(JSON.stringify(old))
 	file.close()
 	var loaded := RunSave.load_save("", _save_path)
-	assert_eq(loaded.status, RunSave.REJECTED, "a run saved inside a zone is not offered")
+	assert_eq(loaded.status, RunSave.REJECTED, "a run saved before phase 26 is not offered")
 	assert_true(bool(loaded.keep), "but stays on disk")
 	assert_true(RunSave.exists(_save_path))
 	assert_true(RunSave.save(_run().to_dict(), "x", true, 1, _save_path))
@@ -526,11 +526,10 @@ func test_what_follows_a_run_fight() -> void:
 	assert_eq(_main.call("_pack_full_note", item), "The enemy dropped a Tonic, but the pack is full.")
 
 
-## The Journal says where a fight was met: the zone, else a run fight's place, else its own name.
+## The Journal says where a fight was met: a run fight's place, else its own name.
 func test_the_journal_names_a_run_fights_place() -> void:
-	assert_eq(_main.call("_journal_place", "Rot Rats", "", "Sunken Bog"), "Sunken Bog", "a run's Fight, Guard, elite or ambush")
-	assert_eq(_main.call("_journal_place", "Rot Rats", "", ""), "Rot Rats", "a boss, a Rush or a practice fight")
-	assert_eq(_main.call("_journal_place", "Rot Rats", "Rotten Hollow", "Sunken Bog"), "Rotten Hollow", "a zone's fight")
+	assert_eq(_main.call("_journal_place", "Rot Rats", "Sunken Bog"), "Sunken Bog", "a run's Fight, Guard, elite or ambush")
+	assert_eq(_main.call("_journal_place", "Rot Rats", ""), "Rot Rats", "a boss, a Rush or a practice fight")
 	var record := _body("func _record_journal(")
 	assert_string_contains(record, "_fight_place if _run != null and not (_run is RushState) else \"\"",
 			"a Rush fight never names a run place")
@@ -585,5 +584,4 @@ func test_the_bots_readiness_habit_lives_in_run_autoplay() -> void:
 	assert_false(RunAutoplay.is_ready(ready - Vector3i(1, 0, 0)), "the weakest hero too hurt")
 	assert_false(RunAutoplay.is_ready(ready - Vector3i(0, 1, 0)), "the party too hurt")
 	assert_false(RunAutoplay.is_ready(ready - Vector3i(0, 0, 1)), "too green")
-	assert_false((load("res://scripts/explore/zone_autoplay.gd") as Script).get_script_constant_map().has(
-			"CHAMPION_MIN_LEVEL"), "one copy of the habit")
+	assert_false(DirAccess.dir_exists_absolute("res://scripts/explore"), "the zone bot went with the zones")

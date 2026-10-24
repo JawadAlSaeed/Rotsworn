@@ -10,9 +10,9 @@ const REQUIRED := [
 	"hit_normal", "hit_ground", "hit_rend", "hit_sweep", "thrown", "feint", "press_perfect", "press_good",
 	"press_miss", "parry", "dodge", "jump", "counter", "team_counter", "follow_up", "ap", "team_gauge",
 	"team_ultimate", "status_exposed", "status_marked", "status_rotting", "status_blighted", "status_weakened",
-	"ap_drain", "doom", "break", "stagger", "status_bleeding", "status_slowed", "elite", "guard", "champion",
-	"oath", "seal", "shrine", "wanderer", "gear", "charm", "rot_touched", "backpack", "rotten_item",
-	"camp_rest", "camp_train", "stop_zone", "stop_elite", "stop_event", "stop_treasure", "stop_rest", "stop_shop",
+	"ap_drain", "doom", "break", "stagger", "status_bleeding", "status_slowed", "elite", "guard",
+	"oath", "shrine", "wanderer", "gear", "charm", "rot_touched", "backpack", "rotten_item",
+	"camp_rest", "camp_train", "stop_fight", "stop_guard", "stop_elite", "stop_event", "stop_treasure", "stop_rest", "stop_shop",
 	# Phase 22: the rules the Echoes page and the shop no longer spell out.
 	"echo", "relic_level",
 ]

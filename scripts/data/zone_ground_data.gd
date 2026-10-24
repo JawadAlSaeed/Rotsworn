@@ -2,8 +2,7 @@ class_name ZoneGroundData
 extends Resource
 ## A piece of ground laid on the floor of a place (DESIGN.md 8.12): a road, a trail, mud, moss, a
 ## boardwalk, or water. Drawn flat just above the floor with a ragged, pixelated edge; its texture
-## tiles in world space like the floor's. Water moves and shimmers and, when solid, cannot be
-## walked into (ZoneMotion turns it into obstacles).
+## tiles in world space like the floor's. Water moves and shimmers.
 
 enum Kind {
 	## Plain ground: a road, a trail, a patch of mud or moss, planks.
@@ -31,8 +30,6 @@ enum Kind {
 @export var tint: Color = Color(1.0, 1.0, 1.0)
 ## Water only: the colour deep in the middle.
 @export var deep_color: Color = Color(0.04, 0.1, 0.09)
-## Walkers cannot step onto it (deep water).
-@export var solid: bool = false
 ## Water only: a stream's flow, in world units a second along the piece's own x and z (before
 ## turning); zero is still water's slow drift (card #232).
 @export var flow: Vector2 = Vector2.ZERO

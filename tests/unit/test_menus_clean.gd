@@ -534,23 +534,23 @@ func test_reset_progress_question_lists_the_rush_records_and_fits() -> void:
 
 func test_stats_overlay_is_only_in_the_fight_groups() -> void:
 	for group: Array in ControlBindings.GROUPS:
-		var walking := group.has(&"move_up")
+		var moving := group.has(&"move_up")
 		var menus := group.has(&"party_attributes")
 		var fight := group.has(&"defend_parry") or group.has(&"skill_press") or group.has(&"fight_attack")
-		if walking or menus:
-			assert_false(group.has(&"debug_overlay"), "no stats overlay in the walking and menu groups")
+		if moving or menus:
+			assert_false(group.has(&"debug_overlay"), "no stats overlay in the move and menu groups")
 		elif fight:
 			assert_true(group.has(&"debug_overlay"), "still in the fight groups")
 
 
-func test_a_walking_or_menu_button_may_take_the_stats_overlays_button() -> void:
+func test_a_move_or_menu_button_may_take_the_stats_overlays_button() -> void:
 	var model := ControlBindings.from_input_map()
 	var f1 := model.primary(&"debug_overlay", ControlBindings.KEY)
 	var view := model.primary(&"debug_overlay", ControlBindings.PAD)
-	assert_false(model.conflicts(&"field_pickup", f1).has(&"debug_overlay"), "walking: no swap offered")
+	assert_false(model.conflicts(&"move_up", f1).has(&"debug_overlay"), "the move group: no swap offered")
 	assert_false(model.conflicts(&"item_move", view).has(&"debug_overlay"), "menus: no swap offered")
 	assert_true(model.conflicts(&"defend_dodge", f1).has(&"debug_overlay"), "a fight still keeps them apart")
-	assert_true(bool(model.assign(&"field_pickup", f1).ok))
+	assert_true(bool(model.assign(&"move_up", f1).ok))
 	assert_eq(model.conflict_pairs(), [], "and nothing clashes after it")
 
 

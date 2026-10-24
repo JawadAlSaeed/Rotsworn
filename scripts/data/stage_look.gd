@@ -2,9 +2,9 @@ class_name StageLook
 extends Resource
 ## How a place looks (DESIGN.md 7.3): the HD-2D lighting and post-processing (sun, ambient light,
 ## fog, bloom, colour grading, vignette), the ground and backdrop art, and the decoration around
-## the combat arena. A zone and the fights that start in it share one look; the fight list uses
-## combat_visuals.tres stage_look. Depth of field belongs to each camera (combat_visuals,
-## explore_visuals), since it depends on how far the camera is.
+## the combat arena. Every fight in a place (ZoneData.look) uses its look; the fight list uses
+## combat_visuals.tres stage_look. Depth of field belongs to the camera (combat_visuals), since it
+## depends on how far the camera is.
 
 @export_group("Ground and backdrop")
 ## Seamlessly tileable ground (32x32).
@@ -119,9 +119,9 @@ extends Resource
 @export var arena_blocks: Array[ZoneBlockData] = []
 @export var arena_props: Array[ZonePropData] = []
 @export var arena_lights: Array[ZoneLightData] = []
-## Air that drifts in a fight in this place when the fight's zone has none of its own (the
-## Hollow King's throne: embers). A zone's fights use the zone's own ambient list instead
-## (DESIGN.md 8.12, 7.3). Thinned by combat_visuals fight_air_percent.
+## Air that drifts in a fight in this place when the fight's place has none of its own (the
+## Hollow King's throne: embers). A place's fights use the place's own ambient list instead
+## (ZoneData.ambient, DESIGN.md 8.12, 7.3). Thinned by combat_visuals fight_air_percent.
 @export var arena_air: Array[ZoneAmbientData] = []
 
 @export_group("Phase two")

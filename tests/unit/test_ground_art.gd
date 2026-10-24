@@ -3,12 +3,10 @@ extends GutTest
 ## blobs sized from their footprint, and pixels stay one size (props at the fighters' density,
 ## ground pieces at the floor's tile size).
 
-const SECTIONS_DIR := "res://data/zones/sections/"
 const LOOK_DIR := "res://data/looks/"
 ## Fighters are drawn at 0.045 a pixel; scenery may be a hair chunkier, never more.
 const MAX_PROP_PIXEL := 0.0501
 const MIN_PROP_PIXEL := 0.0449
-const MAX_GROUND_TILE := 1.81
 
 
 func _image(rows: Array[String]) -> Image:
@@ -162,22 +160,13 @@ func test_every_look_ships_three_floor_tiles_and_regions_on() -> void:
 # --- pixel density -----------------------------------------------------------------------------
 
 func test_scenery_pixels_match_the_fighters() -> void:
+	# Since phase 26 (DESIGN.md 8.22) the arenas are the only scenery: the zones' sections are gone.
 	var props: Array[ZonePropData] = []
-	var grounds: Array[ZoneGroundData] = []
-	for res: Resource in _list(SECTIONS_DIR):
-		var sec := res as ZoneSectionData
-		props.append_array(sec.props)
-		grounds.append_array(sec.grounds)
 	for look: StageLook in _looks():
 		props.append_array(look.arena_props)
-	assert_gt(props.size(), 200, "found the zones' props")
+	assert_gt(props.size(), 5, "found the arenas' props")
 	var bad: Array[String] = []
 	for p: ZonePropData in props:
 		if p.pixel_size > MAX_PROP_PIXEL or p.pixel_size < MIN_PROP_PIXEL:
 			bad.append("%s %.3f" % [p.sprite_path.get_file(), p.pixel_size])
 	assert_eq(bad.size(), 0, "props outside 0.045 to 0.05 a pixel: %s" % ", ".join(bad.slice(0, 6)))
-	bad.clear()
-	for g: ZoneGroundData in grounds:
-		if g.texture_world_size > MAX_GROUND_TILE:
-			bad.append("%s %.2f" % [g.texture_path.get_file(), g.texture_world_size])
-	assert_eq(bad.size(), 0, "ground pieces with chunky pixels: %s" % ", ".join(bad.slice(0, 6)))

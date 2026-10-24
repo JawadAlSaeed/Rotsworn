@@ -42,7 +42,10 @@ const PATH := "res://data/presentation/stop_visuals.tres"
 @export_file("*.png") var party_icon_path: String = "res://assets/sprites/ui/choice_party.png"
 @export_file("*.png") var run_icon_path: String = "res://assets/sprites/ui/choice_run.png"
 @export_file("*.png") var rush_icon_path: String = "res://assets/sprites/ui/choice_rush.png"
-## Screen pixels per art pixel for a treasure chest on its card (the chests are 28x24).
+## The treasure stop's chest (DESIGN.md 8.8), closed and opened (the rotten one is the same
+## chest, tinted), and screen pixels per art pixel for it on its card (the chests are 28x24).
+@export_file("*.png") var chest_closed_path: String = "res://assets/sprites/env/chest_closed.png"
+@export_file("*.png") var chest_open_path: String = "res://assets/sprites/env/chest_open.png"
 @export_range(1, 8, 1) var chest_card_scale: int = 4
 
 @export_group("Chips")

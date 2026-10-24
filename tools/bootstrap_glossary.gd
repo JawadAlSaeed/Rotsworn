@@ -4,13 +4,14 @@ extends SceneTree
 ## readouts, status badges) are read from their one source (combat_visuals.tres, HudStyle) so the
 ## book can never disagree with the screen; tests/unit/test_glossary.gd keeps it so.
 ## Rewrites the whole file: after the first run, edit the .tres (or this list) by hand, not both.
+## Since phase 21 the .tres is edited by hand (Relics, the pack, the Fight Rush topic and phase 26's
+## Fight and Guard stops are only there), so this list is older than the book: do not re-run it.
 ## Run: Godot --headless --path . -s tools/bootstrap_glossary.gd
 
 const PATH := "res://data/glossary/glossary.tres"
 const UI := "res://assets/sprites/ui/"
 const ENV := "res://assets/sprites/env/"
 const ITEMS := "res://assets/sprites/items/"
-const FX := "res://assets/sprites/fx/"
 const NONE := Color(0.0, 0.0, 0.0, 0.0)
 
 var _entries: Array[GlossaryEntry] = []
@@ -21,9 +22,9 @@ func _init() -> void:
 	_visuals = load("res://data/presentation/combat_visuals.tres") as CombatVisuals
 	var data := GlossaryData.new()
 	data.topic_ids = PackedStringArray(["fight", "reading", "defence", "skills", "team", "foe_marks", "hero_marks",
-			"hero_help", "dooms", "enemies", "map", "zones", "gear", "shops", "run"])
+			"hero_help", "dooms", "enemies", "map", "gear", "shops", "run"])
 	data.topic_names = PackedStringArray(["The fight", "Reading attacks", "Defence", "Skills and AP", "Counters and team",
-			"Marks on enemies", "Marks on heroes", "Help on heroes", "Dooms", "Enemies", "The map", "In a zone",
+			"Marks on enemies", "Marks on heroes", "Help on heroes", "Dooms", "Enemies", "The map",
 			"Gear and items", "Shops and camps", "The run"])
 	_fight()
 	_reading()
@@ -35,7 +36,6 @@ func _init() -> void:
 	_dooms()
 	_enemies()
 	_map()
-	_zones()
 	_gear()
 	_shops()
 	_run()
@@ -157,7 +157,7 @@ func _foe_marks() -> void:
 
 
 func _hero_marks() -> void:
-	_e("hero_marks", "mark", "Marks", "A hit with a coloured dot leaves its mark if you fail to defend it. In a run they start after the first zone; elites, guards and bosses mark everywhere. Defend the dot!")
+	_e("hero_marks", "mark", "Marks", "A hit with a coloured dot leaves its mark if you fail to defend it. In a run they start after the first map row; elites, guards and bosses mark everywhere. Defend the dot!")
 	_status("hero_marks", "rotting", "Rot", "At the start of each of the hero's turns they lose a share of max HP, though never below 1 HP from rot alone. It counts down.")
 	_status("hero_marks", "burning", "Burn", "Fire: at the start of each of the hero's turns they lose a big share of max HP, for fewer turns than rot. Never below 1 HP from fire alone.")
 	_status("hero_marks", "shocked", "Shock", "The hero's timing windows shrink: parries, dodges, jumps, skill presses and follow-ups all need a sharper press while it lasts.")
@@ -188,13 +188,10 @@ func _dooms() -> void:
 
 
 func _enemies() -> void:
-	_e("enemies", "roaming", "Roaming enemy", "Seen walking in a zone. Touch one and the fight begins; strike it first for FIRST STRIKE. All but the guard are optional: more gold and XP, more risk.")
-	_e("enemies", "elite", "Elite", "A tougher fight: more health, harder hits and better pay, with the hard-fight rends and sweeps. Met on skull stops and as zone champions. You cannot run.",
+	_e("enemies", "elite", "Elite", "A tougher fight: more health, harder hits and better pay, with the hard-fight rends and sweeps. Met on skull stops. You cannot run.",
 			"ELITE", "", Color(0.85, 0.45, 1.0))
-	_e("enemies", "guard", "Guard", "Each zone's mini-boss at the far end, with a second phase at half health and a Doom of its own. Beating it clears the zone and gives spoils.",
+	_e("enemies", "guard", "Guard", "Each place's mini-boss, met on a Guard stop, with a second phase at half health and a Doom of its own. Beating it gives spoils.",
 			"GUARD", "", HudStyle.GOLD)
-	_e("enemies", "champion", "Champion", "An elite that stands still beside a prize chest and never chases you. Beat it and the chest opens with no key. Optional.",
-			"ELITE", "", Color(0.85, 0.45, 1.0))
 	_e("enemies", "boss", "Boss", "An act's last fight: The Husk Lord, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run.")
 	_e("enemies", "phase_two", "Phase two", "At half health a guard or boss rages: a banner, new attacks and faster strings. It picks a new move at once.")
 	_e("enemies", "deep_variant", "Deep variant", "A tougher, recoloured kin met in the second half of a run (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere.")
@@ -208,8 +205,10 @@ func _enemies() -> void:
 
 
 func _map() -> void:
-	_e("map", "stop_zone", "Zone stop", "A place to explore, left to right. Beat the guard at the far end to move on. Every other enemy is optional and pays more gold. Each zone stop is a different place.",
+	_e("map", "stop_fight", "Fight stop", "A place's painted picture and name: one fight from that place's monsters, in its look and weather. Win for gold, XP and now and then an item. Running away passes the stop with no pay.",
 			"", UI + "map_zone_rotten_hollow.png")
+	_e("map", "stop_guard", "Guard stop", "A whole map row of them, early in each act: the place's guard, a mini-boss with a second phase. You cannot run. Beat it for spoils: pick one of three Relics.",
+			"", UI + "map_guard.png")
 	_e("map", "stop_elite", "Elite stop", "A skull over crossed blades: one hard fight, then spoils of rare Relics or better, and more gold. The crowned elite's spoils hold a legendary. It cannot be run from.",
 			"", UI + "map_elite.png")
 	_e("map", "stop_event", "Event stop", "A red question mark: a story with a choice. Every choice has a price, and some turn into a fight. Leave is always there.",
@@ -227,22 +226,6 @@ func _map() -> void:
 	_e("map", "planning", "Planning a road", "Once a next stop is picked, every stop and road it cannot lead to fades. Look up the map: a shop or a fire often matters more than one more fight.")
 
 
-func _zones() -> void:
-	_e("zones", "seal", "Rot seal", "A glowing standing stone, one in each middle part of a zone, often down a side path or past enemies. Walk up and use Confirm to take it.",
-			"", ENV + "seal_stone.png")
-	_e("zones", "gate", "Rot gate", "A wall of rotten roots in front of the guard. It stays shut until the party has two of the zone's three seals.",
-			"", ENV + "rot_gate.png")
-	_e("zones", "shrine", "Shrine", "Walk up and pray: a yes or no with the price and the gift written out. Springs heal, altars take blood for a find, idols fill the gauge. Each works once.",
-			"", ENV + "shrine_altar.png")
-	_e("zones", "wanderer", "Wanderer", "A traveller who turns up in some visits. Talk to them for a deal: the Key Peddler sells keys, the Grave Robber rare finds, the Old Pilgrim heals for free.",
-			"", ENV + "wanderer_peddler.png")
-	_e("zones", "glint", "Glinting spot", "A sparkle on the ground. Walk up and pick it up for an item or some treasure. With no room, the backpack opens so you can make some.",
-			"", FX + "glint.png")
-	_e("zones", "chest", "Locked chest", "Holds a rare or better prize, and uses up one Key from the backpack. A champion's prize chest needs no key.",
-			"", ENV + "chest_closed.png")
-	_e("zones", "shuffled", "A new zone each time", "Every visit builds the zone from shuffled parts, so seals, shrines, wanderers and enemies stand somewhere new.")
-
-
 func _gear() -> void:
 	_e("gear", "gear", "Gear", "Worn by one hero: three slots each, one effect per piece (power, a counter bonus, AP at the start). Gear never goes in the backpack.",
 			"", UI + "gear_icon.png")
@@ -256,7 +239,7 @@ func _gear() -> void:
 			"", "", Color(1.0, 0.8, 0.3))
 	_e("gear", "rot_touched", "Rot-touched gear", "Strong gear with a price: a clear gain and a clear loss, written in plain words. Spoils from elites and bosses offer one. Take it with open eyes.",
 			"rot-touched", "", GearData.ROT_TOUCHED_COLOR)
-	_e("gear", "backpack", "Backpack", "A grid that holds consumables, charms, keys and treasure. Items have shapes you can turn, so where they sit matters. Open it from the party screen.",
+	_e("gear", "backpack", "Backpack", "A grid that holds consumables, charms and treasure. Items have shapes you can turn, so where they sit matters. Open it from the party screen.",
 			"", ITEMS + "bigger_pack.png")
 	_e("gear", "charm", "Charm", "Works just by sitting in the backpack, for the whole party. Charms belong to a family (Stone, Bone, Herb), and booster charms strengthen the family charms touching them.",
 			"", ITEMS + "ember_stone.png")
@@ -266,8 +249,7 @@ func _gear() -> void:
 			"", ITEMS + "salve.png")
 	_e("gear", "tonic", "Tonic", "Gives one hero more max HP for the rest of the run. A hero can drink only two, and Tonics cannot be combined or upgraded.",
 			"", ITEMS + "tonic.png")
-	_e("gear", "key_treasure", "Keys and treasure", "A Key opens one locked chest. Treasure (rings, gems, idols) does nothing but sell for gold, and it takes up room.",
-			"", ITEMS + "key.png")
+	_e("gear", "treasure", "Treasure", "Treasure (rings, gems, idols) does nothing but sell for gold, and it takes up room.")
 	_e("gear", "combine", "Combine", "Put an item onto the same item at the same level and it goes up a level (Salve+), with a stronger effect. Consumables and charms only.")
 
 
@@ -289,9 +271,9 @@ func _run() -> void:
 	_e("run", "the_run", "The run", "A road through the map to the last boss, over two acts: The Rotten Road and The Ashen Deep. If the whole party falls it is over. Only your oaths and Journal carry on.")
 	_e("run", "oath", "Oath", "A difficulty you pick before a run. Each oath adds a hardship to those before it and nothing ever makes the run easier. Win at Oath N to unlock N + 1.")
 	_e("run", "oath_list", "The ten oaths", "Thorns, Want, Embers, the Deep, Crowns, Wounds, Scarcity, Silence, the Long Road, Rot. The players screen lists what each one does.")
-	_e("run", "gold", "Gold", "Earned from fights and chests, spent in shops and at some shrines. Elites pay more, and the Oath of Want pays less.")
+	_e("run", "gold", "Gold", "Earned from fights, events and treasure chests, spent in shops and at some events. Elites pay more, and the Oath of Want pays less.")
 	_e("run", "level", "Level and XP", "Each hero levels on their own from fights. A level gives attribute points, a skill point and a little HP and power.")
 	_e("run", "attributes", "Attributes", "Vitality raises max HP, Might power, Agility speed, Defense cuts enemy hits and Luck critical chance. Points can be taken back and a reset is free.")
-	_e("run", "hp_carries", "HP carries over", "Health does not refill between fights. Campfires, shops and shrines are where you mend. Marks and AP start fresh each fight.")
+	_e("run", "hp_carries", "HP carries over", "Health does not refill between fights. Campfires, shops and some events are where you mend. Marks and AP start fresh each fight.")
 	_e("run", "save_quit", "Save and Quit", "In the pause menu: keeps the run for later and goes to the main menu. Abandon run loses it for good.")
 	_e("run", "journal", "Rot Journal", "In Extras: a book of every enemy and attack you meet in a run, with your record against each. Nothing in it changes a fight.")

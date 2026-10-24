@@ -1,7 +1,7 @@
 extends GutTest
 ## Phase 16 run exploits and the last fight (cards #175 to #177): Restock costs more each time,
 ## a hero drinks only so many Tonics, an attribute reset can never heal, elites cannot be fled,
-## HP never stays above max after a backpack change, two locked chests differ, a map never rolls a
+## HP never stays above max after a backpack change, a map never rolls a
 ## stop its act has nothing for, a Slowed boss stays slowed in phase two, and the Hollow King is the
 ## hardest fight of the run. Uses the shipped run and tuning.
 
@@ -208,21 +208,6 @@ func test_hp_never_stays_above_max_after_a_relic_or_echo_comes_off() -> void:
 			assert_lte(r.hp[slot], r.max_hp(slot), "%s: hero %d" % [how, slot])
 
 
-# --- locked chests ----------------------------------------------------------------------------
-
-func test_two_chests_at_one_stop_do_not_give_the_same_prize() -> void:
-	var run := _run()
-	var same := 0
-	for stop: int in 60:
-		var first := run.chest_contents(stop, 0)
-		var second := run.chest_contents(stop, 1)
-		assert_eq(run.chest_contents(stop, 1), second, "seeded per chest")
-		if first == second:
-			same += 1
-	assert_lt(same, 12, "the chest index is part of the seed (was %d of 60 the same)" % same)
-	assert_eq(run.chest_contents(5), run.chest_contents(5, 0), "the first chest is as it was")
-
-
 # --- a map for an act without elites or events ------------------------------------------------
 
 func test_a_map_never_rolls_stops_the_act_has_nothing_for() -> void:
@@ -263,7 +248,7 @@ func test_the_hollow_king_is_the_hardest_fight_of_the_run() -> void:
 	var king_fight := load("res://data/encounters/hollow_king.tres") as EncounterData
 	var king := king_fight.enemies[0]
 	var lord_fight := load("res://data/encounters/husk_lord_fight.tres") as EncounterData
-	# A guard in the second act's last zone row: one whole act behind it plus the row.
+	# A guard as deep as the second act's last row (the worst case): one whole act behind it plus the row.
 	var depth_hp := 100 + (_tuning.run_map_rows + 1 + _tuning.run_map_rows - 1) * _tuning.run_enemy_hp_row_percent
 	if _tuning.run_enemy_scale_bosses:
 		depth_hp = 100

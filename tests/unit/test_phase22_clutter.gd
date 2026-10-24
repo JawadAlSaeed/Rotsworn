@@ -1,10 +1,10 @@
 extends GutTest
 ## Phase 22 "Fewer words, more icons" (DESIGN.md 11): practice-only helpers stay out of the real
-## game (cards #275, #276) and the zone's text turns into icons.
+## game (cards #275, #276) and the strip leaves out what a mode lacks. (The zone's goal chips went
+## with the zones in phase 26, DESIGN.md 8.22.)
 
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
-const EXPLORE_PATH := "res://data/presentation/explore_visuals.tres"
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 
 
@@ -115,41 +115,20 @@ func _has_stats(hints: Array) -> bool:
 	return false
 
 
-# --- the zone: icons, not sentences -------------------------------------------------------------
+# --- the status strip ----------------------------------------------------------------------------
 
-func test_the_zone_shows_only_buttons_bottom_left_and_goal_chips_top_right() -> void:
-	var hud := ZoneHud.new()
-	add_child_autofree(hud)
-	hud.setup(load(EXPLORE_PATH) as ExploreVisuals, "Rotten Hollow", true)
-	for label: Node in hud.find_children("*", "Label", true, false):
-		assert_false((label as Label).text.contains("FIRST STRIKE"), "First Strike is taught in the tutorial")
-	var chips := ZoneController.goal_chips(1, 2, false, true, true, false, 5, true)
-	hud.set_goal(chips)
-	assert_eq(hud.goal_chip_count(), 3, "seals, guard, enemies")
-	hud.set_goal(ZoneController.goal_chips(2, 2, true, true, true, true, 0, true))
-	assert_eq(hud.goal_chip_count(), 1, "only the way out")
-	for label: Node in hud.find_children("*", "Label", true, false):
-		assert_false((label as Label).text.contains("Rot seals"), "no sentences")
-
-
-func test_the_goal_icons_exist() -> void:
-	var explore := load(EXPLORE_PATH) as ExploreVisuals
-	for path: String in [explore.goal_seal_icon_path, explore.goal_guard_icon_path, explore.goal_exit_icon_path,
-			explore.goal_foe_icon_path]:
-		assert_true(ResourceLoader.exists(path), path)
-
-
-func test_the_zone_strip_has_no_gold() -> void:
+## A Fight Rush has no gold (DESIGN.md 8.21), so its strip leaves the gold panel out.
+func test_a_strip_without_gold_has_no_gold_panel() -> void:
 	var run := RunState.begin(load(RUN_PATH) as RunData, load(TUNING_PATH) as Tuning, 42)
-	var zone_bar := RunPartyBar.new()
-	add_child_autofree(zone_bar)
-	zone_bar.setup(run, false)
+	var bare_bar := RunPartyBar.new()
+	add_child_autofree(bare_bar)
+	bare_bar.setup(run, false)
 	var map_bar := RunPartyBar.new()
 	add_child_autofree(map_bar)
 	map_bar.setup(run)
-	assert_eq(map_bar.get_child_count(), zone_bar.get_child_count() + 1, "the map keeps its gold panel")
-	for label: Node in zone_bar.find_children("*", "Label", true, false):
-		assert_false((label as Label).text.begins_with("Gold"), "no gold in a zone")
+	assert_eq(map_bar.get_child_count(), bare_bar.get_child_count() + 1, "the map keeps its gold panel")
+	for label: Node in bare_bar.find_children("*", "Label", true, false):
+		assert_false((label as Label).text.begins_with("Gold"), "no gold without it")
 
 
 # --- two or three choices side by side -----------------------------------------------------------

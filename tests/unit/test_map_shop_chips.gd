@@ -196,9 +196,6 @@ func test_the_chips_say_what_each_kind_of_item_does() -> void:
 	curse.rotten = true
 	curse.rot_percent = 3
 	assert_eq(_chip_texts(ShopScreen.item_chips(curse, _look, _coin)), ["Curse", "-3% a turn"] as Array[String])
-	var key := ItemData.new()
-	key.kind = ItemData.Kind.KEY
-	assert_eq(_chip_texts(ShopScreen.item_chips(key, _look, _coin)), ["Opens chest"] as Array[String])
 	var idol := ItemData.new()
 	idol.kind = ItemData.Kind.TREASURE
 	chips = ShopScreen.item_chips(idol, _look, _coin)

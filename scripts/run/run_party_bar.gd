@@ -2,8 +2,7 @@ class_name RunPartyBar
 extends HBoxContainer
 ## The run's status strip (DESIGN.md 8): gold, then every character's level and HP, with a gold
 ## "+N" while they have attribute points to spend (DESIGN.md 8.2).
-## Shown on the map, in shops, at rests and in zones (there without the gold, phase 22). refresh()
-## after anything changes.
+## Shown on the map, in shops and at the run's other stops. refresh() after anything changes.
 
 const NAME_SIZE: int = 26
 const HP_SIZE: int = 22
@@ -24,7 +23,7 @@ func _init() -> void:
 	add_theme_constant_override("separation", 18)
 
 
-## `show_gold`: false leaves the gold out (a zone has nothing to buy).
+## `show_gold`: false leaves the gold out (a Fight Rush has none, DESIGN.md 8.21).
 func setup(run: RunState, show_gold: bool = true) -> void:
 	if show_gold:
 		var gold_panel := _panel()

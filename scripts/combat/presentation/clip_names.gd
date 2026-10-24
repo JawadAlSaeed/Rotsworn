@@ -35,7 +35,7 @@ const FALLBACK: Dictionary = {
 ## The clip catalogue (DESIGN.md 5.5). These fall back only through FALLBACK (so jump_down never
 ## turns into down); any other name is a variant (`<prefix>_<x>` or `<x>_b`) of a catalogue clip.
 const KNOWN: Array[String] = [
-	# Heroes: row 0 poses, then the combat and zone clips.
+	# Heroes: row 0 poses, then the combat clips and the walks the zones used (walk_side is the run-up).
 	"idle", "ready", "parry", "dodge", "jump", "hurt", "strike", "down",
 	"draw", "parry_hit", "jump_up", "jump_down", "stagger", "strike_windup", "strike_alt_windup",
 	"strike_alt", "strike_big_windup", "strike_big", "cast_windup", "cast", "leap", "fall",

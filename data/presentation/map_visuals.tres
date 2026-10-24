@@ -25,7 +25,6 @@ leave_icon_path = "res://assets/sprites/ui/door.png"
 gauge_icon_path = "res://assets/sprites/ui/chip_gauge.png"
 ap_icon_path = "res://assets/sprites/ui/ap_pip.png"
 item_curse_icon_path = "res://assets/sprites/ui/chip_skull.png"
-item_key_icon_path = "res://assets/sprites/ui/lock.png"
 item_pocket_icon_path = "res://assets/sprites/ui/chip_bag.png"
 item_chips_max = 4
 item_words_max = 8

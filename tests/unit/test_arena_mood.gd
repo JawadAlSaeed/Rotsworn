@@ -1,5 +1,5 @@
 extends GutTest
-## The arena's phase-two shift and the zone air in fights (card #196, DESIGN.md 7.3 and 8.12).
+## The arena's phase-two shift and a place's air in its fights (card #196, DESIGN.md 7.3 and 8.12).
 
 const LOOK_DIR := "res://data/looks/"
 const ACT_DIR := "res://data/runs/acts/"
@@ -158,7 +158,7 @@ func test_the_throne_goes_darker_and_redder() -> void:
 func test_fight_air_is_data() -> void:
 	var visuals := load("res://data/presentation/combat_visuals.tres") as CombatVisuals
 	assert_gt(visuals.fight_air_percent, 0)
-	assert_lt(visuals.fight_air_percent, 100, "denser in the zone than in the fight")
+	assert_lt(visuals.fight_air_percent, 100, "a fight thins its place's own air")
 	assert_gt(visuals.phase_look_ms, 0)
 	assert_lt(visuals.fight_air_offset.z, 1.0, "the air hangs behind the fighters")
 	for file: String in DirAccess.get_files_at(ZONE_DIR):

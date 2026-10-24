@@ -11,10 +11,9 @@ extends RefCounted
 ##   --quit-on-end                   quit one second after the fight ends
 ##   --seed=N                        fixed fight seed (else tuning fixed_seed, else random)
 ##   --encounter=ID                  start this encounter (data/encounters) instead of the list
-##   --zone=ID                       start in this zone (data/zones) instead of the list
-##   --weather=ID                    every run fight but the boss's, every Rush fight and every zone
-##                                   visit has this weather (data/weather: rain, storm,
-##                                   fog, wind, dusk) or none ("clear"), for tests and pictures
+##   --weather=ID                    every run fight but the boss's and every Rush fight has this
+##                                   weather (data/weather: rain, storm, fog, wind, dusk) or none
+##                                   ("clear"), for tests and pictures
 ##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
 ##   --run                           start a new run at once (DESIGN.md 8)
 ##   --rush                          start a Fight Rush at once (DESIGN.md 8.21); with --host=N host
@@ -51,8 +50,7 @@ extends RefCounted
 ##                                   topic: glossary_reading), journal, party, heroes, attributes, skills, calibration,
 ##                                   tutorial, map, map_start, map_act2, shop, campfire,
 ##                                   event, treasure, controls_vibration (the Controller page on
-##                                   its Vibration row), zone_exit (a zone's open exit), zone_leave (its
-##                                   "Leave the zone?" question), players_in_run (the Players overlay
+##                                   its Vibration row), players_in_run (the Players overlay
 ##                                   over the pause menu, two players), pause_players (the pause menu
 ##                                   with its Players row)
 ##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the
@@ -82,9 +80,7 @@ var quit_on_end: bool = false
 var seed_override: int = -1
 ## "" when no --encounter was given.
 var encounter_id: String = ""
-## "" when no --zone was given.
-var zone_id: String = ""
-## --weather=ID: every run fight but the boss's, every Rush fight and every zone visit has this
+## --weather=ID: every run fight but the boss's and every Rush fight has this
 ## weather ("clear": none); "" : the seed picks (card #303, DESIGN.md 8.22).
 var weather_id: String = ""
 var first_strike: bool = false
@@ -189,8 +185,6 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.quit_on_end = true
 		elif arg.begins_with("--encounter="):
 			options.encounter_id = arg.substr("--encounter=".length())
-		elif arg.begins_with("--zone="):
-			options.zone_id = arg.substr("--zone=".length())
 		elif arg.begins_with("--weather="):
 			options.weather_id = arg.substr("--weather=".length())
 		elif arg == "--first-strike":

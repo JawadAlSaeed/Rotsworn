@@ -34,10 +34,13 @@ func _enemy(id: String) -> EnemyData:
 	return load("res://data/enemies/%s.tres" % id) as EnemyData
 
 
-func test_every_zone_fight_has_a_deep_version_of_variants() -> void:
+func test_every_place_fight_has_a_deep_version_of_variants() -> void:
 	var checked := 0
 	for zone: ZoneData in _data.zones:
-		for encounter: EncounterData in ZoneAssembler.encounters(zone):
+		var fights: Array[EncounterData] = zone.roamer_pool.duplicate()
+		if zone.guard != null:
+			fights.append(zone.guard)
+		for encounter: EncounterData in fights:
 			var label := "%s: %s" % [zone.id, encounter.id]
 			assert_not_null(encounter.deep, label + " has a deep version")
 			if encounter.deep == null:

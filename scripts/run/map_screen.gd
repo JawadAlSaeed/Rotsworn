@@ -8,7 +8,7 @@ extends CanvasLayer
 ## party_menu the party screen. Confirm, cancel or party_menu pressed while the map opens only
 ## finishes the opening.
 ## Phase 22: under the map, the picked stop's picture and name and 2 or 3 icon chips (detail_chips:
-## a zone's guard, optional foes and gold; a campfire's heal, train and upgrade, or keep watch and
+## a Fight stop's foes and gold; a campfire's heal, train and upgrade, or keep watch and
 ## sharpen in the row before the boss; ...), never a rules
 ## sentence (the Glossary's "The map" topic has them). icon_chip() is shared by the run's info screens.
 ## Card #294: the legend down the left is small and dim (each kind's picture with its word), so the

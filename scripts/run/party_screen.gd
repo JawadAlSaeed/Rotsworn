@@ -1,6 +1,6 @@
 class_name PartyScreen
 extends CanvasLayer
-## The Y screen (DESIGN.md 8.18, card #270), opened with Tab / Y from the map or a zone, after loot,
+## The Y screen (DESIGN.md 8.18, card #270), opened with Tab / Y from the map, after loot,
 ## from a shop and from treasure and event stops. Four tabs, one job each, switched with LB / RB
 ## (Z / C): Relics (every hero's Relic slots next to the team's shared Relic bag, RelicsTab), Bag
 ## (the backpack, BagTab), Hero (attributes, stats and the Echoes, HeroTab) and Skills (the skill
@@ -49,7 +49,7 @@ static var _last_tab: int = Tab.RELICS
 
 ## Online client: changes are asked of the host instead of made here.
 var remote: bool = false
-## Close by itself once the new thing in hand is placed, worn or left (shop and zone finds).
+## Close by itself once the new thing in hand is placed, worn or left (shop finds, a fight's drop).
 var close_when_settled: bool = false
 ## Opened from a shop: items can be sold (DESIGN.md 8.1); the Bag tab opens first.
 var shop_mode: bool = false

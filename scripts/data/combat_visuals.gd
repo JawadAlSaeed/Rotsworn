@@ -803,3 +803,14 @@ func kind_color(kind: int, strike_color: Color) -> Color:
 @export_range(0, 2000, 10, "suffix:ms") var kill_silence_fade_ms: int = 60
 @export_range(0, 500, 5, "suffix:ms") var impact_frame_ms: int = 70
 @export var impact_frame_color: Color = Color(0.0, 0.0, 0.0, 0.55)
+
+@export_group("Screen transitions")
+## Into a fight: the screen swirls and fades to black over transition_out_ms, then the fight fades
+## in over transition_in_ms. Between other screens: fade to black, then fade in, each over
+## transition_in_ms (ScreenTransition).
+@export_range(50, 5000, 1, "suffix:ms") var transition_out_ms: int = 850
+@export_range(50, 5000, 1, "suffix:ms") var transition_in_ms: int = 450
+## How far the screen twists (radians at the middle) by the end of the swirl.
+@export_range(0.0, 30.0, 0.1) var swirl_turns: float = 7.0
+## White flash at the start of the swirl (0 = none).
+@export_range(0.0, 1.0, 0.05) var transition_flash: float = 0.6

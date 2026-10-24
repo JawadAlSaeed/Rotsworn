@@ -294,17 +294,10 @@ func test_frame_is_clamped_to_the_grid() -> void:
 		assert_lt(cell, COLS * ROWS)
 
 
-func test_flip_and_facing_suffix() -> void:
+func test_flip_keeps_the_frame() -> void:
 	var view := _view(true, _grid_sheet(), _clips({"strike": [3], "strike_front": [4]}), 8, 100, -1)
-	view.set_facing_suffix("_front")
 	view.play_pose(STRIKE, 1000)
-	assert_eq(_frame(view), 4, "the facing's own clip first")
-	view.set_facing_suffix("_back")
-	view.play_pose(STRIKE, 1000)
-	assert_eq(_frame(view), 3, "no back clip: the side one")
-	view.set_facing_suffix("")
-	view.play_pose(STRIKE, 1000)
-	assert_eq(_frame(view), 3)
+	assert_eq(_frame(view), 3, "the side clip (a fight never faces front)")
 	view.set_flip(true)
 	assert_true(_body(view).flip_h)
 	assert_eq(_frame(view), 3, "flipping keeps the frame")

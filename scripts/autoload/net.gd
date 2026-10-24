@@ -26,9 +26,8 @@ extends Node
 ## up with the host (the place screen built, or the fight showing the host's resume) and sends
 ## "seated_ready"; the host hands the heroes over then, or at the fight's next quiet moment.
 ##
-## Messages are (kind: String, payload: Dictionary) pairs of plain data. Reliable ones keep their
-## order on one channel (game flow and combat must never overtake each other); position updates go
-## unreliable on their own channel.
+## Messages are (kind: String, payload: Dictionary) pairs of plain data. They are reliable and keep
+## their order on one channel (game flow and combat must never overtake each other).
 
 ## The connection state changed (State).
 signal state_changed(state: int)
@@ -59,13 +58,13 @@ const HOST_PEER: int = 1
 ## 4: "lobby", "again" and "run_start" say which game it is (a run or a Fight Rush), and the Rush
 ## screens go out (card #312).
 ## 5: a run without zones (DESIGN.md 8.22): "stop_fight" starts a Fight or Guard stop's fight, which
-## the friend builds from the run state.
+## the friend builds from the run state; the zone messages ("zone", "zone_fight", "zone_back") and
+## the unreliable zone positions are gone.
 const PROTOCOL: int = 5
 ## Client: the host could not be reached (short: it can end as a main menu notice).
 const REASON_UNREACHABLE := "Host not found"
-## Channel for reliable messages (flow and combat) and for unreliable position updates.
+## Channel for every message (flow and combat).
 const RELIABLE_CHANNEL: int = 0
-const FAST_CHANNEL: int = 1
 ## Most clients the host takes (three players: the host and two clients).
 const MAX_CLIENTS: int = PlayerRoster.MAX_PLAYERS - 1
 ## A refused client is dropped this long after the refusal, so the message arrives first.
@@ -323,14 +322,6 @@ func send_to(peer: int, kind: String, payload: Dictionary = {}) -> void:
 		_to_client.rpc_id(peer, kind, payload)
 
 
-## Host: an unreliable message (positions) to every welcomed client; a lost one is just skipped.
-func broadcast_fast(kind: String, payload: Dictionary = {}) -> void:
-	if state != State.HOSTING:
-		return
-	for peer: int in _welcomed:
-		_to_client_fast.rpc_id(peer, kind, payload)
-
-
 # --- RPCs -------------------------------------------------------------------------------------
 
 @rpc("any_peer", "call_remote", "reliable", RELIABLE_CHANNEL)
@@ -423,13 +414,6 @@ func _to_host(kind: Variant, payload: Variant) -> void:
 
 @rpc("authority", "call_remote", "reliable", RELIABLE_CHANNEL)
 func _to_client(kind: Variant, payload: Variant) -> void:
-	if state != State.CONNECTED or typeof(kind) != TYPE_STRING or typeof(payload) != TYPE_DICTIONARY:
-		return
-	message_received.emit(HOST_PEER, String(kind), payload as Dictionary)
-
-
-@rpc("authority", "call_remote", "unreliable_ordered", FAST_CHANNEL)
-func _to_client_fast(kind: Variant, payload: Variant) -> void:
 	if state != State.CONNECTED or typeof(kind) != TYPE_STRING or typeof(payload) != TYPE_DICTIONARY:
 		return
 	message_received.emit(HOST_PEER, String(kind), payload as Dictionary)

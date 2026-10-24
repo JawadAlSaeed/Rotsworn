@@ -118,7 +118,7 @@ func test_the_pictures_are_the_games_own_icons_where_they_fit() -> void:
 	for step: TutorialStepData in _data().steps:
 		by_title[step.title] = step.icon_path
 	# The defence lessons show the hit kinds' own icons, the marks lesson the Rot mark, First Strike
-	# the zone's foe skull: the same pictures the player meets in the fight and the zone.
+	# the foe skull: the same pictures the player meets in the fight and on the map.
 	assert_eq(by_title.get("Parry"), "res://assets/sprites/ui/hit_normal.png")
 	assert_eq(by_title.get("Jump"), "res://assets/sprites/ui/hit_ground.png")
 	assert_eq(by_title.get("Skills"), "res://assets/sprites/ui/ap_pip.png")

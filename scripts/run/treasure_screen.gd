@@ -36,11 +36,11 @@ var _open_path: String = ""
 
 
 ## `already_open`: online clients show the chest as the host left it.
-func setup(p_run: RunState, explore: ExploreVisuals, already_open: bool = false, text: String = "") -> void:
+func setup(p_run: RunState, already_open: bool = false, text: String = "") -> void:
 	run = p_run
 	_look = StopVisuals.load_default()
-	_closed_path = explore.chest_closed_path
-	_open_path = explore.chest_open_path
+	_closed_path = _look.chest_closed_path
+	_open_path = _look.chest_open_path
 	var column := ListMenu.screen_column(self, "Treasure", TITLE_SIZE)
 	_add_bar(column)
 	_chests = HBoxContainer.new()

@@ -28,8 +28,7 @@ const PAD := "pad"
 const ACTIONS: Array[StringName] = [
 	&"fight_attack", &"fight_skills", &"fight_items", &"fight_ultimate",
 	&"defend_parry", &"defend_dodge", &"defend_jump", &"skill_press",
-	&"move_up", &"move_down", &"move_left", &"move_right",
-	&"field_strike", &"field_pickup", &"party_menu",
+	&"move_up", &"move_down", &"move_left", &"move_right", &"party_menu",
 	&"menu_up", &"menu_down", &"menu_left", &"menu_right",
 	&"menu_confirm", &"menu_cancel", &"pause",
 	&"party_attributes", &"party_skills", &"item_move", &"item_turn_left", &"item_turn_right",
@@ -44,9 +43,9 @@ const DEBUG_ONLY: Array[StringName] = [&"debug_overlay"]
 const LABELS := {
 	&"fight_attack": "Attack", &"fight_skills": "Skills (fight)", &"fight_items": "Items (fight)",
 	&"fight_ultimate": "Ultimate", &"defend_parry": "Parry", &"defend_dodge": "Dodge",
-	&"defend_jump": "Jump", &"skill_press": "Skill press", &"move_up": "Walk up",
-	&"move_down": "Walk down", &"move_left": "Walk left", &"move_right": "Walk right",
-	&"field_strike": "Strike (zone)", &"field_pickup": "Pick up (zone)", &"party_menu": "Backpack",
+	&"defend_jump": "Jump", &"skill_press": "Skill press", &"move_up": "Move up",
+	&"move_down": "Move down", &"move_left": "Move left", &"move_right": "Move right",
+	&"party_menu": "Backpack",
 	&"menu_up": "Menu up", &"menu_down": "Menu down", &"menu_left": "Menu left",
 	&"menu_right": "Menu right", &"menu_confirm": "Confirm", &"menu_cancel": "Back / run",
 	&"pause": "Pause", &"party_attributes": "Previous hero", &"party_skills": "Next hero",
@@ -65,16 +64,14 @@ const DETAILS := {
 	&"defend_dodge": "Enemy attacks",
 	&"defend_jump": "Low enemy hits",
 	&"skill_press": "Your skills' timed presses",
-	&"move_up": "Zones", &"move_down": "Zones", &"move_left": "Zones", &"move_right": "Zones",
-	&"field_strike": "Zones: hit first",
-	&"field_pickup": "Zones: pick up",
-	&"party_menu": "Map, zones, shops",
+	&"move_up": "Shop", &"move_down": "Shop", &"move_left": "Shop", &"move_right": "Shop",
+	&"party_menu": "Map, shops, stops",
 	&"menu_up": "Every menu", &"menu_down": "Every menu",
 	&"menu_left": "Menus, change settings",
 	&"menu_right": "Menus, change settings",
 	&"menu_confirm": "Every menu",
 	&"menu_cancel": "Menus; hold to run",
-	&"pause": "Fights, zones, map",
+	&"pause": "Fights, map",
 	&"party_attributes": "Y screen, Controls page",
 	&"party_skills": "Y screen, Controls page",
 	&"item_move": "Backpack",
@@ -85,18 +82,17 @@ const DETAILS := {
 
 ## Actions needed at the same moment. An input given to one of them is refused (or swapped) when
 ## another in the same group already has it. Menus, defence and skill presses never run together,
-## so the same button may do different things in different groups (W jumps in a fight and walks
+## so the same button may do different things in different groups (W jumps in a fight and moves
 ## up a menu). Pause is live almost everywhere, so it is in every group. The stats overlay only
 ## works in a practice fight (phase 22), so it is only in the fight groups (defence, skill presses,
-## the action menu): the walking and menu groups leave it out, and a player who never sees it
+## the action menu): the move and menu groups leave it out, and a player who never sees it
 ## listed is never offered a swap with it there.
 const GROUPS: Array = [
 	[&"defend_parry", &"defend_dodge", &"defend_jump", &"pause", &"debug_overlay"],
 	[&"skill_press", &"pause", &"debug_overlay"],
 	[&"fight_attack", &"fight_skills", &"fight_items", &"fight_ultimate", &"menu_up", &"menu_down",
 			&"menu_left", &"menu_right", &"menu_confirm", &"menu_cancel", &"pause", &"debug_overlay"],
-	[&"move_up", &"move_down", &"move_left", &"move_right", &"field_strike", &"field_pickup",
-			&"party_menu", &"pause"],
+	[&"move_up", &"move_down", &"move_left", &"move_right", &"party_menu", &"pause"],
 	[&"menu_up", &"menu_down", &"menu_left", &"menu_right", &"menu_confirm", &"menu_cancel",
 			&"pause", &"party_menu", &"party_attributes", &"party_skills", &"item_move",
 			&"item_turn_left", &"item_turn_right"],

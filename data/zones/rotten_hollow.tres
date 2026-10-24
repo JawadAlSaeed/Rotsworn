@@ -4,36 +4,13 @@
 [ext_resource type="Resource" path="res://data/encounters/tick_and_husk.tres" id="p19_tick_and_husk"]
 [ext_resource type="Resource" path="res://data/encounters/husk_trio.tres" id="p19_husk_trio"]
 [ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="1_mwejp"]
-[ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_zone_b"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_end.tres" id="2_7qkf5"]
-[ext_resource type="Script" path="res://scripts/data/zone_prop_data.gd" id="2_zone_p"]
-[ext_resource type="Script" path="res://scripts/data/zone_critter_data.gd" id="3_j8kl2"]
-[ext_resource type="Script" path="res://scripts/data/zone_light_data.gd" id="3_zone_l"]
 [ext_resource type="Resource" path="res://data/encounters/husk_fight.tres" id="4_husk_f"]
-[ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="5_zone_e"]
 [ext_resource type="Resource" path="res://data/encounters/fly_fight.tres" id="6_gnat_p"]
-[ext_resource type="Script" path="res://scripts/data/zone_ground_data.gd" id="6_wophx"]
-[ext_resource type="Script" path="res://scripts/data/zone_section_data.gd" id="7_0y0bn"]
 [ext_resource type="Resource" path="res://data/encounters/shade_fight.tres" id="7_shade_"]
 [ext_resource type="Resource" path="res://data/encounters/bloat_fight.tres" id="8_bloat_"]
 [ext_resource type="Resource" path="res://data/looks/rotten_hollow.tres" id="10_rotten"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_trail.tres" id="11_7i7ie"]
-[ext_resource type="Resource" path="res://data/characters/brin.tres" id="11_brin"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_camp.tres" id="12_cxwx8"]
 [ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="12_zone_d"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_chapel.tres" id="13_6jne5"]
-[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="13_cxwx8"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_thicket.tres" id="14_skf40"]
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="15_6jne5"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_fallen.tres" id="15_tacki"]
-[ext_resource type="Resource" path="res://data/offers/healing_spring.tres" id="21_skf40"]
-[ext_resource type="Resource" path="res://data/offers/blood_altar.tres" id="22_tacki"]
-[ext_resource type="Resource" path="res://data/offers/war_idol.tres" id="23_jgeta"]
-[ext_resource type="Resource" path="res://data/offers/shrine_of_plenty.tres" id="24_5iekg"]
-[ext_resource type="Resource" path="res://data/zones/sections/rotten_hollow_start.tres" id="25_hycp2"]
-[ext_resource type="Resource" path="res://data/offers/key_peddler.tres" id="26_p8rad"]
-[ext_resource type="Resource" path="res://data/offers/grave_robber.tres" id="27_b1m00"]
-[ext_resource type="Resource" path="res://data/offers/old_pilgrim.tres" id="28_rlip7"]
 [ext_resource type="Resource" path="res://data/weather/rain.tres" id="p24_w_rain"]
 [ext_resource type="Resource" path="res://data/weather/storm.tres" id="p24_w_storm"]
 [ext_resource type="Resource" path="res://data/weather/fog.tres" id="p24_w_fog"]
@@ -76,20 +53,9 @@ id = "rotten_hollow"
 display_name = "Rotten Hollow"
 map_icon_path = "res://assets/sprites/ui/map_zone_rotten_hollow.png"
 look = ExtResource("10_rotten")
-leader = ExtResource("11_brin")
-bounds_min = Vector2(0, -20)
-bounds_max = Vector2(1, 10)
 ambient = Array[ExtResource("1_mwejp")]([SubResource("Resource_mwejp"), SubResource("Resource_j8kl2")])
-start_section = ExtResource("25_hycp2")
-middle_sections = Array[ExtResource("7_0y0bn")]([ExtResource("11_7i7ie"), ExtResource("12_cxwx8"), ExtResource("13_6jne5"), ExtResource("14_skf40"), ExtResource("15_tacki")])
-end_section = ExtResource("2_7qkf5")
 roamer_pool = Array[ExtResource("15_6jne5")]([ExtResource("4_husk_f"), ExtResource("6_gnat_p"), ExtResource("7_shade_"), ExtResource("8_bloat_"), ExtResource("p19_rat_pack"), ExtResource("p19_tick_and_husk"), ExtResource("p19_husk_trio")])
 guard = ExtResource("p26_guard")
-shrines = Array[ExtResource("13_cxwx8")]([ExtResource("21_skf40"), ExtResource("22_tacki"), ExtResource("23_jgeta"), ExtResource("24_5iekg")])
-wanderers = Array[ExtResource("13_cxwx8")]([ExtResource("26_p8rad"), ExtResource("27_b1m00"), ExtResource("28_rlip7")])
-edge_height = 4.5
-music_path = "res://assets/audio/music/zone_hollow.ogg"
-ambience_path = "res://assets/audio/ambience/ambience_hollow.ogg"
 weathers = Array[ExtResource("p24_weather")]([ExtResource("p24_w_rain"), ExtResource("p24_w_storm"), ExtResource("p24_w_fog"), ExtResource("p24_w_wind"), ExtResource("p24_w_dusk")])
 weather_weights = Array[int]([3, 1, 2, 2, 3])
 clear_weight = 4

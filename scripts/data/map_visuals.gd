@@ -28,8 +28,7 @@ extends Resource
 @export_group("Run info icons (phase 22)")
 ## The run's info screens show an icon and a word instead of a sentence: the line under the map,
 ## the shop and the run's end. The gold coin and the hit icons come from combat_visuals.tres.
-## A guard (a zone's at the exit) and the enemies of a fight (the zone's own goal chips use the same
-## pictures, explore_visuals.tres).
+## A Guard stop's guard and a Fight stop's enemies (DESIGN.md 8.22).
 @export_file("*.png") var guard_icon_path: String = "res://assets/sprites/ui/map_elite.png"
 @export_file("*.png") var foe_icon_path: String = "res://assets/sprites/ui/goal_foe.png"
 ## An item up a level (the shop's Upgrade, the campfire's), new wares (Restock), back to the map
@@ -48,9 +47,8 @@ extends Resource
 ## (ShopScreen.item_chips). A heal, damage, a revive or a cleanse shows the fight's Items-list chips
 ## (ActionMenu.item_chips: drawn glyphs, its AP with ap_icon_path); more max HP uses the same heart
 ## and person glyphs, treasure the gold coin (combat_visuals.tres). Only the kinds a fight never
-## shows have pictures here: a curse, a key, a bigger pack.
+## shows have pictures here: a curse, a bigger pack.
 @export_file("*.png") var item_curse_icon_path: String = "res://assets/sprites/ui/chip_skull.png"
-@export_file("*.png") var item_key_icon_path: String = "res://assets/sprites/ui/lock.png"
 @export_file("*.png") var item_pocket_icon_path: String = "res://assets/sprites/ui/chip_bag.png"
 ## The line stays short: at most this many chips, and this many words in all of them (a chip that
 ## would go over is left out; the Glossary has the rules).

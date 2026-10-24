@@ -20,8 +20,7 @@ extends Node
 signal restart_requested
 ## Back to the fight list (end screen, Cancel).
 signal select_requested
-## A fight that started in a zone or a run is over and the player wants to go on (back to the
-## zone, or on with the run; DESIGN.md 7.4, 8).
+## A run or Fight Rush fight is over and the player wants to go on with it (DESIGN.md 8, 8.21).
 signal continue_requested(result: String)
 ## Every event as it is played (and the prompt events the runner applies at once).
 signal event_played(event: Dictionary)
@@ -93,13 +92,11 @@ var _spot_actor: int = -1
 ## --attacks: the next listed attack to force, and whether the last sequence was an enemy attack.
 var _forced_next: int = 0
 var _forced_seq_was_attack: bool = false
-## The place the fight happens in (null: the fight list's look), how it starts, and whether it
-## started in a zone (the end screen then goes back to the zone).
+## The place the fight happens in (null: the fight list's look) and how it starts.
 var _look: StageLook
-## The zone's drifting particles, played thinner in its fights (DESIGN.md 8.12); empty: the look's own.
+## The place's drifting particles, played thinner in its fights (DESIGN.md 8.12); empty: the look's own.
 var _air: Array[ZoneAmbientData] = []
 var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
-var _from_zone: bool = false
 ## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
 var _run: RunState
 var _drop: ItemData
@@ -171,7 +168,7 @@ var _attacks: Dictionary = {}
 ## Call before adding the node to the tree. `look` null uses the fight list's look.
 func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals, options: CombatOptions,
 		look: StageLook = null, opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL,
-		from_zone: bool = false, air: Array[ZoneAmbientData] = []) -> void:
+		air: Array[ZoneAmbientData] = []) -> void:
 	_air = air
 	_encounter = encounter
 	_tuning = tuning
@@ -179,7 +176,6 @@ func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals,
 	_options = options
 	_look = look
 	_opening = opening
-	_from_zone = from_zone
 
 
 ## Makes this a run fight (DESIGN.md 8): the run's party with its carried-over HP, gold on the end
@@ -540,11 +536,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _net_mode == NetMode.CLIENT:
 			# The host goes on for everyone.
 			return
-		if _from_zone or _run != null:
-			if key == KEY_R and _run == null:
-				get_viewport().set_input_as_handled()
-				restart_requested.emit()
-			elif event.is_action_pressed("menu_confirm", false, true) or event.is_action_pressed("menu_cancel", false, true):
+		if _run != null:
+			if event.is_action_pressed("menu_confirm", false, true) or event.is_action_pressed("menu_cancel", false, true):
 				get_viewport().set_input_as_handled()
 				continue_requested.emit(_result)
 			return
@@ -1259,8 +1252,8 @@ func _on_combat_ended(result: String) -> void:
 		if _net_mode != NetMode.LOCAL:
 			print("AUTOPLAY_MIRROR %s %d" % [result, var_to_str(mirror.projection()).hash()])
 	combat_finished.emit(result)
-	# A zone fight hands the end back to the zone (Main); the zone decides when the run is over.
-	if _options.quit_on_end and not _from_zone and _run == null:
+	# A run fight hands the end back to Main, which decides when the run is over.
+	if _options.quit_on_end and _run == null:
 		get_tree().create_timer(QUIT_DELAY_S).timeout.connect(_quit)
 
 
@@ -1330,9 +1323,7 @@ func _end_hints() -> Array:
 	elif _run != null and _result == "defeat":
 		hints = [[&"menu_confirm", "See how the run went"]]
 	elif _run != null:
-		hints = [[&"menu_confirm", "Back to the zone" if _from_zone else "On with the run"]]
-	elif _from_zone:
-		hints = [[&"menu_confirm", "Back to the zone"]]
+		hints = [[&"menu_confirm", "On with the run"]]
 	if is_practice_fight():
 		hints.append([&"debug_overlay", "Stats"])
 	return hints
@@ -2215,8 +2206,8 @@ func _is_real_fight() -> bool:
 	return _run != null or tutorial_mode
 
 
-## A practice fight: the main menu's Practice fights and the dev switches' (--encounter, --zone
-## without --run), played on this machine. Not a run, the tutorial or an online game.
+## A practice fight: the main menu's Practice fights and the dev switch's (--encounter without
+## --run), played on this machine. Not a run, the tutorial or an online game.
 func is_practice_fight() -> bool:
 	return not _is_real_fight() and _net_mode == NetMode.LOCAL
 

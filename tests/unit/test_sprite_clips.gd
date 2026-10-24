@@ -8,7 +8,6 @@ extends GutTest
 
 const CHARACTER_DIR := "res://data/characters"
 const ENEMY_DIR := "res://data/enemies"
-const ZONE_DIR := "res://data/zones"
 const MAX_SHEET: int = 4096
 ## Legacy poses in row 0 (FighterView.CharPose and EnemyChoreography.Pose).
 const HERO_LEGACY: int = 8
@@ -20,8 +19,6 @@ const HERO_TIER1: Array[String] = [
 	"strike_windup", "strike", "strike_alt_windup", "strike_alt", "strike_big_windup", "strike_big",
 	"cast_windup", "cast", "leap", "fall", "get_up", "victory", "victory_hold",
 ]
-## Only the zone leader walks the zones.
-const LEADER_TIER1: Array[String] = ["walk_side", "walk_front", "walk_back", "stand_front", "stand_back", "pickup"]
 const ENEMY_TIER1: Array[String] = [
 	"idle", "windup", "windup_hold", "lunge", "contact", "recoil", "return", "slam", "slam_recover",
 	"hurt", "stagger", "death", "walk", "chase",
@@ -34,16 +31,6 @@ func _load_all(dir: String) -> Array[Resource]:
 		if file.ends_with(".tres"):
 			list.append(load(dir.path_join(file)))
 	return list
-
-
-## Ids of the characters who lead a zone.
-func _leaders() -> Dictionary:
-	var ids := {}
-	for res: Resource in _load_all(ZONE_DIR):
-		var zone := res as ZoneData
-		if zone != null and zone.leader != null:
-			ids[zone.leader.id] = true
-	return ids
 
 
 func _check(who: String, clips: SpriteClips, sheet_path: String, hframes: int, legacy: int,
@@ -73,7 +60,6 @@ func _check(who: String, clips: SpriteClips, sheet_path: String, hframes: int, l
 
 
 func test_every_sheet_with_clips_matches_them() -> void:
-	var leaders := _leaders()
 	var characters := _load_all(CHARACTER_DIR)
 	var enemies := _load_all(ENEMY_DIR)
 	assert_gt(characters.size(), 0, "found the characters")
@@ -83,10 +69,7 @@ func test_every_sheet_with_clips_matches_them() -> void:
 		var c := res as CharacterData
 		if c == null or c.sprite_clips == null:
 			continue
-		var required: Array[String] = HERO_TIER1.duplicate()
-		if leaders.has(c.id):
-			required.append_array(LEADER_TIER1)
-		_check(c.id, c.sprite_clips, c.sprite_path, c.sprite_hframes, HERO_LEGACY, required)
+		_check(c.id, c.sprite_clips, c.sprite_path, c.sprite_hframes, HERO_LEGACY, HERO_TIER1)
 		checked += 1
 	for res: Resource in enemies:
 		var e := res as EnemyData

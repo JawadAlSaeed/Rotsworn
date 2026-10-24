@@ -1,8 +1,8 @@
 extends GutTest
 ## Two or three choices side by side, with icons (card #288): the run's choice screens (spoils,
 ## campfire, treasure, "?" events and the starting pact) show their choices as cards with a picture
-## and icon chips instead of sentences, the shrine's question shows its price and gift as chips, and
-## the main menu's Online page is two cards. The bots' methods keep working. Uses the shipped run.
+## and icon chips instead of sentences, and the main menu's Online page is two cards (the zone
+## shrine's question with its chips went with the zones in phase 26, DESIGN.md 8.22). The bots' methods keep working. Uses the shipped run.
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 const EVENTS_DIR := "res://data/events"
@@ -348,7 +348,7 @@ func test_the_bot_rests_and_trains_as_before() -> void:
 func _treasure(run: RunState) -> TreasureScreen:
 	var screen := TreasureScreen.new()
 	add_child_autofree(screen)
-	screen.setup(run, load("res://data/presentation/explore_visuals.tres") as ExploreVisuals)
+	screen.setup(run)
 	return screen
 
 
@@ -410,32 +410,14 @@ func test_a_copy_shows_the_level_it_would_reach() -> void:
 	assert_eq(String(loot.menu().items[0].value), "Lv 1 > 2")
 
 
-# --- the shrine's question and the yes/no prompt ----------------------------------------------
+# --- the yes/no prompt ---------------------------------------------------------------------------
 
-func test_a_question_shows_chips_and_keeps_its_answers_side_by_side() -> void:
-	var run := _run()
-	var altar := load("res://data/offers/blood_altar.tres") as ZoneOfferData
-	var chips := StopScreen.chip_entries(run.offer_chips(altar), _look)
-	assert_eq(_chip_kinds(chips), ["hp", "find"], "HP paid, a rare find")
+func test_a_question_keeps_its_answers_side_by_side() -> void:
 	var prompt := ConfirmPrompt.new()
 	add_child_autofree(prompt)
-	prompt.setup(altar.question, "", altar.yes_text, altar.no_text, chips)
-	assert_eq(prompt.chip_count(), 2)
+	prompt.setup("Abandon this run?", "The run is lost.", "Abandon run", "Keep playing")
 	assert_true(prompt._menu.horizontal)
-	for label: Node in prompt.find_children("*", "Label", true, false):
-		assert_false((label as Label).text.contains("never below"), "no detail sentence")
-	var plain := ConfirmPrompt.new()
-	add_child_autofree(plain)
-	plain.setup("Abandon this run?", "The run is lost.", "Abandon run", "Keep playing")
-	assert_eq(plain.chip_count(), 0, "a plain question has no chips")
-
-
-func test_main_asks_the_shrine_with_chips() -> void:
-	var source := FileAccess.get_file_as_string("res://scenes/main.gd")
-	var start := source.find("func _on_offer(")
-	var body := source.substr(start, source.find("\nfunc ", start + 1) - start)
-	assert_string_contains(body, "offer_chips(data)")
-	assert_string_contains(body, "chips)")
+	assert_eq(prompt._menu.items.size(), 2)
 
 
 # --- the main menu's Online page --------------------------------------------------------------

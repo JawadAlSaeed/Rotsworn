@@ -1,6 +1,6 @@
 class_name LootScreen
 extends CanvasLayer
-## Spoils after a zone's guard, an elite or an act's boss (DESIGN.md 8, 8.6): pick one of a few
+## Spoils after a Guard stop's guard, an elite or an act's boss (DESIGN.md 8, 8.6, 8.22): pick one of a few
 ## Relics (8.17) that are not in the run yet or that a copy would still level up this run (rare or
 ## better while the run has them; levels last one run, 8.19). A Relic never found before is kept for
 ## good; the party screen comes next to put it on someone.

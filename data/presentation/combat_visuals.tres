@@ -357,3 +357,7 @@ kill_silence = true
 kill_silence_fade_ms = 60
 impact_frame_ms = 70
 impact_frame_color = Color(0, 0, 0, 0.55)
+transition_out_ms = 850
+transition_in_ms = 450
+swirl_turns = 7.0
+transition_flash = 0.6

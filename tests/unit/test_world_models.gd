@@ -1,7 +1,7 @@
 extends GutTest
 ## 3D world pieces made in Blender (DESIGN 5.6): a block with a piece shows it stretched to the
 ## block's size with its footprint centred on the block's position (turned too); a prop with a
-## piece stands at its own size times its scale, turned and mirrored, solid as a circle; each model
+## piece stands at its own size times its scale, turned and mirrored; each model
 ## surface wears the piece surface of the same name (texture in world space, vertex colours,
 ## glow); a missing model or an unmatched surface shows the placeholder. Every model and piece file
 ## keeps the contract.
@@ -149,18 +149,6 @@ func test_a_flipped_prop_piece_is_mirrored_and_a_turned_one_turns() -> void:
 	view.free()
 
 
-func test_a_solid_prop_piece_blocks_walking_as_a_circle() -> void:
-	var zone := ZoneData.new()
-	var data := ZonePropData.new()
-	data.piece = WorldPieceData.new()
-	data.position = Vector3(4, 0, 0)
-	data.solid_radius = 0.6
-	zone.props.append(data)
-	var obstacles := ZoneMotion.obstacles(zone)
-	assert_eq(obstacles.size(), 1, "one obstacle")
-	assert_almost_eq(float(obstacles[0].radius), 0.6, EPS, "a circle of its solid radius")
-
-
 # --- surfaces -----------------------------------------------------------------------------------
 
 func test_each_surface_wears_the_piece_surface_of_its_name() -> void:
@@ -258,10 +246,9 @@ func test_every_model_file_holds_a_mesh_on_the_ground_with_vertex_colours() -> v
 		assert_almost_eq(box.get_center().z, 0.0, EPS, "%s: footprint centred (z)" % file)
 
 
-# --- fire and shrines ---------------------------------------------------------------------------
+# --- fire ------------------------------------------------------------------------------------------
 
 const BRAZIER := "res://data/pieces/brazier.tres"
-const IDOL := "res://data/pieces/shrine_idol.tres"
 
 
 func test_a_piece_carries_its_flat_sprites() -> void:
@@ -279,31 +266,7 @@ func test_a_piece_carries_its_flat_sprites() -> void:
 	view.free()
 
 
-func test_dimming_a_used_shrine_leaves_its_other_copies_lit() -> void:
-	var idol := _piece(IDOL)
-	if idol == null:
-		pending("%s not made yet" % IDOL)
-		return
-	var used := StageBuilder.piece_view(idol)
-	var other := StageBuilder.piece_view(idol)
-	var lit := -1
-	for i: int in used.mesh.get_surface_count():
-		if _material(used, i).emission_enabled:
-			lit = i
-	assert_gt(lit, -1, "the idol has a glowing surface")
-	var before := _material(other, lit).emission_energy_multiplier
-	StageBuilder.dim_glow(used, 0.0, 0.25)
-	assert_almost_eq(_material(used, lit).emission_energy_multiplier, before * 0.25, EPS, "the used one dims")
-	assert_almost_eq(_material(other, lit).emission_energy_multiplier, before, EPS, "the other copy stays lit")
-	used.free()
-	other.free()
-
-
-# --- water and dressing (cards #232 to #236) ----------------------------------------------------
-
-const SECTIONS_DIR := "res://data/zones/sections"
-const PATH_GROUNDS := ["dirt_trail", "road_cobble", "paving", "planks"]
-
+# --- water (card #232) ----------------------------------------------------------------------------
 
 func test_a_stream_flows_along_its_own_length_when_turned() -> void:
 	var data := ZoneGroundData.new()
@@ -315,26 +278,3 @@ func test_a_stream_flows_along_its_own_length_when_turned() -> void:
 	assert_almost_eq(flow, Vector2(0.0, -1.0), Vector2(EPS, EPS), "a quarter turn sends it along -z, one tile a second")
 	data.flow = Vector2.ZERO
 	assert_eq(StageBuilder.water_flow(data), Vector2.ZERO, "still water does not flow")
-
-
-func test_nothing_dressed_stands_on_a_trail_road_or_in_water() -> void:
-	var dressed := 0
-	for file: String in _files(SECTIONS_DIR, ".tres"):
-		var section := load(file) as ZoneSectionData
-		var path: Array[Dictionary] = []
-		for g: ZoneGroundData in section.grounds:
-			if g.resource_name == "dressed":
-				continue  # the stream's own water and the bridge over it
-			if g.kind == ZoneGroundData.Kind.WATER or PATH_GROUNDS.has(g.texture_path.get_file().get_basename()):
-				path.append({"centre": Vector2(g.position.x, g.position.z), "half": g.size * 0.5,
-						"angle": deg_to_rad(g.rotation_y_degrees)})
-		for p: ZonePropData in section.props:
-			if p.resource_name != "dressed" or p.sprite_path.ends_with("reeds.png") or p.piece != null \
-					and p.piece.id == "bridge_planks":
-				continue
-			dressed += 1
-			for o: Dictionary in path:
-				assert_false(ZonePath._overlaps(Vector2(p.position.x, p.position.z), 0.1, o),
-						"%s: dressed %s at %s is on the path or in water" % [section.id,
-						p.piece.id if p.piece != null else p.sprite_path.get_file(), p.position])
-	assert_gt(dressed, 300, "the zones are dressed")

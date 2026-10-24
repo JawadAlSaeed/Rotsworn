@@ -1,6 +1,6 @@
 class_name ItemData
 extends Resource
-## One thing that lives in the party's backpack (DESIGN.md 8.1): a consumable, a curse, a key or
+## One thing that lives in the party's backpack (DESIGN.md 8.1): a consumable, a curse or
 ## treasure. It has a shape on the backpack grid, a rarity and a price. Relics are not items: they
 ## are worn (GearData). Phase 17 took the charms out (their buffs are what Relics and Echoes do now,
 ## DESIGN.md 8.17); the old charm files stay as treasure so older saves still load.
@@ -11,8 +11,8 @@ enum Kind {
 	## Only hurts: rotten, every hero loses rot_percent HP each turn in fights while it is carried.
 	## Events give them as a price; a shop's Cleanse throws one away. (Was CHARM before phase 17.)
 	CURSE,
-	## Opens one chest (phase 11 step 2). Phase 26 took it out of the shop, finds and drops (it goes
-	## with the chests, DESIGN.md 8.22 G3); the slot keeps its number so item files stay valid.
+	## Retired: the Key that opened a zone's chest (phase 11 step 2) went with the walkable zones in
+	## phase 26 (DESIGN.md 8.22 G3). No item is one; the slot keeps its number so item files stay valid.
 	KEY,
 	## Only worth gold at the shop.
 	TREASURE,
@@ -23,7 +23,7 @@ enum Kind {
 enum Rarity { COMMON, RARE, LEGENDARY }
 
 enum Effect {
-	## No effect of its own (keys, treasure).
+	## No effect of its own (treasure).
 	NONE,
 	## Heals one character by `amount_percent` of their max HP.
 	HEAL_ONE,

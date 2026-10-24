@@ -214,31 +214,6 @@ extends Resource
 ## Time after a skill's last press (or follow-up) before the turn moves on.
 @export_range(0, 3000, 1, "suffix:ms") var skill_recover_ms: int = 350
 
-@export_group("Exploration")
-## How fast the leader walks (world units per second).
-@export_range(0.5, 20.0, 0.1) var explore_walk_speed: float = 4.5
-## Roaming enemies wander this fast, and chase this fast (keep chasing below walking, so you can
-## get away or turn around and strike first).
-@export_range(0.1, 20.0, 0.1) var explore_wander_speed: float = 1.2
-@export_range(0.1, 20.0, 0.1) var explore_chase_speed: float = 3.6
-## A roaming enemy notices the leader within this distance, shows "!" for notice ms, then chases
-## until the leader is further than give-up distance from it.
-@export_range(0.5, 50.0, 0.1) var explore_notice_radius: float = 5.0
-@export_range(0, 3000, 1, "suffix:ms") var explore_notice_ms: int = 450
-@export_range(0.5, 80.0, 0.1) var explore_give_up_radius: float = 9.0
-## Between wander walks a roaming enemy stands still for a random time in this range.
-@export_range(0, 10000, 1, "suffix:ms") var explore_pause_min_ms: int = 800
-@export_range(0, 10000, 1, "suffix:ms") var explore_pause_max_ms: int = 2200
-## A roaming enemy closer than this to the leader touches them: the fight starts, no advantage.
-@export_range(0.1, 5.0, 0.05) var explore_touch_radius: float = 0.9
-## The field strike hits a roaming enemy within this reach and this arc in front of the leader:
-## the fight starts with a FIRST STRIKE (DESIGN.md 2.12). One strike lasts strike ms.
-@export_range(0.1, 10.0, 0.05) var explore_strike_reach: float = 1.8
-@export_range(10.0, 360.0, 1.0) var explore_strike_arc_degrees: float = 140.0
-@export_range(50, 2000, 1, "suffix:ms") var explore_strike_ms: int = 320
-## After coming back from a fight, no roaming enemy can start a fight for this long.
-@export_range(0, 10000, 1, "suffix:ms") var explore_return_grace_ms: int = 1500
-
 @export_group("Run")
 ## Rows of stops on the run map before the final fight (the final fight is one more stop).
 @export_range(2, 30) var run_map_rows: int = 7
@@ -294,7 +269,7 @@ extends Resource
 ## On run_treasure_row it keeps the row, and the chests stand on the row before it (after it when
 ## that is row 0).
 @export_range(0, 30) var run_guard_row: int = 1
-## Elite fights (elite map stops and zone champions): enemies get these percents of their HP,
+## Elite fights (elite map stops): enemies get these percents of their HP,
 ## power and gold.
 @export_range(10, 1000, 1, "suffix:%") var elite_hp_percent: int = 140
 @export_range(10, 1000, 1, "suffix:%") var elite_power_percent: int = 115
@@ -496,11 +471,11 @@ extends Resource
 ## item each; a Bigger Pack adds one, up to the max.
 @export_range(1, 20) var backpack_pockets: int = 6
 @export_range(1, 20) var backpack_max_pockets: int = 8
-## A beaten roaming enemy (not the guard) drops a small item this often.
+## A won Fight stop's fight drops a small item this often (DESIGN.md 8.22).
 @export_range(0, 100, 1, "suffix:%") var item_drop_percent: int = 35
 ## Selling (an item at the shop, or gear swapped out for new gear) pays this share of its price.
 @export_range(0, 100, 1, "suffix:%") var item_sell_percent: int = 50
-## Rarity odds (DESIGN.md 8.1): when the run picks a find, a drop, a chest's prize or loot gear,
+## Rarity odds (DESIGN.md 8.1): when the run picks a find, a drop, a treasure chest or loot gear,
 ## each thing's chance is its weight times a rarity share: common 100%, rare item_rare_percent plus
 ## item_rare_row_percent per map row, legendary the same with its own numbers. So deeper stops
 ## turn up rarer things.
@@ -511,18 +486,6 @@ extends Resource
 ## Combining two of the same item (DESIGN.md 8.1) makes one a level higher: each level makes its
 ## effect (heal, damage, charm bonus) this percent stronger and its price that much higher.
 @export_range(0, 1000, 1, "suffix:%") var combine_bonus_percent: int = 60
-## A chest holds gear this often (else a rare or better item).
-@export_range(0, 100, 1, "suffix:%") var chest_gear_percent: int = 50
-## The leader picks up a glinting spot from this close (world units).
-@export_range(0.1, 10.0, 0.05) var explore_pickup_radius: float = 1.3
-
-@export_group("Long zones")
-## The gate to a zone's guard opens once the party holds this many of the zone's rot seals
-## (DESIGN.md 8.5; one per middle section; 0 = no gate).
-@export_range(0, 10) var zone_seals_needed: int = 2
-## The leader can leave through a zone's exit (once its guard is beaten) from this close (world
-## units, DESIGN.md 8.5).
-@export_range(0.1, 10.0, 0.05) var zone_exit_reach: float = 1.8
 
 @export_group("Online")
 ## The port a host listens on and a client connects to (DESIGN.md 9.2).
@@ -535,8 +498,6 @@ extends Resource
 ## Defence arbiter (host): a remote player's prompt is resolved as a hit (NONE) this long after it
 ## should have closed on their machine (plus hit-stops) if no result arrived.
 @export_range(0, 30000, 1, "suffix:ms") var net_deadline_grace_ms: int = 1500
-## Zones: the host sends the leader and roaming enemy positions this many times a second.
-@export_range(1, 60) var net_zone_send_hz: int = 20
 ## Heartbeat (card #205): a connection that answers nothing (a pulled cable, a crash, Wi-Fi gone)
 ## counts as lost after at least the first and at most the second of these. Both ends keep pinging
 ## each other, so a silent drop never freezes a fight longer than this.

@@ -277,14 +277,6 @@ func test_a_treasure_stop_has_a_plain_and_a_rotten_chest() -> void:
 		assert_gt(int(outcomes[key]), 0, "the rotten chest sometimes gives: %s" % key)
 
 
-func test_every_shrine_and_wanderer_has_a_price() -> void:
-	var run := _run()
-	for file: String in DirAccess.get_files_at("res://data/offers"):
-		var offer := load("res://data/offers".path_join(file)) as ZoneOfferData
-		var words := run.offer_lines(offer, 100)
-		assert_false((words.price as Array).is_empty(), "%s is not free" % offer.id)
-
-
 func test_the_campfire_before_the_boss_offers_watch_and_sharpen() -> void:
 	var run := _run(3)
 	var watch := -1

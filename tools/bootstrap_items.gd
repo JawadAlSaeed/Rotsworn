@@ -1,45 +1,21 @@
 extends SceneTree
 ## Creates the phase 11 backpack data (DESIGN.md 8.1): the items (Salve, Feast, Tonic, which used
 ## to be used the moment they were bought; Bomb, Smelling Salts; treasure), the run's shop and
-## found lists, the curses (Rotting Heart, Grave Moss: events' prices) and the Bigger Pack, and the
-## glinting spots and chests in the run's zones. Phase 17 took the charms out (DESIGN.md 8.17; the
-## best charm ideas became Relics: tools/bootstrap_relics.gd) and phase 21 deleted their faded files
-## (card #282). Phase 26 took the Key out of the run (DESIGN.md 8.22, G3): it no longer writes it
-## or lists it to sell or find; data/items/key.tres stays in the run's retired_items, so a saved
-## run (or a host's run sent online) whose pack holds a Key still loads. Only adds items missing
+## found lists, the curses (Rotting Heart, Grave Moss: events' prices) and the Bigger Pack. Phase 17
+## took the charms out (DESIGN.md 8.17; the best charm ideas became Relics: tools/bootstrap_relics.gd)
+## and phase 21 deleted their faded files (card #282). Phase 26 removed the walkable zones with their
+## glinting spots, chests and the Key that opened them (DESIGN.md 8.22, G3). Only adds items missing
 ## from the run's lists (later phases added their own). Only writes item files that do not exist
-## yet, and only gives a zone spots or chests if it has none, so edits made in the editor are never
-## overwritten.
-## Every spot and chest is checked against the zone's walls and props (one the leader cannot reach
-## is an error).
+## yet, so edits made in the editor are never overwritten.
 ## Run headless:
 ##   godot --headless --path . -s tools/bootstrap_items.gd
 ## Add "-- --force" after the script to overwrite the item files (careful: loses edits).
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
-## Items no longer handed out but still known to saved packs (RunData.retired_items).
-const RETIRED: Array[String] = ["res://data/items/key.tres"]
 const ICONS := "res://assets/sprites/items/"
-## Spots stand at least this far from walls and props (the leader's own radius and a little).
-const SPOT_CLEARANCE: float = 0.6
 const E := ItemData.Effect
 const K := ItemData.Kind
 const R := ItemData.Rarity
-
-## Glinting spots per zone (x, z on the ground): off the straight way to the guard, so finding
-## them means exploring a little.
-const SPOTS := {
-	"rotten_hollow": [Vector2(-14.0, 3.0), Vector2(14.5, -9.5), Vector2(-14.5, -19.5)],
-	"sunken_bog": [Vector2(-12.0, 1.0), Vector2(12.5, -9.5), Vector2(-11.5, -19.0)],
-	"ashen_ruins": [Vector2(-13.0, 2.5), Vector2(14.0, -6.5), Vector2(-12.5, -15.5)],
-}
-
-## One chest per zone, in a far corner.
-const CHESTS := {
-	"rotten_hollow": [Vector2(13.5, -17.0)],
-	"sunken_bog": [Vector2(-12.5, -12.5)],
-	"ashen_ruins": [Vector2(13.0, -19.0)],
-}
 
 var _force := false
 var _errors := 0
@@ -82,15 +58,7 @@ func _init() -> void:
 	for item: ItemData in found:
 		if not run.found_items.has(item):
 			run.found_items.append(item)
-	for path: String in RETIRED:
-		if not ResourceLoader.exists(path):
-			continue
-		var item := load(path) as ItemData
-		if item != null and not run.retired_items.has(item):
-			run.retired_items.append(item)
 	_check(ResourceSaver.save(run, RUN_PATH), RUN_PATH)
-	for zone: ZoneData in run.zones:
-		_add_spots(zone)
 	print("bootstrap_items: done, %d errors" % _errors)
 	quit(1 if _errors > 0 else 0)
 
@@ -133,36 +101,6 @@ func _curse(id: String, title: String, rot: int, shape: Array[Vector2i]) -> Item
 	item.rot_percent = rot
 	_check(ResourceSaver.save(item, path), path)
 	return ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE) as ItemData
-
-
-func _add_spots(zone: ZoneData) -> void:
-	# Long zones (DESIGN.md 8.5) keep their spots in their sections (tools/bootstrap_zones.gd).
-	if zone == null or ZoneAssembler.is_sectioned(zone):
-		return
-	var changed := false
-	if zone.item_spots.is_empty() and SPOTS.has(zone.id):
-		for spot: Vector2 in SPOTS[zone.id]:
-			if _free(zone, spot):
-				zone.item_spots.append(Vector3(spot.x, 0.0, spot.y))
-				changed = true
-	if zone.chests.is_empty() and CHESTS.has(zone.id):
-		for spot: Vector2 in CHESTS[zone.id]:
-			if _free(zone, spot):
-				zone.chests.append(Vector3(spot.x, 0.0, spot.y))
-				changed = true
-	if changed:
-		_check(ResourceSaver.save(zone, zone.resource_path), zone.resource_path)
-
-
-## True if the leader can stand at `spot` (an error is reported if not).
-func _free(zone: ZoneData, spot: Vector2) -> bool:
-	var free := ZoneMotion.move(spot, Vector2.ZERO, SPOT_CLEARANCE, ZoneMotion.obstacles(zone), zone.bounds_min,
-			zone.bounds_max)
-	if free.distance_to(spot) > 0.01:
-		push_error("bootstrap_items: spot %s in %s is blocked (pushed to %s)" % [spot, zone.id, free])
-		_errors += 1
-		return false
-	return true
 
 
 func _check(err: int, path: String) -> void:

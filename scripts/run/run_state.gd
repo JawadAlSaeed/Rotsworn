@@ -13,15 +13,10 @@ const DEFEAT := "defeat"
 ## Salts for the seeded picks of each stop (loot and shop gear differ at the same stop).
 const LOOT_SALT: int = 7919
 const SHOP_SALT: int = 104729
-## Salts for what a zone's glinting spots hold and what its roaming enemies (and a run's Fight
-## stops, DESIGN.md 8.22) drop.
-const SPOT_SALT: int = 15485863
+## Salts for what a Fight stop's fight drops (DESIGN.md 8.22) and a deal's find or Relic (an
+## event's, a pact's). Their values were the walkable zones' (8.5), so a seed gives the same drops.
 const DROP_SALT: int = 32452843
-const CHEST_SALT: int = 49979687
-## Long zones (DESIGN.md 8.5): the layout of a zone visit, a deal's find, a champion's prize chest.
-const ZONE_SALT: int = 67867967
 const OFFER_SALT: int = 86028121
-const PRIZE_SALT: int = 104395301
 ## Phase 15 stops and acts (DESIGN.md 8.6 to 8.11).
 const ACT_SALT: int = 122949829
 const ELITE_SALT: int = 141650939
@@ -657,7 +652,7 @@ func _start_stop() -> void:
 var _acts: Array[ActData] = []
 
 
-## The run's acts. A run without acts is one act made of its own zones and final fight.
+## The run's acts. A run without acts is one act made of its own places and final fight.
 func acts() -> Array[ActData]:
 	if _acts.is_empty():
 		if not data.acts.is_empty():
@@ -986,7 +981,7 @@ func offer_lines(offer: ZoneOfferData, scale: int = 100) -> Dictionary:
 	return {"price": price, "gift": gift}
 
 
-## A deal as icon chips for the choice cards and the shrine's question (card #288), the same numbers
+## A deal as icon chips for the choice cards (card #288), the same numbers
 ## as offer_lines: [{kind: String, text: String, cost: bool}], the price first. Kinds (StopVisuals
 ## draws each): gold, hp, max_hp, item, curse, fight (the price); heal, gold, xp, gauge, item, find,
 ## relic (the gift).
@@ -1066,12 +1061,6 @@ func pact_event() -> EventData:
 	while event.choices.size() < tuning.run_pact_choices and not left.is_empty():
 		event.choices.append(left.pop_at(rng.range_int(0, left.size() - 1)))
 	return event
-
-
-## What the chest of treasure stop `stop_id` holds: a prize like a locked chest's, picked as if the
-## stop were a few rows deeper (rarer things).
-func treasure_contents(stop_id: int) -> Resource:
-	return _rare_prize(CombatRng.new(_salted(stop_id * TREASURE_SALT + act * 41)), _row_of(stop_id) + 4)
 
 
 ## The treasure stop's two chests (card #287): the plain one holds tuning.run_treasure_gold and a
@@ -1224,7 +1213,8 @@ func is_deep() -> bool:
 	return act_data().deep or int(current().get("row", 0)) >= tuning.run_deep_row
 
 
-## The place of a Fight, Guard or elite stop (one of the act's zones; null for other stops).
+## The place of a Fight, Guard or elite stop (one of the act's places, ActData.zones; null for other
+## stops).
 func zone_of(stop: Dictionary) -> ZoneData:
 	var index := int(stop.get("zone", -1))
 	var zones := act_data().zones
@@ -1308,7 +1298,7 @@ func weather_now() -> WeatherData:
 func fight_drop() -> ItemData:
 	if in_ambush() or int(current().get("type", -1)) != RunMap.StopType.FIGHT:
 		return null
-	return drop_for(at, 0)
+	return drop_for(at)
 
 
 ## The fight Fight stop `stop_id` picks, before its deep version (see fight_of).
@@ -1912,10 +1902,10 @@ func heal(slot: int, amount: int, scaled: bool = true) -> int:
 
 # --- the backpack (DESIGN.md 8.1) ---------------------------------------------------------------
 
-## Every item this run knows (shop, finds and the retired ones a saved pack may still hold), by id.
+## Every item this run knows (the shop's and the finds'), by id.
 func items_by_id() -> Dictionary:
 	var by_id := {}
-	for list: Array[ItemData] in [data.retired_items, data.shop_items, data.found_items]:
+	for list: Array[ItemData] in [data.shop_items, data.found_items]:
 		for item: ItemData in list:
 			if item != null:
 				by_id[item.id] = item
@@ -1960,7 +1950,7 @@ func treasure_gold(item: ItemData) -> int:
 	return sell_price(item.price) if item != null else 0
 
 
-## A find in a few words for a zone or a stop: "Found: Salve", "Silver Ring: +20 gold", "Bigger
+## A find in a few words for a stop or a fight's drop: "Found: Salve", "Silver Ring: +20 gold", "Bigger
 ## Pack: 7 pockets". Call it after add_item.
 func find_text(item: ItemData) -> String:
 	if item == null:
@@ -2237,60 +2227,7 @@ func sell_item(uid: int) -> int:
 	return gained
 
 
-## True if a key is in the backpack.
-func has_key() -> bool:
-	return _key_uid() >= 0
-
-
-## Uses up one key (the first one in the backpack). False if there is none.
-func use_key() -> bool:
-	var uid := _key_uid()
-	return uid >= 0 and backpack.remove(uid) != null
-
-
-func _key_uid() -> int:
-	for e: Dictionary in backpack.entries:
-		if (e.item as ItemData).kind == ItemData.Kind.KEY:
-			return int(e.uid)
-	return -1
-
-
-## What locked chest number `chest` of the zone at stop `stop_id` holds (seeded; the chest index
-## keeps two chests in one visit apart): tuning.chest_gear_percent of the time a rare or better
-## Relic a copy still helps (copies weigh less), else a rare or better item (any item if the run has none
-## that rare). GearData or ItemData; null if nothing at all is left.
-func chest_contents(stop_id: int, chest: int = 0) -> Resource:
-	return _rare_prize(CombatRng.new(_salted(stop_id * CHEST_SALT + chest * 31)), _row_of(stop_id))
-
-
-## What the prize chest of champion `roamer` in the zone at stop `stop_id` holds (DESIGN.md 8.5):
-## the same kind of prize as a locked chest, seeded apart from it.
-func prize_contents(stop_id: int, roamer: int) -> Resource:
-	return _rare_prize(CombatRng.new(_salted(stop_id * PRIZE_SALT + roamer * 17)), _row_of(stop_id))
-
-
-func _rare_prize(rng: CombatRng, row: int) -> Resource:
-	if rng.range_int(0, 99) < tuning.chest_gear_percent:
-		var gear_left: Array[GearData] = []
-		var weights: Array = []
-		for item: GearData in data.gear:
-			if item != null and can_gain(item) and item.rarity >= ItemData.Rarity.RARE:
-				gear_left.append(item)
-				weights.append(_relic_weight(item, row, true))
-		var index := _weighted_index(rng, weights)
-		if index >= 0:
-			return gear_left[index]
-	var found := _pick_found(rng, row, ItemData.Rarity.RARE)
-	return found if found != null else _pick_found(rng, row)
-
-
-## The seed of the zone visit at stop `stop_id` (DESIGN.md 8.5): which sections, enemies, seals,
-## shrines and wanderer it has. The same on every machine.
-func zone_seed(stop_id: int) -> int:
-	return _salted(stop_id * ZONE_SALT)
-
-
-## True if the party can pay for the shrine or wanderer's deal. HP prices can always be paid (a
+## True if the party can pay for an event choice's or a pact's deal. HP prices can always be paid (a
 ## hero never drops below 1 HP for one); an event's deal (`scale` is its gold and XP percent, see
 ## event_scale) also needs a hero who can still lose max HP, something in the backpack to lose, and
 ## room for a curse. A deal that asks for a pick is checked again when it is taken.
@@ -2308,7 +2245,7 @@ func can_take_offer(offer: ZoneOfferData, scale: int = 100) -> bool:
 	return offer.cost_rotten == null or not backpack.find_spot(offer.cost_rotten).is_empty()
 
 
-## Takes deal `index` of the zone or event at stop `stop_id` (DESIGN.md 8.5, 8.7): pays its price and
+## Takes deal `index` of the event at stop `stop_id` (DESIGN.md 8.7): pays its price and
 ## gives its gifts, all but the item, which comes back for the caller to put in the backpack. Returns
 ## {ok: bool, text: String (what happened, one line), item: ItemData or null}. Nothing changes if
 ## the deal cannot be paid. `scale`: percent for the deal's gold and XP; `pick`: the hero or item the
@@ -2419,16 +2356,10 @@ func _take_item(offer: ZoneOfferData, pick: int, rng: CombatRng) -> String:
 	return "Lost: %s" % label
 
 
-## What glinting spot `spot` of the zone at stop `stop_id` holds (seeded; null if nothing can be
-## found in this run).
-func spot_item(stop_id: int, spot: int) -> ItemData:
-	return _pick_found(CombatRng.new(_salted(stop_id * SPOT_SALT + spot * 7)), _row_of(stop_id))
-
-
-## What roaming enemy `roamer` of the zone at stop `stop_id` drops when beaten: a seeded
+## What the fight at Fight stop `stop_id` drops when won (DESIGN.md 8.22): a seeded
 ## tuning.item_drop_percent chance of a found item, else null.
-func drop_for(stop_id: int, roamer: int) -> ItemData:
-	var rng := CombatRng.new(_salted(stop_id * DROP_SALT + roamer * 13))
+func drop_for(stop_id: int) -> ItemData:
+	var rng := CombatRng.new(_salted(stop_id * DROP_SALT))
 	if rng.range_int(0, 99) >= tuning.item_drop_percent:
 		return null
 	return _pick_found(rng, _row_of(stop_id))

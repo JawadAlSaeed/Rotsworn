@@ -254,7 +254,7 @@ func test_an_ambush_cost_sets_up_the_fight() -> void:
 	assert_false(run.ambush_spoils)
 
 
-func test_an_ambush_cannot_be_run_from_but_a_zone_fight_can() -> void:
+func test_an_ambush_cannot_be_run_from_but_a_plain_fight_can() -> void:
 	var run := _run()
 	var pack := load("res://data/encounters/hyena_pack.tres") as EncounterData
 	assert_true(run.fight_setup(pack, 1, CombatSetup.Opening.NORMAL).can_run, "a plain fight can be run from")

@@ -726,14 +726,12 @@ func test_rush_salts_differ_from_every_run_salt() -> void:
 		assert_eq(salts.count(salt), 1)
 
 
-func test_cards_never_offer_keys_treasure_curses_or_gold() -> void:
+func test_cards_never_offer_treasure_curses_or_gold() -> void:
 	var loose := _build_rush(true)
-	# No run list holds the Key any more (DESIGN.md 8.22, G3): add it so the filter is still tried.
-	loose.items.append(load("res://data/items/key.tres") as ItemData)
 	var kinds := {}
 	for item: ItemData in loose.items:
 		kinds[item.kind] = true
-	assert_true(kinds.has(ItemData.Kind.KEY) and kinds.has(ItemData.Kind.TREASURE), "the loose list has keys and treasure")
+	assert_true(kinds.has(ItemData.Kind.TREASURE), "the loose list has treasure")
 	var r := RushState.begin_rush(loose, _tuning, 3)
 	var items := 0
 	var relics := 0

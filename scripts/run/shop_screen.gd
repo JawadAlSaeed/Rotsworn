@@ -214,7 +214,7 @@ func detail(index: int) -> Dictionary:
 ## cleanse gets the fight's Items-list chips (ActionMenu.item_chips: its AP, who it reaches, what it
 ## does, with the same words, pictures, colours and order), less the AP chip when it cannot be used
 ## in a fight. Only the kinds a fight never shows get chips of their own here: more max HP (who it
-## reaches in the fight's words, then how much), a curse, a key, treasure, a bigger pack. At most
+## reaches in the fight's words, then how much), a curse, treasure, a bigger pack. At most
 ## look.item_chips_max chips and look.item_words_max words in all; a chip that would go over is left
 ## out. `coin`: the gold coin's path (treasure).
 static func item_chips(item: ItemData, look: MapVisuals, coin: String) -> Array:
@@ -224,11 +224,8 @@ static func item_chips(item: ItemData, look: MapVisuals, coin: String) -> Array:
 		if item.rot_percent > 0:
 			chips.append([&"heart", "-%d%% a turn" % item.rot_percent, HudStyle.HP_LOW])
 		return _cap_chips(chips, look)
-	match item.kind:
-		ItemData.Kind.KEY:
-			chips.append([look.item_key_icon_path, "Opens chest", HudStyle.TEXT])
-		ItemData.Kind.TREASURE:
-			chips.append([coin, "To gold", HudStyle.GOLD])
+	if item.kind == ItemData.Kind.TREASURE:
+		chips.append([coin, "To gold", HudStyle.GOLD])
 	match item.effect:
 		ItemData.Effect.NONE:
 			pass

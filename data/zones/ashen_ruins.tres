@@ -5,36 +5,13 @@
 [ext_resource type="Resource" path="res://data/encounters/brute_fight.tres" id="p19_brute_fight"]
 [ext_resource type="Resource" path="res://data/encounters/brute_and_rat.tres" id="p19_brute_and_rat"]
 [ext_resource type="Resource" path="res://data/encounters/priest_and_hyenas.tres" id="p19_priest_and_hyenas"]
-[ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_1a06s"]
 [ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="1_887qj"]
-[ext_resource type="Resource" path="res://data/zones/sections/ashen_ruins_end.tres" id="2_jf7hi"]
-[ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="2_sy6mg"]
 [ext_resource type="Resource" path="res://data/encounters/shade_fight.tres" id="3_dw12m"]
-[ext_resource type="Script" path="res://scripts/data/zone_critter_data.gd" id="3_rmq3v"]
 [ext_resource type="Resource" path="res://data/encounters/hyena_pack.tres" id="4_nptyf"]
 [ext_resource type="Resource" path="res://data/encounters/hyena_and_fly.tres" id="5_37mmr"]
-[ext_resource type="Script" path="res://scripts/data/zone_ground_data.gd" id="6_um74t"]
-[ext_resource type="Resource" path="res://data/characters/brin.tres" id="7_1v45n"]
-[ext_resource type="Script" path="res://scripts/data/zone_section_data.gd" id="7_5kjuw"]
-[ext_resource type="Script" path="res://scripts/data/zone_light_data.gd" id="8_fkg76"]
 [ext_resource type="Resource" path="res://data/looks/ashen_ruins.tres" id="9_m1voa"]
-[ext_resource type="Script" path="res://scripts/data/zone_prop_data.gd" id="10_j3f0t"]
 [ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="11_v5w70"]
-[ext_resource type="Resource" path="res://data/zones/sections/ashen_ruins_road.tres" id="11_v7ogd"]
-[ext_resource type="Resource" path="res://data/zones/sections/ashen_ruins_plaza.tres" id="12_oxtig"]
-[ext_resource type="Resource" path="res://data/zones/sections/ashen_ruins_colonnade.tres" id="13_8wraq"]
-[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="13_oxtig"]
-[ext_resource type="Resource" path="res://data/zones/sections/ashen_ruins_graveyard.tres" id="14_xg1w6"]
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="15_8wraq"]
-[ext_resource type="Resource" path="res://data/zones/sections/ashen_ruins_hall.tres" id="15_reuem"]
-[ext_resource type="Resource" path="res://data/offers/healing_spring.tres" id="20_xg1w6"]
-[ext_resource type="Resource" path="res://data/offers/blood_altar.tres" id="21_reuem"]
-[ext_resource type="Resource" path="res://data/offers/war_idol.tres" id="22_y4j5e"]
-[ext_resource type="Resource" path="res://data/offers/shrine_of_plenty.tres" id="23_5rlgp"]
-[ext_resource type="Resource" path="res://data/zones/sections/ashen_ruins_start.tres" id="24_lov35"]
-[ext_resource type="Resource" path="res://data/offers/key_peddler.tres" id="25_lxcww"]
-[ext_resource type="Resource" path="res://data/offers/grave_robber.tres" id="26_7d4ys"]
-[ext_resource type="Resource" path="res://data/offers/old_pilgrim.tres" id="27_ff5ii"]
 [ext_resource type="Resource" path="res://data/weather/wind.tres" id="p24_w_wind"]
 [ext_resource type="Resource" path="res://data/weather/fog.tres" id="p24_w_fog"]
 [ext_resource type="Resource" path="res://data/weather/dusk.tres" id="p24_w_dusk"]
@@ -77,22 +54,9 @@ id = "ashen_ruins"
 display_name = "Ashen Ruins"
 map_icon_path = "res://assets/sprites/ui/map_zone_ashen_ruins.png"
 look = ExtResource("9_m1voa")
-leader = ExtResource("7_1v45n")
-bounds_min = Vector2(0, -20)
-bounds_max = Vector2(1, 10)
 ambient = Array[ExtResource("1_887qj")]([SubResource("Resource_887qj"), SubResource("Resource_rmq3v")])
-start_section = ExtResource("24_lov35")
-middle_sections = Array[ExtResource("7_5kjuw")]([ExtResource("11_v7ogd"), ExtResource("12_oxtig"), ExtResource("13_8wraq"), ExtResource("14_xg1w6"), ExtResource("15_reuem")])
-end_section = ExtResource("2_jf7hi")
 roamer_pool = Array[ExtResource("15_8wraq")]([ExtResource("3_dw12m"), ExtResource("4_nptyf"), ExtResource("5_37mmr"), ExtResource("p19_slinger_and_husk"), ExtResource("p19_slinger_trio"), ExtResource("p19_brute_fight"), ExtResource("p19_brute_and_rat"), ExtResource("p19_priest_and_hyenas")])
 guard = ExtResource("p26_guard")
-shrines = Array[ExtResource("13_oxtig")]([ExtResource("20_xg1w6"), ExtResource("21_reuem"), ExtResource("22_y4j5e"), ExtResource("23_5rlgp")])
-wanderers = Array[ExtResource("13_oxtig")]([ExtResource("25_lxcww"), ExtResource("26_7d4ys"), ExtResource("27_ff5ii")])
-edge_texture_path = "res://assets/sprites/env/ruin_wall.png"
-edge_height = 4.5
-footstep_sfx = "footstep_stone"
-music_path = "res://assets/audio/music/zone_ruins.ogg"
-ambience_path = "res://assets/audio/ambience/ambience_ruins.ogg"
 weathers = Array[ExtResource("p24_weather")]([ExtResource("p24_w_wind"), ExtResource("p24_w_fog"), ExtResource("p24_w_dusk"), ExtResource("p24_w_storm")])
 weather_weights = Array[int]([3, 2, 3, 1])
 clear_weight = 4

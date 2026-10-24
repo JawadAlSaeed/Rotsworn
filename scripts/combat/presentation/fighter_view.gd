@@ -67,8 +67,6 @@ var _hframes: int = 1
 var _vframes: int = 1
 var _cell_count: int = 1
 var _idle_percent: int = 100
-## Zone facing ("", "_front" or "_back"): clips with this suffix are tried first.
-var _facing_suffix: String = ""
 var _frame_height_px: float = 48.0
 ## Opaque part of the first frame, in pixels measured up from the feet (bottom of the frame).
 var _visible_top_px: float = 48.0
@@ -268,11 +266,6 @@ func is_busy(min_prio: int = PRIO_REACT) -> bool:
 ## True while it crumbles away or plays its death (or victory): a final look nothing should snap.
 func is_dying() -> bool:
 	return is_dissolving() or is_busy(PRIO_FINAL)
-
-
-## Zone facing: clips named with this suffix ("_front", "_back"; "" for side views) are tried first.
-func set_facing_suffix(suffix: String) -> void:
-	_facing_suffix = suffix
 
 
 ## Moves the body to `to` (relative to home) over `seconds`, replacing any movement still in
@@ -519,7 +512,7 @@ func _matching_clips(clips: SpriteClips, texture: Texture2D, sheet_path: String)
 
 ## The cells `clip` plays on this sheet after the fallbacks (empty without clips).
 func _cells(clip: String) -> PackedInt32Array:
-	return ClipNames.cells(_clips, clip, _facing_suffix)
+	return ClipNames.cells(_clips, clip)
 
 
 ## The clip of a looping pose (idle, ready, down); empty for any other pose or without clips.

@@ -1,8 +1,8 @@
 class_name RunAutoplay
 extends RefCounted
 ## The run bot's (`--autoplay --run`, DESIGN.md 10) shared habits: when the party is fit for a harder
-## fight it could leave alone. Main's map bot (elite stops), EventAutoplay (a risky "?" choice) and
-## the zone bot (champions, optional roamers) all ask it. A careful player's habits, not game rules.
+## fight it could leave alone. Main's map bot (elite stops) and EventAutoplay (a risky "?" choice)
+## both ask it. A careful player's habits, not game rules.
 ## Pure.
 
 ## Fit means: the weakest hero has at least READY_MIN_LOWEST_PERCENT of their HP, the party averages

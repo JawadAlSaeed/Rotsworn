@@ -1,10 +1,10 @@
 extends SceneTree
-## Writes the phase 15 run content (DESIGN.md 8.6 to 8.9): the zones' mini-boss guards (DESIGN.md
+## Writes the phase 15 run content (DESIGN.md 8.6 to 8.9): the places' mini-boss guards (DESIGN.md
 ## 8.6), the first act's boss, the elite fights and the two acts of the run (their "?" events and
 ## ambushes: tools/bootstrap_events.gd, run it after this one). The mini-bosses and the boss are
 ## recoloured kin of the monsters (tools/art_kit/assets/enemy_variants.py draws their sheets) with a
-## phase two. Rewrites every file it owns; run tools/bootstrap_zones.gd after it (the zones' guards
-## and champions point here).
+## phase two. Rewrites every file it owns. Each place's `guard` (data/zones, a run's Guard stops,
+## DESIGN.md 8.22) points at a guard written here; the place files themselves are never written.
 ## Run: Godot --headless --path . -s tools/bootstrap_phase15.gd
 
 const EN := "res://data/enemies/"
@@ -19,7 +19,7 @@ func _init() -> void:
 	var party: Array = (load(ENC + "husk_fight.tres") as EncounterData).party
 	var ultimate := (load(ENC + "husk_fight.tres") as EncounterData).team_ultimate
 
-	# --- mini-boss guards: a named kin of the zone's monster, with a phase two -----------------
+	# --- mini-boss guards: a named kin of the place's monster, with a phase two ----------------
 	var gorged := _boss_kin("gorged_one", "The Gorged One", "bloat", "blight_bloat", Color(0.7, 0.25, 0.35),
 			280, 150, 85, 60, 130, "THE GORGED ONE SPLITS ITS SKIN!")
 	var mother := _boss_kin("mire_mother", "Mire Mother", "mire_toad", "elder_toad", Color(0.3, 0.55, 0.45),
@@ -123,7 +123,7 @@ func _encounter(id: String, title: String, enemies: Array, party: Array, ultimat
 	return encounter
 
 
-## A zone's guard: a mini-boss fight (no running), with a deep version (variant helpers).
+## A place's guard: a mini-boss fight (no running), with a deep version (variant helpers).
 func _guard(id: String, title: String, enemies: Array, deep_enemies: Array, party: Array, ultimate: AbilityData) -> void:
 	var deep := _encounter("deep_" + id, title, deep_enemies, party, ultimate)
 	deep.mini_boss = true

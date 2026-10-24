@@ -1,13 +1,12 @@
 extends Node
 ## Entry point (run/main_scene). Shows the main menu (DESIGN.md 7.5): a new run (DESIGN.md 8),
-## practice (the zone and fight list), settings, quit. New Run and Practice open the players screen
-## first (co-op, DESIGN.md 9.1); its roster goes to every fight and zone. In a run the map screen
-## leads to the stops: zones, rests, shops and the final fight; RunState carries HP and gold from stop to stop.
-## A zone (DESIGN.md 7.4) hands a fight over with encounter_started: the screen swirls into the
-## fight, the zone waits outside the tree, and after the fight the screen fades back to the zone.
+## practice (the fight list), settings, quit. New Run and Practice open the players screen
+## first (co-op, DESIGN.md 9.1); its roster goes to every fight. In a run the map screen leads to
+## the stops: Fight and Guard stops, elites, events, rests, shops, treasure and the act's boss
+## (DESIGN.md 8.22); RunState carries HP and gold from stop to stop.
 ## Online (DESIGN.md 9.2) the host's machine runs the run exactly as offline and tells the others
-## what to show: every screen ("screen" messages with the run's state), the zone positions, the
-## fights' event batches. The others (clients) only show what arrives, never decide anything about
+## what to show: every screen ("screen" messages with the run's state) and the fights' event
+## batches. The others (clients) only show what arrives, never decide anything about
 ## the run: on run screens they watch while the host chooses. Their own heroes' fight choices and
 ## presses go to the host. Messages a client gets while a transition plays wait for it to end.
 ## R / "fight again" frees a practice fight and starts the same one again; Cancel on a practice
@@ -15,8 +14,8 @@ extends Node
 ## hold) survive restarts.
 ##
 ## User arguments (after "--"): --autoplay[=perfect|miss|mash], --quit-on-end, --seed=N,
-## --encounter=ID (start that fight directly; autoplay without it, --zone or --run starts
-## DEFAULT_ENCOUNTER_ID), --zone=ID (start in that zone), --first-strike (with --encounter),
+## --encounter=ID (start that fight directly; autoplay without it or --run starts
+## DEFAULT_ENCOUNTER_ID), --first-strike (with --encounter),
 ## --run (start a new run at once; the seed also picks the map), --players=N (co-op with N pretend
 ## pads, for the bot), --host=N (host online and start a run once N players are in), --join=ADDRESS
 ## (join that host), --continue (pick up the saved run), --save-path=PATH (keep that save elsewhere;
@@ -31,7 +30,6 @@ enum AfterFight { END, MAP, PARTY, SPOILS }
 const DEFAULT_ENCOUNTER_ID := "husk_fight"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
-const EXPLORE_VISUALS_PATH := "res://data/presentation/explore_visuals.tres"
 const MAP_VISUALS_PATH := "res://data/presentation/map_visuals.tres"
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 const RUSH_PATH := "res://data/rush/fight_rush.tres"
@@ -44,11 +42,9 @@ const TUTORIAL_PATH := "res://data/tutorial/tutorial.tres"
 const COMBAT_SCENE := preload("res://scenes/combat.tscn")
 ## Autoplay: wait this long on an end screen or a run screen before going on (seconds).
 const AUTOPLAY_RETURN_S: float = 1.0
-## Autoplay: give up when no fight has started for this long in a zone (seconds).
-const AUTOPLAY_ZONE_STUCK_S: float = 180.0
 ## Autoplay on the map: a rest is picked when someone is at or under this percent of max HP, or the
 ## party averages under AUTOPLAY_REST_AVERAGE_PERCENT. An elite stop is only taken while the party is
-## healthy, like a champion in a zone (ZoneAutoplay). These are the bot's habits, not game rules.
+## healthy (RunAutoplay.is_ready). These are the bot's habits, not game rules.
 const AUTOPLAY_REST_BELOW_PERCENT: int = 60
 const AUTOPLAY_REST_AVERAGE_PERCENT: int = 75
 const QUIT_AUDIO_RELEASE_S: float = 0.3
@@ -62,8 +58,6 @@ const AWAY_REFRESH_S: float = 0.25
 ## --drop-in-fight (dev): how often the bot looks for a fight, and how far into it it drops.
 const AUTOPLAY_DROP_POLL_S: float = 0.5
 const AUTOPLAY_DROP_INTO_FIGHT_S: float = 6.0
-## The backpack over a zone draws above the zone's HUD and run bar.
-const ZONE_BACKPACK_LAYER: int = 20
 ## --screen=rush_*: the sample record the Fight Rush dev screens show ("Best 16"), and the fight their
 ## NEW RECORD end sample reaches. Never written to the stored records (DESIGN.md 8.21, D9).
 const DEV_RUSH_BEST: int = 16
@@ -84,16 +78,14 @@ const RUSH_OVER_NOTICE := "The Rush is over."
 const JOINING_STATUS := "Joining the game ..."
 ## Online: the host's screens that are a fight going on (kept as _net_fight, so a friend who gets in
 ## mid-fight is shown it), and the run screens a friend watches (_watched_screen_builder builds them).
-const NET_FIGHT_SCREENS: Array[String] = ["zone_fight", "final_fight", "rush_fight", "stop_fight"]
+const NET_FIGHT_SCREENS: Array[String] = ["final_fight", "rush_fight", "stop_fight"]
 const WATCHED_SCREENS: Array[String] = ["map", "rest", "shop", "loot", "party", "run_end", "event", "treasure",
 		"rush_reward", "rush_end"]
 
 var _encounters: Array[EncounterData] = []
-var _zones: Array[ZoneData] = []
 var _encounter: EncounterData
 var _tuning: Tuning
 var _visuals: CombatVisuals
-var _explore: ExploreVisuals
 var _map_look: MapVisuals
 var _run_data: RunData
 ## The Fight Rush (DESIGN.md 8.21); null when its file is missing or broken (the Fight Rush card is
@@ -113,19 +105,12 @@ var _menu_item: StringName = MainMenu.NEW_RUN
 var _screen: Node
 var _prompt: ConfirmPrompt
 var _pause: PauseMenu
-var _zone: ZoneController
-## The display name of the zone being played (the journal's "met at").
-var _zone_name: String = ""
-var _run_bar: RunPartyBar
 var _transition: ScreenTransition
 ## The run in progress (null outside a run).
 var _run: RunState
 ## The oath the next run is played at (DESIGN.md 8.15): the players screen's pick, or --oath=N.
 var _oath: int = 0
-## The fight that started in the zone: {index, opening}, or empty.
-var _zone_fight: Dictionary = {}
 var _busy: bool = false
-var _zone_idle_s: float = 0.0
 ## Who plays and which heroes each player has (DESIGN.md 9.1).
 var _players: PlayerRoster
 ## The device of the last button press (it becomes P1 on the players screen).
@@ -154,19 +139,15 @@ var _net_queue: Array[Dictionary] = []
 var _combat_inbox := FightInbox.new()
 var _net_screen: Dictionary = {}
 var _sent_run: Dictionary = {}
-var _zone_send_s: float = 0.0
 ## Online client: "the host is choosing" over the run screens.
 var _watch_layer: CanvasLayer
-## The backpack open over a zone (DESIGN.md 8.1), and the glinting spot whose find waits on it.
-var _overlay: PartyScreen
 ## The tutorial while it runs (DESIGN.md 7.8), else null.
 var _tutorial: TutorialRunner
-var _spot_pending: int = -1
-## What the zone fight's enemy drops (null: nothing).
+## What the Fight stop's enemy drops (null: nothing; DESIGN.md 8.22).
 var _drop: ItemData
-## Where a run fight away from a zone takes place (the act's boss lair, an elite's zone).
+## Where the run fight takes place (the act's boss lair, the stop's place).
 var _fight_look: StageLook
-## The zone air of the run fight being built (an elite's zone); empty for a boss.
+## The place's air of the run fight being built; empty for a boss.
 var _fight_air: Array[ZoneAmbientData] = []
 ## Shown on the main menu next time (why an online game ended).
 var _notice: String = ""
@@ -175,9 +156,7 @@ var _flow_gen: int = 0
 ## Client: the host's seed of the fight in the tree (0: none); its batches go straight to it,
 ## every other batch waits in _combat_inbox for its own fight (cards #205, #304).
 var _combat_fight: int = 0
-## Client: the message pump holds while a zone plays a fight's opening; the run's end arrived (the
-## host may go now).
-var _net_hold: bool = false
+## Client: the run's end arrived (the host may go now).
 var _client_done: bool = false
 ## Client: we got in mid-run (dropped in, or back with a token) and our heroes are not ours yet; the
 ## catch-up point we last told the host about ("f<seed>" or "p<screens>"), and how many screens
@@ -197,8 +176,8 @@ var _own_start_seed: int = -1
 var _join_relics: Dictionary = {}
 var _join_mastery: Dictionary = {}
 var _join_pending: bool = false
-## Host: the last place screen sent (map, zone, shop ...) and the fight going on (zone_fight or
-## final_fight message; empty between fights), so a player who joins again is shown where we are.
+## Host: the last place screen sent (map, shop ...) and the fight going on (stop_fight, final_fight
+## or rush_fight message; empty between fights), so a player who joins again is shown where we are.
 var _net_place: Dictionary = {}
 var _net_fight: Dictionary = {}
 ## Client: the next fight is one we joined again in the middle of (it waits for the host's resume).
@@ -246,7 +225,6 @@ func _ready() -> void:
 	HudStyle.load_fonts()
 	_tuning = load(_tuning_path()) as Tuning
 	_visuals = load(VISUALS_PATH) as CombatVisuals
-	_explore = load(EXPLORE_VISUALS_PATH) as ExploreVisuals
 	_map_look = load(MAP_VISUALS_PATH) as MapVisuals
 	_run_data = load(RUN_PATH) as RunData
 	_music = load(MUSIC_PATH) as MusicSet
@@ -258,7 +236,6 @@ func _ready() -> void:
 		push_warning("Main: could not load %s, using built-in branding defaults" % BRANDING_PATH)
 		_branding = BrandingData.new()
 	_encounters = FightSelect.load_encounters()
-	_zones = FightSelect.load_zones()
 	if _encounters.is_empty() or _tuning == null:
 		push_error("Main: could not load the encounters in %s or %s" % [FightSelect.ENCOUNTER_DIR, TUNING_PATH])
 		return
@@ -268,16 +245,13 @@ func _ready() -> void:
 	if _visuals == null:
 		push_warning("Main: could not load %s, using built-in presentation defaults" % VISUALS_PATH)
 		_visuals = CombatVisuals.new()
-	if _explore == null:
-		push_warning("Main: could not load %s, using built-in exploration defaults" % EXPLORE_VISUALS_PATH)
-		_explore = ExploreVisuals.new()
 	if _map_look == null:
 		push_warning("Main: could not load %s, using built-in map defaults" % MAP_VISUALS_PATH)
 		_map_look = MapVisuals.new()
 	_transition = ScreenTransition.new()
 	_transition.name = "Transition"
 	add_child(_transition)
-	_transition.setup(_explore)
+	_transition.setup(_visuals)
 	var tips := load(TIPS_PATH) as TipSet
 	if tips == null:
 		push_warning("Main: could not load %s, no loading tips" % TIPS_PATH)
@@ -350,14 +324,6 @@ func _ready() -> void:
 	if not _options.screen.is_empty():
 		_open_dev_screen(_options.screen)
 		return
-	if not _options.zone_id.is_empty():
-		for zone: ZoneData in _zones:
-			if zone.id == _options.zone_id:
-				_start_zone(zone)
-				return
-		push_error("Main: no zone with id '%s'" % _options.zone_id)
-		_autoplay_fail("unknown zone %s" % _options.zone_id)
-		return
 	var wanted := _options.encounter_id
 	if wanted.is_empty() and _options.is_autoplay():
 		wanted = DEFAULT_ENCOUNTER_ID
@@ -366,7 +332,7 @@ func _ready() -> void:
 		return
 	for i: int in _encounters.size():
 		if _encounters[i].id == wanted:
-			_select_index = 1 + _zones.size() + i  # after the tutorial card and the zones
+			_select_index = 1 + i  # after the tutorial card
 			_encounter = _encounters[i]
 	if _encounter == null:
 		push_error("Main: no encounter with id '%s'" % wanted)
@@ -461,8 +427,6 @@ func _open_dev_screen(screen_name: String) -> void:
 			_run.add_relic(_run_data.gear[20])
 			_run.result = RunState.DEFEAT
 			_show_run_end()
-		"zone_exit", "zone_leave":
-			_show_sample_zone_exit(screen_name == "zone_leave")
 		"players_in_run":
 			# The Players overlay over the pause menu, a keyboard P1 and a pad P2 (cards #304, #311).
 			_show_sample_map(2)
@@ -627,19 +591,6 @@ func _show_sample_stop(kind: String) -> void:
 			_show_treasure()
 
 
-## --screen=zone_exit: a run's first zone with its guard beaten and the leader at the open exit;
-## zone_leave: the same with "Leave the zone?" asked (pictures of card #241).
-func _show_sample_zone_exit(ask: bool) -> void:
-	_run = RunState.begin(_run_data, _tuning, 3)
-	_run.go(_run.choices()[0])
-	_start_zone(_run.zone_of(_run.current()))
-	await get_tree().process_frame
-	_zone.dev_cleared_near_exit()
-	if ask:
-		await get_tree().create_timer(float(_explore.zone_title_ms) / 1000.0).timeout
-		_on_zone_leave()
-
-
 ## --screen=party: a new run with some gear worn and a few items packed, the party screen open
 ## with a Holy Water in hand (for pictures of the pack).
 func _show_sample_backpack() -> void:
@@ -795,16 +746,9 @@ func _show_title() -> void:
 	_show_screen(title)
 
 
-## A zone parked outside the tree during a fight is not freed with the tree: free it here.
-func _exit_tree() -> void:
-	if _zone != null and not _zone.is_inside_tree():
-		_zone.free()
-		_zone = null
-
-
 func _process(delta: float) -> void:
 	if Net.is_host():
-		_net_host_tick(delta)
+		_net_host_tick()
 		_away_refresh_s += delta
 		if _away_layer.visible and _away_refresh_s >= AWAY_REFRESH_S:
 			_away_refresh_s = 0.0
@@ -812,37 +756,25 @@ func _process(delta: float) -> void:
 	if not _options.is_autoplay():
 		_watch_pads()
 		MouseCursor.set_menus_allowed(_mouse_wanted())
-	# Autoplay guard: a zone that never reaches a fight is stuck.
-	if not _options.is_autoplay() or _zone == null or not _zone.is_inside_tree() or _zone.is_frozen():
-		_zone_idle_s = 0.0
-		return
-	_zone_idle_s += delta
-	if _zone_idle_s > AUTOPLAY_ZONE_STUCK_S:
-		_zone_idle_s = 0.0
-		_autoplay_fail("zone_stuck")
 
 
-## True on every menu (the main menu, run screens, pause, settings, the backpack over a zone) and
-## false while a fight or a zone is being played: those are keyboard and pad games, so the mouse
-## pointer stays hidden there (card #202).
+## True on every menu (the main menu, run screens, pause, settings) and false while a fight is
+## being played: that is a keyboard and pad game, so the mouse pointer stays hidden there (card #202).
 func _mouse_wanted() -> bool:
-	if _pause != null or _prompt != null or _overlay != null:
+	if _pause != null or _prompt != null:
 		return true
 	for child: Node in get_children():
 		if child is SettingsScreen:
 			return true
-	var playing := (_combat != null and _combat.is_inside_tree()) or (_zone != null and _zone.is_inside_tree())
-	return not playing
+	return not (_combat != null and _combat.is_inside_tree())
 
 
 # --- screens ----------------------------------------------------------------------------------
 
-## Frees whatever is shown (fight, zone, screen, prompt) and shows `screen`, if any.
+## Frees whatever is shown (fight, screen, prompt) and shows `screen`, if any.
 func _show_screen(screen: Node) -> void:
-	_close_overlay()
 	_close_pad_overlay()
 	_free_combat()
-	_free_zone()
 	_free_screen()
 	if screen != null:
 		_screen = screen
@@ -872,7 +804,7 @@ func _free_screen() -> void:
 
 ## Fades to black, runs `build` (which shows the next thing), and fades back in. With a
 ## `tip_title` a loading card (that title and a tip, card #86) shows over the black for at least
-## the tips' hold_ms, and `build` runs at its end, so a zone starts when it is seen. Online clients
+## the tips' hold_ms, and `build` runs at its end, so a fight starts when it is seen. Online clients
 ## and the bot do not hold the card (the host already held it before sending the screen). `swirl`:
 ## into a fight, the screen swirls into the black (with its sound) instead of fading.
 func _fade_to(build: Callable, tip_title: String = "", swirl: bool = false) -> void:
@@ -928,7 +860,7 @@ func _show_main_menu(rush_best: int = -1) -> void:
 	menu.name = "MainMenu"
 	# A saved run is where the cursor rests until the player picks something else.
 	var start := MainMenu.CONTINUE if not saved.is_empty() and not _menu_used else _menu_item
-	# Practice (any fight or zone on its own) is a test tool: only debug builds list it (card #208).
+	# Practice (any fight on its own) is a test tool: only debug builds list it (card #208).
 	# New Run's Fight Rush card shows the best Rush record and is greyed without the Rush data.
 	menu.setup(_branding, start, _notice, not saved.is_empty(), OS.is_debug_build(),
 			PlayerSettings.rush_best_any() if rush_best < 0 else rush_best, _rush_data != null)
@@ -1182,18 +1114,15 @@ func _record_journal(fight: Dictionary) -> void:
 			not _options.journal_path.is_empty()):
 		return
 	var where := _journal_place(_encounter.display_name if _encounter != null else "",
-			_zone_name if not _zone_fight.is_empty() else "",
 			_fight_place if _run != null and not (_run is RushState) else "")
 	if not JournalFile.record(fight, where, _journal_path()):
 		push_warning("Main: the Rot Journal could not be written")
 
 
-## Where the Rot Journal says a fight was met, pure: the zone it was fought in (`zone_name`), else
-## the place of a run's Fight, Guard, elite or ambush fight (`run_place`, DESIGN.md 8.22; none for a
-## boss in its lair, a Rush or a practice fight), else the fight's own name.
-static func _journal_place(fight_name: String, zone_name: String, run_place: String) -> String:
-	if not zone_name.is_empty():
-		return zone_name
+## Where the Rot Journal says a fight was met, pure: the place of a run's Fight, Guard, elite or
+## ambush fight (`run_place`, DESIGN.md 8.22; none for a boss in its lair, a Rush or a practice
+## fight), else the fight's own name.
+static func _journal_place(fight_name: String, run_place: String) -> String:
 	return run_place if not run_place.is_empty() else fight_name
 
 
@@ -1214,12 +1143,11 @@ func _show_select() -> void:
 	_run = null
 	var select := FightSelect.new()
 	select.name = "FightSelect"
-	select.setup(_zones, _encounters, _select_index, load(TUTORIAL_PATH) as TutorialData)
+	select.setup(_encounters, _select_index, load(TUTORIAL_PATH) as TutorialData)
 	select.chosen.connect(_on_fight_chosen)
 	select.tutorial_chosen.connect(func() -> void:
 		_select_index = 0
 		_fade_to.call_deferred(_start_tutorial))
-	select.zone_chosen.connect(_on_zone_chosen)
 	select.back.connect(_show_main_menu.call_deferred)
 	_show_screen(select)
 
@@ -1227,19 +1155,13 @@ func _show_select() -> void:
 func _on_fight_chosen(encounter: EncounterData) -> void:
 	_select_index = (_screen as FightSelect).selected_index()
 	_encounter = encounter
-	_zone_fight = {}
 	_start_combat.call_deferred()
-
-
-func _on_zone_chosen(zone: ZoneData) -> void:
-	_select_index = (_screen as FightSelect).selected_index()
-	_fade_to.call_deferred(_start_zone.bind(zone), zone.display_name)
 
 
 # --- fights -----------------------------------------------------------------------------------
 
-## Builds a fight: a practice fight, a zone's fight (the zone waits outside the tree), a run fight
-## (a Fight, Guard, elite, ambush or boss fight, DESIGN.md 8.22), or a Fight Rush fight.
+## Builds a fight: a practice fight, a run fight (a Fight, Guard, elite, ambush or boss fight,
+## DESIGN.md 8.22), or a Fight Rush fight.
 func _start_combat() -> void:
 	_free_combat()
 	_free_screen()
@@ -1249,13 +1171,9 @@ func _start_combat() -> void:
 		_watch_layer.visible = false
 	_combat = COMBAT_SCENE.instantiate() as CombatController
 	var continue_to := Callable()
-	if not _zone_fight.is_empty():
-		_combat.configure(_encounter, _tuning, _visuals, _options, _zone.look(),
-				_zone_fight.opening as CombatSetup.Opening, true, _zone.ambient_air())
-		continue_to = _on_zone_return_requested
-	elif _run != null:
+	if _run != null:
 		_combat.configure(_encounter, _tuning, _visuals, _options, _fight_look,
-				CombatSetup.Opening.NORMAL, false, _fight_air)
+				CombatSetup.Opening.NORMAL, _fight_air)
 		continue_to = _on_rush_fight_over if _run is RushState else _on_run_fight_over
 	else:
 		# The tutorial starts with the heroes' turns (first strike) against a slower enemy.
@@ -1293,10 +1211,8 @@ func _start_combat() -> void:
 	_combat.select_requested.connect(_show_select.call_deferred)
 	add_child(_combat)
 	Sfx.play_ambience("")
-	if not _zone_fight.is_empty():
-		_play_zone_weather(true)
-	elif _run != null and _fight_weather != null:
-		# A run or Rush fight's weather loop, quieter as in a zone's fights (DESIGN.md 8.21 D13, 8.22).
+	if _run != null and _fight_weather != null:
+		# A run or Rush fight's weather loop, quieter than its own volume (DESIGN.md 8.21 D13, 8.22).
 		Sfx.play_weather(_fight_weather.ambience_path,
 				_fight_weather.ambience_volume_db + _fight_weather.fight_volume_offset_db)
 	else:
@@ -1374,22 +1290,7 @@ func _free_combat() -> void:
 		_pending_why = ""
 
 
-# --- zones ------------------------------------------------------------------------------------
-
-## The zone with only the --weather=ID weather left (dev tool, card #303; "clear": none), or as it is.
-func _with_forced_weather(zone: ZoneData) -> ZoneData:
-	if _options.weather_id.is_empty():
-		return zone
-	var forced := zone.duplicate() as ZoneData
-	var only: Array[WeatherData] = []
-	var data := _forced_weather()
-	if data != null:
-		only.append(data)
-	forced.weathers = only
-	forced.weather_weights = [1] as Array[int]
-	forced.clear_weight = 0 if not only.is_empty() else 1
-	return forced
-
+# --- weather ----------------------------------------------------------------------------------
 
 ## The weather of a run or Rush fight: `rolled`, or the --weather=ID weather when that is given (dev
 ## tool; DESIGN.md 8.22: every run fight but the boss's, and every Rush fight).
@@ -1408,200 +1309,6 @@ func _forced_weather() -> WeatherData:
 		push_error("Main: no weather '%s' (data/weather/); the weather is clear" % _options.weather_id)
 		_autoplay_fail("unknown weather %s" % _options.weather_id)
 	return data
-
-
-func _start_zone(zone: ZoneData) -> void:
-	_show_screen(null)
-	_zone_fight = {}
-	_zone = ZoneController.new()
-	_zone.name = "Zone"
-	_zone_name = zone.display_name
-	# A long zone is laid out anew each visit (DESIGN.md 8.5); in a run the same on every machine.
-	var layout_seed := randi_range(1, 2147483646)
-	if _run != null:
-		layout_seed = _run.zone_seed(_run.at)
-	elif _options.seed_override >= 0:
-		layout_seed = _options.seed_override + 1
-	_zone.configure(ZoneAssembler.assemble(_with_forced_weather(zone), layout_seed), _tuning, _visuals, _explore,
-			_run != null, _run != null and _run.is_deep())
-	if _options.is_autoplay():
-		var weather := _zone.weather()
-		print("AUTOPLAY_WEATHER %s %s" % [zone.id, weather.id if weather != null else "clear"])
-	_zone.configure_players(_players)
-	if Net.is_client():
-		_zone.configure_remote()
-	_send_screen({"name": "zone", "zone": zone.id})
-	_zone.encounter_started.connect(_on_encounter_started)
-	_zone.cleared.connect(_on_zone_cleared)
-	_zone.pickup_requested.connect(_on_spot_pickup)
-	_zone.chest_requested.connect(_on_chest)
-	_zone.offer_requested.connect(_on_offer)
-	_zone.prize_requested.connect(_on_prize)
-	_zone.leave_requested.connect(_on_zone_leave)
-	add_child(_zone)
-	Sfx.play_music(_zone_song(), _music.volume_db)
-	_play_zone_ambience()
-	if _run != null:
-		var layer := CanvasLayer.new()
-		layer.name = "RunBar"
-		layer.layer = 11
-		_zone.add_child(layer)
-		_run_bar = RunPartyBar.new()
-		_run_bar.position = Vector2(24.0, 24.0)
-		layer.add_child(_run_bar)
-		# No gold while walking a zone: nothing to buy there (phase 22).
-		_run_bar.setup(_run, false)
-	if _options.is_autoplay() and not Net.is_client():
-		var bot := ZoneAutoplay.new()
-		bot.name = "ZoneAutoplay"
-		_zone.add_child(bot)
-		bot.setup(_zone, _tuning, _options.autoplay_mode, _run != null, _autoplay_health, _autoplay_use_items)
-
-
-func _free_zone() -> void:
-	_close_overlay()
-	if _zone != null:
-		if _zone.is_inside_tree():
-			remove_child(_zone)
-		_zone.queue_free()
-		_zone = null
-		_run_bar = null
-
-
-## The zone started a fight: swirl out, park the zone outside the tree, fade the fight in.
-func _on_encounter_started(index: int, opening: CombatSetup.Opening) -> void:
-	_net_hold = false
-	if _busy:
-		return
-	_busy = true
-	_close_overlay()
-	_zone_fight = {"index": index, "opening": opening}
-	_encounter = _zone.encounter_of(index)
-	# The guard gives loot instead; others may drop something (the same on every machine: seeded).
-	_drop = _run.drop_for(_run.at, index) if _run != null and index != _zone.guard_index() else null
-	if Net.is_host():
-		_net_seed = randi_range(1, 2147483646)
-		_net_fight = {"name": "zone_fight", "index": index, "opening": int(opening), "seed": _net_seed}
-		Net.broadcast("screen", _net_fight)
-	var gen := _flow_gen
-	Sfx.play("encounter_swirl")
-	await _transition.swirl_out()
-	if gen != _flow_gen or _zone == null:
-		_transition.fade_in()
-		_end_busy()
-		return
-	remove_child(_zone)
-	_start_combat()
-	await get_tree().process_frame
-	await _transition.fade_in()
-	_end_busy()
-
-
-## The zone fight's end screen was left: carry the run's HP and gold, then fade back to the zone
-## (or to the run's end after a defeat).
-func _on_zone_return_requested(result: String) -> void:
-	if _busy or _zone == null:
-		return
-	_busy = true
-	var gen := _flow_gen
-	var found: ItemData = null
-	if _run != null and not Net.is_client():
-		_run.spend_items(_combat.used_items())
-		_run.finish_fight(result, _combat.party_hp(), _encounter, _combat.recap())
-		_run.carry_team_gauge(_combat.team_gauge())
-		_autoplay_spend_points()
-		if result == RunState.VICTORY and _drop != null and _run.add_item(_drop) < 0:
-			found = _drop
-		_drop = null
-		_send_screen({"name": "zone_back", "result": result})
-		if _run.is_over():
-			_clear_run_save()
-			# The run's end screen follows (online, the host sends it).
-			await _transition.fade_out()
-			if gen != _flow_gen:
-				_transition.fade_in()
-				_end_busy()
-				return
-			_show_run_end()
-			await get_tree().process_frame
-			await _transition.fade_in()
-			_end_busy()
-			return
-	await _transition.fade_out()
-	if gen != _flow_gen or _zone == null:
-		_transition.fade_in()
-		_end_busy()
-		return
-	_free_combat()
-	_zone_fight = {}
-	add_child(_zone)
-	# The song and the ambience pick up where the fight cut them off (card #192).
-	Sfx.play_music(_zone_song(), _music.volume_db, true)
-	_play_zone_ambience(true)
-	_zone.resume(result)
-	if _run_bar != null:
-		_run_bar.refresh(_run)
-	await get_tree().process_frame
-	await _transition.fade_in()
-	_end_busy()
-	if found != null and _zone != null and (not _zone.is_cleared() or _zone.keeps_zone_open()):
-		_open_zone_backpack("The enemy dropped a %s, but the pack is full." % found.display_name, {"item": found})
-	if _run == null and result == "escaped" and _options.autoplay_mode == CombatOptions.AUTOPLAY_ESCAPE:
-		print("AUTOPLAY_RESULT zone_escaped fights=%d" % _zone.fights_started())
-		_autoplay_quit()
-	elif _run == null and result == "defeat" and _options.is_autoplay():
-		print("AUTOPLAY_RESULT zone_defeat fights=%d first_strikes=%d" % [_zone.fights_started(), _zone.first_strikes()])
-		_autoplay_quit()
-	elif _run != null and _zone.is_cleared() and not _zone.keeps_zone_open() and not Net.is_client():
-		# A zone without an exit: let ZONE CLEAR read, then the guard's loot (online, the host sends
-		# it). A zone with one stays open until the party leaves by it (_on_zone_leave).
-		await get_tree().create_timer(float(_explore.zone_title_ms) / 1000.0).timeout
-		_fade_to(_show_loot)
-
-
-## The leader used the open exit (card #241): "Leave the zone?" so nobody leaves by accident. Only
-## the leader (player 1, the host online) walks and uses things, so the question is theirs, like a
-## shrine's; the others see the spoils screen the host sends next. The zone holds still meanwhile.
-## The bot always leaves.
-func _on_zone_leave() -> void:
-	if _run == null or _zone == null or _busy or _overlay != null or _prompt != null or Net.is_client():
-		return
-	if _options.is_autoplay():
-		_leave_zone()
-		return
-	_zone.set_paused(true)
-	_prompt = ConfirmPrompt.new()
-	_prompt.name = "LeavePrompt"
-	# A few words and a chip, not sentences (phase 22): the enemies still here as a skull and a count.
-	var left := _zone.enemies_left()
-	var chips: Array = []
-	if left > 0:
-		chips.append({"glyph": &"skull", "text": "%d left" % left, "color": HudStyle.TEXT})
-	_prompt.setup("Leave the zone?", "No way back.", "Leave", "Stay", chips)
-	_prompt.answered.connect(func(yes: bool) -> void:
-		_prompt.queue_free()
-		_prompt = null
-		if _zone != null:
-			_zone.set_paused(false)
-			if yes:
-				_leave_zone())
-	add_child(_prompt)
-
-
-## The party leaves the cleared zone: the guard's spoils, then the map.
-func _leave_zone() -> void:
-	if _busy or _zone == null or not _zone.is_exit_open():
-		return
-	_zone.leave()
-	print("Run zone left: %s (optional enemies left %d)" % [_zone_name, _zone.enemies_left()])
-	_fade_to(_show_loot)
-
-
-func _on_zone_cleared() -> void:
-	if _run != null or not _options.is_autoplay():
-		return
-	print("AUTOPLAY_RESULT zone_clear fights=%d first_strikes=%d" % [_zone.fights_started(), _zone.first_strikes()])
-	_autoplay_quit()
 
 
 # --- the tutorial (DESIGN.md 7.8, card #131) --------------------------------------------------
@@ -1707,7 +1414,6 @@ func _start_tutorial() -> void:
 		_tutorial.auto_confirm_s = 1.2
 	_tutorial.leave_requested.connect(_fade_to.bind(_show_main_menu))
 	_encounter = data.encounter
-	_zone_fight = {}
 	_start_combat()
 	_tutorial.attach_fight(_combat)
 	var from := 0
@@ -2141,7 +1847,6 @@ func _start_stop_fight() -> void:
 		return
 	_set_run_fight_place(false)
 	_drop = _run.fight_drop()
-	_zone_fight = {}
 	print("Run fight: %s at %s weather %s%s" % [_encounter.id, _fight_place,
 			_fight_weather.id if _fight_weather != null else "clear", " (drop %s)" % _drop.id if _drop != null else ""])
 	if _options.is_autoplay():
@@ -2197,7 +1902,6 @@ func _start_final_fight(elite: bool = false) -> void:
 	_set_run_fight_place(boss)
 	if not boss:
 		print("Run fight weather: %s" % [_fight_weather.id if _fight_weather != null else "clear"])
-	_zone_fight = {}
 	if Net.is_host():
 		_net_seed = randi_range(1, 2147483646)
 		_send_screen({"name": "final_fight", "seed": _net_seed})
@@ -2381,7 +2085,7 @@ func _show_treasure(opened: bool = false, text: String = "") -> void:
 	var screen := TreasureScreen.new()
 	screen.name = "Treasure"
 	screen.remote = Net.is_client()
-	screen.setup(_run, _explore, opened, text if not text.is_empty() else _run.stop_text)
+	screen.setup(_run, opened, text if not text.is_empty() else _run.stop_text)
 	screen.done.connect(_on_treasure_done)
 	screen.opened.connect(func() -> void: _send_screen({"name": "treasure", "opened": true}))
 	screen.gifts_settled.connect(_save_stop_progress)
@@ -2597,7 +2301,7 @@ func _start_rush_fight() -> void:
 	_begin_rush_fight()
 
 
-## Builds the fight the Rush is on from its state: its encounter, its zone's look and air under the
+## Builds the fight the Rush is on from its state: its encounter, its place's look and air under the
 ## fight's weather (a boss in its own place; never lightning in a fight, D13), the record written as
 ## it starts (so closing the game keeps it, D4), then the swirl into it. Online friends build it too,
 ## from the host's state ("rush_fight", card #312), and write their own record.
@@ -2623,7 +2327,6 @@ func _begin_rush_fight() -> void:
 	var look := rush.look_now()
 	_fight_look = _fight_weather.apply_to(look) if _fight_weather != null else look
 	_fight_air = _fight_weather.air_with(rush.air_now()) if _fight_weather != null else rush.air_now()
-	_zone_fight = {}
 	_drop = null
 	_fight_place = ""
 	_note_rush_record()
@@ -2824,9 +2527,9 @@ func _lost_pad_players() -> Array[int]:
 	return _players.missing_players(_connected_pads())
 
 
-## Every frame in local co-op: when a player's pad is gone during a fight or a zone, hold the game
-## under a card until they are back (their heroes would wait forever otherwise, and P1 could not
-## walk). A pad that returns under the same id carries on by itself.
+## Every frame in local co-op: when a player's pad is gone during a fight, hold the game under a
+## card until they are back (their heroes would wait forever otherwise). A pad that returns under
+## the same id carries on by itself.
 func _watch_pads() -> void:
 	var lost := _lost_pad_players()
 	if _pad_overlay != null:
@@ -2843,8 +2546,6 @@ func _watch_pads() -> void:
 		_pad_pause_wanted = true
 		if not _combat.request_pause(true):
 			_pad_pause_wanted = was_wanted
-	elif _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
-		_show_pad_overlay()
 
 
 func _show_pad_overlay() -> void:
@@ -2897,15 +2598,13 @@ func _on_pad_dropped() -> void:
 		_watch_pads()
 
 
-## The fight and the zone read the roster in place; tell them it changed.
+## The fight reads the roster in place; tell it it changed.
 func _refresh_roster_users() -> void:
 	if _combat != null:
 		_combat.update_players(_players)
-	if _zone != null:
-		_zone.configure_players(_players)
 
 
-## The window lost focus (alt-tab, the Steam overlay, a notification): a fight or zone pauses,
+## The window lost focus (alt-tab, the Steam overlay, a notification): a fight or the map pauses,
 ## alone or in local co-op. Never online, where the others play on.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
@@ -2915,26 +2614,20 @@ func _notification(what: int) -> void:
 		return
 	if Net.is_online() or _options == null or _options.is_autoplay():
 		return
-	# Deferred (card #208): focus can go while Main is adding a child (entering a zone), and a pause
+	# Deferred (card #208): focus can go while Main is adding a child (building a fight), and a pause
 	# menu added then fails, leaving the game held still behind a menu that never appeared.
 	_pause_game.call_deferred()
 
 
 # --- pause ------------------------------------------------------------------------------------
 
-## Pause (Esc / Menu, DESIGN.md 7.5) over a fight, a zone or the run map. Main reads it before the
+## Pause (Esc / Menu, DESIGN.md 7.5) over a fight or the run map. Main reads it before the
 ## fight's own input, so Esc never reaches the action menu as "back".
 func _input(event: InputEvent) -> void:
 	var pause := event.is_action_pressed(&"pause", false, true)
 	if (event is InputEventKey or event is InputEventJoypadButton) and event.is_pressed():
 		_last_device = PlayerRoster.device_of(event)
 	_note_play_device(event, pause)
-	# The backpack over a zone (anyone, any time: DESIGN.md 8.1).
-	if _overlay == null and _pause == null and _prompt == null and not _busy and _run != null and _zone != null 			and _zone.is_inside_tree() and not _zone.is_frozen() and event.is_action_pressed(&"party_menu", false, true):
-		get_viewport().set_input_as_handled()
-		Sfx.play("menu_confirm")
-		_open_zone_backpack("", {})
-		return
 	# Online client on a run screen: the host chooses; only pause (to leave) works here. The
 	# backpack is everyone's: the party screen takes input, and Tab / Y on the map or the Fight Rush
 	# screen opens it, as does Confirm on that screen's Party card (card #312; the screen itself lets
@@ -2954,7 +2647,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if _pause != null or _prompt != null or _busy or not pause:
 		return
-	if Net.is_online() and (_combat != null or _zone != null or _is_run_screen(_screen)):
+	if Net.is_online() and (_combat != null or _is_run_screen(_screen)):
 		# Online nothing stops for a pause menu: it opens over the game, which goes on.
 		get_viewport().set_input_as_handled()
 		_open_pause()
@@ -2963,8 +2656,8 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Remembers P1's real device while solo (#304): a button press, or a stick push that walks, made
-## while the game itself is being played. The press that opens the pause menu (Pause, or Back on the
+## Remembers P1's real device while solo (#304): a button press, or a stick push (the move actions,
+## DESIGN.md 8.22 G8), made while the game itself is being played. The press that opens the pause menu (Pause, or Back on the
 ## map) never counts: it may be a friend's pad. Nor does any press in co-op (_reset_play_device
 ## takes the roster's P1 whenever the roster changes).
 func _note_play_device(event: InputEvent, pause: bool) -> void:
@@ -2974,7 +2667,7 @@ func _note_play_device(event: InputEvent, pause: bool) -> void:
 			or event.is_action_pressed(&"move_down"))
 	if not pressed and not walked:
 		return
-	var in_play := (_pause == null and _prompt == null and _overlay == null and _pad_overlay == null
+	var in_play := (_pause == null and _prompt == null and _pad_overlay == null
 			and not _menu_pause_wanted and not _busy and _game_in_play())
 	_play_device = PlayerRoster.play_device_after(_play_device, PlayerRoster.device_of(event),
 			pause or event.is_action(&"menu_cancel"), in_play, _players != null and _players.is_coop())
@@ -2987,16 +2680,14 @@ func _reset_play_device() -> void:
 	_play_device = _players.device_of_player(0) if _players != null else PlayerRoster.ANY
 
 
-## True while the game itself is on screen: a fight, a zone that is not held, or a run screen.
+## True while the game itself is on screen: a fight or a run screen.
 func _game_in_play() -> bool:
 	if _combat != null and _combat.is_inside_tree():
-		return true
-	if _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
 		return true
 	return _is_run_screen(_screen)
 
 
-## Pauses the fight (after the current move), the zone or the run map. True if it started one.
+## Pauses the fight (after the current move) or the run map. True if it started one.
 func _pause_game() -> bool:
 	if _pause != null or _prompt != null or _busy or _pad_overlay != null:
 		return false
@@ -3008,9 +2699,6 @@ func _pause_game() -> bool:
 			return true
 		_menu_pause_wanted = false
 		return false
-	if _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
-		_open_pause()
-		return true
 	if _screen is MapScreen:
 		_open_pause()
 		return true
@@ -3026,8 +2714,6 @@ func _open_pause() -> void:
 		return
 	if not Net.is_online():
 		_hold_behind_overlay(true)
-	elif _zone != null:
-		_zone.input_held = true
 	_pause = PauseMenu.new()
 	_pause.name = "Pause"
 	# Local friends join, leave and swap heroes here (cards #304, #311); online the host seats them,
@@ -3072,8 +2758,6 @@ func _open_pause() -> void:
 
 func _on_pause_resumed() -> void:
 	_free_pause()
-	if _zone != null:
-		_zone.input_held = false
 	if Net.is_online():
 		return
 	_hold_behind_overlay(false)
@@ -3243,12 +2927,10 @@ func _resave_players() -> void:
 		_write_checkpoint()
 
 
-## "fight", "zone", "map" or the screen's name in lower case (logs, AUTOPLAY lines).
+## "fight", "map" or the screen's name in lower case (logs, AUTOPLAY lines).
 func _place_word() -> String:
 	if _combat != null and _combat.is_inside_tree():
 		return "fight"
-	if _zone != null and _zone.is_inside_tree():
-		return "zone"
 	if _screen is MapScreen:
 		return "map"
 	return String(_screen.name).to_lower() if _screen != null else "none"
@@ -3370,10 +3052,10 @@ func _on_close_requested() -> void:
 	get_tree().quit()
 
 
-## Stops (or restarts) the fight, zone or screen under an overlay: no movement, timers or input.
+## Stops (or restarts) the fight or screen under an overlay: no movement, timers or input.
 func _hold_behind_overlay(held: bool) -> void:
 	var mode := Node.PROCESS_MODE_DISABLED if held else Node.PROCESS_MODE_INHERIT
-	for node: Node in [_combat, _zone, _screen]:
+	for node: Node in [_combat, _screen]:
 		if node != null:
 			node.process_mode = mode
 
@@ -3591,8 +3273,6 @@ func _on_net_peer_left(peer: int) -> void:
 		if _combat != null:
 			_combat.cancel_resume(peer)
 			_combat.update_players(_players, peer)
-		if _zone != null:
-			_zone.configure_players(_players)
 	_update_away_chip()
 
 
@@ -3627,8 +3307,6 @@ func _on_net_peer_away(peer: int) -> void:
 	if _combat != null:
 		_combat.cancel_resume(peer)
 		_combat.update_players(_players, peer)
-	if _zone != null:
-		_zone.configure_players(_players)
 	_update_away_chip()
 
 
@@ -3677,7 +3355,7 @@ static func _catch_up_messages(run: RunState, roster: PlayerRoster, late: bool, 
 		var screen := place.duplicate()
 		screen["run"] = state
 		messages.append({"kind": "screen", "payload": screen})
-	# A fight that is over is still sent: the zone_back that follows needs it built there.
+	# A fight that is over is still sent: its end screen shows there until the host's next screen.
 	if not fight.is_empty():
 		var screen := fight.duplicate()
 		screen["run"] = state
@@ -3745,8 +3423,6 @@ func _seat_newcomer(peer: int, old_peer: int) -> void:
 	Net.broadcast("roster", {"roster": _players.to_dict()})
 	if _combat != null:
 		_combat.update_players(_players)
-	if _zone != null:
-		_zone.configure_players(_players)
 	_catch_up(peer, true)
 	_update_away_chip()
 
@@ -3779,8 +3455,6 @@ func _return_seat(peer: int) -> void:
 	Net.broadcast("roster", {"roster": _players.to_dict()})
 	if _combat != null:
 		_combat.update_players(_players)
-	if _zone != null:
-		_zone.configure_players(_players)
 	_update_away_chip()
 
 
@@ -3873,7 +3547,6 @@ func _leave_online() -> void:
 	_seat_wait = false
 	_seat_sent_key = ""
 	_screens_seen = 0
-	_net_hold = false
 	_net_screen = {}
 	_sent_run = {}
 	_net_place = {}
@@ -3907,9 +3580,6 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				_combat.receive_batch(payload)
 			else:
 				_combat_inbox.add(payload)
-		"zone":
-			if _zone != null and _zone.is_inside_tree():
-				_zone.apply_snapshot(payload)
 		"lobby":
 			var roster := PlayerRoster.from_dict(payload.get("roster", {}) as Dictionary, Net.my_peer())
 			if roster != null and _screen is LobbyScreen:
@@ -3936,7 +3606,7 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 
 ## Client: handles the host's messages in order, each after the transition the last one started.
 func _pump_net() -> void:
-	while not _busy and not _net_hold and not _net_queue.is_empty() and Net.is_client():
+	while not _busy and not _net_queue.is_empty() and Net.is_client():
 		var m: Dictionary = _net_queue.pop_front()
 		_client_message(String(m.kind), m.payload as Dictionary)
 	_send_seated_ready()
@@ -3947,7 +3617,7 @@ func _pump_net() -> void:
 ## the host so; it hands our heroes over then (now, or at the fight's next quiet moment). Each
 ## catch-up point is told once; a point the host ignores (we were behind) is followed by the next.
 func _send_seated_ready() -> void:
-	if not Net.is_client() or not _seat_wait or _run == null or _screens_seen <= 0 or _busy or _net_hold \
+	if not Net.is_client() or not _seat_wait or _run == null or _screens_seen <= 0 or _busy \
 			or not _net_queue.is_empty():
 		return
 	var fight := 0
@@ -4059,20 +3729,9 @@ func _client_screen(p: Dictionary) -> void:
 		_fade_to(_watched_screen_builder(p))
 		return
 	match name:
-		"zone":
-			var zone := _zone_by_id(String(p.get("zone", "")))
-			if zone != null:
-				_fade_to(_start_zone.bind(zone), zone.display_name)
-		"zone_fight":
-			_net_seed = int(p.get("seed", 1))
-			# Read here, not when it arrived: a fight announced later must not change this one.
-			_combat_resync = bool(p.get("rejoin", false))
-			if _zone != null and _zone.is_inside_tree():
-				# The pump waits until the fight starts (the zone plays its short opening first).
-				_net_hold = true
-				_zone.begin_remote(int(p.get("index", -1)), int(p.get("opening", 0)) as CombatSetup.Opening)
 		"final_fight":
 			_net_seed = int(p.get("seed", 1))
+			# Read here, not when it arrived: a fight announced later must not change this one.
 			_combat_resync = bool(p.get("rejoin", false))
 			_start_final_fight(int(_run.current().get("type", -1)) == RunMap.StopType.ELITE)
 		"stop_fight":
@@ -4089,10 +3748,6 @@ func _client_screen(p: Dictionary) -> void:
 			_net_seed = int(p.get("seed", 1))
 			_combat_resync = bool(p.get("rejoin", false))
 			_begin_rush_fight()
-		"zone_back":
-			# After a lost run the host sends the run's end next instead.
-			if not _run.is_over():
-				_on_zone_return_requested(String(p.get("result", "")))
 
 
 ## Client: the function that builds a watched run screen from the host's message.
@@ -4122,8 +3777,8 @@ func _watched_screen_builder(p: Dictionary) -> Callable:
 
 
 ## Client: the run changed on the host (a purchase, gear): show the watched screen again. A party
-## screen (this player may be busy in it) and the backpack over a zone only redraw, and so does the
-## Fight Rush screen (a card taken, card #312).
+## screen (this player may be busy in it) only redraws, and so does the Fight Rush screen (a card
+## taken, card #312).
 func _rebuild_watched_screen() -> void:
 	if _refresh_party_views():
 		return
@@ -4158,191 +3813,18 @@ func _refresh_rush_screen() -> bool:
 	return true
 
 
-## Redraws the open party screen or backpack after the run changed. True if one is open.
+## Redraws the open party screen after the run changed. True if one is open.
 func _refresh_party_views() -> bool:
-	var shown := false
-	for view: Variant in [_screen, _overlay]:
-		if view is PartyScreen and is_instance_valid(view):
-			(view as PartyScreen).refresh()
-			shown = true
-	return shown
+	if _screen is PartyScreen and is_instance_valid(_screen):
+		(_screen as PartyScreen).refresh()
+		return true
+	return false
 
 
 ## Online client: asks the host to make a backpack change.
 func _send_bag_op(op: Dictionary) -> void:
 	if Net.is_client():
 		Net.send_to_host("bag", {"op": op})
-
-
-# --- the backpack over a zone (DESIGN.md 8.1) -------------------------------------------------
-
-## Opens the backpack over the zone, holding the zone still (online clients: only their own input
-## stops; the host's zone goes on). `held`: something new in hand ({item: ItemData}).
-func _open_zone_backpack(note: String, held: Dictionary) -> void:
-	if _overlay != null or _zone == null or _run == null:
-		return
-	_overlay = PartyScreen.new()
-	_overlay.name = "Backpack"
-	_overlay.layer = ZONE_BACKPACK_LAYER
-	_overlay.remote = Net.is_client()
-	_overlay.close_when_settled = not held.is_empty()
-	add_child(_overlay)
-	_overlay.setup(_run, note, held)
-	_overlay.op_requested.connect(_send_bag_op)
-	_overlay.left_behind.connect(_on_find_left)
-	_overlay.done.connect(_close_overlay)
-	if Net.is_client():
-		_zone.input_held = true
-	else:
-		_zone.set_paused(true)
-	if _options.is_autoplay() and not Net.is_client():
-		_autoplay_backpack.call_deferred(_overlay)
-
-
-func _close_overlay() -> void:
-	if _overlay == null:
-		return
-	_overlay.queue_free()
-	_overlay = null
-	if _spot_pending >= 0 and _zone != null:
-		_zone.take_spot(_spot_pending)
-	_spot_pending = -1
-	if _zone != null:
-		_zone.input_held = false
-		_zone.set_paused(false)
-	if _run_bar != null and _run != null:
-		# Attribute points and gear may have changed levels' marks and max HP.
-		_run_bar.refresh(_run)
-
-
-## A find that did not fit was left behind: a glinting spot keeps it.
-func _on_find_left(item: ItemData) -> void:
-	if _spot_pending >= 0 and _run.spot_item(_run.at, _spot_pending) == item:
-		_spot_pending = -1
-
-
-## The leader tries a chest: a key from the backpack opens it; its prize goes into the backpack (an
-## item) or straight onto a hero (gear), with the backpack opening when it has to.
-func _on_chest(chest: int) -> void:
-	if _run == null or _zone == null or _overlay != null:
-		return
-	if not _run.use_key():
-		Sfx.play("locked")
-		_zone.announce("Locked. You need a key.")
-		return
-	_zone.open_chest(chest)
-	Sfx.play("chest_open")
-	var prize := _run.chest_contents(_run.at, chest)
-	print("Run chest: %s" % (String(prize.get("id")) if prize != null else "empty"))
-	_give_prize(prize, "The chest")
-
-
-## The leader opened a beaten champion's prize chest (DESIGN.md 8.5): its prize goes into the
-## backpack or onto a hero, like a locked chest's.
-func _on_prize(prize: int) -> void:
-	if _run == null or _zone == null:
-		return
-	Sfx.play("chest_open")
-	var found := _run.prize_contents(_run.at, _zone.prize_roamer(prize))
-	print("Run prize chest: %s" % (String(found.get("id")) if found != null else "empty"))
-	_give_prize(found, "The champion's chest")
-
-
-## Gives a chest's prize: a Relic joins the run (a copy raises its level; the backpack opens to
-## pick who wears a new one), an item goes into the backpack (it opens with the item in hand when
-## full). `from` names the chest in the line shown.
-func _give_prize(prize: Resource, from: String) -> void:
-	if prize is GearData:
-		var found := RunState.relic_find_text(_run.add_relic(prize as GearData))
-		if _run.is_worn(prize as GearData):
-			_zone.announce("%s held the %s. %s." % [from, (prize as GearData).display_name, found])
-		else:
-			_open_zone_backpack("%s held the %s. %s. Who wears it?" % [from, (prize as GearData).display_name, found],
-					{"gear": prize})
-	elif prize is ItemData:
-		var item := prize as ItemData
-		if item.kind == ItemData.Kind.UPGRADE or item.kind == ItemData.Kind.TREASURE:
-			_run.add_item(item)
-			_zone.announce("%s held: %s" % [from, _run.find_text(item)])
-		elif _run.add_item(item) >= 0:
-			_zone.announce("%s held: %s" % [from, item.display_name])
-		else:
-			_open_zone_backpack("%s held a %s, but the pack is full." % [from, item.display_name], {"item": item})
-	else:
-		_zone.announce("%s is empty." % from)
-
-
-## The leader walked up to a shrine or a wanderer (DESIGN.md 8.5): its question, yes or no. The
-## zone holds still meanwhile. The bot takes every deal it can pay for.
-func _on_offer(offer: int) -> void:
-	if _run == null or _zone == null or _overlay != null or _prompt != null:
-		return
-	var data := _zone.offer_data(offer)
-	if data == null:
-		return
-	if _options.is_autoplay():
-		_take_offer(offer, _run.can_take_offer(data))
-		return
-	_zone.set_paused(true)
-	_prompt = ConfirmPrompt.new()
-	_prompt.name = "OfferPrompt"
-	# The price and the gift as icon chips under the question (card #288), not the detail sentence.
-	var chips := StopScreen.chip_entries(_run.offer_chips(data), StopVisuals.load_default())
-	var detail := data.detail if chips.is_empty() else ""
-	if not _run.can_take_offer(data):
-		detail = ("%s  You have %d gold." % [detail, _run.gold]).strip_edges()
-	_prompt.setup(data.question, detail, data.yes_text, data.no_text, chips)
-	_prompt.answered.connect(func(yes: bool) -> void:
-		_prompt.queue_free()
-		_prompt = null
-		if _zone != null:
-			_zone.set_paused(false)
-			_take_offer(offer, yes))
-	add_child(_prompt)
-
-
-func _take_offer(offer: int, yes: bool) -> void:
-	if not yes or _zone == null:
-		return
-	var data := _zone.offer_data(offer)
-	var result := _run.take_offer(data, _run.at, offer)
-	if not bool(result.ok):
-		Sfx.play("locked")
-		_zone.announce(String(result.text))
-		return
-	_zone.use_offer(offer)
-	Sfx.play("item_found")
-	print("Run offer: %s" % data.id)
-	if _run_bar != null:
-		_run_bar.refresh(_run)
-	var item := result.item as ItemData
-	if item == null:
-		_zone.announce(String(result.text))
-	elif item.kind == ItemData.Kind.UPGRADE or _run.add_item(item) >= 0:
-		if item.kind == ItemData.Kind.UPGRADE:
-			_run.add_item(item)
-		_zone.announce(String(result.text))
-	else:
-		_open_zone_backpack("%s, but the pack is full." % String(result.text), {"item": item})
-
-
-## The leader picks up glinting spot `spot`: into the backpack, or the backpack opens with it in hand.
-func _on_spot_pickup(spot: int) -> void:
-	if _run == null or _zone == null or _overlay != null:
-		return
-	var item := _run.spot_item(_run.at, spot)
-	if item == null:
-		_zone.take_spot(spot)
-		return
-	if _run.add_item(item) >= 0:
-		_zone.take_spot(spot)
-		_zone.announce(_run.find_text(item))
-		Sfx.play("item_found")
-		print("Run find: %s" % item.id)
-		return
-	_spot_pending = spot
-	Sfx.play("item_found")
-	_open_zone_backpack("Found a %s, but the pack is full." % item.display_name, {"item": item})
 
 
 func _apply_run(p: Dictionary) -> void:
@@ -4377,46 +3859,18 @@ func _send_screen(p: Dictionary) -> void:
 	var screen_name := String(p.get("name", ""))
 	if NET_FIGHT_SCREENS.has(screen_name):
 		_net_fight = p.duplicate()
-	elif screen_name == "zone_back":
-		_net_fight = {}
 	else:
 		_net_place = p.duplicate()
 		_net_fight = {}
 
 
-## Host, every frame: run changes (purchases, gear, levels) and zone positions go out.
-func _net_host_tick(delta: float) -> void:
+## Host, every frame: run changes (purchases, gear, levels) go out.
+func _net_host_tick() -> void:
 	if _run != null and not _sent_run.is_empty():
 		var now := _run.to_dict()
 		if now != _sent_run:
 			_sent_run = now
 			Net.broadcast("run", {"run": now})
-	if _zone != null and _zone.is_inside_tree() and not _zone.is_frozen():
-		_zone_send_s += delta
-		if _zone_send_s * float(_tuning.net_zone_send_hz) >= 1.0:
-			_zone_send_s = 0.0
-			Net.broadcast_fast("zone", _zone.net_snapshot())
-
-
-## The current zone's background loop; anything else (fights, screens) is silent underneath.
-## `resume`: back from a fight, the loop goes on where it was left.
-func _play_zone_ambience(resume: bool = false) -> void:
-	var amb := _zone.ambience() if _zone != null else ["", 0.0]
-	Sfx.play_ambience(String(amb[0]), float(amb[1]), resume)
-	_play_zone_weather(false, resume)
-
-
-## The visit's weather loop (rain, wind; card #303) over the zone's own: quieter in its fights; none
-## outside the zone.
-func _play_zone_weather(in_fight: bool, resume: bool = false) -> void:
-	var sound := _zone.weather_sound(in_fight) if _zone != null else ["", 0.0]
-	Sfx.play_weather(String(sound[0]), float(sound[1]), resume)
-
-
-## The current zone's own song, else the shared zone song.
-func _zone_song() -> String:
-	var own := _zone.music_path() if _zone != null else ""
-	return own if not own.is_empty() else _music.zone_path
 
 
 func _is_run_screen(node: Node) -> bool:
@@ -4441,14 +3895,6 @@ func _gear_from_ids(ids: Array) -> Array[GearData]:
 			if item != null and item.id == str(id):
 				list.append(item)
 	return list
-
-
-func _zone_by_id(id: String) -> ZoneData:
-	if _run_data != null:
-		for zone: ZoneData in _run_data.zones:
-			if zone != null and zone.id == id:
-				return zone
-	return null
 
 
 ## "The host is choosing" over the run screens a client watches.
@@ -4632,7 +4078,7 @@ func _autoplay_continue(result: String, continue_to: Callable) -> void:
 
 ## Autoplay on the map: a shop when there is gold to spend, a rest when someone is hurt, else a
 ## fight (so a run tries every kind of stop). Healing items go on whoever is low first, at every map
-## visit, so also before every Guard stop (the zone bot healed before its guard the same way).
+## visit, so also before every Guard stop.
 func _autoplay_map(map: MapScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(map) or not map.is_inside_tree() or _run == null:
@@ -4709,7 +4155,7 @@ func _autoplay_hurt() -> bool:
 
 
 ## The party's state: x the weakest hero's HP percent of max, y the party's average HP percent, z the
-## lowest hero level (RunAutoplay and the zone bot read it).
+## lowest hero level (RunAutoplay reads it).
 @warning_ignore("integer_division")
 func _autoplay_health() -> Vector3i:
 	if _run == null:
@@ -4854,15 +4300,6 @@ func _autoplay_party(party: PartyScreen) -> void:
 	_autoplay_settle(party)
 	if is_instance_valid(party) and party.is_inside_tree():
 		party.close()
-
-
-## Autoplay: the backpack opened over a zone with a find that did not fit.
-func _autoplay_backpack(party: PartyScreen) -> void:
-	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
-	if is_instance_valid(party) and party == _overlay:
-		_autoplay_settle(party)
-		if party == _overlay:
-			party.close()
 
 
 func _autoplay_settle(party: PartyScreen) -> void:

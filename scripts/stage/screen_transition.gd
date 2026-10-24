@@ -1,8 +1,9 @@
 class_name ScreenTransition
 extends CanvasLayer
 ## Full-screen transitions (DESIGN.md 7.4), above every HUD. Into a fight: the current picture is
-## frozen and swirls into black (swirl_out), then the fight fades in from black (fade_in). Back to
-## a zone: fade to black (fade_out), then fade in. Each call can be awaited. Real time.
+## frozen and swirls into black (swirl_out), then the fight fades in from black (fade_in). Between
+## other screens: fade to black (fade_out), then fade in. Each call can be awaited. Real time. The
+## timings are CombatVisuals' Screen transitions group.
 ## Over the black, a loading card can show a tip (show_tip / hide_tip, DESIGN.md 7.7, card #86).
 ## While anything of it covers the screen, no input reaches what is behind (card #132).
 
@@ -10,7 +11,7 @@ const SWIRL_SHADER := preload("res://scripts/stage/swirl.gdshader")
 const TIP_WIDTH_PX: float = 1200.0
 const CARD_MARGIN_PX: float = 32.0
 
-var _explore: ExploreVisuals
+var _look: CombatVisuals
 var _picture: TextureRect
 var _black: ColorRect
 var _tips: TipSet
@@ -19,8 +20,8 @@ var _card: Control
 var _last_tip: int = -1
 
 
-func setup(explore: ExploreVisuals) -> void:
-	_explore = explore
+func setup(look: CombatVisuals) -> void:
+	_look = look
 	layer = 60
 	_picture = TextureRect.new()
 	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -29,8 +30,8 @@ func setup(explore: ExploreVisuals) -> void:
 	_picture.stretch_mode = TextureRect.STRETCH_SCALE
 	var mat := ShaderMaterial.new()
 	mat.shader = SWIRL_SHADER
-	mat.set_shader_parameter("turns", explore.swirl_turns)
-	mat.set_shader_parameter("flash", explore.transition_flash)
+	mat.set_shader_parameter("turns", look.swirl_turns)
+	mat.set_shader_parameter("flash", look.transition_flash)
 	_picture.material = mat
 	_picture.visible = false
 	add_child(_picture)
@@ -45,7 +46,7 @@ func setup(explore: ExploreVisuals) -> void:
 
 ## Freezes the screen and swirls it into black over transition_out_ms.
 func swirl_out() -> void:
-	var seconds := float(_explore.transition_out_ms) / 1000.0
+	var seconds := float(_look.transition_out_ms) / 1000.0
 	# Headless runs have no picture to read back.
 	var image: Image = null
 	if DisplayServer.get_name() != "headless":
@@ -69,13 +70,13 @@ func swirl_out() -> void:
 
 ## Fades to black over transition_in_ms.
 func fade_out() -> void:
-	await _fade_black(1.0, float(_explore.transition_in_ms) / 1000.0)
+	await _fade_black(1.0, float(_look.transition_in_ms) / 1000.0)
 
 
 ## Fades from black over transition_in_ms.
 func fade_in() -> void:
 	_picture.visible = false
-	await _fade_black(0.0, float(_explore.transition_in_ms) / 1000.0)
+	await _fade_black(0.0, float(_look.transition_in_ms) / 1000.0)
 	_black.visible = false
 
 

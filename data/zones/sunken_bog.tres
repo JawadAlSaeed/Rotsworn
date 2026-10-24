@@ -6,35 +6,12 @@
 [ext_resource type="Resource" path="res://data/encounters/tick_nest.tres" id="p19_tick_nest"]
 [ext_resource type="Resource" path="res://data/encounters/rat_pack.tres" id="p19_rat_pack"]
 [ext_resource type="Script" path="res://scripts/data/zone_ambient_data.gd" id="1_axtek"]
-[ext_resource type="Script" path="res://scripts/data/zone_block_data.gd" id="1_n6mcy"]
-[ext_resource type="Script" path="res://scripts/data/zone_enemy_data.gd" id="2_jypso"]
-[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_end.tres" id="2_xopu5"]
 [ext_resource type="Resource" path="res://data/encounters/fly_pair.tres" id="3_d0j50"]
-[ext_resource type="Script" path="res://scripts/data/zone_critter_data.gd" id="3_n1m5q"]
 [ext_resource type="Resource" path="res://data/encounters/husk_fight.tres" id="4_crqsi"]
 [ext_resource type="Resource" path="res://data/encounters/toad_fight.tres" id="5_0fs8u"]
-[ext_resource type="Script" path="res://scripts/data/zone_ground_data.gd" id="6_ntjl4"]
-[ext_resource type="Resource" path="res://data/characters/brin.tres" id="7_fpga6"]
-[ext_resource type="Script" path="res://scripts/data/zone_section_data.gd" id="7_pp0bv"]
-[ext_resource type="Script" path="res://scripts/data/zone_light_data.gd" id="8_kdxmu"]
 [ext_resource type="Resource" path="res://data/looks/sunken_bog.tres" id="9_7dio0"]
-[ext_resource type="Script" path="res://scripts/data/zone_prop_data.gd" id="10_lm0nt"]
-[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_boardwalk.tres" id="11_jgxke"]
 [ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="11_jyu1e"]
-[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_village.tres" id="12_52r0a"]
-[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_mangroves.tres" id="13_1w4uv"]
-[ext_resource type="Script" path="res://scripts/data/zone_offer_data.gd" id="13_52r0a"]
-[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_pond.tres" id="14_a0tev"]
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="15_1w4uv"]
-[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_grove.tres" id="15_ll1ct"]
-[ext_resource type="Resource" path="res://data/offers/healing_spring.tres" id="20_a0tev"]
-[ext_resource type="Resource" path="res://data/offers/blood_altar.tres" id="21_ll1ct"]
-[ext_resource type="Resource" path="res://data/offers/war_idol.tres" id="22_gtb43"]
-[ext_resource type="Resource" path="res://data/offers/shrine_of_plenty.tres" id="23_1tnml"]
-[ext_resource type="Resource" path="res://data/zones/sections/sunken_bog_start.tres" id="24_urcme"]
-[ext_resource type="Resource" path="res://data/offers/key_peddler.tres" id="25_d5b0x"]
-[ext_resource type="Resource" path="res://data/offers/grave_robber.tres" id="26_ihusw"]
-[ext_resource type="Resource" path="res://data/offers/old_pilgrim.tres" id="27_ytkuw"]
 [ext_resource type="Resource" path="res://data/weather/rain.tres" id="p24_w_rain"]
 [ext_resource type="Resource" path="res://data/weather/storm.tres" id="p24_w_storm"]
 [ext_resource type="Resource" path="res://data/weather/fog.tres" id="p24_w_fog"]
@@ -91,21 +68,9 @@ id = "sunken_bog"
 display_name = "Sunken Bog"
 map_icon_path = "res://assets/sprites/ui/map_zone_sunken_bog.png"
 look = ExtResource("9_7dio0")
-leader = ExtResource("7_fpga6")
-bounds_min = Vector2(0, -20)
-bounds_max = Vector2(1, 10)
 ambient = Array[ExtResource("1_axtek")]([SubResource("Resource_axtek"), SubResource("Resource_n1m5q"), SubResource("Resource_ntjl4")])
-start_section = ExtResource("24_urcme")
-middle_sections = Array[ExtResource("7_pp0bv")]([ExtResource("11_jgxke"), ExtResource("12_52r0a"), ExtResource("13_1w4uv"), ExtResource("14_a0tev"), ExtResource("15_ll1ct")])
-end_section = ExtResource("2_xopu5")
 roamer_pool = Array[ExtResource("15_1w4uv")]([ExtResource("3_d0j50"), ExtResource("4_crqsi"), ExtResource("5_0fs8u"), ExtResource("p19_lantern_and_toad"), ExtResource("p19_lantern_trio"), ExtResource("p19_tick_nest"), ExtResource("p19_rat_pack"), ExtResource("p19_priest_coven")])
 guard = ExtResource("p26_guard")
-shrines = Array[ExtResource("13_52r0a")]([ExtResource("20_a0tev"), ExtResource("21_ll1ct"), ExtResource("22_gtb43"), ExtResource("23_1tnml")])
-wanderers = Array[ExtResource("13_52r0a")]([ExtResource("25_d5b0x"), ExtResource("26_ihusw"), ExtResource("27_ytkuw")])
-edge_height = 4.5
-footstep_sfx = "footstep_mud"
-music_path = "res://assets/audio/music/zone_bog.ogg"
-ambience_path = "res://assets/audio/ambience/ambience_bog.ogg"
 weathers = Array[ExtResource("p24_weather")]([ExtResource("p24_w_rain"), ExtResource("p24_w_storm"), ExtResource("p24_w_fog"), ExtResource("p24_w_dusk")])
 weather_weights = Array[int]([3, 1, 4, 2])
 clear_weight = 4

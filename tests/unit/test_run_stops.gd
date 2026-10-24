@@ -74,7 +74,7 @@ func test_the_run_has_two_acts_with_their_own_bosses() -> void:
 	assert_true(run.act_data(0).final_encounter.boss)
 	assert_true(run.act_data(1).deep, "the second act holds the variants")
 	for act: ActData in run.acts():
-		assert_false(act.zones.is_empty(), "%s has zones" % act.id)
+		assert_false(act.zones.is_empty(), "%s has places" % act.id)
 		assert_false(act.elites.is_empty(), "%s has elite fights" % act.id)
 		assert_false(act.events.is_empty(), "%s has events" % act.id)
 		assert_false(act.final_map_icon_path.is_empty())
@@ -122,27 +122,18 @@ func test_elites_are_tougher_and_pay_more() -> void:
 	assert_gt(run.gold_for(elite), run.gold_for(plain))
 
 
-func test_guards_are_mini_bosses_and_champions_elites() -> void:
+func test_guards_are_mini_bosses_with_a_phase_two() -> void:
+	# A Guard stop in a place fights its guard (DESIGN.md 8.22).
 	for zone: ZoneData in _data.zones:
-		var built := ZoneAssembler.assemble(zone, 3)
-		for e: ZoneEnemyData in built.enemies:
-			if e.guard:
-				assert_true(e.encounter.mini_boss, "%s: the guard is a mini-boss" % zone.id)
-				assert_false(e.encounter.can_run, "%s: no running from the guard" % zone.id)
-				assert_gt(e.encounter.enemies[0].phase_two_hp_percent, 0, "%s: the guard has a phase two" % zone.id)
-			if e.champion:
-				assert_true(e.encounter.elite, "%s: a champion is an elite fight" % zone.id)
-		# A Guard stop in this place fights the same guard (DESIGN.md 8.22).
 		var guard := zone.guard
 		assert_not_null(guard, "%s has a guard" % zone.id)
 		if guard == null:
 			continue
 		assert_true(guard.mini_boss and not guard.can_run, "%s: its guard is a mini-boss, no running" % zone.id)
+		assert_gt(guard.enemies[0].phase_two_hp_percent, 0, "%s: the guard has a phase two" % zone.id)
 		assert_not_null(guard.deep, "%s: its guard has a deep version" % zone.id)
-		var at_end := false
-		for e: ZoneEnemyData in zone.end_section.enemies:
-			at_end = at_end or (e.guard and e.encounter == guard)
-		assert_true(at_end, "%s: ZoneData.guard is its end section's guard" % zone.id)
+		if guard.deep != null:
+			assert_true(guard.deep.mini_boss and not guard.deep.can_run, "%s: so is its deep version" % zone.id)
 
 
 func test_spoils_are_rare_while_the_run_has_rare_gear() -> void:
@@ -206,18 +197,15 @@ func test_shipped_events_make_sense() -> void:
 	assert_gte(count, 8)
 
 
-func test_treasure_is_rare_and_pays_gold() -> void:
-	var run := _run()
-	var found := 0
-	for id: int in run.map.stops.size():
-		var prize := run.treasure_contents(id)
-		assert_not_null(prize)
-		if prize is ItemData:
-			assert_gte(int((prize as ItemData).rarity), ItemData.Rarity.RARE)
-		found += 1
-	var gold := run.gold
-	assert_eq(run.take_treasure_gold(), _tuning.run_treasure_gold)
-	assert_eq(run.gold, gold + _tuning.run_treasure_gold)
+func test_the_plain_chest_is_rare_and_pays_gold() -> void:
+	for id: int in _run().map.stops.size():
+		var run := _run()
+		var gold := run.gold
+		var got := run.open_treasure(id, false)
+		assert_true(got.prize is ItemData, "stop %d: the plain chest holds an item" % id)
+		if got.prize is ItemData:
+			assert_gte(int((got.prize as ItemData).rarity), ItemData.Rarity.RARE)
+		assert_eq(run.gold, gold + _tuning.run_treasure_gold, "and pays its gold")
 
 
 # --- shop services and the campfire ---------------------------------------------------------------

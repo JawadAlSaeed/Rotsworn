@@ -99,16 +99,16 @@ func test_fight_and_guard_stops_get_a_place_not_met_last_on_the_way_there() -> v
 		var map := _map(s)
 		for st: Dictionary in map.stops:
 			if int(st.type) == RunMap.StopType.ELITE:
-				assert_between(int(st.zone), 0, 2, "an elite fight takes place in a zone")
+				assert_between(int(st.zone), 0, 2, "an elite fight takes place in one of the places")
 				continue
 			if not RunMap.is_fight_place(int(st.type)):
 				assert_eq(int(st.zone), -1)
 				continue
 			assert_between(int(st.zone), 0, 2, "a Fight or Guard stop has a place")
-			# Only when the paths leading here already met every zone last can one repeat.
+			# Only when the paths leading here already met every place last can one repeat.
 			var before := map.last_zones_before(int(st.id))
 			if before.size() < 3:
-				assert_false(before.has(int(st.zone)), "seed %d: same zone twice in a row" % s)
+				assert_false(before.has(int(st.zone)), "seed %d: same place twice in a row" % s)
 		if is_failing():
 			return
 
@@ -267,17 +267,15 @@ func test_shipped_run_is_complete() -> void:
 	assert_not_null(_data.team_ultimate)
 	assert_not_null(_data.final_encounter)
 	assert_not_null(_data.final_look)
-	assert_gte(_data.zones.size(), 3, "three zones to pick from")
+	assert_gte(_data.zones.size(), 3, "three places to pick from")
 	assert_gt(_data.shop_items.size(), 0)
 	for item: ItemData in _data.shop_items:
 		assert_gt(item.price, 0, "%s costs something" % item.id)
-	for layout: ZoneData in _data.zones:
-		var zone := ZoneAssembler.assemble(layout, 1)
-		var guards := 0
-		for e: ZoneEnemyData in zone.enemies:
-			if e.guard:
-				guards += 1
-		assert_eq(guards, 1, "%s has one guard at its exit" % zone.id)
+	for place: ZoneData in _data.zones:
+		assert_false(place.roamer_pool.is_empty(), "%s has fights for its Fight stops" % place.id)
+		assert_not_null(place.guard, "%s has a guard for its Guard stops" % place.id)
+		if place.guard != null:
+			assert_false(place.guard.can_run, "%s: no running from its guard" % place.id)
 	var setup := _run().fight_setup(_data.final_encounter, 1, CombatSetup.Opening.NORMAL)
 	assert_eq(setup.validate(), PackedStringArray(), "the final fight is a valid setup")
 

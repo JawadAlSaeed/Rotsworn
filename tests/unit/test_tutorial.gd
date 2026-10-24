@@ -42,9 +42,10 @@ func test_the_tutorial_has_six_fight_lessons_then_first_strike_then_relics() -> 
 			"the cards explain First Strike, then Relics, then Echoes")
 
 
-## Card #291: the zone no longer spells out First Strike, so the tutorial does, with the strike
-## button's own picture and in one short sentence.
-func test_a_first_strike_card_shows_the_strike_button() -> void:
+## Card #291: the zone no longer spelled out First Strike, so the tutorial did, in one short
+## sentence. Phase 26 took the zones and their strike button away (DESIGN.md 8.22 G8); the card
+## stays until #320 rewrites it, and it names no button that is gone.
+func test_a_first_strike_card_stays_and_names_no_lost_button() -> void:
 	var data := load(TUTORIAL_PATH) as TutorialData
 	var card: TutorialStepData = null
 	for step: TutorialStepData in data.steps:
@@ -54,10 +55,10 @@ func test_a_first_strike_card_shows_the_strike_button() -> void:
 	if card == null:
 		return
 	assert_eq(card.goal, TutorialGoals.READ, "a card to read, no fight action")
-	assert_string_contains(card.text, "{field_strike}", "the strike button's picture is in the line")
+	assert_false("{field_strike}" in card.text, "the strike button went with the zones")
+	assert_false(InputMap.has_action(&"field_strike"), "no strike action is left")
 	assert_lte(card.text.split(".", false).size(), 1, "one short sentence")
 	assert_lte(card.text.length(), 120, "short")
-	assert_true(InputMap.has_action(&"field_strike"), "the button it shows is a real action")
 	var overlay := TutorialOverlay.new()
 	add_child_autofree(overlay)
 	overlay.show_card("Lesson 7 of 8", card.title, card.text, card.tip, "Go", false, card.icon_path)
@@ -66,8 +67,8 @@ func test_a_first_strike_card_shows_the_strike_button() -> void:
 		for piece: Node in row.get_children():
 			if piece is HintBar:
 				chips += 1
-	assert_eq(chips, 1, "the card draws the strike button as a chip")
-	# Card #293: beside the zone's foe skull, the picture of an enemy to strike.
+	assert_eq(chips, 0, "the card draws no button")
+	# Card #293: the foe skull, the picture of an enemy to strike.
 	assert_eq(card.icon_path, "res://assets/sprites/ui/goal_foe.png")
 	assert_true(overlay._plate.visible, "the card shows its picture")
 
