@@ -56,6 +56,8 @@ const AUTOPLAY_STUCK_MS: int = 60000
 const STRIKE_CLIPS: Array[String] = ["strike", "strike_alt"]
 ## Damage causes that stagger the target whatever the amount (DESIGN.md 5.5).
 const STAGGER_CAUSES: Array[String] = ["counter", "team_counter"]
+## The word over an enemy a drinking hit healed (card #323).
+const DRAIN_TEXT := "DRAIN"
 
 var mirror := CombatMirror.new()
 var engine: CombatEngine
@@ -1759,6 +1761,10 @@ func _show_feedback(ev: Dictionary) -> void:
 			_show_stagger(ev)
 		"healed":
 			if v != null:
+				if String(ev.get("cause", "")) == CombatEngine.CAUSE_DRAIN:
+					# A drinking bite (card #323): the word over the number, so the heal reads as hers.
+					Sfx.play("heal")
+					hud.popup(DRAIN_TEXT, head, HudStyle.HEAL)
 				hud.damage_number(int(ev.amount), head, HudStyle.HEAL)
 				v.flash(_visuals.flash_ms * 2, HudStyle.HEAL, 0.7)
 		"revived":
