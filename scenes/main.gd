@@ -3525,7 +3525,7 @@ func _on_online_started(players: PlayerRoster, oath: int, asked: bool = false) -
 	if _busy or not _screen is LobbyScreen or _prompt != null:
 		return
 	if _mode == MODE_RUN and not asked and not _options.is_autoplay() and _online_save_in_the_way():
-		_ask_overwrite_online_save(players, oath)
+		_ask_overwrite_online_save(oath)
 		return
 	_players = players
 	_oath = oath
@@ -3536,7 +3536,7 @@ func _on_online_started(players: PlayerRoster, oath: int, asked: bool = false) -
 
 ## Online host, Start over a saved online run (card #313): "Start a new run?" first; yes starts it (the
 ## save goes when it begins), no stays on the players screen with Continue.
-func _ask_overwrite_online_save(players: PlayerRoster, oath: int) -> void:
+func _ask_overwrite_online_save(oath: int) -> void:
 	_prompt = ConfirmPrompt.new()
 	_prompt.name = "OverwritePrompt"
 	_prompt.setup("Start a new run?", "The saved online run is lost.", "New run", "Keep saved run")
