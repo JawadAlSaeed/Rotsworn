@@ -235,9 +235,11 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   the shared `ListMenu`, `MenuBackdrop`, `HintBar` (button chip hints) and `PromptLabel`
 - `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested)
 - `scripts/net/` online: `DefenseArbiter` (host referee, pure, tested), `DataHash` (content
-  fingerprint for the handshake), `SeatBook` (seat tokens), `JoinGate` (who may come in and when a
-  newcomer's hero is handed over, pure, tested) and `FightInbox` (a client's early combat batches,
-  kept per fight, pure, tested)
+  fingerprint for the handshake), `SeatBook` (seat tokens, and the held seats of a continued saved
+  run), `JoinGate` (who may come in and when a newcomer's hero is handed over, pure, tested),
+  `FightInbox` (a client's early combat batches, kept per fight, pure, tested), `SavedSeats` (the
+  online save's seats: capture, restore, seat_lobby; pure, tested) and `SeatFile` (a friend's kept
+  seat tokens per host, `user://online_seat.json`; DESIGN.md 8.14, 9.2, 9.3)
 - `scripts/autoload/` global singletons (`Audio`, `Rumble` = `PadRumble`, the controller buzz,
   DESIGN.md 7.14, `UserSettings` = `PlayerSettings`, saved per
   machine in `user://settings.cfg`, `Net` = `NetSession`, the online connection, `Prompts` =
