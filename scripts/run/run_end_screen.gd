@@ -200,12 +200,13 @@ static func _add_hero_levels(row: HBoxContainer, run: RunState) -> void:
 
 
 ## The Relics a run keeps, measured from `found_before` (id -> any): [{item, new}] for each Relic
-## found for the first time, in the run's Relic order. The same rule as
-## RunState.relic_gain_line_since (a late joiner's end screen shows this row, own_kept, never words).
+## found for the first time (never a starting Relic, card #328), in the run's Relic order. The same
+## rule as RunState.relic_gain_line_since (a late joiner's end screen shows this row, own_kept, never
+## words).
 static func kept_relics(run: RunState, found_before: Dictionary) -> Array[Dictionary]:
 	var kept: Array[Dictionary] = []
-	for item: GearData in run.data.gear:
-		if item != null and run.owns(item) and not found_before.has(item.id):
+	for item: GearData in run.found_relics():
+		if not found_before.has(item.id):
 			kept.append({"item": item, "new": true})
 	return kept
 

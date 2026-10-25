@@ -94,7 +94,7 @@ const RUN_SAVED_ONLINE_NOTICE := "Run saved: Host to continue"
 ## mid-fight is shown it), and the run screens a friend watches (_watched_screen_builder builds them).
 const NET_FIGHT_SCREENS: Array[String] = ["final_fight", "rush_fight", "stop_fight"]
 const WATCHED_SCREENS: Array[String] = ["map", "rest", "shop", "loot", "party", "run_end", "event", "treasure",
-		"rush_reward", "rush_end"]
+		"rush_reward", "rush_end", "start_relics"]
 ## Online: the screens whose choices go in turns (card #314, DESIGN.md 9.2): each new one belongs to
 ## the next seated player, and its message carries the turn ({"key", "peer", "player"}).
 const CHOICE_SCREENS: Array[String] = ["map", "rest", "shop", "loot", "event", "treasure", "rush_reward"]
@@ -283,6 +283,14 @@ var _first_strike_ring: FirstStrikeRing = null
 var _run_opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 ## Online friend: the host's First Strike result ({fight: its seed, opening, word}; {}: none yet).
 var _net_opening: Dictionary = {}
+## The starting Relics step (DESIGN.md 8.24, card #328): where the run (or Rush) goes once it is over
+## (invalid: no step going on), and the host's wait for its friends' picks (a newer step or its end
+## stops an older wait).
+var _start_next: Callable = Callable()
+var _start_wait_gen: int = 0
+## Host, online: the heroes each friend picks for in this step (peer -> hero slots), fixed when it
+## began: a friend who drops in later gets no starting Relic.
+var _start_pickers: Dictionary = {}
 
 
 func _ready() -> void:
@@ -471,6 +479,8 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_party_relics()
 		"relics":
 			_show_relics(_sample_collection())
+		"start_relics":
+			_show_sample_start_relics()
 		"tutorial":
 			_start_tutorial()
 		"first_strike":
@@ -569,7 +579,7 @@ func _show_sample_rush(screen_name: String) -> void:
 			_open_pause()
 
 
-## A sample Rush (seed 7, the sample Relic bag) that has just won fight `fight` with the party hurt,
+## A sample Rush (seed 7, the sample Relic book) that has just won fight `fight` with the party hurt,
 ## its reward picks up: the fights before it replayed by the dev head start, their points spent as
 ## the bot spends them. The Rush screen's Best chip shows DEV_RUSH_BEST (a solo record), set here
 ## without touching the stored records.
@@ -706,23 +716,31 @@ func _show_sample_attributes(open: bool = true) -> void:
 		(_screen as PartyScreen).open_attributes()
 
 
-## A pretend collection for pictures (--screen=relics): a few Relics found, some of them in the bag.
+## A pretend Relic book for pictures (--screen=relics, start_relics): a few Relics found.
 func _sample_collection() -> RelicCollection:
 	var c := RelicCollection.new()
 	for i: int in mini(14, _run_data.gear.size()):
 		c.found[_run_data.gear[i].id] = true
-	for i: int in [0, 3, 5]:
-		c.toggle_bag(_run_data.gear[i].id, c.bag_size(_tuning))
 	return c
 
 
-## --screen=party_relics: a run past act 1 where each hero has two Relics, a few more wait to be
-## given, Alder has levelled, and the party screen is open on its Relics tab (for pictures).
+## --screen=start_relics: the starting Relics step (card #328) of a run on the sample book, Alder's
+## Relic taken and Brin choosing (for pictures; nothing is saved).
+func _show_sample_start_relics() -> void:
+	var book := _sample_collection()
+	_run = RunState.begin(_run_data, _tuning, 3, 0, book)
+	_players = PlayerRoster.solo(_hero_names().size(), PlayerRoster.KEYBOARD)
+	var choices := _run.start_choices(book)
+	if not choices.is_empty():
+		_run.take_start_relic(0, choices[choices.size() - 1])
+	_show_start_relics(book)
+
+
+## --screen=party_relics: a run past act 1 where each hero has two Relics, Alder has levelled, and
+## the party screen is open on its Relics tab (for pictures).
 func _show_sample_party_relics() -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
 	_run.act = 1
-	for i: int in range(9, mini(12, _run_data.gear.size())):
-		_run.add_relic(_run_data.gear[i])
 	for slot: int in _run.party_size():
 		for g: int in 2:
 			_run.give_relic(_run_data.gear[slot * 3 + g], slot)
@@ -1058,7 +1076,7 @@ func _on_lobby_started(players: PlayerRoster, oath: int, next: Callable) -> void
 	next.call()
 
 
-## Again at the run end (card #284): the players screen once more with the same seats, bag and oath.
+## Again at the run end (card #284): the players screen once more with the same seats and oath.
 ## Online the host keeps the friends connected and sends them to their players screen to wait for
 ## its Start; a friend who presses it first waits there.
 func _play_again() -> void:
@@ -1140,9 +1158,9 @@ func _show_settings() -> void:
 	_show_screen(settings)
 
 
-## Settings > Reset progress (DESIGN.md 8.17): the Relics, the unlocked oaths, the Fight Rush records
-## (8.21) and a saved run go; settings, controls and the Journal stay. A dev screen (--screen=settings)
-## never wipes anything.
+## Settings > Reset progress (DESIGN.md 8.17): the Relic book (8.24), the unlocked oaths, the Fight
+## Rush records (8.21) and a saved run go; settings, controls and the Journal stay. A dev screen
+## (--screen=settings) never wipes anything.
 func _reset_progress() -> void:
 	if not _options.screen.is_empty():
 		return
@@ -1178,19 +1196,13 @@ func _show_journal() -> void:
 	_show_screen(screen)
 
 
-## The Relics (DESIGN.md 8.17): the collection on this machine, and the Relic bag the team brings
-## into the next run (card #265). `sample`: a dev screen's pretend collection, never saved.
+## The Relic book (DESIGN.md 8.17, 8.24, card #328): every Relic this machine found, read from its
+## file; it only shows. `sample`: a dev screen's pretend book.
 func _show_relics(sample: RelicCollection = null) -> void:
 	var collection := sample if sample != null else RelicFile.load_or_empty(_relics_path())
-	# A bag from before it shrank (card #266) keeps its first Relics.
-	if collection.trim_bag(collection.bag_size(_tuning)) and sample == null and _relics_io_ok():
-		RelicFile.save(collection, _relics_path())
 	var screen := RelicsScreen.new()
 	screen.name = "Relics"
-	screen.setup(collection, _run_data.gear, _run_data.party, _tuning)
-	screen.bag_changed.connect(func(changed: RelicCollection) -> void:
-		if sample == null and _relics_io_ok() and not RelicFile.save(changed, _relics_path()):
-			push_warning("Main: could not write the Relics to %s" % _relics_path()))
+	screen.setup(collection, _run_data.gear)
 	screen.closed.connect(_show_main_menu.call_deferred)
 	_show_screen(screen)
 
@@ -1655,23 +1667,34 @@ func _own_relics_ok() -> bool:
 			and (not _options.is_autoplay() or not _options.relics_path.is_empty())
 
 
-## The collection a new run starts from: the player's, or a bot's pretend one (--relics=all gives
-## every Relic found; a bot otherwise starts with none, like a first run).
-## A bot fills its bag with the best Relics it has (GearBot), since nobody picks for it.
+## The Relic book a new run starts from (host or local): the player's, or a bot's pretend one
+## (--relics=all gives every Relic found; a bot otherwise has none, like a first run).
 func _run_collection() -> RelicCollection:
 	var collection := RelicCollection.new()
 	if _options.relics_mode == "all":
 		collection = RelicCollection.all_of(_run_data.gear)
 	elif _relics_io_ok() and _options.relics_mode != "none":
 		collection = RelicFile.load_or_empty(_relics_path())
-	if _options.is_autoplay():
-		collection.fill_bag(_run_data.gear, collection.bag_size(_tuning), GearBot.score)
 	return collection
 
 
-## Takes the run into the collection: when the run saves on the map, when a stop settles something,
-## and when the run ends (won, lost or abandoned). The Relics found: banking twice, or after
-## Continue replays a stop, never adds any (DESIGN.md 8.19).
+## This machine's Relic book for the starting Relics (DESIGN.md 8.24, card #328): the host's or a
+## local game's as _run_collection; an online friend's own, read when the host's run_start came
+## (_own_start; --relics=all every Relic, a bot without --relics-path none).
+func _own_book() -> RelicCollection:
+	if not Net.is_client():
+		return _run_collection()
+	if _options.relics_mode == "all":
+		return RelicCollection.all_of(_run_data.gear)
+	if _options.relics_mode == "none" or _own_start == null:
+		return RelicCollection.new()
+	return _own_start
+
+
+## Takes the run into the Relic book: when the run saves on the map, when a stop settles something,
+## and when the run ends (won, lost or abandoned). The Relics found (never the starting ones, which
+## came from a book, card #328): banking twice, or after Continue replays a stop, never adds any
+## (DESIGN.md 8.19).
 ## An online friend banks too, into their own file (card #281): the Relics the run found on top of
 ## their own collection. A friend who joined mid-run banks only what came after they joined (card
 ## #304), and nothing before that baseline is known.
@@ -1683,13 +1706,14 @@ func _bank_relics() -> void:
 		if _own_start == null or _join_pending or not _client_relics_ok():
 			return
 		var found := _run.relic_ids_since(_join_relics)
-		if RelicFile.bank(found, _relics_path(), _tuning):
+		if RelicFile.bank(found, _relics_path()):
 			print("Relics banked (own): %d" % found.size())
 		return
 	if not _relics_io_ok():
 		return
-	if RelicFile.bank(_run.relics.keys(), _relics_path(), _tuning):
-		print("Relics banked: %d" % _run.relics.size())
+	var ids := _run.relic_ids_since({})
+	if RelicFile.bank(ids, _relics_path()):
+		print("Relics banked: %d" % ids.size())
 
 
 ## The player number (1, 2, 3) who plays each hero, for the run end's defence rows; empty when one
@@ -1866,10 +1890,12 @@ func _continue_run() -> void:
 
 ## A continued run (local, or the host's online one, card #313) goes back where it was saved: into the
 ## stop it was saved in, from its start (a fight at the HP the party had on entering it), the starting
-## pact, or the map.
+## Relics (card #328), the starting pact, or the map.
 func _resume_where_saved() -> void:
 	if _checkpoint_in_stop and not _run.current().is_empty():
 		_enter_stop()
+	elif _run.start_pending() and _run.at < 0:
+		_fade_to(_begin_start_relics.bind(_after_start_relics))
 	elif _run.pact_pending and _run.at < 0:
 		_fade_to(_show_event.bind("", true))
 	else:
@@ -1999,23 +2025,209 @@ func _new_run() -> void:
 	# Friends may drop in from now on (the first screen goes out in this same frame, card #304).
 	_set_drop_in(true)
 	Sfx.play("run_begin")
+	_begin_start_relics(_after_start_relics)
+
+
+## The run's start after the starting Relics (card #328): the starting pact when it is due (card
+## #285; it may give a Relic), else the map.
+func _after_start_relics() -> void:
+	if _run == null:
+		return
 	if _run.pact_pending:
-		# The starting pact first (card #285): it may give a Relic to equip.
 		_show_event("", true)
 		return
 	_after_pact()
 
 
-## The run's start after the pact (or with none): the party screen on the Relics page when the
-## bag brought Relics (card #265: nothing is worn yet, the player equips before the first fight),
-## else the map.
+## The run's start after the pact (or with none): the map.
 func _after_pact() -> void:
-	if _run.owned_relics().is_empty():
-		_show_map()
+	_show_map()
+
+
+# --- the starting Relics (DESIGN.md 8.24, card #328) ------------------------------------------
+
+## The starting Relics: each hero may take start_relic_count() Relics from a Relic book before the
+## run (or Rush) goes on to `next`. Heroes nobody can pick for now are skipped at once (an empty
+## book: a first run or a bot without --relics=all; the Empty Hand gives none at all); with nobody
+## left to pick, `next` comes straight away. Online the host shows the step to everyone: each friend
+## seated now picks for their own heroes from their own book, and the host waits for them up to
+## tuning.start_relic_wait_ms; a friend who drops in later gets none.
+func _begin_start_relics(next: Callable) -> void:
+	_start_next = next
+	_start_wait_gen += 1
+	_start_pickers = {}
+	var picking := _start_heroes()
+	if _run.start_choices(_own_book()).is_empty():
+		_run.skip_start_relics(picking)
+	if Net.is_host():
+		for player: int in range(1, _players.player_count()):
+			var theirs := _players.heroes_of(player)
+			if not theirs.is_empty() and player < _players.peers.size():
+				_start_pickers[_players.peers[player]] = theirs
+				picking.append_array(theirs)
+	var nobody: Array[int] = []
+	for slot: int in _run.party_size():
+		if not picking.has(slot):
+			nobody.append(slot)
+	_run.skip_start_relics(nobody)
+	if not _run.start_pending():
+		_end_start_relics(false)
 		return
-	_show_party("Your Relic bag", true)
-	if not _options.is_autoplay() and _screen is PartyScreen:
-		(_screen as PartyScreen).open_relics(0, 0)
+	_show_start_relics()
+	if Net.is_host() and not _start_pickers.is_empty():
+		_wait_start_friends(_start_wait_gen)
+
+
+## The hero slots this machine picks starting Relics for: every hero in a local game, online this
+## machine's player's heroes (the host's also the heroes of anyone away).
+func _start_heroes() -> Array[int]:
+	if not Net.is_online():
+		return RelicGift.every_hero(_run)
+	var mine := _players.local_players()
+	var none: Array[int] = []
+	return _players.heroes_of(mine[0]) if not mine.is_empty() else none
+
+
+## The starting Relics screen (host, local, and an online friend shown the host's step): this
+## machine's heroes still to choose pick from `book` (default: this machine's, _own_book). A friend
+## who dropped in mid-run picks nothing (DESIGN.md 8.24); a friend with an empty book skips at once.
+func _show_start_relics(book: RelicCollection = null) -> void:
+	if _run == null:
+		return
+	if book == null:
+		book = _own_book()
+	var screen := StartRelicsScreen.new()
+	screen.name = "StartRelics"
+	screen.remote = Net.is_client()
+	screen.players = _players
+	screen.check_pads = not Net.is_online() and _players != null and _players.player_count() > 1
+	var mine: Array[int] = []
+	if not (Net.is_client() and Net.joined_mid_run):
+		mine = _run.start_open_of(_start_heroes())
+	screen.setup_pick(_run, book, mine)
+	screen.picked.connect(_on_start_picked)
+	screen.finished.connect(_check_start_done)
+	_show_screen(screen)
+	_send_screen({"name": "start_relics"})
+	if Net.is_client() and _run.start_choices(book).is_empty():
+		while screen.skip():
+			pass
+	elif _options.is_autoplay():
+		screen.bot_pick.call_deferred()
+
+
+## A hero took a starting Relic (null: skipped) on this machine's screen: logged here; an online
+## friend's goes to the host, which checks it (_on_friend_start_relic).
+func _on_start_picked(slot: int, item: GearData) -> void:
+	var hero := _run.data.party[slot].id if _run != null and slot >= 0 and slot < _run.party_size() else "?"
+	if Net.is_client():
+		print("Start relic asked: %s to %s" % [item.id if item != null else "skip", hero])
+		Net.send_to_host("start_relic", {"slot": slot, "relic": item.id if item != null else ""})
+		return
+	print("Start relic: %s to %s" % [item.id if item != null else "skip", hero])
+
+
+## Host or local: once every hero has their starting Relics (or went without), the run goes on.
+func _check_start_done() -> void:
+	if Net.is_client() or _run == null or not _start_next.is_valid() or not _screen is StartRelicsScreen:
+		return
+	if not _run.start_pending():
+		_end_start_relics(true)
+
+
+## The starting Relics step is over (on the host or a local game): what each hero took is logged,
+## and the run goes on (`fade`: from the step's screen, once any transition under way is done).
+func _end_start_relics(fade: bool) -> void:
+	var next := _start_next
+	_start_next = Callable()
+	_start_wait_gen += 1
+	_start_pickers = {}
+	_run.end_start_picks()
+	_log_start_relics()
+	if not next.is_valid():
+		return
+	if not fade:
+		next.call()
+		return
+	var run := _run
+	while _busy:
+		await get_tree().process_frame
+	if _run == run and _screen is StartRelicsScreen:
+		_fade_to(next)
+
+
+## Logs each hero's Relics as the step left them: "Start relics: alder=iron_charm brin=- cass=..."
+## (the bot's AUTOPLAY_START_RELICS line, the same on every machine of an online game).
+func _log_start_relics() -> void:
+	var parts := PackedStringArray()
+	for slot: int in _run.party_size():
+		var ids := PackedStringArray()
+		for item: GearData in _run.relics_of(slot):
+			if _run.start_relics.has(item.id):
+				ids.append(item.id)
+		parts.append("%s=%s" % [_run.data.party[slot].id, ",".join(ids) if not ids.is_empty() else "-"])
+	print("Start relics: %s" % " ".join(parts))
+	if _options.is_autoplay():
+		print("AUTOPLAY_START_RELICS %s" % " ".join(parts))
+
+
+## Host, online: the friends' heroes still choosing after start_relic_wait_ms go without, and the run
+## goes on once the host's own are done. `gen`: the step this wait is for.
+func _wait_start_friends(gen: int) -> void:
+	await get_tree().create_timer(maxf(0.0, float(_tuning.start_relic_wait_ms) / 1000.0)).timeout
+	if gen != _start_wait_gen or _run == null or not _screen is StartRelicsScreen:
+		return
+	var late: Array[int] = []
+	for peer: Variant in _start_pickers:
+		late.append_array(_start_pickers[peer] as Array)
+	_start_pickers = {}
+	print("Start relics: the wait ran out (%d skipped)" % _run.skip_start_relics(late))
+	(_screen as StartRelicsScreen).refresh()
+	_check_start_done()
+
+
+## Host: a friend's starting Relic for hero `slot` ("relic": an id, "" skipped). Taken when it is
+## theirs to pick (a hero they held when the step began, still choosing) and the Relic is free; else
+## refused, and their screen opens that hero again.
+func _on_friend_start_relic(from_peer: int, p: Dictionary) -> void:
+	var slot := int(p.get("slot", -1)) if typeof(p.get("slot")) == TYPE_INT else -1
+	var id := String(p.relic) if typeof(p.get("relic")) == TYPE_STRING else ""
+	var ok := _start_pick_allowed(_start_pickers, from_peer, slot, _run) and _screen is StartRelicsScreen
+	if ok:
+		if id.is_empty():
+			ok = _run.skip_start_relic(slot)
+		else:
+			ok = not _run.take_start_relic(slot, _run.relic_by_id(id)).is_empty()
+	var who := HudStyle.player_tag(maxi(0, _players.player_of_peer(from_peer))) if _players != null else "P?"
+	var what := id if not id.is_empty() else "skip"
+	print("Start relic %s: %s %s hero=%d" % ["taken" if ok else "refused", who, what, slot])
+	if _options.is_autoplay():
+		print("AUTOPLAY_START_RELIC %s %s hero=%d ok=%d" % [who, what, slot, int(ok)])
+	if not ok:
+		Net.send_to(from_peer, "start_refused", {"slot": slot})
+		return
+	(_screen as StartRelicsScreen).refresh()
+	_check_start_done()
+
+
+## Host: true when hero `slot` is one friend `peer` picks for in this step (`pickers`, fixed when it
+## began) and still choosing in `run`. Pure.
+static func _start_pick_allowed(pickers: Dictionary, peer: int, slot: int, run: RunState) -> bool:
+	return run != null and pickers.get(peer) is Array and (pickers[peer] as Array).has(slot) and run.start_open(slot)
+
+
+## Host: a friend who left (or dropped for good) during the step: their heroes still choosing go
+## without.
+func _forget_start_picker(peer: int) -> void:
+	if not _start_pickers.has(peer) or _run == null:
+		return
+	var theirs: Array[int] = []
+	theirs.assign(_start_pickers[peer] as Array)
+	_start_pickers.erase(peer)
+	_run.skip_start_relics(theirs)
+	if _screen is StartRelicsScreen:
+		(_screen as StartRelicsScreen).refresh()
+	_check_start_done()
 
 
 ## `unroll` false shows the map already open (back from the party screen, or redrawn online).
@@ -2588,9 +2800,9 @@ func _show_rush_lobby() -> void:
 
 ## Starts a Fight Rush with the players screen's roster, or at once for --rush. It never deletes a
 ## saved run (Continue still shows afterwards) and is never saved itself. It opens on the Rush
-## screen's ready phase (FIGHT 1); a Relic bag that brought Relics opens the party screen on its
-## Relics page first, as a run does (card #265). Online the host plays it exactly so and its friends
-## follow (card #312): run_start says it is a Rush, every screen carries the whole state.
+## screen's ready phase (FIGHT 1), after the starting Relics as a run's (card #328). Online the host
+## plays it exactly so and its friends follow (card #312): run_start says it is a Rush, every screen
+## carries the whole state.
 func _new_rush() -> void:
 	if _rush_data == null:
 		push_error("Main: no Fight Rush data, cannot start a Rush")
@@ -2611,12 +2823,7 @@ func _new_rush() -> void:
 	# Friends may join from now on: local ones from the Players row, online ones drop in (card #312).
 	_set_drop_in(true)
 	Sfx.play("run_begin")
-	if rush.owned_relics().is_empty() or _options.is_autoplay():
-		_show_rush_reward()
-		return
-	_show_party("Your Relic bag", true, {}, _show_rush_reward)
-	if _screen is PartyScreen:
-		(_screen as PartyScreen).open_relics(0, 0)
+	_begin_start_relics(_show_rush_reward)
 
 
 ## A Fight Rush begins on this machine (alone, as host, or as a host's friend): nothing decided or
@@ -3000,7 +3207,8 @@ func _input(event: InputEvent) -> void:
 	# choice is the host's): only pause (to leave) works here. The backpack is everyone's: the party
 	# screen takes input, and Tab / Y on the map or the Fight Rush screen opens it, as does Confirm on
 	# that screen's Party card (card #312; the screen itself lets a watching player do nothing else).
-	var own := _screen is PartyScreen or _screen is RunEndScreen \
+	# The starting Relics (card #328): every machine picks for its own heroes, whoever's turn it is.
+	var own := _screen is PartyScreen or _screen is RunEndScreen or _screen is StartRelicsScreen \
 			or (_screen is MapScreen and event.is_action(&"party_menu")) \
 			or (_screen is RushRewardScreen and (event.is_action(&"party_menu") or event.is_action(&"menu_confirm")))
 	var watching := Net.is_online() and not _my_turn()
@@ -3748,6 +3956,7 @@ func _on_net_peer_left(peer: int) -> void:
 	if _run == null and _screen is LobbyScreen:
 		(_screen as LobbyScreen).remove_peer(peer)
 		return
+	_forget_start_picker(peer)
 	if _players.drop_peer(peer):
 		print("Player left: peer %d" % peer)
 		Sfx.play("player_leave")
@@ -3805,6 +4014,8 @@ func _on_net_peer_rejoined(old_peer: int, new_peer: int) -> void:
 		return
 	print("Player back: P%d (peer %d, was %d)" % [player + 1, new_peer, old_peer])
 	Sfx.play("net_connected")
+	# Back during the starting Relics (card #328): their heroes still choosing went without.
+	_forget_start_picker(old_peer)
 	if not _players.is_away(player):
 		# Their old connection had not been noticed as lost yet: it is gone now.
 		_players.set_away(new_peer)
@@ -4085,6 +4296,8 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 						_apply_bag_op(op)
 			"choice":
 				_on_friend_choice(from_peer, payload)
+			"start_relic":
+				_on_friend_start_relic(from_peer, payload)
 			"seated_ready":
 				_on_seated_ready(from_peer, int(payload.get("fight", 0)))
 		return
@@ -4276,6 +4489,10 @@ func _client_message(kind: String, p: Dictionary) -> void:
 		"gift":
 			_apply_run(p)
 			_client_gift(p)
+		"start_refused":
+			# The host refused a starting Relic (taken first, card #328): that hero chooses again.
+			if _screen is StartRelicsScreen:
+				(_screen as StartRelicsScreen).refused(int(p.get("slot", -1)))
 
 
 ## Client: shows the screen the host is on.
@@ -4286,6 +4503,9 @@ func _client_screen(p: Dictionary) -> void:
 	_screens_seen += 1
 	if p.get("turn") is Dictionary:
 		_turn = (p.turn as Dictionary).duplicate()
+	if _screen is StartRelicsScreen and name != "start_relics":
+		# The host's starting Relics step is over (card #328): what each hero took, as the host logs it.
+		_log_start_relics()
 	if WATCHED_SCREENS.has(name):
 		if not _busy and _waits_under_party(name, _net_screen, _screen is PartyScreen):
 			# Our own party screen is open over that place (card #314): the Fight Rush's next pick (and
@@ -4361,6 +4581,8 @@ func _watched_screen_builder(p: Dictionary) -> Callable:
 			return _show_rush_reward
 		"rush_end":
 			return _show_rush_end
+		"start_relics":
+			return _show_start_relics.bind(null)
 	return _show_map
 
 
@@ -4368,6 +4590,10 @@ func _watched_screen_builder(p: Dictionary) -> Callable:
 ## screen (this player may be busy in it) only redraws, and so does the Fight Rush screen (a card
 ## taken, card #312).
 func _rebuild_watched_screen() -> void:
+	if _screen is StartRelicsScreen and is_instance_valid(_screen):
+		# The starting Relics redraw in place: a pick of ours on its way to the host stays (card #328).
+		(_screen as StartRelicsScreen).refresh()
+		return
 	if _refresh_party_views():
 		return
 	# A find handed to us is in hand over the screen (card #314): the backpack redraws, the screen
@@ -5114,7 +5340,7 @@ func _autoplay_settle_over(screen: Variant) -> void:
 func _is_run_screen(node: Node) -> bool:
 	return node is MapScreen or node is ShopScreen or node is RestScreen or node is LootScreen \
 			or node is PartyScreen or node is RunEndScreen or node is EventScreen or node is TreasureScreen \
-			or node is RushRewardScreen
+			or node is RushRewardScreen or node is StartRelicsScreen
 
 
 func _gear_ids(gear: Array[GearData]) -> Array:
@@ -5620,7 +5846,7 @@ func _autoplay_settle(party: PartyScreen) -> void:
 	var held := _held_count(_run)
 	var items := _run.backpack.entries.size()
 	party.auto_settle()
-	# Relics waiting (the bag's at the start) go nowhere by themselves (card #265): the bot gives them.
+	# A Relic waiting for a hero (only an old save has one) goes nowhere by itself: the bot gives it.
 	# A friend's copy of the run never changes by itself (the host's does that).
 	if not Net.is_client():
 		_run.auto_give()

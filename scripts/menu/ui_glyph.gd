@@ -5,7 +5,7 @@ extends Control
 ## colour, and fits a square of `px`. draw_glyph() draws one on any CanvasItem (RelicIcon, grids).
 ## Kinds: heart (HP, Vitality), sword (Might, Power, offensive), bolt (Speed), chevrons (Agility),
 ## shield (Defense, defensive), star (Luck, crit), leaf (support), coin (gold), bag (backpack),
-## pouch (the Relic bag), lock, plus, skull (curses, downed), person (a hero), branch (skills),
+## pouch (a chest), lock, plus, skull (curses, downed), person (a hero), branch (skills),
 ## gem (a Relic), up (points to spend), echo (an Echo), keyboard and pad (the Controls pages).
 
 const KINDS: Array[StringName] = [&"heart", &"sword", &"bolt", &"chevrons", &"shield", &"star", &"leaf",

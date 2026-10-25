@@ -3,8 +3,8 @@ extends PartyTab
 ## The Y screen's Relics tab (DESIGN.md 8.18, 8.24): every hero as a row (face, name, level, HP,
 ## power, speed and the Relics given to them) on the left, and the run's Relics as a grid of Relic
 ## icons on the right, each with the initial of the hero who has it. A Relic is given to one hero for
-## the rest of the run (no slots, no limit); the ones still waiting for a hero (the Relic bag's at the
-## start of a run, card #265) are bright and untagged in the grid.
+## the rest of the run (no slots, no limit); any still waiting for a hero (none since the Relic bag
+## went, card #328; an old save may hold some) are bright and untagged in the grid.
 ## Rows: up / down picks a hero, left / right their Relics; right past the last goes into the grid.
 ## Confirm on a hero opens the grid to give them a waiting Relic; Confirm on a waiting Relic there
 ## gives it to that hero. In the grid X / R changes which kind of Relic shows (all, offensive,

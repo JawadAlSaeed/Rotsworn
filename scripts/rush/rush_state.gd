@@ -53,8 +53,9 @@ var offer: Array[Dictionary] = []
 var _encounters: Dictionary = {}
 
 
-## A new Rush of `rush_data` with this seed: level 1, the Relic bag of `collection` (no pact), no
-## fight entered yet. `p_start_fight` above 1 replays the fights before it (head_start, dev only).
+## A new Rush of `rush_data` with this seed: level 1, the Relic book `collection` (no pact; each hero
+## takes starting Relics from a book as in a run, start_left), no fight entered yet. `p_start_fight`
+## above 1 replays the fights before it (head_start, dev only).
 static func begin_rush(rush_data: RushData, p_tuning: Tuning, p_seed: int,
 		collection: RelicCollection = null, p_start_fight: int = 1) -> RushState:
 	var r := RushState.new()

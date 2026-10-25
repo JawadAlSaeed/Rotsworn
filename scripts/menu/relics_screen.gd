@@ -1,15 +1,13 @@
 class_name RelicsScreen
 extends CanvasLayer
-## The Relics page on the main menu (DESIGN.md 8.17, 8.24), laid out like Expedition 33's Pictos
-## page. Left: every Relic as a slanted card in a two-column grid (its diamond and name), sorted by
-## name or rarity (X / R); Relics not found yet show as "???". Right: the Relic bag (card #265): the
-## Relics the team brings into the next run; Confirm on a card puts it in or takes it out. Under the
-## grid: everything about the Relic under the cursor. (In a run, Relics are given to heroes on the
-## party screen's Relics tab, RelicsTab; the run use of this page went with the slots, #326.)
+## The Relic book on the main menu (DESIGN.md 8.17, 8.24, card #328), laid out like Expedition 33's
+## Pictos page. Left: every Relic as a slanted card in a two-column grid (its icon and name), sorted
+## by name or rarity (X / R), with "Found N of 50"; a Relic not found yet shows as "???". Right: the
+## Relic under the cursor, big: its icon, name, rarity and chips (what it does, its price, its stat
+## line), or for one not found yet the places Relics come from. Under the grid: its text.
+## StartRelicsScreen (the starting pick before a run) is this page with the heroes on the right.
 
 signal closed
-## Main menu: the bag changed (Main writes the collection to its file).
-signal bag_changed(collection: RelicCollection)
 
 enum Sort { NAME, RARITY }
 const SORT_NAMES: Array[String] = ["Name", "Rarity"]
@@ -30,45 +28,50 @@ const ROWS: int = 9
 const CARD_SIZE := Vector2(490.0, 62.0)
 const CARD_ICON_PX: float = 46.0
 const CARD_NAME_WIDTH: float = 250.0
-## A Relic in the bag: the card's purple, like Expedition 33's equipped Pictos.
-const ON_HERO_BG := Color(0.32, 0.12, 0.36, 0.9)
+## The face of the hero who has a Relic, on its card (the starting pick).
+const CARD_FACE_PX := Vector2i(40, 40)
+## The cursor's card.
 const CHOSEN_BG := Color(0.3, 0.24, 0.1, 0.9)
+## A card of a Relic that cannot be taken (not found yet, or taken for another hero).
+const DIM_CARD_ALPHA: float = 0.5
 const UNKNOWN := "???"
-const NOT_FOUND := "Not found yet. Elite fights, bosses, chests, shops and events give Relics."
-## The bag's cards on the main menu: two columns.
-const BAG_COLUMNS: int = 2
-const BAG_CARD_SIZE := Vector2(342.0, 62.0)
+const NOT_FOUND := "Not found yet"
+## The big Relic on the right.
+const FOCUS_ICON_PX: float = 168.0
+const FOCUS_NAME_SIZE: int = 44
+## Where Relics come from (DESIGN.md 8.24), for a Relic not found yet: icon chips, no sentence.
+const SOURCES: Array[Dictionary] = [
+	{"glyph": &"sword", "text": "Elite"}, {"glyph": &"skull", "text": "Boss"},
+	{"glyph": &"pouch", "text": "Chest"}, {"glyph": &"coin", "text": "Shop"},
+]
 
 var _collection: RelicCollection
 var _relics: Array[GearData] = []
-var _party: Array[CharacterData] = []
-var _tuning: Tuning
 var _sort: Sort = Sort.NAME
-## The grid's Relics in order (main menu: the ones not found yet last).
+## The grid's Relics in order (the book: the ones not found yet last).
 var _listed: Array[GearData] = []
 var _cursor: int = 0
 var _top_row: int = 0
 var _warning: String = ""
+var _title: Label
 var _grid: GridContainer
 var _found: Label
 ## The sort button and what it sorts by, like Expedition 33's "X Level" chip.
 var _sort_box: PanelContainer
 var _detail: Label
 var _detail_more: Label
-var _hero_box: HBoxContainer
-var _slots_box: VBoxContainer
+## The right side (the big Relic; the starting pick's heroes).
+var _side: VBoxContainer
 var _hint: HintBar
 ## The grid cards on screen, and the grid index of each card (for the mouse).
 var _card_nodes: Array = []
 var _card_ids: Array[int] = []
 
 
-## `collection` and its bag; `relics`: every Relic of the run (RunData.gear); `party`: the heroes.
-func setup(collection: RelicCollection, relics: Array[GearData], party: Array[CharacterData], tuning: Tuning) -> void:
-	_collection = collection
+## `collection`: the Relic book; `relics`: every Relic of the run (RunData.gear).
+func setup(collection: RelicCollection, relics: Array[GearData]) -> void:
+	_collection = collection if collection != null else RelicCollection.new()
 	_relics.assign(relics.filter(func(item: GearData) -> bool: return item != null))
-	_party = party
-	_tuning = tuning
 	_build()
 	_resort()
 	_redraw()
@@ -78,20 +81,71 @@ func close() -> void:
 	closed.emit()
 
 
-# --- what the grid and the bag hold -------------------------------------------------------------
+## The grid's Relics in the order shown (tests).
+func listed() -> Array[GearData]:
+	return _listed
+
+
+## The Relic under the cursor (null: none).
+func focused() -> GearData:
+	return _listed[_cursor] if _cursor >= 0 and _cursor < _listed.size() else null
+
+
+## Puts the cursor on `item` (tests, pictures). False if it is not in the grid.
+func focus(item: GearData) -> bool:
+	var i := _listed.find(item)
+	if i < 0:
+		return false
+	_cursor = i
+	_redraw()
+	return true
+
+
+## "Found N of M" (the header).
+func found_text() -> String:
+	return "Found %d of %d" % [_found_count(), _relics.size()]
+
+
+# --- what the grid holds (StartRelicsScreen changes these) ---------------------------------------
 
 func _owns(item: GearData) -> bool:
 	return _collection.owns(item.id)
 
 
-## Main menu: how many Relics the bag holds now (card #266).
-func _bag_size() -> int:
-	return _collection.bag_size(_tuning) if _collection != null else 0
+## The page's title.
+func _title_text() -> String:
+	return "Relics"
 
 
-## Main menu: true if the Relic is in the bag.
-func _bagged(item: GearData) -> bool:
-	return item != null and _collection.in_bag(item.id)
+## True if the grid lists the Relics not found yet too ("???", last).
+func _lists_unknown() -> bool:
+	return true
+
+
+## True if `item`'s card is dim (it cannot be had here).
+func _card_dim(item: GearData) -> bool:
+	return not _owns(item)
+
+
+## The hero slot whose face goes on `item`'s card (-1: none).
+func _card_holder(_item: GearData) -> int:
+	return -1
+
+
+## Confirm (or a click) on `item`: the book only shows. True if something was done.
+func _confirm(_item: GearData) -> bool:
+	return false
+
+
+## Back: the book closes.
+func _back() -> void:
+	Sfx.play("menu_cancel")
+	close()
+
+
+## True if party_menu (Y) works as Back too.
+func _closes_on_party_menu() -> bool:
+	return true
 
 
 func _by_id(id: String) -> GearData:
@@ -101,9 +155,9 @@ func _by_id(id: String) -> GearData:
 	return null
 
 
-## The grid's order: found Relics by the sort, then (main menu) the ones not found yet.
+## The grid's order: found Relics by the sort, then (the book) the ones not found yet.
 func _resort() -> void:
-	var keep := _listed[_cursor] if _cursor >= 0 and _cursor < _listed.size() else null
+	var keep := focused()
 	var found: Array[GearData] = []
 	var unknown: Array[GearData] = []
 	for item: GearData in _relics:
@@ -113,7 +167,8 @@ func _resort() -> void:
 			unknown.append(item)
 	found.sort_custom(_before)
 	_listed = found
-	_listed.append_array(unknown)
+	if _lists_unknown():
+		_listed.append_array(unknown)
 	_cursor = clampi(_listed.find(keep) if keep != null else _cursor, 0, maxi(0, _listed.size() - 1))
 
 
@@ -121,33 +176,6 @@ func _before(a: GearData, b: GearData) -> bool:
 	if _sort == Sort.RARITY and a.rarity != b.rarity:
 		return a.rarity > b.rarity
 	return a.display_name.naturalnocasecmp_to(b.display_name) < 0
-
-
-# --- choosing (the player's buttons call these; tests and the bot can too) -----------------------
-
-## Puts `item` in the bag, or takes it out if it is in. False if it cannot be done (not found yet,
-## the bag is full).
-func put(item: GearData) -> bool:
-	return _toggle_bag(item)
-
-
-## Main menu: the Relic goes into the bag, or comes out if it is in.
-func _toggle_bag(item: GearData) -> bool:
-	if item == null or not _owns(item):
-		_warning = NOT_FOUND if item != null else ""
-		Sfx.play("locked")
-		_redraw()
-		return false
-	var was_in := _collection.in_bag(item.id)
-	if not _collection.toggle_bag(item.id, _bag_size()):
-		_warning = "The bag is full. Take a Relic out first."
-		Sfx.play("locked")
-		_redraw()
-		return false
-	bag_changed.emit(_collection)
-	Sfx.play("menu_cancel" if was_in else "buff")
-	_redraw()
-	return true
 
 
 func _found_count() -> int:
@@ -173,8 +201,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _mouse_input(event: InputEvent) -> bool:
 	if MenuMouse.is_back(event):
 		_handled()
-		Sfx.play("menu_cancel")
-		close()
+		_back()
 		return true
 	var mouse := event as InputEventMouse
 	if mouse == null:
@@ -200,7 +227,7 @@ func _mouse_input(event: InputEvent) -> bool:
 	if MenuMouse.is_click(event) and card >= 0:
 		_handled()
 		_cursor = _card_ids[card]
-		put(_listed[_cursor])
+		_confirm(_listed[_cursor])
 		return true
 	return false
 
@@ -217,7 +244,7 @@ func _grid_input(event: InputEvent) -> void:
 		step = COLUMNS
 	elif _pressed(event, &"menu_confirm"):
 		_handled()
-		put(_listed[_cursor] if _cursor < _listed.size() else null)
+		_confirm(focused())
 		return
 	elif _pressed(event, &"item_move"):
 		_handled()
@@ -226,10 +253,9 @@ func _grid_input(event: InputEvent) -> void:
 		Sfx.play("menu_move")
 		_redraw()
 		return
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu"):
+	elif _pressed(event, &"menu_cancel") or (_closes_on_party_menu() and _pressed(event, &"party_menu")):
 		_handled()
-		Sfx.play("menu_cancel")
-		close()
+		_back()
 		return
 	else:
 		return
@@ -256,7 +282,12 @@ func _build() -> void:
 	row.add_theme_constant_override("separation", COLUMN_GAP)
 	add_child(row)
 	row.add_child(_build_left())
-	row.add_child(_build_right())
+	_side = VBoxContainer.new()
+	_side.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_side.custom_minimum_size.x = RIGHT_WIDTH
+	_side.alignment = BoxContainer.ALIGNMENT_CENTER
+	_side.add_theme_constant_override("separation", 16)
+	row.add_child(_side)
 	_hint = ListMenu.screen_footer(self, [])
 
 
@@ -269,8 +300,8 @@ func _build_left() -> Control:
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_theme_constant_override("separation", 28)
 	left.add_child(head)
-	var title := HudStyle.make_worn_title("Relics", TITLE_SIZE)
-	head.add_child(title)
+	_title = HudStyle.make_worn_title(_title_text(), TITLE_SIZE)
+	head.add_child(_title)
 	_sort_box = PanelContainer.new()
 	_sort_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sort_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -303,22 +334,6 @@ func _build_left() -> Control:
 	return left
 
 
-func _build_right() -> Control:
-	var right := VBoxContainer.new()
-	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	right.custom_minimum_size.x = RIGHT_WIDTH
-	right.alignment = BoxContainer.ALIGNMENT_CENTER
-	right.add_theme_constant_override("separation", 16)
-	_hero_box = HBoxContainer.new()
-	_hero_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	right.add_child(_hero_box)
-	_slots_box = VBoxContainer.new()
-	_slots_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_slots_box.add_theme_constant_override("separation", 14)
-	right.add_child(_slots_box)
-	return right
-
-
 # --- drawing ----------------------------------------------------------------------------------
 
 func _redraw() -> void:
@@ -328,17 +343,21 @@ func _redraw() -> void:
 		_sort_box.remove_child(child)
 		child.free()
 	_sort_box.add_child(HintBar.entry_row(&"item_move", "Sort: %s" % SORT_NAMES[_sort], TEXT_SIZE, HudStyle.TEXT))
-	_found.text = "Found %d of %d" % [_found_count(), _relics.size()]
+	_found.text = found_text()
 	_redraw_grid()
-	_redraw_bag()
+	_clear(_side)
+	_redraw_side()
 	_redraw_detail()
-	_redraw_hint()
+	_hint.set_entries(hints())
+
+
+## The footer's hints now (tests read them).
+func hints() -> Array:
+	return [[&"@arrows", "Move"], [&"item_move", "Sort"], [&"menu_cancel", "Back"]]
 
 
 func _redraw_grid() -> void:
-	for child: Node in _grid.get_children():
-		_grid.remove_child(child)
-		child.free()
+	_clear(_grid)
 	var row := floori(float(_cursor) / float(COLUMNS))
 	if row < _top_row:
 		_top_row = row
@@ -356,12 +375,11 @@ func _redraw_grid() -> void:
 
 func _grid_card(item: GearData, chosen: bool) -> Control:
 	var known := _owns(item)
-	var bg := CHOSEN_BG if chosen else (ON_HERO_BG if _bagged(item) else HudStyle.INK)
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.custom_minimum_size = CARD_SIZE
-	panel.add_theme_stylebox_override("panel", HudStyle.slant(bg, HudStyle.GOLD if chosen else HudStyle.EDGE_DIM,
-			3 if chosen else 2, 6, CARD_SIZE.y, HudStyle.SLANT * 0.6))
+	panel.add_theme_stylebox_override("panel", HudStyle.slant(CHOSEN_BG if chosen else HudStyle.INK,
+			HudStyle.GOLD if chosen else HudStyle.EDGE_DIM, 3 if chosen else 2, 6, CARD_SIZE.y, HudStyle.SLANT * 0.6))
 	var line := HBoxContainer.new()
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_theme_constant_override("separation", 12)
@@ -371,72 +389,66 @@ func _grid_card(item: GearData, chosen: bool) -> Control:
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.add_child(icon)
 	var name := HudStyle.make_title(item.display_name if known else UNKNOWN, NAME_SIZE,
-			_name_color(item) if known else HudStyle.TEXT_DIM)
+			name_color(item) if known else HudStyle.TEXT_DIM)
 	name.custom_minimum_size.x = CARD_NAME_WIDTH
 	name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	line.add_child(name)
+	var holder := _card_holder(item)
+	if holder >= 0:
+		line.add_child(_face(holder, CARD_FACE_PX))
+	if _card_dim(item) and not chosen:
+		panel.modulate = Color(1.0, 1.0, 1.0, DIM_CARD_ALPHA)
 	return panel
 
 
-func _name_color(item: GearData) -> Color:
+## A Relic's name colour: its rarity's, violet for a rot-touched one.
+static func name_color(item: GearData) -> Color:
 	if item.rot_touched:
 		return GearData.ROT_TOUCHED_COLOR
 	return BackpackGrid.rarity_color(BackpackGrid.gear_step(item)).lightened(0.15)
 
 
-## The Relic bag (card #265): its count and its Relics as small cards, two columns, the free room
-## as dim empty cards.
-func _redraw_bag() -> void:
-	for child: Node in _hero_box.get_children():
-		_hero_box.remove_child(child)
-		child.free()
-	for child: Node in _slots_box.get_children():
-		_slots_box.remove_child(child)
-		child.free()
-	var names := VBoxContainer.new()
-	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hero_box.add_child(names)
-	var ids := _collection.bag_ids()
-	names.add_child(HudStyle.make_worn_title("Relic bag", HERO_SIZE, HudStyle.GOLD))
-	names.add_child(HudStyle.make_number("%d / %d" % [ids.size(), _bag_size()], TEXT_SIZE, HudStyle.TEXT))
-	var grid := GridContainer.new()
-	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	grid.columns = BAG_COLUMNS
-	grid.add_theme_constant_override("h_separation", 16)
-	grid.add_theme_constant_override("v_separation", 8)
-	_slots_box.add_child(grid)
-	for i: int in _bag_size():
-		grid.add_child(_bag_card(_by_id(ids[i]) if i < ids.size() else null))
+## The book's right side: the Relic under the cursor, big.
+func _redraw_side() -> void:
+	var item := focused()
+	if item == null:
+		return
+	var known := _owns(item)
+	var icon := RelicIcon.make(item, FOCUS_ICON_PX, known)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_side.add_child(icon)
+	var name := HudStyle.make_worn_title(item.display_name if known else UNKNOWN, FOCUS_NAME_SIZE,
+			name_color(item) if known else HudStyle.TEXT_DIM)
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_side.add_child(name)
+	_side.add_child(ListMenu.chip_lines(focus_chips(item, known), RIGHT_WIDTH - 40.0))
 
 
-func _bag_card(item: GearData) -> Control:
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.custom_minimum_size = BAG_CARD_SIZE
-	panel.add_theme_stylebox_override("panel", HudStyle.slant(ON_HERO_BG if item != null else HudStyle.INK,
-			HudStyle.EDGE_DIM, 2, 6, BAG_CARD_SIZE.y, HudStyle.SLANT * 0.6))
-	panel.modulate = Color(1.0, 1.0, 1.0, 1.0 if item != null else 0.45)
-	var line := HBoxContainer.new()
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_theme_constant_override("separation", 10)
-	panel.add_child(line)
-	var icon := RelicIcon.new()
-	if item != null:
-		icon.setup(item, CARD_ICON_PX, true)
-	else:
-		icon.setup_slot(RelicIcon.SlotState.EMPTY, CARD_ICON_PX)
-	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.add_child(icon)
-	var name := HudStyle.make_title(item.display_name if item != null else "", NAME_SIZE - 2,
-			_name_color(item) if item != null else HudStyle.TEXT_DIM)
-	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	name.clip_text = true
-	line.add_child(name)
-	return panel
+## The big Relic's chips: found or not; a found one's rarity, what it does, its price and its stat
+## line; one not found yet where Relics come from.
+static func focus_chips(item: GearData, known: bool) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = []
+	if not known:
+		chips.append({"glyph": &"lock", "text": NOT_FOUND, "color": HudStyle.TEXT_DIM})
+		for source: Dictionary in SOURCES:
+			var chip := source.duplicate()
+			chip["color"] = HudStyle.TEXT
+			if chips.size() == 1:
+				chip["newline"] = true
+			chips.append(chip)
+		return chips
+	chips.append({"glyph": &"gem", "text": BackpackGrid.rarity_name(BackpackGrid.gear_step(item)).capitalize(),
+			"color": name_color(item)})
+	var first := true
+	for chip: Dictionary in LootScreen.relic_chips(item):
+		if first:
+			chip["newline"] = true
+			first = false
+		chips.append(chip)
+	return chips
 
 
 func _redraw_detail() -> void:
@@ -444,27 +456,31 @@ func _redraw_detail() -> void:
 		_detail.text = _warning
 		_detail_more.text = ""
 		return
-	var item: GearData = _listed[_cursor] if _cursor < _listed.size() else null
+	var item := focused()
 	if item == null or _found_count() == 0:
 		_detail.text = "No Relics yet"
-		_detail_more.text = "Elite fights, bosses, chests, shops and events give Relics. You keep them forever."
+		_detail_more.text = "Elite, Boss, Chest, Shop"
 		return
 	if not _owns(item):
-		_detail.text = "%s  (not found yet)" % UNKNOWN
-		_detail_more.text = NOT_FOUND
+		_detail.text = "%s  (%s)" % [UNKNOWN, NOT_FOUND.to_lower()]
+		_detail_more.text = ""
 		return
 	var head := PackedStringArray([item.display_name])
 	if not item.stat_text().is_empty():
 		head.append(item.stat_text())
-	if _bagged(item):
-		head.append("In the bag")
 	_detail.text = "    ".join(head)
 	_detail_more.text = item.description
 
 
-func _redraw_hint() -> void:
-	_hint.set_entries([[&"@arrows", "Move"], [&"menu_confirm", "In / out of bag"], [&"item_move", "Sort"],
-			[&"menu_cancel", "Back"]])
+## A hero's small face (the starting pick).
+func _face(_slot: int, _px: Vector2i) -> Control:
+	return Control.new()
+
+
+static func _clear(box: Node) -> void:
+	for child: Node in box.get_children():
+		box.remove_child(child)
+		child.free()
 
 
 func _handled() -> void:

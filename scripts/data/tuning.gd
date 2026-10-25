@@ -413,9 +413,13 @@ extends Resource
 @export_range(1, 99, 1, "suffix:%") var rot_low_hp_percent: int = 30
 
 @export_group("Relics")
-## The Relic bag (cards #265, #266): how many Relics the team can bring into a run (picked on the
-## main menu's Relics page). A run has no Relic slots, copies or levels (DESIGN.md 8.24).
-@export_range(1, 60) var relic_bag_start: int = 3
+## Starting Relics (DESIGN.md 8.24, card #328): how many Relics each hero takes from the player's
+## Relic book before a run or a Fight Rush (the Empty Hand oath takes one away). A run has no Relic
+## slots, copies or levels.
+@export_range(0, 5) var start_relics_per_hero: int = 1
+## Online, the starting Relics: how long the host waits for its friends' picks before the run starts
+## without the ones still missing, in milliseconds.
+@export_range(0, 600000, 1, "suffix:ms") var start_relic_wait_ms: int = 90000
 ## Every enemy's power in run fights, in percent (phase 17: Relics stay between runs, so the base
 ## run is a little harder; practice fights keep their data).
 @export_range(50, 300, 1, "suffix:%") var enemy_power_base_percent: int = 105

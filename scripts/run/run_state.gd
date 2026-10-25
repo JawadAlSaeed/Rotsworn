@@ -98,14 +98,21 @@ var loadout: Array[Array] = []
 ## Per party slot: the Relics (GearData) given to that hero, in the order given (DESIGN.md 8.24):
 ## any number, no slots, kept until the run ends.
 var gear: Array[Array] = []
-## The run's Relics (DESIGN.md 8.17, 8.24): id -> 1 for every Relic in the run, given to a hero or
-## still waiting for one (the Relic bag's at the start, card #265). No levels and no copies: a Relic
-## the run has never turns up again in it. Main banks them into the collection (RelicFile.bank)
+## The run's Relics (DESIGN.md 8.17, 8.24): id -> 1 for every Relic in the run, given to a hero (a
+## Relic still waiting for one comes only from tests and old saves). No levels and no copies: a Relic
+## the run has never turns up again in it. Main banks them into the Relic book (RelicFile.bank)
 ## when the run saves and when it ends.
 var relics: Dictionary = {}
-## Every Relic found before this run (id -> 1), bag or not: the end screen's "what you keep" line,
-## and a find of one left at home is tagged "Home" rather than "New".
+## Every Relic in the Relic book before this run (id -> 1; online the host's): the end screen's
+## "what you keep" line, and a find of one already in the book is tagged "Home" rather than "New".
 var relics_at_start: Dictionary = {}
+## Per party slot: the starting Relics that hero may still take from a Relic book (DESIGN.md 8.24,
+## card #328), start_relic_count() each at the start; 0 once taken or skipped. Main shows the pick
+## step while any is above 0 (start_pending), before the pact and the first stop.
+var start_left: Array[int] = []
+## The run's starting Relics (id -> 1): taken from a Relic book, not found in this run, so nobody
+## banks them (online each player's come from their own book) and the end screen never calls them new.
+var start_relics: Dictionary = {}
 ## The Relics on offer at this stop (ids, in the order shown): the rotten chest's pick (pick 1 of
 ## them and give it to a hero, DESIGN.md 8.24; empty once one is taken) or the shop's shelves (kept
 ## as they were first shown, so a Relic bought there keeps its place). Saved and sent, so Continue and
@@ -141,8 +148,9 @@ var result: String = ""
 
 
 ## A new run of `run_data` with this seed at oath `p_oath` (0: none; kept inside the ladder): a
-## fresh map, the starting gold and HP (the oaths can lower both), level 1. `collection`: the Relics
-## found in earlier runs (none: a first run), and what each hero brings; they go on as slots open.
+## fresh map, the starting gold and HP (the oaths can lower both), level 1. `collection`: the Relic
+## book from earlier runs (none: a first run); every hero may take start_relic_count() Relics from a
+## book in the pick step (start_left).
 static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int, p_oath: int = 0,
 		collection: RelicCollection = null) -> RunState:
 	var run := RunState.new()
@@ -175,6 +183,7 @@ func _start(run_data: RunData, p_tuning: Tuning, p_seed: int, p_oath: int, colle
 		loadout.append(known.slice(0, p_tuning.skill_slots))
 		gear.append([])
 		defence.append([0, 0, 0, 0])
+		start_left.append(start_relic_count())
 	if collection != null:
 		_take_collection(collection)
 	pact_pending = not relics_at_start.is_empty() and not run_data.pacts.is_empty() \
@@ -213,6 +222,7 @@ func to_dict() -> Dictionary:
 		"relics": relics.duplicate(), "relics_start": relics_at_start.duplicate(),
 		"defence": defence.duplicate(true), "flawless": flawless, "pact_pending": pact_pending, "sharpened": sharpened,
 		"stop_rotten": stop_rotten, "stop_relics": Array(stop_relics), "map_rules": map_rules,
+		"start_left": Array(start_left), "start_relics": start_relics.duplicate(),
 	}
 
 
@@ -315,6 +325,26 @@ func apply_dict(d: Dictionary) -> bool:
 	if (d.has("pact_pending") and typeof(d.pact_pending) != TYPE_BOOL) or (d.has("sharpened") and typeof(d.sharpened) != TYPE_BOOL) \
 			or (d.has("stop_rotten") and typeof(d.stop_rotten) != TYPE_BOOL):
 		return false
+	# Optional (saves from before card #328 lack it: no starting pick waits).
+	var new_start_left: Array[int] = []
+	if d.has("start_left"):
+		if not d.start_left is Array or (d.start_left as Array).size() != size:
+			return false
+		for v: Variant in d.start_left:
+			if typeof(v) != TYPE_INT or int(v) < 0:
+				return false
+			new_start_left.append(int(v))
+	else:
+		for slot: int in size:
+			new_start_left.append(0)
+	var new_start_relics := {}
+	if d.has("start_relics"):
+		if not d.start_relics is Dictionary:
+			return false
+		for id: Variant in d.start_relics:
+			if typeof(id) != TYPE_STRING or not (relic_state.relics as Dictionary).has(String(id)):
+				return false
+			new_start_relics[String(id)] = 1
 	oath = int(d.oath)
 	act = int(d.act)
 	map_rules = rules
@@ -356,6 +386,8 @@ func apply_dict(d: Dictionary) -> bool:
 	pact_pending = bool(d.get("pact_pending", false))
 	sharpened = bool(d.get("sharpened", false))
 	stop_rotten = bool(d.get("stop_rotten", false))
+	start_left = new_start_left
+	start_relics = new_start_relics
 	backpack = new_pack
 	_clamp_hp()
 	fights_won = int(d.fights_won)
@@ -2414,8 +2446,8 @@ func owns(item: GearData) -> bool:
 	return item != null and relics.has(item.id)
 
 
-## True if the Relic was found before this run but left at home (not in the bag, card #265) and has
-## not turned up in this run yet: a find of it is tagged "Home" rather than "New".
+## True if the Relic is in the Relic book from before this run and has not turned up in this run
+## yet: a find of it is tagged "Home" rather than "New".
 func is_home(item: GearData) -> bool:
 	return item != null and relics_at_start.has(item.id) and not owns(item)
 
@@ -2459,8 +2491,8 @@ func relics_of(slot: int) -> Array[GearData]:
 	return found
 
 
-## The run's Relics no hero has yet (the Relic bag's at the start of a run, card #265), in the run's
-## order. The party screen gives them out.
+## The run's Relics no hero has yet, in the run's order (none in play since the Relic bag went, card
+## #328: only tests and an old save have them). The party screen gives them out.
 func waiting_relics() -> Array[GearData]:
 	var found: Array[GearData] = []
 	for item: GearData in owned_relics():
@@ -2500,14 +2532,14 @@ func give_relic(item: GearData, slot: int) -> Dictionary:
 	return info
 
 
-## Gives a Relic the run has that waits for a hero (the bag's, card #265) to hero `slot`. False if it
-## is not waiting or there is no such hero.
+## Gives a Relic the run has that waits for a hero to hero `slot`. False if it is not waiting or
+## there is no such hero.
 func give_waiting(item: GearData, slot: int) -> bool:
 	return owns(item) and not give_relic(item, slot).is_empty()
 
 
-## A Relic joins the run with no hero yet (the bag's at the start; tests and dev screens). Returns
-## relic_find's info, or {} if the run has it already.
+## A Relic joins the run with no hero yet (tests). Returns relic_find's info, or {} if the run has it
+## already.
 func add_relic(item: GearData) -> Dictionary:
 	if item == null or relic_by_id(item.id) != item or owns(item):
 		return {}
@@ -2526,7 +2558,7 @@ func relic_gain_line() -> String:
 ## card #281). A late joiner's run end shows RunEndScreen.own_kept instead.
 func relic_gain_line_since(found_before: Dictionary) -> String:
 	var found := PackedStringArray()
-	for item: GearData in owned_relics():
+	for item: GearData in found_relics():
 		if not found_before.has(item.id):
 			found.append(item.display_name)
 	if found.is_empty():
@@ -2563,19 +2595,92 @@ func relic_given_text(info: Dictionary, slot: int) -> String:
 	return "%s (%s)" % [line, data.party[slot].display_name]
 
 
-## Takes in the collection at the start of a run (cards #265, #266): the Relics in its bag join the
-## run waiting for a hero (the party screen gives them out; only ones this run knows, at most the
-## bag's size, fewer with the oaths: start_relics_add per hero, DESIGN.md 8.15). What was found is
-## remembered for the end screen.
+## Takes in the Relic book at the start of a run: what it holds is remembered for the end screen and
+## the "Home" tags. Nothing joins the run here: each hero takes a starting Relic from the book in the
+## pick step (take_start_relic, card #328).
 func _take_collection(collection: RelicCollection) -> void:
 	for item: GearData in data.gear:
 		if item != null and collection.owns(item.id):
 			relics_at_start[item.id] = 1
-	var size := maxi(0, collection.bag_size(tuning) + oath_total(&"start_relics_add") * party_size())
-	for id: String in collection.bag_ids():
-		var item := relic_by_id(id)
-		if item != null and relics.size() < size:
-			relics[id] = 1
+
+
+# --- starting Relics (DESIGN.md 8.24, card #328) ------------------------------------------------
+
+## How many Relics each hero takes from a Relic book at the start: tuning.start_relics_per_hero, fewer
+## with the oaths (start_relics_add, the Empty Hand), never below 0.
+func start_relic_count() -> int:
+	return maxi(0, tuning.start_relics_per_hero + oath_total(&"start_relics_add"))
+
+
+## True while a hero may still take a starting Relic (the pick step is not over).
+func start_pending() -> bool:
+	for left: int in start_left:
+		if left > 0:
+			return true
+	return false
+
+
+## True while hero `slot` may still take a starting Relic.
+func start_open(slot: int) -> bool:
+	return slot >= 0 and slot < start_left.size() and start_left[slot] > 0
+
+
+## The heroes of `slots` who may still take a starting Relic, in the same order.
+func start_open_of(slots: Array[int]) -> Array[int]:
+	var open: Array[int] = []
+	for slot: int in slots:
+		if start_open(slot):
+			open.append(slot)
+	return open
+
+
+## The Relics of `book` a hero could take as a starting Relic now: found in the book, known to this
+## run and not in it yet (one taken for another hero is gone), in the run's order.
+func start_choices(book: RelicCollection) -> Array[GearData]:
+	var list: Array[GearData] = []
+	if book == null:
+		return list
+	for item: GearData in book.found_of(data.gear):
+		if can_gain(item):
+			list.append(item)
+	return list
+
+
+## Hero `slot` takes `item` as a starting Relic (from a Relic book: online the host cannot see a
+## friend's book, so it checks only the rest). Returns the find (relic_find), or {} if refused: no
+## starting Relic left for that hero, not this run's Relic, or the run has it (taken for another hero).
+func take_start_relic(slot: int, item: GearData) -> Dictionary:
+	if not start_open(slot) or not can_gain(item):
+		return {}
+	var got := give_relic(item, slot)
+	if not got.is_empty():
+		start_left[slot] -= 1
+		start_relics[item.id] = 1
+	return got
+
+
+## Hero `slot` takes no (more) starting Relics. False if they had none left to take.
+func skip_start_relic(slot: int) -> bool:
+	if not start_open(slot):
+		return false
+	start_left[slot] = 0
+	return true
+
+
+## Every hero of `slots` takes no (more) starting Relics (an empty book, the online wait ran out).
+## Returns how many were still open.
+func skip_start_relics(slots: Array[int]) -> int:
+	var skipped := 0
+	for slot: int in slots:
+		if skip_start_relic(slot):
+			skipped += 1
+	return skipped
+
+
+## Every hero takes no (more) starting Relics: the pick step is over.
+func end_start_picks() -> void:
+	for slot: int in start_left.size():
+		start_left[slot] = 0
 
 
 ## The bot (and tests): every Relic still waiting goes to the hero it helps most (GearBot.best_hero),
@@ -2591,14 +2696,24 @@ func auto_give() -> int:
 	return given
 
 
-## The run's Relic ids that were not in `relics_before` (id -> 1 when a friend joined late, card
-## #304; empty: every one), in the run's Relic order: what a late joiner banks as found.
+## The run's found Relic ids (found_relics) that were not in `relics_before` (id -> 1 when a friend
+## joined late, card #304; empty: every one), in the run's Relic order: what a machine banks.
 func relic_ids_since(relics_before: Dictionary) -> Array:
 	var ids: Array = []
-	for item: GearData in owned_relics():
+	for item: GearData in found_relics():
 		if not relics_before.has(item.id):
 			ids.append(item.id)
 	return ids
+
+
+## The Relics this run found (DESIGN.md 8.24): every Relic it has but the starting ones, which came
+## from a Relic book (online maybe another player's). Only these are banked and shown as new.
+func found_relics() -> Array[GearData]:
+	var list: Array[GearData] = []
+	for item: GearData in owned_relics():
+		if not start_relics.has(item.id):
+			list.append(item)
+	return list
 
 
 ## The Relics on offer at this stop (stop_relics), in the order shown.
