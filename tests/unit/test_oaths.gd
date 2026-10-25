@@ -63,11 +63,14 @@ func test_the_shipped_ladder_has_twelve_oaths_in_order() -> void:
 
 func test_the_empty_hand_takes_the_starting_relics_and_forgetting_a_point_per_level() -> void:
 	var c := RelicCollection.new()
-	c.merge(["iron_charm", "whetstone", "war_drum"], _tuning)
-	assert_eq(c.bag_ids().size(), 3)
-	assert_eq(RunState.begin(_data, _tuning, 7, 10, c).relics.size(), 3, "Oath 10: the whole bag comes along")
-	assert_eq(RunState.begin(_data, _tuning, 7, 11, c).relics.size(), 0,
-			"Oath 11: one fewer for each of the three heroes, none at all")
+	c.merge(["iron_charm", "whetstone", "war_drum"])
+	var ten := RunState.begin(_data, _tuning, 7, 10, c)
+	assert_eq(ten.start_relic_count(), 1, "Oath 10: each hero takes one from the book (#328)")
+	assert_true(ten.start_pending())
+	var eleven := RunState.begin(_data, _tuning, 7, 11, c)
+	assert_eq(eleven.start_relic_count(), 0, "Oath 11: one fewer for each hero, none at all")
+	assert_false(eleven.start_pending(), "so the pick step is skipped")
+	assert_true(eleven.relics.is_empty())
 	var plain := _run(11)
 	var forgetting := _run(12)
 	for run: RunState in [plain, forgetting]:

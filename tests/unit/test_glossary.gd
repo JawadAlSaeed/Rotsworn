@@ -15,6 +15,8 @@ const REQUIRED := [
 	"camp_rest", "camp_train", "stop_fight", "stop_elite", "stop_event", "stop_treasure", "stop_rest", "stop_shop",
 	# Phase 26 (DESIGN.md 8.24): giving a picked Relic to a hero, the step the screens show as words only.
 	"relic_give",
+	# Card #328: the Relic book on the main menu and the starting pick it feeds.
+	"relic_book",
 ]
 ## Terms that went with the rules they named (DESIGN.md 8.24: no Echoes, no Relic levels).
 const GONE := ["echo", "relic_level"]
@@ -81,6 +83,7 @@ func test_the_cards_terms_are_all_there() -> void:
 		assert_false(entry.text.contains("Echo") or entry.text.contains("Relic slot"),
 				"%s: no Echoes or Relic slots any more (DESIGN.md 8.24)" % entry.id)
 	assert_eq(_data.find("relic_give").tag, RelicGift.ASK, "the words the screens show")
+	assert_eq(_data.find("relic_book").tag, StartRelicsScreen.TITLE, "the pick step's title")
 
 
 ## What the book shows for a hit kind, a defence readout or a status is what the game draws.

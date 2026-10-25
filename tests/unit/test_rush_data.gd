@@ -48,7 +48,7 @@ func test_the_file_loads_and_validates() -> void:
 func test_it_shares_the_main_run() -> void:
 	if _rush == null:
 		return
-	# The Relic bag's ids come from the main run's gear (RelicCollection), so it must be that run.
+	# The Relic book's ids come from the main run's gear (RelicCollection), so it must be that run.
 	assert_not_null(_rush.run, "the Rush names its run")
 	assert_eq(_rush.run, _run, "the Rush shares %s" % RUN_PATH)
 	assert_eq(_rush.run.resource_path, RUN_PATH)
