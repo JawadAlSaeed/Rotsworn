@@ -1177,12 +1177,6 @@ func used_items() -> Array[int]:
 	return mirror.used_items.duplicate()
 
 
-## How the fight ended ("victory", "defeat", "escaped"; "" while it goes on): what its end screen's
-## continue reports.
-func fight_result() -> String:
-	return _result
-
-
 func _runner_active() -> bool:
 	return runner.is_active() or skill_runner.is_active()
 

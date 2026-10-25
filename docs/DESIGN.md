@@ -3626,7 +3626,7 @@ A run can be put down and picked up later, Slay the Spire style: a local run, an
     or deletes the slot until the main menu (`_put_away`): online the game under the pause goes on, so
     a fight that ends during the fade must not clear or overwrite the save. If the write failed, the
     game simply ends for everyone (`menu`).
-  - **Continue** is on the host's players screen (Online > Host > Run), 9.3.
+  - **Continue** is on the host's players screen (Online > Host Online), 9.3.
 - **Dev tools:** `--save-path=PATH` keeps the save elsewhere and `--continue` continues it at once.
   The autoplay bot never touches the player's save: it saves only when `--save-path` is given (online
   `--online-save-path=PATH`). `--save-quit-at=N` makes the bot press Save & Quit on arriving at stop N
@@ -3676,8 +3676,9 @@ oath", and a run at Oath N is that oath kept.
   power and HP), `enemy_hp_percent` / `enemy_power_percent` (growth per row), `rest_heal_percent`,
   `act_heal_percent`, `loot_choice_count`, `shop_price` and its item / gear / service prices, and
   `team_gauge_carry_percent`. The shop and campfire screens show the changed numbers. Bosses still
-  do not grow per row (`run_enemy_scale_bosses`); guards do (`RunState._scales` leaves out only
-  `encounter.boss`, 8.6), so the per-row oath touches the ordinary, elite and guard fights.
+  do not grow per row (`run_enemy_scale_bosses`); guards do (`RunState.fight_setup` leaves out
+  only `encounter.boss` unless `run_enemy_scale_bosses`, 8.6), so the per-row oath touches the
+  ordinary, elite and guard fights.
 - **Online**: `to_dict` / `apply_dict` carry `oath` (an int from 0 to the ladder's length, else the
   whole state is refused), so a client plays the host's oath; the host's `run_start` and the lobby
   messages carry it too.
@@ -4256,8 +4257,8 @@ once again, 7.5), `RushState`, `RushRecords`, the Rush screen and end screen, `d
 `tools/bootstrap_rush.gd`, the Rush tuning group, the Rush dev switches and dev screens, the
 Glossary's Fight Rush topic, and the Run, Fight Rush, Heal, Fight and Party card pictures. Online,
 `lobby`, `again` and `run_start` carry no `mode` (nor `run_start` its `records`): `Net.PROTOCOL` 8.
-`RunState` lost the seams the Rush overrode (`mode`, `_fight_depth`, `shows_gold`); a run always
-shows its gold. What stays: every monster, encounter and boss its tiers and boss cycle used, as
+`RunState` lost the seams the Rush overrode (`_start`, `mode`, `_fight_depth`, `_scales`,
+`shows_gold`); a run always shows its gold. What stays: every monster, encounter and boss its tiers and boss cycle used, as
 the run's data (the bosses for a boss pool later, #324); the starting Relics (8.24), drop-in (9.3)
 and taking turns (9.2), which the run has too. Old files: the records section of
 `user://settings.cfg` (`[rush]`) is never read again and stays in the file untouched; a run save
@@ -5890,7 +5891,7 @@ gets a free seat if there is one and someone who is not away holds two heroes, e
 back first, as before. Once a seat is taken over its old token stops working.
 
 **Online: continuing a saved online run (card #313, 2026-10-25).** The host's players screen (Online >
-Host > Run) shows the saved online run as a **Continue** button beside Start: the save picture,
+Host Online) shows the saved online run as a **Continue** button beside Start: the save picture,
 "Continue" and "Act 2, Stop 5"; the cursor rests on it, and the Confirm chip shows on the button the
 cursor is on, and the footer's Confirm word follows the cursor ("Continue" there, "Start"
 elsewhere). Confirm on Start begins a new run (it asks first when a save is there); a save that is not

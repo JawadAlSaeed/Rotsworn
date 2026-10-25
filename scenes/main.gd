@@ -249,10 +249,9 @@ var _first_strike_ring: FirstStrikeRing = null
 var _run_opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 ## Online friend: the host's First Strike result ({fight: its seed, opening, word}; {}: none yet).
 var _net_opening: Dictionary = {}
-## The starting Relics step (DESIGN.md 8.24, card #328): where the run goes once it is over
-## (invalid: no step going on), and the host's wait for its friends' picks (a newer step or its end
-## stops an older wait).
-var _start_next: Callable = Callable()
+## The starting Relics step (DESIGN.md 8.24, card #328): true while it goes on, and the host's wait
+## for its friends' picks (a newer step or its end stops an older wait).
+var _start_open: bool = false
 var _start_wait_gen: int = 0
 ## Host, online: the heroes each friend picks for in this step (peer -> hero slots), fixed when it
 ## began: a friend who drops in later gets no starting Relic.
@@ -1714,7 +1713,7 @@ func _resume_where_saved() -> void:
 	if _checkpoint_in_stop and not _run.current().is_empty():
 		_enter_stop()
 	elif _run.start_pending() and _run.at < 0:
-		_fade_to(_begin_start_relics.bind(_after_start_relics))
+		_fade_to(_begin_start_relics)
 	elif _run.pact_pending and _run.at < 0:
 		_fade_to(_show_event.bind("", true))
 	else:
@@ -1843,7 +1842,7 @@ func _new_run() -> void:
 	# Friends may drop in from now on (the first screen goes out in this same frame, card #304).
 	_set_drop_in(true)
 	Sfx.play("run_begin")
-	_begin_start_relics(_after_start_relics)
+	_begin_start_relics()
 
 
 ## The run's start after the starting Relics (card #328): the starting pact when it is due (card
@@ -1865,13 +1864,13 @@ func _after_pact() -> void:
 # --- the starting Relics (DESIGN.md 8.24, card #328) ------------------------------------------
 
 ## The starting Relics: each hero may take start_relic_count() Relics from a Relic book before the
-## run goes on to `next`. Heroes nobody can pick for now are skipped at once (an empty
-## book: a first run or a bot without --relics=all; the Empty Hand gives none at all); with nobody
-## left to pick, `next` comes straight away. Online the host shows the step to everyone: each friend
-## seated now picks for their own heroes from their own book, and the host waits for them up to
-## tuning.start_relic_wait_ms; a friend who drops in later gets none.
-func _begin_start_relics(next: Callable) -> void:
-	_start_next = next
+## run goes on (_after_start_relics: the pact or the map). Heroes nobody can pick for now are skipped
+## at once (an empty book: a first run or a bot without --relics=all; the Empty Hand gives none at
+## all); with nobody left to pick, the run goes on straight away. Online the host shows the step to
+## everyone: each friend seated now picks for their own heroes from their own book, and the host
+## waits for them up to tuning.start_relic_wait_ms; a friend who drops in later gets none.
+func _begin_start_relics() -> void:
+	_start_open = true
 	_start_wait_gen += 1
 	_start_pickers = {}
 	var picking := _start_heroes()
@@ -1948,7 +1947,7 @@ func _on_start_picked(slot: int, item: GearData) -> void:
 
 ## Host or local: once every hero has their starting Relics (or went without), the run goes on.
 func _check_start_done() -> void:
-	if Net.is_client() or _run == null or not _start_next.is_valid() or not _screen is StartRelicsScreen:
+	if Net.is_client() or _run == null or not _start_open or not _screen is StartRelicsScreen:
 		return
 	if not _run.start_pending():
 		_end_start_relics(true)
@@ -1957,22 +1956,22 @@ func _check_start_done() -> void:
 ## The starting Relics step is over (on the host or a local game): what each hero took is logged,
 ## and the run goes on (`fade`: from the step's screen, once any transition under way is done).
 func _end_start_relics(fade: bool) -> void:
-	var next := _start_next
-	_start_next = Callable()
+	var was_open := _start_open
+	_start_open = false
 	_start_wait_gen += 1
 	_start_pickers = {}
 	_run.end_start_picks()
 	_log_start_relics()
-	if not next.is_valid():
+	if not was_open:
 		return
 	if not fade:
-		next.call()
+		_after_start_relics()
 		return
 	var run := _run
 	while _busy:
 		await get_tree().process_frame
 	if _run == run and _screen is StartRelicsScreen:
-		_fade_to(next)
+		_fade_to(_after_start_relics)
 
 
 ## Logs each hero's Relics as the step left them: "Start relics: alder=iron_charm brin=- cass=..."

@@ -396,7 +396,10 @@ func test_the_host_takes_a_pick_only_for_a_hero_that_player_owns() -> void:
 
 func test_a_run_opens_with_the_pick_step() -> void:
 	var source := FileAccess.get_file_as_string(MAIN_PATH)
-	assert_string_contains(source, "_begin_start_relics(_after_start_relics)", "a new run picks first")
+	assert_string_contains(source, "\t_begin_start_relics()", "a new run picks first")
+	assert_string_contains(source, "_fade_to(_begin_start_relics)", "a continued run picks first too")
+	assert_string_contains(source, "_fade_to(_after_start_relics)", "then the pact or the map")
+	assert_false(source.contains("_begin_start_relics(next"), "the step always goes on to the run")
 	assert_string_contains(source, "_on_friend_start_relic(from_peer, payload)", "the host hears a friend's pick")
 	assert_string_contains(source, "\"start_refused\"", "and can send it back")
 	assert_gt(_tuning.start_relic_wait_ms, 0, "the host waits for friends only so long")
