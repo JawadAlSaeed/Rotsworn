@@ -107,9 +107,9 @@ static func relic_chips(item: GearData) -> Array[Dictionary]:
 
 
 ## A Relic on offer's tag: "New" when it is not in the Relic book yet (picking it puts it there), ""
-## for one the book has. Never in a Fight Rush, which keeps nothing (DESIGN.md 8.21, 8.24).
+## for one the book has (DESIGN.md 8.24).
 static func new_tag(run: RunState, item: GearData) -> String:
-	if run == null or run is RushState or item == null or run.is_home(item):
+	if run == null or item == null or run.is_home(item):
 		return ""
 	return "New"
 

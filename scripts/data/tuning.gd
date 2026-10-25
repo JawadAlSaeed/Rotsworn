@@ -256,7 +256,7 @@ extends Resource
 ## A hero who is down when a fight is won gets this share of its XP (standing heroes get all).
 @export_range(0, 100, 1, "suffix:%") var run_xp_downed_percent: int = 50
 ## Every XP gain in a run, in percent of the enemies' XP (#321: a run without zones has far fewer
-## fights; a Fight Rush has its own rush_xp_percent).
+## fights).
 @export_range(1, 400, 1, "suffix:%") var run_xp_percent: int = 100
 ## Enemies grow with depth (DESIGN.md 8.3): each map row adds these percents to their HP and
 ## power (row 0: as in their data). Bosses only grow when run_enemy_scale_bosses is on.
@@ -414,8 +414,8 @@ extends Resource
 
 @export_group("Relics")
 ## Starting Relics (DESIGN.md 8.24, card #328): how many Relics each hero takes from the player's
-## Relic book before a run or a Fight Rush (the Empty Hand oath takes one away). A run has no Relic
-## slots, copies or levels.
+## Relic book before a run (the Empty Hand oath takes one away). A run has no Relic slots, copies
+## or levels.
 @export_range(0, 5) var start_relics_per_hero: int = 1
 ## Online, the starting Relics: how long the host waits for its friends' picks before the run starts
 ## without the ones still missing, in milliseconds.
@@ -423,41 +423,6 @@ extends Resource
 ## Every enemy's power in run fights, in percent (phase 17: Relics stay between runs, so the base
 ## run is a little harder; practice fights keep their data).
 @export_range(50, 300, 1, "suffix:%") var enemy_power_base_percent: int = 105
-
-@export_group("Fight Rush")
-## Fight Rush (DESIGN.md 8.21): map rows of depth each fight adds, in percent (100 = one row per
-## fight, so fight n grows like map row n - 1 of a run).
-@export_range(0, 400, 1, "suffix:%") var rush_depth_per_fight_percent: int = 100
-## Extra enemy HP percent points per depth step in a Fight Rush, on top of run_enemy_hp_row_percent
-## (lets HP keep climbing once the attack speed has reached attack_tempo_floor_percent).
-@export_range(0, 50, 1, "suffix:%") var rush_enemy_hp_step_add: int = 0
-## The same for enemy power, on top of run_enemy_power_row_percent.
-@export_range(0, 50, 1, "suffix:%") var rush_enemy_power_step_add: int = 0
-## Every Fight Rush enemy's HP, in percent, after the depth growth.
-@export_range(1, 400, 1, "suffix:%") var rush_enemy_hp_percent: int = 100
-## Every Fight Rush enemy's power, in percent, after the depth growth.
-@export_range(1, 400, 1, "suffix:%") var rush_enemy_power_percent: int = 100
-## Boss fights (guards too) grow with the depth past the depth a run meets them at (RushBoss.home_depth).
-@export var rush_scale_bosses: bool = true
-## Every Nth fight is an elite (unless it is a boss fight).
-@export_range(2, 50) var rush_elite_every: int = 5
-## Every Nth fight is the next boss of the cycle (RushData.bosses).
-@export_range(2, 100) var rush_boss_every: int = 10
-## The Heal card heals each hero this share of their max HP, before their Rest Relics change it.
-@export_range(1, 100, 1, "suffix:%") var rush_heal_card_percent: int = 40
-## Attribute points the Train card gives each hero.
-@export_range(1, 5) var rush_point_card_points: int = 1
-## The lowest rarity (0 common, 1 rare, 2 legendary) a Relic card offers while the pool still has some.
-@export_range(0, 2) var rush_relic_min_rarity: int = 1
-## A boss fight pays at least this much XP (the Hollow King's own data pays only 60).
-@export_range(0, 2000) var rush_boss_min_xp: int = 260
-## Every Fight Rush XP gain, in percent.
-@export_range(1, 400, 1, "suffix:%") var rush_xp_percent: int = 100
-## XP a hero earns past the top level builds toward one more reward pick per this much (the most any
-## one hero earned in a fight counts).
-@export_range(1, 5000) var rush_spare_pick_xp: int = 300
-## After a boss fight everyone heals this share of their max HP (100 = full).
-@export_range(0, 100, 1, "suffix:%") var rush_boss_heal_percent: int = 100
 
 @export_group("Backpack")
 ## Alder's pack (DESIGN.md 8.1, 8.19, card #282): this many pockets at the start of a run, one

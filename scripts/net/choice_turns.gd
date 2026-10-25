@@ -2,8 +2,8 @@ class_name ChoiceTurns
 extends RefCounted
 ## Host: whose turn it is to make the run's choices online (DESIGN.md 9.2 "Taking turns", card #314).
 ## Pure: Main asks it before each new choice screen (one map step, one stop's screen, one spoils
-## pick, one Fight Rush pick), and the new screen belongs to the next seated player in seat order
-## (P1, P2, P3, back to P1), skipping a seat that is away or still joining. The same screen shown
+## pick), and the new screen belongs to the next seated player in seat order (P1, P2, P3, back to
+## P1), skipping a seat that is away or still joining. The same screen shown
 ## again (a redraw, a result, a restock) keeps its owner. When the owner drops or leaves, the turn
 ## passes on to the next seated player. A friend's choice is applied only when it comes from the
 ## owner's machine for the screen now up (allows()). With taking turns off the host makes every
@@ -20,7 +20,7 @@ var player: int = -1
 var peer: int = HOST_PEER
 
 
-## Forgets the turns (a new run or Rush begins with P1).
+## Forgets the turns (a new run begins with P1).
 func reset() -> void:
 	key = ""
 	player = -1

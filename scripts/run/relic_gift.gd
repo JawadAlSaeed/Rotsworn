@@ -1,8 +1,8 @@
 class_name RelicGift
 extends RefCounted
 ## Giving a picked Relic to a hero (DESIGN.md 8.24), shared by the screens that offer Relics (spoils,
-## the rotten chest, the shop, a pact, a Fight Rush card): which heroes may get it on this machine and
-## the hero cards of the "Who gets it?" step. Solo every hero; local co-op the heroes of the player
+## the rotten chest, the shop, a pact): which heroes may get it on this machine and the hero cards of
+## the "Who gets it?" step. Solo every hero; local co-op the heroes of the player
 ## whose pad picked; online the heroes of the player whose turn it is (Main's give_heroes callable).
 
 ## The step's line over the hero cards.

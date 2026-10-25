@@ -578,7 +578,7 @@ func test_only_fight_stops_ring() -> void:
 	assert_string_contains(enter, "if _rings_first_strike(int(stop.type)) and not _busy:",
 			"never announced while a transition would drop its fight")
 	assert_string_contains(enter, "_new_first_strike_ring(FirstStrikeRing.Mode.PRESS)")
-	for header: String in ["func _start_final_fight(", "func _begin_rush_fight(", "func _start_rush_fight("]:
+	for header: String in ["func _start_final_fight("]:
 		assert_false(_body(header).contains("FirstStrikeRing"), header + " opens normally")
 		assert_false(_body(header).contains("_run_opening"), header + " never sets an opening")
 
@@ -634,7 +634,7 @@ func test_main_reads_the_opening_from_the_ring() -> void:
 # --- online --------------------------------------------------------------------------------------
 
 func test_online_the_host_decides_and_the_friends_get_its_opening() -> void:
-	assert_eq(NetSession.PROTOCOL, 7, "the opening needed no bump (the fingerprint keeps other builds out); 7 is the Relics' (DESIGN.md 8.24)")
+	assert_eq(NetSession.PROTOCOL, 8, "the opening needed no bump (the fingerprint keeps other builds out); 8 is the cut's (card #331)")
 	var decided := _body("func _on_first_strike_decided(")
 	assert_string_contains(decided, "if not Net.is_host():")
 	assert_string_contains(decided, "Net.broadcast(\"opening\", {\"fight\": _net_seed, \"opening\": opening_name, \"word\": word})")

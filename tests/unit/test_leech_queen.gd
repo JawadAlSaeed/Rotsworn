@@ -1,7 +1,7 @@
 extends GutTest
 ## The Leech Queen (DESIGN.md 8.23, card #323): her drinking bites (EnemyAttackData.drain_percent, a
 ## rule of the core), her data and her Leechlings. Where she sits in the run is in test_run_stops.gd
-## and test_run_balance.gd, her place in the Fight Rush in test_rush.gd and test_rush_data.gd.
+## and test_run_balance.gd.
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 

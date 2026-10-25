@@ -1,10 +1,9 @@
 class_name WeatherData
 extends Resource
 ## One kind of weather or time of day in a place (DESIGN.md 8.20, card #303): rain, fog, wind, dusk,
-## a storm. A place lists the ones it can have (ZoneData.weathers); each run or Rush fight there rolls
-## one or clear weather from the run's seed (RunState.weather_now, RushState.weather_now, DESIGN.md
-## 8.21 and 8.22), so the same place feels different from fight to fight and every machine online
-## sees the same sky. It changes only how the place looks and sounds: the light and fog (a copy of the
+## a storm. A place lists the ones it can have (ZoneData.weathers); each run fight there rolls one or
+## clear weather from the run's seed (RunState.weather_now, DESIGN.md 8.22), so the same place feels
+## different from fight to fight and every machine online sees the same sky. It changes only how the place looks and sounds: the light and fog (a copy of the
 ## place's StageLook), extra air (rain, mist, blowing leaves), how hard the plants sway and a sound
 ## loop. Its storm lightning lit the walkable zones only (WeatherFx, unused since phase 26, G6).
 ## Files live in data/weather/.

@@ -475,10 +475,8 @@ func test_the_relics_tab_gives_a_waiting_relic_to_the_hero() -> void:
 
 func test_run_fights_get_the_base_enemy_power_and_practice_keeps_the_data() -> void:
 	# Phase 17 made run fights 5% harder; the three-act run's balance pass (#321, DESIGN.md 8.23) set
-	# the run back to its data, and the Fight Rush keeps its 105% in rush_enemy_power_percent.
+	# the run back to its data.
 	assert_eq(_tuning.enemy_power_base_percent, 100, "#321: run fights as in the data")
-	assert_eq(CombatMath.percent(_tuning.enemy_power_base_percent, _tuning.rush_enemy_power_percent), 105,
-			"the Rush keeps its 105%")
 	var run := _run()
 	run.tuning.enemy_power_base_percent = 105
 	var husk := _husk()

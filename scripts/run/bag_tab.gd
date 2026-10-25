@@ -233,7 +233,7 @@ func info() -> Dictionary:
 		item_chips.append([&"", "Fight  %d AP" % it.ap_cost, HudStyle.AP_TEXT])
 	if it.rotten:
 		item_chips.append([&"skull", "Rotten", BackpackGrid.ROTTEN_COLOR])
-	elif it.price > 0 and run.shows_gold():
+	elif it.price > 0:
 		item_chips.append([&"coin", str(run.sell_price(run.entry_price(placed))), HudStyle.GOLD])
 	return {"icon": it, "title": RunState.entry_name(placed), "color": _item_color(it, rarity), "chips": item_chips,
 			"line": _warning if not _warning.is_empty() else it.description}

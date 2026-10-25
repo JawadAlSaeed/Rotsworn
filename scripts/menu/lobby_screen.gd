@@ -83,8 +83,6 @@ const NO_CHANGE := "Normal road"
 ## The big button's word before a run, and in a run (the Players overlay).
 const START_WORD := "Start"
 const PLAY_WORD := "Play"
-## The players screen's usual title (title_text).
-const DEFAULT_TITLE := "Players"
 ## The Continue button (card #313): its word, the line under it and its picture's size.
 const CONTINUE_WORD := "Continue"
 const CONTINUE_LINE_SIZE: int = 26
@@ -97,10 +95,6 @@ var hero_portraits: Array[String] = []
 var oaths: Array[OathData] = []
 var oath_unlocked: int = 0
 var start_oath: int = 0
-## The screen's title (set before setup): "Players", or "Fight Rush" before a Rush (DESIGN.md 8.21).
-## Online the default gives way to "Host Online" / "Online Players"; any other title stays (an online
-## Fight Rush, card #312).
-var title_text: String = DEFAULT_TITLE
 ## Online host (set before setup_online): where the saved online run is ("Act 2, Stop 5"); not
 ## empty adds the Continue button (card #313). `saved_note`: a dim line under the address ("" : none).
 var continue_line: String = ""
@@ -150,7 +144,7 @@ func setup(hero_names: Array[String], previous: PlayerRoster, first_device: int)
 		# Someone else opened it: they are P1 now, alone.
 		_roster = PlayerRoster.solo(hero_names.size(), first_device)
 	_oath = clampi(start_oath, 0, mini(oath_unlocked, oaths.size()))
-	_build(title_text, "", hints(false, true))
+	_build("Players", "", hints(false, true))
 
 
 ## The online players screen. `roster` is the host's (online) roster; `is_host` false makes this
@@ -161,11 +155,10 @@ func setup_online(hero_names: Array[String], roster: PlayerRoster, is_host: bool
 	_online = true
 	_is_host = is_host
 	_oath = clampi(start_oath, 0, mini(oath_unlocked, oaths.size())) if is_host else 0
-	var own_title := title_text != DEFAULT_TITLE
 	if is_host:
-		_build(title_text if own_title else "Host Online", address_line(addresses, port), hints(true, true))
+		_build("Host Online", address_line(addresses, port), hints(true, true))
 	else:
-		_build(title_text if own_title else "Online Players", "Waiting for the host", hints(true, false))
+		_build("Online Players", "Waiting for the host", hints(true, false))
 
 
 ## The Players overlay over the pause menu, mid-run (cards #304, #311). `roster` is the local

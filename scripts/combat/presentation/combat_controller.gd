@@ -20,7 +20,7 @@ extends Node
 signal restart_requested
 ## Back to the fight list (end screen, Cancel).
 signal select_requested
-## A run or Fight Rush fight is over and the player wants to go on with it (DESIGN.md 8, 8.21).
+## A run fight is over and the player wants to go on with the run (DESIGN.md 8).
 signal continue_requested(result: String)
 ## Every event as it is played (and the prompt events the runner applies at once).
 signal event_played(event: Dictionary)
@@ -102,9 +102,6 @@ var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 ## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
 var _run: RunState
 var _drop: ItemData
-## A Fight Rush's best fight for this party size before the Rush began (0: none, or records are off):
-## the fight-start banner reads NEW BEST past it (DESIGN.md 8.21).
-var _rush_best: int = 0
 ## Fight item stand-in abilities by uid (see _item_ability()).
 var _item_abilities: Dictionary = {}
 ## Who plays (DESIGN.md 9.1): in co-op a device drives only its own heroes' menus and presses.
@@ -184,12 +181,6 @@ func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals,
 ## screen, and no "fight again". Call after configure(), before adding the node to the tree.
 func configure_run(run: RunState) -> void:
 	_run = run
-
-
-## A Fight Rush fight (DESIGN.md 8.21): the party size's best fight before the Rush (0: none), so
-## the banner can say NEW BEST. Call after configure_run(), before adding the node to the tree.
-func configure_rush_best(best: int) -> void:
-	_rush_best = maxi(0, best)
 
 
 ## What the beaten enemy drops (DESIGN.md 8.1; null: nothing). The end screen names it after a
@@ -863,12 +854,6 @@ func _play(ev: Dictionary) -> void:
 				view.camera.add_trauma(_visuals.intro_shake)
 				view.camera.punch(-_visuals.intro_push, _visuals.intro_push_ms)
 			else:
-				if _run is RushState:
-					# A Rush's fight number, or NEW BEST once it passes the record (DESIGN.md 8.21).
-					var n := (_run as RushState).fight
-					var beaten := _rush_best > 0 and n > _rush_best
-					hud.show_center_banner(("NEW BEST %d" if beaten else "FIGHT %d") % n, HudStyle.GOLD,
-							_visuals.first_strike_banner_ms)
 				Sfx.play("fight_start")
 		"turn_started":
 			mirror.apply(ev)
@@ -1192,12 +1177,6 @@ func used_items() -> Array[int]:
 	return mirror.used_items.duplicate()
 
 
-## How the fight ended ("victory", "defeat", "escaped"; "" while it goes on): what its end screen's
-## continue reports.
-func fight_result() -> String:
-	return _result
-
-
 func _runner_active() -> bool:
 	return runner.is_active() or skill_runner.is_active()
 
@@ -1264,8 +1243,7 @@ func _on_combat_ended(result: String) -> void:
 func _play_reward_sounds() -> void:
 	var risen := _levelling_heroes()
 	await _wait_ms(_visuals.reward_sound_delay_ms)
-	if _run.shows_gold():
-		Sfx.play("gold_gain")
+	Sfx.play("gold_gain")
 	if risen.is_empty():
 		return
 	await _wait_ms(_visuals.level_up_sound_gap_ms)
@@ -1319,9 +1297,6 @@ func _end_hints() -> Array:
 	var hints: Array = [[&"menu_confirm", "Fight again"], [&"menu_cancel", "Choose a fight"]]
 	if _net_mode == NetMode.CLIENT:
 		hints = []
-	elif _run is RushState:
-		# A Rush goes on to its reward cards, or to its end (DESIGN.md 8.21).
-		hints = [[&"menu_confirm", "Results" if _result == "defeat" else "Rewards"]]
 	elif _run != null and _result == "defeat":
 		hints = [[&"menu_confirm", "See how the run went"]]
 	elif _run != null:
@@ -1337,17 +1312,14 @@ func _end_hints() -> Array:
 func _end_rewards() -> Dictionary:
 	if _run == null or _result != "victory":
 		return {}
-	var chips: Array[Dictionary] = []
-	if _run.shows_gold():
-		chips.append({"icon": AssetLoader.texture(_visuals.gold_icon_path, Vector2i(12, 12)),
-				"text": "+%d" % _run.gold_for(_encounter), "color": HudStyle.GOLD})
+	var chips: Array[Dictionary] = [{"icon": AssetLoader.texture(_visuals.gold_icon_path, Vector2i(12, 12)),
+			"text": "+%d" % _run.gold_for(_encounter), "color": HudStyle.GOLD}]
 	if _drop != null:
 		chips.append({"icon": AssetLoader.texture(_drop.icon_path, Vector2i(16, 16)), "text": _drop.display_name,
 				"color": HudStyle.TEXT})
-	# A flawless win earns one more spoils choice (card #283); a Rush has no spoils, so just the word.
+	# A flawless win earns one more spoils choice (card #283).
 	if RunState.is_flawless(_encounter, recap()):
-		chips.append({"icon": null, "text": "FLAWLESS" if _run is RushState else "FLAWLESS  +1 spoils",
-				"color": HudStyle.GOLD})
+		chips.append({"icon": null, "text": "FLAWLESS  +1 spoils", "color": HudStyle.GOLD})
 	# The fight's best defence streak, once it was long enough to show (card #300).
 	if mirror.best_defence_streak >= _visuals.streak_show_from:
 		chips.append({"icon": AssetLoader.texture(_visuals.streak_chip_icon_path, Vector2i(16, 16)),
@@ -1391,8 +1363,7 @@ func _summary_text() -> String:
 			int(_defended.get(Defense.Outcome.DODGE, 0)), int(_defended.get(Defense.Outcome.JUMP, 0)), _counters,
 			int(_defended.get(Defense.Outcome.PRESS_PERFECT, 0)), int(_defended.get(Defense.Outcome.PRESS, 0))]
 	if _run != null and _result == "victory":
-		if _run.shows_gold():
-			text += "\n+%d gold" % _run.gold_for(_encounter)
+		text += "\n+%d gold" % _run.gold_for(_encounter)
 		if _drop != null:
 			text += "   Found: %s" % _drop.display_name
 		if RunState.is_flawless(_encounter, recap()):

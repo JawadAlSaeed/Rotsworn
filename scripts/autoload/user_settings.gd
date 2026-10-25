@@ -8,7 +8,7 @@ extends Node
 ## lag compensation, one per kind of input (keyboard, pad; F2 calibration or the settings screen, card #204), the training ring toggle (F1 then R),
 ## the volumes (overall, music, effects, voices), the display and graphics options, screen shake and
 ## flashes (settings screen, cards #112 and #185), the text size (card #203), the highest oath
-## unlocked (DESIGN.md 8.15), the Fight Rush records (8.21), the last host address joined online, the rebound keys and buttons
+## unlocked (DESIGN.md 8.15), the last host address joined online, the rebound keys and buttons
 ## (card #190, ControlBindings). Anything not saved here falls back to the value in data/tuning/tuning.tres (or the defaults below).
 
 const PATH := "user://settings.cfg"
@@ -78,9 +78,6 @@ const SHAKE_STEP_PERCENT: int = 25
 ## Controller vibration (card #299): how strong the buzz is, in steps of RUMBLE_STEP_PERCENT; 0 is off.
 const KEY_RUMBLE := "rumble_percent"
 const RUMBLE_STEP_PERCENT: int = 25
-## The Fight Rush records (DESIGN.md 8.21): one key per party size, "best_1" to "best_3".
-const SECTION_RUSH := "rush"
-const KEY_RUSH_BEST := "best_%d"
 const SECTION_ONLINE := "online"
 const KEY_JOIN_ADDRESS := "join_address"
 ## Online run choices pass from player to player (card #314, DESIGN.md 9.2): on by default; off, the
@@ -349,42 +346,6 @@ static func unlock_after_win(won_oath: int, ladder_size: int) -> int:
 static func reset_oath_unlocks() -> void:
 	_settings().set_value(SECTION_GAME, KEY_OATH_UNLOCKED, 0)
 	_save()
-
-
-## The Fight Rush record of a party of `players` (RushRecords.entry; {} when there is none or it is
-## damaged), DESIGN.md 8.21.
-static func rush_best(players: int) -> Dictionary:
-	var e: Variant = _settings().get_value(SECTION_RUSH, _rush_key(players), {})
-	return (e as Dictionary).duplicate() if RushRecords.is_valid(e) else {}
-
-
-## Keeps `e` as the record of a party of `players` if it beats the one kept (RushRecords.better).
-## True if it was written.
-static func set_rush_best(players: int, e: Dictionary) -> bool:
-	if not RushRecords.better(e, rush_best(players)):
-		return false
-	_settings().set_value(SECTION_RUSH, _rush_key(players), RushRecords.entry(int(e.fight), String(e.date)))
-	_save()
-	return true
-
-
-## The best fight of every party size's record (0: none), for the main menu's Fight Rush card.
-static func rush_best_any() -> int:
-	var entries: Array = []
-	for players: int in RushRecords.SIZES:
-		entries.append(rush_best(players))
-	return RushRecords.best_of(entries)
-
-
-## Settings > Reset progress: every Fight Rush record goes.
-static func reset_rush_records() -> void:
-	if _settings().has_section(SECTION_RUSH):
-		_settings().erase_section(SECTION_RUSH)
-	_save()
-
-
-static func _rush_key(players: int) -> String:
-	return KEY_RUSH_BEST % RushRecords.bucket(players)
 
 
 ## True once the tutorial was offered on the first New Run (DESIGN.md 7.8): it is asked once.

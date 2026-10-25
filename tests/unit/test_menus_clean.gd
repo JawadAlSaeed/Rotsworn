@@ -509,10 +509,11 @@ func test_every_section_fits_under_the_pinned_title() -> void:
 	HudStyle.set_text_size_index(0)
 
 
-## Reset progress names the Fight Rush records too (DESIGN.md 8.21), and its two lines stay on the
-## screen at every text size.
-func test_reset_progress_question_lists_the_rush_records_and_fits() -> void:
-	assert_true(SettingsScreen.RESET_DETAIL.contains("Rush records"))
+## Reset progress names what it wipes (no records of the cut second mode, card #331), and its two
+## lines stay on the screen at every text size.
+func test_reset_progress_question_lists_what_it_wipes_and_fits() -> void:
+	assert_true(SettingsScreen.RESET_DETAIL.contains("Relic book"))
+	assert_false(SettingsScreen.RESET_DETAIL.contains("records"), "no records left to wipe")
 	for size: int in PlayerSettings.TEXT_SIZE_NAMES.size():
 		HudStyle.set_text_size_index(size)
 		var screen := _settings_screen(true)
