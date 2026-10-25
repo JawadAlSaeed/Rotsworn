@@ -1,9 +1,9 @@
 class_name StopScreen
 extends CanvasLayer
 ## What the run's newer stop screens share (events, treasure, the campfire; DESIGN.md 8.7 to
-## 8.11): the gold and HP strip, and handing out what the party got. An item goes into the backpack
-## where it fits first; a bigger backpack is used at once; an item with no room opens the backpack
-## over the screen with it in hand. Several gifts go one after the other. Online, only the host hands
+## 8.11): the gold and HP strip, and handing out what the party got. A consumable goes into the
+## backpack where it fits first; treasure turns into gold and a curse goes on the party at once (card
+## #332); a consumable with no room opens the backpack over the screen with it in hand. Several gifts go one after the other. Online, only the host hands
 ## things out (clients watch). A Relic is never handed out here: the screen that offers it asks who
 ## gets it first (RelicGift, DESIGN.md 8.24; `give_heroes`).
 ## Online the choices go in turns (card #314, DESIGN.md 9.2): on another player's turn the screen is
@@ -153,9 +153,10 @@ func _next_gift() -> void:
 		return
 	while not _gifts.is_empty():
 		var item := _gifts.pop_front() as ItemData
-		if item.kind == ItemData.Kind.UPGRADE or item.kind == ItemData.Kind.TREASURE:
+		if item.kind == ItemData.Kind.TREASURE or item.is_curse():
+			# Gold at once, or a curse on the party (card #332): neither takes a pocket.
 			run.add_item(item)
-			Sfx.play("level_up" if item.kind == ItemData.Kind.UPGRADE else "gold_gain")
+			Sfx.play("gold_gain" if item.kind == ItemData.Kind.TREASURE else "hurt")
 			_say(run.find_text(item))
 		elif run.add_item(item) >= 0:
 			Sfx.play("item_place")

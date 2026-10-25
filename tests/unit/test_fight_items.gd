@@ -42,9 +42,9 @@ func _types(events: Array[Dictionary]) -> Array:
 
 
 func test_only_fight_items_reach_the_fight() -> void:
-	var f := _fight(["salve", "tonic", "bomb", "grave_moss", "silver_ring"])
+	var f := _fight(["salve", "bomb", "grave_moss", "silver_ring"])
 	var setup := f.setup as CombatSetup
-	assert_eq(setup.items.size(), 2, "the salve and the bomb; not the tonic, curse or ring")
+	assert_eq(setup.items.size(), 2, "the salve and the bomb; the curse and the ring never sit in the pack")
 	assert_eq((f.engine as CombatEngine).items_left.size(), 2)
 	assert_eq((f.mirror as CombatMirror).items.size(), 2, "the menu knows them from combat_started")
 

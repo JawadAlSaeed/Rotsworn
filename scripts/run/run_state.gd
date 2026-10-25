@@ -2,7 +2,8 @@ class_name RunState
 extends RefCounted
 ## One run in progress (DESIGN.md 8): the map, where the party is on it, the party's HP (carried
 ## from fight to fight), max HP boosts, gold, each hero's level, XP and attribute points (DESIGN.md
-## 8.2), the Relics given to each hero (8.17, 8.24), and the shared backpack (DESIGN.md 8.1). The run's rules live here as plain integer maths so they
+## 8.2), the Relics given to each hero (8.17, 8.24), the shared backpack (DESIGN.md 8.1) and the
+## curses on the party (card #332). The run's rules live here as plain integer maths so they
 ## are unit-tested; screens only call these functions and show the result.
 
 const VICTORY := "victory"
@@ -79,13 +80,10 @@ var at: int = -1
 ## Stops visited, in order.
 var path: Array[int] = []
 var gold: int = 0
-## Per party slot: current HP, and max HP bought with tonics (percent of the character's normal
-## max HP; levels and gear add to it in total_max_hp_percent).
+## Per party slot: current HP, and the max HP kept for good (percent of the character's normal
+## max HP: events and pacts lower it; levels and gear add to it in total_max_hp_percent).
 var hp: Array[int] = []
 var max_hp_percent: Array[int] = []
-## Per party slot: Tonics (permanent max HP) the hero has drunk; tuning.tonic_max_per_hero is the
-## most (card #175: gold must not turn into endless max HP).
-var tonics_used: Array[int] = []
 ## Per party slot: the hero's level, and the XP counting toward their next one.
 var levels: Array[int] = []
 var xps: Array[int] = []
@@ -120,8 +118,13 @@ var start_relics: Dictionary = {}
 var stop_relics: Array[String] = []
 ## The team gauge carried from the last fight into the next one (card #146).
 var team_gauge: int = 0
-## The shared backpack (items only: gear is always worn).
+## The shared backpack (consumables only, card #332: gear is always worn, treasure turns into gold
+## and curses sit on the party).
 var backpack: Backpack
+## The curses on the party (card #332): the ids of curse items (ItemData.Kind.CURSE), one per curse
+## taken, in the order taken (two of the same hurt twice). They are not in the pack: each hurts every
+## hero its rot_percent at the start of their turns in fights until a shop's Cleanse takes it away.
+var curses: Array[String] = []
 var fights_won: int = 0
 var gold_earned: int = 0
 ## Per party slot: [parried, dodged, jumped, hits taken] over the whole run (card #283), from each
@@ -164,7 +167,6 @@ static func begin(run_data: RunData, p_tuning: Tuning, p_seed: int, p_oath: int 
 	for c: CharacterData in run_data.party:
 		run.bonus_points.append(0)
 		run.max_hp_percent.append(100)
-		run.tonics_used.append(0)
 		run.levels.append(1)
 		run.xps.append(0)
 		run.attributes.append(Attributes.empty())
@@ -199,10 +201,10 @@ func to_dict() -> Dictionary:
 		given.append(ids)
 	return {
 		"seed": run_seed, "at": at, "path": Array(path), "gold": gold, "hp": Array(hp),
-		"max_hp_percent": Array(max_hp_percent), "tonics_used": Array(tonics_used), "levels": Array(levels), "xps": Array(xps),
+		"max_hp_percent": Array(max_hp_percent), "levels": Array(levels), "xps": Array(xps),
 		"attributes": attributes.duplicate(true), "team_gauge": team_gauge, "gear": given,
 		"unlocked": unlocked.duplicate(true), "loadout": loadout.duplicate(true),
-		"backpack": backpack.to_array(),
+		"backpack": backpack.to_array(), "curses": Array(curses),
 		"fights_won": fights_won, "gold_earned": gold_earned, "result": result,
 		"act": act, "visited": visited, "bonus_points": Array(bonus_points), "events_seen": Array(events_seen),
 		"restocks": restocks, "oath": oath, "shop_sold": Array(shop_sold), "stop_done": stop_done, "stop_text": stop_text,
@@ -235,12 +237,12 @@ func apply_dict(d: Dictionary) -> bool:
 		return false
 	if int(d.seed) != run_seed or typeof(d.get("result")) != TYPE_STRING:
 		return false
-	for key: String in ["path", "hp", "max_hp_percent", "tonics_used", "levels", "xps", "attributes", "gear", "backpack",
-			"unlocked", "loadout", "bonus_points", "events_seen"]:
+	for key: String in ["path", "hp", "max_hp_percent", "levels", "xps", "attributes", "gear", "backpack",
+			"unlocked", "loadout", "bonus_points", "events_seen", "curses"]:
 		if not d.get(key) is Array:
 			return false
 	var size := party_size()
-	for key: String in ["hp", "max_hp_percent", "tonics_used", "levels", "xps", "attributes", "gear", "unlocked",
+	for key: String in ["hp", "max_hp_percent", "levels", "xps", "attributes", "gear", "unlocked",
 			"loadout", "bonus_points"]:
 		if (d[key] as Array).size() != size:
 			return false
@@ -268,10 +270,17 @@ func apply_dict(d: Dictionary) -> bool:
 			given[String(id)] = true
 			list.append(by_id[String(id)])
 		new_gear.append(list)
-	var new_pack := Backpack.from_array(d.backpack, items_by_id(), tuning.backpack_pockets)
+	var known_items := items_by_id()
+	var new_pack := Backpack.from_array(d.backpack, known_items)
 	if new_pack == null:
 		return false
-	for key: String in ["path", "hp", "max_hp_percent", "tonics_used", "levels", "xps", "bonus_points"]:
+	# The curses: ids of curse items this run knows.
+	var new_curses: Array[String] = []
+	for v: Variant in d.curses:
+		if typeof(v) != TYPE_STRING or not known_items.has(String(v)) or not (known_items[String(v)] as ItemData).is_curse():
+			return false
+		new_curses.append(String(v))
+	for key: String in ["path", "hp", "max_hp_percent", "levels", "xps", "bonus_points"]:
 		for v: Variant in d[key]:
 			if typeof(v) != TYPE_INT:
 				return false
@@ -349,7 +358,6 @@ func apply_dict(d: Dictionary) -> bool:
 	gold = int(d.gold)
 	hp.assign(d.hp)
 	max_hp_percent.assign(d.max_hp_percent)
-	tonics_used.assign(d.tonics_used)
 	team_gauge = int(d.team_gauge)
 	levels.assign(d.levels)
 	xps.assign(d.xps)
@@ -374,6 +382,7 @@ func apply_dict(d: Dictionary) -> bool:
 	start_left = new_start_left
 	start_relics = new_start_relics
 	backpack = new_pack
+	curses = new_curses
 	_clamp_hp()
 	fights_won = int(d.fights_won)
 	gold_earned = int(d.gold_earned)
@@ -471,7 +480,7 @@ func best_defender() -> int:
 
 # --- stats ------------------------------------------------------------------------------------
 
-## Max HP percent with tonics, level, Vitality (spent and from Relics) and Relics.
+## Max HP percent kept for good (max_hp_percent), level, Vitality (spent and from Relics) and Relics.
 func total_max_hp_percent(slot: int) -> int:
 	return max_hp_percent[slot] + (levels[slot] - 1) * tuning.run_level_hp_percent \
 			+ attribute_total(slot, Attributes.Kind.VITALITY) * tuning.attr_vitality_hp_percent + gear_amount(slot, GearData.Effect.MAX_HP)
@@ -532,7 +541,7 @@ func effect_sources(slot: int) -> Array[GearData]:
 
 
 ## The passives slot `slot` brings into fights (Passive keys -> amount): their Relics',
-## and the rot of the curses carried.
+## and the rot of the party's curses (card #332).
 func passives(slot: int) -> Dictionary:
 	var found := {}
 	for item: GearData in effect_sources(slot):
@@ -913,14 +922,14 @@ func pick_fits(offer: ZoneOfferData, pick: int) -> bool:
 	return true
 
 
-## Backpack items an event may take: everything but rotten items (nobody misses those).
+## Backpack items an event may take: every one (the pack holds only consumables since card #332;
+## curses sit on the party and cannot be handed over).
 func losable_uids() -> Array[int]:
 	var found: Array[int] = []
 	if backpack == null:
 		return found
 	for e: Dictionary in backpack.entries:
-		if not (e.item as ItemData).rotten:
-			found.append(int(e.uid))
+		found.append(int(e.uid))
 	return found
 
 
@@ -1084,7 +1093,7 @@ func pact_event() -> EventData:
 ## rare or better item; the rotten one a pick of relic_choice_count() rare or better Relics the run
 ## does not have, at most rot_gear_spoils_count of them rot-touched like the spoils' (DESIGN.md
 ## 8.24: they wait in stop_relics until one is taken and given), but
-## tuning.rotten_chest_curse_percent of the time a curse comes with it and
+## tuning.rotten_chest_curse_percent of the time a curse comes with it (on the party) and
 ## rotten_chest_fight_percent of the time (on top) an ambush from the act's pool. Applies the gold,
 ## the curse and the ambush; the plain chest's item comes back for the screen to hand out. Seeded per
 ## stop, so a continued run gets the same. Returns {prize: ItemData or null, relics: the Relics on
@@ -1115,9 +1124,9 @@ func open_treasure(stop_id: int, rotten: bool) -> Dictionary:
 				curses.append(item)
 		if roll < tuning.rotten_chest_curse_percent and not curses.is_empty():
 			var curse := curses[rng.range_int(0, curses.size() - 1)]
-			if add_item(curse) >= 0:
+			if add_curse(curse):
 				got.curse = curse
-				parts.append("The %s settles in your pack" % curse.display_name)
+				parts.append("Cursed: %s" % curse.display_name)
 		elif roll < tuning.rotten_chest_curse_percent + tuning.rotten_chest_fight_percent \
 				and not act_data().ambushes.is_empty() and not in_ambush():
 			var foe := act_data().ambushes[rng.range_int(0, act_data().ambushes.size() - 1)]
@@ -1163,37 +1172,13 @@ func take_treasure_gold() -> int:
 
 # --- shop services and the campfire (DESIGN.md 8.10, 8.11) -------------------------------------
 
-## True if item `uid` can go up a level (it can be combined and is not legendary yet).
-func can_upgrade(uid: int) -> bool:
-	var e := backpack.entry(uid)
-	return not e.is_empty() and (e.item as ItemData).combinable() and entry_rarity(e) < ItemData.Rarity.LEGENDARY
-
-
-## Item `uid` goes up a level, for `price` gold (0 at the campfire). False if it cannot.
-func upgrade_item(uid: int, price: int = 0) -> bool:
-	if not can_upgrade(uid) or gold < price:
-		return false
-	gold -= price
-	backpack.entry(uid).level = level_of(backpack.entry(uid)) + 1
-	return true
-
-
-## Rotten items in the backpack (uids), for the shop to take away.
-func rotten_uids() -> Array[int]:
-	var found: Array[int] = []
-	for e: Dictionary in backpack.entries:
-		if (e.item as ItemData).rotten:
-			found.append(int(e.uid))
-	return found
-
-
-## The shop takes rotten item `uid` away for cleanse_price() gold.
-func cleanse(uid: int) -> bool:
-	if not rotten_uids().has(uid) or gold < cleanse_price():
+## The shop's Cleanse (card #332): curse `index` (its place in curses) is taken off the party for
+## cleanse_price() gold. False (and nothing changes) if there is no such curse or the gold is short.
+func cleanse(index: int) -> bool:
+	if index < 0 or index >= curses.size() or gold < cleanse_price():
 		return false
 	gold -= cleanse_price()
-	backpack.remove(uid)
-	_clamp_hp()
+	curses.remove_at(index)
 	return true
 
 
@@ -1423,7 +1408,8 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 		setup.party_skills.append(loadout[slot].duplicate() if has_tree(slot) else [])
 	for e: Dictionary in backpack.entries:
 		if (e.item as ItemData).usable_in_fight():
-			setup.items.append({"uid": int(e.uid), "item": e.item, "amount": entry_amount(e), "name": entry_name(e)})
+			var item := e.item as ItemData
+			setup.items.append({"uid": int(e.uid), "item": item, "amount": item.amount_percent, "name": item.display_name})
 	setup.start_team_gauge = clampi(team_gauge, 0, tuning.team_gauge_max)
 	if in_ambush():
 		# An ambush is sprung on the party: no running unless the tuning allows it.
@@ -1881,12 +1867,8 @@ func cleanse_price() -> int:
 	return shop_price(tuning.shop_cleanse_price)
 
 
-func upgrade_price() -> int:
-	return shop_price(tuning.shop_upgrade_price)
-
-
 ## Heals one character (never above max HP). Returns how much was healed. `scaled`: gear that
-## changes the healing a hero receives (DESIGN.md 8.16) applies; a Tonic's new HP is not a heal.
+## changes the healing a hero receives (DESIGN.md 8.16) applies (false: new max HP filled, not a heal).
 func heal(slot: int, amount: int, scaled: bool = true) -> int:
 	var before := hp[slot]
 	if scaled:
@@ -1925,18 +1907,21 @@ func pay_for(item: ItemData) -> bool:
 	return true
 
 
-## Puts `item` in the first free pocket. Returns its uid, or -1 if the pack is full. An upgrade (a
-## bigger pack) is used at once instead and returns 0; treasure turns into gold at once (its
-## treasure_gold) and returns 0 too (card #282: it takes no pocket).
+## Puts `item` in the first free pocket. Returns its uid, or -1 if the pack is full. Only
+## consumables go in the pack (card #332): treasure turns into gold at once (its treasure_gold, card
+## #282) and a curse goes on the party (add_curse); both return 0. Anything else returns -1.
 func add_item(item: ItemData) -> int:
-	if item != null and item.kind == ItemData.Kind.UPGRADE:
-		take_upgrade(item)
-		return 0
-	if item != null and item.kind == ItemData.Kind.TREASURE:
+	if item == null:
+		return -1
+	if item.kind == ItemData.Kind.TREASURE:
 		var won := treasure_gold(item)
 		gold += won
 		gold_earned += won
 		return 0
+	if item.is_curse():
+		return 0 if add_curse(item) else -1
+	if not item.goes_in_pack():
+		return -1
 	return backpack.add_anywhere(item)
 
 
@@ -1945,30 +1930,16 @@ func treasure_gold(item: ItemData) -> int:
 	return sell_price(item.price) if item != null else 0
 
 
-## A find in a few words for a stop or a fight's drop: "Found: Salve", "Silver Ring: +20 gold", "Bigger
-## Pack: 7 pockets". Call it after add_item.
+## A find in a few words for a stop or a fight's drop: "Found: Salve", "Silver Ring: +20 gold",
+## "Cursed: Grave Moss". Call it after add_item.
 func find_text(item: ItemData) -> String:
 	if item == null:
 		return ""
 	if item.kind == ItemData.Kind.TREASURE:
 		return "%s: +%d gold" % [item.display_name, treasure_gold(item)]
-	if item.kind == ItemData.Kind.UPGRADE:
-		return "%s: %d pockets" % [item.display_name, backpack.width]
+	if item.is_curse():
+		return "Cursed: %s" % item.display_name
 	return "Found: %s" % item.display_name
-
-
-## True if `item` would do something if the party got it now (an upgrade with room left to grow).
-func wants(item: ItemData) -> bool:
-	if item == null:
-		return false
-	if item.kind == ItemData.Kind.UPGRADE:
-		return item.effect == ItemData.Effect.ADD_ROW and backpack.width < tuning.backpack_max_pockets
-	if item.effect == ItemData.Effect.MAX_HP_ONE:
-		for slot: int in party_size():
-			if tonics_left(slot) > 0:
-				return true
-		return false
-	return true
 
 
 ## The items a shop stop has on its shelves: up to tuning.run_shop_items of the run's
@@ -1989,10 +1960,12 @@ func shop_stock(stop_id: int) -> Array[ItemData]:
 	return ordered
 
 
-## Puts `item` (at `level`) in pocket x (`y` and `turn` are from the old grid: 0). Returns its uid,
-## or -1 if that pocket is taken.
-func place_item(item: ItemData, x: int, y: int = 0, turn: int = 0, level: int = 0) -> int:
-	return backpack.add(item, x, y, turn, level)
+## Puts consumable `item` in pocket x (`y` and `turn` are from the old grid: 0). Returns its uid, or
+## -1 if that pocket is taken or the item does not go in the pack.
+func place_item(item: ItemData, x: int, y: int = 0, turn: int = 0) -> int:
+	if item == null or not item.goes_in_pack():
+		return -1
+	return backpack.add(item, x, y, turn)
 
 
 func move_item(uid: int, x: int, y: int, turn: int) -> bool:
@@ -2016,16 +1989,7 @@ func can_use_item(uid: int, slot: int) -> bool:
 	var item := e.item as ItemData
 	if not item.usable_on_map():
 		return false
-	if item.needs_target() and (slot < 0 or slot >= hp.size()):
-		return false
-	return not (item.effect == ItemData.Effect.MAX_HP_ONE and tonics_left(slot) <= 0)
-
-
-## Tonics hero `slot` can still drink this run (tuning.tonic_max_per_hero is the most).
-func tonics_left(slot: int) -> int:
-	if slot < 0 or slot >= tonics_used.size():
-		return 0
-	return maxi(0, tuning.tonic_max_per_hero - tonics_used[slot])
+	return not item.needs_target() or (slot >= 0 and slot < hp.size())
 
 
 ## Why backpack item `uid` cannot be used on hero `slot` right now ("" when it can), for screens
@@ -2033,9 +1997,6 @@ func tonics_left(slot: int) -> int:
 func use_blocked_reason(uid: int, slot: int) -> String:
 	if can_use_item(uid, slot):
 		return ""
-	var e := backpack.entry(uid)
-	if not e.is_empty() and (e.item as ItemData).effect == ItemData.Effect.MAX_HP_ONE and slot >= 0 and slot < hp.size():
-		return "%s has drunk all %d Tonics they can." % [data.party[slot].display_name, tuning.tonic_max_per_hero]
 	return "It cannot be used on them."
 
 
@@ -2043,120 +2004,54 @@ func use_blocked_reason(uid: int, slot: int) -> String:
 func use_item(uid: int, slot: int) -> bool:
 	if not can_use_item(uid, slot):
 		return false
-	var amount := entry_amount(backpack.entry(uid))
-	apply_item(backpack.remove(uid), slot, amount)
+	apply_item(backpack.remove(uid), slot)
 	return true
 
 
-## What an item does when used outside a fight (`amount`: its effect percent, -1 for the item's own).
-func apply_item(item: ItemData, slot: int, amount: int = -1) -> void:
-	var pct := item.amount_percent if amount < 0 else amount
+## What an item does when used outside a fight, at its own amount (no levels since card #332).
+func apply_item(item: ItemData, slot: int) -> void:
 	match item.effect:
 		ItemData.Effect.HEAL_ONE:
-			heal(slot, CombatMath.percent(max_hp(slot), pct))
+			heal(slot, CombatMath.percent(max_hp(slot), item.amount_percent))
 		ItemData.Effect.HEAL_ALL:
 			for s: int in hp.size():
-				heal(s, CombatMath.percent(max_hp(s), pct))
-		ItemData.Effect.MAX_HP_ONE:
-			var before := max_hp(slot)
-			max_hp_percent[slot] += item.amount_percent
-			tonics_used[slot] += 1
-			heal(slot, max_hp(slot) - before, false)
+				heal(s, CombatMath.percent(max_hp(s), item.amount_percent))
 
 
-# --- levels, rot and combining (DESIGN.md 8.1) --------------------------------------------------
+# --- curses (DESIGN.md 8.1, card #332) ---------------------------------------------------------
 
-## A placed item's level (0, higher once combined).
-static func level_of(e: Dictionary) -> int:
-	return int(e.get("level", 0))
-
-
-## A placed item's effect percent: its own, stronger by tuning.combine_bonus_percent per level.
-func entry_amount(e: Dictionary) -> int:
-	# A Tonic's max HP never grows with levels (card #198): that would get round tonic_max_per_hero.
-	if (e.item as ItemData).effect == ItemData.Effect.MAX_HP_ONE:
-		return (e.item as ItemData).amount_percent
-	return CombatMath.percent((e.item as ItemData).amount_percent, 100 + level_of(e) * tuning.combine_bonus_percent)
+## Puts curse `item` on the party (card #332: never in the pack). False if it is not a curse this
+## run knows (an unknown id could not be saved or sent).
+func add_curse(item: ItemData) -> bool:
+	if item == null or not item.is_curse() or not items_by_id().has(item.id):
+		if item != null:
+			push_warning("RunState: %s is not a curse of this run's items" % item.id)
+		return false
+	curses.append(item.id)
+	return true
 
 
-## A placed item's name: "Salve", "Salve+", "Salve++".
-static func entry_name(e: Dictionary) -> String:
-	return (e.item as ItemData).display_name + "+".repeat(level_of(e))
+## The curses on the party as items, in the order taken.
+func curse_items() -> Array[ItemData]:
+	var by_id := items_by_id()
+	var found: Array[ItemData] = []
+	for id: String in curses:
+		if by_id.has(id):
+			found.append(by_id[id] as ItemData)
+	return found
 
 
-## A placed item's rarity: its own, one step up per level (never past legendary).
-static func entry_rarity(e: Dictionary) -> int:
-	return mini(int((e.item as ItemData).rarity) + level_of(e), ItemData.Rarity.LEGENDARY)
-
-
-## A placed item's price: its own, higher by tuning.combine_bonus_percent per level.
-func entry_price(e: Dictionary) -> int:
-	return CombatMath.percent((e.item as ItemData).price, 100 + level_of(e) * tuning.combine_bonus_percent)
-
-
-## The HP percent every hero loses each turn in a fight from the curses (rotten items) carried.
+## The HP percent every hero loses each turn in a fight from the party's curses.
 func rot_percent() -> int:
 	var total := 0
-	if backpack == null:
-		return total
-	for e: Dictionary in backpack.entries:
-		if (e.item as ItemData).rotten:
-			total += (e.item as ItemData).rot_percent
+	for item: ItemData in curse_items():
+		total += item.rot_percent
 	return total
-
-
-## True if item `uid` can be combined into item `into`: two of the same item at the same level,
-## a kind that combines, and not past legendary.
-func can_combine(uid: int, into: int) -> bool:
-	if uid == into:
-		return false
-	var a := backpack.entry(uid)
-	var b := backpack.entry(into)
-	if a.is_empty() or b.is_empty():
-		return false
-	return _combines(a.item as ItemData, level_of(a), b)
-
-
-func _combines(item: ItemData, item_level: int, target: Dictionary) -> bool:
-	return item == target.item and item.combinable() and item_level == level_of(target) \
-			and entry_rarity(target) < ItemData.Rarity.LEGENDARY
-
-
-## Combines item `uid` into item `into`: `into` goes up a level, `uid` is gone.
-func combine(uid: int, into: int) -> bool:
-	if not can_combine(uid, into):
-		return false
-	backpack.remove(uid)
-	backpack.entry(into).level = level_of(backpack.entry(into)) + 1
-	_clamp_hp()
-	return true
-
-
-## Combines a new item (not in the backpack yet, level 0) into item `into`.
-func combine_new(item: ItemData, into: int) -> bool:
-	var target := backpack.entry(into)
-	if target.is_empty() or not _combines(item, 0, target):
-		return false
-	target.level = level_of(target) + 1
-	_clamp_hp()
-	return true
-
-
-## Applies an upgrade the moment the party gets it (a Bigger Pack: one more pocket). False if it
-## does nothing (not an upgrade, or the pack is already as big as it gets).
-func take_upgrade(item: ItemData) -> bool:
-	if item == null or item.kind != ItemData.Kind.UPGRADE:
-		return false
-	if item.effect == ItemData.Effect.ADD_ROW and backpack.width < tuning.backpack_max_pockets:
-		backpack.width += 1
-		return true
-	return false
 
 
 ## A backpack or gear change as plain data, from any player (online, clients send these to the
 ## host, which applies them in the order they arrive: DESIGN.md 8.1). Ops:
 ## {op: "move", uid, x, y, turn}, {op: "drop", uid}, {op: "use", uid, slot}, {op: "sell", uid},
-## {op: "combine", uid, into},
 ## {op: "give", slot, relic: id} (a Relic the run has that waits for a hero, DESIGN.md 8.24),
 ## {op: "attributes", slot, values: [Attributes.COUNT ints]},
 ## {op: "unlock", slot, ability}, {op: "loadout", slot, abilities: [ids]}.
@@ -2179,8 +2074,6 @@ func apply_op(op: Dictionary) -> bool:
 			return ints.call(["uid", "slot"]) and use_item(int(op.uid), int(op.slot))
 		"sell":
 			return ints.call(["uid"]) and sell_item(int(op.uid)) >= 0
-		"combine":
-			return ints.call(["uid", "into"]) and combine(int(op.uid), int(op.into))
 		"attributes":
 			return ints.call(["slot"]) and set_attributes(int(op.slot), op.get("values"))
 		"unlock":
@@ -2201,7 +2094,7 @@ func sell_item(uid: int) -> int:
 	var e := backpack.entry(uid)
 	if e.is_empty() or (e.item as ItemData).rotten:
 		return -1
-	var gained := sell_price(entry_price(e))
+	var gained := sell_price((e.item as ItemData).price)
 	backpack.remove(uid)
 	gold += gained
 	_clamp_hp()
@@ -2210,8 +2103,9 @@ func sell_item(uid: int) -> int:
 
 ## True if the party can pay for an event choice's or a pact's deal. HP prices can always be paid (a
 ## hero never drops below 1 HP for one); an event's deal (`scale` is its gold and XP percent, see
-## event_scale) also needs a hero who can still lose max HP, something in the backpack to lose, and
-## room for a curse. A deal that asks for a pick is checked again when it is taken.
+## event_scale) also needs a hero who can still lose max HP and something in the backpack to lose (a
+## curse needs no room: it sits on the party, card #332). A deal that asks for a pick is checked
+## again when it is taken.
 func can_take_offer(offer: ZoneOfferData, scale: int = 100) -> bool:
 	if offer == null or gold < CombatMath.percent(offer.cost_gold, scale):
 		return false
@@ -2221,9 +2115,7 @@ func can_take_offer(offer: ZoneOfferData, scale: int = 100) -> bool:
 			anyone = anyone or hero_can_lose_max_hp(slot)
 		if not anyone:
 			return false
-	if offer.cost_item != ZoneOfferData.ItemCost.NONE and losable_uids().is_empty():
-		return false
-	return offer.cost_rotten == null or not backpack.find_spot(offer.cost_rotten).is_empty()
+	return offer.cost_item == ZoneOfferData.ItemCost.NONE or not losable_uids().is_empty()
 
 
 ## Takes deal `index` of the event at stop `stop_id` (DESIGN.md 8.7): pays its price and
@@ -2250,11 +2142,8 @@ func take_offer(offer: ZoneOfferData, stop_id: int, index: int, scale: int = 100
 		parts.append(_take_max_hp(offer, pick, rng))
 	if offer.cost_item != ZoneOfferData.ItemCost.NONE:
 		parts.append(_take_item(offer, pick, rng))
-	if offer.cost_rotten != null:
-		if add_item(offer.cost_rotten) >= 0:
-			parts.append("The %s settles in your pack" % offer.cost_rotten.display_name)
-		else:
-			parts.append("The %s finds no room and rots away" % offer.cost_rotten.display_name)
+	if offer.cost_rotten != null and add_curse(offer.cost_rotten):
+		parts.append("Cursed: %s" % offer.cost_rotten.display_name)
 	if offer.ambush != null and not in_ambush():
 		_set_ambush(offer.ambush, offer.ambush_spoils)
 		parts.append("An ambush!")
@@ -2333,7 +2222,7 @@ func _take_item(offer: ZoneOfferData, pick: int, rng: CombatRng) -> String:
 		return "There was nothing in the pack to lose"
 	var uid: int = pick if offer.cost_item == ZoneOfferData.ItemCost.CHOSEN and able.has(pick) \
 			else able[rng.range_int(0, able.size() - 1)]
-	var label := entry_name(backpack.entry(uid))
+	var label := (backpack.entry(uid).item as ItemData).display_name
 	backpack.remove(uid)
 	_clamp_hp()
 	return "Lost: %s" % label

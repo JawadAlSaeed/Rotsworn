@@ -317,7 +317,7 @@ func test_a_choice_the_screen_cannot_take_is_refused() -> void:
 	add_child_autofree(rest)
 	rest.setup(run)
 	assert_eq(_main.call("_make_choice", rest, {"do": "watch"}), "", "Keep watch is the boss fire's")
-	assert_eq(_main.call("_make_choice", rest, {"do": "upgrade", "uid": 999}), "", "no such item")
+	assert_eq(_main.call("_make_choice", rest, {"do": "upgrade", "uid": 1}), "", "no Upgrade at the fire (card #332)")
 	assert_eq(_main.call("_make_choice", rest, {"do": "rest"}), "rest")
 	assert_true(rest.has_acted())
 	assert_eq(_main.call("_make_choice", rest, {"do": "train"}), "", "once per campfire")
@@ -622,6 +622,42 @@ func test_a_placing_counts_only_for_the_find_handed_out_now() -> void:
 	assert_eq(main.get("_gift_peer"), 0, "nobody holds it now")
 	assert_eq(_main.call("_numbered_placing", leave, 4), {"op": BagTab.HAND_OUT, "to": "leave", "gift": 4})
 	assert_false(_main.call("_placing_counts", PEER_A, {"gift": 2}, PEER_A, 2, PEER_B), "the turn moved on")
+
+
+func test_the_host_lifts_the_curse_a_friend_names_in_a_shop() -> void:
+	# Card #332: Cleanse names a curse by its place on the party; the host checks it and the gold.
+	var run := _run()
+	run.go(run.choices()[0])
+	run.add_curse(_item(run, "rotting_heart"))
+	run.add_curse(_item(run, "grave_moss"))
+	var shop := ShopScreen.new()
+	add_child_autofree(shop)
+	shop.setup(run, run.shop_gear(run.at))
+	run.gold = run.cleanse_price() - 1
+	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 0}), "", "short of gold")
+	run.gold = run.cleanse_price()
+	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 2}), "", "no such curse")
+	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "uid": 1}), "", "an old ask by item")
+	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 1}), "cleanse 1")
+	assert_eq(run.curses, ["rotting_heart"] as Array[String], "the Grave Moss is lifted")
+	assert_eq(run.gold, 0)
+	assert_eq(_main.call("_make_choice", shop, {"do": "upgrade", "uid": 1}), "", "no Upgrade in the shop (card #332)")
+
+
+func test_the_bot_lifts_each_curse_it_can_pay_for_once() -> void:
+	var run := _run()
+	assert_false(_main.call("_bot_cleanses", run, 0, 0), "no curse")
+	run.add_curse(_item(run, "rotting_heart"))
+	run.add_curse(_item(run, "grave_moss"))
+	run.gold = run.cleanse_price() * 2
+	assert_true(_main.call("_bot_cleanses", run, 0, 2), "a curse and the gold")
+	assert_true(_main.call("_bot_cleanses", run, 1, 2), "the second")
+	assert_false(_main.call("_bot_cleanses", run, 2, 2), "asked for both already (a friend's copy may lag)")
+	run.gold = run.cleanse_price() - 1
+	assert_false(_main.call("_bot_cleanses", run, 0, 2), "short of gold")
+	assert_false(_main.call("_bot_cleanses", null, 0, 2))
+	assert_string_contains(_body("func _autoplay_shop("), "while _bot_cleanses(_run, lifted, to_lift):",
+			"the shop bot lifts curses before it buys")
 
 
 func test_a_friends_bot_buys_from_each_shelf_once_per_shop_turn() -> void:

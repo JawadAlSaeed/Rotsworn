@@ -287,7 +287,6 @@ func test_shops_charge_more_from_oath_two_but_pay_the_same_for_selling() -> void
 	assert_false(want.restock(), "the plain price is not enough")
 	want.gold = want.restock_price()
 	assert_true(want.restock())
-	assert_eq(want.upgrade_price(), CombatMath.percent(_tuning.shop_upgrade_price, 115))
 	assert_eq(want.cleanse_price(), CombatMath.percent(_tuning.shop_cleanse_price, 115))
 
 

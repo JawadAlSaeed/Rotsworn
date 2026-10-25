@@ -5,7 +5,6 @@ icon chips instead of a sentence.
 Card pictures, 24x24, drawn at 4x on a card (96 px), outlined in the game's ink:
 - ui/choice_rest.png: a big red heart (the campfire's Rest: everyone heals).
 - ui/choice_train.png: a chunky gold arrow pointing up (Train: attribute points).
-- ui/choice_upgrade.png: a hammer over an anvil, a spark flying (Upgrade: an item goes up a level).
 - ui/choice_watch.png: an open eye with an amber iris (Keep watch: the team gauge is full).
 - ui/choice_sharpen.png: a blade drawn across a whetstone, sparks off the edge (Sharpen: more AP).
 - ui/choice_host.png: a stone beacon with a fire on top, calls going out both ways (Host Online).
@@ -35,7 +34,6 @@ CARD = 24
 CHIP = 12
 
 GOLD = M["gold"].colors
-IRON = M["iron"].colors
 STONE = M["stone"].colors
 WOOD = M["wood"].colors
 DARKWOOD = M["wood_dark"].colors
@@ -118,39 +116,6 @@ def make_train() -> np.ndarray:
         "........................",
         "........................",
     ], {"W": GOLD[4], "L": GOLD[3], "M": GOLD[2], "d": GOLD[1]})
-
-
-def make_upgrade() -> np.ndarray:
-    """A hammer raised over an anvil, a spark flying from the anvil's face: the item goes up a
-    level. The anvil is iron with a lit top face and a horn to the left; the hammer has an iron
-    head and a wooden handle."""
-    return _ascii(CARD, [
-        "........................",
-        "..........HHHHHHH.......",
-        "..........HhhhhhhK......",
-        "..........HhhhhhhK......",
-        "..........kkkkkkkk......",
-        ".............WW.........",
-        "............WWw.........",
-        "...a.......WWw..........",
-        "....a.....WWw...........",
-        "..a......WWw............",
-        ".....a..WWw.............",
-        "...a....ww..............",
-        "........................",
-        "TTTTTTTTTTTTTTTTTTTT....",
-        ".tttIIIIIIIIIIIIIIIi....",
-        "...tIIIIIIIIIIIIIIIi....",
-        "......IIIIIIIIIIIii.....",
-        ".......iIIIIIIIii.......",
-        "........IIIIIIIi........",
-        "......IIIIIIIIIIii......",
-        ".....IIIIIIIIIIIIii.....",
-        ".....iiiiiiiiiiiiii.....",
-        "........................",
-        "........................",
-    ], {"H": IRON[4], "h": IRON[3], "K": IRON[2], "k": IRON[1], "W": WOOD[3], "w": WOOD[1],
-        "T": IRON[4], "t": IRON[3], "I": IRON[2], "i": IRON[1], "a": AMBER[3]})
 
 
 def make_watch() -> np.ndarray:
@@ -448,7 +413,7 @@ def make_relic() -> np.ndarray:
 
 
 CARDS = {
-    "choice_rest": make_rest, "choice_train": make_train, "choice_upgrade": make_upgrade,
+    "choice_rest": make_rest, "choice_train": make_train,
     "choice_watch": make_watch, "choice_sharpen": make_sharpen, "choice_host": make_host,
     "choice_join": make_join,
 }

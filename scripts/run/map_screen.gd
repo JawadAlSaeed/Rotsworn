@@ -8,7 +8,7 @@ extends CanvasLayer
 ## party_menu the party screen. Confirm, cancel or party_menu pressed while the map opens only
 ## finishes the opening.
 ## Phase 22: under the map, the picked stop's picture and name and 2 or 3 icon chips (detail_chips:
-## a Fight stop's foes and gold; a campfire's heal, train and upgrade, or keep watch and
+## a Fight stop's foes and gold; a campfire's heal and train, or keep watch and
 ## sharpen in the row before the boss; ...), never a rules
 ## sentence (the Glossary's "The map" topic has them). icon_chip() is shared by the run's info screens.
 ## Card #294: the legend down the left is small and dim (each kind's picture with its word), so the
@@ -336,7 +336,6 @@ static func detail_chips(run: RunState, stop: Dictionary, look: MapVisuals, gold
 				chips.append(_chip_data(look.ap_icon_path, "+%d AP" % run.tuning.sharpen_ap, HudStyle.TEXT))
 			else:
 				chips.append(_chip_data(&"up", "Train", HudStyle.TEXT))
-				chips.append(_chip_data(look.upgrade_icon_path, "Upgrade", HudStyle.TEXT))
 		RunMap.StopType.SHOP:
 			chips.append(_chip_data(&"gem", "Relics", HudStyle.TEXT))
 			chips.append(_chip_data(&"bag", "Items", HudStyle.TEXT))
@@ -368,7 +367,7 @@ static func detail_chips(run: RunState, stop: Dictionary, look: MapVisuals, gold
 
 ## True when `stop` is in the campfire row before the act's boss (card #287): the top all-campfire
 ## row, as RunState.is_watch_fire() finds it for the stop the party stands on. Those campfires offer
-## Rest, Keep watch and Sharpen, not Train and Upgrade.
+## Rest, Keep watch and Sharpen, not Train.
 static func is_watch_row(run: RunState, stop: Dictionary) -> bool:
 	if int(stop.get("type", -1)) != RunMap.StopType.REST:
 		return false

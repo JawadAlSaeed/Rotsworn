@@ -80,7 +80,7 @@ static func pick_for(run: RunState, offer: ZoneOfferData) -> int:
 			var cheapest := -1
 			var cheapest_price := 1 << 30
 			for uid: int in run.losable_uids():
-				var price := run.entry_price(run.backpack.entry(uid))
+				var price := (run.backpack.entry(uid).item as ItemData).price
 				if price < cheapest_price:
 					cheapest = uid
 					cheapest_price = price

@@ -229,29 +229,21 @@ func test_the_plain_chest_is_rare_and_pays_gold() -> void:
 
 # --- shop services and the campfire ---------------------------------------------------------------
 
-func _with(run: RunState, id: String) -> int:
-	var item := run.items_by_id()[id] as ItemData
-	return run.add_item(item)
-
-
 func test_shop_services() -> void:
 	var run := _run()
 	run.gold = 500
-	var rotten := ""
+	var rotten: ItemData = null
 	for item: ItemData in _data.found_items:
 		if item.rotten:
-			rotten = item.id
-	if not rotten.is_empty():
-		var uid := _with(run, rotten)
-		assert_true(run.rotten_uids().has(uid))
-		assert_true(run.cleanse(uid))
-		assert_false(run.backpack.has_uid(uid))
-	var salve := _with(run, "salve")
-	assert_true(run.can_upgrade(salve))
+			rotten = item
+	assert_not_null(rotten, "the run has a curse")
+	assert_eq(run.add_item(rotten), 0, "on the party")
 	var gold := run.gold
-	assert_true(run.upgrade_item(salve, _tuning.shop_upgrade_price))
-	assert_eq(RunState.level_of(run.backpack.entry(salve)), 1)
-	assert_eq(run.gold, gold - _tuning.shop_upgrade_price)
+	assert_true(run.cleanse(0), "Cleanse lifts it")
+	assert_true(run.curses.is_empty())
+	assert_eq(run.gold, gold - run.cleanse_price())
+	assert_false(run.cleanse(0), "nothing left to lift")
+	assert_false(run.has_method("upgrade_item"), "no Upgrade since card #332")
 	run.go(run.choices()[0])
 	var before := str(run.shop_stock(run.at)) + str(run.shop_gear(run.at))
 	assert_true(run.restock())

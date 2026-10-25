@@ -31,7 +31,6 @@ const PATH := "res://data/presentation/stop_visuals.tres"
 ## the campfire's choices, and Host and Join on the main menu's Online page.
 @export_file("*.png") var rest_icon_path: String = "res://assets/sprites/ui/choice_rest.png"
 @export_file("*.png") var train_icon_path: String = "res://assets/sprites/ui/choice_train.png"
-@export_file("*.png") var upgrade_icon_path: String = "res://assets/sprites/ui/choice_upgrade.png"
 @export_file("*.png") var watch_icon_path: String = "res://assets/sprites/ui/choice_watch.png"
 @export_file("*.png") var sharpen_icon_path: String = "res://assets/sprites/ui/choice_sharpen.png"
 @export_file("*.png") var host_icon_path: String = "res://assets/sprites/ui/choice_host.png"

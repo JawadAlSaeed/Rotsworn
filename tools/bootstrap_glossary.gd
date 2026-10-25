@@ -6,6 +6,7 @@ extends SceneTree
 ## Rewrites the whole file: after the first run, edit the .tres (or this list) by hand, not both.
 ## Since phase 21 the .tres is edited by hand (Relics, the pack and phase 26's Fight stop and the
 ## guard at Elite stops are only there), so this list is older than the book: do not re-run it.
+## (Card #332 took the Tonic, Combine and the shop's Upgrade out of both.)
 ## Run: Godot --headless --path . -s tools/bootstrap_glossary.gd
 
 const PATH := "res://data/glossary/glossary.tres"
@@ -213,7 +214,7 @@ func _map() -> void:
 			"", UI + "map_event.png")
 	_e("map", "stop_treasure", "Treasure stop", "A gold-banded chest. Open it for some gold and a prize: a piece of gear or an item.",
 			"", UI + "map_treasure.png")
-	_e("map", "stop_rest", "Campfire stop", "A fire to gather round. Pick one thing: Rest, Train or Upgrade.",
+	_e("map", "stop_rest", "Campfire stop", "A fire to gather round. Pick one thing: Rest or Train.",
 			"", UI + "map_rest.png")
 	_e("map", "stop_shop", "Shop stop", "The Rag Merchant sells items, charms and gear, and buys what your backpack holds.",
 			"", UI + "map_shop.png")
@@ -238,24 +239,20 @@ func _gear() -> void:
 	_e("gear", "rot_touched", "Rot-touched gear", "Strong gear with a price: a clear gain and a clear loss, written in plain words. Spoils from elites and bosses offer one. Take it with open eyes.",
 			"rot-touched", "", GearData.ROT_TOUCHED_COLOR)
 	_e("gear", "backpack", "Backpack", "A grid that holds consumables, charms and treasure. Items have shapes you can turn, so where they sit matters. Open it from the party screen.",
-			"", ITEMS + "bigger_pack.png")
+			"", UI + "chip_bag.png")
 	_e("gear", "charm", "Charm", "Works just by sitting in the backpack, for the whole party. Charms belong to a family (Stone, Bone, Herb), and booster charms strengthen the family charms touching them.",
 			"", ITEMS + "ember_stone.png")
 	_e("gear", "rotten_item", "Rotten item", "A very strong charm with a price: every hero loses a little HP at the start of each turn in a fight. It cannot be sold. Cleanse at a shop throws one away.",
 			"", ITEMS + "rotting_heart.png", Color(0.55, 0.85, 0.3))
 	_e("gear", "consumable", "Consumable", "Used up. A Salve heals one hero, a Feast the party, a Bomb hurts every enemy, Smelling Salts lift a downed hero, an Antidote or Holy Water lifts marks. In a fight they cost AP.",
 			"", ITEMS + "salve.png")
-	_e("gear", "tonic", "Tonic", "Gives one hero more max HP for the rest of the run. A hero can drink only two, and Tonics cannot be combined or upgraded.",
-			"", ITEMS + "tonic.png")
 	_e("gear", "treasure", "Treasure", "Treasure (rings, gems, idols) does nothing but sell for gold, and it takes up room.")
-	_e("gear", "combine", "Combine", "Put an item onto the same item at the same level and it goes up a level (Salve+), with a stronger effect. Consumables and charms only.")
 
 
 func _shops() -> void:
 	_e("shops", "shop", "The Rag Merchant", "Sells items, charms and gear for gold, and buys backpack items for half their price. The shelves change at every shop.",
 			"", ENV + "shopkeeper.png")
-	_e("shops", "shop_cleanse", "Cleanse", "A shop service: throw away one rotten item for good.")
-	_e("shops", "shop_upgrade", "Upgrade", "Pay to raise one backpack item by a level. At a campfire the same upgrade is free, but it is your one choice there.")
+	_e("shops", "shop_cleanse", "Cleanse", "A shop service: lift one curse off the party for good.")
 	_e("shops", "shop_restock", "Restock", "Pay for fresh stock on the shelves. Each restock at the same shop costs more than the last.")
 	_e("shops", "camp_rest", "Rest", "Everyone heals half of their max HP. It works once, and it is the one choice you make at that fire.",
 			"", UI + "map_rest.png")

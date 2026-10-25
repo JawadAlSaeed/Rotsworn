@@ -15,7 +15,6 @@ frame_shadow = 16
 frame_shadow_alpha = 0.7
 rest_icon_path = "res://assets/sprites/ui/choice_rest.png"
 train_icon_path = "res://assets/sprites/ui/choice_train.png"
-upgrade_icon_path = "res://assets/sprites/ui/choice_upgrade.png"
 watch_icon_path = "res://assets/sprites/ui/choice_watch.png"
 sharpen_icon_path = "res://assets/sprites/ui/choice_sharpen.png"
 host_icon_path = "res://assets/sprites/ui/choice_host.png"

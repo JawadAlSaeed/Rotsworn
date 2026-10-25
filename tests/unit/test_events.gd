@@ -160,16 +160,17 @@ func test_losing_an_item_is_greyed_when_the_pack_is_empty() -> void:
 	assert_true(run.can_take_offer(offer))
 
 
-func test_rotten_items_are_never_lost_to_an_event() -> void:
+func test_a_curse_is_never_lost_to_an_event() -> void:
+	# Card #332: a curse sits on the party, so an event's "lose an item" can never take it.
 	var run := _run()
 	run.add_item(_item(run, "rotting_heart"))
 	var offer := _offer({"cost_item": ZoneOfferData.ItemCost.RANDOM})
 	assert_true(run.losable_uids().is_empty())
-	assert_false(run.can_take_offer(offer), "only rot in the pack: nothing to lose")
+	assert_false(run.can_take_offer(offer), "only a curse on the party, an empty pack: nothing to lose")
 	var salve := run.add_item(_item(run, "salve"))
 	assert_eq(run.losable_uids(), [salve] as Array[int])
 	run.take_offer(offer, 1, 0)
-	assert_eq(run.rotten_uids().size(), 1, "the rot stayed")
+	assert_eq(run.curses, ["rotting_heart"] as Array[String], "the curse stayed")
 	assert_false(run.backpack.has_uid(salve))
 
 
@@ -205,35 +206,38 @@ func test_a_chosen_item_is_the_one_lost() -> void:
 
 # --- a curse -------------------------------------------------------------------------------------------
 
-func test_a_curse_goes_into_the_pack_and_the_shop_cleanses_it() -> void:
+func test_a_curse_goes_on_the_party_and_the_shop_cleanses_it() -> void:
 	var run := _run()
 	var offer := _offer({"cost_rotten": _item(run, "grave_moss"), "gold": 50})
 	var got := run.take_offer(offer, 1, 0)
 	assert_true(bool(got.ok))
 	assert_eq(run.gold, 50)
-	assert_eq(run.rotten_uids().size(), 1, "the rotten item is in the backpack")
+	assert_eq(run.curses, ["grave_moss"] as Array[String], "the curse is on the party")
+	assert_eq(run.backpack.entries.size(), 0, "not in the pack")
 	assert_gt(run.rot_percent(), 0, "and it rots the party in fights")
 	assert_string_contains(String(got.text), "Grave Moss")
-	run.gold = _tuning.shop_cleanse_price
-	assert_true(run.cleanse(run.rotten_uids()[0]))
-	assert_true(run.rotten_uids().is_empty())
+	run.gold = run.cleanse_price()
+	assert_true(run.cleanse(0))
+	assert_true(run.curses.is_empty())
 
 
-func test_a_curse_is_greyed_when_it_has_no_room() -> void:
+func test_a_curse_needs_no_room() -> void:
+	# Card #332: a full pack no longer greys a curse price out (it never takes a pocket).
 	var run := _run()
 	var salve := _item(run, "salve")
 	while run.add_item(salve) >= 0:
 		pass
 	var moss := _item(run, "grave_moss")
 	var offer := _offer({"cost_rotten": moss, "gold": 50})
-	assert_false(run.can_take_offer(offer))
-	assert_false(bool(run.take_offer(offer, 1, 0).ok))
-	assert_eq(run.gold, 0)
-	# A risk is never refused: the curse that finds no room rots away instead.
+	assert_true(run.can_take_offer(offer))
+	var got := run.take_offer(offer, 1, 0)
+	assert_true(bool(got.ok))
+	assert_eq(run.gold, 50)
+	assert_eq(run.curses, ["grave_moss"] as Array[String])
+	assert_eq(run.backpack.free_cells(), 0, "the pack is as it was")
 	var forced := run.take_offer(offer, 1, 0, 100, -1, true)
-	assert_true(bool(forced.ok))
-	assert_string_contains(String(forced.text), "no room")
-	assert_true(run.rotten_uids().is_empty())
+	assert_true(bool(forced.ok), "a risk's curse too")
+	assert_eq(run.curses.size(), 2)
 
 
 # --- an ambush -----------------------------------------------------------------------------------------

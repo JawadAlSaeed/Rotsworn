@@ -1,7 +1,8 @@
 extends GutTest
 ## Rot-touched gear (card #198, DESIGN.md 8.16): strong pieces with a price. Each new passive's
 ## effect and drawback in the engine, the pieces' numbers on the run side, spoils that offer one,
-## shops that sell them rarely, the bot's pick, the Tonic fix, and determinism. Never touches the
+## shops that sell them rarely, the bot's pick, and determinism (the Tonic fix went with the Tonic,
+## card #332). Never touches the
 ## real user:// files.
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
@@ -473,48 +474,6 @@ func test_the_bot_leaves_rot_touched_gear_it_refuses_waiting() -> void:
 	assert_true(run.owns(_piece("rotten_crown")), "a Relic is kept, never sold (DESIGN.md 8.17)")
 	assert_eq(run.gold, gold)
 	assert_true(run.is_given(_piece("ash_veil")), "bearable: given")
-
-
-# --- the Tonic fix ------------------------------------------------------------------------------
-
-func test_tonics_cannot_be_upgraded_or_combined_so_the_cap_limits_max_hp() -> void:
-	var run := _run()
-	var tonic := run.items_by_id()["tonic"] as ItemData
-	assert_false(tonic.combinable(), "no stronger Tonic")
-	var a := run.add_item(tonic)
-	var b := run.add_item(tonic)
-	assert_false(run.can_upgrade(a))
-	assert_false(run.can_combine(a, b))
-	assert_false(run.upgrade_item(a))
-	assert_true((run.items_by_id()["salve"] as ItemData).combinable(), "other consumables still combine")
-
-
-func test_a_tonic_gives_the_same_max_hp_whatever_its_level() -> void:
-	var run := _run()
-	var tonic := run.items_by_id()["tonic"] as ItemData
-	var uid := run.add_item(tonic)
-	# An old save can hold a levelled Tonic: it must not give more.
-	run.backpack.entry(uid).level = 2
-	assert_eq(run.entry_amount(run.backpack.entry(uid)), tonic.amount_percent)
-	var before := run.max_hp_percent[0]
-	assert_true(run.use_item(uid, 0))
-	assert_eq(run.max_hp_percent[0], before + tonic.amount_percent)
-	var second := run.add_item(tonic)
-	run.backpack.entry(second).level = 3
-	assert_true(run.use_item(second, 0))
-	assert_eq(run.max_hp_percent[0], before + 2 * tonic.amount_percent, "two Tonics, two plain gains")
-	var third := run.add_item(tonic)
-	assert_false(run.use_item(third, 0), "the cap still holds")
-
-
-func test_a_tonic_heals_its_new_hp_whatever_the_wearer_gear_says() -> void:
-	var run := _run()
-	run.give_relic(_piece("rotten_crown"), 0)
-	var tonic := run.items_by_id()["tonic"] as ItemData
-	var before_max := run.max_hp(0)
-	var before_hp := run.hp[0]
-	assert_true(run.use_item(run.add_item(tonic), 0))
-	assert_eq(run.hp[0] - before_hp, run.max_hp(0) - before_max, "the new HP is filled in full")
 
 
 # --- saving -------------------------------------------------------------------------------------

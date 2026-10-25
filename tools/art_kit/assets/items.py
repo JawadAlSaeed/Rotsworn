@@ -6,7 +6,6 @@ over the item's cells with nearest filtering and turns it with the item. Icons a
 pixel grids (fully opaque or clear) with the kit's dark ink outline, lit from the upper left.
 
 - salve.png (1x1): a clay pot of green ointment with a wooden lid.
-- tonic.png (1x2): a tall corked bottle of red tonic.
 - feast.png (2x1): a long loaf of bread with a roast leg lying on it.
 - bomb.png (1x1): a round iron bomb with a lit fuse.
 - smelling_salts.png (1x1): a small stoppered vial of glowing green salts.
@@ -17,13 +16,13 @@ pixel grids (fully opaque or clear) with the kit's dark ink outline, lit from th
   herbs). Rotten: rotting_heart (1x1), grave_moss (2x1), sickly green and violet.
 - antidote.png (1x1): a slim corked vial of teal antidote with a leaf at its neck (phase 19).
 - holy_water.png (1x1): a round flask of glowing pale holy water, gold stopper and band (phase 19).
-- bigger_pack.png (1x1): a small rolled-up backpack (adds a row the moment you get it).
 - env/chest_closed.png, env/chest_open.png: the treasure stop's chest (DESIGN.md 8.8; it was the
   locked chest in a zone until phase 26, 8.22, which also took the Key and the glinting spot away).
-- ui/backpack_<rows>.png (5 to 7 rows): the party's open backpack seen from the front, drawn
-  behind the backpack grid at BACKPACK_SCALE. The grid's cells sit on the dark lining: each cell
-  is CELL art pixels with GAP between cells, the first cell's top-left at backpack_origin().
-  data/presentation/combat_visuals.tres holds the same numbers for the game.
+- ui/backpack_5.png: the party's open backpack seen from the front (its lining as tall as the old
+  grid's 5 rows), drawn behind the pack's pockets at BACKPACK_SCALE. The lining is COLS x 5 CELL
+  art pixels with GAP between cells, its top-left at backpack_origin(); since card #332 the game
+  sews its 4 pockets on it, two to a row. data/presentation/combat_visuals.tres holds the same
+  numbers for the game. (The 6 and 7 row versions went with the Bigger Pack, card #332.)
 """
 from __future__ import annotations
 
@@ -51,7 +50,6 @@ WOOD = M["wood"].colors
 CLAY = M["bone"].colors
 HERB = M["moss"].colors
 GLASS = M["blade"].colors
-RED = M["cloth_red"].colors
 BLANKET = M["cloth_red"].colors
 GOLD = M["gold"].colors
 CRUST = M["cloth_gold"].colors
@@ -150,36 +148,6 @@ def make_holy_water() -> np.ndarray:
         "................",
     ], {"K": GOLD[3], "k": GOLD[1], "N": GLASS[3], "n": GLASS[1], "W": GLASS[4],
         "L": HOLY[2], "l": HOLY[1], "H": HOLY[3]})
-
-
-def make_tonic() -> np.ndarray:
-    """A tall corked glass bottle of red tonic, the glass lit on the left edge."""
-    rows = [
-        "................",
-        "................",
-        "......CCCc......",
-        "......CCcc......",
-        "......NWNn......",
-        "......NRRn......",
-        "......NRRn......",
-        ".....NRRRRn.....",
-        "....NRRRRRRn....",
-        "...NWRRRRRRrn...",
-    ]
-    body = "..NWRRRRRRRRrn.."
-    band = "..NWbbbbbbbbrn.."
-    for i in range(16):
-        rows.append(band if i in (5, 6) else body)
-    rows += [
-        "...NRRRRRRRrn...",
-        "....nrrrrrrn....",
-        ".....nnnnnn.....",
-        "................",
-        "................",
-        "................",
-    ]
-    return _draw(16, 32, rows, {"C": WOOD[3], "c": WOOD[1], "N": GLASS[3], "n": GLASS[1], "W": GLASS[4],
-                                "R": RED[3], "r": RED[1], "b": CLAY[3]})
 
 
 def make_feast() -> np.ndarray:
@@ -537,20 +505,6 @@ def make_grave_moss() -> np.ndarray:
     return c.a
 
 
-def make_bigger_pack() -> np.ndarray:
-    """A small rolled-up spare backpack with a strap and buckle."""
-    c = Canvas(16, 16)
-    c.rect(3, 5, 12, 13, CANVAS[2])
-    c.rect(3, 5, 4, 13, CANVAS[3])
-    c.rect(11, 5, 12, 13, CANVAS[1])
-    c.rect(3, 3, 12, 5, BLANKET[2])
-    c.rect(3, 3, 12, 3, BLANKET[3])
-    c.rect(7, 5, 8, 11, LEATHER[1])
-    c.rect(6, 9, 9, 10, GOLD[2])
-    c.outline(INK)
-    return c.a
-
-
 def backpack_origin() -> tuple[int, int]:
     """The first grid cell's top-left in the backpack art (art pixels)."""
     return STRAP + WALL + PAD, ROLL + RIM + PAD
@@ -648,7 +602,7 @@ def make_backpack(rows: int) -> np.ndarray:
 
 
 def build(ctx) -> None:
-    for name, img in (("salve", make_salve()), ("tonic", make_tonic()), ("feast", make_feast()),
+    for name, img in (("salve", make_salve()), ("feast", make_feast()),
                       ("bomb", make_bomb()), ("smelling_salts", make_smelling_salts()),
                       ("silver_ring", make_silver_ring()), ("rot_gem", make_rot_gem()),
                       ("golden_idol", make_golden_idol()), ("ember_stone", make_ember_stone()),
@@ -657,10 +611,9 @@ def build(ctx) -> None:
                       ("bone_totem", make_bone_totem()), ("heartleaf", make_heartleaf()),
                       ("wake_root", make_wake_root()), ("rain_pouch", make_rain_pouch()),
                       ("rotting_heart", make_rotting_heart()), ("grave_moss", make_grave_moss()),
-                      ("bigger_pack", make_bigger_pack()), ("antidote", make_antidote()),
+                      ("antidote", make_antidote()),
                       ("holy_water", make_holy_water())):
         ctx.save("sprites/items/%s.png" % name, img, scale=8)
     ctx.save("sprites/env/chest_closed.png", make_chest(False), scale=8)
     ctx.save("sprites/env/chest_open.png", make_chest(True), scale=8)
-    for rows in (5, 6, 7):
-        ctx.save("sprites/ui/backpack_%d.png" % rows, make_backpack(rows), scale=4)
+    ctx.save("sprites/ui/backpack_5.png", make_backpack(5), scale=4)

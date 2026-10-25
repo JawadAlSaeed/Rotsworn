@@ -41,11 +41,11 @@ enum Pick { NONE, HERO, ITEM }
 ## greyed out when every hero is already at the floor.
 @export_range(0, 100, 1, "suffix:%") var cost_max_hp_percent: int = 0
 @export var cost_max_hp_target: HpTarget = HpTarget.EVERYONE
-## A backpack item is lost (never a rotten one: nobody misses those). Greyed out while the
-## backpack has nothing to lose.
+## A backpack item is lost. Greyed out while the backpack has nothing to lose.
 @export var cost_item: ItemCost = ItemCost.NONE
-## A curse: this rotten item (rotting_heart, grave_moss) goes into the backpack at once, where
-## only the shop's Cleanse (or throwing it away) removes it. Greyed out while it does not fit.
+## A curse: this rotten item (rotting_heart, grave_moss) goes on the party at once (RunState.curses,
+## card #332: never in the pack), where only the shop's Cleanse removes it. Never greyed: it needs no
+## room.
 @export var cost_rotten: ItemData
 
 @export_group("Fight (events)")

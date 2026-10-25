@@ -1,13 +1,12 @@
 class_name BagTab
 extends PartyTab
 ## The Y screen's Bag tab (DESIGN.md 8.1, 8.18, 8.19): Alder's pack in the middle, its pockets
-## sewn on the lining (one item each, card #282), the heroes as small faces with their HP on the
-## left (who an item is used on), and on the right how many pockets are free, the curses, and the
-## item menu. Confirm on an item opens Use / Combine (with another of the same) / Sell (in a shop)
-## / Throw away; Use on one hero moves the cursor to the faces to pick who. The screen can open
-## with a new item in hand (a find with no free pocket): Confirm puts it in a free pocket, combines
-## it with the same item, or swaps it for the item in that pocket (asked first: the old one is
-## thrown away); Back leaves it behind (asked first).
+## sewn on the lining (one consumable each, cards #282, #332), the heroes as small faces with their
+## HP on the left (who an item is used on), and on the right how many pockets are free and the item
+## menu. Confirm on an item opens Use / Sell (in a shop) / Throw away; Use on one hero moves the
+## cursor to the faces to pick who. The screen can open with a new item in hand (a find with no free
+## pocket): Confirm puts it in a free pocket or swaps it for the item in that pocket (asked first:
+## the old one is thrown away); Back leaves it behind (asked first). No combining since card #332.
 ## What used to be sentences in a note line are now toasts: an icon and a word or two.
 
 ## A new item in hand was left behind (it is not in the backpack).
@@ -18,8 +17,8 @@ signal sold
 signal settled
 
 ## Online (card #314): the op a friend's backpack sends for a new item the host handed them (a find
-## with no room, made on their turn): {"op": HAND_OUT, "to": "pocket" | "combine" | "swap" | "fit" |
-## "leave", "pocket": x, "uid": the item combined into or swapped out}; Main adds the find's number
+## with no room, made on their turn): {"op": HAND_OUT, "to": "pocket" | "swap" | "fit" | "leave",
+## "pocket": x, "uid": the item swapped out}; Main adds the find's number
 ## ("gift") on the way out. The host applies it with place_new().
 const HAND_OUT := "hand_out"
 ## What place_new() did.
@@ -45,14 +44,14 @@ const GREYED_ALPHA: float = 0.45
 var shop_mode: bool = false
 ## Choosing who gets an item (its uid; -1: not choosing): the cursor is on the faces.
 var _use_uid: int = -1
-## A new item in hand: {} or {item: ItemData, uid: -1, level: int}.
+## A new item in hand: {} or {item: ItemData, uid: -1}.
 var _held: Dictionary = {}
 var _warning: String = ""
 var _grid: BackpackGrid
 var _faces_box: Control
 var _side_box: Control
 var _menu: ListMenu
-## Choices of the open item menu: "use", "combine", "sell", "drop" (cancel closes it: no Cancel row).
+## Choices of the open item menu: "use", "sell", "drop" (cancel closes it: no Cancel row).
 var _menu_choices: Array[String] = []
 var _prompt: ConfirmPrompt
 ## The frame a prompt was answered in: a second press in that frame (another pad) is dropped.
@@ -70,7 +69,7 @@ func setup(p_run: RunState, p_remote: bool) -> void:
 	add_child(_faces_box)
 	_grid = BackpackGrid.new()
 	add_child(_grid)
-	_grid.setup(run.backpack, _visuals(), run.tuning.backpack_max_pockets)
+	_grid.setup(run.backpack, _visuals())
 	_place_grid()
 	_side_box = Control.new()
 	_side_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -91,7 +90,7 @@ func refresh() -> void:
 		_use_uid = -1
 	if _menu.visible and not run.backpack.has_uid(int(_menu.get_meta("uid", -1))):
 		_menu.visible = false
-	_grid.setup(run.backpack, _visuals(), run.tuning.backpack_max_pockets)
+	_grid.setup(run.backpack, _visuals())
 	_place_grid()
 	_clamp_cursor()
 	_redraw()
@@ -104,7 +103,7 @@ func shown() -> void:
 ## A new item is in hand (a find that did not fit, a swap, loot). `refund`: a shop purchase,
 ## whose gold comes back if it is left.
 func hold_new(item: ItemData, refund: bool = false) -> void:
-	_held = {"item": item, "uid": -1, "level": 0}
+	_held = {"item": item, "uid": -1}
 	_refund_item = item if refund else null
 	_grid.cursor = 0
 	_clamp_cursor()
@@ -188,7 +187,7 @@ func hints() -> Array:
 	if _menu.visible:
 		return [[&"@updown", ""], [&"menu_confirm", "Select"], [&"menu_cancel", "Back"]]
 	if not _held.is_empty():
-		var put := "Combine" if _combine_target() >= 0 else ("Put in" if _pocket_uid() < 0 else "Swap")
+		var put := "Put in" if _pocket_uid() < 0 else "Swap"
 		return [[&"@arrows", ""], [&"menu_confirm", put], [&"menu_cancel", "Leave it"]]
 	return [[&"@arrows", ""], [&"menu_confirm", "Choose"]]
 
@@ -205,37 +204,27 @@ func info() -> Dictionary:
 		var chips: Array = [[&"", "In hand", HudStyle.GOLD]]
 		if item == _refund_item:
 			chips.append([&"coin", "Refund", HudStyle.GOLD])
-		if _combine_target() >= 0:
-			chips.append([&"up", "Combine", HudStyle.GOLD])
-		elif _pocket_uid() >= 0:
-			chips.append([&"", "Swap: " + RunState.entry_name(run.backpack.entry(_pocket_uid())), HudStyle.HP_LOW])
+		if _pocket_uid() >= 0:
+			var swapped := run.backpack.entry(_pocket_uid()).item as ItemData
+			chips.append([&"", "Swap: " + swapped.display_name, HudStyle.HP_LOW])
 		else:
 			chips.append([&"bag", "Free", HudStyle.TEXT])
-		return {"icon": item, "title": item.display_name + "+".repeat(int(_held.get("level", 0))),
-				"color": _item_color(item, int(item.rarity)), "chips": chips, "line": item.description}
+		return {"icon": item, "title": item.display_name, "color": _item_color(item, int(item.rarity)), "chips": chips,
+				"line": item.description}
 	var uid := _pocket_uid()
 	if uid < 0:
 		var chips: Array = [[&"bag", "%d / %d" % [run.backpack.free_cells(), run.backpack.cell_count()], HudStyle.TEXT]]
-		var line := ""
-		if run.rot_percent() > 0:
-			chips.append([&"skull", "-%d%% HP" % run.rot_percent(), BackpackGrid.ROTTEN_COLOR])
-			line = "Curses hurt every hero each turn in fights. A shop's Cleanse throws one away."
-		return {"icon": &"bag", "title": "Pocket", "color": HudStyle.GOLD, "chips": chips, "line": line}
+		return {"icon": &"bag", "title": "Pocket", "color": HudStyle.GOLD, "chips": chips, "line": ""}
 	var placed := run.backpack.entry(uid)
 	var it := placed.item as ItemData
-	var rarity := RunState.entry_rarity(placed)
 	var item_chips: Array = []
-	if RunState.level_of(placed) > 0:
-		item_chips.append([&"up", "%d%%" % run.entry_amount(placed), HudStyle.GOLD])
 	if it.usable_on_map():
 		item_chips.append([&"", "Map", HudStyle.TEXT])
 	if it.usable_in_fight():
 		item_chips.append([&"", "Fight  %d AP" % it.ap_cost, HudStyle.AP_TEXT])
-	if it.rotten:
-		item_chips.append([&"skull", "Rotten", BackpackGrid.ROTTEN_COLOR])
-	elif it.price > 0:
-		item_chips.append([&"coin", str(run.sell_price(run.entry_price(placed))), HudStyle.GOLD])
-	return {"icon": it, "title": RunState.entry_name(placed), "color": _item_color(it, rarity), "chips": item_chips,
+	if it.price > 0:
+		item_chips.append([&"coin", str(run.sell_price(it.price)), HudStyle.GOLD])
+	return {"icon": it, "title": it.display_name, "color": _item_color(it, int(it.rarity)), "chips": item_chips,
 			"line": _warning if not _warning.is_empty() else it.description}
 
 
@@ -269,8 +258,8 @@ func _pocket_uid() -> int:
 	return run.backpack.uid_at(Vector2i(_grid.cursor, 0))
 
 
-## Confirm on a pocket: its item's menu; with a new item in hand, put it in, combine it, or swap
-## it for the item there (asked first: that one is thrown away).
+## Confirm on a pocket: its item's menu; with a new item in hand, put it in or swap it for the item
+## there (asked first: that one is thrown away).
 func _confirm_grid() -> void:
 	var at := _pocket_uid()
 	if _held.is_empty():
@@ -281,27 +270,17 @@ func _confirm_grid() -> void:
 		_open_menu(at)
 		return
 	var item := _held.item as ItemData
-	var level := int(_held.get("level", 0))
 	# Online, a find the host handed us (card #314): the host puts it where we chose.
 	var hand_out := remote and holding_new()
-	var into := _combine_target()
-	if into >= 0:
-		var name := RunState.entry_name(run.backpack.entry(into))
-		if hand_out:
-			ask({"op": HAND_OUT, "to": "combine", "uid": into})
-		else:
-			run.combine_new(item, into)
-		_settle(name + "+", "item_combine")
-		return
 	if at < 0:
 		if hand_out:
 			ask({"op": HAND_OUT, "to": "pocket", "pocket": _grid.cursor})
 		else:
-			run.place_item(item, _grid.cursor, 0, 0, level)
+			run.place_item(item, _grid.cursor)
 		_settle("Packed", "item_place")
 		return
 	var old := run.backpack.entry(at)
-	var old_name := RunState.entry_name(old)
+	var old_name := (old.item as ItemData).display_name
 	var pocket := _grid.cursor
 	_confirm_prompt("Swap the %s for the %s?" % [old_name, item.display_name], "The %s is thrown away." % old_name,
 			"Swap", "Keep it", func() -> void:
@@ -311,7 +290,7 @@ func _confirm_grid() -> void:
 					ask({"op": HAND_OUT, "to": "swap", "uid": at, "pocket": pocket})
 				else:
 					run.drop_item(at)
-					run.place_item(item, pocket, 0, 0, level)
+					run.place_item(item, pocket)
 				_settle("Swapped", "item_place"))
 
 
@@ -324,17 +303,14 @@ static func place_new(run: RunState, item: ItemData, op: Dictionary) -> String:
 	var uid := int(op.get("uid", -1))
 	var pocket := int(op.get("pocket", -1))
 	match String(op.get("to", "")):
-		"combine":
-			if run.backpack.has_uid(uid) and run.combine_new(item, uid):
-				return PLACED
 		"pocket":
 			if pocket >= 0 and pocket < run.backpack.width and run.backpack.uid_at(Vector2i(pocket, 0)) < 0 \
-					and run.place_item(item, pocket, 0, 0, 0) >= 0:
+					and run.place_item(item, pocket) >= 0:
 				return PLACED
 		"swap":
 			if run.backpack.has_uid(uid) and run.backpack.uid_at(Vector2i(pocket, 0)) == uid:
 				run.drop_item(uid)
-				if run.place_item(item, pocket, 0, 0, 0) >= 0:
+				if run.place_item(item, pocket) >= 0:
 					return PLACED
 				return PLACED if run.add_item(item) >= 0 else LEFT
 		"fit":
@@ -353,31 +329,6 @@ func _settle(word: String, sound: String) -> void:
 	_redraw()
 	changed.emit()
 	settled.emit()
-
-
-## The item the new one in hand would combine into if put down now (-1: none): the item in the
-## pocket under the cursor, the same item at the same level, that can still go up a level.
-func _combine_target() -> int:
-	if _held.is_empty():
-		return -1
-	var into := _pocket_uid()
-	if into < 0:
-		return -1
-	if int(_held.get("level", 0)) != RunState.level_of(run.backpack.entry(into)):
-		return -1
-	var target := run.backpack.entry(into)
-	var ok: bool = target.item == _held.item and (_held.item as ItemData).combinable() \
-			and RunState.entry_rarity(target) < ItemData.Rarity.LEGENDARY
-	return into if ok else -1
-
-
-## Another item in the pack that item `uid` can be combined with (-1: none): the same item at the
-## same level.
-func _combine_partner(uid: int) -> int:
-	for e: Dictionary in run.backpack.entries:
-		if int(e.uid) != uid and run.can_combine(int(e.uid), uid):
-			return int(e.uid)
-	return -1
 
 
 ## Back with a new item in hand: it is left behind (asked first).
@@ -407,12 +358,9 @@ func _open_menu(uid: int) -> void:
 	if item.usable_on_map():
 		_menu_choices.append("use")
 		items.append({"text": "Use"})
-	if _combine_partner(uid) >= 0:
-		_menu_choices.append("combine")
-		items.append({"text": "Combine", "value": RunState.entry_name(placed) + "+"})
 	if shop_mode and item.price > 0 and not item.rotten:
 		_menu_choices.append("sell")
-		items.append({"text": "Sell", "value": "+%d" % run.sell_price(run.entry_price(placed))})
+		items.append({"text": "Sell", "value": "+%d" % run.sell_price(item.price)})
 	_menu_choices.append("drop")
 	items.append({"text": "Throw away"})
 	_menu.index = 0
@@ -446,18 +394,12 @@ func _menu_input(event: InputEvent) -> void:
 					else:
 						_use_on(uid, -1)
 				"sell":
-					var gold := run.sell_price(run.entry_price(e))
+					var gold := run.sell_price(item.price)
 					ask({"op": "sell", "uid": uid})
 					if not remote:
 						sold.emit()
 					Sfx.play("gold_gain")
 					toast.emit("+%d" % gold, &"coin")
-				"combine":
-					var other := _combine_partner(uid)
-					if other >= 0:
-						ask({"op": "combine", "uid": other, "into": uid})
-						Sfx.play("item_combine")
-						toast.emit(RunState.entry_name(e) + "+", item)
 				"drop":
 					_confirm_prompt("Throw away the %s?" % item.display_name, "It is gone for good.", "Throw it away",
 							"Keep it", func() -> void:
@@ -509,7 +451,7 @@ func _target_input(event: InputEvent) -> bool:
 
 func _use_chosen() -> void:
 	if not remote and not run.can_use_item(_use_uid, hero):
-		# Stay on the faces: the strip says why this hero cannot (a capped Tonic).
+		# Stay on the faces: the strip says why this hero cannot.
 		Sfx.play("locked")
 		return
 	var uid := _use_uid
@@ -590,7 +532,6 @@ func _clamp_cursor() -> void:
 func _redraw() -> void:
 	if _grid == null:
 		return
-	_grid.combine_into = _combine_target()
 	_grid.show_cursor = not _menu.visible and _use_uid < 0
 	_grid.held_item = _held.item if not _held.is_empty() else null
 	_grid.queue_redraw()
@@ -649,9 +590,7 @@ func _draw_side() -> void:
 		y += 56.0
 
 
-## The side column: free pockets, and the curses' rot when there are any.
+## The side column: free pockets (the curses sit on the party, not in the pack: the run's strip
+## shows them, card #332).
 func _side_rows() -> Array:
-	var rows: Array = [[&"bag", "%d / %d" % [run.backpack.free_cells(), run.backpack.cell_count()], HudStyle.TEXT]]
-	if run.rot_percent() > 0:
-		rows.append([&"skull", "-%d%%" % run.rot_percent(), BackpackGrid.ROTTEN_COLOR])
-	return rows
+	return [[&"bag", "%d / %d" % [run.backpack.free_cells(), run.backpack.cell_count()], HudStyle.TEXT]]

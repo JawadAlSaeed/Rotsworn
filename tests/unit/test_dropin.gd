@@ -575,9 +575,10 @@ func test_a_crashed_friend_back_by_token_counts_as_late() -> void:
 
 
 ## Hosting is a run again (card #331, Net.PROTOCOL 8): "lobby", "again" and "run_start" carry no
-## mode and no records, and a friend builds the run from run_start's seed and oath alone.
+## mode and no records, and a friend builds the run from run_start's seed and oath alone. (9: the
+## pack of consumables only, card #332, changed no message's fields here.)
 func test_the_online_messages_carry_no_mode() -> void:
-	assert_eq(NetSession.PROTOCOL, 8, "the messages lost their mode field")
+	assert_eq(NetSession.PROTOCOL, 9, "the messages lost their mode field in 8; 9 is the pack's (card #332)")
 	var data := load("res://data/runs/rotten_road.tres") as RunData
 	var tuning := load(TUNING_PATH) as Tuning
 	var roster := PlayerRoster.online(data.party.size(), HOST, HOST)

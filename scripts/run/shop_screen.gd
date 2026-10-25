@@ -3,20 +3,21 @@ extends CanvasLayer
 ## A shop stop as a place (DESIGN.md 8.10, card #160): the shopkeeper on the left with a line to say,
 ## the shelves on the right with this stop's stock (a few items and a few Relics;
 ## user 2026-10-16: the whole list was too crowded), each with its picture, name and price, and
-## under them the services: Cleanse (throw away a rotten item), Upgrade (an item up a level),
-## Restock (new wares), Sell (the backpack opens to sell) and Leave. Healing is bought as items. Arrows
+## under them the services: Cleanse (a curse off the party, card #332), Restock (new wares), Sell
+## (the backpack opens to sell) and Leave (no Upgrade since card #332: items have no levels). Healing
+## is bought as items. Arrows
 ## move over the shelves and services, Confirm buys or uses, Tab / Y opens the backpack to sell,
 ## Back leaves. A bought item goes into the backpack where it fits first; with no room the backpack
 ## opens with it in hand (leaving it gives the gold back). Buying a Relic first asks who gets it
 ## ("Who gets it?", RelicGift, DESIGN.md 8.24; skipped when only one hero may); the shop sells only
 ## Relics the party does not have.
-## Phase 22: pictures and a word, not sentences: each service has its picture (a skull Cleanse, an
-## anvil Upgrade, arrows Restock, the coin Sell with its button, a door Leave), prices are the coin and
+## Phase 22: pictures and a word, not sentences: each service has its picture (a skull Cleanse,
+## arrows Restock, the coin Sell with its button, a door Leave), prices are the coin and
 ## a number, and the line under the shelves shows a Relic as its icon, a New chip (a Relic the book
 ## lacks) and its stat and effect chips (detail()). Card #295: an item there is its picture, its name and a few icon chips
 ## for what it does, the same chips as the fight's Items list (item_chips: "1 AP", "All foes",
 ## "120% dmg"), never its sentence. The rules are in the Glossary.
-## The bot uses count(), can_buy(), buy(), overlay() and leave().
+## The bot uses count(), can_buy(), buy(), cleanse(), overlay() and leave().
 ## Online the choices go in turns (card #314, DESIGN.md 9.2), as on the StopScreen screens: on another
 ## player's turn the shop takes no input (`watching`); on a friend's own turn their copy `asks` the
 ## host for each purchase and service, and the host hands a purchase with no room to them (hand_off,
@@ -25,13 +26,13 @@ extends CanvasLayer
 signal done
 ## Host: the shelves changed (a restock): Main tells the clients the new wares.
 signal restocked
-## Something irreversible happened (a purchase, a restock, a sale, a cleanse or an upgrade): Main
+## Something irreversible happened (a purchase, a restock, a sale or a cleanse): Main
 ## saves the run now, so Continue does not take it back (card #197).
 signal acted
 ## Online friend: a change made in the backpack open over the shop (Main sends it to the host).
 signal op_requested(op: Dictionary)
 
-## The Upgrade / Cleanse pick list of this many items or fewer shows as cards side by side.
+## The Cleanse pick list of this many curses or fewer shows as cards side by side.
 const PICK_CARDS_MAX: int = 3
 const TITLE_SIZE: int = 64
 const TEXT_SIZE: int = 28
@@ -43,7 +44,7 @@ const SHELF_COLUMNS: int = 4
 const CARD_SIZE := Vector2(190.0, 150.0)
 const ICON_SCALE: int = 3
 const KEEPER_SCALE: int = 7
-const SERVICES: Array[String] = ["cleanse", "upgrade", "restock", "sell", "leave"]
+const SERVICES: Array[String] = ["cleanse", "restock", "sell", "leave"]
 const SHELF_BG := Color(0.16, 0.11, 0.08, 0.92)
 const SHELF_EDGE := Color(0.42, 0.3, 0.18)
 const SOLD_DIM := Color(1.0, 1.0, 1.0, 0.35)
@@ -80,10 +81,11 @@ var _overlay: PartyScreen
 var _pending: ItemData
 ## The backpack is open with a purchase in hand (an item with no room yet).
 var _holding: bool = false
-## Picking an item for Cleanse or Upgrade: a list over the shelves (uids in menu order).
+## Picking a curse for Cleanse: a list over the shelves (the curses' places in RunState.curses, in
+## menu order).
 var _pick_menu: ListMenu
 var _pick_panel: PanelContainer
-var _pick_uids: Array[int] = []
+var _pick_ids: Array[int] = []
 var _pick_kind: String = ""
 ## Online client: its backpack asks the host for every change.
 var remote: bool = false
@@ -237,8 +239,8 @@ func detail(index: int) -> Dictionary:
 ## [[icon, text, color]]. One mapping for the shop and the fight: a heal, damage, a revive or a
 ## cleanse gets the fight's Items-list chips (ActionMenu.item_chips: its AP, who it reaches, what it
 ## does, with the same words, pictures, colours and order), less the AP chip when it cannot be used
-## in a fight. Only the kinds a fight never shows get chips of their own here: more max HP (who it
-## reaches in the fight's words, then how much), a curse, treasure, a bigger pack. At most
+## in a fight. Only the kinds a fight never shows get chips of their own here: a curse and treasure.
+## At most
 ## look.item_chips_max chips and look.item_words_max words in all; a chip that would go over is left
 ## out. `coin`: the gold coin's path (treasure).
 static func item_chips(item: ItemData, look: MapVisuals, coin: String) -> Array:
@@ -253,11 +255,6 @@ static func item_chips(item: ItemData, look: MapVisuals, coin: String) -> Array:
 	match item.effect:
 		ItemData.Effect.NONE:
 			pass
-		ItemData.Effect.MAX_HP_ONE:
-			chips.append([&"person", String(ActionMenu.ITEM_TARGET_WORDS[CombatEngine.ITEM_ALLY]), HudStyle.TEXT])
-			chips.append([&"heart", "+%d%% max HP" % item.amount_percent, HudStyle.HEAL])
-		ItemData.Effect.ADD_ROW:
-			chips.append([look.item_pocket_icon_path, "+1 pocket", HudStyle.TEXT])
 		_:
 			var in_fight := item.usable_in_fight()
 			for chip: Dictionary in ActionMenu.item_chips(item, item.amount_percent, look.ap_icon_path):
@@ -314,7 +311,7 @@ func can_buy(index: int) -> bool:
 	if index < 0 or index >= count() or _bought.has(index):
 		return false
 	if index < items().size():
-		return _run.can_afford(items()[index]) and _run.wants(items()[index])
+		return _run.can_afford(items()[index])
 	return _run.can_buy_gear(_gear[index - items().size()])
 
 
@@ -356,12 +353,7 @@ func buy(index: int, hero: int = -1) -> bool:
 		var item := items()[index]
 		_run.pay_for(item)
 		Sfx.play("gold_gain")
-		if item.kind == ItemData.Kind.UPGRADE:
-			_run.add_item(item)
-			Sfx.play("level_up")
-			_say.text = "\"A bigger pack. %d pockets now.\"" % _run.backpack.width
-			acted.emit()
-		elif _run.add_item(item) >= 0:
+		if _run.add_item(item) >= 0:
 			Sfx.play("item_place")
 			_say.text = "\"The %s. Good choice.\"" % item.display_name
 			acted.emit()
@@ -415,21 +407,15 @@ func leave() -> void:
 	done.emit()
 
 
-## Cleanse (`kind` "cleanse": item `uid` is thrown away) or Upgrade ("upgrade": it goes up a level),
-## paid from the run's gold. False if it cannot be done.
-func service_pick(kind: String, uid: int) -> bool:
-	if kind != "cleanse" and kind != "upgrade":
-		return false
-	if _ask({"do": kind, "uid": uid}):
+## Cleanse: curse `index` (its place in RunState.curses) comes off the party, paid from the run's
+## gold. The bot calls this; the player uses the service. False if it cannot be done.
+func cleanse(index: int) -> bool:
+	if _ask({"do": "cleanse", "index": index}):
 		return true
-	if not _run.backpack.has_uid(uid):
-		Sfx.play("locked")
-		return false
-	var name := RunState.entry_name(_run.backpack.entry(uid))
-	var ok := _run.cleanse(uid) if kind == "cleanse" else _run.upgrade_item(uid, _run.upgrade_price())
+	var ok := _run.cleanse(index)
 	if ok:
-		Sfx.play("item_drop" if kind == "cleanse" else "item_combine")
-		_say.text = "\"Gone. Good riddance.\"" if kind == "cleanse" else "\"Your %s, better than new.\"" % name
+		Sfx.play("item_drop")
+		_say.text = "\"Gone. Good riddance.\""
 		acted.emit()
 	else:
 		Sfx.play("locked")
@@ -516,17 +502,10 @@ func _service_info(kind: String) -> Array:
 	var t := _run.tuning
 	match kind:
 		"cleanse":
-			var rotten := not _run.rotten_uids().is_empty()
-			var cleanse := _run.cleanse_price()
-			return ["Cleanse", cleanse, _service_words("Throw away a curse", "No curse", rotten, cleanse),
-					rotten and _run.gold >= cleanse, &"skull"]
-		"upgrade":
-			var any := false
-			for e: Dictionary in _run.backpack.entries:
-				any = any or _run.can_upgrade(int(e.uid))
-			var upgrade := _run.upgrade_price()
-			return ["Upgrade", upgrade, _service_words("An item +1 level", "Nothing to upgrade", any, upgrade),
-					any and _run.gold >= upgrade, _look.upgrade_icon_path]
+			var cursed := not _run.curses.is_empty()
+			var price := _run.cleanse_price()
+			return ["Cleanse", price, _service_words("Lift a curse", "No curse", cursed, price),
+					cursed and _run.gold >= price, &"skull"]
 		"restock":
 			var restock := _run.restock_price()
 			return ["Restock", restock, _service_words("New wares", "", true, restock), _run.gold >= restock,
@@ -773,18 +752,17 @@ func _use_selected(event: InputEvent = null) -> void:
 			_open_backpack("Sell", {"icon": &"coin"})
 		"leave":
 			leave()
-		"cleanse", "upgrade":
-			_open_pick(kind)
+		"cleanse":
+			_open_pick()
 
 
-## A list of the backpack's items to cleanse or upgrade, over the shop.
-func _open_pick(kind: String) -> void:
-	_pick_kind = kind
-	_pick_uids = _run.rotten_uids() if kind == "cleanse" else []
-	if kind == "upgrade":
-		for e: Dictionary in _run.backpack.entries:
-			if _run.can_upgrade(int(e.uid)):
-				_pick_uids.append(int(e.uid))
+## A list of the party's curses to cleanse, over the shop (card #332).
+func _open_pick() -> void:
+	_pick_kind = "cleanse"
+	_pick_ids.clear()
+	var cursed := _run.curse_items()
+	for i: int in cursed.size():
+		_pick_ids.append(i)
 	_pick_panel = PanelContainer.new()
 	_pick_panel.add_theme_stylebox_override("panel", _box(Color(0.04, 0.03, 0.03, 0.95), HudStyle.GOLD, 2, 24))
 	_pick_panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -794,24 +772,19 @@ func _open_pick(kind: String) -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 12)
 	_pick_panel.add_child(column)
-	column.add_child(ListMenu.centred_title("Which item?" if kind == "upgrade" else "Throw away which?", 40))
+	column.add_child(ListMenu.centred_title("Which curse?", 40))
 	_pick_menu = ListMenu.new()
 	column.add_child(_pick_menu)
 	var list: Array[Dictionary] = []
-	for uid: int in _pick_uids:
-		var e := _run.backpack.entry(uid)
-		var entry := {"text": RunState.entry_name(e), "color": BackpackGrid.rarity_color(RunState.entry_rarity(e)),
-				"icon": AssetLoader.texture((e.item as ItemData).icon_path, Vector2i(16, 16))}
-		if kind == "upgrade":
-			entry["value"] = "> %s+" % RunState.entry_name(e)
-		list.append(entry)
+	for curse: ItemData in cursed:
+		list.append({"text": curse.display_name, "color": BackpackGrid.ROTTEN_COLOR,
+				"icon": AssetLoader.texture(curse.icon_path, Vector2i(16, 16))})
 	# Three items or fewer sit side by side as cards (owner, phase 22); Back is the cancel button.
 	var cards := list.size() <= PICK_CARDS_MAX
 	_pick_menu.horizontal = cards
 	_pick_menu.set_items(list)
 	column.add_child(HintBar.new([[&"@leftright" if cards else &"@updown", "Choose"],
-			[&"menu_confirm", "Upgrade" if kind == "upgrade" else "Throw away"], [&"menu_cancel", "Back"]],
-			ListMenu.FOOTER_SIZE))
+			[&"menu_confirm", "Cleanse"], [&"menu_cancel", "Back"]], ListMenu.FOOTER_SIZE))
 
 
 ## "Who gets it?" over the shop for the Relic on shelf `index`: a card per hero, the ones who may get
@@ -819,7 +792,7 @@ func _open_pick(kind: String) -> void:
 func _open_give_pick(index: int) -> void:
 	_give_index = index
 	_pick_kind = "give"
-	_pick_uids.clear()
+	_pick_ids.clear()
 	_pick_panel = PanelContainer.new()
 	_pick_panel.add_theme_stylebox_override("panel", _box(Color(0.04, 0.03, 0.03, 0.95), HudStyle.GOLD, 2, 24))
 	_pick_panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -845,7 +818,7 @@ func _close_pick() -> void:
 		_pick_panel.queue_free()
 	_pick_panel = null
 	_pick_menu = null
-	_pick_uids.clear()
+	_pick_ids.clear()
 	_give_index = -1
 
 
@@ -863,11 +836,10 @@ func _pick_input(event: InputEvent) -> void:
 			return
 		_close_pick()
 		buy(index, slot)
-	elif answer == &"confirm" and not _pick_uids.is_empty():
-		var uid := _pick_uids[_pick_menu.index]
-		var kind := _pick_kind
+	elif answer == &"confirm" and not _pick_ids.is_empty():
+		var index := _pick_ids[_pick_menu.index]
 		_close_pick()
-		service_pick(kind, uid)
+		cleanse(index)
 
 
 func _open_backpack(note: String, held: Dictionary) -> void:

@@ -539,18 +539,19 @@ func _show_sample_stop(kind: String) -> void:
 			_show_treasure()
 
 
-## --screen=party: a new run with some Relics given and a few items packed, the party screen open
-## with a Holy Water in hand (for pictures of the pack).
+## --screen=party: a new run with some Relics given, the pack full and a curse on the party, the party
+## screen open with a Holy Water in hand (for pictures of the pack).
 func _show_sample_backpack() -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
 	var items := _run.items_by_id()
 	_run.give_relic(_run_data.gear[0], 0)
 	_run.give_relic(_run_data.gear[1], 0)
-	_run.place_item(items["salve"], 0, 0, 0, 1)
-	_run.place_item(items["rotting_heart"], 1)
-	_run.place_item(items["feast"], 2)
-	_run.place_item(items["bomb"], 3)
-	for id: String in ["antidote", "smelling_salts", "silver_ring", "rot_gem"]:
+	_run.place_item(items["salve"], 0)
+	_run.place_item(items["feast"], 1)
+	_run.place_item(items["bomb"], 2)
+	_run.place_item(items["smelling_salts"], 3)
+	_run.add_curse(items["rotting_heart"])
+	for id: String in ["silver_ring", "rot_gem"]:
 		_run.add_item(items[id])
 	_run.give_relic(_run_data.gear[3], 1)
 	# Alder has levelled and has points to spend (the cards show "+N points", DESIGN.md 8.2).
@@ -4370,7 +4371,6 @@ func _back_to_choice_screen() -> void:
 static func _make_choice(screen: Node, choice: Dictionary) -> String:
 	var what := String(choice.get("do", ""))
 	var index := int(choice.get("index", -1))
-	var uid := int(choice.get("uid", -1))
 	# The hero who gets a picked Relic (DESIGN.md 8.24); the screen checks it is one of the turn's
 	# player's heroes.
 	var hero := int(choice.get("hero", -1))
@@ -4389,8 +4389,8 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 				return "buy %d" % index if shop.can_buy(index) and shop.buy(index, hero) else ""
 			"restock":
 				return what if shop.restock() else ""
-			"cleanse", "upgrade":
-				return "%s %d" % [what, uid] if shop.service_pick(what, uid) else ""
+			"cleanse":
+				return "cleanse %d" % index if shop.cleanse(index) else ""
 			"leave":
 				shop.leave()
 				return what
@@ -4410,7 +4410,7 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 		screen.call("leave")
 		return what
 	if screen is RestScreen:
-		return _make_rest_choice(screen as RestScreen, what, uid)
+		return _make_rest_choice(screen as RestScreen, what)
 	if screen is EventScreen:
 		var event := screen as EventScreen
 		if what == "choose":
@@ -4445,9 +4445,9 @@ static func _can_leave(screen: Node) -> bool:
 	return false
 
 
-## A friend's campfire choice: Rest, then Train or Upgrade at a normal fire, Keep watch or Sharpen at
-## the fire before the boss. Once only. "" if refused.
-static func _make_rest_choice(rest: RestScreen, what: String, uid: int) -> String:
+## A friend's campfire choice: Rest, then Train at a normal fire, Keep watch or Sharpen at the fire
+## before the boss. Once only. "" if refused.
+static func _make_rest_choice(rest: RestScreen, what: String) -> String:
 	if rest.has_acted():
 		return ""
 	var watch := rest.run.is_watch_fire()
@@ -4459,9 +4459,6 @@ static func _make_rest_choice(rest: RestScreen, what: String, uid: int) -> Strin
 		rest.watch_now()
 	elif what == "sharpen" and watch:
 		rest.sharpen_now()
-	elif what == "upgrade" and not watch and rest.upgradable().has(uid):
-		if not rest.upgrade_now(uid):
-			return ""
 	else:
 		return ""
 	return what
@@ -4960,7 +4957,7 @@ func _autoplay_elite_ready() -> bool:
 	return RunAutoplay.is_ready(_autoplay_health())
 
 
-## Autoplay at a campfire: rests when someone is hurt, else upgrades an item or trains.
+## Autoplay at a campfire: rests when someone is hurt, else keeps watch before the boss or trains.
 func _autoplay_rest(rest: RestScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not _autoplay_turn_ok(rest):
@@ -4969,8 +4966,6 @@ func _autoplay_rest(rest: RestScreen) -> void:
 		rest.rest_now()
 	elif _run.is_watch_fire():
 		rest.watch_now()
-	elif not rest.upgradable().is_empty():
-		rest.upgrade_now(rest.upgradable()[0])
 	else:
 		rest.train_now()
 		_autoplay_spend_points()
@@ -4979,11 +4974,27 @@ func _autoplay_rest(rest: RestScreen) -> void:
 		_autoplay_act(rest, rest.leave)
 
 
-## Autoplay in a shop: buys what it can afford; a bought Relic goes to the hero it helps most.
+## Autoplay in a shop: first lifts every curse it can pay for (Cleanse, card #332), then buys what it
+## can afford; a bought Relic goes to the hero it helps most.
 func _autoplay_shop(shop: ShopScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not _autoplay_turn_ok(shop):
 		return
+	# At most one Cleanse per curse it came in with: online a friend's request waits for the host's
+	# answer, so its copy may still show a curse it already asked to lift.
+	var to_lift := _run.curses.size()
+	var lifted := 0
+	while _bot_cleanses(_run, lifted, to_lift):
+		var curse := _run.curses[0]
+		if not shop.cleanse(0):
+			break
+		lifted += 1
+		print("Run cleanse: %s" % curse)
+		if Net.is_client():
+			# A friend's bot (card #314): the host's answer redraws the shop; the next curse waits for it.
+			await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+			if not _autoplay_turn_ok(shop):
+				return
 	var shop_turn := "%s/%d" % [String(_turn.get("key", "")), _run.restocks]
 	for i: int in shop.count():
 		if not _autoplay_turn_ok(shop):
@@ -5014,6 +5025,13 @@ func _autoplay_shop(shop: ShopScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if is_instance_valid(shop):
 		_autoplay_act(shop, shop.leave)
+
+
+## True if the bot lifts another curse in a shop (card #332): the party has one and the gold for the
+## Cleanse, and it has lifted (or asked to lift) fewer than the `to_lift` curses it came in with.
+## Pure.
+static func _bot_cleanses(run: RunState, lifted: int, to_lift: int) -> bool:
+	return run != null and lifted < to_lift and not run.curses.is_empty() and run.gold >= run.cleanse_price()
 
 
 ## True if the bot buys shelf `i` of `shop`: one it can buy, never a Relic GearBot refuses (a
@@ -5197,15 +5215,14 @@ func _autoplay_settle(party: PartyScreen) -> void:
 			_run.backpack.entries.size(), _run.gold])
 
 
-## Autoplay on the map: uses healing items on whoever is hurt (like a player tidying up), and
-## tonics at once.
+## Autoplay on the map: uses healing items on whoever is hurt (like a player tidying up).
 func _autoplay_use_items() -> void:
 	if Net.is_client():
 		# A friend's copy of the run never changes by itself (the host's bot tidies up).
 		return
 	for e: Dictionary in _run.backpack.entries.duplicate():
 		var item := e.item as ItemData
-		if not item.usable_on_map() or item.effect == ItemData.Effect.MAX_HP_ONE:
+		if not item.usable_on_map():
 			continue
 		var low := 0
 		for slot: int in _run.party_size():
@@ -5213,16 +5230,6 @@ func _autoplay_use_items() -> void:
 				low = slot
 		if _run.hp[low] * 100 <= _run.max_hp(low) * AUTOPLAY_REST_BELOW_PERCENT and _run.use_item(int(e.uid), low):
 			print("Run use: %s on %s" % [item.id, _run.data.party[low].id])
-	for e: Dictionary in _run.backpack.entries.duplicate():
-		if (e.item as ItemData).effect != ItemData.Effect.MAX_HP_ONE:
-			continue
-		# A hero can only drink so many (tuning.tonic_max_per_hero): the one with the most left.
-		var drinker := 0
-		for slot: int in _run.party_size():
-			if _run.tonics_left(slot) > _run.tonics_left(drinker):
-				drinker = slot
-		if _run.use_item(int(e.uid), drinker):
-			print("Run use: %s" % (e.item as ItemData).id)
 
 
 func _autoplay_fail(reason: String) -> void:
