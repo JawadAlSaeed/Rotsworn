@@ -3778,6 +3778,10 @@ upgrade to take blindly.
 
 ### 8.17 Relics and Echoes (phase 17, cards #212 to #220, built 2026-10-18, waiting for playtest)
 
+**To be replaced (8.24, decided 2026-10-25, not built yet):** no Relic slots or levels, Relics only
+from Elite stops, bosses, chests and shops (pick 1 of 3), a Relic book instead of the bag, and no
+Echoes. What follows is how the game works until that is built.
+
 Phase 19 (card #263) added three Relics against marks (Wardstone, Bitter Root, Cleansing Bell;
 2.17), dropped by the new monsters, which also drop older Relics (34 Relics in the run).
 Phase 20 (Relic balance, 2026-10-19, user picks): 16 more Relics (50 in all, #242, table below),
@@ -4010,6 +4014,8 @@ badge; signals changed, op_requested, toast):
   `test_relic_icon.gd`.
 
 ### 8.19 The roguelite pass (phase 21, talked through 2026-10-19 in #267 and #272)
+
+**To be replaced in part (8.24, decided 2026-10-25, not built yet):** Echoes and the Relic bag go.
 
 The owner's worry (#272): Relic levels kept forever made the game easier the more you played, and
 relearning every Echo every run was busywork. A design panel (four studies, four designers, three
@@ -5210,6 +5216,40 @@ number for XP and one line that keeps the Rush's purse empty).
   - Not checked: co-op (2 or 3 players), online, Oaths above 0 in play (only the fight sizes, T5),
     the perfect bot with Relics at home, and how it looks and feels in a game window.
 
+### 8.24 Relics without slots, and no Echoes (phase 26, cards #326 to #328, decided 2026-10-25, not built yet)
+
+The owner, after the balance results (#321): levels, Relics and Echoes did not all fit a 45-minute
+run. Relics dropped too easily ("you get them easily by fighting"), three slots per hero made most
+finds useless, and Echoes (Expedition 33's Lumina) are hard to understand ("even I didn't understand
+Lumina until the first boss"). Decided:
+
+- **Relics in a run (#326).** They come only from Elite stops, bosses, chests and shops; ordinary
+  fights and monsters no longer drop them. Each time the player sees 3 and picks 1 (a shop sells them
+  as now) and gives it to one hero. No slots and no limit: a hero has every Relic given to them. No
+  copies and no Relic levels in a run (a Relic the party has never turns up again in that run).
+  Rot-touched Relics stay (power with a price). Relics stay per hero, so most effects keep their
+  numbers until the phase 27 review.
+- **Co-op.** The player whose turn it is (9.2 "Taking turns") picks and gives it to one of their own
+  heroes, so finds rotate between the players; solo, the player picks the hero. The owner's other idea
+  (a vote, a random pick on a tie) was set aside: slower, and a lost tie feels unfair.
+- **The Relic book, kept forever (#328).** Every Relic picked in a run, won or lost, gets its place in
+  the player's book (main menu). Filling all 50 is the long goal. The run's Relics themselves end with
+  the run.
+- **Starting Relics (owner's pick A).** Before a run each hero gets 1 Relic of the player's choice
+  from their book (3 for the party; online each player picks for their own heroes from their own
+  book). The first run starts with none. A higher Oath may take this away later (8.15). This replaces
+  the Relic bag (8.17, 8.19).
+- **Echoes go (#327).** Echoes, Echo points, pips and the Echoes page are removed; the Echo progress
+  in a save is dropped.
+- **Levels stay** (attributes and skills, 8.2, 8.4), reset every run. Fewer points to place per level
+  is an idea for after a playtest.
+- **The upgrade shop between runs (phase 28, #330)**, like Hades' Mirror: a currency earned by every
+  run, won or lost, buys small permanent "run rules" upgrades for the party (for example a heal after
+  each won fight, starting gold, getting back up once per run, a little max HP), never attribute
+  points. Its list and its currency are phase 28's talk. It is also the answer to the 70% player
+  problem (#321) and to winnable Oaths.
+- **The Fight Rush** keeps its feel; its Relic rewards follow the same pick 1 of 3 rule.
+
 ## 9. Multiplayer (phase 5)
 
 ### 9.1 Local co-op (phase 5 Part A, done)
@@ -6167,13 +6207,20 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     shows its move, 3.6) and #310 (wind-up attacks charge in, 3.12). Ideas: Save & Quit for online
     runs (#313), online friends take turns choosing (#314), and dropping the normal Run for Fight
     Rush (#315, phase 26: after playing it the owner said Rush might replace the Run).
-26. **Game direction** (decided 2026-10-24, building on branch `phase26-Direction`; was "Story",
-    which moved to phase 27, and the tutorial chapter #206 to phase 28): the Run keeps its map, stops,
-    acts and ending but loses its walkable zones (8.22): Fight stops (#316), Guard stops (#317,
-    then merged into the Elite stops: an Elite stop holds an elite group or the place's guard),
-    shrines and wanderers as "?" events with no more keys (#318), the zone code and data removed
-    (#319), First Strike as a press (#320). Then two talks with the owner for the shorter run:
-    balance, levels, Relics and Echoes (#321) and three acts with a boss each (#322).
+26. **Game direction** (decided 2026-10-24, building on branch `phase26-Direction`; was "Story"):
+    fixing the game's idea. The Run keeps its map, stops, acts and ending but loses its walkable zones
+    (8.22): Fight stops (#316), guards inside the Elite stops (#317), shrines and wanderers as "?"
+    events with no more keys (#318), the zone code and data removed (#319), First Strike as a press
+    (#320); three acts with the Leech Queen (#322, #323, 8.23); the balance pass (#321); online taking
+    turns (#314) and Save & Quit (#313). Still to build: Relics without slots, no Echoes, the Relic
+    book (#326 to #328, 8.24). Ideas parked: boss pools (#324), boss gimmicks (#325).
+27. **Relics** (planned 2026-10-25): go through every Relic under the new rules (8.24): what each
+    gives and whether it is worth picking, give each its icon, then make new Relics (#329).
+28. **The upgrade shop** (planned 2026-10-25): a shop outside the run where a currency earned by every
+    run buys upgrades for the whole party, so runs get easier and the Oaths winnable; talk through the
+    upgrades and the currency (#330, 8.24). A short balance check after it.
+29. **Story** (was phase 27): lore notes (#301), hero banter (#302), the story as a whole (#306).
+30. **The interactive tutorial** (was phase 28): a lesson for every kind of enemy hit (#206).
 
 ### 11.1 To-do (from playtests)
 
@@ -6447,3 +6494,5 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-25 | Online runs are saved by the host (card #313, replaces "online runs not saved" of 2026-10-17): Save & Quit in the host's pause (never a friend's) with the local rules; a slot of its own (`user://online_run_save.json`) with the seats and their tokens; only the same game version loads it (another's is kept, not offered); Continue on the host's players screen starts hosting at once, the friends there take their own seats by token (else the next saved seat, then a free one), the other saved seats wait 5 min for their tokens, newcomers drop into free seats (never a held one); friends keep their token on disk (`user://online_seat.json`, written at every run start and on the save) and count as late in the continued run; deleted on run end, End the game or a new online run (8.14, 9.2, 9.3) | card #313; one machine can save for everyone because the host is the one source of truth; `Net.PROTOCOL` stays 6, the build fingerprint already keeps other builds out |
 | 2026-10-25 | Review of #313 and #314: a drop passes only a turn whose screen is still up (a used turn stays, so nobody is skipped); the host's Save & Quit waits while a stop's find is being placed and only closes the pause once the fight under it decided the run; `saved` carries the state the save holds, which the friends bank (never the newest); the online slot takes the new seats right after the Continue and a drop-in; a crashed friend back by the seat file's token counts as late from their return (8.14, 9.2, 9.3) | review of the night's merges: a skipped turn, a lost find, a lost run end, Echo pips banked twice and a seat file out of step with the save |
 | 2026-10-25 | Balance for the three-act run (8.23 "Balance for the three-act run", card #321): no ordinary row is deep (`run_deep_row` 6, only act 3 fights deep versions), enemies grow 3% HP and 2% power per row (was 5 and 3), run enemy power back to 100%, the crowned elite 110% HP (was 130), run XP at 125% (new `run_xp_percent`; 150% tried, it left act 3 without levels), 50 gold to start (was 0; no Oath takes it); 2 Relic pips per plain fight tried and put back (it flattened the pip ladder); the Fight Rush keeps every number through its own (`rush_enemy_hp_step_add` 2, `rush_enemy_power_step_add` 1, `rush_enemy_power_percent` 105, no gold); a test keeps every Elite stop guard under its act boss at every Oath | defaults, built while the owner slept; the perfect bot wins every run; an 85% bot on seeds 1 to 4 won 1 of 4 before and 3 of 4 after (4 of 4 on 4 more seeds after); for 60% and 70% players next to nothing changed (0 of 6 reach act 2: the map bot walks into Elite stops; nothing heals after a win); later runs with Relics at home measured on 2 seeds only: for the talk |
+| 2026-10-25 | Relics without slots and no Echoes (8.24, cards #326 to #328): Relics only from Elite stops, bosses, chests and shops, pick 1 of 3 for one hero, no slots, no levels; in co-op the player whose turn it is picks; a Relic book kept forever, each hero starts a run with 1 Relic from it (pick A); Echoes, Echo points and the Relic bag go; levels stay | owner: Relics came too easily and three slots made finds useless; Echoes, like Lumina, confuse new players |
+| 2026-10-25 | Phases after 26: 27 Relics (review, icons, new ones, #329), 28 the upgrade shop between runs and its currency (#330), 29 story (was 27), 30 the interactive tutorial (was 28) | owner's plan; the shop is its own phase |
