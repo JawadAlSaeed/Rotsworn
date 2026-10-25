@@ -1927,6 +1927,7 @@ func _show_start_relics(book: RelicCollection = null) -> void:
 		mine = _run.start_open_of(_start_heroes())
 	screen.setup_pick(_run, book, mine)
 	screen.picked.connect(_on_start_picked)
+	screen.withdrawn.connect(_on_start_withdrawn)
 	screen.finished.connect(_check_start_done)
 	_show_screen(screen)
 	_send_screen({"name": "start_relics"})
@@ -1949,6 +1950,43 @@ func _on_start_picked(slot: int, item: GearData) -> void:
 	print("Start relic: %s to %s" % [item.id if item != null else "skip", hero])
 
 
+## Back took a starting pick back on this machine's screen (card #334): logged here (already undone
+## in the run); an online friend's asks the host, which checks it (_on_friend_start_back).
+func _on_start_withdrawn(slot: int, id: String) -> void:
+	var hero := _run.data.party[slot].id if _run != null and slot >= 0 and slot < _run.party_size() else "?"
+	var what := id if not id.is_empty() else "skip"
+	if Net.is_client():
+		print("Start relic back asked: %s from %s" % [what, hero])
+		Net.send_to_host("start_relic_back", {"slot": slot, "relic": id})
+		return
+	print("Start relic back: %s from %s" % [what, hero])
+
+
+## Host: a friend's Back on the starting Relics (card #334): hero `slot`'s pick ("relic": the id, ""
+## a Skip) is taken back when the hero is theirs to pick for (held when the step began) and the step
+## is still open; the friend is told either way ("start_back"), and the host's state reopens the hero.
+func _on_friend_start_back(from_peer: int, p: Dictionary) -> void:
+	var slot := int(p.get("slot", -1)) if typeof(p.get("slot")) == TYPE_INT else -1
+	var id := String(p.relic) if typeof(p.get("relic")) == TYPE_STRING else ""
+	var ok := _start_back_allowed(_start_pickers, from_peer, slot, _start_open and _screen is StartRelicsScreen) \
+			and _run.undo_start_relic(slot, id)
+	var who := HudStyle.player_tag(maxi(0, _players.player_of_peer(from_peer))) if _players != null else "P?"
+	var what := id if not id.is_empty() else "skip"
+	print("Start relic back %s: %s %s hero=%d" % ["taken" if ok else "refused", who, what, slot])
+	if _options.is_autoplay():
+		print("AUTOPLAY_START_RELIC_BACK %s %s hero=%d ok=%d" % [who, what, slot, int(ok)])
+	Net.send_to(from_peer, "start_back", {"slot": slot, "relic": id, "ok": ok})
+	if ok:
+		(_screen as StartRelicsScreen).refresh()
+
+
+## Host: true when friend `peer` may take a starting pick of hero `slot` back: the step is `open`
+## and the hero is one they pick for (`pickers`, fixed when it began; emptied when the wait ran out).
+## Pure.
+static func _start_back_allowed(pickers: Dictionary, peer: int, slot: int, open: bool) -> bool:
+	return open and pickers.get(peer) is Array and (pickers[peer] as Array).has(slot)
+
+
 ## Host or local: once every hero has their starting Relics (or went without), the run goes on.
 func _check_start_done() -> void:
 	if Net.is_client() or _run == null or not _start_open or not _screen is StartRelicsScreen:
@@ -1964,6 +2002,9 @@ func _end_start_relics(fade: bool) -> void:
 	_start_open = false
 	_start_wait_gen += 1
 	_start_pickers = {}
+	if _screen is StartRelicsScreen:
+		# Back takes nothing back once the run goes on (card #334).
+		(_screen as StartRelicsScreen).open = false
 	_run.end_start_picks()
 	_log_start_relics()
 	if not was_open:
@@ -3722,6 +3763,8 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				_on_friend_choice(from_peer, payload)
 			"start_relic":
 				_on_friend_start_relic(from_peer, payload)
+			"start_relic_back":
+				_on_friend_start_back(from_peer, payload)
 			"seated_ready":
 				_on_seated_ready(from_peer, int(payload.get("fight", 0)))
 		return
@@ -3901,6 +3944,11 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			if _screen is StartRelicsScreen:
 				var refused_id := String(p.relic) if typeof(p.get("relic")) == TYPE_STRING else ""
 				(_screen as StartRelicsScreen).refused(int(p.get("slot", -1)), refused_id)
+		"start_back":
+			# The host's answer to our Back on the starting Relics (card #334).
+			if _screen is StartRelicsScreen:
+				var back_id := String(p.relic) if typeof(p.get("relic")) == TYPE_STRING else ""
+				(_screen as StartRelicsScreen).withdraw_answered(int(p.get("slot", -1)), back_id, bool(p.get("ok", false)))
 
 
 ## Client: shows the screen the host is on.

@@ -2547,6 +2547,38 @@ func skip_start_relics(slots: Array[int]) -> int:
 	return skipped
 
 
+## Takes hero `slot`'s last starting pick back (Back on the starting Relics, card #334): `id` the
+## starting Relic they took (it leaves the run, so it can be picked again), "" their Skip (they choose
+## again). The HP each hero is missing stays the same, as when it was taken. Main calls it only while
+## the pick step is open. False if there is nothing of that kind to take back: not that hero's
+## starting Relic, or a Skip of a hero still choosing or with every starting Relic taken.
+func undo_start_relic(slot: int, id: String) -> bool:
+	if slot < 0 or slot >= start_left.size() or slot >= party_size():
+		return false
+	var taken := 0
+	for item: GearData in relics_of(slot):
+		if start_relics.has(item.id):
+			taken += 1
+	if id.is_empty():
+		if start_left[slot] > 0 or taken >= start_relic_count():
+			return false
+		start_left[slot] = start_relic_count() - taken
+		return true
+	var relic := relic_by_id(id)
+	if relic == null or not start_relics.has(id) or holder_of(relic) != slot:
+		return false
+	var missing: Array[int] = []
+	for s: int in party_size():
+		missing.append(max_hp(s) - hp[s])
+	(gear[slot] as Array).erase(relic)
+	relics.erase(id)
+	start_relics.erase(id)
+	start_left[slot] = start_relic_count() - (taken - 1)
+	for s: int in party_size():
+		hp[s] = clampi(max_hp(s) - missing[s], 1, max_hp(s))
+	return true
+
+
 ## Every hero takes no (more) starting Relics: the pick step is over.
 func end_start_picks() -> void:
 	for slot: int in start_left.size():

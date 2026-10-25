@@ -466,15 +466,16 @@ func test_choice_summaries_show_the_numbers_that_will_be_paid() -> void:
 
 # --- the event screen --------------------------------------------------------------------------------------------
 
-func test_a_choice_the_party_cannot_pay_is_greyed_and_leave_is_always_there() -> void:
+func test_a_choice_the_party_cannot_pay_is_greyed_and_walk_on_is_always_there() -> void:
 	var run := _run()
 	var screen := _screen(run, _event("gamblers_bones"))
 	var rows := screen.rows()
-	assert_eq(rows.size(), 2, "two choices, side by side (card #288)")
+	assert_eq(rows.size(), 3, "two choices side by side (card #288), then Walk on (card #334)")
 	assert_true(screen.menu().horizontal)
 	assert_false(bool(rows[0].enabled), "the stake costs gold and there is none")
 	assert_true(bool(rows[1].enabled), "the purse costs nothing now")
-	assert_has(screen.footer_entries(), [&"menu_cancel", "Leave"], "Leave is the cancel button")
+	assert_eq(String(rows[2].text), EventScreen.WALK_ON, "Walk on is a card, not the cancel button")
+	assert_true(bool(rows[2].enabled))
 	assert_false(screen.can_choose(0))
 	assert_false(screen.choose(0))
 	run.gold = 500
@@ -559,9 +560,11 @@ func test_every_event_file_loads_and_makes_every_choice_cost_something() -> void
 		assert_between(event.choices.size(), 1, 2, "%s: one or two choices" % event.id)
 		var screen := _screen(run, event)
 		var rows := screen.rows()
-		assert_eq(rows.size(), event.choices.size(), "%s: a card per choice" % event.id)
-		assert_has(screen.footer_entries(), [&"menu_cancel", "Leave"], "%s: Leave is always there" % event.id)
+		assert_eq(rows.size(), event.choices.size() + 1, "%s: a card per choice and Walk on" % event.id)
+		assert_eq(String(rows.back().text), EventScreen.WALK_ON, "%s: Walk on is always there" % event.id)
 		for row: Dictionary in rows:
+			if row.get("walk_on", false):
+				continue
 			assert_false((row.get("chips", []) as Array).is_empty(), "%s / %s: its price and reward as chips" % [event.id, row.text])
 		for c: EventChoiceData in event.choices:
 			var where := "%s / %s" % [event.id, c.text]
