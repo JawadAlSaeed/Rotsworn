@@ -612,15 +612,16 @@ extends Resource
 ## its effect plays.
 @export_range(0, 3000, 1, "suffix:ms") var item_use_ms: int = 600
 ## Alder's open pack behind the pockets (DESIGN.md 8.1, 8.19). Drawn by
-## tools/art_kit/assets/items.py; these numbers must match it.
+## tools/art_kit/assets/items.py (ui/backpack_5.png, the one pack picture since card #332); these
+## numbers must match it.
 @export var backpack_art_path: String = "res://assets/sprites/ui/backpack_5.png"
 ## Screen pixels per art pixel.
 @export_range(1, 8) var backpack_art_scale: int = 4
 ## The lining's top-left in the art and its size (art pixels): the pockets fill it.
 @export var backpack_grid_origin: Vector2i = Vector2i(14, 23)
 @export var backpack_lining_art_px: Vector2i = Vector2i(95, 119)
-## Pockets per row (the rows follow from tuning.backpack_max_pockets) and the gap between pockets
-## (art pixels).
+## Pockets per row (the rows follow from tuning.backpack_pockets: 4 pockets make two rows of two,
+## card #332) and the gap between pockets (art pixels).
 @export_range(1, 8) var backpack_pocket_columns: int = 2
 @export_range(0, 16) var backpack_pocket_gap_art_px: int = 3
 

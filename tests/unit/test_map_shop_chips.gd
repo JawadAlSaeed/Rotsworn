@@ -189,8 +189,7 @@ func test_the_chips_say_what_each_kind_of_item_does() -> void:
 			"a fight item's own AP cost")
 	assert_eq(_chip_texts(ShopScreen.item_chips(_item(ItemData.Effect.HEAL_ONE, 25), _look, _coin)),
 			["One ally", "Heal 25%"] as Array[String], "a heal used only on the map has no AP chip")
-	chips = ShopScreen.item_chips(_item(ItemData.Effect.MAX_HP_ONE, 15), _look, _coin)
-	assert_eq(_chip_texts(chips), ["One ally", "+15% max HP"] as Array[String], "a map-only item has no AP chip")
+	chips = ShopScreen.item_chips(_item(ItemData.Effect.HEAL_ONE, 25), _look, _coin)
 	assert_eq([chips[0][0], chips[1][0]], [&"person", &"heart"], "the fight's person and heart glyphs")
 	assert_eq(chips[1][2], HudStyle.HEAL)
 	var curse := ItemData.new()
@@ -203,9 +202,10 @@ func test_the_chips_say_what_each_kind_of_item_does() -> void:
 	chips = ShopScreen.item_chips(idol, _look, _coin)
 	assert_eq(_chip_texts(chips), ["To gold"] as Array[String])
 	assert_eq(String(chips[0][0]), _coin, "treasure: the gold coin")
-	var pack := _item(ItemData.Effect.ADD_ROW, 0)
-	pack.kind = ItemData.Kind.UPGRADE
-	assert_eq(_chip_texts(ShopScreen.item_chips(pack, _look, _coin)), ["+1 pocket"] as Array[String])
+	# The Tonic and the Bigger Pack went with card #332: their retired effects have no chips of their own.
+	for retired: ItemData.Effect in [ItemData.Effect.MAX_HP_ONE, ItemData.Effect.ADD_ROW]:
+		for text: String in _chip_texts(ShopScreen.item_chips(_item(retired, 15), _look, _coin)):
+			assert_false(text.contains("max HP") or text.contains("pocket"), "no chip for a retired effect: %s" % text)
 
 
 func test_the_shop_and_the_fight_describe_an_item_the_same_way() -> void:

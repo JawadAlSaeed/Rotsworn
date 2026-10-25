@@ -36,7 +36,7 @@ script = ExtResource("1_c4ksu")
 text = "Wrap it up to sell"
 detail = "A golden idol for the shop. It does not stay quiet."
 deal = SubResource("Resource_pv4sv")
-done_text = "It goes quiet in the dark of the pack. Almost."
+done_text = "It goes quiet. Its whisper clings to you all. Almost."
 
 [resource]
 script = ExtResource("5_u8l76")

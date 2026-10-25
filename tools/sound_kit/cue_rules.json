@@ -819,16 +819,6 @@
   "target_lu": -13.0,
   "new": true
  },
- "item_combine": {
-  "group": "backpack",
-  "title": "Backpack: combine",
-  "plays": "two of the same item are combined into a stronger one",
-  "max_rise_ms": 40,
-  "min_ms": 250,
-  "max_ms": 1200,
-  "target_lu": -12.5,
-  "new": true
- },
  "chest_open": {
   "group": "backpack",
   "title": "Chest opens",

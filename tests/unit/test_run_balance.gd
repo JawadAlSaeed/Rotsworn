@@ -1,6 +1,6 @@
 extends GutTest
 ## Phase 16 run exploits and the last fight (cards #175 to #177): Restock costs more each time,
-## a hero drinks only so many Tonics, an attribute reset can never heal, elites cannot be fled,
+## no item raises max HP for good (the Tonic went, card #332), an attribute reset can never heal, elites cannot be fled,
 ## HP never stays above max after a backpack change, a map never rolls a
 ## stop its act has nothing for, a Slowed boss stays slowed in phase two, the Hollow King is the
 ## hardest fight of the run, and no Elite stop's guard has more HP than its act's boss (#321). Uses
@@ -20,10 +20,6 @@ func before_all() -> void:
 
 func _run(seed_value: int = 7) -> RunState:
 	return RunState.begin(_data, _tuning.duplicate(true) as Tuning, seed_value)
-
-
-func _tonic(run: RunState) -> ItemData:
-	return run.items_by_id()["tonic"] as ItemData
 
 
 # --- Restock ----------------------------------------------------------------------------------
@@ -62,47 +58,21 @@ func test_restock_refuses_when_poor() -> void:
 	assert_eq(run.gold, _tuning.shop_restock_price, "nothing was taken")
 
 
-# --- Tonics -----------------------------------------------------------------------------------
+# --- max HP for good (card #332: no Tonic) -----------------------------------------------------
 
-func test_a_hero_drinks_only_so_many_tonics() -> void:
+func test_no_item_raises_max_hp_for_good() -> void:
+	# The Tonic went with card #332: max HP grows from levels, Vitality and Relics only.
 	var run := _run()
-	var cap := _tuning.tonic_max_per_hero
-	assert_gt(cap, 0)
-	for i: int in cap:
-		assert_true(run.use_item(run.add_item(_tonic(run)), 0), "tonic %d" % i)
-	var before_max := run.max_hp(0)
-	var uid := run.add_item(_tonic(run))
-	assert_false(run.can_use_item(uid, 0), "the hero is full")
-	assert_false(run.use_item(uid, 0))
-	assert_eq(run.max_hp(0), before_max, "no more max HP")
-	assert_ne(run.backpack.entry(uid), {}, "the tonic is not used up")
-	assert_ne(run.use_blocked_reason(uid, 0), "", "the screen can say why")
-	assert_true(run.can_use_item(uid, 1), "another hero can still drink it")
-	assert_eq(run.use_blocked_reason(uid, 1), "")
-	assert_true(run.apply_op({"op": "use", "uid": uid, "slot": 1}), "the same through an online op")
-
-
-func test_the_shop_stops_selling_tonics_nobody_can_drink() -> void:
-	var run := _run()
-	var tonic := _tonic(run)
-	assert_true(run.wants(tonic))
-	for slot: int in run.party_size():
-		for i: int in _tuning.tonic_max_per_hero:
-			assert_true(run.use_item(run.add_item(tonic), slot))
-	assert_false(run.wants(tonic), "every hero is full: not worth buying")
-	assert_true(run.wants(run.items_by_id()["salve"] as ItemData), "other wares are untouched")
-
-
-func test_tonics_drunk_are_kept_in_the_run_data() -> void:
-	var run := _run()
-	run.use_item(run.add_item(_tonic(run)), 2)
-	var copy := RunState.from_dict(_data, _tuning, run.to_dict())
-	assert_not_null(copy)
-	assert_eq(copy.tonics_used, run.tonics_used)
-	assert_eq(copy.tonics_left(2), _tuning.tonic_max_per_hero - 1)
-	var bad := run.to_dict()
-	bad.tonics_used = [0]
-	assert_null(RunState.from_dict(_data, _tuning, bad), "a wrong party size is refused")
+	assert_false(run.to_dict().has("tonics_used"), "the run keeps no Tonic count")
+	for item: ItemData in run.items_by_id().values():
+		assert_ne(item.effect, ItemData.Effect.MAX_HP_ONE, "%s gives no max HP" % item.id)
+	run.hp[0] = 1
+	var max_before := run.max_hp(0)
+	for item: ItemData in run.items_by_id().values():
+		if item.goes_in_pack() and item.usable_on_map():
+			assert_true(run.use_item(run.add_item(item), 0), "%s is used" % item.id)
+	assert_gt(run.hp[0], 1, "they heal")
+	assert_eq(run.max_hp(0), max_before, "and leave max HP as it was")
 
 
 # --- the attribute reset ----------------------------------------------------------------------

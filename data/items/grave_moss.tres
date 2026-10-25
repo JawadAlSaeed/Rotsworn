@@ -6,7 +6,7 @@
 script = ExtResource("1_3c0hp")
 id = "grave_moss"
 display_name = "Grave Moss"
-description = "A curse. Every hero loses 2% HP each turn in fights while you carry it. A shop's Cleanse throws it away."
+description = "A curse on the party. Every hero loses 2% HP each turn in fights. A shop's Cleanse lifts it."
 kind = 1
 rarity = 1
 price = 0

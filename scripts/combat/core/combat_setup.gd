@@ -59,7 +59,7 @@ var forced_hits: bool = false
 ## each lesson's attack, so only the marks lesson shows one.)
 var allow_marks: bool = true
 ## Backpack items the party can use in this fight (DESIGN.md 8.1): {uid: int, item: ItemData,
-## amount: int (its effect percent, stronger once combined), name: String}.
+## amount: int (its effect percent: the item's own, as items have no levels since card #332), name: String}.
 ## Each can be used once; the run takes the used ones out of the backpack afterwards.
 var items: Array[Dictionary] = []
 

@@ -318,16 +318,13 @@ extends Resource
 ## Between acts (DESIGN.md 8.9) everyone heals this percent of their max HP.
 @export_range(0, 100, 1, "suffix:%") var run_act_heal_percent: int = 50
 ## The shop (DESIGN.md 8.10): this many items on its shelves (picked from the run's shop list),
-## and its services: throw away one rotten item, raise one item a level, new wares on the shelves.
+## and its services: lift one curse off the party (card #332), new wares on the shelves.
 @export_range(0, 30) var run_shop_items: int = 4
 @export_range(0, 10000) var shop_cleanse_price: int = 35
-@export_range(0, 10000) var shop_upgrade_price: int = 45
 @export_range(0, 10000) var shop_restock_price: int = 20
-## Each restock in one shop visit costs this much more than the last (card #175: stops gold from
-## turning into endless Tonics by re-rolling the shelves).
+## Each restock in one shop visit costs this much more than the last (card #175: re-rolling the
+## shelves must not stay cheap).
 @export_range(0, 10000) var shop_restock_step: int = 20
-## A hero can drink at most this many Tonics (permanent max HP) in a run (card #175).
-@export_range(0, 99) var tonic_max_per_hero: int = 2
 ## Campfire (DESIGN.md 8.11): Train gives every hero this many attribute points.
 @export_range(0, 10) var rest_train_points: int = 1
 
@@ -425,10 +422,9 @@ extends Resource
 @export_range(50, 300, 1, "suffix:%") var enemy_power_base_percent: int = 105
 
 @export_group("Backpack")
-## Alder's pack (DESIGN.md 8.1, 8.19, card #282): this many pockets at the start of a run, one
-## item each; a Bigger Pack adds one, up to the max.
-@export_range(1, 20) var backpack_pockets: int = 6
-@export_range(1, 20) var backpack_max_pockets: int = 8
+## Alder's pack (DESIGN.md 8.1, 8.19, cards #282, #332): this many pockets, one consumable each, for
+## the whole run (the pack never grows).
+@export_range(1, 20) var backpack_pockets: int = 4
 ## A won Fight stop's fight drops a small item this often (DESIGN.md 8.22).
 @export_range(0, 100, 1, "suffix:%") var item_drop_percent: int = 35
 ## Selling (an item at the shop, or gear swapped out for new gear) pays this share of its price.
@@ -441,9 +437,6 @@ extends Resource
 @export_range(0, 1000, 1, "suffix:%") var item_rare_row_percent: int = 15
 @export_range(0, 1000, 1, "suffix:%") var item_legendary_percent: int = 10
 @export_range(0, 1000, 1, "suffix:%") var item_legendary_row_percent: int = 10
-## Combining two of the same item (DESIGN.md 8.1) makes one a level higher: each level makes its
-## effect (heal, damage, charm bonus) this percent stronger and its price that much higher.
-@export_range(0, 1000, 1, "suffix:%") var combine_bonus_percent: int = 60
 
 @export_group("Online")
 ## The port a host listens on and a client connects to (DESIGN.md 9.2).

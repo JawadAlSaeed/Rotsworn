@@ -117,16 +117,46 @@ func _has_stats(hints: Array) -> bool:
 
 # --- the status strip ----------------------------------------------------------------------------
 
-## The strip always opens with the run's gold, then one panel per hero (the gold-less strip of the
-## cut second mode is gone, card #331).
+## The strip always opens with the run's gold, then the party's curses (only while there are any,
+## card #332), then one panel per hero (the gold-less strip of the cut second mode is gone, card #331).
 func test_the_strip_shows_the_gold_then_the_heroes() -> void:
 	var run := RunState.begin(load(RUN_PATH) as RunData, load(TUNING_PATH) as Tuning, 42)
 	var bar := RunPartyBar.new()
 	add_child_autofree(bar)
 	bar.setup(run)
-	assert_eq(bar.get_child_count(), run.party_size() + 1, "the gold panel and a panel per hero")
+	assert_eq(bar.get_child_count(), run.party_size() + 2, "the gold panel, the curses' panel and a panel per hero")
 	var gold := bar.get_child(0).find_children("*", "Label", true, false)
 	assert_eq((gold[0] as Label).text, RunPartyBar.GOLD_TEXT % run.gold, "the gold comes first")
+	assert_false((bar.get_child(1) as Control).visible, "no curse: no curses' panel")
+
+
+## Card #332: each curse on the party shows on the strip as its picture and name, in the rot green;
+## more of the same curse share one chip ("x2"); a Cleanse takes the chip away.
+func test_the_strip_shows_the_partys_curses() -> void:
+	var run := RunState.begin(load(RUN_PATH) as RunData, load(TUNING_PATH) as Tuning, 42)
+	var heart := run.items_by_id()["rotting_heart"] as ItemData
+	var moss := run.items_by_id()["grave_moss"] as ItemData
+	var bar := RunPartyBar.new()
+	add_child_autofree(bar)
+	bar.setup(run)
+	run.add_curse(heart)
+	run.add_curse(moss)
+	run.add_curse(heart)
+	assert_eq(RunPartyBar.curse_chips(run), [[heart.icon_path, "Rotting Heart x2", BackpackGrid.ROTTEN_COLOR],
+			[moss.icon_path, "Grave Moss", BackpackGrid.ROTTEN_COLOR]])
+	bar.refresh(run)
+	var panel := bar.get_child(1) as Control
+	assert_true(panel.visible, "the curses show")
+	var words: Array[String] = []
+	for label: Node in panel.find_children("*", "Label", true, false):
+		words.append((label as Label).text)
+	assert_eq(words, ["Rotting Heart x2", "Grave Moss"] as Array[String], "a few words each")
+	assert_eq(panel.find_children("*", "TextureRect", true, false).size(), 2, "each with its picture")
+	run.gold = run.cleanse_price() * 3
+	while not run.curses.is_empty():
+		run.cleanse(0, run.curses[0], run.curses.size())
+	bar.refresh(run)
+	assert_false(panel.visible, "all lifted: the panel goes")
 
 
 # --- two or three choices side by side -----------------------------------------------------------

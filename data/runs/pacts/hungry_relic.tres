@@ -15,4 +15,4 @@ relic_rarity = 1
 script = ExtResource("3_nbeq1")
 text = "Feed the hungry Relic"
 deal = SubResource("Resource_6tii4")
-done_text = "Something old wakes in your pack."
+done_text = "Something old wakes in all of you."

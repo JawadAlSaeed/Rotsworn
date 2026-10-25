@@ -2454,10 +2454,10 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   questions (No left, Yes right; until phase 26 a zone's shrines and wanderers added their chips
   under the question, a `ConfirmPrompt` feature that went with them, 8.22), Spoils
   (Relic icon, name, New / Home / "Lv a > b", effect, drawback and stat chips; since 8.24 only New), the campfire (Rest
-  "+N%", Train "+N", Upgrade "+1 Lv"; before the boss Rest, Keep watch, Sharpen), treasure (Plain and
+  "+N%", Train "+N"; Upgrade "+1 Lv" until card #332, 8.1; before the boss Rest, Keep watch, Sharpen), treasure (Plain and
   Rotten chests), "?" events and the starting pact, and the main menu's Online page (Host, Join).
   Leave and Back are the cancel button with a footer hint, never a card. Pick lists of three or
-  fewer (who pays: the heroes' faces and HP; what goes; which item to upgrade) are cards too. Art: `tools/art_kit/assets/ui_choices.py` (choice_*, chip_*); paths and
+  fewer (who pays: the heroes' faces and HP; what goes; which curse to lift) are cards too. Art: `tools/art_kit/assets/ui_choices.py` (choice_*, chip_*); paths and
   chip colours in `stop_visuals.tres`.
 - **Zone (#289, #291; gone in phase 26 with `ZoneController`, 8.22, history).** The goal top right was icon chips (`ZoneController.goal_chips`): a seal
   stone "0 / 2" while the gate is shut, a horned skull GUARD, then a flag EXIT (or OPEN), and a
@@ -2482,16 +2482,17 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   clashes with a usable action (`ControlBindings.list_debug`).
 - **Run screens.** Map: under the map, the picked stop's picture, name and 2 or 3 chips
   (`MapScreen.detail_chips`; the campfire before the boss shows Keep watch and Sharpen). Shop:
-  service cards with pictures (skull Cleanse, anvil Upgrade, arrows Restock, coin Sell, door
-  Leave), prices as the coin and a number, Sell once. Run end: one row of chips ("Act 1/2" with the act's boss
+  service cards with pictures (skull Cleanse, arrows Restock, coin Sell, door Leave; the anvil
+  Upgrade went with card #332, 8.1), prices as the coin and a number, Sell once. Run end: one row of chips ("Act 1/2" with the act's boss
   lair, "Stops N", "Wins N", "Gold N", each hero's face with "Lv N"), the defence rows ("Parry 3",
   "Dodge 0", "Jump 0", "Hit 4", a star with "Best"), "Kept" and the Relics kept as icons with their
   names (up to 8, then "+N"; nothing when none), and on a defeat one row: "Killed by", the enemy's
   portrait and name, the attack's name and hit icons, "N damage". Echoes page: a pips bar per Relic being learned; the rules are in the
   Glossary's "echo" term. Rot Journal: hit kinds and marks as icons, the record as glyphs with
   counts, no legend. Y screen: a tab's count is a gold circle with a plain dark number; the Skills
-  tab's slots sit centred over the tree. New art: `tools/art_kit/assets/ui_runinfo.py` (upgrade,
-  restock, door; the map and shop use the campfire's `choice_upgrade.png` for Upgrade).
+  tab's slots sit centred over the tree. New art: `tools/art_kit/assets/ui_runinfo.py` (restock,
+  door; its anvil `upgrade.png` and the campfire's `choice_upgrade.png` went with the Upgrade, card
+  #332).
 - **Skills, tutorial, map legend, shop items (#292 to #295, 2026-10-21).** The fight's skill and item
   lists show the chosen row as its `short_text` (3 to 6 words, AbilityData / ItemData; the
   description when empty) over labelled chips worked out from its data (`ActionMenu.ability_chips` /
@@ -2712,6 +2713,49 @@ counters for longer and mixed strings (2.5, card #52).
 
 ### 8.1 Backpack and items (phase 11, plan agreed 2026-10-14)
 
+**Phase 26 change (card #332, owner 2026-10-25): the pack holds consumables only.** Everything below
+about Tonics, the Bigger Pack, combining, item levels, Upgrade and curses in pockets is history.
+
+- **Four pockets for the whole run** (`tuning.backpack_pockets` 4, was 6), one item each; the pack
+  never grows. The Bag tab sews them on the lining of `ui/backpack_5.png` two to a row
+  (`backpack_pocket_columns` 2, so two rows of two); `backpack_6.png` and `backpack_7.png` are gone.
+- **Only things used up go in** (`ItemData.goes_in_pack()`: kind CONSUMABLE): Salve, Feast, Bomb,
+  Antidote, Smelling Salts, Holy Water. Treasure still turns into gold the moment it is found.
+  `Backpack.from_array` and `RunState.place_item` refuse anything else.
+- **The Tonic is gone** (its item, icon and art maker, `tonic_max_per_hero`, `RunState.tonics_used`,
+  its place on the shop and find lists, the bot's use and its Glossary term). Nothing replaces it as
+  an item: lasting max HP comes from levels, Vitality (Train at a campfire gives points) and Relics
+  with a max HP line. With the Bigger Pack gone too, the shop and the finds draw from two items fewer.
+- **The Bigger Pack is gone for good** (its item and art, the `UPGRADE` / `ADD_ROW` handling,
+  `backpack_max_pockets`, the pockets sewn shut, its shelf in the shop, its Glossary words), and no
+  pack upgrade comes back in phase 28 either (8.24). `ItemData.Kind.UPGRADE` (4) and the effects
+  `MAX_HP_ONE` (3) and `ADD_ROW` (6) keep their numbers so item files stay valid; no item has them.
+- **No combining and no item levels**: the `combine` bag op, combining a find in hand, the `level` of a
+  pack entry, `combine_bonus_percent`, the shop's Upgrade (`shop_upgrade_price`) and the campfire's
+  Upgrade are gone. A campfire offers Rest or Train (8.11).
+- **Curses sit on the party, not in a pocket**: `RunState.curses`, the ids of curse items in the
+  order taken (saved and sent online; the same curse twice is two curses). The rot is the same: every
+  hero loses each curse's `rot_percent` of their max HP each turn in a fight, never below 1 HP
+  (`rot_percent()` adds them up, fed to the fight as `Passive.ROT`). Events, pacts and the rotten
+  chest add to the list (`add_curse`); a full pack never greys a curse price out. The run's top strip
+  (`RunPartyBar`, on the map and at every stop) shows each curse as its picture and name in the rot
+  green, one chip per kind ("Rotting Heart x2" for more of the same), and nothing when there is none.
+  The fight shows no curse chip: the rot shows as its damage numbers, as before. The shop's **Cleanse**
+  lifts one (the player picks which; same price, `shop_cleanse_price` 35, raised by the oaths like
+  every price). **Deliberate:** a curse cannot be thrown away or sold; only a Cleanse lifts it.
+  Before, throwing it out of the pack was free, so a curse price cost nothing but a pocket.
+- **A find with the pack full**: it goes in a free pocket by itself; with none, the Bag tab opens with
+  it in hand: Confirm on a pocket swaps it for that item (asked first; the old one is thrown away),
+  Back leaves it behind (asked first). Online a friend's choice comes back to the host as the same
+  `hand_out` op (`pocket`, `swap`, `fit`, `leave`), checked there against the pack.
+- **Saves and online**: `RunSave.FORMAT_VERSION` 7 (older runs are kept on disk but refused),
+  `Net.PROTOCOL` 9 (the run state has `curses` and no `tonics_used`, a pack entry has no level, the
+  shop's cleanse names a curse by its place in the list with the curse there and how many the friend
+  saw, so a second press made before the first came back is refused (`RunState.cleanse`), no
+  `combine` op, no campfire `upgrade`). Every
+  bag op is still checked by the host. **Bots**: no Tonic, no combining; in a shop they first lift
+  every curse they can pay for (`Main._bot_cleanses`), then buy as before; heals and revives as before.
+
 **Phase 26 change (8.22, cards #318, #319): no zones, no Key.** Glinting spots, roaming drops and the
 zones' locked chests are gone, and so is the Key (`data/items/key.tres`, its icon and art).
 `ItemData.Kind.KEY` keeps its number (2) so item files stay valid; no item is one. Items now come
@@ -2876,7 +2920,7 @@ when it has a key, and sells treasure at shops.
 - **Sounds** (#103, picked by the user 2026-10-14 from three real recordings each,
   `tools/sound_kit/candidates/backpack.json`): `item_lift` belt and buckle, `item_place` soft
   thump, `item_turn` paper slide, `item_no_room` dull knock, `item_drop` tossed pouch,
-  `item_found` coins and cloth, `item_combine` pop and shimmer, `chest_open` latch and creak.
+  `item_found` coins and cloth, `item_combine` pop and shimmer (gone with combining, card #332), `chest_open` latch and creak.
 - **Bot:** shops buy everything affordable (gear goes on whoever has room); new gear and finds
   are settled the simple way (`PartyScreen.auto_settle`); on the map it uses heals on whoever is
   at or under 60% and tonics at once; in zones it first walks to each glinting spot (giving one
@@ -3230,12 +3274,14 @@ scarce, and a "?" can turn into a fight.
     EVERYONE, CHOSEN (the player picks the hero) or RANDOM (the seed picks one). It never takes a hero
     under `event_max_hp_floor_percent` (40) of their normal max HP, and the choice is greyed when every
     hero is at the floor. HP is clamped to the new max. A chosen hero at the floor cannot be picked.
-  - `cost_item`: **lose a backpack item**, RANDOM (seeded) or CHOSEN (the player picks). Rotten items
-    are never taken (nobody misses those). Greyed when the backpack holds nothing that can be lost.
-  - `cost_rotten`: **a curse**. One of the rotten items that already exist (Rotting Heart, Grave Moss)
-    goes into the backpack at once; it is strong and it rots the party in fights until the shop's
-    Cleanse (or throwing it away) removes it. Greyed when it would not fit. An event deal never has
-    both an item price and a curse (a test keeps it so; the check for room would depend on the pick).
+  - `cost_item`: **lose a backpack item**, RANDOM (seeded) or CHOSEN (the player picks). Since card
+    #332 a curse is never in the pack, so it can never be the one lost. Greyed when the backpack holds
+    nothing.
+  - `cost_rotten`: **a curse**. One of the curses that already exist (Rotting Heart, Grave Moss)
+    goes on the party at once (card #332: `RunState.curses`, not a pocket, so it is never greyed for
+    want of room); it rots the party in fights until the shop's Cleanse lifts it. **Deliberate:** it
+    cannot be thrown away (8.1). An event deal never has both an item price and a curse (a test keeps
+    it so).
   - `ambush` (+ `ambush_spoils`): **a fight**. After the story the party fights that encounter through
     the run's own fight path (`Main._start_final_fight`, like an elite stop: HP carries on, gold and XP
     as for any fight, a defeat ends the run). Spoils (one piece of gear) only if `ambush_spoils` is on.
@@ -3403,8 +3449,8 @@ scarce, and a "?" can turn into a fight.
   places has a guard (each such stop holds its place's guard); one place without a guard and it gets
   none, since the map may give an Elite stop any of the act's places.
 - Online: `RunState.to_dict` carries the act (the client rebuilds that act's map), the stops
-  visited, the campfire points, the events met, the shop's restocks, the Tonics drunk and the "?"
-  ambush state (8.7).
+  visited, the campfire points, the events met, the shop's restocks, the curses on the party (card
+  #332; the Tonics drunk until then) and the "?" ambush state (8.7).
 
 ### 8.10 The shop (card #160)
 
@@ -3413,17 +3459,19 @@ scarce, and a "?" can turn into a fight.
   stock, `run_shop_items` (4) items picked from the run's shop list (`RunState.shop_stock`), 2
   charms and 2 pieces of gear, a card each with its picture (items their icon, gear a gold amulet),
   name in its rarity colour and price, SOLD when bought. Under them the **services**: Cleanse (35:
-  throw away a rotten item), Upgrade (45: an item up a level), Restock (20, and `shop_restock_step` (20) more
+  lift one curse off the party, picked from a list; card #332, 8.1), Restock (20, and `shop_restock_step` (20) more
   for every restock already bought at this shop, back to 20 at the next stop: new stock on the
   shelves, `RunState.restocks`, `restock_price()`; card #175), Sell (the backpack) and Leave. No Heal service (user 2026-10-16:
-  it did the same as a Salve for the same price; healing is bought as items). Arrows move over shelves and services, Confirm buys, Tab / Y sells, Back leaves.
+  it did the same as a Salve for the same price; healing is bought as items). No Upgrade since card
+  #332 (items have no levels). Arrows move over shelves and services, Confirm buys, Tab / Y sells, Back leaves.
 
 ### 8.11 The campfire (card #161)
 
 - A rest stop is a campfire: the heroes stand round a flickering fire with its glow, and the
-  player picks **one**: **Rest** (everyone heals `run_rest_heal_percent`), **Train** (every hero
-  gets `rest_train_points` (1) attribute point, `RunState.bonus_points`) or **Upgrade** (one
-  backpack item up a level for free). The bot rests when hurt, else upgrades, else trains.
+  player picks **one**: **Rest** (everyone heals `run_rest_heal_percent`) or **Train** (every hero
+  gets `rest_train_points` (1) attribute point, `RunState.bonus_points`). The third card, **Upgrade**
+  (one backpack item up a level for free), went with the item levels (card #332, 8.1). The bot rests
+  when hurt, else trains.
 
 ### 8.12 Living zones (user, 2026-10-17: "the ruins should have ruins, roads; the swamp should have a swamp, jungle; make the zones feel alive")
 
@@ -3499,6 +3547,7 @@ here makes a run easier.
   at most `tonic_max_per_hero` (2) Tonics per run (`RunState.tonics_used`, `tonics_left`). A capped
   hero is greyed on the party screen's hero cards with the reason in the info line, the shop stops
   selling Tonics once every hero is full, and a Tonic drunk by one hero still works for another.
+  (Card #332, 8.1: the Tonic is gone, and with it the cap; the Restock step stays.)
 - **A reset never heals** (#175). `set_attributes` keeps the HP a hero is missing the same, which is
   exact until the lower max HP would leave them under 1 HP. The old code clamped to 1 there and
   forgot the rest of the missing HP, so reset, respend gave it back: a free heal of the whole
@@ -3542,8 +3591,8 @@ here makes a run easier.
   (an elite is 40% tougher than a normal fight, and a fresh party loses it); roamers within 6 units are
   hunted for XP and gold while healthy; it uses its healing items before it walks into the guard; on
   the map it takes an Elite stop only while healthy and picks a campfire when any hero is at or
-  under 60% or the party averages under 75%; at a campfire it rests when hurt, else upgrades or
-  trains. A hero capped on Tonics is skipped. The bot cannot dodge a roamer that notices it. Do not
+  under 60% or the party averages under 75%; at a campfire it rests when hurt, else trains (it
+  upgraded too until card #332). The bot cannot dodge a roamer that notices it. Do not
   tune enemies to make these runs win; read them as "an average player's run".
 
 ### 8.14 Save & Quit (card #174)
@@ -3566,7 +3615,7 @@ A run can be put down and picked up later, Slay the Spire style: a local run, an
   back from the party screen), right after a stop is chosen (marked "in stop"), and again, still
   "in stop", right after anything inside a stop that cannot be taken back (card #197): an event
   choice (the moment its risk is rolled, and again once its gifts are settled), a shop purchase,
-  restock, sale, cleanse or upgrade, and an opened treasure chest (once its prize is settled).
+  restock, sale or cleanse, and an opened treasure chest (once its prize is settled).
   Run fields hold what the stop already did: `stop_done` and `stop_text` (the event's result or
   the chest's text) and `shop_sold` (the shelf items bought).
 - **Continue in a stop starts that stop again from its start**, with the run as it was at the last
@@ -4000,7 +4049,8 @@ badge; signals changed, op_requested, toast):
 - **Bag tab** (`BagTab`): the backpack (scaled to fit when 7 rows are taller than the page) with the
   old rules (item menu Use / Sell / Move / Throw away, combine, turn, swap, leave behind), the heroes
   as small faces with HP on the left (who an item is used on; greyed when they cannot take it), and
-  free cells and curses as glyph + number on the right.
+  free cells and curses as glyph + number on the right (since card #332 only the free pockets: the
+  curses are on the run's top strip, 8.1).
 - **Hero tab** (`HeroTab`, replaces the Attributes page): a rail of faces (LT / RT change hero), the
   hero's name, level and XP bar, points waiting, the five attributes as rows (glyph, points, the stat
   now; right / Confirm adds, left takes back, X / R resets after asking, the too-wounded refusal on
@@ -4086,8 +4136,14 @@ Relics and pips the run found after they joined (9.3).
 **Alder's pack with pockets (#282, built).** The grid backpack (8.1) lost its job when the charms
 went: its shapes, turning and moving were busywork for seven kinds of supplies. Now:
 
+**Phase 26 change (card #332, 8.1): four pockets of consumables only.** The pack has 4 pockets
+(two rows of two) and never grows: no Bigger Pack, no sewn-shut pockets, no combining, no levels, no
+Tonic. Curses leave the pockets and sit on the party (`RunState.curses`, shown on the top strip);
+only a shop's Cleanse lifts one. A full pack offers a swap or leaving the find (both asked). The
+bullets below are the phase 21 build.
+
 - **Pockets** (`Backpack`, pure): `tuning.backpack_pockets` (6) pockets in a row, one item each,
-  whatever its shape; a Bigger Pack adds one, up to `backpack_max_pockets` (8). Ops and saves keep
+  whatever its shape; a Bigger Pack adds one, up to `backpack_max_pockets` (8; both gone, card #332). Ops and saves keep
   their old shape (cells are `Vector2i(pocket, 0)`). An older save's grid becomes pockets, its items
   in reading order, 6 pockets plus one per Bigger Pack row, never fewer than it holds.
 - **Treasure** turns into gold the moment it is found (`RunState.add_item`: what selling it paid,
@@ -4165,7 +4221,8 @@ as they were; `RunMap._vary_rows`, `_crown_elite`, `_fix_zones`):
 
 - **Treasure**: two chests, one to open (`RunState.open_treasure`, seeded per stop). The plain one
   holds `run_treasure_gold` and a rare or better item; the rotten one a rare or better Relic, but
-  `rotten_chest_curse_percent` (30%) of the time a curse comes with it and `rotten_chest_fight_percent`
+  `rotten_chest_curse_percent` (30%) of the time a curse comes with it (on the party since card #332,
+  8.1) and `rotten_chest_fight_percent`
   (20%) of the time an ambush from the act's pool (no spoils; Fight goes into it,
   `Main._on_treasure_done`). The bot opens the rotten one only while healthy.
 - **Shrines**: the three free offers got a price: Healing Spring 30 gold, War Idol everyone loses 10%
@@ -4173,7 +4230,7 @@ as they were; `RunMap._vary_rows`, `_crown_elite`, `_fix_zones`):
 - **The campfire before the boss** (the act's campfire row, `RunState.is_watch_fire`) offers Rest,
   Keep watch (the team gauge is full, `keep_watch`) or Sharpen (every hero starts the boss fight with
   `sharpen_ap` (1) more AP, `sharpened`, saved; used up by the boss fight). Other campfires keep Rest,
-  Train and Upgrade. The bot keeps watch when it does not need to rest.
+  Train (and Upgrade until card #332). The bot keeps watch when it does not need to rest.
 
 **After the build** (2026-10-19, a review by three reviewers, each finding checked by a skeptic): an
 online friend who drops and takes their seat back keeps the collection taken at the run's start
@@ -5267,7 +5324,8 @@ Lumina until the first boss"). Decided:
   run, won or lost, buys small permanent "run rules" upgrades for the party (for example a heal after
   each won fight, starting gold, getting back up once per run, a little max HP), never attribute
   points. Its list and its currency are phase 28's talk. It is also the answer to the 70% player
-  problem (#321) and to winnable Oaths.
+  problem (#321) and to winnable Oaths. **No pack upgrades** (owner, card #332): the pack stays 4
+  pockets of consumables (8.1), so no upgrade there adds a pocket.
 - **The Fight Rush** keeps its feel; its Relic rewards follow the same pick 1 of 3 rule (the Rush
   was cut since, #331, 8.21).
 
@@ -5545,7 +5603,8 @@ Relic bag is gone.
     as it is now. A party screen the host sent follows the host, as before.
   - A find with no room in the pack on a friend's turn (an event's prize, a chest, a purchase) is
     handed to them (`gift`): their backpack opens over their screen with it in hand,
-    and where they put it comes back as a `hand_out` bag op (pocket, combine, swap, fit, leave; a
+    and where they put it comes back as a `hand_out` bag op (pocket, swap, fit, leave; combine went
+    with card #332; a
     shop purchase left behind gives its gold back). A Relic never waits (since 8.24): its pick asks
     "Who gets it?" and the turn's player gives it to one of their heroes. The spoils' party screen
     after a pick stays the host's, as before. Each hand-out has a number (`gift`, and the `hand_out` op carries it back):
@@ -6047,8 +6106,8 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
   low-HP power, dodge and parry AP, thorns, gauge, negative start AP and Tough, rot) in the engine
   with its drawback; every shipped piece's numbers and a valid fight setup; Hunger Charm's Rest,
   Oathbreaker's Band's wounds and floor; spoils always offer one (and never force it on a single
-  choice); shops sell them rarely; the bot's pick; Tonics cannot be upgraded and always give the
-  plain amount; the same seed gives the same events; a save keeps worn pieces.
+  choice); shops sell them rarely; the bot's pick; the same seed gives the same events; a save keeps
+  worn pieces (the Tonic checks went with the Tonic, card #332).
 - Charged Dooms (`test_charged_dooms.gd`, card #195): the announce (countdown and break threshold on
   the intent), a Doom never opens a fight, gather then unleash with no break (the string hits the
   whole party), the cooldown, delays leave the countdown alone, damage counts toward the break to
@@ -6126,7 +6185,16 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
 - The Fight Rush's tests (`test_rush.gd`, `test_rush_data.gd`, `test_rush_screens.gd`,
   `test_rush_online.gd`) and its bot checks went with it (card #331, 8.21). `test_choice_cards.gd`
   and `test_save_menus.gd` check that New Run and Host start the run's path at once, `test_dropin.gd`
-  that `lobby` and `run_start` carry no mode or records and `Net.PROTOCOL` is 8.
+  that `lobby` and `run_start` carry no mode or records and `Net.PROTOCOL` is 8 (9 since card #332).
+- The pack of consumables only (card #332, 8.1): `test_backpack.gd` (four pockets two to a row, only
+  consumables in a pocket, no level in the saved pack and older shapes refused, no combining, the
+  Tonic, the Bigger Pack and their art and tuning gone, curses on the party with the same rot, a full
+  pack still taking a curse, Cleanse by index and price as the only way off, curses saved and sent
+  and odd ones refused, a find handed out put in a pocket, swapped or left), `test_phase22_clutter.gd`
+  (the top strip's curse chips), `test_take_turns.gd` (the host lifting the curse a friend names; the
+  shop bot's `_bot_cleanses`), `test_events.gd` (a curse price needs no room and is never lost),
+  `test_choice_cards.gd` and `test_run_info_clean.gd` (a campfire is Rest or Train),
+  `test_run_balance.gd` (no item raises max HP for good), `test_run_fights.gd` (format 6 refused).
 - Taking turns online (`test_take_turns.gd`, card #314, 9.2): the seat order, a skipped away or
   joining seat, the same screen keeping its owner, a drop or a leave passing the turn, Take turns
   off, each screen's key, the host making a friend's choice
@@ -6359,12 +6427,15 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     events with no more keys (#318), the zone code and data removed (#319), First Strike as a press
     (#320); three acts with the Leech Queen (#322, #323, 8.23); the balance pass (#321); online taking
     turns (#314) and Save & Quit (#313); Relics without slots and no Echoes (#326, #327, 8.24, branch
-    `phase26-relics`) and the Relic book with the starting Relics (#328, 8.24); Fight Rush cut (#331, 8.21). Ideas parked: boss pools (#324), boss gimmicks (#325).
+    `phase26-relics`) and the Relic book with the starting Relics (#328, 8.24); Fight Rush cut (#331, 8.21);
+    the pack holds consumables only (#332, 8.1: four pockets, no Tonic, no Bigger Pack, no combining
+    or levels, no Upgrade, curses on the party lifted only by Cleanse). Ideas parked: boss pools (#324), boss gimmicks (#325).
 27. **Relics** (planned 2026-10-25): go through every Relic under the new rules (8.24): what each
     gives and whether it is worth picking, give each its icon, then make new Relics (#329).
 28. **The upgrade shop** (planned 2026-10-25): a shop outside the run where a currency earned by every
     run buys upgrades for the whole party, so runs get easier and the Oaths winnable; talk through the
-    upgrades and the currency (#330, 8.24). A short balance check after it.
+    upgrades and the currency (#330, 8.24). No pack upgrades among them (card #332: the pack stays
+    4 pockets of consumables). A short balance check after it.
 29. **Story** (was phase 27): lore notes (#301), hero banter (#302), the story as a whole (#306).
 30. **The interactive tutorial** (was phase 28): a lesson for every kind of enemy hit (#206).
 
@@ -6645,3 +6716,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-25 | The starting Relics as built (8.24 "As built (#328)"): the step comes first in a new run (before the oath pact and the map) and before FIGHT 1 in a Rush; one Relic per hero (`start_relics_per_hero`), hero by hero, Back skips; online each friend picks for their own heroes from their own book, the host checks and waits up to 90 s (`start_relic_wait_ms`); a friend who drops in later gets none; starting Relics are never banked; the Relic bag and its tuning go | builder defaults for the owner's pick A, to confirm at the phase 26 playtest |
 | 2026-10-25 | Review of #326 to #328 (8.24 As built): a starting Relic pick goes on when the chooser's pad is unplugged (any device picks) and Esc opens the pause menu over the step offline instead of skipping a hero; a starting max HP Relic comes filled; a friend logs `AUTOPLAY_START_RELICS` also when the host skipped the step, and keeps their "Who gets it?" hero cards when the host's state changes; the "Home" tag goes (only "New": not in the book; no tag on Rush cards); the Y screen offers no Give with nothing waiting; the rotten chest offers at most `rot_gear_spoils_count` rot-touched Relics, never only those; the bot buys no Relic it refuses and spreads Relics over the party (`GearBot.HELD_SHARE_PERCENT`) | review findings: a step stuck on a dead pad, a skipped hero on Esc, logs that differ between machines, a lost hero pick, an unexplained word, a forced costly chest Relic, bot runs that skew the balance numbers |
 | 2026-10-25 | Cut the Fight Rush (8.21, card #331): New Run and Host start the run's path at once again, Join follows the host into the run; the Rush's code, data, tuning, switches, glossary topic and card pictures go; `lobby`, `again` and `run_start` lose their mode (`Net.PROTOCOL` 8); the monsters, encounters and bosses stay as the run's data; old Rush records in `settings.cfg` are ignored | owner: the run is now as fast, so the Rush is not needed |
+| 2026-10-25 | The pack holds consumables only (8.1, card #332): 4 pockets for the whole run (was 6, two to a row in the Bag tab), only Salve, Feast, Bomb, Antidote, Smelling Salts and Holy Water go in; the Tonic and the Bigger Pack go for good (no pack upgrades in phase 28 either); no combining, no item levels, no shop or campfire Upgrade; curses leave the pockets and sit on the party (`RunState.curses`, the same rot per curse, chips on the run's top strip), added by events, pacts and the rotten chest and lifted only by the shop's Cleanse at the same price, never thrown away; a full pack swaps or leaves a find (both asked); `RunSave.FORMAT_VERSION` 7, `Net.PROTOCOL` 9; the shop bot lifts curses it can pay for first | owner: the pack was a second inventory game; a curse thrown away for free was no price. Builder defaults: Cleanse picks the curse from a list; one chip per kind of curse ("x2"); no curse chip in the fight (the rot shows as damage, as before); nothing replaces the Tonic |

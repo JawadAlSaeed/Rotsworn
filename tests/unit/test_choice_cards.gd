@@ -290,12 +290,11 @@ func test_the_campfire_choices_are_cards_with_icons_and_numbers() -> void:
 	var rest := _rest(run)
 	var menu := rest.menu()
 	assert_true(menu.horizontal)
-	assert_eq(_texts(menu), ["Rest", "Train", "Upgrade"])
+	assert_eq(_texts(menu), ["Rest", "Train"], "two choices: the Upgrade went with the item levels (card #332)")
 	for row: Dictionary in menu.items:
 		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
 	assert_eq(String((menu.items[0].chips as Array)[0].text), "+%d%% HP" % run.rest_heal_percent(), "Rest says how much it heals")
 	assert_eq(String((menu.items[1].chips as Array)[0].text), "+%d points" % _tuning.rest_train_points)
-	assert_false(bool(menu.items[2].enabled), "nothing to upgrade in an empty pack")
 	for entry: Array in rest.footer_entries():
 		assert_ne(entry[0], &"menu_cancel", "no Back while choosing")
 	_press_on(rest, &"menu_cancel")
@@ -303,32 +302,17 @@ func test_the_campfire_choices_are_cards_with_icons_and_numbers() -> void:
 	assert_true(menu.horizontal)
 
 
-func test_a_greyed_upgrade_card_does_nothing_when_chosen() -> void:
+func test_a_full_pack_changes_nothing_at_the_campfire() -> void:
+	# Card #332: no Upgrade, so the pack's items never show here.
 	var run := _run()
+	for i: int in run.backpack.width:
+		run.add_item(run.items_by_id()["salve"] as ItemData)
 	var rest := _rest(run)
-	assert_false(bool(rest.menu().items[2].enabled), "nothing to upgrade in an empty pack")
-	rest.menu().index = 2
+	assert_eq(_texts(rest.menu()), ["Rest", "Train"])
+	assert_false(rest.has_method("upgrade_now"), "the bot has no upgrade to call")
+	rest.menu().index = 1
 	_press_on(rest, &"menu_confirm")
-	assert_true(rest.menu().horizontal, "still the three cards, no empty item list")
-	assert_eq(_texts(rest.menu()), ["Rest", "Train", "Upgrade"])
-	_press_on(rest, &"menu_confirm")
-	assert_false(rest.has_acted(), "and a second press does not Rest by itself")
-
-
-func test_upgrading_lists_the_items_and_back_returns() -> void:
-	var run := _run()
-	run.add_item(run.items_by_id()["salve"] as ItemData)
-	var rest := _rest(run)
-	assert_true(bool(rest.menu().items[2].enabled))
-	rest.menu().index = 2
-	_press_on(rest, &"menu_confirm")
-	assert_true(rest.menu().horizontal, "one item to upgrade: a card")
-	assert_eq(rest.menu().items.size(), 1, "no Back row")
-	assert_has(rest.footer_entries(), [&"menu_cancel", "Back"])
-	_press_on(rest, &"menu_cancel")
-	assert_true(rest.menu().horizontal)
-	assert_eq(rest.menu().index, 2, "back on Upgrade")
-	assert_true(rest.upgrade_now(rest.upgradable()[0]), "the bot's upgrade_now() still works")
+	assert_true(rest.has_acted(), "Train is the one choice")
 	assert_eq(_texts(rest.menu()), ["Back to the map"])
 
 

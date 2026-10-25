@@ -4,7 +4,9 @@ extends SceneTree
 ## found lists, the curses (Rotting Heart, Grave Moss: events' prices) and the Bigger Pack. Phase 17
 ## took the charms out (DESIGN.md 8.17; the best charm ideas became Relics: tools/bootstrap_relics.gd)
 ## and phase 21 deleted their faded files (card #282). Phase 26 removed the walkable zones with their
-## glinting spots, chests and the Key that opened them (DESIGN.md 8.22, G3). Only adds items missing
+## glinting spots, chests and the Key that opened them (DESIGN.md 8.22, G3). Card #332 took the Tonic
+## and the Bigger Pack out (the pack holds only things used up, and never grows), and curses sit on
+## the party, not in a pocket. Only adds items missing
 ## from the run's lists (later phases added their own). Only writes item files that do not exist
 ## yet, so edits made in the editor are never overwritten.
 ## Run headless:
@@ -31,8 +33,6 @@ func _init() -> void:
 			K.CONSUMABLE, R.COMMON, true, true)
 	var feast := _item("feast", "Feast", "Heals everyone by 30% of their max HP.", 40, E.HEAL_ALL, 30, wide, 4,
 			K.CONSUMABLE, R.COMMON, true, true)
-	var tonic := _item("tonic", "Tonic", "One character gets +15% max HP for the rest of the run.", 45, E.MAX_HP_ONE, 15,
-			tall, 2, K.CONSUMABLE, R.COMMON, true, false)
 	var bomb := _item("bomb", "Bomb", "In a fight: hits every enemy hard.", 30, E.DAMAGE_ALL, 120, one, 6,
 			K.CONSUMABLE, R.COMMON, false, true)
 	var salts := _item("smelling_salts", "Smelling Salts", "In a fight: wakes a downed hero with 40% of their HP.", 60,
@@ -48,10 +48,8 @@ func _init() -> void:
 	# New typed arrays: a run saved before phase 11 holds a list typed for the old shop items.
 	var heart := _curse("rotting_heart", "Rotting Heart", 3, one)
 	var moss := _curse("grave_moss", "Grave Moss", 2, wide)
-	var pack := _item("bigger_pack", "Bigger Pack", "The backpack gets one more row, at once.", 100, E.ADD_ROW, 0, one, 1,
-			K.UPGRADE, R.RARE, false, false)
-	var shop: Array[ItemData] = [salve, feast, tonic, bomb, salts, pack]
-	var found: Array[ItemData] = [salve, feast, tonic, bomb, salts, ring, gem, idol, heart, moss, pack]
+	var shop: Array[ItemData] = [salve, feast, bomb, salts]
+	var found: Array[ItemData] = [salve, feast, bomb, salts, ring, gem, idol, heart, moss]
 	for item: ItemData in shop:
 		if not run.shop_items.has(item):
 			run.shop_items.append(item)
@@ -87,16 +85,14 @@ func _item(id: String, title: String, desc: String, price: int, effect: ItemData
 	return ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REPLACE) as ItemData
 
 
-## A charm from before phase 17, now faded treasure (DESIGN.md 8.17): no effect, never found again
-## (find weight 0), only worth gold; kept so older saves that carry one still load.
 ## A curse (DESIGN.md 8.1, 8.7): rotten, every hero loses `rot` percent HP each turn in fights while
-## it is carried; events give it as a price and a shop's Cleanse throws it away. Never found.
+## it is on the party (card #332); events give it as a price and a shop's Cleanse lifts it.
 func _curse(id: String, title: String, rot: int, shape: Array[Vector2i]) -> ItemData:
 	var path := "res://data/items/%s.tres" % id
 	if FileAccess.file_exists(path) and not _force:
 		return load(path) as ItemData
-	var item := _item(id, title, "A curse. Every hero loses %d%% HP each turn in fights while you carry it. " % rot
-			+ "A shop's Cleanse throws it away.", 0, E.NONE, 0, shape, 0, K.CURSE, R.RARE, false, false)
+	var item := _item(id, title, "A curse on the party. Every hero loses %d%% HP each turn in fights. " % rot
+			+ "A shop's Cleanse lifts it.", 0, E.NONE, 0, shape, 0, K.CURSE, R.RARE, false, false)
 	item.rotten = true
 	item.rot_percent = rot
 	_check(ResourceSaver.save(item, path), path)

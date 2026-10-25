@@ -121,18 +121,19 @@ func test_a_fight_shows_its_foes_and_gold_and_a_guard_elite_looks_like_any_elite
 	assert_eq(MapScreen.detail_chips(run, old, _look, _visuals.gold_icon_path).size(), 2)
 
 
-func test_a_campfire_shows_rest_train_and_upgrade() -> void:
+func test_a_campfire_shows_rest_and_train() -> void:
+	# The Upgrade went with the item levels (card #332).
 	var run := _run()
 	var chips := MapScreen.detail_chips(run, {"type": RunMap.StopType.REST}, _look, _visuals.gold_icon_path)
-	assert_eq(chips.size(), 3)
+	assert_eq(chips.size(), 2)
 	assert_eq(chips[0].icon, &"heart", "rest: a heart")
 	assert_eq(String(chips[0].text), "Heal %d%%" % run.rest_heal_percent(), "with how much it heals")
 	assert_eq(chips[1].icon, &"up", "train: the up arrow")
-	assert_eq(String(chips[2].icon), _look.upgrade_icon_path, "upgrade: its own picture")
+	assert_eq(String(chips[1].text), "Train")
 
 
 ## The campfire row before each boss offers Keep watch and Sharpen (card #287), so its chips name
-## those, never Train or Upgrade; the map agrees with the campfire screen at every campfire.
+## those, never Train; the map agrees with the campfire screen at every campfire.
 func test_the_campfire_before_the_boss_shows_watch_and_sharpen_not_train() -> void:
 	var watch_fires := 0
 	for s: int in range(1, SEEDS):
@@ -149,10 +150,11 @@ func test_the_campfire_before_the_boss_shows_watch_and_sharpen_not_train() -> vo
 				texts.append(String(chip.text))
 			if not watch:
 				assert_true(texts.has("Train"), "other campfires keep Train")
+				assert_false(texts.has("Upgrade"), "seed %d stop %d: no Upgrade anywhere (card #332)" % [s, stop.id])
 				continue
 			watch_fires += 1
 			assert_false(texts.has("Train"), "seed %d stop %d: no Train before the boss" % [s, stop.id])
-			assert_false(texts.has("Upgrade"), "seed %d stop %d: no Upgrade before the boss" % [s, stop.id])
+			assert_false(texts.has("Upgrade"), "seed %d stop %d: no Upgrade anywhere (card #332)" % [s, stop.id])
 			assert_eq(chips.size(), 3)
 			assert_eq(chips[0].icon, &"heart", "rest still heals")
 			assert_eq(String(chips[1].icon), _look.gauge_icon_path, "keep watch: the gauge")
@@ -199,7 +201,7 @@ func test_an_icon_chip_shows_a_picture_and_a_word() -> void:
 
 
 func test_the_run_info_icons_exist() -> void:
-	for path: String in [_look.guard_icon_path, _look.foe_icon_path, _look.upgrade_icon_path, _look.restock_icon_path,
+	for path: String in [_look.guard_icon_path, _look.foe_icon_path, _look.restock_icon_path,
 			_look.leave_icon_path, _look.flag_path, _visuals.gold_icon_path]:
 		assert_true(path.begins_with("res://assets/"), "%s lives in assets/" % path)
 		assert_true(FileAccess.file_exists(path), "%s is drawn" % path)

@@ -307,7 +307,7 @@ func _show_pick(index: int) -> void:
 		for uid: int in run.losable_uids():
 			_pick_ids.append(uid)
 			var e := run.backpack.entry(uid)
-			list.append({"text": RunState.entry_name(e), "enabled": true,
+			list.append({"text": (e.item as ItemData).display_name, "enabled": true,
 					"icon": AssetLoader.texture((e.item as ItemData).icon_path, Vector2i(16, 16)),
 					"detail": (e.item as ItemData).description})
 	_menu.index = 0

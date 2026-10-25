@@ -322,7 +322,7 @@ func test_the_campfire_before_the_boss_offers_watch_and_sharpen() -> void:
 	assert_false(run.sharpened, "used up by the boss fight")
 	if other >= 0:
 		run.at = other
-		assert_false(run.is_watch_fire(), "other campfires keep Rest, Train and Upgrade")
+		assert_false(run.is_watch_fire(), "other campfires keep Rest and Train")
 
 
 # --- review fixes -----------------------------------------------------------------------------------

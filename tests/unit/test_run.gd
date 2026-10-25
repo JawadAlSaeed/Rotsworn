@@ -203,11 +203,10 @@ func test_shop_items_cost_gold_and_do_what_they_say_when_used() -> void:
 	var run := _run()
 	var salve := _item(ItemData.Effect.HEAL_ONE)
 	var feast := _item(ItemData.Effect.HEAL_ALL)
-	var tonic := _item(ItemData.Effect.MAX_HP_ONE)
 	run.gold = 0
 	run.hp[0] = 1
 	assert_false(run.pay_for(salve), "no gold, no salve")
-	run.gold = salve.price + feast.price + tonic.price
+	run.gold = salve.price + feast.price
 	assert_true(run.pay_for(salve))
 	var uid := run.add_item(salve)
 	assert_gte(uid, 0, "a bought item goes into the backpack")
@@ -221,12 +220,6 @@ func test_shop_items_cost_gold_and_do_what_they_say_when_used() -> void:
 	assert_true(run.pay_for(feast))
 	assert_true(run.use_item(run.add_item(feast), -1), "a feast needs nobody picked")
 	assert_eq(run.hp[2], 1 + CombatMath.percent(run.max_hp(2), feast.amount_percent))
-	var before_max := run.max_hp(1)
-	var before_hp := run.hp[1]
-	assert_true(run.pay_for(tonic))
-	assert_true(run.use_item(run.add_item(tonic), 1))
-	assert_eq(run.max_hp(1), CombatMath.percent_min1(before_max, 100 + tonic.amount_percent))
-	assert_eq(run.hp[1], before_hp + run.max_hp(1) - before_max, "the new HP is filled")
 	assert_eq(run.gold, 0)
 	assert_false(run.can_afford(salve))
 

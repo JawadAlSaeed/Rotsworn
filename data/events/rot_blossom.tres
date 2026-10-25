@@ -35,7 +35,7 @@ script = ExtResource("1_kg8lf")
 text = "Cut the seed pod"
 detail = "Something rare inside. Spores drift."
 deal = SubResource("Resource_d2t6p")
-done_text = "The pod splits open, and the spores settle in your pack."
+done_text = "The pod splits open, and the spores settle on all of you."
 
 [resource]
 script = ExtResource("4_2013q")

@@ -4,14 +4,13 @@ Drawn like the map's stop pictures and the gold coin (24x24, lit from the upper 
 ink outline), so they sit beside them in a row of chips under the map, in the shop and on the run's
 end screen. The game draws them with nearest filtering at a whole multiple.
 
-- ui/upgrade.png: an item going up a level (the shop's Upgrade, the campfire's Upgrade chip): an
-  iron anvil with a gold arrow rising over it.
 - ui/restock.png: new wares on the shelves (the shop's Restock): two cream arrows chasing each
   other round a circle.
 - ui/door.png: back to the map (the shop's Leave): an arched plank door in a stone frame, a gold
   ring for a handle, standing ajar on a warm light.
 
-Paths: data/presentation/map_visuals.tres (upgrade_icon_path, restock_icon_path, leave_icon_path).
+Paths: data/presentation/map_visuals.tres (restock_icon_path, leave_icon_path). (The anvil for the
+shop's Upgrade went with the item levels, card #332.)
 """
 from __future__ import annotations
 
@@ -33,29 +32,6 @@ CREAM = M["cloth_cream"].colors
 WOOD = M["wood"].colors
 STONE = M["stone"].colors
 AMBER = M["glow_amber"].colors
-
-
-def make_upgrade() -> np.ndarray:
-    """An anvil with a gold arrow rising over it: the item on it goes up a level."""
-    c = Canvas(ICON, ICON)
-    # The anvil: a horn to the left, the flat face, the waist and the foot (lit from the top left).
-    c.poly([(1.0, 12.0), (7.0, 12.0), (7.0, 15.0), (4.0, 14.0)], IRON[2])
-    c.rect(6, 12, 20, 14, IRON[3])
-    c.rect(6, 12, 20, 12, IRON[4])
-    c.rect(18, 13, 20, 14, IRON[1])
-    c.rect(9, 15, 15, 17, IRON[1])
-    c.rect(9, 15, 10, 17, IRON[2])
-    c.rect(6, 18, 18, 20, IRON[2])
-    c.rect(6, 18, 18, 18, IRON[3])
-    c.rect(15, 19, 18, 20, IRON[0])
-    # The arrow: a head and a short shaft, gold, its left side lit.
-    c.poly([(11.5, 1.0), (16.6, 6.6), (6.4, 6.6)], GOLD[2])
-    c.poly([(11.5, 1.0), (11.5, 6.6), (6.4, 6.6)], GOLD[3])
-    c.rect(10, 6, 13, 10, GOLD[2])
-    c.rect(10, 6, 11, 10, GOLD[3])
-    c.px(11, 2, GOLD[-1])
-    c.outline(INK_OUT)
-    return c.a
 
 
 def make_restock() -> np.ndarray:
@@ -124,6 +100,5 @@ def make_door() -> np.ndarray:
 
 
 def build(ctx) -> None:
-    ctx.save("sprites/ui/upgrade.png", make_upgrade(), scale=8)
     ctx.save("sprites/ui/restock.png", make_restock(), scale=8)
     ctx.save("sprites/ui/door.png", make_door(), scale=8)

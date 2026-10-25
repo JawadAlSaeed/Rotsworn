@@ -1,22 +1,24 @@
 class_name ItemData
 extends Resource
-## One thing that lives in the party's backpack (DESIGN.md 8.1): a consumable, a curse or
-## treasure. It has a shape on the backpack grid, a rarity and a price. Relics are not items: they
-## are worn (GearData). Phase 17 took the charms out (their buffs are what Relics and Echoes do now,
-## DESIGN.md 8.17); the old charm files stay as treasure so older saves still load.
+## One thing the run can find or buy (DESIGN.md 8.1): a consumable (the only kind the pack holds,
+## card #332), a curse (it sits on the party, RunState.curses) or treasure (gold at once). It has a
+## rarity and a price. Relics are not items: they are worn (GearData).
 
 enum Kind {
 	## Used up: in a fight (Items) or on the map.
 	CONSUMABLE,
-	## Only hurts: rotten, every hero loses rot_percent HP each turn in fights while it is carried.
-	## Events give them as a price; a shop's Cleanse throws one away. (Was CHARM before phase 17.)
+	## Only hurts: rotten, every hero loses rot_percent HP each turn in fights while the party has it.
+	## It never goes in the pack (card #332): it sits on the party (RunState.curses). Events, pacts
+	## and the rotten chest give them as a price; a shop's Cleanse takes one away. (Was CHARM before
+	## phase 17.)
 	CURSE,
 	## Retired: the Key that opened a zone's chest (phase 11 step 2) went with the walkable zones in
 	## phase 26 (DESIGN.md 8.22 G3). No item is one; the slot keeps its number so item files stay valid.
 	KEY,
-	## Only worth gold at the shop.
+	## Turns into gold the moment it is found (card #282).
 	TREASURE,
-	## Used the moment the party gets it (a bigger backpack); never kept in the backpack.
+	## Retired: the Bigger Pack (one more pocket, used at once) went in phase 26 (card #332): the pack
+	## does not grow. No item is one; the slot keeps its number so item files stay valid.
 	UPGRADE,
 }
 
@@ -29,15 +31,14 @@ enum Effect {
 	HEAL_ONE,
 	## Heals every character by `amount_percent` of their max HP.
 	HEAL_ALL,
-	## Raises one character's max HP by `amount_percent` for the rest of the run (and heals that
-	## much too, so the new HP is not empty).
+	## Retired: the Tonic's max HP for the run went in phase 26 (card #332; more max HP is a
+	## Relic's job). No item has it; the slot keeps its number so item files stay valid.
 	MAX_HP_ONE,
 	## In a fight: hits every enemy for `amount_percent` of tuning.base_party_damage.
 	DAMAGE_ALL,
 	## In a fight: brings a downed ally back with `amount_percent` of their max HP.
 	REVIVE_ONE,
-	## The pack gets one more pocket (up to tuning.backpack_max_pockets; the name is from the old
-	## grid's rows).
+	## Retired with the Bigger Pack (card #332): no item has it; the slot keeps its number.
 	ADD_ROW,
 	## In a fight: lifts `cleanse_count` marks from one hero (Antidote, card #254), then heals
 	## `amount_percent` of their max HP (0 = no heal).
@@ -56,7 +57,8 @@ enum Effect {
 @export var rarity: Rarity = Rarity.COMMON
 ## Shop price (gold). Selling pays tuning.item_sell_percent of it.
 @export_range(0, 10000) var price: int = 30
-## The cells it covers on the backpack grid, unturned (x right, y down). The top-left is (0, 0).
+## Its picture's cells (16 px each, x right, y down; the top-left is (0, 0)). Since phase 21 every
+## item takes one pocket whatever its shape (card #282).
 @export var shape: Array[Vector2i] = [Vector2i.ZERO]
 @export var effect: Effect = Effect.NONE
 @export_range(0, 1000, 1, "suffix:%") var amount_percent: int = 0
@@ -72,7 +74,7 @@ enum Effect {
 @export var use_in_fight: bool = false
 @export_range(0, 9) var ap_cost: int = 1
 ## Rotten (DESIGN.md 8.1): every hero loses rot_percent of their max HP at the start of each of
-## their turns in a fight (never below 1 HP) while it is in the backpack. It cannot be sold.
+## their turns in a fight (never below 1 HP) while the party has it (a curse). It cannot be sold.
 @export var rotten: bool = false
 @export_range(0, 100, 1, "suffix:%") var rot_percent: int = 0
 ## Its picture, drawn over its cells unturned (missing file: a placeholder).
@@ -81,12 +83,12 @@ enum Effect {
 
 ## True if using it asks who gets it.
 func needs_target() -> bool:
-	return effect == Effect.HEAL_ONE or effect == Effect.MAX_HP_ONE or effect == Effect.REVIVE_ONE 			or effect == Effect.CLEANSE_ONE
+	return effect == Effect.HEAL_ONE or effect == Effect.REVIVE_ONE or effect == Effect.CLEANSE_ONE
 
 
 ## True if it can be used on the map (fight-only effects never are).
 func usable_on_map() -> bool:
-	return kind == Kind.CONSUMABLE and use_on_map and effect in [Effect.HEAL_ONE, Effect.HEAL_ALL, Effect.MAX_HP_ONE]
+	return kind == Kind.CONSUMABLE and use_on_map and effect in [Effect.HEAL_ONE, Effect.HEAL_ALL]
 
 
 ## True if it is a curse.
@@ -94,10 +96,9 @@ func is_curse() -> bool:
 	return kind == Kind.CURSE
 
 
-## True if two of it can be combined into a stronger one (consumables). Not the Tonic: a stronger
-## Tonic would give more max HP per drink and get round tonic_max_per_hero (card #198).
-func combinable() -> bool:
-	return kind == Kind.CONSUMABLE and effect != Effect.MAX_HP_ONE
+## True if it goes in the pack: only things used up (card #332).
+func goes_in_pack() -> bool:
+	return kind == Kind.CONSUMABLE
 
 
 ## True if it can be used in a fight.

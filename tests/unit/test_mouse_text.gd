@@ -369,7 +369,7 @@ func test_pockets_sit_in_rows_and_a_point_finds_its_pocket() -> void:
 	var visuals := load("res://data/presentation/combat_visuals.tres") as CombatVisuals
 	var grid := BackpackGrid.new()
 	add_child_autofree(grid)
-	grid.setup(Backpack.new(6), visuals, 8)
+	grid.setup(Backpack.new(4), visuals)
 	assert_eq(grid.columns(), visuals.backpack_pocket_columns)
 	var first := grid.pocket_rect(0)
 	var second := grid.pocket_rect(1)
@@ -380,6 +380,6 @@ func test_pockets_sit_in_rows_and_a_point_finds_its_pocket() -> void:
 	assert_false(first.intersects(second))
 	var lining := Rect2(Vector2(visuals.backpack_grid_origin), Vector2(visuals.backpack_lining_art_px)) 			.grow(0.5)
 	var scale := float(visuals.backpack_art_scale)
-	for i: int in 8:
+	for i: int in 4:
 		var art := Rect2(grid.pocket_rect(i).position / scale, grid.pocket_rect(i).size / scale)
 		assert_true(lining.encloses(art), "pocket %d is on the lining" % i)

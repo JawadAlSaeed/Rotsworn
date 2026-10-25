@@ -200,7 +200,7 @@ var items_left: Array[int] = []
 var _setup: CombatSetup
 var _abilities: Dictionary = {}
 var _attacks: Dictionary = {}
-## uid -> ItemData for the fight's items, their amounts (combined items are stronger) and names.
+## uid -> ItemData for the fight's items, their amounts (the setup's, normally the item's own) and names.
 var _items: Dictionary = {}
 var _item_amounts: Dictionary = {}
 var _item_names: Dictionary = {}
@@ -681,8 +681,8 @@ func _advance_turn(events: Array[Dictionary]) -> void:
 	push_warning("CombatEngine: turn guard reached; nobody can act")
 
 
-## Statuses that last until the holder's next turn end now; a hero carrying rotten items loses
-## some HP (never below 1).
+## Statuses that last until the holder's next turn end now; a hero of a cursed party (passive rot)
+## loses some HP (never below 1).
 func _start_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 	for id: String in Status.ALL:
 		if Status.ends_at_own_turn(id) and actor.has_status(id):

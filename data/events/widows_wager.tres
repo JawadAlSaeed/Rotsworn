@@ -45,7 +45,7 @@ deal = SubResource("Resource_356ch")
 risk_percent = 40
 risk_deal = SubResource("Resource_tpldo")
 done_text = "The hand is good. Her smile is gone."
-risk_text = "The hand is hers. Something is dealt back into your pack."
+risk_text = "The hand is hers. Something is dealt back to all of you."
 
 [resource]
 script = ExtResource("4_fifyh")

@@ -70,7 +70,10 @@ const HOST_PEER: int = 1
 ## "wear", "swap_gear" and "take_off", and the Echo ops are gone.
 ## 8: the second game mode is cut (card #331, DESIGN.md 8.21): "lobby", "again" and "run_start"
 ## carry no "mode" (nor "run_start" its "records"), and that mode's screens are gone.
-const PROTOCOL: int = 8
+## 9: the pack holds consumables only (card #332, DESIGN.md 8.1): the run state carries "curses" and
+## no "tonics_used", a pack entry has no level, the "combine" bag op and the campfire's "upgrade"
+## choice are gone, and the shop's "cleanse" choice names a curse by its "index".
+const PROTOCOL: int = 9
 ## Client: the host could not be reached (short: it can end as a main menu notice).
 const REASON_UNREACHABLE := "Host not found"
 ## Channel for every message (flow and combat).

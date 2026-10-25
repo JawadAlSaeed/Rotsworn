@@ -634,7 +634,7 @@ func test_main_reads_the_opening_from_the_ring() -> void:
 # --- online --------------------------------------------------------------------------------------
 
 func test_online_the_host_decides_and_the_friends_get_its_opening() -> void:
-	assert_eq(NetSession.PROTOCOL, 8, "the opening needed no bump (the fingerprint keeps other builds out); 8 is the cut's (card #331)")
+	assert_eq(NetSession.PROTOCOL, 9, "the opening needed no bump (the fingerprint keeps other builds out); 9 is the pack's (card #332)")
 	var decided := _body("func _on_first_strike_decided(")
 	assert_string_contains(decided, "if not Net.is_host():")
 	assert_string_contains(decided, "Net.broadcast(\"opening\", {\"fight\": _net_seed, \"opening\": opening_name, \"word\": word})")

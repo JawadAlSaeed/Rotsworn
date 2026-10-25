@@ -797,7 +797,7 @@ func test_every_place_still_names_its_song_and_loop() -> void:
 # --- saves and online --------------------------------------------------------------------------------
 
 func test_a_save_from_before_is_kept_but_not_offered() -> void:
-	assert_eq(RunSave.FORMAT_VERSION, 6)
+	assert_eq(RunSave.FORMAT_VERSION, 7)
 	_save_path = OS.get_temp_dir().path_join("rotsworn_test_run_fights_%d.json" % Time.get_ticks_usec())
 	# Format 1: saved inside a zone. Format 2: the first phase 26 builds, whose Hanging Cage still
 	# gave a Key. The Key's file is gone (card #319), so such a pack no longer loads: the main menu
@@ -805,6 +805,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 	# Format 3: two acts; its act 2 (the Ashen Deep) is act 3 now (card #323), so it would carry on
 	# in the wrong place. Format 4: a row of Guard stops (map rules 3), from before the guards joined
 	# the Elite stops (DESIGN.md 8.22). Format 5: Relic slots, levels and Echoes (DESIGN.md 8.24).
+	# Format 6: Tonics, item levels and curses in pockets (card #332).
 	var run := _run()
 	run.add_item(run.items_by_id()["salve"] as ItemData)
 	var with_key := run.to_dict()
@@ -812,7 +813,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 	var rows: Array = (with_key.backpack as Array)[3]
 	(rows[0] as Array)[1] = "key"
 	assert_null(RunState.from_dict(_data, _tuning, with_key), "a pack holding a Key no longer fits")
-	for format: int in [1, 2, 3, 4, 5]:
+	for format: int in [1, 2, 3, 4, 5, 6]:
 		var old := {"format": format, "fingerprint": "x", "in_stop": false, "players": 1, "run": with_key}
 		var file := FileAccess.open(_save_path, FileAccess.WRITE)
 		file.store_string(JSON.stringify(old))
@@ -826,7 +827,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 
 
 func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 8, "the messages without a mode (card #331)")
+	assert_eq(NetSession.PROTOCOL, 9, "the pack of consumables only and the party's curses (card #332)")
 	assert_has(_main.get_script_constant_map().get("NET_FIGHT_SCREENS") as Array, "stop_fight")
 	for s: int in [3, 7, 21]:
 		var host := _run(s)
@@ -852,9 +853,9 @@ func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
 ## An Elite stop's fight (the host's "final_fight" message): the friend builds the same pick, guard
 ## or group, the same fight and weather from the run state alone. The Elite stops changed no message
 ## or field (Net.PROTOCOL 6 was taking turns', card #314; 7 the Relics without slots, DESIGN.md 8.24;
-## 8 the messages without a mode, card #331).
+## 8 the messages without a mode, card #331; 9 the pack of consumables only, card #332).
 func test_a_friend_builds_the_hosts_elite_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 8)
+	assert_eq(NetSession.PROTOCOL, 9)
 	for guard: bool in [true, false]:
 		var found := _elite_stop_holding(guard)
 		assert_gt(found[0], 0)
@@ -962,8 +963,8 @@ func test_what_follows_a_run_fight() -> void:
 	assert_eq(_main.call("_spoils_line", elite, false), "The elite fell. Take one.")
 	assert_eq(_main.call("_spoils_line", event, true), "The elite fell. Take one.", "an ambush's spoils read as an elite's")
 	var item := ItemData.new()
-	item.display_name = "Tonic"
-	assert_eq(_main.call("_pack_full_note", item), "The enemy dropped a Tonic, but the pack is full.")
+	item.display_name = "Salve"
+	assert_eq(_main.call("_pack_full_note", item), "The enemy dropped a Salve, but the pack is full.")
 
 
 ## The Journal says where a fight was met: a run fight's place, else its own name.
