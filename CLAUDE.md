@@ -93,7 +93,8 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   hero, DESIGN.md 8.24; about 10 to 20 minutes, so use `timeout 1500`; add `--oath=N` to play it at difficulty
   oath N, DESIGN.md 8.15; a bot run starts with no Relics (its Relic book is empty, so it skips the
   starting pick), `--relics=all` fills its book with every Relic (each hero then takes the best one
-  left, printed as `AUTOPLAY_START_RELICS alder=ID brin=ID cass=ID`; online the host prints
+  left, printed as `AUTOPLAY_START_RELICS alder=ID brin=ID cass=ID`, `-` for none, the same line on
+  every machine, also when the step is skipped; online the host prints
   `AUTOPLAY_START_RELIC P2 ID hero=N ok=1` for each friend's pick), `--relics-path=PATH` lets it use
   and bank into its own Relic book, 8.17, 8.24), or `--rush`
   to have the bot play a Fight Rush (DESIGN.md 8.21; ends with `AUTOPLAY_RESULT rush_over`,

@@ -142,7 +142,8 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 - **Relics** (50 of them). In a run they come from Elite stops, bosses, the rotten chest and the
   shop (and a few events): pick 1 of 3, then pick **who gets it**. A hero keeps every Relic given to
   them until the run ends: no slots, no limit, and a Relic the party has never turns up again. In
-  co-op the player whose turn it is gives it to one of their own heroes. Every Relic you find goes
+  co-op you give it to one of your own heroes (online the player whose turn it is picks). A Relic
+  tagged **New** is not in your book yet. Every Relic you find goes
   in your **Relic book** for good (the main menu's **Relics** page: "Found 12 of 50"). Before each
   run or Fight Rush, every hero takes one Relic from your book (**Starting Relics**; your first run
   starts with none). **Rot-touched** Relics are very strong, but each one comes with a price.
