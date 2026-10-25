@@ -5,7 +5,9 @@ extends StopScreen
 ## a curse, crossed swords for a fight, a die with the risk's chance); ones the party cannot pay are
 ## greyed. Leave is the cancel button (a hint in the footer), not a card. The starting pact (card
 ## #285) is shown the same way. A choice that asks for a hero or a backpack item opens a short pick
-## first: cards when PICK_CARDS_MAX or fewer, else a column; cancel returns to the cards. Taking a choice tells what happened
+## first: cards when PICK_CARDS_MAX or fewer, else a column; cancel returns to the cards. A choice
+## that gives a Relic (a pact's) then asks who gets it (RelicGift, DESIGN.md 8.24; skipped when only
+## one hero may). Taking a choice tells what happened
 ## (RunState.choose_event: a risk may strike), hands out any items, then Continue goes
 ## back to the map, or into the fight when the choice sprang an ambush. A "?" stop that turned into
 ## an ambush shows its own page ("An Ambush!") with one choice, Fight. The bot calls choose() and
@@ -36,6 +38,11 @@ var _ambush_page: bool = false
 ## item uid).
 var _picking: int = -1
 var _pick_ids: Array[int] = []
+## The "Who gets it?" step is up for choice `_picking` (its pick `_pick_value` made), and the pad
+## that chose (local co-op: that player's heroes get the Relic).
+var _giving: bool = false
+var _pick_value: int = -1
+var _device: int = PlayerRoster.ANY
 
 
 ## `result`: online clients show the host's result once it chose (empty: still choosing).
@@ -164,16 +171,35 @@ func pick_kind(index: int) -> ZoneOfferData.Pick:
 	return deal.pick_kind() if deal != null else ZoneOfferData.Pick.NONE
 
 
+## True if choice `index` gives a Relic (its deal's or its risk's): it asks who gets it.
+func gives_relic(index: int) -> bool:
+	if index < 0 or index >= choice_count():
+		return false
+	var c := _event.choices[index]
+	return (c.deal != null and c.deal.relic_rarity >= 0) or (c.risk_deal != null and c.risk_deal.relic_rarity >= 0)
+
+
+## The heroes who may get choice `index`'s Relic here (RelicGift.allowed).
+func relic_heroes() -> Array[int]:
+	return RelicGift.allowed(give_heroes, run, _device)
+
+
+## True while a choice's Relic waits for its hero ("Who gets it?").
+func is_giving() -> bool:
+	return _giving and not _decided
+
+
 ## Takes choice `index` (the bot calls this; the player uses the menu). `pick`: the hero slot or
-## item uid a choice that asks for one needs.
-func choose(index: int, pick: int = -1) -> bool:
-	if not can_choose(index):
+## item uid a choice that asks for one needs; `hero`: who gets its Relic, when it gives one (one of
+## relic_heroes()).
+func choose(index: int, pick: int = -1, hero: int = -1) -> bool:
+	if not can_choose(index) or (gives_relic(index) and not relic_heroes().has(hero)):
 		Sfx.play("locked")
 		return false
-	if _ask({"do": "choose", "index": index, "pick": pick}):
+	if _ask({"do": "choose", "index": index, "pick": pick, "hero": hero}):
 		Sfx.play("menu_confirm")
 		return true
-	var got := run.choose_event(_event.choices[index], run.at, index, pick)
+	var got := run.choose_event(_event.choices[index], run.at, index, pick, hero)
 	if not bool(got.ok):
 		Sfx.play("locked")
 		return false
@@ -182,6 +208,8 @@ func choose(index: int, pick: int = -1) -> bool:
 	print("Run event: %s choice %d%s%s" % [_event.id, index, " (risk)" if bool(got.risk) else "",
 			" (ambush)" if bool(got.ambush) else ""])
 	_picking = -1
+	_giving = false
+	_device = PlayerRoster.ANY
 	_show_result(String(got.text))
 	chosen.emit(index, String(got.text))
 	give(got.items as Array, _result)
@@ -238,6 +266,8 @@ func _show_ambush() -> void:
 
 func _show_choices() -> void:
 	_picking = -1
+	_giving = false
+	_device = PlayerRoster.ANY
 	_say_result("")
 	var list: Array[Dictionary] = []
 	for i: int in choice_count():
@@ -260,6 +290,7 @@ func _show_list(list: Array[Dictionary], cards: bool) -> void:
 ## cancel button, never a row (owner, phase 22).
 func _show_pick(index: int) -> void:
 	_picking = index
+	_giving = false
 	_pick_ids.clear()
 	var list: Array[Dictionary] = []
 	if pick_kind(index) == ZoneOfferData.Pick.HERO:
@@ -286,6 +317,33 @@ func _show_pick(index: int) -> void:
 			[&"menu_cancel", "Back"]])
 
 
+## The "Who gets it?" step for choice `index` (its pick `pick` made): a card per hero, the ones who
+## may get the Relic lit. Back returns to the pick (or to the cards).
+func _show_heroes(index: int, pick: int) -> void:
+	_picking = index
+	_pick_value = pick
+	_giving = true
+	_say_result(RelicGift.ASK)
+	var list := RelicGift.hero_cards(run, relic_heroes(), is_greyed())
+	_show_list(list, true)
+	_menu.index = RelicGift.first_lit(list)
+	_set_footer([[&"@leftright", "Choose"], [&"menu_confirm", "Give"], [&"menu_cancel", "Back"]])
+
+
+## After choice `index`'s pick (`pick`, -1: none): straight in, or first who gets its Relic (straight
+## to the one hero who may).
+func _after_pick(index: int, pick: int) -> void:
+	if not gives_relic(index) or not can_choose(index):
+		choose(index, pick)
+		return
+	var heroes := relic_heroes()
+	if heroes.size() == 1:
+		choose(index, pick, heroes[0])
+		return
+	Sfx.play("menu_confirm")
+	_show_heroes(index, pick)
+
+
 func _show_result(text: String) -> void:
 	_decided = true
 	_say_result(text if not text.is_empty() else "You walk on.")
@@ -310,22 +368,30 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		Sfx.play("menu_confirm")
 		leave()
+	elif _giving:
+		var slot := int(_menu.items[_menu.index].get("slot", -1)) if _menu.index < _menu.items.size() else -1
+		choose(_picking, _pick_value, slot)
 	elif _picking >= 0:
 		if _menu.index >= _pick_ids.size():
 			_back_from_pick()
 		else:
-			choose(_picking, _pick_ids[_menu.index])
+			_after_pick(_picking, _pick_ids[_menu.index])
 	elif pick_kind(_menu.index) != ZoneOfferData.Pick.NONE and can_choose(_menu.index):
 		Sfx.play("menu_confirm")
+		_device = PlayerRoster.device_of(event)
 		_show_pick(_menu.index)
 	else:
-		choose(_menu.index)
+		_device = PlayerRoster.device_of(event)
+		_after_pick(_menu.index, -1)
 
 
-## Cancel: back from a pick list, or Leave while choosing (walk on, taking nothing). Nothing once
-## the choice is made or on an ambush page.
+## Cancel: back from the hero step to the pick (or the cards), back from a pick list, or Leave while
+## choosing (walk on, taking nothing). Nothing once the choice is made or on an ambush page.
 func _cancel() -> void:
-	if _picking >= 0:
+	if _giving and pick_kind(_picking) != ZoneOfferData.Pick.NONE:
+		Sfx.play("menu_cancel")
+		_show_pick(_picking)
+	elif _picking >= 0:
 		_back_from_pick()
 	else:
 		walk_on()

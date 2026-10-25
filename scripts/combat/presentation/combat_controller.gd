@@ -1332,7 +1332,7 @@ func _end_hints() -> Array:
 
 
 ## A won run fight's end screen as icons (phase 22, cards #273 and #274), instead of the lines of
-## _summary_text: {chips: [{icon, text, color}] (gold, the find, each Relic line), heroes: [{portrait,
+## _summary_text: {chips: [{icon, text, color}] (gold, the find, flawless, the streak), heroes: [{portrait,
 ## text, level (new level, 0: none), down}]}. Empty outside a won run fight.
 func _end_rewards() -> Dictionary:
 	if _run == null or _result != "victory":
@@ -1352,12 +1352,6 @@ func _end_rewards() -> Dictionary:
 	if mirror.best_defence_streak >= _visuals.streak_show_from:
 		chips.append({"icon": AssetLoader.texture(_visuals.streak_chip_icon_path, Vector2i(16, 16)),
 				"text": "Streak %d" % mirror.best_defence_streak, "color": HudStyle.GOLD})
-	# Each Relic line keeps its words (new, level, Echo) with the dropped Relic's icon in front.
-	var drops := _run.relic_drops(_encounter)
-	var lines := _run.win_relic_lines(_encounter)
-	for i: int in lines.size():
-		var icon: Texture2D = AssetLoader.texture(drops[i].icon_path, Vector2i(16, 16)) if i < drops.size() else null
-		chips.append({"icon": icon, "text": lines[i], "color": HudStyle.GOLD})
 	var heroes: Array[Dictionary] = []
 	var xp := _run.fight_xp(_encounter, party_hp())
 	var hp := party_hp()
@@ -1401,11 +1395,8 @@ func _summary_text() -> String:
 			text += "\n+%d gold" % _run.gold_for(_encounter)
 		if _drop != null:
 			text += "   Found: %s" % _drop.display_name
-		var relic_lines := _run.win_relic_lines(_encounter)
 		if RunState.is_flawless(_encounter, recap()):
-			relic_lines.push_front("Flawless! One more spoils choice.")
-		if not relic_lines.is_empty():
-			text += "\n" + "    ".join(relic_lines)
+			text += "\nFlawless! One more spoils choice."
 		var xp := _run.fight_xp(_encounter, party_hp())
 		var parts := PackedStringArray()
 		var risen := false

@@ -2,14 +2,14 @@ class_name PartyScreen
 extends CanvasLayer
 ## The Y screen (DESIGN.md 8.18, card #270), opened with Tab / Y from the map, after loot,
 ## from a shop and from treasure and event stops. Four tabs, one job each, switched with LB / RB
-## (Z / C): Relics (every hero's Relic slots next to the team's shared Relic bag, RelicsTab), Bag
-## (the backpack, BagTab), Hero (attributes, stats and the Echoes, HeroTab) and Skills (the skill
-## tree, SkillsTab, when a hero has one). Around the tabs this screen draws the tab bar with a gold
+## (Z / C): Relics (every hero's Relics next to the run's Relics, RelicsTab), Bag (the backpack,
+## BagTab), Hero (attributes and stats, HeroTab) and Skills (the skill tree, SkillsTab, when a hero
+## has one). Around the tabs this screen draws the tab bar with a gold
 ## badge for points waiting and the gold, one info strip along the bottom that never moves (the
 ## thing under the cursor: its icon, name, a few chips and one line), toasts (an icon and a word or
 ## two) instead of sentences, and at most four button hints.
-## The screen can open with something new in hand: a Relic (loot) opens the Relics tab, an item
-## (a find that did not fit) the Bag tab. Online, a client's changes go to the host as RunState ops
+## The screen can open with something new in hand: an item (a find that did not fit) opens the Bag
+## tab; a Relic just given (spoils) opens the Relics tab with a toast. Online, a client's changes go to the host as RunState ops
 ## (op_requested); the host's run state comes back and refresh() redraws.
 
 signal done
@@ -49,7 +49,7 @@ static var _last_tab: int = Tab.RELICS
 
 ## Online client: changes are asked of the host instead of made here.
 var remote: bool = false
-## Close by itself once the new thing in hand is placed, worn or left (shop finds, a fight's drop).
+## Close by itself once the new thing in hand is placed or left (shop finds, a fight's drop).
 var close_when_settled: bool = false
 ## Opened from a shop: items can be sold (DESIGN.md 8.1); the Bag tab opens first.
 var shop_mode: bool = false
@@ -64,8 +64,6 @@ var _relics: RelicsTab
 var _bag: BagTab
 var _hero: HeroTab
 var _skills: SkillsTab
-## The Echoes page while it is open over this screen (DESIGN.md 8.17).
-var _echoes: EchoesScreen
 ## Everything placed on the 1920 x 1080 canvas, kept centred when the window is wider or taller
 ## (aspect expand); the backdrop and the footer stay full width.
 var _frame: Control
@@ -85,7 +83,8 @@ var _hint: HintBar
 
 
 ## `note`: a toast at the start (for example what was just found). `held`: something new in hand,
-## {gear: GearData} or {item: ItemData}.
+## {item: ItemData}, or {icon: GearData} for a Relic just given (the Relics tab, its icon on the
+## toast).
 func setup(run: RunState, note: String = "", held: Dictionary = {}) -> void:
 	_run = run
 	_visuals = load(VISUALS_PATH) as CombatVisuals
@@ -106,10 +105,9 @@ func setup(run: RunState, note: String = "", held: Dictionary = {}) -> void:
 	_build_toast()
 	_hint = ListMenu.screen_footer(self, [])
 	var icon: Variant = held.get("icon")
-	if held.get("gear") is GearData:
-		_relics.hold_new(held.gear as GearData)
+	if icon is GearData:
+		_relics.focus_hero(maxi(0, run.holder_of(icon as GearData)))
 		_tab = Tab.RELICS
-		icon = held.gear
 	elif held.get("item") is ItemData:
 		_bag.hold_new(held.item as ItemData, bool(held.get("refund", false)))
 		_tab = Tab.BAG
@@ -127,19 +125,16 @@ func setup(run: RunState, note: String = "", held: Dictionary = {}) -> void:
 func refresh() -> void:
 	for tab: PartyTab in _tabs.values():
 		tab.refresh()
-	if _echoes != null:
-		_echoes.refresh()
 	_redraw_chrome()
 
 
-## Something new is in hand (loot, a find, a swap).
+## Something new is in hand (a find with no room).
 func holding_new() -> bool:
-	return _relics.holding_new() or _bag.holding_new()
+	return _bag.holding_new()
 
 
-## The bot (and tests): settles what is in hand the simple way (RelicsTab / BagTab auto_settle).
+## The bot (and tests): settles what is in hand the simple way (BagTab auto_settle).
 func auto_settle() -> void:
-	_relics.auto_settle()
 	_bag.auto_settle()
 	_redraw_chrome()
 
@@ -191,34 +186,14 @@ func open_skills() -> void:
 		Sfx.play("locked")
 
 
-## The Echoes page over this screen (DESIGN.md 8.17), for hero `hero` (-1: the one in focus).
-func open_echoes(hero: int = -1) -> void:
-	if (_tabs[_tab] as PartyTab).busy() and _tab != Tab.HERO:
-		Sfx.play("locked")
-		return
-	var shown := (_tabs[_tab] as PartyTab).hero if hero < 0 else hero
-	_echoes = EchoesScreen.new()
-	_echoes.name = "Echoes"
-	_echoes.layer = layer + 1
-	_echoes.remote = remote
-	add_child(_echoes)
-	_echoes.setup(_run, clampi(shown, 0, _run.party_size() - 1))
-	_echoes.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
-	_echoes.done.connect(func() -> void:
-		_echoes.queue_free()
-		_echoes = null
-		refresh())
-	Sfx.play("menu_confirm")
-
-
-## The Relics tab, on hero `hero` (-1: the one in focus); `gear_slot` >= 0 puts the cursor on that
-## slot and opens the bag to pick a Relic for it.
-func open_relics(hero: int = -1, gear_slot: int = -1) -> void:
+## The Relics tab, on hero `hero` (-1: the one in focus); `pick` opens the run's Relics to give that
+## hero one still waiting.
+func open_relics(hero: int = -1, pick: bool = false) -> void:
 	var focus := (_tabs[_tab] as PartyTab).hero if hero < 0 else hero
 	if not select_tab(Tab.RELICS):
 		Sfx.play("locked")
 		return
-	_relics.focus_slot(focus, maxi(0, gear_slot), gear_slot >= 0)
+	_relics.focus_hero(focus, pick)
 	_redraw_chrome()
 
 
@@ -280,11 +255,9 @@ func _build_tabs() -> void:
 		node.changed.connect(_redraw_chrome)
 		node.op_requested.connect(func(op: Dictionary) -> void: op_requested.emit(op))
 		node.toast.connect(show_toast)
-	_relics.settled.connect(_settled)
 	_bag.settled.connect(_settled)
 	_bag.left_behind.connect(func(item: ItemData) -> void: left_behind.emit(item))
 	_bag.sold.connect(func() -> void: sold.emit())
-	_hero.echoes_requested.connect(open_echoes)
 
 
 func _build_bar() -> void:
@@ -372,8 +345,6 @@ func _build_toast() -> void:
 # --- input --------------------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _echoes != null:
-		return
 	var tab := _tabs[_tab] as PartyTab
 	if not tab.busy():
 		if _pressed(event, &"item_turn_left") or _pressed(event, &"item_turn_right"):
@@ -518,7 +489,6 @@ func _redraw_strip(data: Dictionary) -> void:
 	# Without a bar the line takes the strip's whole width.
 	_strip_line.size.x = STRIP_RECT.size.x - (520.0 if has_bar else 190.0)
 	if has_bar:
-		_strip_bar.add_child(UiGlyph.make(&"echo", 26.0, HudStyle.TEXT_DIM))
 		for i: int in int(bar[1]):
 			var seg := ColorRect.new()
 			seg.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -569,7 +539,7 @@ static func visible_hints(entries: Array) -> int:
 func _icon_for(icon: Variant, px: float) -> Control:
 	if icon is GearData:
 		var relic := RelicIcon.new()
-		relic.setup(icon as GearData, px, true, _run.relic_level(icon as GearData), _run.tuning.relic_max_level)
+		relic.setup(icon as GearData, px)
 		return relic
 	if icon is ItemData:
 		var item := icon as ItemData

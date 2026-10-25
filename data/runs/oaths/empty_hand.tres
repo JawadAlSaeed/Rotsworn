@@ -6,5 +6,5 @@
 script = ExtResource("1_msmo1")
 id = "empty_hand"
 title = "Oath of the Empty Hand"
-description = "Each hero has one Relic slot fewer all run."
-relic_slots_add = -1
+description = "Each hero starts the run with one Relic fewer."
+start_relics_add = -1

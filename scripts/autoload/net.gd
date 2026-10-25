@@ -65,7 +65,10 @@ const HOST_PEER: int = 1
 ## the friend's backpack answers with a "hand_out" bag op carrying that number.
 ## Card #313's "saved" (the host saved the run; the friends go home keeping their seats) needs no
 ## bump: the fingerprint (DataHash.of_game) already keeps other builds out, as for #320's "opening".
-const PROTOCOL: int = 6
+## 7: Relics without slots (cards #326, #327, DESIGN.md 8.24): a friend's pick carries "hero" (who
+## gets the Relic), the rotten chest's pick is its own "relic" choice, the "give" bag op replaces
+## "wear", "swap_gear" and "take_off", and the Echo ops are gone.
+const PROTOCOL: int = 7
 ## Client: the host could not be reached (short: it can end as a main menu notice).
 const REASON_UNREACHABLE := "Host not found"
 ## Channel for every message (flow and combat).

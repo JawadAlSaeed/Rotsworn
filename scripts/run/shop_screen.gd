@@ -7,12 +7,13 @@ extends CanvasLayer
 ## Restock (new wares), Sell (the backpack opens to sell) and Leave. Healing is bought as items. Arrows
 ## move over the shelves and services, Confirm buys or uses, Tab / Y opens the backpack to sell,
 ## Back leaves. A bought item goes into the backpack where it fits first; with no room the backpack
-## opens with it in hand (leaving it gives the gold back). A bought Relic joins the run (a copy
-## raises its level, DESIGN.md 8.17) and, if nobody wears it, the backpack opens to put it on a hero.
+## opens with it in hand (leaving it gives the gold back). Buying a Relic first asks who gets it
+## ("Who gets it?", RelicGift, DESIGN.md 8.24; skipped when only one hero may); the shop sells only
+## Relics the party does not have.
 ## Phase 22: pictures and a word, not sentences: each service has its picture (a skull Cleanse, an
 ## anvil Upgrade, arrows Restock, the coin Sell with its button, a door Leave), prices are the coin and
-## a number, and the line under the shelves shows a Relic as its icon, a "Lv 2 > 3" chip and its stat
-## and effect chips (detail()). Card #295: an item there is its picture, its name and a few icon chips
+## a number, and the line under the shelves shows a Relic as its icon, a New chip (a Relic the book
+## lacks) and its stat and effect chips (detail()). Card #295: an item there is its picture, its name and a few icon chips
 ## for what it does, the same chips as the fight's Items list (item_chips: "1 AP", "All foes",
 ## "120% dmg"), never its sentence. The rules are in the Glossary.
 ## The bot uses count(), can_buy(), buy(), overlay() and leave().
@@ -77,7 +78,7 @@ var _bought: Dictionary = {}
 var _overlay: PartyScreen
 ## The item whose purchase waits on the backpack (refunded if it is left behind).
 var _pending: ItemData
-## The backpack is open with a purchase in hand (gear to wear, or an item with no room yet).
+## The backpack is open with a purchase in hand (an item with no room yet).
 var _holding: bool = false
 ## Picking an item for Cleanse or Upgrade: a list over the shelves (uids in menu order).
 var _pick_menu: ListMenu
@@ -92,6 +93,12 @@ var watching: bool = false
 var asks: Callable = Callable()
 ## Host, a friend's turn (card #314): hand_off.call(self) sends them the purchase owed() (no room).
 var hand_off: Callable = Callable()
+## Who may get a Relic bought here (RelicGift.allowed; Main sets it): heroes.call(device) -> slots.
+var give_heroes: Callable = Callable()
+## The shelf whose Relic waits for its hero (the "Who gets it?" pick), and the pad that bought it
+## (local co-op: that player's heroes get it).
+var _give_index: int = -1
+var _device: int = PlayerRoster.ANY
 ## Host: the purchase handed to a friend to place: {"note", "item"}; {} when none.
 var _owed: Dictionary = {}
 
@@ -209,9 +216,9 @@ func _info(index: int) -> Array:
 
 ## What the line under the shelves shows for thing `index` or a service (phase 22: icons and a word
 ## or two, never a rules sentence): {icon, title, color, chips: [[icon, text, color]], line}. A
-## Relic shows its icon, name, a "Lv 2 > 3" (or New, Home) chip and its stat and effect chips; an
-## item its picture, name and what it does as chips (item_chips); a service its picture, name and a
-## few words.
+## Relic shows its icon, name, a New chip (a Relic the book lacks) and its stat and effect chips;
+## an item its picture, name and what it does as chips (item_chips); a service its picture, name
+## and a few words.
 func detail(index: int) -> Dictionary:
 	if index >= count():
 		var kind := SERVICES[clampi(index - count(), 0, SERVICES.size() - 1)]
@@ -274,19 +281,14 @@ static func _cap_chips(chips: Array, look: MapVisuals) -> Array:
 	return kept
 
 
-## A shop Relic's chips: what buying it does to the run's level ("Lv 2 > 3"; "New"; "Home" for one
-## left at home), the stat line at that level, its effect and any drawback.
+## A shop Relic's chips: "New" when the Relic book lacks it (LootScreen.new_tag), the stat line, its
+## effect and any drawback.
 static func relic_chips(run: RunState, gear: GearData) -> Array:
-	var level := run.relic_level(gear)
-	var next := mini(level + 1, run.tuning.relic_max_level)
 	var chips: Array = []
-	if level > 0:
-		chips.append([&"up", "Lv %d > %d" % [level, next], HudStyle.GOLD])
-	elif run.is_home(gear):
-		chips.append([&"", "Home", HudStyle.TEXT])
-	else:
-		chips.append([&"star", "New", HudStyle.GOLD])
-	var stat := gear.stat_text(next)
+	var tag := LootScreen.new_tag(run, gear)
+	if not tag.is_empty():
+		chips.append([&"star", tag, HudStyle.GOLD])
+	var stat := gear.stat_text()
 	if not stat.is_empty():
 		chips.append([UiGlyph.attribute_glyph(gear.stat), stat, HudStyle.TEXT])
 	var effect := GearData.effect_text(gear.effect, gear.amount)
@@ -316,13 +318,37 @@ func can_buy(index: int) -> bool:
 	return _run.can_buy_gear(_gear[index - items().size()])
 
 
-## Buys thing `index`. The bot calls this; the player uses the shelves.
-func buy(index: int) -> bool:
+## True if shelf `index` holds a Relic.
+func is_relic(index: int) -> bool:
+	return index >= items().size() and index < count()
+
+
+## The Relic on shelf `index` (null: an item or nothing).
+func relic_at(index: int) -> GearData:
+	return _gear[index - items().size()] if is_relic(index) else null
+
+
+## The heroes who may get a Relic bought here now (RelicGift.allowed).
+func relic_heroes() -> Array[int]:
+	return RelicGift.allowed(give_heroes, _run, _device)
+
+
+## True while a Relic on a shelf waits for its hero ("Who gets it?" over the shop).
+func is_giving() -> bool:
+	return _pick_panel != null and _pick_kind == "give"
+
+
+## Buys thing `index`; a Relic goes to hero `hero` (one of relic_heroes()). The bot calls this; the
+## player uses the shelves.
+func buy(index: int, hero: int = -1) -> bool:
 	if not can_buy(index):
 		Sfx.play("locked")
 		_say.text = "\"Not for that purse.\"" if index < count() and not _bought.has(index) else "\"Sold already.\""
 		return false
-	if _ask({"do": "buy", "index": index}):
+	if is_relic(index) and not relic_heroes().has(hero):
+		Sfx.play("locked")
+		return false
+	if _ask({"do": "buy", "index": index, "hero": hero}):
 		return true
 	_bought[index] = true
 	if index < items().size():
@@ -350,14 +376,12 @@ func buy(index: int) -> bool:
 	else:
 		var gear := _gear[index - items().size()]
 		_run.mark_sold(index)
-		var found := _run.buy_gear(gear)
+		var found := _run.buy_gear(gear, hero)
 		Sfx.play("gold_gain")
-		_say.text = "\"Wear it well.\""
+		Sfx.play("buff")
+		_say.text = "\"%s.\"" % _run.relic_given_text(found, hero)
+		_device = PlayerRoster.ANY
 		acted.emit()
-		if not _run.is_worn(gear) and not hand_off.is_valid():
-			_open_backpack(RunState.relic_find_short(found), {"gear": gear})
-		else:
-			_say.text = "\"%s.\"" % RunState.relic_find_text(found)
 	_rebuild()
 	return true
 
@@ -418,10 +442,13 @@ func is_settling() -> bool:
 	return _overlay != null or not _owed.is_empty()
 
 
-## Online (card #314): whose turn it is changed; the shelves redraw.
+## Online (card #314): whose turn it is changed; the shelves redraw (an open "Who gets it?" closes).
 func set_turn(p_watching: bool, p_asks: Callable = Callable()) -> void:
 	watching = p_watching
 	asks = p_asks
+	if _pick_kind == "give":
+		_close_pick()
+	_device = PlayerRoster.ANY
 	_rebuild()
 
 
@@ -644,7 +671,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"menu_confirm", false, true):
 		get_viewport().set_input_as_handled()
-		_use_selected()
+		_use_selected(event)
 		return
 	var step := Vector2i.ZERO
 	if _pressed(event, &"menu_left"):
@@ -678,7 +705,7 @@ func _mouse_input(event: InputEvent) -> bool:
 			_sel = clicked
 			_show_selection()
 			get_viewport().set_input_as_handled()
-			_use_selected()
+			_use_selected(event)
 			return true
 	elif MenuMouse.is_back(event):
 		get_viewport().set_input_as_handled()
@@ -720,9 +747,19 @@ func _move(step: Vector2i) -> void:
 		_show_selection()
 
 
-func _use_selected() -> void:
+func _use_selected(event: InputEvent = null) -> void:
 	if _sel < count():
-		buy(_sel)
+		if not is_relic(_sel) or not can_buy(_sel):
+			buy(_sel)
+			return
+		# Who gets it: straight to the one hero who may, else a hero pick over the shop.
+		_device = PlayerRoster.device_of(event) if event != null else PlayerRoster.ANY
+		var heroes := relic_heroes()
+		if heroes.size() == 1:
+			buy(_sel, heroes[0])
+		else:
+			Sfx.play("menu_confirm")
+			_open_give_pick(_sel)
 		return
 	var kind := SERVICES[_sel - count()]
 	if not bool(_service_info(kind)[3]):
@@ -777,19 +814,55 @@ func _open_pick(kind: String) -> void:
 			ListMenu.FOOTER_SIZE))
 
 
+## "Who gets it?" over the shop for the Relic on shelf `index`: a card per hero, the ones who may get
+## it lit (RelicGift). Back closes it, buying nothing.
+func _open_give_pick(index: int) -> void:
+	_give_index = index
+	_pick_kind = "give"
+	_pick_uids.clear()
+	_pick_panel = PanelContainer.new()
+	_pick_panel.add_theme_stylebox_override("panel", _box(Color(0.04, 0.03, 0.03, 0.95), HudStyle.GOLD, 2, 24))
+	_pick_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_pick_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_pick_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	add_child(_pick_panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	_pick_panel.add_child(column)
+	column.add_child(ListMenu.centred_title(RelicGift.ASK, 40))
+	_pick_menu = ListMenu.new()
+	_pick_menu.horizontal = true
+	column.add_child(_pick_menu)
+	var list := RelicGift.hero_cards(_run, relic_heroes(), is_greyed())
+	_pick_menu.set_items(list)
+	_pick_menu.index = RelicGift.first_lit(list)
+	column.add_child(HintBar.new([[&"@leftright", "Choose"], [&"menu_confirm", "Give"], [&"menu_cancel", "Back"]],
+			ListMenu.FOOTER_SIZE))
+
+
 func _close_pick() -> void:
 	if _pick_panel != null:
 		_pick_panel.queue_free()
 	_pick_panel = null
 	_pick_menu = null
 	_pick_uids.clear()
+	_give_index = -1
 
 
 func _pick_input(event: InputEvent) -> void:
 	var answer := _pick_menu.handle(event)
 	if answer == &"cancel":
 		Sfx.play("menu_cancel")
+		_device = PlayerRoster.ANY
 		_close_pick()
+	elif answer == &"confirm" and _pick_kind == "give":
+		var index := _give_index
+		var slot := int(_pick_menu.items[_pick_menu.index].get("slot", -1)) if _pick_menu.index < _pick_menu.items.size() else -1
+		if not relic_heroes().has(slot):
+			Sfx.play("locked")
+			return
+		_close_pick()
+		buy(index, slot)
 	elif answer == &"confirm" and not _pick_uids.is_empty():
 		var uid := _pick_uids[_pick_menu.index]
 		var kind := _pick_kind
@@ -800,7 +873,7 @@ func _pick_input(event: InputEvent) -> void:
 func _open_backpack(note: String, held: Dictionary) -> void:
 	_overlay = PartyScreen.new()
 	_overlay.layer = OVERLAY_LAYER
-	_overlay.close_when_settled = held.has("item") or held.has("gear")
+	_overlay.close_when_settled = held.has("item")
 	_overlay.shop_mode = true
 	# A friend's copy (card #314): what they do there is asked of the host.
 	_overlay.remote = remote
@@ -810,7 +883,7 @@ func _open_backpack(note: String, held: Dictionary) -> void:
 	_overlay.left_behind.connect(_on_left_behind)
 	_overlay.done.connect(_close_backpack)
 	# A sale is final at once, unless a purchase is still in hand (it is saved when the backpack closes).
-	_holding = held.has("item") or held.has("gear")
+	_holding = held.has("item")
 	_overlay.sold.connect(func() -> void:
 		if not _holding:
 			acted.emit())

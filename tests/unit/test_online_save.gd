@@ -438,29 +438,26 @@ func test_a_friend_banks_their_share_before_going_home() -> void:
 
 
 ## A save inside a stop holds the state from when the party entered it. Banking a newer state on
-## "saved" banked the stop's pips once then, and again when the Continue (where the friend counts as
-## late from the save's state) replayed the stop: the friend's file got double what the host's did.
+## "saved" banked the stop's finds then, and the Continue (where the friend counts as late from the
+## save's state) replayed the stop: the friend's file must only get what the host's did.
 func test_a_friend_banks_from_the_state_the_save_holds() -> void:
-	var gear_id := _data.gear[0].id
+	var gear := _data.gear[0]
 	var run := RunState.begin(_data, _tuning, 4242)
 	run.go(run.choices()[0])
 	var checkpoint := run.to_dict()
-	run.mastery[gear_id] = 3
+	assert_false(run.give_relic(gear, 0).is_empty())
 	var message: Dictionary = _main.call("_saved_message", checkpoint)
 	assert_eq(message.run, checkpoint, "the save's state, not the newest")
-	run.mastery[gear_id] = 5
-	assert_eq(int((message.run as Dictionary).mastery.get(gear_id, 0)), 0, "a copy: later changes stay out")
-	run.mastery[gear_id] = 3
-	# The friend's file has 0 pips. On "saved" their copy of the run takes the save's state and banks.
+	assert_false(((message.run as Dictionary).relics as Dictionary).has(gear.id), "a copy: later changes stay out")
+	# On "saved" the friend's copy of the run takes the save's state and banks.
 	var friend := RunState.begin(_data, _tuning, 4242)
 	assert_true(friend.apply_dict(message.run as Dictionary))
-	var file := friend.pips_totals_since({}, {})
-	assert_eq(int(file.get(gear_id, 0)), 0, "nothing found before the stop: nothing banked")
-	# The Continue: late from the save's state (the first state sent), then the stop's win again.
-	var baseline := (message.run as Dictionary).mastery as Dictionary
-	friend.mastery[gear_id] = 3
-	assert_eq(int(friend.pips_totals_since(file, baseline).get(gear_id, 0)), 3, "one win, banked once")
-	assert_eq(int(run.pips_totals().get(gear_id, 0)), 3, "as the host's own file")
+	assert_eq(friend.relic_ids_since({}), [], "nothing found before the stop: nothing banked")
+	# The Continue: late from the save's state (the first state sent), then the stop's find again.
+	var baseline := ((message.run as Dictionary).relics as Dictionary).duplicate()
+	assert_false(friend.give_relic(gear, 0).is_empty())
+	assert_eq(friend.relic_ids_since(baseline), [gear.id], "found once, banked once")
+	assert_eq(run.relic_ids_since({}), [gear.id], "as the host's own file")
 
 
 # --- switches, the players screen and the notices ---------------------------------------------

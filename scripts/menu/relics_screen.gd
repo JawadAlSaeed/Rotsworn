@@ -1,39 +1,22 @@
 class_name RelicsScreen
 extends CanvasLayer
-## The Relics page (DESIGN.md 8.17), laid out like Expedition 33's Pictos page. Left: every Relic as
-## a slanted card in a two-column grid (its diamond, name, level in a run or Echo pips on the main
-## menu, and the face of the hero who has it), sorted by level (pips), name or rarity (X / R). Right: the hero shown (LB / RB changes hero) and
-## their three Relic slots as big cards (diamond, name, stat line, level, what it does). Under the
-## grid: everything about the Relic under the cursor.
-## Up / down picks a slot; Confirm opens the grid to choose a Relic for it (a Relic another hero has
-## moves over), X / R takes it off. In the grid Confirm puts the Relic on, Back goes back to the
-## slots.
-## Two uses: the main menu (setup), where the right side is the Relic bag (card #265): the Relics
-## the team brings into the next run (its size grows with the Echoes learned, card #266), Confirm on
-## a card puts it in or takes it out (Relics not found yet show as "???" with the monsters that drop
-## them), and each card shows its Echo pips (DESIGN.md 8.19); and a run (setup_run, from the party
-## screen's Relic slots), where the slots are the ones the hero wears now (locked ones say what
-## opens them) and each card shows its Echo's progress. In a run an online client's changes go to
-## the host as RunState ops (op_requested).
+## The Relic book on the main menu (DESIGN.md 8.17, 8.24, card #328), laid out like Expedition 33's
+## Pictos page. Left: every Relic as a slanted card in a two-column grid (its icon and name), sorted
+## by name or rarity (X / R), with "Found N of 50"; a Relic not found yet shows as "???". Right: the
+## Relic under the cursor, big: its icon, name, rarity and chips (what it does, its price, its stat
+## line), or for one not found yet the places Relics come from. Under the grid: its text.
+## StartRelicsScreen (the starting pick before a run) is this page with the heroes on the right.
 
 signal closed
-## Main menu: the bag changed (Main writes the collection to its file).
-signal bag_changed(collection: RelicCollection)
-## Online client in a run: a change for the host to make (RunState.apply_op data).
-signal op_requested(op: Dictionary)
 
-enum Zone { SLOTS, GRID }
-enum Sort { LEVEL, NAME, RARITY }
-const SORT_NAMES: Array[String] = ["Level", "Name", "Rarity"]
+enum Sort { NAME, RARITY }
+const SORT_NAMES: Array[String] = ["Name", "Rarity"]
 
 const TITLE_SIZE: int = 56
 const NAME_SIZE: int = 24
-const LEVEL_SIZE: int = 34
 const SMALL_SIZE: int = 18
 const TEXT_SIZE: int = 24
 const HERO_SIZE: int = 42
-const SLOT_NAME_SIZE: int = 30
-const SLOT_LEVEL_SIZE: int = 44
 const DETAIL_SIZE: int = 24
 const MARGIN_X: float = 70.0
 const MARGIN_TOP: float = 30.0
@@ -45,91 +28,51 @@ const ROWS: int = 9
 const CARD_SIZE := Vector2(490.0, 62.0)
 const CARD_ICON_PX: float = 46.0
 const CARD_NAME_WIDTH: float = 250.0
-const FACE_PX: float = 30.0
-const SLOT_HEIGHT: float = 150.0
-const SLOT_ICON_PX: float = 104.0
-const HERO_FACE_PX: float = 72.0
-## A Relic the shown hero has: the card's purple, like Expedition 33's equipped Pictos.
-const ON_HERO_BG := Color(0.32, 0.12, 0.36, 0.9)
+## The face of the hero who has a Relic, on its card (the starting pick).
+const CARD_FACE_PX := Vector2i(40, 40)
+## The cursor's card.
 const CHOSEN_BG := Color(0.3, 0.24, 0.1, 0.9)
+## A card of a Relic that cannot be taken (not found yet, or taken for another hero).
+const DIM_CARD_ALPHA: float = 0.5
 const UNKNOWN := "???"
-## The bag's cards on the main menu: two columns.
-const BAG_COLUMNS: int = 2
-const BAG_CARD_SIZE := Vector2(342.0, 62.0)
+const NOT_FOUND := "Not found yet"
+## The big Relic on the right.
+const FOCUS_ICON_PX: float = 168.0
+const FOCUS_NAME_SIZE: int = 44
+## Where Relics come from (DESIGN.md 8.24), for a Relic not found yet: icon chips, no sentence.
+const SOURCES: Array[Dictionary] = [
+	{"glyph": &"sword", "text": "Elite"}, {"glyph": &"skull", "text": "Boss"},
+	{"glyph": &"pouch", "text": "Chest"}, {"glyph": &"coin", "text": "Shop"},
+]
 
-## Online client (run use): changes are asked of the host instead of made here.
-var remote: bool = false
 var _collection: RelicCollection
-var _run: RunState
 var _relics: Array[GearData] = []
-var _party: Array[CharacterData] = []
-var _tuning: Tuning
-## Relic id -> names of the monsters that drop it.
-var _droppers: Dictionary = {}
-var _hero: int = 0
-var _slot: int = 0
-var _zone: Zone = Zone.SLOTS
-var _sort: Sort = Sort.LEVEL
-## The grid's Relics in order (main menu: the ones not found yet last).
+var _sort: Sort = Sort.NAME
+## The grid's Relics in order (the book: the ones not found yet last).
 var _listed: Array[GearData] = []
 var _cursor: int = 0
 var _top_row: int = 0
 var _warning: String = ""
+var _title: Label
 var _grid: GridContainer
 var _found: Label
 ## The sort button and what it sorts by, like Expedition 33's "X Level" chip.
 var _sort_box: PanelContainer
 var _detail: Label
 var _detail_more: Label
-var _hero_box: HBoxContainer
-var _slots_box: VBoxContainer
+## The right side (the big Relic; the starting pick's heroes).
+var _side: VBoxContainer
 var _hint: HintBar
-## The grid cards and slot cards on screen, and the grid index of each card (for the mouse).
+## The grid cards on screen, and the grid index of each card (for the mouse).
 var _card_nodes: Array = []
 var _card_ids: Array[int] = []
-var _slot_nodes: Array = []
 
 
-## Main menu use: `collection` and its bag; `relics`: every Relic of the run (RunData.gear);
-## `party`: the heroes; `enemies`: every monster (where a Relic not found yet drops).
-func setup(collection: RelicCollection, relics: Array[GearData], party: Array[CharacterData], tuning: Tuning,
-		enemies: Array[EnemyData]) -> void:
-	_collection = collection
+## `collection`: the Relic book; `relics`: every Relic of the run (RunData.gear).
+func setup(collection: RelicCollection, relics: Array[GearData]) -> void:
+	_collection = collection if collection != null else RelicCollection.new()
 	_relics.assign(relics.filter(func(item: GearData) -> bool: return item != null))
-	_party = party
-	_tuning = tuning
-	# The bag page is the grid alone: Confirm puts a Relic in or takes it out.
-	_zone = Zone.GRID
-	for enemy: EnemyData in enemies:
-		for item: GearData in enemy.relic_drops:
-			if item != null:
-				var names: Array = _droppers.get(item.id, [])
-				if not names.has(enemy.display_name):
-					names.append(enemy.display_name)
-				_droppers[item.id] = names
 	_build()
-	_resort()
-	_redraw()
-
-
-## Run use (the party screen): hero `hero`'s Relic slots; `gear_slot` >= 0 opens the grid at once
-## to choose a Relic for that slot.
-func setup_run(run: RunState, hero: int, gear_slot: int = -1) -> void:
-	_run = run
-	_relics.assign(run.data.gear.filter(func(item: GearData) -> bool: return item != null))
-	_party = run.data.party
-	_tuning = run.tuning
-	_hero = clampi(hero, 0, run.party_size() - 1)
-	_slot = clampi(gear_slot, 0, _slot_count() - 1)
-	_build()
-	_resort()
-	if gear_slot >= 0:
-		open_grid()
-	_redraw()
-
-
-## The run changed (online, another player's change arrived): redraw.
-func refresh() -> void:
 	_resort()
 	_redraw()
 
@@ -138,50 +81,71 @@ func close() -> void:
 	closed.emit()
 
 
-# --- what the slots and the grid hold (main menu or run) ----------------------------------------
-
-func _slot_count() -> int:
-	return _tuning.run_gear_slots
-
-
-## The Relic in hero `hero`'s slot `slot` (null: empty).
-func slot_item(hero: int, slot: int) -> GearData:
-	if _run != null:
-		return _run.gear[hero][slot] as GearData if slot < (_run.gear[hero] as Array).size() else null
-	return null
+## The grid's Relics in the order shown (tests).
+func listed() -> Array[GearData]:
+	return _listed
 
 
-func _slot_open(slot: int) -> bool:
-	return _run == null or _run.slot_open(slot)
+## The Relic under the cursor (null: none).
+func focused() -> GearData:
+	return _listed[_cursor] if _cursor >= 0 and _cursor < _listed.size() else null
 
+
+## Puts the cursor on `item` (tests, pictures). False if it is not in the grid.
+func focus(item: GearData) -> bool:
+	var i := _listed.find(item)
+	if i < 0:
+		return false
+	_cursor = i
+	_redraw()
+	return true
+
+
+## "Found N of M" (the header).
+func found_text() -> String:
+	return "Found %d of %d" % [_found_count(), _relics.size()]
+
+
+# --- what the grid holds (StartRelicsScreen changes these) ---------------------------------------
 
 func _owns(item: GearData) -> bool:
-	return _run.owns(item) if _run != null else _collection.owns(item.id)
+	return _collection.owns(item.id)
 
 
-## In a run the Relic's level; on the main menu its Echo pips (levels last one run, #280).
-func _level(item: GearData) -> int:
-	return _run.relic_level(item) if _run != null else _collection.pips_of(item.id)
+## The page's title.
+func _title_text() -> String:
+	return "Relics"
 
 
-## Main menu: how many Relics the bag holds now (card #266).
-func _bag_size() -> int:
-	return _collection.bag_size(_tuning) if _collection != null else 0
+## True if the grid lists the Relics not found yet too ("???", last).
+func _lists_unknown() -> bool:
+	return true
 
 
-## Main menu: true if the Relic's Echo is learned for good.
-func _learned(item: GearData) -> bool:
-	return _collection != null and _collection.is_learned(item.id, _tuning.mastery_needed)
+## True if `item`'s card is dim (it cannot be had here).
+func _card_dim(item: GearData) -> bool:
+	return not _owns(item)
 
 
-## The hero who wears the Relic in a run, or -1 (always -1 on the main menu: the bag is the team's).
-func _holder(item: GearData) -> int:
-	return _run.wearer_of(item) if _run != null else -1
+## The hero slot whose face goes on `item`'s card (-1: none).
+func _card_holder(_item: GearData) -> int:
+	return -1
 
 
-## Main menu: true if the Relic is in the bag.
-func _bagged(item: GearData) -> bool:
-	return _run == null and item != null and _collection.in_bag(item.id)
+## Confirm (or a click) on `item`: the book only shows. True if something was done.
+func _confirm(_item: GearData) -> bool:
+	return false
+
+
+## Back: the book closes.
+func _back() -> void:
+	Sfx.play("menu_cancel")
+	close()
+
+
+## True if party_menu (Y) works as Back too.
+func _closes_on_party_menu() -> bool:
+	return true
 
 
 func _by_id(id: String) -> GearData:
@@ -191,128 +155,27 @@ func _by_id(id: String) -> GearData:
 	return null
 
 
-## The grid's order: found Relics by the sort, then (main menu) the ones not found yet.
+## The grid's order: found Relics by the sort, then (the book) the ones not found yet.
 func _resort() -> void:
-	var keep := _listed[_cursor] if _cursor >= 0 and _cursor < _listed.size() else null
+	var keep := focused()
 	var found: Array[GearData] = []
 	var unknown: Array[GearData] = []
 	for item: GearData in _relics:
 		if _owns(item):
 			found.append(item)
-		elif _run == null:
+		else:
 			unknown.append(item)
 	found.sort_custom(_before)
 	_listed = found
-	_listed.append_array(unknown)
+	if _lists_unknown():
+		_listed.append_array(unknown)
 	_cursor = clampi(_listed.find(keep) if keep != null else _cursor, 0, maxi(0, _listed.size() - 1))
 
 
 func _before(a: GearData, b: GearData) -> bool:
-	match _sort:
-		Sort.LEVEL:
-			if _level(a) != _level(b):
-				return _level(a) > _level(b)
-		Sort.RARITY:
-			if a.rarity != b.rarity:
-				return a.rarity > b.rarity
+	if _sort == Sort.RARITY and a.rarity != b.rarity:
+		return a.rarity > b.rarity
 	return a.display_name.naturalnocasecmp_to(b.display_name) < 0
-
-
-# --- choosing (the player's buttons call these; tests and the bot can too) -----------------------
-
-## Picks the slot the next Relic goes into.
-func choose_slot(slot: int) -> void:
-	_slot = clampi(slot, 0, _slot_count() - 1)
-	_zone = Zone.SLOTS
-	_redraw()
-
-
-## Opens the grid for the chosen slot (false, with a reason shown, if the slot is shut or there is
-## nothing to choose).
-func open_grid() -> bool:
-	if not _slot_open(_slot):
-		_warning = "That slot is locked. " + _run.slot_lock_text(_slot)
-		Sfx.play("locked")
-		_redraw()
-		return false
-	if _found_count() == 0:
-		_warning = "No Relics yet. Monsters, guards, shops and chests give them."
-		Sfx.play("locked")
-		_redraw()
-		return false
-	_zone = Zone.GRID
-	var on := slot_item(_hero, _slot)
-	_cursor = maxi(0, _listed.find(on)) if on != null else 0
-	Sfx.play("menu_confirm")
-	_redraw()
-	return true
-
-
-## Puts `item` in the shown hero's chosen slot (moving it from another hero or slot); on the main
-## menu, puts it in the bag or takes it out. False if it cannot be done (not found yet, the slot is
-## locked, the bag is full).
-func put(item: GearData) -> bool:
-	if _run == null:
-		return _toggle_bag(item)
-	if item == null or not _owns(item) or not _slot_open(_slot):
-		_warning = "Not found yet: defeat the monsters that drop it." if item != null and not _owns(item) else ""
-		Sfx.play("locked")
-		_redraw()
-		return false
-	if slot_item(_hero, _slot) == item:
-		_zone = Zone.SLOTS
-		_redraw()
-		return true
-	# Worn elsewhere: the two slots swap. Else it goes on, and what was here goes back to the run's
-	# Relics (RunState.wear).
-	var holder := _run.wearer_of(item)
-	if holder >= 0:
-		_ask({"op": "swap_gear", "from": [holder, _run.wear_slot_of(item)], "to": [_hero, _slot]})
-	else:
-		_ask({"op": "wear", "slot": _hero, "gear_slot": _slot, "relic": item.id})
-	Sfx.play("buff")
-	_zone = Zone.SLOTS
-	_resort()
-	_redraw()
-	return true
-
-
-## Main menu: the Relic goes into the bag, or comes out if it is in.
-func _toggle_bag(item: GearData) -> bool:
-	if item == null or not _owns(item):
-		_warning = "Not found yet: defeat the monsters that drop it." if item != null else ""
-		Sfx.play("locked")
-		_redraw()
-		return false
-	var was_in := _collection.in_bag(item.id)
-	if not _collection.toggle_bag(item.id, _bag_size()):
-		_warning = "The bag is full. Take a Relic out first. It grows as you learn Echoes."
-		Sfx.play("locked")
-		_redraw()
-		return false
-	bag_changed.emit(_collection)
-	Sfx.play("menu_cancel" if was_in else "buff")
-	_redraw()
-	return true
-
-
-## Takes the Relic off the chosen slot (it stays the run's). Run use only.
-func take_off() -> bool:
-	var item := slot_item(_hero, _slot)
-	if item == null or _run == null:
-		Sfx.play("locked")
-		return false
-	_ask({"op": "take_off", "slot": _hero, "gear_slot": _slot})
-	Sfx.play("menu_cancel")
-	_redraw()
-	return true
-
-
-func _ask(op: Dictionary) -> void:
-	if remote:
-		op_requested.emit(op)
-	else:
-		_run.apply_op(op)
 
 
 func _found_count() -> int:
@@ -330,36 +193,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		_warning = ""
 	if _mouse_input(event):
 		return
-	if _run != null and (_pressed(event, &"item_turn_left") or _pressed(event, &"item_turn_right")):
-		_handled()
-		_hero = wrapi(_hero + (-1 if event.is_action(&"item_turn_left") else 1), 0, maxi(1, _party.size()))
-		Sfx.play("menu_move")
-		_redraw()
-		return
-	if _zone == Zone.SLOTS:
-		_slots_input(event)
-	else:
-		_grid_input(event)
+	_grid_input(event)
 
 
-## The mouse (card #202): pointing at a card or a slot picks it, a left click is Confirm on it, a
+## The mouse (card #202): pointing at a card picks it, a left click is Confirm on it, a
 ## right click (or the mouse's back button) is Back, the wheel moves the grid a row. True when used.
 func _mouse_input(event: InputEvent) -> bool:
 	if MenuMouse.is_back(event):
 		_handled()
-		Sfx.play("menu_cancel")
-		if _zone == Zone.GRID and _run != null:
-			_zone = Zone.SLOTS
-			_redraw()
-		else:
-			close()
+		_back()
 		return true
 	var mouse := event as InputEventMouse
 	if mouse == null:
 		return false
 	var wheel := MenuMouse.wheel_step((event as InputEventMouseButton).button_index) \
 			if MenuMouse.is_press(event) else 0
-	if wheel != 0 and _zone == Zone.GRID:
+	if wheel != 0:
 		_handled()
 		var to := _cursor + wheel * COLUMNS
 		if to >= 0 and to < _listed.size():
@@ -367,56 +216,20 @@ func _mouse_input(event: InputEvent) -> bool:
 			_redraw()
 		return true
 	var card := MenuMouse.control_at(_card_nodes, mouse.position)
-	var slot := MenuMouse.control_at(_slot_nodes, mouse.position)
 	if event is InputEventMouseMotion:
-		if card >= 0 and _zone == Zone.GRID and _card_ids[card] != _cursor:
+		if card >= 0 and _card_ids[card] != _cursor:
 			_cursor = _card_ids[card]
-		elif slot >= 0 and _zone == Zone.SLOTS and slot != _slot:
-			_slot = slot
 		else:
 			return false
 		Sfx.play("menu_move")
 		_redraw()
 		return true
-	if MenuMouse.is_click(event):
-		if card >= 0 and _zone == Zone.GRID:
-			_handled()
-			_cursor = _card_ids[card]
-			put(_listed[_cursor])
-			return true
-		if slot >= 0:
-			_handled()
-			_slot = slot
-			_zone = Zone.SLOTS
-			open_grid()
-			return true
+	if MenuMouse.is_click(event) and card >= 0:
+		_handled()
+		_cursor = _card_ids[card]
+		_confirm(_listed[_cursor])
+		return true
 	return false
-
-
-func _slots_input(event: InputEvent) -> void:
-	if _pressed(event, &"menu_up"):
-		_slot = wrapi(_slot - 1, 0, _slot_count())
-		Sfx.play("menu_move")
-	elif _pressed(event, &"menu_down"):
-		_slot = wrapi(_slot + 1, 0, _slot_count())
-		Sfx.play("menu_move")
-	elif _pressed(event, &"menu_confirm"):
-		_handled()
-		open_grid()
-		return
-	elif _pressed(event, &"item_move"):
-		_handled()
-		take_off()
-		return
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu"):
-		_handled()
-		Sfx.play("menu_cancel")
-		close()
-		return
-	else:
-		return
-	_handled()
-	_redraw()
 
 
 func _grid_input(event: InputEvent) -> void:
@@ -431,7 +244,7 @@ func _grid_input(event: InputEvent) -> void:
 		step = COLUMNS
 	elif _pressed(event, &"menu_confirm"):
 		_handled()
-		put(_listed[_cursor] if _cursor < _listed.size() else null)
+		_confirm(focused())
 		return
 	elif _pressed(event, &"item_move"):
 		_handled()
@@ -440,15 +253,9 @@ func _grid_input(event: InputEvent) -> void:
 		Sfx.play("menu_move")
 		_redraw()
 		return
-	elif _pressed(event, &"menu_cancel") or _pressed(event, &"party_menu"):
+	elif _pressed(event, &"menu_cancel") or (_closes_on_party_menu() and _pressed(event, &"party_menu")):
 		_handled()
-		Sfx.play("menu_cancel")
-		if _run == null:
-			# The bag page has no slots to go back to.
-			close()
-			return
-		_zone = Zone.SLOTS
-		_redraw()
+		_back()
 		return
 	else:
 		return
@@ -475,7 +282,12 @@ func _build() -> void:
 	row.add_theme_constant_override("separation", COLUMN_GAP)
 	add_child(row)
 	row.add_child(_build_left())
-	row.add_child(_build_right())
+	_side = VBoxContainer.new()
+	_side.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_side.custom_minimum_size.x = RIGHT_WIDTH
+	_side.alignment = BoxContainer.ALIGNMENT_CENTER
+	_side.add_theme_constant_override("separation", 16)
+	row.add_child(_side)
 	_hint = ListMenu.screen_footer(self, [])
 
 
@@ -488,8 +300,8 @@ func _build_left() -> Control:
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_theme_constant_override("separation", 28)
 	left.add_child(head)
-	var title := HudStyle.make_worn_title("Relics", TITLE_SIZE)
-	head.add_child(title)
+	_title = HudStyle.make_worn_title(_title_text(), TITLE_SIZE)
+	head.add_child(_title)
 	_sort_box = PanelContainer.new()
 	_sort_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sort_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -522,23 +334,6 @@ func _build_left() -> Control:
 	return left
 
 
-func _build_right() -> Control:
-	var right := VBoxContainer.new()
-	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	right.custom_minimum_size.x = RIGHT_WIDTH
-	right.alignment = BoxContainer.ALIGNMENT_CENTER
-	right.add_theme_constant_override("separation", 16)
-	_hero_box = HBoxContainer.new()
-	_hero_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hero_box.add_theme_constant_override("separation", 18)
-	right.add_child(_hero_box)
-	_slots_box = VBoxContainer.new()
-	_slots_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_slots_box.add_theme_constant_override("separation", 14)
-	right.add_child(_slots_box)
-	return right
-
-
 # --- drawing ----------------------------------------------------------------------------------
 
 func _redraw() -> void:
@@ -547,19 +342,22 @@ func _redraw() -> void:
 	for child: Node in _sort_box.get_children():
 		_sort_box.remove_child(child)
 		child.free()
-	var sort_name := SORT_NAMES[_sort] if _run != null or _sort != Sort.LEVEL else "Echo"
-	_sort_box.add_child(HintBar.entry_row(&"item_move", "Sort: %s" % sort_name, TEXT_SIZE, HudStyle.TEXT))
-	_found.text = "Found %d of %d" % [_found_count(), _relics.size()]
+	_sort_box.add_child(HintBar.entry_row(&"item_move", "Sort: %s" % SORT_NAMES[_sort], TEXT_SIZE, HudStyle.TEXT))
+	_found.text = found_text()
 	_redraw_grid()
-	_redraw_hero()
+	_clear(_side)
+	_redraw_side()
 	_redraw_detail()
-	_redraw_hint()
+	_hint.set_entries(hints())
+
+
+## The footer's hints now (tests read them).
+func hints() -> Array:
+	return [[&"@arrows", "Move"], [&"item_move", "Sort"], [&"menu_cancel", "Back"]]
 
 
 func _redraw_grid() -> void:
-	for child: Node in _grid.get_children():
-		_grid.remove_child(child)
-		child.free()
+	_clear(_grid)
 	var row := floori(float(_cursor) / float(COLUMNS))
 	if row < _top_row:
 		_top_row = row
@@ -569,7 +367,7 @@ func _redraw_grid() -> void:
 	_card_nodes.clear()
 	_card_ids.clear()
 	for i: int in range(_top_row * COLUMNS, mini(_listed.size(), (_top_row + ROWS) * COLUMNS)):
-		var card := _grid_card(_listed[i], i == _cursor and _zone == Zone.GRID)
+		var card := _grid_card(_listed[i], i == _cursor)
 		_grid.add_child(card)
 		_card_nodes.append(card)
 		_card_ids.append(i)
@@ -577,14 +375,11 @@ func _redraw_grid() -> void:
 
 func _grid_card(item: GearData, chosen: bool) -> Control:
 	var known := _owns(item)
-	var holder := _holder(item) if known else -1
-	var marked := (holder == _hero and holder >= 0) or _bagged(item)
-	var bg := CHOSEN_BG if chosen else (ON_HERO_BG if marked else HudStyle.INK)
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.custom_minimum_size = CARD_SIZE
-	panel.add_theme_stylebox_override("panel", HudStyle.slant(bg, HudStyle.GOLD if chosen else HudStyle.EDGE_DIM,
-			3 if chosen else 2, 6, CARD_SIZE.y, HudStyle.SLANT * 0.6))
+	panel.add_theme_stylebox_override("panel", HudStyle.slant(CHOSEN_BG if chosen else HudStyle.INK,
+			HudStyle.GOLD if chosen else HudStyle.EDGE_DIM, 3 if chosen else 2, 6, CARD_SIZE.y, HudStyle.SLANT * 0.6))
 	var line := HBoxContainer.new()
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_theme_constant_override("separation", 12)
@@ -594,211 +389,66 @@ func _grid_card(item: GearData, chosen: bool) -> Control:
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.add_child(icon)
 	var name := HudStyle.make_title(item.display_name if known else UNKNOWN, NAME_SIZE,
-			_name_color(item) if known else HudStyle.TEXT_DIM)
+			name_color(item) if known else HudStyle.TEXT_DIM)
 	name.custom_minimum_size.x = CARD_NAME_WIDTH
 	name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	line.add_child(name)
-	var fill := Control.new()
-	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	line.add_child(fill)
-	if known:
-		line.add_child(_level_box(item, SMALL_SIZE, LEVEL_SIZE))
+	var holder := _card_holder(item)
 	if holder >= 0:
-		var c := _party[holder]
-		line.add_child(HudStyle.portrait_frame(AssetLoader.texture(c.portrait_path, Vector2i(48, 48)), c.color, FACE_PX, 1))
-	else:
-		# Room for a face, so every card's level sits in the same place.
-		var room := Control.new()
-		room.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		room.custom_minimum_size = Vector2(FACE_PX + 6.0, FACE_PX)
-		line.add_child(room)
+		line.add_child(_face(holder, CARD_FACE_PX))
+	if _card_dim(item) and not chosen:
+		panel.modulate = Color(1.0, 1.0, 1.0, DIM_CARD_ALPHA)
 	return panel
 
 
-func _name_color(item: GearData) -> Color:
+## A Relic's name colour: its rarity's, violet for a rot-touched one.
+static func name_color(item: GearData) -> Color:
 	if item.rot_touched:
 		return GearData.ROT_TOUCHED_COLOR
 	return BackpackGrid.rarity_color(BackpackGrid.gear_step(item)).lightened(0.15)
 
 
-## "Lv" over the Relic's level in a run, right-aligned; on the main menu "Echo" over its pips
-## ("7/12"), gold once the Echo is learned for good.
-func _level_box(item: GearData, small: int, big: int) -> Control:
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", -6)
-	var at_home := _run == null
-	var lv := HudStyle.make_label("Echo" if at_home else "Lv", small, HudStyle.TEXT_DIM)
-	lv.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	box.add_child(lv)
-	var text := "%d/%d" % [_level(item), _tuning.mastery_needed] if at_home else str(_level(item))
-	var number := HudStyle.make_number(text, big if not at_home else big - 8,
-			HudStyle.GOLD if at_home and _learned(item) else HudStyle.TEXT)
-	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	box.add_child(number)
-	return box
-
-
-func _redraw_hero() -> void:
-	for child: Node in _hero_box.get_children():
-		_hero_box.remove_child(child)
-		child.free()
-	for child: Node in _slots_box.get_children():
-		_slots_box.remove_child(child)
-		child.free()
-	_slot_nodes.clear()
-	if _run == null:
-		_redraw_bag()
-		return
-	if _party.is_empty():
-		return
-	var c := _party[_hero]
-	_hero_box.add_child(HudStyle.portrait_frame(AssetLoader.texture(c.portrait_path, Vector2i(48, 48)), c.color, HERO_FACE_PX))
-	var names := VBoxContainer.new()
-	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	names.alignment = BoxContainer.ALIGNMENT_CENTER
-	_hero_box.add_child(names)
-	names.add_child(HudStyle.make_title(c.display_name, HERO_SIZE, c.color.lightened(0.25)))
-	names.add_child(HudStyle.make_label("Wears now" if _run != null else "Brings into the next run", SMALL_SIZE + 2,
-			HudStyle.TEXT_DIM))
-	if _party.size() > 1:
-		var swap := HintBar.new([[&"item_turn_left", ""], [&"item_turn_right", "Hero"]], SMALL_SIZE)
-		swap.alignment = BoxContainer.ALIGNMENT_BEGIN
-		swap.add_theme_constant_override("separation", 8)
-		names.add_child(swap)
-	_slot_nodes.clear()
-	for slot: int in _slot_count():
-		var card := _slot_card(slot)
-		_slots_box.add_child(card)
-		_slot_nodes.append(card)
-
-
-## Main menu: the Relic bag (card #265): its count and its Relics as small cards, two columns, the
-## free room as dim empty cards.
-func _redraw_bag() -> void:
-	var names := VBoxContainer.new()
-	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hero_box.add_child(names)
-	var ids := _collection.bag_ids()
-	names.add_child(HudStyle.make_worn_title("Relic bag", HERO_SIZE, HudStyle.GOLD))
-	names.add_child(HudStyle.make_number("%d / %d" % [ids.size(), _bag_size()], TEXT_SIZE, HudStyle.TEXT))
-	if _bag_size() < _tuning.relic_bag_max:
-		names.add_child(HudStyle.make_label("+1 for every %d Echoes learned" % _tuning.relic_bag_echoes_per_slot,
-				SMALL_SIZE, HudStyle.TEXT_DIM))
-	var grid := GridContainer.new()
-	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	grid.columns = BAG_COLUMNS
-	grid.add_theme_constant_override("h_separation", 16)
-	grid.add_theme_constant_override("v_separation", 8)
-	_slots_box.add_child(grid)
-	for i: int in _bag_size():
-		grid.add_child(_bag_card(_by_id(ids[i]) if i < ids.size() else null))
-
-
-func _bag_card(item: GearData) -> Control:
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.custom_minimum_size = BAG_CARD_SIZE
-	panel.add_theme_stylebox_override("panel", HudStyle.slant(ON_HERO_BG if item != null else HudStyle.INK,
-			HudStyle.EDGE_DIM, 2, 6, BAG_CARD_SIZE.y, HudStyle.SLANT * 0.6))
-	panel.modulate = Color(1.0, 1.0, 1.0, 1.0 if item != null else 0.45)
-	var line := HBoxContainer.new()
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_theme_constant_override("separation", 10)
-	panel.add_child(line)
-	var icon := RelicIcon.new()
-	if item != null:
-		icon.setup(item, CARD_ICON_PX, true)
-	else:
-		icon.setup_slot(RelicIcon.SlotState.EMPTY, CARD_ICON_PX)
-	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.add_child(icon)
-	var name := HudStyle.make_title(item.display_name if item != null else "", NAME_SIZE - 2,
-			_name_color(item) if item != null else HudStyle.TEXT_DIM)
-	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	name.clip_text = true
-	line.add_child(name)
-	if item != null:
-		line.add_child(_level_box(item, SMALL_SIZE - 2, LEVEL_SIZE - 6))
-	return panel
-
-
-## A big card for slot `slot`: the diamond, name, stat line, level and what it does.
-func _slot_card(slot: int) -> Control:
-	var item := slot_item(_hero, slot)
-	var open := _slot_open(slot)
-	var chosen := slot == _slot
-	var border := HudStyle.GOLD if chosen and _zone == Zone.SLOTS else (HudStyle.EDGE if chosen else HudStyle.EDGE_DIM)
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.custom_minimum_size = Vector2(RIGHT_WIDTH, SLOT_HEIGHT)
-	panel.add_theme_stylebox_override("panel", HudStyle.slant(CHOSEN_BG if chosen else HudStyle.INK, border,
-			3 if chosen else 2, 12, SLOT_HEIGHT, HudStyle.SLANT * 0.35))
-	panel.modulate = Color(1.0, 1.0, 1.0, 1.0 if open else 0.55)
-	var line := HBoxContainer.new()
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_theme_constant_override("separation", 18)
-	panel.add_child(line)
-	var icon := RelicIcon.new()
-	icon.setup(item, SLOT_ICON_PX, item != null)
-	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.add_child(icon)
-	var col := VBoxContainer.new()
-	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_theme_constant_override("separation", 4)
-	line.add_child(col)
-	var top := HBoxContainer.new()
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	col.add_child(top)
-	var title := "Slot %d" % (slot + 1)
-	if item != null:
-		title = item.display_name
-	elif not open:
-		title = "Locked"
-	var name := HudStyle.make_worn_title(title, SLOT_NAME_SIZE, _name_color(item) if item != null else HudStyle.TEXT_DIM)
-	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(name)
-	if item != null:
-		top.add_child(_level_box(item, SMALL_SIZE, SLOT_LEVEL_SIZE))
-	var stat := HudStyle.make_label(_slot_stats(item), TEXT_SIZE - 2, HudStyle.TEXT)
-	col.add_child(stat)
-	var text := HudStyle.make_label(_slot_text(item, slot), SMALL_SIZE + 2, HudStyle.TEXT_DIM)
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.custom_minimum_size.x = RIGHT_WIDTH - SLOT_ICON_PX - 80.0
-	col.add_child(text)
-	return panel
-
-
-## The stat line, Echo cost and (in a run) the Echo's progress of a slot's Relic.
-func _slot_stats(item: GearData) -> String:
+## The book's right side: the Relic under the cursor, big.
+func _redraw_side() -> void:
+	var item := focused()
 	if item == null:
-		return ""
-	var parts := PackedStringArray()
-	var stat := item.stat_text(_level(item) if _run != null else 1)
-	if not stat.is_empty():
-		parts.append(stat)
-	if _run != null:
-		parts.append("Echo learned" if _run.echo_learned(item) else "Echo %d / %d" % [_run.mastery_of(item),
-				_tuning.mastery_needed])
-	else:
-		parts.append("Echo %d pt%s" % [item.echo_cost, "" if item.echo_cost == 1 else "s"])
-	return "      ".join(parts)
+		return
+	var known := _owns(item)
+	var icon := RelicIcon.make(item, FOCUS_ICON_PX, known)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_side.add_child(icon)
+	var name := HudStyle.make_worn_title(item.display_name if known else UNKNOWN, FOCUS_NAME_SIZE,
+			name_color(item) if known else HudStyle.TEXT_DIM)
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_side.add_child(name)
+	_side.add_child(ListMenu.chip_lines(focus_chips(item, known), RIGHT_WIDTH - 40.0))
 
 
-func _slot_text(item: GearData, slot: int) -> String:
-	if item != null:
-		return item.description
-	if not _slot_open(slot):
-		return _run.slot_lock_text(slot)
-	return "Empty. Confirm to choose a Relic."
+## The big Relic's chips: found or not; a found one's rarity, what it does, its price and its stat
+## line; one not found yet where Relics come from.
+static func focus_chips(item: GearData, known: bool) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = []
+	if not known:
+		chips.append({"glyph": &"lock", "text": NOT_FOUND, "color": HudStyle.TEXT_DIM})
+		for source: Dictionary in SOURCES:
+			var chip := source.duplicate()
+			chip["color"] = HudStyle.TEXT
+			if chips.size() == 1:
+				chip["newline"] = true
+			chips.append(chip)
+		return chips
+	chips.append({"glyph": &"gem", "text": BackpackGrid.rarity_name(BackpackGrid.gear_step(item)).capitalize(),
+			"color": name_color(item)})
+	var first := true
+	for chip: Dictionary in LootScreen.relic_chips(item):
+		if first:
+			chip["newline"] = true
+			first = false
+		chips.append(chip)
+	return chips
 
 
 func _redraw_detail() -> void:
@@ -806,64 +456,31 @@ func _redraw_detail() -> void:
 		_detail.text = _warning
 		_detail_more.text = ""
 		return
-	var item: GearData = null
-	if _zone == Zone.GRID:
-		item = _listed[_cursor] if _cursor < _listed.size() else null
-	else:
-		item = slot_item(_hero, _slot)
-	if item == null:
-		if _found_count() == 0:
-			_detail.text = "No Relics yet"
-			_detail_more.text = "Monsters, guards, shops and chests give Relics. You keep them forever."
-		else:
-			_detail.text = "Slot %d" % (_slot + 1)
-			_detail_more.text = _slot_text(null, _slot)
+	var item := focused()
+	if item == null or _found_count() == 0:
+		_detail.text = "No Relics yet"
+		_detail_more.text = "Elite, Boss, Chest, Shop"
 		return
 	if not _owns(item):
-		_detail.text = "%s  (not found yet)" % UNKNOWN
-		_detail_more.text = "Dropped by: %s." % ", ".join(PackedStringArray(_droppers.get(item.id, ["no one yet"])))
+		_detail.text = "%s  (%s)" % [UNKNOWN, NOT_FOUND.to_lower()]
+		_detail_more.text = ""
 		return
-	var level := _level(item) if _run != null else 1
 	var head := PackedStringArray([item.display_name])
-	if _run != null:
-		head.append("Lv %d" % level)
-	else:
-		head.append("Echo learned" if _learned(item) else "Echo %d/%d" % [_level(item), _tuning.mastery_needed])
-	if not item.stat_text(level).is_empty():
-		head.append(item.stat_text(level))
-	head.append("Echo %d pt%s" % [item.echo_cost, "" if item.echo_cost == 1 else "s"])
-	var holder := _holder(item)
-	if holder >= 0:
-		head.append("%s wears it" % _party[holder].display_name)
-	elif _bagged(item):
-		head.append("In the bag")
+	if not item.stat_text().is_empty():
+		head.append(item.stat_text())
 	_detail.text = "    ".join(head)
-	var more := item.description
-	if _run != null:
-		more += "\n" + ("Its Echo is learned: any hero can wear it for Echo points." if _run.echo_learned(item)
-				else "Wear it for %d more won fights to learn its Echo for good." % _run.fights_to_learn(item))
-	elif _learned(item):
-		more += "\nIts Echo is learned for good: in a run, any hero can wear it for Echo points."
-	else:
-		more += "\nWear it in won fights, run after run, to learn its Echo for good."
-	_detail_more.text = more
+	_detail_more.text = item.description
 
 
-func _redraw_hint() -> void:
-	if _run == null:
-		_hint.set_entries([[&"@arrows", "Move"], [&"menu_confirm", "In / out of bag"], [&"item_move", "Sort"],
-				[&"menu_cancel", "Back"]])
-		return
-	if _zone == Zone.GRID:
-		_hint.set_entries([[&"@arrows", "Move"], [&"menu_confirm", "Put on"], [&"item_move", "Sort"],
-				[&"menu_cancel", "Back"]])
-		return
-	var entries: Array = [[&"@updown", "Slot"], [&"menu_confirm", "Choose Relic"], [&"item_move", "Take off"]]
-	if _party.size() > 1:
-		entries.append([&"item_turn_left", ""])
-		entries.append([&"item_turn_right", "Hero"])
-	entries.append([&"menu_cancel", "Back"])
-	_hint.set_entries(entries)
+## A hero's small face (the starting pick).
+func _face(_slot: int, _px: Vector2i) -> Control:
+	return Control.new()
+
+
+static func _clear(box: Node) -> void:
+	for child: Node in box.get_children():
+		box.remove_child(child)
+		child.free()
 
 
 func _handled() -> void:

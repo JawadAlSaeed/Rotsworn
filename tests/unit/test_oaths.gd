@@ -56,9 +56,34 @@ func test_the_shipped_ladder_has_twelve_oaths_in_order() -> void:
 		ids[oath.id] = true
 	assert_eq(_data.oaths[0].title, "Oath of Thorns")
 	assert_eq(_data.oaths[9].title, "Oath of Rot")
-	# Phase 17 (DESIGN.md 8.17): the top of the ladder bites into the Relics.
-	assert_eq(_data.oaths[10].relic_slots_add, -1, "Oath 11, the Empty Hand: one Relic slot fewer")
-	assert_eq(_data.oaths[11].echo_points_percent_add, -50, "Oath 12, Forgetting: half the Echo points")
+	# The top of the ladder bites into the heroes (DESIGN.md 8.15, 8.24: no Relic slots or Echoes now).
+	assert_eq(_data.oaths[10].start_relics_add, -1, "Oath 11, the Empty Hand: one starting Relic fewer per hero")
+	assert_eq(_data.oaths[11].attr_points_per_level_add, -1, "Oath 12, Forgetting: one attribute point fewer per level")
+
+
+func test_the_empty_hand_takes_the_starting_relics_and_forgetting_a_point_per_level() -> void:
+	var c := RelicCollection.new()
+	c.merge(["iron_charm", "whetstone", "war_drum"])
+	var ten := RunState.begin(_data, _tuning, 7, 10, c)
+	assert_eq(ten.start_relic_count(), 1, "Oath 10: each hero takes one from the book (#328)")
+	assert_true(ten.start_pending())
+	var eleven := RunState.begin(_data, _tuning, 7, 11, c)
+	assert_eq(eleven.start_relic_count(), 0, "Oath 11: one fewer for each hero, none at all")
+	assert_false(eleven.start_pending(), "so the pick step is skipped")
+	assert_true(eleven.relics.is_empty())
+	var plain := _run(11)
+	var forgetting := _run(12)
+	for run: RunState in [plain, forgetting]:
+		run.add_xp(0, run.tuning.run_xp_first_level)
+	assert_eq(plain.levels[0], 2)
+	assert_eq(forgetting.levels[0], 2)
+	assert_eq(plain.earned_points(0), _tuning.attr_start_points + _tuning.attr_points_per_level)
+	assert_eq(forgetting.earned_points(0), _tuning.attr_start_points + _tuning.attr_points_per_level - 1,
+			"a point fewer per level up")
+	var ladder: Array[OathData] = [_oath({"attr_points_per_level_add": -99})]
+	var none := _run_with(ladder, 1)
+	none.add_xp(0, none.tuning.run_xp_first_level)
+	assert_eq(none.earned_points(0), _tuning.attr_start_points, "never fewer than none")
 
 
 func test_modifiers_add_up_over_oaths_one_to_n() -> void:
@@ -254,7 +279,8 @@ func test_shops_charge_more_from_oath_two_but_pay_the_same_for_selling() -> void
 	want.gold = want.gear_price(gear) - 1
 	assert_false(want.can_buy_gear(gear))
 	want.gold = want.gear_price(gear)
-	assert_false(want.buy_gear(gear).is_empty(), "a bought Relic joins the run")
+	assert_false(want.buy_gear(gear, 0).is_empty(), "a bought Relic goes to a hero")
+	assert_eq(want.relics_of(0), [gear] as Array[GearData])
 	assert_eq(want.gold, 0)
 	# The services cost more too.
 	want.gold = _tuning.shop_restock_price

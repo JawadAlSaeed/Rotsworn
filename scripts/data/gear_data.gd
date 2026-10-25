@@ -1,14 +1,12 @@
 class_name GearData
 extends Resource
-## One Relic (DESIGN.md 8.17; "gear" in the code, from before phase 17), like a Picto in Clair
-## Obscur: a passive effect and a small stat line for the hero who wears it. Monsters drop them,
-## spoils, shops and chests offer them, and the player keeps them forever (RelicCollection); a copy
-## found in a run raises its level for that run, which grows its stat line. Each Relic is worn by
-## one hero at a time. Worn in won fights, run after run, it fills its Echo pips and then teaches
-## its Echo for good (DESIGN.md 8.19): the effect without the stat line, worn by one hero for
-## `echo_cost` Echo points in any run.
+## One Relic (DESIGN.md 8.17, 8.24; "gear" in the code, from before phase 17), like a Picto in
+## Clair Obscur: a passive effect and a small stat line for the hero who has it. Elite stops,
+## bosses, chests and shops offer them; the player picks one and gives it to a hero, who keeps it
+## until the run ends (no slots, no copies, no levels). The collection remembers every Relic found
+## (RelicCollection).
 ## Rot-touched pieces (DESIGN.md 8.16) are strong but come with a price: a drawback, which is
-## another effect worn as a loss (`drawback` / `drawback_amount`). Their Echo keeps the price.
+## another effect worn as a loss (`drawback` / `drawback_amount`).
 
 enum Effect {
 	## Max HP +amount%.
@@ -145,15 +143,12 @@ const ROT_TOUCHED_COLOR := Color(0.78, 0.4, 0.95)
 @export_range(0, 1000) var drawback_amount: int = 0
 
 @export_group("Relic (DESIGN.md 8.17)")
-## The stat line: attribute points (Attributes.Kind) the wearer gets on top of the ones they spent.
+## The stat line: attribute points (Attributes.Kind) the hero gets on top of the ones they spent.
 @export_enum("Vitality", "Might", "Agility", "Defense", "Luck") var stat: int = 0
-## Points of `stat` at level 1 (0: no stat line), and how many each level after the first adds.
+## Points of `stat` (0: no stat line).
 @export_range(0, 20) var stat_points: int = 0
-@export_range(0, 10) var stat_points_per_level: int = 1
-## Echo points it costs a hero to wear this Relic's Echo.
-@export_range(1, 10) var echo_cost: int = 1
-## The Relic's picture inside its diamond on the Relics and Echoes screens (empty or missing: a
-## drawn sign for its category, RelicIcon).
+## The Relic's picture inside its diamond on the Relics screens (empty or missing: a drawn sign for
+## its category, RelicIcon).
 @export_file_path("*.png") var icon_path: String = ""
 
 
@@ -290,17 +285,9 @@ func category() -> int:
 	return int(CATEGORIES.get(effect, Category.SUPPORT))
 
 
-## The stat line's attribute points at Relic level `level` (1 = just found).
-func stat_points_at(level: int) -> int:
-	if stat_points <= 0:
-		return 0
-	return stat_points + maxi(0, level - 1) * stat_points_per_level
-
-
 ## The stat line in a few words ("Might +3"), or "" if there is none.
-func stat_text(level: int) -> String:
-	var points := stat_points_at(level)
-	return "%s +%d" % [Attributes.NAMES[stat], points] if points > 0 else ""
+func stat_text() -> String:
+	return "%s +%d" % [Attributes.NAMES[stat], stat_points] if stat_points > 0 else ""
 
 
 ## The Passive key this gear gives in fights, or "" if it only changes stats or gold.

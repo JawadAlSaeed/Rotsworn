@@ -241,8 +241,8 @@ static func oath_chips(ladder: Array[OathData], oath: int) -> Array:
 	_add_chip(chips, ladder, oath, &"gold_percent_add", &"coin", "Fight gold %s%%")
 	_add_chip(chips, ladder, oath, &"loot_choices_add", &"bag", "Spoils %s")
 	_add_chip(chips, ladder, oath, &"team_gauge_carry_percent_add", &"bolt", "Gauge kept %s%%")
-	_add_chip(chips, ladder, oath, &"relic_slots_add", &"gem", "Relic slots %s")
-	_add_chip(chips, ladder, oath, &"echo_points_percent_add", &"echo", "Echoes %s%%")
+	_add_chip(chips, ladder, oath, &"start_relics_add", &"gem", "Start Relics %s")
+	_add_chip(chips, ladder, oath, &"attr_points_per_level_add", &"up", "Level points %s")
 	return chips
 
 

@@ -2,7 +2,7 @@ extends GutTest
 ## Phase 4 Part B (DESIGN 8): counters grow with longer and mixed strings (card #52); gear
 ## passives in fights (start AP, AP on counter, heal on jump, counter, Second Wind, perfect press,
 ## Exposed, tough, heal); run stats reach the engine (power, speed, max HP); the boss's phase two;
-## party levels and XP; gear in the run (loot, shop, bag, equip); the shipped Part B data.
+## party levels and XP; gear in the run (loot, shop, giving a Relic to a hero); the shipped Part B data.
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 
@@ -186,10 +186,10 @@ func test_boss_enters_phase_two_once() -> void:
 
 # --- the run: levels and gear -----------------------------------------------------------------
 
-## A run with every Relic slot open and Relics without stat lines, so each test sees only the
-## effect it checks (the slots and stat lines have their own tests in test_relics.gd).
+## A run whose Relics have no stat lines, so each test sees only the effect it checks (the stat
+## lines have their own tests in test_relics.gd).
 func _run() -> RunState:
-	return RunState.begin(Fx.without_relic_stats(load(RUN_PATH) as RunData), Fx.all_slots(), 5)
+	return RunState.begin(Fx.without_relic_stats(load(RUN_PATH) as RunData), Fx.run_tuning(), 5)
 
 
 func test_xp_levels_one_hero() -> void:
@@ -227,58 +227,55 @@ func test_a_victory_pays_xp() -> void:
 	assert_eq(run.xps[1], int(got.xp[1]))
 
 
-func test_loot_and_shop_offer_relics_a_copy_still_helps() -> void:
+func test_loot_and_shop_offer_only_relics_the_run_lacks() -> void:
 	var run := _run()
 	var loot := run.loot_choices(3)
 	assert_eq(loot.size(), Tuning.new().run_loot_choices)
 	assert_eq(run.loot_choices(3), loot, "the same stop offers the same loot")
-	assert_eq(run.wear(0, 0, loot[0]), 0)
-	assert_true(run.owns(loot[0]), "a Relic worn at once joins the run")
-	assert_eq(run.wear(1, 0, loot[0]), -1, "one of each")
-	# A Relic at its top level is never offered again (a copy would only be gold).
-	run.relics[loot[0].id] = run.tuning.relic_max_level
-	assert_false(run.loot_choices(3).has(loot[0]), "a maxed Relic is not offered")
+	assert_false(run.give_relic(loot[0], 0).is_empty())
+	assert_true(run.owns(loot[0]), "a Relic given joins the run")
+	assert_true(run.give_relic(loot[0], 1).is_empty(), "one of each")
+	assert_false(run.loot_choices(3).has(loot[0]), "a Relic the party has never turns up again (DESIGN.md 8.24)")
+	assert_false(run.can_gain(loot[0]))
 	var shop := run.shop_gear(4)
 	assert_eq(shop.size(), Tuning.new().run_shop_gear)
+	assert_false(shop.has(loot[0]), "nor on the shelves")
 	run.gold = 0
-	assert_true(run.buy_gear(shop[0]).is_empty(), "no gold, no Relic")
+	assert_true(run.buy_gear(shop[0], 2).is_empty(), "no gold, no Relic")
 	run.gold = shop[0].price
-	assert_false(run.buy_gear(shop[0]).is_empty())
+	assert_true(run.buy_gear(shop[0], 5).is_empty(), "no such hero")
+	assert_eq(run.gold, shop[0].price, "and nothing paid")
+	assert_false(run.buy_gear(shop[0], 2).is_empty())
 	assert_eq(run.gold, 0)
-	assert_true(run.owns(shop[0]), "a bought Relic joins the run")
-	assert_eq(run.wear(2, 0, shop[0]), 0, "and goes on a hero")
+	assert_eq(run.holder_of(shop[0]), 2, "a bought Relic goes to the hero picked")
+	assert_true(run.buy_gear(shop[0], 2).is_empty(), "never bought twice")
 
 
-func test_wear_and_swap_relics() -> void:
+func test_a_hero_keeps_every_relic_given_with_no_slots() -> void:
 	var run := _run()
 	var charm := _gear(run, GearData.Effect.MAX_HP)
 	var stone := _gear(run, GearData.Effect.POWER)
+	var ring := _gear(run, GearData.Effect.COUNTER)
 	var hp_before := run.hp[0]
 	var max_before := run.max_hp(0)
-	assert_eq(run.wear(0, 0, charm), 0)
+	assert_false(run.give_relic(charm, 0).is_empty())
 	assert_gt(run.max_hp(0), max_before)
-	assert_eq(run.hp[0], hp_before, "putting a Relic on never heals")
+	assert_eq(run.hp[0], hp_before, "a Relic given never heals")
 	run.gold = 0
-	assert_eq(run.wear(0, 0, stone), 0, "a full slot takes the new Relic")
+	assert_false(run.give_relic(stone, 0).is_empty(), "no slot fills: another Relic always fits")
+	assert_false(run.give_relic(ring, 0).is_empty())
+	assert_eq(run.relics_of(0), [charm, stone, ring] as Array[GearData], "in the order given")
 	assert_eq(run.gold, 0, "nothing is sold")
-	assert_true(run.owns(charm), "the old Relic goes back to the run's Relics")
-	assert_false(run.is_worn(charm))
 	assert_eq(run.power_percent(0), 100 + stone.amount)
-	assert_eq(run.wear(1, 0, stone), -1, "worn gear cannot be worn twice")
-	run.wear(1, 0, charm)
-	run.hp[1] = run.max_hp(1)
-	assert_true(run.swap_gear(1, 0, 2, 1), "gear moves to another hero")
-	assert_eq(run.gear[2][1], charm)
-	assert_eq(run.free_gear_slot(1), 0)
-	assert_eq(run.hp[1], run.max_hp(1), "HP is cut to the lower max")
-	assert_true(run.swap_gear(2, 1, 0, 0), "two worn pieces swap")
-	assert_eq(run.gear[0][0], charm)
-	assert_eq(run.gear[2][1], stone)
-	assert_false(run.swap_gear(1, 0, 2, 0), "an empty slot has nothing to move")
-	assert_true(run.take_off(0, 0))
-	assert_false(run.is_worn(charm), "taken off, it stays the run's")
-	assert_true(run.owns(charm))
-	assert_false(run.take_off(0, 0), "nothing left to take off")
+	assert_true(run.give_relic(stone, 1).is_empty(), "a Relic is given once, for good")
+	assert_eq(run.holder_of(stone), 0)
+	assert_true(run.relics_of(1).is_empty())
+	assert_true(run.give_relic(GearData.new(), 1).is_empty(), "not one of the run's Relics")
+	assert_true(run.give_relic(_gear(run, GearData.Effect.SPEED), 3).is_empty(), "no such hero")
+	run.hp[0] = run.max_hp(0)
+	var copy := RunState.from_dict(run.data, run.tuning, run.to_dict())
+	assert_eq(copy.relics_of(0), run.relics_of(0), "kept in a save and sent online")
+	assert_eq(copy.max_hp(0), run.max_hp(0))
 
 
 func test_gear_reaches_the_fight_setup() -> void:
@@ -287,7 +284,7 @@ func test_gear_reaches_the_fight_setup() -> void:
 	var boots := _gear(run, GearData.Effect.SPEED)
 	var coin := _gear(run, GearData.Effect.GOLD)
 	for item: GearData in [ring, boots, coin]:
-		run.wear(1, run.free_gear_slot(1), item)
+		run.give_relic(item, 1)
 	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
 	var setup := run.fight_setup(husk, 1, CombatSetup.Opening.NORMAL)
 	assert_eq(setup.party_passives[1], {Passive.COUNTER: ring.amount})

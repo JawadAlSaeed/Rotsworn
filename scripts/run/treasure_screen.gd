@@ -1,16 +1,16 @@
 class_name TreasureScreen
 extends StopScreen
-## A treasure stop (DESIGN.md 8.8, 8.19): two chests, a plain one (gold and an item) and a rotten one
-## (a better Relic, but maybe a curse or a fight; card #287); one can be opened
-## (RunState.open_treasure). Older words: a big old chest. Open it: its prize (RunState.treasure_contents,
-## always rare or better: gear goes on a hero, an item into the backpack) and some gold. Then back
-## to the map. The bot calls open_chest() and leave().
+## A treasure stop (DESIGN.md 8.8, 8.24): two chests, a plain one (gold and a rare item, into the
+## backpack) and a rotten one (a pick of rare Relics, but maybe a curse or a fight; card #287); one can
+## be opened (RunState.open_treasure). The rotten chest's Relics show as cards: pick one, then the hero
+## who gets it ("Who gets it?", RelicGift; skipped when only one hero may). Then back to the map. The
+## bot calls open_chest(), take_relic() and leave().
 ## The two chests are side-by-side cards (card #288): the chest's picture, a word, and chips for what
-## it holds (gold and a rare item; a rare Relic) and what the rotten one may bring (a curse, a fight,
+## it holds (gold and a rare item; rare Relics) and what the rotten one may bring (a curse, a fight,
 ## each with its chance). Once one is open, the two chests stand above the result as they were left.
 
 signal done
-## Host: the chest was opened (Main tells the clients).
+## Host: the chest was opened, or its Relic taken (Main tells the clients).
 signal opened
 
 const CHEST_SCALE: int = 8
@@ -33,6 +33,11 @@ var _opened_rotten: bool = false
 var _open: bool = false
 var _closed_path: String = ""
 var _open_path: String = ""
+## The rotten chest's Relic waiting for its hero (-1: choosing a Relic), and the pad that picked it
+## (local co-op: that player's heroes get it).
+var _giving: int = -1
+var _device: int = PlayerRoster.ANY
+var _ask_label: Label
 
 
 ## `already_open`: online clients show the chest as the host left it.
@@ -59,6 +64,9 @@ func setup(p_run: RunState, already_open: bool = false, text: String = "") -> vo
 	_text.custom_minimum_size = Vector2(1000.0, 0.0)
 	_text.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(_text)
+	_ask_label = ListMenu.centred_label(RelicGift.ASK, LootScreen.ASK_SIZE, HudStyle.GOLD)
+	_ask_label.visible = false
+	column.add_child(_ask_label)
 	_menu = ListMenu.new()
 	column.add_child(_menu)
 	_footer = ListMenu.screen_footer(self, [])
@@ -82,6 +90,45 @@ func is_open() -> bool:
 	return _open
 
 
+## True while the rotten chest's Relics wait for one to be taken.
+func relic_waiting() -> bool:
+	return _open and not run.stop_relics.is_empty()
+
+
+## True while a Relic picked here waits for its hero ("Who gets it?").
+func is_giving() -> bool:
+	return _giving >= 0 and relic_waiting()
+
+
+## The rotten chest's Relics on offer (RunState.stop_relic_choices).
+func relic_choices() -> Array[GearData]:
+	return run.stop_relic_choices()
+
+
+## Takes the rotten chest's Relic `index` and gives it to hero `hero` (one RelicGift.allowed lets
+## have it). The bot calls this; the player uses the cards. False if refused.
+func take_relic(index: int, hero: int) -> bool:
+	if not relic_waiting() or index < 0 or index >= relic_choices().size() \
+			or not RelicGift.allowed(give_heroes, run, _device).has(hero):
+		return false
+	if _ask({"do": "relic", "index": index, "hero": hero}):
+		return true
+	var got := run.take_stop_relic(index, hero)
+	if got.is_empty():
+		return false
+	print("Run treasure Relic: %s hero=%d" % [(got.item as GearData).id, hero])
+	Sfx.play("buff")
+	_giving = -1
+	_device = PlayerRoster.ANY
+	_text.text = run.stop_text
+	_text.visible = not _text.text.is_empty()
+	_show(true)
+	opened.emit()
+	# Saves the stop (Main listens to gifts_settled).
+	give([], _text)
+	return true
+
+
 ## Opens one chest: the plain one (gold and an item) or the rotten one (a better Relic, maybe a curse
 ## or a fight). The bot calls this; the player uses the menu.
 func open_chest(rotten: bool = false) -> void:
@@ -101,7 +148,7 @@ func open_chest(rotten: bool = false) -> void:
 	# The chest stays open for a continued run (Main saves once the prize is settled).
 	opened.emit()
 	var gifts: Array = []
-	if prize != null:
+	if prize is ItemData:
 		gifts.append(prize)
 	give(gifts, _text)
 
@@ -112,8 +159,11 @@ func leave() -> void:
 	done.emit()
 
 
-## Online (card #314): the turn changed: the chest cards (or Continue) redraw, lit or greyed.
+## Online (card #314): the turn changed: the chest cards (or the Relics, or Continue) redraw, lit or
+## greyed; a Relic waiting for its hero goes back to the Relics.
 func _turn_changed() -> void:
+	_giving = -1
+	_device = PlayerRoster.ANY
 	_show(_open)
 
 
@@ -128,8 +178,16 @@ func _show(is_open: bool) -> void:
 	# While choosing, the chests are on the cards; the big ones show how they were left.
 	_chests.visible = is_open
 	var list: Array[Dictionary] = [{"text": "Back to the map", "enabled": not is_greyed()}]
-	_menu.horizontal = not is_open
-	if not is_open:
+	_menu.horizontal = not is_open or relic_waiting()
+	_ask_label.visible = relic_waiting() and _giving >= 0
+	if relic_waiting():
+		if _giving >= 0:
+			list = RelicGift.hero_cards(run, RelicGift.allowed(give_heroes, run, _device), is_greyed())
+			_footer.set_entries([[&"@leftright", "Choose"], [&"menu_confirm", "Give"], [&"menu_cancel", "Back"]])
+		else:
+			list = relic_cards()
+			_footer.set_entries([[&"@leftright", "Choose"], [&"menu_confirm", "Take"]])
+	elif not is_open:
 		list = chest_cards()
 		_footer.set_entries([[&"@leftright", "Choose"], [&"menu_confirm", "Open"]])
 	else:
@@ -146,7 +204,7 @@ func chest_cards() -> Array[Dictionary]:
 	var closed := AssetLoader.texture(_closed_path, Vector2i(28, 24))
 	var gift := _look.chip_gift_color
 	var risk := _look.chip_risk_color
-	var rotten_chips: Array[Dictionary] = [StopScreen.chip_entry(_look, "relic", "Rare Relic", gift)]
+	var rotten_chips: Array[Dictionary] = [StopScreen.chip_entry(_look, "relic", "Rare Relics", gift)]
 	if run.tuning.rotten_chest_curse_percent > 0:
 		rotten_chips.append(StopScreen.chip_entry(_look, "curse", "Curse %d%%" % run.tuning.rotten_chest_curse_percent, risk))
 	if run.tuning.rotten_chest_fight_percent > 0:
@@ -161,6 +219,17 @@ func chest_cards() -> Array[Dictionary]:
 	return cards
 
 
+## The rotten chest's Relics as cards (LootScreen's look): icon, name, New (LootScreen.new_tag), chips.
+func relic_cards() -> Array[Dictionary]:
+	var cards: Array[Dictionary] = []
+	for item: GearData in relic_choices():
+		var make := func() -> Control: return RelicIcon.make(item, LootScreen.ICON_PX)
+		cards.append({"text": item.display_name, "value": LootScreen.new_tag(run, item),
+				"chips": LootScreen.relic_chips(item), "icon_make": make, "enabled": not is_greyed(),
+				"color": GearData.ROT_TOUCHED_COLOR if item.rot_touched else BackpackGrid.rarity_color(BackpackGrid.gear_step(item))})
+	return cards
+
+
 ## The menu (tests).
 func menu() -> ListMenu:
 	return _menu
@@ -169,10 +238,45 @@ func menu() -> ListMenu:
 func _unhandled_input(event: InputEvent) -> void:
 	if is_greyed() or _overlay != null:
 		return
-	if _menu.handle(event) != &"confirm" or is_settling():
+	var answer := _menu.handle(event)
+	if relic_waiting():
+		_relic_input(answer, event)
+		return
+	if answer != &"confirm" or is_settling():
 		return
 	Sfx.play("menu_confirm")
 	if _open:
 		leave()
 	else:
 		open_chest(_menu.index == 1)
+
+
+## The rotten chest's pick: a Relic card, then (if more than one hero may get it) a hero card;
+## cancel goes back from the heroes to the Relics.
+func _relic_input(answer: StringName, event: InputEvent) -> void:
+	if _giving >= 0:
+		if answer == &"cancel":
+			Sfx.play("menu_cancel")
+			var back := _giving
+			_giving = -1
+			_device = PlayerRoster.ANY
+			_show(true)
+			_menu.index = back
+		elif answer == &"confirm":
+			var slot := int(_menu.items[_menu.index].get("slot", -1)) if _menu.index < _menu.items.size() else -1
+			if not take_relic(_giving, slot):
+				Sfx.play("locked")
+		return
+	if answer != &"confirm" or is_settling():
+		return
+	_device = PlayerRoster.device_of(event)
+	var heroes := RelicGift.allowed(give_heroes, run, _device)
+	if heroes.size() == 1:
+		if not take_relic(_menu.index, heroes[0]):
+			_device = PlayerRoster.ANY
+			Sfx.play("locked")
+		return
+	Sfx.play("menu_confirm")
+	_giving = _menu.index
+	_show(true)
+	_menu.index = RelicGift.first_lit(_menu.items)

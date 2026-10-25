@@ -19,7 +19,7 @@ func _resolved(prompt: int, outcome: int, seq: int = 4) -> Dictionary:
 
 func test_the_tutorial_has_six_fight_lessons_then_first_strike_then_relics() -> void:
 	# Phase 19 (card #264) added the marks lesson (6); phase 22 (card #291) the First Strike card (7)
-	# before Relics and Echoes (8).
+	# before Relics (8; its Echoes card went with the Echoes, DESIGN.md 8.24).
 	var data := load(TUTORIAL_PATH) as TutorialData
 	assert_not_null(data)
 	assert_not_null(data.encounter)
@@ -27,7 +27,7 @@ func test_the_tutorial_has_six_fight_lessons_then_first_strike_then_relics() -> 
 	var cards: Array[String] = []
 	for step: TutorialStepData in data.steps:
 		if step.goal == TutorialGoals.READ:
-			# First Strike (7), then the Relics and Echoes lesson (8, DESIGN.md 8.17): cards only, at the end.
+			# First Strike (7), then the Relics lesson (8, DESIGN.md 8.17, 8.24): cards only, at the end.
 			assert_eq(step.lesson, 7 if step.title == "First Strike" else 8, "%s comes after the fight lessons" % step.title)
 			assert_false(step.text.is_empty(), step.title)
 			cards.append(step.title)
@@ -38,8 +38,8 @@ func test_the_tutorial_has_six_fight_lessons_then_first_strike_then_relics() -> 
 		assert_false(step.reminder.is_empty(), "%s has a reminder line" % step.title)
 		assert_false(step.retry.is_empty(), "%s says what to fix" % step.title)
 		assert_true(step.hold in ["enemies", "party"], "%s stages who acts" % step.title)
-	assert_eq(cards, ["First Strike", "Relics", "Echoes"] as Array[String],
-			"the cards explain First Strike, then Relics, then Echoes")
+	assert_eq(cards, ["First Strike", "Relics"] as Array[String],
+			"the cards explain First Strike, then Relics (no Echoes since DESIGN.md 8.24)")
 
 
 ## Card #291: the zone no longer spelled out First Strike, so the tutorial did, in one short

@@ -402,8 +402,6 @@ extends Resource
 ## How many starting pacts a run offers (card #285; RunData.pacts).
 @export_range(0, 6) var run_pact_choices: int = 3
 @export_range(0, 6) var run_shop_gear: int = 3
-## Gear slots per character.
-@export_range(1, 6) var run_gear_slots: int = 3
 ## Rot-touched gear (DESIGN.md 8.16): strong pieces with a price. Spoils (elite, boss) offer this
 ## many of them among their choices when the run has some left (never the only choice).
 @export_range(0, 3) var rot_gear_spoils_count: int = 1
@@ -414,35 +412,14 @@ extends Resource
 ## of their max.
 @export_range(1, 99, 1, "suffix:%") var rot_low_hp_percent: int = 30
 
-@export_group("Relics and Echoes")
-## Relic slots open during a run (DESIGN.md 8.17): this many at the start, one more after the first
-## guard is beaten and one more after act 1's boss, never more than run_gear_slots.
-@export_range(1, 6) var relic_slots_start: int = 1
-## The Relic bag (cards #265, #266): how many Relics the team can bring into a run (picked on the
-## main menu's Relics page). It holds this many at first, one more for every
-## relic_bag_echoes_per_slot Echoes learned for good, never more than relic_bag_max (DESIGN.md 8.19).
-@export_range(1, 60) var relic_bag_start: int = 3
-@export_range(1, 60) var relic_bag_echoes_per_slot: int = 5
-@export_range(1, 60) var relic_bag_max: int = 6
-## Relic levels last one run (phase 21, #280): a Relic joins a run at level 1 and a copy found in the
-## run raises it, up to this one; a copy past it turns into relic_spare_gold.
-@export_range(1, 10) var relic_max_level: int = 3
-@export_range(0, 1000) var relic_spare_gold: int = 30
-## Chance, per enemy beaten in a won run fight, that it drops one of its Relics.
-@export_range(0, 100, 1, "suffix:%") var relic_drop_percent: int = 10
-## In spoils, shops and chests a Relic the player already has (a copy) weighs this percent of a
-## new one, so new Relics turn up more.
-@export_range(0, 100, 1, "suffix:%") var relic_copy_weight_percent: int = 50
-## Echo pips (DESIGN.md 8.19, #280): a worn Relic gets this many per won fight (by the fight's kind),
-## kept from run to run; at mastery_needed its Echo is learned for good.
-@export_range(0, 20) var mastery_fight: int = 1
-@export_range(0, 20) var mastery_elite: int = 2
-@export_range(0, 20) var mastery_guard: int = 3
-@export_range(0, 20) var mastery_boss: int = 5
-@export_range(1, 100) var mastery_needed: int = 4
-## Echo points a hero has to wear Echoes: this many at level 1, plus this many per level up.
-@export_range(0, 20) var echo_start_points: int = 0
-@export_range(0, 10) var echo_points_per_level: int = 1
+@export_group("Relics")
+## Starting Relics (DESIGN.md 8.24, card #328): how many Relics each hero takes from the player's
+## Relic book before a run or a Fight Rush (the Empty Hand oath takes one away). A run has no Relic
+## slots, copies or levels.
+@export_range(0, 5) var start_relics_per_hero: int = 1
+## Online, the starting Relics: how long the host waits for its friends' picks before the run starts
+## without the ones still missing, in milliseconds.
+@export_range(0, 600000, 1, "suffix:ms") var start_relic_wait_ms: int = 90000
 ## Every enemy's power in run fights, in percent (phase 17: Relics stay between runs, so the base
 ## run is a little harder; practice fights keep their data).
 @export_range(50, 300, 1, "suffix:%") var enemy_power_base_percent: int = 105

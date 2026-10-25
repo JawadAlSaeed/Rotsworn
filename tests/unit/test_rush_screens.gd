@@ -144,7 +144,7 @@ func test_heal_is_greyed_at_full_hp_and_refused() -> void:
 
 func test_heal_names_a_hunger_charm_wearer() -> void:
 	var r := _won(3)
-	assert_eq(r.wear(0, 0, _gear(r, "hunger_charm")), 0)
+	assert_false(r.give_relic(_gear(r, "hunger_charm"), 0).is_empty())
 	var chips := _chip_texts(_screen(r).menu().items[0])
 	assert_eq(chips.size(), 2, "everyone's heal, then the hero it differs for")
 	assert_eq(chips[1], "%s +0%%" % r.data.party[0].display_name)
@@ -190,32 +190,53 @@ func test_the_fight_card_says_elite_or_boss() -> void:
 	assert_eq(other.chip_texts(), ["Best 12"] as Array[String], "the best stays on show")
 
 
-func test_taking_a_relic_hands_it_out_and_then_rolls_the_next_pick() -> void:
+func test_taking_a_relic_asks_who_gets_it_and_then_rolls_the_next_pick() -> void:
 	var r := _won(5)
 	assert_eq(_kinds(r), ["heal", "point", "relic"], "an elite offers a Relic")
 	var relic_index := _card_of(r, "relic")
 	var gear := r.card_thing(relic_index) as GearData
 	var screen := _screen(r)
 	assert_true(screen.menu().items[relic_index].get("icon_make") is Callable, "the Relic's own icon")
-	assert_eq(String(screen.menu().items[relic_index].value), "Lv 1")
+	assert_eq(String(screen.menu().items[relic_index].get("value", "")), "",
+			"no New tag: a Rush keeps nothing for the Relic book (DESIGN.md 8.21, 8.24)")
 	# An extra pick waits after this one (XP past the top level, D1).
 	r.picks_left = 2
 	screen.refresh()
 	watch_signals(screen)
-	assert_true(screen.take(relic_index))
-	assert_not_null(screen.overlay(), "a Relic nobody wears opens the party screen with it in hand")
-	assert_eq(r.relic_level(gear), 1, "the Relic is in")
-	assert_false(screen.take(0), "nothing more while it is being handed out")
-	screen.party_now()
-	assert_signal_not_emitted(screen, "party_requested")
-	screen.overlay().close()
-	await get_tree().process_frame
-	await get_tree().process_frame
-	assert_null(screen.overlay())
+	assert_false(screen.take(relic_index), "a Relic card needs the hero who gets it")
+	screen.menu().index = relic_index
+	_press_on(screen, &"menu_confirm")
+	assert_true(screen.is_giving(), "Who gets it?")
+	assert_eq(screen.title_text(), RelicGift.ASK)
+	assert_eq(screen.menu().items.size(), r.party_size(), "one card per hero")
+	_press_on(screen, &"menu_cancel")
+	assert_false(screen.is_giving(), "Back: the cards again")
+	assert_eq(screen.menu().index, relic_index)
+	_press_on(screen, &"menu_confirm")
+	screen.menu().index = 2
+	_press_on(screen, &"menu_confirm")
+	assert_eq(r.holder_of(gear), 2, "the hero picked has it")
+	assert_null(screen.overlay(), "nothing to hand out: no party screen")
+	assert_signal_emit_count(screen, "acted", 1)
 	assert_true(screen.is_picking(), "the extra pick")
 	assert_eq(_kinds(r), ["heal", "point", "item"], "an extra pick is the normal set")
 	assert_eq(screen.menu().items.size(), 3)
 	assert_eq(screen.title_text(), "REWARD")
+
+
+func test_a_relic_card_never_offers_one_the_party_has() -> void:
+	var r := _won(10)
+	var offered: Array[GearData] = []
+	for i: int in r.offer.size():
+		if r.card_thing(i) is GearData:
+			offered.append(r.card_thing(i) as GearData)
+	assert_eq(offered.size(), 2)
+	var again := _won(10)
+	for item: GearData in offered:
+		again.add_relic(item)
+	again.roll_offer()
+	for i: int in again.offer.size():
+		assert_false(offered.has(again.card_thing(i)), "no copies in a Rush either")
 
 
 func test_an_item_that_fits_goes_straight_into_the_pack() -> void:
@@ -331,8 +352,8 @@ func _fits(screen: RushRewardScreen, what: String) -> void:
 func test_the_screen_fits_1920x1080_at_the_largest_text_size() -> void:
 	HudStyle.set_text_size_index(HudStyle.fonts().text_size_percents.size() - 1)
 	var normal := _won(3)
-	assert_eq(normal.wear(0, 0, _gear(normal, "hunger_charm")), 0)
-	assert_eq(normal.wear(1, 0, _gear(normal, "rain_pouch")), 0)
+	assert_false(normal.give_relic(_gear(normal, "hunger_charm"), 0).is_empty())
+	assert_false(normal.give_relic(_gear(normal, "rain_pouch"), 1).is_empty())
 	normal.picks_left = 2
 	var samples: Array[Array] = [[normal, "a normal pick"], [_won(5), "an elite pick"], [_won(10), "a boss pick"]]
 	var ready := _won(9)

@@ -52,7 +52,7 @@ const HEADER_TOP_PX: float = 40.0
 ## The size of a Controls row's button picture (a hint's font size; ButtonChip scales from it).
 const BINDING_CHIP_SIZE: int = 26
 ## Reset progress's question: what is wiped, then what stays, on two lines.
-const RESET_DETAIL := "Relics and their levels, unlocked oaths, Rush records and a saved run are wiped.\n" \
+const RESET_DETAIL := "The Relic book, unlocked oaths, Rush records and a saved run are wiped.\n" \
 		+ "Settings, controls and the Journal stay."
 
 enum Section { GRAPHICS, SOUND, CONTROLS, GAME }

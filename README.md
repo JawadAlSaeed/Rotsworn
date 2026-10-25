@@ -14,7 +14,7 @@ and made with Godot 4.7.2.
 | | | |
 |---|---|---|
 | ![The map of act 1](docs/images/run_map.png) | ![The Team Ultimate](docs/images/team_ultimate.png) | ![The party screen and the backpack](docs/images/party_backpack.png) |
-| Pick your road. It is never the same twice. | Fill the team gauge, then strike together. | Level up, wear Relics, pack the backpack. |
+| Pick your road. It is never the same twice. | Fill the team gauge, then strike together. | Level up, give out Relics, pack the backpack. |
 
 - [Play it](#play-it)
 - [What's in the game](#whats-in-the-game)
@@ -118,7 +118,8 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
     row on one road). Beat it and pick one of three Relics.
   - **?**: an event. Every choice has a price (gold, max HP for the rest of the run, an item, a
     curse, a fight) or a risk, and some "?" stops are ambushes. 20 events in all.
-  - **Treasure**: a chest with something rare and some gold.
+  - **Treasure**: two chests. The plain one holds something rare and some gold; the rotten one
+    lets you pick 1 of 3 Relics, but it may hold a curse or a monster too.
   - **Shop**: *The Rag Merchant* sells items and Relics. He also buys your items for half price,
     takes a curse off your hands, upgrades an item and restocks his shelves, all for gold.
   - **Campfire**: pick one: rest (heal 50%), train (an attribute point for every hero) or upgrade
@@ -126,7 +127,7 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
   - **Boss**: *The Husk Lord* ends act 1, *The Leech Queen* act 2 (her bites drink: a bite you
     do not stop heals her). *The Hollow King* is the final fight.
 - **Getting stronger.** Each hero levels up on their own, up to level 10. Every level gives
-  attribute points (Vitality, Might, Agility, Defense, Luck), a skill point and an Echo point.
+  attribute points (Vitality, Might, Agility, Defense, Luck) and a skill point.
   Luck raises the chance of a critical hit.
 - **The backpack.** One shared grid for the whole party. Items have shapes: turn them to make them
   fit. Drop an item on a copy of itself to make it stronger (Salve, then Salve+, then Salve++).
@@ -138,15 +139,14 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 
 ### Kept between runs
 
-- **Relics** (34 of them) stay with you forever. Monsters drop them, and you also find them in
-  spoils, shops and chests. In a run, a copy of a Relic you already have there raises its level,
-  up to 3 (levels last that run; a copy past 3 pays gold). Each
-  hero wears up to 3: one slot from the start, a second after the first Elite stop won, a third
-  after act 1's boss. On the main menu's **Relics** page you choose what each hero brings.
-  **Rot-touched** Relics are very strong, but each one comes with a price.
-- **Echoes** are learned for good. Wear a Relic through won fights to fill its pips, run after run.
-  Full pips teach its Echo: from then on a hero can wear that Echo (the Relic's effect without its
-  stat) for Echo points.
+- **Relics** (50 of them). In a run they come from Elite stops, bosses, the rotten chest and the
+  shop (and a few events): pick 1 of 3, then pick **who gets it**. A hero keeps every Relic given to
+  them until the run ends: no slots, no limit, and a Relic the party has never turns up again. In
+  co-op you give it to one of your own heroes (online the player whose turn it is picks). A Relic
+  tagged **New** is not in your book yet. Every Relic you find goes
+  in your **Relic book** for good (the main menu's **Relics** page: "Found 12 of 50"). Before each
+  run or Fight Rush, every hero takes one Relic from your book (**Starting Relics**; your first run
+  starts with none). **Rot-touched** Relics are very strong, but each one comes with a price.
 - **Oaths** make the game harder, one rule at a time (12 of them). Win a normal run to unlock
   oath 1, then win at each oath to unlock the next. Each oath keeps the rules of the ones before
   it. Pick it on the players screen before the run.
@@ -207,7 +207,6 @@ keyboard or a pad. The mouse does nothing in fights, so a click can never be a p
 | Backpack: pick up or put down an item | R | X |
 | Backpack: turn the item in hand | Z / C | LB / RB |
 | Party screen: Attributes / Skills | T / K | LT / RT |
-| Echoes: change tab | T / K | LT / RT |
 | Shop: buy / sell / leave | Enter / Tab / Backspace | A / Y / B |
 | Defence stats in a fight | F1 | View |
 | Lag calibration (while the fight menu is open) | F2 | |
@@ -291,8 +290,9 @@ the bottom-left corner of the main menu, but even builds with the same number ca
   plays their own heroes' turns and defends their own heroes.
 - Pausing does **not** stop an online game, not even for you: the fight goes on behind the menu.
   Do not pause in the middle of a fight.
-- The run uses the host's Relics. Each friend also keeps what the run finds while they are in it
-  (new Relics and Echo pips) in their own collection.
+- Before the run, each player picks the starting Relics for their own heroes from their own Relic
+  book (the host waits up to 90 seconds). A friend who joins later gets none. Each friend also keeps
+  what the run finds while they are in it (new Relics) in their own book.
 - If your connection drops, the host keeps your seat for 2 minutes and plays your heroes for you.
   Your game opens the Join screen by itself: press **Enter** (or **A**) to take your seat back. If
   your game closed or crashed, start it again and join the same address within those 2 minutes:

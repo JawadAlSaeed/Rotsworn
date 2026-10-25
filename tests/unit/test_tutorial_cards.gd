@@ -27,7 +27,6 @@ const LESSONS: Array = [
 	["Lift a mark", 6, "cleanse", "enemies", "cass", "mend", "", 0, true, false, "alder", "rotting"],
 	["First Strike", 7, "read", "", "", "", "", 0, false, false, "", ""],
 	["Relics", 8, "read", "", "", "", "", 0, false, false, "", ""],
-	["Echoes", 8, "read", "", "", "", "", 0, false, false, "", ""],
 ]
 
 var _size_index: int = 0
