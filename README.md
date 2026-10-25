@@ -142,10 +142,10 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 - **Relics** (50 of them). In a run they come from Elite stops, bosses, the rotten chest and the
   shop (and a few events): pick 1 of 3, then pick **who gets it**. A hero keeps every Relic given to
   them until the run ends: no slots, no limit, and a Relic the party has never turns up again. In
-  co-op the player whose turn it is gives it to one of their own heroes. Every Relic you find stays
-  on the main menu's **Relics** page, where you choose the 3 the party brings into the next run
-  (give them out on the party screen). **Rot-touched** Relics are very strong, but each one comes
-  with a price.
+  co-op the player whose turn it is gives it to one of their own heroes. Every Relic you find goes
+  in your **Relic book** for good (the main menu's **Relics** page: "Found 12 of 50"). Before each
+  run or Fight Rush, every hero takes one Relic from your book (**Starting Relics**; your first run
+  starts with none). **Rot-touched** Relics are very strong, but each one comes with a price.
 - **Oaths** make the game harder, one rule at a time (12 of them). Win a normal run to unlock
   oath 1, then win at each oath to unlock the next. Each oath keeps the rules of the ones before
   it. Pick it on the players screen before the run.
@@ -289,8 +289,9 @@ the bottom-left corner of the main menu, but even builds with the same number ca
   plays their own heroes' turns and defends their own heroes.
 - Pausing does **not** stop an online game, not even for you: the fight goes on behind the menu.
   Do not pause in the middle of a fight.
-- The run uses the host's Relics. Each friend also keeps what the run finds while they are in it
-  (new Relics) in their own collection.
+- Before the run, each player picks the starting Relics for their own heroes from their own Relic
+  book (the host waits up to 90 seconds). A friend who joins later gets none. Each friend also keeps
+  what the run finds while they are in it (new Relics) in their own book.
 - If your connection drops, the host keeps your seat for 2 minutes and plays your heroes for you.
   Your game opens the Join screen by itself: press **Enter** (or **A**) to take your seat back. If
   your game closed or crashed, start it again and join the same address within those 2 minutes:

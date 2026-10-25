@@ -91,8 +91,11 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   walkable zones; ends with `AUTOPLAY_RESULT run_victory` or
   `run_defeat`, whose `relics=` and `relics_held=` count the Relics the run has and those given to a
   hero, DESIGN.md 8.24; about 10 to 20 minutes, so use `timeout 1500`; add `--oath=N` to play it at difficulty
-  oath N, DESIGN.md 8.15; a bot run starts with no Relics, `--relics=all` gives it every Relic as
-  found (its bag of 3 filled best first), `--relics-path=PATH` lets it use and bank into its own Relic file, 8.17), or `--rush`
+  oath N, DESIGN.md 8.15; a bot run starts with no Relics (its Relic book is empty, so it skips the
+  starting pick), `--relics=all` fills its book with every Relic (each hero then takes the best one
+  left, printed as `AUTOPLAY_START_RELICS alder=ID brin=ID cass=ID`; online the host prints
+  `AUTOPLAY_START_RELIC P2 ID hero=N ok=1` for each friend's pick), `--relics-path=PATH` lets it use
+  and bank into its own Relic book, 8.17, 8.24), or `--rush`
   to have the bot play a Fight Rush (DESIGN.md 8.21; ends with `AUTOPLAY_RESULT rush_over`,
   `rush_gave_up` or `rush_capped`, one `AUTOPLAY_RUSH` line per fight). Always cap a Rush bot with
   `--rush-fights=N` (a perfect bot may never lose): 3 fights take about 90 s, later fights longer, so
@@ -145,7 +148,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   prints PASS or FAIL. DESIGN.md 10.
 - To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
   every S seconds in `%APPDATA%/Godot/app_userdata/Rotsworn/shots/<name>/`), combined with
-  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|relics|party_relics|calibration|tutorial|map|map_start|map_act2|map_act3|first_strike|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players|rush_cards|rush_players|rush_reward|rush_reward_elite|rush_ready|rush_end|rush_pause`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
+  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|relics|party_relics|start_relics|calibration|tutorial|map|map_start|map_act2|map_act3|first_strike|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players|rush_cards|rush_players|rush_reward|rush_reward_elite|rush_ready|rush_end|rush_pause`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
   skills list (or any state; `|` moves on to the next turn) for pictures; `--pad-prompts` shows pad
   buttons, `--key-prompts` keyboard keys. Look at the pictures before telling the user a visual change is done.
   (Use `quiet_run.bat` for this when the owner is at the PC, see above.)
@@ -226,13 +229,15 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `scripts/run/` the run: `RunMap` and `RunState` (pure, tested; the map's Fight and Elite stops,
   DESIGN.md 8.22), map, shop, campfire (rest), event, treasure, loot, party and run-end
   screens (`StopScreen` hands out gifts; `RelicGift` is the "Who gets it?" step that gives a picked
-  Relic to one hero, DESIGN.md 8.24), the gold and HP strip, `RunAutoplay` (the bots' fitness
-  check)
+  Relic to one hero, DESIGN.md 8.24; `StartRelicsScreen` the starting Relics each hero takes from
+  the Relic book before a run or a Rush, 8.24), the gold and HP strip, `RunAutoplay` (the bots'
+  fitness check)
 - `scripts/rush/` the Fight Rush (DESIGN.md 8.21): `RushState` (extends `RunState`, pure, tested),
   `RushRecords` (the records per party size, pure, tested) and `RushRewardScreen` (the Rush screen:
   reward picks and the ready phase)
-- `scripts/relics/` the Relics kept between runs (DESIGN.md 8.17): `RelicCollection` (pure, tested)
-  and `RelicFile` (`user://progress.json`); the main menu's `RelicsScreen` is in `scripts/menu/`
+- `scripts/relics/` the Relic book kept between runs (DESIGN.md 8.17, 8.24): `RelicCollection` (the
+  Relics ever found; pure, tested) and `RelicFile` (`user://progress.json`); the main menu's
+  `RelicsScreen` (the book's page) is in `scripts/menu/`
 - `scripts/menu/` main menu, players screen (co-op lobby), settings, pause menu, yes/no prompt,
   the shared `ListMenu`, `MenuBackdrop`, `HintBar` (button chip hints) and `PromptLabel`
 - `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested)
