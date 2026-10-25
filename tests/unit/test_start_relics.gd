@@ -284,13 +284,38 @@ func test_a_friends_pick_waits_for_the_host() -> void:
 	assert_eq(screen.chooser(), 2, "hero 2 chooses again")
 	assert_eq(screen._warning, StartRelicsScreen.TAKEN)
 	assert_true(screen.take(_relic("war_drum")) or screen.take(_relic("whetstone")))
-	screen.refused(2)
+	var again := String(screen._sent[2])
+	screen.refused(2, other.id)
+	assert_eq(screen._sent.get(2), again, "the refusal of the older pick changes nothing")
+	screen.refused(2, again)
 	assert_eq(screen.chooser(), 2, "a refused pick opens the hero again")
 	assert_true(screen.skip())
 	run.skip_start_relic(2)
 	screen.refresh()
 	assert_false(screen.is_sending())
 	assert_true(screen.is_done())
+
+
+func test_the_bot_picks_again_when_its_pick_comes_back() -> void:
+	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var run := _run(book)
+	var screen := _screen(run, book, [1] as Array[int])
+	screen.remote = true
+	screen.autopick = true
+	screen.bot_pick()
+	var first := String(screen._sent[1])
+	run.take_start_relic(0, run.relic_by_id(first))
+	screen.refresh()
+	await wait_process_frames(2)
+	assert_true(screen._sent.has(1), "another hero got it first: the bot chose again")
+	assert_ne(String(screen._sent.get(1, first)), first)
+	var second := String(screen._sent[1])
+	screen.refused(1, first)
+	assert_eq(screen._sent.get(1), second, "the first pick's refusal leaves the new one")
+	screen.refused(1, second)
+	await wait_process_frames(2)
+	assert_true(screen._sent.has(1), "refused: the bot chooses once more")
+	assert_ne(String(screen._sent[1]), second)
 
 
 func test_local_coop_only_the_heroes_player_picks() -> void:

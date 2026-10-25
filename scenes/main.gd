@@ -2113,6 +2113,7 @@ func _show_start_relics(book: RelicCollection = null) -> void:
 		while screen.skip():
 			pass
 	elif _options.is_autoplay():
+		screen.autopick = true
 		screen.bot_pick.call_deferred()
 
 
@@ -2204,7 +2205,7 @@ func _on_friend_start_relic(from_peer: int, p: Dictionary) -> void:
 	if _options.is_autoplay():
 		print("AUTOPLAY_START_RELIC %s %s hero=%d ok=%d" % [who, what, slot, int(ok)])
 	if not ok:
-		Net.send_to(from_peer, "start_refused", {"slot": slot})
+		Net.send_to(from_peer, "start_refused", {"slot": slot, "relic": id})
 		return
 	(_screen as StartRelicsScreen).refresh()
 	_check_start_done()
@@ -4492,7 +4493,8 @@ func _client_message(kind: String, p: Dictionary) -> void:
 		"start_refused":
 			# The host refused a starting Relic (taken first, card #328): that hero chooses again.
 			if _screen is StartRelicsScreen:
-				(_screen as StartRelicsScreen).refused(int(p.get("slot", -1)))
+				var refused_id := String(p.relic) if typeof(p.get("relic")) == TYPE_STRING else ""
+				(_screen as StartRelicsScreen).refused(int(p.get("slot", -1)), refused_id)
 
 
 ## Client: shows the screen the host is on.

@@ -38,9 +38,15 @@ var remote: bool = false
 ## the hero's own player's pad may pick for them.
 var players: PlayerRoster = null
 var check_pads: bool = false
+## The bot (autoplay) picks for this screen's heroes, and again whenever one opens once more (a
+## friend's pick the host refused, or another hero got that Relic first).
+var autopick: bool = false
 ## A friend's picks sent to the host and not in its state yet: slot -> Relic id ("" skipped).
 var _sent: Dictionary = {}
 var _finished_told: bool = false
+var _bot_queued: bool = false
+## Relic ids the host refused on this screen: the bot never sends one again.
+var _refused: Dictionary = {}
 ## The device of the last press (local co-op: whose pad it was).
 var _device: int = PlayerRoster.ANY
 
@@ -104,8 +110,8 @@ func skip() -> bool:
 
 
 ## The bot's picks (DESIGN.md 8.24): for each hero still to choose, in slot order, the free Relic of
-## the book with the best GearBot.score (the first of equal scores; one the bot refuses is never
-## taken), else Skip.
+## the book with the best GearBot.score (the first of equal scores; one the bot refuses, or the host
+## refused here, is never taken), else Skip.
 func bot_pick() -> void:
 	while chooser() >= 0:
 		var best := _bot_choice()
@@ -131,10 +137,14 @@ func refresh() -> void:
 	_changed()
 
 
-## Online friend: the host refused the pick for hero `slot` (taken first, or not ours to pick): that
-## hero chooses again.
-func refused(slot: int) -> void:
-	if _sent.erase(slot):
+## Online friend: the host refused Relic `id` for hero `slot` (taken first, or not ours to pick): that
+## hero chooses again. A refusal of an older pick (the hero chose again already, after the host's
+## state said the Relic was gone) changes nothing, and so does a refused Skip ("": the hero is done on
+## the host already, or goes without when its wait runs out).
+func refused(slot: int, id: String) -> void:
+	if not id.is_empty() and _sent.has(slot) and String(_sent[slot]) == id:
+		_sent.erase(slot)
+		_refused[id] = true
 		_warning = TAKEN
 		Sfx.play("locked")
 	_changed()
@@ -148,6 +158,15 @@ func _changed() -> void:
 			finished.emit()
 	else:
 		_finished_told = false
+		if autopick and not _bot_queued:
+			_bot_queued = true
+			_bot_again.call_deferred()
+
+
+func _bot_again() -> void:
+	_bot_queued = false
+	if is_inside_tree():
+		bot_pick()
 
 
 func _refuse(why: String) -> void:
@@ -160,7 +179,7 @@ func _bot_choice() -> GearData:
 	var sent_ids := _sent.values()
 	var choices: Array[GearData] = []
 	for item: GearData in run.start_choices(_collection):
-		if GearBot.score(item) >= 0 and not sent_ids.has(item.id):
+		if GearBot.score(item) >= 0 and not sent_ids.has(item.id) and not _refused.has(item.id):
 			choices.append(item)
 	return choices[GearBot.pick(choices)] if not choices.is_empty() else null
 
