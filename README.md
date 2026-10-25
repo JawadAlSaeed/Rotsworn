@@ -121,17 +121,19 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
   - **Treasure**: two chests. The plain one holds something rare and some gold; the rotten one
     lets you pick 1 of 3 Relics, but it may hold a curse or a monster too.
   - **Shop**: *The Rag Merchant* sells items and Relics. He also buys your items for half price,
-    takes a curse off your hands, upgrades an item and restocks his shelves, all for gold.
-  - **Campfire**: pick one: rest (heal 50%), train (an attribute point for every hero) or upgrade
-    an item.
+    lifts a curse off the party and restocks his shelves, all for gold.
+  - **Campfire**: pick one: rest (heal 50%) or train (an attribute point for every hero).
   - **Boss**: *The Husk Lord* ends act 1, *The Leech Queen* act 2 (her bites drink: a bite you
     do not stop heals her). *The Hollow King* is the final fight.
 - **Getting stronger.** Each hero levels up on their own, up to level 10. Every level gives
   attribute points (Vitality, Might, Agility, Defense, Luck) and a skill point.
   Luck raises the chance of a critical hit.
-- **The backpack.** One shared grid for the whole party. Items have shapes: turn them to make them
-  fit. Drop an item on a copy of itself to make it stronger (Salve, then Salve+, then Salve++).
-  Watch out for curses.
+- **The backpack.** One shared pack for the whole party: four pockets, one item each, and only
+  things you use up (Salve, Feast, Bomb, Antidote, Smelling Salts, Holy Water). Treasure turns into
+  gold the moment you find it.
+- **Curses.** A curse sits on the whole party (you see it on the top strip, not in the pack) and
+  every hero loses a little HP each turn in fights. You cannot throw it away: only a shop's Cleanse
+  lifts it.
 - **Saving.** The game saves the run by itself (an online run on the host's PC). **Save & Quit** in
   the pause menu takes you to the main menu, and **Continue** picks the run up (online, on the host's
   players screen, see [Online](#online)). If you quit in the middle of a stop, that stop starts
@@ -194,8 +196,7 @@ such as the arrow keys next to WASD).
 | Previous / next hero, or Settings section | Z / C | LB / RB |
 
 The mouse works in most menus: point to choose, left click to confirm, right click to go back. The
-party screen's hero cards, the Attributes and Skills screens, and turning an item still need the
-keyboard or a pad. The mouse does nothing in fights, so a click can never be a parry.
+party screen's hero cards and the Attributes and Skills screens still need the keyboard or a pad. The mouse does nothing in fights, so a click can never be a parry.
 
 <details>
 <summary>More controls: the party screen, the backpack, the map, F1 and F2</summary>
@@ -204,8 +205,7 @@ keyboard or a pad. The mouse does nothing in fights, so a click can never be a p
 |---|---|---|
 | Map: choose the next stop / scroll / go | Left, Right / Up, Down / Enter | D-pad / D-pad / A |
 | Map: open the party screen (level up, Relics, backpack) | Tab | Y |
-| Backpack: pick up or put down an item | R | X |
-| Backpack: turn the item in hand | Z / C | LB / RB |
+| Backpack: an item's menu (use, sell, throw away), or put a find in a pocket | Enter | A |
 | Party screen: Attributes / Skills | T / K | LT / RT |
 | Shop: buy / sell / leave | Enter / Tab / Backspace | A / Y / B |
 | Defence stats in a fight | F1 | View |
