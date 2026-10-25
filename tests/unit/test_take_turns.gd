@@ -624,6 +624,20 @@ func test_a_placing_counts_only_for_the_find_handed_out_now() -> void:
 	assert_false(_main.call("_placing_counts", PEER_A, {"gift": 2}, PEER_A, 2, PEER_B), "the turn moved on")
 
 
+func test_a_friends_bot_buys_from_each_shelf_once_per_shop_turn() -> void:
+	# A purchase it leaves behind (no room) goes back on the shelf, and the host's redraw starts its
+	# bot again: it must not buy that shelf for ever.
+	var tried := {}
+	assert_true(_main.call("_bot_first_buy", tried, "stop:1:9/0", 3), "the first try")
+	assert_false(_main.call("_bot_first_buy", tried, "stop:1:9/0", 3), "left behind and back on the shelf: not again")
+	assert_true(_main.call("_bot_first_buy", tried, "stop:1:9/0", 4), "another shelf")
+	assert_true(_main.call("_bot_first_buy", tried, "stop:1:9/1", 3), "after a restock the shelves are new")
+	assert_true(_main.call("_bot_first_buy", tried, "stop:2:4/0", 3), "another shop")
+	var source := FileAccess.get_file_as_string(MAIN_PATH)
+	assert_string_contains(source, "Net.is_client() and not _bot_first_buy(_bot_shelves, shop_turn, i)",
+			"a friend's shop bot asks it")
+
+
 func test_a_handed_find_is_kept_until_it_can_be_placed_and_sent_again_on_a_choice() -> void:
 	var friend := _body("func _client_gift(")
 	assert_true(friend.contains("_pending_gift = "), "kept, never thrown away")

@@ -167,6 +167,9 @@ var _pending_gift: Dictionary = {}
 var _gift_held: int = 0
 var _gift_done: int = 0
 var _gift_overlay: PartyScreen
+## Online friend's bot: the shop shelves it already bought from on this shop turn ({"key", "shelves"},
+## _bot_first_buy).
+var _bot_shelves: Dictionary = {}
 ## The tutorial while it runs (DESIGN.md 7.8), else null.
 var _tutorial: TutorialRunner
 ## What the Fight stop's enemy drops (null: nothing; DESIGN.md 8.22).
@@ -4590,12 +4593,14 @@ static func _gift_step(gift: Dictionary, turn_key: String, my_turn: bool, held: 
 	return GiftStep.WAIT if _overlay_of(screen) != null else GiftStep.HOLD
 
 
-## Online friend: a new game (or the same one caught up again): no find from the host waits.
+## Online friend: a new game (or the same one caught up again): no find from the host waits, and the
+## bot has bought from no shelf.
 func _forget_gifts() -> void:
 	_pending_gift = {}
 	_gift_held = 0
 	_gift_done = 0
 	_gift_overlay = null
+	_bot_shelves = {}
 
 
 ## Online friend: true when the host's screen message `name` is the place our own party screen was
@@ -4979,10 +4984,13 @@ func _autoplay_shop(shop: ShopScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not _autoplay_turn_ok(shop):
 		return
+	var shop_turn := "%s/%d" % [String(_turn.get("key", "")), _run.restocks]
 	for i: int in shop.count():
 		if not _autoplay_turn_ok(shop):
 			return
 		if not _bot_buys(shop, i):
+			continue
+		if Net.is_client() and not _bot_first_buy(_bot_shelves, shop_turn, i):
 			continue
 		var hero := -1
 		if shop.is_relic(i):
@@ -5014,6 +5022,23 @@ static func _bot_buys(shop: ShopScreen, i: int) -> bool:
 	if not shop.can_buy(i):
 		return false
 	return not shop.is_relic(i) or GearBot.score(shop.relic_at(i)) >= 0
+
+
+## Online friend's bot: true the first time it buys shelf `shelf` on shop turn `key` (the turn's key
+## and the restock count), noted in `tried` ({"key", "shelves"}; a new key starts it over). A
+## purchase with no room that the bot leaves behind goes back on the shelf with its gold, and the
+## host's answer redraws the shop, whose bot starts again: without this it would buy that shelf for
+## ever. So it tries each shelf once, as the host's bot does. Pure apart from `tried`.
+static func _bot_first_buy(tried: Dictionary, key: String, shelf: int) -> bool:
+	if String(tried.get("key", "")) != key or not tried.get("shelves") is Array:
+		tried.clear()
+		tried["key"] = key
+		tried["shelves"] = []
+	var shelves := tried["shelves"] as Array
+	if shelves.has(shelf):
+		return false
+	shelves.append(shelf)
+	return true
 
 
 ## True if a hero is at or under AUTOPLAY_REST_BELOW_PERCENT of their max HP, or the party as a

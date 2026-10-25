@@ -5566,7 +5566,10 @@ Relic bag is gone.
     only the host's counts, read at each new choice screen. OFF, the host makes every choice (the
     old way; the chip shows P1).
   - The bot plays only its own turns. A friend's bot asks the host like a player and asks again
-    while the host cannot take it yet. The host prints `Turn: P2 <key>` for each new turn,
+    while the host cannot take it yet. In a shop it buys from each shelf once per visit, as the
+    host's bot does (`Main._bot_first_buy`, #331 review: a find it left behind for want of room
+    went back on the shelf with its gold, and the host's redraw had it buy that shelf for ever,
+    a bot-only hang). The host prints `Turn: P2 <key>` for each new turn,
     `Choice: P2 <what> key=<key>` (and `AUTOPLAY_CHOICE`) for each friend's choice it made, and
     `Choice refused: ...`; the friend prints `Choice asked: P2 <what> key=<key>`.
 - **Fight stops** (phase 26, 8.22; `Net.PROTOCOL` 5; a map rules 3 Guard stop the same): the host
