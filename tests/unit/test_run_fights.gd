@@ -851,10 +851,10 @@ func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
 
 
 ## An Elite stop's fight (the host's "final_fight" message): the friend builds the same pick, guard
-## or group, the same fight and weather from the run state alone. Net.PROTOCOL stays 5: no message
-## or field changed.
+## or group, the same fight and weather from the run state alone. The Elite stops changed no message
+## or field (Net.PROTOCOL 6 is taking turns', card #314).
 func test_a_friend_builds_the_hosts_elite_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 5)
+	assert_eq(NetSession.PROTOCOL, 6)
 	for guard: bool in [true, false]:
 		var found := _elite_stop_holding(guard)
 		assert_gt(found[0], 0)

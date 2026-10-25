@@ -4827,7 +4827,7 @@ Elite stop won. Pips stay per kind (guard 3, elite 2). This replaces G1 and card
   kind=guard|group enc=ID` with autoplay.
 - **Saves and online**: `RunSave.FORMAT_VERSION` 5: a format 4 run's map still has its row of Guard
   stops, so it is kept on disk but not offered. A rules 3 run that loads (the code keeps the rules)
-  still fights its Guard stops as before. `Net.PROTOCOL` stays 5: no message or field changed (an
+  still fights its Guard stops as before. No message or field changed for this (`Net.PROTOCOL` 6 is #314's; an
   Elite stop still goes as a `final_fight`, and the friend builds its fight from the run state
   alone); the content fingerprint keeps different builds apart.
 - **Tests**: `test_run_fights.gd` (no Guard stops on rules 4, which is the rules 2 map; the pick
