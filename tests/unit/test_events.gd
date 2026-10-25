@@ -217,7 +217,7 @@ func test_a_curse_goes_on_the_party_and_the_shop_cleanses_it() -> void:
 	assert_gt(run.rot_percent(), 0, "and it rots the party in fights")
 	assert_string_contains(String(got.text), "Grave Moss")
 	run.gold = run.cleanse_price()
-	assert_true(run.cleanse(0))
+	assert_true(run.cleanse(0, "grave_moss", 1))
 	assert_true(run.curses.is_empty())
 
 

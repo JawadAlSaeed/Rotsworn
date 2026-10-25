@@ -213,7 +213,7 @@ func info() -> Dictionary:
 				"line": item.description}
 	var uid := _pocket_uid()
 	if uid < 0:
-		var chips: Array = [[&"bag", "%d / %d" % [run.backpack.free_cells(), run.backpack.cell_count()], HudStyle.TEXT]]
+		var chips: Array = [[&"bag", pockets_text(run.backpack), HudStyle.TEXT]]
 		return {"icon": &"bag", "title": "Pocket", "color": HudStyle.GOLD, "chips": chips, "line": ""}
 	var placed := run.backpack.entry(uid)
 	var it := placed.item as ItemData
@@ -590,7 +590,12 @@ func _draw_side() -> void:
 		y += 56.0
 
 
-## The side column: free pockets (the curses sit on the party, not in the pack: the run's strip
+## The side column: the pockets used (the curses sit on the party, not in the pack: the run's strip
 ## shows them, card #332).
 func _side_rows() -> Array:
-	return [[&"bag", "%d / %d" % [run.backpack.free_cells(), run.backpack.cell_count()], HudStyle.TEXT]]
+	return [[&"bag", pockets_text(run.backpack), HudStyle.TEXT]]
+
+
+## The pack's count, like the HP chips: pockets used / all pockets ("4 / 4" when full).
+static func pockets_text(pack: Backpack) -> String:
+	return "%d / %d" % [pack.cell_count() - pack.free_cells(), pack.cell_count()]

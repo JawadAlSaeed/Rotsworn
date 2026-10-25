@@ -408,11 +408,16 @@ func leave() -> void:
 
 
 ## Cleanse: curse `index` (its place in RunState.curses) comes off the party, paid from the run's
-## gold. The bot calls this; the player uses the service. False if it cannot be done.
-func cleanse(index: int) -> bool:
-	if _ask({"do": "cleanse", "index": index}):
+## gold. The bot calls this; the player uses the service. `id` and `seen` (the curse there and how
+## many there are, as this machine sees them; filled in when left out) go with a friend's ask, and
+## the host refuses it if its list is not the same (RunState.cleanse). False if it cannot be done.
+func cleanse(index: int, id: String = "", seen: int = -1) -> bool:
+	if id.is_empty():
+		id = _run.curses[index] if index >= 0 and index < _run.curses.size() else ""
+		seen = _run.curses.size()
+	if _ask({"do": "cleanse", "index": index, "id": id, "seen": seen}):
 		return true
-	var ok := _run.cleanse(index)
+	var ok := _run.cleanse(index, id, seen)
 	if ok:
 		Sfx.play("item_drop")
 		_say.text = "\"Gone. Good riddance.\""

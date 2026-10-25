@@ -4390,7 +4390,11 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 			"restock":
 				return what if shop.restock() else ""
 			"cleanse":
-				return "cleanse %d" % index if shop.cleanse(index) else ""
+				# The curse and the count the friend saw (card #332): a second press made before the
+				# first came back names a list that is gone, and is refused.
+				var id := String(choice.get("id", ""))
+				var seen := int(choice.get("seen", -1))
+				return "cleanse %d" % index if not id.is_empty() and shop.cleanse(index, id, seen) else ""
 			"leave":
 				shop.leave()
 				return what

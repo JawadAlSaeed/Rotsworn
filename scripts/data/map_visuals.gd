@@ -43,8 +43,8 @@ extends Resource
 ## What a shop item does, as icon chips on the line under the shelves instead of its sentence
 ## (ShopScreen.item_chips). A heal, damage, a revive or a cleanse shows the fight's Items-list chips
 ## (ActionMenu.item_chips: drawn glyphs, its AP with ap_icon_path); treasure the gold coin
-## (combat_visuals.tres). Only a curse, which a fight never shows, has its picture here; the run's
-## strip (RunPartyBar) draws the party's curses with it too (card #332).
+## (combat_visuals.tres). Only a curse, which a fight never shows, has its picture here (the run's
+## strip, RunPartyBar, draws each of the party's curses with its own icon_path, card #332).
 @export_file("*.png") var item_curse_icon_path: String = "res://assets/sprites/ui/chip_skull.png"
 ## The line stays short: at most this many chips, and this many words in all of them (a chip that
 ## would go over is left out; the Glossary has the rules).

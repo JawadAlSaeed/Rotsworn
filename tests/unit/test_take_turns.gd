@@ -625,7 +625,8 @@ func test_a_placing_counts_only_for_the_find_handed_out_now() -> void:
 
 
 func test_the_host_lifts_the_curse_a_friend_names_in_a_shop() -> void:
-	# Card #332: Cleanse names a curse by its place on the party; the host checks it and the gold.
+	# Card #332: Cleanse names a curse by its place on the party, the curse there and how many the
+	# friend saw; the host checks them and the gold.
 	var run := _run()
 	run.go(run.choices()[0])
 	run.add_curse(_item(run, "rotting_heart"))
@@ -634,14 +635,39 @@ func test_the_host_lifts_the_curse_a_friend_names_in_a_shop() -> void:
 	add_child_autofree(shop)
 	shop.setup(run, run.shop_gear(run.at))
 	run.gold = run.cleanse_price() - 1
-	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 0}), "", "short of gold")
-	run.gold = run.cleanse_price()
-	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 2}), "", "no such curse")
+	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 0, "id": "rotting_heart", "seen": 2}), "",
+			"short of gold")
+	run.gold = run.cleanse_price() * 2
+	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 2, "id": "grave_moss", "seen": 2}), "",
+			"no such curse")
 	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "uid": 1}), "", "an old ask by item")
-	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 1}), "cleanse 1")
+	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 1}), "", "no curse named")
+	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 1, "id": "grave_moss", "seen": 2}), "cleanse 1")
 	assert_eq(run.curses, ["rotting_heart"] as Array[String], "the Grave Moss is lifted")
-	assert_eq(run.gold, 0)
+	assert_eq(run.gold, run.cleanse_price())
+	# The friend pressed twice before the host's state came back: the second ask names a list that is gone.
+	assert_eq(_main.call("_make_choice", shop, {"do": "cleanse", "index": 0, "id": "grave_moss", "seen": 2}), "",
+			"a second press is refused")
+	assert_eq(run.curses, ["rotting_heart"] as Array[String], "the Rotting Heart stays")
+	assert_eq(run.gold, run.cleanse_price(), "nothing charged twice")
 	assert_eq(_main.call("_make_choice", shop, {"do": "upgrade", "uid": 1}), "", "no Upgrade in the shop (card #332)")
+
+
+func test_a_friends_cleanse_names_the_curse_it_saw() -> void:
+	var run := _run()
+	run.go(run.choices()[0])
+	run.add_curse(_item(run, "grave_moss"))
+	run.add_curse(_item(run, "rotting_heart"))
+	run.gold = run.cleanse_price()
+	var shop := ShopScreen.new()
+	add_child_autofree(shop)
+	shop.setup(run, run.shop_gear(run.at))
+	var asked: Array[Dictionary] = []
+	shop.set_turn(false, func(choice: Dictionary) -> void: asked.append(choice))
+	assert_true(shop.cleanse(1))
+	assert_eq(asked, [{"do": "cleanse", "index": 1, "id": "rotting_heart", "seen": 2}] as Array[Dictionary])
+	assert_eq(run.curses.size(), 2, "a friend's copy changes only when the host's state comes")
+	assert_eq(run.gold, run.cleanse_price())
 
 
 func test_the_bot_lifts_each_curse_it_can_pay_for_once() -> void:

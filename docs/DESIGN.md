@@ -2725,7 +2725,7 @@ about Tonics, the Bigger Pack, combining, item levels, Upgrade and curses in poc
 - **The Tonic is gone** (its item, icon and art maker, `tonic_max_per_hero`, `RunState.tonics_used`,
   its place on the shop and find lists, the bot's use and its Glossary term). Nothing replaces it as
   an item: lasting max HP comes from levels, Vitality (Train at a campfire gives points) and Relics
-  with a max HP line. With it the shop and the finds draw from one item fewer.
+  with a max HP line. With the Bigger Pack gone too, the shop and the finds draw from two items fewer.
 - **The Bigger Pack is gone for good** (its item and art, the `UPGRADE` / `ADD_ROW` handling,
   `backpack_max_pockets`, the pockets sewn shut, its shelf in the shop, its Glossary words), and no
   pack upgrade comes back in phase 28 either (8.24). `ItemData.Kind.UPGRADE` (4) and the effects
@@ -2735,7 +2735,7 @@ about Tonics, the Bigger Pack, combining, item levels, Upgrade and curses in poc
   Upgrade are gone. A campfire offers Rest or Train (8.11).
 - **Curses sit on the party, not in a pocket**: `RunState.curses`, the ids of curse items in the
   order taken (saved and sent online; the same curse twice is two curses). The rot is the same: every
-  hero loses each curse's `rot_percent` of their HP each turn in a fight, never below 1 HP
+  hero loses each curse's `rot_percent` of their max HP each turn in a fight, never below 1 HP
   (`rot_percent()` adds them up, fed to the fight as `Passive.ROT`). Events, pacts and the rotten
   chest add to the list (`add_curse`); a full pack never greys a curse price out. The run's top strip
   (`RunPartyBar`, on the map and at every stop) shows each curse as its picture and name in the rot
@@ -2750,7 +2750,9 @@ about Tonics, the Bigger Pack, combining, item levels, Upgrade and curses in poc
   `hand_out` op (`pocket`, `swap`, `fit`, `leave`), checked there against the pack.
 - **Saves and online**: `RunSave.FORMAT_VERSION` 7 (older runs are kept on disk but refused),
   `Net.PROTOCOL` 9 (the run state has `curses` and no `tonics_used`, a pack entry has no level, the
-  shop's cleanse names a curse by its place in the list, no `combine` op, no campfire `upgrade`). Every
+  shop's cleanse names a curse by its place in the list with the curse there and how many the friend
+  saw, so a second press made before the first came back is refused (`RunState.cleanse`), no
+  `combine` op, no campfire `upgrade`). Every
   bag op is still checked by the host. **Bots**: no Tonic, no combining; in a shop they first lift
   every curse they can pay for (`Main._bot_cleanses`), then buy as before; heals and revives as before.
 
@@ -2918,7 +2920,7 @@ when it has a key, and sells treasure at shops.
 - **Sounds** (#103, picked by the user 2026-10-14 from three real recordings each,
   `tools/sound_kit/candidates/backpack.json`): `item_lift` belt and buckle, `item_place` soft
   thump, `item_turn` paper slide, `item_no_room` dull knock, `item_drop` tossed pouch,
-  `item_found` coins and cloth, `item_combine` pop and shimmer, `chest_open` latch and creak.
+  `item_found` coins and cloth, `item_combine` pop and shimmer (gone with combining, card #332), `chest_open` latch and creak.
 - **Bot:** shops buy everything affordable (gear goes on whoever has room); new gear and finds
   are settled the simple way (`PartyScreen.auto_settle`); on the map it uses heals on whoever is
   at or under 60% and tonics at once; in zones it first walks to each glinting spot (giving one

@@ -99,7 +99,7 @@ func _all_events() -> Array[EventData]:
 				"The dice come up sixes.", "The dice turn in the air. The skeleton takes its winnings, and then some."),
 		_choice("Take its purse", "The dead do not like thieves.",
 				{"gold": 60}, 55, {"hp": 10, "curse": "grave_moss"},
-				"The purse is heavy.", "A bony hand closes on yours. Something grey creeps into your pack."),
+				"The purse is heavy.", "A bony hand closes on yours. Something grey creeps after you all."),
 	]))
 	list.append(_event("wounded_pilgrim", "A Wounded Pilgrim",
 			"A pilgrim lies in the road, bleeding through his robe. He clutches a satchel.", [
@@ -117,7 +117,7 @@ func _all_events() -> Array[EventData]:
 				"Sweet and filling.", "Your stomachs turn."),
 		_choice("Cut the seed pod", "Something rare inside. Spores drift.",
 				{"find": 1, "curse": "grave_moss"}, 0, {},
-				"The pod splits open, and the spores settle in your pack."),
+				"The pod splits open, and the spores settle on all of you."),
 	]))
 	# Phase 26: the Key left the run (G3), so the cage gives the dead man's pack instead.
 	list.append(_event("hanging_cage", "The Hanging Cage",
@@ -154,7 +154,7 @@ func _all_events() -> Array[EventData]:
 				"Visions of old battles fill your head.", "It screams."),
 		_choice("Wrap it up to sell", "A golden idol for the shop. It does not stay quiet.",
 				{"item": "golden_idol", "curse": "grave_moss"}, 0, {},
-				"It goes quiet in the dark of the pack. Almost."),
+				"It goes quiet. Its whisper clings to you all. Almost."),
 	]))
 
 	# --- eight new ----------------------------------------------------------------------------------
@@ -190,7 +190,7 @@ func _all_events() -> Array[EventData]:
 		_choice("Touch the glass", "Your reflections know a great deal.",
 				{"maxhp": 5, "xp": 100}, 40, {"ambush": "shade_and_gnat"},
 				"Your hands go in to the wrist. You come back knowing more.", "Your reflections step out."),
-		_choice("Smash it", "The shards cut into the pack, and something beats in there.",
+		_choice("Smash it", "The shards cut deep, and something beats in each of you.",
 				{"gold": 90, "curse": "rotting_heart"}, 0, {},
 				"Seven years of bad luck, paid in advance."),
 	]))
@@ -201,7 +201,7 @@ func _all_events() -> Array[EventData]:
 				"The sound rolls over the water. The wounds close.", "The drowned come to the call."),
 		_choice("Take the silver from the altar", "It was left for someone. It is cold.",
 				{"gold": 120, "curse": "grave_moss"}, 0, {},
-				"The silver is cold. So is the thing that follows it into the pack."),
+				"The silver is cold. So is the thing that follows you out."),
 	]))
 	list.append(_event("buried_cairn", "The Buried Cairn",
 			"A cairn of grey stones, a name scratched on it. Fresh earth lies beside it. Someone dug here, and stopped.", [
@@ -228,7 +228,7 @@ func _all_events() -> Array[EventData]:
 				"The chips fall your way, and the fire warms.", "She smiles. Someone is lighter by the end."),
 		_choice("Stake a hero's strength", "A rare prize, if the hand is good.",
 				{"maxhp": 10, "maxhp_to": "pick", "find": 2}, 40, {"hp": 25, "curse": "rotting_heart"},
-				"The hand is good. Her smile is gone.", "The hand is hers. Something is dealt back into your pack."),
+				"The hand is good. Her smile is gone.", "The hand is hers. Something is dealt back to all of you."),
 	]))
 
 	# --- the shrines and wanderers, now "?" events (phase 26, DESIGN.md 8.22 G2) ------------------

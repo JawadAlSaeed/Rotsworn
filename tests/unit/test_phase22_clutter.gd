@@ -154,7 +154,7 @@ func test_the_strip_shows_the_partys_curses() -> void:
 	assert_eq(panel.find_children("*", "TextureRect", true, false).size(), 2, "each with its picture")
 	run.gold = run.cleanse_price() * 3
 	while not run.curses.is_empty():
-		run.cleanse(0)
+		run.cleanse(0, run.curses[0], run.curses.size())
 	bar.refresh(run)
 	assert_false(panel.visible, "all lifted: the panel goes")
 

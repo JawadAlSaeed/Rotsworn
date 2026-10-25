@@ -403,18 +403,41 @@ func test_only_a_cleanse_lifts_a_curse_and_it_costs_the_same() -> void:
 	for op: String in ["drop", "sell", "use"]:
 		assert_false(run.apply_op({"op": op, "uid": 0, "slot": 0}), "%s cannot reach a curse" % op)
 	run.gold = run.cleanse_price() - 1
-	assert_false(run.cleanse(0), "short of gold")
+	assert_false(run.cleanse(0, "rotting_heart", 2), "short of gold")
 	assert_eq(run.curses.size(), 2)
 	run.gold = run.cleanse_price() * 2
-	assert_false(run.cleanse(2), "no such curse")
-	assert_false(run.cleanse(-1))
-	assert_true(run.cleanse(1), "the Grave Moss")
+	assert_false(run.cleanse(2, "grave_moss", 2), "no such curse")
+	assert_false(run.cleanse(-1, "rotting_heart", 2))
+	assert_true(run.cleanse(1, "grave_moss", 2), "the Grave Moss")
 	assert_eq(run.curses, ["rotting_heart"] as Array[String])
 	assert_eq(run.gold, run.cleanse_price())
-	assert_true(run.cleanse(0))
+	assert_true(run.cleanse(0, "rotting_heart", 1))
 	assert_true(run.curses.is_empty())
 	assert_eq(run.gold, 0)
 	assert_eq(run.rot_percent(), 0, "no curse, no rot")
+
+
+func test_a_cleanse_asked_for_a_list_that_changed_is_refused() -> void:
+	# Online (card #332 review): a friend's second press can reach the host after the first lifted a
+	# curse. It names the curse and the count it saw, so it lifts nothing and charges nothing.
+	var run := _run()
+	var heart := _item_of(run, "rotting_heart")
+	var moss := _item_of(run, "grave_moss")
+	run.add_curse(heart)
+	run.add_curse(moss)
+	run.gold = run.cleanse_price() * 3
+	assert_true(run.cleanse(0, "rotting_heart", 2), "the first press")
+	var gold := run.gold
+	assert_false(run.cleanse(0, "rotting_heart", 2), "the second press saw the Rotting Heart at 0: gone")
+	assert_eq(run.curses, ["grave_moss"] as Array[String], "the Grave Moss stays")
+	assert_eq(run.gold, gold, "and nothing is charged")
+	run.add_curse(heart)
+	run.add_curse(heart)
+	assert_true(run.cleanse(1, "rotting_heart", 3))
+	assert_false(run.cleanse(1, "rotting_heart", 3), "two of the same: the count tells them apart")
+	assert_eq(run.curses.size(), 2)
+	assert_false(run.cleanse(0, "rotting_heart", 2), "not the curse there")
+	assert_true(run.cleanse(0, "grave_moss", 2))
 
 
 func test_curses_go_over_the_network_and_odd_ones_are_refused() -> void:
@@ -505,6 +528,23 @@ func test_four_pockets_sit_two_to_a_row() -> void:
 	assert_eq(r2.position.x, r0.position.x)
 	assert_false(r0.intersects(r1) or r0.intersects(r2), "pockets never overlap")
 	assert_gt(r0.size.x, 0.0)
+
+
+func test_the_bag_tab_counts_the_pockets_used() -> void:
+	# Like the HP chips (the owner's pictures, card #332 review): "4 / 4" is a full pack, never "0 / 4".
+	var run := _run()
+	assert_eq(BagTab.pockets_text(run.backpack), "0 / 4", "empty")
+	run.add_item(_item_of(run, "salve"))
+	assert_eq(BagTab.pockets_text(run.backpack), "1 / 4")
+	var screen := PartyScreen.new()
+	add_child_autofree(screen)
+	screen.setup(run, "", {})
+	var tab := screen.tab_node(PartyScreen.Tab.BAG) as BagTab
+	assert_eq(String(tab._side_rows()[0][1]), "1 / 4", "the side column")
+	while run.add_item(_item_of(run, "bomb")) >= 0:
+		pass
+	assert_eq(BagTab.pockets_text(run.backpack), "4 / 4", "full")
+	assert_eq(String(tab._side_rows()[0][1]), "4 / 4")
 
 
 func test_the_bag_tab_puts_a_new_find_in_a_free_pocket_or_swaps_it() -> void:

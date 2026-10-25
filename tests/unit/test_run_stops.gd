@@ -239,10 +239,10 @@ func test_shop_services() -> void:
 	assert_not_null(rotten, "the run has a curse")
 	assert_eq(run.add_item(rotten), 0, "on the party")
 	var gold := run.gold
-	assert_true(run.cleanse(0), "Cleanse lifts it")
+	assert_true(run.cleanse(0, rotten.id, 1), "Cleanse lifts it")
 	assert_true(run.curses.is_empty())
 	assert_eq(run.gold, gold - run.cleanse_price())
-	assert_false(run.cleanse(0), "nothing left to lift")
+	assert_false(run.cleanse(0, rotten.id, 1), "nothing left to lift")
 	assert_false(run.has_method("upgrade_item"), "no Upgrade since card #332")
 	run.go(run.choices()[0])
 	var before := str(run.shop_stock(run.at)) + str(run.shop_gear(run.at))

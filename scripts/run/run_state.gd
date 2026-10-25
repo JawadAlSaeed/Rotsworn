@@ -1118,12 +1118,12 @@ func open_treasure(stop_id: int, rotten: bool) -> Dictionary:
 		for item: GearData in offered:
 			stop_relics.append(item.id)
 		var roll := rng.range_int(0, 99)
-		var curses: Array[ItemData] = []
+		var pool: Array[ItemData] = []
 		for item: ItemData in data.found_items:
 			if item != null and item.is_curse():
-				curses.append(item)
-		if roll < tuning.rotten_chest_curse_percent and not curses.is_empty():
-			var curse := curses[rng.range_int(0, curses.size() - 1)]
+				pool.append(item)
+		if roll < tuning.rotten_chest_curse_percent and not pool.is_empty():
+			var curse := pool[rng.range_int(0, pool.size() - 1)]
 			if add_curse(curse):
 				got.curse = curse
 				parts.append("Cursed: %s" % curse.display_name)
@@ -1173,9 +1173,13 @@ func take_treasure_gold() -> int:
 # --- shop services and the campfire (DESIGN.md 8.10, 8.11) -------------------------------------
 
 ## The shop's Cleanse (card #332): curse `index` (its place in curses) is taken off the party for
-## cleanse_price() gold. False (and nothing changes) if there is no such curse or the gold is short.
-func cleanse(index: int) -> bool:
-	if index < 0 or index >= curses.size() or gold < cleanse_price():
+## cleanse_price() gold. `id` is that curse as the asker saw it and `seen` how many curses they saw:
+## online a friend's second press can arrive after the first changed the list, so a list that differs
+## from theirs is refused (no second curse lifted, no second charge). False (and nothing changes) if
+## there is no such curse, the list is not the one they saw or the gold is short.
+func cleanse(index: int, id: String, seen: int) -> bool:
+	if index < 0 or index >= curses.size() or curses[index] != id or seen != curses.size() \
+			or gold < cleanse_price():
 		return false
 	gold -= cleanse_price()
 	curses.remove_at(index)

@@ -963,8 +963,8 @@ func test_what_follows_a_run_fight() -> void:
 	assert_eq(_main.call("_spoils_line", elite, false), "The elite fell. Take one.")
 	assert_eq(_main.call("_spoils_line", event, true), "The elite fell. Take one.", "an ambush's spoils read as an elite's")
 	var item := ItemData.new()
-	item.display_name = "Tonic"
-	assert_eq(_main.call("_pack_full_note", item), "The enemy dropped a Tonic, but the pack is full.")
+	item.display_name = "Salve"
+	assert_eq(_main.call("_pack_full_note", item), "The enemy dropped a Salve, but the pack is full.")
 
 
 ## The Journal says where a fight was met: a run fight's place, else its own name.

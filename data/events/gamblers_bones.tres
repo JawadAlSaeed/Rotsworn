@@ -41,7 +41,7 @@ deal = SubResource("Resource_3q1gv")
 risk_percent = 55
 risk_deal = SubResource("Resource_btusf")
 done_text = "The purse is heavy."
-risk_text = "A bony hand closes on yours. Something grey creeps into your pack."
+risk_text = "A bony hand closes on yours. Something grey creeps after you all."
 
 [resource]
 script = ExtResource("4_eps3v")
