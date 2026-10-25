@@ -729,7 +729,7 @@ script = ExtResource("1_d4656")
 id = "gear"
 topic = "gear"
 term = "Relic"
-text = "Kept forever. Worn by one hero in a Relic slot (one at the start of a run, three by act 2): an effect and a small stat. Wear it in won fights to fill its pips and learn its Echo for good."
+text = "Kept forever. Worn by one hero in a Relic slot (one at the start of a run, a second after the first Elite stop won, a third after act 1's boss): an effect and a small stat. Wear it in won fights to fill its pips and learn its Echo for good."
 icon_path = "res://assets/sprites/ui/gear_icon.png"
 
 [sub_resource type="Resource" id="Resource_echo1"]

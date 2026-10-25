@@ -1904,6 +1904,17 @@ func _resume_where_saved() -> void:
 ## what is kept; on the map the state is saved as it is now. Online (the host, card #313) the friends
 ## go home too, keeping their seats (_save_quit_online).
 func _on_pause_save_quit() -> void:
+	if not _save_allowed():
+		# Online the fight under the pause goes on: it may have decided the run since the pause opened
+		# (its save is gone already). Nothing is saved: the pause closes on the run's own end.
+		Sfx.play("locked")
+		_on_pause_resumed()
+		return
+	if _gift_in_hand(_screen):
+		# A find is still being placed (online maybe by a friend, card #314): the stop's last save holds
+		# the choice without it. Save & Quit waits until it is in the backpack.
+		Sfx.play("locked")
+		return
 	if Net.is_host():
 		_save_quit_online()
 		return
@@ -1919,15 +1930,31 @@ func _on_pause_save_quit() -> void:
 	_fade_to(_show_main_menu)
 
 
+## The "saved" message (card #313): the run as the save holds it (`checkpoint`: inside a stop, as the
+## party entered it), which the friends bank from. Not the newest state: what the stop found since is
+## found again when the Continue replays it, and banked then. Pure.
+static func _saved_message(checkpoint: Dictionary) -> Dictionary:
+	return {"run": checkpoint.duplicate(true)}
+
+
+## True while `screen` is a stop's screen still handing out a find (its backpack open with it in hand,
+## more to come, or online one handed to a friend to place): what it gives is not in the run yet.
+static func _gift_in_hand(screen: Node) -> bool:
+	return is_instance_valid(screen) and screen is StopScreen and (screen as StopScreen).is_settling()
+
+
 ## Host, Save & Quit online (card #313): the run goes into the online slot with its seats (the same
-## checkpoint rules as a local run's), the friends are told ("saved": they go to the main menu and keep
-## their seat's token), and the host goes to the main menu. If the save could not be written the game
-## simply ends for everyone ("menu"). From here on until the main menu nothing writes or deletes the
-## slot (_put_away): online the fight or screen under the pause is held, but a message or a timer may
-## still end it.
+## checkpoint rules as a local run's), the friends are told ("saved", with the state the save holds:
+## they bank from it, go to the main menu and keep their seat's token), and the host goes to the main
+## menu. If the save could not be written the game simply ends for everyone ("menu"). From here on
+## until the main menu nothing writes or deletes the slot (_put_away): online the fight or screen
+## under the pause is held, but a message or a timer may still end it.
 func _save_quit_online() -> void:
 	var saved := _write_checkpoint() if _checkpoint_in_stop else _save_run(false)
-	Net.broadcast("saved" if saved else "menu")
+	if saved:
+		Net.broadcast("saved", _saved_message(_checkpoint))
+	else:
+		Net.broadcast("menu")
 	_put_away = true
 	_set_drop_in(false)
 	_free_pause()
@@ -3295,8 +3322,9 @@ func _refresh_prompt_mix() -> void:
 			and _players.devices.any(func(device: int) -> bool: return device >= 0))
 
 
-## The save keeps how many players share the pads; a roster change rewrites the last checkpoint
-## with the new count, nothing else (DESIGN.md 8.14).
+## The save keeps how many players share the pads, and online who holds which seat with its token
+## (card #313); a roster change rewrites the last checkpoint with the new players, nothing else
+## (DESIGN.md 8.14): a local join or leave, the online Continue seating the friends, a drop-in.
 func _resave_players() -> void:
 	if _save_allowed() and not _checkpoint.is_empty():
 		_write_checkpoint()
@@ -3425,7 +3453,7 @@ func _on_close_requested() -> void:
 	if get_tree().auto_accept_quit:
 		return
 	if Net.is_host() and _save_allowed() and _write_checkpoint():
-		Net.broadcast("saved")
+		Net.broadcast("saved", _saved_message(_checkpoint))
 		_put_away = true
 	else:
 		_tell_clients_game_ended()
@@ -3596,6 +3624,9 @@ func _on_online_continued(lobby_roster: PlayerRoster) -> void:
 	_fight_weather = null
 	_checkpoint = saved.run as Dictionary
 	_checkpoint_in_stop = bool(saved.in_stop)
+	# The friends sat down under the tokens of this session: the slot gets them now, so it agrees with
+	# their seat files even if this machine crashes before the next autosave (a stop's whole fight).
+	_resave_players()
 	_continued_run = true
 	_reset_turns()
 	_reset_play_device()
@@ -3632,11 +3663,22 @@ static func _run_start_message(run: RunState, roster: PlayerRoster, late: bool, 
 
 
 ## Client, at a run_start: whether this friend got into the game after it started (default D20: no
-## Fight Rush record for it). A drop-in's catch-up says so (`said_late`; a friend whose game crashed
-## comes back this way, as a newcomer); a token rejoin of the same game (`same_game`, card #205) keeps
-## what it was (`was_late`); any other start is a new game, joined on time. Pure.
+## Fight Rush record for it). `said_late`: _late_baseline (a drop-in's catch-up, a continued run, or a
+## crashed friend back with the token from their seat file); a token rejoin of the same game
+## (`same_game`, card #205) keeps what it was (`was_late`); any other start is a new game, joined on
+## time. Pure.
 static func _late_after_start(said_late: bool, was_late: bool, same_game: bool) -> bool:
 	return said_late or (was_late and same_game)
+
+
+## Client, at a run_start: whether this friend's Relics count only from the first run state (late,
+## card #304). The host said so (`said_late`: a drop-in, a continued run), or the welcome gave a seat
+## back (`rejoined`) for this catch-up (`catching_up`) into a game this machine has no start of
+## (`same_game` false): the token came from the seat file after a crash or a restart (card #313), and
+## the Relic file may hold this run's pips already. A start on time, a rejoin within the same game
+## here (its start is kept), or a later game after that rejoin (no catch-up any more) is not late. Pure.
+static func _late_baseline(said_late: bool, rejoined: bool, catching_up: bool, same_game: bool) -> bool:
+	return said_late or (rejoined and catching_up and not same_game)
 
 
 ## The game a host's message is about: MODE_RUSH only when it says so, else MODE_RUN (a message from
@@ -3856,7 +3898,8 @@ func _set_drop_in(open: bool) -> void:
 
 
 ## Host: a friend got in during the run (DESIGN.md 9.3, card #304): a new seat (`old_peer` 0) or
-## the seat of the player away longest (a friend whose game crashed comes back this way).
+## the seat of the player away longest (a friend whose game crashed and kept no token comes back this
+## way; with one in their seat file they rejoin by it, card #313).
 func _on_net_peer_dropped_in(peer: int, old_peer: int) -> void:
 	# Net asked _drop_in_refusal before the welcome, so this is only a fallback.
 	if _run == null or _decided_run == _run or _run.is_over():
@@ -3901,6 +3944,8 @@ func _seat_newcomer(peer: int, old_peer: int) -> void:
 		_combat.update_players(_players)
 	# A seat taken over is the newcomer's now (card #314): a turn the old peer still had passes on.
 	_pass_turn()
+	# The seat's token is the newcomer's now (an old one stops working): the slot keeps it at once.
+	_resave_players()
 	_catch_up(peer, true)
 	_update_away_chip()
 
@@ -4005,21 +4050,6 @@ func _on_net_refused(reason: String) -> void:
 		_end_online(reason)
 
 
-## Client: the last message in `queue` (the host's messages held behind a transition) that carries
-## the run's state ("run", "screen", "gift"), or {} if there is none or the queue holds the start of
-## another game ("run_start", "again": its states do not fit the run shown now). Pure.
-static func _newest_queued_run(queue: Array[Dictionary]) -> Dictionary:
-	var newest := {}
-	for m: Dictionary in queue:
-		var kind := String(m.get("kind", ""))
-		if kind in ["run_start", "again"]:
-			return {}
-		var payload: Variant = m.get("payload")
-		if kind in ["run", "screen", "gift"] and payload is Dictionary and (payload as Dictionary).get("run") is Dictionary:
-			newest = payload as Dictionary
-	return newest
-
-
 ## Online friend in a run (not a Fight Rush, which is never saved): keeps our seat's token on this
 ## machine (SeatFile, card #313), so the file always holds the token the host's autosaves keep, even
 ## when the host crashes or we are away when it saves. True if it is kept.
@@ -4116,14 +4146,14 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				_autoplay_quit()
 		"saved":
 			# The host saved the run to go on later (card #313). At once too, as "menu": the line goes
-			# down a moment later. What the run found so far is banked first, as on Leave (the newest
-			# state the host sent, a transition may still hold it): on the Continue we count as late, so
-			# it would never be banked after. Our seat's token is kept on this machine (SeatFile), so
-			# joining the host again takes the same seat back when it continues.
+			# down a moment later. What the save holds is banked first, as on Leave: the state it carries
+			# (inside a stop, as the party entered it), never a newer one. On the Continue we count as
+			# late from that state, so what the stop finds is banked when it is played again, once. Our
+			# seat's token is kept on this machine (SeatFile), so joining the host again takes the same
+			# seat back when it continues.
 			_client_done = true
-			var newest := _newest_queued_run(_net_queue)
-			if not newest.is_empty():
-				_apply_run(newest)
+			if payload.get("run") is Dictionary:
+				_apply_run(payload)
 			_bank_relics()
 			var kept := SeatFile.save(Net.seat_address(), Net.seat_token(), Net.seat_file)
 			print("The host saved the run%s" % (" (seat kept)" if kept else ""))
@@ -4217,18 +4247,22 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			_keep_seat()
 			# The same game again: our seat taken back mid-game (card #205).
 			var same_game := _own_start_seed == start_seed
+			# A drop-in's catch-up says late (card #304), and so does a continued run's (#313); a token
+			# rejoin into a game this machine has no start of (it crashed or was closed, the token came
+			# from the seat file) is late too: our Relic file may hold what this run banked already.
+			var late := _late_baseline(bool(p.get("late", false)), Net.rejoined, _seat_wait, same_game)
 			# A friend who dropped into this Rush stays late through a rejoin of the same Rush (D20).
-			_rush_late = _late_after_start(bool(p.get("late", false)), _rush_late, same_game)
+			_rush_late = _late_after_start(late, _rush_late, same_game)
 			# The host's word on its own switches (a bot or dev Rush there keeps no record here, D9).
 			_rush_host_clean = typeof(p.get("records")) == TYPE_BOOL and bool(p.records)
 			if _own_start == null or not same_game:
 				_own_start = RelicFile.load_or_empty(_relics_path()) if _client_relics_ok() else null
 				_own_start_seed = start_seed
-				# Only a drop-in's catch-up says late (card #304); a start or a token rejoin never
-				# does. Not Net.joined_mid_run: it would still be up in the run after Again.
+				# Late (above): the baseline is the first run state. Not Net.joined_mid_run: it would
+				# still be up in the run after Again.
 				_join_relics = {}
 				_join_mastery = {}
-				_join_pending = bool(p.get("late", false))
+				_join_pending = late
 			if _run is RushState and not same_game:
 				# The records as they were before this Rush (a seat taken back keeps them: the record
 				# this Rush already wrote here must not count as the one to beat).
@@ -4642,9 +4676,11 @@ func _is_choice_screen(node: Node) -> bool:
 
 
 ## Host: the turn's owner dropped or left (card #314): the turn passes on to the next seated player,
-## and everyone's screen and chip follow. Also follows their seat moving up when someone left.
+## and everyone's screen and chip follow. Also follows their seat moving up when someone left. Only
+## while the turn's screen is still up: a turn already used (its choice made, the party in a fight or
+## on the spoils' party screen) stays with who used it, so the next screen counts on from them.
 func _pass_turn() -> void:
-	if not Net.is_host() or _turn.is_empty():
+	if not Net.is_host() or _turn.is_empty() or not _turn_on_screen(_net_place, _net_fight, _run, _turns.key):
 		return
 	_turns.pass_if_gone(_players)
 	var now := _turns.to_dict()
@@ -4653,6 +4689,19 @@ func _pass_turn() -> void:
 	_turn = now
 	print("Turn passes: %s %s" % [HudStyle.player_tag(_turns.player), _turns.key])
 	_send_turn()
+
+
+## Host: true while the choice screen of the turn `key` is still the place everyone is on (`place`:
+## the place screen last sent, `fight`: a fight sent after it, `run` as it is now). False once its
+## choice is made: a fight began, the party screen after spoils is up, or the map step was taken (the
+## map's key moved on). Pure.
+static func _turn_on_screen(place: Dictionary, fight: Dictionary, run: RunState, key: String) -> bool:
+	var screen_name := String(place.get("name", ""))
+	if key.is_empty() or not fight.is_empty() or not CHOICE_SCREENS.has(screen_name):
+		return false
+	if screen_name == "event" and bool(place.get("pact", false)):
+		screen_name = "pact"
+	return _choice_key_of(screen_name, run, key) == key
 
 
 ## Host: everyone gets the turn as it is now (it changed with the screen still up). A friend who gets

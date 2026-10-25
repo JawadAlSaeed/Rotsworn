@@ -131,19 +131,22 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 - **The backpack.** One shared grid for the whole party. Items have shapes: turn them to make them
   fit. Drop an item on a copy of itself to make it stronger (Salve, then Salve+, then Salve++).
   Watch out for curses.
-- **Saving.** The game saves a local run by itself. **Save & Quit** in the pause menu takes you to
-  the main menu, and **Continue** picks the run up. If you quit in the middle of a stop, that stop
-  starts over. Online runs are not saved.
+- **Saving.** The game saves the run by itself (an online run on the host's PC). **Save & Quit** in
+  the pause menu takes you to the main menu, and **Continue** picks the run up (online, on the host's
+  players screen, see [Online](#online)). If you quit in the middle of a stop, that stop starts
+  over.
 
 ### Kept between runs
 
 - **Relics** (34 of them) stay with you forever. Monsters drop them, and you also find them in
-  spoils, shops and chests. A copy of a Relic you already have raises its level, up to 5. Each
+  spoils, shops and chests. In a run, a copy of a Relic you already have there raises its level,
+  up to 3 (levels last that run; a copy past 3 pays gold). Each
   hero wears up to 3: one slot from the start, a second after the first Elite stop won, a third
   after act 1's boss. On the main menu's **Relics** page you choose what each hero brings.
   **Rot-touched** Relics are very strong, but each one comes with a price.
-- **Echoes** are learned again in every run. Wear a Relic through won fights to learn its Echo for
-  the rest of that run. Any other hero can then wear that Echo with Echo points.
+- **Echoes** are learned for good. Wear a Relic through won fights to fill its pips, run after run.
+  Full pips teach its Echo: from then on a hero can wear that Echo (the Relic's effect without its
+  stat) for Echo points.
 - **Oaths** make the game harder, one rule at a time (12 of them). Win a normal run to unlock
   oath 1, then win at each oath to unlock the next. Each oath keeps the rules of the ones before
   it. Pick it on the players screen before the run.
@@ -280,16 +283,27 @@ the bottom-left corner of the main menu, but even builds with the same number ca
 
 **During an online run:**
 
-- The host makes the run choices (map, shop, campfire, events). Everyone plays their own heroes'
-  turns and defends their own heroes.
+- The run's choices go in turns: each map step, stop, spoils pick and Fight Rush pick belongs to the
+  next player (P1, P2, P3, then P1 again). A chip at the top left shows whose turn it is (for example
+  `P2`). On someone else's turn the choices are greyed: watch, or look at the party screen. If a find
+  has no room in the backpack on your turn, your backpack opens so you can place it. The host can
+  switch this off in **Settings > Game > Take turns**; then the host makes every choice. Everyone
+  plays their own heroes' turns and defends their own heroes.
 - Pausing does **not** stop an online game, not even for you: the fight goes on behind the menu.
   Do not pause in the middle of a fight.
-- Only the host's Relics are used, and only the host keeps new ones.
+- The run uses the host's Relics. Each friend also keeps what the run finds while they are in it
+  (new Relics and Echo pips) in their own collection.
 - If your connection drops, the host keeps your seat for 2 minutes and plays your heroes for you.
-  Your game opens the Join screen by itself: press **Enter** (or **A**) to take your seat back.
-  This only works if your game stayed open.
-- To quit: pause, then **Leave the game** (a friend; your heroes go to the host) or **End the
-  game** (the host; the run ends for everyone).
+  Your game opens the Join screen by itself: press **Enter** (or **A**) to take your seat back. If
+  your game closed or crashed, start it again and join the same address within those 2 minutes:
+  your seat comes back.
+- To quit: pause, then **Leave the game** (a friend; your heroes go to the host), **Save & Quit**
+  (the host; everyone goes to the main menu and the run is kept) or **End the game** (the host; the
+  run and its save are lost for everyone).
+- To go on with a saved online run: the host picks **Online > Host Online > Run** again, and the
+  players screen shows **Continue** next to **Start**. Friends join the same address as before
+  (before or after the host presses Continue) and get their own seats and heroes back. A seat waits
+  5 minutes for its friend; if you quit in the middle of a stop, that stop starts over.
 
 ### Over the internet with Tailscale
 
@@ -341,7 +355,7 @@ the host's public IP address. This fails on some internet connections (CGNAT). O
 | *"Your game is a different version from the host's ..."* | You have different builds. All of you download `Rotsworn.zip` again from the link in [Play it](#play-it) and extract it over the old one. |
 | *"The host did not answer."* or *"Host not found"* | Check the address. The host must be on the Host Online screen and must have allowed Rotsworn in the firewall question. With Tailscale, check it is running and logged in on both PCs. On the same Wi-Fi, see the note below the table. |
 | *"Could not start connecting ..."* | The address is not valid. Type only the numbers and dots, for example `100.101.102.103`, with no `:7777` and no spaces. |
-| *"Game full"* | 3 players is the most. In a run, a seat may still be kept for a friend who dropped out (for up to 2 minutes), or nobody has a spare hero to give you. Try again later. |
+| *"Game full"* | 3 players is the most. In a run, a seat may still be kept for a friend who dropped out (for up to 2 minutes; in a saved run the host continued, for up to 5 minutes), or nobody has a spare hero to give you. Try again later. |
 | *"Run busy, try again"* | The run is starting or ending right now. Wait a moment and join again. You can join a run that is already going. |
 | *"Could not host (another game hosting?)"* | Close the other copy of Rotsworn. |
 

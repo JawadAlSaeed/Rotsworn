@@ -7,7 +7,7 @@ extends RefCounted
 ## Before a run (the players screen is up) friends join the lobby while a seat is free. Once a run
 ## started only a seat's token gets back into its own seat, unless the host has drop-in open: then a
 ## newcomer gets a free seat, or the seat of the player away longest (a friend whose game crashed
-## comes back this way) once that seat has waited long enough to not be a quick rejoin.
+## and kept no token comes back this way) once that seat has waited long enough to not be a quick rejoin.
 
 enum Verdict { REFUSE, LOBBY, REJOIN, NEW_SEAT, TAKE_AWAY }
 ## What the host does with a client's "seated_ready": nothing yet, hand the heroes over now (no fight

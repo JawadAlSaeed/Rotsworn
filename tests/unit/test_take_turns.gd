@@ -172,6 +172,47 @@ func test_a_rejoin_before_the_drop_was_noticed_passes_the_turn() -> void:
 	assert_lt(newcomer.find("_pass_turn()"), newcomer.find("_catch_up("), "a seat taken over too")
 
 
+func test_a_turn_already_used_is_not_passed_on() -> void:
+	# P2 took the map step into a fight and dropped in it: no screen of theirs is up, so the turn is not
+	# passed on (it would give P3's turn away). The spoils after the fight are P3's, as with no drop.
+	var roster := _roster(2)
+	var turns := ChoiceTurns.new()
+	turns.turn_for("map:0:0", roster)
+	turns.turn_for("map:0:1", roster)
+	assert_eq(turns.player, 1, "P2's map step")
+	roster.set_away(PEER_A)
+	turns.turn_for("loot:0:2", roster)
+	assert_eq(turns.player, 2, "an away seat keeps its peer: P3 after P2")
+	var stale := ChoiceTurns.new()
+	stale.turn_for("map:0:0", roster)
+	roster.set_back(PEER_A)
+	stale.turn_for("map:0:1", roster)
+	roster.set_away(PEER_A)
+	stale.pass_if_gone(roster)
+	stale.turn_for("loot:0:2", roster)
+	assert_eq(stale.player, 0, "passed in the fight, it skips P3: what _pass_turn must not do")
+	# Main passes a turn only while its screen is still the place everyone is on.
+	var run := _run()
+	var map_key: String = _main.call("_choice_key_of", "map", run, "")
+	var on := func(place: Dictionary, fight: Dictionary, key: String) -> bool:
+		return bool(_main.call("_turn_on_screen", place, fight, run, key))
+	assert_true(on.call({"name": "map"}, {}, map_key), "the map is up: a drop passes the turn")
+	assert_false(on.call({"name": "map"}, {"name": "stop_fight"}, map_key), "in the fight it chose")
+	assert_false(on.call({"name": "map"}, {}, ""), "no turn yet")
+	assert_true(on.call({"name": "event", "pact": true}, {}, "pact"), "the pact goes as an event screen")
+	run.go(run.choices()[0])
+	assert_false(on.call({"name": "map"}, {}, map_key), "the step was taken (its fade): the map's key moved on")
+	var stop_key: String = _main.call("_choice_key_of", "loot", run, "")
+	assert_true(on.call({"name": "loot"}, {}, stop_key), "the spoils are up")
+	assert_false(on.call({"name": "party"}, {}, stop_key), "the spoil was taken: its party screen")
+	var rush := RushState.begin_rush(_rush, _tuning, 7, null, 1)
+	var ready: String = _main.call("_choice_key_of", "rush_reward", rush, "rush:0:pick:2")
+	assert_true(_main.call("_turn_on_screen", {"name": "rush_reward"}, {}, rush, ready), "Fight not pressed yet")
+	assert_false(_main.call("_turn_on_screen", {"name": "rush_reward"}, {"name": "rush_fight"}, rush, ready),
+			"Fight pressed: the next pick counts on from the one who pressed it")
+	assert_string_contains(_body("func _pass_turn("), "_turn_on_screen(_net_place, _net_fight, _run, _turns.key)")
+
+
 func test_the_last_seat_dropping_wraps_to_p1() -> void:
 	var roster := _roster(1)
 	var turns := ChoiceTurns.new()
@@ -501,6 +542,26 @@ func test_a_find_with_no_room_is_handed_to_the_friend_whose_turn_it_is() -> void
 	assert_true(screen.settle_owed({"op": BagTab.HAND_OUT, "to": "leave"}))
 	assert_false(screen.is_settling())
 	assert_eq(run.backpack.entries.size(), count, "left behind")
+
+
+## An event's choice is saved the moment it is made (its risk rolled), before its finds are in the
+## backpack: while one is still being placed, here or by a friend, Save & Quit waits (it would keep the
+## choice without the find, and Continue shows only the result).
+func test_save_and_quit_waits_while_a_find_is_being_placed() -> void:
+	var run := _run()
+	_fill(run, "salve")
+	var screen := _event_screen(run, "gamblers_bones")
+	assert_false(_main.call("_gift_in_hand", screen), "nothing handed out")
+	screen.hand_off = func(_from: Node) -> void: pass
+	screen.give([_item(run, "salve")])
+	assert_true(_main.call("_gift_in_hand", screen), "handed to a friend to place")
+	screen.hand_off = Callable()
+	screen.take_back_owed()
+	assert_true(_main.call("_gift_in_hand", screen), "in the host's own hands")
+	assert_false(_main.call("_gift_in_hand", null), "no screen")
+	var quit := _body("func _on_pause_save_quit(")
+	assert_lt(quit.find("_gift_in_hand(_screen)"), quit.find("_save_quit_online()"), "checked before anything is saved")
+	assert_lt(quit.find("_gift_in_hand(_screen)"), quit.find("_write_checkpoint()"))
 
 
 func test_the_turn_back_home_opens_the_owed_find_here() -> void:

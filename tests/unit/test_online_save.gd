@@ -198,8 +198,10 @@ func test_the_host_saves_the_seats_with_each_checkpoint() -> void:
 	assert_string_contains(write, "SavedSeats.capture(_players, Net.seats) if Net.is_host() else {}")
 	var quit := _body("func _save_quit_online(")
 	assert_lt(quit.find("_write_checkpoint() if _checkpoint_in_stop else _save_run(false)"),
-			quit.find("Net.broadcast(\"saved\" if saved else \"menu\")"), "saved before the friends are told")
+			quit.find("Net.broadcast(\"saved\", _saved_message(_checkpoint))"), "saved before the friends are told")
+	assert_string_contains(quit, "Net.broadcast(\"menu\")")
 	assert_string_contains(quit, "_put_away = true")
+	assert_string_contains(_body("func _on_close_requested("), "Net.broadcast(\"saved\", _saved_message(_checkpoint))")
 	assert_string_contains(_body("func _on_pause_save_quit("), "_save_quit_online()")
 	# A friend's pause never offers it: the row is the host's only.
 	var pause := _body("func _open_pause(")
@@ -207,6 +209,49 @@ func test_the_host_saves_the_seats_with_each_checkpoint() -> void:
 	assert_gt(host_row, 0)
 	assert_lt(host_row, pause.find("elif Net.is_client():"))
 	assert_eq(pause.count("_pause.save_quit_requested.connect(_on_pause_save_quit)"), 2, "the host's and a local run's")
+
+
+## Online the fight under the pause goes on: when it decides the run (its save is gone, the oath open,
+## the Relics banked), the Save & Quit row the pause still shows must not end the game with "menu".
+func test_save_and_quit_after_the_fight_under_the_pause_decided_the_run() -> void:
+	var main: Node = autofree(_main.new())
+	var run := _progressed_run()
+	main.set("_run", run)
+	main.set("_decided_run", run)
+	main.call("_on_pause_save_quit")
+	assert_false(main.get("_put_away"), "nothing put away")
+	assert_false(main.get("_menu_used"), "not sent to the main menu")
+	assert_eq(main.get("_notice"), "", "no \"Could not save the run\"")
+	var quit := _body("func _on_pause_save_quit(")
+	assert_lt(quit.find("if not _save_allowed():"), quit.find("_save_quit_online()"), "checked again at the press")
+	assert_lt(quit.find("_on_pause_resumed()"), quit.find("_save_quit_online()"), "the pause closes on the run's end")
+
+
+## The online Continue seats the friends on the players screen under this session's tokens: the slot is
+## written again at once, so a host crash during the replayed stop leaves a save that agrees with their
+## seat files. A newcomer taking a seat over rewrites it the same way.
+func test_the_slot_takes_the_new_seats_at_once() -> void:
+	var saved := _through_file(_three(), _seats())
+	var back := SavedSeats.restore(saved, 3)
+	var lobby: Array[int] = [NEW_A]
+	var placed := SavedSeats.seat_lobby(back, SavedSeats.tokens_of(saved), lobby, {NEW_A: "tokA"})
+	var book := SeatBook.new()
+	book.add(NEW_A, "lobbyA")
+	for old: int in placed.waiting as Dictionary:
+		book.hold(old, String((placed.waiting as Dictionary)[old]), 0, GRACE_MS)
+	assert_eq(SavedSeats.tokens_of(SavedSeats.capture(back, book)), {NEW_A: "lobbyA", PEER_B: "tokB"},
+			"the lobby's fresh token and the held seat's saved one")
+	var resume := _body("func _on_online_continued(")
+	var write := resume.find("_resave_players()")
+	assert_gt(write, resume.find("Net.hold_seat("), "after the held seats")
+	assert_gt(write, resume.find("_players = roster"))
+	assert_gt(write, resume.find("_checkpoint_in_stop = bool(saved.in_stop)"), "the saved state, as it was")
+	assert_lt(write, resume.find("_resume_where_saved()"))
+	var newcomer := _body("func _seat_newcomer(")
+	assert_lt(newcomer.find("_resave_players()"), newcomer.find("_catch_up("), "a seat taken over too")
+	var resave := _body("func _resave_players(")
+	assert_string_contains(resave, "_save_allowed()", "never a Fight Rush, a decided run or a bot without a slot")
+	assert_string_contains(resave, "_write_checkpoint()")
 
 
 # --- held seats (SeatBook.hold) ----------------------------------------------------------------
@@ -388,21 +433,34 @@ func test_a_friend_banks_their_share_before_going_home() -> void:
 	var bank := saved.find("_bank_relics()", at)
 	assert_gt(bank, at, "banked on \"saved\", as on Leave")
 	assert_lt(bank, saved.find("_end_online(HOST_SAVED_NOTICE", at), "while the run and its baseline are still there")
-	assert_lt(saved.find("_apply_run(newest)", at), bank, "the newest state first")
+	assert_lt(saved.find("_apply_run(payload)", at), bank, "the state the save holds first")
+	assert_eq(saved.find("_newest_queued_run", at), -1, "never a newer state than the save's")
 
 
-func test_the_newest_queued_state_is_the_one_banked() -> void:
-	var older := {"run": {"gold": 1}}
-	var newer := {"name": "treasure", "run": {"gold": 2}}
-	var queue: Array[Dictionary] = [{"kind": "screen", "payload": older}, {"kind": "turn", "payload": {}},
-			{"kind": "run", "payload": newer}, {"kind": "roster", "payload": {"roster": {}}}]
-	assert_eq(_main.call("_newest_queued_run", queue), newer, "the last state the host sent")
-	var empty: Array[Dictionary] = []
-	assert_eq(_main.call("_newest_queued_run", empty), {}, "nothing held back")
-	var no_state: Array[Dictionary] = [{"kind": "turn", "payload": {}}, {"kind": "screen", "payload": {"name": "map"}}]
-	assert_eq(_main.call("_newest_queued_run", no_state), {}, "no state in the queue")
-	var next_game: Array[Dictionary] = [{"kind": "run_start", "payload": {"seed": 5}}, {"kind": "screen", "payload": newer}]
-	assert_eq(_main.call("_newest_queued_run", next_game), {}, "another game's states do not fit this run")
+## A save inside a stop holds the state from when the party entered it. Banking a newer state on
+## "saved" banked the stop's pips once then, and again when the Continue (where the friend counts as
+## late from the save's state) replayed the stop: the friend's file got double what the host's did.
+func test_a_friend_banks_from_the_state_the_save_holds() -> void:
+	var gear_id := _data.gear[0].id
+	var run := RunState.begin(_data, _tuning, 4242)
+	run.go(run.choices()[0])
+	var checkpoint := run.to_dict()
+	run.mastery[gear_id] = 3
+	var message: Dictionary = _main.call("_saved_message", checkpoint)
+	assert_eq(message.run, checkpoint, "the save's state, not the newest")
+	run.mastery[gear_id] = 5
+	assert_eq(int((message.run as Dictionary).mastery.get(gear_id, 0)), 0, "a copy: later changes stay out")
+	run.mastery[gear_id] = 3
+	# The friend's file has 0 pips. On "saved" their copy of the run takes the save's state and banks.
+	var friend := RunState.begin(_data, _tuning, 4242)
+	assert_true(friend.apply_dict(message.run as Dictionary))
+	var file := friend.pips_totals_since({}, {})
+	assert_eq(int(file.get(gear_id, 0)), 0, "nothing found before the stop: nothing banked")
+	# The Continue: late from the save's state (the first state sent), then the stop's win again.
+	var baseline := (message.run as Dictionary).mastery as Dictionary
+	friend.mastery[gear_id] = 3
+	assert_eq(int(friend.pips_totals_since(file, baseline).get(gear_id, 0)), 3, "one win, banked once")
+	assert_eq(int(run.pips_totals().get(gear_id, 0)), 3, "as the host's own file")
 
 
 # --- switches, the players screen and the notices ---------------------------------------------

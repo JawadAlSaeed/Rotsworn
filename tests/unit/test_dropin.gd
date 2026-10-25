@@ -552,7 +552,28 @@ func test_late_flag_only_from_a_drop_in_catch_up() -> void:
 			"func _new_rush( starts everyone on time (with the host's records verdict)")
 	assert_false(source.contains("_join_pending = Net.joined_mid_run"),
 			"the baseline never comes from joined_mid_run (it outlives Again)")
-	assert_true(source.contains("_join_pending = bool(p.get(\"late\", false))"), "it comes from run_start's flag")
+	var start := _body(source, "func _client_message(")
+	var late := start.find("var late := _late_baseline(bool(p.get(\"late\", false)), Net.rejoined, _seat_wait, same_game)")
+	assert_gt(late, -1, "it comes from run_start's flag (and a rejoin with no start kept here)")
+	assert_gt(start.find("_join_pending = late"), late)
+
+
+## A friend whose game crashed keeps their seat's token in the seat file (card #313), so they come back
+## by it, not as a newcomer: with no start of the run in their new game, their Relic file may already
+## hold this run's pips, so they count as late from their return (else the run's pips were banked twice).
+func test_a_crashed_friend_back_by_token_counts_as_late() -> void:
+	var cases := [
+		# [said late, rejoined, catching up, same game, late, what]
+		[false, false, false, false, false, "a start on time"],
+		[true, false, true, false, true, "a drop-in"],
+		[true, true, true, false, true, "a continued run's rejoin"],
+		[false, true, true, false, true, "back by the seat file's token after a crash"],
+		[false, true, true, true, false, "back by token in the same game: its start is kept"],
+		[false, true, false, false, false, "a later game after that rejoin (Again): on time"],
+	]
+	var main_script := load(MAIN_PATH) as GDScript
+	for c: Array in cases:
+		assert_eq(main_script.call("_late_baseline", c[0], c[1], c[2], c[3]), c[4], String(c[5]))
 
 
 # --- dev and bot switches (cards #304, #311) ----------------------------------------------------
