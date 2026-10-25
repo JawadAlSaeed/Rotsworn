@@ -193,7 +193,7 @@ func test_start_gold_oath_can_take_gold_but_never_below_nothing() -> void:
 	assert_eq(_run_with(ladder, 0, 50).gold, 50, "no oath: the normal gold")
 	assert_eq(_run_with(ladder, 1, 50).gold, 20)
 	assert_eq(_run_with(ladder, 1, 10).gold, 0, "never negative")
-	assert_eq(_run(10).gold, _tuning.run_start_gold, "the shipped ladder leaves the (empty) purse alone")
+	assert_eq(_run(_data.oaths.size()).gold, _tuning.run_start_gold, "no shipped oath touches the starting purse (no start_gold_add)")
 
 
 func test_want_cuts_the_gold_fights_pay() -> void:

@@ -437,11 +437,13 @@ func test_wins_fill_a_worn_relics_pips_bigger_fights_faster() -> void:
 	assert_eq(run.mastery_gain(_guard()), run.tuning.mastery_guard)
 	assert_eq(run.mastery_gain(run.final_encounter()), run.tuning.mastery_boss)
 	assert_eq(run.mastery_gain(run.act_data().elites[0]), run.tuning.mastery_elite)
-	# Wins of plain fights that fill the pips (one pip each before #321, two since).
-	var per_fight := run.tuning.mastery_fight
-	@warning_ignore("integer_division")
-	var wins_needed := (run.tuning.mastery_needed + per_fight - 1) / per_fight
-	for i: int in wins_needed - 1:
+	# The ladder itself (DESIGN.md 8.19): every bigger fight fills more (#321 tried a plain fight at
+	# 2 pips, the elite's number, and put it back).
+	assert_gt(run.tuning.mastery_elite, run.tuning.mastery_fight, "an elite group fills more than a plain fight")
+	assert_gt(run.tuning.mastery_guard, run.tuning.mastery_elite, "a guard more than an elite group")
+	assert_gt(run.tuning.mastery_boss, run.tuning.mastery_guard, "a boss the most")
+	assert_eq(run.tuning.mastery_fight, 1, "the loops below count one pip a plain win")
+	for i: int in run.tuning.mastery_needed - 1:
 		_win(run, _husk())
 	assert_false(run.echo_learned(drum))
 	assert_eq(run.fights_to_learn(drum), 1)
@@ -456,22 +458,15 @@ func test_wins_fill_a_worn_relics_pips_bigger_fights_faster() -> void:
 	var guarded := _run()
 	guarded.wear(0, 0, drum)
 	_win(guarded, _guard())
-	@warning_ignore("integer_division")
-	var after_guard := (guarded.tuning.mastery_needed - guarded.tuning.mastery_guard + per_fight - 1) / per_fight
-	for i: int in after_guard - 1:
+	for i: int in guarded.tuning.mastery_needed - guarded.tuning.mastery_guard:
 		_win(guarded, _husk())
-	assert_false(guarded.echo_learned(drum), "one plain win short")
-	_win(guarded, _husk())
-	assert_true(guarded.echo_learned(drum), "a guard counts for more than a plain fight")
-	assert_gt(guarded.tuning.mastery_guard, per_fight)
+	assert_true(guarded.echo_learned(drum), "a guard counts for three fights")
 
 
 func test_pips_carry_from_run_to_run_and_a_learned_echo_needs_no_relic() -> void:
 	var needed := _tuning.mastery_needed
 	var c := RelicCollection.new()
 	var first := _run(7, c)
-	# One pip per plain win keeps the counts below readable (the shipped number is mastery_fight).
-	first.tuning.mastery_fight = 1
 	var drum := _relic("war_drum")
 	first.add_relic(drum)
 	first.wear(0, 0, drum)
@@ -483,7 +478,6 @@ func test_pips_carry_from_run_to_run_and_a_learned_echo_needs_no_relic() -> void
 	assert_true(c.in_bag("war_drum"), "a first find joins the bag")
 	c.bag.clear()
 	var second := _run(8, c)
-	second.tuning.mastery_fight = 1
 	assert_eq(second.mastery_of(drum), 5, "the pips are still there, even with the War Drum at home")
 	assert_false(second.owns(drum))
 	second.add_relic(drum)
@@ -508,7 +502,6 @@ func test_pips_carry_from_run_to_run_and_a_learned_echo_needs_no_relic() -> void
 func test_an_online_friend_banks_this_runs_pips_on_top_of_their_own() -> void:
 	# Card #281: the run plays with the host's collection; a friend keeps what it finds and fills.
 	var run := _run(7, _collection(["war_drum"], {"war_drum": _tuning.mastery_needed}))
-	run.tuning.mastery_fight = 1
 	var drum := _relic("war_drum")
 	run.add_relic(drum)
 	run.wear(0, 0, drum)
@@ -531,7 +524,6 @@ func test_a_late_joiner_keeps_only_what_came_after() -> void:
 	# Card #304: a friend who dropped in mid-run banks only the Relics and pips found after they joined.
 	var run := _run()
 	run.tuning.relic_drop_percent = 0
-	run.tuning.mastery_fight = 1
 	var drum := _relic("war_drum")
 	run.add_relic(drum)
 	run.wear(0, 0, drum)

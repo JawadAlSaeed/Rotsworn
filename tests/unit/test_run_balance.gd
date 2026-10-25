@@ -281,9 +281,10 @@ func _fight_hp(encounter: EncounterData, setup: CombatSetup) -> int:
 	return total
 
 
-## A run in act `act` (0-based) standing on the first stop of row `row` of that act's map.
-func _run_at(act: int, row: int, seed_value: int = 7) -> RunState:
-	var run := _run(seed_value)
+## A run at oath `oath` in act `act` (0-based) standing on the first stop of row `row` of that act's map.
+func _run_at(act: int, row: int, seed_value: int = 7, oath: int = 0) -> RunState:
+	var run := RunState.begin(_data, _tuning.duplicate(true) as Tuning, seed_value, oath)
+	assert_eq(run.oath, oath)
 	run.act = act
 	run.map = run._make_map(act)
 	run.at = int(run.map.rows[row][0])
@@ -294,23 +295,35 @@ func test_no_elite_stop_guard_is_bigger_than_its_act_boss() -> void:
 	# The balance pass for the three-act run (#321, DESIGN.md 8.23, T5): on every row an Elite stop
 	# can stand on (from run_elite_min_row to the row before the boss, where a moved campfire row
 	# leaves middle stops), the guard it may hold (its deep version in a deep act or row) starts its
-	# fight with less HP in all than its act's boss fight, both built by the run's fight_setup.
+	# fight with less HP in all than its act's boss fight, both built by the run's fight_setup at the
+	# same oath. Every oath of the ladder: the Deep's growth per row reaches the guards and not the
+	# bosses (run_enemy_scale_bosses is off), and the Crowns raise both, so the high oaths are the
+	# tightest (act 2's Mire Mother on row 5 from Oath 4, the Deep, on had 177 to 188 HP to spare).
 	var checked := 0
-	for act: int in _data.acts.size():
-		var info := _data.acts[act]
-		var boss := info.final_encounter
-		var boss_hp := _fight_hp(boss, _run_at(act, _tuning.run_map_rows).fight_setup(boss, 1, CombatSetup.Opening.NORMAL))
-		for zone: ZoneData in info.zones:
-			if zone.guard == null:
-				continue
-			for row: int in range(_tuning.run_elite_min_row, _tuning.run_map_rows):
-				var run := _run_at(act, row)
-				var guard := run._deep_version(zone.guard, run.at)
-				var guard_hp := _fight_hp(guard, run.fight_setup(guard, 1, CombatSetup.Opening.NORMAL))
-				assert_lt(guard_hp, boss_hp, "act %d row %d: %s (%d HP) under %s (%d HP)"
-						% [act + 1, row, guard.id, guard_hp, boss.id, boss_hp])
-				checked += 1
-	assert_gte(checked, 3 * (_tuning.run_map_rows - _tuning.run_elite_min_row), "every act's guard on every row")
+	var tightest := 1 << 30
+	var where := ""
+	for oath: int in range(0, _data.oaths.size() + 1):
+		for act: int in _data.acts.size():
+			var info := _data.acts[act]
+			var boss := info.final_encounter
+			var boss_run := _run_at(act, _tuning.run_map_rows, 7, oath)
+			var boss_hp := _fight_hp(boss, boss_run.fight_setup(boss, 1, CombatSetup.Opening.NORMAL))
+			for zone: ZoneData in info.zones:
+				if zone.guard == null:
+					continue
+				for row: int in range(_tuning.run_elite_min_row, _tuning.run_map_rows):
+					var run := _run_at(act, row, 7, oath)
+					var guard := run._deep_version(zone.guard, run.at)
+					var guard_hp := _fight_hp(guard, run.fight_setup(guard, 1, CombatSetup.Opening.NORMAL))
+					assert_lt(guard_hp, boss_hp, "oath %d act %d row %d: %s (%d HP) under %s (%d HP)"
+							% [oath, act + 1, row, guard.id, guard_hp, boss.id, boss_hp])
+					if boss_hp - guard_hp < tightest:
+						tightest = boss_hp - guard_hp
+						where = "oath %d act %d row %d %s" % [oath, act + 1, row, guard.id]
+					checked += 1
+	assert_gte(checked, (_data.oaths.size() + 1) * 3 * (_tuning.run_map_rows - _tuning.run_elite_min_row),
+			"every oath, every act's guard on every row")
+	gut.p("Tightest guard against its boss: %d HP to spare (%s)" % [tightest, where])
 
 
 func test_the_boss_test_sees_what_the_engine_builds() -> void:
