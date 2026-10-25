@@ -5374,14 +5374,15 @@ Relic bag is gone.
   goes to the host as `start_relic {slot, relic}` (`relic` "" is Skip) and their row shows "..." until
   the host's run state has it. The host takes it when the hero is one that friend held when the step
   began and still choosing (`Main._start_pick_allowed`) and the Relic is free; otherwise it sends
-  `start_refused {slot}` and that hero chooses again (a Relic another hero got first comes back the
-  same way, from the state). A friend with an empty book skips at once. The host goes on once every
+  `start_refused {slot, relic}` and that hero chooses again (a Relic another hero got first comes back
+  the same way, from the state; the refusal of an older pick, or of a Skip, changes nothing). A friend with an empty book skips at once. The host goes on once every
   hero is done, or after tuning `start_relic_wait_ms` (90 s), when the friends' heroes still choosing
   go without; a friend who leaves during the step goes without too. A friend who drops in mid-run
   (9.3) gets no starting Relic: the step is over by then, and a friend joining during it does not
   pick either.
 - **Bots** pick hero by hero, in slot order, the free Relic of their book with the best
-  `GearBot.score` (`StartRelicsScreen.bot_pick`), else Skip. A bot's book is empty unless
+  `GearBot.score` (`StartRelicsScreen.bot_pick`), else Skip, and pick again whenever a hero of theirs
+  opens once more (`autopick`; never a Relic the host refused). A bot's book is empty unless
   `--relics=all` (every Relic found) or `--relics-path=PATH` (its own book); an online friend bot reads
   the same switches for its own book. Logs: `Start relic: ID to HERO` (`Start relic asked:` on a
   friend), the host's `Start relic taken|refused: P2 ID hero=N` with the bot line
