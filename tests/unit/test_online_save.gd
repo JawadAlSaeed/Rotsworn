@@ -219,12 +219,38 @@ func test_a_held_seat_waits_for_its_token_its_own_time() -> void:
 	assert_eq(seats.away_peers(), [PEER_A] as Array[int], "away from the start")
 	assert_eq(seats.time_left(PEER_A, 2000, REJOIN_MS), GRACE_MS - 1000, "its own grace time, not the rejoin one")
 	assert_eq(seats.expired(1000 + REJOIN_MS, REJOIN_MS), [] as Array[int], "not gone after the usual grace")
-	assert_eq(seats.longest_away(1000 + TAKEOVER_MS, TAKEOVER_MS), PEER_A, "a newcomer may take it after a while")
+	assert_eq(seats.longest_away(1000 + TAKEOVER_MS, TAKEOVER_MS), 0, "a newcomer never takes it")
+	assert_eq(seats.longest_away(1000 + GRACE_MS - 1, TAKEOVER_MS), 0, "not even just before its time is up")
 	assert_eq(seats.claim("tokA", NEW_A), PEER_A, "its token takes it back")
 	assert_false(seats.is_held(NEW_A))
 	assert_false(seats.is_held(PEER_A))
 	assert_eq(seats.away_peers(), [] as Array[int])
 	assert_eq(seats.token_of(NEW_A), "tokA")
+
+
+func test_a_newcomer_after_continue_takes_a_free_seat_never_a_held_one() -> void:
+	# Host + A saved; the host continued alone, so A's seat is held. B dropped in this session and went.
+	var seats := SeatBook.new()
+	seats.hold(PEER_A, "tokA", 0, GRACE_MS)
+	assert_eq(seats.longest_away(TAKEOVER_MS + 5000, TAKEOVER_MS), 0)
+	var gate := JoinGate.decide(true, true, seats.peer_of(""), seats.size(),
+			seats.longest_away(TAKEOVER_MS + 5000, TAKEOVER_MS), NetSession.MAX_CLIENTS)
+	assert_eq(int(gate.verdict), JoinGate.Verdict.NEW_SEAT, "20 s on, a newcomer gets the free seat")
+	assert_true(seats.has(PEER_A), "the held seat keeps its token")
+	assert_true(seats.add(NEW_C, "tokC"))
+	var full := JoinGate.decide(true, true, 0, seats.size(), seats.longest_away(TAKEOVER_MS + 9000, TAKEOVER_MS),
+			NetSession.MAX_CLIENTS)
+	assert_eq(String(full.reason), JoinGate.REASON_FULL, "no free seat: the held one still waits")
+	var back := JoinGate.decide(true, true, seats.peer_of("tokA"), seats.size(), 0, NetSession.MAX_CLIENTS)
+	assert_eq(int(back.verdict), JoinGate.Verdict.REJOIN, "a minute on, its token still gets it back")
+	assert_eq(int(back.old_peer), PEER_A)
+	# A seat that dropped this session is still taken over as before (#304), the held one is not.
+	seats.add(PEER_B, "tokB")
+	seats.set_away(PEER_B, 1000)
+	assert_eq(seats.longest_away(1000 + TAKEOVER_MS, TAKEOVER_MS), PEER_B, "the dropped seat, not the held one")
+	# Its time up, the held seat is given up: a free seat again.
+	assert_eq(seats.expired(GRACE_MS, REJOIN_MS), [PEER_A, PEER_B] as Array[int])
+	assert_false(seats.has(PEER_A))
 
 
 func test_a_held_seat_goes_when_its_time_is_up() -> void:
@@ -317,6 +343,12 @@ func test_a_friend_keeps_their_token_for_that_host() -> void:
 	assert_true(SeatFile.save(" 10.0.0.5 ", "tokA", _seat_path))
 	assert_eq(SeatFile.token_for("10.0.0.5", _seat_path), "tokA")
 	assert_eq(SeatFile.token_for("10.0.0.9", _seat_path), "", "only for the host that gave it")
+	assert_true(SeatFile.save("10.0.0.9", "tokB", _seat_path), "another host's run")
+	assert_eq(SeatFile.token_for("10.0.0.5", _seat_path), "tokA", "keeps the first host's seat")
+	assert_eq(SeatFile.token_for("10.0.0.9", _seat_path), "tokB")
+	assert_true(SeatFile.save("10.0.0.5", "tokA2", _seat_path), "a new seat with that host")
+	assert_eq(SeatFile.token_for("10.0.0.5", _seat_path), "tokA2", "the newest token for that host")
+	assert_true(SeatFile.save("10.0.0.5", "tokA2", _seat_path), "kept already")
 	assert_false(SeatFile.save("10.0.0.5", "", _seat_path), "no token, nothing to keep")
 	assert_false(SeatFile.save("10.0.0.5", "tokA", ""), "no file (a bot without --seat-path)")
 	var file := FileAccess.open(_seat_path, FileAccess.WRITE)
@@ -331,6 +363,46 @@ func test_a_friend_keeps_their_token_for_that_host() -> void:
 	var saved := _body("func _on_net_message(")
 	assert_lt(saved.find("SeatFile.save(Net.seat_address(), Net.seat_token(), Net.seat_file)"),
 			saved.find("_end_online(HOST_SAVED_NOTICE, &\"save\")"), "kept before the seat is forgotten")
+
+
+func test_a_friend_keeps_their_token_whenever_a_run_starts() -> void:
+	# Not only on "saved": a host that crashed, a friend away when it saved, or a fresh token from the
+	# players screen's Continue are all on disk from the run start (or a drop-in's or rejoin's catch-up).
+	var start := _body("func _client_message(")
+	var at := start.find("\"run_start\":")
+	assert_gt(at, -1)
+	var keep := start.find("_keep_seat()", at)
+	assert_gt(keep, at, "the run start keeps our token")
+	assert_lt(keep, start.find("\"roster\":", at), "in the run start's own case")
+	var keeper := _body("func _keep_seat(")
+	assert_string_contains(keeper, "_run is RushState", "a Fight Rush is never saved, its token not kept")
+	assert_string_contains(keeper, "SeatFile.save(Net.seat_address(), Net.seat_token(), Net.seat_file)")
+
+
+# --- a friend's share of the saved run ---------------------------------------------------------
+
+func test_a_friend_banks_their_share_before_going_home() -> void:
+	var saved := _body("func _on_net_message(")
+	var at := saved.find("\"saved\":")
+	assert_gt(at, -1)
+	var bank := saved.find("_bank_relics()", at)
+	assert_gt(bank, at, "banked on \"saved\", as on Leave")
+	assert_lt(bank, saved.find("_end_online(HOST_SAVED_NOTICE", at), "while the run and its baseline are still there")
+	assert_lt(saved.find("_apply_run(newest)", at), bank, "the newest state first")
+
+
+func test_the_newest_queued_state_is_the_one_banked() -> void:
+	var older := {"run": {"gold": 1}}
+	var newer := {"name": "treasure", "run": {"gold": 2}}
+	var queue: Array[Dictionary] = [{"kind": "screen", "payload": older}, {"kind": "turn", "payload": {}},
+			{"kind": "run", "payload": newer}, {"kind": "roster", "payload": {"roster": {}}}]
+	assert_eq(_main.call("_newest_queued_run", queue), newer, "the last state the host sent")
+	var empty: Array[Dictionary] = []
+	assert_eq(_main.call("_newest_queued_run", empty), {}, "nothing held back")
+	var no_state: Array[Dictionary] = [{"kind": "turn", "payload": {}}, {"kind": "screen", "payload": {"name": "map"}}]
+	assert_eq(_main.call("_newest_queued_run", no_state), {}, "no state in the queue")
+	var next_game: Array[Dictionary] = [{"kind": "run_start", "payload": {"seed": 5}}, {"kind": "screen", "payload": newer}]
+	assert_eq(_main.call("_newest_queued_run", next_game), {}, "another game's states do not fit this run")
 
 
 # --- switches, the players screen and the notices ---------------------------------------------
@@ -386,6 +458,27 @@ func test_the_host_screen_offers_continue_beside_start() -> void:
 	lobby._unhandled_input(_action(&"menu_confirm"))
 	assert_signal_emitted(lobby, "started", "Confirm on Start starts a new run")
 	assert_signal_emit_count(lobby, "continued", 1)
+
+
+func test_the_footer_says_what_confirm_does_there() -> void:
+	var lobby := _lobby(true, "Act 1, Stop 3")
+	assert_eq(_footer_confirm(lobby), LobbyScreen.CONTINUE_WORD, "the cursor rests on Continue")
+	lobby._unhandled_input(_action(&"menu_up"))
+	assert_eq(_footer_confirm(lobby), LobbyScreen.START_WORD, "on Start")
+	lobby._unhandled_input(_action(&"menu_up"))
+	assert_eq(_footer_confirm(lobby), LobbyScreen.START_WORD, "on a hero card Confirm starts too")
+	lobby._unhandled_input(_action(&"menu_down"))
+	lobby._unhandled_input(_action(&"menu_down"))
+	assert_eq(_footer_confirm(lobby), LobbyScreen.CONTINUE_WORD, "back on Continue")
+	assert_eq(_footer_confirm(_lobby(true, "")), LobbyScreen.START_WORD, "no saved run: Start as before")
+
+
+## The word the players screen's footer shows beside its Confirm chip.
+func _footer_confirm(lobby: LobbyScreen) -> String:
+	for entry: Array in lobby._footer._entries:
+		if StringName(entry[0]) == &"menu_confirm":
+			return String(entry[1])
+	return ""
 
 
 func test_no_continue_without_a_save_or_for_a_friend() -> void:

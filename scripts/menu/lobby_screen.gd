@@ -38,8 +38,9 @@ extends CanvasLayer
 ## The host's screen with a saved online run (card #313, `continue_line`) has a Continue button after
 ## Start, side by side: the save picture, "Continue" and where the run is ("Act 2, Stop 5"). The
 ## cursor starts on it; Confirm there continues the saved run (its own seats come back, the hero
-## cards are for a new run), Confirm anywhere else starts a new one. `saved_note` is a dim line under
-## the address (a saved run kept from another version).
+## cards are for a new run), Confirm anywhere else starts a new one; the footer's Confirm word says
+## which ("Continue" or "Start"). `saved_note` is a dim line under the address (a saved run kept from
+## another version).
 
 ## Confirmed: play with `players` at oath `oath` (0: none; always 0 in practice).
 signal started(players: PlayerRoster, oath: int)
@@ -133,6 +134,10 @@ var _start_chip: Control
 var _continue_button: PanelContainer
 var _continue_label: Label
 var _continue_chip: Control
+## The footer's hints, and the word its Confirm shows now: with a Continue button it follows the
+## cursor ("Continue" on it, "Start" elsewhere), so it never says the other one (card #313).
+var _footer: HintBar
+var _footer_word: String = START_WORD
 
 
 ## `previous` is the last roster (its hero split is kept when the same players come back);
@@ -184,10 +189,11 @@ func setup_in_run(hero_names: Array[String], roster: PlayerRoster, p1_device: in
 ## The footer's button hints (phase 22: a word each). A local screen or the host: Choose, Change (a
 ## hero's player or the oath), Start, Back; joining is shown on the first open seat instead. A
 ## waiting online client can only leave. Pure.
-static func hints(online: bool, is_host: bool) -> Array:
+## `confirm_word`: what Confirm does where the cursor is (the host's Continue, card #313).
+static func hints(online: bool, is_host: bool, confirm_word: String = START_WORD) -> Array:
 	if online and not is_host:
 		return [[&"menu_cancel", "Leave"]]
-	return [[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", START_WORD], [&"menu_cancel", "Back"]]
+	return [[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", confirm_word], [&"menu_cancel", "Back"]]
 
 
 ## The in-run overlay's footer (DESIGN.md 9.3): Choose, Change, Play, Back. Pure.
@@ -317,7 +323,7 @@ func _build(title: String, note: String, footer: Array) -> void:
 	# The cursor's list draws nothing (every row is drawn above), so it stays out of the column.
 	_menu = ListMenu.new()
 	add_child(_menu)
-	ListMenu.screen_footer(self, footer)
+	_footer = ListMenu.screen_footer(self, footer)
 	var blank: Array[Dictionary] = []
 	for i: int in _last_row() + 1:
 		blank.append({})
@@ -825,6 +831,10 @@ func _update_focus() -> void:
 		_continue_chip.modulate.a = 1.0 if on_continue else 0.0
 		if _start_chip != null:
 			_start_chip.modulate.a = 0.0 if on_continue else 1.0
+		var word := CONTINUE_WORD if on_continue else START_WORD
+		if _footer != null and word != _footer_word:
+			_footer_word = word
+			_footer.set_entries(hints(true, true, word))
 
 
 ## True while the cursor's row `row` is lit (for tests): a hero card, the picker or Start.

@@ -9,7 +9,8 @@ extends RefCounted
 ## seat: if the old connection still looks alive (the host has not noticed the drop yet), the
 ## claim wins and the old one is let go. A seat away long enough may go to a newcomer (card #304).
 ## A continued online run's seats come back held (card #313): away from the moment the host
-## continued, each waiting for its own token as long as its own grace time.
+## continued, each waiting for its own token as long as its own grace time. A newcomer never takes a
+## held seat: it waits for its owner's token until its time is up, and is then given up (free).
 
 ## peer -> token.
 var _tokens: Dictionary = {}
@@ -84,10 +85,13 @@ func size() -> int:
 
 
 ## The away peer whose seat has waited longest, if it has waited at least `min_age_ms` by `now_ms`
-## (0: none). A newcomer may take that seat (#304); a fresher one is held for its token.
+## (0: none). A newcomer may take that seat (#304); a fresher one is held for its token. A held seat
+## (hold()) is never one: its owner's token is still good until its own grace time runs out (#313).
 func longest_away(now_ms: int, min_age_ms: int) -> int:
 	var oldest := 0
 	for peer: int in away_peers():
+		if _grace_of.has(peer):
+			continue
 		# Id order: of two seats that went at the same moment, the lower peer is chosen.
 		if oldest == 0 or int(_away_since[peer]) < int(_away_since[oldest]):
 			oldest = peer

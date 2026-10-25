@@ -3998,6 +3998,30 @@ func _on_net_refused(reason: String) -> void:
 		_end_online(reason)
 
 
+## Client: the last message in `queue` (the host's messages held behind a transition) that carries
+## the run's state ("run", "screen", "gift"), or {} if there is none or the queue holds the start of
+## another game ("run_start", "again": its states do not fit the run shown now). Pure.
+static func _newest_queued_run(queue: Array[Dictionary]) -> Dictionary:
+	var newest := {}
+	for m: Dictionary in queue:
+		var kind := String(m.get("kind", ""))
+		if kind in ["run_start", "again"]:
+			return {}
+		var payload: Variant = m.get("payload")
+		if kind in ["run", "screen", "gift"] and payload is Dictionary and (payload as Dictionary).get("run") is Dictionary:
+			newest = payload as Dictionary
+	return newest
+
+
+## Online friend in a run (not a Fight Rush, which is never saved): keeps our seat's token on this
+## machine (SeatFile, card #313), so the file always holds the token the host's autosaves keep, even
+## when the host crashes or we are away when it saves. True if it is kept.
+func _keep_seat() -> bool:
+	if _run == null or _run is RushState or not Net.is_client():
+		return false
+	return SeatFile.save(Net.seat_address(), Net.seat_token(), Net.seat_file)
+
+
 ## This machine's online game is over: back to the main menu with a note (`glyph`: a picture before
 ## it, a PauseMenu.RowGlyph kind, card #313).
 func _end_online(notice: String, glyph: StringName = &"") -> void:
@@ -4085,9 +4109,15 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				_autoplay_quit()
 		"saved":
 			# The host saved the run to go on later (card #313). At once too, as "menu": the line goes
-			# down a moment later. Our seat's token is kept on this machine (SeatFile), so joining the
-			# host again takes the same seat back when it continues.
+			# down a moment later. What the run found so far is banked first, as on Leave (the newest
+			# state the host sent, a transition may still hold it): on the Continue we count as late, so
+			# it would never be banked after. Our seat's token is kept on this machine (SeatFile), so
+			# joining the host again takes the same seat back when it continues.
 			_client_done = true
+			var newest := _newest_queued_run(_net_queue)
+			if not newest.is_empty():
+				_apply_run(newest)
+			_bank_relics()
 			var kept := SeatFile.save(Net.seat_address(), Net.seat_token(), Net.seat_file)
 			print("The host saved the run%s" % (" (seat kept)" if kept else ""))
 			_end_online(HOST_SAVED_NOTICE, &"save")
@@ -4175,6 +4205,9 @@ func _client_message(kind: String, p: Dictionary) -> void:
 				_end_online("Could not start the game")
 				return
 			_run = game
+			# A run with us in it (a start, a Continue, a drop-in or a rejoin): our token is the one the
+			# host's autosaves keep from now on (card #313).
+			_keep_seat()
 			# The same game again: our seat taken back mid-game (card #205).
 			var same_game := _own_start_seed == start_seed
 			# A friend who dropped into this Rush stays late through a rejoin of the same Rush (D20).
