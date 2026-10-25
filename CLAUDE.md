@@ -105,7 +105,16 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   hosts one (`--autoplay --rush --host=2 --rush-fights=4 --seed=7 --quit-on-end`), and the friend's
   plain `--join=127.0.0.1` follows the host's mode; both print the same `AUTOPLAY_RESULT rush_capped`
   and `AUTOPLAY_MIRROR` lines in about 140 s (`timeout 400`; a drop-in pair needs `--host=1`, DESIGN.md
-  8.21). Works with `--headless`. A good run prints
+  8.21). Saving an online run (DESIGN.md 8.14, 9.3): the host bot saves only with
+  `--online-save-path=PATH`; `--save-quit-at=N` presses Save & Quit on arriving at stop N (host
+  `AUTOPLAY_SAVED host ...` and `AUTOPLAY_RESULT run_saved`, friend `AUTOPLAY_SAVED friend ...` and
+  `AUTOPLAY_RESULT host_saved`); `--continue-online` (with `--host=N` and the same save path) presses
+  Continue once N players are in (`AUTOPLAY_CONTINUED host|friend ...`); `--seat-path=PATH` is a friend
+  bot's seat file (it keeps its token there when the host saves and shows it on the next `--join`).
+  Pair: host `--autoplay --run --host=2 --seed=7 --save-quit-at=3 --online-save-path=P --quit-on-end`
+  plus friend `--autoplay --join=127.0.0.1 --seat-path=S --quit-on-end`, then host `--autoplay --run
+  --host=2 --continue-online --online-save-path=P --quit-on-end` plus the same friend (both print the
+  same `AUTOPLAY_RESULT` and `AUTOPLAY_MIRROR` lines). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
   Drop-in co-op (DESIGN.md 9.3): `--pad-join-after=S` (a pretend pad joins the local run S seconds
   after launch, at the next quiet moment), `--pad-leave-after=S` (the last local player leaves),
@@ -226,9 +235,11 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   the shared `ListMenu`, `MenuBackdrop`, `HintBar` (button chip hints) and `PromptLabel`
 - `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested)
 - `scripts/net/` online: `DefenseArbiter` (host referee, pure, tested), `DataHash` (content
-  fingerprint for the handshake), `SeatBook` (seat tokens), `JoinGate` (who may come in and when a
-  newcomer's hero is handed over, pure, tested) and `FightInbox` (a client's early combat batches,
-  kept per fight, pure, tested)
+  fingerprint for the handshake), `SeatBook` (seat tokens, and the held seats of a continued saved
+  run), `JoinGate` (who may come in and when a newcomer's hero is handed over, pure, tested),
+  `FightInbox` (a client's early combat batches, kept per fight, pure, tested), `SavedSeats` (the
+  online save's seats: capture, restore, seat_lobby; pure, tested) and `SeatFile` (a friend's kept
+  seat tokens per host, `user://online_seat.json`; DESIGN.md 8.14, 9.2, 9.3)
 - `scripts/autoload/` global singletons (`Audio`, `Rumble` = `PadRumble`, the controller buzz,
   DESIGN.md 7.14, `UserSettings` = `PlayerSettings`, saved per
   machine in `user://settings.cfg`, `Net` = `NetSession`, the online connection, `Prompts` =

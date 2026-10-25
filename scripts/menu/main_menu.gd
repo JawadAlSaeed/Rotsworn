@@ -79,8 +79,11 @@ var _rush_ok: bool = true
 ## that list). `notice` says why the player is back here (an online game ended), if anything.
 ## `can_continue` adds the Continue row; `show_practice` adds Practice to Extras (debug builds).
 ## `rush_best` is the best Fight Rush record (the Rush card's Best chip); `rush_ok` false greys that card.
+## `notice_glyph` (a PauseMenu.RowGlyph kind, "" : none) is a small picture before the notice (a saved
+## online run's "save", card #313).
 func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: String = "",
-		can_continue: bool = false, show_practice: bool = false, rush_best: int = 0, rush_ok: bool = true) -> void:
+		can_continue: bool = false, show_practice: bool = false, rush_best: int = 0, rush_ok: bool = true,
+		notice_glyph: StringName = &"") -> void:
 	_rush_best = rush_best
 	_rush_ok = rush_ok
 	_items = ITEMS.duplicate()
@@ -97,7 +100,10 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 	column.add_child(logo)
 	if not branding.tagline.is_empty():
 		column.add_child(ListMenu.centred_label(branding.tagline, SUBTITLE_SIZE, HudStyle.TEXT_DIM))
-	if not notice.is_empty():
+	if not notice.is_empty() and not notice_glyph.is_empty():
+		# A picture and a few words on one centred line (card #313).
+		column.add_child(_glyph_notice(notice, notice_glyph))
+	elif not notice.is_empty():
 		# Wrapped in a centred block: a long notice ran off both sides of the screen (card #208).
 		var note := ListMenu.centred_label(notice, DETAIL_SIZE, HudStyle.LATE)
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -126,6 +132,24 @@ func setup(branding: BrandingData, start_item: StringName = NEW_RUN, notice: Str
 		# those cards.
 		var online := ONLINE_ITEMS.has(start_item) or HOST_MODE_ITEMS.has(start_item)
 		_show_main(ONLINE if online else NEW_RUN if MODE_ITEMS.has(start_item) else start_item)
+
+
+## A short notice with its picture before it, centred (the notice's colour for both).
+static func _glyph_notice(notice: String, glyph_kind: StringName) -> HBoxContainer:
+	var line := HBoxContainer.new()
+	line.name = "Notice"
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.alignment = BoxContainer.ALIGNMENT_CENTER
+	line.add_theme_constant_override("separation", 12)
+	var glyph := PauseMenu.RowGlyph.new()
+	glyph.kind = glyph_kind
+	var px := float(HudStyle.scaled(DETAIL_SIZE + 6))
+	glyph.custom_minimum_size = Vector2(px, px)
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	glyph.color = HudStyle.LATE
+	line.add_child(glyph)
+	line.add_child(HudStyle.make_label(notice, DETAIL_SIZE, HudStyle.LATE))
+	return line
 
 
 ## The game's version (bottom left) and the studio's logo (bottom right), small and quiet, like

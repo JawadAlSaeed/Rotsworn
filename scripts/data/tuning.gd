@@ -522,6 +522,10 @@ extends Resource
 ## A newcomer may take the seat of a player away at least this long (a friend whose game crashed
 ## comes back this way, card #304); a fresher away seat is held for its own token (a quick rejoin).
 @export_range(0, 1800000, 1, "suffix:ms") var net_takeover_after_ms: int = 15000
+## A continued online run (card #313): each friend's saved seat waits this long from the Continue for
+## its owner to come back with their token (the host plays its heroes meanwhile); then it is given up
+## as when a dropped friend's grace time runs out.
+@export_range(0, 3600000, 1, "suffix:ms") var net_saved_seat_grace_ms: int = 300000
 ## A friend's First Strike ring (DESIGN.md 8.22) waits this long after it closes for the host's
 ## result, then the fight starts anyway (the host's fight decides the opening either way).
 @export_range(0, 60000, 1, "suffix:ms") var net_opening_wait_ms: int = 6000

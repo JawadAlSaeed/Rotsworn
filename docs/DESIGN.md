@@ -3549,10 +3549,11 @@ here makes a run easier.
 
 ### 8.14 Save & Quit (card #174)
 
-A local run can be put down and picked up later, Slay the Spire style. Online runs are never saved
-(one machine cannot save for everyone), and neither is the tutorial or a practice fight.
+A run can be put down and picked up later, Slay the Spire style: a local run, and since card #313
+(2026-10-25) an online run too, saved by its host (the one source of truth) in a slot of its own, see
+**Online slot** below. The tutorial and a practice fight are never saved, nor is a Fight Rush (8.21).
 
-- **One slot:** `user://run_save.json`, written by `RunSave` (`scripts/run/run_save.gd`, pure, tested).
+- **Local slot:** `user://run_save.json`, written by `RunSave` (`scripts/run/run_save.gd`, pure, tested).
   It holds `RunState.to_dict()` exactly as it is (the save never reads its keys, so new run fields
   are saved without changing it), a format version, the content fingerprint (`DataHash.of_content`, only to tell which
   build wrote it: it is not checked, see below), whether the party is inside a stop, and how many
@@ -3596,11 +3597,39 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
   one kept from another build) asks first and then removes it. A co-op save goes through the
   players screen first (pads may have changed). New Run with a save present asks first ("Your saved
   run will be lost"), since the new run overwrites the slot at its first map.
-- **Pause menu** (a fight or the map; local run only): "Save & Quit" sits above "Abandon run".
-  On the map it saves the state as it is (and says so if the write failed); inside a stop it keeps the latest stop save. Then back to
-  the main menu with the cursor on Continue.
+- **Pause menu** (a fight or the map; a local run, or the host of an online run): "Save & Quit" sits
+  above "Abandon run" (online "End the game"). On the map it saves the state as it is (and says so if
+  the write failed); inside a stop it keeps the latest stop save. Then back to the main menu with the
+  cursor on Continue (online on Online). A friend's pause never offers it (they only leave).
+- **Online slot (card #313):** `user://online_run_save.json`, the host's only, separate from the local
+  slot so neither overwrites the other (`RunSave.ONLINE_PATH`). The same file shape and the same safe
+  writes, saved at the same moments by the same rules (in-stop checkpoints, a stop starts over, a
+  fight at the HP the party came in with), plus `online`: the seats (`SavedSeats.capture`: the roster,
+  who held which hero with the peer id each friend had, and each friend's secret seat token from
+  `SeatBook`) and `version` (the game's `config/version`). A friend never saves anything but their
+  seat (9.2). Deleted when the run ends, is decided, is abandoned (End the game), or a new online run
+  starts over it (the host's players screen asks first: "Start a new run? The saved online run is
+  lost."); Reset progress deletes it too. Closing the host's window keeps the last autosave, as a local
+  run's, and tells the friends as Save & Quit does.
+  - **Version check:** an online save loads only in the same game version (`RunSave.load_save` with
+    `version`; the format version too). Another version's is refused cleanly and kept (the players
+    screen says "Saved run: another version (kept)"); a damaged one, or one whose run or seats do not
+    fit, is deleted ("Saved run was broken (deleted)"). Unlike the local slot the version is checked:
+    every friend must run the host's build anyway (9.2), so a run from another version could never be
+    played together.
+  - **Host's Save & Quit:** the save is written, then the friends get `saved` and the host goes to the
+    main menu ("Run saved: Host to continue", with the save picture). From that moment nothing writes
+    or deletes the slot until the main menu (`_put_away`): online the game under the pause goes on, so
+    a fight that ends during the fade must not clear or overwrite the save. If the write failed, the
+    game simply ends for everyone (`menu`).
+  - **Continue** is on the host's players screen (Online > Host > Run), 9.3.
 - **Dev tools:** `--save-path=PATH` keeps the save elsewhere and `--continue` continues it at once.
-  The autoplay bot never touches the player's save: it saves only when `--save-path` is given.
+  The autoplay bot never touches the player's save: it saves only when `--save-path` is given (online
+  `--online-save-path=PATH`). `--save-quit-at=N` makes the bot press Save & Quit on arriving at stop N
+  (inside it, so the continue starts that stop over); `--continue-online` makes an autoplay host
+  (`--host=N`) press Continue once N players are in; `--seat-path=PATH` is a bot friend's seat file
+  (a bot keeps none without it). They print `AUTOPLAY_SAVED host|friend ...` and `AUTOPLAY_CONTINUED
+  host|friend ...`; a saved game ends `AUTOPLAY_RESULT run_saved` (host) and `host_saved` (friend).
 ### 8.15 Oaths (difficulty ladder, card #173, 2026-10-17)
 
 The run's difficulty ladder, like Slay the Spire's Ascension. The game is hard on purpose, so an
@@ -5155,6 +5184,23 @@ the owner to check):
   dropped host and waited on the Join screen to take their seat back. Online, the pause menu opens over a game that goes on (it
   offers Leave / End the game, and shows the host's address in gold under PAUSED so another friend
   can drop in, 9.3).
+- **Save & Quit online** (card #313, 2026-10-25, 8.14 "Online slot"): the host's pause menu offers
+  Save & Quit wherever a local run's does (never a friend's). The host writes the online slot, with
+  the seats, then sends `saved`, which friends act on at once as `menu`: they bank what the run found
+  so far (as on Leave, from the newest state the host sent, even one a transition still holds back:
+  in the continued run they count as late, so it would never be banked after), keep their seat's
+  token on disk and go to the main menu with "Host saved the run" and the save picture; nothing waits
+  for the lost line. Closing the host's window mid-run does the same with the last autosave.
+  - *The seat file* (`SeatFile`, `user://online_seat.json`): each host address with this machine's
+    token there (another host's run never overwrites it). A friend writes it whenever a run (not a
+    Fight Rush) starts or goes on with them in it (`run_start`: a start, a Continue, a drop-in's or a
+    rejoin's catch-up) and again on `saved`, so it always holds the token the host's autosaves keep:
+    a host that crashed or lost power, or a friend who was away when it saved, still finds the right
+    one. A token the host no longer knows (the run ended, or the seat was given up) counts as none,
+    so the file is never cleared. Later a friend's Join Online to that address shows the kept token
+    (`Net.join` reads it when no token is in memory), so they take their own seat back when the host
+    continues (9.3).
+  - `Net.PROTOCOL` stays 6: the build fingerprint already keeps other builds out.
 - **Dropping and rejoining** (card #205, 2026-10-18):
   - *Heartbeat*: both ends keep pinging (ENet), and a connection that answers nothing for
     `net_drop_min_ms` .. `net_drop_max_ms` (3 to 6 s) counts as lost, so a pulled cable, a crash or
@@ -5400,6 +5446,34 @@ token. They get the seat of the player away longest, if it has been away at leas
 gets a free seat if there is one and someone who is not away holds two heroes, else "Game full". A token that is still good gets its own seat
 back first, as before. Once a seat is taken over its old token stops working.
 
+**Online: continuing a saved online run (card #313, 2026-10-25).** The host's players screen (Online >
+Host > Run) shows the saved online run as a **Continue** button beside Start: the save picture,
+"Continue" and "Act 2, Stop 5"; the cursor rests on it, and the Confirm chip shows on the button the
+cursor is on, and the footer's Confirm word follows the cursor ("Continue" there, "Start"
+elsewhere). Confirm on Start begins a new run (it asks first when a save is there); a save that is not
+offered says why in a dim line under the address. Continue starts hosting the saved run at once, as
+`--host=1` drop-in does:
+
+- The saved seats come back (`SavedSeats.restore`): the same heroes for the same seats, every
+  friend's seat away, so the host plays those heroes meanwhile ("P2 away"). A seat saved without a
+  token is given up (nobody could claim it; its heroes go to the host).
+- Friends already on the players screen sit down at once (`SavedSeats.seat_lobby`): a token from
+  their hello (`Net.shown_token`, kept at the LOBBY verdict) that names a saved seat takes that seat,
+  in any order; anyone else takes the next saved seat nobody took (most likely their own, back from
+  another PC), then a free seat by the donor rule; with neither they are turned away ("Game full").
+- The saved seats left are held for their tokens (`SeatBook.hold`, `Net.hold_seat`) for
+  `net_saved_seat_grace_ms` (5 min in tuning), away from the moment of the Continue. A friend who joins
+  later with that token takes their seat back by the #205 rejoin rules, at the next quiet moment
+  (JoinGate, the two-step hand-over). A newcomer fills a free seat by drop-in, never a held seat
+  (`SeatBook.longest_away` leaves them out: the takeover after `net_takeover_after_ms` is for a seat
+  that dropped in this session); with no free seat they get "Game full" until a held seat's time
+  runs out. Then it is given up (its heroes go to the host) and its seat is free.
+- The run goes back to where it was saved (`Main._resume_where_saved`, the local Continue's rules):
+  into the stop it was saved in, from its start, or the map. The first choice is P1's (turns reset).
+- Every friend in a continued run counts as late (`run_start` with `late` and `continued`, and a
+  token rejoin's catch-up too): what they banked from the run in the session it was saved in is
+  theirs already, so it is never banked twice.
+
 **Online: what a late joiner keeps (#281 with #304).**
 
 - The run plays with the host's Relic bag and Echoes, as with any friend (8.19).
@@ -5562,6 +5636,23 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
 - Save & Quit (`test_run_save.gd`, temp files only): a save round trips the whole run, numbers come
   back as ints, unknown keys survive, other content or format and damaged files are refused, a
   failed write keeps the old save, the backup covers a broken main file, delete clears all.
+- Online Save & Quit (`test_online_save.gd`, card #313, 8.14 "Online slot", 9.3, temp files only):
+  the online slot round trips the run with its seats and never touches the local slot, another game
+  version's save is refused and kept, a load needs the seats, the slot goes on run end and End the
+  game, every checkpoint keeps the seats; held seats (their own grace time, never taken by a
+  newcomer, a free seat or "Game full" instead, given up when the time is up), `SavedSeats` (a token
+  takes its own seat in any order, a newcomer the next saved seat then a free one, a full game
+  refuses, a seat without a token is given up, seats that do not fit are refused); the seat file
+  (per host, kept on every run start and on `saved`), a friend banking their share on `saved` (the
+  newest queued state first), the switches, the players screen's Continue (cursor, signals, the
+  footer's Confirm word) and the notices. Bot pairs (headless, one online game at a time, `timeout
+  2700` each): host `--autoplay --run --host=2 --seed=7 --save-quit-at=3 --online-save-path=P
+  --quit-on-end` with a friend `--autoplay --join=127.0.0.1 --seat-path=S --quit-on-end` (host
+  `AUTOPLAY_SAVED host ok=1 ...` and `AUTOPLAY_RESULT run_saved`, friend `AUTOPLAY_SAVED friend
+  seat_kept=1 ...` and `AUTOPLAY_RESULT host_saved`), then host `--autoplay --run --host=2
+  --continue-online --online-save-path=P --quit-on-end` with the same friend command (both print
+  `AUTOPLAY_CONTINUED`, the friend in its old seat, then the same `AUTOPLAY_RESULT` and
+  `AUTOPLAY_MIRROR` lines).
 - Online smoke test: start `--autoplay --host=2 --seed=N --quit-on-end` and then
   `--autoplay --join=127.0.0.1 --quit-on-end` (both headless, about 25 to 30 minutes, so
   `timeout 2700` each). Both print the
@@ -6018,7 +6109,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-16 | The map gets a legend and dims stops the pick cannot lead to | card #162 (planning) |
 | 2026-10-16 | Shop: no Heal service; each shop stocks 4 items, 2 charms, 2 gear (was the whole list) | user: the shop felt cluttered and Heal = a Salve for the same gold |
 | 2026-10-17 | Zones get their own places, ground pieces and water, wind, drifting particles and critters | user: zones must feel alive and fit their theme (8.12) |
-| 2026-10-17 | Save & Quit: one local-run slot, saved on the map and on entering a stop; Continue re-enters an unfinished stop from its start, never the map; deleted when the run ends or is abandoned; online runs not saved | card #174; quitting must not dodge a hard stop, and losing 2 acts to a closed window was the worst way to lose |
+| 2026-10-17 | Save & Quit: one local-run slot, saved on the map and on entering a stop; Continue re-enters an unfinished stop from its start, never the map; deleted when the run ends or is abandoned; online runs not saved (replaced 2026-10-25, card #313: the host saves them) | card #174; quitting must not dodge a hard stop, and losing 2 acts to a closed window was the worst way to lose |
 | 2026-10-17 | Floors: three calm variants per place mixed by region, mirrored and tone-drifted by a shader; ground pieces fade into the floor; props get contact shadows; scenery drawn at the fighters' pixel size (0.045 to 0.05) | card #186 (review: art-textures 0, 2, 3; audio-look 0); not an ease change: only the look |
 | 2026-10-17 | Oaths: a ten-step difficulty ladder (Thorns, Want, Embers, the Deep, Crowns, Wounds, Scarcity, Silence, the Long Road, Rot), unlocked per machine by winning, picked in the players screen | card #173; the game should be hard, a ladder only ever adds difficulty (8.15) |
 | 2026-10-15 | Lining digits everywhere; bold number font for HP, AP, gauge; slanted bold popups and damage numbers | user: the numbers' font felt cheap |
@@ -6115,3 +6206,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Three acts, one place each (Hollow, Bog, Ruins); a new act 2 boss, the Leech Queen (8.23, #323); boss pools (#324) and boss gimmicks (#325) are ideas for later | owner: three acts are the roguelite standard; few female enemies so far |
 | 2026-10-24 | Guards merged into Elite stops: an Elite stop holds an elite group or its place's guard; no Guard stop or guard row (8.22); built 2026-10-25: a seeded 40% (`run_elite_guard_percent`) holds the guard, never when the nearest Elite stop on a road before holds it, the first Elite stop won opens the Relic slot | owner: lower confusion; guards had no job without zones |
 | 2026-10-25 | Online the run's choices go in turns (9.2 "Taking turns", card #314): each new choice screen (a map step, a stop, a spoils pick, a Rush pick) is the next seated player's, skipping away and joining seats; the host referees (a friend's choice is a request checked against the turn and the screen); a whose-turn chip (person sign and tag); a drop passes the turn; a find with no room is handed to the owner; the Rush's Fight is the last picker's; Settings, Game, Take turns (default on, the host's) keeps the old way; `Net.PROTOCOL` 6 | card #314; the party screen stays everyone's as before; a new Relic on a friend's turn waits in the bag and the spoils' party screen stays the host's (defaults) |
+| 2026-10-25 | Online runs are saved by the host (card #313, replaces "online runs not saved" of 2026-10-17): Save & Quit in the host's pause (never a friend's) with the local rules; a slot of its own (`user://online_run_save.json`) with the seats and their tokens; only the same game version loads it (another's is kept, not offered); Continue on the host's players screen starts hosting at once, the friends there take their own seats by token (else the next saved seat, then a free one), the other saved seats wait 5 min for their tokens, newcomers drop into free seats (never a held one); friends keep their token on disk (`user://online_seat.json`, written at every run start and on the save) and count as late in the continued run; deleted on run end, End the game or a new online run (8.14, 9.2, 9.3) | card #313; one machine can save for everyone because the host is the one source of truth; `Net.PROTOCOL` stays 6, the build fingerprint already keeps other builds out |

@@ -23,7 +23,8 @@ const REASON_CLOSED := "Run busy, try again"
 ## the run now. `token_peer`: the peer whose seat the hello's token names (0: none or unknown).
 ## `seats_used`: seats taken (welcomed, joining and away). `away_peer`: the away seat that has waited
 ## longest, if it has waited at least net_takeover_after_ms (0: none; a fresher one is held for its
-## token). Returns {verdict: Verdict, old_peer: int, reason: String}.
+## token, and so is a continued run's saved seat, SeatBook.hold). Returns {verdict: Verdict, old_peer:
+## int, reason: String}.
 static func decide(closed: bool, drop_in_open: bool, token_peer: int, seats_used: int, away_peer: int,
 		max_clients: int) -> Dictionary:
 	if closed and token_peer > 0:

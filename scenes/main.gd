@@ -86,6 +86,10 @@ const FIRST_STRIKE_BOT_SALT: int = 1000003
 ## Online friend dropping in (card #304): the Join screen's line while the host catches them up. It
 ## comes before the host says which game it is (a run or a Fight Rush), so it names neither.
 const JOINING_STATUS := "Joining the game ..."
+## Online Save & Quit (card #313): the friends' main menu notice (with the save picture), and the
+## host's.
+const HOST_SAVED_NOTICE := "Host saved the run"
+const RUN_SAVED_ONLINE_NOTICE := "Run saved: Host to continue"
 ## Online: the host's screens that are a fight going on (kept as _net_fight, so a friend who gets in
 ## mid-fight is shown it), and the run screens a friend watches (_watched_screen_builder builds them).
 const NET_FIGHT_SCREENS: Array[String] = ["final_fight", "rush_fight", "stop_fight"]
@@ -262,6 +266,17 @@ var _rush_host_clean: bool = false
 ## The "saved by another build" notice was shown once this session (the file stays, so it must not
 ## nag on every visit to the main menu).
 var _mismatch_told: bool = false
+## The picture before _notice on the main menu (a PauseMenu.RowGlyph kind, "" : none), shown with it once.
+var _notice_glyph: StringName = &""
+## Host: the run going on was continued from the online slot (card #313): every friend who gets into it
+## counts as late (what they banked from it before is theirs already, so it is never banked twice).
+var _continued_run: bool = false
+## Host: Save & Quit online was pressed (card #313): until the main menu nothing writes or deletes the
+## online slot (online the fight or screen under the pause may still end while the menu fades in).
+var _put_away: bool = false
+## The host's players screen's word on the online slot ("" : none): kept from another version, or
+## broken and deleted (card #313).
+var _online_save_note: String = ""
 ## The First Strike ring on the Fight stop's name card now (DESIGN.md 8.22, card #320; null: none),
 ## and the opening the next run fight starts with: a Fight stop's ring's, NORMAL for every other
 ## fight (the fight it goes into uses it up).
@@ -319,6 +334,9 @@ func _ready() -> void:
 	Net.refused.connect(_on_net_refused)
 	Net.drop_in_check = _drop_in_refusal
 	_options = CombatOptions.from_args(DevArgs.user_args(), _tuning)
+	# A friend's seat in a host's saved run (card #313): a bot keeps one only with --seat-path.
+	Net.seat_file = _options.seat_path if not _options.seat_path.is_empty() \
+			else ("" if _options.is_autoplay() else SeatFile.PATH)
 	if _options.shots_every_s > 0.0:
 		var shooter := ScreenShooter.new()
 		shooter.name = "Shots"
@@ -935,9 +953,12 @@ func _show_main_menu(rush_best: int = -1) -> void:
 	_fight_weather = null
 	_checkpoint = {}
 	_checkpoint_in_stop = false
+	_continued_run = false
 	ButtonPrompts.set_both(false)
 	if Net.is_online():
 		_leave_online()
+	# An online Save & Quit is done: the slot is the player's to use again (card #313).
+	_put_away = false
 	var saved := _valid_save()
 	var menu := MainMenu.new()
 	menu.name = "MainMenu"
@@ -946,8 +967,9 @@ func _show_main_menu(rush_best: int = -1) -> void:
 	# Practice (any fight on its own) is a test tool: only debug builds list it (card #208).
 	# New Run's Fight Rush card shows the best Rush record and is greyed without the Rush data.
 	menu.setup(_branding, start, _notice, not saved.is_empty(), OS.is_debug_build(),
-			PlayerSettings.rush_best_any() if rush_best < 0 else rush_best, _rush_data != null)
+			PlayerSettings.rush_best_any() if rush_best < 0 else rush_best, _rush_data != null, _notice_glyph)
 	_notice = ""
+	_notice_glyph = &""
 	menu.chosen.connect(_on_menu_chosen)
 	_show_screen(menu)
 
@@ -1061,6 +1083,7 @@ func _play_again() -> void:
 	_run = null
 	_checkpoint = {}
 	_checkpoint_in_stop = false
+	_continued_run = false
 	_forget_own_start()
 	if Net.is_client():
 		_client_done = false
@@ -1145,6 +1168,9 @@ func _reset_progress() -> void:
 	PlayerSettings.reset_rush_records()
 	if _save_slot_ok():
 		RunSave.delete(_run_save_path())
+	# The online slot too (card #313): it is offline here, so the path above was the local one.
+	if _online_slot_ok():
+		RunSave.delete(_online_save_path())
 	_mismatch_told = false
 	print("Progress reset")
 
@@ -1555,15 +1581,36 @@ func _on_tutorial_skip() -> void:
 
 # --- save and quit (DESIGN.md 8.14) -----------------------------------------------------------
 
-## Where the run is saved: --save-path=PATH (dev tool) or the player's one slot.
+## Where the run is saved: online (the host) the online slot (card #313), else --save-path=PATH (dev
+## tool) or the player's local slot. Two slots, so an online run never overwrites a local one.
 func _run_save_path() -> String:
+	if Net.is_online():
+		return _online_save_path()
 	return _options.save_path if not _options.save_path.is_empty() else RunSave.PATH
 
 
-## True if this session may touch the save at all: local play only (online runs are never saved),
-## not the tutorial, and the bot only with --save-path (it must never touch the player's save).
+## The online slot (card #313): --online-save-path=PATH (dev tool) or the host's own.
+func _online_save_path() -> String:
+	return _options.online_save_path if not _options.online_save_path.is_empty() else RunSave.ONLINE_PATH
+
+
+## True if this session may touch the save at all: a local run's slot, or online the host's online
+## slot (card #313; a friend never saves), never the tutorial, never while an online Save & Quit goes
+## home (_put_away), and the bot only with --save-path (online --online-save-path): it must never
+## touch the player's save.
 func _save_io_ok() -> bool:
-	return not Net.is_online() and _tutorial == null and (not _options.is_autoplay() or not _options.save_path.is_empty())
+	if _tutorial != null or _put_away:
+		return false
+	if Net.is_online():
+		return Net.is_host() and (not _options.is_autoplay() or not _options.online_save_path.is_empty())
+	return not _options.is_autoplay() or not _options.save_path.is_empty()
+
+
+## True if this session may touch the online slot (card #313), hosting or not (Reset progress clears
+## it from the main menu): the host's rules, never a dev screen.
+func _online_slot_ok() -> bool:
+	return _options.screen.is_empty() and _tutorial == null and not _put_away \
+			and (not _options.is_autoplay() or not _options.online_save_path.is_empty())
 
 
 ## True if this session works on the player's one save slot (a dev screen's sample run does not).
@@ -1684,15 +1731,19 @@ func _save_fingerprint() -> String:
 func _write_checkpoint() -> bool:
 	if _checkpoint.is_empty():
 		return false
-	var saved := RunSave.save(_checkpoint, _save_fingerprint(), _checkpoint_in_stop, _players.player_count(), _run_save_path())
+	# The host's online save keeps its seats too (card #313): who held which hero, and their tokens.
+	var seats := SavedSeats.capture(_players, Net.seats) if Net.is_host() else {}
+	var saved := RunSave.save(_checkpoint, _save_fingerprint(), _checkpoint_in_stop, _players.player_count(),
+			_run_save_path(), seats)
 	if not saved:
 		push_warning("Main: could not write the run save to %s" % _run_save_path())
 	return saved
 
 
-## The run ended or was abandoned: its save goes. Only on the real save slot: a dev screen's sample
-## run (--screen=map and so on) has no save of its own and must never delete the player's. A Fight
-## Rush never touches the save (a run saved before it still continues, DESIGN.md 8.21).
+## The run ended or was abandoned: its save goes (online the host's online slot, card #313). Only on
+## the real save slot: a dev screen's sample run (--screen=map and so on) has no save of its own and
+## must never delete the player's. A Fight Rush never touches the save (a run saved before it still
+## continues, DESIGN.md 8.21).
 func _clear_run_save() -> void:
 	if _run is RushState:
 		return
@@ -1708,7 +1759,8 @@ func _clear_run_save() -> void:
 ## fingerprint differently) is intact: it stays on disk, Continue is hidden and the menu says why;
 ## only starting a new run over it removes it (card #197).
 func _valid_save() -> Dictionary:
-	if not _save_io_ok() or _run_data == null or _tuning == null or not RunSave.exists(_run_save_path()):
+	# The local slot only: online the host's players screen reads its own (_valid_online_save).
+	if Net.is_online() or not _save_io_ok() or _run_data == null or _tuning == null or not RunSave.exists(_run_save_path()):
 		return {}
 	# No content check (card #208): the game changes almost every day, and every change hid the
 	# player's run. RunState.from_dict still refuses a run that does not fit (unknown gear, items or
@@ -1743,6 +1795,49 @@ func _valid_save() -> Dictionary:
 ## A new run would overwrite a save: a usable one, or one kept from another build.
 func _save_in_the_way() -> bool:
 	return not _valid_save().is_empty() or (_save_io_ok() and RunSave.exists(_run_save_path()))
+
+
+## The saved online run the host's players screen offers to continue (card #313): {state (a RunState),
+## in_stop, players, online (its seats)}, or {} if there is none. As for the local slot (_valid_save):
+## a damaged file, or one RunState or its seats do not fit, is deleted; one written by another version
+## of the game (config/version, or another save format) is kept and not offered. Either way
+## _online_save_note says so on the players screen.
+func _valid_online_save() -> Dictionary:
+	_online_save_note = ""
+	if not _online_slot_ok() or _run_data == null or _tuning == null or not RunSave.exists(_online_save_path()):
+		return {}
+	var loaded := RunSave.load_save("", _online_save_path(), RunSave.game_version(), true)
+	var reason := ""
+	match String(loaded.status):
+		RunSave.LOADED:
+			var state := RunState.from_dict(_run_data, _tuning, loaded.run as Dictionary)
+			if state != null and not state.is_over() \
+					and SavedSeats.restore(loaded.online as Dictionary, state.party_size()) != null:
+				loaded["state"] = state
+				return loaded
+			reason = "it does not fit this version of the game"
+		RunSave.MISSING:
+			return {}
+		_:
+			reason = String(loaded.get("reason", "the file is damaged"))
+			if bool(loaded.get("keep", false)):
+				_online_save_note = "Saved run: another version (kept)"
+				return {}
+	RunSave.delete(_online_save_path())
+	print("Saved online run deleted: %s" % reason)
+	_online_save_note = "Saved run was broken (deleted)"
+	return {}
+
+
+## Online host: a new run would overwrite the online slot (a usable save, or one kept from another
+## version).
+func _online_save_in_the_way() -> bool:
+	return not _valid_online_save().is_empty() or (_online_slot_ok() and RunSave.exists(_online_save_path()))
+
+
+## The Continue button's line for a saved run (card #313): where it is, in a few words.
+static func _continue_line_of(state: RunState) -> String:
+	return "Act %d, Stop %d" % [state.act + 1, state.visited]
 
 
 func _ask_overwrite_save() -> void:
@@ -1789,6 +1884,13 @@ func _continue_run() -> void:
 	print("Run continued: seed %d  act %d  stop %d%s" % [_run.run_seed, _run.act + 1, _run.visited,
 			" (in progress)" if _checkpoint_in_stop else ""])
 	Sfx.play("run_begin")
+	_resume_where_saved()
+
+
+## A continued run (local, or the host's online one, card #313) goes back where it was saved: into the
+## stop it was saved in, from its start (a fight at the HP the party had on entering it), the starting
+## pact, or the map.
+func _resume_where_saved() -> void:
 	if _checkpoint_in_stop and not _run.current().is_empty():
 		_enter_stop()
 	elif _run.pact_pending and _run.at < 0:
@@ -1799,8 +1901,12 @@ func _continue_run() -> void:
 
 ## Pause menu, Save & Quit: the run stays in its slot and the game goes back to the main menu.
 ## Inside a stop the save already holds the state from when the stop was entered, and that is
-## what is kept; on the map the state is saved as it is now.
+## what is kept; on the map the state is saved as it is now. Online (the host, card #313) the friends
+## go home too, keeping their seats (_save_quit_online).
 func _on_pause_save_quit() -> void:
+	if Net.is_host():
+		_save_quit_online()
+		return
 	var saved := false
 	if _checkpoint_in_stop:
 		saved = _write_checkpoint()
@@ -1813,6 +1919,54 @@ func _on_pause_save_quit() -> void:
 	_fade_to(_show_main_menu)
 
 
+## Host, Save & Quit online (card #313): the run goes into the online slot with its seats (the same
+## checkpoint rules as a local run's), the friends are told ("saved": they go to the main menu and keep
+## their seat's token), and the host goes to the main menu. If the save could not be written the game
+## simply ends for everyone ("menu"). From here on until the main menu nothing writes or deletes the
+## slot (_put_away): online the fight or screen under the pause is held, but a message or a timer may
+## still end it.
+func _save_quit_online() -> void:
+	var saved := _write_checkpoint() if _checkpoint_in_stop else _save_run(false)
+	Net.broadcast("saved" if saved else "menu")
+	_put_away = true
+	_set_drop_in(false)
+	_free_pause()
+	_hold_behind_overlay(true)
+	_choice_queue.clear()
+	print("Run saved online: act %d  stop %d%s  seats %d" % [_run.act + 1, _run.visited,
+			" (in progress)" if _checkpoint_in_stop else "", _players.player_count()])
+	if _options.is_autoplay():
+		print("AUTOPLAY_SAVED host ok=%d act=%d stop=%d in_stop=%d players=%d owners=%s" % [int(saved), _run.act + 1,
+				_run.visited, int(_checkpoint_in_stop), _players.player_count(), _players.owners_text()])
+	_notice = RUN_SAVED_ONLINE_NOTICE if saved else "Could not save the run"
+	_notice_glyph = &"save" if saved else &""
+	_menu_item = MainMenu.HOST_RUN
+	_menu_used = true
+	# A transition under way stops after its fade (it would build the next screen of the run).
+	_flow_gen += 1
+	while _busy:
+		await get_tree().process_frame
+	_fade_to(_show_main_menu)
+	if _options.is_autoplay():
+		print("AUTOPLAY_RESULT run_saved" if saved else "AUTOPLAY_RESULT host_ended")
+		_autoplay_quit()
+
+
+## Autoplay (--save-quit-at=N): the bot presses Save & Quit on arriving at stop N, once (online the
+## host, card #313; a local bot needs --save-path). True if it did.
+func _autoplay_save_quit_now() -> bool:
+	if not _options.is_autoplay() or _options.save_quit_at <= 0 or _run == null or _run.visited != _options.save_quit_at \
+			or Net.is_client() or not _save_allowed():
+		return false
+	print("AUTOPLAY_SAVE_QUIT at stop %d" % _run.visited)
+	_on_pause_save_quit()
+	if not Net.is_online():
+		print("AUTOPLAY_SAVED local act=%d stop=%d in_stop=%d" % [_run.act + 1, _run.visited, int(_checkpoint_in_stop)])
+		print("AUTOPLAY_RESULT run_saved")
+		_autoplay_quit()
+	return true
+
+
 # --- the run ----------------------------------------------------------------------------------
 
 func _new_run() -> void:
@@ -1821,12 +1975,14 @@ func _new_run() -> void:
 		_autoplay_fail("no run data")
 		_show_main_menu()
 		return
-	# A save in the way (asked about already) goes now: also one kept from another build.
+	# A save in the way (asked about already) goes now: also one kept from another build (online the
+	# host's online slot, card #313).
 	if _save_slot_ok():
 		RunSave.delete(_run_save_path())
 	_reset_play_device()
 	_fight_weather = null
 	_mode = MODE_RUN
+	_continued_run = false
 	var run_seed := _options.seed_override if _options.seed_override >= 0 else randi_range(1, 2147483646)
 	if _options.oath >= 0:
 		_oath = _options.oath
@@ -1886,6 +2042,8 @@ func _on_stop_chosen(id: int) -> void:
 	if _busy or not _run.go(id):
 		return
 	_save_run(true)
+	if _autoplay_save_quit_now():
+		return
 	_enter_stop()
 
 
@@ -2940,6 +3098,13 @@ func _open_pause() -> void:
 	elif Net.is_host() and _run is RushState:
 		# A Rush already decided (a lost fight's end screen) or over: nothing is lost by ending it.
 		_pause.setup("End the game", RUSH_END_ONLINE)
+	elif Net.is_host() and _save_allowed():
+		# The host keeps the online run for later (card #313), with the same rules as a local run's; a
+		# friend's pause never offers it.
+		var again := "The stop starts over when you continue." if _checkpoint_in_stop else "You continue from this map."
+		_pause.setup("End the game", "The run and its save are lost, for everyone.", "", "",
+				"Save & Quit", "Everyone goes to the main menu; Host continues it. %s" % again)
+		_pause.save_quit_requested.connect(_on_pause_save_quit)
 	elif Net.is_host():
 		_pause.setup("End the game", "The run ends for everyone.")
 	elif Net.is_client():
@@ -3253,11 +3418,17 @@ func _tell_clients_game_ended() -> void:
 
 
 ## The window's close button. Only a host holds quitting back (auto_accept_quit is off while
-## hosting): it says goodbye first and quits a moment later, so the goodbye arrives.
+## hosting): it says goodbye first and quits a moment later, so the goodbye arrives. A run the host
+## saves as it goes keeps its save, as a local run does (card #313): the friends hear "saved" and keep
+## their seats for the host's Continue.
 func _on_close_requested() -> void:
 	if get_tree().auto_accept_quit:
 		return
-	_tell_clients_game_ended()
+	if Net.is_host() and _save_allowed() and _write_checkpoint():
+		Net.broadcast("saved")
+		_put_away = true
+	else:
+		_tell_clients_game_ended()
 	await get_tree().create_timer(NetSession.BYE_LINGER_S, true, false, true).timeout
 	get_tree().quit()
 
@@ -3313,10 +3484,16 @@ func _show_host_lobby() -> void:
 		lobby.title_text = RUSH_TITLE
 	else:
 		_give_oaths(lobby)
+		# A saved online run (card #313): Continue beside Start, or why there is none.
+		var saved := _valid_online_save()
+		if not saved.is_empty():
+			lobby.continue_line = _continue_line_of(saved.state as RunState)
+		lobby.saved_note = _online_save_note
 	lobby.setup_online(_hero_names(), _players, true, NetSession.local_addresses(), _tuning.net_port)
 	lobby.roster_changed.connect(_on_online_roster_changed)
 	lobby.oath_changed.connect(_on_online_oath_changed)
 	lobby.started.connect(_on_online_started)
+	lobby.continued.connect(_on_online_continued)
 	lobby.back.connect(_show_main_menu.call_deferred)
 	_show_screen(lobby)
 
@@ -3349,15 +3526,94 @@ func _on_online_oath_changed(oath: int) -> void:
 
 
 ## The host pressed Start: the players screen closes (friends drop in from now on); the run or the
-## Fight Rush begins (the clients follow).
-func _on_online_started(players: PlayerRoster, oath: int) -> void:
-	if _busy or not _screen is LobbyScreen:
+## Fight Rush begins (the clients follow). A new run over a saved online run asks first, as the main
+## menu's New Run does over a local one (card #313; `asked`: the host said yes; a bot never asks).
+func _on_online_started(players: PlayerRoster, oath: int, asked: bool = false) -> void:
+	if _busy or not _screen is LobbyScreen or _prompt != null:
+		return
+	if _mode == MODE_RUN and not asked and not _options.is_autoplay() and _online_save_in_the_way():
+		_ask_overwrite_online_save(oath)
 		return
 	_players = players
 	_oath = oath
 	Net.closed = true
 	print("Players: %d online%s" % [players.player_count(), " (Fight Rush)" if _mode == MODE_RUSH else ""])
 	_fade_to(_new_rush if _mode == MODE_RUSH else _new_run)
+
+
+## Online host, Start over a saved online run (card #313): "Start a new run?" first; yes starts it (the
+## save goes when it begins), no stays on the players screen with Continue.
+func _ask_overwrite_online_save(oath: int) -> void:
+	_prompt = ConfirmPrompt.new()
+	_prompt.name = "OverwritePrompt"
+	_prompt.setup("Start a new run?", "The saved online run is lost.", "New run", "Keep saved run")
+	_prompt.answered.connect(func(yes: bool) -> void:
+		_prompt.queue_free()
+		_prompt = null
+		if yes and _screen is LobbyScreen:
+			# The friends on the screen now (one may have come or gone while it asked).
+			_on_online_started((_screen as LobbyScreen).roster(), oath, true))
+	add_child(_prompt)
+
+
+## The host pressed Continue on its players screen (card #313): the saved online run goes on at once,
+## as a run friends drop into does (`--host=1`). The saved seats come back away (the host plays those
+## heroes); the friends on the players screen sit down now (SavedSeats.seat_lobby: a token takes its
+## own seat, anyone else the next saved seat nobody took, then a free one; with neither they are
+## turned away), the other saved seats wait for their tokens (Net.hold_seat), and free seats fill by
+## drop-in. It goes back into the stop it was saved in (a fight at the HP the party had on entering
+## it), or the map. Everyone in it counts as late (_continued_run).
+func _on_online_continued(lobby_roster: PlayerRoster) -> void:
+	if _busy or not _screen is LobbyScreen or _prompt != null or _mode != MODE_RUN:
+		return
+	var saved := _valid_online_save()
+	if saved.is_empty():
+		# Gone or no longer usable since the screen was built: the screen says why now.
+		_show_host_lobby()
+		return
+	var state := saved.state as RunState
+	var seats := saved.online as Dictionary
+	var roster := SavedSeats.restore(seats, state.party_size())
+	var lobby: Array[int] = []
+	var shown := {}
+	for player: int in range(1, lobby_roster.peers.size()):
+		lobby.append(lobby_roster.peers[player])
+		shown[lobby_roster.peers[player]] = Net.shown_token(lobby_roster.peers[player])
+	if roster == null:
+		# _valid_online_save checked the seats; this only keeps a surprise from stopping the run.
+		roster = PlayerRoster.online(_hero_names().size(), NetSession.HOST_PEER, NetSession.HOST_PEER)
+	var placed := SavedSeats.seat_lobby(roster, SavedSeats.tokens_of(seats), lobby, shown)
+	for peer: Variant in placed.refused as Array:
+		Net.refuse(int(peer), JoinGate.REASON_FULL)
+	var waiting := placed.waiting as Dictionary
+	for old: int in waiting:
+		if not Net.hold_seat(old, String(waiting[old])):
+			roster.drop_peer(old)
+	Net.closed = true
+	_players = roster
+	_run = state
+	_oath = state.oath
+	_fight_weather = null
+	_checkpoint = saved.run as Dictionary
+	_checkpoint_in_stop = bool(saved.in_stop)
+	_continued_run = true
+	_reset_turns()
+	_reset_play_device()
+	_refresh_prompt_mix()
+	var start := _run_start_message(_run, _players, true)
+	start["continued"] = true
+	Net.broadcast("run_start", start)
+	print("Run continued online: seed %d  act %d  stop %d%s  players %d (%s)" % [_run.run_seed, _run.act + 1,
+			_run.visited, " (in progress)" if _checkpoint_in_stop else "", _players.player_count(), _players.owners_text()])
+	if _options.is_autoplay():
+		print("AUTOPLAY_CONTINUED host act=%d stop=%d in_stop=%d seated=%d waiting=%d refused=%d players=%d" % [
+				_run.act + 1, _run.visited, int(_checkpoint_in_stop), (placed.seated as Dictionary).size(), waiting.size(),
+				(placed.refused as Array).size(), _players.player_count()])
+	# Friends may drop in from now on, and the saved seats' owners come back with their tokens.
+	_set_drop_in(true)
+	_update_away_chip()
+	Sfx.play("run_begin")
+	_resume_where_saved()
 
 
 ## The "lobby" and "again" messages: the host's roster, its oath pick and which game the players
@@ -3541,7 +3797,12 @@ func _on_net_peer_rejoined(old_peer: int, new_peer: int) -> void:
 	# Net let the old connection go without an away or left signal (card #314): a turn it had passes
 	# on now, before the catch-up, so the screen they get carries it.
 	_pass_turn()
-	_catch_up(new_peer, false)
+	if _continued_run:
+		# Back in a continued online run (card #313) they count as late: what they banked from it in the
+		# session it was saved in is theirs already (a rejoin within this session keeps its own baseline).
+		_catch_up(new_peer, true)
+	else:
+		_catch_up(new_peer, false)
 	_update_away_chip()
 
 
@@ -3744,12 +4005,38 @@ func _on_net_refused(reason: String) -> void:
 		_end_online(reason)
 
 
-## This machine's online game is over: back to the main menu with a note.
-func _end_online(notice: String) -> void:
+## Client: the last message in `queue` (the host's messages held behind a transition) that carries
+## the run's state ("run", "screen", "gift"), or {} if there is none or the queue holds the start of
+## another game ("run_start", "again": its states do not fit the run shown now). Pure.
+static func _newest_queued_run(queue: Array[Dictionary]) -> Dictionary:
+	var newest := {}
+	for m: Dictionary in queue:
+		var kind := String(m.get("kind", ""))
+		if kind in ["run_start", "again"]:
+			return {}
+		var payload: Variant = m.get("payload")
+		if kind in ["run", "screen", "gift"] and payload is Dictionary and (payload as Dictionary).get("run") is Dictionary:
+			newest = payload as Dictionary
+	return newest
+
+
+## Online friend in a run (not a Fight Rush, which is never saved): keeps our seat's token on this
+## machine (SeatFile, card #313), so the file always holds the token the host's autosaves keep, even
+## when the host crashes or we are away when it saves. True if it is kept.
+func _keep_seat() -> bool:
+	if _run == null or _run is RushState or not Net.is_client():
+		return false
+	return SeatFile.save(Net.seat_address(), Net.seat_token(), Net.seat_file)
+
+
+## This machine's online game is over: back to the main menu with a note (`glyph`: a picture before
+## it, a PauseMenu.RowGlyph kind, card #313).
+func _end_online(notice: String, glyph: StringName = &"") -> void:
 	_forget_own_start()
 	Net.forget_seat()
 	_leave_online()
 	_notice = notice
+	_notice_glyph = glyph
 	_free_pause()
 	_busy = false
 	_show_main_menu.call_deferred()
@@ -3826,6 +4113,24 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 			_end_online("The host ended the game.")
 			if _options.is_autoplay():
 				print("AUTOPLAY_RESULT host_ended")
+				_autoplay_quit()
+		"saved":
+			# The host saved the run to go on later (card #313). At once too, as "menu": the line goes
+			# down a moment later. What the run found so far is banked first, as on Leave (the newest
+			# state the host sent, a transition may still hold it): on the Continue we count as late, so
+			# it would never be banked after. Our seat's token is kept on this machine (SeatFile), so
+			# joining the host again takes the same seat back when it continues.
+			_client_done = true
+			var newest := _newest_queued_run(_net_queue)
+			if not newest.is_empty():
+				_apply_run(newest)
+			_bank_relics()
+			var kept := SeatFile.save(Net.seat_address(), Net.seat_token(), Net.seat_file)
+			print("The host saved the run%s" % (" (seat kept)" if kept else ""))
+			_end_online(HOST_SAVED_NOTICE, &"save")
+			if _options.is_autoplay():
+				print("AUTOPLAY_SAVED friend seat_kept=%d notice=\"%s\"" % [int(kept), HOST_SAVED_NOTICE])
+				print("AUTOPLAY_RESULT host_saved")
 				_autoplay_quit()
 		_:
 			_net_queue.append({"kind": kind, "payload": payload})
@@ -3907,6 +4212,9 @@ func _client_message(kind: String, p: Dictionary) -> void:
 				_end_online("Could not start the game")
 				return
 			_run = game
+			# A run with us in it (a start, a Continue, a drop-in or a rejoin): our token is the one the
+			# host's autosaves keep from now on (card #313).
+			_keep_seat()
 			# The same game again: our seat taken back mid-game (card #205).
 			var same_game := _own_start_seed == start_seed
 			# A friend who dropped into this Rush stays late through a rejoin of the same Rush (D20).
@@ -3926,6 +4234,12 @@ func _client_message(kind: String, p: Dictionary) -> void:
 				# this Rush already wrote here must not count as the one to beat).
 				_begin_rush_records()
 			Sfx.play("run_begin")
+			if bool(p.get("continued", false)):
+				# The host's saved online run goes on (card #313).
+				print("Run continued online: seed %d" % start_seed)
+				if _options.is_autoplay():
+					var own := _players.local_players()
+					print("AUTOPLAY_CONTINUED friend seed=%d seat=%d" % [start_seed, own[0] + 1 if not own.is_empty() else 0])
 		"roster":
 			var roster := PlayerRoster.from_dict(p.get("roster", {}) as Dictionary, Net.my_peer())
 			if roster != null:
@@ -4949,11 +5263,18 @@ func _autoplay_end_later() -> void:
 	_autoplay_quit()
 
 
-## Autoplay host (--host=N): everyone is in, start.
+## Autoplay host (--host=N): everyone is in, start (--continue-online: the saved online run, card #313).
 func _autoplay_start_online() -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
-	if _screen is LobbyScreen:
-		_on_online_started((_screen as LobbyScreen).roster(), (_screen as LobbyScreen).oath())
+	if not _screen is LobbyScreen:
+		return
+	var lobby := _screen as LobbyScreen
+	if not _options.continue_online:
+		_on_online_started(lobby.roster(), lobby.oath())
+	elif lobby.has_continue():
+		_on_online_continued(lobby.roster())
+	elif not _busy:
+		_autoplay_fail("no_online_save")
 
 
 # --- autoplay ---------------------------------------------------------------------------------

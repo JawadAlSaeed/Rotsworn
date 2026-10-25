@@ -63,6 +63,8 @@ const HOST_PEER: int = 1
 ## 6: the run's choices go in turns (card #314): choice screens carry "turn", a friend sends "choice"
 ## on their turn, the host sends "turn" when it passes on and "gift" (a find to place, numbered), and
 ## the friend's backpack answers with a "hand_out" bag op carrying that number.
+## Card #313's "saved" (the host saved the run; the friends go home keeping their seats) needs no
+## bump: the fingerprint (DataHash.of_game) already keeps other builds out, as for #320's "opening".
 const PROTOCOL: int = 6
 ## Client: the host could not be reached (short: it can end as a main menu notice).
 const REASON_UNREACHABLE := "Host not found"
@@ -107,6 +109,12 @@ var _seat_address: String = ""
 var rejoined: bool = false
 ## Client: the last welcome seated us in a run already going (card #304).
 var joined_mid_run: bool = false
+## Client: the file that keeps our seat in a host's saved run (SeatFile, card #313; "" : none, a bot
+## without --seat-path). Joining with no token in memory sends the one kept there for that address.
+var seat_file: String = ""
+## Host: the token each players screen hello carried (peer -> token), so a Continue can give a friend
+## back their seat in the saved run (card #313).
+var _shown_tokens: Dictionary = {}
 ## Dev (--drop-after): the connection we dropped without a word, kept but never serviced again, so
 ## the host only notices through the heartbeat, as with a pulled cable.
 var _silent_peer: MultiplayerPeer
@@ -172,6 +180,9 @@ func join(address: String, port: int = 0) -> Error:
 		# A seat token is only worth showing to the host that gave it.
 		_seat_token = ""
 	_seat_address = address.strip_edges()
+	if _seat_token.is_empty():
+		# A seat in this host's saved run, kept when it saved (the game was closed since, card #313).
+		_seat_token = SeatFile.token_for(_seat_address, seat_file)
 	_set_state(State.CONNECTING)
 	return OK
 
@@ -197,6 +208,7 @@ func leave(goodbye: bool = true) -> void:
 	_welcomed.clear()
 	_pending_since_ms.clear()
 	_leaving.clear()
+	_shown_tokens.clear()
 	seats.clear()
 	closed = false
 	drop_in_open = false
@@ -221,6 +233,23 @@ func seat_address() -> String:
 ## Client: forgets our seat (the run is over, or the host ended the game).
 func forget_seat() -> void:
 	_seat_token = ""
+
+
+## Client: our seat token ("" : none), to keep for the host's saved run (card #313).
+func seat_token() -> String:
+	return _seat_token
+
+
+## Host: the seat token peer `peer`'s hello carried on the players screen ("" : none).
+func shown_token(peer: int) -> String:
+	return String(_shown_tokens.get(peer, ""))
+
+
+## Host: a seat of the saved run comes back away, kept for its token (card #313): peer `peer` (the id
+## it had) for `net_saved_seat_grace_ms`, the usual rejoin and drop-in rules otherwise.
+func hold_seat(peer: int, token: String) -> bool:
+	return state == State.HOSTING and peer != HOST_PEER and not _welcomed.has(peer) \
+			and seats.hold(peer, token, Time.get_ticks_msec(), _tuning.net_saved_seat_grace_ms)
 
 
 ## Client: the address we joined (the pause menu shows it so a friend can drop in too).
@@ -353,6 +382,9 @@ func _hello(their_fingerprint: Variant, their_protocol: Variant, their_token: Va
 			_welcome.rpc_id(peer, token, true, false)
 			peer_rejoined.emit(old, peer)
 		JoinGate.Verdict.LOBBY:
+			if not token.is_empty():
+				# It may name a seat of the host's saved run (a Continue gives it back, card #313).
+				_shown_tokens[peer] = token
 			var fresh := _new_token()
 			seats.add(peer, fresh)
 			_welcomed[peer] = true
@@ -432,6 +464,7 @@ func _on_peer_connected(peer: int) -> void:
 
 func _on_peer_disconnected(peer: int) -> void:
 	_pending_since_ms.erase(peer)
+	_shown_tokens.erase(peer)
 	var said_goodbye := _leaving.erase(peer)
 	if state != State.HOSTING or not _welcomed.erase(peer):
 		return

@@ -98,6 +98,15 @@ var rush_fights: int = 0
 var continue_run: bool = false
 ## --save-path=PATH ("" : the real save, and no saving for the bot).
 var save_path: String = ""
+## Online saves (card #313): --online-save-path=PATH keeps the host's online slot there ("" : the real
+## one, and no online saving for the bot); --continue-online makes an autoplay host continue that
+## saved run once its players are in (--host=N); --save-quit-at=N makes the bot Save & Quit on
+## arriving at stop N (0: never); --seat-path=PATH is a friend's seat file ("" : the real one for a
+## person, none for the bot).
+var online_save_path: String = ""
+var continue_online: bool = false
+var save_quit_at: int = 0
+var seat_path: String = ""
 ## --journal-path=PATH ("" : the real journal, and no recording for bots or practice fights).
 var journal_path: String = ""
 ## --relics-path=PATH ("" : the real Relic collection, which bots never read or write).
@@ -206,6 +215,14 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.continue_run = true
 		elif arg.begins_with("--save-path="):
 			options.save_path = arg.substr("--save-path=".length())
+		elif arg.begins_with("--online-save-path="):
+			options.online_save_path = arg.substr("--online-save-path=".length())
+		elif arg == "--continue-online":
+			options.continue_online = true
+		elif arg.begins_with("--save-quit-at="):
+			options.save_quit_at = maxi(0, arg.substr("--save-quit-at=".length()).to_int())
+		elif arg.begins_with("--seat-path="):
+			options.seat_path = arg.substr("--seat-path=".length())
 		elif arg.begins_with("--journal-path="):
 			options.journal_path = arg.substr("--journal-path=".length())
 		elif arg.begins_with("--relics-path="):

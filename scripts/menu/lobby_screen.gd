@@ -34,9 +34,19 @@ extends CanvasLayer
 ## P2 / P3 leaves with their own Back (their heroes go to P1) and shows its button and "leave";
 ## left/right hands a hero on, and an only hero trades places. It is modal: a device that has not
 ## joined can only join, and no press reaches what is under it.
+##
+## The host's screen with a saved online run (card #313, `continue_line`) has a Continue button after
+## Start, side by side: the save picture, "Continue" and where the run is ("Act 2, Stop 5"). The
+## cursor starts on it; Confirm there continues the saved run (its own seats come back, the hero
+## cards are for a new run), Confirm anywhere else starts a new one; the footer's Confirm word says
+## which ("Continue" or "Start"). `saved_note` is a dim line under the address (a saved run kept from
+## another version).
 
 ## Confirmed: play with `players` at oath `oath` (0: none; always 0 in practice).
 signal started(players: PlayerRoster, oath: int)
+## Online host, Confirm on Continue: carry on the saved online run (card #313); `players` are the ones
+## on this screen now.
+signal continued(players: PlayerRoster)
 signal back
 ## Online host: the roster changed (to send to the clients).
 signal roster_changed(players: PlayerRoster)
@@ -75,6 +85,10 @@ const START_WORD := "Start"
 const PLAY_WORD := "Play"
 ## The players screen's usual title (title_text).
 const DEFAULT_TITLE := "Players"
+## The Continue button (card #313): its word, the line under it and its picture's size.
+const CONTINUE_WORD := "Continue"
+const CONTINUE_LINE_SIZE: int = 26
+const CONTINUE_GLYPH_PX: int = 40
 
 ## The heroes' big portraits, in hero order (set before setup).
 var hero_portraits: Array[String] = []
@@ -87,6 +101,10 @@ var start_oath: int = 0
 ## Online the default gives way to "Host Online" / "Online Players"; any other title stays (an online
 ## Fight Rush, card #312).
 var title_text: String = DEFAULT_TITLE
+## Online host (set before setup_online): where the saved online run is ("Act 2, Stop 5"); not
+## empty adds the Continue button (card #313). `saved_note`: a dim line under the address ("" : none).
+var continue_line: String = ""
+var saved_note: String = ""
 
 var _roster: PlayerRoster
 var _hero_names: Array[String] = []
@@ -108,9 +126,18 @@ var _picker: PanelContainer
 var _picker_body: VBoxContainer
 var _picker_title: Label
 var _picker_chips: Control
-## The Start button and its word.
+## The Start button, its word and its Confirm chip.
 var _start_button: PanelContainer
 var _start_label: Label
+var _start_chip: Control
+## The Continue button (a saved online run, card #313; null: none), its word and its Confirm chip.
+var _continue_button: PanelContainer
+var _continue_label: Label
+var _continue_chip: Control
+## The footer's hints, and the word its Confirm shows now: with a Continue button it follows the
+## cursor ("Continue" on it, "Start" elsewhere), so it never says the other one (card #313).
+var _footer: HintBar
+var _footer_word: String = START_WORD
 
 
 ## `previous` is the last roster (its hero split is kept when the same players come back);
@@ -162,10 +189,11 @@ func setup_in_run(hero_names: Array[String], roster: PlayerRoster, p1_device: in
 ## The footer's button hints (phase 22: a word each). A local screen or the host: Choose, Change (a
 ## hero's player or the oath), Start, Back; joining is shown on the first open seat instead. A
 ## waiting online client can only leave. Pure.
-static func hints(online: bool, is_host: bool) -> Array:
+## `confirm_word`: what Confirm does where the cursor is (the host's Continue, card #313).
+static func hints(online: bool, is_host: bool, confirm_word: String = START_WORD) -> Array:
 	if online and not is_host:
 		return [[&"menu_cancel", "Leave"]]
-	return [[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", START_WORD], [&"menu_cancel", "Back"]]
+	return [[&"@updown", "Choose"], [&"@leftright", "Change"], [&"menu_confirm", confirm_word], [&"menu_cancel", "Back"]]
 
 
 ## The in-run overlay's footer (DESIGN.md 9.3): Choose, Change, Play, Back. Pure.
@@ -276,6 +304,8 @@ func _build(title: String, note: String, footer: Array) -> void:
 	var column := ListMenu.screen_column(self, title, TITLE_SIZE)
 	if not note.is_empty():
 		column.add_child(ListMenu.centred_label(note, NOTE_SIZE, HudStyle.GOLD))
+	if not saved_note.is_empty():
+		column.add_child(ListMenu.centred_label(saved_note, NOTE_SIZE, HudStyle.TEXT_DIM))
 	# The players on one line, side by side.
 	var players := HBoxContainer.new()
 	players.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -293,13 +323,14 @@ func _build(title: String, note: String, footer: Array) -> void:
 	# The cursor's list draws nothing (every row is drawn above), so it stays out of the column.
 	_menu = ListMenu.new()
 	add_child(_menu)
-	ListMenu.screen_footer(self, footer)
+	_footer = ListMenu.screen_footer(self, footer)
 	var blank: Array[Dictionary] = []
-	for i: int in _start_row() + 1:
+	for i: int in _last_row() + 1:
 		blank.append({})
-		# Every row is drawn by this screen (cards, picker, Start); the list is only the cursor.
+		# Every row is drawn by this screen (cards, picker, Start, Continue); the list is only the cursor.
 		_menu.set_row_shown(i, false)
-	_menu.index = _start_row()
+	# A saved online run is where the cursor rests (card #313), as the main menu's Continue.
+	_menu.index = _continue_row() if _has_continue() else _start_row()
 	_menu.set_items(blank)
 	_refresh()
 	ButtonPrompts.listen(_refresh)
@@ -405,7 +436,7 @@ func _mouse_answer(event: InputEvent) -> StringName:
 			return &""
 		if is_inside_tree():
 			get_viewport().set_input_as_handled()
-		if row == _start_row():
+		if row == _start_row() or row == _continue_row():
 			return &"confirm"
 		return &"left" if MenuMouse.side_of(share) < 0 else &"right"
 	return &""
@@ -420,6 +451,8 @@ func _targets() -> Dictionary:
 		out[_oath_row()] = _picker
 	if _start_button != null and _start_button.visible:
 		out[_start_row()] = _start_button
+	if _continue_button != null:
+		out[_continue_row()] = _continue_button
 	return out
 
 
@@ -443,9 +476,13 @@ func _act(answer: StringName, player: int) -> void:
 				Sfx.play("menu_cancel")
 				back.emit()
 		&"confirm":
-			# Confirm starts from anywhere: Start is the one main button.
+			# Confirm starts from anywhere: Start is the one main button, but on Continue it carries
+			# the saved online run on (card #313).
 			Sfx.play("menu_confirm")
-			started.emit(_roster.copy(), _oath)
+			if _has_continue() and row == _continue_row():
+				continued.emit(_roster.copy())
+			else:
+				started.emit(_roster.copy(), _oath)
 		&"left", &"right":
 			var step := -1 if answer == &"left" else 1
 			if row == _oath_row():
@@ -484,6 +521,8 @@ func _refresh() -> void:
 			_card_tags[slot].text = "<  %s  >" % tag if coop else tag
 			_card_tags[slot].label_settings.font_color = HudStyle.player_color(owner)
 	_menu.set_item(_start_row(), PLAY_WORD if _in_run else START_WORD, not _online or _is_host)
+	if _has_continue():
+		_menu.set_item(_continue_row(), CONTINUE_WORD)
 	if _start_button != null:
 		_start_button.visible = not _online or _is_host
 	_refresh_oath()
@@ -571,6 +610,26 @@ func _oath_row() -> int:
 
 func _start_row() -> int:
 	return _hero_names.size() + (0 if oaths.is_empty() else 1)
+
+
+## True when this screen has the Continue button: the online host's, with a saved online run.
+func _has_continue() -> bool:
+	return not continue_line.is_empty() and _online and _is_host and not _in_run
+
+
+## The Continue button's cursor row, after Start (-1: none).
+func _continue_row() -> int:
+	return _start_row() + 1 if _has_continue() else -1
+
+
+## The cursor's last row: Continue, else Start.
+func _last_row() -> int:
+	return _continue_row() if _has_continue() else _start_row()
+
+
+## True when this screen offers to continue a saved online run (for tests).
+func has_continue() -> bool:
+	return _has_continue()
 
 
 ## The highest oath that can be picked on this screen.
@@ -696,10 +755,47 @@ func _build_buttons() -> HBoxContainer:
 	var chip := HintBar.new([[&"menu_confirm", ""]], PLAYER_SIZE, HudStyle.TEXT)
 	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.add_child(chip)
+	_start_chip = chip
 	_start_label = HudStyle.make_title(PLAY_WORD if _in_run else START_WORD, START_SIZE)
 	_start_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	line.add_child(_start_label)
+	if _has_continue():
+		row.add_child(_build_continue())
 	return row
+
+
+## The Continue button (card #313): the Confirm chip (shown while the cursor is on it), the save
+## picture, "Continue" and where the saved run is under it.
+func _build_continue() -> PanelContainer:
+	_continue_button = PanelContainer.new()
+	_continue_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_continue_button.custom_minimum_size.x = START_WIDTH
+	_continue_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var line := HBoxContainer.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.alignment = BoxContainer.ALIGNMENT_CENTER
+	line.add_theme_constant_override("separation", 16)
+	_continue_button.add_child(line)
+	_continue_chip = HintBar.new([[&"menu_confirm", ""]], PLAYER_SIZE, HudStyle.TEXT)
+	_continue_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(_continue_chip)
+	var glyph := PauseMenu.RowGlyph.new()
+	glyph.kind = &"save"
+	var px := float(HudStyle.scaled(CONTINUE_GLYPH_PX))
+	glyph.custom_minimum_size = Vector2(px, px)
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	glyph.color = HudStyle.TEXT
+	line.add_child(glyph)
+	var words := VBoxContainer.new()
+	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	words.add_theme_constant_override("separation", 0)
+	line.add_child(words)
+	_continue_label = HudStyle.make_title(CONTINUE_WORD, START_SIZE)
+	words.add_child(_continue_label)
+	var where := HudStyle.make_label(continue_line, CONTINUE_LINE_SIZE, HudStyle.TEXT_DIM)
+	where.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	words.add_child(where)
+	return _continue_button
 
 
 ## Lights what the cursor is on: a hero card's gold frame (the others dim), the picker's or Start's
@@ -727,6 +823,18 @@ func _update_focus() -> void:
 		var on_start := mine and _menu.index == _start_row()
 		_start_button.add_theme_stylebox_override("panel", ListMenu.card_style(on_start))
 		_start_label.label_settings.font_color = HudStyle.GOLD if on_start else HudStyle.TEXT
+	if _continue_button != null:
+		# Confirm continues only on Continue (card #313): its chip shows there, Start's everywhere else.
+		var on_continue := mine and _menu.index == _continue_row()
+		_continue_button.add_theme_stylebox_override("panel", ListMenu.card_style(on_continue))
+		_continue_label.label_settings.font_color = HudStyle.GOLD if on_continue else HudStyle.TEXT
+		_continue_chip.modulate.a = 1.0 if on_continue else 0.0
+		if _start_chip != null:
+			_start_chip.modulate.a = 0.0 if on_continue else 1.0
+		var word := CONTINUE_WORD if on_continue else START_WORD
+		if _footer != null and word != _footer_word:
+			_footer_word = word
+			_footer.set_entries(hints(true, true, word))
 
 
 ## True while the cursor's row `row` is lit (for tests): a hero card, the picker or Start.

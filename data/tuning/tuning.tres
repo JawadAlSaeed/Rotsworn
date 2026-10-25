@@ -216,6 +216,7 @@ net_drop_min_ms = 3000
 net_drop_max_ms = 6000
 net_rejoin_grace_ms = 120000
 net_takeover_after_ms = 15000
+net_saved_seat_grace_ms = 300000
 net_opening_wait_ms = 6000
 rebind_capture_ms = 6000
 rebind_reset_confirm_ms = 4000
