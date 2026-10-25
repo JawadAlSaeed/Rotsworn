@@ -12,8 +12,8 @@ extends CanvasLayer
 ## Relics the party does not have.
 ## Phase 22: pictures and a word, not sentences: each service has its picture (a skull Cleanse, an
 ## anvil Upgrade, arrows Restock, the coin Sell with its button, a door Leave), prices are the coin and
-## a number, and the line under the shelves shows a Relic as its icon, a New (or Home) chip and its
-## stat and effect chips (detail()). Card #295: an item there is its picture, its name and a few icon chips
+## a number, and the line under the shelves shows a Relic as its icon, a New chip (a Relic the book
+## lacks) and its stat and effect chips (detail()). Card #295: an item there is its picture, its name and a few icon chips
 ## for what it does, the same chips as the fight's Items list (item_chips: "1 AP", "All foes",
 ## "120% dmg"), never its sentence. The rules are in the Glossary.
 ## The bot uses count(), can_buy(), buy(), overlay() and leave().
@@ -216,9 +216,9 @@ func _info(index: int) -> Array:
 
 ## What the line under the shelves shows for thing `index` or a service (phase 22: icons and a word
 ## or two, never a rules sentence): {icon, title, color, chips: [[icon, text, color]], line}. A
-## Relic shows its icon, name, a New (or Home) chip and its stat and effect chips; an
-## item its picture, name and what it does as chips (item_chips); a service its picture, name and a
-## few words.
+## Relic shows its icon, name, a New chip (a Relic the book lacks) and its stat and effect chips;
+## an item its picture, name and what it does as chips (item_chips); a service its picture, name
+## and a few words.
 func detail(index: int) -> Dictionary:
 	if index >= count():
 		var kind := SERVICES[clampi(index - count(), 0, SERVICES.size() - 1)]
@@ -281,14 +281,13 @@ static func _cap_chips(chips: Array, look: MapVisuals) -> Array:
 	return kept
 
 
-## A shop Relic's chips: "New" ("Home" for one left at home), the stat line, its effect and any
-## drawback.
+## A shop Relic's chips: "New" when the Relic book lacks it (LootScreen.new_tag), the stat line, its
+## effect and any drawback.
 static func relic_chips(run: RunState, gear: GearData) -> Array:
 	var chips: Array = []
-	if run.is_home(gear):
-		chips.append([&"", "Home", HudStyle.TEXT])
-	else:
-		chips.append([&"star", "New", HudStyle.GOLD])
+	var tag := LootScreen.new_tag(run, gear)
+	if not tag.is_empty():
+		chips.append([&"star", tag, HudStyle.GOLD])
 	var stat := gear.stat_text()
 	if not stat.is_empty():
 		chips.append([UiGlyph.attribute_glyph(gear.stat), stat, HudStyle.TEXT])
@@ -332,6 +331,11 @@ func relic_at(index: int) -> GearData:
 ## The heroes who may get a Relic bought here now (RelicGift.allowed).
 func relic_heroes() -> Array[int]:
 	return RelicGift.allowed(give_heroes, _run, _device)
+
+
+## True while a Relic on a shelf waits for its hero ("Who gets it?" over the shop).
+func is_giving() -> bool:
+	return _pick_panel != null and _pick_kind == "give"
 
 
 ## Buys thing `index`; a Relic goes to hero `hero` (one of relic_heroes()). The bot calls this; the

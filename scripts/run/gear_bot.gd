@@ -13,6 +13,9 @@ const COSTLY_DRAWBACKS: Array[int] = [
 
 ## A worthwhile rot-touched piece scores this much above its rarity step.
 const ROT_TOUCHED_BONUS: int = 15
+## Each Relic a hero has already makes a new one suit them this many percent less (best_hero), so
+## with no slot limit the finds still spread over the party, as a player would share them.
+const HELD_SHARE_PERCENT: int = 15
 
 
 ## The score of one piece of spoils (-1: the bot refuses it).
@@ -40,19 +43,28 @@ static func pick(items: Array[GearData]) -> int:
 
 ## The hero the bot gives Relic `item` to (DESIGN.md 8.24): the one it helps most (an offensive
 ## Relic the hardest hitter, a defensive one the toughest hero, a healing one a hero whose skills
-## heal), then the one with the fewest Relics, then the first. Only heroes of `allowed` (empty: any).
+## heal), each Relic they hold already counting HELD_SHARE_PERCENT against them, then the one with
+## the fewest Relics, then the first. Only heroes of `allowed` (empty: any).
 static func best_hero(run: RunState, item: GearData, allowed: Array[int] = []) -> int:
 	var best := -1
-	var best_fit := -1
 	for slot: int in run.party_size():
 		if not allowed.is_empty() and not allowed.has(slot):
 			continue
-		var fit := fit_of(run.data.party[slot], item)
-		var fewer := best >= 0 and run.relics_of(slot).size() < run.relics_of(best).size()
-		if best < 0 or fit > best_fit or (fit == best_fit and fewer):
+		if best < 0 or _suits_more(run, item, slot, best):
 			best = slot
-			best_fit = fit
 	return maxi(best, 0)
+
+
+## True if `item` suits hero `a` more than hero `b` (best_hero): fit over (100 + held share), compared
+## cross-multiplied to stay in integers; a tie goes to the one with fewer Relics.
+static func _suits_more(run: RunState, item: GearData, a: int, b: int) -> bool:
+	var held_a := run.relics_of(a).size()
+	var held_b := run.relics_of(b).size()
+	var left := fit_of(run.data.party[a], item) * (100 + held_b * HELD_SHARE_PERCENT)
+	var right := fit_of(run.data.party[b], item) * (100 + held_a * HELD_SHARE_PERCENT)
+	if left != right:
+		return left > right
+	return held_a < held_b
 
 
 ## How well Relic `item` suits hero `hero` (higher: better; 0: no hero suits it more than another).

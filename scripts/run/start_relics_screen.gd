@@ -5,7 +5,8 @@ extends RelicsScreen
 ## The book page's grid holds the book's found Relics (one taken for another hero is dim, with that
 ## hero's face); the right side shows every hero with what they took, the one choosing now lit.
 ## Confirm takes the Relic under the cursor for that hero, Back skips them. Local co-op: only that
-## hero's player's pad picks for them. Online each machine picks for its own heroes from its own book:
+## hero's player's pad picks for them (any device while that pad is unplugged, so a dead pad never
+## holds the step; the pause menu's Players row can drop that player). Online each machine picks for its own heroes from its own book:
 ## a friend's pick goes to the host (`remote`), which checks it, and shows "..." until the host's state
 ## has it (a Relic someone took first comes back to choose again). When this machine's heroes are all
 ## done the screen waits ("Waiting") until the run goes on.
@@ -38,6 +39,8 @@ var remote: bool = false
 ## the hero's own player's pad may pick for them.
 var players: PlayerRoster = null
 var check_pads: bool = false
+## The Godot ids of the pads plugged in now (tests set it; default: Input's).
+var connected_pads: Callable = Callable()
 ## The bot (autoplay) picks for this screen's heroes, and again whenever one opens once more (a
 ## friend's pick the host refused, or another hero got that Relic first).
 var autopick: bool = false
@@ -184,12 +187,25 @@ func _bot_choice() -> GearData:
 	return choices[GearBot.pick(choices)] if not choices.is_empty() else null
 
 
-## Local co-op: true if the last press came from the chooser's own player's pad.
+## Local co-op: true if the last press may pick for the chooser (may_pick).
 func _pad_ok() -> bool:
-	var slot := chooser()
-	if not check_pads or players == null or slot < 0 or _device == PlayerRoster.ANY:
+	if not check_pads:
 		return true
-	return players.may_control(_device, slot)
+	var pads: Array[int] = []
+	if connected_pads.is_valid():
+		pads.assign(connected_pads.call())
+	else:
+		pads.assign(Input.get_connected_joypads())
+	return may_pick(players, _device, chooser(), pads)
+
+
+## Local co-op: true if a press from `device` may pick for hero `slot`: their own player's pad, or any
+## device while that player's pad is not among `connected` (the pads plugged in), so a pad that went
+## flat or was unplugged never holds the step for good. Pure.
+static func may_pick(roster: PlayerRoster, device: int, slot: int, connected: Array[int]) -> bool:
+	if roster == null or slot < 0 or device == PlayerRoster.ANY or roster.may_control(device, slot):
+		return true
+	return roster.missing_players(connected).has(roster.owner_of(slot))
 
 
 # --- RelicsScreen ---------------------------------------------------------------------------------

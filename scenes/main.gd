@@ -291,6 +291,9 @@ var _start_wait_gen: int = 0
 ## Host, online: the heroes each friend picks for in this step (peer -> hero slots), fixed when it
 ## began: a friend who drops in later gets no starting Relic.
 var _start_pickers: Dictionary = {}
+## Online friend: the host's "Start relics:" line is still to be logged for this game (a game this
+## machine joined at its start; the host logs it even when it skips the step, which never comes here).
+var _start_log_due: bool = false
 
 
 func _ready() -> void:
@@ -3265,7 +3268,8 @@ func _game_in_play() -> bool:
 	return _is_run_screen(_screen)
 
 
-## Pauses the fight (after the current move) or the run map. True if it started one.
+## Pauses the fight (after the current move), the run map, the Fight Rush screen or the starting
+## Relics (where Esc would otherwise be Back, skipping a hero). True if it started one.
 func _pause_game() -> bool:
 	if _pause != null or _prompt != null or _busy or _pad_overlay != null:
 		return false
@@ -3277,7 +3281,7 @@ func _pause_game() -> bool:
 			return true
 		_menu_pause_wanted = false
 		return false
-	if _screen is MapScreen:
+	if _screen is MapScreen or _screen is StartRelicsScreen:
 		_open_pause()
 		return true
 	# The Rush screen, but not while a gift's party screen is open over it (DESIGN.md 8.21).
@@ -3460,6 +3464,12 @@ func _apply_local_roster(roster: PlayerRoster, why: String) -> void:
 	_refresh_roster_users()
 	_refresh_prompt_mix()
 	_resave_players()
+	if _screen is StartRelicsScreen:
+		# The starting Relics (card #328): the player tags and whose pad picks follow the new roster.
+		var picks := _screen as StartRelicsScreen
+		picks.players = roster
+		picks.check_pads = roster.player_count() > 1
+		picks.refresh()
 	var names := PackedStringArray()
 	for device: int in roster.devices:
 		names.append(PlayerRoster.device_name(device))
@@ -4443,6 +4453,9 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			_rush_late = _late_after_start(late, _rush_late, same_game)
 			# The host's word on its own switches (a bot or dev Rush there keeps no record here, D9).
 			_rush_host_clean = typeof(p.get("records")) == TYPE_BOOL and bool(p.records)
+			# The host logs its starting Relics once per game, at its start (card #328): only a friend
+			# there from the start logs them too, never one dropping in or back into a continued run.
+			_start_log_due = not late and not same_game
 			if _own_start == null or not same_game:
 				_own_start = RelicFile.load_or_empty(_relics_path()) if _client_relics_ok() else null
 				_own_start_seed = start_seed
@@ -4505,8 +4518,8 @@ func _client_screen(p: Dictionary) -> void:
 	_screens_seen += 1
 	if p.get("turn") is Dictionary:
 		_turn = (p.turn as Dictionary).duplicate()
-	if _screen is StartRelicsScreen and name != "start_relics":
-		# The host's starting Relics step is over (card #328): what each hero took, as the host logs it.
+	if _logs_start_relics(_screen is StartRelicsScreen, _start_log_due, name):
+		_start_log_due = false
 		_log_start_relics()
 	if WATCHED_SCREENS.has(name):
 		if not _busy and _waits_under_party(name, _net_screen, _screen is PartyScreen):
@@ -4560,6 +4573,14 @@ static func _watches_first_strike(p: Dictionary, known: Dictionary) -> bool:
 			and int(known.get("fight", 0)) != fight
 
 
+## Client: true when host screen `name` comes after the host's starting Relics step (card #328), so
+## this machine logs what each hero took, as the host did: from the step's screen (`on_step`), or
+## first thing in a game it was in from the start (`due`) when the host skipped the step (an empty
+## book, the Empty Hand). Never for the step itself, nor the main menu (a game ended there). Pure.
+static func _logs_start_relics(on_step: bool, due: bool, name: String) -> bool:
+	return (on_step or due) and name != "start_relics" and name != "menu"
+
+
 ## Client: the function that builds a watched run screen from the host's message.
 func _watched_screen_builder(p: Dictionary) -> Callable:
 	match String(p.get("name", "")):
@@ -4598,6 +4619,10 @@ func _rebuild_watched_screen() -> void:
 		return
 	if _refresh_party_views():
 		return
+	if _keeps_hero_pick(_screen):
+		# Our Relic waits for its hero ("Who gets it?", card #326): a new screen would drop the hero
+		# cards. The host's answer to the pick (a new screen) redraws it.
+		return
 	# A find handed to us is in hand over the screen (card #314): the backpack redraws, the screen
 	# stays (a new one would drop it).
 	var over := _overlay_of(_screen)
@@ -4623,6 +4648,21 @@ func _rebuild_watched_screen() -> void:
 		_refresh_rush_screen()
 		return
 	_watched_screen_builder(_net_screen).call()
+
+
+## True while choice screen `screen` shows its "Who gets it?" hero cards for a Relic picked there
+## (spoils, the rotten chest, a shop's Relic, an event's Relic): a redraw from the host's newer state
+## must not throw the hero step away. Pure.
+static func _keeps_hero_pick(screen: Node) -> bool:
+	if screen is LootScreen:
+		return (screen as LootScreen).is_giving()
+	if screen is TreasureScreen:
+		return (screen as TreasureScreen).is_giving()
+	if screen is EventScreen:
+		return (screen as EventScreen).is_giving()
+	if screen is ShopScreen:
+		return (screen as ShopScreen).is_giving()
+	return false
 
 
 ## Host: a friend changed the shared party or backpack (DESIGN.md 8.1): first come, first served. The
@@ -5623,10 +5663,12 @@ func _autoplay_shop(shop: ShopScreen) -> void:
 	for i: int in shop.count():
 		if not _autoplay_turn_ok(shop):
 			return
+		if not _bot_buys(shop, i):
+			continue
 		var hero := -1
 		if shop.is_relic(i):
 			hero = RelicGift.bot_hero(_run, shop.relic_at(i), shop.relic_heroes())
-		if not shop.can_buy(i) or not shop.buy(i, hero):
+		if not shop.buy(i, hero):
 			continue
 		if shop.is_relic(i):
 			print("Run relic: %s to %s (shop)" % [shop.relic_at(i).id, _run.data.party[hero].id])
@@ -5645,6 +5687,14 @@ func _autoplay_shop(shop: ShopScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if is_instance_valid(shop):
 		_autoplay_act(shop, shop.leave)
+
+
+## True if the bot buys shelf `i` of `shop`: one it can buy, never a Relic GearBot refuses (a
+## rot-touched one with a costly price: a given Relic never comes off). Pure.
+static func _bot_buys(shop: ShopScreen, i: int) -> bool:
+	if not shop.can_buy(i):
+		return false
+	return not shop.is_relic(i) or GearBot.score(shop.relic_at(i)) >= 0
 
 
 ## True if a hero is at or under AUTOPLAY_REST_BELOW_PERCENT of their max HP, or the party as a

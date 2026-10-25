@@ -325,17 +325,15 @@ func _item_card(item: ItemData, enabled: bool) -> Dictionary:
 			"icon": AssetLoader.texture(item.icon_path, ITEM_ICON_SIZE), "chips": chips}
 
 
-## A Relic's card, as on the spoils screen: its own icon, its name in its rarity's colour, New (or
-## Home), a rarity chip and what it does.
+## A Relic's card, as on the spoils screen: its own icon, its name in its rarity's colour, a rarity
+## chip and what it does. No New tag: a Rush keeps nothing for the Relic book (DESIGN.md 8.21).
 func _relic_card(gear: GearData, enabled: bool) -> Dictionary:
-	var r := rush()
 	var step := BackpackGrid.gear_step(gear)
 	var color := GearData.ROT_TOUCHED_COLOR if gear.rot_touched else BackpackGrid.rarity_color(step)
 	var make := func() -> Control: return RelicIcon.make(gear, LootScreen.ICON_PX)
 	var chips: Array[Dictionary] = [StopScreen.chip_entry(_look, "relic", rarity_word(step), color)]
 	chips.append_array(LootScreen.relic_chips(gear))
-	return {"text": gear.display_name, "enabled": enabled, "color": color, "icon_make": make, "chips": chips,
-			"value": "Home" if r.is_home(gear) else "New"}
+	return {"text": gear.display_name, "enabled": enabled, "color": color, "icon_make": make, "chips": chips}
 
 
 ## A card this build cannot show (bad data): greyed, so the cards keep their offer order.

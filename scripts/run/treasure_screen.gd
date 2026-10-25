@@ -95,6 +95,11 @@ func relic_waiting() -> bool:
 	return _open and not run.stop_relics.is_empty()
 
 
+## True while a Relic picked here waits for its hero ("Who gets it?").
+func is_giving() -> bool:
+	return _giving >= 0 and relic_waiting()
+
+
 ## The rotten chest's Relics on offer (RunState.stop_relic_choices).
 func relic_choices() -> Array[GearData]:
 	return run.stop_relic_choices()
@@ -214,12 +219,12 @@ func chest_cards() -> Array[Dictionary]:
 	return cards
 
 
-## The rotten chest's Relics as cards (LootScreen's look): icon, name, New or Home, chips.
+## The rotten chest's Relics as cards (LootScreen's look): icon, name, New (LootScreen.new_tag), chips.
 func relic_cards() -> Array[Dictionary]:
 	var cards: Array[Dictionary] = []
 	for item: GearData in relic_choices():
 		var make := func() -> Control: return RelicIcon.make(item, LootScreen.ICON_PX)
-		cards.append({"text": item.display_name, "value": "Home" if run.is_home(item) else "New",
+		cards.append({"text": item.display_name, "value": LootScreen.new_tag(run, item),
 				"chips": LootScreen.relic_chips(item), "icon_make": make, "enabled": not is_greyed(),
 				"color": GearData.ROT_TOUCHED_COLOR if item.rot_touched else BackpackGrid.rarity_color(BackpackGrid.gear_step(item))})
 	return cards

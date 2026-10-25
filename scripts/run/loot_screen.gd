@@ -5,8 +5,8 @@ extends CanvasLayer
 ## them), then the hero who gets it ("Who gets it?", RelicGift: skipped when only one hero may). A
 ## Relic never found before is kept for good in the collection.
 ## The Relics sit side by side as cards (card #288): each Relic's own icon, its name in its rarity's
-## colour, New (or Home) and a few chips: what it does, its drawback and its stat line. No sentence:
-## what a Relic means is in the Glossary.
+## colour, New (a Relic the book lacks) and a few chips: what it does, its drawback and its stat
+## line. No sentence: what a Relic means is in the Glossary.
 ## Online the pick goes in turns (card #314, DESIGN.md 9.2): on another player's turn the cards are
 ## greyed and the footer offers nothing to press (`watching`); the turn's player gives it to one of
 ## their own heroes.
@@ -71,9 +71,8 @@ func _fill() -> void:
 		return
 	var list: Array[Dictionary] = []
 	for item: GearData in _items:
-		var home := _run != null and _run.is_home(item)
 		var make := func() -> Control: return RelicIcon.make(item, ICON_PX)
-		list.append({"text": item.display_name, "value": "Home" if home else "New", "chips": relic_chips(item),
+		list.append({"text": item.display_name, "value": new_tag(_run, item), "chips": relic_chips(item),
 				"icon_make": make, "enabled": not watching,
 				"color": GearData.ROT_TOUCHED_COLOR if item.rot_touched else BackpackGrid.rarity_color(BackpackGrid.gear_step(item))})
 	if _items.is_empty():
@@ -105,6 +104,14 @@ static func relic_chips(item: GearData) -> Array[Dictionary]:
 	if item.stat_points > 0:
 		chips.append({"glyph": UiGlyph.attribute_glyph(item.stat), "text": "+%d" % item.stat_points, "color": HudStyle.GOLD})
 	return chips
+
+
+## A Relic on offer's tag: "New" when it is not in the Relic book yet (picking it puts it there), ""
+## for one the book has. Never in a Fight Rush, which keeps nothing (DESIGN.md 8.21, 8.24).
+static func new_tag(run: RunState, item: GearData) -> String:
+	if run == null or run is RushState or item == null or run.is_home(item):
+		return ""
+	return "New"
 
 
 ## The pieces on offer, in the order shown.

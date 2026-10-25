@@ -184,6 +184,11 @@ func relic_heroes() -> Array[int]:
 	return RelicGift.allowed(give_heroes, run, _device)
 
 
+## True while a choice's Relic waits for its hero ("Who gets it?").
+func is_giving() -> bool:
+	return _giving and not _decided
+
+
 ## Takes choice `index` (the bot calls this; the player uses the menu). `pick`: the hero slot or
 ## item uid a choice that asks for one needs; `hero`: who gets its Relic, when it gives one (one of
 ## relic_heroes()).

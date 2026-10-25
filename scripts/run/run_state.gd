@@ -104,7 +104,7 @@ var gear: Array[Array] = []
 ## when the run saves and when it ends.
 var relics: Dictionary = {}
 ## Every Relic in the Relic book before this run (id -> 1; online the host's): the end screen's
-## "what you keep" line, and a find of one already in the book is tagged "Home" rather than "New".
+## "what you keep" line, and only a find the book lacks is tagged "New" (LootScreen.new_tag).
 var relics_at_start: Dictionary = {}
 ## Per party slot: the starting Relics that hero may still take from a Relic book (DESIGN.md 8.24,
 ## card #328), start_relic_count() each at the start; 0 once taken or skipped. Main shows the pick
@@ -1097,7 +1097,8 @@ func pact_event() -> EventData:
 
 ## The treasure stop's two chests (card #287): the plain one holds tuning.run_treasure_gold and a
 ## rare or better item; the rotten one a pick of relic_choice_count() rare or better Relics the run
-## does not have (DESIGN.md 8.24: they wait in stop_relics until one is taken and given), but
+## does not have, at most rot_gear_spoils_count of them rot-touched like the spoils' (DESIGN.md
+## 8.24: they wait in stop_relics until one is taken and given), but
 ## tuning.rotten_chest_curse_percent of the time a curse comes with it and
 ## rotten_chest_fight_percent of the time (on top) an ambush from the act's pool. Applies the gold,
 ## the curse and the ambush; the plain chest's item comes back for the screen to hand out. Seeded per
@@ -1114,8 +1115,10 @@ func open_treasure(stop_id: int, rotten: bool) -> Dictionary:
 		got.gold = take_treasure_gold()
 		parts.append("+%d gold" % int(got.gold))
 	else:
-		var offered := _pick_gear(stop_id * TREASURE_SALT + act * 41 + 13, relic_choice_count(), row,
-				ItemData.Rarity.RARE, GearPool.ANY)
+		# Built like the spoils (8.16, 8.24): at most rot_gear_spoils_count rot-touched, never only
+		# those, as one must be taken and given for good before the chest can be left.
+		var offered := _loot_picks(stop_id * TREASURE_SALT + act * 41 + 13, row, relic_choice_count(), [],
+				ItemData.Rarity.RARE)
 		got.relics = offered
 		stop_relics.clear()
 		for item: GearData in offered:
@@ -2447,7 +2450,7 @@ func owns(item: GearData) -> bool:
 
 
 ## True if the Relic is in the Relic book from before this run and has not turned up in this run
-## yet: a find of it is tagged "Home" rather than "New".
+## yet: a find of it is not tagged "New" (LootScreen.new_tag).
 func is_home(item: GearData) -> bool:
 	return item != null and relics_at_start.has(item.id) and not owns(item)
 
@@ -2566,13 +2569,14 @@ func relic_gain_line_since(found_before: Dictionary) -> String:
 	return "New Relics: " + ", ".join(found)
 
 
-## A find from relic_find() in a word, for a tag next to the Relic's icon: "New", "Home" (one left
-## at home), or "" (one the run had waiting).
+## A find from relic_find() in a word, for the toast next to the Relic's icon: "New" (not in the
+## Relic book yet), "Found" (the book has it, as relic_find_text's line says), or "" (one the run had
+## waiting).
 static func relic_find_short(info: Dictionary) -> String:
 	if bool(info.get("new", false)):
 		return "New"
 	if bool(info.get("home", false)):
-		return "Home"
+		return "Found"
 	return ""
 
 
@@ -2596,7 +2600,7 @@ func relic_given_text(info: Dictionary, slot: int) -> String:
 
 
 ## Takes in the Relic book at the start of a run: what it holds is remembered for the end screen and
-## the "Home" tags. Nothing joins the run here: each hero takes a starting Relic from the book in the
+## the "New" tags. Nothing joins the run here: each hero takes a starting Relic from the book in the
 ## pick step (take_start_relic, card #328).
 func _take_collection(collection: RelicCollection) -> void:
 	for item: GearData in data.gear:
@@ -2652,10 +2656,17 @@ func start_choices(book: RelicCollection) -> Array[GearData]:
 func take_start_relic(slot: int, item: GearData) -> Dictionary:
 	if not start_open(slot) or not can_gain(item):
 		return {}
+	# Before the run, unlike a find (no free heal), a higher max HP comes filled: the HP each hero is
+	# missing stays the same, so a drawback still cuts it.
+	var missing: Array[int] = []
+	for s: int in party_size():
+		missing.append(max_hp(s) - hp[s])
 	var got := give_relic(item, slot)
 	if not got.is_empty():
 		start_left[slot] -= 1
 		start_relics[item.id] = 1
+		for s: int in party_size():
+			hp[s] = clampi(max_hp(s) - missing[s], 1, max_hp(s))
 	return got
 
 
@@ -2773,20 +2784,24 @@ func loot_choices(stop_id: int) -> Array[GearData]:
 	return _loot_picks(salt, row, count)
 
 
-## Up to `count` spoils picks, none of `skip` (see loot_choices).
-func _loot_picks(salt: int, row: int, count: int, skip: Array[GearData] = []) -> Array[GearData]:
+## Up to `count` spoils picks, none of `skip` (see loot_choices). `floor_rarity`: the lowest rarity
+## offered while the pool has enough (the rotten chest's rare or better), -1 for the spoils' own
+## tuning.run_spoils_min_rarity (and any rarity once the pool runs short).
+func _loot_picks(salt: int, row: int, count: int, skip: Array[GearData] = [],
+		floor_rarity: int = -1) -> Array[GearData]:
 	# Rot-touched gear (DESIGN.md 8.16): spoils offer some among their choices (listed last), but
 	# never as the only choice.
+	var least := floor_rarity if floor_rarity >= 0 else tuning.run_spoils_min_rarity
 	var rot_count := mini(tuning.rot_gear_spoils_count, count - 1)
 	var rot: Array[GearData] = []
 	if rot_count > 0:
-		rot = _pick_gear(salt + ROT_GEAR_SALT, rot_count, row, tuning.run_spoils_min_rarity, GearPool.ROT_TOUCHED, skip)
-	var picked := _pick_gear(salt, count - rot.size(), row, tuning.run_spoils_min_rarity, GearPool.NORMAL, skip)
+		rot = _pick_gear(salt + ROT_GEAR_SALT, rot_count, row, least, GearPool.ROT_TOUCHED, skip)
+	var picked := _pick_gear(salt, count - rot.size(), row, least, GearPool.NORMAL, skip)
 	picked.append_array(rot)
 	if picked.size() < count:
 		var taken := picked.duplicate()
 		taken.append_array(skip)
-		picked.append_array(_pick_gear(salt + 1, count - picked.size(), row, 0, GearPool.ANY, taken))
+		picked.append_array(_pick_gear(salt + 1, count - picked.size(), row, maxi(floor_rarity, 0), GearPool.ANY, taken))
 	return picked
 
 

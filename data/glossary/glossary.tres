@@ -737,7 +737,7 @@ script = ExtResource("1_d4656")
 id = "relic_give"
 topic = "gear"
 term = "Who gets it?"
-text = "Pick a Relic, then the hero who gets it. In co-op the player whose turn it is gives it to one of their own heroes. A hero keeps every Relic given, until the run ends."
+text = "Pick a Relic, then the hero who gets it. In co-op: your own heroes. A hero keeps every Relic given, until the run ends."
 tag = "Who gets it?"
 color = Color(1, 0.82, 0.3, 1)
 
@@ -746,7 +746,7 @@ script = ExtResource("1_d4656")
 id = "relic_book"
 topic = "gear"
 term = "Relic book"
-text = "Every Relic picked in a run, won or lost, is kept for good in the book on the main menu. Before each run or Fight Rush every hero takes one Relic from it. Online each player picks from their own book."
+text = "Every Relic picked in a run, won or lost, is kept for good in the book on the main menu (New: not in it yet). Before each run or Fight Rush every hero takes one Relic from it. Online each player picks from their own book."
 tag = "Starting Relics"
 color = Color(1, 0.82, 0.3, 1)
 

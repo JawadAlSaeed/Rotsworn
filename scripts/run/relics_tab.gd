@@ -41,6 +41,8 @@ const BAG_CELL: float = 116.0
 const BAG_ICON_PX: float = 92.0
 const BAG_ROW_GAP: float = 14.0
 const CHIP_SIZE: int = 22
+## A hero row with no Relics while nothing waits to be given.
+const NO_RELICS := "No Relics"
 
 var _zone: Zone = Zone.HEROES
 ## The Relic under the cursor in the hero's row (its index in run.relics_of(hero)).
@@ -144,10 +146,13 @@ func handle_input(event: InputEvent) -> bool:
 	return _grid_input(event)
 
 
+## Give only while a Relic waits for a hero (none in a new run since card #328: an old save's).
 func hints() -> Array:
 	var waiting := not run.waiting_relics().is_empty()
 	if _zone == Zone.GRID:
-		return [[&"@arrows", ""], [&"menu_confirm", "Give"], [&"item_move", "Kind"]]
+		if waiting:
+			return [[&"@arrows", ""], [&"menu_confirm", "Give"], [&"item_move", "Kind"]]
+		return [[&"@arrows", ""], [&"item_move", "Kind"]]
 	return [[&"@arrows", ""], [&"menu_confirm", "Give"]] if waiting else [[&"@arrows", ""]]
 
 
@@ -160,7 +165,9 @@ func info() -> Dictionary:
 	if item != null:
 		return _relic_info(item)
 	if _zone == Zone.HEROES:
-		return {"icon": &"plus", "title": "No Relics", "color": HudStyle.TEXT_DIM, "chips": [], "line": ""}
+		var waiting := not run.waiting_relics().is_empty()
+		return {"icon": &"plus" if waiting else &"gem", "title": NO_RELICS, "color": HudStyle.TEXT_DIM,
+				"chips": [], "line": ""}
 	return {"icon": &"pouch", "title": "Empty", "color": HudStyle.TEXT_DIM, "chips": [], "line": ""}
 
 
@@ -394,7 +401,9 @@ func _redraw() -> void:
 
 func _draw_row(slot: int, at: Vector2) -> void:
 	var c := run.data.party[slot]
-	var on_row := (_zone == Zone.HEROES and slot == hero) or (_zone == Zone.GRID and slot == _target)
+	# In the grid the hero a waiting Relic would go to stays lit; with nothing to give, none is.
+	var giving := _zone == Zone.GRID and slot == _target and not run.waiting_relics().is_empty()
+	var on_row := (_zone == Zone.HEROES and slot == hero) or giving
 	var plate := Panel.new()
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.position = at
@@ -437,9 +446,16 @@ func _draw_row(slot: int, at: Vector2) -> void:
 	_draw_relics(slot, plate, at, _zone == Zone.HEROES and slot == hero)
 
 
-## Hero `slot`'s Relics on their row (an empty frame with a plus when they have none).
+## Hero `slot`'s Relics on their row. With none: an empty frame with a plus while a Relic waits to
+## be given, else a dim "No Relics".
 func _draw_relics(slot: int, plate: Control, at: Vector2, on_row: bool) -> void:
 	var mine := run.relics_of(slot)
+	if mine.is_empty() and run.waiting_relics().is_empty():
+		var none := HudStyle.make_label(NO_RELICS, TEXT_SIZE, HudStyle.GOLD if on_row else HudStyle.TEXT_DIM)
+		none.position = Vector2(SLOT_LEFT, (ROW_HEIGHT - none.get_minimum_size().y) * 0.5)
+		plate.add_child(none)
+		_hits.append([Rect2(at + Vector2(SLOT_LEFT, 20.0), Vector2(SLOT_PX, SLOT_PX)), Zone.HEROES, slot, 0])
+		return
 	var layout := relic_layout(mine.size())
 	var columns := int(layout[0])
 	var px := float(layout[2])
