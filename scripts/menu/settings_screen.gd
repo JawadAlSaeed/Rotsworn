@@ -8,8 +8,8 @@ extends CanvasLayer
 ## Reset progress). Everything is saved per machine at once (PlayerSettings, user://settings.cfg)
 ## and graphics changes show at once, even over a fight. Left/right change a value, confirm toggles
 ## or opens. Reset progress (DESIGN.md 8.17) asks twice and then emits progress_reset for Main to
-## wipe the Relics, the unlocked oaths, the Fight Rush records (8.21) and a saved run; it is only
-## offered from the main menu, never in a run.
+## wipe the Relics, the unlocked oaths and a saved run; it is only offered from the main menu, never
+## in a run.
 ## The mouse (card #202): pointing at a row chooses it, a click confirms it (on a row with a value
 ## that Left / Right change, the left half of the row steps down and the right half up), a right
 ## click or the back button goes back.
@@ -52,7 +52,7 @@ const HEADER_TOP_PX: float = 40.0
 ## The size of a Controls row's button picture (a hint's font size; ButtonChip scales from it).
 const BINDING_CHIP_SIZE: int = 26
 ## Reset progress's question: what is wiped, then what stays, on two lines.
-const RESET_DETAIL := "The Relic book, unlocked oaths, Rush records and a saved run are wiped.\n" \
+const RESET_DETAIL := "The Relic book, unlocked oaths and a saved run are wiped.\n" \
 		+ "Settings, controls and the Journal stay."
 
 enum Section { GRAPHICS, SOUND, CONTROLS, GAME }

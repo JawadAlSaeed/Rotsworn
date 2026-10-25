@@ -14,8 +14,7 @@ extends Resource
 ## What always drifts through the air here: fireflies, ash, leaves, spores, mist (DESIGN.md 8.12),
 ## played thinner in its fights.
 @export var ambient: Array[ZoneAmbientData] = []
-## The fights of a run's Fight stops in this place (DESIGN.md 8.22), and of a Fight Rush tier that
-## names the place (8.21).
+## The fights of a run's Fight stops in this place (DESIGN.md 8.22).
 @export var roamer_pool: Array[EncounterData] = []
 ## The place's guard (a mini-boss): some of a run's Elite stops here fight it, in its deep version
 ## in a deep act or row (DESIGN.md 8.22).

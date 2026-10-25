@@ -10,11 +10,6 @@ Card pictures, 24x24, drawn at 4x on a card (96 px), outlined in the game's ink:
 - ui/choice_sharpen.png: a blade drawn across a whetstone, sparks off the edge (Sharpen: more AP).
 - ui/choice_host.png: a stone beacon with a fire on top, calls going out both ways (Host Online).
 - ui/choice_join.png: an open doorway with a gold arrow going in (Join Online).
-- ui/choice_heal.png: a round red flask, corked, a white heart glinting in it (Fight Rush: Heal).
-- ui/choice_fight.png: two swords crossed, points up (Fight Rush: the next fight).
-- ui/choice_party.png: three small heads side by side (Fight Rush: the party screen).
-- ui/choice_run.png: a road winding up a hill to a red flag (the main menu's New Run cards: Run).
-- ui/choice_rush.png: a sword across four tally marks (the main menu's New Run cards: Fight Rush).
 
 Chip icons, 12x12, drawn at 3x in a chip (36 px):
 - ui/chip_coin.png: gold (a price or a reward).
@@ -53,16 +48,6 @@ ROT = M["glow_rot"].colors
 VIOLET = M["glow_violet"].colors
 # The heart's red, darkest first (the HP bar's low red, a little deeper).
 HEART = ramp("#d8343c", below=2, above=2, step_l=0.085)
-# The flask's empty glass, darkest first.
-GLASS = M["steel"].colors
-SKIN = M["skin"].colors
-HAIR_AUBURN = M["hair_auburn"].colors
-HAIR_BLACK = M["hair_black"].colors
-HAIR_BROWN = M["hair_brown"].colors
-CLOTH_BLUE = M["cloth_blue"].colors
-CLOTH_RED = M["cloth_red"].colors
-CLOTH_PURPLE = M["cloth_purple"].colors
-GRASS = M["grass"].colors
 # A heart lost for good: the same heart, bruised and dull.
 BRUISE = ramp("#8e2e48", below=2, above=2, step_l=0.08)
 VIOLET_DEEP = ramp(VIOLET[0], below=1, above=0)[0]
@@ -294,179 +279,6 @@ def make_join() -> np.ndarray:
     ], {"W": WOOD[3], "w": WOOD[1], "d": DARKWOOD[0], "L": GOLD[4], "M": GOLD[2]})
 
 
-def make_heal() -> np.ndarray:
-    """A round flask of red draught, corked: the liquid lit from the upper left, an empty band of
-    glass over it, and a small white heart glinting in the red (the Heal card)."""
-    c = Canvas(CARD, CARD)
-    cx, cy, r = 12.0, 15.0, 7.6
-    for y in range(CARD):
-        for x in range(CARD):
-            dx = x + 0.5 - cx
-            dy = y + 0.5 - cy
-            if dx * dx + dy * dy > r * r:
-                continue
-            if y < 11:
-                c.px(x, y, GLASS[3] if dx < -3.0 else GLASS[1])
-                continue
-            d = (dx + 3.2) ** 2 + (dy + 2.0) ** 2
-            idx = 3 if d < 12.0 else 2 if d < 40.0 else 1 if d < 75.0 else 0
-            c.px(x, y, HEART[idx])
-    # The surface of the draught, a brighter line.
-    for x in range(6, 18):
-        if c.a[11, x, 3] > 0:
-            c.px(x, 11, HEART[4])
-    # The neck, its rim and the cork.
-    c.rect(10, 4, 13, 8, GLASS[2])
-    c.px(10, 5, GLASS[4])
-    c.px(10, 6, GLASS[4])
-    c.rect(9, 3, 14, 3, GLASS[4])
-    c.rect(10, 1, 13, 2, WOOD[3])
-    c.px(13, 1, WOOD[1])
-    c.px(13, 2, WOOD[1])
-    # A streak of light down the left of the glass.
-    c.px(6, 10, GLASS[4])
-    c.px(5, 12, HEART[4])
-    c.px(5, 13, HEART[4])
-    # The heart glint.
-    for x, y in ((8, 13), (10, 13), (7, 14), (8, 14), (9, 14), (10, 14), (11, 14), (8, 15), (9, 15),
-                 (10, 15), (9, 16)):
-        c.px(x, y, BONE[4])
-    c.outline(INK)
-    return c.a
-
-
-def make_fight_card() -> np.ndarray:
-    """Two swords crossed, points up, steel blades with a bright edge, gold guards and leather
-    grips: the next fight."""
-    c = Canvas(CARD, CARD)
-    for mirror in (False, True):
-        def X(x: int) -> int:
-            return CARD - 1 - x if mirror else x
-        c.line(X(2), 1, X(15), 14, BLADE[4])
-        c.line(X(1), 2, X(14), 15, BLADE[2])
-        c.line(X(2), 2, X(14), 14, BLADE[3])
-        c.line(X(13), 17, X(17), 13, GOLD[3])
-        c.line(X(14), 17, X(17), 14, GOLD[1])
-        c.line(X(16), 16, X(19), 19, LEATHER[3])
-        c.line(X(16), 17, X(18), 19, LEATHER[1])
-        c.px(X(20), 20, GOLD[3])
-        c.px(X(21), 21, GOLD[2])
-        c.px(X(20), 21, GOLD[1])
-        c.px(X(21), 20, GOLD[2])
-    c.outline(INK)
-    return c.a
-
-
-def make_party() -> np.ndarray:
-    """Three small heads side by side, each with their shoulders: auburn hair in blue, black hair
-    in red (in front, a little higher), brown hair in purple (the party screen)."""
-    head = [
-        ".HHHH.",
-        "HHHHHh",
-        "HhSSSh",
-        "SeSSeS",
-        "SSSSSs",
-        ".ssss.",
-        "..ss..",
-        ".CCCc.",
-        "CCCCCc",
-        "CCCCCc",
-        "CCCCcc",
-        "cccccc",
-    ]
-    c = Canvas(CARD, CARD)
-    # The one in front stands higher, its shoulders reaching as low as the others'.
-    figures = (
-        (2, 7, HAIR_AUBURN, CLOTH_BLUE, 0),
-        (16, 7, HAIR_BROWN, CLOTH_PURPLE, 0),
-        (9, 5, HAIR_BLACK, CLOTH_RED, 2),
-    )
-    for x, y, hair, cloth, taller in figures:
-        rows = head[:-1] + ["CCCCCc"] * taller + head[-1:]
-        c.ascii(rows, {"H": hair[3], "h": hair[1], "S": SKIN[3], "s": SKIN[1], "e": INK,
-                       "C": cloth[3], "c": cloth[1]}, x, y)
-    c.outline(INK)
-    return c.a
-
-
-def make_run() -> np.ndarray:
-    """A green hill lit from the upper left, a pale road winding up it (wide at its foot, swinging
-    right, then left) to a red flag on the top: the run, a journey across the map to its last
-    fight."""
-    c = Canvas(CARD, CARD)
-    # The hill: a dome from the bottom row up to its top under the flag.
-    top, bottom, cx, rx = 9, 21, 11.5, 11.4
-    ry = bottom + 1 - top
-    for y in range(top, bottom + 1):
-        for x in range(CARD):
-            u = (x + 0.5 - cx) / rx
-            v = (bottom + 1 - (y + 0.5)) / ry
-            if u * u + v * v > 1.0:
-                continue
-            d = (u + 0.45) ** 2 + (v - 0.75) ** 2
-            c.px(x, y, GRASS[2 if d < 0.35 else 1 if d < 1.1 else 0])
-    # The road's middle at a few heights (y, x), eased in between; it narrows as it climbs.
-    bends = [(21.5, 7.5), (19.0, 13.5), (16.5, 15.5), (14.5, 11.5), (12.5, 9.0), (10.5, 11.5)]
-
-    def middle(y: float) -> float:
-        for (y0, x0), (y1, x1) in zip(bends, bends[1:]):
-            if y1 <= y <= y0:
-                t = (y0 - y) / (y0 - y1)
-                t = t * t * (3.0 - 2.0 * t)
-                return x0 + (x1 - x0) * t
-        return bends[-1][1]
-
-    road_top = top + 1
-    for y in range(road_top, bottom + 1):
-        half = 0.7 + 2.0 * (y - road_top) / float(bottom - road_top)
-        mid = middle(y + 0.5)
-        xs = [x for x in range(CARD) if abs(x + 0.5 - mid) <= half]
-        for x in xs:
-            c.px(x, y, BONE[2])
-        if xs:
-            c.px(xs[0], y, BONE[3])
-            if len(xs) > 2:
-                c.px(xs[-1], y, BONE[1])
-    # The flag on the hilltop: a wooden pole, a gold knob, a swallowtail pennant waving right.
-    pole = 11
-    c.px(pole, 1, GOLD[4])
-    c.rect(pole, 2, pole, top, WOOD[3])
-    for y, x1 in ((2, 18), (3, 19), (4, 18), (5, 17), (6, 18), (7, 19)):
-        cloth = CLOTH_RED[3] if y == 2 else CLOTH_RED[1] if y == 7 else CLOTH_RED[2]
-        c.rect(pole + 1, y, x1, y, cloth)
-    c.px(pole + 1, 2, CLOTH_RED[4])
-    c.outline(INK)
-    return c.a
-
-
-def make_rush() -> np.ndarray:
-    """Four tally marks scratched in bone, and a sword laid across them as the fifth stroke, point
-    up and to the right: Fight Rush, one fight after another, counted."""
-    c = Canvas(CARD, CARD)
-    # The marks, each two pixels wide (lit left, shaded right) and a little uneven in height.
-    for x, top, bottom in ((4, 5, 19), (8, 4, 19), (12, 5, 20), (16, 4, 19)):
-        c.rect(x, top, x, bottom, BONE[3])
-        c.rect(x + 1, top, x + 1, bottom, BONE[1])
-        c.px(x, top, BONE[4])
-    # The sword: a steel blade from the point (upper right) down to a gold guard, a leather grip
-    # and a gold pommel at the lower left.
-    c.line(21, 2, 9, 14, BLADE[4])
-    c.line(22, 2, 10, 14, BLADE[3])
-    c.line(22, 3, 10, 15, BLADE[2])
-    c.line(6, 13, 11, 18, GOLD[3])
-    c.line(6, 14, 10, 18, GOLD[1])
-    c.line(7, 16, 4, 19, LEATHER[3])
-    c.line(8, 16, 5, 19, LEATHER[1])
-    c.px(3, 20, GOLD[3])
-    c.px(2, 21, GOLD[2])
-    c.px(3, 21, GOLD[1])
-    c.px(2, 20, GOLD[4])
-    c.outline(INK)
-    return c.a
-
-
-# --- chip icons ------------------------------------------------------------------------------
-
 def make_coin() -> np.ndarray:
     """A small worn-gold coin lit from the upper left, a darker rim and a stamped mark."""
     c = Canvas(CHIP, CHIP)
@@ -638,8 +450,7 @@ def make_relic() -> np.ndarray:
 CARDS = {
     "choice_rest": make_rest, "choice_train": make_train, "choice_upgrade": make_upgrade,
     "choice_watch": make_watch, "choice_sharpen": make_sharpen, "choice_host": make_host,
-    "choice_join": make_join, "choice_heal": make_heal, "choice_fight": make_fight_card,
-    "choice_party": make_party, "choice_run": make_run, "choice_rush": make_rush,
+    "choice_join": make_join,
 }
 CHIPS = {
     "chip_coin": make_coin, "chip_heart": make_heart, "chip_heart_cracked": make_heart_cracked,

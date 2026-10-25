@@ -55,8 +55,8 @@ const HOST_PEER: int = 1
 ## Bumped when the handshake or the message format changes in a way the fingerprint cannot show.
 ## 3: the welcome says whether it seats us mid-run, combat batches carry their fight's seed, and a
 ## client that got in mid-run sends "seated_ready" (card #304).
-## 4: "lobby", "again" and "run_start" say which game it is (a run or a Fight Rush), and the Rush
-## screens go out (card #312).
+## 4: "lobby", "again" and "run_start" say which game mode it is, and that mode's own screens go
+## out (card #312; that second mode is cut in 8).
 ## 5: a run without zones (DESIGN.md 8.22): "stop_fight" starts a Fight or Guard stop's fight, which
 ## the friend builds from the run state; the zone messages ("zone", "zone_fight", "zone_back") and
 ## the unreliable zone positions are gone.
@@ -68,7 +68,9 @@ const HOST_PEER: int = 1
 ## 7: Relics without slots (cards #326, #327, DESIGN.md 8.24): a friend's pick carries "hero" (who
 ## gets the Relic), the rotten chest's pick is its own "relic" choice, the "give" bag op replaces
 ## "wear", "swap_gear" and "take_off", and the Echo ops are gone.
-const PROTOCOL: int = 7
+## 8: the second game mode is cut (card #331, DESIGN.md 8.21): "lobby", "again" and "run_start"
+## carry no "mode" (nor "run_start" its "records"), and that mode's screens are gone.
+const PROTOCOL: int = 8
 ## Client: the host could not be reached (short: it can end as a main menu notice).
 const REASON_UNREACHABLE := "Host not found"
 ## Channel for every message (flow and combat).

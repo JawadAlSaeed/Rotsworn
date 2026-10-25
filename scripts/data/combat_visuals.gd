@@ -19,8 +19,8 @@ extends Resource
 @export_file_path("*.png") var slash_path: String = "res://assets/sprites/fx/slash.png"
 
 @export_group("Stage")
-## How the fight list's fights look (ground, light, fog, bloom, arena decoration). A run or Rush
-## fight uses its place's look instead.
+## How the fight list's fights look (ground, light, fog, bloom, arena decoration). A run fight uses
+## its place's look instead.
 @export var stage_look: StageLook
 
 @export_group("UI art")

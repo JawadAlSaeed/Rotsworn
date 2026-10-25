@@ -1,6 +1,6 @@
 class_name StartRelicsScreen
 extends RelicsScreen
-## The starting Relics, before a run or a Fight Rush (DESIGN.md 8.24, card #328): each hero takes
+## The starting Relics, before a run (DESIGN.md 8.24, card #328): each hero takes
 ## RunState.start_relic_count() Relics of the player's choice from their Relic book, hero by hero.
 ## The book page's grid holds the book's found Relics (one taken for another hero is dim, with that
 ## hero's face); the right side shows every hero with what they took, the one choosing now lit.

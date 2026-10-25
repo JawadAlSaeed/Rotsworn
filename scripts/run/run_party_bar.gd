@@ -23,12 +23,10 @@ func _init() -> void:
 	add_theme_constant_override("separation", 18)
 
 
-## `show_gold`: false leaves the gold out (a Fight Rush has none, DESIGN.md 8.21).
-func setup(run: RunState, show_gold: bool = true) -> void:
-	if show_gold:
-		var gold_panel := _panel()
-		_gold = HudStyle.make_label("", GOLD_SIZE, HudStyle.GOLD)
-		gold_panel.add_child(_gold)
+func setup(run: RunState) -> void:
+	var gold_panel := _panel()
+	_gold = HudStyle.make_label("", GOLD_SIZE, HudStyle.GOLD)
+	gold_panel.add_child(_gold)
 	for slot: int in run.party_size():
 		var c := run.data.party[slot]
 		var panel := _panel()

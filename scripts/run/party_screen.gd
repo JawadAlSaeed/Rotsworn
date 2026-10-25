@@ -278,8 +278,6 @@ func _build_bar() -> void:
 	gold_line.add_child(UiGlyph.make(&"coin", 32.0, HudStyle.GOLD))
 	_gold = HudStyle.make_number("", GOLD_SIZE, HudStyle.GOLD)
 	gold_line.add_child(_gold)
-	# A Fight Rush has no gold (DESIGN.md 8.21).
-	gold_line.visible = _run.shows_gold()
 
 
 func _build_strip() -> void:

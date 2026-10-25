@@ -4,9 +4,8 @@ extends SceneTree
 ## readouts, status badges) are read from their one source (combat_visuals.tres, HudStyle) so the
 ## book can never disagree with the screen; tests/unit/test_glossary.gd keeps it so.
 ## Rewrites the whole file: after the first run, edit the .tres (or this list) by hand, not both.
-## Since phase 21 the .tres is edited by hand (Relics, the pack, the Fight Rush topic and phase 26's
-## Fight stop and the guard at Elite stops are only there), so this list is older than the book: do
-## not re-run it.
+## Since phase 21 the .tres is edited by hand (Relics, the pack and phase 26's Fight stop and the
+## guard at Elite stops are only there), so this list is older than the book: do not re-run it.
 ## Run: Godot --headless --path . -s tools/bootstrap_glossary.gd
 
 const PATH := "res://data/glossary/glossary.tres"
@@ -195,7 +194,7 @@ func _enemies() -> void:
 			"GUARD", "", HudStyle.GOLD)
 	_e("enemies", "boss", "Boss", "An act's last fight: The Husk Lord, The Leech Queen, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run.")
 	_e("enemies", "phase_two", "Phase two", "At half health a guard or boss rages: a banner, new attacks and faster strings. It picks a new move at once.")
-	_e("enemies", "deep_variant", "Deep variant", "A tougher, recoloured kin met in a run's last act and from fight 21 of a Fight Rush (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere.")
+	_e("enemies", "deep_variant", "Deep variant", "A tougher, recoloured kin met in a run's last act (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere.")
 	_e("enemies", "hard_fight", "Hard fight", "Elites, guards, bosses and deep variants add forced hits (rends, sweeps and feints) and marks that ordinary early fights do not have.")
 	_e("enemies", "depth", "Depth", "Every map row deeper, enemies gain health and power and their strings come faster. The sign still tells the truth about each one.")
 	_e("enemies", "support", "Helpers", "Some monsters help instead of striking: a Rot Priest heals a wounded fellow or shields one. Its sign names the monster it will help. Kill helpers first.",

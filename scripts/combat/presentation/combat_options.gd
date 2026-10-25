@@ -11,17 +11,12 @@ extends RefCounted
 ##   --quit-on-end                   quit one second after the fight ends
 ##   --seed=N                        fixed fight seed (else tuning fixed_seed, else random)
 ##   --encounter=ID                  start this encounter (data/encounters) instead of the list
-##   --weather=ID                    every run fight but the boss's and every Rush fight has this
+##   --weather=ID                    every run fight but the boss's has this
 ##                                   weather (data/weather: rain, storm, fog, wind, dusk) or none
 ##                                   ("clear"), for tests and pictures
 ##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12; a run's
 ##                                   Fight stops open with the First Strike ring instead, 8.22)
 ##   --run                           start a new run at once (DESIGN.md 8)
-##   --rush                          start a Fight Rush at once (DESIGN.md 8.21); with --host=N host
-##                                   one online (card #312)
-##   --rush-start=N                 (dev tool) the Rush starts at fight N, the fights before it
-##                                   replayed as perfect wins (at least 1; implies --rush)
-##   --rush-fights=N                 (dev tool) the Rush ends after N fights (0: no cap; implies --rush)
 ##   --save-path=PATH                (dev tool) keep the run save at PATH (a user:// path); the bot
 ##                                   never touches the player's real save, so it saves only with this
 ##   --journal-path=PATH             (dev tool) keep the Rot Journal at PATH (a user:// path); with it
@@ -34,7 +29,7 @@ extends RefCounted
 ##                                   after launch, at the next quiet moment (DESIGN.md 9.3)
 ##   --pad-leave-after=S             (with --autoplay) the last local player leaves after S seconds
 ##   --roster-in-fight               those two wait for the next fight and come a few seconds into it
-##   --host=N                        host online; start a run (a Fight Rush with --rush) once N
+##   --host=N                        host online; start a run once N
 ##                                   players (1 to 3) are in; 1 starts at once, friends drop in later
 ##                                   (DESIGN.md 9.3)
 ##   --seat-in-fight                 (online host) seat a friend who drops in only a few seconds
@@ -83,17 +78,11 @@ var quit_on_end: bool = false
 var seed_override: int = -1
 ## "" when no --encounter was given.
 var encounter_id: String = ""
-## --weather=ID: every run fight but the boss's and every Rush fight has this
-## weather ("clear": none); "" : the seed picks (card #303, DESIGN.md 8.22).
+## --weather=ID: every run fight but the boss's has this weather ("clear": none); "" : the seed
+## picks (card #303, DESIGN.md 8.22).
 var weather_id: String = ""
 var first_strike: bool = false
 var run: bool = false
-## --rush: start a Fight Rush at once; --rush-start=N: its first fight (above 1 replays the ones
-## before, RushState.head_start); --rush-fights=N: it stops after N fights (0: never). The last two
-## imply --rush and keep the Rush out of the records (DESIGN.md 8.21).
-var rush: bool = false
-var rush_start: int = 1
-var rush_fights: int = 0
 ## --continue: pick up the saved run at once.
 var continue_run: bool = false
 ## --save-path=PATH ("" : the real save, and no saving for the bot).
@@ -203,14 +192,6 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.first_strike = true
 		elif arg == "--run":
 			options.run = true
-		elif arg == "--rush":
-			options.rush = true
-		elif arg.begins_with("--rush-start="):
-			options.rush = true
-			options.rush_start = maxi(1, arg.substr("--rush-start=".length()).to_int())
-		elif arg.begins_with("--rush-fights="):
-			options.rush = true
-			options.rush_fights = maxi(0, arg.substr("--rush-fights=".length()).to_int())
 		elif arg == "--continue":
 			options.continue_run = true
 		elif arg.begins_with("--save-path="):
