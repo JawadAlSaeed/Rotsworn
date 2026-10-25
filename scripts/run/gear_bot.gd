@@ -1,9 +1,9 @@
 class_name GearBot
 extends RefCounted
-## The --run bot's rule for picking spoils (DESIGN.md 8.16). Pure, so tests can run it.
-## It prefers the rarest piece, and takes a rot-touched one when its price is something the bot's
-## careful play can live with (a drawback on Max HP, Power, Tough, healing, rot or Rest would hurt
-## it, so those pieces are passed over).
+## The --run bot's rule for picking Relics and giving them out (DESIGN.md 8.16, 8.24). Pure, so
+## tests can run it. It prefers the rarest piece, and takes a rot-touched one when its price is
+## something the bot's careful play can live with (a drawback on Max HP, Power, Tough, healing, rot
+## or Rest would hurt it, so those pieces are passed over). A Relic goes to the hero it helps most.
 
 ## Drawbacks the bot will not pay.
 const COSTLY_DRAWBACKS: Array[int] = [
@@ -36,3 +36,38 @@ static func pick(items: Array[GearData]) -> int:
 			best = i
 			best_score = points
 	return best
+
+
+## The hero the bot gives Relic `item` to (DESIGN.md 8.24): the one it helps most (an offensive
+## Relic the hardest hitter, a defensive one the toughest hero, a healing one a hero whose skills
+## heal), then the one with the fewest Relics, then the first. Only heroes of `allowed` (empty: any).
+static func best_hero(run: RunState, item: GearData, allowed: Array[int] = []) -> int:
+	var best := -1
+	var best_fit := -1
+	for slot: int in run.party_size():
+		if not allowed.is_empty() and not allowed.has(slot):
+			continue
+		var fit := fit_of(run.data.party[slot], item)
+		var fewer := best >= 0 and run.relics_of(slot).size() < run.relics_of(best).size()
+		if best < 0 or fit > best_fit or (fit == best_fit and fewer):
+			best = slot
+			best_fit = fit
+	return maxi(best, 0)
+
+
+## How well Relic `item` suits hero `hero` (higher: better; 0: no hero suits it more than another).
+static func fit_of(hero: CharacterData, item: GearData) -> int:
+	if hero == null or item == null:
+		return 0
+	if item.effect == GearData.Effect.HEAL:
+		var heals := 0
+		for skill: AbilityData in hero.skills:
+			if skill != null and (skill.heal_percent > 0 or skill.revive_percent > 0):
+				heals += 1
+		return heals
+	match item.category():
+		GearData.Category.OFFENSIVE:
+			return hero.power_percent
+		GearData.Category.DEFENSIVE:
+			return hero.hp_percent
+	return 0

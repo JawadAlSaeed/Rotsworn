@@ -2,14 +2,14 @@ class_name StopScreen
 extends CanvasLayer
 ## What the run's newer stop screens share (events, treasure, the campfire; DESIGN.md 8.7 to
 ## 8.11): the gold and HP strip, and handing out what the party got. An item goes into the backpack
-## where it fits first; a bigger backpack is used at once; an item with no room, or a new Relic
-## nobody wears (DESIGN.md 8.17), opens the backpack over the screen with it in hand. Several gifts
-## go one after the other. Online, only the host hands things out (clients watch).
+## where it fits first; a bigger backpack is used at once; an item with no room opens the backpack
+## over the screen with it in hand. Several gifts go one after the other. Online, only the host hands
+## things out (clients watch). A Relic is never handed out here: the screen that offers it asks who
+## gets it first (RelicGift, DESIGN.md 8.24; `give_heroes`).
 ## Online the choices go in turns (card #314, DESIGN.md 9.2): on another player's turn the screen is
 ## `watching` (greyed, no input); on a friend's own turn their copy `asks` the host for each choice,
 ## and the host's copy hands an item with no room to that friend (hand_off): their backpack opens
-## over their screen with it in hand, and settle_owed() puts it where they chose. A new Relic nobody
-## wears waits in the bag on a friend's turn (any party screen puts it on).
+## over their screen with it in hand, and settle_owed() puts it where they chose.
 
 ## Every gift is settled (the backpack closed again).
 signal gifts_settled
@@ -32,6 +32,8 @@ var watching: bool = false
 var asks: Callable = Callable()
 ## Host, a friend's turn (card #314): hand_off.call(self) sends them the item owed() (no room).
 var hand_off: Callable = Callable()
+## Who may get a Relic offered here (RelicGift.allowed; Main sets it): heroes.call(device) -> slots.
+var give_heroes: Callable = Callable()
 
 var _bar: RunPartyBar
 var _overlay: PartyScreen
@@ -135,12 +137,12 @@ func _refresh_bar() -> void:
 		_bar.refresh(run)
 
 
-## Hands out `things` (ItemData and GearData) in order; `note` says what happened (shown in the
-## backpack when it opens). gifts_settled follows once all are settled.
+## Hands out `things` (ItemData) in order; `note` says what happened (shown in the backpack when it
+## opens). gifts_settled follows once all are settled.
 func give(things: Array, note_label: Label = null) -> void:
 	_note = note_label
 	for thing: Variant in things:
-		if thing is ItemData or thing is GearData:
+		if thing is ItemData:
 			_gifts.append(thing)
 	_next_gift()
 
@@ -150,18 +152,7 @@ func _next_gift() -> void:
 	if _overlay != null:
 		return
 	while not _gifts.is_empty():
-		var thing: Resource = _gifts.pop_front()
-		if thing is GearData:
-			# A Relic joins the run (a copy raises its level, DESIGN.md 8.17); a new or unworn one
-			# then asks who wears it.
-			var found := run.add_relic(thing as GearData)
-			_say(RunState.relic_find_text(found))
-			if not run.is_worn(thing as GearData) and not hand_off.is_valid():
-				_open_backpack(RunState.relic_find_short(found), {"gear": thing})
-				return
-			Sfx.play("buff")
-			continue
-		var item := thing as ItemData
+		var item := _gifts.pop_front() as ItemData
 		if item.kind == ItemData.Kind.UPGRADE or item.kind == ItemData.Kind.TREASURE:
 			run.add_item(item)
 			Sfx.play("level_up" if item.kind == ItemData.Kind.UPGRADE else "gold_gain")

@@ -52,16 +52,15 @@ static func load_or_empty(path: String = PATH) -> RelicCollection:
 	return load_collection(path).collection as RelicCollection
 
 
-## Takes a run into the file: load, merge, save (RelicCollection.merge: the Relics found and each
-## one's Echo pips); Relics found for the first time join the bag while it has room by `tuning`
-## (null: never). False if nothing was written (nothing new, the file belongs to another version,
-## or it could not be saved).
-static func bank(found_ids: Array, run_pips: Dictionary, path: String = PATH, tuning: Tuning = null) -> bool:
+## Takes a run into the file: load, merge, save (RelicCollection.merge: the Relics found); Relics
+## found for the first time join the bag while it has room by `tuning` (null: never). False if
+## nothing was written (nothing new, the file belongs to another version, or it could not be saved).
+static func bank(found_ids: Array, path: String = PATH, tuning: Tuning = null) -> bool:
 	var loaded := load_collection(path)
 	if loaded.status == REJECTED and bool(loaded.keep):
 		return false
 	var collection: RelicCollection = loaded.collection
-	if not collection.merge(found_ids, run_pips, tuning):
+	if not collection.merge(found_ids, tuning):
 		return false
 	return save(collection, path)
 

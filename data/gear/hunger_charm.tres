@@ -15,4 +15,3 @@ rot_touched = true
 drawback = 21
 drawback_amount = 100
 stat_points = 3
-echo_cost = 2

@@ -3,8 +3,8 @@ extends RunState
 ## A Fight Rush in progress (DESIGN.md 8.21): fight after fight, each one a step deeper, with a
 ## reward pick (1 of 3 cards) after every win, until the party falls or gives up. Every 5th fight is
 ## an elite and every 10th the next boss of the cycle (tuning rush_elite_every, rush_boss_every).
-## It shares a run's party, levels, Relics, Echoes and backpack rules, so it is a RunState with no
-## map, no gold and no Echo pips; nothing from it is banked. Pure, like RunState: screens and Main
+## It shares a run's party, levels, Relics and backpack rules, so it is a RunState with no map and no
+## gold; nothing from it is banked. Pure, like RunState: screens and Main
 ## only call these functions and show the result.
 
 ## What kind of fight a fight number is (kind_of).
@@ -24,8 +24,6 @@ const CARD_HEAL := "heal"
 const CARD_POINT := "point"
 const CARD_ITEM := "item"
 const CARD_RELIC := "relic"
-## The end screen's line when a win opens a Relic slot (the run's words).
-const SLOT_OPENS_LINE := "A Relic slot opens: Y to put a Relic on"
 
 ## The data (not in to_dict: every machine has it).
 var rush: RushData
@@ -37,9 +35,6 @@ var start_fight: int = 1
 ## The id of `fight`'s encounter: the base pool entry or the boss's (its deep version is looked up by
 ## encounter_now). "" at fight 0. Fixed by next_fight, so the next roll can skip it.
 var encounter_id: String = ""
-## Elite and boss fights won: the first of either opens the second Relic slot, the first boss the third.
-var elites_beaten: int = 0
-var bosses_beaten: int = 0
 ## Reward picks still to take after the last win.
 var picks_left: int = 0
 ## Picks taken in this Rush (seeds each offer).
@@ -154,81 +149,13 @@ func shows_gold() -> bool:
 	return false
 
 
-func teaches_echoes() -> bool:
-	return false
-
-
-## An Echo not learned in a run cannot be learned here.
-func echo_blocked_reason(slot: int, item: GearData) -> String:
-	if item != null and slot >= 0 and slot < party_size() and not echo_learned(item):
-		return "Runs only"
-	return super(slot, item)
-
-
-## No drops: nothing is banked from a Rush.
-func relic_drops(_encounter: EncounterData) -> Array[GearData]:
-	var none: Array[GearData] = []
-	return none
-
-
-## No Echo pips.
-func mastery_gain(_encounter: EncounterData) -> int:
-	return 0
-
-
-## relic_slots_start, one more after the first elite or boss, one more after the first boss.
-func open_relic_slots() -> int:
-	var open := tuning.relic_slots_start + (1 if elites_beaten + bosses_beaten > 0 else 0) \
-			+ (1 if bosses_beaten > 0 else 0)
-	return clampi(open, 1, tuning.run_gear_slots)
-
-
-## What opens Relic slot `gear_slot` ("" if it is open): "First elite" or "First boss".
-func slot_lock_text(gear_slot: int) -> String:
-	if slot_open(gear_slot):
-		return ""
-	var real_elites := elites_beaten
-	var real_bosses := bosses_beaten
-	var text := ""
-	if elites_beaten + bosses_beaten <= 0:
-		elites_beaten = 1
-		if slot_open(gear_slot):
-			text = "First elite"
-	if text.is_empty() and bosses_beaten <= 0:
-		bosses_beaten = 1
-		if slot_open(gear_slot):
-			text = "First boss"
-	elites_beaten = real_elites
-	bosses_beaten = real_bosses
-	return text if not text.is_empty() else "Shut"
-
-
-## Only the slot line, when this win would open a Relic slot. Changes nothing.
-func win_relic_lines(_encounter: EncounterData) -> Array[String]:
-	var lines: Array[String] = []
-	var before := open_relic_slots()
-	var real_elites := elites_beaten
-	var real_bosses := bosses_beaten
-	match kind_of(fight):
-		Kind.ELITE:
-			elites_beaten += 1
-		Kind.BOSS:
-			bosses_beaten += 1
-	var after := open_relic_slots()
-	elites_beaten = real_elites
-	bosses_beaten = real_bosses
-	if after > before:
-		lines.append(SLOT_OPENS_LINE)
-	return lines
-
-
 ## Any loss ends the Rush; a win never does.
 func decides_run(fight_result: String) -> bool:
 	return not is_over() and fight_result != VICTORY and fight_result != ESCAPED
 
 
-## The run's fight end (XP, levels, the downed back up, a loss ends it), then the Rush's: the elite
-## and boss counts, the boss heal, the XP past the top level toward extra picks, and the first offer.
+## The run's fight end (XP, levels, the downed back up, a loss ends it), then the Rush's: the boss
+## heal, the XP past the top level toward extra picks, and the first offer.
 ## Returns RunState.finish_fight's dictionary plus "picks" after a win.
 func finish_fight(fight_result: String, party_hp: Array[int], encounter: EncounterData,
 		recap: Dictionary = {}) -> Dictionary:
@@ -240,14 +167,9 @@ func finish_fight(fight_result: String, party_hp: Array[int], encounter: Encount
 	var out := super(fight_result, party_hp, encounter, recap)
 	if fight_result != VICTORY:
 		return out
-	match kind_of(fight):
-		Kind.ELITE:
-			elites_beaten += 1
-		Kind.BOSS:
-			bosses_beaten += 1
-			if tuning.rush_boss_heal_percent > 0:
-				for slot: int in party_size():
-					heal(slot, CombatMath.percent_min1(max_hp(slot), tuning.rush_boss_heal_percent), false)
+	if kind_of(fight) == Kind.BOSS and tuning.rush_boss_heal_percent > 0:
+		for slot: int in party_size():
+			heal(slot, CombatMath.percent_min1(max_hp(slot), tuning.rush_boss_heal_percent), false)
 	picks_left = 1
 	spare_xp += spill
 	var per_pick := maxi(1, tuning.rush_spare_pick_xp)
@@ -266,27 +188,20 @@ func to_dict() -> Dictionary:
 	for card: Dictionary in offer:
 		cards.append(card.duplicate())
 	d["rush"] = {
-		"fight": fight, "start": start_fight, "encounter_id": encounter_id, "elites": elites_beaten,
-		"bosses": bosses_beaten, "picks": picks_left, "pick_no": pick_no, "first_pick_no": first_pick_no,
+		"fight": fight, "start": start_fight, "encounter_id": encounter_id,
+		"picks": picks_left, "pick_no": pick_no, "first_pick_no": first_pick_no,
 		"spare_xp": spare_xp, "most_players": most_players, "offer": cards,
 	}
 	return d
 
 
-## The run's state and the "rush" block. The Relic slot counts go in before the run's part, which
-## takes off Relics in shut slots; a refusal puts them back, so nothing changes.
+## The run's state and the "rush" block; a refusal changes nothing.
 func apply_dict(d: Dictionary) -> bool:
 	var block: Variant = d.get("rush")
 	if not block is Dictionary or not _rush_block_fits(block as Dictionary):
 		return false
 	var b := block as Dictionary
-	var old_elites := elites_beaten
-	var old_bosses := bosses_beaten
-	elites_beaten = int(b.elites)
-	bosses_beaten = int(b.bosses)
 	if not super(d):
-		elites_beaten = old_elites
-		bosses_beaten = old_bosses
 		return false
 	fight = int(b.fight)
 	start_fight = int(b.start)
@@ -304,8 +219,7 @@ func apply_dict(d: Dictionary) -> bool:
 
 
 func _rush_block_fits(b: Dictionary) -> bool:
-	for key: String in ["fight", "start", "elites", "bosses", "picks", "pick_no", "first_pick_no", "spare_xp",
-			"most_players"]:
+	for key: String in ["fight", "start", "picks", "pick_no", "first_pick_no", "spare_xp", "most_players"]:
 		if typeof(b.get(key)) != TYPE_INT or int(b[key]) < 0:
 			return false
 	if int(b.start) < 1 or int(b.fight) < int(b.start) - 1 or int(b.first_pick_no) > int(b.pick_no):
@@ -492,8 +406,8 @@ func picking() -> bool:
 
 ## Fills `offer` with the cards of the fight just won (its first pick: normal Heal, Train, Item;
 ## elite Heal, Train, Relic; boss Train, Relic, Relic) or of an extra pick (Heal, Train, Item),
-## seeded by the fight and the pick. A card that cannot be filled is left out; no card at all ends
-## the picks.
+## seeded by the fight and the pick. A Relic card offers one the party does not have (no copies,
+## DESIGN.md 8.24). A card that cannot be filled is left out; no card at all ends the picks.
 func roll_offer() -> void:
 	offer.clear()
 	var set_kind := kind_of(fight) if pick_no == first_pick_no else Kind.NORMAL
@@ -557,17 +471,23 @@ func heal_card_gain(slot: int) -> int:
 	return clampi(hp[slot] + amount, 1, max_hp(slot)) - hp[slot]
 
 
-## Takes card `i`: Heal heals everyone, Train gives everyone its points; an item or Relic comes back in
-## "give" for the caller to hand out (StopScreen.give adds it). One pick is used and the cards go;
-## next_offer rolls the next ones once the gift settled. Returns {kind, give: ItemData, GearData or
-## null, healed: HP per hero, points}, or {} if the card cannot be taken.
-func take_card(i: int) -> Dictionary:
+## Takes card `i`: Heal heals everyone, Train gives everyone its points, a Relic goes to hero `hero`
+## (DESIGN.md 8.24: the card cannot be taken without one); an item comes back in "give" for the caller
+## to hand out (StopScreen.give adds it). One pick is used and the cards go; next_offer rolls the next
+## ones once the gift settled. Returns {kind, give: ItemData or null, relic: the find (relic_find) or
+## {}, hero, healed: HP per hero, points}, or {} if the card cannot be taken.
+func take_card(i: int, hero: int = -1) -> Dictionary:
 	if not picking() or is_over() or not card_enabled(i):
 		return {}
 	var card: Dictionary = offer[i]
 	var healed: Array[int] = []
 	var points := 0
 	var give: Resource = null
+	var relic := {}
+	if String(card.kind) == CARD_RELIC:
+		relic = give_relic(relic_by_id(String(card.id)), hero)
+		if relic.is_empty():
+			return {}
 	match String(card.kind):
 		CARD_HEAL:
 			for slot: int in party_size():
@@ -578,12 +498,11 @@ func take_card(i: int) -> Dictionary:
 				bonus_points[slot] += points
 		CARD_ITEM:
 			give = _rush_item(String(card.id))
-		CARD_RELIC:
-			give = relic_by_id(String(card.id))
 	picks_left -= 1
 	pick_no += 1
 	offer.clear()
-	return {"kind": String(card.kind), "give": give, "healed": healed, "points": points}
+	return {"kind": String(card.kind), "give": give, "relic": relic, "hero": hero if not relic.is_empty() else -1,
+			"healed": healed, "points": points}
 
 
 ## The item or Relic card `i` offers (null: a Heal or Train card, or no such card). Changes nothing.
@@ -677,8 +596,8 @@ func unspent_points() -> int:
 
 
 ## Dev only (--rush-start=N): plays fights 1 to n - 1 as perfect wins with the bot's picks (a Relic
-## card first, else Train), through the same code real play uses, so the party has the XP, points and
-## Relics a played Rush would have (no Heal or item picks). Everyone ends at full HP, fight n - 1.
+## card first, given to the hero GearBot picks, else Train), through the same code real play uses, so
+## the party has the XP, points and Relics a played Rush would have (no Heal or item picks). Everyone ends at full HP, fight n - 1.
 func head_start(n: int) -> void:
 	start_fight = maxi(1, n)
 	for _k: int in range(1, start_fight):
@@ -691,14 +610,14 @@ func head_start(n: int) -> void:
 			full.append(max_hp(slot))
 		finish_fight(VICTORY, full, e, {})
 		while picking():
-			var got := take_card(_bot_card())
+			var pick := _bot_card()
+			var thing := card_thing(pick)
+			var to := GearBot.best_hero(self, thing as GearData) if thing is GearData else -1
+			var got := take_card(pick, to)
 			if got.is_empty():
 				picks_left = 0
 				break
-			if got.give is GearData:
-				add_relic(got.give as GearData)
-				auto_wear()
-			elif got.give is ItemData:
+			if got.give is ItemData:
 				add_item(got.give as ItemData)
 			next_offer()
 	for slot: int in hp.size():

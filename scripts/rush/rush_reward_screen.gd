@@ -5,10 +5,10 @@ extends StopScreen
 ## bosses offer Relics), as many times as the party has picks. Then it is the ready phase, titled with
 ## the next fight's number (FIGHT 8): Fight goes on, Party opens the party screen. Chips under the
 ## title show the fight just won, the best record and any extra picks; the party's HP and levels sit
-## under them (no gold). An item or Relic is handed out the StopScreen way: a full pack or a Relic
-## nobody wears opens the party screen over this one. Online, clients watch (`remote`): they can open
-## the party screen but take nothing. The screen never touches files or Net. The bot calls take() and
-## fight_now().
+## under them (no gold). An item is handed out the StopScreen way (a full pack opens the party screen
+## over this one); a Relic card first asks who gets it ("Who gets it?", RelicGift, DESIGN.md 8.24;
+## skipped when only one hero may). Online, clients watch (`remote`): they can open the party screen
+## but take nothing. The screen never touches files or Net. The bot calls take() and fight_now().
 
 ## A card was taken (Main logs it; online, only the host's screen takes cards).
 signal acted(text: String)
@@ -48,8 +48,12 @@ var _best: int = 0
 var _drawn_picking: bool = true
 var _drawn_pick_no: int = -1
 var _fight_sent: bool = false
-## A taken item or Relic is being handed out (gifts_settled rolls the next pick).
+## A taken item is being handed out (gifts_settled rolls the next pick).
 var _waiting_gift: bool = false
+## The Relic card waiting for its hero (the "Who gets it?" step; -1: none), and the pad that took it
+## (local co-op: that player's heroes get it).
+var _giving: int = -1
+var _device: int = PlayerRoster.ANY
 
 
 ## Builds the screen for `p_run` in its current phase. `best`: the party size's best fight before
@@ -86,6 +90,17 @@ func rush() -> RushState:
 func refresh() -> void:
 	var r := rush()
 	var picking := r.picking()
+	if not picking:
+		_giving = -1
+	if _giving >= 0:
+		_title.text = RelicGift.ASK
+		_fill_chips(true)
+		_refresh_bar()
+		var heroes := RelicGift.hero_cards(r, relic_heroes(), is_greyed())
+		_menu.set_items(heroes)
+		_set_footer(REMOTE_FOOTER if is_greyed() else [[&"@leftright", "Choose"], [&"menu_confirm", "Give"],
+				[&"menu_cancel", "Back"]])
+		return
 	var cards := pick_cards() if picking else ready_cards()
 	if picking != _drawn_picking or r.pick_no != _drawn_pick_no:
 		_drawn_picking = picking
@@ -134,31 +149,53 @@ func is_picking() -> bool:
 	return rush().picking()
 
 
-## Takes card `i` in the pick phase (an enabled card only): its heal or points at once, or its item or
-## Relic handed out; once that has settled, the next pick's cards or the ready phase. False if nothing
-## was taken.
-func take(i: int) -> bool:
+## True while a Relic card waits for its hero ("Who gets it?").
+func is_giving() -> bool:
+	return _giving >= 0
+
+
+## The heroes who may get a Relic card's Relic here (RelicGift.allowed).
+func relic_heroes() -> Array[int]:
+	return RelicGift.allowed(give_heroes, run, _device)
+
+
+## True if card `i` is a Relic card.
+func is_relic_card(i: int) -> bool:
+	return rush().card_thing(i) is GearData
+
+
+## Takes card `i` in the pick phase (an enabled card only): its heal or points at once, its Relic to
+## hero `hero` (one of relic_heroes(); a Relic card needs one), or its item handed out; once that has
+## settled, the next pick's cards or the ready phase. False if nothing was taken.
+func take(i: int, hero: int = -1) -> bool:
 	var r := rush()
 	if (remote and not asks.is_valid()) or _waiting_gift or is_settling() or not r.picking() or r.is_over():
 		return false
 	# On a friend's turn the host's cards are greyed: the Rush's state says what can be taken.
-	if not r.card_enabled(i) or (not is_greyed() and not _menu.is_enabled(i)):
+	if not r.card_enabled(i) or (not is_greyed() and _giving < 0 and not _menu.is_enabled(i)):
 		Sfx.play("locked")
 		return false
-	if _ask({"do": "take", "index": i}):
+	if is_relic_card(i) and not relic_heroes().has(hero):
+		Sfx.play("locked")
+		return false
+	if _ask({"do": "take", "index": i, "hero": hero}):
 		return true
-	var got := r.take_card(i)
+	var got := r.take_card(i, hero)
 	if got.is_empty():
 		Sfx.play("locked")
 		return false
+	_giving = -1
+	_device = PlayerRoster.ANY
 	match String(got.kind):
 		RushState.CARD_HEAL:
 			Sfx.play("heal")
 		RushState.CARD_POINT:
 			Sfx.play("level_up")
+		RushState.CARD_RELIC:
+			Sfx.play("buff")
 	acted.emit(_taken_text(got))
 	var thing: Resource = got.give
-	if thing == null:
+	if not thing is ItemData:
 		_after_pick()
 		return true
 	_waiting_gift = true
@@ -288,19 +325,17 @@ func _item_card(item: ItemData, enabled: bool) -> Dictionary:
 			"icon": AssetLoader.texture(item.icon_path, ITEM_ICON_SIZE), "chips": chips}
 
 
-## A Relic's card, as on the spoils screen: its own icon with the level it would reach, its name in
-## its rarity's colour, "Lv 1" (or "Lv 1 > 2" for a copy), a rarity chip and what it does.
+## A Relic's card, as on the spoils screen: its own icon, its name in its rarity's colour, New (or
+## Home), a rarity chip and what it does.
 func _relic_card(gear: GearData, enabled: bool) -> Dictionary:
 	var r := rush()
-	var level := r.relic_level(gear)
-	var top := r.tuning.relic_max_level
 	var step := BackpackGrid.gear_step(gear)
 	var color := GearData.ROT_TOUCHED_COLOR if gear.rot_touched else BackpackGrid.rarity_color(step)
-	var make := func() -> Control: return RelicIcon.make(gear, LootScreen.ICON_PX, true, level + 1, top)
+	var make := func() -> Control: return RelicIcon.make(gear, LootScreen.ICON_PX)
 	var chips: Array[Dictionary] = [StopScreen.chip_entry(_look, "relic", rarity_word(step), color)]
-	chips.append_array(LootScreen.relic_chips(gear, level + 1))
+	chips.append_array(LootScreen.relic_chips(gear))
 	return {"text": gear.display_name, "enabled": enabled, "color": color, "icon_make": make, "chips": chips,
-			"value": "Lv 1" if level <= 0 else "Lv %d > %d" % [level, level + 1]}
+			"value": "Home" if r.is_home(gear) else "New"}
 
 
 ## A card this build cannot show (bad data): greyed, so the cards keep their offer order.
@@ -356,8 +391,11 @@ func _after_pick() -> void:
 	pick_done.emit()
 
 
-## Online (card #314): the turn changed: the cards redraw, lit or greyed.
+## Online (card #314): the turn changed: the cards redraw, lit or greyed (a Relic waiting for its
+## hero goes back to the cards).
 func _turn_changed() -> void:
+	_giving = -1
+	_device = PlayerRoster.ANY
 	refresh()
 
 
@@ -373,9 +411,14 @@ func _taken_text(got: Dictionary) -> String:
 			return "Heal: " + ", ".join(parts)
 		RushState.CARD_POINT:
 			return "Train: %s each" % points_text(int(got.get("points", 0)))
+	var found: Dictionary = got.get("relic", {})
+	if found.get("item") is GearData:
+		var hero := int(got.get("hero", -1))
+		var who := r.data.party[hero].display_name if hero >= 0 and hero < r.party_size() else "?"
+		return "Relic: %s to %s" % [(found.item as GearData).display_name, who]
 	var thing: Resource = got.get("give")
 	var name := String(thing.get("display_name")) if thing != null else "?"
-	return ("Relic: %s" if thing is GearData else "Item: %s") % name
+	return "Item: %s" % name
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -397,16 +440,47 @@ func _unhandled_input(event: InputEvent) -> void:
 			Sfx.play("menu_confirm")
 			party_now()
 		return
-	if _menu.handle(event) != &"confirm" or is_settling():
+	var answer := _menu.handle(event)
+	if _giving >= 0:
+		_give_input(answer)
+		return
+	if answer != &"confirm" or is_settling():
 		return
 	# A greyed card (Heal with everyone at full HP) answers confirm too: refuse it here.
 	if not _menu.is_enabled(_menu.index):
 		Sfx.play("locked")
 		return
 	Sfx.play("menu_confirm")
-	if rush().picking():
+	if rush().picking() and is_relic_card(_menu.index):
+		# Who gets it: straight to the one hero who may, else the hero cards.
+		_device = PlayerRoster.device_of(event)
+		var heroes := relic_heroes()
+		if heroes.size() == 1:
+			if not take(_menu.index, heroes[0]):
+				_device = PlayerRoster.ANY
+			return
+		_giving = _menu.index
+		refresh()
+		_menu.index = RelicGift.first_lit(_menu.items)
+	elif rush().picking():
 		take(_menu.index)
 	elif _menu.index == READY_FIGHT:
 		fight_now()
 	elif _menu.index == READY_PARTY:
 		party_now()
+
+
+## The "Who gets it?" step: a hero card gives the waiting Relic card's Relic; cancel goes back to the
+## cards.
+func _give_input(answer: StringName) -> void:
+	if answer == &"cancel":
+		Sfx.play("menu_cancel")
+		var back := _giving
+		_giving = -1
+		_device = PlayerRoster.ANY
+		refresh()
+		_menu.index = back
+	elif answer == &"confirm" and not is_settling():
+		var slot := int(_menu.items[_menu.index].get("slot", -1)) if _menu.index < _menu.items.size() else -1
+		if not take(_giving, slot):
+			Sfx.play("locked")

@@ -43,11 +43,12 @@ extends Resource
 ## lowest one counts.
 @export_range(1, 100, 1, "suffix:%") var start_hp_percent: int = 100
 
-@export_group("Relics and Echoes")
-## Added to the Relic slots a hero has open (negative: fewer; never under one, DESIGN.md 8.17).
-@export var relic_slots_add: int = 0
-## Added to every hero's Echo points, in percent (-50: half, rounded down; never below 0).
-@export var echo_points_percent_add: int = 0
+@export_group("Heroes and Relics")
+## Added to the Relics the run starts with, per hero (negative: fewer; never under none, DESIGN.md
+## 8.15, 8.24).
+@export var start_relics_add: int = 0
+## Added to tuning attr_points_per_level (negative: fewer attribute points per level; never under 0).
+@export var attr_points_per_level_add: int = 0
 
 
 ## The modifier `field` summed over oaths 1..`oath` of `ladder` (oath 0: nothing). An oath past the

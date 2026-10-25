@@ -19,7 +19,9 @@ extends RefCounted
 ## Drowned Mire, so a format 3 run would carry on in the wrong place; it is kept but not offered.
 ## 5: the guards joined the Elite stops (map rules 4, DESIGN.md 8.22): a format 4 run's map still has
 ## its row of Guard stops, so it is kept but not offered either.
-const FORMAT_VERSION: int = 5
+## 6: Relics without slots and no Echoes (cards #326, #327, DESIGN.md 8.24): a format 5 run's slots,
+## Relic levels and Echo progress have no place now, so it is kept but not offered.
+const FORMAT_VERSION: int = 6
 const PATH := "user://run_save.json"
 ## The online run's slot (card #313), on the host.
 const ONLINE_PATH := "user://online_run_save.json"

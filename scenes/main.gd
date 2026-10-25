@@ -212,16 +212,15 @@ var _seat_wait: bool = false
 var _seat_sent_key: String = ""
 var _screens_seen: int = 0
 ## Online friend: their own Relic collection when the host's run started (card #281). The run plays
-## with the host's bag and Echoes; what it finds and the pips it fills are banked on top of this.
+## with the host's bag; what it finds is banked on top of this.
 var _own_start: RelicCollection = null
 ## The run seed _own_start was taken for: a seat taken back mid-run (the host sends run_start again)
-## keeps it, so the run's pips are never banked twice.
+## keeps it, so the run's finds are measured from the same start.
 var _own_start_seed: int = -1
-## Online friend who joined mid-run (card #304): the run's Relics (id -> level) and Echo pips
-## (RunState.mastery) when they joined; only what comes after is theirs to keep. Empty: there from
-## the start. `_join_pending`: the baseline is taken from the first run state that arrives.
+## Online friend who joined mid-run (card #304): the run's Relics (id -> 1) when they joined; only
+## what comes after is theirs to keep. Empty: there from the start. `_join_pending`: the baseline is
+## taken from the first run state that arrives.
 var _join_relics: Dictionary = {}
-var _join_mastery: Dictionary = {}
 var _join_pending: bool = false
 ## Host: the last place screen sent (map, shop ...) and the fight going on (stop_fight, final_fight
 ## or rush_fight message; empty between fights), so a player who joins again is shown where we are.
@@ -468,10 +467,8 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_skills()
 		"skills_tree":
 			_show_real_tree(2)
-		"echoes":
-			_show_sample_echoes()
 		"party_relics":
-			_show_sample_echoes(false)
+			_show_sample_party_relics()
 		"relics":
 			_show_relics(_sample_collection())
 		"tutorial":
@@ -676,22 +673,20 @@ func _show_sample_stop(kind: String) -> void:
 			_show_treasure()
 
 
-## --screen=party: a new run with some gear worn and a few items packed, the party screen open
+## --screen=party: a new run with some Relics given and a few items packed, the party screen open
 ## with a Holy Water in hand (for pictures of the pack).
 func _show_sample_backpack() -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
-	# An Elite stop is won, so a second Relic slot is open (DESIGN.md 8.17).
-	_run.elite_stops_won = 1
 	var items := _run.items_by_id()
-	_run.wear(0, 0, _run_data.gear[0])
-	_run.wear(0, 1, _run_data.gear[1])
+	_run.give_relic(_run_data.gear[0], 0)
+	_run.give_relic(_run_data.gear[1], 0)
 	_run.place_item(items["salve"], 0, 0, 0, 1)
 	_run.place_item(items["rotting_heart"], 1)
 	_run.place_item(items["feast"], 2)
 	_run.place_item(items["bomb"], 3)
 	for id: String in ["antidote", "smelling_salts", "silver_ring", "rot_gem"]:
 		_run.add_item(items[id])
-	_run.wear(1, 0, _run_data.gear[3])
+	_run.give_relic(_run_data.gear[3], 1)
 	# Alder has levelled and has points to spend (the cards show "+N points", DESIGN.md 8.2).
 	_run.add_xp(0, 200)
 	_show_party("No room", true, {"item": items["holy_water"]})
@@ -705,45 +700,35 @@ func _show_sample_attributes(open: bool = true) -> void:
 	_run.add_xp(0, 400)
 	_run.add_xp(1, 200)
 	_run.set_attributes(1, [1, 2, 1, 0, 1])
-	_run.wear(1, 0, _run_data.gear[3])
+	_run.give_relic(_run_data.gear[3], 1)
 	_show_party("", true)
 	if open:
 		(_screen as PartyScreen).open_attributes()
 
 
-## A pretend collection for pictures (--screen=relics): a few Relics with their Echo pips at several
-## stages (some learned), some of them in the bag.
+## A pretend collection for pictures (--screen=relics): a few Relics found, some of them in the bag.
 func _sample_collection() -> RelicCollection:
 	var c := RelicCollection.new()
 	for i: int in mini(14, _run_data.gear.size()):
 		c.found[_run_data.gear[i].id] = true
-		c.pips[_run_data.gear[i].id] = (i * 5) % (_tuning.mastery_needed + 1)
 	for i: int in [0, 3, 5]:
 		c.toggle_bag(_run_data.gear[i].id, c.bag_size(_tuning))
 	return c
 
 
-## --screen=echoes: a run past act 1 (every Relic slot open) where the worn Relics taught their
-## Echoes and Alder has levelled, the Echoes screen open over the party screen (for pictures).
-## --screen=party_relics: the same run with the Relics page open over the party screen instead.
-func _show_sample_echoes(echoes: bool = true) -> void:
+## --screen=party_relics: a run past act 1 where each hero has two Relics, a few more wait to be
+## given, Alder has levelled, and the party screen is open on its Relics tab (for pictures).
+func _show_sample_party_relics() -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
-	_run.elite_stops_won = 1
 	_run.act = 1
-	for i: int in range(9, mini(16, _run_data.gear.size())):
+	for i: int in range(9, mini(12, _run_data.gear.size())):
 		_run.add_relic(_run_data.gear[i])
 	for slot: int in _run.party_size():
 		for g: int in 2:
-			var item := _run_data.gear[slot * 3 + g]
-			_run.wear(slot, g, item)
-			_run.mastery[item.id] = _tuning.mastery_needed if g == 0 else 2
+			_run.give_relic(_run_data.gear[slot * 3 + g], slot)
 	_run.add_xp(0, 400)
-	_run.set_echo(0, _run_data.gear[3], true)
 	_show_party("", true)
-	if echoes:
-		(_screen as PartyScreen).open_echoes()
-	else:
-		(_screen as PartyScreen).open_relics(0)
+	(_screen as PartyScreen).open_relics(0)
 
 
 ## --screen=skills: the skills screen on a run where each hero has a sample tree made of their
@@ -1123,7 +1108,6 @@ func _forget_own_start() -> void:
 	_own_start = null
 	_own_start_seed = -1
 	_join_relics = {}
-	_join_mastery = {}
 	_join_pending = false
 	_rush_late = false
 	_rush_host_clean = false
@@ -1203,7 +1187,7 @@ func _show_relics(sample: RelicCollection = null) -> void:
 		RelicFile.save(collection, _relics_path())
 	var screen := RelicsScreen.new()
 	screen.name = "Relics"
-	screen.setup(collection, _run_data.gear, _run_data.party, _tuning, JournalScreen.load_enemies())
+	screen.setup(collection, _run_data.gear, _run_data.party, _tuning)
 	screen.bag_changed.connect(func(changed: RelicCollection) -> void:
 		if sample == null and _relics_io_ok() and not RelicFile.save(changed, _relics_path()):
 			push_warning("Main: could not write the Relics to %s" % _relics_path()))
@@ -1672,12 +1656,12 @@ func _own_relics_ok() -> bool:
 
 
 ## The collection a new run starts from: the player's, or a bot's pretend one (--relics=all gives
-## every Relic found with its Echo learned; a bot otherwise starts with none, like a first run).
+## every Relic found; a bot otherwise starts with none, like a first run).
 ## A bot fills its bag with the best Relics it has (GearBot), since nobody picks for it.
 func _run_collection() -> RelicCollection:
 	var collection := RelicCollection.new()
 	if _options.relics_mode == "all":
-		collection = RelicCollection.all_of(_run_data.gear, _tuning.mastery_needed)
+		collection = RelicCollection.all_of(_run_data.gear)
 	elif _relics_io_ok() and _options.relics_mode != "none":
 		collection = RelicFile.load_or_empty(_relics_path())
 	if _options.is_autoplay():
@@ -1686,12 +1670,11 @@ func _run_collection() -> RelicCollection:
 
 
 ## Takes the run into the collection: when the run saves on the map, when a stop settles something,
-## and when the run ends (won, lost or abandoned). The Relics found and each one's Echo pips; the
-## collection keeps the higher pips of each, so banking twice, or after Continue replays a stop,
-## never adds any (DESIGN.md 8.19).
-## An online friend banks too, into their own file (card #281): the Relics the run found and this
-## run's pips on top of their own collection at the start. A friend who joined mid-run banks only
-## what came after they joined (card #304), and nothing before that baseline is known.
+## and when the run ends (won, lost or abandoned). The Relics found: banking twice, or after
+## Continue replays a stop, never adds any (DESIGN.md 8.19).
+## An online friend banks too, into their own file (card #281): the Relics the run found on top of
+## their own collection. A friend who joined mid-run banks only what came after they joined (card
+## #304), and nothing before that baseline is known.
 ## A Fight Rush banks nothing (DESIGN.md 8.21).
 func _bank_relics() -> void:
 	if _run == null or _run is RushState:
@@ -1700,12 +1683,12 @@ func _bank_relics() -> void:
 		if _own_start == null or _join_pending or not _client_relics_ok():
 			return
 		var found := _run.relic_ids_since(_join_relics)
-		if RelicFile.bank(found, _run.pips_totals_since(_own_start.pips, _join_mastery), _relics_path(), _tuning):
+		if RelicFile.bank(found, _relics_path(), _tuning):
 			print("Relics banked (own): %d" % found.size())
 		return
 	if not _relics_io_ok():
 		return
-	if RelicFile.bank(_run.relics.keys(), _run.pips_totals(), _relics_path(), _tuning):
+	if RelicFile.bank(_run.relics.keys(), _relics_path(), _tuning):
 		print("Relics banked: %d" % _run.relics.size())
 
 
@@ -1875,12 +1858,6 @@ func _continue_run() -> void:
 	_checkpoint = saved.run as Dictionary
 	_checkpoint_in_stop = bool(saved.in_stop)
 	_reset_play_device()
-	if not _checkpoint.has("pips_start") and _relics_io_ok():
-		# A run saved before phase 21 (#280): its Echo pips at the start come from home.
-		var home := RelicFile.load_or_empty(_relics_path())
-		for item: GearData in _run.data.gear:
-			if item != null and home.pips_of(item.id) > 0:
-				_run.pips_at_start[item.id] = mini(home.pips_of(item.id), _tuning.mastery_needed)
 	print("Run continued: seed %d  act %d  stop %d%s" % [_run.run_seed, _run.act + 1, _run.visited,
 			" (in progress)" if _checkpoint_in_stop else ""])
 	Sfx.play("run_begin")
@@ -2480,8 +2457,8 @@ func _show_treasure(opened: bool = false, text: String = "") -> void:
 	_autoplay_choice(screen)
 
 
-## Spoils after a guard, an elite or an act's boss (DESIGN.md 8, 8.6): pick one, then the party
-## screen to put it on.
+## Spoils after an elite or an act's boss (DESIGN.md 8, 8.6, 8.24): pick one Relic and the hero who
+## gets it, then the party screen with it.
 func _show_loot(gear: Array[GearData] = [], text: String = "") -> void:
 	_begin_choice("loot")
 	var loot := LootScreen.new()
@@ -2497,19 +2474,16 @@ func _show_loot(gear: Array[GearData] = [], text: String = "") -> void:
 	_autoplay_choice(loot)
 
 
-## A spoil was picked: it joins the run's Relics (a copy raises its level), then the party screen,
-## holding it if nobody wears it yet.
-func _on_loot_chosen(item: GearData) -> void:
-	if item == null:
+## A spoil was picked: it goes to hero `hero` (DESIGN.md 8.24), then the party screen opens on that
+## hero's Relics. Nothing picked (or nothing it could take): on to the map.
+func _on_loot_chosen(item: GearData, hero: int) -> void:
+	var found := _run.give_relic(item, hero) if item != null else {}
+	if found.is_empty():
 		_fade_to(_show_map)
 		return
-	var found := _run.add_relic(item)
+	print("Run relic: %s to %s" % [item.id, _run.data.party[hero].id])
 	# The party screen shows it as a toast next to the Relic's icon (card #270): no sentence.
-	var line := RunState.relic_find_short(found)
-	if _run.is_worn(item):
-		_show_party.call_deferred(line, false, {"icon": item})
-	else:
-		_show_party.call_deferred(line, false, {"gear": item})
+	_show_party.call_deferred(RunState.relic_find_short(found), false, {"icon": item})
 
 
 ## The party screen: gear, stats and the backpack. From the map it closes back to the map at once;
@@ -2574,7 +2548,7 @@ func _show_run_end() -> void:
 	# RunEndScreen.own_kept: no words line).
 	end.setup(_run, _visuals.end_input_guard_ms, unlocked_now, recap_lines, "", _hero_players(),
 			_last_recap if _run.result != RunState.VICTORY else {}, _own_start if Net.is_client() else null,
-			{"relics": _join_relics, "mastery": _join_mastery} if Net.is_client() else {})
+			{"relics": _join_relics} if Net.is_client() else {})
 	end.done.connect(_fade_to.bind(_show_main_menu))
 	end.again.connect(_fade_to.bind(_play_again))
 	_show_screen(end)
@@ -2585,9 +2559,9 @@ func _show_run_end() -> void:
 			print("AUTOPLAY_RECAP ", line)
 		# Who plays at the end (cards #304, #311): the same on every machine of an online game.
 		print("AUTOPLAY_PLAYERS n=%d owners=%s" % [_players.player_count(), _players.owners_text()])
-		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d gear=%d items=%d gold=%d seed=%d oath=%d relics=%d echoes=%d" % [
-				_run.result, _run.act + 1, _run.visited, _run.fights_won, _run.top_level(), _worn_count(), _run.backpack.entries.size(),
-				_run.gold_earned, _run.run_seed, _run.oath, _run.relics.size(), _run.learned_echoes().size()])
+		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d items=%d gold=%d seed=%d oath=%d relics=%d relics_held=%d" % [
+				_run.result, _run.act + 1, _run.visited, _run.fights_won, _run.top_level(), _run.backpack.entries.size(),
+				_run.gold_earned, _run.run_seed, _run.oath, _run.relics.size(), _held_count(_run)])
 		_autoplay_quit()
 
 
@@ -2827,9 +2801,9 @@ func _show_rush_end() -> void:
 			print("AUTOPLAY_RECAP ", line)
 	print("AUTOPLAY_PLAYERS n=%d owners=%s" % [_players.player_count(), _players.owners_text()])
 	var word := "over" if rush.result == RunState.DEFEAT else rush.result
-	print("AUTOPLAY_RESULT rush_%s fight=%d wins=%d record=%d new=%d players=%d level=%d relics=%d echoes=%d items=%d seed=%d start=%d" % [
+	print("AUTOPLAY_RESULT rush_%s fight=%d wins=%d record=%d new=%d players=%d level=%d relics=%d relics_held=%d items=%d seed=%d start=%d" % [
 			word, rush.reached(), rush.fights_won - (rush.start_fight - 1), int(best.get("fight", 0)), int(_rush_new_record),
-			rush.most_players, rush.top_level(), rush.relics.size(), rush.learned_echoes().size(),
+			rush.most_players, rush.top_level(), rush.relics.size(), _held_count(rush),
 			rush.backpack.entries.size(), rush.run_seed, rush.start_fight])
 	_autoplay_quit()
 
@@ -4261,7 +4235,6 @@ func _client_message(kind: String, p: Dictionary) -> void:
 				# Late (above): the baseline is the first run state. Not Net.joined_mid_run: it would
 				# still be up in the run after Again.
 				_join_relics = {}
-				_join_mastery = {}
 				_join_pending = late
 			if _run is RushState and not same_game:
 				# The records as they were before this Rush (a seat taken back keeps them: the record
@@ -4481,12 +4454,8 @@ func _apply_run(p: Dictionary) -> void:
 	if _join_pending:
 		# The first run state after a late run_start: what the run had found when we joined (#304).
 		_join_relics = _run.relics.duplicate()
-		_join_mastery = _run.mastery.duplicate()
 		_join_pending = false
-		var pips := 0
-		for id: Variant in _join_mastery:
-			pips += int(_join_mastery[id])
-		print("Joined late: %d Relics, %d Echo pips already found" % [_join_relics.size(), pips])
+		print("Joined late: %d Relics already found" % _join_relics.size())
 
 
 ## Host: tells the clients which screen to show now, with the run's state.
@@ -4601,15 +4570,18 @@ func _ask_host(choice: Dictionary) -> void:
 ## A choice in a few words for the log ("stop id=5", "buy index=2").
 static func _choice_word(choice: Dictionary) -> String:
 	var parts := PackedStringArray([String(choice.get("do", "?"))])
-	for field: String in ["id", "index", "uid", "pick", "rotten"]:
+	for field: String in ["id", "index", "uid", "pick", "rotten", "hero"]:
 		if choice.has(field):
 			parts.append("%s=%s" % [field, str(choice[field])])
 	return " ".join(parts)
 
 
 ## Before a choice screen is set up (host and friends): greyed on another player's turn, asking the
-## host on a friend's own turn; on the host, a find with no room on a friend's turn goes to them.
+## host on a friend's own turn; on the host, a find with no room on a friend's turn goes to them. A
+## screen that gives Relics learns who may get them (_give_heroes, also offline).
 func _wire_turn(screen: Node) -> void:
+	if screen != null and "give_heroes" in screen:
+		screen.set("give_heroes", _give_heroes)
 	if not Net.is_online() or screen == null:
 		return
 	var watching := not _my_turn()
@@ -4634,6 +4606,25 @@ func _wire_turn(screen: Node) -> void:
 		(screen as LootScreen).set_turn(watching, asker)
 	elif screen is MapScreen:
 		(screen as MapScreen).asks = asker
+
+
+## The heroes who may get a Relic picked on this machine with `device` (DESIGN.md 8.24; the screens'
+## give_heroes): online with Take turns on, the heroes of the player whose turn it is (the host checks
+## a friend's pick against these); local co-op, the heroes of the player whose pad picked. Empty (every
+## hero, RelicGift.allowed) solo, with Take turns off, or when the pad is not known.
+func _give_heroes(device: int) -> Array[int]:
+	var none: Array[int] = []
+	if _run == null or _players == null:
+		return none
+	if Net.is_online():
+		if _turn.is_empty() or (Net.is_host() and not _turns.enabled):
+			return none
+		return _players.heroes_of(int(_turn.get("player", 0)))
+	if _players.player_count() > 1 and device != PlayerRoster.ANY:
+		var player := _players.player_of_device(device)
+		if player >= 0:
+			return _players.heroes_of(player)
+	return none
 
 
 ## The turn changed with the screen still up (a drop passed it on, the Rush's next pick): the screen
@@ -4780,6 +4771,9 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 	var what := String(choice.get("do", ""))
 	var index := int(choice.get("index", -1))
 	var uid := int(choice.get("uid", -1))
+	# The hero who gets a picked Relic (DESIGN.md 8.24); the screen checks it is one of the turn's
+	# player's heroes.
+	var hero := int(choice.get("hero", -1))
 	if screen is MapScreen:
 		var id := int(choice.get("id", -1))
 		if what != "stop" or not (screen as MapScreen).choices().has(id):
@@ -4789,7 +4783,7 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 	if screen is RushRewardScreen:
 		var rush := screen as RushRewardScreen
 		if what == "take":
-			return "take %d" % index if rush.take(index) else ""
+			return "take %d" % index if rush.take(index, hero) else ""
 		if what == "fight" and not rush.is_settling() and not rush.is_picking():
 			rush.fight_now()
 			return what
@@ -4800,7 +4794,7 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 			return ""
 		match what:
 			"buy":
-				return "buy %d" % index if shop.can_buy(index) and shop.buy(index) else ""
+				return "buy %d" % index if shop.can_buy(index) and shop.buy(index, hero) else ""
 			"restock":
 				return what if shop.restock() else ""
 			"cleanse", "upgrade":
@@ -4813,8 +4807,7 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 		var loot := screen as LootScreen
 		if what != "take" or loot.is_taken() or index < 0 or index >= maxi(1, loot.choices().size()):
 			return ""
-		loot.take(index)
-		return "take %d" % index
+		return "take %d" % index if loot.take(index, hero) else ""
 	if not screen is StopScreen or (screen as StopScreen).is_settling():
 		return ""
 	if what == "leave":
@@ -4829,12 +4822,14 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 	if screen is EventScreen:
 		var event := screen as EventScreen
 		if what == "choose":
-			return "choose %d" % index if event.choose(index, int(choice.get("pick", -1))) else ""
+			return "choose %d" % index if event.choose(index, int(choice.get("pick", -1)), hero) else ""
 		if what == "walk_on":
 			return what if event.walk_on() else ""
 		return ""
 	if screen is TreasureScreen:
 		var chest := screen as TreasureScreen
+		if what == "relic":
+			return "relic %d" % index if chest.take_relic(index, hero) else ""
 		if what != "open" or chest.is_open():
 			return ""
 		var rotten := bool(choice.get("rotten", false))
@@ -4844,12 +4839,14 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 
 
 ## True when stop screen `screen` shows its way on (Back to the map, Continue, or Fight): a campfire
-## once used, a chest once opened, an event once decided or on its ambush page. Pure.
+## once used, a chest once opened (and its Relic pick taken), an event once decided or on its ambush
+## page. Pure.
 static func _can_leave(screen: Node) -> bool:
 	if screen is RestScreen:
 		return (screen as RestScreen).has_acted()
 	if screen is TreasureScreen:
-		return (screen as TreasureScreen).is_open()
+		var chest := screen as TreasureScreen
+		return chest.is_open() and not chest.relic_waiting()
 	if screen is EventScreen:
 		var event := screen as EventScreen
 		return event.is_decided() or event.is_ambush_page() or event.event() == null
@@ -5390,7 +5387,7 @@ func _autoplay_rest(rest: RestScreen) -> void:
 		_autoplay_act(rest, rest.leave)
 
 
-## Autoplay in a shop: buys what it can afford; bought gear goes on whoever has room.
+## Autoplay in a shop: buys what it can afford; a bought Relic goes to the hero it helps most.
 func _autoplay_shop(shop: ShopScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not _autoplay_turn_ok(shop):
@@ -5398,8 +5395,13 @@ func _autoplay_shop(shop: ShopScreen) -> void:
 	for i: int in shop.count():
 		if not _autoplay_turn_ok(shop):
 			return
-		if not shop.can_buy(i) or not shop.buy(i):
+		var hero := -1
+		if shop.is_relic(i):
+			hero = RelicGift.bot_hero(_run, shop.relic_at(i), shop.relic_heroes())
+		if not shop.can_buy(i) or not shop.buy(i, hero):
 			continue
+		if shop.is_relic(i):
+			print("Run relic: %s to %s (shop)" % [shop.relic_at(i).id, _run.data.party[hero].id])
 		if Net.is_client():
 			# A friend's bot (card #314): the host's answer redraws the shop, whose bot goes on; a find
 			# handed to us settles first.
@@ -5459,24 +5461,51 @@ func _autoplay_event(screen: EventScreen) -> void:
 			# a player would; the host leaves only a decided event, and its result screen (with that
 			# screen's bot) comes next.
 			if int(decision.index) >= 0:
-				await _autoplay_act(screen, screen.choose.bind(int(decision.index), int(decision.pick)))
+				await _autoplay_act(screen, screen.choose.bind(int(decision.index), int(decision.pick),
+						_autoplay_event_hero(screen, int(decision.index))))
 			if _autoplay_turn_ok(screen) and _run != null and not _run.stop_done:
 				_autoplay_act(screen, screen.walk_on)
 			return
 		if int(decision.index) >= 0:
-			screen.choose(int(decision.index), int(decision.pick))
+			screen.choose(int(decision.index), int(decision.pick), _autoplay_event_hero(screen, int(decision.index)))
 	await _autoplay_stop_gifts(screen)
 	if is_instance_valid(screen):
 		_autoplay_act(screen, screen.leave)
 
 
-## Autoplay at a treasure stop: opens the chest, settles the prize, goes on.
+## The bot's hero for event choice `index`'s Relic (its rarity is rolled when taken): the hero with
+## the fewest Relics it may give to; -1 when the choice gives none.
+func _autoplay_event_hero(screen: EventScreen, index: int) -> int:
+	if not screen.gives_relic(index):
+		return -1
+	var best := -1
+	for slot: int in screen.relic_heroes():
+		if best < 0 or _run.relics_of(slot).size() < _run.relics_of(best).size():
+			best = slot
+	return best
+
+
+## Autoplay at a treasure stop: opens the chest, picks the rotten chest's Relic (GearBot) for the
+## hero it helps most, settles the prize, goes on.
 func _autoplay_treasure(screen: TreasureScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not _autoplay_turn_ok(screen):
 		return
 	# The rotten chest only while healthy (a curse or a fight may come with it).
-	screen.open_chest(not _autoplay_hurt())
+	if not screen.is_open():
+		screen.open_chest(not _autoplay_hurt())
+	if screen.relic_waiting():
+		await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
+		if not _autoplay_turn_ok(screen):
+			return
+		var offered := screen.relic_choices()
+		var index := GearBot.pick(offered)
+		var item := offered[index]
+		var hero := RelicGift.bot_hero(_run, item, RelicGift.allowed(_give_heroes, _run))
+		print("Run relic: %s to %s (chest)" % [item.id, _run.data.party[hero].id])
+		await _autoplay_act(screen, screen.take_relic.bind(index, hero))
+		if Net.is_client():
+			return
 	await _autoplay_stop_gifts(screen)
 	if is_instance_valid(screen):
 		_autoplay_act(screen, screen.leave)
@@ -5494,15 +5523,18 @@ func _autoplay_stop_gifts(screen: Variant) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 
 
-## Autoplay after a guard: takes the rarest piece, a rot-touched one when its price is bearable
-## (GearBot, DESIGN.md 8.16).
+## Autoplay on the spoils: takes the rarest Relic, a rot-touched one when its price is bearable
+## (GearBot, DESIGN.md 8.16), for the hero it helps most (8.24).
 func _autoplay_loot(loot: LootScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if _autoplay_turn_ok(loot):
 		var index := GearBot.pick(loot.choices())
+		var hero := -1
 		if index < loot.choices().size():
-			print("Run loot: took %s" % loot.choices()[index].id)
-		_autoplay_act(loot, loot.take.bind(index))
+			var item := loot.choices()[index]
+			hero = RelicGift.bot_hero(_run, item, RelicGift.allowed(_give_heroes, _run))
+			print("Run loot: took %s for %s" % [item.id, _run.data.party[hero].id])
+		_autoplay_act(loot, loot.take.bind(index, hero))
 
 
 ## Autoplay on the Fight Rush screen (DESIGN.md 8.21): each reward pick takes Heal while the party is
@@ -5522,7 +5554,10 @@ func _autoplay_rush_reward(screen: RushRewardScreen) -> void:
 			_autoplay_fail("rush_no_card")
 			return
 		print("Rush card: %s fight=%d" % [_rush_card_word(rush, pick, " "), rush.fight])
-		if not screen.take(pick):
+		var hero := -1
+		if screen.is_relic_card(pick):
+			hero = RelicGift.bot_hero(rush, rush.card_thing(pick) as GearData, screen.relic_heroes())
+		if not screen.take(pick, hero):
 			_autoplay_fail("rush_card_refused")
 			return
 		await _autoplay_stop_gifts(screen)
@@ -5555,17 +5590,13 @@ static func _rush_card_word(rush: RushState, i: int, between: String) -> String:
 	return "%s%s%s" % [String(card.get("kind", "?")), between, str(what)]
 
 
-## Autoplay: every hero spends their new attribute points evenly (DESIGN.md 8.2), learns the
-## skills it can (8.4), and wears the Echoes it can (8.17).
+## Autoplay: every Relic still waiting goes to a hero (RunState.auto_give, DESIGN.md 8.24), and every
+## hero spends their new attribute points evenly (8.2) and learns the skills it can (8.4).
 func _autoplay_spend_points() -> void:
 	if not _options.is_autoplay() or Net.is_client() or _run == null:
 		return
-	_run.auto_wear()
+	_run.auto_give()
 	for slot: int in _run.party_size():
-		var echoes_before := (_run.echoes[slot] as Array).size()
-		_run.auto_echoes(slot)
-		if (_run.echoes[slot] as Array).size() != echoes_before:
-			print("Run echoes: %s %s" % [_run.data.party[slot].id, str(_run.echoes[slot])])
 		if _run.has_tree(slot) and _run.free_skill_points(slot) > 0:
 			_run.auto_skills(slot)
 			print("Run skills: %s %s" % [_run.data.party[slot].id, str(_run.loadout[slot])])
@@ -5575,7 +5606,7 @@ func _autoplay_spend_points() -> void:
 					str(_run.attributes[slot])])
 
 
-## Autoplay on the party screen: new gear in hand goes on whoever has the most free slots.
+## Autoplay on the party screen: a find in hand is placed, and Relics still waiting are given.
 func _autoplay_party(party: PartyScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not is_instance_valid(party) or _run == null:
@@ -5586,14 +5617,14 @@ func _autoplay_party(party: PartyScreen) -> void:
 
 
 func _autoplay_settle(party: PartyScreen) -> void:
-	var worn := _worn_count()
+	var held := _held_count(_run)
 	var items := _run.backpack.entries.size()
 	party.auto_settle()
-	# Nothing goes on by itself any more (card #265): the bot fills its open Relic slots. A friend's
-	# copy of the run never changes by itself (the host's does that).
+	# Relics waiting (the bag's at the start) go nowhere by themselves (card #265): the bot gives them.
+	# A friend's copy of the run never changes by itself (the host's does that).
 	if not Net.is_client():
-		_run.auto_wear()
-	print("Run settle: worn %d -> %d, items %d -> %d, gold %d" % [worn, _worn_count(), items,
+		_run.auto_give()
+	print("Run settle: held %d -> %d, items %d -> %d, gold %d" % [held, _held_count(_run), items,
 			_run.backpack.entries.size(), _run.gold])
 
 
@@ -5645,9 +5676,9 @@ func _quit_game() -> void:
 	get_tree().quit(0)
 
 
-## Gear the party wears (autoplay result line).
-func _worn_count() -> int:
-	var worn := 0
-	for slots: Array in _run.gear:
-		worn += slots.size() - slots.count(null)
-	return worn
+## The Relics given to heroes (autoplay result line, DESIGN.md 8.24).
+static func _held_count(run: RunState) -> int:
+	var held := 0
+	for given: Array in run.gear:
+		held += given.size()
+	return held
