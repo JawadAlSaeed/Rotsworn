@@ -8,7 +8,6 @@ extends GutTest
 
 const MAIN_PATH := "res://scenes/main.gd"
 const RUN_PATH := "res://data/runs/rotten_road.tres"
-const RUSH_PATH := "res://data/rush/fight_rush.tres"
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const EVENTS_DIR := "res://data/events"
 const HOST: int = 1
@@ -16,7 +15,6 @@ const PEER_A: int = 1001
 const PEER_B: int = 1002
 
 var _data: RunData
-var _rush: RushData
 var _tuning: Tuning
 var _main: GDScript
 var _settings_before: ConfigFile
@@ -24,7 +22,6 @@ var _settings_before: ConfigFile
 
 func before_all() -> void:
 	_data = load(RUN_PATH) as RunData
-	_rush = load(RUSH_PATH) as RushData
 	_main = load(MAIN_PATH) as GDScript
 
 
@@ -193,7 +190,7 @@ func test_a_turn_already_used_is_not_passed_on() -> void:
 	assert_eq(stale.player, 0, "passed in the fight, it skips P3: what _pass_turn must not do")
 	# Main passes a turn only while its screen is still the place everyone is on.
 	var run := _run()
-	var map_key: String = _main.call("_choice_key_of", "map", run, "")
+	var map_key: String = _main.call("_choice_key_of", "map", run)
 	var on := func(place: Dictionary, fight: Dictionary, key: String) -> bool:
 		return bool(_main.call("_turn_on_screen", place, fight, run, key))
 	assert_true(on.call({"name": "map"}, {}, map_key), "the map is up: a drop passes the turn")
@@ -202,14 +199,9 @@ func test_a_turn_already_used_is_not_passed_on() -> void:
 	assert_true(on.call({"name": "event", "pact": true}, {}, "pact"), "the pact goes as an event screen")
 	run.go(run.choices()[0])
 	assert_false(on.call({"name": "map"}, {}, map_key), "the step was taken (its fade): the map's key moved on")
-	var stop_key: String = _main.call("_choice_key_of", "loot", run, "")
+	var stop_key: String = _main.call("_choice_key_of", "loot", run)
 	assert_true(on.call({"name": "loot"}, {}, stop_key), "the spoils are up")
 	assert_false(on.call({"name": "party"}, {}, stop_key), "the spoil was taken: its party screen")
-	var rush := RushState.begin_rush(_rush, _tuning, 7, null, 1)
-	var ready: String = _main.call("_choice_key_of", "rush_reward", rush, "rush:0:pick:2")
-	assert_true(_main.call("_turn_on_screen", {"name": "rush_reward"}, {}, rush, ready), "Fight not pressed yet")
-	assert_false(_main.call("_turn_on_screen", {"name": "rush_reward"}, {"name": "rush_fight"}, rush, ready),
-			"Fight pressed: the next pick counts on from the one who pressed it")
 	assert_string_contains(_body("func _pass_turn("), "_turn_on_screen(_net_place, _net_fight, _run, _turns.key)")
 
 
@@ -261,33 +253,14 @@ func test_only_the_owner_for_the_screen_up_now_may_choose() -> void:
 
 func test_each_choice_screen_has_its_own_key() -> void:
 	var run := _run()
-	assert_eq(_main.call("_choice_key_of", "map", run, ""), "map:0:0")
-	assert_eq(_main.call("_choice_key_of", "pact", run, ""), "pact")
-	assert_eq(_main.call("_choice_key_of", "party", run, ""), "", "the party screen has no turn")
+	assert_eq(_main.call("_choice_key_of", "map", run), "map:0:0")
+	assert_eq(_main.call("_choice_key_of", "pact", run), "pact")
+	assert_eq(_main.call("_choice_key_of", "party", run), "", "the party screen has no turn")
 	run.go(run.choices()[0])
-	assert_eq(_main.call("_choice_key_of", "event", run, ""), "stop:0:1")
-	assert_eq(_main.call("_choice_key_of", "shop", run, ""), "stop:0:1", "one stop, one screen")
-	assert_eq(_main.call("_choice_key_of", "loot", run, ""), "loot:0:1", "spoils after its fight: a new turn")
-	assert_eq(_main.call("_choice_key_of", "map", run, ""), "map:0:1")
-
-
-func test_each_rush_pick_is_a_turn_and_fight_stays_with_the_last() -> void:
-	var r := RushState.begin_rush(_rush, _tuning, 7, null, 1)
-	assert_false(r.picking())
-	assert_eq(_main.call("_choice_key_of", "rush_reward", r, ""), "rush:0:ready", "the first screen")
-	r.next_fight()
-	var hp: Array[int] = []
-	for slot: int in r.party_size():
-		hp.append(r.max_hp(slot))
-	r.finish_fight(RunState.VICTORY, hp, r.encounter_now(), {})
-	assert_true(r.picking())
-	var pick: String = _main.call("_choice_key_of", "rush_reward", r, "rush:0:ready")
-	assert_eq(pick, "rush:%d:pick:%d" % [r.fight, r.pick_no])
-	while r.picking():
-		r.next_offer()
-		if r.picking():
-			r.picks_left = 0
-	assert_eq(_main.call("_choice_key_of", "rush_reward", r, pick), pick, "Fight is the last picker's")
+	assert_eq(_main.call("_choice_key_of", "event", run), "stop:0:1")
+	assert_eq(_main.call("_choice_key_of", "shop", run), "stop:0:1", "one stop, one screen")
+	assert_eq(_main.call("_choice_key_of", "loot", run), "loot:0:1", "spoils after its fight: a new turn")
+	assert_eq(_main.call("_choice_key_of", "map", run), "map:0:1")
 
 
 # --- the host checks a friend's request ---------------------------------------------------------
@@ -400,13 +373,11 @@ func test_the_spoils_are_greyed_on_another_players_turn() -> void:
 	assert_false(bool(loot.menu().items[0].enabled), "and greyed again")
 
 
-func test_a_friends_own_party_screen_stays_over_the_next_rush_pick() -> void:
-	assert_true(_main.call("_waits_under_party", "rush_reward", {"name": "rush_reward"}, true),
-			"the next pick waits under their party screen")
-	assert_true(_main.call("_waits_under_party", "map", {"name": "map"}, true), "the map drawn again too")
-	assert_false(_main.call("_waits_under_party", "rush_reward", {"name": "party"}, true),
+func test_a_friends_own_party_screen_stays_over_the_map_drawn_again() -> void:
+	assert_true(_main.call("_waits_under_party", "map", {"name": "map"}, true), "the map drawn again")
+	assert_false(_main.call("_waits_under_party", "map", {"name": "party"}, true),
 			"a party screen the host sent follows the host")
-	assert_false(_main.call("_waits_under_party", "rush_reward", {"name": "rush_reward"}, false), "no party screen up")
+	assert_false(_main.call("_waits_under_party", "map", {"name": "map"}, false), "no party screen up")
 	assert_false(_main.call("_waits_under_party", "shop", {"name": "map"}, true), "the party went on to a stop")
 	var client := _body("func _client_screen(")
 	assert_lt(client.find("_waits_under_party("), client.find("_fade_to("), "checked before the screen is replaced")
@@ -456,32 +427,6 @@ func test_the_host_takes_the_rotten_chests_relic_for_a_friend() -> void:
 	for item: GearData in offered:
 		if item != offered[1]:
 			assert_false(run.owns(item), "the others are gone")
-
-
-func test_a_rush_card_is_taken_for_a_friend_on_a_greyed_screen() -> void:
-	var r := RushState.begin_rush(_rush, _tuning, 7, null, 1)
-	r.next_fight()
-	var hp: Array[int] = []
-	for slot: int in r.party_size():
-		@warning_ignore("integer_division")
-		hp.append(r.max_hp(slot) / 2)
-	r.finish_fight(RunState.VICTORY, hp, r.encounter_now(), {})
-	var screen := RushRewardScreen.new()
-	screen.watching = true
-	add_child_autofree(screen)
-	screen.setup(r)
-	var heal := -1
-	for i: int in r.offer.size():
-		if String(r.offer[i].get("kind", "")) == RushState.CARD_HEAL:
-			heal = i
-	if heal < 0:
-		pass_test("no Heal card on offer with this seed")
-		return
-	assert_false(bool(screen.menu().items[heal].enabled), "greyed: another player's turn")
-	var done := [0]
-	screen.pick_done.connect(func() -> void: done[0] += 1)
-	assert_eq(_main.call("_make_choice", screen, {"do": "take", "index": heal}), "take %d" % heal)
-	assert_eq(done[0], 1, "the next pick is the next player's")
 
 
 # --- a friend's own screen asks the host --------------------------------------------------------
@@ -719,7 +664,7 @@ func test_take_turns_is_on_unless_turned_off() -> void:
 
 func test_every_choice_screen_takes_its_turn_before_it_is_built() -> void:
 	for header: String in ["func _show_map(", "func _show_rest(", "func _show_shop(", "func _show_event(",
-			"func _show_treasure(", "func _show_loot(", "func _show_rush_reward("]:
+			"func _show_treasure(", "func _show_loot("]:
 		var body := _body(header)
 		assert_true(body.contains("_begin_choice("), header)
 		assert_true(body.find("_wire_turn(") < body.find(".setup("), "%s: wired before setup" % header)

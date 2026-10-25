@@ -136,8 +136,7 @@ func _online_two() -> PlayerRoster:
 ## What a friend's machine makes of the catch-up messages (run_start, then each screen's state).
 func _friend_after(messages: Array[Dictionary]) -> RunState:
 	var start := bytes_to_var(var_to_bytes(messages[0].payload as Dictionary)) as Dictionary
-	var game: RunState = _main.call("_client_game", _main.call("_message_mode", start), _data, null, _tuning,
-			int(start.seed), int(start.oath))
+	var game: RunState = _main.call("_client_game", _data, _tuning, int(start.seed), int(start.oath))
 	if game == null:
 		return null
 	for message: Dictionary in messages.slice(1):
@@ -749,9 +748,6 @@ func test_the_fight_weather_stream_is_its_own() -> void:
 			salts.append(int(consts[key]))
 	for salt: int in [RunState.FIGHT_SALT, RunState.FIGHT_WEATHER_SALT, RunState.ELITE_GUARD_SALT]:
 		assert_eq(salts.count(salt), 1, "%d is used once" % salt)
-		for rush_salt: int in [RushState.RUSH_FIGHT_SALT, RushState.RUSH_LOOK_SALT, RushState.RUSH_OFFER_SALT,
-				RushState.RUSH_WEATHER_SALT]:
-			assert_ne(salt, rush_salt)
 
 
 # --- Guard stops (map rules 3) -----------------------------------------------------------------------
@@ -830,7 +826,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 
 
 func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 7, "the Relics without slots (DESIGN.md 8.24)")
+	assert_eq(NetSession.PROTOCOL, 8, "the messages without a mode (card #331)")
 	assert_has(_main.get_script_constant_map().get("NET_FIGHT_SCREENS") as Array, "stop_fight")
 	for s: int in [3, 7, 21]:
 		var host := _run(s)
@@ -855,9 +851,10 @@ func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
 
 ## An Elite stop's fight (the host's "final_fight" message): the friend builds the same pick, guard
 ## or group, the same fight and weather from the run state alone. The Elite stops changed no message
-## or field (Net.PROTOCOL 6 was taking turns', card #314; 7 the Relics without slots, DESIGN.md 8.24).
+## or field (Net.PROTOCOL 6 was taking turns', card #314; 7 the Relics without slots, DESIGN.md 8.24;
+## 8 the messages without a mode, card #331).
 func test_a_friend_builds_the_hosts_elite_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 7)
+	assert_eq(NetSession.PROTOCOL, 8)
 	for guard: bool in [true, false]:
 		var found := _elite_stop_holding(guard)
 		assert_gt(found[0], 0)
@@ -907,7 +904,6 @@ func test_main_builds_stop_fights_from_the_run_state() -> void:
 	var over := _body("func _on_run_fight_over(")
 	assert_string_contains(over, "_takes_fight_drop(result, type, ambushed, _drop != null)")
 	assert_string_contains(over, "_after_run_fight(result, type, ambushed, ambush_spoils, _run.is_over(), found != null)")
-	assert_string_contains(_body("func _begin_rush_fight("), "_weather_or_forced(rush.weather_now())")
 	# The map bot takes Elite stops by its fitness check alone; there are no Guard stops to weigh.
 	var bot := _body("func _autoplay_map(")
 	assert_string_contains(bot, "RunMap.StopType.ELITE if _autoplay_elite_ready() else -1")
@@ -973,15 +969,14 @@ func test_what_follows_a_run_fight() -> void:
 ## The Journal says where a fight was met: a run fight's place, else its own name.
 func test_the_journal_names_a_run_fights_place() -> void:
 	assert_eq(_main.call("_journal_place", "Rot Rats", "Sunken Bog"), "Sunken Bog", "a run's Fight, Guard, elite or ambush")
-	assert_eq(_main.call("_journal_place", "Rot Rats", ""), "Rot Rats", "a boss, a Rush or a practice fight")
+	assert_eq(_main.call("_journal_place", "Rot Rats", ""), "Rot Rats", "a boss or a practice fight")
 	var record := _body("func _record_journal(")
-	assert_string_contains(record, "_fight_place if _run != null and not (_run is RushState) else \"\"",
-			"a Rush fight never names a run place")
+	assert_string_contains(record, "_fight_place if _run != null else \"\"", "a practice fight never names a run place")
 
 
-## --weather=ID forces every run and Rush fight's weather (dev tool, DESIGN.md 8.22): none given keeps
-## the rolled one, "clear" clears it, a known id gives that weather, and a typo is an error (clear).
-func test_weather_forces_run_and_rush_fights() -> void:
+## --weather=ID forces every run fight's weather (dev tool, DESIGN.md 8.22): none given keeps the
+## rolled one, "clear" clears it, a known id gives that weather, and a typo is an error (clear).
+func test_weather_forces_run_fights() -> void:
 	var main: Node = _main.new()
 	autofree(main)
 	var options := CombatOptions.new()
@@ -1008,7 +1003,7 @@ func test_weather_forces_run_and_rush_fights() -> void:
 ## from the map as every other run fight does (with its sound), then shows the place's name card.
 func test_a_fight_hides_the_watch_line_and_stop_fights_swirl_in() -> void:
 	assert_string_contains(_body("func _start_combat("), "_watch_layer.visible = false")
-	for header: String in ["func _start_stop_fight(", "func _start_final_fight(", "func _begin_rush_fight("]:
+	for header: String in ["func _start_stop_fight(", "func _start_final_fight("]:
 		assert_string_contains(_body(header), "_start_combat()", header + " builds through _start_combat")
 	# Card #320: a Fight stop's card carries its First Strike ring (none on a Guard stop's).
 	assert_string_contains(_body("func _enter_stop("),

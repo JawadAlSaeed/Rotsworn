@@ -250,7 +250,7 @@ func test_the_slot_takes_the_new_seats_at_once() -> void:
 	var newcomer := _body("func _seat_newcomer(")
 	assert_lt(newcomer.find("_resave_players()"), newcomer.find("_catch_up("), "a seat taken over too")
 	var resave := _body("func _resave_players(")
-	assert_string_contains(resave, "_save_allowed()", "never a Fight Rush, a decided run or a bot without a slot")
+	assert_string_contains(resave, "_save_allowed()", "never a decided run or a bot without a slot")
 	assert_string_contains(resave, "_write_checkpoint()")
 
 
@@ -420,7 +420,7 @@ func test_a_friend_keeps_their_token_whenever_a_run_starts() -> void:
 	assert_gt(keep, at, "the run start keeps our token")
 	assert_lt(keep, start.find("\"roster\":", at), "in the run start's own case")
 	var keeper := _body("func _keep_seat(")
-	assert_string_contains(keeper, "_run is RushState", "a Fight Rush is never saved, its token not kept")
+	assert_string_contains(keeper, "if _run == null or not Net.is_client():", "only a friend in a run keeps it")
 	assert_string_contains(keeper, "SeatFile.save(Net.seat_address(), Net.seat_token(), Net.seat_file)")
 
 
@@ -553,7 +553,7 @@ func test_the_notices_are_a_picture_and_a_few_words() -> void:
 		assert_false(text.contains("."), "no sentence: %s" % text)
 	var menu := MainMenu.new()
 	add_child_autofree(menu)
-	menu.setup(load(BRANDING_PATH) as BrandingData, MainMenu.NEW_RUN, "Host saved the run", false, false, 0, true, &"save")
+	menu.setup(load(BRANDING_PATH) as BrandingData, MainMenu.NEW_RUN, "Host saved the run", false, false, &"save")
 	var notice := menu.find_child("Notice", true, false)
 	assert_not_null(notice, "the notice line")
 	var glyphs := notice.find_children("*", "Control", true, false).filter(

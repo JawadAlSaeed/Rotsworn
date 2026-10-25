@@ -498,10 +498,10 @@ func test_a_question_keeps_its_answers_side_by_side() -> void:
 
 # --- the main menu's Online page --------------------------------------------------------------
 
-func _main_menu(start: StringName = MainMenu.ONLINE, rush_best: int = 0, rush_ok: bool = true) -> MainMenu:
+func _main_menu(start: StringName = MainMenu.ONLINE) -> MainMenu:
 	var menu := MainMenu.new()
 	add_child_autofree(menu)
-	menu.setup(BrandingData.new(), start, "", false, false, rush_best, rush_ok)
+	menu.setup(BrandingData.new(), start)
 	menu.chosen.connect(func(item: StringName) -> void: _picked.append(item))
 	return menu
 
@@ -531,110 +531,26 @@ func test_online_is_host_and_join_side_by_side() -> void:
 	assert_eq(String(list.items[list.index].text), "Online", "cancel goes back to the Online row")
 
 
-## Online > Host (card #312): what to host, Run or Fight Rush, as two cards like New Run's. Cancel goes
-## back to Host, then to the Online row; coming back from hosting rests on Online.
-func test_host_asks_run_or_fight_rush() -> void:
-	var menu := _main_menu(MainMenu.ONLINE, 16)
-	var list := _list_in(menu)
+## Online > Host starts hosting a run at once (the second mode's cards before it were cut, card #331);
+## coming back from hosting rests on Online.
+func test_host_hosts_a_run_straight_away() -> void:
+	var menu := _main_menu()
 	_press_on(menu, &"menu_confirm")
 	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked.size(), 0, "Host opens its cards, it does not host yet")
-	assert_true(menu.is_showing_cards())
-	assert_eq(_texts(list), ["Run", "Fight Rush"], "no Back card: Back is the cancel button")
-	for row: Dictionary in list.items:
-		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
-	assert_eq(String(list.card_chips(1)[0].text), "Best 16", "the same Fight Rush card as New Run's")
-	_press_on(menu, &"menu_cancel")
-	assert_eq(_texts(list), ["Host", "Join"], "cancel goes back to Host and Join")
-	assert_eq(list.index, 0, "on Host")
-	_press_on(menu, &"menu_confirm")
-	_press_on(menu, &"menu_right")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.HOST_RUSH] as Array[StringName])
-	_press_on(menu, &"menu_left")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.HOST_RUSH, MainMenu.HOST_RUN] as Array[StringName])
-	_press_on(menu, &"menu_cancel")
-	_press_on(menu, &"menu_cancel")
-	assert_false(menu.is_showing_cards())
-	assert_eq(String(list.items[list.index].text), "Online")
-	var greyed := _main_menu(MainMenu.ONLINE, 0, false)
-	var greyed_list := _list_in(greyed)
-	_press_on(greyed, &"menu_confirm")
-	_press_on(greyed, &"menu_confirm")
-	assert_false(greyed_list.is_enabled(1), "no Rush data: nothing to host as a Fight Rush")
-	for start: StringName in MainMenu.HOST_MODE_ITEMS:
-		var back := _main_menu(start)
-		assert_false(back.is_showing_cards())
-		assert_eq(String(_list_in(back).items[_list_in(back).index].text), "Online", "back from hosting: on Online")
+	assert_eq(_picked, [MainMenu.HOST_ONLINE] as Array[StringName], "Host emits HOST_ONLINE, no cards first")
+	var back := _main_menu(MainMenu.HOST_ONLINE)
+	assert_false(back.is_showing_cards())
+	assert_eq(String(_list_in(back).items[_list_in(back).index].text), "Online", "back from hosting: on Online")
 
 
-## New Run (DESIGN.md 8.21): Run and Fight Rush side by side, each with its picture; the Rush card
-## carries the best record as a gold Best chip.
-func test_new_run_is_run_and_fight_rush_side_by_side() -> void:
-	var menu := _main_menu(MainMenu.NEW_RUN, 16)
-	var list := _list_in(menu)
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked.size(), 0, "New Run opens its cards")
-	assert_true(menu.is_showing_cards())
-	assert_eq(_texts(list), ["Run", "Fight Rush"], "no Back card: Back is the cancel button")
-	for row: Dictionary in list.items:
-		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
-	assert_eq(list.card_chips(0).size(), 0, "the Run card has no chips")
-	var chips := list.card_chips(1)
-	assert_eq(chips.size(), 1, "the Rush card has the Best chip")
-	assert_eq(String(chips[0].text), "Best 16")
-	assert_eq(StringName(chips[0].glyph), &"star")
-	assert_eq(chips[0].color, HudStyle.GOLD)
-	assert_eq(list.index, 0, "the cursor starts on Run")
-	_press_on(menu, &"menu_right")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.PLAY_RUSH] as Array[StringName])
-	_press_on(menu, &"menu_cancel")
-	assert_false(menu.is_showing_cards())
-	assert_eq(String(list.items[list.index].text), "New Run", "cancel goes back to the New Run row")
-
-
-func test_new_run_cards_without_a_record_or_rush_data() -> void:
+## New Run starts the run's path at once, as before phase 25 (card #331): no cards open.
+func test_new_run_starts_straight_away() -> void:
 	var menu := _main_menu(MainMenu.NEW_RUN)
 	var list := _list_in(menu)
+	assert_eq(String(list.items[list.index].text), "New Run")
 	_press_on(menu, &"menu_confirm")
-	assert_eq(list.card_chips(1).size(), 0, "no record yet: no Best chip")
-	assert_true(list.is_enabled(1))
-	menu = _main_menu(MainMenu.NEW_RUN, 16, false)
-	list = _list_in(menu)
-	_press_on(menu, &"menu_confirm")
-	assert_false(list.is_enabled(1), "no Rush data: the Fight Rush card is greyed")
-	assert_true(list.is_enabled(0), "Run still works")
-	_press_on(menu, &"menu_right")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked.size(), 0, "a greyed card emits nothing")
-	assert_true(menu.is_showing_cards(), "and the cards stay")
-	_press_on(menu, &"menu_left")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.PLAY_RUN] as Array[StringName])
-
-
-## The rush_cards dev screen opens New Run's cards straight away, the Fight Rush card chosen.
-func test_open_cards_shows_new_runs_cards_on_the_rush_card() -> void:
-	var menu := _main_menu(MainMenu.NEW_RUN, 16)
-	var list := _list_in(menu)
-	menu.open_cards(MainMenu.NEW_RUN, MainMenu.PLAY_RUSH)
-	assert_true(menu.is_showing_cards())
-	assert_eq(_texts(list), ["Run", "Fight Rush"])
-	assert_eq(list.index, 1, "the Fight Rush card is chosen")
-	menu.open_cards(MainMenu.EXTRAS)
-	assert_true(menu.is_showing_cards(), "only Online and New Run open cards")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.PLAY_RUSH] as Array[StringName])
-
-
-func test_coming_back_from_a_run_or_a_rush_rests_on_new_run() -> void:
-	for start: StringName in MainMenu.MODE_ITEMS:
-		var menu := _main_menu(start)
-		var list := _list_in(menu)
-		assert_false(menu.is_showing_cards(), "the main list shows, not the cards")
-		assert_eq(String(list.items[list.index].text), "New Run")
+	assert_eq(_picked, [MainMenu.NEW_RUN] as Array[StringName], "New Run emits NEW_RUN, no cards first")
+	assert_false(menu.is_showing_cards())
 
 
 func test_extras_stays_a_list_with_back() -> void:

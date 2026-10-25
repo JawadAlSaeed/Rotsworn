@@ -117,18 +117,16 @@ func _has_stats(hints: Array) -> bool:
 
 # --- the status strip ----------------------------------------------------------------------------
 
-## A Fight Rush has no gold (DESIGN.md 8.21), so its strip leaves the gold panel out.
-func test_a_strip_without_gold_has_no_gold_panel() -> void:
+## The strip always opens with the run's gold, then one panel per hero (the gold-less strip of the
+## cut second mode is gone, card #331).
+func test_the_strip_shows_the_gold_then_the_heroes() -> void:
 	var run := RunState.begin(load(RUN_PATH) as RunData, load(TUNING_PATH) as Tuning, 42)
-	var bare_bar := RunPartyBar.new()
-	add_child_autofree(bare_bar)
-	bare_bar.setup(run, false)
-	var map_bar := RunPartyBar.new()
-	add_child_autofree(map_bar)
-	map_bar.setup(run)
-	assert_eq(map_bar.get_child_count(), bare_bar.get_child_count() + 1, "the map keeps its gold panel")
-	for label: Node in bare_bar.find_children("*", "Label", true, false):
-		assert_false((label as Label).text.begins_with("Gold"), "no gold without it")
+	var bar := RunPartyBar.new()
+	add_child_autofree(bar)
+	bar.setup(run)
+	assert_eq(bar.get_child_count(), run.party_size() + 1, "the gold panel and a panel per hero")
+	var gold := bar.get_child(0).find_children("*", "Label", true, false)
+	assert_eq((gold[0] as Label).text, RunPartyBar.GOLD_TEXT % run.gold, "the gold comes first")
 
 
 # --- two or three choices side by side -----------------------------------------------------------

@@ -1,15 +1,14 @@
 extends GutTest
 ## The Relic book and the starting Relics (DESIGN.md 8.24, card #328): the main menu's Relics page
 ## as the book (found Relics first, the rest "???" with where Relics come from), each hero taking a
-## starting Relic from the book before a run or a Fight Rush (RunState: take, skip, never banked,
-## saved), the pick screen (hero by hero, one Relic per hero, the bot's picks, a friend's picks on
-## their way to the host, local co-op pads) and the host's check of a friend's pick. Uses the shipped
-## run and tuning; never touches the player's real files.
+## starting Relic from the book before a run (RunState: take, skip, never banked, saved), the pick
+## screen (hero by hero, one Relic per hero, the bot's picks, a friend's picks on their way to the
+## host, local co-op pads) and the host's check of a friend's pick. Uses the shipped run and tuning;
+## never touches the player's real files.
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
-const RUSH_PATH := "res://data/rush/fight_rush.tres"
 const MAIN_PATH := "res://scenes/main.gd"
 const PEER_A: int = 1001
 const PEER_B: int = 2002
@@ -187,17 +186,6 @@ func test_the_pick_step_survives_a_save_and_refuses_junk() -> void:
 		var junk := d.duplicate(true)
 		junk[bad[0]] = bad[1]
 		assert_null(RunState.from_dict(_data, run.tuning, junk), "%s = %s is refused" % bad)
-
-
-func test_a_rush_opens_with_the_same_pick() -> void:
-	var rush := load(RUSH_PATH) as RushData
-	var r := RushState.begin_rush(rush, _tuning, 7, _book(["iron_charm"]))
-	assert_eq(r.start_left, [1, 1, 1] as Array[int], "each hero may take one from the book")
-	assert_true(r.relics.is_empty(), "nothing comes by itself")
-	assert_false(r.take_start_relic(2, _relic("iron_charm")).is_empty())
-	var copy := RushState.from_rush_dict(rush, _tuning, r.to_dict())
-	assert_not_null(copy)
-	assert_eq(copy.start_left, [1, 1, 0] as Array[int])
 
 
 # --- the pick screen ------------------------------------------------------------------------------
@@ -386,7 +374,6 @@ func test_every_machine_logs_the_starting_relics_once() -> void:
 	var main_script := load(MAIN_PATH) as GDScript
 	assert_true(main_script.call("_logs_start_relics", true, false, "map"), "after the step")
 	assert_true(main_script.call("_logs_start_relics", false, true, "map"), "the host skipped the step")
-	assert_true(main_script.call("_logs_start_relics", false, true, "rush_reward"))
 	assert_false(main_script.call("_logs_start_relics", false, true, "start_relics"), "the step itself")
 	assert_false(main_script.call("_logs_start_relics", true, true, "menu"), "a game ended in the step")
 	assert_false(main_script.call("_logs_start_relics", false, false, "map"), "logged already, or dropped in")
@@ -407,10 +394,9 @@ func test_the_host_takes_a_pick_only_for_a_hero_that_player_owns() -> void:
 	assert_false(main_script.call("_start_pick_allowed", pickers, PEER_B, 2, null))
 
 
-func test_a_run_and_a_rush_open_with_the_pick_step() -> void:
+func test_a_run_opens_with_the_pick_step() -> void:
 	var source := FileAccess.get_file_as_string(MAIN_PATH)
 	assert_string_contains(source, "_begin_start_relics(_after_start_relics)", "a new run picks first")
-	assert_string_contains(source, "_begin_start_relics(_show_rush_reward)", "and so does a Rush")
 	assert_string_contains(source, "_on_friend_start_relic(from_peer, payload)", "the host hears a friend's pick")
 	assert_string_contains(source, "\"start_refused\"", "and can send it back")
 	assert_gt(_tuning.start_relic_wait_ms, 0, "the host waits for friends only so long")
