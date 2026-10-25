@@ -628,7 +628,25 @@ func test_a_fight_stop_never_repeats_the_last_fight_stops_fight() -> void:
 	assert_gt(guarded, 0, "the rule changed a pick that would have repeated")
 
 
+func test_the_shipped_run_is_deep_only_in_its_deep_act() -> void:
+	# The balance pass (#321, DESIGN.md 8.23): no row of an act is deep enough for the variants, so
+	# only the deep act (the third) brings them; the rule itself is tested below at the old row 4.
+	assert_gte(_tuning.run_deep_row, _tuning.run_map_rows, "no deep rows before the boss")
+	for s: int in range(1, 20):
+		var run := _run(s)
+		for act: int in [0, 1]:
+			run.act = act
+			run.map = run._make_map(act)
+			for stop: Dictionary in run.map.stops:
+				if int(stop.type) == RunMap.StopType.FINAL:
+					continue
+				run.at = int(stop.id)
+				assert_false(run.is_deep(), "seed %d act %d row %d" % [s, act + 1, int(stop.row)])
+
+
 func test_deep_rows_and_acts_bring_deep_versions() -> void:
+	# The deep-row rule at the row it had before #321 (the shipped run has none before act 3).
+	_tuning.run_deep_row = 4
 	var run := _run(5)
 	var deep_row := -1
 	for stop: Dictionary in run.map.stops:
@@ -851,10 +869,10 @@ func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
 
 
 ## An Elite stop's fight (the host's "final_fight" message): the friend builds the same pick, guard
-## or group, the same fight and weather from the run state alone. Net.PROTOCOL stays 5: no message
+## or group, the same fight and weather from the run state alone. Net.PROTOCOL stays 6 (#314): no message
 ## or field changed.
 func test_a_friend_builds_the_hosts_elite_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 5)
+	assert_eq(NetSession.PROTOCOL, 6)
 	for guard: bool in [true, false]:
 		var found := _elite_stop_holding(guard)
 		assert_gt(found[0], 0)

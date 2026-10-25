@@ -66,6 +66,8 @@ static func begin_rush(rush_data: RushData, p_tuning: Tuning, p_seed: int,
 	r.rush = rush_data
 	r._start(rush_data.run, p_tuning, p_seed, 0, collection)
 	r.pact_pending = false
+	# No gold in a Rush (DESIGN.md 8.21), whatever purse a run starts with (run_start_gold, #321).
+	r.gold = 0
 	if p_start_fight > 1:
 		r.head_start(p_start_fight)
 	return r

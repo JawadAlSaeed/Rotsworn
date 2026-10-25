@@ -1657,9 +1657,10 @@ func fight_xp(encounter: EncounterData, party_hp: Array[int]) -> Array[int]:
 	return shares
 
 
-## The XP a standing hero gets for winning `encounter` here (its enemies' XP in a run).
+## The XP a standing hero gets for winning `encounter` here (in a run its enemies' XP at
+## tuning.run_xp_percent).
 func xp_full(encounter: EncounterData) -> int:
-	return encounter_xp(encounter)
+	return CombatMath.percent(encounter_xp(encounter), tuning.run_xp_percent)
 
 
 func _zeros() -> Array[int]:

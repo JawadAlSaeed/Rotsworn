@@ -255,6 +255,9 @@ extends Resource
 @export_range(0, 100, 1, "suffix:%") var run_level_power_percent: int = 4
 ## A hero who is down when a fight is won gets this share of its XP (standing heroes get all).
 @export_range(0, 100, 1, "suffix:%") var run_xp_downed_percent: int = 50
+## Every XP gain in a run, in percent of the enemies' XP (#321: a run without zones has far fewer
+## fights; a Fight Rush has its own rush_xp_percent).
+@export_range(1, 400, 1, "suffix:%") var run_xp_percent: int = 100
 ## Enemies grow with depth (DESIGN.md 8.3): each map row adds these percents to their HP and
 ## power (row 0: as in their data). Bosses only grow when run_enemy_scale_bosses is on.
 @export_range(0, 100, 1, "suffix:%") var run_enemy_hp_row_percent: int = 5

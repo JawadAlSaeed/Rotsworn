@@ -27,8 +27,11 @@ func before_each() -> void:
 	_events.clear()
 
 
+## A run with an empty purse (the shipped run starts with run_start_gold since #321).
 func _run(seed_value: int = 7) -> RunState:
-	return RunState.begin(_data, _tuning, seed_value)
+	var run := RunState.begin(_data, _tuning, seed_value)
+	run.gold = 0
+	return run
 
 
 func _event(id: String) -> EventData:

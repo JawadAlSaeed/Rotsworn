@@ -190,10 +190,12 @@ func test_counter_and_depth() -> void:
 	assert_eq(r.enemy_hp_percent(), 100)
 	r.fight = 11
 	assert_eq(r._depth(), 10)
-	assert_eq(r.enemy_hp_percent(), 100 + 10 * _tuning.run_enemy_hp_row_percent)
-	assert_eq(r.enemy_power_percent(), 100 + 10 * _tuning.run_enemy_power_row_percent)
-	_tuning.rush_enemy_hp_step_add = 2
-	assert_eq(r.enemy_hp_percent(), 170, "fight 11 at 5 + 2 per step")
+	var hp_step := _tuning.run_enemy_hp_row_percent + _tuning.rush_enemy_hp_step_add
+	var power_step := _tuning.run_enemy_power_row_percent + _tuning.rush_enemy_power_step_add
+	assert_eq(r.enemy_hp_percent(), 100 + 10 * hp_step)
+	assert_eq(r.enemy_power_percent(), 100 + 10 * power_step)
+	_tuning.rush_enemy_hp_step_add += 2
+	assert_eq(r.enemy_hp_percent(), 100 + 10 * (hp_step + 2), "fight 11 at 2 more per step")
 	_tuning.rush_depth_per_fight_percent = 50
 	assert_eq(r._depth(), 5, "half a row per fight")
 	_tuning.rush_depth_per_fight_percent = 100
@@ -279,16 +281,34 @@ func test_bosses_grow_from_their_home_depth() -> void:
 	var lord := _enc("husk_lord_fight")
 	var numbers := r.fight_numbers(lord)
 	assert_eq(int(numbers.depth), 39 - 6, "the Husk Lord grows by the depth past where a run meets it")
-	assert_eq(int(numbers.hp), CombatMath.percent(100 + 33 * _tuning.run_enemy_hp_row_percent, lord.enemy_hp_percent))
+	var hp_step := _tuning.run_enemy_hp_row_percent + _tuning.rush_enemy_hp_step_add
+	assert_eq(int(numbers.hp), CombatMath.percent(100 + 33 * hp_step, lord.enemy_hp_percent))
 	r.fight = 10
 	var gorged := _enc("guard_gorged_one")
 	numbers = r.fight_numbers(gorged)
 	assert_eq(int(numbers.depth), 9 - 1, "a guard fought as a boss too")
-	assert_eq(int(numbers.hp), CombatMath.percent(100 + 8 * _tuning.run_enemy_hp_row_percent, gorged.enemy_hp_percent))
+	assert_eq(int(numbers.hp), CombatMath.percent(100 + 8 * hp_step, gorged.enemy_hp_percent))
 	_tuning.rush_scale_bosses = false
 	assert_eq(int(r.fight_numbers(gorged).hp), CombatMath.percent(100, gorged.enemy_hp_percent), "no growth when off")
 	r.fight = 40
 	assert_eq(int(r.fight_numbers(lord).hp), CombatMath.percent(100, lord.enemy_hp_percent))
+
+
+func test_the_runs_balance_pass_leaves_the_rush_as_it_was() -> void:
+	# The three-act run's balance pass (#321, DESIGN.md 8.23) slowed the run's growth per row and
+	# raised its XP and pips; the Rush adds the growth back, so its fights still grow 5% HP and 3%
+	# power per step and pay what they did (8.21, as approved).
+	assert_eq(_tuning.run_enemy_hp_row_percent + _tuning.rush_enemy_hp_step_add, 5)
+	assert_eq(_tuning.run_enemy_power_row_percent + _tuning.rush_enemy_power_step_add, 3)
+	var r := _rush_state()
+	r.fight = 11
+	assert_eq(r.enemy_hp_percent(), 150)
+	assert_eq(r.enemy_power_percent(), 130)
+	var husk := _enc("husk_fight")
+	assert_eq(r.xp_full(husk), RunState.encounter_xp(husk), "its own XP, not the run's share")
+	assert_eq(r.mastery_gain(husk), 0, "no Echo pips")
+	var setup := r.fight_setup(husk, 1, CombatSetup.Opening.NORMAL)
+	assert_eq(setup.enemy_power_percent, CombatMath.percent(130, 105), "every enemy still at 105% power")
 
 
 func test_fight_setup_has_no_running_and_the_flat_multipliers() -> void:
@@ -319,6 +339,9 @@ func test_xp_gold_drops_and_echoes() -> void:
 	_tuning.rush_xp_percent = 100
 	r.fight = 3
 	assert_eq(r.xp_full(_enc("husk_fight")), RunState.encounter_xp(_enc("husk_fight")), "a normal fight pays its own")
+	_tuning.run_xp_percent = 300
+	assert_eq(r.xp_full(_enc("husk_fight")), RunState.encounter_xp(_enc("husk_fight")), "the run's XP share is not the Rush's")
+	_tuning.run_xp_percent = 100
 	r.fight = 60
 	var hp := _full_hp(r)
 	hp[1] = 0
