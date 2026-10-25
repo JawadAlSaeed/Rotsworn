@@ -448,6 +448,44 @@ func test_the_spoils_ask_who_gets_the_relic() -> void:
 	assert_eq(got, [1], "one hero who may: no hero step")
 
 
+func test_only_a_relic_the_book_lacks_is_new_and_the_hero_step_survives_a_redraw() -> void:
+	var main_script := load("res://scenes/main.gd") as GDScript
+	var run := _run()
+	run.go(run.choices()[0])
+	var gear := run.loot_choices(run.at)
+	assert_gt(gear.size(), 1)
+	var book := RelicCollection.new()
+	book.merge([gear[0].id])
+	var booked := RunState.begin(_data, _tuning, 7, 0, book)
+	var loot := LootScreen.new()
+	add_child_autofree(loot)
+	loot.setup(gear, "", booked)
+	assert_eq(String(loot.menu().items[0].value), "", "in the Relic book already: no tag (no Home)")
+	assert_eq(String(loot.menu().items[1].value), "New", "not in the book yet")
+	for chip: Array in ShopScreen.relic_chips(booked, gear[0]):
+		assert_false(["New", "Home"].has(String(chip[1])), "a shelf has no tag for it either")
+	assert_eq(String(ShopScreen.relic_chips(booked, gear[1])[0][1]), "New")
+	# Online a friend's "Who gets it?" stays up when the host's newer state comes (card #326).
+	assert_false(main_script.call("_keeps_hero_pick", loot))
+	_press_on(loot, &"menu_confirm")
+	assert_true(loot.is_giving())
+	assert_true(main_script.call("_keeps_hero_pick", loot), "the hero cards are not rebuilt away")
+	_press_on(loot, &"menu_cancel")
+	assert_false(main_script.call("_keeps_hero_pick", loot))
+	var shop := ShopScreen.new()
+	add_child_autofree(shop)
+	run.gold = 999
+	shop.setup(run, gear)
+	var shelf := shop.items().size()
+	assert_true(shop.is_relic(shelf))
+	assert_false(main_script.call("_keeps_hero_pick", shop))
+	shop._open_give_pick(shelf)
+	assert_true(main_script.call("_keeps_hero_pick", shop), "the shop's hero pick too")
+	shop._close_pick()
+	assert_false(main_script.call("_keeps_hero_pick", shop))
+	assert_false(main_script.call("_keeps_hero_pick", _treasure(run)), "a closed chest")
+
+
 # --- the yes/no prompt ---------------------------------------------------------------------------
 
 func test_a_question_keeps_its_answers_side_by_side() -> void:

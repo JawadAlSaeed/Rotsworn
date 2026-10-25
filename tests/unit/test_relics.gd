@@ -216,7 +216,7 @@ func test_a_relic_left_at_home_joins_the_run_as_a_home_find() -> void:
 	assert_false(bool(info.new), "not new: it was found before")
 	assert_true(bool(info.home))
 	assert_false(info.has("level"), "no Relic levels")
-	assert_eq(RunState.relic_find_short(info), "Home")
+	assert_eq(RunState.relic_find_short(info), "Found", "the toast's word: no Home (the bag went)")
 	assert_eq(RunState.relic_find_text(info), "Found: Iron Charm")
 	assert_false(run.is_home(charm))
 	assert_eq(run.holder_of(charm), 0)
@@ -277,6 +277,26 @@ func test_the_bot_gives_every_waiting_relic_to_the_hero_it_helps_most() -> void:
 	even.give_relic(_relic("iron_charm"), 0)
 	assert_eq(GearBot.best_hero(even, coin), 1, "a tie: the first with the fewest Relics")
 	assert_eq(GearBot.best_hero(even, coin, [0] as Array[int]), 0, "only an allowed hero")
+
+
+func test_the_bot_spreads_relics_over_the_party() -> void:
+	var run := _run()
+	var offensive: Array[GearData] = []
+	for item: GearData in _data.gear:
+		if item != null and item.category() == GearData.Category.OFFENSIVE and item.effect != GearData.Effect.HEAL:
+			offensive.append(item)
+	assert_gt(offensive.size(), 5, "plenty of offensive Relics")
+	var first := GearBot.best_hero(run, offensive[0])
+	var fits: Array[int] = []
+	for hero: CharacterData in _data.party:
+		fits.append(GearBot.fit_of(hero, offensive[0]))
+	assert_eq(fits[first], fits.max(), "the first goes to the hardest hitter")
+	for item: GearData in offensive.slice(0, 6):
+		assert_false(run.give_relic(item, GearBot.best_hero(run, item)).is_empty())
+	for slot: int in run.party_size():
+		assert_gt(run.relics_of(slot).size(), 0, "%s gets some too: no slots, but no pile on one hero"
+				% run.data.party[slot].id)
+	assert_lt(run.relics_of(first).size(), 6)
 
 
 func test_spoils_offer_only_relics_the_run_lacks_and_may_run_dry() -> void:

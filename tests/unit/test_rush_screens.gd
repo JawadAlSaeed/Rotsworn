@@ -197,7 +197,8 @@ func test_taking_a_relic_asks_who_gets_it_and_then_rolls_the_next_pick() -> void
 	var gear := r.card_thing(relic_index) as GearData
 	var screen := _screen(r)
 	assert_true(screen.menu().items[relic_index].get("icon_make") is Callable, "the Relic's own icon")
-	assert_eq(String(screen.menu().items[relic_index].value), "New", "no levels: new or home (DESIGN.md 8.24)")
+	assert_eq(String(screen.menu().items[relic_index].get("value", "")), "",
+			"no New tag: a Rush keeps nothing for the Relic book (DESIGN.md 8.21, 8.24)")
 	# An extra pick waits after this one (XP past the top level, D1).
 	r.picks_left = 2
 	screen.refresh()

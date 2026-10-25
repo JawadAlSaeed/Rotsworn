@@ -327,6 +327,7 @@ func test_local_coop_only_the_heroes_player_picks() -> void:
 	var screen := _screen(run, book)
 	screen.players = players
 	screen.check_pads = true
+	screen.connected_pads = func() -> Array[int]: return [0] as Array[int]
 	screen.focus(_relic("iron_charm"))
 	screen._device = 0
 	assert_false(screen.call("_confirm", _relic("iron_charm")), "P2's pad cannot pick for P1's hero")
@@ -340,6 +341,55 @@ func test_local_coop_only_the_heroes_player_picks() -> void:
 	screen._device = 0
 	screen.call("_back")
 	assert_eq(screen.chooser(), 2, "P2 skips their own")
+
+
+func test_local_coop_a_lost_pad_never_holds_the_step() -> void:
+	var book := _book(["iron_charm", "whetstone"])
+	var run := _run(book)
+	var players := PlayerRoster.new()
+	players.devices.assign([PlayerRoster.KEYBOARD, 0])
+	players.owners.assign([1, 0, 0])
+	var screen := _screen(run, book)
+	screen.players = players
+	screen.check_pads = true
+	var plugged: Array[int] = []
+	screen.connected_pads = func() -> Array[int]: return plugged
+	screen.focus(_relic("iron_charm"))
+	screen._device = PlayerRoster.KEYBOARD
+	assert_eq(screen.chooser(), 0, "P2's hero chooses first")
+	assert_true(screen.call("_confirm", _relic("iron_charm")), "P2's pad is gone: the keyboard picks for them")
+	assert_eq(run.holder_of(_relic("iron_charm")), 0)
+	assert_true(StartRelicsScreen.may_pick(players, PlayerRoster.KEYBOARD, 0, plugged))
+	assert_false(StartRelicsScreen.may_pick(players, PlayerRoster.KEYBOARD, 0, [0] as Array[int]),
+			"with the pad back, only it picks for P2's heroes")
+	assert_true(StartRelicsScreen.may_pick(players, 0, 0, [0] as Array[int]))
+	assert_false(StartRelicsScreen.may_pick(players, 0, 1, plugged), "P1's keyboard never goes missing")
+	assert_true(StartRelicsScreen.may_pick(null, 0, 0, plugged), "solo: anyone")
+
+
+func test_a_starting_relic_raises_max_hp_full_and_pause_opens_over_the_step() -> void:
+	var book := _book(["iron_charm", "gravebound_ring"])
+	var run := _run(book)
+	var before := run.max_hp(0)
+	assert_false(run.take_start_relic(0, _relic("iron_charm")).is_empty())
+	assert_gt(run.max_hp(0), before, "the Iron Charm raises max HP")
+	assert_eq(run.hp[0], run.max_hp(0), "the hero starts the run full, not wounded")
+	assert_false(run.take_start_relic(1, _relic("gravebound_ring")).is_empty())
+	assert_eq(run.hp[1], run.max_hp(1), "a lower max HP cuts it")
+	assert_eq(run.hp[2], run.max_hp(2), "the others are untouched")
+	# Esc is Pause before it is Back: offline the pause menu opens over the step (Abandon, Players).
+	var source := FileAccess.get_file_as_string(MAIN_PATH)
+	assert_string_contains(source, "if _screen is MapScreen or _screen is StartRelicsScreen:")
+
+
+func test_every_machine_logs_the_starting_relics_once() -> void:
+	var main_script := load(MAIN_PATH) as GDScript
+	assert_true(main_script.call("_logs_start_relics", true, false, "map"), "after the step")
+	assert_true(main_script.call("_logs_start_relics", false, true, "map"), "the host skipped the step")
+	assert_true(main_script.call("_logs_start_relics", false, true, "rush_reward"))
+	assert_false(main_script.call("_logs_start_relics", false, true, "start_relics"), "the step itself")
+	assert_false(main_script.call("_logs_start_relics", true, true, "menu"), "a game ended in the step")
+	assert_false(main_script.call("_logs_start_relics", false, false, "map"), "logged already, or dropped in")
 
 
 # --- online: the host's check ---------------------------------------------------------------------

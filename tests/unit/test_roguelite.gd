@@ -269,9 +269,15 @@ func test_a_treasure_stop_has_a_plain_and_a_rotten_chest() -> void:
 		assert_null(dark.prize, "the rotten chest: no item")
 		var offered := dark.relics as Array[GearData]
 		assert_eq(offered.size(), rotten.relic_choice_count(), "but a pick of Relics (DESIGN.md 8.24)")
+		var rot := 0
 		for item: GearData in offered:
 			assert_gte(int(item.rarity), ItemData.Rarity.RARE)
 			assert_false(rotten.owns(item), "only Relics the run does not have")
+			rot += int(item.rot_touched)
+		# One must be taken and given for good: built like the spoils, never only rot-touched ones.
+		assert_lte(rot, _tuning.rot_gear_spoils_count, "at most the spoils' share of rot-touched Relics")
+		assert_lt(rot, offered.size(), "always a normal Relic among them")
+		assert_gte(GearBot.score(offered[GearBot.pick(offered)]), 0, "one the bot takes")
 		assert_eq(rotten.stop_relic_choices(), offered, "they wait at the stop until one is taken")
 		assert_eq(int(dark.gold), 0)
 		assert_eq(dark, _run(s).open_treasure(3, true), "seeded")

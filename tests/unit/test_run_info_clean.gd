@@ -221,6 +221,28 @@ func _shop_run() -> RunState:
 	return run
 
 
+func test_the_bot_never_buys_a_relic_with_a_price_it_refuses() -> void:
+	var main_script := load("res://scenes/main.gd") as GDScript
+	var run := _shop_run()
+	var costly: GearData = null
+	var plain: GearData = null
+	for item: GearData in run.data.gear:
+		if item == null or not run.can_gain(item):
+			continue
+		if costly == null and GearBot.score(item) < 0:
+			costly = item
+		elif plain == null and not item.rot_touched:
+			plain = item
+	assert_not_null(costly, "a rot-touched Relic with a costly price")
+	var shop := ShopScreen.new()
+	add_child_autofree(shop)
+	shop.setup(run, [costly, plain] as Array[GearData])
+	var first := shop.items().size()
+	assert_true(shop.can_buy(first), "the bot could afford it")
+	assert_false(main_script.call("_bot_buys", shop, first), "but a given Relic never comes off: it passes")
+	assert_true(main_script.call("_bot_buys", shop, first + 1), "a plain Relic it buys")
+
+
 func test_sell_shows_once_and_prices_are_coins() -> void:
 	var shop := _shop(_shop_run())
 	var footer: HintBar = null
@@ -262,7 +284,8 @@ func test_a_relic_on_the_shelf_shows_its_icon_and_a_new_chip_not_a_sentence() ->
 	assert_eq(detail.icon, gear, "the Relic's own icon")
 	assert_eq(String(detail.line), "", "no sentence")
 	var chips: Array = detail.chips
-	assert_eq(String(chips[0][1]), "Home" if run.is_home(gear) else "New", "no levels (DESIGN.md 8.24)")
+	if not run.is_home(gear):
+		assert_eq(String(chips[0][1]), "New", "no levels (DESIGN.md 8.24); New: not in the Relic book yet")
 	var stat := gear.stat_text()
 	if not stat.is_empty():
 		assert_eq(String(ShopScreen.relic_chips(run, gear)[1][1]), stat, "the stat line")

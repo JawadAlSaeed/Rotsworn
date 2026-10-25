@@ -80,6 +80,29 @@ func test_a_waiting_relic_is_given_from_the_grid_for_good() -> void:
 	assert_eq(run.holder_of(relic), 0)
 
 
+func test_with_nothing_waiting_the_relics_tab_offers_no_give() -> void:
+	var run := _run()
+	run.give_relic(_relic("whetstone"), 0)
+	var screen := _screen(run)
+	screen.open_relics(1)
+	var tab := screen.tab_node(PartyScreen.Tab.RELICS) as RelicsTab
+	tab.focus_hero(1)
+	var words := tab.hints().map(func(hint: Array) -> String: return String(hint[1]))
+	assert_false(words.has("Give"), "a new run has nothing waiting: no Give")
+	assert_eq(tab.info().icon, &"gem", "a hero with no Relics: no plus inviting one")
+	var press := InputEventAction.new()
+	press.action = &"menu_right"
+	press.pressed = true
+	tab.handle_input(press)
+	assert_eq(tab._zone, RelicsTab.Zone.GRID, "the grid still opens to look")
+	words = tab.hints().map(func(hint: Array) -> String: return String(hint[1]))
+	assert_false(words.has("Give"), "nor in the grid")
+	assert_true(words.has("Kind"), "its filter still works")
+	for node: Node in tab.find_children("*", "", true, false):
+		if node is RelicIcon:
+			assert_ne((node as RelicIcon).slot_state(), RelicIcon.SlotState.EMPTY, "no empty plus slot")
+
+
 func test_the_strip_and_the_toast() -> void:
 	var run := _run()
 	var relic := _relic("whetstone")
