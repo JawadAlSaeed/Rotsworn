@@ -145,8 +145,8 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
   co-op you give it to one of your own heroes (online the player whose turn it is picks). A Relic
   tagged **New** is not in your book yet. Every Relic you find goes
   in your **Relic book** for good (the main menu's **Relics** page: "Found 12 of 50"). Before each
-  run or Fight Rush, every hero takes one Relic from your book (**Starting Relics**; your first run
-  starts with none). **Rot-touched** Relics are very strong, but each one comes with a price.
+  run, every hero takes one Relic from your book (**Starting Relics**; your first run starts with
+  none). **Rot-touched** Relics are very strong, but each one comes with a price.
 - **Oaths** make the game harder, one rule at a time (12 of them). Win a normal run to unlock
   oath 1, then win at each oath to unlock the next. Each oath keeps the rules of the ones before
   it. Pick it on the players screen before the run.
@@ -282,9 +282,9 @@ the bottom-left corner of the main menu, but even builds with the same number ca
 
 **During an online run:**
 
-- The run's choices go in turns: each map step, stop, spoils pick and Fight Rush pick belongs to the
-  next player (P1, P2, P3, then P1 again). A chip at the top left shows whose turn it is (for example
-  `P2`). On someone else's turn the choices are greyed: watch, or look at the party screen. If a find
+- The run's choices go in turns: each map step, stop and spoils pick belongs to the next player
+  (P1, P2, P3, then P1 again). A chip at the top left shows whose turn it is (for example `P2`). On
+  someone else's turn the choices are greyed: watch, or look at the party screen. If a find
   has no room in the backpack on your turn, your backpack opens so you can place it. The host can
   switch this off in **Settings > Game > Take turns**; then the host makes every choice. Everyone
   plays their own heroes' turns and defends their own heroes.
@@ -300,7 +300,7 @@ the bottom-left corner of the main menu, but even builds with the same number ca
 - To quit: pause, then **Leave the game** (a friend; your heroes go to the host), **Save & Quit**
   (the host; everyone goes to the main menu and the run is kept) or **End the game** (the host; the
   run and its save are lost for everyone).
-- To go on with a saved online run: the host picks **Online > Host Online > Run** again, and the
+- To go on with a saved online run: the host picks **Online > Host Online** again, and the
   players screen shows **Continue** next to **Start**. Friends join the same address as before
   (before or after the host presses Continue) and get their own seats and heroes back. A seat waits
   5 minutes for its friend; if you quit in the middle of a stop, that stop starts over.
