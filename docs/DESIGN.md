@@ -587,9 +587,11 @@ in data. Times in ms at tempo 100%.
 - Every variant has `forced_hits` on (card #187, 2.4): its rends and sweeps and forced feints show in
   every fight it is in, so the second half of a run reads harder.
 - Deep fights: `EncounterData.deep` names a fight's deep version (`deep_<id>`, the same fight made of
-  variants). In a run, from map row `tuning.run_deep_row` (4, the second half of the 7 rows) on, or
-  in a deep act, a Fight stop, an elite group or a guard fights the deep one (`RunState.is_deep()`,
-  `fight_of`, `elite_of`, `guard_of`, 8.22; until phase 26 a zone's roaming enemies showed the variant). Practice fights list
+  variants). In a run, from map row `tuning.run_deep_row` on, or in a deep act, a Fight stop, an
+  elite group or a guard fights the deep one (`RunState.is_deep()`, `fight_of`, `elite_of`,
+  `guard_of`, 8.22; until phase 26 a zone's roaming enemies showed the variant). `run_deep_row` was
+  4 (the second half of an act); since the balance pass (#321, 8.23) it is 6, past an act's last
+  ordinary row, so only the deep act (act 3, the Ashen Deep) fights deep versions. Practice fights list
   them too. Every fight a place holds has one (test). Phase 13 (card #105) adds stat scaling by depth on
   top.
 - Balance check (average-player bot at level 1 with no gear): 3 wins in 5 deep fights. A run
@@ -3028,8 +3030,8 @@ Replaces the shared party level of phase 4 (#30). Numbers live in `tuning.tres` 
   its own slow tempo. Example: the act-two Hollow King (depth about 13) plays at about 80%, about
   72% in phase two.
 - **Depth** (#105, phase 13 step 3, built early): every enemy in a run fight gets
-  `run_enemy_hp_row_percent` (5) more HP and `run_enemy_power_row_percent` (3) more power per map
-  row of the stop (row 0 as in its data; `CombatSetup.enemy_hp_percent` / `enemy_power_percent`,
+  `run_enemy_hp_row_percent` (3, was 5 until the three-act balance pass, #321, 8.23) more HP and
+  `run_enemy_power_row_percent` (2, was 3) more power per map row of the stop (row 0 as in its data; `CombatSetup.enemy_hp_percent` / `enemy_power_percent`,
   set by `RunState.fight_setup`). On top of the deep variants (2.16). Bosses keep their own
   numbers unless `run_enemy_scale_bosses` is on. Practice fights never grow.
 - **Team gauge** (#146): what is left of the team gauge when a run fight ends (won or escaped)
@@ -3267,7 +3269,7 @@ scarce, and a "?" can turn into a fight.
   (`RunState.ambush_streak`, 15%, 30%, 45%, ...). The stop then shows its own page, "An Ambush!"
   (`ActData.ambush_title` and `ambush_text`, and the fight's name), with one choice, Fight; no event
   is used up. The fight is one of the act's `ActData.ambushes` (ordinary 2 to 3 enemy fights, in
-  their deep version in a deep act or row: act 3, or row 4 on) in the look and air of one of the act's places, under a rolled
+  their deep version in a deep act or row: act 3, since no ordinary row is deep after #321) in the look and air of one of the act's places, under a rolled
   weather (8.22); it pays gold and XP and gives no spoils.
 - **Online and Save & Quit**: the host chooses, the clients see the result. The run dict carries the
   new state (`ambush_streak`, `ambush_id`, `ambush_spoils`; `apply_dict` refuses a negative or
@@ -3531,11 +3533,14 @@ here makes a run easier.
   keeps it so (`test_run_balance.gd`: more HP than the Husk Lord fight and every guard at the
   deepest row, at least their power, faster and enraging faster). The attacks themselves are
   unchanged, so a player who defends well takes the same hits as before, only more of them and for
-  longer. Since the guards joined the Elite stops (8.22) this no longer holds everywhere: act 3's
-  guard (the deep Ash Warden, 8.23) can wait at an Elite stop in its deep rows, and from
-  `run_deep_row` on (rows 4 and 5) it brings more HP in all than the King's fight (7063 and 7249
-  against 6885). The test checks act 3's guard only on the rows before `run_deep_row` and prints the
-  deeper ones; that is a known limit for the balance talk (#321, 8.22 "Known limits").
+  longer. Since the guards joined the Elite stops (8.22) a guard can wait at any Elite stop of its
+  act. The test once said act 3's deep Ash Warden at rows 4 and 5 outweighed the King (7063 and
+  7249 against 6885), but its sums left out the guards' own 90% HP share; what the engine builds was
+  5687 to 6542, under the King. The real case was act 2: the deep Mire Mother at rows 4 and 5 (5670
+  and 5831) outweighed the Leech Queen (5490). The balance pass (#321, 8.23) fixed it in the data
+  (no ordinary row is deep, slower growth per row), and `test_run_balance.gd` now checks every
+  act's guard at every row an Elite stop can stand on, with the HP the engine builds (a second test
+  proves the sums match a real engine).
 - **An honest balance bot** (#178). The bot used to fight every champion and roamer at any HP, so
   its runs died early and said little. It now plays like a careful player (named consts in
   `ZoneAutoplay` and `Main`, not game rules): a champion or optional roamer is fought only while
@@ -3623,7 +3628,7 @@ oath", and a run at Oath N is that oath kept.
   | 1 | Thorns | elites +20% HP and +10% power (on top of the elite numbers in tuning) |
   | 2 | Want | shops charge 15% more (items, gear and services; selling is unchanged); fights pay 25% less gold (after charms and gear) |
   | 3 | Embers | the campfire's Rest heals 15 points of percent less (50% becomes 35%) |
-  | 4 | the Deep | enemies grow +2% HP and +1% power more per map row (5% becomes 7%, 3% becomes 4%) |
+  | 4 | the Deep | enemies grow +2% HP and +1% power more per map row (3% becomes 5%, 2% becomes 3%; before #321 5% became 7%, 3% became 4%) |
   | 5 | Crowns | guards (mini-bosses) and act bosses +15% HP and +10% power |
   | 6 | Wounds | the party starts the run at 75% HP |
   | 7 | Scarcity | spoils offer one choice fewer (never fewer than one) |
@@ -3633,7 +3638,7 @@ oath", and a run at Oath N is that oath kept.
   | 11 | the Empty Hand | one Relic slot fewer per hero all run, never under one (phase 17, 8.17) |
   | 12 | Forgetting | heroes get half the Echo points (phase 17, 8.17) |
 
-  The run's start gold is 0 in `tuning.tres`, so "start with nothing" did nothing; Want cuts the gold
+  The run's start gold was 0 in `tuning.tres` (50 since #321, 8.23), so "start with nothing" did nothing; Want cuts the gold
   coming in instead (`gold_percent_add`, in `RunState.gold_for`, after charms, gear and the elite
   bonus). `start_gold_add` still works, and is tested, for when the purse is not empty.
 - **Where it lives**: `RunState.oath` (kept inside the ladder by `begin`), and the rules in
@@ -3796,7 +3801,7 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   shows a lock and says what opens it. Bots fill their bag with their best Relics
   (`RelicCollection.fill_bag`, GearBot's score) and their open slots the same way (`RunState.auto_wear`).
 - **Mastery, per run**: E33's "win 4 battles" kept inside the run. Every worn Relic gets points per
-  won fight: `mastery_fight` (1), `mastery_elite` (2), `mastery_guard` (3), `mastery_boss` (5); at
+  won fight: `mastery_fight` (1; 2 since #321), `mastery_elite` (2), `mastery_guard` (3), `mastery_boss` (5); at
   `mastery_needed` (4) its Echo is learned until the run ends. Lost or escaped fights teach nothing.
   The fight's end screen says "Echo learned: X".
 - **Echoes**: a learned Relic's effect (and a rot-touched one's price) without its stat line, worn
@@ -3849,7 +3854,8 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   so a client's own collection does not grow online. New ops (any player): `wear` (a Relic the run
   has, into an open slot), `take_off`, `echo` (`slot`, `relic`, `on`).
 - **Harder runs**: every enemy in a run fight has `enemy_power_base_percent` (105) power (practice
-  fights keep their data), and two oaths top the ladder (8.15): **the Empty Hand** (Oath 11,
+  fights keep their data; the three-act balance pass, #321 in 8.23, set it back to 100 and the
+  Fight Rush keeps its 105 in `rush_enemy_power_percent`), and two oaths top the ladder (8.15): **the Empty Hand** (Oath 11,
   `OathData.relic_slots_add` -1: one Relic slot fewer all run, never under one) and **Forgetting**
   (Oath 12, `echo_points_percent_add` -50: half the Echo points).
 - **Tutorial**: lesson 6, "Relics" and "Echoes", two cards to read at the end of the tutorial fight
@@ -3975,7 +3981,7 @@ carries between runs gives **choices, not stats**; the oaths keep the game hard.
 
 - **Between runs** a Relic keeps two things: found, and its **Echo pips** (`RelicCollection.found`,
   `pips`). Its level is not kept any more.
-- **Pips**: every worn Relic gets `mastery_fight` (1), `mastery_elite` (2), `mastery_guard` (3) or
+- **Pips**: every worn Relic gets `mastery_fight` (2 since #321, was 1), `mastery_elite` (2), `mastery_guard` (3) or
   `mastery_boss` (5) pips per won fight, run after run (`RunState.pips_at_start` from the collection +
   `mastery`, this run's; `mastery_of` is the sum, never past `mastery_needed`, 12, about one act).
   Lost or escaped fights teach nothing. Full pips: its **Echo is learned for good**.
@@ -4099,7 +4105,7 @@ as they were; `RunMap._vary_rows`, `_crown_elite`, `_fix_zones`):
   row, a shop somewhere, no zone twice in a row). This replaces 8's "the row before the final fight is
   all rests" and 8.9's fixed treasure row.
 - Every act with elites has at least one elite stop, and one of them wears the **rot crown**
-  (`stop.crown`): its enemies get `crown_elite_hp_percent` (130%) HP and `crown_elite_power_percent`
+  (`stop.crown`): its enemies get `crown_elite_hp_percent` (110%; 130% until #321, 8.23) HP and `crown_elite_power_percent`
   (115%) power on top of the elite numbers, and its spoils always list an ordinary legendary Relic
   first while the run has one to gain (`RunState.is_crowned`, `loot_choices`). The map draws a small
   gold crown over it (`map_visuals.tres` `crown_color`) and names it "Crowned elite".
@@ -4315,8 +4321,9 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
 
 **Fights.** Fight 1 is the first. A fight's depth is `(fight - 1) x rush_depth_per_fight_percent / 100`
 map rows (one per fight at 100), and its enemies grow with it as in a run (8.3): HP
-`100 + depth x (run_enemy_hp_row_percent 5 + rush_enemy_hp_step_add 0)` percent, power
-`100 + depth x (run_enemy_power_row_percent 3 + rush_enemy_power_step_add 0)`, attacks 1% faster per
+`100 + depth x (run_enemy_hp_row_percent 3 + rush_enemy_hp_step_add 2)` percent, power
+`100 + depth x (run_enemy_power_row_percent 2 + rush_enemy_power_step_add 1)` (5 and 3 a step, as
+before the run's balance pass #321 lowered the run's own steps, 8.23), attacks 1% faster per
 row (`run_enemy_tempo_row_percent`) down to `attack_tempo_floor_percent` (70), reached at fight 31
 (D17; the engine clamps every fight to that floor again, so a Rush cannot go under it). Then
 `rush_enemy_hp_percent` and `rush_enemy_power_percent` on top. Elite, guard and boss marks keep their
@@ -4460,10 +4467,10 @@ Tuning (`tuning.tres`, group "Fight Rush"; the first values, not yet tuned with 
 | Field | Value | Meaning |
 |---|---|---|
 | `rush_depth_per_fight_percent` | 100 | map rows of depth each fight adds, in percent |
-| `rush_enemy_hp_step_add` | 0 | extra enemy HP points per depth step, on top of the run's 5 |
-| `rush_enemy_power_step_add` | 0 | the same for power, on top of the run's 3 |
+| `rush_enemy_hp_step_add` | 2 | extra enemy HP points per depth step, on top of the run's 3 (0 on top of 5 until #321) |
+| `rush_enemy_power_step_add` | 1 | the same for power, on top of the run's 2 (0 on top of 3 until #321) |
 | `rush_enemy_hp_percent` | 100 | every Rush enemy's HP, after the depth growth |
-| `rush_enemy_power_percent` | 100 | every Rush enemy's power, after the depth growth |
+| `rush_enemy_power_percent` | 105 | every Rush enemy's power, after the depth growth and the run's base power (100 and 105 until #321, the same 105 in all) |
 | `rush_scale_bosses` | true | boss fights (guards too) grow with the depth past their home depth |
 | `rush_elite_every` | 5 | every Nth fight is an elite (unless it is a boss fight) |
 | `rush_boss_every` | 10 | every Nth fight is the next boss of the cycle |
@@ -4863,10 +4870,10 @@ Elite stop won. Pips stay per kind (guard 3, elite 2). This replaces G1 and card
   them hold the guard (327), so about 0.45 guards per act, and only on the roads through them, where
   the guard row met one on every road in every act; fewer guards also means fewer guard pips and
   spoils. With so few Elite stops about 9 in 10 are the act's crowned one, so a guard met usually
-  pays the crown's legendary spoils (291 of the 327). A guard can now stand in an act's deep rows:
-  act 3's deep Ash Warden at rows 4 and 5 brings more HP in all (7063 and 7249) than the Hollow
-  King's fight (6885), so `test_run_balance.gd` checks the rows before `run_deep_row` and prints the
-  deeper ones. Not yet seen in a game window.
+  pays the crown's legendary spoils (291 of the 327). A guard can now stand in an act's deep rows;
+  the act 3 numbers first written here (7063 and 7249 against the King's 6885) left out the guards'
+  90% HP share, and the real overweight guard was act 2's deep Mire Mother. The balance pass (#321,
+  8.23) fixed it and `test_run_balance.gd` checks every act and row. Not yet seen in a game window.
 
 ### 8.23 Three acts and the Leech Queen (phase 26, card #323, decided 2026-10-24)
 
@@ -4902,7 +4909,8 @@ the owner to check):
   act 3's monsters are tougher than the old act 2's; bosses still do not grow. The first act's
   guard is the Gorged One, the second's Mire Mother, the third's the deep Ash Warden (met at some of
   the act's Elite stops, 8.22). Only act 3 is
-  `deep` (rows 4 on are deep in every act, 2.16). Beating act 1's or act 2's boss heals 50% and opens
+  `deep` (rows 4 on were deep in every act too until the balance pass, #321 below, set
+  `run_deep_row` past the last ordinary row, 2.16). Beating act 1's or act 2's boss heals 50% and opens
   the next map; only the Hollow King ends the run. A Relic slot still opens after act 1's boss only
   (8.17); act 2's boss opens none (a default, for the balance talk).
 - **The Leech Queen** (`data/enemies/leech_queen.tres`, `data/encounters/leech_queen_fight.tres`,
@@ -4965,9 +4973,140 @@ the owner to check):
   13 turns); `--encounter=leech_queen_fight` victory (32 turns, two Dooms announced, one broken;
   seeds 5 and 11 victory too), `--autoplay=miss` defeat in 15 turns; `--rush --rush-start=50
   --rush-fights=1` rush_capped (the Queen at fight 50, victory). No `ERROR` lines.
-- **Known limits**: the balance of the longer run is not tuned (the balance talk, #321); her
+- **Known limits**: the balance of the longer run got a first pass (#321, below); her
   numbers are first guesses between the Lord and the King; the Drowning Tide's break share is a
   guess; the black bile's launch point is set by eye from the sheet, not seen in game.
+
+**Balance for the three-act run (#321)** (defaults, built 2026-10-25 while the owner slept; every
+number below is for the owner to overrule in the talk; all of it is data except one new tuning
+number for XP and one line that keeps the Rush's purse empty).
+
+- **Targets** (from the task): **T1 a fair start**: a 70% player (the `--autoplay=average` bot at
+  `--bot-skill=70`) does not die in act 1's first three stops on most seeds; a 60% one may die in
+  act 1, but not usually at stop 1 or 2. **T2 the curve**: an 85% player wins about half its runs
+  or more, a 70% one usually reaches act 2 and sometimes act 3, the perfect bot always wins, and
+  each act boss is the hardest fight of its act. **T3 growth**: the perfect bot ends near level 10,
+  with about 6 to 8 Echoes learned and about 10 Relics found; Relic slots as they are. **T4 gold**:
+  about 2 or 3 good shop buys per act, no 900+ gold left unspent at the end. **T5**: no guard at an
+  Elite stop is bigger than its act boss. **T6**: a run takes a person about 45 minutes. **Not
+  changed**: the Fight Rush's balance (8.21).
+- **How it was measured**: headless bot runs (`--autoplay[=average --bot-skill=N] --run --seed=S
+  --quit-on-end`), one player, Oath 0, no Relics at home (a first run), 6 at a time. The seed picks
+  the map and the bot's luck, so the same seed with the same numbers repeats. Each round: the
+  perfect bot on seeds 3, 7 and 71; skill 85 and 70 on seeds 1 to 4; skill 60 on seeds 1 and 2.
+  Round 1 and round 2 changed numbers; a third batch only measured more seeds at the final numbers
+  (skill 85 on seeds 5 to 8, skill 70 on 5 and 6). With 4 seeds one run moves a rate by 25 points,
+  so read the rates as rough. The real HP of a fight is taken from `RunState.fight_setup` the way
+  the engine builds it (`test_run_balance.gd` proves the sum on a real engine).
+- **Before and after** (before: the numbers at the start of phase 26's three acts; after: the
+  defaults below; a list is one value per run, in seed order; gold left and fight minutes for the
+  runs that won):
+
+  | Bot | | Won | Act reached (lost at stop) | Level at the end | Relics found | Echoes learned | Gold left | Fight minutes |
+  |---|---|---|---|---|---|---|---|---|
+  | Perfect | before | 3 of 3 | 3, 3, 3 | 10, 8, 9 | 8, 8, 14 | 4, 5, 7 | 446, 381, 412 | 6.5, 5.5, 8.5 |
+  | Perfect | after | 3 of 3 | 3, 3, 3 | 10, 10, 10 | 9, 8, 14 | 6, 5, 7 | 423, 384, 441 | 5.7, 4.6, 7.8 |
+  | Skill 85 | before | 1 of 4 | 3, 1 (7, boss), 2 (12, deep guard), 1 (5, deep crowned elite) | 9, 3, 5, 1 | 8, 1, 4, 0 | 6, 0, 0, 0 | 176 | 12.0 |
+  | Skill 85 | after | 2 of 4 | 3, 3, 2 (12, guard), 1 (5, crowned elite) | 10, 10, 6, 2 | 9, 5, 4, 0 | 6, 2, 0, 0 | 352, 41 | 12.0, 8.5 |
+  | Skill 85 | after, seeds 5 to 8 | 4 of 4 | 3, 3, 3, 3 | 10, 10, 10, 10 | 12, 13, 8, 11 | 4, 6, 5, 5 | 23, 88, 384, 51 | 12.2, 8.3, 8.9, 9.1 |
+  | Skill 70 | before | 0 of 4 | 1 (5, deep guard), 1 (7, boss), 1 (2), 1 (5, deep crowned elite) | 2, 3, 1, 1 | 1, 0, 0, 0 | 0 | | |
+  | Skill 70 | after | 0 of 4 | 1 (5, guard), 1 (7, boss), 1 (2), 1 (5, crowned elite) | 2, 3, 2, 2 | 2, 0, 0, 0 | 0 | | |
+  | Skill 70 | after, seeds 5 and 6 | 0 of 2 | 1 (4, crowned elite), 1 (1) | 2, 1 | 0, 0 | 0 | | |
+  | Skill 60 | before | 0 of 2 | 1 (5, deep guard), 1 (2) | 2, 1 | 2, 0 | 0 | | |
+  | Skill 60 | after | 0 of 2 | 1 (5, guard), 1 (2) | 2, 1 | 2, 0 | 0 | | |
+
+  Round 1 alone (the deep rows, the slower growth and the XP, with the shop weight at 18 and the
+  old 105% power): perfect 3 of 3, skill 85 3 of 4, skill 70 0 of 4 (lost at stops 4, 7, 2 and 7),
+  skill 60 0 of 2. After the pass the perfect bot is level 6 or 7 after act 1 and 9 or 10 after
+  act 2; before it was 4 to 6 and 7 or 8.
+- **The changes** (old → new, all in `data/tuning/tuning.tres` unless named):
+  - `run_deep_row` 4 → **6**: no ordinary row of an act is deep any more (an act has rows 0 to 5),
+    so only the deep act, act 3, fights the deep versions (2.16). With rows 4 and 5 deep in every
+    act, the second half of acts 1 and 2 jumped at row 4: a guard by about 14%, the elites and
+    ordinary fights by about 35% (act 1's deep crowned elites 5102 to 6054 against the Husk Lord's 4680),
+    and the deep Mire Mother at rows 4 and 5 (5670, 5831) outweighed the Leech Queen (5490), the
+    one real T5 break. Four of the ten runs that died before the pass died there, at stop 5.
+  - `run_enemy_hp_row_percent` 5 → **3** and `run_enemy_power_row_percent` 3 → **2**: the run is 21
+    rows deep now (14 before #323), so per row growth is slower; act 3's last row grows +57% HP
+    instead of +95%.
+  - `enemy_power_base_percent` 105 → **100**: run fights hit as their data says. Phase 17 added the
+    5% because Relics carry over between runs; a first run has none, and the bots are first runs.
+  - `crown_elite_hp_percent` 130 → **110** (power stays 115%): the crowned elite was bigger than
+    its act's boss in every act (act 2's crowned Toad Court 7528 to 8354 against the Queen's 5490);
+    now 3187 to 3665 in act 1 and at most 6752 in act 3 (the King 6885). Act 2 is still over (below).
+  - **New** `run_xp_percent` **150** (`Tuning`, used by `RunState.xp_full`): every XP gain in a run
+    is 150% of the enemies' XP. A run without zones has about 11 to 13 fights, so the perfect bot
+    ended at level 8 to 10; now it ended at 10 in all three runs. The Rush keeps its own
+    `rush_xp_percent`.
+  - `mastery_fight` 1 → **2** (Relic pips per won ordinary fight; elites 2, guards 3, bosses 5 as
+    before): fewer fights per run meant fewer Echoes (4 to 7 for the perfect bot); now 5 to 7.
+  - `run_start_gold` 0 → **50**: the first shop can sell a heal or two (Salve 25, Feast 40). Oath 2's
+    `start_gold_add` now has a purse to work on.
+  - Tried and put back: `run_weight_shop` 12 → 18 (round 1). Roads that pass a shop went only from
+    47% to 51% (24: 56%, 30: 62%, 40: 70%, over 900 maps), and it pushed out fights, events and rests.
+- **The Fight Rush is the same** (8.21): its own numbers take up the run's changes.
+  `rush_enemy_hp_step_add` 0 → **2** and `rush_enemy_power_step_add` 0 → **1** keep its steps at 5
+  and 3; `rush_enemy_power_percent` 100 → **105** keeps its 105% power (`CombatMath.percent` of 100
+  changes nothing, so the product is exact); `RushState.begin_rush` sets the purse to 0 (no gold in
+  a Rush, one new line); the Rush does not read `run_deep_row` (its deep fights come from its
+  tiers, D16), has no crowned elites, its own XP and no pips. A check over 5 seeds and fights 1 to
+  70 (350 fights) found the same fight, enemy HP, power, tempo, XP and kind as before the pass, and `test_rush.gd` pins the steps (5 and 3), fight 11's numbers (150% HP,
+  130% power), the XP and the 105% power.
+- **Fight sizes after the pass** (T5; total enemy HP at the act's rows 0 to 5, as the engine builds
+  them): act 1 the Gorged One 3402 to 3931, the elites 2520 to 3333 (crowned 2772 to 3665), the
+  Husk Lord 4680; act 2 the Mire Mother 4023 to 4503, Twin Husks 3042 to 3420 (crowned up to 3762),
+  the Toad Court 5172 to 5814 (crowned 5692 to 6396), the Leech Queen 5490; act 3 the deep Ash Warden
+  4758 to 5242, the deep elites 5284 to 6138 (crowned up to 6752), the Hollow King 6885. New test
+  `test_no_elite_stop_guard_is_bigger_than_its_act_boss` checks every act's guard at every row an
+  Elite stop can stand on; `test_the_boss_test_sees_what_the_engine_builds` checks its sums against
+  a real engine.
+- **Run length (T6), an estimate**: the bots' fight clock (real seconds) for a won run is 4.6 to 7.8
+  minutes for the perfect bot (103 to 191 turns) and 8.3 to 12.2 for skill 85 (193 to 293 turns).
+  For a person who wins at about the 85 bot's level: its fight clock (about 10 minutes) plus about 5
+  seconds of menu thought per hero turn (about half the turns, so about 10 minutes), plus about 20
+  minutes off the fight screen: 21 map picks at 10 s, 2 or 3 shops at a minute, 4 to 6 events at
+  40 s, 3 or 4 campfires at 20 s, about 14 spoils and treasure picks at 15 s, about 27 hero level
+  ups at 10 s, and the fight intros, act changes and boss intros (about 3 minutes). In all **about
+  40 to 45 minutes** for a won run; a run lost in act 1 or 2 takes 10 to 25. Assumptions: one
+  player, no pauses or co-op talk, the bot's waits stand in for the animations, nothing was timed
+  with a person.
+- **Left for the talk**:
+  - **A 70% player still never reaches act 2** (0 of 4 before, 0 of 6 after; T2's "usually reaches
+    act 2" is missed. T1 mostly holds: 2 of the 6 died before stop 3, at stop 2 and, to the Husk
+    Trio, at stop 1). The rest of T2 holds: the 85 bot won 6 of 8 after the pass (1 of 4 before) and
+    the perfect bot 3 of 3. Two causes. (1) The map bot looks one step ahead: it picks treasure, a
+    shop, a campfire when hurt, events and fights, and an Elite stop when fit, but on 38% of act
+    maps (of 400) its road walks into an Elite stop it did not want, and 92% of those maps had a road
+    with none, so a person who reads the map can steer clear. Three of skill 70's six deaths (stops
+    5, 5 and 4) and skill 85's loss on seed 4 are such stops, all at level 2 (at 49%, 30% and 23%
+    party HP for three of them). A look-ahead in the bot (`Main._autoplay_map`) would measure people
+    better; that file was being changed by the online Save & Quit work (#313), so it waits.
+    (2) HP carries on from fight to fight and nothing heals after a win, and a 70% player misses
+    twice as many presses as an 85% one. Every run-only number that is pure data is spent; what is
+    left shares its data with the Rush (the monsters, the bosses, `elite_hp_percent`, the downed
+    hero's 1 HP). Options: a small heal after each won fight, a run-only enemy power under the
+    Rush's (one line: the Rush would use its own number instead of `enemy_power_base_percent`), or
+    an easier setting below Oath 0 for new players.
+  - **The Bloat fight at row 0** costs a 70% or 85% player about three quarters of the party's HP
+    (76% to 79% on seeds 3 and 4), where most other first fights cost 0% to 38% (the Husk Trio
+    killed the 70% bot on seed 6 at stop 1). Both are in the Rush too. Options: keep them off an
+    act's first row, or soften them.
+  - **Act 2's Toad Court** (an elite) has more HP than the Leech Queen from row 3 (5570 to 5814,
+    crowned 5692 to 6396 at every row, against 5490), and act 3's ordinary monsters hit harder per
+    hit (up to 121) than the Hollow King (66). For the perfect bot the boss is not always the longest
+    fight of its act either (seed 71: the Gorged One 67 s at level 3, the Husk Lord 36 s at level 5;
+    the deep Laughing Pack 52 s, the King 43 s). So T2's "the boss is the hardest" holds for HP in
+    acts 1 and 3 only. The monsters and elites share their data with the Rush.
+  - **Shops**: about half the roads through an act pass a shop, so a winning bot met 1 to 4 shops
+    in a run and spent nearly all its gold at each (3 to 55 left, twice over 200); the gold left at the
+    end (23 to 441) is what came after the last shop. T4's 900+ never happened, but "2 or 3 buys per
+    act" needs a shop on every road: a map rule, so code.
+  - **Levels**: the perfect bot (and the 85 bot) is level 9 or 10 by the end of act 2, so act 3
+    gives one level at most; `run_xp_percent` 125 would spread them (not measured). Relics found and
+    Echoes are near T3 (perfect: 8 to 14 Relics, 5 to 7 Echoes; the 85 bot's wins: 5 to 13 and 2 to
+    6). The act 2 boss still opens no Relic slot.
+  - Not checked: co-op (2 or 3 players), online, Oaths above 0, a run with Relics at home, and how it
+    looks and feels in a game window.
 
 ## 9. Multiplayer (phase 5)
 
@@ -6115,3 +6254,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-24 | Three acts, one place each (Hollow, Bog, Ruins); a new act 2 boss, the Leech Queen (8.23, #323); boss pools (#324) and boss gimmicks (#325) are ideas for later | owner: three acts are the roguelite standard; few female enemies so far |
 | 2026-10-24 | Guards merged into Elite stops: an Elite stop holds an elite group or its place's guard; no Guard stop or guard row (8.22); built 2026-10-25: a seeded 40% (`run_elite_guard_percent`) holds the guard, never when the nearest Elite stop on a road before holds it, the first Elite stop won opens the Relic slot | owner: lower confusion; guards had no job without zones |
 | 2026-10-25 | Online the run's choices go in turns (9.2 "Taking turns", card #314): each new choice screen (a map step, a stop, a spoils pick, a Rush pick) is the next seated player's, skipping away and joining seats; the host referees (a friend's choice is a request checked against the turn and the screen); a whose-turn chip (person sign and tag); a drop passes the turn; a find with no room is handed to the owner; the Rush's Fight is the last picker's; Settings, Game, Take turns (default on, the host's) keeps the old way; `Net.PROTOCOL` 6 | card #314; the party screen stays everyone's as before; a new Relic on a friend's turn waits in the bag and the spoils' party screen stays the host's (defaults) |
+| 2026-10-25 | Balance for the three-act run (8.23 "Balance for the three-act run", card #321): no ordinary row is deep (`run_deep_row` 6, only act 3 fights deep versions), enemies grow 3% HP and 2% power per row (was 5 and 3), run enemy power back to 100%, the crowned elite 110% HP (was 130), run XP at 150% (new `run_xp_percent`), 2 Relic pips per won fight (was 1), 50 gold to start (was 0); the Fight Rush keeps every number through its own (`rush_enemy_hp_step_add` 2, `rush_enemy_power_step_add` 1, `rush_enemy_power_percent` 105, no gold); a test keeps every Elite stop guard under its act boss | defaults, built while the owner slept; the perfect bot wins every run, an 85% bot 6 of 8, a 70% bot still dies in act 1 (0 of 6 reach act 2) (the map bot walks into Elite stops; nothing heals after a win): for the talk |
