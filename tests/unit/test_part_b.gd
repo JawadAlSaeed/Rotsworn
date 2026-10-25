@@ -220,9 +220,9 @@ func test_a_victory_pays_xp() -> void:
 	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
 	var hp: Array[int] = [50, 0, 50]
 	var got := run.finish_fight(RunState.VICTORY, hp, husk)
-	var full := RunState.encounter_xp(husk)
+	var full := CombatMath.percent(RunState.encounter_xp(husk), run.tuning.run_xp_percent)
 	assert_gt(full, 0)
-	assert_eq(int(got.xp[0]), full, "standing heroes get it all")
+	assert_eq(int(got.xp[0]), full, "standing heroes get it all, at the run's XP share (#321)")
 	assert_eq(int(got.xp[1]), CombatMath.percent(full, run.tuning.run_xp_downed_percent), "the downed get less")
 	assert_eq(run.xps[1], int(got.xp[1]))
 

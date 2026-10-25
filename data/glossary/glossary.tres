@@ -597,7 +597,7 @@ script = ExtResource("1_d4656")
 id = "deep_variant"
 topic = "enemies"
 term = "Deep variant"
-text = "A tougher, recoloured kin met in the second half of a run (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere."
+text = "A tougher, recoloured kin met in a run's last act and from fight 21 of a Fight Rush (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere."
 
 [sub_resource type="Resource" id="Resource_d8cfa"]
 script = ExtResource("1_d4656")

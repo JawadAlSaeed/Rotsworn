@@ -437,6 +437,12 @@ func test_wins_fill_a_worn_relics_pips_bigger_fights_faster() -> void:
 	assert_eq(run.mastery_gain(_guard()), run.tuning.mastery_guard)
 	assert_eq(run.mastery_gain(run.final_encounter()), run.tuning.mastery_boss)
 	assert_eq(run.mastery_gain(run.act_data().elites[0]), run.tuning.mastery_elite)
+	# The ladder itself (DESIGN.md 8.19): every bigger fight fills more (#321 tried a plain fight at
+	# 2 pips, the elite's number, and put it back).
+	assert_gt(run.tuning.mastery_elite, run.tuning.mastery_fight, "an elite group fills more than a plain fight")
+	assert_gt(run.tuning.mastery_guard, run.tuning.mastery_elite, "a guard more than an elite group")
+	assert_gt(run.tuning.mastery_boss, run.tuning.mastery_guard, "a boss the most")
+	assert_eq(run.tuning.mastery_fight, 1, "the loops below count one pip a plain win")
 	for i: int in run.tuning.mastery_needed - 1:
 		_win(run, _husk())
 	assert_false(run.echo_learned(drum))
@@ -824,10 +830,15 @@ func test_the_relics_tab_puts_a_relic_from_the_bag_on_a_slot() -> void:
 # --- harder runs ----------------------------------------------------------------------------------
 
 func test_run_fights_get_the_base_enemy_power_and_practice_keeps_the_data() -> void:
+	# Phase 17 made run fights 5% harder; the three-act run's balance pass (#321, DESIGN.md 8.23) set
+	# the run back to its data, and the Fight Rush keeps its 105% in rush_enemy_power_percent.
+	assert_eq(_tuning.enemy_power_base_percent, 100, "#321: run fights as in the data")
+	assert_eq(CombatMath.percent(_tuning.enemy_power_base_percent, _tuning.rush_enemy_power_percent), 105,
+			"the Rush keeps its 105%")
 	var run := _run()
+	run.tuning.enemy_power_base_percent = 105
 	var husk := _husk()
 	var setup := run.fight_setup(husk, 1, CombatSetup.Opening.NORMAL)
-	assert_eq(_tuning.enemy_power_base_percent, 105, "phase 17: a little harder")
-	assert_eq(setup.enemy_power_percent, CombatMath.percent(run.enemy_power_percent(), _tuning.enemy_power_base_percent))
+	assert_eq(setup.enemy_power_percent, CombatMath.percent(run.enemy_power_percent(), 105))
 	var practice := CombatSetup.from_encounter(husk, _tuning, 1, CombatSetup.Opening.NORMAL)
 	assert_lt(practice.enemy_power_percent, setup.enemy_power_percent, "practice fights are as in the data")

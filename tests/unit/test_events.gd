@@ -15,8 +15,12 @@ func before_all() -> void:
 	_tuning = load("res://data/tuning/tuning.tres") as Tuning
 
 
+## A run with an empty purse (the shipped run starts with run_start_gold since #321), so every gold
+## check below starts from nothing.
 func _run(seed_value: int = 7, tuning: Tuning = null) -> RunState:
-	return RunState.begin(_data, tuning if tuning != null else _tuning, seed_value)
+	var run := RunState.begin(_data, tuning if tuning != null else _tuning, seed_value)
+	run.gold = 0
+	return run
 
 
 func _offer(props: Dictionary) -> ZoneOfferData:
