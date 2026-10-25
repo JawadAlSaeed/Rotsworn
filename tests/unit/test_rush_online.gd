@@ -80,7 +80,7 @@ static func _labels_of(node: Node) -> Array[String]:
 # --- the messages --------------------------------------------------------------------------------
 
 func test_the_protocol_moved_on() -> void:
-	assert_eq(NetSession.PROTOCOL, 6, "choices in turns (card #314): an older build must not join")
+	assert_eq(NetSession.PROTOCOL, 7, "Relics given to a hero (DESIGN.md 8.24): an older build must not join")
 
 
 func test_modes_are_what_the_states_say() -> void:
@@ -153,16 +153,10 @@ func test_a_friend_builds_the_hosts_rush() -> void:
 	assert_eq(friend.start_fight, 5)
 	assert_eq(friend.offer, host.offer, "the same cards")
 	assert_eq(friend.most_players, 2, "the most players seen comes from the host")
-	assert_eq(friend.open_relic_slots(), host.open_relic_slots())
+	for slot: int in host.party_size():
+		assert_eq(friend.relics_of(slot), host.relics_of(slot), "each hero's Relics come from the host")
 	# The host takes its picks and goes on: the next fight's state alone builds the same fight there.
-	while host.picking():
-		var got := host.take_card(host._bot_card())
-		if got.give is GearData:
-			host.add_relic(got.give as GearData)
-		elif got.give is ItemData:
-			host.add_item(got.give as ItemData)
-		host.next_offer()
-	host.next_fight()
+	_picked_and_on(host)
 	var fight := _sent({"name": "rush_fight", "seed": 123, "run": host.to_dict()})
 	assert_true(friend.apply_dict(fight.run as Dictionary))
 	assert_eq(friend.fight, 6)
@@ -412,12 +406,13 @@ func test_a_hosts_dev_rush_keeps_no_record_on_friends_machines() -> void:
 # --- getting in mid-Rush: drop-in, rejoin, a crashed friend's seat (h2) --------------------------
 
 ## The host's Rush `r` after its picks, on to the next fight (the state the fight's screen carries).
+## A Relic card's Relic goes to the hero the bot picks (DESIGN.md 8.24).
 static func _picked_and_on(r: RushState) -> RushState:
 	while r.picking():
-		var got := r.take_card(r._bot_card())
-		if got.give is GearData:
-			r.add_relic(got.give as GearData)
-		elif got.give is ItemData:
+		var pick := r._bot_card()
+		var thing := r.card_thing(pick)
+		var got := r.take_card(pick, GearBot.best_hero(r, thing as GearData) if thing is GearData else -1)
+		if got.give is ItemData:
 			r.add_item(got.give as ItemData)
 		r.next_offer()
 	r.next_fight()

@@ -178,35 +178,29 @@ func test_an_elite_made_in_data_needs_no_can_run_flag() -> void:
 
 # --- HP above max -----------------------------------------------------------------------------
 
-## Since phase 17 only Relics and Echoes raise max HP (the backpack's charms are gone, DESIGN.md
-## 8.17): taking one off, moving it, or taking an Echo off never leaves a hero above max HP.
-func test_hp_never_stays_above_max_after_a_relic_or_echo_comes_off() -> void:
+## Since phase 17 only Relics raise max HP (the backpack's charms are gone, DESIGN.md 8.17). A
+## Relic is given for good (8.24): one that raises max HP never heals, and one whose price is max HP
+## (the Gravebound Ring) never leaves a hero above max HP.
+func test_hp_never_rises_or_stays_above_max_when_a_relic_is_given() -> void:
+	var r := _run()
 	var charm: GearData = null
-	for item: GearData in _run().data.gear:
+	for item: GearData in r.data.gear:
 		if item.effect == GearData.Effect.MAX_HP and not item.rot_touched:
 			charm = item
-	for how: String in ["take_off", "swap", "echo"]:
-		var r := _run()
-		r.elite_stops_won = 1
-		var wearer := 1 if how == "echo" else 0
-		r.wear(wearer, 0, charm)
-		if how == "echo":
-			r.mastery[charm.id] = r.tuning.mastery_needed
-			r.add_xp(0, 400)
-			assert_true(r.set_echo(0, charm, true))
-		for slot: int in r.party_size():
-			r.hp[slot] = r.max_hp(slot)
-		var with_it := r.max_hp(0)
-		match how:
-			"take_off":
-				r.take_off(0, 0)
-			"swap":
-				r.swap_gear(0, 0, 2, 1)
-			"echo":
-				r.set_echo(0, charm, false)
-		assert_lt(r.max_hp(0), with_it, "%s: it was worth max HP" % how)
-		for slot: int in r.party_size():
-			assert_lte(r.hp[slot], r.max_hp(slot), "%s: hero %d" % [how, slot])
+	var ring := r.relic_by_id("gravebound_ring")
+	assert_not_null(charm)
+	assert_not_null(ring)
+	for slot: int in r.party_size():
+		r.hp[slot] = r.max_hp(slot)
+	var full := r.max_hp(0)
+	assert_false(r.give_relic(charm, 0).is_empty())
+	assert_gt(r.max_hp(0), full, "it is worth max HP")
+	assert_eq(r.hp[0], full, "but heals nothing")
+	var before := r.max_hp(1)
+	assert_false(r.give_relic(ring, 1).is_empty())
+	assert_lt(r.max_hp(1), before, "the ring costs max HP")
+	for slot: int in r.party_size():
+		assert_lte(r.hp[slot], r.max_hp(slot), "hero %d" % slot)
 
 
 # --- a map for an act without elites or events ------------------------------------------------

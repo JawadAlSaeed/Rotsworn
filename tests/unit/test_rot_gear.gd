@@ -23,9 +23,9 @@ func before_all() -> void:
 	_tuning = load("res://data/tuning/tuning.tres") as Tuning
 
 
-## A run with every Relic slot open (the slots have their own tests in test_relics.gd).
+## A run of its own (each hero keeps every Relic given, DESIGN.md 8.24).
 func _run(seed_value: int = 7) -> RunState:
-	return RunState.begin(_data, Fx.all_slots(_tuning), seed_value)
+	return RunState.begin(_data, Fx.run_tuning(_tuning), seed_value)
 
 
 func _piece(id: String) -> GearData:
@@ -91,7 +91,7 @@ func test_every_rot_touched_piece_reaches_a_valid_fight_setup() -> void:
 	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
 	for item: GearData in _rot_pieces():
 		var run := _run()
-		run.wear(0, 0, item)
+		run.give_relic(item, 0)
 		var setup := run.fight_setup(husk, 3, CombatSetup.Opening.NORMAL)
 		assert_true(setup.validate().is_empty(), "%s: %s" % [item.id, str(setup.validate())])
 		var engine := CombatEngine.new(setup)
@@ -104,7 +104,7 @@ func test_every_rot_touched_piece_reaches_a_valid_fight_setup() -> void:
 func test_rotten_crown_adds_power_and_weakens_healing() -> void:
 	var run := _run()
 	var before := run.power_percent(0)
-	run.wear(0, 0, _piece("rotten_crown"))
+	run.give_relic(_piece("rotten_crown"), 0)
 	assert_eq(run.power_percent(0), before + 35)
 	assert_eq(int(run.passives(0)[Passive.HEAL_TAKEN]), -40)
 	run.hp[0] = 10
@@ -116,7 +116,7 @@ func test_rotten_crown_adds_power_and_weakens_healing() -> void:
 func test_gravebound_ring_trades_max_hp_for_counters() -> void:
 	var run := _run()
 	var before := run.total_max_hp_percent(0)
-	run.wear(0, 0, _piece("gravebound_ring"))
+	run.give_relic(_piece("gravebound_ring"), 0)
 	assert_eq(int(run.passives(0)[Passive.COUNTER]), 80)
 	assert_eq(run.total_max_hp_percent(0), before - 15)
 	assert_eq(run.hp[0], mini(run.hp[0], run.max_hp(0)), "HP is cut to the lower max")
@@ -124,7 +124,7 @@ func test_gravebound_ring_trades_max_hp_for_counters() -> void:
 
 func test_hunger_charm_heals_on_kills_but_the_campfire_does_nothing_for_the_wearer() -> void:
 	var run := _run()
-	run.wear(0, 0, _piece("hunger_charm"))
+	run.give_relic(_piece("hunger_charm"), 0)
 	assert_eq(int(run.passives(0)[Passive.KILL_HEAL]), 8)
 	assert_eq(run.rest_heal_percent_of(0), 0)
 	assert_eq(run.rest_heal_percent_of(1), run.rest_heal_percent())
@@ -151,7 +151,7 @@ func test_last_ember_and_the_others_set_their_passives() -> void:
 	}
 	for id: String in wants:
 		run = _run()
-		run.wear(0, 0, _piece(id))
+		run.give_relic(_piece(id), 0)
 		assert_eq(run.passives(0), wants[id], id)
 
 
@@ -159,23 +159,23 @@ func test_stat_drawbacks_change_the_hero_stats() -> void:
 	var run := _run()
 	var speed := run.speed(0)
 	var power := run.power_percent(0)
-	run.wear(0, 0, _piece("hollow_mantle"))
+	run.give_relic(_piece("hollow_mantle"), 0)
 	assert_eq(run.speed(0), speed - 10)
 	assert_eq(run.defense_percent(0), 25)
-	run.wear(0, 1, _piece("plague_bell"))
+	run.give_relic(_piece("plague_bell"), 0)
 	assert_eq(run.power_percent(0), power - 10)
 	run = _run()
-	run.wear(1, 0, _piece("thorned_gauntlet"))
+	run.give_relic(_piece("thorned_gauntlet"), 1)
 	assert_eq(run.defense_percent(1), -10, "the hero takes 10% more")
 	run = _run()
-	run.wear(1, 0, _piece("bloodletters_fang"))
+	run.give_relic(_piece("bloodletters_fang"), 1)
 	assert_eq(run.crit_percent(1), _tuning.crit_base_percent + 25)
 
 
 func test_oathbreakers_band_costs_max_hp_after_each_fight_won() -> void:
 	var run := _run()
 	run.go(run.choices()[0])
-	run.wear(0, 0, _piece("oathbreakers_band"))
+	run.give_relic(_piece("oathbreakers_band"), 0)
 	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
 	var before := run.max_hp_percent.duplicate()
 	var hp: Array[int] = [run.max_hp(0), run.max_hp(1), run.max_hp(2)]
@@ -197,7 +197,7 @@ func test_a_drawback_on_the_same_effect_takes_away_and_empty_sums_vanish() -> vo
 	odd.drawback = GearData.Effect.TOUGH
 	odd.drawback_amount = 10
 	var run := _run()
-	run.gear[0][0] = odd
+	run.gear[0] = [odd]
 	assert_false(run.passives(0).has(Passive.TOUGH), "10 - 10 leaves nothing")
 	assert_eq(odd.contribution(GearData.Effect.TOUGH), 0)
 	var rot := GearData.new()
@@ -384,15 +384,15 @@ func test_spoils_always_offer_a_rot_touched_piece_among_their_choices() -> void:
 			assert_eq(run.loot_choices(int(stop.id)), loot, "the same stop offers the same loot")
 
 
-func test_spoils_skip_rot_touched_relics_at_their_top_level_and_run_out_gracefully() -> void:
+func test_spoils_skip_rot_touched_relics_the_run_has_and_run_out_gracefully() -> void:
 	var run := _run()
 	var stop := int(run.choices()[0])
-	# A copy of a Relic at its top level would only be gold (DESIGN.md 8.17): never offered.
+	# A Relic the party has never turns up again in the run (DESIGN.md 8.24).
 	for item: GearData in _rot_pieces():
-		run.relics[item.id] = run.tuning.relic_max_level
+		run.add_relic(item)
 	var loot := run.loot_choices(stop)
 	for item: GearData in loot:
-		assert_false(item.rot_touched, "maxed rot-touched Relics are not offered again")
+		assert_false(item.rot_touched, "rot-touched Relics the run has are not offered again")
 	assert_eq(loot.size(), _tuning.run_loot_choices, "ordinary Relics fill the choices")
 
 
@@ -463,22 +463,16 @@ func test_the_bot_takes_a_bearable_rot_touched_piece_and_refuses_a_costly_one() 
 	assert_eq(GearBot.pick(none), 0)
 
 
-func test_the_bot_leaves_rot_touched_gear_it_refuses_unworn() -> void:
+func test_the_bot_leaves_rot_touched_gear_it_refuses_waiting() -> void:
 	var run := _run()
 	run.add_relic(_piece("rotten_crown"))
+	run.add_relic(_piece("ash_veil"))
 	var gold := run.gold
-	var screen := PartyScreen.new()
-	add_child_autofree(screen)
-	screen.setup(run, "", {"gear": _piece("rotten_crown")})
-	screen.auto_settle()
-	assert_false(run.is_worn(_piece("rotten_crown")), "refused: not worn")
+	assert_eq(run.auto_give(), 1, "only the bearable one is given")
+	assert_eq(run.holder_of(_piece("rotten_crown")), -1, "refused: it waits")
 	assert_true(run.owns(_piece("rotten_crown")), "a Relic is kept, never sold (DESIGN.md 8.17)")
 	assert_eq(run.gold, gold)
-	var other := PartyScreen.new()
-	add_child_autofree(other)
-	other.setup(run, "", {"gear": _piece("ash_veil")})
-	other.auto_settle()
-	assert_true(run.is_worn(_piece("ash_veil")), "bearable: worn")
+	assert_true(run.is_given(_piece("ash_veil")), "bearable: given")
 
 
 # --- the Tonic fix ------------------------------------------------------------------------------
@@ -515,7 +509,7 @@ func test_a_tonic_gives_the_same_max_hp_whatever_its_level() -> void:
 
 func test_a_tonic_heals_its_new_hp_whatever_the_wearer_gear_says() -> void:
 	var run := _run()
-	run.wear(0, 0, _piece("rotten_crown"))
+	run.give_relic(_piece("rotten_crown"), 0)
 	var tonic := run.items_by_id()["tonic"] as ItemData
 	var before_max := run.max_hp(0)
 	var before_hp := run.hp[0]
@@ -525,12 +519,12 @@ func test_a_tonic_heals_its_new_hp_whatever_the_wearer_gear_says() -> void:
 
 # --- saving -------------------------------------------------------------------------------------
 
-func test_worn_rot_touched_gear_survives_a_save() -> void:
+func test_given_rot_touched_gear_survives_a_save() -> void:
 	var run := _run()
-	run.wear(0, 0, _piece("rotten_crown"))
-	run.wear(1, 1, _piece("oathbreakers_band"))
+	run.give_relic(_piece("rotten_crown"), 0)
+	run.give_relic(_piece("oathbreakers_band"), 1)
 	var copy := RunState.from_dict(run.data, run.tuning, run.to_dict())
 	assert_not_null(copy)
-	assert_eq(copy.gear[0][0], _piece("rotten_crown"))
-	assert_eq(copy.gear[1][1], _piece("oathbreakers_band"))
+	assert_eq(copy.relics_of(0), [_piece("rotten_crown")] as Array[GearData])
+	assert_eq(copy.relics_of(1), [_piece("oathbreakers_band")] as Array[GearData])
 	assert_eq(copy.passives(0), run.passives(0))

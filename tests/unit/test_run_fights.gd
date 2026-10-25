@@ -2,8 +2,8 @@ extends GutTest
 ## A run without zones (DESIGN.md 8.22, cards #316 and #317, and the guards joining the Elite stops):
 ## new maps (rules 4) have no Guard stops, and an Elite stop holds one of its act's elite groups or
 ## its place's guard, a seeded pick (run_elite_guard_percent) that never gives a road the guard at
-## two Elite stops in a row; the guard pays its pips and spoils (a crowned one the crown's legendary),
-## and the first Elite stop won opens a Relic slot. Map rules 3 (a row of Guard stops) and 1 and 2 stay as
+## two Elite stops in a row; the guard pays its spoils (a crowned one the crown's legendary), and an
+## elite group or a guard gives a pick of Relics, a plain fight none (DESIGN.md 8.24). Map rules 3 (a row of Guard stops) and 1 and 2 stay as
 ## they were for older runs. A Fight stop's fight, every run fight's weather and a Fight stop's drop
 ## are seeded picks from the run state alone (the same on every machine, an online friend builds the
 ## same fight); a Fight stop never repeats the last Fight stop's fight while its place has another;
@@ -388,10 +388,9 @@ func test_an_act_without_elite_groups_needs_a_guard_in_every_place() -> void:
 	assert_gt(met, 0, "two guarded places still give Elite stops")
 
 
-## A guard at an Elite stop pays as a guard did: its Echo pips (mastery_guard), its spoils (pick 1 of
-## 3, one more when flawless, the line "The guard fell."), no item drop, and as the first Elite stop
-## won it opens the second Relic slot.
-func test_a_guard_elite_stop_pays_guard_pips_and_spoils() -> void:
+## A guard at an Elite stop pays as a guard did: its spoils (pick 1 of 3 Relics, one more when
+## flawless, the line "The guard fell."), no item drop.
+func test_a_guard_elite_stop_pays_guard_spoils() -> void:
 	var found := _elite_stop_holding(true)
 	assert_gt(found[0], 0, "some seed puts the guard at an Elite stop")
 	if found[0] < 0:
@@ -401,34 +400,25 @@ func test_a_guard_elite_stop_pays_guard_pips_and_spoils() -> void:
 	var place := run.zone_of(run.current())
 	var guard := run.encounter_now()
 	assert_true(guard == place.guard or guard == place.guard.deep, "its place's guard")
-	assert_eq(run.mastery_gain(guard), _tuning.mastery_guard, "a guard's Echo pips")
-	assert_eq(_tuning.mastery_guard, 3)
-	var relic := _data.gear[0]
-	run.add_relic(relic)
-	assert_eq(run.wear(0, 0, relic), 0)
 	assert_null(run.fight_drop(), "spoils, no item drop")
-	var slots_before := run.open_relic_slots()
 	var plain_count := run.loot_choice_count()
 	assert_eq(plain_count, 3, "pick 1 of 3")
-	assert_has(run.win_relic_lines(guard), "A Relic slot opens: Y to put a Relic on")
+	var owned := run.relics.size()
 	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), guard, {"hits_taken": 0})
-	assert_eq(int(run.mastery.get(relic.id, 0)), _tuning.mastery_guard, "the worn Relic got 3 pips")
-	assert_eq(run.elite_stops_won, 1)
-	assert_eq(run.open_relic_slots(), slots_before + 1, "the first Elite stop won opens a Relic slot")
+	assert_eq(run.relics.size(), owned, "the win itself drops no Relic: the spoils give one")
 	assert_true(run.flawless, "no hit taken: flawless")
 	assert_eq(run.loot_choice_count(), plain_count + 1, "one more spoils choice")
 	assert_eq(run.loot_choices(run.at).size(), run.loot_choice_count())
+	for item: GearData in run.loot_choices(run.at):
+		assert_false(run.owns(item), "only Relics the run does not have")
 	assert_eq(_main.call("_after_run_fight", RunState.VICTORY, RunMap.StopType.ELITE, false, false, false, false),
 			_after_fight("SPOILS"))
 	assert_eq(_main.call("_spoils_line", RunMap.StopType.ELITE, false, true), "The guard fell. Take one.")
-	var copy := RunState.from_dict(_data, _tuning, run.to_dict())
-	assert_eq(copy.elite_stops_won, 1, "kept and sent online")
-	assert_eq(int(run.to_dict().guards_beaten), 1, "under the name a save has always used")
 
 
-## An elite group pays as before (mastery_elite, spoils), and as the first Elite stop won it opens
-## the Relic slot too; an ordinary fight or an ambush does not.
-func test_the_relic_slot_opens_after_the_first_elite_stop_won_of_either_kind() -> void:
+## An elite group gives spoils as before; a Fight stop's win and an ambush's (unless its event says
+## so) give none, and no won fight drops a Relic by itself (DESIGN.md 8.24).
+func test_only_elite_stops_and_bosses_give_spoils() -> void:
 	var found := _elite_stop_holding(false)
 	assert_gt(found[0], 0)
 	if found[0] < 0:
@@ -440,23 +430,22 @@ func test_the_relic_slot_opens_after_the_first_elite_stop_won_of_either_kind() -
 	run.end_ambush()
 	assert_eq(int(run.current().type), RunMap.StopType.FIGHT, "row 0 is Fight stops")
 	var fight := run.encounter_now()
-	assert_eq(run.slot_lock_text(1), "Opens after the first Elite stop.")
-	assert_does_not_have(run.win_relic_lines(fight), "A Relic slot opens: Y to put a Relic on")
 	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), fight)
-	assert_eq(run.open_relic_slots(), 1, "a Fight stop opens nothing")
+	assert_true(run.relics.is_empty(), "a Fight stop drops no Relic")
+	assert_eq(_main.call("_after_run_fight", RunState.VICTORY, RunMap.StopType.FIGHT, false, false, false, false),
+			_after_fight("MAP"), "a Fight stop: on to the map")
+	assert_eq(_main.call("_after_run_fight", RunState.VICTORY, RunMap.StopType.ELITE, true, false, false, false),
+			_after_fight("MAP"), "an ambush without spoils")
+	assert_eq(_main.call("_after_run_fight", RunState.VICTORY, RunMap.StopType.ELITE, true, true, false, false),
+			_after_fight("SPOILS"), "an ambush whose event gives spoils")
+	assert_eq(_main.call("_after_run_fight", RunState.VICTORY, RunMap.StopType.FINAL, false, false, false, false),
+			_after_fight("SPOILS"), "an act's boss")
 	assert_true(_walk_to_stop(run, found[1]))
 	var group := run.encounter_now()
 	assert_true(group.elite and not group.mini_boss, "an elite group")
-	assert_eq(run.mastery_gain(group), _tuning.mastery_elite, "an elite's Echo pips")
-	run._set_ambush(group, true)
-	assert_does_not_have(run.win_relic_lines(group), "A Relic slot opens: Y to put a Relic on")
 	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), group)
-	assert_eq(run.open_relic_slots(), 1, "an ambush is no Elite stop, even an elite one")
-	assert_has(run.win_relic_lines(group), "A Relic slot opens: Y to put a Relic on")
-	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), group)
-	assert_eq(run.elite_stops_won, 1)
-	assert_eq(run.open_relic_slots(), 2, "the first Elite stop won opens the second slot")
-	assert_eq(run.slot_lock_text(1), "")
+	assert_true(run.relics.is_empty(), "the win itself drops none: the spoils give one")
+	assert_eq(run.loot_choices(run.at).size(), run.loot_choice_count())
 	assert_eq(_main.call("_spoils_line", RunMap.StopType.ELITE, false, false), "The elite fell. Take one.")
 
 
@@ -778,18 +767,14 @@ func test_a_rules_3_guard_stop_fights_its_places_guard_and_pays_like_a_guard() -
 	var guard := run.encounter_now()
 	assert_eq(guard, place.guard, "its place's guard, plain in the first act")
 	assert_true(guard.mini_boss and not guard.can_run, "no running from a guard")
-	assert_eq(run.mastery_gain(guard), _tuning.mastery_guard, "a guard's Echo pips")
-	var slots_before := run.open_relic_slots()
 	var plain_count := run.loot_choice_count()
 	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), guard, {"hits_taken": 0})
-	assert_eq(run.elite_stops_won, 1)
-	assert_eq(run.open_relic_slots(), slots_before + 1, "the first guard opens a Relic slot")
+	assert_true(run.relics.is_empty(), "no Relic drops by itself (DESIGN.md 8.24): the spoils give one")
 	assert_true(run.flawless, "no hit taken: flawless")
 	assert_eq(run.loot_choice_count(), plain_count + 1, "one more spoils choice")
 	assert_eq(run.loot_choices(run.at).size(), run.loot_choice_count())
 	var copy := RunState.from_dict(_data, _tuning, run.to_dict())
-	assert_eq(copy.elite_stops_won, 1, "kept and sent online")
-	assert_eq(copy.map_rules, 3)
+	assert_eq(copy.map_rules, 3, "kept and sent online")
 
 
 func test_every_place_has_its_guard() -> void:
@@ -816,14 +801,14 @@ func test_every_place_still_names_its_song_and_loop() -> void:
 # --- saves and online --------------------------------------------------------------------------------
 
 func test_a_save_from_before_is_kept_but_not_offered() -> void:
-	assert_eq(RunSave.FORMAT_VERSION, 5)
+	assert_eq(RunSave.FORMAT_VERSION, 6)
 	_save_path = OS.get_temp_dir().path_join("rotsworn_test_run_fights_%d.json" % Time.get_ticks_usec())
 	# Format 1: saved inside a zone. Format 2: the first phase 26 builds, whose Hanging Cage still
 	# gave a Key. The Key's file is gone (card #319), so such a pack no longer loads: the main menu
 	# would delete the run as broken (it never checks the fingerprint, card #208) if the format let it in.
 	# Format 3: two acts; its act 2 (the Ashen Deep) is act 3 now (card #323), so it would carry on
 	# in the wrong place. Format 4: a row of Guard stops (map rules 3), from before the guards joined
-	# the Elite stops (DESIGN.md 8.22).
+	# the Elite stops (DESIGN.md 8.22). Format 5: Relic slots, levels and Echoes (DESIGN.md 8.24).
 	var run := _run()
 	run.add_item(run.items_by_id()["salve"] as ItemData)
 	var with_key := run.to_dict()
@@ -831,7 +816,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 	var rows: Array = (with_key.backpack as Array)[3]
 	(rows[0] as Array)[1] = "key"
 	assert_null(RunState.from_dict(_data, _tuning, with_key), "a pack holding a Key no longer fits")
-	for format: int in [1, 2, 3, 4]:
+	for format: int in [1, 2, 3, 4, 5]:
 		var old := {"format": format, "fingerprint": "x", "in_stop": false, "players": 1, "run": with_key}
 		var file := FileAccess.open(_save_path, FileAccess.WRITE)
 		file.store_string(JSON.stringify(old))
@@ -845,7 +830,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 
 
 func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 6)
+	assert_eq(NetSession.PROTOCOL, 7, "the Relics without slots (DESIGN.md 8.24)")
 	assert_has(_main.get_script_constant_map().get("NET_FIGHT_SCREENS") as Array, "stop_fight")
 	for s: int in [3, 7, 21]:
 		var host := _run(s)
@@ -870,9 +855,9 @@ func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
 
 ## An Elite stop's fight (the host's "final_fight" message): the friend builds the same pick, guard
 ## or group, the same fight and weather from the run state alone. The Elite stops changed no message
-## or field (Net.PROTOCOL 6 is taking turns', card #314).
+## or field (Net.PROTOCOL 6 was taking turns', card #314; 7 the Relics without slots, DESIGN.md 8.24).
 func test_a_friend_builds_the_hosts_elite_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 6)
+	assert_eq(NetSession.PROTOCOL, 7)
 	for guard: bool in [true, false]:
 		var found := _elite_stop_holding(guard)
 		assert_gt(found[0], 0)

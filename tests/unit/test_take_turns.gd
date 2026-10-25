@@ -424,11 +424,38 @@ func test_the_host_opens_a_chest_and_takes_a_spoil_for_a_friend() -> void:
 	var loot := LootScreen.new()
 	add_child_autofree(loot)
 	loot.setup(run.loot_choices(run.at), "", run)
+	# The friend whose turn it is plays the third hero (DESIGN.md 8.24): only they may get the spoil.
+	loot.give_heroes = func(_device: int) -> Array[int]: return [2] as Array[int]
 	var taken: Array = []
-	loot.chosen.connect(func(item: GearData) -> void: taken.append(item))
-	assert_eq(_main.call("_make_choice", loot, {"do": "take", "index": 0}), "take 0")
-	assert_eq(_main.call("_make_choice", loot, {"do": "take", "index": 0}), "", "one spoil")
-	assert_eq(taken.size(), 1)
+	loot.chosen.connect(func(item: GearData, hero: int) -> void: taken.append([item, hero]))
+	assert_eq(_main.call("_make_choice", loot, {"do": "take", "index": 0}), "", "a spoil needs its hero")
+	assert_eq(_main.call("_make_choice", loot, {"do": "take", "index": 0, "hero": 0}), "",
+			"not a hero of the player whose turn it is")
+	assert_eq(_main.call("_make_choice", loot, {"do": "take", "index": 0, "hero": 2}), "take 0")
+	assert_eq(_main.call("_make_choice", loot, {"do": "take", "index": 0, "hero": 2}), "", "one spoil")
+	assert_eq(taken, [[run.loot_choices(run.at)[0], 2]])
+
+
+func test_the_host_takes_the_rotten_chests_relic_for_a_friend() -> void:
+	var run := _run()
+	run.go(run.choices()[0])
+	var chest := TreasureScreen.new()
+	add_child_autofree(chest)
+	chest.setup(run)
+	chest.give_heroes = func(_device: int) -> Array[int]: return [1] as Array[int]
+	assert_eq(_main.call("_make_choice", chest, {"do": "open", "rotten": true}), "open rotten")
+	assert_true(chest.relic_waiting(), "a pick of Relics waits")
+	assert_false(_main.call("_can_leave", chest), "the way on shows once one is taken")
+	var offered := chest.relic_choices()
+	assert_eq(offered.size(), run.relic_choice_count())
+	assert_eq(_main.call("_make_choice", chest, {"do": "relic", "index": 1, "hero": 0}), "", "not their hero")
+	assert_eq(_main.call("_make_choice", chest, {"do": "relic", "index": 1, "hero": 1}), "relic 1")
+	assert_eq(run.relics_of(1), [offered[1]] as Array[GearData], "the friend's hero has it")
+	assert_false(chest.relic_waiting())
+	assert_eq(_main.call("_make_choice", chest, {"do": "relic", "index": 0, "hero": 1}), "", "one Relic only")
+	for item: GearData in offered:
+		if item != offered[1]:
+			assert_false(run.owns(item), "the others are gone")
 
 
 func test_a_rush_card_is_taken_for_a_friend_on_a_greyed_screen() -> void:
@@ -471,7 +498,7 @@ func test_a_friends_screen_on_their_turn_asks_and_changes_nothing() -> void:
 	assert_true(bool(screen.rows()[0].enabled), "their turn: the cards are lit")
 	var gold := run.gold
 	assert_true(screen.choose(0))
-	assert_eq(asked, [{"do": "choose", "index": 0, "pick": -1}] as Array[Dictionary])
+	assert_eq(asked, [{"do": "choose", "index": 0, "pick": -1, "hero": -1}] as Array[Dictionary], "no Relic: no hero")
 	assert_eq(run.gold, gold, "the host makes it")
 	assert_false(screen.is_decided())
 
@@ -517,7 +544,7 @@ func test_a_friends_map_and_shop_ask_the_host() -> void:
 	shop.setup(shop_run, shop_run.shop_gear(shop_run.at))
 	var gold := shop_run.gold
 	assert_true(shop.buy(0))
-	assert_eq(asked.back(), {"do": "buy", "index": 0})
+	assert_eq(asked.back(), {"do": "buy", "index": 0, "hero": -1}, "an item: no hero")
 	assert_eq(shop_run.gold, gold)
 	shop.leave()
 	assert_eq(asked.back(), {"do": "leave"})

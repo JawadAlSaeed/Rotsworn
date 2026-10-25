@@ -207,8 +207,9 @@ func test_run_state_round_trip() -> void:
 	run.add_xp(2, 70)
 	run.auto_spend(0)
 	run.set_attributes(2, [1, 0, 0, 0, 1])
-	run.wear(0, 1, run.data.gear[0])
-	run.wear(2, 0, run.data.gear[1])
+	run.give_relic(run.data.gear[0], 0)
+	run.give_relic(run.data.gear[1], 2)
+	run.give_relic(run.data.gear[2], 2)
 	run.add_item(run.data.shop_items[1])
 	run.add_item(run.data.shop_items[0])
 	var data := run.to_dict()
@@ -216,7 +217,8 @@ func test_run_state_round_trip() -> void:
 	var copy := RunState.from_dict(run.data, _tuning, data)
 	assert_not_null(copy)
 	assert_eq(copy.to_dict(), data, "the other machine sees the same run")
-	assert_eq(copy.max_hp(2), run.max_hp(2), "worn gear counts there too")
+	assert_eq(copy.max_hp(2), run.max_hp(2), "the heroes' Relics count there too")
+	assert_eq(copy.relics_of(2), [run.data.gear[1], run.data.gear[2]] as Array[GearData], "in the order given")
 	assert_eq(copy.choices(), run.choices(), "the same map from the seed")
 
 
@@ -224,8 +226,16 @@ func test_run_state_refuses_what_does_not_fit() -> void:
 	var run := _run()
 	var before := run.to_dict()
 	var bad := before.duplicate(true)
-	bad.gear[0][0] = "no_such_gear"
+	bad.gear[0] = ["no_such_gear"]
 	assert_false(run.apply_dict(bad), "unknown gear")
+	bad = before.duplicate(true)
+	bad.gear[0] = [run.data.gear[0].id]
+	bad.gear[1] = [run.data.gear[0].id]
+	bad.relics = {run.data.gear[0].id: 1}
+	assert_false(run.apply_dict(bad), "one Relic given to two heroes")
+	bad = before.duplicate(true)
+	bad.gear[0] = [run.data.gear[0].id]
+	assert_false(run.apply_dict(bad), "a hero's Relic the run does not have")
 	bad = before.duplicate(true)
 	bad.backpack[3] = [[1, "no_such_item", 0, 0, 0]]
 	assert_false(run.apply_dict(bad), "unknown item")

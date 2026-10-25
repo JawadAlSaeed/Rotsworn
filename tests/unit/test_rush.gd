@@ -1,7 +1,8 @@
 extends GutTest
 ## Fight Rush rules (DESIGN.md 8.21, card #305): the RunState seams, the fight counter and depth,
 ## the schedule of elites and bosses, the tiers, seeds, boss growth, XP, the reward cards, extra
-## picks, Relic slots, the dict round trip and its refusals, the dev head start and the records.
+## picks, Relics given to a hero (no slots, no copies), the dict round trip and its refusals, the dev
+## head start and the records.
 ## Builds a small RushData in code from the shipped run, zones and encounters (the shipped
 ## data/rush file is checked in test_rush_data.gd). Nothing here touches user://settings.cfg.
 
@@ -148,7 +149,7 @@ func test_run_begin_is_unchanged_and_says_run() -> void:
 		assert_eq(run.hp[slot], run.max_hp(slot), "full HP at oath 0")
 	assert_eq(run.mode(), "run")
 	assert_eq(run.to_dict().mode, "run")
-	assert_true(run.shows_gold() and run.teaches_echoes())
+	assert_true(run.shows_gold())
 	var old := run.to_dict()
 	old.erase("mode")
 	var copy := RunState.from_dict(_data, _tuning, old)
@@ -296,7 +297,7 @@ func test_bosses_grow_from_their_home_depth() -> void:
 
 func test_the_runs_balance_pass_leaves_the_rush_as_it_was() -> void:
 	# The three-act run's balance pass (#321, DESIGN.md 8.23) slowed the run's growth per row and
-	# raised its XP and pips; the Rush adds the growth back, so its fights still grow 5% HP and 3%
+	# raised its XP; the Rush adds the growth back, so its fights still grow 5% HP and 3%
 	# power per step and pay what they did (8.21, as approved).
 	assert_eq(_tuning.run_enemy_hp_row_percent + _tuning.rush_enemy_hp_step_add, 5)
 	assert_eq(_tuning.run_enemy_power_row_percent + _tuning.rush_enemy_power_step_add, 3)
@@ -306,7 +307,6 @@ func test_the_runs_balance_pass_leaves_the_rush_as_it_was() -> void:
 	assert_eq(r.enemy_power_percent(), 130)
 	var husk := _enc("husk_fight")
 	assert_eq(r.xp_full(husk), RunState.encounter_xp(husk), "its own XP, not the run's share")
-	assert_eq(r.mastery_gain(husk), 0, "no Echo pips")
 	var setup := r.fight_setup(husk, 1, CombatSetup.Opening.NORMAL)
 	assert_eq(setup.enemy_power_percent, CombatMath.percent(130, 105), "every enemy still at 105% power")
 
@@ -328,7 +328,7 @@ func test_fight_setup_has_no_running_and_the_flat_multipliers() -> void:
 
 # --- 9 to 13: XP, the end of a fight, the cards, extra picks -----------------------------------
 
-func test_xp_gold_drops_and_echoes() -> void:
+func test_xp_gold_and_no_relic_from_a_win() -> void:
 	var r := _rush_state()
 	r.fight = 60
 	var king := _enc("hollow_king")
@@ -351,19 +351,14 @@ func test_xp_gold_drops_and_echoes() -> void:
 	r.fight = 3
 	var e := _enc("husk_fight")
 	assert_eq(r.gold_for(e), 0)
-	assert_true(r.relic_drops(e).is_empty())
 	assert_false(r.shows_gold())
-	assert_false(r.teaches_echoes())
 	var charm := _gear("iron_charm")
-	assert_eq(r.wear(0, 0, charm), 0)
-	var pips := r.mastery_of(charm)
-	var totals := r.pips_totals()
+	assert_false(r.give_relic(charm, 0).is_empty())
+	var held := r.owned_relics()
 	_win(r, 3, e)
-	assert_eq(r.mastery_of(charm), pips, "no Echo pips")
-	assert_eq(r.pips_totals(), totals)
+	assert_eq(r.owned_relics(), held, "a win adds no Relic: only a Relic card does")
+	assert_eq(r.relics_of(0), [charm] as Array[GearData])
 	assert_eq(r.gold, 0)
-	assert_false(r.echo_learned(charm))
-	assert_eq(r.echo_blocked_reason(1, charm), "Runs only")
 
 
 func test_a_win_revives_counts_heals_and_offers_cards() -> void:
@@ -379,7 +374,6 @@ func test_a_win_revives_counts_heals_and_offers_cards() -> void:
 	assert_eq(r.picks_left, 1)
 	var out := _win(r, 5, _enc("elite_hyena_pack"))
 	assert_eq(int(out.picks), 1)
-	assert_eq(r.elites_beaten, 1)
 	assert_eq(_kinds(r), ["heal", "point", "relic"], "an elite's cards")
 	r.hp[0] = r.max_hp(0)
 	assert_false(r.card_enabled(0), "Heal is greyed at full HP")
@@ -390,7 +384,6 @@ func test_a_win_revives_counts_heals_and_offers_cards() -> void:
 	r.fight = 10
 	r.picks_left = 0
 	r.finish_fight(RunState.VICTORY, hp, _enc("guard_gorged_one"), {})
-	assert_eq(r.bosses_beaten, 1)
 	for slot: int in r.party_size():
 		assert_eq(r.hp[slot], r.max_hp(slot), "the boss heal fills everyone")
 	assert_eq(_kinds(r), ["point", "relic", "relic"], "a boss's cards")
@@ -438,8 +431,8 @@ func test_taking_cards() -> void:
 	# Rest Relics change the Heal card as they change the campfire's Rest.
 	var hunger := _gear("hunger_charm")
 	var pouch := _gear("rain_pouch")
-	assert_eq(r.wear(0, 0, hunger), 0)
-	assert_eq(r.wear(1, 0, pouch), 0)
+	assert_false(r.give_relic(hunger, 0).is_empty())
+	assert_false(r.give_relic(pouch, 1).is_empty())
 	assert_eq(r.card_heal_percent_of(0), 0, "Hunger Charm: nothing")
 	assert_eq(r.card_heal_percent_of(1), 60, "Rain Pouch: 40% grows to 60%")
 	assert_eq(r.card_heal_percent_of(2), _tuning.rush_heal_card_percent)
@@ -455,7 +448,7 @@ func test_taking_cards() -> void:
 	assert_eq(got.kind, "point")
 	for slot: int in r.party_size():
 		assert_eq(r.bonus_points[slot], points[slot] + _tuning.rush_point_card_points)
-	# An item and a Relic come back to be handed out; nothing is added yet.
+	# An item comes back to be handed out (nothing is added yet); a Relic goes to its hero at once.
 	_win(r, 6)
 	var item_card := r.offer[2]
 	assert_eq(item_card.kind, "item")
@@ -466,10 +459,17 @@ func test_taking_cards() -> void:
 	assert_eq(r.backpack.to_array(), pack, "the item is not in the pack yet")
 	_win(r, 15, _enc("elite_hyena_pack"))
 	var relic := r.relic_by_id(String(r.offer[2].id))
-	var level := r.relic_level(relic)
-	got = r.take_card(2)
-	assert_eq(got.give, relic)
-	assert_eq(r.relic_level(relic), level, "the Relic is not added yet")
+	assert_false(r.owns(relic), "a card never offers one the party has")
+	assert_eq(r.take_card(2), {}, "a Relic card needs a hero")
+	assert_eq(r.take_card(2, 5), {}, "no such hero")
+	assert_eq(r.pick_no, 3, "a refused take uses no pick")
+	got = r.take_card(2, 2)
+	assert_eq(got.kind, "relic")
+	assert_null(got.give, "nothing left to hand out")
+	assert_eq((got.relic as Dictionary).get("item"), relic)
+	assert_eq(int(got.hero), 2)
+	assert_eq(r.holder_of(relic), 2)
+	assert_true(r.relics_of(2).has(relic))
 	assert_eq(r.pick_no, 4)
 
 
@@ -514,26 +514,23 @@ func test_spare_xp_makes_extra_picks() -> void:
 	assert_eq(_kinds(boss), ["heal", "point", "item"], "the extra pick")
 
 
-# --- 14 to 17: Relic slots, the round trip, refusals, the head start ----------------------------
+# --- 14 to 17: Relics with no slots, the round trip, refusals, the head start --------------------
 
-func test_relic_slots_open_with_the_first_elite_and_boss() -> void:
+func test_a_hero_holds_any_number_of_relics_and_a_card_never_offers_a_copy() -> void:
 	var r := _rush_state()
-	assert_eq(r.open_relic_slots(), 1)
-	assert_eq(r.slot_lock_text(0), "")
-	assert_eq(r.slot_lock_text(1), "First elite")
-	assert_eq(r.slot_lock_text(2), "First boss")
-	r.fight = 5
-	assert_eq(r.win_relic_lines(null), [RushState.SLOT_OPENS_LINE] as Array[String], "the elite would open one")
-	_win(r, 5, _enc("elite_hyena_pack"))
-	assert_eq(r.open_relic_slots(), 2)
-	assert_eq(r.slot_lock_text(1), "")
-	assert_eq(r.slot_lock_text(2), "First boss")
-	r.fight = 15
-	assert_true(r.win_relic_lines(null).is_empty(), "a second elite opens nothing")
-	assert_eq(r.elites_beaten, 1, "the preview changes nothing")
-	_win(r, 10, _enc("guard_gorged_one"))
-	assert_eq(r.open_relic_slots(), 3)
-	assert_eq(r.slot_lock_text(2), "")
+	var given: Array[GearData] = []
+	for item: GearData in _data.gear:
+		if item != null and item.effect != GearData.Effect.GOLD and given.size() < 5:
+			assert_false(r.give_relic(item, 0).is_empty(), item.id)
+			given.append(item)
+	assert_eq(r.relics_of(0), given, "five Relics on one hero, no slots")
+	assert_true(r.give_relic(given[0], 1).is_empty(), "never one Relic on two heroes")
+	for n: int in [5, 10, 15, 20]:
+		_win(r, n, _enc("elite_hyena_pack") if n % 10 == 5 else _enc("guard_gorged_one"))
+		for card: Dictionary in r.offer:
+			if card.kind == "relic":
+				assert_false(r.owns(r.relic_by_id(String(card.id))), "no copy: %s" % card.id)
+		r.picks_left = 0
 
 
 func test_round_trip_mid_pick() -> void:
@@ -542,7 +539,9 @@ func test_round_trip_mid_pick() -> void:
 	_win(r, 5, _enc("elite_hyena_pack"))
 	r.encounter_id = "elite_hyena_pack"
 	var charm := _gear("iron_charm")
-	assert_eq(r.wear(0, 1, charm), 0, "slot 2 is open after the elite")
+	var veil := _gear("ash_veil")
+	assert_false(r.give_relic(charm, 0).is_empty())
+	assert_false(r.give_relic(veil, 0).is_empty(), "a second Relic on the same hero")
 	r.note_players(2)
 	r.spare_xp = 40
 	assert_false(r.offer.is_empty())
@@ -552,7 +551,7 @@ func test_round_trip_mid_pick() -> void:
 	if copy == null:
 		return
 	assert_eq(copy.to_dict(), d, "the other machine sees the same Rush")
-	assert_eq(copy.gear[0][1], charm, "the slot-2 Relic is still worn")
+	assert_eq(copy.relics_of(0), [charm, veil] as Array[GearData], "both Relics are still the hero's")
 	assert_eq(copy.offer, r.offer)
 	assert_eq(copy.most_players, 2)
 	var sent: Variant = bytes_to_var(var_to_bytes(d))
@@ -585,38 +584,24 @@ func test_tampered_dicts_are_refused() -> void:
 		assert_false(copy.apply_dict(d))
 		assert_null(RushState.from_rush_dict(_rush, _tuning, d))
 	assert_eq(copy.to_dict(), before, "a refusal changes nothing")
-	# A refused run part puts the slot counts back. The Rush block is read first, so a dict whose
-	# run part fails must not leave its elite and boss counts behind (they open Relic slots 2 and 3).
-	var won := _rush_state()
-	won.next_fight()
-	_win(won, 5, _enc("elite_hyena_pack"))
-	_win(won, 10, _enc("guard_gorged_one"))
-	won.encounter_id = "guard_gorged_one"
-	assert_true(won.elites_beaten > 0 and won.bosses_beaten > 0, "the forged dict carries both counts")
-	var forged := won.to_dict()
-	forged.gold = "lots"
-	assert_false(copy.apply_dict(forged))
-	assert_eq(copy.elites_beaten, 0, "the forged elite count is not kept")
-	assert_eq(copy.bosses_beaten, 0, "the forged boss count is not kept")
-	assert_eq(copy.open_relic_slots(), 1)
-	assert_eq(copy.to_dict(), before)
-	# And the other way: a refused dict with no wins never shuts a slot that was open, nor takes
-	# the Relic worn in it.
-	var worn := _rush_state()
-	worn.next_fight()
-	_win(worn, 5, _enc("elite_hyena_pack"))
-	worn.encounter_id = "elite_hyena_pack"
+	# A refused dict whose Rush block reads well but whose run part fails changes nothing: no Relic
+	# leaves its hero.
+	var held := _rush_state()
+	held.next_fight()
+	_win(held, 5, _enc("elite_hyena_pack"))
+	held.encounter_id = "elite_hyena_pack"
 	var charm := _gear("iron_charm")
-	assert_eq(worn.wear(0, 1, charm), 0, "slot 2 is open after the elite")
-	var worn_before := worn.to_dict()
-	var no_wins := _rush_state().to_dict()
-	no_wins.gold = "lots"
-	assert_false(worn.apply_dict(no_wins))
-	assert_eq(worn.elites_beaten, 1, "the elite count is put back")
-	assert_eq(worn.bosses_beaten, 0)
-	assert_true(worn.slot_open(1), "slot 2 stays open")
-	assert_eq(worn.gear[0][1], charm, "the slot-2 Relic is still worn")
-	assert_eq(worn.to_dict(), worn_before)
+	assert_false(held.give_relic(charm, 1).is_empty())
+	var held_before := held.to_dict()
+	var forged := _rush_state().to_dict()
+	forged.gold = "lots"
+	assert_false(held.apply_dict(forged))
+	assert_eq(held.relics_of(1), [charm] as Array[GearData], "the Relic stays with its hero")
+	assert_eq(held.to_dict(), held_before)
+	# One Relic on two heroes is refused.
+	var twice := held.to_dict()
+	(twice.gear as Array)[0] = ["iron_charm"]
+	assert_false(_rush_state().apply_dict(twice))
 
 
 func test_head_start_replays_the_fights_before() -> void:
@@ -624,11 +609,9 @@ func test_head_start_replays_the_fights_before() -> void:
 	assert_eq(r.fight, 20)
 	assert_eq(r.start_fight, 21)
 	assert_eq(r.fights_won, 20)
-	assert_eq(r.elites_beaten, 2)
-	assert_eq(r.bosses_beaten, 2)
-	assert_eq(r.open_relic_slots(), 3)
 	assert_eq(r.picks_left, 0)
 	assert_false(r.owned_relics().is_empty(), "the elite and boss Relic cards were taken")
+	assert_true(r.waiting_relics().is_empty(), "every Relic card's Relic went to a hero")
 	for slot: int in r.party_size():
 		assert_eq(r.hp[slot], r.max_hp(slot))
 		assert_gte(r.bonus_points[slot], 16 * _tuning.rush_point_card_points, "a Train card per normal fight")
@@ -781,10 +764,10 @@ func test_cards_never_offer_treasure_curses_or_gold() -> void:
 		r.pick_no += 1
 	assert_gt(items, 10)
 	assert_gt(relics, 10)
-	# Every Relic at its top level but the gold ones: a boss offers Train alone.
+	# The party has every Relic but the gold ones: no copies, so a boss offers Train alone.
 	for item: GearData in _data.gear:
 		if item != null and item.effect != GearData.Effect.GOLD:
-			r.relics[item.id] = _tuning.relic_max_level
+			r.add_relic(item)
 	r.fight = 10
 	r.first_pick_no = r.pick_no
 	r.roll_offer()

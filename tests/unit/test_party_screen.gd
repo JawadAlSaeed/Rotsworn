@@ -15,7 +15,7 @@ func before_all() -> void:
 
 
 func _run() -> RunState:
-	return RunState.begin(_data, Fx.all_slots(_tuning), 7)
+	return RunState.begin(_data, Fx.run_tuning(_tuning), 7)
 
 
 func _relic(id: String) -> GearData:
@@ -46,11 +46,12 @@ func test_four_tabs_with_skills_when_a_hero_has_a_tree() -> void:
 func test_what_is_in_hand_picks_the_tab() -> void:
 	var run := _run()
 	var relic := _relic("whetstone")
-	run.add_relic(relic)
-	var with_relic := _screen(run, "New Relic: Whetstone", {"gear": relic})
-	assert_eq(with_relic.current_tab(), PartyScreen.Tab.RELICS)
-	assert_true(with_relic.holding_new())
-	assert_false(with_relic.select_tab(PartyScreen.Tab.BAG), "no tab change with a Relic in hand")
+	run.give_relic(relic, 1)
+	var with_relic := _screen(run, "New", {"icon": relic})
+	assert_eq(with_relic.current_tab(), PartyScreen.Tab.RELICS, "a Relic just given: the Relics tab")
+	assert_eq(with_relic.tab_node(PartyScreen.Tab.RELICS).hero, 1, "on its hero")
+	assert_false(with_relic.holding_new(), "a Relic is given before the screen opens, never held")
+	assert_true(with_relic.select_tab(PartyScreen.Tab.BAG))
 	var salve := run.items_by_id()["salve"] as ItemData
 	var with_item := _screen(run, "", {"item": salve})
 	assert_eq(with_item.current_tab(), PartyScreen.Tab.BAG)
@@ -59,30 +60,35 @@ func test_what_is_in_hand_picks_the_tab() -> void:
 	assert_eq(shop.current_tab(), PartyScreen.Tab.BAG, "a shop opens on the Bag")
 
 
-func test_a_new_relic_goes_on_the_slot_it_is_put_on() -> void:
+func test_a_waiting_relic_is_given_from_the_grid_for_good() -> void:
 	var run := _run()
 	var relic := _relic("whetstone")
 	run.add_relic(relic)
-	var screen := _screen(run, "", {"gear": relic})
-	watch_signals(screen)
-	screen.close_when_settled = true
+	var screen := _screen(run)
+	screen.open_relics(0, true)
 	var tab := screen.tab_node(PartyScreen.Tab.RELICS) as RelicsTab
-	tab._confirm_slot()
-	assert_eq(run.gear[0][0], relic, "on the first free slot")
-	assert_false(screen.holding_new())
-	assert_signal_emitted(screen, "done", "it closes once settled")
+	assert_eq(tab._zone, RelicsTab.Zone.GRID, "Confirm on a hero opens the grid of waiting Relics")
+	assert_eq(tab.badge(), 1, "one waits")
+	assert_true(tab.put(relic))
+	assert_eq(run.relics_of(0), [relic] as Array[GearData], "Alder has it")
+	assert_eq(tab._zone, RelicsTab.Zone.HEROES, "back on the hero rows")
+	assert_eq(tab.badge(), 0)
+	tab.focus_hero(1, true)
+	assert_eq(tab._zone, RelicsTab.Zone.HEROES, "nothing left to give: the grid stays shut")
+	assert_eq(String(tab.info().title), "Nothing to give")
+	assert_false(tab.put(relic), "given for good: it never moves to another hero")
+	assert_eq(run.holder_of(relic), 0)
 
 
 func test_the_strip_and_the_toast() -> void:
 	var run := _run()
 	var relic := _relic("whetstone")
-	run.add_relic(relic)
-	run.wear(0, 0, relic)
+	run.give_relic(relic, 0)
 	var screen := _screen(run, "Hello")
-	screen.open_relics(0, 0)
+	screen.open_relics(0)
 	screen.select_tab(PartyScreen.Tab.RELICS)
 	var tab := screen.tab_node(PartyScreen.Tab.RELICS) as RelicsTab
-	tab.focus_slot(0, 0)
+	tab.focus_hero(0)
 	var info := tab.info()
 	assert_eq(String(info.title), relic.display_name, "the strip names the Relic under the cursor")
 	assert_eq(info.icon, relic)
@@ -107,8 +113,8 @@ func test_the_bag_tab_menu_keeps_the_screen_on_it() -> void:
 
 func test_open_attributes_and_skills_follow_the_hero() -> void:
 	var screen := _screen(_run())
-	screen.open_relics(2, 0)
-	(screen.tab_node(PartyScreen.Tab.RELICS) as RelicsTab).focus_slot(2, 0)
+	screen.open_relics(2)
+	(screen.tab_node(PartyScreen.Tab.RELICS) as RelicsTab).focus_hero(2)
 	screen.open_attributes()
 	assert_eq(screen.current_tab(), PartyScreen.Tab.HERO)
 	assert_eq(screen.tab_node(PartyScreen.Tab.HERO).hero, 2)
@@ -134,19 +140,20 @@ func _press(action: StringName) -> InputEventAction:
 	return e
 
 
-func test_right_into_the_bag_aims_at_an_open_slot() -> void:
-	var run := _real_slots_run()
+func test_right_past_a_heros_last_relic_goes_into_the_grid_for_them() -> void:
+	var run := RunState.begin(_data, _tuning, 7)
+	run.give_relic(_relic("iron_charm"), 1)
 	var relic := _relic("whetstone")
 	run.add_relic(relic)
 	var screen := _screen(run)
 	screen.select_tab(PartyScreen.Tab.RELICS)
 	var tab := screen.tab_node(PartyScreen.Tab.RELICS) as RelicsTab
-	tab.focus_slot(0, 0)
-	for i: int in 3:
-		tab.handle_input(_press(&"menu_right"))
-	assert_eq(tab._zone, RelicsTab.Zone.BAG, "right past the last slot goes into the bag")
+	tab.focus_hero(1)
+	tab.handle_input(_press(&"menu_right"))
+	assert_eq(tab._zone, RelicsTab.Zone.GRID, "right past the last Relic goes into the grid")
 	tab.handle_input(_press(&"menu_confirm"))
-	assert_eq(run.gear[0][0], relic, "the pick goes on the open slot, not the locked one walked over")
+	assert_eq(run.relics_of(1), [_relic("iron_charm"), relic] as Array[GearData],
+			"the waiting Relic, listed first, goes to the hero just left; no slot limit")
 
 
 func test_right_click_in_the_bag_steps_back_and_keeps_the_screen_open() -> void:
@@ -154,14 +161,14 @@ func test_right_click_in_the_bag_steps_back_and_keeps_the_screen_open() -> void:
 	run.add_relic(_relic("whetstone"))
 	var screen := _screen(run)
 	watch_signals(screen)
-	screen.open_relics(0, 0)
+	screen.open_relics(0, true)
 	var tab := screen.tab_node(PartyScreen.Tab.RELICS) as RelicsTab
-	assert_eq(tab._zone, RelicsTab.Zone.BAG)
+	assert_eq(tab._zone, RelicsTab.Zone.GRID)
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_RIGHT
 	click.pressed = true
 	screen._unhandled_input(click)
-	assert_eq(tab._zone, RelicsTab.Zone.SLOTS, "back to the slot")
+	assert_eq(tab._zone, RelicsTab.Zone.HEROES, "back to the hero rows")
 	assert_signal_not_emitted(screen, "done")
 
 
@@ -169,8 +176,8 @@ func test_the_footer_shows_at_most_four_hints_on_every_tab() -> void:
 	var run := _run()
 	run.add_item(run.items_by_id()["salve"] as ItemData)
 	var relic := _relic("whetstone")
-	run.add_relic(relic)
-	run.wear(0, 0, relic)
+	run.give_relic(relic, 0)
+	run.add_relic(_relic("iron_charm"))
 	var screen := _screen(run)
 	for tab: int in [PartyScreen.Tab.RELICS, PartyScreen.Tab.BAG, PartyScreen.Tab.HERO, PartyScreen.Tab.SKILLS]:
 		screen.select_tab(tab)
@@ -178,7 +185,3 @@ func test_the_footer_shows_at_most_four_hints_on_every_tab() -> void:
 		assert_lte(PartyScreen.visible_hints(entries), 4, PartyScreen.TAB_NAMES[tab])
 		assert_eq(String((entries.back() as Array)[1]), "Tabs", "%s ends with LB / RB Tabs" % PartyScreen.TAB_NAMES[tab])
 
-
-## A run with the shipped slot rules (one slot open at the start).
-func _real_slots_run() -> RunState:
-	return RunState.begin(_data, _tuning, 7)

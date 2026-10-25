@@ -10,7 +10,7 @@ extends GutTest
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 
-var _tuning := Fx.all_slots()
+var _tuning := Fx.run_tuning()
 var _data: RunData
 
 
@@ -144,11 +144,15 @@ func test_ops_change_the_backpack_and_refuse_what_no_longer_fits() -> void:
 	assert_false(run.apply_op({"op": "use", "uid": a, "slot": 0}), "used up: a second ask is too late")
 	assert_true(run.apply_op({"op": "drop", "uid": b}))
 	assert_eq(run.backpack.entries.size(), 0)
-	run.wear(0, 0, run.data.gear[0])
-	assert_true(run.apply_op({"op": "swap_gear", "from": [0, 0], "to": [1, 2]}))
-	assert_eq(run.gear[1][2], run.data.gear[0])
-	assert_false(run.apply_op({"op": "swap_gear", "from": [0, 0], "to": [1, 2]}), "nothing left to move")
-	assert_false(run.apply_op({"op": "swap_gear", "from": [0], "to": [1, 2]}), "malformed")
+	var relic := run.data.gear[0]
+	assert_false(run.apply_op({"op": "give", "slot": 1, "relic": relic.id}), "not the run's: nothing waits")
+	run.add_relic(relic)
+	assert_true(run.apply_op({"op": "give", "slot": 1, "relic": relic.id}), "a waiting Relic goes to a hero")
+	assert_eq(run.relics_of(1), [relic] as Array[GearData])
+	assert_false(run.apply_op({"op": "give", "slot": 0, "relic": relic.id}), "given for good: never moved")
+	assert_false(run.apply_op({"op": "give", "slot": "1", "relic": relic.id}), "malformed")
+	for gone: String in ["swap_gear", "wear", "take_off", "echo"]:
+		assert_false(run.apply_op({"op": gone, "slot": 0, "gear_slot": 0, "relic": relic.id}), gone + " is gone")
 	assert_false(run.apply_op({"op": "nonsense"}))
 
 
@@ -207,15 +211,15 @@ func test_shipped_items_are_sound() -> void:
 
 # --- the party screen -------------------------------------------------------------------------
 
-func test_a_new_relic_in_hand_is_worn_by_someone_with_room() -> void:
+func test_a_relic_just_given_opens_the_relics_tab_on_its_hero() -> void:
 	var run := _run()
+	run.give_relic(run.data.gear[0], 2)
 	var screen := PartyScreen.new()
 	add_child_autofree(screen)
-	screen.setup(run, "", {"gear": run.data.gear[0]})
-	assert_true(screen.holding_new())
-	screen.auto_settle()
-	assert_false(screen.holding_new())
-	assert_true(run.is_worn(run.data.gear[0]), "worn by someone with room")
+	screen.setup(run, "New", {"icon": run.data.gear[0]})
+	assert_false(screen.holding_new(), "a Relic is never held: it was given before the screen opened")
+	assert_eq(screen.current_tab(), PartyScreen.Tab.RELICS)
+	assert_eq(screen.tab_node(PartyScreen.Tab.RELICS).hero, 2, "on the hero who got it")
 
 
 func test_a_find_with_no_room_is_left_behind() -> void:

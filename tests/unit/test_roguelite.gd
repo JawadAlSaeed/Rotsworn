@@ -124,7 +124,7 @@ func test_the_run_end_offers_again_or_the_main_menu() -> void:
 
 func _with_relics() -> RelicCollection:
 	var c := RelicCollection.new()
-	c.merge(["iron_charm"], {})
+	c.merge(["iron_charm"])
 	return c
 
 
@@ -173,7 +173,12 @@ func test_feeding_the_hungry_relic_gives_a_rare_relic_and_a_curse() -> void:
 		if item.id != "iron_charm":
 			found = item
 	assert_gte(int(found.rarity), ItemData.Rarity.RARE)
+	assert_eq(run.holder_of(found), 0, "given to a hero: the one with the fewest Relics (DESIGN.md 8.24)")
+	assert_true(String(got.text).contains(run.data.party[0].display_name), "the line says who got it")
 	assert_eq(run.rot_percent(), 3, "and the Rotting Heart rots the party")
+	var picked := RunState.begin(_data, _tuning.duplicate(true) as Tuning, 7, 0, _with_relics())
+	picked.choose_event(_pact(picked, "hungry_relic"), picked.at, 0, -1, 2)
+	assert_eq(picked.relics_of(2).size(), 1, "the hero the player picked gets it")
 
 
 # --- a map with a dare (#286) ---------------------------------------------------------------------
@@ -261,8 +266,13 @@ func test_a_treasure_stop_has_a_plain_and_a_rotten_chest() -> void:
 		assert_true(plain.stop_done, "the result is final")
 		var rotten := _run(s)
 		var dark := rotten.open_treasure(3, true)
-		assert_true(dark.prize is GearData, "the rotten chest: a Relic")
-		assert_gte(int((dark.prize as GearData).rarity), ItemData.Rarity.RARE)
+		assert_null(dark.prize, "the rotten chest: no item")
+		var offered := dark.relics as Array[GearData]
+		assert_eq(offered.size(), rotten.relic_choice_count(), "but a pick of Relics (DESIGN.md 8.24)")
+		for item: GearData in offered:
+			assert_gte(int(item.rarity), ItemData.Rarity.RARE)
+			assert_false(rotten.owns(item), "only Relics the run does not have")
+		assert_eq(rotten.stop_relic_choices(), offered, "they wait at the stop until one is taken")
 		assert_eq(int(dark.gold), 0)
 		assert_eq(dark, _run(s).open_treasure(3, true), "seeded")
 		if dark.curse != null:

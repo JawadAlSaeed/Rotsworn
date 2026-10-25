@@ -396,21 +396,56 @@ func test_spoils_are_relic_cards_with_their_icon_tag_and_stat() -> void:
 		assert_false((menu.items[i].chips as Array).is_empty(), "what it does, as chips")
 	for label: Node in loot.find_children("*", "Label", true, false):
 		assert_false((label as Label).text.contains("Take one"), "no sentence over the cards")
-	var taken: Array[GearData] = []
-	loot.chosen.connect(func(item: GearData) -> void: taken.append(item))
-	loot.take(0)
-	assert_eq(taken, [gear[0]] as Array[GearData], "the bot's take() still works")
+	var taken: Array = []
+	loot.chosen.connect(func(item: GearData, hero: int) -> void: taken.append([item, hero]))
+	assert_false(loot.take(0), "a Relic needs the hero who gets it (DESIGN.md 8.24)")
+	assert_true(loot.take(0, 1))
+	assert_eq(taken, [[gear[0], 1]], "the bot's take() still works")
+	assert_false(loot.take(1, 1), "once")
 
 
-func test_a_copy_shows_the_level_it_would_reach() -> void:
+func test_the_spoils_ask_who_gets_the_relic() -> void:
 	var run := _run()
 	run.go(run.choices()[0])
 	var gear := run.loot_choices(run.at)
-	run.add_relic(gear[0])
 	var loot := LootScreen.new()
 	add_child_autofree(loot)
 	loot.setup(gear, "", run)
-	assert_eq(String(loot.menu().items[0].value), "Lv 1 > 2")
+	var taken: Array = []
+	loot.chosen.connect(func(item: GearData, hero: int) -> void: taken.append([item, hero]))
+	loot.menu().index = 1
+	_press_on(loot, &"menu_confirm")
+	assert_true(loot.is_giving(), "a Relic picked: who gets it?")
+	assert_true(taken.is_empty())
+	var cards := loot.menu().items
+	assert_eq(cards.size(), run.party_size(), "a card per hero")
+	for slot: int in cards.size():
+		assert_eq(String(cards[slot].text), run.data.party[slot].display_name, "the hero's name")
+		assert_true(bool(cards[slot].enabled), "solo: any hero")
+	_press_on(loot, &"menu_cancel")
+	assert_false(loot.is_giving(), "Back to the Relics")
+	assert_eq(loot.menu().index, 1, "on the Relic picked")
+	_press_on(loot, &"menu_confirm")
+	loot.menu().index = 2
+	_press_on(loot, &"menu_confirm")
+	assert_eq(taken, [[gear[1], 2]], "the Relic and its hero")
+	# Local co-op: only the picking player's heroes (Main's give_heroes).
+	var duo := LootScreen.new()
+	add_child_autofree(duo)
+	duo.give_heroes = func(_device: int) -> Array[int]: return [0, 2] as Array[int]
+	duo.setup(gear, "", run)
+	_press_on(duo, &"menu_confirm")
+	assert_true(duo.is_giving())
+	assert_false(bool(duo.menu().items[1].enabled), "another player's hero is greyed")
+	assert_eq(duo.menu().index, 0, "the cursor starts on a hero who may get it")
+	var solo := LootScreen.new()
+	add_child_autofree(solo)
+	solo.give_heroes = func(_device: int) -> Array[int]: return [1] as Array[int]
+	solo.setup(gear, "", run)
+	var got: Array = []
+	solo.chosen.connect(func(item: GearData, hero: int) -> void: got.append(hero))
+	_press_on(solo, &"menu_confirm")
+	assert_eq(got, [1], "one hero who may: no hero step")
 
 
 # --- the yes/no prompt ---------------------------------------------------------------------------
