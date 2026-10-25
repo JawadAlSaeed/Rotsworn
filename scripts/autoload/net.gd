@@ -21,7 +21,7 @@ extends Node
 ##
 ## Dropping in (card #304): while the host has `drop_in_open`, a newcomer is welcomed into the run
 ## going on (a free seat, or a seat away at least `net_takeover_after_ms`: a friend whose game
-## crashed comes back this way), once Main's `drop_in_check` lets them in. A player who got in
+## crashed comes back this way when their seat file kept no token), once Main's `drop_in_check` lets them in. A player who got in
 ## mid-run (dropped in, or back with a token) gets their heroes in two steps: their machine catches
 ## up with the host (the place screen built, or the fight showing the host's resume) and sends
 ## "seated_ready"; the host hands the heroes over then, or at the fight's next quiet moment.

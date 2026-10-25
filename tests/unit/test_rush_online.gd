@@ -360,8 +360,9 @@ func test_a_late_friend_keeps_no_record() -> void:
 	assert_true(late.late)
 	assert_string_contains(_body("func _rush_records_ok("), "client and (_rush_late or Net.joined_mid_run)")
 	var start := _body("func _client_message(")
-	assert_true(start.contains("_rush_late = _late_after_start(bool(p.get(\"late\", false)), _rush_late, same_game)"),
+	assert_true(start.contains("_rush_late = _late_after_start(late, _rush_late, same_game)"),
 			"late from the catch-up, kept through a rejoin of the same Rush")
+	assert_lt(start.find("var late := _late_baseline("), start.find("_rush_late = _late_after_start("))
 	assert_string_contains(_body("func _forget_own_start("), "_rush_late = false")
 	assert_true(_body("func _note_rush_record(").contains("if not Net.is_client():"), "the host counts the players")
 
@@ -503,7 +504,8 @@ func test_a_friend_who_gets_in_on_the_rush_screen_watches_the_picks() -> void:
 
 
 ## Who gets in late (default D20, no record): a drop-in's catch-up says so, a friend whose game
-## crashed comes back that way too (a newcomer), a token rejoin keeps what it was, a new Rush clears it.
+## crashed comes back late too (as a newcomer, or by the seat file's token: _late_baseline), a token
+## rejoin of the same Rush keeps what it was, a new Rush clears it.
 func test_late_follows_the_friend_through_a_rejoin_of_the_same_rush() -> void:
 	var cases := [
 		# [said late, was late, same game, late now, what]
@@ -516,8 +518,7 @@ func test_late_follows_the_friend_through_a_rejoin_of_the_same_rush() -> void:
 	]
 	for c: Array in cases:
 		assert_eq(_main.call("_late_after_start", c[0], c[1], c[2]), c[3], String(c[4]))
-	assert_string_contains(_body("func _client_message("),
-			"_rush_late = _late_after_start(bool(p.get(\"late\", false)), _rush_late, same_game)")
+	assert_string_contains(_body("func _client_message("), "_rush_late = _late_after_start(late, _rush_late, same_game)")
 	assert_string_contains(_body("func _on_net_peer_rejoined("), "_catch_up(new_peer, false)")
 	assert_string_contains(_body("func _seat_newcomer("), "_catch_up(peer, true)")
 	assert_string_contains(_body("func _catch_up("),
