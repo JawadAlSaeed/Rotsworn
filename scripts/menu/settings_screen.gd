@@ -20,7 +20,7 @@ extends CanvasLayer
 ## RT pill, the D-pad cross, all on the same dark fill), then its own options (the Controller page:
 ## Vibration, card #299) and its own "Reset to defaults" (asks twice; it puts back only that device's
 ## buttons). The section opens on the page of the device in the player's hands
-## (ButtonPrompts.pad_in_use). LT / RT (T / K) open the Keyboard / Controller page from any row,
+## (ButtonPrompts.pad_in_use). LT / RT (1 / 3) open the Keyboard / Controller page from any row,
 ## Left / Right do it from a button's row, and a click on a page's name opens it. Confirm waits for
 ## the new key or button (Escape or the pad's Menu button cancels, and so does waiting too long). A
 ## button an action in the same group already has asks to swap them; ControlBindings holds the rules.
@@ -661,13 +661,13 @@ func _set_device_page(page: ControlsPage) -> void:
 	_refresh()
 
 
-## The page keys and clicks on the Controls section: LT / RT (T / K) open the Keyboard /
+## The page keys and clicks on the Controls section: LT / RT (1 / 3) open the Keyboard /
 ## Controller page, so does a click on a page's tab. True when the event was used.
 func _device_page_input(event: InputEvent) -> bool:
 	var page := -1
-	if _page_pressed(event, &"party_attributes"):
+	if _page_pressed(event, ControlBindings.SWITCH_PREV):
 		page = ControlsPage.KEYBOARD
-	elif _page_pressed(event, &"party_skills"):
+	elif _page_pressed(event, ControlBindings.SWITCH_NEXT):
 		page = ControlsPage.CONTROLLER
 	elif MenuMouse.is_click(event):
 		page = MenuMouse.control_at(_device_tabs, (event as InputEventMouse).position)
@@ -696,7 +696,7 @@ func _build_device_strip(column: VBoxContainer) -> void:
 	_device_strip.alignment = BoxContainer.ALIGNMENT_CENTER
 	_device_strip.add_theme_constant_override("separation", PAGE_TAB_GAP)
 	column.add_child(_device_strip)
-	_device_strip.add_child(_page_key_hint(&"party_attributes"))
+	_device_strip.add_child(_page_key_hint(ControlBindings.SWITCH_PREV))
 	for page: int in PAGE_NAMES.size():
 		var tab := PanelContainer.new()
 		tab.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -716,7 +716,7 @@ func _build_device_strip(column: VBoxContainer) -> void:
 		_device_tabs.append(tab)
 		_device_words.append(word)
 		_device_glyphs.append(glyph)
-	_device_strip.add_child(_page_key_hint(&"party_skills"))
+	_device_strip.add_child(_page_key_hint(ControlBindings.SWITCH_NEXT))
 
 
 ## The chip of a page key next to the tabs; it follows the keyboard / pad hints (HintBar listens).

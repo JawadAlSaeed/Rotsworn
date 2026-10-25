@@ -79,7 +79,9 @@ func test_the_book_shows_every_relic_found_ones_first() -> void:
 		assert_false(["iron_charm", "whetstone"].has(item.id), "%s: not found yet, after them" % item.id)
 	assert_false(screen.call("_confirm", _relic("iron_charm")), "the book only shows: no bag to fill")
 	assert_true(screen.call("_card_dim", screen.listed()[2]), "a Relic not found yet is dim")
-	assert_eq(_words(screen.hints()), ["Move", "Sort", "Back"])
+	assert_eq(_words(screen.hints()), ["Move", "", "Sort", "Back"], "LT / RT sort (card #336)")
+	assert_eq(screen.hints()[1][0], ControlBindings.SWITCH_PREV)
+	assert_eq(screen.hints()[2][0], ControlBindings.SWITCH_NEXT)
 
 
 func test_a_relic_not_found_yet_says_where_relics_come_from() -> void:
@@ -210,11 +212,14 @@ func test_the_screen_goes_hero_by_hero_one_relic_each() -> void:
 	assert_true(screen.skip())
 	assert_signal_emitted_with_parameters(screen, "picked", [1, null])
 	assert_signal_not_emitted(screen, "finished")
-	assert_eq(_words(screen.hints()), ["Move", "Take", StartRelicsScreen.SKIPPED, "Sort"])
+	assert_eq(_words(screen.hints()), ["Move", "Take", StartRelicsScreen.SKIPPED, "Back", "", "Sort"])
+	assert_has(screen.hints(), [&"item_move", StartRelicsScreen.SKIPPED], "Skip is X / R, its own button (card #334)")
 	assert_true(screen.take(_relic("war_drum")))
 	assert_signal_emit_count(screen, "finished", 1)
 	assert_true(screen.is_done())
 	assert_eq(screen.found_text(), StartRelicsScreen.WAITING)
+	assert_eq(screen.hints(), [[&"menu_cancel", "Back"]], "done: only Back, while the step is open")
+	screen.open = false
 	assert_true(screen.hints().is_empty())
 	assert_false(screen.skip(), "nobody left to choose")
 	assert_false(run.start_pending())
@@ -324,11 +329,25 @@ func test_local_coop_only_the_heroes_player_picks() -> void:
 	screen._device = PlayerRoster.KEYBOARD
 	assert_true(screen.call("_confirm", _relic("iron_charm")))
 	assert_eq(screen.chooser(), 1)
-	screen.call("_back")
+	screen.call("_alt")
 	assert_eq(screen.chooser(), 1, "P1 cannot skip for P2's hero")
 	screen._device = 0
-	screen.call("_back")
+	screen.call("_alt")
 	assert_eq(screen.chooser(), 2, "P2 skips their own")
+	# Back (card #334): only the player whose hero it was takes a pick back.
+	screen._device = PlayerRoster.KEYBOARD
+	screen.call("_back")
+	assert_eq(screen.chooser(), 2, "P1 cannot take P2's Skip back")
+	assert_eq(screen._warning, "P2")
+	screen._device = 0
+	screen.call("_back")
+	assert_eq(screen.chooser(), 1, "P2 takes their own Skip back")
+	screen.call("_back")
+	assert_eq(run.holder_of(_relic("iron_charm")), 0, "P2 cannot take P1's pick back")
+	screen._device = PlayerRoster.KEYBOARD
+	screen.call("_back")
+	assert_eq(screen.chooser(), 0, "P1 takes theirs back")
+	assert_eq(run.holder_of(_relic("iron_charm")), -1)
 
 
 func test_local_coop_a_lost_pad_never_holds_the_step() -> void:
@@ -353,6 +372,109 @@ func test_local_coop_a_lost_pad_never_holds_the_step() -> void:
 	assert_true(StartRelicsScreen.may_pick(players, 0, 0, [0] as Array[int]))
 	assert_false(StartRelicsScreen.may_pick(players, 0, 1, plugged), "P1's keyboard never goes missing")
 	assert_true(StartRelicsScreen.may_pick(null, 0, 0, plugged), "solo: anyone")
+
+
+## Card #334: Back takes the last pick back (a Relic or a Skip) and that hero chooses again; on the
+## first hero it does nothing. Skip is its own button.
+func test_back_takes_the_last_pick_back_and_never_skips() -> void:
+	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var run := _run(book)
+	var screen := _screen(run, book)
+	watch_signals(screen)
+	assert_false(screen.can_go_back(), "the first hero: nothing to take back")
+	screen.call("_back")
+	assert_eq(screen.chooser(), 0, "Back on the first hero does nothing")
+	assert_true(run.start_open(0), "and never skips")
+	assert_false(_words(screen.hints()).has("Back"), "so no Back hint yet")
+	var charm := _relic("iron_charm")
+	run.hp[1] -= 5
+	var wounded := run.hp[1]
+	assert_true(screen.take(charm))
+	assert_true(screen.skip())
+	assert_eq(screen.chooser(), 2)
+	assert_true(screen.back())
+	assert_signal_emitted_with_parameters(screen, "withdrawn", [1, ""])
+	assert_eq(screen.chooser(), 1, "the Skip is taken back: hero 1 chooses again")
+	assert_true(run.start_open(1))
+	screen.call("_back")
+	assert_signal_emitted_with_parameters(screen, "withdrawn", [0, "iron_charm"])
+	assert_eq(screen.chooser(), 0, "back to the first hero")
+	assert_eq(run.holder_of(charm), -1, "the Relic is free again")
+	assert_false(run.relics.has("iron_charm"))
+	assert_false(run.start_relics.has("iron_charm"))
+	assert_eq(run.hp[0], run.max_hp(0), "the hero is still full at the lower max HP")
+	assert_eq(run.hp[1], wounded, "the others keep their wounds")
+	assert_false(screen.call("_card_dim", charm), "lit again for everyone")
+	assert_false(screen.back(), "nothing more to take back")
+	screen.call("_alt")
+	assert_eq(screen.chooser(), 1, "X / R skips")
+	assert_eq(run.relics_of(0).size(), 0)
+
+
+func test_undo_start_relic_takes_back_only_a_starting_pick() -> void:
+	var book := _book(["iron_charm", "whetstone"])
+	var run := _run(book)
+	var charm := _relic("iron_charm")
+	assert_false(run.undo_start_relic(0, ""), "nothing skipped yet")
+	assert_false(run.undo_start_relic(0, "iron_charm"), "nothing taken yet")
+	run.take_start_relic(0, charm)
+	assert_false(run.undo_start_relic(1, "iron_charm"), "another hero has it")
+	assert_false(run.undo_start_relic(7, "iron_charm"), "no such hero")
+	assert_false(run.undo_start_relic(0, "not_a_relic"))
+	run.give_relic(_relic("whetstone"), 1)
+	assert_false(run.undo_start_relic(1, "whetstone"), "found in the run, not a starting pick")
+	assert_true(run.undo_start_relic(0, "iron_charm"))
+	assert_eq(run.start_left[0], run.start_relic_count())
+	var tuning := Fx.run_tuning(_tuning)
+	tuning.start_relics_per_hero = 2
+	var two := RunState.begin(_data, tuning, 7, 0, book)
+	two.take_start_relic(0, charm)
+	assert_true(two.skip_start_relic(0), "one taken, the second skipped")
+	assert_true(two.undo_start_relic(0, ""))
+	assert_eq(two.start_left[0], 1, "the Skip back: one more to take")
+	assert_eq(two.holder_of(charm), 0, "the first stays")
+
+
+func test_a_friends_back_asks_the_host_and_waits_for_it() -> void:
+	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var run := _run(book)
+	var screen := _screen(run, book, [1, 2] as Array[int])
+	screen.remote = true
+	watch_signals(screen)
+	var charm := _relic("iron_charm")
+	assert_true(screen.take(charm))
+	assert_false(screen.back(), "a pick still on its way to the host cannot be taken back")
+	run.take_start_relic(1, charm)
+	screen.refresh()
+	assert_true(screen.back())
+	assert_signal_emitted_with_parameters(screen, "withdrawn", [1, "iron_charm"])
+	assert_eq(run.holder_of(charm), 1, "a friend's screen never changes the run")
+	assert_eq(screen.chooser(), -1, "nobody chooses while the host answers")
+	assert_false(screen.is_done())
+	assert_eq(screen.call("_row_state", 1), StartRelicsScreen.SENT)
+	screen.withdraw_answered(1, "iron_charm", false)
+	assert_eq(screen._warning, StartRelicsScreen.TAKEN, "refused: the pick stands")
+	assert_eq(screen.chooser(), 2)
+	assert_true(screen.can_go_back(), "it can be asked again")
+	assert_true(screen.back())
+	# The host took it back: its state reopens hero 1, then its answer comes.
+	run.undo_start_relic(1, "iron_charm")
+	screen.refresh()
+	assert_eq(screen.chooser(), 1, "hero 1 chooses again")
+	screen.withdraw_answered(1, "iron_charm", true)
+	assert_eq(screen.chooser(), 1, "the late answer changes nothing")
+	assert_false(screen.can_go_back())
+
+
+func test_the_host_takes_a_friends_pick_back_only_while_the_step_is_open() -> void:
+	var main_script := load(MAIN_PATH) as GDScript
+	var pickers := {PEER_A: [1], PEER_B: [2]}
+	assert_true(main_script.call("_start_back_allowed", pickers, PEER_A, 1, true))
+	assert_false(main_script.call("_start_back_allowed", pickers, PEER_A, 2, true), "another player's hero")
+	assert_false(main_script.call("_start_back_allowed", pickers, PEER_A, 0, true), "the host's own hero")
+	assert_false(main_script.call("_start_back_allowed", pickers, 3003, 1, true), "a peer not on the step")
+	assert_false(main_script.call("_start_back_allowed", pickers, PEER_A, 1, false), "the run went on")
+	assert_false(main_script.call("_start_back_allowed", {}, PEER_A, 1, true), "the wait ran out")
 
 
 func test_a_starting_relic_raises_max_hp_full_and_pause_opens_over_the_step() -> void:

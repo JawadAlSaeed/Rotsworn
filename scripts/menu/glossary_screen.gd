@@ -1,8 +1,9 @@
 class_name GlossaryScreen
 extends CanvasLayer
 ## The glossary (DESIGN.md 7.12, card #207): a book that explains the game's terms and icons, from
-## Extras on the main menu and from the pause menu. A topic strip under the title (left and right
-## change topic), then two parts like the Rot Journal: the topic's terms in a ListMenu on the left,
+## Extras on the main menu and from the pause menu. A topic strip under the title (LT / RT, keys
+## 1 / 3, change topic: the switch inside a screen, card #336; left and right too), then two parts
+## like the Rot Journal: the topic's terms in a ListMenu on the left,
 ## and the chosen term on the right in an ink plate with the picture or colour the game uses for
 ## it, the word as the game prints it, and a short plain explanation. The content is
 ## data/glossary/glossary.tres; this screen only lays it out. It changes nothing in the game, so it
@@ -13,6 +14,9 @@ signal closed
 const GLOSSARY_PATH := "res://data/glossary/glossary.tres"
 const TITLE_SIZE: int = 64
 const STRIP_SIZE: int = 26
+## The footer: up / down a term, LT / RT a topic (card #336), Back.
+const FOOTER_HINTS: Array = [[&"@updown", "Term"], [ControlBindings.SWITCH_PREV, ""], [ControlBindings.SWITCH_NEXT, "Topic"],
+		[&"menu_cancel", "Back"]]
 const TOPIC_SIZE: int = 44
 const COUNT_SIZE: int = 22
 const LIST_ITEM_SIZE: int = 32
@@ -80,11 +84,15 @@ func setup(data: GlossaryData, start_topic: String = "") -> void:
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_theme_constant_override("separation", 14)
 	frame.add_child(_panel)
-	ListMenu.screen_footer(self, [[&"@updown", "Term"], [&"@leftright", "Topic"], [&"menu_cancel", "Back"]])
+	ListMenu.screen_footer(self, FOOTER_HINTS)
 	_open_topic(maxi(0, _data.topic_index(start_topic)))
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _switch_pressed(event, ControlBindings.SWITCH_PREV) or _switch_pressed(event, ControlBindings.SWITCH_NEXT):
+		get_viewport().set_input_as_handled()
+		_open_topic(_topic + (-1 if event.is_action(ControlBindings.SWITCH_PREV) else 1), true)
+		return
 	match _menu.handle(event):
 		&"cancel":
 			Sfx.play("menu_cancel")
@@ -108,13 +116,21 @@ func topic() -> int:
 	return _topic
 
 
-## "< previous   TOPIC   next >": the neighbours are dim so the way round is clear.
+## A switch button going down (a trigger sends many motion events while held: only the first counts).
+static func _switch_pressed(event: InputEvent, action: StringName) -> bool:
+	if not event.is_action_pressed(action, false, true):
+		return false
+	return not (event is InputEventJoypadMotion) or Input.is_action_just_pressed(action)
+
+
+## "LT previous   TOPIC   next RT": the neighbours are dim so the way round is clear, and the
+## switch's buttons sit at the ends (card #336).
 func _strip() -> HBoxContainer:
 	var strip := HBoxContainer.new()
 	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	strip.alignment = BoxContainer.ALIGNMENT_CENTER
 	strip.add_theme_constant_override("separation", 24)
-	strip.add_child(HudStyle.make_label("<", STRIP_SIZE, HudStyle.TEXT_DIM))
+	strip.add_child(_switch_chip(ControlBindings.SWITCH_PREV))
 	_prev = HudStyle.make_label("", STRIP_SIZE, HudStyle.TEXT_DIM)
 	_prev.custom_minimum_size.x = NEIGHBOUR_WIDTH
 	_prev.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -126,8 +142,15 @@ func _strip() -> HBoxContainer:
 	_next = HudStyle.make_label("", STRIP_SIZE, HudStyle.TEXT_DIM)
 	_next.custom_minimum_size.x = NEIGHBOUR_WIDTH
 	strip.add_child(_next)
-	strip.add_child(HudStyle.make_label(">", STRIP_SIZE, HudStyle.TEXT_DIM))
+	strip.add_child(_switch_chip(ControlBindings.SWITCH_NEXT))
 	return strip
+
+
+## A switch button's chip at an end of the topic strip.
+static func _switch_chip(action: StringName) -> HintBar:
+	var chip := HintBar.new([[action, ""]], STRIP_SIZE)
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return chip
 
 
 ## Shows topic `index` (wrapping round the ends) with the cursor on its first term.
