@@ -3657,7 +3657,8 @@ oath", and a run at Oath N is that oath kept.
   `elite_hp_percent_add`, `elite_power_percent_add`, `boss_hp_percent_add`, `boss_power_percent_add`,
   `enemy_power_percent_add`, `enemy_hp_row_add`, `enemy_power_row_add`, `rest_heal_percent_add`,
   `act_heal_percent_add`, `start_gold_add`, `shop_price_percent_add`, `gold_percent_add` (fight pay, floored at 0), `loot_choices_add`,
-  `team_gauge_carry_percent_add` and `start_hp_percent` (the lowest one counts, 100 = full).
+  `team_gauge_carry_percent_add`, `start_hp_percent` (the lowest one counts, 100 = full),
+  `start_relics_add` (starting Relics per hero) and `attr_points_per_level_add` (since 8.24).
   `OathData.total(ladder, oath, field)` sums a change over oaths 1..N (a pure function, tested).
 - **The ladder** (first guess, tune with play):
 
@@ -3673,8 +3674,8 @@ oath", and a run at Oath N is that oath kept.
   | 8 | Silence | only half of the team gauge carries into the next fight |
   | 9 | the Long Road | the heal between acts is 25 points of percent less (50% becomes 25%) |
   | 10 | Rot | every enemy +10% power |
-  | 11 | the Empty Hand | one Relic slot fewer per hero all run, never under one (phase 17, 8.17) |
-  | 12 | Forgetting | heroes get half the Echo points (phase 17, 8.17) |
+  | 11 | the Empty Hand | each hero starts the run with one Relic fewer (8.24; was one Relic slot fewer, 8.17) |
+  | 12 | Forgetting | heroes get one attribute point fewer per level, 2 instead of 3 (8.24; was half the Echo points, 8.17) |
 
   The run's start gold was 0 in `tuning.tres` (50 since #321, 8.23), so "start with nothing" did nothing; Want cuts the gold
   coming in instead (`gold_percent_add`, in `RunState.gold_for`, after charms, gear and the elite
@@ -3778,9 +3779,10 @@ upgrade to take blindly.
 
 ### 8.17 Relics and Echoes (phase 17, cards #212 to #220, built 2026-10-18, waiting for playtest)
 
-**To be replaced (8.24, decided 2026-10-25, not built yet):** no Relic slots or levels, Relics only
-from Elite stops, bosses, chests and shops (pick 1 of 3), a Relic book instead of the bag, and no
-Echoes. What follows is how the game works until that is built.
+**Replaced in part (8.24): #326 and #327 built 2026-10-25.** No Relic slots, levels, copies or
+drops: Relics come from Elite stops, bosses, the rotten chest (pick 1 of 3) and shops, each given to
+one hero for the run; no Echoes. The Relic bag below stays until #328 (the Relic book). What follows
+is the phase 17 to 21 design where 8.24 does not say otherwise.
 
 Phase 19 (card #263) added three Relics against marks (Wardstone, Bitter Root, Cleansing Bell;
 2.17), dropped by the new monsters, which also drop older Relics (34 Relics in the run).
@@ -3900,17 +3902,18 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   fights keep their data; the three-act balance pass, #321 in 8.23, set it back to 100 and the
   Fight Rush keeps its 105 in `rush_enemy_power_percent`), and two oaths top the ladder (8.15): **the Empty Hand** (Oath 11,
   `OathData.relic_slots_add` -1: one Relic slot fewer all run, never under one) and **Forgetting**
-  (Oath 12, `echo_points_percent_add` -50: half the Echo points).
-- **Tutorial**: lesson 6, "Relics" and "Echoes", two cards to read at the end of the tutorial fight
+  (Oath 12, `echo_points_percent_add` -50: half the Echo points). Since 8.24 they take a starting
+  Relic per hero and an attribute point per level.
+- **Tutorial**: lesson 6, "Relics" and "Echoes" (only "Relics" since 8.24), two cards to read at the end of the tutorial fight
   (goal `read`, `TutorialGoals.READ`: the fight stays paused and closing the card moves on). The
   interactive hit-type lessons of card #206 come later.
 - **Bots** never read or write the player's Relic file (like the oaths and the Journal): a bot run
-  starts with no Relics, `--relics=all` gives every Relic at its top level (balance runs),
-  `--relics-path=PATH` lets a bot use and bank into its own file. The bot wears the Echoes it can,
-  cheapest first, passing over prices GearBot refuses (`RunState.auto_echoes`). The
-  `AUTOPLAY_RESULT run_...` line ends with `relics=N echoes=M`. `--screen=relics`,
-  `--screen=echoes` and `--screen=party_relics` (the Relics page in a run) open those pages on
-  samples (for pictures).
+  starts with no Relics, `--relics=all` gives every Relic found (balance runs; was every Relic at
+  its top level),
+  `--relics-path=PATH` lets a bot use and bank into its own file. The bot wore the Echoes it could
+  (gone with 8.24). The `AUTOPLAY_RESULT run_...` line ends with `relics=N relics_held=M` (was
+  `relics=N echoes=M`). `--screen=relics` and `--screen=party_relics` (the Relics page in a run)
+  open those pages on samples (for pictures); `--screen=echoes` went with the Echoes.
 - **Relics from the old charms** (card #240, user 2026-10-18: the backpack's charms were a third
   buff system, 8.1): six Relics with effects no Relic had (or a rot-touched price), 31 Relics in all,
   each dropped by monsters like the others (`tools/bootstrap_relics.gd` writes them):
@@ -3954,6 +3957,13 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
 
 ### 8.18 The Y screen (phase 20, card #270, done 2026-10-19)
 
+**Since 8.24 (#326, #327, 2026-10-25):** the Relics tab has no slots. Each hero's row shows every
+Relic given to them (up to 3 in a row with their names, more in two smaller rows); the grid on the
+right is the run's Relics, each with the initial of the hero who has it, the waiting ones bright and
+untagged. Confirm on a hero opens the grid on the waiting Relics; Confirm there gives one; nothing
+comes off, swaps or levels up. The tab's badge counts the waiting Relics. The Hero tab's Echo box,
+the Echoes page and `open_echoes` are gone, and so are the level pips and the Echo pips bar.
+
 The owner found the party screen "too cluttery" and hates text. Three concepts were drawn (tabs, one
 quiet page, one hero at a time); the owner picked **tabs**, plus the one-page concept's info strip and
 shape-coded Relic icons (2026-10-19). `PartyScreen` (`scripts/run/party_screen.gd`) keeps its outside
@@ -3971,7 +3981,7 @@ badge; signals changed, op_requested, toast):
   in hand, on Bag with a new item in hand or in a shop.
 - **Info strip** (bottom, `tab.info()`): never moves or hides. The thing under the cursor: a big icon
   (a RelicIcon, an item's sprite or a glyph), its name in its colour, a few chips (glyph + short
-  text: level, stat line, wearer, AP cost, sell price, refund...), its text on at most two lines (a
+  text: stat line, holder, AP cost, sell price, refund...), its text on at most two lines (a
   skill's whole text, perfect-press bonus included), and for a Relic still teaching its Echo a small
   segment bar. A refusal (a shut slot, a hero too wounded) shows there until the next press.
 - **Centred**: everything placed on the 1920 x 1080 canvas sits in one centred frame, so a wider or
@@ -4015,7 +4025,8 @@ badge; signals changed, op_requested, toast):
 
 ### 8.19 The roguelite pass (phase 21, talked through 2026-10-19 in #267 and #272)
 
-**To be replaced in part (8.24, decided 2026-10-25, not built yet):** Echoes and the Relic bag go.
+**Replaced in part (8.24): #327 built 2026-10-25.** The Echoes, their pips, Echo points and the
+Echoes page are gone; the Relic bag stays at 3 (it grew with Echoes learned) until #328 replaces it.
 
 The owner's worry (#272): Relic levels kept forever made the game easier the more you played, and
 relearning every Echo every run was busywork. A design panel (four studies, four designers, three
@@ -4058,7 +4069,7 @@ carries between runs gives **choices, not stats**; the oaths keep the game hard.
   tab's info strip shows the pips bar; the Echoes page lists every learned Echo. The tutorial's Relics
   and Echoes cards say the new rules.
 - **Bots**: `--relics=all` finds every Relic with its Echo learned (`RelicCollection.all_of(gear,
-  needed)`).
+  needed)`; since 8.24 every Relic found, `RelicCollection.all_of(gear)`).
 
 **The Relic bag starts at 3 and grows to 6 (#266, built).** `RelicCollection.bag_size(tuning)`:
 `relic_bag_start` (3) + one for every `relic_bag_echoes_per_slot` (5) Echoes learned, never past
@@ -4255,7 +4266,7 @@ Owner decisions (2026-10-24):
    hero who went down in a won fight gets up at 1 HP (`run_downed_revive_hp`, as in a run).
 3. The party brings the Relic bag and the Echoes it has learned. Nothing from a Rush goes back: no
    Relic banking, no Echo pips, no writes to `user://progress.json`. A Relic card lasts for that
-   Rush only.
+   Rush only. (Since 8.24: no Echoes; a Relic card's Relic goes to one hero, "Who gets it?".)
 4. Fights get harder with every fight, with the depth growth a run uses per map row (one row per
    fight). Every 5th fight is an elite and every 10th a boss; the bosses cycle (below). All numbers
    live in `tuning.tres` and get tuned with bots.
@@ -4334,7 +4345,7 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
   No Run button. Music: the fight, elite or boss song (a guard fought as the boss fight gets the boss
   song).
 - **The fight's end** is the run's without gold: the XP and level-up rows, the streak chip, a
-  "FLAWLESS" chip, and the Relic slot line when a slot opens. The button hint reads **Rewards** after
+  "FLAWLESS" chip (the Relic slot line went with 8.24). The button hint reads **Rewards** after
   a win and **Results** after a loss.
 - **Picks** (after a win): the title **REWARD**, a chip row (a sword "Fight 7" for the fight just won, a
   star "Best 16" when a record exists, "+1 pick" while more than one pick is left), the party strip
@@ -4358,9 +4369,7 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
   and levels. The killer row after a loss (not after Give up) and the defence rows; no Kept row
   (nothing is kept). Footer **Again** (the Fight Rush players screen, same seats) / **Main menu**.
   Music: the victory song on a new record, otherwise the defeat song.
-- **The party screen** in a Rush: the Relic slots' locks read "First elite" and "First boss"; an Echo
-  not learned yet reads "Runs only" (Echoes are learned in runs); no pips bar on the Relics, no Echo
-  learning row, no gold line.
+- **The party screen** in a Rush: as in a run (8.18, 8.24: no slots, no Echoes), with no gold line.
 - **Local drop-in** works as in a run (9.3): the pause menu's Players row; in a fight the change waits
   for a quiet moment, on the Rush screen it applies at once. Online drop-in: "Online" below.
 
@@ -4420,16 +4429,15 @@ Rush XP gain is scaled by `rush_xp_percent`.
   depth. The list is the run's shop and found items that are supplies or upgrades and not rotten
   (Antidote, Holy Water, Salve, Feast, Tonic, Bomb, Smelling Salts, Bigger Pack; no Key, no
   treasure, no curse).
-- **Relic**: from the run's Relics the Rush can still gain (not at the top level), at least
+- **Relic**: from the run's Relics the party does not have (no copies, 8.24), at least
   `rush_relic_min_rarity` (1, rare) while there are such, never a gold Relic (D19) and never a
-  rot-touched one (a rot-touched Relic can still come from the bag). A copy raises its level for this
-  Rush.
-- A card that cannot be filled is left out. With every Relic at its top level an elite offers Heal and
+  rot-touched one (a rot-touched Relic can still come from the bag). Taking it asks "Who gets it?"
+  and gives it to that hero at once.
+- A card that cannot be filled is left out. With every Relic in the party an elite offers Heal and
   Train, and a boss Train alone: one card is a plain confirm (the side-by-side rule is for two or
   three choices).
 - After a boss everyone heals `rush_boss_heal_percent` (100: full); a downed hero first gets up at 1 HP.
-- Relic slots: `relic_slots_start` (1), a second after the first elite or boss win, and the third after
-  the first boss win (`run_gear_slots`, 3, at most).
+- No Relic slots (8.24): a hero has every Relic given to them.
 
 **Records** (`RushRecords`, pure, tested; `PlayerSettings`): in `user://settings.cfg`, section `[rush]`,
 keys `best_1`, `best_2`, `best_3`, each `{fight, date}`. The fight reached is written as each fight
@@ -4497,10 +4505,10 @@ online run (9.2). Nothing goes back on any machine (decision 3).
 
 **Built as.** `RushState` (`scripts/rush/rush_state.gd`) extends `RunState` (pure, no Node): the fight
 counter (the last fight entered, 0 before the first), fight kinds, tiers and the boss cycle, the
-offer, spare XP, the Rush counters for Relic slots, and its own "rush" block in `to_dict` (a run state
+offer, spare XP, and its own "rush" block in `to_dict` (a run state
 refuses a Rush dict and the other way round: `RunState.mode()`). `RunState` gained small seams that
-change nothing for runs (`_start`, `mode`, `_fight_depth`, `_scales`, `shows_gold`, `teaches_echoes`,
-`xp_full`). Data: `RushData`, `RushTier`, `RushBoss` (`scripts/data/`) and `data/rush/fight_rush.tres`,
+change nothing for runs (`_start`, `mode`, `_fight_depth`, `_scales`, `shows_gold`, `xp_full`;
+`teaches_echoes` went with 8.24). Data: `RushData`, `RushTier`, `RushBoss` (`scripts/data/`) and `data/rush/fight_rush.tres`,
 written by `tools/bootstrap_rush.gd` from the run, its three acts and the three places. Re-run the tool
 after a place's roamer pool, an act's elites or ambushes, or the run's items change: `test_rush_data.gd`
 fails on stale data until then. Missing or broken data greys the Fight Rush card ("locked" on
@@ -4552,7 +4560,7 @@ Tuning (`tuning.tres`, group "Fight Rush"; the first values, not yet tuned with 
   result= party_hp= level= xp= picks= spare=` (`depth` is the depth the fight grew by: for a boss, the
   depth past its home depth, so fight 50 prints 36); at the end the `AUTOPLAY_RECAP` lines (after a
   loss), `AUTOPLAY_PLAYERS` and `AUTOPLAY_RESULT rush_<over|gave_up|capped> fight= wins= record= new=
-  players= level= relics= echoes= items= seed= start=` (`wins` leaves out the head start's; bots
+  players= level= relics= relics_held= items= seed= start=` (`wins` leaves out the head start's; bots
   read and write no records, so `record=0 new=0`).
 - Times (headless): 3 capped fights about 90 s, one head-start fight about 1 to 2 min (fight 60, the
   Hollow King, the longest); later fights take longer. Balance runs start at fight 1:
@@ -5216,7 +5224,7 @@ number for XP and one line that keeps the Rush's purse empty).
   - Not checked: co-op (2 or 3 players), online, Oaths above 0 in play (only the fight sizes, T5),
     the perfect bot with Relics at home, and how it looks and feels in a game window.
 
-### 8.24 Relics without slots, and no Echoes (phase 26, cards #326 to #328, decided 2026-10-25, not built yet)
+### 8.24 Relics without slots, and no Echoes (phase 26, cards #326 to #328, decided 2026-10-25; #326 and #327 built 2026-10-25, #328 to come)
 
 The owner, after the balance results (#321): levels, Relics and Echoes did not all fit a 45-minute
 run. Relics dropped too easily ("you get them easily by fighting"), three slots per hero made most
@@ -5249,6 +5257,76 @@ Lumina until the first boss"). Decided:
   points. Its list and its currency are phase 28's talk. It is also the answer to the 70% player
   problem (#321) and to winnable Oaths.
 - **The Fight Rush** keeps its feel; its Relic rewards follow the same pick 1 of 3 rule.
+
+**As built (#326, #327, 2026-10-25, branch `phase26-relics`).** The Relic bag (8.17, 8.19) stays as
+it is until #328 brings the Relic book and the starting Relics.
+
+- **A hero's Relics.** `RunState.gear` is each hero's list of Relics, any number, in the order given
+  (saves and the network carry it as id lists). `RunState.relics` (id -> 1) is every Relic the run
+  has; one no hero has yet waits for one (`waiting_relics`: the bag's at the start). A find joins the
+  run only through `give_relic(item, hero)`; `give_waiting` and the `give` op (`{op: "give", slot,
+  relic}`) hand out a waiting one. A Relic is never on two heroes and never comes off. No copies:
+  `can_gain` is "the run does not have it", so spoils, shops, chests, events and Rush cards never
+  offer one the party has. Stat lines are the level 1 ones (`GearData.stat_text()`,
+  `RunState.relic_stat`). HP never rises from a Relic and is cut to a lower max.
+- **Gone**: the slots and their unlocks (`open_relic_slots`, `slot_lock_text`, the "A Relic slot
+  opens" line, the guard and boss counters), Relic levels, copies and their spare gold, fight drops
+  (`RunState.relic_drops`; the monsters' `EnemyData.relic_drops` lists stay in the data, unused),
+  the wear, take off and swap ops, and their tuning (`run_gear_slots`, `relic_slots_start`,
+  `relic_max_level`, `relic_spare_gold`, `relic_drop_percent`, `relic_copy_weight_percent`,
+  `relic_bag_echoes_per_slot`, `relic_bag_max`).
+- **Where Relics come from.** Elite stops and act bosses: the spoils, pick 1 of `relic_choice_count()`
+  (`run_loot_choices`, 3; Scarcity takes one away, a flawless win adds one, the crowned elite lists a
+  legendary first). The rotten chest: pick 1 of `relic_choice_count()` rare or better Relics, with its
+  curse or ambush as before; the plain chest keeps its gold and item. Shops: `run_shop_gear` Relics the
+  run lacks; at the shop the party stands at, the shelves are kept in `RunState.stop_relics` (saved and
+  sent online), so a Relic bought stays on its shelf, sold. An event that gives a Relic gives it to
+  the hero picked (the bot's: the one with the fewest Relics). Ordinary Fight stops pay gold and XP.
+- **"Who gets it?"** After a pick the screen (spoils, rotten chest, shop, pact event, Rush card) shows
+  `RelicGift.ASK` over one card per hero (face, name, a gem chip with their Relic count,
+  `RelicGift.hero_cards`); only the heroes the picker may give to are lit (`RelicGift.allowed`, from
+  `Main._give_heroes(device)`, set on every such screen in `_wire_turn`): solo every hero; local
+  co-op the heroes of the player whose pad picked; online with Take turns on the heroes of the
+  player whose turn it is (Take turns off: every hero). A friend's choice carries `hero` (`take`,
+  `buy`, `choose`, `relic` for the rotten chest's pick); the host's screen checks it against the same
+  rule, so a hero outside it is refused and nothing changes. The stop's line names who got it
+  ("New Relic: Iron Charm (Alder)", `relic_given_text`); a spoil opens the Y screen on that hero's
+  Relics. A chest cannot be left while its Relic pick waits (`Main._can_leave`).
+- **Waiting Relics** (the bag's) are given on the Y screen's Relics tab (8.18): Confirm on a hero
+  opens the grid on the waiting Relics, Confirm there gives one ("Nothing to give" when none waits;
+  a given one says "Given"). The tab's badge counts the waiting ones.
+- **The Fight Rush.** A Relic card offers a Relic the party lacks; taking it asks "Who gets it?" and
+  `RushState.take_card(i, hero)` gives it at once (`{}` without a hero the picker may give to). No slot
+  unlocks (`elites_beaten`, `bosses_beaten` and the slot line went). With every Relic but the gold ones
+  in the party a boss offers Train alone. The dev head start gives each Relic card to
+  `GearBot.best_hero`.
+- **Echoes removed (#327).** The Echoes page (`EchoesScreen`), the Hero tab's Echo box (the attribute
+  rows wrap at the fifth now), Echo points and pips, `RelicCollection.pips`, the `mastery_*` and
+  `echo_*` tuning, `GearData.echo_cost` and `stat_points_per_level`, the Glossary's Echo and Relic
+  level terms (a "Who gets it?" term in their place), the tutorial's Echoes card and the
+  `--screen=echoes` dev screen. A Relic file of format 2 with pips still loads (the pips are dropped,
+  `RelicCollection.FORMAT_VERSION` stays 2); `RelicFile.bank(found_ids, path, tuning)`.
+- **Oaths** (8.15): the Empty Hand (11) is `start_relics_add` -1, one starting Relic fewer per hero
+  (the bag of 3 brings 3 fewer for the 3 heroes, so none); Forgetting (12) is
+  `attr_points_per_level_add` -1, two attribute points per level instead of three. The lobby's oath
+  chips read "Start Relics -1" and "Level points -1".
+- **Saves and online**: `RunSave.FORMAT_VERSION` 6 (older saves are refused: their Relic state does
+  not fit), `Net.PROTOCOL` 7. `user://progress.json` is unchanged.
+- **Bots**: in spoils, the rotten chest and shops the bot picks by `GearBot.score` as before and gives
+  each Relic to `GearBot.best_hero` (the hero it helps most by `GearBot.fit_of`: an offensive Relic the
+  hardest hitter, a defensive one the toughest hero, a healing one the hero with the most healing
+  skills; a tie goes to the one with the fewest Relics); waiting Relics go out through
+  `RunState.auto_give`. The log has `Run relic: ID to HERO (shop|chest)` and `Run loot: took ID for
+  HERO`. `--relics=all` means every Relic found. The run's `AUTOPLAY_RESULT run_...` line ends with
+  `relics=N relics_held=M` (Relics the run has, Relics given to heroes; `gear=`, the worn count, went:
+  it is `relics_held` now), the Rush's has `relics= relics_held=` in place of `echoes=`.
+- **The main menu's Relics page** (the smallest change the Echoes going forced): its Level sort (by
+  Echo pips) and its "dropped by" monster lines went, and a Relic not found yet reads "Not found yet.
+  Elite fights, bosses, chests, shops and events give Relics." The bag on it works as before.
+- Tests: `test_relics.gd`, `test_part_b.gd`, `test_more_relics.gd`, `test_rot_gear.gd`,
+  `test_run_fights.gd`, `test_roguelite.gd`, `test_take_turns.gd`, `test_choice_cards.gd`,
+  `test_party_screen.gd`, `test_backpack.gd`, `test_oaths.gd`, `test_online.gd`, `test_rush.gd`,
+  `test_rush_screens.gd`, `test_rush_online.gd`, `test_glossary.gd`, `test_tutorial.gd`.
 
 ## 9. Multiplayer (phase 5)
 
@@ -6212,8 +6290,8 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     (8.22): Fight stops (#316), guards inside the Elite stops (#317), shrines and wanderers as "?"
     events with no more keys (#318), the zone code and data removed (#319), First Strike as a press
     (#320); three acts with the Leech Queen (#322, #323, 8.23); the balance pass (#321); online taking
-    turns (#314) and Save & Quit (#313). Still to build: Relics without slots, no Echoes, the Relic
-    book (#326 to #328, 8.24). Ideas parked: boss pools (#324), boss gimmicks (#325).
+    turns (#314) and Save & Quit (#313); Relics without slots and no Echoes (#326, #327, 8.24, branch
+    `phase26-relics`). Still to build: the Relic book (#328, 8.24). Ideas parked: boss pools (#324), boss gimmicks (#325).
 27. **Relics** (planned 2026-10-25): go through every Relic under the new rules (8.24): what each
     gives and whether it is worth picking, give each its icon, then make new Relics (#329).
 28. **The upgrade shop** (planned 2026-10-25): a shop outside the run where a currency earned by every
