@@ -22,7 +22,7 @@ script = ExtResource("1_d4656")
 id = "first_strike"
 topic = "fight"
 term = "First strike"
-text = "A Fight stop's name card shows one ring. Press the skill button as it closes: GOOD or PERFECT and your whole party acts before any enemy. Guards, elites and bosses open normally."
+text = "A Fight stop's fight opens with one ring, once the camera has swept over the enemies. Press the skill button as it closes: GOOD or PERFECT and your whole party acts before any enemy. Guards, elites and bosses open normally."
 tag = "FIRST STRIKE!"
 color = Color(1, 0.82, 0.3, 1)
 

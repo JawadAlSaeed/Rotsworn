@@ -1,12 +1,13 @@
 extends GutTest
-## The First Strike press (DESIGN.md 8.22, card #320): a Fight stop's fight opens with one press ring
-## on the place's name card. The pure judge (FirstStrikeJudge) gives First Strike for a GOOD or
-## PERFECT press with the skill press windows and a normal start for an early, late, mashed or
-## missing one; in local co-op any player's press counts. The ring on the card (FirstStrikeRing)
-## judges from DefenseInput stamps, a friend's only watches and shows the host's result; Main rings
-## only Fight stops, puts the opening into the fight's setup, and online the host's result reaches the
-## friends (and anyone who gets in later). The bots keep their skill press habits on it. The tutorial
-## and the glossary teach the press. Uses the shipped data; nothing touches the user's settings.
+## The First Strike press (DESIGN.md 8.22, cards #320 and #335): a Fight stop's fight opens, after
+## its intro (the camera sweeping over the enemies), with one press ring in the middle of the fight.
+## The pure judge (FirstStrikeJudge) gives First Strike for a GOOD or PERFECT press with the skill
+## press windows and a normal start for an early, late, mashed or missing one; in local co-op any
+## player's press counts. The ring (FirstStrikeRing) judges from DefenseInput stamps, a friend's only
+## watches and shows the host's result. The engine waits for the result (CombatSetup.Opening.RING,
+## the command set_opening) before the first turn, so online it reaches the friends as a fight event.
+## Main rings only Fight stops. The bots keep their skill press habits on it. The tutorial and the
+## glossary teach the press. Uses the shipped data; nothing touches the user's settings.
 
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
@@ -14,7 +15,6 @@ const RUN_PATH := "res://data/runs/rotten_road.tres"
 const MAIN_PATH := "res://scenes/main.gd"
 const TUTORIAL_PATH := "res://data/tutorial/tutorial.tres"
 const HUSKS_PATH := "res://data/encounters/husk_fight.tres"
-const TIPS_PATH := "res://data/branding/tips.tres"
 const SEEDS: int = 1000
 
 var _tuning: Tuning
@@ -278,7 +278,7 @@ func test_the_masher_is_judged_honestly() -> void:
 	assert_lt(firsts * 100, 25 * 300, "mashing rarely pays")
 
 
-# --- the ring on the card ------------------------------------------------------------------------
+# --- the ring itself ------------------------------------------------------------------------------
 
 func _ring(roster: PlayerRoster, mode: FirstStrikeRing.Mode, options: CombatOptions = null) -> FirstStrikeRing:
 	var ring := FirstStrikeRing.new()
@@ -308,7 +308,7 @@ func test_the_ring_takes_presses_stamped_by_its_own_input() -> void:
 	assert_eq(ring.word(), FirstStrikeRing.WORD_PERFECT)
 	assert_eq(said, [[CombatSetup.Opening.FIRST_STRIKE, FirstStrikeRing.WORD_PERFECT]], "decided once")
 	assert_false(ring._input.is_armed(), "the button goes back to the menus")
-	assert_false(ring.is_finished(), "the card holds the result a moment")
+	assert_false(ring.is_finished(), "the ring holds the result a moment")
 	ring._result_at_us = Time.get_ticks_usec() - (_visuals.first_strike_result_ms + 1) * 1000
 	ring._process(0.0)
 	assert_true(ring.is_finished(), "then the fight")
@@ -353,7 +353,7 @@ func test_a_late_press_after_the_rings_miss_says_late() -> void:
 	ring._on_pressed(Defense.Outcome.PRESS, _stamp(ring, origin, int(_good()[1]) + 90000, PlayerRoster.KEYBOARD), 0,
 			PlayerRoster.KEYBOARD)
 	assert_eq(said.size(), 1, "one word per ring")
-	assert_false(ring.is_finished(), "the card holds the result a moment")
+	assert_false(ring.is_finished(), "the ring holds the result a moment")
 	ring._result_at_us = Time.get_ticks_usec() - (_visuals.first_strike_result_ms + 1) * 1000
 	ring._process(0.0)
 	assert_true(ring.is_finished(), "then the fight")
@@ -438,7 +438,7 @@ func test_a_friend_watches_the_hosts_ring_and_shows_its_result() -> void:
 	lost._watch(wait_end, start)
 	assert_eq(lost._result_at_us, 0, "still waiting")
 	lost._watch(wait_end + 1, start)
-	assert_gt(lost._result_at_us, 0, "no result came: it goes on, so the card never hangs")
+	assert_gt(lost._result_at_us, 0, "no result came: it goes on, so the fight never hangs")
 	assert_eq(lost.opening(), CombatSetup.Opening.NORMAL)
 
 
@@ -452,120 +452,197 @@ func test_the_picture_ring_starts_over() -> void:
 	assert_false(ring._started, "it starts over")
 
 
-# --- the name card: the ring on it, and the fight waiting for it ------------------------------------
+# --- the engine: a Fight stop's fight waits for its ring (card #335) ---------------------------------
 
-## Main without its own start-up (no menus, music, network or input): the card tests give it only
-## what _fade_to needs.
-class FadeHarness extends "res://scenes/main.gd":
-	func _ready() -> void:
-		pass
-
-	func _process(_delta: float) -> void:
-		pass
-
-	func _input(_event: InputEvent) -> void:
-		pass
+func _husk_setup(opening: CombatSetup.Opening, seed_value: int = 5) -> CombatSetup:
+	var data := load(RUN_PATH) as RunData
+	var run := RunState.begin(data, _tuning, 7)
+	return run.fight_setup(load(HUSKS_PATH) as EncounterData, seed_value, opening)
 
 
-## A Main whose transitions are instant and whose cards have no tips (so only a ring brings one).
-func _fade_main() -> FadeHarness:
-	var main := FadeHarness.new()
+func _first(events: Array[Dictionary], type: String) -> Dictionary:
+	for ev: Dictionary in events:
+		if String(ev.get("type", "")) == type:
+			return ev
+	return {}
+
+
+func _rejected(events: Array[Dictionary]) -> bool:
+	return events.size() == 1 and String(events[0].type) == "command_rejected"
+
+
+func test_a_ring_fight_waits_for_its_opening_before_the_first_turn() -> void:
+	var engine := CombatEngine.new(_husk_setup(CombatSetup.Opening.RING))
+	var start := engine.start()
+	assert_eq(String(_first(start, "combat_started").opening), "ring", "the presentation knows a ring comes")
+	assert_true(_first(start, "turn_started").is_empty(), "no turn before the ring's result")
+	assert_eq(engine.phase, CombatEngine.Phase.AWAITING_OPENING)
+	assert_false(_first(start, "intent").is_empty(), "the enemies' intents are already shown")
+	assert_true(engine.resume_events().is_empty(), "a friend who gets in now is seated at the first turn")
+	assert_true(_rejected(engine.submit(CombatCommands.use_ability(1, 0, "attack", [3] as Array[int]))),
+			"nobody acts yet")
+	var events := engine.submit(CombatCommands.set_opening("first_strike", FirstStrikeRing.WORD_PERFECT))
+	assert_eq(String(events[0].type), "opening", "the result first, then the first turn")
+	assert_eq(String(events[0].opening), "first_strike")
+	assert_eq(String(events[0].word), FirstStrikeRing.WORD_PERFECT, "the word goes to the friends")
+	assert_false(_first(events, "turn_started").is_empty())
+	var order: Array = _first(events, "turn_order").order
+	var party := engine.party_ids().size()
+	for i: int in party:
+		assert_lt(int(order[i]), party, "every hero acts before any enemy")
+	assert_true(_rejected(engine.submit(CombatCommands.set_opening("normal"))), "once only")
+
+
+func test_set_opening_takes_only_normal_or_first_strike_and_only_a_ring_fight() -> void:
+	var engine := CombatEngine.new(_husk_setup(CombatSetup.Opening.RING))
+	engine.start()
+	for bad: String in ["ring", "", "first strike", "FIRST_STRIKE"]:
+		assert_true(_rejected(engine.submit(CombatCommands.set_opening(bad))), "%s is refused" % bad)
+		assert_eq(engine.phase, CombatEngine.Phase.AWAITING_OPENING, "and changes nothing")
+	var odd := engine.submit({"type": CombatCommands.SET_OPENING, "opening": "normal", "word": 7})
+	assert_eq(String(odd[0].word), "", "a word that is not text is dropped")
+	var plain := CombatEngine.new(_husk_setup(CombatSetup.Opening.NORMAL))
+	plain.start()
+	assert_true(_rejected(plain.submit(CombatCommands.set_opening("first_strike"))), "a fight with no ring")
+
+
+func test_a_ring_fight_is_deterministic_and_matches_the_old_opening() -> void:
+	var commands: Array[Dictionary] = [CombatCommands.set_opening("first_strike", "GOOD")]
+	var a := CombatEngine.new(_husk_setup(CombatSetup.Opening.RING, 11))
+	var b := CombatEngine.new(_husk_setup(CombatSetup.Opening.RING, 11))
+	var ea := a.start()
+	var eb := b.start()
+	for c: Dictionary in commands:
+		ea.append_array(a.submit(c))
+		eb.append_array(b.submit(c))
+	assert_eq(ea, eb, "same seed, same commands, same events")
+	var old := CombatEngine.new(_husk_setup(CombatSetup.Opening.FIRST_STRIKE, 11))
+	var eo := old.start()
+	assert_eq(_first(ea, "turn_order").order, _first(eo, "turn_order").order,
+			"the ring's First Strike is the same turn order as a First Strike setup")
+	assert_eq(_first(ea, "turn_started").actor, _first(eo, "turn_started").actor)
+	var normal := CombatEngine.new(_husk_setup(CombatSetup.Opening.RING, 11))
+	var en := normal.start()
+	en.append_array(normal.submit(CombatCommands.set_opening("normal", "MISS")))
+	var plain := CombatEngine.new(_husk_setup(CombatSetup.Opening.NORMAL, 11)).start()
+	assert_eq(_first(en, "turn_order").order, _first(plain, "turn_order").order, "a miss is a normal start")
+
+
+func test_a_fight_waiting_for_its_ring_survives_a_snapshot() -> void:
+	var setup := _husk_setup(CombatSetup.Opening.RING)
+	var engine := CombatEngine.new(setup)
+	engine.start()
+	var copy := CombatEngine.restore(setup, engine.snapshot())
+	assert_eq(copy.phase, CombatEngine.Phase.AWAITING_OPENING)
+	assert_eq(copy.submit(CombatCommands.set_opening("normal")), engine.submit(CombatCommands.set_opening("normal")))
+
+
+# --- the fight: its intro, then the ring (card #335) -------------------------------------------------
+
+func test_the_intro_sweep_goes_from_the_first_enemy_to_the_last() -> void:
+	var spots := _visuals.enemy_positions.duplicate()
+	var order := CameraShots.sweep_order(spots)
+	for i: int in order.size() - 1:
+		assert_lte(order[i].x, order[i + 1].x, "left to right")
+	var shots := CameraShots.intro_sweep(_visuals, order)
+	var base := CameraShots.base(_visuals)
+	assert_lt((shots[0].target as Vector3).x, (shots[1].target as Vector3).x, "it pans right")
+	assert_lt((shots[0].pos as Vector3).distance_to(shots[0].target), (base.pos as Vector3).distance_to(base.target),
+			"closer than the base view")
+	var lone := CameraShots.intro_sweep(_visuals, [Vector3(3.0, 0.0, 0.0)] as Array[Vector3])
+	assert_ne(lone[0].target, lone[1].target, "a lone enemy still gets a slow pan")
+	assert_eq(CameraShots.intro_sweep(_visuals, [] as Array[Vector3]), [base, base] as Array[Dictionary])
+	var half := CameraShots.blend(shots[0], shots[1], 0.5)
+	assert_almost_eq(half.target, ((shots[0].target as Vector3) + (shots[1].target as Vector3)) * 0.5,
+			Vector3(0.001, 0.001, 0.001))
+	assert_eq(CameraShots.blend(shots[0], shots[1], 2.0), shots[1], "clamped")
+	assert_eq(_visuals.intro_sweep_ms, 1500, "about a second and a half (card #335)")
+
+
+## A shipped fight whose intro and ring are quick: the intro sweeps `intro_ms`, the ring shows at once
+## and holds its result no time.
+func _ring_fight(intro_ms: int, opening: CombatSetup.Opening = CombatSetup.Opening.RING) -> CombatController:
 	var look := _visuals.duplicate() as CombatVisuals
-	look.transition_out_ms = 0
-	look.transition_in_ms = 0
-	var tips := TipSet.new()
-	tips.fade_ms = 0
-	main._options = CombatOptions.new()
-	main._transition = ScreenTransition.new()
-	add_child_autofree(main)
-	main.add_child(main._transition)
-	main._transition.setup(look)
-	main._transition.setup_tips(tips, "")
-	return main
-
-
-## A ring that shows at once and whose result goes at once (the card tests wait in real time).
-func _quick_ring(roster: PlayerRoster, mode: FirstStrikeRing.Mode) -> FirstStrikeRing:
-	_tuning.first_strike_ring_delay_ms = 0
-	var look := _visuals.duplicate() as CombatVisuals
+	look.intro_sweep_ms = intro_ms
+	look.intro_name_fade_ms = 0
 	look.first_strike_result_ms = 0
-	var ring := FirstStrikeRing.new()
-	ring.setup(_tuning, look, CombatOptions.new(), roster, mode, 7)
-	return ring
+	_tuning.first_strike_ring_delay_ms = 0
+	var fight := (load("res://scenes/combat.tscn") as PackedScene).instantiate() as CombatController
+	fight.configure(load(HUSKS_PATH) as EncounterData, _tuning, look, CombatOptions.new(), null, opening)
+	return fight
 
 
-func test_the_name_card_carries_the_ring_with_or_without_tips() -> void:
-	var shipped := load(TIPS_PATH) as TipSet
-	assert_false(shipped.tips.is_empty())
-	for tips: TipSet in [shipped, TipSet.new()]:
-		var transition := ScreenTransition.new()
-		add_child_autofree(transition)
-		transition.setup(_visuals)
-		transition.setup_tips(tips, "")
-		var ring := _quick_ring(PlayerRoster.solo(3), FirstStrikeRing.Mode.PRESS)
-		await transition.show_tip("Rotten Hollow", ring)
-		var tipped := "%d tips" % tips.tips.size()
-		assert_not_null(transition._card, tipped + ": a card")
-		if transition._card == null:
-			ring.free()
-			continue
-		assert_true(transition._card.is_ancestor_of(ring), tipped + ": the ring is on it")
-		assert_not_null(ring._input, tipped + ": its _ready ran (its own DefenseInput)")
-		assert_true(ring._input.is_inside_tree())
-		assert_true(transition.is_covering())
-		await transition.hide_tip()
-	var bare := ScreenTransition.new()
-	add_child_autofree(bare)
-	bare.setup(_visuals)
-	bare.setup_tips(TipSet.new(), "")
-	await bare.show_tip("Rotten Hollow")
-	assert_null(bare._card, "no tips and no ring: no card")
-
-
-func test_the_card_holds_the_fight_until_the_ring_is_done() -> void:
-	var main := _fade_main()
-	var ring := _quick_ring(PlayerRoster.solo(3), FirstStrikeRing.Mode.PRESS)
-	var built: Array = []
-	main._fade_to(func() -> void: built.append(ring.opening()), "Rotten Hollow", false, ring)
-	assert_true(await wait_until(func() -> bool: return is_instance_valid(ring) and ring._started, 5.0),
-			"the ring shows on the card")
-	assert_true(main._transition._card != null and main._transition._card.is_ancestor_of(ring), "on the name card")
+func test_the_fight_sweeps_over_the_enemies_then_rings() -> void:
+	var fight := _ring_fight(400)
+	var played: Array = []
+	fight.opening_played.connect(func(opening: String, word: String) -> void: played.append([opening, word]))
+	var covered := [true]
+	fight.screen_covered = func() -> bool: return covered[0]
+	add_child_autofree(fight)
+	assert_true(await wait_until(func() -> bool: return not fight.mirror.enemy_ids.is_empty(), 5.0), "built")
 	await wait_seconds(0.3)
-	assert_false(ring.is_finished())
-	assert_eq(built, [], "no fight while the ring is undecided")
+	assert_true(fight.hud.intro_names().is_empty(), "the intro waits while the screen is covered")
+	assert_null(fight.first_strike_ring())
+	covered[0] = false
+	assert_true(await wait_until(func() -> bool: return not fight.hud.intro_names().is_empty(), 2.0),
+			"then the names show")
+	var shown_at := Time.get_ticks_msec()
+	var names := fight.hud.intro_names()
+	for id: int in fight.mirror.enemy_ids:
+		assert_true(names.has(String(fight.mirror.fighter(id).display_name)), "each enemy's name")
+	assert_true(fight.view.camera.is_sweeping(), "while the camera sweeps")
+	assert_null(fight.first_strike_ring(), "no ring during the sweep")
+	assert_true(await wait_until(func() -> bool: return fight.first_strike_ring() != null, 3.0), "then the ring")
+	assert_gte(Time.get_ticks_msec() - shown_at, 400 - 50, "only after the sweep")
+	assert_true(fight.hud.intro_names().is_empty(), "the names went with the intro")
+	var ring := fight.first_strike_ring()
+	assert_true(fight.hud.is_ancestor_of(ring), "in the middle of the fight's screen")
+	assert_eq(ring.mode(), FirstStrikeRing.Mode.PRESS)
+	assert_eq(fight.engine.phase, CombatEngine.Phase.AWAITING_OPENING, "the first turn waits")
+	assert_true(await wait_until(func() -> bool: return ring._input.is_armed(), 2.0))
 	ring._input.inject_press(Defense.Outcome.PRESS, PlayerRoster.KEYBOARD)
 	assert_eq(ring.word(), FirstStrikeRing.WORD_EARLY, "pressed long before its moment")
-	assert_true(await wait_until(func() -> bool: return not built.is_empty(), 5.0), "then the fight")
-	assert_eq(built, [CombatSetup.Opening.NORMAL], "built once, with the ring's opening")
-	assert_true(await wait_until(func() -> bool: return not main._busy, 5.0), "and the card goes")
+	assert_true(await wait_until(func() -> bool: return not played.is_empty(), 3.0), "the opening plays")
+	assert_eq(played, [["normal", FirstStrikeRing.WORD_EARLY]], "once, with the ring's result")
+	assert_ne(fight.engine.phase, CombatEngine.Phase.AWAITING_OPENING, "and the fight goes on")
+	assert_null(fight.first_strike_ring(), "the ring is gone")
 
 
-func test_a_friends_card_waits_for_the_hosts_result() -> void:
-	var main := _fade_main()
-	var ring := _quick_ring(PlayerRoster.online(3, 1, 1001), FirstStrikeRing.Mode.WATCH)
-	var built: Array = []
-	main._fade_to(func() -> void: built.append(ring.opening()), "Rotten Hollow", false, ring)
-	assert_true(await wait_until(func() -> bool: return is_instance_valid(ring) and ring._started, 5.0))
+func test_every_other_fight_gets_the_intro_and_no_ring() -> void:
+	var fight := _ring_fight(300, CombatSetup.Opening.NORMAL)
+	add_child_autofree(fight)
+	assert_true(await wait_until(func() -> bool: return not fight.hud.intro_names().is_empty(), 5.0), "the intro")
+	assert_true(await wait_until(func() -> bool: return fight.engine.turn_number > 0 and fight.hud.intro_names().is_empty(), 3.0))
+	assert_null(fight.first_strike_ring(), "no ring")
+	var none := _ring_fight(0, CombatSetup.Opening.NORMAL)
+	add_child_autofree(none)
 	await wait_seconds(0.3)
-	assert_eq(built, [], "the friend's card waits for the host")
-	ring.show_host_result("first_strike", FirstStrikeRing.WORD_PERFECT)
-	assert_true(await wait_until(func() -> bool: return not built.is_empty(), 5.0))
-	assert_eq(built, [CombatSetup.Opening.FIRST_STRIKE], "the host's opening")
-	assert_true(await wait_until(func() -> bool: return not main._busy, 5.0))
+	assert_true(none.hud.intro_names().is_empty(), "intro_sweep_ms 0: no intro")
 
 
-func test_a_card_left_behind_never_builds_its_fight() -> void:
-	var main := _fade_main()
-	var ring := _quick_ring(PlayerRoster.solo(3), FirstStrikeRing.Mode.PRESS)
-	var built: Array = []
-	main._first_strike_ring = ring
-	main._fade_to(func() -> void: built.append(ring.opening()), "Rotten Hollow", false, ring)
-	assert_true(await wait_until(func() -> bool: return is_instance_valid(ring) and ring._started, 5.0))
-	main._flow_gen += 1
-	assert_true(await wait_until(func() -> bool: return not main._busy and not main._transition.is_covering(), 5.0),
-			"the card goes")
-	assert_eq(built, [], "the flow moved on: no fight")
-	assert_null(main._first_strike_ring)
+func test_a_friends_fight_watches_the_hosts_ring() -> void:
+	var fight := CombatController.new()
+	fight._net_mode = CombatController.NetMode.CLIENT
+	fight._visuals = _visuals
+	fight._tuning = _tuning
+	fight._options = CombatOptions.new()
+	var hud_ring := FirstStrikeRing.new()
+	hud_ring.setup(_tuning, _visuals, CombatOptions.new(), PlayerRoster.online(3, 1, 1001), FirstStrikeRing.Mode.WATCH)
+	autofree(hud_ring)
+	fight._opening_ring = hud_ring
+	fight._take_host_opening({"type": "opening", "opening": "first_strike", "word": "GOOD"})
+	assert_eq(hud_ring._host_result, {"opening": "first_strike", "word": "GOOD"}, "the watched ring shows it at once")
+	fight._opening_ring = null
+	fight._early_opening = {}
+	fight._take_host_opening({"type": "opening", "opening": "normal", "word": "MISS"})
+	assert_eq(fight._early_opening, {"opening": "normal", "word": "MISS"}, "kept for a ring not shown yet")
+	fight._net_mode = CombatController.NetMode.HOST
+	fight._early_opening = {}
+	fight._take_host_opening({"type": "opening", "opening": "normal", "word": "MISS"})
+	assert_true(fight._early_opening.is_empty(), "the host decides it")
+	fight.free()
+	var source := FileAccess.get_file_as_string("res://scripts/combat/presentation/combat_controller.gd")
+	assert_string_contains(source, "var mode := FirstStrikeRing.Mode.WATCH if _net_mode == NetMode.CLIENT else first_strike_mode")
 
 
 # --- Main: which fights ring, and where the opening goes ---------------------------------------------
@@ -574,10 +651,10 @@ func test_only_fight_stops_ring() -> void:
 	for type: int in RunMap.StopType.values():
 		assert_eq(_main.call("_rings_first_strike", type), type == RunMap.StopType.FIGHT,
 				"%s rings: %s" % [RunMap.TYPE_NAMES[type], type == RunMap.StopType.FIGHT])
-	var enter := _body("func _enter_stop(")
-	assert_string_contains(enter, "if _rings_first_strike(int(stop.type)) and not _busy:",
-			"never announced while a transition would drop its fight")
-	assert_string_contains(enter, "_new_first_strike_ring(FirstStrikeRing.Mode.PRESS)")
+	var start := _body("func _start_stop_fight(")
+	assert_string_contains(start, "_run_opening = CombatSetup.Opening.RING if ringed else CombatSetup.Opening.NORMAL")
+	assert_false(_body("func _enter_stop(").contains("FirstStrikeRing"), "no ring on the name card any more")
+	assert_false(_body("func _fade_to(").contains("FirstStrikeRing"))
 	for header: String in ["func _start_final_fight("]:
 		assert_false(_body(header).contains("FirstStrikeRing"), header + " opens normally")
 		assert_false(_body(header).contains("_run_opening"), header + " never sets an opening")
@@ -587,124 +664,31 @@ func test_the_opening_goes_into_the_fights_setup() -> void:
 	var combat := _body("func _start_combat(")
 	assert_string_contains(combat, "_combat.configure(_encounter, _tuning, _visuals, _options, _fight_look, _run_opening, _fight_air)")
 	assert_string_contains(combat, "_run_opening = CombatSetup.Opening.NORMAL", "used up by its fight")
-	var start := _body("func _start_stop_fight(")
-	assert_string_contains(start, "var opening := _stop_opening(ringed)")
-	assert_string_contains(start, "_run_opening = opening\n\t_start_combat()")
-	assert_string_contains(start, "print(\"AUTOPLAY_OPENING %s stop=%d\"")
+	assert_string_contains(combat, "_combat.first_strike_bot_seed = _first_strike_bot_seed()")
+	assert_string_contains(combat, "_combat.opening_played.connect(_on_fight_opening)")
+	assert_string_contains(combat, "_combat.screen_covered = _transition.is_covering")
+	assert_string_contains(_body("func _on_fight_opening("), "print(\"AUTOPLAY_OPENING %s stop=%d\"")
 	assert_string_contains(FileAccess.get_file_as_string("res://scripts/combat/presentation/combat_controller.gd"),
 			"_run.fight_setup(_encounter, _pick_seed(), _opening)", "the controller builds its setup with it")
-	# The setup a run fight is built from carries the opening into the engine.
-	var data := load(RUN_PATH) as RunData
-	var run := RunState.begin(data, _tuning, 7)
-	var husks := load(HUSKS_PATH) as EncounterData
-	var setup := run.fight_setup(husks, 5, CombatSetup.Opening.FIRST_STRIKE)
-	assert_eq(setup.opening, CombatSetup.Opening.FIRST_STRIKE)
-	var events := CombatEngine.new(setup).start()
-	var started: Dictionary = {}
-	var order: Array = []
-	for ev: Dictionary in events:
-		if String(ev.type) == "combat_started" and started.is_empty():
-			started = ev
-		if String(ev.type) == "turn_order" and order.is_empty():
-			order = ev.order
-	assert_eq(String(started.opening), "first_strike", "the gold FIRST STRIKE banner's event")
-	var party := setup.party.size()
-	for i: int in party:
-		assert_lt(int(order[i]), party, "every hero acts before any enemy")
-	# A controller given the opening keeps it for that setup.
+	var setup := _husk_setup(CombatSetup.Opening.RING)
+	assert_eq(setup.opening, CombatSetup.Opening.RING)
 	var controller := CombatController.new()
-	controller.configure(husks, _tuning, _visuals, CombatOptions.new(), null, CombatSetup.Opening.FIRST_STRIKE)
-	assert_eq(controller._opening, CombatSetup.Opening.FIRST_STRIKE)
+	controller.configure(load(HUSKS_PATH) as EncounterData, _tuning, _visuals, CombatOptions.new(), null,
+			CombatSetup.Opening.RING)
+	assert_eq(controller._opening, CombatSetup.Opening.RING)
 	controller.free()
 
 
-func test_main_reads_the_opening_from_the_ring() -> void:
-	var main: Node = _main.new()
-	autofree(main)
-	var ring := FirstStrikeRing.new()
-	autofree(ring)
-	ring._opening = CombatSetup.Opening.FIRST_STRIKE
-	main.set("_first_strike_ring", ring)
-	assert_eq(main.call("_stop_opening", true), CombatSetup.Opening.FIRST_STRIKE, "a Fight stop's ring")
-	assert_eq(main.call("_stop_opening", false), CombatSetup.Opening.NORMAL, "a Guard stop never")
-	main.set("_first_strike_ring", null)
-	assert_eq(main.call("_stop_opening", true), CombatSetup.Opening.NORMAL, "no ring, no First Strike")
-
-
-# --- online --------------------------------------------------------------------------------------
-
-func test_online_the_host_decides_and_the_friends_get_its_opening() -> void:
-	assert_eq(NetSession.PROTOCOL, 9, "the opening needed no bump (the fingerprint keeps other builds out); 9 is the pack's (card #332)")
-	var decided := _body("func _on_first_strike_decided(")
-	assert_string_contains(decided, "if not Net.is_host():")
-	assert_string_contains(decided, "Net.broadcast(\"opening\", {\"fight\": _net_seed, \"opening\": opening_name, \"word\": word})")
-	assert_string_contains(decided, "_net_fight[\"opening\"] = opening_name", "kept for anyone who gets in later")
+func test_online_the_ring_comes_with_the_fight() -> void:
+	assert_eq(NetSession.PROTOCOL, 9, "no bump: the fingerprint keeps other builds out; 9 is the pack's (card #332)")
 	var announce := _body("func _announce_stop_fight(")
-	assert_string_contains(announce, "_send_screen({\"name\": \"stop_fight\", \"seed\": _net_seed, \"ring\": ring})")
-	var enter := _body("func _enter_stop(")
-	assert_lt(enter.find("_announce_stop_fight(true)"), enter.find("_new_first_strike_ring("),
-			"the friends hear of the fight before the host's ring runs")
-	var client := _body("func _client_screen(")
-	assert_string_contains(client, "_new_first_strike_ring(FirstStrikeRing.Mode.WATCH)")
+	assert_string_contains(announce, "_send_screen({\"name\": \"stop_fight\", \"seed\": _net_seed})")
+	assert_string_contains(_body("func _start_stop_fight("), "_announce_stop_fight()",
+			"every stop fight is announced once the host's card is done")
 	var messages := _body("func _on_net_message(")
-	assert_lt(messages.find("\"opening\":"), messages.find("_net_queue.append("),
-			"the host's result is taken at once, not behind the card that waits for it")
-	# What the friend makes of the host's word.
-	assert_eq(_main.call("_opening_of", {"fight": 9, "opening": "first_strike"}, 9), CombatSetup.Opening.FIRST_STRIKE)
-	assert_eq(_main.call("_opening_of", {"fight": 9, "opening": "normal"}, 9), CombatSetup.Opening.NORMAL)
-	assert_eq(_main.call("_opening_of", {"fight": 8, "opening": "first_strike"}, 9), CombatSetup.Opening.NORMAL,
-			"another fight's result")
-	assert_eq(_main.call("_opening_of", {}, 9), CombatSetup.Opening.NORMAL, "none came")
-	var main: Node = _main.new()
-	autofree(main)
-	var ring := FirstStrikeRing.new()
-	autofree(ring)
-	ring.setup(_tuning, _visuals, CombatOptions.new(), PlayerRoster.online(3, 1, 1001), FirstStrikeRing.Mode.WATCH)
-	main.set("_first_strike_ring", ring)
-	main.set("_net_seed", 321)
-	main.call("_take_net_opening", {"fight": 321, "opening": "first_strike", "word": "GOOD"}, 321)
-	assert_eq(ring._host_result, {"opening": "first_strike", "word": "GOOD"}, "the watched ring shows it")
-	assert_eq(_main.call("_opening_of", main.get("_net_opening"), 321), CombatSetup.Opening.FIRST_STRIKE,
-			"the friend's fight starts with it")
-
-
-func test_a_friend_watches_only_an_undecided_fight_stop_ring() -> void:
-	var p := {"name": "stop_fight", "seed": 5, "ring": true}
-	assert_true(_main.call("_watches_first_strike", p, {}), "a Fight stop's ring")
-	assert_false(_main.call("_watches_first_strike", {"name": "stop_fight", "seed": 5, "ring": false}, {}), "a Guard stop's")
-	assert_false(_main.call("_watches_first_strike", {"name": "stop_fight", "seed": 5}, {}), "an older host's message")
-	assert_false(_main.call("_watches_first_strike", p, {"fight": 5, "opening": "normal"}), "its result is in already")
-	assert_true(_main.call("_watches_first_strike", p, {"fight": 4, "opening": "normal"}), "the last fight's result")
-	var decided := p.duplicate()
-	decided["opening"] = "first_strike"
-	assert_false(_main.call("_watches_first_strike", decided, {}), "a friend who gets in once it is decided")
-	var going := p.duplicate()
-	going["rejoin"] = true
-	assert_false(_main.call("_watches_first_strike", going, {}), "a friend who gets in mid-fight")
-
-
-func test_a_friend_who_gets_in_during_the_card_gets_the_result() -> void:
-	var data := load(RUN_PATH) as RunData
-	var host := RunState.begin(data, _tuning, 7)
-	host.go(host.choices()[0])
-	var roster := PlayerRoster.online(data.party.size(), 1, 1)
-	roster.join_peer(1001)
-	var fight := {"name": "stop_fight", "seed": 321, "ring": true}
-	# During the host's ring: the friend watches it and waits for the broadcast.
-	var before: Array[Dictionary] = _main.call("_catch_up_messages", host, roster, true, {"name": "map"}, fight, false)
-	var payload := before[2].payload as Dictionary
-	assert_false(bool(payload.rejoin), "nothing is built yet: no resume to wait for")
-	assert_true(_main.call("_watches_first_strike", payload, {}))
-	# Once decided the fight's message carries it: no ring, straight on with the host's opening.
-	fight["opening"] = "first_strike"
-	fight["word"] = "PERFECT"
-	var after: Array[Dictionary] = _main.call("_catch_up_messages", host, roster, true, {"name": "map"}, fight, false)
-	payload = after[2].payload as Dictionary
-	assert_false(_main.call("_watches_first_strike", payload, {}))
-	var main: Node = _main.new()
-	autofree(main)
-	main.call("_take_net_opening", payload, 321)
-	assert_eq(_main.call("_opening_of", main.get("_net_opening"), 321), CombatSetup.Opening.FIRST_STRIKE)
+	assert_false(messages.contains("\"opening\":"), "no separate opening message: it is a fight event")
+	var client := _body("func _client_screen(")
+	assert_false(client.contains("FirstStrikeRing"), "a friend's card has no ring either")
 
 
 # --- the words that teach it ----------------------------------------------------------------------
@@ -741,7 +725,10 @@ func test_the_glossary_explains_the_press() -> void:
 
 func test_the_picture_mode_is_wired() -> void:
 	assert_string_contains(_body("func _open_dev_screen("), "\"first_strike\":")
-	assert_string_contains(_body("func _show_sample_first_strike("), "FirstStrikeRing.Mode.LOOP")
+	assert_string_contains(_body("func _show_sample_first_strike("), "_first_strike_picture = true")
+	assert_string_contains(_body("func _show_sample_first_strike("), "_fade_to(_start_stop_fight, ")
+	assert_string_contains(_body("func _start_combat("), "_combat.first_strike_mode = FirstStrikeRing.Mode.LOOP",
+			"the picture's fight rings over and over")
 
 
 ## The text of function `header` in main.gd, up to the next top-level function.

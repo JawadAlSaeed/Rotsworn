@@ -1,7 +1,7 @@
 class_name FirstStrikeJudge
 extends RefCounted
-## Judges the First Strike press (DESIGN.md 8.22, card #320): the one press ring on a Fight stop's
-## name card. Pure, like DefenseJudge: every time is passed in, in microseconds since the ring
+## Judges the First Strike press (DESIGN.md 8.22, cards #320 and #335): the one press ring of a
+## Fight stop's fight, after its intro. Pure, like DefenseJudge: every time is passed in, in microseconds since the ring
 ## appeared (the presenter stamps presses with DefenseInput, rule 3), and the result is a
 ## CombatSetup.Opening that goes into the fight's setup before the fight is built.
 ##

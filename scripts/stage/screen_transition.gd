@@ -99,8 +99,9 @@ func setup_tips(tips: TipSet, logo_path: String) -> void:
 
 
 ## Shows a loading card over the black (call after fade_out or swirl_out): `title` (the place's
-## name) and a random tip, never the same twice in a row. `extra` (a Fight stop's First Strike ring,
-## DESIGN.md 8.22) goes on the card under the title; with it the card shows even without tips.
+## name) and a random tip, never the same twice in a row. `extra` (any control; the First Strike ring
+## sat here until card #335 moved it into the fight) goes on the card under the title; with it the
+## card shows even without tips.
 func show_tip(title: String, extra: Control = null) -> void:
 	var tips := _card_tips()
 	if tips.tips.is_empty() and extra == null:

@@ -26,11 +26,16 @@ extends RefCounted
 ##                    partial is fine; per character, prompts must resolve in order
 ##   practice         {invulnerable_party?, immortal_enemies?, force_attack?, mark_hero?, mark_status?}
 ##                    if setup allows
+##   set_opening      {opening: "normal" | "first_strike", word}  phase AWAITING_OPENING (a Fight
+##                    stop's First Strike ring, pressed in the fight after its intro, card #335)
 ##
 ## Events (Dictionary with "type"):
 ##   combat_started          {seed, fighters:[Combatant.to_dict()], practice_allowed, opening,
 ##                           items:[item_info()]} (backpack items usable in this fight)
-##                           opening: "normal" | "first_strike" (DESIGN.md 2.12)
+##                           opening: "normal" | "first_strike" (DESIGN.md 2.12) | "ring" (the
+##                           first turn waits for set_opening, card #335)
+##   opening                 {opening, word} the First Strike ring's result (set_opening): First
+##                           Strike applied or not; the first turn follows in the same batch
 ##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms],
 ##                           feints:[bool] (which hits are feints, card #129), marks? (card #194),
 ##                           ranged?:[bool] (which hits are thrown, only when one is, card #278),
@@ -119,7 +124,7 @@ extends RefCounted
 ##   command_rejected        {reason, command}   private to the sender; never broadcast/replayed
 
 ## combat_started "opening" names, by CombatSetup.Opening.
-const OPENING_NAMES: Array[String] = ["normal", "first_strike"]
+const OPENING_NAMES: Array[String] = ["normal", "first_strike", "ring"]
 
 enum Phase {
 	NOT_STARTED,
@@ -131,6 +136,9 @@ enum Phase {
 	## The tutorial's gate (DESIGN.md 7.8): an enemy's turn has started and its attack waits for
 	## the practice command open_gate.
 	AWAITING_GATE,
+	## A Fight stop's fight before its first turn (CombatSetup.Opening.RING, card #335): the First
+	## Strike ring's result comes as set_opening.
+	AWAITING_OPENING,
 }
 
 enum PromptState {
@@ -258,6 +266,11 @@ func start() -> Array[Dictionary]:
 			_add_status(hero, Status.REGEN, regen, hero.id, events)
 	for enemy_id: int in enemy_ids():
 		_pick_intent(get_combatant(enemy_id), events)
+	if _setup.opening == CombatSetup.Opening.RING:
+		# The First Strike ring is pressed in the fight, after its intro (card #335): the first turn
+		# waits for its result.
+		phase = Phase.AWAITING_OPENING
+		return events
 	_advance_turn(events)
 	return events
 
@@ -274,9 +287,29 @@ func submit(command: Dictionary) -> Array[Dictionary]:
 			_cmd_resolve_prompts(command, events)
 		CombatCommands.PRACTICE:
 			_cmd_practice(command, events)
+		CombatCommands.SET_OPENING:
+			_cmd_set_opening(command, events)
 		_:
 			events.append(_reject("unknown_command", command))
 	return events
+
+
+## The First Strike ring's result (card #335): First Strike or a normal start, then the first turn.
+## Only while the fight waits for it (AWAITING_OPENING), and only those two openings.
+func _cmd_set_opening(command: Dictionary, events: Array[Dictionary]) -> void:
+	if phase != Phase.AWAITING_OPENING:
+		events.append(_reject("not_awaiting_opening", command))
+		return
+	var opening := OPENING_NAMES.find(String(command.get("opening", "")))
+	if opening != CombatSetup.Opening.NORMAL and opening != CombatSetup.Opening.FIRST_STRIKE:
+		events.append(_reject("bad_opening", command))
+		return
+	if opening == CombatSetup.Opening.FIRST_STRIKE:
+		_apply_first_strike()
+	var word: Variant = command.get("word", "")
+	events.append({"type": "opening", "opening": OPENING_NAMES[opening],
+			"word": String(word) if word is String else ""})
+	_advance_turn(events)
 
 
 ## Rebuilds an engine from snapshot() output (reconnects, late join, desync debugging).

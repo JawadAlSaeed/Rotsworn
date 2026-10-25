@@ -23,6 +23,11 @@ var _last_us: int = 0
 var _punch_amount: float = 0.0
 var _punch_until_us: int = 0
 var _punch_length_us: int = 1
+## A fight's intro sweep (card #335): from, to, and its real-time span.
+var _sweep_from: Dictionary = {}
+var _sweep_to: Dictionary = {}
+var _sweep_start_us: int = 0
+var _sweep_length_us: int = 0
 
 
 func setup(visuals: CombatVisuals) -> void:
@@ -78,6 +83,25 @@ func shot_end(centre: Vector3) -> void:
 	_go(CameraShots.ending(_visuals, centre), _visuals.end_orbit_degrees_per_s)
 
 
+## A fight's intro (card #335): the camera is at `from` at once and slides to `to` over `ms`, eased
+## in and out, then stays there until the next shot. Off (not cinematic): the base shot, still.
+func sweep(from: Dictionary, to: Dictionary, ms: int) -> void:
+	if not cinematic:
+		reset_shot()
+		return
+	_go(from)
+	settle()
+	_sweep_from = from
+	_sweep_to = to
+	_sweep_start_us = Time.get_ticks_usec()
+	_sweep_length_us = maxi(1, ms * 1000)
+
+
+## True while an intro sweep slides.
+func is_sweeping() -> bool:
+	return not _sweep_to.is_empty()
+
+
 ## Jumps straight to the current goal (used when an enemy attack's clock starts).
 func settle() -> void:
 	var goal := _orbited_goal()
@@ -87,6 +111,8 @@ func settle() -> void:
 
 
 func _go(goal: Dictionary, orbit_speed: float = 0.0) -> void:
+	# Any other shot ends a sweep.
+	_sweep_to = {}
 	if not cinematic and _visuals != null:
 		goal = CameraShots.base(_visuals)
 		orbit_speed = 0.0
@@ -105,6 +131,11 @@ func _process(delta: float) -> void:
 	if _visuals == null:
 		return
 	_orbit_degrees += _orbit_speed * delta
+	if not _sweep_to.is_empty():
+		var p := clampf(float(Time.get_ticks_usec() - _sweep_start_us) / float(_sweep_length_us), 0.0, 1.0)
+		_goal = CameraShots.blend(_sweep_from, _sweep_to, smoothstep(0.0, 1.0, p))
+		if p >= 1.0:
+			_sweep_to = {}
 	var goal := _orbited_goal()
 	var k := 1.0 - exp(-delta * 1000.0 / float(maxi(1, _visuals.shot_glide_ms)))
 	_pos = _pos.lerp(goal.pos, k)

@@ -1,13 +1,14 @@
 class_name FirstStrikeRing
 extends VBoxContainer
-## The First Strike press (DESIGN.md 8.22, card #320) on a Fight stop's name card: one press ring
-## drawn like a skill press ring (RingLayer: the faint target, the GOOD band and the gold PERFECT
+## The First Strike press (DESIGN.md 8.22, cards #320 and #335) of a Fight stop's fight: one press
+## ring drawn like a skill press ring (RingLayer: the faint target, the GOOD band and the gold PERFECT
 ## band, the ring closing onto the target at the perfect moment and turning gold inside the PERFECT
 ## band), the skill press button with "First Strike" under it and the press's word over it
-## (PERFECT, GOOD, EARLY, LATE, MISS), with the skill press sounds and the presser's buzz. Main puts
-## it on the card (ScreenTransition.show_tip), holds the card until is_finished() and builds the
-## fight with opening(). Real time, from the moment it is added: the ring shows
-## tuning.first_strike_ring_delay_ms later. The look is combat_visuals.tres (Skills and First Strike
+## (PERFECT, GOOD, EARLY, LATE, MISS), with the skill press sounds and the presser's buzz.
+## CombatController puts it in the middle of the fight once the fight's intro is over
+## (CombatHud.show_first_strike_ring), waits until is_finished(), and a PRESS ring's decided() goes to
+## the engine as set_opening (the first turn waits for it). Real time, from the moment it is added:
+## the ring shows tuning.first_strike_ring_delay_ms later. The look is combat_visuals.tres (Skills and First Strike
 ## press groups).
 ## - PRESS: this machine decides (a local game, any player's press; online, the host's). Presses
 ##   are stamped by its own DefenseInput the moment they arrive (rule 3) and judged on the ring's
@@ -67,7 +68,7 @@ var _windows: Dictionary = {}
 var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
 var _word: String = ""
 ## Real time the result showed (0: not yet); whether its word is final (no press can change it any
-## more, decided() was sent); and whether the card may go.
+## more, decided() was sent); and whether the fight may go on.
 var _result_at_us: int = 0
 var _final: bool = false
 var _finished: bool = false
@@ -139,7 +140,7 @@ func _ready() -> void:
 	_begin(Time.get_ticks_usec())
 
 
-## True once the card may go: the result is final and has been shown its while (never in LOOP).
+## True once the fight may go on: the result is final and has been shown its while (never in LOOP).
 func is_finished() -> bool:
 	return _finished
 
@@ -246,7 +247,7 @@ func _on_pressed(action: int, stamp_us: int, previous_pump_us: int, device: int)
 			var perfect := int(report.outcome) == Defense.Outcome.PRESS_PERFECT
 			_say(WORD_PERFECT if perfect else WORD_GOOD, HudStyle.GOLD if perfect else HudStyle.TEXT)
 			Sfx.play("skill_press", 0.0 if perfect else GOOD_PRESS_VOLUME_DB)
-			# Only the presser's pad, as a skill press (no fight party is set on the card).
+			# Only the presser's pad, as a skill press.
 			PadRumble.for_player("press_perfect" if perfect else "press_good", _roster, player)
 		DefenseJudge.Result.WHIFF:
 			var early := int(report.reason) == DefenseJudge.Reason.EARLY
@@ -273,7 +274,7 @@ func _on_decided(now_us: int) -> void:
 		_finalize()
 
 
-## The result is on the card: the chip lights gold for First Strike (or dims), and the card holds it
+## The result shows: the chip lights gold for First Strike (or dims), and the ring holds it
 ## first_strike_result_ms (once its word is final).
 func _show_result(now_us: int) -> void:
 	_result_at_us = maxi(1, now_us)
