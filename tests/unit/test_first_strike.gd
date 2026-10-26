@@ -584,9 +584,11 @@ func test_the_fight_sweeps_over_the_enemies_then_rings() -> void:
 	assert_true(fight.hud.intro_names().is_empty(), "the intro waits while the screen is covered")
 	assert_null(fight.first_strike_ring())
 	covered[0] = false
+	# Measured from the uncover: the intro starts after it, while wait_until may notice the names a
+	# poll late (a flaky 344 ms once, measured from there).
+	var shown_at := Time.get_ticks_msec()
 	assert_true(await wait_until(func() -> bool: return not fight.hud.intro_names().is_empty(), 2.0),
 			"then the names show")
-	var shown_at := Time.get_ticks_msec()
 	var names := fight.hud.intro_names()
 	for id: int in fight.mirror.enemy_ids:
 		assert_true(names.has(String(fight.mirror.fighter(id).display_name)), "each enemy's name")

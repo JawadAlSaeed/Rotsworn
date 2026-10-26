@@ -149,7 +149,8 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
   tagged **New** is not in your book yet. Every Relic you find goes
   in your **Relic book** for good (the main menu's **Relics** page: "Found 12 of 50"). Before each
   run, every hero may take one Relic from your book (**Starting Relics**; **X** or **R** skips a
-  hero, **Back** takes the last pick back; your first run starts with none). **Rot-touched** Relics are very strong, but each one comes with a price.
+  hero, **Back** takes the last pick back, and on the first hero asks to leave the run; your first
+  run starts with none). **Rot-touched** Relics are very strong, but each one comes with a price.
 - **Oaths** make the game harder, one rule at a time (12 of them). Win a normal run to unlock
   oath 1, then win at each oath to unlock the next. Each oath keeps the rules of the ones before
   it. Pick it on the players screen before the run.
@@ -209,8 +210,9 @@ party screen's hero cards and the Attributes and Skills screens still need the k
 | Map: open the party screen (level up, Relics, backpack) | Tab | Y |
 | Backpack: an item's menu (use, sell, throw away), or put a find in a pocket | Enter | A |
 | Party screen: previous / next hero (Hero, Skills), Relic kind (Relics) | 1 / 3 | LT / RT |
-| Starting Relics: skip a hero / take the last pick back | R / Backspace | X / B |
+| Starting Relics: skip a hero / take the last pick back (first hero: leave the run?) | R / Backspace | X / B |
 | "?" event or the Crossroads: take nothing | the **Walk on** card | the **Walk on** card |
+| The Crossroads: back to the Starting Relics (before a deal) | Backspace | B |
 | Shop: buy / sell / leave | Enter / Tab / Backspace | A / Y / B |
 | Defence stats in a fight | F1 | View |
 | Lag calibration (while the fight menu is open) | F2 | |

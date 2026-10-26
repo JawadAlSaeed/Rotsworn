@@ -2467,7 +2467,8 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   Rotten chests), "?" events and the starting pact, and the main menu's Online page (Host, Join).
   Back is the cancel button with a footer hint, never a card. Taking nothing is a card: since card
   #334 (2026-10-25) a "?" event and the Crossroads end their cards with **Walk on** (the door picture,
-  `StopVisuals.walk_on_icon_path`), and Back does nothing on the cards (it only steps back out of a
+  `StopVisuals.walk_on_icon_path`), and Back does nothing on a "?" event's cards (on the Crossroads it
+  goes back a screen, 8.24, card #334 follow-up 2026-10-26; it only steps back out of a
   pick list or the "Who gets it?" step). This reverses phase 22's "Leave is the cancel button, never a
   row" there: Back must never pass something up for good. Pick lists of three or
   fewer (who pays: the heroes' faces and HP; what goes; which curse to lift) are cards too. Art: `tools/art_kit/assets/ui_choices.py` (choice_*, chip_*); paths and
@@ -4201,8 +4202,15 @@ waits there. Main menu leaves as before (online, it ends the game for everyone w
 (the bag's collection had found something; `RunState.pact_pending`, saved and sent online), "The
 Crossroads" shows on the "?" event screen (its picture, story, and each choice's price and reward
 written out): `tuning.run_pact_choices` (3) of `RunData.pacts`, picked by the run's seed
-(`RunState.pact_event`), or Leave. The host picks for the whole party; online friends watch. Taking
-or leaving it goes on to the party screen's Relics page (or the map). The six pacts
+(`RunState.pact_event`), or Walk on (card #334). The host picks for the whole party; online friends watch. Taking
+or leaving it goes on to the map. **Back and Pause on the Crossroads** (card #334 follow-up,
+2026-10-26): before a deal is taken, Back (`EventScreen.back_out`, `backed_out`; the host or a local
+game only, never a friend's screen) goes back to the starting Relics with the picks as they were and
+the last one taken back (8.24), or asks "Leave the run?" when that step was skipped (an empty book,
+the Empty Hand; `Main._start_return_picks`). The deals are the same when you come back (the run's
+seed, nothing rolled again). Once a deal is taken (or passed by) Back does nothing. Pause opens the
+pause menu over it offline too (Abandon run, Save & Quit, Settings, the Players row), as on the map;
+online it already did. The six pacts
 (`data/runs/pacts/`, written by `tools/bootstrap_pacts.gd`; first numbers):
 
 | Pact | Gift | Price |
@@ -5523,10 +5531,22 @@ Relic bag is gone.
   Skip). Heroes choose one after another: Confirm takes the Relic under the cursor, X / R is Skip
   (card #334: its own button, so taking none is a choice, never Back), and Back takes this screen's
   last pick back (a Relic or a Skip) and that hero chooses again (`RunState.undo_start_relic`, which
-  keeps the HP each hero is missing; on the first hero Back does nothing; local co-op: only that
-  hero's player, as for picking); once this machine's heroes are done the header says "Waiting" and
+  keeps the HP each hero is missing; local co-op: only that hero's player, as for picking); on the
+  first hero (nothing to take back) Back asks **"Leave the run?"** with the shared yes / no prompt, No
+  first (card #334 follow-up, 2026-10-26; `StartRelicsScreen.backed_out`, `Main._ask_leave_run`): Yes
+  is Abandon run (online the host's End the game), the main menu with no save left and nothing banked
+  (nothing was found yet); a friend's Back there does nothing; once this machine's heroes are done the header says "Waiting" and
   Back still works until the run goes on (`StartRelicsScreen.open`; a local game goes on at the last
-  pick). Footer: Move, Take, Skip, Back (only with a pick to take back), LT / RT Sort. A
+  pick). Footer: Move, Take, Skip, Back (always on the host or a local game; on a friend's only with
+  a pick to take back), LT / RT Sort. **Back from the Crossroads** (8.7; before a deal is taken)
+  shows the step again: Main rebuilds this machine's picks from the run (`StartRelicsScreen.past_picks`:
+  heroes in slot order, each one's starting Relics, then a Skip for one done with fewer), takes the last
+  one back (`undo_start_relic`; that hero chooses again, the cursor on the Relic they had) and gives the
+  screen the rest (`restore_history`), so Back keeps stepping back to the first hero and then asks to
+  leave; the last pick goes on to the Crossroads again, its deals unchanged. Online only the host goes
+  back: the friends' screens follow the host's (they show the step again, "Waiting"); their picks stay
+  and cannot be taken back then (the host's pickers list is empty, so a friend's Back is refused).
+  Nothing new goes over the line (the host's `screen` message and state as before). A
   first run (empty book) and the Empty Hand skip the step. Local co-op: only the hero's own player's
   pad picks for them (another pad gets that player's tag as a warning), but any device may while that
   pad is unplugged (`StartRelicsScreen.may_pick`), so a flat pad never holds the step. Pause (Esc,
@@ -6813,3 +6833,4 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-25 | Back goes back, never skips (card #334): on Starting Relics Back takes the last pick (a Relic or a Skip) back and that hero chooses again (nothing on the first hero; online only a friend's own heroes and only while the step is open, through the host: `start_relic_back` / `start_back`), Skip is X / R; on "?" events and the Crossroads taking nothing is a Walk on card after the choices and Back does nothing on the cards (it still steps back out of a pick list or "Who gets it?"). This reverses phase 22's "Leave is the cancel button, never a row" for those screens. Audit of the other run screens: shop (B leaves the shop, a choice not lost: nothing is bought; its Cleanse list and "Who gets it?" step back), campfire (B does nothing), treasure and spoils (B does nothing on the picks, steps back from "Who gets it?"; there is no "take nothing" there), map (B is the pause menu), party screen (B steps back inside a tab, then closes), run end (B is Main menu, A Again): unchanged | owner playtest: Back skipped a hero's Relic and walked past an event for good |
 | 2026-10-25 | A short beat before each fight (card #335): every fight opens with the camera sweeping slowly over the enemies, left to right, their names small over them (`intro_sweep_ms` 1500, visuals), once the card and the fade are gone; then the fight starts. A Fight stop's First Strike ring moved from the name card into the fight, after the intro: the engine waits for the command `set_opening` (`CombatSetup.Opening.RING`, `Phase.AWAITING_OPENING`) and online the result is a fight event (the `opening` message went; every stop fight is announced after the host's card) | owner playtest: fights started too abruptly ("not Ready? Go!"); builder defaults: 1.5 s, every fight including bosses, names over the heads, no bot switch |
 | 2026-10-25 | Menus inside a menu use LT and RT (card #336): every switch inside a screen is LT / RT, keyboard 1 / 3 (were T / K): the Relics tab's kind (was X / R), the Relic book's and Starting Relics' sort (were X / R), the Glossary's topics (left / right still work), with the Hero and Skills tabs' hero and the Controls page as before; LB / RB (Z / C) stay the main tabs; X / R is left for a screen's own extra button (Skip, reset, use) | owner playtest: one rule for switches; 1 / 3 sit under the left hand and clash with nothing |
+| 2026-10-26 | Back goes back a screen at the run's start (card #334 follow-up): Back on the Crossroads (before a deal) returns to the starting Relics with the picks as they were and the last one taken back (that hero chooses again, the cursor on their Relic); Back on the first hero of the starting Relics, or on the Crossroads when that step was skipped (an empty book, the Empty Hand), asks "Leave the run?" (No first; Yes is Abandon run, End the game online). The pact's deals are seeded, so going back rolls nothing; once a deal is taken Back does nothing. Pause opens the pause menu on the Crossroads offline too. Online only the host goes back or leaves; friends follow and keep their picks | owner playtest: "why can't I go back in here?" on the first hero and the Crossroads |

@@ -17,6 +17,8 @@ extends StopScreen
 signal done
 ## Host: a choice was taken (Main tells the clients, who show the same result).
 signal chosen(index: int, text: String)
+## Back on the cards with `back_out` on (the starting pact, card #334): Main goes back a screen.
+signal backed_out
 
 ## A pick list of this many or fewer (who pays, what goes) shows as cards side by side.
 const PICK_CARDS_MAX: int = 3
@@ -46,6 +48,9 @@ var _pick_ids: Array[int] = []
 var _giving: bool = false
 var _pick_value: int = -1
 var _device: int = PlayerRoster.ANY
+## Back on the cards (before a choice) goes back a screen (`backed_out`): the starting pact on the
+## host or a local game (card #334, 2026-10-26); never on a friend's screen.
+var back_out: bool = false
 
 
 ## `result`: online clients show the host's result once it chose (empty: still choosing).
@@ -254,6 +259,11 @@ func is_ambush_page() -> bool:
 	return _ambush_page
 
 
+## True when this screen is the starting pact (card #285).
+func is_pact() -> bool:
+	return _event != null and _event.id == "pact"
+
+
 ## Online (card #314): the turn changed: the cards (or Continue) redraw, lit or greyed. A pick list
 ## open goes back to the cards.
 func _turn_changed() -> void:
@@ -285,7 +295,10 @@ func _show_choices() -> void:
 				"chips": StopScreen.chip_entries(run.choice_chips(c, run.at), _look)})
 	list.append(walk_on_card())
 	_show_list(list, true)
-	_set_footer([[&"@leftright", "Choose"], [&"menu_confirm", "Select"]])
+	var hints: Array = [[&"@leftright", "Choose"], [&"menu_confirm", "Select"]]
+	if back_out and not remote:
+		hints.append([&"menu_cancel", "Back"])
+	_set_footer(hints)
 
 
 ## The Walk on card (card #334): the way-on picture and its word, no price and no gift.
@@ -408,13 +421,22 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Cancel: back from the hero step to the pick (or the cards), back from a pick list to the cards.
 ## Nothing on the cards themselves (card #334: Walk on is a card, Back never walks on), once the
-## choice is made, or on an ambush page.
+## choice is made, or on an ambush page; with `back_out` (the starting pact) Back on the cards goes
+## back a screen instead (`backed_out`).
 func _cancel() -> void:
 	if _giving and pick_kind(_picking) != ZoneOfferData.Pick.NONE:
 		Sfx.play("menu_cancel")
 		_show_pick(_picking)
 	elif _picking >= 0:
 		_back_from_pick()
+	elif can_back_out():
+		Sfx.play("menu_cancel")
+		backed_out.emit()
+
+
+## True while Back on this screen goes back a screen: `back_out` on, on the cards, before a choice.
+func can_back_out() -> bool:
+	return back_out and not remote and not _decided and not _ambush_page and _event != null 			and _picking < 0 and not _giving
 
 
 ## The gold line over the menu; hidden while empty, so the cards keep the room.
