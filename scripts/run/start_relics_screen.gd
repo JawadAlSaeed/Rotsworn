@@ -6,7 +6,8 @@ extends RelicsScreen
 ## hero's face); the right side shows every hero with what they took, the one choosing now lit.
 ## Confirm takes the Relic under the cursor for that hero, X / R skips them (takes none, card #334: an
 ## explicit choice, never Back), and Back takes this screen's last pick back (a Relic or a Skip) and
-## returns to that hero; on the first hero Back does nothing. LT / RT (1 / 3) change the sort. Local
+## returns to that hero; on the first hero (nothing to take back) Back asks to leave the run
+## (`backed_out`, card #334 follow-up, 2026-10-26; never on a friend's screen). LT / RT (1 / 3) change the sort. Local
 ## co-op: only that hero's player's pad picks for them, and takes their pick back (any device while
 ## that pad is unplugged, so a dead pad never holds the step; the pause menu's Players row can drop
 ## that player). Online each machine picks for its own heroes from its own book:
@@ -25,6 +26,9 @@ signal finished
 ## Back took hero `slot`'s pick back (`id` the Relic, "" a Skip; card #334). Local play and the host:
 ## already undone in the run. A friend (`remote`): Main asks the host (withdraw_answered follows).
 signal withdrawn(slot: int, id: String)
+## Back with no pick of this screen to take back (the first hero), on the host or a local game: Main
+## asks "Leave the run?".
+signal backed_out
 
 const HERO_FACE_PX := Vector2i(72, 72)
 const HERO_NAME_SIZE: int = 32
@@ -135,6 +139,36 @@ func skip() -> bool:
 ## True while Back has a pick of this screen to take back (and the step is open).
 func can_go_back() -> bool:
 	return open and not _history.is_empty()
+
+
+## The picks this screen starts with (oldest first, as past_picks gives them): coming back to the step
+## from the starting pact (card #334 follow-up), Back can take those back too.
+func restore_history(picks: Array[Dictionary]) -> void:
+	_history = picks.duplicate(true)
+	_redraw()
+
+
+## The starting picks of heroes `slots` as `run` holds them, oldest first, as this screen's history
+## would have them: heroes choose in slot order, each one's starting Relics in the order taken, then
+## a Skip ({"id": ""}) for a hero done with fewer than start_relic_count(). A hero still choosing
+## has no Skip. Pure.
+static func past_picks(p_run: RunState, slots: Array[int]) -> Array[Dictionary]:
+	var picks: Array[Dictionary] = []
+	if p_run == null:
+		return picks
+	var sorted := slots.duplicate()
+	sorted.sort()
+	for slot: int in sorted:
+		if slot < 0 or slot >= p_run.party_size():
+			continue
+		var taken := 0
+		for item: GearData in p_run.relics_of(slot):
+			if p_run.start_relics.has(item.id):
+				picks.append({"slot": slot, "id": item.id})
+				taken += 1
+		if not p_run.start_open(slot) and taken < p_run.start_relic_count():
+			picks.append({"slot": slot, "id": ""})
+	return picks
 
 
 ## Back (card #334): this screen's last pick (a Relic or a Skip) is taken back and its hero chooses
@@ -319,7 +353,13 @@ func _confirm(item: GearData) -> bool:
 ## on the first hero.
 func _back() -> void:
 	var slot := _back_slot()
-	if slot < 0 or not open:
+	if not open:
+		return
+	if slot < 0:
+		# Nothing to take back (the first hero): leave the run? (Main asks; a friend: nothing).
+		if not remote:
+			Sfx.play("menu_cancel")
+			backed_out.emit()
 		return
 	if not _pad_ok(slot):
 		_refuse(_tag_of(slot))
@@ -355,7 +395,7 @@ func hints() -> Array:
 	var entries: Array = []
 	if not is_done():
 		entries = [[&"@arrows", "Move"], [&"menu_confirm", "Take"], [&"item_move", SKIPPED]]
-	if can_go_back():
+	if can_go_back() or (open and not remote):
 		entries.append([&"menu_cancel", "Back"])
 	if not is_done():
 		entries.append_array(SORT_HINTS)

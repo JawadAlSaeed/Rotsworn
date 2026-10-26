@@ -383,9 +383,10 @@ func test_back_takes_the_last_pick_back_and_never_skips() -> void:
 	watch_signals(screen)
 	assert_false(screen.can_go_back(), "the first hero: nothing to take back")
 	screen.call("_back")
-	assert_eq(screen.chooser(), 0, "Back on the first hero does nothing")
+	assert_eq(screen.chooser(), 0, "Back on the first hero takes nothing back")
 	assert_true(run.start_open(0), "and never skips")
-	assert_false(_words(screen.hints()).has("Back"), "so no Back hint yet")
+	assert_signal_emitted(screen, "backed_out", "it asks to leave the run instead (card #334 follow-up)")
+	assert_true(_words(screen.hints()).has("Back"), "so Back is always on the hints")
 	var charm := _relic("iron_charm")
 	run.hp[1] -= 5
 	var wounded := run.hp[1]
@@ -489,7 +490,7 @@ func test_a_starting_relic_raises_max_hp_full_and_pause_opens_over_the_step() ->
 	assert_eq(run.hp[2], run.max_hp(2), "the others are untouched")
 	# Esc is Pause before it is Back: offline the pause menu opens over the step (Abandon, Players).
 	var source := FileAccess.get_file_as_string(MAIN_PATH)
-	assert_string_contains(source, "if _screen is MapScreen or _screen is StartRelicsScreen:")
+	assert_string_contains(source, "if _screen is MapScreen or _screen is StartRelicsScreen or (_screen is EventScreen and (_screen as EventScreen).is_pact()):")
 
 
 func test_every_machine_logs_the_starting_relics_once() -> void:
@@ -525,3 +526,122 @@ func test_a_run_opens_with_the_pick_step() -> void:
 	assert_string_contains(source, "_on_friend_start_relic(from_peer, payload)", "the host hears a friend's pick")
 	assert_string_contains(source, "\"start_refused\"", "and can send it back")
 	assert_gt(_tuning.start_relic_wait_ms, 0, "the host waits for friends only so long")
+
+
+# --- Back from the first hero and from the pact (card #334 follow-up, 2026-10-26) ------------------
+
+func test_a_friends_back_on_the_first_hero_does_nothing() -> void:
+	var book := _book(["iron_charm"])
+	var screen := _screen(_run(book), book, [1])
+	screen.remote = true
+	watch_signals(screen)
+	screen.call("_back")
+	assert_signal_not_emitted(screen, "backed_out", "only the host or a local game leaves the run")
+	assert_false(_words(screen.hints()).has("Back"), "no Back hint with nothing to take back")
+
+
+func test_past_picks_are_the_step_as_the_run_holds_it() -> void:
+	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var run := _run(book)
+	var mine: Array[int] = [0, 1, 2]
+	assert_eq(StartRelicsScreen.past_picks(run, mine), [] as Array[Dictionary], "nothing picked yet")
+	assert_false(run.take_start_relic(0, _relic("whetstone")).is_empty())
+	assert_true(run.skip_start_relic(1))
+	assert_eq(StartRelicsScreen.past_picks(run, mine),
+			[{"slot": 0, "id": "whetstone"}, {"slot": 1, "id": ""}] as Array[Dictionary],
+			"hero 2 is still choosing: no Skip for them")
+	assert_false(run.take_start_relic(2, _relic("war_drum")).is_empty())
+	var just_one: Array[int] = [2]
+	assert_eq(StartRelicsScreen.past_picks(run, just_one), [{"slot": 2, "id": "war_drum"}] as Array[Dictionary],
+			"only the heroes asked for")
+
+
+func test_back_on_the_pact_goes_back_only_to_a_step_that_was_there() -> void:
+	var main_script := load(MAIN_PATH) as GDScript
+	var mine: Array[int] = [0, 1, 2]
+	var book := _book(["iron_charm", "whetstone"])
+	var run := _run(book)
+	assert_true(run.take_start_relic(0, _relic("iron_charm")).size() > 0)
+	run.skip_start_relic(1)
+	run.skip_start_relic(2)
+	run.end_start_picks()
+	var picks: Array = main_script.call("_start_return_picks", run, mine, book)
+	assert_eq(picks.size(), 3, "a Relic and two Skips to go back to")
+	# Every hero skipped, but the book has Relics: going back still makes sense.
+	var skipped := _run(book)
+	skipped.end_start_picks()
+	assert_eq((main_script.call("_start_return_picks", skipped, mine, book) as Array).size(), 3)
+	# The step was skipped: an empty book (a first run) or the Empty Hand oath.
+	var empty := _book([])
+	var first := _run(empty)
+	first.skip_start_relics(mine)
+	assert_true((main_script.call("_start_return_picks", first, mine, empty) as Array).is_empty(),
+			"an empty book: Back on the pact asks to leave the run")
+	var empty_hand := _run(book, 11)
+	assert_true((main_script.call("_start_return_picks", empty_hand, mine, book) as Array).is_empty(),
+			"the Empty Hand: no step to go back to")
+
+
+func test_coming_back_from_the_pact_reopens_the_last_hero_and_rerolls_nothing() -> void:
+	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var run := _run(book)
+	assert_true(run.pact_pending, "a run with a Relic book has the pact")
+	var deals_before := run.pact_event().choices.duplicate()
+	var mine: Array[int] = [0, 1, 2]
+	assert_false(run.take_start_relic(0, _relic("iron_charm")).is_empty())
+	assert_false(run.take_start_relic(1, _relic("whetstone")).is_empty())
+	assert_true(run.skip_start_relic(2))
+	run.end_start_picks()
+	# What Main does on the pact's Back: the last pick back, the screen with the rest as its history.
+	var picks := StartRelicsScreen.past_picks(run, mine)
+	var last: Dictionary = picks.pop_back()
+	assert_eq(last, {"slot": 2, "id": ""})
+	assert_true(run.undo_start_relic(int(last.slot), String(last.id)))
+	var screen := _screen(run, book, mine)
+	screen.restore_history(picks)
+	watch_signals(screen)
+	assert_eq(screen.chooser(), 2, "the last hero chooses again")
+	assert_true(run.owns(_relic("iron_charm")) and run.owns(_relic("whetstone")), "the others' picks stay")
+	assert_true(screen.can_go_back(), "and Back can take them back too")
+	assert_true(screen.back())
+	assert_signal_emitted_with_parameters(screen, "withdrawn", [1, "whetstone"])
+	assert_eq(screen.chooser(), 1, "hero 2 again")
+	assert_true(screen.back())
+	assert_eq(screen.chooser(), 0, "and the first hero")
+	screen.call("_back")
+	assert_signal_emitted(screen, "backed_out", "then Back asks to leave the run")
+	assert_true(screen.take(_relic("war_drum")))
+	assert_true(screen.skip())
+	assert_true(screen.skip())
+	assert_signal_emitted(screen, "finished", "done again: on to the pact")
+	assert_true(run.pact_pending, "the pact was never taken")
+	assert_eq(run.pact_event().choices, deals_before, "the same deals: nothing rolled again")
+
+
+func test_back_on_the_pact_goes_back_a_screen_only_before_a_deal() -> void:
+	var book := _book(["iron_charm"])
+	var run := _run(book)
+	var screen := EventScreen.new()
+	add_child_autofree(screen)
+	screen.setup(run, run.pact_event())
+	assert_true(screen.is_pact())
+	watch_signals(screen)
+	screen.call("_cancel")
+	assert_signal_not_emitted(screen, "backed_out", "off unless Main turns it on (a \"?\" event)")
+	screen.back_out = true
+	screen.call("_show_choices")
+	assert_true(_words(screen.footer_entries()).has("Back"), "the pact's footer shows Back")
+	screen.call("_cancel")
+	assert_signal_emit_count(screen, "backed_out", 1, "Back on the cards goes back a screen")
+	screen.remote = true
+	assert_false(screen.can_back_out(), "never on a friend's screen")
+	screen.remote = false
+	assert_true(screen.walk_on())
+	assert_false(screen.can_back_out(), "once a deal is taken (or passed by), Back does nothing")
+	screen.call("_cancel")
+	assert_signal_emit_count(screen, "backed_out", 1)
+	var source := FileAccess.get_file_as_string(MAIN_PATH)
+	assert_string_contains(source, "screen.back_out = not Net.is_client()", "only the host or a local game")
+	assert_string_contains(source, "screen.backed_out.connect(_on_pact_back)")
+	assert_string_contains(source, "screen.backed_out.connect(_ask_leave_run)")
+	assert_string_contains(source, "_prompt.setup(\"Leave the run?\"", "the shared yes/no prompt, No first")

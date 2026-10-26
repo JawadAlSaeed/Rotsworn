@@ -1908,9 +1908,11 @@ func _start_heroes() -> Array[int]:
 ## The starting Relics screen (host, local, and an online friend shown the host's step): this
 ## machine's heroes still to choose pick from `book` (default: this machine's, _own_book). A friend
 ## who dropped in mid-run picks nothing (DESIGN.md 8.24); a friend with an empty book skips at once.
-func _show_start_relics(book: RelicCollection = null) -> void:
+## `heroes`: the heroes this screen picks for instead (coming back from the starting pact: every
+## hero of this machine, so Back can reopen the ones done). Returns the screen (null: no run).
+func _show_start_relics(book: RelicCollection = null, heroes: Array[int] = []) -> StartRelicsScreen:
 	if _run == null:
-		return
+		return null
 	if book == null:
 		book = _own_book()
 	var screen := StartRelicsScreen.new()
@@ -1918,13 +1920,14 @@ func _show_start_relics(book: RelicCollection = null) -> void:
 	screen.remote = Net.is_client()
 	screen.players = _players
 	screen.check_pads = not Net.is_online() and _players != null and _players.player_count() > 1
-	var mine: Array[int] = []
-	if not (Net.is_client() and Net.joined_mid_run):
+	var mine: Array[int] = heroes.duplicate()
+	if heroes.is_empty() and not (Net.is_client() and Net.joined_mid_run):
 		mine = _run.start_open_of(_start_heroes())
 	screen.setup_pick(_run, book, mine)
 	screen.picked.connect(_on_start_picked)
 	screen.withdrawn.connect(_on_start_withdrawn)
 	screen.finished.connect(_check_start_done)
+	screen.backed_out.connect(_ask_leave_run)
 	_show_screen(screen)
 	_send_screen({"name": "start_relics"})
 	if Net.is_client() and _run.start_choices(book).is_empty():
@@ -1933,6 +1936,7 @@ func _show_start_relics(book: RelicCollection = null) -> void:
 	elif _options.is_autoplay():
 		screen.autopick = true
 		screen.bot_pick.call_deferred()
+	return screen
 
 
 ## A hero took a starting Relic (null: skipped) on this machine's screen: logged here; an online
@@ -1981,6 +1985,92 @@ func _on_friend_start_back(from_peer: int, p: Dictionary) -> void:
 ## Pure.
 static func _start_back_allowed(pickers: Dictionary, peer: int, slot: int, open: bool) -> bool:
 	return open and pickers.get(peer) is Array and (pickers[peer] as Array).has(slot)
+
+
+## Back on the starting pact (card #334 follow-up, 2026-10-26; the host or a local game, before a deal
+## is taken): back to the starting Relics with the picks as they were, the last one taken back so
+## that hero chooses again (the cursor on what they had); with no starting pick to go back to (the
+## step was skipped: an empty book, the Empty Hand) "Leave the run?" instead. Nothing is rolled
+## again: the pact's deals come from the run's seed.
+func _on_pact_back() -> void:
+	if _busy or Net.is_client() or _run == null or not _run.pact_pending or _prompt != null or _pause != null:
+		return
+	if _start_return_picks(_run, _start_heroes(), _own_book()).is_empty():
+		_ask_leave_run()
+		return
+	_fade_to(_return_to_start_relics)
+
+
+## The starting Relics again, from the pact: the last of this machine's picks is taken back (its hero
+## chooses again), the others stay and Back can take them back too. Online the friends follow the
+## host's screen; their picks stay (they wait, and cannot take them back now).
+func _return_to_start_relics() -> void:
+	if _run == null or not _run.pact_pending:
+		return
+	var mine := _start_heroes()
+	var picks := _start_return_picks(_run, mine, _own_book())
+	if picks.is_empty():
+		_show_event("", true)
+		return
+	var last: Dictionary = picks.pop_back()
+	var slot := int(last.slot)
+	var id := String(last.id)
+	if not _run.undo_start_relic(slot, id):
+		_show_event("", true)
+		return
+	print("Start relic back: %s from %s (from the pact)" % [id if not id.is_empty() else "skip",
+			_run.data.party[slot].id])
+	_start_open = true
+	_start_wait_gen += 1
+	_start_pickers = {}
+	var screen := _show_start_relics(null, mine)
+	if screen == null:
+		return
+	screen.restore_history(picks)
+	var had := _run.relic_by_id(id) if not id.is_empty() else null
+	if had != null:
+		screen.focus(had)
+
+
+## The starting picks (StartRelicsScreen.past_picks) of heroes `slots` that Back on the pact goes back
+## to, or none when the step was skipped for them (no starting Relics with this oath, or every pick a
+## Skip with nothing in `book` to take). Pure.
+static func _start_return_picks(run: RunState, slots: Array[int], book: RelicCollection) -> Array[Dictionary]:
+	var none: Array[Dictionary] = []
+	if run == null or run.start_relic_count() <= 0:
+		return none
+	var picks := StartRelicsScreen.past_picks(run, slots)
+	for pick: Dictionary in picks:
+		if not String(pick.id).is_empty():
+			return picks
+	return picks if not run.start_choices(book).is_empty() else none
+
+
+## Back with nowhere to go back to (the first hero of the starting Relics, or the pact when that step
+## was skipped; card #334 follow-up): "Leave the run?", No first. Yes is Abandon run (End the game
+## online): the main menu, no save left (nothing was found yet, so nothing is banked).
+func _ask_leave_run() -> void:
+	if _run == null or Net.is_client() or _prompt != null or _pause != null or _busy:
+		return
+	if _screen != null:
+		_screen.process_mode = Node.PROCESS_MODE_DISABLED
+	_prompt = ConfirmPrompt.new()
+	_prompt.name = "LeaveRunPrompt"
+	_prompt.setup("Leave the run?", "The game ends for everyone." if Net.is_host() else "Back to the main menu.",
+			"Leave", "Keep playing")
+	_prompt.answered.connect(_on_leave_run_answered)
+	add_child(_prompt)
+
+
+func _on_leave_run_answered(yes: bool) -> void:
+	if _prompt != null:
+		_prompt.queue_free()
+		_prompt = null
+	if yes:
+		print("Run left from its start")
+		_abandon_run()
+	elif _screen != null:
+		_screen.process_mode = Node.PROCESS_MODE_INHERIT
 
 
 ## Host or local: once every hero has their starting Relics (or went without), the run goes on.
@@ -2397,6 +2487,8 @@ func _show_event(result: String = "", pact: bool = false) -> void:
 	var event := _run.pact_event() if pact else (null if _run.in_ambush() and result.is_empty() else _run.event_of(_run.at))
 	screen.setup(_run, event, result)
 	if pact:
+		screen.back_out = not Net.is_client()
+		screen.backed_out.connect(_on_pact_back)
 		screen.done.connect(_on_pact_done)
 		screen.chosen.connect(func(_index: int, text: String) -> void:
 			_run.pact_pending = false
@@ -2743,8 +2835,8 @@ func _game_in_play() -> bool:
 	return _is_run_screen(_screen)
 
 
-## Pauses the fight (after the current move), the run map or the starting Relics (where Esc would
-## otherwise be Back, skipping a hero). True if it started one.
+## Pauses the fight (after the current move), the run map, the starting Relics or the starting pact
+## (where Esc would otherwise be Back). True if it started one.
 func _pause_game() -> bool:
 	if _pause != null or _prompt != null or _busy or _pad_overlay != null:
 		return false
@@ -2756,7 +2848,7 @@ func _pause_game() -> bool:
 			return true
 		_menu_pause_wanted = false
 		return false
-	if _screen is MapScreen or _screen is StartRelicsScreen:
+	if _screen is MapScreen or _screen is StartRelicsScreen or (_screen is EventScreen and (_screen as EventScreen).is_pact()):
 		_open_pause()
 		return true
 	return false
