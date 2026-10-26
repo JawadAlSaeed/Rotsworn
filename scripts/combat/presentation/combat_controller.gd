@@ -20,8 +20,7 @@ extends Node
 signal restart_requested
 ## Back to the fight list (end screen, Cancel).
 signal select_requested
-## A fight that started in a zone or a run is over and the player wants to go on (back to the
-## zone, or on with the run; DESIGN.md 7.4, 8).
+## A run fight is over and the player wants to go on with the run (DESIGN.md 8).
 signal continue_requested(result: String)
 ## Every event as it is played (and the prompt events the runner applies at once).
 signal event_played(event: Dictionary)
@@ -39,6 +38,9 @@ signal seat_ready(peer: int)
 ## played with someone else judging is still waiting here; Main tells the host it may hand our heroes
 ## over.
 signal caught_up
+## The fight's opening played here (card #335): a Fight stop's First Strike ring's result
+## ("normal" or "first_strike", and the press's word), the same on every machine.
+signal opening_played(opening: String, word: String)
 
 enum NetMode { LOCAL, HOST, CLIENT }
 
@@ -46,6 +48,9 @@ enum NetMode { LOCAL, HOST, CLIENT }
 const ITEM_PREFIX := "item:"
 const TUTORIAL_LOCKED := "Not in this lesson."
 const QUIT_DELAY_S: float = 1.0
+## The intro waits this long at most for the screen to be uncovered (a transition that never ends
+## must not hold the fight).
+const INTRO_COVER_WAIT_MS: int = 6000
 ## After stopping all sounds, quitting waits this long (real time) so the audio server lets go of
 ## the playbacks; two frames are not enough and Godot reports "resources still in use at exit".
 const QUIT_AUDIO_RELEASE_S: float = 0.3
@@ -57,6 +62,8 @@ const AUTOPLAY_STUCK_MS: int = 60000
 const STRIKE_CLIPS: Array[String] = ["strike", "strike_alt"]
 ## Damage causes that stagger the target whatever the amount (DESIGN.md 5.5).
 const STAGGER_CAUSES: Array[String] = ["counter", "team_counter"]
+## The word over an enemy a drinking hit healed (card #323).
+const DRAIN_TEXT := "DRAIN"
 
 var mirror := CombatMirror.new()
 var engine: CombatEngine
@@ -93,19 +100,25 @@ var _spot_actor: int = -1
 ## --attacks: the next listed attack to force, and whether the last sequence was an enemy attack.
 var _forced_next: int = 0
 var _forced_seq_was_attack: bool = false
-## The place the fight happens in (null: the fight list's look), how it starts, and whether it
-## started in a zone (the end screen then goes back to the zone).
+## The place the fight happens in (null: the fight list's look) and how it starts.
 var _look: StageLook
-## The zone's drifting particles, played thinner in its fights (DESIGN.md 8.12); empty: the look's own.
+## The place's drifting particles, played thinner in its fights (DESIGN.md 8.12); empty: the look's own.
 var _air: Array[ZoneAmbientData] = []
 var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
-var _from_zone: bool = false
+## Main's "the screen is covered" (a transition or loading card): the intro waits until it is not,
+## so the sweep is seen (card #335). Unset: it never waits.
+var screen_covered: Callable = Callable()
+## A Fight stop's First Strike ring here (card #335): PRESS (a local game, the host) or LOOP (the
+## --screen=first_strike picture, never done). An online friend always watches (WATCH).
+var first_strike_mode: FirstStrikeRing.Mode = FirstStrikeRing.Mode.PRESS
+## The autoplay bots' luck on that ring (-1: random; Main seeds it with --seed).
+var first_strike_bot_seed: int = -1
+var _opening_ring: FirstStrikeRing
+## Online friend: the host's First Strike result when it came before this machine's ring showed.
+var _early_opening: Dictionary = {}
 ## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
 var _run: RunState
 var _drop: ItemData
-## A Fight Rush's best fight for this party size before the Rush began (0: none, or records are off):
-## the fight-start banner reads NEW BEST past it (DESIGN.md 8.21).
-var _rush_best: int = 0
 ## Fight item stand-in abilities by uid (see _item_ability()).
 var _item_abilities: Dictionary = {}
 ## Who plays (DESIGN.md 9.1): in co-op a device drives only its own heroes' menus and presses.
@@ -171,7 +184,7 @@ var _attacks: Dictionary = {}
 ## Call before adding the node to the tree. `look` null uses the fight list's look.
 func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals, options: CombatOptions,
 		look: StageLook = null, opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL,
-		from_zone: bool = false, air: Array[ZoneAmbientData] = []) -> void:
+		air: Array[ZoneAmbientData] = []) -> void:
 	_air = air
 	_encounter = encounter
 	_tuning = tuning
@@ -179,19 +192,12 @@ func configure(encounter: EncounterData, tuning: Tuning, visuals: CombatVisuals,
 	_options = options
 	_look = look
 	_opening = opening
-	_from_zone = from_zone
 
 
 ## Makes this a run fight (DESIGN.md 8): the run's party with its carried-over HP, gold on the end
 ## screen, and no "fight again". Call after configure(), before adding the node to the tree.
 func configure_run(run: RunState) -> void:
 	_run = run
-
-
-## A Fight Rush fight (DESIGN.md 8.21): the party size's best fight before the Rush (0: none), so
-## the banner can say NEW BEST. Call after configure_run(), before adding the node to the tree.
-func configure_rush_best(best: int) -> void:
-	_rush_best = maxi(0, best)
 
 
 ## What the beaten enemy drops (DESIGN.md 8.1; null: nothing). The end screen names it after a
@@ -540,11 +546,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _net_mode == NetMode.CLIENT:
 			# The host goes on for everyone.
 			return
-		if _from_zone or _run != null:
-			if key == KEY_R and _run == null:
-				get_viewport().set_input_as_handled()
-				restart_requested.emit()
-			elif event.is_action_pressed("menu_confirm", false, true) or event.is_action_pressed("menu_cancel", false, true):
+		if _run != null:
+			if event.is_action_pressed("menu_confirm", false, true) or event.is_action_pressed("menu_cancel", false, true):
 				get_viewport().set_input_as_handled()
 				continue_requested.emit(_result)
 			return
@@ -723,6 +726,10 @@ func _enqueue(events: Array[Dictionary]) -> void:
 		if String(ev.get("type", "")) == "practice_changed":
 			_apply_now(ev)
 		else:
+			if String(ev.get("type", "")) == "opening":
+				# A friend's ring waits for the host's result: it shows at once (the event itself
+				# plays after the ring, in order).
+				_take_host_opening(ev)
 			_queue.append(ev)
 	_pump()
 
@@ -858,23 +865,31 @@ func _play(ev: Dictionary) -> void:
 			if bool(ev.get("resume", false)):
 				# Got in mid-fight (#205, #304): no intro, and a boss already raging rages here too.
 				_resume_mood(ev)
-			elif String(ev.get("opening", "")) == "first_strike":
-				Sfx.play("gauge_full")
-				hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
-			elif _encounter.boss or _encounter.mini_boss:
-				Sfx.play("alert")
-				hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
-				# The camera starts pulled back and pushes in with a little trauma (card #179).
-				view.camera.add_trauma(_visuals.intro_shake)
-				view.camera.punch(-_visuals.intro_push, _visuals.intro_push_ms)
 			else:
-				if _run is RushState:
-					# A Rush's fight number, or NEW BEST once it passes the record (DESIGN.md 8.21).
-					var n := (_run as RushState).fight
-					var beaten := _rush_best > 0 and n > _rush_best
-					hud.show_center_banner(("NEW BEST %d" if beaten else "FIGHT %d") % n, HudStyle.GOLD,
-							_visuals.first_strike_banner_ms)
+				# Every fight's short beat first (card #335): the camera sweeps over the enemies.
+				await _play_intro()
+				var opening := String(ev.get("opening", ""))
+				if opening == CombatEngine.OPENING_NAMES[CombatSetup.Opening.RING]:
+					# A Fight stop's First Strike ring, after the intro; its result (the "opening"
+					# event) brings the banner and the first turn.
+					await _play_first_strike_ring()
+				elif opening == "first_strike":
+					_show_first_strike_banner()
+				elif _encounter.boss or _encounter.mini_boss:
+					Sfx.play("alert")
+					hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
+					# The camera starts pulled back and pushes in with a little trauma (card #179).
+					view.camera.add_trauma(_visuals.intro_shake)
+					view.camera.punch(-_visuals.intro_push, _visuals.intro_push_ms)
+				else:
+					Sfx.play("fight_start")
+		"opening":
+			mirror.apply(ev)
+			if String(ev.get("opening", "")) == "first_strike":
+				_show_first_strike_banner()
+			else:
 				Sfx.play("fight_start")
+			opening_played.emit(String(ev.get("opening", "")), String(ev.get("word", "")))
 		"turn_started":
 			mirror.apply(ev)
 			if int(ev.team) == Combatant.Team.PARTY:
@@ -982,6 +997,81 @@ func _play(ev: Dictionary) -> void:
 			mirror.apply(ev)
 	_refresh()
 	event_played.emit(ev)
+
+
+func _show_first_strike_banner() -> void:
+	Sfx.play("gauge_full")
+	hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
+
+
+## Every fight's intro (card #335; not a resume): the camera waits over the first enemy while the
+## screen is still covered, then sweeps slowly to the last (intro_sweep_ms) with the enemies' names
+## small over them, and glides back to the base view. The same length on every machine, so an
+## online fight stays in step.
+func _play_intro() -> void:
+	var ms := _visuals.intro_sweep_ms
+	if ms <= 0 or mirror.enemy_ids.is_empty():
+		return
+	var feet: Array[Vector3] = []
+	var names: Dictionary = {}
+	for id: int in mirror.enemy_ids:
+		feet.append(view.home_of(id))
+		names[id] = String(mirror.fighter(id).get("display_name", ""))
+	var shots := CameraShots.intro_sweep(_visuals, CameraShots.sweep_order(feet))
+	view.camera.sweep(shots[0], shots[0], 1)
+	var since := Time.get_ticks_msec()
+	while screen_covered.is_valid() and bool(screen_covered.call()) \
+			and Time.get_ticks_msec() - since < INTRO_COVER_WAIT_MS:
+		await get_tree().process_frame
+	view.camera.sweep(shots[0], shots[1], ms)
+	hud.show_intro_names(names, ms)
+	await _wait_ms(ms)
+	hud.hide_intro_names()
+	view.camera.reset_shot()
+
+
+## A Fight stop's First Strike ring (card #335), in the middle of the fight once its intro is over:
+## pressed here (a local game, the host: its result goes to the engine as set_opening) or watched (an
+## online friend: the host's result shows). Waits until the ring is done.
+func _play_first_strike_ring() -> void:
+	var mode := FirstStrikeRing.Mode.WATCH if _net_mode == NetMode.CLIENT else first_strike_mode
+	var ring := FirstStrikeRing.new()
+	ring.name = "FirstStrike"
+	ring.setup(_tuning, _visuals, _options, _players, mode, first_strike_bot_seed)
+	if mode == FirstStrikeRing.Mode.PRESS:
+		ring.decided.connect(_on_first_strike_decided)
+	_opening_ring = ring
+	hud.show_first_strike_ring(ring)
+	if not _early_opening.is_empty():
+		ring.show_host_result(String(_early_opening.opening), String(_early_opening.get("word", "")))
+	while is_instance_valid(ring) and ring.is_inside_tree() and not ring.is_finished():
+		await get_tree().process_frame
+	_opening_ring = null
+	hud.hide_first_strike_ring()
+
+
+## The First Strike ring here decided (a local game or the host): the engine takes the opening and
+## the first turn follows (online it goes to the friends as part of the fight).
+func _on_first_strike_decided(opening: CombatSetup.Opening, word: String) -> void:
+	var opening_name := CombatEngine.OPENING_NAMES[opening]
+	print("First Strike press: %s (%s)" % [opening_name, word])
+	if engine != null and engine.phase == CombatEngine.Phase.AWAITING_OPENING:
+		_enqueue(_submit(CombatCommands.set_opening(opening_name, word)))
+
+
+## Online friend: the host's First Strike result (its "opening" event) reaches the ring watched here,
+## or waits for it.
+func _take_host_opening(ev: Dictionary) -> void:
+	if _net_mode != NetMode.CLIENT:
+		return
+	_early_opening = {"opening": String(ev.get("opening", "")), "word": String(ev.get("word", ""))}
+	if _opening_ring != null and is_instance_valid(_opening_ring):
+		_opening_ring.show_host_result(String(_early_opening.opening), String(_early_opening.word))
+
+
+## The ring of this fight's start, while it shows (tests and pictures).
+func first_strike_ring() -> FirstStrikeRing:
+	return _opening_ring
 
 
 func _on_runner_finished(tail: Array[Dictionary]) -> void:
@@ -1197,12 +1287,6 @@ func used_items() -> Array[int]:
 	return mirror.used_items.duplicate()
 
 
-## How the fight ended ("victory", "defeat", "escaped"; "" while it goes on): what its end screen's
-## continue reports.
-func fight_result() -> String:
-	return _result
-
-
 func _runner_active() -> bool:
 	return runner.is_active() or skill_runner.is_active()
 
@@ -1259,8 +1343,8 @@ func _on_combat_ended(result: String) -> void:
 		if _net_mode != NetMode.LOCAL:
 			print("AUTOPLAY_MIRROR %s %d" % [result, var_to_str(mirror.projection()).hash()])
 	combat_finished.emit(result)
-	# A zone fight hands the end back to the zone (Main); the zone decides when the run is over.
-	if _options.quit_on_end and not _from_zone and _run == null:
+	# A run fight hands the end back to Main, which decides when the run is over.
+	if _options.quit_on_end and _run == null:
 		get_tree().create_timer(QUIT_DELAY_S).timeout.connect(_quit)
 
 
@@ -1269,8 +1353,7 @@ func _on_combat_ended(result: String) -> void:
 func _play_reward_sounds() -> void:
 	var risen := _levelling_heroes()
 	await _wait_ms(_visuals.reward_sound_delay_ms)
-	if _run.shows_gold():
-		Sfx.play("gold_gain")
+	Sfx.play("gold_gain")
 	if risen.is_empty():
 		return
 	await _wait_ms(_visuals.level_up_sound_gap_ms)
@@ -1324,47 +1407,33 @@ func _end_hints() -> Array:
 	var hints: Array = [[&"menu_confirm", "Fight again"], [&"menu_cancel", "Choose a fight"]]
 	if _net_mode == NetMode.CLIENT:
 		hints = []
-	elif _run is RushState:
-		# A Rush goes on to its reward cards, or to its end (DESIGN.md 8.21).
-		hints = [[&"menu_confirm", "Results" if _result == "defeat" else "Rewards"]]
 	elif _run != null and _result == "defeat":
 		hints = [[&"menu_confirm", "See how the run went"]]
 	elif _run != null:
-		hints = [[&"menu_confirm", "Back to the zone" if _from_zone else "On with the run"]]
-	elif _from_zone:
-		hints = [[&"menu_confirm", "Back to the zone"]]
+		hints = [[&"menu_confirm", "On with the run"]]
 	if is_practice_fight():
 		hints.append([&"debug_overlay", "Stats"])
 	return hints
 
 
 ## A won run fight's end screen as icons (phase 22, cards #273 and #274), instead of the lines of
-## _summary_text: {chips: [{icon, text, color}] (gold, the find, each Relic line), heroes: [{portrait,
+## _summary_text: {chips: [{icon, text, color}] (gold, the find, flawless, the streak), heroes: [{portrait,
 ## text, level (new level, 0: none), down}]}. Empty outside a won run fight.
 func _end_rewards() -> Dictionary:
 	if _run == null or _result != "victory":
 		return {}
-	var chips: Array[Dictionary] = []
-	if _run.shows_gold():
-		chips.append({"icon": AssetLoader.texture(_visuals.gold_icon_path, Vector2i(12, 12)),
-				"text": "+%d" % _run.gold_for(_encounter), "color": HudStyle.GOLD})
+	var chips: Array[Dictionary] = [{"icon": AssetLoader.texture(_visuals.gold_icon_path, Vector2i(12, 12)),
+			"text": "+%d" % _run.gold_for(_encounter), "color": HudStyle.GOLD}]
 	if _drop != null:
 		chips.append({"icon": AssetLoader.texture(_drop.icon_path, Vector2i(16, 16)), "text": _drop.display_name,
 				"color": HudStyle.TEXT})
-	# A flawless win earns one more spoils choice (card #283); a Rush has no spoils, so just the word.
+	# A flawless win earns one more spoils choice (card #283).
 	if RunState.is_flawless(_encounter, recap()):
-		chips.append({"icon": null, "text": "FLAWLESS" if _run is RushState else "FLAWLESS  +1 spoils",
-				"color": HudStyle.GOLD})
+		chips.append({"icon": null, "text": "FLAWLESS  +1 spoils", "color": HudStyle.GOLD})
 	# The fight's best defence streak, once it was long enough to show (card #300).
 	if mirror.best_defence_streak >= _visuals.streak_show_from:
 		chips.append({"icon": AssetLoader.texture(_visuals.streak_chip_icon_path, Vector2i(16, 16)),
 				"text": "Streak %d" % mirror.best_defence_streak, "color": HudStyle.GOLD})
-	# Each Relic line keeps its words (new, level, Echo) with the dropped Relic's icon in front.
-	var drops := _run.relic_drops(_encounter)
-	var lines := _run.win_relic_lines(_encounter)
-	for i: int in lines.size():
-		var icon: Texture2D = AssetLoader.texture(drops[i].icon_path, Vector2i(16, 16)) if i < drops.size() else null
-		chips.append({"icon": icon, "text": lines[i], "color": HudStyle.GOLD})
 	var heroes: Array[Dictionary] = []
 	var xp := _run.fight_xp(_encounter, party_hp())
 	var hp := party_hp()
@@ -1404,15 +1473,11 @@ func _summary_text() -> String:
 			int(_defended.get(Defense.Outcome.DODGE, 0)), int(_defended.get(Defense.Outcome.JUMP, 0)), _counters,
 			int(_defended.get(Defense.Outcome.PRESS_PERFECT, 0)), int(_defended.get(Defense.Outcome.PRESS, 0))]
 	if _run != null and _result == "victory":
-		if _run.shows_gold():
-			text += "\n+%d gold" % _run.gold_for(_encounter)
+		text += "\n+%d gold" % _run.gold_for(_encounter)
 		if _drop != null:
 			text += "   Found: %s" % _drop.display_name
-		var relic_lines := _run.win_relic_lines(_encounter)
 		if RunState.is_flawless(_encounter, recap()):
-			relic_lines.push_front("Flawless! One more spoils choice.")
-		if not relic_lines.is_empty():
-			text += "\n" + "    ".join(relic_lines)
+			text += "\nFlawless! One more spoils choice."
 		var xp := _run.fight_xp(_encounter, party_hp())
 		var parts := PackedStringArray()
 		var risen := false
@@ -1768,6 +1833,10 @@ func _show_feedback(ev: Dictionary) -> void:
 			_show_stagger(ev)
 		"healed":
 			if v != null:
+				if String(ev.get("cause", "")) == CombatEngine.CAUSE_DRAIN:
+					# A drinking bite (card #323): the word over the number, so the heal reads as hers.
+					Sfx.play("heal")
+					hud.popup(DRAIN_TEXT, head, HudStyle.HEAL)
 				hud.damage_number(int(ev.amount), head, HudStyle.HEAL)
 				v.flash(_visuals.flash_ms * 2, HudStyle.HEAL, 0.7)
 		"revived":
@@ -2215,8 +2284,8 @@ func _is_real_fight() -> bool:
 	return _run != null or tutorial_mode
 
 
-## A practice fight: the main menu's Practice fights and the dev switches' (--encounter, --zone
-## without --run), played on this machine. Not a run, the tutorial or an online game.
+## A practice fight: the main menu's Practice fights and the dev switch's (--encounter without
+## --run), played on this machine. Not a run, the tutorial or an online game.
 func is_practice_fight() -> bool:
 	return not _is_real_fight() and _net_mode == NetMode.LOCAL
 

@@ -91,9 +91,11 @@ func test_every_legend_row_is_a_picture_with_its_word() -> void:
 	var map := _map(run)
 	var entries := MapScreen.legend_entries(run, _look)
 	assert_eq(map._legend_rows.size(), entries.size(), "a row for every kind of stop")
-	for type: int in [RunMap.StopType.ZONE, RunMap.StopType.REST, RunMap.StopType.SHOP, RunMap.StopType.FINAL,
-			RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE]:
+	for type: int in [RunMap.StopType.FIGHT, RunMap.StopType.REST, RunMap.StopType.SHOP,
+			RunMap.StopType.FINAL, RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE]:
 		assert_true(map._legend_rows.has(type), "%s has a legend row" % RunMap.TYPE_NAMES[type])
+	# The guards wait at Elite stops (DESIGN.md 8.22): no Guard line.
+	assert_false(map._legend_rows.has(RunMap.StopType.GUARD), "no Guard row in the legend")
 	for entry: Array in entries:
 		var row: Control = map._legend_rows[int(entry[0])]
 		assert_eq(row.find_children("*", "TextureRect", true, false).size(), 1, "%s: its picture" % entry[2])
@@ -187,8 +189,7 @@ func test_the_chips_say_what_each_kind_of_item_does() -> void:
 			"a fight item's own AP cost")
 	assert_eq(_chip_texts(ShopScreen.item_chips(_item(ItemData.Effect.HEAL_ONE, 25), _look, _coin)),
 			["One ally", "Heal 25%"] as Array[String], "a heal used only on the map has no AP chip")
-	chips = ShopScreen.item_chips(_item(ItemData.Effect.MAX_HP_ONE, 15), _look, _coin)
-	assert_eq(_chip_texts(chips), ["One ally", "+15% max HP"] as Array[String], "a map-only item has no AP chip")
+	chips = ShopScreen.item_chips(_item(ItemData.Effect.HEAL_ONE, 25), _look, _coin)
 	assert_eq([chips[0][0], chips[1][0]], [&"person", &"heart"], "the fight's person and heart glyphs")
 	assert_eq(chips[1][2], HudStyle.HEAL)
 	var curse := ItemData.new()
@@ -196,17 +197,15 @@ func test_the_chips_say_what_each_kind_of_item_does() -> void:
 	curse.rotten = true
 	curse.rot_percent = 3
 	assert_eq(_chip_texts(ShopScreen.item_chips(curse, _look, _coin)), ["Curse", "-3% a turn"] as Array[String])
-	var key := ItemData.new()
-	key.kind = ItemData.Kind.KEY
-	assert_eq(_chip_texts(ShopScreen.item_chips(key, _look, _coin)), ["Opens chest"] as Array[String])
 	var idol := ItemData.new()
 	idol.kind = ItemData.Kind.TREASURE
 	chips = ShopScreen.item_chips(idol, _look, _coin)
 	assert_eq(_chip_texts(chips), ["To gold"] as Array[String])
 	assert_eq(String(chips[0][0]), _coin, "treasure: the gold coin")
-	var pack := _item(ItemData.Effect.ADD_ROW, 0)
-	pack.kind = ItemData.Kind.UPGRADE
-	assert_eq(_chip_texts(ShopScreen.item_chips(pack, _look, _coin)), ["+1 pocket"] as Array[String])
+	# The Tonic and the Bigger Pack went with card #332: their retired effects have no chips of their own.
+	for retired: ItemData.Effect in [ItemData.Effect.MAX_HP_ONE, ItemData.Effect.ADD_ROW]:
+		for text: String in _chip_texts(ShopScreen.item_chips(_item(retired, 15), _look, _coin)):
+			assert_false(text.contains("max HP") or text.contains("pocket"), "no chip for a retired effect: %s" % text)
 
 
 func test_the_shop_and_the_fight_describe_an_item_the_same_way() -> void:
@@ -278,6 +277,31 @@ func test_the_shop_shows_an_item_as_its_picture_name_and_chips() -> void:
 		for text: String in _texts(row):
 			assert_ne(text, item.description, "%s: its sentence is gone" % item.id)
 			assert_lte(text.split(" ", false).size(), MAX_CHIP_WORDS, "'%s' is a few words" % text)
+	await get_tree().process_frame
+
+
+func test_the_shop_footer_names_the_directions_the_shop_moves_with() -> void:
+	# The cursor reads the menu directions. The move actions only mark P1's pad since phase 26
+	# (DESIGN.md 8.22 G8), so a chip naming them would follow a rebinding that does nothing here.
+	var run := _shop_run()
+	var shop := ShopScreen.new()
+	add_child_autofree(shop)
+	shop.setup(run, run.shop_gear(run.at))
+	var bars := shop.find_children("*", "HintBar", true, false)
+	assert_eq(bars.size(), 1, "the shop has one footer")
+	var token: StringName = ((bars[0] as HintBar)._entries[0] as Array)[0]
+	assert_true(HudStyle.NAV_TOKENS.has(token), "its first chip is the directions")
+	var actions: Array = HudStyle.NAV_TOKENS.get(token, [])
+	assert_eq(actions.size(), 4, "all four of them")
+	for action: StringName in actions:
+		assert_true(String(action).begins_with("menu_"), "%s is a menu direction" % action)
+	assert_gt(shop.count(), 1, "something to move to")
+	shop._sel = 0
+	var press := InputEventAction.new()
+	press.action = &"menu_right"
+	press.pressed = true
+	shop._unhandled_input(press)
+	assert_eq(shop._sel, 1, "and a menu direction moves the cursor")
 	await get_tree().process_frame
 
 

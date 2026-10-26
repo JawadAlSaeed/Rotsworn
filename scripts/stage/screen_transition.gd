@@ -1,8 +1,9 @@
 class_name ScreenTransition
 extends CanvasLayer
 ## Full-screen transitions (DESIGN.md 7.4), above every HUD. Into a fight: the current picture is
-## frozen and swirls into black (swirl_out), then the fight fades in from black (fade_in). Back to
-## a zone: fade to black (fade_out), then fade in. Each call can be awaited. Real time.
+## frozen and swirls into black (swirl_out), then the fight fades in from black (fade_in). Between
+## other screens: fade to black (fade_out), then fade in. Each call can be awaited. Real time. The
+## timings are CombatVisuals' Screen transitions group.
 ## Over the black, a loading card can show a tip (show_tip / hide_tip, DESIGN.md 7.7, card #86).
 ## While anything of it covers the screen, no input reaches what is behind (card #132).
 
@@ -10,7 +11,7 @@ const SWIRL_SHADER := preload("res://scripts/stage/swirl.gdshader")
 const TIP_WIDTH_PX: float = 1200.0
 const CARD_MARGIN_PX: float = 32.0
 
-var _explore: ExploreVisuals
+var _look: CombatVisuals
 var _picture: TextureRect
 var _black: ColorRect
 var _tips: TipSet
@@ -19,8 +20,8 @@ var _card: Control
 var _last_tip: int = -1
 
 
-func setup(explore: ExploreVisuals) -> void:
-	_explore = explore
+func setup(look: CombatVisuals) -> void:
+	_look = look
 	layer = 60
 	_picture = TextureRect.new()
 	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -29,8 +30,8 @@ func setup(explore: ExploreVisuals) -> void:
 	_picture.stretch_mode = TextureRect.STRETCH_SCALE
 	var mat := ShaderMaterial.new()
 	mat.shader = SWIRL_SHADER
-	mat.set_shader_parameter("turns", explore.swirl_turns)
-	mat.set_shader_parameter("flash", explore.transition_flash)
+	mat.set_shader_parameter("turns", look.swirl_turns)
+	mat.set_shader_parameter("flash", look.transition_flash)
 	_picture.material = mat
 	_picture.visible = false
 	add_child(_picture)
@@ -45,7 +46,7 @@ func setup(explore: ExploreVisuals) -> void:
 
 ## Freezes the screen and swirls it into black over transition_out_ms.
 func swirl_out() -> void:
-	var seconds := float(_explore.transition_out_ms) / 1000.0
+	var seconds := float(_look.transition_out_ms) / 1000.0
 	# Headless runs have no picture to read back.
 	var image: Image = null
 	if DisplayServer.get_name() != "headless":
@@ -69,13 +70,13 @@ func swirl_out() -> void:
 
 ## Fades to black over transition_in_ms.
 func fade_out() -> void:
-	await _fade_black(1.0, float(_explore.transition_in_ms) / 1000.0)
+	await _fade_black(1.0, float(_look.transition_in_ms) / 1000.0)
 
 
 ## Fades from black over transition_in_ms.
 func fade_in() -> void:
 	_picture.visible = false
-	await _fade_black(0.0, float(_explore.transition_in_ms) / 1000.0)
+	await _fade_black(0.0, float(_look.transition_in_ms) / 1000.0)
 	_black.visible = false
 
 
@@ -98,19 +99,25 @@ func setup_tips(tips: TipSet, logo_path: String) -> void:
 
 
 ## Shows a loading card over the black (call after fade_out or swirl_out): `title` (the place's
-## name) and a random tip, never the same twice in a row.
-func show_tip(title: String) -> void:
-	if _tips == null or _tips.tips.is_empty():
+## name) and a random tip, never the same twice in a row. `extra` (any control; the First Strike ring
+## sat here until card #335 moved it into the fight) goes on the card under the title; with it the
+## card shows even without tips.
+func show_tip(title: String, extra: Control = null) -> void:
+	var tips := _card_tips()
+	if tips.tips.is_empty() and extra == null:
 		return
-	var pick := randi() % _tips.tips.size()
-	if pick == _last_tip and _tips.tips.size() > 1:
-		pick = (pick + 1) % _tips.tips.size()
-	_last_tip = pick
-	_card = _build_card(title, _tips.tips[pick])
+	var tip := ""
+	if not tips.tips.is_empty():
+		var pick := randi() % tips.tips.size()
+		if pick == _last_tip and tips.tips.size() > 1:
+			pick = (pick + 1) % tips.tips.size()
+		_last_tip = pick
+		tip = tips.tips[pick]
+	_card = _build_card(title, tip, extra)
 	add_child(_card)
 	_card.modulate.a = 0.0
 	var tween := create_tween()
-	tween.tween_property(_card, "modulate:a", 1.0, float(_tips.fade_ms) / 1000.0)
+	tween.tween_property(_card, "modulate:a", 1.0, float(tips.fade_ms) / 1000.0)
 	await tween.finished
 
 
@@ -121,12 +128,19 @@ func hide_tip() -> void:
 	var card := _card
 	_card = null
 	var tween := create_tween()
-	tween.tween_property(card, "modulate:a", 0.0, float(_tips.fade_ms) / 1000.0)
+	tween.tween_property(card, "modulate:a", 0.0, float(_card_tips().fade_ms) / 1000.0)
 	await tween.finished
 	card.queue_free()
 
 
-func _build_card(title: String, tip: String) -> Control:
+## The loading cards' look: the tips given to setup_tips, else the built-in defaults (no tips).
+func _card_tips() -> TipSet:
+	if _tips == null:
+		_tips = TipSet.new()
+	return _tips
+
+
+func _build_card(title: String, tip: String, extra: Control = null) -> Control:
 	var card := Control.new()
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -157,14 +171,18 @@ func _build_card(title: String, tip: String) -> Control:
 		heading.label_settings.shadow_offset = Vector2(0.0, 4.0)
 		column.add_child(heading)
 		column.add_child(ListMenu.divider())
-	var tip_head := HudStyle.make_title("Tip", int(_tips.tip_size * 0.75), HudStyle.TEXT_DIM)
-	tip_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(tip_head)
-	var text := ListMenu.centred_label(tip, _tips.tip_size)
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.custom_minimum_size.x = TIP_WIDTH_PX
-	text.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(text)
+	if extra != null:
+		extra.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		column.add_child(extra)
+	if not tip.is_empty():
+		var tip_head := HudStyle.make_title("Tip", int(_tips.tip_size * 0.75), HudStyle.TEXT_DIM)
+		tip_head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(tip_head)
+		var text := ListMenu.centred_label(tip, _tips.tip_size)
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.custom_minimum_size.x = TIP_WIDTH_PX
+		text.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		column.add_child(text)
 	if _tips.logo_height_px > 0 and not _logo_path.is_empty():
 		var logo := TextureRect.new()
 		logo.texture = AssetLoader.texture(_logo_path, Vector2i(256, 144))

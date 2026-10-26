@@ -3,12 +3,10 @@ extends GutTest
 ## blobs sized from their footprint, and pixels stay one size (props at the fighters' density,
 ## ground pieces at the floor's tile size).
 
-const SECTIONS_DIR := "res://data/zones/sections/"
 const LOOK_DIR := "res://data/looks/"
 ## Fighters are drawn at 0.045 a pixel; scenery may be a hair chunkier, never more.
 const MAX_PROP_PIXEL := 0.0501
 const MIN_PROP_PIXEL := 0.0449
-const MAX_GROUND_TILE := 1.81
 
 
 func _image(rows: Array[String]) -> Image:
@@ -146,7 +144,7 @@ func test_floor_uses_the_look_s_variants_and_numbers() -> void:
 
 func test_every_look_ships_three_floor_tiles_and_regions_on() -> void:
 	var looks := _looks()
-	assert_eq(looks.size(), 4, "four places")
+	assert_eq(looks.size(), 5, "five places: the three zones and two lairs (the throne, the Leech Queen's)")
 	for look: StageLook in looks:
 		assert_eq(look.floor_variant_paths.size(), 2, "%s: two variants beside the base tile" % look.floor_tile_path)
 		assert_gt(look.floor_region_world_size, 0.0, "%s: regions on" % look.floor_tile_path)
@@ -156,28 +154,19 @@ func test_every_look_ships_three_floor_tiles_and_regions_on() -> void:
 	var bases := {}
 	for look: StageLook in looks:
 		bases[look.floor_tile_path] = true
-	assert_eq(bases.size(), 4, "every place has its own floor (the boss hall no longer reuses the ash)")
+	assert_eq(bases.size(), 5, "every place has its own floor (the boss halls reuse no zone's)")
 
 
 # --- pixel density -----------------------------------------------------------------------------
 
 func test_scenery_pixels_match_the_fighters() -> void:
+	# Since phase 26 (DESIGN.md 8.22) the arenas are the only scenery: the zones' sections are gone.
 	var props: Array[ZonePropData] = []
-	var grounds: Array[ZoneGroundData] = []
-	for res: Resource in _list(SECTIONS_DIR):
-		var sec := res as ZoneSectionData
-		props.append_array(sec.props)
-		grounds.append_array(sec.grounds)
 	for look: StageLook in _looks():
 		props.append_array(look.arena_props)
-	assert_gt(props.size(), 200, "found the zones' props")
+	assert_gt(props.size(), 5, "found the arenas' props")
 	var bad: Array[String] = []
 	for p: ZonePropData in props:
 		if p.pixel_size > MAX_PROP_PIXEL or p.pixel_size < MIN_PROP_PIXEL:
 			bad.append("%s %.3f" % [p.sprite_path.get_file(), p.pixel_size])
 	assert_eq(bad.size(), 0, "props outside 0.045 to 0.05 a pixel: %s" % ", ".join(bad.slice(0, 6)))
-	bad.clear()
-	for g: ZoneGroundData in grounds:
-		if g.texture_world_size > MAX_GROUND_TILE:
-			bad.append("%s %.2f" % [g.texture_path.get_file(), g.texture_world_size])
-	assert_eq(bad.size(), 0, "ground pieces with chunky pixels: %s" % ", ".join(bad.slice(0, 6)))

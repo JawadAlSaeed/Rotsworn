@@ -19,7 +19,7 @@ func _resolved(prompt: int, outcome: int, seq: int = 4) -> Dictionary:
 
 func test_the_tutorial_has_six_fight_lessons_then_first_strike_then_relics() -> void:
 	# Phase 19 (card #264) added the marks lesson (6); phase 22 (card #291) the First Strike card (7)
-	# before Relics and Echoes (8).
+	# before Relics (8; its Echoes card went with the Echoes, DESIGN.md 8.24).
 	var data := load(TUTORIAL_PATH) as TutorialData
 	assert_not_null(data)
 	assert_not_null(data.encounter)
@@ -27,7 +27,7 @@ func test_the_tutorial_has_six_fight_lessons_then_first_strike_then_relics() -> 
 	var cards: Array[String] = []
 	for step: TutorialStepData in data.steps:
 		if step.goal == TutorialGoals.READ:
-			# First Strike (7), then the Relics and Echoes lesson (8, DESIGN.md 8.17): cards only, at the end.
+			# First Strike (7), then the Relics lesson (8, DESIGN.md 8.17, 8.24): cards only, at the end.
 			assert_eq(step.lesson, 7 if step.title == "First Strike" else 8, "%s comes after the fight lessons" % step.title)
 			assert_false(step.text.is_empty(), step.title)
 			cards.append(step.title)
@@ -38,13 +38,14 @@ func test_the_tutorial_has_six_fight_lessons_then_first_strike_then_relics() -> 
 		assert_false(step.reminder.is_empty(), "%s has a reminder line" % step.title)
 		assert_false(step.retry.is_empty(), "%s says what to fix" % step.title)
 		assert_true(step.hold in ["enemies", "party"], "%s stages who acts" % step.title)
-	assert_eq(cards, ["First Strike", "Relics", "Echoes"] as Array[String],
-			"the cards explain First Strike, then Relics, then Echoes")
+	assert_eq(cards, ["First Strike", "Relics"] as Array[String],
+			"the cards explain First Strike, then Relics (no Echoes since DESIGN.md 8.24)")
 
 
-## Card #291: the zone no longer spells out First Strike, so the tutorial does, with the strike
-## button's own picture and in one short sentence.
-func test_a_first_strike_card_shows_the_strike_button() -> void:
+## Card #291: the zone no longer spelled out First Strike, so the tutorial did, in one short
+## sentence. Phase 26 took the zones and their strike button away (DESIGN.md 8.22 G8); card #320
+## made it the press on a Fight stop's ring, so the card teaches that press with its one button.
+func test_a_first_strike_card_teaches_the_press() -> void:
 	var data := load(TUTORIAL_PATH) as TutorialData
 	var card: TutorialStepData = null
 	for step: TutorialStepData in data.steps:
@@ -54,10 +55,10 @@ func test_a_first_strike_card_shows_the_strike_button() -> void:
 	if card == null:
 		return
 	assert_eq(card.goal, TutorialGoals.READ, "a card to read, no fight action")
-	assert_string_contains(card.text, "{field_strike}", "the strike button's picture is in the line")
+	assert_false("{field_strike}" in card.text, "the strike button went with the zones")
+	assert_false(InputMap.has_action(&"field_strike"), "no strike action is left")
 	assert_lte(card.text.split(".", false).size(), 1, "one short sentence")
 	assert_lte(card.text.length(), 120, "short")
-	assert_true(InputMap.has_action(&"field_strike"), "the button it shows is a real action")
 	var overlay := TutorialOverlay.new()
 	add_child_autofree(overlay)
 	overlay.show_card("Lesson 7 of 8", card.title, card.text, card.tip, "Go", false, card.icon_path)
@@ -66,8 +67,10 @@ func test_a_first_strike_card_shows_the_strike_button() -> void:
 		for piece: Node in row.get_children():
 			if piece is HintBar:
 				chips += 1
-	assert_eq(chips, 1, "the card draws the strike button as a chip")
-	# Card #293: beside the zone's foe skull, the picture of an enemy to strike.
+	assert_string_contains(card.text, "{skill_press}", "the ring's button")
+	assert_false(card.text.to_lower().contains("zone"), "no zones any more")
+	assert_eq(chips, 1, "the card draws the skill press button")
+	# Card #293: the foe skull, the picture of an enemy to strike.
 	assert_eq(card.icon_path, "res://assets/sprites/ui/goal_foe.png")
 	assert_true(overlay._plate.visible, "the card shows its picture")
 

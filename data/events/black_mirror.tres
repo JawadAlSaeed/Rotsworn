@@ -33,7 +33,7 @@ gold = 90
 [sub_resource type="Resource" id="Resource_iqmj6"]
 script = ExtResource("1_f3itm")
 text = "Smash it"
-detail = "The shards cut into the pack, and something beats in there."
+detail = "The shards cut deep, and something beats in each of you."
 deal = SubResource("Resource_c0l3y")
 done_text = "Seven years of bad luck, paid in advance."
 

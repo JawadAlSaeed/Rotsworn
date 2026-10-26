@@ -1,18 +1,15 @@
 class_name BackpackGrid
 extends Control
-## Draws Alder's open pack (DESIGN.md 8.1, 8.19, card #282): the pack art, its pockets sewn on the
-## lining in rows of `backpack_pocket_columns`, every item's icon in its pocket inside a border in
-## its rarity colour, the pockets a Bigger Pack would still add stitched shut, and the cursor. A
-## new item in hand is drawn by the Bag tab's strip; here its pocket gets a gold or a red edge. It
-## only draws: the Bag tab moves the cursor and changes the pack.
+## Draws Alder's open pack (DESIGN.md 8.1, 8.19, cards #282, #332): the pack art, its pockets sewn on
+## the lining in rows of `backpack_pocket_columns` (the pockets share the lining: 4 make two rows of
+## two), every item's icon in its pocket inside a border in its rarity colour, and the cursor. A new
+## item in hand is drawn by the Bag tab's strip; here its pocket gets a green or a red edge. It only
+## draws: the Bag tab moves the cursor and changes the pack.
 ## The art and its numbers come from CombatVisuals ("Backpack").
 
 const POCKET_FILL := Color(0.34, 0.24, 0.16, 0.92)
 const POCKET_FLAP := Color(0.23, 0.15, 0.1, 0.95)
 const POCKET_STITCH := Color(0.86, 0.76, 0.52, 0.55)
-## A pocket the pack does not have yet: dark, sewn shut.
-const SHUT_FILL := Color(0.12, 0.1, 0.1, 0.75)
-const SHUT_STITCH := Color(0.55, 0.48, 0.36, 0.5)
 const ITEM_BG_ALPHA: float = 0.18
 const BORDER_PX: float = 3.0
 const CURSOR_PX: float = 4.0
@@ -21,7 +18,7 @@ const FLAP_SHARE: float = 0.16
 const STITCH_STEP: float = 10.0
 ## The item icon's share of the pocket below its flap.
 const ICON_SHARE: float = 0.78
-## The pocket a new item in hand would go into: green when free, gold to combine, red to replace.
+## The pocket a new item in hand would go into: green when free, red to replace.
 const FITS := Color(0.55, 1.0, 0.6)
 const NO_FIT := Color(1.0, 0.36, 0.3)
 ## Rarity colours (borders here, names in the shop and the item info).
@@ -30,11 +27,8 @@ const RARITY_COLORS: Array[Color] = [Color(0.75, 0.75, 0.77), Color(0.38, 0.62, 
 		GearData.ROT_TOUCHED_COLOR]
 const RARITY_NAMES: Array[String] = ["common", "rare", "legendary", "rot-touched"]
 const ROT_TOUCHED_STEP: int = 3
-## Rotten items: a sickly green border, whatever their rarity.
+## Rotten things (curses): a sickly green, whatever their rarity (the shop's Cleanse list).
 const ROTTEN_COLOR := Color(0.55, 0.85, 0.3)
-## The item a new one would combine into, and level marks: gold.
-const LINK_COLOR := Color(1.0, 0.82, 0.3)
-const LEVEL_FONT_SIZE: int = 26
 ## With no art: a plain frame this many pixels around the pockets.
 const NO_ART_MARGIN: float = 24.0
 
@@ -44,16 +38,12 @@ var cursor: int = 0
 var show_cursor: bool = true
 ## A new item in hand (null: none): its pocket's edge says what Confirm would do.
 var held_item: ItemData
-## The item the one in hand would combine into (-1: none): drawn with a gold outline.
-var combine_into: int = -1
 var _visuals: CombatVisuals
 var _art: Texture2D
 var _origin: Vector2 = Vector2.ZERO
 var _pocket: Vector2 = Vector2(184.0, 110.0)
 var _gap: float = 12.0
 var _columns: int = 2
-## Pockets drawn: the most the pack can have (the ones it lacks are sewn shut).
-var _slots: int = 8
 var _icons: Dictionary = {}
 
 
@@ -62,19 +52,18 @@ func _init() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 
-## `max_pockets`: tuning.backpack_max_pockets (0: just the pack's own).
-func setup(p_pack: Backpack, visuals: CombatVisuals, max_pockets: int = 0) -> void:
+## The pockets fill the lining: `backpack_pocket_columns` to a row, as many rows as the pack needs.
+func setup(p_pack: Backpack, visuals: CombatVisuals) -> void:
 	pack = p_pack
 	_visuals = visuals
-	_slots = maxi(pack.width, max_pockets)
-	_columns = maxi(1, visuals.backpack_pocket_columns)
-	var rows := ceili(float(_slots) / float(_columns))
+	_columns = maxi(1, mini(visuals.backpack_pocket_columns, pack.width))
+	var rows := ceili(float(pack.width) / float(_columns))
 	var scale := float(visuals.backpack_art_scale)
 	_gap = float(visuals.backpack_pocket_gap_art_px) * scale
 	var lining := Vector2(visuals.backpack_lining_art_px) * scale
 	_pocket = Vector2((lining.x - _gap * float(_columns - 1)) / float(_columns),
 			(lining.y - _gap * float(rows - 1)) / float(maxi(1, rows)))
-	var path := visuals.backpack_art_path % 5 if visuals.backpack_art_path.contains("%d") else visuals.backpack_art_path
+	var path := visuals.backpack_art_path
 	_art = load(path) as Texture2D if ResourceLoader.exists(path) else null
 	if _art != null:
 		_origin = Vector2(visuals.backpack_grid_origin) * scale
@@ -99,7 +88,7 @@ func columns() -> int:
 
 
 ## The pack's pocket under a viewport point (the way mouse events report it), -1 for none (card
-## #202). Pockets sewn shut do not count.
+## #202).
 func cell_at(point: Vector2) -> int:
 	if pack == null:
 		return -1
@@ -130,30 +119,21 @@ func _draw() -> void:
 		draw_texture_rect(_art, Rect2(Vector2.ZERO, custom_minimum_size), false)
 	else:
 		draw_rect(Rect2(Vector2.ZERO, custom_minimum_size), HudStyle.PANEL_BG)
-	for i: int in _slots:
-		_draw_pocket(pocket_rect(i), i < pack.width)
+	for i: int in pack.width:
+		_draw_pocket(pocket_rect(i))
 	for e: Dictionary in pack.entries:
 		var item := e.item as ItemData
-		var border := ROTTEN_COLOR if item.rotten else rarity_color(RunState.entry_rarity(e))
-		if int(e.uid) == combine_into:
-			border = LINK_COLOR
-		_draw_item(item, pocket_rect(int(e.x)), border, RunState.level_of(e))
+		_draw_item(item, pocket_rect(int(e.x)), ROTTEN_COLOR if item.rotten else rarity_color(int(item.rarity)))
 	if not show_cursor or cursor < 0 or cursor >= pack.width:
 		return
 	var edge := HudStyle.GOLD
 	if held_item != null:
-		edge = LINK_COLOR if combine_into >= 0 else (FITS if pack.uid_at(Vector2i(cursor, 0)) < 0 else NO_FIT)
+		edge = FITS if pack.uid_at(Vector2i(cursor, 0)) < 0 else NO_FIT
 	draw_rect(pocket_rect(cursor).grow(CURSOR_PX * 0.5), edge, false, CURSOR_PX)
 
 
-## A pocket sewn on the lining: leather with a flap and a stitched edge; one the pack lacks yet is
-## dark and sewn shut with a cross.
-func _draw_pocket(rect: Rect2, open: bool) -> void:
-	if not open:
-		draw_rect(rect, SHUT_FILL)
-		draw_line(rect.position, rect.end, SHUT_STITCH, 2.0)
-		draw_line(Vector2(rect.end.x, rect.position.y), Vector2(rect.position.x, rect.end.y), SHUT_STITCH, 2.0)
-		return
+## A pocket sewn on the lining: leather with a flap and a stitched edge.
+func _draw_pocket(rect: Rect2) -> void:
 	draw_rect(rect, POCKET_FILL)
 	draw_rect(Rect2(rect.position, Vector2(rect.size.x, rect.size.y * FLAP_SHARE)), POCKET_FLAP)
 	var inner := rect.grow(-5.0)
@@ -169,8 +149,8 @@ func _draw_pocket(rect: Rect2, open: bool) -> void:
 
 
 ## One item in its pocket: a tinted backing, its icon (kept to its own shape, fitted below the
-## flap), a border in `border`, and "+" marks for a combined one.
-func _draw_item(item: ItemData, rect: Rect2, border: Color, level: int = 0) -> void:
+## flap) and a border in `border`.
+func _draw_item(item: ItemData, rect: Rect2, border: Color) -> void:
 	draw_rect(rect, Color(border, ITEM_BG_ALPHA))
 	var body := Rect2(rect.position + Vector2(0.0, rect.size.y * FLAP_SHARE), rect.size * Vector2(1.0, 1.0 - FLAP_SHARE))
 	var tex := _icon(item)
@@ -180,12 +160,6 @@ func _draw_item(item: ItemData, rect: Rect2, border: Color, level: int = 0) -> v
 	if tex != null:
 		draw_texture_rect(tex, Rect2(body.get_center() - size * 0.5, size), false)
 	draw_rect(rect, border, false, BORDER_PX)
-	if level > 0:
-		var corner := rect.position + Vector2(8.0, rect.size.y * FLAP_SHARE + float(LEVEL_FONT_SIZE))
-		draw_string_outline(HudStyle.body_font(), corner, "+".repeat(level), HORIZONTAL_ALIGNMENT_LEFT, -1,
-				LEVEL_FONT_SIZE, 6, Color.BLACK)
-		draw_string(HudStyle.body_font(), corner, "+".repeat(level), HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_FONT_SIZE,
-				LINK_COLOR)
 
 
 func _icon(item: ItemData) -> Texture2D:

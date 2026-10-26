@@ -24,7 +24,7 @@ GROUPS = [
     ("voices", "Enemy voices", "Each enemy's voice: it plays when the enemy starts an attack, and quieter and higher when it is hit."),
     ("monsters", "New monsters and attacks", "Phase 12: the Carrion Fly, Rot Hyena and Mire Toad voices, spits, throws, shadow bolts, globs splatting and rock waves."),
     ("phase24", "Feel and atmosphere", "Phase 24: a voice of their own for the rats (they barked like a dog), thunder for storms, and the swell when your party keeps up a defence streak."),
-    ("backpack", "Backpack and finds", "Picking up, putting down, turning and combining items in the backpack; finding things in zones; opening chests."),
+    ("backpack", "Backpack and finds", "Picking up, putting down and turning items in the backpack; finding things in zones; opening chests."),
 ]
 
 

@@ -99,6 +99,14 @@ static func heroes(pattern: String, ids: Array[int]) -> void:
 	_node._play(pattern, pads)
 
 
+## Buzzes `pattern` for player `player` of `roster` where no fight party is set (the First Strike
+## ring on a name card, DESIGN.md 8.22): that player's pad only, as a skill press in a fight.
+static func for_player(pattern: String, roster: PlayerRoster, player: int) -> void:
+	if _node == null:
+		return
+	_node._play(pattern, RumbleMixer.pads_of_player(roster, player, _node._last_pad, _node._pad_in_use))
+
+
 ## Buzzes `pattern` on every pad playing on this machine.
 static func everyone(pattern: String) -> void:
 	if _node == null:

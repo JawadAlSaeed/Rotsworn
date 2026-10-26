@@ -1,8 +1,8 @@
 extends GutTest
 ## Two or three choices side by side, with icons (card #288): the run's choice screens (spoils,
 ## campfire, treasure, "?" events and the starting pact) show their choices as cards with a picture
-## and icon chips instead of sentences, the shrine's question shows its price and gift as chips, and
-## the main menu's Online page is two cards. The bots' methods keep working. Uses the shipped run.
+## and icon chips instead of sentences, and the main menu's Online page is two cards (the zone
+## shrine's question with its chips went with the zones in phase 26, DESIGN.md 8.22). The bots' methods keep working. Uses the shipped run.
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 const EVENTS_DIR := "res://data/events"
@@ -27,8 +27,11 @@ func before_each() -> void:
 	_events.clear()
 
 
+## A run with an empty purse (the shipped run starts with run_start_gold since #321).
 func _run(seed_value: int = 7) -> RunState:
-	return RunState.begin(_data, _tuning, seed_value)
+	var run := RunState.begin(_data, _tuning, seed_value)
+	run.gold = 0
+	return run
 
 
 func _event(id: String) -> EventData:
@@ -204,21 +207,30 @@ func test_an_event_shows_its_choices_as_cards_with_price_chips() -> void:
 	var event := _event("gamblers_bones")
 	var screen := _event_screen(run, event)
 	assert_true(screen.menu().horizontal, "the choices sit side by side")
-	assert_eq(screen.rows().size(), event.choices.size(), "no Leave card")
+	assert_eq(screen.rows().size(), event.choices.size() + 1, "the choices, then the Walk on card (card #334)")
+	assert_eq(String(screen.rows().back().text), EventScreen.WALK_ON)
+	assert_true(screen.rows().back().get("icon") is Texture2D, "Walk on has its picture")
+	assert_true(bool(screen.rows().back().enabled), "walking on always works")
 	var stake := screen.rows()[0].chips as Array
 	assert_eq(String(stake[0].text), "-%d gold" % CombatMath.percent(event.choices[0].deal.cost_gold, run.event_scale(run.at)))
 	assert_false(bool(screen.rows()[0].enabled), "greyed: the party cannot pay the stake")
-	assert_has(screen.footer_entries(), [&"menu_cancel", "Leave"])
+	for entry: Array in screen.footer_entries():
+		assert_ne(entry[0], &"menu_cancel", "Back is no way out of the cards (card #334)")
 	assert_has(screen.footer_entries(), [&"@leftright", "Choose"])
 	var column := screen.menu().get_parent() as Control
 	assert_lte(column.get_combined_minimum_size().y, SCREEN_HEIGHT - ListMenu.FOOTER_STRIP_PX, "the screen fits")
 
 
-func test_cancel_leaves_an_event_and_the_bot_methods_still_work() -> void:
+## Card #334: Back never walks on; the Walk on card does, taking nothing.
+func test_back_does_nothing_on_the_cards_and_walk_on_is_a_card() -> void:
 	var run := _run()
 	var screen := _event_screen(run, _event("gamblers_bones"))
 	_press_on(screen, &"menu_cancel")
-	assert_eq(_events, [-1] as Array[int], "cancel walks on, taking nothing")
+	assert_eq(_events.size(), 0, "Back on the cards does nothing")
+	assert_true(screen.menu().horizontal, "still the cards")
+	screen.menu().index = screen.walk_on_index()
+	_press_on(screen, &"menu_confirm")
+	assert_eq(_events, [-1] as Array[int], "Walk on goes on, taking nothing")
 	assert_eq(String(screen.rows()[0].text), "Continue")
 	assert_false(screen.menu().horizontal, "one way on: no cards")
 	var done := [false]
@@ -256,7 +268,7 @@ func test_a_greyed_card_that_asks_who_pays_does_not_open_the_list() -> void:
 	screen.menu().index = 0
 	_press_on(screen, &"menu_confirm")
 	assert_true(screen.menu().horizontal, "still the cards")
-	assert_eq(screen.rows().size(), 2)
+	assert_eq(screen.rows().size(), 3, "two choices and Walk on")
 	assert_eq(_events.size(), 0, "nothing was taken")
 
 
@@ -266,11 +278,13 @@ func test_the_starting_pact_is_three_cards() -> void:
 	assert_not_null(pact)
 	var screen := _event_screen(run, pact)
 	assert_true(screen.menu().horizontal)
-	assert_eq(screen.rows().size(), _tuning.run_pact_choices)
+	assert_eq(screen.rows().size(), _tuning.run_pact_choices + 1, "the deals, then Walk on (card #334)")
+	assert_eq(String(screen.rows().back().text), EventScreen.WALK_ON)
 	for row: Dictionary in screen.rows():
-		assert_false((row.chips as Array).is_empty(), "%s: its price and gift as chips" % row.text)
+		if not row.get("walk_on", false):
+			assert_false((row.chips as Array).is_empty(), "%s: its price and gift as chips" % row.text)
 	var column := screen.menu().get_parent() as Control
-	assert_lte(column.get_combined_minimum_size().x, 1920.0 - 60.0, "three cards fit the width")
+	assert_lte(column.get_combined_minimum_size().x, 1920.0 - 60.0, "the cards fit the width")
 
 
 # --- the campfire -----------------------------------------------------------------------------
@@ -287,12 +301,11 @@ func test_the_campfire_choices_are_cards_with_icons_and_numbers() -> void:
 	var rest := _rest(run)
 	var menu := rest.menu()
 	assert_true(menu.horizontal)
-	assert_eq(_texts(menu), ["Rest", "Train", "Upgrade"])
+	assert_eq(_texts(menu), ["Rest", "Train"], "two choices: the Upgrade went with the item levels (card #332)")
 	for row: Dictionary in menu.items:
 		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
 	assert_eq(String((menu.items[0].chips as Array)[0].text), "+%d%% HP" % run.rest_heal_percent(), "Rest says how much it heals")
 	assert_eq(String((menu.items[1].chips as Array)[0].text), "+%d points" % _tuning.rest_train_points)
-	assert_false(bool(menu.items[2].enabled), "nothing to upgrade in an empty pack")
 	for entry: Array in rest.footer_entries():
 		assert_ne(entry[0], &"menu_cancel", "no Back while choosing")
 	_press_on(rest, &"menu_cancel")
@@ -300,32 +313,17 @@ func test_the_campfire_choices_are_cards_with_icons_and_numbers() -> void:
 	assert_true(menu.horizontal)
 
 
-func test_a_greyed_upgrade_card_does_nothing_when_chosen() -> void:
+func test_a_full_pack_changes_nothing_at_the_campfire() -> void:
+	# Card #332: no Upgrade, so the pack's items never show here.
 	var run := _run()
+	for i: int in run.backpack.width:
+		run.add_item(run.items_by_id()["salve"] as ItemData)
 	var rest := _rest(run)
-	assert_false(bool(rest.menu().items[2].enabled), "nothing to upgrade in an empty pack")
-	rest.menu().index = 2
+	assert_eq(_texts(rest.menu()), ["Rest", "Train"])
+	assert_false(rest.has_method("upgrade_now"), "the bot has no upgrade to call")
+	rest.menu().index = 1
 	_press_on(rest, &"menu_confirm")
-	assert_true(rest.menu().horizontal, "still the three cards, no empty item list")
-	assert_eq(_texts(rest.menu()), ["Rest", "Train", "Upgrade"])
-	_press_on(rest, &"menu_confirm")
-	assert_false(rest.has_acted(), "and a second press does not Rest by itself")
-
-
-func test_upgrading_lists_the_items_and_back_returns() -> void:
-	var run := _run()
-	run.add_item(run.items_by_id()["salve"] as ItemData)
-	var rest := _rest(run)
-	assert_true(bool(rest.menu().items[2].enabled))
-	rest.menu().index = 2
-	_press_on(rest, &"menu_confirm")
-	assert_true(rest.menu().horizontal, "one item to upgrade: a card")
-	assert_eq(rest.menu().items.size(), 1, "no Back row")
-	assert_has(rest.footer_entries(), [&"menu_cancel", "Back"])
-	_press_on(rest, &"menu_cancel")
-	assert_true(rest.menu().horizontal)
-	assert_eq(rest.menu().index, 2, "back on Upgrade")
-	assert_true(rest.upgrade_now(rest.upgradable()[0]), "the bot's upgrade_now() still works")
+	assert_true(rest.has_acted(), "Train is the one choice")
 	assert_eq(_texts(rest.menu()), ["Back to the map"])
 
 
@@ -348,7 +346,7 @@ func test_the_bot_rests_and_trains_as_before() -> void:
 func _treasure(run: RunState) -> TreasureScreen:
 	var screen := TreasureScreen.new()
 	add_child_autofree(screen)
-	screen.setup(run, load("res://data/presentation/explore_visuals.tres") as ExploreVisuals)
+	screen.setup(run)
 	return screen
 
 
@@ -393,57 +391,112 @@ func test_spoils_are_relic_cards_with_their_icon_tag_and_stat() -> void:
 		assert_false((menu.items[i].chips as Array).is_empty(), "what it does, as chips")
 	for label: Node in loot.find_children("*", "Label", true, false):
 		assert_false((label as Label).text.contains("Take one"), "no sentence over the cards")
-	var taken: Array[GearData] = []
-	loot.chosen.connect(func(item: GearData) -> void: taken.append(item))
-	loot.take(0)
-	assert_eq(taken, [gear[0]] as Array[GearData], "the bot's take() still works")
+	var taken: Array = []
+	loot.chosen.connect(func(item: GearData, hero: int) -> void: taken.append([item, hero]))
+	assert_false(loot.take(0), "a Relic needs the hero who gets it (DESIGN.md 8.24)")
+	assert_true(loot.take(0, 1))
+	assert_eq(taken, [[gear[0], 1]], "the bot's take() still works")
+	assert_false(loot.take(1, 1), "once")
 
 
-func test_a_copy_shows_the_level_it_would_reach() -> void:
+func test_the_spoils_ask_who_gets_the_relic() -> void:
 	var run := _run()
 	run.go(run.choices()[0])
 	var gear := run.loot_choices(run.at)
-	run.add_relic(gear[0])
 	var loot := LootScreen.new()
 	add_child_autofree(loot)
 	loot.setup(gear, "", run)
-	assert_eq(String(loot.menu().items[0].value), "Lv 1 > 2")
+	var taken: Array = []
+	loot.chosen.connect(func(item: GearData, hero: int) -> void: taken.append([item, hero]))
+	loot.menu().index = 1
+	_press_on(loot, &"menu_confirm")
+	assert_true(loot.is_giving(), "a Relic picked: who gets it?")
+	assert_true(taken.is_empty())
+	var cards := loot.menu().items
+	assert_eq(cards.size(), run.party_size(), "a card per hero")
+	for slot: int in cards.size():
+		assert_eq(String(cards[slot].text), run.data.party[slot].display_name, "the hero's name")
+		assert_true(bool(cards[slot].enabled), "solo: any hero")
+	_press_on(loot, &"menu_cancel")
+	assert_false(loot.is_giving(), "Back to the Relics")
+	assert_eq(loot.menu().index, 1, "on the Relic picked")
+	_press_on(loot, &"menu_confirm")
+	loot.menu().index = 2
+	_press_on(loot, &"menu_confirm")
+	assert_eq(taken, [[gear[1], 2]], "the Relic and its hero")
+	# Local co-op: only the picking player's heroes (Main's give_heroes).
+	var duo := LootScreen.new()
+	add_child_autofree(duo)
+	duo.give_heroes = func(_device: int) -> Array[int]: return [0, 2] as Array[int]
+	duo.setup(gear, "", run)
+	_press_on(duo, &"menu_confirm")
+	assert_true(duo.is_giving())
+	assert_false(bool(duo.menu().items[1].enabled), "another player's hero is greyed")
+	assert_eq(duo.menu().index, 0, "the cursor starts on a hero who may get it")
+	var solo := LootScreen.new()
+	add_child_autofree(solo)
+	solo.give_heroes = func(_device: int) -> Array[int]: return [1] as Array[int]
+	solo.setup(gear, "", run)
+	var got: Array = []
+	solo.chosen.connect(func(item: GearData, hero: int) -> void: got.append(hero))
+	_press_on(solo, &"menu_confirm")
+	assert_eq(got, [1], "one hero who may: no hero step")
 
 
-# --- the shrine's question and the yes/no prompt ----------------------------------------------
-
-func test_a_question_shows_chips_and_keeps_its_answers_side_by_side() -> void:
+func test_only_a_relic_the_book_lacks_is_new_and_the_hero_step_survives_a_redraw() -> void:
+	var main_script := load("res://scenes/main.gd") as GDScript
 	var run := _run()
-	var altar := load("res://data/offers/blood_altar.tres") as ZoneOfferData
-	var chips := StopScreen.chip_entries(run.offer_chips(altar), _look)
-	assert_eq(_chip_kinds(chips), ["hp", "find"], "HP paid, a rare find")
+	run.go(run.choices()[0])
+	var gear := run.loot_choices(run.at)
+	assert_gt(gear.size(), 1)
+	var book := RelicCollection.new()
+	book.merge([gear[0].id])
+	var booked := RunState.begin(_data, _tuning, 7, 0, book)
+	var loot := LootScreen.new()
+	add_child_autofree(loot)
+	loot.setup(gear, "", booked)
+	assert_eq(String(loot.menu().items[0].value), "", "in the Relic book already: no tag (no Home)")
+	assert_eq(String(loot.menu().items[1].value), "New", "not in the book yet")
+	for chip: Array in ShopScreen.relic_chips(booked, gear[0]):
+		assert_false(["New", "Home"].has(String(chip[1])), "a shelf has no tag for it either")
+	assert_eq(String(ShopScreen.relic_chips(booked, gear[1])[0][1]), "New")
+	# Online a friend's "Who gets it?" stays up when the host's newer state comes (card #326).
+	assert_false(main_script.call("_keeps_hero_pick", loot))
+	_press_on(loot, &"menu_confirm")
+	assert_true(loot.is_giving())
+	assert_true(main_script.call("_keeps_hero_pick", loot), "the hero cards are not rebuilt away")
+	_press_on(loot, &"menu_cancel")
+	assert_false(main_script.call("_keeps_hero_pick", loot))
+	var shop := ShopScreen.new()
+	add_child_autofree(shop)
+	run.gold = 999
+	shop.setup(run, gear)
+	var shelf := shop.items().size()
+	assert_true(shop.is_relic(shelf))
+	assert_false(main_script.call("_keeps_hero_pick", shop))
+	shop._open_give_pick(shelf)
+	assert_true(main_script.call("_keeps_hero_pick", shop), "the shop's hero pick too")
+	shop._close_pick()
+	assert_false(main_script.call("_keeps_hero_pick", shop))
+	assert_false(main_script.call("_keeps_hero_pick", _treasure(run)), "a closed chest")
+
+
+# --- the yes/no prompt ---------------------------------------------------------------------------
+
+func test_a_question_keeps_its_answers_side_by_side() -> void:
 	var prompt := ConfirmPrompt.new()
 	add_child_autofree(prompt)
-	prompt.setup(altar.question, "", altar.yes_text, altar.no_text, chips)
-	assert_eq(prompt.chip_count(), 2)
+	prompt.setup("Abandon this run?", "The run is lost.", "Abandon run", "Keep playing")
 	assert_true(prompt._menu.horizontal)
-	for label: Node in prompt.find_children("*", "Label", true, false):
-		assert_false((label as Label).text.contains("never below"), "no detail sentence")
-	var plain := ConfirmPrompt.new()
-	add_child_autofree(plain)
-	plain.setup("Abandon this run?", "The run is lost.", "Abandon run", "Keep playing")
-	assert_eq(plain.chip_count(), 0, "a plain question has no chips")
-
-
-func test_main_asks_the_shrine_with_chips() -> void:
-	var source := FileAccess.get_file_as_string("res://scenes/main.gd")
-	var start := source.find("func _on_offer(")
-	var body := source.substr(start, source.find("\nfunc ", start + 1) - start)
-	assert_string_contains(body, "offer_chips(data)")
-	assert_string_contains(body, "chips)")
+	assert_eq(prompt._menu.items.size(), 2)
 
 
 # --- the main menu's Online page --------------------------------------------------------------
 
-func _main_menu(start: StringName = MainMenu.ONLINE, rush_best: int = 0, rush_ok: bool = true) -> MainMenu:
+func _main_menu(start: StringName = MainMenu.ONLINE) -> MainMenu:
 	var menu := MainMenu.new()
 	add_child_autofree(menu)
-	menu.setup(BrandingData.new(), start, "", false, false, rush_best, rush_ok)
+	menu.setup(BrandingData.new(), start)
 	menu.chosen.connect(func(item: StringName) -> void: _picked.append(item))
 	return menu
 
@@ -473,110 +526,26 @@ func test_online_is_host_and_join_side_by_side() -> void:
 	assert_eq(String(list.items[list.index].text), "Online", "cancel goes back to the Online row")
 
 
-## Online > Host (card #312): what to host, Run or Fight Rush, as two cards like New Run's. Cancel goes
-## back to Host, then to the Online row; coming back from hosting rests on Online.
-func test_host_asks_run_or_fight_rush() -> void:
-	var menu := _main_menu(MainMenu.ONLINE, 16)
-	var list := _list_in(menu)
+## Online > Host starts hosting a run at once (the second mode's cards before it were cut, card #331);
+## coming back from hosting rests on Online.
+func test_host_hosts_a_run_straight_away() -> void:
+	var menu := _main_menu()
 	_press_on(menu, &"menu_confirm")
 	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked.size(), 0, "Host opens its cards, it does not host yet")
-	assert_true(menu.is_showing_cards())
-	assert_eq(_texts(list), ["Run", "Fight Rush"], "no Back card: Back is the cancel button")
-	for row: Dictionary in list.items:
-		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
-	assert_eq(String(list.card_chips(1)[0].text), "Best 16", "the same Fight Rush card as New Run's")
-	_press_on(menu, &"menu_cancel")
-	assert_eq(_texts(list), ["Host", "Join"], "cancel goes back to Host and Join")
-	assert_eq(list.index, 0, "on Host")
-	_press_on(menu, &"menu_confirm")
-	_press_on(menu, &"menu_right")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.HOST_RUSH] as Array[StringName])
-	_press_on(menu, &"menu_left")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.HOST_RUSH, MainMenu.HOST_RUN] as Array[StringName])
-	_press_on(menu, &"menu_cancel")
-	_press_on(menu, &"menu_cancel")
-	assert_false(menu.is_showing_cards())
-	assert_eq(String(list.items[list.index].text), "Online")
-	var greyed := _main_menu(MainMenu.ONLINE, 0, false)
-	var greyed_list := _list_in(greyed)
-	_press_on(greyed, &"menu_confirm")
-	_press_on(greyed, &"menu_confirm")
-	assert_false(greyed_list.is_enabled(1), "no Rush data: nothing to host as a Fight Rush")
-	for start: StringName in MainMenu.HOST_MODE_ITEMS:
-		var back := _main_menu(start)
-		assert_false(back.is_showing_cards())
-		assert_eq(String(_list_in(back).items[_list_in(back).index].text), "Online", "back from hosting: on Online")
+	assert_eq(_picked, [MainMenu.HOST_ONLINE] as Array[StringName], "Host emits HOST_ONLINE, no cards first")
+	var back := _main_menu(MainMenu.HOST_ONLINE)
+	assert_false(back.is_showing_cards())
+	assert_eq(String(_list_in(back).items[_list_in(back).index].text), "Online", "back from hosting: on Online")
 
 
-## New Run (DESIGN.md 8.21): Run and Fight Rush side by side, each with its picture; the Rush card
-## carries the best record as a gold Best chip.
-func test_new_run_is_run_and_fight_rush_side_by_side() -> void:
-	var menu := _main_menu(MainMenu.NEW_RUN, 16)
-	var list := _list_in(menu)
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked.size(), 0, "New Run opens its cards")
-	assert_true(menu.is_showing_cards())
-	assert_eq(_texts(list), ["Run", "Fight Rush"], "no Back card: Back is the cancel button")
-	for row: Dictionary in list.items:
-		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
-	assert_eq(list.card_chips(0).size(), 0, "the Run card has no chips")
-	var chips := list.card_chips(1)
-	assert_eq(chips.size(), 1, "the Rush card has the Best chip")
-	assert_eq(String(chips[0].text), "Best 16")
-	assert_eq(StringName(chips[0].glyph), &"star")
-	assert_eq(chips[0].color, HudStyle.GOLD)
-	assert_eq(list.index, 0, "the cursor starts on Run")
-	_press_on(menu, &"menu_right")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.PLAY_RUSH] as Array[StringName])
-	_press_on(menu, &"menu_cancel")
-	assert_false(menu.is_showing_cards())
-	assert_eq(String(list.items[list.index].text), "New Run", "cancel goes back to the New Run row")
-
-
-func test_new_run_cards_without_a_record_or_rush_data() -> void:
+## New Run starts the run's path at once, as before phase 25 (card #331): no cards open.
+func test_new_run_starts_straight_away() -> void:
 	var menu := _main_menu(MainMenu.NEW_RUN)
 	var list := _list_in(menu)
+	assert_eq(String(list.items[list.index].text), "New Run")
 	_press_on(menu, &"menu_confirm")
-	assert_eq(list.card_chips(1).size(), 0, "no record yet: no Best chip")
-	assert_true(list.is_enabled(1))
-	menu = _main_menu(MainMenu.NEW_RUN, 16, false)
-	list = _list_in(menu)
-	_press_on(menu, &"menu_confirm")
-	assert_false(list.is_enabled(1), "no Rush data: the Fight Rush card is greyed")
-	assert_true(list.is_enabled(0), "Run still works")
-	_press_on(menu, &"menu_right")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked.size(), 0, "a greyed card emits nothing")
-	assert_true(menu.is_showing_cards(), "and the cards stay")
-	_press_on(menu, &"menu_left")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.PLAY_RUN] as Array[StringName])
-
-
-## The rush_cards dev screen opens New Run's cards straight away, the Fight Rush card chosen.
-func test_open_cards_shows_new_runs_cards_on_the_rush_card() -> void:
-	var menu := _main_menu(MainMenu.NEW_RUN, 16)
-	var list := _list_in(menu)
-	menu.open_cards(MainMenu.NEW_RUN, MainMenu.PLAY_RUSH)
-	assert_true(menu.is_showing_cards())
-	assert_eq(_texts(list), ["Run", "Fight Rush"])
-	assert_eq(list.index, 1, "the Fight Rush card is chosen")
-	menu.open_cards(MainMenu.EXTRAS)
-	assert_true(menu.is_showing_cards(), "only Online and New Run open cards")
-	_press_on(menu, &"menu_confirm")
-	assert_eq(_picked, [MainMenu.PLAY_RUSH] as Array[StringName])
-
-
-func test_coming_back_from_a_run_or_a_rush_rests_on_new_run() -> void:
-	for start: StringName in MainMenu.MODE_ITEMS:
-		var menu := _main_menu(start)
-		var list := _list_in(menu)
-		assert_false(menu.is_showing_cards(), "the main list shows, not the cards")
-		assert_eq(String(list.items[list.index].text), "New Run")
+	assert_eq(_picked, [MainMenu.NEW_RUN] as Array[StringName], "New Run emits NEW_RUN, no cards first")
+	assert_false(menu.is_showing_cards())
 
 
 func test_extras_stays_a_list_with_back() -> void:

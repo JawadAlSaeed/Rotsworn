@@ -1,4 +1,4 @@
-"""The open floors of the four places (card #186): calm, seamless 32x32 ground in three variants each.
+"""The open floors of the five places (card #186; the fifth, the Leech Queen's lair, card #323): calm, seamless 32x32 ground in three variants each.
 
 The floor fills most of the screen behind every walk and every fight, so it must stay out of the
 way: heroes and enemies are the strong colours. Rules for these tiles:
@@ -46,6 +46,13 @@ POOL = Material.make("floor_pool", "#4a4a38", below=2, above=2, step_l=0.035, sh
 BASALT = Material.make("floor_basalt", "#3b3438", below=2, above=3, step_l=0.03, shadow_chroma=0.8).colors
 BASALT_EDGE = Material.make("floor_basalt_edge", "#2c2629", below=1, above=1, step_l=0.035).colors
 GLINT = ["#4a2429", "#6a2d2f"]
+
+# The Leech Queen's lair (phase 26, card #323): black silt under a skin of black water, a violet
+# glint where her rot shows through.
+SILT = Material.make("floor_silt", "#2f2c2c", below=2, above=3, step_l=0.026, shadow_chroma=0.8,
+                     grey_hue=300).colors
+BLACK_POOL = Material.make("floor_black_pool", "#28282f", below=2, above=2, step_l=0.03, shadow_chroma=0.8).colors
+MIRE_GLINT = ["#3a2a44", "#4e3460"]
 
 MOSS_CALM = Material.make("floor_moss", "#434e30", below=2, above=3, step_l=0.034,
                           shadow_chroma=0.75, shadow_shift=6).colors
@@ -207,6 +214,29 @@ def throne_floor(var: int = 0) -> np.ndarray:
     return tex.rgba()
 
 
+# --- The Leech Queen's lair: black silt and black water ------------------------------------------
+
+def mire_floor(var: int = 0, pools: int = 4) -> np.ndarray:
+    """Her arena: black silt in soft drifts, wide pools of black water over it, and here and there
+    a dull violet glint at a pool's edge."""
+    tex = Tex([SILT, BLACK_POOL, MIRE_GLINT])
+    seed = 800 + var * 37
+    calm_base(tex, 0, seed)
+    rng = np.random.default_rng(seed + 5)
+    keep = np.zeros((T, T), bool)
+    for _ in range(pools):
+        m = ellipse(rng, rng.uniform(4.5, 7.5), rng.uniform(2.4, 3.8))
+        tex.set(m, 1, int(rng.integers(1, 3)))
+        keep |= m
+    edge = keep & ~np.roll(keep, 1, 0)
+    ys, xs = np.nonzero(edge)
+    for _ in range(min(2, len(ys))):
+        i = int(rng.integers(0, len(ys)))
+        tex.px(int(xs[i]), int(ys[i]), 2, 1)
+        tex.px(int(xs[i]) + 1, int(ys[i]), 2, 0)
+    tex.clean(keep=keep)
+    return tex.rgba()
+
 # --- The three ground tiles the shader mixes, per look -------------------------------------------
 
 FLOORS = {
@@ -214,6 +244,7 @@ FLOORS = {
     "ash_tile": ash_floor,
     "bog_tile": bog_floor,
     "throne_tile": throne_floor,
+    "mire_tile": mire_floor,
 }
 VARIANT_SUFFIX = ("", "_b", "_c")
 

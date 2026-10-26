@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="TutorialData" load_steps=17 format=3]
+[gd_resource type="Resource" script_class="TutorialData" load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/tutorial_data.gd" id="1_tut"]
 [ext_resource type="Script" path="res://scripts/data/tutorial_step_data.gd" id="2_step"]
@@ -155,8 +155,8 @@ script = ExtResource("2_step")
 lesson = 7
 title = "First Strike"
 icon_path = "res://assets/sprites/ui/goal_foe.png"
-text = "In a zone, hit an enemy with {field_strike} before it touches you."
-tip = "Your party then acts first."
+text = "A Fight stop opens on a ring: press {skill_press} as it closes."
+tip = "GOOD or PERFECT: your party acts first."
 goal = "read"
 
 [sub_resource type="Resource" id="s8"]
@@ -164,23 +164,14 @@ script = ExtResource("2_step")
 lesson = 8
 title = "Relics"
 icon_path = "res://assets/sprites/ui/chip_relic.png"
-text = "Relics stay yours forever, even after a lost run."
-tip = "Pack them on the main menu's Relics screen."
-goal = "read"
-
-[sub_resource type="Resource" id="s9"]
-script = ExtResource("2_step")
-lesson = 8
-title = "Echoes"
-icon_path = "res://assets/sprites/ui/tutorial_echo.png"
-text = "Wear a Relic in won fights to learn its Echo."
-tip = "Wear Echoes on the party screen: {party_menu}"
+text = "Elites, bosses and chests give Relics: pick one for a hero."
+tip = "See each hero's Relics: {party_menu}"
 goal = "read"
 
 [resource]
 script = ExtResource("1_tut")
 encounter = ExtResource("3_fight")
 enemy_speed_percent = 50
-steps = Array[ExtResource("2_step")]([SubResource("s0"), SubResource("s1"), SubResource("s2"), SubResource("s3"), SubResource("s4"), SubResource("s5"), SubResource("s6"), SubResource("s7"), SubResource("s7m"), SubResource("s7n"), SubResource("s7f"), SubResource("s8"), SubResource("s9")])
+steps = Array[ExtResource("2_step")]([SubResource("s0"), SubResource("s1"), SubResource("s2"), SubResource("s3"), SubResource("s4"), SubResource("s5"), SubResource("s6"), SubResource("s7"), SubResource("s7m"), SubResource("s7n"), SubResource("s7f"), SubResource("s8")])
 done_title = "Tutorial complete"
 done_text = "You're ready. Start a New Run from the main menu."

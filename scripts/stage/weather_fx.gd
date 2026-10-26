@@ -1,13 +1,14 @@
 class_name WeatherFx
 extends Node
-## Lightning and thunder over a stormy zone visit (card #303, DESIGN.md 8.20). Every
+## Lightning and thunder over a stormy place (card #303, DESIGN.md 8.20). Every
 ## lightning_min_ms to lightning_max_ms the sky lights up for a moment (ambient light and the sky
 ## colour jump, with a second, weaker flicker), and thunder follows after a short delay with a low
 ## buzz on the pad. Presentation only, so its timing needs no seed. The Flashes setting scales the
 ## flash like every screen flash (combat_visuals screen_flash_scale: Reduced dims it, Off skips it;
-## the thunder still comes). A zone's fights have no lightning, and a zone held behind the pause menu
-## (its processing off), the backpack or a yes/no prompt (its own pause, `held`) or parked for a fight
-## neither flashes nor thunders; after a hold the next strike is a whole gap away.
+## the thunder still comes). Unused since phase 26 (DESIGN.md 8.22, G6): it lit the walkable zones,
+## and fights never flash lightning (8.21 D13). Kept for the owner's call. A place held behind a
+## menu (its processing off) or by its own pause (`held`) neither flashes nor thunders; after a hold
+## the next strike is a whole gap away.
 
 ## The second flicker of a flash: when it comes (share of the flash) and how strong it is.
 const FLICKER_AT: float = 0.45
@@ -20,7 +21,7 @@ var _base_energy: float = 0.0
 var _base_sky: Color = Color.BLACK
 var _next_ms: int = 0
 var _tween: Tween
-## True while the zone is paused by its own flag (ZoneController.is_paused: backpack, prompts).
+## True while the place is paused by its own flag (a menu over it).
 var _held := Callable()
 
 

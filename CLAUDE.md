@@ -79,29 +79,39 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   `-- --autoplay=average --bot-skill=60` (plays like an average player for balance checks: lands
   that percent of its presses; prints an `AUTOPLAY_BALANCE turns= seconds= party_hp_percent=`
   line; with `--seed=N` its luck repeats too, else every run differs, so compare many runs). Add `--quit-on-end` to exit when the fight is over and `--encounter=ID` to pick a fight
-  from `data/encounters/` (default `husk_fight`), `--first-strike` to start it with the advantage,
-  `--weather=rain|storm|fog|wind|dusk|clear` to give every zone visit that weather (DESIGN.md 8.20),
+  from `data/encounters/` (default `husk_fight`), `--first-strike` to start it with the advantage
+  (a run's Fight stop opens with the First Strike ring instead, DESIGN.md 8.22: `--autoplay` presses
+  it perfectly, `=miss` never, `=mash` mashes, `=average` at its skill; every Fight stop prints
+  `AUTOPLAY_OPENING first_strike|normal stop=N`),
+  `--weather=rain|storm|fog|wind|dusk|clear` to give every run fight but the boss's that weather
+  (DESIGN.md 8.20, 8.22),
   `--no-rumble` to keep the pad still (bot and picture runs never buzz anyway, DESIGN.md 7.14),
-  or `--zone=rotten_hollow` to have the bot walk the zone and fight every roaming enemy (ends with
-  `AUTOPLAY_RESULT zone_clear` or `zone_defeat`), or `--run` to have the bot play a whole run
-  (map, zones to the guard, shops, rests, final fight; ends with `AUTOPLAY_RESULT run_victory` or
-  `run_defeat`, about 10 to 20 minutes, so use `timeout 1500`; add `--oath=N` to play it at difficulty
-  oath N, DESIGN.md 8.15; a bot run starts with no Relics, `--relics=all` gives it every Relic at
-  its top level, `--relics-path=PATH` lets it use and bank into its own Relic file, 8.17), or `--rush`
-  to have the bot play a Fight Rush (DESIGN.md 8.21; ends with `AUTOPLAY_RESULT rush_over`,
-  `rush_gave_up` or `rush_capped`, one `AUTOPLAY_RUSH` line per fight). Always cap a Rush bot with
-  `--rush-fights=N` (a perfect bot may never lose): 3 fights take about 90 s, later fights longer, so
-  `timeout 400` for 3; `--rush-start=N` starts at fight N after a replayed head start (one head-start
-  fight about 1 to 2 min; mechanics only, never balance); both imply `--rush`. Add `--players=2` or
+  or `--run` to have the bot play a whole run
+  (map, Fight and Elite stops, shops, rests, events, final fight; DESIGN.md 8.22: there are no
+  walkable zones; ends with `AUTOPLAY_RESULT run_victory` or
+  `run_defeat`, whose `relics=` and `relics_held=` count the Relics the run has and those given to a
+  hero, DESIGN.md 8.24; about 10 to 20 minutes, so use `timeout 1500`; add `--oath=N` to play it at difficulty
+  oath N, DESIGN.md 8.15; a bot run starts with no Relics (its Relic book is empty, so it skips the
+  starting pick), `--relics=all` fills its book with every Relic (each hero then takes the best one
+  left, printed as `AUTOPLAY_START_RELICS alder=ID brin=ID cass=ID`, `-` for none, the same line on
+  every machine, also when the step is skipped; online the host prints
+  `AUTOPLAY_START_RELIC P2 ID hero=N ok=1` for each friend's pick), `--relics-path=PATH` lets it use
+  and bank into its own Relic book, 8.17, 8.24). Add `--players=2` or
   `--players=3` to any of these for co-op (pretend pads; each bot player presses for their own heroes).
   Online: start `--autoplay --host=2 --seed=7 --quit-on-end` in the background, then
   `--autoplay --join=127.0.0.1 --quit-on-end`; both must print the same `AUTOPLAY_RESULT` and
   `AUTOPLAY_MIRROR` lines (an online pair takes 25 to 30 minutes: use `timeout 2700`; every host uses
-  the tuning port, so run one online game at a time). A Fight Rush online: `--rush` with `--host=N`
-  hosts one (`--autoplay --rush --host=2 --rush-fights=4 --seed=7 --quit-on-end`), and the friend's
-  plain `--join=127.0.0.1` follows the host's mode; both print the same `AUTOPLAY_RESULT rush_capped`
-  and `AUTOPLAY_MIRROR` lines in about 140 s (`timeout 400`; a drop-in pair needs `--host=1`, DESIGN.md
-  8.21). Works with `--headless`. A good run prints
+  the tuning port, so run one online game at a time; a drop-in pair needs `--host=1`, DESIGN.md
+  9.3). Saving an online run (DESIGN.md 8.14, 9.3): the host bot saves only with
+  `--online-save-path=PATH`; `--save-quit-at=N` presses Save & Quit on arriving at stop N (host
+  `AUTOPLAY_SAVED host ...` and `AUTOPLAY_RESULT run_saved`, friend `AUTOPLAY_SAVED friend ...` and
+  `AUTOPLAY_RESULT host_saved`); `--continue-online` (with `--host=N` and the same save path) presses
+  Continue once N players are in (`AUTOPLAY_CONTINUED host|friend ...`); `--seat-path=PATH` is a friend
+  bot's seat file (it keeps its token there when the host saves and shows it on the next `--join`).
+  Pair: host `--autoplay --run --host=2 --seed=7 --save-quit-at=3 --online-save-path=P --quit-on-end`
+  plus friend `--autoplay --join=127.0.0.1 --seat-path=S --quit-on-end`, then host `--autoplay --run
+  --host=2 --continue-online --online-save-path=P --quit-on-end` plus the same friend (both print the
+  same `AUTOPLAY_RESULT` and `AUTOPLAY_MIRROR` lines). Works with `--headless`. A good run prints
   `AUTOPLAY_RESULT` and no `ERROR` / `AUTOPLAY_ERROR` lines; a missing result line means a hang.
   Drop-in co-op (DESIGN.md 9.3): `--pad-join-after=S` (a pretend pad joins the local run S seconds
   after launch, at the next quiet moment), `--pad-leave-after=S` (the last local player leaves),
@@ -131,7 +141,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   prints PASS or FAIL. DESIGN.md 10.
 - To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
   every S seconds in `%APPDATA%/Godot/app_userdata/Rotsworn/shots/<name>/`), combined with
-  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|echoes|relics|party_relics|calibration|tutorial|map|map_start|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players|rush_cards|rush_players|rush_reward|rush_reward_elite|rush_ready|rush_end|rush_pause`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
+  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|relics|party_relics|start_relics|calibration|tutorial|map|map_start|map_act2|map_act3|first_strike|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
   skills list (or any state; `|` moves on to the next turn) for pictures; `--pad-prompts` shows pad
   buttons, `--key-prompts` keyboard keys. Look at the pictures before telling the user a visual change is done.
   (Use `quiet_run.bat` for this when the owner is at the PC, see above.)
@@ -164,9 +174,8 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
    cue on/off defaults, pacing. Presentation-only feel goes in
    `data/presentation/combat_visuals.tres` (script `scripts/data/combat_visuals.gd`): art paths,
    stage layout, camera, enemy choreography feel, pose lengths, flash/shake strengths, popup and
-   banner feel, the calibration procedure. Zone presentation (follow camera, walking, transition)
-   goes in `data/presentation/explore_visuals.tres`; how a place looks (light, fog, bloom, ground,
-   arena decoration) in its `StageLook` in `data/looks/`. Per-move shapes (hit count, hit timing, percentages)
+   banner feel, the calibration procedure, the screen transitions. How a place looks (light, fog,
+   bloom, ground, arena decoration) goes in its `StageLook` in `data/looks/`. Per-move shapes (hit count, hit timing, percentages)
    live in that move's data file as integer percentages of the tuning values. Pure animation-curve
    shape constants (for example a share of a pose) may stay as named consts. Change values in the
    `.tres` files, never by editing the defaults in the scripts.
@@ -192,11 +201,11 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 
 - `data/` content resources (`.tres`), including `tuning/tuning.tres`, `branding/` (logo, title
   screen, credits, loading tips),
-  `presentation/combat_visuals.tres`, `presentation/explore_visuals.tres`, `presentation/rumble.tres`
-  (the controller buzz patterns), `looks/`, `zones/`,
-  `runs/` (the run; `runs/acts/` its acts, `runs/oaths/` its difficulty ladder), `rush/` (the Fight
-  Rush: its tiers, boss cycle and reward items, DESIGN.md 8.21), `weather/` (a zone
-  visit's weather, DESIGN.md 8.20), `events/`, `glossary/` (the Glossary's topics and terms, DESIGN.md 7.12), `offers/` (shrines and wanderers), `items/` (backpack items), `gear/` and `clips/` (each fighter's animation
+  `presentation/combat_visuals.tres`, `presentation/rumble.tres`
+  (the controller buzz patterns), `looks/`, `zones/` (the run's places: look, air, weathers, the
+  Fight stops' monsters and the guard some Elite stops hold; the class is still `ZoneData`, DESIGN.md 8.22),
+  `runs/` (the run; `runs/acts/` its acts, `runs/oaths/` its difficulty ladder), `weather/` (a
+  fight's weather, DESIGN.md 8.20), `events/`, `glossary/` (the Glossary's topics and terms, DESIGN.md 7.12), `items/` (backpack items), `gear/` and `clips/` (each fighter's animation
   layout, generated by `tools/art_kit/`), `pieces/` (3D world pieces: model and textures)
 - `assets/` sprites, audio, `models/` (3D world pieces, `.glb`)
 - `scripts/data/` resource class scripts
@@ -207,26 +216,26 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `scripts/combat/presentation/` combat scene, views, HUD, camera, feedback
 - `scripts/combat/input/` input stamping
 - `scripts/stage/` building a place from data (environment, blocks, props, lights, vignette,
-  `WeatherFx`: a storm's lightning) and
+  `WeatherFx`: a storm's lightning, unused since the zones went) and
   screen transitions
-- `scripts/explore/` zones: walking, roaming enemies, zone HUD, zone bot, `ZoneAssembler` (lays a
-  long zone's sections out per visit) and `ZonePath` (A* for the bot and tests)
-- `scripts/run/` the run: `RunMap` and `RunState` (pure, tested), map, shop, campfire (rest), event,
-  treasure, loot, party, Echoes and run-end screens (`StopScreen` hands out gifts), the gold and HP
-  strip
-- `scripts/rush/` the Fight Rush (DESIGN.md 8.21): `RushState` (extends `RunState`, pure, tested),
-  `RushRecords` (the records per party size, pure, tested) and `RushRewardScreen` (the Rush screen:
-  reward picks and the ready phase)
-- `scripts/relics/` the Relics kept between runs (DESIGN.md 8.17): `RelicCollection` (pure, tested)
-  and `RelicFile` (`user://progress.json`); the main menu's `RelicsScreen` is in `scripts/menu/`
+- `scripts/run/` the run: `RunMap` and `RunState` (pure, tested; the map's Fight and Elite stops,
+  DESIGN.md 8.22), map, shop, campfire (rest), event, treasure, loot, party and run-end
+  screens (`StopScreen` hands out gifts; `RelicGift` is the "Who gets it?" step that gives a picked
+  Relic to one hero, DESIGN.md 8.24; `StartRelicsScreen` the starting Relics each hero takes from
+  the Relic book before a run, 8.24), the gold and HP strip, `RunAutoplay` (the bots' fitness
+  check)
+- `scripts/relics/` the Relic book kept between runs (DESIGN.md 8.17, 8.24): `RelicCollection` (the
+  Relics ever found; pure, tested) and `RelicFile` (`user://progress.json`); the main menu's
+  `RelicsScreen` (the book's page) is in `scripts/menu/`
 - `scripts/menu/` main menu, players screen (co-op lobby), settings, pause menu, yes/no prompt,
   the shared `ListMenu`, `MenuBackdrop`, `HintBar` (button chip hints) and `PromptLabel`
-- `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested) and `DeviceInput`
-  (reading one device)
+- `scripts/coop/` co-op: `PlayerRoster` (who plays which hero, pure, tested)
 - `scripts/net/` online: `DefenseArbiter` (host referee, pure, tested), `DataHash` (content
-  fingerprint for the handshake), `SeatBook` (seat tokens), `JoinGate` (who may come in and when a
-  newcomer's hero is handed over, pure, tested) and `FightInbox` (a client's early combat batches,
-  kept per fight, pure, tested)
+  fingerprint for the handshake), `SeatBook` (seat tokens, and the held seats of a continued saved
+  run), `JoinGate` (who may come in and when a newcomer's hero is handed over, pure, tested),
+  `FightInbox` (a client's early combat batches, kept per fight, pure, tested), `SavedSeats` (the
+  online save's seats: capture, restore, seat_lobby; pure, tested) and `SeatFile` (a friend's kept
+  seat tokens per host, `user://online_seat.json`; DESIGN.md 8.14, 9.2, 9.3)
 - `scripts/autoload/` global singletons (`Audio`, `Rumble` = `PadRumble`, the controller buzz,
   DESIGN.md 7.14, `UserSettings` = `PlayerSettings`, saved per
   machine in `user://settings.cfg`, `Net` = `NetSession`, the online connection, `Prompts` =
@@ -234,19 +243,16 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
 - `scenes/` scenes
 - `tests/unit/` GUT tests
 - `tools/` headless helper scripts (placeholder generation, data bootstrap, `bootstrap_run.gd`
-  for the run, shop, gear, boss and phase 4 zones; `bootstrap_zones.gd` for the long zones' sections,
-  shrines and wanderers, DESIGN.md 8.5; `bootstrap_phase15.gd` for the mini-boss guards, elite fights
-  and the run's two acts, 8.6 to 8.9, run before bootstrap_zones.gd; `bootstrap_events.gd` for the "?"
+  for the run, shop, gear, boss and the places' looks; `bootstrap_phase15.gd` for the mini-boss
+  guards, elite fights and the run's three acts, 8.6 to 8.9 and 8.23 (older than the hand-edited data: do not
+  re-run it as it is); `bootstrap_events.gd` for the "?"
   events and the acts' ambush pools, 8.7, run after bootstrap_phase15.gd; `bootstrap_relics.gd` for
-  the Relics' stat lines, Echo costs and the monsters' drops, 8.17; `bootstrap_rush.gd` for
-  `data/rush/fight_rush.tres`, 8.21, re-run after a zone's roamers, an act's elites or ambushes or
-  the run's items change (`test_rush_data.gd` fails on stale data); `zone_map_preview.gd` draws
-  every zone from above to a picture, `-- --out=DIR --seed=N`, to check a layout without the game); `tools/sound_kit/` builds the sound effects from
+  the Relics' stat lines and the monsters' drop lists (unused since 8.24), 8.17); `tools/sound_kit/` builds the sound effects from
   real recordings (see its README); `tools/art_kit/` draws all the pixel art in Python (see its
   README: the art bible, `python tools/art_kit/build.py [module]`; the heroes' painted portraits come
   from pictures via `tools/art_kit/portraits_from_pictures.py`); `tools/blender_kit/` builds the
   3D world pieces in Blender with no window (see its README: `D:/Blender/blender.exe --background
   --factory-startup --python tools/blender_kit/build.py -- [names] [--preview]`, into
   `assets/models/`; `python tools/blender_kit/check.py` checks them; DESIGN.md 5.6);
-  `tools/dress_zones.gd` dresses every zone section and arena with the pieces and plants (re-runnable)
+  `tools/dress_arenas.gd` dresses every fight arena with its 3D pieces (re-runnable, `-- --dry-run`)
 - `docs/` design docs

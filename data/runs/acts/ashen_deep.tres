@@ -1,20 +1,16 @@
 [gd_resource type="Resource" script_class="ActData" format=3]
 
 [ext_resource type="Resource" path="res://data/encounters/priest_and_hyenas.tres" id="p19_priest_and_hyenas"]
-[ext_resource type="Resource" path="res://data/encounters/lantern_trio.tres" id="p19_lantern_trio"]
 [ext_resource type="Resource" path="res://data/encounters/brute_and_rat.tres" id="p19_brute_and_rat"]
-[ext_resource type="Resource" path="res://data/encounters/tick_nest.tres" id="p19_tick_nest"]
+[ext_resource type="Resource" path="res://data/encounters/slinger_trio.tres" id="p19_slinger_trio"]
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="1_rmucm"]
 [ext_resource type="Resource" path="res://data/encounters/elite_shade_coven.tres" id="2_ascct"]
 [ext_resource type="Resource" path="res://data/encounters/hyena_pack.tres" id="2_vspi0"]
 [ext_resource type="Resource" path="res://data/encounters/hyena_and_fly.tres" id="3_0hhef"]
 [ext_resource type="Resource" path="res://data/encounters/elite_hyena_pack.tres" id="3_1j7iu"]
 [ext_resource type="Resource" path="res://data/encounters/shade_and_gnat.tres" id="4_01usj"]
-[ext_resource type="Resource" path="res://data/encounters/elite_twin_husks.tres" id="4_qj73g"]
 [ext_resource type="Script" path="res://scripts/data/event_data.gd" id="5_gyjvm"]
-[ext_resource type="Resource" path="res://data/encounters/toad_and_fly.tres" id="5_vi8el"]
 [ext_resource type="Resource" path="res://data/events/weeping_well.tres" id="6_ipc13"]
-[ext_resource type="Resource" path="res://data/encounters/bloat_and_gnat.tres" id="6_qhplm"]
 [ext_resource type="Resource" path="res://data/events/gamblers_bones.tres" id="7_elhsp"]
 [ext_resource type="Resource" path="res://data/events/shrine_of_kings.tres" id="11_vi8el"]
 [ext_resource type="Resource" path="res://data/events/merchant_wreck.tres" id="12_qhplm"]
@@ -24,25 +20,26 @@
 [ext_resource type="Resource" path="res://data/events/black_mirror.tres" id="16_qi0j6"]
 [ext_resource type="Script" path="res://scripts/data/act_data.gd" id="16_ujpjj"]
 [ext_resource type="Script" path="res://scripts/data/zone_data.gd" id="17_dysjy"]
-[ext_resource type="Resource" path="res://data/events/drowned_chapel.tres" id="17_o8x47"]
+[ext_resource type="Resource" path="res://data/events/bone_collector.tres" id="17_o8x47"]
 [ext_resource type="Resource" path="res://data/events/buried_cairn.tres" id="18_4lg5q"]
 [ext_resource type="Resource" path="res://data/zones/ashen_ruins.tres" id="18_b02j8"]
-[ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="19_c07p7"]
 [ext_resource type="Resource" path="res://data/events/sealed_door.tres" id="19_ujpjj"]
 [ext_resource type="Resource" path="res://data/events/widows_wager.tres" id="20_dysjy"]
-[ext_resource type="Resource" path="res://data/zones/rotten_hollow.tres" id="20_ohqey"]
+[ext_resource type="Resource" path="res://data/events/healing_spring.tres" id="p26_healing_spring"]
+[ext_resource type="Resource" path="res://data/events/blood_altar.tres" id="p26_blood_altar"]
+[ext_resource type="Resource" path="res://data/events/grave_robber.tres" id="p26_grave_robber"]
 
 [resource]
 script = ExtResource("16_ujpjj")
 id = "ashen_deep"
 display_name = "The Ashen Deep"
-zones = Array[ExtResource("17_dysjy")]([ExtResource("18_b02j8"), ExtResource("19_c07p7"), ExtResource("20_ohqey")])
+zones = Array[ExtResource("17_dysjy")]([ExtResource("18_b02j8")])
 final_encounter = ExtResource("14_o8x47")
 final_look = ExtResource("15_4lg5q")
 final_map_icon_path = "res://assets/sprites/ui/map_lair_hollow_king.png"
-elites = Array[ExtResource("1_rmucm")]([ExtResource("2_ascct"), ExtResource("3_1j7iu"), ExtResource("4_qj73g")])
-events = Array[ExtResource("5_gyjvm")]([ExtResource("6_ipc13"), ExtResource("7_elhsp"), ExtResource("13_qi0j6"), ExtResource("12_qhplm"), ExtResource("11_vi8el"), ExtResource("16_qi0j6"), ExtResource("17_o8x47"), ExtResource("18_4lg5q"), ExtResource("19_ujpjj"), ExtResource("20_dysjy")])
+elites = Array[ExtResource("1_rmucm")]([ExtResource("3_1j7iu"), ExtResource("2_ascct")])
+events = Array[ExtResource("5_gyjvm")]([ExtResource("11_vi8el"), ExtResource("18_4lg5q"), ExtResource("19_ujpjj"), ExtResource("p26_blood_altar"), ExtResource("16_qi0j6"), ExtResource("20_dysjy"), ExtResource("6_ipc13"), ExtResource("p26_grave_robber"), ExtResource("p26_healing_spring"), ExtResource("13_qi0j6"), ExtResource("12_qhplm"), ExtResource("7_elhsp"), ExtResource("17_o8x47")])
 deep = true
-ambushes = Array[ExtResource("1_rmucm")]([ExtResource("2_vspi0"), ExtResource("3_0hhef"), ExtResource("4_01usj"), ExtResource("5_vi8el"), ExtResource("6_qhplm"), ExtResource("p19_priest_and_hyenas"), ExtResource("p19_lantern_trio"), ExtResource("p19_brute_and_rat"), ExtResource("p19_tick_nest")])
+ambushes = Array[ExtResource("1_rmucm")]([ExtResource("2_vspi0"), ExtResource("3_0hhef"), ExtResource("p19_priest_and_hyenas"), ExtResource("p19_brute_and_rat"), ExtResource("p19_slinger_trio"), ExtResource("4_01usj")])
 ambush_picture_path = "res://assets/sprites/events/ambush_ashen_deep.png"
 ambush_text = "The ashes shifted. What was lying in them was only waiting for you."

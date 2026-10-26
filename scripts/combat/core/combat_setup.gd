@@ -6,8 +6,13 @@ extends RefCounted
 enum Opening {
 	## Everyone's first turn comes from their speed.
 	NORMAL,
-	## The party struck a roaming enemy first: every party member acts before any enemy.
+	## First Strike (DESIGN.md 2.12): every party member acts before any enemy. (A zone's field
+	## swing gave it until phase 26; card #320 brings it back as a press, 8.22.)
 	FIRST_STRIKE,
+	## A Fight stop's fight (card #335): the First Strike ring is pressed in the fight, after its
+	## intro, and its result comes as the command set_opening (NORMAL or FIRST_STRIKE) before the
+	## first turn.
+	RING,
 }
 
 ## The Run action every hero has (DESIGN.md 2.13).
@@ -53,12 +58,12 @@ var enemy_speed_percent: int = 100
 var attack_tempo_percent: int = 0
 ## Hits take their forced kinds (REND, SWEEP; card #187): elite, guard and boss fights.
 var forced_hits: bool = false
-## Ordinary enemy hits may leave their marks (card #253). Off in a run's first zone, so the first
+## Ordinary enemy hits may leave their marks (card #253). Off on a run's first map row, so the first
 ## fights teach the hits before the marks; hard fights mark anyway. (The tutorial's enemy only uses
 ## each lesson's attack, so only the marks lesson shows one.)
 var allow_marks: bool = true
 ## Backpack items the party can use in this fight (DESIGN.md 8.1): {uid: int, item: ItemData,
-## amount: int (its effect percent, stronger once combined), name: String}.
+## amount: int (its effect percent: the item's own, as items have no levels since card #332), name: String}.
 ## Each can be used once; the run takes the used ones out of the backpack afterwards.
 var items: Array[Dictionary] = []
 

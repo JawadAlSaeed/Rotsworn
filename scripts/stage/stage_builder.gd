@@ -3,7 +3,7 @@ extends RefCounted
 ## Builds a place from data (DESIGN.md 7.3): the HD-2D environment (sun, ambient light, fog,
 ## bloom, colour grading, ambient occlusion) from a StageLook, depth of field for a camera, the
 ## ground and backdrop, solid blocks, lit sprite props and point lights, and the screen vignette.
-## Shared by the combat stage and the zones, so a fight looks like the place it started in.
+## The combat stage builds each fight's arena with it, in the look of the fight's place.
 
 const PROP_SHADER := preload("res://scripts/combat/presentation/fighter_sprite.gdshader")
 const VIGNETTE_SHADER := preload("res://scripts/stage/vignette.gdshader")
@@ -11,11 +11,8 @@ const GROUND_SHADER := preload("res://scripts/stage/ground_patch.gdshader")
 const FLOOR_SHADER := preload("res://scripts/stage/floor_ground.gdshader")
 ## The footprints measured so far (texture key -> width in art pixels).
 static var _footprints: Dictionary = {}
-## The materials of 3D pieces made so far ("piece|surface index|glow share" -> material), shared
-## by copies.
+## The materials of 3D pieces made so far ("piece|surface index" -> material), shared by copies.
 static var _piece_materials: Dictionary = {}
-## A built 3D piece remembers its WorldPieceData here (dim_glow needs it).
-const META_PIECE := &"world_piece"
 ## The prop shader's own sway speed (fighter_sprite.gdshader sway_speed), which a windy look scales.
 const SWAY_SPEED: float = 1.1
 ## The vignette draws above the 3D view and below every HUD (layer 10 and up).
@@ -100,7 +97,7 @@ static func camera_attributes(far_enabled: bool, far_distance: float, far_transi
 
 
 ## Applies the player's graphics options to every built place under `root` (after a change in
-## the settings, which can open over a fight or a zone).
+## the settings, which can open over a fight).
 static func apply_settings(root: Node) -> void:
 	if root == null:
 		return
@@ -139,13 +136,11 @@ static func _apply_camera_attributes(attributes: CameraAttributesPractical) -> v
 	attributes.dof_blur_near_enabled = bool(wants.near) and on
 
 
-## The tiled ground plane, centred at `centre`: the look's tile and its variants, mixed region by
-## region with tone drift by floor_ground.gdshader (card #186), all in world space so the pattern
-## does not move when the plane is centred elsewhere.
-## `cover`: the floor reaches at least this far (x, z), for a long zone (DESIGN.md 8.5).
-static func ground(look: StageLook, centre: Vector3 = Vector3.ZERO, cover: Vector2 = Vector2.ZERO) -> MeshInstance3D:
+## The tiled ground plane under the arena: the look's tile and its variants, mixed region by
+## region with tone drift by floor_ground.gdshader (card #186), all in world space.
+static func ground(look: StageLook) -> MeshInstance3D:
 	var mesh := PlaneMesh.new()
-	mesh.size = Vector2(maxf(look.floor_size, cover.x), maxf(look.floor_size, cover.y))
+	mesh.size = Vector2(look.floor_size, look.floor_size)
 	var tile_a := AssetLoader.texture(look.floor_tile_path, Vector2i(32, 32))
 	var tiles: Array[Texture2D] = [tile_a]
 	for path: String in look.floor_variant_paths:
@@ -169,7 +164,6 @@ static func ground(look: StageLook, centre: Vector3 = Vector3.ZERO, cover: Vecto
 	floor_mesh.name = "Floor"
 	floor_mesh.mesh = mesh
 	floor_mesh.material_override = mat
-	floor_mesh.position = Vector3(centre.x, 0.0, centre.z)
 	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return floor_mesh
 
@@ -239,7 +233,6 @@ static func piece_view(piece: WorldPieceData) -> MeshInstance3D:
 		node.material_override = _world_material(AssetLoader.fallback_texture(Vector2i(32, 32)), 1.6)
 		return node
 	node.mesh = model
-	node.set_meta(META_PIECE, piece)
 	for i: int in model.get_surface_count():
 		node.set_surface_override_material(i, _piece_material(piece, model, i))
 	for carried: PieceSpriteData in piece.sprites:
@@ -254,29 +247,6 @@ static func piece_view(piece: WorldPieceData) -> MeshInstance3D:
 		flat.sway = carried.sway
 		node.add_child(prop(flat))
 	return node
-
-
-## Dims a built prop's glow to `share` (a used shrine): a sprite's self glow to share of `glow`,
-## or every glowing surface of a 3D piece and the sprites it carries to share of their own (the
-## piece takes the dimmed copy of its shared materials, so other copies keep their glow).
-static func dim_glow(view: Node3D, glow: float, share: float) -> void:
-	var sprite := view as Sprite3D
-	if sprite != null:
-		(sprite.material_override as ShaderMaterial).set_shader_parameter("self_glow", glow * share)
-		return
-	var node := view as MeshInstance3D
-	if node == null or node.mesh == null or not node.has_meta(META_PIECE):
-		return
-	var piece := node.get_meta(META_PIECE) as WorldPieceData
-	for i: int in node.mesh.get_surface_count():
-		var surface := piece_surface(piece, node.mesh, i)
-		if surface != null and surface.glow > 0.0:
-			node.set_surface_override_material(i, _piece_material(piece, node.mesh, i, share))
-	for child: Node in node.get_children():
-		var carried := child as Sprite3D
-		if carried != null and carried.material_override is ShaderMaterial:
-			var mat := carried.material_override as ShaderMaterial
-			mat.set_shader_parameter("self_glow", float(mat.get_shader_parameter("self_glow")) * share)
 
 
 ## Moves a placed view (already turned and scaled) so the middle of its mesh's footprint, at the
@@ -301,26 +271,24 @@ static func _world_material(tex: Texture2D, world_size: float) -> StandardMateri
 	return mat
 
 
-## The material of surface `index` of a piece's model with its glow times `glow_share`, shared by
-## every copy (fewer materials draw faster). The cache keeps every one alive: a material owned by a
-## node alone errors in the renderer when the node is freed.
-static func _piece_material(piece: WorldPieceData, model: Mesh, index: int,
-		glow_share: float = 1.0) -> StandardMaterial3D:
-	var key := "%s|%d|%.3f" % [piece.resource_path if not piece.resource_path.is_empty()
-			else str(piece.get_instance_id()), index, glow_share]
+## The material of surface `index` of a piece's model, shared by every copy (fewer materials draw
+## faster). The cache keeps every one alive: a material owned by a node alone errors in the
+## renderer when the node is freed.
+static func _piece_material(piece: WorldPieceData, model: Mesh, index: int) -> StandardMaterial3D:
+	var key := "%s|%d" % [piece.resource_path if not piece.resource_path.is_empty()
+			else str(piece.get_instance_id()), index]
 	if _piece_materials.has(key):
 		return _piece_materials[key]
 	var surface := piece_surface(piece, model, index)
 	if surface == null:
 		push_warning("StageBuilder: piece '%s' has no surface for the model's surface %d" % [piece.id, index])
-	var mat := _make_piece_material(piece, surface, glow_share)
+	var mat := _make_piece_material(piece, surface)
 	_piece_materials[key] = mat
 	return mat
 
 
-## A new material for one piece surface (null: the checkerboard), its glow times `glow_share`.
-static func _make_piece_material(piece: WorldPieceData, surface: PieceSurfaceData,
-		glow_share: float = 1.0) -> StandardMaterial3D:
+## A new material for one piece surface (null: the checkerboard).
+static func _make_piece_material(piece: WorldPieceData, surface: PieceSurfaceData) -> StandardMaterial3D:
 	var mat: StandardMaterial3D
 	if surface == null:
 		mat = _world_material(AssetLoader.fallback_texture(Vector2i(32, 32)), 1.6)
@@ -330,7 +298,7 @@ static func _make_piece_material(piece: WorldPieceData, surface: PieceSurfaceDat
 		if surface.glow > 0.0:
 			mat.emission_enabled = true
 			mat.emission = surface.glow_color
-			mat.emission_energy_multiplier = surface.glow * glow_share
+			mat.emission_energy_multiplier = surface.glow
 			mat.emission_texture = tex
 	mat.vertex_color_use_as_albedo = true
 	mat.uv1_triplanar_sharpness = piece.texture_sharpness

@@ -7,7 +7,6 @@ const SCRIPTS := [
 	"res://scripts/combat/presentation/skill_sequence_runner.gd",
 	"res://scripts/combat/presentation/timed_sequence_runner.gd",
 	"res://scripts/combat/presentation/ranged_aim_layer.gd",
-	"res://scripts/explore/zone_controller.gd",
 	"res://scenes/main.gd",
 ]
 

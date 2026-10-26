@@ -4,7 +4,7 @@ extends GutTest
 ## Checks the grid layout, that the head and centre are measured on cell 0 only, that without
 ## clips every legacy call shows exactly its pose (as before phase 10), the idle and ready loops,
 ## driven clips, overrides over the base, the fallbacks, a sheet whose size does not match its
-## clips, the clamp to the grid, the facing suffix, death and delayed dissolves, hops, and the
+## clips, the clamp to the grid, a flip, death and delayed dissolves, hops, and the
 ## ClipNames fallback chain.
 
 const CELL := Vector2i(4, 6)
@@ -294,17 +294,10 @@ func test_frame_is_clamped_to_the_grid() -> void:
 		assert_lt(cell, COLS * ROWS)
 
 
-func test_flip_and_facing_suffix() -> void:
+func test_flip_keeps_the_frame() -> void:
 	var view := _view(true, _grid_sheet(), _clips({"strike": [3], "strike_front": [4]}), 8, 100, -1)
-	view.set_facing_suffix("_front")
 	view.play_pose(STRIKE, 1000)
-	assert_eq(_frame(view), 4, "the facing's own clip first")
-	view.set_facing_suffix("_back")
-	view.play_pose(STRIKE, 1000)
-	assert_eq(_frame(view), 3, "no back clip: the side one")
-	view.set_facing_suffix("")
-	view.play_pose(STRIKE, 1000)
-	assert_eq(_frame(view), 3)
+	assert_eq(_frame(view), 3, "the side clip (a fight never faces front)")
 	view.set_flip(true)
 	assert_true(_body(view).flip_h)
 	assert_eq(_frame(view), 3, "flipping keeps the frame")
@@ -393,10 +386,6 @@ func test_clip_names_catalogue_clips_follow_only_the_table() -> void:
 	assert_eq(ClipNames.resolve(clips, "rend_windup"), "strike_windup")
 	assert_eq(ClipNames.resolve(clips, "quick_cuts_3"), "strike", "a per-skill strike name")
 	assert_eq(ClipNames.resolve(clips, "walk_front"), "", "a catalogue clip never turns into strike")
-	assert_eq(ClipNames.resolve(clips, "pickup", "_back"), "", "suffix tried first, nothing found")
-	clips.clips["pickup_back"] = PackedInt32Array([2])
-	assert_eq(ClipNames.resolve(clips, "pickup", "_back"), "pickup_back")
-	assert_eq(ClipNames.resolve(clips, "strike", "_front"), "strike", "no facing clip: the plain one")
 
 
 func test_clip_names_poses_and_table_are_consistent() -> void:

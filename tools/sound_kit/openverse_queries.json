@@ -388,11 +388,6 @@
   "pickup sparkle",
   "found item"
  ],
- "item_combine": [
-  "craft",
-  "forge combine",
-  "crafting magic"
- ],
  "chest_open": [
   "chest open",
   "treasure chest open",

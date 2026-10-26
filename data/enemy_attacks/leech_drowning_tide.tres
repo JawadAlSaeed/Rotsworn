@@ -1,0 +1,83 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+[ext_resource type="Resource" path="res://data/projectiles/black_bile.tres" id="3_black_bile"]
+
+[sub_resource type="Resource" id="Hit_0"]
+script = ExtResource("1_hit")
+impact_ms = 1000
+kind = 1
+damage_percent = 30
+approach_ms = 500
+
+[sub_resource type="Resource" id="Hit_1"]
+script = ExtResource("1_hit")
+impact_ms = 1600
+kind = 1
+damage_percent = 30
+approach_ms = 450
+
+[sub_resource type="Resource" id="Hit_2"]
+script = ExtResource("1_hit")
+impact_ms = 2200
+forced_kind = 4
+damage_percent = 30
+approach_ms = 360
+anim = "tail"
+
+[sub_resource type="Resource" id="Hit_3"]
+script = ExtResource("1_hit")
+impact_ms = 2900
+damage_percent = 30
+approach_ms = 550
+projectile = ExtResource("3_black_bile")
+
+[sub_resource type="Resource" id="Hit_4"]
+script = ExtResource("1_hit")
+impact_ms = 3300
+forced_kind = 3
+damage_percent = 32
+approach_ms = 220
+
+[sub_resource type="Resource" id="Hit_5"]
+script = ExtResource("1_hit")
+impact_ms = 4100
+kind = 1
+damage_percent = 36
+approach_ms = 650
+
+[sub_resource type="Resource" id="Hit_6"]
+script = ExtResource("1_hit")
+impact_ms = 4700
+forced_kind = 4
+damage_percent = 30
+approach_ms = 200
+forced_feint = true
+anim = "tail"
+
+[sub_resource type="Resource" id="Hit_7"]
+script = ExtResource("1_hit")
+impact_ms = 5400
+damage_percent = 34
+approach_ms = 480
+projectile = ExtResource("3_black_bile")
+
+[sub_resource type="Resource" id="Hit_8"]
+script = ExtResource("1_hit")
+impact_ms = 6000
+forced_kind = 3
+damage_percent = 38
+approach_ms = 220
+
+[resource]
+script = ExtResource("2_attack")
+id = "leech_drowning_tide"
+display_name = "Drowning Tide"
+target_mode = 1
+weight = 9
+charge_turns = 3
+break_damage_percent = 17
+cooldown_turns = 2
+start_cooldown_turns = 2
+hits = Array[ExtResource("1_hit")]([SubResource("Hit_0"), SubResource("Hit_1"), SubResource("Hit_2"), SubResource("Hit_3"), SubResource("Hit_4"), SubResource("Hit_5"), SubResource("Hit_6"), SubResource("Hit_7"), SubResource("Hit_8")])

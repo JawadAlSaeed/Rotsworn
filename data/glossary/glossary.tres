@@ -22,7 +22,7 @@ script = ExtResource("1_d4656")
 id = "first_strike"
 topic = "fight"
 term = "First strike"
-text = "In a zone, hit a roaming enemy before it touches you. Your whole party then acts before any enemy in that fight."
+text = "A Fight stop's fight opens with one ring, once the camera has swept over the enemies. Press the skill button as it closes: GOOD or PERFECT and your whole party acts before any enemy. Guards, elites and bosses open normally."
 tag = "FIRST STRIKE!"
 color = Color(1, 0.82, 0.3, 1)
 
@@ -383,7 +383,7 @@ script = ExtResource("1_d4656")
 id = "mark"
 topic = "hero_marks"
 term = "Marks"
-text = "A hit with a coloured dot leaves its mark if you fail to defend it. In a run they start after the first zone; elites, guards and bosses mark everywhere. Defend the dot!"
+text = "A hit with a coloured dot leaves its mark if you fail to defend it. In a run they start after the first map row; elites, guards and bosses mark everywhere. Defend the dot!"
 
 [sub_resource type="Resource" id="Resource_g3g5a"]
 script = ExtResource("1_d4656")
@@ -560,19 +560,12 @@ topic = "dooms"
 term = "Buying turns"
 text = "Slowing or pushing back a gathering enemy never cancels its Doom, but it gives your party more turns inside the window to break it."
 
-[sub_resource type="Resource" id="Resource_esrfe"]
-script = ExtResource("1_d4656")
-id = "roaming"
-topic = "enemies"
-term = "Roaming enemy"
-text = "Seen walking in a zone. Touch one and the fight begins; strike it first for FIRST STRIKE. All but the guard are optional: more gold and XP, more risk."
-
 [sub_resource type="Resource" id="Resource_y6eba"]
 script = ExtResource("1_d4656")
 id = "elite"
 topic = "enemies"
 term = "Elite"
-text = "A tougher fight: more health, harder hits and better pay, with the hard-fight rends and sweeps. Met on skull stops and as zone champions. You cannot run."
+text = "A tougher fight: more health, harder hits and better pay, with the hard-fight rends and sweeps. Met on skull stops. You cannot run."
 tag = "ELITE"
 color = Color(0.85, 0.45, 1, 1)
 
@@ -581,25 +574,16 @@ script = ExtResource("1_d4656")
 id = "guard"
 topic = "enemies"
 term = "Guard"
-text = "Each zone's mini-boss at the far end, with a second phase at half health and a Doom of its own. Beating it clears the zone and gives spoils."
+text = "Each place's mini-boss, met at some Elite stops (never two in a row on a road), with a second phase at half health and a Doom of its own. Beating it gives spoils."
 tag = "GUARD"
 color = Color(1, 0.82, 0.3, 1)
-
-[sub_resource type="Resource" id="Resource_nw34n"]
-script = ExtResource("1_d4656")
-id = "champion"
-topic = "enemies"
-term = "Champion"
-text = "An elite that stands still beside a prize chest and never chases you. Beat it and the chest opens with no key. Optional."
-tag = "ELITE"
-color = Color(0.85, 0.45, 1, 1)
 
 [sub_resource type="Resource" id="Resource_1c0mm"]
 script = ExtResource("1_d4656")
 id = "boss"
 topic = "enemies"
 term = "Boss"
-text = "An act's last fight: The Husk Lord, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run."
+text = "An act's last fight: The Husk Lord, The Leech Queen, then The Hollow King. Its name is announced, it has a second phase and a Doom, and you cannot run."
 
 [sub_resource type="Resource" id="Resource_rjq6c"]
 script = ExtResource("1_d4656")
@@ -613,7 +597,7 @@ script = ExtResource("1_d4656")
 id = "deep_variant"
 topic = "enemies"
 term = "Deep variant"
-text = "A tougher, recoloured kin met in the second half of a run (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere."
+text = "A tougher, recoloured kin met in a run's last act (Ashen Husk, Blight Bloat and so on). Same body, one new move, and rends and sweeps everywhere."
 
 [sub_resource type="Resource" id="Resource_d8cfa"]
 script = ExtResource("1_d4656")
@@ -655,10 +639,10 @@ text = "Hunters such as hyenas and shades favour wounded heroes, guards and boss
 
 [sub_resource type="Resource" id="Resource_fbvxs"]
 script = ExtResource("1_d4656")
-id = "stop_zone"
+id = "stop_fight"
 topic = "map"
-term = "Zone stop"
-text = "A place to explore, left to right. Beat the guard at the far end to move on. Every other enemy is optional and pays more gold. Each zone stop is a different place."
+term = "Fight stop"
+text = "A place's painted picture and name: one fight from that place's monsters, in its look and weather. Win for gold, XP and now and then an item. Running away passes the stop with no pay."
 icon_path = "res://assets/sprites/ui/map_zone_rotten_hollow.png"
 
 [sub_resource type="Resource" id="Resource_s1dhs"]
@@ -666,7 +650,7 @@ script = ExtResource("1_d4656")
 id = "stop_elite"
 topic = "map"
 term = "Elite stop"
-text = "A skull over crossed blades: one hard fight, then spoils of rare Relics or better, and more gold. The crowned elite's spoils hold a legendary. It cannot be run from."
+text = "A skull over crossed blades: one hard fight, an elite group or the place's guard. Win for a pick of rare Relics or better and more gold. The crowned elite's spoils hold a legendary. It cannot be run from."
 icon_path = "res://assets/sprites/ui/map_elite.png"
 
 [sub_resource type="Resource" id="Resource_wmbx1"]
@@ -674,7 +658,7 @@ script = ExtResource("1_d4656")
 id = "stop_event"
 topic = "map"
 term = "Event stop"
-text = "A red question mark: a story with a choice. Every choice has a price, and some turn into a fight. Leave is always there."
+text = "A red question mark: a story with a choice. Every choice has a price, and some turn into a fight. Walk on is always there."
 icon_path = "res://assets/sprites/ui/map_event.png"
 
 [sub_resource type="Resource" id="Resource_0y7iv"]
@@ -682,7 +666,7 @@ script = ExtResource("1_d4656")
 id = "stop_treasure"
 topic = "map"
 term = "Treasure stop"
-text = "Two chests, open one. The plain one holds gold and a rare item. The rotten one holds a Relic, but a curse or a fight may come with it."
+text = "Two chests, open one. The plain one holds gold and a rare item. The rotten one holds a pick of Relics, but a curse or a fight may come with it."
 icon_path = "res://assets/sprites/ui/map_treasure.png"
 
 [sub_resource type="Resource" id="Resource_kghdt"]
@@ -690,7 +674,7 @@ script = ExtResource("1_d4656")
 id = "stop_rest"
 topic = "map"
 term = "Campfire stop"
-text = "A fire to gather round. Pick one thing: Rest, Train or Upgrade. The campfire before the boss offers Rest, Keep watch (a full team gauge) or Sharpen (+1 AP for the boss fight)."
+text = "A fire to gather round. Pick one thing: Rest or Train. The campfire before the boss offers Rest, Keep watch (a full team gauge) or Sharpen (+1 AP for the boss fight)."
 icon_path = "res://assets/sprites/ui/map_rest.png"
 
 [sub_resource type="Resource" id="Resource_dyfhy"]
@@ -724,85 +708,46 @@ topic = "map"
 term = "Planning a road"
 text = "Once a next stop is picked, every stop and road it cannot lead to fades. Look up the map: a shop or a fire often matters more than one more fight."
 
-[sub_resource type="Resource" id="Resource_lklpv"]
-script = ExtResource("1_d4656")
-id = "seal"
-topic = "zones"
-term = "Rot seal"
-text = "A glowing standing stone, one in each middle part of a zone, often down a side path or past enemies. Walk up and use Confirm to take it."
-icon_path = "res://assets/sprites/env/seal_stone.png"
-
-[sub_resource type="Resource" id="Resource_3r8ir"]
-script = ExtResource("1_d4656")
-id = "gate"
-topic = "zones"
-term = "Rot gate"
-text = "A wall of rotten roots in front of the guard. It stays shut until the party has two of the zone's three seals."
-icon_path = "res://assets/sprites/env/rot_gate.png"
-
 [sub_resource type="Resource" id="Resource_xigk7"]
 script = ExtResource("1_d4656")
 id = "shrine"
-topic = "zones"
+topic = "shops"
 term = "Shrine"
-text = "Walk up and pray: a yes or no with the price and the gift written out. Springs heal, altars take blood for a find, idols fill the gauge. Each works once."
-icon_path = "res://assets/sprites/env/shrine_altar.png"
+text = "A kind of \"?\" event: the Healing Spring, the Blood Altar or the War Idol. Springs heal, altars take blood for a find, idols teach or fill the gauge. Like every event, the gift has a price."
+icon_path = "res://assets/sprites/ui/map_event.png"
 
 [sub_resource type="Resource" id="Resource_3yeq3"]
 script = ExtResource("1_d4656")
 id = "wanderer"
-topic = "zones"
+topic = "shops"
 term = "Wanderer"
-text = "A traveller who turns up in some visits. Talk to them for a deal: the Key Peddler sells keys, the Grave Robber rare finds, the Old Pilgrim heals you for 20 gold."
-icon_path = "res://assets/sprites/env/wanderer_peddler.png"
-
-[sub_resource type="Resource" id="Resource_8xwyj"]
-script = ExtResource("1_d4656")
-id = "glint"
-topic = "zones"
-term = "Glinting spot"
-text = "A sparkle on the ground. Walk up and pick it up for an item or some gold. With no free pocket, the pack opens so you can swap or leave it."
-icon_path = "res://assets/sprites/fx/glint.png"
-
-[sub_resource type="Resource" id="Resource_nfl5o"]
-script = ExtResource("1_d4656")
-id = "chest"
-topic = "zones"
-term = "Locked chest"
-text = "Holds a rare or better prize, and uses up one Key from the backpack. A champion's prize chest needs no key."
-icon_path = "res://assets/sprites/env/chest_closed.png"
-
-[sub_resource type="Resource" id="Resource_nokcs"]
-script = ExtResource("1_d4656")
-id = "shuffled"
-topic = "zones"
-term = "A new zone each time"
-text = "Every visit builds the zone from shuffled parts, so seals, shrines, wanderers and enemies stand somewhere new."
+text = "A kind of \"?\" event: someone met on the road with a deal, such as the Grave Robber selling what he dug up or a Wounded Pilgrim who blesses what you give. Walk on is always there."
+icon_path = "res://assets/sprites/ui/map_event.png"
 
 [sub_resource type="Resource" id="Resource_tnp1o"]
 script = ExtResource("1_d4656")
 id = "gear"
 topic = "gear"
 term = "Relic"
-text = "Kept forever. Worn by one hero in a Relic slot (one at the start of a run, three by act 2): an effect and a small stat. Wear it in won fights to fill its pips and learn its Echo for good."
+text = "Given to one hero, who keeps it all run: an effect and a small stat. No slots, no copies. Elite stops, bosses, the rotten chest and shops offer them. Every Relic found goes in your Relic book."
 icon_path = "res://assets/sprites/ui/gear_icon.png"
-
-[sub_resource type="Resource" id="Resource_echo1"]
-script = ExtResource("1_d4656")
-id = "echo"
-topic = "gear"
-term = "Echo"
-text = "Wear a Relic in won fights to fill its pips, run after run; elites, guards and bosses fill more. Full pips teach its Echo for good: its effect without the stat. One hero wears each Echo, for Echo points from level ups."
-tag = "Echo 7/12"
-color = Color(0.62, 0.32, 0.72, 1)
 
 [sub_resource type="Resource" id="Resource_rlvl1"]
 script = ExtResource("1_d4656")
-id = "relic_level"
+id = "relic_give"
 topic = "gear"
-term = "Relic level"
-text = "A Relic joins a run at level 1 (Home: found before but left out of the bag). A copy found in the same run raises it, up to level 3, and its stat grows. Levels last one run; a copy past 3 pays gold."
-tag = "Lv 2 > 3"
+term = "Who gets it?"
+text = "Pick a Relic, then the hero who gets it. In co-op: your own heroes. A hero keeps every Relic given, until the run ends."
+tag = "Who gets it?"
+color = Color(1, 0.82, 0.3, 1)
+
+[sub_resource type="Resource" id="Resource_rbook1"]
+script = ExtResource("1_d4656")
+id = "relic_book"
+topic = "gear"
+term = "Relic book"
+text = "Every Relic picked in a run, won or lost, is kept for good in the book on the main menu (New: not in it yet). Before each run every hero may take one Relic from it. Online each player picks from their own book."
+tag = "Starting Relics"
 color = Color(1, 0.82, 0.3, 1)
 
 [sub_resource type="Resource" id="Resource_faexo"]
@@ -827,8 +772,8 @@ script = ExtResource("1_d4656")
 id = "backpack"
 topic = "gear"
 term = "Pack"
-text = "Alder's pack: six pockets, one item each, whatever its shape. A Bigger Pack adds a pocket, up to eight. Open it from the party screen's Bag tab."
-icon_path = "res://assets/sprites/items/bigger_pack.png"
+text = "Alder's pack: four pockets, one consumable each, for the whole run. Open it from the party screen's Bag tab."
+icon_path = "res://assets/sprites/ui/chip_bag.png"
 
 [sub_resource type="Resource" id="Resource_m7iqa"]
 script = ExtResource("1_d4656")
@@ -843,7 +788,7 @@ script = ExtResource("1_d4656")
 id = "rotten_item"
 topic = "gear"
 term = "Curse"
-text = "Only hurts: every hero loses a little HP at the start of each of their turns in a fight. It takes a pocket and cannot be sold. A shop's Cleanse, or throwing it away, gets rid of it."
+text = "Only hurts: every hero loses a little HP at the start of each of their turns in a fight. It sits on the party, shown on the top strip, not in the pack. Only a shop's Cleanse lifts it."
 icon_path = "res://assets/sprites/items/rotting_heart.png"
 color = Color(0.55, 0.85, 0.3, 1)
 
@@ -855,28 +800,13 @@ term = "Consumable"
 text = "Used up. A Salve heals one hero, a Feast the party, a Bomb hurts every enemy, Smelling Salts lift a downed hero, an Antidote or Holy Water lifts marks. In a fight they cost AP."
 icon_path = "res://assets/sprites/items/salve.png"
 
-[sub_resource type="Resource" id="Resource_nxshk"]
-script = ExtResource("1_d4656")
-id = "tonic"
-topic = "gear"
-term = "Tonic"
-text = "Gives one hero more max HP for the rest of the run. A hero can drink only two, and Tonics cannot be combined or upgraded."
-icon_path = "res://assets/sprites/items/tonic.png"
-
 [sub_resource type="Resource" id="Resource_7dvlr"]
 script = ExtResource("1_d4656")
-id = "key_treasure"
+id = "treasure"
 topic = "gear"
-term = "Keys and treasure"
-text = "A Key opens one locked chest. Treasure (rings, gems, idols) turns into gold the moment you find it."
-icon_path = "res://assets/sprites/items/key.png"
-
-[sub_resource type="Resource" id="Resource_1pxyj"]
-script = ExtResource("1_d4656")
-id = "combine"
-topic = "gear"
-term = "Combine"
-text = "Put an item onto the same item at the same level and it goes up a level (Salve+), with a stronger effect. Consumables and charms only."
+term = "Treasure"
+text = "Rings, gems and idols turn into gold the moment you find them. They never take room in the pack."
+icon_path = "res://assets/sprites/items/golden_idol.png"
 
 [sub_resource type="Resource" id="Resource_iobjp"]
 script = ExtResource("1_d4656")
@@ -891,14 +821,7 @@ script = ExtResource("1_d4656")
 id = "shop_cleanse"
 topic = "shops"
 term = "Cleanse"
-text = "A shop service: throw away one rotten item for good."
-
-[sub_resource type="Resource" id="Resource_05ddp"]
-script = ExtResource("1_d4656")
-id = "shop_upgrade"
-topic = "shops"
-term = "Upgrade"
-text = "Pay to raise one backpack item by a level. At a campfire the same upgrade is free, but it is your one choice there."
+text = "A shop service: lift one curse off the party for good."
 
 [sub_resource type="Resource" id="Resource_nl2ya"]
 script = ExtResource("1_d4656")
@@ -942,7 +865,7 @@ script = ExtResource("1_d4656")
 id = "the_run"
 topic = "run"
 term = "The run"
-text = "A road through the map to the last boss, over two acts: The Rotten Road and The Ashen Deep. If the whole party falls it is over. Only your oaths and Journal carry on."
+text = "A road through the map to the last boss, over three acts: The Rotten Road, The Drowned Mire and The Ashen Deep. If the whole party falls it is over. Only your oaths and Journal carry on."
 
 [sub_resource type="Resource" id="Resource_oxqn7"]
 script = ExtResource("1_d4656")
@@ -963,7 +886,7 @@ script = ExtResource("1_d4656")
 id = "gold"
 topic = "run"
 term = "Gold"
-text = "Earned from fights and chests, spent in shops and at some shrines. Elites pay more, and the Oath of Want pays less."
+text = "Earned from fights, events and treasure chests, spent in shops and at some events. Elites pay more, and the Oath of Want pays less."
 
 [sub_resource type="Resource" id="Resource_uw7h0"]
 script = ExtResource("1_d4656")
@@ -984,7 +907,7 @@ script = ExtResource("1_d4656")
 id = "hp_carries"
 topic = "run"
 term = "HP carries over"
-text = "Health does not refill between fights. Campfires, shops and shrines are where you mend. Marks and AP start fresh each fight."
+text = "Health does not refill between fights. Campfires, shops and some events are where you mend. Marks and AP start fresh each fight."
 
 [sub_resource type="Resource" id="Resource_b30i1"]
 script = ExtResource("1_d4656")
@@ -1000,33 +923,8 @@ topic = "run"
 term = "Rot Journal"
 text = "In Extras: a book of every enemy and attack you meet in a run, with your record against each. Nothing in it changes a fight."
 
-[sub_resource type="Resource" id="Resource_p25rush1"]
-script = ExtResource("1_d4656")
-id = "fight_rush"
-topic = "rush"
-term = "Fight Rush"
-text = "Pick it under New Run: fight after fight, with no map, zones, shops or campfires. Each fight is harder, every 5th is an elite and every 10th a boss. HP carries over, there is no running away, and one loss ends it."
-icon_path = "res://assets/sprites/ui/choice_rush.png"
-
-[sub_resource type="Resource" id="Resource_p25rush2"]
-script = ExtResource("1_d4656")
-id = "rush_cards"
-topic = "rush"
-term = "Reward cards"
-text = "After each win pick a card: Heal, Train (attribute points) or an item. After an elite or a boss, Relics take the item's place; they last for that Rush only. A boss win heals everyone fully. XP past level 10 earns extra picks."
-icon_path = "res://assets/sprites/ui/choice_heal.png"
-
-[sub_resource type="Resource" id="Resource_p25rush3"]
-script = ExtResource("1_d4656")
-id = "rush_records"
-topic = "rush"
-term = "Records"
-text = "The furthest fight reached is kept for Solo, Duo and Trio, with its date. A friend who joins moves the Rush up a size. The New Run card shows the best. Nothing else goes back: Relics and Echo pips stay as they were."
-tag = "NEW RECORD"
-color = Color(1, 0.82, 0.3, 1)
-
 [resource]
 script = ExtResource("2_633y8")
-topic_ids = PackedStringArray("fight", "reading", "defence", "skills", "team", "foe_marks", "hero_marks", "hero_help", "dooms", "enemies", "map", "zones", "gear", "shops", "run", "rush")
-topic_names = PackedStringArray("The fight", "Reading attacks", "Defence", "Skills and AP", "Counters and team", "Marks on enemies", "Marks on heroes", "Help on heroes", "Dooms", "Enemies", "The map", "In a zone", "Gear and items", "Shops and camps", "The run", "Fight Rush")
-entries = Array[ExtResource("1_d4656")]([SubResource("Resource_4pvst"), SubResource("Resource_hd6qm"), SubResource("Resource_fpscn"), SubResource("Resource_tb6tb"), SubResource("Resource_03a7d"), SubResource("Resource_e1ac5"), SubResource("Resource_4h0w4"), SubResource("Resource_8w76o"), SubResource("Resource_gng8j"), SubResource("Resource_o85np"), SubResource("Resource_lgwoi"), SubResource("Resource_fckk8"), SubResource("Resource_0tpnu"), SubResource("Resource_7jpox"), SubResource("Resource_8pdof"), SubResource("Resource_vatr1"), SubResource("Resource_4ue4x"), SubResource("Resource_ney2o"), SubResource("Resource_rq2lu"), SubResource("Resource_0sw3m"), SubResource("Resource_ym7ni"), SubResource("Resource_hqq7o"), SubResource("Resource_0k6kt"), SubResource("Resource_b1y1j"), SubResource("Resource_yh8rg"), SubResource("Resource_tdm13"), SubResource("Resource_ygdo2"), SubResource("Resource_jrthy"), SubResource("Resource_p048w"), SubResource("Resource_wdupp"), SubResource("Resource_vvnsa"), SubResource("Resource_uf6lj"), SubResource("Resource_86rir"), SubResource("Resource_g3uas"), SubResource("Resource_1kck3"), SubResource("Resource_g886g"), SubResource("Resource_p24streak"), SubResource("Resource_hl2di"), SubResource("Resource_fmp8d"), SubResource("Resource_qwexe"), SubResource("Resource_870e2"), SubResource("Resource_ifc33"), SubResource("Resource_ntj47"), SubResource("Resource_jp5hm"), SubResource("Resource_e3swq"), SubResource("Resource_g3g5a"), SubResource("Resource_kg24a"), SubResource("Resource_l8ilw"), SubResource("Resource_vd1pi"), SubResource("Resource_h4eme"), SubResource("Resource_1f42n"), SubResource("Resource_vqib0"), SubResource("Resource_akq8o"), SubResource("Resource_bgl7y"), SubResource("Resource_e5dtf"), SubResource("Resource_87ady"), SubResource("Resource_f2ok5"), SubResource("Resource_q6jq4"), SubResource("Resource_2nuks"), SubResource("Resource_to4cp"), SubResource("Resource_j1o2r"), SubResource("Resource_03k8o"), SubResource("Resource_ffvon"), SubResource("Resource_t2kkd"), SubResource("Resource_esrfe"), SubResource("Resource_y6eba"), SubResource("Resource_p8moy"), SubResource("Resource_nw34n"), SubResource("Resource_1c0mm"), SubResource("Resource_rjq6c"), SubResource("Resource_erspk"), SubResource("Resource_d8cfa"), SubResource("Resource_s1j28"), SubResource("Resource_p2qmn"), SubResource("Resource_3al64"), SubResource("Resource_cu3qc"), SubResource("Resource_fbvxs"), SubResource("Resource_s1dhs"), SubResource("Resource_wmbx1"), SubResource("Resource_0y7iv"), SubResource("Resource_kghdt"), SubResource("Resource_dyfhy"), SubResource("Resource_35qqt"), SubResource("Resource_vc7d0"), SubResource("Resource_c00ge"), SubResource("Resource_lklpv"), SubResource("Resource_3r8ir"), SubResource("Resource_xigk7"), SubResource("Resource_3yeq3"), SubResource("Resource_8xwyj"), SubResource("Resource_nfl5o"), SubResource("Resource_nokcs"), SubResource("Resource_tnp1o"), SubResource("Resource_echo1"), SubResource("Resource_rlvl1"), SubResource("Resource_faexo"), SubResource("Resource_077nu"), SubResource("Resource_osy5s"), SubResource("Resource_m7iqa"), SubResource("Resource_ufadv"), SubResource("Resource_wuu7b"), SubResource("Resource_nxshk"), SubResource("Resource_7dvlr"), SubResource("Resource_1pxyj"), SubResource("Resource_iobjp"), SubResource("Resource_7lplp"), SubResource("Resource_05ddp"), SubResource("Resource_nl2ya"), SubResource("Resource_1vr0v"), SubResource("Resource_42uva"), SubResource("Resource_j6wsn"), SubResource("Resource_t2qvb"), SubResource("Resource_2bmla"), SubResource("Resource_oxqn7"), SubResource("Resource_voqww"), SubResource("Resource_ujnpq"), SubResource("Resource_uw7h0"), SubResource("Resource_d4ofk"), SubResource("Resource_wvly6"), SubResource("Resource_b30i1"), SubResource("Resource_dkefa"), SubResource("Resource_p25rush1"), SubResource("Resource_p25rush2"), SubResource("Resource_p25rush3")])
+topic_ids = PackedStringArray("fight", "reading", "defence", "skills", "team", "foe_marks", "hero_marks", "hero_help", "dooms", "enemies", "map", "gear", "shops", "run")
+topic_names = PackedStringArray("The fight", "Reading attacks", "Defence", "Skills and AP", "Counters and team", "Marks on enemies", "Marks on heroes", "Help on heroes", "Dooms", "Enemies", "The map", "Gear and items", "Shops and camps", "The run")
+entries = Array[ExtResource("1_d4656")]([SubResource("Resource_4pvst"), SubResource("Resource_hd6qm"), SubResource("Resource_fpscn"), SubResource("Resource_tb6tb"), SubResource("Resource_03a7d"), SubResource("Resource_e1ac5"), SubResource("Resource_4h0w4"), SubResource("Resource_8w76o"), SubResource("Resource_gng8j"), SubResource("Resource_o85np"), SubResource("Resource_lgwoi"), SubResource("Resource_fckk8"), SubResource("Resource_0tpnu"), SubResource("Resource_7jpox"), SubResource("Resource_8pdof"), SubResource("Resource_vatr1"), SubResource("Resource_4ue4x"), SubResource("Resource_ney2o"), SubResource("Resource_rq2lu"), SubResource("Resource_0sw3m"), SubResource("Resource_ym7ni"), SubResource("Resource_hqq7o"), SubResource("Resource_0k6kt"), SubResource("Resource_b1y1j"), SubResource("Resource_yh8rg"), SubResource("Resource_tdm13"), SubResource("Resource_ygdo2"), SubResource("Resource_jrthy"), SubResource("Resource_p048w"), SubResource("Resource_wdupp"), SubResource("Resource_vvnsa"), SubResource("Resource_uf6lj"), SubResource("Resource_86rir"), SubResource("Resource_g3uas"), SubResource("Resource_1kck3"), SubResource("Resource_g886g"), SubResource("Resource_p24streak"), SubResource("Resource_hl2di"), SubResource("Resource_fmp8d"), SubResource("Resource_qwexe"), SubResource("Resource_870e2"), SubResource("Resource_ifc33"), SubResource("Resource_ntj47"), SubResource("Resource_jp5hm"), SubResource("Resource_e3swq"), SubResource("Resource_g3g5a"), SubResource("Resource_kg24a"), SubResource("Resource_l8ilw"), SubResource("Resource_vd1pi"), SubResource("Resource_h4eme"), SubResource("Resource_1f42n"), SubResource("Resource_vqib0"), SubResource("Resource_akq8o"), SubResource("Resource_bgl7y"), SubResource("Resource_e5dtf"), SubResource("Resource_87ady"), SubResource("Resource_f2ok5"), SubResource("Resource_q6jq4"), SubResource("Resource_2nuks"), SubResource("Resource_to4cp"), SubResource("Resource_j1o2r"), SubResource("Resource_03k8o"), SubResource("Resource_ffvon"), SubResource("Resource_t2kkd"), SubResource("Resource_y6eba"), SubResource("Resource_p8moy"), SubResource("Resource_1c0mm"), SubResource("Resource_rjq6c"), SubResource("Resource_erspk"), SubResource("Resource_d8cfa"), SubResource("Resource_s1j28"), SubResource("Resource_p2qmn"), SubResource("Resource_3al64"), SubResource("Resource_cu3qc"), SubResource("Resource_fbvxs"), SubResource("Resource_s1dhs"), SubResource("Resource_wmbx1"), SubResource("Resource_0y7iv"), SubResource("Resource_kghdt"), SubResource("Resource_dyfhy"), SubResource("Resource_35qqt"), SubResource("Resource_vc7d0"), SubResource("Resource_c00ge"), SubResource("Resource_tnp1o"), SubResource("Resource_rlvl1"), SubResource("Resource_rbook1"), SubResource("Resource_faexo"), SubResource("Resource_077nu"), SubResource("Resource_osy5s"), SubResource("Resource_m7iqa"), SubResource("Resource_ufadv"), SubResource("Resource_wuu7b"), SubResource("Resource_7dvlr"), SubResource("Resource_iobjp"), SubResource("Resource_7lplp"), SubResource("Resource_nl2ya"), SubResource("Resource_1vr0v"), SubResource("Resource_42uva"), SubResource("Resource_j6wsn"), SubResource("Resource_xigk7"), SubResource("Resource_3yeq3"), SubResource("Resource_t2qvb"), SubResource("Resource_2bmla"), SubResource("Resource_oxqn7"), SubResource("Resource_voqww"), SubResource("Resource_ujnpq"), SubResource("Resource_uw7h0"), SubResource("Resource_d4ofk"), SubResource("Resource_wvly6"), SubResource("Resource_b30i1"), SubResource("Resource_dkefa")])

@@ -42,7 +42,7 @@ PROPS = {"dead_tree": (48, 64), "rotten_tree": (64, 80), "rock": (32, 24), "pill
          "lamp": (16, 48), "glow_shroom": (24, 24), "grass": (24, 12)}
 TILES = ["floor_tile", "cliff", "ruin_wall"]
 # The open floors (card #186): three variants each, calm, seamless, no stripes.
-FLOORS = ["hollow_floor", "ash_tile", "bog_tile", "throne_tile"]
+FLOORS = ["hollow_floor", "ash_tile", "bog_tile", "throne_tile", "mire_tile"]
 FLOOR_FILES = [f + s for f in FLOORS for s in ("", "_b", "_c")]
 # The ground patches that lie on the floor: also seamless and stripe-free (they may be busier).
 PATCHES = ["leaf_litter", "moss"]
@@ -51,13 +51,16 @@ FX = {"shadow": (32, 12), "shockwave": (64, 16), "slash": (32, 32), "spark": (16
 UI = {"ap_pip": (10, 10), "ap_pip_empty": (10, 10), "hit_normal": (12, 12), "hit_ground": (12, 12),
       "lock": (12, 12), "controller": (32, 22), "map_paper": (440, 520), "map_roller": (450, 16), "map_shop": (24, 24),
       "map_rest": (24, 24), "map_zone_rotten_hollow": (24, 24), "map_zone_sunken_bog": (24, 24),
-      "map_zone_ashen_ruins": (24, 24), "map_lair_hollow_king": (32, 32), "map_flag": (14, 22),
+      "map_zone_ashen_ruins": (24, 24), "map_lair_hollow_king": (32, 32), "map_lair_leech_queen": (32, 32), "map_flag": (14, 22),
       "map_ring": (30, 30), "map_ring_big": (40, 40)}
+# Map pictures that float on the paper (no ground under them): a clear 1-pixel border all round, so
+# their outline is never cut off at the frame's edge.
+UI_CLEAR_BORDER = ["map_elite", "map_event", "map_ring", "map_ring_big"]
 
 # The "?" pictures (card #199): one per event file in data/events/, and one per act's ambush page.
 EVENT_PICTURE = (128, 64)
 EVENT_PICTURE_COLOURS = 96
-AMBUSH_PICTURES = ["ambush_rotten_road", "ambush_ashen_deep"]
+AMBUSH_PICTURES = ["ambush_rotten_road", "ambush_drowned_mire", "ambush_ashen_deep"]
 
 errors: list[str] = []
 warnings: list[str] = []
@@ -357,6 +360,13 @@ def main() -> int:
         a = load(rel)
         if a is not None and size_is(rel, a, w, h):
             hard_alpha(rel, a)
+    for u in UI_CLEAR_BORDER:
+        rel = "ui/%s.png" % u
+        a = load(rel)
+        if a is not None:
+            solid = a[..., 3] > 0
+            if solid[0, :].any() or solid[-1, :].any() or solid[:, 0].any() or solid[:, -1].any():
+                errors.append("%s: touches a frame edge (clipped or no outline room)" % rel)
     events_dir = os.path.join(ROOT, "data", "events")
     event_ids = sorted(f[:-5] for f in os.listdir(events_dir) if f.endswith(".tres")) if os.path.isdir(events_dir) else []
     for e in event_ids + AMBUSH_PICTURES:

@@ -4,8 +4,8 @@ extends Node
 ## Usage: Audio.play("parry")
 ## Music: play_music(path) loops one song; asking for the song already playing lets it go on (no
 ## restart). A new song crossfades in (two players) with the fade times from data/audio/music.tres.
-## Where a song was when it was faded out is remembered; asking with `resume` picks it up there
-## (the zone song after a fight, card #192).
+## (Picking a song up where it was left, card #192, was for a zone's song after its fights and its
+## background loop; both went with the zones in phase 26, DESIGN.md 8.22 G6.)
 
 const LIBRARY_PATH := "res://data/audio/sfx_library.tres"
 const POOL_SIZE := 24
@@ -41,14 +41,9 @@ var _lift_tween: Tween
 ## 0 normally, SILENT_DB while hushed (hush_music: the killing blow, card #308).
 var _music_hush_db: float = 0.0
 var _hush_tween: Tween
-## The place's background loop (zone ambience), on the Effects bus.
-var _ambience: AudioStreamPlayer
-var _ambience_path: String = ""
-## The weather's loop over it (rain, wind; card #303), also on the Effects bus.
+## The weather's loop (rain, wind; card #303), on the Effects bus.
 var _weather: AudioStreamPlayer
 var _weather_path: String = ""
-## Song or ambience path -> seconds into it when it was replaced (used by `resume`, then forgotten).
-var _positions: Dictionary = {}
 
 
 func _ready() -> void:
@@ -80,11 +75,6 @@ func _ready() -> void:
 	if music_set != null:
 		_fade_in_s = float(music_set.fade_in_ms) / 1000.0
 		_fade_out_s = float(music_set.fade_out_ms) / 1000.0
-	_ambience = AudioStreamPlayer.new()
-	_ambience.name = "Ambience"
-	_ambience.bus = String(PlayerSettings.CHANNELS.effects.bus)
-	add_child(_ambience)
-	_ambience.finished.connect(_ambience.play)
 	_weather = AudioStreamPlayer.new()
 	_weather.name = "Weather"
 	_weather.bus = String(PlayerSettings.CHANNELS.effects.bus)
@@ -92,17 +82,8 @@ func _ready() -> void:
 	_weather.finished.connect(_weather.play)
 
 
-## Where a remembered position should restart a stream of `length` seconds: the position itself,
-## or the start when it is unknown, negative or past the end.
-static func resume_position(saved: float, length: float) -> float:
-	if saved <= 0.0 or (length > 0.0 and saved >= length):
-		return 0.0
-	return saved
-
-
 ## Loops the song at `path` (empty: silence). The song already playing goes on untouched.
-## `resume`: start from where this song was left off, if it was (default: from the start).
-func play_music(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
+func play_music(path: String, volume_db: float = 0.0) -> void:
 	_music_base_db = volume_db
 	if path == _music_path and _music.playing:
 		# The same song asked for again (a fight restarted): it goes on, but never left hushed.
@@ -121,8 +102,6 @@ func play_music(path: String, volume_db: float = 0.0, resume: bool = false) -> v
 	if _hush_tween != null:
 		_hush_tween.kill()
 	_music_hush_db = 0.0
-	if not _music_path.is_empty() and _music.playing:
-		_positions[_music_path] = _music.get_playback_position()
 	_fade_out(_music)
 	_music_path = path
 	if path.is_empty():
@@ -144,8 +123,7 @@ func play_music(path: String, volume_db: float = 0.0, resume: bool = false) -> v
 	if _fade_in_tween != null:
 		_fade_in_tween.kill()
 	_set_music_fade(0.0 if _fade_in_s > 0.0 else 1.0)
-	_music.play(resume_position(float(_positions.get(path, 0.0)), stream.get_length()) if resume else 0.0)
-	_positions.erase(path)
+	_music.play()
 	if _fade_in_s > 0.0:
 		_fade_in_tween = create_tween()
 		_fade_in_tween.tween_method(_set_music_fade, 0.0, 1.0, _fade_in_s)
@@ -235,37 +213,12 @@ func _apply_music_hush(hush_db: float) -> void:
 	_update_music_volume()
 
 
-## Loops the background sound at `path` (empty: silence). The loop already playing goes on.
-## `resume`: start from where this loop was left off, if it was.
-func play_ambience(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
-	_ambience.volume_db = volume_db
-	if path == _ambience_path and _ambience.playing:
-		return
-	if not _ambience_path.is_empty() and _ambience.playing:
-		_positions[_ambience_path] = _ambience.get_playback_position()
-	_ambience_path = path
-	_ambience.stop()
-	_ambience.stream = null
-	if path.is_empty():
-		return
-	var stream: AudioStream = load(path) as AudioStream if ResourceLoader.exists(path) else null
-	if stream == null:
-		_warn_once(path, "Audio: no playable ambience at '%s'" % path)
-		return
-	_ambience.stream = stream
-	_ambience.play(resume_position(float(_positions.get(path, 0.0)), stream.get_length()) if resume else 0.0)
-	_positions.erase(path)
-
-
-## Loops the weather's sound at `path` over the zone's background (empty path: silence). The loop
-## already playing goes on and only takes the new volume (quieter in a fight). `resume`: start from
-## where it was left off.
-func play_weather(path: String, volume_db: float = 0.0, resume: bool = false) -> void:
+## Loops the weather's sound at `path` (empty path: silence). The loop already playing goes on and
+## only takes the new volume.
+func play_weather(path: String, volume_db: float = 0.0) -> void:
 	_weather.volume_db = volume_db
 	if path == _weather_path and _weather.playing:
 		return
-	if not _weather_path.is_empty() and _weather.playing:
-		_positions[_weather_path] = _weather.get_playback_position()
 	_weather_path = path
 	_weather.stop()
 	_weather.stream = null
@@ -276,13 +229,11 @@ func play_weather(path: String, volume_db: float = 0.0, resume: bool = false) ->
 		_warn_once(path, "Audio: no playable weather loop at '%s'" % path)
 		return
 	_weather.stream = stream
-	_weather.play(resume_position(float(_positions.get(path, 0.0)), stream.get_length()) if resume else 0.0)
-	_positions.erase(path)
+	_weather.play()
 
 
 func stop_music() -> void:
 	_music_path = ""
-	_positions.clear()
 	for tween: Tween in _fade_out_tweens.values():
 		tween.kill()
 	_fade_out_tweens.clear()
@@ -409,10 +360,6 @@ func stop_all() -> void:
 	_streams.clear()
 	if _music != null:
 		stop_music()
-	if _ambience != null:
-		_ambience_path = ""
-		_ambience.stop()
-		_ambience.stream = null
 	if _weather != null:
 		_weather_path = ""
 		_weather.stop()

@@ -6,5 +6,5 @@
 script = ExtResource("1_3jcnp")
 id = "forgetting"
 title = "Oath of Forgetting"
-description = "Heroes get half the Echo points."
-echo_points_percent_add = -50
+description = "Heroes get one attribute point fewer per level."
+attr_points_per_level_add = -1

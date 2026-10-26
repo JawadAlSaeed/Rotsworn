@@ -26,11 +26,16 @@ extends RefCounted
 ##                    partial is fine; per character, prompts must resolve in order
 ##   practice         {invulnerable_party?, immortal_enemies?, force_attack?, mark_hero?, mark_status?}
 ##                    if setup allows
+##   set_opening      {opening: "normal" | "first_strike", word}  phase AWAITING_OPENING (a Fight
+##                    stop's First Strike ring, pressed in the fight after its intro, card #335)
 ##
 ## Events (Dictionary with "type"):
 ##   combat_started          {seed, fighters:[Combatant.to_dict()], practice_allowed, opening,
 ##                           items:[item_info()]} (backpack items usable in this fight)
-##                           opening: "normal" | "first_strike" (DESIGN.md 2.12)
+##                           opening: "normal" | "first_strike" (DESIGN.md 2.12) | "ring" (the
+##                           first turn waits for set_opening, card #335)
+##   opening                 {opening, word} the First Strike ring's result (set_opening): First
+##                           Strike applied or not; the first turn follows in the same batch
 ##   intent                  {enemy, attack, name, mode, targets:[id], kinds:[hit kind], times:[ms],
 ##                           feints:[bool] (which hits are feints, card #129), marks? (card #194),
 ##                           ranged?:[bool] (which hits are thrown, only when one is, card #278),
@@ -51,7 +56,8 @@ extends RefCounted
 ##                           cause: "ability" | "follow_up" | "counter" | "team_counter" | "bleed"
 ##                           | "item" | "rot" (gear) | "rotting" (the Rotting debuff) | "thorns" (gear)
 ##                           | "burning" (the Burning debuff, card #252)
-##   healed                  {source, target, amount, hp, max_hp}
+##   healed                  {source, target, amount, hp, max_hp, cause? ("drain": a drinking hit healed
+##                           its attacker, EnemyAttackData.drain_percent, card #323; only then)}
 ##   revived                 {source, target, hp, max_hp}
 ##   downed                  {target}
 ##   ap_changed              {character, delta, ap, reason}  reason: "spend" | "ability" | "given"
@@ -118,7 +124,7 @@ extends RefCounted
 ##   command_rejected        {reason, command}   private to the sender; never broadcast/replayed
 
 ## combat_started "opening" names, by CombatSetup.Opening.
-const OPENING_NAMES: Array[String] = ["normal", "first_strike"]
+const OPENING_NAMES: Array[String] = ["normal", "first_strike", "ring"]
 
 enum Phase {
 	NOT_STARTED,
@@ -130,6 +136,9 @@ enum Phase {
 	## The tutorial's gate (DESIGN.md 7.8): an enemy's turn has started and its attack waits for
 	## the practice command open_gate.
 	AWAITING_GATE,
+	## A Fight stop's fight before its first turn (CombatSetup.Opening.RING, card #335): the First
+	## Strike ring's result comes as set_opening.
+	AWAITING_OPENING,
 }
 
 enum PromptState {
@@ -151,6 +160,8 @@ const ITEM_ALLY := "ally"
 const ITEM_PARTY := "party"
 const ITEM_ENEMIES := "enemies"
 const ITEM_DOWNED := "downed"
+## A healed event's cause when a drinking hit healed its attacker (card #323).
+const CAUSE_DRAIN := "drain"
 
 var phase: Phase = Phase.NOT_STARTED
 var tuning: Tuning
@@ -197,7 +208,7 @@ var items_left: Array[int] = []
 var _setup: CombatSetup
 var _abilities: Dictionary = {}
 var _attacks: Dictionary = {}
-## uid -> ItemData for the fight's items, their amounts (combined items are stronger) and names.
+## uid -> ItemData for the fight's items, their amounts (the setup's, normally the item's own) and names.
 var _items: Dictionary = {}
 var _item_amounts: Dictionary = {}
 var _item_names: Dictionary = {}
@@ -255,6 +266,11 @@ func start() -> Array[Dictionary]:
 			_add_status(hero, Status.REGEN, regen, hero.id, events)
 	for enemy_id: int in enemy_ids():
 		_pick_intent(get_combatant(enemy_id), events)
+	if _setup.opening == CombatSetup.Opening.RING:
+		# The First Strike ring is pressed in the fight, after its intro (card #335): the first turn
+		# waits for its result.
+		phase = Phase.AWAITING_OPENING
+		return events
 	_advance_turn(events)
 	return events
 
@@ -271,9 +287,29 @@ func submit(command: Dictionary) -> Array[Dictionary]:
 			_cmd_resolve_prompts(command, events)
 		CombatCommands.PRACTICE:
 			_cmd_practice(command, events)
+		CombatCommands.SET_OPENING:
+			_cmd_set_opening(command, events)
 		_:
 			events.append(_reject("unknown_command", command))
 	return events
+
+
+## The First Strike ring's result (card #335): First Strike or a normal start, then the first turn.
+## Only while the fight waits for it (AWAITING_OPENING), and only those two openings.
+func _cmd_set_opening(command: Dictionary, events: Array[Dictionary]) -> void:
+	if phase != Phase.AWAITING_OPENING:
+		events.append(_reject("not_awaiting_opening", command))
+		return
+	var opening := OPENING_NAMES.find(String(command.get("opening", "")))
+	if opening != CombatSetup.Opening.NORMAL and opening != CombatSetup.Opening.FIRST_STRIKE:
+		events.append(_reject("bad_opening", command))
+		return
+	if opening == CombatSetup.Opening.FIRST_STRIKE:
+		_apply_first_strike()
+	var word: Variant = command.get("word", "")
+	events.append({"type": "opening", "opening": OPENING_NAMES[opening],
+			"word": String(word) if word is String else ""})
+	_advance_turn(events)
 
 
 ## Rebuilds an engine from snapshot() output (reconnects, late join, desync debugging).
@@ -678,8 +714,8 @@ func _advance_turn(events: Array[Dictionary]) -> void:
 	push_warning("CombatEngine: turn guard reached; nobody can act")
 
 
-## Statuses that last until the holder's next turn end now; a hero carrying rotten items loses
-## some HP (never below 1).
+## Statuses that last until the holder's next turn end now; a hero of a cursed party (passive rot)
+## loses some HP (never below 1).
 func _start_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 	for id: String in Status.ALL:
 		if Status.ends_at_own_turn(id) and actor.has_status(id):
@@ -810,6 +846,9 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 				defend["mark_status"] = hit.on_hit_status
 				defend["mark_turns"] = hit.on_hit_status_turns
 				defend["mark_ap"] = hit.on_hit_ap_drain
+			if attack.drains():
+				# A drinking bite (card #323); only its prompts carry it, like a mark.
+				defend["drain"] = attack.drain_percent
 			prompts.append(defend)
 	_declare(SEQUENCE_ENEMY_ATTACK, actor.id, attack.id, attack.display_name, attack.target_mode, targets,
 			attack.alert_cue, attack.allow_timing_ring, hits, prompts, events)
@@ -1749,6 +1788,7 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 	sequence.states[idx] = PromptState.RESOLVED
 	sequence.outcomes[idx] = outcome
 	var damage := 0
+	var lost := 0
 	var ap_delta := 0
 	var perfect := (prompt.perfect as Array).has(outcome)
 	if outcome != Defense.Outcome.NONE:
@@ -1757,7 +1797,7 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 			target.perfect_defenses += 1
 	else:
 		damage = int(prompt.damage)
-		_lose_hp(target, damage)
+		lost = _lose_hp(target, damage)
 	var downed := not target.is_alive()
 	var thorn_events: Array[Dictionary] = []
 	if damage > 0:
@@ -1780,6 +1820,7 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 	}
 	events.append(resolved)
 	events.append_array(thorn_events)
+	_drink(prompt, lost, events)
 	_count_streak(outcome, perfect, events)
 	if downed:
 		events.append({"type": "downed", "target": target.id})
@@ -1834,6 +1875,19 @@ func _reflect_thorns(target: Combatant, damage: int, events: Array[Dictionary]) 
 	if attacker == null or attacker.is_party() or not attacker.is_alive():
 		return
 	_deal_damage(target, attacker, CombatMath.percent_min1(damage, pct), "thorns", events)
+
+
+## A drinking hit (EnemyAttackData.drain_percent, card #323): the attacker heals that percent of the
+## HP the hit took from the hero (at least 1). Nothing when the hit was defended, when the attacker
+## is down (thorns may have killed it a moment ago) or already at full HP.
+func _drink(prompt: Dictionary, lost: int, events: Array[Dictionary]) -> void:
+	var pct := int(prompt.get("drain", 0))
+	if pct <= 0 or lost <= 0 or sequence.is_empty():
+		return
+	var attacker := get_combatant(int(sequence.source))
+	if attacker == null or attacker.is_party() or not attacker.is_alive() or attacker.hp >= attacker.max_hp:
+		return
+	_heal(attacker, attacker, CombatMath.percent_min1(lost, pct), events, CAUSE_DRAIN)
 
 
 ## The mark a hit leaves on a hero who took it undefended and is still standing (card #194): a
@@ -2225,15 +2279,19 @@ func _shift_turn(c: Combatant, delta: int, events: Array[Dictionary]) -> void:
 	events.append({"type": "turn_shifted", "target": c.id, "delta": c.next_turn_at - before})
 
 
-func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary]) -> void:
+## `cause`: "" for an ordinary heal; CAUSE_DRAIN for a drinking hit (only then the event says so).
+func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary], cause: String = "") -> void:
 	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(source, Passive.HEAL)))
 	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(target, Passive.HEAL_TAKEN)))
 	if target.has_status(Status.BLIGHTED) and amount > 0:
 		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tuning.blighted_heal_cut_percent))
 	var before := target.hp
 	target.hp = mini(target.max_hp, target.hp + amount)
-	events.append({"type": "healed", "source": source.id, "target": target.id, "amount": target.hp - before,
-			"hp": target.hp, "max_hp": target.max_hp})
+	var event := {"type": "healed", "source": source.id, "target": target.id, "amount": target.hp - before,
+			"hp": target.hp, "max_hp": target.max_hp}
+	if not cause.is_empty():
+		event["cause"] = cause
+	events.append(event)
 
 
 ## A fighter's power with Weakened applied (card #194).

@@ -14,7 +14,7 @@ const ITEM_DIR := "res://data/items/"
 const PACTS := {
 	"blood_gold": ["Blood for gold", "The coins are warm.",
 			{"gold": 120, "cost_max_hp_percent": 10, "cost_max_hp_target": ZoneOfferData.HpTarget.EVERYONE}],
-	"hungry_relic": ["Feed the hungry Relic", "Something old wakes in your pack.",
+	"hungry_relic": ["Feed the hungry Relic", "Something old wakes in all of you.",
 			{"relic_rarity": 1, "cost_rotten": "rotting_heart"}],
 	"borrowed_years": ["Borrow years", "You feel older, and wiser.",
 			{"xp": 60, "cost_hp_percent": 40}],

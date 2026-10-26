@@ -68,6 +68,11 @@ enum Support {
 @export_group("Self-destruct (card #260)")
 ## The attacker falls when this attack is over (a Pus Tick's Burst): it is spent.
 @export var self_destruct: bool = false
+@export_group("Drain (card #323)")
+## Its hits drink: the attacker heals this percent of the HP each hit takes from a hero (at least 1,
+## never above its max HP). A defended hit takes nothing, so it heals nothing. 0 = an ordinary move.
+## The Leech Queen's bites (DESIGN.md 8.23).
+@export_range(0, 100, 1, "suffix:%") var drain_percent: int = 0
 @export_group("")
 ## Play the alert sound when the attack starts.
 @export var alert_cue: bool = true
@@ -88,6 +93,11 @@ func is_support() -> bool:
 ## True for a Charged Doom (charge_turns above 0).
 func is_doom() -> bool:
 	return charge_turns > 0
+
+
+## True for a move whose hits heal the attacker (drain_percent above 0, card #323).
+func drains() -> bool:
+	return drain_percent > 0
 
 
 ## How long before each hit the training ring appears, in milliseconds.

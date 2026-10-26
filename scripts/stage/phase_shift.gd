@@ -47,7 +47,7 @@ static func duration_ms(base_ms: int, calm_percent: int, mode: int) -> int:
 
 ## The ambient particles thinned for a fight: `percent` of each one's amount (at least 1) and
 ## the box's depth cut to `depth_percent`, so the air stays behind and around the fighters.
-## Returns copies; the zone's own data is untouched.
+## Returns copies; the place's own data is untouched.
 static func fight_air(list: Array[ZoneAmbientData], percent: int, depth_percent: int) -> Array[ZoneAmbientData]:
 	var out: Array[ZoneAmbientData] = []
 	for data: ZoneAmbientData in list:

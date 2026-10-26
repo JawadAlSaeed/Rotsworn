@@ -462,7 +462,11 @@ Hamstring matter. Phase 2 test build: a fight-select screen lists the test encou
 
 ### 2.12 Opening advantage (phase 3, card #25)
 
-How a fight starts depends on how it began in the zone (7.4):
+Since phase 26 (8.22) there is no field strike. Since card #320 a Fight stop's fight opens with the
+**First Strike press**: one press ring in the fight, after its short intro (card #335; on the place's
+name card until then), and a GOOD or PERFECT skill press on it gives First Strike (8.22 "The First Strike press"). Every other fight (Elite stops, with an
+elite group or the place's guard, ambushes, bosses, practice) opens normally. `--first-strike` and the opening rule below
+stay. How a fight started in a zone (7.4, history):
 
 - **First Strike:** the leader's field strike hit the roaming enemy (or it walked into a swing
   still in progress). Every party member acts before any enemy: no enemy's first turn comes before
@@ -495,10 +499,9 @@ How a fight starts depends on how it began in the zone (7.4):
   card #175, otherwise a player could read an elite's moves for free and leave) or where
   `EncounterData.can_run` is false: the Run row reads CAN'T RUN. The first three are a rule in
   `CombatSetup.from_encounter`, so a new one made in data cannot be left runnable by a forgotten flag.
-- After an escape: in a zone, the enemy goes home and the leader stays where they are (with the
-  usual return grace); in a run, the HP carries on (a downed hero stands at
-  `run_downed_revive_hp`), with no gold and no XP; a practice fight shows ESCAPED with "fight
-  again".
+- After an escape: in a run, the HP carries on (a downed hero stands at
+  `run_downed_revive_hp`), with no gold and no XP, and the stop is passed (until phase 26 a zone's
+  enemy also went home, 8.22); a practice fight shows ESCAPED with "fight again".
 - The autoplay bot never runs, except in `--autoplay=escape` (runs on its first turn, presses
   perfectly; checks the escape ending).
 
@@ -582,12 +585,14 @@ in data. Times in ms at tempo 100%.
 | Elder Toad | Mire Toad | dark bog brown, red eyes | Quake Hop: party, rocks 1100, wave 1700, rocks 2250 (50% each) |
 
 - Every variant has `forced_hits` on (card #187, 2.4): its rends and sweeps and forced feints show in
-  every fight it is in, so the second half of a run reads harder.
+  every fight it is in, so the run's last act reads harder.
 - Deep fights: `EncounterData.deep` names a fight's deep version (`deep_<id>`, the same fight made of
-  variants). In a run, from map row `tuning.run_deep_row` (4, the second half of the 7 rows) on, a
-  zone's roaming enemies hold their deep fights (`RunState.is_deep()`, `ZoneController.configure(...,
-  deep)`): the roamer shows the variant and the fight is the deep one. Practice fights list them
-  too. Every fight a zone holds has one (test). Phase 13 (card #105) adds stat scaling by depth on
+  variants). In a run, from map row `tuning.run_deep_row` on, or in a deep act, a Fight stop, an
+  elite group or a guard fights the deep one (`RunState.is_deep()`, `fight_of`, `elite_of`,
+  `guard_of`, 8.22; until phase 26 a zone's roaming enemies showed the variant). `run_deep_row` was
+  4 (the second half of an act); since the balance pass (#321, 8.23) it is 6, past an act's last
+  ordinary row, so only the deep act (act 3, the Ashen Deep) fights deep versions. Practice fights list
+  them too. Every fight a place holds has one (test). Phase 13 (card #105) adds stat scaling by depth on
   top.
 - Balance check (average-player bot at level 1 with no gear): 3 wins in 5 deep fights. A run
   reaches them leveled and geared.
@@ -1240,10 +1245,10 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 |---|---|---|
 | `Tuning` | `data/tuning/tuning.tres` | every global rules and judging number (windows, lockout, lag compensation and its bounds, damage, HP, AP, hit-stop, cue toggles, pacing) |
 | `CombatVisuals` | `data/presentation/combat_visuals.tres` | presentation only: FX/UI art paths, the fight list's stage look, stage layout, camera and depth of field, cinematic shots, enemy choreography feel (feint lead, contact hold, recoil), pose lengths, jump shape, flash/shake strengths, popup and banner feel, calibration procedure |
-| `ExploreVisuals` | `data/presentation/explore_visuals.tres` | presentation only for zones: follow camera, depth of field, walking bob, notice "!", strike slash, the fight transition |
+| `ExploreVisuals` | (removed in phase 26, 8.22) | presentation only for zones; the fight transition moved to `combat_visuals.tres` ("Screen transitions") |
 | `StageLook` | `data/looks/` | how a place looks: ground and backdrop art, sun, ambient, fog, bloom, colour grading, vignette, combat arena decoration |
-| `ZoneData` | `data/zones/` | id, name, look, leader, walkable bounds, start, blocks, props, lights, roaming enemies |
-| `ZoneBlockData` / `ZonePropData` / `ZoneLightData` / `ZoneEnemyData` | inside zones and looks | a textured box; a lit sprite (solid radius, glow); a point light (flicker); a roaming enemy (encounter, spot, wander radius, guard flag) |
+| `ZoneData` | `data/zones/` | a place (since phase 26, 8.22; the walkable zone's fields went): id, name, map picture, look, air (`ambient`), the fights of its Fight stops (`roamer_pool`), guard, song and background loop (unplayed, 8.22 G6), weathers and their weights |
+| `ZoneBlockData` / `ZonePropData` / `ZoneLightData` | inside looks (arena decoration) | a textured box or a stretched 3D piece; a lit sprite (glow) or a 3D piece; a point light (flicker). `ZoneEnemyData` (a roaming enemy) and the walking-only `solid` fields went with the zones in phase 26 (8.22) |
 | `CharacterData` | `data/characters/` | id, name, colour, sprite paths, hp/power %, speed, abilities |
 | `AbilityData` | `data/abilities/` | id, name, targeting, AP cost, press times, follow-ups, damage % and press bonus, Payback and Exposed bonuses, landing effects (AP gain/give, heal, revive, turn delay/hasten, status) each with a press bonus, team ultimate flag, sound |
 | `EnemyData` | `data/enemies/` | id, name, sprite paths, hp/power %, speed, attacks, gold and xp (paid in a run), phase two (HP %, attacks, speed, banner text: bosses) |
@@ -1252,7 +1257,7 @@ built fresh, never sharing containers with engine state. Persist logs with `var_
 | `AttackHitData` | inside attacks | impact ms, kind (normal/ground), damage %, approach ms, feint, projectile (ranged), ground look (wave/rocks) |
 | `ProjectileData` | `data/projectiles/` | what a ranged hit throws (3.9): sprite sheet, loop speed, size, arc, trail, colour, launch sound and spot |
 | `EncounterData` | `data/encounters/` | enemy list, party list and team ultimate (practice fights; a run uses its own party and ultimate), boss flag |
-| `RunData` | `data/runs/` | a kind of run: party, team ultimate, the zones a zone stop picks from, the final fight and its look, the shop's items, the gear pool |
+| `RunData` | `data/runs/` | a kind of run: party, team ultimate, acts (each with the places its Fight and Elite stops are in, 8.22), the final fight and its look, the shop's items, the found items, the gear pool |
 | `ItemData` | `data/items/` | backpack item (8.1): id, name, description, kind, rarity, price, shape, effect and amount, find weight, icon |
 | `SfxLibrary` / `SfxCue` | `data/audio/sfx_library.tres` | sound cue name -> file path, volume, pitch jitter |
 | `BrandingData` | `data/branding/branding.tres` | logo path, title screen feel (logo size and fade, glow, fog, prompt), main menu logo and tagline, story blurb |
@@ -1299,8 +1304,7 @@ clamped by tuning's calibration bounds.
   stays silent with one warning.
 
 Music (2026-10-13, cards #84, #95, #97, #98): `data/audio/music.tres` (`MusicSet`) names the songs:
-`menu_path` (title theme and menus), `run_path` (map, shop, rest, loot, party, run end), `zone_path`
-(zones without their own song; each `ZoneData.music_path` names its own), `fight_path`, `boss_path`
+`menu_path` (title theme and menus), `run_path` (map, shop, rest, loot, party, run end), `fight_path`, `boss_path`
 `elite_path` (elite fights, card #192; empty today, so elites use the fight song until a song is
 dropped in and named there) and `boss_rage_path` (the boss fight switches to it on the boss's phase change), `victory_path` and
 `defeat_path` (cards #109, #126: a won or lost fight's end screen, `end_song_delay_ms` after the
@@ -1310,19 +1314,22 @@ by tyops; empty keeps the old songs). The run map song is
 "Treasure Hunter" by TAD (card #110, user pick 2026-10-15, was "Mystical Theme"). The `Audio`
 autoload loops the song on its own player (OGG imports loop, `oggvorbisstr` default in
 project.godot); a place naming the song already playing lets it go on. A new song crossfades in: it fades in over `fade_in_ms` while the old one fades
-out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). The `Audio` autoload
-remembers how far into a song (and into a zone ambience loop) it was when something replaced it;
-coming back from a fight, the zone asks to `resume` and the song and the ambience go on from there
-with the usual crossfade instead of restarting at 0:00 (card #192). While an enemy attack plays
+out over `fade_out_ms` (two players, music.tres; user request 2026-10-13). Until phase 26 the zones
+had songs of their own (`MusicSet.zone_path` for a zone without one) and the `Audio` autoload
+resumed a zone's song and ambience where they were after a fight (card #192); both went with the
+zones (8.22). Each place still names its old song in `ZoneData.music_path` (Rotten Hollow
+`zone_hollow.ogg`, Sunken Bog `zone_bog.ogg`, Ashen Ruins `zone_ruins.ogg`), unplayed until the
+talk decides (8.22 G6). While an enemy attack plays
 the music dips by `music_duck_db` over `music_duck_ms` (combat_visuals.tres) so defence sounds stand
 out. Songs are free OpenGameArt tracks picked by the user from three options per place
 (`tools/sound_kit/music_candidates.json`, `music_selection.json`, `music_kit.py final`), all levelled
 to -16 LUFS, credited in `assets/audio/music/CREDITS.md` (CC-BY tracks need that credit). The user
 may later replace them with music composed for the game.
 
-Zone ambience (2026-10-13, card #99): `ZoneData.ambience_path` / `ambience_volume_db` loop a quiet
-background (wind, frogs, creaking wood) on its own player while exploring; fights and screens stop
-it. Loops are CC0 Freesound recordings cut into seamless 60 s loops by
+Zone ambience (2026-10-13, card #99): `ZoneData.ambience_path` / `ambience_volume_db` looped a quiet
+background (wind, frogs, creaking wood) on its own player while exploring; fights and screens stopped
+it. Since phase 26 nothing plays it: the fields stay on each place, unread (8.22 G6). Loops are CC0
+Freesound recordings cut into seamless 60 s loops by
 `tools/sound_kit/ambience_kit.py` (the end crossfades into the start), levelled to -30 LUFS.
 
 Enemy voices (2026-10-13, card #101): `EnemyData.voice_sfx` names a voice cue (`SfxCue.voice`, Voice
@@ -1394,8 +1401,9 @@ skill press, EXPOSED combo, ultimate start, follow-up ready, enemy wind-up (star
 before each hit so it peaks on the impact, skipped where it would overlap the previous hit; off
 with the motion sounds, card #94), enemy crumble, boss rage, status wears off, turn order shift,
 fight start (normal fights), fight transition swirl, run away fails, gold and level up after a run
-win (`reward_sound_delay_ms`, `level_up_sound_gap_ms`), footsteps per zone ground (`ZoneData.
-footstep_sfx`, one per bob step), enemy spots you and gives up, zone arrival and zone clear, run
+win (`reward_sound_delay_ms`, `level_up_sound_gap_ms`), footsteps per zone ground (one per bob
+step; `ZoneData.footstep_sfx` went with the zones in phase 26, 8.22), enemy spots you and gives up,
+zone arrival and zone clear (the zone cues are unused since then, 8.22 G6), run
 begins, loot reveal, run cleared and run over, player joins and leaves, connected, connection
 problem, critical hit (phase 13, 8.2). Skipped by the user: low HP warning, pause opens, status sticks. Not made (need other recordings
 or features): voices, zone ambience loops, backpack sounds.
@@ -1467,7 +1475,8 @@ blending poses into more frames.
   `CharacterData` / `EnemyData.sprite_clips` point at it; null, or a texture of another size, falls
   back to the one-row layout (placeholders keep working).
 - **Timing is the game's, not the art's.** Clips hold only frame order. Lengths, periods and delays
-  live in `combat_visuals.tres` / `explore_visuals.tres` (group "Animation"). A caller plays a clip
+  live in `combat_visuals.tres` (group "Animation"; `explore_visuals.tres` held the zones' until
+  phase 26, 8.22). A caller plays a clip
   as a loop (real time plus a per-fighter phase, so nobody breathes in step), a one-shot spread
   evenly over a length, or drives it by index from the attack or skill clock.
 - **Sync rule.** Anything that must line up with judged timing is driven by the attack clock or
@@ -1509,11 +1518,11 @@ reeds, bushes) stay with the art kit (5.4).
   model in another zone's stone is just another piece file. `texture_sharpness` keeps each slanted
   face to one clean projection. Copies of a piece share their materials.
 - **Placing a piece.** A `ZonePropData` with `piece` stands it at its own size times `scale`,
-  turned by `rotation_y_degrees`, mirrored by `flip`, solid as a circle of `solid_radius` (0: walk
-  through); it casts a real shadow, so no contact blob, and sprite fields, `glow` and `sway` are
-  unused. A `ZoneBlockData` with `piece` stretches it to the block's `size`, solid as its box (for
-  long walls). `StageBuilder.prop_view` and `block` build both; arena props (`StageLook`) work the
-  same way.
+  turned by `rotation_y_degrees`, mirrored by `flip`; it casts a real shadow, so no contact blob,
+  and sprite fields, `glow` and `sway` are unused. A `ZoneBlockData` with `piece` stretches it to
+  the block's `size` (for long walls). `StageBuilder.prop_view` and `block` build both, for the
+  arena props and blocks of a `StageLook`. (Until phase 26 a zone's pieces were also solid to
+  walk into, `solid_radius` or the box; that went with the zones, 8.22.)
 - **Shape only, the zone's own pixels.** Textures are laid in world space (triplanar), so they never
   stretch. The model's vertex colours tint them: patchy moss on faces that look up, a darker
   foot, dark faces (a hollow).
@@ -1564,8 +1573,9 @@ reeds, bushes) stay with the art kit (5.4).
   draws the rings. Rotten Hollow's `fallen` section has a stream from the back to the front, solid
   water either side of a plank bridge where the trail crosses (the water under the bridge is not
   solid), reeds on its banks. Every water piece has ripples.
-- **Dressing the zones (step 4, cards #233 to #236).** `tools/dress_zones.gd` (headless; `--
-  --only=SECTION|arenas`, `--dry-run`) adds to every section, picked by a seed from its id: two big
+- **Dressing the zones (step 4, cards #233 to #236).** Since phase 26 (8.22) the tool is
+  `tools/dress_arenas.gd` and dresses only the fight arenas (`-- --dry-run`). `tools/dress_zones.gd` (headless; `--
+  --only=SECTION|arenas`, `--dry-run`) added to every section, picked by a seed from its id: two big
   pieces in the back band (z -12.5 to -6.5) as blocks, small 3D props (rocks, rubble, stumps, logs,
   bones, fallen columns) off the path as solid circles, and clusters of the plants that sway, all in
   the zone's theme (Rotten Hollow: moss ledges, mossy rocks, a ruined house; Ashen Ruins: towers,
@@ -1620,21 +1630,31 @@ player's heroes.
 | `menu_confirm` | Enter, E | A |
 | `menu_cancel` | Backspace, Q, Escape | B |
 | `pause` | Escape | Menu |
-| `party_menu` (run map, zone, shop: the backpack) | Tab | Y |
+| `party_menu` (run map, shop: the backpack) | Tab | Y |
 | `debug_overlay` | F1 | View |
-| `move_up/down/left/right` (zone) | WASD, arrow keys | D-pad, left stick |
-| `field_strike` (zone) | Space, J | X |
-| `field_pickup` (zone, near a glinting spot) | E, Enter | A |
-| `item_move` (backpack: pick up the item under the cursor to move it, put it down) | R | X |
-| `item_turn_left` / `item_turn_right` (Y screen: switch tabs, 8.18; with an item in hand in the Bag tab: turn it) | Z / C | LB / RB |
-| `party_attributes` (Y screen Hero and Skills tabs: previous hero, 8.18) | T | LT |
-| `party_skills` (Y screen Hero and Skills tabs: next hero, 8.18) | K | RT |
+| `move_up/down/left/right` (since phase 26 no screen reads them: a pad's stick push on them marks that pad P1's, #304, and their keys do nothing; walking a zone until then, 8.22) | WASD, arrow keys | D-pad, left stick |
+| `item_move` (a screen's own extra button: Starting Relics' Skip, the Hero tab's reset, using the chosen item in the Bag tab; no sort or filter since card #336) | R | X |
+| `item_turn_left` / `item_turn_right` (main tabs: the Y screen's tabs, 8.18, the Settings sections) | Z / C | LB / RB |
+| `party_attributes` (`ControlBindings.SWITCH_PREV`, card #336: the switch inside a screen, back: hero on the Hero and Skills tabs, kind on the Relics tab, sort on the Relic book and Starting Relics, Glossary topic, Settings > Controls page) | 1 | LT |
+| `party_skills` (`ControlBindings.SWITCH_NEXT`: the same switch, on) | 3 | RT |
+
+**Switches inside a screen use LT / RT** (card #336, owner playtest 2026-10-25): LB / RB (Z / C) are
+only ever the main tabs; anything that switches inside a page (a hero, a kind, a sort, a topic, a
+page) is LT / RT, keyboard 1 / 3, and the hint bar shows those buttons. Moved there: the Relics tab's
+kind filter (was X / R in the bag; now from the rows too), the Relic book's and Starting Relics' Sort
+(were X / R) and the Glossary's topics (left / right still work too). Already there: the Hero and
+Skills tabs' hero and the Controls page's Keyboard / Controller page. 1 and 3 sit above Q and E under
+the left hand with WASD and clash with no menu key (the practice keys 1 to 9 work only in a practice
+fight's F1 panel); T / K went. `fight_ultimate` keeps RT in fights (fight and menu buttons are
+different clash groups). The run map never had an LT / RT shortcut (Y opens the party screen), so
+none was kept.
 
 Outside fights every screen (main menu, settings, practice list, map, shop, rest, party, loot)
 uses the `menu_*` actions: up/down pick, left/right change a setting or pick on the map, Confirm
-selects, Cancel goes back; the mouse does the same (6.2). **Pause** (Esc / Menu) works in fights, zones and on the run map
+selects, Cancel goes back; the mouse does the same (6.2). **Pause** (Esc / Menu) works in fights and on the run map
 (7.5); Main reads it before anything else, so in a fight Esc never acts as "back" in the action
-menu (Backspace, Q or B do). B no longer leaves a zone.
+menu (Backspace, Q or B do). `field_strike` (Space, J / X) and `field_pickup` (E, Enter / A) went
+with the zones in phase 26 (8.22).
 
 Phase 1 practice keys (keyboard only, when `practice_tools_enabled`): 1 to 9 force the enemy's
 next attack, I toggles "party cannot die", O toggles "enemy cannot die", R restarts the fight,
@@ -1654,7 +1674,7 @@ the device in use (card #45, `ButtonPrompts`, autoload `Prompts`): pad buttons (
 coloured A/B/X/Y chips) while a pad is plugged in and was used last or was just plugged in;
 keyboard keys (key caps) once a key is pressed or the last pad is unplugged. Local co-op with the
 keyboard and a pad both playing shows both ("Space / RB"). Hints are `HintBar` rows of button
-chips (bottom of every menu screen, the fight and zone corners, the end screen) or `PromptLabel`
+chips (bottom of every menu screen, the fight's corners, the end screen) or `PromptLabel`
 text with `{action}` tokens; both redraw when the device changes. A practice key with no pad
 button still shows its key.
 
@@ -1668,9 +1688,10 @@ driven by the `menu_*` actions. Hit-stop never uses `SceneTree.paused` or `Engin
 
 ### 6.1 Rebinding keys and buttons (card #190)
 
-Settings > Controls lists every player action (28: the fight menu, Parry / Dodge / Jump / Skill
-press, walking, Strike and Pick up, the menu directions, Confirm, Back / run, Pause, the backpack
-and party shortcuts, the stats overlay) with its key and its pad button side by side. Up / Down pick
+Settings > Controls lists every player action (26 since phase 26: the fight menu, Parry / Dodge /
+Jump / Skill press, the four move directions, the menu directions, Confirm, Back / run, Pause, the
+backpack and party shortcuts, the stats overlay; Strike and Pick up went with the zones, 8.22) with
+its key and its pad button side by side. Up / Down pick
 a row (the list scrolls, ten rows show), Left / Right pick the Key or the Pad column, Confirm waits
 for the new input ("press a key ..."). Escape (or the pad's Menu button) cancels, and so does
 waiting `rebind_capture_ms` (tuning, 6 s). Everything works from the keyboard or a pad; the mouse also
@@ -1684,11 +1705,12 @@ an action already has keeps working.
   ("Also: Up"). "Skill press" is its own row, so changing Parry does not change it.
 - **Conflicts.** `ControlBindings.GROUPS` are the sets of actions needed at the same time: Parry /
   Dodge / Jump (with Pause and the stats overlay), Skill press (with the same two), the fight menu,
-  walking and the zone, and the menus. An input already held by another action of a shared group is
+  the four move directions with the backpack and Pause (walking and the zone until phase 26, 8.22),
+  and the menus. An input already held by another action of a shared group is
   refused or swapped, never doubled. If exactly one action holds it and the trade is possible, the
   game asks ("Space is already Parry. Confirm: swap them. Back: leave it."); the other action takes
   the old input, wherever the new one was in its list. Otherwise it says so and keeps waiting.
-  Groups that never run together may share a button (W jumps in a fight and walks up a menu; Parry
+  Groups that never run together may share a button (W jumps in a fight and moves up a menu; Parry
   and Skill press both default to Space). Attack and Confirm may share (the action menu does), and
   so may Back and Pause (Escape; Main reads Pause first).
 - **No lock-out.** Rebinding only replaces, so every action keeps a key and a pad input, and
@@ -1836,10 +1858,11 @@ The game is a keyboard and pad game, but every menu also works with the mouse (a
   ground it stands on). Flashes and glows are emission, so bloom catches them. Props can glow on
   their own (`ZonePropData.glow`: fungus, lanterns). Point lights can flicker like flames.
 - **Places are data:** blocks (`ZoneBlockData`: textured boxes, cliffs and walls, world-space
-  tiling), props (`ZonePropData`: lit sprites, optional solid radius and glow) and lights
-  (`ZoneLightData`). Placeholder art for them is drawn by `tools/gen_placeholders.gd` by file name.
-- **Depth of field** per camera (blur far and near, the miniature look): combat in
-  `combat_visuals.tres`, zones in `explore_visuals.tres`.
+  tiling), props (`ZonePropData`: lit sprites with optional glow, or 3D pieces) and lights
+  (`ZoneLightData`), placed in a look's arena (`StageLook`; since phase 26 no zone stands them on a
+  walkable ground, 8.22). Placeholder art for them is drawn by `tools/gen_placeholders.gd` by file name.
+- **Depth of field** (blur far and near, the miniature look): the fight camera's, in
+  `combat_visuals.tres` (the zones' own, in `explore_visuals.tres`, went in phase 26, 8.22).
 - **Cinematic combat camera** (`CombatCamera` with pure `CameraShots`, F1 then V toggles,
   `cinematic_camera` in tuning): it glides (`shot_glide_ms`) to a shot for each moment: a party
   turn drifts toward that character; a skill or basic attack without follow-ups frames the striker
@@ -1872,6 +1895,11 @@ The game is a keyboard and pad game, but every menu also works with the mouse (a
   or guard fight is the enemy with the most HP.
 
 ### 7.4 Phase 3: exploration (cards #23, #24)
+
+**Removed in phase 26 (8.22):** the walkable zones, walking, roaming enemies, the field strike and the zone
+cards of the practice list are gone; this section is history. The practice list holds the tutorial
+and the fights; First Strike came back as a press on a Fight stop's name card (#320, 2.12, 8.22),
+in the fight after its intro since #335.
 
 - **Practice list** (main menu > Practice): "Explore: ..." for every zone in `data/zones/` first,
   then the test fights, the deep fights (variants, 2.16) last. `--zone=ID` starts in a zone.
@@ -1923,25 +1951,16 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
 - **Main menu** (first screen, `MainMenu`): (Continue,) New Run, Online, Relics (8.17, phase 17), Extras, Settings, Quit, with
   no description line under the rows. Online and Extras open a second list in place (cancel or
   Back goes back): Online has Host Online and Join Online; Extras has Tutorial, Glossary (7.12), Journal (7.11)
-  and Credits. Practice (the tutorial card first, then the fight and zone list, full HP, nothing
+  and Credits. Practice (the tutorial card first, then the fight list, full HP, nothing
   carries over) is a test tool: its row shows in Extras, after Tutorial, only in debug builds
   (`OS.is_debug_build()`: the editor and `run_game.bat`), never in the shared game. The cursor
   comes back on the last item picked (a row of Extras reopens that list). Card #150 (user,
   2026-10-15) kept it short; card #208 (user, 2026-10-17: "it feels a bit cluttery", "practice is
   a dev thing") made it five rows; phase 17 added Relics (six).
-  **New Run** (phase 25, card #305, 8.21) opens two picture cards side by side in place, like the
-  Online cards: **Run** (a green hill with a pale road winding up to a red flag) and **Fight Rush**
-  (four bone tally marks crossed by a sword). The Fight Rush card carries a gold star chip "Best 16"
-  once any Rush record exists (the best of the three party sizes). Left/Right chooses, Confirm
-  selects, Back goes back; footer Choose / Select / Back. Run is the old New Run (overwrite check,
-  tutorial and calibration offers, the players screen with Oaths); Fight Rush shows only the
-  calibration offer when it is due, then the players screen titled Fight Rush, and never touches a
-  saved run. Without the Rush data the card is greyed and Confirm plays "locked". Coming back from a
-  run or a Rush, the cursor rests on New Run (`MainMenu.PLAY_RUN`, `PLAY_RUSH`, `MODE_ITEMS`).
-  **Host** (Online's first card; card #312, 8.21) opens the same two cards in place of Host / Join:
-  **Run** hosts a run as before, **Fight Rush** hosts a Rush (the same Best chip, from the host's
-  records; greyed and "locked" without the Rush data). Back goes back to Host / Join. The host's
-  players screen then opens for that game (`MainMenu.HOST_RUN`, `HOST_RUSH`, `HOST_MODE_ITEMS`).
+  **New Run** starts the run's path at once (overwrite check, tutorial and calibration offers, the
+  players screen with Oaths), and **Host** (Online's first card) hosts a run at once
+  (`MainMenu.NEW_RUN`, `HOST_ONLINE`). In phase 25 both opened two picture cards first, Run and
+  Fight Rush; they went with the Fight Rush in phase 26 (card #331, 8.21).
   In the corners, small and quiet like most games' title menus (card #210, user 2026-10-17):
   bottom left the version, "v" and Project Settings' `application/config/version` (0.18.0 since phase 18, the
   phase number; the same version the save check and the online handshake use, so raise it for a
@@ -1979,12 +1998,10 @@ are scaled smoothly (linear filter; the project's default is nearest, for pixel 
   checks it fits 1920 x 1080.
 - Menu screens share `ListMenu` (`scripts/menu/`), driven by the `menu_*` actions and the mouse
   (6.2).
-- **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight, a zone or on the
+- **Pause menu** (`PauseMenu`, user request 2026-10-12): Esc / Menu in a fight or on the
   run map (B on the map too). Continue, Players (a local game outside the tutorial, 9.3), Settings, Glossary (7.12), "Save & Quit" (a local run, 8.14), and "Abandon
-  run" (asks first, then the main menu) or in practice "Leave" (the practice list). In a Fight Rush
-  (8.21; in a fight or on the Rush screen) the note reads "Fight 7", there is no Save & Quit, and
-  "Give up" takes Abandon run's place (asks "Give up?", Give up / Keep going, then the Rush end;
-  online only the host's, 8.21). Pause, Back or Continue resumes. Everything
+  run" (asks first, then the main menu) or in practice "Leave" (the practice list). Pause, Back or
+  Continue resumes. Everything
   under it is stopped (process disabled: no timers, tweens, movement or input). A fight pauses
   only between events: an enemy attack or a skill runs on the real clock (AttackClock, judged
   presses) and cannot stop, so a pause asked for mid-move shows "PAUSING AFTER THIS MOVE" and
@@ -2109,13 +2126,18 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
   Godot's licence notice (with FreeType, ENet and Mbed TLS), rolling up to their own song
   (`MusicSet.credits_path`: "Heroic Minority" by Alexandr Zhelanov, CC-BY 3.0). Down rolls faster,
   Up rolls back, Back closes; they start again from the bottom after the end.
-- **Loading tips** (card #86): entering a zone (from the run map, the practice list, or online as
-  a client) shows a card over the black: the place's name, a random tip (never the same twice in a
+- **Loading tips** (card #86): entering a Fight stop (8.22; a zone until phase 26, from
+  the run map or online as a client) shows a card over the black: the place's name, a random tip (never the same twice in a
   row) and the logo in the corner, over the menu background (or `TipSet.background_path` art). It
-  stays `hold_ms` (2.6 s) and the zone is built at its end, so the zone starts when it is seen.
+  stays `hold_ms` (2.6 s) and the fight is built at its end, so the fight starts when it is seen.
   Clients and the bot do not hold it (the host already held it before telling the clients).
   While the black, the swirl or a loading card covers the screen, no input (mouse, keyboard, pad)
   reaches anything behind it (`ScreenTransition._input`, card #132).
+  **A Fight stop's card** carried the First Strike ring from #320 until card #335 (2026-10-25)
+  moved the ring into the fight, after its intro (8.22): the card now works like every other card
+  (`hold_ms` on the host, none on clients and the bot) and the host announces the fight once its
+  card is done. An Elite stop (an elite group or the guard), an ambush and a boss get
+  no card, only the swirl (a map rules 3 Guard stop still gets the plain card).
 - **Hero portraits** (card #85): waiting for painted art (the 24 px placeholders stay).
 - **Story** (card #90): at the top of this file, in `BrandingData.story`, the credits and the
   README.
@@ -2143,7 +2165,9 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
 
 Phase 19 (card #264) added lesson 6, Marks (defend a dotted hit, then lift a mark with Mend); the
 Relics and Echoes cards became lesson 7 (2.17). Phase 22 (card #291) added a First Strike card as
-lesson 7 (the zone no longer spells it out), so Relics and Echoes are lesson 8 of 8.
+lesson 7 (the zone no longer spells it out), so Relics and Echoes are lesson 8 of 8. Since card #320
+that card teaches the press: "A Fight stop opens on a ring: press [A] as it closes." with the tip
+"GOOD or PERFECT: your party acts first." (the tutorial fight still opens with First Strike).
 
 First version (a lesson box over a free-running practice fight) was rejected by the user
 2026-10-15: "feels like a fight, not a tutorial"; the box covered the enemy intent; the text did
@@ -2298,7 +2322,7 @@ Spire's compendium). It is a reference and a record, not a reward: nothing in it
   "Rot Journal" title, the progress line ("Met 7 of 19 enemies"), then two parts. Left, a `ListMenu`
   of every enemy in `data/enemies/` (alphabetical; one never met reads "???" and is dimmed). Right,
   the chosen enemy in an ink plate: its portrait (a dark silhouette until met), name, "Met in N
-  fights, Beaten N times", where it was met (zone names, or the fight's name for a lair or elite,
+  fights, Beaten N times", where it was met (the place's name for a Fight, Guard, elite or ambush fight, 8.22, or the fight's name for a lair,
   the first six), then one row per attack it can ever use (phase-two ones too). A row shows the
   attack's name, the hit kinds seen (Normal, Ground, Rend, Sweep), the marks seen (ROT, BLIGHT,
   WEAK, AP DRAIN, in the HUD's colours), a red DOOM tag for a Charged Doom, and the player's record
@@ -2315,7 +2339,7 @@ Spire's compendium). It is a reference and a record, not a reward: nothing in it
   counts as broken. Counts are in hits, like the RUN OVER recap. When the fight ends, `Main` hands
   `CombatController.journal_fight()` to `JournalFile.record`. A fight left half way (the window
   closed) is not recorded.
-- **What counts.** A person's fights in a run (zone fights, elites, guards, bosses; won, lost or
+- **What counts.** A person's fights in a run (Fight stops, elites, guards, ambushes, bosses; won, lost or
   fled). **Practice fights, the tutorial and bots write nothing** (`RotJournal.counts_fight`):
   practice has invulnerable and immortal cheats and lists every fight, so counting it would unlock
   the whole book in minutes and mix cheated numbers into a record; a bot's numbers say nothing
@@ -2355,20 +2379,24 @@ nothing in a fight. It is reached two ways, and both open on the first topic:
   chosen term in an ink plate: a square plate with the game's own icon (whole-number scaled so the
   pixel art stays crisp, edged in the term's colour) or, with no icon, a swatch of its colour; the
   term's name in worn gold; "Shown as  PARRY" in the term's colour when the game prints a word for
-  it; then two or three plain lines. Up/down chooses a term, left/right changes topic (wrapping round
-  the ends), Back closes (`HintBar` at the foot); keyboard and pad like every menu. Everything fits
+  it; then two or three plain lines. Up/down chooses a term, left/right or LT / RT (1 / 3, card #336;
+  the strip's ends show those buttons) changes topic (wrapping round the ends), Back closes (`HintBar` at the foot); keyboard and pad like every menu. Everything fits
   1920x1080 (a test measures every page).
 - **Phase 19** (card #252): the five new marks, Ward, Shielded, Marks, Helpers and Burst, the mark
   icons on status terms; "Help on heroes" split from "Marks on heroes" (118 terms in 15 topics).
 - **Phase 25** (card #305, 8.21): a last topic, "Fight Rush", with three terms: Fight Rush (the New Run
   card's picture), Reward cards (the Heal card's picture) and Records (gold, "NEW RECORD"); 124 terms
-  in 16 topics. Added to the `.tres` only, like the phase 24 streak term.
+  in 16 topics. Added to the `.tres` only, like the phase 24 streak term. Removed again with the
+  Fight Rush in phase 26 (card #331, 8.21): 114 terms in 14 topics now.
 - **Content is data**: `data/glossary/glossary.tres` (`GlossaryData`: `topic_ids`, `topic_names`,
   `entries`; each `GlossaryEntry`: `id`, `topic`, `term`, `text`, `tag`, `icon_path`, `color`, where an
   alpha of 0 means no colour). `tools/bootstrap_glossary.gd` wrote the first version (109 terms in 14
   topics: The fight, Reading attacks, Defence, Skills and AP, Counters and team, Marks on enemies, Marks
   on heroes, Dooms, Enemies, The map, In a zone, Gear and items, Shops and camps, The run); after that,
-  edit the `.tres` (or the tool's list and re-run it, not both). The tool takes the hit kinds'
+  edit the `.tres` (or the tool's list and re-run it, not both). Phase 26 (8.22) dropped the In a zone
+  topic and its terms and gave The map a Fight stop and a Guard stop term (the Guard stop term went
+  again when the guards joined the Elite stops, 8.22), by hand in the `.tres`: the
+  tool is older than the file, so do not re-run it. The tool takes the hit kinds'
   colours and icons from `combat_visuals.tres` and the status words and colours from `HudStyle`, and a
   test (`tests/unit/test_glossary.gd`) keeps the book equal to them, so the screen and the book cannot
   drift apart. Every term needs an id, a known topic, a short name (26 characters at most), text (260
@@ -2432,14 +2460,20 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   jump; a greyed card does nothing when chosen. Chips are {icon or glyph, text, color, newline};
   `RunState.offer_chips` / `choice_chips` give a deal's price (red), gift (green) and risk (a die
   with its %). Who pays a max-HP price: "all", "1" (you pick) or "1?" (random). Used by yes/no
-  questions (No left, Yes right; shrines and wanderers add their chips under the question), Spoils
-  (Relic icon, name, New / Home / "Lv a > b", effect, drawback and stat chips), the campfire (Rest
-  "+N%", Train "+N", Upgrade "+1 Lv"; before the boss Rest, Keep watch, Sharpen), treasure (Plain and
+  questions (No left, Yes right; until phase 26 a zone's shrines and wanderers added their chips
+  under the question, a `ConfirmPrompt` feature that went with them, 8.22), Spoils
+  (Relic icon, name, New / Home / "Lv a > b", effect, drawback and stat chips; since 8.24 only New), the campfire (Rest
+  "+N%", Train "+N"; Upgrade "+1 Lv" until card #332, 8.1; before the boss Rest, Keep watch, Sharpen), treasure (Plain and
   Rotten chests), "?" events and the starting pact, and the main menu's Online page (Host, Join).
-  Leave and Back are the cancel button with a footer hint, never a card. Pick lists of three or
-  fewer (who pays: the heroes' faces and HP; what goes; which item to upgrade) are cards too. Art: `tools/art_kit/assets/ui_choices.py` (choice_*, chip_*); paths and
+  Back is the cancel button with a footer hint, never a card. Taking nothing is a card: since card
+  #334 (2026-10-25) a "?" event and the Crossroads end their cards with **Walk on** (the door picture,
+  `StopVisuals.walk_on_icon_path`), and Back does nothing on a "?" event's cards (on the Crossroads it
+  goes back a screen, 8.24, card #334 follow-up 2026-10-26; it only steps back out of a
+  pick list or the "Who gets it?" step). This reverses phase 22's "Leave is the cancel button, never a
+  row" there: Back must never pass something up for good. Pick lists of three or
+  fewer (who pays: the heroes' faces and HP; what goes; which curse to lift) are cards too. Art: `tools/art_kit/assets/ui_choices.py` (choice_*, chip_*); paths and
   chip colours in `stop_visuals.tres`.
-- **Zone (#289, #291).** The goal top right is icon chips (`ZoneController.goal_chips`): a seal
+- **Zone (#289, #291; gone in phase 26 with `ZoneController`, 8.22, history).** The goal top right was icon chips (`ZoneController.goal_chips`): a seal
   stone "0 / 2" while the gate is shut, a horned skull GUARD, then a flag EXIT (or OPEN), and a
   plain skull with the other enemies left (`goal_foe.png`; paths in `explore_visuals.tres`, group
   "Goal"). Bottom left shows only the buttons: First Strike is taught by the tutorial's lesson 7
@@ -2450,7 +2484,8 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   Settings: the title and section tabs are pinned at the top; lines under rows are four words at
   most; Controls has a Keyboard page and a Controller page (#277: opens on the device in use, LT/RT
   or left/right switch, each page its own Reset; bindings drawn as button pictures, `ButtonChip`);
-  the lag row says Keys / Pad / Default, never ms; the Training ring row only in debug builds. Lag
+  the lag row says Keys / Pad / Default, never ms; the Training ring row only in debug builds; Take
+  turns (online, the host's: friends choose too, card #314) is ON / OFF. Lag
   calibration: beat pips, the device picture, a steadiness meter that turns green when it can save,
   a "Too uneven" chip; ms only with F1 open; the offer says "About N seconds" from the data. Join
   Online: a footer hint bar (Connect / Back, Rejoin after a lost connection), no networking
@@ -2461,16 +2496,17 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   clashes with a usable action (`ControlBindings.list_debug`).
 - **Run screens.** Map: under the map, the picked stop's picture, name and 2 or 3 chips
   (`MapScreen.detail_chips`; the campfire before the boss shows Keep watch and Sharpen). Shop:
-  service cards with pictures (skull Cleanse, anvil Upgrade, arrows Restock, coin Sell, door
-  Leave), prices as the coin and a number, Sell once. Run end: one row of chips ("Act 1/2" with the act's boss
+  service cards with pictures (skull Cleanse, arrows Restock, coin Sell, door Leave; the anvil
+  Upgrade went with card #332, 8.1), prices as the coin and a number, Sell once. Run end: one row of chips ("Act 1/2" with the act's boss
   lair, "Stops N", "Wins N", "Gold N", each hero's face with "Lv N"), the defence rows ("Parry 3",
   "Dodge 0", "Jump 0", "Hit 4", a star with "Best"), "Kept" and the Relics kept as icons with their
   names (up to 8, then "+N"; nothing when none), and on a defeat one row: "Killed by", the enemy's
   portrait and name, the attack's name and hit icons, "N damage". Echoes page: a pips bar per Relic being learned; the rules are in the
   Glossary's "echo" term. Rot Journal: hit kinds and marks as icons, the record as glyphs with
   counts, no legend. Y screen: a tab's count is a gold circle with a plain dark number; the Skills
-  tab's slots sit centred over the tree. New art: `tools/art_kit/assets/ui_runinfo.py` (upgrade,
-  restock, door; the map and shop use the campfire's `choice_upgrade.png` for Upgrade).
+  tab's slots sit centred over the tree. New art: `tools/art_kit/assets/ui_runinfo.py` (restock,
+  door; its anvil `upgrade.png` and the campfire's `choice_upgrade.png` went with the Upgrade, card
+  #332).
 - **Skills, tutorial, map legend, shop items (#292 to #295, 2026-10-21).** The fight's skill and item
   lists show the chosen row as its `short_text` (3 to 6 words, AbilityData / ItemData; the
   description when empty) over labelled chips worked out from its data (`ActionMenu.ability_chips` /
@@ -2495,6 +2531,7 @@ each moment; a pad is told only when its levels change, with a length so it stop
 | a parry (the last hit of a string: stronger) | `parry`, `parry_final` (sharp, short) | the defender's player |
 | a dodge / a jump | `dodge` (light) / `jump` | the defender's player |
 | a perfect / good skill press | `press_perfect` / `press_good` (softer) | the presser |
+| a perfect / good press on the First Strike ring (8.22) | `press_perfect` / `press_good` | the presser (`PadRumble.for_player` with the fight's roster; on the card's until #335) |
 | a hit taken (heavy: at least `big_hit_percent` of max HP) | `hurt` / `hurt_heavy` | the hit hero's player |
 | a hero downed | `downed` | that hero's player |
 | the Team Ultimate | `ultimate` (long, rolling) | every pad here |
@@ -2506,7 +2543,8 @@ each moment; a pad is told only when its levels change, with a length so it stop
   feels nothing); one person on this machine (solo, or this machine's player online), the pad that was
   used last, while a pad (not a key) was the last thing pressed; another machine's player online,
   nothing here. The fight hands the roster and hero owners over (`PadRumble.set_party`); out of a fight
-  a buzz goes to the pad in use. A buzz is sent to the pad the moment it is asked for (a 35 ms buzz
+  a buzz goes to the pad in use, except the First Strike ring's, which names its presser
+  (`PadRumble.for_player`). A buzz is sent to the pad the moment it is asked for (a 35 ms buzz
   must not wait for the next frame).
 - **Settings > Controls > Controller**: Vibration, `< 100% >` in steps of 25, 0 shows OFF (saved per
   machine, `PlayerSettings.rumble_percent`); a change buzzes the pad once at the new strength
@@ -2549,8 +2587,15 @@ blow").
 
 Tests: `tests/unit/test_press_ladder.gd`.
 
+---
 
-Slay-the-Spire style branching node map (host picks path). Node types: zone (small explorable
+## 8. Run structure (phase 4)
+
+Since phase 26 (8.22) a run has no walkable zones: the map's Fight and Elite stops go straight into a
+fight. The phase 4 text below is history where it speaks of zones.
+
+Slay-the-Spire style branching node map (host picks path; online map steps go in turns since card
+#314, 9.2). Node types: zone (small explorable
 area with visible roaming enemies and a forced fight at the end), rest, shop, boss (final).
 Touching a roaming enemy starts a fight; striking it first gives an opening advantage.
 In zones the host moves the party and others follow (v1). In-run progression: levels and
@@ -2681,6 +2726,59 @@ counters for longer and mixed strings (2.5, card #52).
   as the run's final fight.
 
 ### 8.1 Backpack and items (phase 11, plan agreed 2026-10-14)
+
+**Phase 26 change (card #332, owner 2026-10-25): the pack holds consumables only.** Everything below
+about Tonics, the Bigger Pack, combining, item levels, Upgrade and curses in pockets is history.
+
+- **Four pockets for the whole run** (`tuning.backpack_pockets` 4, was 6), one item each; the pack
+  never grows. The Bag tab sews them on the lining of `ui/backpack_5.png` two to a row
+  (`backpack_pocket_columns` 2, so two rows of two); `backpack_6.png` and `backpack_7.png` are gone.
+- **Only things used up go in** (`ItemData.goes_in_pack()`: kind CONSUMABLE): Salve, Feast, Bomb,
+  Antidote, Smelling Salts, Holy Water. Treasure still turns into gold the moment it is found.
+  `Backpack.from_array` and `RunState.place_item` refuse anything else.
+- **The Tonic is gone** (its item, icon and art maker, `tonic_max_per_hero`, `RunState.tonics_used`,
+  its place on the shop and find lists, the bot's use and its Glossary term). Nothing replaces it as
+  an item: lasting max HP comes from levels, Vitality (Train at a campfire gives points) and Relics
+  with a max HP line. With the Bigger Pack gone too, the shop and the finds draw from two items fewer.
+- **The Bigger Pack is gone for good** (its item and art, the `UPGRADE` / `ADD_ROW` handling,
+  `backpack_max_pockets`, the pockets sewn shut, its shelf in the shop, its Glossary words), and no
+  pack upgrade comes back in phase 28 either (8.24). `ItemData.Kind.UPGRADE` (4) and the effects
+  `MAX_HP_ONE` (3) and `ADD_ROW` (6) keep their numbers so item files stay valid; no item has them.
+- **No combining and no item levels**: the `combine` bag op, combining a find in hand, the `level` of a
+  pack entry, `combine_bonus_percent`, the shop's Upgrade (`shop_upgrade_price`) and the campfire's
+  Upgrade are gone. A campfire offers Rest or Train (8.11).
+- **Curses sit on the party, not in a pocket**: `RunState.curses`, the ids of curse items in the
+  order taken (saved and sent online; the same curse twice is two curses). The rot is the same: every
+  hero loses each curse's `rot_percent` of their max HP each turn in a fight, never below 1 HP
+  (`rot_percent()` adds them up, fed to the fight as `Passive.ROT`). Events, pacts and the rotten
+  chest add to the list (`add_curse`); a full pack never greys a curse price out. The run's top strip
+  (`RunPartyBar`, on the map and at every stop) shows each curse as its picture and name in the rot
+  green, one chip per kind ("Rotting Heart x2" for more of the same), and nothing when there is none.
+  The fight shows no curse chip: the rot shows as its damage numbers, as before. The shop's **Cleanse**
+  lifts one (the player picks which; same price, `shop_cleanse_price` 35, raised by the oaths like
+  every price). **Deliberate:** a curse cannot be thrown away or sold; only a Cleanse lifts it.
+  Before, throwing it out of the pack was free, so a curse price cost nothing but a pocket.
+- **A find with the pack full**: it goes in a free pocket by itself; with none, the Bag tab opens with
+  it in hand: Confirm on a pocket swaps it for that item (asked first; the old one is thrown away),
+  Back leaves it behind (asked first). Online a friend's choice comes back to the host as the same
+  `hand_out` op (`pocket`, `swap`, `fit`, `leave`), checked there against the pack.
+- **Saves and online**: `RunSave.FORMAT_VERSION` 7 (older runs are kept on disk but refused),
+  `Net.PROTOCOL` 9 (the run state has `curses` and no `tonics_used`, a pack entry has no level, the
+  shop's cleanse names a curse by its place in the list with the curse there and how many the friend
+  saw, so a second press made before the first came back is refused (`RunState.cleanse`), no
+  `combine` op, no campfire `upgrade`). Every
+  bag op is still checked by the host. **Bots**: no Tonic, no combining; in a shop they first lift
+  every curse they can pay for (`Main._bot_cleanses`), then buy as before; heals and revives as before.
+
+**Phase 26 change (8.22, cards #318, #319): no zones, no Key.** Glinting spots, roaming drops and the
+zones' locked chests are gone, and so is the Key (`data/items/key.tres`, its icon and art).
+`ItemData.Kind.KEY` keeps its number (2) so item files stay valid; no item is one. Items now come
+from a won Fight stop (`RunState.fight_drop`: the seeded `item_drop_percent` (35) roll a zone's first
+roaming enemy had, `drop_for`), treasure stops, "?" events, pacts and shops. A drop that does not fit
+opens the party screen with it in hand. Every run saved before is kept on disk but refused
+(`RunSave.FORMAT_VERSION` 3: format 2, the first phase 26 builds, could still give a Key from the
+Hanging Cage), so no pack that loads can hold a Key. The rows below about keys, spots and chests
+are history.
 
 **Phase 21 change (card #282): the grid is now Alder's pack with pockets** (one item each, no shapes
 or turning, treasure turns into gold at once; see 8.19). The grid rules below are history.
@@ -2836,7 +2934,7 @@ when it has a key, and sells treasure at shops.
 - **Sounds** (#103, picked by the user 2026-10-14 from three real recordings each,
   `tools/sound_kit/candidates/backpack.json`): `item_lift` belt and buckle, `item_place` soft
   thump, `item_turn` paper slide, `item_no_room` dull knock, `item_drop` tossed pouch,
-  `item_found` coins and cloth, `item_combine` pop and shimmer, `chest_open` latch and creak.
+  `item_found` coins and cloth, `item_combine` pop and shimmer (gone with combining, card #332), `chest_open` latch and creak.
 - **Bot:** shops buy everything affordable (gear goes on whoever has room); new gear and finds
   are settled the simple way (`PartyScreen.auto_settle`); on the map it uses heals on whoever is
   at or under 60% and tonics at once; in zones it first walks to each glinting spot (giving one
@@ -2978,11 +3076,12 @@ Replaces the shared party level of phase 4 (#30). Numbers live in `tuning.tres` 
   goes under `attack_tempo_floor_percent` (70) of the authored timing (`CombatSetup.tempo_floor`).
   The intent's times and the declared hits carry the result, so the judge, the bots and online
   play need nothing new. Practice fights play at the authored speed (no run); the tutorial keeps
-  its own slow tempo. Example: the act-two Hollow King (depth about 13) plays at about 80%, about
-  72% in phase two.
+  its own slow tempo. Example (three acts, #323): the act-two Leech Queen (depth 13) plays at about
+  80%, about 73% in phase two; the act-three Hollow King (depth 20) at about 74%, and his phase two
+  sits on the 70% floor (5% faster than his first phase, not the authored 10%; 8.23).
 - **Depth** (#105, phase 13 step 3, built early): every enemy in a run fight gets
-  `run_enemy_hp_row_percent` (5) more HP and `run_enemy_power_row_percent` (3) more power per map
-  row of the stop (row 0 as in its data; `CombatSetup.enemy_hp_percent` / `enemy_power_percent`,
+  `run_enemy_hp_row_percent` (3, was 5 until the three-act balance pass, #321, 8.23) more HP and
+  `run_enemy_power_row_percent` (2, was 3) more power per map row of the stop (row 0 as in its data; `CombatSetup.enemy_hp_percent` / `enemy_power_percent`,
   set by `RunState.fight_setup`). On top of the deep variants (2.16). Bosses keep their own
   numbers unless `run_enemy_scale_bosses` is on. Practice fights never grow.
 - **Team gauge** (#146): what is left of the team gauge when a run fight ends (won or escaped)
@@ -3049,6 +3148,10 @@ middle row costs 1 point, the bottom row 2; phase 19 gave three branches a fourt
   (a ring and motes rising from the crystal).
 
 ### 8.5 Long zones (phase 15 step 1, cards #155, #164; user picks 2026-10-16)
+
+**Removed in phase 26 (8.22):** the sections, seals, gate, exit, champions, shrines, wanderers, glinting spots,
+chests and the zone bot are gone; this section is history. Four shrines and wanderers live on as
+"?" events (8.7) and each place's guard waits at some of its act's Elite stops (8.22).
 
 The user's problem: in a zone you could walk straight to the guard and leave. Picks: zones run
 left to right like a side-scroller (guard at the far right), 3 to 5 times longer, built from
@@ -3124,6 +3227,9 @@ phase 14 was the tutorial).
 
 ### 8.6 Mini-boss guards and elite fights (phase 15 step 2, cards #156, #157)
 
+Since phase 26 (8.22) the champions are gone and each place's guard waits at some of its act's Elite
+stops (it had a Guard stop of its own until the guards joined the Elite stops).
+
 - **Guards are mini-bosses** (`EncounterData.mini_boss`): each zone's guard is a named kin of its
   monster, recoloured by the art kit (`enemy_variants.py`), with a **phase two** at half HP (its
   variant's moves, faster, a banner): Rotten Hollow **The Gorged One** (crimson bloat, with a gnat
@@ -3142,22 +3248,25 @@ phase 14 was the tutorial).
   | Mire Mother | Brood Tide (waves and mud) | 2 | 21% | 8 | 7 |
   | Ash Warden | Ashfall (cinders and rocks) | 2 | 36% | 8 | 9 |
   | The Husk Lord (act 1 boss) | Timber Fall | 3 | 22% | 8 | 14 |
-  | The Hollow King (act 2 boss) | Crown of Rot | 3 | 13% | 10 | 8 |
+  | The Leech Queen (act 2 boss, 8.23) | Drowning Tide (waves, tail sweeps, spit) | 3 | 17% | 9 | 9 |
+  | The Hollow King (act 3 boss) | Crown of Rot | 3 | 13% | 10 | 8 |
 
   The break shares were set from bot runs (2.3): a focused, perfectly defending bot breaks about
   7 in 10 (the King about 6 in 10); they are meant to be re-tuned from play. All five files are
   written by `tools/make_attack.py`; the enemy files list the Doom by hand (the one-shot
   `bootstrap_phase15.gd` does not know it). The choreography golden test took the five new files
-  (55 attacks, every older hash unchanged).
+  (55 attacks, every older hash unchanged). The Leech Queen's Doom came with card #323 (8.23), its
+  break share a first guess between the Lord's and the King's.
 - **Better reward**: spoils (after a guard, an elite or an act's boss) are gear of at least
   `run_spoils_min_rarity` (rare) while the run has enough of it, and one of the choices is a
   rot-touched piece (8.16).
 - **Elite fights** (`EncounterData.elite`): enemies get `elite_hp_percent` (140), `elite_power_percent`
   (115) and `elite_gold_percent` (150) on top of depth. Four: Twin Husks, The Laughing Pack (two
-  hyenas and a fly), Toad Court, Shade Coven, each with a deep version. They are met two ways:
-  an **Elite stop** on the map (a fight in one of the act's zones' look, then spoils), and the
-  zones' **champions** (8.5), now elite fights marked "ELITE" in their own colour (they no longer
-  force the deep version). Elite fights cannot be run from (2.13).
+  hyenas and a fly), Toad Court, Shade Coven, each with a deep version. They are met at an
+  **Elite stop** on the map (a fight in one of the act's places' look, then spoils; since 8.22 an
+  Elite stop may hold the place's guard instead), and until phase 26 were also the zones'
+  **champions** (8.5), elite fights marked "ELITE" in their own colour (they no longer forced the
+  deep version). Elite fights cannot be run from (2.13).
 
 ### 8.7 Event stops "?" (card #158, rebuilt as real trade-offs in card #193, 2026-10-17)
 
@@ -3165,10 +3274,14 @@ The owner wants the game hard, so a "?" is a temptation, never a gift. Every cho
 scarce, and a "?" can turn into a fight.
 
 - `EventData` (`data/events/`): a title, a short story, a picture and 1 or 2 choices
-  (`EventChoiceData`), always plus Leave (the screen adds it, so no event can lack it). A choice has a
+  (`EventChoiceData`), always plus Walk on (the screen adds it as the last card, so no event can lack
+  it; until card #334 it was Leave on the cancel button, and Back walked on). A choice has a
   deal (`ZoneOfferData`) and may have a risk: `risk_percent` of the time its `risk_deal` strikes too
   (seeded by the run and stop, the same on every machine). Choices the party cannot pay are greyed.
-  Shrines and wanderers (8.5) use the same `ZoneOfferData`; the new prices below are for events.
+  The zones' shrines and wanderers (8.5) used the same `ZoneOfferData`; since phase 26 (8.22) four
+  of them are events (below). A forced risk that is a choice's only price always costs something
+  other than max HP too, so it still costs something once every hero is at the max HP floor (a test
+  checks it).
 - **Prices a deal can have** (all in `ZoneOfferData`, all optional, together with the old gold and
   HP prices):
   - `cost_max_hp_percent` with `cost_max_hp_target`: **permanent max HP**, a percent of the hero's
@@ -3176,12 +3289,14 @@ scarce, and a "?" can turn into a fight.
     EVERYONE, CHOSEN (the player picks the hero) or RANDOM (the seed picks one). It never takes a hero
     under `event_max_hp_floor_percent` (40) of their normal max HP, and the choice is greyed when every
     hero is at the floor. HP is clamped to the new max. A chosen hero at the floor cannot be picked.
-  - `cost_item`: **lose a backpack item**, RANDOM (seeded) or CHOSEN (the player picks). Rotten items
-    are never taken (nobody misses those). Greyed when the backpack holds nothing that can be lost.
-  - `cost_rotten`: **a curse**. One of the rotten items that already exist (Rotting Heart, Grave Moss)
-    goes into the backpack at once; it is strong and it rots the party in fights until the shop's
-    Cleanse (or throwing it away) removes it. Greyed when it would not fit. An event deal never has
-    both an item price and a curse (a test keeps it so; the check for room would depend on the pick).
+  - `cost_item`: **lose a backpack item**, RANDOM (seeded) or CHOSEN (the player picks). Since card
+    #332 a curse is never in the pack, so it can never be the one lost. Greyed when the backpack holds
+    nothing.
+  - `cost_rotten`: **a curse**. One of the curses that already exist (Rotting Heart, Grave Moss)
+    goes on the party at once (card #332: `RunState.curses`, not a pocket, so it is never greyed for
+    want of room); it rots the party in fights until the shop's Cleanse lifts it. **Deliberate:** it
+    cannot be thrown away (8.1). An event deal never has both an item price and a curse (a test keeps
+    it so).
   - `ambush` (+ `ambush_spoils`): **a fight**. After the story the party fights that encounter through
     the run's own fight path (`Main._start_final_fight`, like an elite stop: HP carries on, gold and XP
     as for any fight, a defeat ends the run). Spoils (one piece of gear) only if `ambush_spoils` is on.
@@ -3199,7 +3314,7 @@ scarce, and a "?" can turn into a fight.
 - **Depth**: gold and XP in an event (prices and rewards alike, so the trade keeps its shape) grow by
   `tuning.event_reward_row_percent` (6) for every map row of depth, acts counting the rows before them
   (`RunState.event_scale`): 100% on row 0 of act 1, about 130% on its row 5, about 166% on row 4
-  of act 2.
+  of act 2 (about 208% on row 4 of act 3).
 - **A "?" stop can be an ambush instead of an event.** On entering a "?" stop (`RunState.go`) the run
   rolls once, seeded by the stop (`AMBUSH_SALT`), against `unknown_fight_percent_base` (15) plus
   `unknown_fight_percent_step` (15) for every "?" stop passed without a fight since the last one.
@@ -3207,45 +3322,63 @@ scarce, and a "?" can turn into a fight.
   (`RunState.ambush_streak`, 15%, 30%, 45%, ...). The stop then shows its own page, "An Ambush!"
   (`ActData.ambush_title` and `ambush_text`, and the fight's name), with one choice, Fight; no event
   is used up. The fight is one of the act's `ActData.ambushes` (ordinary 2 to 3 enemy fights, in
-  their deep version in act 2) in the look of one of the act's zones; it pays gold and XP and gives
-  no spoils.
-- **Online and Save & Quit**: the host chooses, the clients see the result. The run dict carries the
+  their deep version in a deep act or row: act 3, since no ordinary row is deep after #321) in the look and air of one of the act's places, under a rolled
+  weather (8.22); it pays gold and XP and gives no spoils.
+- **Online and Save & Quit**: whoever's turn it is chooses (9.2 "Taking turns"; with Take turns off
+  the host), and everyone sees the result. The run dict carries the
   new state (`ambush_streak`, `ambush_id`, `ambush_spoils`; `apply_dict` refuses a negative or
   non-integer counter, a non-string id, a non-bool flag or an id that is no ambush of this run's
   data), so a client opening the event screen or the fight sees the same ambush, and a saved run that
   was saved on entering the stop (8.14) comes back to the same ambush page.
 - **The events.** An act's "?" stops pick from its `events`, never one met before in the run
-  (`RunState.events_seen`, synced online). Sixteen, written by `tools/bootstrap_events.gd` (which
-  also fills both acts' event lists and ambush pools; every event has its own picture, see "The pictures" below):
+  (`RunState.events_seen`, synced online). Twenty, written by `tools/bootstrap_events.gd` (which
+  also fills the three acts' event lists and ambush pools; every event has its own picture, see "The pictures" below):
 
   | Event | Act | Choices (every one has a price) |
   |---|---|---|
-  | The Weeping Well | 1, 2 | Drink: heal 35%, everyone -4% max HP, 30% risk -15% HP; coin: team gauge +50, 25% risk an ambush |
-  | Gambler's Bones | 1, 2 | Stake 25 gold for 80, 55% to lose 100; or the purse: 60 gold, 55% -10% HP and a Grave Moss curse |
-  | A Wounded Pilgrim | 1 | Give an item of your pick: XP and a 20% heal; or the satchel: gold and a Salve, 55% an ambush |
-  | Rot Blossom | 1 | One hero eats the fruit (-6% max HP): heal 35%, 30% risk; or the seed pod: a rare find and a curse |
-  | The Hanging Cage | 1 | Climb: the Key, 45% risk of -6% max HP (random hero) and -15% HP; or fell the tree: Key and gold, certain ambush |
-  | Merchant's Wreck | 1, 2 | Search the crates: a rare find, 45% an ambush (the hyenas); or pry the strongbox: 70 gold for a random pack item |
-  | The Whispering Mask | 1, 2 | A chosen hero wears it (-8% max HP): 90 XP each, 40% risk; or sell it: a Golden Idol and a curse |
-  | The Bone Collector | 1 | Trade a chosen item and gold for a rare find; or sell a rib (a chosen hero -7% max HP) for gold |
+  | The Weeping Well | 2, 3 | Drink: heal 35%, everyone -4% max HP, 30% risk -15% HP; coin: team gauge +50, 25% risk an ambush |
+  | Gambler's Bones | 1, 2, 3 | Stake 25 gold for 80, 55% to lose 100; or the purse: 60 gold, 55% -10% HP and a Grave Moss curse |
+  | A Wounded Pilgrim | 1, 2 | Give an item of your pick: XP and a 20% heal; or the satchel: gold and a Salve, 55% an ambush |
+  | Rot Blossom | 1, 2 | One hero eats the fruit (-6% max HP): heal 35%, 30% risk; or the seed pod: a rare find and a curse |
+  | The Hanging Cage | 1 | Climb: a find from the dead man's pack, 45% risk of -6% max HP (random hero) and -15% HP; or fell the tree: a find and 60 gold, certain ambush (Bloat and Gnat Swarm) |
+  | Merchant's Wreck | 1, 2, 3 | Search the crates: a rare find, 45% an ambush (the hyenas); or pry the strongbox: 70 gold for a random pack item |
+  | The Whispering Mask | 1, 2, 3 | A chosen hero wears it (-8% max HP): 90 XP each, 40% risk; or sell it: a Golden Idol and a curse |
+  | The Bone Collector | 1, 3 | Trade a chosen item and gold for a rare find; or sell a rib (a chosen hero -7% max HP) for gold |
   | The Hungry Scarecrow | 1 | Feed it a random item: heal 40% and XP; or cut the stitches: gold, XP and a certain ambush |
   | The Tithe Collector | 1 | Pay coin: heal 30% and gauge; or pay blood (everyone -6% max HP): gold and XP |
-  | Shrine of Old Kings | 2 | Kneel (a chosen hero -8% max HP): gauge +70 and XP; or pry the gold: 100 gold, 55% an elite ambush with spoils |
-  | The Black Mirror | 2 | Touch it (-5% max HP all): 100 XP, 40% an ambush; or smash it: 90 gold and a Rotting Heart curse |
+  | Shrine of Old Kings | 3 | Kneel (a chosen hero -8% max HP): gauge +70 and XP; or pry the gold: 100 gold, 55% an elite ambush with spoils |
+  | The Black Mirror | 2, 3 | Touch it (-5% max HP all): 100 XP, 40% an ambush; or smash it: 90 gold and a Rotting Heart curse |
   | The Drowned Chapel | 2 | Ring the bell (-5% max HP all): heal 45%, 50% an ambush; or take the silver: 120 gold and a curse |
-  | The Buried Cairn | 2 | Dig: gold and a rare find, certain ambush; or say the name (lose a chosen item): gauge and XP |
-  | The Sealed Door | 2 | Break the seal: gold, an elite ambush with spoils; or pick the lock (lose a chosen item): gold and a rare find |
-  | The Widow's Wager | 2 | Buy in (40 gold): XP, 50% a random hero -8% max HP; or stake a hero (-10% max HP): a legendary find, 40% a curse |
+  | The Buried Cairn | 3 | Dig: gold and a rare find, certain ambush; or say the name (lose a chosen item): gauge and XP |
+  | The Sealed Door | 3 | Break the seal: gold, an elite ambush with spoils; or pick the lock (lose a chosen item): gold and a rare find |
+  | The Widow's Wager | 2, 3 | Buy in (40 gold): XP, 50% a random hero -8% max HP; or stake a hero (-10% max HP): a legendary find, 40% a curse |
+  | The Healing Spring | 1, 2, 3 | Leave a coin (35 gold): heal 30%; or fish out the coins: 60 gold, 50% risk of a random hero -5% max HP and -10% HP |
+  | The Blood Altar | 3 | Bleed (everyone -4% max HP): a rare find; or drink: a Rotting Heart curse, heal 50% and team gauge +30 |
+  | The War Idol | 1 | An offering (40 gold): 50 XP each; or bleed on its horns (a chosen hero -5% max HP): gauge +60 |
+  | The Grave Robber | 1, 3 | Buy (50 gold): a rare find; or help him dig: 45 gold and a find, 40% an ambush (Husk, Gnats and Fly) |
 
-  Act 1 draws from the first ten, act 2 from the last ten; four are in both. The act's ambush pools:
-  act 1 Bloat and Gnat Swarm, Rot Hyena and Carrion Fly, Mire Toad and Carrion Fly, Shade and Gnat Swarm,
-  Two Carrion Flies; act 2 the Rot Hyena Pack plus four of those (deep versions).
+  The last four came from the zones' shrines and wanderers (phase 26, 8.22 G2; the War Idol takes in
+  the Shrine of Plenty). Since card #323 (8.23) there are three acts, one place each, and each act's
+  list fits its place where it can: act 1 (Rotten Hollow) twelve, act 2 (Sunken Bog) ten, act 3
+  (Ashen Ruins) thirteen. Gambler's Bones, Merchant's Wreck, the Whispering Mask and the Healing
+  Spring are in all three; the Hanging Cage, the Hungry Scarecrow, the Tithe Collector and the War
+  Idol are act 1 only, the Drowned Chapel act 2 only, the Shrine of Old Kings, the Buried Cairn, the
+  Sealed Door and the Blood Altar act 3 only; every event is in at least one act (a test checks it).
+  The act's ambush pools: act 1 Bloat and Gnat Swarm, Shade and Gnat Swarm, Two Carrion Flies, Rot
+  Rat Pack, Husk, Gnats and Fly, Pus Tick Nest; act 2 Mire Toad and Carrion Fly, Lantern Swarm, Two
+  Carrion Flies, Pus Tick Nest, Rot Rat Pack, Husk, Gnats and Fly; act 3 Rot Hyena Pack, Rot Hyena
+  and Carrion Fly, Rot Priest and Hyenas, Barrow Brute and Rot Rat, Slinger and Rats, Shade and Gnat
+  Swarm (deep versions). An event's own ambush (the Grave Robber's Husk, Gnats and Fly in act 3, the
+  Merchant's Wreck's hyenas in act 2) is any act's ambush fight, so it is fought where the event is.
+  The phase-19 fights in them are kept by `bootstrap_events.gd`.
 - `EventScreen`: the picture, the story, the choices, then what happened and Continue (or Fight). Items go into
-  the backpack (it opens when full); online the host chooses and the clients see the result.
+  the backpack (it opens when full); online whoever's turn it is chooses (9.2) and everyone sees the
+  result.
 - **The pictures (card #199, 2026-10-17).** Each event has its own painted scene,
   `assets/sprites/events/<event id>.png`, and each act its own for the ambush page
-  (`events/ambush_rotten_road.png`, `events/ambush_ashen_deep.png`, `ActData.ambush_picture_path`);
-  16 + 2, all drawn by `tools/art_kit/assets/event_art.py` (art bible: 5.4; the kit README). They are
+  (`events/ambush_rotten_road.png`, `events/ambush_drowned_mire.png`,
+  `events/ambush_ashen_deep.png`, `ActData.ambush_picture_path`); 20 + 3, all drawn by
+  `tools/art_kit/assets/event_art.py` (art bible: 5.4; the kit README). They are
   128x64 art pixels, fully opaque, at most 96 colours, and what each shows is the event's own story:
   the Well a stone well with a rotting roof, weeping cyan and a glint on the black water; Gambler's
   Bones a skeleton in a gambler's hat at a rotten table, dice and a candle; the Pilgrim a robed man
@@ -3259,9 +3392,15 @@ scarce, and a "?" can turn into a fight.
   dark water with three figures looking out of it; the Chapel a church sunk to its roof in black
   water, a bell in the tower and rings spreading; the Cairn a cairn with a scratched name and the
   pit someone left; the Sealed Door an iron door with three wax seals in a hillside, ember light
-  under it; the Widow a woman in black by a cold hearth with the husband's empty chair. The act 1
+  under it; the Widow a woman in black by a cold hearth with the husband's empty chair; the Spring a
+  moss-grown stone basin brimming with glowing water under a broken arch; the Blood Altar a stained
+  altar with a never-dry bowl and red candles, blood run into the grass; the War Idol a squat horned
+  idol of black stone with ember eyes, swords, a shield, coin and skulls at its feet; the Grave
+  Robber a hooded man with a low lantern and a spade by a freshly opened grave. The act 1
   ambush is a road closing in with eyes in the trees and a dropped purse as bait; the act 2 ambush
-  pale hands and ember eyes in the ash round a half-buried coffer.
+  (card #323) a bog at night, black water to the horizon, a purse on a mud bank and violet eyes in
+  the reeds and the water; the act 3 ambush pale hands and ember eyes in the ash round a half-buried
+  coffer.
   Made like the rest of the world: a flat painted back (sky, two ridges, bare trees, ground, mist,
   glow and vignette from the shared colour ramps, bands cut by a light ordered dither) with the
   subject in front built as a small 3D model and rendered by the same camera and light as the props
@@ -3276,7 +3415,8 @@ scarce, and a "?" can turn into a fight.
 - **The bot** (`EventAutoplay`, pure, tested) plays a careful player: it takes a choice only if the
   reward is worth the price (its own gold values, named consts), pays no permanent max HP while the
   weakest hero is under 70%, walks into a possible ambush only while the party is fit for an elite
-  (`ZoneAutoplay.is_ready`), takes a curse only for a reward worth 120 gold or more, hands over its
+  (`RunAutoplay.is_ready`), takes a curse only for a reward worth 120 gold or more, values a heal
+  only as far as the party is hurt (so it never pays for a heal at full HP), hands over its
   cheapest item, and charges max HP to its healthiest hero. Otherwise it leaves. It fights every
   ambush page (there is no way around). Its habits are not game rules.
 - Numbers are a first guess to tune with play (`--autoplay=average --bot-skill=60` over many seeds);
@@ -3285,36 +3425,47 @@ scarce, and a "?" can turn into a fight.
 ### 8.8 Treasure stops (card #159)
 
 - Every stop of map row `run_treasure_row` (3) is a treasure chest. `TreasureScreen`: open it for
-  `run_treasure_gold` (30) and a prize like a locked chest's but picked as if 4 rows deeper
-  (`RunState.treasure_contents`): gear goes on a hero, an item into the backpack.
+  `run_treasure_gold` (30) and a prize like a zone's locked chest's but picked as if 4 rows deeper:
+  gear goes on a hero, an item into the backpack. Since phase 21 two chests, one to open (8.19);
+  since phase 26 (8.22) the prize rules live in `RunState.open_treasure` alone and the chest
+  pictures in `StopVisuals` (`chest_closed_path`, `chest_open_path`).
 
-### 8.9 Two acts (card #163) and the map (card #162)
+### 8.9 Three acts (cards #163, #323) and the map (card #162)
 
-- `RunData.acts` (`ActData`, `data/runs/acts/`): each act has its zones, elite fights, events, a
-  boss with its lair look and map picture, and `deep` (every zone fight is its variant version).
-  **Act 1, The Rotten Road**: Rotten Hollow and Sunken Bog, boss **The Husk Lord** (an iron-black
-  husk kin with a rotten husk at its side, phase two at half HP). **Act 2, The Ashen Deep**: Ashen
-  Ruins, Sunken Bog and Rotten Hollow, all deep, boss The Hollow King. A run without acts is one act
-  made of its own fields.
+- `RunData.acts` (`ActData`, `data/runs/acts/`): each act has its places (`ActData.zones`, each a
+  `ZoneData`: since phase 26 a place, 8.22), elite fights, events, a boss with its lair look and map
+  picture, and `deep` (every Fight stop's fight, elite group and guard is its variant version).
+  Since card #323 (8.23) three acts, one place each. **Act 1, The Rotten Road**: Rotten Hollow,
+  boss **The Husk Lord** (an iron-black husk kin with a rotten husk at its side, phase two at half
+  HP). **Act 2, The Drowned Mire**: Sunken Bog, boss **The Leech Queen** (8.23). **Act 3, The Ashen
+  Deep**: Ashen Ruins, deep, boss The Hollow King. (Before #323 there were two acts: the Rotten Road
+  had the Hollow and the Bog, the Ashen Deep all three places.) A run without acts is one act made of
+  its own fields.
 - Each act has its own map (`run_map_rows` 6 rows, then the boss; act 1 from the run's seed, later
   acts from a seed of their own). Beating an act's boss gives spoils, everyone heals
-  `run_act_heal_percent` (50%), and the next act's map opens (its title says "Act 2: ..."). Only the
+  `run_act_heal_percent` (50%), and the next act's map opens (its title says "Act 2: ...", then "Act 3: ..."). Only the
   last boss ends the run. Depth (enemy growth, rarity) counts the rows of the acts before. Seeds of
-  finds, drops and chests take the act into account (each act numbers its stops from 0); a locked
-  chest also takes its index in the zone into the seed, so two chests in one visit differ (card #176).
-- **The map** (card #162): stop kinds and weights: zone 45, event 25, elite 12 (not before row
-  `run_elite_min_row` 2, never two in a row), shop 12, rest 12; row 0 zones, row 3 treasure, the
-  row before the boss campfires, at least one shop. New painted pictures (art kit `map_art.py`):
+  finds, drops and chests take the act into account (each act numbers its stops from 0); a zone's
+  locked chest also took its index in the zone into the seed (card #176, gone with the zones).
+- **The map** (card #162): stop kinds and weights: Fight 45 (`run_weight_fight`; a zone until
+  phase 26, 8.22), event 25, elite 12 (not before row `run_elite_min_row` 2, never two in a row),
+  shop 12, rest 12; row 0 Fight stops (map rules 3 had row 1 all Guard stops, `run_guard_row`,
+  8.22; new maps have none), row 3 treasure,
+  the row before the boss campfires, at least one shop. New painted pictures (art kit `map_art.py`):
   a horned skull over crossed blades (elite), a red "?" (event), a gold-banded chest (treasure),
-  the Husk Lord's crowned hollow tree (act 1's lair). A **legend** down the left side names every
-  picture. **Planning**: while a next stop is picked, every stop and road it cannot lead to is
+  the Husk Lord's crowned hollow tree (act 1's lair), the Leech Queen's crowned pool (act 2's, 8.23). A **legend** down the left side names every
+  picture (since phase 26 it starts with Fight; its Guard line went when the guards joined the
+  Elite stops, 8.22). **Planning**: while a next stop is picked, every stop and road it cannot lead to is
   drawn faint (`unreachable_alpha`), so its roads ahead stand out.
 - An act with no elite fights or no events never gets those stops: `RunMap.generate` takes
   `has_elites` and `has_events` (filled from the act's lists) and zeroes their weights, and Main
   leaves an Elite stop with no fight as an empty stop with an error instead of crashing (card #176).
+  Since map rules 4 (8.22) an act with no elite groups still gets Elite stops when every one of its
+  places has a guard (each such stop holds its place's guard); one place without a guard and it gets
+  none, since the map may give an Elite stop any of the act's places.
 - Online: `RunState.to_dict` carries the act (the client rebuilds that act's map), the stops
-  visited, the campfire points, the events met, the shop's restocks, the Tonics drunk and the "?"
-  ambush state (8.7).
+  visited, the campfire points, the events met, the shop's restocks, the curses on the party (card
+  #332; the Tonics drunk until then) and the "?" ambush state (8.7).
 
 ### 8.10 The shop (card #160)
 
@@ -3323,19 +3474,25 @@ scarce, and a "?" can turn into a fight.
   stock, `run_shop_items` (4) items picked from the run's shop list (`RunState.shop_stock`), 2
   charms and 2 pieces of gear, a card each with its picture (items their icon, gear a gold amulet),
   name in its rarity colour and price, SOLD when bought. Under them the **services**: Cleanse (35:
-  throw away a rotten item), Upgrade (45: an item up a level), Restock (20, and `shop_restock_step` (20) more
+  lift one curse off the party, picked from a list; card #332, 8.1), Restock (20, and `shop_restock_step` (20) more
   for every restock already bought at this shop, back to 20 at the next stop: new stock on the
   shelves, `RunState.restocks`, `restock_price()`; card #175), Sell (the backpack) and Leave. No Heal service (user 2026-10-16:
-  it did the same as a Salve for the same price; healing is bought as items). Arrows move over shelves and services, Confirm buys, Tab / Y sells, Back leaves.
+  it did the same as a Salve for the same price; healing is bought as items). No Upgrade since card
+  #332 (items have no levels). Arrows move over shelves and services, Confirm buys, Tab / Y sells, Back leaves.
 
 ### 8.11 The campfire (card #161)
 
 - A rest stop is a campfire: the heroes stand round a flickering fire with its glow, and the
-  player picks **one**: **Rest** (everyone heals `run_rest_heal_percent`), **Train** (every hero
-  gets `rest_train_points` (1) attribute point, `RunState.bonus_points`) or **Upgrade** (one
-  backpack item up a level for free). The bot rests when hurt, else upgrades, else trains.
+  player picks **one**: **Rest** (everyone heals `run_rest_heal_percent`) or **Train** (every hero
+  gets `rest_train_points` (1) attribute point, `RunState.bonus_points`). The third card, **Upgrade**
+  (one backpack item up a level for free), went with the item levels (card #332, 8.1). The bot rests
+  when hurt, else trains.
 
 ### 8.12 Living zones (user, 2026-10-17: "the ruins should have ruins, roads; the swamp should have a swamp, jungle; make the zones feel alive")
+
+**Removed in phase 26 (8.22):** the sections, critters and walkers-by are gone; this section is history. What
+stays is each place's air (`ZoneData.ambient`, played thinner in its fights) and its look and arena
+decoration (`StageLook`, `tools/dress_arenas.gd`).
 
 - **Each zone has its own places** (`tools/bootstrap_zones.gd`, 5 middles each, 3 per visit):
   - **Ashen Ruins**, a dead city: a cobbled road runs through it all; the city gate (posts,
@@ -3405,6 +3562,7 @@ here makes a run easier.
   at most `tonic_max_per_hero` (2) Tonics per run (`RunState.tonics_used`, `tonics_left`). A capped
   hero is greyed on the party screen's hero cards with the reason in the info line, the shop stops
   selling Tonics once every hero is full, and a Tonic drunk by one hero still works for another.
+  (Card #332, 8.1: the Tonic is gone, and with it the cap; the Restock step stays.)
 - **A reset never heals** (#175). `set_attributes` keeps the HP a hero is missing the same, which is
   exact until the lower max HP would leave them under 1 HP. The old code clamped to 1 there and
   forgot the rest of the missing HP, so reset, respend gave it back: a free heal of the whole
@@ -3433,7 +3591,14 @@ here makes a run easier.
   keeps it so (`test_run_balance.gd`: more HP than the Husk Lord fight and every guard at the
   deepest row, at least their power, faster and enraging faster). The attacks themselves are
   unchanged, so a player who defends well takes the same hits as before, only more of them and for
-  longer.
+  longer. Since the guards joined the Elite stops (8.22) a guard can wait at any Elite stop of its
+  act. The test once said act 3's deep Ash Warden at rows 4 and 5 outweighed the King (7063 and
+  7249 against 6885), but its sums left out the guards' own 90% HP share; what the engine builds was
+  5687 to 6542, under the King. The real case was act 2: the deep Mire Mother at rows 4 and 5 (5670
+  and 5831) outweighed the Leech Queen (5490). The balance pass (#321, 8.23) fixed it in the data
+  (no ordinary row is deep, slower growth per row), and `test_run_balance.gd` now checks every
+  act's guard at every row an Elite stop can stand on, with the HP the engine builds (a second test
+  proves the sums match a real engine).
 - **An honest balance bot** (#178). The bot used to fight every champion and roamer at any HP, so
   its runs died early and said little. It now plays like a careful player (named consts in
   `ZoneAutoplay` and `Main`, not game rules): a champion or optional roamer is fought only while
@@ -3441,16 +3606,17 @@ here makes a run easier.
   (an elite is 40% tougher than a normal fight, and a fresh party loses it); roamers within 6 units are
   hunted for XP and gold while healthy; it uses its healing items before it walks into the guard; on
   the map it takes an Elite stop only while healthy and picks a campfire when any hero is at or
-  under 60% or the party averages under 75%; at a campfire it rests when hurt, else upgrades or
-  trains. A hero capped on Tonics is skipped. The bot cannot dodge a roamer that notices it. Do not
+  under 60% or the party averages under 75%; at a campfire it rests when hurt, else trains (it
+  upgraded too until card #332). The bot cannot dodge a roamer that notices it. Do not
   tune enemies to make these runs win; read them as "an average player's run".
 
 ### 8.14 Save & Quit (card #174)
 
-A local run can be put down and picked up later, Slay the Spire style. Online runs are never saved
-(one machine cannot save for everyone), and neither is the tutorial or a practice fight.
+A run can be put down and picked up later, Slay the Spire style: a local run, and since card #313
+(2026-10-25) an online run too, saved by its host (the one source of truth) in a slot of its own, see
+**Online slot** below. The tutorial and a practice fight are never saved.
 
-- **One slot:** `user://run_save.json`, written by `RunSave` (`scripts/run/run_save.gd`, pure, tested).
+- **Local slot:** `user://run_save.json`, written by `RunSave` (`scripts/run/run_save.gd`, pure, tested).
   It holds `RunState.to_dict()` exactly as it is (the save never reads its keys, so new run fields
   are saved without changing it), a format version, the content fingerprint (`DataHash.of_content`, only to tell which
   build wrote it: it is not checked, see below), whether the party is inside a stop, and how many
@@ -3464,18 +3630,19 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
   back from the party screen), right after a stop is chosen (marked "in stop"), and again, still
   "in stop", right after anything inside a stop that cannot be taken back (card #197): an event
   choice (the moment its risk is rolled, and again once its gifts are settled), a shop purchase,
-  restock, sale, cleanse or upgrade, and an opened treasure chest (once its prize is settled).
+  restock, sale or cleanse, and an opened treasure chest (once its prize is settled).
   Run fields hold what the stop already did: `stop_done` and `stop_text` (the event's result or
   the chest's text) and `shop_sold` (the shelf items bought).
 - **Continue in a stop starts that stop again from its start**, with the run as it was at the last
-  save and the same seed (same zone layout, fight, event, shop, treasure). Never the map: quitting
+  save and the same seed (same fight, event, shop, treasure; a Fight or Elite stop restarts its fight at the HP the party came in with, 8.22). Never the map: quitting
   never dodges a hard stop. What a stop's screen already settled stays settled, so a random result
   can never be seen and then undone by closing the window: an event comes back on its result page
   (Continue, or Fight if the choice sprang an ambush), a treasure stop on its open chest, a shop
   with the gold spent and the bought items still marked sold (a restock keeps its new shelves).
-  Anything else done in a stop and not finished (a zone's fights, items picked up there) is undone.
+  Anything else done in a stop and not finished (a stop's fight) is undone.
   Known gaps: a gift that was still waiting for room in the backpack when the window closed is
-  lost, and spoils (a guard's, an elite's or a boss's) are not saved while the wear screen is open;
+  lost (online too, one a friend was placing included; the pause's Save & Quit waits for it, below),
+  and spoils (a guard's, an elite's or a boss's) are not saved while the wear screen is open;
   they are saved the moment the map shows.
 - **Deleted** when the run is certain to be over: on a defeat the moment the fight is decided (not
   an escape), on the last act's boss win the same, so closing the game on the end screen cannot
@@ -3494,11 +3661,43 @@ A local run can be put down and picked up later, Slay the Spire style. Online ru
   one kept from another build) asks first and then removes it. A co-op save goes through the
   players screen first (pads may have changed). New Run with a save present asks first ("Your saved
   run will be lost"), since the new run overwrites the slot at its first map.
-- **Pause menu** (a fight, a zone, the map; local run only): "Save & Quit" sits above "Abandon run".
-  On the map it saves the state as it is (and says so if the write failed); inside a stop it keeps the latest stop save. Then back to
-  the main menu with the cursor on Continue.
+- **Pause menu** (a fight or the map; a local run, or the host of an online run): "Save & Quit" sits
+  above "Abandon run" (online "End the game"). On the map it saves the state as it is (and says so if
+  the write failed); inside a stop it keeps the latest stop save. Then back to the main menu with the
+  cursor on Continue (online on Online). A friend's pause never offers it (they only leave). While a
+  stop's find is still being placed (its backpack open with it, or online handed to a friend) the row
+  only sounds `locked` (`Main._gift_in_hand`): an event's last save already holds the choice, not
+  yet the find. Online the fight goes on under the pause: once it has decided the run (its save gone,
+  the oath opened) the row only closes the pause, and the run's end goes on for everyone.
+- **Online slot (card #313):** `user://online_run_save.json`, the host's only, separate from the local
+  slot so neither overwrites the other (`RunSave.ONLINE_PATH`). The same file shape and the same safe
+  writes, saved at the same moments by the same rules (in-stop checkpoints, a stop starts over, a
+  fight at the HP the party came in with), plus `online`: the seats (`SavedSeats.capture`: the roster,
+  who held which hero with the peer id each friend had, and each friend's secret seat token from
+  `SeatBook`) and `version` (the game's `config/version`). A friend never saves anything but their
+  seat (9.2). Deleted when the run ends, is decided, is abandoned (End the game), or a new online run
+  starts over it (the host's players screen asks first: "Start a new run? The saved online run is
+  lost."); Reset progress deletes it too. Closing the host's window keeps the last autosave, as a local
+  run's, and tells the friends as Save & Quit does.
+  - **Version check:** an online save loads only in the same game version (`RunSave.load_save` with
+    `version`; the format version too). Another version's is refused cleanly and kept (the players
+    screen says "Saved run: another version (kept)"); a damaged one, or one whose run or seats do not
+    fit, is deleted ("Saved run was broken (deleted)"). Unlike the local slot the version is checked:
+    every friend must run the host's build anyway (9.2), so a run from another version could never be
+    played together.
+  - **Host's Save & Quit:** the save is written, then the friends get `saved` and the host goes to the
+    main menu ("Run saved: Host to continue", with the save picture). From that moment nothing writes
+    or deletes the slot until the main menu (`_put_away`): online the game under the pause goes on, so
+    a fight that ends during the fade must not clear or overwrite the save. If the write failed, the
+    game simply ends for everyone (`menu`).
+  - **Continue** is on the host's players screen (Online > Host Online), 9.3.
 - **Dev tools:** `--save-path=PATH` keeps the save elsewhere and `--continue` continues it at once.
-  The autoplay bot never touches the player's save: it saves only when `--save-path` is given.
+  The autoplay bot never touches the player's save: it saves only when `--save-path` is given (online
+  `--online-save-path=PATH`). `--save-quit-at=N` makes the bot press Save & Quit on arriving at stop N
+  (inside it, so the continue starts that stop over); `--continue-online` makes an autoplay host
+  (`--host=N`) press Continue once N players are in; `--seat-path=PATH` is a bot friend's seat file
+  (a bot keeps none without it). They print `AUTOPLAY_SAVED host|friend ...` and `AUTOPLAY_CONTINUED
+  host|friend ...`; a saved game ends `AUTOPLAY_RESULT run_saved` (host) and `host_saved` (friend).
 ### 8.15 Oaths (difficulty ladder, card #173, 2026-10-17)
 
 The run's difficulty ladder, like Slay the Spire's Ascension. The game is hard on purpose, so an
@@ -3512,7 +3711,8 @@ oath", and a run at Oath N is that oath kept.
   `elite_hp_percent_add`, `elite_power_percent_add`, `boss_hp_percent_add`, `boss_power_percent_add`,
   `enemy_power_percent_add`, `enemy_hp_row_add`, `enemy_power_row_add`, `rest_heal_percent_add`,
   `act_heal_percent_add`, `start_gold_add`, `shop_price_percent_add`, `gold_percent_add` (fight pay, floored at 0), `loot_choices_add`,
-  `team_gauge_carry_percent_add` and `start_hp_percent` (the lowest one counts, 100 = full).
+  `team_gauge_carry_percent_add`, `start_hp_percent` (the lowest one counts, 100 = full),
+  `start_relics_add` (starting Relics per hero) and `attr_points_per_level_add` (since 8.24).
   `OathData.total(ladder, oath, field)` sums a change over oaths 1..N (a pure function, tested).
 - **The ladder** (first guess, tune with play):
 
@@ -3521,26 +3721,28 @@ oath", and a run at Oath N is that oath kept.
   | 1 | Thorns | elites +20% HP and +10% power (on top of the elite numbers in tuning) |
   | 2 | Want | shops charge 15% more (items, gear and services; selling is unchanged); fights pay 25% less gold (after charms and gear) |
   | 3 | Embers | the campfire's Rest heals 15 points of percent less (50% becomes 35%) |
-  | 4 | the Deep | enemies grow +2% HP and +1% power more per map row (5% becomes 7%, 3% becomes 4%) |
+  | 4 | the Deep | enemies grow +2% HP and +1% power more per map row (3% becomes 5%, 2% becomes 3%; before #321 5% became 7%, 3% became 4%) |
   | 5 | Crowns | guards (mini-bosses) and act bosses +15% HP and +10% power |
   | 6 | Wounds | the party starts the run at 75% HP |
   | 7 | Scarcity | spoils offer one choice fewer (never fewer than one) |
   | 8 | Silence | only half of the team gauge carries into the next fight |
   | 9 | the Long Road | the heal between acts is 25 points of percent less (50% becomes 25%) |
   | 10 | Rot | every enemy +10% power |
-  | 11 | the Empty Hand | one Relic slot fewer per hero all run, never under one (phase 17, 8.17) |
-  | 12 | Forgetting | heroes get half the Echo points (phase 17, 8.17) |
+  | 11 | the Empty Hand | each hero starts the run with one Relic fewer (8.24; was one Relic slot fewer, 8.17) |
+  | 12 | Forgetting | heroes get one attribute point fewer per level, 2 instead of 3 (8.24; was half the Echo points, 8.17) |
 
-  The run's start gold is 0 in `tuning.tres`, so "start with nothing" did nothing; Want cuts the gold
+  The run's start gold was 0 in `tuning.tres` (50 since #321, 8.23), so "start with nothing" did nothing; Want cuts the gold
   coming in instead (`gold_percent_add`, in `RunState.gold_for`, after charms, gear and the elite
-  bonus). `start_gold_add` still works, and is tested, for when the purse is not empty.
+  bonus). `start_gold_add` still works, and is tested, but no shipped Oath sets it, so every Oath
+  starts with the 50 (Want could take it, for example -50, if the talk wants).
 - **Where it lives**: `RunState.oath` (kept inside the ladder by `begin`), and the rules in
   `RunState`: `begin` (start gold and HP), `fight_setup` (elite, guard / boss and every enemy's
   power and HP), `enemy_hp_percent` / `enemy_power_percent` (growth per row), `rest_heal_percent`,
   `act_heal_percent`, `loot_choice_count`, `shop_price` and its item / gear / service prices, and
-  `team_gauge_carry_percent`. The shop and campfire screens show the changed numbers. Bosses and
-  guards still do not grow per row (`run_enemy_scale_bosses`), so the per-row oath touches only the
-  ordinary and elite fights.
+  `team_gauge_carry_percent`. The shop and campfire screens show the changed numbers. Bosses still
+  do not grow per row (`run_enemy_scale_bosses`); guards do (`RunState.fight_setup` leaves out
+  only `encounter.boss` unless `run_enemy_scale_bosses`, 8.6), so the per-row oath touches the
+  ordinary, elite and guard fights.
 - **Online**: `to_dict` / `apply_dict` carry `oath` (an int from 0 to the ladder's length, else the
   whole state is refused), so a client plays the host's oath; the host's `run_start` and the lobby
   messages carry it too.
@@ -3632,6 +3834,13 @@ upgrade to take blindly.
 
 ### 8.17 Relics and Echoes (phase 17, cards #212 to #220, built 2026-10-18, waiting for playtest)
 
+**Replaced in part (8.24): #326 and #327 built 2026-10-25.** No Relic slots, levels, copies or
+drops: Relics come from Elite stops, bosses, the rotten chest (pick 1 of 3) and shops, each given to
+one hero for the run; no Echoes. **#328 built 2026-10-25:** the Relic bag below is gone: the main
+menu's Relics page is the Relic book (found Relics only, no bag) and each hero takes one starting
+Relic from it before a run (8.24 "As built (#328)"). What follows is the phase 17 to 21 design where
+8.24 does not say otherwise.
+
 Phase 19 (card #263) added three Relics against marks (Wardstone, Bitter Root, Cleansing Bell;
 2.17), dropped by the new monsters, which also drop older Relics (34 Relics in the run).
 Phase 20 (Relic balance, 2026-10-19, user picks): 16 more Relics (50 in all, #242, table below),
@@ -3656,8 +3865,8 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   points a hero spent (`RunState.attribute_total`, `relic_stat`), so it reaches max HP, power,
   speed, Defense and crits like spent points. The Echo Charm is now the **Rebound Charm** (its id
   stays `echo_charm`). `tools/bootstrap_relics.gd` writes the stat lines, costs and drops.
-- **The collection** (`RelicCollection`, `scripts/relics/`, pure, tested): Relic id -> level, and
-  the **Relic bag** (card #265): up to `relic_bag_size` (10) Relic ids the team brings into the next
+- **The collection** (`RelicCollection`, `scripts/relics/`, pure, tested; since #328 the Relic book,
+  found ids only, 8.24): Relic id -> level, and the **Relic bag** (card #265, gone with #328): up to `relic_bag_size` (10) Relic ids the team brings into the next
   run, picked on the main menu's Relics page (Confirm puts a Relic in or takes it out; the right side
   shows the bag as "4 / 10" and its cards). A Relic found for the first time goes into the bag by
   itself while it has room (user pick 2026-10-19). A file from before the bag gets its heroes' old
@@ -3668,9 +3877,10 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
 - **A run** (`RunState`): `relics` (id -> level: the bag's at the start plus what the run finds;
   the whole team shares them, any hero wears any of them), `relics_at_start` (the whole collection,
   bag or not: the end screen's line, and a find of a Relic left at home counts as a copy of it:
-  `known_level`), `guards_beaten`, `mastery` (id -> points this run) and `echoes` (per hero,
-  the Echoes worn), all in `to_dict` (saved and sent online). A save from before phase 17 still
-  loads: what it wears joins at level 1 and its slots count one guard beaten. `RunState.begin`
+  `known_level`), `elite_stops_won` (saved and sent as `guards_beaten`, its name until 8.22),
+  `mastery` (id -> points this run) and `echoes` (per hero, the Echoes worn), all in `to_dict`
+  (saved and sent online). A save from before phase 17 still loads: what it wears joins at level 1
+  and its slots count one won. `RunState.begin`
   takes the collection; online clients get the host's run state instead.
 - **Where Relics come from**: every monster lists `EnemyData.relic_drops` (2 or 3 Relics; the deep
   monsters, guards and bosses the rare and legendary ones; every Relic is dropped by someone). A won
@@ -3684,15 +3894,17 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   to `relic_max_level` (5), a copy past that pays `relic_spare_gold` (30) gold. Nothing is ever sold:
   a Relic taken off, or one nobody wears, waits in the run's Relics.
 - **Slots open during a run** (`open_relic_slots`): `relic_slots_start` (1) at the start, one more
-  after the first guard, one more after act 1's boss (never past `run_gear_slots`, 3). Nothing goes
+  after the first Elite stop won (an elite group or the guard, 8.22; it was the first guard until
+  then), one more after act 1's boss (never past `run_gear_slots`, 3). Nothing goes
   on by itself (card #265): at the start of a run the party screen opens on the Relics tab so the
   player equips before the first fight, and the fight's end screen says "A Relic slot opens: Y to put
-  a Relic on" when a guard or act 1's boss opens one (user pick: a note, not a screen). A shut slot
+  a Relic on" when the first Elite stop won or act 1's boss opens one (user pick: a note, not a
+  screen). A shut slot
   shows a lock and says what opens it. Bots fill their bag with their best Relics
   (`RelicCollection.fill_bag`, GearBot's score) and their open slots the same way (`RunState.auto_wear`).
 - **Mastery, per run**: E33's "win 4 battles" kept inside the run. Every worn Relic gets points per
   won fight: `mastery_fight` (1), `mastery_elite` (2), `mastery_guard` (3), `mastery_boss` (5); at
-  `mastery_needed` (4) its Echo is learned until the run ends. Lost or escaped fights teach nothing.
+  `mastery_needed` (4; 12 since phase 21, 8.19) its Echo is learned until the run ends. Lost or escaped fights teach nothing.
   The fight's end screen says "Echo learned: X".
 - **Echoes**: a learned Relic's effect (and a rot-touched one's price) without its stat line, worn
   by any hero (`set_echo`, `effect_sources`). Each hero has `echo_start_points` (0) plus
@@ -3708,8 +3920,9 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
     Under the grid: everything about the Relic under the cursor. Up / down picks a slot, Confirm
     opens the grid for it, Confirm in the grid puts the Relic on (one another hero has moves over),
     X / R takes it off, Back goes back to the slots. Since phase 20 this page is only the main
-    menu's **Relics** row, and its right side is the Relic bag (card #265): Confirm on a card puts it
-    in the bag or takes it out (Relics not found yet show as "???" with the monsters that drop them).
+    menu's **Relics** row, and its right side is the Relic bag (card #265; since #328 the Relic book,
+    no bag, 8.24): Confirm on a card puts it in the bag or takes it out (Relics not found yet show as
+    "???" with the monsters that drop them).
     In a run, Relics are equipped on the Y screen's Relics tab (8.18).
   - **The Echoes page** (`EchoesScreen`, from the Y screen's Hero tab Echo box, 8.18), like E33's Lumina page.
     Left: tabs All, Offensive, Defensive, Support (LT / RT; `GearData.category()` from the effect),
@@ -3730,12 +3943,11 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   The run's end screen says what the run keeps, won or lost ("Relics kept forever. New: ... Up a
   level: ...", `RunState.relic_gain_line`, from `relics_at_start`, which the run save keeps).
 - **Reset progress** (Settings > Game, main menu only, asks twice): deletes the Relic file, sets the
-  unlocked oaths back to none (`PlayerSettings.reset_oath_unlocks`), clears the Fight Rush records
-  (`PlayerSettings.reset_rush_records`, phase 25, 8.21) and deletes a saved run. Settings, controls
-  and the Journal stay. A dev screen never wipes anything. The first question's detail is two lines
-  (`SettingsScreen.RESET_DETAIL`): "Relics and their levels, unlocked oaths, Rush records and a saved
-  run are wiped." / "Settings, controls and the Journal stay." (one line with the Rush records ran
-  past the screen at the larger text sizes; a test checks it fits at every size).
+  unlocked oaths back to none (`PlayerSettings.reset_oath_unlocks`) and deletes a saved run.
+  Settings, controls and the Journal stay. A dev screen never wipes anything. The first question's
+  detail is two lines (`SettingsScreen.RESET_DETAIL`): "The Relic book, unlocked oaths and a saved
+  run are wiped." / "Settings, controls and the Journal stay." (a test checks it fits at every
+  size). From phase 25 it cleared the Fight Rush records too; they went with the Rush (#331, 8.21).
 - **Banking and Save & Quit**: Main banks the run's Relics when the map shows (the run saves), when a
   stop settles something (`_save_stop_progress`), and when the run ends (won, lost or abandoned).
   Quitting and continuing a stop replays it from its saved state, and the merge keeps the higher
@@ -3744,19 +3956,21 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
   so a client's own collection does not grow online. New ops (any player): `wear` (a Relic the run
   has, into an open slot), `take_off`, `echo` (`slot`, `relic`, `on`).
 - **Harder runs**: every enemy in a run fight has `enemy_power_base_percent` (105) power (practice
-  fights keep their data), and two oaths top the ladder (8.15): **the Empty Hand** (Oath 11,
+  fights keep their data; the three-act balance pass, #321 in 8.23, set it back to 100), and two
+  oaths top the ladder (8.15): **the Empty Hand** (Oath 11,
   `OathData.relic_slots_add` -1: one Relic slot fewer all run, never under one) and **Forgetting**
-  (Oath 12, `echo_points_percent_add` -50: half the Echo points).
-- **Tutorial**: lesson 6, "Relics" and "Echoes", two cards to read at the end of the tutorial fight
+  (Oath 12, `echo_points_percent_add` -50: half the Echo points). Since 8.24 they take a starting
+  Relic per hero and an attribute point per level.
+- **Tutorial**: lesson 6, "Relics" and "Echoes" (only "Relics" since 8.24), two cards to read at the end of the tutorial fight
   (goal `read`, `TutorialGoals.READ`: the fight stays paused and closing the card moves on). The
   interactive hit-type lessons of card #206 come later.
 - **Bots** never read or write the player's Relic file (like the oaths and the Journal): a bot run
-  starts with no Relics, `--relics=all` gives every Relic at its top level (balance runs),
-  `--relics-path=PATH` lets a bot use and bank into its own file. The bot wears the Echoes it can,
-  cheapest first, passing over prices GearBot refuses (`RunState.auto_echoes`). The
-  `AUTOPLAY_RESULT run_...` line ends with `relics=N echoes=M`. `--screen=relics`,
-  `--screen=echoes` and `--screen=party_relics` (the Relics page in a run) open those pages on
-  samples (for pictures).
+  starts with no Relics, `--relics=all` gives every Relic found (balance runs; was every Relic at
+  its top level),
+  `--relics-path=PATH` lets a bot use and bank into its own file. The bot wore the Echoes it could
+  (gone with 8.24). The `AUTOPLAY_RESULT run_...` line ends with `relics=N relics_held=M` (was
+  `relics=N echoes=M`). `--screen=relics` and `--screen=party_relics` (the Relics page in a run)
+  open those pages on samples (for pictures); `--screen=echoes` went with the Echoes.
 - **Relics from the old charms** (card #240, user 2026-10-18: the backpack's charms were a third
   buff system, 8.1): six Relics with effects no Relic had (or a rot-touched price), 31 Relics in all,
   each dropped by monsters like the others (`tools/bootstrap_relics.gd` writes them):
@@ -3800,6 +4014,13 @@ In the code a Relic is still a `GearData` and the worn ones `RunState.gear` (the
 
 ### 8.18 The Y screen (phase 20, card #270, done 2026-10-19)
 
+**Since 8.24 (#326, #327, 2026-10-25):** the Relics tab has no slots. Each hero's row shows every
+Relic given to them (up to 3 in a row with their names, more in two smaller rows); the grid on the
+right is the run's Relics, each with the initial of the hero who has it, the waiting ones bright and
+untagged. Confirm on a hero opens the grid on the waiting Relics; Confirm there gives one; nothing
+comes off, swaps or levels up. The tab's badge counts the waiting Relics. The Hero tab's Echo box,
+the Echoes page and `open_echoes` are gone, and so are the level pips and the Echo pips bar.
+
 The owner found the party screen "too cluttery" and hates text. Three concepts were drawn (tabs, one
 quiet page, one hero at a time); the owner picked **tabs**, plus the one-page concept's info strip and
 shape-coded Relic icons (2026-10-19). `PartyScreen` (`scripts/run/party_screen.gd`) keeps its outside
@@ -3817,7 +4038,7 @@ badge; signals changed, op_requested, toast):
   in hand, on Bag with a new item in hand or in a shop.
 - **Info strip** (bottom, `tab.info()`): never moves or hides. The thing under the cursor: a big icon
   (a RelicIcon, an item's sprite or a glyph), its name in its colour, a few chips (glyph + short
-  text: level, stat line, wearer, AP cost, sell price, refund...), its text on at most two lines (a
+  text: stat line, holder, AP cost, sell price, refund...), its text on at most two lines (a
   skill's whole text, perfect-press bonus included), and for a Relic still teaching its Echo a small
   segment bar. A refusal (a shut slot, a hero too wounded) shows there until the next press.
 - **Centred**: everything placed on the 1920 x 1080 canvas sits in one centred frame, so a wider or
@@ -3833,9 +4054,10 @@ badge; signals changed, op_requested, toast):
   plus LB / RB "Tabs" (a chip pair with one label counts once, `PartyScreen.visible_hints`).
 - **Relics tab** (`RelicsTab`): each hero as a slanted row (face, name, level, HP bar and numbers,
   power and speed glyphs) with their three Relic slots as big icons with level pips and the name
-  under them; the team's shared Relic bag (8.17) on the right as a 6 x 4 grid of icons (scrolls),
+  under them; the team's shared Relics (8.17; the run's Relics since 8.24) on the right as a 6 x 4 grid of icons (scrolls),
   each with level pips and the initial of the hero wearing it, worn ones dimmed and listed after the
-  free ones; filter chips All / offensive / defensive / support with counts (X / R in the bag).
+  free ones; filter chips All / offensive / defensive / support with counts (LT / RT, 1 / 3, from the
+  rows or the bag; card #336, was X / R in the bag).
   Up / down a hero, left / right a slot, right past the last slot into the bag. Confirm on an open
   slot jumps into the bag to pick for it; Confirm on a Relic there puts it on (swapping it from
   another hero). X / R on a worn Relic lifts it to another slot or hero; carried into the bag and put
@@ -3843,7 +4065,8 @@ badge; signals changed, op_requested, toast):
 - **Bag tab** (`BagTab`): the backpack (scaled to fit when 7 rows are taller than the page) with the
   old rules (item menu Use / Sell / Move / Throw away, combine, turn, swap, leave behind), the heroes
   as small faces with HP on the left (who an item is used on; greyed when they cannot take it), and
-  free cells and curses as glyph + number on the right.
+  free cells and curses as glyph + number on the right (since card #332 only the free pockets: the
+  curses are on the run's top strip, 8.1).
 - **Hero tab** (`HeroTab`, replaces the Attributes page): a rail of faces (LT / RT change hero), the
   hero's name, level and XP bar, points waiting, the five attributes as rows (glyph, points, the stat
   now; right / Confirm adds, left takes back, X / R resets after asking, the too-wounded refusal on
@@ -3860,6 +4083,10 @@ badge; signals changed, op_requested, toast):
   `test_relic_icon.gd`.
 
 ### 8.19 The roguelite pass (phase 21, talked through 2026-10-19 in #267 and #272)
+
+**Replaced in part (8.24): #327 and #328 built 2026-10-25.** The Echoes, their pips, Echo points and
+the Echoes page are gone, and so is the Relic bag (#328): each hero takes one starting Relic from the
+Relic book instead (8.24 "As built (#328)"; `relic_bag_start` went).
 
 The owner's worry (#272): Relic levels kept forever made the game easier the more you played, and
 relearning every Echo every run was busywork. A design panel (four studies, four designers, three
@@ -3902,16 +4129,17 @@ carries between runs gives **choices, not stats**; the oaths keep the game hard.
   tab's info strip shows the pips bar; the Echoes page lists every learned Echo. The tutorial's Relics
   and Echoes cards say the new rules.
 - **Bots**: `--relics=all` finds every Relic with its Echo learned (`RelicCollection.all_of(gear,
-  needed)`).
+  needed)`; since 8.24 every Relic found, `RelicCollection.all_of(gear)`).
 
-**The Relic bag starts at 3 and grows to 6 (#266, built).** `RelicCollection.bag_size(tuning)`:
+**The Relic bag starts at 3 and grows to 6 (#266, built; gone with #328, 8.24).** `RelicCollection.bag_size(tuning)`:
 `relic_bag_start` (3) + one for every `relic_bag_echoes_per_slot` (5) Echoes learned, never past
 `relic_bag_max` (6). A run takes at most that many from the bag; a bag from before it shrank keeps its
 first Relics (`trim_bag`, when the Relics page opens). The page shows "2 / 3" and "+1 for every 5
 Echoes learned" while it can still grow. New finds still join the bag while it has room.
 
 **Friends keep their finds online (#281, built).** Replaces 8.17's "only the host banks". The run
-still plays with the host's bag and the host's learned Echoes (the host's `pips_at_start` goes to
+still plays with the host's bag (since #328: each player's starting picks from their own book,
+8.24) and the host's learned Echoes (the host's `pips_at_start` goes to
 every machine in `to_dict`). Each online friend's game loads its own collection when the host's
 `run_start` arrives (`Main._own_start`) and banks into its own file whenever the host's map or run
 end shows on it: the Relics the run has, and this run's pips (`RunState.mastery`, kept whole up to
@@ -3924,8 +4152,14 @@ Relics and pips the run found after they joined (9.3).
 **Alder's pack with pockets (#282, built).** The grid backpack (8.1) lost its job when the charms
 went: its shapes, turning and moving were busywork for seven kinds of supplies. Now:
 
+**Phase 26 change (card #332, 8.1): four pockets of consumables only.** The pack has 4 pockets
+(two rows of two) and never grows: no Bigger Pack, no sewn-shut pockets, no combining, no levels, no
+Tonic. Curses leave the pockets and sit on the party (`RunState.curses`, shown on the top strip);
+only a shop's Cleanse lifts one. A full pack offers a swap or leaving the find (both asked). The
+bullets below are the phase 21 build.
+
 - **Pockets** (`Backpack`, pure): `tuning.backpack_pockets` (6) pockets in a row, one item each,
-  whatever its shape; a Bigger Pack adds one, up to `backpack_max_pockets` (8). Ops and saves keep
+  whatever its shape; a Bigger Pack adds one, up to `backpack_max_pockets` (8; both gone, card #332). Ops and saves keep
   their old shape (cells are `Vector2i(pocket, 0)`). An older save's grid becomes pockets, its items
   in reading order, 6 pockets plus one per Bigger Pack row, never fewer than it holds.
 - **Treasure** turns into gold the moment it is found (`RunState.add_item`: what selling it paid,
@@ -3968,8 +4202,15 @@ waits there. Main menu leaves as before (online, it ends the game for everyone w
 (the bag's collection had found something; `RunState.pact_pending`, saved and sent online), "The
 Crossroads" shows on the "?" event screen (its picture, story, and each choice's price and reward
 written out): `tuning.run_pact_choices` (3) of `RunData.pacts`, picked by the run's seed
-(`RunState.pact_event`), or Leave. The host picks for the whole party; online friends watch. Taking
-or leaving it goes on to the party screen's Relics page (or the map). The six pacts
+(`RunState.pact_event`), or Walk on (card #334). The host picks for the whole party; online friends watch. Taking
+or leaving it goes on to the map. **Back and Pause on the Crossroads** (card #334 follow-up,
+2026-10-26): before a deal is taken, Back (`EventScreen.back_out`, `backed_out`; the host or a local
+game only, never a friend's screen) goes back to the starting Relics with the picks as they were and
+the last one taken back (8.24), or asks "Leave the run?" when that step was skipped (an empty book,
+the Empty Hand; `Main._start_return_picks`). The deals are the same when you come back (the run's
+seed, nothing rolled again). Once a deal is taken (or passed by) Back does nothing. Pause opens the
+pause menu over it offline too (Abandon run, Save & Quit, Settings, the Players row), as on the map;
+online it already did. The six pacts
 (`data/runs/pacts/`, written by `tools/bootstrap_pacts.gd`; first numbers):
 
 | Pact | Gift | Price |
@@ -3994,7 +4235,7 @@ as they were; `RunMap._vary_rows`, `_crown_elite`, `_fix_zones`):
   row, a shop somewhere, no zone twice in a row). This replaces 8's "the row before the final fight is
   all rests" and 8.9's fixed treasure row.
 - Every act with elites has at least one elite stop, and one of them wears the **rot crown**
-  (`stop.crown`): its enemies get `crown_elite_hp_percent` (130%) HP and `crown_elite_power_percent`
+  (`stop.crown`): its enemies get `crown_elite_hp_percent` (110%; 130% until #321, 8.23) HP and `crown_elite_power_percent`
   (115%) power on top of the elite numbers, and its spoils always list an ordinary legendary Relic
   first while the run has one to gain (`RunState.is_crowned`, `loot_choices`). The map draws a small
   gold crown over it (`map_visuals.tres` `crown_color`) and names it "Crowned elite".
@@ -4003,7 +4244,8 @@ as they were; `RunMap._vary_rows`, `_crown_elite`, `_fix_zones`):
 
 - **Treasure**: two chests, one to open (`RunState.open_treasure`, seeded per stop). The plain one
   holds `run_treasure_gold` and a rare or better item; the rotten one a rare or better Relic, but
-  `rotten_chest_curse_percent` (30%) of the time a curse comes with it and `rotten_chest_fight_percent`
+  `rotten_chest_curse_percent` (30%) of the time a curse comes with it (on the party since card #332,
+  8.1) and `rotten_chest_fight_percent`
   (20%) of the time an ambush from the act's pool (no spoils; Fight goes into it,
   `Main._on_treasure_done`). The bot opens the rotten one only while healthy.
 - **Shrines**: the three free offers got a price: Healing Spring 30 gold, War Idol everyone loses 10%
@@ -4011,7 +4253,7 @@ as they were; `RunMap._vary_rows`, `_crown_elite`, `_fix_zones`):
 - **The campfire before the boss** (the act's campfire row, `RunState.is_watch_fire`) offers Rest,
   Keep watch (the team gauge is full, `keep_watch`) or Sharpen (every hero starts the boss fight with
   `sharpen_ap` (1) more AP, `sharpened`, saved; used up by the boss fight). Other campfires keep Rest,
-  Train and Upgrade. The bot keeps watch when it does not need to rest.
+  Train (and Upgrade until card #332). The bot keeps watch when it does not need to rest.
 
 **After the build** (2026-10-19, a review by three reviewers, each finding checked by a skeptic): an
 online friend who drops and takes their seat back keeps the collection taken at the run's start
@@ -4034,14 +4276,16 @@ Tests: `tests/unit/test_relics.gd`, `test_backpack.gd`, `test_roguelite.gd`, `te
 
 ### 8.20 Weather and time of day (phase 24, card #303)
 
-Each zone visit has a weather, or none, picked from the visit's seed (`WeatherData.pick` on its own
-stream, `ZoneAssembler.WEATHER_SALT`, so the layout never moves), the same on every machine online.
-Weather is presentation only: no rule changes (a rule touch may come later).
+Since phase 26 (8.22) every run fight but the boss's rolls a weather, or none, from its place's list
+(`RunState.weather_now`: `WeatherData.pick` on the run's stream salted by the stop, `FIGHT_WEATHER_SALT`),
+the same on every machine online. Until then each zone visit rolled one from the visit's seed (`ZoneAssembler.WEATHER_SALT`) and
+the zone's fights kept it; the zone-only parts below are history. Weather is presentation only: no
+rule changes (a rule touch may come later).
 
-- **Data**: `data/weather/` (`WeatherData`): rain, storm, fog, wind, dusk. A zone lists the ones it
+- **Data**: `data/weather/` (`WeatherData`): rain, storm, fog, wind, dusk. A place lists the ones it
   can have with weights and a clear weight (`ZoneData.weathers`, `weather_weights`, `clear_weight`):
 
-  | Zone | Weathers (weight) | Clear |
+  | Place | Weathers (weight) | Clear |
   |---|---|---|
   | Rotten Hollow | rain 3, storm 1, fog 2, wind 2, dusk 3 | 4 |
   | Sunken Bog | rain 3, storm 1, fog 4, dusk 2 | 4 |
@@ -4051,8 +4295,8 @@ Weather is presentation only: no rule changes (a rule touch may come later).
   phase-two values too, so a guard's rage shifts from the weathered room to a weathered rage): sun and
   ambient colour and strength, the sun's height (dusk: a low sun, long shadows), shadow strength, fog
   colour and thickness, the sky colour, brightness, saturation, contrast and the vignette, and how far
-  and fast plants sway (`StageLook.sway_percent`, `sway_speed_percent`; wind 280% / 200%). The zone's
-  fights use the same copy, so a fight looks like the zone it started in.
+  and fast plants sway (`StageLook.sway_percent`, `sway_speed_percent`; wind 280% / 200%). The
+  fight is built in that copy (the place's own look is never changed).
 - **Air**: extra particles on top of the zone's own, which a weather can thin (`zone_air_percent`):
   rain streaks (`ZoneAmbientData.stretch`: a tall quad turned along its fall, art kit `rain_drop`)
   with splashes on the ground (`splash`, `quick_fade`; both drawn soft, blended), fog banks,
@@ -4062,10 +4306,12 @@ Weather is presentation only: no rule changes (a rule touch may come later).
   turns within a fraction of a second and stays round the camera. Rain streaks are born no closer than
   about 4 m from the zone camera (`area.z` 7, a half-depth), out of its near blur. The fights play them thinner like
   the rest of the zone air (8.12).
-- **Sound**: a loop over the zone's own (`Audio.play_weather`): rain (rain and storm, "Forest rain
+- **Sound**: a loop (`Audio.play_weather`): rain (rain and storm, "Forest rain
   Atmo Fantasy" by szegvari) or wind ("Wind 2" by FunWithSound), CC0, seamless 60 s loops picked by
-  ear; quieter in the zone's fights (`fight_volume_offset_db`), gone outside the zone.
-- **Lightning** (storm): every 6 to 16 s the sky lights up with a second flicker (`WeatherFx`:
+  ear; in a fight at `fight_volume_offset_db`, gone when the fight ends. (Until phase 26 it played
+  over the zone's own background loop, which went with the zones, 8.22 G6.)
+- **Lightning** (storm, zones only: since phase 26 no fight shows it and `WeatherFx` and the
+  `thunder` cue are unused, 8.22 G6): every 6 to 16 s the sky lit up with a second flicker (`WeatherFx`:
   ambient light and sky colour), then thunder (`thunder`, picked by ear) 0.3 to 1.5 s later and a low
   buzz. Not in fights (it would hide an attack), and not while the zone is held behind the pause menu
   or the backpack or a yes/no prompt (a flash then ends at once, and the next strike is a whole gap
@@ -4076,14 +4322,30 @@ Weather is presentation only: no rule changes (a rule touch may come later).
   dusk turns the light orange), and it changes nothing in play, so a word would only repeat it.
   The first build wrote it under the zone's name; the owner had it taken out (2026-10-23).
 - Particles: at most 1500 extra per weather (a test checks), 1170 for a storm.
-- Dev switch: `--weather=ID` (or `clear`) gives every zone visit that weather; the bot prints
-  `AUTOPLAY_WEATHER <zone> <weather>`.
+- Dev switch: `--weather=ID` (or `clear`) gives every run fight but the boss's that weather, on each
+  machine (8.22); the run bot prints `AUTOPLAY_WEATHER <place> <weather>`.
 
 Tests: `tests/unit/test_weather.gd`.
 
-### 8.21 Fight Rush (phase 25, cards #305, #312, built and approved 2026-10-24)
+### 8.21 Fight Rush (phase 25, cards #305, #312, built and approved 2026-10-24) (cut in phase 26, card #331, 2026-10-25)
 
-Fight after fight for the furthest fight, with no map, zones, shops or campfires: the endless mode
+**Cut in phase 26 (card #331, 2026-10-25):** the Fight Rush was a second mode next to the run: fight
+after fight for the furthest fight, no map, a reward card after each win, one record per party size.
+The owner cut it once the run without zones (8.22) and its three acts (8.23) made a run as fast to
+play, so the Rush was not needed. Gone: the New Run and Host cards (both start the run's path at
+once again, 7.5), `RushState`, `RushRecords`, the Rush screen and end screen, `data/rush/` and
+`tools/bootstrap_rush.gd`, the Rush tuning group, the Rush dev switches and dev screens, the
+Glossary's Fight Rush topic, and the Run, Fight Rush, Heal, Fight and Party card pictures. Online,
+`lobby`, `again` and `run_start` carry no `mode` (nor `run_start` its `records`): `Net.PROTOCOL` 8.
+`RunState` lost the seams the Rush overrode (`_start`, `mode`, `_fight_depth`, `_scales`,
+`shows_gold`); a run always shows its gold. What stays: every monster, encounter and boss its tiers and boss cycle used, as
+the run's data (the bosses for a boss pool later, #324); the starting Relics (8.24), drop-in (9.3)
+and taking turns (9.2), which the run has too. Old files: the records section of
+`user://settings.cfg` (`[rush]`) is never read again and stays in the file untouched; a run save
+never held a Rush, so every save loads as before. The Journal keeps its counts. The rest of this
+section is history.
+
+Fight after fight for the furthest fight, with no map, shops or campfires: the endless mode
 dropped in #267, back as its own mode next to the run. Main menu, New Run, **Fight Rush**; online,
 Online, Host, **Fight Rush** (card #312, "Online" below). Branch `phase25-Together`.
 
@@ -4094,7 +4356,8 @@ Owner decisions (2026-10-24):
    hero who went down in a won fight gets up at 1 HP (`run_downed_revive_hp`, as in a run).
 3. The party brings the Relic bag and the Echoes it has learned. Nothing from a Rush goes back: no
    Relic banking, no Echo pips, no writes to `user://progress.json`. A Relic card lasts for that
-   Rush only.
+   Rush only. (Since 8.24: no Echoes; a Relic card's Relic goes to one hero, "Who gets it?"; since
+   #328 no bag: each hero takes one starting Relic from the Relic book as a Rush begins, as in a run.)
 4. Fights get harder with every fight, with the depth growth a run uses per map row (one row per
    fight). Every 5th fight is an elite and every 10th a boss; the bosses cycle (below). All numbers
    live in `tuning.tres` and get tuned with bots.
@@ -4132,8 +4395,8 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
 - **D10 (default)**: Rush fights count in the Rot Journal (7.11), as run fights do.
 - **D11 (default)**: a flawless win shows a plain "FLAWLESS" chip with no reward. A Rush has no spoils.
 - **D12 (default)**: no pact (crossroads, 8.19) at the start of a Rush.
-- **D13 (default)**: weather (8.20): a normal or elite fight rolls its zone's weather (`WeatherData.pick`);
-  a boss fight rolls its own zone's. The Hollow King's throne has none. Fights never show lightning.
+- **D13 (default)**: weather (8.20): a normal or elite fight rolls its place's weather (`WeatherData.pick`);
+  a boss fight rolls its own place's. The Hollow King's throne has none. Fights never show lightning.
 - **D14 (default)**: card sets per fight kind: normal Heal, Train, Item; elite Heal, Train, Relic; boss
   Train, Relic, Relic (no Heal: the boss heal already filled everyone; no item).
 - **D15 (default)**: extra picks (D1) always use the normal set (Heal, Train, Item), so Relics stay tied
@@ -4145,7 +4408,7 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
   every hit fair to press. After that only HP and power grow (tuning can raise their growth).
 - **D18 (default)**: Heal follows the campfire's Rest rules: Relics that change Rest change the Heal
   card too (Rain Pouch more, Hunger Charm nothing). The boss heal is a full heal for everyone.
-- **D19 (default)**: the item card never offers keys or treasure (a Rush has no chests and no gold),
+- **D19 (default)**: the item card never offers treasure or curses (a Rush has no treasure stops and no gold; the Key is gone, 8.22),
   and Relic cards never offer gold Relics (Lucky Coin).
 - **D20 (default, for #312)**: online, a friend who joined after the Rush started writes no record for
   that Rush.
@@ -4162,18 +4425,18 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
 - **The Rush screen** (`RushRewardScreen`, a `StopScreen`), ready phase: the title **FIGHT 8** and two
   cards, **Fight** (crossed swords; a chip "Elite", or a skull "Boss", when the next fight is one) and
   **Party** (three heads; a chip "+2 points" while attribute or skill points are unspent). Footer
-  Choose / Select / Party. A Rush opens here on FIGHT 1; a Relic bag holding Relics opens the party
-  screen on its Relics page first, as a run does (card #265). Y (`party_menu`) opens the party screen
+  Choose / Select / Party. A Rush opens here on FIGHT 1, after the starting Relics step (8.24, #328;
+  until then a Relic bag holding Relics opened the party screen on its Relics page first, card #265). Y (`party_menu`) opens the party screen
   in both phases. Online (#312) friends watch it: every card greyed but Party in the ready phase (the
   cursor starts there, Confirm opens it), footer Party only; a friend's change to the party redraws the
   host's screen too (`Main._apply_bag_op`).
-- **A fight**: the swirl, then the fight in its zone's look and air under its weather (D13). The start
+- **A fight**: the swirl, then the fight in its place's look and air under its weather (D13). The start
   banner reads **FIGHT 7** in gold, or **NEW BEST 17** once the fight passes the record this party
   size held when the Rush began (when that record is above 0); a boss or guard keeps its name banner.
   No Run button. Music: the fight, elite or boss song (a guard fought as the boss fight gets the boss
   song).
 - **The fight's end** is the run's without gold: the XP and level-up rows, the streak chip, a
-  "FLAWLESS" chip, and the Relic slot line when a slot opens. The button hint reads **Rewards** after
+  "FLAWLESS" chip (the Relic slot line went with 8.24). The button hint reads **Rewards** after
   a win and **Results** after a loss.
 - **Picks** (after a win): the title **REWARD**, a chip row (a sword "Fight 7" for the fight just won, a
   star "Best 16" when a record exists, "+1 pick" while more than one pick is left), the party strip
@@ -4197,35 +4460,37 @@ Defaults chosen while building (not asked; the owner may overrule each one, sect
   and levels. The killer row after a loss (not after Give up) and the defence rows; no Kept row
   (nothing is kept). Footer **Again** (the Fight Rush players screen, same seats) / **Main menu**.
   Music: the victory song on a new record, otherwise the defeat song.
-- **The party screen** in a Rush: the Relic slots' locks read "First elite" and "First boss"; an Echo
-  not learned yet reads "Runs only" (Echoes are learned in runs); no pips bar on the Relics, no Echo
-  learning row, no gold line.
+- **The party screen** in a Rush: as in a run (8.18, 8.24: no slots, no Echoes), with no gold line.
 - **Local drop-in** works as in a run (9.3): the pause menu's Players row; in a fight the change waits
   for a quiet moment, on the Rush screen it applies at once. Online drop-in: "Online" below.
 
 **Fights.** Fight 1 is the first. A fight's depth is `(fight - 1) x rush_depth_per_fight_percent / 100`
 map rows (one per fight at 100), and its enemies grow with it as in a run (8.3): HP
-`100 + depth x (run_enemy_hp_row_percent 5 + rush_enemy_hp_step_add 0)` percent, power
-`100 + depth x (run_enemy_power_row_percent 3 + rush_enemy_power_step_add 0)`, attacks 1% faster per
+`100 + depth x (run_enemy_hp_row_percent 3 + rush_enemy_hp_step_add 2)` percent, power
+`100 + depth x (run_enemy_power_row_percent 2 + rush_enemy_power_step_add 1)` (5 and 3 a step, as
+before the run's balance pass #321 lowered the run's own steps, 8.23), attacks 1% faster per
 row (`run_enemy_tempo_row_percent`) down to `attack_tempo_floor_percent` (70), reached at fight 31
 (D17; the engine clamps every fight to that floor again, so a Rush cannot go under it). Then
 `rush_enemy_hp_percent` and `rush_enemy_power_percent` on top. Elite, guard and boss marks keep their
-usual extra HP, power and speed. Fight 1 has no mark hits (like a run's first zone). A boss fight
+usual extra HP, power and speed. Fight 1 has no mark hits (like a run's first map row). A boss fight
 grows only by the depth past its boss's `home_depth` (where a run meets it), and only while
 `rush_scale_bosses` is on. Each normal or elite fight is drawn from the tier it falls in (seeded,
-never the same fight twice in a row while there is a choice) and takes one of the tier's zones
-(seeded) for its look, air and weather:
+never the same fight twice in a row while there is a choice) and takes one of the tier's places
+(seeded) for its look, air and weather (the places are the run's `ZoneData`; "roamers" is
+`ZoneData.roamer_pool`, the fights of a run's Fight stops there since phase 26, 8.22):
 
-| Tier | From fight | Zones | Normal fights | Elites | Deep |
+| Tier | From fight | Places | Normal fights | Elites | Deep |
 |---|---|---|---|---|---|
-| Hollow | 1 | Rotten Hollow | its roamers (7) | act 1's elites (3) | no |
-| Bog | 11 | Sunken Bog | its roamers and act 1's ambushes (14) | act 1's elites (3) | no |
-| Ruins | 21 | Ashen Ruins | its roamers and act 2's ambushes (13) | act 2's elites (3) | yes |
-| Everything | 31 | all three | all of the above (23) | both acts' elites (4) | yes |
+| Hollow | 1 | Rotten Hollow | its roamers (7) | act 1's elites (2) | no |
+| Bog | 11 | Sunken Bog | its roamers and act 2's ambushes (10) | act 2's elites (2) | no |
+| Ruins | 21 | Ashen Ruins | its roamers and act 3's ambushes (9) | act 3's elites (2) | yes |
+| Everything | 31 | all three | all of the above (23) | every act's elites (4) | yes |
 
-The boss cycle: fights 10, 20, 30, 40 and 50, then again from 60. Each tier ends on its own zone's
-guard, the guards come before the Husk Lord, and the Hollow King (the hardest fight, #177) closes
-each cycle. In a deep tier a guard is fought as its deep version.
+(Since card #323 each tier takes its own act's ambushes and elites, one act per place, 8.23.)
+
+The boss cycle: fights 10, 20, 30, 40, 50 and 60, then again from 70. Each tier ends on its own
+place's guard, the guards come before the Husk Lord, the Leech Queen follows him (since card #323,
+8.23), and the Hollow King (the hardest fight, #177) closes each cycle. In a deep tier a guard is fought as its deep version.
 
 | Boss | Fight | Encounter | Place | Home depth |
 |---|---|---|---|---|
@@ -4233,7 +4498,8 @@ each cycle. In a deep tier a guard is fought as its deep version.
 | 2 | 20 | Mire Mother (`guard_mire_mother`) | Sunken Bog | 3 |
 | 3 | 30 | Ash Warden (deep, `deep_guard_ash_warden`) | Ashen Ruins | 9 |
 | 4 | 40 | The Husk Lord (`husk_lord_fight`) | Rotten Hollow, act 1's final look | 6 |
-| 5 | 50 | The Hollow King (`hollow_king`) | the Hollow Throne (act 2's final look), no weather | 13 |
+| 5 | 50 | The Leech Queen (`leech_queen_fight`) | Sunken Bog, act 2's final look (her lair) | 13 |
+| 6 | 60 | The Hollow King (`hollow_king`) | the Hollow Throne (act 3's final look), no weather | 20 |
 
 A boss fight pays at least `rush_boss_min_xp` (260; the Hollow King's own data pays 60), and every
 Rush XP gain is scaled by `rush_xp_percent`.
@@ -4254,16 +4520,15 @@ Rush XP gain is scaled by `rush_xp_percent`.
   depth. The list is the run's shop and found items that are supplies or upgrades and not rotten
   (Antidote, Holy Water, Salve, Feast, Tonic, Bomb, Smelling Salts, Bigger Pack; no Key, no
   treasure, no curse).
-- **Relic**: from the run's Relics the Rush can still gain (not at the top level), at least
+- **Relic**: from the run's Relics the party does not have (no copies, 8.24), at least
   `rush_relic_min_rarity` (1, rare) while there are such, never a gold Relic (D19) and never a
-  rot-touched one (a rot-touched Relic can still come from the bag). A copy raises its level for this
-  Rush.
-- A card that cannot be filled is left out. With every Relic at its top level an elite offers Heal and
+  rot-touched one (a rot-touched Relic can still come from the bag). Taking it asks "Who gets it?"
+  and gives it to that hero at once.
+- A card that cannot be filled is left out. With every Relic in the party an elite offers Heal and
   Train, and a boss Train alone: one card is a plain confirm (the side-by-side rule is for two or
   three choices).
 - After a boss everyone heals `rush_boss_heal_percent` (100: full); a downed hero first gets up at 1 HP.
-- Relic slots: `relic_slots_start` (1), a second after the first elite or boss win, and the third after
-  the first boss win (`run_gear_slots`, 3, at most).
+- No Relic slots (8.24): a hero has every Relic given to them.
 
 **Records** (`RushRecords`, pure, tested; `PlayerSettings`): in `user://settings.cfg`, section `[rush]`,
 keys `best_1`, `best_2`, `best_3`, each `{fight, date}`. The fight reached is written as each fight
@@ -4280,8 +4545,9 @@ run (`_clear_run_save` is guarded). Oath unlocks never come from a Rush (it has 
 
 **Online** (card #312, built 2026-10-24, approved the same day on the tests and bot games, not yet
 played online by hand). The host's machine plays the Rush
-exactly as alone and makes its choices; friends play their own heroes in the fights and watch the
-rest, as in an online run (9.2). Nothing goes back on any machine (decision 3).
+exactly as alone. Since card #314 its reward picks go in turns (each pick the next seated player's,
+Fight with whoever took the last one, 9.2); friends play their own heroes in the fights, as in an
+online run (9.2). Nothing goes back on any machine (decision 3).
 
 - **Hosting**: Online, Host opens two cards side by side, **Run** and **Fight Rush** (7.5): the same
   pictures as New Run's, the Fight Rush card with the host's own Best chip, greyed without the Rush
@@ -4297,10 +4563,11 @@ rest, as in an online run (9.2). Nothing goes back on any machine (decision 3).
   weather) and the Rush screen and the end (`rush_reward`, `rush_end`, watched screens). Picks,
   Relics, the fight counter and any head start come from the host. A friend whose game lacks the
   Rush data leaves with "Could not start the game".
-- **The Rush screen**: the host picks the cards and presses Fight (P1 makes the choices, 9.2).
-  Friends see "The host is choosing (P1)" and every card greyed but Party in the ready phase (the
+- **The Rush screen**: each reward pick is a turn (9.2 "Taking turns", card #314): the player whose
+  turn it is takes the card; the ready phase's Fight is pressed by whoever took the last pick.
+  Everyone else sees the whose-turn chip and every card greyed but Party in the ready phase (the
   cursor starts on it; Confirm opens the party screen, which closes back to the Rush screen), footer
-  Party only. A friend's change to the party (points, Relics) redraws the host's Rush screen
+  Party only. With Take turns off, the host picks every card and presses Fight, as before. A friend's change to the party (points, Relics) redraws the host's Rush screen
   (`Main._apply_bag_op`).
 - **Give up is the host's** (D7): the host's pause row reads **Give up** ("The Rush ends for
   everyone.") while the Rush goes on, and RUSH OVER shows on every machine. Friends only have Leave.
@@ -4329,12 +4596,12 @@ rest, as in an online run (9.2). Nothing goes back on any machine (decision 3).
 
 **Built as.** `RushState` (`scripts/rush/rush_state.gd`) extends `RunState` (pure, no Node): the fight
 counter (the last fight entered, 0 before the first), fight kinds, tiers and the boss cycle, the
-offer, spare XP, the Rush counters for Relic slots, and its own "rush" block in `to_dict` (a run state
+offer, spare XP, and its own "rush" block in `to_dict` (a run state
 refuses a Rush dict and the other way round: `RunState.mode()`). `RunState` gained small seams that
-change nothing for runs (`_start`, `mode`, `_fight_depth`, `_scales`, `shows_gold`, `teaches_echoes`,
-`xp_full`). Data: `RushData`, `RushTier`, `RushBoss` (`scripts/data/`) and `data/rush/fight_rush.tres`,
-written by `tools/bootstrap_rush.gd` from the run, its two acts and the three zones. Re-run the tool
-after a zone's roamers, an act's elites or ambushes, or the run's items change: `test_rush_data.gd`
+change nothing for runs (`_start`, `mode`, `_fight_depth`, `_scales`, `shows_gold`, `xp_full`;
+`teaches_echoes` went with 8.24). Data: `RushData`, `RushTier`, `RushBoss` (`scripts/data/`) and `data/rush/fight_rush.tres`,
+written by `tools/bootstrap_rush.gd` from the run, its three acts and the three places. Re-run the tool
+after a place's roamer pool, an act's elites or ambushes, or the run's items change: `test_rush_data.gd`
 fails on stale data until then. Missing or broken data greys the Fight Rush card ("locked" on
 Confirm) and logs an error, never a crash. Main's flow is its "the Fight Rush" section (`_start_rush`
 to `_show_rush_end`). The card pictures (`choice_run`, `choice_rush`, `choice_heal`, `choice_fight`,
@@ -4345,10 +4612,10 @@ Tuning (`tuning.tres`, group "Fight Rush"; the first values, not yet tuned with 
 | Field | Value | Meaning |
 |---|---|---|
 | `rush_depth_per_fight_percent` | 100 | map rows of depth each fight adds, in percent |
-| `rush_enemy_hp_step_add` | 0 | extra enemy HP points per depth step, on top of the run's 5 |
-| `rush_enemy_power_step_add` | 0 | the same for power, on top of the run's 3 |
+| `rush_enemy_hp_step_add` | 2 | extra enemy HP points per depth step, on top of the run's 3 (0 on top of 5 until #321) |
+| `rush_enemy_power_step_add` | 1 | the same for power, on top of the run's 2 (0 on top of 3 until #321) |
 | `rush_enemy_hp_percent` | 100 | every Rush enemy's HP, after the depth growth |
-| `rush_enemy_power_percent` | 100 | every Rush enemy's power, after the depth growth |
+| `rush_enemy_power_percent` | 105 | every Rush enemy's power, after the depth growth and the run's base power (100 and 105 until #321, the same 105 in all) |
 | `rush_scale_bosses` | true | boss fights (guards too) grow with the depth past their home depth |
 | `rush_elite_every` | 5 | every Nth fight is an elite (unless it is a boss fight) |
 | `rush_boss_every` | 10 | every Nth fight is the next boss of the cycle |
@@ -4384,17 +4651,17 @@ Tuning (`tuning.tres`, group "Fight Rush"; the first values, not yet tuned with 
   result= party_hp= level= xp= picks= spare=` (`depth` is the depth the fight grew by: for a boss, the
   depth past its home depth, so fight 50 prints 36); at the end the `AUTOPLAY_RECAP` lines (after a
   loss), `AUTOPLAY_PLAYERS` and `AUTOPLAY_RESULT rush_<over|gave_up|capped> fight= wins= record= new=
-  players= level= relics= echoes= items= seed= start=` (`wins` leaves out the head start's; bots
+  players= level= relics= relics_held= items= seed= start=` (`wins` leaves out the head start's; bots
   read and write no records, so `record=0 new=0`).
-- Times (headless): 3 capped fights about 90 s, one head-start fight about 1 to 2 min (fight 50 the
-  longest); later fights take longer. Balance runs start at fight 1:
+- Times (headless): 3 capped fights about 90 s, one head-start fight about 1 to 2 min (fight 60, the
+  Hollow King, the longest); later fights take longer. Balance runs start at fight 1:
   `--autoplay=average --bot-skill=60 --rush --rush-fights=15 --seed=1|2|3`, about 12 to 15 min each.
 - Dev screens: `--screen=rush_cards` (the New Run cards with Best 16), `rush_players`, `rush_reward`
   (the picks after fight 7), `rush_reward_elite` (after fight 5), `rush_ready`, `rush_end` (a NEW
   RECORD sample), `rush_pause`. None reads or writes a record.
 
 Tests: `tests/unit/test_rush.gd` (RushState, records, switches, dev screens), `test_rush_data.gd` (the
-data file: tiers, bosses, items, stale data, a 70-fight walk), `test_rush_screens.gd` (the Rush
+data file: tiers, bosses, items, stale data, an 80-fight walk), `test_rush_screens.gd` (the Rush
 screen, the end screen, hints, the lobby title), and the New Run cards in `test_choice_cards.gd`,
 `test_save_menus.gd`, `test_branding.gd` and `test_menus_clean.gd` (10). Online:
 `test_rush_online.gd` (the mode in each message, protocol 4, a friend building the host's Rush and
@@ -4414,6 +4681,921 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
   party (runs too).
 - Again online is checked by unit tests only (bots quit on the end screen), and no bot switch lands a
   drop-in exactly on the Rush screen (its window is about 2 s a fight; unit tests cover it).
+
+### 8.22 A Run without zones (phase 26, cards #316 to #320, decided 2026-10-24)
+
+The owner, after playing Fight Rush: "the zones themselves don't look good enough". Decision
+(2026-10-24, card #315 closed): keep the Run (map, shops, "?" events, campfires, treasure, acts, the
+Hollow King ending, gold, Oaths, Relic banking, Save & Quit) and **cut the walkable zones**. From the
+map the party goes straight into a fight. Why: fights are the star (pillar 1); in co-op only P1
+walked while the friends watched; a run gets faster. What it costs: the walk through the world (the
+places live on as fight arenas: 3D pieces, looks, weather, air), First Strike from a field swing
+(#320 brought it back as a press), the calm time between fights (shops, events and campfires do that
+now), and a run gets much shorter (the talks #321 and #322 come next). Branch `phase26-Direction`.
+
+**What the player sees.**
+- **Map stops**: Fight, Elite, "?", Shop, Campfire, Treasure and the act's boss. A **Fight** stop
+  (was Zone, the same `StopType` value 0) keeps its place's painted picture and name on the map.
+  (Card #317's Guard stop, with its own picture and legend line, went into the Elite stop: "Guards
+  merged into Elite stops" below.)
+- **A Fight stop**: the place's name card with a loading tip (card #86, as a zone entry showed), then
+  one fight from that place's monsters (`ZoneData.roamer_pool`, picked by the run's seed for that
+  stop, never the same fight as the last Fight stop on the road while the pool has another; its deep
+  version in a deep act or row, as roamers were), in the place's look and air, under a weather rolled
+  for that fight from the place's weathers (seeded, the same on every machine). After a win: gold, XP,
+  Relic drops and Echo pips as a roaming fight paid, and the item drop roll a roamer had (a drop that
+  does not fit opens the party screen with it in hand). Then the map. Running away works as before:
+  HP carries on, no gold, no XP, the stop is passed. A loss ends the run.
+- **The guard** (`ZoneData.guard`: The Gorged One, Mire Mother, Ash Warden; their deep versions in
+  act 3, the Ashen Deep, 8.23, or in a deep row) waits at some **Elite stops** (below), with its
+  phase two and banner, the boss song (and its rage), the place's look, air and a rolled weather.
+  No running. After a win its spoils (pick 1 of 3, as after a zone's guard), Relic pips
+  (`mastery_guard`) and Flawless work as before. (From #317 until the guards joined the Elite stops
+  it had a Guard stop of its own: map row `run_guard_row`, 1, all Guard stops, map rules 3, G1.)
+  Row 0 stays all Fight stops.
+- **Elites and "?" ambushes** also roll a weather for their fight (seeded); they keep their spoils
+  rules and roll no item drop. Act bosses stay in their lairs with no weather.
+- **Shrines and wanderers become "?" events** (default G2), priced like every "?" (8.7: never a
+  gift), each with its own painted picture: The Healing Spring, The Blood Altar, The War Idol (it takes
+  in the Shrine of Plenty) and The Grave Robber. The Key Peddler and the Old Pilgrim (the Wounded
+  Pilgrim does its job) go.
+- **Gone**: walking, roaming monsters, glinting spots, chests and the Key (G3: the item leaves the
+  shop, finds and drops; The Hanging Cage gives something else; `ItemData.Kind.KEY` keeps its number
+  so item files stay valid), seals and the gate, the exit, champions and their prize chests, ZONE
+  CLEAR, the zone HUD, critters, the practice list's zones and the `--zone=` bot. Practice fights stay.
+- **Saves and online**: a run saved before this change is kept on disk but not offered (G4:
+  `RunSave.FORMAT_VERSION` 2 at #316, 3 at #319, 5 when the guards joined the Elite stops, "Saved
+  run: another version (kept)"). New maps use map rules 4 (3 had the guard row; old rules stay in
+  the code). Online needs the same build on every machine; `Net.PROTOCOL` 5. The client builds a
+  Fight stop's fight, weather and drop from the run state alone, as for an Elite stop (whose group
+  or guard comes from the same seeded pick on every machine).
+- **Save & Quit at a Fight or Elite stop** restarts that fight at the HP the party had on entering it
+  (a zone restarted from its start).
+- `--weather=ID` now forces the weather of every run fight but the boss's.
+
+**Defaults chosen while the owner slept** (the owner may overrule each one):
+- **G1** (replaced by "Guards merged into Elite stops" below): one Guard row per act (row 1).
+  Weighted guard stops in the middle rows are for the balance talk (#321).
+- **G2**: the four events above, with first-guess prices.
+- **G3**: the Key goes with the chests.
+- **G4**: old saves are refused (kept), not migrated: they were made inside zones.
+- **G5**: no run numbers change yet: a run has fewer fights, so less XP, gold, pips and drops. The
+  bot numbers before and after are for the talk (#321); three acts are #322.
+- **G6**: the zone songs and zone ambience loops stay in `assets/` and the credits but no longer play
+  (the talk decides: reuse or delete). Storms in fights keep no lightning; `WeatherFx` and the
+  thunder cue stay unused for now.
+- **G7**: the class names stay (`ZoneData`, `ZoneOfferData`, ...): a `ZoneData` is now a place (name,
+  picture, look, air, music, weathers, roamer pool, guard); its zone-only fields go. The ground pieces
+  (`GroundStack`, `ground_patch`) and the decoration pieces stay for the arenas; only the pieces of
+  removed things go (seal stone, gate, exit signpost, zone chests, shrine pieces).
+- **G8**: the move actions stay (menus and the stick that marks P1's pad); `field_strike` and
+  `field_pickup` go. The tutorial keeps its First Strike lesson; #320 rewrote its words for the press.
+
+**The First Strike press** (#320, built 2026-10-24): with no field swing, a Fight stop's fight opens
+with one press ring (the skill press, A / Space) on the place's name card: the swirl, then the card
+with its ring, then the fight. A GOOD or PERFECT press gives First Strike (2.12: every hero acts
+before any enemy, the gold FIRST STRIKE banner); an early press, a late one, a miss or no press a
+normal start. Judged like every timed press, from input timestamps outside the core (rule 3); the
+opening goes into `CombatSetup` before the fight is built. Local co-op: any player's press counts.
+Online: the host's press decides and the friends watch the ring. Elites, guards, ambushes and bosses
+open normally. How it is built: "As built (#320)" below; card #335 moved the ring into the fight,
+after a short intro ("A short beat before each fight" below).
+
+**As built (cards #316 to #320, 2026-10-24).**
+
+- **The stops** (#316, #317): `RunMap.StopType.FIGHT` (value 0, was ZONE) and `GUARD` (7), type names
+  "fight" and "guard"; map rules 3 (`RunState.MAP_RULES`; `apply_dict` refuses rules under 1 or over
+  3). Tuning `run_weight_zone` is now `run_weight_fight` (45) and `run_guard_row` (1) is new: 0 or -1
+  means no guard row, a row within 2 rows of the boss is dropped, the guard row never moves and
+  nothing moves onto it. A guard row on `run_treasure_row` keeps its row; the chests stand on the
+  row before it (after it when that would be row 0). Map rules 1 and 2 still give the maps they
+  gave. (Since the guards joined the Elite stops new maps are rules 4, with no guard row; rules 3
+  maps and the guard row's tuning stay for them.)
+- **Picking the fight**: `RunState.fight_of` (one of the place's `roamer_pool`, seeded with
+  `FIGHT_SALT`; never the fight of the last Fight stop on the road while the pool has another,
+  compared before the deep version; Guard, elite and ambush fights do not count), `guard_of` (the
+  place's `guard` at a rules 3 Guard stop or an Elite stop that holds it, its deep version in a deep
+  act or row), and for every run fight
+  `encounter_now`, `zone_now`, `look_now`, `air_now` and `weather_now` (`FIGHT_WEATHER_SALT`). A
+  won Fight stop's drop is `fight_drop` (`drop_for(stop)`: the seeded `item_drop_percent` roll a
+  zone's first roaming enemy had). Elites and ambushes now get their place's air too.
+- **The way in**: the map swirls into black with the swirl sound, then the place's name card with a
+  tip, then the fight fades in (a Fight stop's First Strike ring is in its fight since #335, below).
+  The watch line is hidden over every fight. After a Fight stop's win the drop goes into the
+  pack, or the party screen opens holding it. Guards (`mini_boss`) get the boss song and rage in
+  every fight, practice too; their spoils read "The guard fell. Take one."
+- **The Rot Journal's "met at"** is the place's name for Fight, Elite (group or guard) and ambush
+  fights (a rules 3 Guard stop's too); the
+  boss fights keep the encounter's name.
+- **Events** (#318, G2 and G3): the four new events are in 8.7. The Key left every list, the
+  Hanging Cage gives a find, the event bot values a heal only as far as the party is hurt.
+- **What went** (#319): `scripts/explore/` (ZoneController, ZoneHud, ZoneMotion, RoamerBrain,
+  ZoneAssembler, ZonePath, WalkFacing, ZoneAutoplay; the bots' fitness check is `RunAutoplay` in
+  `scripts/run/`), `DeviceInput`, Main's zone path, the practice list's zone cards and `--zone=`;
+  `data/zones/sections/`, `data/offers/`, the Key (`data/items/key.tres`, its icon and art, and
+  `RunData.retired_items`, which kept it known for saved packs), `ExploreVisuals` and `explore_visuals.tres` (the screen transition numbers moved to
+  `combat_visuals.tres`, group "Screen transitions"), `ZoneSectionData`, `ZoneEnemyData`,
+  `ZoneCritterData`, the zone-only `ZoneData` fields, the props' and blocks' walking-only `solid`
+  fields, the zone chests (the treasure stop keeps its 2D chests in `StopVisuals`, and
+  `RunState.open_treasure` its prize rules), the tuning groups Exploration and Long zones
+  (`explore_*`, `zone_seals_needed`, `zone_exit_reach`), `chest_gear_percent` and
+  `net_zone_send_hz`, the `field_strike` and `field_pickup` actions, the zone messages and the
+  unreliable channel online, the place background loop and the song resume rule (#192) in the
+  Audio autoload, the zone song in `MusicSet` (`zone_path`, the song of a zone without its own),
+  each place's footstep cue, and the yes/no prompt's chips (a shrine's). The 3D
+  pieces of removed things went with their models and Blender code (seal stone, rot gate, exit
+  signpost, the zone chests, the four shrine pieces; the fountain stays), and so did the art kit's
+  seal, gate, shrine, wanderer, critter, glint and Key sprites. Tests: `test_zone.gd`,
+  `test_long_zones.gd`, `test_walk_facing.gd` and the zone parts of others.
+- **What stays**: `ZoneData` as a place (id, name, map picture, look, air, roamer pool, guard,
+  song and background loop, weathers), `ZoneOfferData` (every event deal and pact), `ZonePropData`,
+  `ZoneBlockData`, `ZoneGroundData`, `ZoneLightData`, `ZoneAmbientData`, `GroundStack`,
+  `ground_patch` and the decoration pieces (G7). Each place keeps naming its song and loop
+  (`music_path`, `ambience_path`, `ambience_volume_db`: Rotten Hollow `zone_hollow.ogg` and
+  `ambience_hollow.ogg`, Sunken Bog `zone_bog.ogg` and `ambience_bog.ogg`, Ashen Ruins
+  `zone_ruins.ogg` and `ambience_ruins.ogg`), but nothing reads them; the songs, loops and zone
+  sound cues stay in `assets/`, the sound library and the credits, unused (G6); `WeatherFx` and the
+  `thunder` cue too. The hero
+  sheets keep their walk and pickup clips (the run-up uses `walk_side`). The move actions stay for
+  P1's pad (G8): a stick push on them marks it P1's, but no screen reads them (the menus and the
+  shop move with `menu_*`, and the shop's footer chip shows those), so their keys do nothing and
+  the Controls page says so ("Stick marks P1's pad"). The tutorial's First Strike card no longer
+  names a lost button; #320 rewrote it to teach the press.
+- **Tools**: `tools/zone_map_preview.gd` and `tools/bootstrap_zones.gd` went; `tools/dress_zones.gd`
+  became `tools/dress_arenas.gd` (the arenas only, `-- --dry-run`); `bootstrap_run.gd`,
+  `bootstrap_items.gd`, `bootstrap_phase15.gd` and `gen_placeholders.gd` no longer write zones. The
+  glossary is edited by hand and the guards' Dooms were added by hand (8.6), so
+  `bootstrap_glossary.gd` and `bootstrap_phase15.gd` are older than the data: do not re-run them as
+  they are.
+- **Text**: the glossary's In a zone topic went and The map gained Fight stop and Guard stop (the
+  Guard stop term went when the guards joined the Elite stops); the
+  loading tips, the main menu and practice screens and the Journal no longer speak of zones.
+- **Bot runs** (headless, after #319): `--run --seed=7` run_victory (act 2, 14 stops, 8 fights),
+  `--run --seed=3` run_victory (14 stops, 10 fights), `--rush --rush-fights=3` rush_capped (the Rush since cut, 8.21), a plain
+  fight victory, and one online pair (`--run --host=2 --seed=7` and a `--join=127.0.0.1` friend:
+  the same `AUTOPLAY_RESULT` and `AUTOPLAY_MIRROR` lines on both). The build notes of #316 and #317 saw an
+  average bot (skill 60) die to the first guard on seeds 1 to 4, and the guard row takes a mixed
+  row, so maps hold fewer events and elites (seed 7 had no "?"): both are for the balance talk
+  (#321), with fewer fights meaning less XP, gold and drops (G5). (The guard row went since: the
+  guards joined the Elite stops, below.)
+
+**As built (#320, the First Strike press).**
+
+- **The ring** (`FirstStrikeRing`, `scripts/combat/presentation/`): `ScreenTransition.show_tip(title,
+  extra)` puts it on the place's name card, between the name and the loading tip, and Main holds the
+  card until it is done. It shows `first_strike_ring_delay_ms` (500) after the card and closes onto its
+  moment over `first_strike_ring_lead_ms` (1000), drawn like a skill press ring (`RingLayer`: the
+  faint target, the GOOD band and the gold PERFECT band, the ring gold inside PERFECT), at
+  `first_strike_ring_scale` (0.8) of a skill ring. Under it the chip [A] First Strike (`HintBar`),
+  over it the press's word (PERFECT, GOOD, EARLY, LATE, MISS). Sounds and buzz as a skill press:
+  `skill_press` (quieter for GOOD), `whiff`, `skill_miss`, `locked`, and `press_perfect` /
+  `press_good` on the presser's pad only (`PadRumble.for_player`, 7.14: no fight party is set on
+  the card; a keyboard player in local co-op feels nothing, as in a fight). A window that passes
+  unpressed says MISS at once (with `skill_miss`), as a skill ring does, but the button stays armed
+  until `late_press_report_ms` (400) after the moment (plus the laggiest device's lag compensation,
+  `FirstStrikeJudge.late_until_us`): a press by then turns the word into LATE (with `whiff`), and
+  the opening stays normal. The result stays `first_strike_result_ms` (800), and never ends before
+  that late span: a won ring stays gold on its target and the chip turns gold; otherwise the ring
+  goes and the chip dims. Then the fight.
+  Tuning group "First Strike press"; visuals group "First Strike press" (`first_strike_chip_size`,
+  `first_strike_word_size`, `first_strike_watch_alpha` too).
+- **Judging** (`FirstStrikeJudge`, `scripts/combat/timing/`, pure, tested): the skill press windows
+  (`skill_press_window_ms` 200, `skill_perfect_window_ms` 70, split by `window_late_percent`), the
+  same lag compensation, reach-back and whiff lockout, from `DefenseInput` stamps (rule 3; the ring's
+  own `DefenseInput` takes the press before the card's input block). One try per player: an early
+  press spends that player's try (as on a skill ring), so mashing never pays. The first GOOD or
+  PERFECT press decides FIRST_STRIKE; once every try is spent it is NORMAL. After a NORMAL whose
+  window passed unpressed the judge still judges a press (`DefenseJudge` reports it LATE within
+  `late_press_report_ms`, DONE after), but nothing changes the opening. The ring's `decided` signal
+  (which the host sends on to the friends) fires once the press's word is final: at once after a
+  GOOD, PERFECT or deciding EARLY press, and after a MISS once a LATE press came or the late span
+  ended, so a friend sees the host's LATE too. Main keeps the result in
+  `_run_opening`, `_start_combat` passes it to `CombatController.configure`, and the run's
+  `fight_setup` puts it in `CombatSetup.opening` (`combat_started` says `opening`).
+- **Which fights**: `Main._rings_first_strike` is true for `RunMap.StopType.FIGHT` only. Elite
+  stops (an elite group or the guard; a rules 3 Guard stop too), ambushes, the boss and practice
+  fights get no ring; `--first-strike` still
+  opens a practice or test fight with the advantage.
+- **Local co-op**: every local player has their own try on the one ring; any player's GOOD or PERFECT
+  press counts.
+- **Online**: the host sends a Fight stop's `stop_fight` at its swirl with `"ring": true` (a rules 3
+  Guard stop's still goes when its fight is built; an Elite stop's fight goes as a `final_fight`). A friend's card shows the ring dimmed
+  (`first_strike_watch_alpha`) with a P1 tag in place of the button, takes no press, and waits for
+  the host's `opening` message (`{fight, opening, word}`; taken at once, not queued behind the card).
+  It shows the host's word and sound, and the friend's fight starts with the host's opening. If no
+  result came `net_opening_wait_ms` (6000) after the ring closed, the card goes on (the host's fight
+  decides the opening anyway, the friend only mirrors it). The host also writes the result into the
+  fight's message, so a friend who drops in or rejoins during the card gets it: during the ring they
+  watch it, once it is decided or mid-fight they go straight on. The card's wait ends when the
+  online game ends, so it never hangs. `Net.PROTOCOL` stays 5: the new message and field are only
+  additions, the content fingerprint already keeps differing builds apart, and 5 has not left phase
+  26.
+- **Bots** (`FirstStrikeBot`, pure, tested; they press through the ring's `DefenseInput` like a
+  person): `--autoplay` (and `=escape`) presses in the middle of PERFECT: First Strike; `=miss` never
+  presses: a normal start; `=mash` mashes random buttons on its usual beat, judged like anyone's (only
+  the skill press counts, and its first one is nearly always EARLY); `=average --bot-skill=N` lands it
+  N% of the time, half PERFECT and half GOOD, with seeded luck (`--seed`: seed x 1000003 + stops
+  visited). Every Fight stop prints `First Strike press: <opening> (<word>)` on the deciding machine
+  and, with autoplay, `AUTOPLAY_OPENING first_strike|normal stop=N` on every machine.
+- **Pictures**: `--screen=first_strike` shows a sample run's name card with a ring that can be pressed
+  and starts over after each result.
+- **Words**: the tutorial's lesson 7 card (7.8), the glossary's First Strike term ("A Fight stop's name
+  card shows one ring. Press the skill button as it closes: ...") and a loading tip teach the press.
+- **Defaults chosen while building #320** (the owner may overrule each one): F1 the ring shows 500 ms
+  after the card and closes over 1000 ms; F2 the skill press windows, no windows of its own; F3 a
+  friend waits up to 6000 ms after the ring closes for the host's result; F4 the result stays 800 ms;
+  F5 the ring is 0.8 of a skill ring, between the name and the tip; F6 a friend's ring is dimmed to
+  0.45 with a P1 tag; F7 each local player gets their own try and the bot presses for each; F8 a
+  Guard stop (map rules 3 only since the guards joined the Elite stops) keeps its old announcement
+  time; F9 a loading tip about the ring; F10 a hit buzzes the
+  presser's pad only, as a skill press does.
+- **Tests**: `test_first_strike.gd` (judging good, perfect, early, late, none, mash, lag, and a late
+  press a frame after the window passed; any local player; the bots' habits; the ring's presses,
+  its MISS turning LATE on a late press or standing once the late span ends, a friend's watched ring
+  and its time-out, the picture ring; `ScreenTransition.show_tip` putting the ring on the card with
+  and without tips; `Main._fade_to`, run on a Main without its start-up, holding the card until the
+  ring is done before it builds the fight, a friend's card waiting for the host's result, and a card
+  left behind building nothing; only Fight stops ring; the opening reaching `CombatSetup` and the
+  engine; online the host's result reaching the friends and late joiners; the tutorial and glossary
+  words).
+- **Bot runs** (headless, after #320): `--autoplay --run --seed=7` run_victory (act 2, 14 stops, 8
+  fights) with `AUTOPLAY_OPENING first_strike` on all four Fight stops (1, 5, 8, 10) and normal
+  openings for the two guards and both bosses; `--autoplay=miss --run --seed=7` `normal` on stop 1
+  and run_defeat there; one online pair (`--run --host=2 --seed=7` and a `--join=127.0.0.1` friend):
+  first_strike on the same four stops on both machines and the same `AUTOPLAY_RESULT` and
+  `AUTOPLAY_MIRROR` lines on both.
+- A Fight stop is never announced while a transition is under way (`_fade_to` would not build its
+  fight, and the friends would wait for a fight that never comes).
+
+**A short beat before each fight (card #335, owner playtest 2026-10-25, built the same day).** The
+fight no longer starts the moment it is seen. **Every** fight (Fight and Elite stops, ambushes,
+bosses, the tutorial and practice fights; not a friend's resume mid-fight) opens with an intro: once
+the screen is uncovered (Main hands the fight `ScreenTransition.is_covering`; it waits at most
+`CombatController.INTRO_COVER_WAIT_MS`, 6 s) the camera sweeps slowly over the enemies, left to right
+(`CameraShots.intro_sweep` and `sweep_order`, `CombatCamera.sweep`; the base view drifted toward the
+first and last enemy, slid a little past each end so a lone enemy still pans), each enemy's name small
+over it (`CombatHud.show_intro_names`, fading in and out), for `intro_sweep_ms` (1500; visuals group
+Juice: `intro_sweep_share` 0.5, `intro_sweep_push` 2.0, `intro_sweep_slide` 0.6, `intro_name_size`
+24, `intro_name_fade_ms` 250; 0 turns the intro off). The camera waits over the first enemy while
+the card fades. With the cinematic camera off (F1 > V) the view stays still and only the names show.
+Then the fight starts: a boss or guard's banner and push-in, FIRST STRIKE! for a `--first-strike`
+fight or the tutorial, else the start sound, and the first turn; **a Fight stop's First Strike ring
+now shows here**, in the middle of the fight (`CombatHud.show_first_strike_ring`), not on the card.
+Not "Ready? Go!" (the owner's word).
+
+- **The engine waits for the ring** (rule 1): a Fight stop's fight is set up with
+  `CombatSetup.Opening.RING` (`combat_started` says `"opening": "ring"`): `start()` builds everything
+  and picks the intents but stops before the first turn (`Phase.AWAITING_OPENING`). The ring's
+  result comes as the command `set_opening {opening: "normal" | "first_strike", word}`
+  (`CombatCommands.set_opening`): First Strike is applied then (the same `_apply_first_strike` and
+  so the same turn order as a First Strike setup), the event `opening {opening, word}` follows, then
+  the first turn, in one batch. Anything else is refused (another opening name, a second
+  `set_opening`, a fight that was not RING), and no hero acts before it. Same seed and commands, same
+  events (a test). `resume_events` gives nothing while it waits, so a friend getting in then is
+  seated at the first turn.
+- **The ring** (`FirstStrikeRing`, unchanged rules: delay 500 ms, closes over 1000 ms, the skill press
+  windows, the bots' habits) starts only after the intro, so its moment is measured from its own
+  start on the same clock as the press stamps (rule 3: its own `DefenseInput`, now in the fight, past
+  the transition's input block). The controller makes it: PRESS on a local game or the host (its
+  `decided` submits `set_opening` and prints `First Strike press: <opening> (<word>)`), WATCH on a
+  friend, LOOP for the picture. The first turn waits until the ring is done (`is_finished`).
+- **Online**: every stop fight's `stop_fight` now goes when the host's card is done (no `"ring"`
+  field); the friends build theirs and play the same intro. The host's result reaches a friend as the
+  fight event `opening` in the host's batch: the controller hands it to the watched ring at once
+  (`_take_host_opening`, kept if it came before the friend's ring showed) and plays its banner in
+  order. The `opening` message, Main's `_net_opening`, `_watches_first_strike`, `_opening_of` and
+  `_take_net_opening` went. Every machine prints `AUTOPLAY_OPENING first_strike|normal stop=N` when the
+  `opening` event plays (`CombatController.opening_played`), so a friend who got in mid-fight has no
+  such line for that fight. `Net.PROTOCOL` stays 9 (the content fingerprint keeps other builds out).
+- **Timing**: a fight's first turn comes about 1.5 s later; a Fight stop's ring about 2.3 s after the
+  intro (as on the card). A friend starts its fight after its own swirl and card, so it plays about a
+  transition behind the host, as it already did for Elite stops; an enemy's first attack waits for
+  the friend's ack as any attack does (`net_ack_timeout_ms` 3000, a later ack still counts).
+- **Pictures**: `--screen=first_strike` plays a sample run's first Fight stop's fight: the intro, then
+  the ring in the fight (pressable, starts over, the first turn never comes).
+- **Words**: the glossary's First Strike term ("A Fight stop's fight opens with one ring, once the
+  camera has swept over the enemies...") and the loading tip ("Hit the ring at the start of a Fight
+  stop's fight...") say where the ring is now; the tutorial card ("A Fight stop opens on a ring") was
+  still true.
+- **Tests**: `test_first_strike.gd` (the engine waiting for `set_opening`, refusing junk, matching a
+  First Strike setup, a snapshot; the sweep's maths; the shipped combat scene playing its intro while
+  uncovered only, its names, then the ring after the sweep and the first turn after the ring; a
+  normal fight's intro with no ring and no intro at 0 ms; a friend's ring taking the host's result;
+  Main's wiring), `test_run_fights.gd` (the announcement after the card).
+- **Defaults chosen while building #335** (the owner may overrule each one): the sweep is 1.5 s,
+  left to right, slightly closer than the base view; names at 24 px over each enemy's head; every
+  fight gets it, the boss too (its banner and push-in after the sweep); the intro waits for the card
+  and the fade to go; no switch shortens it for bots (about 1.5 s a fight).
+
+**Guards merged into Elite stops (owner, 2026-10-24 night, "to lower confusions"; built
+2026-10-25).** With no zones the guard lost its job (the zone's exit), and two stop kinds that both
+mean "a hard fight with spoils" confused. So the Guard stop and the guard row went: an **Elite stop**
+now holds either one of its act's elite groups or its place's guard (the mini-boss with its phase two,
+Doom, boss song), picked by the run's seed. The map is Fight, Elite, "?", Shop, Campfire, Treasure and
+the boss, like Slay the Spire. The Relic slot that opened after the first guard opens after the first
+Elite stop won. Pips stay per kind (guard 3, elite 2). This replaces G1 and card #317's Guard stop.
+
+- **The map** (map rules 4, `RunState.MAP_RULES`; `apply_dict` takes rules 1 to 4): no Guard stop
+  and no guard row. `RunMap.generate` takes `guard_rows` (true for rules 3 only), so a rules 4 map is
+  the map rules 2 made: the guards' old row gets ordinary stops, and Elite stops stand where they
+  did (not before row `run_elite_min_row`, never two in a row, the act's crowned elite).
+  `run_guard_row` stays in the tuning for rules 3 maps, and `StopType.GUARD` keeps its number (7).
+  An act with no elite groups still gets Elite stops when every one of its places has a guard
+  (`RunState._act_all_guarded`); the map may give an Elite stop any of the act's places, so with one
+  place unguarded it gets none, and no Elite stop is left with nothing to fight.
+- **The pick** (`RunState.elite_holds_guard(stop_id)`, `elite_stop_fight`): a roll of its own by the
+  run's seed, the act and the stop (`ELITE_GUARD_SALT`, in the `(stop_id + 1) * SALT` pattern, so
+  it is the same on every machine and after Continue) under tuning `run_elite_guard_percent` (40):
+  under it the stop holds the guard, else one of the act's elite groups (`elite_of`, as before).
+- **Never the guard twice in a row** (the rule picked): an Elite stop never holds the guard when the
+  nearest Elite stop on any road leading to it holds the guard (the stops between that are not
+  Elite stops are passed over). It reads the map, not the road walked, so every machine, a save and
+  the map agree before anyone gets there, and no road meets the guard at two Elite stops in a row.
+  It holds while the act has elite groups: an act without any holds its guard at every Elite stop;
+  a place without a guard never holds one.
+- **The crowned elite** rolls like any Elite stop. A crowned guard keeps the crown's spoils (a
+  legendary Relic first) but not the crown's extra HP and power, which stay an elite group's
+  (`fight_setup` gives them to `encounter.elite` only).
+- **The fight**: `encounter_now` at an Elite stop is `elite_stop_fight`. A guard comes as the Guard
+  stop's did (`guard_of`: its deep version in a deep act or from row `run_deep_row`), with its phase
+  two, banner, boss song and rage, the place's look and air; every Elite stop rolls its weather as
+  before. No running, no First Strike ring and no name card: the Elite stop's swirl, as before.
+- **Pay**: a guard pays its spoils (pick 1 of 3, "The guard fell. Take one.") and `mastery_guard` (3)
+  pips; a group pays as before (`mastery_elite`, 2, its own spoils line); Flawless as before.
+- **The Relic slot** that opened after the first guard opens after the first Elite stop won, of
+  either kind (`RunState.elite_stops_won`, saved and sent under its old key `guards_beaten`, so the
+  saved counter still reads; a guard won anywhere also counts, as a rules 3 Guard stop does; an
+  ambush never does). A shut slot says "Opens after the first Elite stop.".
+- **What the player sees**: one Elite picture on the map for both kinds, the chips and name "Elite"
+  or "Crowned elite" (a rules 3 Guard stop draws as an Elite stop too); what an Elite stop holds
+  shows when the fight starts. The legend lost its Guard line, `map_guard.png` and its art kit
+  drawing went (`map_art.py`, `check.py`), and so did `MapVisuals.guard_stop_icon_path`. The
+  glossary lost its Guard stop term; its Guard term says "met at some Elite stops (never two in a row
+  on a road)" and its Elite stop term "one hard fight, an elite group or the place's guard ... the
+  first win opens a Relic slot". A loading tip says an Elite stop may hold the guard. The dev
+  screens' second slot comes from a won Elite stop. The guard enemies and their data did not
+  change.
+- **Bots**: the map bot weighs the Elite stop by its fitness check alone (`_autoplay_map`: treasure,
+  shop, rest, elite, event, fight; no guard), and every Elite stop prints `AUTOPLAY_ELITE stop=N
+  kind=guard|group enc=ID` with autoplay.
+- **Saves and online**: `RunSave.FORMAT_VERSION` 5: a format 4 run's map still has its row of Guard
+  stops, so it is kept on disk but not offered. A rules 3 run that loads (the code keeps the rules)
+  still fights its Guard stops as before. No message or field changed for this (`Net.PROTOCOL` 6 is #314's; an
+  Elite stop still goes as a `final_fight`, and the friend builds its fight from the run state
+  alone); the content fingerprint keeps different builds apart.
+- **Tests**: `test_run_fights.gd` (no Guard stops on rules 4, which is the rules 2 map; the pick
+  seeded and stable; the guard share within 6 points of the tuning over 240 seeds, and 0% and 100%;
+  no road meets the guard twice in a row; a crowned guard's spoils and no crown HP or power; an act
+  without elite groups; a guard Elite stop pays guard pips and spoils; the Relic slot opens after the
+  first Elite stop won of either kind, never after an ambush; rules 3 maps keep their Guard row and
+  fights; formats 1 to 4 refused and kept; the friend builds the host's Elite fight from the state
+  alone; the bot's choices), `test_relics.gd` (the slot), `test_run_info_clean.gd` (a guard Elite
+  stop looks like any Elite stop), `test_map_shop_chips.gd` (no Guard legend line), `test_run.gd`,
+  `test_run_stops.gd`, `test_glossary.gd`, `test_run_balance.gd`.
+- **Bot runs** (headless): `--autoplay --run --seed=7` run_victory (act 3, 21 stops, 11 fights) with
+  no `AUTOPLAY_ELITE` line: seed 7's three Elite stops (one per act, each crowned; act 2's holds
+  the deep Mire Mother) are all off the bot's road. `--autoplay --run --seed=71` run_victory (act 3,
+  21 stops, 13 fights): `AUTOPLAY_ELITE stop=3 kind=guard enc=guard_gorged_one` (act 1; the second
+  Relic slot opened after it and the bot wore a second Relic), `stop=6 kind=group
+  enc=deep_elite_twin_husks` (act 1's crowned elite, next on that road) and `stop=20 kind=group
+  enc=deep_elite_hyena_pack` (act 3's crowned elite). `--autoplay=average --bot-skill=70 --run
+  --seed=3` run_defeat at stop 2 (act 1's second Fight stop, on the row that was the guards', after
+  the first fight left the party at 21%). Online pairs (`--run --host=2` and a `--join=127.0.0.1`
+  friend): seed 7 the same `AUTOPLAY_RESULT run_victory` and `AUTOPLAY_MIRROR` lines on both (no
+  Elite stop on the road); seed 71 the same `AUTOPLAY_RESULT run_victory`, the same three
+  `AUTOPLAY_ELITE` lines as the solo run (the guard at stop 3 built by the friend from the run
+  state) and the same `AUTOPLAY_MIRROR` lines on both. No `ERROR` lines.
+- **Defaults chosen while building** (the owner may overrule each one): E1 the guard share 40%; E2
+  the never-twice rule reads the map (the nearest Elite stop on any road before), not the road
+  walked; E3 the crowned elite may hold the guard, with the crown's legendary spoils and without its
+  HP and power; E4 an act with no elite groups holds its guard at every Elite stop (and gets Elite
+  stops only when every place has a guard); E5 a guard won anywhere still counts for the slot; E6
+  a guard's Elite stop keeps the Elite stop's swirl with no name card.
+- **Known limits** (for the balance talk, #321): guards are met far less often. A map holds about
+  1.1 Elite stops per act (816 in 720 acts over 240 seeds; every act has its crowned one) and 40% of
+  them hold the guard (327), so about 0.45 guards per act, and only on the roads through them, where
+  the guard row met one on every road in every act; fewer guards also means fewer guard pips and
+  spoils. With so few Elite stops about 9 in 10 are the act's crowned one, so a guard met usually
+  pays the crown's legendary spoils (291 of the 327). A guard can now stand in an act's deep rows;
+  the act 3 numbers first written here (7063 and 7249 against the King's 6885) left out the guards'
+  90% HP share, and the real overweight guard was act 2's deep Mire Mother. The balance pass (#321,
+  8.23) fixed it and `test_run_balance.gd` checks every act and row. Not yet seen in a game window.
+
+### 8.23 Three acts and the Leech Queen (phase 26, card #323, decided 2026-10-24)
+
+The owner: three acts, "the standard in roguelites", then the balance talk (#321). One place per act,
+in the order of the story line "forests to husks, rivers to bog, cities to ash":
+- **Act 1, The Rotten Road**: Rotten Hollow only. Boss: The Husk Lord (as now).
+- **Act 2 (new), in the Sunken Bog**: boss **The Leech Queen** (new; the owner picked her over the
+  Mire Saint, partly because the game has few female enemies). A pale, crowned queen whose body ends
+  in a giant leech, coiled in black water. Her bites drink HP (she heals by part of the damage they
+  deal), her tail sweeps must be dodged, black-water waves must be jumped, and she fights with small
+  leeches at her side. Phase two at half HP, a Signature Doom (8.6), her own lair look, her own map
+  picture for the act's boss stop, the boss song and rage.
+- **Act 3, The Ashen Deep**: Ashen Ruins only, deep (2.16). Boss: The Hollow King (the run's end).
+- Each act's elites, events and ambushes come from its own place where they can.
+- Later ideas, not built: a boss pool per act that rotates between runs like Slay the Spire (#324,
+  first extra idea the Mire Saint), and one special rule ("gimmick") for each act boss (#325).
+
+**As built** (card #323, 2026-10-25; not yet seen in a game window, the pictures and the feel are for
+the owner to check):
+
+- **The acts** (`data/runs/acts/`, `RunData.acts` in `data/runs/rotten_road.tres`): `rotten_road`
+  (The Rotten Road: Rotten Hollow, the Husk Lord, elites Twin Husks and Shade Coven), the new
+  `drowned_mire` (**The Drowned Mire**: Sunken Bog, the Leech Queen in her lair, elites Toad Court and
+  Twin Husks, its own ambush page and picture) and `ashen_deep` (The Ashen Deep: Ashen Ruins, deep,
+  the Hollow King, elites The Laughing Pack and Shade Coven). Two elites per act; Twin Husks and
+  Shade Coven are in two acts each so every act has a choice. Each act draws ten to thirteen events
+  and six ambush fights that fit its place (the lists are in 8.7); every event is in at least one
+  act. `tools/bootstrap_events.gd` writes the three lists; `tools/bootstrap_phase15.gd` writes the
+  three acts too (still not to be re-run as it is, see CLAUDE.md).
+- **Depth.** Every act is 7 rows (6 and the boss), so the run is now 21 rows deep: act 2 is rows 7
+  to 13, act 3 rows 14 to 20. Enemies, events and drops grow with that depth as before (8.3), so
+  act 3's monsters are tougher than the old act 2's; bosses still do not grow. The first act's
+  guard is the Gorged One, the second's Mire Mother, the third's the deep Ash Warden (met at some of
+  the act's Elite stops, 8.22). Only act 3 is
+  `deep` (rows 4 on were deep in every act too until the balance pass, #321 below, set
+  `run_deep_row` past the last ordinary row, 2.16). Beating act 1's or act 2's boss heals 50% and opens
+  the next map; only the Hollow King ends the run. A Relic slot still opens after act 1's boss only
+  (8.17); act 2's boss opens none (a default, for the balance talk).
+- **The Leech Queen** (`data/enemies/leech_queen.tres`, `data/encounters/leech_queen_fight.tres`,
+  "The Leech Queen", a boss fight: no running, team ultimate): HP 530%, power 150%, speed 135 (185 in
+  phase two), between the Husk Lord (420%, 140%) and the Hollow King (650%, 165%); 150 gold, 320 XP;
+  she goes for wounded heroes (`target_rule` WOUNDED, bias 220%). Two **Leechlings** at her side
+  (`leechling.tres`: 40% HP, 45% power, speed 190; Leech Bite marks Weakened, Wriggle feints then
+  rends). Phase one: **Draining Bite** (a feint, then a rend; drinks 75%), **Tail Sweep** (two
+  party-wide sweeps, dodge only, the second a forced feint), **Black Water** (two party-wide ground
+  waves, jump), **Blight Spit** (a thrown glob of black bile that Blights for 3 turns) and her
+  Signature Doom **Drowning Tide** (3 turns to gather, 9 hits: waves, tail sweeps, spit and rends,
+  break 17%). At half HP the banner **THE LEECH QUEEN HUNGERS!**, phase two at 91% tempo: **Gorging
+  Bite** (three hits, drinks 90%), **Tail Lash** (three sweeps), **Black Flood** (three waves),
+  **Blight Volley** (three globs; only the last marks, and only in a hard fight, so she has one
+  marking move in an ordinary fight), the new move **Feeding Frenzy** (bites every hero in turn,
+  drinks 60%; she cannot pick it again on her next turn, `cooldown_turns` 1, but she does not rest:
+  her next turn is another move) and the Doom again. All her moves come from `tools/make_attack.py`
+  (the tail moves' hits carry `anim = "tail"`, so she plays her tail clips; the choreography golden
+  test took the 12 new files, 96 attacks, every older hash unchanged).
+- **The drinking bite** (a core rule, `EnemyAttackData.drain_percent`, 0 to 100): every hit of such
+  a move that lands undefended heals the attacker that percent of the HP the hero lost (at least 1,
+  never above her max HP). A defended hit drinks nothing; a hero who had less HP than the hit drinks
+  only what was left; a Blighted attacker drinks less (Blighted cuts every heal, 2.7); an attacker
+  already dead (thorns) or at full HP drinks nothing. The engine puts `drain` on the move's defend
+  prompts and sends a `healed` event with `cause: "drain"` right after the hit's `prompt_resolved`
+  (the only heal that names a cause); the screen shows **DRAIN** and the heal number over her. Tests:
+  `test_leech_queen.gd` (and the event fields in `test_combat_engine.gd`).
+- **Art** (art kit): `enemy_leech_queen.py` (108x108 cells; about 71 px tall at idle and up to 88
+  when she rears, between the Husk Lord's 51 and the Hollow King's 80, and wider than both with her
+  coil: a pale crowned queen whose body ends in a giant ringed leech tail coiled in black water,
+  violet glow on her tell; the usual clips plus rage, a tail wind-up and lunge for the sweeps and a
+  spit. In the tail clips her arms stay low and the tail's swollen end swings out past her claws at
+  a hero's waist height, so a sweep reads apart from her bite. Her 48 px portrait is a close-up of
+  the face, turned a little more toward the viewer, with dark sockets round the violet eyes and the
+  crown's roots cut short so the crown fits the frame) and `enemy_leechling.py` (48x48), their
+  portraits and clip layouts (`data/clips/`); `fx_attacks.py` the black bile glob
+  (`data/projectiles/black_bile.tres`); `map_art.py` her lair picture for act 2's boss stop
+  (`map_lair_leech_queen.png`: the coil in a black pool, her pale head under a bold worn-gold crown
+  like the other two lairs', dead roots twisting out past it); `event_art.py` act 2's ambush page
+  (`ambush_drowned_mire.png`); `env_floor.py` a new floor, `mire_tile` (black silt, pools of black
+  water, violet glints). **Her lair** (`data/looks/leech_lair.tres`): the Sunken Bog's look made
+  darker and violet, with the mire floor, violet lights and shrooms, drifting motes, a blood-violet
+  light in her phase two; `tools/dress_arenas.gd` dresses it as a drowned bog court (a stilt hut, a
+  broken arch, a log, bones, two swamp lanterns). Her name banner, the boss song and the rage come
+  from the shared boss rules; she is in the Rot Journal and the practice list like every enemy and
+  fight (they read the folders).
+- **Her voice is a pick for the owner**: she reuses `voice_shade` (the Shade's whisper), the
+  Leechlings `voice_bloat`, until the owner picks or the sound kit makes her own.
+- **Relics**: she drops Hunger Charm, Bloodletter's Fang, Black Ichor, Still Water and Second Wind;
+  the Leechlings Heartleaf, Mossbed and Bitter Root (`tools/bootstrap_relics.gd` lists them).
+- **Fight Rush** (8.21, since cut in #331): the boss cycle is now six bosses, the Leech Queen at fight 50 in her lair
+  (a Sunken Bog weather), the Hollow King at fight 60; the tiers take the act matching their place.
+  Her home depth is 13 (where a run meets her), the King's 20; the guards keep 1, 3 and 9 (where the
+  Rush's own tiers meet them). `data/rush/fight_rush.tres` was rewritten by `tools/bootstrap_rush.gd`.
+- **Saves**: `RunSave.FORMAT_VERSION` 4. A format 3 save (two acts) is kept on disk but never offered,
+  since its act 2 would now carry on in the bog instead of the ruins.
+- **Glossary and README**: the Boss and The run entries name three acts and three bosses.
+- **Bot runs** (headless, after #323): `--autoplay --run --seed=7` run_victory (act 3, 21 stops, 14
+  fights; the Queen in 17 turns), `--seed=3` run_victory (act 3, 21 stops, 13 fights; the Queen in
+  13 turns); `--encounter=leech_queen_fight` victory (32 turns, two Dooms announced, one broken;
+  seeds 5 and 11 victory too), `--autoplay=miss` defeat in 15 turns; `--rush --rush-start=50
+  --rush-fights=1` rush_capped (the Queen at fight 50, victory). No `ERROR` lines.
+- **Known limits**: the balance of the longer run got a first pass (#321, below); her
+  numbers are first guesses between the Lord and the King; the Drowning Tide's break share is a
+  guess; the black bile's launch point is set by eye from the sheet, not seen in game. The Hollow
+  King, now at depth 20, plays his phase two on the tempo floor (70%: 5% faster than his first
+  phase, not the authored 10%, 8.3).
+
+**Balance for the three-act run (#321)** (defaults, built 2026-10-25 while the owner slept; every
+number below is for the owner to overrule in the talk; all of it is data except one new tuning
+number for XP and one line that keeps the Rush's purse empty). Since #331 the Fight Rush is cut
+(8.21): its lines below are history, and what the run shared with it (the monsters, the bosses,
+`elite_hp_percent`, `enemy_power_base_percent`, the downed hero's 1 HP) is the run's alone to tune.
+
+- **Targets** (from the task): **T1 a fair start**: a 70% player (the `--autoplay=average` bot at
+  `--bot-skill=70`) does not die in act 1's first three stops on most seeds; a 60% one may die in
+  act 1, but not usually at stop 1 or 2. **T2 the curve**: an 85% player wins about half its runs
+  or more, a 70% one usually reaches act 2 and sometimes act 3, the perfect bot always wins, and
+  each act boss is the hardest fight of its act. **T3 growth**: the perfect bot ends near level 10,
+  with about 6 to 8 Echoes learned and about 10 Relics found; Relic slots as they are. **T4 gold**:
+  about 2 or 3 good shop buys per act, no 900+ gold left unspent at the end. **T5**: no guard at an
+  Elite stop is bigger than its act boss. **T6**: a run takes a person about 45 minutes. **Not
+  changed**: the Fight Rush's balance (8.21).
+- **How it was measured**: headless bot runs (`--autoplay[=average --bot-skill=N] --run --seed=S
+  --quit-on-end`), one player, Oath 0, no Relics at home (a first run) except the two later-run
+  rows, 6 at a time. The seed picks the map and the bot's luck, so the same seed with the same
+  numbers repeats. Each round: the perfect bot on seeds 3, 7 and 71; skill 85 and 70 on seeds 1 to
+  4; skill 60 on seeds 1 and 2. Round 1 and round 2 changed numbers; a review round put the XP at
+  125% and the pips back at 1 (below) and measured the whole batch again, the extra seeds (skill 85
+  on seeds 5 to 8, skill 70 on 5 and 6) and skill 85 on seeds 1 and 2 with Relics at home
+  (`--relics-path` with a mid-progress file: 18 Relics found, 6 Echoes learned for good; and
+  `--relics=all`). With 4 seeds one run moves a rate by 25 points, so read the rates as rough. The
+  real HP of a fight is taken from `RunState.fight_setup` the way the engine builds it
+  (`test_run_balance.gd` proves the sum on a real engine).
+- **Before and after** (before: the numbers at the start of phase 26's three acts; after: the
+  defaults below; a list is one value per run, in seed order; gold left and fight minutes for the
+  runs that won):
+
+  | Bot | | Won | Act reached (lost at stop) | Level at the end | Relics found | Echoes learned | Gold left | Fight minutes |
+  |---|---|---|---|---|---|---|---|---|
+  | Perfect | before | 3 of 3 | 3, 3, 3 | 10, 8, 9 | 8, 8, 14 | 4, 5, 7 | 446, 381, 412 | 6.5, 5.5, 8.5 |
+  | Perfect | after | 3 of 3 | 3, 3, 3 | 10, 9, 10 | 9, 8, 14 | 5, 5, 7 | 423, 384, 441 | 5.8, 4.6, 7.9 |
+  | Skill 85 | before | 1 of 4 | 3, 1 (7, boss), 2 (12, deep guard), 1 (5, deep crowned elite) | 9, 3, 5, 1 | 8, 1, 4, 0 | 6, 0, 0, 0 | 176 | 12.0 |
+  | Skill 85 | after | 3 of 4 | 3, 3, 3, 1 (5, crowned elite) | 10, 10, 10, 2 | 8, 5, 8, 0 | 6, 2, 5, 0 | 168, 16, 423 | 13.3, 8.5, 11.5 |
+  | Skill 85 | after, seeds 5 to 8 | 4 of 4 | 3, 3, 3, 3 | 10, 10, 9, 9 | 12, 13, 7, 11 | 4, 6, 4, 5 | 23, 88, 384, 51 | 12.5, 9.6, 8.4, 9.5 |
+  | Skill 85 | after, a later run (mid-progress Relics), seeds 1 and 2 | 2 of 2 | 3, 3 | 10, 10 | 11, 10 | 12, 9 (6 learned before the run) | 347, 6 | 9.9, 8.0 |
+  | Skill 85 | after, a later run (every Relic), seeds 1 and 2 | 2 of 2 | 3, 3 | 10, 10 | 13, 12 | all | 208, 17 | 8.5, 7.7 |
+  | Skill 70 | before | 0 of 4 | 1 (5, deep guard), 1 (7, boss), 1 (2), 1 (5, deep crowned elite) | 2, 3, 1, 1 | 1, 0, 0, 0 | 0 | | |
+  | Skill 70 | after | 0 of 4 | 1 (7, boss), 1 (7, boss), 1 (2), 1 (5, crowned elite) | 4, 3, 1, 2 | 2, 0, 0, 0 | 0 | | |
+  | Skill 70 | after, seeds 5 and 6 | 0 of 2 | 1 (4, crowned elite), 1 (1) | 2, 1 | 0, 0 | 0 | | |
+  | Skill 60 | before | 0 of 2 | 1 (5, deep guard), 1 (2) | 2, 1 | 2, 0 | 0 | | |
+  | Skill 60 | after | 0 of 2 | 1 (5, guard), 1 (2) | 2, 1 | 2, 0 | 0 | | |
+
+  Round 1 alone (the deep rows, the slower growth and 150% XP, with the shop weight at 18 and the
+  old 105% power): perfect 3 of 3, skill 85 3 of 4, skill 70 0 of 4 (lost at stops 4, 7, 2 and 7),
+  skill 60 0 of 2. Round 2 (150% XP and 2 pips a fight, otherwise the defaults): perfect 3 of 3,
+  skill 85 2 of 4, skill 70 0 of 4 (lost at stops 5, 7, 2 and 5), skill 60 0 of 2. After the pass
+  the perfect bot is level 5 or 6 after act 1 and 8 or 9 after act 2 (6 or 7 and 9 or 10 in round
+  2); before it was 4 to 6 and 7 or 8. **Like for like**
+  (the same seeds): the 85 bot went from 1 of 4 to 3 of 4 on seeds 1 to 4; seeds 5 to 8 have no
+  "before" run. **For 60% and 70% players the pass changed next to nothing**: the same seeds die at
+  the same stops to the same fights (seed 2 of the 60 bot even in the same 58 seconds); only the 70
+  bot's seed 1 now gets past its stop 5 guard and dies to the Husk Lord instead.
+- **The changes** (old → new, all in `data/tuning/tuning.tres` unless named):
+  - `run_deep_row` 4 → **6**: no ordinary row of an act is deep any more (an act has rows 0 to 5),
+    so only the deep act, act 3, fights the deep versions (2.16). With rows 4 and 5 deep in every
+    act, the second half of acts 1 and 2 jumped at row 4: a guard by about 14%, the elites and
+    ordinary fights by about 35% (act 1's deep crowned elites 5102 to 6054 against the Husk Lord's 4680),
+    and the deep Mire Mother at rows 4 and 5 (5670, 5831) outweighed the Leech Queen (5490), the
+    one real T5 break. Four of the nine runs that died before the pass died at stop 5, to the deep
+    guard or a deep crowned elite. It saved few of them: after the pass three of the four still die
+    at stop 5, at level 2, to the plain guard or a crowned elite (the map bot walks into Elite stops,
+    below), and the fourth (skill 70, seed 1) beats the guard and dies to the Husk Lord.
+  - `run_enemy_hp_row_percent` 5 → **3** and `run_enemy_power_row_percent` 3 → **2**: the run is 21
+    rows deep now (14 before #323), so per row growth is slower; act 3's last row grows +57% HP
+    instead of +95%.
+  - `enemy_power_base_percent` 105 → **100**: run fights hit as their data says. Phase 17 added the
+    5% because Relics carry over between runs. A first run has none and the batch is first runs;
+    the two later-run rows show what Relics at home do on top (below, "Later runs"), but the 105%
+    was not measured against them, so whether later runs want it back is for the talk.
+  - `crown_elite_hp_percent` 130 → **110** (power stays 115%): the crowned elite was bigger than
+    its act's boss in every act (act 2's crowned Toad Court 7528 to 8354 against the Queen's 5490);
+    now 2772 to 3665 in act 1 and at most 6752 in act 3 (the King 6885), at Oath 0. Act 2 is still
+    over (below).
+  - **New** `run_xp_percent` **125** (`Tuning`, used by `RunState.xp_full`): every XP gain in a run
+    is 125% of the enemies' XP. A run without zones has about 11 to 13 fights, so the perfect bot
+    ended at level 8 to 10 and entered act 3 at 7 or 8. At 150% (rounds 1 and 2) every winning run
+    reached level 10 at act 2's boss or in act 3's first or second fight, so act 3 gave one level at
+    most, often none (no skill, attribute or Echo points either). At 125% it enters act 2 at level
+    5 or 6 and act 3 at 8 or 9, and ends at 10, 9 and 10: act 3 gives one level to play with (a
+    second sometimes comes with the King's XP, when the run is over); the 85 bot's wins the same.
+    The Rush keeps its own `rush_xp_percent`.
+  - `run_start_gold` 0 → **50**: the first shop can sell a heal or two (Salve 25, Feast 40). Every
+    Oath starts with it: no shipped Oath sets `start_gold_add` (Want cuts the gold fights pay
+    instead), so Want could take the purse (for example -50) if the talk wants it to.
+  - Tried and put back: `run_weight_shop` 12 → 18 (round 1). Roads that pass a shop went only from
+    47% to 51% (24: 56%, 30: 62%, 40: 70%, over 900 maps), and it pushed out fights, events and rests.
+  - Tried and put back: `mastery_fight` 1 → 2 (Relic pips per won ordinary fight, measured in round 2).
+    It moved the perfect bot's Echoes on one seed only (4, 5, 7 → 6, 5, 7), made an elite group's
+    win pay the same 2 pips as a plain fight (the ladder 1, 2, 3, 5 of 8.19 and the Glossary's
+    "elites, guards and bosses fill more"), and doubled how fast pips build up run after run. Back
+    at 1; `test_relics.gd` now pins the ladder's order (elite over fight, guard over elite, boss
+    over guard), not only its numbers.
+- **The Fight Rush is the same** (8.21): its own numbers take up the run's changes.
+  `rush_enemy_hp_step_add` 0 → **2** and `rush_enemy_power_step_add` 0 → **1** keep its steps at 5
+  and 3; `rush_enemy_power_percent` 100 → **105** keeps its 105% power (`CombatMath.percent` of 100
+  changes nothing, so the product is exact); `RushState.begin_rush` sets the purse to 0 (no gold in
+  a Rush, one new line); the Rush does not read `run_deep_row` (its deep fights come from its
+  tiers, D16), has no crowned elites, its own XP and no pips. A check over 5 seeds and fights 1 to
+  70 (350 fights) found the same fight, enemy HP, power, tempo, XP and kind as before the pass, and
+  `test_rush.gd` pins the steps (5 and 3), fight 11's numbers (150% HP, 130% power), the XP and the
+  105% power.
+- **Fight sizes after the pass** (T5; total enemy HP at the act's rows 0 to 5, as the engine builds
+  them): act 1 the Gorged One 3402 to 3931, the elites 2520 to 3333 (crowned 2772 to 3665), the
+  Husk Lord 4680; act 2 the Mire Mother 4023 to 4503, Twin Husks 3042 to 3420 (crowned up to 3762),
+  the Toad Court 5172 to 5814 (crowned 5692 to 6396), the Leech Queen 5490; act 3 the deep Ash Warden
+  4758 to 5242, the deep elites 5284 to 6138 (crowned up to 6752), the Hollow King 6885 (all at
+  Oath 0). New test `test_no_elite_stop_guard_is_bigger_than_its_act_boss` checks every Oath (0 to
+  12), every act's guard at every row an Elite stop can stand on, each against its act boss at the
+  same Oath: the Deep (Oath 4) grows the guards per row and not the bosses, so the high Oaths are the
+  tightest, and the tightest of all is act 2's Mire Mother on row 5 from Oath 4 on, 177 HP under
+  the Leech Queen. `test_the_boss_test_sees_what_the_engine_builds` checks its sums against a real
+  engine. An ordinary Fight stop's monsters (the place's pool, average HP and top hit) grow only
+  about 15% over an act's six rows (act 1 1113 to 1280 HP, hit 56 to 62; act 2 1736 to 1951, hit 55
+  to 60), then jump at act 3's first row, where they turn deep: 3077 HP (+58%) and a top hit of 113
+  (+88%), up to 3401 and 121 at row 5.
+- **Run length (T6), an estimate**: the bots' fight clock (real seconds) for a won run is 4.6 to 7.9
+  minutes for the perfect bot (104 to 195 turns) and 8.4 to 13.3 for skill 85 (203 to 320 turns).
+  For a person who wins at about the 85 bot's level: its fight clock (about 10 minutes) plus about 5
+  seconds of menu thought per hero turn (about half the turns, so about 10 minutes), plus about 20
+  minutes off the fight screen: 21 map picks at 10 s, 2 or 3 shops at a minute, 4 to 6 events at
+  40 s, 3 or 4 campfires at 20 s, about 14 spoils and treasure picks at 15 s, about 27 hero level
+  ups at 10 s, and the fight intros, act changes and boss intros (about 3 minutes). In all **about
+  40 to 45 minutes** for a won run; a run lost in act 1 or 2 takes 10 to 25. Assumptions: one
+  player, no pauses or co-op talk, the bot's waits stand in for the animations, nothing was timed
+  with a person.
+- **Left for the talk**:
+  - **A 70% player still never reaches act 2** (0 of 4 before, 0 of 6 after; T2's "usually reaches
+    act 2" is missed; 2 of the 6 now reach the Husk Lord. T1 mostly holds: 2 of the 6 died before
+    stop 3, at stop 2 and, to the Husk Trio, at stop 1). The rest of T2 holds: the 85 bot on seeds 1
+    to 4 won 1 of 4 before and 3 of 4 after, and 4 of 4 on 4 more seeds after (no "before" run for
+    those), the perfect bot 3 of 3. Two causes. (1) The map bot looks one step ahead: it picks
+    treasure, a shop, a campfire when hurt, events and fights, and an Elite stop when fit, but on 38%
+    of act maps (of 400) its road walks into an Elite stop it did not want, and 92% of those maps had
+    a road with none, so a person who reads the map can steer clear. Two of skill 70's six deaths
+    (stops 5 and 4), skill 85's loss on seed 4 and skill 60's on seed 1 are Elite stops met at level
+    2 (with 70%, 30%, 23% and 73% party HP left after the fight before). A look-ahead in the bot
+    (`Main._autoplay_map`) would measure people better; that file was being changed by the online
+    Save & Quit work (#313), so it waits.
+    (2) HP carries on from fight to fight and nothing heals after a win, and a 70% player misses
+    twice as many presses as an 85% one. Every run-only number that is pure data is spent; what is
+    left shares its data with the Rush (the monsters, the bosses, `elite_hp_percent`, the downed
+    hero's 1 HP). Options: a small heal after each won fight, a run-only enemy power under the
+    Rush's (one line: the Rush would use its own number instead of `enemy_power_base_percent`), or
+    an easier setting below Oath 0 for new players.
+  - **The Bloat fight at row 0 is a swing fight**: on the same seeds it cost the 85 bot 11% of the
+    party's HP on seed 3 and 77% on seed 4, the 70 bot 76% on seed 3 and 30% on seed 4, where most
+    other first fights cost 0% to 38% (the Husk Trio killed the 70% bot on seed 6 at stop 1). Its
+    party-wide ground waves (Rot Wave, Double Wave: one missed jump hurts all three heroes) make the
+    bot's luck decide it, so softening its numbers would make the lucky runs trivial and might not
+    save the unlucky ones. Both fights are in the Rush too. Options: keep them off an act's first
+    row, or make the Bloat swing less (smaller party waves, or fewer of them).
+  - **Act 2's Toad Court** (an elite) has more HP than the Leech Queen from row 3 (5570 to 5814,
+    crowned 5692 to 6396 at every row, against 5490), and act 3's ordinary monsters hit harder per
+    hit (up to 121) than the Hollow King (66). For the perfect bot the boss is not always the longest
+    fight of its act either (seed 71: the Gorged One 67 s at level 3, the Husk Lord 36 s at level 5;
+    the deep Laughing Pack 52 s, the King 43 s). So T2's "the boss is the hardest" holds for HP in
+    acts 1 and 3 only, and only at Oath 0: from Oath 1 (Thorns, elites +20% HP) act 3's crowned
+    Laughing Pack (7700 at Oath 1, 9570 from Oath 4) outweighs the Hollow King too (6885, 7918 from
+    Oath 5), and act 2's crowned Toad Court reaches 8630 against the Queen's 6314. T5 (the guards)
+    holds at every Oath. The monsters and elites share their data with the Rush.
+  - **The step into act 3**: inside acts 1 and 2 an ordinary fight grows only about 15% over six
+    rows while the heroes gain 3 to 5 levels, and the deep monsters' extra moves (forced rends,
+    sweeps and feints) never show before act 3. Then act 3's first row turns deep: +58% HP and +88%
+    top hit (113, from 60) over act 2's last row, where the heroes are level 8 or 9 with one level to
+    come. The bots cleared it (the 85 bot ended its act 3 fights with 24% to 100% of the party's HP
+    left), so it is a sudden wall in how the run feels, not a run killer. Options: soften act 3's
+    deep variants a little in their own files (the Rush meets them from fight 21 too), or give act 2
+    a late step of its own that keeps T5 (deep versions for Fight stops only would be a small code
+    change).
+  - **Shops**: about half the roads through an act pass a shop, so a winning bot met 1 to 4 shops
+    in a run and spent nearly all its gold at each (3 to 55 left, twice over 200); the gold left at the
+    end (16 to 441) is what came after the last shop. T4's 900+ never happened, but "2 or 3 buys per
+    act" needs a shop on every road: a map rule, so code.
+  - **Levels and Echoes**: at 125% XP the perfect bot and the 85 bot enter act 3 at level 8 or 9
+    and act 3 gives them one level to play with; the perfect bot ended at 10, 9 and 10, the 85 bot's
+    wins at 9 or 10. If act 3 should grow more, a bigger `run_xp_level_step` (30) makes the late
+    levels cost more and keeps the early ones. Relics found are near T3 (perfect: 8 to 14; the 85
+    bot's wins: 5 to 13). Echoes learned are a little under T3's 6 to 8 (perfect 5, 5, 7; the 85
+    bot's wins 2 to 6), with the pips back at one per plain fight; `mastery_needed` (12) is the knob
+    that does not flatten the ladder. The act 2 boss still opens no Relic slot.
+  - **Later runs** (Relics at home, skill 85, seeds 1 and 2): with the mid-progress file (6 Echoes
+    learned for good) both runs won, the fight clock went from 13.3 and 8.5 minutes to 9.9 and 8.0,
+    and the party left the Hollow King with 29% and 61% HP (37% and 30% on a first run); with every
+    Relic, 8.5 and 7.7 minutes and 76% and 51%. So Relics at home make a run clearly easier but not
+    trivial for an 85% player; the Oaths are there to take it back. Whether run fights want the 105%
+    base power back for later runs (above) is for the talk; with one pip per plain fight the Echoes
+    build up run after run as fast as before the pass.
+  - Not checked: co-op (2 or 3 players), online, Oaths above 0 in play (only the fight sizes, T5),
+    the perfect bot with Relics at home, and how it looks and feels in a game window.
+
+### 8.24 Relics without slots, and no Echoes (phase 26, cards #326 to #328, decided and built 2026-10-25)
+
+The owner, after the balance results (#321): levels, Relics and Echoes did not all fit a 45-minute
+run. Relics dropped too easily ("you get them easily by fighting"), three slots per hero made most
+finds useless, and Echoes (Expedition 33's Lumina) are hard to understand ("even I didn't understand
+Lumina until the first boss"). Decided:
+
+- **Relics in a run (#326).** They come only from Elite stops, bosses, chests and shops; ordinary
+  fights and monsters no longer drop them. Each time the player sees 3 and picks 1 (a shop sells them
+  as now) and gives it to one hero. No slots and no limit: a hero has every Relic given to them. No
+  copies and no Relic levels in a run (a Relic the party has never turns up again in that run).
+  Rot-touched Relics stay (power with a price). Relics stay per hero, so most effects keep their
+  numbers until the phase 27 review.
+- **Co-op.** The player whose turn it is (9.2 "Taking turns") picks and gives it to one of their own
+  heroes, so finds rotate between the players; solo, the player picks the hero. The owner's other idea
+  (a vote, a random pick on a tie) was set aside: slower, and a lost tie feels unfair.
+- **The Relic book, kept forever (#328).** Every Relic picked in a run, won or lost, gets its place in
+  the player's book (main menu). Filling all 50 is the long goal. The run's Relics themselves end with
+  the run.
+- **Starting Relics (owner's pick A).** Before a run each hero gets 1 Relic of the player's choice
+  from their book (3 for the party; online each player picks for their own heroes from their own
+  book). The first run starts with none. A higher Oath may take this away later (8.15). This replaces
+  the Relic bag (8.17, 8.19).
+- **Echoes go (#327).** Echoes, Echo points, pips and the Echoes page are removed; the Echo progress
+  in a save is dropped.
+- **Levels stay** (attributes and skills, 8.2, 8.4), reset every run. Fewer points to place per level
+  is an idea for after a playtest.
+- **The upgrade shop between runs (phase 28, #330)**, like Hades' Mirror: a currency earned by every
+  run, won or lost, buys small permanent "run rules" upgrades for the party (for example a heal after
+  each won fight, starting gold, getting back up once per run, a little max HP), never attribute
+  points. Its list and its currency are phase 28's talk. It is also the answer to the 70% player
+  problem (#321) and to winnable Oaths. **No pack upgrades** (owner, card #332): the pack stays 4
+  pockets of consumables (8.1), so no upgrade there adds a pocket.
+- **The Fight Rush** keeps its feel; its Relic rewards follow the same pick 1 of 3 rule (the Rush
+  was cut since, #331, 8.21).
+
+**As built (#326, #327, 2026-10-25, branch `phase26-relics`).** Written while the Relic bag (8.17,
+8.19) was still there; #328 (below) replaced it with the Relic book and the starting Relics.
+
+- **A hero's Relics.** `RunState.gear` is each hero's list of Relics, any number, in the order given
+  (saves and the network carry it as id lists). `RunState.relics` (id -> 1) is every Relic the run
+  has; one no hero has yet waits for one (`waiting_relics`: the bag's at the start). A find joins the
+  run only through `give_relic(item, hero)`; `give_waiting` and the `give` op (`{op: "give", slot,
+  relic}`) hand out a waiting one. A Relic is never on two heroes and never comes off. No copies:
+  `can_gain` is "the run does not have it", so spoils, shops, chests and events never offer one the
+  party has. Stat lines are the level 1 ones (`GearData.stat_text()`,
+  `RunState.relic_stat`). HP never rises from a find and is cut to a lower max (a starting Relic's
+  higher max comes filled, #328 below).
+- **Gone**: the slots and their unlocks (`open_relic_slots`, `slot_lock_text`, the "A Relic slot
+  opens" line, the guard and boss counters), Relic levels, copies and their spare gold, fight drops
+  (`RunState.relic_drops`; the monsters' `EnemyData.relic_drops` lists stay in the data, unused),
+  the wear, take off and swap ops, and their tuning (`run_gear_slots`, `relic_slots_start`,
+  `relic_max_level`, `relic_spare_gold`, `relic_drop_percent`, `relic_copy_weight_percent`,
+  `relic_bag_echoes_per_slot`, `relic_bag_max`).
+- **Where Relics come from.** Elite stops and act bosses: the spoils, pick 1 of `relic_choice_count()`
+  (`run_loot_choices`, 3; Scarcity takes one away, a flawless win adds one, the crowned elite lists a
+  legendary first). The rotten chest: pick 1 of `relic_choice_count()` rare or better Relics, with its
+  curse or ambush as before, built like the spoils (`RunState._loot_picks` with a rare floor): at
+  most `rot_gear_spoils_count` rot-touched and never only those, since one must be taken and given
+  for good before the chest can be left; the plain chest keeps its gold and item. Shops: `run_shop_gear` Relics the
+  run lacks; at the shop the party stands at, the shelves are kept in `RunState.stop_relics` (saved and
+  sent online), so a Relic bought stays on its shelf, sold. An event that gives a Relic gives it to
+  the hero picked (the bot's: the one with the fewest Relics). Ordinary Fight stops pay gold and XP.
+- **"Who gets it?"** After a pick the screen (spoils, rotten chest, shop, pact event) shows
+  `RelicGift.ASK` over one card per hero (face, name, a gem chip with their Relic count,
+  `RelicGift.hero_cards`); only the heroes the picker may give to are lit (`RelicGift.allowed`, from
+  `Main._give_heroes(device)`, set on every such screen in `_wire_turn`): solo every hero; local
+  co-op the heroes of the player whose pad picked; online with Take turns on the heroes of the
+  player whose turn it is (Take turns off: every hero). A friend's choice carries `hero` (`take`,
+  `buy`, `choose`, `relic` for the rotten chest's pick); the host's screen checks it against the same
+  rule, so a hero outside it is refused and nothing changes. The stop's line names who got it
+  ("New Relic: Iron Charm (Alder)", `relic_given_text`); a spoil opens the Y screen on that hero's
+  Relics. A chest cannot be left while its Relic pick waits (`Main._can_leave`). Online a friend's
+  hero cards stay up when the host's newer run state comes (someone moved an item, spent points):
+  `Main._keeps_hero_pick` skips the redraw while the spoils, chest, shop or event screen
+  `is_giving()`; the host's answer to the pick (a new screen) redraws it.
+- **The New tag.** A Relic on offer (spoils, rotten chest cards, a shop's chip) says "New" while the
+  Relic book lacks it, so picking it puts it there (`LootScreen.new_tag`), and nothing when the book
+  has it: the "Home" tag (a Relic left out of the bag) went with the bag. After a spoil the party
+  screen's toast says "New" or "Found" (`RunState.relic_find_short`).
+- **Waiting Relics** (the bag's) are given on the Y screen's Relics tab (8.18): Confirm on a hero
+  opens the grid on the waiting Relics, Confirm there gives one ("Nothing to give" when none waits;
+  a given one says "Given"). The tab's badge counts the waiting ones. With none waiting (every new
+  run since #328) the tab offers no Give (the grid still opens to look, with Kind), lights no target
+  row, and a hero with no Relics shows a dim "No Relics" instead of the empty plus slot.
+- **The Fight Rush** (history: cut in #331, 8.21). A Relic card offers a Relic the party lacks; taking it asks "Who gets it?" and
+  `RushState.take_card(i, hero)` gives it at once (`{}` without a hero the picker may give to). No slot
+  unlocks (`elites_beaten`, `bosses_beaten` and the slot line went). With every Relic but the gold ones
+  in the party a boss offers Train alone. The dev head start gives each Relic card to
+  `GearBot.best_hero`.
+- **Echoes removed (#327).** The Echoes page (`EchoesScreen`), the Hero tab's Echo box (the attribute
+  rows wrap at the fifth now), Echo points and pips, `RelicCollection.pips`, the `mastery_*` and
+  `echo_*` tuning, `GearData.echo_cost` and `stat_points_per_level`, the Glossary's Echo and Relic
+  level terms (a "Who gets it?" term in their place), the tutorial's Echoes card and the
+  `--screen=echoes` dev screen. A Relic file of format 2 with pips still loads (the pips are dropped,
+  `RelicCollection.FORMAT_VERSION` stays 2); `RelicFile.bank(found_ids, path, tuning)`.
+- **Oaths** (8.15): the Empty Hand (11) is `start_relics_add` -1, one starting Relic fewer per hero
+  (since #328: `start_relic_count()` 0, so the starting pick is skipped); Forgetting (12) is
+  `attr_points_per_level_add` -1, two attribute points per level instead of three. The lobby's oath
+  chips read "Start Relics -1" and "Level points -1".
+- **Saves and online**: `RunSave.FORMAT_VERSION` 6 (older saves are refused: their Relic state does
+  not fit), `Net.PROTOCOL` 7. `user://progress.json` is unchanged.
+- **Bots**: in spoils, the rotten chest and shops the bot picks by `GearBot.score` as before (a shop
+  Relic it refuses, a costly rot-touched one, it never buys: `Main._bot_buys`) and gives each Relic
+  to `GearBot.best_hero` (the hero it helps most by `GearBot.fit_of`: an offensive Relic the hardest
+  hitter, a defensive one the toughest hero, a healing one the hero with the most healing skills;
+  each Relic a hero holds already counts `GearBot.HELD_SHARE_PERCENT` (15) against them, so the finds
+  spread over the party; a tie goes to the one with the fewest Relics); waiting Relics go out through
+  `RunState.auto_give`. The log has `Run relic: ID to HERO (shop|chest)` and `Run loot: took ID for
+  HERO`. `--relics=all` means every Relic found. The run's `AUTOPLAY_RESULT run_...` line ends with
+  `relics=N relics_held=M` (Relics the run has, Relics given to heroes; `gear=`, the worn count, went:
+  it is `relics_held` now).
+- **The main menu's Relics page** (the smallest change the Echoes going forced): its Level sort (by
+  Echo pips) and its "dropped by" monster lines went, and a Relic not found yet reads "Not found yet.
+  Elite fights, bosses, chests, shops and events give Relics." The bag on it works as before.
+- Tests: `test_relics.gd`, `test_part_b.gd`, `test_more_relics.gd`, `test_rot_gear.gd`,
+  `test_run_fights.gd`, `test_roguelite.gd`, `test_take_turns.gd`, `test_choice_cards.gd`,
+  `test_party_screen.gd`, `test_backpack.gd`, `test_oaths.gd`, `test_online.gd`, `test_glossary.gd`,
+  `test_tutorial.gd` (and the Rush's tests, gone with it in #331).
+
+**As built (#328, 2026-10-25, branch `phase26-relics`).** The Relic book and the starting Relics; the
+Relic bag is gone.
+
+- **The Relic book** (`RelicCollection`, `RelicFile`, `user://progress.json`): only which Relics were
+  ever found (`found`), `RelicCollection.FORMAT_VERSION` 3. A file of format 1 (levels) or 2 (Echo
+  pips and the bag) still loads with every Relic in it found and is written back as format 3; levels,
+  pips, picks and the bag are dropped. `merge(found_ids)` and `RelicFile.bank(found_ids, path)` take
+  no tuning now. Gone: `bag`, `bag_size`, `toggle_bag`, `trim_bag`, `in_bag`, `bag_ids`, `fill_bag`
+  and the tuning `relic_bag_start`.
+- **The main menu's Relics page** (`RelicsScreen`) is the book: every Relic of the run as a card in
+  the two-column grid, the found ones first (sorted by name or rarity: LT / RT, 1 / 3, card #336; was
+  X / R), then the rest as dim
+  "???" cards; the header says "Found N of 50". The right side shows the Relic under the cursor big
+  (icon, name, rarity, chips); one not found yet shows a lock chip "Not found yet" and where Relics
+  come from (sword Elite, skull Boss, pouch Chest, coin Shop). Confirm does nothing; Back (or Y)
+  closes. Footer: Move, LT / RT Sort, Back.
+- **Starting Relics** (`RunState`): `start_left` (per hero, how many they may still take; starts at
+  `start_relic_count()` = tuning `start_relics_per_hero` (1) + the oaths' `start_relics_add`, never
+  below 0) and `start_relics` (the ids taken from a book). `start_choices(book)` is the book's found
+  Relics the run does not have yet, in the run's order; `take_start_relic(slot, item)` gives one to
+  that hero (through `give_relic`), `skip_start_relic(s)` and `end_start_picks` close the step.
+  Starting Relics are never banked and never "new": banking (`relic_ids_since`), the end screen's line
+  (`relic_gain_line_since`) and kept list (`RunEndScreen.kept_relics`) read `found_relics()`, the
+  run's Relics minus `start_relics`. Both fields are saved and sent with the run as optional keys
+  (a save without them has no pick waiting), so `RunSave.FORMAT_VERSION` stays 6 and `Net.PROTOCOL`
+  stays 7 (both bumped already by #326 in this unreleased phase).
+- **The pick step** (`StartRelicsScreen`, `scripts/run/`, the book page with the heroes on the right):
+  a new run opens "Starting Relics" first, then the oath pact screen (when one waits) and the map; a
+  saved run that stopped there opens it again. The grid holds
+  only the book's found Relics (one taken for another hero is dim, with that hero's face); the right
+  side has a row per hero (face, name, player tag in co-op, the Relic taken or Pick / ... / Waiting /
+  Skip). Heroes choose one after another: Confirm takes the Relic under the cursor, X / R is Skip
+  (card #334: its own button, so taking none is a choice, never Back), and Back takes this screen's
+  last pick back (a Relic or a Skip) and that hero chooses again (`RunState.undo_start_relic`, which
+  keeps the HP each hero is missing; local co-op: only that hero's player, as for picking); on the
+  first hero (nothing to take back) Back asks **"Leave the run?"** with the shared yes / no prompt, No
+  first (card #334 follow-up, 2026-10-26; `StartRelicsScreen.backed_out`, `Main._ask_leave_run`): Yes
+  is Abandon run (online the host's End the game), the main menu with no save left and nothing banked
+  (nothing was found yet); a friend's Back there does nothing; once this machine's heroes are done the header says "Waiting" and
+  Back still works until the run goes on (`StartRelicsScreen.open`; a local game goes on at the last
+  pick). Footer: Move, Take, Skip, Back (always on the host or a local game; on a friend's only with
+  a pick to take back), LT / RT Sort. **Back from the Crossroads** (8.7; before a deal is taken)
+  shows the step again: Main rebuilds this machine's picks from the run (`StartRelicsScreen.past_picks`:
+  heroes in slot order, each one's starting Relics, then a Skip for one done with fewer), takes the last
+  one back (`undo_start_relic`; that hero chooses again, the cursor on the Relic they had) and gives the
+  screen the rest (`restore_history`), so Back keeps stepping back to the first hero and then asks to
+  leave; the last pick goes on to the Crossroads again, its deals unchanged. Online only the host goes
+  back: the friends' screens follow the host's (they show the step again, "Waiting"); their picks stay
+  and cannot be taken back then (the host's pickers list is empty, so a friend's Back is refused).
+  Nothing new goes over the line (the host's `screen` message and state as before). A
+  first run (empty book) and the Empty Hand skip the step. Local co-op: only the hero's own player's
+  pad picks for them (another pad gets that player's tag as a warning), but any device may while that
+  pad is unplugged (`StartRelicsScreen.may_pick`), so a flat pad never holds the step. Pause (Esc,
+  which is also Back) opens the pause menu over the step offline too (Abandon run, Save & Quit,
+  the Players row; a roster changed there reaches the screen), so Esc never skips a hero.
+  A starting Relic that raises max HP comes filled (`take_start_relic` keeps the HP each hero is
+  missing; a drawback still cuts it). `Main._begin_start_relics` runs it; `--screen=start_relics`
+  shows a sample.
+- **Online.** The host shows the step to everyone (`start_relics` is a watched screen). Each friend
+  seated when it begins picks for their own heroes from their own book (`Main._own_book`): the pick
+  goes to the host as `start_relic {slot, relic}` (`relic` "" is Skip) and their row shows "..." until
+  the host's run state has it. The host takes it when the hero is one that friend held when the step
+  began and still choosing (`Main._start_pick_allowed`) and the Relic is free; otherwise it sends
+  `start_refused {slot, relic}` and that hero chooses again (a Relic another hero got first comes back
+  the same way, from the state; the refusal of an older pick, or of a Skip, changes nothing). A friend with an empty book skips at once. The host goes on once every
+  hero is done, or after tuning `start_relic_wait_ms` (90 s), when the friends' heroes still choosing
+  go without; a friend who leaves during the step goes without too. A friend's Back (card #334)
+  asks the host: `start_relic_back {slot, relic}` ("" a Skip; refused on the friend's screen while a
+  pick of theirs is still on its way); the host takes it back when the hero is one that friend held
+  when the step began and the step is still open (`Main._start_back_allowed`) and answers
+  `start_back {slot, relic, ok}` either way; its state reopens the hero. Meanwhile the friend's row
+  shows "..." and none of their heroes chooses; refused, the pick stands ("Taken" / "Skip" warning).
+  The host is the source of truth; the bots never press Back. Logs: `Start relic back: ID from HERO`
+  (`Start relic back asked:` on a friend), the host's `Start relic back taken|refused: P2 ID hero=N`
+  and the bot line `AUTOPLAY_START_RELIC_BACK P2 ID hero=N ok=1|0`. A friend who drops in mid-run
+  (9.3) gets no starting Relic: the step is over by then, and a friend joining during it does not
+  pick either.
+- **Bots** pick hero by hero, in slot order, the free Relic of their book with the best
+  `GearBot.score` (`StartRelicsScreen.bot_pick`), else Skip, and pick again whenever a hero of theirs
+  opens once more (`autopick`; never a Relic the host refused). A bot's book is empty unless
+  `--relics=all` (every Relic found) or `--relics-path=PATH` (its own book); an online friend bot reads
+  the same switches for its own book. Logs: `Start relic: ID to HERO` (`Start relic asked:` on a
+  friend), the host's `Start relic taken|refused: P2 ID hero=N` with the bot line
+  `AUTOPLAY_START_RELIC P2 ID hero=N ok=1|0`, and at the end of the step `Start relics: alder=ID
+  brin=- cass=ID` with the bot line `AUTOPLAY_START_RELICS ...`, the same on every machine: a friend
+  there from the game's start logs it when the step's screen goes, or, when the host skipped the step
+  (empty books, the Empty Hand), at the host's first screen (`Main._logs_start_relics`,
+  `_start_log_due`); one who drops in or comes back into a continued run logs none.
+- Also: Settings > Reset progress says "The Relic book, unlocked oaths and a saved run are wiped."
+  (it named the Rush records too until #331); the Glossary's Relic term ends "Every Relic found goes in your Relic book.", its "Who
+  gets it?" term says "In co-op: your own heroes.", and a new term "Relic book" (shown as "Starting
+  Relics") explains the step and the New tag; `--screen=relics` shows the book,
+  `--screen=party_relics` the Y screen's Relics tab. The Y screen's give flow for waiting Relics stays
+  for old saves but nothing waits in a new run.
+- Tests: `test_start_relics.gd` (new: the book page, the starting pick, the pick screen, the host's
+  check, a lost pad, the filled max HP, the friend's log line), `test_relics.gd` (the bot's spread),
+  `test_oaths.gd`, `test_glossary.gd`, `test_choice_cards.gd` (the New tag, the hero step kept),
+  `test_party_screen.gd` (no Give with nothing waiting), `test_run_info_clean.gd` (the bot's shop),
+  `test_roguelite.gd` (the rotten chest's mix).
 
 ## 9. Multiplayer (phase 5)
 
@@ -4451,12 +5633,12 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
   heroes are not targeted is ignored (no lockout). One shared `AttackClock`, one lag compensation
   (one machine). Results are released per player in prompt order (a hero's prompts stay in hit
   order, which is all the engine needs).
-- **Zones**: only P1 walks and strikes (approved 2026-10-12); `DeviceInput` reads one device
-  through the Input Map. Run screens (map, shop, rest, party, loot), pause and end screens: anyone.
+- **Zones** (gone in phase 26, 8.22, with `DeviceInput`): only P1 walked and struck (approved
+  2026-10-12). Run screens (map, shop, rest, party, loot), pause and end screens: anyone.
 - Bot: `--players=N` plays co-op with N pretend pads; each player presses for their own heroes.
 - **A pad drops** (card #181, 2026-10-17): in local co-op, Main checks every frame that each pad in
   the roster is still plugged in (`PlayerRoster.missing_players`). If one is gone during a fight
-  (after the current move) or a zone, the game is held under a "P2: controller disconnected" card
+  (after the current move), the game is held under a "P2: controller disconnected" card
   (`PadLostOverlay`). The pad coming back under the same id carries on by itself; a button on
   another pad (or Confirm on a free keyboard) takes the seat over (`replace_device`); Pause gives
   the seat up: since phase 25 its heroes go to P1 (to P2 when P1's pad was lost; the old P2 then
@@ -4464,17 +5646,17 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
   out again). The players screen drops pads that are gone
   (`drop_missing`) so a run never starts with a ghost player.
 - **Window focus** (card #181): alt-tab, the Steam overlay or a notification pauses a fight (after
-  the current move) or a zone, solo and local co-op. Never online, where the others play on. The
+  the current move), solo and local co-op. Never online, where the others play on. The
   pause is opened on the next idle moment, never inside the focus event (card #208: focus lost
   while a zone was being built made the pause menu fail to appear, holding the game still).
-- **Walking** (card #184): the move actions use a stick deadzone of 0.2 (menus and buttons keep
-  0.5). The walk reads the stick as one vector with a radial deadzone, solo, online and co-op alike
-  (`DeviceInput.radial_deadzone`), so a diagonal push no longer snaps to an axis.
+- **Walking** (card #184, gone in phase 26, 8.22): the move actions keep their stick deadzone of
+  0.2 (menus and buttons keep 0.5); they now only mark which pad is P1's (a stick push, #304). The
+  menus, the shop too, move with the `menu_*` actions, so the shop's footer shows those.
 
 ### 9.2 Online co-op (phase 5 Part B, done)
 
-- **Host-authoritative, the host is the server.** Main menu: **Host Online** (since card #312 it
-  first asks Run or Fight Rush, two cards, 7.5) listens (port `net_port`, 7777) and shows the PC's
+- **Host-authoritative, the host is the server.** Main menu: **Host Online** (a run at once,
+  7.5) listens (port `net_port`, 7777) and shows the PC's
   addresses to share; **Join Online** takes an address
   (remembered per machine). One player per machine (P1 = host). Same Wi-Fi works as is; over the
   internet both use Tailscale (or the host forwards the port). Approved 2026-10-12: IP first.
@@ -4488,13 +5670,13 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
   A refusal names both short build ids ("yours a1b2c3d4, the host's e5f6a7b8"). A mismatch or a
   full game (3 players, "Game full") is refused with a reason shown on the Join screen. A started
   run seats newcomers while drop-in is open (9.3), else "Run busy, try again". A host that cannot
-  be reached says "Host not found". The protocol number is 4 since card #312 (phase 25: the game's
-  `mode` in `lobby`, `again` and `run_start`, and the Rush screens, 8.21). Until welcomed, a
+  be reached says "Host not found". The protocol number is 8 since card #331 (the Fight Rush's
+  `mode` left `lobby`, `again` and `run_start`, 8.21; `Net.PROTOCOL` keeps the history). Until welcomed, a
   client's messages are ignored. A client that never says hello is dropped after
   `net_connect_timeout_ms`.
 - **Messages** are (kind, Dictionary of plain data). Reliable ones share one ordered channel (game
   flow and combat must never overtake each other; this replaces the "dedicated combat channel"
-  idea); zone positions go unreliable on channel 1. Only the host may send to clients
+  idea). Until phase 26 the zone positions went unreliable on channel 1 (gone with the zones, 8.22). Only the host may send to clients
   (`@rpc("authority")`); clients' messages to the host are checked against the sender's peer id.
 - **Players screen online**: the host's lobby lists who joined, hands heroes out (left/right) and
   starts; clients watch it. Starting closes the players screen; friends drop in from then on (9.3).
@@ -4502,16 +5684,72 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
   as a "screen" message with the whole `RunState.to_dict()` (gear by id; the map comes from the
   seed); any later change of the run (a purchase, gear, a level) is sent as "run". Clients only
   show: their map, shop, rest, loot, party and end screens are the same screens fed with the
-  host's state, input off, with "The host is choosing (P1)" on top. Messages that arrive during a
-  client's transition wait for it. Approved 2026-10-12: P1 (the host) makes the run choices. A
-  Fight Rush (card #312, 8.21) goes the same way: `run_start` says `mode` "rush", the Rush fight is
-  a fight screen (`rush_fight`), the Rush screen and its end are watched screens, each with the whole
-  `RushState`.
-- **Zones**: the host's zone is real and sends `net_snapshot()` (leader, facing, walking, strike
-  count, every roaming enemy's spot, state and defeat) `net_zone_send_hz` times a second; a
-  client's zone is `remote`: walkers glide there (`net_follow_ms` in `explore_visuals.tres`). A
-  fight starts when the host says (`zone_fight` with the index, the opening and the fight's
-  seed), with the same opening flash on every machine.
+  host's state, with a whose-turn chip on top; the run's choices go in turns (below, card #314;
+  until then P1, the host, made every choice, approved 2026-10-12). Messages that arrive during a
+  client's transition wait for it.
+- **Taking turns** (card #314, built 2026-10-25; `Net.PROTOCOL` 6). Online, the run's choices pass
+  from player to player. Each new choice screen (one map step, one stop's screen, one spoils pick)
+  belongs to the next seated player in seat order (P1, P2, P3, then P1 again),
+  skipping a seat that is away or still joining. The first one (the pact, else the first map) is
+  P1's. The same screen shown again (a result, a restock, a redraw after a party change) keeps its
+  owner.
+  - The host stays the referee (`ChoiceTurns`, `scripts/net/`, pure, tested). Each choice screen's
+    message carries `turn` `{key, peer, player}`. On the owner's machine the screen takes their pad
+    and each choice goes to the host as a `choice` `{key, choice: {do: ...}}`; the host makes it only
+    when it comes from the owner's machine for the screen up now (the key) and the screen can take
+    it (`Main._make_choice`), exactly as if pressed there, during a transition after it ends.
+    Everything else is dropped. What came of it goes out as usual (a new screen, the whole state).
+    Leave is taken only once the screen shows its way on (`Main._can_leave`: a campfire used, a
+    chest opened, an event decided or on its ambush page); an undecided event's way out is
+    `walk_on` ("You walk on").
+  - Everyone else watches: the cards are greyed (the spoils too, their footer empty) and only pause
+    works, as a friend's screen always did (the host's too now). A chip top-left shows whose turn it
+    is: a person sign and the player's tag (P2) in their colour, no sentence, on every machine while
+    two or more play.
+  - The party screen stays everyone's, as before: anyone opens it from the map at any time. The host's own look at the party on a friend's turn is no longer sent to the friends
+    (the owner keeps choosing); a friend's choice made meanwhile closes it first. A friend's own
+    party screen stays up when the host shows the place it was opened over again (the map drawn
+    again; `Main._waits_under_party`); closing it shows that place
+    as it is now. A party screen the host sent follows the host, as before.
+  - A find with no room in the pack on a friend's turn (an event's prize, a chest, a purchase) is
+    handed to them (`gift`): their backpack opens over their screen with it in hand,
+    and where they put it comes back as a `hand_out` bag op (pocket, swap, fit, leave; combine went
+    with card #332; a
+    shop purchase left behind gives its gold back). A Relic never waits (since 8.24): its pick asks
+    "Who gets it?" and the turn's player gives it to one of their heroes. The spoils' party screen
+    after a pick stays the host's, as before. Each hand-out has a number (`gift`, and the `hand_out` op carries it back):
+    the host places only the find it handed out last, from the machine holding it. A find that comes
+    while the friend's own party screen, the shop's Sell backpack or a transition is up waits on
+    their machine and opens once a stop screen or the shop with nothing over it is up again; one that
+    is no longer theirs (the turn or the screen moved on, or a copy of one placed) is let go. A choice
+    from the owner while their find is still owed brings it to them again first.
+  - The owner drops (away) or leaves while their screen is up: the turn passes to the next seated
+    player at once (`turn` message), the screen stays and lights up there; a find in their hands follows the turn (handed
+    again only to a new owner: a seat moving up keeps it). A friend back with their seat's token
+    before the host noticed the old connection go (Net lets the old one go with no away signal)
+    passes the turn on the same way, before their catch-up. A turn already used is never passed
+    (`Main._turn_on_screen`: the place everyone is on is no longer its screen, for the fight it
+    chose, the spoils' party screen, or a map step taken): the next screen still goes to the player
+    after its owner, so nobody's turn is skipped.
+  - **Take turns** (Settings, Game, default ON; `PlayerSettings.take_turns`, saved per machine):
+    only the host's counts, read at each new choice screen. OFF, the host makes every choice (the
+    old way; the chip shows P1).
+  - The bot plays only its own turns. A friend's bot asks the host like a player and asks again
+    while the host cannot take it yet. In a shop it buys from each shelf once per visit, as the
+    host's bot does (`Main._bot_first_buy`, #331 review: a find it left behind for want of room
+    went back on the shelf with its gold, and the host's redraw had it buy that shelf for ever,
+    a bot-only hang). The host prints `Turn: P2 <key>` for each new turn,
+    `Choice: P2 <what> key=<key>` (and `AUTOPLAY_CHOICE`) for each friend's choice it made, and
+    `Choice refused: ...`; the friend prints `Choice asked: P2 <what> key=<key>`.
+- **Fight stops** (phase 26, 8.22; `Net.PROTOCOL` 5; a map rules 3 Guard stop the same): the host
+  sends a `stop_fight` screen with the fight's seed, and each client builds the fight, its weather
+  and its drop from the run state alone, as for an Elite stop (whose group or guard is the same
+  seeded pick on every machine); it is a fight screen (`NET_FIGHT_SCREENS`), so a friend who
+  rejoins or drops in catches up. Since card #335 every `stop_fight` goes when the host's card is
+  done, and a Fight stop's First Strike ring is in the fight: the host's result is the fight event
+  `opening` (command `set_opening`), so it reaches the friends with the fight's batches (8.22). (#320
+  sent the fight at the swirl with `"ring": true` and the result in an `opening` message.) (Until phase 26 the host's zone was real and sent `net_snapshot()`
+  `net_zone_send_hz` times a second; a fight started on `zone_fight`. The zone messages are gone.)
 - **Fights**: `CombatController` runs in HOST mode (the only `CombatEngine`) or CLIENT mode (no
   engine). Both build the same `CombatSetup` from the host's seed (for the data). Every batch of
   events the host's engine returns is sent: "flow" batches go to the event queue, "timing"
@@ -4541,14 +5779,37 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
   the others are told. A client that leaves on purpose (Leave in the pause menu, or quitting)
   says goodbye first and its line closes a moment later, so its seat is given up at once rather
   than kept for a rejoin. If the host leaves (or ends the game from the pause menu), everyone goes
-  back to the main menu with a note. Mid-run the host says so first (card #247): End the game, or
-  closing the window, sends a `menu` message that friends act on at once ("The host ended the
-  game.", no seat kept), and the line goes down only after the fade (closing the window waits
+  back to the main menu with a note. Mid-run the host says so first (card #247): End the game sends
+  a `menu` message that friends act on at once ("The host ended the game.", no seat kept). Closing
+  the host's window mid-run sends `saved` with the last autosave instead (card #313, Save & Quit
+  online below), `menu` only when nothing can be saved (a decided run, a failed write).
+  Either way the line goes down only after the fade (closing the window waits
   `BYE_LINGER_S`; quitting is held back only while hosting), since the other end handles a
   disconnect before the messages that came with it. Without it friends took the lost line for a
   dropped host and waited on the Join screen to take their seat back. Online, the pause menu opens over a game that goes on (it
-  offers Leave / End the game, and shows the host's address in gold under PAUSED so another friend
-  can drop in, 9.3).
+  offers Leave / End the game, and the host's Save & Quit, and shows the host's address in gold
+  under PAUSED so another friend can drop in, 9.3).
+- **Save & Quit online** (card #313, 2026-10-25, 8.14 "Online slot"): the host's pause menu offers
+  Save & Quit wherever a local run's does (never a friend's). The host writes the online slot, with
+  the seats, then sends `saved` with the state the save holds (`Main._saved_message`; inside a stop,
+  as the party entered it), which friends act on at once as `menu`: they bank what the run found so
+  far, as on Leave, from that state, keep their seat's token on disk and go to the main menu with
+  "Host saved the run" and the save picture; nothing waits for the lost line. In the continued run
+  they count as late from that same state, so what the stop found is banked once, when the Continue
+  replays it. (First built, they banked the newest state the host sent, and the replay banked the
+  stop's Echo pips a second time.) Closing the host's window mid-run does the same with the last
+  autosave. Save & Quit waits while a stop's find is still being placed, and once the fight under
+  the pause has decided the run it only closes the pause (8.14 "Pause menu").
+  - *The seat file* (`SeatFile`, `user://online_seat.json`): each host address with this machine's
+    token there (another host's run never overwrites it). A friend writes it whenever a run starts or
+    goes on with them in it (`run_start`: a start, a Continue, a drop-in's or a
+    rejoin's catch-up) and again on `saved`, so it always holds the token the host's autosaves keep:
+    a host that crashed or lost power, or a friend who was away when it saved, still finds the right
+    one. A token the host no longer knows (the run ended, or the seat was given up) counts as none,
+    so the file is never cleared. Later a friend's Join Online to that address shows the kept token
+    (`Net.join` reads it when no token is in memory), so they take their own seat back when the host
+    continues (9.3).
+  - `Net.PROTOCOL` stays 6: the build fingerprint already keeps other builds out.
 - **Dropping and rejoining** (card #205, 2026-10-18):
   - *Heartbeat*: both ends keep pinging (ENet), and a connection that answers nothing for
     `net_drop_min_ms` .. `net_drop_max_ms` (3 to 6 s) counts as lost, so a pulled cable, a crash or
@@ -4570,8 +5831,8 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
     or an expired one is a newcomer (9.3: a free seat, a seat away 15 s or more, or "Game full" /
     "Run busy, try again"). A token wins its seat even if the host has not
     noticed the old connection die yet (the old one is let go), and a peer that already has a seat
-    cannot take another. The host then sends `run_start`, the place screen it is on (map, zone,
-    shop ...) with the whole run, and the fight message if a fight is on.
+    cannot take another. The host then sends `run_start`, the place screen it is on (map, a
+    stop's fight, shop ...) with the whole run, and the fight message if a fight is on.
   - *Mid-fight*: the rejoined player's fight skips the host's batches until a "resume" batch
     (`CombatEngine.resume_events()`: combat_started with every fighter as they are now, the
     practice options, the team gauge, every intent, the turn order and the waiting turn, or the
@@ -4583,10 +5844,12 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
     (`seated_ready`), and the host gives the seat back at once outside a fight, or at the fight's
     next quiet moment. So no attack is half theirs, and the seat is never theirs before their own
     screen shows the game. (Until phase 25 the seat came back with the resume.)
-  - If the grace time runs out the seat is given up as above. The token lives in memory, so a
-    player whose game crashed (restarted) has none. Since phase 25 they come back as a newcomer and
-    take the away seat once it has been away `net_takeover_after_ms` (15 s, 9.3); a fresher one is
-    held for its own token. The away chip reads "P2 away"; the host's player sees the countdown. A
+  - If the grace time runs out the seat is given up as above. The token lives in memory, and since
+    card #313 also in the friend's seat file (written at every run start, Save & Quit online above),
+    so a player whose game crashed (restarted) still has it: Join Online sends it and they take their
+    own seat back as above, counting as late from their return (9.3). With no token kept (a bot
+    without `--seat-path`) they come back as a newcomer (phase 25) and take the away seat once it has
+    been away `net_takeover_after_ms` (15 s, 9.3); a fresher one is held for its own token. The away chip reads "P2 away"; the host's player sees the countdown. A
     newcomer still catching up shows "P2 joining" (no countdown).
 - **Sharing the game**: one fixed download link,
   `https://github.com/JawadAlSaeed/Rotsworn/releases/download/latest-build/Rotsworn.zip`. Every
@@ -4606,13 +5869,13 @@ on the Rush screen, drop-in, Again, the lobby title) and the Host cards in `test
   if the export fails, so a stale file is never handed out. The dev command-line switches (`--autoplay`,
   `--tuning`, `--seed`, `--encounter`, `--first-strike`, `--host` ...) are read only in debug
   builds (`DevArgs`, `OS.is_debug_build()`): the editor and `run_game.bat` keep them, a release
-  build ignores them. Online, a lost final-fight or zone-return fade (the host left during it)
+  build ignores them. Online, a lost final-fight fade (the host left during it)
   now uncovers the screen instead of leaving a black card that eats input. Everyone online
   plays that same build: a run from the editor has a different content fingerprint (the export
   stores resources differently) and is refused.
 - Bot: `--host=N` hosts and starts a run once N players (1 to 3) are in (`--host=1` starts at once
-  alone, friends drop in later, 9.3; with `--rush` it hosts a Fight Rush, 8.21); `--join=ADDRESS`
-  joins (whatever the host plays). Both play
+  alone, friends drop in later, 9.3); `--join=ADDRESS`
+  joins. Both play
   with `--autoplay`; each presses only for its own player. `--drop-after=S` makes a client drop off
   the network S seconds after joining without a word (the host finds out through the heartbeat);
   `--drop-in-fight` makes that drop wait for the next fight and come a few seconds into it;
@@ -4634,13 +5897,14 @@ Owner decisions (2026-10-23):
 1. No computer teammate. A newcomer takes a hero P1 (local) or the host (online) was playing.
 2. A local friend joins any time from a Players row in the pause menu. In a fight the change waits
    for a quiet moment, like pausing.
-3. Online, a late joiner keeps only the Relics and Echo pips found after they joined. A win still
-   unlocks their next Oath.
+3. Online, a late joiner keeps only the Relics and Echo pips found after they joined (since 8.24:
+   the Relics; Echoes went). A win still unlocks their next Oath.
 
 Defaults chosen while building (not asked; the owner may overrule them, section 12):
 - Online drop-in is open whenever a seat is free. It shuts once the run is decided and during Again.
 - The host's address shows in the online pause menu.
-- A newcomer may take an away seat (this is how a friend whose game crashed comes back), but only
+- A newcomer may take an away seat (this is how a friend whose game crashed came back; since #313
+  one whose seat file kept the token rejoins by it), but only
   one away for `net_takeover_after_ms` (15 s in tuning), so a quick token rejoin always wins its
   own seat.
 - A crashed friend who comes back with a fresh game counts as late from their return.
@@ -4652,7 +5916,7 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
 
 - **The row**: the pause menu has a **Players** row second, after Continue, with a two-heads
   picture (`PauseMenu.players_row`, `Item.PLAYERS`). It shows in a local game outside the tutorial
-  (a fight, a zone, the map; practice too, where nothing is saved). Anyone may open the pause menu,
+  (a fight or the map; practice too, where nothing is saved). Anyone may open the pause menu,
   even a pad that is not playing yet. In a fight it opens after the current move, as any pause.
 - **The overlay**: Confirm on the row opens the players screen in its in-run mode over the pause
   menu (`LobbyScreen.setup_in_run`): the same hero cards and seats, an opaque backdrop, no Oath
@@ -4677,7 +5941,7 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
   back), so three players can still swap. Only on this overlay; the pre-run screen keeps its rule
   (an only hero cannot move).
 - **Modal**: a device that has not joined can only join. Every other press over the overlay is
-  swallowed, so nothing under it (the zone's backpack) moves. The mouse always acts for P1.
+  swallowed, so nothing under it (the map, a party screen) moves. The mouse always acts for P1.
 - **Closing keeps the changes**: Play (Confirm from any joined player) applies the roster and goes
   back to the game. Back from P1, or anyone's Pause, applies it and goes back to the pause menu.
   Nothing is thrown away after a friend joined. Closing with nothing changed changes nothing
@@ -4685,7 +5949,7 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
   it was (Skills list, target step).
 - **After a change**: menus, defence and skill presses answer each player's own device (9.1), the
   party panels show P1/P2/P3 tags, hints show keys and pad buttons when both are in use, and each
-  pad buzzes for its own heroes. In zones only P1 walks, as before. Every real change rewrites the
+  pad buzzes for its own heroes. Every real change rewrites the
   run save with the new player count (8.14).
 - **P1's real device**: while solo every device controls everything, so the game does not know P1's
   pad. When the overlay opens solo, P1 becomes the device that last pressed a button (or pushed a
@@ -4708,7 +5972,7 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
   fight ends first it applies then. The fight goes on by a deferred resume
   (`Main._resume_quiet_pause`), as it does after a lost pad that came back before its pause landed:
   the pause can land inside the fight's event loop, which would stall if resumed from there.
-- Local joining needs the map, a zone or a fight. The shop, campfire, event, treasure, loot and
+- Local joining needs the map or a fight. The shop, campfire, event, treasure, loot and
   party screens have no pause menu, and the next map is never more than a stop away.
 
 **Online: a friend drops in.**
@@ -4729,8 +5993,8 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
   An old enough away seat goes before a free one: it is most likely the crashed friend. Before the
   welcome Net asks Main (`Net.drop_in_check`, `Main._drop_in_refusal`), so a refusal never comes
   after a welcome (`Net.refuse` is only a fallback). Drop-in opens at the end of `_new_run`, after
-  the first screen is sent (a Rush's in `_new_rush`, after its `run_start`, 8.21), and shuts in
-  `_close_decided_run`, `_close_decided_rush`, `_show_run_end`, `_play_again` and `_abandon_run`
+  the first screen is sent, and shuts in
+  `_close_decided_run`, `_show_run_end`, `_play_again` and `_abandon_run`
   (`Main._set_drop_in`). The drop-in refusal texts and the not-found text ("Game
   full", "Run busy, try again", "Host not found") are at most 4 words, so they also fit the main
   menu notice (a test). The older connect texts (no answer, a different build) are not covered.
@@ -4741,8 +6005,7 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
 - **Catching up**: the newcomer's Join screen says "Joining the game ...". The host sends
   `run_start` (with `late`), the place screen with the whole run, and the fight if one is on, even
   one that just ended (`Main._catch_up`). The friend then sees where the host is: a watched run
-  screen ("The host is choosing (P1)"), the zone (its loading card first; only the host walks), or
-  the fight as it stands at the next hero's turn (the #205 resume).
+  screen (with the whose-turn chip; the turn rides on the place screen, 9.2) or the fight as it stands at the next hero's turn (the #205 resume).
 - **The two-step hand-over**: the hero becomes theirs only once their own screen shows the game.
   1. In a fight the host sends the resume at the next quiet moment (a hero's turn or the end),
      never mid-attack.
@@ -4764,7 +6027,7 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
 - **Batches per fight**: every combat batch (and the resume) carries its fight's seed. A client
   keeps early batches per fight (`FightInbox`, pure). So a host that finishes a fight during a long
   catch-up and starts the next one never throws away the batches of the fight still waiting to be
-  built. The newcomer builds the old fight from its resume, follows the zone return, then builds the
+  built. The newcomer builds the old fight from its resume, then builds the
   next fight from its first batch. Whether a fight is a rejoin is read when its screen is built,
   not when the message arrives. A resume into a boss or guard fight that already raged shows the
   phase-two arena at once and plays the rage song, with no intro banner
@@ -4787,22 +6050,61 @@ Defaults chosen while building (not asked; the owner may overrule them, section 
 - Online has no Players row: hand-outs are automatic only (the online pause menu does not stop the
   game).
 
-**Online: a crashed friend comes back.** The #205 token lives in memory, so a friend whose game
-crashed or was closed had no way back. Now they restart, open Join Online and connect with no
-token. They get the seat of the player away longest, if it has been away at least
+**Online: a crashed friend comes back.** The #205 token lived in memory only, so a friend whose
+game crashed or was closed had no way back. Since card #313 their seat file keeps it from every run
+start (9.2): they restart, open Join Online and take their own seat back with it within
+`net_rejoin_grace_ms`, by the #205 rules. The host's `run_start` then says no `late`, but their new
+game has no start of the run (its Relic file may hold this run's pips already), so it counts as
+late from their return on its own (`Main._late_baseline`; until this was found the run's pips were
+banked twice). With no token kept (a bot without `--seat-path`, a lost file) they connect with no
+token, as phase 25 built it. They get the seat of the player away longest, if it has been away at least
 `net_takeover_after_ms` (15 s): their old seat number and heroes. "P2 away, seat kept 1:12" becomes
 "P2 joining", then goes. A fresher away seat is held for its own token (a Wi-Fi blip): the newcomer
 gets a free seat if there is one and someone who is not away holds two heroes, else "Game full". A token that is still good gets its own seat
 back first, as before. Once a seat is taken over its old token stops working.
 
+**Online: continuing a saved online run (card #313, 2026-10-25).** The host's players screen (Online >
+Host Online) shows the saved online run as a **Continue** button beside Start: the save picture,
+"Continue" and "Act 2, Stop 5"; the cursor rests on it, and the Confirm chip shows on the button the
+cursor is on, and the footer's Confirm word follows the cursor ("Continue" there, "Start"
+elsewhere). Confirm on Start begins a new run (it asks first when a save is there); a save that is not
+offered says why in a dim line under the address. Continue starts hosting the saved run at once, as
+`--host=1` drop-in does:
+
+- The saved seats come back (`SavedSeats.restore`): the same heroes for the same seats, every
+  friend's seat away, so the host plays those heroes meanwhile ("P2 away"). A seat saved without a
+  token is given up (nobody could claim it; its heroes go to the host).
+- Friends already on the players screen sit down at once (`SavedSeats.seat_lobby`): a token from
+  their hello (`Net.shown_token`, kept at the LOBBY verdict) that names a saved seat takes that seat,
+  in any order; anyone else takes the next saved seat nobody took (most likely their own, back from
+  another PC), then a free seat by the donor rule; with neither they are turned away ("Game full").
+- The saved seats left are held for their tokens (`SeatBook.hold`, `Net.hold_seat`) for
+  `net_saved_seat_grace_ms` (5 min in tuning), away from the moment of the Continue. A friend who joins
+  later with that token takes their seat back by the #205 rejoin rules, at the next quiet moment
+  (JoinGate, the two-step hand-over). A newcomer fills a free seat by drop-in, never a held seat
+  (`SeatBook.longest_away` leaves them out: the takeover after `net_takeover_after_ms` is for a seat
+  that dropped in this session); with no free seat they get "Game full" until a held seat's time
+  runs out. Then it is given up (its heroes go to the host) and its seat is free.
+- The run goes back to where it was saved (`Main._resume_where_saved`, the local Continue's rules):
+  into the stop it was saved in, from its start, or the map. The first choice is P1's (turns reset).
+- Every friend in a continued run counts as late (`run_start` with `late` and `continued`, and a
+  token rejoin's catch-up too): what they banked from the run in the session it was saved in is
+  theirs already (on `saved`, from the save's own state, 9.2), so it is never banked twice.
+- The slot is written again at once with the seats as they are now (`Main._resave_players`): the
+  friends on the players screen sat down under this session's tokens, which their seat files keep,
+  so a host crash during the replayed stop (a whole fight) still leaves a save that matches them. A
+  newcomer who takes a seat during the run (its old token stops working) rewrites it the same way.
+
 **Online: what a late joiner keeps (#281 with #304).**
 
-- The run plays with the host's Relic bag and Echoes, as with any friend (8.19).
-- A friend who dropped in banks into their own Relic file only the Relics the run found after they
-  joined, and only the Echo pips earned after they joined (on top of their own). The host sends
-  `late` only in a drop-in's `run_start`. Their game takes the run's Relics and pips from the first
-  run state it gets (`Main._join_relics`, `_join_mastery`; `RunState.relic_ids_since`,
-  `pips_totals_since`) and banks nothing before that.
+- The run plays with the host's Relic bag and Echoes, as with any friend (8.19). Since #328 (8.24)
+  there is no bag: a friend who drops in gets no starting Relic (the step was at the run's start);
+  the hero they take keeps the Relics it holds.
+- A friend who dropped in banks into their own Relic book only the Relics the run found after they
+  joined (Echo pips went in 8.24). The host sends `late` in a drop-in's `run_start` and a continued
+  run's; a crashed friend back with their seat file's token counts as late on their own machine
+  (`Main._late_baseline`, above). Their game takes the run's Relics from the first run state it gets
+  (`Main._join_relics`; `RunState.relic_ids_since`) and banks nothing before that.
 - Their run end's Kept row shows only those finds (`RunEndScreen.own_kept`), measured from their own
   collection plus what the run had when they arrived. A Relic the run had before they came shows
   there only if their own collection has it, so it never wears an Echo tag their file would not
@@ -4813,16 +6115,8 @@ back first, as before. Once a seat is taken over its old token stops working.
   banked before the crash (at each map) stays theirs, the finds from their last map to their return
   do not.
 
-**In a Fight Rush** (phase 25, 8.21): local drop-in works as in a run. The pause menu (in a fight or on
-the Rush screen) has the Players row; in a fight the change waits for a quiet moment, on the Rush
-screen it applies at once. The Rush's record goes to the most players seen during it
-(`RushState.most_players`, counted at each fight start, at each roster change and when the Rush is
-decided), so a solo Rush a friend joins at fight 10 writes Duo from fight 10 on. Drop-in shuts when
-the Rush is decided. Online (card #312, 8.21 "Online") a friend drops into a Rush, rejoins with a
-token or comes back after a crash exactly as in a run: `run_start` says `mode` "rush" (with `late`),
-the catch-up sends the Rush screen or the Rush fight with the whole state, and the hero becomes theirs
-at the fight's next quiet moment, or at once on the Rush screen. A friend who got in after the Rush
-started writes no record for it (D20).
+**In a Fight Rush** (phase 25): drop-in worked there as in a run, online too; the Rush was cut in
+phase 26 (#331, 8.21).
 
 **Dev and bot switches** (debug builds; the `AUTOPLAY_` lines only with `--autoplay`):
 - `--pad-join-after=S`: a pretend pad joins the local run S seconds after launch, at the next quiet
@@ -4838,10 +6132,10 @@ started writes no record for it (D20).
 - `--crash-after=S` (with `--join`): quit S seconds after launch without a goodbye, like a crash
   (`AUTOPLAY_CRASHED after S s`). Its log has no result line, and it ends with the engine's report
   of resources still in use at exit (not a game error).
-- Host lines: `Player dropped in: P2 (peer N) at zone (fight)`, `AUTOPLAY_DROPIN P2 peer=N took=0
-  place=zone fight=1` (`took` is the old peer of a taken away seat), `Fight resumed for peer N at
+- Host lines: `Player dropped in: P2 (peer N) at stop_fight (fight)`, `AUTOPLAY_DROPIN P2 peer=N took=0
+  place=stop_fight fight=1` (`took` is the old peer of a taken away seat), `Fight resumed for peer N at
   turn T`, `Player plays again: P2 (peer N)`, `AUTOPLAY_SEATED P2 peer=N`. Friend lines: `Playing
-  now: P2 heroes [1]`, `AUTOPLAY_SEATED P2 heroes=1`, `Joined late: N Relics, M Echo pips already found`.
+  now: P2 heroes [1]`, `AUTOPLAY_SEATED P2 heroes=1`, `Joined late: N Relics already found`.
 - Every run end prints `AUTOPLAY_PLAYERS n=2 owners=0,1,0` before `AUTOPLAY_RESULT`, the same on
   every machine.
 - Dev screens: `--screen=players_in_run` (the overlay over the pause menu, two players) and
@@ -4851,7 +6145,7 @@ started writes no record for it (D20).
 - A newcomer can take the seat of a friend away 15 s or more; that friend then needs a free seat.
 - A crashed friend who returns with a fresh game loses what the run found between their last map
   and their return.
-- Local joining waits for the map, a zone or a fight.
+- Local joining waits for the map or a fight.
 - A late joiner banks nothing found before they arrived, even Relics new to them.
 - The run end's defence rows follow the heroes' players at the end of the run.
 - A client far behind the host still risks its first attack timing out after its seat comes back
@@ -4884,18 +6178,25 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
   (a rejected command, or the mirror not matching the engine). Run it with `--quit-after 60000` as
   a hard cap and a `timeout`, and fail if the result line is missing (a hang) or the log has an
   ERROR or AUTOPLAY_ERROR line.
+- First Strike press (#320, 8.22): on a Fight stop's ring `--autoplay` presses perfectly (First
+  Strike), `=miss` never presses, `=mash` mashes (judged honestly) and `=average` lands it at its
+  skill percent with seeded luck; every Fight stop prints `AUTOPLAY_OPENING first_strike|normal
+  stop=N`, now when the fight's `opening` event plays (the ring is in the fight after its intro,
+  #335). `--screen=first_strike` plays a sample Fight stop's fight with the ring (pressable, starts
+  over).
 - Also covered: attack clock with timestamps past 2^31 us (36 minutes of uptime), late presses
   reported as LATE on a landed hit, prompts expired inside a capped press, enemy choreography
   (every lunge reaches contact exactly at impact, contact holds until the hit closes, cue times),
   defence statistics and the calibration clamp. Data validation tests check meaning (ids unique, times increasing, spacing rules,
   paths exist, weights > 0), not just loading.
-- Phase 3 (`test_zone.gd`, `test_hit_rhythm.gd`, `test_press_notes.gd`, additions in
-  `test_combat_engine.gd`): walking blocked by props, (turned) blocks and bounds, long steps never
+- Phase 3 (`test_hit_rhythm.gd`, `test_press_notes.gd`, additions in `test_combat_engine.gd`;
+  `test_zone.gd`, `test_long_zones.gd` and `test_walk_facing.gd` went with the zones in phase 26,
+  8.22, and `test_run_fights.gd` checks that `scripts/explore/` stays gone): walking blocked by props, (turned) blocks and bounds, long steps never
   pass a thin wall, strike reach and arc, roaming enemies wander near home, warn before chasing,
   stay calm after a fight, give up and go home, chasing is slower than walking, every shipped zone
   is valid (start and enemy spots free, enemies not next to the start), camera shots frame their
   subjects, the first strike opening (every party member before any enemy, even a very fast one).
-- Zone smoke test: `--autoplay --zone=rotten_hollow --quit-on-end`. The zone bot walks to the
+- Zone smoke test (gone in phase 26 with `--zone=`, 8.22): `--autoplay --zone=rotten_hollow --quit-on-end`. The zone bot walked to the
   nearest enemy; `=perfect` strikes first, `=miss` and `=mash` walk into it. Each fight prints its
   usual lines; the run ends with `AUTOPLAY_RESULT zone_clear fights=N first_strikes=M` or
   `AUTOPLAY_RESULT zone_defeat ...`; `AUTOPLAY_ERROR zone_stuck` if no fight starts for a minute.
@@ -4918,8 +6219,8 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
   low-HP power, dodge and parry AP, thorns, gauge, negative start AP and Tough, rot) in the engine
   with its drawback; every shipped piece's numbers and a valid fight setup; Hunger Charm's Rest,
   Oathbreaker's Band's wounds and floor; spoils always offer one (and never force it on a single
-  choice); shops sell them rarely; the bot's pick; Tonics cannot be upgraded and always give the
-  plain amount; the same seed gives the same events; a save keeps worn pieces.
+  choice); shops sell them rarely; the bot's pick; the same seed gives the same events; a save keeps
+  worn pieces (the Tonic checks went with the Tonic, card #332).
 - Charged Dooms (`test_charged_dooms.gd`, card #195): the announce (countdown and break threshold on
   the intent), a Doom never opens a fight, gather then unleash with no break (the string hits the
   whole party), the cooldown, delays leave the countdown alone, damage counts toward the break to
@@ -4952,6 +6253,26 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
 - Save & Quit (`test_run_save.gd`, temp files only): a save round trips the whole run, numbers come
   back as ints, unknown keys survive, other content or format and damaged files are refused, a
   failed write keeps the old save, the backup covers a broken main file, delete clears all.
+- Online Save & Quit (`test_online_save.gd`, card #313, 8.14 "Online slot", 9.3, temp files only):
+  the online slot round trips the run with its seats and never touches the local slot, another game
+  version's save is refused and kept, a load needs the seats, the slot goes on run end and End the
+  game, every checkpoint keeps the seats; held seats (their own grace time, never taken by a
+  newcomer, a free seat or "Game full" instead, given up when the time is up), `SavedSeats` (a token
+  takes its own seat in any order, a newcomer the next saved seat then a free one, a full game
+  refuses, a seat without a token is given up, seats that do not fit are refused); the seat file
+  (per host, kept on every run start and on `saved`), a friend banking their share on `saved` (from
+  the state the save holds, which `saved` carries: a stop's Echo pips are banked once, on the
+  replay), Save & Quit waiting for a find being placed and closing the pause over a decided run, the
+  slot taking the new seats after the Continue, the switches, the players screen's Continue (cursor,
+  signals, the footer's Confirm word) and the notices. `test_take_turns.gd` checks a used turn is
+  never passed on, and `test_dropin.gd` that a crashed friend back by token counts as late. Bot pairs (headless, one online game at a time, `timeout
+  2700` each): host `--autoplay --run --host=2 --seed=7 --save-quit-at=3 --online-save-path=P
+  --quit-on-end` with a friend `--autoplay --join=127.0.0.1 --seat-path=S --quit-on-end` (host
+  `AUTOPLAY_SAVED host ok=1 ...` and `AUTOPLAY_RESULT run_saved`, friend `AUTOPLAY_SAVED friend
+  seat_kept=1 ...` and `AUTOPLAY_RESULT host_saved`), then host `--autoplay --run --host=2
+  --continue-online --online-save-path=P --quit-on-end` with the same friend command (both print
+  `AUTOPLAY_CONTINUED`, the friend in its old seat, then the same `AUTOPLAY_RESULT` and
+  `AUTOPLAY_MIRROR` lines).
 - Online smoke test: start `--autoplay --host=2 --seed=N --quit-on-end` and then
   `--autoplay --join=127.0.0.1 --quit-on-end` (both headless, about 25 to 30 minutes, so
   `timeout 2700` each). Both print the
@@ -4974,41 +6295,37 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
   `--crash-after=40` friend replaced by a `--join-after=75` one, and two newcomers at once all end
   with the same `AUTOPLAY_PLAYERS` and `AUTOPLAY_RESULT` lines on every machine still there, and a
   late joiner's `AUTOPLAY_MIRROR` lines equal the host's last ones.
-- Fight Rush (`test_rush.gd`, `test_rush_data.gd`, `test_rush_screens.gd`, phase 25, 8.21): the fight
-  counter, kinds, tiers and boss cycle, depth, HP, power and tempo per fight, deep versions from the
-  Ruins tier, boss growth past the home depth, the card sets and their fills (no Key, treasure, gold
-  or rot-touched Relic), Heal with Rest Relics, the boss heal, spare XP and extra picks, Relic slots,
-  the head start, the dict round trip and its refusals, the salts, `RushRecords` (buckets, better,
-  `allowed`), the switches and dev screens; the shipped data file (validate, the tier table, stale
-  data, a 70-fight walk); the Rush screen, the end screen, the end hints and the lobby title; the New
-  Run cards in `test_choice_cards.gd`, `test_save_menus.gd`, `test_branding.gd` and
-  `test_menus_clean.gd`. Bot checks (headless, `--quit-on-end`, at most 3 Godots at once, each capped
-  with `--rush-fights`; a good one prints `AUTOPLAY_RESULT rush_...` and no ERROR lines):
-  `--autoplay --rush --rush-fights=3 --seed=7` (`rush_capped fight=3 wins=3 record=0 new=0`, depth
-  0, 1, 2), `--autoplay=miss --rush --seed=7` (`rush_over fight=1`), `--rush-start=5 --rush-fights=1`
-  (an elite and a Relic card), `--rush-start=10 --rush-fights=1` (the Gorged One; Train, Relic,
-  Relic), `--rush-start=50 --rush-fights=1` (the Hollow King, `enemy_hp=280`, extra picks),
-  `--rush-start=21 --rush-fights=3` (deep versions, tempo 80, 79, 78), `--players=2`,
-  `--pad-join-after=50 --rush-fights=4` (`players=2`) and `--autoplay=escape --rush --rush-fights=1`
-  (no Run button, no hang). Never an uncapped Rush bot: a perfect bot may never lose.
-- Fight Rush online (`test_rush_online.gd`, card #312, 8.21): the mode in `lobby`, `again` and
-  `run_start`, protocol 4, a friend building the host's Rush, fights and watched screens, the host's
-  Give up and End the game, the records verdict and the late rule, catch-up mid-fight and on the Rush
-  screen, drop-in opened and shut with the Rush, Again with the same seats; the Host cards in
-  `test_choice_cards.gd`. Bot pairs (headless, one online game at a time, `timeout 400` each): host
-  `--autoplay --rush --host=2 --rush-fights=4 --seed=7 --quit-on-end` with a `--join=127.0.0.1`
-  friend (about 140 s), with a `--drop-after=50 --rejoin=5` friend (rejoin), and with a
-  `--crash-after=40` friend replaced by a `--join-after=75` one; and the same host with `--host=1`
-  and a `--join-after=60` friend (drop-in). Every machine still there prints the same `AUTOPLAY_PLAYERS`
-  and `AUTOPLAY_RESULT rush_capped fight=4 ...` lines, and a late friend's `AUTOPLAY_MIRROR` lines
-  equal the host's last ones.
+- The Fight Rush's tests (`test_rush.gd`, `test_rush_data.gd`, `test_rush_screens.gd`,
+  `test_rush_online.gd`) and its bot checks went with it (card #331, 8.21). `test_choice_cards.gd`
+  and `test_save_menus.gd` check that New Run and Host start the run's path at once, `test_dropin.gd`
+  that `lobby` and `run_start` carry no mode or records and `Net.PROTOCOL` is 8 (9 since card #332).
+- The pack of consumables only (card #332, 8.1): `test_backpack.gd` (four pockets two to a row, only
+  consumables in a pocket, no level in the saved pack and older shapes refused, no combining, the
+  Tonic, the Bigger Pack and their art and tuning gone, curses on the party with the same rot, a full
+  pack still taking a curse, Cleanse by index and price as the only way off, curses saved and sent
+  and odd ones refused, a find handed out put in a pocket, swapped or left), `test_phase22_clutter.gd`
+  (the top strip's curse chips), `test_take_turns.gd` (the host lifting the curse a friend names; the
+  shop bot's `_bot_cleanses`), `test_events.gd` (a curse price needs no room and is never lost),
+  `test_choice_cards.gd` and `test_run_info_clean.gd` (a campfire is Rest or Train),
+  `test_run_balance.gd` (no item raises max HP for good), `test_run_fights.gd` (format 6 refused).
+- Taking turns online (`test_take_turns.gd`, card #314, 9.2): the seat order, a skipped away or
+  joining seat, the same screen keeping its owner, a drop or a leave passing the turn, Take turns
+  off, each screen's key, the host making a friend's choice
+  only for the owner on the screen up now, a refused choice (Leave before the way on), the spoils
+  greyed, a find waiting for a screen that can take it and placed only under its number, a rejoin
+  passing the turn, a friend's own party screen kept over the map drawn again, a friend's screen
+  asking and changing nothing, a find handed to the friend and placed through the host. Bot pair
+  (headless, `timeout 2700` each): host `--autoplay --run --host=2 --seed=7 --quit-on-end`, friend
+  `--autoplay --run --join=127.0.0.1 --quit-on-end`; the same `AUTOPLAY_RESULT` and
+  `AUTOPLAY_MIRROR` lines, and the host's `AUTOPLAY_CHOICE P2 ...` lines for the friend's own turns.
 - Save & Quit smoke test: `--autoplay --run --seed=N --save-path=FILE`, stop it part way with a
   timeout, then `--autoplay --continue --quit-on-end --save-path=FILE`: the second run prints
   `Run continued: ...` and plays on from that stop. A finished run deletes FILE.
 - Run smoke test: `--autoplay --run --quit-on-end` (add `--seed=N` for a fixed map). The bot
   picks a shop when it has gold, a rest when someone is at or under 60% HP (or the party averages
-  under 75%), an elite stop only while the party is healthy, else a zone; in zones
-  it walks to the guard, after its healing items; in shops it buys what it can for whoever is lowest; it takes the first
+  under 75%), an elite stop only while the party is healthy (`RunAutoplay.is_ready`), then an
+  event, else a Fight stop (the order: treasure, shop, rest, elite, event, fight; each Elite stop
+  prints `AUTOPLAY_ELITE stop=N kind=guard|group enc=ID`, 8.22); it uses its healing items at every map visit; in shops it buys what it can for whoever is lowest; it takes the first
   loot and puts every bag item on whoever has the most free slots. Ends with
   `AUTOPLAY_RESULT run_victory|run_defeat stops=N fights=N level=N gear=N gold=N seed=N oath=N`
   (add `--oath=N` to play at an oath, 8.15).
@@ -5210,13 +6527,30 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     after fight for the furthest fight, no map, zones, shops or campfires, harder every fight, an
     elite every 5th and a boss every 10th; after each win pick 1 of 3 cards (Heal, Train, an item;
     Relics after elites and bosses); one record per party size; nothing goes back. It brings back
-    the endless mode dropped in #267. Fight Rush online (#312) (8.21 "Online"): Host Online asks Run or Fight Rush, the host plays the Rush and picks the cards
+    the endless mode dropped in #267. Fight Rush online (#312) (8.21 "Online"): Host Online asks Run or Fight Rush, the host plays the Rush and picks the cards (in turns since #314)
     while friends play their heroes and watch the Rush screen with Party open to them, only the host
     gives up, friends drop in, rejoin or come back after a crash as in a run, and records stay on the
     machines there from the start (protocol 4). Also the playtest bugs #309 (every defence press
     shows its move, 3.6) and #310 (wind-up attacks charge in, 3.12). Ideas: Save & Quit for online
     runs (#313), online friends take turns choosing (#314), and dropping the normal Run for Fight
     Rush (#315, phase 26: after playing it the owner said Rush might replace the Run).
+26. **Game direction** (decided 2026-10-24, building on branch `phase26-Direction`; was "Story"):
+    fixing the game's idea. The Run keeps its map, stops, acts and ending but loses its walkable zones
+    (8.22): Fight stops (#316), guards inside the Elite stops (#317), shrines and wanderers as "?"
+    events with no more keys (#318), the zone code and data removed (#319), First Strike as a press
+    (#320); three acts with the Leech Queen (#322, #323, 8.23); the balance pass (#321); online taking
+    turns (#314) and Save & Quit (#313); Relics without slots and no Echoes (#326, #327, 8.24, branch
+    `phase26-relics`) and the Relic book with the starting Relics (#328, 8.24); Fight Rush cut (#331, 8.21);
+    the pack holds consumables only (#332, 8.1: four pockets, no Tonic, no Bigger Pack, no combining
+    or levels, no Upgrade, curses on the party lifted only by Cleanse). Ideas parked: boss pools (#324), boss gimmicks (#325).
+27. **Relics** (planned 2026-10-25): go through every Relic under the new rules (8.24): what each
+    gives and whether it is worth picking, give each its icon, then make new Relics (#329).
+28. **The upgrade shop** (planned 2026-10-25): a shop outside the run where a currency earned by every
+    run buys upgrades for the whole party, so runs get easier and the Oaths winnable; talk through the
+    upgrades and the currency (#330, 8.24). No pack upgrades among them (card #332: the pack stays
+    4 pockets of consumables). A short balance check after it.
+29. **Story** (was phase 27): lore notes (#301), hero banter (#302), the story as a whole (#306).
+30. **The interactive tutorial** (was phase 28): a lesson for every kind of enemy hit (#206).
 
 ### 11.1 To-do (from playtests)
 
@@ -5254,7 +6588,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-12 | In co-op zones only P1 walks and strikes | no tug-of-war on one screen; user choice |
 | 2026-10-12 | Co-op ownership lives in presentation (`PlayerRoster`, `JudgeSet`), not the engine | engine stays the same for solo, local and online |
 | 2026-10-12 | Online: join by IP first, host is the server; transport swappable for Steam later | free, works now; Steam invites need a store page |
-| 2026-10-12 | Online run screens: the host chooses, the others watch the same screen | one source of truth for the run, no desync |
+| 2026-10-12 | Online run screens: the host chooses, the others watch the same screen (the choices go in turns since 2026-10-25, card #314; the host still referees) | one source of truth for the run, no desync |
 | 2026-10-12 | Online run state replicated as a whole (`RunState.to_dict`), not as actions | clients never run run logic, cannot drift |
 | 2026-10-12 | One reliable channel for flow and combat messages | order between them matters more than separation |
 | 2026-10-06 | Timed sequences of per-character prompts; partial `resolve_prompts` | covers phase 2 skills/follow-ups and phase 5 per-client reporting without redesign |
@@ -5386,11 +6720,11 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-16 | Guards are named mini-bosses (recoloured kin) with a phase two; spoils are rare or better | card #156; recolours keep every animation |
 | 2026-10-16 | Elite fights: map stops and zone champions, +40% HP, +15% power, +50% gold | card #157; first guess |
 | 2026-10-16 | Events, treasure rows, a shop scene with services and a campfire with one of three choices | cards #158 to #161, Slay the Spire style |
-| 2026-10-16 | Two acts of 6 rows each: The Rotten Road (boss The Husk Lord) and The Ashen Deep (The Hollow King) | card #163; more acts and zones later |
+| 2026-10-16 | Two acts of 6 rows each: The Rotten Road (boss The Husk Lord) and The Ashen Deep (The Hollow King) (replaced 2026-10-24: three acts, card #323) | card #163; more acts and zones later |
 | 2026-10-16 | The map gets a legend and dims stops the pick cannot lead to | card #162 (planning) |
 | 2026-10-16 | Shop: no Heal service; each shop stocks 4 items, 2 charms, 2 gear (was the whole list) | user: the shop felt cluttered and Heal = a Salve for the same gold |
 | 2026-10-17 | Zones get their own places, ground pieces and water, wind, drifting particles and critters | user: zones must feel alive and fit their theme (8.12) |
-| 2026-10-17 | Save & Quit: one local-run slot, saved on the map and on entering a stop; Continue re-enters an unfinished stop from its start, never the map; deleted when the run ends or is abandoned; online runs not saved | card #174; quitting must not dodge a hard stop, and losing 2 acts to a closed window was the worst way to lose |
+| 2026-10-17 | Save & Quit: one local-run slot, saved on the map and on entering a stop; Continue re-enters an unfinished stop from its start, never the map; deleted when the run ends or is abandoned; online runs not saved (replaced 2026-10-25, card #313: the host saves them) | card #174; quitting must not dodge a hard stop, and losing 2 acts to a closed window was the worst way to lose |
 | 2026-10-17 | Floors: three calm variants per place mixed by region, mirrored and tone-drifted by a shader; ground pieces fade into the floor; props get contact shadows; scenery drawn at the fighters' pixel size (0.045 to 0.05) | card #186 (review: art-textures 0, 2, 3; audio-look 0); not an ease change: only the look |
 | 2026-10-17 | Oaths: a ten-step difficulty ladder (Thorns, Want, Embers, the Deep, Crowns, Wounds, Scarcity, Silence, the Long Road, Rot), unlocked per machine by winning, picked in the players screen | card #173; the game should be hard, a ladder only ever adds difficulty (8.15) |
 | 2026-10-15 | Lining digits everywhere; bold number font for HP, AP, gauge; slanted bold popups and damage numbers | user: the numbers' font felt cheap |
@@ -5436,7 +6770,7 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-18 | The Glossary: a main-menu Extras row (after Tutorial) and a pause-menu row open a book of 109 terms in 14 topics (hit kinds and defences, skills, counters, marks, Dooms, enemies, the map, zones, gear, shops, the run), each with the game's own icon or colour and two or three plain lines, from `data/glossary/glossary.tres`; topic strip with left/right, terms in a `ListMenu`; colours and words are tested against `combat_visuals.tres` and `HudStyle` | card #207: the game has many icons and words and nowhere to look them up; the owner keeps the interactive tutorial for phase 17, so the book stands alone |
 | 2026-10-18 | Online: a dropped client keeps its seat for 120 s (seat token, "P2 away" chip, the host plays its heroes meanwhile) and gets it back from the Join screen; mid-fight it gets the fight as it stands at the next hero's turn (`resume_events`); a heartbeat drops a silent connection after 3 to 6 s | card #205 and the net review: a Wi-Fi blip ended a player's run for good and a pulled cable froze fights for up to 30 s; playing the heroes for them beats a two-minute freeze, and handing the seat back between moves means no attack is half one player's |
 | 2026-10-18 | Ranged-hit brackets made bolder: 8 px lines (was 5), 150 to 56 px (was 120 to 46), shown 450 ms before the throw (was 300), the dashed path at full strength | playtest: the user did not notice them (card #165) |
-| 2026-10-18 | Rotsworn becomes a roguelite: monsters drop Relics (E33's Pictos, renamed; the run's 25 gear pieces become the first ones) kept forever on the machine; a copy levels a Relic; wearing a Relic for about 4 won fights (bigger fights count more) teaches its Echo (E33's Lumina, renamed) for that run only, and Echoes, their bars and Echo points (from level ups) all start over every run; Relic slots open during a run (1, then after the first guard, then after act 1's boss); online uses the host's Relics; enemies +5% power and two Relic oaths (11 the Empty Hand, 12 Forgetting); Reset progress in Settings | user idea and picks (names Relics and Echoes, Echoes learned again every run, only Relics and their levels stay, host's Relics online); replaces "nothing carries over" (#139); more choices, not more power, so the oaths keep it hard (8.17) |
+| 2026-10-18 | Rotsworn becomes a roguelite: monsters drop Relics (E33's Pictos, renamed; the run's 25 gear pieces become the first ones) kept forever on the machine; a copy levels a Relic; wearing a Relic for about 4 won fights (bigger fights count more) teaches its Echo (E33's Lumina, renamed) for that run only, and Echoes, their bars and Echo points (from level ups) all start over every run; Relic slots open during a run (1, then after the first guard (the first Elite stop won since #317), then after act 1's boss); online uses the host's Relics; enemies +5% power and two Relic oaths (11 the Empty Hand, 12 Forgetting); Reset progress in Settings | user idea and picks (names Relics and Echoes, Echoes learned again every run, only Relics and their levels stay, host's Relics online); replaces "nothing carries over" (#139); more choices, not more power, so the oaths keep it hard (8.17) |
 | 2026-10-18 | The Relics and Echoes pages look like Expedition 33's Pictos and Lumina pages (card grid and big slot cards; tabs, costs, stats, attribute radar and points), with drawn diamond icons until real pictures | user playtest: "make the menuing bearable, similar to Expedition 33" (8.17) |
 | 2026-10-18 | The backpack's charms are removed: six of their ideas became Relics (31 in all), the rotten ones are curses that only hurt, the rest are faded treasure for older saves; shops sell 3 Relics | user pick (option A) after asking whether a backpack is too much with Relics and Echoes: charms were a third buff system; supplies, keys and curses still give real choices (card #240, 8.1) |
 | 2026-10-18 | Test: world pieces (wall, boulder, stump) built in Blender by code, shown as blocks with a model and the zone's own textures (5.6) | user asked if Blender helps: the world gains most (plain boxes until now), the sprites already work; user picked a small test (card #221) |
@@ -5466,16 +6800,37 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-23 | A late online joiner keeps only the Relics and Echo pips found after they joined; a win still unlocks their next Oath (9.3, 8.19) | owner (#304) |
 | 2026-10-23 | Defaults (owner may overrule): online drop-in is open while a seat is free and shut once the run is decided and during Again; the host's address shows in the online pause menu; a local leaver's heroes go to P1; at most 3 players; no Players row in the tutorial; the pre-run players screen keeps its left/right (no trade there) (9.3) | not asked; chosen while building phase 25, keeping the approved screens as they are |
 | 2026-10-23 | Default (owner may overrule): a newcomer may take an away seat only once it has been away 15 s (`net_takeover_after_ms`); this is how a friend whose game crashed comes back (9.3) | a Wi-Fi blip comes back with its token within seconds and must not lose its seat to a newcomer; a crashed game has no token |
-| 2026-10-23 | Default (owner may overrule): a crashed friend who comes back with a fresh game banks only what the run finds from their return; what they banked at earlier maps stays (9.3) | their token and their start lived in the crashed game's memory, so the host cannot tell them from a newcomer |
+| 2026-10-23 | Default (owner may overrule): a crashed friend who comes back with a fresh game banks only what the run finds from their return; what they banked at earlier maps stays (9.3) | their token and their start lived in the crashed game's memory, so the host cannot tell them from a newcomer (since #313 their seat file keeps the token, so they come back by it; still late from their return, which their own game decides, 2026-10-25) |
 | 2026-10-24 | Fight Rush (8.21): a mode next to the run, picked from New Run's two cards (Run / Fight Rush): fight after fight for the furthest fight, no map, zones, shops or campfires. Fight Rush brings back the endless mode dropped in #267 | owner (#305); it reuses the run's fights, party and Relics, so it needs no new monsters or places; online is its own card (#312) |
 | 2026-10-24 | After every won fight the party picks 1 of 3 cards side by side: Heal, Train (attribute points) or an item; Relic cards only after elite and boss fights (8.21) | owner decision 1 (#305) |
 | 2026-10-24 | No free heal in a Rush: Heal is a card; every boss fight ends with the whole party fully healed; a hero downed in a won fight gets up at 1 HP, as in a run (8.21) | owner decision 2 (#305) |
 | 2026-10-24 | A Rush brings the Relic bag and the learned Echoes; nothing goes back: no Relic banking, no Echo pips, no writes to `user://progress.json`; a Relic card lasts for that Rush only (8.21) | owner decision 3 (#305) |
 | 2026-10-24 | Rush fights get harder every fight with the run's depth growth per map row (one row per fight); every 5th fight an elite, every 10th a boss, the bosses cycle (three guards, the Husk Lord, the Hollow King); every number in `tuning.tres`, tuned with bots (8.21) | owner decision 4 (#305) |
 | 2026-10-24 | Defaults (owner may overrule, 8.21 D1 to D21): level cap 10, XP past it earns extra picks; no Oaths; one record per party size with its date, the size being the most players seen; one sitting, no save, the record written at each fight start; no running away; New Run's Run / Fight Rush cards with the best on the card; Give up in the pause menu; Reset progress clears the records; bots and dev switches never read or write records; Rush fights count in the Journal; FLAWLESS is a plain chip; no pact; zone weather, never lightning in fights; card sets per fight kind (boss: Train, Relic, Relic) and extra picks on the normal set; deep monsters from fight 21; attack speed stops rising at fight 31 (the 70% floor); Heal follows the Rest Relics; no keys, treasure or gold Relics on cards; online late joiners write no record (#312); no gold on any Rush screen | not asked; chosen while writing the build spec and checked against the code, keeping every approved screen and rule of the run as it is |
-| 2026-10-24 | Fight Rush online (8.21 "Online"): Online, Host opens Run / Fight Rush cards; the game's `mode` travels in `lobby`, `again` and `run_start` (protocol 4); the host plays the Rush and picks the cards, friends play their heroes in fights and watch the Rush screen with only Party open to them; drop-in, rejoin and a crashed friend's seat go through the run's paths | card #312; it reuses the run's online rules (host-authoritative, P1 makes the choices, approved 2026-10-12) and the drop-in code (9.3), so the Rush needed no new net paths beyond the mode |
+| 2026-10-24 | Fight Rush online (8.21 "Online"): Online, Host opens Run / Fight Rush cards; the game's `mode` travels in `lobby`, `again` and `run_start` (protocol 4); the host plays the Rush and picks the cards (in turns since 2026-10-25, #314), friends play their heroes in fights and watch the Rush screen with only Party open to them; drop-in, rejoin and a crashed friend's seat go through the run's paths | card #312; it reuses the run's online rules (host-authoritative, P1 makes the choices, approved 2026-10-12) and the drop-in code (9.3), so the Rush needed no new net paths beyond the mode |
 | 2026-10-24 | Defaults (owner may overrule, 8.21 D7, D9, D20): online only the host gives up, and once a lost fight decided the Rush its row is End the game; Rush records stay on the machines there from the start (a friend who dropped in, or came back after a crash, writes none; a token rejoin keeps its start); the host sends its own records verdict in `run_start`, so a bot or dev Rush on the host keeps friends' records out too; a friend who drops in gets their hero at the fight's next quiet moment, as in a run | not asked; chosen while building #312: a loss must never turn into a Rush given up, a late friend did not play the whole Rush, and a friend's machine cannot see the host's switches |
 | 2026-10-24 | Every defence press shows its move, even one that defends nothing (early, late, wrong button, locked out, in the lead-in): a missed jump jumps, a missed dodge slides, a missed parry raises the guard; judging and the lockout are unchanged, and a hit that lands always replaces the move (3.6) | owner playtest (#309): an early jump left the hero standing there |
 | 2026-10-24 | Wind-up attacks charge in: an attack whose first hit winds up 850 ms or more (as authored) skips the run-up, winds up near home and charges in on its first lunge, reaching contact exactly at impact; quicker openers keep the phase 23 run-up; the attack clock, impact times and windows are unchanged, only the run before the clock goes (3.12) | owner playtest (#310): the Bloat should wind up from where it stands and charge in on the strike, for every wind-up attack; the 850 ms line keeps the approved run-ups (the Husk's swipe, the King's chop) as they are |
 | 2026-10-24 | Review of #309 and #310: a missed press's move starts at the time on screen during a hit-stop, is not started for a hero with nothing left to defend when the hand-back would cut it off, and in an each-in-turn attack moves only the hero its hit strikes (3.6); a charging attacker winds up at home (`charge_windup_share` 0, no glide in its coil) and the 850 ms line moved to tuning as a pacing number (3.12) | code review; the owner's words were "wind up from where it stands" (asleep, not asked: a step out can come back by raising the share, with chase cells for the glide) |
 | 2026-10-24 | Phase 25 approved and its cards closed (#304, #305, #309, #310, #311, #312): Fight Rush after a playtest, drop-in co-op, leaving or swapping heroes, Fight Rush online and the two bug fixes on the tests and bot games without a hand test; an idea card asks whether Fight Rush should replace the normal Run (#315, phase 26) | owner after playing a Rush: "this game mode is so good, i might scrap the original mode for it"; online could not be tested ("i can trust your word for it"); v0.25.0 |
+| 2026-10-24 | Keep the Run next to Fight Rush but cut its walkable zones: fights go straight from the map (8.22, #315 closed) | owner: the zones do not look good enough; fights are the star, co-op friends only watched P1 walk |
+| 2026-10-24 | Phase 26 renamed from Story to Game direction; the story moves to phase 27, the tutorial chapter #206 to phase 28 | owner request; the story is simpler without zones and can wait |
+| 2026-10-24 | Zone stops become Fight stops (one seeded fight from the place's monsters), guards get a Guard row (row 1) per act (replaced the next night: guards merged into Elite stops, #317), shrines and wanderers become priced "?" events, chests and the Key go (8.22, defaults G1 to G8) | built while the owner slept; each default may be overruled in the talks #321 and #322 |
+| 2026-10-24 | The walkable zones are removed for good (#319): their code, data, tools, tests, 3D pieces and art go; a place keeps its look, air, weathers, Fight stop monsters and guard, and still names its song and loop; the zone songs, ambience and sound cues stay unused (8.22 As built); saves of format 2 are kept but refused too (`RunSave.FORMAT_VERSION` 3), since their packs could hold the Key | 8.22 G3, G6 to G8; no dead zone code or data left behind |
+| 2026-10-24 | First Strike is a press (#320): a Fight stop's fight opens with one skill press ring on the place's name card; GOOD or PERFECT gives First Strike, anything else a normal start; any local player may press, online only the host's press decides and the friends watch; guards, elites, ambushes, bosses and the Rush open normally (8.22, defaults F1 to F10) | 8.22 "The First Strike press"; built while the owner slept, judged from input stamps outside the core like every press; `Net.PROTOCOL` stays 5 |
+| 2026-10-24 | Three acts, one place each (Hollow, Bog, Ruins); a new act 2 boss, the Leech Queen (8.23, #323); boss pools (#324) and boss gimmicks (#325) are ideas for later | owner: three acts are the roguelite standard; few female enemies so far |
+| 2026-10-24 | Guards merged into Elite stops: an Elite stop holds an elite group or its place's guard; no Guard stop or guard row (8.22); built 2026-10-25: a seeded 40% (`run_elite_guard_percent`) holds the guard, never when the nearest Elite stop on a road before holds it, the first Elite stop won opens the Relic slot | owner: lower confusion; guards had no job without zones |
+| 2026-10-25 | Online the run's choices go in turns (9.2 "Taking turns", card #314): each new choice screen (a map step, a stop, a spoils pick, a Rush pick) is the next seated player's, skipping away and joining seats; the host referees (a friend's choice is a request checked against the turn and the screen); a whose-turn chip (person sign and tag); a drop passes the turn; a find with no room is handed to the owner; the Rush's Fight is the last picker's; Settings, Game, Take turns (default on, the host's) keeps the old way; `Net.PROTOCOL` 6 | card #314; the party screen stays everyone's as before; a new Relic on a friend's turn waits in the bag and the spoils' party screen stays the host's (defaults) |
+| 2026-10-25 | Online runs are saved by the host (card #313, replaces "online runs not saved" of 2026-10-17): Save & Quit in the host's pause (never a friend's) with the local rules; a slot of its own (`user://online_run_save.json`) with the seats and their tokens; only the same game version loads it (another's is kept, not offered); Continue on the host's players screen starts hosting at once, the friends there take their own seats by token (else the next saved seat, then a free one), the other saved seats wait 5 min for their tokens, newcomers drop into free seats (never a held one); friends keep their token on disk (`user://online_seat.json`, written at every run start and on the save) and count as late in the continued run; deleted on run end, End the game or a new online run (8.14, 9.2, 9.3) | card #313; one machine can save for everyone because the host is the one source of truth; `Net.PROTOCOL` stays 6, the build fingerprint already keeps other builds out |
+| 2026-10-25 | Review of #313 and #314: a drop passes only a turn whose screen is still up (a used turn stays, so nobody is skipped); the host's Save & Quit waits while a stop's find is being placed and only closes the pause once the fight under it decided the run; `saved` carries the state the save holds, which the friends bank (never the newest); the online slot takes the new seats right after the Continue and a drop-in; a crashed friend back by the seat file's token counts as late from their return (8.14, 9.2, 9.3) | review of the night's merges: a skipped turn, a lost find, a lost run end, Echo pips banked twice and a seat file out of step with the save |
+| 2026-10-25 | Balance for the three-act run (8.23 "Balance for the three-act run", card #321): no ordinary row is deep (`run_deep_row` 6, only act 3 fights deep versions), enemies grow 3% HP and 2% power per row (was 5 and 3), run enemy power back to 100%, the crowned elite 110% HP (was 130), run XP at 125% (new `run_xp_percent`; 150% tried, it left act 3 without levels), 50 gold to start (was 0; no Oath takes it); 2 Relic pips per plain fight tried and put back (it flattened the pip ladder); the Fight Rush keeps every number through its own (`rush_enemy_hp_step_add` 2, `rush_enemy_power_step_add` 1, `rush_enemy_power_percent` 105, no gold); a test keeps every Elite stop guard under its act boss at every Oath | defaults, built while the owner slept; the perfect bot wins every run; an 85% bot on seeds 1 to 4 won 1 of 4 before and 3 of 4 after (4 of 4 on 4 more seeds after); for 60% and 70% players next to nothing changed (0 of 6 reach act 2: the map bot walks into Elite stops; nothing heals after a win); later runs with Relics at home measured on 2 seeds only: for the talk |
+| 2026-10-25 | Relics without slots and no Echoes (8.24, cards #326 to #328): Relics only from Elite stops, bosses, chests and shops, pick 1 of 3 for one hero, no slots, no levels; in co-op the player whose turn it is picks; a Relic book kept forever, each hero starts a run with 1 Relic from it (pick A); Echoes, Echo points and the Relic bag go; levels stay | owner: Relics came too easily and three slots made finds useless; Echoes, like Lumina, confuse new players |
+| 2026-10-25 | Phases after 26: 27 Relics (review, icons, new ones, #329), 28 the upgrade shop between runs and its currency (#330), 29 story (was 27), 30 the interactive tutorial (was 28) | owner's plan; the shop is its own phase |
+| 2026-10-25 | The starting Relics as built (8.24 "As built (#328)"): the step comes first in a new run (before the oath pact and the map) and before FIGHT 1 in a Rush; one Relic per hero (`start_relics_per_hero`), hero by hero, Back skips; online each friend picks for their own heroes from their own book, the host checks and waits up to 90 s (`start_relic_wait_ms`); a friend who drops in later gets none; starting Relics are never banked; the Relic bag and its tuning go | builder defaults for the owner's pick A, to confirm at the phase 26 playtest |
+| 2026-10-25 | Review of #326 to #328 (8.24 As built): a starting Relic pick goes on when the chooser's pad is unplugged (any device picks) and Esc opens the pause menu over the step offline instead of skipping a hero; a starting max HP Relic comes filled; a friend logs `AUTOPLAY_START_RELICS` also when the host skipped the step, and keeps their "Who gets it?" hero cards when the host's state changes; the "Home" tag goes (only "New": not in the book; no tag on Rush cards); the Y screen offers no Give with nothing waiting; the rotten chest offers at most `rot_gear_spoils_count` rot-touched Relics, never only those; the bot buys no Relic it refuses and spreads Relics over the party (`GearBot.HELD_SHARE_PERCENT`) | review findings: a step stuck on a dead pad, a skipped hero on Esc, logs that differ between machines, a lost hero pick, an unexplained word, a forced costly chest Relic, bot runs that skew the balance numbers |
+| 2026-10-25 | Cut the Fight Rush (8.21, card #331): New Run and Host start the run's path at once again, Join follows the host into the run; the Rush's code, data, tuning, switches, glossary topic and card pictures go; `lobby`, `again` and `run_start` lose their mode (`Net.PROTOCOL` 8); the monsters, encounters and bosses stay as the run's data; old Rush records in `settings.cfg` are ignored | owner: the run is now as fast, so the Rush is not needed |
+| 2026-10-25 | The pack holds consumables only (8.1, card #332): 4 pockets for the whole run (was 6, two to a row in the Bag tab), only Salve, Feast, Bomb, Antidote, Smelling Salts and Holy Water go in; the Tonic and the Bigger Pack go for good (no pack upgrades in phase 28 either); no combining, no item levels, no shop or campfire Upgrade; curses leave the pockets and sit on the party (`RunState.curses`, the same rot per curse, chips on the run's top strip), added by events, pacts and the rotten chest and lifted only by the shop's Cleanse at the same price, never thrown away; a full pack swaps or leaves a find (both asked); `RunSave.FORMAT_VERSION` 7, `Net.PROTOCOL` 9; the shop bot lifts curses it can pay for first | owner: the pack was a second inventory game; a curse thrown away for free was no price. Builder defaults: Cleanse picks the curse from a list; one chip per kind of curse ("x2"); no curse chip in the fight (the rot shows as damage, as before); nothing replaces the Tonic |
+| 2026-10-25 | Back goes back, never skips (card #334): on Starting Relics Back takes the last pick (a Relic or a Skip) back and that hero chooses again (nothing on the first hero; online only a friend's own heroes and only while the step is open, through the host: `start_relic_back` / `start_back`), Skip is X / R; on "?" events and the Crossroads taking nothing is a Walk on card after the choices and Back does nothing on the cards (it still steps back out of a pick list or "Who gets it?"). This reverses phase 22's "Leave is the cancel button, never a row" for those screens. Audit of the other run screens: shop (B leaves the shop, a choice not lost: nothing is bought; its Cleanse list and "Who gets it?" step back), campfire (B does nothing), treasure and spoils (B does nothing on the picks, steps back from "Who gets it?"; there is no "take nothing" there), map (B is the pause menu), party screen (B steps back inside a tab, then closes), run end (B is Main menu, A Again): unchanged | owner playtest: Back skipped a hero's Relic and walked past an event for good |
+| 2026-10-25 | A short beat before each fight (card #335): every fight opens with the camera sweeping slowly over the enemies, left to right, their names small over them (`intro_sweep_ms` 1500, visuals), once the card and the fade are gone; then the fight starts. A Fight stop's First Strike ring moved from the name card into the fight, after the intro: the engine waits for the command `set_opening` (`CombatSetup.Opening.RING`, `Phase.AWAITING_OPENING`) and online the result is a fight event (the `opening` message went; every stop fight is announced after the host's card) | owner playtest: fights started too abruptly ("not Ready? Go!"); builder defaults: 1.5 s, every fight including bosses, names over the heads, no bot switch |
+| 2026-10-25 | Menus inside a menu use LT and RT (card #336): every switch inside a screen is LT / RT, keyboard 1 / 3 (were T / K): the Relics tab's kind (was X / R), the Relic book's and Starting Relics' sort (were X / R), the Glossary's topics (left / right still work), with the Hero and Skills tabs' hero and the Controls page as before; LB / RB (Z / C) stay the main tabs; X / R is left for a screen's own extra button (Skip, reset, use) | owner playtest: one rule for switches; 1 / 3 sit under the left hand and clash with nothing |
+| 2026-10-26 | Back goes back a screen at the run's start (card #334 follow-up): Back on the Crossroads (before a deal) returns to the starting Relics with the picks as they were and the last one taken back (that hero chooses again, the cursor on their Relic); Back on the first hero of the starting Relics, or on the Crossroads when that step was skipped (an empty book, the Empty Hand), asks "Leave the run?" (No first; Yes is Abandon run, End the game online). The pact's deals are seeded, so going back rolls nothing; once a deal is taken Back does nothing. Pause opens the pause menu on the Crossroads offline too. Online only the host goes back or leaves; friends follow and keep their picks | owner playtest: "why can't I go back in here?" on the first hero and the Crossroads |

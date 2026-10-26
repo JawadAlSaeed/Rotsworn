@@ -11,12 +11,10 @@ and made with Godot 4.7.2.
 
 ![A fight: the Elder Toad's ground waves roll at the party, and only a jump beats them](docs/images/fight_jump.png)
 
-| | |
-|---|---|
-| ![Brin walks through the Sunken Bog](docs/images/zone_sunken_bog.png) | ![The map of act 1](docs/images/run_map.png) |
-| Walk the zones and hit enemies first. | Pick your road. It is never the same twice. |
-| ![The Team Ultimate](docs/images/team_ultimate.png) | ![The party screen and the backpack](docs/images/party_backpack.png) |
-| Fill the team gauge, then strike together. | Level up, wear Relics, pack the backpack. |
+| | | |
+|---|---|---|
+| ![The map of act 1](docs/images/run_map.png) | ![The Team Ultimate](docs/images/team_ultimate.png) | ![The party screen and the backpack](docs/images/party_backpack.png) |
+| Pick your road. It is never the same twice. | Fill the team gauge, then strike together. | Level up, give out Relics, pack the backpack. |
 
 - [Play it](#play-it)
 - [What's in the game](#whats-in-the-game)
@@ -89,8 +87,11 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 
 - **Counters.** Defend every hit of an attack perfectly (parry, or jump the ground hits) and the
   hero strikes back. If the whole party does it, they strike back together as a **TEAM COUNTER**.
-- **First strike.** In a zone, hit a roaming enemy before it touches you: the fight starts with
-  **FIRST STRIKE!** and every hero acts before any enemy.
+- **First strike.** A fight that starts with **FIRST STRIKE!** lets every hero act before any
+  enemy. Every fight opens with a short look at the enemies (their names over them); then a Fight
+  stop's fight shows one ring: press on the beat (**Space** or **E**, pad **A** or **RB**) as it
+  closes. GOOD or PERFECT earns First Strike; early, late or no press starts the fight normally.
+  Guards, elites, ambushes and bosses always start normally.
 - **Dooms.** Guards and bosses charge one huge attack and count it down (*"TIMBER FALL IN 3"*).
   Deal enough damage in time and it **BREAKS**: the enemy is staggered, loses a turn and takes more
   damage.
@@ -98,7 +99,7 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
   fail to defend it: **ROT** (lose HP each turn), **BURN** (lose more, for fewer turns),
   **BLIGHT** (healing halved), **WEAK** (less power), **SHOCK** (smaller timing windows),
   **SLOWED** (later turns), **DAZE** (skip a turn) or **HUSH** (no skills), or it drains AP. The
-  first zone of a run has none. Cass's Mend, Sanctuary and Purify, the Salve, the Antidote and Holy
+  first row of a run's map has none. Cass's Mend, Sanctuary and Purify, the Salve, the Antidote and Holy
   Water lift marks, and they all end with the fight.
 - **Monsters.** Each one tests something: quick Rot Rats in packs of three, an Ember Slinger and a
   Marsh Lantern that only throw, a huge slow Barrow Brute, a Rot Priest that heals and shields the
@@ -106,42 +107,50 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 
 ### A run
 
-- **Two acts.** Each act is a branching map (6 rows of stops, then the boss) that is new every run.
-  You pick your path one stop at a time. Act 1 is *The Rotten Road*; act 2, *The Ashen Deep*, uses
-  tougher versions of every monster.
+- **Three acts.** Each act is a branching map (6 rows of stops, then the boss) that is new every run,
+  in one place of its own. You pick your path one stop at a time. Act 1 is *The Rotten Road*
+  (Rotten Hollow); act 2, *The Drowned Mire* (Sunken Bog);
+  act 3, *The Ashen Deep* (Ashen Ruins), uses tougher versions of every monster.
 - **Stops on the map:**
-  - **Zone**: walk through a long place built fresh each visit (Rotten Hollow, Sunken Bog or
-    Ashen Ruins). Take 2 of the 3 rot seals to open the gate, then beat the **guard** (a
-    mini-boss) at the exit. Other enemies are optional, for more gold, XP and loot. Shrines,
-    wanderers, locked chests (you need a Key) and champion elites may wait along the way.
-  - **Elite**: a much tougher fight with better spoils.
+  - **Fight**: one fight in a place (Rotten Hollow, Sunken Bog or Ashen Ruins), in its own light
+    and weather. Win for gold, XP and sometimes an item. You may run away, but then you get nothing.
+  - **Elite**: a much tougher fight with better spoils, and no running. It holds either an elite
+    group or the place's **guard**, a mini-boss that rages at half health (never two guards in a
+    row on one road). Beat it and pick one of three Relics.
   - **?**: an event. Every choice has a price (gold, max HP for the rest of the run, an item, a
-    curse, a fight) or a risk, and some "?" stops are ambushes. 16 events in all.
-  - **Treasure**: a chest with something rare and some gold.
+    curse, a fight) or a risk, and some "?" stops are ambushes. 20 events in all.
+  - **Treasure**: two chests. The plain one holds something rare and some gold; the rotten one
+    lets you pick 1 of 3 Relics, but it may hold a curse or a monster too.
   - **Shop**: *The Rag Merchant* sells items and Relics. He also buys your items for half price,
-    takes a curse off your hands, upgrades an item and restocks his shelves, all for gold.
-  - **Campfire**: pick one: rest (heal 50%), train (an attribute point for every hero) or upgrade
-    an item.
-  - **Boss**: *The Husk Lord* ends act 1. *The Hollow King* is the final fight.
+    lifts a curse off the party and restocks his shelves, all for gold.
+  - **Campfire**: pick one: rest (heal 50%) or train (an attribute point for every hero).
+  - **Boss**: *The Husk Lord* ends act 1, *The Leech Queen* act 2 (her bites drink: a bite you
+    do not stop heals her). *The Hollow King* is the final fight.
 - **Getting stronger.** Each hero levels up on their own, up to level 10. Every level gives
-  attribute points (Vitality, Might, Agility, Defense, Luck), a skill point and an Echo point.
+  attribute points (Vitality, Might, Agility, Defense, Luck) and a skill point.
   Luck raises the chance of a critical hit.
-- **The backpack.** One shared grid for the whole party. Items have shapes: turn them to make them
-  fit. Drop an item on a copy of itself to make it stronger (Salve, then Salve+, then Salve++).
-  Watch out for curses.
-- **Saving.** The game saves a local run by itself. **Save & Quit** in the pause menu takes you to
-  the main menu, and **Continue** picks the run up. If you quit in the middle of a stop, that stop
-  starts over. Online runs are not saved.
+- **The backpack.** One shared pack for the whole party: four pockets, one item each, and only
+  things you use up (Salve, Feast, Bomb, Antidote, Smelling Salts, Holy Water). Treasure turns into
+  gold the moment you find it.
+- **Curses.** A curse sits on the whole party (you see it on the top strip, not in the pack) and
+  every hero loses a little HP each turn in fights. You cannot throw it away: only a shop's Cleanse
+  lifts it.
+- **Saving.** The game saves the run by itself (an online run on the host's PC). **Save & Quit** in
+  the pause menu takes you to the main menu, and **Continue** picks the run up (online, on the host's
+  players screen, see [Online](#online)). If you quit in the middle of a stop, that stop starts
+  over.
 
 ### Kept between runs
 
-- **Relics** (34 of them) stay with you forever. Monsters drop them, and you also find them in
-  spoils, shops and chests. A copy of a Relic you already have raises its level, up to 5. Each
-  hero wears up to 3: one slot from the start, a second after the first guard, a third after
-  act 1's boss. On the main menu's **Relics** page you choose what each hero brings.
-  **Rot-touched** Relics are very strong, but each one comes with a price.
-- **Echoes** are learned again in every run. Wear a Relic through won fights to learn its Echo for
-  the rest of that run. Any other hero can then wear that Echo with Echo points.
+- **Relics** (50 of them). In a run they come from Elite stops, bosses, the rotten chest and the
+  shop (and a few events): pick 1 of 3, then pick **who gets it**. A hero keeps every Relic given to
+  them until the run ends: no slots, no limit, and a Relic the party has never turns up again. In
+  co-op you give it to one of your own heroes (online the player whose turn it is picks). A Relic
+  tagged **New** is not in your book yet. Every Relic you find goes
+  in your **Relic book** for good (the main menu's **Relics** page: "Found 12 of 50"). Before each
+  run, every hero may take one Relic from your book (**Starting Relics**; **X** or **R** skips a
+  hero, **Back** takes the last pick back, and on the first hero asks to leave the run; your first
+  run starts with none). **Rot-touched** Relics are very strong, but each one comes with a price.
 - **Oaths** make the game harder, one rule at a time (12 of them). Win a normal run to unlock
   oath 1, then win at each oath to unlock the next. Each oath keeps the rules of the ones before
   it. Pick it on the players screen before the run.
@@ -179,16 +188,6 @@ such as the arrow keys next to WASD).
 | Press on the beat (your own moves) | Space or E | A or RB |
 | Pause | Esc | Menu (Start) |
 
-**In a zone**
-
-| What | Keyboard | Pad (Xbox) |
-|---|---|---|
-| Walk | WASD or arrow keys | left stick or D-pad |
-| Strike (hit an enemy first for FIRST STRIKE) | Space or J | X |
-| Use (pick up, open, pray, talk) | E or Enter | A |
-| Backpack and party | Tab | Y |
-| Pause | Esc | Menu (Start) |
-
 **In menus**
 
 | What | Keyboard | Pad (Xbox) |
@@ -196,11 +195,11 @@ such as the arrow keys next to WASD).
 | Move | arrow keys or WASD | D-pad or left stick |
 | Confirm | Enter or E | A |
 | Back | Backspace, Q or Esc | B |
-| Previous / next hero, or Settings section | Z / C | LB / RB |
+| Main tabs (party screen, Settings sections) | Z / C | LB / RB |
+| A switch inside a screen (hero, kind, sort, Glossary topic) | 1 / 3 | LT / RT |
 
 The mouse works in most menus: point to choose, left click to confirm, right click to go back. The
-party screen's hero cards, the Attributes and Skills screens, and turning an item still need the
-keyboard or a pad. The mouse does nothing in fights and zones, so a click can never be a parry.
+party screen's hero cards and the Attributes and Skills screens still need the keyboard or a pad. The mouse does nothing in fights, so a click can never be a parry.
 
 <details>
 <summary>More controls: the party screen, the backpack, the map, F1 and F2</summary>
@@ -209,10 +208,11 @@ keyboard or a pad. The mouse does nothing in fights and zones, so a click can ne
 |---|---|---|
 | Map: choose the next stop / scroll / go | Left, Right / Up, Down / Enter | D-pad / D-pad / A |
 | Map: open the party screen (level up, Relics, backpack) | Tab | Y |
-| Backpack: pick up or put down an item | R | X |
-| Backpack: turn the item in hand | Z / C | LB / RB |
-| Party screen: Attributes / Skills | T / K | LT / RT |
-| Echoes: change tab | T / K | LT / RT |
+| Backpack: an item's menu (use, sell, throw away), or put a find in a pocket | Enter | A |
+| Party screen: previous / next hero (Hero, Skills), Relic kind (Relics) | 1 / 3 | LT / RT |
+| Starting Relics: skip a hero / take the last pick back (first hero: leave the run?) | R / Backspace | X / B |
+| "?" event or the Crossroads: take nothing | the **Walk on** card | the **Walk on** card |
+| The Crossroads: back to the Starting Relics (before a deal) | Backspace | B |
 | Shop: buy / sell / leave | Enter / Tab / Backspace | A / Y / B |
 | Defence stats in a fight | F1 | View |
 | Lag calibration (while the fight menu is open) | F2 | |
@@ -237,7 +237,7 @@ Up to 3 players. There are always three heroes, so the players share them:
 On the players screen, put the cursor on a hero card and press Left or Right to give that hero to
 someone else. Every player keeps at least one hero.
 
-Each player picks the turns of their own heroes and defends them. In zones, P1 walks for everyone.
+Each player picks the turns of their own heroes and defends them.
 
 ### On one PC
 
@@ -288,16 +288,28 @@ the bottom-left corner of the main menu, but even builds with the same number ca
 
 **During an online run:**
 
-- The host makes the run choices (map, shop, campfire, events). Everyone plays their own heroes'
-  turns and defends their own heroes.
+- The run's choices go in turns: each map step, stop and spoils pick belongs to the next player
+  (P1, P2, P3, then P1 again). A chip at the top left shows whose turn it is (for example `P2`). On
+  someone else's turn the choices are greyed: watch, or look at the party screen. If a find
+  has no room in the backpack on your turn, your backpack opens so you can place it. The host can
+  switch this off in **Settings > Game > Take turns**; then the host makes every choice. Everyone
+  plays their own heroes' turns and defends their own heroes.
 - Pausing does **not** stop an online game, not even for you: the fight goes on behind the menu.
   Do not pause in the middle of a fight.
-- Only the host's Relics are used, and only the host keeps new ones.
+- Before the run, each player picks the starting Relics for their own heroes from their own Relic
+  book (the host waits up to 90 seconds). A friend who joins later gets none. Each friend also keeps
+  what the run finds while they are in it (new Relics) in their own book.
 - If your connection drops, the host keeps your seat for 2 minutes and plays your heroes for you.
-  Your game opens the Join screen by itself: press **Enter** (or **A**) to take your seat back.
-  This only works if your game stayed open.
-- To quit: pause, then **Leave the game** (a friend; your heroes go to the host) or **End the
-  game** (the host; the run ends for everyone).
+  Your game opens the Join screen by itself: press **Enter** (or **A**) to take your seat back. If
+  your game closed or crashed, start it again and join the same address within those 2 minutes:
+  your seat comes back.
+- To quit: pause, then **Leave the game** (a friend; your heroes go to the host), **Save & Quit**
+  (the host; everyone goes to the main menu and the run is kept) or **End the game** (the host; the
+  run and its save are lost for everyone).
+- To go on with a saved online run: the host picks **Online > Host Online** again, and the
+  players screen shows **Continue** next to **Start**. Friends join the same address as before
+  (before or after the host presses Continue) and get their own seats and heroes back. A seat waits
+  5 minutes for its friend; if you quit in the middle of a stop, that stop starts over.
 
 ### Over the internet with Tailscale
 
@@ -349,7 +361,7 @@ the host's public IP address. This fails on some internet connections (CGNAT). O
 | *"Your game is a different version from the host's ..."* | You have different builds. All of you download `Rotsworn.zip` again from the link in [Play it](#play-it) and extract it over the old one. |
 | *"The host did not answer."* or *"Host not found"* | Check the address. The host must be on the Host Online screen and must have allowed Rotsworn in the firewall question. With Tailscale, check it is running and logged in on both PCs. On the same Wi-Fi, see the note below the table. |
 | *"Could not start connecting ..."* | The address is not valid. Type only the numbers and dots, for example `100.101.102.103`, with no `:7777` and no spaces. |
-| *"Game full"* | 3 players is the most. In a run, a seat may still be kept for a friend who dropped out (for up to 2 minutes), or nobody has a spare hero to give you. Try again later. |
+| *"Game full"* | 3 players is the most. In a run, a seat may still be kept for a friend who dropped out (for up to 2 minutes; in a saved run the host continued, for up to 5 minutes), or nobody has a spare hero to give you. Try again later. |
 | *"Run busy, try again"* | The run is starting or ending right now. Wait a moment and join again. You can join a run that is already going. |
 | *"Could not host (another game hosting?)"* | Close the other copy of Rotsworn. |
 
@@ -394,14 +406,14 @@ be started by hand there (**Build game** > **Run workflow**).
 **Dev tools** (the Practice list and the switches below exist only in debug builds: the editor and
 `run_game.bat`, never the shared zip):
 
-- **Practice** under Extras: any fight or zone on its own. Keys: 1 to 9 pick the enemy's next
+- **Practice** under Extras: any fight on its own. Keys: 1 to 9 pick the enemy's next
   attack, I party can't die, O enemy can't die, R restart, F1 stats (inside: R training ring,
   G telegraph flash, T timing readout, L motion sounds, H hit markers, C wind-up crouch,
   V cinematic camera).
 - **A bot that plays for you**: `run_game.bat -- --autoplay --run --quit-on-end` plays a whole run.
   Put `--headless` before the `--` for no window (`run_game.bat --headless -- --autoplay ...`).
-  Add `--players=2` for co-op, or `--encounter=ID` / `--zone=ID` for one fight or zone (ID is a
-  file name in `data/encounters/` or `data/zones/`, for example `husk_fight` or `rotten_hollow`).
+  Add `--players=2` for co-op, or `--encounter=ID` for one fight (ID is a file name in
+  `data/encounters/`, for example `husk_fight`).
   The main switches are explained in [CLAUDE.md](CLAUDE.md); the full list is at the top of
   `scripts/combat/presentation/combat_options.gd`.
 
@@ -409,7 +421,7 @@ be started by hand there (**Build game** > **Run workflow**).
 
 - Rules and timing numbers: `data/tuning/tuning.tres`. How things look and feel:
   `data/presentation/`. How each place looks: `data/looks/`. Change them in the editor's Inspector.
-- Characters, enemies, attacks, skills, items, Relics, events and zones are all data files in
+- Characters, enemies, attacks, skills, items, Relics, events and places are all data files in
   `data/`.
 - Pixel art: `python tools/art_kit/build.py`. 3D world pieces: `tools/blender_kit/` (Blender, no
   window). Sound effects: `tools/sound_kit/`. Each has its own README.

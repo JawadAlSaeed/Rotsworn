@@ -6,8 +6,8 @@ extends Node
 ## the same try. In the fight only what the step needs happens (practice staging commands): in the
 ## attack, skill and ultimate steps only the lesson's hero acts and their menu allows only the
 ## lesson's choice; in the defend steps the heroes' turns pass and the enemy waits at a gate until
-## the card is closed, then makes the step's one attack, slowed. A "read" step (the Relics and
-## Echoes lesson, DESIGN.md 8.17) is only its card: the fight stays paused and closing it moves on.
+## the card is closed, then makes the step's one attack, slowed. A "read" step (First Strike, the
+## Relics lesson, DESIGN.md 8.17) is only its card: the fight stays paused and closing it moves on.
 ## Main routes the fight's `pause_reached` here while `pause_wanted()`.
 
 ## The end card was closed: back to the main menu.

@@ -2,8 +2,7 @@ extends GutTest
 ## Phase 22, the run's info screens (DESIGN.md 8): an icon and a word or two instead of rules
 ## sentences. The line under the map (the stop's picture and name, then 2 or 3 icon chips), the
 ## shop (service pictures, coin prices, a Relic as its icon and chips, Sell only once), the run's end
-## (a row of stat chips, the Relics kept as icons, the killer's portrait on a defeat), the Echoes page
-## (pips bars instead of the learning sentence) and the Rot Journal (hit kinds, marks and records as
+## (a row of stat chips, the Relics kept as icons, the killer's portrait on a defeat) and the Rot Journal (hit kinds, marks and records as
 ## icons). The rules moved to the Glossary. Uses the shipped run; never touches the player's files.
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
@@ -80,37 +79,61 @@ func test_every_kind_of_stop_shows_two_or_three_icon_chips_not_a_sentence() -> v
 			seen[type] = true
 		if is_failing():
 			return
-	for type: int in [RunMap.StopType.ZONE, RunMap.StopType.REST, RunMap.StopType.SHOP, RunMap.StopType.ELITE,
-			RunMap.StopType.EVENT, RunMap.StopType.TREASURE, RunMap.StopType.FINAL]:
+	for type: int in [RunMap.StopType.FIGHT, RunMap.StopType.REST, RunMap.StopType.SHOP,
+			RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE, RunMap.StopType.FINAL]:
 		assert_true(seen.has(type), "%s stops were checked" % RunMap.TYPE_NAMES[type])
+	assert_false(seen.has(RunMap.StopType.GUARD), "no Guard stops on new maps (DESIGN.md 8.22)")
 
 
-func test_a_zone_shows_the_guard_the_optional_foes_and_gold() -> void:
+## A Fight stop shows its foes and gold. An Elite stop that holds its place's guard looks exactly
+## like one that holds an elite group (DESIGN.md 8.22): the same picture, name and chips, so the map
+## never tells which until the stop is entered. A map rules 3 Guard stop reads as an Elite stop too.
+func test_a_fight_shows_its_foes_and_gold_and_a_guard_elite_looks_like_any_elite() -> void:
 	var run := _run()
-	var zone: Dictionary = {}
+	var fight: Dictionary = {}
 	for stop: Dictionary in run.map.stops:
-		if int(stop.type) == RunMap.StopType.ZONE:
-			zone = stop
-			break
-	var chips := MapScreen.detail_chips(run, zone, _look, _visuals.gold_icon_path)
-	assert_eq(chips.size(), 3)
-	assert_eq(String(chips[0].icon), _look.guard_icon_path, "the guard at the exit")
-	assert_eq(String(chips[1].icon), _look.foe_icon_path, "the roaming enemies, optional")
-	assert_eq(String(chips[2].icon), _visuals.gold_icon_path, "they pay gold")
+		if int(stop.type) == RunMap.StopType.FIGHT and fight.is_empty():
+			fight = stop
+	var chips := MapScreen.detail_chips(run, fight, _look, _visuals.gold_icon_path)
+	assert_eq(chips.size(), 2)
+	assert_eq(String(chips[0].icon), _look.foe_icon_path, "a fight")
+	assert_eq(String(chips[1].icon), _visuals.gold_icon_path, "it pays gold")
+	assert_eq(MapScreen.stop_name(run, fight), run.zone_of(fight).display_name, "a Fight stop keeps its place's name")
+	var guards := 0
+	var groups := 0
+	for s: int in range(1, SEEDS * 3):
+		var each := _run(s)
+		for stop: Dictionary in each.map.stops:
+			if int(stop.type) != RunMap.StopType.ELITE or bool(stop.get("crown", false)):
+				continue
+			var held := each.elite_holds_guard(int(stop.id))
+			guards += 1 if held else 0
+			groups += 0 if held else 1
+			var seen := MapScreen.detail_chips(each, stop, _look, _visuals.gold_icon_path)
+			assert_eq(seen.size(), 2)
+			assert_eq(String(seen[0].text), "Rare", "rare spoils, whoever waits there")
+			assert_eq(String(seen[1].icon), _visuals.gold_icon_path, "and more gold")
+			assert_eq(MapScreen.stop_name(each, stop), "Elite", "never the guard's name")
+	assert_gt(guards, 0, "some Elite stops hold the guard")
+	assert_gt(groups, 0, "others an elite group")
+	var old := {"id": 0, "row": 1, "col": 0, "type": RunMap.StopType.GUARD, "zone": 0, "next": [], "prev": []}
+	assert_eq(MapScreen.stop_name(run, old), "Elite", "a rules 3 Guard stop reads as an Elite stop")
+	assert_eq(MapScreen.detail_chips(run, old, _look, _visuals.gold_icon_path).size(), 2)
 
 
-func test_a_campfire_shows_rest_train_and_upgrade() -> void:
+func test_a_campfire_shows_rest_and_train() -> void:
+	# The Upgrade went with the item levels (card #332).
 	var run := _run()
 	var chips := MapScreen.detail_chips(run, {"type": RunMap.StopType.REST}, _look, _visuals.gold_icon_path)
-	assert_eq(chips.size(), 3)
+	assert_eq(chips.size(), 2)
 	assert_eq(chips[0].icon, &"heart", "rest: a heart")
 	assert_eq(String(chips[0].text), "Heal %d%%" % run.rest_heal_percent(), "with how much it heals")
 	assert_eq(chips[1].icon, &"up", "train: the up arrow")
-	assert_eq(String(chips[2].icon), _look.upgrade_icon_path, "upgrade: its own picture")
+	assert_eq(String(chips[1].text), "Train")
 
 
 ## The campfire row before each boss offers Keep watch and Sharpen (card #287), so its chips name
-## those, never Train or Upgrade; the map agrees with the campfire screen at every campfire.
+## those, never Train; the map agrees with the campfire screen at every campfire.
 func test_the_campfire_before_the_boss_shows_watch_and_sharpen_not_train() -> void:
 	var watch_fires := 0
 	for s: int in range(1, SEEDS):
@@ -127,10 +150,11 @@ func test_the_campfire_before_the_boss_shows_watch_and_sharpen_not_train() -> vo
 				texts.append(String(chip.text))
 			if not watch:
 				assert_true(texts.has("Train"), "other campfires keep Train")
+				assert_false(texts.has("Upgrade"), "seed %d stop %d: no Upgrade anywhere (card #332)" % [s, stop.id])
 				continue
 			watch_fires += 1
 			assert_false(texts.has("Train"), "seed %d stop %d: no Train before the boss" % [s, stop.id])
-			assert_false(texts.has("Upgrade"), "seed %d stop %d: no Upgrade before the boss" % [s, stop.id])
+			assert_false(texts.has("Upgrade"), "seed %d stop %d: no Upgrade anywhere (card #332)" % [s, stop.id])
 			assert_eq(chips.size(), 3)
 			assert_eq(chips[0].icon, &"heart", "rest still heals")
 			assert_eq(String(chips[1].icon), _look.gauge_icon_path, "keep watch: the gauge")
@@ -177,7 +201,7 @@ func test_an_icon_chip_shows_a_picture_and_a_word() -> void:
 
 
 func test_the_run_info_icons_exist() -> void:
-	for path: String in [_look.guard_icon_path, _look.foe_icon_path, _look.upgrade_icon_path, _look.restock_icon_path,
+	for path: String in [_look.guard_icon_path, _look.foe_icon_path, _look.restock_icon_path,
 			_look.leave_icon_path, _look.flag_path, _visuals.gold_icon_path]:
 		assert_true(path.begins_with("res://assets/"), "%s lives in assets/" % path)
 		assert_true(FileAccess.file_exists(path), "%s is drawn" % path)
@@ -197,6 +221,28 @@ func _shop_run() -> RunState:
 	run.go(run.choices()[0])
 	run.gold = 999
 	return run
+
+
+func test_the_bot_never_buys_a_relic_with_a_price_it_refuses() -> void:
+	var main_script := load("res://scenes/main.gd") as GDScript
+	var run := _shop_run()
+	var costly: GearData = null
+	var plain: GearData = null
+	for item: GearData in run.data.gear:
+		if item == null or not run.can_gain(item):
+			continue
+		if costly == null and GearBot.score(item) < 0:
+			costly = item
+		elif plain == null and not item.rot_touched:
+			plain = item
+	assert_not_null(costly, "a rot-touched Relic with a costly price")
+	var shop := ShopScreen.new()
+	add_child_autofree(shop)
+	shop.setup(run, [costly, plain] as Array[GearData])
+	var first := shop.items().size()
+	assert_true(shop.can_buy(first), "the bot could afford it")
+	assert_false(main_script.call("_bot_buys", shop, first), "but a given Relic never comes off: it passes")
+	assert_true(main_script.call("_bot_buys", shop, first + 1), "a plain Relic it buys")
 
 
 func test_sell_shows_once_and_prices_are_coins() -> void:
@@ -230,7 +276,7 @@ func test_every_service_card_has_a_picture_and_a_price_has_the_coin() -> void:
 	assert_true(_texts(cleanse).has(str(run.cleanse_price())))
 
 
-func test_a_relic_on_the_shelf_shows_its_icon_and_level_chip_not_a_sentence() -> void:
+func test_a_relic_on_the_shelf_shows_its_icon_and_a_new_chip_not_a_sentence() -> void:
 	var run := _shop_run()
 	var shop := _shop(run)
 	var first := shop.items().size()
@@ -240,14 +286,11 @@ func test_a_relic_on_the_shelf_shows_its_icon_and_level_chip_not_a_sentence() ->
 	assert_eq(detail.icon, gear, "the Relic's own icon")
 	assert_eq(String(detail.line), "", "no sentence")
 	var chips: Array = detail.chips
-	assert_eq(String(chips[0][1]), "Home" if run.is_home(gear) else ("New" if run.relic_level(gear) <= 0
-			else "Lv %d > %d" % [run.relic_level(gear), run.relic_level(gear) + 1]))
-	run.add_relic(gear)
-	if run.can_gain(gear):
-		assert_eq(String(ShopScreen.relic_chips(run, gear)[0][1]), "Lv 1 > 2", "a copy raises the run's level")
-	var stat := gear.stat_text(2)
+	if not run.is_home(gear):
+		assert_eq(String(chips[0][1]), "New", "no levels (DESIGN.md 8.24); New: not in the Relic book yet")
+	var stat := gear.stat_text()
 	if not stat.is_empty():
-		assert_eq(String(ShopScreen.relic_chips(run, gear)[1][1]), stat, "the stat line at the level it will reach")
+		assert_eq(String(ShopScreen.relic_chips(run, gear)[1][1]), stat, "the stat line")
 	for chip: Array in ShopScreen.relic_chips(run, gear):
 		assert_false(String(chip[1]).contains("."), "'%s' is a chip, not a sentence" % chip[1])
 
@@ -305,18 +348,17 @@ func test_a_won_run_ends_with_icon_rows_and_no_lines_of_text() -> void:
 	assert_gte(faces, run.party_size() * 2, "each face in the stat row and on its defence row")
 
 
-func test_the_relics_kept_are_icons_tagged_new_or_echo() -> void:
+func test_the_relics_kept_are_icons_tagged_new() -> void:
 	var run := _run()
 	var charm := _relic("iron_charm")
-	assert_eq(RunEndScreen.kept_relics(run, run.relics_at_start, run.pips_at_start).size(), 0, "nothing new yet")
-	run.add_relic(charm)
-	run.mastery[charm.id] = run.tuning.mastery_needed
-	var kept := RunEndScreen.kept_relics(run, run.relics_at_start, run.pips_at_start)
+	assert_eq(RunEndScreen.kept_relics(run, run.relics_at_start).size(), 0, "nothing new yet")
+	run.give_relic(charm, 0)
+	var kept := RunEndScreen.kept_relics(run, run.relics_at_start)
 	assert_eq(kept.size(), 1)
 	assert_eq(kept[0].item, charm)
 	assert_true(bool(kept[0].new), "found for the first time")
-	assert_true(bool(kept[0].echo), "and its Echo learned")
-	var again := RunEndScreen.kept_relics(run, {charm.id: true}, {charm.id: run.tuning.mastery_needed})
+	assert_false(kept[0].has("echo"), "no Echoes (DESIGN.md 8.24)")
+	var again := RunEndScreen.kept_relics(run, {charm.id: true})
 	assert_eq(again.size(), 0, "a friend who had it already keeps nothing new")
 	run.result = RunState.VICTORY
 	var end := RunEndScreen.new()
@@ -324,50 +366,37 @@ func test_the_relics_kept_are_icons_tagged_new_or_echo() -> void:
 	end.setup(run, 0)
 	assert_eq(_count_of(end, "RelicIcon"), 1, "the kept Relic as its icon")
 	assert_true(_texts(end).has("New"), "tagged New")
-	var echo_marks := 0
 	for node: Node in end.find_children("*", "UiGlyph", true, false):
-		if (node as UiGlyph).kind == &"echo":
-			echo_marks += 1
-	assert_eq(echo_marks, 1, "and the Echo mark")
+		assert_ne((node as UiGlyph).kind, &"echo", "no Echo mark")
 
 
 func test_kept_row_counts_only_after_a_late_join() -> void:
 	# Card #304: a friend who dropped in mid-run keeps only what the run found after they joined.
 	var run := _run()
-	var needed := run.tuning.mastery_needed
 	var drum := _relic("war_drum")
 	var charm := _relic("iron_charm")
-	run.add_relic(drum)
-	run.mastery[drum.id] = 4
+	run.give_relic(drum, 0)
 	var relics_before := run.relics.duplicate()
-	var mastery_before := run.mastery.duplicate()
-	run.add_relic(charm)
-	run.mastery[drum.id] = needed
-	assert_eq(RunEndScreen.kept_relics(run, {}, {}).size(), 2, "there from the start: both Relics")
-	var kept := RunEndScreen.kept_relics(run, relics_before, {}, mastery_before)
+	run.give_relic(charm, 1)
+	assert_eq(RunEndScreen.kept_relics(run, {}).size(), 2, "there from the start: both Relics")
+	var kept := RunEndScreen.kept_relics(run, relics_before)
 	assert_eq(kept.size(), 1, "joined late: only the later find")
 	assert_eq(kept[0].item, charm)
 	assert_true(bool(kept[0].new))
-	assert_false(bool(kept[0].echo))
-	var drum_kept := RunEndScreen.kept_relics(run, relics_before, {drum.id: 4}, mastery_before)
-	assert_eq(drum_kept.size(), 2, "the 8 pips since fill their own 4 to an Echo")
-	for entry: Dictionary in drum_kept:
-		if entry.item == drum:
-			assert_true(bool(entry.echo) and not bool(entry.new), "the drum: an Echo, not new")
 	# own_kept: their collection plus the run's Relics when they joined.
 	var stranger := RelicCollection.new()
-	var since := {"relics": relics_before, "mastery": {}}
+	var since := {"relics": relics_before}
 	var shown := RunEndScreen.own_kept(run, stranger, since)
-	assert_eq(shown.size(), 1, "a Relic they never found shows no Echo: their file keeps no pips for it")
+	assert_eq(shown.size(), 1, "the drum was the run's before they came")
 	assert_eq(shown[0].item, charm)
 	var owner := RelicCollection.new()
-	owner.merge([drum.id], {})
-	assert_eq(RunEndScreen.own_kept(run, owner, since).size(), 2, "their own drum's Echo is kept")
+	owner.merge([charm.id])
+	assert_eq(RunEndScreen.own_kept(run, owner, since).size(), 0, "they had the charm already")
 	assert_eq(RunEndScreen.own_kept(run, stranger).size(), 2, "no join: everything, as before")
 	run.result = RunState.VICTORY
 	var end := RunEndScreen.new()
 	add_child_autofree(end)
-	end.setup(run, 0, 0, [], "", [], {}, stranger, {"relics": relics_before, "mastery": mastery_before})
+	end.setup(run, 0, 0, [], "", [], {}, stranger, {"relics": relics_before})
 	assert_eq(_count_of(end, "RelicIcon"), 1, "the end screen shows the later find only")
 
 
@@ -429,7 +458,6 @@ func test_the_fullest_end_screen_fits() -> void:
 	for item: GearData in _data.gear:
 		if item != null:
 			run.add_relic(item)
-			run.mastery[item.id] = run.tuning.mastery_needed
 	var toss := load(ROCK_TOSS_PATH) as EnemyAttackData
 	var recap := {"last_blow": {"name": toss.display_name, "source": "Rotten Husk", "amount": 123}}
 	var end := RunEndScreen.new()
@@ -464,59 +492,6 @@ func test_without_a_recap_a_defeat_still_shows_its_lines() -> void:
 	add_child_autofree(end)
 	end.setup(run, 0, 0, ["Finished by  Rotten Husk"] as Array[String])
 	assert_true(_texts(end).has("Finished by  Rotten Husk"), "an older caller keeps the words")
-
-
-# --- the Echoes page --------------------------------------------------------------------------------
-
-func test_the_echoes_page_shows_pips_bars_not_the_learning_sentence() -> void:
-	var run := _run()
-	var drum := _relic("war_drum")
-	run.add_relic(drum)
-	run.wear(0, 0, drum)
-	run.mastery[drum.id] = 5
-	var screen := EchoesScreen.new()
-	add_child_autofree(screen)
-	screen.setup(run, 0)
-	var learning := screen.learning()
-	assert_eq(learning.size(), 1, "the worn Relic being learned")
-	assert_eq(learning[0][0], drum)
-	assert_eq(int(learning[0][1]), run.mastery_of(drum))
-	assert_eq(int(learning[0][2]), run.tuning.mastery_needed)
-	assert_eq(_count_of(screen._learning, "RelicIcon"), 1, "its icon")
-	for text: String in _texts(screen):
-		assert_false(text.contains("Learning") or text.contains("pips") or text.contains("kept for good"),
-				"'%s': the rules are in the Glossary" % text)
-	var bar := EchoesScreen.pips_bar(5, 12)
-	add_child_autofree(bar)
-	assert_eq(bar.get_child_count(), 12, "one pip per Echo pip needed")
-	var full := 0
-	for pip: Node in bar.get_children():
-		if (pip as ColorRect).color == EchoesScreen.PIP_FULL:
-			full += 1
-	assert_eq(full, 5, "the filled ones")
-
-
-func test_the_echoes_page_fits_with_a_relic_learning_on_every_hero() -> void:
-	var run := _run()
-	var ids: Array[String] = ["war_drum", "iron_charm", "whetstone"]
-	for slot: int in run.party_size():
-		var item := _relic(ids[slot % ids.size()])
-		run.add_relic(item)
-		run.wear(slot, 0, item)
-		run.mastery[item.id] = 3
-	var screen := EchoesScreen.new()
-	add_child_autofree(screen)
-	screen.setup(run, 0)
-	assert_eq(screen.learning().size(), run.party_size(), "one Relic learning per hero")
-	await get_tree().process_frame
-	await get_tree().process_frame
-	var row: Control = null
-	for child: Node in screen.get_children():
-		if child is HBoxContainer:
-			row = child
-	var size := row.get_combined_minimum_size()
-	assert_lte(size.y, 1080.0 - ListMenu.FOOTER_STRIP_PX - EchoesScreen.MARGIN_TOP, "it fits (it is %d)" % int(size.y))
-	assert_lte(size.x, 1920.0 - 2.0 * EchoesScreen.MARGIN_X, "and its width (it is %d)" % int(size.x))
 
 
 # --- the Rot Journal --------------------------------------------------------------------------------

@@ -540,19 +540,63 @@ func test_join_after_switch() -> void:
 
 func test_late_flag_only_from_a_drop_in_catch_up() -> void:
 	var source := FileAccess.get_file_as_string(MAIN_PATH)
-	# The message is built in one place (card #312 added the mode); only _catch_up passes a real late,
-	# through the catch-up's message list.
+	# The message is built in one place; only _catch_up passes a real late, through the catch-up's
+	# message list (a continued saved run says late too).
 	assert_true(_body(source, "func _catch_up(").contains("_catch_up_messages(_run, _players, late,"),
 			"run_start says late only from _catch_up")
-	assert_true(_body(source, "static func _catch_up_messages(").contains("_run_start_message(run, roster, late, records)"))
+	assert_true(_body(source, "static func _catch_up_messages(").contains("_run_start_message(run, roster, late)"))
 	assert_true(_body(source, "static func _run_start_message(").contains("\"late\": late"))
 	assert_true(_body(source, "func _new_run(").contains("_run_start_message(_run, _players, false)"),
 			"func _new_run( starts everyone on time")
-	assert_true(_body(source, "func _new_rush(").contains("_run_start_message(rush, _players, false, _rush_records_ok())"),
-			"func _new_rush( starts everyone on time (with the host's records verdict)")
 	assert_false(source.contains("_join_pending = Net.joined_mid_run"),
 			"the baseline never comes from joined_mid_run (it outlives Again)")
-	assert_true(source.contains("_join_pending = bool(p.get(\"late\", false))"), "it comes from run_start's flag")
+	var start := _body(source, "func _client_message(")
+	var late := start.find("var late := _late_baseline(bool(p.get(\"late\", false)), Net.rejoined, _seat_wait, same_game)")
+	assert_gt(late, -1, "it comes from run_start's flag (and a rejoin with no start kept here)")
+	assert_gt(start.find("_join_pending = late"), late)
+
+
+## A friend whose game crashed keeps their seat's token in the seat file (card #313), so they come back
+## by it, not as a newcomer: with no start of the run in their new game, their Relic file may already
+## hold this run's pips, so they count as late from their return (else the run's pips were banked twice).
+func test_a_crashed_friend_back_by_token_counts_as_late() -> void:
+	var cases := [
+		# [said late, rejoined, catching up, same game, late, what]
+		[false, false, false, false, false, "a start on time"],
+		[true, false, true, false, true, "a drop-in"],
+		[true, true, true, false, true, "a continued run's rejoin"],
+		[false, true, true, false, true, "back by the seat file's token after a crash"],
+		[false, true, true, true, false, "back by token in the same game: its start is kept"],
+		[false, true, false, false, false, "a later game after that rejoin (Again): on time"],
+	]
+	var main_script := load(MAIN_PATH) as GDScript
+	for c: Array in cases:
+		assert_eq(main_script.call("_late_baseline", c[0], c[1], c[2], c[3]), c[4], String(c[5]))
+
+
+## Hosting is a run again (card #331, Net.PROTOCOL 8): "lobby", "again" and "run_start" carry no
+## mode and no records, and a friend builds the run from run_start's seed and oath alone. (9: the
+## pack of consumables only, card #332, changed no message's fields here.)
+func test_the_online_messages_carry_no_mode() -> void:
+	assert_eq(NetSession.PROTOCOL, 9, "the messages lost their mode field in 8; 9 is the pack's (card #332)")
+	var data := load("res://data/runs/rotten_road.tres") as RunData
+	var tuning := load(TUNING_PATH) as Tuning
+	var roster := PlayerRoster.online(data.party.size(), HOST, HOST)
+	roster.join_peer(PEER_A)
+	var main_script := load(MAIN_PATH) as GDScript
+	var lobby: Dictionary = main_script.call("_lobby_message", roster, 2)
+	assert_eq(lobby.keys(), ["roster", "oath"], "the lobby: the roster and the oath, no mode")
+	var run := RunState.begin(data, tuning, 7, 1)
+	for late: bool in [false, true]:
+		var start: Dictionary = main_script.call("_run_start_message", run, roster, late)
+		assert_eq(start.keys(), ["seed", "roster", "oath", "late"], "run_start: no mode, no records")
+		var friend: RunState = main_script.call("_client_game", data, tuning, int(start.seed), int(start.oath))
+		assert_not_null(friend, "the friend's game is a run")
+		if friend != null:
+			assert_eq(friend.to_dict(), run.to_dict(), "the same run as the host's")
+	assert_false("mode" in run.to_dict(), "the run's state has no mode either")
+	var source := FileAccess.get_file_as_string(MAIN_PATH)
+	assert_false(source.contains("\"mode\""), "no message reads or writes a mode")
 
 
 # --- dev and bot switches (cards #304, #311) ----------------------------------------------------

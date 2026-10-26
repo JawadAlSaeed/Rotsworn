@@ -2,8 +2,8 @@ extends SceneTree
 ## Phase 17 (DESIGN.md 8.17), with phase 20's 16 more Relics (card #242): turns the run's 25 gear pieces into Relics, adds six Relics made from
 ## the best charm ideas (the backpack's charms are gone: their effects are Relics' job now), and
 ## turns the old charm files into faded treasure (kept so older saves load) and the rotten ones into
-## curses. Gives each Relic its stat line (attribute points at level 1, one more per level) and its
-## Echo cost, renames the Echo Charm (its name would clash with Echoes), and lists the Relics every
+## curses. Gives each Relic its stat line (attribute points), renames the Echo Charm (its name
+## clashed with the Echoes, gone since phase 26, DESIGN.md 8.24), and lists the Relics every
 ## monster can drop. Every Relic is dropped by at least one monster; the rare ones by the deep
 ## monsters, guards and bosses. Edits existing files in place (only these fields) and writes the new
 ## Relics. First numbers: tune them in the files after play.
@@ -55,8 +55,8 @@ const FADED := {
 ## The rotten charms, now curses: item id -> HP lost each turn, in percent.
 const CURSES := {"rotting_heart": 3, "grave_moss": 2}
 
-## Relic id -> [attribute (Attributes.Kind), stat points at level 1, Echo cost]. Echo costs go by
-## strength, not rarity (phase 21, #280): extra AP and the big stat effects cost more.
+## Relic id -> [attribute (Attributes.Kind), stat points, old Echo cost (unused since the Echoes
+## went, DESIGN.md 8.24)].
 const RELICS := {
 	"iron_charm": [Attributes.Kind.VITALITY, 2, 2],
 	"lucky_coin": [Attributes.Kind.LUCK, 2, 1],
@@ -149,6 +149,9 @@ const DROPS := {
 	"hollow_priest": ["pale_tithe", "cleansing_bell", "tallow_candle"],
 	"pus_tick": ["hunger_charm", "wardstone", "marrow_charm"],
 	"bile_tick": ["plague_bell", "black_ichor", "sour_milk"],
+	# Phase 26 (card #323, DESIGN.md 8.23): the second act's boss and her brood.
+	"leech_queen": ["hunger_charm", "bloodletters_fang", "black_ichor", "still_water", "second_wind"],
+	"leechling": ["heartleaf", "mossbed", "bitter_root"],
 }
 
 
@@ -165,8 +168,6 @@ func _init() -> void:
 		var row: Array = RELICS[id]
 		item.stat = int(row[0])
 		item.stat_points = int(row[1])
-		item.stat_points_per_level = 1
-		item.echo_cost = int(row[2])
 		if RENAMES.has(id):
 			item.display_name = String(RENAMES[id])
 		_save(item, path)

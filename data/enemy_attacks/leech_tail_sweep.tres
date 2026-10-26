@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="EnemyAttackData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/attack_hit_data.gd" id="1_hit"]
+[ext_resource type="Script" path="res://scripts/data/enemy_attack_data.gd" id="2_attack"]
+
+[sub_resource type="Resource" id="Hit_0"]
+script = ExtResource("1_hit")
+impact_ms = 1200
+kind = 4
+damage_percent = 55
+approach_ms = 380
+anim = "tail"
+
+[sub_resource type="Resource" id="Hit_1"]
+script = ExtResource("1_hit")
+impact_ms = 1950
+kind = 4
+damage_percent = 60
+approach_ms = 360
+forced_feint = true
+anim = "tail"
+
+[resource]
+script = ExtResource("2_attack")
+id = "leech_tail_sweep"
+display_name = "Tail Sweep"
+target_mode = 1
+weight = 2
+hits = Array[ExtResource("1_hit")]([SubResource("Hit_0"), SubResource("Hit_1")])

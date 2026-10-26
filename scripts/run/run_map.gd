@@ -5,17 +5,19 @@ extends RefCounted
 ## row, paths never cross, every stop can be reached and every stop reaches the final fight.
 ## Pure and seeded (CombatRng), so the same seed always makes the same map.
 
-## ELITE, EVENT and TREASURE came in phase 15 (DESIGN.md 8.6 to 8.8); new types go at the end so
-## saved numbers keep their meaning.
-enum StopType { ZONE, REST, SHOP, FINAL, ELITE, EVENT, TREASURE }
+## ELITE, EVENT and TREASURE came in phase 15 (DESIGN.md 8.6 to 8.8), GUARD in phase 26 (8.22: only
+## map rules 3 have Guard stops; since rules 4 a place's guard waits at an Elite stop); new types go
+## at the end so saved numbers keep their meaning. FIGHT (one fight from its place's monsters, 8.22)
+## took the number of the walkable zone stop it replaced.
+enum StopType { FIGHT, REST, SHOP, FINAL, ELITE, EVENT, TREASURE, GUARD }
 
-const TYPE_NAMES: Array[String] = ["zone", "rest", "shop", "final", "elite", "event", "treasure"]
+const TYPE_NAMES: Array[String] = ["fight", "rest", "shop", "final", "elite", "event", "treasure", "guard"]
 ## A middle stop re-rolls its type this many times to avoid repeating its parent's shop or rest.
 const TYPE_REROLLS: int = 6
 
 ## Every stop: {id: int, row: int, col: int, width: int (stops in that row), type: StopType,
-## zone: int (index into the act's zones: a zone stop's place, an elite fight's look; -1 for the
-## others), next: Array[int], prev: Array[int], crown: bool (the act's crowned elite, card #286)}.
+## zone: int (index into the act's zones: the place of a Fight, Guard or elite stop's fight; -1 for
+## the others), next: Array[int], prev: Array[int], crown: bool (the act's crowned elite, card #286)}.
 var stops: Array[Dictionary] = []
 ## Stop ids per row, left to right. The last row holds only the final fight.
 var rows: Array[Array] = []
@@ -25,9 +27,10 @@ var rows: Array[Array] = []
 ## An act with no elite fights or no events (`has_elites`, `has_events` false) never gets those
 ## stops, so a stop can never be left with nothing to play.
 ## `moving_rows` false: the map rules before phase 21 (no moved rows, no crowned elite), for a run
-## saved before it.
+## saved before it. `guard_rows` (map rules 3, phase 26, DESIGN.md 8.22): row tuning.run_guard_row is
+## all Guard stops; false (the rules before and after it): every row and roll as without it.
 static func generate(rng: CombatRng, tuning: Tuning, zone_count: int, has_elites: bool = true,
-		has_events: bool = true, moving_rows: bool = true) -> RunMap:
+		has_events: bool = true, moving_rows: bool = true, guard_rows: bool = false) -> RunMap:
 	var map := RunMap.new()
 	var row_total := maxi(2, tuning.run_map_rows)
 	var lo := clampi(mini(tuning.run_map_min_width, tuning.run_map_max_width), 1, 6)
@@ -37,12 +40,14 @@ static func generate(rng: CombatRng, tuning: Tuning, zone_count: int, has_elites
 	map._add_row(row_total, 1)
 	for r: int in row_total:
 		map._connect(r, rng, tuning.run_map_extra_path_percent)
-	map._assign_types(rng, tuning, has_elites, has_events)
+	var guard_row := map._guard_row(tuning) if guard_rows else -1
+	var treasure_row := map._treasure_row(tuning, guard_row)
+	map._assign_types(rng, tuning, has_elites, has_events, guard_row, treasure_row)
 	map._assign_zones(rng, zone_count)
 	# Phase 21 (card #286), after the rest so a seed's paths stay as they were: the campfire and
 	# treasure rows move, and one elite wears the rot crown.
 	if moving_rows:
-		map._vary_rows(rng, tuning, has_elites, has_events)
+		map._vary_rows(rng, tuning, has_elites, has_events, guard_row, treasure_row)
 		map._crown_elite(rng, tuning, has_elites)
 		map._fix_zones(rng, zone_count)
 	return map
@@ -81,6 +86,12 @@ func count_type(type: StopType) -> int:
 	return n
 
 
+## True for the stops fought in one of the act's places that the map picks so it does not repeat:
+## Fight and (map rules 3) Guard (DESIGN.md 8.22).
+static func is_fight_place(type: int) -> bool:
+	return type == StopType.FIGHT or type == StopType.GUARD
+
+
 ## True if two paths between the same two rows cross: (a1 -> b1) and (a2 -> b2), by column.
 static func paths_cross(a1: int, b1: int, a2: int, b2: int) -> bool:
 	return (a1 < a2 and b1 > b2) or (a1 > a2 and b1 < b2)
@@ -94,7 +105,7 @@ func _add_row(r: int, width: int) -> void:
 		var id := stops.size()
 		var next: Array[int] = []
 		var prev: Array[int] = []
-		stops.append({"id": id, "row": r, "col": col, "width": width, "type": StopType.ZONE, "zone": -1,
+		stops.append({"id": id, "row": r, "col": col, "width": width, "type": StopType.FIGHT, "zone": -1,
 				"next": next, "prev": prev})
 		ids.append(id)
 	rows.append(ids)
@@ -158,24 +169,46 @@ static func _can_add(pairs: Array[Vector2i], i: int, j: int) -> bool:
 	return true
 
 
-## Row 0 is zones, the row before the final fight rests, run_treasure_row treasure; the others
-## are picked by weight: zones, shops, rests, elites (not before run_elite_min_row) and events.
-func _assign_types(rng: CombatRng, tuning: Tuning, has_elites: bool = true, has_events: bool = true) -> void:
+## The row of Guard stops (map rules 3, DESIGN.md 8.22): tuning.run_guard_row while it is above row 0
+## (always all Fight stops) and below the campfire row before the final fight, else -1 (none).
+func _guard_row(tuning: Tuning) -> int:
+	var row := tuning.run_guard_row
+	return row if row >= 1 and row < rows.size() - 2 else -1
+
+
+## The treasure row before it moves (DESIGN.md 8.8): tuning.run_treasure_row, or, when that is the
+## Guard row, the row before the guards (after them when that is row 0), so a map keeps both.
+func _treasure_row(tuning: Tuning, guard_row: int) -> int:
+	var row := tuning.run_treasure_row
+	if row < 0 or row != guard_row:
+		return row
+	if guard_row - 1 >= 1:
+		return guard_row - 1
+	return guard_row + 1 if guard_row + 1 < rows.size() - 2 else -1
+
+
+## Row 0 is fights, the row before the final fight rests, `guard_row` (-1: none) guards,
+## `treasure_row` (from _treasure_row) treasure; the others are picked by weight: fights, shops,
+## rests, elites (not before run_elite_min_row) and events.
+func _assign_types(rng: CombatRng, tuning: Tuning, has_elites: bool, has_events: bool, guard_row: int,
+		treasure_row: int) -> void:
 	var last := rows.size() - 1
-	var weights: Array[int] = [tuning.run_weight_zone, tuning.run_weight_rest, tuning.run_weight_shop,
+	var weights: Array[int] = [tuning.run_weight_fight, tuning.run_weight_rest, tuning.run_weight_shop,
 			tuning.run_weight_elite, tuning.run_weight_event]
-	var kinds: Array[int] = [StopType.ZONE, StopType.REST, StopType.SHOP, StopType.ELITE, StopType.EVENT]
+	var kinds: Array[int] = [StopType.FIGHT, StopType.REST, StopType.SHOP, StopType.ELITE, StopType.EVENT]
 	var middle: Array[int] = []
 	for r: int in rows.size():
 		for id: int in rows[r]:
 			var s: Dictionary = stops[id]
 			if r == last:
 				s.type = StopType.FINAL
+			elif r == guard_row:
+				s.type = StopType.GUARD
 			elif r == 0:
-				s.type = StopType.ZONE
+				s.type = StopType.FIGHT
 			elif r == last - 1:
 				s.type = StopType.REST
-			elif r == tuning.run_treasure_row:
+			elif r == treasure_row:
 				s.type = StopType.TREASURE
 			else:
 				middle.append(id)
@@ -189,9 +222,9 @@ func _assign_types(rng: CombatRng, tuning: Tuning, has_elites: bool = true, has_
 		stops[middle[rng.range_int(0, middle.size() - 1)]].type = StopType.SHOP
 
 
-## The weights of the middle types (zone, rest, shop, elite, event) for a stop in row `r`.
+## The weights of the middle types (fight, rest, shop, elite, event) for a stop in row `r`.
 func _middle_weights(tuning: Tuning, r: int, has_elites: bool, has_events: bool) -> Array[int]:
-	var weights: Array[int] = [tuning.run_weight_zone, tuning.run_weight_rest, tuning.run_weight_shop,
+	var weights: Array[int] = [tuning.run_weight_fight, tuning.run_weight_rest, tuning.run_weight_shop,
 			tuning.run_weight_elite, tuning.run_weight_event]
 	if r < tuning.run_elite_min_row or not has_elites:
 		weights[3] = 0
@@ -204,11 +237,16 @@ func _middle_weights(tuning: Tuning, r: int, has_elites: bool, has_events: bool)
 ## treasure row moves up to tuning.run_treasure_row_spread rows (card #286), so rest and reward land
 ## in different places each act. A row that gives up its campfires or its chests gets middle stops,
 ## with the old rules kept: never the same shop, campfire or elite twice in a row, no campfire right
-## before the campfire row, and a shop somewhere on the map.
-func _vary_rows(rng: CombatRng, tuning: Tuning, has_elites: bool, has_events: bool) -> void:
+## before the campfire row, and a shop somewhere on the map. The Guard row (`guard_row`, -1: none)
+## never moves and nothing moves onto it; with no guard row (-1) those checks never change a roll,
+## so a map without guards comes out exactly as it always did. `treasure_row` is where the chests
+## stand before they move (_treasure_row).
+func _vary_rows(rng: CombatRng, tuning: Tuning, has_elites: bool, has_events: bool, guard_row: int,
+		treasure_row: int) -> void:
 	var last := rows.size() - 1
 	var rest_row := last - 1
-	if rest_row - 1 > tuning.run_treasure_row and rest_row - 1 >= 1 			and rng.range_int(0, 99) < tuning.run_rest_row_shift_percent:
+	if rest_row - 1 > treasure_row and rest_row - 1 >= 1 and rest_row - 1 != guard_row \
+			and rng.range_int(0, 99) < tuning.run_rest_row_shift_percent:
 		for id: int in rows[rest_row - 1]:
 			stops[id].type = StopType.REST
 		for id: int in rows[rest_row]:
@@ -217,11 +255,11 @@ func _vary_rows(rng: CombatRng, tuning: Tuning, has_elites: bool, has_events: bo
 		for id: int in rows[rest_row - 1]:
 			if int(stops[id].type) == StopType.REST:
 				_retype(stops[id], rng, _middle_weights(tuning, rest_row - 1, has_elites, has_events), true)
-	var treasure := tuning.run_treasure_row
-	if treasure >= 1 and treasure < rest_row:
+	var treasure := treasure_row
+	if treasure >= 1 and treasure < rest_row and treasure != guard_row:
 		var spread := maxi(0, tuning.run_treasure_row_spread)
 		var moved := clampi(treasure + rng.range_int(-spread, spread), 1, rest_row - 1)
-		if moved != treasure:
+		if moved != treasure and moved != guard_row:
 			for id: int in rows[moved]:
 				stops[id].type = StopType.TREASURE
 			for id: int in rows[treasure]:
@@ -231,26 +269,27 @@ func _vary_rows(rng: CombatRng, tuning: Tuning, has_elites: bool, has_events: bo
 		for r: int in range(1, rest_row):
 			for id: int in rows[r]:
 				var st: Dictionary = stops[id]
-				if int(st.type) != StopType.TREASURE and not _neighbour_has(st, StopType.SHOP):
+				if int(st.type) != StopType.TREASURE and int(st.type) != StopType.GUARD \
+						and not _neighbour_has(st, StopType.SHOP):
 					spots.append(id)
 		if not spots.is_empty():
 			stops[spots[rng.range_int(0, spots.size() - 1)]].type = StopType.SHOP
 
 
-## Gives stop `s` a middle type by `weights` (zone, rest, shop, elite, event) that is not the same
+## Gives stop `s` a middle type by `weights` (fight, rest, shop, elite, event) that is not the same
 ## shop, campfire or elite as a stop next to it (before or after), and no campfire when `no_rest`.
 func _retype(s: Dictionary, rng: CombatRng, weights: Array[int], no_rest: bool) -> void:
-	var kinds: Array[int] = [StopType.ZONE, StopType.REST, StopType.SHOP, StopType.ELITE, StopType.EVENT]
+	var kinds: Array[int] = [StopType.FIGHT, StopType.REST, StopType.SHOP, StopType.ELITE, StopType.EVENT]
 	for attempt: int in TYPE_REROLLS:
 		var index := rng.pick_weighted(weights)
-		var type := kinds[index] if index >= 0 else StopType.ZONE
+		var type := kinds[index] if index >= 0 else StopType.FIGHT
 		if type == StopType.REST and no_rest:
 			continue
-		if type != StopType.ZONE and type != StopType.EVENT and _neighbour_has(s, type):
+		if type != StopType.FIGHT and type != StopType.EVENT and _neighbour_has(s, type):
 			continue
 		s.type = type
 		return
-	s.type = StopType.ZONE
+	s.type = StopType.FIGHT
 
 
 ## True if a stop leading to `s` or one it leads to is of `type`.
@@ -265,9 +304,9 @@ func _neighbour_has(s: Dictionary, type: int) -> bool:
 
 
 ## One elite of the act wears the rot crown (card #286): harder, and its spoils always hold a
-## legendary Relic. An act with elites gets at least one elite stop for it (a middle zone or "?"
+## legendary Relic. An act with elites gets at least one elite stop for it (a middle Fight or "?"
 ## stop from tuning.run_elite_min_row up with no elite next to it, so a road goes through it:
-## every stop can be reached).
+## every stop can be reached; never a Guard stop).
 func _crown_elite(rng: CombatRng, tuning: Tuning, has_elites: bool) -> void:
 	for s: Dictionary in stops:
 		s.crown = false
@@ -278,7 +317,8 @@ func _crown_elite(rng: CombatRng, tuning: Tuning, has_elites: bool) -> void:
 	for s: Dictionary in stops:
 		if int(s.type) == StopType.ELITE:
 			elites.append(int(s.id))
-		elif (int(s.type) == StopType.ZONE or int(s.type) == StopType.EVENT) and int(s.row) >= tuning.run_elite_min_row 				and not _neighbour_has(s, StopType.ELITE):
+		elif (int(s.type) == StopType.FIGHT or int(s.type) == StopType.EVENT) \
+				and int(s.row) >= tuning.run_elite_min_row and not _neighbour_has(s, StopType.ELITE):
 			spare.append(int(s.id))
 	if elites.is_empty():
 		if spare.is_empty():
@@ -289,9 +329,9 @@ func _crown_elite(rng: CombatRng, tuning: Tuning, has_elites: bool) -> void:
 	stops[elites[rng.range_int(0, elites.size() - 1)]].crown = true
 
 
-## After rows moved: every zone stop with no zone, or with the zone met last on the way to it, gets
-## a fresh one (row by row, so each sees the stops before it as they end up); elites keep or get a
-## zone (their look); every other stop has none.
+## After rows moved: every Fight or Guard stop with no place, or with the place met last on the way
+## to it, gets a fresh one (row by row, so each sees the stops before it as they end up); elites keep
+## or get a place (their look); every other stop has none.
 func _fix_zones(rng: CombatRng, zone_count: int) -> void:
 	if zone_count <= 0:
 		return
@@ -302,7 +342,7 @@ func _fix_zones(rng: CombatRng, zone_count: int) -> void:
 				StopType.ELITE:
 					if int(s.zone) < 0:
 						s.zone = rng.range_int(0, zone_count - 1)
-				StopType.ZONE:
+				StopType.FIGHT, StopType.GUARD:
 					var recent := last_zones_before(id)
 					if int(s.zone) < 0 or recent.has(int(s.zone)):
 						var allowed: Array[int] = []
@@ -320,8 +360,8 @@ func _pick_middle(rng: CombatRng, weights: Array[int], kinds: Array[int], s: Dic
 		before_rest_row: bool) -> int:
 	for attempt: int in TYPE_REROLLS:
 		var index := rng.pick_weighted(weights)
-		var type := kinds[index] if index >= 0 else StopType.ZONE
-		if type == StopType.ZONE or type == StopType.EVENT:
+		var type := kinds[index] if index >= 0 else StopType.FIGHT
+		if type == StopType.FIGHT or type == StopType.EVENT:
 			return type
 		if type == StopType.REST and before_rest_row:
 			continue
@@ -331,11 +371,12 @@ func _pick_middle(rng: CombatRng, weights: Array[int], kinds: Array[int], s: Dic
 				repeats = true
 		if not repeats:
 			return type
-	return StopType.ZONE
+	return StopType.FIGHT
 
 
-## Each zone stop gets a zone, if possible not the one met last on any path leading to it (shops
-## and rests in between do not count), so the same place does not come twice in a row.
+## Each Fight or Guard stop gets a place (one of the act's zones), if possible not the one met last
+## on any path leading to it (shops and rests in between do not count), so the same place does not
+## come twice in a row.
 func _assign_zones(rng: CombatRng, zone_count: int) -> void:
 	if zone_count <= 0:
 		return
@@ -344,7 +385,7 @@ func _assign_zones(rng: CombatRng, zone_count: int) -> void:
 			# An elite fight takes place in one of the act's zones (its look).
 			s.zone = rng.range_int(0, zone_count - 1)
 			continue
-		if int(s.type) != StopType.ZONE:
+		if not is_fight_place(int(s.type)):
 			continue
 		var recent := last_zones_before(int(s.id))
 		var allowed: Array[int] = []
@@ -357,7 +398,7 @@ func _assign_zones(rng: CombatRng, zone_count: int) -> void:
 			s.zone = allowed[rng.range_int(0, allowed.size() - 1)]
 
 
-## The zones of the closest zone stops on every path leading to stop `id` ({zone: true}).
+## The places of the closest Fight or Guard stops on every path leading to stop `id` ({zone: true}).
 func last_zones_before(id: int) -> Dictionary:
 	var found := {}
 	var seen := {}
@@ -368,7 +409,7 @@ func last_zones_before(id: int) -> Dictionary:
 		if seen.has(p):
 			continue
 		seen[p] = true
-		if int(stops[p].type) == StopType.ZONE:
+		if is_fight_place(int(stops[p].type)):
 			if int(stops[p].zone) >= 0:
 				found[int(stops[p].zone)] = true
 		else:

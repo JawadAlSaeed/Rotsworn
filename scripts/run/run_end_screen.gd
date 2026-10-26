@@ -1,14 +1,12 @@
 class_name RunEndScreen
 extends CanvasLayer
 ## The end of a run (DESIGN.md 8): cleared or over, how far the party got, each hero's defence,
-## what it keeps (8.17, 8.19), then Again (the players screen with the same seats, bag and oath,
+## what it keeps (8.17, 8.24), then Again (the players screen with the same seats, bag and oath,
 ## card #284) or the main menu.
 ## Phase 22: icons, not lines of text. One row of stat chips (the flag and the stops, a sword and
 ## the fights won, the coin and the gold, each hero's face with their level), each hero's defence
-## row (card #283), the Relics kept as their icons tagged New or Echo, and on a defeat the killer's
+## row (card #283), the Relics kept as their icons tagged New, and on a defeat the killer's
 ## portrait with the attack's name and its hit icons.
-## A Fight Rush ends here too (setup_rush, DESIGN.md 8.21): RUSH OVER, the fight reached and the
-## record, no Kept row.
 
 ## Back to the main menu.
 signal done
@@ -26,8 +24,6 @@ const DEFENCE_GLYPH_PX: float = 30.0
 const STAT_ICON_PX: float = 48.0
 const STAT_FACE_PX: float = 56.0
 const ROW_GAP: int = 22
-## A Rush record's day sits this close after its Best chip.
-const RUSH_DETAIL_GAP: int = 10
 ## The Relics kept: their icons and the tag under each.
 const KEPT_ICON_PX: float = 64.0
 const KEPT_TAG_SIZE: int = 24
@@ -56,7 +52,7 @@ var _guard_s: float = 0.0
 ## `recap`: the last fight (FightRecap.to_dict) on a defeat: the killer's row; empty: none.
 ## `own_start`: an online friend's own collection at the start (card #281): what they keep is
 ## measured from it; null: the run's own start.
-## `own_since`: {relics, mastery} when the friend joined mid-run (card #304): only later finds are
+## `own_since`: {relics} when the friend joined mid-run (card #304): only later finds are
 ## theirs; empty: from the start.
 func setup(run: RunState, input_guard_ms: int, unlocked_oath: int = 0, recap_lines: Array[String] = [],
 		keep_line: String = "", players: Array[int] = [], recap: Dictionary = {},
@@ -86,73 +82,10 @@ func setup(run: RunState, input_guard_ms: int, unlocked_oath: int = 0, recap_lin
 	elif not keep_line.is_empty():
 		column.add_child(ListMenu.centred_label(keep_line, RECAP_SIZE, HudStyle.GOLD))
 	else:
-		column.add_child(_kept_row(kept_relics(run, run.relics_at_start, run.pips_at_start)))
+		column.add_child(_kept_row(kept_relics(run, run.relics_at_start)))
 	if unlocked_oath > 0:
 		column.add_child(ListMenu.centred_title("Oath %d unlocked" % unlocked_oath, OATH_SIZE, HudStyle.GOLD))
 	ListMenu.screen_footer(self, [[&"menu_confirm", "Again"], [&"menu_cancel", "Main menu"]])
-
-
-## The end of a Fight Rush (DESIGN.md 8.21): RUSH OVER, NEW RECORD when this Rush beat its party
-## size's record, the fight reached, the record with its day, the party size and the heroes' levels,
-## the killer after a loss (not after Give up) and each hero's defence. Nothing from a Rush is kept,
-## so there is no Kept row. Again opens the Fight Rush players screen.
-## `best`: the party size's record after this Rush (RushRecords.entry; {} leaves the Best chip out).
-## `players` and `recap` as in setup.
-func setup_rush(run: RushState, input_guard_ms: int, best: Dictionary, new_record: bool, players: Array[int],
-		recap: Dictionary) -> void:
-	_guard_s = float(input_guard_ms) / 1000.0
-	Sfx.play("run_over")
-	var column := ListMenu.screen_column(self, "RUSH OVER", TITLE_SIZE)
-	(column.get_child(0) as Label).label_settings.font_color = HudStyle.LATE
-	if new_record:
-		column.add_child(ListMenu.centred_title("NEW RECORD", OATH_SIZE, HudStyle.GOLD))
-	column.add_child(_rush_stat_row(run, best))
-	if run.result == RunState.DEFEAT:
-		var killer := killer_of(recap)
-		if not killer.is_empty():
-			column.add_child(_killer_row(killer))
-	column.add_child(_defence_rows(run, players))
-	ListMenu.screen_footer(self, [[&"menu_confirm", "Again"], [&"menu_cancel", "Main menu"]])
-
-
-## The Rush's stat chips: [{icon, text, color, detail}] for the fight reached (a sword; left out when
-## the Rush was given up before its first fight), the record (a star; `detail` is its day, drawn dim
-## after it; left out when `best` is not an entry) and the party size the record counts for (a
-## person: Solo, Duo, Trio).
-static func rush_chips(run: RushState, best: Dictionary) -> Array[Dictionary]:
-	var chips: Array[Dictionary] = []
-	if not run.reached_text().is_empty():
-		chips.append({"icon": &"sword", "text": run.reached_text(), "color": HudStyle.TEXT})
-	if RushRecords.is_valid(best):
-		chips.append({"icon": &"star", "text": "Best %d" % int(best.fight), "color": HudStyle.GOLD,
-				"detail": String(best.date)})
-	chips.append({"icon": &"person", "text": RushRecords.label(run.most_players), "color": HudStyle.TEXT})
-	return chips
-
-
-func _rush_stat_row(run: RushState, best: Dictionary) -> Control:
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", ROW_GAP)
-	for chip: Dictionary in rush_chips(run, best):
-		var chip_row := MapScreen.icon_chip(chip.icon, String(chip.text), chip.color as Color, STAT_ICON_PX, TEXT_SIZE)
-		var detail := String(chip.get("detail", ""))
-		if detail.is_empty():
-			row.add_child(chip_row)
-			continue
-		# The record's day sits right after its chip, dim, so the two read as one.
-		var pair := HBoxContainer.new()
-		pair.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pair.add_theme_constant_override("separation", RUSH_DETAIL_GAP)
-		pair.add_child(chip_row)
-		var day := HudStyle.make_label(detail, RECAP_SIZE, HudStyle.TEXT_DIM)
-		day.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		day.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		pair.add_child(day)
-		row.add_child(pair)
-	_add_hero_levels(row, run)
-	return row
 
 
 ## The stat chips: [{icon, text, color}] for the act reached (its boss's lair, "1/2"), the stops
@@ -199,44 +132,29 @@ static func _add_hero_levels(row: HBoxContainer, run: RunState) -> void:
 		row.add_child(hero)
 
 
-## The Relics a run keeps, measured from `found_before` (id -> any) and `pips_before` (id -> pips):
-## [{item, new (found for the first time), echo (its Echo learned for good in this run)}], in the
-## run's Relic order. The same rule as RunState.relic_gain_line_since (which has no late join; a late
-## joiner's end screen shows this row, own_kept, never words). `mastery_before`: the run's
-## pips when an online friend joined late (card #304), so only the pips earned after count; empty:
-## the whole run's.
-static func kept_relics(run: RunState, found_before: Dictionary, pips_before: Dictionary,
-		mastery_before: Dictionary = {}) -> Array[Dictionary]:
+## The Relics a run keeps, measured from `found_before` (id -> any): [{item, new}] for each Relic
+## found for the first time (never a starting Relic, card #328), in the run's Relic order. The same
+## rule as RunState.relic_gain_line_since (a late joiner's end screen shows this row, own_kept, never
+## words).
+static func kept_relics(run: RunState, found_before: Dictionary) -> Array[Dictionary]:
 	var kept: Array[Dictionary] = []
-	var totals := run.pips_totals_since(pips_before, mastery_before)
-	var needed := run.tuning.mastery_needed
-	for item: GearData in run.data.gear:
-		if item == null:
-			continue
-		var found := run.owns(item) and not found_before.has(item.id)
-		var learned := int(pips_before.get(item.id, 0)) < needed and int(totals.get(item.id, 0)) >= needed
-		if found or learned:
-			kept.append({"item": item, "new": found, "echo": learned})
+	for item: GearData in run.found_relics():
+		if not found_before.has(item.id):
+			kept.append({"item": item, "new": true})
 	return kept
 
 
 ## What an online friend keeps (card #281), measured from their own collection at the start.
-## `own_since` {relics, mastery}: the run's Relics and pips when they joined mid-run (card #304), so
-## only later finds and pips count; empty: from the start. A Relic the run had before they joined is
-## never New, and is not kept for its Echo either unless their own collection has it (their file
-## keeps pips for its own Relics only, RelicCollection.merge).
+## `own_since` {relics}: the run's Relics when they joined mid-run (card #304), so only later finds
+## count; empty: from the start. A Relic the run had before they joined is never New.
 static func own_kept(run: RunState, own_start: RelicCollection, own_since: Dictionary = {}) -> Array[Dictionary]:
 	var found := own_start.found.duplicate()
 	found.merge(own_since.get("relics", {}) as Dictionary)
-	var kept: Array[Dictionary] = []
-	for entry: Dictionary in kept_relics(run, found, own_start.pips, own_since.get("mastery", {}) as Dictionary):
-		if bool(entry.new) or own_start.owns((entry.item as GearData).id):
-			kept.append(entry)
-	return kept
+	return kept_relics(run, found)
 
 
-## The Relics kept: a "Kept" word, then each Relic's icon with its name, tagged New and/or Echo (its
-## Echo learned for good); an empty row when none (no "Nothing new" words, owner 2026-10-20).
+## The Relics kept: a "Kept" word, then each Relic's icon with its name, tagged New; an empty row
+## when none (no "Nothing new" words, owner 2026-10-20).
 func _kept_row(kept: Array[Dictionary]) -> Control:
 	# Named Relics take room: the row wraps onto more lines instead of running off the screen.
 	var row := HFlowContainer.new()
@@ -267,8 +185,6 @@ func _kept_row(kept: Array[Dictionary]) -> Control:
 		tags.add_theme_constant_override("separation", 6)
 		if bool(entry.new):
 			tags.add_child(MapScreen.icon_chip(null, "New", HudStyle.GOLD, 0.0, KEPT_TAG_SIZE, false))
-		if bool(entry.echo):
-			tags.add_child(MapScreen.icon_chip(&"echo", "Echo", HudStyle.GOLD, float(KEPT_TAG_SIZE) + 8.0, KEPT_TAG_SIZE, false))
 		box.add_child(tags)
 		row.add_child(box)
 	if kept.size() > KEPT_MAX:

@@ -1,7 +1,7 @@
 class_name DataHash
 extends RefCounted
 ## A fingerprint of the game's content and code (DESIGN.md 9.2): every file under data/ (characters,
-## enemies, attacks, abilities, encounters, zones, the run, gear, tuning...), the scripts and scenes
+## enemies, attacks, abilities, encounters, places, the run, gear, tuning...), the scripts and scenes
 ## (so a code-only fix also splits the builds) and the game version.
 ## Two machines play together only if their fingerprints match, because the host's events name
 ## content by id and rely on the same numbers on every machine.

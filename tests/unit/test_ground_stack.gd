@@ -1,9 +1,11 @@
 extends GutTest
 ## Ground pieces never share a height with a piece they overlap (card #269): GroundStack puts
 ## each one a step over every earlier piece it touches, higher layers over lower ones, and every
-## shipped zone, on many visits, keeps its whole stack under the props' shadow blobs.
+## shipped look keeps a few stacked pieces under the props' shadow blobs. (The zones' sections, the
+## pieces' only users until phase 26, are gone; GroundStack stays for the arenas, DESIGN.md 8.22 G7.)
 
-const SEEDS: int = 12
+## How many pieces a look must be able to stack under its shadows.
+const STACK_LEVELS: int = 4
 
 
 func _piece(x: float, z: float, size: Vector2, layer: int = 0, turn: float = 0.0) -> ZoneGroundData:
@@ -80,22 +82,17 @@ func test_built_pieces_lie_on_their_steps() -> void:
 	parent.free()
 
 
-func test_every_shipped_zone_stacks_cleanly_under_the_shadows() -> void:
+func test_every_shipped_look_stacks_a_few_pieces_under_the_shadows() -> void:
 	var visuals := load("res://data/presentation/combat_visuals.tres") as CombatVisuals
 	var checked := 0
-	for zone: ZoneData in FightSelect.load_zones():
-		var look := zone.look if zone.look != null else StageLook.new()
-		for seed_value: int in range(1, SEEDS + 1):
-			var built := ZoneAssembler.assemble(zone, seed_value)
-			var levels := GroundStack.levels(built.grounds)
-			var clashes := _clashes(built.grounds, levels)
-			assert_eq(clashes.size(), 0, "%s seed %d: overlapping pieces on one step %s" % [zone.id, seed_value, clashes])
-			var top := GroundStack.lift(look, GroundStack.top_level(built.grounds))
-			assert_lt(top, look.prop_shadow_lift,
-					"%s seed %d: the top ground piece (%.3f) stays under the shadow blobs" % [zone.id, seed_value, top])
-			assert_lt(top, visuals.shadow_lift,
-					"%s seed %d: the top ground piece (%.3f) stays under the walkers' shadows" % [zone.id, seed_value, top])
-			checked += 1
-			if not ZoneAssembler.is_sectioned(zone):
-				break
-	assert_gt(checked, 3, "found the zones")
+	for path: String in DirAccess.get_files_at("res://data/looks"):
+		if not path.ends_with(".tres"):
+			continue
+		var look := load("res://data/looks/" + path) as StageLook
+		if look == null:
+			continue
+		var top := GroundStack.lift(look, STACK_LEVELS - 1)
+		assert_lt(top, look.prop_shadow_lift, "%s: the top ground piece (%.3f) stays under the shadow blobs" % [path, top])
+		assert_lt(top, visuals.shadow_lift, "%s: the top ground piece (%.3f) stays under the fighters' shadows" % [path, top])
+		checked += 1
+	assert_gt(checked, 3, "found the looks")

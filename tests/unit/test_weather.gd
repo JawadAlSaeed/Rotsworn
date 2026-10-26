@@ -1,7 +1,7 @@
 extends GutTest
-## Weather in zones (card #303, DESIGN.md 8.20): a visit's weather comes from its seed (the same on
-## every machine), never moves the layout, changes only a copy of the zone's look and its air, and
-## every shipped weather is complete (icon, sounds, air art).
+## Weather (card #303, DESIGN.md 8.20): a weather is picked from a seed by its weights (the same on
+## every machine; a run fight's own roll is tested in test_run_fights.gd), changes only a copy of a
+## place's look and its air, and every shipped weather is complete (icon, sounds, air art).
 
 const ZONES := ["res://data/zones/rotten_hollow.tres", "res://data/zones/sunken_bog.tres",
 		"res://data/zones/ashen_ruins.tres"]
@@ -72,27 +72,6 @@ func test_air_thins_the_zone_and_adds_its_own() -> void:
 	assert_eq(out[1], drops)
 	w.zone_air_percent = 0
 	assert_eq(w.air_with(zone_air).size(), 1, "0%: the zone's own air is gone")
-
-
-func test_a_visit_gets_the_same_weather_and_layout_on_every_machine() -> void:
-	var zone := load(ZONES[0]) as ZoneData
-	var clear := zone.duplicate() as ZoneData
-	clear.weathers = [] as Array[WeatherData]
-	var kinds := {}
-	for seed_value: int in [3, 17, 99, 1234, 8888, 40001]:
-		var a := ZoneAssembler.assemble(zone, seed_value)
-		var b := ZoneAssembler.assemble(zone, seed_value)
-		assert_eq(a.weather, b.weather, "seed %d: same weather" % seed_value)
-		var plain := ZoneAssembler.assemble(clear, seed_value)
-		assert_eq(a.props.size(), plain.props.size(), "the weather never moves the layout")
-		assert_eq(a.enemies.size(), plain.enemies.size())
-		assert_eq(a.bounds_max, plain.bounds_max)
-		if a.weather != null:
-			assert_ne(a.look, zone.look, "a weathered visit has its own copy of the look")
-		else:
-			assert_eq(a.look, zone.look, "a clear visit keeps the zone's look")
-		kinds[a.weather.id if a.weather != null else "clear"] = true
-	assert_gt(kinds.size(), 1, "visits differ")
 
 
 func test_shipped_weather_is_complete() -> void:

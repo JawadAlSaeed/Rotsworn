@@ -98,7 +98,7 @@ func ranged_in(hard: bool) -> bool:
 
 
 ## True if this hit leaves a mark (a status or an AP drain) in a fight (hard: see on_hit_hard_only).
-## `allowed`: the fight lets ordinary hits mark (card #253: not the tutorial, not a run's first zone);
+## `allowed`: the fight lets ordinary hits mark (card #253: not the tutorial, not a run's first map row);
 ## a hard fight always does.
 func marks_in(hard: bool, allowed: bool = true) -> bool:
 	if on_hit_hard_only and not hard:

@@ -104,9 +104,9 @@ func handle_input(event: InputEvent) -> bool:
 		move_cursor(Vector2i.DOWN)
 	elif pressed(event, &"menu_confirm"):
 		confirm()
-	elif pressed(event, &"party_attributes"):
+	elif pressed(event, ControlBindings.SWITCH_PREV):
 		_turn_hero(-1)
-	elif pressed(event, &"party_skills"):
+	elif pressed(event, ControlBindings.SWITCH_NEXT):
 		_turn_hero(1)
 	else:
 		return false
@@ -119,8 +119,8 @@ func hints() -> Array:
 	if skill != null:
 		entries.append([&"menu_confirm", CONFIRM_WORDS[_state_of(skill)]])
 	if _heroes_with_tree() > 1:
-		entries.append([&"party_attributes", ""])
-		entries.append([&"party_skills", "Hero"])
+		entries.append([ControlBindings.SWITCH_PREV, ""])
+		entries.append([ControlBindings.SWITCH_NEXT, "Hero"])
 	return entries
 
 
@@ -430,7 +430,7 @@ func _build_header() -> void:
 	_hero_box.position = Vector2(MARGIN, HEADER_TOP)
 	_hero_box.add_theme_constant_override("separation", 14)
 	add_child(_hero_box)
-	_prev_chip = HintBar.new([[&"party_attributes", ""]], CHIP_SIZE)
+	_prev_chip = HintBar.new([[ControlBindings.SWITCH_PREV, ""]], CHIP_SIZE)
 	_prev_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_hero_box.add_child(_prev_chip)
 	var words := VBoxContainer.new()
@@ -453,7 +453,7 @@ func _build_header() -> void:
 	row.add_child(up)
 	_points = HudStyle.make_number("0", BADGE_SIZE, HudStyle.GOLD)
 	row.add_child(_points)
-	_next_chip = HintBar.new([[&"party_skills", ""]], CHIP_SIZE)
+	_next_chip = HintBar.new([[ControlBindings.SWITCH_NEXT, ""]], CHIP_SIZE)
 	_next_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_hero_box.add_child(_next_chip)
 

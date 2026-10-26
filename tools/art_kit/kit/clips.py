@@ -295,7 +295,7 @@ def read_tres(path: str) -> dict[str, Any]:
 
 # --- Previews -------------------------------------------------------------------------------------
 
-# Review GIF lengths in ms. They mirror the defaults in combat_visuals.tres / explore_visuals.tres
+# Review GIF lengths in ms. They mirror the defaults in combat_visuals.tres
 # (plan 2.3) so a GIF moves at about game speed; the game, not this table, decides the real ones.
 PREVIEW_MS: dict[str, int] = {
     "idle": 1600, "ready": 900, "down": 2400, "stand_front": 1600, "stand_back": 1600,

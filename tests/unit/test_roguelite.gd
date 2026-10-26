@@ -124,7 +124,7 @@ func test_the_run_end_offers_again_or_the_main_menu() -> void:
 
 func _with_relics() -> RelicCollection:
 	var c := RelicCollection.new()
-	c.merge(["iron_charm"], {})
+	c.merge(["iron_charm"])
 	return c
 
 
@@ -173,7 +173,12 @@ func test_feeding_the_hungry_relic_gives_a_rare_relic_and_a_curse() -> void:
 		if item.id != "iron_charm":
 			found = item
 	assert_gte(int(found.rarity), ItemData.Rarity.RARE)
+	assert_eq(run.holder_of(found), 0, "given to a hero: the one with the fewest Relics (DESIGN.md 8.24)")
+	assert_true(String(got.text).contains(run.data.party[0].display_name), "the line says who got it")
 	assert_eq(run.rot_percent(), 3, "and the Rotting Heart rots the party")
+	var picked := RunState.begin(_data, _tuning.duplicate(true) as Tuning, 7, 0, _with_relics())
+	picked.choose_event(_pact(picked, "hungry_relic"), picked.at, 0, -1, 2)
+	assert_eq(picked.relics_of(2).size(), 1, "the hero the player picked gets it")
 
 
 # --- a map with a dare (#286) ---------------------------------------------------------------------
@@ -261,8 +266,19 @@ func test_a_treasure_stop_has_a_plain_and_a_rotten_chest() -> void:
 		assert_true(plain.stop_done, "the result is final")
 		var rotten := _run(s)
 		var dark := rotten.open_treasure(3, true)
-		assert_true(dark.prize is GearData, "the rotten chest: a Relic")
-		assert_gte(int((dark.prize as GearData).rarity), ItemData.Rarity.RARE)
+		assert_null(dark.prize, "the rotten chest: no item")
+		var offered := dark.relics as Array[GearData]
+		assert_eq(offered.size(), rotten.relic_choice_count(), "but a pick of Relics (DESIGN.md 8.24)")
+		var rot := 0
+		for item: GearData in offered:
+			assert_gte(int(item.rarity), ItemData.Rarity.RARE)
+			assert_false(rotten.owns(item), "only Relics the run does not have")
+			rot += int(item.rot_touched)
+		# One must be taken and given for good: built like the spoils, never only rot-touched ones.
+		assert_lte(rot, _tuning.rot_gear_spoils_count, "at most the spoils' share of rot-touched Relics")
+		assert_lt(rot, offered.size(), "always a normal Relic among them")
+		assert_gte(GearBot.score(offered[GearBot.pick(offered)]), 0, "one the bot takes")
+		assert_eq(rotten.stop_relic_choices(), offered, "they wait at the stop until one is taken")
 		assert_eq(int(dark.gold), 0)
 		assert_eq(dark, _run(s).open_treasure(3, true), "seeded")
 		if dark.curse != null:
@@ -275,14 +291,6 @@ func test_a_treasure_stop_has_a_plain_and_a_rotten_chest() -> void:
 			outcomes.clean += 1
 	for key: String in outcomes:
 		assert_gt(int(outcomes[key]), 0, "the rotten chest sometimes gives: %s" % key)
-
-
-func test_every_shrine_and_wanderer_has_a_price() -> void:
-	var run := _run()
-	for file: String in DirAccess.get_files_at("res://data/offers"):
-		var offer := load("res://data/offers".path_join(file)) as ZoneOfferData
-		var words := run.offer_lines(offer, 100)
-		assert_false((words.price as Array).is_empty(), "%s is not free" % offer.id)
 
 
 func test_the_campfire_before_the_boss_offers_watch_and_sharpen() -> void:
@@ -314,7 +322,7 @@ func test_the_campfire_before_the_boss_offers_watch_and_sharpen() -> void:
 	assert_false(run.sharpened, "used up by the boss fight")
 	if other >= 0:
 		run.at = other
-		assert_false(run.is_watch_fire(), "other campfires keep Rest, Train and Upgrade")
+		assert_false(run.is_watch_fire(), "other campfires keep Rest and Train")
 
 
 # --- review fixes -----------------------------------------------------------------------------------
@@ -327,11 +335,11 @@ func test_a_run_saved_before_phase_21_keeps_its_map() -> void:
 	assert_not_null(copy)
 	assert_eq(copy.map_rules, 1, "the old rules")
 	var plain := RunMap.generate(CombatRng.new(9), run.tuning, run.act_data().zones.size(),
-			not run.act_data().elites.is_empty(), not run.act_data().events.is_empty(), false)
+			not run.act_data().elites.is_empty(), not run.act_data().events.is_empty(), false, false)
 	for s: Dictionary in copy.map.stops:
 		assert_eq(int(s.type), int(plain.stop(int(s.id)).type), "stop %d as it was" % int(s.id))
 	assert_eq(RunState.from_dict(_data, run.tuning, copy.to_dict()).map_rules, 1, "and keeps them when saved again")
-	assert_eq(RunState.from_dict(_data, run.tuning, run.to_dict()).map_rules, 2)
+	assert_eq(RunState.from_dict(_data, run.tuning, run.to_dict()).map_rules, RunState.MAP_RULES)
 
 
 func test_the_rotten_chest_stays_the_one_shown_open() -> void:

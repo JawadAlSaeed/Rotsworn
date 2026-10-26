@@ -8,7 +8,7 @@ extends CanvasLayer
 ## party_menu the party screen. Confirm, cancel or party_menu pressed while the map opens only
 ## finishes the opening.
 ## Phase 22: under the map, the picked stop's picture and name and 2 or 3 icon chips (detail_chips:
-## a zone's guard, optional foes and gold; a campfire's heal, train and upgrade, or keep watch and
+## a Fight stop's foes and gold; a campfire's heal and train, or keep watch and
 ## sharpen in the row before the boss; ...), never a rules
 ## sentence (the Glossary's "The map" topic has them). icon_chip() is shared by the run's info screens.
 ## Card #294: the legend down the left is small and dim (each kind's picture with its word), so the
@@ -50,6 +50,9 @@ var _detail: HBoxContainer
 var _bar: RunPartyBar
 var _choices: Array[int] = []
 var _sel: int = 0
+## Online friend whose turn it is (card #314): the stop chosen goes to the host as a request,
+## asks.call({"do": "stop", "id": id}); the host's next screen shows where the party went.
+var asks: Callable = Callable()
 ## Milliseconds since the map opened; it is opening while this is below _intro_ms().
 var _time_ms: float = 0.0
 var _paper: Texture2D
@@ -167,7 +170,22 @@ func choices() -> Array[int]:
 func choose(id: int) -> void:
 	if _choices.has(id):
 		Sfx.play("menu_confirm")
+		if asks.is_valid():
+			asks.call({"do": "stop", "id": id})
+			return
 		stop_chosen.emit(id)
+
+
+## The next stop under the cursor (an index into choices()), kept when the map is drawn again online.
+func selection() -> int:
+	return _sel
+
+
+func set_selection(index: int) -> void:
+	if _choices.is_empty():
+		return
+	_sel = clampi(index, 0, _choices.size() - 1)
+	_update_detail()
 
 
 ## True while the paper unrolls, the ink soaks in and (at a run's start) the map pans down.
@@ -308,9 +326,8 @@ func _choice_at(point: Vector2) -> int:
 static func detail_chips(run: RunState, stop: Dictionary, look: MapVisuals, gold_icon: String) -> Array[Dictionary]:
 	var chips: Array[Dictionary] = []
 	match int(stop.get("type", -1)):
-		RunMap.StopType.ZONE:
-			chips.append(_chip_data(look.guard_icon_path, "Guard", HudStyle.GOLD))
-			chips.append(_chip_data(look.foe_icon_path, "Optional", HudStyle.TEXT_DIM))
+		RunMap.StopType.FIGHT:
+			chips.append(_chip_data(look.foe_icon_path, "Fight", HudStyle.TEXT))
 			chips.append(_chip_data(gold_icon, "Gold", HudStyle.GOLD))
 		RunMap.StopType.REST:
 			chips.append(_chip_data(&"heart", "Heal %d%%" % run.rest_heal_percent(), HudStyle.HEAL))
@@ -319,7 +336,6 @@ static func detail_chips(run: RunState, stop: Dictionary, look: MapVisuals, gold
 				chips.append(_chip_data(look.ap_icon_path, "+%d AP" % run.tuning.sharpen_ap, HudStyle.TEXT))
 			else:
 				chips.append(_chip_data(&"up", "Train", HudStyle.TEXT))
-				chips.append(_chip_data(look.upgrade_icon_path, "Upgrade", HudStyle.TEXT))
 		RunMap.StopType.SHOP:
 			chips.append(_chip_data(&"gem", "Relics", HudStyle.TEXT))
 			chips.append(_chip_data(&"bag", "Items", HudStyle.TEXT))
@@ -332,7 +348,9 @@ static func detail_chips(run: RunState, stop: Dictionary, look: MapVisuals, gold
 				chips.append(_chip_data(&"gem", "Spoils", HudStyle.TEXT))
 				chips.append(_chip_data(&"heart", "Heal", HudStyle.HEAL))
 				chips.append(_chip_data(look.flag_path, "Next act", HudStyle.TEXT))
-		RunMap.StopType.ELITE:
+		RunMap.StopType.ELITE, RunMap.StopType.GUARD:
+			# An elite group or its place's guard, the same chips for both (DESIGN.md 8.22; a Guard
+			# stop is map rules 3's and reads as an Elite stop).
 			if bool(stop.get("crown", false)):
 				chips.append(_chip_data(&"gem", "Legendary", HudStyle.GOLD))
 			else:
@@ -349,7 +367,7 @@ static func detail_chips(run: RunState, stop: Dictionary, look: MapVisuals, gold
 
 ## True when `stop` is in the campfire row before the act's boss (card #287): the top all-campfire
 ## row, as RunState.is_watch_fire() finds it for the stop the party stands on. Those campfires offer
-## Rest, Keep watch and Sharpen, not Train and Upgrade.
+## Rest, Keep watch and Sharpen, not Train.
 static func is_watch_row(run: RunState, stop: Dictionary) -> bool:
 	if int(stop.get("type", -1)) != RunMap.StopType.REST:
 		return false
@@ -434,16 +452,16 @@ static func icon_picture(icon: Variant, px: float, color: Color = HudStyle.TEXT,
 
 static func stop_name(run: RunState, stop: Dictionary) -> String:
 	match int(stop.get("type", -1)):
-		RunMap.StopType.ZONE:
+		RunMap.StopType.FIGHT:
 			var zone := run.zone_of(stop)
-			return zone.display_name if zone != null else "Zone"
+			return zone.display_name if zone != null else "Fight"
 		RunMap.StopType.REST:
 			return "Campfire"
 		RunMap.StopType.SHOP:
 			return "Shop"
 		RunMap.StopType.FINAL:
 			return "Boss" if not run.is_last_act() else "Final fight"
-		RunMap.StopType.ELITE:
+		RunMap.StopType.ELITE, RunMap.StopType.GUARD:
 			return "Crowned elite" if bool(stop.get("crown", false)) else "Elite"
 		RunMap.StopType.EVENT:
 			return "?"
@@ -484,12 +502,13 @@ static func reachable_from(map: RunMap, from_id: int) -> Dictionary:
 
 
 ## The legend's rows, top to bottom: [stop type, picture path, word]. Every row is a picture with
-## its word (never a bare picture). Zones show the act's first zone's picture.
+## its word (never a bare picture). Fights show the act's first place's picture. No Guard row: a
+## place's guard waits at an Elite stop (DESIGN.md 8.22).
 static func legend_entries(run: RunState, look: MapVisuals) -> Array:
 	var zone_icon := ""
 	if not run.act_data().zones.is_empty():
 		zone_icon = run.act_data().zones[0].map_icon_path
-	return [[RunMap.StopType.ZONE, zone_icon, "Zone"], [RunMap.StopType.ELITE, look.elite_icon_path, "Elite"],
+	return [[RunMap.StopType.FIGHT, zone_icon, "Fight"], [RunMap.StopType.ELITE, look.elite_icon_path, "Elite"],
 			[RunMap.StopType.EVENT, look.event_icon_path, "Event"],
 			[RunMap.StopType.TREASURE, look.treasure_icon_path, "Treasure"],
 			[RunMap.StopType.SHOP, look.shop_icon_path, "Shop"], [RunMap.StopType.REST, look.rest_icon_path, "Campfire"],
@@ -583,7 +602,7 @@ func _layout() -> void:
 func _icon_for(stop: Dictionary) -> Texture2D:
 	var path := ""
 	match int(stop.get("type", -1)):
-		RunMap.StopType.ZONE:
+		RunMap.StopType.FIGHT:
 			var zone := _run.zone_of(stop)
 			path = zone.map_icon_path if zone != null else ""
 		RunMap.StopType.REST:
@@ -592,7 +611,7 @@ func _icon_for(stop: Dictionary) -> Texture2D:
 			path = _look.shop_icon_path
 		RunMap.StopType.FINAL:
 			path = _run.act_data().final_map_icon_path
-		RunMap.StopType.ELITE:
+		RunMap.StopType.ELITE, RunMap.StopType.GUARD:
 			path = _look.elite_icon_path
 		RunMap.StopType.EVENT:
 			path = _look.event_icon_path

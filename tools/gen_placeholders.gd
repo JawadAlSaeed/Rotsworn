@@ -15,7 +15,6 @@ const ENEMY_DIR := "res://data/enemies"
 const SFX_LIBRARY_PATH := "res://data/audio/sfx_library.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
 const LOOK_DIR := "res://data/looks"
-const ZONE_DIR := "res://data/zones"
 
 ## Base seed; each file mixes in a hash of its own path.
 const SEED := 20261006
@@ -300,7 +299,7 @@ func _make_fx() -> void:
 		_save_png(_slash(), v.slash_path)
 
 
-## Ground, backdrop, block textures and prop sprites named by every look and zone (DESIGN.md 7.3).
+## Ground, backdrop, block textures and prop sprites named by every look (DESIGN.md 7.3).
 ## Each file is drawn by the painter for its file name (_env_painters); an unknown name gets a
 ## plain stone placeholder.
 func _make_env() -> void:
@@ -314,14 +313,6 @@ func _make_env() -> void:
 			looks.append(res as StageLook)
 	var blocks: Array[ZoneBlockData] = []
 	var props: Array[ZonePropData] = []
-	for res: Resource in _load_folder(ZONE_DIR):
-		var zone := res as ZoneData
-		if zone == null:
-			continue
-		if zone.look != null:
-			looks.append(zone.look)
-		blocks.append_array(zone.blocks)
-		props.append_array(zone.props)
 	for look: StageLook in looks:
 		paths[look.floor_tile_path] = true
 		paths[look.backdrop_path] = true

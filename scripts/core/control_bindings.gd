@@ -24,12 +24,19 @@ extends RefCounted
 const KEY := "key"
 const PAD := "pad"
 
+## The switch inside a screen or tab (card #336): LT / RT on the pad, 1 / 3 on the keyboard. It steps
+## through what a page shows (the hero on the Hero and Skills tabs, the Relics tab's kinds, the Relic
+## book's sort, the Glossary's topics, the Controls page's Keyboard / Controller); LB / RB (Z / C,
+## item_turn_left / item_turn_right) stay the main tabs. The action names are older than the job
+## (they opened the Attributes and Skills pages) and are kept, so saved controls still load.
+const SWITCH_PREV: StringName = &"party_attributes"
+const SWITCH_NEXT: StringName = &"party_skills"
+
 ## The actions the player can rebind, in the order the Controls list shows them.
 const ACTIONS: Array[StringName] = [
 	&"fight_attack", &"fight_skills", &"fight_items", &"fight_ultimate",
 	&"defend_parry", &"defend_dodge", &"defend_jump", &"skill_press",
-	&"move_up", &"move_down", &"move_left", &"move_right",
-	&"field_strike", &"field_pickup", &"party_menu",
+	&"move_up", &"move_down", &"move_left", &"move_right", &"party_menu",
 	&"menu_up", &"menu_down", &"menu_left", &"menu_right",
 	&"menu_confirm", &"menu_cancel", &"pause",
 	&"party_attributes", &"party_skills", &"item_move", &"item_turn_left", &"item_turn_right",
@@ -44,13 +51,13 @@ const DEBUG_ONLY: Array[StringName] = [&"debug_overlay"]
 const LABELS := {
 	&"fight_attack": "Attack", &"fight_skills": "Skills (fight)", &"fight_items": "Items (fight)",
 	&"fight_ultimate": "Ultimate", &"defend_parry": "Parry", &"defend_dodge": "Dodge",
-	&"defend_jump": "Jump", &"skill_press": "Skill press", &"move_up": "Walk up",
-	&"move_down": "Walk down", &"move_left": "Walk left", &"move_right": "Walk right",
-	&"field_strike": "Strike (zone)", &"field_pickup": "Pick up (zone)", &"party_menu": "Backpack",
+	&"defend_jump": "Jump", &"skill_press": "Skill press", &"move_up": "Move up",
+	&"move_down": "Move down", &"move_left": "Move left", &"move_right": "Move right",
+	&"party_menu": "Backpack",
 	&"menu_up": "Menu up", &"menu_down": "Menu down", &"menu_left": "Menu left",
 	&"menu_right": "Menu right", &"menu_confirm": "Confirm", &"menu_cancel": "Back / run",
-	&"pause": "Pause", &"party_attributes": "Previous hero", &"party_skills": "Next hero",
-	&"item_move": "Move item", &"item_turn_left": "Tab left / turn item", &"item_turn_right": "Tab right / turn item",
+	&"pause": "Pause", &"party_attributes": "Switch back", &"party_skills": "Switch on",
+	&"item_move": "Skip / reset", &"item_turn_left": "Tab left", &"item_turn_right": "Tab right",
 	&"debug_overlay": "Stats overlay",
 }
 
@@ -65,38 +72,38 @@ const DETAILS := {
 	&"defend_dodge": "Enemy attacks",
 	&"defend_jump": "Low enemy hits",
 	&"skill_press": "Your skills' timed presses",
-	&"move_up": "Zones", &"move_down": "Zones", &"move_left": "Zones", &"move_right": "Zones",
-	&"field_strike": "Zones: hit first",
-	&"field_pickup": "Zones: pick up",
-	&"party_menu": "Map, zones, shops",
+	# Since phase 26 (DESIGN.md 8.22 G8) no screen reads the moves: only a pad's stick push on them
+	# counts, marking that pad P1's (Main._note_play_device, #304).
+	&"move_up": "Stick marks P1's pad", &"move_down": "Stick marks P1's pad",
+	&"move_left": "Stick marks P1's pad", &"move_right": "Stick marks P1's pad",
+	&"party_menu": "Map, shops, stops",
 	&"menu_up": "Every menu", &"menu_down": "Every menu",
 	&"menu_left": "Menus, change settings",
 	&"menu_right": "Menus, change settings",
 	&"menu_confirm": "Every menu",
 	&"menu_cancel": "Menus; hold to run",
-	&"pause": "Fights, zones, map",
-	&"party_attributes": "Y screen, Controls page",
-	&"party_skills": "Y screen, Controls page",
-	&"item_move": "Backpack",
-	&"item_turn_left": "Tabs, turn items",
-	&"item_turn_right": "Tabs, turn items",
+	&"pause": "Fights, map",
+	&"party_attributes": "Hero, kind, sort, page",
+	&"party_skills": "Hero, kind, sort, page",
+	&"item_move": "Starting Relics, Hero tab",
+	&"item_turn_left": "Main tabs",
+	&"item_turn_right": "Main tabs",
 	&"debug_overlay": "Practice fights",
 }
 
 ## Actions needed at the same moment. An input given to one of them is refused (or swapped) when
 ## another in the same group already has it. Menus, defence and skill presses never run together,
-## so the same button may do different things in different groups (W jumps in a fight and walks
+## so the same button may do different things in different groups (W jumps in a fight and moves
 ## up a menu). Pause is live almost everywhere, so it is in every group. The stats overlay only
 ## works in a practice fight (phase 22), so it is only in the fight groups (defence, skill presses,
-## the action menu): the walking and menu groups leave it out, and a player who never sees it
+## the action menu): the move and menu groups leave it out, and a player who never sees it
 ## listed is never offered a swap with it there.
 const GROUPS: Array = [
 	[&"defend_parry", &"defend_dodge", &"defend_jump", &"pause", &"debug_overlay"],
 	[&"skill_press", &"pause", &"debug_overlay"],
 	[&"fight_attack", &"fight_skills", &"fight_items", &"fight_ultimate", &"menu_up", &"menu_down",
 			&"menu_left", &"menu_right", &"menu_confirm", &"menu_cancel", &"pause", &"debug_overlay"],
-	[&"move_up", &"move_down", &"move_left", &"move_right", &"field_strike", &"field_pickup",
-			&"party_menu", &"pause"],
+	[&"move_up", &"move_down", &"move_left", &"move_right", &"party_menu", &"pause"],
 	[&"menu_up", &"menu_down", &"menu_left", &"menu_right", &"menu_confirm", &"menu_cancel",
 			&"pause", &"party_menu", &"party_attributes", &"party_skills", &"item_move",
 			&"item_turn_left", &"item_turn_right"],

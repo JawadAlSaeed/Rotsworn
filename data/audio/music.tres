@@ -6,7 +6,6 @@
 script = ExtResource("1_music")
 menu_path = "res://assets/audio/music/title.ogg"
 run_path = "res://assets/audio/music/map.ogg"
-zone_path = "res://assets/audio/music/zone_hollow.ogg"
 fight_path = "res://assets/audio/music/fight.ogg"
 boss_path = "res://assets/audio/music/boss.ogg"
 boss_rage_path = "res://assets/audio/music/boss_rage.ogg"

@@ -11,7 +11,8 @@ extends Resource
 @export_file("*.png") var roller_path: String = "res://assets/sprites/ui/map_roller.png"
 @export_file("*.png") var shop_icon_path: String = "res://assets/sprites/ui/map_shop.png"
 @export_file("*.png") var rest_icon_path: String = "res://assets/sprites/ui/map_rest.png"
-## Phase 15 stops (DESIGN.md 8.6 to 8.8): an elite fight, a "?" event, a treasure chest.
+## Phase 15 stops (DESIGN.md 8.6 to 8.8): an Elite stop (an elite group or, since 8.22, its place's
+## guard; a map rules 3 Guard stop shows it too), a "?" event, a treasure chest.
 @export_file("*.png") var elite_icon_path: String = "res://assets/sprites/ui/map_elite.png"
 @export_file("*.png") var event_icon_path: String = "res://assets/sprites/ui/map_event.png"
 @export_file("*.png") var treasure_icon_path: String = "res://assets/sprites/ui/map_treasure.png"
@@ -26,30 +27,25 @@ extends Resource
 @export_group("Run info icons (phase 22)")
 ## The run's info screens show an icon and a word instead of a sentence: the line under the map,
 ## the shop and the run's end. The gold coin and the hit icons come from combat_visuals.tres.
-## A zone's guard at the exit and its optional roaming enemies (the zone's own goal chips use the
-## same pictures, explore_visuals.tres).
+## A guard's skull and a Fight stop's enemies (DESIGN.md 8.22).
 @export_file("*.png") var guard_icon_path: String = "res://assets/sprites/ui/map_elite.png"
 @export_file("*.png") var foe_icon_path: String = "res://assets/sprites/ui/goal_foe.png"
-## An item up a level (the shop's Upgrade, the campfire's), new wares (Restock), back to the map
-## (the shop's Leave). Drawn by tools/art_kit/assets/ui_runinfo.py.
-@export_file("*.png") var upgrade_icon_path: String = "res://assets/sprites/ui/upgrade.png"
+## New wares (the shop's Restock) and back to the map (the shop's Leave). Drawn by
+## tools/art_kit/assets/ui_runinfo.py.
 @export_file("*.png") var restock_icon_path: String = "res://assets/sprites/ui/restock.png"
 @export_file("*.png") var leave_icon_path: String = "res://assets/sprites/ui/door.png"
-## The campfire before the boss (card #287) offers Keep watch and Sharpen instead of Train and
-## Upgrade: the team gauge filled and the boss fight's extra AP (the same chips as its stop screen,
-## stop_visuals.tres).
+## The campfire before the boss (card #287) offers Keep watch and Sharpen instead of Train: the team
+## gauge filled and the boss fight's extra AP (the same chips as its stop screen, stop_visuals.tres).
 @export_file("*.png") var gauge_icon_path: String = "res://assets/sprites/ui/chip_gauge.png"
 @export_file("*.png") var ap_icon_path: String = "res://assets/sprites/ui/ap_pip.png"
 
 @export_group("Shop item chips (card #295)")
 ## What a shop item does, as icon chips on the line under the shelves instead of its sentence
 ## (ShopScreen.item_chips). A heal, damage, a revive or a cleanse shows the fight's Items-list chips
-## (ActionMenu.item_chips: drawn glyphs, its AP with ap_icon_path); more max HP uses the same heart
-## and person glyphs, treasure the gold coin (combat_visuals.tres). Only the kinds a fight never
-## shows have pictures here: a curse, a key, a bigger pack.
+## (ActionMenu.item_chips: drawn glyphs, its AP with ap_icon_path); treasure the gold coin
+## (combat_visuals.tres). Only a curse, which a fight never shows, has its picture here (the run's
+## strip, RunPartyBar, draws each of the party's curses with its own icon_path, card #332).
 @export_file("*.png") var item_curse_icon_path: String = "res://assets/sprites/ui/chip_skull.png"
-@export_file("*.png") var item_key_icon_path: String = "res://assets/sprites/ui/lock.png"
-@export_file("*.png") var item_pocket_icon_path: String = "res://assets/sprites/ui/chip_bag.png"
 ## The line stays short: at most this many chips, and this many words in all of them (a chip that
 ## would go over is left out; the Glossary has the rules).
 @export_range(1, 6, 1) var item_chips_max: int = 3

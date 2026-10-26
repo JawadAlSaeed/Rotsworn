@@ -1,10 +1,10 @@
 extends GutTest
 ## Phase 22 "Fewer words, more icons" (DESIGN.md 11): practice-only helpers stay out of the real
-## game (cards #275, #276) and the zone's text turns into icons.
+## game (cards #275, #276) and the strip leaves out what a mode lacks. (The zone's goal chips went
+## with the zones in phase 26, DESIGN.md 8.22.)
 
 const TUNING_PATH := "res://data/tuning/tuning.tres"
 const VISUALS_PATH := "res://data/presentation/combat_visuals.tres"
-const EXPLORE_PATH := "res://data/presentation/explore_visuals.tres"
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 
 
@@ -115,41 +115,48 @@ func _has_stats(hints: Array) -> bool:
 	return false
 
 
-# --- the zone: icons, not sentences -------------------------------------------------------------
+# --- the status strip ----------------------------------------------------------------------------
 
-func test_the_zone_shows_only_buttons_bottom_left_and_goal_chips_top_right() -> void:
-	var hud := ZoneHud.new()
-	add_child_autofree(hud)
-	hud.setup(load(EXPLORE_PATH) as ExploreVisuals, "Rotten Hollow", true)
-	for label: Node in hud.find_children("*", "Label", true, false):
-		assert_false((label as Label).text.contains("FIRST STRIKE"), "First Strike is taught in the tutorial")
-	var chips := ZoneController.goal_chips(1, 2, false, true, true, false, 5, true)
-	hud.set_goal(chips)
-	assert_eq(hud.goal_chip_count(), 3, "seals, guard, enemies")
-	hud.set_goal(ZoneController.goal_chips(2, 2, true, true, true, true, 0, true))
-	assert_eq(hud.goal_chip_count(), 1, "only the way out")
-	for label: Node in hud.find_children("*", "Label", true, false):
-		assert_false((label as Label).text.contains("Rot seals"), "no sentences")
-
-
-func test_the_goal_icons_exist() -> void:
-	var explore := load(EXPLORE_PATH) as ExploreVisuals
-	for path: String in [explore.goal_seal_icon_path, explore.goal_guard_icon_path, explore.goal_exit_icon_path,
-			explore.goal_foe_icon_path]:
-		assert_true(ResourceLoader.exists(path), path)
-
-
-func test_the_zone_strip_has_no_gold() -> void:
+## The strip always opens with the run's gold, then the party's curses (only while there are any,
+## card #332), then one panel per hero (the gold-less strip of the cut second mode is gone, card #331).
+func test_the_strip_shows_the_gold_then_the_heroes() -> void:
 	var run := RunState.begin(load(RUN_PATH) as RunData, load(TUNING_PATH) as Tuning, 42)
-	var zone_bar := RunPartyBar.new()
-	add_child_autofree(zone_bar)
-	zone_bar.setup(run, false)
-	var map_bar := RunPartyBar.new()
-	add_child_autofree(map_bar)
-	map_bar.setup(run)
-	assert_eq(map_bar.get_child_count(), zone_bar.get_child_count() + 1, "the map keeps its gold panel")
-	for label: Node in zone_bar.find_children("*", "Label", true, false):
-		assert_false((label as Label).text.begins_with("Gold"), "no gold in a zone")
+	var bar := RunPartyBar.new()
+	add_child_autofree(bar)
+	bar.setup(run)
+	assert_eq(bar.get_child_count(), run.party_size() + 2, "the gold panel, the curses' panel and a panel per hero")
+	var gold := bar.get_child(0).find_children("*", "Label", true, false)
+	assert_eq((gold[0] as Label).text, RunPartyBar.GOLD_TEXT % run.gold, "the gold comes first")
+	assert_false((bar.get_child(1) as Control).visible, "no curse: no curses' panel")
+
+
+## Card #332: each curse on the party shows on the strip as its picture and name, in the rot green;
+## more of the same curse share one chip ("x2"); a Cleanse takes the chip away.
+func test_the_strip_shows_the_partys_curses() -> void:
+	var run := RunState.begin(load(RUN_PATH) as RunData, load(TUNING_PATH) as Tuning, 42)
+	var heart := run.items_by_id()["rotting_heart"] as ItemData
+	var moss := run.items_by_id()["grave_moss"] as ItemData
+	var bar := RunPartyBar.new()
+	add_child_autofree(bar)
+	bar.setup(run)
+	run.add_curse(heart)
+	run.add_curse(moss)
+	run.add_curse(heart)
+	assert_eq(RunPartyBar.curse_chips(run), [[heart.icon_path, "Rotting Heart x2", BackpackGrid.ROTTEN_COLOR],
+			[moss.icon_path, "Grave Moss", BackpackGrid.ROTTEN_COLOR]])
+	bar.refresh(run)
+	var panel := bar.get_child(1) as Control
+	assert_true(panel.visible, "the curses show")
+	var words: Array[String] = []
+	for label: Node in panel.find_children("*", "Label", true, false):
+		words.append((label as Label).text)
+	assert_eq(words, ["Rotting Heart x2", "Grave Moss"] as Array[String], "a few words each")
+	assert_eq(panel.find_children("*", "TextureRect", true, false).size(), 2, "each with its picture")
+	run.gold = run.cleanse_price() * 3
+	while not run.curses.is_empty():
+		run.cleanse(0, run.curses[0], run.curses.size())
+	bar.refresh(run)
+	assert_false(panel.visible, "all lifted: the panel goes")
 
 
 # --- two or three choices side by side -----------------------------------------------------------

@@ -8,9 +8,9 @@ extends Control
 ## drip, for a rot-touched one) and the sign inside has its category's colour, never a hero's; the
 ## Relic's own picture (GearData.icon_path) takes the sign's place when it has one. An unknown
 ## Relic is a dim neutral diamond with a "?".
-## For the Y screen (DESIGN.md 8.18): level pips along the bottom (set_level), the Relic slots on
-## hero rows (setup_slot: an empty dashed diamond with a plus, a locked one with a lock), a hero tag
-## in a corner (set_tag: who wears it, in the shared bag) and the cursor's gold glow (chosen).
+## For the Y screen (DESIGN.md 8.18): level pips along the bottom (set_level), an empty slot
+## (setup_slot: a dashed diamond with a plus, a locked one with a lock), a hero tag in a corner
+## (set_tag: who has it) and the cursor's gold glow (chosen).
 ## Drawn grids paint the same icon on their own canvas with draw_relic, draw_slot and draw_tag.
 
 ## What a Relic slot shows (setup_slot). NONE: not a slot, a Relic (or its "?").
@@ -81,8 +81,8 @@ var _tag_color: Color = HudStyle.TEXT
 
 
 ## `px`: the icon's width and height. `known` false: a "?" for a Relic not found yet. `level` > 0
-## shows that many gold pips along the bottom, out of `max_level` (pass tuning.relic_max_level;
-## 0 shows only the filled ones).
+## shows that many gold pips along the bottom, out of `max_level` (0 shows only the filled ones;
+## runs pass 0: Relics have no levels since DESIGN.md 8.24).
 func setup(item: GearData, px: float, known: bool = true, level: int = 0, max_level: int = 0) -> void:
 	_item = item
 	_known = known and item != null
@@ -105,8 +105,7 @@ func setup_slot(state: int, px: float) -> void:
 	_size_to(px)
 
 
-## The level pips: `level` filled out of `max_level` (tuning.relic_max_level; 0: only the filled
-## ones). Level 0 hides them.
+## The level pips: `level` filled out of `max_level` (0: only the filled ones). Level 0 hides them.
 func set_level(level: int, max_level: int = 0) -> void:
 	_level = level
 	_max_level = max_level

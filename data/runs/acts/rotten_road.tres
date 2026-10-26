@@ -2,18 +2,14 @@
 
 [ext_resource type="Resource" path="res://data/encounters/rat_pack.tres" id="p19_rat_pack"]
 [ext_resource type="Resource" path="res://data/encounters/husk_trio.tres" id="p19_husk_trio"]
-[ext_resource type="Resource" path="res://data/encounters/slinger_trio.tres" id="p19_slinger_trio"]
+[ext_resource type="Resource" path="res://data/encounters/tick_nest.tres" id="p19_tick_nest"]
 [ext_resource type="Script" path="res://scripts/data/encounter_data.gd" id="1_84adt"]
 [ext_resource type="Resource" path="res://data/encounters/elite_twin_husks.tres" id="2_mv7kw"]
 [ext_resource type="Resource" path="res://data/encounters/bloat_and_gnat.tres" id="2_qdufg"]
-[ext_resource type="Resource" path="res://data/encounters/hyena_and_fly.tres" id="3_k1jud"]
-[ext_resource type="Resource" path="res://data/encounters/elite_toad_court.tres" id="3_v7eke"]
-[ext_resource type="Resource" path="res://data/encounters/toad_and_fly.tres" id="4_2hew3"]
-[ext_resource type="Resource" path="res://data/encounters/elite_hyena_pack.tres" id="4_t5rtb"]
+[ext_resource type="Resource" path="res://data/encounters/elite_shade_coven.tres" id="3_v7eke"]
 [ext_resource type="Script" path="res://scripts/data/event_data.gd" id="5_6fojk"]
 [ext_resource type="Resource" path="res://data/encounters/shade_and_gnat.tres" id="5_ys0x4"]
 [ext_resource type="Resource" path="res://data/encounters/fly_pair.tres" id="6_qj51d"]
-[ext_resource type="Resource" path="res://data/events/weeping_well.tres" id="6_w7487"]
 [ext_resource type="Resource" path="res://data/events/gamblers_bones.tres" id="7_1ibg6"]
 [ext_resource type="Resource" path="res://data/events/wounded_pilgrim.tres" id="8_qdufg"]
 [ext_resource type="Resource" path="res://data/events/rot_blossom.tres" id="9_k1jud"]
@@ -27,19 +23,21 @@
 [ext_resource type="Resource" path="res://data/zones/rotten_hollow.tres" id="18_6pl38"]
 [ext_resource type="Resource" path="res://data/events/bone_collector.tres" id="18_84cmk"]
 [ext_resource type="Resource" path="res://data/events/hungry_scarecrow.tres" id="19_2c0ni"]
-[ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="19_nypkv"]
 [ext_resource type="Resource" path="res://data/events/tithe_collector.tres" id="20_wbtnn"]
+[ext_resource type="Resource" path="res://data/events/healing_spring.tres" id="p26_healing_spring"]
+[ext_resource type="Resource" path="res://data/events/war_idol.tres" id="p26_war_idol"]
+[ext_resource type="Resource" path="res://data/events/grave_robber.tres" id="p26_grave_robber"]
 
 [resource]
 script = ExtResource("16_imrb8")
 id = "rotten_road"
 display_name = "The Rotten Road"
-zones = Array[ExtResource("17_7u2c7")]([ExtResource("18_6pl38"), ExtResource("19_nypkv")])
+zones = Array[ExtResource("17_7u2c7")]([ExtResource("18_6pl38")])
 final_encounter = ExtResource("14_2c0ni")
 final_look = ExtResource("15_wbtnn")
 final_map_icon_path = "res://assets/sprites/ui/map_lair_husk_lord.png"
-elites = Array[ExtResource("1_84adt")]([ExtResource("2_mv7kw"), ExtResource("3_v7eke"), ExtResource("4_t5rtb")])
-events = Array[ExtResource("5_6fojk")]([ExtResource("6_w7487"), ExtResource("7_1ibg6"), ExtResource("8_qdufg"), ExtResource("9_k1jud"), ExtResource("10_2hew3"), ExtResource("12_qj51d"), ExtResource("13_84cmk"), ExtResource("18_84cmk"), ExtResource("19_2c0ni"), ExtResource("20_wbtnn")])
-ambushes = Array[ExtResource("1_84adt")]([ExtResource("2_qdufg"), ExtResource("3_k1jud"), ExtResource("4_2hew3"), ExtResource("5_ys0x4"), ExtResource("6_qj51d"), ExtResource("p19_rat_pack"), ExtResource("p19_husk_trio"), ExtResource("p19_slinger_trio")])
+elites = Array[ExtResource("1_84adt")]([ExtResource("2_mv7kw"), ExtResource("3_v7eke")])
+events = Array[ExtResource("5_6fojk")]([ExtResource("7_1ibg6"), ExtResource("8_qdufg"), ExtResource("9_k1jud"), ExtResource("10_2hew3"), ExtResource("12_qj51d"), ExtResource("13_84cmk"), ExtResource("18_84cmk"), ExtResource("19_2c0ni"), ExtResource("20_wbtnn"), ExtResource("p26_healing_spring"), ExtResource("p26_war_idol"), ExtResource("p26_grave_robber")])
+ambushes = Array[ExtResource("1_84adt")]([ExtResource("2_qdufg"), ExtResource("5_ys0x4"), ExtResource("6_qj51d"), ExtResource("p19_rat_pack"), ExtResource("p19_husk_trio"), ExtResource("p19_tick_nest")])
 ambush_picture_path = "res://assets/sprites/events/ambush_rotten_road.png"
 ambush_text = "The mark on the map was bait. Something on the Rotten Road was waiting for you."

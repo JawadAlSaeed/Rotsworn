@@ -1,6 +1,7 @@
 extends GutTest
 ## The Y screen's Hero tab (DESIGN.md 8.18): the old Attributes page's rules (8.2, card #175) on the
-## new page, the Echo box's door to the Echoes page, and what the tab tells the screen.
+## new page, the rows the cursor wraps over (no Echo box since DESIGN.md 8.24), and what the tab tells
+## the screen.
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 
@@ -221,17 +222,16 @@ func test_hints_stay_at_four() -> void:
 			assert_true(InputMap.has_action(action) or HudStyle.NAV_TOKENS.has(action), "%s is a button" % action)
 
 
-func test_the_echo_box_asks_for_the_echoes_page() -> void:
+func test_the_cursor_wraps_over_the_five_attribute_rows_only() -> void:
 	var run := _run()
 	var tab := _tab(run)
 	tab.set_hero(1)
+	assert_eq(HeroTab.STOPS, Attributes.COUNT, "the Echo box went with the Echoes (DESIGN.md 8.24)")
 	_press(tab, &"menu_up")
-	assert_eq(tab.row(), HeroTab.ECHO_ROW, "up from the first row wraps to the Echo box")
-	watch_signals(tab)
-	assert_true(_press(tab, &"menu_confirm"))
-	assert_signal_emitted_with_parameters(tab, "echoes_requested", [1])
-	assert_false(_press(tab, &"menu_right"), "left and right do nothing there")
-	assert_eq(Attributes.total(run.attributes[1]), 0)
+	assert_eq(tab.row(), Attributes.COUNT - 1, "up from the first row wraps to the last attribute")
+	_press(tab, &"menu_down")
+	assert_eq(tab.row(), 0, "and down wraps back")
+	assert_false(tab.has_signal("echoes_requested"), "nothing asks for an Echoes page")
 
 
 func test_an_online_client_asks_the_host() -> void:

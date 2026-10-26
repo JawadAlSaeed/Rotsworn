@@ -160,8 +160,8 @@ func test_the_same_key_is_fine_in_groups_that_never_run_together() -> void:
 	var model := ControlBindings.from_input_map()
 	# Parry and the skill press both use Space already; E is Attack and Confirm in the fight menu.
 	assert_true(bool(model.assign(&"defend_parry", _key(KEY_E)).ok), "E in the defence group is free")
-	assert_true(bool(model.assign(&"field_strike", _key(KEY_I)).ok))
-	assert_true(bool(model.assign(&"menu_up", _key(KEY_I)).ok), "walking and menus are different groups")
+	assert_true(bool(model.assign(&"move_up", _key(KEY_I)).ok))
+	assert_true(bool(model.assign(&"menu_up", _key(KEY_I)).ok), "the move and menu groups are different groups")
 	assert_eq(model.conflict_pairs(), [])
 
 

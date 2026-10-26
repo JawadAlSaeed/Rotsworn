@@ -35,7 +35,7 @@ script = ExtResource("1_iu4xt")
 text = "Take the silver from the altar"
 detail = "It was left for someone. It is cold."
 deal = SubResource("Resource_kuvdt")
-done_text = "The silver is cold. So is the thing that follows it into the pack."
+done_text = "The silver is cold. So is the thing that follows you out."
 
 [resource]
 script = ExtResource("5_un371")

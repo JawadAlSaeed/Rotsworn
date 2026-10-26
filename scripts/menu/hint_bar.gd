@@ -41,7 +41,7 @@ func _rebuild() -> void:
 
 
 ## Hints stacked one per line, chips on the left ([[action, text], ...]), then plain `notes`
-## lines; for the corner of the fight and zone screens.
+## lines; for the corner of the fight screen.
 static func stack(entries: Array, font_size: int, notes: Array = [], color: Color = HudStyle.TEXT) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE

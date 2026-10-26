@@ -1,8 +1,9 @@
 class_name ZoneOfferData
 extends Resource
-## A shrine or a wanderer in a zone (DESIGN.md 8.5): walk up, Confirm, and it asks a yes/no
-## question: pay this, get that. Each one works once per zone visit. Paying and giving are done by
-## RunState.take_offer (pure, tested); only in a run.
+## A deal: pay this, get that. Every "?" event choice (EventChoiceData.deal and risk_deal, DESIGN.md
+## 8.7) and every starting pact (8.19) is one. Paying and giving are done by RunState.take_offer
+## (pure, tested); only in a run. The name is from the walkable zones' shrines and wanderers, which
+## phase 26 turned into events (8.22, G7: the class name stays).
 
 ## Who loses max HP in a deal with cost_max_hp_percent (events, DESIGN.md 8.7).
 enum HpTarget {
@@ -26,34 +27,8 @@ enum ItemCost {
 ## What a deal needs the player to pick before it can be taken.
 enum Pick { NONE, HERO, ITEM }
 
-enum Kind {
-	## Stands still where a section put it ("Pray").
-	SHRINE,
-	## A friendly stranger met on some visits ("Talk").
-	WANDERER,
-}
-
 @export var id: String = ""
 @export var display_name: String = ""
-@export var kind: Kind = Kind.SHRINE
-## The question and the line under it (the price and the gift).
-@export var question: String = ""
-@export_multiline var detail: String = ""
-@export var yes_text: String = "Yes"
-@export var no_text: String = "Not now"
-
-@export_group("Look")
-## Its sprite (feet at the bottom edge), lit like a prop.
-@export_file_path("*.png") var sprite_path: String = ""
-@export_range(0.005, 1.0, 0.001) var pixel_size: float = 0.05
-## Glow of the sprite and the small light beside it (0: none).
-@export_range(0.0, 8.0, 0.05) var glow: float = 0.0
-@export var glow_color: Color = Color(1.0, 1.0, 1.0)
-## Walkers cannot come closer than this to its feet.
-@export_range(0.0, 5.0, 0.05) var solid_radius: float = 0.45
-## A 3D piece shown instead of the sprite (DESIGN.md 5.6; shrines). Its glowing surfaces carry
-## the glow; the glow above still sets the light beside it. Null: the sprite.
-@export var piece: WorldPieceData
 
 @export_group("Price")
 @export_range(0, 10000) var cost_gold: int = 0
@@ -66,11 +41,11 @@ enum Kind {
 ## greyed out when every hero is already at the floor.
 @export_range(0, 100, 1, "suffix:%") var cost_max_hp_percent: int = 0
 @export var cost_max_hp_target: HpTarget = HpTarget.EVERYONE
-## A backpack item is lost (never a rotten one: nobody misses those). Greyed out while the
-## backpack has nothing to lose.
+## A backpack item is lost. Greyed out while the backpack has nothing to lose.
 @export var cost_item: ItemCost = ItemCost.NONE
-## A curse: this rotten item (rotting_heart, grave_moss) goes into the backpack at once, where
-## only the shop's Cleanse (or throwing it away) removes it. Greyed out while it does not fit.
+## A curse: this rotten item (rotting_heart, grave_moss) goes on the party at once (RunState.curses,
+## card #332: never in the pack), where only the shop's Cleanse removes it. Never greyed: it needs no
+## room.
 @export var cost_rotten: ItemData
 
 @export_group("Fight (events)")
@@ -88,7 +63,7 @@ enum Kind {
 @export_range(0, 10000) var xp: int = 0
 ## Added to the team gauge (up to its max).
 @export_range(0, 1000) var team_gauge: int = 0
-## A fixed item (for example a Key).
+## A fixed item (for example a Salve).
 @export var item: ItemData
 ## A found item of at least this rarity, picked by the run's seed (-1: none).
 @export_range(-1, 2) var find_rarity: int = -1

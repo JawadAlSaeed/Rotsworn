@@ -1,10 +1,10 @@
 class_name TipSet
 extends Resource
-## Loading-screen tips (DESIGN.md 7.7): one shows, with the place's name, while a zone is built
-## (from the run map or the practice list). Edit data/branding/tips.tres.
+## Loading-screen tips (DESIGN.md 7.7): one shows, with the place's name, while a Fight or Guard
+## stop's fight is built (DESIGN.md 8.22). Edit data/branding/tips.tres.
 
 @export_multiline var tips: PackedStringArray = PackedStringArray()
-## The tip card stays at least this long (the zone is built at its end, so it starts when shown).
+## The tip card stays at least this long (the fight is built at its end, so it starts when shown).
 ## 0: only for as long as building takes.
 @export_range(0, 10000, 10, "suffix:ms") var hold_ms: int = 2600
 ## The card fades in and out over this long.

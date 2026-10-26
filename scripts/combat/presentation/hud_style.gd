@@ -105,6 +105,8 @@ const CHIP_HEIGHT_SHARE: float = 1.25
 const CHIP_TEXT_SHARE: float = 0.8
 ## Movement "buttons" for hints: token -> the actions it stands for, in the order they are written
 ## (so "WASD" is up, left, down, right). Their text follows the player's own bindings (nav_parts).
+## No screen shows @move since phase 26 (the moves only mark P1's pad, DESIGN.md 8.22 G8); menus,
+## the shop too, show the menu_* tokens.
 const NAV_TOKENS := {
 	&"@updown": [&"menu_up", &"menu_down"], &"@leftright": [&"menu_left", &"menu_right"],
 	&"@arrows": [&"menu_left", &"menu_up", &"menu_right", &"menu_down"],
@@ -407,7 +409,7 @@ static func set_bar_color(b: ProgressBar, fill: Color) -> void:
 
 ## The first keyboard key and the first pad button of an input action: [key, pad] ("" when
 ## that kind is not bound), read from the Input Map so hints follow remaps made in Project
-## Settings > Input Map. Also takes the NAV_TOKENS (moving in menus and zones).
+## Settings > Input Map. Also takes the NAV_TOKENS (moving in menus).
 static func binding_parts(action: StringName) -> Array[String]:
 	if NAV_TOKENS.has(action):
 		return nav_parts(action)

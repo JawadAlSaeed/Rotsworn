@@ -34,7 +34,7 @@ static func loop(n: int, t_ms: float, period_ms: float, phase_ms: float = 0.0) -
 	return clampi(floori(fposmod(t_ms + phase_ms, period_ms) * float(n) / period_ms), 0, n - 1)
 
 
-## The loop phase (0..period_ms) of fighter `id`: heroes 0-2, enemies after them, the zone leader
-## -1, roaming enemies -2 and down. The same id always gets the same phase.
+## The loop phase (0..period_ms) of fighter `id`: heroes 0-2, enemies after them (ids under 0
+## were the zones' walkers until phase 26). The same id always gets the same phase.
 static func phase_for(id: int, period_ms: float) -> float:
 	return fposmod(float(id) * GOLDEN, 1.0) * period_ms

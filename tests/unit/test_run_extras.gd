@@ -53,7 +53,7 @@ func test_the_run_carries_the_gauge() -> void:
 func test_the_transition_covers_only_while_shown() -> void:
 	var t := ScreenTransition.new()
 	add_child_autofree(t)
-	t.setup(ExploreVisuals.new())
+	t.setup(CombatVisuals.new())
 	assert_false(t.is_covering(), "nothing shown at first")
 	await t.fade_out()
 	assert_true(t.is_covering(), "black: input is blocked")

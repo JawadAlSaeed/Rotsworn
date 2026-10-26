@@ -39,8 +39,10 @@ func test_rows_and_stop_types() -> void:
 			for id: int in map.rows[r]:
 				var type := int(map.stop(id).type)
 				assert_ne(type, RunMap.StopType.FINAL, "only the top is the final fight")
+				# No Guard stops on new maps: guards wait at Elite stops (map rules 4, DESIGN.md 8.22).
+				assert_ne(type, RunMap.StopType.GUARD, "no Guard stops")
 				if r == 0:
-					assert_eq(type, RunMap.StopType.ZONE, "the run starts in zones")
+					assert_eq(type, RunMap.StopType.FIGHT, "the run starts with fights")
 		# The campfire row is right before the final fight, or one row earlier (card #286).
 		var rest_rows := 0
 		for r: int in [last - 1, last - 2]:
@@ -90,21 +92,21 @@ func test_no_shop_or_rest_twice_in_a_row() -> void:
 			return
 
 
-func test_zone_stops_get_a_zone_not_met_last_on_the_way_there() -> void:
+func test_fight_stops_get_a_place_not_met_last_on_the_way_there() -> void:
 	for s: int in range(1, SEEDS):
 		var map := _map(s)
 		for st: Dictionary in map.stops:
 			if int(st.type) == RunMap.StopType.ELITE:
-				assert_between(int(st.zone), 0, 2, "an elite fight takes place in a zone")
+				assert_between(int(st.zone), 0, 2, "an elite fight takes place in one of the places")
 				continue
-			if int(st.type) != RunMap.StopType.ZONE:
+			if not RunMap.is_fight_place(int(st.type)):
 				assert_eq(int(st.zone), -1)
 				continue
-			assert_between(int(st.zone), 0, 2, "a zone stop has a zone")
-			# Only when the paths leading here already met every zone last can one repeat.
+			assert_between(int(st.zone), 0, 2, "a Fight stop has a place")
+			# Only when the paths leading here already met every place last can one repeat.
 			var before := map.last_zones_before(int(st.id))
 			if before.size() < 3:
-				assert_false(before.has(int(st.zone)), "seed %d: same zone twice in a row" % s)
+				assert_false(before.has(int(st.zone)), "seed %d: same place twice in a row" % s)
 		if is_failing():
 			return
 
@@ -201,11 +203,10 @@ func test_shop_items_cost_gold_and_do_what_they_say_when_used() -> void:
 	var run := _run()
 	var salve := _item(ItemData.Effect.HEAL_ONE)
 	var feast := _item(ItemData.Effect.HEAL_ALL)
-	var tonic := _item(ItemData.Effect.MAX_HP_ONE)
 	run.gold = 0
 	run.hp[0] = 1
 	assert_false(run.pay_for(salve), "no gold, no salve")
-	run.gold = salve.price + feast.price + tonic.price
+	run.gold = salve.price + feast.price
 	assert_true(run.pay_for(salve))
 	var uid := run.add_item(salve)
 	assert_gte(uid, 0, "a bought item goes into the backpack")
@@ -219,12 +220,6 @@ func test_shop_items_cost_gold_and_do_what_they_say_when_used() -> void:
 	assert_true(run.pay_for(feast))
 	assert_true(run.use_item(run.add_item(feast), -1), "a feast needs nobody picked")
 	assert_eq(run.hp[2], 1 + CombatMath.percent(run.max_hp(2), feast.amount_percent))
-	var before_max := run.max_hp(1)
-	var before_hp := run.hp[1]
-	assert_true(run.pay_for(tonic))
-	assert_true(run.use_item(run.add_item(tonic), 1))
-	assert_eq(run.max_hp(1), CombatMath.percent_min1(before_max, 100 + tonic.amount_percent))
-	assert_eq(run.hp[1], before_hp + run.max_hp(1) - before_max, "the new HP is filled")
 	assert_eq(run.gold, 0)
 	assert_false(run.can_afford(salve))
 
@@ -263,17 +258,15 @@ func test_shipped_run_is_complete() -> void:
 	assert_not_null(_data.team_ultimate)
 	assert_not_null(_data.final_encounter)
 	assert_not_null(_data.final_look)
-	assert_gte(_data.zones.size(), 3, "three zones to pick from")
+	assert_gte(_data.zones.size(), 3, "three places to pick from")
 	assert_gt(_data.shop_items.size(), 0)
 	for item: ItemData in _data.shop_items:
 		assert_gt(item.price, 0, "%s costs something" % item.id)
-	for layout: ZoneData in _data.zones:
-		var zone := ZoneAssembler.assemble(layout, 1)
-		var guards := 0
-		for e: ZoneEnemyData in zone.enemies:
-			if e.guard:
-				guards += 1
-		assert_eq(guards, 1, "%s has one guard at its exit" % zone.id)
+	for place: ZoneData in _data.zones:
+		assert_false(place.roamer_pool.is_empty(), "%s has fights for its Fight stops" % place.id)
+		assert_not_null(place.guard, "%s has a guard for its Elite stops" % place.id)
+		if place.guard != null:
+			assert_false(place.guard.can_run, "%s: no running from its guard" % place.id)
 	var setup := _run().fight_setup(_data.final_encounter, 1, CombatSetup.Opening.NORMAL)
 	assert_eq(setup.validate(), PackedStringArray(), "the final fight is a valid setup")
 

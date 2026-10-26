@@ -22,7 +22,7 @@ const KEYBOARD: int = -2
 const ANY: int = -1
 const MAX_PLAYERS: int = 3
 
-## Player index -> device code. Player 0 (P1) leads in zones.
+## Player index -> device code. Player 0 is P1.
 var devices: Array[int] = []
 ## Hero slot -> player index.
 var owners: Array[int] = []

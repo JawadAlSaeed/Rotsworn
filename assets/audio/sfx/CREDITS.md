@@ -81,7 +81,6 @@ credit not required but given) or CC BY (credit required, given on that line).
 - **item_no_room**: audio/kenney_full/impact-sounds/impactWood_light_000.ogg (Kenney (kenney.nl), Impact Sounds, CC0, https://kenney.nl/assets/impact-sounds)
 - **item_drop**: audio/kenney_full/rpg-audio/dropLeather.ogg (Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio)
 - **item_found**: audio/kenney_full/rpg-audio/handleCoins2.ogg (Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio); audio/kenney_full/rpg-audio/cloth2.ogg (Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio)
-- **item_combine**: pop/fs-242113-pop-or-bloop-1 ("Pop or bloop" by ScratchnSniff, CC0, https://freesound.org/people/ScratchnSniff/sounds/242113); chime/fs-127149-ding-wav-1 ("ding.wav" by Daphne_in_Wonderland, CC0, https://freesound.org/people/Daphne_in_Wonderland/sounds/127149)
 - **chest_open**: audio/kenney_full/rpg-audio/metalLatch.ogg (Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio); audio/kenney_full/rpg-audio/creak1.ogg (Kenney (kenney.nl), RPG Audio, CC0, https://kenney.nl/assets/rpg-audio)
 - **voice_hyena**: audio/search/phase12/fs-680846.mp3 ("HyenaLaugh3.wav" by sounagix, CC0, https://freesound.org/people/sounagix/sounds/680846/)
 - **voice_toad**: audio/search/phase12/fs-582914.mp3 ("monster croak" by birdOfTheNorth, CC0, https://freesound.org/people/birdOfTheNorth/sounds/582914/)

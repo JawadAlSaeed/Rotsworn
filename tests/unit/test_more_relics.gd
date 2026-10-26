@@ -1,6 +1,7 @@
 extends GutTest
 ## Phase 20 (card #242, DESIGN.md 8.17): 16 more Relics, 50 in all, eight of them with new effects.
-## The shipped data, each new effect in the engine or the run, and the lower drop chance (#243).
+## The shipped data, each new effect in the engine or the run, and run fights that drop no Relics
+## (DESIGN.md 8.24; the old drop lists stay as data for phase 27).
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 
@@ -40,7 +41,9 @@ func _piece(id: String) -> GearData:
 
 # --- the data -----------------------------------------------------------------------------------
 
-func test_fifty_relics_ship_and_every_one_is_dropped_by_a_monster() -> void:
+## The monsters' drop lists are kept as data (phase 27 decides on them) though runs no longer roll
+## them (DESIGN.md 8.24).
+func test_fifty_relics_ship_and_every_one_is_still_on_a_monster_list() -> void:
 	var shipped := load(RUN_PATH) as RunData
 	assert_eq(shipped.gear.size(), 50)
 	var dropped := {}
@@ -54,7 +57,7 @@ func test_fifty_relics_ship_and_every_one_is_dropped_by_a_monster() -> void:
 	for item: GearData in shipped.gear:
 		assert_false(ids.has(item.id), "%s is listed once" % item.id)
 		ids[item.id] = true
-		assert_true(dropped.has(item.id), "%s is dropped by some monster" % item.id)
+		assert_true(dropped.has(item.id), "%s is on some monster's list" % item.id)
 	for id: String in NEW_IDS:
 		assert_true(ids.has(id), "%s ships" % id)
 
@@ -67,14 +70,21 @@ func test_the_new_relics_say_what_they_do_and_have_a_stat_line() -> void:
 		assert_false(item.description.is_empty(), item.id)
 		assert_false(GearData.effect_text(item.effect, item.amount).is_empty(), item.id + " has an effect line")
 		assert_gt(item.stat_points, 0, item.id + " has a stat line")
-		assert_between(item.echo_cost, 1, 4, item.id + ": an Echo cost (by strength since phase 21)")
 		var runs_in_fight := GearData.PASSIVE_KEYS.has(item.effect)
 		assert_true(runs_in_fight or item.effect == GearData.Effect.WIN_HEAL or item.effect == GearData.Effect.SPEED,
 				item.id + " does something")
 
 
-func test_the_drop_chance_is_eight_percent() -> void:
-	assert_eq(_tuning.relic_drop_percent, 8, "card #243: 25% fewer drops than 10%")
+func test_won_run_fights_drop_no_relics() -> void:
+	var run := RunState.begin(load(RUN_PATH) as RunData, Fx.run_tuning(_tuning), 7)
+	run.go(run.choices()[0])
+	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
+	var guard := load("res://data/encounters/guard_gorged_one.tres") as EncounterData
+	for encounter: EncounterData in [husk, guard, run.final_encounter()]:
+		var got := run.finish_fight(RunState.VICTORY, run.hp.duplicate(), encounter)
+		assert_false(got.has("relics"), "%s: no drops to hand out" % encounter.id)
+	assert_true(run.relics.is_empty(), "Relics come from Elite stops, bosses, chests and shops only")
+	assert_false("relic_drop_percent" in run.tuning, "the drop chance is gone")
 
 
 # --- the new effects ----------------------------------------------------------------------------
@@ -149,9 +159,9 @@ func test_a_won_fight_heals_the_wreath_wearer() -> void:
 	var left: Array[int] = []
 	var max_hp := 0
 	for wear: bool in [false, true]:
-		var run := RunState.begin(_data, Fx.all_slots(_tuning), 7)
+		var run := RunState.begin(_data, Fx.run_tuning(_tuning), 7)
 		if wear:
-			run.wear(0, 0, _piece("victors_wreath"))
+			run.give_relic(_piece("victors_wreath"), 0)
 		var low: Array[int] = [10, 10, 10]
 		run.finish_fight(RunState.VICTORY, low, encounter)
 		left.append(run.hp[0])

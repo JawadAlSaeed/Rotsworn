@@ -1,7 +1,7 @@
 # Blender kit: the game's 3D world pieces, built by code
 
-Walls, rocks, stumps and the other hard, solid things in the zones are small 3D models built here
-in Blender by Python (DESIGN.md 5.6). Soft things (grass, ferns, reeds, bushes), people, animals,
+Walls, rocks, stumps and the other hard, solid things of the fight arenas (and, until phase 26, of
+the walkable zones, DESIGN.md 8.22) are small 3D models built here in Blender by Python (DESIGN.md 5.6). Soft things (grass, ferns, reeds, bushes), people, animals,
 heroes and monsters stay flat pixel art from `tools/art_kit/`.
 
 Needs Blender 5.2 (`BLENDER_PATH`, here `D:/Blender/blender.exe`). Runs with no window:
@@ -15,7 +15,7 @@ python tools/blender_kit/check.py
 `build.py` writes one `.glb` per piece to `assets/models/` (or `--out DIR`) and prints each
 piece's size in game axes (x, height, depth) and its triangles. `--preview [FILE]` renders the
 review sheet (default `tools/blender_kit/preview/pieces.png`, not in git): every piece side by
-side from the zone camera's angle, wearing its pixel textures the way the game lays them, so a
+side from the high angle the zones' camera had, wearing its pixel textures the way the game lays them, so a
 piece can be judged without opening the game. Then import in Godot (`run_game.bat` does it).
 Builds are deterministic: a fixed seed per piece, same code = same file.
 
@@ -43,22 +43,22 @@ Builds are deterministic: a fixed seed per piece, same code = same file.
 - Flat shaded, low-poly: at most 1500 triangles.
 - Vertex colours `Col` (linear): the game multiplies them over the texture.
 - One material per surface, named like the surface (`stone`, `bark`, `rot`). No textures in the
-  file: the game lays the zone's tileable pixel texture over each surface in world space.
+  file: the game lays the place's tileable pixel texture over each surface in world space.
 - A texture world size of 1.6 makes one texture pixel 0.05 m, the same as a sprite prop's pixel.
   Brick courses of 0.4 m line up with `ruin_wall.png`'s rows.
 
 ## In the game
 
 Each model has a piece file in `data/pieces/` (`WorldPieceData`): the model, per surface its
-texture, texture world size and glow, and the flat sprites it carries. A zone uses a piece two
-ways:
+texture, texture world size and glow, and the flat sprites it carries. An arena (a `StageLook`'s
+`arena_props` and `arena_blocks`) uses a piece two ways:
 
 - a `ZonePropData` with `piece` set: the piece at its own size (times `scale`), turned by
-  `rotation_y_degrees`, mirrored by `flip`, solid as a circle of `solid_radius` (0: walk through);
-- a `ZoneBlockData` with `piece` set: the piece stretched to the block's `size`, solid as its box.
+  `rotation_y_degrees`, mirrored by `flip`;
+- a `ZoneBlockData` with `piece` set: the piece stretched to the block's `size`.
 
-Shrines (`ZoneOfferData.piece`), the rot seal and the chests (`ExploreVisuals.seal_piece`,
-`chest_piece`, `chest_open_piece`) name their pieces too.
+The zones' shrines, rot seal, gate, exit signpost and chests had pieces too; they went with the
+walkable zones in phase 26 (DESIGN.md 8.22, G7). `tools/dress_arenas.gd` places the arena pieces.
 
 ## A new piece, step by step
 
@@ -66,5 +66,6 @@ Shrines (`ZoneOfferData.piece`), the rot seal and the chests (`ExploreVisuals.se
    pixel is 0.05 m) and add it to that module's `PIECES`.
 2. `build.py -- NAME --preview` and look at the sheet; repeat.
 3. `build.py -- NAME` (writes the model and, the first time, `data/pieces/NAME.tres`).
-4. `python tools/blender_kit/check.py`, then place it (`swap_props.py`, or a prop in a section).
+4. `python tools/blender_kit/check.py`, then place it (`swap_props.py`, a look's arena props, or
+   `tools/dress_arenas.gd`).
 5. `run_tests.bat --no-pause` (it imports first).

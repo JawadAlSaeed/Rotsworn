@@ -11,16 +11,12 @@ extends RefCounted
 ##   --quit-on-end                   quit one second after the fight ends
 ##   --seed=N                        fixed fight seed (else tuning fixed_seed, else random)
 ##   --encounter=ID                  start this encounter (data/encounters) instead of the list
-##   --zone=ID                       start in this zone (data/zones) instead of the list
-##   --weather=ID                    every zone visit has this weather (data/weather: rain, storm,
-##                                   fog, wind, dusk) or none ("clear"), for tests and pictures
-##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12)
+##   --weather=ID                    every run fight but the boss's has this
+##                                   weather (data/weather: rain, storm, fog, wind, dusk) or none
+##                                   ("clear"), for tests and pictures
+##   --first-strike                  start --encounter with a FIRST STRIKE (DESIGN.md 2.12; a run's
+##                                   Fight stops open with the First Strike ring instead, 8.22)
 ##   --run                           start a new run at once (DESIGN.md 8)
-##   --rush                          start a Fight Rush at once (DESIGN.md 8.21); with --host=N host
-##                                   one online (card #312)
-##   --rush-start=N                 (dev tool) the Rush starts at fight N, the fights before it
-##                                   replayed as perfect wins (at least 1; implies --rush)
-##   --rush-fights=N                 (dev tool) the Rush ends after N fights (0: no cap; implies --rush)
 ##   --save-path=PATH                (dev tool) keep the run save at PATH (a user:// path); the bot
 ##                                   never touches the player's real save, so it saves only with this
 ##   --journal-path=PATH             (dev tool) keep the Rot Journal at PATH (a user:// path); with it
@@ -33,7 +29,7 @@ extends RefCounted
 ##                                   after launch, at the next quiet moment (DESIGN.md 9.3)
 ##   --pad-leave-after=S             (with --autoplay) the last local player leaves after S seconds
 ##   --roster-in-fight               those two wait for the next fight and come a few seconds into it
-##   --host=N                        host online; start a run (a Fight Rush with --rush) once N
+##   --host=N                        host online; start a run once N
 ##                                   players (1 to 3) are in; 1 starts at once, friends drop in later
 ##                                   (DESIGN.md 9.3)
 ##   --seat-in-fight                 (online host) seat a friend who drops in only a few seconds
@@ -48,10 +44,11 @@ extends RefCounted
 ##   --screen=NAME                   open a screen at once: menu, settings, players, practice,
 ##                                   title, controller, calibration_offer, credits, glossary (glossary_<topic> opens that
 ##                                   topic: glossary_reading), journal, party, heroes, attributes, skills, calibration,
-##                                   tutorial, map, map_start, map_act2, shop, campfire,
+##                                   tutorial, map, map_start, map_act2, map_act3, first_strike (a Fight
+##                                   stop's name card with its First Strike ring, starting over),
+##                                   shop, campfire,
 ##                                   event, treasure, controls_vibration (the Controller page on
-##                                   its Vibration row), zone_exit (a zone's open exit), zone_leave (its
-##                                   "Leave the zone?" question), players_in_run (the Players overlay
+##                                   its Vibration row), players_in_run (the Players overlay
 ##                                   over the pause menu, two players), pause_players (the pause menu
 ##                                   with its Players row)
 ##   --menu-keys=ACTION,ACTION,...   (dev tool, for pictures of the fight menu) the first time the
@@ -81,22 +78,24 @@ var quit_on_end: bool = false
 var seed_override: int = -1
 ## "" when no --encounter was given.
 var encounter_id: String = ""
-## "" when no --zone was given.
-var zone_id: String = ""
-## --weather=ID: every zone visit has this weather ("clear": none); "" : the seed picks (card #303).
+## --weather=ID: every run fight but the boss's has this weather ("clear": none); "" : the seed
+## picks (card #303, DESIGN.md 8.22).
 var weather_id: String = ""
 var first_strike: bool = false
 var run: bool = false
-## --rush: start a Fight Rush at once; --rush-start=N: its first fight (above 1 replays the ones
-## before, RushState.head_start); --rush-fights=N: it stops after N fights (0: never). The last two
-## imply --rush and keep the Rush out of the records (DESIGN.md 8.21).
-var rush: bool = false
-var rush_start: int = 1
-var rush_fights: int = 0
 ## --continue: pick up the saved run at once.
 var continue_run: bool = false
 ## --save-path=PATH ("" : the real save, and no saving for the bot).
 var save_path: String = ""
+## Online saves (card #313): --online-save-path=PATH keeps the host's online slot there ("" : the real
+## one, and no online saving for the bot); --continue-online makes an autoplay host continue that
+## saved run once its players are in (--host=N); --save-quit-at=N makes the bot Save & Quit on
+## arriving at stop N (0: never); --seat-path=PATH is a friend's seat file ("" : the real one for a
+## person, none for the bot).
+var online_save_path: String = ""
+var continue_online: bool = false
+var save_quit_at: int = 0
+var seat_path: String = ""
 ## --journal-path=PATH ("" : the real journal, and no recording for bots or practice fights).
 var journal_path: String = ""
 ## --relics-path=PATH ("" : the real Relic collection, which bots never read or write).
@@ -187,26 +186,24 @@ static func from_args(args: PackedStringArray, tuning: Tuning) -> CombatOptions:
 			options.quit_on_end = true
 		elif arg.begins_with("--encounter="):
 			options.encounter_id = arg.substr("--encounter=".length())
-		elif arg.begins_with("--zone="):
-			options.zone_id = arg.substr("--zone=".length())
 		elif arg.begins_with("--weather="):
 			options.weather_id = arg.substr("--weather=".length())
 		elif arg == "--first-strike":
 			options.first_strike = true
 		elif arg == "--run":
 			options.run = true
-		elif arg == "--rush":
-			options.rush = true
-		elif arg.begins_with("--rush-start="):
-			options.rush = true
-			options.rush_start = maxi(1, arg.substr("--rush-start=".length()).to_int())
-		elif arg.begins_with("--rush-fights="):
-			options.rush = true
-			options.rush_fights = maxi(0, arg.substr("--rush-fights=".length()).to_int())
 		elif arg == "--continue":
 			options.continue_run = true
 		elif arg.begins_with("--save-path="):
 			options.save_path = arg.substr("--save-path=".length())
+		elif arg.begins_with("--online-save-path="):
+			options.online_save_path = arg.substr("--online-save-path=".length())
+		elif arg == "--continue-online":
+			options.continue_online = true
+		elif arg.begins_with("--save-quit-at="):
+			options.save_quit_at = maxi(0, arg.substr("--save-quit-at=".length()).to_int())
+		elif arg.begins_with("--seat-path="):
+			options.seat_path = arg.substr("--seat-path=".length())
 		elif arg.begins_with("--journal-path="):
 			options.journal_path = arg.substr("--journal-path=".length())
 		elif arg.begins_with("--relics-path="):

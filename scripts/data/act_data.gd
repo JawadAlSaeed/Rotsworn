@@ -1,11 +1,11 @@
 class_name ActData
 extends Resource
-## One act of a run (DESIGN.md 8.9): its own map, zones, elite fights, events and boss. A run plays
+## One act of a run (DESIGN.md 8.9): its own map, places, elite fights, events and boss. A run plays
 ## its acts in order; beating an act's boss opens the next act's map.
 
 @export var id: String = ""
 @export var display_name: String = ""
-## Each zone stop of this act is one of these.
+## Each Fight, Guard and elite stop of this act is in one of these places (DESIGN.md 8.22).
 @export var zones: Array[ZoneData] = []
 ## The boss at the top of this act's map, where its fight happens and its picture on the map.
 @export var final_encounter: EncounterData
@@ -15,7 +15,7 @@ extends Resource
 @export var elites: Array[EncounterData] = []
 ## "?" stops pick one of these, never the same one twice in a run (DESIGN.md 8.7).
 @export var events: Array[EventData] = []
-## Every zone fight here is its deep (variant) version (DESIGN.md 2.16).
+## Every Fight and Elite stop's fight here is its deep (variant) version (DESIGN.md 2.16).
 @export var deep: bool = false
 ## A "?" stop can turn into an ambush instead of an event (tuning unknown_fight_percent_base and
 ## unknown_fight_percent_step; DESIGN.md 8.7): it fights one of these. A deep act fights their deep

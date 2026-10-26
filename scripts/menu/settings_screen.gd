@@ -8,8 +8,8 @@ extends CanvasLayer
 ## Reset progress). Everything is saved per machine at once (PlayerSettings, user://settings.cfg)
 ## and graphics changes show at once, even over a fight. Left/right change a value, confirm toggles
 ## or opens. Reset progress (DESIGN.md 8.17) asks twice and then emits progress_reset for Main to
-## wipe the Relics, the unlocked oaths, the Fight Rush records (8.21) and a saved run; it is only
-## offered from the main menu, never in a run.
+## wipe the Relics, the unlocked oaths and a saved run; it is only offered from the main menu, never
+## in a run.
 ## The mouse (card #202): pointing at a row chooses it, a click confirms it (on a row with a value
 ## that Left / Right change, the left half of the row steps down and the right half up), a right
 ## click or the back button goes back.
@@ -20,7 +20,7 @@ extends CanvasLayer
 ## RT pill, the D-pad cross, all on the same dark fill), then its own options (the Controller page:
 ## Vibration, card #299) and its own "Reset to defaults" (asks twice; it puts back only that device's
 ## buttons). The section opens on the page of the device in the player's hands
-## (ButtonPrompts.pad_in_use). LT / RT (T / K) open the Keyboard / Controller page from any row,
+## (ButtonPrompts.pad_in_use). LT / RT (1 / 3) open the Keyboard / Controller page from any row,
 ## Left / Right do it from a button's row, and a click on a page's name opens it. Confirm waits for
 ## the new key or button (Escape or the pad's Menu button cancels, and so does waiting too long). A
 ## button an action in the same group already has asks to swap them; ControlBindings holds the rules.
@@ -52,7 +52,7 @@ const HEADER_TOP_PX: float = 40.0
 ## The size of a Controls row's button picture (a hint's font size; ButtonChip scales from it).
 const BINDING_CHIP_SIZE: int = 26
 ## Reset progress's question: what is wiped, then what stays, on two lines.
-const RESET_DETAIL := "Relics and their levels, unlocked oaths, Rush records and a saved run are wiped.\n" \
+const RESET_DETAIL := "The Relic book, unlocked oaths and a saved run are wiped.\n" \
 		+ "Settings, controls and the Journal stay."
 
 enum Section { GRAPHICS, SOUND, CONTROLS, GAME }
@@ -84,8 +84,8 @@ const SECTION_ROWS := {
 		"ambient_occlusion", "depth_of_field", "back"],
 	Section.SOUND: ["master", "music", "effects", "voice", "back"],
 	Section.CONTROLS: [],  # built by controls_rows: the page's actions, its options, reset and back
-	Section.GAME: ["text_size", "screen_shake", "flashes", "timing_ring", "calibrate", "reset_lag", "reset_progress",
-		"back"],
+	Section.GAME: ["text_size", "screen_shake", "flashes", "timing_ring", "take_turns", "calibrate", "reset_lag",
+		"reset_progress", "back"],
 }
 ## Rows whose value Left / Right change: a mouse click steps it by the side of the row it lands on.
 const SIDED_ROWS: Array[String] = ["master", "music", "effects", "voice", "window_size", "fps_limit",
@@ -379,6 +379,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		"timing_ring":
 			PlayerSettings.set_show_timing_ring(not PlayerSettings.show_timing_ring(_tuning))
 			Sfx.play("menu_confirm")
+		"take_turns":
+			# Online, as host (card #314): from the next choice screen on.
+			PlayerSettings.set_take_turns(not PlayerSettings.take_turns())
+			Sfx.play("menu_confirm")
 		"calibrate":
 			if answer == &"confirm":
 				Sfx.play("menu_confirm")
@@ -529,6 +533,8 @@ func _refresh() -> void:
 			"timing_ring":
 				_menu.set_item(i, "Training ring", true, "Practice fights only",
 						_on_off(PlayerSettings.show_timing_ring(_tuning)))
+			"take_turns":
+				_menu.set_item(i, "Take turns", true, "Online: friends choose too", _on_off(PlayerSettings.take_turns()))
 			"calibrate":
 				# Which kinds of input are measured, never the milliseconds (phase 22).
 				_menu.set_item(i, "Lag calibration", true, "Parry with the beat", calibrated_text(
@@ -655,13 +661,13 @@ func _set_device_page(page: ControlsPage) -> void:
 	_refresh()
 
 
-## The page keys and clicks on the Controls section: LT / RT (T / K) open the Keyboard /
+## The page keys and clicks on the Controls section: LT / RT (1 / 3) open the Keyboard /
 ## Controller page, so does a click on a page's tab. True when the event was used.
 func _device_page_input(event: InputEvent) -> bool:
 	var page := -1
-	if _page_pressed(event, &"party_attributes"):
+	if _page_pressed(event, ControlBindings.SWITCH_PREV):
 		page = ControlsPage.KEYBOARD
-	elif _page_pressed(event, &"party_skills"):
+	elif _page_pressed(event, ControlBindings.SWITCH_NEXT):
 		page = ControlsPage.CONTROLLER
 	elif MenuMouse.is_click(event):
 		page = MenuMouse.control_at(_device_tabs, (event as InputEventMouse).position)
@@ -690,7 +696,7 @@ func _build_device_strip(column: VBoxContainer) -> void:
 	_device_strip.alignment = BoxContainer.ALIGNMENT_CENTER
 	_device_strip.add_theme_constant_override("separation", PAGE_TAB_GAP)
 	column.add_child(_device_strip)
-	_device_strip.add_child(_page_key_hint(&"party_attributes"))
+	_device_strip.add_child(_page_key_hint(ControlBindings.SWITCH_PREV))
 	for page: int in PAGE_NAMES.size():
 		var tab := PanelContainer.new()
 		tab.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -710,7 +716,7 @@ func _build_device_strip(column: VBoxContainer) -> void:
 		_device_tabs.append(tab)
 		_device_words.append(word)
 		_device_glyphs.append(glyph)
-	_device_strip.add_child(_page_key_hint(&"party_skills"))
+	_device_strip.add_child(_page_key_hint(ControlBindings.SWITCH_NEXT))
 
 
 ## The chip of a page key next to the tabs; it follows the keyboard / pad hints (HintBar listens).

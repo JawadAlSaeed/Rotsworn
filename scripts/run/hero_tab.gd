@@ -1,25 +1,18 @@
 class_name HeroTab
 extends PartyTab
 ## The Y screen's Hero tab (DESIGN.md 8.18): one hero's level, attribute points and combat stats,
-## like Expedition 33's character page, and a small door to their Echoes. It replaces the old
+## like Expedition 33's character page. It replaces the old
 ## Attributes page (AttributesScreen, DESIGN.md 8.2) and keeps its rules: up / down picks an
 ## attribute, right or Confirm adds a point, left takes one back, X / R takes every point back (a
 ## free reset, asked first), and every change counts at once. The HP a hero is missing stays the
 ## same, so a reset never heals, and a hero too wounded to lose that max HP cannot take the points
 ## back (card #175).
 ## Left: the heroes' faces with their HP, a gold badge where points wait; LT / RT or a click changes
-## hero. Centre: name, level, XP, the points to spend, the five attribute rows and, as a sixth
-## cursor stop, the Echo box (Confirm there asks the screen to open the Echoes page). Right: the
+## hero. Centre: name, level, XP, the points to spend and the five attribute rows. Right: the
 ## combat stats and the attribute radar. Online, changes go to the host as "attributes" ops.
 
-## Confirm (or a click) on the Echo box: the screen opens hero `hero`'s Echoes page over the tab.
-## The tab never opens it itself, so phase 21 can reshape Echoes without touching this page.
-signal echoes_requested(hero: int)
-
-## The cursor stop after the five attribute rows: the Echo box.
-const ECHO_ROW: int = Attributes.COUNT
-## Cursor stops: the attribute rows, then the Echo box.
-const STOPS: int = Attributes.COUNT + 1
+## Cursor stops: the attribute rows.
+const STOPS: int = Attributes.COUNT
 
 ## Each attribute's glyph, and the glyph of the stat it raises (Attributes.Kind order).
 const ATTR_GLYPHS: Array[StringName] = [&"heart", &"sword", &"chevrons", &"shield", &"star"]
@@ -29,8 +22,7 @@ const STAT_WORDS: Array[String] = ["Health", "Power", "Speed", "Defense", "Crit"
 ## Each attribute's colour; the stat it raises shares it, so the eye links the two.
 const ATTR_COLORS: Array[Color] = [Color(0.95, 0.4, 0.38), Color(1.0, 0.6, 0.3), Color(0.55, 0.92, 0.5),
 		Color(0.5, 0.72, 1.0), Color(1.0, 0.85, 0.35)]
-const ECHO_COLOR := Color(0.78, 0.55, 1.0)
-## Pips for the points a worn Relic's stat line adds (not spent, not refundable).
+## Pips for the points a Relic's stat line adds (not spent, not refundable).
 const RELIC_PIP_COLOR := Color(0.62, 0.5, 0.95)
 const CURSOR_BG := Color(0.3, 0.24, 0.1, 0.9)
 const XP_COLOR := HudStyle.AP_TEXT
@@ -89,15 +81,6 @@ const PIP_HEIGHT: float = 22.0
 const PIP_STEP: float = 9.0
 const PIP_GROUP_GAP: float = 5.0
 const PIPS_WIDTH: float = 252.0
-const ECHO_GAP: float = 6.0
-const ECHO_TOP: float = ROWS_TOP + Attributes.COUNT * (ROW_HEIGHT + ROW_GAP) + ECHO_GAP
-const ECHO_HEIGHT: float = 84.0
-const ECHO_GLYPH_PX: float = 44.0
-const ECHO_NUMBER_SIZE: int = 40
-const ECHO_TOTAL_SIZE: int = 30
-const ECHO_ICON_PX: float = 36.0
-## Worn Echo icons the box shows; more show as "+N".
-const ECHO_ICONS_MAX: int = 14
 
 const RIGHT_X: float = 1260.0
 const RIGHT_WIDTH: float = 620.0
@@ -131,11 +114,6 @@ var _points_glyph: UiGlyph
 var _points: Label
 ## One per attribute: {panel: PanelContainer, title: Label, points: Label, pips: Control, value: Label}.
 var _rows: Array[Dictionary] = []
-var _echo_box: PanelContainer
-var _echo_free: Label
-var _echo_total: Label
-var _echo_icons: HBoxContainer
-var _echo_more: Label
 var _stat_values: Array[Label] = []
 var _radar: AttributeRadar
 
@@ -147,7 +125,6 @@ func setup(p_run: RunState, p_remote: bool) -> void:
 	_build_head()
 	for kind: int in Attributes.COUNT:
 		_build_row(kind)
-	_build_echo_box()
 	_build_stats()
 	_radar = AttributeRadar.new()
 	_radar.position = Vector2(RIGHT_X + (RIGHT_WIDTH - RADAR_PX) * 0.5, RADAR_TOP)
@@ -195,24 +172,18 @@ func hints() -> Array:
 	if _prompt != null:
 		return [[&"@updown", ""], [&"menu_confirm", "Pick"], [&"menu_cancel", "Keep"]]
 	var many := run != null and run.party_size() > 1
-	var entries: Array = []
-	if _row == ECHO_ROW:
-		entries = [[&"@updown", ""], [&"menu_confirm", "Echoes"]]
-	else:
-		entries = [[&"@leftright", "Points"], [&"item_move", "Reset"]]
-		if not many:
-			entries.push_front([&"@updown", ""])
+	var entries: Array = [[&"@leftright", "Points"], [&"item_move", "Reset"]]
+	if not many:
+		entries.push_front([&"@updown", ""])
 	if many:
-		entries.append([&"party_attributes", ""])
-		entries.append([&"party_skills", "Hero"])
+		entries.append([ControlBindings.SWITCH_PREV, ""])
+		entries.append([ControlBindings.SWITCH_NEXT, "Hero"])
 	return entries
 
 
 func info() -> Dictionary:
 	if run == null:
 		return {}
-	if _row == ECHO_ROW:
-		return _echo_info()
 	var kind := _row
 	var chips: Array = [[STAT_GLYPHS[kind], stat_text(kind), HudStyle.TEXT],
 			[&"up", Attributes.per_point_text(kind, run.tuning), HudStyle.GOLD]]
@@ -244,14 +215,14 @@ func set_hero(i: int) -> void:
 	changed.emit()
 
 
-## Puts the cursor on stop `r`: an attribute (Attributes.Kind) or ECHO_ROW.
+## Puts the cursor on attribute row `r` (Attributes.Kind).
 func choose_row(r: int) -> void:
-	_row = clampi(r, 0, ECHO_ROW)
+	_row = clampi(r, 0, STOPS - 1)
 	_redraw()
 	changed.emit()
 
 
-## The cursor's stop: an attribute (Attributes.Kind) or ECHO_ROW.
+## The cursor's stop: an attribute (Attributes.Kind).
 func row() -> int:
 	return _row
 
@@ -289,32 +260,25 @@ func _use(event: InputEvent) -> bool:
 	elif _repeats(event, &"menu_down"):
 		_move_row(1)
 	elif PartyTab.pressed(event, &"menu_confirm"):
-		if _row == ECHO_ROW:
-			_open_echoes()
-		else:
-			_change(1, true)
+		_change(1, true)
 	elif _repeats(event, &"menu_right"):
-		if _row == ECHO_ROW:
-			return false
 		_change(1, loud)
 	elif _repeats(event, &"menu_left"):
-		if _row == ECHO_ROW:
-			return false
 		_change(-1, loud)
 	elif PartyTab.pressed(event, &"item_move"):
 		_ask_reset()
-	elif PartyTab.pressed(event, &"party_attributes") or PartyTab.pressed(event, &"party_skills"):
+	elif PartyTab.pressed(event, ControlBindings.SWITCH_PREV) or PartyTab.pressed(event, ControlBindings.SWITCH_NEXT):
 		if run.party_size() <= 1:
 			return false
 		Sfx.play("menu_move")
-		set_hero(wrapi(hero + (-1 if event.is_action(&"party_attributes") else 1), 0, run.party_size()))
+		set_hero(wrapi(hero + (-1 if event.is_action(ControlBindings.SWITCH_PREV) else 1), 0, run.party_size()))
 	else:
 		return false
 	return true
 
 
-## The mouse: the wheel moves the cursor, pointing at a row or the Echo box picks it, a left click
-## on a row adds a point, on the Echo box opens the Echoes, on a face shows that hero. True when used.
+## The mouse: the wheel moves the cursor, pointing at a row picks it, a left click on a row adds a
+## point, on a face shows that hero. True when used.
 func _mouse_input(event: InputEventMouse) -> bool:
 	if MenuMouse.is_press(event):
 		var wheel := MenuMouse.wheel_step((event as InputEventMouseButton).button_index)
@@ -335,7 +299,6 @@ func _mouse_input(event: InputEventMouse) -> bool:
 	var stops: Array = []
 	for r: Dictionary in _rows:
 		stops.append(r.panel)
-	stops.append(_echo_box)
 	var stop := MenuMouse.control_at(stops, event.position)
 	if stop < 0:
 		return false
@@ -348,21 +311,13 @@ func _mouse_input(event: InputEventMouse) -> bool:
 		return false
 	if stop != _row:
 		choose_row(stop)
-	if stop == ECHO_ROW:
-		_open_echoes()
-	else:
-		_change(1, true)
+	_change(1, true)
 	return true
 
 
 func _move_row(step: int) -> void:
 	Sfx.play("menu_move")
 	choose_row(wrapi(_row + step, 0, STOPS))
-
-
-func _open_echoes() -> void:
-	Sfx.play("menu_confirm")
-	echoes_requested.emit(hero)
 
 
 ## change() with a toast on refusal only when `loud` (a held key repeating stays quiet).
@@ -538,29 +493,6 @@ func _build_row(kind: int) -> void:
 	_rows.append({"panel": panel, "title": title, "points": points, "pips": pips, "value": value})
 
 
-## The Echo box (DESIGN.md 8.17): free / total Echo points and the Echoes worn, nothing else, so a
-## change to Echoes only touches this and _echo_info().
-func _build_echo_box() -> void:
-	_echo_box = PanelContainer.new()
-	_echo_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_echo_box.position = Vector2(CENTRE_X, ECHO_TOP)
-	_echo_box.size = Vector2(CENTRE_WIDTH, ECHO_HEIGHT)
-	add_child(_echo_box)
-	var line := _hbox(ROW_PART_GAP)
-	_echo_box.add_child(line)
-	line.add_child(_centred(UiGlyph.make(&"echo", ECHO_GLYPH_PX, ECHO_COLOR)))
-	var numbers := _hbox(6)
-	line.add_child(numbers)
-	_echo_free = HudStyle.make_number("", ECHO_NUMBER_SIZE, HudStyle.GOLD)
-	numbers.add_child(_centred(_echo_free))
-	_echo_total = HudStyle.make_number("", ECHO_TOTAL_SIZE, HudStyle.TEXT_DIM)
-	numbers.add_child(_centred(_echo_total))
-	_echo_icons = _hbox(8)
-	line.add_child(_centred(_echo_icons))
-	_echo_more = HudStyle.make_number("", ECHO_TOTAL_SIZE, HudStyle.TEXT_DIM)
-	line.add_child(_centred(_echo_more))
-
-
 func _build_stats() -> void:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -631,7 +563,6 @@ func _redraw() -> void:
 		(r.points as Label).text = str(run.attribute(hero, kind))
 		(r.pips as Control).queue_redraw()
 		(r.value as Label).text = stat_text(kind)
-	_redraw_echo_box()
 	for kind: int in _stat_values.size():
 		_stat_values[kind].text = stat_text(kind)
 	var values: Array[int] = []
@@ -655,23 +586,6 @@ func _redraw_level() -> void:
 		_xp_bar.value = float(run.xps[hero])
 		_xp_text.text = "%d / %d" % [run.xps[hero], run.xp_to_next(hero)]
 		_xp_text.label_settings.font_color = HudStyle.TEXT_DIM
-
-
-func _redraw_echo_box() -> void:
-	_echo_box.add_theme_stylebox_override("panel", _plate(_row == ECHO_ROW, ECHO_HEIGHT))
-	var free := run.free_echo_points(hero)
-	_echo_free.text = str(free)
-	_echo_free.label_settings.font_color = HudStyle.GOLD if free > 0 else HudStyle.TEXT_DIM
-	_echo_total.text = "/ %d" % run.echo_points(hero)
-	for child: Node in _echo_icons.get_children():
-		_echo_icons.remove_child(child)
-		child.queue_free()
-	var worn := _worn_echoes()
-	for i: int in mini(worn.size(), ECHO_ICONS_MAX):
-		var icon := RelicIcon.new()
-		icon.setup(worn[i], ECHO_ICON_PX)
-		_echo_icons.add_child(icon)
-	_echo_more.text = "+%d" % (worn.size() - ECHO_ICONS_MAX) if worn.size() > ECHO_ICONS_MAX else ""
 
 
 func _redraw_rail() -> void:
@@ -721,27 +635,3 @@ static func _pip(i: int, top: float) -> PackedVector2Array:
 	var x := float(i) * PIP_STEP + floorf(float(i) / float(PIP_GROUP)) * PIP_GROUP_GAP
 	return PackedVector2Array([Vector2(x + lean, top), Vector2(x + lean + PIP_WIDTH, top),
 			Vector2(x + PIP_WIDTH, top + PIP_HEIGHT), Vector2(x, top + PIP_HEIGHT)])
-
-
-# --- Echoes (DESIGN.md 8.17) --------------------------------------------------------------------
-
-func _worn_echoes() -> Array[GearData]:
-	var worn: Array[GearData] = []
-	if hero < run.echoes.size():
-		for id: Variant in run.echoes[hero]:
-			var item := run.relic_by_id(String(id))
-			if item != null:
-				worn.append(item)
-	return worn
-
-
-func _echo_info() -> Dictionary:
-	var free := run.free_echo_points(hero)
-	var learned := run.learned_echoes().size()
-	var chips: Array = [[&"echo", "%d / %d" % [free, run.echo_points(hero)], HudStyle.GOLD if free > 0 else HudStyle.TEXT_DIM],
-			[&"gem", "%d worn" % _worn_echoes().size(), HudStyle.TEXT],
-			[&"star", "%d learned" % learned, HudStyle.TEXT_DIM]]
-	var line := "Win fights wearing a Relic to learn its Echo." if learned == 0 else "Wear or take off Echoes."
-	if not _warning.is_empty():
-		line = _warning
-	return {"icon": &"echo", "title": "Echoes", "color": ECHO_COLOR, "chips": chips, "line": line}

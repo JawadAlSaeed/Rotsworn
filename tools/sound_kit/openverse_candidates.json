@@ -1371,51 +1371,6 @@
   "pool": 12,
   "locked": true
  },
- "item_combine": {
-  "options": {
-   "a": {
-    "id": "31207ecd-b55d-4a9d-b8b2-71d7aeb680bc",
-    "title": "Kill / Crafting sound",
-    "creator": "MadPanCake",
-    "license": "cc0",
-    "license_version": "1.0",
-    "page": "https://freesound.org/people/MadPanCake/sounds/567849",
-    "url": "https://cdn.freesound.org/previews/567/567849_5334162-hq.mp3",
-    "filetype": "mp3",
-    "ms": 1714,
-    "source": "freesound",
-    "query": "craft"
-   },
-   "b": {
-    "id": "904bd974-822f-4ad2-9fa9-074376fbb6f2",
-    "title": "Craft Item 3",
-    "creator": "SilverIllusionist",
-    "license": "by",
-    "license_version": "4.0",
-    "page": "https://freesound.org/people/SilverIllusionist/sounds/580813",
-    "url": "https://cdn.freesound.org/previews/580/580813_7395592-hq.mp3",
-    "filetype": "mp3",
-    "ms": 693,
-    "source": "freesound",
-    "query": "craft"
-   },
-   "c": {
-    "id": "16e839d7-2a1e-4a33-9306-e32fa04ea07d",
-    "title": "Anvil - Lokomo A 100 kg - Combination of hot and cold hits",
-    "creator": "ldezem",
-    "license": "cc0",
-    "license_version": "1.0",
-    "page": "https://freesound.org/people/ldezem/sounds/386124",
-    "url": "https://cdn.freesound.org/previews/386/386124_1655965-hq.mp3",
-    "filetype": "mp3",
-    "ms": 750,
-    "source": "freesound",
-    "query": "forge combine"
-   }
-  },
-  "pool": 4,
-  "locked": true
- },
  "item_drop": {
   "options": {
    "a": {

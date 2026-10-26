@@ -329,17 +329,18 @@ func test_a_fight_of_three_spreads_its_hp() -> void:
 	assert_eq(setup.enemy_hp_percent, trio.enemy_hp_percent)
 
 
-func test_every_zone_and_guard_has_a_fight_of_three() -> void:
+func test_every_place_and_guard_has_a_fight_of_three() -> void:
 	var run := load("res://data/runs/rotten_road.tres") as RunData
 	for zone: ZoneData in run.zones:
 		var trios := 0
-		var guard_trio := false
-		for encounter: EncounterData in ZoneAssembler.encounters(zone):
+		for encounter: EncounterData in zone.roamer_pool:
 			if encounter.enemies.size() == 3:
 				trios += 1
-				guard_trio = guard_trio or encounter.mini_boss
-		assert_gt(trios, 1, zone.id + ": fights of three")
-		assert_true(guard_trio, zone.id + ": the guard brings two helpers")
+		assert_gt(trios, 1, zone.id + ": its Fight stops have fights of three")
+		assert_not_null(zone.guard, zone.id + " has a guard")
+		if zone.guard != null:
+			assert_true(zone.guard.mini_boss, zone.id + ": the guard is a mini-boss")
+			assert_eq(zone.guard.enemies.size(), 3, zone.id + ": the guard brings two helpers")
 
 
 func test_the_new_monsters_each_have_one_marking_move_and_drops() -> void:

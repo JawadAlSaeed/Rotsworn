@@ -17,7 +17,7 @@ const CLEANSE := "cleanse"
 
 const FIGHT_GOALS: Array[String] = [GOOD_PRESS, SKILL_USED, SKILL_FOLLOW_UP, PARRY, DODGE, JUMP, COUNTER, ULTIMATE,
 		MARK_DEFENDED, CLEANSE]
-## A card to read, no fight action (the Relics and Echoes lesson, DESIGN.md 8.17): closing it moves on.
+## A card to read, no fight action (the First Strike and Relics cards, DESIGN.md 8.17): closing it moves on.
 const READ := "read"
 
 

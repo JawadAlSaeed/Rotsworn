@@ -127,6 +127,6 @@ static func activity(event: InputEvent) -> Activity:
 
 
 ## Whether the pointer shows: only while the mouse was the last thing used, and only on screens
-## that are menus (fights and zones are keyboard / pad games).
+## that are menus (fights are keyboard / pad games).
 static func pointer_visible(mouse_active: bool, menus_allowed: bool) -> bool:
 	return mouse_active and menus_allowed

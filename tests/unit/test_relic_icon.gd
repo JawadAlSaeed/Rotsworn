@@ -143,9 +143,10 @@ func test_sign_colours_are_not_hero_colours() -> void:
 			assert_ne(RelicIcon.CATEGORY_COLORS[i], RelicIcon.CATEGORY_COLORS[j], "categories %d and %d differ" % [i, j])
 
 
+## The icon still draws level pips when a caller passes a level (no screen does since Relics lost
+## their levels in a run, DESIGN.md 8.24); three is any top level.
 func test_level_pips() -> void:
-	var tuning := load("res://data/tuning/tuning.tres") as Tuning
-	var top := tuning.relic_max_level
+	var top := 3
 	var item := _shipped()[0]
 	var icon := RelicIcon.make(item, 46.0)
 	assert_eq(icon.pip_count(), 0, "no level given: no pips")
@@ -168,11 +169,10 @@ func test_level_pips() -> void:
 
 
 func test_level_pips_draw() -> void:
-	var tuning := load("res://data/tuning/tuning.tres") as Tuning
 	var items := _shipped()
 	var counters: Array[Dictionary] = []
 	for px: float in [26.0, 46.0, 104.0]:
-		var icon := RelicIcon.make(items[0], px, true, 2, tuning.relic_max_level)
+		var icon := RelicIcon.make(items[0], px, true, 2, 3)
 		counters.append(_show(icon, px))
 		assert_eq(icon.pip_count(), 2)
 	await wait_process_frames(2)
@@ -224,8 +224,8 @@ func test_static_painters_draw_on_another_canvas() -> void:
 	assert_gt(calls["n"], 0, "the painters ran inside the canvas's draw")
 
 
-## The old call, setup(item, px[, known]), as the Relics page, the Echoes page and the main menu's
-## Relic bag make it, for every shipped Relic: known, unknown, chosen, tagged, rot-touched.
+## The old call, setup(item, px[, known]), as the spoils, the end screen and the main menu's Relic
+## bag make it, for every shipped Relic: known, unknown, chosen, tagged, rot-touched.
 func test_old_setup_for_every_shipped_relic() -> void:
 	var items := _shipped()
 	assert_gt(items.size(), 0, "the shipped Relics load")

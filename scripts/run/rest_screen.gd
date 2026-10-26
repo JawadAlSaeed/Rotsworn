@@ -1,20 +1,17 @@
 class_name RestScreen
 extends StopScreen
 ## A rest stop as a campfire (DESIGN.md 8.11, card #161): the heroes stand round a fire in the
-## dark, and the player picks ONE thing to do: Rest (everyone heals rest_heal_percent(), less with oaths),
-## Train (every hero gets tuning.rest_train_points attribute points) or Upgrade (one item in the
-## backpack goes up a level). Then back to the map. The bot calls rest_now() (or train_now() /
-## upgrade_now()) and leave().
+## dark, and the player picks ONE thing to do: Rest (everyone heals rest_heal_percent(), less with oaths)
+## or Train (every hero gets tuning.rest_train_points attribute points); the Upgrade went with the item
+## levels (card #332). Then back to the map. The bot calls rest_now() (or train_now()) and leave().
 ## The choices are side-by-side cards with a picture and chips (card #288): Rest a heart and how
-## much it heals, Train an arrow and the points, Upgrade an anvil (Keep watch and Sharpen at the
-## campfire before the boss). Back shows (and works) only while picking the item to upgrade.
+## much it heals, Train an arrow and the points (Keep watch and Sharpen at the campfire before the
+## boss).
 
 signal done
 ## Host: the choice was made (Main tells the clients what happened).
 signal acted(text: String)
 
-## An upgrade list of this many items or fewer shows as cards side by side.
-const UPGRADE_CARDS_MAX: int = 3
 ## Screen pixels per art pixel for the fire and the heroes.
 const SCENE_SCALE: int = 4
 const SCENE_SIZE := Vector2(900.0, 300.0)
@@ -34,8 +31,6 @@ var _footer_now: Array = []
 var _fire: TextureRect
 var _glow: TextureRect
 var _done_once: bool = false
-## The menu shows the items to upgrade (uids, in menu order) instead of the three choices.
-var _picking: Array[int] = []
 var _time: float = 0.0
 
 
@@ -134,22 +129,13 @@ static func _first_frame(hero: CharacterData) -> Texture2D:
 	return atlas
 
 
-## Items that can go up a level (uids).
-func upgradable() -> Array[int]:
-	var found: Array[int] = []
-	for e: Dictionary in run.backpack.entries:
-		if run.can_upgrade(int(e.uid)):
-			found.append(int(e.uid))
-	return found
-
-
 func has_acted() -> bool:
 	return _done_once
 
 
 ## Rest: everyone heals. The bot calls this; the player uses the menu.
 func rest_now() -> void:
-	if _done_once:
+	if _done_once or _ask({"do": "rest"}):
 		return
 	var healed := run.rest()
 	var parts := PackedStringArray()
@@ -161,7 +147,7 @@ func rest_now() -> void:
 
 ## Train: every hero gets attribute points to spend (the party screen, or the attributes screen).
 func train_now() -> void:
-	if _done_once:
+	if _done_once or _ask({"do": "train"}):
 		return
 	run.train()
 	Sfx.play("level_up")
@@ -171,7 +157,7 @@ func train_now() -> void:
 
 ## Keep Watch (the campfire before the boss, card #287): the team gauge is full.
 func watch_now() -> void:
-	if _done_once:
+	if _done_once or _ask({"do": "watch"}):
 		return
 	run.keep_watch()
 	Sfx.play("level_up")
@@ -180,25 +166,26 @@ func watch_now() -> void:
 
 ## Sharpen (the campfire before the boss, card #287): every hero starts the boss fight with more AP.
 func sharpen_now() -> void:
-	if _done_once:
+	if _done_once or _ask({"do": "sharpen"}):
 		return
 	run.sharpened = true
 	Sfx.play("buff")
 	_act("Blades sharpened. Every hero starts the boss fight with +%d AP." % run.tuning.sharpen_ap)
 
 
-## Upgrade: item `uid` goes up a level.
-func upgrade_now(uid: int) -> bool:
-	if _done_once or not run.upgrade_item(uid):
-		Sfx.play("locked")
-		return false
-	Sfx.play("item_combine")
-	_act("The %s is stronger now." % RunState.entry_name(run.backpack.entry(uid)))
-	return true
-
-
+## Back to the map (once something was done here).
 func leave() -> void:
+	if _ask({"do": "leave"}):
+		return
 	done.emit()
+
+
+## Online (card #314): the turn changed: the cards (or Back to the map) redraw, lit or greyed.
+func _turn_changed() -> void:
+	if _done_once:
+		_finish(_text.text)
+	else:
+		_show_choices()
 
 
 func _act(text: String) -> void:
@@ -209,10 +196,9 @@ func _act(text: String) -> void:
 
 func _finish(text: String) -> void:
 	_done_once = true
-	_picking.clear()
 	_text.text = text
 	_text.visible = true
-	var list: Array[Dictionary] = [{"text": "Back to the map", "enabled": not remote}]
+	var list: Array[Dictionary] = [{"text": "Back to the map", "enabled": not is_greyed()}]
 	_menu.horizontal = false
 	_menu.set_items(list)
 	_set_footer([[&"menu_confirm", "Continue"]])
@@ -235,26 +221,21 @@ func _set_footer(entries: Array) -> void:
 
 
 func _show_choices() -> void:
-	_picking.clear()
 	_menu.horizontal = true
 	_set_footer([[&"@leftright", "Choose"], [&"menu_confirm", "Select"]])
 	var gift := _look.chip_gift_color
-	var rest := {"text": "Rest", "enabled": not remote, "icon": _icon(_look.rest_icon_path), "chips": _rest_chips()}
+	var rest := {"text": "Rest", "enabled": not is_greyed(), "icon": _icon(_look.rest_icon_path), "chips": _rest_chips()}
 	if run.is_watch_fire():
 		_menu.set_items([rest,
-			{"text": "Keep watch", "enabled": not remote, "icon": _icon(_look.watch_icon_path),
+			{"text": "Keep watch", "enabled": not is_greyed(), "icon": _icon(_look.watch_icon_path),
 					"chips": [StopScreen.chip_entry(_look, "gauge", "Gauge full", gift)]},
-			{"text": "Sharpen", "enabled": not remote, "icon": _icon(_look.sharpen_icon_path),
+			{"text": "Sharpen", "enabled": not is_greyed(), "icon": _icon(_look.sharpen_icon_path),
 					"chips": [StopScreen.chip_entry(_look, "ap", "+%d AP" % run.tuning.sharpen_ap, gift)]},
 		])
 		return
-	var up := upgradable()
 	var list: Array[Dictionary] = [rest,
-		{"text": "Train", "enabled": not remote, "icon": _icon(_look.train_icon_path),
+		{"text": "Train", "enabled": not is_greyed(), "icon": _icon(_look.train_icon_path),
 				"chips": [StopScreen.chip_entry(_look, "up", "+%d points" % run.tuning.rest_train_points, gift)]},
-		{"text": "Upgrade", "enabled": not remote and not up.is_empty(), "icon": _icon(_look.upgrade_icon_path),
-				"chips": [StopScreen.chip_entry(_look, "item", "+1 Lv" if not up.is_empty() else "None",
-						gift if not up.is_empty() else HudStyle.TEXT_DIM)]},
 	]
 	_menu.set_items(list)
 
@@ -275,47 +256,19 @@ func _rest_chips() -> Array[Dictionary]:
 	return chips
 
 
-func _show_upgrades() -> void:
-	_picking = upgradable()
-	var list: Array[Dictionary] = []
-	for uid: int in _picking:
-		var e := run.backpack.entry(uid)
-		var after := RunState.entry_name(e) + "+"
-		list.append({"text": RunState.entry_name(e), "value": "> %s" % after,
-				"color": BackpackGrid.rarity_color(RunState.entry_rarity(e)),
-				"icon": AssetLoader.texture((e.item as ItemData).icon_path, Vector2i(16, 16))})
-	# Three items or fewer sit side by side as cards (owner, phase 22); more make a column. Back is
-	# the cancel button either way.
-	var cards := list.size() <= UPGRADE_CARDS_MAX
-	_menu.horizontal = cards
-	_menu.index = 0
-	_menu.set_items(list)
-	_set_footer([[&"@leftright" if cards else &"@updown", "Choose"], [&"menu_confirm", "Upgrade"],
-			[&"menu_cancel", "Back"]])
-
-
 func _unhandled_input(event: InputEvent) -> void:
-	if remote:
+	if is_greyed():
 		return
 	var answer := _menu.handle(event)
-	if answer == &"cancel" and not _picking.is_empty():
-		Sfx.play("menu_cancel")
-		# Back on the Upgrade card.
-		_menu.index = 2
-		_show_choices()
-		return
 	if answer != &"confirm":
 		return
-	# A greyed card (Upgrade with nothing to upgrade) answers confirm too: refuse it here, or an
-	# empty pick list would open and the next confirm would Rest.
+	# A greyed card answers confirm too: refuse it here.
 	if not _menu.is_enabled(_menu.index):
 		Sfx.play("locked")
 		return
 	Sfx.play("menu_confirm")
 	if _done_once:
 		leave()
-	elif not _picking.is_empty():
-		upgrade_now(_picking[_menu.index])
 	else:
 		match _menu.index:
 			0:
@@ -328,5 +281,3 @@ func _unhandled_input(event: InputEvent) -> void:
 			2:
 				if run.is_watch_fire():
 					sharpen_now()
-				else:
-					_show_upgrades()

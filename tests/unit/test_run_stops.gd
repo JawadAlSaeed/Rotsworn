@@ -36,6 +36,8 @@ func test_new_stops_follow_their_rules() -> void:
 		assert_eq(treasure_rows.size(), 1, "seed %d: one treasure row" % s)
 		if treasure_rows.size() == 1:
 			assert_lte(absi(treasure_rows[0] - _tuning.run_treasure_row), _tuning.run_treasure_row_spread)
+		# No Guard stops: since map rules 4 a place's guard waits at an Elite stop (DESIGN.md 8.22).
+		assert_eq(map.count_type(RunMap.StopType.GUARD), 0, "seed %d: no Guard stops" % s)
 		for st: Dictionary in map.stops:
 			var type := int(st.type)
 			seen[type] = true
@@ -46,7 +48,7 @@ func test_new_stops_follow_their_rules() -> void:
 		if is_failing():
 			return
 	for type: int in [RunMap.StopType.ELITE, RunMap.StopType.EVENT, RunMap.StopType.TREASURE, RunMap.StopType.SHOP,
-			RunMap.StopType.REST, RunMap.StopType.ZONE, RunMap.StopType.FINAL]:
+			RunMap.StopType.REST, RunMap.StopType.FIGHT, RunMap.StopType.FINAL]:
 		assert_true(seen.has(type), "%s stops turn up" % RunMap.TYPE_NAMES[type])
 
 
@@ -63,14 +65,27 @@ func test_planning_sees_every_stop_a_choice_leads_to() -> void:
 
 # --- acts -------------------------------------------------------------------------------------
 
-func test_the_run_has_two_acts_with_their_own_bosses() -> void:
+func test_the_run_has_three_acts_with_their_own_places_and_bosses() -> void:
 	var run := _run()
-	assert_eq(run.acts().size(), 2)
-	assert_ne(run.act_data(0).final_encounter, run.act_data(1).final_encounter, "each act has its own boss")
-	assert_true(run.act_data(0).final_encounter.boss)
-	assert_true(run.act_data(1).deep, "the second act holds the variants")
+	assert_eq(run.acts().size(), 3, "three acts (card #323, DESIGN.md 8.23)")
+	# One place per act, in the story's order: forests to husks, rivers to bog, cities to ash.
+	var places := ["rotten_hollow", "sunken_bog", "ashen_ruins"]
+	var bosses := ["husk_lord_fight", "leech_queen_fight", "hollow_king"]
+	var seen_bosses := {}
+	for i: int in run.acts().size():
+		var act := run.act_data(i)
+		assert_eq(act.zones.size(), 1, "%s is one place" % act.id)
+		assert_eq(act.zones[0].id, places[i], "%s is in its place" % act.id)
+		assert_eq(act.final_encounter.id, bosses[i], "%s's boss" % act.id)
+		assert_true(act.final_encounter.boss, "%s ends on a boss" % act.id)
+		assert_false(seen_bosses.has(act.final_encounter.id), "each act has its own boss")
+		seen_bosses[act.final_encounter.id] = true
+		assert_eq(act.deep, i == 2, "only the last act holds the variants")
+		assert_not_null(act.final_look, "%s has its boss's lair" % act.id)
+	assert_eq(run.act_data(2).final_encounter, _data.final_encounter, "the Hollow King ends the run")
+	assert_eq(run.act_data(1).final_look.resource_path, "res://data/looks/leech_lair.tres", "the Queen's own lair")
 	for act: ActData in run.acts():
-		assert_false(act.zones.is_empty(), "%s has zones" % act.id)
+		assert_false(act.zones.is_empty(), "%s has places" % act.id)
 		assert_false(act.elites.is_empty(), "%s has elite fights" % act.id)
 		assert_false(act.events.is_empty(), "%s has events" % act.id)
 		assert_false(act.final_map_icon_path.is_empty())
@@ -85,9 +100,17 @@ func test_next_act_brings_a_new_map_heals_and_goes_deeper() -> void:
 	assert_eq(run.act, 1)
 	assert_ne(var_to_str(run.map.stops), first_map, "a new map")
 	assert_eq(run.hp[0], 1 + CombatMath.percent(run.max_hp(0), _tuning.run_act_heal_percent))
-	assert_true(run.is_deep())
+	assert_false(run.is_deep(), "the second act (the Drowned Mire) starts plain")
 	run.go(run.choices()[0])
 	assert_gt(run.enemy_hp_percent(), hp_before, "enemies keep growing in the next act")
+	var second_hp := run.enemy_hp_percent()
+	assert_false(run.is_last_act())
+	assert_true(run.next_act())
+	assert_eq(run.act, 2)
+	assert_true(run.is_deep(), "the third act holds the variants")
+	assert_true(run.is_last_act())
+	run.go(run.choices()[0])
+	assert_gt(run.enemy_hp_percent(), second_hp, "and again in the third")
 	assert_false(run.next_act(), "no act after the last")
 
 
@@ -118,16 +141,18 @@ func test_elites_are_tougher_and_pay_more() -> void:
 	assert_gt(run.gold_for(elite), run.gold_for(plain))
 
 
-func test_guards_are_mini_bosses_and_champions_elites() -> void:
+func test_guards_are_mini_bosses_with_a_phase_two() -> void:
+	# Some Elite stops in a place fight its guard (DESIGN.md 8.22).
 	for zone: ZoneData in _data.zones:
-		var built := ZoneAssembler.assemble(zone, 3)
-		for e: ZoneEnemyData in built.enemies:
-			if e.guard:
-				assert_true(e.encounter.mini_boss, "%s: the guard is a mini-boss" % zone.id)
-				assert_false(e.encounter.can_run, "%s: no running from the guard" % zone.id)
-				assert_gt(e.encounter.enemies[0].phase_two_hp_percent, 0, "%s: the guard has a phase two" % zone.id)
-			if e.champion:
-				assert_true(e.encounter.elite, "%s: a champion is an elite fight" % zone.id)
+		var guard := zone.guard
+		assert_not_null(guard, "%s has a guard" % zone.id)
+		if guard == null:
+			continue
+		assert_true(guard.mini_boss and not guard.can_run, "%s: its guard is a mini-boss, no running" % zone.id)
+		assert_gt(guard.enemies[0].phase_two_hp_percent, 0, "%s: the guard has a phase two" % zone.id)
+		assert_not_null(guard.deep, "%s: its guard has a deep version" % zone.id)
+		if guard.deep != null:
+			assert_true(guard.deep.mini_boss and not guard.deep.can_run, "%s: so is its deep version" % zone.id)
 
 
 func test_spoils_are_rare_while_the_run_has_rare_gear() -> void:
@@ -191,45 +216,34 @@ func test_shipped_events_make_sense() -> void:
 	assert_gte(count, 8)
 
 
-func test_treasure_is_rare_and_pays_gold() -> void:
-	var run := _run()
-	var found := 0
-	for id: int in run.map.stops.size():
-		var prize := run.treasure_contents(id)
-		assert_not_null(prize)
-		if prize is ItemData:
-			assert_gte(int((prize as ItemData).rarity), ItemData.Rarity.RARE)
-		found += 1
-	var gold := run.gold
-	assert_eq(run.take_treasure_gold(), _tuning.run_treasure_gold)
-	assert_eq(run.gold, gold + _tuning.run_treasure_gold)
+func test_the_plain_chest_is_rare_and_pays_gold() -> void:
+	for id: int in _run().map.stops.size():
+		var run := _run()
+		var gold := run.gold
+		var got := run.open_treasure(id, false)
+		assert_true(got.prize is ItemData, "stop %d: the plain chest holds an item" % id)
+		if got.prize is ItemData:
+			assert_gte(int((got.prize as ItemData).rarity), ItemData.Rarity.RARE)
+		assert_eq(run.gold, gold + _tuning.run_treasure_gold, "and pays its gold")
 
 
 # --- shop services and the campfire ---------------------------------------------------------------
 
-func _with(run: RunState, id: String) -> int:
-	var item := run.items_by_id()[id] as ItemData
-	return run.add_item(item)
-
-
 func test_shop_services() -> void:
 	var run := _run()
 	run.gold = 500
-	var rotten := ""
+	var rotten: ItemData = null
 	for item: ItemData in _data.found_items:
 		if item.rotten:
-			rotten = item.id
-	if not rotten.is_empty():
-		var uid := _with(run, rotten)
-		assert_true(run.rotten_uids().has(uid))
-		assert_true(run.cleanse(uid))
-		assert_false(run.backpack.has_uid(uid))
-	var salve := _with(run, "salve")
-	assert_true(run.can_upgrade(salve))
+			rotten = item
+	assert_not_null(rotten, "the run has a curse")
+	assert_eq(run.add_item(rotten), 0, "on the party")
 	var gold := run.gold
-	assert_true(run.upgrade_item(salve, _tuning.shop_upgrade_price))
-	assert_eq(RunState.level_of(run.backpack.entry(salve)), 1)
-	assert_eq(run.gold, gold - _tuning.shop_upgrade_price)
+	assert_true(run.cleanse(0, rotten.id, 1), "Cleanse lifts it")
+	assert_true(run.curses.is_empty())
+	assert_eq(run.gold, gold - run.cleanse_price())
+	assert_false(run.cleanse(0, rotten.id, 1), "nothing left to lift")
+	assert_false(run.has_method("upgrade_item"), "no Upgrade since card #332")
 	run.go(run.choices()[0])
 	var before := str(run.shop_stock(run.at)) + str(run.shop_gear(run.at))
 	assert_true(run.restock())

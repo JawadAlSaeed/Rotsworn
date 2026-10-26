@@ -1,6 +1,6 @@
 class_name MusicSet
 extends Resource
-## Which song plays where (menus, run screens, zones, fights, the boss). The Audio autoload loops the
+## Which song plays where (menus, run screens, fights, the boss). The Audio autoload loops the
 ## song; a place that names the song already playing lets it go on without restarting. An empty
 ## path means silence there. Edit data/audio/music.tres; drop new songs into assets/audio/music/.
 
@@ -8,8 +8,6 @@ extends Resource
 @export_file("*.wav", "*.ogg", "*.mp3") var menu_path: String = ""
 ## Run screens: map, shop, rest, loot, party, run end. Empty: the menu song.
 @export_file("*.wav", "*.ogg", "*.mp3") var run_path: String = ""
-## Zones without a song of their own (ZoneData.music_path).
-@export_file("*.wav", "*.ogg", "*.mp3") var zone_path: String = ""
 @export_file("*.wav", "*.ogg", "*.mp3") var fight_path: String = ""
 ## Elite fights (EncounterData.elite, card #192). Empty: the fight song. No elite song exists yet;
 ## drop one into assets/audio/music/ and name it here.

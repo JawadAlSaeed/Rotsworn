@@ -499,14 +499,3 @@ func test_drop_missing_before_a_run() -> void:
 	all_gone.drop_missing([] as Array[int])
 	assert_eq(all_gone.devices, [KEYBOARD] as Array[int], "P1 falls back to the keyboard")
 	assert_true(all_gone.validate().is_empty())
-
-
-func test_stick_diagonal_is_not_snapped_to_an_axis() -> void:
-	# A push at about 25 degrees: the old per-axis deadzone zeroed y.
-	var v := DeviceInput.radial_deadzone(Vector2(0.9, 0.42), 0.2)
-	assert_gt(v.x, 0.0)
-	assert_gt(v.y, 0.0, "the vertical part survives")
-	assert_almost_eq(v.angle(), Vector2(0.9, 0.42).angle(), 0.001, "direction is kept")
-	assert_eq(DeviceInput.radial_deadzone(Vector2(0.15, 0.1), 0.2), Vector2.ZERO, "inside the deadzone")
-	assert_almost_eq(DeviceInput.radial_deadzone(Vector2(1.0, 0.0), 0.2).length(), 1.0, 0.001)
-	assert_lt(DeviceInput.radial_deadzone(Vector2(0.3, 0.0), 0.2).length(), 0.3, "rises from zero at the edge")
