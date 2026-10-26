@@ -22,7 +22,7 @@ script = ExtResource("1_d4656")
 id = "first_strike"
 topic = "fight"
 term = "First strike"
-text = "A Fight stop's name card shows one ring. Press the skill button as it closes: GOOD or PERFECT and your whole party acts before any enemy. Guards, elites and bosses open normally."
+text = "A Fight stop's fight opens with one ring, once the camera has swept over the enemies. Press the skill button as it closes: GOOD or PERFECT and your whole party acts before any enemy. Guards, elites and bosses open normally."
 tag = "FIRST STRIKE!"
 color = Color(1, 0.82, 0.3, 1)
 
@@ -658,7 +658,7 @@ script = ExtResource("1_d4656")
 id = "stop_event"
 topic = "map"
 term = "Event stop"
-text = "A red question mark: a story with a choice. Every choice has a price, and some turn into a fight. Leave is always there."
+text = "A red question mark: a story with a choice. Every choice has a price, and some turn into a fight. Walk on is always there."
 icon_path = "res://assets/sprites/ui/map_event.png"
 
 [sub_resource type="Resource" id="Resource_0y7iv"]
@@ -721,7 +721,7 @@ script = ExtResource("1_d4656")
 id = "wanderer"
 topic = "shops"
 term = "Wanderer"
-text = "A kind of \"?\" event: someone met on the road with a deal, such as the Grave Robber selling what he dug up or a Wounded Pilgrim who blesses what you give. Leave is always there."
+text = "A kind of \"?\" event: someone met on the road with a deal, such as the Grave Robber selling what he dug up or a Wounded Pilgrim who blesses what you give. Walk on is always there."
 icon_path = "res://assets/sprites/ui/map_event.png"
 
 [sub_resource type="Resource" id="Resource_tnp1o"]
@@ -746,7 +746,7 @@ script = ExtResource("1_d4656")
 id = "relic_book"
 topic = "gear"
 term = "Relic book"
-text = "Every Relic picked in a run, won or lost, is kept for good in the book on the main menu (New: not in it yet). Before each run every hero takes one Relic from it. Online each player picks from their own book."
+text = "Every Relic picked in a run, won or lost, is kept for good in the book on the main menu (New: not in it yet). Before each run every hero may take one Relic from it. Online each player picks from their own book."
 tag = "Starting Relics"
 color = Color(1, 0.82, 0.3, 1)
 

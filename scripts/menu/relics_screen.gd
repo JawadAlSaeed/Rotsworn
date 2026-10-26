@@ -2,7 +2,8 @@ class_name RelicsScreen
 extends CanvasLayer
 ## The Relic book on the main menu (DESIGN.md 8.17, 8.24, card #328), laid out like Expedition 33's
 ## Pictos page. Left: every Relic as a slanted card in a two-column grid (its icon and name), sorted
-## by name or rarity (X / R), with "Found N of 50"; a Relic not found yet shows as "???". Right: the
+## by name or rarity (LT / RT, keys 1 / 3: the switch inside a screen, card #336), with "Found N of
+## 50"; a Relic not found yet shows as "???". Right: the
 ## Relic under the cursor, big: its icon, name, rarity and chips (what it does, its price, its stat
 ## line), or for one not found yet the places Relics come from. Under the grid: its text.
 ## StartRelicsScreen (the starting pick before a run) is this page with the heroes on the right.
@@ -11,6 +12,8 @@ signal closed
 
 enum Sort { NAME, RARITY }
 const SORT_NAMES: Array[String] = ["Name", "Rarity"]
+## The footer's sort hint: LT / RT (card #336).
+const SORT_HINTS: Array = [[ControlBindings.SWITCH_PREV, ""], [ControlBindings.SWITCH_NEXT, "Sort"]]
 
 const TITLE_SIZE: int = 56
 const NAME_SIZE: int = 24
@@ -143,6 +146,24 @@ func _back() -> void:
 	close()
 
 
+## X / R: nothing on the book (the starting Relics: Skip).
+func _alt() -> void:
+	pass
+
+
+## The sort `step` on (LT -1, RT +1), wrapping round.
+func step_sort(step: int) -> void:
+	_sort = wrapi(_sort + step, 0, Sort.size()) as Sort
+	_resort()
+	Sfx.play("menu_move")
+	_redraw()
+
+
+## The sort shown now.
+func sort() -> Sort:
+	return _sort
+
+
 ## True if party_menu (Y) works as Back too.
 func _closes_on_party_menu() -> bool:
 	return true
@@ -246,12 +267,13 @@ func _grid_input(event: InputEvent) -> void:
 		_handled()
 		_confirm(focused())
 		return
+	elif not event.is_echo() and (_pressed(event, ControlBindings.SWITCH_PREV) or _pressed(event, ControlBindings.SWITCH_NEXT)):
+		_handled()
+		step_sort(-1 if event.is_action(ControlBindings.SWITCH_PREV) else 1)
+		return
 	elif _pressed(event, &"item_move"):
 		_handled()
-		_sort = ((_sort + 1) % Sort.size()) as Sort
-		_resort()
-		Sfx.play("menu_move")
-		_redraw()
+		_alt()
 		return
 	elif _pressed(event, &"menu_cancel") or (_closes_on_party_menu() and _pressed(event, &"party_menu")):
 		_handled()
@@ -342,7 +364,13 @@ func _redraw() -> void:
 	for child: Node in _sort_box.get_children():
 		_sort_box.remove_child(child)
 		child.free()
-	_sort_box.add_child(HintBar.entry_row(&"item_move", "Sort: %s" % SORT_NAMES[_sort], TEXT_SIZE, HudStyle.TEXT))
+	# LT, "Sort: Name", RT: the switch's two buttons round what it switches (card #336).
+	var chips := HBoxContainer.new()
+	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chips.add_theme_constant_override("separation", HintBar.CHIP_GAP)
+	chips.add_child(HintBar.entry_row(ControlBindings.SWITCH_PREV, "Sort: %s" % SORT_NAMES[_sort], TEXT_SIZE, HudStyle.TEXT))
+	chips.add_child(HintBar.entry_row(ControlBindings.SWITCH_NEXT, "", TEXT_SIZE, HudStyle.TEXT))
+	_sort_box.add_child(chips)
 	_found.text = found_text()
 	_redraw_grid()
 	_clear(_side)
@@ -353,7 +381,10 @@ func _redraw() -> void:
 
 ## The footer's hints now (tests read them).
 func hints() -> Array:
-	return [[&"@arrows", "Move"], [&"item_move", "Sort"], [&"menu_cancel", "Back"]]
+	var entries: Array = [[&"@arrows", "Move"]]
+	entries.append_array(SORT_HINTS)
+	entries.append([&"menu_cancel", "Back"])
+	return entries
 
 
 func _redraw_grid() -> void:

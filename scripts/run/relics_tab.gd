@@ -7,8 +7,8 @@ extends PartyTab
 ## went, card #328; an old save may hold some) are bright and untagged in the grid.
 ## Rows: up / down picks a hero, left / right their Relics; right past the last goes into the grid.
 ## Confirm on a hero opens the grid to give them a waiting Relic; Confirm on a waiting Relic there
-## gives it to that hero. In the grid X / R changes which kind of Relic shows (all, offensive,
-## defensive, support). Back steps back from the grid to the rows.
+## gives it to that hero. LT / RT (1 / 3, card #336) change which kind of Relic the grid shows (all,
+## offensive, defensive, support), from the rows or the grid. Back steps back from the grid to the rows.
 
 enum Zone { HEROES, GRID }
 ## The grid's filter: everything, or one category (GearData.Category + 1).
@@ -141,19 +141,41 @@ func handle_input(event: InputEvent) -> bool:
 		_warning = ""
 	if event is InputEventMouse and _mouse_input(event):
 		return true
+	if pressed(event, ControlBindings.SWITCH_PREV) or pressed(event, ControlBindings.SWITCH_NEXT):
+		step_filter(-1 if event.is_action(ControlBindings.SWITCH_PREV) else 1)
+		return true
 	if _zone == Zone.HEROES:
 		return _rows_input(event)
 	return _grid_input(event)
 
 
+## The grid's kind `step` on (LT -1, RT +1, wrapping round), from the rows or the grid (card #336).
+## In the grid the cursor goes to the first Relic of that kind.
+func step_filter(step: int) -> void:
+	_filter = wrapi(_filter + step, 0, Filter.size()) as Filter
+	_relist()
+	_cursor = 0
+	Sfx.play("menu_move")
+	_redraw()
+	changed.emit()
+
+
+## The kind the grid shows now.
+func filter() -> Filter:
+	return _filter
+
+
 ## Give only while a Relic waits for a hero (none in a new run since card #328: an old save's).
+## The kind switch (LT / RT) shows whenever the run has a Relic.
 func hints() -> Array:
 	var waiting := not run.waiting_relics().is_empty()
-	if _zone == Zone.GRID:
-		if waiting:
-			return [[&"@arrows", ""], [&"menu_confirm", "Give"], [&"item_move", "Kind"]]
-		return [[&"@arrows", ""], [&"item_move", "Kind"]]
-	return [[&"@arrows", ""], [&"menu_confirm", "Give"]] if waiting else [[&"@arrows", ""]]
+	var entries: Array = [[&"@arrows", ""]]
+	if waiting:
+		entries.append([&"menu_confirm", "Give"])
+	if not run.owned_relics().is_empty():
+		entries.append([ControlBindings.SWITCH_PREV, ""])
+		entries.append([ControlBindings.SWITCH_NEXT, "Kind"])
+	return entries
 
 
 func info() -> Dictionary:
@@ -227,14 +249,6 @@ func _grid_input(event: InputEvent) -> bool:
 		step = BAG_COLUMNS
 	elif pressed(event, &"menu_confirm"):
 		put(_listed[_cursor] if _cursor < _listed.size() else null)
-		return true
-	elif pressed(event, &"item_move"):
-		_filter = ((_filter + 1) % Filter.size()) as Filter
-		_relist()
-		_cursor = 0
-		Sfx.play("menu_move")
-		_redraw()
-		changed.emit()
 		return true
 	elif pressed(event, &"menu_cancel") or pressed(event, &"party_menu") or MenuMouse.is_back(event):
 		Sfx.play("menu_cancel")

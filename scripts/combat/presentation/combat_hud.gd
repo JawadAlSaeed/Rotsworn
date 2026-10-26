@@ -203,6 +203,11 @@ var _intent_signs: Dictionary = {}
 var _hit_icons: Dictionary = {}
 ## The enemy panels' see-through: back during enemy attacks, full at once on a parry or counter.
 var _enemy_fade := EnemyPanelsFade.new()
+## A fight's intro (card #335): each enemy's name over it while the camera sweeps (id -> Label).
+var _intro_names: Dictionary = {}
+var _intro_tween: Tween
+## A Fight stop's First Strike ring, centred over the fight (card #335).
+var _ring_holder: CenterContainer
 
 
 ## Builds the parts that do not depend on the fighters.
@@ -615,6 +620,82 @@ func show_center_banner(text: String, color: Color, ms: int) -> void:
 	_center_tween.tween_callback(_center_banner.hide)
 
 
+## A fight's intro (card #335): `names` (enemy id -> name) show small over their enemies, fading in
+## and out over intro_name_fade_ms, for `ms` in all. They follow the camera as it sweeps.
+func show_intro_names(names: Dictionary, ms: int) -> void:
+	hide_intro_names()
+	for id: Variant in names:
+		var label := HudStyle.make_label(String(names[id]), _visuals.intro_name_size, HudStyle.TEXT)
+		label.label_settings = HudStyle.punch_settings(_visuals.intro_name_size, HudStyle.TEXT)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.name = "IntroName%d" % int(id)
+		_popup_layer.add_child(label)
+		_intro_names[int(id)] = label
+	_place_intro_names()
+	var fade := clampf(float(_visuals.intro_name_fade_ms) / 1000.0, 0.0, float(ms) / 2000.0)
+	var hold := maxf(0.0, float(ms) / 1000.0 - fade * 2.0)
+	for label: Label in _intro_names.values():
+		label.modulate.a = 0.0 if fade > 0.0 else 1.0
+	_intro_tween = _popup_layer.create_tween().set_parallel(true)
+	for label: Label in _intro_names.values():
+		_intro_tween.tween_property(label, "modulate:a", 1.0, fade)
+	_intro_tween.chain().tween_interval(hold)
+	_intro_tween.chain().set_parallel(true)
+	for label: Label in _intro_names.values():
+		_intro_tween.tween_property(label, "modulate:a", 0.0, fade)
+	_intro_tween.chain().tween_callback(_free_intro_names)
+
+
+## The intro's names go (the intro is over, or the fight was left).
+func hide_intro_names() -> void:
+	if _intro_tween != null and _intro_tween.is_valid():
+		_intro_tween.kill()
+	_free_intro_names()
+
+
+func _free_intro_names() -> void:
+	_intro_tween = null
+	for label: Label in _intro_names.values():
+		if is_instance_valid(label):
+			label.queue_free()
+	_intro_names.clear()
+
+
+## The intro's names showing now (tests and pictures).
+func intro_names() -> Array[String]:
+	var list: Array[String] = []
+	for label: Label in _intro_names.values():
+		list.append(label.text)
+	return list
+
+
+## Each intro name centred just over its enemy's head.
+func _place_intro_names() -> void:
+	for id: int in _intro_names:
+		var label := _intro_names[id] as Label
+		var rect := _fighter_rect(id)
+		label.reset_size()
+		label.position = Vector2(rect.get_center().x - label.size.x * 0.5, rect.position.y - label.size.y)
+
+
+## A Fight stop's First Strike ring (card #335), in the middle of the fight's screen until
+## hide_first_strike_ring().
+func show_first_strike_ring(ring: Control) -> void:
+	hide_first_strike_ring()
+	_ring_holder = CenterContainer.new()
+	_ring_holder.name = "FirstStrikeHolder"
+	_ring_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ring_holder.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(_ring_holder)
+	_ring_holder.add_child(ring)
+
+
+func hide_first_strike_ring() -> void:
+	if _ring_holder != null and is_instance_valid(_ring_holder):
+		_ring_holder.queue_free()
+	_ring_holder = null
+
+
 ## A floating text that rises and fades over tuning popup_ms, at a world position.
 func popup(text: String, world_pos: Vector3, color: Color, font_size: int = POPUP_SIZE) -> void:
 	popup_screen(text, _view.screen_position(world_pos), color, font_size)
@@ -632,6 +713,8 @@ func _process(delta: float) -> void:
 	_time_s += delta
 	if not _popups.is_empty():
 		_layout_popups()
+	if not _intro_names.is_empty():
+		_place_intro_names()
 	_place_streak()
 	# The ready ultimate breathes (bar brightens, gold glow around its frame); the screen edges
 	# pulse red while a hero is in danger.

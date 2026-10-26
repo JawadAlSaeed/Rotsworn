@@ -8,6 +8,7 @@ const USE_ABILITY := "use_ability"
 const USE_ITEM := "use_item"
 const RESOLVE_PROMPTS := "resolve_prompts"
 const PRACTICE := "practice"
+const SET_OPENING := "set_opening"
 
 
 ## A party member uses an ability on their turn. `turn` must match the engine's current turn
@@ -49,6 +50,13 @@ static func resolve_prompts(seq: int, results: Array[Dictionary]) -> Dictionary:
 ## One result entry for resolve_prompts().
 static func prompt_result(prompt_idx: int, outcome: int, offset_us: int = 0) -> Dictionary:
 	return {"prompt": prompt_idx, "outcome": outcome, "offset_us": offset_us}
+
+
+## A Fight stop's First Strike ring decided (card #335): `opening` "normal" or "first_strike"
+## (CombatEngine.OPENING_NAMES), `word` the press's readout for the friends' screens (PERFECT, GOOD,
+## EARLY, LATE, MISS). Accepted only while the fight waits for it (CombatSetup.Opening.RING).
+static func set_opening(opening: String, word: String = "") -> Dictionary:
+	return {"type": SET_OPENING, "opening": opening, "word": word}
 
 
 ## Practice tools (only accepted when the setup allows practice). Every key is optional:

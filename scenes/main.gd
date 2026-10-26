@@ -245,13 +245,12 @@ var _put_away: bool = false
 ## The host's players screen's word on the online slot ("" : none): kept from another version, or
 ## broken and deleted (card #313).
 var _online_save_note: String = ""
-## The First Strike ring on the Fight stop's name card now (DESIGN.md 8.22, card #320; null: none),
-## and the opening the next run fight starts with: a Fight stop's ring's, NORMAL for every other
-## fight (the fight it goes into uses it up).
-var _first_strike_ring: FirstStrikeRing = null
+## The opening the next run fight starts with: RING for a Fight stop's (its First Strike ring is
+## pressed in the fight, after its intro, DESIGN.md 8.22, cards #320 and #335), NORMAL for every
+## other fight (the fight it goes into uses it up).
 var _run_opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
-## Online friend: the host's First Strike result ({fight: its seed, opening, word}; {}: none yet).
-var _net_opening: Dictionary = {}
+## --screen=first_strike: the fight's First Strike ring starts over after each result (LOOP).
+var _first_strike_picture: bool = false
 ## The starting Relics step (DESIGN.md 8.24, card #328): true while it goes on, and the host's wait
 ## for its friends' picks (a newer step or its end stops an older wait).
 var _start_open: bool = false
@@ -496,17 +495,16 @@ func _show_sample_map(stops: int, act: int = 0) -> void:
 	_show_map()
 
 
-## --screen=first_strike: a Fight stop's name card with its First Strike ring (DESIGN.md 8.22, card
-## #320), at a new run's first stop, for pictures. The ring starts over after each result and can be
-## pressed; the card stays until the game is closed.
+## --screen=first_strike: a new run's first stop (a Fight stop) and its fight's First Strike ring
+## (DESIGN.md 8.22, cards #320 and #335), for pictures: the intro sweeps over the enemies, then the
+## ring shows in the middle of the fight, starts over after each result and can be pressed; the
+## first turn never comes.
 func _show_sample_first_strike() -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
 	_run.go(_run.choices()[0])
+	_first_strike_picture = true
 	var zone := _run.zone_now()
-	_busy = true
-	await _transition.fade_out()
-	await _transition.show_tip(zone.display_name if zone != null else "",
-			_new_first_strike_ring(FirstStrikeRing.Mode.LOOP))
+	_fade_to(_start_stop_fight, zone.display_name if zone != null else "", true)
 
 
 ## --screen=shop|campfire|event|treasure: a run standing at such a stop, with gold and a few items
@@ -753,15 +751,12 @@ func _free_screen() -> void:
 ## Fades to black, runs `build` (which shows the next thing), and fades back in. With a
 ## `tip_title` a loading card (that title and a tip, card #86) shows over the black and `build` runs
 ## at its end, so a fight starts when it is seen. `swirl`: into a fight, the screen swirls into the
-## black (with its sound) instead of fading. How long the card stays (DESIGN.md 7.7):
-## - with `ring`, a Fight stop's First Strike ring (8.22) on the card: until the ring is done (its
-##   press and result; a friend's waits for the host's), on every machine, the bot's too, and the
-##   tips' hold_ms does not apply;
-## - otherwise the tips' hold_ms, on the host or a local game only: online clients and the bot do
-##   not hold it (the host already held it before sending the screen).
-func _fade_to(build: Callable, tip_title: String = "", swirl: bool = false, ring: FirstStrikeRing = null) -> void:
+## black (with its sound) instead of fading. The card stays the tips' hold_ms (DESIGN.md 7.7), on
+## the host or a local game only: online clients and the bot do not hold it (the host already held
+## it before sending the screen). A Fight stop's First Strike ring is no longer on the card: it is in
+## the fight, after its intro (cards #320, #335).
+func _fade_to(build: Callable, tip_title: String = "", swirl: bool = false) -> void:
 	if _busy:
-		_drop_first_strike_ring(ring)
 		return
 	_busy = true
 	var gen := _flow_gen
@@ -771,21 +766,15 @@ func _fade_to(build: Callable, tip_title: String = "", swirl: bool = false, ring
 	else:
 		await _transition.fade_out()
 	if gen != _flow_gen:
-		_drop_first_strike_ring(ring)
 		_transition.fade_in()
 		_end_busy()
 		return
-	if not tip_title.is_empty() or ring != null:
-		await _transition.show_tip(tip_title, ring)
-		if ring != null:
-			while gen == _flow_gen and is_instance_valid(ring) and ring.is_inside_tree() and not ring.is_finished():
-				await get_tree().process_frame
-		else:
-			var tips := load(TIPS_PATH) as TipSet
-			if tips != null and tips.hold_ms > 0 and not Net.is_client() and not _options.is_autoplay():
-				await get_tree().create_timer(float(tips.hold_ms) / 1000.0).timeout
+	if not tip_title.is_empty():
+		await _transition.show_tip(tip_title)
+		var tips := load(TIPS_PATH) as TipSet
+		if tips != null and tips.hold_ms > 0 and not Net.is_client() and not _options.is_autoplay():
+			await get_tree().create_timer(float(tips.hold_ms) / 1000.0).timeout
 		if gen != _flow_gen:
-			_first_strike_ring = null
 			await _transition.hide_tip()
 			_transition.fade_in()
 			_end_busy()
@@ -1119,6 +1108,9 @@ func _start_combat() -> void:
 		# normally.
 		_combat.configure(_encounter, _tuning, _visuals, _options, _fight_look, _run_opening, _fight_air)
 		_run_opening = CombatSetup.Opening.NORMAL
+		_combat.first_strike_bot_seed = _first_strike_bot_seed()
+		if _first_strike_picture:
+			_combat.first_strike_mode = FirstStrikeRing.Mode.LOOP
 		continue_to = _on_run_fight_over
 	else:
 		# The tutorial starts with the heroes' turns (first strike) against a slower enemy.
@@ -1149,6 +1141,10 @@ func _start_combat() -> void:
 		if _options.is_autoplay():
 			_combat.combat_finished.connect(_autoplay_continue.bind(continue_to))
 	_combat.combat_finished.connect(_on_combat_finished)
+	_combat.opening_played.connect(_on_fight_opening)
+	# The fight's intro waits until the card and the fade are gone, so its sweep is seen (card #335).
+	if _transition != null:
+		_combat.screen_covered = _transition.is_covering
 	_combat.pause_reached.connect(_on_combat_pause_reached)
 	_combat.restart_requested.connect(_on_restart_requested)
 	_combat.select_requested.connect(_show_select.call_deferred)
@@ -1927,6 +1923,7 @@ func _show_start_relics(book: RelicCollection = null) -> void:
 		mine = _run.start_open_of(_start_heroes())
 	screen.setup_pick(_run, book, mine)
 	screen.picked.connect(_on_start_picked)
+	screen.withdrawn.connect(_on_start_withdrawn)
 	screen.finished.connect(_check_start_done)
 	_show_screen(screen)
 	_send_screen({"name": "start_relics"})
@@ -1949,6 +1946,43 @@ func _on_start_picked(slot: int, item: GearData) -> void:
 	print("Start relic: %s to %s" % [item.id if item != null else "skip", hero])
 
 
+## Back took a starting pick back on this machine's screen (card #334): logged here (already undone
+## in the run); an online friend's asks the host, which checks it (_on_friend_start_back).
+func _on_start_withdrawn(slot: int, id: String) -> void:
+	var hero := _run.data.party[slot].id if _run != null and slot >= 0 and slot < _run.party_size() else "?"
+	var what := id if not id.is_empty() else "skip"
+	if Net.is_client():
+		print("Start relic back asked: %s from %s" % [what, hero])
+		Net.send_to_host("start_relic_back", {"slot": slot, "relic": id})
+		return
+	print("Start relic back: %s from %s" % [what, hero])
+
+
+## Host: a friend's Back on the starting Relics (card #334): hero `slot`'s pick ("relic": the id, ""
+## a Skip) is taken back when the hero is theirs to pick for (held when the step began) and the step
+## is still open; the friend is told either way ("start_back"), and the host's state reopens the hero.
+func _on_friend_start_back(from_peer: int, p: Dictionary) -> void:
+	var slot := int(p.get("slot", -1)) if typeof(p.get("slot")) == TYPE_INT else -1
+	var id := String(p.relic) if typeof(p.get("relic")) == TYPE_STRING else ""
+	var ok := _start_back_allowed(_start_pickers, from_peer, slot, _start_open and _screen is StartRelicsScreen) \
+			and _run.undo_start_relic(slot, id)
+	var who := HudStyle.player_tag(maxi(0, _players.player_of_peer(from_peer))) if _players != null else "P?"
+	var what := id if not id.is_empty() else "skip"
+	print("Start relic back %s: %s %s hero=%d" % ["taken" if ok else "refused", who, what, slot])
+	if _options.is_autoplay():
+		print("AUTOPLAY_START_RELIC_BACK %s %s hero=%d ok=%d" % [who, what, slot, int(ok)])
+	Net.send_to(from_peer, "start_back", {"slot": slot, "relic": id, "ok": ok})
+	if ok:
+		(_screen as StartRelicsScreen).refresh()
+
+
+## Host: true when friend `peer` may take a starting pick of hero `slot` back: the step is `open`
+## and the hero is one they pick for (`pickers`, fixed when it began; emptied when the wait ran out).
+## Pure.
+static func _start_back_allowed(pickers: Dictionary, peer: int, slot: int, open: bool) -> bool:
+	return open and pickers.get(peer) is Array and (pickers[peer] as Array).has(slot)
+
+
 ## Host or local: once every hero has their starting Relics (or went without), the run goes on.
 func _check_start_done() -> void:
 	if Net.is_client() or _run == null or not _start_open or not _screen is StartRelicsScreen:
@@ -1964,6 +1998,9 @@ func _end_start_relics(fade: bool) -> void:
 	_start_open = false
 	_start_wait_gen += 1
 	_start_pickers = {}
+	if _screen is StartRelicsScreen:
+		# Back takes nothing back once the run goes on (card #334).
+		(_screen as StartRelicsScreen).open = false
 	_run.end_start_picks()
 	_log_start_relics()
 	if not was_open:
@@ -2095,15 +2132,10 @@ func _enter_stop() -> void:
 		RunMap.StopType.FIGHT, RunMap.StopType.GUARD:
 			# The map swirls away, the place's name card with a tip shows (card #86), then its fight
 			# (DESIGN.md 8.22; Guard stops are map rules 3's only, new maps put the guard at an Elite
-			# stop). A Fight stop's card carries the First Strike ring (card #320); its fight
-			# is announced first, so the friends watch the ring while the host presses it (never while
-			# a transition is under way: _fade_to would not build that fight).
+			# stop). A Fight stop's First Strike ring is in its fight, after the intro (cards #320,
+			# #335).
 			var zone := _run.zone_of(stop)
-			var ring: FirstStrikeRing = null
-			if _rings_first_strike(int(stop.type)) and not _busy:
-				_announce_stop_fight(true)
-				ring = _new_first_strike_ring(FirstStrikeRing.Mode.PRESS)
-			_fade_to(_start_stop_fight, zone.display_name if zone != null else "", true, ring)
+			_fade_to(_start_stop_fight, zone.display_name if zone != null else "", true)
 		RunMap.StopType.REST:
 			_fade_to(_show_rest)
 		RunMap.StopType.SHOP:
@@ -2121,15 +2153,14 @@ func _enter_stop() -> void:
 
 ## A Fight or Guard stop's fight (DESIGN.md 8.22), built under the place's name card: the fight the
 ## run state names for the stop (the same on every machine, the friend builds it from the host's
-## state), in the place's look and air under its rolled weather, with a Fight stop's drop, and a
-## Fight stop's opening from its First Strike ring (card #320). The way in is _fade_to's swirl (the
-## map swirls into black, as into every other run fight), then the card.
+## state), in the place's look and air under its rolled weather, with a Fight stop's drop; a Fight
+## stop's fight opens with its First Strike ring (RING: pressed in the fight after its intro, cards
+## #320, #335). The way in is _fade_to's swirl (the map swirls into black, as into every other run
+## fight), then the card.
 func _start_stop_fight() -> void:
-	var ringed := _run != null and _rings_first_strike(int(_run.current().get("type", -1)))
-	var opening := _stop_opening(ringed)
-	_first_strike_ring = null
 	if _run == null:
 		return
+	var ringed := _rings_first_strike(int(_run.current().get("type", -1)))
 	_encounter = _run.encounter_now()
 	if _encounter == null:
 		# Only bad data gets here (a place with no monsters or no guard): the stop is passed.
@@ -2146,12 +2177,10 @@ func _start_stop_fight() -> void:
 	if _options.is_autoplay():
 		print("AUTOPLAY_WEATHER %s %s" % [_run.zone_now().id if _run.zone_now() != null else "none",
 				_fight_weather.id if _fight_weather != null else "clear"])
-		if ringed:
-			print("AUTOPLAY_OPENING %s stop=%d" % [CombatEngine.OPENING_NAMES[opening], _run.visited])
-	if not ringed:
-		# A Guard stop's fight is announced once the host's card is done (a Fight stop's at its swirl).
-		_announce_stop_fight(false)
-	_run_opening = opening
+	# Announced once the host's card is done: the friends hold no card, so both fights start close
+	# together and play the same intro (card #335).
+	_announce_stop_fight()
+	_run_opening = CombatSetup.Opening.RING if ringed else CombatSetup.Opening.NORMAL
 	_start_combat()
 
 
@@ -2161,85 +2190,28 @@ static func _rings_first_strike(stop_type: int) -> bool:
 	return stop_type == RunMap.StopType.FIGHT
 
 
-## Host: picks the stop fight's seed and tells the friends (DESIGN.md 8.22). A Fight stop's fight is
-## announced at its swirl (`ring`: the friends watch its First Strike ring and wait for the host's
-## result, card #320); a Guard stop's once the host's card is done, as the friends hold no card.
-func _announce_stop_fight(ring: bool) -> void:
+## Host: picks the stop fight's seed and tells the friends (DESIGN.md 8.22), once the host's card is
+## done (the friends hold no card). A Fight stop's First Strike ring comes with the fight itself.
+func _announce_stop_fight() -> void:
 	if not Net.is_host():
 		return
 	_net_seed = randi_range(1, 2147483646)
-	_send_screen({"name": "stop_fight", "seed": _net_seed, "ring": ring})
+	_send_screen({"name": "stop_fight", "seed": _net_seed})
 
 
-## A First Strike ring for the Fight stop being entered (DESIGN.md 8.22, card #320): pressed here
-## (PRESS: a local game, or the host), watched (WATCH: an online friend) or the picture's (LOOP). The
-## bots' luck on it repeats with --seed, a new roll at each stop.
-func _new_first_strike_ring(mode: FirstStrikeRing.Mode) -> FirstStrikeRing:
-	var ring := FirstStrikeRing.new()
-	ring.name = "FirstStrike"
-	var bot_seed := -1
-	if _options.seed_override >= 0:
-		bot_seed = absi(_options.seed_override * FIRST_STRIKE_BOT_SALT + (_run.visited if _run != null else 0))
-	ring.setup(_tuning, _visuals, _options, _players, mode, bot_seed)
-	if mode == FirstStrikeRing.Mode.PRESS:
-		ring.decided.connect(_on_first_strike_decided)
-	_first_strike_ring = ring
-	return ring
+## The bots' luck on a Fight stop's First Strike ring (DESIGN.md 8.22): it repeats with --seed, a new
+## roll at each stop (-1: random).
+func _first_strike_bot_seed() -> int:
+	if _options.seed_override < 0:
+		return -1
+	return absi(_options.seed_override * FIRST_STRIKE_BOT_SALT + (_run.visited if _run != null else 0))
 
 
-## A ring that never reached its card (the transition could not run) goes.
-func _drop_first_strike_ring(ring: FirstStrikeRing) -> void:
-	if ring == null:
-		return
-	if _first_strike_ring == ring:
-		_first_strike_ring = null
-	if is_instance_valid(ring) and not ring.is_inside_tree():
-		ring.free()
-
-
-## The First Strike ring here is decided (DESIGN.md 8.22). Online the host tells the friends at once
-## (their cards wait for it) and keeps it with the fight's message for anyone who gets in later.
-func _on_first_strike_decided(opening: CombatSetup.Opening, word: String) -> void:
-	var opening_name := CombatEngine.OPENING_NAMES[opening]
-	print("First Strike press: %s (%s)" % [opening_name, word])
-	if not Net.is_host():
-		return
-	if int(_net_fight.get("seed", 0)) == _net_seed:
-		_net_fight["opening"] = opening_name
-		_net_fight["word"] = word
-	Net.broadcast("opening", {"fight": _net_seed, "opening": opening_name, "word": word})
-
-
-## The opening of the Fight stop's fight being built (`ringed`; a Guard stop's is NORMAL): its First
-## Strike ring's here (a local game's or the host's press), the host's on a friend's machine.
-func _stop_opening(ringed: bool) -> CombatSetup.Opening:
-	if not ringed:
-		return CombatSetup.Opening.NORMAL
-	if Net.is_client():
-		return _opening_of(_net_opening, _net_seed)
-	if _first_strike_ring != null and is_instance_valid(_first_strike_ring):
-		return _first_strike_ring.opening()
-	return CombatSetup.Opening.NORMAL
-
-
-## The opening a host's First Strike result (`result`: {fight, opening, ...}) gives fight `fight`:
-## FIRST_STRIKE only when it is that fight's and says so. Pure.
-static func _opening_of(result: Dictionary, fight: int) -> CombatSetup.Opening:
-	if fight == 0 or int(result.get("fight", 0)) != fight:
-		return CombatSetup.Opening.NORMAL
-	var first := String(result.get("opening", "")) == CombatEngine.OPENING_NAMES[CombatSetup.Opening.FIRST_STRIKE]
-	return CombatSetup.Opening.FIRST_STRIKE if first else CombatSetup.Opening.NORMAL
-
-
-## Online friend: the host's First Strike result for fight `fight` (its "opening" message, or the
-## fight's own message for a friend who gets in once it is decided). A ring watched for that fight
-## shows it at once.
-func _take_net_opening(p: Dictionary, fight: int) -> void:
-	if not p.has("opening"):
-		return
-	_net_opening = {"fight": fight, "opening": String(p.opening), "word": String(p.get("word", ""))}
-	if _first_strike_ring != null and is_instance_valid(_first_strike_ring) and fight == _net_seed:
-		_first_strike_ring.show_host_result(String(p.opening), String(p.get("word", "")))
+## A fight's opening played here (card #335): a Fight stop's First Strike result, logged on every
+## machine of an online game alike.
+func _on_fight_opening(opening: String, _word: String) -> void:
+	if _options.is_autoplay() and _run != null:
+		print("AUTOPLAY_OPENING %s stop=%d" % [opening, _run.visited])
 
 
 ## The run fight at the current stop is fought in its place (DESIGN.md 8.22): the look and air of
@@ -3695,7 +3667,6 @@ func _leave_online() -> void:
 	_sent_run = {}
 	_net_place = {}
 	_net_fight = {}
-	_net_opening = {}
 	Net.leave()
 	get_tree().auto_accept_quit = true
 	_players = PlayerRoster.solo(_hero_names().size())
@@ -3722,6 +3693,8 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				_on_friend_choice(from_peer, payload)
 			"start_relic":
 				_on_friend_start_relic(from_peer, payload)
+			"start_relic_back":
+				_on_friend_start_back(from_peer, payload)
 			"seated_ready":
 				_on_seated_ready(from_peer, int(payload.get("fight", 0)))
 		return
@@ -3738,10 +3711,6 @@ func _on_net_message(from_peer: int, kind: String, payload: Dictionary) -> void:
 				_players = roster
 				(_screen as LobbyScreen).set_roster(roster)
 				(_screen as LobbyScreen).set_oath(int(payload.get("oath", 0)))
-		"opening":
-			# The host's First Strike result (DESIGN.md 8.22): at once, not after the transition under
-			# way, because this machine's name card is waiting for it.
-			_take_net_opening(payload, int(payload.get("fight", 0)))
 		"menu":
 			# The host ended the game. At once, not after the transition under way: the host's line
 			# goes down a moment later, and that must not count as a lost host (no seat to take back).
@@ -3901,6 +3870,11 @@ func _client_message(kind: String, p: Dictionary) -> void:
 			if _screen is StartRelicsScreen:
 				var refused_id := String(p.relic) if typeof(p.get("relic")) == TYPE_STRING else ""
 				(_screen as StartRelicsScreen).refused(int(p.get("slot", -1)), refused_id)
+		"start_back":
+			# The host's answer to our Back on the starting Relics (card #334).
+			if _screen is StartRelicsScreen:
+				var back_id := String(p.relic) if typeof(p.get("relic")) == TYPE_STRING else ""
+				(_screen as StartRelicsScreen).withdraw_answered(int(p.get("slot", -1)), back_id, bool(p.get("ok", false)))
 
 
 ## Client: shows the screen the host is on.
@@ -3936,23 +3910,10 @@ func _client_screen(p: Dictionary) -> void:
 			# until it is built, as a final fight's do.
 			_net_seed = int(p.get("seed", 1))
 			_combat_resync = bool(p.get("rejoin", false))
-			# A Fight stop's First Strike ring (card #320): watched while the host presses it, the card
-			# waiting for its result. A friend who gets in once it is decided (or mid-fight) goes on.
-			_take_net_opening(p, _net_seed)
-			var ring: FirstStrikeRing = null
-			if _watches_first_strike(p, _net_opening):
-				ring = _new_first_strike_ring(FirstStrikeRing.Mode.WATCH)
+			# A Fight stop's First Strike ring comes with the fight (card #335): its friends watch it
+			# there; one who gets in mid-fight goes straight to the fight as it stands.
 			var zone := _run.zone_now()
-			_fade_to(_start_stop_fight, zone.display_name if zone != null else "", true, ring)
-
-
-## Online friend: true when the host's stop_fight message `p` brings a First Strike ring to watch
-## (DESIGN.md 8.22): a Fight stop's, unless its result (`known`, the host's last one) is in already or
-## the fight is going on (a friend who got in mid-fight goes straight to it). Pure.
-static func _watches_first_strike(p: Dictionary, known: Dictionary) -> bool:
-	var fight := int(p.get("seed", 0))
-	return bool(p.get("ring", false)) and not bool(p.get("rejoin", false)) and not p.has("opening") \
-			and int(known.get("fight", 0)) != fight
+			_fade_to(_start_stop_fight, zone.display_name if zone != null else "", true)
 
 
 ## Client: true when host screen `name` comes after the host's starting Relics step (card #328), so

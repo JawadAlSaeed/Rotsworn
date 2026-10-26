@@ -207,21 +207,30 @@ func test_an_event_shows_its_choices_as_cards_with_price_chips() -> void:
 	var event := _event("gamblers_bones")
 	var screen := _event_screen(run, event)
 	assert_true(screen.menu().horizontal, "the choices sit side by side")
-	assert_eq(screen.rows().size(), event.choices.size(), "no Leave card")
+	assert_eq(screen.rows().size(), event.choices.size() + 1, "the choices, then the Walk on card (card #334)")
+	assert_eq(String(screen.rows().back().text), EventScreen.WALK_ON)
+	assert_true(screen.rows().back().get("icon") is Texture2D, "Walk on has its picture")
+	assert_true(bool(screen.rows().back().enabled), "walking on always works")
 	var stake := screen.rows()[0].chips as Array
 	assert_eq(String(stake[0].text), "-%d gold" % CombatMath.percent(event.choices[0].deal.cost_gold, run.event_scale(run.at)))
 	assert_false(bool(screen.rows()[0].enabled), "greyed: the party cannot pay the stake")
-	assert_has(screen.footer_entries(), [&"menu_cancel", "Leave"])
+	for entry: Array in screen.footer_entries():
+		assert_ne(entry[0], &"menu_cancel", "Back is no way out of the cards (card #334)")
 	assert_has(screen.footer_entries(), [&"@leftright", "Choose"])
 	var column := screen.menu().get_parent() as Control
 	assert_lte(column.get_combined_minimum_size().y, SCREEN_HEIGHT - ListMenu.FOOTER_STRIP_PX, "the screen fits")
 
 
-func test_cancel_leaves_an_event_and_the_bot_methods_still_work() -> void:
+## Card #334: Back never walks on; the Walk on card does, taking nothing.
+func test_back_does_nothing_on_the_cards_and_walk_on_is_a_card() -> void:
 	var run := _run()
 	var screen := _event_screen(run, _event("gamblers_bones"))
 	_press_on(screen, &"menu_cancel")
-	assert_eq(_events, [-1] as Array[int], "cancel walks on, taking nothing")
+	assert_eq(_events.size(), 0, "Back on the cards does nothing")
+	assert_true(screen.menu().horizontal, "still the cards")
+	screen.menu().index = screen.walk_on_index()
+	_press_on(screen, &"menu_confirm")
+	assert_eq(_events, [-1] as Array[int], "Walk on goes on, taking nothing")
 	assert_eq(String(screen.rows()[0].text), "Continue")
 	assert_false(screen.menu().horizontal, "one way on: no cards")
 	var done := [false]
@@ -259,7 +268,7 @@ func test_a_greyed_card_that_asks_who_pays_does_not_open_the_list() -> void:
 	screen.menu().index = 0
 	_press_on(screen, &"menu_confirm")
 	assert_true(screen.menu().horizontal, "still the cards")
-	assert_eq(screen.rows().size(), 2)
+	assert_eq(screen.rows().size(), 3, "two choices and Walk on")
 	assert_eq(_events.size(), 0, "nothing was taken")
 
 
@@ -269,11 +278,13 @@ func test_the_starting_pact_is_three_cards() -> void:
 	assert_not_null(pact)
 	var screen := _event_screen(run, pact)
 	assert_true(screen.menu().horizontal)
-	assert_eq(screen.rows().size(), _tuning.run_pact_choices)
+	assert_eq(screen.rows().size(), _tuning.run_pact_choices + 1, "the deals, then Walk on (card #334)")
+	assert_eq(String(screen.rows().back().text), EventScreen.WALK_ON)
 	for row: Dictionary in screen.rows():
-		assert_false((row.chips as Array).is_empty(), "%s: its price and gift as chips" % row.text)
+		if not row.get("walk_on", false):
+			assert_false((row.chips as Array).is_empty(), "%s: its price and gift as chips" % row.text)
 	var column := screen.menu().get_parent() as Control
-	assert_lte(column.get_combined_minimum_size().x, 1920.0 - 60.0, "three cards fit the width")
+	assert_lte(column.get_combined_minimum_size().x, 1920.0 - 60.0, "the cards fit the width")
 
 
 # --- the campfire -----------------------------------------------------------------------------

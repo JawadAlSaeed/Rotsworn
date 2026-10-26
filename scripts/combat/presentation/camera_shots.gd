@@ -104,6 +104,33 @@ static func screen_share(s: Dictionary, p: Vector3, aspect: float) -> Vector2:
 	return Vector2(0.5 + ndc.x * 0.5, 0.5 - ndc.y * 0.5)
 
 
+## A fight's intro sweep (card #335): [from, to], the base view drifted toward the first and the
+## last of `enemies` (feet, in sweep order) and slid intro_sweep_slide further out at each end, so a
+## lone enemy still gets a slow pan. No enemies: the base view, twice.
+static func intro_sweep(v: CombatVisuals, enemies: Array[Vector3]) -> Array[Dictionary]:
+	if enemies.is_empty():
+		return [base(v), base(v)] as Array[Dictionary]
+	var slide := Vector3(v.intro_sweep_slide, 0.0, 0.0)
+	var from := drift(v, enemies[0] - slide, v.intro_sweep_share, v.intro_sweep_push)
+	var to := drift(v, enemies[enemies.size() - 1] + slide, v.intro_sweep_share, v.intro_sweep_push)
+	return [from, to] as Array[Dictionary]
+
+
+## The enemies' feet in intro sweep order: left to right on the base view (by x, then nearest
+## first). Pure.
+static func sweep_order(points: Array[Vector3]) -> Array[Vector3]:
+	var list := points.duplicate()
+	list.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.x < b.x or (a.x == b.x and a.z > b.z))
+	return list
+
+
+## The shot `t` of the way from `a` to `b` (0..1, clamped).
+static func blend(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
+	var k := clampf(t, 0.0, 1.0)
+	return shot((a.pos as Vector3).lerp(b.pos, k), (a.target as Vector3).lerp(b.target, k),
+			lerpf(float(a.fov), float(b.fov), k))
+
+
 ## A counter: a quick push toward the enemy.
 static func counter(v: CombatVisuals, enemy: Vector3) -> Dictionary:
 	return drift(v, enemy, 0.5, v.counter_push)

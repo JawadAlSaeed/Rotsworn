@@ -176,8 +176,8 @@ func hints() -> Array:
 	if not many:
 		entries.push_front([&"@updown", ""])
 	if many:
-		entries.append([&"party_attributes", ""])
-		entries.append([&"party_skills", "Hero"])
+		entries.append([ControlBindings.SWITCH_PREV, ""])
+		entries.append([ControlBindings.SWITCH_NEXT, "Hero"])
 	return entries
 
 
@@ -267,11 +267,11 @@ func _use(event: InputEvent) -> bool:
 		_change(-1, loud)
 	elif PartyTab.pressed(event, &"item_move"):
 		_ask_reset()
-	elif PartyTab.pressed(event, &"party_attributes") or PartyTab.pressed(event, &"party_skills"):
+	elif PartyTab.pressed(event, ControlBindings.SWITCH_PREV) or PartyTab.pressed(event, ControlBindings.SWITCH_NEXT):
 		if run.party_size() <= 1:
 			return false
 		Sfx.play("menu_move")
-		set_hero(wrapi(hero + (-1 if event.is_action(&"party_attributes") else 1), 0, run.party_size()))
+		set_hero(wrapi(hero + (-1 if event.is_action(ControlBindings.SWITCH_PREV) else 1), 0, run.party_size()))
 	else:
 		return false
 	return true

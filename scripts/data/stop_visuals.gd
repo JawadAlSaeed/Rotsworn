@@ -35,6 +35,8 @@ const PATH := "res://data/presentation/stop_visuals.tres"
 @export_file("*.png") var sharpen_icon_path: String = "res://assets/sprites/ui/choice_sharpen.png"
 @export_file("*.png") var host_icon_path: String = "res://assets/sprites/ui/choice_host.png"
 @export_file("*.png") var join_icon_path: String = "res://assets/sprites/ui/choice_join.png"
+## The "?" events' and the Crossroads' Walk on card (card #334): the shop's Leave door.
+@export_file("*.png") var walk_on_icon_path: String = "res://assets/sprites/ui/door.png"
 ## The treasure stop's chest (DESIGN.md 8.8), closed and opened (the rotten one is the same
 ## chest, tinted), and screen pixels per art pixel for it on its card (the chests are 28x24).
 @export_file("*.png") var chest_closed_path: String = "res://assets/sprites/env/chest_closed.png"

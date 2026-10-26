@@ -388,6 +388,18 @@ extends Resource
 @export_range(0.0, 5.0, 0.05) var intro_push: float = 1.2
 @export_range(10, 3000, 1, "suffix:ms") var intro_push_ms: int = 900
 @export_range(0.0, 1.0, 0.01) var intro_shake: float = 0.3
+## Every fight's intro (card #335), once the screen is uncovered: the camera sweeps slowly over the
+## enemies, from the nearest-left to the farthest-right, over intro_sweep_ms (0: no intro), each
+## enemy's name small over it (intro_name_size, fading in and out over intro_name_fade_ms); then the
+## fight starts (a Fight stop's First Strike ring, or the first turn). The sweep is the base view
+## drifted intro_sweep_share of the way toward an enemy and intro_sweep_push world units closer,
+## starting intro_sweep_slide world units left of the first and ending as far right of the last.
+@export_range(0, 5000, 10, "suffix:ms") var intro_sweep_ms: int = 1500
+@export_range(0.0, 1.0, 0.01) var intro_sweep_share: float = 0.5
+@export_range(0.0, 6.0, 0.05) var intro_sweep_push: float = 2.0
+@export_range(0.0, 3.0, 0.05) var intro_sweep_slide: float = 0.6
+@export_range(12, 64, 1) var intro_name_size: int = 24
+@export_range(0, 1000, 10, "suffix:ms") var intro_name_fade_ms: int = 250
 ## A struck enemy recoils away from the heroes this far (world units) and comes back: a normal
 ## hit, and a critical hit, counter or heavy hit. It is out for recoil_out_ms, back over recoil_back_ms.
 @export_range(0.0, 2.0, 0.01) var enemy_hit_knockback: float = 0.16
@@ -817,11 +829,13 @@ func kind_color(kind: int, strike_color: Color) -> Color:
 @export_range(0.0, 1.0, 0.05) var transition_flash: float = 0.6
 
 @export_group("First Strike press")
-## The First Strike ring on a Fight stop's name card (DESIGN.md 8.22, card #320), drawn like a skill
-## press ring (the Skills group's radii, bands and colours) at this share of its size, with the
-## skill press button and "First Strike" under it (first_strike_chip_size) and the press's word
-## over it (first_strike_word_size: PERFECT, GOOD, EARLY, LATE, MISS). The card holds the result
-## this long before the fight (and never before a late press could still say LATE). An online friend watches the host's ring this dim (they cannot press it).
+## The First Strike ring of a Fight stop's fight (DESIGN.md 8.22, cards #320 and #335: in the middle
+## of the fight's screen, after its intro), drawn like a skill press ring (the Skills group's radii,
+## bands and colours) at this share of its size, with the skill press button and "First Strike"
+## under it (first_strike_chip_size) and the press's word over it (first_strike_word_size: PERFECT,
+## GOOD, EARLY, LATE, MISS). The ring holds the result this long before the first turn (and never
+## before a late press could still say LATE). An online friend watches the host's ring this dim
+## (they cannot press it).
 @export_range(0.2, 2.0, 0.05) var first_strike_ring_scale: float = 0.8
 @export_range(12, 96, 1) var first_strike_chip_size: int = 30
 @export_range(12, 120, 1) var first_strike_word_size: int = 44

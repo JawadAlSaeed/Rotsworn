@@ -4,12 +4,17 @@ extends RelicsScreen
 ## RunState.start_relic_count() Relics of the player's choice from their Relic book, hero by hero.
 ## The book page's grid holds the book's found Relics (one taken for another hero is dim, with that
 ## hero's face); the right side shows every hero with what they took, the one choosing now lit.
-## Confirm takes the Relic under the cursor for that hero, Back skips them. Local co-op: only that
-## hero's player's pad picks for them (any device while that pad is unplugged, so a dead pad never
-## holds the step; the pause menu's Players row can drop that player). Online each machine picks for its own heroes from its own book:
+## Confirm takes the Relic under the cursor for that hero, X / R skips them (takes none, card #334: an
+## explicit choice, never Back), and Back takes this screen's last pick back (a Relic or a Skip) and
+## returns to that hero; on the first hero Back does nothing. LT / RT (1 / 3) change the sort. Local
+## co-op: only that hero's player's pad picks for them, and takes their pick back (any device while
+## that pad is unplugged, so a dead pad never holds the step; the pause menu's Players row can drop
+## that player). Online each machine picks for its own heroes from its own book:
 ## a friend's pick goes to the host (`remote`), which checks it, and shows "..." until the host's state
-## has it (a Relic someone took first comes back to choose again). When this machine's heroes are all
-## done the screen waits ("Waiting") until the run goes on.
+## has it (a Relic someone took first comes back to choose again); a friend's Back asks the host to
+## take the pick back (`withdrawn`) and shows "..." until it answers, only while the step is open. When
+## this machine's heroes are all done the screen waits ("Waiting") until the run goes on (Back still
+## takes the last pick back until then).
 
 ## Hero `slot` took `item` (null: skipped). Local play and the host: already in the run. A friend
 ## (`remote`): Main sends it to the host.
@@ -17,6 +22,9 @@ signal picked(slot: int, item: GearData)
 ## Every hero this screen picks for is done (taken or skipped; a friend's: sent). Told again if a
 ## refused pick opens a hero once more.
 signal finished
+## Back took hero `slot`'s pick back (`id` the Relic, "" a Skip; card #334). Local play and the host:
+## already undone in the run. A friend (`remote`): Main asks the host (withdraw_answered follows).
+signal withdrawn(slot: int, id: String)
 
 const HERO_FACE_PX := Vector2i(72, 72)
 const HERO_NAME_SIZE: int = 32
@@ -44,12 +52,19 @@ var connected_pads: Callable = Callable()
 ## The bot (autoplay) picks for this screen's heroes, and again whenever one opens once more (a
 ## friend's pick the host refused, or another hero got that Relic first).
 var autopick: bool = false
+## False once the step is over (Main closes it as the run goes on): Back takes nothing back then, so
+## a press during the fade never reopens a hero.
+var open: bool = true
 ## A friend's picks sent to the host and not in its state yet: slot -> Relic id ("" skipped).
 var _sent: Dictionary = {}
 var _finished_told: bool = false
 var _bot_queued: bool = false
 ## Relic ids the host refused on this screen: the bot never sends one again.
 var _refused: Dictionary = {}
+## The picks made on this screen, oldest first: {"slot", "id"} ("" a Skip). Back takes the last back.
+var _history: Array[Dictionary] = []
+## Online friend: picks Back asked the host to take back, waiting for its answer: slot -> id.
+var _withdrawing: Dictionary = {}
 ## The device of the last press (local co-op: whose pad it was).
 var _device: int = PlayerRoster.ANY
 
@@ -61,8 +76,11 @@ func setup_pick(p_run: RunState, book: RelicCollection, p_heroes: Array[int]) ->
 	setup(book, p_run.data.gear)
 
 
-## The hero choosing now: the first of `heroes` still open and not waiting on the host (-1: none).
+## The hero choosing now: the first of `heroes` still open and not waiting on the host (-1: none, and
+## nobody while a friend's Back waits for the host).
 func chooser() -> int:
+	if not _withdrawing.is_empty():
+		return -1
 	for slot: int in heroes:
 		if run.start_open(slot) and not _sent.has(slot):
 			return slot
@@ -71,7 +89,7 @@ func chooser() -> int:
 
 ## True once every hero this screen picks for is done (taken, skipped or sent to the host).
 func is_done() -> bool:
-	return chooser() < 0
+	return chooser() < 0 and _withdrawing.is_empty()
 
 
 ## True while a friend's pick waits for the host's state.
@@ -91,13 +109,14 @@ func take(item: GearData) -> bool:
 	elif run.take_start_relic(slot, item).is_empty():
 		_refuse(TAKEN)
 		return false
+	_history.append({"slot": slot, "id": item.id})
 	Sfx.play("buff")
 	picked.emit(slot, item)
 	_changed()
 	return true
 
 
-## The chooser takes no (more) starting Relics (Back). False if nobody is choosing.
+## The chooser takes no (more) starting Relics (X / R, the bot). False if nobody is choosing.
 func skip() -> bool:
 	var slot := chooser()
 	if slot < 0:
@@ -106,10 +125,50 @@ func skip() -> bool:
 		_sent[slot] = ""
 	elif not run.skip_start_relic(slot):
 		return false
+	_history.append({"slot": slot, "id": ""})
 	Sfx.play("menu_cancel")
 	picked.emit(slot, null)
 	_changed()
 	return true
+
+
+## True while Back has a pick of this screen to take back (and the step is open).
+func can_go_back() -> bool:
+	return open and not _history.is_empty()
+
+
+## Back (card #334): this screen's last pick (a Relic or a Skip) is taken back and its hero chooses
+## again. Local play and the host: at once, in the run. A friend: the host is asked (`withdrawn`;
+## refused while a pick of ours is still on its way). False if there is nothing to take back.
+func back() -> bool:
+	if not can_go_back() or not _withdrawing.is_empty() or (remote and not _sent.is_empty()):
+		return false
+	var last: Dictionary = _history.pop_back()
+	var slot := int(last.slot)
+	var id := String(last.id)
+	if remote:
+		_withdrawing[slot] = id
+	elif not run.undo_start_relic(slot, id):
+		# The step moved on under it for that hero: nothing to take back.
+		return false
+	Sfx.play("menu_cancel")
+	withdrawn.emit(slot, id)
+	_changed()
+	return true
+
+
+## Online friend: the host answered our Back for hero `slot` (`id` as asked): taken back (`ok`; the
+## host's state reopens the hero, refresh), or refused (the step is over for that hero): the pick
+## stands again.
+func withdraw_answered(slot: int, id: String, ok: bool) -> void:
+	if not _withdrawing.has(slot) or String(_withdrawing[slot]) != id:
+		return
+	_withdrawing.erase(slot)
+	if not ok:
+		_history.append({"slot": slot, "id": id})
+		_warning = TAKEN if not id.is_empty() else SKIPPED
+		Sfx.play("locked")
+	_changed()
 
 
 ## The bot's picks (DESIGN.md 8.24): for each hero still to choose, in slot order, the free Relic of
@@ -125,6 +184,9 @@ func bot_pick() -> void:
 ## The run changed (the host's state came, or a friend's pick went in on the host): a friend's sent
 ## picks the state has are done, one whose Relic another hero got first opens that hero again.
 func refresh() -> void:
+	for key: Variant in _withdrawing.keys():
+		if run.start_open(int(key)):
+			_withdrawing.erase(key)
 	for key: Variant in _sent.keys():
 		var slot := int(key)
 		var id := String(_sent[key])
@@ -147,10 +209,19 @@ func refresh() -> void:
 func refused(slot: int, id: String) -> void:
 	if not id.is_empty() and _sent.has(slot) and String(_sent[slot]) == id:
 		_sent.erase(slot)
+		_forget_pick(slot, id)
 		_refused[id] = true
 		_warning = TAKEN
 		Sfx.play("locked")
 	_changed()
+
+
+## A pick the host refused is no pick of ours to take back.
+func _forget_pick(slot: int, id: String) -> void:
+	for i: int in range(_history.size() - 1, -1, -1):
+		if int(_history[i].slot) == slot and String(_history[i].id) == id:
+			_history.remove_at(i)
+			return
 
 
 func _changed() -> void:
@@ -187,8 +258,8 @@ func _bot_choice() -> GearData:
 	return choices[GearBot.pick(choices)] if not choices.is_empty() else null
 
 
-## Local co-op: true if the last press may pick for the chooser (may_pick).
-func _pad_ok() -> bool:
+## Local co-op: true if the last press may pick for hero `slot` (default: the chooser; may_pick).
+func _pad_ok(slot: int = -2) -> bool:
 	if not check_pads:
 		return true
 	var pads: Array[int] = []
@@ -196,7 +267,12 @@ func _pad_ok() -> bool:
 		pads.assign(connected_pads.call())
 	else:
 		pads.assign(Input.get_connected_joypads())
-	return may_pick(players, _device, chooser(), pads)
+	return may_pick(players, _device, chooser() if slot == -2 else slot, pads)
+
+
+## The hero whose pick Back would take back (-1: none).
+func _back_slot() -> int:
+	return int(_history[_history.size() - 1].slot) if not _history.is_empty() else -1
 
 
 ## Local co-op: true if a press from `device` may pick for hero `slot`: their own player's pad, or any
@@ -239,7 +315,23 @@ func _confirm(item: GearData) -> bool:
 	return take(item)
 
 
+## Back (card #334): the last pick is taken back, by that hero's player only (local co-op). Nothing
+## on the first hero.
 func _back() -> void:
+	var slot := _back_slot()
+	if slot < 0 or not open:
+		return
+	if not _pad_ok(slot):
+		_refuse(_tag_of(slot))
+		return
+	if not back():
+		_refuse("")
+
+
+## X / R: the chooser takes none (Skip, an explicit choice; card #334).
+func _alt() -> void:
+	if chooser() < 0:
+		return
 	if not _pad_ok():
 		_refuse(_tag_of(chooser()))
 		return
@@ -260,9 +352,14 @@ func found_text() -> String:
 
 
 func hints() -> Array:
-	if is_done():
-		return []
-	return [[&"@arrows", "Move"], [&"menu_confirm", "Take"], [&"menu_cancel", SKIPPED], [&"item_move", "Sort"]]
+	var entries: Array = []
+	if not is_done():
+		entries = [[&"@arrows", "Move"], [&"menu_confirm", "Take"], [&"item_move", SKIPPED]]
+	if can_go_back():
+		entries.append([&"menu_cancel", "Back"])
+	if not is_done():
+		entries.append_array(SORT_HINTS)
+	return entries
 
 
 ## Every hero as a row: face, name (and player tag), and the Relics they took, or what they wait on.
@@ -319,7 +416,7 @@ func _hero_row(slot: int) -> Control:
 func _row_state(slot: int) -> String:
 	if slot == chooser():
 		return "Pick"
-	if _sent.has(slot):
+	if _sent.has(slot) or _withdrawing.has(slot):
 		return SENT
 	if run.start_open(slot):
 		return WAITING

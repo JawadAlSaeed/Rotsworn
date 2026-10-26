@@ -24,6 +24,14 @@ extends RefCounted
 const KEY := "key"
 const PAD := "pad"
 
+## The switch inside a screen or tab (card #336): LT / RT on the pad, 1 / 3 on the keyboard. It steps
+## through what a page shows (the hero on the Hero and Skills tabs, the Relics tab's kinds, the Relic
+## book's sort, the Glossary's topics, the Controls page's Keyboard / Controller); LB / RB (Z / C,
+## item_turn_left / item_turn_right) stay the main tabs. The action names are older than the job
+## (they opened the Attributes and Skills pages) and are kept, so saved controls still load.
+const SWITCH_PREV: StringName = &"party_attributes"
+const SWITCH_NEXT: StringName = &"party_skills"
+
 ## The actions the player can rebind, in the order the Controls list shows them.
 const ACTIONS: Array[StringName] = [
 	&"fight_attack", &"fight_skills", &"fight_items", &"fight_ultimate",
@@ -48,8 +56,8 @@ const LABELS := {
 	&"party_menu": "Backpack",
 	&"menu_up": "Menu up", &"menu_down": "Menu down", &"menu_left": "Menu left",
 	&"menu_right": "Menu right", &"menu_confirm": "Confirm", &"menu_cancel": "Back / run",
-	&"pause": "Pause", &"party_attributes": "Previous hero", &"party_skills": "Next hero",
-	&"item_move": "Move item", &"item_turn_left": "Tab left / turn item", &"item_turn_right": "Tab right / turn item",
+	&"pause": "Pause", &"party_attributes": "Switch back", &"party_skills": "Switch on",
+	&"item_move": "Skip / reset", &"item_turn_left": "Tab left", &"item_turn_right": "Tab right",
 	&"debug_overlay": "Stats overlay",
 }
 
@@ -75,11 +83,11 @@ const DETAILS := {
 	&"menu_confirm": "Every menu",
 	&"menu_cancel": "Menus; hold to run",
 	&"pause": "Fights, map",
-	&"party_attributes": "Y screen, Controls page",
-	&"party_skills": "Y screen, Controls page",
-	&"item_move": "Backpack",
-	&"item_turn_left": "Tabs, turn items",
-	&"item_turn_right": "Tabs, turn items",
+	&"party_attributes": "Hero, kind, sort, page",
+	&"party_skills": "Hero, kind, sort, page",
+	&"item_move": "Starting Relics, Hero tab",
+	&"item_turn_left": "Main tabs",
+	&"item_turn_right": "Main tabs",
 	&"debug_overlay": "Practice fights",
 }
 

@@ -3,8 +3,9 @@ extends StopScreen
 ## A "?" stop (DESIGN.md 8.7): the event's picture, its story and its choices as side-by-side cards
 ## (card #288), each with its price, reward and risk as icon chips (coin -40, heart +30%, a skull for
 ## a curse, crossed swords for a fight, a die with the risk's chance); ones the party cannot pay are
-## greyed. Leave is the cancel button (a hint in the footer), not a card. The starting pact (card
-## #285) is shown the same way. A choice that asks for a hero or a backpack item opens a short pick
+## greyed. Walk on (taking nothing) is the last card (card #334: Back never walks on; it only steps back
+## out of a pick, and does nothing on the cards). The starting pact (card #285, "The Crossroads") is
+## shown the same way. A choice that asks for a hero or a backpack item opens a short pick
 ## first: cards when PICK_CARDS_MAX or fewer, else a column; cancel returns to the cards. A choice
 ## that gives a Relic (a pact's) then asks who gets it (RelicGift, DESIGN.md 8.24; skipped when only
 ## one hero may). Taking a choice tells what happened
@@ -19,6 +20,8 @@ signal chosen(index: int, text: String)
 
 ## A pick list of this many or fewer (who pays, what goes) shows as cards side by side.
 const PICK_CARDS_MAX: int = 3
+## The last card while choosing: take nothing and go on (card #334).
+const WALK_ON := "Walk on"
 
 const TEXT_WIDTH: float = 1400.0
 
@@ -130,7 +133,7 @@ func _story() -> String:
 
 
 ## The rows of the menu as drawn now: {text, enabled, chips, ...}; while choosing, one card per
-## choice (Leave is the cancel button, not a row).
+## choice, then the Walk on card (walk_on_index()).
 func rows() -> Array[Dictionary]:
 	return _menu.items
 
@@ -155,9 +158,14 @@ func event() -> EventData:
 	return _event
 
 
-## How many choices the event has (not counting Leave).
+## How many choices the event has (not counting Walk on).
 func choice_count() -> int:
 	return _event.choices.size() if _event != null and not _ambush_page else 0
+
+
+## The Walk on card's place among the cards while choosing: after the choices.
+func walk_on_index() -> int:
+	return choice_count()
 
 
 func can_choose(index: int) -> bool:
@@ -223,7 +231,8 @@ func leave() -> void:
 	done.emit()
 
 
-## Leave while choosing: walk on, taking nothing. False once the choice is made or on an ambush page.
+## The Walk on card while choosing: go on, taking nothing (the bot calls it too). False once the
+## choice is made or on an ambush page.
 func walk_on() -> bool:
 	if _decided or _ambush_page or _event == null:
 		return false
@@ -235,7 +244,7 @@ func walk_on() -> bool:
 	return true
 
 
-## True once a choice is made (or Leave walked on).
+## True once a choice is made (or the party walked on).
 func is_decided() -> bool:
 	return _decided
 
@@ -254,7 +263,7 @@ func _turn_changed() -> void:
 		_show_ambush()
 	else:
 		var keep := _picking if _picking >= 0 else _menu.index
-		_menu.index = clampi(keep, 0, maxi(0, choice_count() - 1))
+		_menu.index = clampi(keep, 0, walk_on_index())
 		_show_choices()
 
 
@@ -274,8 +283,18 @@ func _show_choices() -> void:
 		var c := _event.choices[i]
 		list.append({"text": c.text, "enabled": not is_greyed() and run.can_choose(c, run.at),
 				"chips": StopScreen.chip_entries(run.choice_chips(c, run.at), _look)})
+	list.append(walk_on_card())
 	_show_list(list, true)
-	_set_footer([[&"@leftright", "Choose"], [&"menu_confirm", "Select"], [&"menu_cancel", "Leave"]])
+	_set_footer([[&"@leftright", "Choose"], [&"menu_confirm", "Select"]])
+
+
+## The Walk on card (card #334): the way-on picture and its word, no price and no gift.
+func walk_on_card() -> Dictionary:
+	var card := {"text": WALK_ON, "enabled": not is_greyed(), "walk_on": true}
+	var path := _look.walk_on_icon_path if _look != null else ""
+	if not path.is_empty():
+		card["icon"] = AssetLoader.texture(path, Vector2i(24, 24))
+	return card
 
 
 ## Shows `list` as cards side by side, or as a column (a pick list, one row to go on).
@@ -376,6 +395,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_back_from_pick()
 		else:
 			_after_pick(_picking, _pick_ids[_menu.index])
+	elif _menu.index == walk_on_index():
+		walk_on()
 	elif pick_kind(_menu.index) != ZoneOfferData.Pick.NONE and can_choose(_menu.index):
 		Sfx.play("menu_confirm")
 		_device = PlayerRoster.device_of(event)
@@ -385,16 +406,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		_after_pick(_menu.index, -1)
 
 
-## Cancel: back from the hero step to the pick (or the cards), back from a pick list, or Leave while
-## choosing (walk on, taking nothing). Nothing once the choice is made or on an ambush page.
+## Cancel: back from the hero step to the pick (or the cards), back from a pick list to the cards.
+## Nothing on the cards themselves (card #334: Walk on is a card, Back never walks on), once the
+## choice is made, or on an ambush page.
 func _cancel() -> void:
 	if _giving and pick_kind(_picking) != ZoneOfferData.Pick.NONE:
 		Sfx.play("menu_cancel")
 		_show_pick(_picking)
 	elif _picking >= 0:
 		_back_from_pick()
-	else:
-		walk_on()
 
 
 ## The gold line over the menu; hidden while empty, so the cards keep the room.

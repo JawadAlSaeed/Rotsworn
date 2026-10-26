@@ -9,6 +9,10 @@ enum Opening {
 	## First Strike (DESIGN.md 2.12): every party member acts before any enemy. (A zone's field
 	## swing gave it until phase 26; card #320 brings it back as a press, 8.22.)
 	FIRST_STRIKE,
+	## A Fight stop's fight (card #335): the First Strike ring is pressed in the fight, after its
+	## intro, and its result comes as the command set_opening (NORMAL or FIRST_STRIKE) before the
+	## first turn.
+	RING,
 }
 
 ## The Run action every hero has (DESIGN.md 2.13).

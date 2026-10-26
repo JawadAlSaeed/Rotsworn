@@ -38,6 +38,9 @@ signal seat_ready(peer: int)
 ## played with someone else judging is still waiting here; Main tells the host it may hand our heroes
 ## over.
 signal caught_up
+## The fight's opening played here (card #335): a Fight stop's First Strike ring's result
+## ("normal" or "first_strike", and the press's word), the same on every machine.
+signal opening_played(opening: String, word: String)
 
 enum NetMode { LOCAL, HOST, CLIENT }
 
@@ -45,6 +48,9 @@ enum NetMode { LOCAL, HOST, CLIENT }
 const ITEM_PREFIX := "item:"
 const TUTORIAL_LOCKED := "Not in this lesson."
 const QUIT_DELAY_S: float = 1.0
+## The intro waits this long at most for the screen to be uncovered (a transition that never ends
+## must not hold the fight).
+const INTRO_COVER_WAIT_MS: int = 6000
 ## After stopping all sounds, quitting waits this long (real time) so the audio server lets go of
 ## the playbacks; two frames are not enough and Godot reports "resources still in use at exit".
 const QUIT_AUDIO_RELEASE_S: float = 0.3
@@ -99,6 +105,17 @@ var _look: StageLook
 ## The place's drifting particles, played thinner in its fights (DESIGN.md 8.12); empty: the look's own.
 var _air: Array[ZoneAmbientData] = []
 var _opening: CombatSetup.Opening = CombatSetup.Opening.NORMAL
+## Main's "the screen is covered" (a transition or loading card): the intro waits until it is not,
+## so the sweep is seen (card #335). Unset: it never waits.
+var screen_covered: Callable = Callable()
+## A Fight stop's First Strike ring here (card #335): PRESS (a local game, the host) or LOOP (the
+## --screen=first_strike picture, never done). An online friend always watches (WATCH).
+var first_strike_mode: FirstStrikeRing.Mode = FirstStrikeRing.Mode.PRESS
+## The autoplay bots' luck on that ring (-1: random; Main seeds it with --seed).
+var first_strike_bot_seed: int = -1
+var _opening_ring: FirstStrikeRing
+## Online friend: the host's First Strike result when it came before this machine's ring showed.
+var _early_opening: Dictionary = {}
 ## The run this fight belongs to (null outside a run): it provides the party, its HP and the gold.
 var _run: RunState
 var _drop: ItemData
@@ -709,6 +726,10 @@ func _enqueue(events: Array[Dictionary]) -> void:
 		if String(ev.get("type", "")) == "practice_changed":
 			_apply_now(ev)
 		else:
+			if String(ev.get("type", "")) == "opening":
+				# A friend's ring waits for the host's result: it shows at once (the event itself
+				# plays after the ring, in order).
+				_take_host_opening(ev)
 			_queue.append(ev)
 	_pump()
 
@@ -844,17 +865,31 @@ func _play(ev: Dictionary) -> void:
 			if bool(ev.get("resume", false)):
 				# Got in mid-fight (#205, #304): no intro, and a boss already raging rages here too.
 				_resume_mood(ev)
-			elif String(ev.get("opening", "")) == "first_strike":
-				Sfx.play("gauge_full")
-				hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
-			elif _encounter.boss or _encounter.mini_boss:
-				Sfx.play("alert")
-				hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
-				# The camera starts pulled back and pushes in with a little trauma (card #179).
-				view.camera.add_trauma(_visuals.intro_shake)
-				view.camera.punch(-_visuals.intro_push, _visuals.intro_push_ms)
+			else:
+				# Every fight's short beat first (card #335): the camera sweeps over the enemies.
+				await _play_intro()
+				var opening := String(ev.get("opening", ""))
+				if opening == CombatEngine.OPENING_NAMES[CombatSetup.Opening.RING]:
+					# A Fight stop's First Strike ring, after the intro; its result (the "opening"
+					# event) brings the banner and the first turn.
+					await _play_first_strike_ring()
+				elif opening == "first_strike":
+					_show_first_strike_banner()
+				elif _encounter.boss or _encounter.mini_boss:
+					Sfx.play("alert")
+					hud.show_center_banner(_encounter.display_name.to_upper(), HudStyle.LATE, _visuals.first_strike_banner_ms)
+					# The camera starts pulled back and pushes in with a little trauma (card #179).
+					view.camera.add_trauma(_visuals.intro_shake)
+					view.camera.punch(-_visuals.intro_push, _visuals.intro_push_ms)
+				else:
+					Sfx.play("fight_start")
+		"opening":
+			mirror.apply(ev)
+			if String(ev.get("opening", "")) == "first_strike":
+				_show_first_strike_banner()
 			else:
 				Sfx.play("fight_start")
+			opening_played.emit(String(ev.get("opening", "")), String(ev.get("word", "")))
 		"turn_started":
 			mirror.apply(ev)
 			if int(ev.team) == Combatant.Team.PARTY:
@@ -962,6 +997,81 @@ func _play(ev: Dictionary) -> void:
 			mirror.apply(ev)
 	_refresh()
 	event_played.emit(ev)
+
+
+func _show_first_strike_banner() -> void:
+	Sfx.play("gauge_full")
+	hud.show_center_banner("FIRST STRIKE!", HudStyle.GOLD, _visuals.first_strike_banner_ms)
+
+
+## Every fight's intro (card #335; not a resume): the camera waits over the first enemy while the
+## screen is still covered, then sweeps slowly to the last (intro_sweep_ms) with the enemies' names
+## small over them, and glides back to the base view. The same length on every machine, so an
+## online fight stays in step.
+func _play_intro() -> void:
+	var ms := _visuals.intro_sweep_ms
+	if ms <= 0 or mirror.enemy_ids.is_empty():
+		return
+	var feet: Array[Vector3] = []
+	var names: Dictionary = {}
+	for id: int in mirror.enemy_ids:
+		feet.append(view.home_of(id))
+		names[id] = String(mirror.fighter(id).get("display_name", ""))
+	var shots := CameraShots.intro_sweep(_visuals, CameraShots.sweep_order(feet))
+	view.camera.sweep(shots[0], shots[0], 1)
+	var since := Time.get_ticks_msec()
+	while screen_covered.is_valid() and bool(screen_covered.call()) \
+			and Time.get_ticks_msec() - since < INTRO_COVER_WAIT_MS:
+		await get_tree().process_frame
+	view.camera.sweep(shots[0], shots[1], ms)
+	hud.show_intro_names(names, ms)
+	await _wait_ms(ms)
+	hud.hide_intro_names()
+	view.camera.reset_shot()
+
+
+## A Fight stop's First Strike ring (card #335), in the middle of the fight once its intro is over:
+## pressed here (a local game, the host: its result goes to the engine as set_opening) or watched (an
+## online friend: the host's result shows). Waits until the ring is done.
+func _play_first_strike_ring() -> void:
+	var mode := FirstStrikeRing.Mode.WATCH if _net_mode == NetMode.CLIENT else first_strike_mode
+	var ring := FirstStrikeRing.new()
+	ring.name = "FirstStrike"
+	ring.setup(_tuning, _visuals, _options, _players, mode, first_strike_bot_seed)
+	if mode == FirstStrikeRing.Mode.PRESS:
+		ring.decided.connect(_on_first_strike_decided)
+	_opening_ring = ring
+	hud.show_first_strike_ring(ring)
+	if not _early_opening.is_empty():
+		ring.show_host_result(String(_early_opening.opening), String(_early_opening.get("word", "")))
+	while is_instance_valid(ring) and ring.is_inside_tree() and not ring.is_finished():
+		await get_tree().process_frame
+	_opening_ring = null
+	hud.hide_first_strike_ring()
+
+
+## The First Strike ring here decided (a local game or the host): the engine takes the opening and
+## the first turn follows (online it goes to the friends as part of the fight).
+func _on_first_strike_decided(opening: CombatSetup.Opening, word: String) -> void:
+	var opening_name := CombatEngine.OPENING_NAMES[opening]
+	print("First Strike press: %s (%s)" % [opening_name, word])
+	if engine != null and engine.phase == CombatEngine.Phase.AWAITING_OPENING:
+		_enqueue(_submit(CombatCommands.set_opening(opening_name, word)))
+
+
+## Online friend: the host's First Strike result (its "opening" event) reaches the ring watched here,
+## or waits for it.
+func _take_host_opening(ev: Dictionary) -> void:
+	if _net_mode != NetMode.CLIENT:
+		return
+	_early_opening = {"opening": String(ev.get("opening", "")), "word": String(ev.get("word", ""))}
+	if _opening_ring != null and is_instance_valid(_opening_ring):
+		_opening_ring.show_host_result(String(_early_opening.opening), String(_early_opening.word))
+
+
+## The ring of this fight's start, while it shows (tests and pictures).
+func first_strike_ring() -> FirstStrikeRing:
+	return _opening_ring
 
 
 func _on_runner_finished(tail: Array[Dictionary]) -> void:
