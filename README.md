@@ -88,9 +88,10 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
 - **Counters.** Defend every hit of an attack perfectly (parry, or jump the ground hits) and the
   hero strikes back. If the whole party does it, they strike back together as a **TEAM COUNTER**.
 - **First strike.** A fight that starts with **FIRST STRIKE!** lets every hero act before any
-  enemy. A Fight stop's name card shows one ring: press on the beat (**Space** or **E**, pad **A**
-  or **RB**) as it closes. GOOD or PERFECT earns First Strike; early, late or no press starts the
-  fight normally. Guards, elites, ambushes and bosses always start normally.
+  enemy. Every fight opens with a short look at the enemies (their names over them); then a Fight
+  stop's fight shows one ring: press on the beat (**Space** or **E**, pad **A** or **RB**) as it
+  closes. GOOD or PERFECT earns First Strike; early, late or no press starts the fight normally.
+  Guards, elites, ambushes and bosses always start normally.
 - **Dooms.** Guards and bosses charge one huge attack and count it down (*"TIMBER FALL IN 3"*).
   Deal enough damage in time and it **BREAKS**: the enemy is staggered, loses a turn and takes more
   damage.
@@ -147,8 +148,8 @@ each branch; skill points unlock the rest. Each hero brings up to 5 skills into 
   co-op you give it to one of your own heroes (online the player whose turn it is picks). A Relic
   tagged **New** is not in your book yet. Every Relic you find goes
   in your **Relic book** for good (the main menu's **Relics** page: "Found 12 of 50"). Before each
-  run, every hero takes one Relic from your book (**Starting Relics**; your first run starts with
-  none). **Rot-touched** Relics are very strong, but each one comes with a price.
+  run, every hero may take one Relic from your book (**Starting Relics**; **X** or **R** skips a
+  hero, **Back** takes the last pick back; your first run starts with none). **Rot-touched** Relics are very strong, but each one comes with a price.
 - **Oaths** make the game harder, one rule at a time (12 of them). Win a normal run to unlock
   oath 1, then win at each oath to unlock the next. Each oath keeps the rules of the ones before
   it. Pick it on the players screen before the run.
@@ -193,7 +194,8 @@ such as the arrow keys next to WASD).
 | Move | arrow keys or WASD | D-pad or left stick |
 | Confirm | Enter or E | A |
 | Back | Backspace, Q or Esc | B |
-| Previous / next hero, or Settings section | Z / C | LB / RB |
+| Main tabs (party screen, Settings sections) | Z / C | LB / RB |
+| A switch inside a screen (hero, kind, sort, Glossary topic) | 1 / 3 | LT / RT |
 
 The mouse works in most menus: point to choose, left click to confirm, right click to go back. The
 party screen's hero cards and the Attributes and Skills screens still need the keyboard or a pad. The mouse does nothing in fights, so a click can never be a parry.
@@ -206,7 +208,9 @@ party screen's hero cards and the Attributes and Skills screens still need the k
 | Map: choose the next stop / scroll / go | Left, Right / Up, Down / Enter | D-pad / D-pad / A |
 | Map: open the party screen (level up, Relics, backpack) | Tab | Y |
 | Backpack: an item's menu (use, sell, throw away), or put a find in a pocket | Enter | A |
-| Party screen: Attributes / Skills | T / K | LT / RT |
+| Party screen: previous / next hero (Hero, Skills), Relic kind (Relics) | 1 / 3 | LT / RT |
+| Starting Relics: skip a hero / take the last pick back | R / Backspace | X / B |
+| "?" event or the Crossroads: take nothing | the **Walk on** card | the **Walk on** card |
 | Shop: buy / sell / leave | Enter / Tab / Backspace | A / Y / B |
 | Defence stats in a fight | F1 | View |
 | Lag calibration (while the fight menu is open) | F2 | |

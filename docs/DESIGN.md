@@ -463,8 +463,8 @@ Hamstring matter. Phase 2 test build: a fight-select screen lists the test encou
 ### 2.12 Opening advantage (phase 3, card #25)
 
 Since phase 26 (8.22) there is no field strike. Since card #320 a Fight stop's fight opens with the
-**First Strike press**: one press ring on the place's name card, and a GOOD or PERFECT skill press on
-it gives First Strike (8.22 "The First Strike press"). Every other fight (Elite stops, with an
+**First Strike press**: one press ring in the fight, after its short intro (card #335; on the place's
+name card until then), and a GOOD or PERFECT skill press on it gives First Strike (8.22 "The First Strike press"). Every other fight (Elite stops, with an
 elite group or the place's guard, ambushes, bosses, practice) opens normally. `--first-strike` and the opening rule below
 stay. How a fight started in a zone (7.4, history):
 
@@ -1633,10 +1633,21 @@ player's heroes.
 | `party_menu` (run map, shop: the backpack) | Tab | Y |
 | `debug_overlay` | F1 | View |
 | `move_up/down/left/right` (since phase 26 no screen reads them: a pad's stick push on them marks that pad P1's, #304, and their keys do nothing; walking a zone until then, 8.22) | WASD, arrow keys | D-pad, left stick |
-| `item_move` (backpack: pick up the item under the cursor to move it, put it down) | R | X |
-| `item_turn_left` / `item_turn_right` (Y screen: switch tabs, 8.18; with an item in hand in the Bag tab: turn it) | Z / C | LB / RB |
-| `party_attributes` (Y screen Hero and Skills tabs: previous hero, 8.18) | T | LT |
-| `party_skills` (Y screen Hero and Skills tabs: next hero, 8.18) | K | RT |
+| `item_move` (a screen's own extra button: Starting Relics' Skip, the Hero tab's reset, using the chosen item in the Bag tab; no sort or filter since card #336) | R | X |
+| `item_turn_left` / `item_turn_right` (main tabs: the Y screen's tabs, 8.18, the Settings sections) | Z / C | LB / RB |
+| `party_attributes` (`ControlBindings.SWITCH_PREV`, card #336: the switch inside a screen, back: hero on the Hero and Skills tabs, kind on the Relics tab, sort on the Relic book and Starting Relics, Glossary topic, Settings > Controls page) | 1 | LT |
+| `party_skills` (`ControlBindings.SWITCH_NEXT`: the same switch, on) | 3 | RT |
+
+**Switches inside a screen use LT / RT** (card #336, owner playtest 2026-10-25): LB / RB (Z / C) are
+only ever the main tabs; anything that switches inside a page (a hero, a kind, a sort, a topic, a
+page) is LT / RT, keyboard 1 / 3, and the hint bar shows those buttons. Moved there: the Relics tab's
+kind filter (was X / R in the bag; now from the rows too), the Relic book's and Starting Relics' Sort
+(were X / R) and the Glossary's topics (left / right still work too). Already there: the Hero and
+Skills tabs' hero and the Controls page's Keyboard / Controller page. 1 and 3 sit above Q and E under
+the left hand with WASD and clash with no menu key (the practice keys 1 to 9 work only in a practice
+fight's F1 panel); T / K went. `fight_ultimate` keeps RT in fights (fight and menu buttons are
+different clash groups). The run map never had an LT / RT shortcut (Y opens the party screen), so
+none was kept.
 
 Outside fights every screen (main menu, settings, practice list, map, shop, rest, party, loot)
 uses the `menu_*` actions: up/down pick, left/right change a setting or pick on the map, Confirm
@@ -1887,7 +1898,8 @@ The game is a keyboard and pad game, but every menu also works with the mouse (a
 
 **Removed in phase 26 (8.22):** the walkable zones, walking, roaming enemies, the field strike and the zone
 cards of the practice list are gone; this section is history. The practice list holds the tutorial
-and the fights; First Strike came back as a press on a Fight stop's name card (#320, 2.12, 8.22).
+and the fights; First Strike came back as a press on a Fight stop's name card (#320, 2.12, 8.22),
+in the fight after its intro since #335.
 
 - **Practice list** (main menu > Practice): "Explore: ..." for every zone in `data/zones/` first,
   then the test fights, the deep fights (variants, 2.16) last. `--zone=ID` starts in a zone.
@@ -2121,13 +2133,10 @@ Dev tools: `--shots=S` saves a picture of the window every S seconds to `user://
   Clients and the bot do not hold it (the host already held it before telling the clients).
   While the black, the swirl or a loading card covers the screen, no input (mouse, keyboard, pad)
   reaches anything behind it (`ScreenTransition._input`, card #132).
-  **A Fight stop's card** (since #320, 8.22) carries the First Strike ring and works differently:
-  the ring's hold replaces `hold_ms` on every machine, clients and the bot too (the card stays
-  until the ring's press and result are done: about 2.3 s after a hit, 2.4 s with no press, from
-  1.3 s after an early press, and up to about 8.4 s on a friend's card whose host result never
-  comes); the host tells the clients at its swirl, not after the card; and the ring's own
-  `DefenseInput` takes the skill press on the card (it is on the card, so it gets the press before
-  the card's input block). An Elite stop (an elite group or the guard), an ambush and a boss get
+  **A Fight stop's card** carried the First Strike ring from #320 until card #335 (2026-10-25)
+  moved the ring into the fight, after its intro (8.22): the card now works like every other card
+  (`hold_ms` on the host, none on clients and the bot) and the host announces the fight once its
+  card is done. An Elite stop (an elite group or the guard), an ambush and a boss get
   no card, only the swirl (a map rules 3 Guard stop still gets the plain card).
 - **Hero portraits** (card #85): waiting for painted art (the 24 px placeholders stay).
 - **Story** (card #90): at the top of this file, in `BrandingData.story`, the credits and the
@@ -2370,8 +2379,8 @@ nothing in a fight. It is reached two ways, and both open on the first topic:
   chosen term in an ink plate: a square plate with the game's own icon (whole-number scaled so the
   pixel art stays crisp, edged in the term's colour) or, with no icon, a swatch of its colour; the
   term's name in worn gold; "Shown as  PARRY" in the term's colour when the game prints a word for
-  it; then two or three plain lines. Up/down chooses a term, left/right changes topic (wrapping round
-  the ends), Back closes (`HintBar` at the foot); keyboard and pad like every menu. Everything fits
+  it; then two or three plain lines. Up/down chooses a term, left/right or LT / RT (1 / 3, card #336;
+  the strip's ends show those buttons) changes topic (wrapping round the ends), Back closes (`HintBar` at the foot); keyboard and pad like every menu. Everything fits
   1920x1080 (a test measures every page).
 - **Phase 19** (card #252): the five new marks, Ward, Shielded, Marks, Helpers and Burst, the mark
   icons on status terms; "Help on heroes" split from "Marks on heroes" (118 terms in 15 topics).
@@ -2456,7 +2465,11 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   (Relic icon, name, New / Home / "Lv a > b", effect, drawback and stat chips; since 8.24 only New), the campfire (Rest
   "+N%", Train "+N"; Upgrade "+1 Lv" until card #332, 8.1; before the boss Rest, Keep watch, Sharpen), treasure (Plain and
   Rotten chests), "?" events and the starting pact, and the main menu's Online page (Host, Join).
-  Leave and Back are the cancel button with a footer hint, never a card. Pick lists of three or
+  Back is the cancel button with a footer hint, never a card. Taking nothing is a card: since card
+  #334 (2026-10-25) a "?" event and the Crossroads end their cards with **Walk on** (the door picture,
+  `StopVisuals.walk_on_icon_path`), and Back does nothing on the cards (it only steps back out of a
+  pick list or the "Who gets it?" step). This reverses phase 22's "Leave is the cancel button, never a
+  row" there: Back must never pass something up for good. Pick lists of three or
   fewer (who pays: the heroes' faces and HP; what goes; which curse to lift) are cards too. Art: `tools/art_kit/assets/ui_choices.py` (choice_*, chip_*); paths and
   chip colours in `stop_visuals.tres`.
 - **Zone (#289, #291; gone in phase 26 with `ZoneController`, 8.22, history).** The goal top right was icon chips (`ZoneController.goal_chips`): a seal
@@ -2517,7 +2530,7 @@ each moment; a pad is told only when its levels change, with a length so it stop
 | a parry (the last hit of a string: stronger) | `parry`, `parry_final` (sharp, short) | the defender's player |
 | a dodge / a jump | `dodge` (light) / `jump` | the defender's player |
 | a perfect / good skill press | `press_perfect` / `press_good` (softer) | the presser |
-| a perfect / good press on the First Strike ring (8.22) | `press_perfect` / `press_good` | the presser (`PadRumble.for_player` with the card's roster: no fight party is set on the card) |
+| a perfect / good press on the First Strike ring (8.22) | `press_perfect` / `press_good` | the presser (`PadRumble.for_player` with the fight's roster; on the card's until #335) |
 | a hit taken (heavy: at least `big_hit_percent` of max HP) | `hurt` / `hurt_heavy` | the hit hero's player |
 | a hero downed | `downed` | that hero's player |
 | the Team Ultimate | `ultimate` (long, rolling) | every pad here |
@@ -3260,7 +3273,8 @@ The owner wants the game hard, so a "?" is a temptation, never a gift. Every cho
 scarce, and a "?" can turn into a fight.
 
 - `EventData` (`data/events/`): a title, a short story, a picture and 1 or 2 choices
-  (`EventChoiceData`), always plus Leave (the screen adds it, so no event can lack it). A choice has a
+  (`EventChoiceData`), always plus Walk on (the screen adds it as the last card, so no event can lack
+  it; until card #334 it was Leave on the cancel button, and Back walked on). A choice has a
   deal (`ZoneOfferData`) and may have a risk: `risk_percent` of the time its `risk_deal` strikes too
   (seeded by the run and stop, the same on every machine). Choices the party cannot pay are greyed.
   The zones' shrines and wanderers (8.5) used the same `ZoneOfferData`; since phase 26 (8.22) four
@@ -4041,7 +4055,8 @@ badge; signals changed, op_requested, toast):
   power and speed glyphs) with their three Relic slots as big icons with level pips and the name
   under them; the team's shared Relics (8.17; the run's Relics since 8.24) on the right as a 6 x 4 grid of icons (scrolls),
   each with level pips and the initial of the hero wearing it, worn ones dimmed and listed after the
-  free ones; filter chips All / offensive / defensive / support with counts (X / R in the bag).
+  free ones; filter chips All / offensive / defensive / support with counts (LT / RT, 1 / 3, from the
+  rows or the bag; card #336, was X / R in the bag).
   Up / down a hero, left / right a slot, right past the last slot into the bag. Confirm on an open
   slot jumps into the bag to pick for it; Confirm on a Relic there puts it on (swapping it from
   another hero). X / R on a worn Relic lifts it to another slot or hero; carried into the bag and put
@@ -4735,7 +4750,8 @@ before any enemy, the gold FIRST STRIKE banner); an early press, a late one, a m
 normal start. Judged like every timed press, from input timestamps outside the core (rule 3); the
 opening goes into `CombatSetup` before the fight is built. Local co-op: any player's press counts.
 Online: the host's press decides and the friends watch the ring. Elites, guards, ambushes and bosses
-open normally. How it is built: "As built (#320)" below.
+open normally. How it is built: "As built (#320)" below; card #335 moved the ring into the fight,
+after a short intro ("A short beat before each fight" below).
 
 **As built (cards #316 to #320, 2026-10-24).**
 
@@ -4756,7 +4772,7 @@ open normally. How it is built: "As built (#320)" below.
   won Fight stop's drop is `fight_drop` (`drop_for(stop)`: the seeded `item_drop_percent` roll a
   zone's first roaming enemy had). Elites and ambushes now get their place's air too.
 - **The way in**: the map swirls into black with the swirl sound, then the place's name card with a
-  tip, then the fight fades in (a Fight stop's card also carries its First Strike ring, #320 below).
+  tip, then the fight fades in (a Fight stop's First Strike ring is in its fight since #335, below).
   The watch line is hidden over every fight. After a Fight stop's win the drop goes into the
   pack, or the party screen opens holding it. Guards (`mini_boss`) get the boss song and rage in
   every fight, practice too; their spoils read "The guard fell. Take one."
@@ -4902,6 +4918,66 @@ open normally. How it is built: "As built (#320)" below.
   `AUTOPLAY_MIRROR` lines on both.
 - A Fight stop is never announced while a transition is under way (`_fade_to` would not build its
   fight, and the friends would wait for a fight that never comes).
+
+**A short beat before each fight (card #335, owner playtest 2026-10-25, built the same day).** The
+fight no longer starts the moment it is seen. **Every** fight (Fight and Elite stops, ambushes,
+bosses, the tutorial and practice fights; not a friend's resume mid-fight) opens with an intro: once
+the screen is uncovered (Main hands the fight `ScreenTransition.is_covering`; it waits at most
+`CombatController.INTRO_COVER_WAIT_MS`, 6 s) the camera sweeps slowly over the enemies, left to right
+(`CameraShots.intro_sweep` and `sweep_order`, `CombatCamera.sweep`; the base view drifted toward the
+first and last enemy, slid a little past each end so a lone enemy still pans), each enemy's name small
+over it (`CombatHud.show_intro_names`, fading in and out), for `intro_sweep_ms` (1500; visuals group
+Juice: `intro_sweep_share` 0.5, `intro_sweep_push` 2.0, `intro_sweep_slide` 0.6, `intro_name_size`
+24, `intro_name_fade_ms` 250; 0 turns the intro off). The camera waits over the first enemy while
+the card fades. With the cinematic camera off (F1 > V) the view stays still and only the names show.
+Then the fight starts: a boss or guard's banner and push-in, FIRST STRIKE! for a `--first-strike`
+fight or the tutorial, else the start sound, and the first turn; **a Fight stop's First Strike ring
+now shows here**, in the middle of the fight (`CombatHud.show_first_strike_ring`), not on the card.
+Not "Ready? Go!" (the owner's word).
+
+- **The engine waits for the ring** (rule 1): a Fight stop's fight is set up with
+  `CombatSetup.Opening.RING` (`combat_started` says `"opening": "ring"`): `start()` builds everything
+  and picks the intents but stops before the first turn (`Phase.AWAITING_OPENING`). The ring's
+  result comes as the command `set_opening {opening: "normal" | "first_strike", word}`
+  (`CombatCommands.set_opening`): First Strike is applied then (the same `_apply_first_strike` and
+  so the same turn order as a First Strike setup), the event `opening {opening, word}` follows, then
+  the first turn, in one batch. Anything else is refused (another opening name, a second
+  `set_opening`, a fight that was not RING), and no hero acts before it. Same seed and commands, same
+  events (a test). `resume_events` gives nothing while it waits, so a friend getting in then is
+  seated at the first turn.
+- **The ring** (`FirstStrikeRing`, unchanged rules: delay 500 ms, closes over 1000 ms, the skill press
+  windows, the bots' habits) starts only after the intro, so its moment is measured from its own
+  start on the same clock as the press stamps (rule 3: its own `DefenseInput`, now in the fight, past
+  the transition's input block). The controller makes it: PRESS on a local game or the host (its
+  `decided` submits `set_opening` and prints `First Strike press: <opening> (<word>)`), WATCH on a
+  friend, LOOP for the picture. The first turn waits until the ring is done (`is_finished`).
+- **Online**: every stop fight's `stop_fight` now goes when the host's card is done (no `"ring"`
+  field); the friends build theirs and play the same intro. The host's result reaches a friend as the
+  fight event `opening` in the host's batch: the controller hands it to the watched ring at once
+  (`_take_host_opening`, kept if it came before the friend's ring showed) and plays its banner in
+  order. The `opening` message, Main's `_net_opening`, `_watches_first_strike`, `_opening_of` and
+  `_take_net_opening` went. Every machine prints `AUTOPLAY_OPENING first_strike|normal stop=N` when the
+  `opening` event plays (`CombatController.opening_played`), so a friend who got in mid-fight has no
+  such line for that fight. `Net.PROTOCOL` stays 9 (the content fingerprint keeps other builds out).
+- **Timing**: a fight's first turn comes about 1.5 s later; a Fight stop's ring about 2.3 s after the
+  intro (as on the card). A friend starts its fight after its own swirl and card, so it plays about a
+  transition behind the host, as it already did for Elite stops; an enemy's first attack waits for
+  the friend's ack as any attack does (`net_ack_timeout_ms` 3000, a later ack still counts).
+- **Pictures**: `--screen=first_strike` plays a sample run's first Fight stop's fight: the intro, then
+  the ring in the fight (pressable, starts over, the first turn never comes).
+- **Words**: the glossary's First Strike term ("A Fight stop's fight opens with one ring, once the
+  camera has swept over the enemies...") and the loading tip ("Hit the ring at the start of a Fight
+  stop's fight...") say where the ring is now; the tutorial card ("A Fight stop opens on a ring") was
+  still true.
+- **Tests**: `test_first_strike.gd` (the engine waiting for `set_opening`, refusing junk, matching a
+  First Strike setup, a snapshot; the sweep's maths; the shipped combat scene playing its intro while
+  uncovered only, its names, then the ring after the sweep and the first turn after the ring; a
+  normal fight's intro with no ring and no intro at 0 ms; a friend's ring taking the host's result;
+  Main's wiring), `test_run_fights.gd` (the announcement after the card).
+- **Defaults chosen while building #335** (the owner may overrule each one): the sweep is 1.5 s,
+  left to right, slightly closer than the base view; names at 24 px over each enemy's head; every
+  fight gets it, the boss too (its banner and push-in after the sweep); the intro waits for the card
+  and the fade to go; no switch shortens it for bots (about 1.5 s a fight).
 
 **Guards merged into Elite stops (owner, 2026-10-24 night, "to lower confusions"; built
 2026-10-25).** With no zones the guard lost its job (the zone's exit), and two stop kinds that both
@@ -5423,11 +5499,12 @@ Relic bag is gone.
   no tuning now. Gone: `bag`, `bag_size`, `toggle_bag`, `trim_bag`, `in_bag`, `bag_ids`, `fill_bag`
   and the tuning `relic_bag_start`.
 - **The main menu's Relics page** (`RelicsScreen`) is the book: every Relic of the run as a card in
-  the two-column grid, the found ones first (sorted by name or rarity, X / R), then the rest as dim
+  the two-column grid, the found ones first (sorted by name or rarity: LT / RT, 1 / 3, card #336; was
+  X / R), then the rest as dim
   "???" cards; the header says "Found N of 50". The right side shows the Relic under the cursor big
   (icon, name, rarity, chips); one not found yet shows a lock chip "Not found yet" and where Relics
   come from (sword Elite, skull Boss, pouch Chest, coin Shop). Confirm does nothing; Back (or Y)
-  closes. Footer: Move, Sort, Back.
+  closes. Footer: Move, LT / RT Sort, Back.
 - **Starting Relics** (`RunState`): `start_left` (per hero, how many they may still take; starts at
   `start_relic_count()` = tuning `start_relics_per_hero` (1) + the oaths' `start_relics_add`, never
   below 0) and `start_relics` (the ids taken from a book). `start_choices(book)` is the book's found
@@ -5443,8 +5520,13 @@ Relic bag is gone.
   saved run that stopped there opens it again. The grid holds
   only the book's found Relics (one taken for another hero is dim, with that hero's face); the right
   side has a row per hero (face, name, player tag in co-op, the Relic taken or Pick / ... / Waiting /
-  Skip). Heroes choose one after another: Confirm takes the Relic under the cursor, Back is Skip;
-  once this machine's heroes are done the header says "Waiting". Footer: Move, Take, Skip, Sort. A
+  Skip). Heroes choose one after another: Confirm takes the Relic under the cursor, X / R is Skip
+  (card #334: its own button, so taking none is a choice, never Back), and Back takes this screen's
+  last pick back (a Relic or a Skip) and that hero chooses again (`RunState.undo_start_relic`, which
+  keeps the HP each hero is missing; on the first hero Back does nothing; local co-op: only that
+  hero's player, as for picking); once this machine's heroes are done the header says "Waiting" and
+  Back still works until the run goes on (`StartRelicsScreen.open`; a local game goes on at the last
+  pick). Footer: Move, Take, Skip, Back (only with a pick to take back), LT / RT Sort. A
   first run (empty book) and the Empty Hand skip the step. Local co-op: only the hero's own player's
   pad picks for them (another pad gets that player's tag as a warning), but any device may while that
   pad is unplugged (`StartRelicsScreen.may_pick`), so a flat pad never holds the step. Pause (Esc,
@@ -5461,7 +5543,15 @@ Relic bag is gone.
   `start_refused {slot, relic}` and that hero chooses again (a Relic another hero got first comes back
   the same way, from the state; the refusal of an older pick, or of a Skip, changes nothing). A friend with an empty book skips at once. The host goes on once every
   hero is done, or after tuning `start_relic_wait_ms` (90 s), when the friends' heroes still choosing
-  go without; a friend who leaves during the step goes without too. A friend who drops in mid-run
+  go without; a friend who leaves during the step goes without too. A friend's Back (card #334)
+  asks the host: `start_relic_back {slot, relic}` ("" a Skip; refused on the friend's screen while a
+  pick of theirs is still on its way); the host takes it back when the hero is one that friend held
+  when the step began and the step is still open (`Main._start_back_allowed`) and answers
+  `start_back {slot, relic, ok}` either way; its state reopens the hero. Meanwhile the friend's row
+  shows "..." and none of their heroes chooses; refused, the pick stands ("Taken" / "Skip" warning).
+  The host is the source of truth; the bots never press Back. Logs: `Start relic back: ID from HERO`
+  (`Start relic back asked:` on a friend), the host's `Start relic back taken|refused: P2 ID hero=N`
+  and the bot line `AUTOPLAY_START_RELIC_BACK P2 ID hero=N ok=1|0`. A friend who drops in mid-run
   (9.3) gets no starting Relic: the step is over by then, and a friend joining during it does not
   pick either.
 - **Bots** pick hero by hero, in slot order, the free Relic of their book with the best
@@ -5635,9 +5725,10 @@ Relic bag is gone.
   sends a `stop_fight` screen with the fight's seed, and each client builds the fight, its weather
   and its drop from the run state alone, as for an Elite stop (whose group or guard is the same
   seeded pick on every machine); it is a fight screen (`NET_FIGHT_SCREENS`), so a friend who
-  rejoins or drops in catches up. A Fight stop's `stop_fight` goes at the host's swirl with `"ring": true`;
-  the friends watch its First Strike ring and get the host's result in an `opening` message, which
-  the fight's message keeps for late joiners (#320, 8.22). (Until phase 26 the host's zone was real and sent `net_snapshot()`
+  rejoins or drops in catches up. Since card #335 every `stop_fight` goes when the host's card is
+  done, and a Fight stop's First Strike ring is in the fight: the host's result is the fight event
+  `opening` (command `set_opening`), so it reaches the friends with the fight's batches (8.22). (#320
+  sent the fight at the swirl with `"ring": true` and the result in an `opening` message.) (Until phase 26 the host's zone was real and sent `net_snapshot()`
   `net_zone_send_hz` times a second; a fight started on `zone_fight`. The zone messages are gone.)
 - **Fights**: `CombatController` runs in HOST mode (the only `CombatEngine`) or CLIENT mode (no
   engine). Both build the same `CombatSetup` from the host's seed (for the data). Every batch of
@@ -6070,7 +6161,9 @@ Tests: `tests/unit/test_dropin.gd`, the in-run players section of `test_coop.gd`
 - First Strike press (#320, 8.22): on a Fight stop's ring `--autoplay` presses perfectly (First
   Strike), `=miss` never presses, `=mash` mashes (judged honestly) and `=average` lands it at its
   skill percent with seeded luck; every Fight stop prints `AUTOPLAY_OPENING first_strike|normal
-  stop=N`. `--screen=first_strike` shows the ring on a sample name card (pressable, starts over).
+  stop=N`, now when the fight's `opening` event plays (the ring is in the fight after its intro,
+  #335). `--screen=first_strike` plays a sample Fight stop's fight with the ring (pressable, starts
+  over).
 - Also covered: attack clock with timestamps past 2^31 us (36 minutes of uptime), late presses
   reported as LATE on a landed hit, prompts expired inside a capped press, enemy choreography
   (every lunge reaches contact exactly at impact, contact holds until the hit closes, cue times),
@@ -6717,3 +6810,6 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-25 | Review of #326 to #328 (8.24 As built): a starting Relic pick goes on when the chooser's pad is unplugged (any device picks) and Esc opens the pause menu over the step offline instead of skipping a hero; a starting max HP Relic comes filled; a friend logs `AUTOPLAY_START_RELICS` also when the host skipped the step, and keeps their "Who gets it?" hero cards when the host's state changes; the "Home" tag goes (only "New": not in the book; no tag on Rush cards); the Y screen offers no Give with nothing waiting; the rotten chest offers at most `rot_gear_spoils_count` rot-touched Relics, never only those; the bot buys no Relic it refuses and spreads Relics over the party (`GearBot.HELD_SHARE_PERCENT`) | review findings: a step stuck on a dead pad, a skipped hero on Esc, logs that differ between machines, a lost hero pick, an unexplained word, a forced costly chest Relic, bot runs that skew the balance numbers |
 | 2026-10-25 | Cut the Fight Rush (8.21, card #331): New Run and Host start the run's path at once again, Join follows the host into the run; the Rush's code, data, tuning, switches, glossary topic and card pictures go; `lobby`, `again` and `run_start` lose their mode (`Net.PROTOCOL` 8); the monsters, encounters and bosses stay as the run's data; old Rush records in `settings.cfg` are ignored | owner: the run is now as fast, so the Rush is not needed |
 | 2026-10-25 | The pack holds consumables only (8.1, card #332): 4 pockets for the whole run (was 6, two to a row in the Bag tab), only Salve, Feast, Bomb, Antidote, Smelling Salts and Holy Water go in; the Tonic and the Bigger Pack go for good (no pack upgrades in phase 28 either); no combining, no item levels, no shop or campfire Upgrade; curses leave the pockets and sit on the party (`RunState.curses`, the same rot per curse, chips on the run's top strip), added by events, pacts and the rotten chest and lifted only by the shop's Cleanse at the same price, never thrown away; a full pack swaps or leaves a find (both asked); `RunSave.FORMAT_VERSION` 7, `Net.PROTOCOL` 9; the shop bot lifts curses it can pay for first | owner: the pack was a second inventory game; a curse thrown away for free was no price. Builder defaults: Cleanse picks the curse from a list; one chip per kind of curse ("x2"); no curse chip in the fight (the rot shows as damage, as before); nothing replaces the Tonic |
+| 2026-10-25 | Back goes back, never skips (card #334): on Starting Relics Back takes the last pick (a Relic or a Skip) back and that hero chooses again (nothing on the first hero; online only a friend's own heroes and only while the step is open, through the host: `start_relic_back` / `start_back`), Skip is X / R; on "?" events and the Crossroads taking nothing is a Walk on card after the choices and Back does nothing on the cards (it still steps back out of a pick list or "Who gets it?"). This reverses phase 22's "Leave is the cancel button, never a row" for those screens. Audit of the other run screens: shop (B leaves the shop, a choice not lost: nothing is bought; its Cleanse list and "Who gets it?" step back), campfire (B does nothing), treasure and spoils (B does nothing on the picks, steps back from "Who gets it?"; there is no "take nothing" there), map (B is the pause menu), party screen (B steps back inside a tab, then closes), run end (B is Main menu, A Again): unchanged | owner playtest: Back skipped a hero's Relic and walked past an event for good |
+| 2026-10-25 | A short beat before each fight (card #335): every fight opens with the camera sweeping slowly over the enemies, left to right, their names small over them (`intro_sweep_ms` 1500, visuals), once the card and the fade are gone; then the fight starts. A Fight stop's First Strike ring moved from the name card into the fight, after the intro: the engine waits for the command `set_opening` (`CombatSetup.Opening.RING`, `Phase.AWAITING_OPENING`) and online the result is a fight event (the `opening` message went; every stop fight is announced after the host's card) | owner playtest: fights started too abruptly ("not Ready? Go!"); builder defaults: 1.5 s, every fight including bosses, names over the heads, no bot switch |
+| 2026-10-25 | Menus inside a menu use LT and RT (card #336): every switch inside a screen is LT / RT, keyboard 1 / 3 (were T / K): the Relics tab's kind (was X / R), the Relic book's and Starting Relics' sort (were X / R), the Glossary's topics (left / right still work), with the Hero and Skills tabs' hero and the Controls page as before; LB / RB (Z / C) stay the main tabs; X / R is left for a screen's own extra button (Skip, reset, use) | owner playtest: one rule for switches; 1 / 3 sit under the left hand and clash with nothing |
