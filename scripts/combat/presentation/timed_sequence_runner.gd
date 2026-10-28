@@ -131,6 +131,8 @@ var _press_times: Array[Dictionary] = []
 ## "hit:player" keys of the hits a player whiffed against (never MISS for that player: they did
 ## press).
 var _whiffed_hits: Dictionary = {}
+## Hero id -> hits of this attack that landed on them here (Widow's Thimble's popup, DESIGN.md 8.25).
+var _landed_on: Dictionary = {}
 ## Who owns each hit-stop freeze on the shared clock (card #180): an owner's own taps inside it are
 ## ignored; every other press is still judged, as if the freeze had not happened. The hurt freeze
 ## on the last hit has no owner.
@@ -262,6 +264,7 @@ func start(event: Dictionary, attack: EnemyAttackData = null, enemy_data: EnemyD
 	_anims.clear()
 	_press_times.clear()
 	_whiffed_hits.clear()
+	_landed_on.clear()
 	_freezes.clear()
 	_tail.clear()
 	_tail_received = false
@@ -811,7 +814,23 @@ func _land_hit(idx: int, t: int, now: int, sounded: Dictionary) -> void:
 	if not _whiffed_hits.has("%d:%d" % [hit_index, player]) and not _pressed_near(prompt, player):
 		var rise := view.visible_height() * _visuals.miss_label_rise_factor
 		_hud.popup("MISS", view.head_position() + Vector3(0.0, rise, 0.0), HudStyle.MISS)
-	_hud.damage_number(int(prompt.damage), view.head_position(), HudStyle.DAMAGE_TAKEN)
+	_hud.damage_number(_shown_damage(prompt), view.head_position(), HudStyle.DAMAGE_TAKEN)
+
+
+## The number a landing hit shows before the engine's result comes back: the declared damage, or what
+## the hero's defence Relics make of it (DESIGN.md 8.25): 0 while Widow's Thimble still has hits to
+## null (`null_left`), Hollow Mantle's cut hit while the hero has the AP to pay (`guard_damage`,
+## `guard_cost`).
+func _shown_damage(prompt: Dictionary) -> int:
+	var id := int(prompt.character)
+	var landed := int(_landed_on.get(id, 0))
+	_landed_on[id] = landed + 1
+	if landed < int(prompt.get("null_left", 0)):
+		return 0
+	var ap := int(_mirror.fighter(id).get("ap", 0))
+	if prompt.has("guard_damage") and ap > 0 and ap >= int(prompt.get("guard_cost", 0)):
+		return int(prompt.guard_damage)
+	return int(prompt.damage)
 
 
 ## Sends the judge's released results to the engine and applies what comes back.

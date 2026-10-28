@@ -10,7 +10,6 @@
 [ext_resource type="Script" path="res://scripts/data/item_data.gd" id="3_pfciy"]
 [ext_resource type="Script" path="res://scripts/data/character_data.gd" id="3_qgnwx"]
 [ext_resource type="Resource" path="res://data/items/salve.tres" id="4_4r4bl"]
-[ext_resource type="Resource" path="res://data/gear/iron_charm.tres" id="4_cnqeh"]
 [ext_resource type="Resource" path="res://data/characters/alder.tres" id="4_xh0st"]
 [ext_resource type="Resource" path="res://data/gear/whetstone.tres" id="5_5blr4"]
 [ext_resource type="Resource" path="res://data/characters/brin.tres" id="5_5lhx2"]
@@ -39,7 +38,6 @@
 [ext_resource type="Resource" path="res://data/gear/menders_charm.tres" id="15_jtxfh"]
 [ext_resource type="Resource" path="res://data/zones/sunken_bog.tres" id="15_pfciy"]
 [ext_resource type="Resource" path="res://data/zones/ashen_ruins.tres" id="16_4r4bl"]
-[ext_resource type="Resource" path="res://data/gear/lucky_coin.tres" id="16_o0k8w"]
 [ext_resource type="Script" path="res://scripts/data/oath_data.gd" id="42_jhtoh"]
 [ext_resource type="Resource" path="res://data/gear/rotten_crown.tres" id="42_y3kuw"]
 [ext_resource type="Resource" path="res://data/runs/oaths/thorns.tres" id="43_lj346"]
@@ -73,7 +71,6 @@
 [ext_resource type="Resource" path="res://data/gear/brimming_cup.tres" id="65_aeb0l"]
 [ext_resource type="Resource" path="res://data/runs/oaths/forgetting.tres" id="66_25vbo"]
 [ext_resource type="Resource" path="res://data/gear/reapers_coin.tres" id="66_68cyy"]
-[ext_resource type="Resource" path="res://data/gear/victors_wreath.tres" id="67_dr8qu"]
 [ext_resource type="Resource" path="res://data/gear/first_light.tres" id="68_g8m5b"]
 [ext_resource type="Resource" path="res://data/gear/mossbed.tres" id="69_fewvf"]
 [ext_resource type="Resource" path="res://data/gear/breakers_maul.tres" id="70_7fbdu"]
@@ -98,7 +95,23 @@
 [ext_resource type="Resource" path="res://data/gear/bitter_root.tres" id="p19_bitter_root"]
 [ext_resource type="Resource" path="res://data/gear/cleansing_bell.tres" id="p19_cleansing_bell"]
 [ext_resource type="Resource" path="res://data/items/holy_water.tres" id="p19_holy_water"]
-[ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="p19_wardstone"]
+[ext_resource type="Resource" path="res://data/gear/bellringers_rope.tres" id="p27_bellringers_rope"]
+[ext_resource type="Resource" path="res://data/gear/coffin_lid.tres" id="p27_coffin_lid"]
+[ext_resource type="Resource" path="res://data/gear/crow_feather.tres" id="p27_crow_feather"]
+[ext_resource type="Resource" path="res://data/gear/grave_tag.tres" id="p27_grave_tag"]
+[ext_resource type="Resource" path="res://data/gear/gravediggers_spade.tres" id="p27_gravediggers_spade"]
+[ext_resource type="Resource" path="res://data/gear/grudge_stone.tres" id="p27_grudge_stone"]
+[ext_resource type="Resource" path="res://data/gear/headsmans_hood.tres" id="p27_headsmans_hood"]
+[ext_resource type="Resource" path="res://data/gear/hounds_tooth.tres" id="p27_hounds_tooth"]
+[ext_resource type="Resource" path="res://data/gear/hunters_horn.tres" id="p27_hunters_horn"]
+[ext_resource type="Resource" path="res://data/gear/kindling_bundle.tres" id="p27_kindling_bundle"]
+[ext_resource type="Resource" path="res://data/gear/kingsbane_nail.tres" id="p27_kingsbane_nail"]
+[ext_resource type="Resource" path="res://data/gear/knotted_lash.tres" id="p27_knotted_lash"]
+[ext_resource type="Resource" path="res://data/gear/lone_lantern.tres" id="p27_lone_lantern"]
+[ext_resource type="Resource" path="res://data/gear/martyrs_ash.tres" id="p27_martyrs_ash"]
+[ext_resource type="Resource" path="res://data/gear/moth_wing.tres" id="p27_moth_wing"]
+[ext_resource type="Resource" path="res://data/gear/sextons_hourglass.tres" id="p27_sextons_hourglass"]
+[ext_resource type="Resource" path="res://data/gear/widows_thimble.tres" id="p27_widows_thimble"]
 
 [resource]
 script = ExtResource("7_hnbrd")
@@ -113,7 +126,7 @@ final_look = ExtResource("2_4r4bl")
 final_map_icon_path = "res://assets/sprites/ui/map_lair_hollow_king.png"
 shop_items = Array[ExtResource("3_pfciy")]([ExtResource("p19_antidote"), ExtResource("p19_holy_water"), ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("7_5a6is"), ExtResource("8_v1mkt")])
 found_items = Array[ExtResource("3_pfciy")]([ExtResource("p19_antidote"), ExtResource("p19_holy_water"), ExtResource("4_4r4bl"), ExtResource("5_dfnv4"), ExtResource("7_5a6is"), ExtResource("8_v1mkt"), ExtResource("10_r48q0"), ExtResource("11_7kshk"), ExtResource("12_jlagg"), ExtResource("13_lwxot"), ExtResource("14_qus8p")])
-gear = Array[ExtResource("3_dfnv4")]([ExtResource("4_cnqeh"), ExtResource("5_5blr4"), ExtResource("6_ic0fs"), ExtResource("7_igmpf"), ExtResource("8_5a6is"), ExtResource("9_v1mkt"), ExtResource("10_7h55f"), ExtResource("11_r48q0"), ExtResource("12_7kshk"), ExtResource("13_jlagg"), ExtResource("14_67ek5"), ExtResource("15_jtxfh"), ExtResource("16_o0k8w"), ExtResource("42_y3kuw"), ExtResource("43_yco0i"), ExtResource("44_341yx"), ExtResource("45_25vbo"), ExtResource("46_ofupd"), ExtResource("47_u6080"), ExtResource("48_vao3x"), ExtResource("49_232c1"), ExtResource("50_nj8y8"), ExtResource("51_mjcxu"), ExtResource("52_klwt4"), ExtResource("53_vo0gh"), ExtResource("54_nj8y8"), ExtResource("55_mjcxu"), ExtResource("56_klwt4"), ExtResource("57_vo0gh"), ExtResource("58_dunnw"), ExtResource("59_bkc2p"), ExtResource("p19_wardstone"), ExtResource("p19_bitter_root"), ExtResource("p19_cleansing_bell"), ExtResource("65_aeb0l"), ExtResource("66_68cyy"), ExtResource("67_dr8qu"), ExtResource("68_g8m5b"), ExtResource("69_fewvf"), ExtResource("70_7fbdu"), ExtResource("71_nc8fg"), ExtResource("72_ao1d7"), ExtResource("73_e35kp"), ExtResource("74_y4h7x"), ExtResource("75_uomgq"), ExtResource("76_15m2q"), ExtResource("77_2og0u"), ExtResource("78_0e7ir"), ExtResource("79_8iujy"), ExtResource("80_sey24")])
+gear = Array[ExtResource("3_dfnv4")]([ExtResource("5_5blr4"), ExtResource("6_ic0fs"), ExtResource("7_igmpf"), ExtResource("8_5a6is"), ExtResource("9_v1mkt"), ExtResource("10_7h55f"), ExtResource("11_r48q0"), ExtResource("12_7kshk"), ExtResource("13_jlagg"), ExtResource("14_67ek5"), ExtResource("15_jtxfh"), ExtResource("42_y3kuw"), ExtResource("43_yco0i"), ExtResource("44_341yx"), ExtResource("45_25vbo"), ExtResource("46_ofupd"), ExtResource("47_u6080"), ExtResource("48_vao3x"), ExtResource("49_232c1"), ExtResource("50_nj8y8"), ExtResource("51_mjcxu"), ExtResource("52_klwt4"), ExtResource("53_vo0gh"), ExtResource("54_nj8y8"), ExtResource("55_mjcxu"), ExtResource("56_klwt4"), ExtResource("57_vo0gh"), ExtResource("58_dunnw"), ExtResource("59_bkc2p"), ExtResource("p19_bitter_root"), ExtResource("p19_cleansing_bell"), ExtResource("65_aeb0l"), ExtResource("66_68cyy"), ExtResource("68_g8m5b"), ExtResource("69_fewvf"), ExtResource("70_7fbdu"), ExtResource("71_nc8fg"), ExtResource("72_ao1d7"), ExtResource("73_e35kp"), ExtResource("74_y4h7x"), ExtResource("75_uomgq"), ExtResource("76_15m2q"), ExtResource("77_2og0u"), ExtResource("78_0e7ir"), ExtResource("79_8iujy"), ExtResource("80_sey24"), ExtResource("p27_bellringers_rope"), ExtResource("p27_coffin_lid"), ExtResource("p27_crow_feather"), ExtResource("p27_grave_tag"), ExtResource("p27_gravediggers_spade"), ExtResource("p27_grudge_stone"), ExtResource("p27_headsmans_hood"), ExtResource("p27_hounds_tooth"), ExtResource("p27_hunters_horn"), ExtResource("p27_kindling_bundle"), ExtResource("p27_kingsbane_nail"), ExtResource("p27_knotted_lash"), ExtResource("p27_lone_lantern"), ExtResource("p27_martyrs_ash"), ExtResource("p27_moth_wing"), ExtResource("p27_sextons_hourglass"), ExtResource("p27_widows_thimble")])
 oaths = Array[ExtResource("42_jhtoh")]([ExtResource("43_lj346"), ExtResource("44_iwyxx"), ExtResource("45_jpepd"), ExtResource("46_lsmoe"), ExtResource("47_1svv3"), ExtResource("48_hbev2"), ExtResource("49_m7uq7"), ExtResource("50_iy2sh"), ExtResource("51_ax47g"), ExtResource("52_vhvxm"), ExtResource("65_341yx"), ExtResource("66_25vbo")])
 pacts = Array[ExtResource("85_emd2t")]([ExtResource("86_od8ih"), ExtResource("87_aeb0l"), ExtResource("88_68cyy"), ExtResource("89_dr8qu"), ExtResource("90_g8m5b"), ExtResource("91_fewvf")])
 pact_text = "A masked figure waits where the road splits. It offers a gift for the road ahead, and names its price."

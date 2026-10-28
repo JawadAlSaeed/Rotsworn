@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "grudge_stone"
+display_name = "Grudge Stone"
+description = "Each counter: +10% damage this fight."
+price = 100
+rarity = 1
+effect = 42
+amount = 10
+plus_text = "+15% each."
+amount_plus = 15
+icon_path = "res://assets/sprites/relics/grudge_stone.png"

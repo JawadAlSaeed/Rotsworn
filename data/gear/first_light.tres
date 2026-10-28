@@ -1,13 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_5e8kb"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_5e8kb")
+script = ExtResource("1_gear")
 id = "first_light"
 display_name = "First Light"
-description = "The wearer starts every fight Empowered: their first damaging skill hits harder."
+description = "Start fights Empowered."
+price = 60
 effect = 30
 amount = 1
-stat = 1
-stat_points = 2
+plus_text = "Empowered for 2 skills."
+amount_plus = 2
+icon_path = "res://assets/sprites/relics/first_light.png"

@@ -1,15 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_to5q5"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_to5q5")
+script = ExtResource("1_gear")
 id = "still_water"
 display_name = "Still Water"
-description = "Each perfect parry heals the wearer 3% of their max HP."
-price = 100
-rarity = 1
+description = "Parry: heal 4% HP."
+price = 60
 effect = 34
-amount = 3
-stat = 3
-stat_points = 3
+amount = 4
+plus_text = "Heal 7% HP."
+amount_plus = 7
+icon_path = "res://assets/sprites/relics/still_water.png"

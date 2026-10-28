@@ -124,7 +124,7 @@ func test_the_run_end_offers_again_or_the_main_menu() -> void:
 
 func _with_relics() -> RelicCollection:
 	var c := RelicCollection.new()
-	c.merge(["iron_charm"])
+	c.merge(["coffin_lid"])
 	return c
 
 
@@ -170,7 +170,7 @@ func test_feeding_the_hungry_relic_gives_a_rare_relic_and_a_curse() -> void:
 	assert_eq(run.owned_relics().size(), before + 1, "a Relic joins the run")
 	var found: GearData = null
 	for item: GearData in run.owned_relics():
-		if item.id != "iron_charm":
+		if item.id != "coffin_lid":
 			found = item
 	assert_gte(int(found.rarity), ItemData.Rarity.RARE)
 	assert_eq(run.holder_of(found), 0, "given to a hero: the one with the fewest Relics (DESIGN.md 8.24)")
@@ -226,6 +226,8 @@ func test_the_campfire_and_treasure_rows_move_between_maps() -> void:
 	assert_gt(treasure_rows.size(), 1, "the treasure row moves")
 
 
+## Its spoils (DESIGN.md 8.25): all rare or better in act 1, a legendary listed first from
+## tuning.crown_legendary_from_act on.
 func test_the_crowned_elite_is_harder_and_its_spoils_hold_a_legendary_relic() -> void:
 	var run := _run(5)
 	var crown := _crowned(run.map)
@@ -243,6 +245,9 @@ func test_the_crowned_elite_is_harder_and_its_spoils_hold_a_legendary_relic() ->
 		assert_gt(crowned.enemy_hp_percent, plain.enemy_hp_percent, "more HP")
 		assert_gt(crowned.enemy_power_percent, plain.enemy_power_percent, "more power")
 	run.at = crown[0]
+	for item: GearData in run.loot_choices(crown[0]):
+		assert_gte(int(item.rarity), ItemData.Rarity.RARE, "act 1: %s is rare or better" % item.id)
+	run.act = run.tuning.crown_legendary_from_act - 1
 	var loot := run.loot_choices(crown[0])
 	assert_eq(int(loot[0].rarity), ItemData.Rarity.LEGENDARY, "a legendary Relic, listed first")
 	assert_eq(loot.size(), run.loot_choice_count())
@@ -293,7 +298,7 @@ func test_a_treasure_stop_has_a_plain_and_a_rotten_chest() -> void:
 		assert_gt(int(outcomes[key]), 0, "the rotten chest sometimes gives: %s" % key)
 
 
-func test_the_campfire_before_the_boss_offers_watch_and_sharpen() -> void:
+func test_the_campfire_before_the_boss_offers_watch_and_no_sharpen() -> void:
 	var run := _run(3)
 	var watch := -1
 	var other := -1
@@ -310,16 +315,17 @@ func test_the_campfire_before_the_boss_offers_watch_and_sharpen() -> void:
 	run.team_gauge = 0
 	run.keep_watch()
 	assert_eq(run.team_gauge, _tuning.team_gauge_max)
-	run.sharpened = true
+	# Sharpen went in phase 27 (Upgrade took its card, DESIGN.md 8.25): the boss fight starts with the
+	# usual AP, and an older save that still says "sharpened" loads.
 	var boss := run.final_encounter()
 	var before := int(run.passives(0).get(Passive.START_AP, 0))
 	var setup := run.fight_setup(boss, 1, CombatSetup.Opening.NORMAL)
-	assert_eq(int(setup.party_passives[0].get(Passive.START_AP, 0)), before + _tuning.sharpen_ap, "+1 AP for the boss")
-	var ordinary := run.fight_setup(_husk(), 1, CombatSetup.Opening.NORMAL)
-	assert_eq(int(ordinary.party_passives[0].get(Passive.START_AP, 0)), before, "not for other fights")
-	assert_true(RunState.from_dict(_data, run.tuning, run.to_dict()).sharpened, "saved")
-	run.finish_fight(RunState.VICTORY, run.hp.duplicate(), boss)
-	assert_false(run.sharpened, "used up by the boss fight")
+	assert_eq(int(setup.party_passives[0].get(Passive.START_AP, 0)), before, "no Sharpen AP for the boss")
+	var old := run.to_dict()
+	assert_false(old.has("sharpened"), "not saved any more")
+	old["sharpened"] = true
+	assert_not_null(RunState.from_dict(_data, run.tuning, old), "an older save with Sharpen loads")
+	assert_false("sharpen_ap" in _tuning, "its tuning number went too")
 	if other >= 0:
 		run.at = other
 		assert_false(run.is_watch_fire(), "other campfires keep Rest and Train")

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "kindling_bundle"
+display_name = "Kindling Bundle"
+description = "End your turn with AP left: next hero +1 AP."
+price = 60
+effect = 48
+amount = 1
+plus_text = "+2 AP."
+amount_plus = 2
+icon_path = "res://assets/sprites/relics/kindling_bundle.png"

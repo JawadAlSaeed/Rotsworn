@@ -113,3 +113,83 @@ func test_skills_go_online_and_bad_ones_are_refused() -> void:
 	var bad := run.to_dict()
 	bad.unlocked = [["tree_zzz"], [], []]
 	assert_null(RunState.from_dict(run.data, run.tuning, bad), "unknown skills are refused")
+
+
+# --- start skills (card #338, DESIGN.md 8.25) --------------------------------------------------
+
+const START_SKILLS := {"alder": "payback", "brin": "rend", "cass": "radiance"}
+
+
+func _shipped_run() -> RunState:
+	return RunState.begin(load(RUN_PATH) as RunData, load("res://data/tuning/tuning.tres") as Tuning, 7)
+
+
+func test_each_hero_knows_and_brings_a_3_ap_skill_from_the_start() -> void:
+	var run := _shipped_run()
+	assert_eq(run.tuning.skill_slots, 6, "two places stay free for learned skills")
+	for slot: int in run.party_size():
+		var c := run.data.party[slot]
+		var id: String = START_SKILLS[c.id]
+		assert_true(run.unlocked[slot].has(id), c.id)
+		assert_true(run.loadout[slot].has(id), "%s brings it" % c.id)
+		assert_eq(run.skill_cost(slot, id), 0, "free")
+		assert_false(run.can_unlock(slot, id), "nothing to learn")
+		assert_eq(run.free_skill_points(slot), 0)
+		assert_eq(run.loadout[slot].size(), run.tuning.skill_slots - 2, c.id)
+		assert_eq(c.skill_tree.find(id).ap_cost, 3, id)
+		var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
+		var engine := CombatEngine.new(run.fight_setup(husk, 3, CombatSetup.Opening.NORMAL))
+		engine.start()
+		assert_true(engine.get_combatant(engine.party_ids()[slot]).ability_ids.has(id), "%s fights with it" % c.id)
+
+
+func test_the_trees_no_longer_hold_the_start_skills() -> void:
+	for hero: String in START_SKILLS:
+		var c := load("res://data/characters/%s.tres" % hero) as CharacterData
+		var id: String = START_SKILLS[hero]
+		assert_eq(c.skill_tree.place_of(id), Vector2i(-1, -1), "%s is in no branch" % id)
+		assert_true(c.skill_tree.is_start_skill(id))
+		assert_true(c.skill_tree.has_skill(id))
+		assert_true(c.all_abilities().has(c.skill_tree.find(id)), "fights outside a run still have it")
+	var alder := (load("res://data/characters/alder.tres") as CharacterData).skill_tree
+	var brin := (load("res://data/characters/brin.tres") as CharacterData).skill_tree
+	var cass := (load("res://data/characters/cass.tres") as CharacterData).skill_tree
+	assert_eq(alder.branches[2].skills.size(), 2, "Retort is two long")
+	assert_eq(brin.branches[1].skills.size(), 2, "Cripple is two long")
+	assert_eq(cass.place_of("revive"), Vector2i(1, 2), "Revive moved up to the 2-point place")
+
+
+func test_an_old_save_gains_the_start_skill() -> void:
+	var run := _shipped_run()
+	var old := run.to_dict()
+	for slot: int in run.party_size():
+		var id: String = START_SKILLS[run.data.party[slot].id]
+		(old.unlocked[slot] as Array).erase(id)
+		(old.loadout[slot] as Array).erase(id)
+	# Brin's old save had learned (and brought) Rend in the Cripple branch: kept once, its points
+	# come back.
+	(old.unlocked[1] as Array).append("rend")
+	(old.loadout[1] as Array).append("rend")
+	var copy := RunState.from_dict(run.data, run.tuning, old)
+	assert_not_null(copy)
+	for slot: int in copy.party_size():
+		var id: String = START_SKILLS[copy.data.party[slot].id]
+		assert_eq(copy.unlocked[slot].count(id), 1, id)
+		assert_eq(copy.loadout[slot].count(id), 1, "%s brought" % id)
+	assert_eq(copy.free_skill_points(1), 0)
+	assert_eq(copy.unlocked, run.unlocked, "the same skills as a new run")
+	var again := copy.to_dict()
+	assert_true(copy.apply_dict(again))
+	assert_eq(copy.to_dict(), again, "applying a run that has them changes nothing")
+
+
+func test_a_start_skill_can_be_left_behind_and_brought_again() -> void:
+	var run := _shipped_run()
+	var brought: Array = run.loadout[0].duplicate()
+	brought.erase("payback")
+	assert_true(run.apply_op({"op": "loadout", "slot": 0, "abilities": brought}))
+	assert_false(run.loadout[0].has("payback"))
+	var copy := RunState.from_dict(run.data, run.tuning, run.to_dict())
+	assert_false(copy.loadout[0].has("payback"), "a known start skill left behind stays behind")
+	brought.append("payback")
+	assert_true(run.set_loadout(0, brought))

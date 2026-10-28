@@ -1,18 +1,19 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_ds7u5"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_ds7u5")
+script = ExtResource("1_gear")
 id = "pale_tithe"
 display_name = "Pale Tithe"
-description = "Perfect skill presses deal +40%, but the heals you give are 50% weaker."
-price = 80
+description = "Perfect presses +50%. Other presses -30%."
+price = 100
 rarity = 1
 effect = 8
-amount = 40
+amount = 50
 rot_touched = true
-drawback = 11
-drawback_amount = 50
-stat = 4
-stat_points = 3
+drawback = 71
+drawback_amount = 30
+plus_text = "Perfect presses +75%."
+amount_plus = 75
+icon_path = "res://assets/sprites/relics/pale_tithe.png"

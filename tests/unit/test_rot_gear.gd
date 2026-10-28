@@ -20,7 +20,7 @@ var _tuning: Tuning
 
 func before_all() -> void:
 	# Relics without their stat lines (phase 17), so each test sees only the piece's own numbers.
-	_data = Fx.without_relic_stats(load(RUN_PATH) as RunData)
+	_data = load(RUN_PATH) as RunData
 	_tuning = load("res://data/tuning/tuning.tres") as Tuning
 
 
@@ -83,7 +83,7 @@ func test_rot_touched_gear_has_its_own_colour_and_name() -> void:
 	var step := BackpackGrid.gear_step(crown)
 	assert_eq(BackpackGrid.rarity_name(step), "rot-touched")
 	assert_eq(BackpackGrid.rarity_color(step), GearData.ROT_TOUCHED_COLOR)
-	var plain := _piece("iron_charm")
+	var plain := _piece("coffin_lid")
 	assert_ne(BackpackGrid.gear_step(plain), step)
 	assert_false(plain.rot_touched)
 
@@ -102,53 +102,50 @@ func test_every_rot_touched_piece_reaches_a_valid_fight_setup() -> void:
 
 # --- each piece on the run side -----------------------------------------------------------------
 
-func test_rotten_crown_adds_power_and_weakens_healing() -> void:
+## Phase 27 (DESIGN.md 8.25): Black Ichor is the glass cannon (power multiplied, hits on the wearer
+## harder) and the Crown of Thorns' price is weaker healing.
+func test_black_ichor_multiplies_power_and_the_crown_weakens_healing() -> void:
 	var run := _run()
 	var before := run.power_percent(0)
-	run.give_relic(_piece("rotten_crown"), 0)
-	assert_eq(run.power_percent(0), before + 35)
-	assert_eq(int(run.passives(0)[Passive.HEAL_TAKEN]), -40)
-	run.hp[0] = 10
-	var healed := run.heal(0, 100)
-	assert_eq(healed, 60, "100 points of healing arrive as 60")
-	assert_eq(run.heal(1, 0), 0)
+	run.give_relic(_piece("black_ichor"), 0)
+	assert_eq(run.power_percent(0), CombatMath.percent(before, 135), "a multiplier")
+	assert_eq(int(run.passives(0)[Passive.TOUGH]), -35, "hits on the wearer +35%")
+	run.give_relic(_piece("crown_of_thorns"), 1)
+	assert_eq(int(run.passives(1)[Passive.HEAL_TAKEN]), -50)
+	assert_eq(int(run.passives(1)[Passive.TOUGH]), 40)
+	run.hp[1] = 10
+	assert_eq(run.heal(1, 100), 50, "100 points of healing arrive as 50")
+	assert_eq(run.heal(2, 0), 0)
 
 
-func test_gravebound_ring_trades_max_hp_for_counters() -> void:
+func test_gravebound_ring_trades_harder_hits_for_counters() -> void:
 	var run := _run()
 	var before := run.total_max_hp_percent(0)
 	run.give_relic(_piece("gravebound_ring"), 0)
-	assert_eq(int(run.passives(0)[Passive.COUNTER]), 80)
-	assert_eq(run.total_max_hp_percent(0), before - 15)
-	assert_eq(run.hp[0], mini(run.hp[0], run.max_hp(0)), "HP is cut to the lower max")
+	assert_eq(int(run.passives(0)[Passive.COUNTER]), 100)
+	assert_eq(int(run.passives(0)[Passive.TOUGH]), -20)
+	assert_eq(run.total_max_hp_percent(0), before, "no max HP price any more")
 
 
-func test_hunger_charm_heals_on_kills_but_the_campfire_does_nothing_for_the_wearer() -> void:
+func test_hunger_charm_heals_on_kills_and_rots_its_wearer() -> void:
 	var run := _run()
 	run.give_relic(_piece("hunger_charm"), 0)
-	assert_eq(int(run.passives(0)[Passive.KILL_HEAL]), 8)
-	assert_eq(run.rest_heal_percent_of(0), 0)
-	assert_eq(run.rest_heal_percent_of(1), run.rest_heal_percent())
-	for slot: int in run.party_size():
-		run.hp[slot] = 1
-	var healed := run.rest()
-	assert_eq(healed[0], 0, "the wearer gets nothing from Rest")
-	assert_gt(healed[1], 0, "everyone else still does")
-	assert_eq(run.hp[0], 1)
+	assert_eq(run.passives(0), {Passive.KILL_HEAL: 6, Passive.ROT: 2})
+	assert_eq(run.rest_heal_percent_of(0), run.rest_heal_percent(), "the campfire works for the wearer again")
 
 
 func test_last_ember_and_the_others_set_their_passives() -> void:
 	var run := _run()
 	var wants := {
-		"last_ember": {Passive.LOW_HP_POWER: 40},
-		"ash_veil": {Passive.DODGE_AP: 1, Passive.PARRY_AP: -1},
-		"thorned_gauntlet": {Passive.THORNS: 30, Passive.TOUGH: -10},
-		"oathbreakers_band": {Passive.START_AP: 2},
+		"last_ember": {Passive.LOW_HP_POWER: 50},
+		"ash_veil": {Passive.DODGE_COUNTER: 1, Passive.PARRY_AP: -1},
+		"thorned_gauntlet": {Passive.HIT_AP: 1},
+		"oathbreakers_band": {Passive.FULL_START_AP: 1, Passive.TOUGH: -30},
 		"chain_of_silence": {Passive.GAUGE: 50, Passive.START_AP: -1},
-		"bloodletters_fang": {Passive.CRIT: 25, Passive.ROT: 4},
-		"hollow_mantle": {Passive.TOUGH: 25},
-		"pale_tithe": {Passive.PERFECT_PRESS: 40, Passive.HEAL: -50},
-		"plague_bell": {Passive.EXPOSED: 90},
+		"bloodletters_fang": {Passive.CRIT: 30, Passive.ROT: 2},
+		"hollow_mantle": {Passive.AP_GUARD: 50},
+		"pale_tithe": {Passive.PERFECT_PRESS: 50, Passive.OTHER_PRESS: -30},
+		"plague_bell": {Passive.PARRY_BLEED: 2},
 	}
 	for id: String in wants:
 		run = _run()
@@ -156,24 +153,24 @@ func test_last_ember_and_the_others_set_their_passives() -> void:
 		assert_eq(run.passives(0), wants[id], id)
 
 
-func test_stat_drawbacks_change_the_hero_stats() -> void:
+## The prices on the hero's numbers, and the tough floor (DESIGN.md 8.25): three "hits on you" Relics
+## on one hero never make a hit hurt more than tuning.relic_hit_taken_max_percent.
+func test_drawbacks_change_the_hero_stats_down_to_the_tough_floor() -> void:
 	var run := _run()
 	var speed := run.speed(0)
-	var power := run.power_percent(0)
-	run.give_relic(_piece("hollow_mantle"), 0)
-	assert_eq(run.speed(0), speed - 10)
-	assert_eq(run.defense_percent(0), 25)
-	run.give_relic(_piece("plague_bell"), 0)
-	assert_eq(run.power_percent(0), power - 10)
-	run = _run()
-	run.give_relic(_piece("thorned_gauntlet"), 1)
-	assert_eq(run.defense_percent(1), -10, "the hero takes 10% more")
+	run.give_relic(_piece("black_ichor"), 0)
+	assert_eq(run.speed(0), speed, "no Relic changes speed now")
+	assert_eq(run.defense_percent(0), -35, "the hero takes 35% more")
+	run.give_relic(_piece("gravebound_ring"), 0)
+	run.give_relic(_piece("oathbreakers_band"), 0)
+	assert_eq(int(run.passives(0)[Passive.TOUGH]), -85)
+	assert_eq(run.defense_percent(0), 100 - _tuning.relic_hit_taken_max_percent, "the floor: x1.6")
 	run = _run()
 	run.give_relic(_piece("bloodletters_fang"), 1)
-	assert_eq(run.crit_percent(1), _tuning.crit_base_percent + 25)
+	assert_eq(run.crit_percent(1), _tuning.crit_base_percent + 30)
 
 
-func test_oathbreakers_band_costs_max_hp_after_each_fight_won() -> void:
+func test_oathbreakers_band_costs_no_max_hp_after_a_win() -> void:
 	var run := _run()
 	run.go(run.choices()[0])
 	run.give_relic(_piece("oathbreakers_band"), 0)
@@ -181,14 +178,7 @@ func test_oathbreakers_band_costs_max_hp_after_each_fight_won() -> void:
 	var before := run.max_hp_percent.duplicate()
 	var hp: Array[int] = [run.max_hp(0), run.max_hp(1), run.max_hp(2)]
 	run.finish_fight(RunState.VICTORY, hp, husk)
-	assert_lt(run.max_hp_percent[0], before[0], "the wearer lost max HP for good")
-	assert_eq(run.max_hp_percent[1], before[1], "the others did not")
-	assert_eq(run.max_hp_percent[2], before[2])
-	var floor_points: int = _tuning.event_max_hp_floor_percent
-	for i: int in 40:
-		run.finish_fight(RunState.VICTORY, hp, husk)
-	assert_gte(run.max_hp_percent[0], floor_points, "never below the floor events also keep")
-	assert_gte(run.hp[0], 1)
+	assert_eq(run.max_hp_percent, before, "its price is harder hits now (DESIGN.md 8.25)")
 
 
 func test_a_drawback_on_the_same_effect_takes_away_and_empty_sums_vanish() -> void:
@@ -224,15 +214,23 @@ func test_healing_received_is_scaled_in_fights() -> void:
 		assert_eq(int(Fx.first_of(events, "healed").amount), int(case[1]), "HEAL_TAKEN %d" % int(case[0]))
 
 
-func test_a_kill_heals_the_killer() -> void:
+## Hunger Charm (DESIGN.md 8.25): any foe's fall heals every living holder, whoever downed it.
+func test_any_kill_heals_every_holder() -> void:
 	var hurt: Array[int] = [50, 50, 50]
-	var engine := _engine([Fx.attack("one", [Fx.hit(900)])], {Passive.KILL_HEAL: 8},
-			{"enemy_speed": SLOW_ENEMY, "enemy_hp_percent": 1}, hurt)
+	var setup := Fx.setup([Fx.attack("one", [Fx.hit(900)])], {"enemy_speed": SLOW_ENEMY, "enemy_hp_percent": 1})
+	setup.party_passives.assign([{}, {Passive.KILL_HEAL: 8}, {Passive.KILL_HEAL: 8}])
+	setup.party_start_hp = hurt
+	var engine := CombatEngine.new(setup)
+	engine.start()
 	var actor := engine.active_actor
 	var events := engine.submit(Fx.use(engine, "basic_attack"))
-	var healed := Fx.first_of(events, "healed")
-	assert_eq(int(healed.target), actor)
-	assert_eq(int(healed.amount), 8, "8% of 100 max HP")
+	var healed := Fx.of_type(events, "healed")
+	var targets: Array[int] = []
+	for e: Dictionary in healed:
+		targets.append(int(e.target))
+		assert_eq(int(e.amount), 8, "8% of 100 max HP")
+	targets.sort()
+	assert_eq(targets, [1, 2] as Array[int], "both holders, whoever struck (hero %d did)" % actor)
 	assert_lt(Fx.index_of(events, "downed"), Fx.index_of(events, "healed"), "after the kill")
 	var plain := _engine([Fx.attack("one", [Fx.hit(900)])], {}, {"enemy_speed": SLOW_ENEMY, "enemy_hp_percent": 1}, hurt)
 	assert_eq(Fx.of_type(plain.submit(Fx.use(plain, "basic_attack")), "healed").size(), 0, "no gear, no heal")
@@ -275,31 +273,33 @@ func test_dodge_gives_ap_and_a_parry_gives_none_with_ash_veil() -> void:
 	assert_eq(plain.get_combatant(t2).ap - ap, Tuning.new().ap_per_parry, "without the veil a parry gives its AP")
 
 
-func test_thorns_hurt_the_attacker_and_negative_tough_hurts_the_wearer() -> void:
+## Thorns answer a parry since phase 27 (Bramble Coat, DESIGN.md 8.25): the attacker takes a share of
+## the hit that was parried; a hit that lands or is dodged reflects nothing.
+func test_thorns_hurt_the_attacker_on_a_parry_and_negative_tough_hurts_the_wearer() -> void:
 	var engine := _engine([Fx.attack("one", [Fx.hit(900, Fx.NORMAL, 100)])], {Passive.THORNS: 30, Passive.TOUGH: -10})
 	var plain := _engine([Fx.attack("one", [Fx.hit(900, Fx.NORMAL, 100)])])
 	var plain_damage := int((plain.sequence.prompts as Array)[0].damage)
 	var damage := int((engine.sequence.prompts as Array)[0].damage)
 	assert_between(damage, CombatMath.percent_min1(plain_damage, 110) - 1, CombatMath.percent_min1(plain_damage, 110) + 1,
 			"10% more")
-	var foe_before := engine.get_combatant(FOE).hp
-	var events := engine.submit(Fx.resolve_now(engine, [[0, NONE]]))
+	var events := engine.submit(Fx.resolve_now(engine, [[0, PARRY]]))
 	var thorn := Fx.of_type(events, "damage").filter(func(e: Dictionary) -> bool: return e.cause == "thorns")
 	assert_eq(thorn.size(), 1)
-	var back := CombatMath.percent_min1(damage, 30)
-	assert_eq(int(thorn[0].amount), back)
+	if thorn.is_empty():
+		return
+	assert_eq(int(thorn[0].amount), CombatMath.percent_min1(damage, 30), "30% of the hit parried")
 	assert_eq(int(thorn[0].target), FOE)
-	assert_eq(engine.get_combatant(FOE).hp, foe_before - back)
-	var defended := _engine([Fx.attack("one", [Fx.hit(900)])], {Passive.THORNS: 30})
-	var hp := defended.get_combatant(FOE).hp
-	defended.submit(Fx.resolve_now(defended, [[0, DODGE]]))
-	assert_eq(defended.get_combatant(FOE).hp, hp, "a hit that never landed reflects nothing")
+	for outcome: int in [NONE, DODGE]:
+		var other := _engine([Fx.attack("one", [Fx.hit(900)])], {Passive.THORNS: 30})
+		var got := other.submit(Fx.resolve_now(other, [[0, outcome]]))
+		assert_eq(Fx.of_type(got, "damage").filter(func(e: Dictionary) -> bool: return e.cause == "thorns").size(), 0,
+				"outcome %d reflects nothing" % outcome)
 
 
 func test_thorns_that_kill_the_attacker_end_the_fight_cleanly() -> void:
 	var engine := _engine([Fx.attack("flurry", [Fx.hit(900), Fx.hit(1200), Fx.hit(1500)])], {Passive.THORNS: 100},
 			{"enemy_hp_percent": 1})
-	var events := engine.submit(Fx.resolve_now(engine, [[0, NONE], [1, NONE], [2, NONE]]))
+	var events := engine.submit(Fx.resolve_now(engine, [[0, PARRY], [1, PARRY], [2, PARRY]]))
 	assert_eq(engine.phase, CombatEngine.Phase.ENDED, "the thorns finished it")
 	assert_eq(String(Fx.first_of(events, "combat_ended").result), "victory")
 	assert_eq(Fx.of_type(events, "damage").filter(func(e: Dictionary) -> bool: return e.cause == "thorns").size(), 1,
@@ -380,8 +380,9 @@ func test_spoils_always_offer_a_rot_touched_piece_among_their_choices() -> void:
 			var rot := loot.filter(func(item: GearData) -> bool: return item.rot_touched)
 			assert_eq(rot.size(), _tuning.rot_gear_spoils_count, "one rot-touched piece")
 			assert_true(loot[loot.size() - 1].rot_touched, "listed last")
-			for item: GearData in loot:
-				assert_gte(int(item.rarity), _tuning.run_spoils_min_rarity, "the spoils rule stays")
+			var low := loot.filter(func(item: GearData) -> bool: return int(item.rarity) < _tuning.run_spoils_min_rarity)
+			assert_lte(low.size(), run.spoils_open_cards(run.is_crowned(int(stop.id))), "the spoils rule stays (8.25)")
+			assert_true(rot.is_empty() or int(rot[0].rarity) >= _tuning.run_spoils_min_rarity, "the rot piece is rare or better")
 			assert_eq(run.loot_choices(int(stop.id)), loot, "the same stop offers the same loot")
 
 
@@ -447,12 +448,13 @@ func test_shops_sell_rot_touched_gear_rarely() -> void:
 # --- the bot ------------------------------------------------------------------------------------
 
 func test_the_bot_takes_a_bearable_rot_touched_piece_and_refuses_a_costly_one() -> void:
-	var iron := _piece("iron_charm")
-	var veil := _piece("ash_veil")
+	var iron := _piece("coffin_lid")
+	var chain := _piece("chain_of_silence")
 	var crown := _piece("rotten_crown")
-	var ember := _piece("last_ember")
-	var offered: Array[GearData] = [iron, veil]
-	assert_eq(GearBot.pick(offered), 1, "Ash Veil's price is a parry's AP: bearable")
+	var ember := _piece("kingsbane_nail")
+	var offered: Array[GearData] = [iron, chain]
+	assert_eq(GearBot.pick(offered), 1, "Chain of Silence's price is 1 AP at the start: bearable")
+	assert_eq(GearBot.score(_piece("ash_veil")), -1, "Ash Veil takes a parry's AP: the parrying bot refuses it")
 	offered = [_piece("second_wind"), crown]
 	assert_eq(GearBot.pick(offered), 0, "the Crown's weaker healing is not")
 	assert_eq(GearBot.score(crown), -1)
@@ -467,13 +469,13 @@ func test_the_bot_takes_a_bearable_rot_touched_piece_and_refuses_a_costly_one() 
 func test_the_bot_leaves_rot_touched_gear_it_refuses_waiting() -> void:
 	var run := _run()
 	run.add_relic(_piece("rotten_crown"))
-	run.add_relic(_piece("ash_veil"))
+	run.add_relic(_piece("chain_of_silence"))
 	var gold := run.gold
 	assert_eq(run.auto_give(), 1, "only the bearable one is given")
 	assert_eq(run.holder_of(_piece("rotten_crown")), -1, "refused: it waits")
 	assert_true(run.owns(_piece("rotten_crown")), "a Relic is kept, never sold (DESIGN.md 8.17)")
 	assert_eq(run.gold, gold)
-	assert_true(run.is_given(_piece("ash_veil")), "bearable: given")
+	assert_true(run.is_given(_piece("chain_of_silence")), "bearable: given")
 
 
 # --- saving -------------------------------------------------------------------------------------

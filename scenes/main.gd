@@ -443,6 +443,10 @@ func _open_dev_screen(screen_name: String) -> void:
 			_show_sample_map(1, 2)
 		"shop", "campfire", "event", "treasure":
 			_show_sample_stop(screen_name)
+		"campfire_upgrade":
+			# The campfire's Upgrade pick open (DESIGN.md 8.25), for pictures.
+			_show_sample_stop("campfire")
+			(_screen as RestScreen).open_upgrade()
 		"pact":
 			# The starting pact of a run that is not the first (card #285), for pictures.
 			_run = RunState.begin(_run_data, _tuning, 3, 0, _sample_collection())
@@ -507,8 +511,9 @@ func _show_sample_first_strike() -> void:
 	_fade_to(_start_stop_fight, zone.display_name if zone != null else "", true)
 
 
-## --screen=shop|campfire|event|treasure: a run standing at such a stop, with gold and a few items
-## (pictures of the phase 15 stop screens, DESIGN.md 8.7 to 8.11).
+## --screen=shop|campfire|event|treasure: a run standing at such a stop, with gold, a few items and
+## Relics given to the heroes, one of them Relic+ (pictures of the stop screens, DESIGN.md 8.7 to 8.11
+## and 8.25: the campfire's Upgrade card is lit).
 func _show_sample_stop(kind: String) -> void:
 	_run = RunState.begin(_run_data, _tuning, 3)
 	_run.gold = 180
@@ -517,13 +522,31 @@ func _show_sample_stop(kind: String) -> void:
 	_run.add_item(items["feast"])
 	_run.add_item(items["rotting_heart"])
 	_run.hp[1] = CombatMath.percent(_run.max_hp(1), 50)
+	var given: Array[String] = ["wake_root", "grave_tag", "coffin_lid", "kingsbane_nail", "hounds_tooth"]
+	for i: int in given.size():
+		var relic := _run.relic_by_id(given[i])
+		if relic != null:
+			_run.give_relic(relic, i % _run.party_size())
+	_run.upgrade_relic("coffin_lid")
 	var want := {"shop": RunMap.StopType.SHOP, "campfire": RunMap.StopType.REST, "event": RunMap.StopType.EVENT,
 			"treasure": RunMap.StopType.TREASURE}[kind] as int
+	var found := false
 	for s: Dictionary in _run.map.stops:
 		if int(s.type) == want:
 			_run.at = int(s.id)
+			# A plain campfire (Rest, Train, Upgrade), not the one before the boss (8.19).
+			if want == RunMap.StopType.REST and _run.is_watch_fire():
+				continue
 			_run.path.append(int(s.id))
+			found = true
 			break
+	if not found and want == RunMap.StopType.REST:
+		# The act's only campfires are the row before the boss: the picture turns a stop of the
+		# second row into a plain campfire.
+		var stop := _run.map.stop(int(_run.map.rows[1][0]))
+		stop.type = RunMap.StopType.REST
+		_run.at = int(stop.id)
+		_run.path.append(int(stop.id))
 	if want == RunMap.StopType.EVENT:
 		_run.events_seen.append(_run.event_of(_run.at).id)
 	match kind:
@@ -621,8 +644,8 @@ func _show_sample_skills() -> void:
 	var data := _run_data.duplicate() as RunData
 	var party: Array[CharacterData] = []
 	var layout := {
-		"alder": [["Bulwark", ["guard"]], ["Bash", ["shield_bash"]], ["Retort", ["taunt", "riposte_stance", "payback"]]],
-		"brin": [["Flurry", ["quick_cuts", "all_in"]], ["Cripple", ["hamstring", "rend"]], ["Shadow", ["feint_step"]]],
+		"alder": [["Bulwark", ["guard"]], ["Bash", ["shield_bash"]], ["Retort", ["taunt", "riposte_stance"]]],
+		"brin": [["Flurry", ["quick_cuts", "all_in"]], ["Cripple", ["hamstring"]], ["Shadow", ["feint_step"]]],
 		"cass": [["Mending", ["mend"]], ["Light", ["reveal", "revive"]], ["Grace", ["pass_the_torch", "hasten"]]],
 	}
 	for c: CharacterData in _run_data.party:
@@ -636,6 +659,10 @@ func _show_sample_skills() -> void:
 				if ability != null:
 					branch.skills.append(ability)
 			tree.branches.append(branch)
+		if c.skill_tree != null:
+			# Each hero's real start skill (card #338), so the picture shows the Signature column.
+			tree.start_skills = c.skill_tree.start_skills.duplicate()
+			tree.start_name = c.skill_tree.start_name
 		hero.skill_tree = tree
 		party.append(hero)
 	data.party = party
@@ -2653,9 +2680,9 @@ func _show_run_end() -> void:
 			print("AUTOPLAY_RECAP ", line)
 		# Who plays at the end (cards #304, #311): the same on every machine of an online game.
 		print("AUTOPLAY_PLAYERS n=%d owners=%s" % [_players.player_count(), _players.owners_text()])
-		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d items=%d gold=%d seed=%d oath=%d relics=%d relics_held=%d" % [
+		print("AUTOPLAY_RESULT run_%s act=%d stops=%d fights=%d level=%d items=%d gold=%d seed=%d oath=%d relics=%d relics_held=%d upgraded=%d" % [
 				_run.result, _run.act + 1, _run.visited, _run.fights_won, _run.top_level(), _run.backpack.entries.size(),
-				_run.gold_earned, _run.run_seed, _run.oath, _run.relics.size(), _held_count(_run)])
+				_run.gold_earned, _run.run_seed, _run.oath, _run.relics.size(), _held_count(_run), _run.relics_plus.size()])
 		_autoplay_quit()
 
 
@@ -4467,7 +4494,7 @@ static func _make_choice(screen: Node, choice: Dictionary) -> String:
 		screen.call("leave")
 		return what
 	if screen is RestScreen:
-		return _make_rest_choice(screen as RestScreen, what)
+		return _make_rest_choice(screen as RestScreen, what, choice)
 	if screen is EventScreen:
 		var event := screen as EventScreen
 		if what == "choose":
@@ -4502,20 +4529,25 @@ static func _can_leave(screen: Node) -> bool:
 	return false
 
 
-## A friend's campfire choice: Rest, then Train at a normal fire, Keep watch or Sharpen at the fire
-## before the boss. Once only. "" if refused.
-static func _make_rest_choice(rest: RestScreen, what: String) -> String:
+## A friend's campfire choice: Rest, then Train at a normal fire, Keep watch at the fire before the
+## boss, or Upgrade a Relic at either ({do: "upgrade", relic: id}, DESIGN.md 8.25: the
+## screen checks the Relic can be upgraded and is one of the turn's player's heroes'). Once only.
+## "" if refused.
+static func _make_rest_choice(rest: RestScreen, what: String, choice: Dictionary = {}) -> String:
 	if rest.has_acted():
 		return ""
 	var watch := rest.run.is_watch_fire()
+	if what == "upgrade":
+		var relic: Variant = choice.get("relic")
+		if typeof(relic) != TYPE_STRING or not rest.upgrade_now(String(relic)):
+			return ""
+		return "upgrade %s" % String(relic)
 	if what == "rest":
 		rest.rest_now()
 	elif what == "train" and not watch:
 		rest.train_now()
 	elif what == "watch" and watch:
 		rest.watch_now()
-	elif what == "sharpen" and watch:
-		rest.sharpen_now()
 	else:
 		return ""
 	return what
@@ -5014,13 +5046,18 @@ func _autoplay_elite_ready() -> bool:
 	return RunAutoplay.is_ready(_autoplay_health())
 
 
-## Autoplay at a campfire: rests when someone is hurt, else keeps watch before the boss or trains.
+## Autoplay at a campfire (DESIGN.md 8.25): rests when someone is hurt, else upgrades the Relic whose
+## "+" helps most (GearBot.upgrade_pick, among the heroes it may give to), else keeps watch before the
+## boss or trains.
 func _autoplay_rest(rest: RestScreen) -> void:
 	await get_tree().create_timer(AUTOPLAY_RETURN_S).timeout
 	if not _autoplay_turn_ok(rest):
 		return
+	var upgrade := GearBot.upgrade_pick(_run, _run.upgradable(RelicGift.allowed(_give_heroes, _run)))
 	if _autoplay_hurt():
 		rest.rest_now()
+	elif upgrade != null and rest.upgrade_now(upgrade.id):
+		pass
 	elif _run.is_watch_fire():
 		rest.watch_now()
 	else:

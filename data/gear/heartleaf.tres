@@ -1,12 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gseth"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_gseth")
+script = ExtResource("1_gear")
 id = "heartleaf"
 display_name = "Heartleaf"
-description = "Healing the wearer receives is 25% stronger."
+description = "Heals on you +30%."
+price = 60
 effect = 13
-amount = 25
-stat_points = 2
+amount = 30
+plus_text = "+50%."
+amount_plus = 50
+icon_path = "res://assets/sprites/relics/heartleaf.png"

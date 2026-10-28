@@ -155,11 +155,17 @@ func test_guards_are_mini_bosses_with_a_phase_two() -> void:
 			assert_true(guard.deep.mini_boss and not guard.deep.can_run, "%s: so is its deep version" % zone.id)
 
 
+## Act 1 lets tuning.run_spoils_open_cards of them be any rarity (DESIGN.md 8.25); later acts none.
 func test_spoils_are_rare_while_the_run_has_rare_gear() -> void:
 	var run := _run()
 	run.go(run.choices()[0])
-	for gear: GearData in run.loot_choices(run.at):
-		assert_gte(int(gear.rarity), _tuning.run_spoils_min_rarity)
+	for act: int in [0, 1]:
+		run.act = act
+		var low := 0
+		for gear: GearData in run.loot_choices(run.at):
+			if int(gear.rarity) < _tuning.run_spoils_min_rarity:
+				low += 1
+		assert_lte(low, run.spoils_open_cards(run.is_crowned()), "act %d" % (act + 1))
 
 
 func test_an_event_never_comes_twice() -> void:
@@ -293,10 +299,11 @@ func test_the_campfire_before_the_boss_offers_its_three_choices_as_cards() -> vo
 	rest.setup(run)
 	var menu := rest.menu()
 	assert_true(menu.horizontal, "side by side (card #288)")
-	assert_eq(menu.items.map(func(row: Dictionary) -> String: return String(row.text)), ["Rest", "Keep watch", "Sharpen"])
+	assert_eq(menu.items.map(func(row: Dictionary) -> String: return String(row.text)), ["Rest", "Keep watch", "Upgrade"],
+			"Upgrade takes Sharpen's place (DESIGN.md 8.25)")
 	for row: Dictionary in menu.items:
 		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
-	assert_eq(String((menu.items[2].chips as Array)[0].text), "+%d AP" % _tuning.sharpen_ap)
-	rest.sharpen_now()
-	assert_true(run.sharpened, "the bot's sharpen_now() still works")
+	assert_eq(String((menu.items[2].chips as Array)[0].text), RestScreen.UPGRADE_CHIP)
+	rest.watch_now()
+	assert_eq(run.team_gauge, _tuning.team_gauge_max, "the bot's watch_now() still works")
 	assert_false(menu.horizontal, "then one way on")

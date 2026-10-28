@@ -123,6 +123,9 @@ extends RefCounted
 ##                                           standing ran, DESIGN.md 2.13)
 ##   command_rejected        {reason, command}   private to the sender; never broadcast/replayed
 
+## Damage causes that are a hero's own hit (Grave Tag's first hit).
+const FIRST_HIT_CAUSES: Array[String] = ["ability", "follow_up", "counter", "team_counter"]
+
 ## combat_started "opening" names, by CombatSetup.Opening.
 const OPENING_NAMES: Array[String] = ["normal", "first_strike", "ring"]
 
@@ -258,12 +261,22 @@ func start() -> Array[Dictionary]:
 		if ward > 0:
 			# Relics against marks (card #263): the fight opens with the hero Warded.
 			_add_status(hero, Status.WARDED, ward, hero.id, events)
-		if Passive.amount(hero, Passive.START_EMPOWERED) > 0:
-			# Phase 20 Relics (card #242): the first damaging skill of the fight hits harder.
-			_add_status(hero, Status.EMPOWERED, 1, hero.id, events)
+		var empowered := Passive.amount(hero, Passive.START_EMPOWERED)
+		if empowered > 0:
+			# Phase 20 Relics (card #242): the first damaging skill(s) of the fight hit harder; its
+			# `turns` count the skills left (First Light+ gives two, DESIGN.md 8.25).
+			_add_status(hero, Status.EMPOWERED, empowered, hero.id, events)
 		var regen := Passive.amount(hero, Passive.START_REGEN)
 		if regen > 0:
 			_add_status(hero, Status.REGEN, regen, hero.id, events)
+		var guarded := Passive.amount(hero, Passive.START_GUARDED)
+		if guarded > 0:
+			# Coffin Lid (DESIGN.md 8.25): Guarded until the start of the hero's `guarded`-th turn
+			# that comes after the foes' first turn, so the Guard meets the first enemy attack.
+			_add_status(hero, Status.GUARDED, guarded, hero.id, events)
+			hero.opening_guard = true
+	if _setup.opening == CombatSetup.Opening.FIRST_STRIKE:
+		_first_strike_relics(events)
 	for enemy_id: int in enemy_ids():
 		_pick_intent(get_combatant(enemy_id), events)
 	if _setup.opening == CombatSetup.Opening.RING:
@@ -309,7 +322,33 @@ func _cmd_set_opening(command: Dictionary, events: Array[Dictionary]) -> void:
 	var word: Variant = command.get("word", "")
 	events.append({"type": "opening", "opening": OPENING_NAMES[opening],
 			"word": String(word) if word is String else ""})
+	if opening == CombatSetup.Opening.FIRST_STRIKE:
+		_first_strike_relics(events)
 	_advance_turn(events)
+
+
+## Hunter's Horn (DESIGN.md 8.25): a First Strike won leaves every foe Exposed, and Slowed with its
+## "+". With two holders, the longer turns count.
+func _first_strike_relics(events: Array[Dictionary]) -> void:
+	var expose := 0
+	var slow := 0
+	var source := -1
+	for id: int in party_ids():
+		var hero := get_combatant(id)
+		var mine := maxi(Passive.amount(hero, Passive.FIRST_STRIKE_EXPOSE), Passive.amount(hero, Passive.FIRST_STRIKE_SLOW))
+		if mine > 0 and source < 0:
+			source = id
+		expose = maxi(expose, Passive.amount(hero, Passive.FIRST_STRIKE_EXPOSE))
+		slow = maxi(slow, Passive.amount(hero, Passive.FIRST_STRIKE_SLOW))
+	if source < 0:
+		return
+	# No turn_order here: the first turn follows at once and sends one (_advance_turn).
+	for enemy_id: int in living_enemy_ids():
+		var enemy := get_combatant(enemy_id)
+		if expose > 0:
+			_add_status(enemy, Status.EXPOSED, expose, source, events)
+		if slow > 0:
+			_add_status(enemy, Status.SLOWED, slow, source, events)
 
 
 ## Rebuilds an engine from snapshot() output (reconnects, late join, desync debugging).
@@ -389,7 +428,19 @@ func get_attack(attack_id: String) -> EnemyAttackData:
 func can_afford(actor_id: int, ability_id: String) -> bool:
 	var actor := get_combatant(actor_id)
 	var ability := get_ability(ability_id)
-	return actor != null and ability != null and actor.ap >= ability.ap_cost
+	return actor != null and ability != null and actor.ap >= skill_cost(ability, actor.passives)
+
+
+## What `ability` costs a fighter with `passives` (Combatant.passives): its AP cost, less Rotten
+## Crown's cut (DESIGN.md 8.25), never below 0. Static, so the fight menu shows the price the engine
+## charges from the mirror's fighter.
+static func skill_cost(ability: AbilityData, passives: Dictionary) -> int:
+	if ability == null:
+		return 0
+	var cut := int(passives.get(Passive.SKILL_COST_CUT, 0))
+	if cut <= 0 or ability.ap_cost <= 0:
+		return ability.ap_cost
+	return maxi(0, ability.ap_cost - cut)
 
 
 ## True if the actor could use this ability now: affordable, gauge full for the team ultimate,
@@ -414,8 +465,15 @@ func is_hushed_out(actor_id: int, ability_id: String) -> bool:
 		return false
 	if ability.escape or ability.team_ultimate:
 		return false
+	return not is_basic_attack(actor, ability)
+
+
+## True if `ability` is `actor`'s own basic attack (Hush leaves it; Whetstone pays it more AP).
+func is_basic_attack(actor: Combatant, ability: AbilityData) -> bool:
+	if actor == null or ability == null or not actor.is_party():
+		return false
 	var data: CharacterData = _setup.party[actor.slot] if actor.slot < _setup.party.size() else null
-	return data == null or data.basic_attack == null or ability.id != data.basic_attack.id
+	return data != null and data.basic_attack != null and ability.id == data.basic_attack.id
 
 
 ## Ids this actor may pick as the target of this ability. For abilities without a target step
@@ -611,6 +669,9 @@ func _build_combatants() -> void:
 		c.hp = _setup.party_hp_at_start(slot, c.max_hp)
 		c.passives = _setup.party_passives_of(slot)
 		c.ap = clampi(tuning.start_ap + Passive.amount(c, Passive.START_AP), 0, tuning.max_ap)
+		if Passive.amount(c, Passive.FULL_START_AP) > 0:
+			# Oathbreaker's Band (DESIGN.md 8.25).
+			c.ap = tuning.max_ap
 		c.power = _setup.party_power(slot, data)
 		c.speed = _setup.party_speed(slot, data)
 		c.base_speed = c.speed
@@ -655,8 +716,21 @@ func _build_combatants() -> void:
 		c.next_turn_at = Timeline.turn_cost(c.speed, tuning.timeline_base)
 		combatants.append(c)
 		slot += 1
+	_first_turns()
 	if _setup.opening == CombatSetup.Opening.FIRST_STRIKE:
 		_apply_first_strike()
+
+
+## Sour Milk (DESIGN.md 8.25): its holder's first turn comes before everyone else's (one tick
+## earlier than the soonest; two holders keep their order). Only the first turn moves.
+func _first_turns() -> void:
+	var soonest := -1
+	for c: Combatant in combatants:
+		if soonest < 0 or c.next_turn_at < soonest:
+			soonest = c.next_turn_at
+	for c: Combatant in combatants:
+		if c.is_party() and Passive.amount(c, Passive.FIRST_TURN) > 0:
+			c.next_turn_at = maxi(0, soonest - 1)
 
 
 ## First strike (DESIGN.md 2.12): no enemy's first turn comes before the last party member's
@@ -717,9 +791,21 @@ func _advance_turn(events: Array[Dictionary]) -> void:
 ## Statuses that last until the holder's next turn end now; a hero of a cursed party (passive rot)
 ## loses some HP (never below 1).
 func _start_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
+	if not actor.is_party():
+		# A foe's turn has come: Coffin Lid's fight-start Guard counts down from now on.
+		for id: int in party_ids():
+			get_combatant(id).opening_guard = false
 	for id: String in Status.ALL:
+		if id == Status.GUARDED and actor.opening_guard:
+			continue
 		if Status.ends_at_own_turn(id) and actor.has_status(id):
-			_remove_status(actor, id, events)
+			var entry: Dictionary = actor.statuses[id]
+			if int(entry.turns) > 1:
+				# Coffin Lid+ (DESIGN.md 8.25): Guarded through more of the holder's turns.
+				entry.turns = int(entry.turns) - 1
+				events.append(_status_event(actor, id, true))
+			else:
+				_remove_status(actor, id, events)
 	var rot := Passive.amount(actor, Passive.ROT)
 	if rot > 0 and actor.is_alive():
 		var amount := mini(CombatMath.percent_min1(actor.max_hp, rot), actor.hp - 1)
@@ -747,8 +833,14 @@ func _start_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 ## action used it); an enemy picks what it does next.
 func _end_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 	actor.perfect_defenses = 0
+	_pass_spare_ap(actor, events)
+	var fresh_bleed := actor.fresh_bleed
+	actor.fresh_bleed = false
 	for id: String in Status.ALL:
 		if not Status.counts_turns(id) or not actor.has_status(id):
+			continue
+		if id == Status.BLEEDING and fresh_bleed:
+			# Given during this very turn (a parry or counter Relic): its ticks are all still to come.
 			continue
 		var entry: Dictionary = actor.statuses[id]
 		var left := int(entry.turns) - 1
@@ -763,6 +855,21 @@ func _end_of_turn(actor: Combatant, events: Array[Dictionary]) -> void:
 			_keep_intent = -1
 		else:
 			_pick_intent(actor, events)
+
+
+## Kindling Bundle (DESIGN.md 8.25): a standing holder who ends their turn with AP left gives the
+## next hero in the turn order (not themselves) AP. Nothing for a party of one.
+func _pass_spare_ap(actor: Combatant, events: Array[Dictionary]) -> void:
+	var gift := Passive.amount(actor, Passive.LEFTOVER_AP)
+	if gift <= 0 or not actor.is_party() or not actor.is_alive() or actor.ap <= 0:
+		return
+	var next: Combatant = null
+	for id: int in living_party_ids():
+		var hero := get_combatant(id)
+		if hero != actor and (next == null or Timeline.comes_before(hero, next)):
+			next = hero
+	if next != null:
+		_change_ap(next, gift, "given", events)
 
 
 ## Declares the enemy's intended attack as a timed sequence. Returns false if it has none.
@@ -816,6 +923,8 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 	var tempo := _tempo_percent(actor)
 	var hard := _forced_hits(actor)
 	var allowed := _setup.allow_marks
+	# Heroes some earlier hit of this attack was already aimed at (Thick Hide cuts only the first).
+	var struck: Dictionary = {}
 	for hit_index: int in attack.hits.size():
 		var hit: AttackHitData = attack.hits[hit_index]
 		var at_ms := CombatMath.percent(hit.impact_ms, tempo)
@@ -838,9 +947,15 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 		if attack.target_mode == EnemyAttackData.TargetMode.EACH:
 			hit_targets = [targets[hit_index % targets.size()]]
 		for target_id: int in hit_targets:
+			var target := get_combatant(target_id)
+			var first_cut := 0 if struck.has(target_id) else Passive.amount(target, Passive.FIRST_HIT_GUARD)
+			struck[target_id] = true
+			# One variance roll per prompt, shared with Hollow Mantle's cut damage.
+			var spread := _roll_spread()
 			var defend := _prompt(prompts.size(), hit_index, target_id, at_ms, kind,
-					_windows_for(get_combatant(target_id), Defense.build_windows(kind, tuning)),
-					_enemy_hit_damage(actor, get_combatant(target_id), hit.damage_percent), 0, 0, ROLE_DEFEND, [])
+					_windows_for(target, Defense.build_windows(kind, tuning)),
+					_with_spread(_hit_amount(actor, target, hit.damage_percent, first_cut), spread), 0, 0, ROLE_DEFEND, [])
+			_add_defend_relics(defend, actor, target, hit.damage_percent, first_cut, spread)
 			if marks:
 				# Only a marking hit carries these, so every other fight's events stay as they were.
 				defend["mark_status"] = hit.on_hit_status
@@ -853,6 +968,25 @@ func _begin_enemy_attack(actor: Combatant, events: Array[Dictionary]) -> bool:
 	_declare(SEQUENCE_ENEMY_ATTACK, actor.id, attack.id, attack.display_name, attack.target_mode, targets,
 			attack.alert_cue, attack.allow_timing_ring, hits, prompts, events)
 	return true
+
+
+## What a hero's defence Relics put on one of their defend prompts (DESIGN.md 8.25), only when they
+## hold one, so every other fight's events stay as they were. Ash Veil: a dodge of a normal hit counts
+## toward a counter (sweeps stay uncounterable, card #187). Hollow Mantle: `guard_damage`, what the hit
+## deals if `guard_cost` AP is paid (same variance `spread`). Widow's Thimble: `null_left`, the hits it still
+## makes nothing (a hint for the hit's popup; the engine counts on Combatant.null_hits_used).
+func _add_defend_relics(defend: Dictionary, enemy: Combatant, target: Combatant, pct: int, first_cut: int,
+		spread: int) -> void:
+	if Passive.amount(target, Passive.DODGE_COUNTER) > 0 and int(defend.kind) == AttackHitData.Kind.NORMAL:
+		(defend.perfect as Array).append(Defense.Outcome.DODGE)
+	var mantle := clampi(Passive.amount(target, Passive.AP_GUARD), 0, 100)
+	if mantle > 0:
+		var both := 100 - CombatMath.percent(100 - clampi(first_cut, 0, 100), 100 - mantle)
+		defend["guard_damage"] = _with_spread(_hit_amount(enemy, target, pct, both), spread)
+		defend["guard_cost"] = tuning.relic_ap_guard_cost
+	var null_left := Passive.amount(target, Passive.NULL_HIT) - target.null_hits_used
+	if null_left > 0:
+		defend["null_left"] = null_left
 
 
 ## Emits combat_ended and returns true if one side is wiped out.
@@ -1159,7 +1293,8 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 	if ability.team_ultimate and team_gauge < tuning.team_gauge_max:
 		events.append(_reject("gauge_not_full", command))
 		return
-	if actor.ap < ability.ap_cost:
+	var cost := skill_cost(ability, actor.passives)
+	if actor.ap < cost:
 		events.append(_reject("not_enough_ap", command))
 		return
 	if is_hushed_out(actor.id, ability.id):
@@ -1181,11 +1316,16 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 				return
 			targets.append(target_id)
 
-	if ability.ap_cost > 0:
-		_change_ap(actor, -ability.ap_cost, "spend", events)
+	if cost > 0:
+		_change_ap(actor, -cost, "spend", events)
 	if ability.team_ultimate:
 		_change_gauge(-team_gauge, events)
 	events.append({"type": "ability_used", "turn": turn_number, "actor": actor.id, "ability": ability.id, "targets": targets.duplicate()})
+	if ability.team_ultimate:
+		_ultimate_ap(events)
+	if _deals_damage(ability) and ability.targets_enemies():
+		# Gravedigger's Spade counts every damaging action on foes (the basic attack too).
+		actor.skills_used += 1
 	if not ability.press_times_ms.is_empty():
 		_begin_skill(actor, ability, targets, events)
 		return
@@ -1196,11 +1336,12 @@ func _cmd_use_ability(command: Dictionary, events: Array[Dictionary]) -> void:
 			var target := get_combatant(target_id)
 			if target.is_alive():
 				var pct := _skill_percent(actor, ability, false)
-				var crit := _roll_crit(actor)
+				var crit := _roll_crit(actor) or actor.crit_ready
 				var bonus := _exposed_bonus(actor, ability, target_id == exposed) + _marked_bonus(ability, targets) \
 						+ _empowered_bonus(actor, ability)
-				var amount := _skill_damage(_power_of(actor), pct, bonus)
+				var amount := _skill_damage(_power_of(actor), CombatMath.percent(pct, _skill_boost(actor, actor, 0)), bonus)
 				_deal_damage(actor, target, _crit_damage(actor, amount) if crit else amount, "ability", events, crit)
+		actor.crit_ready = false
 	_apply_effects(actor, ability, targets, false, exposed, events)
 	_end_of_turn(actor, events)
 	events.append({"type": "turn_ended", "turn": turn_number, "actor": actor.id})
@@ -1252,6 +1393,11 @@ func _cmd_use_item(command: Dictionary, events: Array[Dictionary]) -> void:
 	events.append({"type": "item_used", "turn": turn_number, "actor": actor.id, "uid": uid, "item": item.id,
 			"name": String(_item_names.get(uid, item.display_name)), "targets": targets.duplicate()})
 	var pct := int(_item_amounts.get(uid, item.amount_percent))
+	var mender := Passive.amount(actor, Passive.ITEM_POWER)
+	if mender > 0:
+		# Mender's Charm (DESIGN.md 8.25): the user's items heal, revive and hurt more (a revive at
+		# most to full HP).
+		pct = CombatMath.percent(pct, 100 + mender)
 	for target_id: int in targets:
 		var target := get_combatant(target_id)
 		match item.effect:
@@ -1266,7 +1412,7 @@ func _cmd_use_item(command: Dictionary, events: Array[Dictionary]) -> void:
 					if pct > 0:
 						_heal(actor, target, CombatMath.percent_min1(target.max_hp, pct), events)
 			ItemData.Effect.REVIVE_ONE:
-				_revive(actor, target, pct, events)
+				_revive(actor, target, mini(100, pct), events)
 			ItemData.Effect.DAMAGE_ALL:
 				if target.is_alive():
 					_deal_damage(actor, target, _roll_damage(tuning.base_party_damage, pct), "item", events)
@@ -1490,12 +1636,15 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			if damaging:
 				var bonus := _exposed_bonus(striker, ability, exposed >= 0) + _marked_bonus(ability, targets) \
 						+ _empowered_bonus(striker, ability)
-				good = _skill_damage(_power_of(striker), _skill_percent(striker, ability, false), bonus)
-				perfect = _skill_damage(_power_of(striker), _skill_percent(striker, ability, true), bonus)
+				var boost := _skill_boost(striker, actor, hit_index)
+				good = _skill_damage(_power_of(striker), CombatMath.percent(_other_press_percent(striker,
+						_skill_percent(striker, ability, false)), boost), bonus)
+				perfect = _skill_damage(_power_of(striker), CombatMath.percent(_skill_percent(striker, ability, true), boost),
+						bonus)
 				miss = CombatMath.percent(good, tuning.skill_miss_damage_percent)
 				# Rolled now with the damage, so it is in the declared event (DESIGN.md 8.2); a missed
-				# press never crits.
-				crit = _roll_crit(striker)
+				# press never crits. Moth Wing's ready crit forces it (the roll is still made).
+				crit = _roll_crit(striker) or striker.crit_ready
 				if crit:
 					good = _crit_damage(striker, good)
 					perfect = _crit_damage(striker, perfect)
@@ -1505,6 +1654,9 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 					miss, good, perfect, ROLE_PRESS, [])
 			press["crit"] = crit
 			prompts.append(press)
+	if damaging:
+		for striker_id: int in strikers:
+			get_combatant(striker_id).crit_ready = false
 	if ability.follow_ups and damaging and not ability.team_ultimate:
 		var last_ms := ability.press_times_ms[ability.press_times_ms.size() - 1]
 		var order := 0
@@ -1515,8 +1667,10 @@ func _begin_skill(actor: Combatant, ability: AbilityData, targets: Array[int], e
 			var hit_index := hits.size()
 			var ally := get_combatant(ally_id)
 			hits.append(_skill_hit(hit_index, at_ms, tuning.follow_up_percent, "strike"))
-			var good := _roll_damage(_power_of(ally), tuning.follow_up_percent)
-			var perfect := _roll_damage(_power_of(ally), tuning.follow_up_perfect_percent)
+			# Hound's Tooth (DESIGN.md 8.25) multiplies the ally's follow-up.
+			var hound := maxi(0, 100 + Passive.amount(ally, Passive.FOLLOW_UP_DAMAGE))
+			var good := _roll_damage(_power_of(ally), CombatMath.percent(tuning.follow_up_percent, hound))
+			var perfect := _roll_damage(_power_of(ally), CombatMath.percent(tuning.follow_up_perfect_percent, hound))
 			var crit := _roll_crit(ally)
 			var follow := _prompt(prompts.size(), hit_index, ally_id, at_ms, AttackHitData.Kind.PRESS,
 					_windows_for(ally, Defense.build_follow_up_windows(tuning)), 0, _crit_damage(ally, good) if crit else good,
@@ -1585,6 +1739,9 @@ func _apply_effects(actor: Combatant, ability: AbilityData, targets: Array[int],
 	_use_damage_statuses(actor, ability, targets, events)
 	var first := get_combatant(targets[0]) if not targets.is_empty() else null
 	var gain := ability.ap_gain + (ability.press_ap_gain if good else 0)
+	if is_basic_attack(actor, ability):
+		# Whetstone (DESIGN.md 8.25): the basic attack gives more AP.
+		gain += maxi(0, Passive.amount(actor, Passive.BASIC_AP))
 	if gain > 0:
 		_change_ap(actor, gain, "ability", events)
 	# Ally effects reach every party target (one for most skills, the whole party for ALL_ALLIES).
@@ -1648,7 +1805,14 @@ func _use_damage_statuses(actor: Combatant, ability: AbilityData, targets: Array
 	if not _deals_damage(ability) or not ability.targets_enemies():
 		return
 	if actor.has_status(Status.EMPOWERED):
-		_remove_status(actor, Status.EMPOWERED, events)
+		# Empowered's turns are skills left (First Light+); Shadowstep's 0 or 1 is used up at once.
+		var power_entry: Dictionary = actor.statuses[Status.EMPOWERED]
+		var uses_left := int(power_entry.turns) - 1
+		if uses_left <= 0:
+			_remove_status(actor, Status.EMPOWERED, events)
+		else:
+			power_entry.turns = uses_left
+			events.append(_status_event(actor, Status.EMPOWERED, true))
 	for target_id: int in targets:
 		var target := get_combatant(target_id)
 		if not target.has_status(Status.MARKED):
@@ -1693,15 +1857,49 @@ func _exposed_bonus(striker: Combatant, ability: AbilityData, exposed: bool) -> 
 	if not exposed:
 		return 0
 	var bonus := ability.exposed_bonus_percent if ability.exposed_bonus_percent > 0 else tuning.exposed_bonus_percent
-	return bonus + Passive.amount(striker, Passive.EXPOSED)
+	# Exposed Relics multiply the Exposed factor (DESIGN.md 8.25): +50% on x1.5 is x2.25.
+	var relic := Passive.amount(striker, Passive.EXPOSED)
+	if relic == 0:
+		return bonus
+	return CombatMath.percent(100 + bonus, maxi(0, 100 + relic)) - 100
 
 
-## Move percent of one hit: base, plus Payback's per-defence bonus, plus the press bonus.
-func _skill_percent(striker: Combatant, ability: AbilityData, good: bool) -> int:
+## Move percent of one hit: base, plus Payback's per-defence bonus, plus the press bonus on a perfect
+## press, which perfect-press Relics then multiply (DESIGN.md 8.25).
+func _skill_percent(striker: Combatant, ability: AbilityData, perfect: bool) -> int:
 	var pct := ability.damage_percent + ability.per_perfect_defense_percent * striker.perfect_defenses
-	if good:
-		pct += ability.press_damage_percent + Passive.amount(striker, Passive.PERFECT_PRESS)
+	if perfect:
+		pct += ability.press_damage_percent
+		var relic := Passive.amount(striker, Passive.PERFECT_PRESS)
+		if relic != 0:
+			pct = CombatMath.percent(pct, maxi(0, 100 + relic))
 	return pct
+
+
+## The share of a hit's move percent that `striker`'s Relics add for the skill `actor` used, as a
+## multiplier (100 = none; DESIGN.md 8.25): Knotted Lash's ramp for hit `hit_index` (0 is the first;
+## each later hit +amount% more than the one before, counted from the first: x1.1, x1.2 ...), and
+## Gravedigger's Spade on every tuning.relic_third_skill_every-th damaging action of the hero
+## (Combatant.skills_used; only the hero who chose it, not the team ultimate's other strikers).
+func _skill_boost(striker: Combatant, actor: Combatant, hit_index: int) -> int:
+	var boost := 100
+	var ramp := Passive.amount(striker, Passive.SKILL_HIT_RAMP)
+	if ramp > 0 and hit_index > 0:
+		boost = CombatMath.percent(boost, 100 + ramp * hit_index)
+	var spade := Passive.amount(striker, Passive.THIRD_SKILL)
+	if spade > 0 and striker == actor and actor.skills_used > 0 \
+			and actor.skills_used % maxi(1, tuning.relic_third_skill_every) == 0:
+		boost = CombatMath.percent(boost, 100 + spade)
+	return boost
+
+
+## Pale Tithe's price (DESIGN.md 8.25): a skill press that is not perfect (good or missed) deals
+## OTHER_PRESS percent more (below 0: less), as a multiplier of the move percent.
+func _other_press_percent(striker: Combatant, pct: int) -> int:
+	var other := Passive.amount(striker, Passive.OTHER_PRESS)
+	if other == 0:
+		return pct
+	return CombatMath.percent(pct, maxi(0, 100 + other))
 
 
 ## Power x move percent, then the Exposed multiplier (a status, DESIGN.md 2.7), then variance.
@@ -1790,18 +1988,38 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 	var damage := 0
 	var lost := 0
 	var ap_delta := 0
-	var perfect := (prompt.perfect as Array).has(outcome)
+	# Perfect as the hit's kind has it (a parry or a jump). Ash Veil's dodge is in prompt.perfect too,
+	# but only to count toward a counter (_all_perfect), not the streak or Payback.
+	var perfect := Defense.perfect_outcomes(int(prompt.kind)).has(outcome)
+	var nulled := false
+	var first_hit := false
 	if outcome != Defense.Outcome.NONE:
-		ap_delta = _change_ap_silent(target, _defence_ap(target, outcome))
+		ap_delta = _change_ap_silent(target, _defence_ap(target, outcome, idx))
 		if perfect:
 			target.perfect_defenses += 1
+	elif target.null_hits_used < Passive.amount(target, Passive.NULL_HIT):
+		# Widow's Thimble (DESIGN.md 8.25): the hit does nothing (no damage, no mark, not "hit").
+		target.null_hits_used += 1
+		nulled = true
+		var list: Array = sequence.get("nulled", [])
+		list.append(idx)
+		sequence["nulled"] = list
 	else:
 		damage = int(prompt.damage)
+		if prompt.has("guard_damage") and target.ap >= tuning.relic_ap_guard_cost:
+			# Hollow Mantle: the AP paid cuts the hit.
+			ap_delta = _change_ap_silent(target, -tuning.relic_ap_guard_cost)
+			damage = int(prompt.guard_damage)
 		lost = _lose_hp(target, damage)
+		target.was_hit = true
+		first_hit = not _hit_before(target, idx)
+		if first_hit and target.is_alive():
+			# Thorned Gauntlet: the first hit of the attack that lands gives AP.
+			ap_delta += _change_ap_silent(target, _hit_ap(target, idx))
 	var downed := not target.is_alive()
 	var thorn_events: Array[Dictionary] = []
-	if damage > 0:
-		_reflect_thorns(target, damage, thorn_events)
+	if outcome == Defense.Outcome.PARRY:
+		_reflect_thorns(target, int(prompt.damage), thorn_events)
 	var resolved := {
 		"type": "prompt_resolved",
 		"seq": sequence.seq,
@@ -1818,6 +2036,8 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		"ap_delta": ap_delta,
 		"downed": downed,
 	}
+	if nulled:
+		resolved["nulled"] = true
 	events.append(resolved)
 	events.append_array(thorn_events)
 	_drink(prompt, lost, events)
@@ -1833,8 +2053,61 @@ func _apply_defend_prompt(item: Dictionary, events: Array[Dictionary]) -> void:
 		# Relics against marks (card #263): a parry shakes marks off.
 		if _cleanse(target, Passive.amount(target, Passive.PARRY_CLEANSE), events) > 0:
 			events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
-	if not downed and outcome == Defense.Outcome.NONE:
+	if not downed and outcome == Defense.Outcome.NONE and not nulled:
 		_apply_hit_marks(target, prompt, events)
+		var mend := Passive.amount(target, Passive.HIT_HEAL)
+		if first_hit and mend > 0:
+			_heal(target, target, CombatMath.percent_min1(target.max_hp, mend), events)
+		_low_hp_regen(target, events)
+	if not downed:
+		_defence_relics(target, outcome, idx, events)
+
+
+## Defence Relics that answer a parry or a dodge (DESIGN.md 8.25): Plague Lancet makes the attacker
+## Bleed (Plague Lancet+ on a dodge too); Quick Boots brings the hero's next turn sooner, once per
+## enemy attack.
+func _defence_relics(target: Combatant, outcome: int, idx: int, events: Array[Dictionary]) -> void:
+	var attacker := get_combatant(int(sequence.source))
+	var bleed := 0
+	if outcome == Defense.Outcome.PARRY:
+		bleed = Passive.amount(target, Passive.PARRY_BLEED)
+	elif outcome == Defense.Outcome.DODGE:
+		bleed = Passive.amount(target, Passive.DODGE_BLEED)
+	if bleed > 0 and attacker != null and not attacker.is_party() and attacker.is_alive():
+		_add_status(attacker, Status.BLEEDING, bleed, target.id, events)
+	var haste := clampi(Passive.amount(target, Passive.DODGE_HASTE), 0, 100)
+	if outcome == Defense.Outcome.DODGE and haste > 0 and not _outcome_before(target, idx, Defense.Outcome.DODGE):
+		_shift_turn(target, -CombatMath.percent(Timeline.turn_cost(target.speed, tuning.timeline_base), haste), events)
+		events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
+
+
+## True if another resolved prompt of `target` in this attack (not `idx`) had `outcome`.
+func _outcome_before(target: Combatant, idx: int, outcome: int) -> bool:
+	var prompts: Array = sequence.prompts
+	for i: int in prompts.size():
+		if i != idx and int((prompts[i] as Dictionary).character) == target.id 				and int(sequence.states[i]) == PromptState.RESOLVED and int(sequence.outcomes[i]) == outcome:
+			return true
+	return false
+
+
+## True if another hit of this attack (not `idx`) already landed on `target` and did something (a
+## Widow's Thimble hit does nothing).
+func _hit_before(target: Combatant, idx: int) -> bool:
+	var nulled: Array = sequence.get("nulled", [])
+	var prompts: Array = sequence.prompts
+	for i: int in prompts.size():
+		if i != idx and int((prompts[i] as Dictionary).character) == target.id and not nulled.has(i) 				and int(sequence.states[i]) == PromptState.RESOLVED and int(sequence.outcomes[i]) == Defense.Outcome.NONE:
+			return true
+	return false
+
+
+## Thorned Gauntlet's AP for the first hit of an attack that lands on `target`, within the Relic AP
+## an attack may give (tuning.relic_ap_per_attack_max).
+func _hit_ap(target: Combatant, idx: int) -> int:
+	var gain := Passive.amount(target, Passive.HIT_AP)
+	if gain <= 0:
+		return 0
+	return mini(gain, maxi(0, tuning.relic_ap_per_attack_max - _relic_ap_this_attack(target, idx)))
 
 
 ## The defence streak (card #300): a perfect parry or jump adds one, a dodge keeps it, a hit taken
@@ -1856,20 +2129,55 @@ func _count_streak(outcome: int, perfect: bool, events: Array[Dictionary]) -> vo
 				"milestone": false, "lost": lost})
 
 
-## AP a successful defence earns: the tuned reward plus rot-touched gear (DESIGN.md 8.16), never below 0.
-func _defence_ap(target: Combatant, outcome: int) -> int:
-	var reward := Defense.ap_reward(outcome, tuning)
+## AP a successful defence earns: the tuned reward plus Relics (DESIGN.md 8.16), never below 0. The
+## Relics' part stops at tuning.relic_ap_per_attack_max for one enemy attack (DESIGN.md 8.25).
+## `idx`: the prompt being resolved (not counted as already paid).
+func _defence_ap(target: Combatant, outcome: int, idx: int = -1) -> int:
+	var relic := _relic_defence_ap(target, outcome)
+	if relic > 0:
+		relic = mini(relic, maxi(0, tuning.relic_ap_per_attack_max - _relic_ap_this_attack(target, idx)))
+	return maxi(0, Defense.ap_reward(outcome, tuning) + relic)
+
+
+## The AP `target`'s Relics add to one defence `outcome` (negative: a drawback takes AP away).
+func _relic_defence_ap(target: Combatant, outcome: int) -> int:
 	if outcome == Defense.Outcome.DODGE:
-		reward += Passive.amount(target, Passive.DODGE_AP)
-	elif outcome == Defense.Outcome.PARRY:
-		reward += Passive.amount(target, Passive.PARRY_AP)
-	return maxi(0, reward)
+		return Passive.amount(target, Passive.DODGE_AP)
+	if outcome == Defense.Outcome.PARRY:
+		return Passive.amount(target, Passive.PARRY_AP)
+	if outcome == Defense.Outcome.JUMP:
+		return Passive.amount(target, Passive.JUMP_AP)
+	return 0
 
 
-## Thorned gear: the enemy whose hit landed on `target` takes a share of the damage back.
+## The Relic AP `target` already got in the enemy attack being resolved, worked out again from its
+## resolved prompts other than `skip` (no extra state, so a resumed fight counts the same).
+func _relic_ap_this_attack(target: Combatant, skip: int = -1) -> int:
+	if sequence.is_empty():
+		return 0
+	var got := 0
+	var hit_paid := false
+	var nulled: Array = sequence.get("nulled", [])
+	var prompts: Array = sequence.prompts
+	for i: int in prompts.size():
+		var p: Dictionary = prompts[i]
+		if i == skip or int(p.character) != target.id or int(sequence.states[i]) != PromptState.RESOLVED:
+			continue
+		var outcome := int(sequence.outcomes[i])
+		if outcome != Defense.Outcome.NONE:
+			got += maxi(0, _relic_defence_ap(target, outcome))
+		elif not hit_paid and not nulled.has(i):
+			# Thorned Gauntlet paid for the first hit that landed.
+			hit_paid = true
+			got += maxi(0, Passive.amount(target, Passive.HIT_AP))
+	return mini(got, tuning.relic_ap_per_attack_max)
+
+
+## Thorned Relics (Bramble Coat, DESIGN.md 8.25): the enemy whose hit `target` parried takes a share
+## of that hit's damage back.
 func _reflect_thorns(target: Combatant, damage: int, events: Array[Dictionary]) -> void:
 	var pct := Passive.amount(target, Passive.THORNS)
-	if pct <= 0 or sequence.is_empty():
+	if pct <= 0 or damage <= 0 or sequence.is_empty() or not target.is_alive():
 		return
 	var attacker := get_combatant(int(sequence.source))
 	if attacker == null or attacker.is_party() or not attacker.is_alive():
@@ -2043,6 +2351,7 @@ func _finish_sequence_if_done(events: Array[Dictionary]) -> void:
 		elif not any_standing:
 			reason = "targets_down"
 		events.append({"type": "sequence_resolved", "seq": sequence.seq, "reason": reason})
+		_ready_crits()
 		if reason == "completed":
 			_resolve_counters(source, events)
 		_second_winds(events)
@@ -2083,18 +2392,22 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 		for actor_id: int in counterers:
 			var actor := get_combatant(actor_id)
 			var share := CombatMath.percent(_power_of(actor), _counter_percent(actor, tuning.team_counter_percent, string))
-			# Each hero's share can crit on its own.
-			if _roll_crit(actor):
-				share = CombatMath.percent(share, tuning.crit_damage_percent)
+			# Each hero's share can crit on its own (Headsman's Hood: always; the roll is still made).
+			if _counter_crits(actor):
+				share = _counter_crit_damage(actor, share)
 				any_crit = true
 			total += share
 		events.append({"type": "counter", "seq": sequence.seq, "actors": counterers.duplicate(), "target": attacker.id,
 				"team": true, "hits": string.x, "mixed": string.y == 1})
 		_deal_damage(get_combatant(counterers[0]), attacker, _apply_variance(maxi(1, total)), "team_counter", events,
 				any_crit)
+		var moved := false
 		for actor_id: int in counterers:
-			_gear_ap_on_counter(get_combatant(actor_id), events)
+			moved = _after_counter(get_combatant(actor_id), attacker, events) or moved
+		if moved:
+			events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
 		return
+	var shifted := false
 	for actor_id: int in counterers:
 		if not attacker.is_alive():
 			break
@@ -2103,19 +2416,66 @@ func _resolve_counters(attacker: Combatant, events: Array[Dictionary]) -> void:
 		events.append({"type": "counter", "seq": sequence.seq, "actors": [actor_id], "target": attacker.id, "team": false,
 				"hits": string.x, "mixed": string.y == 1})
 		var amount := _roll_damage(_power_of(actor), _counter_percent(actor, tuning.counter_percent, string))
-		var crit := _roll_crit(actor)
-		_deal_damage(actor, attacker, _crit_damage(actor, amount) if crit else amount, "counter", events, crit)
-		_gear_ap_on_counter(actor, events)
+		var crit := _counter_crits(actor)
+		_deal_damage(actor, attacker, _counter_crit_damage(actor, amount) if crit else amount, "counter", events, crit)
+		shifted = _after_counter(actor, attacker, events) or shifted
+	if shifted:
+		events.append({"type": "turn_order", "order": preview_turn_order(tuning.turn_order_preview)})
+
+
+## Whether `actor`'s counter crits: the roll, which Headsman's Hood makes a crit anyway (the roll is
+## still made, so every machine's random sequence stays the same, DESIGN.md 8.25).
+func _counter_crits(actor: Combatant) -> bool:
+	var rolled := _roll_crit(actor)
+	return rolled or Passive.amount(actor, Passive.COUNTER_CRIT) > 0
+
+
+## A critical counter: the usual crit damage, then Headsman's Hood+ multiplies it.
+func _counter_crit_damage(actor: Combatant, amount: int) -> int:
+	var crit := _crit_damage(actor, amount)
+	var more := Passive.amount(actor, Passive.COUNTER_CRIT_DAMAGE)
+	return CombatMath.percent_min1(crit, maxi(0, 100 + more)) if more != 0 else crit
+
+
+## What `actor`'s counter Relics do once their counter (solo or a share of a team counter) has struck
+## `attacker` (DESIGN.md 8.25): AP (Wake Root+), a heal (Leech Hook), team gauge (Riposte Ring), a
+## Grudge Stone stack, the foe Exposed (Bone Whistle), and the actor's turn next (Bellringer's Rope,
+## Empowered with its "+"). Returns true if a turn moved (the caller sends one turn_order).
+func _after_counter(actor: Combatant, attacker: Combatant, events: Array[Dictionary]) -> bool:
+	if not actor.is_alive():
+		return false
+	_gear_ap_on_counter(actor, events)
+	var heal := Passive.amount(actor, Passive.COUNTER_HEAL)
+	if heal > 0:
+		_heal(actor, actor, CombatMath.percent_min1(actor.max_hp, heal), events)
+	var gauge := Passive.amount(actor, Passive.COUNTER_GAUGE)
+	if gauge > 0:
+		_change_gauge(_gauge_gain(actor, gauge), events)
+	if Passive.amount(actor, Passive.COUNTER_STACK) > 0:
+		actor.grudge_stacks = mini(actor.grudge_stacks + 1, tuning.grudge_stack_max)
+	var expose := Passive.amount(actor, Passive.COUNTER_EXPOSE)
+	if expose > 0 and attacker.is_alive():
+		_add_status(attacker, Status.EXPOSED, expose, actor.id, events)
+	var empower := Passive.amount(actor, Passive.COUNTER_EMPOWER)
+	if empower > 0:
+		_add_status(actor, Status.EMPOWERED, empower, actor.id, events)
+	if Passive.amount(actor, Passive.COUNTER_TURN) > 0 and actor.next_turn_at > time_now:
+		# Party members win ties (lower ids), so the counterer acts before anyone else waiting.
+		_shift_turn(actor, time_now - actor.next_turn_at, events)
+		return true
+	return false
 
 
 ## The counter percent (card #52): the base, plus counter_per_extra_hit_percent for each hit after
-## the first, plus counter_mixed_bonus_percent for a string of parries and jumps, plus gear; then
-## Riposte Stance multiplies it. string = Vector2i(hits, mixed 0/1) from _string_of.
+## the first, plus counter_mixed_bonus_percent for a string of parries and jumps; then counter
+## Relics (DESIGN.md 8.25) and Riposte Stance multiply it. string = Vector2i(hits, mixed 0/1) from _string_of.
 func _counter_percent(actor: Combatant, base_percent: int, string: Vector2i) -> int:
 	var pct := base_percent + tuning.counter_per_extra_hit_percent * maxi(0, string.x - 1)
 	if string.y == 1:
 		pct += tuning.counter_mixed_bonus_percent
-	pct += Passive.amount(actor, Passive.COUNTER)
+	var relic := Passive.amount(actor, Passive.COUNTER)
+	if relic != 0:
+		pct = CombatMath.percent(pct, maxi(0, 100 + relic))
 	if actor.has_status(Status.RIPOSTE):
 		return CombatMath.percent(pct, tuning.riposte_counter_percent)
 	return pct
@@ -2139,10 +2499,45 @@ func _string_of(character_id: int) -> Vector2i:
 	return Vector2i(hits, 1 if normal and ground else 0)
 
 
+## Hollow Drum (DESIGN.md 8.25): the team ultimate gives every standing hero AP, once per holder
+## standing (whoever started it).
+func _ultimate_ap(events: Array[Dictionary]) -> void:
+	var gain := 0
+	for id: int in living_party_ids():
+		gain += maxi(0, Passive.amount(get_combatant(id), Passive.ULTIMATE_AP))
+	if gain <= 0:
+		return
+	for id: int in living_party_ids():
+		_change_ap(get_combatant(id), gain, "gear", events)
+
+
 func _gear_ap_on_counter(actor: Combatant, events: Array[Dictionary]) -> void:
 	var gain := Passive.amount(actor, Passive.AP_ON_COUNTER)
 	if gain > 0 and actor.is_alive():
 		_change_ap(actor, gain, "gear", events)
+
+
+## Moth Wing (DESIGN.md 8.25): a standing hero who dodged every hit of this enemy attack aimed at
+## them (Moth Wing+: or jumped it) has their next damaging skill crit.
+func _ready_crits() -> void:
+	for target_id: int in sequence.targets:
+		var hero := get_combatant(target_id)
+		var dodge := Passive.amount(hero, Passive.DODGE_ALL_CRIT) > 0
+		var jump := Passive.amount(hero, Passive.JUMP_ALL_CRIT) > 0
+		if not hero.is_party() or not hero.is_alive() or not (dodge or jump):
+			continue
+		var whole := false
+		var prompts: Array = sequence.prompts
+		for i: int in prompts.size():
+			if int((prompts[i] as Dictionary).character) != hero.id:
+				continue
+			var outcome := int(sequence.outcomes[i])
+			whole = int(sequence.states[i]) == PromptState.RESOLVED and (
+					(dodge and outcome == Defense.Outcome.DODGE) or (jump and outcome == Defense.Outcome.JUMP))
+			if not whole:
+				break
+		if whole:
+			hero.crit_ready = true
 
 
 ## Second Wind gear: once per fight, a character downed during this enemy attack gets back up.
@@ -2171,8 +2566,13 @@ func _all_perfect(character_id: int) -> bool:
 
 # --- statuses, healing, revive, timeline ------------------------------------------------------
 
-## A prompt's windows for `c`: a Shocked hero's are shocked_window_percent of their size (card #252).
+## A prompt's windows for `c`: Relics widen them first (DESIGN.md 8.25: Sexton's Hourglass the
+## parry, dodge and jump windows, Keen Eye the perfect press window partway toward the good one,
+## each within its tuning bound), then a Shocked hero's are shocked_window_percent of their size
+## (card #252). The judge only reads the windows the engine declared, so every machine agrees.
 func _windows_for(c: Combatant, windows: Dictionary) -> Dictionary:
+	if c != null:
+		windows = _relic_windows(c, windows)
 	if c == null or not c.has_status(Status.SHOCKED):
 		return windows
 	var shrunk: Dictionary = {}
@@ -2181,6 +2581,25 @@ func _windows_for(c: Combatant, windows: Dictionary) -> Dictionary:
 		shrunk[outcome] = [mini(-1, CombatMath.percent(int(edges[0]), tuning.shocked_window_percent)),
 				maxi(1, CombatMath.percent(int(edges[1]), tuning.shocked_window_percent))]
 	return shrunk
+
+
+func _relic_windows(c: Combatant, windows: Dictionary) -> Dictionary:
+	var wider := clampi(Passive.amount(c, Passive.DEFEND_WINDOW), 0, tuning.relic_defend_window_max_percent)
+	var keen := clampi(Passive.amount(c, Passive.PERFECT_WINDOW), 0, tuning.relic_perfect_window_max_percent)
+	if wider <= 0 and keen <= 0:
+		return windows
+	var out := windows.duplicate(true)
+	if wider > 0:
+		for outcome: int in [Defense.Outcome.DODGE, Defense.Outcome.PARRY, Defense.Outcome.JUMP]:
+			if out.has(outcome):
+				var edges: Array = out[outcome]
+				out[outcome] = [CombatMath.percent(int(edges[0]), 100 + wider), CombatMath.percent(int(edges[1]), 100 + wider)]
+	if keen > 0 and out.has(Defense.Outcome.PRESS) and out.has(Defense.Outcome.PRESS_PERFECT):
+		var good: Array = out[Defense.Outcome.PRESS]
+		var best: Array = out[Defense.Outcome.PRESS_PERFECT]
+		out[Defense.Outcome.PRESS_PERFECT] = [int(best[0]) + CombatMath.percent(int(good[0]) - int(best[0]), keen),
+				int(best[1]) + CombatMath.percent(int(good[1]) - int(best[1]), keen)]
+	return out
 
 
 ## The fellow monster a support move would help (card #259), or -1 when nobody needs it: the most
@@ -2232,6 +2651,9 @@ func _add_status(target: Combatant, id: String, turns: int, source: int, events:
 		if id == Status.SLOWED:
 			_set_speed(target, CombatMath.percent_min1(target.base_speed, tuning.slow_speed_percent))
 			timeline_changed = true
+	if id == Status.BLEEDING and target.id == active_actor:
+		# Bleed ticks at turn starts: one given during the holder's own turn skips that turn's count-down.
+		target.fresh_bleed = true
 	events.append(_status_event(target, id, true))
 	if id == Status.TAUNTED:
 		_refresh_intents(events)
@@ -2280,7 +2702,9 @@ func _shift_turn(c: Combatant, delta: int, events: Array[Dictionary]) -> void:
 
 
 ## `cause`: "" for an ordinary heal; CAUSE_DRAIN for a drinking hit (only then the event says so).
-func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary], cause: String = "") -> void:
+## `share`: false for Marrow Charm's own share, so a share never passes itself on again.
+func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dictionary], cause: String = "",
+		share: bool = true) -> void:
 	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(source, Passive.HEAL)))
 	amount = CombatMath.percent(amount, maxi(0, 100 + Passive.amount(target, Passive.HEAL_TAKEN)))
 	if target.has_status(Status.BLIGHTED) and amount > 0:
@@ -2292,6 +2716,26 @@ func _heal(source: Combatant, target: Combatant, amount: int, events: Array[Dict
 	if not cause.is_empty():
 		event["cause"] = cause
 	events.append(event)
+	var healed := target.hp - before
+	if share and healed > 0 and target.is_party():
+		_share_heal(target, healed, events)
+
+
+## Marrow Charm (DESIGN.md 8.25): a holder who was healed passes amount% of what they got to their
+## lowest standing ally (the smallest HP share of max HP that is not full; ties: the lower id).
+func _share_heal(holder: Combatant, healed: int, events: Array[Dictionary]) -> void:
+	var pct := Passive.amount(holder, Passive.HEALED_SHARE)
+	if pct <= 0:
+		return
+	var lowest: Combatant = null
+	for id: int in living_party_ids():
+		var ally := get_combatant(id)
+		if ally == holder or ally.hp >= ally.max_hp:
+			continue
+		if lowest == null or ally.hp * lowest.max_hp < lowest.hp * ally.max_hp:
+			lowest = ally
+	if lowest != null:
+		_heal(holder, lowest, CombatMath.percent_min1(healed, pct), events, "", false)
 
 
 ## A fighter's power with Weakened applied (card #194).
@@ -2303,9 +2747,28 @@ func _power_of(c: Combatant) -> int:
 	var brim := Passive.amount(c, Passive.FULL_HP_POWER)
 	if brim > 0 and c.is_alive() and c.hp >= c.max_hp:
 		power = CombatMath.percent_min1(power, 100 + brim)
+	var cup := Passive.amount(c, Passive.NOT_HIT_POWER)
+	if cup > 0 and not c.was_hit:
+		# Brimming Cup (DESIGN.md 8.25): until an enemy hit lands on them this fight.
+		power = CombatMath.percent_min1(power, 100 + cup)
+	var grudge := Passive.amount(c, Passive.COUNTER_STACK)
+	if grudge > 0 and c.grudge_stacks > 0:
+		# Grudge Stone: every counter this fight adds its amount.
+		power = CombatMath.percent_min1(power, 100 + grudge * c.grudge_stacks)
+	var lantern := Passive.amount(c, Passive.LAST_STANDING_POWER)
+	if lantern > 0 and c.is_alive() and _last_standing(c):
+		# Lone Lantern (DESIGN.md 8.25).
+		power = CombatMath.percent_min1(power, 100 + lantern)
 	if c.has_status(Status.WEAKENED):
 		return CombatMath.percent_min1(power, maxi(0, 100 - tuning.weakened_power_cut_percent))
 	return power
+
+
+## True if `hero` is the only hero still standing while at least one other has fallen (a hero who
+## ran does not count as fallen; a party of one is never "last standing").
+func _last_standing(hero: Combatant) -> bool:
+	var living := living_party_ids()
+	return hero.is_party() and living.size() == 1 and living[0] == hero.id and not downed_party_ids().is_empty()
 
 
 ## Removes up to `count` hero debuffs from `target`, in Status.DEBUFFS order. Returns how many went.
@@ -2347,7 +2810,25 @@ func _on_downed(target: Combatant, events: Array[Dictionary]) -> void:
 		var enemy := get_combatant(enemy_id)
 		if enemy.has_status(Status.TAUNTED) and int((enemy.statuses[Status.TAUNTED] as Dictionary).source) == target.id:
 			_remove_status(enemy, Status.TAUNTED, events)
+	if not target.escaped:
+		_ally_fell(target, events)
 	_refresh_intents(events)
+
+
+## A hero fell (not ran): Martyr's Ash gives each standing ally of the fallen holder AP; Gravebloom
+## heals each standing holder and, with its "+", gives them AP (DESIGN.md 8.25).
+func _ally_fell(fallen: Combatant, events: Array[Dictionary]) -> void:
+	var martyr := maxi(0, Passive.amount(fallen, Passive.FALL_TEAM_AP))
+	for id: int in living_party_ids():
+		var ally := get_combatant(id)
+		if martyr > 0:
+			_change_ap(ally, martyr, "gear", events)
+		var bloom := Passive.amount(ally, Passive.ALLY_FALL_HEAL)
+		if bloom > 0:
+			_heal(ally, ally, CombatMath.percent_min1(ally.max_hp, bloom), events)
+		var bloom_ap := Passive.amount(ally, Passive.ALLY_FALL_AP)
+		if bloom_ap > 0:
+			_change_ap(ally, bloom_ap, "gear", events)
 
 
 ## Team gauge `amount` earned by `source`, bigger with gauge gear (DESIGN.md 8.16).
@@ -2384,27 +2865,57 @@ func _roll_crit(striker: Combatant) -> bool:
 	return rng.range_int(0, 99) < chance
 
 
-## `striker`'s critical hit: the tuned crit damage, bigger with crit-damage Relics (card #242).
+## `striker`'s critical hit: the tuned crit damage, which crit-damage Relics multiply (card #242,
+## DESIGN.md 8.25: +60% on x1.5 is x2.4).
 func _crit_damage(striker: Combatant, amount: int) -> int:
-	return CombatMath.percent_min1(amount, maxi(100, tuning.crit_damage_percent + Passive.amount(striker, Passive.CRIT_DAMAGE)))
+	var pct := CombatMath.percent(tuning.crit_damage_percent, maxi(0, 100 + Passive.amount(striker, Passive.CRIT_DAMAGE)))
+	return CombatMath.percent_min1(amount, maxi(100, pct))
 
 
-## An enemy hit on a party member: power x hit percent, then Guard, then variance.
+## An enemy hit on a party member: _hit_amount, then variance.
 func _enemy_hit_damage(enemy: Combatant, target: Combatant, pct: int) -> int:
-	var amount := CombatMath.percent_min1(enemy.power, pct)
+	return _apply_variance(_hit_amount(enemy, target, pct))
+
+
+## An enemy hit on a party member before variance: power x hit percent, then Guard, Tough and a
+## Relic's `extra_cut` percent (Thick Hide, Hollow Mantle). Tough below 0 (a rot-touched drawback)
+## makes the hit land harder, never past the tough floor (tuning.relic_hit_taken_max_percent); all
+## the cuts together never take more than tuning.relic_damage_cut_max_percent away (DESIGN.md 8.25).
+func _hit_amount(enemy: Combatant, target: Combatant, pct: int, extra_cut: int = 0) -> int:
+	var raw := CombatMath.percent_min1(enemy.power, pct)
+	var amount := raw
+	var factor := 100
 	if target.has_status(Status.GUARDED):
 		amount = CombatMath.percent_min1(amount, tuning.guard_damage_percent)
-	var tough := mini(Passive.amount(target, Passive.TOUGH), tuning.tough_max_percent)
+		factor = tuning.guard_damage_percent
+	var tough := clampi(Passive.amount(target, Passive.TOUGH), 100 - tuning.relic_hit_taken_max_percent,
+			tuning.tough_max_percent)
 	if tough != 0:
-		# Below 0 (rot-touched gear's drawback) the hit lands harder.
 		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tough))
-	return _apply_variance(amount)
+		factor = CombatMath.percent(factor, maxi(0, 100 - tough))
+	if extra_cut > 0:
+		amount = CombatMath.percent_min1(amount, maxi(0, 100 - extra_cut))
+		factor = CombatMath.percent(factor, maxi(0, 100 - extra_cut))
+	var least := 100 - tuning.relic_damage_cut_max_percent
+	if factor < least:
+		amount = CombatMath.percent_min1(raw, least)
+	return amount
 
 
 func _apply_variance(amount: int) -> int:
+	return _with_spread(amount, _roll_spread())
+
+
+## The damage variance of one hit, in percent (rolled only when variance is on).
+func _roll_spread() -> int:
+	if tuning.damage_variance_percent <= 0:
+		return 0
+	return rng.range_int(-tuning.damage_variance_percent, tuning.damage_variance_percent)
+
+
+func _with_spread(amount: int, spread: int) -> int:
 	if tuning.damage_variance_percent <= 0:
 		return maxi(1, amount)
-	var spread := rng.range_int(-tuning.damage_variance_percent, tuning.damage_variance_percent)
 	return CombatMath.percent_min1(amount, 100 + spread)
 
 
@@ -2427,7 +2938,13 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 	var staggered := not target.is_party() and target.staggered_turns > 0
 	if staggered:
 		var breaker := Passive.amount(source, Passive.STAGGER_DAMAGE) if source.is_party() else 0
-		amount = CombatMath.percent_min1(amount, 100 + tuning.stagger_damage_taken_percent + maxi(0, breaker))
+		# Stagger Relics multiply the Stagger bonus (DESIGN.md 8.25).
+		amount = CombatMath.percent_min1(amount, CombatMath.percent(100 + tuning.stagger_damage_taken_percent,
+				100 + maxi(0, breaker)))
+	var bitter := Passive.amount(source, Passive.BLEED_DAMAGE) if source.is_party() else 0
+	if bitter > 0 and not target.is_party() and target.has_status(Status.BLEEDING):
+		# Bitter Root (DESIGN.md 8.25): every damage the holder deals a Bleeding foe, its ticks too.
+		amount = CombatMath.percent_min1(amount, 100 + bitter)
 	if not target.is_party() and target.has_status(Status.SHIELDED):
 		# A Rot Priest's ward (card #259).
 		amount = CombatMath.percent_min1(amount, maxi(0, 100 - tuning.shielded_damage_cut_percent))
@@ -2450,18 +2967,56 @@ func _deal_damage(source: Combatant, target: Combatant, amount: int, cause: Stri
 		_on_downed(target, events)
 		_heal_on_kill(source, target, events)
 	elif not target.is_party():
-		_count_doom_damage(target, lost, events)
+		_count_doom_damage(target, lost, events, source)
 		_maybe_enter_phase_two(target, events)
+		_first_hit(source, target, cause, events)
+		var ember := Passive.amount(source, Passive.CRIT_BLEED) if source.is_party() else 0
+		if crit and ember > 0:
+			# Ember Stone (DESIGN.md 8.25): the holder's crits make the foe Bleed.
+			_add_status(target, Status.BLEEDING, ember, source.id, events)
+	else:
+		_low_hp_regen(target, events)
 
 
-## Kill-heal gear (DESIGN.md 8.16): a hero whose hit downed an enemy heals a share of their max HP,
-## and kill-AP Relics (card #242) give them AP.
-func _heal_on_kill(killer: Combatant, victim: Combatant, events: Array[Dictionary]) -> void:
-	if victim.is_party() or not killer.is_party() or not killer.is_alive():
+## Tallow Candle (DESIGN.md 8.25): once a fight, a standing holder whose HP falls under
+## tuning.relic_low_hp_regen_percent of their max gets Regen.
+func _low_hp_regen(hero: Combatant, events: Array[Dictionary]) -> void:
+	var turns := Passive.amount(hero, Passive.LOW_HP_REGEN)
+	if turns <= 0 or hero.low_regen_used or not hero.is_alive() \
+			or hero.hp * 100 >= hero.max_hp * tuning.relic_low_hp_regen_percent:
 		return
-	var pct := Passive.amount(killer, Passive.KILL_HEAL)
-	if pct > 0:
-		_heal(killer, killer, CombatMath.percent_min1(killer.max_hp, pct), events)
+	hero.low_regen_used = true
+	_add_status(hero, Status.REGEN, turns, hero.id, events)
+
+
+## Grave Tag (DESIGN.md 8.25): the holder's first hit of the fight on a foe that is still standing
+## (a skill, follow-up or counter) leaves it Exposed, and Bleeding with Grave Tag+.
+func _first_hit(source: Combatant, target: Combatant, cause: String, events: Array[Dictionary]) -> void:
+	if not source.is_party() or source.first_hit_done or not FIRST_HIT_CAUSES.has(cause):
+		return
+	var expose := Passive.amount(source, Passive.FIRST_HIT_EXPOSE)
+	var bleed := Passive.amount(source, Passive.FIRST_HIT_BLEED)
+	if expose <= 0 and bleed <= 0:
+		return
+	source.first_hit_done = true
+	if expose > 0:
+		_add_status(target, Status.EXPOSED, expose, source.id, events)
+	if bleed > 0:
+		_add_status(target, Status.BLEEDING, bleed, source.id, events)
+
+
+## A foe fell: every living hero with a kill-heal Relic (Hunger Charm, DESIGN.md 8.25) heals a
+## share of their max HP, whoever downed it; a kill-AP Relic (card #242) gives the hero who downed it AP.
+func _heal_on_kill(killer: Combatant, victim: Combatant, events: Array[Dictionary]) -> void:
+	if victim.is_party():
+		return
+	for id: int in party_ids():
+		var hero := get_combatant(id)
+		var pct := Passive.amount(hero, Passive.KILL_HEAL)
+		if pct > 0 and hero.is_alive():
+			_heal(hero, hero, CombatMath.percent_min1(hero.max_hp, pct), events)
+	if not killer.is_party() or not killer.is_alive():
+		return
 	var gain := Passive.amount(killer, Passive.KILL_AP)
 	if gain > 0:
 		_change_ap(killer, gain, "gear", events)
@@ -2499,7 +3054,8 @@ func _doom_event(type: String, enemy: Combatant, attack: EnemyAttackData) -> Dic
 
 
 ## HP the party took off a gathering enemy counts toward the break; enough breaks the Doom.
-func _count_doom_damage(enemy: Combatant, lost: int, events: Array[Dictionary]) -> void:
+## `breaker`: who dealt the damage (a hero's kill-AP Relic pays for the Stagger too, DESIGN.md 8.25).
+func _count_doom_damage(enemy: Combatant, lost: int, events: Array[Dictionary], breaker: Combatant = null) -> void:
 	if enemy.charge_left <= 0 or lost <= 0:
 		return
 	var attack := get_attack(enemy.charge_attack)
@@ -2508,6 +3064,8 @@ func _count_doom_damage(enemy: Combatant, lost: int, events: Array[Dictionary]) 
 	enemy.charge_damage += lost
 	if enemy.charge_damage >= _break_hp(enemy, attack):
 		_break_doom(enemy, attack, events)
+		if breaker != null and breaker.is_party() and breaker.is_alive() and Passive.amount(breaker, Passive.KILL_AP) > 0:
+			_change_ap(breaker, Passive.amount(breaker, Passive.KILL_AP), "gear", events)
 	else:
 		events.append({"type": "doom_progress", "enemy": enemy.id, "attack": attack.id, "damage": enemy.charge_damage,
 				"break_hp": _break_hp(enemy, attack)})

@@ -3,9 +3,9 @@ extends CanvasLayer
 ## The Relic book on the main menu (DESIGN.md 8.17, 8.24, card #328), laid out like Expedition 33's
 ## Pictos page. Left: every Relic as a slanted card in a two-column grid (its icon and name), sorted
 ## by name or rarity (LT / RT, keys 1 / 3: the switch inside a screen, card #336), with "Found N of
-## 50"; a Relic not found yet shows as "???". Right: the
-## Relic under the cursor, big: its icon, name, rarity and chips (what it does, its price, its stat
-## line), or for one not found yet the places Relics come from. Under the grid: its text.
+## M" (the game's Relics only: a cut Relic's id in the book is hidden and not counted, DESIGN.md 8.25);
+## a Relic not found yet shows as "???". Right: the Relic under the cursor, big: its icon, name,
+## rarity and chips (what it does, its price), or for one not found yet the places Relics come from. Under the grid: its text.
 ## StartRelicsScreen (the starting pick before a run) is this page with the heroes on the right.
 
 signal closed
@@ -458,8 +458,8 @@ func _redraw_side() -> void:
 	_side.add_child(ListMenu.chip_lines(focus_chips(item, known), RIGHT_WIDTH - 40.0))
 
 
-## The big Relic's chips: found or not; a found one's rarity, what it does, its price and its stat
-## line; one not found yet where Relics come from.
+## The big Relic's chips: found or not; a found one's rarity, what it does, its price, and what its
+## Relic+ changes (gold, on a line of its own); one not found yet where Relics come from.
 static func focus_chips(item: GearData, known: bool) -> Array[Dictionary]:
 	var chips: Array[Dictionary] = []
 	if not known:
@@ -479,6 +479,7 @@ static func focus_chips(item: GearData, known: bool) -> Array[Dictionary]:
 			chip["newline"] = true
 			first = false
 		chips.append(chip)
+	chips.append_array(LootScreen.plus_chips(item))
 	return chips
 
 
@@ -496,11 +497,10 @@ func _redraw_detail() -> void:
 		_detail.text = "%s  (%s)" % [UNKNOWN, NOT_FOUND.to_lower()]
 		_detail_more.text = ""
 		return
-	var head := PackedStringArray([item.display_name])
-	if not item.stat_text().is_empty():
-		head.append(item.stat_text())
-	_detail.text = "    ".join(head)
-	_detail_more.text = item.description
+	_detail.text = item.display_name
+	# The Relic's line and its Relic+ line (DESIGN.md 8.25): what a campfire's Upgrade would add.
+	_detail_more.text = (item.description + "
+" + item.plus_line()).strip_edges()
 
 
 ## A hero's small face (the starting pick).

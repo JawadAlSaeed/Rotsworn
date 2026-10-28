@@ -66,7 +66,8 @@ func test_gear_counter_bonus_and_ap_after_a_counter() -> void:
 	var t := _target(engine)
 	var ap_before := engine.get_combatant(t).ap
 	var events := engine.submit(Fx.resolve_now(engine, [[0, PARRY]]))
-	assert_eq(_counter_damage(events), CombatMath.percent(POWERS[t], 200))
+	# Counter Relics multiply (DESIGN.md 8.25): 150% x 1.5.
+	assert_eq(_counter_damage(events), CombatMath.percent(POWERS[t], 225))
 	var gear_ap := Fx.of_type(events, "ap_changed").filter(func(e: Dictionary) -> bool: return e.reason == "gear")
 	assert_eq(gear_ap.size(), 1, "+1 AP from gear after the counter")
 	assert_eq(engine.get_combatant(t).ap, ap_before + Defense.ap_reward(PARRY, Tuning.new()) + 1)
@@ -119,12 +120,12 @@ func test_perfect_press_and_exposed_gear_in_skill_damage() -> void:
 	var actor := engine.active_actor
 	engine.submit(Fx.use(engine, "cut"))
 	var prompt: Dictionary = (engine.sequence.prompts as Array)[0]
-	assert_eq(int(prompt.perfect_damage), CombatMath.percent_min1(POWERS[actor], 150), "100 + 20 + 30 gear")
+	assert_eq(int(prompt.perfect_damage), CombatMath.percent_min1(POWERS[actor], 156), "(100 + 20) x 1.3 (DESIGN.md 8.25)")
 	assert_eq(int(prompt.press_damage), CombatMath.percent_min1(POWERS[actor], 100))
 	engine = CombatEngine.new(setup)
 	engine.start()
 	assert_eq(engine._exposed_bonus(engine.get_combatant(engine.active_actor), cut, true),
-			Tuning.new().exposed_bonus_percent + 40)
+			CombatMath.percent(100 + Tuning.new().exposed_bonus_percent, 140) - 100, "the Exposed factor x 1.4")
 
 
 func test_heal_gear_makes_heals_stronger() -> void:
@@ -189,7 +190,7 @@ func test_boss_enters_phase_two_once() -> void:
 ## A run whose Relics have no stat lines, so each test sees only the effect it checks (the stat
 ## lines have their own tests in test_relics.gd).
 func _run() -> RunState:
-	return RunState.begin(Fx.without_relic_stats(load(RUN_PATH) as RunData), Fx.run_tuning(), 5)
+	return RunState.begin(load(RUN_PATH) as RunData, Fx.run_tuning(), 5)
 
 
 func test_xp_levels_one_hero() -> void:
@@ -253,25 +254,23 @@ func test_loot_and_shop_offer_only_relics_the_run_lacks() -> void:
 
 func test_a_hero_keeps_every_relic_given_with_no_slots() -> void:
 	var run := _run()
-	var charm := _gear(run, GearData.Effect.MAX_HP)
+	var charm := _gear(run, GearData.Effect.HEAL_TAKEN)
 	var stone := _gear(run, GearData.Effect.POWER)
 	var ring := _gear(run, GearData.Effect.COUNTER)
-	var hp_before := run.hp[0]
-	var max_before := run.max_hp(0)
+	run.hp[0] = 10
 	assert_false(run.give_relic(charm, 0).is_empty())
-	assert_gt(run.max_hp(0), max_before)
-	assert_eq(run.hp[0], hp_before, "a Relic given never heals")
+	assert_eq(run.hp[0], 10, "a Relic given never heals")
 	run.gold = 0
 	assert_false(run.give_relic(stone, 0).is_empty(), "no slot fills: another Relic always fits")
 	assert_false(run.give_relic(ring, 0).is_empty())
 	assert_eq(run.relics_of(0), [charm, stone, ring] as Array[GearData], "in the order given")
 	assert_eq(run.gold, 0, "nothing is sold")
-	assert_eq(run.power_percent(0), 100 + stone.amount)
+	assert_eq(run.power_percent(0), CombatMath.percent(100, 100 + stone.amount))
 	assert_true(run.give_relic(stone, 1).is_empty(), "a Relic is given once, for good")
 	assert_eq(run.holder_of(stone), 0)
 	assert_true(run.relics_of(1).is_empty())
 	assert_true(run.give_relic(GearData.new(), 1).is_empty(), "not one of the run's Relics")
-	assert_true(run.give_relic(_gear(run, GearData.Effect.SPEED), 3).is_empty(), "no such hero")
+	assert_true(run.give_relic(_gear(run, GearData.Effect.DODGE_AP), 3).is_empty(), "no such hero")
 	run.hp[0] = run.max_hp(0)
 	var copy := RunState.from_dict(run.data, run.tuning, run.to_dict())
 	assert_eq(copy.relics_of(0), run.relics_of(0), "kept in a save and sent online")
@@ -281,20 +280,20 @@ func test_a_hero_keeps_every_relic_given_with_no_slots() -> void:
 func test_gear_reaches_the_fight_setup() -> void:
 	var run := _run()
 	var ring := _gear(run, GearData.Effect.COUNTER)
-	var boots := _gear(run, GearData.Effect.SPEED)
-	var coin := _gear(run, GearData.Effect.GOLD)
-	for item: GearData in [ring, boots, coin]:
+	var fox := _gear(run, GearData.Effect.DODGE_AP)
+	for item: GearData in [ring, fox]:
 		run.give_relic(item, 1)
 	var husk := load("res://data/encounters/husk_fight.tres") as EncounterData
 	var setup := run.fight_setup(husk, 1, CombatSetup.Opening.NORMAL)
-	assert_eq(setup.party_passives[1], {Passive.COUNTER: ring.amount})
+	assert_eq(setup.party_passives[1], {Passive.COUNTER: ring.amount, Passive.TOUGH: -ring.drawback_amount,
+			Passive.DODGE_AP: fox.amount}, "the Gravebound Ring's price rides along")
 	var engine := CombatEngine.new(setup)
 	engine.start()
 	var brin := engine.get_combatant(1)
 	assert_eq(brin.speed, run.speed(1))
 	assert_eq(brin.power, run.power(1))
 	assert_eq(brin.max_hp, run.max_hp(1))
-	assert_eq(run.gold_for(husk), CombatMath.percent(RunState.encounter_gold(husk), 100 + coin.amount))
+	assert_eq(run.gold_for(husk), RunState.encounter_gold(husk), "no Relic changes gold since the Lucky Coin went")
 
 
 func _gear(run: RunState, effect: GearData.Effect) -> GearData:

@@ -1,15 +1,17 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_m03sc"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_m03sc")
+script = ExtResource("1_gear")
 id = "war_drum"
-display_name = "War Drum"
-description = "Start every fight with +1 AP."
-price = 70
+display_name = "Pilgrim's Staff"
+description = "Start fights with +1 AP, more each act."
+price = 100
 rarity = 1
-effect = 3
+effect = 83
 amount = 1
-stat = 1
-stat_points = 3
+plus_text = "+1 AP more."
+plus_rider = 3
+plus_rider_amount = 1
+icon_path = "res://assets/sprites/relics/war_drum.png"

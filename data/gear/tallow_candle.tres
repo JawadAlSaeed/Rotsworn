@@ -1,14 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_37e2m"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_37e2m")
+script = ExtResource("1_gear")
 id = "tallow_candle"
 display_name = "Tallow Candle"
-description = "Once per fight, downed during an enemy attack, the wearer gets back up with 15% HP."
-price = 110
-rarity = 1
-effect = 7
-amount = 15
-stat_points = 3
+description = "Fall under half HP: Regen 3 turns (once a fight)."
+price = 60
+effect = 79
+amount = 3
+plus_text = "Regen 5 turns."
+amount_plus = 5
+icon_path = "res://assets/sprites/relics/tallow_candle.png"

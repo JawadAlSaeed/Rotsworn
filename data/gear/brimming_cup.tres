@@ -1,15 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_q7lpu"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_q7lpu")
+script = ExtResource("1_gear")
 id = "brimming_cup"
 display_name = "Brimming Cup"
-description = "Power +20% while the wearer is at full HP."
-price = 100
-rarity = 1
-effect = 27
-amount = 20
-stat = 1
-stat_points = 3
+description = "Not hit yet this fight: +30% damage."
+price = 60
+effect = 60
+amount = 30
+plus_text = "+50%."
+amount_plus = 50
+icon_path = "res://assets/sprites/relics/brimming_cup.png"

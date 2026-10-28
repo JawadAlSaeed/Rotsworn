@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "lone_lantern"
+display_name = "Lone Lantern"
+description = "Last hero standing: +60% damage."
+price = 100
+rarity = 1
+effect = 51
+amount = 60
+plus_text = "+100%."
+amount_plus = 100
+icon_path = "res://assets/sprites/relics/lone_lantern.png"

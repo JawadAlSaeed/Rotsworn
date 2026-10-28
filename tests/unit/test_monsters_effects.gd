@@ -225,7 +225,9 @@ func test_relics_against_marks() -> void:
 	engine = CombatEngine.new(setup)
 	engine.start()
 	assert_true(engine.get_combatant(0).has_status(Status.WARDED))
-	for id: String in ["wardstone", "bitter_root", "cleansing_bell"]:
+	# Wardstone was cut and Bitter Root reworked in phase 27 (DESIGN.md 8.25): the Shriving Bell is the
+	# one Relic against marks left; WARD_START still works for a test setup.
+	for id: String in ["cleansing_bell"]:
 		var relic := load("res://data/gear/%s.tres" % id) as GearData
 		assert_not_null(relic, id)
 		assert_true(GearData.PASSIVE_KEYS.has(relic.effect), id + " runs in the fight")

@@ -1,15 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_qtfd1"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_qtfd1")
+script = ExtResource("1_gear")
 id = "riposte_ring"
 display_name = "Riposte Ring"
-description = "Counters hit 50% harder."
-price = 70
-rarity = 1
-effect = 6
-amount = 50
-stat = 3
-stat_points = 3
+description = "Counter: +10 team gauge."
+price = 60
+effect = 76
+amount = 10
+plus_text = "+20 team gauge."
+amount_plus = 20
+icon_path = "res://assets/sprites/relics/riposte_ring.png"

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "crow_feather"
+display_name = "Crow Feather"
+description = "Jump: +1 AP."
+price = 60
+effect = 38
+amount = 1
+plus_text = "+2 AP."
+amount_plus = 2
+icon_path = "res://assets/sprites/relics/crow_feather.png"

@@ -1,14 +1,14 @@
 extends GutTest
-## Phase 20 (card #242, DESIGN.md 8.17): 16 more Relics, 50 in all, eight of them with new effects.
-## The shipped data, each new effect in the engine or the run, and run fights that drop no Relics
-## (DESIGN.md 8.24; the old drop lists stay as data for phase 27).
+## Phase 20 (card #242, DESIGN.md 8.17): 16 more Relics, eight of them with new effects; 63 in all
+## since phase 27 (DESIGN.md 8.25). The shipped data, each effect in the engine or the run, and run
+## fights that drop no Relics (DESIGN.md 8.24; the old drop lists stay as data, unused).
 
 const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 const PARRY: int = Defense.Outcome.PARRY
 const SLOW_ENEMY: int = 10
-const NEW_IDS: Array[String] = ["brimming_cup", "reapers_coin", "victors_wreath", "first_light", "mossbed",
+const NEW_IDS: Array[String] = ["brimming_cup", "reapers_coin", "first_light", "mossbed",
 	"breakers_maul", "butchers_edge", "still_water", "bramble_coat", "fox_step", "marrow_charm", "bone_whistle",
 	"tallow_candle", "hollow_drum", "sour_milk", "crown_of_thorns"]
 
@@ -17,7 +17,7 @@ var _tuning: Tuning
 
 
 func before_all() -> void:
-	_data = Fx.without_relic_stats(load(RUN_PATH) as RunData)
+	_data = load(RUN_PATH) as RunData
 	_tuning = load("res://data/tuning/tuning.tres") as Tuning
 
 
@@ -41,11 +41,11 @@ func _piece(id: String) -> GearData:
 
 # --- the data -----------------------------------------------------------------------------------
 
-## The monsters' drop lists are kept as data (phase 27 decides on them) though runs no longer roll
-## them (DESIGN.md 8.24).
-func test_fifty_relics_ship_and_every_one_is_still_on_a_monster_list() -> void:
+## The monsters' drop lists are kept as data though runs no longer roll them (DESIGN.md 8.24); since
+## phase 27 they name no cut Relic, and the 17 new Relics are on none (DESIGN.md 8.25).
+func test_sixty_three_relics_ship_and_the_drop_lists_name_only_shipped_ones() -> void:
 	var shipped := load(RUN_PATH) as RunData
-	assert_eq(shipped.gear.size(), 50)
+	assert_eq(shipped.gear.size(), 63)
 	var dropped := {}
 	for file: String in DirAccess.get_files_at("res://data/enemies/"):
 		if not file.ends_with(".tres"):
@@ -57,22 +57,20 @@ func test_fifty_relics_ship_and_every_one_is_still_on_a_monster_list() -> void:
 	for item: GearData in shipped.gear:
 		assert_false(ids.has(item.id), "%s is listed once" % item.id)
 		ids[item.id] = true
-		assert_true(dropped.has(item.id), "%s is on some monster's list" % item.id)
+	for id: Variant in dropped:
+		assert_true(ids.has(String(id)), "%s on a drop list ships" % id)
 	for id: String in NEW_IDS:
 		assert_true(ids.has(id), "%s ships" % id)
 
 
-func test_the_new_relics_say_what_they_do_and_have_a_stat_line() -> void:
+func test_the_new_relics_say_what_they_do_and_have_no_stat_line() -> void:
 	var shipped := load(RUN_PATH) as RunData
 	for item: GearData in shipped.gear:
 		if not NEW_IDS.has(item.id):
 			continue
 		assert_false(item.description.is_empty(), item.id)
 		assert_false(GearData.effect_text(item.effect, item.amount).is_empty(), item.id + " has an effect line")
-		assert_gt(item.stat_points, 0, item.id + " has a stat line")
-		var runs_in_fight := GearData.PASSIVE_KEYS.has(item.effect)
-		assert_true(runs_in_fight or item.effect == GearData.Effect.WIN_HEAL or item.effect == GearData.Effect.SPEED,
-				item.id + " does something")
+		assert_false("stat_points" in item, "no stat line since phase 27 (DESIGN.md 8.25)")
 
 
 func test_won_run_fights_drop_no_relics() -> void:
@@ -130,7 +128,7 @@ func test_staggered_enemies_take_more_from_a_breaker() -> void:
 		hits.append(int(Fx.first_of(events, "damage").amount))
 	var base := 100 + _tuning.stagger_damage_taken_percent
 	assert_eq(hits[0], CombatMath.percent_min1(100, base))
-	assert_eq(hits[1], CombatMath.percent_min1(100, base + 25))
+	assert_eq(hits[1], CombatMath.percent_min1(100, CombatMath.percent(base, 125)), "a multiplier (DESIGN.md 8.25)")
 
 
 func test_crit_damage_grows_with_the_relic() -> void:
@@ -139,7 +137,7 @@ func test_crit_damage_grows_with_the_relic() -> void:
 	var base := plain._crit_damage(plain.get_combatant(0), 100)
 	assert_eq(base, CombatMath.percent_min1(100, plain.tuning.crit_damage_percent))
 	assert_eq(engine._crit_damage(engine.get_combatant(0), 100),
-			CombatMath.percent_min1(100, engine.tuning.crit_damage_percent + 50))
+			CombatMath.percent_min1(100, CombatMath.percent(engine.tuning.crit_damage_percent, 150)), "a multiplier")
 
 
 func test_a_perfect_parry_heals_with_still_water() -> void:
@@ -153,17 +151,3 @@ func test_a_perfect_parry_heals_with_still_water() -> void:
 	var plain := _engine({}, {}, hurt)
 	assert_eq(Fx.of_type(plain.submit(Fx.resolve_now(plain, [[0, PARRY]])), "healed").size(), 0)
 
-
-func test_a_won_fight_heals_the_wreath_wearer() -> void:
-	var encounter := load("res://data/encounters/husk_fight.tres") as EncounterData
-	var left: Array[int] = []
-	var max_hp := 0
-	for wear: bool in [false, true]:
-		var run := RunState.begin(_data, Fx.run_tuning(_tuning), 7)
-		if wear:
-			run.give_relic(_piece("victors_wreath"), 0)
-		var low: Array[int] = [10, 10, 10]
-		run.finish_fight(RunState.VICTORY, low, encounter)
-		left.append(run.hp[0])
-		max_hp = run.max_hp(0)
-	assert_eq(left[1] - left[0], CombatMath.percent_min1(max_hp, 10))

@@ -227,3 +227,57 @@ func test_the_mouse_picks_a_tile_and_a_click_confirms() -> void:
 	motion.position = socket.get_global_transform_with_canvas() * (socket.size * 0.5)
 	assert_true(tab.handle_input(motion))
 	assert_eq(tab.selected().id, "tree_a", "pointing at a socket picks its skill")
+
+
+func test_start_skills_sit_in_their_own_column_known_and_brought() -> void:
+	var data := (load(RUN_PATH) as RunData).duplicate() as RunData
+	var party: Array[CharacterData] = []
+	party.assign(data.party)
+	var hero := (party[0] as CharacterData).duplicate() as CharacterData
+	var tree := _tree()
+	tree.start_skills.append(Fx.ability("tree_s", 3, 0, 100))
+	tree.start_name = "Signature"
+	hero.skill_tree = tree
+	hero.skills.clear()
+	party[0] = hero
+	for slot: int in range(1, party.size()):
+		var plain := party[slot].duplicate() as CharacterData
+		plain.skill_tree = null
+		party[slot] = plain
+	data.party = party
+	var run := RunState.begin(data, Tuning.new(), 7)
+	assert_eq(run.loadout[0], ["tree_a", "tree_b", "tree_s"])
+	var tab := _tab(run)
+	assert_eq(tab._cells.size(), 3, "two branches and the start column")
+	tab.move_cursor(Vector2i.LEFT)
+	assert_eq(tab.selected().id, "tree_s", "the start column comes last")
+	assert_eq(tab.info().chips[1][1], "Brought")
+	assert_true(tab.confirm(), "left behind")
+	assert_false(run.loadout[0].has("tree_s"))
+	assert_eq(tab.info().chips[1][1], "Known")
+	assert_true(tab.confirm(), "and brought again")
+	assert_eq(run.loadout[0][2], "tree_s")
+	var socket := tab._sockets[2] as Control
+	var motion := InputEventMouseMotion.new()
+	motion.position = socket.get_global_transform_with_canvas() * (socket.size * 0.5)
+	tab.move_cursor(Vector2i.RIGHT)
+	assert_true(tab.handle_input(motion))
+	assert_eq(tab.selected().id, "tree_s", "its socket points at its tile")
+
+
+## Rotten Crown cuts skill costs: the tab's AP chip and pips show the price the fight menu shows
+## (CombatEngine.skill_cost), not the skill's own.
+func test_a_cost_cutting_relic_shows_the_fights_price() -> void:
+	var run := _run()
+	var crown: GearData = null
+	for item: GearData in run.data.gear:
+		if item.id == "rotten_crown":
+			crown = item
+	assert_not_null(crown)
+	assert_false(run.give_relic(crown, 0).is_empty())
+	var tab := _tab(run)
+	var cut := maxi(0, AP - crown.amount)
+	assert_eq(tab.info().chips[0][1], "%d AP" % cut)
+	assert_eq(tab.ap_cost_of(tab.selected()), cut)
+	assert_eq((tab._cells[0][0] as SkillsTab.SkillTile).ap_cost, cut, "the tile's pips")
+	assert_eq((tab._sockets[0] as SkillsTab.SkillTile).ap_cost, cut, "the socket's pips")

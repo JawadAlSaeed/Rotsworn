@@ -1,17 +1,19 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_esr3c"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_esr3c")
+script = ExtResource("1_gear")
 id = "hunger_charm"
 display_name = "Hunger Charm"
-description = "Each kill heals you 8% of your max HP, but the campfire's Rest heals you nothing."
-price = 90
+description = "Any foe falls: heal 6%. Lose 2% HP each turn."
+price = 100
 rarity = 1
 effect = 14
-amount = 8
+amount = 6
 rot_touched = true
-drawback = 21
-drawback_amount = 100
-stat_points = 3
+drawback = 20
+drawback_amount = 2
+plus_text = "Heal 10%."
+amount_plus = 10
+icon_path = "res://assets/sprites/relics/hunger_charm.png"

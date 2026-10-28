@@ -1,18 +1,19 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_us75t"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_us75t")
+script = ExtResource("1_gear")
 id = "rotten_crown"
 display_name = "Rotten Crown"
-description = "Power +35%, but the healing you receive is 40% weaker."
-price = 120
+description = "Skills cost 1 less AP. Lose 3% HP each turn."
+price = 150
 rarity = 2
-effect = 1
-amount = 35
+effect = 77
+amount = 1
 rot_touched = true
-drawback = 13
-drawback_amount = 40
-stat = 1
-stat_points = 4
+drawback = 20
+drawback_amount = 3
+plus_text = "Lose only 1% HP each turn."
+drawback_amount_plus = 1
+icon_path = "res://assets/sprites/relics/rotten_crown.png"

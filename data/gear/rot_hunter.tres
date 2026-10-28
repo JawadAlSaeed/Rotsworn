@@ -1,14 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_s6m4i"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_s6m4i")
+script = ExtResource("1_gear")
 id = "rot_hunter"
 display_name = "Rot Hunter"
-description = "Hits on Exposed enemies deal +50% more."
-rarity = 1
+description = "Exposed foes take +50% from you."
+price = 60
 effect = 9
 amount = 50
-stat = 1
-stat_points = 3
+plus_text = "+80%."
+amount_plus = 80
+icon_path = "res://assets/sprites/relics/rot_hunter.png"

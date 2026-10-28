@@ -1,14 +1,16 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_lrbr6"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_lrbr6")
+script = ExtResource("1_gear")
 id = "second_wind"
 display_name = "Second Wind"
-description = "Once per fight: fall during an enemy attack, get back up when it ends with 30% HP."
-price = 80
-rarity = 2
+description = "Once a fight: fall, rise at 30% HP."
+price = 100
+rarity = 1
 effect = 7
 amount = 30
-stat_points = 4
+plus_text = "Rise at 60% HP."
+amount_plus = 60
+icon_path = "res://assets/sprites/relics/second_wind.png"

@@ -1,18 +1,16 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_a3f48"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_a3f48")
+script = ExtResource("1_gear")
 id = "thorned_gauntlet"
 display_name = "Thorned Gauntlet"
-description = "Enemies that hit you take 30% of the damage back, but you take 10% more."
-price = 100
-rarity = 1
-effect = 18
-amount = 30
-rot_touched = true
-drawback = 10
-drawback_amount = 10
-stat = 3
-stat_points = 3
+description = "Hit by an attack: +1 AP."
+price = 60
+effect = 81
+amount = 1
+plus_text = "Also heal 3% HP."
+plus_rider = 82
+plus_rider_amount = 3
+icon_path = "res://assets/sprites/relics/thorned_gauntlet.png"

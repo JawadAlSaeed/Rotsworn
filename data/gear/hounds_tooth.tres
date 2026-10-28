@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "hounds_tooth"
+display_name = "Hound's Tooth"
+description = "Follow-ups hit +50%."
+price = 60
+effect = 45
+amount = 50
+plus_text = "+80%."
+amount_plus = 80
+icon_path = "res://assets/sprites/relics/hounds_tooth.png"

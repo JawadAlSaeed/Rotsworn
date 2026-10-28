@@ -301,6 +301,13 @@ extends Resource
 ## Spoils after a guard or an elite are gear of at least this rarity (0 common, 1 rare, 2
 ## legendary), when the run still has some.
 @export_range(0, 2) var run_spoils_min_rarity: int = 1
+## In the first run_spoils_open_acts acts (DESIGN.md 8.25), this many of the spoils cards may be any
+## rarity, common too (never at the crowned elite).
+@export_range(0, 6) var run_spoils_open_cards: int = 1
+@export_range(0, 9) var run_spoils_open_acts: int = 1
+## The crowned elite's spoils list a legendary from this act on (1 = the first act); before it they
+## are all rare or better (DESIGN.md 8.25).
+@export_range(1, 9) var crown_legendary_from_act: int = 2
 ## "?" stops (DESIGN.md 8.7). The chance (percent) that a "?" stop is an ambush fight instead of an
 ## event is unknown_fight_percent_base, plus unknown_fight_percent_step for every "?" stop passed
 ## without a fight since the last one (the count starts over after any ambush). Seeded per stop.
@@ -347,6 +354,29 @@ extends Resource
 ## Enemy hits never lose more than this percent to Defense and gear together.
 @export_range(0, 100, 1, "suffix:%") var tough_max_percent: int = 60
 
+@export_group("Relic limits (DESIGN.md 8.25)")
+## The tough floor: Relics that make hits on a hero hurt more (Black Ichor, Gravebound Ring,
+## Oathbreaker's Band) never make one hurt more than this percent of its normal damage, together.
+@export_range(100, 400, 1, "suffix:%") var relic_hit_taken_max_percent: int = 160
+## All the cuts on one enemy hit together (Guarded, Defense and Relics) never take away more than
+## this percent of it.
+@export_range(0, 100, 1, "suffix:%") var relic_damage_cut_max_percent: int = 75
+## Relics give a hero at most this much AP for one enemy attack (parries, dodges, jumps, hits taken).
+@export_range(0, 9) var relic_ap_per_attack_max: int = 3
+## Grudge Stone: its counter stacks stop at this many.
+@export_range(0, 50) var grudge_stack_max: int = 10
+## Sexton's Hourglass: a defend window is never widened by more than this percent in all.
+@export_range(0, 200, 1, "suffix:%") var relic_defend_window_max_percent: int = 50
+## Keen Eye: the perfect press window grows at most this percent of the way toward the good one
+## (never past it, so Pale Tithe keeps its price).
+@export_range(0, 100, 1, "suffix:%") var relic_perfect_window_max_percent: int = 80
+## Tallow Candle: its Regen starts when the holder's HP falls under this percent of their max.
+@export_range(1, 99, 1, "suffix:%") var relic_low_hp_regen_percent: int = 50
+## Gravedigger's Spade: every this-many-th damaging action of the holder is boosted.
+@export_range(1, 20) var relic_third_skill_every: int = 3
+## Hollow Mantle: the AP a hero pays to cut one hit (no cut without that much AP).
+@export_range(1, 9) var relic_ap_guard_cost: int = 1
+
 @export_group("Skill statuses")
 ## Bleeding (Open Vein): the enemy loses this percent of the source's power at the start of each of
 ## its turns. Renew: the hero heals this percent of max HP at the start of each of their turns.
@@ -373,7 +403,8 @@ extends Resource
 @export_group("Skill trees")
 ## Skill trees (DESIGN.md 8.4, card #136): each level up gives this many skill points; the
 ## skill at place 0, 1, 2... of a branch costs skill_tier_costs at that place (0: known from the
-## start); a hero brings at most skill_slots skills into a fight (the basic attack is extra).
+## start); a hero brings at most skill_slots skills into a fight (the basic attack is extra; the
+## tree's start skills count, DESIGN.md 8.25).
 @export_range(0, 10) var skill_points_per_level: int = 1
 @export var skill_tier_costs: Array[int] = [0, 1, 2]
 @export_range(1, 12) var skill_slots: int = 5
@@ -393,9 +424,6 @@ extends Resource
 ## often (on top) an ambush from the act's pool.
 @export_range(0, 100, 1, "suffix:%") var rotten_chest_curse_percent: int = 30
 @export_range(0, 100, 1, "suffix:%") var rotten_chest_fight_percent: int = 20
-## The campfire before the boss (card #287): Sharpen gives every hero this much more AP at the start
-## of the boss fight.
-@export_range(0, 5) var sharpen_ap: int = 1
 ## How many starting pacts a run offers (card #285; RunData.pacts).
 @export_range(0, 6) var run_pact_choices: int = 3
 @export_range(0, 6) var run_shop_gear: int = 3

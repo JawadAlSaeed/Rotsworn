@@ -364,19 +364,21 @@ func _focused() -> GearData:
 	return mine[_slot] if _slot >= 0 and _slot < mine.size() else null
 
 
-## The strip for a Relic: its icon and name, stat line, who has it (or Waiting), and what it does.
+## The strip for a Relic: its icon and name, Relic+ when upgraded, who has it (or Waiting), and what
+## it does.
 func _relic_info(item: GearData) -> Dictionary:
 	var color := GearData.ROT_TOUCHED_COLOR if item.rot_touched else BackpackGrid.rarity_color(BackpackGrid.gear_step(item))
 	var chips: Array = []
-	var stat := item.stat_text()
-	if not stat.is_empty():
-		chips.append([UiGlyph.attribute_glyph(item.stat), stat, HudStyle.TEXT])
+	if run.is_plus(item):
+		chips.append([&"up", "Relic+", HudStyle.GOLD])
 	var holder := run.holder_of(item)
 	if holder >= 0:
 		chips.append([&"person", run.data.party[holder].display_name, run.data.party[holder].color.lightened(0.25)])
 	else:
 		chips.append([&"pouch", "Waiting", HudStyle.GOLD])
-	return {"icon": item, "title": item.display_name, "color": color, "chips": chips, "line": item.description}
+	var plus := run.is_plus(item)
+	return {"icon": item, "plus": plus, "title": item.shown_name(plus), "color": color, "chips": chips,
+			"line": item.text_line(plus)}
 
 
 ## The grid row level with hero `slot`'s row (moving across).
@@ -484,13 +486,13 @@ func _draw_relics(slot: int, plate: Control, at: Vector2, on_row: bool) -> void:
 		if mine.is_empty():
 			icon.setup_slot(RelicIcon.SlotState.EMPTY, px)
 		else:
-			icon.setup(mine[i], px)
+			icon.setup(mine[i], px, true, 0, 0, run.is_plus(mine[i]))
 		icon.chosen = on_row and i == _slot
 		icon.position = cell.position
 		plate.add_child(icon)
 		_hits.append([Rect2(at + cell.position, cell.size), Zone.HEROES, slot, i])
 		if rows == 1 and not mine.is_empty():
-			var label := HudStyle.make_label(mine[i].display_name, SMALL_SIZE - 2,
+			var label := HudStyle.make_label(mine[i].shown_name(run.is_plus(mine[i])), SMALL_SIZE - 2,
 					HudStyle.GOLD if icon.chosen else HudStyle.TEXT_DIM)
 			label.position = Vector2(cell.position.x + (px - SLOT_NAME_WIDTH) * 0.5, 20.0 + px + 26.0)
 			label.custom_minimum_size.x = SLOT_NAME_WIDTH
@@ -498,7 +500,27 @@ func _draw_relics(slot: int, plate: Control, at: Vector2, on_row: bool) -> void:
 			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			label.clip_text = true
 			label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			label.text = fit_name(mine[i], run.is_plus(mine[i]), label.get_theme_font(&"font"),
+					label.label_settings.font_size, SLOT_NAME_WIDTH)
 			plate.add_child(label)
+
+
+## A Relic's name for the narrow place under its icon: whole when it fits; a long Relic+ name is cut
+## before its "+" ("Gravedigger's Sp...+"), so the mark stays. A plain name is left to the ellipsis.
+static func fit_name(item: GearData, plus: bool, font: Font, font_size: int, width: float) -> String:
+	var full := item.shown_name(plus)
+	if not plus or font == null or _text_width(full, font, font_size) <= width:
+		return full
+	var cut := item.display_name
+	while cut.length() > 1:
+		cut = cut.left(cut.length() - 1).strip_edges()
+		if _text_width(cut + "\u2026+", font, font_size) <= width:
+			return cut + "\u2026+"
+	return full
+
+
+static func _text_width(text: String, font: Font, font_size: int) -> float:
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 
 
 func _draw_bag() -> void:
@@ -543,7 +565,7 @@ func _draw_bag() -> void:
 		var cell := Rect2(Vector2(28.0 + float(col) * BAG_CELL, grid_top + float(r) * (BAG_CELL + BAG_ROW_GAP)),
 				Vector2(BAG_CELL, BAG_CELL))
 		var icon := RelicIcon.new()
-		icon.setup(item, BAG_ICON_PX)
+		icon.setup(item, BAG_ICON_PX, true, 0, 0, run.is_plus(item))
 		icon.chosen = in_grid and i == _cursor
 		var holder := run.holder_of(item)
 		if holder >= 0:

@@ -6,6 +6,7 @@ extends GutTest
 ## hardest fight of the run, and no Elite stop's guard has more HP than its act's boss (#321). Uses
 ## the shipped run and tuning.
 
+const Fx := preload("res://tests/helpers/combat_fixtures.gd")
 const RUN_PATH := "res://data/runs/rotten_road.tres"
 const SEEDS: int = 30
 
@@ -151,13 +152,11 @@ func test_an_elite_made_in_data_needs_no_can_run_flag() -> void:
 ## Since phase 17 only Relics raise max HP (the backpack's charms are gone, DESIGN.md 8.17). A
 ## Relic is given for good (8.24): one that raises max HP never heals, and one whose price is max HP
 ## (the Gravebound Ring) never leaves a hero above max HP.
+## No shipped Relic touches max HP since phase 27 (DESIGN.md 8.25), so two test Relics stand in.
 func test_hp_never_rises_or_stays_above_max_when_a_relic_is_given() -> void:
-	var r := _run()
-	var charm: GearData = null
-	for item: GearData in r.data.gear:
-		if item.effect == GearData.Effect.MAX_HP and not item.rot_touched:
-			charm = item
-	var ring := r.relic_by_id("gravebound_ring")
+	var r := RunState.begin(Fx.with_max_hp_relics(_data), Fx.run_tuning(_tuning), 7)
+	var charm := r.relic_by_id("test_heart")
+	var ring := r.relic_by_id("test_ring")
 	assert_not_null(charm)
 	assert_not_null(ring)
 	for slot: int in r.party_size():

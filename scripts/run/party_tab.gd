@@ -63,7 +63,8 @@ func hints() -> Array:
 
 
 ## What the info strip shows for the thing under the cursor ({} for nothing): {icon: GearData,
-## ItemData, Texture2D or a UiGlyph kind (StringName), title: String, color: Color (the title's),
+## ItemData, Texture2D or a UiGlyph kind (StringName), plus: bool (a Relic+: its icon's gold badge),
+## title: String, color: Color (the title's),
 ## chips: Array of [glyph kind (StringName or ""), text, Color] small boxes, line: String (one
 ## line at most), bar: [have, need] (optional: a small segment bar, like an Echo's progress)}.
 func info() -> Dictionary:

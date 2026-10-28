@@ -26,8 +26,9 @@ skills = Array[ExtResource("3_ability")]([ExtResource("a_shield_bash"), ExtResou
 [sub_resource type="Resource" id="b2"]
 script = ExtResource("2_branch")
 display_name = "Retort"
-skills = Array[ExtResource("3_ability")]([ExtResource("a_taunt"), ExtResource("a_riposte_stance"), ExtResource("a_payback")])
+skills = Array[ExtResource("3_ability")]([ExtResource("a_taunt"), ExtResource("a_riposte_stance")])
 
 [resource]
 script = ExtResource("1_tree")
+start_skills = Array[ExtResource("3_ability")]([ExtResource("a_payback")])
 branches = Array[ExtResource("2_branch")]([SubResource("b0"), SubResource("b1"), SubResource("b2")])

@@ -6,8 +6,10 @@
 script = ExtResource("1_gear")
 id = "bitter_root"
 display_name = "Bitter Root"
-description = "Marks on the wearer last 1 turn less (never under 1 turn)."
-price = 55
-effect = 24
-amount = 1
-stat_points = 2
+description = "Bleeding foes take +30% from you."
+price = 60
+effect = 58
+amount = 30
+plus_text = "+50%."
+amount_plus = 50
+icon_path = "res://assets/sprites/relics/bitter_root.png"

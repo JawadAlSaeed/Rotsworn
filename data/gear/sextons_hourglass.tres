@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "sextons_hourglass"
+display_name = "Sexton's Hourglass"
+description = "Your parry, dodge and jump windows are wider."
+price = 60
+effect = 55
+amount = 20
+plus_text = "Wider still."
+amount_plus = 35
+icon_path = "res://assets/sprites/relics/sextons_hourglass.png"

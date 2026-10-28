@@ -14,7 +14,7 @@ extends CanvasLayer
 ## Phase 22: pictures and a word, not sentences: each service has its picture (a skull Cleanse,
 ## arrows Restock, the coin Sell with its button, a door Leave), prices are the coin and
 ## a number, and the line under the shelves shows a Relic as its icon, a New chip (a Relic the book
-## lacks) and its stat and effect chips (detail()). Card #295: an item there is its picture, its name and a few icon chips
+## lacks) and its effect chips (detail(); no stat line since DESIGN.md 8.25). Card #295: an item there is its picture, its name and a few icon chips
 ## for what it does, the same chips as the fight's Items list (item_chips: "1 AP", "All foes",
 ## "120% dmg"), never its sentence. The rules are in the Glossary.
 ## The bot uses count(), can_buy(), buy(), cleanse(), overlay() and leave().
@@ -218,7 +218,7 @@ func _info(index: int) -> Array:
 
 ## What the line under the shelves shows for thing `index` or a service (phase 22: icons and a word
 ## or two, never a rules sentence): {icon, title, color, chips: [[icon, text, color]], line}. A
-## Relic shows its icon, name, a New chip (a Relic the book lacks) and its stat and effect chips;
+## Relic shows its icon, name, a New chip (a Relic the book lacks) and its effect chips;
 ## an item its picture, name and what it does as chips (item_chips); a service its picture, name
 ## and a few words.
 func detail(index: int) -> Dictionary:
@@ -278,16 +278,13 @@ static func _cap_chips(chips: Array, look: MapVisuals) -> Array:
 	return kept
 
 
-## A shop Relic's chips: "New" when the Relic book lacks it (LootScreen.new_tag), the stat line, its
-## effect and any drawback.
+## A shop Relic's chips: "New" when the Relic book lacks it (LootScreen.new_tag), its effect and any
+## drawback.
 static func relic_chips(run: RunState, gear: GearData) -> Array:
 	var chips: Array = []
 	var tag := LootScreen.new_tag(run, gear)
 	if not tag.is_empty():
 		chips.append([&"star", tag, HudStyle.GOLD])
-	var stat := gear.stat_text()
-	if not stat.is_empty():
-		chips.append([UiGlyph.attribute_glyph(gear.stat), stat, HudStyle.TEXT])
 	var effect := GearData.effect_text(gear.effect, gear.amount)
 	if not effect.is_empty():
 		chips.append([&"", effect, HudStyle.TEXT])

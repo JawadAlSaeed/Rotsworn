@@ -6,7 +6,8 @@ extends RefCounted
 
 ## On an enemy: the next damaging skill that consumes it deals extra damage and removes it.
 const EXPOSED := "exposed"
-## On a party member: takes guard_damage_percent of each hit until their next turn.
+## On a party member: takes guard_damage_percent of each hit until their next turn (with `turns` above
+## 1, Coffin Lid+, until the start of their turns-th turn).
 const GUARDED := "guarded"
 ## On an enemy: its next single-target attack must target the source (the taunter).
 const TAUNTED := "taunted"

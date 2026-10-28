@@ -1,18 +1,19 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_u7b5j"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_u7b5j")
+script = ExtResource("1_gear")
 id = "bloodletters_fang"
 display_name = "Bloodletter's Fang"
-description = "Critical hit chance +25%, but you lose 4% max HP at the start of each of your turns."
-price = 90
+description = "Crit chance +30%. Lose 2% HP each turn."
+price = 100
 rarity = 1
 effect = 23
-amount = 25
+amount = 30
 rot_touched = true
 drawback = 20
-drawback_amount = 4
-stat = 4
-stat_points = 3
+drawback_amount = 2
+plus_text = "Crit chance +45%."
+amount_plus = 45
+icon_path = "res://assets/sprites/relics/bloodletters_fang.png"

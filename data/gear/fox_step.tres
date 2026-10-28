@@ -1,13 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_14hsl"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_14hsl")
+script = ExtResource("1_gear")
 id = "fox_step"
 display_name = "Fox Step"
-description = "Each dodge gives the wearer 1 AP."
+description = "Dodge: +1 AP."
+price = 60
 effect = 16
 amount = 1
-stat = 2
-stat_points = 2
+plus_text = "+2 AP per dodge."
+amount_plus = 2
+icon_path = "res://assets/sprites/relics/fox_step.png"

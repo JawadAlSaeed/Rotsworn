@@ -22,7 +22,7 @@ skills = Array[ExtResource("3_ability")]([ExtResource("a_quick_cuts"), ExtResour
 [sub_resource type="Resource" id="b1"]
 script = ExtResource("2_branch")
 display_name = "Cripple"
-skills = Array[ExtResource("3_ability")]([ExtResource("a_hamstring"), ExtResource("a_open_vein"), ExtResource("a_rend")])
+skills = Array[ExtResource("3_ability")]([ExtResource("a_hamstring"), ExtResource("a_open_vein")])
 
 [sub_resource type="Resource" id="b2"]
 script = ExtResource("2_branch")
@@ -31,4 +31,5 @@ skills = Array[ExtResource("3_ability")]([ExtResource("a_feint_step"), ExtResour
 
 [resource]
 script = ExtResource("1_tree")
+start_skills = Array[ExtResource("3_ability")]([ExtResource("a_rend")])
 branches = Array[ExtResource("2_branch")]([SubResource("b0"), SubResource("b1"), SubResource("b2")])

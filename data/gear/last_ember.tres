@@ -1,16 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_w25ha"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_w25ha")
+script = ExtResource("1_gear")
 id = "last_ember"
 display_name = "Last Ember"
-description = "Power +40% while your HP is under 30%."
-price = 90
-rarity = 1
+description = "Under 30% HP: +50% damage."
+price = 60
 effect = 15
-amount = 40
-rot_touched = true
-stat = 1
-stat_points = 3
+amount = 50
+plus_text = "+80%."
+amount_plus = 80
+icon_path = "res://assets/sprites/relics/last_ember.png"

@@ -1,12 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_ci1w7"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_ci1w7")
+script = ExtResource("1_gear")
 id = "ember_stone"
 display_name = "Ember Stone"
-description = "Critical hit chance +10%."
-effect = 23
-stat = 4
-stat_points = 2
+description = "Your crits make foes Bleed."
+price = 60
+effect = 62
+amount = 2
+plus_text = "Bleed lasts 2 turns more."
+amount_plus = 4
+icon_path = "res://assets/sprites/relics/ember_stone.png"

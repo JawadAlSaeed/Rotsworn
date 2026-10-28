@@ -34,8 +34,8 @@ extends Resource
 ## tools/art_kit/assets/ui_runinfo.py.
 @export_file("*.png") var restock_icon_path: String = "res://assets/sprites/ui/restock.png"
 @export_file("*.png") var leave_icon_path: String = "res://assets/sprites/ui/door.png"
-## The campfire before the boss (card #287) offers Keep watch and Sharpen instead of Train: the team
-## gauge filled and the boss fight's extra AP (the same chips as its stop screen, stop_visuals.tres).
+## The campfire before the boss (card #287) offers Keep watch instead of Train: the team gauge filled
+## (the same chip as its stop screen, stop_visuals.tres). The AP pip is the shop items' AP chip.
 @export_file("*.png") var gauge_icon_path: String = "res://assets/sprites/ui/chip_gauge.png"
 @export_file("*.png") var ap_icon_path: String = "res://assets/sprites/ui/ap_pip.png"
 

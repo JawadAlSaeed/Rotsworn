@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "knotted_lash"
+display_name = "Knotted Lash"
+description = "Each skill hit: +10% more than the last."
+price = 60
+effect = 50
+amount = 10
+plus_text = "+20% more than the last."
+amount_plus = 20
+icon_path = "res://assets/sprites/relics/knotted_lash.png"

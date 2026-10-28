@@ -8,7 +8,6 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/tick_burst.tres" id="a_tick_burst"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/tick_latch.tres" id="a_tick_latch"]
 [ext_resource type="Resource" path="res://data/gear/hunger_charm.tres" id="g_hunger_charm"]
-[ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="g_wardstone"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -25,5 +24,5 @@ sprite_pixel_size = 0.045
 hp_percent = 45
 attacks = Array[ExtResource("1_attack")]([ExtResource("a_tick_latch"), ExtResource("a_tick_burst")])
 voice_sfx = "voice_toad"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_hunger_charm"), ExtResource("g_wardstone"), ExtResource("7_wt64g")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_hunger_charm"), ExtResource("7_wt64g")])
 runs_up = true

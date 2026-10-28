@@ -60,6 +60,24 @@ var charge_attack: String = ""
 var charge_left: int = 0
 var charge_damage: int = 0
 var staggered_turns: int = 0
+## Party only, per-fight Relic state (DESIGN.md 8.25), kept in to_dict so snapshot / restore and a
+## rejoin's resume carry it: hit by an enemy hit that did something (Brimming Cup), counters made
+## (Grudge Stone, at most tuning.grudge_stack_max), the next damaging skill crits (Moth Wing), the
+## first hit on a foe already used (Grave Tag), hits made to do nothing (Widow's Thimble), damaging
+## actions taken (Gravedigger's Spade) and the once-a-fight low HP Regen used (Tallow Candle).
+var was_hit: bool = false
+var grudge_stacks: int = 0
+var crit_ready: bool = false
+var first_hit_done: bool = false
+var null_hits_used: int = 0
+var skills_used: int = 0
+var low_regen_used: bool = false
+## Coffin Lid's fight-start Guard waits for the foes' first turn: the holder's own turn starts do
+## not count it down before then (a First Strike or a fast holder would lose it unused).
+var opening_guard: bool = false
+## A Bleed given during this fighter's own turn (a parry or counter Relic on an attacker): that
+## turn's end does not count it down, so "Bleed 2 turns" is two ticks.
+var fresh_bleed: bool = false
 
 
 ## Standing in the fight (not downed, not escaped).
@@ -105,6 +123,15 @@ static func from_dict(d: Dictionary) -> Combatant:
 	c.charge_left = int(d.get("charge_left", 0))
 	c.charge_damage = int(d.get("charge_damage", 0))
 	c.staggered_turns = int(d.get("staggered_turns", 0))
+	c.was_hit = bool(d.get("was_hit", false))
+	c.grudge_stacks = int(d.get("grudge_stacks", 0))
+	c.crit_ready = bool(d.get("crit_ready", false))
+	c.first_hit_done = bool(d.get("first_hit_done", false))
+	c.null_hits_used = int(d.get("null_hits_used", 0))
+	c.skills_used = int(d.get("skills_used", 0))
+	c.low_regen_used = bool(d.get("low_regen_used", false))
+	c.opening_guard = bool(d.get("opening_guard", false))
+	c.fresh_bleed = bool(d.get("fresh_bleed", false))
 	return c
 
 
@@ -138,6 +165,15 @@ func to_dict() -> Dictionary:
 		"charge_left": charge_left,
 		"charge_damage": charge_damage,
 		"staggered_turns": staggered_turns,
+		"was_hit": was_hit,
+		"grudge_stacks": grudge_stacks,
+		"crit_ready": crit_ready,
+		"first_hit_done": first_hit_done,
+		"null_hits_used": null_hits_used,
+		"skills_used": skills_used,
+		"low_regen_used": low_regen_used,
+		"opening_guard": opening_guard,
+		"fresh_bleed": fresh_bleed,
 	}
 
 

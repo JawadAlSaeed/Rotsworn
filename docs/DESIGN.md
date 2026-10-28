@@ -635,7 +635,8 @@ and **Holy Water** (`CLEANSE_ALL`: every mark off the whole party and a 10% heal
 both in the shop and found in zones. The bot uses a cleansing item only when no cleansing skill is
 ready. **Relics against marks** (card #263, `GearData.Effect` and `Passive`): Wardstone (Warded for
 the first 2 turns of every fight), Bitter Root (marks last 1 turn less, never under 1), Cleansing
-Bell (each parry lifts one mark); dropped by the new monsters.
+Bell (each parry lifts one mark); dropped by the new monsters. Since phase 27 (8.25) Wardstone is
+cut, Bitter Root works against Bleeding foes, and the bell is the Shriving Bell.
 
 **Six new monsters** (cards #255 to #260; art by `tools/art_kit/assets/enemy_<name>.py` on the
 shared `kit/monster.py`, deep twins recoloured by `enemy_variants`, attacks in `tools/make_attack.py`;
@@ -2463,7 +2464,8 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   questions (No left, Yes right; until phase 26 a zone's shrines and wanderers added their chips
   under the question, a `ConfirmPrompt` feature that went with them, 8.22), Spoils
   (Relic icon, name, New / Home / "Lv a > b", effect, drawback and stat chips; since 8.24 only New), the campfire (Rest
-  "+N%", Train "+N"; Upgrade "+1 Lv" until card #332, 8.1; before the boss Rest, Keep watch, Sharpen), treasure (Plain and
+  "+N%", Train "+N"; Upgrade "+1 Lv" until card #332, 8.1, and "Relic+" since phase 27, 8.25; before the boss
+  Rest, Keep watch, Upgrade, where Sharpen was until phase 27), treasure (Plain and
   Rotten chests), "?" events and the starting pact, and the main menu's Online page (Host, Join).
   Back is the cancel button with a footer hint, never a card. Taking nothing is a card: since card
   #334 (2026-10-25) a "?" event and the Crossroads end their cards with **Walk on** (the door picture,
@@ -2495,7 +2497,8 @@ Rules text lives in the tutorial and the Glossary, not on screens.
   is skipped when a pad is plugged in. In release builds the F1 Stats action is hidden and never
   clashes with a usable action (`ControlBindings.list_debug`).
 - **Run screens.** Map: under the map, the picked stop's picture, name and 2 or 3 chips
-  (`MapScreen.detail_chips`; the campfire before the boss shows Keep watch and Sharpen). Shop:
+  (`MapScreen.detail_chips`; a campfire shows Heal, Train and Relic+, the one before the boss Keep
+  watch instead of Train; Sharpen went in phase 27, 8.25). Shop:
   service cards with pictures (skull Cleanse, arrows Restock, coin Sell, door Leave; the anvil
   Upgrade went with card #332, 8.1), prices as the coin and a number, Sell once. Run end: one row of chips ("Act 1/2" with the act's boss
   lair, "Stops N", "Wins N", "Gold N", each hero's face with "Lv N"), the defence rows ("Parry 3",
@@ -3020,7 +3023,8 @@ Replaces the shared party level of phase 4 (#30). Numbers live in `tuning.tres` 
   each next one `run_xp_level_step` (30) more, up to `run_max_level` (10). Each level still adds
   `run_level_hp_percent` (4) to max HP and `run_level_power_percent` (4) to power (was 8 each:
   the attribute points now carry the rest) and heals what max HP grew.
-- **Attributes** (like Expedition 33). Each level up gives `attr_points_per_level` (3) points
+- **Attributes** (like Expedition 33). Each level up gives `attr_points_per_level` (4 since phase 27,
+  8.25: Relics lost their stat lines; was 3) points
   (`attr_start_points` at the start, 0). Five attributes, each raising one stat per point:
 
   | Attribute | Raises | Per point |
@@ -3091,14 +3095,18 @@ Replaces the shared party level of phase 4 (#30). Numbers live in `tuning.tres` 
 
 ### 8.4 Skill trees (cards #136, #56, #80, #81, built 2026-10-15)
 
-User picks: 5 skills brought, 1 skill point per level, the trees of the proposal
+User picks: 5 skills brought (6 since card #338, 8.25), 1 skill point per level, the trees of the proposal
 (`docs/proposals/skill_trees.html`), Cass casting every skill from afar except her normal attack.
 
 - `CharacterData.skill_tree` (`SkillTreeData`: `branches`, each a `SkillBranchData` with a name and
   its skills top down). The top of each branch is known from the start of a run; the skill at
   place N costs `skill_tier_costs[N]` (0, 1, 2) skill points and needs the one above it. Each level
-  up gives `skill_points_per_level` (1). A hero brings at most `skill_slots` (5) known skills into a
+  up gives `skill_points_per_level` (1). A hero brings at most `skill_slots` (6) known skills into a
   fight (the basic attack always comes); a new skill is brought at once while there is room.
+- **Start skills** (card #338, 8.25): `SkillTreeData.start_skills` are known from the start of a run,
+  free, and in no branch (one per hero: Alder Payback, Brin Rend, Cass Radiance). They are brought
+  at the start and count toward `skill_slots`, so a new run brings 4 of 6. The Skills tab shows them
+  as one more column after the branches, headed `start_name` ("Signature"), with no lines.
 - `RunState.unlocked` / `loadout` per hero, ops `unlock` and `loadout` (online: anyone, like the
   backpack), `CombatSetup.party_skills` gives the engine only what was brought; fights outside a
   run give every skill. The action menu lists the fighter's own `ability_ids`.
@@ -3110,18 +3118,20 @@ User picks: 5 skills brought, 1 skill point per level, the trees of the proposal
 
 **The trees** (`data/skill_trees/<hero>.tres`; the top row is known at the start of a run, the
 middle row costs 1 point, the bottom row 2; phase 19 gave three branches a fourth skill, which costs
-2 like the third):
+2 like the third). Since card #338 (8.25) each hero also starts with one skill outside the branches:
+Alder Payback, Brin Rend, Cass Radiance (each 3 AP); Retort and Cripple are two long now and
+Revive moved up to Light's 2-point place.
 
 | Hero | Branch | Start | 1 point | 2 points |
 |---|---|---|---|---|
 | Alder | Bulwark | Guard | Shield Wall (3 AP: whole party guarded; perfect +1 AP) | Unbreakable (4 AP: every enemy taunted, Alder guarded; perfect: riposte too) |
 | Alder | Bash | Shield Bash | Shield Throw (1 AP: 2 hits of 60%) | Earthshaker (4 AP: 140% to every enemy, their turns later) |
-| Alder | Retort | Taunt | Riposte Stance | Payback |
+| Alder | Retort | Taunt | Riposte Stance | (none) |
 | Brin | Flurry | Quick Cuts (now 4 x 40%) | Twin Fangs (2 AP: 2 x 90%; both perfect: Exposed) | Fang Storm (phase 19: 3 AP, 2 x 55% to every enemy), then All In (now 6 x 100%) |
-| Brin | Cripple | Hamstring | Open Vein (2 AP: 100% and Bleeding 3 turns) | Rend |
+| Brin | Cripple | Hamstring | Open Vein (2 AP: 100% and Bleeding 3 turns) | (none) |
 | Brin | Shadow | Feint Step | Shadowstep (1 AP: next turn much sooner, Empowered) | Death Mark (3 AP: Marked for 3 skills) |
 | Cass | Mending | Mend | Purify (phase 19: 2 AP, every mark off one ally, Warded 2 turns, perfect 3), then Renew (2 AP: Renew 3 turns) | Sanctuary (4 AP: heals the party 30%, perfect 40%; lifts one debuff from each, all on a perfect press) |
-| Cass | Light | Reveal (now a bolt) | Smite (2 AP: 160% bolt, +100% on Exposed) | Radiance (phase 19: 3 AP, an 80% bolt at every enemy), then Revive |
+| Cass | Light | Reveal (now a bolt) | Smite (2 AP: 160% bolt, +100% on Exposed) | Revive |
 | Cass | Grace | Pass the Torch | Hasten | Inspire (3 AP: everyone +1 AP, gauge +25) |
 
 - **New statuses** (`Status`, numbers in tuning "Skill statuses"): Bleeding (an enemy loses
@@ -3487,6 +3497,12 @@ scarce, and a "?" can turn into a fight.
   gets `rest_train_points` (1) attribute point, `RunState.bonus_points`). The third card, **Upgrade**
   (one backpack item up a level for free), went with the item levels (card #332, 8.1). The bot rests
   when hurt, else trains.
+- **Phase 27 (8.25, card #333):** the third card is back as **Upgrade** (a hammer over an anvil, the
+  chip "Relic+"): one Relic of the party becomes Relic+ (its ability stronger, once per Relic). It
+  opens a pick of the Relics that can be (`RestScreen.open_upgrade`); Back steps back to the three
+  cards. The card is dim when none can be. Before the boss, Upgrade replaces Sharpen. The bot rests
+  when hurt, else upgrades, else trains (before the boss: keeps watch). Details in 8.25 "As built
+  (stage 5)".
 
 ### 8.12 Living zones (user, 2026-10-17: "the ruins should have ruins, roads; the swamp should have a swamp, jungle; make the zones feel alive")
 
@@ -3838,8 +3854,8 @@ upgrade to take blindly.
 drops: Relics come from Elite stops, bosses, the rotten chest (pick 1 of 3) and shops, each given to
 one hero for the run; no Echoes. **#328 built 2026-10-25:** the Relic bag below is gone: the main
 menu's Relics page is the Relic book (found Relics only, no bag) and each hero takes one starting
-Relic from it before a run (8.24 "As built (#328)"). What follows is the phase 17 to 21 design where
-8.24 does not say otherwise.
+Relic from it before a run (8.24 "As built (#328)"). **Phase 27 (8.25):** no stat lines, 63 Relics
+(four cut), Relic+. What follows is the phase 17 to 21 design where 8.24 and 8.25 do not say otherwise.
 
 Phase 19 (card #263) added three Relics against marks (Wardstone, Bitter Root, Cleansing Bell;
 2.17), dropped by the new monsters, which also drop older Relics (34 Relics in the run).
@@ -4020,6 +4036,9 @@ right is the run's Relics, each with the initial of the hero who has it, the wai
 untagged. Confirm on a hero opens the grid on the waiting Relics; Confirm there gives one; nothing
 comes off, swaps or levels up. The tab's badge counts the waiting Relics. The Hero tab's Echo box,
 the Echoes page and `open_echoes` are gone, and so are the level pips and the Echo pips bar.
+**Since 8.25 (phase 27):** a Relic+ (upgraded at a campfire) shows "Name+" under its icon on the hero
+row and on the strip, a small gold "+" badge on its icon (hero row, grid and strip; `RelicIcon.set_plus`),
+a "Relic+" chip, and the strip's line is its own line then its Relic+ line (`GearData.text_line`).
 
 The owner found the party screen "too cluttery" and hates text. Three concepts were drawn (tabs, one
 quiet page, one hero at a time); the owner picked **tabs**, plus the one-page concept's info strip and
@@ -4254,6 +4273,9 @@ as they were; `RunMap._vary_rows`, `_crown_elite`, `_fix_zones`):
   Keep watch (the team gauge is full, `keep_watch`) or Sharpen (every hero starts the boss fight with
   `sharpen_ap` (1) more AP, `sharpened`, saved; used up by the boss fight). Other campfires keep Rest,
   Train (and Upgrade until card #332). The bot keeps watch when it does not need to rest.
+  **Phase 27 (8.25):** Sharpen is gone, Upgrade (a Relic becomes Relic+) took its card;
+  `sharpen_ap`, `sharpened` and the Sharpen picture went. An older save that still says "sharpened"
+  loads and the flag is dropped.
 
 **After the build** (2026-10-19, a review by three reviewers, each finding checked by a skeptic): an
 online friend who drops and takes their seat back keeps the collection taken at the run's start
@@ -5433,7 +5455,7 @@ Lumina until the first boss"). Decided:
   `relic_bag_echoes_per_slot`, `relic_bag_max`).
 - **Where Relics come from.** Elite stops and act bosses: the spoils, pick 1 of `relic_choice_count()`
   (`run_loot_choices`, 3; Scarcity takes one away, a flawless win adds one, the crowned elite lists a
-  legendary first). The rotten chest: pick 1 of `relic_choice_count()` rare or better Relics, with its
+  legendary first; since phase 27 only from act 2, and act 1 spoils may hold one common card, 8.25). The rotten chest: pick 1 of `relic_choice_count()` rare or better Relics, with its
   curse or ambush as before, built like the spoils (`RunState._loot_picks` with a rare floor): at
   most `rot_gear_spoils_count` rot-touched and never only those, since one must be taken and given
   for good before the chest can be left; the plain chest keeps its gold and item. Shops: `run_shop_gear` Relics the
@@ -5596,6 +5618,402 @@ Relic bag is gone.
   `test_oaths.gd`, `test_glossary.gd`, `test_choice_cards.gd` (the New tag, the hero step kept),
   `test_party_screen.gd` (no Give with nothing waiting), `test_run_info_clean.gd` (the bot's shop),
   `test_roguelite.gd` (the rotten chest's mix).
+
+### 8.25 Relics reworked, Relic+ and the AP fix (phase 27, cards #329, #333, #338, decided 2026-10-27 and 28)
+
+The owner, starting phase 27: rework every Relic so it fits a three-act run, with Expedition 33's
+Pictos as a reference but not one to one. The list below was drafted by three independent designs
+(build-shaping, defence first, the run's arc), judged and checked, then approved by the owner
+("these are great", 2026-10-27; the list is at https://claude.ai/artifact/9qPeXhc1pEcemMQAViDDsC).
+
+**Owner decisions**
+- **Relic+ (#333).** Each Relic can be upgraded **once**, at a campfire: Relic > Relic+, its ability
+  stronger (the "+" column). The upgrade lasts the run; the Relic book stays "found or not".
+- **The campfire** (8.11) is pick 1 of 3: **Rest**, **Train** or **Upgrade** (pick one Relic of the
+  party that is not "+" yet; the card is dim when none is). The campfire before the boss (8.19
+  "The campfire before the boss") offers Rest, Keep watch or Upgrade: Upgrade replaces Sharpen (builder
+  default 2026-10-28: the AP check below showed start AP is rarely short, and three cards stay side
+  by side). In co-op the player who picks (9.2 "Taking turns") upgrades a Relic of a hero they may give
+  to (`Main._give_heroes`, as for "Who gets it?"). Bot: rests when hurt, else upgrades the Relic whose
+  "+" helps most (`GearBot`), else trains (at the watch fire: keeps watch).
+- **No stat lines.** `GearData.stat` and `stat_points` go: a Relic is only its ability. To make up for
+  the lost points (about 12 by act 3), `attr_points_per_level` goes from 3 to 4 (Forgetting, Oath 12,
+  still takes one).
+- **Icons.** Each Relic gets a pixel picture of the object (the "Icon" column) inside today's shape
+  frame (8.17 "The icons": spear = attack, shield = defence, seal = support; rarity edge; violet drip
+  for rot-touched), drawn by `tools/art_kit/`, saved as `assets/sprites/relics/<id>.png` and named
+  by `GearData.icon_path`. A "+" Relic shows a small gold "+" on its icon.
+- **Every Relic works on any hero** (owner: "this would ruin versatility"): none needs one hero's
+  skill (Taunt, Guard, Death Mark, Bleed skills, heals, Revive, giving AP). In co-op a player gives
+  Relics only to their own heroes, so a one-hero Relic could be useless to them.
+- **Cut** (four flat Relics): Iron Charm (max HP), Lucky Coin (gold), Victor's Wreath (heal after a
+  win) and Wardstone (start Warded). A Relic book that holds them keeps them in the file but hides
+  them, and "Found N of M" counts only Relics still in the game (builder default).
+
+**Design rules** (from the judged list)
+- One trigger, one payoff. Most Relics hook to parry, dodge, jump or counter, so defence stays the
+  star. Facts: every parry and every jump that lands is perfect, a dodge is never perfect, and only
+  skill presses have good and perfect, so defence Relics trigger on "parry", "dodge", "jump",
+  "counter" or "dodge a whole attack", never on "perfect dodge" or "good parry".
+- Every "+X%" or "-X%" on a Relic multiplies the final number (`CombatMath.percent(x, 100 + amount)`).
+  Today's EXPOSED, COUNTER, STAGGER_DAMAGE, CRIT_DAMAGE and PERFECT_PRESS add percent points; they
+  become multipliers.
+- Shared limits in `tuning.tres`: hits on a hero at most x1.6 (the "tough floor" for Relics that make
+  hits hurt more), all damage cuts on one hit together at most 75%, Relic AP at most 3 per enemy
+  attack, a cap on Grudge Stone's stacks, bounds for Sexton's Hourglass and Keen Eye's windows.
+- A rot-touched price costs every hero who holds it something and never cancels its own gain.
+  Rot-touched Relics are rare or legendary. Relic+ is a step you feel: about 1.5x to 2x the number,
+  or one rider; on a rot-touched Relic with a big gain, Relic+ shrinks the price instead.
+- Per-fight Relic state (was hit, Grudge stacks, crit ready, skills used, first hit done, once-a-fight
+  uses) lives on `Combatant`, in snapshot / restore and the mirror's resume, so online and Save &
+  Quit stay exact. Forced crits still roll the RNG (the same rolls on every machine).
+- Spoils: in act 1 one of the three spoils cards may be common, and the crowned elite offers rare or
+  better; from act 2 on the crowned elite lists a legendary (8.24).
+- Every number is a first guess in the Relic's file (`amount`, the "+" amounts) or `tuning.tres`.
+
+**The Relics** (63: 37 common, 20 rare, 6 legendary; 12 rot-touched; 25 attack, 16 defence, 22
+support; 17 new, 34 changed, 12 kept). "Changed" may keep the name and id with a new effect.
+
+| Relic | id | Status | Rarity | Kind | Effect | Relic+ | Icon |
+|---|---|---|---|---|---|---|---|
+| Bellringer's Rope | `bellringers_rope` | new | legendary | support | Counter: your turn comes next. | You're also Empowered. | a frayed bell rope |
+| Coffin Lid | `coffin_lid` | new | common | defence | Start every fight Guarded. | Guarded for 2 turns. | a small wooden coffin lid |
+| Crow Feather | `crow_feather` | new | common | support | Jump: +1 AP. | +2 AP. | a black crow feather |
+| Grave Tag | `grave_tag` | new | common | attack | Your first hit each fight Exposes the foe. | It also makes the foe Bleed. | a toe tag on a string |
+| Gravedigger's Spade | `gravediggers_spade` | new | legendary | attack | Every third damaging skill deals double. | Deals x2.5. | a grave-dirt spade |
+| Grudge Stone | `grudge_stone` | new | rare | attack | Each counter: +10% damage this fight. | +15% each. | a stone scratched with tally marks |
+| Headsman's Hood | `headsmans_hood` | new | legendary | attack | Your counters always crit. | Counter crits deal +50% more. | a black headsman's hood |
+| Hound's Tooth | `hounds_tooth` | new | common | attack | Follow-ups hit +50%. | +80%. | a hound's tooth on a cord |
+| Hunter's Horn | `hunters_horn` | new | common | attack | First Strike won: foes start Exposed. | Foes also start Slowed. | a curved hunting horn |
+| Kindling Bundle | `kindling_bundle` | new | common | support | End your turn with AP left: next hero +1 AP. | +2 AP. | a bundle of kindling twigs |
+| Kingsbane Nail | `kingsbane_nail` | new | rare | attack | Elite and boss fights: +30% damage. | +50%. | a long rusted coffin nail |
+| Knotted Lash | `knotted_lash` | new | common | attack | Each skill hit: +10% more than the last. | +20% more than the last. | a knotted leather lash |
+| Lone Lantern | `lone_lantern` | new | rare | attack | Last hero standing: +60% damage. | +100%. | a lantern with one small flame |
+| Martyr's Ash | `martyrs_ash` | new | common | support | You fall: each ally gets +2 AP. | +3 AP. | a small urn of ash |
+| Moth Wing | `moth_wing` | new | rare | attack | Dodge a whole attack: your next skill crits. | Jump a whole attack too. | a dusty grey moth wing |
+| Sexton's Hourglass | `sextons_hourglass` | new | common | defence | Your parry, dodge and jump windows are wider. | Wider still. | a cracked hourglass of grave dust |
+| Widow's Thimble | `widows_thimble` | new | common | defence | Once a fight: the first hit that lands does nothing. | Twice a fight. | a bone thimble |
+| Ash Veil | `ash_veil` | change | rare (rot) | support | Your dodges can counter. Parries give no AP. | Dodges also give +1 AP. | a torn grey veil |
+| Bitter Root | `bitter_root` | change | common | attack | Bleeding foes take +30% from you. | +50%. | a twisted black root |
+| Black Ichor | `black_ichor` | change | rare (rot) | attack | +35% damage. Hits on you +35%. | Hits on you only +15%. | a dripping vial of black ichor |
+| Bloodletter's Fang | `bloodletters_fang` | change | rare (rot) | attack | Crit chance +30%. Lose 2% HP each turn. | Crit chance +45%. | a curved fang dripping blood |
+| Bone Whistle | `bone_whistle` | change | rare | attack | Counter: the foe becomes Exposed. | Counters also +30% damage. | a small bone whistle |
+| Bramble Coat | `bramble_coat` | change | common | attack | Parry: the attacker takes 30% back. | 50% back. | a coat of thorny brambles |
+| Brimming Cup | `brimming_cup` | change | common | attack | Not hit yet this fight: +30% damage. | +50%. | a cup filled to the brim |
+| Butcher's Edge | `butchers_edge` | change | rare | attack | Crits deal +60% damage. | Crits deal +100% damage. | a butcher's cleaver |
+| Crown of Thorns | `crown_of_thorns` | change | legendary (rot) | defence | Take 40% less damage. Heals on you -50%. | Heals on you only -25%. | a crown of black thorns |
+| Ember Stone | `ember_stone` | change | common | attack | Your crits make foes Bleed. | Bleed lasts 2 turns more. | a glowing ember stone |
+| Gravebloom | `gravebloom` | change | common | support | An ally falls: you heal 20% HP. | You also get +2 AP. | a pale flower on a grave mound |
+| Gravebound Ring | `gravebound_ring` | change | rare (rot) | attack | Counters +100% damage. Hits on you +20%. | Counters +150% damage. | an iron ring around a finger bone |
+| Hollow Drum | `hollow_drum` | change | rare | support | Team ultimate: whole party +2 AP. | +3 AP. | a hollow skin drum |
+| Hollow Mantle | `hollow_mantle` | change | rare (rot) | defence | Each hit on you: pay 1 AP to halve it. | Cut it by 60%. | an empty hooded cloak |
+| Hunger Charm | `hunger_charm` | change | rare (rot) | defence | Any foe falls: heal 6%. Lose 2% HP each turn. | Heal 10%. | a jawbone amulet |
+| Keen Eye | `keen_eye` | change | common | support | Perfect presses are easier to hit. | Even easier. | a glass eye |
+| Last Ember | `last_ember` | change | common | attack | Under 30% HP: +50% damage. | +80%. | a dying coal held in tongs |
+| Leech Hook (was Rebound Charm) | `echo_charm` | change | common | defence | Counter: heal 5% HP. | Heal 8% HP. | a hook with a fat leech |
+| Marrow Charm | `marrow_charm` | change | common | support | You get healed: your lowest ally heals half that. | They heal the same amount. | a split marrow bone |
+| Oathbreaker's Band | `oathbreakers_band` | change | legendary (rot) | support | Start fights with full AP. Hits on you +30%. | Hits on you only +15%. | a snapped silver ring |
+| Pale Tithe | `pale_tithe` | change | rare (rot) | attack | Perfect presses +50%. Other presses -30%. | Perfect presses +75%. | a bleached offering bowl |
+| Pilgrim's Staff (was War Drum) | `war_drum` | change | rare | support | Start fights with +1 AP, more each act. | +1 AP more. | a pilgrim's walking staff |
+| Plague Lancet (was Plague Bell) | `plague_bell` | change | common | attack | Parry: the attacker Bleeds. | Dodges too. | a rusty lancet |
+| Quick Boots | `quick_boots` | change | common | support | Dodge: your next turn comes sooner. | Much sooner. | a pair of worn boots |
+| Rain Pouch | `rain_pouch` | change | common | defence | Any campfire pick also heals 25%. | Heals 40%. | a rain-soaked leather pouch |
+| Reaper's Coin | `reapers_coin` | change | rare | support | Down or Stagger a foe: +2 AP. | +3 AP. | a coin stamped with a skull |
+| Riposte Ring | `riposte_ring` | change | common | support | Counter: +10 team gauge. | +20 team gauge. | a ring with crossed blades |
+| Rotten Crown | `rotten_crown` | change | legendary (rot) | support | Skills cost 1 less AP. Lose 3% HP each turn. | Lose only 1% HP each turn. | a rotting crown |
+| Shriving Bell (was Cleansing Bell) | `cleansing_bell` | change | common | defence | Parry: lift one of your marks. | Lift two marks. | a small brass hand bell |
+| Sour Milk | `sour_milk` | change | rare (rot) | support | Take the first turn of every fight. Heals on you -30%. | Heals on you only -10%. | a jug of curdled milk |
+| Tallow Candle | `tallow_candle` | change | common | defence | Fall under half HP: Regen 3 turns (once a fight). | Regen 5 turns. | a stub of tallow candle |
+| Thick Hide | `thick_hide` | change | common | defence | First hit of each enemy attack: -40%. | -60%. | a stitched patch of thick hide |
+| Thorned Gauntlet | `thorned_gauntlet` | change | common | support | Hit by an attack: +1 AP. | Also heal 3% HP. | a spiked iron gauntlet |
+| Whetstone | `whetstone` | change | common | support | Basic attack: +1 more AP. | +2 more AP. | a grey whetstone |
+| Breaker's Maul | `breakers_maul` | keep | common | attack | Staggered foes take +40% from you. | +70%. | a cracked stone maul |
+| Chain of Silence | `chain_of_silence` | keep | rare (rot) | support | Team gauge you fill +50%. Start 1 AP down. | Team gauge +80%. | a rusty chain with a padlock |
+| First Light | `first_light` | keep | common | attack | Start fights Empowered. | Empowered for 2 skills. | a candle lit at dawn |
+| Fox Step | `fox_step` | keep | common | support | Dodge: +1 AP. | +2 AP per dodge. | a fox paw |
+| Heartleaf | `heartleaf` | keep | common | defence | Heals on you +30%. | +50%. | a heart-shaped leaf |
+| Leaping Heart | `leaping_heart` | keep | common | defence | Jump: heal 5% HP. | Heal 8% HP. | a heart with small wings |
+| Mender's Charm | `menders_charm` | keep | common | support | Items you use work +50%. | +100%. | a needle and thread |
+| Mossbed | `mossbed` | keep | common | defence | Start fights with Regen, 2 turns. | 3 turns. | a mossy stone |
+| Rot Hunter | `rot_hunter` | keep | common | attack | Exposed foes take +50% from you. | +80%. | a rot-stained arrowhead |
+| Second Wind | `second_wind` | keep | rare | defence | Once a fight: fall, rise at 30% HP. | Rise at 60% HP. | a small leather bellows |
+| Still Water | `still_water` | keep | common | defence | Parry: heal 4% HP. | Heal 7% HP. | a stone bowl of still water |
+| Wake Root | `wake_root` | keep | rare | support | Parry: +1 AP. | Counters also give +1 AP. | a sprouting root knot |
+**The AP check and its fix (#338, 2026-10-27).** The owner: "sometimes I feel like I have infinite
+AP". Measured from the data and in headless bot runs (avg 75 and 85, perfect): a hero has one action
+a turn and the best starting skill costs 2 AP, while four of the nine starting skills end up free
+(Feint Step gives AP; Taunt and Reveal refund on a perfect press; Pass the Torch moves AP). Fast
+swarms pay a parrier far more AP than slow foes (Rat Pack about 7.8 AP per hero turn, a toad 0.1,
+the average fight about 2.3). The cap of 9 is not the cause (0.75 AP lost per fight in act 1, none
+later). Weaker players are not rich (the 75% bot starts turns on about 2 AP). The owner keeps
+parry +1 and basic attack +1. **Fix:** each hero knows one 3-AP skill from the start of a run:
+**Alder Payback, Brin Rend, Cass Radiance** (each leaves its branch; that branch is one skill shorter;
+Light's Revive moves up to the 2-point place). They count toward the skills brought and are brought
+at the start; `skill_slots` goes from 5 to 6, so two places stay free for learned skills as before
+(owner, 2026-10-28). Parry AP per enemy attack instead of per hit (for the swarms) is kept for later, only
+if swarm fights still feel endless after a playtest; the Relic list fits either way.
+
+*As built (the AP fix, card #338).* The start skill is `SkillTreeData.start_skills` (a list, one
+skill per hero today), not a branch, so no branch holds it (`place_of` finds nothing) and
+`has_skill` / `find` / `is_start_skill` cover it. `starters()` and `all_skills()` include it, so
+`RunState.begin` knows and brings it, fights outside a run still have every skill, and the bot uses
+it like any other brought skill (`Autoplay._pick_ability` takes the usable skills in turn). Its
+`skill_cost` is 0. It can be left behind and brought again like any known skill. `skill_slots` is 6
+in `tuning.tres`. `RunState._grant_start_skills` (called by `apply_dict`) adds it as known, and
+brings it while there is room, to a loaded run that lacks it; a hero who had learned it in its old
+branch keeps it once and gets those points back. Since stage 2 bumped `RunSave.FORMAT_VERSION` to 8
+and `Net.PROTOCOL` to 10 (below), a run saved before this phase is not offered, so this only guards
+an odd format 8 run without the skill. The Skills tab adds a fourth column, "Signature" (`start_name`), after
+the branches, with no lines; its socket points at its tile. Tests: `test_skill_trees.gd` (start
+skills), `test_skills_tab.gd` (the column), `test_new_skills.gd` (branches two to four long).
+
+*Icons as built.* `tools/art_kit/assets/relic_icons.py` draws the 63 pictures (`python
+tools/art_kit/build.py relic_icons`, about 2 s, deterministic) into `assets/sprites/relics/<id>.png`:
+24x24, clear background, hard alpha, the kit's palette and ink outline, lit from the upper left.
+A picture shows about 1:1 on a 46 to 52 px icon (the Relic book's list, the starting Relics), about
+2x on the 92 to 118 px ones and about 3.5x on the book's big page; on a 26 px icon it is about 12 px,
+so every object is a chunky silhouette with parts at least 2 px thick. The picture's square sits high
+in the spearhead, whose top is narrow, so each picture keeps inside its frame's safe area
+(`kit/relic_frame.py` `safe_mask`, a copy of `RelicIcon`'s frame shapes, sign spots and its 1.05
+radius picture square). `check.py` enforces that, the size, a clear 1-pixel border, and a picture for
+every Relic in `data/gear/` but the four cut ones. `relic_icon.gd` is unchanged. Previews in
+`tools/art_kit/preview/relic_icons/`: `contact.png`, and `in_frames_*.png` (each picture in its frame,
+rarity edge and rot drip, at 26 to 168 px). Moth Wing is drawn as a whole moth with its wings spread
+(one wing alone read as a leaf or a face).
+
+*As built (stage 2: the Relic data and the Relic+ foundation).*
+- **Data.** The 63 files in `data/gear/` follow the table: name, rarity, `rot_touched`, the effect
+  line as `description`, the "+" line as `plus_text`, `icon_path`, and `price` by rarity (common 60,
+  rare 100, legendary 150). `iron_charm`, `lucky_coin`, `victors_wreath` and `wardstone` are deleted,
+  and gone from `rotten_road.tres`, the monsters' drop lists, the tools and the tests. The 17 new
+  Relics are on no drop list.
+- **No stat lines.** `GearData.stat`, `stat_points`, `stat_text()` and `RunState.relic_stat` are gone.
+  `attribute_total` is the spent points only. The Relic chip and violet pips left the Y screen.
+  `attr_points_per_level` is 4.
+- **Relic+ on the piece.** `GearData` has `plus_text`, `amount_plus` and `drawback_amount_plus` (0
+  means unchanged), and an optional rider: `plus_rider` with `plus_rider_amount` (0 means none).
+  `contribution(effect, upgraded)` adds the "+" numbers and the rider; `effect_line(true)` shows them.
+  A Relic+ can lower a price but never remove it.
+- **Relic+ in the run.** `RunState.relics_plus` (id -> 1) holds the upgraded Relics. It is saved and
+  sent online (`to_dict` key `relics_plus`; `apply_dict` refuses an id the run lacks or a value that
+  is not an int). `RunSave.FORMAT_VERSION` 8 and `Net.PROTOCOL` 10. `can_upgrade(item)`: the run has
+  it, a hero holds it, it has a "+", it is not "+" yet. `upgradable(heroes)` lists them;
+  `upgrade_relic(id)` does it. Taking a starting Relic back drops its "+". `gear_amount` and
+  `passives` read the "+" numbers.
+- **The upgrade op.** `RestScreen.upgrade_now(id, device)`: the fire's one choice, only for a Relic
+  of a hero the player may give to (`RelicGift.allowed`). A friend's request is `{do: "upgrade",
+  relic: id}`, checked by the host in `Main._make_rest_choice`. The Upgrade card itself is stage 5.
+- **Effects.** `GearData.Effect` gained 50 values (append only; `COUNTER_TURN` to `BASIC_AP`), each
+  with a category, a text of five words or fewer and, for the 47 that run in a fight, a `Passive`
+  key. `ELITE_POWER`, `CAMPFIRE_HEAL` and `ACT_START_AP` are run effects with no key. `HEAL_TAKEN`
+  is defence now.
+- **Multipliers.** `EXPOSED`, `COUNTER`, `STAGGER_DAMAGE`, `CRIT_DAMAGE`, `PERFECT_PRESS` and the
+  run's `POWER` multiply (`CombatMath.percent(x, 100 + amount)`).
+- **Shared limits** in `tuning.tres`: `relic_hit_taken_max_percent` 160 (the tough floor, in the
+  fight and in `RunState.defense_percent`), `relic_damage_cut_max_percent` 75 (guard and tough
+  together), `relic_ap_per_attack_max` 3 (Dodge and Parry AP from Relics; worked out again from the
+  attack's resolved prompts, so no new state), `grudge_stack_max` 10,
+  `relic_defend_window_max_percent` 50 and `relic_perfect_window_max_percent` 80 (stages 3 and 4).
+- **Old effects changed to fit the table.** Thorns answer a parry (Bramble Coat). Kill heal fires
+  for every holder when any foe falls (Hunger Charm). Kill AP also comes from a Stagger (Reaper's
+  Coin). First Light's Empowered counts skills (`turns`), so First Light+ gives two. Pilgrim's
+  Staff's start AP is its amount times the act number (its "+" is a START_AP rider of 1, stage 4). Kingsbane Nail multiplies power in elite,
+  guard and boss fights.
+- **Spoils.** `run_spoils_open_cards` (1) of the spoils cards may be any rarity in the first
+  `run_spoils_open_acts` (1) acts, never at the crowned elite (`RunState.spoils_open_cards`). The
+  crowned elite lists a legendary first from act `crown_legendary_from_act` (2); before that all its
+  cards are rare or better.
+- **The Relic book** keeps cut ids in the file. `RelicCollection.found_count_of(gear)` and the book's
+  "Found N of M" count only Relics the game has.
+- **Waiting for stages 3 and 4:** the engine side of the 47 new passive keys (stage 3 did the
+  defence ones, stage 4 the rest, both below), Rain Pouch's campfire heal (stage 4), and the Upgrade
+  card and its bot (stage 5, below).
+- Tests: `test_relic_plus.gd` (the table, Relic+, the save, the upgrade op, the limits, the spoils,
+  the book), plus updated `test_relics.gd`, `test_more_relics.gd`, `test_rot_gear.gd` and
+  `test_part_b.gd`. `combat_fixtures.gd` has `with_max_hp_relics` for max HP rules, since no
+  shipped Relic touches max HP now.
+
+*As built (stage 3: the defence Relics in the fight).* The Relics that answer a parry, a dodge, a
+jump, a counter or a hit taken, and the window Relics, run in `CombatEngine`. Numbers come from each
+Relic's file ("+" numbers and riders through `GearData.contribution`) and the shared limits in
+`tuning.tres`.
+- **Per-fight state** on `Combatant`, in `to_dict` / `from_dict` (so in `snapshot` / `restore` and
+  a rejoin's resume): `was_hit` (Brimming Cup), `grudge_stacks` (Grudge Stone), `crit_ready` (Moth
+  Wing), `first_hit_done` (Grave Tag) and `null_hits_used` (Widow's Thimble). Old dictionaries load
+  them as 0 or false.
+- **Declared on the prompt** (`_add_defend_relics`, only for a hero who holds the Relic, so other
+  fights' events stay the same): Ash Veil adds DODGE to a normal hit's `perfect` (sweeps and rends
+  stay as they were, #187); Hollow Mantle's `guard_damage` (the hit with its cut, the same variance
+  roll); Widow's Thimble's `null_left`. Thick Hide cuts the first prompt of each attack aimed at the
+  hero. Cuts go through `_hit_amount`, inside the 75% cap with Guard and Tough.
+- **Windows** (`_windows_for`, then Shocked): Sexton's Hourglass widens the holder's parry, dodge and
+  jump windows (at most `relic_defend_window_max_percent`); Keen Eye moves the perfect press window's
+  edges part of the way toward the good one's (at most `relic_perfect_window_max_percent`), for skill
+  presses and follow-ups. The judges only read the declared windows, so every machine agrees.
+- **Parry, dodge, jump.** Bramble Coat, Still Water, Shriving Bell, Leaping Heart, Wake Root and
+  Fox Step were already in place. Crow Feather pays jumps (`_relic_defence_ap`). Plague Lancet makes
+  the attacker Bleed on a parry (its "+" on a dodge too), the hero as the source. Quick Boots moves
+  the hero's next turn a share of a whole turn sooner, on the first dodge of each attack. Ash Veil's
+  dodge only counts toward the counter: the defence streak and Payback still count parries and jumps.
+- **Hits taken** (the NONE branch): Widow's Thimble's hit does nothing (no damage, no mark, no drain,
+  not "hit"; the event says `nulled`), but it still ends the defence streak. Then Hollow Mantle pays
+  `relic_ap_guard_cost` AP (1, in `tuning.tres`; the prompt says it as `guard_cost`), if the hero has
+  it, for `guard_damage`. A hit that did something sets `was_hit`. Thorned
+  Gauntlet pays AP (and its "+" heals) on the first such hit of each attack. Its AP counts toward
+  `relic_ap_per_attack_max` with parry, dodge and jump AP (`_relic_ap_this_attack`, worked out again
+  from the attack's prompts; nulled ones are in `sequence.nulled`).
+- **Counters** (`_after_counter`, for each counterer, solo or in a team counter): Wake Root+ AP, Leech
+  Hook's heal, Riposte Ring's gauge (through `_gauge_gain`), a Grudge Stone stack (capped by
+  `grudge_stack_max`), Bone Whistle's Exposed on the foe, Bellringer's Rope's turn next (the
+  counterer's next turn moves to now; party members win ties) and its "+" Empowered. Headsman's Hood
+  makes `_counter_crits` true after the roll is made; its "+" multiplies the crit
+  (`_counter_crit_damage`). A share of a team counter now crits through `_crit_damage` too, so
+  Butcher's Edge counts there.
+- **Power** (`_power_of`): Brimming Cup until `was_hit`; Grudge Stone's amount per stack.
+- **Moth Wing** (`_ready_crits`, when an enemy attack ends): every prompt of the hero resolved as a
+  dodge (its "+": or a jump) sets `crit_ready`; the hero's next damaging skill crits on every press
+  (the roll is still made), then it clears. It is not shown in the fight yet.
+- **Grave Tag** (`_first_hit`): the holder's first hit of the fight (skill, follow-up or counter) on
+  a foe that is still standing Exposes it, and its "+" makes it Bleed. A hit that downs the foe does
+  not use it up.
+- **Pale Tithe**: perfect presses multiply (stage 2); good and missed presses of a skill lose
+  `OTHER_PRESS` (`_other_press_percent`). Follow-ups and skills with no press are not changed.
+- **Kingsbane Nail** stays a run effect (`RunState.fight_setup`).
+- **The hit's number** (`TimedSequenceRunner._shown_damage`): before the engine's result comes back,
+  a landing hit shows 0 while the Thimble has hits left, and the cut hit while the hero has AP for
+  the Mantle.
+- Tests: `test_relics_p27_defence.gd` (each Relic as shipped and as Relic+, the team counter, the
+  snapshot, determinism).
+
+*As built (stage 4: the other Relics).* Damage, turns, the fight's start, heals, falls, kills and
+the run. Numbers come from each Relic's file and `tuning.tres` (`relic_low_hp_regen_percent` 50,
+`relic_third_skill_every` 3).
+- **Per-fight state** on `Combatant` (in `to_dict` / `from_dict`; old dictionaries load 0 or false):
+  `skills_used` (Gravedigger's Spade) and `low_regen_used` (Tallow Candle).
+- **Damage.** Bitter Root multiplies all damage its holder deals a Bleeding foe, Bleed ticks too
+  (`_deal_damage`). Ember Stone: a crit that leaves the foe standing makes it Bleed, the holder as
+  the source. Knotted Lash and Gravedigger's Spade multiply the move percent at declare time
+  (`_skill_boost`). Hit n of a skill (from 0) gets +amount x n percent (x1.1, x1.2 ...). The Spade
+  boosts every third damaging action on foes of its holder, the basic attack and the team ultimate
+  included (as Empowered and Moth Wing count them), and only the holder's own presses. Hound's Tooth
+  multiplies the holder's follow-ups at declare time. Lone Lantern (`_power_of`): the only hero
+  standing while another has fallen (a party of one never is).
+- **AP and costs.** Rotten Crown: `CombatEngine.skill_cost` (static) cuts a skill's AP cost, never
+  below 0. `can_afford`, `can_use` and `_cmd_use_ability` use it. The fight menu shows it
+  (`CombatController._priced`: a copy of the skill with the cut cost and the same id, from the
+  mirror's passives). Whetstone adds to the basic attack's AP (`is_basic_attack`). Kindling Bundle: a
+  standing holder who ends any turn with AP left gives the hero whose turn comes next (not
+  themselves) AP (`_pass_spare_ap`, in `_end_of_turn`). Hollow Drum: when the team ultimate is used,
+  every standing hero gets AP (`_ultimate_ap`). Oathbreaker's Band sets start AP to `max_ap`. The AP
+  of Martyr's Ash, Gravebloom+ and Hollow Drum is outside `relic_ap_per_attack_max` (that cap is for
+  the defence AP of one enemy attack).
+- **The fight's start.** Coffin Lid: Guarded for `amount` of the holder's turns, counted from the
+  foes' first turn (`Combatant.opening_guard`, see the review fixes below). Guarded with
+  `turns` above 1 now loses one at each of the holder's turn starts instead of ending; skills give 0
+  or 1, so they work as before. Sour Milk (`_first_turns`): the holder's first turn is one tick before
+  the soonest fighter's, set before First Strike; only that turn moves. Hunter's Horn
+  (`_first_strike_relics`): a First Strike from the setup or from the ring Exposes every foe and,
+  with its "+", Slows them.
+- **Heals and falls.** Marrow Charm (`_share_heal`): a heal that lands on the holder sends amount% of
+  it to the standing ally with the smallest share of HP who is not full (ties: the lower id). A share
+  is never shared again. Mender's Charm multiplies the user's item percent (heal, cleanse heal,
+  revive at most 100%, bomb). Gravebloom and Martyr's Ash fire in `_on_downed` (`_ally_fell`) when a
+  hero falls, not when one runs. Tallow Candle (`_low_hp_regen`): once a fight, a hit or any damage
+  that leaves the holder standing under half HP gives Regen.
+- **The run.** Rain Pouch: `RunState.campfire_heal()` heals each holder `CAMPFIRE_HEAL` percent of
+  max HP (as a heal, so heals received count). `RestScreen._act` calls it after every pick (Rest,
+  Train, Keep watch, Upgrade) and adds "Rain Pouch: Alder +25" to the result line. Pilgrim's
+  Staff+ is now a START_AP rider of 1 (one AP more, as its "+" line says) instead of 2 per act.
+- **Already in place** (stage 2, now tested as shipped and as "+"): Black Ichor, Bloodletter's Fang,
+  Breaker's Maul, Butcher's Edge, Chain of Silence, Crown of Thorns, First Light, Heartleaf, Hunger
+  Charm, Last Ember, Mossbed, Reaper's Coin (a kill and a Doom break), Rot Hunter and Second Wind.
+- `RunSave.FORMAT_VERSION` and `Net.PROTOCOL` stay (stage 2 bumped them; the new `Combatant` keys are
+  optional).
+- Tests: `test_relics_p27_more.gd`: each of these Relics as shipped and as Relic+, the new state in
+  `to_dict`, determinism and restore, and a check over every file in `data/gear/`: it has a "+", the
+  "+" changes a number and its line, and each of its effects (effect, rider, price) is read by
+  `CombatEngine` (its `Passive` key) or `RunState` (its `GearData.Effect`).
+
+*As built (stage 5: the campfire's Upgrade, what the player sees, the bots).*
+- **The cards** (`RestScreen`): Rest, Train, Upgrade; before the boss Rest, Keep watch, Upgrade.
+  Upgrade is a hammer over an anvil (`choice_forge.png`, `StopVisuals.upgrade_icon_path`, drawn by
+  `ui_choices.py`) with a "Relic+" chip. It is dim when no Relic of the chooser's heroes can be
+  upgraded (`upgradable_for`: `RunState.upgradable` of `RelicGift.allowed`); a dim card opens nothing.
+- **The pick** (`open_upgrade`): "Which Relic?" over one card per Relic that can be, in the run's
+  order (not one still waiting for a hero). A card is the Relic's big icon, its name in its rarity's
+  colour, a chip for the hero who holds it, its effect and price chips, then gold "up" chips for what
+  its "+" changes (`LootScreen.plus_chips`, from `GearData.plus_texts`). Under the cards: the chosen
+  Relic's line and its Relic+ line. Three cards share the row; more slide in as the cursor moves
+  (`ListMenu.window_rows` now works for side-by-side cards too). Footer: Choose, Upgrade, Back. Back
+  steps back to the three cards with the cursor on Upgrade (`close_upgrade`). Confirm upgrades it
+  (`upgrade_now`), says "Hound's Tooth is now Hound's Tooth+." (plus Rain Pouch's heal) and prints
+  `Run upgrade: ID for HERO`.
+- **Co-op.** Local: the pad that pressed Upgrade picks among its own heroes' Relics; none: the
+  locked sound. Online: a friend's pick is `{do: "upgrade", relic: id}`; the host checks it again
+  (`Main._make_rest_choice`: the Relic can be upgraded and is held by a hero of the player whose
+  turn it is). A turn change closes an open pick.
+- **Sharpen is gone**: its card, `sharpen_now`, `RunState.sharpened`, `tuning.sharpen_ap`, the
+  map's "+1 AP" chip and `choice_sharpen.png`. An older save with `sharpened` loads and drops it.
+  The map's campfire chips are Heal, Train (or Gauge full) and Relic+.
+- **Showing a Relic+.** `GearData.shown_name(true)` is "Name+", `plus_line()` "Relic+: ..." and
+  `text_line(true)` the Relic's line then its Relic+ line (the "+" text only says what changes).
+  `RelicIcon` draws a gold "+" badge in the bottom right corner (`set_plus`, or `plus` on `make` and
+  `draw_relic`). The Y screen's Relics tab (hero rows, grid, strip) uses all three. The Relic book
+  shows every Relic's line and its Relic+ line, and the gold chips. Spoils, the rotten chest, the
+  shop and the starting Relics only offer Relics the run lacks, so none is ever "+" there; their
+  stat chips were already gone (stage 2). The run end's Kept row stays plain: the book keeps the
+  Relic, not its "+".
+- **Glossary**: "Relic+" (gear) and "Upgrade" (shops and camps); the Campfire stop's text names
+  Upgrade instead of Sharpen. The tutorial's Relics card never named stats, so it stays.
+- **The bots** (`GearBot`). Every piece starts at `BASE_SCORE` 10 plus its rarity step; a parry or
+  counter hook scores 5 more, a dodge-only one 8 less (the perfect bot parries every normal hit).
+  Ash Veil is refused now (its price is the parry's AP). `fit_of`: Rotten Crown goes to the hero whose
+  skills cost most, Lone Lantern and Gravebloom to the toughest, Martyr's Ash to the frailest, the
+  rest by category as before. At a campfire the bot rests when someone is hurt, else upgrades the
+  Relic whose "+" helps most (`upgrade_pick`: `upgrade_gain` is the percent its number grows, 60 for a
+  rider it can use (none for a dodge rider), the percent its price shrinks, plus its worth and rarity
+  step; the first of equal ones), else trains (before the boss: keeps watch). `AUTOPLAY_RESULT run_...`
+  ends with `upgraded=N` (Relics made Relic+).
+- **Dev screen**: `--screen=campfire` now has five Relics given (Coffin Lid already "+"), so Upgrade
+  is lit; `--screen=campfire_upgrade` opens the pick.
+- `RunSave.FORMAT_VERSION` and `Net.PROTOCOL` stay: no new run key (stage 2 bumped both).
+- Tests: `test_campfire_upgrade.gd` (the cards, the pick and its Back, three at a time, Rain Pouch,
+  local co-op, the host's check, a friend's ask, the bot's pick and fit, Name+ and the badge, the Y
+  screen, the book, the map chip and the Glossary), plus updated `test_choice_cards.gd`,
+  `test_run_stops.gd`, `test_roguelite.gd`, `test_run_info_clean.gd` and `test_rot_gear.gd`.
+
+*As built (review fixes, 2026-10-28).*
+- **Coffin Lid meets the first enemy attack.** A First Strike (or a holder faster than every foe)
+  gave each hero a turn first, and that turn's start took the Guard away unused. Now the fight-start
+  Guard does not count down at the holder's turn starts until a foe's turn has started
+  (`Combatant.opening_guard`, cleared for the whole party in `_start_of_turn` of any foe). Coffin Lid
+  is Guarded through the first enemy round; Coffin Lid+ through one more of the holder's turns.
+- **A Bleed given in the foe's own turn ticks every turn.** Plague Lancet (parry, "+" dodge), and
+  Ember Stone or Grave Tag+ on a counter, give Bleed while the foe takes its turn, and that turn's end
+  counted it down at once ("2 turns" was one tick). Now a Bleed given to the fighter whose turn it is
+  sets `Combatant.fresh_bleed`, and that turn's end skips the Bleed's count-down. "N turns" is N
+  ticks. Other statuses are unchanged.
+- Both flags are per-fight state in `Combatant.to_dict` / `from_dict` (old dictionaries load false).
+  Status entries stay `{turns, source}`, so the mirror's projection still matches the engine's.
+- **Price chips.** When Relic+ only lowers a price, its chip said the new price in a gold "up" chip,
+  which read as a new cost. `GearData.plus_price_text()` is "Price now: Enemy hits +15%", and
+  `LootScreen.plus_chips` draws it with the price's skull in its colour.
+- **Chip texts** follow the rules: Bramble Coat "Parries: attacker takes 30% back", Hunger Charm
+  "Any foe falls: heal 6%", Reaper's Coin "Down or Stagger: +2 AP".
+- **Hollow Mantle's price** is `tuning.relic_ap_guard_cost` (1): the engine, the hit's number
+  (`TimedSequenceRunner._shown_damage`, from the prompt's `guard_cost`) and its chip
+  (`GearData._ap_guard_cost`, from the shipped tuning) read it.
+- **The Upgrade pick's count.** With more Relics than its three cards, the question reads "Which
+  Relic?  (2 of 7)" (`RestScreen.pick_ask`), so the player knows more wait to the sides.
+- **Relic+ names under the icons.** The Y screen's hero rows cut a long Relic+ name before its "+"
+  ("Gravedigger's Sp...+", `RelicsTab.fit_name`), so the "+" always shows.
+- **The Skills tab shows the fight's price.** Its AP chip and pips use `CombatEngine.skill_cost` with
+  the hero's Relics (`SkillsTab.ap_cost_of`, `SkillTile.ap_cost`), so Rotten Crown's cut shows there
+  as in the fight menu.
+- No new run key: `RunSave.FORMAT_VERSION` and `Net.PROTOCOL` stay (stage 2 bumped both).
+- Tests: `test_relics_p27_more.gd` (Coffin Lid after a First Strike), `test_relics_p27_defence.gd`
+  (bleed ticks for Plague Lancet, Grave Tag+ and Ember Stone on a counter), `test_campfire_upgrade.gd`
+  (the price chip, the count, the Relic+ name) and `test_skills_tab.gd` (Rotten Crown's price).
 
 ## 9. Multiplayer (phase 5)
 
@@ -6545,6 +6963,13 @@ mouse focus, which broke whatever the owner was playing at the time. `quiet_run.
     or levels, no Upgrade, curses on the party lifted only by Cleanse). Ideas parked: boss pools (#324), boss gimmicks (#325).
 27. **Relics** (planned 2026-10-25): go through every Relic under the new rules (8.24): what each
     gives and whether it is worth picking, give each its icon, then make new Relics (#329).
+    Owner picks 2026-10-27: Relics fit a 3-act run (Expedition 33's Pictos as a reference, not one
+    to one); each Relic can be upgraded **once** (Relic > Relic+, a stronger ability); Relics lose
+    their stat lines (a Relic is only its ability); each icon is a small pixel picture of the object
+    inside today's shape frame (5.4, 8.17 "The icons"); the campfire is pick 1 of 3: Rest, Train or
+    Upgrade a Relic (8.11). Every Relic works on any hero: none needs one hero's skill (Taunt,
+    Guard, Death Mark, heals, Revive, giving AP), since in co-op a player gives Relics only to
+    their own heroes (owner, 2026-10-27: "this would ruin versatility").
 28. **The upgrade shop** (planned 2026-10-25): a shop outside the run where a currency earned by every
     run buys upgrades for the whole party, so runs get easier and the Oaths winnable; talk through the
     upgrades and the currency (#330, 8.24). No pack upgrades among them (card #332: the pack stays
@@ -6835,3 +7260,6 @@ Open items the user raised after playing; pick them up at the start of the next 
 | 2026-10-25 | Menus inside a menu use LT and RT (card #336): every switch inside a screen is LT / RT, keyboard 1 / 3 (were T / K): the Relics tab's kind (was X / R), the Relic book's and Starting Relics' sort (were X / R), the Glossary's topics (left / right still work), with the Hero and Skills tabs' hero and the Controls page as before; LB / RB (Z / C) stay the main tabs; X / R is left for a screen's own extra button (Skip, reset, use) | owner playtest: one rule for switches; 1 / 3 sit under the left hand and clash with nothing |
 | 2026-10-26 | Back goes back a screen at the run's start (card #334 follow-up): Back on the Crossroads (before a deal) returns to the starting Relics with the picks as they were and the last one taken back (that hero chooses again, the cursor on their Relic); Back on the first hero of the starting Relics, or on the Crossroads when that step was skipped (an empty book, the Empty Hand), asks "Leave the run?" (No first; Yes is Abandon run, End the game online). The pact's deals are seeded, so going back rolls nothing; once a deal is taken Back does nothing. Pause opens the pause menu on the Crossroads offline too. Online only the host goes back or leaves; friends follow and keep their picks | owner playtest: "why can't I go back in here?" on the first hero and the Crossroads |
 | 2026-10-26 | Version 0.26.0 set before phase 26 is approved (owner: "change the version to 0.26.0 now and push it"), so friends' builds show the new number; phase 26 stays open until its playtest | owner, 2026-10-26 |
+| 2026-10-27 | Phase 27 starts (card #329): each Relic upgrades once (Relic > Relic+, its ability stronger); stat lines go (a Relic is only its ability); icons are pixel pictures of the object in the shape frame; the campfire is pick 1 of 3: Rest, Train, Upgrade a Relic | owner, 2026-10-27, all four builder recommendations; Expedition 33 Pictos as a reference, not one to one |
+| 2026-10-28 | Phase 27 build plan (8.25): the 63-Relic list approved; Upgrade a Relic at every campfire (before the boss it replaces Sharpen); stat lines go and `attr_points_per_level` 3 to 4; four flat Relics cut and hidden in the book; the AP fix: Alder Payback, Brin Rend and Cass Radiance known from a run's start (#338), and 6 skills brought instead of 5 (owner); parry AP per attack kept for later | owner: "these are great", picked fix 1 for AP; builder defaults: Sharpen out at the watch fire (start AP is rarely short), +1 attribute point per level, cut Relics hidden |
+| 2026-10-28 | Phase 27 approved after the playtest (owner: "looks good increment the version and push to main"): version 0.27.0, merged into main; cards #329, #333 and #338 done | owner, 2026-10-28 |

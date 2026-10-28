@@ -4,7 +4,6 @@
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_enemy"]
 [ext_resource type="Resource" path="res://data/clips/rot_priest.tres" id="3_clips"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="4_gear"]
-[ext_resource type="Resource" path="res://data/gear/victors_wreath.tres" id="10_fe4bm"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/priest_censer.tres" id="a_priest_censer"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/priest_hush.tres" id="a_priest_hush"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/priest_mend.tres" id="a_priest_mend"]
@@ -31,5 +30,5 @@ attacks = Array[ExtResource("1_attack")]([ExtResource("a_priest_censer"), ExtRes
 gold = 18
 xp = 36
 voice_sfx = "voice_shade"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_menders_charm"), ExtResource("g_heartleaf"), ExtResource("g_bitter_root"), ExtResource("10_fe4bm")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_menders_charm"), ExtResource("g_heartleaf"), ExtResource("g_bitter_root")])
 runs_up = true

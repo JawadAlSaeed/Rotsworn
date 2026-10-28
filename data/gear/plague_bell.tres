@@ -1,18 +1,16 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_qip7g"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_qip7g")
+script = ExtResource("1_gear")
 id = "plague_bell"
-display_name = "Plague Bell"
-description = "Hits on Exposed enemies deal +90% more, but your Power is 10% lower."
-price = 90
-rarity = 1
-effect = 9
-amount = 90
-rot_touched = true
-drawback = 1
-drawback_amount = 10
-stat = 4
-stat_points = 3
+display_name = "Plague Lancet"
+description = "Parry: the attacker Bleeds."
+price = 60
+effect = 72
+amount = 2
+plus_text = "Dodges too."
+plus_rider = 73
+plus_rider_amount = 2
+icon_path = "res://assets/sprites/relics/plague_bell.png"

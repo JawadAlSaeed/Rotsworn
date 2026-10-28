@@ -22,8 +22,7 @@ const STAT_WORDS: Array[String] = ["Health", "Power", "Speed", "Defense", "Crit"
 ## Each attribute's colour; the stat it raises shares it, so the eye links the two.
 const ATTR_COLORS: Array[Color] = [Color(0.95, 0.4, 0.38), Color(1.0, 0.6, 0.3), Color(0.55, 0.92, 0.5),
 		Color(0.5, 0.72, 1.0), Color(1.0, 0.85, 0.35)]
-## Pips for the points a Relic's stat line adds (not spent, not refundable).
-const RELIC_PIP_COLOR := Color(0.62, 0.5, 0.95)
+## The chosen row's plate.
 const CURSOR_BG := Color(0.3, 0.24, 0.1, 0.9)
 const XP_COLOR := HudStyle.AP_TEXT
 const FACE_BG := Color(0.0, 0.0, 0.0, 0.45)
@@ -187,9 +186,6 @@ func info() -> Dictionary:
 	var kind := _row
 	var chips: Array = [[STAT_GLYPHS[kind], stat_text(kind), HudStyle.TEXT],
 			[&"up", Attributes.per_point_text(kind, run.tuning), HudStyle.GOLD]]
-	var extra := run.relic_stat(hero, kind)
-	if extra != 0:
-		chips.append([&"gem", "%+d Relics" % extra, RELIC_PIP_COLOR])
 	var line := _warning if not _warning.is_empty() else "Raises %s. Resetting is free." % Attributes.STATS[kind]
 	return {"icon": ATTR_GLYPHS[kind], "title": Attributes.NAMES[kind], "color": ATTR_COLORS[kind],
 			"chips": chips, "line": line}
@@ -612,13 +608,12 @@ static func _plate(on: bool, height: float) -> StyleBoxFlat:
 			3 if on else 2, PLATE_PAD, height)
 
 
-## One pip per point: gold for the points spent, violet for a worn Relic's stat line; one hollow
-## pip when there are none, so the row keeps its shape.
+## One gold pip per point spent; one hollow pip when there are none, so the row keeps its shape.
 func _draw_pips(canvas: Control, kind: int) -> void:
 	if run == null:
 		return
 	var spent := run.attribute(hero, kind)
-	var count := mini(PIP_MAX, spent + maxi(0, run.relic_stat(hero, kind)))
+	var count := mini(PIP_MAX, spent)
 	var top := (canvas.size.y - PIP_HEIGHT) * 0.5
 	if count == 0:
 		var hollow := _pip(0, top)
@@ -626,7 +621,7 @@ func _draw_pips(canvas: Control, kind: int) -> void:
 		canvas.draw_polyline(hollow, HudStyle.EDGE_DIM, 1.5, true)
 		return
 	for i: int in count:
-		canvas.draw_colored_polygon(_pip(i, top), HudStyle.GOLD if i < spent else RELIC_PIP_COLOR)
+		canvas.draw_colored_polygon(_pip(i, top), HudStyle.GOLD)
 
 
 ## Pip `i`: a small slanted bar like the plates, a little gap after every PIP_GROUP.

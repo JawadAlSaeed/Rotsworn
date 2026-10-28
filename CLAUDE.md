@@ -90,7 +90,8 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   (map, Fight and Elite stops, shops, rests, events, final fight; DESIGN.md 8.22: there are no
   walkable zones; ends with `AUTOPLAY_RESULT run_victory` or
   `run_defeat`, whose `relics=` and `relics_held=` count the Relics the run has and those given to a
-  hero, DESIGN.md 8.24; about 10 to 20 minutes, so use `timeout 1500`; add `--oath=N` to play it at difficulty
+  hero, DESIGN.md 8.24, and `upgraded=` the Relics made Relic+ at campfires (each prints `Run upgrade:
+  ID for HERO`), 8.25; about 10 to 20 minutes, so use `timeout 1500`; add `--oath=N` to play it at difficulty
   oath N, DESIGN.md 8.15; a bot run starts with no Relics (its Relic book is empty, so it skips the
   starting pick), `--relics=all` fills its book with every Relic (each hero then takes the best one
   left, printed as `AUTOPLAY_START_RELICS alder=ID brin=ID cass=ID`, `-` for none, the same line on
@@ -141,7 +142,7 @@ un_tests.bat --no-pause`). It imports first (a fresh clone or a new `class_name`
   prints PASS or FAIL. DESIGN.md 10.
 - To see the game without a person: run it windowed (not headless) with `-- --shots=S` (a picture
   every S seconds in `%APPDATA%/Godot/app_userdata/Rotsworn/shots/<name>/`), combined with
-  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|relics|party_relics|start_relics|calibration|tutorial|map|map_start|map_act2|map_act3|first_strike|shop|campfire|event|treasure|pact|run_end|players_in_run|pause_players`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
+  `--screen=title|controller|menu|settings|controls|calibration_offer|players|practice|credits|party|heroes|attributes|skills|relics|party_relics|start_relics|calibration|tutorial|map|map_start|map_act2|map_act3|first_strike|shop|campfire|campfire_upgrade|event|treasure|pact|run_end|players_in_run|pause_players`, `--autoplay`, `--run` etc.; `--menu-keys=fight_skills,menu_down` opens the fight menu's
   skills list (or any state; `|` moves on to the next turn) for pictures; `--pad-prompts` shows pad
   buttons, `--key-prompts` keyboard keys. Look at the pictures before telling the user a visual change is done.
   (Use `quiet_run.bat` for this when the owner is at the PC, see above.)

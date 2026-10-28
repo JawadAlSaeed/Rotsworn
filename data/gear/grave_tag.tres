@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "grave_tag"
+display_name = "Grave Tag"
+description = "Your first hit each fight Exposes the foe."
+price = 60
+effect = 39
+amount = 2
+plus_text = "It also makes the foe Bleed."
+plus_rider = 40
+plus_rider_amount = 3
+icon_path = "res://assets/sprites/relics/grave_tag.png"

@@ -131,7 +131,7 @@ func _skills() -> void:
 	_e("skills", "follow_up", "Follow-up strike", "When a hero's skill lands, the others get a quick press. GOOD adds a small hit, PERFECT a bigger one, and both fill the team gauge. A miss does nothing.")
 	_e("skills", "critical", "Critical hit", "A lucky hit for 150% damage, shown big and gold. Every hero has a small chance; Luck and some gear raise it. Enemies never crit.",
 			"CRITICAL!", "", HudStyle.GOLD)
-	_e("skills", "skill_tree", "Skill tree", "Each hero has three branches. The top skill of each is known from the start; deeper ones cost skill points. A hero brings five known skills into a fight.")
+	_e("skills", "skill_tree", "Skill tree", "Each hero has three branches. The top skill of each is known from the start, and one 3-AP skill outside the branches too; deeper ones cost skill points. A hero brings six known skills into a fight.")
 
 
 func _team() -> void:

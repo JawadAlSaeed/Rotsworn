@@ -1,18 +1,16 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_rqs60"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_rqs60")
+script = ExtResource("1_gear")
 id = "gravebloom"
 display_name = "Gravebloom"
-description = "Start every fight with +2 AP, but lose 2% of max HP at the start of each of your turns."
-price = 120
-rarity = 1
-effect = 3
-amount = 2
-rot_touched = true
-drawback = 20
-drawback_amount = 2
-stat = 2
-stat_points = 3
+description = "An ally falls: you heal 20% HP."
+price = 60
+effect = 63
+amount = 20
+plus_text = "You also get +2 AP."
+plus_rider = 64
+plus_rider_amount = 2
+icon_path = "res://assets/sprites/relics/gravebloom.png"
