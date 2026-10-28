@@ -2,11 +2,14 @@ extends SceneTree
 ## Phase 17 (DESIGN.md 8.17), with phase 20's 16 more Relics (card #242): turns the run's 25 gear pieces into Relics, adds six Relics made from
 ## the best charm ideas (the backpack's charms are gone: their effects are Relics' job now), and
 ## turns the old charm files into faded treasure (kept so older saves load) and the rotten ones into
-## curses. Gives each Relic its stat line (attribute points), renames the Echo Charm (its name
+## curses. Gave each Relic its stat line (gone in phase 27), renames the Echo Charm (its name
 ## clashed with the Echoes, gone since phase 26, DESIGN.md 8.24), and lists the Relics every
 ## monster can drop. Every Relic is dropped by at least one monster; the rare ones by the deep
 ## monsters, guards and bosses. Edits existing files in place (only these fields) and writes the new
 ## Relics. First numbers: tune them in the files after play.
+## Phase 27 (DESIGN.md 8.25): Relics have no stat lines and four were cut (Iron Charm, Lucky Coin,
+## Victor's Wreath, Wardstone); every Relic file is written by hand since. Do not re-run this tool:
+## it would undo the reworked Relics. Kept for the record.
 ## Run: Godot --headless --path . -s tools/bootstrap_relics.gd
 
 const GEAR_DIR := "res://data/gear/"
@@ -29,7 +32,6 @@ const NEW_RELICS := {
 	# Phase 20 (card #242): 16 more Relics, 50 in all. Eight with new effects, eight new mixes.
 	"brimming_cup": ["Brimming Cup", "Power +20% while the wearer is at full HP.", 1, E.FULL_HP_POWER, 20, 100, false, E.MAX_HP, 0],
 	"reapers_coin": ["Reaper's Coin", "Each enemy the wearer downs gives them 1 AP.", 1, E.KILL_AP, 1, 100, false, E.MAX_HP, 0],
-	"victors_wreath": ["Victor's Wreath", "After each fight won, the wearer heals 10% of their max HP.", 0, E.WIN_HEAL, 10, 60, false, E.MAX_HP, 0],
 	"first_light": ["First Light", "The wearer starts every fight Empowered: their first damaging skill hits harder.", 0, E.START_EMPOWERED, 1, 60, false, E.MAX_HP, 0],
 	"mossbed": ["Mossbed", "The wearer starts every fight with Regen for 2 turns.", 0, E.START_REGEN, 2, 60, false, E.MAX_HP, 0],
 	"breakers_maul": ["Breaker's Maul", "The wearer deals 25% more damage to Staggered enemies.", 1, E.STAGGER_DAMAGE, 25, 100, false, E.MAX_HP, 0],
@@ -55,11 +57,9 @@ const FADED := {
 ## The rotten charms, now curses: item id -> HP lost each turn, in percent.
 const CURSES := {"rotting_heart": 3, "grave_moss": 2}
 
-## Relic id -> [attribute (Attributes.Kind), stat points, old Echo cost (unused since the Echoes
-## went, DESIGN.md 8.24)].
+## The Relics this tool touched -> [attribute, stat points, old Echo cost]: the stat lines and the
+## Echoes are gone (DESIGN.md 8.24, 8.25), so only the ids are read.
 const RELICS := {
-	"iron_charm": [Attributes.Kind.VITALITY, 2, 2],
-	"lucky_coin": [Attributes.Kind.LUCK, 2, 1],
 	"menders_charm": [Attributes.Kind.VITALITY, 2, 1],
 	"quick_boots": [Attributes.Kind.AGILITY, 2, 2],
 	"thick_hide": [Attributes.Kind.DEFENSE, 2, 2],
@@ -90,13 +90,11 @@ const RELICS := {
 	"black_ichor": [Attributes.Kind.MIGHT, 3, 2],
 	"gravebloom": [Attributes.Kind.AGILITY, 3, 3],
 	# Phase 19: the Relics against marks (card #263), written by hand in data/gear/.
-	"wardstone": [Attributes.Kind.VITALITY, 2, 1],
 	"bitter_root": [Attributes.Kind.VITALITY, 2, 1],
 	"cleansing_bell": [Attributes.Kind.DEFENSE, 3, 2],
 	# Phase 20 (card #242).
 	"brimming_cup": [Attributes.Kind.MIGHT, 3, 2],
 	"reapers_coin": [Attributes.Kind.LUCK, 3, 2],
-	"victors_wreath": [Attributes.Kind.VITALITY, 2, 1],
 	"first_light": [Attributes.Kind.MIGHT, 2, 1],
 	"mossbed": [Attributes.Kind.VITALITY, 2, 1],
 	"breakers_maul": [Attributes.Kind.MIGHT, 3, 2],
@@ -117,11 +115,11 @@ const RENAMES := {"echo_charm": "Rebound Charm"}
 
 ## Enemy id -> the Relic ids it can drop.
 const DROPS := {
-	"rotten_husk": ["iron_charm", "thick_hide", "whetstone", "first_light"],
-	"gnat_swarm": ["quick_boots", "lucky_coin", "ember_stone", "fox_step"],
-	"bloat": ["menders_charm", "iron_charm", "hunger_charm", "rain_pouch", "victors_wreath"],
+	"rotten_husk": ["thick_hide", "whetstone", "first_light"],
+	"gnat_swarm": ["quick_boots", "ember_stone", "fox_step"],
+	"bloat": ["menders_charm", "hunger_charm", "rain_pouch"],
 	"shade": ["keen_eye", "rot_hunter", "wake_root", "marrow_charm"],
-	"carrion_fly": ["lucky_coin", "leaping_heart", "heartleaf", "mossbed"],
+	"carrion_fly": ["leaping_heart", "heartleaf", "mossbed"],
 	"rot_hyena": ["quick_boots", "riposte_ring", "bloodletters_fang", "wake_root", "bone_whistle"],
 	"mire_toad": ["leaping_heart", "menders_charm", "thick_hide", "heartleaf", "mossbed"],
 	"ashen_husk": ["war_drum", "thick_hide", "thorned_gauntlet", "ember_stone", "bramble_coat"],
@@ -137,17 +135,17 @@ const DROPS := {
 	"husk_lord": ["war_drum", "oathbreakers_band", "gravebound_ring", "breakers_maul", "butchers_edge"],
 	"hollow_king": ["rotten_crown", "oathbreakers_band", "second_wind", "butchers_edge"],
 	# Phase 19: the new monsters and their deep twins.
-	"rot_rat": ["lucky_coin", "quick_boots", "bitter_root", "fox_step"],
+	"rot_rat": ["quick_boots", "bitter_root", "fox_step"],
 	"grave_rat": ["bloodletters_fang", "bitter_root", "reapers_coin"],
-	"ember_slinger": ["ember_stone", "keen_eye", "wardstone", "first_light"],
-	"cinder_slinger": ["last_ember", "ash_veil", "wardstone", "hollow_drum"],
+	"ember_slinger": ["ember_stone", "keen_eye", "first_light"],
+	"cinder_slinger": ["last_ember", "ash_veil", "hollow_drum"],
 	"barrow_brute": ["thick_hide", "thorned_gauntlet", "cleansing_bell", "bramble_coat"],
 	"tomb_brute": ["hollow_mantle", "chain_of_silence", "cleansing_bell", "breakers_maul"],
-	"marsh_lantern": ["keen_eye", "echo_charm", "wardstone", "bone_whistle"],
+	"marsh_lantern": ["keen_eye", "echo_charm", "bone_whistle"],
 	"storm_lantern": ["plague_bell", "cleansing_bell", "still_water"],
-	"rot_priest": ["menders_charm", "heartleaf", "bitter_root", "victors_wreath"],
+	"rot_priest": ["menders_charm", "heartleaf", "bitter_root"],
 	"hollow_priest": ["pale_tithe", "cleansing_bell", "tallow_candle"],
-	"pus_tick": ["hunger_charm", "wardstone", "marrow_charm"],
+	"pus_tick": ["hunger_charm", "marrow_charm"],
 	"bile_tick": ["plague_bell", "black_ichor", "sour_milk"],
 	# Phase 26 (card #323, DESIGN.md 8.23): the second act's boss and her brood.
 	"leech_queen": ["hunger_charm", "bloodletters_fang", "black_ichor", "still_water", "second_wind"],
@@ -165,9 +163,6 @@ func _init() -> void:
 		if item == null:
 			push_error("bootstrap_relics: no gear file %s" % path)
 			continue
-		var row: Array = RELICS[id]
-		item.stat = int(row[0])
-		item.stat_points = int(row[1])
 		if RENAMES.has(id):
 			item.display_name = String(RENAMES[id])
 		_save(item, path)

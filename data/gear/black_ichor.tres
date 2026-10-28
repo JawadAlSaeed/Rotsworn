@@ -1,18 +1,19 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_r0duj"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_r0duj")
+script = ExtResource("1_gear")
 id = "black_ichor"
 display_name = "Black Ichor"
-description = "Power +25%, but the wearer loses 3% of max HP at the start of each of their turns."
-price = 110
+description = "+35% damage. Hits on you +35%."
+price = 100
 rarity = 1
 effect = 1
-amount = 25
+amount = 35
 rot_touched = true
-drawback = 20
-drawback_amount = 3
-stat = 1
-stat_points = 3
+drawback = 10
+drawback_amount = 35
+plus_text = "Hits on you only +15%."
+drawback_amount_plus = 15
+icon_path = "res://assets/sprites/relics/black_ichor.png"

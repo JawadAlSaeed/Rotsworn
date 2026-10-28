@@ -121,20 +121,21 @@ func test_a_fight_shows_its_foes_and_gold_and_a_guard_elite_looks_like_any_elite
 	assert_eq(MapScreen.detail_chips(run, old, _look, _visuals.gold_icon_path).size(), 2)
 
 
-func test_a_campfire_shows_rest_and_train() -> void:
-	# The Upgrade went with the item levels (card #332).
+func test_a_campfire_shows_rest_train_and_relic_plus() -> void:
+	# The item Upgrade went with the item levels (card #332); Upgrade is back for Relics (DESIGN.md 8.25).
 	var run := _run()
 	var chips := MapScreen.detail_chips(run, {"type": RunMap.StopType.REST}, _look, _visuals.gold_icon_path)
-	assert_eq(chips.size(), 2)
+	assert_eq(chips.size(), 3)
+	assert_eq(String(chips[2].text), RestScreen.UPGRADE_CHIP, "upgrade: Relic+")
 	assert_eq(chips[0].icon, &"heart", "rest: a heart")
 	assert_eq(String(chips[0].text), "Heal %d%%" % run.rest_heal_percent(), "with how much it heals")
 	assert_eq(chips[1].icon, &"up", "train: the up arrow")
 	assert_eq(String(chips[1].text), "Train")
 
 
-## The campfire row before each boss offers Keep watch and Sharpen (card #287), so its chips name
-## those, never Train; the map agrees with the campfire screen at every campfire.
-func test_the_campfire_before_the_boss_shows_watch_and_sharpen_not_train() -> void:
+## The campfire row before each boss offers Keep watch (card #287) and Upgrade (Sharpen went, DESIGN.md
+## 8.25), so its chips name those, never Train; the map agrees with the campfire screen at every campfire.
+func test_the_campfire_before_the_boss_shows_watch_and_upgrade_not_train() -> void:
 	var watch_fires := 0
 	for s: int in range(1, SEEDS):
 		var run := _run(s)
@@ -148,19 +149,18 @@ func test_the_campfire_before_the_boss_shows_watch_and_sharpen_not_train() -> vo
 			var texts: Array[String] = []
 			for chip: Dictionary in chips:
 				texts.append(String(chip.text))
+			assert_eq(String(chips[chips.size() - 1].text), RestScreen.UPGRADE_CHIP,
+					"seed %d stop %d: every campfire can upgrade a Relic" % [s, stop.id])
 			if not watch:
 				assert_true(texts.has("Train"), "other campfires keep Train")
-				assert_false(texts.has("Upgrade"), "seed %d stop %d: no Upgrade anywhere (card #332)" % [s, stop.id])
 				continue
 			watch_fires += 1
 			assert_false(texts.has("Train"), "seed %d stop %d: no Train before the boss" % [s, stop.id])
-			assert_false(texts.has("Upgrade"), "seed %d stop %d: no Upgrade anywhere (card #332)" % [s, stop.id])
 			assert_eq(chips.size(), 3)
 			assert_eq(chips[0].icon, &"heart", "rest still heals")
 			assert_eq(String(chips[1].icon), _look.gauge_icon_path, "keep watch: the gauge")
 			assert_eq(String(chips[1].text), "Gauge full")
-			assert_eq(String(chips[2].icon), _look.ap_icon_path, "sharpen: AP")
-			assert_eq(String(chips[2].text), "+%d AP" % run.tuning.sharpen_ap)
+			assert_false(texts.has("+1 AP"), "no Sharpen")
 		if is_failing():
 			return
 	assert_gt(watch_fires, 0, "every map has a campfire row before the boss")
@@ -191,7 +191,7 @@ func test_an_icon_chip_shows_a_picture_and_a_word() -> void:
 	add_child_autofree(glyph)
 	assert_eq(_texts(glyph).size(), 0, "a picture alone")
 	assert_eq(_count_of(glyph, "UiGlyph"), 1)
-	var relic := MapScreen.icon_picture(_relic("iron_charm"), 40.0)
+	var relic := MapScreen.icon_picture(_relic("coffin_lid"), 40.0)
 	add_child_autofree(relic)
 	assert_true(relic is RelicIcon, "a Relic's picture is its icon")
 	var coin := MapScreen.icon_picture(_visuals.gold_icon_path, 48.0) as TextureRect
@@ -288,9 +288,6 @@ func test_a_relic_on_the_shelf_shows_its_icon_and_a_new_chip_not_a_sentence() ->
 	var chips: Array = detail.chips
 	if not run.is_home(gear):
 		assert_eq(String(chips[0][1]), "New", "no levels (DESIGN.md 8.24); New: not in the Relic book yet")
-	var stat := gear.stat_text()
-	if not stat.is_empty():
-		assert_eq(String(ShopScreen.relic_chips(run, gear)[1][1]), stat, "the stat line")
 	for chip: Array in ShopScreen.relic_chips(run, gear):
 		assert_false(String(chip[1]).contains("."), "'%s' is a chip, not a sentence" % chip[1])
 
@@ -350,7 +347,7 @@ func test_a_won_run_ends_with_icon_rows_and_no_lines_of_text() -> void:
 
 func test_the_relics_kept_are_icons_tagged_new() -> void:
 	var run := _run()
-	var charm := _relic("iron_charm")
+	var charm := _relic("coffin_lid")
 	assert_eq(RunEndScreen.kept_relics(run, run.relics_at_start).size(), 0, "nothing new yet")
 	run.give_relic(charm, 0)
 	var kept := RunEndScreen.kept_relics(run, run.relics_at_start)
@@ -374,7 +371,7 @@ func test_kept_row_counts_only_after_a_late_join() -> void:
 	# Card #304: a friend who dropped in mid-run keeps only what the run found after they joined.
 	var run := _run()
 	var drum := _relic("war_drum")
-	var charm := _relic("iron_charm")
+	var charm := _relic("coffin_lid")
 	run.give_relic(drum, 0)
 	var relics_before := run.relics.duplicate()
 	run.give_relic(charm, 1)

@@ -8,7 +8,6 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/fly_maggot_spit.tres" id="6_fly_maggot_spit"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="6_or2uk"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/fly_strafe.tres" id="7_fly_strafe"]
-[ext_resource type="Resource" path="res://data/gear/lucky_coin.tres" id="7_jhxbd"]
 [ext_resource type="Resource" path="res://data/gear/leaping_heart.tres" id="8_0gl4p"]
 [ext_resource type="Resource" path="res://data/gear/heartleaf.tres" id="9_jhxbd"]
 [ext_resource type="Resource" path="res://data/gear/mossbed.tres" id="10_0gl4p"]
@@ -34,5 +33,5 @@ target_bias_percent = 300
 gold = 12
 xp = 25
 voice_sfx = "voice_fly"
-relic_drops = Array[ExtResource("6_or2uk")]([ExtResource("7_jhxbd"), ExtResource("8_0gl4p"), ExtResource("9_jhxbd"), ExtResource("10_0gl4p")])
+relic_drops = Array[ExtResource("6_or2uk")]([ExtResource("8_0gl4p"), ExtResource("9_jhxbd"), ExtResource("10_0gl4p")])
 runs_up = true

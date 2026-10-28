@@ -1,18 +1,17 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_517j2"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_517j2")
+script = ExtResource("1_gear")
 id = "hollow_mantle"
 display_name = "Hollow Mantle"
-description = "Enemy hits deal 25% less, but you are 10 slower."
-price = 90
+description = "Each hit on you: pay 1 AP to halve it."
+price = 100
 rarity = 1
-effect = 10
-amount = 25
+effect = 66
+amount = 50
 rot_touched = true
-drawback = 2
-drawback_amount = 10
-stat = 3
-stat_points = 3
+plus_text = "Cut it by 60%."
+amount_plus = 60
+icon_path = "res://assets/sprites/relics/hollow_mantle.png"

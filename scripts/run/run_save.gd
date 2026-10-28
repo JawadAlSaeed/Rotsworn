@@ -23,7 +23,9 @@ extends RefCounted
 ## Relic levels and Echo progress have no place now, so it is kept but not offered.
 ## 7: the pack holds consumables only (card #332, DESIGN.md 8.1): no Tonic or Bigger Pack, no item
 ## levels, the curses sit on the party (`curses`); a format 6 run is kept but not offered.
-const FORMAT_VERSION: int = 7
+## 8: Relics reworked and Relic+ (DESIGN.md 8.25): the run carries `relics_plus`, Relics lost their
+## stat lines and four were cut, so a format 7 run is kept but not offered.
+const FORMAT_VERSION: int = 8
 const PATH := "user://run_save.json"
 ## The online run's slot (card #313), on the host.
 const ONLINE_PATH := "user://online_run_save.json"

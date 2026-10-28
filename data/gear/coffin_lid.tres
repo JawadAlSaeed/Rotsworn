@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "coffin_lid"
+display_name = "Coffin Lid"
+description = "Start every fight Guarded."
+price = 60
+effect = 37
+amount = 1
+plus_text = "Guarded for 2 turns."
+amount_plus = 2
+icon_path = "res://assets/sprites/relics/coffin_lid.png"

@@ -1,15 +1,16 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_jp3o1"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_jp3o1")
+script = ExtResource("1_gear")
 id = "butchers_edge"
 display_name = "Butcher's Edge"
-description = "The wearer's critical hits deal 50% more damage."
-price = 150
-rarity = 2
+description = "Crits deal +60% damage."
+price = 100
+rarity = 1
 effect = 33
-amount = 50
-stat = 4
-stat_points = 4
+amount = 60
+plus_text = "Crits deal +100% damage."
+amount_plus = 100
+icon_path = "res://assets/sprites/relics/butchers_edge.png"

@@ -1,13 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_dgbyb"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_dgbyb")
+script = ExtResource("1_gear")
 id = "rain_pouch"
 display_name = "Rain Pouch"
-description = "The campfire's Rest heals the wearer 50% more."
-price = 50
-effect = 21
-amount = 50
-stat_points = 2
+description = "Any campfire pick also heals 25%."
+price = 60
+effect = 75
+amount = 25
+plus_text = "Heals 40%."
+amount_plus = 40
+icon_path = "res://assets/sprites/relics/rain_pouch.png"

@@ -1,15 +1,17 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_v2s84"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_v2s84")
+script = ExtResource("1_gear")
 id = "wake_root"
 display_name = "Wake Root"
-description = "Each parry gives the wearer 1 more AP."
-price = 90
+description = "Parry: +1 AP."
+price = 100
 rarity = 1
 effect = 17
 amount = 1
-stat = 2
-stat_points = 3
+plus_text = "Counters also give +1 AP."
+plus_rider = 4
+plus_rider_amount = 1
+icon_path = "res://assets/sprites/relics/wake_root.png"

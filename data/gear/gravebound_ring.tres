@@ -1,17 +1,19 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_dpw4g"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_dpw4g")
+script = ExtResource("1_gear")
 id = "gravebound_ring"
 display_name = "Gravebound Ring"
-description = "Counters hit 80% harder, but your max HP is 15% lower."
+description = "Counters +100% damage. Hits on you +20%."
 price = 100
 rarity = 1
 effect = 6
-amount = 80
+amount = 100
 rot_touched = true
-drawback_amount = 15
-stat = 1
-stat_points = 3
+drawback = 10
+drawback_amount = 20
+plus_text = "Counters +150% damage."
+amount_plus = 150
+icon_path = "res://assets/sprites/relics/gravebound_ring.png"

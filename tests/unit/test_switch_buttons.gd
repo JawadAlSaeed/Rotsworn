@@ -12,7 +12,7 @@ var _tuning: Tuning
 
 
 func before_all() -> void:
-	_data = Fx.without_relic_stats(load(RUN_PATH) as RunData)
+	_data = load(RUN_PATH) as RunData
 	_tuning = load("res://data/tuning/tuning.tres") as Tuning
 
 
@@ -95,7 +95,7 @@ func test_the_relics_tab_kind_is_lt_rt_from_the_rows_and_the_grid() -> void:
 func test_the_relic_book_sorts_on_lt_rt_not_x() -> void:
 	var screen := RelicsScreen.new()
 	add_child_autofree(screen)
-	screen.setup(_book(["whetstone", "iron_charm"]), _data.gear)
+	screen.setup(_book(["whetstone", "coffin_lid"]), _data.gear)
 	var start := screen.sort()
 	screen._unhandled_input(_action(&"item_move"))
 	assert_eq(screen.sort(), start, "X / R is not the sort any more")
@@ -107,7 +107,7 @@ func test_the_relic_book_sorts_on_lt_rt_not_x() -> void:
 
 
 func test_the_starting_relics_sort_on_lt_rt_and_skip_on_x() -> void:
-	var book := _book(["whetstone", "iron_charm"])
+	var book := _book(["whetstone", "coffin_lid"])
 	var run := RunState.begin(_data, Fx.run_tuning(_tuning), 7, 0, book)
 	var screen := StartRelicsScreen.new()
 	add_child_autofree(screen)

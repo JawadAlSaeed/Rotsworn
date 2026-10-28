@@ -1,15 +1,16 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_ix0a8"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_ix0a8")
+script = ExtResource("1_gear")
 id = "hollow_drum"
 display_name = "Hollow Drum"
-description = "The team gauge the wearer fills is 25% bigger."
+description = "Team ultimate: whole party +2 AP."
 price = 100
 rarity = 1
-effect = 19
-amount = 25
-stat = 1
-stat_points = 3
+effect = 65
+amount = 2
+plus_text = "+3 AP."
+amount_plus = 3
+icon_path = "res://assets/sprites/relics/hollow_drum.png"

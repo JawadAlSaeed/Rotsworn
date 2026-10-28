@@ -11,7 +11,9 @@ const FORMAT_VERSION: int = 3
 ## The older formats that still load (RelicFile).
 const OLD_FORMATS: Array[int] = [1, 2]
 
-## Relic id -> true for every Relic ever found, in the order found.
+## Relic id -> true for every Relic ever found, in the order found. Ids of Relics the game no longer
+## has (the four cut in phase 27, DESIGN.md 8.25) stay in the file, harmless: every reader goes
+## through the game's own Relics (found_of, the Relic book's grid and its "Found N of M").
 var found: Dictionary = {}
 
 
@@ -20,9 +22,14 @@ func owns(id: String) -> bool:
 	return found.has(id)
 
 
-## How many different Relics were found.
+## How many different ids were found, cut Relics included (see found_count_of for the live ones).
 func count() -> int:
 	return found.size()
+
+
+## How many of the game's Relics `gear` were found: cut ids the file still holds do not count.
+func found_count_of(gear: Array[GearData]) -> int:
+	return found_of(gear).size()
 
 
 ## The found Relic ids, in the order found.

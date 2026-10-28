@@ -63,7 +63,7 @@ func test_the_shipped_ladder_has_twelve_oaths_in_order() -> void:
 
 func test_the_empty_hand_takes_the_starting_relics_and_forgetting_a_point_per_level() -> void:
 	var c := RelicCollection.new()
-	c.merge(["iron_charm", "whetstone", "war_drum"])
+	c.merge(["coffin_lid", "whetstone", "war_drum"])
 	var ten := RunState.begin(_data, _tuning, 7, 10, c)
 	assert_eq(ten.start_relic_count(), 1, "Oath 10: each hero takes one from the book (#328)")
 	assert_true(ten.start_pending())

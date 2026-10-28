@@ -9,7 +9,6 @@
 [ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="7_rtdrg"]
 [ext_resource type="Resource" path="res://data/clips/rotten_husk.tres" id="8_clips"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="9_unug0"]
-[ext_resource type="Resource" path="res://data/gear/iron_charm.tres" id="10_icl7v"]
 [ext_resource type="Resource" path="res://data/gear/thick_hide.tres" id="11_ihtfv"]
 [ext_resource type="Resource" path="res://data/gear/whetstone.tres" id="12_x4mhd"]
 [ext_resource type="Resource" path="res://data/gear/first_light.tres" id="13_icl7v"]
@@ -31,5 +30,5 @@ attacks = Array[ExtResource("1_wmv88")]([ExtResource("2_cbueq"), ExtResource("3_
 gold = 15
 xp = 30
 voice_sfx = "voice_husk"
-relic_drops = Array[ExtResource("9_unug0")]([ExtResource("10_icl7v"), ExtResource("11_ihtfv"), ExtResource("12_x4mhd"), ExtResource("13_icl7v")])
+relic_drops = Array[ExtResource("9_unug0")]([ExtResource("11_ihtfv"), ExtResource("12_x4mhd"), ExtResource("13_icl7v")])
 runs_up = true

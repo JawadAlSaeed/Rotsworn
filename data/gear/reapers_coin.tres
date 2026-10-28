@@ -1,15 +1,16 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_1xvt3"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_1xvt3")
+script = ExtResource("1_gear")
 id = "reapers_coin"
 display_name = "Reaper's Coin"
-description = "Each enemy the wearer downs gives them 1 AP."
+description = "Down or Stagger a foe: +2 AP."
 price = 100
 rarity = 1
 effect = 28
-amount = 1
-stat = 4
-stat_points = 3
+amount = 2
+plus_text = "+3 AP."
+amount_plus = 3
+icon_path = "res://assets/sprites/relics/reapers_coin.png"

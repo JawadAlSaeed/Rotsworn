@@ -1,12 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_aiawl"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_aiawl")
+script = ExtResource("1_gear")
 id = "mossbed"
 display_name = "Mossbed"
-description = "The wearer starts every fight with Regen for 2 turns."
+description = "Start fights with Regen, 2 turns."
+price = 60
 effect = 31
 amount = 2
-stat_points = 2
+plus_text = "3 turns."
+amount_plus = 3
+icon_path = "res://assets/sprites/relics/mossbed.png"

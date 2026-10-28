@@ -5,8 +5,8 @@ extends CanvasLayer
 ## them), then the hero who gets it ("Who gets it?", RelicGift: skipped when only one hero may). A
 ## Relic never found before is kept for good in the collection.
 ## The Relics sit side by side as cards (card #288): each Relic's own icon, its name in its rarity's
-## colour, New (a Relic the book lacks) and a few chips: what it does, its drawback and its stat
-## line. No sentence: what a Relic means is in the Glossary.
+## colour, New (a Relic the book lacks) and a few chips: what it does and its drawback (no stat line
+## since DESIGN.md 8.25). No sentence: what a Relic means is in the Glossary.
 ## Online the pick goes in turns (card #314, DESIGN.md 9.2): on another player's turn the cards are
 ## greyed and the footer offers nothing to press (`watching`); the turn's player gives it to one of
 ## their own heroes.
@@ -91,7 +91,7 @@ func _set_footer(entries: Array) -> void:
 	_footer.set_entries(entries)
 
 
-## A Relic's chips: its effect (with its category's sign), its drawback, its stat line.
+## A Relic's chips: its effect (with its category's sign) and its drawback.
 static func relic_chips(item: GearData) -> Array[Dictionary]:
 	var chips: Array[Dictionary] = []
 	var effect := GearData.effect_text(item.effect, item.amount)
@@ -101,8 +101,23 @@ static func relic_chips(item: GearData) -> Array[Dictionary]:
 	if item.has_drawback():
 		chips.append({"glyph": &"skull", "text": GearData.drawback_text(item.drawback, item.drawback_amount),
 				"color": DRAWBACK_COLOR})
-	if item.stat_points > 0:
-		chips.append({"glyph": UiGlyph.attribute_glyph(item.stat), "text": "+%d" % item.stat_points, "color": HudStyle.GOLD})
+	return chips
+
+
+## What Relic+ changes (GearData.plus_texts) as gold chips with the "up" sign, the first one starting
+## a new line (DESIGN.md 8.25): the Relic book and the campfire's Upgrade pick show them. A smaller
+## price keeps the price's skull and colour, so it never reads as a gain or a new cost.
+static func plus_chips(item: GearData) -> Array[Dictionary]:
+	var chips: Array[Dictionary] = []
+	if item == null:
+		return chips
+	var price := item.plus_price_text()
+	for text: String in item.plus_texts():
+		var chip := {"glyph": &"up", "text": text, "color": HudStyle.GOLD, "newline": chips.is_empty()}
+		if text == price:
+			chip.glyph = &"skull"
+			chip.color = DRAWBACK_COLOR
+		chips.append(chip)
 	return chips
 
 

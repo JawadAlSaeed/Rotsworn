@@ -68,6 +68,8 @@ var centred: bool = true
 ## Row width in pixels (0: CENTRED_ROW_WIDTH or LEFT_ROW_WIDTH).
 var row_width: float = 0.0
 ## How many rows show at once (0: all). A longer list scrolls with the cursor (the Controls list).
+## Side-by-side cards take it too: that many cards share the row and the rest slide in as the
+## cursor moves (the campfire's Relic pick, DESIGN.md 8.25).
 var window_rows: int = 0
 ## Side by side: one card per item in a row (for two or three choices, phase 22). Set before
 ## set_items().
@@ -188,7 +190,7 @@ func set_items(new_items: Array[Dictionary], detail_label: Label = null) -> void
 ## CARD_ROW_MAX_WIDTH; each word that still does not fit gets a smaller font, step by step.
 func _fit_cards() -> void:
 	_card_sizes.clear()
-	var count := maxi(1, items.size())
+	var count := maxi(1, items.size() if window_rows <= 0 else mini(items.size(), window_rows))
 	var room := (CARD_ROW_MAX_WIDTH - float(CARD_GAP * (count - 1))) / float(count)
 	var widest := 0.0
 	for item: Dictionary in items:

@@ -1,13 +1,17 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_w7cia"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_w7cia")
+script = ExtResource("1_gear")
 id = "bone_whistle"
 display_name = "Bone Whistle"
-description = "The wearer's skills deal 25% more to Exposed enemies."
-effect = 9
-amount = 25
-stat = 1
-stat_points = 2
+description = "Counter: the foe becomes Exposed."
+price = 100
+rarity = 1
+effect = 59
+amount = 2
+plus_text = "Counters also +30% damage."
+plus_rider = 6
+plus_rider_amount = 30
+icon_path = "res://assets/sprites/relics/bone_whistle.png"

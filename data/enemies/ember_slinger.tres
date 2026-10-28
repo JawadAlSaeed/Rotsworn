@@ -11,7 +11,6 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/slinger_volley.tres" id="a_slinger_volley"]
 [ext_resource type="Resource" path="res://data/gear/ember_stone.tres" id="g_ember_stone"]
 [ext_resource type="Resource" path="res://data/gear/keen_eye.tres" id="g_keen_eye"]
-[ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="g_wardstone"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -32,4 +31,4 @@ target_bias_percent = 100
 gold = 14
 xp = 28
 voice_sfx = "voice_husk"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_ember_stone"), ExtResource("g_keen_eye"), ExtResource("g_wardstone"), ExtResource("10_kvn7h")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_ember_stone"), ExtResource("g_keen_eye"), ExtResource("10_kvn7h")])

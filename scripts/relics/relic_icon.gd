@@ -6,11 +6,19 @@ extends Control
 ## (flat top, rounded down to a point) with a shield boss, support ones in a round seal (a second
 ## ring inside) with a leaf. The frame is edged in the Relic's rarity colour (violet, and a rot
 ## drip, for a rot-touched one) and the sign inside has its category's colour, never a hero's; the
-## Relic's own picture (GearData.icon_path) takes the sign's place when it has one. An unknown
-## Relic is a dim neutral diamond with a "?".
+## Relic's own picture (GearData.icon_path) takes the sign's place when it has one: a square over the
+## whole inside of the frame (picture_rect), each picture drawn by the art kit to fill its own frame's
+## shape (tools/art_kit/kit/relic_frame.py safe_mask), so the object reads at every size. The picture
+## is sized and placed in screen pixels (the window's stretch counted), and drawn even at any scale
+## (_crisp), crisp when a whole number of screen pixels per picture pixel is near. An unknown Relic is
+## a dim neutral diamond with a "?".
 ## For the Y screen (DESIGN.md 8.18): level pips along the bottom (set_level), an empty slot
 ## (setup_slot: a dashed diamond with a plus, a locked one with a lock), a hero tag in a corner
 ## (set_tag: who has it) and the cursor's gold glow (chosen).
+## A Relic+ (DESIGN.md 8.25: upgraded at a campfire) wears a small gold "+" badge in the bottom right
+## corner (set_plus, or `plus` on make and draw_relic), clear of the tag and the rot drip. The tag and
+## the badge stick out a little past the icon's square (TAG_OUT, PLUS_OUT), so they hide less of the
+## picture.
 ## Drawn grids paint the same icon on their own canvas with draw_relic, draw_slot and draw_tag.
 
 ## What a Relic slot shows (setup_slot). NONE: not a slot, a Relic (or its "?").
@@ -50,18 +58,42 @@ const INNER_MIN_RADIUS: float = 13.0
 ## its size (in frame radii), so it sits in the frame's roomy middle.
 const SIGN_OFFSETS: Array[Vector2] = [Vector2(0.0, -0.16), Vector2(0.0, -0.12), Vector2(0.0, 0.0)]
 const SIGN_SIZES: Array[float] = [0.86, 0.9, 1.15]
+## A Relic's picture: a square of PICTURE_SHARE frame radii centred PICTURE_OFFSET (in frame radii)
+## from the frame's centre, covering nearly all of every frame's inside (the spearhead's thin tip and
+## the shield's point aside). The art kit keeps each picture's pixels inside its own frame's shape
+## (tools/art_kit/kit/relic_frame.py mirrors these numbers: keep them in step).
+const PICTURE_SHARE: float = 1.68
+const PICTURE_OFFSET := Vector2(0.0, -0.02)
+## The square's side snaps to a whole number of screen pixels per picture pixel (crisp pixels) when
+## that is at most PICTURE_SNAP_UP times bigger, or else at least PICTURE_SNAP_DOWN of the side.
+const PICTURE_SNAP_UP: float = 1.04
+const PICTURE_SNAP_DOWN: float = 0.88
+## The most a picture is blown up (nearest) before the smooth filter draws it at its size (_crisp).
+const PICTURE_PRESCALE_MAX: int = 8
 ## Level pips: their size as a share of the side (pixel bounds); the gap between them, and above
 ## the row, as a share of a pip.
 const PIP_SHARE: float = 0.1
 const PIP_MIN: float = 3.0
 const PIP_MAX: float = 10.0
 const PIP_GAP: float = 0.55
+## The Relic+ badge's radius as a share of the side, in pixel bounds; its gold and dark ring.
+const PLUS_SHARE: float = 0.15
+const PLUS_MIN: float = 5.0
+const PLUS_MAX: float = 16.0
+const PLUS_COLOR := HudStyle.GOLD
+## How far the badge sticks out past the icon's square, as a share of its radius.
+const PLUS_OUT: float = 0.4
 ## The hero tag's radius as a share of the side, in pixel bounds.
 const TAG_SHARE: float = 0.18
 const TAG_MIN: float = 6.0
 const TAG_MAX: float = 18.0
+## How far the tag sticks out past the icon's square, as a share of its radius.
+const TAG_OUT: float = 0.6
 ## The rot drip hangs from the frame's point furthest this way (low left, clear of the tag).
 const DRIP_DIR := Vector2(-0.6, 0.8)
+
+## Each picture's smooth-filtered copies (_crisp): by its texture, then by how many times blown up.
+static var _crisp_textures: Dictionary = {}
 
 ## The cursor is on it: a gold glow and a gold ring around the frame, and a thicker edge.
 var chosen: bool = false:
@@ -78,14 +110,18 @@ var _level: int = 0
 var _max_level: int = 0
 var _tag: String = ""
 var _tag_color: Color = HudStyle.TEXT
+var _plus: bool = false
+## Where the icon was on screen at its last draw: the picture is snapped to that (_screen_moved).
+var _drawn_screen := Transform2D.IDENTITY
 
 
 ## `px`: the icon's width and height. `known` false: a "?" for a Relic not found yet. `level` > 0
 ## shows that many gold pips along the bottom, out of `max_level` (0 shows only the filled ones;
-## runs pass 0: Relics have no levels since DESIGN.md 8.24).
-func setup(item: GearData, px: float, known: bool = true, level: int = 0, max_level: int = 0) -> void:
+## runs pass 0: Relics have no levels since DESIGN.md 8.24). `plus`: a Relic+ (the gold badge).
+func setup(item: GearData, px: float, known: bool = true, level: int = 0, max_level: int = 0, plus: bool = false) -> void:
 	_item = item
 	_known = known and item != null
+	_plus = plus
 	_slot = SlotState.NONE
 	_level = level
 	_max_level = max_level
@@ -98,6 +134,7 @@ func setup(item: GearData, px: float, known: bool = true, level: int = 0, max_le
 func setup_slot(state: int, px: float) -> void:
 	_item = null
 	_known = false
+	_plus = false
 	_slot = state if state == SlotState.EMPTY or state == SlotState.LOCKED else SlotState.EMPTY
 	_level = 0
 	_max_level = 0
@@ -118,6 +155,17 @@ func set_tag(letter: String, color: Color = HudStyle.TEXT) -> void:
 	_tag = letter.strip_edges().substr(0, 1).to_upper()
 	_tag_color = color
 	queue_redraw()
+
+
+## Shows (or hides) the Relic+ badge: the Relic is upgraded (DESIGN.md 8.25).
+func set_plus(on: bool) -> void:
+	_plus = on
+	queue_redraw()
+
+
+## True when the Relic+ badge is drawn (a known Relic that is upgraded).
+func shows_plus() -> bool:
+	return _plus and _shows_relic()
 
 
 ## The filled level pips drawn now (0 for a slot or an unknown Relic).
@@ -146,9 +194,10 @@ func shape() -> int:
 
 
 ## A new icon for `item` (see setup).
-static func make(item: GearData, px: float, known: bool = true, level: int = 0, max_level: int = 0) -> RelicIcon:
+static func make(item: GearData, px: float, known: bool = true, level: int = 0, max_level: int = 0,
+		plus: bool = false) -> RelicIcon:
 	var icon := RelicIcon.new()
-	icon.setup(item, px, known, level, max_level)
+	icon.setup(item, px, known, level, max_level, plus)
 	return icon
 
 
@@ -198,11 +247,13 @@ static func frame_points(category: int, centre: Vector2, radius: float) -> Packe
 
 
 ## Paints `item`'s icon into `rect` on `canvas` (call it from that canvas's _draw), like the
-## Control does: for drawn grids. `on_cursor`: the chosen glow.
+## Control does: for drawn grids. `on_cursor`: the chosen glow. `plus`: the Relic+ badge.
 static func draw_relic(canvas: CanvasItem, rect: Rect2, item: GearData, known: bool = true, level: int = 0,
-		max_level: int = 0, on_cursor: bool = false) -> void:
+		max_level: int = 0, on_cursor: bool = false, plus: bool = false) -> void:
 	var seen := known and item != null
 	_paint(canvas, rect, item, seen, SlotState.NONE, level, max_level, on_cursor, _texture_for(item) if seen else null)
+	if plus and seen:
+		draw_plus(canvas, rect)
 
 
 ## Paints a Relic slot (SlotState.EMPTY or LOCKED) into `rect` on `canvas`.
@@ -219,15 +270,46 @@ static func draw_tag(canvas: CanvasItem, rect: Rect2, letter: String, color: Col
 	var r := clampf(side * TAG_SHARE, TAG_MIN, TAG_MAX)
 	var ring := maxf(1.0, r * 0.18)
 	var square := _square(rect)
-	var centre := Vector2(square.end.x - r - ring, square.position.y + r + ring)
+	var centre := Vector2(square.end.x - r - ring + r * TAG_OUT, square.position.y + r + ring - r * TAG_OUT)
 	canvas.draw_circle(centre, r + ring, OUTLINE)
 	canvas.draw_circle(centre, r, color)
 	_draw_text(canvas, text, centre, maxi(6, roundi(r * 1.35)), TAG_DARK if color.get_luminance() > 0.5 else HudStyle.TEXT)
 
 
+## Paints the Relic+ badge (a gold "+" on a dark disc) in `rect`'s bottom right corner.
+static func draw_plus(canvas: CanvasItem, rect: Rect2) -> void:
+	var side := minf(rect.size.x, rect.size.y)
+	var r := clampf(side * PLUS_SHARE, PLUS_MIN, PLUS_MAX)
+	var ring := maxf(1.0, r * 0.2)
+	var square := _square(rect)
+	var centre := square.end - Vector2(r + ring, r + ring) + Vector2(r, r) * PLUS_OUT
+	canvas.draw_circle(centre, r + ring, PLUS_COLOR)
+	canvas.draw_circle(centre, r, OUTLINE)
+	UiGlyph.draw_glyph(canvas, &"plus", centre, r * 1.5, PLUS_COLOR)
+
+
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_ENTER_TREE:
+			# The picture is snapped to screen pixels: redraw when the window's stretch or the icon's
+			# place on screen changes them.
+			set_notify_transform(true)
+			if not get_viewport().size_changed.is_connected(queue_redraw):
+				get_viewport().size_changed.connect(queue_redraw)
+		NOTIFICATION_EXIT_TREE:
+			if get_viewport().size_changed.is_connected(queue_redraw):
+				get_viewport().size_changed.disconnect(queue_redraw)
+		NOTIFICATION_TRANSFORM_CHANGED:
+			if _texture != null and _screen_moved():
+				queue_redraw()
+
+
 func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, size)
+	_drawn_screen = get_global_transform_with_canvas()
 	_paint(self, rect, _item, _known, _slot, _level, _max_level, chosen, _texture)
+	if shows_plus():
+		draw_plus(self, rect)
 	if not _tag.is_empty():
 		draw_tag(self, rect, _tag, _tag_color)
 
@@ -240,6 +322,16 @@ func _size_to(px: float) -> void:
 
 func _shows_relic() -> bool:
 	return _slot == SlotState.NONE and _known and _item != null
+
+
+## True when the icon now sits on screen at another scale, or off by a part of a screen pixel, than
+## at its last draw (a move by whole pixels keeps the picture crisp).
+func _screen_moved() -> bool:
+	var now := get_global_transform_with_canvas()
+	if not is_equal_approx(screen_zoom(now), screen_zoom(_drawn_screen)):
+		return true
+	var shift := now.origin - _drawn_screen.origin
+	return not shift.is_equal_approx(shift.round())
 
 
 ## Everything but the tag, in a square centred in `rect`: glow, fill, inner line, sign, edge, gold
@@ -292,9 +384,11 @@ static func _paint(canvas: CanvasItem, rect: Rect2, item: GearData, known: bool,
 			if not relic:
 				_draw_text(canvas, "?", c, maxi(6, int(radius * 1.1)), UNKNOWN_COLOR)
 			elif texture != null:
-				var spot := c + SIGN_OFFSETS[category] * radius
-				var pic := radius * 1.05
-				canvas.draw_texture_rect(texture, Rect2(spot - Vector2(pic, pic) * 0.5, Vector2(pic, pic)), false)
+				var screen := canvas.get_global_transform_with_canvas() if canvas.is_inside_tree() else Transform2D.IDENTITY
+				var texels := float(texture.get_width())
+				var pic := picture_rect(c, radius, texels, screen)
+				var shown := _crisp(texture, picture_prescale(pic.size.x * screen_zoom(screen) / texels))
+				canvas.draw_texture_rect(shown, pic, false)
 			else:
 				_draw_sign(canvas, category, c, radius, category_color(category))
 	if slot == SlotState.EMPTY:
@@ -308,6 +402,62 @@ static func _paint(canvas: CanvasItem, rect: Rect2, item: GearData, known: bool,
 		_draw_drip(canvas, points, c, radius)
 	if pips.y > 0:
 		_draw_pips(canvas, square, c.x, pip, pips)
+
+
+## Where a Relic's picture of `texels` pixels a side goes in a frame of `radius` centred on `c`: the
+## PICTURE_SHARE square at PICTURE_OFFSET, its side snapped to a whole number of screen pixels per
+## picture pixel when one is near (PICTURE_SNAP_UP, PICTURE_SNAP_DOWN), its corner on a whole screen
+## pixel. `screen`: the canvas's transform to the screen (CanvasItem.get_global_transform_with_canvas,
+## the window's stretch included); the rect is in the canvas's own pixels.
+static func picture_rect(c: Vector2, radius: float, texels: float, screen := Transform2D.IDENTITY) -> Rect2:
+	var zoom := screen_zoom(screen)
+	var side := radius * PICTURE_SHARE * zoom
+	if texels > 0.0:
+		var scale := side / texels
+		var up := ceilf(scale)
+		var down := floorf(scale)
+		if up >= 1.0 and up / scale <= PICTURE_SNAP_UP:
+			side = up * texels
+		elif down >= 1.0 and down / scale >= PICTURE_SNAP_DOWN:
+			side = down * texels
+	var corner := screen * (c + PICTURE_OFFSET * radius) - Vector2(side, side) * 0.5
+	corner = screen.affine_inverse() * Vector2(roundf(corner.x), roundf(corner.y))
+	return Rect2(corner, Vector2(side, side) / zoom)
+
+
+## Screen pixels per canvas pixel under `screen` (a canvas's transform to the screen).
+static func screen_zoom(screen: Transform2D) -> float:
+	return maxf(absf(screen.get_scale().x), 0.001)
+
+
+## How many times a picture shown at `scale` screen pixels per picture pixel is blown up (nearest)
+## before the smooth filter draws it (_crisp): the next whole number, 1 under 1x.
+static func picture_prescale(scale: float) -> int:
+	return clampi(ceili(scale - 0.001), 1, PICTURE_PRESCALE_MAX)
+
+
+## `texture` blown up `times` times with the nearest filter, then drawn with the linear filter: every
+## picture pixel shows the same size at any scale, its edges blended over at most one screen pixel,
+## and exact at a whole number (times = the scale). Once: the plain linear filter (under 1x the nearest
+## filter would drop whole rows). One copy per picture and `times`, kept.
+static func _crisp(texture: Texture2D, times: int) -> Texture2D:
+	var copies: Dictionary = _crisp_textures.get_or_add(texture, {})
+	var shown := copies.get(times) as CanvasTexture
+	if shown != null:
+		return shown
+	var source: Texture2D = texture
+	if times > 1:
+		var image := texture.get_image()
+		if image != null and not image.is_empty():
+			if image.is_compressed():
+				image.decompress()
+			image.resize(image.get_width() * times, image.get_height() * times, Image.INTERPOLATE_NEAREST)
+			source = ImageTexture.create_from_image(image)
+	shown = CanvasTexture.new()
+	shown.diffuse_texture = source
+	shown.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	copies[times] = shown
+	return shown
 
 
 ## The largest square centred in `rect`.

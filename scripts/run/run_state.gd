@@ -30,6 +30,8 @@ const COST_SALT: int = 236887691
 const GEAR_WEIGHT: int = 100
 ## Seeds the spoils' guaranteed rot-touched pick apart from the normal picks.
 const ROT_GEAR_SALT: int = 253645133
+## Seeds the spoils' open cards (any rarity, early acts; DESIGN.md 8.25).
+const OPEN_CARD_SALT: int = 1299709
 ## Seeds which starting pacts a run offers (card #285).
 const PACT_SALT: int = 295075153
 ## Phase 26 (DESIGN.md 8.22): a Fight stop's fight, and the weather of every run fight but the boss's.
@@ -101,6 +103,9 @@ var gear: Array[Array] = []
 ## the run has never turns up again in it. Main banks them into the Relic book (RelicFile.bank)
 ## when the run saves and when it ends.
 var relics: Dictionary = {}
+## The run's Relics upgraded to Relic+ at a campfire (DESIGN.md 8.25, card #333): id -> 1, each one
+## the run has (relics). Once only and for the rest of the run; the Relic book keeps no "+".
+var relics_plus: Dictionary = {}
 ## Every Relic in the Relic book before this run (id -> 1; online the host's): the end screen's
 ## "what you keep" line, and only a find the book lacks is tagged "New" (LootScreen.new_tag).
 var relics_at_start: Dictionary = {}
@@ -136,9 +141,6 @@ var flawless: bool = false
 ## The starting pact (card #285) is still to be offered: before the first stop of a run that is not
 ## the player's first.
 var pact_pending: bool = false
-## Sharpened at the campfire before the boss (card #287): every hero starts the boss fight with
-## tuning.sharpen_ap more AP.
-var sharpened: bool = false
 ## The treasure stop's rotten chest was the one opened (card #287): the screen shows it open.
 var stop_rotten: bool = false
 ## The map rules the run was made with: 4 since the guards joined the Elite stops (no Guard stops,
@@ -209,8 +211,8 @@ func to_dict() -> Dictionary:
 		"act": act, "visited": visited, "bonus_points": Array(bonus_points), "events_seen": Array(events_seen),
 		"restocks": restocks, "oath": oath, "shop_sold": Array(shop_sold), "stop_done": stop_done, "stop_text": stop_text,
 		"ambush_streak": ambush_streak, "ambush_id": ambush_id, "ambush_spoils": ambush_spoils,
-		"relics": relics.duplicate(), "relics_start": relics_at_start.duplicate(),
-		"defence": defence.duplicate(true), "flawless": flawless, "pact_pending": pact_pending, "sharpened": sharpened,
+		"relics": relics.duplicate(), "relics_start": relics_at_start.duplicate(), "relics_plus": relics_plus.duplicate(),
+		"defence": defence.duplicate(true), "flawless": flawless, "pact_pending": pact_pending,
 		"stop_rotten": stop_rotten, "stop_relics": Array(stop_relics), "map_rules": map_rules,
 		"start_left": Array(start_left), "start_relics": start_relics.duplicate(),
 	}
@@ -316,7 +318,8 @@ func apply_dict(d: Dictionary) -> bool:
 	var new_defence := _defence_of(d.get("defence"))
 	if (d.has("defence") and new_defence.is_empty()) or (d.has("flawless") and typeof(d.flawless) != TYPE_BOOL):
 		return false
-	if (d.has("pact_pending") and typeof(d.pact_pending) != TYPE_BOOL) or (d.has("sharpened") and typeof(d.sharpened) != TYPE_BOOL) \
+	# "sharpened" (Sharpen, gone in phase 27, DESIGN.md 8.25) may still be in an older save: ignored.
+	if (d.has("pact_pending") and typeof(d.pact_pending) != TYPE_BOOL) \
 			or (d.has("stop_rotten") and typeof(d.stop_rotten) != TYPE_BOOL):
 		return false
 	# Optional (saves from before card #328 lack it: no starting pick waits).
@@ -369,15 +372,16 @@ func apply_dict(d: Dictionary) -> bool:
 	attributes = new_attributes
 	unlocked.assign((d.unlocked as Array).duplicate(true))
 	loadout.assign((d.loadout as Array).duplicate(true))
+	_grant_start_skills()
 	gear = new_gear
 	relics = relic_state.relics
+	relics_plus = relic_state.plus
 	relics_at_start = relic_state.start
 	stop_relics.assign(relic_state.offered)
 	if not new_defence.is_empty():
 		defence = new_defence
 	flawless = bool(d.get("flawless", false))
 	pact_pending = bool(d.get("pact_pending", false))
-	sharpened = bool(d.get("sharpened", false))
 	stop_rotten = bool(d.get("stop_rotten", false))
 	start_left = new_start_left
 	start_relics = new_start_relics
@@ -390,13 +394,15 @@ func apply_dict(d: Dictionary) -> bool:
 	return true
 
 
-## The Relic state in to_dict() data, checked: {relics, start, offered}, or {} if it does not fit:
-## the run's Relics (id -> 1, every one a hero has among them, `given`), the Relics found before the
-## run, and the stop's Relics on offer (known ones, each once). Saves from before the Relic rework
-## (DESIGN.md 8.24) never get here: RunSave's format changed with it.
+## The Relic state in to_dict() data, checked: {relics, plus, start, offered}, or {} if it does not
+## fit: the run's Relics (id -> 1, every one a hero has among them, `given`), the ones upgraded to
+## Relic+ (each one of the run's), the Relics found before the run, and the stop's Relics on offer
+## (known ones, each once). Saves from before the Relic rework (DESIGN.md 8.24) and Relic+ (8.25)
+## never get here: RunSave's format changed with each.
 func _relic_state_of(d: Dictionary, given: Dictionary, by_id: Dictionary) -> Dictionary:
-	var state := {"relics": {}, "start": {}, "offered": []}
-	if not d.get("relics") is Dictionary or not d.get("relics_start") is Dictionary:
+	var state := {"relics": {}, "plus": {}, "start": {}, "offered": []}
+	if not d.get("relics") is Dictionary or not d.get("relics_start") is Dictionary \
+			or not d.get("relics_plus", {}) is Dictionary:
 		return {}
 	for id: Variant in d.relics:
 		if typeof(id) != TYPE_STRING or not by_id.has(String(id)) or typeof(d.relics[id]) != TYPE_INT:
@@ -405,6 +411,11 @@ func _relic_state_of(d: Dictionary, given: Dictionary, by_id: Dictionary) -> Dic
 	for id: Variant in given:
 		if not state.relics.has(String(id)):
 			return {}
+	var plus: Dictionary = d.get("relics_plus", {})
+	for id: Variant in plus:
+		if typeof(id) != TYPE_STRING or not state.relics.has(String(id)) or typeof(plus[id]) != TYPE_INT:
+			return {}
+		state.plus[String(id)] = 1
 	for id: Variant in d.relics_start:
 		if typeof(id) != TYPE_STRING or not by_id.has(String(id)) or typeof(d.relics_start[id]) != TYPE_INT:
 			return {}
@@ -480,7 +491,7 @@ func best_defender() -> int:
 
 # --- stats ------------------------------------------------------------------------------------
 
-## Max HP percent kept for good (max_hp_percent), level, Vitality (spent and from Relics) and Relics.
+## Max HP percent kept for good (max_hp_percent), level, Vitality and Relics.
 func total_max_hp_percent(slot: int) -> int:
 	return max_hp_percent[slot] + (levels[slot] - 1) * tuning.run_level_hp_percent \
 			+ attribute_total(slot, Attributes.Kind.VITALITY) * tuning.attr_vitality_hp_percent + gear_amount(slot, GearData.Effect.MAX_HP)
@@ -490,10 +501,13 @@ func max_hp(slot: int) -> int:
 	return CombatSetup.scaled_max_hp(tuning, data.party[slot], total_max_hp_percent(slot))
 
 
-## Power percent with level, Might and Relics (100 = the character's normal power).
+## Power percent with level and Might, then Relics multiply it (100 = the character's normal power;
+## DESIGN.md 8.25: every "+X%" on a Relic multiplies).
 func power_percent(slot: int) -> int:
-	return 100 + (levels[slot] - 1) * tuning.run_level_power_percent \
-			+ attribute_total(slot, Attributes.Kind.MIGHT) * tuning.attr_might_power_percent + gear_amount(slot, GearData.Effect.POWER)
+	var base := 100 + (levels[slot] - 1) * tuning.run_level_power_percent \
+			+ attribute_total(slot, Attributes.Kind.MIGHT) * tuning.attr_might_power_percent
+	var relic := gear_amount(slot, GearData.Effect.POWER)
+	return base if relic == 0 else CombatMath.percent(base, maxi(0, 100 + relic))
 
 
 func power(slot: int) -> int:
@@ -511,9 +525,10 @@ func speed_bonus(slot: int) -> int:
 
 
 ## How much less enemy hits deal to this hero, in percent: Defense and Relics (capped as the
-## fight caps it).
+## fight caps it; below 0 never past the tough floor, DESIGN.md 8.25).
 func defense_percent(slot: int) -> int:
-	return mini(int(passives(slot).get(Passive.TOUGH, 0)), tuning.tough_max_percent)
+	return clampi(int(passives(slot).get(Passive.TOUGH, 0)), 100 - tuning.relic_hit_taken_max_percent,
+			tuning.tough_max_percent)
 
 
 ## This hero's chance of a critical hit, in percent (the base, Luck).
@@ -522,11 +537,12 @@ func crit_percent(slot: int) -> int:
 
 
 ## What hero `slot`'s Relics add up to for one effect: the effects add, rot-touched
-## drawbacks take away (GearData.contribution), so the total can be below 0.
+## drawbacks take away (GearData.contribution), so the total can be below 0. An upgraded Relic
+## counts with its "+" numbers (is_plus).
 func gear_amount(slot: int, effect: GearData.Effect) -> int:
 	var total := 0
 	for item: GearData in effect_sources(slot):
-		total += item.contribution(effect)
+		total += item.contribution(effect, is_plus(item))
 	return total
 
 
@@ -547,10 +563,14 @@ func passives(slot: int) -> Dictionary:
 	for item: GearData in effect_sources(slot):
 		# Effects and rot-touched drawbacks together (a drawback on the same key takes away).
 		for effect: int in GearData.PASSIVE_KEYS:
-			var delta := item.contribution(effect as GearData.Effect)
+			var delta := item.contribution(effect as GearData.Effect, is_plus(item))
 			if delta != 0:
 				var key := String(GearData.PASSIVE_KEYS[effect])
 				found[key] = int(found.get(key, 0)) + delta
+	# Pilgrim's Staff (DESIGN.md 8.25): fight-start AP for each act reached.
+	var per_act := gear_amount(slot, GearData.Effect.ACT_START_AP)
+	if per_act != 0:
+		found[Passive.START_AP] = int(found.get(Passive.START_AP, 0)) + per_act * (act + 1)
 	var rot := rot_percent()
 	if rot > 0:
 		found[Passive.ROT] = int(found.get(Passive.ROT, 0)) + rot
@@ -1144,7 +1164,7 @@ func open_treasure(stop_id: int, rotten: bool) -> Dictionary:
 
 
 ## True at the campfire before the boss (card #287): the act's campfire row, the top all-campfire
-## row under the boss. Its choices are Rest, Keep Watch and Sharpen.
+## row under the boss. Its choices are Rest, Keep Watch and Upgrade (Sharpen went, DESIGN.md 8.25).
 func is_watch_fire() -> bool:
 	var here := current()
 	if int(here.get("type", -1)) != RunMap.StopType.REST:
@@ -1213,6 +1233,17 @@ func mark_sold(index: int) -> void:
 ## Shelf `index` is back on sale (the purchase was undone).
 func unmark_sold(index: int) -> void:
 	shop_sold.erase(index)
+
+
+## Rain Pouch (DESIGN.md 8.25): whatever the campfire's pick (Rest, Train, Keep watch, Upgrade),
+## each holder also heals CAMPFIRE_HEAL percent of their max HP (on top of a Rest's heal).
+## Call it once per pick, after the pick. Returns HP healed per slot (0 for a hero without one).
+func campfire_heal() -> Array[int]:
+	var healed: Array[int] = []
+	for slot: int in hp.size():
+		var pct := gear_amount(slot, GearData.Effect.CAMPFIRE_HEAL)
+		healed.append(heal(slot, CombatMath.percent(max_hp(slot), pct)) if pct > 0 else 0)
+	return healed
 
 
 ## Campfire Train: every hero gets tuning.rest_train_points attribute points.
@@ -1401,13 +1432,17 @@ func fight_setup(encounter: EncounterData, p_seed: int, opening: CombatSetup.Ope
 	setup.party = data.party.duplicate()
 	setup.team_ultimate = data.team_ultimate
 	setup.party_start_hp = hp.duplicate()
+	var big := encounter.elite or encounter.boss or encounter.mini_boss
 	for slot: int in party_size():
 		setup.party_max_hp_percent.append(total_max_hp_percent(slot))
-		setup.party_power_percent.append(power_percent(slot))
+		var power := power_percent(slot)
+		var nail := gear_amount(slot, GearData.Effect.ELITE_POWER) if big else 0
+		if nail != 0:
+			# Kingsbane Nail (DESIGN.md 8.25): elites, guards and bosses.
+			power = CombatMath.percent(power, maxi(0, 100 + nail))
+		setup.party_power_percent.append(power)
 		setup.party_speed_bonus.append(speed_bonus(slot))
 		var mine := passives(slot)
-		if sharpened and encounter.boss and tuning.sharpen_ap > 0:
-			mine[Passive.START_AP] = int(mine.get(Passive.START_AP, 0)) + tuning.sharpen_ap
 		setup.party_passives.append(mine)
 		setup.party_skills.append(loadout[slot].duplicate() if has_tree(slot) else [])
 	for e: Dictionary in backpack.entries:
@@ -1490,8 +1525,6 @@ func finish_fight(fight_result: String, party_hp: Array[int], encounter: Encount
 	var none := {"gold": 0, "xp": _zeros(), "levels": _zeros()}
 	end_ambush()
 	add_defence(recap.get("heroes", []))
-	if encounter != null and encounter.boss:
-		sharpened = false
 	flawless = fight_result == VICTORY and RunState.is_flawless(encounter, recap)
 	if fight_result == ESCAPED:
 		# Ran away (DESIGN.md 2.13): the HP carries on (a downed hero stands up at the floor),
@@ -1629,20 +1662,10 @@ func attribute(slot: int, kind: int) -> int:
 	return int(attributes[slot][kind]) if slot < attributes.size() else 0
 
 
-## Points in one attribute with the stat lines of the Relics the hero has (DESIGN.md 8.17).
+## Points in one attribute. Relics gave stat lines on top until phase 27 (DESIGN.md 8.25: a Relic is
+## only its ability now); kept as its own function for the stats that read it.
 func attribute_total(slot: int, kind: int) -> int:
-	return attribute(slot, kind) + relic_stat(slot, kind)
-
-
-## The attribute points the Relics hero `slot` has give to one attribute (their level 1 stat line:
-## a run has no Relic levels, DESIGN.md 8.24).
-func relic_stat(slot: int, kind: int) -> int:
-	var total := 0
-	if slot >= 0 and slot < gear.size():
-		for item: Variant in gear[slot]:
-			if item != null and (item as GearData).stat == kind:
-				total += (item as GearData).stat_points
-	return total
+	return attribute(slot, kind)
 
 
 ## Every attribute point hero `slot` has earned so far (fewer per level with the oaths, DESIGN.md 8.15).
@@ -1716,10 +1739,13 @@ func earned_skill_points(slot: int) -> int:
 	return (levels[slot] - 1) * tuning.skill_points_per_level
 
 
-## What unlocking `ability_id` costs (its place in its branch; -1 if it is not in the tree).
+## What unlocking `ability_id` costs (its place in its branch; 0 for a start skill; -1 if it is not
+## in the tree).
 func skill_cost(slot: int, ability_id: String) -> int:
 	if not has_tree(slot):
 		return -1
+	if tree(slot).is_start_skill(ability_id):
+		return 0
 	var at := tree(slot).place_of(ability_id)
 	if at.y < 0:
 		return -1
@@ -1788,13 +1814,28 @@ func auto_skills(slot: int) -> void:
 		unlock(slot, best)
 
 
+## Makes every hero know their tree's start skills (and bring each while there is room). A save
+## from before card #338 (DESIGN.md 8.25) has heroes without them; a new run already has them, so
+## this changes nothing then.
+func _grant_start_skills() -> void:
+	for slot: int in party_size():
+		if not has_tree(slot):
+			continue
+		for skill: AbilityData in tree(slot).start_skills:
+			if skill == null or unlocked[slot].has(skill.id):
+				continue
+			unlocked[slot].append(skill.id)
+			if loadout[slot].size() < tuning.skill_slots:
+				loadout[slot].append(skill.id)
+
+
 ## True if `ids` is a list of skills in hero `slot`'s tree (any list is fine without a tree only
 ## if it is empty).
 func _skill_ids_fit(slot: int, ids: Variant) -> bool:
 	if not ids is Array:
 		return false
 	for id: Variant in ids:
-		if typeof(id) != TYPE_STRING or not has_tree(slot) or tree(slot).place_of(String(id)).x < 0:
+		if typeof(id) != TYPE_STRING or not has_tree(slot) or not tree(slot).has_skill(String(id)):
 			return false
 	return true
 
@@ -2410,6 +2451,40 @@ func add_relic(item: GearData) -> Dictionary:
 	return info
 
 
+## True if the run's Relic `item` is upgraded to Relic+ (DESIGN.md 8.25).
+func is_plus(item: GearData) -> bool:
+	return item != null and relics_plus.has(item.id)
+
+
+## True if Relic `item` can be upgraded now: the run has it, a hero has it, it has a "+" and is
+## not "+" yet. The campfire's Upgrade card is dim when no Relic of the party can (upgradable).
+func can_upgrade(item: GearData) -> bool:
+	return item != null and relic_by_id(item.id) == item and owns(item) and is_given(item) \
+			and item.has_plus() and not is_plus(item)
+
+
+## The party's Relics that can be upgraded now (can_upgrade), in the run's order; only those of
+## heroes in `heroes` when given (co-op: the chooser's own heroes, as for "Who gets it?").
+func upgradable(heroes: Array[int] = []) -> Array[GearData]:
+	var found: Array[GearData] = []
+	for item: GearData in owned_relics():
+		if can_upgrade(item) and (heroes.is_empty() or heroes.has(holder_of(item))):
+			found.append(item)
+	return found
+
+
+## Upgrades the run's Relic with this id to Relic+ (the campfire's Upgrade, DESIGN.md 8.25). Once per
+## Relic, for the rest of the run. False (nothing changes) if it cannot be (can_upgrade). HP is
+## clamped to a max that may have changed.
+func upgrade_relic(id: String) -> bool:
+	var item := relic_by_id(id)
+	if not can_upgrade(item):
+		return false
+	relics_plus[item.id] = 1
+	_clamp_hp()
+	return true
+
+
 ## What the run keeps forever, won or lost, for its end screen: the Relics found for the first time
 ## ("Nothing new to keep." if none).
 func relic_gain_line() -> String:
@@ -2572,6 +2647,7 @@ func undo_start_relic(slot: int, id: String) -> bool:
 		missing.append(max_hp(s) - hp[s])
 	(gear[slot] as Array).erase(relic)
 	relics.erase(id)
+	relics_plus.erase(id)
 	start_relics.erase(id)
 	start_left[slot] = start_relic_count() - (taken - 1)
 	for s: int in party_size():
@@ -2660,26 +2736,39 @@ func is_crowned(stop_id: int = -2) -> bool:
 	return int(s.get("type", -1)) == RunMap.StopType.ELITE and bool(s.get("crown", false))
 
 
-## The Relics a stop's spoils offer: up to loot_choice_count() Relics the run lacks (seeded). The crowned elite's spoils always hold a legendary one, listed first (card
-## #286), while the run has one left to gain.
+## The Relics a stop's spoils offer: up to loot_choice_count() Relics the run lacks (seeded), rare or
+## better (tuning.run_spoils_min_rarity). In the first tuning.run_spoils_open_acts acts,
+## tuning.run_spoils_open_cards of them may be any rarity (common too), except at the crowned elite.
+## From act tuning.crown_legendary_from_act on, the crowned elite's spoils hold a legendary one, listed
+## first (card #286), while the run has one left to gain (DESIGN.md 8.25).
 func loot_choices(stop_id: int) -> Array[GearData]:
 	var salt := stop_id * LOOT_SALT + act * 43
 	var row := _row_of(stop_id)
 	var count := loot_choice_count()
-	if is_crowned(stop_id) and not in_ambush():
+	var crowned := is_crowned(stop_id) and not in_ambush()
+	if crowned and act + 1 >= tuning.crown_legendary_from_act:
 		var crown := _pick_gear(salt + 3, 1, row, ItemData.Rarity.LEGENDARY, GearPool.NORMAL)
 		if not crown.is_empty() and int(crown[0].rarity) == ItemData.Rarity.LEGENDARY:
 			var rest := _loot_picks(salt, row, count - 1, crown)
 			crown.append_array(rest)
 			return crown
-	return _loot_picks(salt, row, count)
+	return _loot_picks(salt, row, count, [], -1, spoils_open_cards(crowned))
+
+
+## How many spoils cards may be any rarity (DESIGN.md 8.25): tuning.run_spoils_open_cards in the
+## first tuning.run_spoils_open_acts acts, none at the crowned elite or later on.
+func spoils_open_cards(crowned: bool) -> int:
+	if crowned or act >= tuning.run_spoils_open_acts:
+		return 0
+	return tuning.run_spoils_open_cards
 
 
 ## Up to `count` spoils picks, none of `skip` (see loot_choices). `floor_rarity`: the lowest rarity
 ## offered while the pool has enough (the rotten chest's rare or better), -1 for the spoils' own
-## tuning.run_spoils_min_rarity (and any rarity once the pool runs short).
+## tuning.run_spoils_min_rarity (and any rarity once the pool runs short). `open_cards` of the
+## ordinary picks may be any rarity (spoils_open_cards), listed after the others.
 func _loot_picks(salt: int, row: int, count: int, skip: Array[GearData] = [],
-		floor_rarity: int = -1) -> Array[GearData]:
+		floor_rarity: int = -1, open_cards: int = 0) -> Array[GearData]:
 	# Rot-touched gear (DESIGN.md 8.16): spoils offer some among their choices (listed last), but
 	# never as the only choice.
 	var least := floor_rarity if floor_rarity >= 0 else tuning.run_spoils_min_rarity
@@ -2687,7 +2776,12 @@ func _loot_picks(salt: int, row: int, count: int, skip: Array[GearData] = [],
 	var rot: Array[GearData] = []
 	if rot_count > 0:
 		rot = _pick_gear(salt + ROT_GEAR_SALT, rot_count, row, least, GearPool.ROT_TOUCHED, skip)
-	var picked := _pick_gear(salt, count - rot.size(), row, least, GearPool.NORMAL, skip)
+	var open := clampi(open_cards, 0, count - rot.size())
+	var picked := _pick_gear(salt, count - rot.size() - open, row, least, GearPool.NORMAL, skip)
+	if open > 0:
+		var taken := picked.duplicate()
+		taken.append_array(skip)
+		picked.append_array(_pick_gear(salt + OPEN_CARD_SALT, open, row, 0, GearPool.NORMAL, taken))
 	picked.append_array(rot)
 	if picked.size() < count:
 		var taken := picked.duplicate()

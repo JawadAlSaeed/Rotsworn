@@ -472,7 +472,7 @@ func _redraw_strip(data: Dictionary) -> void:
 	_clear(_strip_icon)
 	_clear(_strip_chips)
 	_clear(_strip_bar)
-	var picture := _icon_for(data.get("icon"), STRIP_ICON_PX)
+	var picture := _icon_for(data.get("icon"), STRIP_ICON_PX, bool(data.get("plus", false)))
 	if picture != null:
 		_strip_icon.add_child(picture)
 	_strip_title.text = String(data.get("title", ""))
@@ -533,11 +533,12 @@ static func visible_hints(entries: Array) -> int:
 	return count
 
 
-## A picture for a strip or a toast: a Relic's icon, an item's sprite, a texture or a glyph.
-func _icon_for(icon: Variant, px: float) -> Control:
+## A picture for a strip or a toast: a Relic's icon (with its Relic+ badge when `plus`), an item's
+## sprite, a texture or a glyph.
+func _icon_for(icon: Variant, px: float, plus: bool = false) -> Control:
 	if icon is GearData:
 		var relic := RelicIcon.new()
-		relic.setup(icon as GearData, px)
+		relic.setup(icon as GearData, px, true, 0, 0, plus)
 		return relic
 	if icon is ItemData:
 		var item := icon as ItemData

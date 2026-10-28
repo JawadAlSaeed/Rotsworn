@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "widows_thimble"
+display_name = "Widow's Thimble"
+description = "Once a fight: the first hit that lands does nothing."
+price = 60
+effect = 56
+amount = 1
+plus_text = "Twice a fight."
+amount_plus = 2
+icon_path = "res://assets/sprites/relics/widows_thimble.png"

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "headsmans_hood"
+display_name = "Headsman's Hood"
+description = "Your counters always crit."
+price = 150
+rarity = 2
+effect = 43
+amount = 1
+plus_text = "Counter crits deal +50% more."
+plus_rider = 44
+plus_rider_amount = 50
+icon_path = "res://assets/sprites/relics/headsmans_hood.png"

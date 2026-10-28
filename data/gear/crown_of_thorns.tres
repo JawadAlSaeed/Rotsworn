@@ -1,18 +1,19 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_bcd2j"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_bcd2j")
+script = ExtResource("1_gear")
 id = "crown_of_thorns"
 display_name = "Crown of Thorns"
-description = "Enemies that hit the wearer take 60% of the damage back, but their hits deal 15% more."
+description = "Take 40% less damage. Heals on you -50%."
 price = 150
 rarity = 2
-effect = 18
-amount = 60
+effect = 10
+amount = 40
 rot_touched = true
-drawback = 10
-drawback_amount = 15
-stat = 3
-stat_points = 4
+drawback = 13
+drawback_amount = 50
+plus_text = "Heals on you only -25%."
+drawback_amount_plus = 25
+icon_path = "res://assets/sprites/relics/crown_of_thorns.png"

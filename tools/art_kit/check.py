@@ -62,6 +62,11 @@ EVENT_PICTURE = (128, 64)
 EVENT_PICTURE_COLOURS = 96
 AMBUSH_PICTURES = ["ambush_rotten_road", "ambush_drowned_mire", "ambush_ashen_deep"]
 
+# The Relics' pictures (DESIGN.md 8.25 "Icons"): one per Relic still in the game, a square canvas
+# (its side set by how big its frame holds it, assets/relic_icons.py fit) drawn over the frame's
+# inside, so every opaque pixel must sit inside that frame (kit.relic_frame.safe_mask).
+RELIC_MIN_SPAN = 12  # the object's bounding box is at least this tall or wide (reads at 26 px)
+
 errors: list[str] = []
 warnings: list[str] = []
 
@@ -270,6 +275,56 @@ def calm(rel: str, a: np.ndarray, max_std: float) -> None:
                       % (rel, rows, cols, std))
 
 
+def relics() -> None:
+    """sprites/relics/<id>.png: square (RELIC_MIN_SPAN + 2 to CANVAS_MAX px), hard alpha, a clear
+    1-pixel border, big enough to read, every pixel inside its frame's safe area at its side; every
+    Relic in data/gear/ (but the cut ones) has one, and no picture is left over."""
+    from assets.relic_icons import CANVAS_MAX, CUT, RELICS  # the kit's Relic table (id, frame kind, ...)
+    from kit.relic_frame import safe_mask
+
+    masks = {}
+    listed = {r[0] for r in RELICS}
+    for rid, kind, _rarity, _rot, _draw in RELICS:
+        rel = "relics/%s.png" % rid
+        a = load(rel)
+        if a is None:
+            continue
+        n = a.shape[1]
+        if a.shape[0] != n or not RELIC_MIN_SPAN + 2 <= n <= CANVAS_MAX:
+            errors.append("%s: is %dx%d, should be square, %d to %d px"
+                          % (rel, n, a.shape[0], RELIC_MIN_SPAN + 2, CANVAS_MAX))
+            continue
+        hard_alpha(rel, a)
+        solid = a[..., 3] > 0
+        if not solid.any():
+            errors.append("%s: empty" % rel)
+            continue
+        if solid[0, :].any() or solid[-1, :].any() or solid[:, 0].any() or solid[:, -1].any():
+            errors.append("%s: touches the picture's edge (no outline room)" % rel)
+        ys, xs = np.nonzero(solid)
+        if max(ys[-1] - ys[0], xs.max() - xs.min()) + 1 < RELIC_MIN_SPAN:
+            errors.append("%s: only %dx%d px, too small to read at 26 px"
+                          % (rel, xs.max() - xs.min() + 1, ys[-1] - ys[0] + 1))
+        if (kind, n) not in masks:
+            masks[kind, n] = safe_mask(kind, n=n)
+        out = solid & ~masks[kind, n]
+        if out.any():
+            ys, xs = np.nonzero(out)
+            errors.append("%s: %d px outside its %s frame (the edge would cut them), e.g. (%d, %d)"
+                          % (rel, len(xs), kind, xs[0], ys[0]))
+    gear_dir = os.path.join(ROOT, "data", "gear")
+    if os.path.isdir(gear_dir):
+        for f in sorted(os.listdir(gear_dir)):
+            rid = f[:-5]
+            if f.endswith(".tres") and rid not in listed and rid not in CUT:
+                errors.append("data/gear/%s: no Relic picture (add it to assets/relic_icons.py RELICS)" % f)
+    folder = os.path.join(SPRITES, "relics")
+    if os.path.isdir(folder):
+        for f in sorted(os.listdir(folder)):
+            if f.endswith(".png") and f[:-4] not in listed:
+                warnings.append("relics/%s: no Relic of that id in assets/relic_icons.py" % f)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Checks the art against the sprite contract.")
     ap.add_argument("--legacy", metavar="DIR",
@@ -378,6 +433,7 @@ def main() -> int:
             n = len({tuple(int(v) for v in px) for px in a.reshape(-1, 4)})
             if n > EVENT_PICTURE_COLOURS:
                 errors.append("%s: %d colours (at most %d)" % (rel, n, EVENT_PICTURE_COLOURS))
+    relics()
     for w in warnings:
         print("warning:", w)
     for e in errors:

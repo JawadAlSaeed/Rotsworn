@@ -23,7 +23,7 @@ skills = Array[ExtResource("3_ability")]([ExtResource("a_mend"), ExtResource("a_
 [sub_resource type="Resource" id="b1"]
 script = ExtResource("2_branch")
 display_name = "Light"
-skills = Array[ExtResource("3_ability")]([ExtResource("a_reveal"), ExtResource("a_smite"), ExtResource("a_radiance"), ExtResource("a_revive")])
+skills = Array[ExtResource("3_ability")]([ExtResource("a_reveal"), ExtResource("a_smite"), ExtResource("a_revive")])
 
 [sub_resource type="Resource" id="b2"]
 script = ExtResource("2_branch")
@@ -32,4 +32,5 @@ skills = Array[ExtResource("3_ability")]([ExtResource("a_pass_the_torch"), ExtRe
 
 [resource]
 script = ExtResource("1_tree")
+start_skills = Array[ExtResource("3_ability")]([ExtResource("a_radiance")])
 branches = Array[ExtResource("2_branch")]([SubResource("b0"), SubResource("b1"), SubResource("b2")])

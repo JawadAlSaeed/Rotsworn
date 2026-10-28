@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "martyrs_ash"
+display_name = "Martyr's Ash"
+description = "You fall: each ally gets +2 AP."
+price = 60
+effect = 52
+amount = 2
+plus_text = "+3 AP."
+amount_plus = 3
+icon_path = "res://assets/sprites/relics/martyrs_ash.png"

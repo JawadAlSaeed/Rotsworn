@@ -9,10 +9,8 @@
 [ext_resource type="Resource" path="res://data/clips/bloat.tres" id="7_clips"]
 [ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="9_fucfb"]
 [ext_resource type="Resource" path="res://data/gear/menders_charm.tres" id="10_v6b7q"]
-[ext_resource type="Resource" path="res://data/gear/iron_charm.tres" id="11_7p0nu"]
 [ext_resource type="Resource" path="res://data/gear/hunger_charm.tres" id="12_ewlat"]
 [ext_resource type="Resource" path="res://data/gear/rain_pouch.tres" id="13_v6b7q"]
-[ext_resource type="Resource" path="res://data/gear/victors_wreath.tres" id="14_7p0nu"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/bloat_bile_rain.tres" id="p12_bloat_bile_rain"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/bloat_bile_spit.tres" id="p12_bloat_bile_spit"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/bloat_quake.tres" id="p12_bloat_quake"]
@@ -36,5 +34,5 @@ attacks = Array[ExtResource("1_3185s")]([ExtResource("2_0j26f"), ExtResource("3_
 gold = 20
 xp = 40
 voice_sfx = "voice_bloat"
-relic_drops = Array[ExtResource("9_fucfb")]([ExtResource("10_v6b7q"), ExtResource("11_7p0nu"), ExtResource("12_ewlat"), ExtResource("13_v6b7q"), ExtResource("14_7p0nu")])
+relic_drops = Array[ExtResource("9_fucfb")]([ExtResource("10_v6b7q"), ExtResource("12_ewlat"), ExtResource("13_v6b7q")])
 runs_up = true

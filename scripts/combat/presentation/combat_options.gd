@@ -46,7 +46,7 @@ extends RefCounted
 ##                                   topic: glossary_reading), journal, party, heroes, attributes, skills, calibration,
 ##                                   tutorial, map, map_start, map_act2, map_act3, first_strike (a Fight
 ##                                   stop's name card with its First Strike ring, starting over),
-##                                   shop, campfire,
+##                                   shop, campfire, campfire_upgrade (its Upgrade pick open),
 ##                                   event, treasure, controls_vibration (the Controller page on
 ##                                   its Vibration row), players_in_run (the Players overlay
 ##                                   over the pause menu, two players), pause_players (the pause menu

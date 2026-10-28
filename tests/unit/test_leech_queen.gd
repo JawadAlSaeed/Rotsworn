@@ -139,10 +139,12 @@ func test_a_hit_that_downs_a_hero_drinks_what_the_hero_had_left() -> void:
 	assert_eq(int(drinks[0].amount), had, "she drinks the HP taken, not the hit's size")
 
 
+## Thorns answer a parry since phase 27 (Bramble Coat, DESIGN.md 8.25): the first bite parried kills
+## her, and the second one, which would land, is never drunk.
 func test_an_attacker_killed_by_thorns_drinks_nothing() -> void:
-	var engine := _fight(_bite(100), false, {Passive.THORNS: 100})
+	var engine := _fight(_bite(100, 2), false, {Passive.THORNS: 100})
 	engine.get_combatant(FOE).hp = 1
-	var events := engine.submit(Fx.resolve_now(engine, [[0, NONE]]))
+	var events := engine.submit(Fx.resolve_now(engine, [[0, PARRY], [1, NONE]]))
 	assert_false(engine.get_combatant(FOE).is_alive(), "the thorns killed her")
 	assert_true(_drinks(events).is_empty(), "the dead drink nothing")
 

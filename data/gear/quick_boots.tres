@@ -1,13 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_lvgwg"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_lvgwg")
+script = ExtResource("1_gear")
 id = "quick_boots"
 display_name = "Quick Boots"
-description = "Speed +15: turns come sooner."
-effect = 2
-amount = 15
-stat = 2
-stat_points = 2
+description = "Dodge: your next turn comes sooner."
+price = 60
+effect = 74
+amount = 25
+plus_text = "Much sooner."
+amount_plus = 50
+icon_path = "res://assets/sprites/relics/quick_boots.png"

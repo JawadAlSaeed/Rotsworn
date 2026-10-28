@@ -307,8 +307,8 @@ func test_no_road_meets_the_guard_twice_in_a_row() -> void:
 	assert_gt(blocked, 0, "the rule turned some guards into groups")
 
 
-## The act's crowned elite rolls like any Elite stop. A crowned guard keeps the crown's spoils (a
-## legendary Relic first) but fights as every guard does: the crown's extra HP and power are an elite
+## The act's crowned elite rolls like any Elite stop. A crowned guard keeps the crown's spoils (in act
+## 1 all rare or better, DESIGN.md 8.25) but fights as every guard does: the crown's extra HP and power are an elite
 ## group's.
 func test_a_crowned_elite_stop_may_hold_the_guard_with_the_crowns_spoils() -> void:
 	_tuning.run_elite_guard_percent = 100
@@ -324,8 +324,8 @@ func test_a_crowned_elite_stop_may_hold_the_guard_with_the_crowns_spoils() -> vo
 			assert_true(run.is_crowned())
 			var guard := run.encounter_now()
 			assert_true(guard.mini_boss, "seed %d: the crowned stop holds the guard" % s)
-			var spoils := run.loot_choices(id)
-			assert_eq(int(spoils[0].rarity), ItemData.Rarity.LEGENDARY, "the crown's legendary comes first")
+			for item: GearData in run.loot_choices(id):
+				assert_gte(int(item.rarity), ItemData.Rarity.RARE, "the crown's spoils: %s rare or better" % item.id)
 			var setup := run.fight_setup(guard, 1, CombatSetup.Opening.NORMAL)
 			run.map.stops[id].crown = false
 			var plain := run.fight_setup(guard, 1, CombatSetup.Opening.NORMAL)
@@ -797,7 +797,7 @@ func test_every_place_still_names_its_song_and_loop() -> void:
 # --- saves and online --------------------------------------------------------------------------------
 
 func test_a_save_from_before_is_kept_but_not_offered() -> void:
-	assert_eq(RunSave.FORMAT_VERSION, 7)
+	assert_eq(RunSave.FORMAT_VERSION, 8)
 	_save_path = OS.get_temp_dir().path_join("rotsworn_test_run_fights_%d.json" % Time.get_ticks_usec())
 	# Format 1: saved inside a zone. Format 2: the first phase 26 builds, whose Hanging Cage still
 	# gave a Key. The Key's file is gone (card #319), so such a pack no longer loads: the main menu
@@ -805,7 +805,8 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 	# Format 3: two acts; its act 2 (the Ashen Deep) is act 3 now (card #323), so it would carry on
 	# in the wrong place. Format 4: a row of Guard stops (map rules 3), from before the guards joined
 	# the Elite stops (DESIGN.md 8.22). Format 5: Relic slots, levels and Echoes (DESIGN.md 8.24).
-	# Format 6: Tonics, item levels and curses in pockets (card #332).
+	# Format 6: Tonics, item levels and curses in pockets (card #332). Format 7: Relic stat lines,
+	# no Relic+ and the four cut Relics (DESIGN.md 8.25).
 	var run := _run()
 	run.add_item(run.items_by_id()["salve"] as ItemData)
 	var with_key := run.to_dict()
@@ -813,7 +814,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 	var rows: Array = (with_key.backpack as Array)[3]
 	(rows[0] as Array)[1] = "key"
 	assert_null(RunState.from_dict(_data, _tuning, with_key), "a pack holding a Key no longer fits")
-	for format: int in [1, 2, 3, 4, 5, 6]:
+	for format: int in [1, 2, 3, 4, 5, 6, 7]:
 		var old := {"format": format, "fingerprint": "x", "in_stop": false, "players": 1, "run": with_key}
 		var file := FileAccess.open(_save_path, FileAccess.WRITE)
 		file.store_string(JSON.stringify(old))
@@ -827,7 +828,7 @@ func test_a_save_from_before_is_kept_but_not_offered() -> void:
 
 
 func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 9, "the pack of consumables only and the party's curses (card #332)")
+	assert_eq(NetSession.PROTOCOL, 10, "Relic+ in the run state and the campfire's upgrade (DESIGN.md 8.25)")
 	assert_has(_main.get_script_constant_map().get("NET_FIGHT_SCREENS") as Array, "stop_fight")
 	for s: int in [3, 7, 21]:
 		var host := _run(s)
@@ -853,9 +854,10 @@ func test_a_friend_builds_the_hosts_fight_stop_from_the_state_alone() -> void:
 ## An Elite stop's fight (the host's "final_fight" message): the friend builds the same pick, guard
 ## or group, the same fight and weather from the run state alone. The Elite stops changed no message
 ## or field (Net.PROTOCOL 6 was taking turns', card #314; 7 the Relics without slots, DESIGN.md 8.24;
-## 8 the messages without a mode, card #331; 9 the pack of consumables only, card #332).
+## 8 the messages without a mode, card #331; 9 the pack of consumables only, card #332; 10 Relic+,
+## DESIGN.md 8.25).
 func test_a_friend_builds_the_hosts_elite_stop_from_the_state_alone() -> void:
-	assert_eq(NetSession.PROTOCOL, 9)
+	assert_eq(NetSession.PROTOCOL, 10)
 	for guard: bool in [true, false]:
 		var found := _elite_stop_holding(guard)
 		assert_gt(found[0], 0)

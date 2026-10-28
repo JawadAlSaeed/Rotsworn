@@ -153,14 +153,16 @@ func test_earthshaker_pushes_every_enemy_back() -> void:
 	assert_gt(engine.get_combatant(FOE).next_turn_at, before)
 
 
-func test_every_hero_has_three_branches_of_three_or_four() -> void:
-	# Phase 19 (cards #254, #261) gave Brin's Flurry and Cass's Mending and Light a fourth skill.
+func test_every_hero_has_three_branches_of_two_to_four() -> void:
+	# Phase 19 (cards #254, #261) gave Brin's Flurry and Cass's Mending and Light a fourth skill;
+	# card #338 (DESIGN.md 8.25) took each hero's start skill out of its branch, so Retort and
+	# Cripple are two long.
 	for hero: String in ["alder", "brin", "cass"]:
 		var c := load("res://data/characters/%s.tres" % hero) as CharacterData
 		assert_not_null(c.skill_tree, hero)
 		assert_eq(c.skill_tree.branches.size(), 3, hero)
 		for branch: SkillBranchData in c.skill_tree.branches:
-			assert_between(branch.skills.size(), 3, 4, "%s %s" % [hero, branch.display_name])
+			assert_between(branch.skills.size(), 2, 4, "%s %s" % [hero, branch.display_name])
 			for skill: AbilityData in branch.skills:
 				assert_not_null(skill, hero)
 

@@ -1,14 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_adre1"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_adre1")
+script = ExtResource("1_gear")
 id = "marrow_charm"
 display_name = "Marrow Charm"
-description = "Healing the wearer receives is 15% stronger."
-price = 50
-effect = 13
-amount = 15
-stat = 3
-stat_points = 2
+description = "You get healed: your lowest ally heals half that."
+price = 60
+effect = 68
+amount = 50
+plus_text = "They heal the same amount."
+amount_plus = 100
+icon_path = "res://assets/sprites/relics/marrow_charm.png"

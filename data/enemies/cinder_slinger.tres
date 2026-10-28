@@ -12,7 +12,6 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/slinger_volley.tres" id="a_slinger_volley"]
 [ext_resource type="Resource" path="res://data/gear/ash_veil.tres" id="g_ash_veil"]
 [ext_resource type="Resource" path="res://data/gear/last_ember.tres" id="g_last_ember"]
-[ext_resource type="Resource" path="res://data/gear/wardstone.tres" id="g_wardstone"]
 
 [resource]
 script = ExtResource("2_enemy")
@@ -33,5 +32,5 @@ target_bias_percent = 150
 gold = 21
 xp = 42
 voice_sfx = "voice_husk"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_last_ember"), ExtResource("g_ash_veil"), ExtResource("g_wardstone"), ExtResource("11_x8aai")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_last_ember"), ExtResource("g_ash_veil"), ExtResource("11_x8aai")])
 forced_hits = true

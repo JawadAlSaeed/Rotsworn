@@ -301,11 +301,14 @@ func test_the_campfire_choices_are_cards_with_icons_and_numbers() -> void:
 	var rest := _rest(run)
 	var menu := rest.menu()
 	assert_true(menu.horizontal)
-	assert_eq(_texts(menu), ["Rest", "Train"], "two choices: the Upgrade went with the item levels (card #332)")
+	assert_eq(_texts(menu), ["Rest", "Train", "Upgrade"], "three choices: Upgrade makes a Relic Relic+ (DESIGN.md 8.25)")
 	for row: Dictionary in menu.items:
 		assert_true(row.icon is Texture2D, "%s has a picture" % row.text)
 	assert_eq(String((menu.items[0].chips as Array)[0].text), "+%d%% HP" % run.rest_heal_percent(), "Rest says how much it heals")
-	assert_eq(String((menu.items[1].chips as Array)[0].text), "+%d points" % _tuning.rest_train_points)
+	assert_eq(String((menu.items[1].chips as Array)[0].text), "+%d point%s" % [_tuning.rest_train_points,
+			"" if _tuning.rest_train_points == 1 else "s"])
+	assert_eq(String((menu.items[2].chips as Array)[0].text), RestScreen.UPGRADE_CHIP)
+	assert_false(menu.is_enabled(2), "no Relic to upgrade: the card is dim")
 	for entry: Array in rest.footer_entries():
 		assert_ne(entry[0], &"menu_cancel", "no Back while choosing")
 	_press_on(rest, &"menu_cancel")
@@ -319,8 +322,10 @@ func test_a_full_pack_changes_nothing_at_the_campfire() -> void:
 	for i: int in run.backpack.width:
 		run.add_item(run.items_by_id()["salve"] as ItemData)
 	var rest := _rest(run)
-	assert_eq(_texts(rest.menu()), ["Rest", "Train"])
-	assert_false(rest.has_method("upgrade_now"), "the bot has no upgrade to call")
+	assert_eq(_texts(rest.menu()), ["Rest", "Train", "Upgrade"])
+	# Upgrade is back for Relics (Relic+, DESIGN.md 8.25), never the pack's items.
+	assert_false(rest.upgrade_now("salve"), "no item upgrade")
+	assert_false(rest.menu().is_enabled(2), "the pack's items never light it")
 	rest.menu().index = 1
 	_press_on(rest, &"menu_confirm")
 	assert_true(rest.has_acted(), "Train is the one choice")

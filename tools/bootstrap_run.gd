@@ -80,7 +80,6 @@ func _init() -> void:
 
 func _gear_list() -> Array[GearData]:
 	var list: Array[GearData] = [
-		_gear("iron_charm", "Iron Charm", "Max HP +20%.", 60, G.MAX_HP, 20),
 		_gear("whetstone", "Whetstone", "Power +15%: every hit, skill and counter.", 70, G.POWER, 15),
 		_gear("quick_boots", "Quick Boots", "Speed +15: turns come sooner.", 60, G.SPEED, 15),
 		_gear("war_drum", "War Drum", "Start every fight with +1 AP.", 70, G.START_AP, 1),
@@ -93,7 +92,6 @@ func _gear_list() -> Array[GearData]:
 		_gear("rot_hunter", "Rot Hunter", "Hits on Exposed enemies deal +50% more.", 60, G.EXPOSED, 50),
 		_gear("thick_hide", "Thick Hide", "Enemy hits deal 15% less.", 70, G.TOUGH, 15),
 		_gear("menders_charm", "Mender's Charm", "Heals you give are 30% stronger.", 50, G.HEAL, 30),
-		_gear("lucky_coin", "Lucky Coin", "The party earns 25% more gold from fights.", 40, G.GOLD, 25),
 	]
 	return list
 

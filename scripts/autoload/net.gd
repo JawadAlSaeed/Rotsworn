@@ -73,7 +73,9 @@ const HOST_PEER: int = 1
 ## 9: the pack holds consumables only (card #332, DESIGN.md 8.1): the run state carries "curses" and
 ## no "tonics_used", a pack entry has no level, the "combine" bag op and the campfire's "upgrade"
 ## choice are gone, and the shop's "cleanse" choice names a curse by its "index".
-const PROTOCOL: int = 9
+## 10: Relics reworked and Relic+ (DESIGN.md 8.25): the run state carries "relics_plus" and the
+## campfire takes an "upgrade" choice naming its "relic".
+const PROTOCOL: int = 10
 ## Client: the host could not be reached (short: it can end as a main menu notice).
 const REASON_UNREACHABLE := "Host not found"
 ## Channel for every message (flow and combat).

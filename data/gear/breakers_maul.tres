@@ -1,15 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_snanq"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_snanq")
+script = ExtResource("1_gear")
 id = "breakers_maul"
 display_name = "Breaker's Maul"
-description = "The wearer deals 25% more damage to Staggered enemies."
-price = 100
-rarity = 1
+description = "Staggered foes take +40% from you."
+price = 60
 effect = 32
-amount = 25
-stat = 1
-stat_points = 3
+amount = 40
+plus_text = "+70%."
+amount_plus = 70
+icon_path = "res://assets/sprites/relics/breakers_maul.png"

@@ -178,15 +178,27 @@ static func run_tuning(from: Tuning = null) -> Tuning:
 	return (from.duplicate(true) as Tuning) if from != null else Tuning.new()
 
 
-## The run's data with copies of its Relics that have no stat line, for tests of an effect's own
-## numbers (DESIGN.md 8.17); the shipped files are not touched.
-static func without_relic_stats(data: RunData) -> RunData:
+## A copy of a run's data with two test Relics added: "test_heart" (max HP +20) and "test_ring"
+## (counters +50, max HP -15). No shipped Relic touches max HP since phase 27 (DESIGN.md 8.25), but the
+## run still reads the MAX_HP effect, so tests of max HP rules use these.
+static func with_max_hp_relics(data: RunData) -> RunData:
 	var copy := data.duplicate() as RunData
+	var heart := GearData.new()
+	heart.id = "test_heart"
+	heart.display_name = "Test Heart"
+	heart.effect = GearData.Effect.MAX_HP
+	heart.amount = 20
+	var ring := GearData.new()
+	ring.id = "test_ring"
+	ring.display_name = "Test Ring"
+	ring.effect = GearData.Effect.COUNTER
+	ring.amount = 50
+	ring.drawback = GearData.Effect.MAX_HP
+	ring.drawback_amount = 15
 	var gear: Array[GearData] = []
-	for item: GearData in data.gear:
-		var plain := item.duplicate() as GearData
-		plain.stat_points = 0
-		gear.append(plain)
+	gear.assign(data.gear)
+	gear.append(heart)
+	gear.append(ring)
 	copy.gear = gear
 	return copy
 

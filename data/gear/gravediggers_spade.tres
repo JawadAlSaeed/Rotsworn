@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "gravediggers_spade"
+display_name = "Gravedigger's Spade"
+description = "Every third damaging skill deals double."
+price = 150
+rarity = 2
+effect = 41
+amount = 100
+plus_text = "Deals x2.5."
+amount_plus = 150
+icon_path = "res://assets/sprites/relics/gravediggers_spade.png"

@@ -682,7 +682,7 @@ func test_the_opening_goes_into_the_fights_setup() -> void:
 
 
 func test_online_the_ring_comes_with_the_fight() -> void:
-	assert_eq(NetSession.PROTOCOL, 9, "no bump: the fingerprint keeps other builds out; 9 is the pack's (card #332)")
+	assert_eq(NetSession.PROTOCOL, 10, "no bump: the fingerprint keeps other builds out; 10 is Relic+'s (DESIGN.md 8.25)")
 	var announce := _body("func _announce_stop_fight(")
 	assert_string_contains(announce, "_send_screen({\"name\": \"stop_fight\", \"seed\": _net_seed})")
 	assert_string_contains(_body("func _start_stop_fight("), "_announce_stop_fight()",

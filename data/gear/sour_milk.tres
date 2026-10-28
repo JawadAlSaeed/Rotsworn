@@ -1,18 +1,19 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_tyrnr"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_tyrnr")
+script = ExtResource("1_gear")
 id = "sour_milk"
 display_name = "Sour Milk"
-description = "Speed +25, but healing the wearer receives is 30% weaker."
-price = 110
+description = "Take the first turn of every fight. Heals on you -30%."
+price = 100
 rarity = 1
-effect = 2
-amount = 25
+effect = 78
+amount = 1
 rot_touched = true
 drawback = 13
 drawback_amount = 30
-stat = 2
-stat_points = 3
+plus_text = "Heals on you only -10%."
+drawback_amount_plus = 10
+icon_path = "res://assets/sprites/relics/sour_milk.png"

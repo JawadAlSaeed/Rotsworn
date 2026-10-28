@@ -4,11 +4,12 @@ extends PartyTab
 ## SkillsScreen, with the same rules). Top left the shown hero's face, name and free skill points
 ## (LT / RT: the previous / next hero with a tree, heroes without one are skipped); along the top
 ## the sockets of the skills they bring into fights (tuning.skill_slots); below, the tree: its
-## branches as columns of skill tiles joined by lines. A tile says its state by its frame, never
-## by a word: gold = brought, lit = known, a green plus = can learn now, dim with a lock = locked.
-## Confirm learns a skill (skill points), or brings / leaves behind a known one; a refusal goes to
-## the info strip's line. Online, the changes go to the host as the old page's RunState ops
-## ("unlock" and "loadout").
+## branches as columns of skill tiles joined by lines, then (DESIGN.md 8.25) a column of the
+## tree's start skills, known from the start and joined to nothing. A tile says its state by its
+## frame, never by a word: gold = brought, lit = known, a green plus = can learn now, dim with a
+## lock = locked. Confirm learns a skill (skill points), or brings / leaves behind a known one; a
+## refusal goes to the info strip's line. Online, the changes go to the host as the old page's
+## RunState ops ("unlock" and "loadout").
 
 enum State { BROUGHT, KNOWN, LEARNABLE, LOCKED }
 
@@ -59,8 +60,10 @@ var _cursor := Vector2i.ZERO
 var _refusal: String = ""
 ## The hero the tiles were built for (-1: none yet).
 var _built_for: int = -1
-## [branch] -> Array of SkillTile, top down.
+## [column] -> Array of SkillTile, top down: the branches, then the start skills' column.
 var _cells: Array = []
+## The start skills' column in _cells (-1: the tree has none).
+var _start_column: int = -1
 var _sockets: Array[SkillTile] = []
 var _tree_layer: Control
 var _hero_box: HBoxContainer
@@ -135,7 +138,7 @@ func info() -> Dictionary:
 		return {}
 	var state := _state_of(skill)
 	var cost := run.skill_cost(hero, skill.id)
-	var chips: Array = [["", "%d AP" % skill.ap_cost, HudStyle.AP_TEXT]]
+	var chips: Array = [["", "%d AP" % ap_cost_of(skill), HudStyle.AP_TEXT]]
 	match state:
 		State.BROUGHT:
 			chips.append(["", STATE_WORDS[state], HudStyle.GOLD])
@@ -148,6 +151,14 @@ func info() -> Dictionary:
 			chips.append([&"up", str(cost), HudStyle.TEXT_DIM])
 	return {"icon": &"branch", "title": skill.display_name, "color": name_color(state), "chips": chips,
 			"line": _refusal if not _refusal.is_empty() else one_line(skill.description)}
+
+
+## What `skill` costs this hero in a fight: its AP cost less what the hero's Relics cut (Rotten Crown,
+## CombatEngine.skill_cost, the same rule the fight menu shows).
+func ap_cost_of(skill: AbilityData) -> int:
+	if skill == null:
+		return 0
+	return CombatEngine.skill_cost(skill, run.passives(hero)) if run != null else skill.ap_cost
 
 
 ## Free skill points over every hero with a tree (a hero without one has nothing to spend them on).
@@ -318,10 +329,17 @@ func _shown_cost(skill: AbilityData, state: State) -> int:
 
 
 func _skill_by_id(id: String) -> AbilityData:
-	var at := run.tree(hero).place_of(id)
-	if at.x < 0:
-		return null
-	return run.tree(hero).branches[at.x].skills[at.y]
+	return run.tree(hero).find(id)
+
+
+## The (column, tier) of the tile showing `id`; (-1, -1) for none.
+func _cell_of(id: String) -> Vector2i:
+	for b: int in _cells.size():
+		for t: int in (_cells[b] as Array).size():
+			var tile := _cells[b][t] as SkillTile
+			if tile.skill != null and tile.skill.id == id:
+				return Vector2i(b, t)
+	return Vector2i(-1, -1)
 
 
 func _clamp_cursor() -> void:
@@ -416,9 +434,7 @@ func _tile_at(point: Vector2) -> Vector2i:
 			return Vector2i(b, t)
 	var socket := MenuMouse.control_at(_sockets, point)
 	if socket >= 0 and _sockets[socket].skill != null and run.has_tree(hero):
-		var place := run.tree(hero).place_of(_sockets[socket].skill.id)
-		if place.x >= 0:
-			return place
+		return _cell_of(_sockets[socket].skill.id)
 	return Vector2i(-1, -1)
 
 
@@ -476,6 +492,7 @@ func _build() -> void:
 		socket.free()
 	_cells.clear()
 	_sockets.clear()
+	_start_column = -1
 	_built_for = hero
 	_build_face()
 	var slots := maxi(1, run.tuning.skill_slots)
@@ -493,19 +510,28 @@ func _build() -> void:
 	if skill_tree == null or skill_tree.branches.is_empty():
 		_clamp_cursor()
 		return
-	var count := skill_tree.branches.size()
-	var tiers := 1
+	# The start skills read as one more column, after the branches.
+	var columns: Array = []
+	var heads: Array[String] = []
 	for branch: SkillBranchData in skill_tree.branches:
-		if branch != null:
-			tiers = maxi(tiers, branch.skills.size())
+		columns.append(branch.skills.filter(func(x: AbilityData) -> bool: return x != null) if branch != null else [])
+		heads.append(branch.display_name if branch != null else "")
+	var starts := skill_tree.start_skills.filter(func(x: AbilityData) -> bool: return x != null)
+	if not starts.is_empty():
+		_start_column = columns.size()
+		columns.append(starts)
+		heads.append(skill_tree.start_name)
+	var count := columns.size()
+	var tiers := 1
+	for column_skills: Array in columns:
+		tiers = maxi(tiers, column_skills.size())
 	var col_w := minf(TILE_SIZE.x, (PAGE_SIZE.x - MARGIN * 2.0 - COLUMN_GAP * float(count - 1)) / float(count))
 	var left := (PAGE_SIZE.x - col_w * float(count) - COLUMN_GAP * float(count - 1)) * 0.5
 	var top := TREE_TOP + HEAD_HEIGHT
 	var tile_h := minf(TILE_SIZE.y, (PAGE_SIZE.y - BOTTOM_PAD - top - TIER_GAP * float(tiers - 1)) / float(tiers))
 	for b: int in count:
-		var branch := skill_tree.branches[b]
 		var x := left + float(b) * (col_w + COLUMN_GAP)
-		var head := HudStyle.make_title(branch.display_name if branch != null else "", HEAD_SIZE, HudStyle.TEXT_DIM)
+		var head := HudStyle.make_title(heads[b], HEAD_SIZE, HudStyle.TEXT_DIM)
 		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		head.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		head.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -513,14 +539,14 @@ func _build() -> void:
 		head.size = Vector2(col_w, HEAD_HEIGHT)
 		_tree_layer.add_child(head)
 		var column: Array = []
-		if branch != null:
-			for t: int in branch.skills.size():
-				var tile := SkillTile.new(false)
-				tile.skill = branch.skills[t]
-				tile.position = Vector2(x, top + float(t) * (tile_h + TIER_GAP))
-				tile.size = Vector2(col_w, tile_h)
-				_tree_layer.add_child(tile)
-				column.append(tile)
+		var column_skills: Array = columns[b]
+		for t: int in column_skills.size():
+			var tile := SkillTile.new(false)
+			tile.skill = column_skills[t]
+			tile.position = Vector2(x, top + float(t) * (tile_h + TIER_GAP))
+			tile.size = Vector2(col_w, tile_h)
+			_tree_layer.add_child(tile)
+			column.append(tile)
 		_cells.append(column)
 	_clamp_cursor()
 
@@ -540,23 +566,30 @@ func _redraw() -> void:
 	_prev_chip.visible = many
 	_next_chip.visible = many
 	var picked := selected()
+	# Relics that cut skill costs (Rotten Crown): the pips show the fight's price.
+	var held := run.passives(hero)
 	for b: int in _cells.size():
 		var column: Array = _cells[b]
 		for t: int in column.size():
 			var tile := column[t] as SkillTile
 			var state := _state_of(tile.skill) if tile.skill != null else State.LOCKED
+			tile.ap_cost = CombatEngine.skill_cost(tile.skill, held) if tile.skill != null else 0
 			tile.show_skill(tile.skill, state, _shown_cost(tile.skill, state), Vector2i(b, t) == _cursor)
 	var ids: Array = run.loadout[hero] if run.has_tree(hero) else []
 	for i: int in _sockets.size():
 		var skill: AbilityData = _skill_by_id(String(ids[i])) if i < ids.size() else null
+		_sockets[i].ap_cost = CombatEngine.skill_cost(skill, held) if skill != null else 0
 		_sockets[i].show_skill(skill, State.BROUGHT, -1, skill != null and skill == picked)
 	_tree_layer.queue_redraw()
 
 
 ## The lines joining each skill to the one above it: gold once it is known, green when it can be
-## learned, dim otherwise. Drawn on the tree layer, under its tiles.
+## learned, dim otherwise. Drawn on the tree layer, under its tiles. The start skills' column has
+## none (nothing there needs the skill above it).
 func _draw_lines() -> void:
 	for b: int in _cells.size():
+		if b == _start_column:
+			continue
 		var column: Array = _cells[b]
 		for t: int in range(1, column.size()):
 			var upper := column[t - 1] as SkillTile
@@ -592,6 +625,8 @@ class SkillTile extends Control:
 	var chosen: bool = false
 	## The points shown beside the plus or the lock (-1: none).
 	var cost: int = -1
+	## The AP the skill costs this hero in a fight (Relics included), drawn as pips.
+	var ap_cost: int = 0
 	var compact: bool = false
 	var _name: Label
 	var _cost: Label
@@ -674,10 +709,10 @@ class SkillTile extends Control:
 		var y := size.y - r - (8.0 if compact else 12.0)
 		var x := _left_at(y) + r
 		var col := HudStyle.AP_TEXT if state != SkillsTab.State.LOCKED else Color(HudStyle.AP_TEXT, 0.4)
-		if skill.ap_cost <= 0:
+		if ap_cost <= 0:
 			draw_arc(Vector2(x, y), r, 0.0, TAU, 16, col, 1.5, true)
 			return
-		for i: int in mini(skill.ap_cost, MAX_PIPS):
+		for i: int in mini(ap_cost, MAX_PIPS):
 			var at := Vector2(x + float(i) * r * PIP_STEP, y)
 			draw_circle(at, r, col)
 			draw_arc(at, r, 0.0, TAU, 16, HudStyle.OUTLINE_COLOR, 1.5, true)

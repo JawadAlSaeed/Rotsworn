@@ -87,6 +87,14 @@ heroes are no longer shown (enemies still use theirs).
   (at most 96); `check.py` enforces size, opacity and the colour cap, and that every event file has a picture.
   A scene takes 1 to 25 s; the module builds in about 90 s. Keep them dusk, night, olive or ash, never bright,
   and never cartoony: no smiling faces, no flat toy colours; a glow only where the story has fire or magic.
+- `assets/relic_icons.py` (phase 27, DESIGN.md 8.25) the Relics' pictures: one object per Relic drawn
+  on a 24x24 grid, in `sprites/relics/<id>.png`, drawn in 2D from masks (ellipses, polygons, brushed
+  curves), each part shaded from its own shape. The game draws any picture over the whole inside of the
+  Relic's frame (spearhead, shield or seal), so `fit` puts each drawing on the smallest square canvas
+  (20 to 32 px) whose frame safe area holds it: the object fills as much of its own frame as its shape
+  allows (`kit/relic_frame.py` mirrors `relic_icon.gd`; `check.py` enforces the safe area).
+  `preview/relic_icons/in_frames_*.png` shows them in their frames at the game's sizes. A new Relic needs
+  a line in `RELICS` or `check.py` fails.
 
 ## Style rules (the art bible)
 

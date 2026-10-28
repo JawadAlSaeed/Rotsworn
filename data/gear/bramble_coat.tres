@@ -1,12 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_vxel3"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_vxel3")
+script = ExtResource("1_gear")
 id = "bramble_coat"
 display_name = "Bramble Coat"
-description = "Enemies that hit the wearer take 15% of the damage back."
+description = "Parry: the attacker takes 30% back."
+price = 60
 effect = 18
-amount = 15
-stat_points = 2
+amount = 30
+plus_text = "50% back."
+amount_plus = 50
+icon_path = "res://assets/sprites/relics/bramble_coat.png"

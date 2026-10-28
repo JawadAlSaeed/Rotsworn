@@ -1,14 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_e736h"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_e736h")
+script = ExtResource("1_gear")
 id = "whetstone"
 display_name = "Whetstone"
-description = "Power +15%: every hit, skill and counter."
-price = 70
-effect = 1
-amount = 15
-stat = 1
-stat_points = 2
+description = "Basic attack: +1 more AP."
+price = 60
+effect = 84
+amount = 1
+plus_text = "+2 more AP."
+amount_plus = 2
+icon_path = "res://assets/sprites/relics/whetstone.png"

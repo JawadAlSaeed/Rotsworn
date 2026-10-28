@@ -1,14 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_273gq"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_273gq")
+script = ExtResource("1_gear")
 id = "echo_charm"
-display_name = "Rebound Charm"
-description = "+1 AP after each counter."
-rarity = 1
-effect = 4
-amount = 1
-stat = 2
-stat_points = 3
+display_name = "Leech Hook"
+description = "Counter: heal 5% HP."
+price = 60
+effect = 61
+amount = 5
+plus_text = "Heal 8% HP."
+amount_plus = 8
+icon_path = "res://assets/sprites/relics/echo_charm.png"

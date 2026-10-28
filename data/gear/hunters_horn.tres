@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "hunters_horn"
+display_name = "Hunter's Horn"
+description = "First Strike won: foes start Exposed."
+price = 60
+effect = 46
+amount = 2
+plus_text = "Foes also start Slowed."
+plus_rider = 47
+plus_rider_amount = 2
+icon_path = "res://assets/sprites/relics/hunters_horn.png"

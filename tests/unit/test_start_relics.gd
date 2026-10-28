@@ -69,15 +69,15 @@ func _words(hints: Array) -> Array:
 func test_the_book_shows_every_relic_found_ones_first() -> void:
 	var screen := RelicsScreen.new()
 	add_child_autofree(screen)
-	screen.setup(_book(["whetstone", "iron_charm"]), _data.gear)
+	screen.setup(_book(["whetstone", "coffin_lid"]), _data.gear)
 	var all := _relics()
 	assert_eq(screen.found_text(), "Found 2 of %d" % all.size())
 	assert_eq(screen.listed().size(), all.size(), "every Relic of the run is in the book")
-	assert_eq(screen.listed().slice(0, 2), [_relic("iron_charm"), _relic("whetstone")],
+	assert_eq(screen.listed().slice(0, 2), [_relic("coffin_lid"), _relic("whetstone")],
 			"the found ones first, by name")
 	for item: GearData in screen.listed().slice(2):
-		assert_false(["iron_charm", "whetstone"].has(item.id), "%s: not found yet, after them" % item.id)
-	assert_false(screen.call("_confirm", _relic("iron_charm")), "the book only shows: no bag to fill")
+		assert_false(["coffin_lid", "whetstone"].has(item.id), "%s: not found yet, after them" % item.id)
+	assert_false(screen.call("_confirm", _relic("coffin_lid")), "the book only shows: no bag to fill")
 	assert_true(screen.call("_card_dim", screen.listed()[2]), "a Relic not found yet is dim")
 	assert_eq(_words(screen.hints()), ["Move", "", "Sort", "Back"], "LT / RT sort (card #336)")
 	assert_eq(screen.hints()[1][0], ControlBindings.SWITCH_PREV)
@@ -104,12 +104,12 @@ func test_a_relic_not_found_yet_says_where_relics_come_from() -> void:
 # --- the run's starting Relics -------------------------------------------------------------------
 
 func test_each_hero_takes_one_starting_relic_from_the_book() -> void:
-	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var book := _book(["coffin_lid", "whetstone", "war_drum"])
 	var run := _run(book)
 	assert_eq(run.start_left, [1, 1, 1] as Array[int])
 	assert_true(run.start_pending())
 	assert_eq(run.start_choices(book).size(), 3)
-	var charm := _relic("iron_charm")
+	var charm := _relic("coffin_lid")
 	assert_false(run.take_start_relic(0, charm).is_empty())
 	assert_eq(run.holder_of(charm), 0)
 	assert_false(run.start_open(0), "one each")
@@ -122,15 +122,15 @@ func test_each_hero_takes_one_starting_relic_from_the_book() -> void:
 	assert_eq(run.start_open_of([0, 1, 2] as Array[int]), [2] as Array[int])
 	assert_eq(run.skip_start_relics([0, 1, 2] as Array[int]), 1)
 	assert_false(run.start_pending())
-	assert_eq(run.start_relics, {"iron_charm": 1})
+	assert_eq(run.start_relics, {"coffin_lid": 1})
 
 
 func test_the_choices_are_the_book_in_the_runs_order() -> void:
-	var book := _book(["war_drum", "iron_charm", "whetstone", "not_a_relic"])
+	var book := _book(["war_drum", "coffin_lid", "whetstone", "not_a_relic"])
 	var run := _run(book)
 	var expected: Array[GearData] = []
 	for item: GearData in _data.gear:
-		if item != null and ["war_drum", "iron_charm", "whetstone"].has(item.id):
+		if item != null and ["war_drum", "coffin_lid", "whetstone"].has(item.id):
 			expected.append(item)
 	assert_eq(run.start_choices(book), expected, "found in the book, known to the run, in the run's order")
 	assert_true(run.start_choices(RelicCollection.new()).is_empty(), "a first run: nothing to take")
@@ -138,12 +138,12 @@ func test_the_choices_are_the_book_in_the_runs_order() -> void:
 
 
 func test_starting_relics_are_never_banked_or_new() -> void:
-	var book := _book(["iron_charm"])
+	var book := _book(["coffin_lid"])
 	var run := _run(book)
-	run.take_start_relic(0, _relic("iron_charm"))
+	run.take_start_relic(0, _relic("coffin_lid"))
 	run.end_start_picks()
 	assert_true(run.relic_ids_since({}).is_empty(), "taken from the book: nothing to bank")
-	assert_false(run.relic_gain_line_since({}).contains(_relic("iron_charm").display_name), "and no find line")
+	assert_false(run.relic_gain_line_since({}).contains(_relic("coffin_lid").display_name), "and no find line")
 	assert_true(RunEndScreen.kept_relics(run, {}).is_empty(), "nor a kept Relic on the end screen")
 	run.give_relic(_relic("whetstone"), 1)
 	assert_eq(run.relic_ids_since({}), ["whetstone"], "a Relic found in the run is banked")
@@ -152,7 +152,7 @@ func test_starting_relics_are_never_banked_or_new() -> void:
 
 
 func test_the_empty_hand_and_the_tuning_set_how_many() -> void:
-	var book := _book(["iron_charm", "whetstone"])
+	var book := _book(["coffin_lid", "whetstone"])
 	assert_eq(_run(book).start_relic_count(), _tuning.start_relics_per_hero)
 	var none := _run(book, 11)
 	assert_eq(none.start_relic_count(), 0, "Oath 11: none")
@@ -160,7 +160,7 @@ func test_the_empty_hand_and_the_tuning_set_how_many() -> void:
 	var tuning := Fx.run_tuning(_tuning)
 	tuning.start_relics_per_hero = 2
 	var two := RunState.begin(_data, tuning, 7, 0, book)
-	assert_false(two.take_start_relic(0, _relic("iron_charm")).is_empty())
+	assert_false(two.take_start_relic(0, _relic("coffin_lid")).is_empty())
 	assert_true(two.start_open(0), "a second one to take")
 	assert_false(two.take_start_relic(0, _relic("whetstone")).is_empty())
 	assert_false(two.start_open(0))
@@ -168,7 +168,7 @@ func test_the_empty_hand_and_the_tuning_set_how_many() -> void:
 
 
 func test_the_pick_step_survives_a_save_and_refuses_junk() -> void:
-	var book := _book(["iron_charm", "whetstone"])
+	var book := _book(["coffin_lid", "whetstone"])
 	var run := _run(book)
 	run.take_start_relic(1, _relic("whetstone"))
 	var d := run.to_dict()
@@ -193,20 +193,20 @@ func test_the_pick_step_survives_a_save_and_refuses_junk() -> void:
 # --- the pick screen ------------------------------------------------------------------------------
 
 func test_the_screen_goes_hero_by_hero_one_relic_each() -> void:
-	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var book := _book(["coffin_lid", "whetstone", "war_drum"])
 	var run := _run(book)
 	var screen := _screen(run, book)
 	watch_signals(screen)
 	assert_eq(screen.chooser(), 0)
 	assert_eq(screen.found_text(), run.data.party[0].display_name, "solo: the hero choosing, no tag")
 	assert_eq(screen.listed().size(), 3, "only the book's found Relics, no \"???\"")
-	assert_true(screen.take(_relic("iron_charm")))
-	assert_signal_emitted_with_parameters(screen, "picked", [0, _relic("iron_charm")])
-	assert_eq(run.holder_of(_relic("iron_charm")), 0)
+	assert_true(screen.take(_relic("coffin_lid")))
+	assert_signal_emitted_with_parameters(screen, "picked", [0, _relic("coffin_lid")])
+	assert_eq(run.holder_of(_relic("coffin_lid")), 0)
 	assert_eq(screen.chooser(), 1)
-	assert_true(screen.call("_card_dim", _relic("iron_charm")), "taken: dim")
-	assert_eq(screen.call("_card_holder", _relic("iron_charm")), 0, "with the face of the hero who has it")
-	assert_false(screen.take(_relic("iron_charm")), "taken for another hero")
+	assert_true(screen.call("_card_dim", _relic("coffin_lid")), "taken: dim")
+	assert_eq(screen.call("_card_holder", _relic("coffin_lid")), 0, "with the face of the hero who has it")
+	assert_false(screen.take(_relic("coffin_lid")), "taken for another hero")
 	assert_eq(screen.chooser(), 1, "still choosing")
 	assert_false(screen.take(_relic("rotten_crown")), "not in the book")
 	assert_true(screen.skip())
@@ -254,22 +254,22 @@ func test_the_bot_takes_the_best_free_relic_for_each_hero() -> void:
 
 
 func test_a_friends_pick_waits_for_the_host() -> void:
-	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var book := _book(["coffin_lid", "whetstone", "war_drum"])
 	var run := _run(book)
 	var screen := _screen(run, book, [1, 2] as Array[int])
 	screen.remote = true
 	watch_signals(screen)
 	assert_eq(screen.chooser(), 1, "only this machine's heroes")
-	assert_true(screen.take(_relic("iron_charm")))
-	assert_eq(run.holder_of(_relic("iron_charm")), -1, "a friend's screen never changes the run")
+	assert_true(screen.take(_relic("coffin_lid")))
+	assert_eq(run.holder_of(_relic("coffin_lid")), -1, "a friend's screen never changes the run")
 	assert_true(screen.is_sending())
 	assert_eq(screen.call("_row_state", 1), StartRelicsScreen.SENT)
 	assert_eq(screen.chooser(), 2, "the next hero chooses meanwhile")
 	screen.bot_pick()
 	assert_signal_emit_count(screen, "finished", 1)
-	assert_ne(screen._sent.get(2), "iron_charm", "the bot never sends one already on its way")
+	assert_ne(screen._sent.get(2), "coffin_lid", "the bot never sends one already on its way")
 	# The host's state comes: hero 1's pick went in, and someone took hero 2's first.
-	run.take_start_relic(1, _relic("iron_charm"))
+	run.take_start_relic(1, _relic("coffin_lid"))
 	var other := run.relic_by_id(String(screen._sent[2]))
 	run.take_start_relic(0, other)
 	screen.refresh()
@@ -290,7 +290,7 @@ func test_a_friends_pick_waits_for_the_host() -> void:
 
 
 func test_the_bot_picks_again_when_its_pick_comes_back() -> void:
-	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var book := _book(["coffin_lid", "whetstone", "war_drum"])
 	var run := _run(book)
 	var screen := _screen(run, book, [1] as Array[int])
 	screen.remote = true
@@ -312,7 +312,7 @@ func test_the_bot_picks_again_when_its_pick_comes_back() -> void:
 
 
 func test_local_coop_only_the_heroes_player_picks() -> void:
-	var book := _book(["iron_charm", "whetstone"])
+	var book := _book(["coffin_lid", "whetstone"])
 	var run := _run(book)
 	var players := PlayerRoster.new()
 	players.devices.assign([PlayerRoster.KEYBOARD, 0])
@@ -321,13 +321,13 @@ func test_local_coop_only_the_heroes_player_picks() -> void:
 	screen.players = players
 	screen.check_pads = true
 	screen.connected_pads = func() -> Array[int]: return [0] as Array[int]
-	screen.focus(_relic("iron_charm"))
+	screen.focus(_relic("coffin_lid"))
 	screen._device = 0
-	assert_false(screen.call("_confirm", _relic("iron_charm")), "P2's pad cannot pick for P1's hero")
+	assert_false(screen.call("_confirm", _relic("coffin_lid")), "P2's pad cannot pick for P1's hero")
 	assert_eq(screen._warning, "P1", "the tag of the player whose turn it is")
 	assert_true(screen.found_text().begins_with("P1 "), "the header names the player too")
 	screen._device = PlayerRoster.KEYBOARD
-	assert_true(screen.call("_confirm", _relic("iron_charm")))
+	assert_true(screen.call("_confirm", _relic("coffin_lid")))
 	assert_eq(screen.chooser(), 1)
 	screen.call("_alt")
 	assert_eq(screen.chooser(), 1, "P1 cannot skip for P2's hero")
@@ -343,15 +343,15 @@ func test_local_coop_only_the_heroes_player_picks() -> void:
 	screen.call("_back")
 	assert_eq(screen.chooser(), 1, "P2 takes their own Skip back")
 	screen.call("_back")
-	assert_eq(run.holder_of(_relic("iron_charm")), 0, "P2 cannot take P1's pick back")
+	assert_eq(run.holder_of(_relic("coffin_lid")), 0, "P2 cannot take P1's pick back")
 	screen._device = PlayerRoster.KEYBOARD
 	screen.call("_back")
 	assert_eq(screen.chooser(), 0, "P1 takes theirs back")
-	assert_eq(run.holder_of(_relic("iron_charm")), -1)
+	assert_eq(run.holder_of(_relic("coffin_lid")), -1)
 
 
 func test_local_coop_a_lost_pad_never_holds_the_step() -> void:
-	var book := _book(["iron_charm", "whetstone"])
+	var book := _book(["coffin_lid", "whetstone"])
 	var run := _run(book)
 	var players := PlayerRoster.new()
 	players.devices.assign([PlayerRoster.KEYBOARD, 0])
@@ -361,11 +361,11 @@ func test_local_coop_a_lost_pad_never_holds_the_step() -> void:
 	screen.check_pads = true
 	var plugged: Array[int] = []
 	screen.connected_pads = func() -> Array[int]: return plugged
-	screen.focus(_relic("iron_charm"))
+	screen.focus(_relic("coffin_lid"))
 	screen._device = PlayerRoster.KEYBOARD
 	assert_eq(screen.chooser(), 0, "P2's hero chooses first")
-	assert_true(screen.call("_confirm", _relic("iron_charm")), "P2's pad is gone: the keyboard picks for them")
-	assert_eq(run.holder_of(_relic("iron_charm")), 0)
+	assert_true(screen.call("_confirm", _relic("coffin_lid")), "P2's pad is gone: the keyboard picks for them")
+	assert_eq(run.holder_of(_relic("coffin_lid")), 0)
 	assert_true(StartRelicsScreen.may_pick(players, PlayerRoster.KEYBOARD, 0, plugged))
 	assert_false(StartRelicsScreen.may_pick(players, PlayerRoster.KEYBOARD, 0, [0] as Array[int]),
 			"with the pad back, only it picks for P2's heroes")
@@ -377,7 +377,7 @@ func test_local_coop_a_lost_pad_never_holds_the_step() -> void:
 ## Card #334: Back takes the last pick back (a Relic or a Skip) and that hero chooses again; on the
 ## first hero it does nothing. Skip is its own button.
 func test_back_takes_the_last_pick_back_and_never_skips() -> void:
-	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var book := _book(["coffin_lid", "whetstone", "war_drum"])
 	var run := _run(book)
 	var screen := _screen(run, book)
 	watch_signals(screen)
@@ -387,7 +387,7 @@ func test_back_takes_the_last_pick_back_and_never_skips() -> void:
 	assert_true(run.start_open(0), "and never skips")
 	assert_signal_emitted(screen, "backed_out", "it asks to leave the run instead (card #334 follow-up)")
 	assert_true(_words(screen.hints()).has("Back"), "so Back is always on the hints")
-	var charm := _relic("iron_charm")
+	var charm := _relic("coffin_lid")
 	run.hp[1] -= 5
 	var wounded := run.hp[1]
 	assert_true(screen.take(charm))
@@ -398,11 +398,11 @@ func test_back_takes_the_last_pick_back_and_never_skips() -> void:
 	assert_eq(screen.chooser(), 1, "the Skip is taken back: hero 1 chooses again")
 	assert_true(run.start_open(1))
 	screen.call("_back")
-	assert_signal_emitted_with_parameters(screen, "withdrawn", [0, "iron_charm"])
+	assert_signal_emitted_with_parameters(screen, "withdrawn", [0, "coffin_lid"])
 	assert_eq(screen.chooser(), 0, "back to the first hero")
 	assert_eq(run.holder_of(charm), -1, "the Relic is free again")
-	assert_false(run.relics.has("iron_charm"))
-	assert_false(run.start_relics.has("iron_charm"))
+	assert_false(run.relics.has("coffin_lid"))
+	assert_false(run.start_relics.has("coffin_lid"))
 	assert_eq(run.hp[0], run.max_hp(0), "the hero is still full at the lower max HP")
 	assert_eq(run.hp[1], wounded, "the others keep their wounds")
 	assert_false(screen.call("_card_dim", charm), "lit again for everyone")
@@ -413,18 +413,18 @@ func test_back_takes_the_last_pick_back_and_never_skips() -> void:
 
 
 func test_undo_start_relic_takes_back_only_a_starting_pick() -> void:
-	var book := _book(["iron_charm", "whetstone"])
+	var book := _book(["coffin_lid", "whetstone"])
 	var run := _run(book)
-	var charm := _relic("iron_charm")
+	var charm := _relic("coffin_lid")
 	assert_false(run.undo_start_relic(0, ""), "nothing skipped yet")
-	assert_false(run.undo_start_relic(0, "iron_charm"), "nothing taken yet")
+	assert_false(run.undo_start_relic(0, "coffin_lid"), "nothing taken yet")
 	run.take_start_relic(0, charm)
-	assert_false(run.undo_start_relic(1, "iron_charm"), "another hero has it")
-	assert_false(run.undo_start_relic(7, "iron_charm"), "no such hero")
+	assert_false(run.undo_start_relic(1, "coffin_lid"), "another hero has it")
+	assert_false(run.undo_start_relic(7, "coffin_lid"), "no such hero")
 	assert_false(run.undo_start_relic(0, "not_a_relic"))
 	run.give_relic(_relic("whetstone"), 1)
 	assert_false(run.undo_start_relic(1, "whetstone"), "found in the run, not a starting pick")
-	assert_true(run.undo_start_relic(0, "iron_charm"))
+	assert_true(run.undo_start_relic(0, "coffin_lid"))
 	assert_eq(run.start_left[0], run.start_relic_count())
 	var tuning := Fx.run_tuning(_tuning)
 	tuning.start_relics_per_hero = 2
@@ -437,32 +437,32 @@ func test_undo_start_relic_takes_back_only_a_starting_pick() -> void:
 
 
 func test_a_friends_back_asks_the_host_and_waits_for_it() -> void:
-	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var book := _book(["coffin_lid", "whetstone", "war_drum"])
 	var run := _run(book)
 	var screen := _screen(run, book, [1, 2] as Array[int])
 	screen.remote = true
 	watch_signals(screen)
-	var charm := _relic("iron_charm")
+	var charm := _relic("coffin_lid")
 	assert_true(screen.take(charm))
 	assert_false(screen.back(), "a pick still on its way to the host cannot be taken back")
 	run.take_start_relic(1, charm)
 	screen.refresh()
 	assert_true(screen.back())
-	assert_signal_emitted_with_parameters(screen, "withdrawn", [1, "iron_charm"])
+	assert_signal_emitted_with_parameters(screen, "withdrawn", [1, "coffin_lid"])
 	assert_eq(run.holder_of(charm), 1, "a friend's screen never changes the run")
 	assert_eq(screen.chooser(), -1, "nobody chooses while the host answers")
 	assert_false(screen.is_done())
 	assert_eq(screen.call("_row_state", 1), StartRelicsScreen.SENT)
-	screen.withdraw_answered(1, "iron_charm", false)
+	screen.withdraw_answered(1, "coffin_lid", false)
 	assert_eq(screen._warning, StartRelicsScreen.TAKEN, "refused: the pick stands")
 	assert_eq(screen.chooser(), 2)
 	assert_true(screen.can_go_back(), "it can be asked again")
 	assert_true(screen.back())
 	# The host took it back: its state reopens hero 1, then its answer comes.
-	run.undo_start_relic(1, "iron_charm")
+	run.undo_start_relic(1, "coffin_lid")
 	screen.refresh()
 	assert_eq(screen.chooser(), 1, "hero 1 chooses again")
-	screen.withdraw_answered(1, "iron_charm", true)
+	screen.withdraw_answered(1, "coffin_lid", true)
 	assert_eq(screen.chooser(), 1, "the late answer changes nothing")
 	assert_false(screen.can_go_back())
 
@@ -479,13 +479,14 @@ func test_the_host_takes_a_friends_pick_back_only_while_the_step_is_open() -> vo
 
 
 func test_a_starting_relic_raises_max_hp_full_and_pause_opens_over_the_step() -> void:
-	var book := _book(["iron_charm", "gravebound_ring"])
-	var run := _run(book)
+	# No shipped Relic touches max HP since phase 27 (DESIGN.md 8.25): two test Relics stand in.
+	var book := _book(["test_heart", "test_ring"])
+	var run := RunState.begin(Fx.with_max_hp_relics(_data), Fx.run_tuning(_tuning), 7, 0, book)
 	var before := run.max_hp(0)
-	assert_false(run.take_start_relic(0, _relic("iron_charm")).is_empty())
-	assert_gt(run.max_hp(0), before, "the Iron Charm raises max HP")
+	assert_false(run.take_start_relic(0, run.relic_by_id("test_heart")).is_empty())
+	assert_gt(run.max_hp(0), before, "a max HP Relic raises it")
 	assert_eq(run.hp[0], run.max_hp(0), "the hero starts the run full, not wounded")
-	assert_false(run.take_start_relic(1, _relic("gravebound_ring")).is_empty())
+	assert_false(run.take_start_relic(1, run.relic_by_id("test_ring")).is_empty())
 	assert_eq(run.hp[1], run.max_hp(1), "a lower max HP cuts it")
 	assert_eq(run.hp[2], run.max_hp(2), "the others are untouched")
 	# Esc is Pause before it is Back: offline the pause menu opens over the step (Abandon, Players).
@@ -506,7 +507,7 @@ func test_every_machine_logs_the_starting_relics_once() -> void:
 
 func test_the_host_takes_a_pick_only_for_a_hero_that_player_owns() -> void:
 	var main_script := load(MAIN_PATH) as GDScript
-	var run := _run(_book(["iron_charm"]))
+	var run := _run(_book(["coffin_lid"]))
 	var pickers := {PEER_A: [1], PEER_B: [2]}
 	assert_true(main_script.call("_start_pick_allowed", pickers, PEER_A, 1, run))
 	assert_false(main_script.call("_start_pick_allowed", pickers, PEER_A, 2, run), "another player's hero")
@@ -531,7 +532,7 @@ func test_a_run_opens_with_the_pick_step() -> void:
 # --- Back from the first hero and from the pact (card #334 follow-up, 2026-10-26) ------------------
 
 func test_a_friends_back_on_the_first_hero_does_nothing() -> void:
-	var book := _book(["iron_charm"])
+	var book := _book(["coffin_lid"])
 	var screen := _screen(_run(book), book, [1])
 	screen.remote = true
 	watch_signals(screen)
@@ -541,7 +542,7 @@ func test_a_friends_back_on_the_first_hero_does_nothing() -> void:
 
 
 func test_past_picks_are_the_step_as_the_run_holds_it() -> void:
-	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var book := _book(["coffin_lid", "whetstone", "war_drum"])
 	var run := _run(book)
 	var mine: Array[int] = [0, 1, 2]
 	assert_eq(StartRelicsScreen.past_picks(run, mine), [] as Array[Dictionary], "nothing picked yet")
@@ -559,9 +560,9 @@ func test_past_picks_are_the_step_as_the_run_holds_it() -> void:
 func test_back_on_the_pact_goes_back_only_to_a_step_that_was_there() -> void:
 	var main_script := load(MAIN_PATH) as GDScript
 	var mine: Array[int] = [0, 1, 2]
-	var book := _book(["iron_charm", "whetstone"])
+	var book := _book(["coffin_lid", "whetstone"])
 	var run := _run(book)
-	assert_true(run.take_start_relic(0, _relic("iron_charm")).size() > 0)
+	assert_true(run.take_start_relic(0, _relic("coffin_lid")).size() > 0)
 	run.skip_start_relic(1)
 	run.skip_start_relic(2)
 	run.end_start_picks()
@@ -583,12 +584,12 @@ func test_back_on_the_pact_goes_back_only_to_a_step_that_was_there() -> void:
 
 
 func test_coming_back_from_the_pact_reopens_the_last_hero_and_rerolls_nothing() -> void:
-	var book := _book(["iron_charm", "whetstone", "war_drum"])
+	var book := _book(["coffin_lid", "whetstone", "war_drum"])
 	var run := _run(book)
 	assert_true(run.pact_pending, "a run with a Relic book has the pact")
 	var deals_before := run.pact_event().choices.duplicate()
 	var mine: Array[int] = [0, 1, 2]
-	assert_false(run.take_start_relic(0, _relic("iron_charm")).is_empty())
+	assert_false(run.take_start_relic(0, _relic("coffin_lid")).is_empty())
 	assert_false(run.take_start_relic(1, _relic("whetstone")).is_empty())
 	assert_true(run.skip_start_relic(2))
 	run.end_start_picks()
@@ -601,7 +602,7 @@ func test_coming_back_from_the_pact_reopens_the_last_hero_and_rerolls_nothing() 
 	screen.restore_history(picks)
 	watch_signals(screen)
 	assert_eq(screen.chooser(), 2, "the last hero chooses again")
-	assert_true(run.owns(_relic("iron_charm")) and run.owns(_relic("whetstone")), "the others' picks stay")
+	assert_true(run.owns(_relic("coffin_lid")) and run.owns(_relic("whetstone")), "the others' picks stay")
 	assert_true(screen.can_go_back(), "and Back can take them back too")
 	assert_true(screen.back())
 	assert_signal_emitted_with_parameters(screen, "withdrawn", [1, "whetstone"])
@@ -619,7 +620,7 @@ func test_coming_back_from_the_pact_reopens_the_last_hero_and_rerolls_nothing() 
 
 
 func test_back_on_the_pact_goes_back_a_screen_only_before_a_deal() -> void:
-	var book := _book(["iron_charm"])
+	var book := _book(["coffin_lid"])
 	var run := _run(book)
 	var screen := EventScreen.new()
 	add_child_autofree(screen)

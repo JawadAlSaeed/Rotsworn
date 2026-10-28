@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "bellringers_rope"
+display_name = "Bellringer's Rope"
+description = "Counter: your turn comes next."
+price = 150
+rarity = 2
+effect = 35
+amount = 1
+plus_text = "You're also Empowered."
+plus_rider = 36
+plus_rider_amount = 1
+icon_path = "res://assets/sprites/relics/bellringers_rope.png"

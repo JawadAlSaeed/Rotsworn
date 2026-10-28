@@ -1,14 +1,15 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_qvxiq"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_qvxiq")
+script = ExtResource("1_gear")
 id = "thick_hide"
 display_name = "Thick Hide"
-description = "Enemy hits deal 15% less."
-price = 70
-effect = 10
-amount = 15
-stat = 3
-stat_points = 2
+description = "First hit of each enemy attack: -40%."
+price = 60
+effect = 80
+amount = 40
+plus_text = "-60%."
+amount_plus = 60
+icon_path = "res://assets/sprites/relics/thick_hide.png"

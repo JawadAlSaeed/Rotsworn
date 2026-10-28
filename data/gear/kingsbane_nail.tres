@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "kingsbane_nail"
+display_name = "Kingsbane Nail"
+description = "Elite and boss fights: +30% damage."
+price = 100
+rarity = 1
+effect = 49
+amount = 30
+plus_text = "+50%."
+amount_plus = 50
+icon_path = "res://assets/sprites/relics/kingsbane_nail.png"

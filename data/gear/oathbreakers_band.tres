@@ -1,18 +1,19 @@
 [gd_resource type="Resource" script_class="GearData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_cu5pr"]
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
 
 [resource]
-script = ExtResource("1_cu5pr")
+script = ExtResource("1_gear")
 id = "oathbreakers_band"
 display_name = "Oathbreaker's Band"
-description = "+2 AP at the start of every fight, but you lose 5% max HP after each fight won."
-price = 110
+description = "Start fights with full AP. Hits on you +30%."
+price = 150
 rarity = 2
-effect = 3
-amount = 2
+effect = 70
+amount = 1
 rot_touched = true
-drawback = 22
-drawback_amount = 5
-stat = 2
-stat_points = 4
+drawback = 10
+drawback_amount = 30
+plus_text = "Hits on you only +15%."
+drawback_amount_plus = 15
+icon_path = "res://assets/sprites/relics/oathbreakers_band.png"

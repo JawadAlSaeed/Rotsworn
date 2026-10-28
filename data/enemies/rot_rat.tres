@@ -10,7 +10,6 @@
 [ext_resource type="Resource" path="res://data/enemy_attacks/rat_scurry.tres" id="a_rat_scurry"]
 [ext_resource type="Resource" path="res://data/enemy_attacks/rat_tide.tres" id="a_rat_tide"]
 [ext_resource type="Resource" path="res://data/gear/bitter_root.tres" id="g_bitter_root"]
-[ext_resource type="Resource" path="res://data/gear/lucky_coin.tres" id="g_lucky_coin"]
 [ext_resource type="Resource" path="res://data/gear/quick_boots.tres" id="g_quick_boots"]
 
 [resource]
@@ -33,5 +32,5 @@ target_bias_percent = 150
 gold = 6
 xp = 12
 voice_sfx = "voice_rat"
-relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_lucky_coin"), ExtResource("g_quick_boots"), ExtResource("g_bitter_root"), ExtResource("10_xvn5x")])
+relic_drops = Array[ExtResource("4_gear")]([ExtResource("g_quick_boots"), ExtResource("g_bitter_root"), ExtResource("10_xvn5x")])
 runs_up = true

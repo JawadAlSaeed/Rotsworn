@@ -10,7 +10,7 @@ var _tuning: Tuning
 
 
 func before_all() -> void:
-	_data = Fx.without_relic_stats(load(RUN_PATH) as RunData)
+	_data = load(RUN_PATH) as RunData
 	_tuning = load("res://data/tuning/tuning.tres") as Tuning
 
 
@@ -165,7 +165,7 @@ func _press(action: StringName) -> InputEventAction:
 
 func test_right_past_a_heros_last_relic_goes_into_the_grid_for_them() -> void:
 	var run := RunState.begin(_data, _tuning, 7)
-	run.give_relic(_relic("iron_charm"), 1)
+	run.give_relic(_relic("coffin_lid"), 1)
 	var relic := _relic("whetstone")
 	run.add_relic(relic)
 	var screen := _screen(run)
@@ -175,7 +175,7 @@ func test_right_past_a_heros_last_relic_goes_into_the_grid_for_them() -> void:
 	tab.handle_input(_press(&"menu_right"))
 	assert_eq(tab._zone, RelicsTab.Zone.GRID, "right past the last Relic goes into the grid")
 	tab.handle_input(_press(&"menu_confirm"))
-	assert_eq(run.relics_of(1), [_relic("iron_charm"), relic] as Array[GearData],
+	assert_eq(run.relics_of(1), [_relic("coffin_lid"), relic] as Array[GearData],
 			"the waiting Relic, listed first, goes to the hero just left; no slot limit")
 
 
@@ -200,7 +200,7 @@ func test_the_footer_shows_at_most_four_hints_on_every_tab() -> void:
 	run.add_item(run.items_by_id()["salve"] as ItemData)
 	var relic := _relic("whetstone")
 	run.give_relic(relic, 0)
-	run.add_relic(_relic("iron_charm"))
+	run.add_relic(_relic("coffin_lid"))
 	var screen := _screen(run)
 	for tab: int in [PartyScreen.Tab.RELICS, PartyScreen.Tab.BAG, PartyScreen.Tab.HERO, PartyScreen.Tab.SKILLS]:
 		screen.select_tab(tab)

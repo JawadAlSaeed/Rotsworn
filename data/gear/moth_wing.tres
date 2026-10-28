@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="GearData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/gear_data.gd" id="1_gear"]
+
+[resource]
+script = ExtResource("1_gear")
+id = "moth_wing"
+display_name = "Moth Wing"
+description = "Dodge a whole attack: your next skill crits."
+price = 100
+rarity = 1
+effect = 53
+amount = 1
+plus_text = "Jump a whole attack too."
+plus_rider = 54
+plus_rider_amount = 1
+icon_path = "res://assets/sprites/relics/moth_wing.png"

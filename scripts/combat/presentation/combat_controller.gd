@@ -121,6 +121,9 @@ var _run: RunState
 var _drop: ItemData
 ## Fight item stand-in abilities by uid (see _item_ability()).
 var _item_abilities: Dictionary = {}
+## Cheaper copies of skills for heroes whose Relic cuts skill costs (Rotten Crown, DESIGN.md 8.25),
+## by "<cost>:<ability id>" (see _priced()).
+var _priced_abilities: Dictionary = {}
 ## Who plays (DESIGN.md 9.1): in co-op a device drives only its own heroes' menus and presses.
 var _players: PlayerRoster = PlayerRoster.solo(3)
 ## Party member id -> co-op player.
@@ -1207,6 +1210,7 @@ func _press_menu_keys() -> void:
 ## One action menu line, worked out from the mirror (the same rules the engine checks).
 func _menu_entry(actor: int, ability: AbilityData) -> Dictionary:
 	var ap := int(mirror.fighter(actor).ap)
+	ability = _priced(actor, ability)
 	var targets: Array[int] = []
 	var pick := true
 	match ability.target:
@@ -1241,6 +1245,23 @@ func _menu_entry(actor: int, ability: AbilityData) -> Dictionary:
 	elif targets.is_empty():
 		reason = ActionMenu.LOCK_TARGET
 	return {"ability": ability, "usable": reason.is_empty(), "reason": reason, "targets": targets, "pick_target": pick}
+
+
+## `ability` as `actor` pays for it: the same ability, or a copy with the lower cost a Relic gives
+## (Rotten Crown, CombatEngine.skill_cost), so the menu shows and checks the price the engine
+## charges. The copy keeps the id, so choosing it submits the real skill.
+func _priced(actor: int, ability: AbilityData) -> AbilityData:
+	if ability.id.begins_with(ITEM_PREFIX):
+		return ability
+	var cost := CombatEngine.skill_cost(ability, mirror.fighter(actor).get("passives", {}) as Dictionary)
+	if cost == ability.ap_cost:
+		return ability
+	var key := "%d:%s" % [cost, ability.id]
+	if not _priced_abilities.has(key):
+		var copy := ability.duplicate() as AbilityData
+		copy.ap_cost = cost
+		_priced_abilities[key] = copy
+	return _priced_abilities[key]
 
 
 ## True if a Hushed hero cannot use this skill (card #252; the engine's CombatEngine.is_hushed_out

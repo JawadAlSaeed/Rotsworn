@@ -32,7 +32,8 @@ const PATH := "res://data/presentation/stop_visuals.tres"
 @export_file("*.png") var rest_icon_path: String = "res://assets/sprites/ui/choice_rest.png"
 @export_file("*.png") var train_icon_path: String = "res://assets/sprites/ui/choice_train.png"
 @export_file("*.png") var watch_icon_path: String = "res://assets/sprites/ui/choice_watch.png"
-@export_file("*.png") var sharpen_icon_path: String = "res://assets/sprites/ui/choice_sharpen.png"
+## The campfire's Upgrade (DESIGN.md 8.25): a hammer over an anvil.
+@export_file("*.png") var upgrade_icon_path: String = "res://assets/sprites/ui/choice_forge.png"
 @export_file("*.png") var host_icon_path: String = "res://assets/sprites/ui/choice_host.png"
 @export_file("*.png") var join_icon_path: String = "res://assets/sprites/ui/choice_join.png"
 ## The "?" events' and the Crossroads' Walk on card (card #334): the shop's Leave door.
